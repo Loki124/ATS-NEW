@@ -1,0 +1,303 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>发送通知 - RecruitFlow HR</title>
+<!-- Google Fonts: Manrope (Section Titles/Headlines), Inter (Body/Inputs) -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS Setup -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#1672df",
+                    "on-tertiary-fixed-variant": "#5e08bd",
+                    "inverse-primary": "#abc7ff",
+                    "secondary": "#755b00",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "primary-fixed": "#d7e3ff",
+                    "surface-dim": "#d5dae4",
+                    "primary": "#005ab6",
+                    "surface-variant": "#dee3ed",
+                    "surface-tint": "#005cba",
+                    "primary-fixed-dim": "#abc7ff",
+                    "surface-container-highest": "#dee3ed",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "secondary-fixed-dim": "#e9c254",
+                    "on-error": "#ffffff",
+                    "tertiary": "#7431d3",
+                    "on-primary-fixed-variant": "#00458e",
+                    "outline": "#727785",
+                    "outline-variant": "#c1c6d5",
+                    "on-tertiary-container": "#fffbff",
+                    "background": "#f8f9ff",
+                    "tertiary-fixed-dim": "#d5baff",
+                    "on-tertiary": "#ffffff",
+                    "on-background": "#161c23",
+                    "inverse-on-surface": "#ecf1fb",
+                    "on-primary-container": "#fefcff",
+                    "surface-container-high": "#e3e8f2",
+                    "tertiary-container": "#8e4fee",
+                    "on-primary-fixed": "#001b3f",
+                    "on-secondary-fixed": "#241a00",
+                    "on-secondary-container": "#765c00",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#270057",
+                    "on-surface-variant": "#414753",
+                    "inverse-surface": "#2b3138",
+                    "surface-container-low": "#eff4fe",
+                    "secondary-container": "#ffd666",
+                    "surface-bright": "#f8f9ff",
+                    "on-surface": "#161c23",
+                    "on-secondary-fixed-variant": "#584400",
+                    "secondary-fixed": "#ffdf90",
+                    "surface": "#f8f9ff",
+                    "tertiary-fixed": "#ecdcff",
+                    "surface-container": "#e9eef8",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "gutter-md": "12px",
+                    "element-gap": "16px",
+                    "container-padding": "24px",
+                    "section-margin": "32px"
+            },
+            "fontFamily": {
+                    "input-text": ["Inter"],
+                    "section-title": ["Manrope"],
+                    "body-base": ["Inter"],
+                    "body-bold": ["Inter"],
+                    "headline-md": ["Manrope"],
+                    "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "input-text": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "section-title": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-base": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "body-bold": ["14px", {"lineHeight": "22px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "18px", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        /* Hide scrollbar for clean modal look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Custom Checkbox Styling to match theme */
+        input[type="checkbox"]:checked {
+            background-color: theme('colors.primary');
+            border-color: theme('colors.primary');
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased h-screen w-screen overflow-hidden">
+<!-- Modal Backdrop -->
+<div class="fixed inset-0 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-8 z-50">
+<!-- Modal Container (Level 1 Surface) -->
+<div class="bg-surface rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] w-full max-w-6xl h-[1020px] flex flex-col overflow-hidden border border-outline-variant/20">
+<!-- Header Section -->
+<header class="px-container-padding py-element-gap border-b border-outline-variant/40 bg-surface flex-shrink-0 flex justify-between items-start gap-6">
+<div class="flex-1 flex flex-col gap-4">
+<div class="flex justify-between items-center w-full">
+<h1 class="font-headline-md text-headline-md text-on-surface" style="">发送通知</h1>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center w-8 h-8 rounded-full hover:bg-surface-variant/50" style="">
+<span class="material-symbols-outlined text-[20px]" style="">close</span>
+</button>
+</div>
+<!-- Candidate Summary Group (Level 2 Inland) -->
+<div class="bg-inverse-on-surface rounded-lg p-gutter-md flex items-center gap-element-gap">
+<div class="w-12 h-12 rounded-full overflow-hidden border-2 border-surface flex-shrink-0">
+<img alt="Profile photo of a young professional woman" class="w-full h-full object-cover" data-alt="professional corporate headshot of a young asian woman with a warm smile, well-lit studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB63vWZHAZxgN1RgyObhTocmFcRwSPmh6xRQqTNI4yviPnT1wZcbfB_PczyZUPAkomjkvFhWow4LqRto_efeErMzg687JhqoUK2GXdtjhIGHX64O5Q0jv-2eNErtgVVPK8yn3885xJdNMvSe5jXQPeqgodEWdu6XHZAr8-SqA9fSytWnsqSC8ahcvLQ9XZTWDXvdm28h67ZUmuRTWJGOqvWrcyMdpbjMlL0vV3oBpE1PaQmY_yoWqR4P4tkbfSAWCr0Bde8EZRcnRU" style="">
+</div>
+<div class="flex flex-col flex-1">
+<div class="flex items-center gap-3">
+<span class="font-section-title text-section-title text-on-surface" style="">李明浩</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed/50 text-on-primary-fixed-variant font-label-sm text-label-sm" style="">高级前端开发工程师</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant font-label-sm text-label-sm" style="">5年经验</span>
+</div>
+<div class="flex items-center gap-6 mt-1 text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]" style="">phone_iphone</span>
+<span class="font-body-base text-body-base" style="">138-8888-9999</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]" style="">mail</span>
+<span class="font-body-base text-body-base" style="">minghao.li@example.com</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Layout: Sidebar + Content -->
+<div class="flex flex-1 overflow-hidden">
+<!-- Left Sidebar: Configuration Steps -->
+<aside class="w-[340px] bg-surface-bright border-r border-outline-variant/40 p-container-padding flex-shrink-0 overflow-y-auto no-scrollbar flex flex-col gap-section-margin">
+<!-- Step 1: Select Content -->
+<section class="flex flex-col gap-element-gap">
+<h2 class="font-section-title text-section-title text-on-surface flex items-center gap-2" style="">
+<span class="w-6 h-6 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-body-bold text-[12px]" style="">1</span>
+                            选择发送内容
+                        </h2>
+<div class="flex flex-col gap-3"><!-- Selected Option: 面试登记表 -->
+<label class="flex items-start gap-3 p-3 rounded-lg border border-primary bg-primary-fixed/20 cursor-pointer hover:bg-primary-fixed/30 transition-colors" style="">
+<input checked="" class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<div class="flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface" style="">面试登记表</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5" style="">收集候选人基本信息及背调授权</span>
+</div>
+</label>
+<!-- Unselected Option: PDP 性格测试 -->
+<label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant/60 bg-surface hover:border-outline hover:bg-surface-variant/30 cursor-pointer transition-colors" style="">
+<input class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<div class="flex flex-col">
+<span class="font-body-base text-body-base text-on-surface" style="">PDP 性格测试</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5" style="">耗时约15分钟，在线作答</span>
+</div>
+</label>
+<!-- Unselected Option: MBTI 性格测试 -->
+<label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant/60 bg-surface hover:border-outline hover:bg-surface-variant/30 cursor-pointer transition-colors" style="">
+<input class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<div class="flex flex-col">
+<span class="font-body-base text-body-base text-on-surface" style="">MBTI 性格测试</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5" style="">多维度性格评估，耗时20分钟</span>
+</div>
+</label>
+<!-- Unselected Option: 应聘登记表 -->
+<label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant/60 bg-surface hover:border-outline hover:bg-surface-variant/30 cursor-pointer transition-colors" style="">
+<input class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<div class="flex flex-col">
+<span class="font-body-base text-body-base text-on-surface" style="">应聘登记表</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5" style="">完善工作履历及教育背景</span>
+</div>
+</label></div>
+</section>
+<!-- Step 2: Select Method -->
+<section class="flex flex-col gap-element-gap">
+<h2 class="font-section-title text-section-title text-on-surface flex items-center gap-2" style="">
+<span class="w-6 h-6 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-body-bold text-[12px]" style="">2</span>
+                            选择通知方式
+                        </h2>
+<div class="flex flex-col gap-3">
+<!-- Email Selected -->
+<label class="flex items-center gap-3 p-3 rounded-lg border border-primary bg-primary-fixed/20 cursor-pointer hover:bg-primary-fixed/30 transition-colors" style="">
+<input checked="" class="rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<span class="material-symbols-outlined text-primary text-[20px]" style="">mail</span>
+<span class="font-body-bold text-body-bold text-on-surface" style="">邮件通知</span>
+</label>
+<!-- SMS Selected -->
+<label class="flex items-center gap-3 p-3 rounded-lg border border-primary bg-primary-fixed/20 cursor-pointer hover:bg-primary-fixed/30 transition-colors" style="">
+<input checked="" class="rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<span class="material-symbols-outlined text-primary text-[20px]" style="">sms</span>
+<span class="font-body-bold text-body-bold text-on-surface" style="">短信通知</span>
+</label>
+<!-- WeChat Unselected -->
+<label class="flex items-center gap-3 p-3 rounded-lg border border-outline-variant/60 bg-surface hover:border-outline hover:bg-surface-variant/30 cursor-pointer transition-colors" style="">
+<input class="rounded border-outline-variant text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0" type="checkbox">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]" style="">chat</span>
+<span class="font-body-base text-body-base text-on-surface" style="">微信企业号推送</span>
+</label>
+</div>
+</section>
+</aside>
+<!-- Right Content: Dynamic Editors -->
+<main class="flex-1 bg-surface p-container-padding overflow-y-auto no-scrollbar flex flex-col gap-section-margin">
+<!-- Info Callout (Action Yellow tint per spec) -->
+<div class="bg-[#FFD666]/10 border border-[#FFD666] rounded-lg p-3 flex items-start gap-2">
+<span class="material-symbols-outlined text-[#765c00] text-[20px]" style="">lightbulb</span>
+<p class="font-body-base text-body-base text-on-secondary-container" style="">
+                            系统将自动为您选中的附件生成独立的安全链接，并插入到下方模板变量中。
+                        </p>
+</div>
+<!-- Email Editor Section -->
+<section class="flex flex-col gap-element-gap">
+<div class="flex items-center gap-2 border-b border-outline-variant/30 pb-3">
+<span class="material-symbols-outlined text-primary text-[24px]" style="">mail</span>
+<h3 class="font-section-title text-section-title text-on-surface" style="">邮件通知</h3>
+</div>
+<!-- Subject Display -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-on-surface-variant" style="">邮件主题</label>
+<div class="w-full font-input-text text-input-text bg-surface-variant/30 border border-outline-variant/30 rounded-md px-3 py-2 text-on-surface-variant" style="">
+【RecruitFlow科技】面试邀请与前期准备事项
+</div>
+</div>
+<!-- Rich Text Editor (Read-only) -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-on-surface-variant" style="">邮件正文</label>
+<div class="border border-outline-variant/30 rounded-md overflow-hidden flex flex-col bg-surface-variant/30">
+<!-- Text Area -->
+<div class="w-full min-h-[240px] p-4 font-input-text text-input-text text-on-surface-variant bg-transparent whitespace-pre-wrap" style="">尊敬的 {{候选人姓名}}，您好！
+
+感谢您对RecruitFlow科技的关注。很高兴通知您，您的简历已通过初步筛选，我们诚邀您参加【高级前端开发工程师】岗位的视频面试。
+
+在面试前，为了更全面地了解您，请您点击下方专属链接，完成相关信息的填写：
+
+📝 [面试登记表单] {{表单_面试登记表单_链接}}
+
+如您在填写过程中有任何疑问，请随时通过本邮件与我们联系。
+
+祝您一切顺利！
+RecruitFlow 招聘团队</div>
+</div>
+</div>
+</section>
+<!-- SMS Editor Section -->
+<section class="flex flex-col gap-element-gap mt-4">
+<div class="flex items-center gap-2 border-b border-outline-variant/30 pb-3">
+<span class="material-symbols-outlined text-primary text-[24px]" style="">sms</span>
+<h3 class="font-section-title text-section-title text-on-surface" style="">短信通知</h3>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-end">
+<label class="font-label-sm text-label-sm text-on-surface-variant" style="">短信正文</label>
+<span class="font-label-sm text-label-sm text-outline" style="">已输入 <strong class="text-primary font-medium">85</strong> / 70 字 (预计计费 2 条)</span>
+</div>
+<div class="w-full min-h-[120px] p-3 font-input-text text-input-text bg-surface-variant/30 border border-outline-variant/30 rounded-md text-on-surface-variant whitespace-pre-wrap" style="">【RecruitFlow科技】{{候选人姓名}}您好，诚邀您参加高级前端岗位面试。为保证流程顺畅，请在今天内点击短链接完成信息登记：{{表单_面试登记表单_短链接}}。详情已发送至您的邮箱，请注意查收。退订回T</div>
+</div>
+</section>
+</main>
+</div>
+<!-- Footer: Actions -->
+<footer class="px-container-padding py-4 border-t border-outline-variant/40 bg-surface-bright flex-shrink-0 flex justify-between items-center">
+<div class="font-label-sm text-label-sm text-on-surface-variant" style="">
+                    通知将发送至: 1个手机号, 1个邮箱地址
+                </div>
+<div class="flex items-center gap-4">
+<button class="px-6 py-2 rounded-lg font-body-bold text-body-bold text-on-surface-variant hover:bg-surface-variant transition-colors bg-transparent border-none" style="">
+                        取消
+                    </button>
+<!-- Solid Yellow Button per Style Guidance -->
+<button class="px-6 py-2 rounded-lg font-body-bold text-body-bold bg-secondary-container text-on-secondary-container hover:bg-secondary-container/90 transition-colors shadow-sm flex items-center gap-2" style="">
+<span class="material-symbols-outlined text-[18px]" style="">send</span>
+                        确认发送
+                    </button>
+</div>
+</footer>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,848 @@
+// ATS招聘管理系统 - 数据库模型 (简化版，不使用枚举)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 系统基础模块
+// ============================================
+
+model User {
+  id              String    @id @default(uuid())
+  username        String    @unique
+  password        String
+  realName        String
+  email           String?   @unique
+  phone           String?   @unique
+  avatar          String?
+  status          String    @default("ACTIVE")
+  roleType        String    @default("HR")
+  departmentId    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime?
+  
+  department      Department? @relation(fields: [departmentId], references: [id])
+  
+  @@map("users")
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  parentId    String?
+  level       Int      @default(1)
+  path        String
+  managerId   String?
+  manager2Id  String?
+  manager3Id  String?
+  hrbpId      String?
+  status      String   @default("ACTIVE")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  parent      Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children    Department[] @relation("DepartmentTree")
+  
+  users       User[]
+  demands     Demand[]
+  positions   Position[]
+  
+  @@map("departments")
+}
+
+// ============================================
+// 招聘流程模块
+// ============================================
+
+model RecruitmentProcess {
+  id              String   @id @default(uuid())
+  name            String
+  code            String   @unique
+  description     String?
+  applicableRange String?
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  stages          RecruitmentStage[]
+  positions       Position[]
+  
+  @@map("recruitment_processes")
+}
+
+model RecruitmentStage {
+  id               String   @id @default(uuid())
+  processId        String
+  name             String
+  code             String
+  stageType        String
+  sortOrder        Int      @default(0)
+  stageLimit       Int?
+  isDefault        Boolean  @default(true)
+  optionalFeatures String?
+  autoFlowCondition String?
+  autoFlowTiming   Int?
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  process          RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  
+  @@unique([processId, code])
+  @@map("recruitment_stages")
+}
+
+// ============================================
+// 招聘需求模块
+// ============================================
+
+model Demand {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  name            String
+  departmentId    String
+  positionCount   Int      @default(1)
+  hiredCount      Int      @default(0)
+  onBoardCount    Int      @default(0)
+  demandType      String
+  demandStatus    String   @default("DRAFT")
+  approvalStatus  String   @default("NOT_STARTED")
+  
+  creatorId       String
+  managerId       String?
+  assistantIds    String?
+  managerIds      String?
+  managerSuperIds String?
+  hrbpId          String?
+  
+  positionSeries  String?
+  jobTitle        String?
+  jobLevel        String?
+  
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  salaryMin       Int?
+  salaryMax       Int?
+  
+  description     String?
+  requirements    String?
+  attachments     String?
+  
+  trialGoals      String?
+  
+  talentLevel     String?
+  isDoubleA       Boolean  @default(false)
+  
+  biddingMode     String   @default("BIDDING")
+  biddingAmount   Decimal?
+  biddingUnit     String?
+  biddingTalentLevels String?
+  
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  department      Department @relation(fields: [departmentId], references: [id])
+  
+  positions       Position[]
+  
+  @@map("demands")
+}
+
+// ============================================
+// 职位模块
+// ============================================
+
+model Position {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  name            String
+  departmentId    String
+  demandId        String?
+  
+  creatorId       String
+  managerId       String?
+  assistantIds    String?
+  managerIds      String?
+  managerSuperIds String?
+  
+  priority        Int      @default(0)
+  positionNature  String?
+  positionSeries  String?
+  
+  description     String?
+  requirements    String?
+  
+  processId       String?
+  companyId       String?
+  
+  positionStatus  String   @default("RECRUITING")
+  status          String   @default("ACTIVE")
+  
+  candidateCount  Int      @default(0)
+  hiredCount      Int      @default(0)
+  
+  publishedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  department      Department @relation(fields: [departmentId], references: [id])
+  demand          Demand? @relation(fields: [demandId], references: [id])
+  process         RecruitmentProcess? @relation(fields: [processId], references: [id])
+  
+  applications    Application[]
+  channels        PositionChannel[]
+  
+  @@map("positions")
+}
+
+model PositionChannel {
+  id             String   @id @default(uuid())
+  positionId     String
+  channelType    String
+  channelAccount String?
+  publishStatus  String   @default("NOT_PUBLISHED")
+  publishUrl     String?
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  position       Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  
+  @@map("position_channels")
+}
+
+// ============================================
+// 候选人模块
+// ============================================
+
+model Candidate {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  name            String
+  gender          String?
+  birthday        DateTime?
+  phone           String?
+  email           String?
+  
+  householdLocation String?
+  originLocation   String?
+  
+  maritalStatus   String?
+  childStatus     String?
+  
+  highestEducation String?
+  firstEducation  String?
+  firstEducationDuration Int?
+  firstEducationSchoolType String?
+  
+  workExperience  String?
+  jobHoppingRate Int?
+  lastJobDuration Int?
+  
+  educationForm   String?
+  
+  expectedSalaryMin Int?
+  expectedSalaryMax Int?
+  expectedPosition  String?
+  intendedJoinDate  DateTime?
+  
+  channelSource   String?
+  channelLink     String?
+  recommenderId   String?
+  recommenderName String?
+  
+  assignedUserId  String?
+  resumeProviderId String?
+  
+  candidateStatus String   @default("ACTIVE")
+  archiveReason  String?
+  archiveType   String?
+  archiveToPool String?
+  
+  protectionExpiry DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  resumes       Resume[]
+  applications  Application[]
+  
+  @@map("candidates")
+}
+
+// ============================================
+// 简历模块
+// ============================================
+
+model Resume {
+  id              String   @id @default(uuid())
+  candidateId     String
+  positionId      String?
+  
+  name            String
+  fileName        String
+  filePath        String
+  fileType        String
+  fileSize        Int
+  
+  parsedData      String?
+  
+  source          String
+  uploadLocation  String?
+  providerId      String?
+  channelSource   String?
+  channelLink     String?
+  
+  resumeStatus    String   @default("UPLOADED")
+  parseStatus     String   @default("PENDING")
+  duplicateStatus String   @default("NOT_DUPLICATE")
+  duplicateOfId  String?
+  
+  matchScore     Int?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  @@map("resumes")
+}
+
+// ============================================
+// 应聘记录模块
+// ============================================
+
+model Application {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  candidateId     String
+  positionId      String
+  resumeId        String?
+  
+  currentStageId  String?
+  currentStageName String?
+  currentStageStatus String @default("IN_PROGRESS")
+  
+  processId       String
+  processName     String
+  
+  source          String?
+  referralUserId  String?
+  
+  applicationStatus String   @default("ACTIVE")
+  archiveReason   String?
+  archivedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  position        Position @relation(fields: [positionId], references: [id])
+  
+  interviews      Interview[]
+  offer           Offer?
+  onboarding      Onboarding?
+  invitation      InvitationRecord?
+  
+  @@map("applications")
+}
+
+// ============================================
+// 面试模块
+// ============================================
+
+model Interview {
+  id             String   @id @default(uuid())
+  applicationId  String
+  roundId        String?
+  roundName      String?
+  
+  interviewType  String
+  interviewDate  DateTime
+  duration       Int      @default(60)
+  location       String?
+  meetingLink    String?
+  
+  interviewerIds String?
+  interviewerNames String?
+  
+  arrangerId     String
+  arrangerName   String
+  
+  interviewStatus String @default("SCHEDULED")
+  feedbackStatus  String @default("PENDING")
+  
+  cancelReason   String?
+  cancelNote     String?
+  
+  proposedTimes  String?
+  confirmedTime  DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  feedbacks      InterviewFeedback[]
+  
+  @@map("interviews")
+}
+
+model InterviewFeedback {
+  id              String   @id @default(uuid())
+  interviewId     String
+  interviewerId   String
+  interviewerName String
+  
+  result          String
+  reason          String?
+  
+  values          String?
+  comprehensive   String?
+  recommendation  String?
+  
+  participantFeedback String?
+  previousFeedback   String?
+  
+  viewedPrevious  Boolean  @default(false)
+  
+  feedbackAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  
+  @@unique([interviewId, interviewerId])
+  @@map("interview_feedbacks")
+}
+
+// ============================================
+// Offer模块
+// ============================================
+
+model Offer {
+  id               String   @id @default(uuid())
+  applicationId    String   @unique
+  
+  demandId         String?
+  positionSeries   String?
+  positionManagerId String?
+  offerManagerId   String?
+  
+  expectedJoinDate DateTime
+  reportLocation  String?
+  workLocation    String?
+  onboardDepartment String?
+  isDoubleDepartment Boolean @default(false)
+  
+  jobTitle        String?
+  jobLevel        String?
+  directLeader    String?
+  thoughtLeader   String?
+  dottedLeader    String?
+  
+  employeeType    String?
+  businessType    String?
+  talentLevel     String?
+  costSharing     Boolean  @default(false)
+  trialMonths    Int?
+  contractType    String?
+  contractPeriod String?
+  legalCompany   String?
+  
+  lastYearAvgSalary Decimal?
+  salaryPlan        String?
+  baseSalaryTrial   Decimal?
+  baseSalaryFormal  Decimal?
+  levelSalaryTrial  Decimal?
+  levelSalaryFormal Decimal?
+  performanceTrial  Decimal?
+  performanceFormal Decimal?
+  housingSubsidyTrial Decimal?
+  housingSubsidyFormal Decimal?
+  attendanceBonusTrial Decimal?
+  attendanceBonusFormal Decimal?
+  commissionTrial   Decimal?
+  commissionFormal  Decimal?
+  
+  attachments     String?
+  
+  offerStatus    String   @default("NOT_CREATED")
+  
+  sentAt         DateTime?
+  senderId       String?
+  ccUsers        String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  candidateFeedback CandidateOfferFeedback?
+  backgroundCheckRecord BackgroundCheckRecord[]
+  
+  @@map("offers")
+}
+
+model BackgroundCheckRecord {
+  id            String   @id @default(uuid())
+  offerId       String
+  checkType     String
+  result        String?
+  report        String?
+  note          String?
+  supplier      String?
+  orderedAt     DateTime?
+  authorizedAt  DateTime?
+  completedAt   DateTime?
+  status        String   @default("ACTIVE")
+  isSupplement  Boolean  @default(false)
+  supplementOfId String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  offer         Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  
+  @@map("background_check_records")
+}
+
+model CandidateOfferFeedback {
+  id           String   @id @default(uuid())
+  offerId      String   @unique
+  feedback     String
+  respondedAt  DateTime?
+  
+  offer        Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  
+  @@map("candidate_offer_feedbacks")
+}
+
+// ============================================
+// 入职模块
+// ============================================
+
+model Onboarding {
+  id               String   @id @default(uuid())
+  applicationId    String   @unique
+  
+  demandId         String?
+  positionSeries   String?
+  positionManagerId String?
+  offerManagerId   String?
+  
+  expectedJoinDate DateTime
+  reportLocation  String?
+  workLocation    String?
+  onboardDepartment String?
+  isDoubleDepartment Boolean @default(false)
+  
+  jobTitle        String?
+  jobLevel        String?
+  directLeader    String?
+  thoughtLeader   String?
+  dottedLeader    String?
+  
+  employeeType    String?
+  businessType    String?
+  talentLevel     String?
+  costSharing     Boolean  @default(false)
+  trialMonths    Int?
+  contractType    String?
+  contractPeriod String?
+  legalCompany   String?
+  lastYearAvgSalary Decimal?
+  
+  referrerId     String?
+  officeSupplies String?
+  
+  salaryPlan      String?
+  baseSalaryTrial Decimal?
+  baseSalaryFormal Decimal?
+  levelSalaryTrial Decimal?
+  levelSalaryFormal Decimal?
+  performanceTrial Decimal?
+  performanceFormal Decimal?
+  housingSubsidyTrial Decimal?
+  housingSubsidyFormal Decimal?
+  attendanceBonusTrial Decimal?
+  attendanceBonusFormal Decimal?
+  commissionTrial  Decimal?
+  commissionFormal Decimal?
+  
+  attachments    String?
+  
+  onboardingStatus String   @default("NOT_STARTED")
+  approvalStatus  String   @default("NOT_STARTED")
+  approvalRecordId String?
+  
+  peopleOnboardId String?
+  syncStatus     String?
+  
+  cancelReason   String?
+  cancelNote    String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@map("onboardings")
+}
+
+// ============================================
+// 邀约模块
+// ============================================
+
+model InvitationRecord {
+  id             String   @id @default(uuid())
+  applicationId  String   @unique
+  
+  candidateId    String
+  positionId     String
+  
+  ownerId        String
+  ownerName      String
+  
+  inviterId      String?
+  inviterName    String?
+  
+  assignType     String
+  assignedAt     DateTime?
+  
+  invitationStatus String   @default("PENDING_ASSIGN")
+  
+  claimedAt      DateTime?
+  claimedById    String?
+  claimedByName  String?
+  
+  contactAttempts Int      @default(0)
+  lastContactAt  DateTime?
+  
+  tags           String?
+  note           String?
+  
+  interventionCount Int    @default(0)
+  lastInterventionBy String?
+  
+  biddingAmount   Decimal?
+  
+  resultStatus   String?
+  resultReason   String?
+  resultAt       DateTime?
+  
+  timeoutAt      DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@map("invitation_records")
+}
+
+// ============================================
+// 消息通知模块
+// ============================================
+
+model Notification {
+  id            String   @id @default(uuid())
+  userId        String
+  type          String
+  title         String
+  content       String
+  data          String?
+  readStatus    String   @default("UNREAD")
+  readAt        DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@map("notifications")
+}
+
+// ============================================
+// 操作记录模块
+// ============================================
+
+model OperationRecord {
+  id             String   @id @default(uuid())
+  userId         String
+  userName       String
+  operationType  String
+  targetType     String
+  targetId       String
+  targetName     String?
+  detail         String?
+  beforeValue    String?
+  afterValue     String?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  
+  @@map("operation_records")
+}
+
+// ============================================
+// 数据字典模块
+// ============================================
+
+model Dictionary {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  description String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  items       DictionaryItem[]
+  
+  @@map("dictionaries")
+}
+
+model DictionaryItem {
+  id            String   @id @default(uuid())
+  dictionaryId  String
+  parentId      String?
+  name          String
+  code          String
+  value         String?
+  description   String?
+  sortOrder     Int      @default(0)
+  level         Int      @default(1)
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  dictionary    Dictionary @relation(fields: [dictionaryId], references: [id], onDelete: Cascade)
+  parent        DictionaryItem? @relation("DictionaryItemTree", fields: [parentId], references: [id])
+  children      DictionaryItem[] @relation("DictionaryItemTree")
+  
+  @@unique([dictionaryId, code])
+  @@map("dictionary_items")
+}
+
+// ============================================
+// 公司/院校信息库
+// ============================================
+
+model Company {
+  id              String   @id @default(uuid())
+  name            String
+  code            String   @unique
+  parentCompanyId String?
+  isBenchmark     Boolean  @default(false)
+  industry        String?
+  scale           String?
+  description     String?
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  parentCompany   Company?  @relation("CompanyGroup", fields: [parentCompanyId], references: [id])
+  childCompanies  Company[] @relation("CompanyGroup")
+  
+  @@map("companies")
+}
+
+model School {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  location       String?
+  province       String?
+  city           String?
+  educationLevel String?
+  schoolType     String?
+  schoolCategory String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@map("schools")
+}
+
+model CompanyAddress {
+  id            String   @id @default(uuid())
+  name          String
+  country       String   @default("中国")
+  province      String
+  city          String
+  district      String?
+  address       String
+  longitude     Float?
+  latitude      Float?
+  isLocated     Boolean  @default(false)
+  contactPhone  String?
+  contactEmail  String?
+  companyType   String?
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("company_addresses")
+}
+
+// ============================================
+// 评分规则模块
+// ============================================
+
+model ScoringRule {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  description    String?
+  ruleType       String
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  applicableRange String?
+  
+  conditions     ScoringCondition[]
+  results        ScoringResult[]
+  
+  @@map("scoring_rules")
+}
+
+model ScoringCondition {
+  id            String   @id @default(uuid())
+  ruleId        String
+  field         String
+  operator      String
+  value         String
+  level         Int      @default(1)
+  logicType     String   @default("AND")
+  
+  rule          ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  
+  results       ScoringResult[]
+  
+  @@map("scoring_conditions")
+}
+
+model ScoringResult {
+  id             String   @id @default(uuid())
+  ruleId         String
+  conditionId    String?
+  field          String?
+  matchedScore   Int
+  unmatchedScore Int      @default(0)
+  isDefault      Boolean  @default(false)
+  
+  rule           ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  condition      ScoringCondition? @relation(fields: [conditionId], references: [id])
+  
+  @@map("scoring_results")
+}
