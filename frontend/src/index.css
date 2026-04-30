@@ -19,7 +19,7 @@ code {
     monospace;
 }
 
-#root {
+#app {
   min-height: 100vh;
 }
 

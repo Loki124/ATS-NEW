@@ -1,0 +1,87 @@
+/* 权限管理页面样式 */
+
+.permission-management {
+  padding: 24px;
+}
+
+.permission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.permission-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.role-tag {
+  margin-right: 8px;
+  margin-bottom: 4px;
+}
+
+.permission-tree {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.permission-icon {
+  margin-right: 8px;
+  color: #1890ff;
+}
+
+.tree-node-title {
+  display: flex;
+  align-items: center;
+}
+
+.tree-node-title .anticon {
+  margin-right: 8px;
+}
+
+.modal-form {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.tree-select-container {
+  margin-bottom: 16px;
+}
+
+.tree-select-container .ant-tree {
+  background: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.role-description {
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.role-built-in {
+  color: #faad14;
+  margin-left: 8px;
+}
+
+.role-active {
+  color: #52c41a;
+}
+
+.role-inactive {
+  color: #ff4d4f;
+}

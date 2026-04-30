@@ -1,127 +1,152 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import type { RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '../stores/user'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/Login.vue'),
+    component: () => import('../pages/Login.vue')
   },
   {
     path: '/',
-    component: () => import('../views/Layout.vue'),
-    redirect: '/dashboard',
+    component: () => import('../pages/Layout.vue'),
+    meta: { requiresAuth: true },
     children: [
       {
-        path: '/dashboard',
+        path: '',
+        redirect: '/dashboard'
+      },
+      {
+        path: 'dashboard',
         name: 'Dashboard',
-        component: () => import('../views/Dashboard.vue'),
+        component: () => import('../pages/Dashboard.vue')
       },
       {
-        path: '/demands',
+        path: 'demands',
         name: 'Demands',
-        component: () => import('../views/demand/DemandList.vue'),
+        component: () => import('../pages/demand/DemandList.vue')
       },
       {
-        path: '/positions',
+        path: 'positions',
         name: 'Positions',
-        component: () => import('../views/position/PositionList.vue'),
+        component: () => import('../pages/position/PositionList.vue')
       },
       {
-        path: '/candidates',
+        path: 'candidates',
         name: 'Candidates',
-        component: () => import('../views/candidate/CandidateList.vue'),
+        component: () => import('../pages/candidate/CandidateList.vue')
       },
       {
-        path: '/candidates/:id',
+        path: 'candidates/:id',
         name: 'CandidateDetail',
-        component: () => import('../views/candidate/CandidateDetail.vue'),
+        component: () => import('../pages/candidate/CandidateDetail.vue')
       },
       {
-        path: '/screenings',
+        path: 'screenings',
         name: 'Screenings',
-        component: () => import('../views/screening/ScreeningList.vue'),
+        component: () => import('../pages/screening/ScreeningList.vue')
       },
       {
-        path: '/interviews',
+        path: 'interviews',
         name: 'Interviews',
-        component: () => import('../views/interview/InterviewList.vue'),
+        component: () => import('../pages/interview/InterviewList.vue')
       },
       {
-        path: '/invitations',
-        name: 'Invitations',
-        component: () => import('../views/invitation/InvitationCenter.vue'),
-      },
-      {
-        path: '/offers',
+        path: 'offers',
         name: 'Offers',
-        component: () => import('../views/offer/OfferList.vue'),
+        component: () => import('../pages/offer/OfferList.vue')
       },
       {
-        path: '/onboardings',
+        path: 'onboardings',
         name: 'Onboardings',
-        component: () => import('../views/onboarding/OnboardingList.vue'),
+        component: () => import('../pages/onboarding/OnboardingList.vue')
       },
       {
-        path: '/talent-pool',
+        path: 'talent-pool',
         name: 'TalentPool',
-        component: () => import('../views/talent/TalentPool.vue'),
+        component: () => import('../pages/talent/TalentPool.vue')
       },
       {
-        path: '/my-resumes',
+        path: 'my-resumes',
         name: 'MyResumes',
-        component: () => import('../views/resume/ResumeList.vue'),
+        component: () => import('../pages/resume/ResumeList.vue')
       },
       {
-        path: '/notifications',
+        path: 'invitations',
+        name: 'Invitations',
+        component: () => import('../pages/invitation/InvitationCenter.vue')
+      },
+      {
+        path: 'notifications',
         name: 'Notifications',
-        component: () => import('../views/notification/NotificationList.vue'),
+        component: () => import('../pages/notification/NotificationList.vue')
       },
-      // 系统设置子模块
       {
-        path: '/settings/account',
+        path: 'settings/account',
         name: 'AccountSettings',
-        component: () => import('../views/settings/AccountSettings.vue'),
+        component: () => import('../pages/settings/AccountSettings.vue')
       },
       {
-        path: '/settings/process',
+        path: 'settings/process',
         name: 'ProcessManagement',
-        component: () => import('../views/settings/ProcessManagement.vue'),
+        component: () => import('../pages/settings/ProcessManagement.vue')
       },
       {
-        path: '/settings/stage',
+        path: 'settings/stage',
         name: 'StageConfig',
-        component: () => import('../views/settings/StageConfig.vue'),
+        component: () => import('../pages/settings/StageConfig.vue')
       },
       {
-        path: '/settings/scoring',
+        path: 'settings/scoring',
         name: 'ScoringRules',
-        component: () => import('../views/settings/ScoringRules.vue'),
+        component: () => import('../pages/settings/ScoringRules.vue')
       },
       {
-        path: '/settings/dictionary',
+        path: 'settings/dictionary',
         name: 'DataDictionary',
-        component: () => import('../views/settings/DataDictionary.vue'),
+        component: () => import('../pages/settings/DataDictionary.vue')
       },
       {
-        path: '/settings/company',
+        path: 'settings/company',
         name: 'CompanySettings',
-        component: () => import('../views/settings/CompanySettings.vue'),
+        component: () => import('../pages/settings/CompanySettings.vue')
       },
-    ],
+      {
+        path: 'settings/permission',
+        name: 'PermissionManagement',
+        component: () => import('../pages/settings/PermissionManagement.vue')
+      },
+      {
+        path: 'settings/mou',
+        name: 'MouManagement',
+        component: () => import('../pages/settings/MouManagement.vue')
+      },
+      {
+        path: 'settings/user-management',
+        name: 'UserManagement',
+        component: () => import('../pages/settings/UserManagement.vue')
+      }
+    ]
   },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/dashboard'
+  }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes
 })
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  if (to.path !== '/login' && !token) {
+  
+  if (to.meta.requiresAuth && !token) {
     next('/login')
+  } else if (to.path === '/login' && token) {
+    next('/dashboard')
   } else {
     next()
   }

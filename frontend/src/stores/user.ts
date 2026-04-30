@@ -1,43 +1,52 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
-interface User {
+export interface User {
   id: string
   username: string
   realName: string
-  email: string
-  phone: string
+  email?: string
+  phone?: string
   avatar?: string
-  role: string
+  role?: string
+  roleType?: string
+  departmentId?: string
+  department?: any
 }
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
-  const token = ref<string | null>(localStorage.getItem('token'))
+  const token = ref<string>('')
 
-  const isLoggedIn = computed(() => !!token.value)
-
-  function setUser(userData: User) {
+  const setUser = (userData: User) => {
     user.value = userData
   }
 
-  function setToken(newToken: string) {
-    token.value = newToken
-    localStorage.setItem('token', newToken)
+  const setToken = (tokenData: string) => {
+    token.value = tokenData
+    localStorage.setItem('token', tokenData)
   }
 
-  function logout() {
+  const setUserData = (userData: User, tokenData: string) => {
+    user.value = userData
+    token.value = tokenData
+    localStorage.setItem('token', tokenData)
+    localStorage.setItem('user', JSON.stringify(userData))
+  }
+
+  const logout = () => {
     user.value = null
-    token.value = null
+    token.value = ''
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   return {
     user,
     token,
-    isLoggedIn,
     setUser,
     setToken,
-    logout,
+    setUserData,
+    logout
   }
 })

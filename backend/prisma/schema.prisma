@@ -1,11 +1,11 @@
-// ATS招聘管理系统 - 数据库模型 (简化版，不使用枚举)
+// ATS招聘管理系统 - 数据库模型 (V2.0权限体系)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -28,7 +28,33 @@ model User {
   updatedAt       DateTime  @updatedAt
   lastLoginAt     DateTime?
   
+  // 企微绑定信息
+  wechatWorkUserId String?   // 企微用户唯一标识
+  wechatWorkDeptId String?   // 企微部门ID
+  wechatWorkName   String?   // 企微昵称
+  
+  // 摩卡绑定信息
+  mochaUserId      String?   // 摩卡用户ID
+  mochaDeptId      String?   // 摩卡部门ID
+  mochaName        String?   // 摩卡用户名
+  
+  // 权限管理模式
+  permissionMode   String    @default("MOU")  // MOU, CONTAINER, MIXED
+  
   department      Department? @relation(fields: [departmentId], references: [id])
+  
+  // 角色关联
+  userRoles           UserRole[]
+  userDataPermissions UserDataPermission[]
+  
+  // MOU关联
+  userMous            UserMou[]
+  
+  // 容器关联
+  userContainers      UserContainer[]
+  
+  // 权限审计日志
+  permissionAuditLogs PermissionAuditLog[]
   
   @@map("users")
 }
@@ -58,10 +84,6 @@ model Department {
   
   @@map("departments")
 }
-
-// ============================================
-// 招聘流程模块
-// ============================================
 
 model RecruitmentProcess {
   id              String   @id @default(uuid())
@@ -100,10 +122,6 @@ model RecruitmentStage {
   @@unique([processId, code])
   @@map("recruitment_stages")
 }
-
-// ============================================
-// 招聘需求模块
-// ============================================
 
 model Demand {
   id              String   @id @default(uuid())
@@ -144,7 +162,7 @@ model Demand {
   isDoubleA       Boolean  @default(false)
   
   biddingMode     String   @default("BIDDING")
-  biddingAmount   Decimal?
+  biddingAmount   Float?
   biddingUnit     String?
   biddingTalentLevels String?
   
@@ -158,10 +176,6 @@ model Demand {
   
   @@map("demands")
 }
-
-// ============================================
-// 职位模块
-// ============================================
 
 model Position {
   id              String   @id @default(uuid())
@@ -178,7 +192,7 @@ model Position {
   
   priority        Int      @default(0)
   positionNature  String?
-  positionSeries  String?
+  positionSeries   String?
   
   description     String?
   requirements    String?
@@ -222,10 +236,6 @@ model PositionChannel {
   
   @@map("position_channels")
 }
-
-// ============================================
-// 候选人模块
-// ============================================
 
 model Candidate {
   id              String   @id @default(uuid())
@@ -274,17 +284,13 @@ model Candidate {
   protectionExpiry DateTime?
   
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt       DateTime @updatedAt
   
   resumes       Resume[]
   applications  Application[]
   
   @@map("candidates")
 }
-
-// ============================================
-// 简历模块
-// ============================================
 
 model Resume {
   id              String   @id @default(uuid())
@@ -320,10 +326,6 @@ model Resume {
   @@map("resumes")
 }
 
-// ============================================
-// 应聘记录模块
-// ============================================
-
 model Application {
   id              String   @id @default(uuid())
   code            String   @unique
@@ -358,10 +360,6 @@ model Application {
   
   @@map("applications")
 }
-
-// ============================================
-// 面试模块
-// ============================================
 
 model Interview {
   id             String   @id @default(uuid())
@@ -428,10 +426,6 @@ model InterviewFeedback {
   @@map("interview_feedbacks")
 }
 
-// ============================================
-// Offer模块
-// ============================================
-
 model Offer {
   id               String   @id @default(uuid())
   applicationId    String   @unique
@@ -462,20 +456,20 @@ model Offer {
   contractPeriod String?
   legalCompany   String?
   
-  lastYearAvgSalary Decimal?
+  lastYearAvgSalary Float?
   salaryPlan        String?
-  baseSalaryTrial   Decimal?
-  baseSalaryFormal  Decimal?
-  levelSalaryTrial  Decimal?
-  levelSalaryFormal Decimal?
-  performanceTrial  Decimal?
-  performanceFormal Decimal?
-  housingSubsidyTrial Decimal?
-  housingSubsidyFormal Decimal?
-  attendanceBonusTrial Decimal?
-  attendanceBonusFormal Decimal?
-  commissionTrial   Decimal?
-  commissionFormal  Decimal?
+  baseSalaryTrial   Float?
+  baseSalaryFormal  Float?
+  levelSalaryTrial  Float?
+  levelSalaryFormal Float?
+  performanceTrial  Float?
+  performanceFormal Float?
+  housingSubsidyTrial Float?
+  housingSubsidyFormal Float?
+  attendanceBonusTrial Float?
+  attendanceBonusFormal Float?
+  commissionTrial   Float?
+  commissionFormal  Float?
   
   attachments     String?
   
@@ -530,10 +524,6 @@ model CandidateOfferFeedback {
   @@map("candidate_offer_feedbacks")
 }
 
-// ============================================
-// 入职模块
-// ============================================
-
 model Onboarding {
   id               String   @id @default(uuid())
   applicationId    String   @unique
@@ -563,23 +553,23 @@ model Onboarding {
   contractType    String?
   contractPeriod String?
   legalCompany   String?
-  lastYearAvgSalary Decimal?
+  lastYearAvgSalary Float?
   
   referrerId     String?
   officeSupplies String?
   
   salaryPlan      String?
-  baseSalaryTrial Decimal?
-  baseSalaryFormal Decimal?
-  levelSalaryTrial Decimal?
-  levelSalaryFormal Decimal?
-  performanceTrial Decimal?
-  performanceFormal Decimal?
-  housingSubsidyTrial Decimal?
-  housingSubsidyFormal Decimal?
-  attendanceBonusTrial Decimal?
-  attendanceBonusFormal Decimal?
-  commissionTrial  Decimal?
+  baseSalaryTrial Float?
+  baseSalaryFormal Float?
+  levelSalaryTrial Float?
+  levelSalaryFormal Float?
+  performanceTrial Float?
+  performanceFormal Float?
+  housingSubsidyTrial Float?
+  housingSubsidyFormal Float?
+  attendanceBonusTrial Float?
+  attendanceBonusFormal Float?
+  commissionTrial  Float?
   commissionFormal Decimal?
   
   attachments    String?
@@ -601,10 +591,6 @@ model Onboarding {
   
   @@map("onboardings")
 }
-
-// ============================================
-// 邀约模块
-// ============================================
 
 model InvitationRecord {
   id             String   @id @default(uuid())
@@ -637,7 +623,7 @@ model InvitationRecord {
   interventionCount Int    @default(0)
   lastInterventionBy String?
   
-  biddingAmount   Decimal?
+  biddingAmount   Float?
   
   resultStatus   String?
   resultReason   String?
@@ -653,10 +639,6 @@ model InvitationRecord {
   @@map("invitation_records")
 }
 
-// ============================================
-// 消息通知模块
-// ============================================
-
 model Notification {
   id            String   @id @default(uuid())
   userId        String
@@ -671,18 +653,14 @@ model Notification {
   @@map("notifications")
 }
 
-// ============================================
-// 操作记录模块
-// ============================================
-
 model OperationRecord {
   id             String   @id @default(uuid())
   userId         String
   userName       String
   operationType  String
   targetType     String
-  targetId       String
-  targetName     String?
+  targetId      String
+  targetName    String?
   detail         String?
   beforeValue    String?
   afterValue     String?
@@ -692,10 +670,6 @@ model OperationRecord {
   
   @@map("operation_records")
 }
-
-// ============================================
-// 数据字典模块
-// ============================================
 
 model Dictionary {
   id          String   @id @default(uuid())
@@ -732,10 +706,6 @@ model DictionaryItem {
   @@unique([dictionaryId, code])
   @@map("dictionary_items")
 }
-
-// ============================================
-// 公司/院校信息库
-// ============================================
 
 model Company {
   id              String   @id @default(uuid())
@@ -794,10 +764,6 @@ model CompanyAddress {
   @@map("company_addresses")
 }
 
-// ============================================
-// 评分规则模块
-// ============================================
-
 model ScoringRule {
   id             String   @id @default(uuid())
   name           String
@@ -845,4 +811,359 @@ model ScoringResult {
   condition      ScoringCondition? @relation(fields: [conditionId], references: [id])
   
   @@map("scoring_results")
+}
+
+// ============================================
+// 权限管理模块 (V2.0 - 增强版)
+// ============================================
+
+// 角色表
+model Role {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  description String?
+  roleType    String   // SYSTEM(系统角色), BUSINESS(业务角色)
+  status      String   @default("ACTIVE")
+  sortOrder   Int      @default(0)
+  isBuiltIn   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+  
+  @@map("roles")
+}
+
+// 权限表 - 包含菜单、功能、数据三种权限类型
+model Permission {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique
+  permissionType String  // MENU(菜单权限), FUNCTION(功能权限), DATA(数据权限)
+  resource      String?  // 资源标识
+  action        String?  // 操作类型
+  dataScope     String?  // 数据范围
+  
+  parentId      String?
+  level         Int      @default(1)
+  path          String?
+  
+  description   String?
+  status        String   @default("ACTIVE")
+  sortOrder     Int      @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  parent        Permission?  @relation("PermissionTree", fields: [parentId], references: [id])
+  children      Permission[] @relation("PermissionTree")
+  
+  rolePermissions RolePermission[]
+  
+  @@map("permissions")
+}
+
+// 角色权限关联表
+model RolePermission {
+  id         String   @id @default(uuid())
+  roleId     String
+  permissionId String
+  grantType  String   @default("GRANT") // GRANT(授予), DENY(拒绝)
+  conditions String?  // 条件表达式
+  
+  createdAt  DateTime @default(now())
+  
+  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId, grantType])
+  @@map("role_permissions")
+}
+
+// 用户角色关联表
+model UserRole {
+  id         String   @id @default(uuid())
+  userId     String
+  roleId     String
+  scope      String?
+  startDate  DateTime?
+  endDate    DateTime?
+  status     String   @default("ACTIVE")
+  
+  createdAt  DateTime @default(now())
+  createdBy  String?
+  
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// 数据权限规则表
+model DataPermissionRule {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  description  String?
+  
+  permissionType String // DEMAND, POSITION, CANDIDATE, RESUME
+  
+  ruleScope   String   // ALL, DEPT, DEPT_AND_CHILD, PERSON, MOU_BASED, CONTAINER_BASED, CUSTOM
+  
+  ruleExpression String?
+  
+  roleIds     String?
+  
+  priority    Int      @default(0)
+  
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userDataPermissions UserDataPermission[]
+  
+  @@map("data_permission_rules")
+}
+
+// 用户数据权限分配表
+model UserDataPermission {
+  id          String   @id @default(uuid())
+  userId      String
+  ruleId      String
+  
+  customScope String?
+  deptIds     String?
+  userIds     String?
+  
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule        DataPermissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, ruleId])
+  @@map("user_data_permissions")
+}
+
+// ============================================
+// MOU管理单元 (Phase 1)
+// ============================================
+
+model Mou {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique
+  type          String   // DEPT, PROJECT, TEAM, VIRTUAL
+  description   String?
+  
+  parentMouId   String?
+  level         Int      @default(1)
+  path          String?
+  
+  metadata      String?  // JSON，存储额外元数据
+  
+  status        String   @default("ACTIVE")
+  startDate     DateTime?
+  endDate       DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  parent        Mou? @relation("MouTree", fields: [parentMouId], references: [id])
+  children      Mou[] @relation("MouTree")
+  
+  userMous      UserMou[]
+  containers    PermissionContainer[]
+  
+  @@map("mous")
+}
+
+// 用户-MOU关联表
+model UserMou {
+  id           String   @id @default(uuid())
+  userId       String
+  mouId        String
+  
+  roleInMou    String?  // owner, member, viewer
+  
+  startDate    DateTime?
+  endDate      DateTime?
+  
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mou          Mou @relation(fields: [mouId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, mouId])
+  @@map("user_mous")
+}
+
+// ============================================
+// 容器模型 (Phase 2)
+// ============================================
+
+model PermissionContainer {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique
+  type          String   // PROJECT, DEPT, TALENT_POOL, CUSTOM
+  
+  description   String?
+  
+  mouId         String?  // 关联的MOU
+  resourceFilter String? // JSON，资源过滤条件
+  
+  status        String   @default("ACTIVE")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  mou           Mou? @relation(fields: [mouId], references: [id])
+  
+  userContainers UserContainer[]
+  containerResources ContainerResource[]
+  
+  @@map("permission_containers")
+}
+
+// 用户-容器关联表
+model UserContainer {
+  id           String   @id @default(uuid())
+  userId       String
+  containerId  String
+  
+  accessLevel  String?  // read, write, admin
+  
+  startDate    DateTime?
+  endDate      DateTime?
+  
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  container    PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, containerId])
+  @@map("user_containers")
+}
+
+// 容器资源关联表
+model ContainerResource {
+  id           String   @id @default(uuid())
+  containerId  String
+  resourceType String   // position, candidate, demand
+  resourceId   String
+  
+  createdAt    DateTime @default(now())
+  
+  container    PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  
+  @@unique([containerId, resourceType, resourceId])
+  @@map("container_resources")
+}
+
+// ============================================
+// 自动化规则 (Phase 4)
+// ============================================
+
+model AutomationRule {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique
+  description   String?
+  
+  eventType     String   // onboarding, transfer, org_change, offboarding
+  
+  // 条件配置，JSON格式
+  condition     String?
+  
+  // 动作配置，JSON格式
+  actions       String   // [{"type":"assign_role","role_id":"xxx"}]
+  
+  priority      Int      @default(0)
+  
+  status        String   @default("ACTIVE")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  executionLogs AutomationLog[]
+  
+  @@map("automation_rules")
+}
+
+// 自动化规则执行日志
+model AutomationLog {
+  id          String   @id @default(uuid())
+  ruleId      String
+  
+  triggerUserId String?
+  triggerEvent String?
+  
+  executedActions String?
+  
+  result     String?  // success, failed, partial
+  
+  errorMessage String?
+  
+  executedAt DateTime @default(now())
+  
+  rule       AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  
+  @@map("automation_logs")
+}
+
+// ============================================
+// 互斥角色组 (防止冲突权限)
+// ============================================
+
+model MutualExclusionGroup {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  
+  roleIds      String   // JSON数组，角色ID列表
+  
+  status       String   @default("ACTIVE")
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@map("mutual_exclusion_groups")
+}
+
+// ============================================
+// 权限审计日志
+// ============================================
+
+model PermissionAuditLog {
+  id           String   @id @default(uuid())
+  userId       String
+  userName     String?
+  
+  action       String   // assign_role, revoke_role, bind_mou, unbind_mou, bind_container, unbind_container
+  
+  targetType   String   // role, mou, container, permission
+  targetId     String
+  targetName   String?
+  
+  source       String   // manual, automation, api
+  
+  operatorId   String?
+  operatorName String?
+  
+  detail       String?  // JSON，额外详情
+  
+  createdAt    DateTime @default(now())
+  
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("permission_audit_logs")
 }
