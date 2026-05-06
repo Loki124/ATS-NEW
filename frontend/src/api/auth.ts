@@ -1,11 +1,29 @@
-import axios from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
+import { useUserStore } from '../stores/user';
 
 const API_BASE_URL = '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
+
+// 是否正在刷新 token
+let isRefreshing = false;
+// 刷新 token 时等待的请求队列
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const subscribeTokenRefresh = (callback: (token: string) => void) => {
+  refreshSubscribers.push(callback);
+};
+
+const onTokenRefreshed = (token: string) => {
+  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+};
 
 // 请求拦截器
 api.interceptors.request.use(
@@ -17,18 +35,52 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );
 
 // 响应拦截器
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+
+    // 处理 401 错误 - 尝试刷新 token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // 如果正在刷新，将请求加入队列
+        return new Promise(resolve => {
+          subscribeTokenRefresh((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // 清理 token 并跳转登录
+        const userStore = useUserStore();
+        userStore.logout();
+        window.location.href = '/login';
+      } catch (refreshError) {
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
+    // 处理其他错误
+    const errorMessage = (error.response?.data as any)?.message || error.message || '请求失败';
+    console.error('[API Response Error]', {
+      status: error.response?.status,
+      message: errorMessage,
+      url: originalRequest?.url,
+    });
+
     return Promise.reject(error);
   }
 );

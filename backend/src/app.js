@@ -5,6 +5,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 
 // 路由 - 只导入存在的路由
@@ -22,6 +24,19 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
+
+// 安全中间件
+app.use(helmet());
+
+// API 速率限制
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 1000, // 限制每个 IP 15分钟内最多 1000 次请求
+  message: { success: false, message: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // 中间件
 app.use(cors({

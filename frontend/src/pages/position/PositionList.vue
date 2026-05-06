@@ -193,21 +193,21 @@ import {
   DeleteOutlined
 } from '@ant-design/icons-vue';
 import {
-  ATable,
-  AButton,
-  ACard,
-  ASpace,
-  ATag,
-  AModal,
-  AForm,
-  AInput,
-  ASelect,
-  AInputNumber,
-  ADivider,
-  ARow,
-  ACol,
-  ATabs,
-  ATabPane,
+  Table as ATable,
+  Button as AButton,
+  Card as ACard,
+  Space as ASpace,
+  Tag as ATag,
+  Modal as AModal,
+  Form as AForm,
+  Input as AInput,
+  Select as ASelect,
+  InputNumber as AInputNumber,
+  Divider as ADivider,
+  Row as ARow,
+  Col as ACol,
+  Tabs as ATabs,
+  TabPane as ATabPane,
   message
 } from 'ant-design-vue';
 
