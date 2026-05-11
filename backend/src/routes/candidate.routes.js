@@ -67,12 +67,8 @@ router.get('/', async (req, res, next) => {
     // 数据权限过滤
     const user = req.user;
     if (user.roleType !== 'SUPER_ADMIN' && user.roleType !== 'ADMIN') {
-      // 非管理员只能看到自己有权限的候选人
-      where.accessList = {
-        some: {
-          userId: user.id
-        }
-      };
+      // 非管理员只能看到自己负责的候选人
+      where.assignedUserId = user.id;
     }
 
     const [candidates, total] = await Promise.all([
@@ -133,11 +129,7 @@ router.get('/:id', async (req, res, next) => {
         assignedUser: {
           select: { id: true, realName: true }
         },
-        resumes: {
-          include: {
-            screenings: true
-          }
-        },
+        resumes: true,
         applications: {
           include: {
             position: {
@@ -166,11 +158,6 @@ router.get('/:id', async (req, res, next) => {
             user: { select: { id: true, realName: true } }
           },
           orderBy: { createdAt: 'desc' }
-        },
-        accessList: {
-          include: {
-            user: { select: { id: true, realName: true } }
-          }
         }
       }
     });
@@ -244,15 +231,7 @@ router.post('/', async (req, res, next) => {
       }
     });
 
-    // 创建候选人查看权限
-    await prisma.candidateAccess.create({
-      data: {
-        candidateId: candidate.id,
-        userId: req.userId,
-        accessType: 'ASSIGNED'
-      }
-    });
-
+    // 候选人已创建，分配人已设置
     res.status(201).json({
       success: true,
       message: '候选人创建成功',
@@ -474,22 +453,9 @@ router.post('/:id/remarks', async (req, res, next) => {
         candidateId: id,
         userId: req.userId,
         userName: req.user.realName,
-        content,
-        mentionedUsers: mentionedUsers || []
+        content
       }
     });
-
-    // 为被@的用户添加查看权限
-    if (mentionedUsers && mentionedUsers.length > 0) {
-      await prisma.candidateAccess.createMany({
-        data: mentionedUsers.map(userId => ({
-          candidateId: id,
-          userId,
-          accessType: 'MENTIONED'
-        })),
-        skipDuplicates: true
-      });
-    }
 
     res.status(201).json({
       success: true,

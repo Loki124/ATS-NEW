@@ -15,6 +15,8 @@ import candidateRoutes from './routes/candidate.routes.js';
 import permissionRoutes from './routes/permission.routes.js';
 import permissionV2Routes from './routes/permission-v2.routes.js';
 import userRoutes from './routes/user.routes.js';
+import processRoutes from './routes/process.routes.js';
+import demandRoutes from './routes/demand.routes.js';
 
 // 中间件
 import { errorHandler } from './middleware/error.middleware.js';
@@ -40,7 +42,7 @@ app.use('/api', apiLimiter);
 
 // 中间件
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5212',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5125',
   credentials: true,
 }));
 app.use(express.json());
@@ -62,6 +64,8 @@ app.use('/api/candidates', authMiddleware, candidateRoutes);
 app.use('/api/permissions', authMiddleware, permissionRoutes);
 app.use('/api/permissions-v2', authMiddleware, permissionV2Routes);
 app.use('/api/users', authMiddleware, userRoutes);
+app.use('/api/processes', authMiddleware, processRoutes);
+app.use('/api/demands', authMiddleware, demandRoutes);
 
 // 错误处理
 app.use(errorHandler);
@@ -74,7 +78,7 @@ app.use((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 5125;
 
 app.listen(PORT, () => {
   console.log(`🚀 ATS后端服务已启动: http://localhost:${PORT}`);

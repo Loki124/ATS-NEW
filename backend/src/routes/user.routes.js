@@ -9,6 +9,20 @@ import bcrypt from 'bcryptjs';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// 获取所有部门
+router.get('/departments', async (req, res, next) => {
+  try {
+    const departments = await prisma.department.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    res.json({ success: true, data: departments });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // 获取所有用户
 router.get('/', async (req, res, next) => {
   try {
@@ -197,7 +211,7 @@ router.delete('/:id', async (req, res, next) => {
     await prisma.user.delete({
       where: { id: req.params.id }
     });
-    
+
     res.json({ success: true, message: '用户删除成功' });
   } catch (error) {
     if (error.code === 'P2025') {

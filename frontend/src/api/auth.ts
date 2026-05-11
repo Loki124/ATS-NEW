@@ -62,11 +62,21 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // 清理 token 并跳转登录
+        // 尝试刷新 token
+        const response = await api.post('/auth/refresh');
+        const newToken = response.data?.token;
+        if (newToken) {
+          localStorage.setItem('token', newToken);
+          onTokenRefreshed(newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        }
+        throw new Error('No token returned');
+      } catch (refreshError) {
+        // 刷新失败，清理并跳转登录
         const userStore = useUserStore();
         userStore.logout();
         window.location.href = '/login';
-      } catch (refreshError) {
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

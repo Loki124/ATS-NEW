@@ -97,6 +97,16 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../pages/settings/StageConfig.vue')
       },
       {
+        path: 'settings/process-management',
+        name: 'ProcessManagementSpeedup',
+        component: () => import('../pages/settings/ProcessManagementSpeedup.vue')
+      },
+      {
+        path: 'settings/demand-config',
+        name: 'DemandConfig',
+        component: () => import('../pages/settings/DemandConfig.vue')
+      },
+      {
         path: 'settings/scoring',
         name: 'ScoringRules',
         component: () => import('../pages/settings/ScoringRules.vue')

@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -125,13 +125,14 @@ const menuItems = [
     label: '工作台',
   },
   {
-    key: 'demand',
+    key: '/demands',
     icon: () => h(FileTextOutlined),
     label: '需求管理',
-    children: [
-      { key: '/demands', label: '需求列表' },
-      { key: '/positions', label: '职位管理' },
-    ],
+  },
+  {
+    key: '/positions',
+    icon: () => h(TeamOutlined),
+    label: '职位管理',
   },
   {
     key: 'candidate',
@@ -170,17 +171,28 @@ const menuItems = [
   {
     key: 'settings',
     icon: () => h(SettingOutlined),
-    label: '系统设置',
+    label: '系统管理',
     children: [
+      { key: 'basic-info', label: '基本信息', children: [
+        { key: 'org', label: '组织机构管理', children: [
+          { key: '/settings/user-management', label: '用户管理' },
+          { key: '/settings/permission', label: '权限管理' },
+          { key: '/settings/mou', label: 'MOU权限管理' },
+        ]},
+      ]},
       { key: '/settings/account', label: '账号设置' },
-      { key: '/settings/process', label: '流程管理' },
-      { key: '/settings/stage', label: '阶段配置' },
-      { key: '/settings/scoring', label: '评分规则' },
-      { key: '/settings/dictionary', label: '数据字典' },
       { key: '/settings/company', label: '公司信息' },
-      { key: '/settings/permission', label: '权限管理' },
-      { key: '/settings/mou', label: 'MOU权限管理' },
-      { key: '/settings/user-management', label: '用户管理' },
+      { key: 'process', label: '过程管理', children: [
+        { key: '/settings/demand-config', label: '招聘需求设置' },
+        { key: '/settings/dictionary', label: '数据字典' },
+        { key: '/settings/scoring', label: '评分规则' },
+      ]},
+      { key: 'speedup', label: '招聘提速', children: [
+        { key: 'recruitment-flow', label: '流程管理', children: [
+          { key: '/settings/process-management', label: '招聘流程配置' },
+          { key: '/settings/stage', label: '招聘阶段配置' },
+        ]},
+      ]},
     ],
   },
 ]
@@ -212,32 +224,23 @@ const handleLogout = () => {
 const updateSelectedKeys = () => {
   const path = route.path
   selectedKeys.value = [path]
-  
-  // Find open keys
-  const newOpenKeys: string[] = []
+
+  // Find parent key for current path and add to open keys if not already present
   menuItems.forEach((item: any) => {
     if (item?.children) {
       item.children.forEach((child: any) => {
-        if (child?.key === path) {
-          newOpenKeys.push(item.key)
+        if (child?.key === path && !openKeys.value.includes(item.key)) {
+          openKeys.value = [...openKeys.value, item.key]
         }
       })
     }
   })
-  openKeys.value = newOpenKeys
 }
 
 // Watch route changes
 watch(() => route.path, () => {
   updateSelectedKeys()
 }, { immediate: true })
-</script>
-
-<script lang="ts">
-import { h } from 'vue'
-export default {
-  name: 'LayoutPage'
-}
 </script>
 
 <style scoped>

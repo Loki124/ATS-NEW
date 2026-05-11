@@ -181,6 +181,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
 import { useUserStore } from '../stores/user'
+import { login } from '../api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -203,26 +204,14 @@ const smsFormState = reactive({
 
 const handleLogin = async (values: any) => {
   loading.value = true
-  
+
   try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: values.username,
-        password: values.password,
-      }),
-    })
-    
-    const data = await response.json()
-    
+    const response = await login(values.username, values.password)
+    const data = response.data
+
     if (data.success) {
-      // 保存token
       localStorage.setItem('token', data.data.token)
-      
-      // 设置用户信息
+
       userStore.setUser({
         id: data.data.user.id,
         username: data.data.user.username,
@@ -241,8 +230,8 @@ const handleLogin = async (values: any) => {
     } else {
       message.error(data.message || '登录失败')
     }
-  } catch (error) {
-    message.error('登录失败，请检查后端服务')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
   } finally {
     loading.value = false
   }
