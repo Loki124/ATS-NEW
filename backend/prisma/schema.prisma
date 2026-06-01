@@ -1,4 +1,5 @@
-// ATS招聘管理系统 - 数据库模型 (V2.0权限体系)
+// ATS招聘管理系统 - 数据库模型
+// 简历模块增强：双轨锁定人、异步评分、特殊审批
 
 generator client {
   provider = "prisma-client-js"
@@ -7,6 +8,163 @@ generator client {
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 简历锁定记录表 (核心新表)
+// ============================================
+model ResumeLockRecord {
+  id            String   @id @default(uuid())
+  resumeId      String
+  lockerId      String
+  lockType      String   // FORMAL(正式锁定人), TEMPORARY(临时锁定人72h)
+
+  effectiveTime DateTime @default(now())
+  expireTime    DateTime?  // 仅临时锁定人有有效期
+  isActive      Boolean  @default(true)
+
+  source        String   // ASSIGN(分配), UPLOAD(上传), ACTIVATE(激活)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  locker        User     @relation("ResumeLocker", fields: [lockerId], references: [id])
+
+  @@index([resumeId, isActive])
+  @@index([lockerId])
+  @@map("resume_lock_records")
+}
+
+// ============================================
+// 特殊标签关联表
+// ============================================
+model SpecialResumeTag {
+  id            String   @id @default(uuid())
+  resumeId      String
+  positionId    String?  // 标签与职位绑定，null表示全局
+
+  tagName       String   @default("特殊简历")
+
+  approvalId    String?  // 关联的审批单ID
+
+  createdAt     DateTime @default(now())
+
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, positionId])
+  @@map("special_resume_tags")
+}
+
+// ============================================
+// 简历合并记录表
+// ============================================
+model ResumeMergeRecord {
+  id               String   @id @default(uuid())
+  mainResumeId     String   // 主简历（保留）
+  mergedResumeId   String   // 被合并简历
+
+  mergeType        String   // MANUAL(主动合并), AUTO(超时自动合并)
+
+  operatorId       String?
+  mergeReason     String?
+
+  createdAt        DateTime @default(now())
+
+  mainResume       Resume   @relation("MainResumeMerge", fields: [mainResumeId], references: [id], onDelete: Cascade)
+  mergedResume     Resume   @relation("MergedResumeMerge", fields: [mergedResumeId], references: [id], onDelete: Cascade)
+
+  @@unique([mergedResumeId])
+  @@map("resume_merge_records")
+}
+
+// ============================================
+// 特殊审批流程表
+// ============================================
+model SpecialApprovalFlow {
+  id            String   @id @default(uuid())
+
+  resumeId      String
+  positionId    String   // 审批针对的职位
+
+  flowType      String   @default("SPECIAL_RESUME") // SPECIAL_RESUME, OTHER
+
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+
+  currentNodeId String?
+
+  // 各节点审批信息，JSON格式
+  // [{nodeId, nodeName, approverId, approverName, status, comment, decidedAt}]
+  nodes         String   // JSON数组
+
+  // 审批结果
+  result        String?
+  resultComment String?
+  decidedAt     DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId, status])
+  @@map("special_approval_flows")
+}
+
+// ============================================
+// 异步评分任务表
+// ============================================
+model AsyncScoringTask {
+  id            String   @id @default(uuid())
+
+  resumeId      String
+  positionId    String   // 评分针对的职位
+
+  status        String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+
+  matchScore    Int?
+  matchDetails  String?  // JSON，评分详情
+
+  errorMessage  String?
+
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId, status])
+  @@map("async_scoring_tasks")
+}
+
+// ============================================
+// 简历流转日志表
+// ============================================
+model ResumeFlowLog {
+  id            String   @id @default(uuid())
+
+  resumeId      String
+  candidateId   String
+
+  action        String   // UPLOAD, ASSIGN, ARCHIVE, ACTIVATE, MERGE, SCORE, APPROVE, REJECT
+
+  operatorId    String?
+  operatorName  String?
+
+  fromStatus    String?
+  toStatus      String?
+
+  positionId    String?  // 关联职位（如果是分配相关）
+  positionName  String?
+
+  detail        String?  // JSON，额外详情
+
+  createdAt     DateTime @default(now())
+
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId])
+  @@index([candidateId])
+  @@map("resume_flow_logs")
 }
 
 // ============================================
@@ -27,35 +185,28 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   lastLoginAt     DateTime?
-  
-  // 企微绑定信息
-  wechatWorkUserId String?   // 企微用户唯一标识
-  wechatWorkDeptId String?   // 企微部门ID
-  wechatWorkName   String?   // 企微昵称
-  
-  // 摩卡绑定信息
-  mochaUserId      String?   // 摩卡用户ID
-  mochaDeptId      String?   // 摩卡部门ID
-  mochaName        String?   // 摩卡用户名
-  
-  // 权限管理模式
-  permissionMode   String    @default("MOU")  // MOU, CONTAINER, MIXED
-  
+
+  wechatWorkUserId String?
+  wechatWorkDeptId String?
+  wechatWorkName   String?
+
+  mochaUserId      String?
+  mochaDeptId      String?
+  mochaName        String?
+
+  permissionMode   String    @default("MOU")
+
   department      Department? @relation(fields: [departmentId], references: [id])
-  
-  // 角色关联
+
   userRoles           UserRole[]
   userDataPermissions UserDataPermission[]
-  
-  // MOU关联
   userMous            UserMou[]
-  
-  // 容器关联
   userContainers      UserContainer[]
-  
-  // 权限审计日志
   permissionAuditLogs PermissionAuditLog[]
-  
+
+  // 简历锁定关联
+  lockedResumes      ResumeLockRecord[]  @relation("ResumeLocker")
+
   @@map("users")
 }
 
@@ -74,14 +225,14 @@ model Department {
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   parent      Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
   children    Department[] @relation("DepartmentTree")
-  
+
   users       User[]
   demands     Demand[]
   positions   Position[]
-  
+
   @@map("departments")
 }
 
@@ -94,10 +245,10 @@ model RecruitmentProcess {
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   stages          RecruitmentStage[]
   positions       Position[]
-  
+
   @@map("recruitment_processes")
 }
 
@@ -116,9 +267,9 @@ model RecruitmentStage {
   status           String   @default("ACTIVE")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  
+
   process          RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
-  
+
   @@unique([processId, code])
   @@map("recruitment_stages")
 }
@@ -134,46 +285,46 @@ model Demand {
   demandType      String
   demandStatus    String   @default("DRAFT")
   approvalStatus  String   @default("NOT_STARTED")
-  
+
   creatorId       String
   managerId       String?
   assistantIds    String?
   managerIds      String?
   managerSuperIds String?
   hrbpId          String?
-  
+
   positionSeries  String?
   jobTitle        String?
   jobLevel        String?
-  
+
   startDate       DateTime?
   endDate         DateTime?
-  
+
   salaryMin       Int?
   salaryMax       Int?
-  
+
   description     String?
   requirements    String?
   attachments     String?
-  
+
   trialGoals      String?
-  
+
   talentLevel     String?
   isDoubleA       Boolean  @default(false)
-  
+
   biddingMode     String   @default("BIDDING")
   biddingAmount   Float?
   biddingUnit     String?
   biddingTalentLevels String?
-  
+
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   department      Department @relation(fields: [departmentId], references: [id])
-  
+
   positions       Position[]
-  
+
   @@map("demands")
 }
 
@@ -183,41 +334,41 @@ model Position {
   name            String
   departmentId    String
   demandId        String?
-  
+
   creatorId       String
   managerId       String?
   assistantIds    String?
   managerIds      String?
   managerSuperIds String?
-  
+
   priority        Int      @default(0)
   positionNature  String?
   positionSeries   String?
-  
+
   description     String?
   requirements    String?
-  
+
   processId       String?
   companyId       String?
-  
+
   positionStatus  String   @default("RECRUITING")
   status          String   @default("ACTIVE")
-  
+
   candidateCount  Int      @default(0)
   hiredCount      Int      @default(0)
-  
+
   publishedAt     DateTime?
-  
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   department      Department @relation(fields: [departmentId], references: [id])
   demand          Demand? @relation(fields: [demandId], references: [id])
   process         RecruitmentProcess? @relation(fields: [processId], references: [id])
-  
+
   applications    Application[]
   channels        PositionChannel[]
-  
+
   @@map("positions")
 }
 
@@ -231,9 +382,9 @@ model PositionChannel {
   publishedAt    DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   position       Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  
+
   @@map("position_channels")
 }
 
@@ -245,50 +396,50 @@ model Candidate {
   birthday        DateTime?
   phone           String?
   email           String?
-  
+
   householdLocation String?
   originLocation   String?
-  
+
   maritalStatus   String?
   childStatus     String?
-  
+
   highestEducation String?
   firstEducation  String?
   firstEducationDuration Int?
   firstEducationSchoolType String?
-  
+
   workExperience  String?
   jobHoppingRate Int?
   lastJobDuration Int?
-  
+
   educationForm   String?
-  
+
   expectedSalaryMin Int?
   expectedSalaryMax Int?
   expectedPosition  String?
   intendedJoinDate  DateTime?
-  
+
   channelSource   String?
   channelLink     String?
   recommenderId   String?
   recommenderName String?
-  
+
   assignedUserId  String?
   resumeProviderId String?
-  
+
   candidateStatus String   @default("ACTIVE")
   archiveReason  String?
   archiveType   String?
   archiveToPool String?
-  
+
   protectionExpiry DateTime?
-  
+
   createdAt      DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   resumes       Resume[]
   applications  Application[]
-  
+
   @@map("candidates")
 }
 
@@ -296,33 +447,49 @@ model Resume {
   id              String   @id @default(uuid())
   candidateId     String
   positionId      String?
-  
+
   name            String
   fileName        String
   filePath        String
   fileType        String
   fileSize        Int
-  
+
   parsedData      String?
-  
+
   source          String
   uploadLocation  String?
-  providerId      String?
+  providerId      String?   // 提供人ID
+  uploaderId      String?   // 上传人ID
   channelSource   String?
   channelLink     String?
-  
-  resumeStatus    String   @default("UPLOADED")
+
+  resumeStatus    String   @default("PENDING_ASSIGN") // 待分配/已分配/已归档/已删除
+  resumeSubStatus String?  // 子状态：SCORING(评分中), APPROVAL(审批中), SUSPECTED(疑似)
   parseStatus     String   @default("PENDING")
   duplicateStatus String   @default("NOT_DUPLICATE")
-  duplicateOfId  String?
-  
+  duplicateOfId   String?
+
+  // 锁定人信息（冗余存储，便于查询）
+  formalLockerId  String?
+  tempLockerId    String?
+  tempLockerExpireTime DateTime?
+
   matchScore     Int?
-  
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
+
+  // 新增关联
+  lockRecords    ResumeLockRecord[]
+  specialTags    SpecialResumeTag[]
+  mergeRecords   ResumeMergeRecord[] @relation("MainResumeMerge")
+  mergedTo       ResumeMergeRecord?  @relation("MergedResumeMerge")
+  scoringTasks   AsyncScoringTask[]
+  flowLogs       ResumeFlowLog[]
+  approvalFlows  SpecialApprovalFlow[]
+
   @@map("resumes")
 }
 
@@ -332,32 +499,35 @@ model Application {
   candidateId     String
   positionId      String
   resumeId        String?
-  
+
   currentStageId  String?
   currentStageName String?
   currentStageStatus String @default("IN_PROGRESS")
-  
+
   processId       String
   processName     String
-  
+
   source          String?
   referralUserId  String?
-  
+
   applicationStatus String   @default("ACTIVE")
   archiveReason   String?
   archivedAt      DateTime?
-  
+
+  // 锁定人（冗余）
+  formalLockerId  String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   position        Position @relation(fields: [positionId], references: [id])
-  
+
   interviews      Interview[]
   offer           Offer?
   onboarding      Onboarding?
   invitation      InvitationRecord?
-  
+
   @@map("applications")
 }
 
@@ -366,35 +536,35 @@ model Interview {
   applicationId  String
   roundId        String?
   roundName      String?
-  
+
   interviewType  String
   interviewDate  DateTime
   duration       Int      @default(60)
   location       String?
   meetingLink    String?
-  
+
   interviewerIds String?
   interviewerNames String?
-  
+
   arrangerId     String
   arrangerName   String
-  
+
   interviewStatus String @default("SCHEDULED")
   feedbackStatus  String @default("PENDING")
-  
+
   cancelReason   String?
   cancelNote     String?
-  
+
   proposedTimes  String?
   confirmedTime  DateTime?
-  
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+
   feedbacks      InterviewFeedback[]
-  
+
   @@map("interviews")
 }
 
@@ -403,25 +573,25 @@ model InterviewFeedback {
   interviewId     String
   interviewerId   String
   interviewerName String
-  
+
   result          String
   reason          String?
-  
+
   values          String?
   comprehensive   String?
   recommendation  String?
-  
+
   participantFeedback String?
   previousFeedback   String?
-  
+
   viewedPrevious  Boolean  @default(false)
-  
+
   feedbackAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  
+
   @@unique([interviewId, interviewerId])
   @@map("interview_feedbacks")
 }
@@ -429,24 +599,24 @@ model InterviewFeedback {
 model Offer {
   id               String   @id @default(uuid())
   applicationId    String   @unique
-  
+
   demandId         String?
   positionSeries   String?
   positionManagerId String?
   offerManagerId   String?
-  
+
   expectedJoinDate DateTime
   reportLocation  String?
   workLocation    String?
   onboardDepartment String?
   isDoubleDepartment Boolean @default(false)
-  
+
   jobTitle        String?
   jobLevel        String?
   directLeader    String?
   thoughtLeader   String?
   dottedLeader    String?
-  
+
   employeeType    String?
   businessType    String?
   talentLevel     String?
@@ -455,7 +625,7 @@ model Offer {
   contractType    String?
   contractPeriod String?
   legalCompany   String?
-  
+
   lastYearAvgSalary Float?
   salaryPlan        String?
   baseSalaryTrial   Float?
@@ -470,23 +640,23 @@ model Offer {
   attendanceBonusFormal Float?
   commissionTrial   Float?
   commissionFormal  Float?
-  
+
   attachments     String?
-  
+
   offerStatus    String   @default("NOT_CREATED")
-  
+
   sentAt         DateTime?
   senderId       String?
   ccUsers        String?
-  
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+
   candidateFeedback CandidateOfferFeedback?
   backgroundCheckRecord BackgroundCheckRecord[]
-  
+
   @@map("offers")
 }
 
@@ -504,12 +674,12 @@ model BackgroundCheckRecord {
   status        String   @default("ACTIVE")
   isSupplement  Boolean  @default(false)
   supplementOfId String?
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   offer         Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  
+
   @@map("background_check_records")
 }
 
@@ -518,33 +688,33 @@ model CandidateOfferFeedback {
   offerId      String   @unique
   feedback     String
   respondedAt  DateTime?
-  
+
   offer        Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  
+
   @@map("candidate_offer_feedbacks")
 }
 
 model Onboarding {
   id               String   @id @default(uuid())
   applicationId    String   @unique
-  
+
   demandId         String?
   positionSeries   String?
   positionManagerId String?
   offerManagerId   String?
-  
+
   expectedJoinDate DateTime
   reportLocation  String?
   workLocation    String?
   onboardDepartment String?
   isDoubleDepartment Boolean @default(false)
-  
+
   jobTitle        String?
   jobLevel        String?
   directLeader    String?
   thoughtLeader   String?
   dottedLeader    String?
-  
+
   employeeType    String?
   businessType    String?
   talentLevel     String?
@@ -554,10 +724,10 @@ model Onboarding {
   contractPeriod String?
   legalCompany   String?
   lastYearAvgSalary Float?
-  
+
   referrerId     String?
   officeSupplies String?
-  
+
   salaryPlan      String?
   baseSalaryTrial Float?
   baseSalaryFormal Float?
@@ -571,71 +741,71 @@ model Onboarding {
   attendanceBonusFormal Float?
   commissionTrial  Float?
   commissionFormal Decimal?
-  
+
   attachments    String?
-  
+
   onboardingStatus String   @default("NOT_STARTED")
   approvalStatus  String   @default("NOT_STARTED")
   approvalRecordId String?
-  
+
   peopleOnboardId String?
   syncStatus     String?
-  
+
   cancelReason   String?
   cancelNote    String?
-  
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+
   @@map("onboardings")
 }
 
 model InvitationRecord {
   id             String   @id @default(uuid())
   applicationId  String   @unique
-  
+
   candidateId    String
   positionId     String
-  
+
   ownerId        String
   ownerName      String
-  
+
   inviterId      String?
   inviterName    String?
-  
+
   assignType     String
   assignedAt     DateTime?
-  
+
   invitationStatus String   @default("PENDING_ASSIGN")
-  
+
   claimedAt      DateTime?
   claimedById    String?
   claimedByName  String?
-  
+
   contactAttempts Int      @default(0)
   lastContactAt  DateTime?
-  
+
   tags           String?
   note           String?
-  
+
   interventionCount Int    @default(0)
   lastInterventionBy String?
-  
+
   biddingAmount   Float?
-  
+
   resultStatus   String?
   resultReason   String?
   resultAt       DateTime?
-  
+
   timeoutAt      DateTime?
-  
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+
   @@map("invitation_records")
 }
 
@@ -649,7 +819,7 @@ model Notification {
   readStatus    String   @default("UNREAD")
   readAt        DateTime?
   createdAt     DateTime @default(now())
-  
+
   @@map("notifications")
 }
 
@@ -659,15 +829,15 @@ model OperationRecord {
   userName       String
   operationType  String
   targetType     String
-  targetId      String
-  targetName    String?
+  targetId       String
+  targetName     String?
   detail         String?
   beforeValue    String?
   afterValue     String?
   ipAddress      String?
   userAgent      String?
   createdAt      DateTime @default(now())
-  
+
   @@map("operation_records")
 }
 
@@ -679,9 +849,9 @@ model Dictionary {
   status      String   @default("ACTIVE")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   items       DictionaryItem[]
-  
+
   @@map("dictionaries")
 }
 
@@ -698,11 +868,11 @@ model DictionaryItem {
   status        String   @default("ACTIVE")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   dictionary    Dictionary @relation(fields: [dictionaryId], references: [id], onDelete: Cascade)
   parent        DictionaryItem? @relation("DictionaryItemTree", fields: [parentId], references: [id])
   children      DictionaryItem[] @relation("DictionaryItemTree")
-  
+
   @@unique([dictionaryId, code])
   @@map("dictionary_items")
 }
@@ -719,10 +889,10 @@ model Company {
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   parentCompany   Company?  @relation("CompanyGroup", fields: [parentCompanyId], references: [id])
   childCompanies  Company[] @relation("CompanyGroup")
-  
+
   @@map("companies")
 }
 
@@ -739,7 +909,7 @@ model School {
   status         String   @default("ACTIVE")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   @@map("schools")
 }
 
@@ -760,7 +930,7 @@ model CompanyAddress {
   status        String   @default("ACTIVE")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   @@map("company_addresses")
 }
 
@@ -773,12 +943,12 @@ model ScoringRule {
   status         String   @default("ACTIVE")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   applicableRange String?
-  
+
   conditions     ScoringCondition[]
   results        ScoringResult[]
-  
+
   @@map("scoring_rules")
 }
 
@@ -790,11 +960,11 @@ model ScoringCondition {
   value         String
   level         Int      @default(1)
   logicType     String   @default("AND")
-  
+
   rule          ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  
+
   results       ScoringResult[]
-  
+
   @@map("scoring_conditions")
 }
 
@@ -806,83 +976,79 @@ model ScoringResult {
   matchedScore   Int
   unmatchedScore Int      @default(0)
   isDefault      Boolean  @default(false)
-  
+
   rule           ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   condition      ScoringCondition? @relation(fields: [conditionId], references: [id])
-  
+
   @@map("scoring_results")
 }
 
 // ============================================
-// 权限管理模块 (V2.0 - 增强版)
+// 权限管理模块 (V2.0)
 // ============================================
 
-// 角色表
 model Role {
   id          String   @id @default(uuid())
   name        String
   code        String   @unique
   description String?
-  roleType    String   // SYSTEM(系统角色), BUSINESS(业务角色)
+  roleType    String
   status      String   @default("ACTIVE")
   sortOrder   Int      @default(0)
   isBuiltIn   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   rolePermissions RolePermission[]
   userRoles       UserRole[]
-  
+
   @@map("roles")
 }
 
-// 权限表 - 包含菜单、功能、数据三种权限类型
 model Permission {
   id            String   @id @default(uuid())
   name          String
   code          String   @unique
-  permissionType String  // MENU(菜单权限), FUNCTION(功能权限), DATA(数据权限)
-  resource      String?  // 资源标识
-  action        String?  // 操作类型
-  dataScope     String?  // 数据范围
-  
+  permissionType String
+  resource      String?
+  action        String?
+  dataScope     String?
+
   parentId      String?
   level         Int      @default(1)
   path          String?
-  
+
   description   String?
   status        String   @default("ACTIVE")
   sortOrder     Int      @default(0)
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   parent        Permission?  @relation("PermissionTree", fields: [parentId], references: [id])
   children      Permission[] @relation("PermissionTree")
-  
+
   rolePermissions RolePermission[]
-  
+
   @@map("permissions")
 }
 
-// 角色权限关联表
 model RolePermission {
   id         String   @id @default(uuid())
   roleId     String
   permissionId String
-  grantType  String   @default("GRANT") // GRANT(授予), DENY(拒绝)
-  conditions String?  // 条件表达式
-  
+  grantType  String   @default("GRANT")
+  conditions String?
+
   createdAt  DateTime @default(now())
-  
+
   role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  
+
   @@unique([roleId, permissionId, grantType])
   @@map("role_permissions")
 }
 
-// 用户角色关联表
 model UserRole {
   id         String   @id @default(uuid())
   userId     String
@@ -891,279 +1057,251 @@ model UserRole {
   startDate  DateTime?
   endDate    DateTime?
   status     String   @default("ACTIVE")
-  
+
   createdAt  DateTime @default(now())
   createdBy  String?
-  
+
   user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, roleId])
   @@map("user_roles")
 }
 
-// 数据权限规则表
 model DataPermissionRule {
   id           String   @id @default(uuid())
   name         String
   code         String   @unique
   description  String?
-  
-  permissionType String // DEMAND, POSITION, CANDIDATE, RESUME
-  
-  ruleScope   String   // ALL, DEPT, DEPT_AND_CHILD, PERSON, MOU_BASED, CONTAINER_BASED, CUSTOM
-  
+
+  permissionType String
+
+  ruleScope   String
+
   ruleExpression String?
-  
+
   roleIds     String?
-  
+
   priority    Int      @default(0)
-  
+
   status      String   @default("ACTIVE")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   userDataPermissions UserDataPermission[]
-  
+
   @@map("data_permission_rules")
 }
 
-// 用户数据权限分配表
 model UserDataPermission {
   id          String   @id @default(uuid())
   userId      String
   ruleId      String
-  
+
   customScope String?
   deptIds     String?
   userIds     String?
-  
+
   startDate   DateTime?
   endDate     DateTime?
-  
+
   status      String   @default("ACTIVE")
   createdAt   DateTime @default(now())
-  
+
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
   rule        DataPermissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, ruleId])
   @@map("user_data_permissions")
 }
-
-// ============================================
-// MOU管理单元 (Phase 1)
-// ============================================
 
 model Mou {
   id            String   @id @default(uuid())
   name          String
   code          String   @unique
-  type          String   // DEPT, PROJECT, TEAM, VIRTUAL
+  type          String
   description   String?
-  
+
   parentMouId   String?
   level         Int      @default(1)
   path          String?
-  
-  metadata      String?  // JSON，存储额外元数据
-  
+
+  metadata      String?
+
   status        String   @default("ACTIVE")
   startDate     DateTime?
   endDate       DateTime?
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   parent        Mou? @relation("MouTree", fields: [parentMouId], references: [id])
   children      Mou[] @relation("MouTree")
-  
+
   userMous      UserMou[]
   containers    PermissionContainer[]
-  
+
   @@map("mous")
 }
 
-// 用户-MOU关联表
 model UserMou {
   id           String   @id @default(uuid())
   userId       String
   mouId        String
-  
-  roleInMou    String?  // owner, member, viewer
-  
+
+  roleInMou    String?
+
   startDate    DateTime?
   endDate      DateTime?
-  
+
   status       String   @default("ACTIVE")
   createdAt    DateTime @default(now())
-  
+
   user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
   mou          Mou @relation(fields: [mouId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, mouId])
   @@map("user_mous")
 }
-
-// ============================================
-// 容器模型 (Phase 2)
-// ============================================
 
 model PermissionContainer {
   id            String   @id @default(uuid())
   name          String
   code          String   @unique
-  type          String   // PROJECT, DEPT, TALENT_POOL, CUSTOM
-  
+  type          String
+
   description   String?
-  
-  mouId         String?  // 关联的MOU
-  resourceFilter String? // JSON，资源过滤条件
-  
+
+  mouId         String?
+  resourceFilter String?
+
   status        String   @default("ACTIVE")
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   mou           Mou? @relation(fields: [mouId], references: [id])
-  
+
   userContainers UserContainer[]
   containerResources ContainerResource[]
-  
+
   @@map("permission_containers")
 }
 
-// 用户-容器关联表
 model UserContainer {
   id           String   @id @default(uuid())
   userId       String
   containerId  String
-  
-  accessLevel  String?  // read, write, admin
-  
+
+  accessLevel  String?
+
   startDate    DateTime?
   endDate      DateTime?
-  
+
   status       String   @default("ACTIVE")
   createdAt    DateTime @default(now())
-  
+
   user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
   container    PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, containerId])
   @@map("user_containers")
 }
 
-// 容器资源关联表
 model ContainerResource {
   id           String   @id @default(uuid())
   containerId  String
-  resourceType String   // position, candidate, demand
+  resourceType String
   resourceId   String
-  
+
   createdAt    DateTime @default(now())
-  
+
   container    PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
-  
+
   @@unique([containerId, resourceType, resourceId])
   @@map("container_resources")
 }
-
-// ============================================
-// 自动化规则 (Phase 4)
-// ============================================
 
 model AutomationRule {
   id            String   @id @default(uuid())
   name          String
   code          String   @unique
   description   String?
-  
-  eventType     String   // onboarding, transfer, org_change, offboarding
-  
-  // 条件配置，JSON格式
+
+  eventType     String
+
   condition     String?
-  
-  // 动作配置，JSON格式
-  actions       String   // [{"type":"assign_role","role_id":"xxx"}]
-  
+
+  actions       String
+
   priority      Int      @default(0)
-  
+
   status        String   @default("ACTIVE")
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   executionLogs AutomationLog[]
-  
+
   @@map("automation_rules")
 }
 
-// 自动化规则执行日志
 model AutomationLog {
   id          String   @id @default(uuid())
   ruleId      String
-  
+
   triggerUserId String?
   triggerEvent String?
-  
+
   executedActions String?
-  
-  result     String?  // success, failed, partial
-  
+
+  result     String?
+
   errorMessage String?
-  
+
   executedAt DateTime @default(now())
-  
+
   rule       AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  
+
   @@map("automation_logs")
 }
-
-// ============================================
-// 互斥角色组 (防止冲突权限)
-// ============================================
 
 model MutualExclusionGroup {
   id           String   @id @default(uuid())
   name         String
   description  String?
-  
-  roleIds      String   // JSON数组，角色ID列表
-  
+
+  roleIds      String
+
   status       String   @default("ACTIVE")
-  
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   @@map("mutual_exclusion_groups")
 }
-
-// ============================================
-// 权限审计日志
-// ============================================
 
 model PermissionAuditLog {
   id           String   @id @default(uuid())
   userId       String
   userName     String?
-  
-  action       String   // assign_role, revoke_role, bind_mou, unbind_mou, bind_container, unbind_container
-  
-  targetType   String   // role, mou, container, permission
+
+  action       String
+
+  targetType   String
   targetId     String
   targetName   String?
-  
-  source       String   // manual, automation, api
-  
+
+  source       String
+
   operatorId   String?
   operatorName String?
-  
-  detail       String?  // JSON，额外详情
-  
+
+  detail       String?
+
   createdAt    DateTime @default(now())
-  
+
   user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("permission_audit_logs")
 }

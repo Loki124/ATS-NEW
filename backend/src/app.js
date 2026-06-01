@@ -17,6 +17,7 @@ import userRoutes from './routes/user.routes.js';
 import processRoutes from './routes/process.routes.js';
 import demandRoutes from './routes/demand.routes.js';
 import systemRoutes from './routes/system.routes.js';
+import resumeRoutes from './routes/resume.routes.js';
 
 // 配置
 import config from './config/index.js';
@@ -68,6 +69,7 @@ app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/processes', authMiddleware, processRoutes);
 app.use('/api/demands', authMiddleware, demandRoutes);
 app.use('/api/system', authMiddleware, systemRoutes);
+app.use('/api/resumes', authMiddleware, resumeRoutes);
 
 // 错误处理
 app.use(errorHandler);
