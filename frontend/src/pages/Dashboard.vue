@@ -43,7 +43,7 @@
             <a-col :xs="24" :sm="12" :md="6">
               <a-card size="small" :style="{ borderRadius: '8px' }">
                 <a-typography-text type="secondary">招聘需求</a-typography-text>
-                <div class="stat-value" style="color: #667eea">28</div>
+                <div class="stat-value" style="color: #FBCE5B">28</div>
               </a-card>
             </a-col>
             <a-col :xs="24" :sm="12" :md="6">

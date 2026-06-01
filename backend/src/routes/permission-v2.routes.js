@@ -222,6 +222,26 @@ router.get('/users/:userId/mou', async (req, res) => {
 
 // ========== 容器模型 ==========
 
+// 获取用户的MOU列表 (兼容前端路径)
+router.get('/mou/user-mous/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const userMous = await prisma.userMou.findMany({
+      where: { userId, status: 'ACTIVE' },
+      include: {
+        mou: {
+          include: { _count: { select: { userMous: true } } }
+        }
+      }
+    });
+
+    res.json({ success: true, data: userMous });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 获取容器列表
 router.get('/containers', async (req, res) => {
   try {
@@ -579,7 +599,6 @@ router.get('/automation-rules/:id/logs', async (req, res) => {
 router.get('/mutual-exclusion-groups', async (req, res) => {
   try {
     const groups = await prisma.mutualExclusionGroup.findMany({
-      include: { _count: { select: {} } },
       orderBy: { createdAt: 'desc' }
     });
     res.json({ success: true, data: groups });

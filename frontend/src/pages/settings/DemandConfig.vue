@@ -10,6 +10,101 @@
 
     <div class="config-content">
       <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }">
+        <!-- 功能设置 -->
+        <a-card title="功能设置" class="config-card">
+          <a-form-item label="需求使用模式">
+            <a-radio-group v-model:value="formData.demandMode">
+              <a-radio value="task">任务模式</a-radio>
+              <a-radio value="quick_leave">闪离模式</a-radio>
+              <a-radio value="non_task">非任务模式</a-radio>
+            </a-radio-group>
+            <div class="field-note">
+              <span>任务模式：按招聘流程任务推进</span>
+              <span>闪离模式：快速入职流程</span>
+              <span>非任务模式：自由招聘流程</span>
+            </div>
+          </a-form-item>
+          <a-form-item label="需求终止态">
+            <a-checkbox-group v-model:value="formData.terminationStatus">
+              <a-checkbox value="completed">已完成</a-checkbox>
+              <a-checkbox value="stopped">已停招</a-checkbox>
+            </a-checkbox-group>
+            <span class="switch-tip">选择可用作需求终止的状态</span>
+          </a-form-item>
+          <a-form-item label="Offer人数管控">
+            <a-switch v-model:checked="formData.offerHeadcountControl" />
+            <span class="switch-tip">开启后Offer创建数量受需求人数限制</span>
+          </a-form-item>
+        </a-card>
+
+        <!-- 抢单设置 -->
+        <a-card title="抢单设置" class="config-card">
+          <a-form-item label="全局开启抢单模式">
+            <a-switch v-model:checked="formData.grabModeEnabled" />
+            <span class="switch-tip">开启后抢单功能生效，需求中的交易信息模块内容可配置</span>
+          </a-form-item>
+          <a-form-item label="抢单模式开关权限">
+            <a-checkbox-group v-model:value="formData.grabModeSwitchRoles">
+              <a-checkbox value="super_admin_product">超管-产线</a-checkbox>
+            </a-checkbox-group>
+            <span class="switch-tip">仅选中的角色可以操作抢单模式开关</span>
+          </a-form-item>
+          <a-form-item label="抢单人配置权限">
+            <a-checkbox-group v-model:value="formData.grabModeOperatorRoles">
+              <a-checkbox value="hrbp">HRBP</a-checkbox>
+            </a-checkbox-group>
+            <span class="switch-tip">可添加/删除抢单人（系统自动填充的抢单人不可删除）</span>
+          </a-form-item>
+          <a-form-item label="抢单金额配置权限">
+            <a-checkbox-group v-model:value="formData.grabModeAmountRoles">
+              <a-checkbox value="hrbp">HRBP</a-checkbox>
+            </a-checkbox-group>
+            <span class="switch-tip">可配置抢单相关金额</span>
+          </a-form-item>
+          <a-form-item label="交易信息管理权限">
+            <a-checkbox-group v-model:value="formData.transactionManageRoles">
+              <a-checkbox value="hrbp">HRBP</a-checkbox>
+              <a-checkbox value="demand_manager">需求负责人</a-checkbox>
+              <a-checkbox value="super_admin_business">超管-业务</a-checkbox>
+              <a-checkbox value="super_admin_product">超管-产线</a-checkbox>
+              <a-checkbox value="personal">个人</a-checkbox>
+            </a-checkbox-group>
+            <span class="switch-tip">可查看和操作需求中的交易信息</span>
+          </a-form-item>
+          <a-form-item label="超时自动入池">
+            <a-input-number v-model:value="formData.grabPoolTimeoutHours" :min="0" :max="168" />
+            <span class="input-tip">小时</span>
+            <span class="switch-tip">超过指定时间未邀约成功自动进入抢单池（0表示关闭）</span>
+          </a-form-item>
+          <a-form-item label="职位创建权限">
+            <a-radio-group v-model:value="formData.positionCreateRole">
+              <a-radio value="hrbp">HRBP</a-radio>
+              <a-radio value="demand_assistant">需求协助人</a-radio>
+            </a-radio-group>
+            <span class="switch-tip">控制谁可以创建职位</span>
+          </a-form-item>
+        </a-card>
+
+        <!-- 画像设置 -->
+        <a-card title="画像设置" class="config-card">
+          <a-form-item label="画像字段约束规则">
+            <div class="profile-rules-editor">
+              <a-textarea
+                v-model:value="formData.profileFieldRules"
+                placeholder="请输入画像字段约束规则，每行一条规则，格式：字段名:规则描述"
+                :rows="6"
+                class="rules-textarea"
+              />
+              <div class="rules-tip">
+                <p>规则格式示例：</p>
+                <p>experience: 工作年限需在1-10年之间</p>
+                <p>education: 学历需为本科及以上</p>
+                <p>skills: 技能标签至少选择2个</p>
+              </div>
+            </div>
+          </a-form-item>
+        </a-card>
+
         <!-- 招聘类型配置 -->
         <a-card title="招聘类型配置" class="config-card">
           <a-form-item label="启用社会招聘">
@@ -195,6 +290,23 @@ const formData = ref<any>({
   enableJobLevel: true,
   jobLevelSystem: ['P', 'M'],
 
+  // 功能设置
+  demandMode: 'task',
+  terminationStatus: ['completed', 'stopped'],
+  offerHeadcountControl: true,
+
+  // 抢单设置
+  grabModeEnabled: false,
+  grabModeSwitchRoles: ['super_admin_product'],
+  grabModeOperatorRoles: ['hrbp'],
+  grabModeAmountRoles: ['hrbp'],
+  transactionManageRoles: ['hrbp', 'demand_manager', 'super_admin_business', 'super_admin_product', 'personal'],
+  grabPoolTimeoutHours: 48,
+  positionCreateRole: 'hrbp',
+
+  // 画像设置
+  profileFieldRules: '',
+
   // 需求流程配置
   requireApproval: true,
   approvalProcessId: '',
@@ -337,5 +449,36 @@ onMounted(() => {
   margin-left: 12px;
   color: #999;
   font-size: 12px;
+}
+
+.field-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999;
+}
+
+.profile-rules-editor {
+  width: 100%;
+}
+
+.rules-textarea {
+  border-radius: 6px;
+}
+
+.rules-tip {
+  margin-top: 8px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+.rules-tip p {
+  margin: 0 0 4px 0;
+  line-height: 1.6;
 }
 </style>

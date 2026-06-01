@@ -58,7 +58,7 @@
               </a-avatar>
               <div class="user-details">
                 <span class="user-name">{{ userStore.user?.realName || '管理员' }}</span>
-                <span class="user-role">{{ userStore.user?.role === 'admin' ? '超级管理员' : '用户' }}</span>
+                <span class="user-role">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? '超级管理员' : '用户' }}</span>
               </div>
             </div>
             <template #overlay>
@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, h } from 'vue'
+import { ref, watch, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -388,8 +388,8 @@ watch(() => route.path, () => {
 }
 
 .user-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
+  color: #000;
   font-weight: 600;
 }
 

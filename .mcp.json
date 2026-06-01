@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "minimax": {
+      "command": "npx",
+      "args": ["-y", "@jayjanii/pi-minimax-mcp"],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-Gg1Oph0S7ZfYv4jv4gcbV_Dhb3Sbeu6JGzHJq-HrQ5KrbqbiU1pw3L2I89IzzCCz9OPOkJW_9gp5Jyq4t2k3Q9ntZsK0esg2yLeXpJvjOU6z8bIrdbGvqAo"
+      }
+    }
+  }
+}
