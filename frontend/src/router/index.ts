@@ -72,6 +72,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../pages/resume/ResumeList.vue')
       },
       {
+        path: 'my-resumes/special-approval',
+        name: 'SpecialApproval',
+        component: () => import('../pages/resume/SpecialApproval.vue')
+      },
+      {
         path: 'invitations',
         name: 'Invitations',
         component: () => import('../pages/invitation/InvitationCenter.vue')
@@ -98,8 +103,8 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'settings/process-management',
-        name: 'ProcessManagementSpeedup',
-        component: () => import('../pages/settings/ProcessManagementSpeedup.vue')
+        name: 'ProcessManagement',
+        component: () => import('../pages/settings/ProcessManagement.vue')
       },
       {
         path: 'settings/demand-config',
