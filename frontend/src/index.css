@@ -1,4 +1,10 @@
 /* Global styles */
+:root {
+  --primary-color: #FBCE5B;
+  --primary-hover: #E5B82A;
+  --primary-bg: rgba(251, 206, 91, 0.1);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -26,6 +32,39 @@ body {
 
 .mt-16 { margin-top: 16px; }
 .mb-16 { margin-bottom: 16px; }
+
+/* Ant Design Vue primary color override */
+.ant-btn-primary {
+  background-color: #FBCE5B !important;
+  border-color: #FBCE5B !important;
+  color: #000 !important;
+}
+
+.ant-btn-primary:hover {
+  background-color: #E5B82A !important;
+  border-color: #E5B82A !important;
+}
+
+.ant-btn-primary:disabled {
+  background-color: #FBE899 !important;
+  border-color: #FBE899 !important;
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Primary color for links and text */
+a {
+  color: #FBCE5B;
+}
+
+a:hover {
+  color: #E5B82A;
+}
+
+/* Primary active state for menus */
+.ant-menu-item-selected,
+.ant-menu-item-active {
+  background-color: rgba(251, 206, 91, 0.15) !important;
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar {

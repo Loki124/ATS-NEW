@@ -1,0 +1,10 @@
+{
+  "appName": "ATS招聘管理系统",
+  "backend": {
+    "port": 5125,
+    "url": "http://localhost:5125"
+  },
+  "frontend": {
+    "port": 5212
+  }
+}

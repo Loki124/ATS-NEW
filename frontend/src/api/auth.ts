@@ -1,7 +1,8 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { useUserStore } from '../stores/user';
+import config from '../config';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = config.api.baseUrl;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -22,6 +23,10 @@ const subscribeTokenRefresh = (callback: (token: string) => void) => {
 
 const onTokenRefreshed = (token: string) => {
   refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+};
+
+const clearSubscribers = () => {
   refreshSubscribers = [];
 };
 
@@ -74,6 +79,7 @@ api.interceptors.response.use(
         throw new Error('No token returned');
       } catch (refreshError) {
         // 刷新失败，清理并跳转登录
+        clearSubscribers();
         const userStore = useUserStore();
         userStore.logout();
         window.location.href = '/login';

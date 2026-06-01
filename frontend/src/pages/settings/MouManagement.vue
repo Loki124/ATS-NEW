@@ -179,17 +179,16 @@
             <a-select-option v-for="m in mous" :key="m.id" :value="m.id">{{ m.name }}</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="资源类型" name="resourceType" :rules="[{ required: true }]">
-          <a-select v-model:value="containerFormState.resourceType" placeholder="请选择资源类型">
-            <a-select-option value="POSITION">职位</a-select-option>
-            <a-select-option value="CANDIDATE">候选人</a-select-option>
-            <a-select-option value="DEMAND">需求</a-select-option>
-            <a-select-option value="INTERVIEW">面试</a-select-option>
-            <a-select-option value="OFFER">Offer</a-select-option>
+        <a-form-item label="容器类型" name="type" :rules="[{ required: true }]">
+          <a-select v-model:value="containerFormState.type" placeholder="请选择容器类型">
+            <a-select-option value="PROJECT">项目</a-select-option>
+            <a-select-option value="DEPT">部门</a-select-option>
+            <a-select-option value="TALENT_POOL">人才库</a-select-option>
+            <a-select-option value="CUSTOM">自定义</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="资源范围" name="resourceScope">
-          <a-input v-model:value="containerFormState.resourceScope" placeholder="如：全部、本部门、自定义" />
+        <a-form-item label="资源过滤" name="resourceFilter">
+          <a-textarea v-model:value="containerFormState.resourceFilter" placeholder="JSON格式的资源过滤条件" :rows="2" />
         </a-form-item>
         <a-form-item label="描述" name="description">
           <a-textarea v-model:value="containerFormState.description" :rows="2" placeholder="请输入容器描述" />
@@ -218,23 +217,16 @@
         <a-form-item label="规则编码" name="code" :rules="[{ required: true }]">
           <a-input v-model:value="ruleFormState.code" placeholder="请输入规则编码" :disabled="!!editingRule" />
         </a-form-item>
-        <a-form-item label="触发类型" name="triggerType" :rules="[{ required: true }]">
-          <a-select v-model:value="ruleFormState.triggerType" placeholder="请选择触发类型">
-            <a-select-option value="ONBOARDING">入职触发</a-select-option>
-            <a-select-option value="ROLE_CHANGE">角色变更</a-select-option>
-            <a-select-option value="DEPARTMENT_CHANGE">部门变更</a-select-option>
-            <a-select-option value="TIME_TRIGGER">定时触发</a-select-option>
-            <a-select-option value="MANUAL">手动触发</a-select-option>
+        <a-form-item label="触发事件" name="eventType" :rules="[{ required: true }]">
+          <a-select v-model:value="ruleFormState.eventType" placeholder="请选择触发事件">
+            <a-select-option value="onboarding">入职触发</a-select-option>
+            <a-select-option value="transfer">转岗触发</a-select-option>
+            <a-select-option value="org_change">组织变更触发</a-select-option>
+            <a-select-option value="offboarding">离职触发</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="动作类型" name="actionType" :rules="[{ required: true }]">
-          <a-select v-model:value="ruleFormState.actionType" placeholder="请选择动作类型">
-            <a-select-option value="ASSIGN_MOU">分配MOU</a-select-option>
-            <a-select-option value="ASSIGN_CONTAINER">分配容器</a-select-option>
-            <a-select-option value="ASSIGN_ROLE">分配角色</a-select-option>
-            <a-select-option value="REVOKE_PERMISSION">撤销权限</a-select-option>
-            <a-select-option value="NOTIFY">发送通知</a-select-option>
-          </a-select>
+        <a-form-item label="动作配置" name="actions" :rules="[{ required: true }]">
+          <a-textarea v-model:value="ruleFormState.actions" placeholder='JSON格式动作配置，如：[{"type":"assign_role","role_id":"xxx"}]' :rows="3" />
         </a-form-item>
         <a-form-item label="优先级" name="priority">
           <a-input-number v-model:value="ruleFormState.priority" placeholder="数值越小优先级越高" />
@@ -324,12 +316,9 @@ interface AutomationRule {
   name: string
   code: string
   description?: string
-  triggerType: string
-  eventType?: string
-  triggerConfig?: any
-  actionType: string
-  actionConfig?: any
-  conditions?: any[]
+  eventType: string
+  condition?: any
+  actions: string
   priority: number
   status: string
   createdAt: string
@@ -387,10 +376,10 @@ const editingContainer = ref<PermissionContainer | null>(null)
 const containerFormState = reactive({
   name: '',
   code: '',
+  type: '',
   mouId: '',
   description: '',
-  resourceType: '',
-  resourceScope: '',
+  resourceFilter: null,
   status: 'ACTIVE'
 })
 
@@ -402,8 +391,9 @@ const editingRule = ref<AutomationRule | null>(null)
 const ruleFormState = reactive({
   name: '',
   code: '',
-  triggerType: '',
-  actionType: '',
+  eventType: '',
+  condition: null,
+  actions: '',
   priority: 0,
   description: '',
   status: 'ACTIVE'
@@ -725,7 +715,7 @@ const handleSaveMou = async () => {
 const handleAddContainer = (mouId?: string) => {
   editingContainer.value = null
   Object.assign(containerFormState, {
-    name: '', code: '', mouId: mouId || '', description: '', resourceType: '', resourceScope: '', status: 'ACTIVE'
+    name: '', code: '', type: '', mouId: mouId || '', description: '', resourceFilter: null, status: 'ACTIVE'
   })
   containerModalVisible.value = true
 }
@@ -735,9 +725,10 @@ const handleEditContainer = (container: PermissionContainer) => {
   Object.assign(containerFormState, {
     name: container.name,
     code: container.code,
+    type: container.type,
     mouId: container.mouId,
     description: container.description,
-    resourceType: container.type,
+    resourceFilter: container.resourceFilter,
     status: container.status
   })
   containerModalVisible.value = true
@@ -791,7 +782,7 @@ const handleSaveContainer = async () => {
 // Automation 规则操作
 const handleAddRule = () => {
   editingRule.value = null
-  Object.assign(ruleFormState, { name: '', code: '', triggerType: '', actionType: '', priority: 0, description: '', status: 'ACTIVE' })
+  Object.assign(ruleFormState, { name: '', code: '', eventType: '', condition: null, actions: '', priority: 0, description: '', status: 'ACTIVE' })
   ruleModalVisible.value = true
 }
 
@@ -800,7 +791,9 @@ const handleEditRule = (rule: AutomationRule) => {
   Object.assign(ruleFormState, {
     name: rule.name,
     code: rule.code,
-    triggerType: rule.eventType,
+    eventType: rule.eventType,
+    condition: rule.condition,
+    actions: rule.actions,
     priority: rule.priority,
     description: rule.description,
     status: rule.status

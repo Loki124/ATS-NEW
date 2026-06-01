@@ -129,7 +129,7 @@
           style="padding: 40px"
         >
           <p class="ant-upload-drag-icon">
-            <InboxOutlined style="font-size: 48px; color: #667eea" />
+            <InboxOutlined style="font-size: 48px; color: #FBCE5B" />
           </p>
           <p class="ant-upload-text" style="font-size: 16px; font-weight: 500">
             点击或拖拽上传简历文件
@@ -385,11 +385,11 @@ const resetForm = () => {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #000;
   font-size: 16px;
 }
 
@@ -414,11 +414,11 @@ const resetForm = () => {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: #667eea;
+  background: #FBCE5B;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #000;
 }
 
 .file-info {
@@ -497,7 +497,7 @@ const resetForm = () => {
   padding: 16px;
   background: #f5f5f5;
   border-radius: 8px;
-  color: #667eea;
+  color: #FBCE5B;
   font-weight: 500;
 }
 

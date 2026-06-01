@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import config from './src/config'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -14,10 +15,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5212,
+    port: config.frontend.port,
     proxy: {
-      '/api': {
-        target: 'http://localhost:5125',
+      [config.api.baseUrl]: {
+        target: config.backend.url,
         changeOrigin: true,
       },
     },

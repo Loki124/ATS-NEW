@@ -274,7 +274,7 @@ const sendCode = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
   position: relative;
   overflow: hidden;
 }
@@ -357,7 +357,7 @@ const sendCode = () => {
 .logo-icon {
   width: 50px;
   height: 50px;
-  color: #667eea;
+  color: #FBCE5B;
 }
 
 .brand-title {
@@ -427,19 +427,19 @@ const sendCode = () => {
 }
 
 .forgot-link {
-  color: #667eea;
+  color: #FBCE5B;
   font-size: 14px;
 }
 
 .forgot-link:hover {
-  color: #764ba2;
+  color: #E5B82A;
 }
 
 .login-button {
   height: 48px;
   font-size: 16px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
   border: none;
   font-weight: 600;
   transition: all 0.3s;
@@ -448,7 +448,7 @@ const sendCode = () => {
 .login-button:hover {
   opacity: 0.9;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(251, 206, 91, 0.4);
 }
 
 .code-input-wrapper {
