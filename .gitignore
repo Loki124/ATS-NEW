@@ -29,3 +29,7 @@ Thumbs.db
 
 # Uploads
 uploads/
+
+# Git worktrees
+.worktrees/
+worktrees/
