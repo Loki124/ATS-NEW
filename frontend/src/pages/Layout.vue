@@ -175,6 +175,7 @@ const menuItems = [
     children: [
       { key: 'basic-info', label: '基本信息', children: [
         { key: 'org', label: '组织机构管理', children: [
+          { key: '/settings/department', label: '部门管理' },
           { key: '/settings/user-management', label: '用户管理' },
           { key: '/settings/permission', label: '权限管理' },
           { key: '/settings/mou', label: 'MOU权限管理' },

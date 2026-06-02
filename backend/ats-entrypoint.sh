@@ -25,8 +25,15 @@ if [ "$USER_COUNT" = "0" ]; then
   if [ -f prisma/seed/permission.seed.cjs ]; then
     node prisma/seed/permission.seed.cjs 2>&1 || echo "⚠️  permission.seed 失败"
   fi
+  if [ -f prisma/seed/department.seed.cjs ]; then
+    node prisma/seed/department.seed.cjs 2>&1 || echo "⚠️  department.seed 失败"
+  fi
 else
   echo "✅ [entrypoint] users 已有 $USER_COUNT 条记录，跳过种子"
+  # 部门数据始终尝试同步（幂等），方便后续无 user 时也能补种
+  if [ -f prisma/seed/department.seed.cjs ]; then
+    node prisma/seed/department.seed.cjs 2>&1 || echo "⚠️  department.seed 失败"
+  fi
 fi
 
 echo "🚀 [entrypoint] 启动 Node 应用..."
