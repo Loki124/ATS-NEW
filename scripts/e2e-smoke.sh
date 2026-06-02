@@ -76,13 +76,13 @@ echo "  ✓ 无 token 返回 401"
 
 echo ""
 echo "=== 10. 字段类型验证（Decimal, @db.Text） ==="
-node -e "
+cd "$(dirname "$0")/../backend" && node -e "
 import('@prisma/client').then(async (m) => {
   const p = new m.PrismaClient();
   const dept = await p.department.findFirst();
   console.log('  ✓ 部门 sortOrder 类型:', typeof dept.sortOrder, '(期望 number)');
-  const u = await p.user.findFirst({ select: { id: true, realName: true, password: false } });
-  console.log('  ✓ User 查询无 password 字段');
+  const u = await p.user.findFirst({ select: { id: true, realName: true } });
+  console.log('  ✓ User 查询 OK, sample:', u?.realName);
   await p.\$disconnect();
 }).catch(e => { console.error('FAIL:', e.message); process.exit(1); })
 "
