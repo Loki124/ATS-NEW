@@ -140,6 +140,11 @@ const routes: RouteRecordRaw[] = [
         path: 'settings/user-management',
         name: 'UserManagement',
         component: () => import('../pages/settings/UserManagement.vue')
+      },
+      {
+        path: 'settings/department',
+        name: 'DepartmentManagement',
+        component: () => import('../pages/settings/DepartmentManagement.vue')
       }
     ]
   },
