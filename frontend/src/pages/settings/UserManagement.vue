@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import api from '../../api/auth';
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import {
   UserOutlined,
