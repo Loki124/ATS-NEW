@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -96,7 +96,7 @@ model SpecialApprovalFlow {
 
   // 各节点审批信息，JSON格式
   // [{nodeId, nodeName, approverId, approverName, status, comment, decidedAt}]
-  nodes         String   // JSON数组
+  nodes         String   @db.Text // JSON数组
 
   // 审批结果
   result        String?
@@ -124,7 +124,7 @@ model AsyncScoringTask {
   status        String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
 
   matchScore    Int?
-  matchDetails  String?  // JSON，评分详情
+  matchDetails  String?  @db.Text // JSON，评分详情
 
   errorMessage  String?
 
@@ -157,7 +157,7 @@ model ResumeFlowLog {
   positionId    String?  // 关联职位（如果是分配相关）
   positionName  String?
 
-  detail        String?  // JSON，额外详情
+  detail        String?  @db.Text // JSON，额外详情
 
   createdAt     DateTime @default(now())
 
@@ -241,7 +241,7 @@ model RecruitmentProcess {
   id              String   @id @default(uuid())
   name            String
   code            String   @unique
-  description     String?
+  description     String? @db.Text
   applicableRange String?
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
@@ -304,9 +304,9 @@ model Demand {
   salaryMin       Int?
   salaryMax       Int?
 
-  description     String?
-  requirements    String?
-  attachments     String?
+  description     String? @db.Text
+  requirements    String? @db.Text
+  attachments     String? @db.Text
 
   trialGoals      String?
 
@@ -314,7 +314,7 @@ model Demand {
   isDoubleA       Boolean  @default(false)
 
   biddingMode     String   @default("BIDDING")
-  biddingAmount   Float?
+  biddingAmount   Decimal? @db.Decimal(12, 2)
   biddingUnit     String?
   biddingTalentLevels String?
 
@@ -346,8 +346,8 @@ model Position {
   positionNature  String?
   positionSeries   String?
 
-  description     String?
-  requirements    String?
+  description     String? @db.Text
+  requirements    String? @db.Text
 
   processId       String?
   companyId       String?
@@ -455,7 +455,7 @@ model Resume {
   fileType        String
   fileSize        Int
 
-  parsedData      String?
+  parsedData      String? @db.Text
 
   source          String
   uploadLocation  String?
@@ -627,22 +627,22 @@ model Offer {
   contractPeriod String?
   legalCompany   String?
 
-  lastYearAvgSalary Float?
+  lastYearAvgSalary Decimal? @db.Decimal(12, 2)
   salaryPlan        String?
-  baseSalaryTrial   Float?
-  baseSalaryFormal  Float?
-  levelSalaryTrial  Float?
-  levelSalaryFormal Float?
-  performanceTrial  Float?
-  performanceFormal Float?
-  housingSubsidyTrial Float?
-  housingSubsidyFormal Float?
-  attendanceBonusTrial Float?
-  attendanceBonusFormal Float?
-  commissionTrial   Float?
-  commissionFormal  Float?
+  baseSalaryTrial   Decimal? @db.Decimal(12, 2)
+  baseSalaryFormal  Decimal? @db.Decimal(12, 2)
+  levelSalaryTrial  Decimal? @db.Decimal(12, 2)
+  levelSalaryFormal Decimal? @db.Decimal(12, 2)
+  performanceTrial  Decimal? @db.Decimal(12, 2)
+  performanceFormal Decimal? @db.Decimal(12, 2)
+  housingSubsidyTrial Decimal? @db.Decimal(12, 2)
+  housingSubsidyFormal Decimal? @db.Decimal(12, 2)
+  attendanceBonusTrial Decimal? @db.Decimal(12, 2)
+  attendanceBonusFormal Decimal? @db.Decimal(12, 2)
+  commissionTrial   Decimal? @db.Decimal(12, 2)
+  commissionFormal  Decimal? @db.Decimal(12, 2)
 
-  attachments     String?
+  attachments     String? @db.Text
 
   offerStatus    String   @default("NOT_CREATED")
 
@@ -724,26 +724,26 @@ model Onboarding {
   contractType    String?
   contractPeriod String?
   legalCompany   String?
-  lastYearAvgSalary Float?
+  lastYearAvgSalary Decimal? @db.Decimal(12, 2)
 
   referrerId     String?
   officeSupplies String?
 
   salaryPlan      String?
-  baseSalaryTrial Float?
-  baseSalaryFormal Float?
-  levelSalaryTrial Float?
-  levelSalaryFormal Float?
-  performanceTrial Float?
-  performanceFormal Float?
-  housingSubsidyTrial Float?
-  housingSubsidyFormal Float?
-  attendanceBonusTrial Float?
-  attendanceBonusFormal Float?
-  commissionTrial  Float?
+  baseSalaryTrial Decimal? @db.Decimal(12, 2)
+  baseSalaryFormal Decimal? @db.Decimal(12, 2)
+  levelSalaryTrial Decimal? @db.Decimal(12, 2)
+  levelSalaryFormal Decimal? @db.Decimal(12, 2)
+  performanceTrial Decimal? @db.Decimal(12, 2)
+  performanceFormal Decimal? @db.Decimal(12, 2)
+  housingSubsidyTrial Decimal? @db.Decimal(12, 2)
+  housingSubsidyFormal Decimal? @db.Decimal(12, 2)
+  attendanceBonusTrial Decimal? @db.Decimal(12, 2)
+  attendanceBonusFormal Decimal? @db.Decimal(12, 2)
+  commissionTrial  Decimal? @db.Decimal(12, 2)
   commissionFormal Decimal?
 
-  attachments    String?
+  attachments    String? @db.Text
 
   onboardingStatus String   @default("NOT_STARTED")
   approvalStatus  String   @default("NOT_STARTED")
@@ -794,7 +794,7 @@ model InvitationRecord {
   interventionCount Int    @default(0)
   lastInterventionBy String?
 
-  biddingAmount   Float?
+  biddingAmount   Decimal? @db.Decimal(12, 2)
 
   resultStatus   String?
   resultReason   String?
@@ -815,7 +815,7 @@ model Notification {
   userId        String
   type          String
   title         String
-  content       String
+  content       String   @db.Text
   data          String?
   readStatus    String   @default("UNREAD")
   readAt        DateTime?
@@ -846,7 +846,7 @@ model Dictionary {
   id          String   @id @default(uuid())
   name        String
   code        String   @unique
-  description String?
+  description String? @db.Text
   status      String   @default("ACTIVE")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -863,7 +863,7 @@ model DictionaryItem {
   name          String
   code          String
   value         String?
-  description   String?
+  description   String? @db.Text
   sortOrder     Int      @default(0)
   level         Int      @default(1)
   status        String   @default("ACTIVE")
@@ -886,7 +886,7 @@ model Company {
   isBenchmark     Boolean  @default(false)
   industry        String?
   scale           String?
-  description     String?
+  description     String? @db.Text
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -939,7 +939,7 @@ model ScoringRule {
   id             String   @id @default(uuid())
   name           String
   code           String   @unique
-  description    String?
+  description    String? @db.Text
   ruleType       String
   status         String   @default("ACTIVE")
   createdAt      DateTime @default(now())
@@ -992,7 +992,7 @@ model Role {
   id          String   @id @default(uuid())
   name        String
   code        String   @unique
-  description String?
+  description String? @db.Text
   roleType    String
   status      String   @default("ACTIVE")
   sortOrder   Int      @default(0)
@@ -1019,7 +1019,7 @@ model Permission {
   level         Int      @default(1)
   path          String?
 
-  description   String?
+  description   String? @db.Text
   status        String   @default("ACTIVE")
   sortOrder     Int      @default(0)
 
@@ -1121,7 +1121,7 @@ model Mou {
   name          String
   code          String   @unique
   type          String
-  description   String?
+  description   String? @db.Text
 
   parentMouId   String?
   level         Int      @default(1)
@@ -1171,7 +1171,7 @@ model PermissionContainer {
   code          String   @unique
   type          String
 
-  description   String?
+  description   String? @db.Text
 
   mouId         String?
   resourceFilter String?
@@ -1227,7 +1227,7 @@ model AutomationRule {
   id            String   @id @default(uuid())
   name          String
   code          String   @unique
-  description   String?
+  description   String? @db.Text
 
   eventType     String
 

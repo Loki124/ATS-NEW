@@ -14,7 +14,17 @@ export const app = {
 
 // 数据库配置
 export const database = {
-  url: process.env.DATABASE_URL || 'file:./prisma/dev.db',
+  url: process.env.DATABASE_URL || 'mysql://ats:atspass@localhost:3306/ats',
+};
+
+// MySQL 配置（用于 healthcheck 等）
+export const mysql = {
+  host: process.env.MYSQL_HOST || 'localhost',
+  port: parseInt(process.env.MYSQL_PORT) || 3306,
+  user: process.env.MYSQL_USER || 'ats',
+  password: process.env.MYSQL_PASSWORD || 'atspass',
+  database: process.env.MYSQL_DATABASE || 'ats',
+  rootPassword: process.env.MYSQL_ROOT_PASSWORD || 'rootpass',
 };
 
 // JWT 配置
@@ -31,8 +41,8 @@ export const cors = {
 
 // API 速率限制
 export const rateLimit = {
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000,
 };
 
 // 上传配置
@@ -41,4 +51,4 @@ export const upload = {
   allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'],
 };
 
-export default { app, database, jwt, cors, rateLimit, upload };
+export default { app, database, mysql, jwt, cors, rateLimit, upload };
