@@ -1,6 +1,33 @@
 version: '3.8'
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: ats-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ats}
+      MYSQL_USER: ${MYSQL_USER:-ats}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-atspass}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - ats-network
+
   backend:
     build:
       context: ./backend
@@ -8,12 +35,18 @@ services:
     ports:
       - "5125:5125"
     environment:
-      - DATABASE_URL=file:/app/prisma/dev.db
-      - JWT_SECRET=ats-super-secret-key-2024-production
+      - DATABASE_URL=mysql://${MYSQL_USER:-ats}:${MYSQL_PASSWORD:-atspass}@mysql:3306/${MYSQL_DATABASE:-ats}
+      - JWT_SECRET=${JWT_SECRET:-ats-super-secret-key-2024-production}
       - PORT=5125
       - CORS_ORIGIN=http://10.10.22.80:9908
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=${MYSQL_USER:-ats}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-atspass}
     volumes:
-      - db-data:/app/prisma
+      - mysql_data:/var/lib/mysql
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - ats-network
 
@@ -35,4 +68,4 @@ networks:
     driver: bridge
 
 volumes:
-  db-data:
+  mysql_data:
