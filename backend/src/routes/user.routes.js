@@ -80,7 +80,7 @@ router.get('/:id', async (req, res, next) => {
     });
     
     if (!user) {
-      return res.status(404).json({ success: false, error: '用户不存在' });
+      return res.status(404).json({ success: false, message: '用户不存在' });
     }
     
     res.json({ success: true, data: user });
@@ -100,7 +100,7 @@ router.post('/', async (req, res, next) => {
     });
     
     if (existingUser) {
-      return res.status(400).json({ success: false, error: '用户名已存在' });
+      return res.status(400).json({ success: false, message: '用户名已存在' });
     }
     
     // 密码加密
@@ -199,7 +199,7 @@ router.put('/:id', async (req, res, next) => {
     res.json({ success: true, data: user });
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: '用户不存在' });
+      return res.status(404).json({ success: false, message: '用户不存在' });
     }
     next(error);
   }
@@ -215,7 +215,7 @@ router.delete('/:id', async (req, res, next) => {
     res.json({ success: true, message: '用户删除成功' });
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: '用户不存在' });
+      return res.status(404).json({ success: false, message: '用户不存在' });
     }
     next(error);
   }

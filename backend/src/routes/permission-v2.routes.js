@@ -45,7 +45,7 @@ router.post('/mou', async (req, res) => {
     // 检查编码唯一性
     const existing = await prisma.mou.findUnique({ where: { code } });
     if (existing) {
-      return res.status(400).json({ error: 'MOU编码已存在' });
+      return res.status(400).json({ success: false, message: 'MOU编码已存在' });
     }
     
     // 计算层级和路径
@@ -110,13 +110,13 @@ router.delete('/mou/:id', async (req, res) => {
     // 检查是否有子MOU
     const childCount = await prisma.mou.count({ where: { parentMouId: id } });
     if (childCount > 0) {
-      return res.status(400).json({ error: '请先删除子MOU' });
+      return res.status(400).json({ success: false, message: '请先删除子MOU' });
     }
     
     // 检查是否有用户关联
     const userCount = await prisma.userMou.count({ where: { mouId: id } });
     if (userCount > 0) {
-      return res.status(400).json({ error: '请先移除MOU下的所有用户' });
+      return res.status(400).json({ success: false, message: '请先移除MOU下的所有用户' });
     }
     
     await prisma.mou.delete({ where: { id } });
@@ -160,7 +160,7 @@ router.post('/mou/:mouId/users', async (req, res) => {
     res.status(201).json({ success: true, data: userMou });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: '用户已在该MOU中' });
+      return res.status(400).json({ success: false, message: '用户已在该MOU中' });
     }
     next(error);
   }
@@ -272,7 +272,7 @@ router.post('/containers', async (req, res) => {
     
     const existing = await prisma.permissionContainer.findUnique({ where: { code } });
     if (existing) {
-      return res.status(400).json({ error: '容器编码已存在' });
+      return res.status(400).json({ success: false, message: '容器编码已存在' });
     }
     
     const container = await prisma.permissionContainer.create({
@@ -325,7 +325,7 @@ router.delete('/containers/:id', async (req, res) => {
     // 检查是否有用户关联
     const userCount = await prisma.userContainer.count({ where: { containerId: id } });
     if (userCount > 0) {
-      return res.status(400).json({ error: '请先移除容器下的所有用户' });
+      return res.status(400).json({ success: false, message: '请先移除容器下的所有用户' });
     }
     
     await prisma.permissionContainer.delete({ where: { id } });
@@ -369,7 +369,7 @@ router.post('/containers/:containerId/users', async (req, res) => {
     res.status(201).json({ success: true, data: userContainer });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: '用户已在该容器中' });
+      return res.status(400).json({ success: false, message: '用户已在该容器中' });
     }
     next(error);
   }
@@ -422,7 +422,7 @@ router.post('/containers/:containerId/resources', async (req, res) => {
     res.status(201).json({ success: true, data: containerResource });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: '资源已在容器中' });
+      return res.status(400).json({ success: false, message: '资源已在容器中' });
     }
     next(error);
   }
@@ -479,7 +479,7 @@ router.post('/automation-rules', async (req, res) => {
     
     const existing = await prisma.automationRule.findUnique({ where: { code } });
     if (existing) {
-      return res.status(400).json({ error: '规则编码已存在' });
+      return res.status(400).json({ success: false, message: '规则编码已存在' });
     }
     
     const rule = await prisma.automationRule.create({
@@ -542,7 +542,7 @@ router.post('/automation-rules/:id/execute', async (req, res) => {
     
     const rule = await prisma.automationRule.findUnique({ where: { id } });
     if (!rule || rule.status !== 'ACTIVE') {
-      return res.status(400).json({ error: '规则不存在或未启用' });
+      return res.status(400).json({ success: false, message: '规则不存在或未启用' });
     }
     
     // 解析条件和动作
@@ -741,7 +741,7 @@ async function executeAction(action, userId, operatorId) {
         return { type: 'bind_container', success: true };
         
       default:
-        return { type: action.type, success: false, error: 'Unknown action type' };
+        return { type: action.type, success: false, message: 'Unknown action type' };
     }
   } catch (error) {
     return { type: action.type, success: false, error: error.message };
