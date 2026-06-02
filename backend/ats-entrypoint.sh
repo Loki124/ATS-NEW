@@ -4,6 +4,22 @@
 
 set -e
 
+echo "⏳ [entrypoint] 等待 MySQL 就绪..."
+MYSQL_WAIT_MAX=60
+i=0
+while [ $i -lt $MYSQL_WAIT_MAX ]; do
+  if mysqladmin ping -h"${MYSQL_HOST:-mysql}" -u"${MYSQL_USER:-ats}" -p"${MYSQL_PASSWORD:-atspass}" --silent 2>/dev/null; then
+    echo "✅ MySQL 就绪"
+    break
+  fi
+  i=$((i+1))
+  if [ $i -eq $MYSQL_WAIT_MAX ]; then
+    echo "❌ MySQL 健康检查超时 ($MYSQL_WAIT_MAX 次)"
+    exit 1
+  fi
+  sleep 2
+done
+
 echo "🔄 [entrypoint] 同步 Prisma schema 到数据库..."
 npx prisma db push --skip-generate --accept-data-loss 2>&1 || {
   echo "❌ Prisma db push 失败"

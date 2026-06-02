@@ -3,11 +3,12 @@ FROM node:18-bullseye-slim
 
 WORKDIR /app
 
-# 安装 Prisma engine 所需的运行时依赖 (libssl 1.1 + 基础工具)
+# 安装 Prisma engine 所需的运行时依赖 (libssl 1.1 + 基础工具 + MySQL 客户端)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     ca-certificates \
     curl \
+    default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # 先复制 package.json 安装依赖
