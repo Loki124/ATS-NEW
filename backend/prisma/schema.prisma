@@ -15,22 +15,22 @@ datasource db {
 // 简历锁定记录表 (核心新表)
 // ============================================
 model ResumeLockRecord {
-  id            String   @id @default(uuid())
-  resumeId      String
-  lockerId      String
-  lockType      String   // FORMAL(正式锁定人), TEMPORARY(临时锁定人72h)
+  id       String @id @default(uuid())
+  resumeId String
+  lockerId String
+  lockType String // FORMAL(正式锁定人), TEMPORARY(临时锁定人72h)
 
-  effectiveTime DateTime @default(now())
-  expireTime    DateTime?  // 仅临时锁定人有有效期
-  isActive      Boolean  @default(true)
+  effectiveTime DateTime  @default(now())
+  expireTime    DateTime? // 仅临时锁定人有有效期
+  isActive      Boolean   @default(true)
 
-  source        String   // ASSIGN(分配), UPLOAD(上传), ACTIVATE(激活)
+  source String // ASSIGN(分配), UPLOAD(上传), ACTIVATE(激活)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  locker        User     @relation("ResumeLocker", fields: [lockerId], references: [id])
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  locker User   @relation("ResumeLocker", fields: [lockerId], references: [id], onDelete: Restrict)
 
   @@index([resumeId, isActive])
   @@index([lockerId])
@@ -39,99 +39,102 @@ model ResumeLockRecord {
 
 // ============================================
 // 特殊标签关联表
-// ============================================
+// ============================================}
 model SpecialResumeTag {
-  id            String   @id @default(uuid())
-  resumeId      String
-  positionId    String?  // 标签与职位绑定，null表示全局
+  id         String  @id @default(uuid())
+  resumeId   String
+  positionId String? // 标签与职位绑定，null表示全局
 
-  tagName       String   @default("特殊简历")
+  tagName String @default("特殊简历")
 
-  approvalId    String?  // 关联的审批单ID
+  approvalId String? // 关联的审批单ID
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@unique([resumeId, positionId])
+  @@index([resumeId])
   @@map("special_resume_tags")
 }
 
 // ============================================
 // 简历合并记录表
-// ============================================
+// ============================================}
 model ResumeMergeRecord {
-  id               String   @id @default(uuid())
-  mainResumeId     String   // 主简历（保留）
-  mergedResumeId   String   // 被合并简历
+  id             String @id @default(uuid())
+  mainResumeId   String // 主简历（保留）
+  mergedResumeId String // 被合并简历
 
-  mergeType        String   // MANUAL(主动合并), AUTO(超时自动合并)
+  mergeType String // MANUAL(主动合并), AUTO(超时自动合并)
 
-  operatorId       String?
-  mergeReason     String?
+  operatorId  String?
+  mergeReason String?
 
-  createdAt        DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  mainResume       Resume   @relation("MainResumeMerge", fields: [mainResumeId], references: [id], onDelete: Cascade)
-  mergedResume     Resume   @relation("MergedResumeMerge", fields: [mergedResumeId], references: [id], onDelete: Cascade)
+  mainResume   Resume @relation("MainResumeMerge", fields: [mainResumeId], references: [id], onDelete: Cascade)
+  mergedResume Resume @relation("MergedResumeMerge", fields: [mergedResumeId], references: [id], onDelete: Cascade)
 
   @@unique([mergedResumeId])
+  @@index([operatorId])
   @@map("resume_merge_records")
 }
 
 // ============================================
 // 特殊审批流程表
-// ============================================
+// ============================================}
 model SpecialApprovalFlow {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  resumeId      String
-  positionId    String   // 审批针对的职位
+  resumeId   String
+  positionId String // 审批针对的职位
 
-  flowType      String   @default("SPECIAL_RESUME") // SPECIAL_RESUME, OTHER
+  flowType String @default("SPECIAL_RESUME") // SPECIAL_RESUME, OTHER
 
-  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  status String @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
 
   currentNodeId String?
 
   // 各节点审批信息，JSON格式
   // [{nodeId, nodeName, approverId, approverName, status, comment, decidedAt}]
-  nodes         String   @db.Text // JSON数组
+  nodes String @db.Text // JSON数组
 
   // 审批结果
   result        String?
   resultComment String?
   decidedAt     DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@index([resumeId, status])
+  @@index([currentNodeId])
   @@map("special_approval_flows")
 }
 
 // ============================================
 // 异步评分任务表
-// ============================================
+// ============================================}
 model AsyncScoringTask {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  resumeId      String
-  positionId    String   // 评分针对的职位
+  resumeId   String
+  positionId String // 评分针对的职位
 
-  status        String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  status String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
 
-  matchScore    Int?
-  matchDetails  String?  @db.Text // JSON，评分详情
+  matchScore   Int?
+  matchDetails String? @db.Text // JSON，评分详情
 
-  errorMessage  String?
+  errorMessage String?
 
-  createdAt     DateTime @default(now())
-  completedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
 
-  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@index([resumeId, status])
   @@map("async_scoring_tasks")
@@ -139,65 +142,65 @@ model AsyncScoringTask {
 
 // ============================================
 // 简历流转日志表
-// ============================================
+// ============================================}
 model ResumeFlowLog {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  resumeId      String
-  candidateId   String
+  resumeId    String
+  candidateId String
 
-  action        String   // UPLOAD, ASSIGN, ARCHIVE, ACTIVATE, MERGE, SCORE, APPROVE, REJECT
+  action String // UPLOAD, ASSIGN, ARCHIVE, ACTIVATE, MERGE, SCORE, APPROVE, REJECT
 
-  operatorId    String?
-  operatorName  String?
+  operatorId   String?
+  operatorName String?
 
-  fromStatus    String?
-  toStatus      String?
+  fromStatus String?
+  toStatus   String?
 
-  positionId    String?  // 关联职位（如果是分配相关）
-  positionName  String?
+  positionId   String? // 关联职位（如果是分配相关）
+  positionName String?
 
-  detail        String?  @db.Text // JSON，额外详情
+  detail String? @db.Text // JSON，额外详情
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@index([resumeId])
   @@index([candidateId])
+  @@index([operatorId])
   @@map("resume_flow_logs")
 }
 
 // ============================================
 // 系统基础模块
 // ============================================
-
 model User {
-  id              String    @id @default(uuid())
-  username        String    @unique
-  password        String
-  realName        String
-  email           String?   @unique
-  phone           String?   @unique
-  avatar          String?
-  status          String    @default("ACTIVE")
-  roleType        String    @default("HR")
-  departmentId    String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  lastLoginAt     DateTime?
+  id           String    @id @default(uuid())
+  username     String    @unique
+  password     String
+  realName     String
+  email        String?   @unique
+  phone        String?   @unique
+  avatar       String?
+  status       String    @default("ACTIVE")
+  roleType     String    @default("HR")
+  departmentId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
 
   wechatWorkUserId String?
   wechatWorkDeptId String?
   wechatWorkName   String?
 
-  mochaUserId      String?
-  mochaDeptId      String?
-  mochaName        String?
+  mochaUserId String?
+  mochaDeptId String?
+  mochaName   String?
 
-  permissionMode   String    @default("MOU")
+  permissionMode String @default("MOU")
 
-  department      Department? @relation(fields: [departmentId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
 
   userRoles           UserRole[]
   userDataPermissions UserDataPermission[]
@@ -206,34 +209,44 @@ model User {
   permissionAuditLogs PermissionAuditLog[]
 
   // 简历锁定关联
-  lockedResumes      ResumeLockRecord[]  @relation("ResumeLocker")
+  lockedResumes ResumeLockRecord[] @relation("ResumeLocker")
 
+  @@index([departmentId])
+  @@index([wechatWorkUserId])
+  @@index([wechatWorkDeptId])
+  @@index([mochaUserId])
+  @@index([mochaDeptId])
   @@map("users")
 }
 
 model Department {
-  id          String   @id @default(uuid())
-  name        String
-  code        String   @unique
-  parentId    String?
-  level       Int      @default(1)
-  path        String
-  managerId   String?
-  manager2Id  String?
-  manager3Id  String?
-  hrbpId      String?
-  status      String   @default("ACTIVE")
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  name       String
+  code       String   @unique
+  parentId   String?
+  level      Int      @default(1)
+  path       String
+  managerId  String?
+  manager2Id String?
+  manager3Id String?
+  hrbpId     String?
+  status     String   @default("ACTIVE")
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  parent      Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
-  children    Department[] @relation("DepartmentTree")
+  parent   Department?  @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Department[] @relation("DepartmentTree")
 
-  users       User[]
-  demands     Demand[]
-  positions   Position[]
+  users     User[]
+  demands   Demand[]
+  positions Position[]
 
+  @@index([parentId])
+  @@index([managerId])
+  @@index([manager2Id])
+  @@index([manager3Id])
+  @@index([hrbpId])
   @@map("departments")
 }
 
@@ -241,51 +254,52 @@ model RecruitmentProcess {
   id              String   @id @default(uuid())
   name            String
   code            String   @unique
-  description     String? @db.Text
+  description     String?  @db.Text
   applicableRange String?
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  stages          RecruitmentStage[]
-  positions       Position[]
+  stages    RecruitmentStage[]
+  positions Position[]
 
   @@map("recruitment_processes")
 }
 
 model RecruitmentStage {
-  id               String   @id @default(uuid())
-  processId        String
-  name             String
-  code             String
-  stageType        String
-  sortOrder        Int      @default(0)
-  stageLimit       Int?
-  isDefault        Boolean  @default(true)
-  optionalFeatures String?
+  id                String   @id @default(uuid())
+  processId         String
+  name              String
+  code              String
+  stageType         String
+  sortOrder         Int      @default(0)
+  stageLimit        Int?
+  isDefault         Boolean  @default(true)
+  optionalFeatures  String?
   autoFlowCondition String?
-  autoFlowTiming   Int?
-  status           String   @default("ACTIVE")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  autoFlowTiming    Int?
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  process          RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  process RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
 
   @@unique([processId, code])
+  @@index([processId])
   @@map("recruitment_stages")
 }
 
 model Demand {
-  id              String   @id @default(uuid())
-  code            String   @unique
-  name            String
-  departmentId    String
-  positionCount   Int      @default(1)
-  hiredCount      Int      @default(0)
-  onBoardCount    Int      @default(0)
-  demandType      String
-  demandStatus    String   @default("DRAFT")
-  approvalStatus  String   @default("NOT_STARTED")
+  id             String @id @default(uuid())
+  code           String @unique
+  name           String
+  departmentId   String
+  positionCount  Int    @default(1)
+  hiredCount     Int    @default(0)
+  onBoardCount   Int    @default(0)
+  demandType     String
+  demandStatus   String @default("DRAFT")
+  approvalStatus String @default("NOT_STARTED")
 
   creatorId       String
   managerId       String?
@@ -294,47 +308,51 @@ model Demand {
   managerSuperIds String?
   hrbpId          String?
 
-  positionSeries  String?
-  jobTitle        String?
-  jobLevel        String?
+  positionSeries String?
+  jobTitle       String?
+  jobLevel       String?
 
-  startDate       DateTime?
-  endDate         DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
-  salaryMin       Int?
-  salaryMax       Int?
+  salaryMin Int?
+  salaryMax Int?
 
-  description     String? @db.Text
-  requirements    String? @db.Text
-  attachments     String? @db.Text
+  description  String? @db.Text
+  requirements String? @db.Text
+  attachments  String? @db.Text
 
-  trialGoals      String?
+  trialGoals String?
 
-  talentLevel     String?
-  isDoubleA       Boolean  @default(false)
+  talentLevel String?
+  isDoubleA   Boolean @default(false)
 
-  biddingMode     String   @default("BIDDING")
-  biddingAmount   Decimal? @db.Decimal(12, 2)
-  biddingUnit     String?
+  biddingMode         String   @default("BIDDING")
+  biddingAmount       Decimal? @db.Decimal(12, 2)
+  biddingUnit         String?
   biddingTalentLevels String?
 
-  status          String   @default("ACTIVE")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  department      Department @relation(fields: [departmentId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
 
-  positions       Position[]
+  positions Position[]
 
+  @@index([departmentId])
+  @@index([creatorId])
+  @@index([managerId])
+  @@index([hrbpId])
   @@map("demands")
 }
 
 model Position {
-  id              String   @id @default(uuid())
-  code            String   @unique
-  name            String
-  departmentId    String
-  demandId        String?
+  id           String  @id @default(uuid())
+  code         String  @unique
+  name         String
+  departmentId String
+  demandId     String?
 
   creatorId       String
   managerId       String?
@@ -342,78 +360,85 @@ model Position {
   managerIds      String?
   managerSuperIds String?
 
-  priority        Int      @default(0)
-  positionNature  String?
-  positionSeries   String?
+  priority       Int     @default(0)
+  positionNature String?
+  positionSeries String?
 
-  description     String? @db.Text
-  requirements    String? @db.Text
+  description  String? @db.Text
+  requirements String? @db.Text
 
-  processId       String?
-  companyId       String?
+  processId String?
+  companyId String?
 
-  positionStatus  String   @default("RECRUITING")
-  status          String   @default("ACTIVE")
+  positionStatus String @default("RECRUITING")
+  status         String @default("ACTIVE")
 
-  candidateCount  Int      @default(0)
-  hiredCount      Int      @default(0)
+  candidateCount Int @default(0)
+  hiredCount     Int @default(0)
 
-  publishedAt     DateTime?
+  publishedAt DateTime?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  department      Department @relation(fields: [departmentId], references: [id])
-  demand          Demand? @relation(fields: [demandId], references: [id])
-  process         RecruitmentProcess? @relation(fields: [processId], references: [id])
+  department Department          @relation(fields: [departmentId], references: [id])
+  demand     Demand?             @relation(fields: [demandId], references: [id])
+  process    RecruitmentProcess? @relation(fields: [processId], references: [id])
 
-  applications    Application[]
-  channels        PositionChannel[]
+  applications Application[]
+  channels     PositionChannel[]
 
+  @@index([departmentId])
+  @@index([demandId])
+  @@index([creatorId])
+  @@index([managerId])
+  @@index([processId])
+  @@index([companyId])
   @@map("positions")
 }
 
 model PositionChannel {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   positionId     String
   channelType    String
   channelAccount String?
-  publishStatus  String   @default("NOT_PUBLISHED")
+  publishStatus  String    @default("NOT_PUBLISHED")
   publishUrl     String?
   publishedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  position       Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
 
+  @@index([positionId])
   @@map("position_channels")
 }
 
 model Candidate {
-  id              String   @id @default(uuid())
-  code            String   @unique
-  name            String
-  gender          String?
-  birthday        DateTime?
-  phone           String?
-  email           String?
+  id       String    @id @default(uuid())
+  code     String    @unique
+  name     String
+  gender   String?
+  birthday DateTime?
+  phone    String?
+  email    String?
 
   householdLocation String?
-  originLocation   String?
+  originLocation    String?
 
-  maritalStatus   String?
-  childStatus     String?
+  maritalStatus String?
+  childStatus   String?
 
-  highestEducation String?
-  firstEducation  String?
-  firstEducationDuration Int?
+  highestEducation         String?
+  firstEducation           String?
+  firstEducationDuration   Int?
   firstEducationSchoolType String?
 
   workExperience  String?
-  jobHoppingRate Int?
+  jobHoppingRate  Int?
   lastJobDuration Int?
 
-  educationForm   String?
+  educationForm String?
 
   expectedSalaryMin Int?
   expectedSalaryMax Int?
@@ -425,420 +450,460 @@ model Candidate {
   recommenderId   String?
   recommenderName String?
 
-  assignedUserId  String?
+  assignedUserId   String?
   resumeProviderId String?
 
-  candidateStatus String   @default("ACTIVE")
-  archiveReason  String?
-  archiveType   String?
-  archiveToPool String?
+  candidateStatus String  @default("ACTIVE")
+  archiveReason   String?
+  archiveType     String?
+  archiveToPool   String?
 
   protectionExpiry DateTime?
 
-  createdAt      DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  resumes       Resume[]
-  applications  Application[]
+  resumes      Resume[]
+  applications Application[]
 
+  @@index([recommenderId])
+  @@index([assignedUserId])
+  @@index([resumeProviderId])
   @@map("candidates")
 }
 
 model Resume {
-  id              String   @id @default(uuid())
-  candidateId     String
-  positionId      String?
+  id          String  @id @default(uuid())
+  candidateId String
+  positionId  String?
 
-  name            String
-  fileName        String
-  filePath        String
-  fileType        String
-  fileSize        Int
+  name     String
+  fileName String
+  filePath String
+  fileType String
+  fileSize Int
 
-  parsedData      String? @db.Text
+  parsedData String? @db.Text
 
-  source          String
-  uploadLocation  String?
-  providerId      String?   // 提供人ID
-  uploaderId      String?   // 上传人ID
-  channelSource   String?
-  channelLink     String?
+  source         String
+  uploadLocation String?
+  providerId     String? // 提供人ID
+  uploaderId     String? // 上传人ID
+  channelSource  String?
+  channelLink    String?
 
-  resumeStatus    String   @default("PENDING_ASSIGN") // 待分配/已分配/已归档/已删除
-  resumeSubStatus String?  // 子状态：SCORING(评分中), APPROVAL(审批中), SUSPECTED(疑似)
-  parseStatus     String   @default("PENDING")
-  duplicateStatus String   @default("NOT_DUPLICATE")
+  resumeStatus    String  @default("PENDING_ASSIGN") // 待分配/已分配/已归档/已删除
+  resumeSubStatus String? // 子状态：SCORING(评分中), APPROVAL(审批中), SUSPECTED(疑似)
+  parseStatus     String  @default("PENDING")
+  duplicateStatus String  @default("NOT_DUPLICATE")
   duplicateOfId   String?
 
   // 锁定人信息（冗余存储，便于查询）
-  formalLockerId  String?
-  tempLockerId    String?
+  formalLockerId       String?
+  tempLockerId         String?
   tempLockerExpireTime DateTime?
 
-  matchScore     Int?
+  matchScore Int?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   // 新增关联
-  lockRecords    ResumeLockRecord[]
-  specialTags    SpecialResumeTag[]
-  mergeRecords   ResumeMergeRecord[] @relation("MainResumeMerge")
-  mergedTo       ResumeMergeRecord?  @relation("MergedResumeMerge")
-  scoringTasks   AsyncScoringTask[]
-  flowLogs       ResumeFlowLog[]
-  approvalFlows  SpecialApprovalFlow[]
+  lockRecords   ResumeLockRecord[]
+  specialTags   SpecialResumeTag[]
+  mergeRecords  ResumeMergeRecord[]   @relation("MainResumeMerge")
+  mergedTo      ResumeMergeRecord?    @relation("MergedResumeMerge")
+  scoringTasks  AsyncScoringTask[]
+  flowLogs      ResumeFlowLog[]
+  approvalFlows SpecialApprovalFlow[]
 
+  @@index([candidateId])
+  @@index([positionId])
+  @@index([duplicateOfId])
+  @@index([formalLockerId])
+  @@index([tempLockerId])
   @@map("resumes")
 }
 
 model Application {
-  id              String   @id @default(uuid())
-  code            String   @unique
-  candidateId     String
-  positionId      String
-  resumeId        String?
+  id          String  @id @default(uuid())
+  code        String  @unique
+  candidateId String
+  positionId  String
+  resumeId    String?
 
-  currentStageId  String?
-  currentStageName String?
-  currentStageStatus String @default("IN_PROGRESS")
+  currentStageId     String?
+  currentStageName   String?
+  currentStageStatus String  @default("IN_PROGRESS")
 
-  processId       String
-  processName     String
+  processId   String
+  processName String
 
-  source          String?
-  referralUserId  String?
+  source         String?
+  referralUserId String?
 
-  applicationStatus String   @default("ACTIVE")
-  archiveReason   String?
-  archivedAt      DateTime?
+  applicationStatus String    @default("ACTIVE")
+  archiveReason     String?
+  archivedAt        DateTime?
 
   // 锁定人（冗余）
-  formalLockerId  String?
+  formalLockerId String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  position        Position @relation(fields: [positionId], references: [id])
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  position  Position  @relation(fields: [positionId], references: [id])
 
-  interviews      Interview[]
-  offer           Offer?
-  onboarding      Onboarding?
-  invitation      InvitationRecord?
+  interviews Interview[]
+  offer      Offer?
+  onboarding Onboarding?
+  invitation InvitationRecord?
 
+  @@index([candidateId])
+  @@index([positionId])
+  @@index([resumeId])
+  @@index([currentStageId])
+  @@index([processId])
+  @@index([referralUserId])
+  @@index([formalLockerId])
   @@map("applications")
 }
 
 model Interview {
-  id             String   @id @default(uuid())
-  applicationId  String
-  roundId        String?
-  roundName      String?
+  id            String  @id @default(uuid())
+  applicationId String
+  roundId       String?
+  roundName     String?
 
-  interviewType  String
-  interviewDate  DateTime
-  duration       Int      @default(60)
-  location       String?
-  meetingLink    String?
+  interviewType String
+  interviewDate DateTime
+  duration      Int      @default(60)
+  location      String?
+  meetingLink   String?
 
-  interviewerIds String?
+  interviewerIds   String?
   interviewerNames String?
 
-  arrangerId     String
-  arrangerName   String
+  arrangerId   String
+  arrangerName String
 
   interviewStatus String @default("SCHEDULED")
   feedbackStatus  String @default("PENDING")
 
-  cancelReason   String?
-  cancelNote     String?
+  cancelReason String?
+  cancelNote   String?
 
-  proposedTimes  String?
-  confirmedTime  DateTime?
+  proposedTimes String?
+  confirmedTime DateTime?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
-  feedbacks      InterviewFeedback[]
+  feedbacks InterviewFeedback[]
 
+  @@index([applicationId])
+  @@index([roundId])
+  @@index([arrangerId])
   @@map("interviews")
 }
 
 model InterviewFeedback {
-  id              String   @id @default(uuid())
+  id              String @id @default(uuid())
   interviewId     String
   interviewerId   String
   interviewerName String
 
-  result          String
-  reason          String?
+  result String
+  reason String?
 
-  values          String?
-  comprehensive   String?
-  recommendation  String?
+  values         String?
+  comprehensive  String?
+  recommendation String?
 
   participantFeedback String?
-  previousFeedback   String?
+  previousFeedback    String?
 
-  viewedPrevious  Boolean  @default(false)
+  viewedPrevious Boolean @default(false)
 
-  feedbackAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  feedbackAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
 
   @@unique([interviewId, interviewerId])
+  @@index([interviewId])
+  @@index([interviewerId])
   @@map("interview_feedbacks")
 }
 
 model Offer {
-  id               String   @id @default(uuid())
-  applicationId    String   @unique
+  id            String @id @default(uuid())
+  applicationId String @unique
 
-  demandId         String?
-  positionSeries   String?
+  demandId          String?
+  positionSeries    String?
   positionManagerId String?
-  offerManagerId   String?
+  offerManagerId    String?
 
-  expectedJoinDate DateTime
-  reportLocation  String?
-  workLocation    String?
-  onboardDepartment String?
-  isDoubleDepartment Boolean @default(false)
+  expectedJoinDate   DateTime
+  reportLocation     String?
+  workLocation       String?
+  onboardDepartment  String?
+  isDoubleDepartment Boolean  @default(false)
 
-  jobTitle        String?
-  jobLevel        String?
-  directLeader    String?
-  thoughtLeader   String?
-  dottedLeader    String?
+  jobTitle      String?
+  jobLevel      String?
+  directLeader  String?
+  thoughtLeader String?
+  dottedLeader  String?
 
-  employeeType    String?
-  businessType    String?
-  talentLevel     String?
-  costSharing     Boolean  @default(false)
+  employeeType   String?
+  businessType   String?
+  talentLevel    String?
+  costSharing    Boolean @default(false)
   trialMonths    Int?
-  contractType    String?
+  contractType   String?
   contractPeriod String?
   legalCompany   String?
 
-  lastYearAvgSalary Decimal? @db.Decimal(12, 2)
-  salaryPlan        String?
-  baseSalaryTrial   Decimal? @db.Decimal(12, 2)
-  baseSalaryFormal  Decimal? @db.Decimal(12, 2)
-  levelSalaryTrial  Decimal? @db.Decimal(12, 2)
-  levelSalaryFormal Decimal? @db.Decimal(12, 2)
-  performanceTrial  Decimal? @db.Decimal(12, 2)
-  performanceFormal Decimal? @db.Decimal(12, 2)
-  housingSubsidyTrial Decimal? @db.Decimal(12, 2)
-  housingSubsidyFormal Decimal? @db.Decimal(12, 2)
-  attendanceBonusTrial Decimal? @db.Decimal(12, 2)
+  lastYearAvgSalary     Decimal? @db.Decimal(12, 2)
+  salaryPlan            String?
+  baseSalaryTrial       Decimal? @db.Decimal(12, 2)
+  baseSalaryFormal      Decimal? @db.Decimal(12, 2)
+  levelSalaryTrial      Decimal? @db.Decimal(12, 2)
+  levelSalaryFormal     Decimal? @db.Decimal(12, 2)
+  performanceTrial      Decimal? @db.Decimal(12, 2)
+  performanceFormal     Decimal? @db.Decimal(12, 2)
+  housingSubsidyTrial   Decimal? @db.Decimal(12, 2)
+  housingSubsidyFormal  Decimal? @db.Decimal(12, 2)
+  attendanceBonusTrial  Decimal? @db.Decimal(12, 2)
   attendanceBonusFormal Decimal? @db.Decimal(12, 2)
-  commissionTrial   Decimal? @db.Decimal(12, 2)
-  commissionFormal  Decimal? @db.Decimal(12, 2)
+  commissionTrial       Decimal? @db.Decimal(12, 2)
+  commissionFormal      Decimal? @db.Decimal(12, 2)
 
-  attachments     String? @db.Text
+  attachments String? @db.Text
 
-  offerStatus    String   @default("NOT_CREATED")
+  offerStatus String @default("NOT_CREATED")
 
-  sentAt         DateTime?
-  senderId       String?
-  ccUsers        String?
+  sentAt   DateTime?
+  senderId String?
+  ccUsers  String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
-  candidateFeedback CandidateOfferFeedback?
+  candidateFeedback     CandidateOfferFeedback?
   backgroundCheckRecord BackgroundCheckRecord[]
 
+  @@index([demandId])
+  @@index([positionManagerId])
+  @@index([offerManagerId])
+  @@index([senderId])
   @@map("offers")
 }
 
 model BackgroundCheckRecord {
-  id            String   @id @default(uuid())
-  offerId       String
-  checkType     String
-  result        String?
-  report        String?
-  note          String?
-  supplier      String?
-  orderedAt     DateTime?
-  authorizedAt  DateTime?
-  completedAt   DateTime?
-  status        String   @default("ACTIVE")
-  isSupplement  Boolean  @default(false)
+  id             String    @id @default(uuid())
+  offerId        String
+  checkType      String
+  result         String?
+  report         String?
+  note           String?
+  supplier       String?
+  orderedAt      DateTime?
+  authorizedAt   DateTime?
+  completedAt    DateTime?
+  status         String    @default("ACTIVE")
+  isSupplement   Boolean   @default(false)
   supplementOfId String?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  offer         Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
+  @@index([offerId])
+  @@index([supplementOfId])
   @@map("background_check_records")
 }
 
 model CandidateOfferFeedback {
-  id           String   @id @default(uuid())
-  offerId      String   @unique
-  feedback     String
-  respondedAt  DateTime?
+  id          String    @id @default(uuid())
+  offerId     String    @unique
+  feedback    String
+  respondedAt DateTime?
 
-  offer        Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   @@map("candidate_offer_feedbacks")
 }
 
 model Onboarding {
-  id               String   @id @default(uuid())
-  applicationId    String   @unique
+  id            String @id @default(uuid())
+  applicationId String @unique
 
-  demandId         String?
-  positionSeries   String?
+  demandId          String?
+  positionSeries    String?
   positionManagerId String?
-  offerManagerId   String?
+  offerManagerId    String?
 
-  expectedJoinDate DateTime
-  reportLocation  String?
-  workLocation    String?
-  onboardDepartment String?
-  isDoubleDepartment Boolean @default(false)
+  expectedJoinDate   DateTime
+  reportLocation     String?
+  workLocation       String?
+  onboardDepartment  String?
+  isDoubleDepartment Boolean  @default(false)
 
-  jobTitle        String?
-  jobLevel        String?
-  directLeader    String?
-  thoughtLeader   String?
-  dottedLeader    String?
+  jobTitle      String?
+  jobLevel      String?
+  directLeader  String?
+  thoughtLeader String?
+  dottedLeader  String?
 
-  employeeType    String?
-  businessType    String?
-  talentLevel     String?
-  costSharing     Boolean  @default(false)
-  trialMonths    Int?
-  contractType    String?
-  contractPeriod String?
-  legalCompany   String?
+  employeeType      String?
+  businessType      String?
+  talentLevel       String?
+  costSharing       Boolean  @default(false)
+  trialMonths       Int?
+  contractType      String?
+  contractPeriod    String?
+  legalCompany      String?
   lastYearAvgSalary Decimal? @db.Decimal(12, 2)
 
   referrerId     String?
   officeSupplies String?
 
-  salaryPlan      String?
-  baseSalaryTrial Decimal? @db.Decimal(12, 2)
-  baseSalaryFormal Decimal? @db.Decimal(12, 2)
-  levelSalaryTrial Decimal? @db.Decimal(12, 2)
-  levelSalaryFormal Decimal? @db.Decimal(12, 2)
-  performanceTrial Decimal? @db.Decimal(12, 2)
-  performanceFormal Decimal? @db.Decimal(12, 2)
-  housingSubsidyTrial Decimal? @db.Decimal(12, 2)
-  housingSubsidyFormal Decimal? @db.Decimal(12, 2)
-  attendanceBonusTrial Decimal? @db.Decimal(12, 2)
+  salaryPlan            String?
+  baseSalaryTrial       Decimal? @db.Decimal(12, 2)
+  baseSalaryFormal      Decimal? @db.Decimal(12, 2)
+  levelSalaryTrial      Decimal? @db.Decimal(12, 2)
+  levelSalaryFormal     Decimal? @db.Decimal(12, 2)
+  performanceTrial      Decimal? @db.Decimal(12, 2)
+  performanceFormal     Decimal? @db.Decimal(12, 2)
+  housingSubsidyTrial   Decimal? @db.Decimal(12, 2)
+  housingSubsidyFormal  Decimal? @db.Decimal(12, 2)
+  attendanceBonusTrial  Decimal? @db.Decimal(12, 2)
   attendanceBonusFormal Decimal? @db.Decimal(12, 2)
-  commissionTrial  Decimal? @db.Decimal(12, 2)
-  commissionFormal Decimal?
+  commissionTrial       Decimal? @db.Decimal(12, 2)
+  commissionFormal      Decimal?
 
-  attachments    String? @db.Text
+  attachments String? @db.Text
 
-  onboardingStatus String   @default("NOT_STARTED")
-  approvalStatus  String   @default("NOT_STARTED")
+  onboardingStatus String  @default("NOT_STARTED")
+  approvalStatus   String  @default("NOT_STARTED")
   approvalRecordId String?
 
   peopleOnboardId String?
-  syncStatus     String?
+  syncStatus      String?
 
-  cancelReason   String?
-  cancelNote    String?
+  cancelReason String?
+  cancelNote   String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+  @@index([demandId])
+  @@index([positionManagerId])
+  @@index([offerManagerId])
+  @@index([referrerId])
+  @@index([approvalRecordId])
+  @@index([peopleOnboardId])
   @@map("onboardings")
 }
 
 model InvitationRecord {
-  id             String   @id @default(uuid())
-  applicationId  String   @unique
+  id            String @id @default(uuid())
+  applicationId String @unique
 
-  candidateId    String
-  positionId     String
+  candidateId String
+  positionId  String
 
-  ownerId        String
-  ownerName      String
+  ownerId   String
+  ownerName String
 
-  inviterId      String?
-  inviterName    String?
+  inviterId   String?
+  inviterName String?
 
-  assignType     String
-  assignedAt     DateTime?
+  assignType String
+  assignedAt DateTime?
 
-  invitationStatus String   @default("PENDING_ASSIGN")
+  invitationStatus String @default("PENDING_ASSIGN")
 
-  claimedAt      DateTime?
-  claimedById    String?
-  claimedByName  String?
+  claimedAt     DateTime?
+  claimedById   String?
+  claimedByName String?
 
-  contactAttempts Int      @default(0)
-  lastContactAt  DateTime?
+  contactAttempts Int       @default(0)
+  lastContactAt   DateTime?
 
-  tags           String?
-  note           String?
+  tags String?
+  note String?
 
-  interventionCount Int    @default(0)
+  interventionCount  Int     @default(0)
   lastInterventionBy String?
 
-  biddingAmount   Decimal? @db.Decimal(12, 2)
+  biddingAmount Decimal? @db.Decimal(12, 2)
 
-  resultStatus   String?
-  resultReason   String?
-  resultAt       DateTime?
+  resultStatus String?
+  resultReason String?
+  resultAt     DateTime?
 
-  timeoutAt      DateTime?
+  timeoutAt DateTime?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+  @@index([candidateId])
+  @@index([positionId])
+  @@index([ownerId])
+  @@index([inviterId])
+  @@index([claimedById])
   @@map("invitation_records")
 }
 
 model Notification {
-  id            String   @id @default(uuid())
-  userId        String
-  type          String
-  title         String
-  content       String   @db.Text
-  data          String?
-  readStatus    String   @default("UNREAD")
-  readAt        DateTime?
-  createdAt     DateTime @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  type       String
+  title      String
+  content    String    @db.Text
+  data       String?
+  readStatus String    @default("UNREAD")
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
 
+  @@index([userId])
   @@map("notifications")
 }
 
 model OperationRecord {
-  id             String   @id @default(uuid())
-  userId         String
-  userName       String
-  operationType  String
-  targetType     String
-  targetId       String
-  targetName     String?
-  detail         String?
-  beforeValue    String?
-  afterValue     String?
-  ipAddress      String?
-  userAgent      String?
-  createdAt      DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String
+  userName      String
+  operationType String
+  targetType    String
+  targetId      String
+  targetName    String?
+  detail        String?
+  beforeValue   String?
+  afterValue    String?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
 
+  @@index([userId])
+  @@index([targetId])
   @@map("operation_records")
 }
 
@@ -846,35 +911,37 @@ model Dictionary {
   id          String   @id @default(uuid())
   name        String
   code        String   @unique
-  description String? @db.Text
+  description String?  @db.Text
   status      String   @default("ACTIVE")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  items       DictionaryItem[]
+  items DictionaryItem[]
 
   @@map("dictionaries")
 }
 
 model DictionaryItem {
-  id            String   @id @default(uuid())
-  dictionaryId  String
-  parentId      String?
-  name          String
-  code          String
-  value         String?
-  description   String? @db.Text
-  sortOrder     Int      @default(0)
-  level         Int      @default(1)
-  status        String   @default("ACTIVE")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  dictionaryId String
+  parentId     String?
+  name         String
+  code         String
+  value        String?
+  description  String?  @db.Text
+  sortOrder    Int      @default(0)
+  level        Int      @default(1)
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  dictionary    Dictionary @relation(fields: [dictionaryId], references: [id], onDelete: Cascade)
-  parent        DictionaryItem? @relation("DictionaryItemTree", fields: [parentId], references: [id])
-  children      DictionaryItem[] @relation("DictionaryItemTree")
+  dictionary Dictionary       @relation(fields: [dictionaryId], references: [id], onDelete: Cascade)
+  parent     DictionaryItem?  @relation("DictionaryItemTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children   DictionaryItem[] @relation("DictionaryItemTree")
 
   @@unique([dictionaryId, code])
+  @@index([dictionaryId])
+  @@index([parentId])
   @@map("dictionary_items")
 }
 
@@ -886,14 +953,15 @@ model Company {
   isBenchmark     Boolean  @default(false)
   industry        String?
   scale           String?
-  description     String? @db.Text
+  description     String?  @db.Text
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  parentCompany   Company?  @relation("CompanyGroup", fields: [parentCompanyId], references: [id])
-  childCompanies  Company[] @relation("CompanyGroup")
+  parentCompany  Company?  @relation("CompanyGroup", fields: [parentCompanyId], references: [id], onDelete: Restrict)
+  childCompanies Company[] @relation("CompanyGroup")
 
+  @@index([parentCompanyId])
   @@map("companies")
 }
 
@@ -915,84 +983,86 @@ model School {
 }
 
 model CompanyAddress {
-  id            String   @id @default(uuid())
-  name          String
-  country       String   @default("中国")
-  province      String
-  city          String
-  district      String?
-  address       String
-  longitude     Float?
-  latitude      Float?
-  isLocated     Boolean  @default(false)
-  contactPhone  String?
-  contactEmail  String?
-  companyType   String?
-  status        String   @default("ACTIVE")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  country      String   @default("中国")
+  province     String
+  city         String
+  district     String?
+  address      String
+  longitude    Float?
+  latitude     Float?
+  isLocated    Boolean  @default(false)
+  contactPhone String?
+  contactEmail String?
+  companyType  String?
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("company_addresses")
 }
 
 model ScoringRule {
-  id             String   @id @default(uuid())
-  name           String
-  code           String   @unique
-  description    String? @db.Text
-  ruleType       String
-  status         String   @default("ACTIVE")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  description String?  @db.Text
+  ruleType    String
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   applicableRange String?
 
-  conditions     ScoringCondition[]
-  results        ScoringResult[]
+  conditions ScoringCondition[]
+  results    ScoringResult[]
 
   @@map("scoring_rules")
 }
 
 model ScoringCondition {
-  id            String   @id @default(uuid())
-  ruleId        String
-  field         String
-  operator      String
-  value         String
-  level         Int      @default(1)
-  logicType     String   @default("AND")
+  id        String @id @default(uuid())
+  ruleId    String
+  field     String
+  operator  String
+  value     String
+  level     Int    @default(1)
+  logicType String @default("AND")
 
-  rule          ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  rule ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
-  results       ScoringResult[]
+  results ScoringResult[]
 
+  @@index([ruleId])
   @@map("scoring_conditions")
 }
 
 model ScoringResult {
-  id             String   @id @default(uuid())
+  id             String  @id @default(uuid())
   ruleId         String
   conditionId    String?
   field          String?
   matchedScore   Int
-  unmatchedScore Int      @default(0)
-  isDefault      Boolean  @default(false)
+  unmatchedScore Int     @default(0)
+  isDefault      Boolean @default(false)
 
-  rule           ScoringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  condition      ScoringCondition? @relation(fields: [conditionId], references: [id])
+  rule      ScoringRule       @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  condition ScoringCondition? @relation(fields: [conditionId], references: [id], onDelete: SetNull)
 
+  @@index([ruleId])
+  @@index([conditionId])
   @@map("scoring_results")
 }
 
 // ============================================
 // 权限管理模块 (V2.0)
 // ============================================
-
 model Role {
   id          String   @id @default(uuid())
   name        String
   code        String   @unique
-  description String? @db.Text
+  description String?  @db.Text
   roleType    String
   status      String   @default("ACTIVE")
   sortOrder   Int      @default(0)
@@ -1007,87 +1077,92 @@ model Role {
 }
 
 model Permission {
-  id            String   @id @default(uuid())
-  name          String
-  code          String   @unique
+  id             String  @id @default(uuid())
+  name           String
+  code           String  @unique
   permissionType String
-  resource      String?
-  action        String?
-  dataScope     String?
+  resource       String?
+  action         String?
+  dataScope      String?
 
-  parentId      String?
-  level         Int      @default(1)
-  path          String?
+  parentId String?
+  level    Int     @default(1)
+  path     String?
 
-  description   String? @db.Text
-  status        String   @default("ACTIVE")
-  sortOrder     Int      @default(0)
+  description String? @db.Text
+  status      String  @default("ACTIVE")
+  sortOrder   Int     @default(0)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  parent        Permission?  @relation("PermissionTree", fields: [parentId], references: [id])
-  children      Permission[] @relation("PermissionTree")
+  parent   Permission?  @relation("PermissionTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Permission[] @relation("PermissionTree")
 
   rolePermissions RolePermission[]
 
+  @@index([parentId])
   @@map("permissions")
 }
 
 model RolePermission {
-  id         String   @id @default(uuid())
-  roleId     String
+  id           String  @id @default(uuid())
+  roleId       String
   permissionId String
-  grantType  String   @default("GRANT")
-  conditions String?
+  grantType    String  @default("GRANT")
+  conditions   String?
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId, grantType])
+  @@index([roleId])
+  @@index([permissionId])
   @@map("role_permissions")
 }
 
 model UserRole {
-  id         String   @id @default(uuid())
-  userId     String
-  roleId     String
-  scope      String?
-  startDate  DateTime?
-  endDate    DateTime?
-  status     String   @default("ACTIVE")
+  id        String    @id @default(uuid())
+  userId    String
+  roleId    String
+  scope     String?
+  startDate DateTime?
+  endDate   DateTime?
+  status    String    @default("ACTIVE")
 
-  createdAt  DateTime @default(now())
-  createdBy  String?
+  createdAt DateTime @default(now())
+  createdBy String?
 
-  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
   @@map("user_roles")
 }
 
 model DataPermissionRule {
-  id           String   @id @default(uuid())
-  name         String
-  code         String   @unique
-  description  String?
+  id          String  @id @default(uuid())
+  name        String
+  code        String  @unique
+  description String?
 
   permissionType String
 
-  ruleScope   String
+  ruleScope String
 
   ruleExpression String?
 
-  roleIds     String?
+  roleIds String?
 
-  priority    Int      @default(0)
+  priority Int @default(0)
 
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userDataPermissions UserDataPermission[]
 
@@ -1095,152 +1170,162 @@ model DataPermissionRule {
 }
 
 model UserDataPermission {
-  id          String   @id @default(uuid())
-  userId      String
-  ruleId      String
+  id     String @id @default(uuid())
+  userId String
+  ruleId String
 
   customScope String?
   deptIds     String?
   userIds     String?
 
-  startDate   DateTime?
-  endDate     DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
 
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rule        DataPermissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  user User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule DataPermissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, ruleId])
+  @@index([userId])
+  @@index([ruleId])
   @@map("user_data_permissions")
 }
 
 model Mou {
-  id            String   @id @default(uuid())
-  name          String
-  code          String   @unique
-  type          String
-  description   String? @db.Text
+  id          String  @id @default(uuid())
+  name        String
+  code        String  @unique
+  type        String
+  description String? @db.Text
 
-  parentMouId   String?
-  level         Int      @default(1)
-  path          String?
+  parentMouId String?
+  level       Int     @default(1)
+  path        String?
 
-  metadata      String?
+  metadata String?
 
-  status        String   @default("ACTIVE")
-  startDate     DateTime?
-  endDate       DateTime?
+  status    String    @default("ACTIVE")
+  startDate DateTime?
+  endDate   DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  parent        Mou? @relation("MouTree", fields: [parentMouId], references: [id])
-  children      Mou[] @relation("MouTree")
+  parent   Mou?  @relation("MouTree", fields: [parentMouId], references: [id], onDelete: Restrict)
+  children Mou[] @relation("MouTree")
 
-  userMous      UserMou[]
-  containers    PermissionContainer[]
+  userMous   UserMou[]
+  containers PermissionContainer[]
 
+  @@index([parentMouId])
   @@map("mous")
 }
 
 model UserMou {
-  id           String   @id @default(uuid())
-  userId       String
-  mouId        String
+  id     String @id @default(uuid())
+  userId String
+  mouId  String
 
-  roleInMou    String?
+  roleInMou String?
 
-  startDate    DateTime?
-  endDate      DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
-  status       String   @default("ACTIVE")
-  createdAt    DateTime @default(now())
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
 
-  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mou          Mou @relation(fields: [mouId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mou  Mou  @relation(fields: [mouId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mouId])
+  @@index([userId])
+  @@index([mouId])
   @@map("user_mous")
 }
 
 model PermissionContainer {
-  id            String   @id @default(uuid())
-  name          String
-  code          String   @unique
-  type          String
+  id   String @id @default(uuid())
+  name String
+  code String @unique
+  type String
 
-  description   String? @db.Text
+  description String? @db.Text
 
-  mouId         String?
+  mouId          String?
   resourceFilter String?
 
-  status        String   @default("ACTIVE")
+  status String @default("ACTIVE")
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  mou           Mou? @relation(fields: [mouId], references: [id])
+  mou Mou? @relation(fields: [mouId], references: [id], onDelete: SetNull)
 
-  userContainers UserContainer[]
+  userContainers     UserContainer[]
   containerResources ContainerResource[]
 
+  @@index([mouId])
   @@map("permission_containers")
 }
 
 model UserContainer {
-  id           String   @id @default(uuid())
-  userId       String
-  containerId  String
+  id          String @id @default(uuid())
+  userId      String
+  containerId String
 
-  accessLevel  String?
+  accessLevel String?
 
-  startDate    DateTime?
-  endDate      DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
-  status       String   @default("ACTIVE")
-  createdAt    DateTime @default(now())
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
 
-  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  container    PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  container PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
 
   @@unique([userId, containerId])
+  @@index([userId])
+  @@index([containerId])
   @@map("user_containers")
 }
 
 model ContainerResource {
-  id           String   @id @default(uuid())
+  id           String @id @default(uuid())
   containerId  String
   resourceType String
   resourceId   String
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  container    PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  container PermissionContainer @relation(fields: [containerId], references: [id], onDelete: Cascade)
 
   @@unique([containerId, resourceType, resourceId])
+  @@index([containerId])
+  @@index([resourceId])
   @@map("container_resources")
 }
 
 model AutomationRule {
-  id            String   @id @default(uuid())
-  name          String
-  code          String   @unique
-  description   String? @db.Text
+  id          String  @id @default(uuid())
+  name        String
+  code        String  @unique
+  description String? @db.Text
 
-  eventType     String
+  eventType String
 
-  condition     String?
+  condition String?
 
-  actions       String
+  actions String
 
-  priority      Int      @default(0)
+  priority Int @default(0)
 
-  status        String   @default("ACTIVE")
+  status String @default("ACTIVE")
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   executionLogs AutomationLog[]
 
@@ -1248,61 +1333,66 @@ model AutomationRule {
 }
 
 model AutomationLog {
-  id          String   @id @default(uuid())
-  ruleId      String
+  id     String @id @default(uuid())
+  ruleId String
 
   triggerUserId String?
-  triggerEvent String?
+  triggerEvent  String?
 
   executedActions String?
 
-  result     String?
+  result String?
 
   errorMessage String?
 
   executedAt DateTime @default(now())
 
-  rule       AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  rule AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
+  @@index([ruleId])
+  @@index([triggerUserId])
   @@map("automation_logs")
 }
 
 model MutualExclusionGroup {
-  id           String   @id @default(uuid())
-  name         String
-  description  String?
+  id          String  @id @default(uuid())
+  name        String
+  description String?
 
-  roleIds      String
+  roleIds String
 
-  status       String   @default("ACTIVE")
+  status String @default("ACTIVE")
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("mutual_exclusion_groups")
 }
 
 model PermissionAuditLog {
-  id           String   @id @default(uuid())
-  userId       String
-  userName     String?
+  id       String  @id @default(uuid())
+  userId   String
+  userName String?
 
-  action       String
+  action String
 
-  targetType   String
-  targetId     String
-  targetName   String?
+  targetType String
+  targetId   String
+  targetName String?
 
-  source       String
+  source String
 
   operatorId   String?
   operatorName String?
 
-  detail       String?
+  detail String?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([targetId])
+  @@index([operatorId])
   @@map("permission_audit_logs")
 }
