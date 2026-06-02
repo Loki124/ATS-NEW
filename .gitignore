@@ -23,6 +23,12 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Archives（防止再有大文件塞进 history）
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
 # Database
 *.db
 *.sqlite
