@@ -132,7 +132,7 @@ router.get('/:id', async (req, res, next) => {
     });
 
     if (!department) {
-      return res.status(404).json({ success: false, error: '部门不存在' });
+      return res.status(404).json({ success: false, message: '部门不存在' });
     }
 
     const userIds = [department.managerId, department.manager2Id, department.manager3Id, department.hrbpId].filter(Boolean);
@@ -167,13 +167,13 @@ router.post('/', async (req, res, next) => {
     } = req.body;
 
     if (!name || !code) {
-      return res.status(400).json({ success: false, error: '部门名称和部门编号不能为空' });
+      return res.status(400).json({ success: false, message: '部门名称和部门编号不能为空' });
     }
 
     // 检查 code 唯一
     const existing = await prisma.department.findUnique({ where: { code } });
     if (existing) {
-      return res.status(400).json({ success: false, error: '部门编号已存在' });
+      return res.status(400).json({ success: false, message: '部门编号已存在' });
     }
 
     // 计算 path/level
@@ -182,7 +182,7 @@ router.post('/', async (req, res, next) => {
     if (parentId) {
       const parent = await prisma.department.findUnique({ where: { id: parentId } });
       if (!parent) {
-        return res.status(400).json({ success: false, error: '上级部门不存在' });
+        return res.status(400).json({ success: false, message: '上级部门不存在' });
       }
       parentPath = parent.path;
       level = computeLevel(parentPath);
@@ -207,7 +207,7 @@ router.post('/', async (req, res, next) => {
     res.json({ success: true, data: department });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, error: '部门编号已存在' });
+      return res.status(400).json({ success: false, message: '部门编号已存在' });
     }
     next(error);
   }
@@ -224,20 +224,20 @@ router.put('/:id', async (req, res, next) => {
 
     const current = await prisma.department.findUnique({ where: { id } });
     if (!current) {
-      return res.status(404).json({ success: false, error: '部门不存在' });
+      return res.status(404).json({ success: false, message: '部门不存在' });
     }
 
     // 不能将部门的上级设置为自己或自己的子部门
     if (parentId) {
       if (parentId === id) {
-        return res.status(400).json({ success: false, error: '上级部门不能是本部门' });
+        return res.status(400).json({ success: false, message: '上级部门不能是本部门' });
       }
       const newParent = await prisma.department.findUnique({ where: { id: parentId } });
       if (!newParent) {
-        return res.status(400).json({ success: false, error: '上级部门不存在' });
+        return res.status(400).json({ success: false, message: '上级部门不存在' });
       }
       if (newParent.path.startsWith(current.path + '/')) {
-        return res.status(400).json({ success: false, error: '上级部门不能是本部门的子部门' });
+        return res.status(400).json({ success: false, message: '上级部门不能是本部门的子部门' });
       }
     }
 
@@ -245,7 +245,7 @@ router.put('/:id', async (req, res, next) => {
     if (code && code !== current.code) {
       const dup = await prisma.department.findUnique({ where: { code } });
       if (dup && dup.id !== id) {
-        return res.status(400).json({ success: false, error: '部门编号已存在' });
+        return res.status(400).json({ success: false, message: '部门编号已存在' });
       }
     }
 
@@ -304,10 +304,10 @@ router.put('/:id', async (req, res, next) => {
     res.json({ success: true, data: updated });
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: '部门不存在' });
+      return res.status(404).json({ success: false, message: '部门不存在' });
     }
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, error: '部门编号已存在' });
+      return res.status(400).json({ success: false, message: '部门编号已存在' });
     }
     next(error);
   }
@@ -321,23 +321,23 @@ router.delete('/:id', async (req, res, next) => {
     // 检查是否有子部门
     const childCount = await prisma.department.count({ where: { parentId: id } });
     if (childCount > 0) {
-      return res.status(400).json({ success: false, error: '该部门下存在子部门，请先删除子部门' });
+      return res.status(400).json({ success: false, message: '该部门下存在子部门，请先删除子部门' });
     }
 
     // 检查是否有关联用户
     const userCount = await prisma.user.count({ where: { departmentId: id } });
     if (userCount > 0) {
-      return res.status(400).json({ success: false, error: '该部门下存在用户，请先调整用户部门' });
+      return res.status(400).json({ success: false, message: '该部门下存在用户，请先调整用户部门' });
     }
 
     // 检查是否有关联需求/职位
     const demandCount = await prisma.demand.count({ where: { departmentId: id } });
     if (demandCount > 0) {
-      return res.status(400).json({ success: false, error: '该部门下存在招聘需求，请先处理' });
+      return res.status(400).json({ success: false, message: '该部门下存在招聘需求，请先处理' });
     }
     const positionCount = await prisma.position.count({ where: { departmentId: id } });
     if (positionCount > 0) {
-      return res.status(400).json({ success: false, error: '该部门下存在职位，请先处理' });
+      return res.status(400).json({ success: false, message: '该部门下存在职位，请先处理' });
     }
 
     await prisma.department.delete({ where: { id } });
@@ -345,7 +345,7 @@ router.delete('/:id', async (req, res, next) => {
     res.json({ success: true, message: '部门删除成功' });
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: '部门不存在' });
+      return res.status(404).json({ success: false, message: '部门不存在' });
     }
     next(error);
   }

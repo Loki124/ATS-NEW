@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 const permissionMiddleware = async (req, res, next) => {
   const userId = req.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: '未授权访问' });
+    return res.status(401).json({ success: false, message: '未授权访问' });
   }
   
   // 获取用户角色和权限
@@ -116,7 +116,7 @@ router.get('/roles/:id', async (req, res) => {
       }
     });
     if (!role) {
-      return res.status(404).json({ error: '角色不存在' });
+      return res.status(404).json({ success: false, message: '角色不存在' });
     }
     res.json({ success: true, data: role });
   } catch (error) {
@@ -132,7 +132,7 @@ router.post('/roles', async (req, res) => {
     // 检查编码是否重复
     const existing = await prisma.role.findUnique({ where: { code } });
     if (existing) {
-      return res.status(400).json({ error: '角色编码已存在' });
+      return res.status(400).json({ success: false, message: '角色编码已存在' });
     }
     
     const role = await prisma.role.create({
@@ -171,11 +171,11 @@ router.put('/roles/:id', async (req, res) => {
     
     const role = await prisma.role.findUnique({ where: { id: roleId } });
     if (!role) {
-      return res.status(404).json({ error: '角色不存在' });
+      return res.status(404).json({ success: false, message: '角色不存在' });
     }
     
     if (role.isBuiltIn) {
-      return res.status(400).json({ error: '内置角色不可修改' });
+      return res.status(400).json({ success: false, message: '内置角色不可修改' });
     }
     
     const updated = await prisma.role.update({
@@ -211,17 +211,17 @@ router.delete('/roles/:id', async (req, res) => {
   try {
     const role = await prisma.role.findUnique({ where: { id: req.params.id } });
     if (!role) {
-      return res.status(404).json({ error: '角色不存在' });
+      return res.status(404).json({ success: false, message: '角色不存在' });
     }
     
     if (role.isBuiltIn) {
-      return res.status(400).json({ error: '内置角色不可删除' });
+      return res.status(400).json({ success: false, message: '内置角色不可删除' });
     }
     
     // 检查是否有用户使用此角色
     const userCount = await prisma.userRole.count({ where: { roleId: req.params.id } });
     if (userCount > 0) {
-      return res.status(400).json({ error: '该角色已被用户使用，无法删除' });
+      return res.status(400).json({ success: false, message: '该角色已被用户使用，无法删除' });
     }
     
     await prisma.rolePermission.deleteMany({ where: { roleId: req.params.id } });
@@ -288,7 +288,7 @@ router.post('/permissions', async (req, res) => {
     // 检查编码是否重复
     const existing = await prisma.permission.findUnique({ where: { code } });
     if (existing) {
-      return res.status(400).json({ error: '权限编码已存在' });
+      return res.status(400).json({ success: false, message: '权限编码已存在' });
     }
     
     // 计算级别和路径
@@ -346,7 +346,7 @@ router.delete('/permissions/:id', async (req, res) => {
     // 检查是否有子权限
     const childCount = await prisma.permission.count({ where: { parentId: req.params.id } });
     if (childCount > 0) {
-      return res.status(400).json({ error: '请先删除子权限' });
+      return res.status(400).json({ success: false, message: '请先删除子权限' });
     }
     
     // 删除角色权限关联
