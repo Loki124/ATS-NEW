@@ -275,6 +275,7 @@
 </template>
 
 <script setup lang="ts">
+import api from '../../api/auth';
 import { ref, reactive, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import {
@@ -549,10 +550,7 @@ const mutexColumns = [
 const loadMous = async () => {
   loading.value = true
   try {
-    const response = await fetch('/api/permissions-v2/mou', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get('/api/permissions-v2/mou')).data
     if (data.success) {
       mous.value = data.data
     }
@@ -567,10 +565,7 @@ const loadMous = async () => {
 const loadContainers = async (mouId?: string) => {
   try {
     const url = mouId ? `/api/permissions-v2/containers?mouId=${mouId}` : '/api/permissions-v2/containers'
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get(url)).data
     if (data.success) {
       containers.value = data.data
     }
@@ -582,10 +577,7 @@ const loadContainers = async (mouId?: string) => {
 // 加载自动化规则
 const loadAutomationRules = async () => {
   try {
-    const response = await fetch('/api/permissions-v2/automation-rules', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get('/api/permissions-v2/automation-rules')).data
     if (data.success) {
       automationRules.value = data.data
     }
@@ -604,10 +596,7 @@ const loadAuditLogs = async () => {
     if (auditFilters.action) params.append('action', auditFilters.action)
     if (auditFilters.targetType) params.append('targetType', auditFilters.targetType)
     
-    const response = await fetch(`/api/permissions-v2/audit-logs?${params}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get(`/api/permissions-v2/audit-logs?${params}`)).data
     if (data.success) {
       auditLogs.value = data.data
     }
@@ -621,10 +610,7 @@ const loadAuditLogs = async () => {
 // 加载互斥组
 const loadMutexGroups = async () => {
   try {
-    const response = await fetch('/api/permissions-v2/mutual-exclusion-groups', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get('/api/permissions-v2/mutual-exclusion-groups')).data
     if (data.success) {
       mutexGroups.value = data.data
     }
@@ -668,11 +654,7 @@ const handleEditMou = (mou: Mou) => {
 
 const handleDeleteMou = async (mou: Mou) => {
   try {
-    const response = await fetch(`/api/permissions-v2/mou/${mou.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.delete(`/api/permissions-v2/mou/${mou.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadMous()
@@ -689,15 +671,7 @@ const handleSaveMou = async () => {
     const url = editingMou.value ? `/api/permissions-v2/mou/${editingMou.value.id}` : '/api/permissions-v2/mou'
     const method = editingMou.value ? 'PUT' : 'POST'
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(mouFormState)
-    })
-    const data = await response.json()
+    const data = (await api[method.toLowerCase()](url, mouFormState)).data
 
     if (data.success) {
       message.success(editingMou.value ? '更新成功' : '创建成功')
@@ -736,11 +710,7 @@ const handleEditContainer = (container: PermissionContainer) => {
 
 const handleDeleteContainer = async (container: PermissionContainer) => {
   try {
-    const response = await fetch(`/api/permissions-v2/containers/${container.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.delete(`/api/permissions-v2/containers/${container.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadContainers()
@@ -757,15 +727,7 @@ const handleSaveContainer = async () => {
     const url = editingContainer.value ? `/api/permissions-v2/containers/${editingContainer.value.id}` : '/api/permissions-v2/containers'
     const method = editingContainer.value ? 'PUT' : 'POST'
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(containerFormState)
-    })
-    const data = await response.json()
+    const data = (await api[method.toLowerCase()](url, containerFormState)).data
 
     if (data.success) {
       message.success(editingContainer.value ? '更新成功' : '创建成功')
@@ -803,11 +765,7 @@ const handleEditRule = (rule: AutomationRule) => {
 
 const handleDeleteRule = async (rule: AutomationRule) => {
   try {
-    const response = await fetch(`/api/permissions-v2/automation-rules/${rule.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.delete(`/api/permissions-v2/automation-rules/${rule.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadAutomationRules()
@@ -824,15 +782,7 @@ const handleSaveRule = async () => {
     const url = editingRule.value ? `/api/permissions-v2/automation-rules/${editingRule.value.id}` : '/api/permissions-v2/automation-rules'
     const method = editingRule.value ? 'PUT' : 'POST'
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(ruleFormState)
-    })
-    const data = await response.json()
+    const data = (await api[method.toLowerCase()](url, ruleFormState)).data
 
     if (data.success) {
       message.success(editingRule.value ? '更新成功' : '创建成功')
@@ -867,11 +817,7 @@ const handleEditMutex = (mutex: MutualExclusionGroup) => {
 
 const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
   try {
-    const response = await fetch(`/api/permissions-v2/mutual-exclusion-groups/${mutex.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.delete(`/api/permissions-v2/mutual-exclusion-groups/${mutex.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadMutexGroups()
@@ -888,15 +834,7 @@ const handleSaveMutex = async () => {
     const url = editingMutex.value ? `/api/permissions-v2/mutual-exclusion-groups/${editingMutex.value.id}` : '/api/permissions-v2/mutual-exclusion-groups'
     const method = editingMutex.value ? 'PUT' : 'POST'
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(mutexFormState)
-    })
-    const data = await response.json()
+    const data = (await api[method.toLowerCase()](url, mutexFormState)).data
 
     if (data.success) {
       message.success(editingMutex.value ? '更新成功' : '创建成功')

@@ -227,6 +227,7 @@
 </template>
 
 <script setup lang="ts">
+import api from '../../api/auth';
 import { ref, reactive, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import { UserOutlined, SafetyOutlined, LockOutlined, KeyOutlined } from '@ant-design/icons-vue'
@@ -329,10 +330,7 @@ const dataScopeColumns = [
 // 加载用户角色
 const loadUserRoles = async () => {
   try {
-    const response = await fetch(`/api/permissions/users/${user?.id}/roles`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get(`/api/permissions/users/${user?.id}/roles`)).data
     if (data.success) {
       userRoles.value = data.data.map((ur: any) => ur.roleId)
     }
@@ -344,10 +342,7 @@ const loadUserRoles = async () => {
 // 加载角色列表
 const loadRoles = async () => {
   try {
-    const response = await fetch('/api/permissions/roles', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get('/api/permissions/roles')).data
     if (data.success) {
       roles.value = data.data
     }
@@ -359,10 +354,7 @@ const loadRoles = async () => {
 // 加载用户权限信息
 const loadMyPermissions = async () => {
   try {
-    const response = await fetch('/api/permissions/user-info', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    const data = await response.json()
+    const data = (await api.get('/api/permissions/user-info')).data
     if (data.success) {
       myPermissions.value = {
         menus: data.data.menus || [],
@@ -382,20 +374,12 @@ const loadMyPermissions = async () => {
 // 保存个人信息
 const handleSaveProfile = async () => {
   try {
-    const response = await fetch(`/api/users/${user?.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
+    const data = (await api.put(`/api/users/${user?.id}`, {
         realName: formState.realName,
         email: formState.email,
         phone: formState.phone,
         password: formState.newPassword || undefined
-      })
-    })
-    const data = await response.json()
+      })).data
     if (data.success) {
       message.success('个人信息保存成功')
     } else {
@@ -423,15 +407,7 @@ const handleRoleSelectChange = (selectedRowKeys: any) => {
 
 const handleSaveRoles = async (roleIds: string[]) => {
   try {
-    const response = await fetch(`/api/permissions/users/${user?.id}/roles`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ roleIds })
-    })
-    const data = await response.json()
+    const data = (await api.post(`/api/permissions/users/${user?.id}/roles`, { roleIds })).data
     if (data.success) {
       message.success('角色分配成功')
       loadMyPermissions()
