@@ -1,21 +1,24 @@
 # 部署指南
 
+> **当前数据库已切换到 `ats_pro`**（2026-06-02 更新）
+> 历史曾用 `ats_new`，已弃用。
+
 ## 服务器信息
 
 | 项 | 值 |
 |---|---|
 | MySQL 地址 | `10.10.22.80:3306` |
 | MySQL 版本 | 8.4.9 |
-| 数据库 | `ats_new` |
-| 用户 | `ATS_new` |
+| 数据库 | `ats_pro` |
+| 用户 | `ATS_pro`（**真实凭据在服务器本地 .env，不入 git**） |
 | 字符集 | utf8mb4 |
 | ATS 入口 | nginx 9908 → backend 5125 |
 
 ## 本地 .env 模板（生产环境）
 
 ```bash
-# Database
-DATABASE_URL="mysql://ATS_new:rFrjmxtfFCb575cB@10.10.22.80:3306/ats_new"
+# Database - 真凭据放服务器 .env，本文件仅占位
+DATABASE_URL="mysql://ATS_pro:REAL_PASSWORD@10.10.22.80:3306/ats_pro"
 
 # JWT
 JWT_SECRET="生产环境必须改"
@@ -30,9 +33,9 @@ CORS_ORIGIN="http://10.10.22.80:9908"
 
 # MySQL connection (for entrypoint healthcheck)
 MYSQL_HOST=10.10.22.80
-MYSQL_USER=ATS_new
-MYSQL_PASSWORD=rFrjmxtfFCb575cB
-MYSQL_DATABASE=ats_new
+MYSQL_USER=ATS_pro
+MYSQL_PASSWORD="REAL_PASSWORD"
+MYSQL_DATABASE=ats_pro
 
 # Rate Limit
 RATE_LIMIT_WINDOW_MS=60000

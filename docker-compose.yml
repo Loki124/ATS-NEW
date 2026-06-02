@@ -6,10 +6,10 @@ services:
     container_name: ats-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-ats}
-      MYSQL_USER: ${MYSQL_USER:-ats}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-atspass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ats_pro}
+      MYSQL_USER: ${MYSQL_USER:-ats_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
       TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4
@@ -35,13 +35,13 @@ services:
     ports:
       - "5125:5125"
     environment:
-      - DATABASE_URL=mysql://${MYSQL_USER:-ats}:${MYSQL_PASSWORD:-atspass}@mysql:3306/${MYSQL_DATABASE:-ats}
-      - JWT_SECRET=${JWT_SECRET:-ats-super-secret-key-2024-production}
+      - DATABASE_URL=mysql://${MYSQL_USER:-ats_user}:${MYSQL_PASSWORD:-change-me}@mysql:3306/${MYSQL_DATABASE:-ats_pro}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - PORT=5125
       - CORS_ORIGIN=http://10.10.22.80:9908
       - MYSQL_HOST=mysql
-      - MYSQL_USER=${MYSQL_USER:-ats}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-atspass}
+      - MYSQL_USER=${MYSQL_USER:-ats_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-change-me}
     volumes:
       - mysql_data:/var/lib/mysql
     depends_on:
