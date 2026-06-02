@@ -3,6 +3,8 @@
  */
 
 import express from 'express';
+import jwt from 'jsonwebtoken';
+import { jwt as jwtConfig } from './config/index.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -51,8 +53,30 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 静态文件服务
-app.use('/uploads', express.static('uploads'));
+// 静态文件服务（带认证：Bearer header 或 ?token= query）
+// 用途：让 <img src="/uploads/.../?token=xxx"> 能工作，
+// 同时防止未授权访问
+app.use('/uploads', (req, res, next) => {
+  // 从 header 或 query 取 token
+  const auth = req.headers.authorization;
+  let token;
+  if (auth && auth.startsWith('Bearer ')) {
+    token = auth.split(' ')[1];
+  } else if (req.query.token) {
+    token = String(req.query.token);
+  }
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: '需要认证令牌' });
+  }
+
+  try {
+    jwt.verify(token, jwtConfig.secret);
+    next();
+  } catch (e) {
+    return res.status(401).json({ success: false, message: '无效的认证令牌' });
+  }
+}, express.static('uploads'));
 
 // 健康检查
 app.get('/api/health', (req, res) => {
