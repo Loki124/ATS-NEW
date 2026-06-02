@@ -65,7 +65,7 @@ router.get('/resume/:resumeId/lock-info', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -118,7 +118,7 @@ router.post('/resume/:resumeId/check-lock-permission', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -180,7 +180,7 @@ router.post('/resume/:resumeId/scoring-tasks', async (req, res) => {
 
     res.status(201).json({ success: true, data: task });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -197,7 +197,7 @@ router.get('/scoring-tasks/:taskId', async (req, res) => {
 
     res.json({ success: true, data: task });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -230,7 +230,7 @@ router.post('/resume/:resumeId/approval-flow', async (req, res) => {
 
     res.status(201).json({ success: true, data: flow });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -248,7 +248,7 @@ router.get('/resume/:resumeId/approval-flow', async (req, res) => {
 
     res.json({ success: true, data: flow });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -273,7 +273,7 @@ router.get('/approval-flows', async (req, res) => {
 
     res.json({ success: true, data: flows });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -375,7 +375,7 @@ router.post('/approval-flows/:flowId/approve', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -415,7 +415,7 @@ router.get('/resume/:resumeId/flow-logs', async (req, res) => {
 
     res.json({ success: true, data: logs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -553,7 +553,7 @@ router.post('/resume/:resumeId/assign', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -601,7 +601,7 @@ router.post('/resume/:resumeId/archive', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -679,7 +679,7 @@ router.post('/resume/:resumeId/activate', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -735,7 +735,7 @@ router.post('/resume-merge', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
@@ -780,7 +780,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 

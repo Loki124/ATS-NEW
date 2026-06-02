@@ -30,7 +30,7 @@ router.get('/mou', async (req, res) => {
     
     res.json({ success: true, data: mous });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -74,7 +74,7 @@ router.post('/mou', async (req, res) => {
     
     res.status(201).json({ success: true, data: mou });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -98,7 +98,7 @@ router.put('/mou/:id', async (req, res) => {
     
     res.json({ success: true, data: mou });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -122,7 +122,7 @@ router.delete('/mou/:id', async (req, res) => {
     await prisma.mou.delete({ where: { id } });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -162,7 +162,7 @@ router.post('/mou/:mouId/users', async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: '用户已在该MOU中' });
     }
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -196,7 +196,7 @@ router.delete('/mou/:mouId/users/:userId', async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -216,7 +216,7 @@ router.get('/users/:userId/mou', async (req, res) => {
     
     res.json({ success: true, data: userMous });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -238,7 +238,7 @@ router.get('/mou/user-mous/:userId', async (req, res) => {
 
     res.json({ success: true, data: userMous });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -261,7 +261,7 @@ router.get('/containers', async (req, res) => {
     
     res.json({ success: true, data: containers });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -289,7 +289,7 @@ router.post('/containers', async (req, res) => {
     
     res.status(201).json({ success: true, data: container });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -313,7 +313,7 @@ router.put('/containers/:id', async (req, res) => {
     
     res.json({ success: true, data: container });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -331,7 +331,7 @@ router.delete('/containers/:id', async (req, res) => {
     await prisma.permissionContainer.delete({ where: { id } });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -371,7 +371,7 @@ router.post('/containers/:containerId/users', async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: '用户已在该容器中' });
     }
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -405,7 +405,7 @@ router.delete('/containers/:containerId/users/:userId', async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -424,7 +424,7 @@ router.post('/containers/:containerId/resources', async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: '资源已在容器中' });
     }
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -447,7 +447,7 @@ router.get('/users/:userId/containers', async (req, res) => {
     
     res.json({ success: true, data: userContainers });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -468,7 +468,7 @@ router.get('/automation-rules', async (req, res) => {
     
     res.json({ success: true, data: rules });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -495,7 +495,7 @@ router.post('/automation-rules', async (req, res) => {
     
     res.status(201).json({ success: true, data: rule });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -519,7 +519,7 @@ router.put('/automation-rules/:id', async (req, res) => {
     
     res.json({ success: true, data: rule });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -530,7 +530,7 @@ router.delete('/automation-rules/:id', async (req, res) => {
     await prisma.automationRule.delete({ where: { id } });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -574,7 +574,7 @@ router.post('/automation-rules/:id/execute', async (req, res) => {
     
     res.json({ success: true, executed: true, results });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -589,7 +589,7 @@ router.get('/automation-rules/:id/logs', async (req, res) => {
     });
     res.json({ success: true, data: logs });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -603,7 +603,7 @@ router.get('/mutual-exclusion-groups', async (req, res) => {
     });
     res.json({ success: true, data: groups });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -622,7 +622,7 @@ router.post('/mutual-exclusion-groups', async (req, res) => {
     
     res.status(201).json({ success: true, data: group });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -632,7 +632,7 @@ router.delete('/mutual-exclusion-groups/:id', async (req, res) => {
     await prisma.mutualExclusionGroup.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -665,7 +665,7 @@ router.get('/audit-logs', async (req, res) => {
     
     res.json({ success: true, data: logs, total, page: parseInt(page), pageSize: parseInt(pageSize) });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
