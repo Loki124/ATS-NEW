@@ -51,7 +51,7 @@ router.get('/menus', permissionMiddleware, async (req, res) => {
     const menuTree = buildMenuTree(menuPermissions);
     res.json({ success: true, data: menuTree });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -61,7 +61,7 @@ router.get('/functions', permissionMiddleware, async (req, res) => {
     const functionPermissions = req.userPermissions.filter(p => p.permissionType === 'FUNCTION' && p.status === 'ACTIVE');
     res.json({ success: true, data: functionPermissions });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -87,7 +87,7 @@ router.get('/data-scope', permissionMiddleware, async (req, res) => {
     
     res.json({ success: true, data: dataScopes });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -102,7 +102,7 @@ router.get('/roles', async (req, res) => {
     });
     res.json({ success: true, data: roles });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -120,7 +120,7 @@ router.get('/roles/:id', async (req, res) => {
     }
     res.json({ success: true, data: role });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -159,7 +159,7 @@ router.post('/roles', async (req, res) => {
     
     res.json({ success: true, data: role });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -202,7 +202,7 @@ router.put('/roles/:id', async (req, res) => {
     
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -229,7 +229,7 @@ router.delete('/roles/:id', async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -256,7 +256,7 @@ router.get('/permissions', async (req, res) => {
     const tree = buildTree(permissions);
     res.json({ success: true, data: tree });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -276,7 +276,7 @@ router.get('/permissions/list', async (req, res) => {
     
     res.json({ success: true, data: permissions });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -320,7 +320,7 @@ router.post('/permissions', async (req, res) => {
     
     res.json({ success: true, data: permission });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -336,7 +336,7 @@ router.put('/permissions/:id', async (req, res) => {
     
     res.json({ success: true, data: permission });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -356,7 +356,7 @@ router.delete('/permissions/:id', async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -371,7 +371,7 @@ router.get('/users/:userId/roles', async (req, res) => {
     });
     res.json({ success: true, data: userRoles });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -398,7 +398,7 @@ router.post('/users/:userId/roles', async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -413,7 +413,7 @@ router.get('/data-rules', async (req, res) => {
     });
     res.json({ success: true, data: rules });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -437,7 +437,7 @@ router.post('/data-rules', async (req, res) => {
     
     res.json({ success: true, data: rule });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -457,7 +457,7 @@ router.post('/check', permissionMiddleware, async (req, res) => {
     
     res.json({ success: true, hasPermission });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -511,7 +511,7 @@ router.get('/user-info', permissionMiddleware, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
