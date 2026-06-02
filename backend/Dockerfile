@@ -21,10 +21,15 @@ RUN npx prisma generate
 # 最后复制剩余的应用代码（node_modules 已在 .dockerignore 中排除）
 COPY . .
 
+# 复制并设置启动脚本
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # 在容器内对 prisma client 做最后兜底生成（避免缓存层错位）
 RUN npx prisma generate || true
 
 EXPOSE 5125
 
-# 启动后端
+# 启动时自动同步 schema + 跑种子
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "src/app.js"]
