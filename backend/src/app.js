@@ -9,6 +9,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 路由
 import authRoutes from './routes/auth.routes.js';
@@ -31,6 +33,12 @@ import { authMiddleware } from './middleware/auth.middleware.js';
 
 const app = express();
 const prisma = new PrismaClient();
+
+// 前端 dist 路径（Express 直接服务，免 nginx）
+// 优先级：环境变量 > 相对于本文件的 ../../frontend/dist
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FRONTEND_DIST = process.env.FRONTEND_DIST
+  || path.resolve(__dirname, '../../frontend/dist');
 
 // 安全中间件
 app.use(helmet());
@@ -96,6 +104,17 @@ app.use('/api/demands', authMiddleware, demandRoutes);
 app.use('/api/system', authMiddleware, systemRoutes);
 app.use('/api/resumes', authMiddleware, resumeRoutes);
 app.use('/api/departments', authMiddleware, departmentRoutes);
+
+// 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
+// 1) 真实静态资源（dist/assets/*）
+app.use(express.static(FRONTEND_DIST));
+// 2) SPA fallback：所有非 /api、非 /uploads 的 GET 都返回 index.html
+//    找不到 index.html 时落回 404
+app.get(/^\/(?!api|uploads).*/, (req, res, next) => {
+  res.sendFile(path.join(FRONTEND_DIST, 'index.html'), (err) => {
+    if (err) next();
+  });
+});
 
 // 错误处理
 app.use(errorHandler);
