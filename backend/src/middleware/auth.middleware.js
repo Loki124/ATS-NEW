@@ -3,12 +3,15 @@
  */
 
 import jwt from 'jsonwebtoken';
-import { prisma } from '../app.js';
+import { PrismaClient } from '@prisma/client';
+import { jwt as jwtConfig } from '../config/index.js';
+
+const prisma = new PrismaClient();
 
 export const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -17,9 +20,9 @@ export const authMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
+    const decoded = jwt.verify(token, jwtConfig.secret);
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
