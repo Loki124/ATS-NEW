@@ -8,12 +8,12 @@ services:
     ports:
       - "5125:5125"
     environment:
-      - DATABASE_URL=file:./dev.db
+      - DATABASE_URL=file:/app/prisma/dev.db
       - JWT_SECRET=ats-super-secret-key-2024-production
       - PORT=5125
-      - CORS_ORIGIN=http://localhost:9908
+      - CORS_ORIGIN=http://10.10.22.80:9908
     volumes:
-      - backend-data:/app/prisma
+      - db-data:/app/prisma
     networks:
       - ats-network
 
@@ -23,6 +23,7 @@ services:
       - "9908:80"
     volumes:
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
     networks:
@@ -34,4 +35,4 @@ networks:
     driver: bridge
 
 volumes:
-  backend-data:
+  db-data:
