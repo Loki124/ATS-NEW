@@ -1,0 +1,30 @@
+[Unit]
+Description=ATS-New Webhook Receiver
+After=network.target
+
+[Service]
+Type=simple
+User=loki
+Group=loki
+WorkingDirectory=/opt/ats/ATS-New
+Environment="WEBHOOK_SECRET=CHANGE_ME_generate_a_random_32_char_string"
+Environment="WEBHOOK_PORT=9876"
+Environment="WEBHOOK_BRANCH=main"
+Environment="WEBHOOK_DEPLOY_SCRIPT=/opt/ats/ATS-New/scripts/webhook-deploy.sh"
+Environment="WEBHOOK_LOG=/home/loki/ats-webhook.log"
+Environment="WEBHOOK_DEPLOY_LOG=/tmp/ats-deploy.log"
+ExecStart=/usr/bin/node /opt/ats/ATS-New/scripts/webhook.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/loki/ats-webhook.log
+StandardError=append:/home/loki/ats-webhook.log
+
+# 安全加固（可选）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/ats/ATS-New /tmp /home/loki
+
+[Install]
+WantedBy=multi-user.target
