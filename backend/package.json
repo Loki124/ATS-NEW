@@ -9,7 +9,7 @@
     "start": "node src/app.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "db:seed": "node prisma/seed.js && node prisma/seed.referral.js",
+    "db:seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed.referral.js",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
