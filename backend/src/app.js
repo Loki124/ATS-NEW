@@ -156,3 +156,4 @@ process.on('SIGTERM', async () => {
 });
 
 export { prisma };
+export default app;
