@@ -214,6 +214,15 @@ model User {
   assignedCandidates Candidate[] @relation("CandidateAssignedUser")
   providedCandidates Candidate[] @relation("CandidateResumeProvider")
 
+  // 内推门户 Phase 1 - 反向关系
+  referralCode         ReferralCode?           @relation("UserReferralCode")
+  referralExpertConfigs ReferralExpertConfig[] @relation("UserExpertConfigs")
+  expertConfigs        ReferralExpertConfig[]  @relation("ExpertConfigs")
+  referrerRecords      ReferralRecord[]        @relation("ReferrerRecords")
+  expertRecords        ReferralRecord[]        @relation("ExpertRecords")
+  rewardConfirmations  ReferralReward[]        @relation("RewardConfirmer")
+  createdReferralRules ReferralRule[]          @relation("RuleCreator")
+
   @@index([departmentId])
   @@index([wechatWorkUserId])
   @@index([wechatWorkDeptId])
@@ -244,6 +253,10 @@ model Department {
   users     User[]
   demands   Demand[]
   positions Position[]
+
+  // 内推门户 Phase 1 - 反向关系
+  expertConfigs ReferralExpertConfig[] @relation("TeamExpertConfigs")
+  referralTeam  ReferralTeam?          @relation("DepartmentReferralTeam")
 
   @@index([parentId])
   @@index([managerId])
@@ -389,6 +402,9 @@ model Position {
   applications Application[]
   channels     PositionChannel[]
 
+  // 内推门户 Phase 1 - 反向关系
+  referralRecords ReferralRecord[] @relation("PositionReferrals")
+
   @@index([departmentId])
   @@index([demandId])
   @@index([creatorId])
@@ -468,6 +484,10 @@ model Candidate {
   resumes      Resume[]
   applications Application[]
 
+  // 内推门户 Phase 1 - 反向关系
+  referralRecords ReferralRecord[] @relation("CandidateReferrals")
+  referralRewards ReferralReward[] @relation("CandidateReferralRewards")
+
   @@index([recommenderId])
   @@index([assignedUserId])
   @@index([resumeProviderId])
@@ -521,6 +541,9 @@ model Resume {
   flowLogs      ResumeFlowLog[]
   approvalFlows SpecialApprovalFlow[]
 
+  // 内推门户 Phase 1 - 反向关系
+  referralRecords ReferralRecord[] @relation("ResumeReferrals")
+
   @@index([candidateId])
   @@index([positionId])
   @@index([duplicateOfId])
@@ -563,6 +586,9 @@ model Application {
   offer      Offer?
   onboarding Onboarding?
   invitation InvitationRecord?
+
+  // 内推门户 Phase 1 - 反向关系
+  referralRecord ReferralRecord? @relation("ApplicationReferrals")
 
   @@index([candidateId])
   @@index([positionId])
@@ -1391,4 +1417,146 @@ model PermissionAuditLog {
   @@index([targetId])
   @@index([operatorId])
   @@map("permission_audit_logs")
+}
+
+// ============================================
+// 内推门户 - Phase 1 (地基层)
+// ============================================
+
+model ReferralCode {
+  id            String   @id @default(uuid())
+  code          String   @unique @db.VarChar(16)
+  userId        String   @unique
+  status        String   @default("ACTIVE") @db.VarChar(32)
+  invalidReason String?  @db.VarChar(64)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user    User               @relation("UserReferralCode", fields: [userId], references: [id], onDelete: Cascade)
+  records ReferralRecord[]
+  configs ReferralExpertConfig[]
+
+  @@index([status])
+  @@map("referral_codes")
+}
+
+model ReferralExpertConfig {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String
+  expertId  String
+  referralCodeId String?
+  isPrimary Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation("UserExpertConfigs", fields: [userId], references: [id], onDelete: Cascade)
+  team         Department    @relation("TeamExpertConfigs", fields: [teamId], references: [id], onDelete: Restrict)
+  expert       User          @relation("ExpertConfigs", fields: [expertId], references: [id], onDelete: Restrict)
+  referralCode ReferralCode? @relation(fields: [referralCodeId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, teamId, expertId])
+  @@index([userId])
+  @@index([expertId])
+  @@index([teamId])
+  @@map("referral_expert_configs")
+}
+
+model ReferralTeam {
+  id          String   @id @default(uuid())
+  teamId      String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team Department @relation("DepartmentReferralTeam", fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("referral_teams")
+}
+
+model ReferralRecord {
+  id              String   @id @default(uuid())
+  referrerId      String
+  referrerCode    String   @db.VarChar(16)
+  candidateId     String
+  resumeId        String?
+  positionId      String
+  expertId        String
+  referralCodeId  String?
+  referralType    String   @db.VarChar(32)
+  referralStatus  String   @default("NORMAL") @db.VarChar(32)
+  protectionEndAt DateTime?
+  invalidReason   String?  @db.VarChar(64)
+  recommendedAt   DateTime @default(now())
+  statusChangedAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  referrer  User        @relation("ReferrerRecords", fields: [referrerId], references: [id], onDelete: Restrict)
+  candidate Candidate   @relation("CandidateReferrals", fields: [candidateId], references: [id], onDelete: Cascade)
+  resume    Resume?     @relation("ResumeReferrals", fields: [resumeId], references: [id], onDelete: SetNull)
+  position  Position    @relation("PositionReferrals", fields: [positionId], references: [id], onDelete: Restrict)
+  expert    User        @relation("ExpertRecords", fields: [expertId], references: [id], onDelete: Restrict)
+  referralCode ReferralCode? @relation(fields: [referralCodeId], references: [id], onDelete: SetNull)
+  applicationId String?      @unique
+  application   Application? @relation("ApplicationReferrals", fields: [applicationId], references: [id], onDelete: SetNull)
+  rewards   ReferralReward[]
+
+  @@unique([candidateId, positionId, referrerId], name: "uniq_candidate_position_referrer")
+  @@index([referrerId, referralStatus])
+  @@index([expertId, referralStatus])
+  @@index([positionId])
+  @@index([protectionEndAt])
+  @@index([referralStatus, statusChangedAt])
+  @@map("referral_records")
+}
+
+model ReferralReward {
+  id           String   @id @default(uuid())
+  recordId     String
+  candidateId  String
+  amount       Decimal  @db.Decimal(10, 2)
+  reason       String   @db.VarChar(64)
+  triggerStage String   @db.VarChar(32)
+  status       String   @default("PENDING") @db.VarChar(32)
+  ruleId       String?
+  triggeredAt  DateTime @default(now())
+  confirmedBy  String?
+  confirmedAt  DateTime?
+  issuedAt     DateTime?
+  rejectedAt   DateTime?
+  rejectReason String?  @db.VarChar(255)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  record    ReferralRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  candidate Candidate      @relation("CandidateReferralRewards", fields: [candidateId], references: [id], onDelete: Cascade)
+  rule      ReferralRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  confirmer User?          @relation("RewardConfirmer", fields: [confirmedBy], references: [id], onDelete: SetNull)
+
+  @@index([recordId])
+  @@index([status])
+  @@index([triggeredAt])
+  @@index([candidateId])
+  @@map("referral_rewards")
+}
+
+model ReferralRule {
+  id            String   @id @default(uuid())
+  name          String   @unique @db.VarChar(64)
+  ruleType      String   @db.VarChar(32)
+  positionLevel String?  @db.VarChar(32)
+  triggerStage  String?  @db.VarChar(32)
+  conditions    Json
+  amount        Decimal? @db.Decimal(10, 2)
+  status        String   @default("ACTIVE") @db.VarChar(32)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  creator User             @relation("RuleCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  rewards ReferralReward[]
+
+  @@index([ruleType, status])
+  @@map("referral_rules")
 }
