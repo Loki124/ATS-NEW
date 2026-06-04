@@ -23,6 +23,7 @@ import demandRoutes from './routes/demand.routes.js';
 import systemRoutes from './routes/system.routes.js';
 import resumeRoutes from './routes/resume.routes.js';
 import departmentRoutes from './routes/department.routes.js';
+import referralRoutes, * as referralModule from './referral/index.js';
 
 // 配置
 import config from './config/index.js';
@@ -104,6 +105,7 @@ app.use('/api/demands', authMiddleware, demandRoutes);
 app.use('/api/system', authMiddleware, systemRoutes);
 app.use('/api/resumes', authMiddleware, resumeRoutes);
 app.use('/api/departments', authMiddleware, departmentRoutes);
+app.use('/api/referral', authMiddleware, referralRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
@@ -127,6 +129,15 @@ app.use((req, res) => {
   });
 });
 
+// 启动内推后台调度（如果模块提供了 startReferralScheduler）
+if (typeof referralModule.startReferralScheduler === 'function') {
+  try {
+    referralModule.startReferralScheduler(prisma);
+  } catch (e) {
+    console.warn('[referral] scheduler start failed:', e.message);
+  }
+}
+
 app.listen(config.app.port, () => {
   console.log(`🚀 ${config.app.name} 已启动`);
   console.log(`📡 后端服务: http://localhost:${config.app.port}`);
@@ -136,6 +147,13 @@ app.listen(config.app.port, () => {
 // 优雅关闭
 process.on('SIGTERM', async () => {
   console.log('正在关闭服务...');
+  try {
+    if (typeof referralModule.stopReferralScheduler === 'function') {
+      referralModule.stopReferralScheduler();
+    }
+  } catch (e) {
+    console.warn('[referral] scheduler stop failed:', e.message);
+  }
   await prisma.$disconnect();
   process.exit(0);
 });
