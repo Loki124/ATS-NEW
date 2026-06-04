@@ -1459,6 +1459,7 @@ model ReferralExpertConfig {
   @@index([userId])
   @@index([expertId])
   @@index([teamId])
+  @@index([referralCodeId])
   @@map("referral_expert_configs")
 }
 
@@ -1508,6 +1509,7 @@ model ReferralRecord {
   @@index([positionId])
   @@index([protectionEndAt])
   @@index([referralStatus, statusChangedAt])
+  @@index([referralCodeId])
   @@map("referral_records")
 }
 
