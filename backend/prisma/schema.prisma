@@ -567,7 +567,6 @@ model Application {
   processName String
 
   source         String?
-  referralUserId String?
 
   applicationStatus String    @default("ACTIVE") @db.VarChar(32)
   archiveReason     String?
@@ -595,7 +594,6 @@ model Application {
   @@index([resumeId])
   @@index([currentStageId])
   @@index([processId])
-  @@index([referralUserId])
   @@index([formalLockerId])
   @@map("applications")
 }
