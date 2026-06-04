@@ -23,7 +23,8 @@ import demandRoutes from './routes/demand.routes.js';
 import systemRoutes from './routes/system.routes.js';
 import resumeRoutes from './routes/resume.routes.js';
 import departmentRoutes from './routes/department.routes.js';
-import referralRoutes, * as referralModule from './referral/index.js';
+import referralRoutes from './referral/index.js';
+import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 
 // 配置
 import config from './config/index.js';
@@ -129,13 +130,11 @@ app.use((req, res) => {
   });
 });
 
-// 启动内推后台调度（如果模块提供了 startReferralScheduler）
-if (typeof referralModule.startReferralScheduler === 'function') {
-  try {
-    referralModule.startReferralScheduler(prisma);
-  } catch (e) {
-    console.warn('[referral] scheduler start failed:', e.message);
-  }
+// 启动内推后台调度
+try {
+  startReferralScheduler(prisma);
+} catch (e) {
+  console.warn('[referral] scheduler start failed:', e.message);
 }
 
 app.listen(config.app.port, () => {
@@ -148,9 +147,7 @@ app.listen(config.app.port, () => {
 process.on('SIGTERM', async () => {
   console.log('正在关闭服务...');
   try {
-    if (typeof referralModule.stopReferralScheduler === 'function') {
-      referralModule.stopReferralScheduler();
-    }
+    stopReferralScheduler();
   } catch (e) {
     console.warn('[referral] scheduler stop failed:', e.message);
   }
