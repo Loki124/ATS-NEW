@@ -1,287 +1,347 @@
 <template>
   <div class="permission-management">
-    <a-tabs v-model:activeKey="activeTab" default-active-key="mou">
+    <n-tabs v-model:value="activeTab" type="line" default-value="mou">
       <!-- MOU 管理 Tab -->
-      <a-tab-pane key="mou">
+      <n-tab-pane name="mou">
         <template #tab>
-          <span><TeamOutlined /> MOU管理</span>
+          <span class="tab-label">
+            <n-icon :component="PeopleOutline" />
+            MOU管理
+          </span>
         </template>
-        <a-card title="管理单元 (MOU) 列表">
-          <template #extra>
-            <a-button type="primary" @click="handleAddMou">
-              <template #icon><PlusOutlined /></template>
+        <n-card title="管理单元 (MOU) 列表">
+          <template #header-extra>
+            <n-button type="primary" @click="handleAddMou">
+              <template #icon><n-icon :component="AddOutline" /></template>
               新建MOU
-            </a-button>
+            </n-button>
           </template>
-          <a-table
-            :dataSource="mous"
+          <n-data-table
+            :data="mous"
             :columns="mouColumns"
-            row-key="id"
+            :row-key="(row: Mou) => row.id"
             :loading="loading"
             :pagination="{ pageSize: 10 }"
           />
-        </a-card>
-      </a-tab-pane>
+        </n-card>
+      </n-tab-pane>
 
       <!-- 权限容器 Tab -->
-      <a-tab-pane key="container">
+      <n-tab-pane name="container">
         <template #tab>
-          <span><DatabaseOutlined /> 权限容器</span>
+          <span class="tab-label">
+            <n-icon :component="ServerOutline" />
+            权限容器
+          </span>
         </template>
-        <a-card title="权限容器列表">
-          <template #extra>
-            <a-button type="primary" @click="handleAddContainer()">
-              <template #icon><PlusOutlined /></template>
+        <n-card title="权限容器列表">
+          <template #header-extra>
+            <n-button type="primary" @click="handleAddContainer()">
+              <template #icon><n-icon :component="AddOutline" /></template>
               新建容器
-            </a-button>
+            </n-button>
           </template>
-          <a-table
-            :dataSource="containers"
+          <n-data-table
+            :data="containers"
             :columns="containerColumns"
-            row-key="id"
+            :row-key="(row: PermissionContainer) => row.id"
             :pagination="{ pageSize: 10 }"
           />
-        </a-card>
-      </a-tab-pane>
+        </n-card>
+      </n-tab-pane>
 
       <!-- 自动化规则 Tab -->
-      <a-tab-pane key="automation">
+      <n-tab-pane name="automation">
         <template #tab>
-          <span><RocketOutlined /> 自动化规则</span>
+          <span class="tab-label">
+            <n-icon :component="RocketOutline" />
+            自动化规则
+          </span>
         </template>
-        <a-card title="自动化权限规则">
-          <template #extra>
-            <a-button type="primary" @click="handleAddRule">
-              <template #icon><PlusOutlined /></template>
+        <n-card title="自动化权限规则">
+          <template #header-extra>
+            <n-button type="primary" @click="handleAddRule">
+              <template #icon><n-icon :component="AddOutline" /></template>
               新建规则
-            </a-button>
+            </n-button>
           </template>
-          <a-table
-            :dataSource="automationRules"
+          <n-data-table
+            :data="automationRules"
             :columns="ruleColumns"
-            row-key="id"
+            :row-key="(row: AutomationRule) => row.id"
             :pagination="{ pageSize: 10 }"
           />
-        </a-card>
-      </a-tab-pane>
+        </n-card>
+      </n-tab-pane>
 
       <!-- 互斥组 Tab -->
-      <a-tab-pane key="mutex">
+      <n-tab-pane name="mutex">
         <template #tab>
-          <span><ExclamationCircleOutlined /> 互斥组</span>
+          <span class="tab-label">
+            <n-icon :component="AlertCircleOutline" />
+            互斥组
+          </span>
         </template>
-        <a-card title="角色互斥组">
-          <template #extra>
-            <a-button type="primary" @click="handleAddMutex">
-              <template #icon><PlusOutlined /></template>
+        <n-card title="角色互斥组">
+          <template #header-extra>
+            <n-button type="primary" @click="handleAddMutex">
+              <template #icon><n-icon :component="AddOutline" /></template>
               新建互斥组
-            </a-button>
+            </n-button>
           </template>
-          <a-table
-            :dataSource="mutexGroups"
+          <n-data-table
+            :data="mutexGroups"
             :columns="mutexColumns"
-            row-key="id"
+            :row-key="(row: MutualExclusionGroup) => row.id"
             :pagination="{ pageSize: 10 }"
           />
-        </a-card>
-      </a-tab-pane>
+        </n-card>
+      </n-tab-pane>
 
       <!-- 审计日志 Tab -->
-      <a-tab-pane key="audit">
+      <n-tab-pane name="audit">
         <template #tab>
-          <span><HistoryOutlined /> 审计日志</span>
+          <span class="tab-label">
+            <n-icon :component="TimeOutline" />
+            审计日志
+          </span>
         </template>
-        <a-card title="权限变更审计日志">
+        <n-card title="权限变更审计日志">
           <div class="audit-filters" style="margin-bottom: 16px">
-            <a-space>
-              <a-range-picker @change="handleDateChange" />
-              <a-select placeholder="操作类型" style="width: 120px" allow-clear @change="handleActionChange">
-                <a-select-option value="CREATE">创建</a-select-option>
-                <a-select-option value="UPDATE">更新</a-select-option>
-                <a-select-option value="DELETE">删除</a-select-option>
-                <a-select-option value="ASSIGN">分配</a-select-option>
-                <a-select-option value="UNASSIGN">取消分配</a-select-option>
-              </a-select>
-              <a-select placeholder="目标类型" style="width: 120px" allow-clear @change="handleTargetTypeChange">
-                <a-select-option value="MOU">MOU</a-select-option>
-                <a-select-option value="CONTAINER">容器</a-select-option>
-                <a-select-option value="ROLE">角色</a-select-option>
-                <a-select-option value="USER">用户</a-select-option>
-              </a-select>
-              <a-button type="primary" @click="loadAuditLogs">查询</a-button>
-            </a-space>
+            <n-space>
+              <n-date-picker
+                type="daterange"
+                clearable
+                @update:value="handleDateChange"
+              />
+              <n-select
+                placeholder="操作类型"
+                style="width: 120px"
+                clearable
+                :options="actionOptions"
+                @update:value="handleActionChange"
+              />
+              <n-select
+                placeholder="目标类型"
+                style="width: 120px"
+                clearable
+                :options="targetTypeOptions"
+                @update:value="handleTargetTypeChange"
+              />
+              <n-button type="primary" @click="loadAuditLogs">查询</n-button>
+            </n-space>
           </div>
-          <a-table
-            :dataSource="auditLogs"
+          <n-data-table
+            :data="auditLogs"
             :columns="auditColumns"
-            row-key="id"
+            :row-key="(row: PermissionAuditLog) => row.id"
             :loading="auditLoading"
             :pagination="{ pageSize: 10 }"
           />
-        </a-card>
-      </a-tab-pane>
-    </a-tabs>
+        </n-card>
+      </n-tab-pane>
+    </n-tabs>
 
     <!-- MOU 表单弹窗 -->
-    <a-modal
-      :open="mouModalVisible"
+    <n-modal
+      v-model:show="mouModalVisible"
+      preset="card"
       :title="editingMou ? '编辑MOU' : '新建MOU'"
-      @ok="handleSaveMou"
-      @cancel="mouModalVisible = false"
-      :width="500"
+      :style="{ width: '500px' }"
+      :mask-closable="false"
     >
-      <a-form :model="mouFormState" layout="vertical">
-        <a-form-item label="MOU名称" name="name" :rules="[{ required: true }]">
-          <a-input v-model:value="mouFormState.name" placeholder="请输入MOU名称" />
-        </a-form-item>
-        <a-form-item label="MOU编码" name="code" :rules="[{ required: true }]">
-          <a-input v-model:value="mouFormState.code" placeholder="请输入MOU编码" :disabled="!!editingMou" />
-        </a-form-item>
-        <a-form-item label="MOU类型" name="mouType" :rules="[{ required: true }]">
-          <a-select v-model:value="mouFormState.mouType" placeholder="请选择MOU类型">
-            <a-select-option value="DEPARTMENT">部门</a-select-option>
-            <a-select-option value="PROJECT">项目</a-select-option>
-            <a-select-option value="CUSTOM">自定义</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="权限范围" name="scope">
-          <a-input v-model:value="mouFormState.scope" placeholder="如：全部、部门、自定义" />
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="mouFormState.description" :rows="3" placeholder="请输入MOU描述" />
-        </a-form-item>
-        <a-form-item label="状态" name="status">
-          <a-select v-model:value="mouFormState.status">
-            <a-select-option value="ACTIVE">启用</a-select-option>
-            <a-select-option value="INACTIVE">停用</a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <n-form :model="mouFormState" label-placement="top">
+        <n-form-item label="MOU名称" required>
+          <n-input v-model:value="mouFormState.name" placeholder="请输入MOU名称" />
+        </n-form-item>
+        <n-form-item label="MOU编码" required>
+          <n-input v-model:value="mouFormState.code" placeholder="请输入MOU编码" :disabled="!!editingMou" />
+        </n-form-item>
+        <n-form-item label="MOU类型" required>
+          <n-select
+            v-model:value="mouFormState.mouType"
+            placeholder="请选择MOU类型"
+            :options="mouTypeOptions"
+          />
+        </n-form-item>
+        <n-form-item label="权限范围">
+          <n-input v-model:value="mouFormState.scope" placeholder="如：全部、部门、自定义" />
+        </n-form-item>
+        <n-form-item label="描述">
+          <n-input v-model:value="mouFormState.description" type="textarea" :rows="3" placeholder="请输入MOU描述" />
+        </n-form-item>
+        <n-form-item label="状态">
+          <n-select
+            v-model:value="mouFormState.status"
+            :options="statusOptions"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <n-button @click="mouModalVisible = false">取消</n-button>
+          <n-button type="primary" @click="handleSaveMou">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- Container 表单弹窗 -->
-    <a-modal
-      :open="containerModalVisible"
+    <n-modal
+      v-model:show="containerModalVisible"
+      preset="card"
       :title="editingContainer ? '编辑容器' : '新建容器'"
-      @ok="handleSaveContainer"
-      @cancel="containerModalVisible = false"
-      :width="500"
+      :style="{ width: '500px' }"
+      :mask-closable="false"
     >
-      <a-form :model="containerFormState" layout="vertical">
-        <a-form-item label="容器名称" name="name" :rules="[{ required: true }]">
-          <a-input v-model:value="containerFormState.name" placeholder="请输入容器名称" />
-        </a-form-item>
-        <a-form-item label="容器编码" name="code" :rules="[{ required: true }]">
-          <a-input v-model:value="containerFormState.code" placeholder="请输入容器编码" :disabled="!!editingContainer" />
-        </a-form-item>
-        <a-form-item label="所属MOU" name="mouId" :rules="[{ required: true }]">
-          <a-select v-model:value="containerFormState.mouId" placeholder="请选择MOU">
-            <a-select-option v-for="m in mous" :key="m.id" :value="m.id">{{ m.name }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="容器类型" name="type" :rules="[{ required: true }]">
-          <a-select v-model:value="containerFormState.type" placeholder="请选择容器类型">
-            <a-select-option value="PROJECT">项目</a-select-option>
-            <a-select-option value="DEPT">部门</a-select-option>
-            <a-select-option value="TALENT_POOL">人才库</a-select-option>
-            <a-select-option value="CUSTOM">自定义</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="资源过滤" name="resourceFilter">
-          <a-textarea v-model:value="containerFormState.resourceFilter" placeholder="JSON格式的资源过滤条件" :rows="2" />
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="containerFormState.description" :rows="2" placeholder="请输入容器描述" />
-        </a-form-item>
-        <a-form-item label="状态" name="status">
-          <a-select v-model:value="containerFormState.status">
-            <a-select-option value="ACTIVE">启用</a-select-option>
-            <a-select-option value="INACTIVE">停用</a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <n-form :model="containerFormState" label-placement="top">
+        <n-form-item label="容器名称" required>
+          <n-input v-model:value="containerFormState.name" placeholder="请输入容器名称" />
+        </n-form-item>
+        <n-form-item label="容器编码" required>
+          <n-input v-model:value="containerFormState.code" placeholder="请输入容器编码" :disabled="!!editingContainer" />
+        </n-form-item>
+        <n-form-item label="所属MOU" required>
+          <n-select
+            v-model:value="containerFormState.mouId"
+            placeholder="请选择MOU"
+            :options="mouSelectOptions"
+          />
+        </n-form-item>
+        <n-form-item label="容器类型" required>
+          <n-select
+            v-model:value="containerFormState.type"
+            placeholder="请选择容器类型"
+            :options="containerTypeOptions"
+          />
+        </n-form-item>
+        <n-form-item label="资源过滤">
+          <n-input v-model:value="containerFormState.resourceFilter" type="textarea" placeholder="JSON格式的资源过滤条件" :rows="2" />
+        </n-form-item>
+        <n-form-item label="描述">
+          <n-input v-model:value="containerFormState.description" type="textarea" :rows="2" placeholder="请输入容器描述" />
+        </n-form-item>
+        <n-form-item label="状态">
+          <n-select
+            v-model:value="containerFormState.status"
+            :options="statusOptions"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <n-button @click="containerModalVisible = false">取消</n-button>
+          <n-button type="primary" @click="handleSaveContainer">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- 自动化规则表单弹窗 -->
-    <a-modal
-      :open="ruleModalVisible"
+    <n-modal
+      v-model:show="ruleModalVisible"
+      preset="card"
       :title="editingRule ? '编辑规则' : '新建自动化规则'"
-      @ok="handleSaveRule"
-      @cancel="ruleModalVisible = false"
-      :width="600"
+      :style="{ width: '600px' }"
+      :mask-closable="false"
     >
-      <a-form :model="ruleFormState" layout="vertical">
-        <a-form-item label="规则名称" name="name" :rules="[{ required: true }]">
-          <a-input v-model:value="ruleFormState.name" placeholder="请输入规则名称" />
-        </a-form-item>
-        <a-form-item label="规则编码" name="code" :rules="[{ required: true }]">
-          <a-input v-model:value="ruleFormState.code" placeholder="请输入规则编码" :disabled="!!editingRule" />
-        </a-form-item>
-        <a-form-item label="触发事件" name="eventType" :rules="[{ required: true }]">
-          <a-select v-model:value="ruleFormState.eventType" placeholder="请选择触发事件">
-            <a-select-option value="onboarding">入职触发</a-select-option>
-            <a-select-option value="transfer">转岗触发</a-select-option>
-            <a-select-option value="org_change">组织变更触发</a-select-option>
-            <a-select-option value="offboarding">离职触发</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="动作配置" name="actions" :rules="[{ required: true }]">
-          <a-textarea v-model:value="ruleFormState.actions" placeholder='JSON格式动作配置，如：[{"type":"assign_role","role_id":"xxx"}]' :rows="3" />
-        </a-form-item>
-        <a-form-item label="优先级" name="priority">
-          <a-input-number v-model:value="ruleFormState.priority" placeholder="数值越小优先级越高" />
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="ruleFormState.description" :rows="2" placeholder="请输入规则描述" />
-        </a-form-item>
-        <a-form-item label="状态" name="status">
-          <a-select v-model:value="ruleFormState.status">
-            <a-select-option value="ACTIVE">启用</a-select-option>
-            <a-select-option value="INACTIVE">停用</a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <n-form :model="ruleFormState" label-placement="top">
+        <n-form-item label="规则名称" required>
+          <n-input v-model:value="ruleFormState.name" placeholder="请输入规则名称" />
+        </n-form-item>
+        <n-form-item label="规则编码" required>
+          <n-input v-model:value="ruleFormState.code" placeholder="请输入规则编码" :disabled="!!editingRule" />
+        </n-form-item>
+        <n-form-item label="触发事件" required>
+          <n-select
+            v-model:value="ruleFormState.eventType"
+            placeholder="请选择触发事件"
+            :options="eventTypeOptions"
+          />
+        </n-form-item>
+        <n-form-item label="动作配置" required>
+          <n-input v-model:value="ruleFormState.actions" type="textarea" placeholder='JSON格式动作配置，如：[{"type":"assign_role","role_id":"xxx"}]' :rows="3" />
+        </n-form-item>
+        <n-form-item label="优先级">
+          <n-input-number v-model:value="ruleFormState.priority" placeholder="数值越小优先级越高" />
+        </n-form-item>
+        <n-form-item label="描述">
+          <n-input v-model:value="ruleFormState.description" type="textarea" :rows="2" placeholder="请输入规则描述" />
+        </n-form-item>
+        <n-form-item label="状态">
+          <n-select
+            v-model:value="ruleFormState.status"
+            :options="statusOptions"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <n-button @click="ruleModalVisible = false">取消</n-button>
+          <n-button type="primary" @click="handleSaveRule">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- 互斥组表单弹窗 -->
-    <a-modal
-      :open="mutexModalVisible"
+    <n-modal
+      v-model:show="mutexModalVisible"
+      preset="card"
       :title="editingMutex ? '编辑互斥组' : '新建互斥组'"
-      @ok="handleSaveMutex"
-      @cancel="mutexModalVisible = false"
-      :width="500"
+      :style="{ width: '500px' }"
+      :mask-closable="false"
     >
-      <a-form :model="mutexFormState" layout="vertical">
-        <a-form-item label="互斥组名称" name="name" :rules="[{ required: true }]">
-          <a-input v-model:value="mutexFormState.name" placeholder="请输入互斥组名称" />
-        </a-form-item>
-        <a-form-item label="互斥组编码" name="code" :rules="[{ required: true }]">
-          <a-input v-model:value="mutexFormState.code" placeholder="请输入互斥组编码" :disabled="!!editingMutex" />
-        </a-form-item>
-        <a-form-item label="所属MOU" name="mouId" :rules="[{ required: true }]">
-          <a-select v-model:value="mutexFormState.mouId" placeholder="请选择MOU">
-            <a-select-option v-for="m in mous" :key="m.id" :value="m.id">{{ m.name }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="最大角色数" name="maxRoles">
-          <a-input-number v-model:value="mutexFormState.maxRoles" :min="1" />
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="mutexFormState.description" :rows="2" placeholder="请输入互斥组描述" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <n-form :model="mutexFormState" label-placement="top">
+        <n-form-item label="互斥组名称" required>
+          <n-input v-model:value="mutexFormState.name" placeholder="请输入互斥组名称" />
+        </n-form-item>
+        <n-form-item label="互斥组编码" required>
+          <n-input v-model:value="mutexFormState.code" placeholder="请输入互斥组编码" :disabled="!!editingMutex" />
+        </n-form-item>
+        <n-form-item label="所属MOU" required>
+          <n-select
+            v-model:value="mutexFormState.mouId"
+            placeholder="请选择MOU"
+            :options="mouSelectOptions"
+          />
+        </n-form-item>
+        <n-form-item label="最大角色数">
+          <n-input-number v-model:value="mutexFormState.maxRoles" :min="1" />
+        </n-form-item>
+        <n-form-item label="描述">
+          <n-input v-model:value="mutexFormState.description" type="textarea" :rows="2" placeholder="请输入互斥组描述" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <n-button @click="mutexModalVisible = false">取消</n-button>
+          <n-button type="primary" @click="handleSaveMutex">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import api from '../../api/auth';
-import { ref, reactive, onMounted, h } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, onMounted, computed, h } from 'vue'
 import {
-  PlusOutlined, TeamOutlined, DatabaseOutlined, RocketOutlined, 
-  HistoryOutlined, ExclamationCircleOutlined
-} from '@ant-design/icons-vue'
+  NTag,
+  NBadge,
+  NButton,
+  NSpace,
+  NPopconfirm,
+  NIcon,
+  useMessage,
+} from 'naive-ui'
+import {
+  AddOutline,
+  PeopleOutline,
+  ServerOutline,
+  RocketOutline,
+  TimeOutline,
+  AlertCircleOutline,
+} from '@vicons/ionicons5'
+
+const message = useMessage()
 
 interface Mou {
   id: string
@@ -307,6 +367,7 @@ interface PermissionContainer {
   type: string
   resourceType?: string
   resourceScope?: string
+  resourceFilter?: any
   status: string
   createdAt: string
   updatedAt: string
@@ -318,6 +379,8 @@ interface AutomationRule {
   code: string
   description?: string
   eventType: string
+  triggerType?: string
+  actionType?: string
   condition?: any
   actions: string
   priority: number
@@ -374,7 +437,15 @@ const containers = ref<PermissionContainer[]>([])
 const containerModalVisible = ref(false)
 const editingContainer = ref<PermissionContainer | null>(null)
 
-const containerFormState = reactive({
+const containerFormState = reactive<{
+  name: string
+  code: string
+  type: string
+  mouId: string
+  description: string
+  resourceFilter: any
+  status: string
+}>({
   name: '',
   code: '',
   type: '',
@@ -423,33 +494,91 @@ const mutexFormState = reactive({
   description: ''
 })
 
+// 下拉选项
+const mouTypeOptions = [
+  { label: '部门', value: 'DEPARTMENT' },
+  { label: '项目', value: 'PROJECT' },
+  { label: '自定义', value: 'CUSTOM' },
+]
+
+const containerTypeOptions = [
+  { label: '项目', value: 'PROJECT' },
+  { label: '部门', value: 'DEPT' },
+  { label: '人才库', value: 'TALENT_POOL' },
+  { label: '自定义', value: 'CUSTOM' },
+]
+
+const eventTypeOptions = [
+  { label: '入职触发', value: 'onboarding' },
+  { label: '转岗触发', value: 'transfer' },
+  { label: '组织变更触发', value: 'org_change' },
+  { label: '离职触发', value: 'offboarding' },
+]
+
+const statusOptions = [
+  { label: '启用', value: 'ACTIVE' },
+  { label: '停用', value: 'INACTIVE' },
+]
+
+const actionOptions = [
+  { label: '创建', value: 'CREATE' },
+  { label: '更新', value: 'UPDATE' },
+  { label: '删除', value: 'DELETE' },
+  { label: '分配', value: 'ASSIGN' },
+  { label: '取消分配', value: 'UNASSIGN' },
+]
+
+const targetTypeOptions = [
+  { label: 'MOU', value: 'MOU' },
+  { label: '容器', value: 'CONTAINER' },
+  { label: '角色', value: 'ROLE' },
+  { label: '用户', value: 'USER' },
+]
+
+const mouSelectOptions = computed(() =>
+  mous.value.map(m => ({ label: m.name, value: m.id }))
+)
+
 // 表格列定义
 const mouColumns = [
-  { title: 'MOU名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '编码', dataIndex: 'code', key: 'code', width: 120 },
-  { title: '类型', dataIndex: 'type', key: 'type', width: 100,
-    customRender: ({ text }: { text: string }) => h('a-tag', { color: text === 'DEPARTMENT' ? 'blue' : text === 'PROJECT' ? 'green' : 'orange' },
-      text === 'DEPARTMENT' ? '部门' : text === 'PROJECT' ? '项目' : '自定义')
+  { title: 'MOU名称', key: 'name', width: 150 },
+  { title: '编码', key: 'code', width: 120 },
+  {
+    title: '类型', key: 'type', width: 100,
+    render: (row: Mou) => h(NTag, { type: row.type === 'DEPARTMENT' ? 'info' : row.type === 'PROJECT' ? 'success' : 'warning', size: 'small' },
+      { default: () => row.type === 'DEPARTMENT' ? '部门' : row.type === 'PROJECT' ? '项目' : '自定义' })
   },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '用户数', dataIndex: 'userCount', key: 'userCount', width: 80,
-    customRender: ({ text }: { text: number }) => text || 0
+  { title: '描述', key: 'description', ellipsis: { tooltip: true } },
+  {
+    title: '用户数', key: 'userCount', width: 80,
+    render: (row: Mou) => row.userCount || 0
   },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80,
-    customRender: ({ text }: { text: string }) => h('a-badge', { status: text === 'ACTIVE' ? 'success' : 'default', text: text === 'ACTIVE' ? '启用' : '停用' })
+  {
+    title: '状态', key: 'status', width: 80,
+    render: (row: Mou) => h(NBadge, { type: row.status === 'ACTIVE' ? 'success' : 'default' }, {
+      default: () => row.status === 'ACTIVE' ? '启用' : '停用'
+    })
   },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 160,
-    customRender: ({ text }: { text: string }) => text ? new Date(text).toLocaleString('zh-CN') : '-'
+  {
+    title: '创建时间', key: 'createdAt', width: 160,
+    render: (row: Mou) => row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-'
   },
-  { title: '操作', key: 'action', width: 280,
-    customRender: ({ record }: { record: Mou }) => {
-      return h('a-space', { size: 'small' }, {
+  {
+    title: '操作', key: 'action', width: 280,
+    render: (row: Mou) => {
+      return h(NSpace, { size: 'small' }, {
         default: () => [
-          h('a-button', { size: 'small', type: 'link', onClick: () => handleBindUsers(record.id) }, '绑定用户'),
-          h('a-button', { size: 'small', type: 'link', onClick: () => handleAddContainer(record.id) }, '添加容器'),
-          h('a-button', { size: 'small', type: 'link', onClick: () => handleEditMou(record) }, '编辑'),
-          h('a-popconfirm', { title: '确认删除此MOU？', onConfirm: () => handleDeleteMou(record), okText: '确认', cancelText: '取消' },
-            h('a-button', { size: 'small', type: 'link', danger: true }, '删除'))
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleBindUsers(row.id) }, { default: () => '绑定用户' }),
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleAddContainer(row.id) }, { default: () => '添加容器' }),
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditMou(row) }, { default: () => '编辑' }),
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDeleteMou(row),
+            positiveText: '确认',
+            negativeText: '取消',
+          }, {
+            default: () => '确认删除此MOU？',
+            trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
+          })
         ]
       })
     }
@@ -457,25 +586,37 @@ const mouColumns = [
 ]
 
 const containerColumns = [
-  { title: '容器名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '编码', dataIndex: 'code', key: 'code', width: 120 },
-  { title: 'MOU', dataIndex: 'mouId', key: 'mouId', width: 120,
-    customRender: ({ text }: { text: string }) => mous.value.find(m => m.id === text)?.name || text
+  { title: '容器名称', key: 'name', width: 150 },
+  { title: '编码', key: 'code', width: 120 },
+  {
+    title: 'MOU', key: 'mouId', width: 120,
+    render: (row: PermissionContainer) => mous.value.find(m => m.id === row.mouId)?.name || row.mouId
   },
-  { title: '资源类型', dataIndex: 'type', key: 'type', width: 120,
-    customRender: ({ text }: { text: string }) => h('a-tag', { color: 'blue' }, text)
+  {
+    title: '资源类型', key: 'type', width: 120,
+    render: (row: PermissionContainer) => h(NTag, { type: 'info', size: 'small' }, { default: () => row.type })
   },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80,
-    customRender: ({ text }: { text: string }) => h('a-badge', { status: text === 'ACTIVE' ? 'success' : 'default', text: text === 'ACTIVE' ? '启用' : '停用' })
+  { title: '描述', key: 'description', ellipsis: { tooltip: true } },
+  {
+    title: '状态', key: 'status', width: 80,
+    render: (row: PermissionContainer) => h(NBadge, { type: row.status === 'ACTIVE' ? 'success' : 'default' }, {
+      default: () => row.status === 'ACTIVE' ? '启用' : '停用'
+    })
   },
-  { title: '操作', key: 'action', width: 150,
-    customRender: ({ record }: { record: PermissionContainer }) => {
-      return h('a-space', { size: 'small' }, {
+  {
+    title: '操作', key: 'action', width: 150,
+    render: (row: PermissionContainer) => {
+      return h(NSpace, { size: 'small' }, {
         default: () => [
-          h('a-button', { size: 'small', type: 'link', onClick: () => handleEditContainer(record) }, '编辑'),
-          h('a-popconfirm', { title: '确认删除此容器？', onConfirm: () => handleDeleteContainer(record), okText: '确认', cancelText: '取消' },
-            h('a-button', { size: 'small', type: 'link', danger: true }, '删除'))
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditContainer(row) }, { default: () => '编辑' }),
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDeleteContainer(row),
+            positiveText: '确认',
+            negativeText: '取消',
+          }, {
+            default: () => '确认删除此容器？',
+            trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
+          })
         ]
       })
     }
@@ -483,26 +624,38 @@ const containerColumns = [
 ]
 
 const ruleColumns = [
-  { title: '规则名称', dataIndex: 'name', key: 'name', width: 180 },
-  { title: '编码', dataIndex: 'code', key: 'code', width: 120 },
-  { title: '触发类型', dataIndex: 'triggerType', key: 'triggerType', width: 100,
-    customRender: ({ text }: { text: string }) => h('a-tag', { color: 'purple' }, text)
+  { title: '规则名称', key: 'name', width: 180 },
+  { title: '编码', key: 'code', width: 120 },
+  {
+    title: '触发类型', key: 'triggerType', width: 100,
+    render: (row: AutomationRule) => h(NTag, { type: 'warning', size: 'small' }, { default: () => row.triggerType || '' })
   },
-  { title: '动作类型', dataIndex: 'actionType', key: 'actionType', width: 100,
-    customRender: ({ text }: { text: string }) => h('a-tag', { color: 'cyan' }, text)
+  {
+    title: '动作类型', key: 'actionType', width: 100,
+    render: (row: AutomationRule) => h(NTag, { type: 'info', size: 'small' }, { default: () => row.actionType || '' })
   },
-  { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80,
-    customRender: ({ text }: { text: string }) => h('a-badge', { status: text === 'ACTIVE' ? 'success' : 'default', text: text === 'ACTIVE' ? '启用' : '停用' })
+  { title: '优先级', key: 'priority', width: 80 },
+  { title: '描述', key: 'description', ellipsis: { tooltip: true } },
+  {
+    title: '状态', key: 'status', width: 80,
+    render: (row: AutomationRule) => h(NBadge, { type: row.status === 'ACTIVE' ? 'success' : 'default' }, {
+      default: () => row.status === 'ACTIVE' ? '启用' : '停用'
+    })
   },
-  { title: '操作', key: 'action', width: 150,
-    customRender: ({ record }: { record: AutomationRule }) => {
-      return h('a-space', { size: 'small' }, {
+  {
+    title: '操作', key: 'action', width: 150,
+    render: (row: AutomationRule) => {
+      return h(NSpace, { size: 'small' }, {
         default: () => [
-          h('a-button', { size: 'small', type: 'link', onClick: () => handleEditRule(record) }, '编辑'),
-          h('a-popconfirm', { title: '确认删除此规则？', onConfirm: () => handleDeleteRule(record), okText: '确认', cancelText: '取消' },
-            h('a-button', { size: 'small', type: 'link', danger: true }, '删除'))
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditRule(row) }, { default: () => '编辑' }),
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDeleteRule(row),
+            positiveText: '确认',
+            negativeText: '取消',
+          }, {
+            default: () => '确认删除此规则？',
+            trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
+          })
         ]
       })
     }
@@ -510,36 +663,46 @@ const ruleColumns = [
 ]
 
 const auditColumns = [
-  { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 160,
-    customRender: ({ text }: { text: string }) => text ? new Date(text).toLocaleString('zh-CN') : '-'
+  {
+    title: '时间', key: 'createdAt', width: 160,
+    render: (row: PermissionAuditLog) => row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-'
   },
-  { title: '操作用户', dataIndex: 'userName', key: 'userName', width: 120 },
-  { title: '操作类型', dataIndex: 'action', key: 'action', width: 100,
-    customRender: ({ text }: { text: string }) => {
-      const colorMap: Record<string, string> = { CREATE: 'green', UPDATE: 'blue', DELETE: 'red', ASSIGN: 'purple', UNASSIGN: 'orange' }
-      return h('a-tag', { color: colorMap[text] || 'default' }, text)
+  { title: '操作用户', key: 'userName', width: 120 },
+  {
+    title: '操作类型', key: 'action', width: 100,
+    render: (row: PermissionAuditLog) => {
+      const typeMap: Record<string, any> = { CREATE: 'success', UPDATE: 'info', DELETE: 'error', ASSIGN: 'warning', UNASSIGN: 'warning' }
+      return h(NTag, { type: typeMap[row.action] || 'default', size: 'small' }, { default: () => row.action })
     }
   },
-  { title: '目标类型', dataIndex: 'targetType', key: 'targetType', width: 100 },
-  { title: '目标名称', dataIndex: 'targetName', key: 'targetName', width: 150 },
-  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 120 }
+  { title: '目标类型', key: 'targetType', width: 100 },
+  { title: '目标名称', key: 'targetName', width: 150 },
+  { title: 'IP', key: 'ipAddress', width: 120 }
 ]
 
 const mutexColumns = [
-  { title: '互斥组名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '编码', dataIndex: 'code', key: 'code', width: 120 },
-  { title: '所属MOU', dataIndex: 'mouId', key: 'mouId', width: 120,
-    customRender: ({ text }: { text: string }) => mous.value.find(m => m.id === text)?.name || text
+  { title: '互斥组名称', key: 'name', width: 150 },
+  { title: '编码', key: 'code', width: 120 },
+  {
+    title: '所属MOU', key: 'mouId', width: 120,
+    render: (row: MutualExclusionGroup) => mous.value.find(m => m.id === row.mouId)?.name || row.mouId
   },
-  { title: '最大角色数', dataIndex: 'maxRoles', key: 'maxRoles', width: 100 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '操作', key: 'action', width: 150,
-    customRender: ({ record }: { record: MutualExclusionGroup }) => {
-      return h('a-space', { size: 'small' }, {
+  { title: '最大角色数', key: 'maxRoles', width: 100 },
+  { title: '描述', key: 'description', ellipsis: { tooltip: true } },
+  {
+    title: '操作', key: 'action', width: 150,
+    render: (row: MutualExclusionGroup) => {
+      return h(NSpace, { size: 'small' }, {
         default: () => [
-          h('a-button', { size: 'small', type: 'link', onClick: () => handleEditMutex(record) }, '编辑'),
-          h('a-popconfirm', { title: '确认删除此互斥组？', onConfirm: () => handleDeleteMutex(record), okText: '确认', cancelText: '取消' },
-            h('a-button', { size: 'small', type: 'link', danger: true }, '删除'))
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditMutex(row) }, { default: () => '编辑' }),
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDeleteMutex(row),
+            positiveText: '确认',
+            negativeText: '取消',
+          }, {
+            default: () => '确认删除此互斥组？',
+            trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
+          })
         ]
       })
     }
@@ -550,7 +713,7 @@ const mutexColumns = [
 const loadMous = async () => {
   loading.value = true
   try {
-    const data = (await api.get('/api/permissions-v2/mou')).data
+    const data = (await api.get('/permissions-v2/mou')).data
     if (data.success) {
       mous.value = data.data
     }
@@ -564,7 +727,7 @@ const loadMous = async () => {
 // 加载 Container 列表
 const loadContainers = async (mouId?: string) => {
   try {
-    const url = mouId ? `/api/permissions-v2/containers?mouId=${mouId}` : '/api/permissions-v2/containers'
+    const url = mouId ? `/permissions-v2/containers?mouId=${mouId}` : '/permissions-v2/containers'
     const data = (await api.get(url)).data
     if (data.success) {
       containers.value = data.data
@@ -577,7 +740,7 @@ const loadContainers = async (mouId?: string) => {
 // 加载自动化规则
 const loadAutomationRules = async () => {
   try {
-    const data = (await api.get('/api/permissions-v2/automation-rules')).data
+    const data = (await api.get('/permissions-v2/automation-rules')).data
     if (data.success) {
       automationRules.value = data.data
     }
@@ -595,8 +758,8 @@ const loadAuditLogs = async () => {
     if (auditFilters.endDate) params.append('endDate', auditFilters.endDate)
     if (auditFilters.action) params.append('action', auditFilters.action)
     if (auditFilters.targetType) params.append('targetType', auditFilters.targetType)
-    
-    const data = (await api.get(`/api/permissions-v2/audit-logs?${params}`)).data
+
+    const data = (await api.get(`/permissions-v2/audit-logs?${params}`)).data
     if (data.success) {
       auditLogs.value = data.data
     }
@@ -610,7 +773,7 @@ const loadAuditLogs = async () => {
 // 加载互斥组
 const loadMutexGroups = async () => {
   try {
-    const data = (await api.get('/api/permissions-v2/mutual-exclusion-groups')).data
+    const data = (await api.get('/permissions-v2/mutual-exclusion-groups')).data
     if (data.success) {
       mutexGroups.value = data.data
     }
@@ -619,17 +782,22 @@ const loadMutexGroups = async () => {
   }
 }
 
-const handleDateChange = (dates: any, dateStrings: string[]) => {
-  auditFilters.startDate = dateStrings[0]
-  auditFilters.endDate = dateStrings[1]
+const handleDateChange = (value: [number, number] | null) => {
+  if (value && value.length === 2) {
+    auditFilters.startDate = new Date(value[0]).toISOString().slice(0, 10)
+    auditFilters.endDate = new Date(value[1]).toISOString().slice(0, 10)
+  } else {
+    auditFilters.startDate = ''
+    auditFilters.endDate = ''
+  }
 }
 
 const handleActionChange = (value: string) => {
-  auditFilters.action = value
+  auditFilters.action = value || ''
 }
 
 const handleTargetTypeChange = (value: string) => {
-  auditFilters.targetType = value
+  auditFilters.targetType = value || ''
 }
 
 // MOU 操作
@@ -654,7 +822,7 @@ const handleEditMou = (mou: Mou) => {
 
 const handleDeleteMou = async (mou: Mou) => {
   try {
-    const data = (await api.delete(`/api/permissions-v2/mou/${mou.id}`)).data
+    const data = (await api.delete(`/permissions-v2/mou/${mou.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadMous()
@@ -668,7 +836,7 @@ const handleDeleteMou = async (mou: Mou) => {
 
 const handleSaveMou = async () => {
   try {
-    const url = editingMou.value ? `/api/permissions-v2/mou/${editingMou.value.id}` : '/api/permissions-v2/mou'
+    const url = editingMou.value ? `/permissions-v2/mou/${editingMou.value.id}` : '/permissions-v2/mou'
     const method = editingMou.value ? 'PUT' : 'POST'
 
     const data = (await api[method.toLowerCase()](url, mouFormState)).data
@@ -710,7 +878,7 @@ const handleEditContainer = (container: PermissionContainer) => {
 
 const handleDeleteContainer = async (container: PermissionContainer) => {
   try {
-    const data = (await api.delete(`/api/permissions-v2/containers/${container.id}`)).data
+    const data = (await api.delete(`/permissions-v2/containers/${container.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadContainers()
@@ -724,7 +892,7 @@ const handleDeleteContainer = async (container: PermissionContainer) => {
 
 const handleSaveContainer = async () => {
   try {
-    const url = editingContainer.value ? `/api/permissions-v2/containers/${editingContainer.value.id}` : '/api/permissions-v2/containers'
+    const url = editingContainer.value ? `/permissions-v2/containers/${editingContainer.value.id}` : '/permissions-v2/containers'
     const method = editingContainer.value ? 'PUT' : 'POST'
 
     const data = (await api[method.toLowerCase()](url, containerFormState)).data
@@ -765,7 +933,7 @@ const handleEditRule = (rule: AutomationRule) => {
 
 const handleDeleteRule = async (rule: AutomationRule) => {
   try {
-    const data = (await api.delete(`/api/permissions-v2/automation-rules/${rule.id}`)).data
+    const data = (await api.delete(`/permissions-v2/automation-rules/${rule.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadAutomationRules()
@@ -779,7 +947,7 @@ const handleDeleteRule = async (rule: AutomationRule) => {
 
 const handleSaveRule = async () => {
   try {
-    const url = editingRule.value ? `/api/permissions-v2/automation-rules/${editingRule.value.id}` : '/api/permissions-v2/automation-rules'
+    const url = editingRule.value ? `/permissions-v2/automation-rules/${editingRule.value.id}` : '/permissions-v2/automation-rules'
     const method = editingRule.value ? 'PUT' : 'POST'
 
     const data = (await api[method.toLowerCase()](url, ruleFormState)).data
@@ -817,7 +985,7 @@ const handleEditMutex = (mutex: MutualExclusionGroup) => {
 
 const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
   try {
-    const data = (await api.delete(`/api/permissions-v2/mutual-exclusion-groups/${mutex.id}`)).data
+    const data = (await api.delete(`/permissions-v2/mutual-exclusion-groups/${mutex.id}`)).data
     if (data.success) {
       message.success('删除成功')
       loadMutexGroups()
@@ -831,7 +999,7 @@ const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
 
 const handleSaveMutex = async () => {
   try {
-    const url = editingMutex.value ? `/api/permissions-v2/mutual-exclusion-groups/${editingMutex.value.id}` : '/api/permissions-v2/mutual-exclusion-groups'
+    const url = editingMutex.value ? `/permissions-v2/mutual-exclusion-groups/${editingMutex.value.id}` : '/permissions-v2/mutual-exclusion-groups'
     const method = editingMutex.value ? 'PUT' : 'POST'
 
     const data = (await api[method.toLowerCase()](url, mutexFormState)).data
@@ -849,7 +1017,7 @@ const handleSaveMutex = async () => {
 }
 
 // 用户绑定 MOU (简化)
-const handleBindUsers = (mouId: string) => {
+const handleBindUsers = (_mouId: string) => {
   message.info('绑定用户功能开发中')
 }
 
@@ -873,5 +1041,10 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 600;
   margin: 0;
+}
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>

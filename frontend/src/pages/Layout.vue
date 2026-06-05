@@ -1,143 +1,161 @@
 <template>
-  <a-layout class="app-layout">
-    <a-layout-sider
-      :trigger="null"
-      :collapsible="true"
-      v-model:collapsed="collapsed"
-      class="app-sider"
+  <n-layout has-sider class="min-h-screen">
+    <!-- 侧边栏 -->
+    <n-layout-sider
+      bordered
       :width="240"
-      theme="dark"
+      :collapsed-width="64"
+      show-trigger
+      collapse-mode="width"
+      :collapsed="collapsed"
+      :native-scrollbar="false"
+      @collapse="collapsed = true"
+      @expand="collapsed = false"
+      class="bg-gray-900"
+      :style="{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }"
     >
       <div class="logo-container">
         <div class="logo">
           <div class="logo-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
             </svg>
           </div>
-          <span v-if="!collapsed" class="logo-text">ATS招聘系统</span>
+          <span v-if="!collapsed" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
         </div>
       </div>
 
-      <a-menu
-        theme="dark"
-        mode="inline"
-        v-model:selectedKeys="selectedKeys"
-        v-model:openKeys="openKeys"
-        :items="menuItems"
-        @click="handleMenuClick"
-        class="side-menu"
+      <n-menu
+        :collapsed="collapsed"
+        :collapsed-width="64"
+        :collapsed-icon-size="22"
+        :options="menuOptions"
+        :value="selectedKey"
+        :expanded-keys="expandedKeys"
+        :inverted="true"
+        :theme-overrides="menuThemeOverrides"
+        @update:value="handleMenuClick"
+        @update:expanded-keys="onExpandedKeysChange"
+        class="bg-gray-900"
       />
-    </a-layout-sider>
+    </n-layout-sider>
 
-    <a-layout :style="{ marginLeft: collapsed ? '80px' : '240px', transition: 'margin-left 0.2s' }">
-      <a-layout-header class="app-header">
-        <div class="header-left">
-          <button class="trigger-btn" @click="toggleCollapsed">
-            <MenuUnfoldOutlined v-if="collapsed" />
-            <MenuFoldOutlined v-else />
-          </button>
-
-          <div class="search-box">
-            <SearchOutlined class="search-icon" />
-            <input type="text" placeholder="搜索候选人、职位、需求..." />
+    <!-- 主体 -->
+    <n-layout>
+      <!-- 头部 -->
+      <n-layout-header bordered class="bg-white px-6 flex items-center justify-between h-16">
+        <div class="flex items-center gap-4">
+          <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-80">
+            <n-icon :component="SearchOutline" />
+            <input type="text" placeholder="搜索候选人、职位、需求..." class="bg-transparent border-0 outline-none flex-1 text-sm" />
           </div>
         </div>
 
-        <div class="header-right">
-          <a-badge :count="5" :size="'small'">
-            <button class="header-icon-btn" @click="goToNotifications">
-              <BellOutlined />
-            </button>
-          </a-badge>
+        <div class="flex items-center gap-4">
+          <n-badge :value="5" :max="99">
+            <n-button text @click="goToNotifications">
+              <n-icon :component="NotificationsOutline" :size="20" />
+            </n-button>
+          </n-badge>
 
-          <a-dropdown :trigger="['click']" placement="bottomRight">
-            <div class="user-info">
-              <a-avatar :size="36" class="user-avatar">
+          <n-dropdown :options="userMenuOptions" trigger="click" @select="handleUserMenu">
+            <div class="flex items-center gap-2 cursor-pointer">
+              <n-avatar :size="36" round class="bg-primary text-gray-900 font-semibold">
                 {{ userStore.user?.realName?.[0] || 'A' }}
-              </a-avatar>
-              <div class="user-details">
-                <span class="user-name">{{ userStore.user?.realName || '管理员' }}</span>
-                <span class="user-role">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? '超级管理员' : '用户' }}</span>
+              </n-avatar>
+              <div class="flex flex-col leading-tight">
+                <span class="text-sm font-medium text-gray-800">{{ userStore.user?.realName || '管理员' }}</span>
+                <span class="text-xs text-gray-500">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? '超级管理员' : '用户' }}</span>
               </div>
             </div>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item key="profile">
-                  <UserAddOutlined /> 个人中心
-                </a-menu-item>
-                <a-menu-item key="settings" @click="goToAccountSettings">
-                  <SettingOutlined /> 账号设置
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="logout" @click="handleLogout">
-                  <LogoutOutlined /> 退出登录
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
+          </n-dropdown>
         </div>
-      </a-layout-header>
+      </n-layout-header>
 
-      <a-layout-content class="app-content">
-        <div class="content-wrapper">
+      <!-- 内容区 -->
+      <n-layout-content class="bg-gray-50">
+        <div class="content-wrapper p-6">
           <router-view />
         </div>
-      </a-layout-content>
-    </a-layout>
-  </a-layout>
+      </n-layout-content>
+    </n-layout>
+  </n-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, h } from 'vue'
+import { ref, h, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { useMessage, NIcon } from 'naive-ui'
 import {
-  DashboardOutlined,
-  FileTextOutlined,
-  TeamOutlined,
-  UserAddOutlined,
-  CalendarOutlined,
-  GiftOutlined,
-  RiseOutlined,
-  BellOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  SearchOutlined,
-} from '@ant-design/icons-vue'
+  SpeedometerOutline,
+  DocumentTextOutline,
+  PeopleOutline,
+  PersonAddOutline,
+  CalendarOutline,
+  GiftOutline,
+  TrendingUpOutline,
+  NotificationsOutline,
+  CogOutline,
+  LogOutOutline,
+  SearchOutline,
+  ShareSocialOutline,
+  PersonOutline,
+} from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const message = useMessage()
 
 const collapsed = ref(false)
 
-const selectedKeys = ref<string[]>([])
-const openKeys = ref<string[]>([])
+// 菜单主题覆盖 —— 适配深色侧边栏（配合 :inverted="true"）
+// Naive UI inverted 模式用 *Inverted 后缀的变量，否则覆盖无效
+const menuThemeOverrides = {
+  // 未选中：白色透明
+  itemTextColorInverted: 'rgba(255, 255, 255, 0.88)',
+  itemTextColorHoverInverted: '#ffffff',
+  itemIconColorInverted: 'rgba(255, 255, 255, 0.88)',
+  itemIconColorHoverInverted: '#ffffff',
 
-const menuItems = [
-  {
-    key: '/dashboard',
-    icon: () => h(DashboardOutlined),
-    label: '工作台',
-  },
-  {
-    key: '/demands',
-    icon: () => h(FileTextOutlined),
-    label: '需求管理',
-  },
-  {
-    key: '/positions',
-    icon: () => h(TeamOutlined),
-    label: '职位管理',
-  },
+  // 选中态：品牌金文字 + 30% 金色背景（更高对比度）
+  itemTextColorActiveInverted: '#FBCE5B',
+  itemTextColorActiveHoverInverted: '#FBCE5B',
+  itemIconColorActiveInverted: '#FBCE5B',
+  itemIconColorActiveHoverInverted: '#FBCE5B',
+  itemColorActiveInverted: 'rgba(251, 206, 91, 0.18)',
+  itemColorActiveHoverInverted: 'rgba(251, 206, 91, 0.28)',
+  itemColorActiveCollapsedInverted: 'rgba(251, 206, 91, 0.18)',
+
+  // 子项激活：金色
+  itemTextColorChildActiveInverted: '#FBCE5B',
+  itemTextColorChildActiveHoverInverted: '#FBCE5B',
+  itemIconColorChildActiveInverted: '#FBCE5B',
+  itemIconColorChildActiveHoverInverted: '#FBCE5B',
+
+  // 箭头 / 分组
+  arrowColorInverted: 'rgba(255, 255, 255, 0.6)',
+  arrowColorHoverInverted: '#ffffff',
+  arrowColorActiveInverted: '#FBCE5B',
+  arrowColorChildActiveInverted: '#FBCE5B',
+  groupTextColorInverted: 'rgba(255, 255, 255, 0.5)',
+
+  borderRadius: '6px',
+}
+
+function renderIcon(icon: any) {
+  return () => h(NIcon, null, { default: () => h(icon) })
+}
+
+const menuOptions = [
+  { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
+  { key: '/demands', label: '需求管理', icon: renderIcon(DocumentTextOutline) },
+  { key: '/positions', label: '职位管理', icon: renderIcon(PeopleOutline) },
   {
     key: 'candidate',
-    icon: () => h(TeamOutlined),
     label: '候选人',
+    icon: renderIcon(PersonAddOutline),
     children: [
       { key: '/candidates', label: '候选人管理' },
       { key: '/screenings', label: '简历筛选' },
@@ -147,8 +165,8 @@ const menuItems = [
   },
   {
     key: 'interview',
-    icon: () => h(CalendarOutlined),
     label: '面试管理',
+    icon: renderIcon(CalendarOutline),
     children: [
       { key: '/interviews', label: '面试安排' },
       { key: '/invitations', label: '邀约中心' },
@@ -156,272 +174,183 @@ const menuItems = [
   },
   {
     key: 'offer',
-    icon: () => h(GiftOutlined),
     label: 'Offer管理',
+    icon: renderIcon(GiftOutline),
     children: [
       { key: '/offers', label: 'Offer列表' },
       { key: '/onboardings', label: '待入职' },
     ],
   },
-  {
-    key: '/report',
-    icon: () => h(RiseOutlined),
-    label: '数据中心',
-  },
+  { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
+  { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
   {
     key: 'settings',
-    icon: () => h(SettingOutlined),
     label: '系统管理',
+    icon: renderIcon(CogOutline),
     children: [
-      { key: 'basic-info', label: '基本信息', children: [
-        { key: 'org', label: '组织机构管理', children: [
-          { key: '/settings/department', label: '部门管理' },
-          { key: '/settings/user-management', label: '用户管理' },
-          { key: '/settings/permission', label: '权限管理' },
-          { key: '/settings/mou', label: 'MOU权限管理' },
-        ]},
-      ]},
+      {
+        key: 'basic-info',
+        label: '基本信息',
+        children: [
+          {
+            key: 'org',
+            label: '组织机构管理',
+            children: [
+              { key: '/settings/department', label: '部门管理' },
+              { key: '/settings/user-management', label: '用户管理' },
+              { key: '/settings/permission', label: '权限管理' },
+              { key: '/settings/mou', label: 'MOU权限管理' },
+            ],
+          },
+        ],
+      },
       { key: '/settings/account', label: '账号设置' },
       { key: '/settings/company', label: '公司信息' },
-      { key: 'process', label: '过程管理', children: [
-        { key: '/settings/demand-config', label: '招聘需求设置' },
-        { key: '/settings/dictionary', label: '数据字典' },
-        { key: '/settings/scoring', label: '评分规则' },
-      ]},
-      { key: 'speedup', label: '招聘提速', children: [
-        { key: 'recruitment-flow', label: '流程管理', children: [
-          { key: '/settings/process-management', label: '招聘流程配置' },
-          { key: '/settings/stage', label: '招聘阶段配置' },
-        ]},
-      ]},
+      {
+        key: 'process',
+        label: '过程管理',
+        children: [
+          { key: '/settings/demand-config', label: '招聘需求设置' },
+          { key: '/settings/dictionary', label: '数据字典' },
+          { key: '/settings/scoring', label: '评分规则' },
+        ],
+      },
+      {
+        key: 'speedup',
+        label: '招聘提速',
+        children: [
+          {
+            key: 'recruitment-flow',
+            label: '流程管理',
+            children: [
+              { key: '/settings/process-management', label: '招聘流程配置' },
+              { key: '/settings/stage', label: '招聘阶段配置' },
+            ],
+          },
+        ],
+      },
     ],
   },
 ]
 
-const toggleCollapsed = () => {
-  collapsed.value = !collapsed.value
+const userMenuOptions = [
+  { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
+  { key: 'settings', label: '账号设置', icon: renderIcon(CogOutline) },
+  { type: 'divider', key: 'd1' },
+  { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline) },
+]
+
+// 当前选中菜单项
+const selectedKey = computed(() => route.path)
+const expandedKeys = ref<string[]>([])
+
+// 路由变化时自动展开父菜单
+watch(
+  () => route.path,
+  (path) => {
+    // 找 path 在哪一层父级
+    for (const item of menuOptions as any[]) {
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.children) {
+            for (const grand of child.children) {
+              if (grand.children) {
+                for (const g of grand.children) {
+                  if (g.key === path) {
+                    expandedKeys.value = Array.from(new Set([...expandedKeys.value, item.key, child.key, grand.key]))
+                  }
+                }
+              } else if (child.key === path || grand.key === path) {
+                expandedKeys.value = Array.from(new Set([...expandedKeys.value, item.key, child.key]))
+              }
+            }
+          } else if (child.key === path) {
+            expandedKeys.value = Array.from(new Set([...expandedKeys.value, item.key]))
+          }
+        }
+      }
+    }
+  },
+  { immediate: true }
+)
+
+function onExpandedKeysChange(keys: string[]) {
+  expandedKeys.value = keys
 }
 
-const handleMenuClick = ({ key }: { key: string }) => {
+function handleMenuClick(key: string) {
   if (typeof key === 'string' && key.startsWith('/')) {
     router.push(key)
   }
 }
 
-const goToNotifications = () => {
+function goToNotifications() {
   router.push('/notifications')
 }
 
-const goToAccountSettings = () => {
-  router.push('/settings/account')
+function handleUserMenu(key: string) {
+  if (key === 'settings') router.push('/settings/account')
+  if (key === 'logout') {
+    userStore.logout()
+    message.success('已退出登录')
+    router.push('/login')
+  }
 }
-
-const handleLogout = () => {
-  userStore.logout()
-  message.success('已退出登录')
-  router.push('/login')
-}
-
-const updateSelectedKeys = () => {
-  const path = route.path
-  selectedKeys.value = [path]
-
-  // Find parent key for current path and add to open keys if not already present
-  menuItems.forEach((item: any) => {
-    if (item?.children) {
-      item.children.forEach((child: any) => {
-        if (child?.key === path && !openKeys.value.includes(item.key)) {
-          openKeys.value = [...openKeys.value, item.key]
-        }
-      })
-    }
-  })
-}
-
-// Watch route changes
-watch(() => route.path, () => {
-  updateSelectedKeys()
-}, { immediate: true })
 </script>
 
 <style scoped>
-.app-layout {
-  min-height: 100vh;
+.bg-gray-900 {
+  background-color: #1f2937;
+}
+.bg-gray-50 {
+  background-color: #f9fafb;
+}
+.search-box {
+  background-color: #f3f4f6;
 }
 
-.app-sider {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  overflow: auto;
-}
-
+/* === Logo 尺寸约束 === */
 .logo-container {
-  height: 64px;
-  display: flex;
-  align-items: center;
   padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-
 .logo {
   display: flex;
   align-items: center;
   gap: 12px;
+  height: 32px;
 }
-
 .logo-icon {
-  width: 40px;
-  height: 40px;
-  color: white;
-}
-
-.logo-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.logo-text {
-  color: white;
-  font-size: 18px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.side-menu {
-  border-right: none;
-}
-
-.app-header {
-  background: #fff;
-  padding: 0 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.trigger-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 8px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #595959;
-  transition: color 0.3s;
-}
-
-.trigger-btn:hover {
-  color: #1890ff;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  background: #f5f5f5;
-  border-radius: 6px;
-  padding: 8px 12px;
-  min-width: 300px;
-}
-
-.search-box input {
-  border: none;
-  background: transparent;
-  outline: none;
-  margin-left: 8px;
-  width: 100%;
-  font-size: 14px;
-}
-
-.search-icon {
-  color: #8c8c8c;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.header-icon-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #595959;
-  border-radius: 50%;
-  transition: all 0.3s;
-}
-
-.header-icon-btn:hover {
-  background: #f5f5f5;
-  color: #1890ff;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.3s;
-}
-
-.user-info:hover {
-  background: #f5f5f5;
-}
-
-.user-avatar {
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
-  color: #000;
-  font-weight: 600;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #262626;
-  line-height: 1.2;
-}
-
-.user-role {
-  font-size: 12px;
-  color: #8c8c8c;
-  line-height: 1.2;
-}
-
-.app-content {
-  padding: 24px;
-  min-height: calc(100vh - 64px);
-  background: #f5f5f5;
-}
-
-.content-wrapper {
-  background: white;
   border-radius: 8px;
-  min-height: 100%;
-  padding: 24px;
+  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
+  color: #1f2937;
+  flex-shrink: 0;
+}
+.logo-text {
+  line-height: 1;
+}
+
+/* === 激活菜单项左侧金色 accent bar === */
+:deep(.n-menu-item-content--selected)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: #FBCE5B;
+  border-radius: 0 2px 2px 0;
+}
+:deep(.n-menu-item-content) {
+  position: relative;
+}
+:deep(.n-menu-item-content--selected) {
+  font-weight: 600;
 }
 </style>

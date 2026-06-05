@@ -82,6 +82,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../pages/invitation/InvitationCenter.vue')
       },
       {
+        path: 'referral',
+        name: 'ReferralCenter',
+        component: () => import('../pages/referral/ReferralCenter.vue')
+      },
+      {
         path: 'notifications',
         name: 'Notifications',
         component: () => import('../pages/notification/NotificationList.vue')
@@ -103,7 +108,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'settings/process-management',
-        name: 'ProcessManagement',
+        name: 'ProcessManagementConfig',
         component: () => import('../pages/settings/ProcessManagement.vue')
       },
       {
@@ -145,6 +150,11 @@ const routes: RouteRecordRaw[] = [
         path: 'settings/department',
         name: 'DepartmentManagement',
         component: () => import('../pages/settings/DepartmentManagement.vue')
+      },
+      {
+        path: 'report',
+        name: 'Report',
+        component: () => import('../pages/settings/Placeholder.vue')
       }
     ]
   },

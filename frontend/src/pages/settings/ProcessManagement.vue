@@ -2,76 +2,60 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">招聘流程管理</h1>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
+      <n-button type="primary" @click="handleAdd">
+        <template #icon><n-icon :component="AddOutline" /></template>
         新增流程
-      </a-button>
+      </n-button>
     </div>
-    <a-card>
-      <a-table
+    <n-card>
+      <n-data-table
         :columns="columns"
-        :dataSource="dataSource"
+        :data="dataSource"
         :loading="loading"
-        rowKey="id"
+        :row-key="(row: any) => row.id"
         :pagination="{ pageSize: 10 }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 'ACTIVE' ? 'green' : 'red'">
-              {{ record.status === 'ACTIVE' ? '启用' : '禁用' }}
-            </a-tag>
-          </template>
-          <template v-if="column.key === 'stages'">
-            {{ record.stages?.length || 0 }} 个阶段
-          </template>
-          <template v-if="column.key === 'action'">
-            <a-space>
-              <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
+      />
+    </n-card>
 
     <!-- 新增/编辑弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <n-modal
+      v-model:show="modalVisible"
+      preset="dialog"
       :title="modalTitle"
-      @ok="handleSubmit"
-      @cancel="modalVisible = false"
-      :confirmLoading="submitting"
+      positive-text="确定"
+      negative-text="取消"
+      :loading="submitting"
+      @positive-click="handleSubmit"
+      @negative-click="modalVisible = false"
     >
-      <a-form :model="formData" :label-col="{ span: 6 }" ref="formRef">
-        <a-form-item label="流程名称" name="name">
-          <a-input v-model:value="formData.name" placeholder="请输入流程名称" />
-        </a-form-item>
-        <a-form-item label="流程编码" name="code">
-          <a-input v-model:value="formData.code" placeholder="请输入流程编码" :disabled="!!formData.id" />
-        </a-form-item>
-        <a-form-item label="适用范围" name="applicableRange">
-          <a-select v-model:value="formData.applicableRange" placeholder="请选择适用范围">
-            <a-select-option value="ALL">全部</a-select-option>
-            <a-select-option value="SOCIAL">社会招聘</a-select-option>
-            <a-select-option value="CAMPUS">校园招聘</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="formData.description" placeholder="请输入描述" :rows="3" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <n-form :model="formData" label-placement="left" :label-width="80" ref="formRef" class="mt-4">
+        <n-form-item label="流程名称" path="name">
+          <n-input v-model:value="formData.name" placeholder="请输入流程名称" />
+        </n-form-item>
+        <n-form-item label="流程编码" path="code">
+          <n-input v-model:value="formData.code" placeholder="请输入流程编码" :disabled="!!formData.id" />
+        </n-form-item>
+        <n-form-item label="适用范围" path="applicableRange">
+          <n-select v-model:value="formData.applicableRange" placeholder="请选择适用范围" :options="applicableRangeOptions" />
+        </n-form-item>
+        <n-form-item label="描述" path="description">
+          <n-input v-model:value="formData.description" type="textarea" placeholder="请输入描述" :rows="3" />
+        </n-form-item>
+      </n-form>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { ref, onMounted, h } from 'vue'
+import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
+import { AddOutline } from '@vicons/ionicons5'
 import { get, post, put, del } from '../../api/auth'
 
+const message = useMessage()
+
 const loading = ref(false)
-const dataSource = ref([])
+const dataSource = ref<any[]>([])
 const modalVisible = ref(false)
 const modalTitle = ref('新增流程')
 const submitting = ref(false)
@@ -85,13 +69,35 @@ const formData = ref({
   description: ''
 })
 
+const applicableRangeOptions = [
+  { label: '全部', value: 'ALL' },
+  { label: '社会招聘', value: 'SOCIAL' },
+  { label: '校园招聘', value: 'CAMPUS' }
+]
+
 const columns = [
-  { title: '流程名称', dataIndex: 'name', key: 'name' },
-  { title: '流程编码', dataIndex: 'code', key: 'code' },
-  { title: '适用范围', dataIndex: 'applicableRange', key: 'applicableRange' },
-  { title: '阶段数', key: 'stages' },
-  { title: '状态', key: 'status' },
-  { title: '操作', key: 'action', width: 150 }
+  { title: '流程名称', key: 'name' },
+  { title: '流程编码', key: 'code' },
+  { title: '适用范围', key: 'applicableRange' },
+  {
+    title: '阶段数',
+    key: 'stages',
+    render: (row: any) => `${row.stages?.length || 0} 个阶段`
+  },
+  {
+    title: '状态',
+    key: 'status',
+    render: (row: any) => h(NTag, { type: row.status === 'ACTIVE' ? 'success' : 'error' }, { default: () => row.status === 'ACTIVE' ? '启用' : '禁用' })
+  },
+  {
+    title: '操作',
+    key: 'action',
+    width: 150,
+    render: (row: any) => h(NSpace, {}, () => [
+      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+      h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' })
+    ])
+  }
 ]
 
 const fetchData = async () => {

@@ -3,138 +3,139 @@
     <div class="page-header">
       <h1 class="page-title">用户管理</h1>
       <div class="page-header-actions">
-        <a-button type="primary" @click="openCreateModal">
-          <template #icon><PlusOutlined /></template>
+        <n-button type="primary" @click="openCreateModal">
+          <template #icon><n-icon :component="AddOutline" /></template>
           新建用户
-        </a-button>
+        </n-button>
       </div>
     </div>
 
-    <a-card>
-      <a-table
-        :dataSource="users"
+    <n-card>
+      <n-data-table
+        :data="users"
         :columns="columns"
-        rowKey="id"
+        :row-key="(row: User) => row.id"
         :loading="loading"
-        :pagination="{ pageSize: 10, showSizeChanger: true }"
+        :pagination="{ pageSize: 10, showSizePicker: true, pageSizes: [10, 20, 50] }"
       />
-    </a-card>
+    </n-card>
 
     <!-- 用户编辑弹窗 -->
-    <a-modal
+    <n-modal
+      v-model:show="userModalVisible"
+      preset="card"
       :title="editingUser ? '编辑用户' : '新建用户'"
-      :open="userModalVisible"
-      @cancel="closeUserModal"
-      @ok="handleUserSubmit"
-      :width="600"
+      :style="{ width: '600px' }"
+      :mask-closable="false"
     >
-      <a-form :form="form" layout="vertical">
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="用户名" name="username" :rules="[{ required: true, message: '请输入用户名' }]">
-              <a-input v-model:value="formState.username" placeholder="请输入用户名" :disabled="!!editingUser" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="真实姓名" name="realName" :rules="[{ required: true, message: '请输入真实姓名' }]">
-              <a-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="邮箱" name="email">
-              <a-input v-model:value="formState.email" placeholder="请输入邮箱" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="手机号" name="phone">
-              <a-input v-model:value="formState.phone" placeholder="请输入手机号" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row v-if="!editingUser" :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="密码" name="password" :rules="[{ required: true, message: '请输入密码' }]">
-              <a-input-password v-model:value="formState.password" placeholder="请输入密码" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="角色类型" name="roleType" initialValue="HR">
-              <a-select v-model:value="formState.roleType">
-                <a-select-option value="HR">HR</a-select-option>
-                <a-select-option value="MANAGER">Manager</a-select-option>
-                <a-select-option value="ADMIN">Admin</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="状态" name="status">
-              <a-select v-model:value="formState.status">
-                <a-select-option value="ACTIVE">正常</a-select-option>
-                <a-select-option value="INACTIVE">禁用</a-select-option>
-                <a-select-option value="LOCKED">锁定</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="权限模式" name="permissionMode">
-              <a-select v-model:value="formState.permissionMode">
-                <a-select-option value="MOU">MOU管理模式</a-select-option>
-                <a-select-option value="CONTAINER">容器管理模式</a-select-option>
-                <a-select-option value="MIXED">混合模式</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-modal>
+      <n-form :model="formState" label-placement="top">
+        <n-grid :cols="2" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="用户名" required>
+              <n-input v-model:value="formState.username" placeholder="请输入用户名" :disabled="!!editingUser" />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="真实姓名" required>
+              <n-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+        <n-grid :cols="2" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="邮箱">
+              <n-input v-model:value="formState.email" placeholder="请输入邮箱" />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="手机号">
+              <n-input v-model:value="formState.phone" placeholder="请输入手机号" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+        <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="密码" required>
+              <n-input
+                v-model:value="formState.password"
+                type="password"
+                show-password-on="click"
+                placeholder="请输入密码"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="角色类型">
+              <n-select
+                v-model:value="formState.roleType"
+                :options="roleTypeOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+        <n-grid :cols="2" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="状态">
+              <n-select
+                v-model:value="formState.status"
+                :options="statusOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="权限模式">
+              <n-select
+                v-model:value="formState.permissionMode"
+                :options="permissionModeOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+      </n-form>
+
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <n-button @click="closeUserModal">取消</n-button>
+          <n-button type="primary" @click="handleUserSubmit">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- MOU分配弹窗 -->
-    <a-modal
+    <n-modal
+      v-model:show="userMouModalVisible"
+      preset="card"
       title="分配MOU"
-      :open="userMouModalVisible"
-      @cancel="() => userMouModalVisible = false"
-      :footer="null"
-      :width="500"
+      :style="{ width: '500px' }"
     >
       <p style="margin-bottom: 16px">请选择该用户所属的MOU（管理单元）：</p>
-      <a-table
-        :dataSource="mous"
-        rowKey="id"
+      <n-data-table
+        :data="mous"
+        :row-key="(row: Mou) => row.id"
         :pagination="{ pageSize: 10 }"
         :columns="mouColumns"
-        :rowSelection="{
-          type: 'checkbox',
-          selectedRowKeys: userMous,
-          onChange: (selectedRowKeys: string[]) => handleSaveUserMous(selectedRowKeys)
-        }"
+        :checked-row-keys="userMous"
+        @update:checked-row-keys="handleSaveUserMous"
       />
-    </a-modal>
+    </n-modal>
 
     <!-- 角色分配弹窗 -->
-    <a-modal
+    <n-modal
+      v-model:show="userRoleModalVisible"
+      preset="card"
       title="分配角色"
-      :open="userRoleModalVisible"
-      @cancel="() => userRoleModalVisible = false"
-      :footer="null"
-      :width="500"
+      :style="{ width: '500px' }"
     >
       <p style="margin-bottom: 16px">请选择该用户的角色：</p>
-      <a-table
-        :dataSource="roles"
-        rowKey="id"
+      <n-data-table
+        :data="roles"
+        :row-key="(row: Role) => row.id"
         :pagination="{ pageSize: 10 }"
         :columns="roleColumns"
-        :rowSelection="{
-          type: 'checkbox',
-          selectedRowKeys: userRoles,
-          onChange: (selectedRowKeys: string[]) => handleSaveUserRoles(selectedRowKeys)
-        }"
+        :checked-row-keys="userRoles"
+        @update:checked-row-keys="handleSaveUserRoles"
       />
-    </a-modal>
+    </n-modal>
   </div>
 </template>
 
@@ -142,46 +143,39 @@
 import api from '../../api/auth';
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import {
-  UserOutlined,
-  WechatOutlined,
-  CoffeeOutlined,
-  LockOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  LinkOutlined,
-  DisconnectOutlined
-} from '@ant-design/icons-vue';
+  LockClosedOutline,
+  AddOutline,
+  CreateOutline,
+  TrashOutline,
+  LinkOutline,
+  CloseOutline,
+  ChatbubblesOutline,
+  CafeOutline,
+} from '@vicons/ionicons5';
 import {
-  Table as ATable,
-  Tag as ATag,
-  Button as AButton,
-  Space as ASpace,
-  Modal as AModal,
-  Form as AForm,
-  Input as AInput,
-  Select as ASelect,
-  Card as ACard,
-  Row as ARow,
-  Col as ACol,
-  Tooltip as ATooltip,
-  Popconfirm as APopconfirm,
-  message,
-  SelectOption as ASelectOption
-} from 'ant-design-vue';
+  NTag,
+  NButton,
+  NSpace,
+  NTooltip,
+  NPopconfirm,
+  NIcon,
+  useMessage,
+} from 'naive-ui';
+
+const message = useMessage();
 
 // 权限管理模式映射
-const PERMISSION_MODE_MAP: Record<string, { color: string; label: string }> = {
-  MOU: { color: 'blue', label: 'MOU管理模式' },
-  CONTAINER: { color: 'green', label: '容器管理模式' },
-  MIXED: { color: 'purple', label: '混合模式' }
+const PERMISSION_MODE_MAP: Record<string, { type: any; label: string }> = {
+  MOU: { type: 'info', label: 'MOU管理模式' },
+  CONTAINER: { type: 'success', label: '容器管理模式' },
+  MIXED: { type: 'warning', label: '混合模式' }
 };
 
 // 用户状态映射
-const STATUS_MAP: Record<string, { color: string; label: string }> = {
-  ACTIVE: { color: 'success', label: '正常' },
-  INACTIVE: { color: 'default', label: '禁用' },
-  LOCKED: { color: 'error', label: '锁定' }
+const STATUS_MAP: Record<string, { type: any; label: string }> = {
+  ACTIVE: { type: 'success', label: '正常' },
+  INACTIVE: { type: 'default', label: '禁用' },
+  LOCKED: { type: 'error', label: '锁定' }
 };
 
 interface User {
@@ -231,6 +225,25 @@ const selectedUserId = ref<string>('');
 const userMous = ref<string[]>([]);
 const userRoleModalVisible = ref(false);
 const userRoles = ref<string[]>([]);
+
+// 下拉选项
+const roleTypeOptions = [
+  { label: 'HR', value: 'HR' },
+  { label: 'Manager', value: 'MANAGER' },
+  { label: 'Admin', value: 'ADMIN' },
+];
+
+const statusOptions = [
+  { label: '正常', value: 'ACTIVE' },
+  { label: '禁用', value: 'INACTIVE' },
+  { label: '锁定', value: 'LOCKED' },
+];
+
+const permissionModeOptions = [
+  { label: 'MOU管理模式', value: 'MOU' },
+  { label: '容器管理模式', value: 'CONTAINER' },
+  { label: '混合模式', value: 'MIXED' },
+];
 
 // 表单状态
 const formState = reactive({
@@ -551,179 +564,192 @@ const openRoleModal = async (userId: string) => {
 
 // 表格列配置
 const columns = computed(() => [
-  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
-  { title: '姓名', dataIndex: 'realName', key: 'realName', width: 100 },
-  { 
-    title: '状态', 
-    dataIndex: 'status', 
+  { title: '用户名', key: 'username', width: 120 },
+  { title: '姓名', key: 'realName', width: 100 },
+  {
+    title: '状态',
     key: 'status',
     width: 80,
-    customRender: ({ text }: { text: string }) => {
-      return h(ATag, { color: STATUS_MAP[text]?.color }, () => STATUS_MAP[text]?.label || text);
+    render: (row: User) => {
+      const item = STATUS_MAP[row.status];
+      return h(NTag, { type: item?.type || 'default', size: 'small' }, { default: () => item?.label || row.status });
     }
   },
-  { title: '角色类型', dataIndex: 'roleType', key: 'roleType', width: 80 },
-  { 
-    title: '权限模式', 
-    dataIndex: 'permissionMode', 
+  { title: '角色类型', key: 'roleType', width: 80 },
+  {
+    title: '权限模式',
     key: 'permissionMode',
     width: 120,
-    customRender: ({ text }: { text: string }) => {
-      return h(ATag, { color: PERMISSION_MODE_MAP[text]?.color }, () => PERMISSION_MODE_MAP[text]?.label || text);
+    render: (row: User) => {
+      const item = PERMISSION_MODE_MAP[row.permissionMode];
+      return h(NTag, { type: item?.type || 'default', size: 'small' }, { default: () => item?.label || row.permissionMode });
     }
   },
-  { 
-    title: '企微绑定', 
+  {
+    title: '企微绑定',
     key: 'wechatWork',
     width: 150,
-    customRender: ({ record }: { record: User }) => {
-      return h(ASpace, { size: 'small' }, () => {
-        if (record.wechatWorkUserId) {
-          return [
-            h(ATooltip, { title: `ID: ${record.wechatWorkUserId}` }, () =>
-              h(ATag, { color: 'green' }, () => [
-                h(WechatOutlined),
-                ' ',
-                record.wechatWorkName || record.wechatWorkUserId.slice(0, 8)
-              ])
-            ),
-            h(AButton, {
-              type: 'text',
+    render: (row: User) => {
+      if (row.wechatWorkUserId) {
+        return h(NSpace, { size: 'small' }, {
+          default: () => [
+            h(NTooltip, null, {
+              trigger: () => h(NTag, { type: 'success', size: 'small' }, {
+                default: () => row.wechatWorkName || row.wechatWorkUserId!.slice(0, 8),
+                icon: () => h(NIcon, { component: ChatbubblesOutline }),
+              }),
+              default: () => `ID: ${row.wechatWorkUserId}`,
+            }),
+            h(NButton, {
+              text: true,
               size: 'small',
-              onClick: () => handleUnbindWechatWork(record.id)
-            }, () => h(DisconnectOutlined))
-          ];
-        } else {
-          return h(AButton, {
-            type: 'link',
-            size: 'small',
-            onClick: () => {
-              const input = prompt('请输入企微用户ID:');
-              if (input) handleBindWechatWork(record.id, input);
-            }
-          }, () => [
-            h(LinkOutlined),
-            ' 绑定'
-          ]);
+              onClick: () => handleUnbindWechatWork(row.id),
+            }, { default: () => h(NIcon, { component: CloseOutline }) }),
+          ],
+        });
+      }
+      return h(NButton, {
+        text: true,
+        type: 'primary',
+        size: 'small',
+        onClick: () => {
+          const input = prompt('请输入企微用户ID:');
+          if (input) handleBindWechatWork(row.id, input);
         }
+      }, {
+        default: () => '绑定',
+        icon: () => h(NIcon, { component: LinkOutline }),
       });
     }
   },
-  { 
-    title: '摩卡绑定', 
+  {
+    title: '摩卡绑定',
     key: 'mocha',
     width: 150,
-    customRender: ({ record }: { record: User }) => {
-      return h(ASpace, { size: 'small' }, () => {
-        if (record.mochaUserId) {
-          return [
-            h(ATooltip, { title: `ID: ${record.mochaUserId}` }, () =>
-              h(ATag, { color: 'blue' }, () => [
-                h(CoffeeOutlined),
-                ' ',
-                record.mochaName || record.mochaUserId.slice(0, 8)
-              ])
-            ),
-            h(AButton, {
-              type: 'text',
+    render: (row: User) => {
+      if (row.mochaUserId) {
+        return h(NSpace, { size: 'small' }, {
+          default: () => [
+            h(NTooltip, null, {
+              trigger: () => h(NTag, { type: 'info', size: 'small' }, {
+                default: () => row.mochaName || row.mochaUserId!.slice(0, 8),
+                icon: () => h(NIcon, { component: CafeOutline }),
+              }),
+              default: () => `ID: ${row.mochaUserId}`,
+            }),
+            h(NButton, {
+              text: true,
               size: 'small',
-              onClick: () => handleUnbindMocha(record.id)
-            }, () => h(DisconnectOutlined))
-          ];
-        } else {
-          return h(AButton, {
-            type: 'link',
-            size: 'small',
-            onClick: () => {
-              const input = prompt('请输入摩卡用户ID:');
-              if (input) handleBindMocha(record.id, input);
-            }
-          }, () => [
-            h(LinkOutlined),
-            ' 绑定'
-          ]);
+              onClick: () => handleUnbindMocha(row.id),
+            }, { default: () => h(NIcon, { component: CloseOutline }) }),
+          ],
+        });
+      }
+      return h(NButton, {
+        text: true,
+        type: 'primary',
+        size: 'small',
+        onClick: () => {
+          const input = prompt('请输入摩卡用户ID:');
+          if (input) handleBindMocha(row.id, input);
         }
+      }, {
+        default: () => '绑定',
+        icon: () => h(NIcon, { component: LinkOutline }),
       });
     }
   },
-  { 
-    title: '操作', 
+  {
+    title: '操作',
     key: 'actions',
     width: 200,
-    customRender: ({ record }: { record: User }) => {
-      return h(ASpace, { size: 'small' }, () => [
-        h(AButton, {
-          type: 'link',
-          size: 'small',
-          onClick: () => openMouModal(record.id)
-        }, () => [h(LockOutlined), ' MOU']),
-        h(AButton, {
-          type: 'link',
-          size: 'small',
-          onClick: () => openRoleModal(record.id)
-        }, () => [h(LockOutlined), ' 角色']),
-        h(AButton, {
-          type: 'link',
-          size: 'small',
-          onClick: () => {
-            editingUser.value = record;
-            Object.assign(formState, {
-              username: record.username,
-              realName: record.realName,
-              email: record.email || '',
-              phone: record.phone || '',
-              password: '',
-              roleType: record.roleType,
-              status: record.status,
-              permissionMode: record.permissionMode
-            });
-            userModalVisible.value = true;
-          }
-        }, () => h(EditOutlined)),
-        h(APopconfirm, {
-          title: '确认删除此用户？',
-          okText: '确认',
-          cancelText: '取消',
-          onConfirm: () => handleDeleteUser(record.id)
-        }, () => h(AButton, {
-          type: 'link',
-          size: 'small',
-          danger: true
-        }, () => h(DeleteOutlined)))
-      ]);
+    render: (row: User) => {
+      return h(NSpace, { size: 'small' }, {
+        default: () => [
+          h(NButton, {
+            text: true,
+            type: 'primary',
+            size: 'small',
+            onClick: () => openMouModal(row.id)
+          }, {
+            default: () => 'MOU',
+            icon: () => h(NIcon, { component: LockClosedOutline }),
+          }),
+          h(NButton, {
+            text: true,
+            type: 'primary',
+            size: 'small',
+            onClick: () => openRoleModal(row.id)
+          }, {
+            default: () => '角色',
+            icon: () => h(NIcon, { component: LockClosedOutline }),
+          }),
+          h(NButton, {
+            text: true,
+            type: 'primary',
+            size: 'small',
+            onClick: () => {
+              editingUser.value = row;
+              Object.assign(formState, {
+                username: row.username,
+                realName: row.realName,
+                email: row.email || '',
+                phone: row.phone || '',
+                password: '',
+                roleType: row.roleType,
+                status: row.status,
+                permissionMode: row.permissionMode
+              });
+              userModalVisible.value = true;
+            }
+          }, { default: () => h(NIcon, { component: CreateOutline }) }),
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDeleteUser(row.id),
+            positiveText: '确认',
+            negativeText: '取消',
+          }, {
+            default: () => '确认删除此用户？',
+            trigger: () => h(NButton, {
+              text: true,
+              type: 'error',
+              size: 'small',
+            }, { default: () => h(NIcon, { component: TrashOutline }) }),
+          }),
+        ],
+      });
     }
   }
 ]);
 
 // MOU表格列
 const mouColumns = [
-  { title: 'MOU名称', dataIndex: 'name', key: 'name' },
-  { title: '编码', dataIndex: 'code', key: 'code' },
-  { 
-    title: '类型', 
-    dataIndex: 'type', 
+  { type: 'selection' as const },
+  { title: 'MOU名称', key: 'name' },
+  { title: '编码', key: 'code' },
+  {
+    title: '类型',
     key: 'type',
-    customRender: ({ text }: { text: string }) => {
+    render: (row: Mou) => {
       const typeMap: Record<string, string> = {
         DEPT: '部门', PROJECT: '项目', TEAM: '团队', VIRTUAL: '虚拟'
       };
-      return h(ATag, {}, () => typeMap[text] || text);
+      return h(NTag, { size: 'small' }, { default: () => typeMap[row.type] || row.type });
     }
   }
 ];
 
 // 角色表格列
 const roleColumns = [
-  { title: '角色名称', dataIndex: 'name', key: 'name' },
-  { title: '编码', dataIndex: 'code', key: 'code' },
-  { 
-    title: '类型', 
-    dataIndex: 'roleType', 
+  { type: 'selection' as const },
+  { title: '角色名称', key: 'name' },
+  { title: '编码', key: 'code' },
+  {
+    title: '类型',
     key: 'roleType',
-    customRender: ({ text }: { text: string }) => {
-      return h(ATag, { color: text === 'SYSTEM' ? 'blue' : 'green' }, () =>
-        text === 'SYSTEM' ? '系统' : '业务'
-      );
+    render: (row: Role) => {
+      return h(NTag, { type: row.roleType === 'SYSTEM' ? 'info' : 'success', size: 'small' }, {
+        default: () => row.roleType === 'SYSTEM' ? '系统' : '业务'
+      });
     }
   }
 ];
@@ -734,11 +760,4 @@ onMounted(() => {
   loadMous();
   loadRoles();
 });
-
-// Form实例 (用于兼容 ant-design-vue 表单验证)
-const form = {
-  validateFields: async () => {
-    return true;
-  }
-};
 </script>

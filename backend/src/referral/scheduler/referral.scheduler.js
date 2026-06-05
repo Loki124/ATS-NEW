@@ -22,7 +22,7 @@ async function scanExpiredProtection(prisma) {
 async function scanOnboardedCandidates(prisma) {
   try {
     const onboardings = await prisma.onboarding.findMany({
-      where: { status: 'ONBOARDED' },
+      where: { onboardingStatus: 'ONBOARDED' },
       include: { application: { include: { candidate: true } } },
     });
     for (const ob of onboardings) {

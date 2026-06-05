@@ -1,165 +1,124 @@
 <template>
-  <a-modal
-    v-model:open="visible"
-    :width="720"
-    :footer="null"
-    :destroyOnClose="true"
-    @cancel="handleCancel"
+  <n-modal
+    v-model:show="visible"
+    preset="card"
+    :style="{ width: '720px' }"
+    :mask-closable="false"
+    @close="handleCancel"
   >
-    <template #title>
+    <template #header>
       <div class="modal-title">
         <div class="title-icon">
-          <PlusOutlined />
+          <n-icon :component="AddOutline" />
         </div>
         <span>新增候选人</span>
       </div>
     </template>
 
-    <a-steps 
-      :current="currentStep" 
-      :items="steps"
+    <n-steps
+      :current="currentStep + 1"
       style="margin-bottom: 24px; padding: 0 20px"
-    />
+    >
+      <n-step v-for="(step, i) in steps" :key="i" :title="step.title" />
+    </n-steps>
 
     <div class="modal-content">
       <!-- 步骤1: 基本信息 -->
       <div v-show="currentStep === 0">
-        <a-form
+        <n-form
           ref="formRef"
           :model="formState"
           :rules="rules"
-          layout="vertical"
-          :initialValues="{ gender: 'male', education: '本科' }"
+          label-placement="top"
         >
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="姓名" name="name" :rules="[{ required: true, message: '请输入候选人姓名' }]">
-                <a-input v-model:value="formState.name" placeholder="请输入候选人姓名" size="large" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="手机号" name="phone" :rules="[{ required: true, message: '请输入手机号' }, { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }]">
-                <a-input v-model:value="formState.phone" placeholder="请输入手机号" size="large">
-                  <template #prefix><PhoneOutlined /></template>
-                </a-input>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="邮箱" name="email" :rules="[{ type: 'email', message: '请输入正确的邮箱' }]">
-                <a-input v-model:value="formState.email" placeholder="请输入邮箱" size="large">
-                  <template #prefix><MailOutlined /></template>
-                </a-input>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="性别" name="gender">
-                <a-select v-model:value="formState.gender" placeholder="请选择性别" size="large">
-                  <a-select-option value="male">男</a-select-option>
-                  <a-select-option value="female">女</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="出生日期" name="birthDate">
-                <a-input v-model:value="formState.birthDate" type="date" placeholder="请选择出生日期" size="large" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="最高学历" name="education">
-                <a-select v-model:value="formState.education" placeholder="请选择学历" size="large">
-                  <a-select-option value="高中">高中</a-select-option>
-                  <a-select-option value="大专">大专</a-select-option>
-                  <a-select-option value="本科">本科</a-select-option>
-                  <a-select-option value="硕士">硕士</a-select-option>
-                  <a-select-option value="博士">博士</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item label="应聘职位" name="position" :rules="[{ required: true, message: '请选择应聘职位' }]">
-                <a-select 
-                  v-model:value="formState.position" 
-                  placeholder="请选择应聘职位" 
-                  size="large"
-                  show-search
-                  :filter-option="(input: string, option: any) => option.children.toLowerCase().includes(input.toLowerCase())"
-                >
-                  <a-select-option value="1">前端开发工程师</a-select-option>
-                  <a-select-option value="2">后端开发工程师</a-select-option>
-                  <a-select-option value="3">产品经理</a-select-option>
-                  <a-select-option value="4">UI设计师</a-select-option>
-                  <a-select-option value="5">测试工程师</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item label="简历来源" name="channel" :rules="[{ required: true, message: '请选择简历来源' }]">
-                <a-select v-model:value="formState.channel" placeholder="请选择简历来源" size="large">
-                  <a-select-option value="boss">Boss直聘</a-select-option>
-                  <a-select-option value="lagou">拉勾网</a-select-option>
-                  <a-select-option value="liepin">猎聘网</a-select-option>
-                  <a-select-option value="zhilian">智联招聘</a-select-option>
-                  <a-select-option value="51job">前程无忧</a-select-option>
-                  <a-select-option value="internal">内部推荐</a-select-option>
-                  <a-select-option value="other">其他渠道</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item label="简历推荐人" name="recommender">
-                <a-input v-model:value="formState.recommender" placeholder="请输入推荐人姓名" size="large" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item label="备注" name="remark">
-                <a-textarea v-model:value="formState.remark" :rows="3" placeholder="请输入备注信息" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-form>
+          <div class="grid grid-cols-2 gap-x-4">
+            <n-form-item label="姓名" path="name" :rule="{ required: true, message: '请输入候选人姓名', trigger: 'blur' }">
+              <n-input v-model:value="formState.name" placeholder="请输入候选人姓名" size="large" />
+            </n-form-item>
+            <n-form-item label="手机号" path="phone" :rule="[{ required: true, message: '请输入手机号', trigger: 'blur' }, { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }]">
+              <n-input v-model:value="formState.phone" placeholder="请输入手机号" size="large">
+                <template #prefix><n-icon :component="CallOutline" /></template>
+              </n-input>
+            </n-form-item>
+            <n-form-item label="邮箱" path="email">
+              <n-input v-model:value="formState.email" placeholder="请输入邮箱" size="large">
+                <template #prefix><n-icon :component="MailOutline" /></template>
+              </n-input>
+            </n-form-item>
+            <n-form-item label="性别" path="gender">
+              <n-select v-model:value="formState.gender" placeholder="请选择性别" size="large" :options="genderOptions" />
+            </n-form-item>
+            <n-form-item label="出生日期" path="birthDate">
+              <n-input v-model:value="formState.birthDate" type="text" placeholder="请选择出生日期 (YYYY-MM-DD)" size="large" />
+            </n-form-item>
+            <n-form-item label="最高学历" path="education">
+              <n-select v-model:value="formState.education" placeholder="请选择学历" size="large" :options="educationOptions" />
+            </n-form-item>
+            <n-form-item class="col-span-2" label="应聘职位" path="position" :rule="{ required: true, message: '请选择应聘职位', trigger: 'change' }">
+              <n-select
+                v-model:value="formState.position"
+                placeholder="请选择应聘职位"
+                size="large"
+                filterable
+                :options="positionOptions"
+              />
+            </n-form-item>
+            <n-form-item class="col-span-2" label="简历来源" path="channel" :rule="{ required: true, message: '请选择简历来源', trigger: 'change' }">
+              <n-select v-model:value="formState.channel" placeholder="请选择简历来源" size="large" :options="channelOptions" />
+            </n-form-item>
+            <n-form-item class="col-span-2" label="简历推荐人" path="recommender">
+              <n-input v-model:value="formState.recommender" placeholder="请输入推荐人姓名" size="large" />
+            </n-form-item>
+            <n-form-item class="col-span-2" label="备注" path="remark">
+              <n-input v-model:value="formState.remark" type="textarea" :rows="3" placeholder="请输入备注信息" />
+            </n-form-item>
+          </div>
+        </n-form>
       </div>
 
       <!-- 步骤2: 简历上传 -->
       <div v-show="currentStep === 1">
-        <a-upload-dragger
-          :beforeUpload="beforeUpload"
-          :fileList="resumeFile ? [resumeFile] : []"
-          @change="handleFileChange"
+        <n-upload
+          :default-upload="false"
+          :file-list="resumeFile ? [{ id: 'resume', name: resumeFile.name, status: 'finished' }] : []"
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
-          style="padding: 40px"
+          @change="handleFileChange"
+          @before-upload="beforeUpload"
         >
-          <p class="ant-upload-drag-icon">
-            <InboxOutlined style="font-size: 48px; color: #FBCE5B" />
-          </p>
-          <p class="ant-upload-text" style="font-size: 16px; font-weight: 500">
-            点击或拖拽上传简历文件
-          </p>
-          <p class="ant-upload-hint" style="color: #999">
-            支持 PDF、Word、Excel、图片格式，单个文件不超过10MB
-          </p>
-        </a-upload-dragger>
+          <n-upload-dragger style="padding: 40px">
+            <div class="upload-drag-icon">
+              <n-icon :component="FileTrayFullOutline" :size="48" color="#FBCE5B" />
+            </div>
+            <p style="font-size: 16px; font-weight: 500">
+              点击或拖拽上传简历文件
+            </p>
+            <p style="color: #999">
+              支持 PDF、Word、Excel、图片格式，单个文件不超过10MB
+            </p>
+          </n-upload-dragger>
+        </n-upload>
 
-        <a-divider>或</a-divider>
+        <n-divider>或</n-divider>
 
         <div style="text-align: center">
-          <a-upload :showUploadList="false" :beforeUpload="beforeUpload" @change="handleFileChange">
-            <a-button size="large">
-              <template #icon><UploadOutlined /></template>
+          <n-upload :show-file-list="false" :default-upload="false" @change="handleFileChange" @before-upload="beforeUpload">
+            <n-button size="large">
+              <template #icon><n-icon :component="CloudUploadOutline" /></template>
               选择文件
-            </a-button>
-          </a-upload>
+            </n-button>
+          </n-upload>
         </div>
 
         <div v-if="resumeFile" class="file-preview">
           <div class="file-item">
             <div class="file-icon">
-              <UserOutlined />
+              <n-icon :component="PersonOutline" />
             </div>
             <div class="file-info">
               <div class="file-name">{{ resumeFile.name }}</div>
               <div class="file-size">{{ (resumeFile.size / 1024 / 1024).toFixed(2) }} MB</div>
             </div>
-            <a-button type="link" danger @click="removeFile">移除</a-button>
+            <n-button text type="error" @click="removeFile">移除</n-button>
           </div>
         </div>
       </div>
@@ -168,50 +127,38 @@
       <div v-show="currentStep === 2">
         <div class="info-confirm">
           <div class="confirm-title">📋 信息确认</div>
-          
-          <a-row :gutter="[12, 12]">
-            <a-col :span="12">
-              <div class="info-item">
-                <div class="info-label">姓名</div>
-                <div class="info-value">{{ formState.name || '-' }}</div>
-              </div>
-            </a-col>
-            <a-col :span="12">
-              <div class="info-item">
-                <div class="info-label">手机号</div>
-                <div class="info-value">{{ formState.phone || '-' }}</div>
-              </div>
-            </a-col>
-            <a-col :span="12">
-              <div class="info-item">
-                <div class="info-label">邮箱</div>
-                <div class="info-value">{{ formState.email || '-' }}</div>
-              </div>
-            </a-col>
-            <a-col :span="12">
-              <div class="info-item">
-                <div class="info-label">性别</div>
-                <div class="info-value">{{ formState.gender === 'male' ? '男' : '女' }}</div>
-              </div>
-            </a-col>
-            <a-col :span="12">
-              <div class="info-item">
-                <div class="info-label">最高学历</div>
-                <div class="info-value">{{ formState.education || '-' }}</div>
-              </div>
-            </a-col>
-            <a-col :span="12">
-              <div class="info-item">
-                <div class="info-label">简历来源</div>
-                <div class="info-value">{{ formState.channel || '-' }}</div>
-              </div>
-            </a-col>
-          </a-row>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="info-item">
+              <div class="info-label">姓名</div>
+              <div class="info-value">{{ formState.name || '-' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">手机号</div>
+              <div class="info-value">{{ formState.phone || '-' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">邮箱</div>
+              <div class="info-value">{{ formState.email || '-' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">性别</div>
+              <div class="info-value">{{ formState.gender === 'male' ? '男' : '女' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">最高学历</div>
+              <div class="info-value">{{ formState.education || '-' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">简历来源</div>
+              <div class="info-value">{{ formState.channel || '-' }}</div>
+            </div>
+          </div>
         </div>
 
         <div v-if="resumeFile" class="resume-uploaded">
           <div class="uploaded-icon">
-            <UploadOutlined />
+            <n-icon :component="CloudUploadOutline" />
           </div>
           <div class="uploaded-info">
             <div class="uploaded-title">已上传简历</div>
@@ -225,28 +172,31 @@
       </div>
     </div>
 
-    <div class="modal-footer">
-      <a-button v-if="currentStep > 0" @click="prevStep">上一步</a-button>
-      <a-space>
-        <a-button @click="handleCancel">取消</a-button>
-        <a-button v-if="currentStep < steps.length - 1" type="primary" @click="nextStep">下一步</a-button>
-        <a-button v-else type="primary" :loading="loading" @click="handleSubmit">确认提交</a-button>
-      </a-space>
-    </div>
-  </a-modal>
+    <template #footer>
+      <div class="modal-footer">
+        <n-button v-if="currentStep > 0" @click="prevStep">上一步</n-button>
+        <div v-else></div>
+        <n-space>
+          <n-button @click="handleCancel">取消</n-button>
+          <n-button v-if="currentStep < steps.length - 1" type="primary" @click="nextStep">下一步</n-button>
+          <n-button v-else type="primary" :loading="loading" @click="handleSubmit">确认提交</n-button>
+        </n-space>
+      </div>
+    </template>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { useMessage } from 'naive-ui'
 import {
-  PlusOutlined,
-  UploadOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  InboxOutlined,
-} from '@ant-design/icons-vue'
+  AddOutline,
+  CloudUploadOutline,
+  PersonOutline,
+  CallOutline,
+  MailOutline,
+  FileTrayFullOutline,
+} from '@vicons/ionicons5'
 
 interface Props {
   visible: boolean
@@ -260,6 +210,8 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const message = useMessage()
 
 const formRef = ref()
 const currentStep = ref(0)
@@ -280,14 +232,45 @@ const formState = reactive({
 })
 
 const rules = {
-  phone: [{ required: true, message: '请输入手机号' }],
-  email: [{ type: 'email', message: '请输入正确的邮箱' }],
+  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
+  email: [{ type: 'email', message: '请输入正确的邮箱', trigger: 'blur' }],
 }
 
 const steps = [
   { title: '基本信息' },
   { title: '简历上传' },
   { title: '确认提交' },
+]
+
+const genderOptions = [
+  { label: '男', value: 'male' },
+  { label: '女', value: 'female' }
+]
+
+const educationOptions = [
+  { label: '高中', value: '高中' },
+  { label: '大专', value: '大专' },
+  { label: '本科', value: '本科' },
+  { label: '硕士', value: '硕士' },
+  { label: '博士', value: '博士' }
+]
+
+const positionOptions = [
+  { label: '前端开发工程师', value: '1' },
+  { label: '后端开发工程师', value: '2' },
+  { label: '产品经理', value: '3' },
+  { label: 'UI设计师', value: '4' },
+  { label: '测试工程师', value: '5' }
+]
+
+const channelOptions = [
+  { label: 'Boss直聘', value: 'boss' },
+  { label: '拉勾网', value: 'lagou' },
+  { label: '猎聘网', value: 'liepin' },
+  { label: '智联招聘', value: 'zhilian' },
+  { label: '前程无忧', value: '51job' },
+  { label: '内部推荐', value: 'internal' },
+  { label: '其他渠道', value: 'other' }
 ]
 
 const visible = ref(props.visible)
@@ -300,16 +283,16 @@ watch(visible, (val) => {
   emit('update:visible', val)
 })
 
-const beforeUpload = (file: any) => {
-  resumeFile.value = file
+const beforeUpload = (options: any) => {
+  resumeFile.value = options.file?.file || options.file
   return false
 }
 
 const handleFileChange = (info: any) => {
-  const file = info.file.originFileObj || info.file
+  const file = info.file?.file || info.file
   if (file) {
     resumeFile.value = file
-    message.success(`${info.file.name} 上传成功`)
+    message.success(`${file.name} 上传成功`)
   }
 }
 
@@ -320,7 +303,7 @@ const removeFile = () => {
 const nextStep = async () => {
   if (currentStep.value === 0) {
     try {
-      await formRef.value.validate()
+      await formRef.value?.validate()
       currentStep.value++
     } catch (error) {
       console.error('表单验证失败:', error)
@@ -395,6 +378,12 @@ const resetForm = () => {
 
 .modal-content {
   min-height: 400px;
+}
+
+.upload-drag-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
 }
 
 .file-preview {
@@ -504,6 +493,6 @@ const resetForm = () => {
 .modal-footer {
   display: flex;
   justify-content: space-between;
-  margin-top: 24px;
+  width: 100%;
 }
 </style>

@@ -3,14 +3,15 @@
     <div class="page-header">
       <h1 class="page-title">简历筛选</h1>
     </div>
-    <a-card>
-      <a-table :columns="columns" :dataSource="dataSource" rowKey="id" :locale="{ emptyText: '暂无数据' }" />
-    </a-card>
+    <n-card :bordered="false" class="rounded-xl">
+      <n-data-table :columns="columns" :data="dataSource" :row-key="(row) => row.id" />
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, h } from 'vue'
+import { NTag } from 'naive-ui'
 
 interface DataItem {
   id: string
@@ -22,9 +23,9 @@ interface DataItem {
 const dataSource = ref<DataItem[]>([])
 
 const columns = [
-  { title: '候选人', dataIndex: 'candidate', key: 'candidate' },
-  { title: '应聘职位', dataIndex: 'position', key: 'position' },
-  { title: '筛选状态', dataIndex: 'status', key: 'status' }
+  { title: '候选人', key: 'candidate', render: (row: DataItem) => row.candidate },
+  { title: '应聘职位', key: 'position', render: (row: DataItem) => row.position },
+  { title: '筛选状态', key: 'status', render: (row: DataItem) => h(NTag, { type: 'info' }, { default: () => row.status }) },
 ]
 </script>
 

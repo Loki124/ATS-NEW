@@ -85,6 +85,78 @@ async function main() {
   }
   console.log(`  ✓ ${users.length} 个内推码`);
 
+  // 6. 给 admin 创建一些候选人 + 推荐记录 + 奖励（让前端 UI 有数据可看）
+  const firstPosition = await prisma.position.findFirst({ where: { status: 'ACTIVE' } });
+  if (firstPosition) {
+    const adminCode = await prisma.referralCode.findUnique({ where: { userId: admin.id } });
+    if (adminCode) {
+      const samples = [
+        { name: '张三', status: 'HIRED', addReward: true, rewardStatus: 'TO_CONFIRM' },
+        { name: '李四', status: 'PROTECTING', addReward: false },
+        { name: '王五', status: 'NORMAL', addReward: false },
+        { name: '赵六', status: 'NORMAL', addReward: false },
+      ];
+      for (let i = 0; i < samples.length; i++) {
+        const s = samples[i];
+        const c = await prisma.candidate.upsert({
+          where: { code: `C${String(1000 + i).padStart(8, '0')}` },
+          update: {},
+          create: {
+            code: `C${String(1000 + i).padStart(8, '0')}`,
+            name: s.name,
+            phone: `1380000${String(i).padStart(4, '0')}`,
+            email: `user${i}@example.com`,
+            channelSource: 'INTERNAL_REFERRAL',
+            assignedUserId: admin.id,
+          },
+        });
+        const rec = await prisma.referralRecord.upsert({
+          where: {
+            uniq_candidate_position_referrer: {
+              candidateId: c.id,
+              positionId: firstPosition.id,
+              referrerId: admin.id,
+            },
+          },
+          update: {},
+          create: {
+            referrerId: admin.id,
+            referrerCode: adminCode.code,
+            candidateId: c.id,
+            positionId: firstPosition.id,
+            expertId: admin.id,
+            referralCodeId: adminCode.id,
+            referralType: 'REFERRER_HELP',
+            referralStatus: s.status,
+            protectionEndAt: new Date(Date.now() + 7 * 86400000),
+          },
+        });
+        if (s.addReward) {
+          const existingReward = await prisma.referralReward.findFirst({ where: { recordId: rec.id } });
+          if (!existingReward) {
+            await prisma.referralReward.create({
+              data: {
+                recordId: rec.id,
+                candidateId: c.id,
+                amount: rewardRule.amount,
+                reason: `${s.name} 入职`,
+                triggerStage: 'ONBOARDED',
+                status: s.rewardStatus,
+                ruleId: rewardRule.id,
+                triggeredAt: new Date(),
+              },
+            });
+          }
+        }
+      }
+      console.log(`  ✓ ${samples.length} 个候选人 + 推荐记录 + 1 条待确认奖励`);
+    } else {
+      console.warn('  ⚠ admin 内推码未创建，跳过记录 seed');
+    }
+  } else {
+    console.warn('  ⚠ 无 ACTIVE 职位，跳过记录 seed');
+  }
+
   console.log('🌱 内推门户种子数据完成');
 }
 
