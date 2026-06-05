@@ -24,6 +24,11 @@ import systemRoutes from './routes/system.routes.js';
 import resumeRoutes from './routes/resume.routes.js';
 import departmentRoutes from './routes/department.routes.js';
 import positionRoutes from './routes/position.routes.js';
+import recruitmentProcessRoutes from './routes/recruitment-process.routes.js';
+import recruitmentStageRoutes from './routes/recruitment-stage.routes.js';
+import recruitmentProcessStageLinkRoutes from './routes/recruitment-process-stage-link.routes.js';
+import recruitmentRuleRoutes from './routes/recruitment-rule.routes.js';
+import recruitmentRoundRoutes from './routes/recruitment-round.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 
@@ -109,6 +114,13 @@ app.use('/api/system', authMiddleware, systemRoutes);
 app.use('/api/resumes', authMiddleware, resumeRoutes);
 app.use('/api/departments', authMiddleware, departmentRoutes);
 app.use('/api/referral', authMiddleware, referralRoutes);
+
+// ====== 招聘流程管理 (PRD G38) ======
+app.use('/api/recruitment-processes', authMiddleware, recruitmentProcessRoutes);
+app.use('/api/recruitment-stages', authMiddleware, recruitmentStageRoutes);
+app.use('/api/recruitment-process-stage-links', authMiddleware, recruitmentProcessStageLinkRoutes);
+app.use('/api/recruitment-rounds', authMiddleware, recruitmentRoundRoutes);
+app.use('/api/recruitment-rules', authMiddleware, recruitmentRuleRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）

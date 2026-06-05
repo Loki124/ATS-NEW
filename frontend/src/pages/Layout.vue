@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, computed, watch } from 'vue'
+import { ref, h, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, NIcon } from 'naive-ui'
 import {
@@ -100,6 +100,7 @@ import {
   SearchOutline,
   ShareSocialOutline,
   PersonOutline,
+  SettingsOutline,
 } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
 
@@ -183,54 +184,7 @@ const menuOptions = [
   },
   { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
   { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
-  {
-    key: 'settings',
-    label: '系统管理',
-    icon: renderIcon(CogOutline),
-    children: [
-      {
-        key: 'basic-info',
-        label: '基本信息',
-        children: [
-          {
-            key: 'org',
-            label: '组织机构管理',
-            children: [
-              { key: '/settings/department', label: '部门管理' },
-              { key: '/settings/user-management', label: '用户管理' },
-              { key: '/settings/permission', label: '权限管理' },
-              { key: '/settings/mou', label: 'MOU权限管理' },
-            ],
-          },
-        ],
-      },
-      { key: '/settings/account', label: '账号设置' },
-      { key: '/settings/company', label: '公司信息' },
-      {
-        key: 'process',
-        label: '过程管理',
-        children: [
-          { key: '/settings/demand-config', label: '招聘需求设置' },
-          { key: '/settings/dictionary', label: '数据字典' },
-          { key: '/settings/scoring', label: '评分规则' },
-        ],
-      },
-      {
-        key: 'speedup',
-        label: '招聘提速',
-        children: [
-          {
-            key: 'recruitment-flow',
-            label: '流程管理',
-            children: [
-              { key: '/settings/process-management', label: '招聘流程配置' },
-              { key: '/settings/stage', label: '招聘阶段配置' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
+  { key: '/settings/account', label: '设置', icon: renderIcon(SettingsOutline) },
 ]
 
 const userMenuOptions = [
@@ -241,13 +195,29 @@ const userMenuOptions = [
 ]
 
 // 当前选中菜单项
-const selectedKey = computed(() => route.path)
+// 优化方案：computed 兜底（路由 commit 后），optimisticKey 覆盖（点击时立即更新）
+// 这样菜单的 :value 在 click handler 同步阶段就已切到目标 key，路由异步过程中
+// 不再"看到旧的 A 高亮 100ms"——消除闪烁
+const optimisticKey = ref('')
+const optimisticTimer = ref<number>()
+
+const selectedKey = computed(() => {
+  if (optimisticKey.value) return optimisticKey.value
+  if (route.path.startsWith('/settings')) return '/settings/account'
+  return route.path
+})
 const expandedKeys = ref<string[]>([])
 
 // 路由变化时自动展开父菜单
 watch(
   () => route.path,
   (path) => {
+    // 路由真正 commit 后，清掉 optimisticKey（避免手动改 URL 时被卡住）
+    if (optimisticTimer.value) {
+      window.clearTimeout(optimisticTimer.value)
+      optimisticTimer.value = undefined
+    }
+    optimisticKey.value = ''
     // 找 path 在哪一层父级
     for (const item of menuOptions as any[]) {
       if (item.children) {
@@ -280,6 +250,16 @@ function onExpandedKeysChange(keys: string[]) {
 
 function handleMenuClick(key: string) {
   if (typeof key === 'string' && key.startsWith('/')) {
+    // 立即更新菜单的 value——不等路由异步 commit
+    // 用 nextTick 延迟，避免在 click handler 同步上下文中触发 Naive UI slot 警告
+    nextTick(() => {
+      optimisticKey.value = key
+    })
+    // 兜底清理（万一路由被守卫拦截没 commit）
+    if (optimisticTimer.value) window.clearTimeout(optimisticTimer.value)
+    optimisticTimer.value = window.setTimeout(() => {
+      optimisticKey.value = ''
+    }, 1000)
     router.push(key)
   }
 }
@@ -336,7 +316,20 @@ function handleUserMenu(key: string) {
   line-height: 1;
 }
 
-/* === 激活菜单项左侧金色 accent bar === */
+/* === 菜单项：彻底关掉所有 transition === */
+/* Naive UI 默认在 .n-menu-item-content / icon / arrow 上有 300ms background-color + color 渐变
+   这导致点击切换时新旧 item 的 active 态会"叠在一起"约 300ms（视觉上的闪烁）
+   用 !important 强压，避免被 Naive UI 的 cssr 覆盖 */
+:deep(.n-menu-item-content),
+:deep(.n-menu-item-content::before),
+:deep(.n-menu-item-content .n-menu-item-content-header),
+:deep(.n-menu-item-content .n-icon),
+:deep(.n-menu-item-content-arrow) {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* === 激活菜单项左侧金色 accent bar（无渐变） === */
 :deep(.n-menu-item-content--selected)::before {
   content: '';
   position: absolute;
@@ -346,6 +339,7 @@ function handleUserMenu(key: string) {
   width: 3px;
   background: #FBCE5B;
   border-radius: 0 2px 2px 0;
+  transition: none !important;
 }
 :deep(.n-menu-item-content) {
   position: relative;
