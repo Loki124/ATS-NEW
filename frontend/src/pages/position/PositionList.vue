@@ -2,214 +2,132 @@
   <div class="page-container">
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
       <h1 class="page-title">职位管理</h1>
-      <a-button type="primary" @click="handleCreate">
-        <template #icon><PlusOutlined /></template>
+      <n-button type="primary" @click="handleCreate">
+        <template #icon><n-icon :component="AddOutline" /></template>
         创建职位
-      </a-button>
+      </n-button>
     </div>
-    
-    <a-card>
-      <a-tabs v-model:activeKey="activeTab">
-        <a-tab-pane key="all">
-          <template #tab>全部职位</template>
-          <a-table :columns="columns" :data-source="positions" :pagination="{ pageSize: 10 }" row-key="id" />
-        </a-tab-pane>
-        <a-tab-pane key="recruiting">
-          <template #tab>招聘中</template>
-          <a-table :columns="columns" :data-source="positions.filter(p => p.status === '招聘中')" :pagination="{ pageSize: 10 }" row-key="id" />
-        </a-tab-pane>
-        <a-tab-pane key="stopped">
-          <template #tab>已停招</template>
-          <a-table :columns="columns" :data-source="positions.filter(p => p.status === '已停招')" :pagination="{ pageSize: 10 }" row-key="id" />
-        </a-tab-pane>
-        <a-tab-pane key="completed">
-          <template #tab>已完成</template>
-          <a-table :columns="columns" :data-source="positions.filter(p => p.status === '已完成')" :pagination="{ pageSize: 10 }" row-key="id" />
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
+
+    <n-card>
+      <n-tabs v-model:value="activeTab" type="line" animated>
+        <n-tab-pane name="all" tab="全部职位">
+          <n-data-table :columns="columns" :data="positions" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        </n-tab-pane>
+        <n-tab-pane name="recruiting" tab="招聘中">
+          <n-data-table :columns="columns" :data="positions.filter(p => p.status === '招聘中')" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        </n-tab-pane>
+        <n-tab-pane name="stopped" tab="已停招">
+          <n-data-table :columns="columns" :data="positions.filter(p => p.status === '已停招')" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        </n-tab-pane>
+        <n-tab-pane name="completed" tab="已完成">
+          <n-data-table :columns="columns" :data="positions.filter(p => p.status === '已完成')" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        </n-tab-pane>
+      </n-tabs>
+    </n-card>
 
     <!-- 创建/编辑职位弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <n-modal
+      v-model:show="modalVisible"
+      preset="card"
       :title="selectedPosition ? '编辑职位' : '创建职位'"
-      @ok="handleSave"
-      @cancel="modalVisible = false"
-      width="800px"
-      ok-text="保存"
-      cancel-text="取消"
+      style="width: 800px"
     >
-      <a-divider orientation="left">基本信息</a-divider>
-      <a-form ref="formRef" :model="formState" layout="vertical">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item name="name" label="职位名称" :rules="[{ required: true, message: '请输入职位名称' }]">
-              <a-input v-model:value="formState.name" placeholder="请输入职位名称" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item name="department" label="所属部门" :rules="[{ required: true, message: '请选择部门' }]">
-              <a-select v-model:value="formState.department" placeholder="请选择部门">
-                <a-select-option value="技术部">技术部</a-select-option>
-                <a-select-option value="产品部">产品部</a-select-option>
-                <a-select-option value="设计部">设计部</a-select-option>
-                <a-select-option value="销售部">销售部</a-select-option>
-                <a-select-option value="人事部">人事部</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
+      <n-divider title-placement="left">基本信息</n-divider>
+      <n-form ref="formRef" :model="formState" label-placement="top">
+        <div class="grid grid-cols-2 gap-x-4">
+          <n-form-item path="name" label="职位名称" :rule="{ required: true, message: '请输入职位名称', trigger: 'blur' }">
+            <n-input v-model:value="formState.name" placeholder="请输入职位名称" />
+          </n-form-item>
+          <n-form-item path="department" label="所属部门" :rule="{ required: true, message: '请选择部门', trigger: 'change' }">
+            <n-select v-model:value="formState.department" placeholder="请选择部门" :options="departmentOptions" />
+          </n-form-item>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item name="demandCode" label="关联需求" :rules="[{ required: true, message: '请选择关联需求' }]">
-              <a-select v-model:value="formState.demandCode" placeholder="请选择需求">
-                <a-select-option value="HC001">HC001 - 前端开发工程师</a-select-option>
-                <a-select-option value="HC002">HC002 - 产品经理</a-select-option>
-                <a-select-option value="HC003">HC003 - UI设计师</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item name="recruitmentProcess" label="招聘流程" :rules="[{ required: true, message: '请选择招聘流程' }]">
-              <a-select v-model:value="formState.recruitmentProcess" placeholder="请选择流程">
-                <a-select-option value="社会招聘流程">社会招聘流程</a-select-option>
-                <a-select-option value="校园招聘流程">校园招聘流程</a-select-option>
-                <a-select-option value="实习生招聘流程">实习生招聘流程</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
+          <n-form-item path="demandCode" label="关联需求" :rule="{ required: true, message: '请选择关联需求', trigger: 'change' }">
+            <n-select v-model:value="formState.demandCode" placeholder="请选择需求" :options="demandOptions" />
+          </n-form-item>
+          <n-form-item path="recruitmentProcess" label="招聘流程" :rule="{ required: true, message: '请选择招聘流程', trigger: 'change' }">
+            <n-select v-model:value="formState.recruitmentProcess" placeholder="请选择流程" :options="processOptions" />
+          </n-form-item>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item name="priority" label="优先级" :rules="[{ required: true, message: '请选择优先级' }]">
-              <a-select v-model:value="formState.priority" placeholder="请选择">
-                <a-select-option value="高">高</a-select-option>
-                <a-select-option value="中">中</a-select-option>
-                <a-select-option value="低">低</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item name="headCount" label="需求人数" :rules="[{ required: true, message: '请输入需求人数' }]">
-              <a-input-number v-model:value="formState.headCount" :min="1" :max="100" style="width: 100%;" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+          <n-form-item path="priority" label="优先级" :rule="{ required: true, message: '请选择优先级', trigger: 'change' }">
+            <n-select v-model:value="formState.priority" placeholder="请选择" :options="priorityOptions" />
+          </n-form-item>
+          <n-form-item path="headCount" label="需求人数" :rule="{ required: true, type: 'number', message: '请输入需求人数', trigger: 'blur' }">
+            <n-input-number v-model:value="formState.headCount" :min="1" :max="100" style="width: 100%;" />
+          </n-form-item>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item name="salaryRange" label="薪资范围">
-              <a-select v-model:value="formState.salaryRange" placeholder="请选择">
-                <a-select-option value="8K-12K">8K-12K</a-select-option>
-                <a-select-option value="12K-18K">12K-18K</a-select-option>
-                <a-select-option value="15K-25K">15K-25K</a-select-option>
-                <a-select-option value="20K-35K">20K-35K</a-select-option>
-                <a-select-option value="30K-50K">30K-50K</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item name="location" label="工作地点">
-              <a-input v-model:value="formState.location" placeholder="请输入工作地点" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+          <n-form-item path="salaryRange" label="薪资范围">
+            <n-select v-model:value="formState.salaryRange" placeholder="请选择" :options="salaryOptions" />
+          </n-form-item>
+          <n-form-item path="location" label="工作地点">
+            <n-input v-model:value="formState.location" placeholder="请输入工作地点" />
+          </n-form-item>
+        </div>
 
-        <a-divider orientation="left">人员配置</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item name="positionOwner" label="职位负责人" :rules="[{ required: true, message: '请选择职位负责人' }]">
-              <a-select v-model:value="formState.positionOwner" placeholder="请选择">
-                <a-select-option value="王五">王五</a-select-option>
-                <a-select-option value="周八">周八</a-select-option>
-                <a-select-option value="吴一">吴一</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item name="hiringManager" label="用人经理" :rules="[{ required: true, message: '请选择用人经理' }]">
-              <a-select v-model:value="formState.hiringManager" placeholder="请选择" mode="multiple">
-                <a-select-option value="李四">李四</a-select-option>
-                <a-select-option value="孙七">孙七</a-select-option>
-                <a-select-option value="郑十">郑十</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
+        <n-divider title-placement="left">人员配置</n-divider>
+        <div class="grid grid-cols-2 gap-x-4">
+          <n-form-item path="positionOwner" label="职位负责人" :rule="{ required: true, message: '请选择职位负责人', trigger: 'change' }">
+            <n-select v-model:value="formState.positionOwner" placeholder="请选择" :options="ownerOptions" />
+          </n-form-item>
+          <n-form-item path="hiringManager" label="用人经理" :rule="{ required: true, type: 'array', message: '请选择用人经理', trigger: 'change' }">
+            <n-select v-model:value="formState.hiringManager" placeholder="请选择" multiple :options="managerOptions" />
+          </n-form-item>
+        </div>
 
-        <a-divider orientation="left">职位详情</a-divider>
-        <a-form-item name="description" label="职位描述">
-          <a-textarea v-model:value="formState.description" :rows="4" placeholder="请输入职位描述和任职要求" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+        <n-divider title-placement="left">职位详情</n-divider>
+        <n-form-item path="description" label="职位描述">
+          <n-input v-model:value="formState.description" type="textarea" :rows="4" placeholder="请输入职位描述和任职要求" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <n-button @click="modalVisible = false">取消</n-button>
+          <n-button type="primary" @click="handleSave">保存</n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- 职位详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
+    <n-modal
+      v-model:show="detailVisible"
+      preset="card"
       title="职位详情"
-      @cancel="detailVisible = false"
-      :footer="null"
-      width="700px"
+      style="width: 700px"
     >
       <template v-if="selectedPosition">
-        <a-row :gutter="[16, 16]">
-          <a-col :span="12"><strong>职位编号：</strong>{{ selectedPosition.code }}</a-col>
-          <a-col :span="12"><strong>职位名称：</strong>{{ selectedPosition.name }}</a-col>
-          <a-col :span="12"><strong>所属部门：</strong>{{ selectedPosition.department }}</a-col>
-          <a-col :span="12"><strong>关联需求：</strong>{{ selectedPosition.demandCode }}</a-col>
-          <a-col :span="12"><strong>招聘流程：</strong>{{ selectedPosition.recruitmentProcess }}</a-col>
-          <a-col :span="12"><strong>优先级：</strong><a-tag :color="getPriorityColor(selectedPosition.priority)">{{ selectedPosition.priority }}</a-tag></a-col>
-          <a-col :span="12"><strong>职位状态：</strong><a-tag :color="getStatusColor(selectedPosition.status)">{{ selectedPosition.status }}</a-tag></a-col>
-          <a-col :span="12"><strong>需求人数：</strong>{{ selectedPosition.headCount }}人</a-col>
-          <a-col :span="12"><strong>已入职：</strong>{{ selectedPosition.hiredCount }}人</a-col>
-          <a-col :span="12"><strong>薪资范围：</strong>{{ selectedPosition.salaryRange }}</a-col>
-          <a-col :span="12"><strong>工作地点：</strong>{{ selectedPosition.location }}</a-col>
-          <a-col :span="12"><strong>创建时间：</strong>{{ selectedPosition.createdAt }}</a-col>
-        </a-row>
-        <a-divider />
-        <a-row :gutter="[16, 16]">
-          <a-col :span="12"><strong>职位负责人：</strong>{{ selectedPosition.positionOwner }}</a-col>
-          <a-col :span="24"><strong>用人经理：</strong>{{ selectedPosition.hiringManager }}</a-col>
-        </a-row>
-        <a-divider />
+        <div class="grid grid-cols-2 gap-4">
+          <div><strong>职位编号：</strong>{{ selectedPosition.code }}</div>
+          <div><strong>职位名称：</strong>{{ selectedPosition.name }}</div>
+          <div><strong>所属部门：</strong>{{ selectedPosition.department }}</div>
+          <div><strong>关联需求：</strong>{{ selectedPosition.demandCode }}</div>
+          <div><strong>招聘流程：</strong>{{ selectedPosition.recruitmentProcess }}</div>
+          <div><strong>优先级：</strong><n-tag :type="getPriorityType(selectedPosition.priority)">{{ selectedPosition.priority }}</n-tag></div>
+          <div><strong>职位状态：</strong><n-tag :type="getStatusType(selectedPosition.status)">{{ selectedPosition.status }}</n-tag></div>
+          <div><strong>需求人数：</strong>{{ selectedPosition.headCount }}人</div>
+          <div><strong>已入职：</strong>{{ selectedPosition.hiredCount }}人</div>
+          <div><strong>薪资范围：</strong>{{ selectedPosition.salaryRange }}</div>
+          <div><strong>工作地点：</strong>{{ selectedPosition.location }}</div>
+          <div><strong>创建时间：</strong>{{ selectedPosition.createdAt }}</div>
+        </div>
+        <n-divider />
+        <div class="grid grid-cols-2 gap-4">
+          <div><strong>职位负责人：</strong>{{ selectedPosition.positionOwner }}</div>
+          <div class="col-span-2"><strong>用人经理：</strong>{{ selectedPosition.hiringManager }}</div>
+        </div>
+        <n-divider />
         <div>
           <strong>职位描述：</strong>
           <p>{{ selectedPosition.description }}</p>
         </div>
       </template>
-    </a-modal>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, h } from 'vue';
-import {
-  PlusOutlined,
-  EditOutlined,
-  EyeOutlined,
-  DeleteOutlined
-} from '@ant-design/icons-vue';
-import {
-  Table as ATable,
-  Button as AButton,
-  Card as ACard,
-  Space as ASpace,
-  Tag as ATag,
-  Modal as AModal,
-  Form as AForm,
-  Input as AInput,
-  Select as ASelect,
-  InputNumber as AInputNumber,
-  Divider as ADivider,
-  Row as ARow,
-  Col as ACol,
-  Tabs as ATabs,
-  TabPane as ATabPane,
-  message
-} from 'ant-design-vue';
+import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
+import { AddOutline } from '@vicons/ionicons5';
 
 interface Position {
   id: string;
@@ -229,6 +147,8 @@ interface Position {
   location: string;
   description: string;
 }
+
+const message = useMessage()
 
 const activeTab = ref('all');
 const modalVisible = ref(false);
@@ -250,7 +170,53 @@ const defaultFormState = {
   description: ''
 };
 
-const formState = reactive({ ...defaultFormState });
+const formState = reactive<any>({ ...defaultFormState });
+
+const departmentOptions = [
+  { label: '技术部', value: '技术部' },
+  { label: '产品部', value: '产品部' },
+  { label: '设计部', value: '设计部' },
+  { label: '销售部', value: '销售部' },
+  { label: '人事部', value: '人事部' }
+]
+
+const demandOptions = [
+  { label: 'HC001 - 前端开发工程师', value: 'HC001' },
+  { label: 'HC002 - 产品经理', value: 'HC002' },
+  { label: 'HC003 - UI设计师', value: 'HC003' }
+]
+
+const processOptions = [
+  { label: '社会招聘流程', value: '社会招聘流程' },
+  { label: '校园招聘流程', value: '校园招聘流程' },
+  { label: '实习生招聘流程', value: '实习生招聘流程' }
+]
+
+const priorityOptions = [
+  { label: '高', value: '高' },
+  { label: '中', value: '中' },
+  { label: '低', value: '低' }
+]
+
+const salaryOptions = [
+  { label: '8K-12K', value: '8K-12K' },
+  { label: '12K-18K', value: '12K-18K' },
+  { label: '15K-25K', value: '15K-25K' },
+  { label: '20K-35K', value: '20K-35K' },
+  { label: '30K-50K', value: '30K-50K' }
+]
+
+const ownerOptions = [
+  { label: '王五', value: '王五' },
+  { label: '周八', value: '周八' },
+  { label: '吴一', value: '吴一' }
+]
+
+const managerOptions = [
+  { label: '李四', value: '李四' },
+  { label: '孙七', value: '孙七' },
+  { label: '郑十', value: '郑十' }
+]
 
 const positions = ref<Position[]>([
   {
@@ -309,20 +275,20 @@ const positions = ref<Position[]>([
   },
 ]);
 
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
+const getStatusType = (status: string): 'success' | 'error' | 'info' | 'default' => {
+  const colors: Record<string, 'success' | 'error' | 'info' | 'default'> = {
     '招聘中': 'success',
     '已停招': 'error',
-    '已完成': 'blue',
+    '已完成': 'info',
   };
   return colors[status] || 'default';
 };
 
-const getPriorityColor = (priority: string) => {
-  const colors: Record<string, string> = {
-    '高': 'red',
-    '中': 'orange',
-    '低': 'green',
+const getPriorityType = (priority: string): 'error' | 'warning' | 'success' | 'default' => {
+  const colors: Record<string, 'error' | 'warning' | 'success' | 'default'> = {
+    '高': 'error',
+    '中': 'warning',
+    '低': 'success',
   };
   return colors[priority] || 'default';
 };
@@ -358,7 +324,7 @@ const handleView = (record: Position) => {
 
 const handleSave = async () => {
   try {
-    await formRef.value.validate();
+    await formRef.value?.validate()
     if (selectedPosition.value) {
       const index = positions.value.findIndex(p => p.id === selectedPosition.value!.id);
       if (index !== -1) {
@@ -392,54 +358,41 @@ const handleToggleStatus = (record: Position) => {
   }
 };
 
-const handleDelete = (id: string) => {
-  positions.value = positions.value.filter(p => p.id !== id);
-  message.success('职位已删除');
-};
-
 const columns = computed(() => [
-  { title: '职位编号', dataIndex: 'code', key: 'code', width: 100 },
-  { title: '职位名称', dataIndex: 'name', key: 'name' },
-  { title: '所属部门', dataIndex: 'department', key: 'department', width: 100 },
-  { title: '关联需求', dataIndex: 'demandCode', key: 'demandCode', width: 100 },
-  { title: '招聘流程', dataIndex: 'recruitmentProcess', key: 'recruitmentProcess', width: 120 },
+  { title: '职位编号', key: 'code', width: 100 },
+  { title: '职位名称', key: 'name', width: 180, ellipsis: { tooltip: true } },
+  { title: '所属部门', key: 'department', width: 100 },
+  { title: '关联需求', key: 'demandCode', width: 100 },
+  { title: '招聘流程', key: 'recruitmentProcess', width: 120 },
   {
     title: '优先级',
-    dataIndex: 'priority',
     key: 'priority',
     width: 80,
-    customRender: ({ text }: { text: string }) => h(ATag, { color: getPriorityColor(text) }, () => text)
+    render: (row: Position) => h(NTag, { type: getPriorityType(row.priority) }, { default: () => row.priority })
   },
   {
     title: '职位状态',
-    dataIndex: 'status',
     key: 'status',
     width: 90,
-    customRender: ({ text }: { text: string }) => h(ATag, { color: getStatusColor(text) }, () => text)
+    render: (row: Position) => h(NTag, { type: getStatusType(row.status) }, { default: () => row.status })
   },
   {
     title: '需求/已入职',
     key: 'headCount',
     width: 110,
-    customRender: ({ record }: { record: Position }) => `${record.headCount}/${record.hiredCount}`
+    render: (row: Position) => `${row.headCount}/${row.hiredCount}`
   },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 110 },
+  { title: '创建时间', key: 'createdAt', width: 110 },
   {
     title: '操作',
     key: 'action',
     width: 200,
-    customRender: ({ record }: { record: Position }) => h(ASpace, { size: 'small' }, () => [
-      h(AButton, { type: 'link', size: 'small', onClick: () => handleView(record) }, () => [
-        h(EyeOutlined),
-        '查看'
-      ]),
-      h(AButton, { type: 'link', size: 'small', onClick: () => handleEdit(record) }, () => [
-        h(EditOutlined),
-        '编辑'
-      ]),
-      h(AButton, { type: 'link', size: 'small', onClick: () => handleToggleStatus(record) }, () => 
-        record.status === '招聘中' ? '停招' : '开启'
-      )
+    render: (row: Position) => h(NSpace, { size: 'small' }, () => [
+      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleView(row) }, { default: () => '查看' }),
+      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleToggleStatus(row) }, { default: () =>
+        row.status === '招聘中' ? '停招' : '开启'
+      })
     ])
   },
 ]);

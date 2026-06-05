@@ -82,7 +82,10 @@ export async function markIssued(prisma, rewardId) {
 }
 
 export async function listRewardsForReferrer(prisma, referrerId, opts = {}) {
-  const { page = 1, pageSize = 20, status } = opts;
+  // 修复：query string 的 page/pageSize 是字符串，Prisma take/skip 要 Int
+  const page = Number(opts.page) || 1;
+  const pageSize = Number(opts.pageSize) || 20;
+  const { status } = opts;
   const records = await prisma.referralRecord.findMany({
     where: { referrerId },
     select: { id: true },

@@ -1,80 +1,49 @@
-/* Global styles */
+/* Global styles - UnoCSS 接管工具类，组件库换为 Naive UI */
+
 :root {
   --primary-color: #FBCE5B;
   --primary-hover: #E5B82A;
   --primary-bg: rgba(251, 206, 91, 0.1);
 }
 
-* {
+html, body, #app {
+  height: 100%;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f0f2f5;
+  background-color: #f5f5f5;
+  color: rgba(0, 0, 0, 0.88);
 }
 
 #app {
   min-height: 100vh;
 }
 
-/* Utility classes */
-.page-container {
-  padding: 24px;
-  background: #fff;
-  border-radius: 4px;
-}
-
-.mt-16 { margin-top: 16px; }
-.mb-16 { margin-bottom: 16px; }
-
-/* Ant Design Vue primary color override */
-.ant-btn-primary {
-  background-color: #FBCE5B !important;
-  border-color: #FBCE5B !important;
-  color: #000 !important;
-}
-
-.ant-btn-primary:hover {
-  background-color: #E5B82A !important;
-  border-color: #E5B82A !important;
-}
-
-.ant-btn-primary:disabled {
-  background-color: #FBE899 !important;
-  border-color: #FBE899 !important;
-  color: rgba(0, 0, 0, 0.4) !important;
-}
-
-/* Primary color for links and text */
 a {
-  color: #FBCE5B;
+  color: var(--primary-color);
+  text-decoration: none;
 }
-
 a:hover {
-  color: #E5B82A;
+  color: var(--primary-hover);
 }
 
-/* Primary active state for menus */
-.ant-menu-item-selected,
-.ant-menu-item-active {
-  background-color: rgba(251, 206, 91, 0.15) !important;
-}
-
-/* Scrollbar */
+/* 自定义滚动条 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
 }

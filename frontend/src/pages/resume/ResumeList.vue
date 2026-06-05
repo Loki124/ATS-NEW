@@ -2,36 +2,36 @@
   <div class="resume-list-container">
     <!-- 顶部导航和筛选 -->
     <div class="page-header">
-      <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-        <a-tab-pane key="PENDING_ASSIGN" tab="待分配" />
-        <a-tab-pane key="ASSIGNED" tab="已分配" />
-        <a-tab-pane key="ARCHIVED" tab="已归档" />
-        <a-tab-pane key="DUPLICATE" tab="重复简历" />
-      </a-tabs>
-      <a-space>
-        <a-button @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
+      <n-tabs v-model:value="activeTab" type="line" @update:value="handleTabChange">
+        <n-tab-pane name="PENDING_ASSIGN" tab="待分配" />
+        <n-tab-pane name="ASSIGNED" tab="已分配" />
+        <n-tab-pane name="ARCHIVED" tab="已归档" />
+        <n-tab-pane name="DUPLICATE" tab="重复简历" />
+      </n-tabs>
+      <n-space>
+        <n-button @click="handleRefresh">
+          <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
-        </a-button>
-      </a-space>
+        </n-button>
+      </n-space>
     </div>
 
     <!-- 子筛选 -->
     <div class="sub-filters" v-if="activeTab === 'PENDING_ASSIGN'">
-      <a-space>
-        <a-radio-group v-model:value="subStatus" button-style="solid" @change="handleSubStatusChange">
-          <a-radio-button value="">全部</a-radio-button>
-          <a-radio-button value="SCORING">评分中</a-radio-button>
-          <a-radio-button value="APPROVAL">审批中</a-radio-button>
-          <a-radio-button value="SUSPECTED">疑似</a-radio-button>
-        </a-radio-group>
-      </a-space>
+      <n-space>
+        <n-radio-group v-model:value="subStatus" @update:value="handleSubStatusChange">
+          <n-radio-button value="">全部</n-radio-button>
+          <n-radio-button value="SCORING">评分中</n-radio-button>
+          <n-radio-button value="APPROVAL">审批中</n-radio-button>
+          <n-radio-button value="SUSPECTED">疑似</n-radio-button>
+        </n-radio-group>
+      </n-space>
     </div>
 
     <!-- 简历列表 -->
-    <a-spin :spinning="loading">
+    <n-spin :show="loading">
       <div class="resume-grid">
-        <a-card
+        <n-card
           v-for="resume in resumeList"
           :key="resume.id"
           class="resume-card"
@@ -40,214 +40,223 @@
         >
           <div class="resume-card-header">
             <div class="resume-name">{{ resume.candidate?.name || '未知' }}</div>
-            <a-tag :color="getStatusColor(resume.resumeStatus)">
+            <n-tag :type="getStatusType(resume.resumeStatus)">
               {{ getStatusText(resume.resumeStatus) }}
-            </a-tag>
+            </n-tag>
           </div>
 
           <div class="resume-card-body">
             <div class="info-row">
-              <PhoneOutlined /> {{ resume.candidate?.phone || '-' }}
+              <n-icon :component="CallOutline" /> {{ resume.candidate?.phone || '-' }}
             </div>
             <div class="info-row">
-              <MailOutlined /> {{ resume.candidate?.email || '-' }}
+              <n-icon :component="MailOutline" /> {{ resume.candidate?.email || '-' }}
             </div>
             <div class="info-row">
-              <FileTextOutlined /> {{ resume.source || '-' }}
+              <n-icon :component="DocumentTextOutline" /> {{ resume.source || '-' }}
             </div>
             <div class="info-row" v-if="resume.matchScore">
-              <StarOutlined /> 匹配度: {{ resume.matchScore }}
+              <n-icon :component="StarOutline" /> 匹配度: {{ resume.matchScore }}
             </div>
           </div>
 
           <!-- 锁定人信息 -->
           <div class="locker-info" v-if="resume.formalLockerId || resume.tempLockerId">
-            <a-tooltip :title="getLockerTooltip(resume)">
-              <div class="locker-badge">
-                <LockOutlined />
-                <span v-if="resume.formalLockerId">正式: {{ getLockerName(resume) }}</span>
-                <span v-else-if="resume.tempLockerId">临时: {{ getTempLockerTime(resume) }}</span>
-              </div>
-            </a-tooltip>
+            <n-tooltip :placement="'top'">
+              <template #trigger>
+                <div class="locker-badge">
+                  <n-icon :component="LockClosedOutline" />
+                  <span v-if="resume.formalLockerId">正式: {{ getLockerName(resume) }}</span>
+                  <span v-else-if="resume.tempLockerId">临时: {{ getTempLockerTime(resume) }}</span>
+                </div>
+              </template>
+              {{ getLockerTooltip(resume) }}
+            </n-tooltip>
           </div>
 
           <!-- 子状态标记 -->
           <div class="sub-status-tags" v-if="resume.resumeSubStatus">
-            <a-tag v-if="resume.resumeSubStatus === 'SCORING'" color="blue">
-              <LoadingOutlined /> 评分中
-            </a-tag>
-            <a-tag v-if="resume.resumeSubStatus === 'APPROVAL'" color="orange">
-              <ClockCircleOutlined /> 审批中
-            </a-tag>
+            <n-tag v-if="resume.resumeSubStatus === 'SCORING'" type="info">
+              <template #icon><n-icon :component="SyncOutline" /></template>
+              评分中
+            </n-tag>
+            <n-tag v-if="resume.resumeSubStatus === 'APPROVAL'" type="warning">
+              <template #icon><n-icon :component="TimeOutline" /></template>
+              审批中
+            </n-tag>
           </div>
 
           <div class="resume-card-footer">
             <span class="create-time">{{ formatDate(resume.createdAt) }}</span>
-            <a-space size="small">
-              <a-button
-                type="link"
+            <n-space size="small">
+              <n-button
+                text
+                type="primary"
                 size="small"
                 v-if="canAssign(resume)"
                 :disabled="resume.resumeSubStatus === 'SCORING'"
                 @click.stop="handleAssign(resume)"
               >
                 分配
-              </a-button>
-              <a-button
-                type="link"
+              </n-button>
+              <n-button
+                text
+                type="primary"
                 size="small"
                 v-if="canArchive(resume)"
                 @click.stop="handleArchive(resume)"
               >
                 归档
-              </a-button>
-              <a-button
-                type="link"
+              </n-button>
+              <n-button
+                text
+                type="primary"
                 size="small"
                 v-if="canActivate(resume)"
                 @click.stop="handleActivate(resume)"
               >
                 激活
-              </a-button>
-            </a-space>
+              </n-button>
+            </n-space>
           </div>
-        </a-card>
+        </n-card>
       </div>
 
       <!-- 空状态 -->
-      <a-empty v-if="!loading && resumeList.length === 0" description="暂无简历" />
-    </a-spin>
+      <n-empty v-if="!loading && resumeList.length === 0" description="暂无简历" />
+    </n-spin>
 
     <!-- 分页 -->
     <div class="pagination" v-if="total > 0">
-      <a-pagination
-        v-model:current="currentPage"
+      <n-pagination
+        v-model:page="currentPage"
         :page-size="pageSize"
-        :total="total"
+        :item-count="total"
         show-quick-jumper
-        @change="handlePageChange"
+        @update:page="handlePageChange"
       />
     </div>
 
     <!-- 简历详情抽屉 -->
-    <a-drawer
-      v-model:open="detailVisible"
-      :title="currentResume?.candidate?.name"
-      width="600"
-      placement="right"
-    >
-      <template v-if="currentResume">
-        <a-descriptions title="基本信息" :column="2">
-          <a-descriptions-item label="姓名">{{ currentResume.candidate?.name }}</a-descriptions-item>
-          <a-descriptions-item label="手机">{{ currentResume.candidate?.phone }}</a-descriptions-item>
-          <a-descriptions-item label="邮箱">{{ currentResume.candidate?.email }}</a-descriptions-item>
-          <a-descriptions-item label="来源">{{ currentResume.source }}</a-descriptions-item>
-        </a-descriptions>
+    <n-drawer v-model:show="detailVisible" :width="600" placement="right">
+      <n-drawer-content :title="currentResume?.candidate?.name" closable>
+        <template v-if="currentResume">
+          <n-descriptions title="基本信息" :column="2">
+            <n-descriptions-item label="姓名">{{ currentResume.candidate?.name }}</n-descriptions-item>
+            <n-descriptions-item label="手机">{{ currentResume.candidate?.phone }}</n-descriptions-item>
+            <n-descriptions-item label="邮箱">{{ currentResume.candidate?.email }}</n-descriptions-item>
+            <n-descriptions-item label="来源">{{ currentResume.source }}</n-descriptions-item>
+          </n-descriptions>
 
-        <a-divider />
+          <n-divider />
 
-        <!-- 锁定人信息 -->
-        <div class="locker-section">
-          <h4><LockOutlined /> 锁定人信息</h4>
-          <a-space direction="vertical" style="width: 100%">
-            <a-alert
-              v-if="currentResume.formalLockerId"
-              type="success"
-              :message="`正式锁定人: ${getFormalLockerName(currentResume)}`"
-              show-icon
-            />
-            <a-alert
-              v-if="currentResume.tempLockerId && isTempLockerValid(currentResume)"
-              type="info"
-              :message="`临时锁定人: ${getTempLockerName(currentResume)} (剩余: ${getTempLockerRemaining(currentResume)})`"
-              show-icon
-            />
-          </a-space>
-        </div>
+          <!-- 锁定人信息 -->
+          <div class="locker-section">
+            <h4><n-icon :component="LockClosedOutline" /> 锁定人信息</h4>
+            <n-space vertical style="width: 100%">
+              <n-alert
+                v-if="currentResume.formalLockerId"
+                type="success"
+                :title="`正式锁定人: ${getFormalLockerName(currentResume)}`"
+                show-icon
+              />
+              <n-alert
+                v-if="currentResume.tempLockerId && isTempLockerValid(currentResume)"
+                type="info"
+                :title="`临时锁定人: ${getTempLockerName(currentResume)} (剩余: ${getTempLockerRemaining(currentResume)})`"
+                show-icon
+              />
+            </n-space>
+          </div>
 
-        <a-divider />
+          <n-divider />
 
-        <!-- 操作按钮 -->
-        <a-space direction="vertical" style="width: 100%">
-          <a-button
-            v-if="canAssign(currentResume)"
-            type="primary"
-            block
-            :disabled="currentResume.resumeSubStatus === 'SCORING'"
-            @click="handleAssign(currentResume)"
-          >
-            分配到职位
-          </a-button>
-          <a-button
-            v-if="canArchive(currentResume)"
-            block
-            @click="handleArchive(currentResume)"
-          >
-            放入人才库
-          </a-button>
-          <a-button
-            v-if="canActivate(currentResume)"
-            type="primary"
-            block
-            @click="handleActivate(currentResume)"
-          >
-            重新激活
-          </a-button>
-        </a-space>
+          <!-- 操作按钮 -->
+          <n-space vertical style="width: 100%">
+            <n-button
+              v-if="canAssign(currentResume)"
+              type="primary"
+              block
+              :disabled="currentResume.resumeSubStatus === 'SCORING'"
+              @click="handleAssign(currentResume)"
+            >
+              分配到职位
+            </n-button>
+            <n-button
+              v-if="canArchive(currentResume)"
+              block
+              @click="handleArchive(currentResume)"
+            >
+              放入人才库
+            </n-button>
+            <n-button
+              v-if="canActivate(currentResume)"
+              type="primary"
+              block
+              @click="handleActivate(currentResume)"
+            >
+              重新激活
+            </n-button>
+          </n-space>
 
-        <a-divider />
+          <n-divider />
 
-        <!-- 流转日志 -->
-        <h4><HistoryOutlined /> 流转日志</h4>
-        <a-timeline>
-          <a-timeline-item v-for="log in flowLogs" :key="log.id">
-            <p><strong>{{ getActionText(log.action) }}</strong></p>
-            <p v-if="log.operatorName">{{ log.operatorName }}</p>
-            <p class="log-time">{{ formatDate(log.createdAt) }}</p>
-          </a-timeline-item>
-        </a-timeline>
-      </template>
-    </a-drawer>
+          <!-- 流转日志 -->
+          <h4><n-icon :component="TimeOutline" /> 流转日志</h4>
+          <n-timeline>
+            <n-timeline-item v-for="log in flowLogs" :key="log.id">
+              <p><strong>{{ getActionText(log.action) }}</strong></p>
+              <p v-if="log.operatorName">{{ log.operatorName }}</p>
+              <p class="log-time">{{ formatDate(log.createdAt) }}</p>
+            </n-timeline-item>
+          </n-timeline>
+        </template>
+      </n-drawer-content>
+    </n-drawer>
 
     <!-- 分配弹窗 -->
-    <a-modal
-      v-model:open="assignVisible"
+    <n-modal
+      v-model:show="assignVisible"
+      preset="dialog"
       title="分配简历"
-      @ok="handleAssignConfirm"
-      :confirmLoading="assignLoading"
+      positive-text="确定"
+      negative-text="取消"
+      :loading="assignLoading"
+      @positive-click="handleAssignConfirm"
     >
-      <a-form :model="assignForm" layout="vertical">
-        <a-form-item label="选择职位" required>
-          <a-select
+      <n-form :model="assignForm" label-placement="top" class="mt-4">
+        <n-form-item label="选择职位" required>
+          <n-select
             v-model:value="assignForm.positionId"
             placeholder="请选择目标职位"
-            show-search
+            filterable
             :options="positionOptions"
           />
-        </a-form-item>
-        <a-form-item label="跳过评分">
-          <a-checkbox v-model:checked="assignForm.skipScoring">直接分配，不进行匹配度评分</a-checkbox>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+        </n-form-item>
+        <n-form-item label="跳过评分">
+          <n-checkbox v-model:checked="assignForm.skipScoring">直接分配，不进行匹配度评分</n-checkbox>
+        </n-form-item>
+      </n-form>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { useMessage } from 'naive-ui'
 import {
-  ReloadOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  FileTextOutlined,
-  StarOutlined,
-  LockOutlined,
-  ClockCircleOutlined,
-  LoadingOutlined,
-  HistoryOutlined
-} from '@ant-design/icons-vue'
+  RefreshOutline,
+  CallOutline,
+  MailOutline,
+  DocumentTextOutline,
+  StarOutline,
+  LockClosedOutline,
+  TimeOutline,
+  SyncOutline,
+} from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
+
+const message = useMessage()
 
 // 状态
 const activeTab = ref('PENDING_ASSIGN')
@@ -372,7 +381,7 @@ const handleAssign = (resume: any) => {
 const handleAssignConfirm = async () => {
   if (!assignForm.positionId) {
     message.warning('请选择职位')
-    return
+    return false
   }
 
   assignLoading.value = true
@@ -441,14 +450,14 @@ const canActivate = (resume: any) => {
 }
 
 // 状态颜色和文本
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    'PENDING_ASSIGN': 'blue',
-    'ASSIGNED': 'green',
-    'ARCHIVED': 'orange',
-    'DELETED': 'red'
+const getStatusType = (status: string): 'info' | 'success' | 'warning' | 'error' | 'default' => {
+  const map: Record<string, 'info' | 'success' | 'warning' | 'error' | 'default'> = {
+    'PENDING_ASSIGN': 'info',
+    'ASSIGNED': 'success',
+    'ARCHIVED': 'warning',
+    'DELETED': 'error'
   }
-  return colors[status] || 'default'
+  return map[status] || 'default'
 }
 
 const getStatusText = (status: string) => {
@@ -516,7 +525,7 @@ const formatDate = (date: string) => {
 }
 
 // 获取正式锁定人姓名
-const getFormalLockerName = async (resume: any) => {
+const getFormalLockerName = (resume: any) => {
   if (!resume.formalLockerId) return '未知'
   return resume.formalLockerName || '未知'
 }

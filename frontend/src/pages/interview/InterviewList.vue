@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, h } from 'vue'
-import { Table as aTable, Card as aCard, Tag as aTag } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { NTag } from 'naive-ui'
 
 interface DataItem {
   id: string
@@ -15,37 +14,32 @@ interface DataItem {
 const columns = ref([
   {
     title: '候选人',
-    dataIndex: 'candidate',
-    key: 'candidate'
+    key: 'candidate',
+    render: (row: DataItem) => row.candidate,
   },
   {
     title: '应聘职位',
-    dataIndex: 'position',
-    key: 'position'
+    key: 'position',
+    render: (row: DataItem) => row.position,
   },
   {
     title: '面试时间',
-    dataIndex: 'time',
-    key: 'time'
+    key: 'time',
+    render: (row: DataItem) => row.time,
   },
   {
     title: '面试官',
-    dataIndex: 'interviewer',
-    key: 'interviewer'
+    key: 'interviewer',
+    render: (row: DataItem) => row.interviewer,
   },
   {
     title: '状态',
-    dataIndex: 'status',
     key: 'status',
-    customRender: ({ text }: { text: string }) => h(aTag, { color: 'blue' }, () => text)
-  }
+    render: (row: DataItem) => h(NTag, { type: 'info' }, { default: () => row.status }),
+  },
 ])
 
 const dataSource = ref<DataItem[]>([])
-
-const locale = ref({
-  emptyText: '暂无数据'
-})
 </script>
 
 <template>
@@ -53,14 +47,13 @@ const locale = ref({
     <div class="page-header">
       <h1 class="page-title">面试管理</h1>
     </div>
-    <a-card>
-      <a-table
+    <n-card :bordered="false" class="rounded-xl">
+      <n-data-table
         :columns="columns"
-        :data-source="dataSource"
-        :row-key="(record: DataItem) => record.id"
-        :locale="locale"
+        :data="dataSource"
+        :row-key="(row: DataItem) => row.id"
       />
-    </a-card>
+    </n-card>
   </div>
 </template>
 

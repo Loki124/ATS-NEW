@@ -6,6 +6,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../app.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -151,7 +152,7 @@ router.post('/register', async (req, res, next) => {
 /**
  * 修改密码
  */
-router.post('/change-password', async (req, res, next) => {
+router.post('/change-password', authMiddleware, async (req, res, next) => {
   try {
     const { oldPassword, newPassword } = req.body;
     const userId = req.userId;
@@ -202,7 +203,7 @@ router.post('/change-password', async (req, res, next) => {
 /**
  * 获取当前用户信息
  */
-router.get('/me', async (req, res, next) => {
+router.get('/me', authMiddleware, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },

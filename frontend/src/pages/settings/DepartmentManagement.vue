@@ -3,195 +3,189 @@
     <div class="page-header">
       <h1 class="page-title">部门管理</h1>
       <div class="page-header-actions">
-        <a-space>
-          <a-input-search
+        <n-space>
+          <n-input
             v-model:value="searchKeyword"
             placeholder="搜索部门名称/编号"
             style="width: 240px"
-            @search="loadDepartments"
-            allow-clear
-          />
-          <a-button @click="loadDepartments">
-            <template #icon><ReloadOutlined /></template>
+            clearable
+            @keyup.enter="loadDepartments"
+          >
+            <template #prefix>
+              <n-icon :component="SearchOutline" />
+            </template>
+          </n-input>
+          <n-button @click="loadDepartments">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
             刷新
-          </a-button>
-          <a-button type="primary" @click="openCreateModal">
-            <template #icon><PlusOutlined /></template>
+          </n-button>
+          <n-button type="primary" @click="openCreateModal">
+            <template #icon><n-icon :component="AddOutline" /></template>
             新建部门
-          </a-button>
-        </a-space>
+          </n-button>
+        </n-space>
       </div>
     </div>
 
-    <a-card>
-      <a-table
-        :dataSource="filteredDepartments"
+    <n-card>
+      <n-data-table
+        :data="filteredDepartments"
         :columns="columns"
-        rowKey="id"
+        :row-key="(row: Department) => row.id"
         :loading="loading"
-        :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (total: number) => `共 ${total} 条` }"
-        :expand-row-by-click="false"
-        :default-expand-all-rows="false"
-        size="middle"
+        :pagination="{ pageSize: 20, showSizePicker: true, pageSizes: [10, 20, 50], prefix: ({ itemCount }: any) => `共 ${itemCount} 条` }"
+        size="medium"
       />
-    </a-card>
+    </n-card>
 
     <!-- 部门编辑弹窗 -->
-    <a-modal
+    <n-modal
+      v-model:show="deptModalVisible"
+      preset="card"
       :title="editingDept ? '编辑部门' : '新建部门'"
-      :open="deptModalVisible"
-      @cancel="closeDeptModal"
-      @ok="handleDeptSubmit"
-      :width="720"
-      :confirm-loading="submitting"
+      :style="{ width: '720px' }"
+      :mask-closable="false"
     >
-      <a-form layout="vertical" :model="formState">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="部门编号" required>
-              <a-input
+      <n-form :model="formState" label-placement="top">
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="部门编号" required>
+              <n-input
                 v-model:value="formState.code"
                 placeholder="请输入部门编号（唯一）"
                 :disabled="!!editingDept"
               />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="部门名称" required>
-              <a-input v-model:value="formState.name" placeholder="请输入部门名称" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="部门名称" required>
+              <n-input v-model:value="formState.name" placeholder="请输入部门名称" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="上级部门">
-              <a-tree-select
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="上级部门">
+              <n-tree-select
                 v-model:value="formState.parentId"
-                :tree-data="parentTreeData"
+                :options="parentTreeData"
                 placeholder="不选则为顶级部门"
-                allow-clear
-                tree-default-expand-all
+                clearable
+                default-expand-all
                 :disabled="!!editingDept && isDescendant(editingDept.id)"
               />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="排序值">
-              <a-input-number
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="排序值">
+              <n-input-number
                 v-model:value="formState.sortOrder"
                 :min="0"
                 :max="9999"
                 style="width: 100%"
                 placeholder="数字越小越靠前"
               />
-            </a-form-item>
-          </a-col>
-        </a-row>
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-        <a-divider orientation="left" plain>人员配置</a-divider>
+        <n-divider title-placement="left">人员配置</n-divider>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="部门负责人">
-              <a-select
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="部门负责人">
+              <n-select
                 v-model:value="formState.managerId"
                 placeholder="请选择部门负责人"
-                allow-clear
-                show-search
-                :filter-option="filterUserOption"
+                clearable
+                filterable
                 :options="userOptions"
               />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="部门负责人 2">
-              <a-select
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="部门负责人 2">
+              <n-select
                 v-model:value="formState.manager2Id"
                 placeholder="请选择部门负责人2"
-                allow-clear
-                show-search
-                :filter-option="filterUserOption"
+                clearable
+                filterable
                 :options="userOptions"
               />
-            </a-form-item>
-          </a-col>
-        </a-row>
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="部门 HRBP">
-              <a-select
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="部门 HRBP">
+              <n-select
                 v-model:value="formState.hrbpId"
                 placeholder="请选择部门HRBP"
-                allow-clear
-                show-search
-                :filter-option="filterUserOption"
+                clearable
+                filterable
                 :options="userOptions"
               />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="分管 VP">
-              <a-select
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="分管 VP">
+              <n-select
                 v-model:value="formState.manager3Id"
                 placeholder="请选择分管VP"
-                allow-clear
-                show-search
-                :filter-option="filterUserOption"
+                clearable
+                filterable
                 :options="userOptions"
               />
-            </a-form-item>
-          </a-col>
-        </a-row>
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="状态">
-              <a-radio-group v-model:value="formState.status">
-                <a-radio value="ACTIVE">启用</a-radio>
-                <a-radio value="INACTIVE">停用</a-radio>
-              </a-radio-group>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-modal>
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="状态">
+              <n-radio-group v-model:value="formState.status">
+                <n-radio value="ACTIVE">启用</n-radio>
+                <n-radio value="INACTIVE">停用</n-radio>
+              </n-radio-group>
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+      </n-form>
+
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <n-button @click="closeDeptModal">取消</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleDeptSubmit">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  UserOutlined,
-} from '@ant-design/icons-vue';
+  AddOutline,
+  CreateOutline,
+  TrashOutline,
+  RefreshOutline,
+  PersonOutline,
+  SearchOutline,
+} from '@vicons/ionicons5';
 import {
-  Tag as ATag,
-  Button as AButton,
-  Space as ASpace,
-  Modal as AModal,
-  Input as AInput,
-  InputNumber as AInputNumber,
-  InputSearch as AInputSearch,
-  Select as ASelect,
-  Card as ACard,
-  Row as ARow,
-  Col as ACol,
-  Form as AForm,
-  FormItem as AFormItem,
-  TreeSelect as ATreeSelect,
-  Divider as ADivider,
-  Radio as ARadio,
-  RadioGroup as ARadioGroup,
-  Popconfirm as APopconfirm,
-  message,
-  Tooltip as ATooltip,
-} from 'ant-design-vue';
+  NTag,
+  NButton,
+  NSpace,
+  NTooltip,
+  NIcon,
+  NPopconfirm,
+  useMessage,
+} from 'naive-ui';
 import api from '../../api/auth';
+
+const message = useMessage();
 
 interface DeptUserRef {
   id: string;
@@ -285,12 +279,6 @@ const userOptions = computed(() =>
   }))
 );
 
-// 过滤用户选项
-const filterUserOption = (input: string, option: any) => {
-  const text = String(option.label || '').toLowerCase();
-  return text.includes(input.toLowerCase());
-};
-
 // 搜索过滤后的部门
 const filteredDepartments = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase();
@@ -307,8 +295,7 @@ const parentTreeData = computed(() => {
       .filter(d => (d.parentId || null) === parentId)
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     return children.map(d => ({
-      title: `${d.name} (${d.code})`,
-      value: d.id,
+      label: `${d.name} (${d.code})`,
       key: d.id,
       disabled: editingDept.value ? isDescendantOrSelf(d.id, editingDept.value.id) : false,
       children: buildTree(d.id),
@@ -316,8 +303,7 @@ const parentTreeData = computed(() => {
   };
   return [
     {
-      title: '顶级部门',
-      value: '__ROOT__',
+      label: '顶级部门',
       key: '__ROOT__',
       disabled: true,
       children: buildTree(null),
@@ -444,12 +430,15 @@ const handleDelete = async (record: Department) => {
 
 const renderUser = (user?: DeptUserRef | null) => {
   if (!user) return h('span', { style: 'color: #bfbfbf' }, '—');
-  return h(ATag, { color: 'blue' }, () => [h(UserOutlined), ' ', user.realName || user.username]);
+  return h(NTag, { type: 'info', size: 'small' }, {
+    default: () => user.realName || user.username,
+    icon: () => h(NIcon, { component: PersonOutline }),
+  });
 };
 
 const renderParent = (record: Department) => {
   if (!record.parentId) {
-    return h(ATag, { color: 'purple' }, () => '顶级');
+    return h(NTag, { type: 'warning', size: 'small' }, { default: () => '顶级' });
   }
   const parent = departments.value.find(d => d.id === record.parentId);
   if (!parent) return h('span', { style: 'color: #bfbfbf' }, '—');
@@ -459,23 +448,21 @@ const renderParent = (record: Department) => {
 const columns = computed(() => [
   {
     title: '部门编号',
-    dataIndex: 'code',
     key: 'code',
     width: 140,
   },
   {
     title: '部门ID',
-    dataIndex: 'id',
     key: 'id',
     width: 220,
-    customRender: ({ text }: { text: string }) =>
-      h(ATooltip, { title: text }, () =>
-        h('span', { style: 'font-family: monospace; color: #8c8c8c; font-size: 12px' }, text.slice(0, 8) + '…')
-      ),
+    render: (row: Department) =>
+      h(NTooltip, null, {
+        trigger: () => h('span', { style: 'font-family: monospace; color: #8c8c8c; font-size: 12px' }, row.id.slice(0, 8) + '…'),
+        default: () => row.id,
+      }),
   },
   {
     title: '部门名称',
-    dataIndex: 'name',
     key: 'name',
     width: 180,
   },
@@ -483,44 +470,43 @@ const columns = computed(() => [
     title: '上级部门',
     key: 'parent',
     width: 180,
-    customRender: ({ record }: { record: Department }) => renderParent(record),
+    render: (row: Department) => renderParent(row),
   },
   {
     title: '部门负责人',
     key: 'manager',
     width: 130,
-    customRender: ({ record }: { record: Department }) => renderUser(record.manager),
+    render: (row: Department) => renderUser(row.manager),
   },
   {
     title: '部门负责人 2',
     key: 'manager2',
     width: 130,
-    customRender: ({ record }: { record: Department }) => renderUser(record.manager2),
+    render: (row: Department) => renderUser(row.manager2),
   },
   {
     title: '部门 HRBP',
     key: 'hrbp',
     width: 130,
-    customRender: ({ record }: { record: Department }) => renderUser(record.hrbp),
+    render: (row: Department) => renderUser(row.hrbp),
   },
   {
     title: '分管 VP',
     key: 'manager3',
     width: 130,
-    customRender: ({ record }: { record: Department }) => renderUser(record.manager3),
+    render: (row: Department) => renderUser(row.manager3),
   },
   {
     title: '状态',
-    dataIndex: 'status',
     key: 'status',
     width: 90,
-    customRender: ({ text }: { text: string }) => {
-      const map: Record<string, { color: string; label: string }> = {
-        ACTIVE: { color: 'success', label: '启用' },
-        INACTIVE: { color: 'default', label: '停用' },
+    render: (row: Department) => {
+      const map: Record<string, { type: any; label: string }> = {
+        ACTIVE: { type: 'success', label: '启用' },
+        INACTIVE: { type: 'default', label: '停用' },
       };
-      const item = map[text] || { color: 'default', label: text };
-      return h(ATag, { color: item.color }, () => item.label);
+      const item = map[row.status] || { type: 'default', label: row.status };
+      return h(NTag, { type: item.type, size: 'small' }, { default: () => item.label });
     },
   },
   {
@@ -528,33 +514,44 @@ const columns = computed(() => [
     key: 'actions',
     width: 160,
     fixed: 'right' as const,
-    customRender: ({ record }: { record: Department }) =>
-      h(ASpace, { size: 'small' }, () => [
-        h(
-          AButton,
-          {
-            type: 'link',
-            size: 'small',
-            onClick: () => openEditModal(record),
-          },
-          () => [h(EditOutlined), ' 编辑']
-        ),
-        h(
-          APopconfirm,
-          {
-            title: '确认删除此部门？',
-            okText: '确认',
-            cancelText: '取消',
-            onConfirm: () => handleDelete(record),
-          },
-          () =>
-            h(
-              AButton,
-              { type: 'link', size: 'small', danger: true },
-              () => [h(DeleteOutlined), ' 删除']
-            )
-        ),
-      ]),
+    render: (row: Department) =>
+      h(NSpace, { size: 'small' }, {
+        default: () => [
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              size: 'small',
+              onClick: () => openEditModal(row),
+            },
+            {
+              default: () => '编辑',
+              icon: () => h(NIcon, { component: CreateOutline }),
+            }
+          ),
+          h(
+            NPopconfirm,
+            {
+              onPositiveClick: () => handleDelete(row),
+              positiveText: '确认',
+              negativeText: '取消',
+            },
+            {
+              default: () => '确认删除此部门？',
+              trigger: () =>
+                h(
+                  NButton,
+                  { text: true, type: 'error', size: 'small' },
+                  {
+                    default: () => '删除',
+                    icon: () => h(NIcon, { component: TrashOutline }),
+                  }
+                ),
+            }
+          ),
+        ],
+      }),
   },
 ]);
 

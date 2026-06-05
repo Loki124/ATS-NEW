@@ -23,6 +23,7 @@ import demandRoutes from './routes/demand.routes.js';
 import systemRoutes from './routes/system.routes.js';
 import resumeRoutes from './routes/resume.routes.js';
 import departmentRoutes from './routes/department.routes.js';
+import positionRoutes from './routes/position.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 
@@ -103,6 +104,7 @@ app.use('/api/permissions-v2', authMiddleware, permissionV2Routes);
 app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/processes', authMiddleware, processRoutes);
 app.use('/api/demands', authMiddleware, demandRoutes);
+app.use('/api/positions', authMiddleware, positionRoutes);
 app.use('/api/system', authMiddleware, systemRoutes);
 app.use('/api/resumes', authMiddleware, resumeRoutes);
 app.use('/api/departments', authMiddleware, departmentRoutes);

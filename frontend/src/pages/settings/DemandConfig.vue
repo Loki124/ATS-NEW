@@ -2,95 +2,108 @@
   <div class="config-container">
     <div class="page-header">
       <h1 class="page-title">招聘需求设置</h1>
-      <a-space>
-        <a-button @click="handleReset">重置</a-button>
-        <a-button type="primary" @click="handleSave" :loading="saving">保存配置</a-button>
-      </a-space>
+      <n-space>
+        <n-button @click="handleReset">重置</n-button>
+        <n-button type="primary" :loading="saving" @click="handleSave">保存配置</n-button>
+      </n-space>
     </div>
 
     <div class="config-content">
-      <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }">
+      <n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
-        <a-card title="功能设置" class="config-card">
-          <a-form-item label="需求使用模式">
-            <a-radio-group v-model:value="formData.demandMode">
-              <a-radio value="task">任务模式</a-radio>
-              <a-radio value="quick_leave">闪离模式</a-radio>
-              <a-radio value="non_task">非任务模式</a-radio>
-            </a-radio-group>
-            <div class="field-note">
-              <span>任务模式：按招聘流程任务推进</span>
-              <span>闪离模式：快速入职流程</span>
-              <span>非任务模式：自由招聘流程</span>
+        <n-card title="功能设置" class="config-card">
+          <n-form-item label="需求使用模式">
+            <div class="form-field-wrap">
+              <n-radio-group v-model:value="formData.demandMode">
+                <n-radio value="task">任务模式</n-radio>
+                <n-radio value="quick_leave">闪离模式</n-radio>
+                <n-radio value="non_task">非任务模式</n-radio>
+              </n-radio-group>
+              <div class="field-note">
+                <span>任务模式：按招聘流程任务推进</span>
+                <span>闪离模式：快速入职流程</span>
+                <span>非任务模式：自由招聘流程</span>
+              </div>
             </div>
-          </a-form-item>
-          <a-form-item label="需求终止态">
-            <a-checkbox-group v-model:value="formData.terminationStatus">
-              <a-checkbox value="completed">已完成</a-checkbox>
-              <a-checkbox value="stopped">已停招</a-checkbox>
-            </a-checkbox-group>
+          </n-form-item>
+          <n-form-item label="需求终止态">
+            <n-checkbox-group v-model:value="formData.terminationStatus">
+              <n-space>
+                <n-checkbox value="completed">已完成</n-checkbox>
+                <n-checkbox value="stopped">已停招</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
             <span class="switch-tip">选择可用作需求终止的状态</span>
-          </a-form-item>
-          <a-form-item label="Offer人数管控">
-            <a-switch v-model:checked="formData.offerHeadcountControl" />
+          </n-form-item>
+          <n-form-item label="Offer人数管控">
+            <n-switch v-model:value="formData.offerHeadcountControl" />
             <span class="switch-tip">开启后Offer创建数量受需求人数限制</span>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+        </n-card>
 
         <!-- 抢单设置 -->
-        <a-card title="抢单设置" class="config-card">
-          <a-form-item label="全局开启抢单模式">
-            <a-switch v-model:checked="formData.grabModeEnabled" />
+        <n-card title="抢单设置" class="config-card">
+          <n-form-item label="全局开启抢单模式">
+            <n-switch v-model:value="formData.grabModeEnabled" />
             <span class="switch-tip">开启后抢单功能生效，需求中的交易信息模块内容可配置</span>
-          </a-form-item>
-          <a-form-item label="抢单模式开关权限">
-            <a-checkbox-group v-model:value="formData.grabModeSwitchRoles">
-              <a-checkbox value="super_admin_product">超管-产线</a-checkbox>
-            </a-checkbox-group>
+          </n-form-item>
+          <n-form-item label="抢单模式开关权限">
+            <n-checkbox-group v-model:value="formData.grabModeSwitchRoles">
+              <n-space>
+                <n-checkbox value="super_admin_product">超管-产线</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
             <span class="switch-tip">仅选中的角色可以操作抢单模式开关</span>
-          </a-form-item>
-          <a-form-item label="抢单人配置权限">
-            <a-checkbox-group v-model:value="formData.grabModeOperatorRoles">
-              <a-checkbox value="hrbp">HRBP</a-checkbox>
-            </a-checkbox-group>
+          </n-form-item>
+          <n-form-item label="抢单人配置权限">
+            <n-checkbox-group v-model:value="formData.grabModeOperatorRoles">
+              <n-space>
+                <n-checkbox value="hrbp">HRBP</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
             <span class="switch-tip">可添加/删除抢单人（系统自动填充的抢单人不可删除）</span>
-          </a-form-item>
-          <a-form-item label="抢单金额配置权限">
-            <a-checkbox-group v-model:value="formData.grabModeAmountRoles">
-              <a-checkbox value="hrbp">HRBP</a-checkbox>
-            </a-checkbox-group>
+          </n-form-item>
+          <n-form-item label="抢单金额配置权限">
+            <n-checkbox-group v-model:value="formData.grabModeAmountRoles">
+              <n-space>
+                <n-checkbox value="hrbp">HRBP</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
             <span class="switch-tip">可配置抢单相关金额</span>
-          </a-form-item>
-          <a-form-item label="交易信息管理权限">
-            <a-checkbox-group v-model:value="formData.transactionManageRoles">
-              <a-checkbox value="hrbp">HRBP</a-checkbox>
-              <a-checkbox value="demand_manager">需求负责人</a-checkbox>
-              <a-checkbox value="super_admin_business">超管-业务</a-checkbox>
-              <a-checkbox value="super_admin_product">超管-产线</a-checkbox>
-              <a-checkbox value="personal">个人</a-checkbox>
-            </a-checkbox-group>
+          </n-form-item>
+          <n-form-item label="交易信息管理权限">
+            <n-checkbox-group v-model:value="formData.transactionManageRoles">
+              <n-space>
+                <n-checkbox value="hrbp">HRBP</n-checkbox>
+                <n-checkbox value="demand_manager">需求负责人</n-checkbox>
+                <n-checkbox value="super_admin_business">超管-业务</n-checkbox>
+                <n-checkbox value="super_admin_product">超管-产线</n-checkbox>
+                <n-checkbox value="personal">个人</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
             <span class="switch-tip">可查看和操作需求中的交易信息</span>
-          </a-form-item>
-          <a-form-item label="超时自动入池">
-            <a-input-number v-model:value="formData.grabPoolTimeoutHours" :min="0" :max="168" />
+          </n-form-item>
+          <n-form-item label="超时自动入池">
+            <n-input-number v-model:value="formData.grabPoolTimeoutHours" :min="0" :max="168" />
             <span class="input-tip">小时</span>
             <span class="switch-tip">超过指定时间未邀约成功自动进入抢单池（0表示关闭）</span>
-          </a-form-item>
-          <a-form-item label="职位创建权限">
-            <a-radio-group v-model:value="formData.positionCreateRole">
-              <a-radio value="hrbp">HRBP</a-radio>
-              <a-radio value="demand_assistant">需求协助人</a-radio>
-            </a-radio-group>
+          </n-form-item>
+          <n-form-item label="职位创建权限">
+            <n-radio-group v-model:value="formData.positionCreateRole">
+              <n-radio value="hrbp">HRBP</n-radio>
+              <n-radio value="demand_assistant">需求协助人</n-radio>
+            </n-radio-group>
             <span class="switch-tip">控制谁可以创建职位</span>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+        </n-card>
 
         <!-- 画像设置 -->
-        <a-card title="画像设置" class="config-card">
-          <a-form-item label="画像字段约束规则">
+        <n-card title="画像设置" class="config-card">
+          <n-form-item label="画像字段约束规则">
             <div class="profile-rules-editor">
-              <a-textarea
+              <n-input
                 v-model:value="formData.profileFieldRules"
+                type="textarea"
                 placeholder="请输入画像字段约束规则，每行一条规则，格式：字段名:规则描述"
                 :rows="6"
                 class="rules-textarea"
@@ -102,164 +115,172 @@
                 <p>skills: 技能标签至少选择2个</p>
               </div>
             </div>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+        </n-card>
 
         <!-- 招聘类型配置 -->
-        <a-card title="招聘类型配置" class="config-card">
-          <a-form-item label="启用社会招聘">
-            <a-switch v-model:checked="formData.enableSocial" />
-          </a-form-item>
-          <a-form-item label="启用校园招聘">
-            <a-switch v-model:checked="formData.enableCampus" />
-          </a-form-item>
-          <a-form-item label="启用实习生招聘">
-            <a-switch v-model:checked="formData.enableIntern" />
-          </a-form-item>
-          <a-form-item label="启用内推">
-            <a-switch v-model:checked="formData.enableReferral" />
-          </a-form-item>
-        </a-card>
+        <n-card title="招聘类型配置" class="config-card">
+          <n-form-item label="启用社会招聘">
+            <n-switch v-model:value="formData.enableSocial" />
+          </n-form-item>
+          <n-form-item label="启用校园招聘">
+            <n-switch v-model:value="formData.enableCampus" />
+          </n-form-item>
+          <n-form-item label="启用实习生招聘">
+            <n-switch v-model:value="formData.enableIntern" />
+          </n-form-item>
+          <n-form-item label="启用内推">
+            <n-switch v-model:value="formData.enableReferral" />
+          </n-form-item>
+        </n-card>
 
         <!-- 部门配置 -->
-        <a-card title="部门配置" class="config-card">
-          <a-form-item label="允许跨部门招聘">
-            <a-switch v-model:checked="formData.allowCrossDepartment" />
-          </a-form-item>
-          <a-form-item label="默认需求部门">
-            <a-select v-model:value="formData.defaultDepartmentId" placeholder="请选择默认部门" style="width: 200px">
-              <a-select-option v-for="dept in departments" :key="dept.id" :value="dept.id">
-                {{ dept.name }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="部门层级限制">
-            <a-input-number v-model:value="formData.departmentLevelLimit" :min="1" :max="5" />
+        <n-card title="部门配置" class="config-card">
+          <n-form-item label="允许跨部门招聘">
+            <n-switch v-model:value="formData.allowCrossDepartment" />
+          </n-form-item>
+          <n-form-item label="默认需求部门">
+            <n-select
+              v-model:value="formData.defaultDepartmentId"
+              placeholder="请选择默认部门"
+              style="width: 200px"
+              :options="departmentOptions"
+            />
+          </n-form-item>
+          <n-form-item label="部门层级限制">
+            <n-input-number v-model:value="formData.departmentLevelLimit" :min="1" :max="5" />
             <span class="input-tip">级</span>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+        </n-card>
 
         <!-- 薪资配置 -->
-        <a-card title="薪资配置" class="config-card">
-          <a-form-item label="薪资单位">
-            <a-select v-model:value="formData.salaryUnit" style="width: 120px">
-              <a-select-option value="K">K (千元)</a-select-option>
-              <a-select-option value="W">W (万元)</a-select-option>
-              <a-select-option value="Y">元</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="最低薪资">
-            <a-input-number v-model:value="formData.minSalary" :min="0" style="width: 120px" />
+        <n-card title="薪资配置" class="config-card">
+          <n-form-item label="薪资单位">
+            <n-select
+              v-model:value="formData.salaryUnit"
+              style="width: 120px"
+              :options="salaryUnitOptions"
+            />
+          </n-form-item>
+          <n-form-item label="最低薪资">
+            <n-input-number v-model:value="formData.minSalary" :min="0" style="width: 120px" />
             <span class="input-tip">{{ formData.salaryUnit }}</span>
-          </a-form-item>
-          <a-form-item label="最高薪资">
-            <a-input-number v-model:value="formData.maxSalary" :min="0" style="width: 120px" />
+          </n-form-item>
+          <n-form-item label="最高薪资">
+            <n-input-number v-model:value="formData.maxSalary" :min="0" style="width: 120px" />
             <span class="input-tip">{{ formData.salaryUnit }}</span>
-          </a-form-item>
-          <a-form-item label="薪资保密">
-            <a-switch v-model:checked="formData.salaryConfidential" />
+          </n-form-item>
+          <n-form-item label="薪资保密">
+            <n-switch v-model:value="formData.salaryConfidential" />
             <span class="switch-tip">开启后候选人无法查看具体薪资</span>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+        </n-card>
 
         <!-- 职位配置 -->
-        <a-card title="职位配置" class="config-card">
-          <a-form-item label="默认招聘人数">
-            <a-input-number v-model:value="formData.defaultPositionCount" :min="1" :max="100" />
+        <n-card title="职位配置" class="config-card">
+          <n-form-item label="默认招聘人数">
+            <n-input-number v-model:value="formData.defaultPositionCount" :min="1" :max="100" />
             <span class="input-tip">人</span>
-          </a-form-item>
-          <a-form-item label="最大招聘人数">
-            <a-input-number v-model:value="formData.maxPositionCount" :min="1" :max="500" />
+          </n-form-item>
+          <n-form-item label="最大招聘人数">
+            <n-input-number v-model:value="formData.maxPositionCount" :min="1" :max="500" />
             <span class="input-tip">人</span>
-          </a-form-item>
-          <a-form-item label="启用职位系列">
-            <a-switch v-model:checked="formData.enablePositionSeries" />
-          </a-form-item>
-          <a-form-item label="启用职级">
-            <a-switch v-model:checked="formData.enableJobLevel" />
-          </a-form-item>
-          <a-form-item label="职级体系">
-            <a-checkbox-group v-model:value="formData.jobLevelSystem">
-              <a-checkbox value="P">P系列（专业）</a-checkbox>
-              <a-checkbox value="M">M系列（管理）</a-checkbox>
-              <a-checkbox value="T">T系列（技术）</a-checkbox>
-            </a-checkbox-group>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+          <n-form-item label="启用职位系列">
+            <n-switch v-model:value="formData.enablePositionSeries" />
+          </n-form-item>
+          <n-form-item label="启用职级">
+            <n-switch v-model:value="formData.enableJobLevel" />
+          </n-form-item>
+          <n-form-item label="职级体系">
+            <n-checkbox-group v-model:value="formData.jobLevelSystem">
+              <n-space>
+                <n-checkbox value="P">P系列（专业）</n-checkbox>
+                <n-checkbox value="M">M系列（管理）</n-checkbox>
+                <n-checkbox value="T">T系列（技术）</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
+          </n-form-item>
+        </n-card>
 
         <!-- 需求流程配置 -->
-        <a-card title="需求流程配置" class="config-card">
-          <a-form-item label="需要审批">
-            <a-switch v-model:checked="formData.requireApproval" />
-          </a-form-item>
-          <a-form-item label="审批流程" v-if="formData.requireApproval">
-            <a-select v-model:value="formData.approvalProcessId" placeholder="请选择审批流程" style="width: 200px">
-              <a-select-option v-for="process in processes" :key="process.id" :value="process.id">
-                {{ process.name }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="自动分配HRBP">
-            <a-switch v-model:checked="formData.autoAssignHRBP" />
-          </a-form-item>
-          <a-form-item label="自动分配用人经理">
-            <a-switch v-model:checked="formData.autoAssignManager" />
-          </a-form-item>
-          <a-form-item label="需求有效期">
-            <a-input-number v-model:value="formData.demandValidDays" :min="1" :max="365" />
+        <n-card title="需求流程配置" class="config-card">
+          <n-form-item label="需要审批">
+            <n-switch v-model:value="formData.requireApproval" />
+          </n-form-item>
+          <n-form-item v-if="formData.requireApproval" label="审批流程">
+            <n-select
+              v-model:value="formData.approvalProcessId"
+              placeholder="请选择审批流程"
+              style="width: 200px"
+              :options="processOptions"
+            />
+          </n-form-item>
+          <n-form-item label="自动分配HRBP">
+            <n-switch v-model:value="formData.autoAssignHRBP" />
+          </n-form-item>
+          <n-form-item label="自动分配用人经理">
+            <n-switch v-model:value="formData.autoAssignManager" />
+          </n-form-item>
+          <n-form-item label="需求有效期">
+            <n-input-number v-model:value="formData.demandValidDays" :min="1" :max="365" />
             <span class="input-tip">天</span>
             <span class="input-tip-tip">超过天数自动关闭需求</span>
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+        </n-card>
 
         <!-- 候选人配置 -->
-        <a-card title="候选人配置" class="config-card">
-          <a-form-item label="自动查重">
-            <a-switch v-model:checked="formData.autoDuplicateCheck" />
-          </a-form-item>
-          <a-form-item label="简历保护期">
-            <a-input-number v-model:value="formData.resumeProtectionDays" :min="0" :max="365" />
+        <n-card title="候选人配置" class="config-card">
+          <n-form-item label="自动查重">
+            <n-switch v-model:value="formData.autoDuplicateCheck" />
+          </n-form-item>
+          <n-form-item label="简历保护期">
+            <n-input-number v-model:value="formData.resumeProtectionDays" :min="0" :max="365" />
             <span class="input-tip">天</span>
-          </a-form-item>
-          <a-form-item label="保护期候选人可见">
-            <a-switch v-model:checked="formData.protectedCandidateVisible" />
-          </a-form-item>
-          <a-form-item label="候选人来源必填">
-            <a-switch v-model:checked="formData.requireCandidateSource" />
-          </a-form-item>
-        </a-card>
+          </n-form-item>
+          <n-form-item label="保护期候选人可见">
+            <n-switch v-model:value="formData.protectedCandidateVisible" />
+          </n-form-item>
+          <n-form-item label="候选人来源必填">
+            <n-switch v-model:value="formData.requireCandidateSource" />
+          </n-form-item>
+        </n-card>
 
         <!-- 消息通知配置 -->
-        <a-card title="消息通知配置" class="config-card">
-          <a-form-item label="需求创建通知">
-            <a-switch v-model:checked="formData.notifyOnCreate" />
-          </a-form-item>
-          <a-form-item label="需求审批通知">
-            <a-switch v-model:checked="formData.notifyOnApproval" />
-          </a-form-item>
-          <a-form-item label="需求变更通知">
-            <a-switch v-model:checked="formData.notifyOnChange" />
-          </a-form-item>
-          <a-form-item label="需求关闭通知">
-            <a-switch v-model:checked="formData.notifyOnClose" />
-          </a-form-item>
-          <a-form-item label="通知方式">
-            <a-checkbox-group v-model:value="formData.notifyMethods">
-              <a-checkbox value="wechat">企业微信</a-checkbox>
-              <a-checkbox value="email">邮件</a-checkbox>
-              <a-checkbox value="sms">短信</a-checkbox>
-            </a-checkbox-group>
-          </a-form-item>
-        </a-card>
-      </a-form>
+        <n-card title="消息通知配置" class="config-card">
+          <n-form-item label="需求创建通知">
+            <n-switch v-model:value="formData.notifyOnCreate" />
+          </n-form-item>
+          <n-form-item label="需求审批通知">
+            <n-switch v-model:value="formData.notifyOnApproval" />
+          </n-form-item>
+          <n-form-item label="需求变更通知">
+            <n-switch v-model:value="formData.notifyOnChange" />
+          </n-form-item>
+          <n-form-item label="需求关闭通知">
+            <n-switch v-model:value="formData.notifyOnClose" />
+          </n-form-item>
+          <n-form-item label="通知方式">
+            <n-checkbox-group v-model:value="formData.notifyMethods">
+              <n-space>
+                <n-checkbox value="wechat">企业微信</n-checkbox>
+                <n-checkbox value="email">邮件</n-checkbox>
+                <n-checkbox value="sms">短信</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
+          </n-form-item>
+        </n-card>
+      </n-form>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, onMounted, computed } from 'vue'
+import { useMessage } from 'naive-ui'
 import { get, post } from '../../api/auth'
+
+const message = useMessage()
 
 const saving = ref(false)
 const departments = ref<any[]>([])
@@ -329,6 +350,20 @@ const formData = ref<any>({
 })
 
 const defaultFormData = { ...formData.value }
+
+const departmentOptions = computed(() =>
+  departments.value.map(d => ({ label: d.name, value: d.id }))
+)
+
+const processOptions = computed(() =>
+  processes.value.map(p => ({ label: p.name, value: p.id }))
+)
+
+const salaryUnitOptions = [
+  { label: 'K (千元)', value: 'K' },
+  { label: 'W (万元)', value: 'W' },
+  { label: '元', value: 'Y' },
+]
 
 const fetchConfig = async () => {
   try {
@@ -417,21 +452,27 @@ onMounted(() => {
   border-radius: 8px;
 }
 
-.config-card :deep(.ant-card-head) {
+.config-card :deep(.n-card-header) {
   background: #fafafa;
   border-radius: 8px 8px 0 0;
 }
 
-.config-card :deep(.ant-card-head-title) {
+.config-card :deep(.n-card-header__main) {
   font-weight: 600;
 }
 
-.config-card :deep(.ant-form-item) {
+.config-card :deep(.n-form-item) {
   margin-bottom: 16px;
 }
 
-.config-card :deep(.ant-form-item:last-child) {
+.config-card :deep(.n-form-item:last-child) {
   margin-bottom: 0;
+}
+
+.form-field-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .input-tip {

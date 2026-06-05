@@ -3,20 +3,18 @@
     <div class="page-header">
       <h1 class="page-title">数据字典</h1>
     </div>
-    <a-card>
-      <a-table :columns="columns" :dataSource="dataSource" rowKey="id" :pagination="false" />
-    </a-card>
+    <n-card>
+      <n-empty description="数据字典功能开发中">
+        <template #icon>
+          <n-icon :component="BookOutline" :size="64" color="#FBCE5B" />
+        </template>
+      </n-empty>
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-const dataSource = ref([])
-const columns = [
-  { title: '字典名称', dataIndex: 'name', key: 'name' },
-  { title: '所属分类', dataIndex: 'category', key: 'category' },
-  { title: '状态', dataIndex: 'status', key: 'status' }
-]
+import { BookOutline } from '@vicons/ionicons5'
 </script>
 
 <style scoped>

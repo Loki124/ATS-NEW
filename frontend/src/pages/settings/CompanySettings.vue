@@ -3,20 +3,18 @@
     <div class="page-header">
       <h1 class="page-title">公司设置</h1>
     </div>
-    <a-card>
-      <a-table :columns="columns" :dataSource="dataSource" rowKey="id" :pagination="false" />
-    </a-card>
+    <n-card>
+      <n-empty description="公司设置功能开发中">
+        <template #icon>
+          <n-icon :component="BusinessOutline" :size="64" color="#FBCE5B" />
+        </template>
+      </n-empty>
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-const dataSource = ref([])
-const columns = [
-  { title: '公司名称', dataIndex: 'name', key: 'name' },
-  { title: '地址', dataIndex: 'address', key: 'address' },
-  { title: '状态', dataIndex: 'status', key: 'status' }
-]
+import { BusinessOutline } from '@vicons/ionicons5'
 </script>
 
 <style scoped>

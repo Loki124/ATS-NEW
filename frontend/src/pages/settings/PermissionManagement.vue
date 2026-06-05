@@ -3,22 +3,18 @@
     <div class="page-header">
       <h1 class="page-title">权限管理</h1>
     </div>
-    <a-card>
-      <a-table :columns="columns" :dataSource="dataSource" rowKey="id" :locale="{ emptyText: '暂无数据' }" />
-    </a-card>
+    <n-card>
+      <n-empty description="权限管理功能开发中">
+        <template #icon>
+          <n-icon :component="ShieldCheckmarkOutline" :size="64" color="#FBCE5B" />
+        </template>
+      </n-empty>
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-
-const dataSource = ref([])
-
-const columns = [
-  { title: '角色名称', dataIndex: 'name', key: 'name' },
-  { title: '角色编码', dataIndex: 'code', key: 'code' },
-  { title: '状态', dataIndex: 'status', key: 'status' }
-]
+import { ShieldCheckmarkOutline } from '@vicons/ionicons5'
 </script>
 
 <style scoped>

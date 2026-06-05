@@ -50,56 +50,61 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
+    const status = error.response?.status;
 
-    // 处理 401 错误 - 尝试刷新 token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // 如果正在刷新，将请求加入队列
-        return new Promise(resolve => {
-          subscribeTokenRefresh((token: string) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            resolve(api(originalRequest));
-          });
-        });
+    // 处理 401 错误
+    if (status === 401) {
+      // 排除登录接口本身的 401（密码错/账号禁用），让 Login.vue 自己处理
+      const isLoginRequest = originalRequest?.url?.includes('/auth/login');
+      if (isLoginRequest) {
+        return Promise.reject(error);
       }
 
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        // 尝试刷新 token
-        const response = await api.post('/auth/refresh');
-        const newToken = response.data?.token;
-        if (newToken) {
-          localStorage.setItem('token', newToken);
-          onTokenRefreshed(newToken);
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return api(originalRequest);
-        }
-        throw new Error('No token returned');
-      } catch (refreshError) {
-        // 刷新失败，清理并跳转登录
-        clearSubscribers();
-        const userStore = useUserStore();
-        userStore.logout();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
+      // 排除 /auth/refresh 自身的 401（避免循环）
+      const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh');
+      if (isRefreshRequest) {
+        handleAuthFailure('会话已过期，请重新登录');
+        return Promise.reject(error);
       }
+
+      // 其他接口 401：直接登出 + 跳登录页
+      // 暂不实现 token 刷新（后端未提供 /auth/refresh），避免幽灵 404
+      handleAuthFailure('登录状态已失效，请重新登录');
+      return Promise.reject(error);
     }
 
     // 处理其他错误
     const errorMessage = (error.response?.data as any)?.message || error.message || '请求失败';
-    console.error('[API Response Error]', {
-      status: error.response?.status,
-      message: errorMessage,
-      url: originalRequest?.url,
-    });
+    if (status !== undefined) {
+      console.error('[API Response Error]', {
+        status,
+        message: errorMessage,
+        url: originalRequest?.url,
+      });
+    }
 
     return Promise.reject(error);
   }
 );
+
+// 统一处理认证失败
+function handleAuthFailure(message: string) {
+  if (isRefreshing) return; // 防止重复触发
+  isRefreshing = true;
+
+  clearSubscribers();
+  const userStore = useUserStore();
+  userStore.logout();
+
+  // 避免在登录页时重复跳转
+  if (window.location.pathname !== '/login') {
+    // 简易提示：直接 console.warn 即可（n-message 在 App.vue 已配，无需动态导入）
+    console.warn('[auth]', message);
+    window.location.href = '/login';
+  }
+
+  isRefreshing = false;
+}
 
 // 认证相关API
 export const login = (username: string, password: string) => {
@@ -120,10 +125,6 @@ export const register = (data: {
 
 export const changePassword = (oldPassword: string, newPassword: string) => {
   return api.post('/auth/change-password', { oldPassword, newPassword });
-};
-
-export const getCurrentUser = () => {
-  return api.get('/auth/me');
 };
 
 // 通用API方法

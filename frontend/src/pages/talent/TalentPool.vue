@@ -3,23 +3,18 @@
     <div class="page-header">
       <h1 class="page-title">人才库</h1>
     </div>
-    <a-card>
-      <a-table :columns="columns" :dataSource="dataSource" rowKey="id" :locale="{ emptyText: '暂无数据' }" />
-    </a-card>
+    <n-card>
+      <n-empty description="人才库功能开发中">
+        <template #icon>
+          <n-icon :component="PeopleCircleOutline" :size="64" color="#FBCE5B" />
+        </template>
+      </n-empty>
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-
-const dataSource = ref([])
-
-const columns = [
-  { title: '姓名', dataIndex: 'name', key: 'name' },
-  { title: '手机号', dataIndex: 'phone', key: 'phone' },
-  { title: '最高学历', dataIndex: 'education', key: 'education' },
-  { title: '人才库类型', dataIndex: 'type', key: 'type' }
-]
+import { PeopleCircleOutline } from '@vicons/ionicons5'
 </script>
 
 <style scoped>

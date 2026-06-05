@@ -1,23 +1,132 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import Antd from 'ant-design-vue'
 import App from './App.vue'
 import router from './router'
+
+// Naive UI —— 必须显式注册（不像 antd 那样 app.use() 自动）
+// 用 create() 把常用组件包成一个 plugin 一次性注册
+import {
+  create,
+  NConfigProvider,
+  NMessageProvider,
+  NDialogProvider,
+  NNotificationProvider,
+  NLoadingBarProvider,
+  NButton,
+  NCard,
+  NInput,
+  NInputNumber,
+  NSelect,
+  NCheckbox,
+  NCheckboxGroup,
+  NRadio,
+  NRadioGroup,
+  NSwitch,
+  NForm,
+  NFormItem,
+  NFormItemRow,
+  NDataTable,
+  NTag,
+  NSpace,
+  NDivider,
+  NEmpty,
+  NSpin,
+  NAvatar,
+  NBadge,
+  NText,
+  NH1,
+  NH2,
+  NH3,
+  NH4,
+  NH5,
+  NP,
+  NIcon,
+  NLayout,
+  NLayoutHeader,
+  NLayoutSider,
+  NLayoutContent,
+  NMenu,
+  NTabs,
+  NTabPane,
+  NDropdown,
+  NModal,
+  NDrawer,
+  NDrawerContent,
+  NPopconfirm,
+  NPopover,
+  NTooltip,
+  NDescriptions,
+  NDescriptionsItem,
+  NTree,
+  NTreeSelect,
+  NUpload,
+  NUploadDragger,
+  NSteps,
+  NStep,
+  NGrid,
+  NGi,
+  NGridItem,
+  NDatePicker,
+  NTimeline,
+  NTimelineItem,
+  NAlert,
+  NScrollbar,
+  NCollapse,
+  NCollapseItem,
+  NBackTop,
+  NCarousel,
+  NCarouselItem,
+  NImage,
+  NInputGroup,
+  NStatistic,
+  NList,
+  NListItem,
+  NThing,
+  NSkeleton,
+  NResult,
+  NPagination,
+  NRadioButton,
+} from 'naive-ui'
+
+import 'virtual:uno.css'
+import '@unocss/reset/tailwind.css'
 import './index.css'
-
-// Ant Design Vue theme configuration
-import { ThemeConfig } from 'ant-design-vue/es/config-provider/context'
-
-const theme: ThemeConfig = {
-  token: {
-    colorPrimary: '#FBCE5B',
-  },
-}
 
 const app = createApp(App)
 
+const naive = create({
+  components: [
+    NConfigProvider, NMessageProvider, NDialogProvider, NNotificationProvider, NLoadingBarProvider,
+    NButton, NCard, NInput, NInputNumber, NSelect,
+    NCheckbox, NCheckboxGroup, NRadio, NRadioGroup, NSwitch,
+    NForm, NFormItem, NFormItemRow,
+    NDataTable, NTag, NSpace, NDivider, NEmpty, NSpin,
+    NAvatar, NBadge, NText,
+    NH1, NH2, NH3, NH4, NH5, NP, NIcon,
+    NLayout, NLayoutHeader, NLayoutSider, NLayoutContent,
+    NMenu, NTabs, NTabPane, NDropdown,
+    NModal, NDrawer, NDrawerContent,
+    NPopconfirm, NPopover, NTooltip,
+    NDescriptions, NDescriptionsItem,
+    NTree, NTreeSelect,
+    NUpload, NUploadDragger,
+    NSteps, NStep,
+    NGrid, NGi, NGridItem,
+    NDatePicker,
+    NTimeline, NTimelineItem,
+    NAlert, NScrollbar,
+    NCollapse, NCollapseItem,
+    NBackTop, NCarousel, NCarouselItem,
+    NImage, NInputGroup,
+    NStatistic,
+    NList, NListItem, NThing,
+    NSkeleton, NResult,
+    NPagination, NRadioButton,
+  ],
+})
+
 app.use(createPinia())
 app.use(router)
-app.use(Antd, { theme })
+app.use(naive)
 
 app.mount('#app')

@@ -3,32 +3,42 @@
     <div class="page-header">
       <h1 class="page-title">邀约中心</h1>
     </div>
-    <a-card>
-      <a-table
+    <n-card :bordered="false" class="rounded-xl">
+      <n-data-table
         :columns="columns"
-        :data-source="dataSource"
-        :row-key="(record: any) => record.id"
-        :locale="{ emptyText: '暂无数据' }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag color="cyan">{{ record.status }}</a-tag>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
+        :data="dataSource"
+        :row-key="(row: DataItem) => row.id"
+      />
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Table as ATable, Card as ACard, Tag as ATag } from 'ant-design-vue'
+import { h, ref } from 'vue'
+import { NTag } from 'naive-ui'
+
+interface DataItem {
+  id: string
+  candidate: string
+  position: string
+  status: string
+}
 
 const columns = ref([
-  { title: '候选人', dataIndex: 'candidate', key: 'candidate' },
-  { title: '应聘职位', dataIndex: 'position', key: 'position' },
-  { title: '邀约状态', dataIndex: 'status', key: 'status' },
+  { title: '候选人', key: 'candidate', render: (row: DataItem) => row.candidate },
+  { title: '应聘职位', key: 'position', render: (row: DataItem) => row.position },
+  {
+    title: '邀约状态',
+    key: 'status',
+    render: (row: DataItem) => h(NTag, { type: 'info' }, { default: () => row.status }),
+  },
 ])
 
-const dataSource = ref<any[]>([])
+const dataSource = ref<DataItem[]>([])
 </script>
+
+<style scoped>
+.page-container { padding: 24px; }
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 24px; font-weight: 600; margin: 0; }
+</style>

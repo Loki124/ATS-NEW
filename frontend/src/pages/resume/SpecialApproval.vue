@@ -1,124 +1,104 @@
 <template>
   <div class="special-approval-container">
-    <a-card title="特殊简历审批">
-      <template #extra>
-        <a-space>
-          <a-button @click="loadFlows">
-            <template #icon><ReloadOutlined /></template>
+    <n-card title="特殊简历审批">
+      <template #header-extra>
+        <n-space>
+          <n-button @click="loadFlows">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
             刷新
-          </a-button>
-        </a-space>
+          </n-button>
+        </n-space>
       </template>
 
-      <a-table
+      <n-data-table
         :columns="columns"
-        :dataSource="approvalFlows"
+        :data="approvalFlows"
         :loading="loading"
-        row-key="id"
+        :row-key="(row: any) => row.id"
         :pagination="{ pageSize: 10 }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-if="column.key === 'progress'">
-            {{ getProgress(record) }}
-          </template>
-          <template v-if="column.key === 'action'">
-            <a-space>
-              <a-button type="link" size="small" @click="handleViewDetail(record)">
-                查看
-              </a-button>
-              <a-button
-                v-if="canApprove(record)"
-                type="link"
-                size="small"
-                @click="handleApprove(record)"
-              >
-                审批
-              </a-button>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
+      />
+    </n-card>
 
     <!-- 审批详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
+    <n-modal
+      v-model:show="detailVisible"
+      preset="card"
       title="审批详情"
-      :footer="null"
-      width="600"
+      style="width: 600px"
     >
       <template v-if="currentFlow">
-        <a-descriptions :column="2" bordered>
-          <a-descriptions-item label="简历">
+        <n-descriptions :column="2" bordered>
+          <n-descriptions-item label="简历">
             {{ currentFlow.resume?.candidate?.name || '未知' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="目标职位">
+          </n-descriptions-item>
+          <n-descriptions-item label="目标职位">
             {{ currentFlow.position?.name || '未知' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="当前状态">
-            <a-tag :color="getStatusColor(currentFlow.status)">
+          </n-descriptions-item>
+          <n-descriptions-item label="当前状态">
+            <n-tag :type="getStatusType(currentFlow.status)">
               {{ getStatusText(currentFlow.status) }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="发起时间">
+            </n-tag>
+          </n-descriptions-item>
+          <n-descriptions-item label="发起时间">
             {{ formatDate(currentFlow.createdAt) }}
-          </a-descriptions-item>
-        </a-descriptions>
+          </n-descriptions-item>
+        </n-descriptions>
 
-        <a-divider>审批进度</a-divider>
+        <n-divider>审批进度</n-divider>
 
-        <a-timeline>
-          <a-timeline-item
+        <n-timeline>
+          <n-timeline-item
             v-for="(node, index) in getNodes(currentFlow)"
             :key="index"
-            :color="getNodeColor(node.status)"
+            :type="getNodeType(node.status)"
           >
             <p><strong>{{ node.nodeName }}</strong></p>
             <p v-if="node.approverName">{{ node.approverName }}</p>
             <p v-if="node.comment">{{ node.comment }}</p>
             <p class="node-time" v-if="node.decidedAt">{{ formatDate(node.decidedAt) }}</p>
             <p v-else-if="node.status === 'PENDING'" class="node-pending">待审批</p>
-          </a-timeline-item>
-        </a-timeline>
+          </n-timeline-item>
+        </n-timeline>
       </template>
-    </a-modal>
+    </n-modal>
 
     <!-- 审批操作弹窗 -->
-    <a-modal
-      v-model:open="approveVisible"
+    <n-modal
+      v-model:show="approveVisible"
+      preset="dialog"
       title="审批操作"
-      @ok="handleSubmitApproval"
-      :confirmLoading="submitting"
+      positive-text="确定"
+      negative-text="取消"
+      :loading="submitting"
+      @positive-click="handleSubmitApproval"
     >
-      <a-form :model="approveForm" layout="vertical">
-        <a-form-item label="审批意见" required>
-          <a-textarea
+      <n-form :model="approveForm" label-placement="top" class="mt-4">
+        <n-form-item label="审批意见" required>
+          <n-input
             v-model:value="approveForm.comment"
+            type="textarea"
             placeholder="请输入审批意见"
             :rows="4"
           />
-        </a-form-item>
-        <a-form-item label="操作">
-          <a-radio-group v-model:value="approveForm.action">
-            <a-radio value="APPROVED">通过</a-radio>
-            <a-radio value="REJECTED">驳回</a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+        </n-form-item>
+        <n-form-item label="操作">
+          <n-radio-group v-model:value="approveForm.action">
+            <n-radio value="APPROVED">通过</n-radio>
+            <n-radio value="REJECTED">驳回</n-radio>
+          </n-radio-group>
+        </n-form-item>
+      </n-form>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
+import { ref, reactive, onMounted, h } from 'vue'
+import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
+import { RefreshOutline } from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
+
+const message = useMessage()
 
 const loading = ref(false)
 const approvalFlows = ref<any[]>([])
@@ -134,12 +114,46 @@ const approveForm = reactive({
 })
 
 const columns = [
-  { title: '简历', dataIndex: ['resume', 'candidate', 'name'], key: 'resume' },
-  { title: '目标职位', dataIndex: ['position', 'name'], key: 'position' },
-  { title: '状态', key: 'status' },
-  { title: '进度', key: 'progress' },
-  { title: '发起时间', dataIndex: 'createdAt', key: 'createdAt' },
-  { title: '操作', key: 'action', width: 150 }
+  {
+    title: '简历',
+    key: 'resume',
+    render: (row: any) => row.resume?.candidate?.name || '-'
+  },
+  {
+    title: '目标职位',
+    key: 'position',
+    render: (row: any) => row.position?.name || '-'
+  },
+  {
+    title: '状态',
+    key: 'status',
+    render: (row: any) => h(NTag, { type: getStatusType(row.status) }, { default: () => getStatusText(row.status) })
+  },
+  {
+    title: '进度',
+    key: 'progress',
+    render: (row: any) => getProgress(row)
+  },
+  {
+    title: '发起时间',
+    key: 'createdAt'
+  },
+  {
+    title: '操作',
+    key: 'action',
+    width: 150,
+    render: (row: any) => h(NSpace, {}, () => {
+      const actions = [
+        h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleViewDetail(row) }, { default: () => '查看' })
+      ]
+      if (canApprove(row)) {
+        actions.push(
+          h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleApprove(row) }, { default: () => '审批' })
+        )
+      }
+      return actions
+    })
+  }
 ]
 
 const loadFlows = async () => {
@@ -180,7 +194,7 @@ const handleApprove = (flow: any) => {
 const handleSubmitApproval = async () => {
   if (!approveForm.comment.trim()) {
     message.warning('请输入审批意见')
-    return
+    return false
   }
 
   submitting.value = true
@@ -205,14 +219,14 @@ const handleSubmitApproval = async () => {
   }
 }
 
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    'PENDING': 'blue',
-    'APPROVED': 'green',
-    'REJECTED': 'red',
-    'CANCELLED': 'gray'
+const getStatusType = (status: string): 'info' | 'success' | 'error' | 'default' => {
+  const map: Record<string, 'info' | 'success' | 'error' | 'default'> = {
+    'PENDING': 'info',
+    'APPROVED': 'success',
+    'REJECTED': 'error',
+    'CANCELLED': 'default'
   }
-  return colors[status] || 'default'
+  return map[status] || 'default'
 }
 
 const getStatusText = (status: string) => {
@@ -235,11 +249,11 @@ const getNodes = (flow: any) => {
   return JSON.parse(flow.nodes || '[]')
 }
 
-const getNodeColor = (status: string) => {
-  if (status === 'APPROVED') return 'green'
-  if (status === 'REJECTED') return 'red'
-  if (status === 'PENDING') return 'blue'
-  return 'gray'
+const getNodeType = (status: string): 'success' | 'error' | 'info' | 'default' => {
+  if (status === 'APPROVED') return 'success'
+  if (status === 'REJECTED') return 'error'
+  if (status === 'PENDING') return 'info'
+  return 'default'
 }
 
 const formatDate = (date: string) => {

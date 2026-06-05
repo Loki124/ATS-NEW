@@ -3,19 +3,19 @@
     <div class="page-header">
       <h1 class="page-title">系统设置</h1>
     </div>
-    <a-card>
-      <a-tabs v-model:activeKey="activeTab">
-        <a-tab-pane key="process" tab="招聘流程管理">
-          <a-table :columns="processColumns" :dataSource="processData" rowKey="id" :pagination="false" />
-        </a-tab-pane>
-        <a-tab-pane key="stage" tab="阶段配置">
-          <a-table :columns="stageColumns" :dataSource="stageData" rowKey="id" :pagination="false" />
-        </a-tab-pane>
-        <a-tab-pane key="scoring" tab="评分规则">
-          <a-table :columns="scoringColumns" :dataSource="scoringData" rowKey="id" :pagination="false" />
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
+    <n-card>
+      <n-tabs v-model:value="activeTab" type="line" animated>
+        <n-tab-pane name="process" tab="招聘流程管理">
+          <n-data-table :columns="processColumns" :data="processData" :row-key="(row: any) => row.id" :pagination="false" />
+        </n-tab-pane>
+        <n-tab-pane name="stage" tab="阶段配置">
+          <n-data-table :columns="stageColumns" :data="stageData" :row-key="(row: any) => row.id" :pagination="false" />
+        </n-tab-pane>
+        <n-tab-pane name="scoring" tab="评分规则">
+          <n-data-table :columns="scoringColumns" :data="scoringData" :row-key="(row: any) => row.id" :pagination="false" />
+        </n-tab-pane>
+      </n-tabs>
+    </n-card>
   </div>
 </template>
 
@@ -26,21 +26,21 @@ const activeTab = ref('process')
 
 const processData = ref([])
 const processColumns = [
-  { title: '流程名称', dataIndex: 'name', key: 'name' },
-  { title: '流程编码', dataIndex: 'code', key: 'code' },
-  { title: '状态', dataIndex: 'status', key: 'status' }
+  { title: '流程名称', key: 'name' },
+  { title: '流程编码', key: 'code' },
+  { title: '状态', key: 'status' }
 ]
 
 const stageData = ref([])
 const stageColumns = [
-  { title: '阶段名称', dataIndex: 'name', key: 'name' },
-  { title: '阶段类型', dataIndex: 'type', key: 'type' }
+  { title: '阶段名称', key: 'name' },
+  { title: '阶段类型', key: 'type' }
 ]
 
 const scoringData = ref([])
 const scoringColumns = [
-  { title: '规则名称', dataIndex: 'name', key: 'name' },
-  { title: '规则类型', dataIndex: 'type', key: 'type' }
+  { title: '规则名称', key: 'name' },
+  { title: '规则类型', key: 'type' }
 ]
 </script>
 

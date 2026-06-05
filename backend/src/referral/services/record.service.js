@@ -121,7 +121,10 @@ export async function handleCandidateStageChange(prisma, candidateId, fromStage,
  * 我的内推列表
  */
 export async function listForReferrer(prisma, referrerId, opts = {}) {
-  const { page = 1, pageSize = 20, status, positionId, includeInvalid = false } = opts;
+  // 修复：query string 的 page/pageSize 是字符串
+  const page = Number(opts.page) || 1;
+  const pageSize = Number(opts.pageSize) || 20;
+  const { status, positionId, includeInvalid = false } = opts;
   const where = { referrerId };
   if (positionId) where.positionId = positionId;
   if (status) where.referralStatus = status;
