@@ -216,16 +216,17 @@ import { useUserStore } from '../../stores/user'
 
 const message = useMessage()
 const userStore = useUserStore()
-const user = userStore.user
+// 修复：userStore.user 是 Vue ref，必须 .value 访问属性
+const user = computed(() => userStore.user)
 
 const activeTab = ref('profile')
 
 // 表单状态
 const formState = reactive({
-  username: user?.username || '',
-  realName: user?.realName || '',
-  email: user?.email || '',
-  phone: user?.phone || '',
+  username: user.value?.username || '',
+  realName: user.value?.realName || '',
+  email: user.value?.email || '',
+  phone: user.value?.phone || '',
   newPassword: '',
   confirmPassword: ''
 })
@@ -312,7 +313,7 @@ const dataScopeColumns = [
 // 加载用户角色
 const loadUserRoles = async () => {
   try {
-    const data = (await api.get(`/api/permissions/users/${user?.id}/roles`)).data
+    const data = (await api.get(`/permissions/users/${user.value?.id}/roles`)).data
     if (data.success) {
       userRoles.value = data.data.map((ur: any) => ur.roleId)
     }
@@ -324,7 +325,7 @@ const loadUserRoles = async () => {
 // 加载角色列表
 const loadRoles = async () => {
   try {
-    const data = (await api.get('/api/permissions/roles')).data
+    const data = (await api.get('/permissions/roles')).data
     if (data.success) {
       roles.value = data.data
     }
@@ -336,7 +337,7 @@ const loadRoles = async () => {
 // 加载用户权限信息
 const loadMyPermissions = async () => {
   try {
-    const data = (await api.get('/api/permissions/user-info')).data
+    const data = (await api.get('/permissions/user-info')).data
     if (data.success) {
       myPermissions.value = {
         menus: data.data.menus || [],
@@ -356,7 +357,7 @@ const loadMyPermissions = async () => {
 // 保存个人信息
 const handleSaveProfile = async () => {
   try {
-    const data = (await api.put(`/api/users/${user?.id}`, {
+    const data = (await api.put(`/users/${user.value?.id}`, {
         realName: formState.realName,
         email: formState.email,
         phone: formState.phone,
@@ -374,9 +375,9 @@ const handleSaveProfile = async () => {
 
 // 重置表单
 const handleReset = () => {
-  formState.realName = user?.realName || ''
-  formState.email = user?.email || ''
-  formState.phone = user?.phone || ''
+  formState.realName = user.value?.realName || ''
+  formState.email = user.value?.email || ''
+  formState.phone = user.value?.phone || ''
   formState.newPassword = ''
   formState.confirmPassword = ''
 }
@@ -389,7 +390,7 @@ const handleRoleSelectChange = (selectedRowKeys: any) => {
 
 const handleSaveRoles = async (roleIds: string[]) => {
   try {
-    const data = (await api.post(`/api/permissions/users/${user?.id}/roles`, { roleIds })).data
+    const data = (await api.post(`/permissions/users/${user.value?.id}/roles`, { roleIds })).data
     if (data.success) {
       message.success('角色分配成功')
       loadMyPermissions()

@@ -91,65 +91,33 @@ const routes: RouteRecordRaw[] = [
         name: 'Notifications',
         component: () => import('../pages/notification/NotificationList.vue')
       },
+      // ===== 设置（嵌套布局：左侧子菜单 + 右侧内容）=====
       {
-        path: 'settings/account',
-        name: 'AccountSettings',
-        component: () => import('../pages/settings/AccountSettings.vue')
-      },
-      {
-        path: 'settings/process',
-        name: 'ProcessManagement',
-        component: () => import('../pages/settings/ProcessManagement.vue')
-      },
-      {
-        path: 'settings/stage',
-        name: 'StageConfig',
-        component: () => import('../pages/settings/StageConfig.vue')
-      },
-      {
-        path: 'settings/process-management',
-        name: 'ProcessManagementConfig',
-        component: () => import('../pages/settings/ProcessManagement.vue')
-      },
-      {
-        path: 'settings/demand-config',
-        name: 'DemandConfig',
-        component: () => import('../pages/settings/DemandConfig.vue')
-      },
-      {
-        path: 'settings/scoring',
-        name: 'ScoringRules',
-        component: () => import('../pages/settings/ScoringRules.vue')
-      },
-      {
-        path: 'settings/dictionary',
-        name: 'DataDictionary',
-        component: () => import('../pages/settings/DataDictionary.vue')
-      },
-      {
-        path: 'settings/company',
-        name: 'CompanySettings',
-        component: () => import('../pages/settings/CompanySettings.vue')
-      },
-      {
-        path: 'settings/permission',
-        name: 'PermissionManagement',
-        component: () => import('../pages/settings/PermissionManagement.vue')
-      },
-      {
-        path: 'settings/mou',
-        name: 'MouManagement',
-        component: () => import('../pages/settings/MouManagement.vue')
-      },
-      {
-        path: 'settings/user-management',
-        name: 'UserManagement',
-        component: () => import('../pages/settings/UserManagement.vue')
-      },
-      {
-        path: 'settings/department',
-        name: 'DepartmentManagement',
-        component: () => import('../pages/settings/DepartmentManagement.vue')
+        path: 'settings',
+        component: () => import('../pages/settings/SettingsLayout.vue'),
+        children: [
+          { path: '', redirect: '/settings/account' },
+          { path: 'account', name: 'AccountSettings', component: () => import('../pages/settings/AccountSettings.vue') },
+          { path: 'onboarding', name: 'OnboardingSettings', component: () => import('../pages/settings/Placeholder.vue') },
+          { path: 'approval', name: 'ApprovalSettings', component: () => import('../pages/settings/Placeholder.vue') },
+          { path: 'department', name: 'DepartmentManagement', component: () => import('../pages/settings/DepartmentManagement.vue') },
+          { path: 'user-management', name: 'UserManagement', component: () => import('../pages/settings/UserManagement.vue') },
+          { path: 'permission', name: 'PermissionManagement', component: () => import('../pages/settings/PermissionManagement.vue') },
+          { path: 'mou', name: 'MouManagement', component: () => import('../pages/settings/MouManagement.vue') },
+          { path: 'demand-config', name: 'DemandConfig', component: () => import('../pages/settings/DemandConfig.vue') },
+          { path: 'dictionary', name: 'DataDictionary', component: () => import('../pages/settings/DataDictionary.vue') },
+          { path: 'scoring', name: 'ScoringRules', component: () => import('../pages/settings/ScoringRules.vue') },
+          { path: 'process-management', name: 'ProcessManagementConfig', component: () => import('../pages/settings/ProcessManagement.vue') },
+          { path: 'stage', name: 'StageConfig', component: () => import('../pages/settings/StageConfig.vue') },
+          { path: 'company', name: 'CompanySettings', component: () => import('../pages/settings/CompanySettings.vue') },
+          { path: 'external', name: 'ExternalSettings', component: () => import('../pages/settings/Placeholder.vue') },
+          { path: 'public', name: 'PublicSettings', component: () => import('../pages/settings/Placeholder.vue') },
+          // ===== 招聘流程管理 (PRD G38) =====
+          { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import('../pages/settings/RecruitmentProcess.vue') },
+          { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import('../pages/settings/RecruitmentStage.vue') },
+          { path: 'process-stages', name: 'ProcessStageEditor', component: () => import('../pages/settings/ProcessStageEditor.vue') },
+          { path: 'recruitment-round', name: 'RecruitmentRound', component: () => import('../pages/settings/RecruitmentRound.vue') },
+        ],
       },
       {
         path: 'report',

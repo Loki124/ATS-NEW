@@ -223,6 +223,12 @@ model User {
   rewardConfirmations  ReferralReward[]        @relation("RewardConfirmer")
   createdReferralRules ReferralRule[]          @relation("RuleCreator")
 
+  // 招聘流程管理 - 反向关系
+  createdProcesses    RecruitmentProcess[] @relation("ProcessCreator")
+  updatedProcesses    RecruitmentProcess[] @relation("ProcessUpdater")
+  createdRounds       InterviewRound[]     @relation("RoundCreator")
+  updatedRounds       InterviewRound[]     @relation("RoundUpdater")
+
   @@index([departmentId])
   @@index([wechatWorkUserId])
   @@index([wechatWorkDeptId])
@@ -271,38 +277,108 @@ model RecruitmentProcess {
   name            String
   code            String   @unique
   description     String?  @db.Text
-  applicableRange String?
+  applicableRange String?  // 旧字段保留 - 文本备注用
   status          String   @default("ACTIVE") @db.VarChar(32)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  stages    RecruitmentStage[]
+  // ====== 新增字段 (2026-06-05) ======
+  /// 适用范围 - 4 个维度 (#12.1)
+  applicableDepartments    Json? // String[] - departmentId[]
+  applicablePositionLevels Json? // String[]
+  applicableUserIds        Json? // String[] - userId[]
+  applicableJobs           Json? // String[]
+  applicableMode String @default("ALL") @db.VarChar(16)
+
+  /// 是否校验简历评分 (#10.2 #1463)
+  validateResumeScore Boolean @default(true)
+
+  /// 流转异常提示模板 (#3.3)
+  failPrompt String? @db.Text
+
+  /// 审计字段
+  createdBy String?
+  updatedBy String?
+
+  creator User?            @relation("ProcessCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater User?            @relation("ProcessUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  links   ProcessStageLink[]
+  stageRules StageRule[]
+  conditions  EntryCondition[]
+  autoRules  AutoArchiveRule[]
+
   positions Position[]
 
   @@map("recruitment_processes")
 }
 
+/// 招聘流程阶段 — 全局阶段模板库 (PRD #4)
+/// 阶段编号: P + 3 位流水号（全局唯一，不属于任何流程）
+/// 阶段类型: FILTER(筛选型) / INVITATION(邀约型) / INTERVIEW(面试型) / OFFER(Offer型) / ONBOARDING(入职型)
+/// 业务规则:
+///   - 系统预置阶段 (isSystem=true) 不可停用 / 删除
+///   - 阶段被流程引用时不可停用 / 删除
+///   - 起止阶段 (初评/正式录用) 是系统预置，所有流程共享
 model RecruitmentStage {
   id                String   @id @default(uuid())
-  processId         String
+  code              String   @unique
   name              String
-  code              String
   stageType         String   @db.VarChar(32)
-  sortOrder         Int      @default(0)
   stageLimit        Int?
-  isDefault         Boolean  @default(true)
-  optionalFeatures  String?
-  autoFlowCondition String?
-  autoFlowTiming    Int?
-  status            String   @default("ACTIVE") @db.VarChar(32)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
 
-  process RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  // ====== 新增字段 (2026-06-05) ======
+  /// 功能项 (#4.3) - 支持的功能开关 JSON 数组
+  /// 例如: ["INVITE_FILTER", "ARRANGE_INTERVIEW", "INVITE_INTERVIEW", "SEND_OFFER", "START_ONBOARDING", "START_BACKGROUND_CHECK", "INVITE_UPDATE_INFO", "TRANSFER_STAGE", "ARCHIVE"]
+  features Json @default("[]")
+  /// 是否为系统预置阶段 (初评/正式录用) - 不可停用
+  isSystem Boolean @default(false)
+  /// 阶段说明
+  description String? @db.Text
 
-  @@unique([processId, code])
-  @@index([processId])
+  status    String   @default("ACTIVE") @db.VarChar(32)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// 哪些流程引用了这个阶段 - 通过 ProcessStageLink 关联
+  links ProcessStageLink[]
+
+  @@index([stageType, status])
   @@map("recruitment_stages")
+}
+
+/// 流程-阶段关联 (PRD #3.2)
+/// 把全局阶段模板"应用"到具体流程中
+/// 同一阶段在每个流程中只能添加一次 (#3.2 业务规则)
+model ProcessStageLink {
+  id        String  @id @default(uuid())
+  processId String
+  stageId   String
+
+  /// 阶段顺序 (0-based) - #3.2 阶段顺序可在起止阶段之间自由排列
+  orderIndex Int     @default(0)
+  /// 流程内可自定义阶段名 (可选)
+  customName String? @db.VarChar(64)
+  /// 是否为该流程的起始阶段 (初评) - 通常是系统预置
+  isStart    Boolean @default(false)
+  /// 是否为该流程的结束阶段 (正式录用) - 通常是系统预置
+  isEnd      Boolean @default(false)
+  /// 阶段时长限制 (小时) - 从此 link 进入下一阶段的最大停留时间
+  stageLimit Int?
+  /// 状态 - 可单独停用 (不影响全局模板)
+  status     String  @default("ACTIVE") @db.VarChar(32)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  process   RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  stage     RecruitmentStage   @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  rule      StageRule?
+  condition EntryCondition?
+
+  @@unique([processId, stageId])
+  @@index([processId, orderIndex])
+  @@map("process_stage_links")
 }
 
 model Demand {
@@ -1559,4 +1635,189 @@ model ReferralRule {
 
   @@index([ruleType, status])
   @@map("referral_rules")
+}
+
+// =============================================================================
+// 招聘流程管理模块 - 系统设置 - 招聘流程管理 (#38 PRD P0)
+// 在已有的 RecruitmentProcess / RecruitmentStage 上扩展 + 新增 5 张关联表
+// =============================================================================
+
+/// 阶段规则 (#7 阶段规则配置)
+/// 挂在 ProcessStageLink 上 - 一个 link 一个规则
+/// 自动化流转 / 默认处理人 / 阶段限时 / 面试轮次
+model StageRule {
+  id        String  @id @default(uuid())
+  linkId    String  @unique
+  processId String
+
+  /// 自动化流转条件 (#7.2)
+  /// NONE: 不自动流转
+  /// MEET_NEXT: 满足下阶段进入条件
+  /// IGNORE_NEXT: 无视下阶段进入条件
+  /// MEET_NEXT_OR_N2: 满足下阶段进入条件或 N+2 推荐 (#11.1)
+  /// N1_ALL_PASS: N+1 全部通过
+  autoAdvanceType String @default("NONE") @db.VarChar(32)
+
+  /// 执行时机 (#7.2)
+  /// NONE: 不执行 / IMMEDIATE: 立即 / DELAYED: 1-15 个工作日
+  autoAdvanceTiming String @default("NONE") @db.VarChar(16)
+  /// 1-15 工作日 (仅当 autoAdvanceTiming = DELAYED)
+  autoAdvanceDays   Int?
+
+  /// 默认处理人 (#7.3)
+  /// FROM_DEMAND: 需求中 / FROM_POSITION: 职位中 / CUSTOM: 自定义
+  defaultHandlerType String  @default("CUSTOM") @db.VarChar(32)
+  /// 取值字段: 用人经理/用人经理上级/职位负责人/职位协助人 等
+  /// JSON array of string (e.g. ["MANAGER", "MANAGER_SUPER", "POSITION_OWNER"])
+  defaultHandlerFields Json? // String[]
+  /// 指定人员: 用户 id 列表 (#590)
+  defaultHandlerUserIds Json? // String[]
+
+  /// 阶段限时 (#7.4) - 小时数
+  timeLimit Int?
+  /// 对全部生效 / 仅对新进入有效
+  timeLimitScope String @default("NEW_ONLY") @db.VarChar(16)
+
+  /// 面试轮次 (仅面试型阶段) - JSON array of InterviewRound.id
+  interviewRoundIds Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  link    ProcessStageLink   @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  process RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@map("stage_rules")
+}
+
+/// 阶段进入条件 (#5 进入条件配置)
+/// 挂在 ProcessStageLink 上 (一个 link 一个条件)
+/// 类型: STAGE_STATUS(阶段状态) / CANDIDATE(候选人) / MIXED(混合条件)
+/// 提示内容: #5.5 #1810
+model EntryCondition {
+  id        String  @id @default(uuid())
+  linkId    String  @unique
+  processId String
+
+  /// 判定方式: ALL(全部满足) / ANY(任意满足)
+  matchType String @default("ALL") @db.VarChar(16)
+  /// 条件类型: STAGE_STATUS / CANDIDATE / MIXED
+  conditionType String @default("MIXED") @db.VarChar(32)
+  /// 提示内容 - 当候选人转移阶段时不满足条件时展示
+  prompt String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  link    ProcessStageLink  @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  process RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  items   ConditionItem[]
+
+  @@map("entry_conditions")
+}
+
+/// 条件项 (#5.4 混合条件)
+/// 树形结构 - 最多 3 级嵌套 (#5.4 交互规则)
+/// 表达式示例: (1 or 2) and (3 or 4)
+/// 校验规则 (#5.4 表达式校验):
+///   - 有 and 和 or 必须要有括号
+///   - 一个括号内不能同时出现 and 和 or
+///   - 括号必须成对出现
+///   - 括号不允许嵌套
+///   - 不允许出现不存在的规则编号
+model ConditionItem {
+  id              String  @id @default(uuid())
+  entryConditionId String
+
+  /// 父条件项 id (null 表示根)
+  parentId         String?
+  /// 与父项的逻辑: AND / OR (根节点为 null)
+  relationToParent String? @db.VarChar(8)
+
+  /// 字段:
+  /// STAGE_STATUS / AGE / GENDER / MARRIAGE / HIGHEST_EDU / HIGHEST_EDU_DURATION / HIGHEST_EDU_SCHOOL_TAG
+  /// FIRST_EDU / FIRST_EDU_DURATION / FIRST_EDU_SCHOOL_TAG
+  /// JOB / LEVEL / COMPANY / RESUME_SOURCE / RESUME_CHANNEL
+  field String @db.VarChar(64)
+
+  /// 运算符: GT / GTE / EQ / LT / LTE / BETWEEN / IN / NOT_IN / CONTAINS / NOT_CONTAINS / EMPTY / NOT_EMPTY
+  operator String @db.VarChar(32)
+
+  /// 值 - JSON (依运算符: 单值 / 数组 / 区间)
+  value Json?
+
+  /// 用于 STAGE_STATUS 类型: 关联的 stageId
+  /// 用于 CANDIDATE 类型: 字典 id (如学历字典)
+  refStageId String?
+  refDictId  String?
+
+  /// 排序 - 用于 UI 展示
+  orderIndex Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  entryCondition EntryCondition @relation(fields: [entryConditionId], references: [id], onDelete: Cascade)
+  parent         ConditionItem?  @relation("ConditionChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children       ConditionItem[]  @relation("ConditionChildren")
+
+  @@index([entryConditionId, parentId])
+  @@index([parentId, orderIndex])
+  @@map("condition_items")
+}
+
+/// 面试轮次 (#6 面试轮次管理)
+/// 轮次编号: 自动生成
+/// 状态: ACTIVE / INACTIVE
+model InterviewRound {
+  id          String  @id @default(uuid())
+  code        String  @unique @db.VarChar(16)
+  name        String  @db.VarChar(64) // 初试/复试/终试 等
+  description String? @db.Text
+  /// 关联的面试评价表 (简化为名称占位 - 后续可关联字典)
+  evaluationFormName String? @db.VarChar(64)
+  /// 是否为通用评价表
+  isUniversal Boolean @default(false)
+
+  status    String  @default("ACTIVE") @db.VarChar(32)
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User?  @relation("RoundCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater User?  @relation("RoundUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("interview_rounds")
+}
+
+/// 自动归档规则 (#8 自动化规则)
+/// 挂在 RecruitmentProcess 上
+/// 规则类型:
+///   INVITE_FAIL: 邀约不成功
+///   OFFER_FAIL: Offer 不通过
+///   EVAL_FAIL: 评估/筛选/面试不通过
+///   TIMEOUT_UNASSIGNED: 超时未分配
+model AutoArchiveRule {
+  id        String  @id @default(uuid())
+  processId String
+  /// 规则类型
+  ruleType  String  @db.VarChar(32)
+  /// 是否启用
+  enabled   Boolean @default(true)
+  /// 配置 (Json) - 详见各类型
+  /// INVITE_FAIL: { failTags: [string], maxAttempts: number, timeWindow?: number }
+  /// OFFER_FAIL: { rejectTypes: ["REJECTED_BY_APPROVER" | "REJECTED_BY_CANDIDATE"] }
+  /// EVAL_FAIL: { stageId: string, failTags: [string], executeTiming: "IMMEDIATE" | "DELAYED", delayDays?: number }
+  /// TIMEOUT_UNASSIGNED: { timeoutDays: number }
+  config    Json    @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  process RecruitmentProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@unique([processId, ruleType])
+  @@index([processId, enabled])
+  @@map("auto_archive_rules")
 }
