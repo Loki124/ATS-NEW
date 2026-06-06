@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 // ========== MOU管理单元 ==========
 
 // 获取MOU列表
-router.get('/mou', async (req, res) => {
+router.get('/mou', async (req, res, next) => {
   try {
     const { type, status } = req.query;
     const where = {};
@@ -35,7 +35,7 @@ router.get('/mou', async (req, res) => {
 });
 
 // 创建MOU
-router.post('/mou', async (req, res) => {
+router.post('/mou', async (req, res, next) => {
   try {
     const { name, code, type, mouType, description, parentMouId, metadata } = req.body;
     
@@ -79,7 +79,7 @@ router.post('/mou', async (req, res) => {
 });
 
 // 更新MOU
-router.put('/mou/:id', async (req, res) => {
+router.put('/mou/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, metadata, status, startDate, endDate } = req.body;
@@ -103,7 +103,7 @@ router.put('/mou/:id', async (req, res) => {
 });
 
 // 删除MOU
-router.delete('/mou/:id', async (req, res) => {
+router.delete('/mou/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -127,7 +127,7 @@ router.delete('/mou/:id', async (req, res) => {
 });
 
 // 添加用户到MOU
-router.post('/mou/:mouId/users', async (req, res) => {
+router.post('/mou/:mouId/users', async (req, res, next) => {
   try {
     const { mouId } = req.params;
     const { userId, roleInMou, startDate, endDate } = req.body;
@@ -167,7 +167,7 @@ router.post('/mou/:mouId/users', async (req, res) => {
 });
 
 // 移除MOU用户
-router.delete('/mou/:mouId/users/:userId', async (req, res) => {
+router.delete('/mou/:mouId/users/:userId', async (req, res, next) => {
   try {
     const { mouId, userId } = req.params;
     
@@ -201,7 +201,7 @@ router.delete('/mou/:mouId/users/:userId', async (req, res) => {
 });
 
 // 获取用户的MOU列表
-router.get('/users/:userId/mou', async (req, res) => {
+router.get('/users/:userId/mou', async (req, res, next) => {
   try {
     const { userId } = req.params;
     
@@ -223,7 +223,7 @@ router.get('/users/:userId/mou', async (req, res) => {
 // ========== 容器模型 ==========
 
 // 获取用户的MOU列表 (兼容前端路径)
-router.get('/mou/user-mous/:userId', async (req, res) => {
+router.get('/mou/user-mous/:userId', async (req, res, next) => {
   try {
     const { userId } = req.params;
 
@@ -243,7 +243,7 @@ router.get('/mou/user-mous/:userId', async (req, res) => {
 });
 
 // 获取容器列表
-router.get('/containers', async (req, res) => {
+router.get('/containers', async (req, res, next) => {
   try {
     const { type, status } = req.query;
     const where = {};
@@ -266,7 +266,7 @@ router.get('/containers', async (req, res) => {
 });
 
 // 创建容器
-router.post('/containers', async (req, res) => {
+router.post('/containers', async (req, res, next) => {
   try {
     const { name, code, type, description, mouId, resourceFilter } = req.body;
     
@@ -294,7 +294,7 @@ router.post('/containers', async (req, res) => {
 });
 
 // 更新容器
-router.put('/containers/:id', async (req, res) => {
+router.put('/containers/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, mouId, resourceFilter, status } = req.body;
@@ -318,7 +318,7 @@ router.put('/containers/:id', async (req, res) => {
 });
 
 // 删除容器
-router.delete('/containers/:id', async (req, res) => {
+router.delete('/containers/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -336,7 +336,7 @@ router.delete('/containers/:id', async (req, res) => {
 });
 
 // 添加用户到容器
-router.post('/containers/:containerId/users', async (req, res) => {
+router.post('/containers/:containerId/users', async (req, res, next) => {
   try {
     const { containerId } = req.params;
     const { userId, accessLevel, startDate, endDate } = req.body;
@@ -376,7 +376,7 @@ router.post('/containers/:containerId/users', async (req, res) => {
 });
 
 // 移除容器用户
-router.delete('/containers/:containerId/users/:userId', async (req, res) => {
+router.delete('/containers/:containerId/users/:userId', async (req, res, next) => {
   try {
     const { containerId, userId } = req.params;
     
@@ -410,7 +410,7 @@ router.delete('/containers/:containerId/users/:userId', async (req, res) => {
 });
 
 // 添加资源到容器
-router.post('/containers/:containerId/resources', async (req, res) => {
+router.post('/containers/:containerId/resources', async (req, res, next) => {
   try {
     const { containerId } = req.params;
     const { resourceType, resourceId } = req.body;
@@ -429,7 +429,7 @@ router.post('/containers/:containerId/resources', async (req, res) => {
 });
 
 // 获取用户的容器列表
-router.get('/users/:userId/containers', async (req, res) => {
+router.get('/users/:userId/containers', async (req, res, next) => {
   try {
     const { userId } = req.params;
     
@@ -454,7 +454,7 @@ router.get('/users/:userId/containers', async (req, res) => {
 // ========== 自动化规则 ==========
 
 // 获取自动化规则列表
-router.get('/automation-rules', async (req, res) => {
+router.get('/automation-rules', async (req, res, next) => {
   try {
     const { eventType, status } = req.query;
     const where = {};
@@ -473,7 +473,7 @@ router.get('/automation-rules', async (req, res) => {
 });
 
 // 创建自动化规则
-router.post('/automation-rules', async (req, res) => {
+router.post('/automation-rules', async (req, res, next) => {
   try {
     const { name, code, description, eventType, condition, actions, priority } = req.body;
     
@@ -500,7 +500,7 @@ router.post('/automation-rules', async (req, res) => {
 });
 
 // 更新自动化规则
-router.put('/automation-rules/:id', async (req, res) => {
+router.put('/automation-rules/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, condition, actions, priority, status } = req.body;
@@ -524,7 +524,7 @@ router.put('/automation-rules/:id', async (req, res) => {
 });
 
 // 删除自动化规则
-router.delete('/automation-rules/:id', async (req, res) => {
+router.delete('/automation-rules/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     await prisma.automationRule.delete({ where: { id } });
@@ -535,7 +535,7 @@ router.delete('/automation-rules/:id', async (req, res) => {
 });
 
 // 执行自动化规则（内部调用）
-router.post('/automation-rules/:id/execute', async (req, res) => {
+router.post('/automation-rules/:id/execute', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { userId, context } = req.body;
@@ -579,7 +579,7 @@ router.post('/automation-rules/:id/execute', async (req, res) => {
 });
 
 // 获取自动化规则执行日志
-router.get('/automation-rules/:id/logs', async (req, res) => {
+router.get('/automation-rules/:id/logs', async (req, res, next) => {
   try {
     const { id } = req.params;
     const logs = await prisma.automationLog.findMany({
@@ -596,7 +596,7 @@ router.get('/automation-rules/:id/logs', async (req, res) => {
 // ========== 互斥角色组 ==========
 
 // 获取互斥角色组列表
-router.get('/mutual-exclusion-groups', async (req, res) => {
+router.get('/mutual-exclusion-groups', async (req, res, next) => {
   try {
     const groups = await prisma.mutualExclusionGroup.findMany({
       orderBy: { createdAt: 'desc' }
@@ -608,7 +608,7 @@ router.get('/mutual-exclusion-groups', async (req, res) => {
 });
 
 // 创建互斥角色组
-router.post('/mutual-exclusion-groups', async (req, res) => {
+router.post('/mutual-exclusion-groups', async (req, res, next) => {
   try {
     const { name, description, roleIds } = req.body;
     
@@ -627,7 +627,7 @@ router.post('/mutual-exclusion-groups', async (req, res) => {
 });
 
 // 删除互斥角色组
-router.delete('/mutual-exclusion-groups/:id', async (req, res) => {
+router.delete('/mutual-exclusion-groups/:id', async (req, res, next) => {
   try {
     await prisma.mutualExclusionGroup.delete({ where: { id: req.params.id } });
     res.json({ success: true });
@@ -639,7 +639,7 @@ router.delete('/mutual-exclusion-groups/:id', async (req, res) => {
 // ========== 权限审计日志 ==========
 
 // 获取权限审计日志
-router.get('/audit-logs', async (req, res) => {
+router.get('/audit-logs', async (req, res, next) => {
   try {
     const { userId, action, targetType, startDate, endDate, page = 1, pageSize = 20 } = req.query;
     
