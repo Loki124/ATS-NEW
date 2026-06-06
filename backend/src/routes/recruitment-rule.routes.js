@@ -21,6 +21,11 @@ import { Router } from 'express';
 import { prisma } from '../app.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { evaluateConditionTree, buildFailedPrompt } from '../services/recruitment-condition.service.js';
+import {
+  evaluateCandidateForStage,
+  evaluateCandidateForStages,
+  checkStageTransitionAllowed,
+} from '../services/candidate-condition.service.js';
 
 const router = Router();
 
@@ -167,8 +172,55 @@ router.post('/entry-conditions/:id/evaluate', async (req, res, next) => {
         prompt: result.passed ? null : buildFailedPrompt(cond.items, result.failedItems, context, cond.prompt),
       },
     });
-  } catch (e) { next(e); }
+  } catch (e) { next(e) }
 });
+
+// ============================================================
+// 候选人进入条件 (PRD G10 + G1.5) - 候选人上下文的快捷入口
+// ============================================================
+
+/**
+ * 评估候选人是否满足某条 EntryCondition
+ * POST /api/recruitment-rules/candidates/:candidateId/evaluate
+ * body: { entryConditionId, applicationId? }
+ */
+router.post('/candidates/:candidateId/evaluate', async (req, res, next) => {
+  try {
+    const { entryConditionId, applicationId } = req.body || {}
+    if (!entryConditionId) return res.status(400).json({ success: false, message: 'entryConditionId 必填' })
+    const result = await evaluateCandidateForStage(req.params.candidateId, entryConditionId, applicationId)
+    res.json({ success: true, data: result })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 批量评估候选人对多条 EntryCondition
+ * POST /api/recruitment-rules/candidates/:candidateId/evaluate-batch
+ * body: { entryConditionIds: string[], applicationId? }
+ */
+router.post('/candidates/:candidateId/evaluate-batch', async (req, res, next) => {
+  try {
+    const { entryConditionIds, applicationId } = req.body || {}
+    if (!Array.isArray(entryConditionIds) || entryConditionIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'entryConditionIds 必填且非空' })
+    }
+    const results = await evaluateCandidateForStages(req.params.candidateId, entryConditionIds, applicationId)
+    res.json({ success: true, data: results })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 应用阶段转移前校验 (核心 G10 端点)
+ * POST /api/recruitment-rules/applications/:applicationId/check-stage-transition
+ * body: { entryConditionId? }   // 可选, 不传则用 application 的 link 上的条件
+ */
+router.post('/applications/:applicationId/check-stage-transition', async (req, res, next) => {
+  try {
+    const { entryConditionId } = req.body || {}
+    const result = await checkStageTransitionAllowed(req.params.applicationId, entryConditionId)
+    res.json({ success: true, data: result })
+  } catch (e) { next(e) }
+})
 
 // ============================================================
 // 自动归档规则 (#8)
