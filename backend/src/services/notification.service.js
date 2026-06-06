@@ -18,7 +18,7 @@
 import { prisma } from '../app.js'
 
 // 内联模板 (兜底,DB 没找到时用) - PRD G36 MVP 4 模板
-const INLINE_TEMPLATES = {
+export const INLINE_TEMPLATES = {
   DEMAND_APPROVAL_PENDING: {
     title: '【审批待办】需求 {{demandName}}',
     content: '{{submitterName}} 提交了需求「{{demandName}}」等待您审批',
@@ -85,6 +85,8 @@ function renderTemplate(template, context) {
   return result
 }
 
+export { renderTemplate }
+
 /**
  * 加载模板 (DB 优先, 内存兜底)
  */
@@ -103,6 +105,8 @@ async function loadTemplate(templateKey) {
   if (inline) return { title: inline.title, content: inline.content, source: 'inline' }
   return null
 }
+
+export { loadTemplate }
 
 /**
  * 发送通知
@@ -172,7 +176,7 @@ export async function markAsRead(notificationId) {
 export async function listTemplates({ category, channel, isActive, limit = 100 } = {}) {
   return prisma.notificationTemplate.findMany({
     where: { ...(category && { category }), ...(channel && { channel }), ...(isActive !== undefined && { isActive }) },
-    orderBy: { category: 'asc', templateKey: 'asc' },
+    orderBy: [{ category: 'asc' }, { templateKey: 'asc' }],
     take: limit,
   })
 }

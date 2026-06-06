@@ -12,6 +12,7 @@
 
 const SOFT_DELETE_MODELS = new Set([
   'user', 'department', 'demand', 'position', 'candidate', 'offer', 'onboarding',
+  // 注: notificationTemplate / offerTemplate / referralRecord 等不需软删
 ])
 
 /**
