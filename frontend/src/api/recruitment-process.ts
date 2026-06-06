@@ -209,6 +209,13 @@ export const updateRound = (id: string, payload: Partial<InterviewRound>) =>
 export const updateRoundStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
   api.put<{ success: boolean; data: InterviewRound }>(`/recruitment-rounds/${id}/status`, { status }).then((r) => r.data.data);
 
+// Auto-archive rules (G38 #8 配套, 暂未实现后端)
+export const listAutoArchiveRules = (params: { processId?: string } = {}) =>
+  api.get<{ success: boolean; data: AutoArchiveRule[] }>('/recruitment-rules/auto-archive-rules', { params }).then((r) => r.data.data)
+
+export const upsertAutoArchiveRule = (rule: Partial<AutoArchiveRule>) =>
+  api.post<{ success: boolean; data: AutoArchiveRule }>('/recruitment-rules/auto-archive-rules', rule).then((r) => r.data.data)
+
 export default {
   listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus,
   listStages, createStage, updateStage, deleteStage, updateStageStatus,
