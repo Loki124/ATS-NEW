@@ -31,6 +31,7 @@ import recruitmentRuleRoutes from './routes/recruitment-rule.routes.js';
 import recruitmentRoundRoutes from './routes/recruitment-round.routes.js';
 import interviewRoutes from './routes/interview.routes.js';
 import offerRoutes from './routes/offer.routes.js';
+import offerTemplateRoutes from './routes/offer-template.routes.js';
 import notificationTemplateRoutes from './routes/notification-template.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
@@ -130,6 +131,7 @@ app.use('/api/interviews', authMiddleware, interviewRoutes);
 
 // ====== Offer 状态机 (PRD G23) ======
 app.use('/api/offers', authMiddleware, offerRoutes);
+app.use('/api/offer-templates', authMiddleware, offerTemplateRoutes);
 
 // ====== 通知模板管理 (PRD G36) ======
 app.use('/api/notification-templates', authMiddleware, notificationTemplateRoutes);
