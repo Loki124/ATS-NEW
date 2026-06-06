@@ -492,6 +492,28 @@ model NotificationQueue {
   @@map("notification_queues")
 }
 
+/// 通知模板 (PRD G36)
+/// 通过 templateKey 索引,变量用 {{name}} 占位
+/// 渠道: SYSTEM (站内) / EMAIL (邮件) / WECOM (企微) / SMS
+model NotificationTemplate {
+  id           String   @id @default(uuid())
+  templateKey  String   @unique @db.VarChar(64)   // e.g. DEMAND_APPROVAL_PENDING
+  name         String   @db.VarChar(128)          // 中文名,便于后台检索
+  channel      String   @default("SYSTEM") @db.VarChar(16)  // SYSTEM/EMAIL/WECOM/SMS
+  category     String   @db.VarChar(32)           // APPROVAL / INTERVIEW / OFFER / ONBOARDING / DEMAND
+  title        String   @db.VarChar(255)          // 标题模板,支持 {{var}}
+  content      String   @db.Text                  // 内容模板
+  variables    Json?                              // 变量定义 [{name, type, required, description}]
+  isActive     Boolean  @default(true)
+  description  String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category, isActive])
+  @@index([channel, isActive])
+  @@map("notification_templates")
+}
+
 /// 需求状态变更历史（操作审计 + 状态机审计的合并视图）
 /// (PRD B.1)
 model DemandStatusHistory {
@@ -898,12 +920,30 @@ model Offer {
 
   candidateFeedback     CandidateOfferFeedback?
   backgroundCheckRecord BackgroundCheckRecord[]
+  statusHistory         OfferStatusHistory[]
 
   @@index([demandId])
   @@index([positionManagerId])
   @@index([offerManagerId])
   @@index([senderId])
+  @@index([offerStatus])
   @@map("offers")
+}
+
+/// Offer 状态变更历史 (PRD G23)
+model OfferStatusHistory {
+  id        String   @id @default(uuid())
+  offerId   String
+  fromStatus String? @db.VarChar(32)
+  toStatus   String  @db.VarChar(32)
+  reason     String? @db.Text
+  operatorId String?
+  createdAt  DateTime @default(now())
+
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, createdAt])
+  @@map("offer_status_history")
 }
 
 model BackgroundCheckRecord {

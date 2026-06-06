@@ -14,7 +14,7 @@ const prisma = new PrismaClient();
 /**
  * 获取简历的当前锁定人信息
  */
-router.get('/resume/:resumeId/lock-info', async (req, res) => {
+router.get('/resume/:resumeId/lock-info', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
 
@@ -72,7 +72,7 @@ router.get('/resume/:resumeId/lock-info', async (req, res) => {
 /**
  * 校验用户是否为锁定人或有权限操作
  */
-router.post('/resume/:resumeId/check-lock-permission', async (req, res) => {
+router.post('/resume/:resumeId/check-lock-permission', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
     const { userId } = req.body;
@@ -127,7 +127,7 @@ router.post('/resume/:resumeId/check-lock-permission', async (req, res) => {
 /**
  * 创建异步评分任务
  */
-router.post('/resume/:resumeId/scoring-tasks', async (req, res) => {
+router.post('/resume/:resumeId/scoring-tasks', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
     const { positionId } = req.body;
@@ -187,7 +187,7 @@ router.post('/resume/:resumeId/scoring-tasks', async (req, res) => {
 /**
  * 获取评分任务状态
  */
-router.get('/scoring-tasks/:taskId', async (req, res) => {
+router.get('/scoring-tasks/:taskId', async (req, res, next) => {
   try {
     const { taskId } = req.params;
 
@@ -206,7 +206,7 @@ router.get('/scoring-tasks/:taskId', async (req, res) => {
 /**
  * 创建特殊审批流程
  */
-router.post('/resume/:resumeId/approval-flow', async (req, res) => {
+router.post('/resume/:resumeId/approval-flow', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
     const { positionId, approvers } = req.body;
@@ -237,7 +237,7 @@ router.post('/resume/:resumeId/approval-flow', async (req, res) => {
 /**
  * 获取特殊审批流程状态
  */
-router.get('/resume/:resumeId/approval-flow', async (req, res) => {
+router.get('/resume/:resumeId/approval-flow', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
 
@@ -255,7 +255,7 @@ router.get('/resume/:resumeId/approval-flow', async (req, res) => {
 /**
  * 获取所有特殊审批流程列表
  */
-router.get('/approval-flows', async (req, res) => {
+router.get('/approval-flows', async (req, res, next) => {
   try {
     const { status } = req.query;
     const where = {};
@@ -280,10 +280,11 @@ router.get('/approval-flows', async (req, res) => {
 /**
  * 审批操作（通过/驳回）
  */
-router.post('/approval-flows/:flowId/approve', async (req, res) => {
+router.post('/approval-flows/:flowId/approve', async (req, res, next) => {
   try {
     const { flowId } = req.params;
-    const { action, comment, approverId } = req.body; // action: APPROVED, REJECTED
+    const { action, comment } = req.body; // action: APPROVED, REJECTED
+    const approverId = req.userId; // IDOR fix: 服务端取, 不从 body 信任
 
     const flow = await prisma.specialApprovalFlow.findUnique({
       where: { id: flowId }
@@ -299,6 +300,11 @@ router.post('/approval-flows/:flowId/approve', async (req, res) => {
 
     const nodes = JSON.parse(flow.nodes || '[]');
     const currentNode = nodes.find(n => n.nodeId === flow.currentNodeId);
+
+    // 鉴权: 当前节点必须指定 approverId,且必须匹配当前用户
+    if (currentNode?.expectedApproverId && currentNode.expectedApproverId !== approverId) {
+      return res.status(403).json({ success: false, message: '您不是当前步骤的审批人' });
+    }
 
     // 更新当前节点审批信息
     if (currentNode) {
@@ -404,7 +410,7 @@ async function addResumeFlowLog(resumeId, candidateId, action, operatorId, opera
 /**
  * 获取简历流转日志
  */
-router.get('/resume/:resumeId/flow-logs', async (req, res) => {
+router.get('/resume/:resumeId/flow-logs', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
 
@@ -424,10 +430,11 @@ router.get('/resume/:resumeId/flow-logs', async (req, res) => {
 /**
  * 分配简历到职位
  */
-router.post('/resume/:resumeId/assign', async (req, res) => {
+router.post('/resume/:resumeId/assign', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
-    const { positionId, operatorId, skipScoring } = req.body;
+    const { positionId, skipScoring } = req.body;
+    const operatorId = req.userId; // IDOR fix
 
     const resume = await prisma.resume.findUnique({
       where: { id: resumeId },
@@ -562,10 +569,11 @@ router.post('/resume/:resumeId/assign', async (req, res) => {
 /**
  * 归档简历到人才库
  */
-router.post('/resume/:resumeId/archive', async (req, res) => {
+router.post('/resume/:resumeId/archive', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
-    const { operatorId, archiveType, archiveToPool } = req.body;
+    const { archiveType, archiveToPool } = req.body;
+    const operatorId = req.userId; // IDOR fix
 
     const resume = await prisma.resume.findUnique({
       where: { id: resumeId }
@@ -608,10 +616,10 @@ router.post('/resume/:resumeId/archive', async (req, res) => {
 /**
  * 从人才库激活简历
  */
-router.post('/resume/:resumeId/activate', async (req, res) => {
+router.post('/resume/:resumeId/activate', async (req, res, next) => {
   try {
     const { resumeId } = req.params;
-    const { operatorId } = req.body;
+    const operatorId = req.userId; // IDOR fix
 
     const resume = await prisma.resume.findUnique({
       where: { id: resumeId }
@@ -688,9 +696,10 @@ router.post('/resume/:resumeId/activate', async (req, res) => {
 /**
  * 合并重复简历
  */
-router.post('/resume-merge', async (req, res) => {
+router.post('/resume-merge', async (req, res, next) => {
   try {
-    const { mainResumeId, mergedResumeId, operatorId, mergeType, reason } = req.body;
+    const { mainResumeId, mergedResumeId, mergeType, reason } = req.body;
+    const operatorId = req.userId; // IDOR fix
 
     const mainResume = await prisma.resume.findUnique({ where: { id: mainResumeId } });
     const mergedResume = await prisma.resume.findUnique({ where: { id: mergedResumeId } });
@@ -745,7 +754,7 @@ router.post('/resume-merge', async (req, res) => {
  * 获取简历列表（支持状态筛选）
  * GET /api/resumes?status=PENDING_ASSIGN&subStatus=SCORING
  */
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const { status, subStatus, page = 1, pageSize = 20 } = req.query;
 

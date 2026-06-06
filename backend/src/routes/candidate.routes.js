@@ -494,4 +494,144 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
+// =====================================
+// 批量操作 (PRD G9)
+// =====================================
+
+/**
+ * 批量推荐候选人到职位
+ * POST /api/candidates/batch/recommend
+ * body: { candidateIds: string[], positionId: string, comment?: string }
+ */
+router.post('/batch/recommend', async (req, res, next) => {
+  try {
+    const { candidateIds, positionId, comment } = req.body || {}
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'candidateIds 必填且非空' })
+    }
+    if (!positionId) {
+      return res.status(400).json({ success: false, message: 'positionId 必填' })
+    }
+
+    const position = await prisma.position.findUnique({ where: { id: positionId } })
+    if (!position) return res.status(404).json({ success: false, message: '职位不存在' })
+
+    // 事务: 批量创建 Application
+    const applications = await prisma.$transaction(
+      candidateIds.map((cid) =>
+        prisma.application.create({
+          data: {
+            code: `APP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            candidateId: cid,
+            positionId,
+            processId: position.processId || position.processIdDefault,
+            processName: position.processName || '',
+            applicationStatus: 'ACTIVE',
+            source: 'BATCH_RECOMMEND',
+          },
+        })
+      )
+    )
+
+    res.json({
+      success: true,
+      message: `已推荐 ${applications.length} 个候选人`,
+      data: { count: applications.length, applications },
+    })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 批量归档候选人
+ * POST /api/candidates/batch/archive
+ * body: { candidateIds: string[], reason?: string, archiveToPool?: boolean }
+ */
+router.post('/batch/archive', async (req, res, next) => {
+  try {
+    const { candidateIds, reason, archiveToPool = true } = req.body || {}
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'candidateIds 必填且非空' })
+    }
+
+    const result = await prisma.candidate.updateMany({
+      where: { id: { in: candidateIds } },
+      data: { status: 'ARCHIVED', archiveReason: reason, archivedAt: new Date() },
+    })
+
+    res.json({
+      success: true,
+      message: `已归档 ${result.count} 个候选人`,
+      data: { count: result.count, archiveToPool },
+    })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 批量分配招聘人
+ * POST /api/candidates/batch/assign
+ * body: { candidateIds: string[], recruiterId: string }
+ */
+router.post('/batch/assign', async (req, res, next) => {
+  try {
+    const { candidateIds, recruiterId } = req.body || {}
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'candidateIds 必填且非空' })
+    }
+    if (!recruiterId) {
+      return res.status(400).json({ success: false, message: 'recruiterId 必填' })
+    }
+
+    const result = await prisma.candidate.updateMany({
+      where: { id: { in: candidateIds } },
+      data: { ownerId: recruiterId, ownerName: req.user?.realName || req.user?.username },
+    })
+
+    res.json({
+      success: true,
+      message: `已分配 ${result.count} 个候选人`,
+      data: { count: result.count, recruiterId },
+    })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 批量导出候选人 CSV
+ * POST /api/candidates/batch/export
+ * body: { candidateIds: string[] } 或 { filter: { ... } }
+ * 返回 text/csv
+ */
+router.post('/batch/export', async (req, res, next) => {
+  try {
+    const { candidateIds, filter = {} } = req.body || {}
+    const where = candidateIds && candidateIds.length > 0
+      ? { id: { in: candidateIds } }
+      : filter
+
+    const candidates = await prisma.candidate.findMany({
+      where,
+      select: {
+        id: true, name: true, phone: true, email: true, gender: true, age: true,
+        highestEducation: true, currentCompany: true, currentPosition: true,
+        status: true, source: true, createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    // 生成 CSV
+    const headers = ['ID', '姓名', '电话', '邮箱', '性别', '年龄', '学历', '当前公司', '当前职位', '状态', '来源', '创建时间']
+    const rows = candidates.map((c) => [
+      c.id, c.name, c.phone, c.email, c.gender, c.age, c.highestEducation,
+      c.currentCompany, c.currentPosition, c.status, c.source,
+      c.createdAt ? new Date(c.createdAt).toISOString() : '',
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${(cell ?? '').toString().replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename=candidates-${Date.now()}.csv`)
+    res.send('﻿' + csv) // BOM 让 Excel 识别 UTF-8
+  } catch (e) { next(e) }
+})
+
 export default router;
