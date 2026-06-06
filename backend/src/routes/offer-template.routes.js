@@ -16,7 +16,9 @@ import {
   listOfferTemplates,
   renderOfferTemplate,
   renderOfferFromRecord,
+  buildOfferContext,
 } from '../services/offer-template.service.js'
+import { generateSimplePdf, offerContextToLines } from '../services/pdf-generator.service.js'
 
 const router = Router()
 
@@ -59,23 +61,20 @@ router.post('/render-from-offer', async (req, res, next) => {
       throw new AppError('format 必须是 html 或 pdf', 400)
     }
 
-    const html = await renderOfferFromRecord(offerId, templateKey)
-
     if (format === 'html') {
+      const html = await renderOfferFromRecord(offerId, templateKey)
       res.setHeader('Content-Type', 'text/html; charset=utf-8')
       return res.send(html)
     }
 
-    // PDF: Phase 3 用 pdfkit/puppeteer, 当前返回 HTML + 提示
-    res.json({
-      success: true,
-      data: {
-        html,
-        templateKey,
-        format: 'html',
-        note: 'PDF 服务端生成需安装 pdfkit (Phase 3), 当前返回 HTML,前端可用 window.print() 转 PDF',
-      },
-    })
+    // PDF (纯 JS, 零依赖)
+    const context = await buildOfferContext(offerId)
+    const tplName = OFFER_TEMPLATES[templateKey]?.name || templateKey
+    const lines = offerContextToLines({ ...context, _templateName: tplName })
+    const pdfBuffer = generateSimplePdf({ title: `${tplName} - ${context.candidateName}`, lines })
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename=offer-${offerId}.pdf`)
+    res.send(pdfBuffer)
   } catch (e) { next(e) }
 })
 
