@@ -593,6 +593,7 @@ model Position {
 
   applications Application[]
   channels     PositionChannel[]
+  statusHistory PositionStatusHistory[]
 
   // 内推门户 Phase 1 - 反向关系
   referralRecords ReferralRecord[] @relation("PositionReferrals")
@@ -603,7 +604,24 @@ model Position {
   @@index([managerId])
   @@index([processId])
   @@index([companyId])
+  @@index([positionStatus])
   @@map("positions")
+}
+
+/// 职位状态变更历史 (PRD G5)
+model PositionStatusHistory {
+  id         String   @id @default(uuid())
+  positionId String
+  fromStatus String?  @db.VarChar(32)
+  toStatus   String  @db.VarChar(32)
+  reason     String?  @db.Text
+  operatorId String?
+  createdAt  DateTime @default(now())
+
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@index([positionId, createdAt])
+  @@map("position_status_history")
 }
 
 model PositionChannel {
