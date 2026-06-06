@@ -33,8 +33,10 @@ import interviewRoutes from './routes/interview.routes.js';
 import offerRoutes from './routes/offer.routes.js';
 import offerTemplateRoutes from './routes/offer-template.routes.js';
 import notificationTemplateRoutes from './routes/notification-template.routes.js';
+import invitationRoutes from './routes/invitation.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
+import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
 
 // 配置
 import config from './config/index.js';
@@ -136,6 +138,9 @@ app.use('/api/offer-templates', authMiddleware, offerTemplateRoutes);
 // ====== 通知模板管理 (PRD G36) ======
 app.use('/api/notification-templates', authMiddleware, notificationTemplateRoutes);
 
+// ====== 邀约管理 (PRD G14 + G15 + G16) ======
+app.use('/api/invitations', authMiddleware, invitationRoutes);
+
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
 app.use(express.static(FRONTEND_DIST));
@@ -165,6 +170,13 @@ try {
   console.warn('[referral] scheduler start failed:', e.message);
 }
 
+// 启动邀约超时调度
+try {
+  startInvitationScheduler(prisma);
+} catch (e) {
+  console.warn('[invitation] scheduler start failed:', e.message);
+}
+
 app.listen(config.app.port, () => {
   console.log(`🚀 ${config.app.name} 已启动`);
   console.log(`📡 后端服务: http://localhost:${config.app.port}`);
@@ -178,6 +190,11 @@ process.on('SIGTERM', async () => {
     stopReferralScheduler();
   } catch (e) {
     console.warn('[referral] scheduler stop failed:', e.message);
+  }
+  try {
+    stopInvitationScheduler();
+  } catch (e) {
+    console.warn('[invitation] scheduler stop failed:', e.message);
   }
   await prisma.$disconnect();
   process.exit(0);
