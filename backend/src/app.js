@@ -29,6 +29,7 @@ import recruitmentStageRoutes from './routes/recruitment-stage.routes.js';
 import recruitmentProcessStageLinkRoutes from './routes/recruitment-process-stage-link.routes.js';
 import recruitmentRuleRoutes from './routes/recruitment-rule.routes.js';
 import recruitmentRoundRoutes from './routes/recruitment-round.routes.js';
+import interviewRoutes from './routes/interview.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 
@@ -121,6 +122,9 @@ app.use('/api/recruitment-stages', authMiddleware, recruitmentStageRoutes);
 app.use('/api/recruitment-process-stage-links', authMiddleware, recruitmentProcessStageLinkRoutes);
 app.use('/api/recruitment-rounds', authMiddleware, recruitmentRoundRoutes);
 app.use('/api/recruitment-rules', authMiddleware, recruitmentRuleRoutes);
+
+// ====== 面试管理 (PRD G3.6) ======
+app.use('/api/interviews', authMiddleware, interviewRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）

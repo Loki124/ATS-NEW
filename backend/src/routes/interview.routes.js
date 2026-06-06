@@ -1,0 +1,217 @@
+/**
+ * 面试管理路由 - PRD G3.6
+ *
+ * 资源：
+ *   GET    /api/interviews                 列表（可按 applicationId 过滤）
+ *   GET    /api/interviews/:id             详情（含 feedbacks）
+ *   POST   /api/interviews                 安排面试
+ *   PUT    /api/interviews/:id             修改时间 / 面试官
+ *   POST   /api/interviews/:id/feedback    提交反馈（关键：触发 stage 状态机刷新）
+ *   DELETE /api/interviews/:id             取消面试
+ */
+
+import { Router } from 'express'
+import { prisma } from '../app.js'
+import { AppError } from '../middleware/error.middleware.js'
+import { refreshApplicationStageStatus } from '../services/interview-state-machine.service.js'
+
+const router = Router()
+
+// ====== 列表 ======
+router.get('/', async (req, res, next) => {
+  try {
+    const { applicationId, roundId, feedbackStatus, interviewStatus, page = 1, pageSize = 20 } = req.query
+    const where = {}
+    if (applicationId) where.applicationId = applicationId
+    if (roundId) where.roundId = roundId
+    if (feedbackStatus) where.feedbackStatus = feedbackStatus
+    if (interviewStatus) where.interviewStatus = interviewStatus
+
+    const [list, total] = await Promise.all([
+      prisma.interview.findMany({
+        where,
+        include: {
+          feedbacks: { select: { id: true, interviewerId: true, result: true, feedbackAt: true } },
+          _count: { select: { feedbacks: true } },
+        },
+        orderBy: { interviewDate: 'desc' },
+        skip: (Number(page) - 1) * Number(pageSize),
+        take: Number(pageSize),
+      }),
+      prisma.interview.count({ where }),
+    ])
+
+    res.json({
+      success: true,
+      data: { list, pagination: { page: Number(page), pageSize: Number(pageSize), total, totalPages: Math.ceil(total / Number(pageSize)) } },
+    })
+  } catch (e) { next(e) }
+})
+
+// ====== 详情 ======
+router.get('/:id', async (req, res, next) => {
+  try {
+    const interview = await prisma.interview.findUnique({
+      where: { id: req.params.id },
+      include: {
+        feedbacks: { orderBy: { feedbackAt: 'asc' } },
+        application: { select: { id: true, currentStageId: true, currentStageStatus: true } },
+      },
+    })
+    if (!interview) return res.status(404).json({ success: false, message: '面试不存在' })
+    res.json({ success: true, data: interview })
+  } catch (e) { next(e) }
+})
+
+// ====== 安排面试 ======
+router.post('/', async (req, res, next) => {
+  try {
+    const {
+      applicationId, roundId, roundName, interviewType, interviewDate, duration = 60,
+      location, meetingLink, interviewerIds, interviewerNames,
+    } = req.body || {}
+
+    if (!applicationId) throw new AppError('applicationId 必填', 400)
+    if (!interviewType) throw new AppError('interviewType 必填', 400)
+    if (!interviewDate) throw new AppError('interviewDate 必填', 400)
+
+    const application = await prisma.application.findUnique({ where: { id: applicationId } })
+    if (!application) throw new AppError('申请不存在', 404)
+
+    const interview = await prisma.interview.create({
+      data: {
+        applicationId,
+        roundId,
+        roundName,
+        interviewType,
+        interviewDate: new Date(interviewDate),
+        duration,
+        location,
+        meetingLink,
+        interviewerIds: Array.isArray(interviewerIds) ? interviewerIds.join(',') : interviewerIds,
+        interviewerNames: Array.isArray(interviewerNames) ? interviewerNames.join(',') : interviewerNames,
+        arrangerId: req.userId,
+        arrangerName: req.user?.realName || req.user?.username,
+        interviewStatus: 'SCHEDULED',
+        feedbackStatus: 'PENDING',
+      },
+    })
+    res.status(201).json({ success: true, data: interview })
+  } catch (e) { next(e) }
+})
+
+// ====== 修改面试 ======
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const updates = req.body || {}
+    const data = {}
+    if (updates.interviewDate) data.interviewDate = new Date(updates.interviewDate)
+    if (updates.duration !== undefined) data.duration = updates.duration
+    if (updates.location !== undefined) data.location = updates.location
+    if (updates.meetingLink !== undefined) data.meetingLink = updates.meetingLink
+    if (updates.interviewerIds !== undefined) {
+      data.interviewerIds = Array.isArray(updates.interviewerIds) ? updates.interviewerIds.join(',') : updates.interviewerIds
+    }
+    if (updates.interviewerNames !== undefined) {
+      data.interviewerNames = Array.isArray(updates.interviewerNames) ? updates.interviewerNames.join(',') : updates.interviewerNames
+    }
+    if (updates.interviewStatus) data.interviewStatus = updates.interviewStatus
+
+    const interview = await prisma.interview.update({ where: { id }, data })
+    res.json({ success: true, data: interview })
+  } catch (e) {
+    if (e.code === 'P2025') return res.status(404).json({ success: false, message: '面试不存在' })
+    next(e)
+  }
+})
+
+// ====== 提交反馈（关键端点 - 触发 G3.6 状态机刷新）======
+router.post('/:id/feedback', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const {
+      result, reason, values, comprehensive, recommendation,
+      participantFeedback, previousFeedback, viewedPrevious,
+    } = req.body || {}
+
+    if (!result) throw new AppError('result 必填 (PASS / FAIL)', 400)
+    if (!['PASS', 'FAIL'].includes(result)) throw new AppError('result 必须是 PASS 或 FAIL', 400)
+
+    const interview = await prisma.interview.findUnique({
+      where: { id },
+      include: { application: { select: { id: true } } },
+    })
+    if (!interview) throw new AppError('面试不存在', 404)
+
+    // upsert 当前用户的 feedback
+    const interviewerId = req.userId
+    const interviewerName = req.user?.realName || req.user?.username
+    const feedback = await prisma.interviewFeedback.upsert({
+      where: { interviewId_interviewerId: { interviewId: id, interviewerId } },
+      create: {
+        interviewId: id,
+        interviewerId,
+        interviewerName,
+        result,
+        reason,
+        values,
+        comprehensive,
+        recommendation,
+        participantFeedback,
+        previousFeedback,
+        viewedPrevious: !!viewedPrevious,
+        feedbackAt: new Date(),
+      },
+      update: {
+        result,
+        reason,
+        values,
+        comprehensive,
+        recommendation,
+        participantFeedback,
+        previousFeedback,
+        viewedPrevious: !!viewedPrevious,
+        feedbackAt: new Date(),
+      },
+    })
+
+    // 更新 interview 的 feedbackStatus 为 COMPLETED
+    await prisma.interview.update({
+      where: { id },
+      data: { feedbackStatus: 'COMPLETED' },
+    })
+
+    // 关键：刷新 application.currentStageStatus
+    const newStageStatus = await refreshApplicationStageStatus(interview.applicationId)
+
+    res.json({
+      success: true,
+      data: { feedback, currentStageStatus: newStageStatus },
+    })
+  } catch (e) { next(e) }
+})
+
+// ====== 取消面试 ======
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { reason, note } = req.body || {}
+    const interview = await prisma.interview.update({
+      where: { id },
+      data: {
+        interviewStatus: 'CANCELLED',
+        cancelReason: reason,
+        cancelNote: note,
+      },
+    })
+    // 取消也触发刷新（可能从 NOT_ARRANGED 退回去）
+    await refreshApplicationStageStatus(interview.applicationId)
+    res.json({ success: true, data: interview })
+  } catch (e) {
+    if (e.code === 'P2025') return res.status(404).json({ success: false, message: '面试不存在' })
+    next(e)
+  }
+})
+
+export default router
