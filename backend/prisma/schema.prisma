@@ -429,13 +429,107 @@ model Demand {
 
   department Department @relation(fields: [departmentId], references: [id])
 
-  positions Position[]
+  positions     Position[]
+  approvalSteps DemandApprovalStep[]
+  statusHistory DemandStatusHistory[]
 
   @@index([departmentId])
   @@index([creatorId])
   @@index([managerId])
   @@index([hrbpId])
   @@map("demands")
+}
+
+/// 需求审批步骤 - PRD G2 多级审批
+/// 步骤状态机：WAITING (未到) → PENDING (待审批) → APPROVED (通过) / REJECTED (拒绝) / SKIPPED (跳过)
+model DemandApprovalStep {
+  id          String   @id @default(uuid())
+  demandId    String
+  stepIndex   Int      // 0-based
+  approverRole String  @db.VarChar(32) // HRBP / MANAGER / MANAGER_SUPER / CHO
+  approverId   String?  // null = 任何该角色的人
+  status      String   @default("WAITING") @db.VarChar(32) // WAITING/PENDING/APPROVED/REJECTED/SKIPPED
+  comment     String?  @db.Text
+  approvedAt  DateTime?
+  submittedBy String?  // 发起人
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  demand Demand @relation(fields: [demandId], references: [id], onDelete: Cascade)
+
+  @@unique([demandId, stepIndex])
+  @@index([demandId, status])
+  @@index([approverId, status])
+  @@map("demand_approval_steps")
+}
+
+/// 通用操作审计日志 - 可被 Demand/Offer/入职/候选人 等所有状态机实体复用
+/// (PRD G1+G2+G3.6+B.1)
+/// 注: schema 已有同名 OperationRecord (line ~1102) 含更完整字段
+/// (userName/targetName/beforeValue/afterValue/ipAddress/userAgent)
+/// 此处不再重复定义,只声明 G1+G2+G3.6 用的子集 (DemandStatusHistory)
+
+/// 通知队列 (PRD B.2 + G36 占位)
+/// 触发: 审批状态变化、面试反馈待提交等
+/// 发送: Phase 1-2 仅写入 + 日志,Phase 3 接企微/邮件后由 cron 拉表实际发送
+model NotificationQueue {
+  id           String   @id @default(uuid())
+  recipientId  String                       // 接收人 userId
+  templateKey  String   @db.VarChar(64)     // 模板 key
+  title        String   @db.VarChar(255)
+  content      String   @db.Text
+  context      Json?                         // 渲染时用的变量
+  priority     String   @default("NORMAL") @db.VarChar(16)  // LOW/NORMAL/HIGH
+  status       String   @default("PENDING") @db.VarChar(16) // PENDING/SENT/READ/FAILED
+  readAt       DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([recipientId, status])
+  @@index([status, priority])
+  @@index([createdAt])
+  @@map("notification_queues")
+}
+
+/// 需求状态变更历史（操作审计 + 状态机审计的合并视图）
+/// (PRD B.1)
+model DemandStatusHistory {
+  id        String   @id @default(uuid())
+  demandId  String
+  fromStatus String? @db.VarChar(32)
+  toStatus   String  @db.VarChar(32)
+  reason     String? @db.Text
+  operatorId String?
+  createdAt  DateTime @default(now())
+
+  demand Demand @relation(fields: [demandId], references: [id], onDelete: Cascade)
+
+  @@index([demandId, createdAt])
+  @@map("demand_status_history")
+}
+
+/// 需求审批链配置 - PRD B.3 (可配置化审批流)
+/// 按 (departmentId, positionLevel, 金额) 维度配置审批步骤
+/// 匹配优先级: 三元组全匹配 > 二元匹配 > 通配 (NULL)
+/// steps: [{ approverRole: 'HRBP' | 'MANAGER' | 'MANAGER_SUPER' | 'CHO', approverId: 'user-xxx' | null }, ...]
+model DemandApprovalConfig {
+  id            String   @id @default(uuid())
+  name          String   @db.VarChar(128)
+  departmentId  String?  // NULL = 通配所有部门
+  positionLevel String?  @db.VarChar(32) // NULL = 通配
+  minAmount     Int?     // 适用金额下限 (cents), NULL = 不限
+  maxAmount     Int?     // 适用金额上限
+  steps         Json     // 步骤数组
+  isActive      Boolean  @default(true)
+  priority      Int      @default(0) // 多条匹配时优先级
+  description   String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([departmentId, positionLevel, isActive])
+  @@index([isActive, priority])
+  @@map("demand_approval_configs")
 }
 
 model Position {
@@ -1001,10 +1095,15 @@ model OperationRecord {
   afterValue    String?
   ipAddress     String?
   userAgent     String?
+  metadata      Json?    // B.1 扩展: 状态机快照等结构化数据
+  reason        String?  @db.Text  // B.1 扩展: 操作原因
+  fromState     String?  @db.VarChar(32)  // B.1 扩展: 状态机源状态(冗余,便于查询)
+  toState       String?  @db.VarChar(32)  // B.1 扩展: 状态机目标状态(冗余)
   createdAt     DateTime @default(now())
 
   @@index([userId])
   @@index([targetId])
+  @@index([targetType, targetId, createdAt])
   @@map("operation_records")
 }
 

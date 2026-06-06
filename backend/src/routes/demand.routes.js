@@ -1,9 +1,19 @@
 /**
  * 招聘需求管理路由
+ *
+ * 状态机相关：
+ *   GET  /api/demands/:id/approvals        审批步骤历史
+ *   POST /api/demands/:id/submit           发起审批
+ *   POST /api/demands/:id/approve         通过当前步骤
+ *   POST /api/demands/:id/reject          拒绝 (需 reason)
+ *   POST /api/demands/:id/cancel-approval 撤销审批 (仅创建人)
+ *   POST /api/demands/:id/transition      状态转移 (target status)
  */
 
 import express from 'express';
 import { prisma } from '../app.js';
+import { canTransitionDemand, DEMAND_STATUSES } from '../services/demand-state-machine.service.js';
+import { submitForApproval, approveDemand, rejectDemand, cancelApproval } from '../services/demand-approval.service.js';
 
 const router = express.Router();
 
@@ -233,29 +243,6 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
-// 提交需求审批
-router.post('/:id/submit', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const demand = await prisma.demand.update({
-      where: { id },
-      data: {
-        demandStatus: 'IN_PROGRESS',
-        approvalStatus: 'PENDING'
-      }
-    });
-
-    res.json({
-      success: true,
-      message: '需求已提交审批',
-      data: demand
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // 获取需求统计
 router.get('/:id/stats', async (req, res, next) => {
   try {
@@ -285,3 +272,84 @@ router.get('/:id/stats', async (req, res, next) => {
 });
 
 export default router;
+
+// =====================================
+// 状态机 + 审批 (G1 + G2)
+// =====================================
+
+// 发起审批
+router.post('/:id/submit', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const demand = await submitForApproval(id, userId);
+    res.json({ success: true, data: demand });
+  } catch (e) { next(e); }
+});
+
+// 审批通过
+router.post('/:id/approve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const { comment } = req.body || {};
+    const demand = await approveDemand(id, userId, comment);
+    res.json({ success: true, data: demand });
+  } catch (e) { next(e); }
+});
+
+// 审批拒绝
+router.post('/:id/reject', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const { reason } = req.body || {};
+    const demand = await rejectDemand(id, userId, reason);
+    res.json({ success: true, data: demand });
+  } catch (e) { next(e); }
+});
+
+// 撤销审批
+router.post('/:id/cancel-approval', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const demand = await cancelApproval(id, userId);
+    res.json({ success: true, data: demand });
+  } catch (e) { next(e); }
+});
+
+// 审批步骤历史
+router.get('/:id/approvals', async (req, res, next) => {
+  try {
+    const steps = await prisma.demandApprovalStep.findMany({
+      where: { demandId: req.params.id },
+      orderBy: { stepIndex: 'asc' },
+    });
+    res.json({ success: true, data: steps });
+  } catch (e) { next(e); }
+});
+
+// 状态转移 (需求状态)
+router.post('/:id/transition', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { to, reason } = req.body || {};
+    const demand = await prisma.demand.findUnique({ where: { id } });
+    if (!demand) return res.status(404).json({ success: false, message: '需求不存在' });
+    if (!canTransitionDemand(demand.demandStatus, to)) {
+      return res.status(400).json({
+        success: false,
+        message: `状态转移非法: ${demand.demandStatus} → ${to}`,
+        from: demand.demandStatus,
+        to,
+      });
+    }
+    const updated = await prisma.demand.update({
+      where: { id },
+      data: { demandStatus: to, ...(reason ? { /* TODO: 记录状态变更原因 */ } : {}) },
+      include: { approvalSteps: { orderBy: { stepIndex: 'asc' } } },
+    });
+    res.json({ success: true, data: updated });
+  } catch (e) { next(e); }
+});
