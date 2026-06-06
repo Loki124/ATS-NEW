@@ -59,17 +59,17 @@ export interface Interview {
 }
 
 export async function listInterviews(params: { page?: number; pageSize?: number; feedbackStatus?: string; interviewStatus?: string } = {}) {
-  const { data } = await api.get('/api/interviews', { params });
+  const { data } = await api.get('/interviews', { params });
   return data;
 }
 
 export async function submitFeedback(interviewId: string, payload: { result: 'PASS' | 'FAIL'; reason?: string; [key: string]: any }) {
-  const { data } = await api.post(`/api/interviews/${interviewId}/feedback`, payload);
+  const { data } = await api.post(`interviews/${interviewId}/feedback`, payload);
   return data;
 }
 
 export async function cancelInterview(interviewId: string, reason?: string) {
-  const { data } = await api.delete(`/api/interviews/${interviewId}`, { data: { reason } });
+  const { data } = await api.delete(`interviews/${interviewId}`, { data: { reason } });
   return data;
 }
 

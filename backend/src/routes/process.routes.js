@@ -12,8 +12,8 @@ router.get('/', async (req, res, next) => {
   try {
     const processes = await prisma.recruitmentProcess.findMany({
       include: {
-        stages: {
-          orderBy: { sortOrder: 'asc' }
+        links: {
+          orderBy: { orderIndex: 'asc' }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -23,7 +23,7 @@ router.get('/', async (req, res, next) => {
       success: true,
       data: processes.map(p => ({
         ...p,
-        stages: p.stages.length
+        stages: p.links.length
       }))
     });
   } catch (error) {
@@ -39,8 +39,8 @@ router.get('/:id', async (req, res, next) => {
     const process = await prisma.recruitmentProcess.findUnique({
       where: { id },
       include: {
-        stages: {
-          orderBy: { sortOrder: 'asc' }
+        links: {
+          orderBy: { orderIndex: 'asc' }
         }
       }
     });
@@ -132,8 +132,8 @@ router.put('/:id', async (req, res, next) => {
         status
       },
       include: {
-        stages: {
-          orderBy: { sortOrder: 'asc' }
+        links: {
+          orderBy: { orderIndex: 'asc' }
         }
       }
     });

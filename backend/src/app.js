@@ -35,6 +35,7 @@ import offerTemplateRoutes from './routes/offer-template.routes.js';
 import notificationTemplateRoutes from './routes/notification-template.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
 import onboardingRoutes from './routes/onboarding.routes.js';
+import talentPoolRoutes from './routes/talent-pool.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
@@ -145,6 +146,9 @@ app.use('/api/invitations', authMiddleware, invitationRoutes);
 
 // ====== 待入职管理 (PRD G28) ======
 app.use('/api/onboardings', authMiddleware, onboardingRoutes);
+
+// ====== 人才库 (PRD G32 MVP) ======
+app.use('/api/talent-pool', authMiddleware, talentPoolRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）

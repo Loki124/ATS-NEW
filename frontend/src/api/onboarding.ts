@@ -58,12 +58,12 @@ export interface Onboarding {
 }
 
 export async function listOnboardings(params: { page?: number; pageSize?: number; onboardingStatus?: string } = {}) {
-  const { data } = await api.get('/api/onboardings', { params });
+  const { data } = await api.get('/onboardings', { params });
   return data;
 }
 
 export async function transitionOnboarding(id: string, to: string, reason?: string) {
-  const { data } = await api.post(`/api/onboardings/${id}/transition`, { to, reason });
+  const { data } = await api.post(`onboardings/${id}/transition`, { to, reason });
   return data;
 }
 

@@ -329,7 +329,7 @@ const loadPositions = async () => {
 // 加载流转日志
 const loadFlowLogs = async (resumeId: string) => {
   try {
-    const res = await get(`/resumes/resume/${resumeId}/flow-logs`)
+    const res = await get(`/resume/${resumeId}/flow-logs`)
     if (res.data.success) {
       flowLogs.value = res.data.data
     }
@@ -386,7 +386,7 @@ const handleAssignConfirm = async () => {
 
   assignLoading.value = true
   try {
-    const res = await post(`/resumes/resume/${assignForm.resumeId}/assign`, {
+    const res = await post(`/resume/${assignForm.resumeId}/assign`, {
       positionId: assignForm.positionId,
       operatorId: localStorage.getItem('userId'),
       skipScoring: assignForm.skipScoring
@@ -409,7 +409,7 @@ const handleAssignConfirm = async () => {
 // 归档简历
 const handleArchive = async (resume: any) => {
   try {
-    await post(`/resumes/resume/${resume.id}/archive`, {
+    await post(`/resume/${resume.id}/archive`, {
       operatorId: localStorage.getItem('userId'),
       archiveType: 'MANUAL',
       archiveToPool: 'GENERAL'
@@ -424,7 +424,7 @@ const handleArchive = async (resume: any) => {
 // 激活简历
 const handleActivate = async (resume: any) => {
   try {
-    await post(`/resumes/resume/${resume.id}/activate`, {
+    await post(`/resume/${resume.id}/activate`, {
       operatorId: localStorage.getItem('userId')
     })
     message.success('激活成功')
