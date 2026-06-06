@@ -243,13 +243,11 @@ async function saveStageLimit() {
 }
 
 function goRules(link: any) {
-  // 留给下轮：阶段规则编辑器
-  message.info(`阶段规则编辑器（${link.stage.name}）— 留待下轮实现`)
+  router.push(`/settings/process-rules?processId=${processId.value}&linkId=${link.id}&tab=rule`)
 }
 
 function goConditions(link: any) {
-  // 留给下轮：进入条件可视化编辑器
-  message.info(`进入条件编辑器（${link.stage.name}）— 留待下轮实现`)
+  router.push(`/settings/process-rules?processId=${processId.value}&linkId=${link.id}&tab=condition`)
 }
 
 onMounted(() => loadProcess())

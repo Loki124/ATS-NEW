@@ -116,6 +116,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import('../pages/settings/RecruitmentProcess.vue') },
           { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import('../pages/settings/RecruitmentStage.vue') },
           { path: 'process-stages', name: 'ProcessStageEditor', component: () => import('../pages/settings/ProcessStageEditor.vue') },
+          { path: 'process-rules', name: 'ProcessStageRules', component: () => import('../pages/settings/ProcessStageRules.vue') },
           { path: 'recruitment-round', name: 'RecruitmentRound', component: () => import('../pages/settings/RecruitmentRound.vue') },
         ],
       },
