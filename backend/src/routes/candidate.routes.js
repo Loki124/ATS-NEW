@@ -634,4 +634,116 @@ router.post('/batch/export', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+/**
+ * 批量筛选候选人 (PRD G13)
+ * POST /api/candidates/batch/screen
+ * body: { candidateIds: string[], result: 'PASS' | 'FAIL', comment?: string, positionId?: string }
+ * 批量创建筛选记录 + 更新 application 状态
+ */
+router.post('/batch/screen', async (req, res, next) => {
+  try {
+    const { candidateIds, result, comment, positionId } = req.body || {}
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'candidateIds 必填且非空' })
+    }
+    if (!['PASS', 'FAIL'].includes(result)) {
+      return res.status(400).json({ success: false, message: 'result 必须是 PASS 或 FAIL' })
+    }
+
+    // 批量更新 application 状态 (筛选结论)
+    const updateResult = await prisma.application.updateMany({
+      where: { candidateId: { in: candidateIds } },
+      data: { currentStageStatus: result },
+    })
+
+    // 记录操作审计
+    const records = await Promise.all(
+      candidateIds.map((cid) =>
+        prisma.operationRecord.create({
+          data: {
+            userId: req.userId,
+            userName: req.user?.realName || req.user?.username,
+            operationType: 'BATCH_SCREEN',
+            targetType: 'candidate',
+            targetId: cid,
+            detail: `批量筛选: ${result} - ${comment || ''}`,
+            afterValue: result,
+            metadata: { positionId, batchSize: candidateIds.length },
+          },
+        })
+      )
+    )
+
+    res.json({
+      success: true,
+      message: `已批量筛选 ${updateResult.count} 条记录`,
+      data: { affected: updateResult.count, auditCount: records.length },
+    })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 倒序推荐候选人 (PRD G11)
+ * 已在其他职位到联合面试 → 免筛选免邀约
+ * POST /api/candidates/recommend-reverse
+ * body: { positionId, candidateIds?: string[] }
+ * 找出曾在其他 position 经历过当前 position 阶段的候选人, 标记免筛选
+ */
+router.post('/recommend-reverse', async (req, res, next) => {
+  try {
+    const { positionId, candidateIds } = req.body || {}
+    if (!positionId) return res.status(400).json({ success: false, message: 'positionId 必填' })
+
+    // 找出当前 position 的 processId
+    const position = await prisma.position.findUnique({
+      where: { id: positionId },
+      select: { processId: true, name: true },
+    })
+    if (!position) return res.status(404).json({ success: false, message: '职位不存在' })
+
+    // 找出所有 candidates 中, 曾在同 process 任何阶段 ALL_PASS 的 (联合面试通过)
+    const passedApplications = await prisma.application.findMany({
+      where: {
+        ...(candidateIds ? { candidateId: { in: candidateIds } } : {}),
+        processId: position.processId,
+        currentStageStatus: { in: ['ALL_PASS', 'PARTIAL_PASS'] },
+      },
+      include: {
+        candidate: { select: { id: true, name: true } },
+        position: { select: { id: true, name: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    // 去重 (同一候选人在多个 position 通过, 只取最近)
+    const seen = new Set()
+    const result = []
+    for (const app of passedApplications) {
+      if (seen.has(app.candidateId)) continue
+      seen.add(app.candidateId)
+      result.push({
+        candidateId: app.candidateId,
+        candidateName: app.candidate.name,
+        fromPositionId: app.positionId,
+        fromPositionName: app.position.name,
+        passedAt: app.updatedAt,
+        canSkipFilter: true,
+        canSkipInvite: true, // PRD G11 含义
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        positionId,
+        total: result.length,
+        candidates: result,
+        note: candidateIds
+          ? '已限定候选范围, 仅显示该范围中已通过其他职位的'
+          : '全量倒序推荐',
+      },
+    })
+  } catch (e) { next(e) }
+})
+
 export default router;

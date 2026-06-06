@@ -34,6 +34,7 @@ import offerRoutes from './routes/offer.routes.js';
 import offerTemplateRoutes from './routes/offer-template.routes.js';
 import notificationTemplateRoutes from './routes/notification-template.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
+import onboardingRoutes from './routes/onboarding.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
@@ -44,6 +45,7 @@ import config from './config/index.js';
 // 中间件
 import { errorHandler } from './middleware/error.middleware.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
+import { enforceJwtConfigOrExit } from './middleware/jwt-validation.middleware.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -141,6 +143,9 @@ app.use('/api/notification-templates', authMiddleware, notificationTemplateRoute
 // ====== 邀约管理 (PRD G14 + G15 + G16) ======
 app.use('/api/invitations', authMiddleware, invitationRoutes);
 
+// ====== 待入职管理 (PRD G28) ======
+app.use('/api/onboardings', authMiddleware, onboardingRoutes);
+
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
 app.use(express.static(FRONTEND_DIST));
@@ -162,6 +167,9 @@ app.use((req, res) => {
     message: 'API路由不存在'
   });
 });
+
+// JWT/CORS 配置校验 (报告 #11 安全债)
+enforceJwtConfigOrExit();
 
 // 启动内推后台调度
 try {

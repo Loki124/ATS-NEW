@@ -243,6 +243,42 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * 复制需求 (PRD G3)
+ * POST /api/demands/:id/copy
+ * body: { name? }  // 复制后名称, 默认 "原名 - 副本"
+ * 注: 状态机、审批步骤、状态历史 不复制
+ */
+router.post('/:id/copy', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { name } = req.body || {}
+    const source = await prisma.demand.findUnique({ where: { id } })
+    if (!source) return res.status(404).json({ success: false, message: '需求不存在' })
+
+    // 重新生成 code
+    const count = await prisma.demand.count()
+    const code = `HC${String(count + 1).padStart(6, '0')}`
+
+    // 复制字段 (排除 id/code/审批相关/时间戳/状态)
+    const excludeFields = ['id', 'code', 'creatorId', 'createdAt', 'updatedAt',
+      'demandStatus', 'approvalStatus', 'salaryPlan', 'biddingAmount']
+    const data = { code, name: name || `${source.name} - 副本` }
+    for (const [k, v] of Object.entries(source)) {
+      if (!excludeFields.includes(k) && v !== null && v !== undefined) {
+        data[k] = v
+      }
+    }
+    // 重置为初始态
+    data.demandStatus = 'DRAFT'
+    data.approvalStatus = 'NOT_STARTED'
+    data.creatorId = req.userId
+
+    const copy = await prisma.demand.create({ data })
+    res.status(201).json({ success: true, message: '需求已复制', data: copy })
+  } catch (e) { next(e) }
+})
+
 // 获取需求统计
 router.get('/:id/stats', async (req, res, next) => {
   try {

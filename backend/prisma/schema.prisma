@@ -1064,6 +1064,8 @@ model Onboarding {
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+  onboardedAt DateTime?  // PRD G28: 入职完成时间
+
   @@index([demandId])
   @@index([positionManagerId])
   @@index([offerManagerId])
