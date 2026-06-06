@@ -88,7 +88,6 @@ router.get('/', async (req, res, next) => {
               position: {
                 select: { id: true, name: true, code: true }
               },
-              currentStage: true
             }
           }
         },
@@ -140,9 +139,6 @@ router.get('/:id', async (req, res, next) => {
                 department: true,
                 manager: { select: { id: true, realName: true } }
               }
-            },
-            stageRecords: {
-              orderBy: { enterTime: 'desc' }
             },
             interviews: {
               include: {
