@@ -84,52 +84,52 @@ export interface ListParams {
 }
 
 export async function listInvitations(params: ListParams = {}) {
-  const { data } = await api.get('/api/invitations', { params });
+  const { data } = await api.get('/invitations', { params });
   return data;
 }
 
 export async function getClaimPool() {
-  const { data } = await api.get('/api/invitations/claimable');
+  const { data } = await api.get('/invitations/claimable');
   return data;
 }
 
 export async function getInvitation(id: string) {
-  const { data } = await api.get(`/api/invitations/${id}`);
+  const { data } = await api.get(`invitations/${id}`);
   return data;
 }
 
 export async function enterPool(id: string, reason?: string) {
-  const { data } = await api.post(`/api/invitations/${id}/enter-pool`, { reason });
+  const { data } = await api.post(`invitations/${id}/enter-pool`, { reason });
   return data;
 }
 
 export async function claim(id: string) {
-  const { data } = await api.post(`/api/invitations/${id}/claim`);
+  const { data } = await api.post(`invitations/${id}/claim`);
   return data;
 }
 
 export async function markContacted(id: string, note?: string) {
-  const { data } = await api.post(`/api/invitations/${id}/contact`, { note });
+  const { data } = await api.post(`invitations/${id}/contact`, { note });
   return data;
 }
 
 export async function markResult(id: string, success: boolean, reason?: string) {
-  const { data } = await api.post(`/api/invitations/${id}/result`, { success, reason });
+  const { data } = await api.post(`invitations/${id}/result`, { success, reason });
   return data;
 }
 
 export async function intervene(id: string, reason?: string) {
-  const { data } = await api.post(`/api/invitations/${id}/intervene`, { reason });
+  const { data } = await api.post(`invitations/${id}/intervene`, { reason });
   return data;
 }
 
 export async function terminate(id: string, reason?: string) {
-  const { data } = await api.post(`/api/invitations/${id}/terminate`, { reason });
+  const { data } = await api.post(`invitations/${id}/terminate`, { reason });
   return data;
 }
 
 export async function processExpired() {
-  const { data } = await api.post('/api/invitations/process-expired');
+  const { data } = await api.post('/invitations/process-expired');
   return data;
 }
 

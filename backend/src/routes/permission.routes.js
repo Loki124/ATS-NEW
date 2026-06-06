@@ -30,6 +30,27 @@ const permissionMiddleware = async (req, res, next) => {
   next();
 };
 
+// 根路径 - 返回模块元信息 (避免 404)
+router.get('/', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      module: 'permissions',
+      description: '权限管理模块 (V1)',
+      endpoints: [
+        'GET /api/permissions/menus - 菜单权限树',
+        'GET /api/permissions/functions - 功能权限',
+        'GET /api/permissions/data-scope - 数据范围',
+        'GET /api/permissions/roles - 角色列表',
+        'GET /api/permissions/roles/:id - 角色详情',
+        'POST /api/permissions/roles - 创建角色',
+        'PUT /api/permissions/roles/:id - 更新角色',
+        'DELETE /api/permissions/roles/:id - 删除角色',
+      ],
+    },
+  })
+})
+
 // 获取菜单权限树
 router.get('/menus', permissionMiddleware, async (req, res) => {
   try {

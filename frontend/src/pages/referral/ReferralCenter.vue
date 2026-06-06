@@ -1,7 +1,7 @@
 <template>
   <div class="referral-page">
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h1 style="font-size: 20px; font-weight: 600; margin: 0;">内推中心</h1>
+      <h1 class="page-title">内推中心</h1>
       <n-button type="primary" @click="addModalVisible = true">
         <template #icon><n-icon :component="PersonAddOutline" /></template>
         新增推荐
