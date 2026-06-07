@@ -50,6 +50,124 @@ NODE_OPTIONS=--experimental-vm-modules ./node_modules/.bin/jest --runInBand
 # 期望: 13 passed, 13 total / Tests: 214 passed
 ```
 
+---
+
+## 📦 服务器部署（生产环境）
+
+部署到新服务器时，数据库结构 + 种子数据 **必须** 用下面这套**固定流程**，避免 schema/seed 不一致。
+
+### 部署脚本（推荐）
+
+```bash
+# 一键部署（含备份、迁移、种子、验证）
+cd backend
+bash scripts/deploy.sh
+
+# 跳过备份（开发环境）
+bash scripts/deploy.sh --skip-backup
+
+# 跳过 seed（生产已有数据）
+bash scripts/deploy.sh --skip-seed
+
+# 不询问直接执行
+bash scripts/deploy.sh --force
+
+# 出问题回滚到最后备份
+bash scripts/deploy.sh --rollback
+```
+
+### 流程（5 步）
+
+1. **备份**：mysqldump 当前 DB → `backups/ats_backup_<时间戳>.sql`（保留最近 10 份）
+2. **环境验证**：检查 `node_modules`、`prisma generate`
+3. **迁移**：`prisma migrate deploy`（应用所有未执行的 migrations，幂等）
+4. **种子**：按顺序跑 `user → department → permission → recruitment-process → notification-templates → referral`（自动检测存在的脚本）
+5. **验证**：表数量 ≥ 50、关键表存在、关键数据行数
+
+### 为什么不用 `prisma db push`？
+
+| | `prisma db push` | `prisma migrate deploy` |
+|---|---|---|
+| 用途 | **开发**（快速同步 schema）| **生产**（可控 migration）|
+| 记录 | ❌ 不留历史 | ✅ 每次都有 migration 文件 |
+| 回滚 | ❌ 难 | ✅ `migrate resolve --rolled-back` |
+| 团队 | ❌ 容易冲突 | ✅ 文件 review 友好 |
+| 部署 | ❌ 风险高 | ✅ 标准 Prisma 部署流程 |
+
+**生产环境永远用 `migrate deploy`**。
+
+### 现有 migrations
+
+```
+prisma/migrations/
+├── 20260604062449_add_referral_phase1/    # Referral 模块
+└── 20260607000000_baseline_54_tables/    # 54 张表 baseline
+```
+
+### 添加新 migration（开发流程）
+
+```bash
+# 1. 改 schema.prisma
+vim prisma/schema.prisma
+
+# 2. 生成 migration 文件（dev 自动 + 文件名）
+./node_modules/.bin/prisma migrate dev --name add_xxx_feature
+
+# 3. 提交到 git
+git add prisma/migrations/
+
+# 4. 部署到生产（CI 跑 test-migrations job 验证）
+# 部署脚本 deploy.sh 自动应用新 migration
+```
+
+### CI 自动验证（test-migrations job）
+
+`.github/workflows/ci.yml` 加了 `test-migrations` job：
+- 启动干净的 MySQL
+- 跑 `prisma migrate deploy`
+- 验证表数量 ≥ 50
+- 再跑一次（验证幂等性）
+- ✅ 失败则 PR 不能合并
+
+### 备份位置与回滚
+
+- **备份目录**：`backend/backups/ats_backup_*.sql`（默认保留最近 10 份，可通过 `KEEP_BACKUPS` 环境变量调整）
+- **回滚**：`bash scripts/deploy.sh --rollback`（恢复到最新一份备份）
+- **生产回滚**建议流程：
+  1. 停服 → `pm2 stop ats-backend`
+  2. 回滚 → `bash scripts/deploy.sh --rollback`
+  3. 启服 → `pm2 start ats-backend`
+
+### 完整部署示例
+
+```bash
+# 1. SSH 到服务器
+ssh user@ats-prod
+cd /opt/ats/backend
+
+# 2. 拉新代码
+git pull origin main
+
+# 3. 部署（自动备份 → 迁移 → 种子 → 验证）
+bash scripts/deploy.sh
+
+# 4. 重启服务
+pm2 restart ats-backend
+# 或
+pkill -f "node.*src/app.js" && nohup node --env-file=.env src/app.js > /tmp/ats-backend.log 2>&1 &
+
+# 5. 验证
+curl http://localhost:5125/api/health
+# 期望: {"status":"ok",...}
+```
+
+### 紧急情况
+
+- **migration 失败**：`deploy.sh` 失败不会启动服务，需手动 `bash scripts/deploy.sh --rollback` 恢复
+- **种子失败**：部分种子失败不会阻塞服务（用户数据可在管理后台补）
+- **表数量不对**：`< 50` 表说明 migration 没应用完，检查 `prisma migrate status`
+- **完整重置**（危险！清空所有数据）：`npm run db:reset`（会跑 prisma migrate reset --force + 全部 seed）
+
 
 
 ## 0. 前置依赖
