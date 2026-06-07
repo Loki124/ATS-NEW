@@ -205,7 +205,7 @@ import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NSpace, NButton, NSelect, NInputNumber, NRadio, NRadioGroup, NInput, NForm, NFormItem, NTabs, NTabPane, NSpin, NDivider, NAlert, NTag, NIcon } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
-import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses } from '../../api/recruitment-process'
+import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions } from '../../api/recruitment-process'
 import { listAutoArchiveRules, upsertAutoArchiveRule } from '../../api/recruitment-process'
 import ConditionTreeEditor from '../../components/ConditionTreeEditor.vue'
 
@@ -291,25 +291,20 @@ async function loadRounds() {
 async function loadRule() {
   ruleLoading.value = true
   try {
-    const res = await fetch(`/api/recruitment-rules/stage-rules?linkId=${linkId.value}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-    })
-    if (res.ok) {
-      const json = await res.json()
-      if (json.success && json.data?.[0]) {
-        const r = json.data[0]
-        Object.assign(ruleForm, {
-          autoAdvanceType: r.autoAdvanceType,
-          autoAdvanceTiming: r.autoAdvanceTiming,
-          autoAdvanceDays: r.autoAdvanceDays,
-          defaultHandlerType: r.defaultHandlerType,
-          defaultHandlerFields: r.defaultHandlerFields || [],
-          defaultHandlerUserIds: r.defaultHandlerUserIds || [],
-          timeLimit: r.timeLimit,
-          timeLimitScope: r.timeLimitScope,
-          interviewRoundIds: r.interviewRoundIds || [],
-        })
-      }
+    const rules = await listStageRules({ linkId: linkId.value })
+    if (rules?.[0]) {
+      const r = rules[0]
+      Object.assign(ruleForm, {
+        autoAdvanceType: r.autoAdvanceType,
+        autoAdvanceTiming: r.autoAdvanceTiming,
+        autoAdvanceDays: r.autoAdvanceDays,
+        defaultHandlerType: r.defaultHandlerType,
+        defaultHandlerFields: r.defaultHandlerFields || [],
+        defaultHandlerUserIds: r.defaultHandlerUserIds || [],
+        timeLimit: r.timeLimit,
+        timeLimitScope: r.timeLimitScope,
+        interviewRoundIds: r.interviewRoundIds || [],
+      })
     }
   } finally {
     ruleLoading.value = false
@@ -353,20 +348,15 @@ const testResult = ref<any>(null)
 async function loadCondition() {
   condLoading.value = true
   try {
-    const res = await fetch(`/api/recruitment-rules/entry-conditions?linkId=${linkId.value}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-    })
-    if (res.ok) {
-      const json = await res.json()
-      if (json.success && json.data?.[0]) {
-        const c = json.data[0]
-        Object.assign(condForm, {
-          matchType: c.matchType,
-          conditionType: c.conditionType,
-          prompt: c.prompt || '',
-          items: c.items || [],
-        })
-      }
+    const conds = await listEntryConditions({ linkId: linkId.value })
+    if (conds?.[0]) {
+      const c = conds[0]
+      Object.assign(condForm, {
+        matchType: c.matchType,
+        conditionType: c.conditionType,
+        prompt: c.prompt || '',
+        items: c.items || [],
+      })
     }
   } finally {
     condLoading.value = false
@@ -396,21 +386,10 @@ async function testCondition() {
   testing.value = true
   testResult.value = null
   try {
-    const res = await fetch(`/api/recruitment-rules/entry-conditions/${linkId.value}/evaluate`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        candidate: { age: 30, highestEducation: '博士', gender: '男' },
-        stageStatuses: {},
-      }),
+    testResult.value = await evaluateEntryCondition(linkId.value, {
+      candidate: { age: 30, highestEducation: '博士', gender: '男' },
+      stageStatuses: {},
     })
-    const json = await res.json()
-    if (json.success) {
-      testResult.value = json.data
-    }
   } catch (e: any) {
     message.error(e?.response?.data?.message || '测试失败')
   } finally {
