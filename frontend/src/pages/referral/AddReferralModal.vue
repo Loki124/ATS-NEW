@@ -76,6 +76,8 @@ import { useMessage, NIcon } from 'naive-ui'
 import { PersonAddOutline } from '@vicons/ionicons5'
 import { listDemands, getDemand, type Demand, type Position } from '../../api/demand'
 import { addReferral } from '../../api/referral'
+import api from '../../api/referral'
+import api from '../../api/referral'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{
@@ -169,24 +171,13 @@ async function handleSubmit() {
   submitting.value = true
   try {
     // 1) 创建候选人
-    const candidateRes = await fetch('/api/candidates', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token') ?? ''}`,
-      },
-      body: JSON.stringify({
-        name: form.name,
-        phone: form.phone,
-        email: form.email || undefined,
-        channelSource: 'INTERNAL_REFERRAL',
-      }),
+    const candidateRes = await api.post('/candidates', {
+      name: form.name,
+      phone: form.phone,
+      email: form.email || undefined,
+      channelSource: 'INTERNAL_REFERRAL',
     })
-    const candidateJson = await candidateRes.json()
-    if (!candidateRes.ok || !candidateJson.success) {
-      throw new Error(candidateJson.message || '创建候选人失败')
-    }
-    const candidateId = candidateJson.data.id
+    const candidateId = candidateRes.data.id
 
     // 2) 创建内推记录
     await addReferral({

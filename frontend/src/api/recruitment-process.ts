@@ -196,6 +196,26 @@ export const upsertEntryCondition = (stageId: string, payload: {
 export const evaluateEntryCondition = (stageId: string, context: { candidate: any; stageStatuses?: any }) =>
   api.post<{ success: boolean; data: { passed: boolean; failedItems: any[]; prompt: string | null } }>(`/recruitment-rules/entry-conditions/${stageId}/evaluate`, context).then((r) => r.data.data);
 
+// 列表查询 (G38 #7 阶段规则 / #5 进入条件)
+export const listStageRules = (params: { linkId: string }) =>
+  api.get<{ success: boolean; data: StageRule[] }>('/recruitment-rules/stage-rules', { params }).then((r) => r.data.data)
+
+export const listEntryConditions = (params: { linkId: string }) =>
+  api.get<{ success: boolean; data: EntryCondition[] }>('/recruitment-rules/entry-conditions', { params }).then((r) => r.data.data)
+
+// 候选人上下文评估 (G10 + G1.5) - 替代 raw fetch
+export const evaluateCandidateForStage = (candidateId: string, entryConditionId: string, applicationId?: string) =>
+  api.post<{ success: boolean; data: { passed: boolean; failedItems: any[]; prompt: string | null } }>(
+    '/recruitment-rules/candidates/' + candidateId + '/evaluate',
+    { entryConditionId, applicationId }
+  ).then((r) => r.data.data)
+
+export const checkApplicationStageTransition = (applicationId: string, entryConditionId?: string) =>
+  api.post<{ success: boolean; data: { allowed: boolean; reason?: string; prompt?: string } }>(
+    '/recruitment-rules/applications/' + applicationId + '/check-stage-transition',
+    { entryConditionId }
+  ).then((r) => r.data.data)
+
 // ===== 面试轮次 =====
 export const listRounds = (params?: { status?: string; keyword?: string }) =>
   api.get<{ success: boolean; data: InterviewRound[] }>('/recruitment-rounds', { params }).then((r) => r.data.data);
@@ -220,6 +240,7 @@ export default {
   listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus,
   listStages, createStage, updateStage, deleteStage, updateStageStatus,
   listProcessLinks, addProcessLink, updateProcessLink, deleteProcessLink, reorderProcessLinks,
-  upsertStageRule, upsertEntryCondition, evaluateEntryCondition,
+  upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listStageRules, listEntryConditions,
+  evaluateCandidateForStage, checkApplicationStageTransition,
   listRounds, createRound, updateRound, updateRoundStatus,
 };
