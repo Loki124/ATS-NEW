@@ -211,16 +211,26 @@ onMounted(() => loadList())
 <style scoped>
 .recruitment-process {
   padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  flex-shrink: 0;
 }
 .page-header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+.recruitment-process :deep(.n-data-table) {
+  flex: 1;
+}
+.recruitment-process :deep(.n-data-table-wrapper) {
+  min-height: 200px;
 }
 </style>
