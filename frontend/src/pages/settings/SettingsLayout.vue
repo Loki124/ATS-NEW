@@ -1,7 +1,13 @@
 <template>
-  <div class="settings-layout">
+  <n-layout class="settings-layout" has-sider :sider-width="220">
     <!-- 左侧子菜单 -->
-    <aside class="settings-sider">
+    <n-layout-sider
+      bordered
+      :width="220"
+      :native-scrollbar="false"
+      content-style="padding: 16px 0;"
+      class="settings-sider"
+    >
       <div class="sider-header">
         <h2 class="sider-title">设置</h2>
       </div>
@@ -14,13 +20,13 @@
         @update:value="handleMenuClick"
         class="settings-menu"
       />
-    </aside>
+    </n-layout-sider>
 
     <!-- 右侧内容 -->
-    <main class="settings-content">
+    <n-layout-content class="settings-content">
       <router-view />
-    </main>
-  </div>
+    </n-layout-content>
+  </n-layout>
 </template>
 
 <script setup lang="ts">
@@ -28,6 +34,9 @@ import { computed, h, ref, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NIcon,
+  NLayout,
+  NLayoutSider,
+  NLayoutContent,
 } from 'naive-ui'
 import {
   PersonCircleOutline,
@@ -154,19 +163,16 @@ watch(
 
 <style scoped>
 .settings-layout {
-  display: flex;
-  min-height: calc(100vh - 64px); /* 减掉主 Layout 头部高度 */
+  height: calc(100vh - 64px); /* 减掉主 Layout 头部高度, 强制填满剩余 */
   background: #fff;
+}
+.settings-layout :deep(.n-layout-scroll-container) {
+  height: 100%;
 }
 
 /* 左侧子菜单栏 */
 .settings-sider {
-  width: 220px;
-  flex-shrink: 0;
-  border-right: 1px solid #e5e7eb;
   background: #fafafa;
-  padding: 16px 0;
-  overflow-y: auto;
 }
 .sider-header {
   padding: 0 20px 12px;
@@ -198,11 +204,27 @@ watch(
   animation: none !important;
 }
 
-/* 右侧内容区 */
+/* 右侧内容区 —— flex 列布局, 子页面可填满高度 */
 .settings-content {
-  flex: 1;
-  min-width: 0; /* 防止 flex 子元素内容溢出 */
   padding: 0;
-  overflow-x: auto;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 让所有 Settings 子页面的 page-container 撑满父高度 */
+.settings-content :deep(.page-container) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+}
+/* 让 page-header 不压缩 */
+.settings-content :deep(.page-header) {
+  flex-shrink: 0;
+}
+/* 让主内容卡片区域填满剩余 */
+.settings-content :deep(.page-container > .n-card) {
+  flex: 1;
 }
 </style>
