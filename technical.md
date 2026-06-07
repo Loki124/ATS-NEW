@@ -1,5 +1,7 @@
 # ATS招聘管理系统 - 技术说明文档
 
+> **最后更新**: 2026-06-06 — P0 14/14 完成 + 安全修复 + PDF 生成 + deletedAt middleware + CI workflow
+
 ## 1. 技术架构
 
 ### 1.1 整体架构
@@ -32,15 +34,20 @@
 |------|------|------|------|
 | 前端框架 | Vue 3 | 3.4+ | Composition API |
 | 构建工具 | Vite | 5.x | 快速启动/热更新 |
-| UI框架 | Ant Design Vue | 5.x | 企业级组件库 |
-| 样式方案 | Tailwind CSS + DaisyUI | 4.x / 4.x | 原子化CSS |
+| UI框架 | **Naive UI** (2026-06 迁移) | 2.44+ | 企业级组件库 |
+| 样式方案 | **UnoCSS** (2026-06 迁移) | 66.7+ | 原子化CSS |
+| 图标库 | **@vicons/ionicons5** (2026-06 迁移) | 0.13+ | 统一图标 |
 | 状态管理 | Pinia | 2.x | Vue状态管理 |
 | 路由 | Vue Router | 4.x | SPA路由 |
-| HTTP客户端 | Axios | 1.x | API请求 |
+| HTTP客户端 | Axios | 1.x | API请求（含 token 拦截器 + 401 自动处理） |
 | 后端框架 | Express.js | 4.x | Node.js服务器 |
-| ORM | Prisma | 5.x | 数据库操作 |
-| 数据库 | SQLite | 3.x | 轻量级数据库 |
-| 认证 | JWT | - | 无状态认证 |
+| ORM | Prisma | 5.22+ | 数据库操作（54+ 张表） |
+| 数据库 | **MySQL 9** (2026-06 升级) | 9.x | 生产级数据库（之前是 SQLite） |
+| 认证 | JWT | - | 无状态认证（authMiddleware 强制挂载） |
+| 状态机 | **Prisma 字段 + 函数式转换** (本会话) | - | 替代 XState v5，更易维护 |
+| 调度 | node-cron | 3.x | Referral / 邀约超时 |
+| PDF | **纯 JS PDF 1.4** (2026-06) | 零依赖 | 服务端生成 |
+| 端到端测试 | 待集成 Playwright | - | 下个迭代 |
 
 ---
 

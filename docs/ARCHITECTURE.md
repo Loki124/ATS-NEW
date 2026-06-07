@@ -1,5 +1,7 @@
 # ARCHITECTURE — 系统架构
 
+> **最后更新**: 2026-06-06 — P0 14/14 完成，新增 8 张表 / 60+ 端点 / 9 个业务状态机 / 214 单元测试
+
 ## 总览
 
 ```
@@ -159,11 +161,20 @@ src/
 
 ## 关键技术决策
 
-### 1. 为什么所有路由用 `app.use('/api/*', authMiddleware, *Router)` 而不是每个路由单独挂？
+### 0. 为什么 2026-06 把 XState v5 状态机替换为 Prisma 字段 + 纯函数转换图？
 
-- **优点**：DRY，新增路由自动受保护，不会漏挂
-- **代价**：每个请求都跑 authMiddleware（一次 DB 查询 + bcrypt 验证可以省掉，因为 JWT 已经验证了签名）
-- **未来优化**：可以在 JWT payload 里塞 user 信息，省一次 DB 查询
+- **决策**：6 个新状态机（需求/职位/邀约/Offer/待入职/面试）放弃 XState v5，改用 Prisma 字段 + `xxx-state-machine.service.js` 纯函数 + Transition 图
+- **优点**：
+  - 数据库是真实状态源（XState 是内存状态，DB 同步是隐患）
+  - 测试更简单（纯函数 + mock prisma，无需启动 XState actor）
+  - 减少依赖
+  - 与 Prisma migration 同步
+- **代价**：
+  - 失去 XState 的可视化状态机
+  - 复杂守卫逻辑需在 service 内手写
+- **保留**：Referral 仍用 XState v5（已上线，3 个 machines + 9 测试），因为其状态转换复杂
+
+### 1. 为什么所有路由用 `app.use('/api/*', authMiddleware, *Router)` 而不是每个路由单独挂？
 
 ### 2. 为什么 auth.ts 拦截器不再做 token 刷新？
 

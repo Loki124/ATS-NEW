@@ -1,6 +1,69 @@
 # TROUBLESHOOTING — 常见问题排查
 
 > 按问题分类，每个问题给"症状 → 原因 → 解法"三段式。
+>
+> **最后更新**: 2026-06-06 — 新增 5 个 Prisma / 启动相关问题（见末尾"2026-06 增量"）
+
+## 2026-06 增量（新发现的问题）
+
+### T-2026-01: 后端启动后无新路由响应 404
+
+**症状**：代码加了 `/api/foo` 路由，但访问返回 404 `API路由不存在`
+**原因**：后端进程是旧的（启动早于代码 commit），新代码未加载
+**解法**：
+```bash
+pkill -f "node.*src/app.js"
+cd backend && nohup node --env-file=.env src/app.js > /tmp/ats-backend.log 2>&1 &
+```
+
+### T-2026-02: `SyntaxError: The requested module ... does not provide an export named 'X'`
+
+**症状**：后端启动报 SyntaxError，列具体 import 名
+**原因**：service 中 `X` 只在 default export 中，路由用 named import
+**解法**：加 named export
+```js
+// 之前（只 default）
+export default { INLINE_TEMPLATES, renderTemplate }
+// 之后
+export const INLINE_TEMPLATES = { ... }
+export function renderTemplate(...) { ... }
+```
+
+### T-2026-03: Prisma 5.x `orderBy: { a: 'asc', b: 'asc' }` 报错
+
+**症状**：`Invalid value provided. Expected X[], provided Object.`
+**原因**：Prisma 5.x 不支持多字段对象形式
+**解法**：改为数组形式
+```js
+// 错误
+orderBy: { category: 'asc', templateKey: 'asc' }
+// 正确
+orderBy: [{ category: 'asc' }, { templateKey: 'asc' }]
+```
+
+### T-2026-04: 前端 axios 请求 404
+
+**症状**：所有 `/api/xxx` 端点返回 404
+**原因**：api 文件用 `api.get('/api/xxx')` 重复加了 `/api` 前缀（baseURL 已是 `/api`）
+**解法**：去掉重复前缀
+```ts
+// 错误
+api.get('/api/interviews')
+// 正确
+api.get('/interviews')
+```
+
+### T-2026-05: Prisma `Unknown field 'X'` for include
+
+**症状**：`Unknown field 'X' for include statement on model Y. Available options are marked with ?.`
+**原因**：include 引用了 schema 中不存在的字段（如旧代码用 `stages` 但实际是 `links`）
+**解法**：查 schema.prisma 看实际关系名，修改 include
+
+---
+
+# TROUBLESHOOTING — 常见问题排查
+
+> 按问题分类，每个问题给"症状 → 原因 → 解法"三段式。
 
 ## 一、登录问题
 

@@ -1,3 +1,40 @@
+# 迁移参考
+
+> 本文档整合项目所有迁移工作（前端框架 / 后端重构 / 数据迁移）。
+
+## 0. 2026-06-06 业务迁移汇总（P0 14/14 完成）
+
+本会话完成的关键迁移：
+
+### 状态机迁移
+- **G1 需求 8 状态机**：旧用单字符串 `demandStatus`，新增 DemandStatusHistory 表 + OperationRecord 审计字段
+- **G3.6 面试 5 状态机**：聚合在 application.currentStageStatus 字段（NOT_ARRANGED/PENDING_FEEDBACK/ALL_PASS/PARTIAL_PASS/ALL_FAIL）
+- **G5 职位 3 状态机**：RECRUITING/PAUSED/CLOSED，候选人存在保护（forceClose 强制归档）
+- **G14 邀约 8 状态机**：InvitationRecord.invitationStatus + cron 超时处理
+- **G23 Offer 9 状态机**：Offer.offerStatus + OfferStatusHistory
+- **G28 待入职 8 状态机**：Onboarding.onboardingStatus
+
+### 数据模型扩展
+- **8 新表**：DemandApprovalStep / DemandStatusHistory / NotificationQueue / NotificationTemplate / DemandApprovalConfig / OfferStatusHistory / PositionStatusHistory + OperationRecord 扩字段
+- **deletedAt middleware**：自动注入 7 核心表软删除（User/Department/Demand/Position/Candidate/Offer/Onboarding）
+
+### 端点迁移
+- **9 个新路由文件**：interview / offer / offer-template / notification-template / invitation / onboarding / talent-pool / scoring-rule / (修改 permission)
+- **60+ 新端点**
+- **关键修复**：/api/processes 500（stages→links）、4 个 api 文件重复 /api 前缀、ResumeList 路由不匹配
+
+### 安全迁移
+- **async handler**：52 个路由加 next（permission-v2/user/department/resume）
+- **IDOR 修**：5 个 resume 端点 operatorId/approverId 改服务端
+- **JWT 启动校验**：长度 + 占位符检测
+- **CI workflow**：MySQL 9 service + Jest + Trivy
+
+### 工具
+- **PDF 服务端生成**：纯 JS PDF 1.4 零依赖（10 测试）
+- **recharts 已弃用** → 改 naive-ui n-card 数字大屏
+
+---
+
 # Ant Design Vue → Naive UI 迁移参考
 
 > 自动化 agent 共用本表，确保风格一致。

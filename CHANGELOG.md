@@ -1,5 +1,43 @@
 # CHANGELOG
 
+## 2026-06-06 — P0 全部 done：14 个状态机 + 7 完整 UI + 5 路审计修复
+
+### 🏆 P0 14/14 全部完成（PRD Phase 1 + Phase 2 部分）
+- **G38** 招聘流程引擎（已之前 done）
+- **G1 需求 8 状态机 + G2 审批引擎** + B.1 审计 + B.2 通知 + B.3 配置化 MVP
+- **G3.6 面试 5 状态机**
+- **G5 职位 3 状态机 + 候选人存在保护**
+- **G9 候选人批量操作 API**（4 端点：推荐/归档/分配/导出）
+- **G10 + G1.5 候选人阶段进入条件引擎**（复用 recruitment-condition evaluator）
+- **G14 邀约抢单 + 8 状态机 + cron 超时处理**（含 G15 + G16）
+- **G23 Offer 9 状态机 + G24 4 模板 + PDF 服务端生成**（纯 JS 零依赖）
+- **G28 待入职 8 状态机**
+- **G36 通知模板系统**（22 个 seed + 4 端点）
+- **G1.7 List 页完整化**（5 页面：Demand/Position/Candidate/Offer/Invitation/Interview/Onboarding/Talent）
+
+### 🔒 安全修复
+- **#8 async handler** 全部 52 个路由加 `next` 参数（permission-v2/user/department/resume）
+- **#9 resume IDOR** 5 端点 operatorId 改 `req.userId` + 审批 expectedApproverId 鉴权
+- **PDF 服务端生成** 纯 JS PDF 1.4 实现（10 测试，含 Offer 端到端）
+- **JWT/CORS 启动校验** middleware（生产环境不通过即 process.exit(1)）
+- **deletedAt Prisma Extension** middleware（7 核心表自动软删除）
+
+### 🛠 5 路审计 + 批量修复（commit `a460729e`）
+- C1 修 `/api/processes` 500（stages → links）
+- C2 修 4 个 api 文件重复 `/api` 前缀（interview/offer/onboarding/invitation）
+- C3 修 ResumeList 4 处路由不匹配（resumes/resume → resume）
+- C4 新建 talent-pool.routes.js（G32 MVP）
+- C5 `/api/permissions` 加根路由
+
+### 📊 统计
+- **14 个新 schema 表**（DemandApprovalStep / DemandStatusHistory / NotificationQueue / NotificationTemplate / DemandApprovalConfig / OfferStatusHistory / PositionStatusHistory / OnboardedAt 字段 / OperationRecord 扩字段）
+- **40+ 新端点**
+- **204 单元测试** 全过
+- **~13,000 行新代码**
+- **15 commits**（最后推到 GitHub + Gitee）
+
+---
+
 ## 2026-06-05 — UI 框架大迁移：Ant Design Vue + Tailwind → Naive UI + UnoCSS
 
 ### 🔄 框架替换
