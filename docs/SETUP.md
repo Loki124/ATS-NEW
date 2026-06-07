@@ -1,6 +1,56 @@
 # SETUP — 详细安装步骤
 
 > 5 分钟跑起来。本文假定 macOS + homebrew。其他系统见 [附录](#附录其他系统)。
+>
+> **最后更新**: 2026-06-06 — 新增"快速启动"段（5 步）和 22 通知模板 seed
+
+## 🚀 快速启动（5 步）
+
+```bash
+# 1. 启动 MySQL 9（homebrew）
+brew services start mysql
+mysql -u root -p'35010800' -e "CREATE DATABASE IF NOT EXISTS ats;"
+
+# 2. 后端
+cd backend
+npm install
+./node_modules/.bin/prisma db push                            # 推 schema 到 DB
+node prisma/seed.notification-templates.js                   # 22 通知模板 seed
+node --env-file=.env src/app.js                              # 启动 (端口 5125)
+
+# 3. 前端（另一个 terminal）
+cd frontend
+npm install
+npm run dev                                                  # 启动 vite (端口 5212)
+
+# 4. 浏览器打开
+open http://localhost:5212/
+
+# 5. 登录
+# 用户名: admin
+# 密码:   admin123
+```
+
+如果一切顺利，应该看到：登录页 → 输入 admin/admin123 → 进入 Dashboard 看到 8 个业务菜单。
+
+## ✅ 启动验证
+
+```bash
+# 后端健康
+curl http://localhost:5125/api/health
+# {"status":"ok","timestamp":"...","service":"ATS Backend"}
+
+# 前端代理是否工作（前端 5212 → 后端 5125）
+curl http://localhost:5212/api/health
+# 应该返回同样的 JSON
+
+# 跑测试
+cd backend
+NODE_OPTIONS=--experimental-vm-modules ./node_modules/.bin/jest --runInBand
+# 期望: 13 passed, 13 total / Tests: 214 passed
+```
+
+
 
 ## 0. 前置依赖
 
