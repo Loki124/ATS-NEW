@@ -8,11 +8,19 @@
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "db:seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed.referral.js",
+    "db:push": "prisma db push",
+    "db:seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed/recruitment-process.seed.js && node prisma/seed.notification-templates.js && node prisma/seed.referral.js",
+    "db:reset": "prisma migrate reset --force && npm run db:seed",
+    "db:studio": "prisma studio",
+    "deploy": "bash scripts/deploy.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
+  },
+  "prisma": {
+    "seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed/recruitment-process.seed.js && node prisma/seed.notification-templates.js && node prisma/seed.referral.js"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",

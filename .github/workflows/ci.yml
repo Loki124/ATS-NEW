@@ -44,11 +44,14 @@ jobs:
           DATABASE_URL: mysql://root:35010800@127.0.0.1:3306/ats_test
         run: ./node_modules/.bin/prisma generate
 
-      - name: Push DB schema
+      - name: Apply migrations (fresh DB)
         working-directory: backend
         env:
           DATABASE_URL: mysql://root:35010800@127.0.0.1:3306/ats_test
-        run: ./node_modules/.bin/prisma db push --accept-data-loss
+        run: |
+          ./node_modules/.bin/prisma migrate deploy
+          # 跑种子 (admin 用户, 22 通知模板等)
+          npm run db:seed
 
       - name: Run tests
         working-directory: backend
@@ -84,6 +87,62 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  test-migrations:
+    name: Test Migration Deploy
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:9
+        env:
+          MYSQL_ROOT_PASSWORD: 35010800
+          MYSQL_DATABASE: ats_migration_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Verify migrate deploy (fresh DB)
+        working-directory: backend
+        env:
+          DATABASE_URL: mysql://root:35010800@127.0.0.1:3306/ats_migration_test
+          JWT_SECRET: ci-migration-test-secret-32-chars-min
+        run: |
+          ./node_modules/.bin/prisma migrate deploy
+          # 验证表数量
+          TABLE_COUNT=$(mysql -h 127.0.0.1 -uroot -p35010800 -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='ats_migration_test';" 2>/dev/null)
+          echo "迁移后表数量: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -lt 50 ]; then
+            echo "❌ 表数量 < 50, 迁移失败"
+            exit 1
+          fi
+          echo "✅ 迁移验证通过"
+
+      - name: Verify idempotency (re-run = no-op)
+        working-directory: backend
+        env:
+          DATABASE_URL: mysql://root:35010800@127.0.0.1:3306/ats_migration_test
+          JWT_SECRET: ci-migration-test-secret-32-chars-min
+        run: |
+          ./node_modules/.bin/prisma migrate deploy
+          echo "✅ 二次 deploy 幂等性验证通过"
 
   security-scan:
     name: Security Scan
