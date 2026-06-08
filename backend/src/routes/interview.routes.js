@@ -6,7 +6,8 @@
  *   GET    /api/interviews/:id             详情（含 feedbacks）
  *   POST   /api/interviews                 安排面试
  *   PUT    /api/interviews/:id             修改时间 / 面试官
- *   POST   /api/interviews/:id/feedback    提交反馈（关键：触发 stage 状态机刷新）
+ *   GET    /api/interviews/history/:cid    G19 - 候选人历史反馈 (供前端预览)
+ *   POST   /api/interviews/:id/feedback    提交反馈（关键：触发 stage 状态机刷新 + G19 自动预填）
  *   DELETE /api/interviews/:id             取消面试
  */
 
@@ -14,6 +15,7 @@ import { Router } from 'express'
 import { prisma } from '../app.js'
 import { AppError } from '../middleware/error.middleware.js'
 import { refreshApplicationStageStatus } from '../services/interview-state-machine.service.js'
+import { getCandidateHistory } from '../services/interview-history.service.js'
 
 const router = Router()
 
@@ -126,6 +128,14 @@ router.put('/:id', async (req, res, next) => {
   }
 })
 
+// ====== G19: 获取候选人历史面试反馈 (供前端预览) ======
+router.get('/history/:candidateId', async (req, res, next) => {
+  try {
+    const history = await getCandidateHistory(req.params.candidateId)
+    res.json({ success: true, data: history })
+  } catch (e) { next(e) }
+})
+
 // ====== 提交反馈（关键端点 - 触发 G3.6 状态机刷新）======
 router.post('/:id/feedback', async (req, res, next) => {
   try {
@@ -140,9 +150,24 @@ router.post('/:id/feedback', async (req, res, next) => {
 
     const interview = await prisma.interview.findUnique({
       where: { id },
-      include: { application: { select: { id: true } } },
+      include: { application: { select: { id: true, candidateId: true } } },
     })
     if (!interview) throw new AppError('面试不存在', 404)
+
+    // G19: 自动预填历史反馈 (如果前端没传)
+    let prefilled = false
+    if (!previousFeedback && interview.application?.candidateId) {
+      try {
+        const history = await getCandidateHistory(interview.application.candidateId)
+        if (history.total > 0) {
+          previousFeedback = history.previousFeedback
+          prefilled = true
+        }
+      } catch (e) {
+        // 历史聚合失败不影响主流程
+        console.warn('[G19] getCandidateHistory 失败:', e.message)
+      }
+    }
 
     // upsert 当前用户的 feedback
     const interviewerId = req.userId
@@ -187,7 +212,7 @@ router.post('/:id/feedback', async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { feedback, currentStageStatus: newStageStatus },
+      data: { feedback, currentStageStatus: newStageStatus, prefilled },
     })
   } catch (e) { next(e) }
 })
