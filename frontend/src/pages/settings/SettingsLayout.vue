@@ -219,7 +219,7 @@ watch(
 
 /* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class)
    用 :deep 穿透 scoped CSS 边界 (子页面是另一个组件实例) */
-.settings-content:deep(> *) {
+.settings-content :deep(> *) {
   display: flex;
   flex-direction: column;
   flex: 1;
