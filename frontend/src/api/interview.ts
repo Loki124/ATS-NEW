@@ -73,4 +73,27 @@ export async function cancelInterview(interviewId: string, reason?: string) {
   return data;
 }
 
+// G19 - 获取候选人历史面试反馈 (供前端预览)
+export interface InterviewHistoryItem {
+  id: string;
+  result: string;
+  reason?: string;
+  interviewerName: string;
+  feedbackAt?: string;
+  roundName: string;
+}
+
+export interface InterviewHistory {
+  total: number;
+  passCount: number;
+  failCount: number;
+  previousFeedback: string;
+  feedbacks: InterviewHistoryItem[];
+}
+
+export async function getInterviewHistory(candidateId: string): Promise<InterviewHistory> {
+  const { data } = await api.get(`/interviews/history/${candidateId}`);
+  return data.data;
+}
+
 export default api;
