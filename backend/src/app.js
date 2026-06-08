@@ -38,6 +38,10 @@ import onboardingRoutes from './routes/onboarding.routes.js';
 import talentPoolRoutes from './routes/talent-pool.routes.js';
 import scoringRuleRoutes from './routes/scoring-rule.routes.js';
 import positionRecommendationRoutes from './routes/position-recommendation.routes.js';
+import externalSyncRoutes from './routes/external-sync.routes.js';
+// G40: 注册 adapter (导入以触发 registerAdapter 副作用)
+import './services/integration/mock-moka.adapter.js';
+import './services/integration/stub-email.adapter.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
@@ -161,6 +165,9 @@ app.use('/api/scoring-rules', authMiddleware, scoringRuleRoutes);
 
 // ====== 字段级 ACL 规则 (G43) ======
 app.use('/api/field-acl', authMiddleware, fieldAclRoutes);
+
+// ====== G40 法人公司同步 ======
+app.use('/api/external-sync', authMiddleware, externalSyncRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
