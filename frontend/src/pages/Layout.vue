@@ -73,7 +73,7 @@
       </n-layout-header>
 
       <!-- 内容区 -->
-      <n-layout-content class="bg-gray-50">
+      <n-layout-content class="bg-gray-50 layout-content">
         <div class="content-wrapper p-6">
           <router-view />
         </div>
@@ -346,5 +346,18 @@ function handleUserMenu(key: string) {
 }
 :deep(.n-menu-item-content--selected) {
   font-weight: 600;
+}
+
+/* === 内容区填满剩余高度 === */
+.layout-content {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 64px); /* 减掉头部 64px */
+}
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
 }
 </style>
