@@ -37,6 +37,7 @@ import invitationRoutes from './routes/invitation.routes.js';
 import onboardingRoutes from './routes/onboarding.routes.js';
 import talentPoolRoutes from './routes/talent-pool.routes.js';
 import scoringRuleRoutes from './routes/scoring-rule.routes.js';
+import positionRecommendationRoutes from './routes/position-recommendation.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
@@ -151,6 +152,9 @@ app.use('/api/onboardings', authMiddleware, onboardingRoutes);
 
 // ====== 人才库 (PRD G32 MVP) ======
 app.use('/api/talent-pool', authMiddleware, talentPoolRoutes);
+
+// ====== 双向推荐 API (PRD G31) ======
+app.use('/api/recommendations', authMiddleware, positionRecommendationRoutes);
 
 // ====== 评分规则 (PRD G39) ======
 app.use('/api/scoring-rules', authMiddleware, scoringRuleRoutes);

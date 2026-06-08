@@ -1,49 +1,93 @@
 /**
- * 人才库路由 - PRD G32 (6 子库 MVP)
+ * 人才库路由 - PRD G32 (6 子库完整 CRUD)
  *
- * 当前实现: 复用候选人查询 (PRD G32 6 子库完整 CRUD 下个迭代)
- * 路由: GET /api/talent-pool/stats - 6 子库统计
- *       GET /api/talent-pool/candidates - 跨池查询候选人
+ * 路由:
+ *   GET    /api/talent-pool/types          - 6 子库定义
+ *   GET    /api/talent-pool/stats          - 6 子库统计
+ *   GET    /api/talent-pool/pool/:poolCode - 子库候选人列表 (分页)
+ *   POST   /api/talent-pool/pool/:poolCode/move - 把候选人移入该子库 (写审计)
+ *   GET    /api/talent-pool/candidates     - 跨池候选人查询 (兼容旧)
+ *   GET    /api/talent-pool/               - 模块元信息
  */
 
 import { Router } from 'express'
 import { prisma } from '../app.js'
+import {
+  TALENT_POOL_TYPES,
+  listPoolStats,
+  listCandidatesInPool,
+  moveCandidateToPool,
+} from '../services/talent-pool.service.js'
 
 const router = Router()
 
-// 6 子库定义 (PRD G32)
-const SUB_POOLS = [
-  { key: 'PASSIVE', name: '被动库', description: '暂未投递的潜在候选人' },
-  { key: 'ACTIVE', name: '主动库', description: '主动投递的候选人' },
-  { key: 'HIRED', name: '已聘库', description: '已入职候选人储备' },
-  { key: 'REJECTED', name: '已拒库', description: '不合适候选人(可重新激活)' },
-  { key: 'BLACKLIST', name: '黑名单', description: '永不联系候选人' },
-  { key: 'TALENT_POOL', name: '通用库', description: '其他通用储备' },
-]
+/**
+ * 6 子库枚举
+ */
+router.get('/types', (req, res) => {
+  res.json({ success: true, data: TALENT_POOL_TYPES })
+})
 
 /**
  * 6 子库统计
- * 注: 当前 schema 没 pool 字段, 全部统计从 candidate.status 推算
- * 完整 G32 实现: 加 pool enum 字段 + 跨库转移 API
  */
 router.get('/stats', async (req, res, next) => {
   try {
-    const total = await prisma.candidate.count()
-    const active = await prisma.candidate.count({ where: { candidateStatus: 'ACTIVE' } })
-    const archived = await prisma.candidate.count({ where: { candidateStatus: 'ARCHIVED' } })
+    const stats = await listPoolStats()
     res.json({
       success: true,
       data: {
-        pools: SUB_POOLS,
-        summary: { total, active, archived, blacklisted: 0 },
-        note: '完整 6 子库 CRUD 待 G32 完整实现, 当前从 candidate.status 推算',
+        pools: Object.values(TALENT_POOL_TYPES),
+        stats,
       },
     })
   } catch (e) { next(e) }
 })
 
 /**
- * 跨池查询候选人
+ * 子库候选人列表 (分页)
+ */
+router.get('/pool/:poolCode', async (req, res, next) => {
+  try {
+    const { poolCode } = req.params
+    if (!TALENT_POOL_TYPES[poolCode]) {
+      return res.status(400).json({ success: false, message: `Unknown pool: ${poolCode}` })
+    }
+    const page = parseInt(req.query.page) || 1
+    const pageSize = parseInt(req.query.pageSize) || 20
+    const list = await listCandidatesInPool(poolCode, { page, pageSize })
+    res.json({ success: true, data: { list, pagination: { page, pageSize } } })
+  } catch (e) { next(e) }
+})
+
+/**
+ * 把候选人移动到指定子库 (写审计)
+ *   POST /api/talent-pool/pool/PASSIVE/move
+ *   body: { candidateId, reason }
+ */
+router.post('/pool/:poolCode/move', async (req, res, next) => {
+  try {
+    const { poolCode } = req.params
+    if (!TALENT_POOL_TYPES[poolCode]) {
+      return res.status(400).json({ success: false, message: `Unknown pool: ${poolCode}` })
+    }
+    const { candidateId, reason } = req.body || {}
+    if (!candidateId) {
+      return res.status(400).json({ success: false, message: 'candidateId required' })
+    }
+    const operatorId = req.user?.id || req.user?.userId || 'system'
+    const updated = await moveCandidateToPool(candidateId, poolCode, reason || '', operatorId)
+    res.json({ success: true, data: updated })
+  } catch (e) {
+    if (String(e.message).startsWith('Unknown pool')) {
+      return res.status(400).json({ success: false, message: e.message })
+    }
+    next(e)
+  }
+})
+
+/**
+ * 跨池候选人查询 (兼容旧)
  */
 router.get('/candidates', async (req, res, next) => {
   try {
@@ -69,20 +113,22 @@ router.get('/candidates', async (req, res, next) => {
 })
 
 /**
- * 根路径 - 返回模块元信息
+ * 根路径 - 模块元信息
  */
 router.get('/', (req, res) => {
   res.json({
     success: true,
     data: {
       module: 'talent-pool',
-      description: '人才库 (PRD G32 6 子库)',
+      description: '人才库 (PRD G32 6 子库完整 CRUD)',
       endpoints: [
-        'GET /api/talent-pool/stats - 6 子库统计',
-        'GET /api/talent-pool/candidates - 跨池候选人查询',
+        'GET    /api/talent-pool/types',
+        'GET    /api/talent-pool/stats',
+        'GET    /api/talent-pool/pool/:poolCode',
+        'POST   /api/talent-pool/pool/:poolCode/move',
+        'GET    /api/talent-pool/candidates',
       ],
-      pools: SUB_POOLS,
-      status: 'MVP - 6 子库 CRUD 计划下个迭代',
+      pools: Object.values(TALENT_POOL_TYPES),
     },
   })
 })

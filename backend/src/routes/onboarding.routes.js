@@ -28,15 +28,24 @@ router.get('/', async (req, res, next) => {
     if (onboardingStatus) where.onboardingStatus = onboardingStatus
     if (demandId) where.demandId = demandId
 
-    const [list, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       prisma.onboarding.findMany({
         where,
         orderBy: { expectedJoinDate: 'asc' },
         skip: (Number(page) - 1) * Number(pageSize),
         take: Number(pageSize),
+        include: {
+          application: { select: { candidateId: true, candidate: { select: { id: true, name: true } } } },
+        },
       }),
       prisma.onboarding.count({ where }),
     ])
+    // 展开成扁平行, 方便前端直接拿 candidateId
+    const list = rows.map(({ application, ...rest }) => ({
+      ...rest,
+      candidateId: application?.candidateId || null,
+      candidateName: application?.candidate?.name || null,
+    }))
     res.json({
       success: true,
       data: { list, pagination: { page: Number(page), pageSize: Number(pageSize), total, totalPages: Math.ceil(total / Number(pageSize)) } },
