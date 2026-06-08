@@ -120,6 +120,7 @@ const subMenuOptions = [
       { key: '/settings/company', label: '公司信息', icon: renderIcon(InformationCircleOutline) },
       { key: '/settings/external', label: '对外接口', icon: renderIcon(ServerOutline) },
       { key: '/settings/public', label: '公共设置', icon: renderIcon(CloudUploadOutline) },
+      { key: '/settings/field-acl', label: '字段权限', icon: renderIcon(KeyOutline) },
     ],
   },
 ]

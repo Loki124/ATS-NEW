@@ -112,6 +112,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'company', name: 'CompanySettings', component: () => import('../pages/settings/CompanySettings.vue') },
           { path: 'external', name: 'ExternalSettings', component: () => import('../pages/settings/Placeholder.vue') },
           { path: 'public', name: 'PublicSettings', component: () => import('../pages/settings/Placeholder.vue') },
+          { path: 'field-acl', name: 'FieldAclSettings', component: () => import('../pages/settings/FieldAclSettings.vue') },
           // ===== 招聘流程管理 (PRD G38) =====
           { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import('../pages/settings/RecruitmentProcess.vue') },
           { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import('../pages/settings/RecruitmentStage.vue') },
