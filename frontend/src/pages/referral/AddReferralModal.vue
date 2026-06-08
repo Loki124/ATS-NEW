@@ -76,7 +76,7 @@ import { useMessage, NIcon } from 'naive-ui'
 import { PersonAddOutline } from '@vicons/ionicons5'
 import { listDemands, getDemand, type Demand, type Position } from '../../api/demand'
 import { addReferral } from '../../api/referral'
-import api from '../../api/referral'
+import api from '../../api/auth'
 import api from '../../api/referral'
 
 const props = defineProps<{ show: boolean }>()

@@ -21,7 +21,7 @@
             <!-- 邀约不成功 -->
             <n-form-item label="邀约不成功（失败标签次数触发）">
               <n-space>
-                <n-switch v-model:value="archiveForms.invite.enabled" @update:value="(v) => saveArchive('INVITE_FAIL', archiveForms.invite)" />
+                <n-switch v-model:value="archiveForms.invite.enabled" @update:value="(_v: boolean) => saveArchive('INVITE_FAIL', archiveForms.invite)" />
                 <n-input v-model:value="archiveForms.invite.failTags" placeholder="失败标签（逗号分隔）" :disabled="!archiveForms.invite.enabled" style="width: 240px" />
                 <n-input-number v-model:value="archiveForms.invite.maxAttempts" :min="1" :max="10" placeholder="最大次数" :disabled="!archiveForms.invite.enabled" style="width: 120px" />
               </n-space>
@@ -30,7 +30,7 @@
             <!-- Offer 不通过 -->
             <n-form-item label="Offer 不通过（审批人拒绝/候选人拒绝）">
               <n-space>
-                <n-switch v-model:value="archiveForms.offer.enabled" @update:value="(v) => saveArchive('OFFER_FAIL', archiveForms.offer)" />
+                <n-switch v-model:value="archiveForms.offer.enabled" @update:value="(_v: boolean) => saveArchive('OFFER_FAIL', archiveForms.offer)" />
                 <n-text v-if="archiveForms.offer.enabled" type="success" size="small">已启用（覆盖默认两条规则）</n-text>
                 <n-text v-else depth="3" size="small">默认 2 条：审批人拒绝 + 候选人拒绝</n-text>
               </n-space>
@@ -39,7 +39,7 @@
             <!-- 评估/筛选/面试不通过 -->
             <n-form-item label="评估/筛选/面试不通过（指定标签）">
               <n-space>
-                <n-switch v-model:value="archiveForms.eval.enabled" @update:value="(v) => saveArchive('EVAL_FAIL', archiveForms.eval)" />
+                <n-switch v-model:value="archiveForms.eval.enabled" @update:value="(_v: boolean) => saveArchive('EVAL_FAIL', archiveForms.eval)" />
                 <n-input v-model:value="archiveForms.eval.failTags" placeholder="不通过标签（逗号分隔，如 跳槽频繁）" :disabled="!archiveForms.eval.enabled" style="width: 320px" />
                 <n-select
                   v-model:value="archiveForms.eval.executeTiming"
@@ -54,7 +54,7 @@
             <!-- 超时未分配 -->
             <n-form-item label="超时未分配（3 天未分配则自动合并/转移）">
               <n-space>
-                <n-switch v-model:value="archiveForms.timeout.enabled" @update:value="(v) => saveArchive('TIMEOUT_UNASSIGNED', archiveForms.timeout)" />
+                <n-switch v-model:value="archiveForms.timeout.enabled" @update:value="(_v: boolean) => saveArchive('TIMEOUT_UNASSIGNED', archiveForms.timeout)" />
                 <n-input-number v-model:value="archiveForms.timeout.timeoutDays" :min="1" :max="30" :disabled="!archiveForms.timeout.enabled" style="width: 120px" />
                 <n-text depth="3" size="small">天</n-text>
               </n-space>
@@ -455,7 +455,7 @@ async function saveArchive(ruleType: string, form: any) {
     }
     await upsertAutoArchiveRule({
       processId: processId.value,
-      ruleType,
+      ruleType: ruleType as 'INVITE_FAIL' | 'OFFER_FAIL' | 'EVAL_FAIL' | 'TIMEOUT_UNASSIGNED',
       enabled: form.enabled,
       config,
     })

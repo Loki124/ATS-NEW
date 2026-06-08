@@ -136,7 +136,7 @@ const showAddModal = ref(false)
 const loadingAddModal = ref(false)
 const availableStages = ref<any[]>([])
 const showLimitModal = ref(false)
-const limitForm = ref({ linkId: '', stageLimit: 0 })
+const limitForm = ref<{ linkId: string; stageLimit: number | null }>({ linkId: '', stageLimit: 0 })
 
 // 类型颜色映射
 function getTypeColor(type: string) {
