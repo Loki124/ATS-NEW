@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright e2e 配置
  * - baseURL: 前端开发服务器 (默认 5212, 见 src/config)
- * - webServer: 自动启 vite dev
+ * - webServer: 自动启 vite dev, --host 让 vite 同时监听 IPv4 (127.0.0.1)
  * - 后端需手动跑: `cd backend && node --env-file=.env src/app.js &`
  */
 export default defineConfig({
@@ -23,7 +23,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'npx vite --host 127.0.0.1',
     url: 'http://127.0.0.1:5212',
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
