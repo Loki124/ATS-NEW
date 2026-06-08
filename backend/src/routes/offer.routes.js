@@ -2,12 +2,13 @@
  * Offer 状态机管理路由 - PRD G23
  *
  * 资源：
- *   GET    /api/offers                          列表
- *   GET    /api/offers/:id                      详情
- *   POST   /api/offers                          创建 Offer (初始 NOT_CREATED)
- *   PUT    /api/offers/:id                      更新内容 (DRAFT 状态)
- *   POST   /api/offers/:id/transition           状态转移 (核心 G23)
- *   GET    /api/offers/:id/status-history       状态变更历史
+ *   GET    /api/offers/:id                              详情
+ *   POST   /api/offers/:id/transition                   状态转移 (核心 G23)
+ *   GET    /api/offers/:id/status-history               状态变更历史
+ *   GET    /api/offers/:id/background-checks            G26 - 背调列表
+ *   POST   /api/offers/:id/background-checks            G26 - 创建背调
+ *   PUT    /api/offers/:id/background-checks/:bid/complete  G26 - 完成背调
+ *   GET    /api/offers/:id/background-checks/:bid/report    G26 - 下载 PDF 报告
  */
 
 import { Router } from 'express'
@@ -20,6 +21,12 @@ import {
   canEditOffer,
 } from '../services/offer-state-machine.service.js'
 import { recordOperation } from '../services/audit-log.service.js'
+import {
+  listBackgroundChecks,
+  createBackgroundCheck,
+  completeBackgroundCheck,
+} from '../services/background-check.service.js'
+import { renderBackgroundCheckReport } from '../services/pdf-generator.service.js'
 
 const router = Router()
 
@@ -171,6 +178,63 @@ router.post('/:id/transition', async (req, res, next) => {
     })
 
     res.json({ success: true, data: result })
+  } catch (e) { next(e) }
+})
+
+// ========================================================
+// G26 - Offer 手动背调 4 等级 + PDF 报告
+// ========================================================
+
+// 列表
+router.get('/:id/background-checks', async (req, res, next) => {
+  try {
+    const data = await listBackgroundChecks(req.params.id)
+    res.json({ success: true, data })
+  } catch (e) { next(e) }
+})
+
+// 创建
+router.post('/:id/background-checks', async (req, res, next) => {
+  try {
+    const data = await createBackgroundCheck({
+      offerId: req.params.id,
+      checkType: req.body.checkType,
+      supplier: req.body.supplier,
+      note: req.body.note,
+    })
+    res.json({ success: true, data })
+  } catch (e) { next(e) }
+})
+
+// 完成 (写等级)
+router.put('/:id/background-checks/:bid/complete', async (req, res, next) => {
+  try {
+    const data = await completeBackgroundCheck(req.params.bid, req.body)
+    res.json({ success: true, data })
+  } catch (e) { next(e) }
+})
+
+// 下载报告 PDF
+router.get('/:id/background-checks/:bid/report', async (req, res, next) => {
+  try {
+    const record = await prisma.backgroundCheckRecord.findUnique({
+      where: { id: req.params.bid },
+    })
+    if (!record) throw new AppError('背调记录不存在', 404)
+    if (!record.level) throw new AppError('背调未完成, 暂不能生成报告', 400)
+    const offer = await prisma.offer.findUnique({
+      where: { id: req.params.id },
+      include: { application: { include: { candidate: true } } },
+    })
+    if (!offer) throw new AppError('Offer 不存在', 404)
+    const pdf = await renderBackgroundCheckReport({
+      offer,
+      candidate: offer.application?.candidate,
+      record,
+    })
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="bg-check-${req.params.bid}.pdf"`)
+    res.send(pdf)
   } catch (e) { next(e) }
 })
 
