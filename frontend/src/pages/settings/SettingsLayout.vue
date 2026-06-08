@@ -216,12 +216,13 @@ watch(
   min-height: 0; /* 关键: flex 子元素需要 min-height:0 才能正确收缩 */
 }
 
-/* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class) */
-.settings-content > * {
+/* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class)
+   用 :deep 穿透 scoped CSS 边界 (子页面是另一个组件实例) */
+.settings-content:deep(> *) {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 0; /* 关键: 不要强制 100%, 让内容溢出时父容器滚 */
+  min-height: 0;
   box-sizing: border-box;
   padding: 16px 24px;
   gap: 12px;
