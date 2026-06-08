@@ -18,6 +18,22 @@
       </n-space>
     </div>
 
+    <!-- G44 11 状态详细字段筛选 -->
+    <n-card :bordered="false" class="status-filter-card mb-4">
+      <n-space :size="8" :wrap="true">
+        <n-button size="small" @click="setStatusFilter(null)" :type="statusFilter === null ? 'primary' : 'default'">全部</n-button>
+        <n-button
+          v-for="s in STATUS_SCHEMA"
+          :key="s.key"
+          size="small"
+          @click="setStatusFilter(s.key)"
+          :type="statusFilter === s.key ? 'primary' : 'default'"
+        >
+          {{ s.label }}
+        </n-button>
+      </n-space>
+    </n-card>
+
     <!-- 筛选区域 -->
     <n-card class="filter-card mb-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
@@ -248,7 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, h, computed } from 'vue'
+import { ref, reactive, h, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, NTag, NIcon, NButton, NSpace } from 'naive-ui'
 import {
@@ -265,6 +281,7 @@ import {
   LogoWechat,
 } from '@vicons/ionicons5'
 import AddCandidateModal from './AddCandidateModal.vue'
+import { fetchStatusSchema, type StatusSchema } from '@/api/candidate'
 
 const router = useRouter()
 const message = useMessage()
@@ -273,6 +290,28 @@ const addModalVisible = ref(false)
 const searchText = ref('')
 const positionFilter = ref<string | undefined>()
 const channelFilter = ref<string | undefined>()
+
+// G44 11 状态字段筛选
+const STATUS_SCHEMA = ref<Array<{ key: string; label: string; order: number }>>([])
+const statusFilter = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    const schema: StatusSchema = await fetchStatusSchema()
+    STATUS_SCHEMA.value = Object.entries(schema)
+      .map(([key, v]) => ({ key, label: v.label, order: v.order }))
+      .sort((a, b) => a.order - b.order)
+  } catch (e) {
+    // 静默失败: 11 状态筛选可选
+    console.warn('fetchStatusSchema 失败', e)
+  }
+})
+
+function setStatusFilter(key: string | null) {
+  statusFilter.value = key
+  // 触发搜索 (复用现有搜索逻辑, statusFilter 可作为筛选条件)
+  handleSearch()
+}
 const stageFilter = ref<string | undefined>()
 const selectedCandidates = ref<any[]>([])
 const batchNotificationModalVisible = ref(false)
