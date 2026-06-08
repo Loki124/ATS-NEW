@@ -3,7 +3,7 @@
  */
 
 import { jest } from '@jest/globals'
-import { generateSimplePdf, offerContextToLines } from '../pdf-generator.service.js'
+import { generateSimplePdf, offerContextToLines, renderBackgroundCheckReport } from '../pdf-generator.service.js'
 
 describe('pdf-generator: generateSimplePdf', () => {
   it('生成非空 Buffer', () => {
@@ -95,6 +95,27 @@ describe('pdf-generator: 端到端', () => {
     const lines = offerContextToLines(ctx)
     const pdf = generateSimplePdf({ title: 'Offer Letter', lines, author: 'ATS System' })
     expect(pdf.length).toBeGreaterThan(500)
+    expect(pdf.slice(0, 8).toString()).toBe('%PDF-1.4')
+  })
+})
+
+describe('pdf-generator: renderBackgroundCheckReport (G26)', () => {
+  it('生成非空 PDF Buffer', () => {
+    const pdf = renderBackgroundCheckReport({
+      offer: { id: 'o1', positionName: '工程师' },
+      candidate: { name: '张三', phone: '13800138000' },
+      record: { level: 'PASS', score: 100, risks: [], checkType: '学历', completedAt: new Date() },
+    })
+    expect(Buffer.isBuffer(pdf)).toBe(true)
+    expect(pdf.length).toBeGreaterThan(500)
+  })
+
+  it('PDF 头部为 %PDF-1.4', () => {
+    const pdf = renderBackgroundCheckReport({
+      offer: { id: 'o1' },
+      candidate: { name: '李四' },
+      record: { level: 'WARN', score: 70 },
+    })
     expect(pdf.slice(0, 8).toString()).toBe('%PDF-1.4')
   })
 })
