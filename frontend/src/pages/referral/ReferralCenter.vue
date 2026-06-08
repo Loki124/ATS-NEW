@@ -71,7 +71,7 @@
             :loading="recordsLoading"
             :pagination="recordsPagination"
             @update:page="loadRecords"
-            :row-key="(row) => row.id"
+            :row-key="(row: any) => row.id"
           />
           <n-empty v-if="!recordsLoading && records.length === 0" description="暂无推荐记录，去分享你的内推码吧 🎉" class="mt-6" />
         </n-tab-pane>
@@ -84,7 +84,7 @@
             :loading="rewardsLoading"
             :pagination="rewardsPagination"
             @update:page="loadRewards"
-            :row-key="(row) => row.id"
+            :row-key="(row: any) => row.id"
           />
           <n-empty v-if="!rewardsLoading && rewards.length === 0" description="暂无奖励" class="mt-6" />
         </n-tab-pane>
@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { ref, computed, h, onMounted, watch } from 'vue'
-import { useMessage, NTag, NIcon, NText } from 'naive-ui'
+import { useMessage, NTag, NIcon, NText, NButton, NSpace } from 'naive-ui'
 import {
   CopyOutline,
   LinkOutline,
