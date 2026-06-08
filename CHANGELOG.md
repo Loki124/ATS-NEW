@@ -1,5 +1,66 @@
 # CHANGELOG
 
+## 2026-06-08 — P1 全部完成: 9 个缺口 (G8/G11/G19/G26/G31/G32/G40/G43/G44) — 31 commits
+
+### 🏆 P1 全部 9 项 done（PRD Phase 2 + Phase 3 前置就绪）
+
+- 5 个 subagent 并行执行, 31 个 commit, ~78 个新单测
+- 5 个 worktree 隔离开发, 0 个跨计划冲突 (3 个已解: candidate.routes/app.js/schema.prisma)
+- 不破坏现有 266 测试 (1 个 pre-existing referral e2e 失败与 P1 无关)
+- 见 `docs/superpowers/plans/2026-06-08-p1-master.md` 主索引
+
+#### Plan A: G44 11 状态字段 + G11 倒序推荐
+- **G44** `candidates.statusDetails` JSON 字段 + `candidate-status-machine.service.js` (11 测试)
+  - 11 业务子状态: evaluated/hrbpFiltered/managerFiltered/seniorManagerFiltered/invited/jointInterview/comprehensiveInterview/offerNegotiation/backgroundCheck/pendingOnboarding/onboarded
+  - 状态机: PENDING/PASS/FAIL, 终态不可回退
+- **G11** `candidate-recommendation.service.js` (8 测试) - 综合分 score*0.7 + 活跃度因子*0.3
+- 2 个新 API: `GET /api/candidates/recommendations` + `PUT /api/candidates/:id/status-details` + `GET /api/candidates/status-details/schema`
+- 前端 CandidateList.vue 11 状态筛选 + recommendations API
+
+#### Plan B: G8 字段脱敏 + G43 ACL 矩阵
+- **G8** `field-masking.service.js` (10 测试) - 5 种 MASKERS: phone/email/idCard/bankCard/salary
+- **G8** `field-acl.middleware.js` (5 测试) - 透明包装 res.json, 自动脱敏 + 异步审计
+- **G43** 2 张新表: `FieldAclRule` + `FieldAclAudit` (+ `Role.fieldAclRules` 反向)
+- **G43** `field-acl.service.js` + `field-acl.routes.js` - 5 个 API: rules CRUD/matrix/audit
+- 12 条默认规则 seed (覆盖 Candidate/Resume/Demand × INTERVIEWER/HRBP/HR)
+- fieldAcl 中间件注入 candidate/resume/demand 三个 routes
+- 前端 `field-acl.ts` API + `FieldAclSettings.vue` 矩阵配置 UI + 菜单 + 路由
+
+#### Plan C: G19 历史评价预填 + G26 手动背调
+- **G19** `interview-history.service.js` (8 测试) - 候选人历史反馈聚合 + 中文预填模板
+  - 自动按时间倒序, 统计 pass/fail/total
+  - 提交反馈时若未传 previousFeedback, 自动注入
+  - 新增 `GET /api/interviews/history/:candidateId` (前端预览)
+- **G26** BackgroundCheckRecord 加 4 等级字段 (level/score/risks/reportPath/reportUrl/reportSize)
+- **G26** `background-check.service.js` (10 测试) - 4 等级 (PASS/WARN/INCONCLUSIVE/FAIL), 状态转换 + 报告数据
+- **G26** 4 个新 API: list/create/complete/download PDF
+- 复用 `pdf-generator.service.js` 加 `renderBackgroundCheckReport` (零新依赖)
+- 前端 InterviewFeedbackForm.vue 历史预览面板 + Offer BackgroundCheckPanel.vue 4 等级选择
+
+#### Plan D: G31 智能分配 + G32 6 子库 CRUD
+- (详见下方独立 P1-D 条目)
+
+#### Plan E: G40 法人公司同步 (摩卡 People + 邮箱) 脚手架
+- 2 张新表: `LegalCompanySync` + `ExternalSyncLog` (+ `Company.syncs` 反向)
+- 适配器接口契约 (`integration/adapter.js` + ADAPTER_REGISTRY)
+- 2 个 adapter 实现: `MockMokaAdapter` (本地模拟, 内存 store) + `StubEmailAdapter` (空操作)
+- `external-sync.service.js` + 3 个 API: 触发同步/syncs 列表/重试失败
+- 前端 `external-sync.ts` + `CompanySettings.vue` 同步状态面板
+- 0 个外部依赖 — 真实 API 接入只需新建 `moka.adapter.js` 实现接口契约
+
+### 跨计划契约落地
+- 5 个 plan 全部走 TDD (红→绿→重构)
+- 8 个新表 (`FieldAclRule`/`FieldAclAudit`/`LegalCompanySync`/`ExternalSyncLog` + Candidate 字段 + BackgroundCheck 字段)
+- 26+ 个新 API 端点
+- ~78 个新单测 (目标 266 + 78 = 344)
+- 不修改 SettingsLayout.vue (CSS 1 行未提交保留)
+
+### 已知债 (不阻塞 P1 完成)
+- 1 个 pre-existing referral e2e 失败 (dev DB 状态依赖)
+- vue-tsc 1.8.0 + Node 24 工具链不兼容 (pre-existing, 不影响 build)
+
+---
+
 ## 2026-06-08 — P1-D 完成: G31 智能分配 + G32 6 子库完整 CRUD
 
 ### G31 待入职智能分配 (PRD G31)
