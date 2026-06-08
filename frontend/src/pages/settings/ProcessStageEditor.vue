@@ -8,7 +8,7 @@
         </n-button>
         <h2>{{ processName }} - 阶段配置</h2>
       </n-space>
-      <n-button type="primary" @click="showAddModal = true" :disabled="!processId">
+      <n-button type="primary" @click="openAddModal" :disabled="!processId">
         <template #icon><n-icon :component="AddOutline" /></template>
         添加阶段
       </n-button>
@@ -64,7 +64,13 @@
     </n-spin>
 
     <!-- 添加阶段弹窗 - 从全局库选 -->
-    <n-modal v-model:show="showAddModal" preset="card" title="从全局阶段库选择" style="width: 720px">
+    <n-modal
+      v-model:show="showAddModal"
+      preset="card"
+      title="从全局阶段库选择"
+      style="width: 720px"
+      :transform-origin="undefined"
+    >
       <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
         只显示<strong>启用中</strong>且<strong>未被当前流程引用</strong>的阶段。
       </n-alert>
@@ -79,7 +85,13 @@
     </n-modal>
 
     <!-- 设置阶段时长弹窗 -->
-    <n-modal v-model:show="showLimitModal" preset="card" title="设置阶段时长限制" style="width: 400px">
+    <n-modal
+      v-model:show="showLimitModal"
+      preset="card"
+      title="设置阶段时长限制"
+      style="width: 400px"
+      :transform-origin="undefined"
+    >
       <n-form :model="limitForm" label-placement="top">
         <n-form-item label="时长（小时）">
           <n-input-number v-model:value="limitForm.stageLimit" :min="0" placeholder="留空表示不限制" style="width: 100%" />
