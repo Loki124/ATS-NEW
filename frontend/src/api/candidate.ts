@@ -84,4 +84,49 @@ export async function recommendReverse(payload: { positionId: string; candidateI
   return data
 }
 
+// G11 倒序推荐 (按 lastActiveAt + score 综合分)
+export interface RecommendationParams {
+  positionId?: string
+  keyword?: string
+  sortBy?: 'score' | 'lastActiveAt' | 'composite'
+  limit?: number
+}
+export async function fetchRecommendations(params: RecommendationParams = {}) {
+  const { data } = await api.get('/candidates/recommendations', { params })
+  return data
+}
+
+// G44 候选人 11 状态详细字段
+export type StatusValue = 'PENDING' | 'PASS' | 'FAIL'
+export interface CandidateStatusDetail {
+  evaluated?: StatusValue
+  hrbpFiltered?: StatusValue
+  managerFiltered?: StatusValue
+  seniorManagerFiltered?: StatusValue
+  invited?: StatusValue
+  jointInterview?: StatusValue
+  comprehensiveInterview?: StatusValue
+  offerNegotiation?: StatusValue
+  backgroundCheck?: StatusValue
+  pendingOnboarding?: StatusValue
+  onboarded?: StatusValue
+  [key: string]: StatusValue | undefined
+}
+export interface StatusSchemaItem {
+  order: number
+  label: string
+  terminal: boolean
+}
+export type StatusSchema = Record<string, StatusSchemaItem>
+
+export async function fetchStatusSchema(): Promise<StatusSchema> {
+  const { data } = await api.get('/candidates/status-details/schema')
+  return data.data
+}
+
+export async function updateCandidateStatusDetail(id: string, key: string, value: StatusValue) {
+  const { data } = await api.put(`/candidates/${id}/status-details`, { key, value })
+  return data
+}
+
 export default api
