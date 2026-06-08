@@ -40,6 +40,7 @@ import scoringRuleRoutes from './routes/scoring-rule.routes.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
+import fieldAclRoutes from './routes/field-acl.routes.js';
 
 // 配置
 import config from './config/index.js';
@@ -153,6 +154,9 @@ app.use('/api/talent-pool', authMiddleware, talentPoolRoutes);
 
 // ====== 评分规则 (PRD G39) ======
 app.use('/api/scoring-rules', authMiddleware, scoringRuleRoutes);
+
+// ====== 字段级 ACL 规则 (G43) ======
+app.use('/api/field-acl', authMiddleware, fieldAclRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
