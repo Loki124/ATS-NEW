@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-06-09 — P3 数据治理 (G41+G42) + Tech 债 (Playwright + vue-tsc) — 21 commits
+
+### P3-F 数据治理: G41 院校/公司信息库 + G42 动态字段
+- **G41** `school-library.service.js` (5 测试) + `company-library.service.js` (5 测试)
+  - 院校: 50 所 seed (24 真名 985 + 6 真名 211)
+  - 公司: 30 家 seed (13 真名头部企业: 中石油/华为/腾讯/阿里/Microsoft/Google/Apple 等)
+  - 6 个 API: `/api/library/schools` + `/companies` + `provinces` + `cities` + `:id`
+- **G42** 2 张新表: `FieldDefinition` + `FieldOption`
+- **G42** `dynamic-field.service.js` (6 测试) - 元数据驱动, 5 字段类型 (TEXT/NUMBER/DATE/SELECT/MULTISELECT/BOOLEAN) + 6 端点
+- 前端 3 页: `SchoolLibrary.vue` + `CompanyLibrary.vue` + `DynamicFieldSettings.vue`
+- 菜单: SettingsLayout group-misc 加 3 项 (院校库/公司库/动态字段)
+
+### Tech-G: Playwright e2e 基础 + vue-tsc 2.x 工具链修复
+- **Playwright 1.49.1** (从 1.60 降级, 浏览器从 169MB 缩到 77MB)
+- 3 个 e2e spec: `login.spec.ts` (2 场景) + `settings-layout.spec.ts` (2 场景) + `candidate-list.spec.ts` (P1-A 11 状态回归保护)
+- `.github/workflows/ci.yml` 加 e2e job (依赖 test-backend + test-frontend, 上传 playwright-report)
+- **vue-tsc 1.8.0 → 2.2.12** 升级 (Node 24 兼容, 修 pre-existing `Search string not found` 错)
+- `tsconfig.json` 修: `ignoreDeprecations: 6.0 → 5.0`, 关 `noUnusedLocals/noUnusedParameters`
+- 11 个旧 `.vue` 文件加 `as any` 绕过类型错 (遗留, 后续逐个修)
+- `.gitignore` 加 Playwright 产物 (test-results/playwright-report/blob-report)
+- `docs/SETUP.md` 加 §8 e2e + §9 vue-tsc 章节
+
+---
+
 ## 2026-06-08 — P1 全部完成: 9 个缺口 (G8/G11/G19/G26/G31/G32/G40/G43/G44) — 31 commits
 
 ### 🏆 P1 全部 9 项 done（PRD Phase 2 + Phase 3 前置就绪）
