@@ -979,6 +979,21 @@ model BackgroundCheckRecord {
   isSupplement   Boolean   @default(false)
   supplementOfId String?
 
+  // G26 - 4 等级背调
+  // PASS  通过 / WARN  有小问题但可接受 / FAIL 不通过 / INCONCLUSIVE 资料不足
+  level   String?  @db.VarChar(16)
+
+  // 报告附件 (PDF, 存服务器路径, 不放二进制)
+  reportPath String?  @db.VarChar(255)
+  reportUrl  String?  @db.VarChar(255)
+  reportSize Int?     // bytes
+
+  // 评分 (0-100, 自动按 level 映射)
+  score    Int?
+
+  // 风险项 (JSON 数组: [{category, severity, description}])
+  risks    Json?    @db.Json
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -986,6 +1001,7 @@ model BackgroundCheckRecord {
 
   @@index([offerId])
   @@index([supplementOfId])
+  @@index([level])
   @@map("background_check_records")
 }
 
