@@ -11,7 +11,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed/recruitment-process.seed.js && node prisma/seed.notification-templates.js && node prisma/seed.referral.js",
+    "db:seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed/recruitment-process.seed.js && node prisma/seed.notification-templates.js && node prisma/seed.referral.js && node prisma/seed/field-acl.seed.js",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
     "db:studio": "prisma studio",
     "deploy": "bash scripts/deploy.sh",
@@ -20,7 +20,7 @@
     "test:coverage": "jest --coverage"
   },
   "prisma": {
-    "seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed/recruitment-process.seed.js && node prisma/seed.notification-templates.js && node prisma/seed.referral.js"
+    "seed": "node prisma/seed/user.seed.cjs && node prisma/seed/department.seed.cjs && node prisma/seed/permission.seed.cjs && node prisma/seed/recruitment-process.seed.js && node prisma/seed.notification-templates.js && node prisma/seed.referral.js && node prisma/seed/field-acl.seed.js"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
