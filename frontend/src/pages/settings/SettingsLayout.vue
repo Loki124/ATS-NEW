@@ -216,8 +216,8 @@ watch(
   min-height: 0; /* 关键: flex 子元素需要 min-height:0 才能正确收缩 */
 }
 
-/* 让所有 Settings 子页面的 page-container 撑满父高度 */
-.settings-content :deep(.page-container) {
+/* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class) */
+.settings-content > * {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -225,6 +225,7 @@ watch(
   box-sizing: border-box;
   padding: 16px 24px;
   gap: 12px;
+  overflow: hidden;
 }
 /* page-header (h1 + buttons) 不压缩 */
 .settings-content :deep(.page-header) {
@@ -236,14 +237,14 @@ watch(
   flex-shrink: 0;
 }
 /* 主内容卡片 (n-card) 撑开 + 内部滚 */
-.settings-content :deep(.page-container > .n-card) {
+.settings-content :deep(.n-card) {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.settings-content :deep(.page-container > .n-card > .n-card__content) {
+.settings-content :deep(.n-card__content) {
   flex: 1;
   min-height: 0;
   display: flex;
