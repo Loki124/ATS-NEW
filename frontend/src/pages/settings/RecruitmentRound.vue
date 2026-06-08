@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
-import { AddOutline, EditOutline, PowerOutline } from '@vicons/ionicons5'
+import { AddOutline, PowerOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
 
 const message = useMessage()

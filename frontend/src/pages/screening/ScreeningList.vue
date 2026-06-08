@@ -31,7 +31,7 @@ const statusOptions = [
   { value: 'PENDING', label: '待审' },
 ]
 
-const columns = computed(() => [
+const columns = computed<any[]>(() => [
   { type: 'selection', width: 50 },
   { title: '姓名', key: 'name', width: 100, render: (row: Candidate) => row.name || '—' },
   { title: '性别', key: 'gender', width: 60, render: (row: Candidate) => row.gender || '—' },
