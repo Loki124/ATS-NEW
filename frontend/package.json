@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium",
+    "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@vicons/ionicons5": "^0.13.0",
@@ -20,6 +23,7 @@
     "vue-router": "^4.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20.19.39",
     "@unocss/reset": "^66.7.0",
     "@vitejs/plugin-vue": "^5.0.0",
