@@ -48,7 +48,6 @@ import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/i
 import fieldAclRoutes from './routes/field-acl.routes.js';
 import schoolLibraryRoutes from './routes/school-library.routes.js';
 import companyLibraryRoutes from './routes/company-library.routes.js';
-import dynamicFieldRoutes from './routes/dynamic-field.routes.js';
 
 // 配置
 import config from './config/index.js';
@@ -175,9 +174,6 @@ app.use('/api/external-sync', authMiddleware, externalSyncRoutes);
 // ====== G41 院校/公司信息库 ======
 app.use('/api/library', authMiddleware, schoolLibraryRoutes);
 app.use('/api/library', authMiddleware, companyLibraryRoutes);
-
-// ====== G42 动态字段定义 ======
-app.use('/api/dynamic-fields', authMiddleware, dynamicFieldRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
