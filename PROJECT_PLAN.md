@@ -39,13 +39,23 @@
 5. ✅ **需求管理** - G1 8 状态机 + G2 审批引擎 + B.3 可配置化
    - 配套：G3.6 面试 5 状态机 / G14 邀约抢单 / G23 Offer 9 状态机 / G28 待入职 8 状态机 / G36 通知 / G38 招聘流程引擎 / G1.7 List 页
 
-### P1 优先级（重要模块）🟡 3 done / 12 剩余
+### P1 优先级（重要模块）✅ 12 done / 0 剩余 (2026-06-08)
 - ✅ **G14 邀约中心** - 抢单 + 8 状态机 + cron 超时
 - ✅ **G23 Offer 管理** - 9 状态机 + 4 模板 + PDF
 - ✅ **G28 待入职管理** - 8 状态机
 - ✅ **G3.6 面试管理** - 5 状态机聚合
 - ✅ **G39 评分规则** - 3 规则类型 + 10 测试
-- ⬜ G8 字段级权限 / G19 历史评价 / G26 手动背调 / G31 智能分配 / G40 公司同步 / G43 字段 ACL / G44 11 状态字段 / G32 完整 6 子库 CRUD
+- ✅ **G44 候选人 11 状态字段** (P1-A) - statusDetails JSON + 状态机
+- ✅ **G11 倒序推荐** (P1-A) - 综合分 score*0.7 + 活跃度*0.3
+- ✅ **G8 字段级脱敏** (P1-B) - phone/email/idCard/bankCard/salary 中间件
+- ✅ **G43 字段 ACL 矩阵** (P1-B) - 2 张新表 + 12 条 seed + 矩阵 UI
+- ✅ **G19 面试历史评价预填** (P1-C) - 自动聚合 + 中文模板
+- ✅ **G26 手动背调 4 等级** (P1-C) - PASS/WARN/INCONCLUSIVE/FAIL + PDF
+- ✅ **G31 待入职智能分配** (P1-D) - 候选人↔职位双向推荐
+- ✅ **G32 人才库 6 子库完整 CRUD** (P1-D) - 跨池移动 + 审计
+- ✅ **G40 法人公司同步脚手架** (P1-E) - 适配器模式 + Mock/Stub (等企业 API 授权)
+
+**P1 阶段 2 全部完成**, 阶段 3 (集成 + 智能化) 启动前置就绪
 
 ### P2 优先级（辅助模块）⬜ 全部需外部依赖
 - ⬜ **G6 RPA 发布** - 需企业 API
@@ -110,18 +120,22 @@
 - [x] 审计日志（B.1 OperationRecord + DemandStatusHistory）
 - [x] 审批链配置化（B.3 DemandApprovalConfig）
 
-### 第五阶段：系统优化（持续进行中）
+### 第五阶段：系统优化 + P1 全部完成（2026-06-08 更新）
 - [x] 启动校验 middleware（JWT/CORS 长度+占位符检测）
 - [x] deletedAt Prisma Extension（7 核心表软删除）
 - [x] CI workflow（.github/workflows/ci.yml：backend tests + frontend build + Trivy）
 - [x] PDF 服务端生成（纯 JS PDF 1.4 零依赖）
 - [x] 5 路并行审计 + 批量修复（C1-C5）
+- [x] **P1 全部 9 项完成 (2026-06-08)**：G8/G11/G19/G26/G31/G32/G40/G43/G44
+  - 31 commits, ~78 个新单测, 5 个 worktree 隔离开发
+  - 见 `docs/superpowers/plans/2026-06-08-p1-master.md` 主索引
+  - CHANGELOG.md 已更新 P1 全部完成条目
 - [ ] 路由 meta.roles 粒度控制（low ROI）
 - [ ] recruitment-auto-advance.service.js 接入
 - [ ] PDF 中文字体嵌入
 - [ ] Puppeteer 服务端 PDF（更精美排版）
 - [ ] 业务表 deletedAt 字段添加（middleware 已就绪）
-- [ ] P1 关键剩余：G8 字段级权限 / G19 复检 / G26 手动背调 / G3 复检
+- [ ] baseline migration 补完 (54 张表只 1 migration, 生产部署风险)
 - [ ] 外部集成（需企业 API）：企微/腾讯会议/摩卡 People/三方背调/RPA
 - [ ] e2e 测试（Playwright）
 - [ ] GDPR 真正合规
