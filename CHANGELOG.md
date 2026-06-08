@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 2026-06-08 — P1-D 完成: G31 智能分配 + G32 6 子库完整 CRUD
+
+### G31 待入职智能分配 (PRD G31)
+- **position-matcher.service.js** (9 测试) - 候选人↔职位双向推荐
+  - 4 维度加权: 学历(0.25) / 经验(0.30) / 职位意向(0.25) / 地点(0.20)
+  - `computeMatchScore` / `buildMatchReason` / `rankPositions`
+  - `recommendPositionsForCandidate` / `recommendCandidatesForPosition`
+- **position-recommendation.routes.js** - 2 个新 API
+  - `GET /api/recommendations/positions/for-candidate/:id`
+  - `GET /api/recommendations/candidates/for-position/:id`
+- **前端 OnboardingList.vue** - 智能分配按钮 + n-drawer 推荐职位列表
+
+### G32 人才库 6 子库完整 CRUD (PRD G32)
+- **talent-pool.service.js** (9 测试) - 6 子库枚举 + 跨池移动 (审计)
+  - PASSIVE/ACTIVE/HIRED/REJECTED/BLACKLIST/GENERAL
+  - `listPoolStats` / `listCandidatesInPool` / `moveCandidateToPool` (写 OperationRecord)
+  - 复用 Candidate.archiveToPool + candidateStatus='ARCHIVED'
+- **talent-pool.routes.js** - 4 个新 API (types/stats/pool/:code/move)
+- **前端 TalentPool.vue** - 6 子库 tab + 跨池移动弹窗 (n-modal)
+
+### 配套
+- on boarding.routes.js 列表查询 include application, 列表行带 candidateId/candidateName (供 G31 智能分配按钮)
+
+---
+
 ## 2026-06-06 — P0 全部 done：14 个状态机 + 7 完整 UI + 5 路审计修复
 
 ### 🏆 P0 14/14 全部完成（PRD Phase 1 + Phase 2 部分）
