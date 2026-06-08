@@ -13,12 +13,13 @@
 import express from 'express';
 import { prisma } from '../app.js';
 import { canTransitionDemand, DEMAND_STATUSES } from '../services/demand-state-machine.service.js';
+import { fieldAcl } from '../middleware/field-acl.middleware.js';
 import { submitForApproval, approveDemand, rejectDemand, cancelApproval } from '../services/demand-approval.service.js';
 
 const router = express.Router();
 
 // 获取所有需求
-router.get('/', async (req, res, next) => {
+router.get('/', fieldAcl('Demand'), async (req, res, next) => {
   try {
     const { page = 1, pageSize = 10, keyword, status, departmentId } = req.query;
 
@@ -75,7 +76,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // 获取单个需求详情
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', fieldAcl('Demand'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
