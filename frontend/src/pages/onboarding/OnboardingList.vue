@@ -1,18 +1,40 @@
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, useMessage } from 'naive-ui'
-import { RefreshOutline } from '@vicons/ionicons5'
+import { NTag, NSpace, NButton, NIcon, NDrawer, NDrawerContent, NDataTable, useMessage } from 'naive-ui'
+import { RefreshOutline, BulbOutline } from '@vicons/ionicons5'
 import {
   listOnboardings, transitionOnboarding,
   ONBOARDING_STATUS_LABEL, ONBOARDING_STATUS_COLOR,
   type Onboarding,
 } from '../../api/onboarding'
+import {
+  recommendPositionsForCandidate,
+  type RecommendedPosition,
+} from '../../api/recommendation'
 
 const message = useMessage()
 const loading = ref(false)
 const dataSource = ref<Onboarding[]>([])
 const filterStatus = ref<string | null>(null)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })
+
+// G31 智能分配
+const drawerVisible = ref(false)
+const drawerLoading = ref(false)
+const recommendedPositions = ref<RecommendedPosition[]>([])
+const currentOnboarding = ref<Onboarding | null>(null)
+
+const recommendColumns = [
+  { title: '职位', key: 'title', render: (row: RecommendedPosition) => row.title || row.name || '—' },
+  { title: '地点', key: 'workLocation', width: 100, render: (row: RecommendedPosition) => row.workLocation || '—' },
+  { title: '学历', key: 'education', width: 80, render: (row: RecommendedPosition) => row.education || '—' },
+  { title: '经验', key: 'experience', width: 100, render: (row: RecommendedPosition) => `${row.minExperience ?? 0}-${row.maxExperience ?? 99}年` },
+  {
+    title: '匹配分', key: 'score', width: 100,
+    render: (row: RecommendedPosition) => h(NTag, { type: row.score >= 0.8 ? 'success' : row.score >= 0.6 ? 'info' : 'default', size: 'small' }, { default: () => (row.score * 100).toFixed(0) + '%' }),
+  },
+  { title: '原因', key: 'matchReason', render: (row: RecommendedPosition) => row.matchReason || '—' },
+]
 
 const stats = computed(() => {
   const counts: Record<string, number> = {}
@@ -32,9 +54,16 @@ const columns = computed(() => [
     render: (row: Onboarding) => h(NTag, { type: ONBOARDING_STATUS_COLOR[row.onboardingStatus] as any, size: 'small' }, { default: () => ONBOARDING_STATUS_LABEL[row.onboardingStatus] || row.onboardingStatus }),
   },
   {
-    title: '操作', key: 'actions', width: 280, fixed: 'right' as const,
+    title: '操作', key: 'actions', width: 360, fixed: 'right' as const,
     render: (row: Onboarding) => {
       const buttons: any[] = []
+      // G31 智能分配按钮 (有 candidateId 才能推荐)
+      if (row.candidateId) {
+        buttons.push(h(NButton, { size: 'tiny', type: 'info', onClick: () => openRecommendDrawer(row) }, {
+          default: () => '智能分配',
+          icon: () => h(NIcon, null, { default: () => h(BulbOutline) }),
+        }))
+      }
       if (row.onboardingStatus === 'NOT_STARTED') {
         buttons.push(h(NButton, { size: 'tiny', type: 'warning', onClick: () => handleTransition(row, 'PENDING_CONFIRM') }, { default: () => '提醒确认' }))
       }
@@ -87,6 +116,24 @@ async function handleTransition(row: Onboarding, to: string) {
   }
 }
 
+async function openRecommendDrawer(row: Onboarding) {
+  if (!row.candidateId) {
+    message.warning('该入职记录无候选人信息, 无法推荐')
+    return
+  }
+  currentOnboarding.value = row
+  drawerVisible.value = true
+  drawerLoading.value = true
+  try {
+    recommendedPositions.value = await recommendPositionsForCandidate(row.candidateId, 10)
+  } catch (e: any) {
+    message.error(`推荐失败: ${e.message}`)
+    recommendedPositions.value = []
+  } finally {
+    drawerLoading.value = false
+  }
+}
+
 onMounted(loadList)
 </script>
 
@@ -131,6 +178,22 @@ onMounted(loadList)
         @update:page="(p: number) => { pagination.page = p; loadList() }"
       />
     </n-card>
+
+    <!-- G31 智能分配抽屉 -->
+    <n-drawer v-model:show="drawerVisible" :width="720" placement="right">
+      <n-drawer-content
+        :title="`智能分配 - ${currentOnboarding?.candidateName || ''}`"
+        closable
+      >
+        <n-data-table
+          :columns="recommendColumns"
+          :data="recommendedPositions"
+          :loading="drawerLoading"
+          :row-key="(row: RecommendedPosition) => row.id"
+          :pagination="{ pageSize: 10 }"
+        />
+      </n-drawer-content>
+    </n-drawer>
   </div>
 </template>
 
