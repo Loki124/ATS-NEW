@@ -116,4 +116,72 @@ export async function renderOffer(offerId: string, templateKey: string, format: 
   return data;
 }
 
+// G26 - 手动背调 4 等级
+
+export const BG_CHECK_LEVEL = {
+  PASS: 'PASS',
+  WARN: 'WARN',
+  INCONCLUSIVE: 'INCONCLUSIVE',
+  FAIL: 'FAIL',
+} as const;
+
+export const BG_CHECK_LEVEL_LABEL: Record<string, string> = {
+  PASS: '通过',
+  WARN: '有保留通过',
+  INCONCLUSIVE: '资料不足',
+  FAIL: '不通过',
+};
+
+export const BG_CHECK_LEVEL_COLOR: Record<string, string> = {
+  PASS: 'success',
+  WARN: 'warning',
+  INCONCLUSIVE: 'info',
+  FAIL: 'error',
+};
+
+export interface BackgroundCheck {
+  id: string;
+  offerId: string;
+  checkType: string;
+  result?: string;
+  level?: string;
+  score?: number;
+  risks?: Array<{ category?: string; severity?: string; description?: string }>;
+  supplier?: string;
+  note?: string;
+  orderedAt?: string;
+  authorizedAt?: string;
+  completedAt?: string;
+  reportPath?: string;
+  reportUrl?: string;
+  reportSize?: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listBackgroundChecks(offerId: string): Promise<BackgroundCheck[]> {
+  const { data } = await api.get(`/offers/${offerId}/background-checks`);
+  return data.data;
+}
+
+export async function createBackgroundCheck(offerId: string, payload: { checkType: string; supplier?: string; note?: string }): Promise<BackgroundCheck> {
+  const { data } = await api.post(`/offers/${offerId}/background-checks`, payload);
+  return data.data;
+}
+
+export async function completeBackgroundCheck(
+  offerId: string,
+  bid: string,
+  payload: { level: 'PASS' | 'WARN' | 'INCONCLUSIVE' | 'FAIL'; risks?: any[]; reportPath?: string; reportUrl?: string; reportSize?: number },
+): Promise<BackgroundCheck> {
+  const { data } = await api.put(`/offers/${offerId}/background-checks/${bid}/complete`, payload);
+  return data.data;
+}
+
+export async function downloadBackgroundCheckReport(offerId: string, bid: string): Promise<Blob> {
+  const { data } = await api.get(`/offers/${offerId}/background-checks/${bid}/report`, { responseType: 'blob' });
+  return data;
+}
+
 export default api;
