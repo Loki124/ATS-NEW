@@ -50,6 +50,7 @@ import {
   BookmarkOutline,
   ClipboardOutline,
   StarOutline,
+  SchoolOutline,
   GitNetworkOutline,
   GitBranchOutline,
   StopwatchOutline,
@@ -121,6 +122,9 @@ const subMenuOptions = [
       { key: '/settings/external', label: '对外接口', icon: renderIcon(ServerOutline) },
       { key: '/settings/public', label: '公共设置', icon: renderIcon(CloudUploadOutline) },
       { key: '/settings/field-acl', label: '字段权限', icon: renderIcon(KeyOutline) },
+      { key: '/settings/school-library', label: '院校库', icon: renderIcon(SchoolOutline) },
+      { key: '/settings/company-library', label: '公司库', icon: renderIcon(BusinessOutline) },
+      { key: '/settings/dynamic-fields', label: '动态字段', icon: renderIcon(ConstructOutline) },
     ],
   },
 ]
