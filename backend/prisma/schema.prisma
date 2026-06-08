@@ -686,6 +686,11 @@ model Candidate {
   archiveType     String? @db.VarChar(32)
   archiveToPool   String?
 
+  // G44 - 11 状态详细字段
+  // 各子状态独立记录, 用于精细化分析 + 流程追踪
+  // statusDetails = { evaluated: 'PENDING'|'PASS'|'FAIL', invite: 'PENDING'|'...', ... }
+  statusDetails Json?  @db.Json
+
   protectionExpiry DateTime?
 
   createdAt DateTime @default(now())
