@@ -1337,6 +1337,7 @@ model Role {
 
   rolePermissions RolePermission[]
   userRoles       UserRole[]
+  fieldAclRules   FieldAclRule[]
 
   @@map("roles")
 }
@@ -1984,4 +1985,56 @@ model AutoArchiveRule {
   @@unique([processId, ruleType])
   @@index([processId, enabled])
   @@map("auto_archive_rules")
+}
+
+// ============================================
+// G43 - 字段级 ACL 规则表
+// ============================================
+model FieldAclRule {
+  id String @id @default(uuid())
+
+  resource String  @db.VarChar(64)  // Candidate / Demand / Resume
+  field    String  @db.VarChar(64)  // phone / email / expectedSalaryMin
+  action   String  @db.VarChar(16)  // VIEW / MASK / HIDE
+
+  roleId   String? // null = 默认 (所有未匹配角色)
+  roleCode String? @db.VarChar(32) // 冗余便于查询
+
+  maskPattern String? @db.VarChar(64) // 例如 "138****1234" 模板
+  isActive    Boolean @default(true)
+  priority    Int     @default(0)    // 高优先级覆盖低优先级
+
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@unique([resource, field, roleId])
+  @@index([resource, field])
+  @@index([roleCode])
+  @@map("field_acl_rules")
+}
+
+model FieldAclAudit {
+  id String @id @default(uuid())
+
+  userId   String
+  userName String
+
+  resource String @db.VarChar(64)
+  field    String @db.VarChar(64)
+  action   String @db.VarChar(16)  // 实际执行的动作
+  result   String @db.VarChar(16)  // ALLOW / MASKED / HIDDEN
+
+  targetId String? // 资源 ID (可选)
+  ip       String?
+  ua       String? @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([resource, field])
+  @@map("field_acl_audits")
 }

@@ -5,6 +5,7 @@
 import express from 'express';
 import { prisma } from '../app.js';
 import { checkVirtualRole } from '../middleware/auth.middleware.js';
+import { fieldAcl } from '../middleware/field-acl.middleware.js';
 import {
   CANDIDATE_DETAIL_STATUSES,
   validateStatusDetails
@@ -16,7 +17,7 @@ const router = express.Router();
 /**
  * 获取候选人列表
  */
-router.get('/', async (req, res, next) => {
+router.get('/', fieldAcl('Candidate'), async (req, res, next) => {
   try {
     const {
       page = 1,
@@ -123,7 +124,7 @@ router.get('/', async (req, res, next) => {
 /**
  * 获取候选人详情
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', fieldAcl('Candidate'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
