@@ -55,6 +55,9 @@ export interface Onboarding {
   onboardingStatus: string;
   onboardedAt?: string;
   cancelReason?: string;
+  // G31 智能分配 (后端列表通过 application 关联展开)
+  candidateId?: string | null;
+  candidateName?: string | null;
 }
 
 export async function listOnboardings(params: { page?: number; pageSize?: number; onboardingStatus?: string } = {}) {
