@@ -1,5 +1,5 @@
 <template>
-  <n-layout has-sider class="min-h-screen">
+  <n-layout has-sider class="app-layout">
     <!-- 侧边栏 -->
     <n-layout-sider
       bordered
@@ -348,16 +348,37 @@ function handleUserMenu(key: string) {
   font-weight: 600;
 }
 
-/* === 内容区填满剩余高度 === */
+/* === 整个 app 限定在 viewport 内, body 不滚 === */
+:deep(.app-layout) {
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+:deep(.app-layout > .n-layout-scroll-container) {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* === 头部固定 === */
+:deep(.app-layout .n-layout-header) {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* === 主内容区: 撑开剩余, 内容溢出时内部滚 === */
 .layout-content {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 64px); /* 减掉头部 64px */
+  flex: 1;
+  min-height: 0; /* 关键 */
+  overflow: hidden; /* 内容溢出时, .content-wrapper 内部滚 */
 }
 .content-wrapper {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 100%;
+  min-height: 0;
+  overflow: auto; /* 关键: 内容超出时这个容器内部滚, body 不滚 */
 }
 </style>
