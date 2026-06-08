@@ -113,6 +113,11 @@ const routes: RouteRecordRaw[] = [
           { path: 'external', name: 'ExternalSettings', component: () => import('../pages/settings/Placeholder.vue') },
           { path: 'public', name: 'PublicSettings', component: () => import('../pages/settings/Placeholder.vue') },
           { path: 'field-acl', name: 'FieldAclSettings', component: () => import('../pages/settings/FieldAclSettings.vue') },
+          // ===== G41 院校/公司信息库 =====
+          { path: 'school-library', name: 'SchoolLibrary', component: () => import('../pages/settings/SchoolLibrary.vue') },
+          { path: 'company-library', name: 'CompanyLibrary', component: () => import('../pages/settings/CompanyLibrary.vue') },
+          // ===== G42 动态字段定义 =====
+          { path: 'dynamic-fields', name: 'DynamicFieldSettings', component: () => import('../pages/settings/DynamicFieldSettings.vue') },
           // ===== 招聘流程管理 (PRD G38) =====
           { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import('../pages/settings/RecruitmentProcess.vue') },
           { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import('../pages/settings/RecruitmentStage.vue') },
