@@ -223,12 +223,19 @@ watch(
   flex: 1;
   min-height: 0; /* 关键: 不要强制 100%, 让内容溢出时父容器滚 */
   box-sizing: border-box;
+  padding: 16px 24px;
+  gap: 12px;
 }
-/* 让 page-header 不压缩 */
+/* page-header (h1 + buttons) 不压缩 */
 .settings-content :deep(.page-header) {
   flex-shrink: 0;
 }
-/* 让主内容卡片区域填满剩余 + 自身滚 */
+/* stats-row + filter-row 也不压缩 (保持原高) */
+.settings-content :deep(.stats-row),
+.settings-content :deep(.filter-row) {
+  flex-shrink: 0;
+}
+/* 主内容卡片 (n-card) 撑开 + 内部滚 */
 .settings-content :deep(.page-container > .n-card) {
   flex: 1;
   min-height: 0;
@@ -239,11 +246,23 @@ watch(
 .settings-content :deep(.page-container > .n-card > .n-card__content) {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
 }
-/* 让 n-data-table 内部滚动 */
+/* n-data-table 撑开卡片内容 + 内部滚 */
 .settings-content :deep(.n-data-table) {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.settings-content :deep(.n-data-table-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.settings-content :deep(.n-data-table-base-table) {
+  width: 100%;
 }
 </style>
