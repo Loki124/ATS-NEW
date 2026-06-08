@@ -1241,6 +1241,7 @@ model Company {
 
   parentCompany  Company?  @relation("CompanyGroup", fields: [parentCompanyId], references: [id], onDelete: Restrict)
   childCompanies Company[] @relation("CompanyGroup")
+  syncs          LegalCompanySync[]
 
   @@index([parentCompanyId])
   @@map("companies")
@@ -2053,4 +2054,52 @@ model FieldAclAudit {
   @@index([userId, createdAt])
   @@index([resource, field])
   @@map("field_acl_audits")
+}
+
+// ============================================
+// G40 - 法人公司同步 (摩卡 People + 邮箱)
+// ============================================
+model LegalCompanySync {
+  id String @id @default(uuid())
+
+  companyId String
+  // 关联 Company (法人公司)
+
+  externalSystem String  @db.VarChar(32)  // MOKA / EMAIL
+  externalId     String? @db.VarChar(128) // 摩卡侧公司 ID / 邮箱域名
+
+  lastSyncAt DateTime?
+  lastSyncBy String?   // userId
+  syncStatus String    @default("PENDING") @db.VarChar(16) // PENDING / SUCCESS / FAILED / RETRY
+
+  lastError  String? @db.Text
+  retryCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, externalSystem])
+  @@index([syncStatus])
+  @@map("legal_company_syncs")
+}
+
+model ExternalSyncLog {
+  id String @id @default(uuid())
+
+  syncId    String // 关联 LegalCompanySync.id
+  companyId String
+  system    String @db.VarChar(32)
+
+  action  String  @db.VarChar(32) // SYNC / RETRY / RECONCILE
+  status  String  @db.VarChar(16) // SUCCESS / FAILED
+  message String? @db.Text
+  payload String? @db.Text       // JSON, 同步的字段
+
+  createdAt DateTime @default(now())
+
+  @@index([syncId, createdAt])
+  @@index([companyId, system])
+  @@map("external_sync_logs")
 }
