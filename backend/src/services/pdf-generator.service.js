@@ -199,4 +199,66 @@ export function offerContextToLines(context) {
   return lines
 }
 
-export default { generateSimplePdf, offerContextToLines }
+/**
+ * G26 - 背调报告 PDF (内联实现, 避免与 background-check.service 互相 import)
+ *
+ * @param {object} options
+ * @param {object} options.offer
+ * @param {object} options.candidate
+ * @param {object} options.record - BackgroundCheckRecord (含 level/score/risks/completedAt/checkType/supplier)
+ * @param {string} [options.supplier]
+ * @returns {Buffer} PDF Buffer
+ */
+export function renderBackgroundCheckReport({ offer, candidate, record, supplier } = {}) {
+  const candidateName = candidate?.name || '未知候选人'
+  const level = record?.level || '-'
+  const score = record?.score ?? '-'
+  const supplierName = supplier || record?.supplier || '内部'
+  const completedAt = record?.completedAt
+    ? new Date(record.completedAt).toISOString().slice(0, 19).replace('T', ' ')
+    : '-'
+  const risks = Array.isArray(record?.risks) ? record.risks : []
+
+  const lines = []
+  lines.push(`背调报告 - ${candidateName}`)
+  lines.push('='.repeat(60))
+  lines.push('')
+  lines.push('一、基本信息')
+  lines.push('-'.repeat(40))
+  lines.push(`候选人      : ${candidate?.name || '-'}`)
+  lines.push(`候选人电话  : ${candidate?.phone || '-'}`)
+  lines.push(`Offer ID   : ${offer?.id || '-'}`)
+  lines.push(`职位        : ${offer?.positionName || '-'}`)
+  lines.push(`背调供应商  : ${supplierName}`)
+  lines.push(`背调类型    : ${record?.checkType || '-'}`)
+  lines.push('')
+  lines.push('二、背调结论')
+  lines.push('-'.repeat(40))
+  lines.push(`等级        : ${level}`)
+  lines.push(`评分        : ${score}`)
+  lines.push(`完成时间    : ${completedAt}`)
+  lines.push('')
+  lines.push('三、风险项')
+  lines.push('-'.repeat(40))
+  if (risks.length === 0) {
+    lines.push('(无)')
+  } else {
+    for (const r of risks) {
+      const cat = r.category || r.type || '风险'
+      const sev = r.severity || r.level || '-'
+      const desc = r.description || r.detail || ''
+      lines.push(`- [${cat} / ${sev}] ${desc}`)
+    }
+  }
+  lines.push('')
+  lines.push('='.repeat(60))
+  lines.push('本报告由 ATS 招聘管理系统自动生成 - 内部使用')
+
+  return generateSimplePdf({
+    title: `背调报告 - ${candidateName}`,
+    lines,
+    author: 'ATS Background Check',
+  })
+}
+
+export default { generateSimplePdf, offerContextToLines, renderBackgroundCheckReport }
