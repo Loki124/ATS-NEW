@@ -165,9 +165,12 @@ watch(
 .settings-layout {
   height: calc(100vh - 64px); /* 减掉主 Layout 头部高度, 强制填满剩余 */
   background: #fff;
+  /* 关键: 让内部 n-layout-sider 和 n-layout-content 都按比例填满, 内容溢出时 .settings-content 内部滚 */
+  overflow: hidden;
 }
 .settings-layout :deep(.n-layout-scroll-container) {
   height: 100%;
+  overflow: hidden;
 }
 
 /* 左侧子菜单栏 */
@@ -210,6 +213,7 @@ watch(
   overflow: auto;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* 关键: flex 子元素需要 min-height:0 才能正确收缩 */
 }
 
 /* 让所有 Settings 子页面的 page-container 撑满父高度 */
@@ -217,14 +221,29 @@ watch(
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 100%;
+  min-height: 0; /* 关键: 不要强制 100%, 让内容溢出时父容器滚 */
+  box-sizing: border-box;
 }
 /* 让 page-header 不压缩 */
 .settings-content :deep(.page-header) {
   flex-shrink: 0;
 }
-/* 让主内容卡片区域填满剩余 */
+/* 让主内容卡片区域填满剩余 + 自身滚 */
 .settings-content :deep(.page-container > .n-card) {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-content :deep(.page-container > .n-card > .n-card__content) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+/* 让 n-data-table 内部滚动 */
+.settings-content :deep(.n-data-table) {
+  flex: 1;
+  min-height: 0;
 }
 </style>
