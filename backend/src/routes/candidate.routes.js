@@ -5,6 +5,10 @@
 import express from 'express';
 import { prisma } from '../app.js';
 import { checkVirtualRole } from '../middleware/auth.middleware.js';
+import {
+  CANDIDATE_DETAIL_STATUSES,
+  validateStatusDetails
+} from '../services/candidate-status-machine.service.js';
 
 const router = express.Router();
 
@@ -739,6 +743,47 @@ router.post('/recommend-reverse', async (req, res, next) => {
           : '全量倒序推荐',
       },
     })
+  } catch (e) { next(e) }
+})
+
+/**
+ * G44 - 候选人 11 状态详细字段 API
+ */
+
+// 获取 11 状态定义 (前端获取 schema)
+router.get('/status-details/schema', (req, res) => {
+  res.json({ success: true, data: CANDIDATE_DETAIL_STATUSES })
+})
+
+// 更新单个子状态
+router.put('/:id/status-details', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { key, value } = req.body || {}
+    if (!key || !value) return res.status(400).json({ success: false, message: 'key + value 必填' })
+
+    const candidate = await prisma.candidate.findUnique({ where: { id } })
+    if (!candidate) return res.status(404).json({ success: false, message: '候选人不存在' })
+
+    const currentDetails = candidate.statusDetails || {}
+    // validateStatusDetails throws on unknown key/value or terminal→PENDING
+    let isValid
+    try {
+      isValid = validateStatusDetails(key, value, currentDetails[key])
+    } catch (e) {
+      return res.status(400).json({ success: false, message: e.message })
+    }
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: `状态 ${key} 不能从 ${currentDetails[key]} 回退到 ${value}` })
+    }
+
+    const updated = await prisma.candidate.update({
+      where: { id },
+      data: {
+        statusDetails: { ...currentDetails, [key]: value },
+      },
+    })
+    res.json({ success: true, data: updated })
   } catch (e) { next(e) }
 })
 
