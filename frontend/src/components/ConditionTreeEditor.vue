@@ -86,8 +86,10 @@
       <!-- 子条件 -->
       <div v-if="item.children && item.children.length > 0" class="children">
         <ConditionTreeEditor
+          :model-value="item.children"
           :items="item.children"
           :all-stages="allStages"
+          :all-link-ids="allLinkIds"
           :depth="(depth || 0) + 1"
         />
       </div>

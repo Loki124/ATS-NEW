@@ -4,7 +4,7 @@
       <h1 class="page-title">消息通知</h1>
     </div>
     <n-card :bordered="false" class="rounded-xl">
-      <n-data-table :columns="columns" :data="dataSource" :row-key="(row) => row.id" />
+      <n-data-table :columns="columns" :data="dataSource" :row-key="(row: any) => row.id" />
     </n-card>
   </div>
 </template>

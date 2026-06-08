@@ -168,6 +168,7 @@ const actionModal = ref({
   action: '' as 'enterPool' | 'intervene' | 'terminate' | '',
   id: '',
   reason: '',
+  form: { reason: '' } as { reason: string },
 })
 
 const resultFormRef = ref()
