@@ -5,6 +5,7 @@
 
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import { fieldAcl } from '../middleware/field-acl.middleware.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -754,7 +755,7 @@ router.post('/resume-merge', async (req, res, next) => {
  * 获取简历列表（支持状态筛选）
  * GET /api/resumes?status=PENDING_ASSIGN&subStatus=SCORING
  */
-router.get('/', async (req, res, next) => {
+router.get('/', fieldAcl('Resume'), async (req, res, next) => {
   try {
     const { status, subStatus, page = 1, pageSize = 20 } = req.query;
 
