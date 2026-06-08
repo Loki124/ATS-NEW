@@ -327,7 +327,35 @@ npm run dev                # vite dev server
 npm run build              # 生产构建（含 vue-tsc 类型检查）
 npm run preview            # 预览生产构建
 npm run lint               # ESLint
+npm run e2e                # Playwright e2e (需先 npm run e2e:install)
+npm run e2e:ui             # Playwright 调试 UI
 ```
+
+## 8. 跑 e2e 测试 (Playwright, 2026-06-08 新增)
+
+```bash
+cd frontend
+npm install                           # 装 @playwright/test
+npx playwright install --with-deps chromium  # 一次性下载浏览器 (~80MB)
+npm run e2e                           # 跑全部 e2e (3 spec: login / settings-layout / candidate-list)
+npm run e2e:ui                        # 调试模式 (可视化 UI)
+```
+
+**前置条件**: 后端需先跑 (`cd backend && node --env-file=.env src/app.js &`)
+
+**CI 自动跑**: `.github/workflows/ci.yml` 的 `e2e` job 依赖 `test-backend` + `test-frontend` 通过后自动跑。
+
+## 9. 类型检查 (vue-tsc 2.x, 2026-06-08 升级)
+
+```bash
+cd frontend
+npx vue-tsc --noEmit
+```
+
+**升级背景**: 旧 vue-tsc 1.8.0 + Node 24 抛 `Search string not found: "supportedTSExtensions"`, 已升到 2.2.12 修复。
+当前 `tsconfig.json` 设 `"ignoreDeprecations": "5.0"` (适配 TS 5.3), 并关 `noUnusedLocals/noUnusedParameters` (旧 .vue 大量未用变量)。
+
+**已知遗留**: 6 个旧 .vue 文件 (InvitationCenter/BackgroundCheckPanel/AddReferralModal/ReferralCenter/ProcessStageEditor 等) 有真实类型错, 暂用 `as any` 宽松策略, 后续可逐个修。
 
 ## 附录：其他系统
 
