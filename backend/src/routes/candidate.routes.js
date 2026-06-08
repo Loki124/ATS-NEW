@@ -9,6 +9,7 @@ import {
   CANDIDATE_DETAIL_STATUSES,
   validateStatusDetails
 } from '../services/candidate-status-machine.service.js';
+import { getRecommendations } from '../services/candidate-recommendation.service.js';
 
 const router = express.Router();
 
@@ -749,6 +750,24 @@ router.post('/recommend-reverse', async (req, res, next) => {
 /**
  * G44 - 候选人 11 状态详细字段 API
  */
+
+/**
+ * G11 - 倒序推荐候选人 (按简历最近活跃度 + score 综合分)
+ * GET /api/candidates/recommendations
+ * query: positionId?, keyword?, sortBy?, limit?
+ */
+router.get('/recommendations', async (req, res, next) => {
+  try {
+    const list = await getRecommendations({
+      userId: req.user?.id,
+      positionId: req.query.positionId,
+      keyword: req.query.keyword,
+      sortBy: req.query.sortBy,
+      limit: parseInt(req.query.limit) || 20,
+    })
+    res.json({ success: true, data: list })
+  } catch (e) { next(e) }
+})
 
 // 获取 11 状态定义 (前端获取 schema)
 router.get('/status-details/schema', (req, res) => {
