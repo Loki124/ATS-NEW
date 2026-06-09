@@ -124,6 +124,19 @@
                 </n-space>
               </n-radio-group>
             </n-form-item>
+            <!-- Plan L #3b: 自定义表达式实时校验 (如 (1 AND 2) OR 3) -->
+            <n-form-item
+              label="条件表达式 (可选)"
+              :feedback="exprValidation?.error || '留空则用上面条件树自动生成'"
+              :validation-status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+            >
+              <n-input
+                v-model:value="condForm.expression"
+                placeholder="如: (1 AND 2) OR (3 AND 4)"
+                :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+                @blur="onExprBlur"
+              />
+            </n-form-item>
             <n-form-item label="未满足条件时提示内容" required>
               <n-input
                 v-model:value="condForm.prompt"
@@ -156,6 +169,7 @@ import {
 import {
   upsertStageRule, upsertEntryCondition, listStageRules, listEntryConditions,
 } from '../../api/recruitment-process'
+import { validateExpression } from '../../utils/condition-expression'
 
 const props = defineProps<{
   show: boolean
@@ -209,8 +223,27 @@ const condForm = reactive({
   matchType: 'ALL' as 'ALL' | 'ANY',
   conditionType: 'MIXED' as 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED',
   prompt: '',
+  expression: '', // Plan L: 可选手写表达式
   items: [] as any[],
 })
+
+/**
+ * Plan L #3b: 表达式实时校验
+ *  - 空 → 合法 (留空 = 全部满足)
+ *  - 非空 → 校验括号、数字范围、AND/OR 平衡
+ */
+const exprValidation = computed(() => {
+  if (!condForm.expression) return null
+  return validateExpression(condForm.expression, condForm.items?.length || 0)
+})
+
+function onExprBlur() {
+  if (!condForm.expression) return
+  const r = validateExpression(condForm.expression, condForm.items?.length || 0)
+  if (!r.valid) {
+    message.warning(`表达式校验失败: ${r.error}`)
+  }
+}
 
 const autoAdvanceOptions = [
   { label: '不自动流转', value: 'NONE' },

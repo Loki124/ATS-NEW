@@ -63,6 +63,19 @@
         <n-form-item label="流程描述">
           <n-input v-model:value="form.description" type="textarea" :rows="2" placeholder="可选" />
         </n-form-item>
+        <!-- Plan L #3b: 适用范围表达式实时校验 -->
+        <n-form-item
+          label="适用范围表达式 (可选)"
+          :feedback="scopeExprValidation?.error || '留空 = 全部适用. 5 条件字段: 内容/部门/职级/登录人/职务'"
+          :validation-status="scopeExprValidation && !scopeExprValidation.valid ? 'error' : undefined"
+        >
+          <n-input
+            v-model:value="form.applicableScopeExpression"
+            placeholder="如: (1 AND 2) OR (3 AND 4)"
+            :status="scopeExprValidation && !scopeExprValidation.valid ? 'error' : undefined"
+            @blur="onScopeExprBlur"
+          />
+        </n-form-item>
       </n-form>
 
       <!-- ====== 流程阶段 ====== -->
@@ -146,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, h } from 'vue'
+import { ref, reactive, watch, onMounted, h, computed } from 'vue'
 import {
   NModal, NForm, NFormItem, NInput, NInputNumber, NSwitch, NSelect, NButton, NSpace,
   NDivider, NAlert, NSpin, NTag, NPopconfirm, NGrid, NGridItem, NText, useMessage,
@@ -157,6 +170,7 @@ import {
   upsertStageRule, upsertEntryCondition,
 } from '../../api/recruitment-process'
 import StageRuleConfigModal from './StageRuleConfigModal.vue'
+import { validateExpression } from '../../utils/condition-expression'
 
 const props = defineProps<{
   show: boolean
@@ -193,7 +207,26 @@ const form = reactive({
   validateResumeScore: true,
   applicableDepartments: [] as string[],
   applicableMode: 'ALL' as 'ALL' | 'ANY',
+  applicableScopeExpression: '', // Plan L: 适用范围表达式
 })
+
+/**
+ * Plan L #3b: 适用范围表达式实时校验
+ */
+const scopeExprValidation = computed(() => {
+  if (!form.applicableScopeExpression) return null
+  // 5 条件字段 (内容/部门/职级/登录人/职务) - 我们目前只列出部门, itemCount 估算为 1
+  // 实际数字范围由后端校验
+  return validateExpression(form.applicableScopeExpression, 5)
+})
+
+function onScopeExprBlur() {
+  if (!form.applicableScopeExpression) return
+  const r = validateExpression(form.applicableScopeExpression, 5)
+  if (!r.valid) {
+    message.warning(`适用范围表达式校验失败: ${r.error}`)
+  }
+}
 
 // 当前流程下的所有 link (含 serverId - 已有链接,  vs localOnly - 仅本地)
 const stages = ref<any[]>([])
