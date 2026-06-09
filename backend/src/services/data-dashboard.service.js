@@ -9,11 +9,11 @@ export async function getDashboardKpi() {
     ongoingInterviews, sentOffers, pendingOnboardings,
   ] = await Promise.all([
     prisma.candidate.count(),
-    prisma.demand.count({ where: { status: { in: ['IN_PROGRESS', 'APPROVED'] } } }),
+    prisma.demand.count({ where: { demandStatus: { in: ['IN_PROGRESS', 'APPROVED'] } } }),
     prisma.position.count({ where: { status: 'ACTIVE' } }),
     prisma.interview.count({ where: { interviewStatus: { in: ['SCHEDULED', 'IN_PROGRESS'] } } }),
-    prisma.offer.count({ where: { status: { in: ['SENT', 'NEGOTIATING'] } } }),
-    prisma.onboarding.count({ where: { status: { in: ['PENDING_ONBOARD', 'CONFIRMED'] } } }),
+    prisma.offer.count({ where: { offerStatus: { in: ['SENT', 'NEGOTIATING', 'APPROVED'] } } }),
+    prisma.onboarding.count({ where: { onboardingStatus: { in: ['PENDING_ONBOARD', 'CONFIRMED'] } } }),
   ]);
   return {
     totalCandidates, activeDemands, openPositions,

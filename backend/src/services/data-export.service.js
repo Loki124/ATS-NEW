@@ -6,11 +6,11 @@ import { prisma } from '../app.js';
 
 const HEADER_LABELS = {
   Candidate: { name: '姓名', phone: '手机号', email: '邮箱', candidateStatus: '状态', createdAt: '创建时间' },
-  Demand:    { code: '需求编号', title: '标题', status: '状态', createdAt: '创建时间' },
-  Position:  { title: '职位', status: '状态', createdAt: '创建时间' },
-  Offer:     { id: 'Offer ID', status: '状态', expectedJoinDate: '预计入职' },
+  Demand:    { code: '需求编号', name: '标题', demandStatus: '状态', createdAt: '创建时间' },
+  Position:  { name: '职位', positionStatus: '状态', status: '状态', createdAt: '创建时间' },
+  Offer:     { id: 'Offer ID', offerStatus: '状态', expectedJoinDate: '预计入职' },
   Interview: { id: '面试 ID', interviewDate: '面试时间', interviewStatus: '状态' },
-  Onboarding:{ id: '入职 ID', expectedJoinDate: '预计入职', status: '状态' },
+  Onboarding:{ id: '入职 ID', expectedJoinDate: '预计入职', onboardingStatus: '状态' },
 };
 
 export function buildExportHeaders(resource, fields) {
