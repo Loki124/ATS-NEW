@@ -136,6 +136,7 @@ import {
   CopyOutline,
   LinkOutline,
   PersonOutline,
+  PersonAddOutline,
   CheckmarkCircleOutline,
   StarOutline,
   GiftOutline,
