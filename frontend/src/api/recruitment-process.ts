@@ -134,7 +134,7 @@ export const listProcesses = (params?: { status?: string; keyword?: string }) =>
 export const getProcess = (id: string) =>
   api.get<{ success: boolean; data: RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] } }>(`/recruitment-processes/${id}`).then((r) => r.data.data);
 
-export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY' }) =>
+export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[] }) =>
   api.post<{ success: boolean; data: RecruitmentProcess }>('/recruitment-processes', payload).then((r) => r.data.data);
 
 export const updateProcess = (id: string, payload: Partial<RecruitmentProcess>) =>
