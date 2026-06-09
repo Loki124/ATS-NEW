@@ -10,7 +10,7 @@
         <n-button @click="reload" :loading="loading">刷新</n-button>
       </template>
 
-      <n-space class="filter-row" :wrap>
+      <n-space class="filter-row" :wrap="true">
         <n-input
           v-model:value="filters.keyword"
           placeholder="搜索公司名 / 代码"
