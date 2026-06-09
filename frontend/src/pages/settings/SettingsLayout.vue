@@ -111,8 +111,6 @@ const subMenuOptions = [
       { key: '/settings/recruitment-stage', label: '阶段模板库', icon: renderIcon(LayersOutline) },
       { key: '/settings/recruitment-process', label: '招聘流程', icon: renderIcon(GitNetworkOutline) },
       { key: '/settings/recruitment-round', label: '面试轮次', icon: renderIcon(StopwatchOutline) },
-      { key: '/settings/process-management', label: '招聘流程配置 (旧)', icon: renderIcon(ConstructOutline) },
-      { key: '/settings/stage', label: '招聘阶段配置 (旧)', icon: renderIcon(LayersOutline) },
     ],
   },
   {
