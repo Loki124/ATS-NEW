@@ -337,7 +337,7 @@ npm run e2e:ui             # Playwright 调试 UI
 cd frontend
 npm install                           # 装 @playwright/test
 npx playwright install --with-deps chromium  # 一次性下载浏览器 (~80MB)
-npm run e2e                           # 跑全部 e2e (3 spec: login / settings-layout / candidate-list)
+npm run e2e                           # 跑全部 e2e (6 spec: login / settings-layout / candidate-list / demand-flow / offer-flow / settings-menu)
 npm run e2e:ui                        # 调试模式 (可视化 UI)
 ```
 
