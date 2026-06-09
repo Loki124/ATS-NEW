@@ -41,7 +41,7 @@
     </n-layout-sider>
 
     <!-- 主体 -->
-    <n-layout>
+    <n-layout :style="{ height: '100vh' }">
       <!-- 头部 -->
       <n-layout-header bordered class="bg-white px-6 flex items-center justify-between h-16">
         <div class="flex items-center gap-4">
