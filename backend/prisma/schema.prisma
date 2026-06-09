@@ -290,6 +290,11 @@ model RecruitmentProcess {
   applicableJobs           Json? // String[]
   applicableMode String @default("ALL") @db.VarChar(16)
 
+  /// Plan L: 适用范围 - 表达式驱动 (PRD #4 适用范围 5 条件 + 表达式)
+  /// 结构: { items: [{ id, field, op, value, value2 }], expression: "(1 and 2) or (3 and 4)" }
+  /// 5 条件字段: 请选择内容 / 需求部门 / 需求职级 / 登录人 / 职务
+  applicableScope Json?
+
   /// 是否校验简历评分 (#10.2 #1463)
   validateResumeScore Boolean @default(true)
 
