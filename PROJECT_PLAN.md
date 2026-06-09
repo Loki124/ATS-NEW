@@ -57,6 +57,14 @@
 
 **P1 阶段 2 全部完成**, 阶段 3 (集成 + 智能化) 启动前置就绪
 
+### Plan L 招聘流程管理补全 (2026-06-09) — 8 commits
+- ✅ **G38 需求文档 11 节补全** - 阶段类型/适用范围/表达式校验/循环依赖/阶段限时预置/字典加载/名称长度/角色守卫
+- ✅ **Schema 增量**: `ProcessStageLink.stageType` + `RecruitmentProcess.applicableScope` JSON
+- ✅ **新 Service**: expression-validator / cycle-detector / time-limit-presets / process-validator
+- ✅ **新 Route**: `/api/dictionary/:code` (面试轮次 + 形式)
+- ✅ **Frontend 集成**: 实时表达式校验 (modal) + 字典动态加载 + 3 阶段限时预置按钮
+- ✅ **测试**: +28 个 Plan L 测试 (含 Plan K 9 个仍 pass = 37 个 G38 流程测试)
+
 ### P3 数据治理 ✅ 5/5 done (2026-06-09, 全部完成, 外部依赖用 adapter 桩架)
 - ✅ **G41 院校/公司信息库** (P3-F) - 50 院校 + 30 公司 seed, 6 API, 2 前端页
 - ✅ **G42 字段信息表/动态字段** (P3-F) - FieldDefinition + FieldOption 表, 6 端点, 动态字段设置 UI
