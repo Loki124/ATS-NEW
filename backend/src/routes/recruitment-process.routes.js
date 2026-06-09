@@ -13,7 +13,10 @@
 import { Router } from 'express';
 import { prisma } from '../app.js';
 import { AppError } from '../middleware/error.middleware.js';
+import { requireRole } from '../middleware/auth.middleware.js';
 import { validateProcessPayload } from '../services/recruitment-process-validator.service.js';
+
+const writeGuard = requireRole('SUPER_ADMIN', 'ADMIN', 'HRBP');
 
 const router = Router();
 
@@ -62,7 +65,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // ====== 创建（自动添加起止两阶段 link） ======
-router.post('/', async (req, res, next) => {
+router.post('/', writeGuard, async (req, res, next) => {
   try {
     const { name, description, applicableDepartments, applicablePositionLevels,
             applicableUserIds, applicableJobs, applicableMode = 'ALL',
@@ -156,7 +159,7 @@ async function ensureSystemStages(prisma) {
 }
 
 // ====== 更新 ======
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', writeGuard, async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -184,7 +187,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // ====== 删除 ======
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', writeGuard, async (req, res, next) => {
   try {
     const { id } = req.params;
     // 检查是否有职位引用了此流程
@@ -198,7 +201,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 // ====== 复制 ======
-router.post('/:id/copy', async (req, res, next) => {
+router.post('/:id/copy', writeGuard, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { newName, createdBy } = req.body;
@@ -268,7 +271,7 @@ router.post('/:id/copy', async (req, res, next) => {
 });
 
 // ====== 启用/停用 ======
-router.put('/:id/status', async (req, res, next) => {
+router.put('/:id/status', writeGuard, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
