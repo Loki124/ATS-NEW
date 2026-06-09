@@ -53,6 +53,9 @@ import dynamicFieldRoutes from './routes/dynamic-field.routes.js';
 import scrapedResumeRoutes from './routes/scraped-resume.routes.js';
 import './services/integration/rpa-adapter.js';
 import dataRoutes from './routes/data.routes.js';
+// G45: 简历查重 + OCR 路由
+import duplicateCheckRoutes from './routes/duplicate-check.routes.js';
+import './services/integration/ocr-adapter.js';
 
 // 配置
 import config from './config/index.js';
@@ -183,12 +186,14 @@ app.use('/api/library', authMiddleware, companyLibraryRoutes);
 // ====== G42 动态字段定义 ======
 app.use('/api/dynamic-fields', authMiddleware, dynamicFieldRoutes);
 
-<<<<<<< HEAD
 // ====== G30 RPA 简历抓取 ======
 app.use('/api/scraped-resumes', authMiddleware, scrapedResumeRoutes);
 
 // ====== G35 数据中心 (KPI + 导出 + 订阅) ======
 app.use('/api/data', authMiddleware, dataRoutes);
+
+// ====== G45 简历查重 + OCR 解析 ======
+app.use('/api/duplicate-check', authMiddleware, duplicateCheckRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
