@@ -1,0 +1,12 @@
+{
+  "files.exclude": {
+    "**/.claude/worktrees": true,
+    "**/node_modules": true,
+    "**/dist": true
+  },
+  "files.watcherExclude": {
+    "**/.claude/worktrees/**": true
+  },
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}
