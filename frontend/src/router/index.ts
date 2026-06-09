@@ -118,6 +118,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'company-library', name: 'CompanyLibrary', component: () => import('../pages/settings/CompanyLibrary.vue') },
           // ===== G42 动态字段定义 =====
           { path: 'dynamic-fields', name: 'DynamicFieldSettings', component: () => import('../pages/settings/DynamicFieldSettings.vue') },
+          // ===== G30 我找的简历 (RPA) =====
+          { path: 'scraped-resumes', name: 'ScrapedResumeList', component: () => import('../pages/scraped/ScrapedResumeList.vue') },
           // ===== 招聘流程管理 (PRD G38) =====
           { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import('../pages/settings/RecruitmentProcess.vue') },
           { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import('../pages/settings/RecruitmentStage.vue') },
