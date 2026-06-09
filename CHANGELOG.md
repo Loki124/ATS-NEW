@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## 2026-06-09 — P3 全部 5/5 完成 (Plan I) — 13 commits
+
+### G30 我找的简历 (RPA)
+- **ScrapedResume** 表 (新) + `rpa-adapter.js` (5 测试) - MockRpaAdapter 模拟 智联/拉勾/BOSS 抓取
+- `scraped-resume.service.js` + 3 端点 (POST /scrape, GET /, POST /:id/import)
+- 前端 `ScrapedResumeList.vue` - 抓取弹窗 + 列表 + 状态展示
+- 真实 RPA 接入: 新建 `uibot-adapter.js` 实现同一接口即可
+
+### G35 数据中心 (KPI + 通用导出 + 订阅)
+- **DataSubscription** 表 (新) - userId + resource + metric + channel + schedule
+- `data-export.service.js` (5 测试) - CSV/JSON 导出, 6 资源 (Candidate/Demand/Position/Offer/Interview/Onboarding), 手写带 BOM (UTF-8 中文兼容)
+- `data-dashboard.service.js` - 6 个 KPI (候选人总数/活跃需求/开放职位/进行中面试/已发 Offer/待入职)
+- 5 端点: GET /api/data/kpi, GET /api/data/export/:resource, POST/GET/DELETE /api/data/subscriptions
+- 前端 `DataDashboard.vue` - KPI 卡片 + 导出按钮 + 订阅管理
+
+### G45 简历查重 + OCR
+- `resume-duplicate-check.service.js` (17 测试, 超 plan 6) - 0 依赖, phone/email 哈希 + name Levenshtein
+- `ocr-adapter.js` (4 测试) - MockOcrAdapter 返回结构化简历, 真实接入 = 新建 `baidu-ocr-adapter.js`
+- 2 端点: POST /api/duplicate-check/check + /ocr-parse
+- **集成**: 候选人/简历创建前自动查重, 重复返回 409 + duplicates 列表, `forceCreate=true` 跳过
+- 前端 `AddCandidateModal.vue` - 409 弹 n-modal 显示重复列表 + 强制创建按钮
+
+### 📊 P3 数据治理 全部 5/5 ✅
+- ✅ G41 院校/公司信息库 (Plan F, 50 院校 + 30 公司)
+- ✅ G42 字段信息表/动态字段 (Plan F, FieldDefinition + FieldOption)
+- ✅ G30 我找的简历 (Plan I, RPA adapter + 抓取页)
+- ✅ G35 数据中心 (Plan I, KPI + 导出 + 订阅)
+- ✅ G45 简历查重 (Plan I, 0 依赖算法 + OCR 接入层)
+
+---
+
 ## 2026-06-09 — 代码质量 + 测试扩充 (Plan H) — 8 commits
 
 ### 修 9 个 .vue 类型错 (vue-tsc 2.2.12 兼容)

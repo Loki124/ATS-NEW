@@ -57,12 +57,14 @@
 
 **P1 阶段 2 全部完成**, 阶段 3 (集成 + 智能化) 启动前置就绪
 
-### P3 数据治理 ✅ 2/5 done (2026-06-09, 内部可做项)
+### P3 数据治理 ✅ 5/5 done (2026-06-09, 全部完成, 外部依赖用 adapter 桩架)
 - ✅ **G41 院校/公司信息库** (P3-F) - 50 院校 + 30 公司 seed, 6 API, 2 前端页
 - ✅ **G42 字段信息表/动态字段** (P3-F) - FieldDefinition + FieldOption 表, 6 端点, 动态字段设置 UI
-- ⬜ **G30 我找的简历 RPA** - 需 RPA 平台 (外部)
-- ⬜ **G35 数据中心数据订阅** - 业务侧 KPI 未确认
-- ⬜ **G45 简历 OCR 解析 + 查重** - 需 OCR 服务 (外部)
+- ✅ **G30 我找的简历 RPA** (P3-I) - ScrapedResume 表 + RPA adapter + 3 端点 + 前端 (真实 RPA 接入 = 新建 `uibot-adapter.js`)
+- ✅ **G35 数据中心** (P3-I) - DataSubscription + KPI 看板 + 通用导出 + 5 端点 + 前端
+- ✅ **G45 简历查重 + OCR** (P3-I) - 0 依赖查重算法 (17 测试) + OCR adapter + 创建前自动查重 (409 + forceCreate)
+
+**P3 全部 done!** 外部资源 (RPA 平台/百度 OCR) 接入只需新建 adapter 文件, 业务已全部跑通。
 
 ### Tech 债清理 ✅ (2026-06-09)
 - ✅ Playwright e2e 基础 (3 spec, CI 自动跑)
