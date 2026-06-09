@@ -37,17 +37,17 @@ router.get('/mou', async (req, res, next) => {
 // 创建MOU
 router.post('/mou', async (req, res, next) => {
   try {
-    const { name, code, type, mouType, description, parentMouId, metadata } = req.body;
-    
+    const { name, code, type, mouType, description, parentMouId, metadata, scopes } = req.body;
+
     // 优先使用 mouType（前端字段名），fallback 到 type
     const mouTypeValue = mouType || type;
-    
+
     // 检查编码唯一性
     const existing = await prisma.mou.findUnique({ where: { code } });
     if (existing) {
       return res.status(400).json({ success: false, message: 'MOU编码已存在' });
     }
-    
+
     // 计算层级和路径
     let level = 1;
     let path = code;
@@ -58,7 +58,7 @@ router.post('/mou', async (req, res, next) => {
         path = parent.path + '/' + code;
       }
     }
-    
+
     const mou = await prisma.mou.create({
       data: {
         name,
@@ -68,11 +68,18 @@ router.post('/mou', async (req, res, next) => {
         parentMouId,
         level,
         path,
+        scopes: scopes ? JSON.stringify(scopes) : null,
         metadata: metadata ? JSON.stringify(metadata) : null
       }
     });
-    
-    res.status(201).json({ success: true, data: mou });
+
+    // 返回前把 scopes parse 回对象（前端消费）
+    const responseMou = {
+      ...mou,
+      scopes: mou.scopes ? JSON.parse(mou.scopes) : null
+    };
+
+    res.status(201).json({ success: true, data: responseMou });
   } catch (error) {
     next(error);
   }
@@ -82,21 +89,45 @@ router.post('/mou', async (req, res, next) => {
 router.put('/mou/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, metadata, status, startDate, endDate } = req.body;
-    
+    const { name, description, metadata, scopes, status, startDate, endDate } = req.body;
+
     const mou = await prisma.mou.update({
       where: { id },
       data: {
         name,
         description,
         metadata: metadata ? JSON.stringify(metadata) : null,
+        scopes: scopes !== undefined ? (scopes ? JSON.stringify(scopes) : null) : undefined,
         status,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null
       }
     });
-    
-    res.json({ success: true, data: mou });
+
+    const responseMou = {
+      ...mou,
+      scopes: mou.scopes ? JSON.parse(mou.scopes) : null
+    };
+
+    res.json({ success: true, data: responseMou });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 获取MOU的权限范围（结构化 scopes）
+router.get('/mou/:id/scopes', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const mou = await prisma.mou.findUnique({ where: { id } });
+    if (!mou) {
+      return res.status(404).json({ success: false, message: 'MOU不存在' });
+    }
+
+    const defaultScopes = { menu: [], function: [], data: { scope: 'ALL' } };
+    const scopes = mou.scopes ? JSON.parse(mou.scopes) : defaultScopes;
+
+    res.json({ success: true, data: scopes });
   } catch (error) {
     next(error);
   }
