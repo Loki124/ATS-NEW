@@ -8,6 +8,12 @@
 -->
 <template>
   <div class="condition-tree-editor">
+    <!-- Plan K #4: 表达式模板预览 (如 (1 and 2) or (3 and 4)) -->
+    <n-alert v-if="expressionPreview" type="info" :show-icon="false" style="margin-bottom: 8px; font-family: monospace;">
+      <template #header>表达式模板</template>
+      {{ expressionPreview }}
+    </n-alert>
+
     <div v-for="(item, idx) in items" :key="item.id || idx" class="tree-item">
       <!-- 条件节点 -->
       <div class="node-row">
@@ -131,6 +137,38 @@ const items = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v),
 })
+
+/**
+ * Plan K #4: 自动生成表达式模板
+ * 形如: "(1 and 2) or (3 and 4)"
+ *  - 同级根项之间用 AND/OR 拼接
+ *  - 子条件用括号包裹
+ *  - 字段显示为编号 (1, 2, 3...)
+ */
+const expressionPreview = computed(() => {
+  if (!items.value || items.value.length === 0) return ''
+  const parts: string[] = []
+  items.value.forEach((it: any, idx: number) => {
+    if (idx === 0) {
+      parts.push(buildExpr(it, idx + 1))
+    } else {
+      const rel = it.relationToParent || 'AND'
+      parts.push(`${rel} ${buildExpr(it, idx + 1)}`)
+    }
+  })
+  return parts.join(' ')
+})
+
+function buildExpr(item: any, idx: number): string {
+  if (item.children && item.children.length > 0) {
+    const childParts = item.children.map((c: any, i: number) => {
+      const rel = i === 0 ? '' : `${c.relationToParent || 'AND'} `
+      return `${rel}${idx}.${i + 1}`
+    }).join(' ')
+    return `(${childParts})`
+  }
+  return `${idx}`
+}
 
 // 兄弟项 / 父子项互斥规则
 const canRemove = computed(() => items.value.length > 1 || (props.depth || 0) > 0)

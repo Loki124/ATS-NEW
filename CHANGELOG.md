@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-06-09 — 招聘流程管理补全 (Plan K) — 5 commits
+
+### G38 自定义招聘流程 (按 3 张原型图)
+- **Seed**: `recruitment-default-process.seed.js` - 7 阶段标准流程 (FSTD: 初评→HRBP→用人经理→邀约→联合→待入职→录用), 幂等
+- **测试**: `recruitment-rule-route.test.js` (9 用例) - evaluateConditionTree 覆盖 ALL/ANY/STAGE_STATUS + buildFailedPrompt
+- **编辑器**: `ConditionTreeEditor.vue` 加表达式模板预览 `(1 and 2) or (3 and 4)`
+- **主列表**: `RecruitmentProcess.vue` 加"新建流程" 触发 CustomProcessModal + 适用部门列
+- **CustomProcessModal**: 基础信息 + 7 阶段 (起止不可删) + stageLimit + 编辑/新建
+- **StageRuleConfigModal**: 5 tabs (自动化流转/默认处理人多行/阶段限时多行/面试轮次+形式/进入条件)
+- **API**: `createProcess` payload 加 applicableDepartments/PositionLevels/UserIds/Jobs 字段
+
+### 不破坏
+- 已有 367+ 测试 → 412 通过 (+9 新), 1 pre-existing referral fail (Plan J 领域)
+- 已有 4 个 .vue (RecruitmentProcess/ProcessStageEditor/ProcessStageRules/RecruitmentStage) 仅增量
+- 已有 7 个后端端点不动
+- 已有 4 张表 (RecruitmentProcess/Stage/Link/Rule) schema 不动
+
+---
+
 ## 2026-06-09 — P3 全部 5/5 完成 (Plan I) — 13 commits
 
 ### G30 我找的简历 (RPA)
