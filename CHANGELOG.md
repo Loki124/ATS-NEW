@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 2026-06-09 — 代码质量 + 测试扩充 (Plan H) — 8 commits
+
+### 修 9 个 .vue 类型错 (vue-tsc 2.2.12 兼容)
+- `InvitationCenter.vue`: 修 InterventionModal form 必填 → 在 2 个 actionModal.value 赋值处补 form 字段
+- `AddReferralModal.vue`: 删重复 `import api from '../../api/referral'` (referral.ts 不默认导出, 保留 auth.ts 的)
+- `ReferralCenter.vue`: 加 `PersonAddOutline` 到 @vicons/ionicons5 import 列表
+- `BackgroundCheckPanel.vue`: 加 `const level = row.level` 局部变量帮助 vue-tsc 类型收窄
+- `ProcessStageEditor.vue`: `stageLimit: number | null` → API 调用处转 `stageLimit && stageLimit > 0 ? stageLimit : undefined`
+- `SchoolLibrary/CompanyLibrary/DynamicFieldSettings.vue`: `:wrap` shorthand → `:wrap="true"` (vue-tsc 2.x 不识别 shorthand on n-space)
+
+### e2e 扩充到 6 个 spec (从 3 → 6, 6 场景 → 18 场景)
+- `demand-flow.spec.ts`: 需求列表加载 + 新建按钮 (2 场景)
+- `offer-flow.spec.ts`: Offer 列表 + 详情 (2 场景)
+- `settings-menu.spec.ts`: 14 个 settings 菜单可达性回归保护 (P1-B + P3-F 全覆盖)
+
+### 跨计划联调测试 (6 个, 业务契约验证)
+- `cross-plan-integration.test.js`: 3 个 describe × 6 it
+  - 联调 #1: G19 历史 + G44 状态 (2 测试: 11 状态汇总 + 状态机独立性)
+  - 联调 #2: G32 人才池 + G8 字段权限 (3 测试: BLACKLIST 字段 MASK / 跨池写 OperationRecord / listPoolStats 6 库)
+  - 联调 #3: G11 推荐 + G44 状态 (1 测试: PASS 优先 + 跨字段 MASK)
+
+---
+
 ## 2026-06-09 — P3 数据治理 (G41+G42) + Tech 债 (Playwright + vue-tsc) — 21 commits
 
 ### P3-F 数据治理: G41 院校/公司信息库 + G42 动态字段
