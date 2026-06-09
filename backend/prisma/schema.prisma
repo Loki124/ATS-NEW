@@ -2154,3 +2154,42 @@ model FieldOption {
   @@index([fieldId, orderIndex])
   @@map("field_options")
 }
+
+// ============================================
+// G30 - 我找的简历 (RPA 抓取)
+// ============================================
+model ScrapedResume {
+  id String @id @default(uuid())
+
+  // 候选人信息 (抓取后填充)
+  candidateId String?  // 关联到 Candidate (导入后)
+  candidateName String?
+  candidatePhone String?
+  candidateEmail String?
+
+  // 抓取元数据
+  source        String  @db.VarChar(64)  // 智联 / 拉勾 / BOSS / LinkedIn / 其他
+  sourceUrl     String? @db.VarChar(512)
+  sourceJobId   String? @db.VarChar(128) // 原始职位 ID
+  rawHtml       String? @db.LongText     // 原始 HTML (脱敏后)
+  rawText       String? @db.Text          // 纯文本
+
+  // RPA 执行信息
+  scraperType   String  @db.VarChar(32)  // MOCK_RPA / UIBOT / RPA_PLATFORM
+  scrapedAt     DateTime?
+  scraperUserId String?  // 谁触发的
+  scraperJobName String? @db.VarChar(128) // RPA bot 名 (如 "ZhaopinBot-v2")
+
+  // 状态
+  status        String  @default("PENDING") @db.VarChar(16)  // PENDING / SCRAPED / IMPORTED / FAILED / DUPLICATE
+  importError   String? @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([source])
+  @@index([candidatePhone])
+  @@index([candidateEmail])
+  @@map("scraped_resumes")
+}
