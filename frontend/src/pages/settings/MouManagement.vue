@@ -165,7 +165,62 @@
           />
         </n-form-item>
         <n-form-item label="权限范围">
-          <n-input v-model:value="mouFormState.scope" placeholder="如：全部、部门、自定义" />
+          <n-tabs v-model:value="scopeTab" type="segment" size="small">
+            <n-tab-pane name="menu" tab="菜单权限">
+              <n-checkbox-group v-model:value="mouFormState.scopes.menu">
+                <n-space vertical>
+                  <n-checkbox
+                    v-for="p in menuPermissions"
+                    :key="p.code"
+                    :value="p.code"
+                    :label="`${p.name} (${p.code})`"
+                  />
+                </n-space>
+              </n-checkbox-group>
+              <div v-if="!menuPermissions.length" style="color: #999; font-size: 12px;">暂无可选菜单权限</div>
+            </n-tab-pane>
+            <n-tab-pane name="function" tab="功能权限">
+              <n-checkbox-group v-model:value="mouFormState.scopes.function">
+                <n-space vertical>
+                  <n-checkbox
+                    v-for="p in functionPermissions"
+                    :key="p.code"
+                    :value="p.code"
+                    :label="`${p.name} (${p.code})`"
+                  />
+                </n-space>
+              </n-checkbox-group>
+              <div v-if="!functionPermissions.length" style="color: #999; font-size: 12px;">暂无可选功能权限</div>
+            </n-tab-pane>
+            <n-tab-pane name="data" tab="数据权限">
+              <n-radio-group v-model:value="mouFormState.scopes.data.scope">
+                <n-space vertical>
+                  <n-radio value="ALL">全部数据</n-radio>
+                  <n-radio value="DEPT_AND_CHILD">本部门及下级部门数据</n-radio>
+                  <n-radio value="DEPT">本部门数据</n-radio>
+                  <n-radio value="PERSONAL">仅本人数据</n-radio>
+                  <n-radio value="CUSTOM">自定义（选择部门 / 用户）</n-radio>
+                </n-space>
+              </n-radio-group>
+              <div
+                v-if="mouFormState.scopes.data.scope === 'CUSTOM'"
+                style="margin-top: 12px; padding-left: 16px; border-left: 2px solid #eee;"
+              >
+                <n-form-item label="选定的部门 IDs (逗号分隔)" :show-feedback="false" style="margin-bottom: 8px;">
+                  <n-input
+                    v-model:value="customDeptIdsText"
+                    placeholder="例如：dept-1,dept-2"
+                  />
+                </n-form-item>
+                <n-form-item label="选定的用户 IDs (逗号分隔)" :show-feedback="false">
+                  <n-input
+                    v-model:value="customUserIdsText"
+                    placeholder="例如：user-1,user-2"
+                  />
+                </n-form-item>
+              </div>
+            </n-tab-pane>
+          </n-tabs>
         </n-form-item>
         <n-form-item label="描述">
           <n-input v-model:value="mouFormState.description" type="textarea" :rows="3" placeholder="请输入MOU描述" />
@@ -352,10 +407,24 @@ interface Mou {
   type: string
   mouType?: string
   scope?: string
+  scopes?: MouScopes | null
   createdAt: string
   updatedAt: string
   createdBy?: string
   userCount?: number
+}
+
+interface MouScopes {
+  menu: string[]
+  function: string[]
+  data: { scope: string; deptIds?: string[]; userIds?: string[] }
+}
+
+interface PermissionItem {
+  id: string
+  name: string
+  code: string
+  permissionType: string
 }
 
 interface PermissionContainer {
@@ -423,14 +492,28 @@ const mouModalVisible = ref(false)
 const editingMou = ref<Mou | null>(null)
 const loading = ref(false)
 
-const mouFormState = reactive({
+const mouFormState = reactive<{
+  name: string
+  code: string
+  mouType: string
+  description: string
+  status: string
+  scopes: MouScopes
+}>({
   name: '',
   code: '',
   mouType: '',
-  scope: '',
   description: '',
-  status: 'ACTIVE'
+  status: 'ACTIVE',
+  scopes: { menu: [], function: [], data: { scope: 'ALL' } }
 })
+
+// 范围编辑器辅助状态
+const scopeTab = ref('menu')
+const menuPermissions = ref<PermissionItem[]>([])
+const functionPermissions = ref<PermissionItem[]>([])
+const customDeptIdsText = ref('')
+const customUserIdsText = ref('')
 
 // Container 管理状态
 const containers = ref<PermissionContainer[]>([])
@@ -547,6 +630,17 @@ const mouColumns = [
     title: '类型', key: 'type', width: 100,
     render: (row: Mou) => h(NTag, { type: row.type === 'DEPARTMENT' ? 'info' : row.type === 'PROJECT' ? 'success' : 'warning', size: 'small' },
       { default: () => row.type === 'DEPARTMENT' ? '部门' : row.type === 'PROJECT' ? '项目' : '自定义' })
+  },
+  {
+    title: '权限范围', key: 'scopes', width: 280,
+    render: (row: Mou) => {
+      const s = row.scopes
+      if (!s) return h('span', { style: 'color:#999' }, '未配置')
+      const dataLabel = s.data?.scope ? `数据 ${s.data.scope}` : '数据 -'
+      return h('span', { style: 'font-size:12px' },
+        `菜单 ${s.menu?.length || 0} / 功能 ${s.function?.length || 0} / ${dataLabel}`
+      )
+    }
   },
   { title: '描述', key: 'description', ellipsis: { tooltip: true } },
   {
@@ -801,23 +895,81 @@ const handleTargetTypeChange = (value: string) => {
 }
 
 // MOU 操作
+const resetScopeForm = () => {
+  scopeTab.value = 'menu'
+  customDeptIdsText.value = ''
+  customUserIdsText.value = ''
+  mouFormState.scopes = { menu: [], function: [], data: { scope: 'ALL' } }
+}
+
+const syncCustomIdsFromForm = () => {
+  // 将 text 字段写回 scopes.data.{deptIds,userIds}（仅在 CUSTOM 时有效）
+  const split = (s: string) =>
+    s.split(',').map(x => x.trim()).filter(Boolean)
+  if (mouFormState.scopes.data.scope === 'CUSTOM') {
+    mouFormState.scopes.data.deptIds = split(customDeptIdsText.value)
+    mouFormState.scopes.data.userIds = split(customUserIdsText.value)
+  } else {
+    delete mouFormState.scopes.data.deptIds
+    delete mouFormState.scopes.data.userIds
+  }
+}
+
+const loadPermissionCatalog = async () => {
+  // 拉取所有 MENU / FUNCTION 类型 Permission, 作为复选框数据源
+  try {
+    const [menuRes, funcRes] = await Promise.all([
+      api.get('/permissions/permissions/list?type=MENU'),
+      api.get('/permissions/permissions/list?type=FUNCTION'),
+    ])
+    menuPermissions.value = menuRes.data?.data || []
+    functionPermissions.value = funcRes.data?.data || []
+  } catch (error) {
+    message.error('加载权限目录失败')
+  }
+}
+
+const loadMouScopes = async (mouId: string) => {
+  try {
+    const res = await api.get(`/permissions-v2/mou/${mouId}/scopes`)
+    if (res.data?.success) {
+      const s = res.data.data
+      mouFormState.scopes = {
+        menu: s.menu || [],
+        function: s.function || [],
+        data: s.data || { scope: 'ALL' },
+      }
+      customDeptIdsText.value = (s.data?.deptIds || []).join(',')
+      customUserIdsText.value = (s.data?.userIds || []).join(',')
+    }
+  } catch (error) {
+    // 编辑新建场景可能没 scopes，使用默认空结构
+    resetScopeForm()
+  }
+}
+
 const handleAddMou = () => {
   editingMou.value = null
-  Object.assign(mouFormState, { name: '', code: '', mouType: '', scope: '', description: '', status: 'ACTIVE' })
+  mouFormState.name = ''
+  mouFormState.code = ''
+  mouFormState.mouType = ''
+  mouFormState.description = ''
+  mouFormState.status = 'ACTIVE'
+  resetScopeForm()
   mouModalVisible.value = true
 }
 
 const handleEditMou = (mou: Mou) => {
   editingMou.value = mou
-  Object.assign(mouFormState, {
-    name: mou.name,
-    code: mou.code,
-    mouType: mou.type,
-    scope: mou.scope,
-    description: mou.description,
-    status: mou.status
-  })
+  mouFormState.name = mou.name
+  mouFormState.code = mou.code
+  mouFormState.mouType = mou.type
+  mouFormState.description = mou.description || ''
+  mouFormState.status = mou.status
+  scopeTab.value = 'menu'
   mouModalVisible.value = true
+  // 异步加载 scopes
+  loadMouScopes(mou.id)
 }
 
 const handleDeleteMou = async (mou: Mou) => {
@@ -839,7 +991,19 @@ const handleSaveMou = async () => {
     const url = editingMou.value ? `/permissions-v2/mou/${editingMou.value.id}` : '/permissions-v2/mou'
     const method = editingMou.value ? 'PUT' : 'POST'
 
-    const data = (await (api as any)[method.toLowerCase()](url, mouFormState)).data
+    // 同步 CUSTOM 选定的 deptIds/userIds
+    syncCustomIdsFromForm()
+
+    // 只把 scopes 一起提交（不附带旧 scope free-text 字段）
+    const payload = {
+      name: mouFormState.name,
+      code: mouFormState.code,
+      mouType: mouFormState.mouType,
+      description: mouFormState.description,
+      status: mouFormState.status,
+      scopes: mouFormState.scopes,
+    }
+    const data = (await (api as any)[method.toLowerCase()](url, payload)).data
 
     if (data.success) {
       message.success(editingMou.value ? '更新成功' : '创建成功')
@@ -1027,6 +1191,7 @@ onMounted(() => {
   loadAutomationRules()
   loadAuditLogs()
   loadMutexGroups()
+  loadPermissionCatalog()
 })
 </script>
 
