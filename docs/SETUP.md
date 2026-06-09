@@ -382,6 +382,16 @@ docker-compose up -d
 
 会自动启动 MySQL + 后端 + nginx + 前端。
 
+## 附录：MOU 权限范围配置
+
+MOU（管理单元）支持结构化 `scopes` 字段（JSON），由前端"权限管理"页面三段式编辑：
+
+- **菜单权限**: 选中的菜单 `code` 列表（数据源: `GET /api/permissions/permissions/list?type=MENU`）
+- **功能权限**: 选中的功能 `code` 列表（数据源: `GET /api/permissions/permissions/list?type=FUNCTION`）
+- **数据权限**: 单选 `ALL` / `DEPT_AND_CHILD` / `DEPT` / `PERSONAL` / `CUSTOM`；选 `CUSTOM` 时可填 `deptIds` 与 `userIds` 列表
+
+后端 `Mou.scopes` 为 `Json?`，存 DB 时序列化为字符串，API 返回前 parse 回对象。读取用 `GET /api/permissions-v2/mou/:id/scopes`（404 表示 MOU 不存在）。与 `permission.middleware` 的集成留后续 plan。
+
 ## 附录：常见安装错误
 
 | 错误 | 原因 | 解法 |
