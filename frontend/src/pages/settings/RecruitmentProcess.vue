@@ -4,9 +4,9 @@
       <h2>招聘流程管理</h2>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px" />
-        <n-button type="primary" @click="showCreateModal = true">
+        <n-button type="primary" @click="openCustomModal(null)">
           <template #icon><n-icon :component="AddOutline" /></template>
-          新增流程
+          新建流程
         </n-button>
       </n-space>
     </div>
@@ -17,6 +17,13 @@
       :loading="loading"
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
+    />
+
+    <!-- Plan K: 自定义招聘流程 modal (原型 2) -->
+    <CustomRecruitmentProcessModal
+      v-model:show="showCustomModal"
+      :editing="customEditing"
+      @saved="onCustomSaved"
     />
 
     <!-- 新增/编辑流程弹窗 -->
@@ -57,6 +64,7 @@ import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSwitch, NSpace, NRadio,
 import { AddOutline, CreateOutline, TrashOutline, CopyOutline, PowerOutline, EyeOutline } from '@vicons/ionicons5'
 import { listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus } from '../../api/recruitment-process'
 import { useRouter } from 'vue-router'
+import CustomRecruitmentProcessModal from './CustomRecruitmentProcessModal.vue'
 
 const message = useMessage()
 const router = useRouter()
@@ -77,6 +85,12 @@ const form = reactive({
 const columns = [
   { title: '流程编号', key: 'code', width: 100 },
   { title: '流程名称', key: 'name', width: 200 },
+  {
+    title: '适用部门',
+    key: 'applicableDepartments',
+    width: 140,
+    render: (r: any) => formatDepts(r.applicableDepartments),
+  },
   {
     title: '阶段数',
     key: 'links',
@@ -112,6 +126,30 @@ const columns = [
 
 function formatDate(s: string) {
   return s ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : '-'
+}
+
+/** 适用部门字段 (JSON 数组) */
+function formatDepts(d: any): string {
+  if (!d) return '全部'
+  if (Array.isArray(d)) {
+    if (d.length === 0) return '全部'
+    if (d.length <= 2) return d.join(', ')
+    return `${d.slice(0, 2).join(', ')} +${d.length - 2}`
+  }
+  return '全部'
+}
+
+/** Plan K: 打开自定义招聘流程 modal */
+const showCustomModal = ref(false)
+const customEditing = ref<any>(null)
+
+function openCustomModal(row: any | null) {
+  customEditing.value = row
+  showCustomModal.value = true
+}
+
+function onCustomSaved() {
+  loadList()
 }
 
 async function loadList() {
