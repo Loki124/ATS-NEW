@@ -69,6 +69,11 @@
 - ✅ vue-tsc 1.8 → 2.2.12 升级 (Node 24 兼容)
 - ✅ baseline migration 已存在 (`20260607000000_baseline_54_tables`)
 
+### Plan H 代码质量 + 测试扩充 ✅ (2026-06-09)
+- ✅ 修 9 个 .vue 类型错 (vue-tsc 0 错, exit code 0)
+- ✅ e2e 扩充到 6 spec (18 场景): demand-flow / offer-flow / settings-menu(14 菜单可达)
+- ✅ 跨计划联调测试 6 个: G19+G44, G32+G8, G11+G44 业务契约验证
+
 ### P2 优先级（辅助模块）⬜ 全部需外部依赖
 - ⬜ **G6 RPA 发布** - 需企业 API
 - ⬜ **G20 腾讯会议建会** - 需企业版
