@@ -72,9 +72,17 @@
             size="small"
             :pagination="false"
           />
-          <n-button size="small" type="primary" dashed style="margin-top: 8px" @click="addTimeLimitRule">
-            + 添加限时规则
-          </n-button>
+          <n-space style="margin-top: 8px">
+            <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
+              + 添加限时规则
+            </n-button>
+            <!-- Plan L #5: 3 预置规则模板 (总裁 90/总监 60/其他 30 天) -->
+            <n-divider vertical />
+            <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
+            <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
+            <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
+            <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
+          </n-space>
         </n-tab-pane>
 
         <!-- Tab 4: 面试轮次 + 形式 -->
@@ -427,6 +435,28 @@ function addTimeLimitRule() {
 
 function removeTimeLimitRule(row: any) {
   form.timeLimitRules = form.timeLimitRules.filter(r => r._key !== row._key)
+}
+
+// Plan L #5: 插入时间限制预置规则
+function insertPreset(level: 'PRESIDENT' | 'DIRECTOR' | 'OTHER') {
+  const presets: Record<string, { days: number; label: string }> = {
+    PRESIDENT: { days: 90, label: '总裁级' },
+    DIRECTOR: { days: 60, label: '总监级' },
+    OTHER: { days: 30, label: '其他级别' },
+  }
+  const p = presets[level]
+  if (!p) return
+  form.timeLimitRules.push({
+    _key: `t_preset_${level}_${Date.now()}`,
+    name: `${p.label} ${p.days} 天超时自动处理`,
+    condition: 'STAGE_CONDITION',
+    action: 'TRANSFER',
+    enabled: true,
+  })
+  // timeLimit 字段在提交时按 level 转换
+  form.timeLimitHoursByLevel = form.timeLimitHoursByLevel || {}
+  form.timeLimitHoursByLevel[level] = p.days * 24
+  message.success(`已添加 ${p.label} 预置规则`)
 }
 
 // ==================== 监听 open 加载已有规则 ====================
