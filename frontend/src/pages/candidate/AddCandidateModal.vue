@@ -182,7 +182,7 @@
           <n-button v-else type="primary" :loading="loading" @click="handleSubmit">确认提交</n-button>
         </n-space>
       </div>
-    </div>
+    </template>
 
     <!-- G45: 查重重复列表 Modal -->
     <n-modal
