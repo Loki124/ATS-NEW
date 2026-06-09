@@ -186,6 +186,10 @@ app.use('/api/library', authMiddleware, companyLibraryRoutes);
 // ====== G42 动态字段定义 ======
 app.use('/api/dynamic-fields', authMiddleware, dynamicFieldRoutes);
 
+// ====== Plan L 字典 (面试轮次/形式) ======
+import dictionaryRoutes from './routes/dictionary.routes.js';
+app.use('/api/dictionary', authMiddleware, dictionaryRoutes);
+
 // ====== G30 RPA 简历抓取 ======
 app.use('/api/scraped-resumes', authMiddleware, scrapedResumeRoutes);
 

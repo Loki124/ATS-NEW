@@ -178,6 +178,8 @@ import {
   upsertStageRule, upsertEntryCondition, listStageRules, listEntryConditions,
 } from '../../api/recruitment-process'
 import { validateExpression } from '../../utils/condition-expression'
+import { default as axios } from 'axios'
+import config from '../../config'
 
 const props = defineProps<{
   show: boolean
@@ -305,20 +307,46 @@ const timeLimitActionOptions = [
   { label: '通知 HR', value: 'NOTIFY' },
 ]
 
-const interviewRoundOptions = [
-  { label: '联合面试', value: 'JOINT' },
-  { label: '综合面试', value: 'COMPREHENSIVE' },
-  { label: '初试', value: 'INITIAL' },
-  { label: '复试', value: 'SECOND' },
-  { label: '终试', value: 'FINAL' },
-]
+const interviewRoundOptions = ref<{ label: string; value: string }[]>([])
+const interviewFormOptions = ref<{ label: string; value: string }[]>([])
 
-const interviewFormOptions = [
-  { label: '现场面试', value: 'ONSITE' },
-  { label: '电话面试', value: 'PHONE' },
-  { label: '视频面试', value: 'VIDEO' },
-  { label: 'AI 面试', value: 'AI' },
-]
+// Plan L #6: 从数据字典动态拉面试轮次 + 形式
+async function loadDictionaryOptions() {
+  try {
+    const token = localStorage.getItem('token')
+    const [roundRes, formRes] = await Promise.all([
+      axios.get(`${config.api.baseUrl}/dictionary/interview_round`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      axios.get(`${config.api.baseUrl}/dictionary/interview_format`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ])
+    interviewRoundOptions.value = (roundRes.data?.data?.items || []).map((it: any) => ({
+      label: it.name,
+      value: it.code,
+    }))
+    interviewFormOptions.value = (formRes.data?.data?.items || []).map((it: any) => ({
+      label: it.name,
+      value: it.code,
+    }))
+  } catch (e) {
+    // Fallback to hardcoded
+    interviewRoundOptions.value = [
+      { label: '联合面试', value: 'JOINT' },
+      { label: '综合面试', value: 'COMPREHENSIVE' },
+      { label: '初试', value: 'INITIAL' },
+      { label: '复试', value: 'SECOND' },
+      { label: '终试', value: 'FINAL' },
+    ]
+    interviewFormOptions.value = [
+      { label: '现场面试', value: 'ONSITE' },
+      { label: '电话面试', value: 'PHONE' },
+      { label: '视频面试', value: 'VIDEO' },
+      { label: 'AI 面试', value: 'AI' },
+    ]
+  }
+}
 
 // ==================== 表格列 ====================
 const handlerColumns = [
@@ -463,6 +491,8 @@ function insertPreset(level: 'PRESIDENT' | 'DIRECTOR' | 'OTHER') {
 watch(() => props.show, async (v) => {
   if (!v || !props.linkId) return
   loading.value = true
+  // Plan L #6: 字典动态加载
+  loadDictionaryOptions()
   try {
     // 加载 stage rule
     const rules = await listStageRules({ linkId: props.linkId })
