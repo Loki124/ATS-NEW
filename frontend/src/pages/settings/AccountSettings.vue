@@ -312,8 +312,12 @@ const dataScopeColumns = [
 
 // 加载用户角色
 const loadUserRoles = async () => {
+  if (!user.value?.id) {
+    console.warn('user.id 不可用, 跳过加载用户角色')
+    return
+  }
   try {
-    const data = (await api.get(`/permissions/users/${user.value?.id}/roles`)).data
+    const data = (await api.get(`/permissions/users/${user.value.id}/roles`)).data
     if (data.success) {
       userRoles.value = data.data.map((ur: any) => ur.roleId)
     }
@@ -356,8 +360,12 @@ const loadMyPermissions = async () => {
 
 // 保存个人信息
 const handleSaveProfile = async () => {
+  if (!user.value?.id) {
+    message.error('用户未登录')
+    return
+  }
   try {
-    const data = (await api.put(`/users/${user.value?.id}`, {
+    const data = (await api.put(`/users/${user.value.id}`, {
         realName: formState.realName,
         email: formState.email,
         phone: formState.phone,
@@ -389,8 +397,12 @@ const handleRoleSelectChange = (selectedRowKeys: any) => {
 }
 
 const handleSaveRoles = async (roleIds: string[]) => {
+  if (!user.value?.id) {
+    message.error('用户未登录')
+    return
+  }
   try {
-    const data = (await api.post(`/permissions/users/${user.value?.id}/roles`, { roleIds })).data
+    const data = (await api.post(`/permissions/users/${user.value.id}/roles`, { roleIds })).data
     if (data.success) {
       message.success('角色分配成功')
       loadMyPermissions()
