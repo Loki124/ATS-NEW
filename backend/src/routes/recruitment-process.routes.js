@@ -13,6 +13,7 @@
 import { Router } from 'express';
 import { prisma } from '../app.js';
 import { AppError } from '../middleware/error.middleware.js';
+import { validateProcessPayload } from '../services/recruitment-process-validator.service.js';
 
 const router = Router();
 
@@ -67,6 +68,8 @@ router.post('/', async (req, res, next) => {
             applicableUserIds, applicableJobs, applicableMode = 'ALL',
             validateResumeScore = true, failPrompt, createdBy } = req.body;
     if (!name) throw new AppError('流程名称必填', 400);
+    // Plan L #7: 名称 2-50 字符, 描述 ≤ 100 字符
+    validateProcessPayload(name, description);
 
     // 编号: F + 3 位流水号
     const last = await prisma.recruitmentProcess.findFirst({
@@ -157,6 +160,10 @@ router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+    // Plan L #7: 同样校验
+    if (updates.name !== undefined || updates.description !== undefined) {
+      validateProcessPayload(updates.name, updates.description);
+    }
     const updated = await prisma.recruitmentProcess.update({
       where: { id },
       data: {
