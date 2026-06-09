@@ -49,6 +49,9 @@ import fieldAclRoutes from './routes/field-acl.routes.js';
 import schoolLibraryRoutes from './routes/school-library.routes.js';
 import companyLibraryRoutes from './routes/company-library.routes.js';
 import dynamicFieldRoutes from './routes/dynamic-field.routes.js';
+// G30: RPA 简历抓取
+import scrapedResumeRoutes from './routes/scraped-resume.routes.js';
+import './services/integration/rpa-adapter.js';
 
 // 配置
 import config from './config/index.js';
@@ -178,6 +181,9 @@ app.use('/api/library', authMiddleware, companyLibraryRoutes);
 
 // ====== G42 动态字段定义 ======
 app.use('/api/dynamic-fields', authMiddleware, dynamicFieldRoutes);
+
+// ====== G30 RPA 简历抓取 ======
+app.use('/api/scraped-resumes', authMiddleware, scrapedResumeRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
