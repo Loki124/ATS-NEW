@@ -11,6 +11,8 @@ import {
   validateStatusDetails
 } from '../services/candidate-status-machine.service.js';
 import { getRecommendations } from '../services/candidate-recommendation.service.js';
+// G45: 简历查重
+import { findDuplicates } from '../services/resume-duplicate-check.service.js';
 
 const router = express.Router();
 
@@ -202,6 +204,20 @@ router.post('/', async (req, res, next) => {
       recommenderId,
       recommenderName
     } = req.body;
+
+    // G45: 创建前自动查重 (forceCreate=true 跳过)
+    if (!req.body.forceCreate) {
+      const dupes = await findDuplicates({
+        name, phone, email,
+      }, 0.7);
+      if (dupes.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: `检测到 ${dupes.length} 个重复候选人`,
+          duplicates: dupes,
+        });
+      }
+    }
 
     // 生成候选人编号
     const count = await prisma.candidate.count();
