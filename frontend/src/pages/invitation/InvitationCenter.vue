@@ -257,6 +257,7 @@ function openEnterPool(row: Invitation) {
   actionModal.value = {
     show: true, loading: false, title: '入抢单池', type: 'warning',
     placeholder: '可填入池原因', action: 'enterPool', id: row.id, reason: '',
+    form: { reason: '' },
   }
 }
 
@@ -329,6 +330,7 @@ function openAction(row: Invitation, action: 'enterPool' | 'intervene' | 'termin
     action,
     id: row.id,
     reason: '',
+    form: { reason: '' },
   }
 }
 

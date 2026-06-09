@@ -243,8 +243,9 @@ function editLinkStageLimit(link: any) {
 
 async function saveStageLimit() {
   try {
+    const stageLimit = limitForm.value.stageLimit
     await updateProcessLink(limitForm.value.linkId, {
-      stageLimit: limitForm.value.stageLimit || null,
+      stageLimit: stageLimit && stageLimit > 0 ? stageLimit : undefined,
     })
     message.success('已保存')
     showLimitModal.value = false

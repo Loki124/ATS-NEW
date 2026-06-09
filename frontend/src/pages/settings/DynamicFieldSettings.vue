@@ -6,7 +6,7 @@
     </div>
 
     <n-card>
-      <n-space class="filter-row" :wrap>
+      <n-space class="filter-row" :wrap="true">
         <n-select
           v-model:value="currentResource"
           :options="RESOURCE_OPTIONS"
