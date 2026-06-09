@@ -1485,6 +1485,12 @@ model Mou {
   level       Int     @default(1)
   path        String?
 
+  // MOU 权限范围 (G? - 权限范围结构化)
+  // menu: 字符串数组, 菜单 code 列表
+  // function: 字符串数组, 功能 code 列表
+  // data: { scope: 'ALL'|'DEPT_AND_CHILD'|'DEPT'|'PERSONAL'|'CUSTOM', deptIds?: string[], userIds?: string[] }
+  scopes Json?
+
   metadata String?
 
   status    String    @default("ACTIVE") @db.VarChar(32)
