@@ -60,6 +60,7 @@ import {
   CloudUploadOutline,
   ServerOutline,
   SearchOutline,
+  AnalyticsOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -127,6 +128,7 @@ const subMenuOptions = [
       { key: '/settings/company-library', label: '公司库', icon: renderIcon(BusinessOutline) },
       { key: '/settings/dynamic-fields', label: '动态字段', icon: renderIcon(ConstructOutline) },
       { key: '/settings/scraped-resumes', label: '我找的简历', icon: renderIcon(SearchOutline) },
+      { key: '/settings/data-dashboard', label: '数据中心', icon: renderIcon(AnalyticsOutline) },
     ],
   },
 ]

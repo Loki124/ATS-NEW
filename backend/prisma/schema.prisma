@@ -2193,3 +2193,37 @@ model ScrapedResume {
   @@index([candidateEmail])
   @@map("scraped_resumes")
 }
+
+// ============================================
+// G35 - 数据订阅
+// ============================================
+model DataSubscription {
+  id String @id @default(uuid())
+
+  userId String
+  userName String
+
+  // 订阅什么
+  resource   String @db.VarChar(64)  // Candidate / Demand / Position / Offer / Interview / Onboarding
+  metric     String @db.VarChar(64)  // 'all' / 'count_by_status' / 'count_by_dept' / 'export_csv'
+  filters    String? @db.Text        // JSON: { departmentId, status, dateFrom, dateTo }
+
+  // 投递方式
+  channel    String @db.VarChar(16)  // EMAIL / SYSTEM / WECOM / SMS
+  schedule   String @db.VarChar(32)  // DAILY / WEEKLY / MONTHLY / ON_DEMAND
+  scheduleTime String? @db.VarChar(8) // '09:00' (HH:mm)
+  recipients String? @db.Text         // 逗号分隔 email / userId
+
+  isActive   Boolean @default(true)
+
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  runCount   Int @default(0)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, isActive])
+  @@index([resource, schedule])
+  @@map("data_subscriptions")
+}

@@ -126,6 +126,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'process-stages', name: 'ProcessStageEditor', component: () => import('../pages/settings/ProcessStageEditor.vue') },
           { path: 'process-rules', name: 'ProcessStageRules', component: () => import('../pages/settings/ProcessStageRules.vue') },
           { path: 'recruitment-round', name: 'RecruitmentRound', component: () => import('../pages/settings/RecruitmentRound.vue') },
+          // ===== G35 数据中心 =====
+          { path: 'data-dashboard', name: 'DataDashboard', component: () => import('../pages/settings/DataDashboard.vue') },
         ],
       },
       {
