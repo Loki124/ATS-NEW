@@ -290,6 +290,11 @@ model RecruitmentProcess {
   applicableJobs           Json? // String[]
   applicableMode String @default("ALL") @db.VarChar(16)
 
+  /// Plan L: 适用范围 - 表达式驱动 (PRD #4 适用范围 5 条件 + 表达式)
+  /// 结构: { items: [{ id, field, op, value, value2 }], expression: "(1 and 2) or (3 and 4)" }
+  /// 5 条件字段: 请选择内容 / 需求部门 / 需求职级 / 登录人 / 职务
+  applicableScope Json?
+
   /// 是否校验简历评分 (#10.2 #1463)
   validateResumeScore Boolean @default(true)
 
@@ -357,6 +362,9 @@ model ProcessStageLink {
 
   /// 阶段顺序 (0-based) - #3.2 阶段顺序可在起止阶段之间自由排列
   orderIndex Int     @default(0)
+  /// 阶段类型: SCREENING(筛选型) / INVITE(邀约型) / INTERVIEW(面试型) / ONBOARDING(入职型)
+  /// Plan L: 冗余字段 - 便于在 link 列表上直接筛选/统计 (无需 join stage 表)
+  stageType String @default("SCREENING") @db.VarChar(32)
   /// 流程内可自定义阶段名 (可选)
   customName String? @db.VarChar(64)
   /// 是否为该流程的起始阶段 (初评) - 通常是系统预置
