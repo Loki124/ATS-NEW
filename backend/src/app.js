@@ -49,6 +49,9 @@ import fieldAclRoutes from './routes/field-acl.routes.js';
 import schoolLibraryRoutes from './routes/school-library.routes.js';
 import companyLibraryRoutes from './routes/company-library.routes.js';
 import dynamicFieldRoutes from './routes/dynamic-field.routes.js';
+// G45: 简历查重 + OCR 路由
+import duplicateCheckRoutes from './routes/duplicate-check.routes.js';
+import './services/integration/ocr-adapter.js';
 
 // 配置
 import config from './config/index.js';
@@ -178,6 +181,9 @@ app.use('/api/library', authMiddleware, companyLibraryRoutes);
 
 // ====== G42 动态字段定义 ======
 app.use('/api/dynamic-fields', authMiddleware, dynamicFieldRoutes);
+
+// ====== G45 简历查重 + OCR 解析 ======
+app.use('/api/duplicate-check', authMiddleware, duplicateCheckRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
