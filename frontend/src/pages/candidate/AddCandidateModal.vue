@@ -182,7 +182,33 @@
           <n-button v-else type="primary" :loading="loading" @click="handleSubmit">确认提交</n-button>
         </n-space>
       </div>
-    </template>
+    </div>
+
+    <!-- G45: 查重重复列表 Modal -->
+    <n-modal
+      v-model:show="showDuplicateModal"
+      preset="card"
+      :style="{ width: '720px' }"
+      :mask-closable="false"
+      title="检测到重复候选人"
+    >
+      <div style="margin-bottom: 12px; color: #d97706;">
+        系统检测到 {{ duplicates.length }} 个相似的候选人, 请确认是否继续创建。
+      </div>
+      <n-data-table
+        :columns="duplicateColumns"
+        :data="duplicates"
+        :bordered="false"
+        :single-line="false"
+        size="small"
+      />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="cancelDuplicate">取消</n-button>
+          <n-button type="warning" @click="forceCreateCandidate">继续创建 (强制)</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </n-modal>
 </template>
 
@@ -197,6 +223,9 @@ import {
   MailOutline,
   FileTrayFullOutline,
 } from '@vicons/ionicons5'
+import axios from 'axios'
+import config from '../../config'
+import type { DuplicateCandidate } from '../../api/duplicate-check'
 
 interface Props {
   visible: boolean
@@ -317,19 +346,78 @@ const prevStep = () => {
   currentStep.value--
 }
 
+// G45: 查重相关状态
+const showDuplicateModal = ref(false)
+const duplicates = ref<DuplicateCandidate[]>([])
+
+const duplicateColumns = [
+  { title: '姓名', key: 'candidate.name' },
+  { title: '手机号', key: 'candidate.phone' },
+  { title: '邮箱', key: 'candidate.email' },
+  { title: '匹配度', key: 'score',
+    render: (row: DuplicateCandidate) => `${(row.score * 100).toFixed(0)}% (${row.matchType})` },
+]
+
+const cancelDuplicate = () => {
+  showDuplicateModal.value = false
+  duplicates.value = []
+  loading.value = false
+}
+
+const forceCreateCandidate = async () => {
+  showDuplicateModal.value = false
+  loading.value = true
+  try {
+    await submitCandidate(true)
+  } catch (e) {
+    console.error('forceCreate failed', e)
+    loading.value = false
+  }
+}
+
+const submitCandidate = async (forceCreate = false) => {
+  const token = localStorage.getItem('token')
+  const resp = await axios.post(
+    `${config.api.baseUrl}/candidates`,
+    {
+      name: formState.name,
+      phone: formState.phone,
+      email: formState.email,
+      gender: formState.gender,
+      birthday: formState.birthDate,
+      highestEducation: formState.education,
+      channelSource: formState.channel,
+      recommenderName: formState.recommender,
+      forceCreate,
+    },
+    {
+      headers: { Authorization: token ? `Bearer ${token}` : '' },
+      validateStatus: () => true, // 自己处理 status
+    },
+  )
+  if (resp.status === 409) {
+    // 重复: 弹 modal
+    duplicates.value = resp.data?.duplicates || []
+    showDuplicateModal.value = true
+    return
+  }
+  if (resp.status >= 200 && resp.status < 300) {
+    message.success('候选人添加成功！')
+    resetForm()
+    emit('success')
+    emit('close')
+  } else {
+    message.error(resp.data?.message || `提交失败 (${resp.status})`)
+  }
+}
+
 const handleSubmit = async () => {
   try {
     loading.value = true
-    // 模拟提交
-    setTimeout(() => {
-      message.success('候选人添加成功！')
-      loading.value = false
-      resetForm()
-      emit('success')
-      emit('close')
-    }, 1000)
+    await submitCandidate(false)
   } catch (error) {
     console.error('提交失败:', error)
+  } finally {
     loading.value = false
   }
 }
