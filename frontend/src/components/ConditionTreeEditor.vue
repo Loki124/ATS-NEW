@@ -14,6 +14,17 @@
       {{ expressionPreview }}
     </n-alert>
 
+    <!-- Plan L #3b: 表达式实时校验反馈 -->
+    <n-alert
+      v-if="validationResult && !validationResult.valid"
+      type="error"
+      :show-icon="true"
+      style="margin-bottom: 8px"
+    >
+      <template #header>表达式非法</template>
+      {{ validationResult.error }}
+    </n-alert>
+
     <div v-for="(item, idx) in items" :key="item.id || idx" class="tree-item">
       <!-- 条件节点 -->
       <div class="node-row">
@@ -120,6 +131,7 @@
 import { ref, computed, h } from 'vue'
 import { NButton, NTag, NInput, NInputNumber, NSelect, NText } from 'naive-ui'
 import { useMessage } from 'naive-ui'
+import { validateExpression } from '../utils/condition-expression'
 
 const props = defineProps<{
   modelValue: any[]
@@ -157,6 +169,17 @@ const expressionPreview = computed(() => {
     }
   })
   return parts.join(' ')
+})
+
+/**
+ * Plan L #3b: 表达式实时校验结果
+ *  - 空表达式视为合法 (全部满足)
+ *  - 数字超界 / 括号错 / 同组 AND+OR 混用 → error
+ */
+const validationResult = computed(() => {
+  const expr = expressionPreview.value
+  if (!expr) return null
+  return validateExpression(expr, items.value?.length || 0)
 })
 
 function buildExpr(item: any, idx: number): string {

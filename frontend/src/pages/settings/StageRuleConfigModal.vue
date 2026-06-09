@@ -72,9 +72,17 @@
             size="small"
             :pagination="false"
           />
-          <n-button size="small" type="primary" dashed style="margin-top: 8px" @click="addTimeLimitRule">
-            + 添加限时规则
-          </n-button>
+          <n-space style="margin-top: 8px">
+            <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
+              + 添加限时规则
+            </n-button>
+            <!-- Plan L #5: 3 预置规则模板 (总裁 90/总监 60/其他 30 天) -->
+            <n-divider vertical />
+            <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
+            <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
+            <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
+            <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
+          </n-space>
         </n-tab-pane>
 
         <!-- Tab 4: 面试轮次 + 形式 -->
@@ -124,6 +132,19 @@
                 </n-space>
               </n-radio-group>
             </n-form-item>
+            <!-- Plan L #3b: 自定义表达式实时校验 (如 (1 AND 2) OR 3) -->
+            <n-form-item
+              label="条件表达式 (可选)"
+              :feedback="exprValidation?.error || '留空则用上面条件树自动生成'"
+              :validation-status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+            >
+              <n-input
+                v-model:value="condForm.expression"
+                placeholder="如: (1 AND 2) OR (3 AND 4)"
+                :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+                @blur="onExprBlur"
+              />
+            </n-form-item>
             <n-form-item label="未满足条件时提示内容" required>
               <n-input
                 v-model:value="condForm.prompt"
@@ -156,6 +177,9 @@ import {
 import {
   upsertStageRule, upsertEntryCondition, listStageRules, listEntryConditions,
 } from '../../api/recruitment-process'
+import { validateExpression } from '../../utils/condition-expression'
+import { default as axios } from 'axios'
+import config from '../../config'
 
 const props = defineProps<{
   show: boolean
@@ -209,8 +233,27 @@ const condForm = reactive({
   matchType: 'ALL' as 'ALL' | 'ANY',
   conditionType: 'MIXED' as 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED',
   prompt: '',
+  expression: '', // Plan L: 可选手写表达式
   items: [] as any[],
 })
+
+/**
+ * Plan L #3b: 表达式实时校验
+ *  - 空 → 合法 (留空 = 全部满足)
+ *  - 非空 → 校验括号、数字范围、AND/OR 平衡
+ */
+const exprValidation = computed(() => {
+  if (!condForm.expression) return null
+  return validateExpression(condForm.expression, condForm.items?.length || 0)
+})
+
+function onExprBlur() {
+  if (!condForm.expression) return
+  const r = validateExpression(condForm.expression, condForm.items?.length || 0)
+  if (!r.valid) {
+    message.warning(`表达式校验失败: ${r.error}`)
+  }
+}
 
 const autoAdvanceOptions = [
   { label: '不自动流转', value: 'NONE' },
@@ -264,20 +307,46 @@ const timeLimitActionOptions = [
   { label: '通知 HR', value: 'NOTIFY' },
 ]
 
-const interviewRoundOptions = [
-  { label: '联合面试', value: 'JOINT' },
-  { label: '综合面试', value: 'COMPREHENSIVE' },
-  { label: '初试', value: 'INITIAL' },
-  { label: '复试', value: 'SECOND' },
-  { label: '终试', value: 'FINAL' },
-]
+const interviewRoundOptions = ref<{ label: string; value: string }[]>([])
+const interviewFormOptions = ref<{ label: string; value: string }[]>([])
 
-const interviewFormOptions = [
-  { label: '现场面试', value: 'ONSITE' },
-  { label: '电话面试', value: 'PHONE' },
-  { label: '视频面试', value: 'VIDEO' },
-  { label: 'AI 面试', value: 'AI' },
-]
+// Plan L #6: 从数据字典动态拉面试轮次 + 形式
+async function loadDictionaryOptions() {
+  try {
+    const token = localStorage.getItem('token')
+    const [roundRes, formRes] = await Promise.all([
+      axios.get(`${config.api.baseUrl}/dictionary/interview_round`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      axios.get(`${config.api.baseUrl}/dictionary/interview_format`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ])
+    interviewRoundOptions.value = (roundRes.data?.data?.items || []).map((it: any) => ({
+      label: it.name,
+      value: it.code,
+    }))
+    interviewFormOptions.value = (formRes.data?.data?.items || []).map((it: any) => ({
+      label: it.name,
+      value: it.code,
+    }))
+  } catch (e) {
+    // Fallback to hardcoded
+    interviewRoundOptions.value = [
+      { label: '联合面试', value: 'JOINT' },
+      { label: '综合面试', value: 'COMPREHENSIVE' },
+      { label: '初试', value: 'INITIAL' },
+      { label: '复试', value: 'SECOND' },
+      { label: '终试', value: 'FINAL' },
+    ]
+    interviewFormOptions.value = [
+      { label: '现场面试', value: 'ONSITE' },
+      { label: '电话面试', value: 'PHONE' },
+      { label: '视频面试', value: 'VIDEO' },
+      { label: 'AI 面试', value: 'AI' },
+    ]
+  }
+}
 
 // ==================== 表格列 ====================
 const handlerColumns = [
@@ -396,10 +465,34 @@ function removeTimeLimitRule(row: any) {
   form.timeLimitRules = form.timeLimitRules.filter(r => r._key !== row._key)
 }
 
+// Plan L #5: 插入时间限制预置规则
+function insertPreset(level: 'PRESIDENT' | 'DIRECTOR' | 'OTHER') {
+  const presets: Record<string, { days: number; label: string }> = {
+    PRESIDENT: { days: 90, label: '总裁级' },
+    DIRECTOR: { days: 60, label: '总监级' },
+    OTHER: { days: 30, label: '其他级别' },
+  }
+  const p = presets[level]
+  if (!p) return
+  form.timeLimitRules.push({
+    _key: `t_preset_${level}_${Date.now()}`,
+    name: `${p.label} ${p.days} 天超时自动处理`,
+    condition: 'STAGE_CONDITION',
+    action: 'TRANSFER',
+    enabled: true,
+  })
+  // timeLimit 字段在提交时按 level 转换
+  form.timeLimitHoursByLevel = form.timeLimitHoursByLevel || {}
+  form.timeLimitHoursByLevel[level] = p.days * 24
+  message.success(`已添加 ${p.label} 预置规则`)
+}
+
 // ==================== 监听 open 加载已有规则 ====================
 watch(() => props.show, async (v) => {
   if (!v || !props.linkId) return
   loading.value = true
+  // Plan L #6: 字典动态加载
+  loadDictionaryOptions()
   try {
     // 加载 stage rule
     const rules = await listStageRules({ linkId: props.linkId })

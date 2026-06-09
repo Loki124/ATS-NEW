@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## 2026-06-09 — 招聘流程管理补全 (Plan L) — 8 commits
+
+### G38 招聘流程管理 — 需求文档 11 节补全
+- **Schema**:
+  - `ProcessStageLink` 加 `stageType` (SCREENING/INVITE/INTERVIEW/ONBOARDING) - 冗余字段便于筛选
+  - `RecruitmentProcess` 加 `applicableScope` JSON - 适用范围 5 条件 + 表达式
+- **Service**:
+  - `condition-expression-validator.service.js` (12 测试) - 表达式 AND/OR/数字范围/括号平衡
+  - `cycle-detector.service.js` (6 测试) - DAG + DFS 检测循环依赖
+  - `time-limit-presets.service.js` (5 测试) - 总裁 90/总监 60/其他 30 天
+  - `recruitment-process-validator.service.js` (3 测试) - 名称 2-50 字符, 描述 ≤ 100
+- **Routes**:
+  - `dictionary.routes.js` (新) - GET /api/dictionary/:code 返回字典 items
+  - 流程 POST/PUT/DELETE 加 `requireRole(SUPER_ADMIN, ADMIN, HRBP)` 守卫 (2 测试)
+- **Frontend**:
+  - `utils/condition-expression.ts` - 前端版表达式校验
+  - `ConditionTreeEditor.vue` 加表达式非法 alert
+  - `StageRuleConfigModal.vue` 条件 tab 加 expression input + 实时校验 + 3 预置规则按钮
+  - `CustomRecruitmentProcessModal.vue` 加适用范围表达式 input + 实时校验
+  - 面试轮次/形式 tab 改为从 `GET /api/dictionary/interview_round|format` 拉 (含 fallback)
+- **Seed**:
+  - `dictionary.seed.js` - interview_round (5 项) + interview_format (4 项)
+
+### 不破坏
+- 28 个新测试通过 + 9 个 Plan K 测试仍通过 = 37 个 G38 流程相关测试
+- Plan J/K 负责的文件 (MouManagement/permission-v2/RecruitmentProcess/ProcessStage*) 不动
+- 仅增量加 2 个 schema 字段 + 4 张新 service + 1 张 route
+
+---
+
 ## 2026-06-09 — 招聘流程管理补全 (Plan K) — 5 commits
 
 ### G38 自定义招聘流程 (按 3 张原型图)
