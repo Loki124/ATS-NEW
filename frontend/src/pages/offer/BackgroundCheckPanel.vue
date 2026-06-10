@@ -128,7 +128,7 @@ const columns: DataTableColumns<BackgroundCheck> = [
     render: (row) => {
       const level = row.level
       if (!level) return h(NTag, { type: 'default' }, () => '未完成')
-      return h(NTag, { type: (BG_CHECK_LEVEL_COLOR as any)[level] || 'default' }, () => (BG_CHECK_LEVEL_LABEL as any)[level] || level)
+      return h(NTag, { type: BG_CHECK_LEVEL_COLOR[level] || 'default' }, () => BG_CHECK_LEVEL_LABEL[level] || level)
     },
   },
   {

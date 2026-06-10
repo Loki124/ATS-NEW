@@ -37,7 +37,9 @@ export const OFFER_STATUS_LABEL: Record<string, string> = {
   EXPIRED: '已过期',
 };
 
-export const OFFER_STATUS_COLOR: Record<string, string> = {
+export type TagType = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'error';
+
+export const OFFER_STATUS_COLOR: Record<string, TagType> = {
   NOT_CREATED: 'default',
   DRAFT: 'info',
   PENDING_APPROVAL: 'warning',
@@ -132,7 +134,7 @@ export const BG_CHECK_LEVEL_LABEL: Record<string, string> = {
   FAIL: '不通过',
 };
 
-export const BG_CHECK_LEVEL_COLOR: Record<string, string> = {
+export const BG_CHECK_LEVEL_COLOR: Record<string, TagType> = {
   PASS: 'success',
   WARN: 'warning',
   INCONCLUSIVE: 'info',
