@@ -159,6 +159,7 @@ import {
   type ReferralRule,
 } from '../../api/referral'
 import AddReferralModal from './AddReferralModal.vue'
+import type { TagType } from '../../api/offer'
 
 const message = useMessage()
 
@@ -229,7 +230,7 @@ const recordColumns = [
     title: '状态',
     key: 'status',
     render: (row: any) =>
-      h(NTag, { type: statusToTagType(row.referralStatus || row.status) as any }, {
+      h(NTag, { type: statusToTagType(row.referralStatus || row.status) }, {
         default: () => statusLabel(row.referralStatus || row.status),
       }),
   },
@@ -256,7 +257,7 @@ const rewardColumns = [
     title: '状态',
     key: 'status',
     render: (row: any) =>
-      h(NTag, { type: rewardStatusToTagType(row.status) as any }, { default: () => rewardStatusLabel(row.status) }),
+      h(NTag, { type: rewardStatusToTagType(row.status) }, { default: () => rewardStatusLabel(row.status) }),
   },
   { title: '触发时间', key: 'triggeredAt', render: (row: any) => formatDate(row.triggeredAt) },
   { title: '确认时间', key: 'confirmedAt', render: (row: any) => formatDate(row.confirmedAt) },
@@ -344,14 +345,14 @@ function formatDate(s?: string | null) {
   if (!s) return '-'
   return new Date(s).toLocaleString('zh-CN', { hour12: false })
 }
-function statusToTagType(s: string) {
-  return ({ NORMAL: 'info', PROTECTING: 'info', HIRED: 'success', REJECTED: 'error', EXPIRED: 'default' } as Record<string, string>)[s] || 'default'
+function statusToTagType(s: string): TagType {
+  return ({ NORMAL: 'info', PROTECTING: 'info', HIRED: 'success', REJECTED: 'error', EXPIRED: 'default' } as Record<string, TagType>)[s] || 'default'
 }
 function statusLabel(s: string) {
   return ({ NORMAL: '正常', PROTECTING: '保护期', HIRED: '已入职', REJECTED: '已拒绝', EXPIRED: '已过期' } as Record<string, string>)[s] || s
 }
-function rewardStatusToTagType(s: string) {
-  return ({ TO_CONFIRM: 'warning', CONFIRMED: 'info', ISSUED: 'success', REJECTED: 'error' } as Record<string, string>)[s] || 'default'
+function rewardStatusToTagType(s: string): TagType {
+  return ({ TO_CONFIRM: 'warning', CONFIRMED: 'info', ISSUED: 'success', REJECTED: 'error' } as Record<string, TagType>)[s] || 'default'
 }
 function rewardStatusLabel(s: string) {
   return ({ TO_CONFIRM: '待确认', CONFIRMED: '已确认', ISSUED: '已发放', REJECTED: '已拒绝' } as Record<string, string>)[s] || s

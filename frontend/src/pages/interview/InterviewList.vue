@@ -36,7 +36,7 @@ const columns = computed(() => [
   },
   {
     title: '反馈', key: 'feedbackStatus', width: 100,
-    render: (row: Interview) => h(NTag, { type: FEEDBACK_STATUS_COLOR[row.feedbackStatus] as any, size: 'small' }, { default: () => FEEDBACK_STATUS_LABEL[row.feedbackStatus] || row.feedbackStatus }),
+    render: (row: Interview) => h(NTag, { type: FEEDBACK_STATUS_COLOR[row.feedbackStatus], size: 'small' }, { default: () => FEEDBACK_STATUS_LABEL[row.feedbackStatus] || row.feedbackStatus }),
   },
   {
     title: '操作', key: 'actions', width: 200, fixed: 'right' as const,

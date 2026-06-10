@@ -1,5 +1,6 @@
 import axios from 'axios';
 import config from '../config';
+import type { TagType } from './offer';
 
 const api = axios.create({
   baseURL: config.api.baseUrl,
@@ -37,7 +38,7 @@ export const FEEDBACK_STATUS_LABEL: Record<string, string> = {
   COMPLETED: '已反馈',
 };
 
-export const FEEDBACK_STATUS_COLOR: Record<string, string> = {
+export const FEEDBACK_STATUS_COLOR: Record<string, TagType> = {
   PENDING: 'warning',
   COMPLETED: 'success',
 };
