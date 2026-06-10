@@ -79,7 +79,7 @@
     <n-modal v-model:show="transitionModal.show" preset="dialog" :title="transitionModal.title" style="width: 480px">
       <n-form :model="transitionModal.form" label-placement="left" :label-width="80">
         <n-form-item label="目标状态">
-          <n-tag :type="OFFER_STATUS_COLOR[transitionModal.form.to] as any">
+          <n-tag :type="OFFER_STATUS_COLOR[transitionModal.form.to]">
             {{ OFFER_STATUS_LABEL[transitionModal.form.to] }}
           </n-tag>
         </n-form-item>
@@ -153,7 +153,7 @@ const columns = computed(() => [
   { title: '职级', key: 'jobLevel', width: 80, render: (row: Offer) => row.jobLevel || '—' },
   {
     title: '状态', key: 'offerStatus', width: 100,
-    render: (row: Offer) => h(NTag, { type: OFFER_STATUS_COLOR[row.offerStatus] as any, size: 'small' }, { default: () => OFFER_STATUS_LABEL[row.offerStatus] }),
+    render: (row: Offer) => h(NTag, { type: OFFER_STATUS_COLOR[row.offerStatus], size: 'small' }, { default: () => OFFER_STATUS_LABEL[row.offerStatus] }),
   },
   { title: '期望入职', key: 'expectedJoinDate', width: 120, render: (row: Offer) => row.expectedJoinDate?.slice(0, 10) },
   { title: '试用期月薪', key: 'baseSalaryTrial', width: 110, render: (row: Offer) => row.baseSalaryTrial ? `¥ ${row.baseSalaryTrial}` : '—' },

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import config from '../config';
+import type { TagType } from './offer';
 
 const api = axios.create({
   baseURL: config.api.baseUrl,
@@ -35,7 +36,7 @@ export const INVITATION_STATUS_LABEL: Record<string, string> = {
   INTERVENED: '被干预',
 };
 
-export const INVITATION_STATUS_COLOR: Record<string, string> = {
+export const INVITATION_STATUS_COLOR: Record<string, TagType> = {
   PENDING_ASSIGN: 'default',
   PENDING_CLAIM: 'warning',
   PENDING_INVITE: 'info',
