@@ -223,6 +223,8 @@ const form = reactive({
     action: string
     enabled: boolean
   }>,
+  // 阶段限时 (按职级的小时数, 预置按钮使用)
+  timeLimitHoursByLevel: {} as Record<string, number>,
   // 面试
   interviewRounds: [] as string[],
   interviewForms: [] as string[],
