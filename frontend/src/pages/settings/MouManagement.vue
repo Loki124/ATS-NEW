@@ -1003,7 +1003,7 @@ const handleSaveMou = async () => {
       status: mouFormState.status,
       scopes: mouFormState.scopes,
     }
-    const data = (await (api as any)[method.toLowerCase()](url, payload)).data
+    const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, payload)).data
 
     if (data.success) {
       message.success(editingMou.value ? '更新成功' : '创建成功')
@@ -1059,7 +1059,7 @@ const handleSaveContainer = async () => {
     const url = editingContainer.value ? `/permissions-v2/containers/${editingContainer.value.id}` : '/permissions-v2/containers'
     const method = editingContainer.value ? 'PUT' : 'POST'
 
-    const data = (await (api as any)[method.toLowerCase()](url, containerFormState)).data
+    const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, containerFormState)).data
 
     if (data.success) {
       message.success(editingContainer.value ? '更新成功' : '创建成功')
@@ -1114,7 +1114,7 @@ const handleSaveRule = async () => {
     const url = editingRule.value ? `/permissions-v2/automation-rules/${editingRule.value.id}` : '/permissions-v2/automation-rules'
     const method = editingRule.value ? 'PUT' : 'POST'
 
-    const data = (await (api as any)[method.toLowerCase()](url, ruleFormState)).data
+    const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, ruleFormState)).data
 
     if (data.success) {
       message.success(editingRule.value ? '更新成功' : '创建成功')
@@ -1166,7 +1166,7 @@ const handleSaveMutex = async () => {
     const url = editingMutex.value ? `/permissions-v2/mutual-exclusion-groups/${editingMutex.value.id}` : '/permissions-v2/mutual-exclusion-groups'
     const method = editingMutex.value ? 'PUT' : 'POST'
 
-    const data = (await (api as any)[method.toLowerCase()](url, mutexFormState)).data
+    const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, mutexFormState)).data
 
     if (data.success) {
       message.success(editingMutex.value ? '更新成功' : '创建成功')
