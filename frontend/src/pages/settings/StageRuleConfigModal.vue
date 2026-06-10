@@ -176,10 +176,16 @@ import {
 } from 'naive-ui'
 import {
   upsertStageRule, upsertEntryCondition, listStageRules, listEntryConditions,
+  type ConditionItem,
 } from '../../api/recruitment-process'
 import { validateExpression } from '../../utils/condition-expression'
 import { default as axios } from 'axios'
 import config from '../../config'
+
+// 嵌套条件项（3 级树） - 扩展 ConditionItem 增加 children 字段
+interface ConditionItemTree extends ConditionItem {
+  children?: ConditionItemTree[]
+}
 
 const props = defineProps<{
   show: boolean
@@ -236,7 +242,7 @@ const condForm = reactive({
   conditionType: 'MIXED' as 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED',
   prompt: '',
   expression: '', // Plan L: 可选手写表达式
-  items: [] as any[],
+  items: [] as ConditionItemTree[],
 })
 
 /**

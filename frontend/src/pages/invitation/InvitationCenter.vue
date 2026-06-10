@@ -178,7 +178,7 @@ const columns = computed(() => [
   { title: '职位', key: 'positionId', width: 120, render: (row: Invitation) => row.positionId?.slice(0, 8) + '...' },
   {
     title: '状态', key: 'invitationStatus', width: 100,
-    render: (row: Invitation) => h(NTag, { type: INVITATION_STATUS_COLOR[row.invitationStatus] as any, size: 'small' }, { default: () => INVITATION_STATUS_LABEL[row.invitationStatus] }),
+    render: (row: Invitation) => h(NTag, { type: INVITATION_STATUS_COLOR[row.invitationStatus], size: 'small' }, { default: () => INVITATION_STATUS_LABEL[row.invitationStatus] }),
   },
   { title: '邀约人', key: 'inviterName', width: 100, render: (row: Invitation) => row.inviterName || '—' },
   { title: '抢单人', key: 'claimedByName', width: 100, render: (row: Invitation) => row.claimedByName || '—' },

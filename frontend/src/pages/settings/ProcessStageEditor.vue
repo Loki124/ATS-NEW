@@ -122,6 +122,16 @@ import {
   reorderProcessLinks,
 } from '../../api/recruitment-process'
 import DraggableList from '../../components/DraggableList.vue'
+import type { TagType } from '../../api/offer'
+
+// 类型颜色映射
+const STAGE_TYPE_COLOR: Record<string, string> = {
+  FILTER: 'info',
+  INTERVIEW: 'success',
+  OFFER: 'warning',
+  ONBOARDING: 'error',
+  INVITATION: 'default',
+}
 
 const message = useMessage()
 const route = useRoute()
@@ -139,8 +149,8 @@ const showLimitModal = ref(false)
 const limitForm = ref<{ linkId: string; stageLimit: number | null }>({ linkId: '', stageLimit: 0 })
 
 // 类型颜色映射
-function getTypeColor(type: string) {
-  return ({ FILTER: 'info', INTERVIEW: 'success', OFFER: 'warning', ONBOARDING: 'error', INVITATION: 'default' } as any)[type] || 'default'
+function getTypeColor(type: string): TagType {
+  return (STAGE_TYPE_COLOR as Record<string, TagType>)[type] || 'default'
 }
 
 const addModalColumns = [

@@ -282,6 +282,7 @@ import {
 } from '@vicons/ionicons5'
 import AddCandidateModal from './AddCandidateModal.vue'
 import { fetchStatusSchema, type StatusSchema } from '@/api/candidate'
+import type { TagType } from '@/api/offer'
 
 const router = useRouter()
 const message = useMessage()
@@ -374,13 +375,13 @@ const columns = [
     title: '简历来源',
     key: 'channel',
     render: (row: any) =>
-      h(NTag, { type: channelToTagType(row.channel) as any }, { default: () => getChannelText(row.channel) }),
+      h(NTag, { type: channelToTagType(row.channel) }, { default: () => getChannelText(row.channel) }),
   },
   {
     title: '当前阶段',
     key: 'stage',
     render: (row: any) =>
-      h(NTag, { type: stageToTagType(row.stage) as any }, { default: () => getStageText(row.stage) }),
+      h(NTag, { type: stageToTagType(row.stage) }, { default: () => getStageText(row.stage) }),
   },
   { title: '添加时间', key: 'createdAt' },
   {
@@ -430,14 +431,14 @@ const mockData = [
   { key: '4', name: '赵六', email: 'zhaoliu@example.com', phone: '136****4444', position: '后端开发工程师', channel: 'internal', stage: 'hired', createdAt: '2026-04-24' },
 ]
 
-const channelMap: Record<string, { text: string; tagType: string }> = {
+const channelMap: Record<string, { text: string; tagType: TagType }> = {
   boss: { text: 'Boss直聘', tagType: 'info' },
   lagou: { text: '拉勾网', tagType: 'info' },
   liepin: { text: '猎聘网', tagType: 'warning' },
   internal: { text: '内部推荐', tagType: 'success' },
 }
 
-const stageMap: Record<string, { text: string; tagType: string }> = {
+const stageMap: Record<string, { text: string; tagType: TagType }> = {
   screening: { text: '筛选中', tagType: 'info' },
   interview: { text: '面试中', tagType: 'warning' },
   offer: { text: 'Offer沟通', tagType: 'warning' },
