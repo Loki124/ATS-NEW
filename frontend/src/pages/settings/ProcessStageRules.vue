@@ -205,9 +205,14 @@ import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NSpace, NButton, NSelect, NInputNumber, NRadio, NRadioGroup, NInput, NForm, NFormItem, NTabs, NTabPane, NSpin, NDivider, NAlert, NTag, NIcon } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
-import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions } from '../../api/recruitment-process'
+import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions, type ConditionItem } from '../../api/recruitment-process'
 import { listAutoArchiveRules, upsertAutoArchiveRule } from '../../api/recruitment-process'
 import ConditionTreeEditor from '../../components/ConditionTreeEditor.vue'
+
+// 嵌套条件项（3 级树） - 扩展 ConditionItem 增加 children 字段
+interface ConditionItemTree extends ConditionItem {
+  children?: ConditionItemTree[]
+}
 
 const message = useMessage()
 const route = useRoute()
@@ -333,7 +338,7 @@ const condForm = reactive({
   matchType: 'ALL' as 'ALL' | 'ANY',
   conditionType: 'MIXED' as 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED',
   prompt: '',
-  items: [] as any[],
+  items: [] as ConditionItemTree[],
 })
 
 const conditionTypeOptions = [
