@@ -171,6 +171,16 @@ import {
 } from '../../api/recruitment-process'
 import StageRuleConfigModal from './StageRuleConfigModal.vue'
 import { validateExpression } from '../../utils/condition-expression'
+import type { TagType } from '../../api/offer'
+
+// 阶段类型颜色映射
+const STAGE_TYPE_COLOR: Record<string, string> = {
+  FILTER: 'info',
+  INTERVIEW: 'success',
+  OFFER: 'warning',
+  ONBOARDING: 'error',
+  INVITATION: 'default',
+}
 
 const props = defineProps<{
   show: boolean
@@ -237,8 +247,8 @@ const showRuleConfig = ref(false)
 const ruleEditingStage = ref<any>(null)
 const ruleEditingLinkId = ref<string | null>(null)
 
-function getStageTypeColor(t: string) {
-  return ({ FILTER: 'info', INTERVIEW: 'success', OFFER: 'warning', ONBOARDING: 'error', INVITATION: 'default' } as any)[t] || 'default'
+function getStageTypeColor(t: string): TagType {
+  return (STAGE_TYPE_COLOR as Record<string, TagType>)[t] || 'default'
 }
 
 // ==================== 监听 open 加载 ====================
