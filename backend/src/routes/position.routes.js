@@ -5,11 +5,12 @@
 
 import express from 'express';
 import { prisma } from '../app.js';
+import { pagination } from '../middleware/pagination.middleware.js';
 
 const router = express.Router();
 
 // 列出职位（支持按状态、需求、部门过滤）
-router.get('/', async (req, res, next) => {
+router.get('/', pagination(), async (req, res, next) => {
   try {
     const { status = 'ACTIVE', demandId, departmentId, keyword } = req.query;
     const where = {};
@@ -22,16 +23,26 @@ router.get('/', async (req, res, next) => {
         { code: { contains: keyword } },
       ];
     }
-    const positions = await prisma.position.findMany({
-      where,
-      include: {
-        department: { select: { id: true, name: true, code: true } },
-        demand: { select: { id: true, name: true, code: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
+    const [positions, total] = await Promise.all([
+      prisma.position.findMany({
+        where,
+        include: {
+          department: { select: { id: true, name: true, code: true } },
+          demand: { select: { id: true, name: true, code: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: req.pagination.skip,
+        take: req.pagination.take,
+      }),
+      prisma.position.count({ where }),
+    ]);
+    res.json({
+      success: true,
+      data: positions,
+      total,
+      page: req.pagination.page,
+      pageSize: req.pagination.pageSize,
     });
-    res.json({ success: true, data: positions });
   } catch (e) {
     next(e);
   }

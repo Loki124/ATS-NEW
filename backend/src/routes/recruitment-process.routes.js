@@ -14,6 +14,7 @@ import { Router } from 'express';
 import { prisma } from '../app.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { requireRole } from '../middleware/auth.middleware.js';
+import { pagination } from '../middleware/pagination.middleware.js';
 import { validateProcessPayload } from '../services/recruitment-process-validator.service.js';
 
 const writeGuard = requireRole('SUPER_ADMIN', 'ADMIN', 'HRBP');
@@ -21,22 +22,33 @@ const writeGuard = requireRole('SUPER_ADMIN', 'ADMIN', 'HRBP');
 const router = Router();
 
 // ====== 列表 ======
-router.get('/', async (req, res, next) => {
+router.get('/', pagination(), async (req, res, next) => {
   try {
     const { status, keyword } = req.query;
     const where = {};
     if (status) where.status = status;
     if (keyword) where.name = { contains: keyword };
 
-    const processes = await prisma.recruitmentProcess.findMany({
-      where,
-      include: {
-        _count: { select: { links: true, stageRules: true, autoRules: true } },
-        updater: { select: { id: true, realName: true, username: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
+    const [processes, total] = await Promise.all([
+      prisma.recruitmentProcess.findMany({
+        where,
+        include: {
+          _count: { select: { links: true, stageRules: true, autoRules: true } },
+          updater: { select: { id: true, realName: true, username: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip: req.pagination.skip,
+        take: req.pagination.take,
+      }),
+      prisma.recruitmentProcess.count({ where }),
+    ]);
+    res.json({
+      success: true,
+      data: processes,
+      total,
+      page: req.pagination.page,
+      pageSize: req.pagination.pageSize,
     });
-    res.json({ success: true, data: processes });
   } catch (e) { next(e); }
 });
 
