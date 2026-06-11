@@ -1,0 +1,78 @@
+/* ATS Design Tokens (studied-DNA)
+ * 集中导出 Dashboard / 工作台所用的视觉变量。
+ * 见 docs/design.md。
+ */
+
+:root {
+  /* ===== Color (OKLCH) ===== */
+  --color-paper: oklch(98% 0.005 240);
+  --color-ink: oklch(20% 0.02 240);
+  --color-ink-soft: oklch(45% 0.015 240);
+  --color-ink-faint: oklch(70% 0.01 240);
+  --color-accent: oklch(70% 0.18 45);
+  --color-accent-soft: oklch(95% 0.05 45);
+  --color-surface-raised: oklch(100% 0 0);
+  --color-surface-sunk: oklch(96% 0.008 240);
+  --color-border-hairline: oklch(92% 0.01 240);
+
+  /* hex 别名 (给非 OKLCH 上下文, 比如内联 style 表达式) */
+  --accent-hex: #FF7A45;
+  --accent-soft-hex: #FFF1EA;
+
+  /* ===== Spacing (4pt scale) ===== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ===== Type scale ===== */
+  --text-display: 2.5rem;
+  --text-h1: 2rem;
+  --text-h2: 1.5rem;
+  --text-h3: 1.25rem;
+  --text-body: 0.875rem;
+  --text-meta: 0.75rem;
+
+  /* ===== Radius ===== */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  /* ===== Easing ===== */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ===== Motion duration ===== */
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 320ms;
+}
+
+/* ===== Fade-up reveal (workbench 卡片入场) ===== */
+@keyframes wb-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.workbench-card {
+  animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+.workbench-card--stagger-1 { animation-delay: 0.04s; }
+.workbench-card--stagger-2 { animation-delay: 0.08s; }
+.workbench-card--stagger-3 { animation-delay: 0.12s; }
+.workbench-card--stagger-4 { animation-delay: 0.16s; }
+.workbench-card--stagger-5 { animation-delay: 0.20s; }
+.workbench-card--stagger-6 { animation-delay: 0.24s; }
