@@ -1,8 +1,11 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { useUserStore } from '../stores/user';
 import config from '../config';
+// Plan O Task 7: GET 请求去重 (同 URL 共享 pending Promise)
+import { getDefaultDedup } from '../utils/request-dedup';
 
 const API_BASE_URL = config.api.baseUrl;
+const dedup = getDefaultDedup();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -128,8 +131,12 @@ export const changePassword = (oldPassword: string, newPassword: string) => {
 };
 
 // 通用API方法
+// Plan O Task 7: GET 去重 - 同 URL+params 共享 pending Promise
 export const get = (url: string, params?: Record<string, any>) => {
-  return api.get(url, { params });
+  const fullUrl = `${API_BASE_URL}${url}`
+  const queryString = params ? '?' + new URLSearchParams(params as any).toString() : ''
+  const key = `GET:${fullUrl}${queryString}`
+  return dedup.wrapAxios(() => api.get(url, { params }), key)
 };
 
 export const post = (url: string, data?: Record<string, any>) => {
