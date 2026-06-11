@@ -45,6 +45,12 @@ router.get('/', pagination(), async (req, res, next) => {
         orderBy: { createdAt: 'desc' },
         skip: req.pagination.skip,
         take: req.pagination.take,
+        // Plan O: N+1 优化 - 关联预加载 (避免列表渲染时 N 次 candidate/demand 查询)
+        include: {
+          candidate: { select: { id: true, name: true, phone: true, email: true } },
+          demand: { select: { id: true, name: true, code: true } },
+          application: { select: { id: true, currentStageStatus: true } },
+        },
       }),
       prisma.offer.count({ where }),
     ])
