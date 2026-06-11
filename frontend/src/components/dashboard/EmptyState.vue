@@ -1,7 +1,7 @@
 <template>
   <div class="empty-state">
     <div class="empty-state__icon">
-      <n-icon :component="icon ?? InboxOutline" :size="32" />
+      <n-icon :component="icon ?? MailOpenOutline" :size="32" />
     </div>
     <h4 class="empty-state__title">{{ title }}</h4>
     <p class="empty-state__desc">{{ description }}</p>
@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { InboxOutline } from '@vicons/ionicons5'
+import { MailOpenOutline } from '@vicons/ionicons5'
 import type { Component } from 'vue'
 
 interface Props {
