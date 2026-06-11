@@ -14,6 +14,7 @@
 import { Router } from 'express'
 import { prisma } from '../app.js'
 import { AppError } from '../middleware/error.middleware.js'
+import { pagination } from '../middleware/pagination.middleware.js'
 import {
   OFFER_STATUSES,
   canTransitionOffer,
@@ -31,9 +32,9 @@ import { renderBackgroundCheckReport } from '../services/pdf-generator.service.j
 const router = Router()
 
 // ====== 列表 ======
-router.get('/', async (req, res, next) => {
+router.get('/', pagination(), async (req, res, next) => {
   try {
-    const { offerStatus, demandId, page = 1, pageSize = 20 } = req.query
+    const { offerStatus, demandId } = req.query
     const where = {}
     if (offerStatus) where.offerStatus = offerStatus
     if (demandId) where.demandId = demandId
@@ -42,14 +43,28 @@ router.get('/', async (req, res, next) => {
       prisma.offer.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (Number(page) - 1) * Number(pageSize),
-        take: Number(pageSize),
+        skip: req.pagination.skip,
+        take: req.pagination.take,
+        // Plan O: N+1 优化 - 关联预加载 (避免列表渲染时 N 次 candidate/demand 查询)
+        include: {
+          candidate: { select: { id: true, name: true, phone: true, email: true } },
+          demand: { select: { id: true, name: true, code: true } },
+          application: { select: { id: true, currentStageStatus: true } },
+        },
       }),
       prisma.offer.count({ where }),
     ])
     res.json({
       success: true,
-      data: { list, pagination: { page: Number(page), pageSize: Number(pageSize), total, totalPages: Math.ceil(total / Number(pageSize)) } },
+      data: {
+        list,
+        pagination: {
+          page: req.pagination.page,
+          pageSize: req.pagination.pageSize,
+          total,
+          totalPages: Math.ceil(total / req.pagination.pageSize),
+        },
+      },
     })
   } catch (e) { next(e) }
 })

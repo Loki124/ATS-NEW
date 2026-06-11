@@ -14,14 +14,15 @@ import express from 'express';
 import { prisma } from '../app.js';
 import { canTransitionDemand, DEMAND_STATUSES } from '../services/demand-state-machine.service.js';
 import { fieldAcl } from '../middleware/field-acl.middleware.js';
+import { pagination } from '../middleware/pagination.middleware.js';
 import { submitForApproval, approveDemand, rejectDemand, cancelApproval } from '../services/demand-approval.service.js';
 
 const router = express.Router();
 
 // 获取所有需求
-router.get('/', fieldAcl('Demand'), async (req, res, next) => {
+router.get('/', pagination(), fieldAcl('Demand'), async (req, res, next) => {
   try {
-    const { page = 1, pageSize = 10, keyword, status, departmentId } = req.query;
+    const { keyword, status, departmentId } = req.query;
 
     const where = {};
 
@@ -52,8 +53,8 @@ router.get('/', fieldAcl('Demand'), async (req, res, next) => {
           }
         },
         orderBy: { createdAt: 'desc' },
-        skip: (Number(page) - 1) * Number(pageSize),
-        take: Number(pageSize)
+        skip: req.pagination.skip,
+        take: req.pagination.take,
       }),
       prisma.demand.count({ where })
     ]);
@@ -63,10 +64,10 @@ router.get('/', fieldAcl('Demand'), async (req, res, next) => {
       data: {
         list: demands,
         pagination: {
-          page: Number(page),
-          pageSize: Number(pageSize),
+          page: req.pagination.page,
+          pageSize: req.pagination.pageSize,
           total,
-          totalPages: Math.ceil(total / Number(pageSize))
+          totalPages: Math.ceil(total / req.pagination.pageSize),
         }
       }
     });
