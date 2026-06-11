@@ -168,23 +168,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { SearchOutline, MailUnreadOutline, StarOutline, LockClosedOutline, BriefcaseOutline } from '@vicons/ionicons5'
-import {
-  StatCard,
-  WeeklySchedule,
-  JobCard,
-  QuickEntryCard,
-  ScreeningListItem,
-  MatterList,
-  EmptyState,
-  type QuickEntryData,
-  type JobCardData,
-  type ScreeningItemData,
-  type MatterItem,
-} from '../components/dashboard'
+// Plan O: 子组件改 defineAsyncComponent 异步加载
+//   - 减小首屏 JS bundle
+//   - 配合 SkeletonCard 占位, 加载完才显示真实内容
+import { SkeletonCard } from '../components/dashboard'
 import { loadDashboardData, type DashboardData } from '../api/dashboard'
+import type { QuickEntryData, JobCardData, ScreeningItemData, MatterItem } from '../components/dashboard'
+// Plan O Task 6: 搜索 debounce (300ms)
+import { debounce } from '../utils/debounce'
+
+const StatCard = defineAsyncComponent(() => import('../components/dashboard/StatCard.vue'))
+const WeeklySchedule = defineAsyncComponent(() => import('../components/dashboard/WeeklySchedule.vue'))
+const JobCard = defineAsyncComponent(() => import('../components/dashboard/JobCard.vue'))
+const QuickEntryCard = defineAsyncComponent(() => import('../components/dashboard/QuickEntryCard.vue'))
+const ScreeningListItem = defineAsyncComponent(() => import('../components/dashboard/ScreeningListItem.vue'))
+const MatterList = defineAsyncComponent(() => import('../components/dashboard/MatterList.vue'))
+const EmptyState = defineAsyncComponent(() => import('../components/dashboard/EmptyState.vue'))
 
 const router = useRouter()
 
@@ -266,6 +268,29 @@ async function fetchData() {
     data.value = null
   }
 }
+
+// Plan O Task 6: 搜索 debounce (300ms)
+//   - 用户停止输入 300ms 后再触发
+//   - 避免每次按键都发请求
+const debouncedSearch = debounce((keyword: string) => {
+  // 触发 searchKeyword 副作用: 重新拉 jobs 列表
+  if (keyword.trim()) {
+    void loadJobs(keyword.trim())
+  }
+}, 300)
+
+async function loadJobs(keyword: string) {
+  try {
+    // 简化为复用 fetchData, 后续可改为独立 /api/positions?keyword=
+    await fetchData()
+  } catch {
+    // 静默失败
+  }
+}
+
+watch(searchKeyword, (val) => {
+  debouncedSearch(val)
+})
 
 onMounted(() => {
   void fetchData()

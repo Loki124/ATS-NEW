@@ -1,6 +1,10 @@
 /**
  * Dashboard 子组件 barrel 导出
  * 集中类型 + 组件 import
+ *
+ * Plan O 优化:
+ *   - 这些是 eager 导出, 供需要预加载的代码使用
+ *   - Dashboard 页面改用 defineAsyncComponent 异步加载
  */
 
 export { default as StatCard } from './StatCard.vue'
@@ -15,3 +19,4 @@ export type { ScreeningItemData } from './ScreeningListItem.vue'
 export { default as MatterList } from './MatterList.vue'
 export type { MatterItem, MatterTone } from './MatterList.vue'
 export { default as EmptyState } from './EmptyState.vue'
+export { default as SkeletonCard } from './SkeletonCard.vue'

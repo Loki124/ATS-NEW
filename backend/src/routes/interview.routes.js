@@ -14,15 +14,16 @@
 import { Router } from 'express'
 import { prisma } from '../app.js'
 import { AppError } from '../middleware/error.middleware.js'
+import { pagination } from '../middleware/pagination.middleware.js'
 import { refreshApplicationStageStatus } from '../services/interview-state-machine.service.js'
 import { getCandidateHistory } from '../services/interview-history.service.js'
 
 const router = Router()
 
 // ====== 列表 ======
-router.get('/', async (req, res, next) => {
+router.get('/', pagination(), async (req, res, next) => {
   try {
-    const { applicationId, roundId, feedbackStatus, interviewStatus, page = 1, pageSize = 20 } = req.query
+    const { applicationId, roundId, feedbackStatus, interviewStatus } = req.query
     const where = {}
     if (applicationId) where.applicationId = applicationId
     if (roundId) where.roundId = roundId
@@ -37,15 +38,15 @@ router.get('/', async (req, res, next) => {
           _count: { select: { feedbacks: true } },
         },
         orderBy: { interviewDate: 'desc' },
-        skip: (Number(page) - 1) * Number(pageSize),
-        take: Number(pageSize),
+        skip: req.pagination.skip,
+        take: req.pagination.take,
       }),
       prisma.interview.count({ where }),
     ])
 
     res.json({
       success: true,
-      data: { list, pagination: { page: Number(page), pageSize: Number(pageSize), total, totalPages: Math.ceil(total / Number(pageSize)) } },
+      data: { list, pagination: { page: req.pagination.page, pageSize: req.pagination.pageSize, total, totalPages: Math.ceil(total / req.pagination.pageSize) } },
     })
   } catch (e) { next(e) }
 })
