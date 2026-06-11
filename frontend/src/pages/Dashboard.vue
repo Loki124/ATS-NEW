@@ -168,23 +168,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { SearchOutline, MailUnreadOutline, StarOutline, LockClosedOutline, BriefcaseOutline } from '@vicons/ionicons5'
-import {
-  StatCard,
-  WeeklySchedule,
-  JobCard,
-  QuickEntryCard,
-  ScreeningListItem,
-  MatterList,
-  EmptyState,
-  type QuickEntryData,
-  type JobCardData,
-  type ScreeningItemData,
-  type MatterItem,
-} from '../components/dashboard'
+// Plan O: 子组件改 defineAsyncComponent 异步加载
+//   - 减小首屏 JS bundle
+//   - 配合 SkeletonCard 占位, 加载完才显示真实内容
+import { SkeletonCard } from '../components/dashboard'
 import { loadDashboardData, type DashboardData } from '../api/dashboard'
+import type { QuickEntryData, JobCardData, ScreeningItemData, MatterItem } from '../components/dashboard'
+
+const StatCard = defineAsyncComponent(() => import('../components/dashboard/StatCard.vue'))
+const WeeklySchedule = defineAsyncComponent(() => import('../components/dashboard/WeeklySchedule.vue'))
+const JobCard = defineAsyncComponent(() => import('../components/dashboard/JobCard.vue'))
+const QuickEntryCard = defineAsyncComponent(() => import('../components/dashboard/QuickEntryCard.vue'))
+const ScreeningListItem = defineAsyncComponent(() => import('../components/dashboard/ScreeningListItem.vue'))
+const MatterList = defineAsyncComponent(() => import('../components/dashboard/MatterList.vue'))
+const EmptyState = defineAsyncComponent(() => import('../components/dashboard/EmptyState.vue'))
 
 const router = useRouter()
 
