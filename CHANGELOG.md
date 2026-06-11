@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## 2026-06-11 — 性能优化 (Plan O) — 8 commits
+
+### Backend
+- **gzip 响应压缩** (`compression@1.8.1`): `app.js` 装上, threshold 1KB, level 6, 减小传输 ~60%
+- **ETag + 30s 缓存头** (`backend/src/middleware/cache-headers.middleware.js`): GET 端点统一 `Cache-Control: public, max-age=30` + 弱 ETag (md5) + 304 协商; 7 测试
+- **分页 middleware** (`backend/src/middleware/pagination.middleware.js`): `page/pageSize` 统一 (max 100, 防 DoS); 10 测试
+- **分页应用** 5 路由: `demand / position / offer / interview / recruitment-process` 列表端点
+- **N+1 检测** (`backend/src/services/n-plus-one-detector.service.js`): `createN1Detector` 运行时检测 + `staticAnalyze` 代码审查; 8 测试
+- **N+1 优化** `offer.routes.js` 列表: `include: { candidate, demand, application }` 一次拉取
+
+### Frontend
+- **Dashboard 7 子组件 lazy load** (`frontend/src/pages/Dashboard.vue`): 全部 `defineAsyncComponent` 异步加载; `SkeletonCard.vue` 占位 (shimmer 动画, 4 变体)
+- **路由级 code splitting**: `router/index.ts` 所有 import() 加 `webpackChunkName` 注释, 按业务域分组 (login/layout/dashboard/list-*/settings-*)
+- **vite manualChunks** (`vite.config.ts`): vendor 分离 (naive-ui/vue/icons/unocss/misc) + app-utils
+- **debounce 工具** (`frontend/src/utils/debounce.ts`): debounce + debounceLeading + throttle + cancel/flush/pending; 8 测试
+- **Dashboard 搜索 debounce 300ms**: watch searchKeyword 触发 debouncedSearch
+- **request dedup** (`frontend/src/utils/request-dedup.ts`): 同 URL+method 在 pending 期间共享 Promise; 8 测试; `auth.ts` GET 包装 dedup
+- **rollup-plugin-visualizer** 集成: `npm run analyze` 生成 `dist/stats.html` (treemap + gzip/brotli 体积)
+- **build target es2020** + chunkSizeWarningLimit 1500
+
+### 度量 (gzip 后体积)
+| 路由 | 优化前 (估) | 优化后 | 节省 |
+|---|---|---|---|
+| /dashboard 首屏 JS | ~500KB | ~365KB | 27% |
+| /api/dashboard | ~120KB | ~45KB | 62% |
+| /api/offers (含 include) | ~95KB | ~38KB | 60% |
+
+### 测试
+- 新增 41 个测试 (cache-headers 7, pagination 10, n+1 8, debounce 8, dedup 8)
+- 444 → 485+ 估算 (实际跑受 DB 影响, 见 docs/PERFORMANCE.md)
+- vue-tsc 0 错
+
+### 文档
+- `docs/PERFORMANCE.md`: 完整优化手册 + 后续可做 (Naive UI 按需 import / Redis 缓存 / 虚拟滚动 / Web Vitals)
+
+---
+
 ## 2026-06-11 — Dashboard Workbench 重设计 (Plan N) — 6 commits
 
 ### 首页 (`/dashboard`) — Beisen HR 仪表板参考图 studied-DNA

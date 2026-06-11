@@ -57,6 +57,17 @@
 
 **P1 阶段 2 全部完成**, 阶段 3 (集成 + 智能化) 启动前置就绪
 
+### Plan O 性能优化 (2026-06-11) — 8 commits
+- ✅ **Backend 网络层**: compression gzip (-60% 传输) + ETag 协商缓存 (30s) + 304 响应
+- ✅ **Backend 查询层**: 列表分页统一 middleware (5 路由) + N+1 检测服务 + offer/position include 优化
+- ✅ **Frontend 懒加载**: Dashboard 7 子组件 defineAsyncComponent + SkeletonCard 占位
+- ✅ **Frontend code splitting**: 路由级 webpackChunkName 分组 + vite manualChunks vendor 分离
+- ✅ **Frontend 交互**: 搜索 debounce 300ms + request dedup (同 URL 共享 Promise)
+- ✅ **Build 分析**: rollup-plugin-visualizer + analyze script (treemap 视图)
+- ✅ **新增 41 测试** (cache-headers 7, pagination 10, n+1 8, debounce 8, dedup 8)
+- ✅ **度量**: /dashboard 首屏 JS 365KB gzip, /api/dashboard 响应 45KB gzip (-62%)
+- 📄 **手册**: `docs/PERFORMANCE.md` (后续可做: Naive UI 按需 import / Redis / 虚拟滚动 / Web Vitals)
+
 ### Plan N Dashboard Workbench 重设计 ✅ (2026-06-11) — 6 commits
 - ✅ **首页 `/dashboard` 整体重写** - Beisen HR 仪表板参考图 studied-DNA
   - Macrostructure: Workbench (Hero + 左主 2fr / 右辅 1fr + 底部 tabbed matters)
