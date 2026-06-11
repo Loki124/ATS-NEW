@@ -31,7 +31,8 @@
 
 <script setup lang="ts">
 import { PersonAddOutline } from '@vicons/ionicons5'
-import type { TagType } from 'naive-ui'
+
+export type ScreeningTagType = 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error'
 
 export interface ScreeningItemData {
   id: string
@@ -42,7 +43,7 @@ export interface ScreeningItemData {
   postedAt: string
   applicantCount?: number
   tag?: string
-  tagType?: TagType
+  tagType?: ScreeningTagType
 }
 
 interface Props {
