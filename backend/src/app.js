@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import { jwt as jwtConfig } from './config/index.js';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
@@ -64,6 +65,7 @@ import config from './config/index.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { enforceJwtConfigOrExit } from './middleware/jwt-validation.middleware.js';
+import { cacheHeaders } from './middleware/cache-headers.middleware.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -76,6 +78,17 @@ const FRONTEND_DIST = process.env.FRONTEND_DIST
 
 // 安全中间件
 app.use(helmet());
+
+// Plan O: gzip 响应压缩 (生产标准件, 减小传输体积 ~60%)
+app.use(compression({
+  level: 6,        // 平衡 CPU 和压缩率
+  threshold: 1024, // 仅压缩 >1KB 的响应
+  filter: (req, res) => {
+    // 不压缩已压缩的格式
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // API 速率限制
 const apiLimiter = rateLimit({
@@ -127,6 +140,10 @@ app.get('/api/health', (req, res) => {
 
 // 公开路由
 app.use('/api/auth', authRoutes);
+
+// Plan O: 列表端点统一 30s 缓存 + ETag
+// (只对 GET 生效, POST/PUT/DELETE 不影响)
+app.use('/api', cacheHeaders({ maxAge: 30 }));
 
 // 需要认证的路由
 app.use('/api/candidates', authMiddleware, candidateRoutes);
