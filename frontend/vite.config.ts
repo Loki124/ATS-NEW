@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
+// Plan O Task 8: 产物分析
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import config from './src/config'
@@ -8,11 +10,20 @@ import config from './src/config'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     UnoCSS(),
-  ],
+    // Plan O Task 8: 产物分析 (默认不启用, 仅 ANALYZE=1 时)
+    mode === 'production' && process.env.ANALYZE === '1'
+      ? visualizer({
+          filename: 'dist/stats.html',
+          gzipSize: true,
+          brotliSize: true,
+          template: 'treemap',
+        })
+      : null,
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -69,4 +80,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
