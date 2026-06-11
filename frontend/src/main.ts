@@ -90,6 +90,7 @@ import {
 
 import 'virtual:uno.css'
 import '@unocss/reset/tailwind.css'
+import './styles/tokens.css'
 import './index.css'
 
 const app = createApp(App)

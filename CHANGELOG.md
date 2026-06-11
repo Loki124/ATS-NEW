@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 2026-06-11 — Dashboard Workbench 重设计 (Plan N) — 6 commits
+
+### 首页 (`/dashboard`) — Beisen HR 仪表板参考图 studied-DNA
+
+- **Design DNA 锁**: `docs/design.md` — provenance / system / tokens / notes, Macrostructure=Workbench, accent=warm-orange (≤5%)
+- **Tokens**: `frontend/src/styles/tokens.css` — OKLCH paper/ink/accent + 4pt spacing scale + type scale + radius + ease-out, 配套 `workbench-card` fade-up stagger 入场动画
+- **主入口**: `frontend/src/pages/Dashboard.vue` — 整体重写 (449 行, -57/+449)
+  - Hero (H5 Letter): AI 助手 "小森" 头像 + 时段问候 (`早上/中午/下午/晚上好`) + 姓名
+  - 左主 (2fr): 4 个 StatCard (待初筛/待处理待办/推荐/初筛) + 招聘日程 (周历 7 列)
+  - 右辅 (1fr): 搜索栏 + 雷达访问职位 + 快捷入口 2x2 + 我发的筛选
+  - 底部: 重要事项 tabbed panel (招聘需求/职位/面试/Offer/推荐/其他) + matter count 角标
+- **子组件 7 件** (`frontend/src/components/dashboard/`):
+  - `StatCard.vue` — 数字 + trend pill (urgent/up/down) + clickable
+  - `WeeklySchedule.vue` — 7 列周历, 上一周/下一周/本周导航, 今天列橙色高亮
+  - `JobCard.vue` — 职位 + 地点/薪资/份数 + 急 标签
+  - `QuickEntryCard.vue` — 图标 + 标题 + 副文字 + 数字
+  - `ScreeningListItem.vue` — 实习案例
+  - `MatterList.vue` — 重要事项 4 列 (title/meta/time/action)
+  - `EmptyState.vue` — 通用空态
+  - `index.ts` — barrel 导出
+- **API**: `frontend/src/api/dashboard.ts`
+  - `loadDashboardData()` 并行拉 `/candidates /positions /demands /interviews`
+  - 失败/空数据时优雅 fallback mock (MOCK_STATS / MOCK_INTERVIEWS / MOCK_JOBS / MOCK_SCREENINGS / MOCK_MATTERS), 不报红
+  - 数据源 `source: 'api' | 'mock' | 'mixed'` 标记
+
+### 不破坏
+- 440+ 后端测试 → 444 通过 (+0 新), 1 pre-existing referral e2e fail (JWT config, 与本计划无关)
+- vue-tsc 0 错 (修 2 处: `InboxOutline` → `MailOpenOutline`, 自定义 `ScreeningTagType` 替代缺失的 `naive-ui.TagType`)
+- 不动: 路由 (`/dashboard` 不变), Layout.vue, App.vue, 其他 plan 负责的 routes/services
+- 不引新依赖, 全部 Naive UI 原生组件 + tokens.css CSS variables
+
+---
+
 ## 2026-06-09 — 招聘流程管理补全 (Plan L) — 8 commits
 
 ### G38 招聘流程管理 — 需求文档 11 节补全

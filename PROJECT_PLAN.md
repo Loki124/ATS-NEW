@@ -57,6 +57,19 @@
 
 **P1 阶段 2 全部完成**, 阶段 3 (集成 + 智能化) 启动前置就绪
 
+### Plan N Dashboard Workbench 重设计 ✅ (2026-06-11) — 6 commits
+- ✅ **首页 `/dashboard` 整体重写** - Beisen HR 仪表板参考图 studied-DNA
+  - Macrostructure: Workbench (Hero + 左主 2fr / 右辅 1fr + 底部 tabbed matters)
+  - Hero (H5 Letter): AI 助手 "小森" + 时段问候 + 用户名
+  - 4 个 StatCard (待初筛/待处理待办/推荐/初筛) + 招聘日程 (周历 7 列)
+  - 右辅: 搜索 + 雷达访问职位 + 快捷入口 2x2 + 我发的筛选
+  - 重要事项: 6 tab (招聘需求/职位/面试/Offer/推荐/其他) + count 角标
+- ✅ **Design DNA 锁**: `docs/design.md` (provenance / system / tokens / notes)
+- ✅ **Tokens**: `frontend/src/styles/tokens.css` (OKLCH paper/ink/accent + 4pt spacing + type scale + radius + ease + fade-up stagger 动画)
+- ✅ **子组件 7 件**: StatCard / WeeklySchedule / JobCard / QuickEntryCard / ScreeningListItem / MatterList / EmptyState
+- ✅ **API**: `frontend/src/api/dashboard.ts` `loadDashboardData()` 并行拉 4 个端点 + mock fallback 不报红
+- ✅ **不破坏**: vue-tsc 0 错 / 444 测试通过 / 路由不变 / 不引新依赖 / 不动其他 plan 文件
+
 ### Plan L 招聘流程管理补全 (2026-06-09) — 8 commits
 - ✅ **G38 需求文档 11 节补全** - 阶段类型/适用范围/表达式校验/循环依赖/阶段限时预置/字典加载/名称长度/角色守卫
 - ✅ **Schema 增量**: `ProcessStageLink.stageType` + `RecruitmentProcess.applicableScope` JSON
