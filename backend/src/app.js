@@ -58,6 +58,9 @@ import dataRoutes from './routes/data.routes.js';
 import duplicateCheckRoutes from './routes/duplicate-check.routes.js';
 import './services/integration/ocr-adapter.js';
 
+// Plan P T1: 全局搜索 (6 实体 union)
+import searchRoutes from './routes/search.routes.js';
+
 // 配置
 import config from './config/index.js';
 
@@ -215,6 +218,12 @@ app.use('/api/data', authMiddleware, dataRoutes);
 
 // ====== G45 简历查重 + OCR 解析 ======
 app.use('/api/duplicate-check', authMiddleware, duplicateCheckRoutes);
+
+// ====== Plan P T1 全局搜索 ======
+// 注:原计划挂在 authMiddleware + dataPermissionMiddleware,后者当前未在
+//    middleware/ 目录实现 (实际可用的是 fieldAcl(resource) 工厂,与本路由
+//    返回结构不匹配)。先只挂 auth,后续 G8 全局数据权限中间件落地后再加。
+app.use('/api/search', authMiddleware, searchRoutes);
 
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
