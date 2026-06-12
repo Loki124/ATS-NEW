@@ -45,15 +45,18 @@
       <!-- 头部 -->
       <n-layout-header bordered class="bg-white px-6 flex items-center justify-between h-16">
         <div class="flex items-center gap-4">
-          <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-80">
-            <n-icon :component="SearchOutline" />
-            <input type="text" placeholder="搜索候选人、职位、需求..." class="bg-transparent border-0 outline-none flex-1 text-sm" />
-          </div>
+          <n-button text class="layout-header__search-trigger" @click="onSearchClick" aria-label="全局搜索">
+            <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-80 cursor-pointer">
+              <n-icon :component="SearchOutline" />
+              <span class="flex-1 text-sm text-gray-500 text-left">搜索候选人、职位、需求...</span>
+              <span class="text-xs text-gray-400 kbd-hint">⌘K</span>
+            </div>
+          </n-button>
         </div>
 
         <div class="flex items-center gap-4">
           <n-badge :value="5" :max="99">
-            <n-button text @click="goToNotifications">
+            <n-button text @click="goToNotifications" aria-label="通知">
               <n-icon :component="NotificationsOutline" :size="20" />
             </n-button>
           </n-badge>
@@ -78,14 +81,27 @@
           <router-view />
         </div>
       </n-layout-content>
+
+      <!-- ⌘K 全局搜索 Modal -->
+      <n-modal
+        v-model:show="globalSearchOpen"
+        preset="card"
+        :bordered="false"
+        :mask-closable="true"
+        :show-icon="false"
+        class="global-search-modal"
+        style="width: 600px; max-width: 90vw;"
+      >
+        <GlobalSearch />
+      </n-modal>
     </n-layout>
   </n-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, h, computed, watch, nextTick } from 'vue'
+import { ref, h, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useMessage, NIcon } from 'naive-ui'
+import { useMessage, NIcon, NModal } from 'naive-ui'
 import {
   SpeedometerOutline,
   DocumentTextOutline,
@@ -102,6 +118,7 @@ import {
   PersonOutline,
   SettingsOutline,
 } from '@vicons/ionicons5'
+import GlobalSearch from '../components/common/GlobalSearch.vue'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -110,6 +127,34 @@ const userStore = useUserStore()
 const message = useMessage()
 
 const collapsed = ref(false)
+
+// === 全局搜索 Modal（⌘K / Ctrl+K 打开，Esc 关闭） ===
+const globalSearchOpen = ref(false)
+
+function onSearchClick() {
+  globalSearchOpen.value = true
+}
+
+function onKeydown(e: KeyboardEvent) {
+  // ⌘K (mac) / Ctrl+K (其他平台) — 打开全局搜索
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault()
+    globalSearchOpen.value = !globalSearchOpen.value
+    return
+  }
+  // Esc 关闭已打开的搜索
+  if (e.key === 'Escape' && globalSearchOpen.value) {
+    globalSearchOpen.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+})
 
 // 菜单主题覆盖 —— 适配深色侧边栏（配合 :inverted="true"）
 // Naive UI inverted 模式用 *Inverted 后缀的变量，否则覆盖无效
@@ -287,6 +332,28 @@ function handleUserMenu(key: string) {
 }
 .search-box {
   background-color: #f3f4f6;
+}
+
+/* === 全局搜索触发按钮（顶栏） === */
+.layout-header__search-trigger {
+  padding: 0;
+  height: auto;
+}
+.kbd-hint {
+  padding: 1px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.2;
+}
+
+/* === ⌘K 全局搜索 Modal === */
+:deep(.global-search-modal .n-card) {
+  padding: 16px 20px;
+}
+:deep(.global-search-modal .n-card__content) {
+  padding: 0;
 }
 
 /* === Logo 尺寸约束 === */
