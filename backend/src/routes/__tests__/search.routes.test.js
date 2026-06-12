@@ -98,12 +98,7 @@ describe('GET /api/search', () => {
     expect(res.body.groups.map((g) => g.type).sort()).toEqual(['candidate', 'demand'])
   })
 
-  test('6. 未授权 → 401 (mock 限制: 验证 happy path)', async () => {
-    // 401 行为由真实中间件保证,mock 跳过了它;此测试占位
-    expect(true).toBe(true)
-  })
-
-  test('7. 软删除数据过滤(where.deletedAt: null 已传入)', async () => {
+  test('6. 软删除数据过滤(where.deletedAt: null 已传入)', async () => {
     await request(app).get('/api/search?q=张')
     expect(mockPrisma.candidate.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -112,7 +107,7 @@ describe('GET /api/search', () => {
     )
   })
 
-  test('8. PII 字段在响应中被脱敏', async () => {
+  test('7. PII 字段在响应中被脱敏', async () => {
     // Override the default mock for candidate to return PII fields
     mockPrisma.candidate.findMany.mockResolvedValueOnce([
       {
@@ -129,5 +124,33 @@ describe('GET /api/search', () => {
     const candidateGroup = res.body.groups.find((g) => g.type === 'candidate')
     expect(candidateGroup.items[0].phone).toBe('138****5678')
     expect(candidateGroup.items[0].email).toBe('z***@example.com')
+  })
+
+  test('8. offer salary 在响应中被脱敏', async () => {
+    mockPrisma.offer.findMany.mockResolvedValueOnce([
+      {
+        id: 'o1',
+        lastYearAvgSalary: 250000,  // 真实 schema 的 Decimal 字段,这里 mock 为 number
+        onboardingStatus: 'PENDING',
+        application: { candidate: { id: 'c1', name: '张三' }, position: { id: 'p1', name: '产品经理' } },
+      },
+    ])
+    const res = await request(app).get('/api/search?q=张')
+    const offerGroup = res.body.groups.find((g) => g.type === 'offer')
+    expect(offerGroup.items[0].lastYearAvgSalary).toMatch(/万\+/)  // maskSalary 输出 "25万+"
+  })
+
+  test('9. referral candidate.phone 在响应中被脱敏', async () => {
+    mockPrisma.referralRecord.findMany.mockResolvedValueOnce([
+      {
+        id: 'r1',
+        candidate: { name: '李四', phone: '13987654321' },
+        referrer: { id: 'u1', realName: '王五' },
+        recommendedAt: new Date(),
+      },
+    ])
+    const res = await request(app).get('/api/search?q=李')
+    const refGroup = res.body.groups.find((g) => g.type === 'referral')
+    expect(refGroup.items[0].candidate.phone).toBe('139****4321')
   })
 })
