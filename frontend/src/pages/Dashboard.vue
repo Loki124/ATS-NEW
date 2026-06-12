@@ -16,42 +16,15 @@
     <div class="dashboard-grid">
       <!-- 左主: 4 stat cards + 招聘日程 -->
       <div class="dashboard-main">
-        <n-grid :cols="4" :x-gap="16" :y-gap="16" responsive="screen" class="stat-row">
-          <n-grid-item :span="4" class="workbench-card workbench-card--stagger-2">
-            <StatCard
-              title="待初筛简历"
-              :value="data?.stats.pendingInitial ?? 0"
-              trend="urgent"
-              meta="需要立即处理"
-              :clickable="true"
-              @click="goCandidates"
-            />
-          </n-grid-item>
-          <n-grid-item :span="4" class="workbench-card workbench-card--stagger-3">
-            <StatCard
-              title="待处理待办"
-              :value="data?.stats.pendingTodo ?? 0"
-              :clickable="true"
-              @click="onStatClick('todo')"
-            />
-          </n-grid-item>
-          <n-grid-item :span="4" class="workbench-card workbench-card--stagger-4">
-            <StatCard
-              title="待处理推荐"
-              :value="data?.stats.pendingRecommend ?? 0"
-              :clickable="true"
-              @click="onStatClick('recommend')"
-            />
-          </n-grid-item>
-          <n-grid-item :span="4" class="workbench-card workbench-card--stagger-5">
-            <StatCard
-              title="待处理初筛"
-              :value="data?.stats.pendingScreening ?? 0"
-              :clickable="true"
-              @click="onStatClick('screening')"
-            />
-          </n-grid-item>
-        </n-grid>
+        <StatBar
+          class="workbench-card workbench-card--stagger-2"
+          :stats="[
+            { key: 'pendingScreening', label: '待初筛', value: data?.stats?.pendingInitial ?? 0, accentColor: 'amber', href: '/candidates' },
+            { key: 'pendingTodo', label: '待处理', value: data?.stats?.pendingTodo ?? 0, accentColor: 'rose', href: '/notifications' },
+            { key: 'pendingRecommend', label: '推荐', value: data?.stats?.pendingRecommend ?? 0, accentColor: 'sky', href: '/referral' },
+            { key: 'pendingScreeningDone', label: '初筛', value: data?.stats?.pendingScreening ?? 0, accentColor: 'emerald', href: '/screenings' },
+          ]"
+        />
 
         <n-card
           title="招聘日程"
@@ -180,7 +153,7 @@ import type { QuickEntryData, JobCardData, ScreeningItemData, MatterItem } from 
 // Plan O Task 6: 搜索 debounce (300ms)
 import { debounce } from '../utils/debounce'
 
-const StatCard = defineAsyncComponent(() => import('../components/dashboard/StatCard.vue'))
+const StatBar = defineAsyncComponent(() => import('../components/dashboard/StatBar.vue'))
 const WeeklySchedule = defineAsyncComponent(() => import('../components/dashboard/WeeklySchedule.vue'))
 const JobCard = defineAsyncComponent(() => import('../components/dashboard/JobCard.vue'))
 const QuickEntryCard = defineAsyncComponent(() => import('../components/dashboard/QuickEntryCard.vue'))
@@ -297,17 +270,6 @@ onMounted(() => {
 })
 
 // ===== 事件 =====
-
-function goCandidates() {
-  router.push('/candidates')
-}
-
-function onStatClick(kind: string) {
-  if (kind === 'todo') router.push('/notifications')
-  else if (kind === 'recommend') router.push('/referral')
-  else if (kind === 'screening') router.push('/screenings')
-  else router.push('/candidates')
-}
 
 function onHeroAction() {
   matterTab.value = 'other'
@@ -431,10 +393,6 @@ function onMatterAction(_matter: MatterItem) {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.stat-row :deep(.n-grid-item) {
-  display: block;
 }
 
 /* ===== Cards overrides ===== */
