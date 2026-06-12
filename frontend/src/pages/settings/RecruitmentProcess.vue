@@ -26,6 +26,13 @@
       @saved="onCustomSaved"
     />
 
+    <!-- Plan T7: 流程详情 (read-only, single-column) -->
+    <ProcessDetailModal
+      v-model:show="showDetail"
+      :process-id="detailProcessId"
+      @go-edit="onGoEdit"
+    />
+
     <!-- 新增/编辑流程弹窗 -->
     <n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑流程' : '新增流程'" style="width: 640px">
       <n-form :model="form" label-placement="top">
@@ -65,6 +72,7 @@ import { AddOutline, CreateOutline, TrashOutline, CopyOutline, PowerOutline, Eye
 import { listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus } from '../../api/recruitment-process'
 import { useRouter } from 'vue-router'
 import CustomRecruitmentProcessModal from './CustomRecruitmentProcessModal.vue'
+import ProcessDetailModal from './ProcessDetailModal.vue'
 
 const message = useMessage()
 const router = useRouter()
@@ -239,8 +247,20 @@ function goStages(row: any) {
   router.push(`/settings/process-stages?processId=${row.id}`)
 }
 
+// Plan T7: goDetail 打开只读详情 modal
+const showDetail = ref(false)
+const detailProcessId = ref('')
+
 function goDetail(row: any) {
-  router.push(`/settings/process-detail?processId=${row.id}`)
+  detailProcessId.value = row.id
+  showDetail.value = true
+}
+
+// 详情 modal 中的 "前往编辑" 按钮 -> 复用现有 handleEdit 流程
+function onGoEdit(processId: string) {
+  showDetail.value = false
+  const row = processes.value.find((p: any) => p.id === processId)
+  if (row) handleEdit(row)
 }
 
 onMounted(() => loadList())
