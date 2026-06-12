@@ -1,7 +1,6 @@
 # Workbench + Process 体验打磨 设计文档
 
 > **Date**: 2026-06-12
-> **Branch**: TBD
 > **Plan ID**: 自定义 (4 个用户提的 UI 增强需求,合并 1 个 spec 1 个 plan)
 > **基线**: Plan N (Dashboard 重设计) + Plan K/L (G38 招聘流程引擎) + Plan O (性能) 已全部 done
 
@@ -35,7 +34,7 @@
 - ✅ **F1**:工作台顶部 4 个 StatCard 改成单行 stats bar(更紧凑、占屏面积 -40%)
 - ✅ **F2**:全局搜索(6 实体 union 后端 + 前端 `<GlobalSearch />` 组件 + Layout 顶部 ⌘K 唤起)
 - ✅ **F3**:招聘日程本周/本月切换 + 右侧抽屉穿透查看当日详情
-- ✅ **F4**:设置-流程管理"详情"按钮 → 新开只读弹窗,内部纵向 3 列 Masonry 展示所有阶段
+- ✅ **F4**:设置-流程管理"详情"按钮 → 新开只读弹窗,内部单列纵向展示所有阶段(每阶段独占一行)
 - ✅ 后端 1 个新 route `/api/search` + 1 个 service(union 6 实体)
 - ✅ 单测:后端 search 路由 6 用例 + 前端 4 个组件 vitest
 - ✅ e2e(playwright):4 个 spec 跑通(可选,如果 CI 时间紧张可后置)
@@ -58,9 +57,8 @@
 | 全局搜索范围 | **6 实体:候选人 / 招聘需求 / 职位 / 面试 / Offer / 内推** | 用户拍板,够用;如需扩到 60+ 表留接口 |
 | 搜索字段脱敏 | **复用 G8 中间件(phone/email/idCard/bankCard/salary)** | 已有,不重复造 |
 | 招聘日程"穿透"形式 | **右侧 `n-drawer` 滑出** | 用户拍板,1 步可达、不丢上下文 |
-| 详情弹窗"瀑布流"形态 | **纵向 3 列 CSS Masonry** | 用户拍板,纯 `column-count` 实现,无额外库 |
+| 详情弹窗阶段展示 | **单列纵向(每阶段独占一行)** | 用户拍板,简单直接;无 masonry 复杂度,移动端天然适配 |
 | 详情弹窗 vs 编辑弹窗 | **新建 ProcessDetailModal(只读),保留 CustomRecruitmentProcessModal(编辑)** | 详情 = 浏览,编辑 = 改配置,职责分离 |
-| 详情弹窗 masonry 库 | **不引库,纯 CSS `column-count: 3` + `break-inside: avoid`** | 性能零成本、Vue 3 兼容、零依赖 |
 | 本月日历行数 | **5/6 行动态**(按月首日周几+月天数) | CSS Grid `grid-template-rows: repeat(auto, 36px)` |
 | 调度 | 不引入后台 cron | 全部前端 / 路由内 onMounted 拉数据 |
 
@@ -335,7 +333,7 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
 - 列表:每个日程一行(时间 + 候选人名 + 类型 chip + 状态)
 - 空态:"当天无日程"
 
-### 4.4 F4: 流程详情弹窗(Masonry)
+### 4.4 F4: 流程详情弹窗(单列纵向)
 
 **新文件**:`frontend/src/pages/settings/ProcessDetailModal.vue`(新增,~280 行)
 
@@ -343,7 +341,7 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
 
 **触发**:`goDetail(row)` 打开新弹窗(替换原 no-op)
 
-**弹窗布局**:
+**弹窗布局**(每阶段独占一行,纵向排列,无 masonry / 无多列):
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ 自定义招聘流程  [X]                                  [前往编辑]│
@@ -353,48 +351,80 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
 │ 描述: 20260612 新增流程                                       │
 ├──────────────────────────────────────────────────────────────┤
 │ 流程阶段 (7)                                                  │
-│ ┌──────────┐  ┌──────────┐  ┌──────────┐                    │
-│ │ 初评     │  │ HRBP评估 │  │ BU总裁评估│                    │
-│ │ [筛选型] │  │ [筛选型] │  │ [评估型] │                    │
-│ │          │  │ 默认:HRBP│  │ 默认:指定│                    │
-│ │ 限时:72h │  │ 限时:72h │  │ 限时:48h │                    │
-│ │ [系统内置]│ │ 进入条件:│  │ 进入条件:│                    │
-│ │          │  │ HRBP反馈 │  │ BU总裁评估│                   │
-│ └──────────┘  └──────────┘  └──────────┘                    │
-│ ┌──────────┐  ┌──────────┐  ┌──────────┐                    │
-│ │ 用人经理 │  │ 实线虚线VP│  │ 正式录用 │                    │
-│ │ ...      │  │ ...      │  │ [系统内置]│                   │
-│ └──────────┘  └──────────┘  └──────────┘                    │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 1  初评                              [系统内置]         │ │
+│ │    类型:筛选型 │ 默认:无 │ 限时:72h │ 进入条件:无         │ │
+│ │    包含功能: 邀请候选人, 智能推荐职位, 邀请筛选简历        │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 2  HRBP评估                                           │ │
+│ │    类型:筛选型 │ 默认:HRBP │ 限时:72h │ 进入条件:无       │ │
+│ │    包含功能: 邀请候选人, 是否支持智能推荐职位, 邀请筛选简历  │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 3  BU总裁评估                                         │ │
+│ │    类型:评估型 │ 默认:指定(丁霞) │ 限时:48h              │ │
+│ │    进入条件: 阶段状态.BU总裁评估 包含 全部通过/部分通过   │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 4  CHO评估                                            │ │
+│ │    类型:评估型 │ 默认:指定(丁霞) │ 限时:48h              │ │
+│ │    进入条件: 阶段状态.BU总裁评估 包含 ...                │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 5  实线虚线VP筛选                                     │ │
+│ │    类型:筛选型 │ 默认:无 │ 限时:48h                      │ │
+│ │    进入条件: 阶段状态.CHO评估 包含 ...                  │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 6  HRBP评估(2)                                       │ │
+│ │    ...                                                  │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ● 7  正式录用                              [系统内置]    │ │
+│ │    ...                                                  │ │
+│ └──────────────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────────────┤
 │                                          [关闭]   [前往编辑] │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Masonry 实现**(纯 CSS,无库):
+**实现**(纯纵向列表,无 column-count,无 masonry):
 ```css
-.process-masonry {
-  column-count: 3;
-  column-gap: 16px;
+.stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;                     /* 行间距 */
 }
-@media (max-width: 1280px) { .process-masonry { column-count: 2; } }
-@media (max-width: 768px)  { .process-masonry { column-count: 1; } }
 .stage-card {
-  break-inside: avoid;     /* 关键:卡牌不跨列 */
-  margin-bottom: 16px;
-  display: inline-block;   /* 关键:让 column-count 生效 */
-  width: 100%;
+  display: flex;                 /* 单行内 flex 布局 */
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--paper-3);
+  border-radius: 10px;
+  background: var(--paper-1);
 }
+.stage-card__index {             /* 左侧序号 + 类型色点 */
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.stage-card__body { flex: 1; }   /* 右侧详情 */
 ```
 
-**Card 内容**:
-- 头部:阶段名(16px bold) + 类型色点(8px circle, 颜色按 `stageType` 映射:筛选型=蓝、评估型=绿、面试型=橙、Offer型=紫、归档型=灰)
-- 摘要(12px,逐行):默认处理人 / 阶段限时 / 包含功能 / 进入条件(无则显示"—")
-- 系统内置角标:首末两张卡顶部右上角 "系统内置" 灰色 chip
+**Card 内容**(单行内分段):
+- 头部一行:类型色点(8px circle) + 序号 + 阶段名(16px bold) + 系统内置 chip(仅首末两张,右上角)
+- 摘要行(12px,4 段 pipe 分隔):`类型:筛选型 │ 默认处理人 │ 限时 │ 进入条件(无则—)`
+- 包含功能(可换行):tag 列表,无则不显示该行
+- 进入条件详情(如有,展开行):条件描述,无则不显示
 
 **数据加载**:
 - 入参:`processId`
 - 调 `GET /api/recruitment-processes/:id`(已有)+ `GET /api/recruitment-processes/:id/stage-links`(已有)
-- 加载中:skeleton(3 个 card 占位)
+- 加载中:skeleton(7 个 card 占位,各占 64px 高)
 - 失败:error message + retry 按钮
 
 **RecruitmentProcess.vue 改动**(行 115 附近):
@@ -451,7 +481,7 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
    ↓
 [Modal fetches /recruitment-processes/:id + /stage-links]
    ↓
-[Masonry render stages as cards]
+[render stages as vertical list cards]
    ↓
 [User clicks 前往编辑]
    ↓
@@ -497,14 +527,14 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
 - `GlobalSearch.test.ts` (5 用例:键盘事件/分组渲染/空态/错误/重试)
 - `WeeklySchedule.test.ts` (4 用例:周模式/月模式/月份切换/点击 emit)
 - `ScheduleDayDrawer.test.ts` (2 用例:空态/列表渲染)
-- `ProcessDetailModal.test.ts` (3 用例:Masonry 列数响应式/系统内置角标/前往编辑)
+- `ProcessDetailModal.test.ts` (3 用例:7 张卡均渲染/系统内置角标/前往编辑)
 
 ### 7.3 e2e (Playwright,可选,如 CI 时间紧张可后置)
 **新 spec**:
 - `e2e/workbench-stats.spec.ts`:Dashboard 顶部 4 合一
 - `e2e/global-search.spec.ts`:⌘K 唤起 + 输入 + 跳详情
 - `e2e/schedule-month.spec.ts`:切月 + 抽屉打开
-- `e2e/process-detail-modal.spec.ts`:详情弹窗 Masonry + 跳编辑
+- `e2e/process-detail-modal.spec.ts`:详情弹窗单列 + 跳编辑
 
 ---
 
@@ -515,9 +545,9 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
 | F2 搜索 P95 延迟 | < 300ms (本地 1k 数据) | 6 个子查询并行,单实体 < 50ms |
 | F2 搜索 P95 延迟 | < 800ms (本地 100k 数据) | 需 `name/phone` 加 index,见下 |
 | F3 月模式渲染 | < 100ms (42 格) | 无动画,纯 CSS Grid |
-| F4 Masonry 渲染 | < 50ms (7 张卡) | 纯 CSS,无 reflow |
+| F4 单列列表渲染 | < 30ms (7 张卡) | 纯 flex,无 reflow |
 | 详情弹窗首次打开 | < 200ms (本地) | 2 个并发请求,有缓存 |
-| bundle 增量 | < 8KB gzipped (F2+F3+F4) | Masonry 0 依赖,n-drawer/n-auto-complete 已有 |
+| bundle 增量 | < 8KB gzipped (F2+F3+F4) | 单列布局 0 特殊依赖,n-drawer/n-auto-complete 已有 |
 
 **索引建议**(后端,1 个新 migration):
 - `candidates.name` (现有 index 检查,缺则加)
@@ -590,7 +620,7 @@ const drawerDate = ref<string>('') // YYYY-MM-DD
 | AC-3 | 搜索 phone 返回脱敏值 `138****1234` | 单测 |
 | AC-4 | 周模式 → 切月 → 月历 5/6 行动态 | 视觉 + 单测 |
 | AC-5 | 点击月历日期 → 右侧抽屉滑出,显示当日日程 | 手测 + e2e |
-| AC-6 | 设置-流程管理"详情" → 新弹窗,3 列 Masonry 展示所有阶段 | 视觉 + 手测 |
+| AC-6 | 设置-流程管理"详情" → 新弹窗,单列纵向展示所有阶段(每阶段 1 行) | 视觉 + 手测 |
 | AC-7 | 详情弹窗"前往编辑" → 跳转原有编辑弹窗,流程不丢 | 集成手测 |
 | AC-8 | vue-tsc 0 错,jest 414+ 全过,后端 412+ 全过 | CI |
 | AC-9 | 性能:搜索 P95 < 300ms (1k 数据) | 手测 + 单测 |
