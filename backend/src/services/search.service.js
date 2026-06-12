@@ -5,12 +5,17 @@
  * 不引 ES,纯子查询并行,数据量 < 100k 性能可接受
  *
  * 注:本服务 select 字段对齐 schema (Demand.name / Position.name / Interview.application
- *    / Offer.application / ReferralRecord.candidate);软删除条件 deletedAt: null 由
- *    soft-delete.middleware 自动注入,这里显式加上保持显式语义。
+ *    / Offer.application / ReferralRecord.candidate)。
  */
+// 6 实体 Prisma union,字段裁剪 + 显式 deletedAt 软删除过滤
+// (soft-delete.middleware 未启用,所以 where 里手动传 null)
 
 import { prisma } from '../app.js'
 import { maskPhone, maskEmail, maskSalary } from './field-masking.service.js'
+
+export const DEFAULT_LIMIT = 5
+export const MIN_LIMIT = 1
+export const MAX_LIMIT = 20
 
 const ENTITY_KEYS = ['candidate', 'demand', 'position', 'interview', 'offer', 'referral']
 
@@ -165,11 +170,13 @@ const SEARCHERS = {
  * @param {string} args.q
  * @param {string[]} [args.types]
  * @param {number} [args.limit]
- * @param {string} [args.userId]
  */
-export async function search({ q, types, limit = 5, userId }) {
+export async function search({ q, types, limit = DEFAULT_LIMIT }) {
   const t0 = Date.now()
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 20)
+  const safeLimit = Math.min(
+    Math.max(parseInt(limit, 10) || DEFAULT_LIMIT, MIN_LIMIT),
+    MAX_LIMIT,
+  )
   const wanted = types?.length
     ? types.filter((t) => ENTITY_KEYS.includes(t))
     : ENTITY_KEYS

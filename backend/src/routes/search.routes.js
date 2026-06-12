@@ -11,7 +11,7 @@
  */
 
 import { Router } from 'express';
-import { search } from '../services/search.service.js';
+import { search, DEFAULT_LIMIT } from '../services/search.service.js';
 
 const router = Router();
 
@@ -30,9 +30,9 @@ router.get('/', async (req, res, next) => {
       ? String(req.query.types).split(',').map((t) => t.trim()).filter(Boolean)
       : undefined;
 
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : DEFAULT_LIMIT;
 
-    const result = await search({ q, types, limit, userId: req.user?.id });
+    const result = await search({ q, types, limit });
     res.json(result);
   } catch (err) {
     next(err);
