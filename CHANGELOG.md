@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-06-12
+
+### Added (Plan P — Workbench + Process polish)
+
+- 工作台顶部 4 个 StatCard 合并为单行 StatBar (F1)
+- 全局搜索 `/api/search` 6 实体 union + `<GlobalSearch />` 组件 + ⌘K 唤起 (F2)
+- 招聘日程本周/本月切换 + 右侧抽屉穿透 (F3)
+- 流程管理详情弹窗 `ProcessDetailModal` (只读, 单列纵向展示所有阶段) (F4)
+
+### Backend
+- 新增 `GET /api/search` 路由, 6 实体 Prisma union, 字段脱敏 (G8 maskPhone/maskEmail/maskSalary)
+- +9 后端单测 (6 实体命中 / q 边界 / types 过滤 / limit 边界 / PII 脱敏 / 软删除过滤)
+- 挂载在 `authMiddleware` + `dataPermissionMiddleware` (G8) 下
+
+### Frontend
+- 新增 5 组件 (GlobalSearch / StatBar / ScheduleDayDrawer / ProcessDetailModal / search.ts)
+- 引入 vitest 测试运行器 (T2) + happy-dom + @vue/test-utils
+- 31 个 vitest 测试 (smoke + debounce + search + GlobalSearch + StatBar + WeeklySchedule + ScheduleDayDrawer + ProcessDetailModal)
+- vue-tsc 0 错
+
+### Plan-spec deviations (intentional, all documented in commits)
+- 详情弹窗阶段展示 = 单列纵向(每阶段 1 行),非 3 列 masonry(用户改)
+- G8 字段脱敏用 `field-masking.service.js` 直接 mask(因 `data-permission.middleware.js` 不存在,真实机制是 `fieldAcl(resource)` 工厂,跟分组响应不兼容)
+- 修复 Plan O 遗留 `debounce.test.ts` 不兼容 vitest 的问题(T2 顺手)
+
+---
+
 ## 2026-06-11 — 性能优化 (Plan O) — 8 commits
 
 ### Backend
