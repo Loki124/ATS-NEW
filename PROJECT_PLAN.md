@@ -81,6 +81,21 @@
 - ✅ **API**: `frontend/src/api/dashboard.ts` `loadDashboardData()` 并行拉 4 个端点 + mock fallback 不报红
 - ✅ **不破坏**: vue-tsc 0 错 / 444 测试通过 / 路由不变 / 不引新依赖 / 不动其他 plan 文件
 
+### Plan P 工作台 + 流程打磨 (2026-06-12) — 9 commits
+
+- ✅ F1: StatBar 4-to-1 row (T5)
+- ✅ F2: `/api/search` 6-entity union backend + GlobalSearch w/ ⌘K frontend (T1+T3+T4+T8)
+- ✅ F3: WeeklySchedule week/month + day drawer (T6)
+- ✅ F4: ProcessDetailModal single-col + edit/detail split (T7)
+- ✅ Vitest 引入 (T2) + 31 组件测试
+- ✅ 9 backend jest 测试 (search route)
+- ✅ vue-tsc 0 错
+- ⏳ e2e 4 specs (T9) — committed, 待 CI 跑
+
+📄 Spec: `docs/superpowers/specs/2026-06-12-workbench-process-polish-design.md`
+📄 Plan: `docs/superpowers/plans/2026-06-12-workbench-process-polish.md`
+🛡 G38 模块 (Plan K/L) 零回归
+
 ### Plan L 招聘流程管理补全 (2026-06-09) — 8 commits
 - ✅ **G38 需求文档 11 节补全** - 阶段类型/适用范围/表达式校验/循环依赖/阶段限时预置/字典加载/名称长度/角色守卫
 - ✅ **Schema 增量**: `ProcessStageLink.stageType` + `RecruitmentProcess.applicableScope` JSON
