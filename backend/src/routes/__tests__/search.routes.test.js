@@ -111,4 +111,23 @@ describe('GET /api/search', () => {
       }),
     )
   })
+
+  test('8. PII 字段在响应中被脱敏', async () => {
+    // Override the default mock for candidate to return PII fields
+    mockPrisma.candidate.findMany.mockResolvedValueOnce([
+      {
+        id: 'c1',
+        name: '张三',
+        phone: '13812345678',
+        email: 'zhangsan@example.com',
+        updatedAt: new Date(),
+      },
+    ])
+
+    const res = await request(app).get('/api/search?q=张')
+    expect(res.status).toBe(200)
+    const candidateGroup = res.body.groups.find((g) => g.type === 'candidate')
+    expect(candidateGroup.items[0].phone).toBe('138****5678')
+    expect(candidateGroup.items[0].email).toBe('z***@example.com')
+  })
 })
