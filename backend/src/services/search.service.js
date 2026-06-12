@@ -10,6 +10,7 @@
  */
 
 import { prisma } from '../app.js'
+import { maskPhone, maskEmail, maskSalary } from './field-masking.service.js'
 
 const ENTITY_KEYS = ['candidate', 'demand', 'position', 'interview', 'offer', 'referral']
 
@@ -186,6 +187,35 @@ export async function search({ q, types, limit = 5, userId }) {
       }
     }),
   )
+
+  // 字段脱敏 (G8):按实体类型对敏感字段 mask
+  for (const group of results) {
+    if (!group || !group.items) continue
+    group.items = group.items.map((item) => {
+      const masked = { ...item }
+      if (group.type === 'candidate') {
+        if (masked.phone) masked.phone = maskPhone(masked.phone)
+        if (masked.email) masked.email = maskEmail(masked.email)
+      }
+      if (group.type === 'referral') {
+        // referral 的 phone 嵌套在 candidate 下,逐层浅拷贝避免污染原始引用
+        if (masked.candidate && masked.candidate.phone) {
+          masked.candidate = {
+            ...masked.candidate,
+            phone: maskPhone(masked.candidate.phone),
+          }
+        }
+      }
+      if (group.type === 'offer') {
+        // Offer 模型只有 lastYearAvgSalary(Decimal?)。baseSalary* 等字段未在
+        // select 中,这里仅 mask 实际返回的薪资字段
+        if (masked.lastYearAvgSalary != null) {
+          masked.lastYearAvgSalary = maskSalary(Number(masked.lastYearAvgSalary))
+        }
+      }
+      return masked
+    })
+  }
 
   return {
     query: q,
