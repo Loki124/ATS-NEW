@@ -69,9 +69,14 @@ import { errorHandler } from './middleware/error.middleware.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { enforceJwtConfigOrExit } from './middleware/jwt-validation.middleware.js';
 import { cacheHeaders } from './middleware/cache-headers.middleware.js';
+import { applySoftDeleteMiddleware } from './middleware/soft-delete.middleware.js';
 
 const app = express();
-const prisma = new PrismaClient();
+const basePrisma = new PrismaClient();
+// 软删除 middleware: 自动在 7 核心业务表的 find/findFirst/findMany/update/updateMany/delete
+// 上注入 where: { deletedAt: null } (Todo #2 - 修复 /api/search 'Unknown argument' 报错)
+// applySoftDeleteMiddleware 返回一个新 client ($extends),重新赋给 prisma 供所有模块使用
+const prisma = applySoftDeleteMiddleware(basePrisma);
 
 // 前端 dist 路径（Express 直接服务，免 nginx）
 // 优先级：环境变量 > 相对于本文件的 ../../frontend/dist

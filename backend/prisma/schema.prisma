@@ -200,6 +200,9 @@ model User {
 
   permissionMode String @default("MOU") @db.VarChar(32)
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   department Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
 
   userRoles           UserRole[]
@@ -234,6 +237,7 @@ model User {
   @@index([wechatWorkDeptId])
   @@index([mochaUserId])
   @@index([mochaDeptId])
+  @@index([deletedAt])
   @@map("users")
 }
 
@@ -253,6 +257,9 @@ model Department {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   parent   Department?  @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: Restrict)
   children Department[] @relation("DepartmentTree")
 
@@ -269,6 +276,7 @@ model Department {
   @@index([manager2Id])
   @@index([manager3Id])
   @@index([hrbpId])
+  @@index([deletedAt])
   @@map("departments")
 }
 
@@ -435,6 +443,9 @@ model Demand {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   department Department @relation(fields: [departmentId], references: [id])
 
   positions     Position[]
@@ -445,6 +456,7 @@ model Demand {
   @@index([creatorId])
   @@index([managerId])
   @@index([hrbpId])
+  @@index([deletedAt])
   @@map("demands")
 }
 
@@ -595,6 +607,9 @@ model Position {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   department Department          @relation(fields: [departmentId], references: [id])
   demand     Demand?             @relation(fields: [demandId], references: [id])
   process    RecruitmentProcess? @relation(fields: [processId], references: [id])
@@ -613,6 +628,7 @@ model Position {
   @@index([processId])
   @@index([companyId])
   @@index([positionStatus])
+  @@index([deletedAt])
   @@map("positions")
 }
 
@@ -704,6 +720,9 @@ model Candidate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   resumes      Resume[]
   applications Application[]
 
@@ -714,6 +733,7 @@ model Candidate {
   @@index([recommenderId])
   @@index([assignedUserId])
   @@index([resumeProviderId])
+  @@index([deletedAt])
   @@map("candidates")
 }
 
@@ -947,6 +967,9 @@ model Offer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   candidateFeedback     CandidateOfferFeedback?
@@ -958,6 +981,7 @@ model Offer {
   @@index([offerManagerId])
   @@index([senderId])
   @@index([offerStatus])
+  @@index([deletedAt])
   @@map("offers")
 }
 
@@ -1091,6 +1115,9 @@ model Onboarding {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ====== 软删除 (Todo #2) ======
+  deletedAt DateTime?
+
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   onboardedAt DateTime?  // PRD G28: 入职完成时间
@@ -1101,6 +1128,7 @@ model Onboarding {
   @@index([referrerId])
   @@index([approvalRecordId])
   @@index([peopleOnboardId])
+  @@index([deletedAt])
   @@map("onboardings")
 }
 
