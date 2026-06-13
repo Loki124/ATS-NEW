@@ -125,7 +125,7 @@ const SEARCHERS = {
       },
       select: {
         id: true,
-        onboardingStatus: true,
+        offerStatus: true,
         expectedJoinDate: true,
         jobTitle: true,
         lastYearAvgSalary: true,

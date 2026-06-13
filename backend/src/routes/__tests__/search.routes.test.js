@@ -133,7 +133,7 @@ describe('GET /api/search', () => {
       {
         id: 'o1',
         lastYearAvgSalary: 250000,  // 真实 schema 的 Decimal 字段,这里 mock 为 number
-        onboardingStatus: 'PENDING',
+        offerStatus: 'PENDING',     // 真实 schema 字段(不是 onboardingStatus)
         application: { candidate: { id: 'c1', name: '张三' }, position: { id: 'p1', name: '产品经理' } },
       },
     ])
