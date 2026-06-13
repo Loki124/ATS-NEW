@@ -7,8 +7,8 @@
  * 注:本服务 select 字段对齐 schema (Demand.name / Position.name / Interview.application
  *    / Offer.application / ReferralRecord.candidate)。
  */
-// 6 实体 Prisma union,字段裁剪 + 显式 deletedAt 软删除过滤
-// (soft-delete.middleware 未启用,所以 where 里手动传 null)
+// 6 实体 Prisma union,字段裁剪 + 软删除过滤
+// (deletedAt 由 soft-delete middleware 在 app.js wire 后自动注入,此服务无需手传)
 
 import { prisma } from '../app.js'
 import { maskPhone, maskEmail, maskSalary } from './field-masking.service.js'
@@ -28,7 +28,7 @@ const SEARCHERS = {
           { phone: { contains: q } },
           { email: { contains: q } },
         ],
-        deletedAt: null,
+        // deletedAt: null 由 soft-delete middleware 自动注入
       },
       select: {
         id: true,
@@ -50,7 +50,7 @@ const SEARCHERS = {
           { name:        { contains: q } },
           { description: { contains: q } },
         ],
-        deletedAt: null,
+        // deletedAt: null 由 soft-delete middleware 自动注入
       },
       select: {
         id: true,
@@ -71,7 +71,7 @@ const SEARCHERS = {
           { name: { contains: q } },
           { code: { contains: q } },
         ],
-        deletedAt: null,
+        // deletedAt: null 由 soft-delete middleware 自动注入
       },
       select: {
         id: true,
@@ -94,7 +94,7 @@ const SEARCHERS = {
           { application: { candidate: { name: { contains: q } } } },
           { application: { position:  { name: { contains: q } } } },
         ],
-        deletedAt: null,
+        // deletedAt: null 由 soft-delete middleware 自动注入
       },
       select: {
         id: true,
@@ -121,7 +121,7 @@ const SEARCHERS = {
           { application: { candidate: { name: { contains: q } } } },
           { application: { position:  { name: { contains: q } } } },
         ],
-        deletedAt: null,
+        // deletedAt: null 由 soft-delete middleware 自动注入
       },
       select: {
         id: true,
@@ -149,7 +149,7 @@ const SEARCHERS = {
           { candidate: { phone: { contains: q } } },
           { referrer:  { realName: { contains: q } } },
         ],
-        deletedAt: null,
+        // deletedAt: null 由 soft-delete middleware 自动注入
       },
       select: {
         id: true,

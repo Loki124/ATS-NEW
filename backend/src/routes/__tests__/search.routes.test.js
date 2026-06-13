@@ -98,13 +98,15 @@ describe('GET /api/search', () => {
     expect(res.body.groups.map((g) => g.type).sort()).toEqual(['candidate', 'demand'])
   })
 
-  test('6. 软删除数据过滤(where.deletedAt: null 已传入)', async () => {
+  test('6. 软删除过滤由 middleware 接管,service 不再显式传 deletedAt', async () => {
+    // Todo #2: 软删除过滤由 soft-delete middleware 在 app.js wire 后自动注入
+    // (此测试只验证 service 层不显式传 deletedAt,middleware 自身的注入行为
+    //  需在集成测试 / 端到端验证)
     await request(app).get('/api/search?q=张')
-    expect(mockPrisma.candidate.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ deletedAt: null }),
-      }),
-    )
+    const calls = mockPrisma.candidate.findMany.mock.calls
+    expect(calls.length).toBeGreaterThan(0)
+    const lastCallWhere = calls[calls.length - 1][0]?.where || {}
+    expect(lastCallWhere).not.toHaveProperty('deletedAt')
   })
 
   test('7. PII 字段在响应中被脱敏', async () => {
