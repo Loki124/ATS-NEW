@@ -207,6 +207,7 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions, type ConditionItem } from '../../api/recruitment-process'
 import { listAutoArchiveRules, upsertAutoArchiveRule } from '../../api/recruitment-process'
+import { listUsers } from '../../api/users'
 import ConditionTreeEditor from '../../components/ConditionTreeEditor.vue'
 
 // 嵌套条件项（3 级树） - 扩展 ConditionItem 增加 children 字段
@@ -272,10 +273,11 @@ const userLoading = ref(false)
 async function loadUsers() {
   userLoading.value = true
   try {
-    // TODO: 接入 /api/users 列表
-    userOptions.value = [
-      { label: '系统管理员', value: '584e0711-fab7-4cb8-aca2-2716d9229bf8' },
-    ]
+    const users = await listUsers()
+    userOptions.value = users.map((u) => ({
+      label: u.realName || u.username || u.id,
+      value: u.id,
+    }))
   } finally {
     userLoading.value = false
   }
