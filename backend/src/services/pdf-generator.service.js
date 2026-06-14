@@ -3,10 +3,10 @@
  *
  * 特点:
  *  - 零依赖 (不需要 pdfkit / puppeteer / wkhtmltopdf)
- *  - 支持中文 (依赖 PDF 内嵌字体子集 — 当前用 ASCII 安全 fallback, 中文走 latin-1 替换)
+ *  - 自动中文字体嵌入 (Todo #6): 检测到非 ASCII 字符时, 从系统加载 CJK 字体并子集化嵌入
  *  - 适合简单文本型 PDF (Offer 模板)
  *
- * 实现: PDF 1.4 规范, 14 个内置字体 (Helvetica), 文本按行布局, 自动分页
+ * 实现: PDF 1.4 规范, 14 个内置字体 (Helvetica) 或 Type0 CID 字体 (CJK), 文本按行布局, 自动分页
  * 局限: 不支持复杂排版 (表格/图片) — Phase 3 可换 pdfkit
  *
  * 用法:
@@ -15,11 +15,20 @@
  *   res.send(pdf)
  */
 
+import { loadCjkFont, buildCjkFontObjects, encodeTextAsCid } from './cjk-font-embed.js'
+
 const PAGE_WIDTH = 595 // A4 in points
 const PAGE_HEIGHT = 842
 const MARGIN = 50
 const LINE_HEIGHT = 16
 const FONT_SIZE = 11
+
+/**
+ * 检测文本是否包含 CJK 字符
+ */
+function hasCjk(text) {
+  return /[^\x00-\x7F]/.test(text)
+}
 
 /**
  * 生成简单 PDF (返回 Buffer)
@@ -30,12 +39,15 @@ const FONT_SIZE = 11
  * @returns {Buffer}
  */
 export function generateSimplePdf({ title = 'Document', lines = [], author = 'ATS System' } = {}) {
-  // 1. PDF 对象集合
-  const objects = []
-  // 字体对象 (Helvetica)
-  const fontObjNum = 5 // 占位, 最后再确认
+  // 1. 决定字体策略: 含 CJK -> 尝试加载系统字体
+  const allText = title + '\n' + (lines || []).join('\n')
+  const useCjk = hasCjk(allText)
+  const font = useCjk ? loadCjkFont() : null
 
-  // 2. 分页: 每页最多 (PAGE_HEIGHT - 2*MARGIN) / LINE_HEIGHT 行
+  // 2. PDF 对象集合
+  const objects = []
+
+  // 3. 分页: 每页最多 (PAGE_HEIGHT - 2*MARGIN) / LINE_HEIGHT 行
   const maxLinesPerPage = Math.floor((PAGE_HEIGHT - 2 * MARGIN) / LINE_HEIGHT)
   const pages = []
   for (let i = 0; i < lines.length; i += maxLinesPerPage) {
@@ -43,7 +55,18 @@ export function generateSimplePdf({ title = 'Document', lines = [], author = 'AT
   }
   if (pages.length === 0) pages.push([])
 
-  // 3. 构造每个 page 的 content stream
+  // 4. 准备 CJK 字体对象 (如有)
+  let cjkFontInfo = null
+  if (font) {
+    try {
+      cjkFontInfo = buildCjkFontObjects(font, allText)
+    } catch (err) {
+      console.warn(`[pdf-cjk] subsetting failed: ${err.message}; falling back to Helvetica`)
+      cjkFontInfo = null
+    }
+  }
+
+  // 5. 构造每个 page 的 content stream
   const pageObjNums = []
   const contentObjNums = []
   for (let p = 0; p < pages.length; p++) {
@@ -53,87 +76,127 @@ export function generateSimplePdf({ title = 'Document', lines = [], author = 'AT
     content += `${MARGIN} ${PAGE_HEIGHT - MARGIN} Td\n`
     for (let i = 0; i < pageLines.length; i++) {
       const text = sanitizeForPdf(pageLines[i])
-      content += `(${escapePdfString(text)}) Tj\n`
+      if (cjkFontInfo) {
+        // Type0 字体: 用 hex string 编码 CID
+        const hex = encodeTextAsCid(text)
+        content += `<${hex}> Tj\n`
+      } else {
+        content += `(${escapePdfString(text)}) Tj\n`
+      }
       content += `0 -${LINE_HEIGHT} Td\n`
     }
     content += 'ET\n'
     content += `%%EOF_PAGE_${p}`
 
-    const contentObjNum = objects.length + 2 // +1 (Catalog) +1 (Pages) +1 (Font)
-    contentObjNums.push(contentObjNum)
     objects.push(buildStreamObject(content))
-
-    const pageObjNum = objects.length + 1
-    pageObjNums.push(pageObjNum)
-    objects.push(null) // placeholder, will build page obj after
+    contentObjNums.push(objects.length) // 1-based
+    objects.push(null) // placeholder for page obj
+    pageObjNums.push(objects.length)
   }
 
-  // 4. Font object
-  const fontObj = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`
-  const fontObjIndex = objects.length
-  objects.push(fontObj)
+  // 6. 字体对象
+  let fontRefObjNum
+  // streamMap: 对象编号 (1-based) -> 二进制流 Buffer
+  const streamMap = new Map()
+  if (cjkFontInfo) {
+    // 插入 CJK 字体对象 (5 个对象), 记下 Type0 对象的最终编号
+    const baseOffset = objects.length // push 前的 objects 长度
+    // 5 个对象按顺序 push, 最终 1-based 编号 = baseOffset + idx + 1
+    // 我们需要把 __XXX_REF__ 占位符替换成真实引用
+    const fontObjects = cjkFontInfo.fontObjects.map((s, idx) => {
+      let result = s
+      result = result.replace('__CIDTOGIDMAP_REF__', `${baseOffset + cjkFontInfo.placeholderMap.cidToGid + 1} 0 R`)
+      result = result.replace('__CIDFONT_REF__', `${baseOffset + cjkFontInfo.placeholderMap.cidFont + 1} 0 R`)
+      result = result.replace('__FONTFILE_REF__', `${baseOffset + cjkFontInfo.placeholderMap.fontFile + 1} 0 R`)
+      result = result.replace('__FONTDESC_REF__', `${baseOffset + cjkFontInfo.placeholderMap.fontDesc + 1} 0 R`)
+      return result
+    })
+    for (let i = 0; i < fontObjects.length; i++) {
+      objects.push(fontObjects[i])
+    }
+    // stream 对象: cidToGid stream, fontFile2 stream
+    const cidToGidObjNum = baseOffset + cjkFontInfo.placeholderMap.cidToGid + 1
+    const fontFileObjNum = baseOffset + cjkFontInfo.placeholderMap.fontFile + 1
+    streamMap.set(cidToGidObjNum, cjkFontInfo.fontStreams[0]) // CIDToGIDMap
+    streamMap.set(fontFileObjNum, cjkFontInfo.fontStreams[1]) // FontFile2
+    fontRefObjNum = baseOffset + cjkFontInfo.placeholderMap.type0 + 1
+  } else {
+    // Helvetica fallback
+    objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`)
+    fontRefObjNum = objects.length
+  }
 
-  // 5. Pages object
+  // 7. Pages object
   const pagesObjIndex = objects.length
   const pagesObj = `<< /Type /Pages /Count ${pages.length} /Kids [${pageObjNums.map(n => `${n} 0 R`).join(' ')}] >>`
   objects.push(pagesObj)
 
-  // 6. Page objects (替换 placeholder)
+  // 8. Page objects (替换 placeholder)
   for (let i = 0; i < pageObjNums.length; i++) {
-    const pageNum = pageObjNums[i]
-    const contentNum = contentObjNums[i]
-    objects[pageNum - 1] = `<< /Type /Page /Parent ${pagesObjIndex + 1} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Contents ${contentNum + 1} 0 R /Resources << /Font << /F1 ${fontObjIndex + 1} 0 R >> >> >>`
+    const pageNum = pageObjNums[i] // 1-based
+    const contentNum = contentObjNums[i] // 1-based
+    objects[pageNum - 1] = `<< /Type /Page /Parent ${pagesObjIndex + 1} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Contents ${contentNum} 0 R /Resources << /Font << /F1 ${fontRefObjNum} 0 R >> >> >>`
   }
 
-  // 7. Catalog
+  // 9. Catalog
   const catalogObj = `<< /Type /Catalog /Pages ${pagesObjIndex + 1} 0 R >>`
   objects.push(catalogObj)
 
-  // 8. Info
+  // 10. Info
   const now = new Date()
   const dateStr = `D:${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
   const infoObj = `<< /Title (${escapePdfString(title)}) /Producer (ATS Backend Pure-JS PDF Generator) /Creator (${escapePdfString(author)}) /CreationDate (${dateStr}) >>`
   objects.push(infoObj)
 
-  // 9. 序列化 PDF
-  return serializePdf(objects)
+  // 11. 序列化 PDF (含二进制流)
+  return serializePdfWithStreams(objects, streamMap)
 }
 
 function buildStreamObject(content) {
   const length = Buffer.byteLength(content, 'utf8')
-  return `<< /Length ${length} >>\nstream\n${content}\nendstream`
+  return `<< /Length ${length} >>`
 }
 
 /**
- * 清理 PDF 文本: 移除 PDF 字符串不支持的字符
- * 简单实现: 保留 ASCII + 替换常见中文标点为 latin 等价
+ * 清理 PDF 文本: 保留原文 (CJK 字体自己处理编码)
  */
 function sanitizeForPdf(text) {
   if (typeof text !== 'string') return String(text)
-  // WinAnsiEncoding 支持的拉丁字符集, 中文会显示乱码但不会崩
   return text
 }
 
 /**
- * 转义 PDF 字符串中的特殊字符
+ * 转义 PDF literal string 中的特殊字符 ( ) \
  */
 function escapePdfString(s) {
   return s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
 }
 
 /**
- * 序列化对象数组为 PDF Buffer
+ * 序列化对象数组为 PDF Buffer (支持二进制流)
+ *
+ * @param {string[]} objects - 对象字典字符串数组
+ * @param {Map<number, Buffer>} streamMap - 对象编号 (1-based) → 二进制流 Buffer
  */
-function serializePdf(objects) {
+function serializePdfWithStreams(objects, streamMap = new Map()) {
   const chunks = []
   chunks.push(Buffer.from('%PDF-1.4\n', 'latin1'))
-  // 二进制标记: 4 个高位字节, 必须用 latin1 写入保持单字节
+  // 二进制标记: 4 个高位字节
   chunks.push(Buffer.from([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]))
 
   const offsets = []
   for (let i = 0; i < objects.length; i++) {
     offsets.push(chunks.reduce((sum, c) => sum + c.length, 0))
-    chunks.push(Buffer.from(`${i + 1} 0 obj\n${objects[i]}\nendobj\n`, 'utf8'))
+    const objNum = i + 1
+    const objStr = objects[i]
+    const stream = streamMap.get(objNum)
+    if (stream) {
+      chunks.push(Buffer.from(`${objNum} 0 obj\n${objStr}\nstream\n`, 'utf8'))
+      chunks.push(stream)
+      chunks.push(Buffer.from(`\nendstream\nendobj\n`, 'utf8'))
+    } else {
+      chunks.push(Buffer.from(`${objNum} 0 obj\n${objStr}\nendobj\n`, 'utf8'))
+    }
   }
 
   const xrefStart = chunks.reduce((sum, c) => sum + c.length, 0)
