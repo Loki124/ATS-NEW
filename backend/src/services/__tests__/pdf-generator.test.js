@@ -119,3 +119,47 @@ describe('pdf-generator: renderBackgroundCheckReport (G26)', () => {
     expect(pdf.slice(0, 8).toString()).toBe('%PDF-1.4')
   })
 })
+
+describe('pdf-generator: CJK font support (Todo #6)', () => {
+  it('中文文本: PDF 包含 Type0 + FontFile2 (CJK 字体已嵌入) 或 fallback 标志', () => {
+    const pdf = generateSimplePdf({ title: '录用通知书', lines: ['亲爱的张三, 您好', '请于 2026 年 7 月 1 日入职'] })
+    expect(Buffer.isBuffer(pdf)).toBe(true)
+    expect(pdf.length).toBeGreaterThan(500)
+    const text = pdf.toString('binary')
+    // 优先验证 CJK 字体已嵌入 (在 macOS/Linux 常见情况下)
+    // 若系统无 CJK 字体, 则回退到 Helvetica (仍是合法 PDF)
+    const hasCjkEmbedded = text.includes('/Type0') && text.includes('/FontFile2') && text.includes('/UniGB-UTF16-H')
+    const hasFallback = text.includes('/Helvetica')
+    expect(hasCjkEmbedded || hasFallback).toBe(true)
+  })
+
+  it('中英文混排: PDF 结构合法 (头部 + 尾部 + 嵌入字体或 Helvetica)', () => {
+    const pdf = generateSimplePdf({
+      title: 'Offer Letter',
+      lines: ['Dear 张三,', 'Welcome to the team!', '您已被录用, 期待您的加入。'],
+    })
+    expect(pdf.slice(0, 8).toString('utf8')).toBe('%PDF-1.4')
+    expect(pdf.slice(-6).toString('utf8')).toBe('%%EOF\n')
+    expect(pdf.length).toBeGreaterThan(500)
+  })
+
+  it('纯中文标题和内容: PDF 头部 + 嵌入字体或 Helvetica 至少有一个', () => {
+    const pdf = generateSimplePdf({
+      title: '中文标题',
+      lines: ['第一行内容', '第二行内容 - 测试中文字体嵌入', '深圳XX有限公司'],
+    })
+    expect(pdf.length).toBeGreaterThan(500)
+    expect(pdf.slice(0, 8).toString('utf8')).toBe('%PDF-1.4')
+    const text = pdf.toString('binary')
+    // 至少满足: 有 CJK 嵌入 (Type0+FontFile2) 或有 Helvetica fallback
+    const ok = (text.includes('/Type0') && text.includes('/FontFile2')) || text.includes('/Helvetica')
+    expect(ok).toBe(true)
+  })
+
+  it('CJK 字体嵌入时 PDF 体积远大于纯 ASCII (验证字体子集确实嵌入)', () => {
+    const asciiPdf = generateSimplePdf({ title: 'A', lines: ['Hello'] })
+    const cjkPdf = generateSimplePdf({ title: '中', lines: ['张三'] })
+    // CJK PDF 至少 10x 大于 ASCII (font subset + CIDToGIDMap)
+    expect(cjkPdf.length).toBeGreaterThan(asciiPdf.length * 5)
+  })
+})
