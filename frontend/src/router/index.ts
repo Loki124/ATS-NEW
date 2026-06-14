@@ -15,6 +15,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackChunkName: "login" */ '../pages/Login.vue')
   },
   {
+    path: '/forbidden',
+    name: 'Forbidden',
+    component: () => import(/* webpackChunkName: "forbidden" */ '../pages/Forbidden.vue')
+  },
+  {
     path: '/',
     component: () => import(/* webpackChunkName: "layout" */ '../pages/Layout.vue'),
     meta: { requiresAuth: true },
@@ -108,7 +113,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'onboarding', name: 'OnboardingSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
-          { path: 'user-management', name: 'UserManagement', component: () => import(/* webpackChunkName: "settings-user" */ '../pages/settings/UserManagement.vue') },
+          { path: 'user-management', name: 'UserManagement', component: () => import(/* webpackChunkName: "settings-user" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           { path: 'permission', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permission" */ '../pages/settings/PermissionManagement.vue') },
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
@@ -117,7 +122,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'company', name: 'CompanySettings', component: () => import(/* webpackChunkName: "settings-company" */ '../pages/settings/CompanySettings.vue') },
           { path: 'external', name: 'ExternalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'public', name: 'PublicSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
-          { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue') },
+          { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: ['SUPER_ADMIN'] } },
           // ===== G41 院校/公司信息库 =====
           { path: 'school-library', name: 'SchoolLibrary', component: () => import(/* webpackChunkName: "settings-school" */ '../pages/settings/SchoolLibrary.vue') },
           { path: 'company-library', name: 'CompanyLibrary', component: () => import(/* webpackChunkName: "settings-company-lib" */ '../pages/settings/CompanyLibrary.vue') },
@@ -126,7 +131,7 @@ const routes: RouteRecordRaw[] = [
           // ===== G30 我找的简历 (RPA) =====
           { path: 'scraped-resumes', name: 'ScrapedResumeList', component: () => import(/* webpackChunkName: "settings-scraped" */ '../pages/scraped/ScrapedResumeList.vue') },
           // ===== 招聘流程管理 (PRD G38) =====
-          { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import(/* webpackChunkName: "settings-recruitment-process" */ '../pages/settings/RecruitmentProcess.vue') },
+          { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import(/* webpackChunkName: "settings-recruitment-process" */ '../pages/settings/RecruitmentProcess.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import(/* webpackChunkName: "settings-recruitment-stage" */ '../pages/settings/RecruitmentStage.vue') },
           { path: 'process-stages', name: 'ProcessStageEditor', component: () => import(/* webpackChunkName: "settings-process-stages" */ '../pages/settings/ProcessStageEditor.vue') },
           { path: 'process-rules', name: 'ProcessStageRules', component: () => import(/* webpackChunkName: "settings-process-rules" */ '../pages/settings/ProcessStageRules.vue') },
@@ -153,17 +158,39 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
+/**
+ * 路由守卫 (exported for unit tests)
+ * 1. requiresAuth 拦截未登录访问
+ * 2. meta.roles 白名单校验；SUPER_ADMIN 始终放行
+ */
+export function routeGuard(to: any, _from: any, next: any) {
+  const userStore = useUserStore()
+  const token = userStore.token || localStorage.getItem('token')
 
+  // 1. 登录态校验 (existing)
   if (to.meta.requiresAuth && !token) {
-    next('/login')
-  } else if (to.path === '/login' && token) {
-    next('/dashboard')
-  } else {
-    next()
+    return next('/login')
   }
-})
+  if (to.path === '/login' && token) {
+    return next('/dashboard')
+  }
+
+  // 2. 角色校验 (new: Todo #5 - route-level RBAC)
+  // meta.roles 是允许访问的角色白名单；SUPER_ADMIN 始终放行
+  const requiredRoles = (to.meta.roles || []) as string[]
+  if (requiredRoles.length > 0) {
+    const userRole = userStore.user?.roleType
+    if (userRole !== 'SUPER_ADMIN' && !requiredRoles.includes(userRole as string)) {
+      console.warn(
+        `[router] access denied to ${to.path}: requires ${requiredRoles.join('/')}, user has ${userRole}`
+      )
+      return next('/forbidden')
+    }
+  }
+
+  next()
+}
+
+router.beforeEach(routeGuard)
 
 export default router
