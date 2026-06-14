@@ -403,6 +403,8 @@ model ProcessStageLink {
 
   @@unique([processId, stageId])
   @@index([processId, orderIndex])
+    applications Application[] @relation("ApplicationCurrentLink")
+
   @@map("process_stage_links")
 }
 
@@ -814,6 +816,11 @@ model Application {
   currentStageId     String?
   currentStageName   String?
   currentStageStatus String  @default("IN_PROGRESS")
+  currentLinkId String?
+
+  // ====== 软删除 / 阶段流转 (Todo #1 drift fix) ======
+  // 冗余字段 - 记录当前所在 process_stage_link,加速 scheduler 查询
+  // 历史流转记录在 ApplicationStageRecord 表
 
   processId   String
   processName String
@@ -835,6 +842,7 @@ model Application {
 
   interviews Interview[]
   offer      Offer?
+  currentLink  ProcessStageLink? @relation("ApplicationCurrentLink", fields: [currentLinkId], references: [id], onDelete: SetNull)
   onboarding Onboarding?
   invitation InvitationRecord?
 
