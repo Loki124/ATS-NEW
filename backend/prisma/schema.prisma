@@ -214,6 +214,9 @@ model User {
   // 简历锁定关联
   lockedResumes ResumeLockRecord[] @relation("ResumeLocker")
 
+  // 招聘流程阶段记录 - 双A免筛选判定决策人 (G38 #11)
+  decidedStageRecords ApplicationStageRecord[] @relation("StageRecordDecider")
+
   assignedCandidates Candidate[] @relation("CandidateAssignedUser")
   providedCandidates Candidate[] @relation("CandidateResumeProvider")
 
@@ -356,6 +359,9 @@ model RecruitmentStage {
   /// 哪些流程引用了这个阶段 - 通过 ProcessStageLink 关联
   links ProcessStageLink[]
 
+  /// 阶段流转记录 (G38 #11)
+  stageRecords ApplicationStageRecord[]
+
   @@index([stageType, status])
   @@map("recruitment_stages")
 }
@@ -391,6 +397,9 @@ model ProcessStageLink {
   stage     RecruitmentStage   @relation(fields: [stageId], references: [id], onDelete: Restrict)
   rule      StageRule?
   condition EntryCondition?
+
+  /// 阶段流转记录 (G38 #11)
+  stageRecords ApplicationStageRecord[]
 
   @@unique([processId, stageId])
   @@index([processId, orderIndex])
@@ -828,6 +837,9 @@ model Application {
   offer      Offer?
   onboarding Onboarding?
   invitation InvitationRecord?
+
+  // 阶段流转记录 (G38 #11)
+  stageRecords ApplicationStageRecord[]
 
   // 内推门户 Phase 1 - 反向关系
   referralRecord ReferralRecord? @relation("ApplicationReferrals")
@@ -2044,6 +2056,44 @@ model AutoArchiveRule {
   @@unique([processId, ruleType])
   @@index([processId, enabled])
   @@map("auto_archive_rules")
+}
+
+/// 候选人阶段流转记录 (G38 #11)
+/// 每次候选人进入/离开一个 process_stage_link 都创建一条记录
+/// 用于双 A 免筛选判定、自动流转判定、阶段历史追踪
+model ApplicationStageRecord {
+  id              String   @id @default(uuid())
+
+  applicationId   String
+  candidateId     String
+  processId       String
+  linkId          String
+  stageId         String
+
+  fromStatus      String?  @db.VarChar(32)
+  toStatus        String   @db.VarChar(32)  // PASS / FAIL / TIMEOUT / AUTO_ADVANCE / MANUAL
+  decision        String?  @db.VarChar(32)  // ALL_PASS / PARTIAL_PASS / ALL_FAIL / N+2_SKIP / DOUBLE_A_SKIP
+
+  enteredAt       DateTime?
+  exitedAt        DateTime @default(now())
+
+  decidedBy       String?
+  decisionReason  String?  @db.Text
+
+  autoAdvanced    Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+
+  application Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  link        ProcessStageLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  stage       RecruitmentStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  decider     User?            @relation("StageRecordDecider", fields: [decidedBy], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, exitedAt])
+  @@index([linkId, exitedAt])
+  @@index([candidateId, exitedAt])
+  @@index([toStatus])
+  @@map("application_stage_records")
 }
 
 // ============================================
