@@ -35,6 +35,7 @@ import offerRoutes from './routes/offer.routes.js';
 import offerTemplateRoutes from './routes/offer-template.routes.js';
 import notificationTemplateRoutes from './routes/notification-template.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
+import recruitmentAutoAdvanceRoutes from './routes/recruitment-auto-advance.routes.js';
 import onboardingRoutes from './routes/onboarding.routes.js';
 import talentPoolRoutes from './routes/talent-pool.routes.js';
 import scoringRuleRoutes from './routes/scoring-rule.routes.js';
@@ -46,6 +47,7 @@ import './services/integration/stub-email.adapter.js';
 import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
+import { startAutoAdvanceScheduler, stopAutoAdvanceScheduler } from './scheduler/recruitment-auto-advance.scheduler.js';
 import fieldAclRoutes from './routes/field-acl.routes.js';
 import schoolLibraryRoutes from './routes/school-library.routes.js';
 import companyLibraryRoutes from './routes/company-library.routes.js';
@@ -186,6 +188,9 @@ app.use('/api/notification-templates', authMiddleware, notificationTemplateRoute
 // ====== 邀约管理 (PRD G14 + G15 + G16) ======
 app.use('/api/invitations', authMiddleware, invitationRoutes);
 
+// ====== G38 #11 自动流转 API ======
+app.use('/api/recruitment-auto-advance', authMiddleware, recruitmentAutoAdvanceRoutes);
+
 // ====== 待入职管理 (PRD G28) ======
 app.use('/api/onboardings', authMiddleware, onboardingRoutes);
 
@@ -269,6 +274,13 @@ try {
   console.warn('[invitation] scheduler start failed:', e.message);
 }
 
+// 启动招聘流程自动流转调度 (G38 #11)
+try {
+  startAutoAdvanceScheduler(prisma);
+} catch (e) {
+  console.warn('[auto-advance] scheduler start failed:', e.message);
+}
+
 app.listen(config.app.port, () => {
   console.log(`🚀 ${config.app.name} 已启动`);
   console.log(`📡 后端服务: http://localhost:${config.app.port}`);
@@ -287,6 +299,11 @@ process.on('SIGTERM', async () => {
     stopInvitationScheduler();
   } catch (e) {
     console.warn('[invitation] scheduler stop failed:', e.message);
+  }
+  try {
+    stopAutoAdvanceScheduler();
+  } catch (e) {
+    console.warn('[auto-advance] scheduler stop failed:', e.message);
   }
   await prisma.$disconnect();
   process.exit(0);
