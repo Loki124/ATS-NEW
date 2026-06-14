@@ -48,6 +48,7 @@ import referralRoutes from './referral/index.js';
 import { startReferralScheduler, stopReferralScheduler } from './referral/index.js';
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
 import { startAutoAdvanceScheduler, stopAutoAdvanceScheduler } from './scheduler/recruitment-auto-advance.scheduler.js';
+import { startAutoArchiveScheduler, stopAutoArchiveScheduler } from './scheduler/auto-archive.scheduler.js';
 import fieldAclRoutes from './routes/field-acl.routes.js';
 import schoolLibraryRoutes from './routes/school-library.routes.js';
 import companyLibraryRoutes from './routes/company-library.routes.js';
@@ -281,6 +282,13 @@ try {
   console.warn('[auto-advance] scheduler start failed:', e.message);
 }
 
+// 启动自动归档调度 (G38 #8)
+try {
+  startAutoArchiveScheduler(prisma);
+} catch (e) {
+  console.warn('[auto-archive] scheduler start failed:', e.message);
+}
+
 app.listen(config.app.port, () => {
   console.log(`🚀 ${config.app.name} 已启动`);
   console.log(`📡 后端服务: http://localhost:${config.app.port}`);
@@ -304,6 +312,11 @@ process.on('SIGTERM', async () => {
     stopAutoAdvanceScheduler();
   } catch (e) {
     console.warn('[auto-advance] scheduler stop failed:', e.message);
+  }
+  try {
+    stopAutoArchiveScheduler();
+  } catch (e) {
+    console.warn('[auto-archive] scheduler stop failed:', e.message);
   }
   await prisma.$disconnect();
   process.exit(0);
