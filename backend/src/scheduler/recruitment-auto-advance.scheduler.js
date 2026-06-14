@@ -3,12 +3,10 @@
  *
  * 每 5 分钟扫描一次:
  *   1. 找所有 ACTIVE 状态的 applications (批 200 防 OOM)
- *   2. 解析每个 application 的当前 link
- *      - 优先: application.currentLinkId (Plan L 承诺, 但当前 schema 缺失 - 报告为 drift)
- *      - 兜底: application_stage_records.findFirst({ applicationId, exitedAt: null })
+ *   2. 解析每个 application 的当前 link (via application.currentLinkId,drift fix 2026-06-14)
  *   3. 按 StageRule.autoAdvanceType 推进候选人
  *   4. 推进成功 → 写一条 ApplicationStageRecord (toStatus=AUTO_ADVANCE, autoAdvanced=true)
- *   5. 推进 application.currentLinkId 到下一 link (若字段存在)
+ *   5. 推进 application.currentLinkId 到下一 link
  */
 
 import cron from 'node-cron'
@@ -65,33 +63,16 @@ export async function runAutoAdvanceCheck(prismaClient = prisma) {
 
   for (const app of applications) {
     try {
-      // 2. 解析当前 link
-      // 优先: app.currentLinkId (Plan L 应已加, 当前 schema 缺失 → 报告 drift)
-      // 兜底: application_stage_records 最近一条未退出的记录
-      let currentLink = null
-      let currentLinkId = null
-
-      if (app.currentLinkId) {
-        currentLinkId = app.currentLinkId
-        currentLink = await prismaClient.processStageLink.findUnique({
-          where: { id: currentLinkId },
-          include: { rule: true, stage: true },
-        })
-      } else {
-        // Drift 模式: 从 application_stage_records 推断当前 link
-        const activeRecord = await prismaClient.applicationStageRecord.findFirst({
-          where: { applicationId: app.id, exitedAt: null },
-          orderBy: { createdAt: 'desc' },
-        })
-        if (activeRecord) {
-          currentLinkId = activeRecord.linkId
-          currentLink = await prismaClient.processStageLink.findUnique({
-            where: { id: currentLinkId },
-            include: { rule: true, stage: true },
-          })
-        }
+      // 2. 解析当前 link (drift fix 2026-06-14: 直接用 application.currentLinkId)
+      const currentLinkId = app.currentLinkId
+      if (!currentLinkId) {
+        skipped++
+        continue
       }
-
+      const currentLink = await prismaClient.processStageLink.findUnique({
+        where: { id: currentLinkId },
+        include: { rule: true, stage: true },
+      })
       if (!currentLink || !currentLink.rule) {
         skipped++
         continue
@@ -153,13 +134,10 @@ export async function runAutoAdvanceCheck(prismaClient = prisma) {
           orderBy: { orderIndex: 'asc' },
         })
         if (nextLink) {
-          // 仅当 currentLinkId 字段存在时更新 (drift 模式跳过 - 由未来阶段补字段)
-          if (app.currentLinkId !== undefined) {
-            await prismaClient.application.update({
-              where: { id: app.id },
-              data: { currentLinkId: nextLink.id },
-            })
-          }
+          await prismaClient.application.update({
+            where: { id: app.id },
+            data: { currentLinkId: nextLink.id },
+          })
           advanced++
         } else {
           skipped++

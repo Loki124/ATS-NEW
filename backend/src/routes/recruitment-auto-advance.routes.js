@@ -34,26 +34,14 @@ router.post('/check', async (req, res, next) => {
     })
     if (!app) return res.status(404).json({ error: 'application not found' })
 
-    // 解析当前 link (drift 模式: 优先 currentLinkId, 兜底 application_stage_records)
-    let currentLink = null
-    if (app.currentLinkId) {
-      currentLink = await prisma.processStageLink.findUnique({
-        where: { id: app.currentLinkId },
-        include: { rule: true },
-      })
-    } else {
-      const activeRecord = await prisma.applicationStageRecord.findFirst({
-        where: { applicationId: app.id, exitedAt: null },
-        orderBy: { createdAt: 'desc' },
-      })
-      if (activeRecord) {
-        currentLink = await prisma.processStageLink.findUnique({
-          where: { id: activeRecord.linkId },
-          include: { rule: true },
-        })
-      }
+    // 解析当前 link (drift fix 2026-06-14: 直接用 application.currentLinkId)
+    if (!app.currentLinkId) {
+      return res.json({ shouldAdvance: false, reason: 'no current link' })
     }
-
+    const currentLink = await prisma.processStageLink.findUnique({
+      where: { id: app.currentLinkId },
+      include: { rule: true },
+    })
     if (!currentLink) {
       return res.json({ shouldAdvance: false, reason: 'no current link' })
     }
