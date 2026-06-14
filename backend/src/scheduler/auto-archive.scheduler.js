@@ -6,7 +6,7 @@
  *   2. archiveApplications(applicationIds) 把命中 applications 状态改成 ARCHIVED
  *
  * 与 invitation.scheduler / recruitment-auto-advance.scheduler 保持同样
- * 的 start*/stop* 接口 + tasks[] 数组 + try/catch-on-start 风格
+ * 的 start/stop 接口 + tasks 数组 + try/catch-on-start 风格
  */
 
 import cron from 'node-cron'

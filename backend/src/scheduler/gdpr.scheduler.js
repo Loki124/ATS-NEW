@@ -2,7 +2,7 @@
  * GDPR 自动 hard delete scheduler
  *
  * 每天凌晨 3 点跑一次, 删除 soft delete 超过 30 天的记录.
- * 与 invitation/auto-archive 保持同样的 start*/stop* 接口 + tasks[] 数组 +
+ * 与 invitation/auto-archive 保持同样的 start/stop 接口 + tasks 数组 +
  * try/catch-on-start 风格.
  *
  * 注: 需要绕过 soft-delete 中间件 (它会把 deleteMany 转成 updateMany),
