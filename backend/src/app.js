@@ -49,6 +49,8 @@ import { startReferralScheduler, stopReferralScheduler } from './referral/index.
 import { startInvitationScheduler, stopInvitationScheduler } from './scheduler/invitation.scheduler.js';
 import { startAutoAdvanceScheduler, stopAutoAdvanceScheduler } from './scheduler/recruitment-auto-advance.scheduler.js';
 import { startAutoArchiveScheduler, stopAutoArchiveScheduler } from './scheduler/auto-archive.scheduler.js';
+import { startGdprScheduler, stopGdprScheduler } from './scheduler/gdpr.scheduler.js';
+import gdprRoutes from './routes/gdpr.routes.js';
 import fieldAclRoutes from './routes/field-acl.routes.js';
 import schoolLibraryRoutes from './routes/school-library.routes.js';
 import companyLibraryRoutes from './routes/company-library.routes.js';
@@ -236,6 +238,9 @@ app.use('/api/duplicate-check', authMiddleware, duplicateCheckRoutes);
 //    返回结构不匹配)。先只挂 auth,后续 G8 全局数据权限中间件落地后再加。
 app.use('/api/search', authMiddleware, searchRoutes);
 
+// ====== Plan K #7 GDPR 合规 (Art. 17/20) ======
+app.use('/api/gdpr', authMiddleware, gdprRoutes);
+
 // 静态前端 + SPA fallback（让 Express 直接服务前端，免 nginx）
 // 1) 真实静态资源（dist/assets/*）
 app.use(express.static(FRONTEND_DIST));
@@ -289,6 +294,13 @@ try {
   console.warn('[auto-archive] scheduler start failed:', e.message);
 }
 
+// 启动 GDPR hard-delete 调度 (Plan K #7)
+try {
+  startGdprScheduler();
+} catch (e) {
+  console.warn('[gdpr] scheduler start failed:', e.message);
+}
+
 app.listen(config.app.port, () => {
   console.log(`🚀 ${config.app.name} 已启动`);
   console.log(`📡 后端服务: http://localhost:${config.app.port}`);
@@ -317,6 +329,11 @@ process.on('SIGTERM', async () => {
     stopAutoArchiveScheduler();
   } catch (e) {
     console.warn('[auto-archive] scheduler stop failed:', e.message);
+  }
+  try {
+    stopGdprScheduler();
+  } catch (e) {
+    console.warn('[gdpr] scheduler stop failed:', e.message);
   }
   await prisma.$disconnect();
   process.exit(0);
