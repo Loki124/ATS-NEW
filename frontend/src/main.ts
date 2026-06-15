@@ -130,4 +130,12 @@ app.use(createPinia())
 app.use(router)
 app.use(naive)
 
+// 2026-06-14: 全局 error 兜底, 避免任意外部模块 TDZ / unhandled rejection 让整个 app 白屏
+app.config.errorHandler = (err, _instance, info) => {
+  console.error('[Vue] 全局错误:', err, '\n组件信息:', info)
+}
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[window] unhandled promise rejection:', event.reason)
+})
+
 app.mount('#app')

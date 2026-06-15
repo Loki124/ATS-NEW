@@ -65,6 +65,9 @@ log ""
 log "[4/5] restart Express on :$APP_PORT"
 
 # 杀老的
+# 先停 systemd 守护，避免杀完老进程 5s 内又拉起新进程造成 race
+systemctl stop ats-backend 2>/dev/null || true
+sleep 1
 OLD_PID=$(cat "$APP_PID_FILE" 2>/dev/null || echo "")
 if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
   log "  停老 PID=$OLD_PID (SIGTERM)"
@@ -89,7 +92,7 @@ fi
 
 # 启动新的
 cd "$DEPLOY_DIR/backend"
-( nohup node src/app.js > "$APP_LOG" 2>&1 & echo $! > "$APP_PID_FILE" )
+( nohup node --env-file=.env src/app.js > "$APP_LOG" 2>&1 & echo $! > "$APP_PID_FILE" )
 sleep 4
 NEW_PID=$(cat "$APP_PID_FILE")
 log "  新 PID=$NEW_PID"
