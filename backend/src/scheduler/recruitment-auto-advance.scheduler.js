@@ -54,7 +54,7 @@ export function stopAutoAdvanceScheduler() {
 export async function runAutoAdvanceCheck(prismaClient = prisma) {
   // 1. 找所有 active applications (批 200 防 OOM)
   const applications = await prismaClient.application.findMany({
-    where: { status: 'ACTIVE' },
+    where: { applicationStatus: 'ACTIVE' },
     take: 200,
   })
 
