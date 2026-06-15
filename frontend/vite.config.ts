@@ -5,6 +5,7 @@ import UnoCSS from 'unocss/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 import { fileURLToPath } from 'url'
+// @ts-ignore: config file is outside tsconfig.node.json file list used for Vite config
 import config from './src/config'
 
 const __filename = fileURLToPath(import.meta.url)
