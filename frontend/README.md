@@ -191,6 +191,21 @@ Vite 5 + TypeScript。`npm run build` 会先 `vue-tsc` 类型检查再 `vite bui
 
 构建产物放 `dist/`，由后端 Express 静态服务（无需 nginx）。
 
+## Naive UI 拆分规则（重要，2026-06-15 加）
+
+> naive-ui 2.x 是分模块的 ESM 包，内部依赖 `treemate` / `async-validator` / `seemly` / `vueuc` / `vdirs` / `vooks` / `csstype` / `highlight.js` / `lodash(-es)` / `date-fns(-tz)` / `@css-render` 等 10+ 个小库，**这些库之间有共享标识符，top-level 立即执行**（cssr mount / createApp 触发）。
+>
+> 拆到不同 chunk 会被 rollup 重排求值顺序，出现 `Cannot access 'ma' before initialization`（TDZ），整个 Vue mount 失败 → `#app` 空 → **页面白屏**。
+
+**所以必须遵守**：
+
+1. `vite.config.ts` 的 `manualChunks` 已把所有 naive-ui 生态的间接依赖都归到 `vendor-naive-ui` 一个 chunk（不要拆）
+2. `vite.config.ts` 的 `optimizeDeps.include` 里有 `'naive-ui'`，让 dev/prod 都走 esbuild 预构建
+3. 升级 naive-ui 后**必须**跑一次 `npm run build`，看 `dist/assets/vendor-misc-*.js` 体积——一旦超过 ~80KB 说明 manualChunks 漏了某个新间接依赖，CI 也会 fail
+4. **不要** `import { xxx } from 'naive-ui/xxx'`（子路径），全部走裸 `naive-ui` import。否则 optimizeDeps 预构建不覆盖，需要手动加子路径到 include
+
+**CI 守门**（`.github/workflows/ci.yml` 的 `test-frontend` job）：build 完会断言 `vendor-misc-*.js` ≤ 100KB，超了就 fail。**别绕**，要绕就改阈值或改 manualChunks。
+
 ## 已知问题
 
 - 5 处样式不统一：emoji 当图标、page-title inline style、6/34 页面 20px font-size

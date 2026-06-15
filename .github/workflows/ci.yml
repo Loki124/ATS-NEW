@@ -167,6 +167,27 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Assert vendor-misc chunk size (naive-ui atomicity guard, 2026-06-15)
+        working-directory: frontend
+        run: |
+          # naive-ui 2.x 生态必须 atomic — 见 frontend/README.md "Naive UI 拆分规则"
+          # vendor-misc 超过 100KB 说明 manualChunks 漏了某个间接依赖, 会触发 TDZ 白屏
+          MISC_FILE=$(ls dist/assets/vendor-misc-*.js 2>/dev/null | head -1)
+          if [ -z "$MISC_FILE" ]; then
+            echo "✅ vendor-misc chunk 不存在 (已被 manualChunks 消除) — OK"
+            exit 0
+          fi
+          SIZE=$(stat -c %s "$MISC_FILE")
+          SIZE_KB=$((SIZE / 1024))
+          echo "vendor-misc 体积: ${SIZE_KB}KB ($MISC_FILE)"
+          if [ "$SIZE" -gt 102400 ]; then
+            echo "❌ vendor-misc 超过 100KB, naive-ui 生态被错误拆分,会触发 TDZ 白屏"
+            echo "   → 检查 frontend/vite.config.ts manualChunks 是否漏掉新依赖"
+            echo "   → 或考虑加进 optimizeDeps.include"
+            exit 1
+          fi
+          echo "✅ vendor-misc ≤ 100KB"
+
   test-migrations:
     name: Test Migration Deploy
     runs-on: ubuntu-latest

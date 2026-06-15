@@ -51,7 +51,14 @@ onMounted(() => {
   if (token) {
     const userData = localStorage.getItem('user')
     if (userData) {
-      userStore.setUser(JSON.parse(userData))
+      // 2026-06-14: 包 try/catch, 避免 localStorage 里 user 脏数据导致 JSON.parse 报错让 app 整个白屏
+      try {
+        userStore.setUser(JSON.parse(userData))
+      } catch (e) {
+        console.warn('[App] localStorage.user JSON.parse 失败, 清掉 token 重新登录', e)
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
     }
   }
 })
