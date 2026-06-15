@@ -267,6 +267,88 @@ router.get('/mou/user-mous/:userId', async (req, res, next) => {
       }
     });
 
+// 批量设置用户的 MOU 列表 (set 语义: 传 mouIds = 完整最终列表)
+router.post('/mou/user-mous/:userId', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { mouIds } = req.body;
+
+    if (!Array.isArray(mouIds)) {
+      return res.status(400).json({ success: false, message: 'mouIds 必须是数组' });
+    }
+
+    // 验证 user 存在
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+
+    // 验证 mouIds 有效性 (避免外键失败)
+    if (mouIds.length > 0) {
+      const validMous = await prisma.mou.findMany({
+        where: { id: { in: mouIds } },
+        select: { id: true },
+      });
+      if (validMous.length !== mouIds.length) {
+        return res.status(400).json({ success: false, message: '部分 mouId 无效' });
+      }
+    }
+
+    // 事务: 先软删 (status=INACTIVE) 不在新列表里的, 再 create 新列表里没的
+    const result = await prisma.$transaction(async (tx) => {
+      // 现有 userMous
+      const existing = await tx.userMou.findMany({
+        where: { userId, status: 'ACTIVE' },
+        select: { id: true, mouId: true },
+      })
+      const existingMouIds = new Set(existing.map((e) => e.mouId))
+      const newMouIds = new Set(mouIds)
+
+      // 1. 软删不在新列表里的
+      const toRemove = existing.filter((e) => !newMouIds.has(e.mouId))
+      if (toRemove.length > 0) {
+        await tx.userMou.updateMany({
+          where: { id: { in: toRemove.map((e) => e.id) } },
+          data: { status: 'INACTIVE', endDate: new Date() },
+        })
+      }
+
+      // 2. 新增不在现有里的
+      const toAdd = mouIds.filter((id) => !existingMouIds.has(id))
+      if (toAdd.length > 0) {
+        await tx.userMou.createMany({
+          data: toAdd.map((mouId) => ({ userId, mouId, status: 'ACTIVE' })),
+        })
+      }
+
+      // 3. 记录审计日志 (跟 POST /mou/:mouId/users 同样的格式)
+      await tx.permissionAuditLog.create({
+        data: {
+          userId,
+          action: 'set_user_mous',
+          targetType: 'user_mou_set',
+          targetId: userId,
+          targetName: `set ${mouIds.length} mous for ${user.realName || user.username}`,
+          source: 'manual',
+          operatorId: req.user?.id,
+          operatorName: req.user?.realName,
+          metadata: JSON.stringify({
+            added: toAdd,
+            removed: toRemove.map((e) => e.mouId),
+          }),
+        },
+      })
+
+      return { added: toAdd.length, removed: toRemove.length, total: mouIds.length }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    next(error)
+  }
+})
+
+
     res.json({ success: true, data: userMous });
   } catch (error) {
     next(error);
