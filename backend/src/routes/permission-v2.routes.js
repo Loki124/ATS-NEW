@@ -332,7 +332,7 @@ router.post('/mou/user-mous/:userId', async (req, res, next) => {
           source: 'manual',
           operatorId: req.user?.id,
           operatorName: req.user?.realName,
-          metadata: JSON.stringify({
+          detail: JSON.stringify({
             added: toAdd,
             removed: toRemove.map((e) => e.mouId),
           }),
