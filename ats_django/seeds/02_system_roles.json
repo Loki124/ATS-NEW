@@ -1,0 +1,101 @@
+[
+  {
+    "model": "core.role",
+    "pk": "role_super_admin",
+    "fields": {
+      "code": "SUPER_ADMIN",
+      "name": "超级管理员",
+      "description": "系统最高权限，可管理全部功能和数据",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_cho",
+    "fields": {
+      "code": "CHO",
+      "name": "CHO",
+      "description": "首席人力官，可查看全公司招聘数据、审批重要决策",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_hr_director",
+    "fields": {
+      "code": "HR_DIRECTOR",
+      "name": "HR 负责人",
+      "description": "HR 部门负责人，可管理全公司 HR 业务",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_hrbp",
+    "fields": {
+      "code": "HRBP",
+      "name": "HRBP",
+      "description": "HR 业务伙伴，负责指定 BG/部门的招聘",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_hr",
+    "fields": {
+      "code": "HR",
+      "name": "HR 招聘专员",
+      "description": "负责日常招聘执行、简历筛选、流程推进",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_hiring_manager",
+    "fields": {
+      "code": "HIRING_MANAGER",
+      "name": "用人经理",
+      "description": "用人部门经理，可发起需求、参与面试、查看本部门候选人",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_interviewer",
+    "fields": {
+      "code": "INTERVIEWER",
+      "name": "面试官",
+      "description": "可查看分配的面试任务、提交评价",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_referrer",
+    "fields": {
+      "code": "REFERRER",
+      "name": "推荐人",
+      "description": "内推员工，可推荐候选人、查看推荐进度",
+      "is_builtin": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.role",
+    "pk": "role_auditor",
+    "fields": {
+      "code": "AUDITOR",
+      "name": "审计人员",
+      "description": "只读访问全部数据 + 审计日志",
+      "is_builtin": true,
+      "is_active": true
+    }
+  }
+]

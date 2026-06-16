@@ -1,0 +1,107 @@
+{
+  "code": "INTERNAL_TRANSFER",
+  "name": "内部转岗",
+  "description": "面向内部员工转岗的简化流程：现部门评估→新部门面试→HR 备案→Offer。流程短，快速决策。",
+  "category": "INTERNAL",
+  "is_builtin": true,
+  "is_active": true,
+  "snapshot": {
+    "version": "1.0",
+    "applicable_scope": {
+      "items": [
+        {"field": "recruitment_type", "op": "eq", "value": "INTERNAL"},
+        {"field": "candidate.source_channel", "op": "eq", "value": "INTERNAL"}
+      ],
+      "expression": "1 AND 2"
+    },
+    "stages": [
+      {
+        "order": 1,
+        "stage_code": "P001",
+        "stage_name": "现部门评估",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "current_manager",
+          "time_limit_days": 3,
+          "auto_skip_n_plus_two": true
+        },
+        "entry_rules": [
+          {"field": "candidate.work_years", "op": "gte", "value": 0.5}
+        ]
+      },
+      {
+        "order": 2,
+        "stage_code": "P004",
+        "stage_name": "新部门 HR 面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 3,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE",
+          "auto_skip_n_plus_two": true
+        },
+        "entry_rules": [
+          {"field": "evaluation.current_manager_score", "op": "gte", "value": 60}
+        ]
+      },
+      {
+        "order": 3,
+        "stage_code": "P007",
+        "stage_name": "用人经理面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "hiring_manager",
+          "time_limit_days": 3,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": []
+      },
+      {
+        "order": 4,
+        "stage_code": "P008",
+        "stage_name": "正式录用",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 7
+        },
+        "entry_rules": []
+      }
+    ],
+    "automation_rules": [
+      {
+        "name": "现部门经理通过自动推 HR 面",
+        "trigger_type": "EVALUATION_SUBMITTED",
+        "trigger_timing": "IMMEDIATE",
+        "stage_code": "P001",
+        "condition": "evaluation.score >= 60",
+        "action_type": "AUTO_ADVANCE",
+        "next_stage_code": "P004",
+        "priority": "P0",
+        "enabled": true
+      },
+      {
+        "name": "N+2 推荐直接跳过简历评估",
+        "trigger_type": "STAGE_ENTERED",
+        "trigger_timing": "IMMEDIATE",
+        "stage_code": "P001",
+        "condition": "candidate.referral_type == 'N+2'",
+        "action_type": "SKIP_TO",
+        "next_stage_code": "P004",
+        "skip_check": true,
+        "priority": "P0",
+        "enabled": true
+      }
+    ]
+  }
+}
