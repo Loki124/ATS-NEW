@@ -1,6 +1,20 @@
-"""Celery tasks for gdpr app.
+"""GDPR Celery tasks (PRD v4 §4.4)"""
+import logging
+from typing import Dict
 
-⚠️ 占位：当前 gdpr app 暂无定时任务。Celery Beat schedule 在
-config/settings/base.py 与 celery_app.py 中可能引用了此模块，
-提供空 tasks.py 让 autodiscover 能正常加载。
-"""
+from celery import shared_task
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task(name='apps.gdpr.tasks.run_retention_cleanup')
+def run_retention_cleanup() -> Dict:
+    """GDPR 数据保留期清理（每日）"""
+    from .services import GdprService
+
+    archived = GdprService.cleanup_expired()
+    return {
+        'cleaned_at': timezone.now().isoformat(),
+        'archived_requests': archived,
+    }

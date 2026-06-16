@@ -3,6 +3,9 @@ from .base import *  # noqa
 
 DEBUG = False
 
+# 测试环境允许所有 host
+ALLOWED_HOSTS = ['*']
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',

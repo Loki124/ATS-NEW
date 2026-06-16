@@ -267,6 +267,12 @@ router.get('/mou/user-mous/:userId', async (req, res, next) => {
       }
     });
 
+    res.json({ success: true, data: userMous });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // 批量设置用户的 MOU 列表 (set 语义: 传 mouIds = 完整最终列表)
 router.post('/mou/user-mous/:userId', async (req, res, next) => {
   try {
@@ -294,30 +300,31 @@ router.post('/mou/user-mous/:userId', async (req, res, next) => {
       }
     }
 
-    // 事务: 先软删 (status=INACTIVE) 不在新列表里的, 再 create 新列表里没的
+    // 事务: 先删这个 user 的所有 userMous (active+inactive), 再 create 新集合
+    // 简单粗暴但绕过 UserMou @@unique([userId, mouId]) 约束.
+    // 之前 软删(INACTIVE) + createMany 的方式会撞 unique(INACTIVE 记录还在)
+    // → 409 Conflict (v0.16.1.15 修复前的 bug)
+    // 注意: 丢失了"被移除的 MOU 历史"细节, 但 audit log (PermissionAuditLog)
+    // 仍然记 'set_user_mous' event with added/removed lists.
     const result = await prisma.$transaction(async (tx) => {
-      // 现有 userMous
+      // 删所有这个 user 的 userMous (含 INACTIVE)
       const existing = await tx.userMou.findMany({
-        where: { userId, status: 'ACTIVE' },
-        select: { id: true, mouId: true },
+        where: { userId },
+        select: { id: true, mouId: true, status: true },
       })
       const existingMouIds = new Set(existing.map((e) => e.mouId))
       const newMouIds = new Set(mouIds)
 
-      // 1. 软删不在新列表里的
-      const toRemove = existing.filter((e) => !newMouIds.has(e.mouId))
-      if (toRemove.length > 0) {
-        await tx.userMou.updateMany({
-          where: { id: { in: toRemove.map((e) => e.id) } },
-          data: { status: 'INACTIVE', endDate: new Date() },
-        })
+      const toAdd = mouIds.filter((id) => !existingMouIds.has(id))
+      const toRemove = [...existingMouIds].filter((id) => !newMouIds.has(id))
+
+      if (existing.length > 0) {
+        await tx.userMou.deleteMany({ where: { userId } })
       }
 
-      // 2. 新增不在现有里的
-      const toAdd = mouIds.filter((id) => !existingMouIds.has(id))
-      if (toAdd.length > 0) {
+      if (toAdd.length > 0 || mouIds.length > 0) {
         await tx.userMou.createMany({
-          data: toAdd.map((mouId) => ({ userId, mouId, status: 'ACTIVE' })),
+          data: mouIds.map((mouId) => ({ userId, mouId, status: 'ACTIVE' })),
         })
       }
 
@@ -348,7 +355,18 @@ router.post('/mou/user-mous/:userId', async (req, res, next) => {
   }
 })
 
-
+// 获取用户的MOU列表 (兼容前端路径)
+router.get('/mou/user-mous/:userId', async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+    const userMous = await prisma.userMou.findMany({
+      where: { userId, status: 'ACTIVE' },
+      include: {
+        mou: {
+          include: { _count: { select: { userMous: true } } }
+        }
+      }
+    });
     res.json({ success: true, data: userMous });
   } catch (error) {
     next(error);
