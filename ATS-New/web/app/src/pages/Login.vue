@@ -69,7 +69,6 @@
                   size="large"
                   :loading="loading"
                   attr-type="submit"
-                  @click="onAccountFinish"
                 >
                   登 录
                 </n-button>
@@ -182,7 +181,20 @@ const handleLogin = async (values: { username: string; password: string }) => {
     const response = await login(values.username, values.password)
     const data = response.data
     if (data.success) {
-      localStorage.setItem('token', data.data.token)
+      // 修复: 兼容 Django SimpleJWT 双 token 模式
+      //   旧 login API 返回 { token: 'xxx' } (单 token, 写入 localStorage.token)
+      //   新 Django login API 返回 { access, refresh, user } (双 token, 写 accessToken)
+      // 两个 key 都写, 让 27 个老 API 文件 (读 'token') + 新代码 (读 'accessToken') 都兼容
+      const _token = data.data.token || data.data.access
+      const _refresh = data.data.refresh
+      if (_token) {
+        localStorage.setItem('token', _token)
+        userStore.setAccessToken(_token)  // 同步到 Pinia store
+      }
+      if (_refresh) {
+        localStorage.setItem('refreshToken', _refresh)
+        userStore.setRefreshToken(_refresh)
+      }
       userStore.setUser({
         id: data.data.user.id,
         username: data.data.user.username,
@@ -195,12 +207,20 @@ const handleLogin = async (values: { username: string; password: string }) => {
         localStorage.setItem('rememberMe', 'true')
       }
       message.success('登录成功！')
+      // 用 nextTick 避免 message toast 在路由切换时被销毁
+      await nextTick()
       router.push('/dashboard')
     } else {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
-    message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
+    // 忽略 Vue Router 自身的 NavigationFailure (e.g. push 被新 push 取消),
+    // 这种错误跟登录失败无关, 不应误报
+    if (error?.name === 'NavigationFailure' || error?.type === undefined && error?.message?.includes('NavigationFailure')) {
+      // 静默忽略
+    } else {
+      message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
+    }
   } finally {
     loading.value = false
   }
