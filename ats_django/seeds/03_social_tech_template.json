@@ -1,0 +1,168 @@
+{
+  "code": "SOCIAL_TECH",
+  "name": "社招-技术岗",
+  "description": "面向社招技术岗位的标准流程：初评→简历评估→HR面→技术一面→技术二面→用人经理面→Offer",
+  "category": "SOCIAL",
+  "is_builtin": true,
+  "is_active": true,
+  "snapshot": {
+    "version": "1.0",
+    "applicable_scope": {
+      "items": [
+        {"field": "recruitment_type", "op": "eq", "value": "SOCIAL"},
+        {"field": "position_category", "op": "in", "value": ["TECH", "RD", "ENGINEERING"]}
+      ],
+      "expression": "1 AND 2"
+    },
+    "stages": [
+      {
+        "order": 1,
+        "stage_code": "P001",
+        "stage_name": "初评",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "hiring_manager",
+          "time_limit_days": 2
+        },
+        "entry_rules": [
+          {"field": "candidate.has_resume", "op": "eq", "value": true}
+        ]
+      },
+      {
+        "order": 2,
+        "stage_code": "P002",
+        "stage_name": "简历评估",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "hiring_manager",
+          "time_limit_days": 3
+        },
+        "entry_rules": [
+          {"field": "candidate.resume_score", "op": "gte", "value": 60}
+        ]
+      },
+      {
+        "order": 3,
+        "stage_code": "P003",
+        "stage_name": "电话沟通",
+        "is_required": false,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 1
+        },
+        "entry_rules": []
+      },
+      {
+        "order": 4,
+        "stage_code": "P004",
+        "stage_name": "HR 面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 5,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": [
+          {"field": "candidate.work_years", "op": "gte", "value": 0}
+        ]
+      },
+      {
+        "order": 5,
+        "stage_code": "P005",
+        "stage_name": "技术一面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 7,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": [
+          {"field": "evaluation.hr_score", "op": "gte", "value": 60}
+        ]
+      },
+      {
+        "order": 6,
+        "stage_code": "P006",
+        "stage_name": "技术二面",
+        "is_required": false,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 7,
+          "interview_rounds": 1,
+          "interview_format": "JOINT",
+          "inherit_prior_consensus": true
+        },
+        "entry_rules": [
+          {"field": "candidate.level", "op": "in", "value": ["P6", "P7", "P8", "P9"]}
+        ]
+      },
+      {
+        "order": 7,
+        "stage_code": "P007",
+        "stage_name": "用人经理面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "hiring_manager",
+          "time_limit_days": 5,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": []
+      },
+      {
+        "order": 8,
+        "stage_code": "P008",
+        "stage_name": "正式录用",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 14
+        },
+        "entry_rules": []
+      }
+    ],
+    "automation_rules": [
+      {
+        "name": "HR 面通过 24h 内自动推进技术一面",
+        "trigger_type": "STAGE_ENTERED",
+        "trigger_timing": "IMMEDIATE",
+        "stage_code": "P004",
+        "condition": "evaluation.score >= 60",
+        "action_type": "AUTO_ADVANCE",
+        "next_stage_code": "P005",
+        "priority": "P1",
+        "enabled": true
+      },
+      {
+        "name": "技术一面 7 天未处理自动超时入库",
+        "trigger_type": "STAGE_ENTERED",
+        "trigger_timing": "WORKING_DAYS",
+        "trigger_delay_hours": null,
+        "working_days": 7,
+        "stage_code": "P005",
+        "condition": "stage.state == PROCESSING",
+        "action_type": "REJECT_TO_POOL",
+        "priority": "P2",
+        "enabled": true
+      }
+    ]
+  }
+}

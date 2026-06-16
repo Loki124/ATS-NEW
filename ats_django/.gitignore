@@ -1,0 +1,88 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ===== Virtual Environments =====
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.python-cache/
+
+# ===== Django =====
+*.sqlite3
+*.sqlite3-journal
+db.sqlite3
+db.sqlite3-journal
+db.bak
+db.sqlite3.bak
+db.bak.sqlite3
+staticfiles/
+media/
+
+# ===== Django local configs =====
+.env
+.env.bak
+.env.local
+.env.*.local
+.envrc
+
+# ===== Logs =====
+*.log
+logs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ===== Testing / Coverage =====
+.coverage
+.coverage.*
+.cache
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage.xml
+*.cover
+
+# ===== IDEs / Editors =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Backups / Temp =====
+*.bak
+*.orig
+*.tmp
+*.zip
+*.tar.gz
+*.tgz
+*.swp
+*.swo
+
+# ===== Build artifacts =====
+*.tsbuildinfo
+.eslintcache
+.parcel-cache

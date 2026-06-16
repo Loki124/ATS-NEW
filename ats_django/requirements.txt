@@ -1,0 +1,86 @@
+# ATS 招聘管理系统 - Python 依赖
+# ATS Recruitment Management System - Python Dependencies
+
+# === Runtime ===
+Django==5.0.6
+djangorestframework==3.15.1
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.1
+django-ratelimit==4.1.0
+django-filter==24.2
+django-extensions==3.2.3
+drf-spectacular==0.27.2
+
+# === State Machine ===
+django-fsm==2.8.1
+django-fsm-2==4.0.0  # 备选
+
+# === Async / Real-time ===
+celery==5.4.0
+redis==5.0.4
+channels==4.1.0
+channels-redis==4.2.0
+django-celery-beat==2.6.0
+django-celery-results==2.5.1
+
+# === Database ===
+# MySQL 驱动（生产推荐）：mysqlclient（C 扩展，需系统依赖）或 PyMySQL（纯 Python，无依赖）
+# 默认使用 PyMySQL（无需编译），在 config/settings/base.py 顶部通过 pymysql.install_as_MySQLdb() 适配
+PyMySQL==1.1.1
+cryptography==42.0.7  # PyMySQL 加密支持
+# 备选：如需 mysqlclient，先 `brew install mysql pkg-config` 后启用
+# mysqlclient==2.2.4
+# PostgreSQL 备选
+psycopg2-binary==2.9.9
+# SQLite is built-in for dev/test
+
+# === Monitoring / Logging ===
+django-prometheus==2.3.1
+prometheus-client==0.20.0
+sentry-sdk==2.3.1
+python-json-logger==2.0.7
+
+# === Configuration ===
+python-decouple==3.8
+django-environ==0.11.2
+
+# === Utilities ===
+python-dateutil==2.9.0
+pytz==2024.1
+Pillow==10.3.0
+openpyxl==3.1.2  # Excel 导出
+reportlab==4.2.0  # PDF 生成
+python-slugify==8.0.4
+nanoid==2.0.0  # ID 生成
+
+# === HTTP / WebSocket ===
+requests==2.32.3
+websockets==12.0
+daphne==4.1.2
+
+# === Search (V4.5) ===
+# elasticsearch==8.13.0
+# django-elasticsearch-dsl==8.0
+
+# === Testing ===
+pytest==8.2.0
+pytest-django==4.8.0
+pytest-cov==5.0.0
+factory-boy==3.3.0
+faker==25.2.0
+freezegun==1.5.1
+responses==0.25.3
+# mixer 7.2.2 暂注释（与 faker 版本冲突；用 factory-boy 替代）
+
+# === Code Quality ===
+black==24.4.2
+flake8==7.0.0
+isort==5.13.2
+mypy==1.10.0
+django-stubs==5.0.0
+djangorestframework-stubs==3.15.0
+
+# === Production Server ===
+gunicorn==22.0.0
+whitenoise==6.6.0
+uvicorn[standard]==0.29.0

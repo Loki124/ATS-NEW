@@ -1,0 +1,66 @@
+[
+  {
+    "model": "core.user",
+    "pk": 1,
+    "fields": {
+      "username": "admin",
+      "password": "pbkdf2_sha256$600000$dummy$placeholder",
+      "email": "admin@example.com",
+      "is_superuser": true,
+      "is_staff": true,
+      "is_active": true,
+      "employee_id": "EMP-0001",
+      "phone": "13800138000",
+      "first_name": "系统",
+      "last_name": "管理员"
+    }
+  },
+  {
+    "model": "core.user",
+    "pk": 2,
+    "fields": {
+      "username": "hr_zhang",
+      "password": "pbkdf2_sha256$600000$dummy$placeholder",
+      "email": "hr.zhang@example.com",
+      "is_staff": true,
+      "is_active": true,
+      "employee_id": "EMP-1001",
+      "phone": "13800138001",
+      "first_name": "张",
+      "last_name": "HR",
+      "position_title": "HR 招聘专员"
+    }
+  },
+  {
+    "model": "core.user",
+    "pk": 3,
+    "fields": {
+      "username": "hm_li",
+      "password": "pbkdf2_sha256$600000$dummy$placeholder",
+      "email": "hm.li@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "employee_id": "EMP-2001",
+      "phone": "13800138002",
+      "first_name": "李",
+      "last_name": "经理",
+      "position_title": "技术部经理"
+    }
+  },
+  {
+    "model": "core.user",
+    "pk": 4,
+    "fields": {
+      "username": "interview_wang",
+      "password": "pbkdf2_sha256$600000$dummy$placeholder",
+      "email": "wang@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "employee_id": "EMP-3001",
+      "phone": "13800138003",
+      "first_name": "王",
+      "last_name": "面试官",
+      "position_title": "高级工程师"
+    }
+  }
+]
