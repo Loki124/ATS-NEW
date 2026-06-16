@@ -1,0 +1,49 @@
+# === Python ===
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# === Django ===
+db.sqlite3
+db.sqlite3-journal
+*.db
+/staticfiles/
+/media/
+/logs/
+.env
+.env.local
+.env.*.local
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# === Tests / Docs ===
+/tests/
+/docs/
+/README.md
+/docker-compose*.yml
+/Dockerfile
+
+# === Git ===
+.git/
+.gitignore
+.gitattributes
+
+# === Frontend (不应在 Django 镜像中) ===
+/static_src/
+/node_modules/
+/dist/
