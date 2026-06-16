@@ -130,6 +130,33 @@ app.use(createPinia())
 app.use(router)
 app.use(naive)
 
+// 2026-06-15: 在 mount 之前从 localStorage 同步恢复 user
+// 否则 router.beforeEach 跑时 userStore.user 还是 null,
+// meta.roles 守卫看到 user?.roleType === undefined 误判 'user has undefined'
+// → access denied 白名单页跳不进去
+// 2026-06-16: 适配 Django SimpleJWT - 改用 accessToken/refreshToken 双 token
+import { useUserStore } from './stores/user'
+const _userStore = useUserStore()
+try {
+  const _accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token')
+  const _refreshToken = localStorage.getItem('refreshToken')
+  const _userRaw = localStorage.getItem('user')
+  if (_accessToken) {
+    _userStore.setAccessToken(_accessToken)
+  }
+  if (_refreshToken) {
+    _userStore.setRefreshToken(_refreshToken)
+  }
+  if (_userRaw) {
+    _userStore.setUser(JSON.parse(_userRaw))
+  }
+} catch (e) {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+}
+
 // 2026-06-14: 全局 error 兜底, 避免任意外部模块 TDZ / unhandled rejection 让整个 app 白屏
 app.config.errorHandler = (err, _instance, info) => {
   console.error('[Vue] 全局错误:', err, '\n组件信息:', info)
