@@ -1,10 +1,16 @@
-"""Time Limit Celery tasks (PRD v4 §6.5)"""
+"""Time Limit Celery tasks (PRD v4 §6.5)
+
+P0-2 修复: 所有调度任务用 @retryable_scheduled_task
+(DB 抖动自动重试 + 连续失败告警)
+"""
 import logging
 from datetime import timedelta
 from typing import Dict, List
 
 from celery import shared_task
 from django.utils import timezone
+
+from apps.common.celery_utils import retryable_scheduled_task
 
 from .services import (
     TimeLimitCalcResult,
@@ -17,7 +23,11 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='apps.time_limit.tasks.check_stage_time_limit')
+@retryable_scheduled_task(
+    name='apps.time_limit.tasks.check_stage_time_limit',
+    max_retries=3,
+    retry_backoff=60,
+)
 def check_stage_time_limit() -> Dict:
     """检查所有进行中申请是否超时（每 30 分钟）"""
     from apps.application.models import Application, ApplicationState
@@ -25,13 +35,16 @@ def check_stage_time_limit() -> Dict:
     now = timezone.now()
     expired = []
     near_deadline = []
+    # P1-3: 改用 .iterator() 流式查询,避免 10k+ 申请时一次性加载到内存 OOM
     in_progress = Application.objects.filter(
         state__in=[ApplicationState.ACTIVE, ApplicationState.PAUSED],
         deleted_at__isnull=True,
         stage_deadline__isnull=False,
-    ).select_related('candidate', 'position', 'current_stage')
+    ).select_related('candidate', 'position', 'current_stage').iterator(chunk_size=500)
 
+    total_checked = 0
     for app in in_progress:
+        total_checked += 1
         if not app.stage_deadline:
             continue
         if is_time_exceeded(app.stage_entered_at, app.stage_deadline):
@@ -57,11 +70,15 @@ def check_stage_time_limit() -> Dict:
         'checked_at': now.isoformat(),
         'expired': expired,
         'near_deadline': near_deadline,
-        'total_checked': in_progress.count(),
+        'total_checked': total_checked,
     }
 
 
-@shared_task(name='apps.time_limit.tasks.send_deadline_warnings')
+@retryable_scheduled_task(
+    name='apps.time_limit.tasks.send_deadline_warnings',
+    max_retries=3,
+    retry_backoff=60,
+)
 def send_deadline_warnings() -> Dict:
     """给接近超时的申请发送提醒（每 6 小时）"""
     from apps.application.models import Application, ApplicationState
@@ -69,12 +86,13 @@ def send_deadline_warnings() -> Dict:
 
     now = timezone.now()
     soon_deadline = now + timedelta(hours=24)
+    # P1-3: 同样改用 .iterator() 流式查询
     apps = Application.objects.filter(
         state=ApplicationState.ACTIVE,
         deleted_at__isnull=True,
         stage_deadline__lte=soon_deadline,
         stage_deadline__gt=now,
-    ).select_related('candidate', 'position', 'current_stage', 'hr')
+    ).select_related('candidate', 'position', 'current_stage', 'hr').iterator(chunk_size=500)
 
     sent = 0
     for app in apps:

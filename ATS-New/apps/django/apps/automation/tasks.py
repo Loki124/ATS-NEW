@@ -1,25 +1,41 @@
-"""Automation Celery tasks (PRD v4 §6.6)"""
+"""Automation Celery tasks (PRD v4 §6.6)
+
+P0-2 修复: 所有调度任务已从裸 @shared_task 改为
+@retryable_scheduled_task,获得统一的:
+- DB 抖动自动重试 (指数退避,最多 3 次)
+- 连续失败 N 次后通知超管
+- 任务成功自动清理失败计数
+"""
 import logging
 from typing import Dict
 
 from celery import shared_task
 from django.utils import timezone
 
+from apps.common.celery_utils import retryable_scheduled_task
+
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='apps.automation.tasks.run_scheduled_rules')
+@retryable_scheduled_task(
+    name='apps.automation.tasks.run_scheduled_rules',
+    max_retries=3,
+    retry_backoff=60,
+)
 def run_scheduled_rules() -> Dict:
     """执行所有启用的自动化规则（每 15 分钟）"""
     from .models import AutomationRule
     from .services import AutomationEngine
 
-    enabled_rules = AutomationRule.objects.filter(enabled=True)
+    # P1-3: .iterator() 流式查询,避免规则数量增长后 OOM
+    enabled_rules = AutomationRule.objects.filter(enabled=True).iterator(chunk_size=200)
     triggered = 0
     skipped = 0
     errors = 0
+    total = 0
 
     for rule in enabled_rules:
+        total += 1
         try:
             result = AutomationEngine.run(rule)
             if result.get('triggered'):
@@ -32,7 +48,7 @@ def run_scheduled_rules() -> Dict:
 
     return {
         'checked_at': timezone.now().isoformat(),
-        'rules_total': enabled_rules.count(),
+        'rules_total': total,
         'triggered': triggered,
         'skipped': skipped,
         'errors': errors,
@@ -46,10 +62,13 @@ def check_automation_failure_rate() -> Dict:
     from apps.notification.services import NotificationService
     from apps.core.models import User
 
-    rules = AutomationRule.objects.filter(enabled=True)
+    # P1-3: .iterator() 流式查询
+    rules = AutomationRule.objects.filter(enabled=True).iterator(chunk_size=200)
     alerts = []
+    rules_checked = 0
 
     for rule in rules:
+        rules_checked += 1
         threshold = rule.failure_rate_threshold or 0.5
         recent_logs = AutomationLog.objects.filter(rule=rule).order_by('-trigger_time')[:100]
         if not recent_logs.exists():
@@ -83,6 +102,6 @@ def check_automation_failure_rate() -> Dict:
 
     return {
         'checked_at': timezone.now().isoformat(),
-        'rules_checked': rules.count(),
+        'rules_checked': rules_checked,
         'alerts': alerts,
     }
