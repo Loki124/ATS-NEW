@@ -6,6 +6,9 @@ DATABASES 不再覆盖 base.py 的配置 - 由 DATABASE_URL 决定（MySQL/Postg
 from .base import *  # noqa
 from .base import INSTALLED_APPS, MIDDLEWARE
 
+# 本地 SQLite 开发：移除需要 psycopg2 的 django.contrib.postgres
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app != 'django.contrib.postgres']
+
 DEBUG = True
 INTERNAL_IPS = ['127.0.0.1']
 
