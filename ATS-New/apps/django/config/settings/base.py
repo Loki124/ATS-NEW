@@ -10,6 +10,9 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+# P1-4: Celery beat crontab 表达式支持
+from celery.schedules import crontab  # noqa: E402
+
 # 优先用 PyMySQL 模拟 mysqlclient（避免 C 扩展系统依赖）
 try:
     import pymysql
@@ -81,6 +84,7 @@ LOCAL_APPS = [
     # 核心
     'apps.core',
     'apps.field_acl',
+    'apps.permissions',
     'apps.audit',
     'apps.notification',
     'apps.gdpr',
@@ -376,6 +380,16 @@ CELERY_BEAT_SCHEDULE = {
     'gdpr-retention-cleanup': {
         'task': 'apps.gdpr.tasks.run_retention_cleanup',
         'schedule': 24 * 60 * 60,  # 24 小时
+    },
+    # P1-4: audit log 清理任务
+    'audit-log-cleanup': {
+        'task': 'apps.audit.tasks.cleanup_old_audit_logs',
+        # 每日凌晨 3:00 执行 (crontab: 0 3 * * *)
+        'schedule': crontab(hour=3, minute=0),
+    },
+    'audit-cleanup-healthcheck': {
+        'task': 'apps.audit.tasks.audit_cleanup_healthcheck',
+        'schedule': 60 * 60,  # 1 小时
     },
 }
 
