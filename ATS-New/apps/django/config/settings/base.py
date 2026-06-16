@@ -119,7 +119,10 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 2026-06-16: 替换 Django 原生 CsrfViewMiddleware 为 ConditionalCsrfMiddleware
+    # 原因：API 走 JWT 不需要 CSRF，但浏览器 vite proxy 同源会带 csrftoken cookie 触发 403
+    # /admin/ 等非 API 路径仍走 Django 标准 CSRF
+    'apps.core.middleware.ConditionalCsrfMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -231,9 +234,11 @@ AUTH_USER_MODEL = 'core.User'
 
 # === DRF 配置 ===
 REST_FRAMEWORK = {
+    # 2026-06-16: 移除 SessionAuthentication，只保留 JWT
+    # 原因：API 是无状态的，前端用 Authorization: Bearer <jwt> 认证
+    # SessionAuthentication 会强制 CSRF 校验，浏览器 vite proxy 同源会带 csrftoken cookie 触发 403
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -285,6 +290,16 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS')
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ['X-Request-Id', 'X-Total-Count']
+
+# 2026-06-16: CSRF_TRUSTED_ORIGINS - 允许浏览器同源 vite proxy 跨域 POST
+# (虽然 ConditionalCsrfMiddleware 已经对 /api/ 豁免 CSRF，但保留这个以防 Django
+# 其他中间件做 Origin 检查)
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5212',
+    'http://127.0.0.1:5212',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
 
 # === Spectacular (OpenAPI) ===
 SPECTACULAR_SETTINGS = {
