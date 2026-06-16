@@ -106,12 +106,26 @@ class DemandService:
     @staticmethod
     @transaction.atomic
     def approve(demand_id: str, approver_id: str, comment: str = '', actor: User = None) -> Demand:
-        """审批通过 (PENDING → APPROVED)"""
+        """审批通过 (PENDING → APPROVED)
+
+        P0-3 修复:
+        1. select_for_update 已锁住 demand 行,防止并发审批覆盖
+        2. approvals 子查询用 select_for_update(of=('self',)) 也锁住,
+           避免 count() 与 find PENDING 之间被新插入的 approval 干扰
+        3. 改用 max('level') 替代 count(),语义更明确
+        """
         demand = Demand.objects.select_for_update().get(id=demand_id, deleted_at__isnull=True)
-        approval = demand.approvals.filter(level=demand.approvals.count(), result='PENDING').first()
-        if not approval:
+
+        # 锁住所有 PENDING 审批行,防止"取 max level → 处理"之间被插入新 approval
+        pending_approvals = list(
+            demand.approvals.select_for_update().filter(result='PENDING').order_by('-level')
+        )
+        if not pending_approvals:
             raise NotFound('无待审批项')
+        approval = pending_approvals[0]  # 最高 level 的 PENDING 项
+
         approval.result = 'APPROVED'
+        approval.approver_id = approver_id
         approval.comment = comment
         approval.save()
         demand.approve()
@@ -121,11 +135,18 @@ class DemandService:
     @staticmethod
     @transaction.atomic
     def reject(demand_id: str, approver_id: str, reason: str, actor: User = None) -> Demand:
-        """审批驳回 (PENDING → REJECTED)"""
+        """审批驳回 (PENDING → REJECTED)
+
+        P0-3 修复: 同 approve(),锁住 PENDING 审批行
+        """
         demand = Demand.objects.select_for_update().get(id=demand_id, deleted_at__isnull=True)
-        approval = demand.approvals.filter(result='PENDING').order_by('-level').first()
-        if approval:
+        pending_approvals = list(
+            demand.approvals.select_for_update().filter(result='PENDING').order_by('-level')
+        )
+        if pending_approvals:
+            approval = pending_approvals[0]
             approval.result = 'REJECTED'
+            approval.approver_id = approver_id
             approval.comment = reason
             approval.save()
         demand.reject()
@@ -135,16 +156,27 @@ class DemandService:
     @staticmethod
     @transaction.atomic
     def start_recruiting(demand_id: str, actor: User) -> Demand:
-        """开始招聘 (APPROVED → RECRUITING)"""
-        demand = Demand.objects.get(id=demand_id, deleted_at__isnull=True)
+        """开始招聘 (APPROVED → RECRUITING)
+
+        P0-3 修复: 加 select_for_update() 防止两个管理员同时操作同一需求
+        (一个可能在调用 approve(),另一个在 start_recruiting())
+        """
+        demand = Demand.objects.select_for_update().get(id=demand_id, deleted_at__isnull=True)
         demand.start_recruiting()
         demand.save()
         return demand
 
     @staticmethod
+    @transaction.atomic
     def cancel(demand_id: str, reason: str, actor: User) -> Demand:
-        """取消需求 (任意 → CANCELLED)"""
-        demand = Demand.objects.get(id=demand_id, deleted_at__isnull=True)
+        """取消需求 (任意 → CANCELLED)
+
+        P0-3 修复: 之前没有 @transaction.atomic 也没有 select_for_update,
+        存在两个问题:
+        1. cancel 过程中如果 DB 异常,状态可能半变更
+        2. 多个操作者同时取消,可能产生脏状态
+        """
+        demand = Demand.objects.select_for_update().get(id=demand_id, deleted_at__isnull=True)
         demand.cancel()
         demand.save()
         return demand
