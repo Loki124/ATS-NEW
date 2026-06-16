@@ -91,7 +91,28 @@ class GrabService:
     @staticmethod
     @transaction.atomic
     def grab(application: Application, user: User) -> GrabResult:
-        """认领申请（抢单）"""
+        """认领申请（抢单）
+
+        P0-4 修复: 旧实现直接读 application.is_grabbed 后写,存在 TOCTOU 竞态:
+        两个 HR 同时抢同一申请,两个事务都看到 is_grabbed=False,然后都更新为 True,
+        最终两次 ApplicationHistory.GRABBED 记录都被创建,grabbed_by 取决于
+        最后提交的事务,业务上完全错乱。
+
+        修复:
+        1. 进入事务后立即 select_for_update() 重新加载,获得行级锁
+        2. MySQL InnoDB 默认 REPEATABLE READ + 间隙锁,可避免幻读
+        3. SQLite (开发) 跳过 select_for_update 也不影响,事务本身有互斥
+        """
+        # 1) 重新加锁加载 (事务内)
+        # 注: select_for_update 在 SQLite 下会被忽略,但事务本身仍能保证原子性
+        qs = Application.objects.select_for_update().filter(
+            id=application.id, deleted_at__isnull=True,
+        )
+        application = qs.first()
+        if not application:
+            raise NotFound(f'Application {application.id} 不存在')
+
+        # 2) 在锁保护下判断状态
         if application.is_grabbed:
             if application.grabbed_by_id == user.id:
                 # 同一用户重复抢：返回成功
@@ -107,7 +128,7 @@ class GrabService:
                 f'Cannot grab application in state {application.state}',
             )
 
-        # 更新认领人
+        # 3) 更新认领人 (在锁内,安全)
         application.is_grabbed = True
         application.grabbed_by = user
         application.grabbed_at = timezone.now()
@@ -139,7 +160,16 @@ class GrabService:
     @staticmethod
     @transaction.atomic
     def release(application: Application, user: User, reason: str = '') -> Application:
-        """释放抢单（HR 主动放弃）"""
+        """释放抢单（HR 主动放弃）
+
+        P0-4 修复: 同 grab(),加 select_for_update() 防 TOCTOU
+        """
+        application = Application.objects.select_for_update().filter(
+            id=application.id, deleted_at__isnull=True,
+        ).first()
+        if not application:
+            raise NotFound(f'Application {application.id} 不存在')
+
         if not application.is_grabbed:
             return application
         if application.grabbed_by_id and application.grabbed_by_id != user.id:
