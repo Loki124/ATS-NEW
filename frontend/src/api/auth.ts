@@ -36,7 +36,8 @@ const clearSubscribers = () => {
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const userStore = useUserStore();
+    const token = userStore.accessToken || localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -70,8 +71,44 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // 其他接口 401：直接登出 + 跳登录页
-      // 暂不实现 token 刷新（后端未提供 /auth/refresh），避免幽灵 404
+      // 尝试刷新 token
+      const userStore = useUserStore();
+      const refreshToken = userStore.refreshToken || localStorage.getItem('refreshToken');
+      if (refreshToken && !originalRequest._retry) {
+        originalRequest._retry = true;
+        if (!isRefreshing) {
+          isRefreshing = true;
+          try {
+            const { data } = await axios.post(
+              `${API_BASE_URL}/auth/refresh/`,
+              { refresh: refreshToken },
+              { headers: { 'Content-Type': 'application/json' } },
+            );
+            const newAccess = data.data?.access || data.access;
+            userStore.setAccessToken(newAccess);
+            onTokenRefreshed(newAccess);
+            isRefreshing = false;
+            // 重试原请求
+            originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+            return api(originalRequest);
+          } catch (refreshErr) {
+            clearSubscribers();
+            isRefreshing = false;
+            handleAuthFailure('登录状态已失效，请重新登录');
+            return Promise.reject(refreshErr);
+          }
+        } else {
+          // 等待刷新完成
+          return new Promise((resolve) => {
+            subscribeTokenRefresh((newToken) => {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              resolve(api(originalRequest));
+            });
+          });
+        }
+      }
+
+      // 无 refresh token 或已尝试过：直接登出
       handleAuthFailure('登录状态已失效，请重新登录');
       return Promise.reject(error);
     }
@@ -109,9 +146,10 @@ function handleAuthFailure(message: string) {
   isRefreshing = false;
 }
 
-// 认证相关API
+// 认证相关API - Django 后端
+// 后端返回结构: { success, data: { access, refresh, user } }
 export const login = (username: string, password: string) => {
-  return api.post('/auth/login', { username, password });
+  return api.post('/auth/login/', { username, password });
 };
 
 export const register = (data: {

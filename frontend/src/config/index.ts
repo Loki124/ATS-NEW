@@ -1,5 +1,8 @@
 /**
  * 项目统一配置文件
+ *
+ * 后端：Django REST Framework (port 8000, /api/v1/)
+ * 前端：VUE3 + Vite (port 5212)
  */
 
 export const config = {
@@ -12,16 +15,16 @@ export const config = {
     baseUrl: '/',
   },
 
-  // 后端配置
+  // 后端配置 - Django
   backend: {
-    port: 5125,
-    url: 'http://localhost:5125',
-    apiPrefix: '/api',
+    port: 8000,
+    url: 'http://localhost:8000',
+    apiPrefix: '/api/v1',
   },
 
   // API 配置
   api: {
-    baseUrl: '/api',
+    baseUrl: '/api/v1',
     timeout: 15000,
   },
 

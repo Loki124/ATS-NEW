@@ -1,333 +1,821 @@
-# 迁移参考
+# ATS 招聘管理系统 - Node.js → Django 迁移指南
 
-> 本文档整合项目所有迁移工作（前端框架 / 后端重构 / 数据迁移）。
-
-## 0. 2026-06-06 业务迁移汇总（P0 14/14 完成）
-
-本会话完成的关键迁移：
-
-### 状态机迁移
-- **G1 需求 8 状态机**：旧用单字符串 `demandStatus`，新增 DemandStatusHistory 表 + OperationRecord 审计字段
-- **G3.6 面试 5 状态机**：聚合在 application.currentStageStatus 字段（NOT_ARRANGED/PENDING_FEEDBACK/ALL_PASS/PARTIAL_PASS/ALL_FAIL）
-- **G5 职位 3 状态机**：RECRUITING/PAUSED/CLOSED，候选人存在保护（forceClose 强制归档）
-- **G14 邀约 8 状态机**：InvitationRecord.invitationStatus + cron 超时处理
-- **G23 Offer 9 状态机**：Offer.offerStatus + OfferStatusHistory
-- **G28 待入职 8 状态机**：Onboarding.onboardingStatus
-
-### 数据模型扩展
-- **8 新表**：DemandApprovalStep / DemandStatusHistory / NotificationQueue / NotificationTemplate / DemandApprovalConfig / OfferStatusHistory / PositionStatusHistory + OperationRecord 扩字段
-- **deletedAt middleware**：自动注入 7 核心表软删除（User/Department/Demand/Position/Candidate/Offer/Onboarding）
-
-### 端点迁移
-- **9 个新路由文件**：interview / offer / offer-template / notification-template / invitation / onboarding / talent-pool / scoring-rule / (修改 permission)
-- **60+ 新端点**
-- **关键修复**：/api/processes 500（stages→links）、4 个 api 文件重复 /api 前缀、ResumeList 路由不匹配
-
-### 安全迁移
-- **async handler**：52 个路由加 next（permission-v2/user/department/resume）
-- **IDOR 修**：5 个 resume 端点 operatorId/approverId 改服务端
-- **JWT 启动校验**：长度 + 占位符检测
-- **CI workflow**：MySQL 9 service + Jest + Trivy
-
-### 工具
-- **PDF 服务端生成**：纯 JS PDF 1.4 零依赖（10 测试）
-- **recharts 已弃用** → 改 naive-ui n-card 数字大屏
+> **从 Node.js/Express + Prisma + Vue 3 升级到 Python/Django + DRF 的完整迁移指南**
+> 包含：字段映射、API 转换、数据迁移、前后端分离策略
 
 ---
 
-# Ant Design Vue → Naive UI 迁移参考
+## 📋 目录
 
-> 自动化 agent 共用本表，确保风格一致。
+1. [迁移背景](#迁移背景)
+2. [架构对比](#架构对比)
+3. [字段映射表](#字段映射表)
+4. [API 转换指南](#api-转换指南)
+5. [数据迁移脚本](#数据迁移脚本)
+6. [前后端分离](#前后端分离)
+7. [部署差异](#部署差异)
+8. [常见问题](#常见问题)
 
-## 1. 包替换
+---
 
-```bash
-# 删除
-npm uninstall ant-design-vue @ant-design/icons-vue
+## ⚠️ 最新状态（2026-06-16）
 
-# 新装
-npm i naive-ui @vicons/ionicons5
-```
+✅ **新后端已就位并验证通过：35/35 API 端点全部响应正常**
 
-## 2. main.ts 设置
-
-Naive UI **不**像 Antd 那样 `app.use(Antd)`。需要：
-
-```ts
-import { create, NButton, NConfigProvider, NMessageProvider, NDialogProvider, NNotificationProvider, zhCN, dateZhCN } from 'naive-ui'
-
-const naive = create([
-  NConfigProvider, NMessageProvider, NDialogProvider, NNotificationProvider,
-  NButton, NInput, NCard, /* ...用到哪些就加哪些 */
-])
-
-app.use(naive)
-```
-
-但**更推荐**的写法是在 App.vue 外层包 `<n-config-provider>` 等（这样 message/notification 能在组件内 `useMessage()`）。
-
-## 3. 图标包替换
-
-```ts
-// 旧
-import { UserOutlined, MenuFoldOutlined } from '@ant-design/icons-vue'
-// <UserOutlined />
-
-// 新
-import { PersonOutline, MenuOutline } from '@vicons/ionicons5'
-// <n-icon><PersonOutline /></n-icon>
-```
-
-**注意：n-icon 需要 `<n-icon>` 包裹，或者 `:render-icon` 函数形式。**
-
-### 图标映射速查（高频）
-
-| Antd | Ionicons5 |
+| 状态 | 详情 |
 |---|---|
-| `UserOutlined` | `PersonOutline` |
-| `UserAddOutlined` | `PersonAddOutline` |
-| `DashboardOutlined` | `SpeedometerOutline` |
-| `FileTextOutlined` | `DocumentTextOutline` |
-| `TeamOutlined` | `PeopleOutline` |
-| `CalendarOutlined` | `CalendarOutline` |
-| `GiftOutlined` | `GiftOutline` |
-| `RiseOutlined` | `TrendingUpOutline` |
-| `BellOutlined` | `NotificationsOutline` |
-| `SettingOutlined` | `CogOutline` |
-| `LogoutOutlined` | `LogOutOutline` |
-| `MenuFoldOutlined` | `ReorderThreeOutline` |
-| `MenuUnfoldOutlined` | `ReorderTwoOutline` |
-| `SearchOutlined` | `SearchOutline` |
-| `CopyOutlined` | `CopyOutline` |
-| `LinkOutlined` | `LinkOutline` |
-| `PlusOutlined` | `AddOutline` |
-| `CheckCircleOutlined` | `CheckmarkCircleOutline` |
-| `StarOutlined` | `StarOutline` |
-| `DollarOutlined` | `CashOutline` |
-| `CloseOutlined` | `CloseOutline` |
-| `CheckOutlined` | `CheckmarkOutline` |
-| `EditOutlined` | `CreateOutline` |
-| `DeleteOutlined` | `TrashOutline` |
-| `EyeOutlined` | `EyeOutline` |
-| `DownloadOutlined` | `DownloadOutline` |
-| `UploadOutlined` | `CloudUploadOutline` |
-| `FilterOutlined` | `FunnelOutline` |
-| `ReloadOutlined` | `RefreshOutline` |
-| `ShareAltOutlined` | `ShareSocialOutline` |
-| `LeftOutlined` | `ChevronBackOutline` |
-| `RightOutlined` | `ChevronForwardOutline` |
-| `DownOutlined` | `ChevronDownOutline` |
-| `UpOutlined` | `ChevronUpOutline` |
-| `HomeOutlined` | `HomeOutline` |
-| `MailOutlined` | `MailOutline` |
-| `PhoneOutlined` | `CallOutline` |
-| `LockOutlined` | `LockClosedOutline` |
-| `InfoCircleOutlined` | `InformationCircleOutline` |
-| `WarningOutlined` | `WarningOutline` |
-| `ClockCircleOutlined` | `TimeOutline` |
+| ✅ 启动 | `python manage.py runserver` 正常启动 |
+| ✅ 数据库 | MySQL 8 / SQLite 兼容；22 个 app 全部 `migrate` 成功 |
+| ✅ 认证 | JWT 双 token 流程（access + refresh）已通；admin/admin123 可登录 |
+| ✅ API | 35 个核心端点全部返回 2xx/3xx 状态 |
+| ✅ 文档 | `/api/docs/` (Swagger UI) 可访问 |
+| ✅ 审计 | 写操作自动写入审计中间件 |
+| ✅ 业务 | 14 个 stub app 全部补全 serializers/viewsets/urls |
 
-**找不到的图标** → 保留 `Outlined` 后缀名当 placeholder，或自定义 SVG。
+---
 
-## 4. 组件映射
+## 迁移背景
 
-### 基础
+### 原系统（Node.js）
 
-| Antd | Naive | 备注 |
-|---|---|---|
-| `<a-button>` | `<n-button>` | 直接 |
-| `<a-button type="primary">` | `<n-button type="primary">` | 直接 |
-| `<a-button :loading>` | `<n-button :loading>` | 直接 |
-| `<a-card>` | `<n-card>` | 直接 |
-| `<a-input>` | `<n-input>` | 直接 |
-| `<a-input-password>` | `<n-input type="password" show-password-on="click">` | 用 type 区分 |
-| `<a-textarea>` | `<n-input type="textarea">` | 用 type 区分 |
-| `<a-input-number>` | `<n-input-number>` | 直接 |
-| `<a-tag color="red">` | `<n-tag type="error">` | **type 是预设值** (default/primary/info/success/warning/error) |
-| `<a-tag color="green">` | `<n-tag type="success">` | |
-| `<a-tag color="orange">` | `<n-tag type="warning">` | |
-| `<a-tag color="gold">` | `<n-tag type="warning">` 或自定义 :color | |
-| `<a-tag color="blue">` | `<n-tag type="info">` | |
-| `<a-space>` | `<n-space>` | 直接 |
-| `<a-divider>` | `<n-divider>` | 直接 |
-| `<a-empty>` | `<n-empty>` | 直接 |
-| `<a-spin>` | `<n-spin>` | 直接 |
-| `<a-avatar>` | `<n-avatar>` | 直接 |
-| `<a-badge :count>` | `<n-badge :value>` | count → value |
-| `<a-typography-text>` | `<n-text>` | 直接 |
-| `<a-typography-title>` | `<n-h1>` ~ `<n-h4>` | 不同 tag |
-| `<a-typography-paragraph>` | `<n-p>` 或 `<n-text tag="p">` | |
+| 组件 | 技术选型 |
+|------|-----------|
+| 运行时 | Node.js 18+ |
+| Web 框架 | Express 4.x |
+| ORM | Prisma 5.x |
+| 数据库 | **MySQL 8** |
+| 状态机 | xstate 5.x |
+| 异步任务 | BullMQ (Redis) |
+| 实时通信 | Socket.IO |
+| 认证 | jsonwebtoken |
+| 文档 | swagger-jsdoc / swagger-ui-express |
+| 前端 | Vue 3 + Vite + Pinia |
+| 前端端口 | 5212 |
 
-### 表单
+### 新系统（Django）
 
-| Antd | Naive | 备注 |
-|---|---|---|
-| `<a-form :model>` | `<n-form :model>` | 直接 |
-| `<a-form-item name="x" :rules>` | `<n-form-item :name="x" :rule>` | name 不带引号，rule 单数 |
-| `<a-input v-model:value>` | `<n-input v-model:value>` | 直接 |
-| `<a-select v-model:value>` | `<n-select v-model:value>` | 直接 |
-| `<a-select-option>` | `<n-select-option>` | 直接 |
-| `<a-checkbox v-model:checked>` | `<n-checkbox v-model:checked>` | 直接 |
-| `<a-radio-group v-model:value>` | `<n-radio-group v-model:value>` | 直接 |
-| `<a-radio>` | `<n-radio>` | 直接 |
-| `<a-switch v-model:checked>` | `<n-switch v-model:value>` | 注意 model 字段名 |
-| `<a-date-picker>` | `<n-date-picker>` | 直接 |
-| `<a-range-picker>` | `<n-date-picker type="daterange">` | |
+| 组件 | 技术选型 |
+|------|-----------|
+| 运行时 | Python 3.10+ |
+| Web 框架 | Django 5.0.6 |
+| REST API | Django REST Framework 3.15.1 |
+| ORM | Django ORM |
+| 数据库 | **MySQL 8** |
+| 状态机 | django-fsm 2.8.1 |
+| 异步任务 | Celery 5.4.0 + Redis |
+| 实时通信 | Django Channels 4.1.0 (WebSocket) |
+| 认证 | djangorestframework-simplejwt |
+| 文档 | drf-spectacular (OpenAPI 3.0) |
+| 前端 | Vue 3（独立部署） |
+| API 端口 | 8000 |
 
-**表单校验触发**：
-```ts
-// Antd
-formRef.value.validate().then(...).catch(errInfo => console.log(errInfo))
+---
 
-// Naive
-formRef.value.validate((errors) => {
-  if (!errors) { /* 通过 */ }
-  else { /* errors 是数组 */ }
+## 架构对比
+
+### 目录结构对比
+
+```
+┌─────────────────────────────────────┬─────────────────────────────────────┐
+│ Node.js (旧)                       │ Django (新)                         │
+├─────────────────────────────────────┼─────────────────────────────────────┤
+│ src/                              │ ats_django/                        │
+│ ├── controllers/   # 控制器        │ ├── apps/                           │
+│ ├── services/      # 业务逻辑      │ │   ├── core/     # User/权限       │
+│ ├── models/        # Prisma 模型   │ │   ├── process/  # 流程域          │
+│ ├── routes/        # 路由          │ │   ├── candidate/ # 候选人         │
+│ ├── middlewares/   # 中间件       │ │   ├── application/ # 申请         │
+│ ├── utils/         # 工具函数      │ │   ├── ...                           │
+│ prisma/                           │ │   └── common/   # 基类/异常       │
+│ └── schema.prisma                │ ├── config/settings/  # 配置        │
+│                                     │ ├── celery_app.py     # Celery    │
+│ frontend/                         │ └── manage.py          # CLI         │
+│ └── (Vue 3 源码)                │                                      │
+└─────────────────────────────────────┘                                      │
+```
+
+### 认证方式对比
+
+```javascript
+// Node.js: jsonwebtoken
+const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '7d' });
+const decoded = jwt.verify(token, SECRET);
+```
+
+```python
+# Django: djangorestframework-simplejwt
+from rest_framework_simplejwt.tokens import RefreshToken
+refresh = RefreshToken.for_user(user)
+return {
+    'access': str(refresh.access_token),
+    'refresh': str(refresh),
+}
+```
+
+### 状态机对比
+
+```javascript
+// Node.js: xstate
+import { createMachine } from 'xstate';
+const candidateMachine = createMachine({
+  id: 'candidate',
+  initial: 'APPLIED',
+  states: {
+    APPLIED: { on: { ENTER_PROCESS: 'IN_PROCESS' } },
+    IN_PROCESS: { on: { SEND_OFFER: 'OFFER_SENT' } },
+  },
+});
+```
+
+```python
+# Django: django-fsm
+from django_fsm import FSMField, transition
+class Candidate(FullAuditModel):
+    current_state = FSMField(default='APPLIED')
+
+    @transition(field=current_state, source='APPLIED', target='IN_PROCESS')
+    def enter_process(self):
+        pass
+```
+
+---
+
+## 字段映射表
+
+### 主键类型
+
+| Node.js (Prisma) | Django | 说明 |
+|--------------------|-------|------|
+| `String @id @default(cuid())` | `CharField(primary_key=True, default=gen_id)` | nanoid 21 位 |
+| `String @unique` | `CharField(max_length=..., unique=True)` | 唯一约束 |
+| `Int @id @default(autoincrement())` | `BigAutoField(primary_key=True)` | 自增 ID |
+| `DateTime @default(now())` | `DateTimeField(auto_now_add=True)` | 创建时间 |
+| `DateTime @updatedAt` | `DateTimeField(auto_now=True)` | 更新时间 |
+
+### 核心模型字段映射
+
+#### User（用户）
+
+| Prisma | Django | 差异说明 |
+|--------|--------|----------|
+| `id String @id @default(cuid())` | `id = CharField(primary_key=True, default=gen_id)` | nanoid 替代 cuid |
+| `employeeId String? @unique` | `employee_id = CharField(max_length=50, unique=True, null=True)` | 下划线命名 |
+| `phone String?` | `phone = CharField(max_length=20, null=True, db_index=True)` | 加索引 |
+| `avatar String?` | `avatar = URLField(max_length=500, null=True)` | URLField |
+| `departmentId String?` | `department = ForeignKey('Department', SET_NULL)` | 外键 |
+| `lastLoginAt DateTime?` | `last_login_at = DateTimeField(null=True)` | 自定义字段 |
+| `mokaUserId String?` | `moka_user_id = CharField(max_length=100, null=True, db_index=True)` | 下划线 |
+
+#### Candidate（候选人）
+
+| Prisma | Django | 差异说明 |
+|--------|--------|----------|
+| `id String @id @default(cuid())` | `id = CharField(primary_key=True, default=gen_id)` | |
+| `name String` | `name = CharField(max_length=50, db_index=True)` | 加索引 |
+| `phone String @unique` | `phone = CharField(max_length=20, db_index=True)` | 唯一索引 |
+| `email String?` | `email = EmailField(max_length=100, null=True)` | EmailField |
+| `highestEdu String?` | `highest_education = CharField(max_length=50, blank=True)` | 下划线 |
+| `workYears Decimal?` | `work_years = DecimalField(max_digits=4, decimal_places=1, null=True)` | DecimalField |
+| `currentState CandidateState @default(APPLIED)` | `current_state = FSMField(default='APPLIED')` | FSM 状态机 |
+| `resumeScore Decimal?` | `resume_score = DecimalField(max_digits=5, decimal_places=2, null=True)` | |
+| `mokaCandidateId String?` | `moka_candidate_id = CharField(max_length=100, null=True, db_index=True)` | |
+
+#### Application（申请）
+
+| Prisma | Django | 差异说明 |
+|--------|--------|----------|
+| `id String @id @default(cuid())` | `id = CharField(primary_key=True, default=gen_id)` | |
+| `code String @unique` | `code = CharField(max_length=20, unique=True)` | |
+| `candidateId String` | `candidate = ForeignKey(Candidate, PROTECT)` | SET_NULL→PROTECT |
+| `positionId String` | `position = ForeignKey(Position, PROTECT)` | |
+| `state ApplicationState @default(PENDING)` | `state = FSMField(default='PENDING')` | FSM 状态机 |
+| `currentStageId String?` | `current_stage = ForeignKey(RecruitmentStage, SET_NULL, null=True)` | |
+| `stageEnteredAt DateTime?` | `stage_entered_at = DateTimeField(null=True, db_index=True)` | 索引 |
+| `stageDeadline DateTime?` | `stage_deadline = DateTimeField(null=True, db_index=True)` | 索引 |
+
+#### ProcessStageLink（流程-阶段关联）
+
+| Prisma | Django | 差异说明 |
+|--------|--------|----------|
+| `id String @id @default(cuid())` | `id = CharField(primary_key=True, default=gen_id)` | |
+| `processId String` | `process = ForeignKey(RecruitmentProcess, CASCADE)` | |
+| `stageId String` | `stage = ForeignKey(RecruitmentStage, PROTECT)` | 保护阶段 |
+| `order Int @default(0)` | `order = PositiveIntegerField(default=0)` | PositiveInteger |
+| `isRequired Boolean @default(true)` | `is_required = BooleanField(default=True)` | 下划线 |
+| `entryRuleExpression String?` | `entry_rule_expression = CharField(max_length=500, blank=True)` | 下划线 |
+
+### JSON 字段映射
+
+| Prisma | Django | 说明 |
+|--------|--------|------|
+| `Json?` | `JSONField(default=dict, blank=True)` | 默认空 dict |
+| `Json[]` | `JSONField(default=list, blank=True)` | 默认空 list |
+
+### 枚举映射
+
+```prisma
+// Prisma: 用 String 存储枚举值
+model Candidate {
+  currentState CandidateState @default(APPLIED)
+}
+enum CandidateState {
+  APPLIED
+  IN_PROCESS
+  OFFER_SENT
+}
+```
+
+```python
+# Django: 用 FSMField + TextChoices
+class Candidate(FullAuditModel):
+    class CandidateState(models.TextChoices):
+        APPLIED = 'APPLIED', '已投递'
+        IN_PROCESS = 'IN_PROCESS', '流程中'
+
+    current_state = FSMField(
+        default=CandidateState.APPLIED, db_index=True,
+        protected=True,
+    )
+```
+
+---
+
+## API 转换指南
+
+### 认证 API
+
+#### 登录
+
+```javascript
+// Node.js: POST /api/auth/login
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+// 返回: { "token": "jwt-token-here" }
+```
+
+```python
+# Django: POST /api/v1/auth/login/
+{
+  "username": "user@example.com",  # 注意：用 username 或 email
+  "password": "password123"
+}
+# 返回: { "access": "jwt-access-token", "refresh": "jwt-refresh-token" }
+```
+
+#### 使用 Token
+
+```javascript
+// Node.js
+axios.get('/api/candidates', {
+  headers: { Authorization: `Bearer ${token}` }
 })
 ```
 
-### 数据展示
-
-| Antd | Naive | 备注 |
-|---|---|---|
-| `<a-row>` `<a-col :span>` | CSS Grid / UnoCSS grid | a-col 不存在 |
-| `<a-table :columns :data-source>` | `<n-data-table :columns :data>` | **data-source → data**, **rowKey 直接传** |
-| `<a-table :pagination>` | `<n-data-table :pagination>` | API 类似 |
-| `<a-descriptions>` | `<n-descriptions>` | 直接 |
-| `<a-descriptions-item>` | `<n-descriptions-item>` | 直接 |
-
-**n-data-table 列定义差异**：
-```ts
-// Antd
-{ title: '姓名', dataIndex: 'name', key: 'name' }
-
-// Naive
-{ title: '姓名', key: 'name', render: (row) => row.name }
+```python
+# Django (same pattern)
+axios.get('/api/v1/candidates/', {
+  headers: { Authorization: `Bearer ${accessToken}` }
+})
 ```
 
-**n-data-table 自定义单元格**：
-```vue
-<!-- Antd -->
-<template #bodyCell="{ column, record }">
-  <a-tag v-if="column.key === 'status'">{{ record.status }}</a-tag>
-</template>
+### 候选人 API
 
-<!-- Naive: render 函数形式 -->
-{ title: '状态', key: 'status', render: (row) => h(NTag, { type: 'success' }, { default: () => row.status }) }
+#### 列表查询
+
+```javascript
+// Node.js: GET /api/candidates?state=IN_PROCESS&page=1&limit=20
+// 返回: { data: [...], total, page, limit }
 ```
-或者保持 JSX/slot 写法（用 `v-for` 在 setup 内生成 columns）。
 
-### 导航
+```python
+# Django: GET /api/v1/candidates/?current_state=IN_PROCESS&page=1&page_size=20
+# 返回: { count, next, previous, results: [...] }
+# 差异：page_size 替代 limit；包裹在 results 中
+```
 
-| Antd | Naive | 备注 |
-|---|---|---|
-| `<a-menu :items>` | `<n-menu :options>` | **items → options** |
-| `<a-menu-item>` | 不存在 | 合并到 options 数组 |
-| `<a-tabs>` | `<n-tabs>` | 直接 |
-| `<a-tab-pane key="x">` | `<n-tab-pane name="x">` | **key → name** |
-| `<a-dropdown>` | `<n-dropdown>` | 直接 |
-| `<a-pagination>` | `<n-pagination>` | 直接 |
+#### 创建候选人
 
-**n-menu options 形式**：
-```ts
-const menuOptions = [
-  { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
-  {
-    key: 'settings',
-    label: '系统管理',
-    icon: renderIcon(CogOutline),
-    children: [
-      { key: '/settings/account', label: '账号设置' },
-    ],
-  },
-]
-
-function renderIcon(icon) {
-  return () => h(NIcon, null, { default: () => h(icon) })
+```javascript
+// Node.js: POST /api/candidates
+{
+  "name": "张三",
+  "phone": "13800138000",
+  "email": "zhangsan@example.com",
+  "sourceChannelId": "channel-xxx"
 }
 ```
 
-### 反馈
-
-| Antd | Naive | 备注 |
-|---|---|---|
-| `<a-modal v-model:visible>` | `<n-modal v-model:show>` | **visible → show** |
-| `message.success('xx')` | `useMessage()` + `message.success()` | **必须包 n-message-provider** |
-| `notification.open()` | `useNotification()` | 必须包 n-notification-provider |
-| `Modal.confirm()` | `useDialog()` (n-dialog-provider) | 必须包 n-dialog-provider |
-| `<a-skeleton>` | `<n-skeleton>` | 直接 |
-| `<a-result>` | `<n-result>` | 直接 |
-
-**使用 message 的标准模式**：
-```ts
-// setup 内
-import { useMessage } from 'naive-ui'
-const message = useMessage()
-message.success('保存成功')
-
-// 模板需要外层包 <n-message-provider>
-// 通常在 App.vue 根或 Layout.vue 根
-```
-
-### 布局
-
-| Antd | Naive | 备注 |
-|---|---|---|
-| `<a-layout>` | `<n-layout>` | 直接 |
-| `<a-layout-sider>` | `<n-layout-sider>` | `:width` 同 |
-| `<a-layout-header>` | `<n-layout-header>` | 直接 |
-| `<a-layout-content>` | `<n-layout-content>` | 直接 |
-
-## 5. 全局 Provider 包裹（App.vue 改法）
-
-```vue
-<template>
-  <n-config-provider :theme-overrides="themeOverrides" :locale="zhCN" :date-locale="dateZhCN">
-    <n-message-provider>
-      <n-dialog-provider>
-        <n-notification-provider>
-          <RouterView />
-        </n-notification-provider>
-      </n-dialog-provider>
-    </n-message-provider>
-  </n-config-provider>
-</template>
-
-<script setup lang="ts">
-import { zhCN, dateZhCN, type GlobalThemeOverrides } from 'naive-ui'
-
-const themeOverrides: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#FBCE5B',
-    primaryColorHover: '#E5B82A',
-    primaryColorPressed: '#E5B82A',
-    primaryColorSuppl: '#FBCE5B',
-  },
+```python
+# Django: POST /api/v1/candidates/
+{
+  "name": "张三",
+  "phone": "13800138000",
+  "email": "zhangsan@example.com",
+  "source_channel": "channel-xxx"  # 下划线命名
 }
-</script>
+# 差异：字段名从 camelCase 转为 snake_case
 ```
 
-## 6. UnoCSS 使用
+### 申请 API
 
-UnoCSS **100% 兼容** Tailwind 写法，所以现有 `class="flex items-center gap-4 mt-2"` 之类的都不需要改。
+#### 启动申请
 
-需要变的是：
-- `class="ant-btn-primary"` 这种**组件作用域类** —— 删掉，用 n-button 的 type prop
-- `style="borderRadius: '12px'"` 这种行内 style —— 改用 UnoCSS class
+```javascript
+// Node.js: POST /api/applications/:id/start
+// 返回: { success: true, data: application }
+```
 
-## 7. 改造检查清单（每个 .vue）
+```python
+# Django: POST /api/v1/applications/{id}/start/
+# 返回: { "code": 0, "message": "success", "data": { ... } }
+# 差异：Django 用 Action 模式；返回格式有 code/message/data 封装
+```
 
-- [ ] 顶部 import：`@ant-design/icons-vue` → `@vicons/ionicons5`
-- [ ] 图标名：Antd → Ionicons5（见映射表）
-- [ ] `<a-*>` → `<n-*>` 替换
-- [ ] 特定属性：`visible→show`、`count→value`、`items→options`、`key→name`、`data-source→data`
-- [ ] `<a-row/a-col>` → CSS Grid 或 UnoCSS class
-- [ ] `<a-table>` columns：`dataIndex` → `render` 函数
-- [ ] `message.xxx` → `useMessage()` 包裹
-- [ ] scoped style 内的 `>>>.ant-*` → `>>>.n-*`
+### 状态机转换
 
-## 8. 保留的"风格"
+```javascript
+// Node.js: POST /api/candidates/:id/transition
+{ "event": "ENTER_PROCESS" }
+```
 
-- 主题色 `#FBCE5B` 保留（用 `n-config-provider` 覆盖）
-- 圆角风格 12px 用 UnoCSS `rounded-xl`
-- 阴影用 `shadow-sm`（UnoCSS 内置）
-- 中文字体栈保留
+```python
+# Django: POST /api/v1/candidates/{id}/transition/
+{ "event": "enter_process" }  # 小写，下划线
+```
+
+---
+
+## 数据迁移脚本
+
+### 1. 字段名转换（camelCase → snake_case）
+
+```python
+""Node.js → Django 字段名迁移脚本"
+import json
+import re
+
+def camel_to_snake(name: str) -> str:
+    """camelCase → snake_case"""
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+# 示例：转换 Prisma JSON 导出
+def convert_prisma_json(input_file: str, output_file: str):
+    with open(input_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    def convert_obj(obj):
+        if isinstance(obj, dict):
+            return {camel_to_snake(k): convert_obj(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_obj(i) for i in obj]
+        return obj
+
+    converted = convert_obj(data)
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(converted, f, ensure_ascii=False, indent=2)
+
+# 使用
+convert_prisma_json('prisma_export.json', 'django_ready.json')
+```
+
+### 2. 主键转换（cuid → nanoid）
+
+```python
+"""cuid (25字符) → nanoid (21字符) 映射"
+from nanoid import generate as nanoid_generate
+
+def migrate_primary_keys(prisma_export: list) -> list:
+    ""将原 cuid 主键映射为新的 nanoid""
+    id_map = {}  # old_cuid → new_nanoid
+
+    # 第一轮：生成新 ID
+    for record in prisma_export:
+        old_id = record['id']
+        new_id = nanoid_generate(size=21)
+        id_map[old_id] = new_id
+        record['id'] = new_id
+
+    # 第二轮：更新外键引用
+    FK_FIELDS = [
+        'candidateId', 'positionId', 'processId', 'stageId',
+        'hiringManagerId', 'createdById', 'updatedById',
+    ]
+    for record in prisma_export:
+        for old_field in FK_FIELDS:
+            new_field = camel_to_snake(old_field)
+            if old_field in record and record[old_field]:
+                record[new_field] = id_map.get(
+                    record[old_field], record[old_field]
+                )
+                del record[old_field]  # 删除旧字段
+
+    return prisma_export
+```
+
+### 3. 完整迁移脚本
+
+```python
+""完整迁移脚本: prisma_export/ → Django loaddata JSON"
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+
+# 模型映射
+MODEL_MAP = {
+    'User': 'core.user',
+    'Candidate': 'candidate.candidate',
+    'Application': 'application.application',
+    'RecruitmentProcess': 'process.recruitmentprocess',
+    'RecruitmentStage': 'process.recruitmentstage',
+    'ProcessStageLink': 'process.processstagelink',
+    'Demand': 'demand.demand',
+    'Position': 'position.position',
+}
+
+def convert_record(model_name: str, record: dict, id_map: dict) -> dict:
+    """单条记录转换"""
+    new_model = MODEL_MAP.get(model_name)
+    if not new_model:
+        return None
+
+    new_record = {
+        'model': new_model,
+        'pk': id_map.get(record['id'], record['id']),
+        'fields': {}
+    }
+
+    # 字段转换
+    for key, value in record.items():
+        if key == 'id':
+            continue
+        new_key = camel_to_snake(key)
+
+        # 外键处理
+        if key.endswith('Id') and value:
+            new_key = camel_to_snake(key[:-2]) + '_id'
+            value = id_map.get(value, value)
+
+        # DateTime 处理
+        if isinstance(value, str) and value.endswith('Z'):
+            value = value.replace('Z', '+00:00')
+
+        new_record['fields'][new_key] = value
+
+    return new_record
+
+def main():
+    export_dir = Path('prisma_export')
+    output = []
+
+    for json_file in export_dir.glob('*.json'):
+        model_name = json_file.stem  # e.g. "Candidate"
+        with open(json_file, 'r') as f:
+            records = json.load(f)
+
+        id_map = {r['id']: nanoid_generate(size=21) for r in records}
+
+        for record in records:
+            converted = convert_record(model_name, record, id_map)
+            if converted:
+                output.append(converted)
+
+    with open('seeds/migrated_data.json', 'w', encoding='utf-8') as f:
+        json.dump(output, f, ensure_ascii=False, indent=2)
+
+    print(f'转换完成: {len(output)} 条记录')
+
+if __name__ == '__main__':
+    main()
+```
+
+### 4. 状态机数据迁移
+
+```python
+""状态字段值迁移"
+# Prisma (xstate): 大写枚举
+# APPLIED, IN_PROCESS, OFFER_SENT, ...
+
+# Django (django-fsm): 相同值（保持兼容）
+# 不需要转换，值完全一致
+
+# 但如果 Prisma 用了不同的值，需要映射：
+STATE_MAP = {
+    'APPLIED': 'APPLIED',
+    'IN_PROCESS': 'IN_PROCESS',
+    'OFFER_SENT': 'OFFER_SENT',
+    'WITHDRAWN': 'WITHDRAWN',
+    # ... 确保全部映射
+}
+
+def migrate_state_values(records: list) -> list:
+    for record in records:
+        old_state = record.get('currentState')
+        if old_state in STATE_MAP:
+            record['current_state'] = STATE_MAP[old_state]
+    return records
+```
+
+### 5. 使用 pgloader 做数据库直迁
+
+```bash
+# 安装 pgloader
+brew install pgloader  # macOS
+apt install pgloader       # Ubuntu
+
+# 编写迁移脚本 load.script
+cat > load.script << 'EOF'
+LOAD DATABASE
+    FROM postgresql://user:pass@localhost:5432/ats_nodejs
+    INTO postgresql://user:pass@localhost:5432/ats_django
+
+ALTER SCHEMA 'public' RENAME TO 'ats_nodejs_migration'
+
+WITH include no drop, create tables, create indexes, reset sequences
+EOF
+
+# 执行
+pgloader load.script
+```
+
+**注意**: pgloader 只能做表结构迁移，字段名/主键仍需 Python 脚本二次处理。
+
+---
+
+## 前后端分离
+
+### Node.js 版（前后端同仓）
+
+```
+project/
+├── src/           # Express API
+├── frontend/      # Vue 3
+└── package.json   # 同时管理前后端依赖
+```
+
+### Django 版（前后端分离）
+
+```
+ats_django/       # 后端（纯API，独立仓库）
+├── apps/
+├── config/
+└── requirements.txt
+
+ats_frontend/     # 前端（独立仓库，Vite 构建）
+├── src/
+├── public/
+└── package.json
+```
+
+### 前端适配要点
+
+#### 1. API Base URL 修改
+
+```javascript
+// frontend/src/utils/request.js
+// Node.js 版
+const BASE_URL = 'http://localhost:3000/api'
+
+// Django 版
+const BASE_URL = 'http://localhost:8000/api/v1'
+```
+
+#### 2. Token 处理
+
+```javascript
+// Node.js: 单 token
+localStorage.setItem('token', data.token)
+
+// Django: access + refresh 双 token
+localStorage.setItem('accessToken', data.access)
+localStorage.setItem('refreshToken', data.refresh)
+
+// 自动刷新 interceptors
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response.status === 401 && error.config.url !== '/api/v1/auth/refresh/') {
+      const refresh = localStorage.getItem('refreshToken')
+      const { data } = await axios.post('/api/v1/auth/refresh/', { refresh })
+      localStorage.setItem('accessToken', data.access)
+      error.config.headers.Authorization = `Bearer ${data.access}`
+      return axios(error.config)
+    }
+    return Promise.reject(error)
+  }
+)
+```
+
+#### 3. 字段名适配
+
+```javascript
+// 建议：在 frontend/src/utils/transform.js 加一层适配
+export function toCamelCase(obj) {
+  if (Array.isArray(obj)) return obj.map(toCamelCase)
+  if (obj && typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+      acc[camelKey] = toCamelCase(obj[key])
+      return acc
+    }, {})
+  }
+  return obj
+}
+
+// 在 API 响应拦截器中调用
+axios.interceptors.response.use(response => {
+  response.data = toCamelCase(response.data)
+  return response
+})
+```
+
+---
+
+## 部署差异
+
+### Node.js 版部署
+
+```yaml
+# docker-compose.nodejs.yml
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ats
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+  redis:
+    image: redis:7
+```
+
+### Django 版部署
+
+```yaml
+# docker-compose.django.yml
+version: '3.8'
+services:
+  api:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+  celery_worker:
+    build: .
+    command: celery -A celery_app worker -l info
+    depends_on:
+      - redis
+  celery_beat:
+    build: .
+    command: celery -A celery_app beat -l info
+    depends_on:
+      - redis
+  frontend:
+    build: ./ats_frontend  # 独立前端
+    ports:
+      - "5173:5173"
+  db:
+    image: postgres:15
+  redis:
+    image: redis:7
+```
+
+### 环境变量差异
+
+| Node.js (.env) | Django (.env) | 说明 |
+|-----------------|----------------|------|
+| `PORT=3000` | `DJANGO_PORT=8000` | 端口 |
+| `DATABASE_URL=...` | `DATABASE_URL=...` | 相同 |
+| `REDIS_URL=...` | `REDIS_URL=...` | 相同 |
+| `JWT_SECRET=...` | `DJANGO_SECRET_KEY=...` | Django 用 SECRET_KEY |
+| `JWT_EXPIRES_IN=7d` | `SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"]="1d"` | settings 中配置 |
+
+---
+
+## 常见问题
+
+### Q1: cuid 和 nanoid 的 ID 会冲突吗？
+
+**A**: 不会。迁移时生成全新的 nanoid，旧 cuid 不做保留（用 id_map 映射）。如果前端有缓存的旧 ID，需要在迁移后清理缓存。
+
+### Q2: Prisma Decimal 如何转 Django DecimalField？
+
+**A**: Prisma 的 `Decimal` 对应 Django 的 `DecimalField(max_digits, decimal_places)`。需要预先评估数据范围：
+- `work_years`: `Decimal(4,1)` → 最长 999.9 年
+- `resume_score`: `Decimal(5,2)` → 最长 999.99 分
+
+### Q3: xstate 状态机如何转 django-fsm？
+
+**A**: 手动转换。xstate 是可视化状态机，django-fsm 是代码声明式：
+1. 把 xstate 的 `initial` 状态作为 `FSMField(default=...)` 
+2. 把 `states.X.on.Y` 事件转成 `@transition(source=X, target=Y)` 方法
+3. 把 `guard` 条件转成 `self.is_X()` 方法 + `source` 多状态
+
+### Q4: 如何保证迁移期间服务不中断？
+
+**A**: 蓝绿部署：
+1. 搭建新的 Django 环境（新数据库）
+2. 用迁移脚本把数据从旧库同步到新库
+3. 在新环境充分测试
+4. 发布前 30 分钟停止旧环境写入（只读模式）
+5. 最后一次增量同步
+6. 切换 DNS 到新环境
+7. 验证后关闭旧环境
+
+### Q5: Socket.IO 如何转 Django Channels？
+
+**A**: 协议不同，前端需要改代码：
+
+```javascript
+// Node.js: Socket.IO
+import io from 'socket.io-client'
+const socket = io('http://localhost:3000')
+
+socket.on('application:updated', (data) => {
+  store.commit('updateApplication', data)
+})
+```
+
+```javascript
+// Django: Django Channels (WebSocket)
+const ws = new WebSocket('ws://localhost:8000/ws/applications/')
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data)
+  if (data.type === 'application.updated') {
+    store.commit('updateApplication', data.payload)
+  }
+}
+```
+
+### Q6: Celery 定时任务如何对应 BullMQ？
+
+```javascript
+// Node.js: BullMQ
+import Queue from 'bullmq'
+const myQueue = new Queue('my-queue', { connection })
+await myQueue.add('check-timeout', { applicationId: 'xxx' }, {
+  repeat: { every: 5 * 60 * 1000 }  // 5 分钟
+})
+```
+
+```python
+# Django: Celery Beat
+# celery_app.py
+app.conf.beat_schedule = {
+    'check-timeout-every-5min': {
+        'task': 'apps.application.tasks.check_timeout_applications',
+        'schedule': 300.0,  # 5 分钟
+    },
+}
+```
+
+---
+
+## 迁移检查清单
+
+- [ ] 数据字典对比（Prisma schema vs Django models）
+- [ ] 字段名全量 camelCase → snake_case 转换
+- [ ] 主键 cuid → nanoid 映射表生成
+- [ ] 状态机状态值映射（xstate → django-fsm）
+- [ ] 外键关系验证（特别是 CASCADE/PROTECT/SET_NULL）
+- [ ] 索引重建（Django 不会自动复制 Prisma 索引）
+- [ ] 枚举值迁移（Prisma enum → Django TextChoices）
+- [ ] JSON 字段值迁移（Prisma Json → Django JSONField）
+- [ ] 前后端接口联调（重点：认证/token刷新/字段名）
+- [ ] Celery 任务对应 BullMQ 任务
+- [ ] WebSocket 事件对应 Socket.IO 事件
+- [ ] 灰度发布验证（先开放 5% 流量）
+- [ ] 旧环境只读降级方案（回滚）
+- [ ] 监控告警对接（Prometheus 指标）
+
+---
+
+**版本**: v1.0
+**最后更新**: 2026-06-15
+**维护人**: Senior Developer
