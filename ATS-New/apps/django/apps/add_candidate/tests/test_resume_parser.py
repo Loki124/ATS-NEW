@@ -96,13 +96,13 @@ def mock_file():
 class TestResumeParserService:
     """ResumeParserService.parse() 的测试"""
 
-    @patch('affinda.AffindaClient', create=True)
-    def test_parse_success_returns_parsed_resume(self, mock_affinda_client_cls, mock_file, affinda_success_response):
+    @patch('affinda.AffindaAPI', create=True)
+    def test_parse_success_returns_parsed_resume(self, mock_affinda_api_cls, mock_file, affinda_success_response):
         """成功解析应返回 ParsedResume dataclass"""
         # Arrange
         mock_client = MagicMock()
         mock_client.create_document.return_value = affinda_success_response
-        mock_affinda_client_cls.return_value = mock_client
+        mock_affinda_api_cls.return_value = mock_client
 
         # Act
         result = ResumeParserService.parse(mock_file)
@@ -124,40 +124,40 @@ class TestResumeParserService:
         assert result.experiences[0].company == '某某科技'
         assert result.confidence == 0.92  # 最低维度置信度 (min of 0.98/0.95/0.92)
 
-    @patch('affinda.AffindaClient', create=True)
-    def test_parse_low_confidence_raises_error(self, mock_affinda_client_cls, mock_file, affinda_low_confidence_response):
+    @patch('affinda.AffindaAPI', create=True)
+    def test_parse_low_confidence_raises_error(self, mock_affinda_api_cls, mock_file, affinda_low_confidence_response):
         """核心字段 < 3 个时抛 LowConfidenceError"""
         # Arrange
         mock_client = MagicMock()
         mock_client.create_document.return_value = affinda_low_confidence_response
-        mock_affinda_client_cls.return_value = mock_client
+        mock_affinda_api_cls.return_value = mock_client
 
         # Act & Assert
         with pytest.raises(LowConfidenceError) as exc_info:
             ResumeParserService.parse(mock_file)
         assert '解析结果不完整' in str(exc_info.value)
 
-    @patch('affinda.AffindaClient', create=True)
-    def test_parse_affinda_4xx_raises_parse_error(self, mock_affinda_client_cls, mock_file):
+    @patch('affinda.AffindaAPI', create=True)
+    def test_parse_affinda_4xx_raises_parse_error(self, mock_affinda_api_cls, mock_file):
         """Affinda 401/403 抛 ParseError"""
         # Arrange
         mock_client = MagicMock()
         mock_client.create_document.side_effect = Exception('401 Unauthorized')
-        mock_affinda_client_cls.return_value = mock_client
+        mock_affinda_api_cls.return_value = mock_client
 
         # Act & Assert
         with pytest.raises(ParseError) as exc_info:
             ResumeParserService.parse(mock_file)
         assert 'AFFINDA_AUTH' in str(exc_info.value)
 
-    @patch('affinda.AffindaClient', create=True)
-    def test_parse_affinda_timeout_raises_parse_error(self, mock_affinda_client_cls, mock_file):
+    @patch('affinda.AffindaAPI', create=True)
+    def test_parse_affinda_timeout_raises_parse_error(self, mock_affinda_api_cls, mock_file):
         """Affinda 超时抛 ParseError"""
         # Arrange
         mock_client = MagicMock()
         import requests
         mock_client.create_document.side_effect = requests.Timeout('Read timeout')
-        mock_affinda_client_cls.return_value = mock_client
+        mock_affinda_api_cls.return_value = mock_client
 
         # Act & Assert
         with pytest.raises(ParseError) as exc_info:

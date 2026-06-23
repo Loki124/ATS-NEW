@@ -175,11 +175,15 @@ class ResumeParserService:
 
 # ===== 内部辅助 =====
 def _get_affinda_client():
-    """获取 Affinda 客户端（lazy import 方便 mock）"""
-    return affinda.AffindaClient(
-        api_key=settings.AFFINDA_API_KEY,
-        base_url=settings.AFFINDA_BASE_URL,
-        timeout=settings.AFFINDA_TIMEOUT_SECONDS,
+    """获取 Affinda 客户端（lazy import 方便 mock）
+
+    Affinda SDK v4.0.0+ API:
+    - Client class is `AffindaAPI` (not `AffindaClient`)
+    - Auth via `TokenCredential(token=...)` (not `api_key=...` kwarg)
+    - `base_url` and `timeout` are not constructor kwargs in v4 (configured via env or kwargs to operations)
+    """
+    return affinda.AffindaAPI(
+        credential=affinda.TokenCredential(token=settings.AFFINDA_API_KEY),
     )
 
 
