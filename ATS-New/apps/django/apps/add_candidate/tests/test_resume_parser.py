@@ -9,6 +9,10 @@
 import io
 import pytest
 from unittest.mock import patch, MagicMock
+from azure.core.exceptions import (
+    ClientAuthenticationError,
+    ServiceRequestTimeoutError,
+)
 from apps.add_candidate.services.resume_parser import (
     ResumeParserService,
     ParsedResume,
@@ -142,7 +146,7 @@ class TestResumeParserService:
         """Affinda 401/403 抛 ParseError"""
         # Arrange
         mock_client = MagicMock()
-        mock_client.create_document.side_effect = Exception('401 Unauthorized')
+        mock_client.create_document.side_effect = ClientAuthenticationError('401 Unauthorized')
         mock_affinda_api_cls.return_value = mock_client
 
         # Act & Assert
@@ -155,8 +159,7 @@ class TestResumeParserService:
         """Affinda 超时抛 ParseError"""
         # Arrange
         mock_client = MagicMock()
-        import requests
-        mock_client.create_document.side_effect = requests.Timeout('Read timeout')
+        mock_client.create_document.side_effect = ServiceRequestTimeoutError('Read timeout')
         mock_affinda_api_cls.return_value = mock_client
 
         # Act & Assert

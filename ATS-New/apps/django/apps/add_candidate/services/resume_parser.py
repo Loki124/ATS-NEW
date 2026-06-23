@@ -11,7 +11,12 @@ from datetime import date
 from typing import List, Optional, Any
 
 import affinda
-import requests
+from azure.core.exceptions import (
+    ClientAuthenticationError,
+    HttpResponseError,
+    ServiceRequestTimeoutError,
+    ServiceResponseTimeoutError,
+)
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -102,25 +107,31 @@ class ResumeParserService:
             client = _get_affinda_client()
             response = client.create_document(
                 workspace=settings.AFFINDA_WORKSPACE,
-                document_type=settings.AFFINDA_DOCUMENT_TYPE,
                 file=file_obj,
             )
-        except requests.Timeout as e:
+        except ClientAuthenticationError as e:
+            logger.error('Affinda auth failed: %s', e)
+            raise ParseError('AFFINDA_AUTH', '简历解析服务认证失败') from e
+        except (ServiceRequestTimeoutError, ServiceResponseTimeoutError) as e:
             logger.error('Affinda timeout: %s', e)
             raise ParseError('AFFINDA_TIMEOUT', '简历解析服务超时') from e
-        except Exception as e:
-            error_str = str(e)
-            if '401' in error_str or '403' in error_str:
-                raise ParseError('AFFINDA_AUTH', '简历解析服务认证失败') from e
-            if '429' in error_str:
+        except HttpResponseError as e:
+            if e.status_code == 429:
                 raise ParseError('AFFINDA_QUOTA', '简历解析服务本月配额已用完') from e
-            raise ParseError('AFFINDA_ERROR', f'简历解析失败: {error_str}') from e
+            logger.error('Affinda HTTP error %s: %s', e.status_code, e.message)
+            raise ParseError('AFFINDA_ERROR', f'简历解析服务返回 HTTP {e.status_code}') from e
+        except Exception as e:
+            logger.exception('Affinda unexpected error: %s', e)
+            raise ParseError('AFFINDA_ERROR', '简历解析服务异常') from e
 
         return cls._parse_response(response)
 
     @classmethod
-    def _parse_response(cls, response: dict) -> ParsedResume:
+    def _parse_response(cls, response) -> ParsedResume:
         """解析 Affinda 响应"""
+        # msrest Model normalization (real SDK returns affinda.models.Resume)
+        if not isinstance(response, dict):
+            response = response.as_dict()
         data = response.get('data', {})
         parsed_data = data.get('data', {})
         identified = data.get('meta', {}).get('identified', {})
