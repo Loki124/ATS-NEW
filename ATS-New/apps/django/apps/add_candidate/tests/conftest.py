@@ -5,6 +5,10 @@
   （pytest 自动发现所有 conftest.py），本文件**不**重定义，避免 fixture name shadowing。
 - 本文件只定义 add_candidate 专用的 fixture：process / published_position / clean_candidate
 """
+# 显式导入顶层 conftest 的 fixtures（pytest 默认只在目录树**上方**查找 conftest，
+# 顶层 tests/conftest.py 是 sibling 目录，需要通过 pytest_plugins 显式引入）
+pytest_plugins = ['tests.conftest']
+
 import pytest
 from apps.candidate.models import Candidate, CandidateState
 from apps.process.models import RecruitmentProcess
