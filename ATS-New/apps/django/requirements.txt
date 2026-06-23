@@ -84,3 +84,6 @@ djangorestframework-stubs==3.15.0
 gunicorn==22.0.0
 whitenoise==6.6.0
 uvicorn[standard]==0.29.0
+
+# === Third-party SaaS (V2 add-candidate) ===
+affinda==4.0.0
