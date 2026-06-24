@@ -19,9 +19,9 @@ from .views import (
     ParseStatusView,
     ReplaceFileView,
     ScoringStartView,
-    ScoringStreamView,
     UploadAndParseView,
 )
+from .sse import ScoringStreamView
 
 app_name = 'add_candidate'
 

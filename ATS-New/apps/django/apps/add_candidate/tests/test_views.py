@@ -5,6 +5,7 @@ Task 2 覆盖 UploadAndParseView 的 3 个分支：
 2. 非白名单文件（.exe）→ 400
 3. 未登录请求 → 401/403
 """
+import time
 from unittest.mock import patch
 
 import pytest
@@ -284,3 +285,43 @@ class TestBulkCreateView:
         assert Candidate.objects.count() == 0
         # score_batch_task 不应被调用（创建失败，未到评分）
         assert mock_score_task.call_count == 0
+
+
+@pytest.mark.django_db
+class TestScoringEndpoints:
+    """Scoring Start + Stream 测试"""
+
+    def test_scoring_start_returns_stream_url(self, api_client):
+        from unittest.mock import patch, MagicMock
+        with patch('apps.add_candidate.views.score_batch_task.delay') as mock_delay:
+            mock_delay.return_value = MagicMock(id='task_xyz')
+            response = api_client.post(
+                '/api/v1/candidates/add-candidate/scoring/start/',
+                {'candidate_ids': ['c1', 'c2'], 'task_id': 'task_test'},
+                format='json',
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert 'stream_url' in data
+        assert 'task_test' in data['stream_url']
+
+    def test_scoring_stream_returns_event_stream(self, api_client):
+        import threading
+        from apps.add_candidate.sse import broadcast_event
+        def push():
+            time.sleep(0.2)
+            broadcast_event('sse_test_1', {'event': 'test', 'data': {'x': 1}})
+            broadcast_event('sse_test_1', {'event': 'task-complete', 'data': {}})
+        threading.Thread(target=push, daemon=True).start()
+
+        response = api_client.get('/api/v1/candidates/add-candidate/scoring/stream/sse_test_1/')
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'text/event-stream'
+
+    def test_scoring_start_requires_auth(self, plain_client):
+        response = plain_client.post(
+            '/api/v1/candidates/add-candidate/scoring/start/',
+            {'candidate_ids': ['c1'], 'task_id': 't1'},
+            format='json',
+        )
+        assert response.status_code in (401, 403)

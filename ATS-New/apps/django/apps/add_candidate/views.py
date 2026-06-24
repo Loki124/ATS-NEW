@@ -296,18 +296,32 @@ class BulkCreateView(APIView):
 class ScoringStartView(APIView):
     """POST /candidates/scoring/start/
 
-    async 模式显式触发评分任务。
-    Phase 2 Task 5 填充 Celery task 派发。
+    async 模式由前端显式调用启动评分（wait 模式由 bulk-create 触发）。
     """
+    permission_classes = [IsAuthenticated]
 
-    pass
+    def post(self, request):
+        from .serializers import ScoringStartRequest
+        from .tasks import score_batch_task
+
+        serializer = ScoringStartRequest(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        task = score_batch_task.delay(
+            candidate_ids=data['candidate_ids'],
+            submit_mode='async',
+            task_id=data['task_id'],
+        )
+
+        return Response({
+            'stream_url': f'/api/v1/candidates/add-candidate/scoring/stream/{data["task_id"]}/',
+        })
 
 
 class ScoringStreamView(APIView):
     """GET /candidates/scoring/stream/<task_id>/  (SSE)
 
-    同步评分进度流。
-    Phase 2 Task 5 填充 StreamingHttpResponse + SSE 事件。
+    同步评分进度流。真实实现在 sse 模块 — 这里 re-export 保持向后兼容。
     """
-
     pass
