@@ -64,8 +64,7 @@ class UploadAndParseView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        job_ids = []
-        draft_ids = []
+        # Pre-validate ALL files before any side effect (避免 mid-batch 失败导致 orphan)
         for f in files:
             ext = os.path.splitext(f.name)[1].lower()
             if ext not in ALLOWED_EXT:
@@ -79,6 +78,11 @@ class UploadAndParseView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        # Now save (validation already passed)
+        job_ids = []
+        draft_ids = []
+        for f in files:
+            ext = os.path.splitext(f.name)[1].lower()
             job_id = uuid.uuid4().hex[:16]
             draft_id = f'draft_{uuid.uuid4().hex[:12]}'
             year_month = f'{timezone.now().year}/{timezone.now().month:02d}'
@@ -110,7 +114,7 @@ class ParseStatusView(APIView):
 
     前端每 1.5s 轮询获取解析状态。完成时返回 parsed + duplicate。
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsHROrAbove]
 
     def get(self, request, job_id):
         try:
@@ -119,6 +123,13 @@ class ParseStatusView(APIView):
             return Response(
                 {'detail': 'Job not found', 'code': 'JOB_NOT_FOUND'},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Only the uploader (or superuser) can see parsed PII（防跨用户泄露）
+        if job.actor_id != request.user.id and not request.user.is_superuser:
+            return Response(
+                {'detail': 'Permission denied', 'code': 'FORBIDDEN'},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         return Response({
@@ -137,7 +148,7 @@ class DuplicateCheckView(APIView):
 
     用户编辑字段后触发重新查重。返回 clean/unocc/occupied + duplicate info。
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsHROrAbove]
 
     def post(self, request):
         from .serializers import DuplicateCheckRequest
@@ -158,6 +169,7 @@ class ReplaceFileView(APIView):
     """POST /candidates/replace-file/<draft_id>/
 
     替换简历附件并重新解析。
+    复用原 job_id/draft_id，原地更新 ParseJob，避免前端 dangling reference。
     """
     permission_classes = [IsAuthenticated, IsHROrAbove]
     parser_classes = [MultiPartParser]
@@ -173,46 +185,47 @@ class ReplaceFileView(APIView):
         ext = os.path.splitext(file.name)[1].lower()
         if ext not in ALLOWED_EXT:
             return Response(
-                {'detail': f'文件类型不支持', 'code': 'UNSUPPORTED_TYPE'},
+                {'detail': '文件类型不支持', 'code': 'UNSUPPORTED_TYPE'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if file.size > MAX_FILE_SIZE:
             return Response(
-                {'detail': f'文件超过 10MB', 'code': 'FILE_TOO_LARGE'},
+                {'detail': '文件超过 10MB', 'code': 'FILE_TOO_LARGE'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # 找原 job（按 draft_id 找最近一个）
         try:
-            old_job = ParseJob.objects.filter(draft_id=draft_id).latest('created_at')
+            job = ParseJob.objects.filter(draft_id=draft_id).latest('created_at')
         except ParseJob.DoesNotExist:
             return Response(
                 {'detail': f'Draft {draft_id} not found', 'code': 'DRAFT_NOT_FOUND'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # 保存新文件
-        new_job_id = uuid.uuid4().hex[:16]
-        new_draft_id = f'draft_{uuid.uuid4().hex[:12]}'
+        # 保存新文件（复用原 job_id，避免前端引用断裂）
         year_month = f'{timezone.now().year}/{timezone.now().month:02d}'
-        rel_path = f'resumes/{year_month}/{new_job_id}{ext}'
+        rel_path = f'resumes/{year_month}/{job.job_id}{ext}'
         saved_path = default_storage.save(rel_path, file)
         abs_path = default_storage.path(saved_path)
 
-        ParseJob.objects.create(
-            job_id=new_job_id,
-            draft_id=new_draft_id,
-            file_name=file.name,
-            file_path=abs_path,
-            file_size=file.size,
-            actor=request.user,
-        )
+        # 原地更新 ParseJob：同 job_id/draft_id，新文件
+        job.file_name = file.name
+        job.file_path = abs_path
+        job.file_size = file.size
+        job.status = 'processing'
+        job.phase = 'uploading'
+        job.progress = 0
+        job.parsed_data = None
+        job.duplicate_data = None
+        job.error = None
+        job.save()
 
-        # 触发解析
-        parse_resume_task.delay(new_job_id)
+        # 重新触发解析
+        parse_resume_task.delay(job.job_id)
 
         return Response(
-            {'new_job_id': new_job_id},
+            {'job_id': job.job_id, 'draft_id': job.draft_id},
             status=status.HTTP_202_ACCEPTED,
         )
 
@@ -298,7 +311,7 @@ class ScoringStartView(APIView):
 
     async 模式由前端显式调用启动评分（wait 模式由 bulk-create 触发）。
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsHROrAbove]
 
     def post(self, request):
         from .serializers import ScoringStartRequest

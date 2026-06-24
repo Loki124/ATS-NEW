@@ -5,7 +5,7 @@ Task 2 覆盖 UploadAndParseView 的 3 个分支：
 2. 非白名单文件（.exe）→ 400
 3. 未登录请求 → 401/403
 """
-import time
+import json
 from unittest.mock import patch
 
 import pytest
@@ -106,6 +106,38 @@ class TestParseStatusView:
         response = api_client.get('/api/v1/candidates/add-candidate/parse-status/nonexistent/')
         assert response.status_code == 404
 
+    def test_other_user_cannot_view_pii(self, db, hr_user):
+        """I-6: 跨用户读 PII → 403"""
+        from django.contrib.auth import get_user_model
+        from apps.add_candidate.models import ParseJob
+        from rest_framework.test import APIClient
+        other = get_user_model().objects.create_user(
+            username='other_hr', password='Test@1234', employee_id='E999',
+            department=hr_user.department,
+        )
+        ParseJob.objects.create(
+            job_id='p_001', file_name='r.pdf', file_path='/tmp/r.pdf',
+            file_size=100, status='done', phase='done', progress=100,
+            actor=hr_user, parsed_data={'name': '机密'},
+        )
+        client = APIClient()
+        client.force_authenticate(user=other)
+        response = client.get('/api/v1/candidates/add-candidate/parse-status/p_001/')
+        assert response.status_code == 403
+
+    def test_superuser_can_view_any_pii(self, db, hr_user, super_user):
+        """I-6: superuser 豁免 actor 校验"""
+        from apps.add_candidate.models import ParseJob
+        ParseJob.objects.create(
+            job_id='p_002', file_name='r.pdf', file_path='/tmp/r.pdf',
+            file_size=100, status='done', phase='done', progress=100,
+            actor=hr_user,
+        )
+        client = APIClient()
+        client.force_authenticate(user=super_user)
+        response = client.get('/api/v1/candidates/add-candidate/parse-status/p_002/')
+        assert response.status_code == 200
+
 
 @pytest.mark.django_db
 class TestDuplicateCheckView:
@@ -139,9 +171,10 @@ class TestReplaceFileView:
     """POST /replace-file/{draft_id}/ 测试"""
 
     def test_replace_success(self, api_client, hr_user, mock_parse_task):
+        """I-7: ReplaceFile 复用 job_id/draft_id，原地更新 ParseJob（不 orphan 旧 draft）"""
         from apps.add_candidate.models import ParseJob
         ParseJob.objects.create(
-            job_id='old_001', draft_id='d_replace',
+            job_id='rpl_001', draft_id='d_replace',
             file_name='old.pdf', file_path='/tmp/old.pdf', file_size=100, actor=hr_user,
         )
         file = SimpleUploadedFile('new.pdf', b'%PDF-1.4 new', content_type='application/pdf')
@@ -152,8 +185,16 @@ class TestReplaceFileView:
             format='multipart',
         )
         assert response.status_code == 202
-        assert 'new_job_id' in response.json()
+        data = response.json()
+        assert data['job_id'] == 'rpl_001'  # SAME job_id (reused, not new)
+        assert data['draft_id'] == 'd_replace'
+        # 原 ParseJob 原地更新（不是新插入一条）
+        assert ParseJob.objects.filter(draft_id='d_replace').count() == 1
+        job = ParseJob.objects.get(job_id='rpl_001')
+        assert job.file_name == 'new.pdf'
+        assert job.status == 'processing'
         assert mock_parse_task.call_count == 1
+        mock_parse_task.assert_called_once_with('rpl_001')
 
     def test_replace_draft_not_found(self, api_client, mock_parse_task):
         file = SimpleUploadedFile('new.pdf', b'%PDF-1.4', content_type='application/pdf')
@@ -306,15 +347,18 @@ class TestScoringEndpoints:
         assert 'task_test' in data['stream_url']
 
     def test_scoring_stream_returns_event_stream(self, api_client):
-        import threading
-        from apps.add_candidate.sse import broadcast_event
-        def push():
-            time.sleep(0.2)
-            broadcast_event('sse_test_1', {'event': 'test', 'data': {'x': 1}})
-            broadcast_event('sse_test_1', {'event': 'task-complete', 'data': {}})
-        threading.Thread(target=push, daemon=True).start()
-
-        response = api_client.get('/api/v1/candidates/add-candidate/scoring/stream/sse_test_1/')
+        """I-4: SSE 改用 Redis pub/sub — test env 无 Redis，用 mock _get_redis 注入 fake pubsub"""
+        from unittest.mock import patch, MagicMock
+        fake_pubsub = MagicMock()
+        fake_pubsub.listen.return_value = [
+            {'type': 'message', 'data': json.dumps({'event': 'test', 'data': {'x': 1}})},
+            {'type': 'message', 'data': json.dumps({'event': 'task-complete', 'data': {}})},
+        ]
+        with patch('apps.add_candidate.sse._get_redis') as mock_redis:
+            mock_redis.return_value.pubsub.return_value = fake_pubsub
+            response = api_client.get(
+                '/api/v1/candidates/add-candidate/scoring/stream/sse_test_1/'
+            )
         assert response.status_code == 200
         assert response['Content-Type'] == 'text/event-stream'
 
