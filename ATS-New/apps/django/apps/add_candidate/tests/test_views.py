@@ -81,3 +81,26 @@ class TestUploadAndParseView:
         # 401 或 403 都可以（取决于 IsHROrAbove 优先级）
         assert response.status_code in (401, 403)
         assert mock_parse_task.call_count == 0
+
+
+@pytest.mark.django_db
+class TestParseStatusView:
+    """GET /parse-status/{job_id}/ 测试"""
+
+    def test_get_processing_job(self, api_client, hr_user):
+        from apps.add_candidate.models import ParseJob
+        job = ParseJob.objects.create(
+            job_id='test_001', file_name='r.pdf', file_path='/tmp/r.pdf',
+            file_size=1000, status='processing', phase='parsing', progress=50,
+            actor=hr_user,
+        )
+        response = api_client.get('/api/v1/candidates/add-candidate/parse-status/test_001/')
+        assert response.status_code == 200
+        data = response.json()
+        assert data['draft_id'] == job.draft_id
+        assert data['status'] == 'processing'
+        assert data['progress'] == 50
+
+    def test_get_nonexistent_job_404(self, api_client):
+        response = api_client.get('/api/v1/candidates/add-candidate/parse-status/nonexistent/')
+        assert response.status_code == 404

@@ -107,11 +107,28 @@ class UploadAndParseView(APIView):
 class ParseStatusView(APIView):
     """GET /candidates/parse-status/<job_id>/
 
-    前端每 1.5s 轮询解析状态。
-    Phase 2 Task 3 填充 Redis 状态读取。
+    前端每 1.5s 轮询获取解析状态。完成时返回 parsed + duplicate。
     """
+    permission_classes = [IsAuthenticated]
 
-    pass
+    def get(self, request, job_id):
+        try:
+            job = ParseJob.objects.get(job_id=job_id)
+        except ParseJob.DoesNotExist:
+            return Response(
+                {'detail': 'Job not found', 'code': 'JOB_NOT_FOUND'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({
+            'draft_id': job.draft_id,
+            'status': job.status,
+            'phase': job.phase,
+            'progress': job.progress,
+            'parsed': job.parsed_data,
+            'duplicate': job.duplicate_data,
+            'error': job.error,
+        })
 
 
 class DuplicateCheckView(APIView):
