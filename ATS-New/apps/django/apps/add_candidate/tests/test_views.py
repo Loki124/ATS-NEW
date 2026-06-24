@@ -104,3 +104,30 @@ class TestParseStatusView:
     def test_get_nonexistent_job_404(self, api_client):
         response = api_client.get('/api/v1/candidates/add-candidate/parse-status/nonexistent/')
         assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestDuplicateCheckView:
+    """POST /duplicate-check/ 测试"""
+
+    def test_duplicate_check_clean(self, api_client):
+        """新候选人 → status=clean"""
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/duplicate-check/',
+            {'draft_id': 'd1', 'phone': '13900000000', 'email': 'new@x.com', 'name': '新'},
+            format='json',
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'clean'
+
+    def test_duplicate_check_occupied(self, api_client, candidate_with_active_app):
+        """已有 active application 的候选人 → status=occupied"""
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/duplicate-check/',
+            {'draft_id': 'd1', 'phone': candidate_with_active_app.phone, 'email': '', 'name': ''},
+            format='json',
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'occupied'

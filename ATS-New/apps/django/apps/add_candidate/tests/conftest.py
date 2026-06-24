@@ -67,3 +67,20 @@ def clean_candidate(db):
         email='zhang@test.com',
         current_state=CandidateState.APPLIED,
     )
+
+
+@pytest.fixture
+def candidate_with_active_app(db, published_position):
+    """已有 active application 的候选人（用于测试 occupied 状态）"""
+    from apps.candidate.models import Candidate
+    from apps.application.models import Application, ApplicationState
+    cand = Candidate.objects.create(name='重复测试', phone='13911111111')
+    Application.objects.create(
+        candidate=cand,
+        position=published_position,
+        process=published_position.process,
+        workflow_version=published_position.process.current_version,
+        code='APP-DUP-001',
+        state=ApplicationState.ACTIVE,
+    )
+    return cand

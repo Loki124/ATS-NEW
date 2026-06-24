@@ -32,6 +32,7 @@ from rest_framework.views import APIView
 from apps.core.permissions import IsHROrAbove
 
 from .models import ParseJob
+from .services.duplicate_check import DuplicateCheckService
 from .tasks import parse_resume_task
 
 logger = logging.getLogger(__name__)
@@ -134,11 +135,23 @@ class ParseStatusView(APIView):
 class DuplicateCheckView(APIView):
     """POST /candidates/duplicate-check/
 
-    重查重（用户改字段后触发，debounce 800ms）。
-    Phase 2 Task 3 填充 DuplicateCheckService 调用。
+    用户编辑字段后触发重新查重。返回 clean/unocc/occupied + duplicate info。
     """
+    permission_classes = [IsAuthenticated]
 
-    pass
+    def post(self, request):
+        from .serializers import DuplicateCheckRequest
+        serializer = DuplicateCheckRequest(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        info = DuplicateCheckService.find(
+            phone=data.get('phone', ''),
+            email=data.get('email', ''),
+            id_card='',
+            moka_id='',
+        )
+        return Response(info.to_dict())
 
 
 class ReplaceFileView(APIView):
