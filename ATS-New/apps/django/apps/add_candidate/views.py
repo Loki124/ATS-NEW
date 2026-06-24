@@ -157,11 +157,64 @@ class DuplicateCheckView(APIView):
 class ReplaceFileView(APIView):
     """POST /candidates/replace-file/<draft_id>/
 
-    替换附件并重新解析。
-    Phase 2 Task 2 填充 ResumeParserService 重跑。
+    替换简历附件并重新解析。
     """
+    permission_classes = [IsAuthenticated, IsHROrAbove]
+    parser_classes = [MultiPartParser]
 
-    pass
+    def post(self, request, draft_id):
+        file = request.FILES.get('file')
+        if not file:
+            return Response(
+                {'detail': '未上传文件', 'code': 'NO_FILE'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ext = os.path.splitext(file.name)[1].lower()
+        if ext not in ALLOWED_EXT:
+            return Response(
+                {'detail': f'文件类型不支持', 'code': 'UNSUPPORTED_TYPE'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if file.size > MAX_FILE_SIZE:
+            return Response(
+                {'detail': f'文件超过 10MB', 'code': 'FILE_TOO_LARGE'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 找原 job（按 draft_id 找最近一个）
+        try:
+            old_job = ParseJob.objects.filter(draft_id=draft_id).latest('created_at')
+        except ParseJob.DoesNotExist:
+            return Response(
+                {'detail': f'Draft {draft_id} not found', 'code': 'DRAFT_NOT_FOUND'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # 保存新文件
+        new_job_id = uuid.uuid4().hex[:16]
+        new_draft_id = f'draft_{uuid.uuid4().hex[:12]}'
+        year_month = f'{timezone.now().year}/{timezone.now().month:02d}'
+        rel_path = f'resumes/{year_month}/{new_job_id}{ext}'
+        saved_path = default_storage.save(rel_path, file)
+        abs_path = default_storage.path(saved_path)
+
+        ParseJob.objects.create(
+            job_id=new_job_id,
+            draft_id=new_draft_id,
+            file_name=file.name,
+            file_path=abs_path,
+            file_size=file.size,
+            actor=request.user,
+        )
+
+        # 触发解析
+        parse_resume_task.delay(new_job_id)
+
+        return Response(
+            {'new_job_id': new_job_id},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class BulkCreateView(APIView):

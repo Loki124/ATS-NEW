@@ -131,3 +131,35 @@ class TestDuplicateCheckView:
         assert response.status_code == 200
         data = response.json()
         assert data['status'] == 'occupied'
+
+
+@pytest.mark.django_db
+class TestReplaceFileView:
+    """POST /replace-file/{draft_id}/ 测试"""
+
+    def test_replace_success(self, api_client, hr_user, mock_parse_task):
+        from apps.add_candidate.models import ParseJob
+        ParseJob.objects.create(
+            job_id='old_001', draft_id='d_replace',
+            file_name='old.pdf', file_path='/tmp/old.pdf', file_size=100, actor=hr_user,
+        )
+        file = SimpleUploadedFile('new.pdf', b'%PDF-1.4 new', content_type='application/pdf')
+
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/replace-file/d_replace/',
+            {'file': file},
+            format='multipart',
+        )
+        assert response.status_code == 202
+        assert 'new_job_id' in response.json()
+        assert mock_parse_task.call_count == 1
+
+    def test_replace_draft_not_found(self, api_client, mock_parse_task):
+        file = SimpleUploadedFile('new.pdf', b'%PDF-1.4', content_type='application/pdf')
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/replace-file/nonexistent/',
+            {'file': file},
+            format='multipart',
+        )
+        assert response.status_code == 404
+        assert mock_parse_task.call_count == 0
