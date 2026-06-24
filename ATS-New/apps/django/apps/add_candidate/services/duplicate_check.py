@@ -146,15 +146,18 @@ class DuplicateCheckService:
     @classmethod
     def _state_label(cls, state) -> str:
         """Application.state → 中文文案"""
-        mapping = {
-            ApplicationState.PENDING: '待处理',
-            ApplicationState.ACTIVE: '面试中',
-            ApplicationState.PAUSED: '已暂停',
-            ApplicationState.OFFER_SENT: '已发offer',
-            ApplicationState.OFFER_ACCEPTED: '已接受offer',
-            ApplicationState.ONBOARDED: '已入职',
-            ApplicationState.REJECTED: '已拒绝',
-            ApplicationState.WITHDRAWN: '已撤回',
-            ApplicationState.TIMEOUT: '已超时',
-        }
-        return mapping.get(state, '未知状态')
+        return _STATE_LABEL_MAP.get(state, '未知状态')
+
+
+# Module-level lookup (避免每次调用 _state_label 都重建 dict)
+_STATE_LABEL_MAP = {
+    ApplicationState.PENDING: '待处理',
+    ApplicationState.ACTIVE: '面试中',
+    ApplicationState.PAUSED: '已暂停',
+    ApplicationState.OFFER_SENT: '已发offer',
+    ApplicationState.OFFER_ACCEPTED: '已接受offer',
+    ApplicationState.ONBOARDED: '已入职',
+    ApplicationState.REJECTED: '已拒绝',
+    ApplicationState.WITHDRAWN: '已撤回',
+    ApplicationState.TIMEOUT: '已超时',
+}
