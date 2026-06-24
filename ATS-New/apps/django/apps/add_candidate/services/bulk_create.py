@@ -8,7 +8,7 @@ PRD v2 §5.2 (bulk-create endpoint) + §5.5 (3 方向路由)
 - talent: 创建 Candidate + TalentPoolEntry(source=DIRECT_IMPORT)
 
 事务一致性：任一 draft 失败 → 全部 rollback
-幂等性：同 (draft_id, user_id) 重复调用不创建
+幂等性：按 phone 匹配复用已存在 candidate
 """
 from __future__ import annotations
 

@@ -108,6 +108,7 @@ class ResumeParserService:
             response = client.create_document(
                 workspace=settings.AFFINDA_WORKSPACE,
                 file=file_obj,
+                timeout=settings.AFFINDA_TIMEOUT_SECONDS,
             )
         except ClientAuthenticationError as e:
             logger.error('Affinda auth failed: %s', e)
