@@ -16,6 +16,8 @@ class TalentPoolEntry(FullAuditModel):
         TIMEOUT = 'TIMEOUT', '超时归档'
         ACTIVE_REJECT = 'ACTIVE_REJECT', '主动拒绝入库'
         MANUAL = 'MANUAL', '手动入库'
+        # 2026-06-22: G38 新版创建候选人流程（V2）
+        DIRECT_IMPORT = 'DIRECT_IMPORT', '直接导入（HR 上传简历）'
 
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     candidate = models.ForeignKey(
