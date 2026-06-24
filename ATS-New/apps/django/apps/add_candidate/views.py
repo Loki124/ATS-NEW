@@ -17,17 +17,91 @@ Phase 1 Task 1.4：先创建占位 APIView（最小 class XxxView(APIView): pass
 """
 from __future__ import annotations
 
+import logging
+import os
+import uuid
+
+from django.core.files.storage import default_storage
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.core.permissions import IsHROrAbove
+
+from .models import ParseJob
+from .tasks import parse_resume_task
+
+logger = logging.getLogger(__name__)
+
+ALLOWED_EXT = {'.pdf', '.doc', '.docx', '.txt'}
+MAX_FILES = 20
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 class UploadAndParseView(APIView):
     """POST /candidates/upload-and-parse/
 
-    上传文件 + 触发商业简历解析 API（Affinda）。
-    Phase 2 Task 2 填充 ResumeParserService 调用 + Celery 任务。
+    上传 1-20 个简历文件（PDF/Word/TXT，单文件 ≤ 10MB），立即返回 202
+    + job_id 列表。前端轮询 /parse-status/{job_id}/ 获取进度。
     """
+    permission_classes = [IsAuthenticated, IsHROrAbove]
+    parser_classes = [MultiPartParser]
 
-    pass
+    def post(self, request):
+        files = request.FILES.getlist('files')
+        if not files:
+            return Response(
+                {'detail': '未上传文件', 'code': 'NO_FILES'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(files) > MAX_FILES:
+            return Response(
+                {'detail': f'单次最多 {MAX_FILES} 个文件', 'code': 'TOO_MANY_FILES'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        job_ids = []
+        draft_ids = []
+        for f in files:
+            ext = os.path.splitext(f.name)[1].lower()
+            if ext not in ALLOWED_EXT:
+                return Response(
+                    {'detail': f'文件 {f.name} 类型不支持', 'code': 'UNSUPPORTED_TYPE'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if f.size > MAX_FILE_SIZE:
+                return Response(
+                    {'detail': f'文件 {f.name} 超过 10MB', 'code': 'FILE_TOO_LARGE'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            job_id = uuid.uuid4().hex[:16]
+            draft_id = f'draft_{uuid.uuid4().hex[:12]}'
+            year_month = f'{timezone.now().year}/{timezone.now().month:02d}'
+            rel_path = f'resumes/{year_month}/{job_id}{ext}'
+            saved_path = default_storage.save(rel_path, f)
+            abs_path = default_storage.path(saved_path)
+
+            ParseJob.objects.create(
+                job_id=job_id,
+                draft_id=draft_id,
+                file_name=f.name,
+                file_path=abs_path,
+                file_size=f.size,
+                actor=request.user,
+            )
+            job_ids.append(job_id)
+            draft_ids.append(draft_id)
+
+            parse_resume_task.delay(job_id)
+
+        return Response(
+            {'job_ids': job_ids, 'draft_ids': draft_ids},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class ParseStatusView(APIView):
