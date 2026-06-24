@@ -70,3 +70,19 @@ def parse_resume_task(self, job_id):
             job.status = 'failed'
             job.error = 'MAX_RETRIES_EXCEEDED'
             job.save(update_fields=['status', 'error'])
+
+
+@shared_task
+def score_batch_task(candidate_ids, submit_mode, task_id):
+    """批量评分任务 stub（Phase 2 Task 7 占位，Task 8 替换为真实实现）
+
+    Args:
+        candidate_ids: 候选 ID 列表
+        submit_mode: 'wait' 同步 | 'async' 异步
+        task_id: 业务侧 task ID（用于前端轮询/SSE 关联）
+    """
+    logger.info(
+        'score_batch_task stub: task_id=%s mode=%s candidates=%d',
+        task_id, submit_mode, len(candidate_ids) if candidate_ids else 0,
+    )
+    return task_id

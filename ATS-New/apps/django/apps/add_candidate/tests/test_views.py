@@ -163,3 +163,124 @@ class TestReplaceFileView:
         )
         assert response.status_code == 404
         assert mock_parse_task.call_count == 0
+
+
+@pytest.mark.django_db
+class TestBulkCreateView:
+    """POST /bulk-create/ 测试"""
+
+    @pytest.fixture
+    def mock_score_task(self):
+        """Mock score_batch_task.delay 避免真连 Redis
+
+        score_batch_task 在 views.py 模块顶部导入，所以 patch 必须打在
+        视图模块（apps.add_candidate.views），不是源模块 tasks。
+
+        必须显式设置 .return_value.id 为字符串 — 否则默认 MagicMock 在
+        DRF JSONRenderer 编码时触发 tolist() 无限递归（numpy 数组启发式判断）。
+        """
+        with patch('apps.add_candidate.views.score_batch_task.delay') as mock:
+            mock.return_value.id = 'mock_task_id_001'
+            yield mock
+
+    @pytest.fixture
+    def parsed_job_pending(self, db, hr_user):
+        """1 个 pending draft 对应的已解析 ParseJob"""
+        from apps.add_candidate.models import ParseJob
+        return ParseJob.objects.create(
+            job_id='job_bulk_001',
+            draft_id='d1',
+            file_name='r.pdf',
+            file_path='/tmp/r.pdf',
+            file_size=1000,
+            status='done',
+            parsed_data={
+                'name': '张三',
+                'phone': '13800138001',
+                'email': 'zhang@test.com',
+            },
+            actor=hr_user,
+        )
+
+    def test_bulk_create_pending(self, api_client, parsed_job_pending, mock_score_task):
+        """1 个 pending draft → 200 + task_id"""
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {
+                'drafts': [
+                    {
+                        'draft_id': 'd1',
+                        'direction': 'pending',
+                        'channel': '招聘网站',
+                        'source': 'Boss',
+                        'provider': '',
+                    }
+                ],
+                'submit_mode': 'async',
+            },
+            format='json',
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert 'task_id' in data
+        assert len(data['created_candidate_ids']) == 1
+        assert data['route'] == {'d1': 'pending'}
+        assert mock_score_task.call_count == 1
+
+    def test_bulk_create_position_requires_position_id(self, api_client, mock_score_task):
+        """direction=position 但无 position_id → 400"""
+        # 先建一个解析好的 job，避免 DRAFT_NOT_FOUND 误报
+        from apps.add_candidate.models import ParseJob
+        ParseJob.objects.create(
+            job_id='job_bulk_pos', draft_id='d1',
+            file_name='r.pdf', file_path='/tmp/r.pdf', file_size=1000,
+            status='done',
+            parsed_data={'name': '李四', 'phone': '13800138002', 'email': 'li@test.com'},
+        )
+
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {
+                'drafts': [
+                    {
+                        'draft_id': 'd1',
+                        'direction': 'position',
+                        'position_id': None,
+                    }
+                ],
+                'submit_mode': 'async',
+            },
+            format='json',
+        )
+        assert response.status_code == 400
+        assert mock_score_task.call_count == 0
+
+    def test_bulk_create_rollback_on_partial_failure(self, api_client, mock_score_task):
+        """第二个 draft 失败 → 第一个回滚"""
+        from apps.add_candidate.models import ParseJob
+        # 第一个 draft：合法 pending（带解析数据）
+        ParseJob.objects.create(
+            job_id='job_bulk_rb_1', draft_id='d1',
+            file_name='r.pdf', file_path='/tmp/r1.pdf', file_size=1000,
+            status='done',
+            parsed_data={'name': '王五', 'phone': '13800138003', 'email': 'wang@test.com'},
+        )
+        # 第二个 draft：position 但缺 position_id（无 ParseJob 也行 — 校验在 service 层）
+
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {
+                'drafts': [
+                    {'draft_id': 'd1', 'direction': 'pending'},
+                    {'draft_id': 'd2', 'direction': 'position', 'position_id': None},
+                ],
+                'submit_mode': 'async',
+            },
+            format='json',
+        )
+        assert response.status_code == 400
+        from apps.candidate.models import Candidate
+        # 第一个 draft 不应留下记录（事务回滚）
+        assert Candidate.objects.count() == 0
+        # score_batch_task 不应被调用（创建失败，未到评分）
+        assert mock_score_task.call_count == 0

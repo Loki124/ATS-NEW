@@ -33,7 +33,7 @@ from apps.core.permissions import IsHROrAbove
 
 from .models import ParseJob
 from .services.duplicate_check import DuplicateCheckService
-from .tasks import parse_resume_task
+from .tasks import parse_resume_task, score_batch_task
 
 logger = logging.getLogger(__name__)
 
@@ -220,11 +220,77 @@ class ReplaceFileView(APIView):
 class BulkCreateView(APIView):
     """POST /candidates/bulk-create/
 
-    批量提交（创建候选 + application + talent pool）+ 同步/异步评分路由。
-    Phase 2 Task 4 填充 BulkCreateService + 3 方向路由 + 幂等性。
+    批量提交：创建候选 + 关联记录（application/talent_pool）。
+    sync (wait) 模式：同步触发评分任务，立即返 task_id
+    async 模式：仅入库，评分后台跑，通知中心推结果
     """
+    permission_classes = [IsAuthenticated, IsHROrAbove]
 
-    pass
+    def post(self, request):
+        from .serializers import BulkCreateRequest
+        from .services.bulk_create import BulkCreateService, BulkCreateDraft, BulkCreateError
+
+        serializer = BulkCreateRequest(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # 收集 draft_id → ParseJob 映射（用于补充 name/phone/email/parsed_data）
+        draft_ids = [d['draft_id'] for d in data['drafts']]
+        jobs = {j.draft_id: j for j in ParseJob.objects.filter(draft_id__in=draft_ids)}
+
+        # 转 BulkCreateDraft
+        drafts = []
+        for d in data['drafts']:
+            job = jobs.get(d['draft_id'])
+            parsed = (job.parsed_data or {}) if job else {}
+            drafts.append(
+                BulkCreateDraft(
+                    draft_id=d['draft_id'],
+                    direction=d['direction'],
+                    name=parsed.get('name') or '',
+                    phone=parsed.get('phone') or '',
+                    email=parsed.get('email') or '',
+                    parsed_data=parsed,
+                    position_id=d.get('position_id') or None,
+                    channel=d.get('channel', '招聘网站'),
+                    source=d.get('source', ''),
+                    provider=d.get('provider', ''),
+                )
+            )
+
+        try:
+            result = BulkCreateService.create_batch(drafts, actor=request.user)
+        except BulkCreateError as e:
+            logger.warning('BulkCreate failed: %s', e)
+            return Response(
+                {'detail': str(e), 'code': e.code, 'draft_id': e.draft_id},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.exception('BulkCreate unexpected error: %s', e)
+            return Response(
+                {'detail': str(e), 'code': 'BULK_CREATE_FAILED'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 启动评分任务（Task 8 实现，Task 7 暂用 stub）
+        try:
+            task = score_batch_task.delay(
+                candidate_ids=result.created_candidate_ids,
+                submit_mode=data['submit_mode'],
+                task_id=f'batch_{uuid.uuid4().hex[:12]}',
+            )
+            task_id = task.id
+        except Exception as e:
+            # Redis/Celery 不可用时降级 — task_id 用本地 uuid 占位
+            logger.warning('Celery unavailable, falling back to local task_id: %s', e)
+            task_id = f'local_{uuid.uuid4().hex[:12]}'
+
+        return Response({
+            'task_id': task_id,
+            'created_candidate_ids': result.created_candidate_ids,
+            'route': result.route,
+        })
 
 
 class ScoringStartView(APIView):
