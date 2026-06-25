@@ -298,9 +298,11 @@ const statusFilter = ref<string | null>(null)
 onMounted(async () => {
   try {
     const schema: StatusSchema = await fetchStatusSchema()
-    STATUS_SCHEMA.value = Object.entries(schema)
-      .map(([key, v]) => ({ key, label: v.label, order: v.order }))
-      .sort((a, b) => a.order - b.order)
+    if (schema && typeof schema === 'object') {
+      STATUS_SCHEMA.value = Object.entries(schema)
+        .map(([key, v]) => ({ key, label: v.label, order: v.order }))
+        .sort((a, b) => a.order - b.order)
+    }
   } catch (e) {
     // 静默失败: 11 状态筛选可选
     console.warn('fetchStatusSchema 失败', e)
