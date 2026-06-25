@@ -149,6 +149,84 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     if (r.status !== 'processing') r.procPhase = null
   }
 
+  function setOccupyAction(draftId: string, action: 'pending' | 'merge' | 'apply' | 'cancel' | 'score') {
+    const r = resumes.value.find((x) => x.id === draftId)
+    if (!r) return
+    r.occupyAction = action
+    if (action === 'pending') {
+      r.status = 'clean'
+      r.duplicate = undefined
+    } else if (action === 'merge') {
+      r.status = 'unocc'
+    } else if (action === 'cancel') {
+      resumes.value = resumes.value.filter((x) => x.id !== draftId)
+    }
+    isDirty.value = true
+  }
+
+  function setDirAll(dir: '' | Direction) {
+    dirAll.value = dir
+    if (dir !== 'position') posAll.value = ''
+    for (const r of resumes.value) {
+      // occupied resumes only allow 'pending'
+      if (r.status === 'occupied' && dir !== 'pending') {
+        dirPer.value[r.id] = 'pending'
+      } else {
+        dirPer.value[r.id] = dir
+      }
+    }
+  }
+
+  function setPosAll(pos: string) {
+    posAll.value = pos
+    for (const r of resumes.value) {
+      if (dirPer.value[r.id] === 'position') posPer.value[r.id] = pos
+    }
+  }
+
+  function setPerDir(draftId: string, dir: '' | Direction) {
+    dirPer.value[draftId] = dir
+    if (dir !== 'position') delete posPer.value[draftId]
+  }
+
+  function setPerPos(draftId: string, pos: string) {
+    posPer.value[draftId] = pos
+  }
+
+  function selectApplyPos(draftId: string, pos: string) {
+    const r = resumes.value.find((x) => x.id === draftId)
+    if (r) r.appliedPosition = pos
+  }
+
+  // ===== Computed =====
+  const mode = computed<'single' | 'batch'>(() => (resumes.value.length === 1 ? 'single' : 'batch'))
+  const isAllDone = computed(() => resumes.value.every((r) => r.status !== 'processing'))
+  const hasOccupied = computed(() => resumes.value.some((r) => r.status === 'occupied'))
+
+  function passesValidation(r: ResumeDraft): boolean {
+    const name = r.edited.name ?? r.parsed?.name
+    const phone = r.edited.phone ?? r.parsed?.phone
+    const email = r.edited.email ?? r.parsed?.email
+    return !!(name && phone && email)
+  }
+
+  const canGoStep2 = computed(() => isAllDone.value && !hasOccupied.value && resumes.value.every(passesValidation))
+
+  const canSubmit = computed(() => {
+    if (applyMode.value === 'all') {
+      if (!dirAll.value) return false
+      if (dirAll.value === 'position' && !posAll.value) return false
+      return true
+    } else {
+      return resumes.value.every((r) => {
+        const d = dirPer.value[r.id]
+        if (!d) return false
+        if (d === 'position' && !posPer.value[r.id]) return false
+        return true
+      })
+    }
+  })
+
   return {
     // state
     step, isDirty, resumes,
@@ -158,5 +236,8 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     selectedIds, activeId, recheckingIds, replacingId,
     // actions
     reset, addResumes, updateField, replaceResumeFile, processParseUpdate,
+    setOccupyAction, setDirAll, setPosAll, setPerDir, setPerPos, selectApplyPos,
+    // computed
+    mode, isAllDone, hasOccupied, canGoStep2, canSubmit,
   }
 })

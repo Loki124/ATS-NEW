@@ -94,4 +94,97 @@ describe('useAddCandidateStore', () => {
       expect(r.duplicate?.status).toBe('clean')
     })
   })
+
+  describe('setOccupyAction', () => {
+    it('changes status to clean when action=pending', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'occupied', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
+      store.setOccupyAction('d1', 'pending')
+      expect(store.resumes[0].status).toBe('clean')
+      expect(store.resumes[0].duplicate).toBeUndefined()
+    })
+
+    it('removes resume when action=cancel', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.setOccupyAction('d1', 'cancel')
+      expect(store.resumes).toHaveLength(0)
+    })
+
+    it('expands apply position selector when action=apply', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.setOccupyAction('d1', 'apply')
+      expect(store.resumes[0].occupyAction).toBe('apply')
+    })
+  })
+
+  describe('setDirAll', () => {
+    it('sets dirAll and applies to all resumes (except occupied which only get pending)', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([
+        { job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' },
+        { job_id: 'j2', draft_id: 'd2', file_name: 'b.pdf' },
+      ])
+      store.processParseUpdate('d2', { status: 'occupied', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
+      store.setDirAll('position')
+      expect(store.dirAll).toBe('position')
+      expect(store.dirPer['d1']).toBe('position')
+      expect(store.dirPer['d2']).toBe('pending')  // occupied → forced pending
+    })
+  })
+
+  describe('computed canGoStep2', () => {
+    it('true when all done and no occupied and all valid', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', {
+        status: 'done', phase: null, progress: 100,
+        parsed: { name: '张三', phone: '13800138000', email: 'z@x.com' } as any,
+        duplicate: { status: 'clean' } as any,
+      })
+      expect(store.canGoStep2).toBe(true)
+    })
+
+    it('false when occupied exists', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'occupied', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
+      expect(store.canGoStep2).toBe(false)
+    })
+
+    it('false when name missing', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', {
+        status: 'done', phase: null, progress: 100,
+        parsed: { name: '', phone: '13800138000', email: 'z@x.com' } as any,
+        duplicate: { status: 'clean' } as any,
+      })
+      expect(store.canGoStep2).toBe(false)
+    })
+  })
+
+  describe('computed canSubmit', () => {
+    it('true when applyMode=all and dirAll set (position needs posAll)', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'clean' } as any })
+      store.step = 2
+      store.dirAll = 'pending'
+      expect(store.canSubmit).toBe(true)
+    })
+
+    it('false when dirAll=position but posAll empty', () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'clean' } as any })
+      store.step = 2
+      store.dirAll = 'position'
+      expect(store.canSubmit).toBe(false)
+      store.posAll = 'pos_42'
+      expect(store.canSubmit).toBe(true)
+    })
+  })
 })
