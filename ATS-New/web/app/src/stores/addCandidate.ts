@@ -13,6 +13,7 @@ import type {
   SubmitMode,
   ScoreResult,
 } from '@/api/addCandidate'
+import * as api from '@/api/addCandidate'
 
 // ============ Internal types ============
 export interface ResumeDraft {
@@ -198,6 +199,109 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     if (r) r.appliedPosition = pos
   }
 
+  // ===== Async actions =====
+
+  // poll timers keyed by draft_id (so we can cancel individually)
+  const pollTimers: Record<string, number> = {}
+  // recheck timers keyed by draft_id (debounced)
+  const recheckTimers: Record<string, number> = {}
+
+  async function uploadFiles(files: File[]) {
+    const result = await api.uploadAndParse(files)
+    addResumes(
+      result.job_ids.map((job_id, i) => ({
+        job_id,
+        draft_id: result.draft_ids[i],
+        file_name: files[i]?.name || 'unknown',
+      })),
+    )
+  }
+
+  async function pollParseStatus(draftId: string) {
+    const r = resumes.value.find((x) => x.id === draftId)
+    if (!r) return
+    const resp = await api.getParseStatus(r.job_id)
+    processParseUpdate(draftId, {
+      status: resp.status as 'processing' | 'done' | 'failed',
+      phase: resp.phase,
+      progress: resp.progress,
+      parsed: resp.parsed ?? undefined,
+      duplicate: resp.duplicate ?? undefined,
+    })
+    if (resp.status === 'processing') {
+      // continue polling — store timer so closeStream() can cancel,
+      // but wait for the next poll to finish before resolving so callers
+      // can `await` until the draft reaches a terminal status.
+      await new Promise<void>((resolve) => {
+        pollTimers[draftId] = window.setTimeout(async () => {
+          delete pollTimers[draftId]
+          await pollParseStatus(draftId)
+          resolve()
+        }, 1500)
+      })
+    } else {
+      // terminal: clear any tracked timer
+      if (pollTimers[draftId]) {
+        window.clearTimeout(pollTimers[draftId])
+        delete pollTimers[draftId]
+      }
+    }
+  }
+
+  function triggerRecheck(draftId: string) {
+    if (recheckTimers[draftId]) window.clearTimeout(recheckTimers[draftId])
+    recheckTimers[draftId] = window.setTimeout(async () => {
+      delete recheckTimers[draftId]
+      const r = resumes.value.find((x) => x.id === draftId)
+      if (!r) return
+      const phone = r.edited.phone ?? r.parsed?.phone ?? ''
+      const email = r.edited.email ?? r.parsed?.email ?? ''
+      const name = r.edited.name ?? r.parsed?.name ?? ''
+      const dup = await api.postDuplicateCheck({ draft_id: draftId, phone, email, name })
+      processParseUpdate(draftId, {
+        status: dup.status === 'clean' ? 'done' : (dup.status as any),
+        phase: null,
+        progress: 100,
+        duplicate: dup,
+      })
+      recheckingIds.value.delete(draftId)
+      recheckingIds.value = new Set(recheckingIds.value)
+    }, 800)
+  }
+
+  async function submit() {
+    if (submitMode.value === 'wait') {
+      submitting.value = true
+      step.value = 3
+    } else {
+      submitting.value = true
+      step.value = 3
+      asyncResult.value = true
+    }
+    const drafts = resumes.value.map((r) => ({
+      draft_id: r.id,
+      direction: (dirPer.value[r.id] || dirAll.value) as Direction,
+      position_id: posPer.value[r.id] || posAll.value || null,
+      channel: appInfo.value.channel,
+      source: appInfo.value.source,
+      provider: appInfo.value.provider,
+    }))
+    const result = await api.bulkCreate({ drafts, submit_mode: submitMode.value })
+    // 评分任务由后端 bulk-create 内部触发
+    return result
+  }
+
+  function closeStream() {
+    for (const k of Object.keys(pollTimers)) {
+      window.clearTimeout(pollTimers[k])
+      delete pollTimers[k]
+    }
+    for (const k of Object.keys(recheckTimers)) {
+      window.clearTimeout(recheckTimers[k])
+      delete recheckTimers[k]
+    }
+  }
+
   // ===== Computed =====
   const mode = computed<'single' | 'batch'>(() => (resumes.value.length === 1 ? 'single' : 'batch'))
   const isAllDone = computed(() => resumes.value.every((r) => r.status !== 'processing'))
@@ -237,6 +341,7 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     // actions
     reset, addResumes, updateField, replaceResumeFile, processParseUpdate,
     setOccupyAction, setDirAll, setPosAll, setPerDir, setPerPos, selectApplyPos,
+    uploadFiles, pollParseStatus, triggerRecheck, submit, closeStream,
     // computed
     mode, isAllDone, hasOccupied, canGoStep2, canSubmit,
   }

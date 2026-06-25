@@ -187,4 +187,120 @@ describe('useAddCandidateStore', () => {
       expect(store.canSubmit).toBe(true)
     })
   })
+
+  describe('uploadFiles', () => {
+    it('calls api.uploadAndParse and adds resumes to store', async () => {
+      const store = useAddCandidateStore()
+      vi.mocked(api.uploadAndParse).mockResolvedValue({
+        job_ids: ['j1', 'j2'],
+        draft_ids: ['d1', 'd2'],
+      })
+      const files = [
+        new File(['x'], 'a.pdf', { type: 'application/pdf' }),
+        new File(['y'], 'b.pdf', { type: 'application/pdf' }),
+      ]
+      await store.uploadFiles(files)
+      expect(api.uploadAndParse).toHaveBeenCalledWith(files)
+      expect(store.resumes).toHaveLength(2)
+      expect(store.resumes[0].id).toBe('d1')
+      expect(store.resumes[0].file_name).toBe('a.pdf')
+      expect(store.resumes[1].id).toBe('d2')
+      expect(store.resumes[1].file_name).toBe('b.pdf')
+    })
+  })
+
+  describe('pollParseStatus', () => {
+    it('polls api.getParseStatus until status=done/failed, calling processParseUpdate', async () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      vi.mocked(api.getParseStatus)
+        .mockResolvedValueOnce({
+          draft_id: 'd1',
+          status: 'processing',
+          phase: 'parsing',
+          progress: 30,
+          parsed: null,
+          duplicate: null,
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          draft_id: 'd1',
+          status: 'done',
+          phase: null,
+          progress: 100,
+          parsed: { name: 'X' } as any,
+          duplicate: { status: 'clean' } as any,
+          error: null,
+        })
+
+      await store.pollParseStatus('d1')
+      expect(api.getParseStatus).toHaveBeenCalledTimes(2)
+      expect(store.resumes[0].status).toBe('done')
+      expect(store.resumes[0].parsed?.name).toBe('X')
+      // cleanup any pending poll timers
+      store.closeStream()
+    })
+  })
+
+  describe('triggerRecheck', () => {
+    it('debounces duplicate-check call after field edit', async () => {
+      vi.useFakeTimers()
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', {
+        status: 'done',
+        phase: null,
+        progress: 100,
+        parsed: { phone: '13800138000' } as any,
+        duplicate: { status: 'clean' } as any,
+      })
+      vi.mocked(api.postDuplicateCheck).mockResolvedValue({ status: 'clean' } as any)
+
+      store.triggerRecheck('d1')
+      expect(api.postDuplicateCheck).not.toHaveBeenCalled()
+      // advance past the 800ms debounce; the setTimeout callback is async so we
+      // must flush timers + microtasks to let the awaited api call resolve
+      await vi.advanceTimersByTimeAsync(900)
+      expect(api.postDuplicateCheck).toHaveBeenCalled()
+      vi.useRealTimers()
+    })
+  })
+
+  describe('submit', () => {
+    it('calls api.bulkCreate, sets submitting=true and step=3', async () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'clean' } as any })
+      store.step = 2
+      store.dirAll = 'pending'
+      vi.mocked(api.bulkCreate).mockResolvedValue({
+        task_id: 't1',
+        created_candidate_ids: ['c1'],
+        route: { c1: 'pending' },
+      })
+
+      await store.submit()
+      expect(api.bulkCreate).toHaveBeenCalled()
+      expect(store.submitting).toBe(true)
+      expect(store.step).toBe(3)
+    })
+
+    it('sets asyncResult=true when submitMode=async', async () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'clean' } as any })
+      store.step = 2
+      store.dirAll = 'pending'
+      store.submitMode = 'async'
+      vi.mocked(api.bulkCreate).mockResolvedValue({
+        task_id: 't1',
+        created_candidate_ids: ['c1'],
+        route: { c1: 'pending' },
+      })
+
+      await store.submit()
+      expect(store.asyncResult).toBe(true)
+      expect(store.step).toBe(3)
+    })
+  })
 })
