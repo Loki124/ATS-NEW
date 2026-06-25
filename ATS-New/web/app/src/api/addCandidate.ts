@@ -2,7 +2,7 @@
  * AddCandidateModal V2 - API 客户端
  *
  * 封装 7 个后端 endpoint + SSE 流。
- * 复用 auth.ts 的 axios 实例（带 401 拦截器、自动 refresh token）
+ * 自带 Authorization 拦截器（auth.ts 的实例在创建 modal 时未挂载到这里）
  */
 import axios, { type AxiosInstance } from 'axios'
 import config from '../config'
@@ -10,10 +10,36 @@ import config from '../config'
 const BASE = `${config.api.baseUrl}/candidates/add-candidate`
 
 function getClient(): AxiosInstance {
-  return axios.create({
+  const client = axios.create({
     baseURL: BASE,
     timeout: 60000,
   })
+  // 注入 auth header — 否则后端 IsAuthenticated 直接 401
+  client.interceptors.request.use((cfg) => {
+    const token = localStorage.getItem('accessToken') || ''
+    if (token) {
+      cfg.headers = cfg.headers || {}
+      cfg.headers.Authorization = `Bearer ${token}`
+    }
+    return cfg
+  })
+  // 401 时跳转登录（与 auth.ts 一致）
+  client.interceptors.response.use(
+    (resp) => resp,
+    (error) => {
+      if (error?.response?.status === 401) {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+        localStorage.removeItem('user')
+        // 跳登录页（hash 模式）
+        if (typeof window !== 'undefined' && window.location.hash !== '#/login') {
+          window.location.hash = '#/login'
+        }
+      }
+      return Promise.reject(error)
+    },
+  )
+  return client
 }
 
 // ============ Types ============

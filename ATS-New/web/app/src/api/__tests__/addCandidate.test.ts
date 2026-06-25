@@ -15,20 +15,33 @@ if (typeof (globalThis as any).EventSource === 'undefined') {
   ;(globalThis as any).EventSource = EventSourceStub
 }
 
-vi.mock('axios')
-const mockedAxios = vi.mocked(axios, true)
+// Mock axios 但让 .create() 返回真实 axios 实例（支持 interceptors.request/response）
+// 这样既能 mock HTTP 调用，又能验证 auth header 注入
+const mockPost = vi.fn()
+const mockGet = vi.fn()
+const realAxiosCreate = axios.create.bind(axios)
+vi.spyOn(axios, 'create').mockImplementation((cfg?: any) => {
+  const instance = realAxiosCreate(cfg)
+  vi.spyOn(instance, 'post').mockImplementation(mockPost as any)
+  vi.spyOn(instance, 'get').mockImplementation(mockGet as any)
+  return instance
+})
 
 describe('addCandidate API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // 重新 spy（因为 clearAllMocks 会重置）
+    vi.spyOn(axios, 'create').mockImplementation((cfg?: any) => {
+      const instance = realAxiosCreate(cfg)
+      vi.spyOn(instance, 'post').mockImplementation(mockPost as any)
+      vi.spyOn(instance, 'get').mockImplementation(mockGet as any)
+      return instance
+    })
   })
 
   describe('uploadAndParse', () => {
     it('POSTs multipart to upload-and-parse/ and returns job_ids', async () => {
-      const mockPost = vi.fn().mockResolvedValue({
-        data: { job_ids: ['j1'], draft_ids: ['d1'] },
-      })
-      mockedAxios.create.mockReturnValue({ post: mockPost } as any)
+      mockPost.mockResolvedValueOnce({ data: { job_ids: ['j1'], draft_ids: ['d1'] } })
       const file = new File(['x'], 'test.pdf', { type: 'application/pdf' })
       const result = await uploadAndParse([file])
       expect(result.job_ids).toEqual(['j1'])
@@ -38,10 +51,9 @@ describe('addCandidate API', () => {
 
   describe('getParseStatus', () => {
     it('GETs parse-status/{job_id}/ and returns status', async () => {
-      const mockGet = vi.fn().mockResolvedValue({
+      mockGet.mockResolvedValueOnce({
         data: { draft_id: 'd1', status: 'done', progress: 100, phase: null, parsed: {}, duplicate: {}, error: null },
       })
-      mockedAxios.create.mockReturnValue({ get: mockGet } as any)
       const result = await getParseStatus('j1')
       expect(result.status).toBe('done')
     })
@@ -49,10 +61,7 @@ describe('addCandidate API', () => {
 
   describe('postDuplicateCheck', () => {
     it('POSTs duplicate-check/ with phone/email/name', async () => {
-      const mockPost = vi.fn().mockResolvedValue({
-        data: { status: 'clean' },
-      })
-      mockedAxios.create.mockReturnValue({ post: mockPost } as any)
+      mockPost.mockResolvedValueOnce({ data: { status: 'clean' } })
       const result = await postDuplicateCheck({ draft_id: 'd1', phone: '13800138000', email: '', name: '' })
       expect(result.status).toBe('clean')
     })
@@ -60,10 +69,7 @@ describe('addCandidate API', () => {
 
   describe('replaceFile', () => {
     it('POSTs multipart to replace-file/{draft_id}/', async () => {
-      const mockPost = vi.fn().mockResolvedValue({
-        data: { new_job_id: 'j2' },
-      })
-      mockedAxios.create.mockReturnValue({ post: mockPost } as any)
+      mockPost.mockResolvedValueOnce({ data: { new_job_id: 'j2' } })
       const file = new File(['y'], 'new.pdf', { type: 'application/pdf' })
       const result = await replaceFile('d1', file)
       expect(result.new_job_id).toBe('j2')
@@ -72,10 +78,9 @@ describe('addCandidate API', () => {
 
   describe('bulkCreate', () => {
     it('POSTs JSON to bulk-create/ with drafts and submit_mode', async () => {
-      const mockPost = vi.fn().mockResolvedValue({
+      mockPost.mockResolvedValueOnce({
         data: { task_id: 't1', created_candidate_ids: ['c1'], route: { c1: 'pending' } },
       })
-      mockedAxios.create.mockReturnValue({ post: mockPost } as any)
       const result = await bulkCreate({
         drafts: [{ draft_id: 'd1', direction: 'pending' }],
         submit_mode: 'async',
@@ -86,10 +91,9 @@ describe('addCandidate API', () => {
 
   describe('startScoring', () => {
     it('POSTs JSON to scoring/start/ with task_id', async () => {
-      const mockPost = vi.fn().mockResolvedValue({
+      mockPost.mockResolvedValueOnce({
         data: { stream_url: '/api/v1/candidates/add-candidate/scoring/stream/t1/' },
       })
-      mockedAxios.create.mockReturnValue({ post: mockPost } as any)
       const result = await startScoring({ candidate_ids: ['c1'], task_id: 't1' })
       expect(result.stream_url).toContain('t1')
     })
