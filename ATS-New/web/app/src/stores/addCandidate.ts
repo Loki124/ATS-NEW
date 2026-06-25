@@ -142,11 +142,17 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
   }) {
     const r = resumes.value.find((x) => x.id === draftId)
     if (!r) return
-    r.status = update.status
     r.procPhase = update.phase
     r.progress = update.progress
     if (update.parsed) r.parsed = update.parsed
     if (update.duplicate !== undefined) r.duplicate = update.duplicate ?? undefined
+    // 解析任务完成时, 业务 status 由 duplicate 决定 (而不是任务的 'done' 状态)
+    if (update.status === 'done') {
+      const dupStatus = update.duplicate?.status
+      r.status = dupStatus ? dupStatus : 'clean'
+    } else {
+      r.status = update.status
+    }
     if (r.status !== 'processing') r.procPhase = null
   }
 
@@ -217,10 +223,12 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     )
   }
 
-  async function pollParseStatus(draftId: string) {
+  async function pollParseStatus(draftId: string, overrideJobId?: string) {
     const r = resumes.value.find((x) => x.id === draftId)
     if (!r) return
-    const resp = await api.getParseStatus(r.job_id)
+    const jobId = overrideJobId || r.job_id
+    if (overrideJobId) r.job_id = overrideJobId
+    const resp = await api.getParseStatus(jobId)
     processParseUpdate(draftId, {
       status: resp.status as 'processing' | 'done' | 'failed',
       phase: resp.phase,

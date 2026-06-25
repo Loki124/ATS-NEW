@@ -11,7 +11,7 @@
           <template #icon><n-icon :component="PaperPlaneOutline" /></template>
           批量发送通知 ({{ selectedCandidates.length }})
         </n-button>
-        <n-button type="primary" size="large" class="add-button" @click="showAddModal">
+        <n-button type="primary" size="large" class="add-button" data-testid="add-candidate-btn" @click="showAddModal">
           <template #icon><n-icon :component="AddOutline" /></template>
           新增候选人
         </n-button>

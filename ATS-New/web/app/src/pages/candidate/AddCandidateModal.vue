@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { NModal, NButton } from 'naive-ui'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import Stepper from './addCandidate/Stepper.vue'
@@ -19,7 +19,17 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 const showModal = computed({
   get: () => props.show,
-  set: (v) => emit('update:show', v),
+  set: (v) => {
+    if (!v) {
+      // 用户尝试关闭 (X / mask / esc) -> 走 dirty 检查
+      if (store.isDirty) {
+        if (!confirm('有未保存的修改，确认关闭？')) return
+      }
+      store.closeStream()
+      store.reset()
+    }
+    emit('update:show', v)
+  },
 })
 
 function closeModal() {
@@ -43,6 +53,15 @@ async function handleFiles(files: File[]) {
   }
 }
 
+function onFileChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  const files = target.files ? Array.from(target.files) : []
+  target.value = ''  // reset so same file can be selected again
+  if (files.length > 0) {
+    handleFiles(files)
+  }
+}
+
 async function handleReplace(draftId: string) {
   const fi = document.createElement('input')
   fi.type = 'file'
@@ -51,8 +70,13 @@ async function handleReplace(draftId: string) {
     if (!fi.files || fi.files.length === 0) return
     const file = fi.files[0]
     store.replaceResumeFile(draftId, file.name)
-    await apiReplaceFile(draftId, file)
-    await store.pollParseStatus(draftId)
+    const resp = await apiReplaceFile(draftId, file)
+    // 把后端返回的新 job_id 传入 pollParseStatus, 让它轮询新的 job
+    if (resp && resp.job_id) {
+      await store.pollParseStatus(draftId, resp.job_id)
+    } else {
+      await store.pollParseStatus(draftId)
+    }
   }
   fi.click()
 }
@@ -77,6 +101,15 @@ function nextStep() {
     </template>
 
     <div style="display:flex;flex-direction:column;height:80vh;max-height:700px;">
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".pdf,.doc,.docx,.txt"
+        multiple
+        style="display:none"
+        data-testid="hidden-file-input"
+        @change="onFileChange"
+      />
       <Stepper />
 
       <div v-if="store.step === 1" style="flex:1;display:flex;overflow:hidden;">

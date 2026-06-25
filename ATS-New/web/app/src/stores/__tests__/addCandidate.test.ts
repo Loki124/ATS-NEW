@@ -88,7 +88,8 @@ describe('useAddCandidateStore', () => {
         duplicate: { status: 'clean' } as any,
       })
       const r = store.resumes[0]
-      expect(r.status).toBe('done')
+      // status='done' + duplicate.status='clean' -> 业务 status 为 'clean'
+      expect(r.status).toBe('clean')
       expect(r.progress).toBe(100)
       expect(r.parsed?.name).toBe('张三')
       expect(r.duplicate?.status).toBe('clean')
@@ -235,7 +236,8 @@ describe('useAddCandidateStore', () => {
 
       await store.pollParseStatus('d1')
       expect(api.getParseStatus).toHaveBeenCalledTimes(2)
-      expect(store.resumes[0].status).toBe('done')
+      // status='done' + duplicate.status='clean' -> 业务 status 为 'clean'
+      expect(store.resumes[0].status).toBe('clean')
       expect(store.resumes[0].parsed?.name).toBe('X')
       // cleanup any pending poll timers
       store.closeStream()
