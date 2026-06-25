@@ -9,6 +9,7 @@ import ApplyPositionSelector from '@/components/common/ApplyPositionSelector.vue
 import ScorePanel from '@/components/common/ScorePanel.vue'
 
 const store = useAddCandidateStore()
+const emit = defineEmits<{ (e: 'replace', draftId: string): void }>()
 const resume = computed(() => store.resumes[0])
 const isOccupied = computed(() => resume.value?.status === 'occupied')
 const isUnocc = computed(() => resume.value?.status === 'unocc')
@@ -48,7 +49,7 @@ function onSelectPos(pos: string) {
         <div class="detail-file">{{ resume.file_name }}</div>
       </div>
       <div class="detail-header-actions">
-        <button class="replace-file-btn" data-testid="replace-file">更换简历</button>
+        <button class="replace-file-btn" data-testid="replace-file" @click="emit('replace', resume.id)">更换简历</button>
       </div>
     </div>
 

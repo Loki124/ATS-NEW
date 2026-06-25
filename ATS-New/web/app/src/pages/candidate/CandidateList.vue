@@ -104,11 +104,10 @@
       />
     </n-card>
 
-    <!-- 新增候选人弹窗 -->
+    <!-- 新增候选人弹窗 V2 -->
     <AddCandidateModal
-      v-model:visible="addModalVisible"
-      @close="closeAddModal"
-      @success="handleAddSuccess"
+      v-model:show="addModalVisible"
+      @created="handleAddSuccess"
     />
 
     <!-- 批量发送通知弹窗 -->
@@ -451,8 +450,7 @@ function getChannelText(c: string) { return channelMap[c]?.text || c }
 function getStageText(s: string) { return stageMap[s]?.text || s }
 
 const showAddModal = () => { addModalVisible.value = true }
-const closeAddModal = () => { addModalVisible.value = false }
-const handleAddSuccess = () => { message.success('候选人添加成功') }
+const handleAddSuccess = () => { message.success('候选人添加成功'); addModalVisible.value = false }
 const handleSelectionChange = (keys: any[]) => {
   selectedCandidates.value = mockData.filter((d) => keys.includes(d.key))
 }
