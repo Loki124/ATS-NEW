@@ -22,6 +22,19 @@ export const useUserStore = defineStore('user', () => {
   const accessToken = ref<string>('')
   const refreshToken = ref<string>('')
 
+  // 从 localStorage 水合 (避免刷新页面后 user/token 丢失)
+  try {
+    const cachedUser = localStorage.getItem('user')
+    if (cachedUser) user.value = JSON.parse(cachedUser)
+    const cachedAccess = localStorage.getItem('accessToken')
+    if (cachedAccess) accessToken.value = cachedAccess
+    const cachedRefresh = localStorage.getItem('refreshToken')
+    if (cachedRefresh) refreshToken.value = cachedRefresh
+  } catch (e) {
+    // localStorage 数据损坏，清空避免反复报错
+    localStorage.removeItem('user')
+  }
+
   const setUser = (userData: User | null) => {
     user.value = userData
     if (userData) {

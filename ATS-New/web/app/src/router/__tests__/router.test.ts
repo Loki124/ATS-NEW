@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// Mock the user store - the real store uses `user` (ref<User|null>) and `token` (ref<string>).
+// Mock the user store - the real store uses `user` (ref<User|null>) and `accessToken` (ref<string>).
 // We mock it as a flat object the guard can read.
-const mockUserStore: { user: { roleType?: string } | null; token: string } = {
+const mockUserStore: { user: { roleType?: string } | null; accessToken: string } = {
   user: { roleType: 'SUPER_ADMIN' },
-  token: 'mock-jwt',
+  accessToken: 'mock-jwt',
 }
 
 vi.mock('../../stores/user', () => ({
@@ -36,7 +36,7 @@ function makeRouter(childRoute: any) {
 
 describe('router meta.roles guard', () => {
   beforeEach(() => {
-    mockUserStore.token = 'mock-jwt'
+    mockUserStore.accessToken = 'mock-jwt'
     mockUserStore.user = { roleType: 'SUPER_ADMIN' }
   })
 
@@ -87,7 +87,7 @@ describe('router meta.roles guard', () => {
   })
 
   it('when no token, requiresAuth still blocks first (regardless of roles)', async () => {
-    mockUserStore.token = ''
+    mockUserStore.accessToken = ''
     mockUserStore.user = { roleType: 'SUPER_ADMIN' }
     const router = makeRouter({
       path: 'admin',
