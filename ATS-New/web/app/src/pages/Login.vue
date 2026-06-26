@@ -214,13 +214,20 @@ const handleLogin = async (values: { username: string; password: string }) => {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
-    // 忽略 Vue Router 自身的 NavigationFailure (e.g. push 被新 push 取消),
-    // 这种错误跟登录失败无关, 不应误报
-    if (error?.name === 'NavigationFailure' || error?.type === undefined && error?.message?.includes('NavigationFailure')) {
-      // 静默忽略
-    } else {
-      message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
+    // 只捕获 login API 本身的错误（已在 if/else 中处理）
+    // router.push 触发的 NavigationFailure 不在此处处理，让它冒泡
+    if (error?.name === 'NavigationFailure') {
+      // 静默忽略 — 这是 router 内部跳转冲突，不是登录失败
+      return
     }
+    // 真正的网络/后端错误
+    const status = error?.response?.status
+    if (status === 401 || status === 400) {
+      // 后端已返回明确错误信息，login API 也会进 else 分支显示
+      // 这里只是兜底，不重复显示「登录失败，请检查后端服务」
+      return
+    }
+    message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
   } finally {
     loading.value = false
   }
