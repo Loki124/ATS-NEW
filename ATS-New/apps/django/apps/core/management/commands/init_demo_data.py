@@ -33,8 +33,9 @@ class Command(BaseCommand):
         self.init_roles()
         self.init_users()
         self.init_channels()
+        self.init_stages()
 
-        # 4 套流程模板
+        # 4 套流程模板 (依赖 RecruitmentStage 行, 已由 init_stages 保证)
         from django.core.management import call_command
         call_command('load_process_templates')
 
@@ -93,6 +94,24 @@ class Command(BaseCommand):
             )
             perm_objs[code] = obj
 
+        # 角色元数据 (code → name, description)
+        # 修复: 之前直接 Role.objects.get(code=code) 假定 Role 行已存在 ⇒ 新库会抛 DoesNotExist ⇒
+        #        @transaction.atomic 全量回滚 ⇒ init_users 永不执行 ⇒ admin 没 UserRole ⇒
+        #        /auth/me/ 返回 roles=[] ⇒ 前端 RBAC guard 永久拒绝 (即使 localStorage 干净)
+        # 修复后: 用 update_or_create 幂等创建 Role 行 (id=code, code=code, name=中文显示名)
+        role_meta = {
+            'SUPER_ADMIN':    ('超级管理员',  '系统所有权限'),
+            'ADMIN':          ('管理员',     '系统管理'),
+            'CHO':            ('CHO',       '高管视角, 只读分析'),
+            'HR_DIRECTOR':    ('HR 负责人',  'HR 体系管理'),
+            'HRBP':           ('HRBP',      '业务伙伴'),
+            'HR':             ('HR 招聘专员', '招聘日常操作'),
+            'HIRING_MANAGER': ('用人经理',   '业务侧用人方'),
+            'INTERVIEWER':    ('面试官',     '面试评估'),
+            'REFERRER':       ('推荐人',     '内推渠道'),
+            'AUDITOR':        ('审计人员',   '合规审计'),
+        }
+
         # 角色权限映射
         role_perm_map = {
             'SUPER_ADMIN': [p for p in perm_objs.keys()],
@@ -108,18 +127,42 @@ class Command(BaseCommand):
             'INTERVIEWER': ['candidate:read', 'application:read'],
             'REFERRER': ['candidate:read', 'candidate:write'],
             'AUDITOR': ['audit:read', 'candidate:read', 'application:read', 'process:read'],
+            # ADMIN 不在 role_perm_map 中: 它是系统管理员角色, 权限通过 is_staff/is_superuser 直接放行
+            #                              如果将来要给 ADMIN 也配 perm, 在此添加
         }
 
+        # Step 1: 幂等创建/更新 Role 行 (覆盖 role_meta 全集, 包括没在 role_perm_map 中的 ADMIN)
+        # 注意 Role.id 是 CharField 无默认值, 不能直接 update_or_create(id=code,...) 因为
+        #     已有的 Role 行可能由历史代码用别的 id 创建过 (e.g. uuid), 再 INSERT 会触发
+        #     UNIQUE constraint failed: roles.code. 这里 split: 不存在则建 id=code, 存在则只 update 元数据.
+        for code, (name, desc) in role_meta.items():
+            try:
+                role = Role.objects.get(code=code)
+                role.name = name
+                role.description = desc
+                role.is_builtin = True
+                role.is_active = True
+                role.save(update_fields=['name', 'description', 'is_builtin', 'is_active', 'updated_at'])
+            except Role.DoesNotExist:
+                Role.objects.create(
+                    id=code,
+                    code=code,
+                    name=name,
+                    description=desc,
+                    is_builtin=True,
+                    is_active=True,
+                )
+
+        # Step 2: 绑定权限 (此时 Role 已确保存在, .get 安全)
         for code, perms_to_grant in role_perm_map.items():
             role = Role.objects.get(code=code)
             for perm_code in perms_to_grant:
                 RolePermission.objects.get_or_create(role=role, permission=perm_objs[perm_code])
 
-        self.stdout.write(f'✓ 角色 + 权限初始化完成（{len(role_perm_map)} 个角色）')
+        self.stdout.write(f'✓ 角色 + 权限初始化完成（{len(role_meta)} 个角色, {len(role_perm_map)} 个绑权限）')
 
     def init_users(self):
         from apps.core.models import Department, Role, User, UserRole
-        from apps.channel.models import Channel
 
         # 默认密码（开发环境用）
         default_pwd = 'Pass@1234'
@@ -169,19 +212,78 @@ class Command(BaseCommand):
 
     def init_channels(self):
         from apps.channel.models import Channel
+        # 2026-06-17: 修复 — Channel 模型字段是 `category` (枚举 CAMPUS/SOCIAL/HEADHUNTER/REFERRAL/AGENCY/OTHER),
+        #             无 `type`/`is_builtin` 字段. 之前的中文 tuple 第三元素直接当 ctype 塞 'type' → FieldError → @atomic 全量回滚.
+        # 现在: tuple 第三元素改为枚举值; defaults 用 category; 删掉 is_builtin.
         channels = [
-            ('BOSSWHIP', 'BOSS 直聘', '招聘网站', True, True),
-            ('LAGOU', '拉勾网', '招聘网站', True, True),
-            ('LIEPIN', '猎聘', '招聘网站', True, True),
-            ('ZHILIAN', '智联招聘', '招聘网站', True, True),
-            ('WECOM', '企业微信', '内推渠道', True, True),
-            ('CAMPUS', '校园招聘', '校招渠道', True, True),
-            ('HEADHUNTER', '猎头推荐', '猎头渠道', True, True),
-            ('INTERNAL', '内部推荐', '内部渠道', True, True),
+            ('BOSSWHIP',   'BOSS 直聘',   'SOCIAL',     True),
+            ('LAGOU',      '拉勾网',      'SOCIAL',     True),
+            ('LIEPIN',     '猎聘',        'SOCIAL',     True),
+            ('ZHILIAN',    '智联招聘',    'SOCIAL',     True),
+            ('WECOM',      '企业微信',    'REFERRAL',   True),
+            ('CAMPUS',     '校园招聘',    'CAMPUS',     True),
+            ('HEADHUNTER', '猎头推荐',    'HEADHUNTER', True),
+            ('INTERNAL',   '内部推荐',    'REFERRAL',   True),
         ]
-        for code, name, ctype, builtin, active in channels:
+        for code, name, category, active in channels:
             Channel.objects.update_or_create(
                 code=code,
-                defaults={'name': name, 'type': ctype, 'is_builtin': builtin, 'is_active': active},
+                defaults={'name': name, 'category': category, 'is_active': active},
             )
         self.stdout.write(f'✓ 渠道初始化完成（{len(channels)} 个）')
+
+    def init_stages(self):
+        """系统预置阶段库 (8 个).
+
+        历史: seeds/01_system_stages.json 走 loaddata 直接 INSERT, 不经过 model.save() →
+              auto_now_add 字段 (created_at/updated_at) 未被填充 → NOT NULL constraint 错误.
+        现在: 程序化 create/update, model.save() 正常触发 auto_now_add. 幂等 (按 code 查).
+        """
+        from apps.process.models import RecruitmentStage
+        # (id, code, name, stage_type, is_builtin, description, default_features, optional_features)
+        stages = [
+            ('stg_001_initial_review', 'P001', '初评',       'SCREEN',     True,
+             '对简历进行初步评估，是候选人进入流程的第一道关卡',
+             ['RESUME_REVIEW', 'AUTO_MATCH', 'BULK_IMPORT'], ['SCORE_RANK', 'DUPLICATE_CHECK']),
+            ('stg_002_resume_eval',    'P002', '简历评估',   'SCREEN',     False,
+             'HR 对简历进行深入评估',
+             ['RESUME_REVIEW', 'SCORING'], ['AI_SCORE']),
+            ('stg_003_phone_interview','P003', '电话沟通',   'INVITATION', False,
+             'HR 与候选人电话沟通意向、薪资、到岗时间',
+             ['PHONE_CALL', 'NOTES', 'CANDIDATE_INFO'], ['VOICE_RECORD']),
+            ('stg_004_hr_interview',   'P004', 'HR 面',      'INTERVIEW',  False,
+             'HR 初面，了解候选人综合素质',
+             ['INTERVIEW_SCHEDULE', 'EVALUATION_FORM'], ['VIDEO_RECORD', 'MULTI_ROUND']),
+            ('stg_005_tech_interview_1','P005', '技术一面',   'INTERVIEW',  False,
+             '技术能力初筛',
+             ['INTERVIEW_SCHEDULE', 'EVALUATION_FORM', 'CODE_EDITOR'], ['VIDEO_RECORD', 'JOINT_INTERVIEW']),
+            ('stg_006_tech_interview_2','P006', '技术二面',   'INTERVIEW',  False,
+             '深度技术考察',
+             ['INTERVIEW_SCHEDULE', 'EVALUATION_FORM'], ['VIDEO_RECORD', 'JOINT_INTERVIEW']),
+            ('stg_007_hm_interview',   'P007', '用人经理面', 'INTERVIEW',  False,
+             '用人经理综合面试',
+             ['INTERVIEW_SCHEDULE', 'EVALUATION_FORM'], ['VIDEO_RECORD']),
+            ('stg_008_offer',          'P008', '正式录用',   'OFFER',      True,
+             '发放 Offer，进入入职准备阶段',
+             ['OFFER_GENERATION', 'OFFER_APPROVAL', 'CANDIDATE_RESPONSE'],
+             ['SALARY_NEGOTIATION', 'BACKGROUND_CHECK']),
+        ]
+        for sid, code, name, stype, is_builtin, desc, defaults_f, opt_f in stages:
+            try:
+                obj = RecruitmentStage.objects.get(code=code)
+                obj.name = name
+                obj.stage_type = stype
+                obj.is_builtin = is_builtin
+                obj.description = desc
+                obj.default_features = defaults_f
+                obj.optional_features = opt_f
+                obj.status = 'ENABLED'
+                obj.save()
+            except RecruitmentStage.DoesNotExist:
+                RecruitmentStage.objects.create(
+                    id=sid, code=code, name=name, stage_type=stype,
+                    is_builtin=is_builtin, description=desc,
+                    default_features=defaults_f, optional_features=opt_f,
+                    status='ENABLED',
+                )
+        self.stdout.write(f'✓ 阶段库初始化完成（{len(stages)} 个）')

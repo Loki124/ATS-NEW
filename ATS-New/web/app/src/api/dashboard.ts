@@ -15,6 +15,8 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// 注意: 项目约定 token 存放在 localStorage.key = 'token' (见 Login.vue)
+// 27 个 API 文件统一读 'token' 字段, 保持一致
 api.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`

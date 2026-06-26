@@ -19,74 +19,96 @@
     @update:show="(v) => emit('update:show', v)"
   >
     <n-spin :show="loading">
-      <n-tabs v-model:value="activeTab" type="line" animated>
-        <!-- Tab 1: 自动化流转 -->
-        <n-tab-pane name="auto" tab="自动化流转">
-          <n-form :model="form" label-placement="top">
-            <n-form-item label="自动化流转条件">
-              <n-select v-model:value="form.autoAdvanceType" :options="autoAdvanceOptions" />
-            </n-form-item>
+      <div class="rule-config-flat">
+        <!-- 2026-06-17: 5 tabs → 平铺 (按截图) — 一屏可看完所有配置, 不用切 tab -->
 
-            <n-form-item v-if="form.autoAdvanceType !== 'NONE'" label="执行时机">
-              <n-radio-group v-model:value="form.autoAdvanceTiming">
-                <n-space>
-                  <n-radio value="NONE">不执行</n-radio>
-                  <n-radio value="IMMEDIATE">立即执行</n-radio>
-                  <n-radio value="DELAYED">延迟</n-radio>
-                </n-space>
-              </n-radio-group>
-            </n-form-item>
+        <!-- Section 1: 自动处理规则 (单 stage 不需要, stageLink 才需要) -->
+        <n-divider title-placement="left">自动处理规则</n-divider>
+        <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
+          流程自动化的总开关 (启用 = 满足下阶段进入条件时自动流转到下个阶段)
+        </n-alert>
+        <n-form :model="form" label-placement="top">
+          <n-form-item label="启用自动处理">
+            <n-checkbox v-model:checked="form.autoAdvanceEnabled">满足下阶段进入条件时, 自动流转到下阶段</n-checkbox>
+          </n-form-item>
+          <n-form-item label="兜选机制 (N+2 推荐)">
+            <n-checkbox v-model:checked="form.grabModeEnabled">N+2 推荐兜选</n-checkbox>
+          </n-form-item>
+          <n-form-item label="引用前序双 A 的一致意见">
+            <n-checkbox v-model:checked="form.inheritPriorConsensus">继承前序流程双 A 的一致意见</n-checkbox>
+          </n-form-item>
+        </n-form>
 
-            <n-form-item v-if="form.autoAdvanceTiming === 'DELAYED'" label="延迟天数 (1-15 工作日)">
-              <n-input-number v-model:value="form.autoAdvanceDays" :min="1" :max="15" />
-            </n-form-item>
-          </n-form>
-        </n-tab-pane>
+        <!-- Section 2: 自动化流转条件 -->
+        <n-divider title-placement="left">自动化流转条件</n-divider>
+        <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
+          当前阶段的自动化填充规则
+        </n-alert>
+        <n-form :model="form" label-placement="top">
+          <n-form-item label="自动化流转条件">
+            <n-select v-model:value="form.autoAdvanceType" :options="autoAdvanceOptions" />
+          </n-form-item>
+          <n-form-item v-if="form.autoAdvanceType !== 'NONE'" label="执行时机">
+            <n-radio-group v-model:value="form.autoAdvanceTiming">
+              <n-space>
+                <n-radio value="NONE">不执行</n-radio>
+                <n-radio value="IMMEDIATE">立即执行</n-radio>
+                <n-radio value="DELAYED">延迟</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+          <n-form-item v-if="form.autoAdvanceTiming === 'DELAYED'" label="延迟天数 (1-15 工作日)">
+            <n-input-number v-model:value="form.autoAdvanceDays" :min="1" :max="15" />
+          </n-form-item>
+        </n-form>
 
-        <!-- Tab 2: 默认处理人 -->
-        <n-tab-pane name="handler" tab="默认处理人">
-          <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-            多行配置 = 多条规则并存 (按页面展示顺序执行, 直到匹配)
-          </n-alert>
-          <n-data-table
-            :columns="handlerColumns"
-            :data="form.handlerRules"
-            :row-key="(r: any) => r._key"
-            size="small"
-            :pagination="false"
-          />
-          <n-button size="small" type="primary" dashed style="margin-top: 8px" @click="addHandlerRule">
-            + 添加处理人规则
+        <!-- Section 3: 默认处理人 -->
+        <n-divider title-placement="left">默认处理人</n-divider>
+        <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
+          进入本阶段时自动为默认处理人添加待办任务
+        </n-alert>
+        <n-data-table
+          :columns="handlerColumns"
+          :data="form.handlerRules"
+          :row-key="(r: any) => r._key"
+          size="small"
+          :pagination="false"
+        />
+        <n-button size="small" type="primary" dashed style="margin-top: 8px" @click="addHandlerRule">
+          + 添加处理人规则
+        </n-button>
+
+        <!-- Section 4: 阶段限时 -->
+        <n-divider title-placement="left">阶段限时</n-divider>
+        <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
+          限制阶段总时长, 超时自动归档候选人到公共人库, 选择对全部候选人生效时, 会在原有剩余时间上增加锁定时间
+        </n-alert>
+        <n-space style="margin-bottom: 8px">
+          <span>是否开启</span>
+          <n-switch v-model:value="form.timeLimitEnabled" />
+        </n-space>
+        <n-data-table
+          v-if="form.timeLimitEnabled"
+          :columns="timeLimitColumns"
+          :data="form.timeLimitRules"
+          :row-key="(r: any) => r._key"
+          size="small"
+          :pagination="false"
+        />
+        <n-space v-if="form.timeLimitEnabled" style="margin-top: 8px">
+          <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
+            + 添加规则
           </n-button>
-        </n-tab-pane>
+          <n-divider vertical />
+          <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
+          <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
+          <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
+          <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
+        </n-space>
 
-        <!-- Tab 3: 阶段限时 -->
-        <n-tab-pane name="timelimit" tab="阶段限时">
-          <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-            按时长自动触发动作 (超时转交 / 自动归档 / 通知)
-          </n-alert>
-          <n-data-table
-            :columns="timeLimitColumns"
-            :data="form.timeLimitRules"
-            :row-key="(r: any) => r._key"
-            size="small"
-            :pagination="false"
-          />
-          <n-space style="margin-top: 8px">
-            <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
-              + 添加限时规则
-            </n-button>
-            <!-- Plan L #5: 3 预置规则模板 (总裁 90/总监 60/其他 30 天) -->
-            <n-divider vertical />
-            <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
-            <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
-            <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
-            <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
-          </n-space>
-        </n-tab-pane>
-
-        <!-- Tab 4: 面试轮次 + 形式 -->
-        <n-tab-pane v-if="isInterviewType" name="interview" tab="面试轮次 + 形式">
+        <!-- Section 5: 进入条件 (只在 INTERVIEW 类型时显示 + section 标题不同) -->
+        <template v-if="isInterviewType">
+          <n-divider title-placement="left">面试轮次 + 形式</n-divider>
           <n-form :model="form" label-placement="top">
             <n-form-item label="面试轮次 (可多选)">
               <n-checkbox-group v-model:value="form.interviewRounds">
@@ -101,7 +123,6 @@
                 </n-space>
               </n-checkbox-group>
             </n-form-item>
-
             <n-form-item label="面试形式 (可多选)">
               <n-checkbox-group v-model:value="form.interviewForms">
                 <n-space>
@@ -116,46 +137,44 @@
               </n-checkbox-group>
             </n-form-item>
           </n-form>
-        </n-tab-pane>
+        </template>
 
-        <!-- Tab 5: 进入条件 -->
-        <n-tab-pane name="condition" tab="进入条件">
-          <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-            候选人进入此阶段需满足的判定条件 (Stage Rule 的 EntryCondition)
-          </n-alert>
-          <n-form :model="condForm" label-placement="top">
-            <n-form-item label="判定方式">
-              <n-radio-group v-model:value="condForm.matchType">
-                <n-space>
-                  <n-radio value="ALL">全部满足 (AND)</n-radio>
-                  <n-radio value="ANY">任意满足 (OR)</n-radio>
-                </n-space>
-              </n-radio-group>
-            </n-form-item>
-            <!-- Plan L #3b: 自定义表达式实时校验 (如 (1 AND 2) OR 3) -->
-            <n-form-item
-              label="条件表达式 (可选)"
-              :feedback="exprValidation?.error || '留空则用上面条件树自动生成'"
-              :validation-status="exprValidation && !exprValidation.valid ? 'error' : undefined"
-            >
-              <n-input
-                v-model:value="condForm.expression"
-                placeholder="如: (1 AND 2) OR (3 AND 4)"
-                :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
-                @blur="onExprBlur"
-              />
-            </n-form-item>
-            <n-form-item label="未满足条件时提示内容" required>
-              <n-input
-                v-model:value="condForm.prompt"
-                type="textarea"
-                :rows="3"
-                placeholder="如: 请先完成 HRBP 评估"
-              />
-            </n-form-item>
-          </n-form>
-        </n-tab-pane>
-      </n-tabs>
+        <!-- Section 6: 进入条件 (condition) — always show -->
+        <n-divider title-placement="left">进入条件</n-divider>
+        <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
+          候选人进入此阶段需满足的判定条件 (Stage Rule 的 EntryCondition) — 对配置后进入阶段的简历立即生效
+        </n-alert>
+        <n-form :model="condForm" label-placement="top">
+          <n-form-item label="判定方式">
+            <n-radio-group v-model:value="condForm.matchType">
+              <n-space>
+                <n-radio value="ALL">全部满足 (AND)</n-radio>
+                <n-radio value="ANY">任意满足 (OR)</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+          <n-form-item
+            label="条件表达式 (可选)"
+            :feedback="exprValidation?.error || '留空则用上面条件树自动生成'"
+            :validation-status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+          >
+            <n-input
+              v-model:value="condForm.expression"
+              placeholder="如: (1 AND 2) OR (3 AND 4)"
+              :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+              @blur="onExprBlur"
+            />
+          </n-form-item>
+          <n-form-item label="未满足条件时提示内容" required>
+            <n-input
+              v-model:value="condForm.prompt"
+              type="textarea"
+              :rows="3"
+              placeholder="如: 请先完成 HRBP 评估"
+            />
+          </n-form-item>
+        </n-form>
+      </div>
     </n-spin>
 
     <template #footer>
@@ -191,6 +210,8 @@ const props = defineProps<{
   show: boolean
   stage: any | null
   linkId: string | null
+  // 2026-06-17: 让父级可以选择默认 tab ('auto' / 'handler' / 'timelimit' / 'interview' / 'condition')
+  initialTab?: 'auto' | 'handler' | 'timelimit' | 'interview' | 'condition'
 }>()
 
 const emit = defineEmits<{
@@ -201,7 +222,7 @@ const emit = defineEmits<{
 const message = useMessage()
 const loading = ref(false)
 const saving = ref(false)
-const activeTab = ref('auto')
+const activeTab = ref<'auto' | 'handler' | 'timelimit' | 'interview' | 'condition'>(props.initialTab || 'auto')
 
 const isInterviewType = computed(() => {
   return props.stage?.stageType === 'INTERVIEW' || props.stage?.stageType === 'INVITATION'
@@ -209,6 +230,11 @@ const isInterviewType = computed(() => {
 
 // 表单 state
 const form = reactive({
+  // 2026-06-17: 4 个总开关 (按截图"自动处理规则" + 阶段限时"是否开启")
+  autoAdvanceEnabled: true,
+  grabModeEnabled: false,            // N+2 推荐兜选
+  inheritPriorConsensus: false,      // 引用前序双 A 的一致意见
+  timeLimitEnabled: false,
   // 自动化
   autoAdvanceType: 'NONE' as 'NONE' | 'MEET_NEXT' | 'IGNORE_NEXT' | 'MEET_NEXT_OR_N2' | 'N1_ALL_PASS',
   autoAdvanceTiming: 'NONE' as 'NONE' | 'IMMEDIATE' | 'DELAYED',

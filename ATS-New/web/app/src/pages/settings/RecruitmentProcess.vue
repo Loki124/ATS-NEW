@@ -116,19 +116,11 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 280,
+    width: 120,
     fixed: 'right' as const,
-    render: (row: any) => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => goStages(row) }, { default: () => '阶段' }),
-      h(NButton, { size: 'small', text: true, onClick: () => goDetail(row) }, { default: () => '详情' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleCopy(row) }, { default: () => '复制' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row) }, { default: () => row.status === 'ACTIVE' ? '停用' : '启用' }),
-      h(NPopconfirm, { onPositiveClick: () => handleDelete(row) }, {
-        trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
-        default: () => '确定要删除此流程吗？此操作不可恢复。',
-      }),
-    ]),
+    // 2026-06-17: 列表页只保留「编辑」 — 阶段/详情/复制/启用/删除 都从操作列去掉
+    //   (阶段/详情 → 移到编辑 modal 内; 删除/启用 走 BE admin 或后续单独 UI; 复制功能 G38 暂不需要)
+    render: (row: any) => h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => openCustomModal(row) }, { default: () => '编辑' }),
   },
 ]
 

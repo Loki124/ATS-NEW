@@ -154,12 +154,15 @@ class AuditMiddleware:
         # 仅 DEBUG 级别记录详细信息，避免日志爆炸
         if logger.isEnabledFor(logging.DEBUG):
             body_summary = ''
-            if request.method not in SKIP_METHODS and request.body:
+            # P1-2 修复补充: DRF view 已消费 request.body 流,二次读取会抛异常
+            # 仅当 body 流未被消费时尝试读取,否则跳过 (不影响业务)
+            if request.method not in SKIP_METHODS:
                 try:
-                    raw = request.body[:512].decode('utf-8', errors='replace')
-                    body_summary = raw
+                    if request.body and not getattr(request, '_body_consumed', False):
+                        raw = request.body[:512].decode('utf-8', errors='replace')
+                        body_summary = raw
                 except Exception:  # noqa: BLE001
-                    body_summary = '<binary>'
+                    body_summary = '<unreadable>'
 
             logger.debug(
                 'audit method=%s path=%s status=%s user=%s duration=%dms body=%s',

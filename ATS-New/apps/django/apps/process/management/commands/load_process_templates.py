@@ -25,7 +25,15 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
-SEEDS_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent.parent / 'seeds'
+# 2026-06-17: 修复 — .parent 链多了一级, 之前 resolve 到 ATS-New/apps/seeds (不存在);
+#             实际 fixture 在 ATS-New/apps/django/seeds. 减一个 .parent.
+# __file__       = apps/django/apps/process/management/commands/load_process_templates.py
+#  .parent (1)   = commands/
+#  .parent (2)   = management/
+#  .parent (3)   = process/
+#  .parent (4)   = apps/
+#  .parent (5)   = django/      ← 到这里 + 'seeds' 就对了
+SEEDS_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / 'seeds'
 
 # 模板文件顺序（按依赖）
 TEMPLATE_FILES = [
@@ -62,7 +70,7 @@ class Command(BaseCommand):
             RecruitmentStage,
             StageRule,
         )
-        from apps.entry_condition.models import EntryConditionRule
+        from apps.entry_condition.models import EntryConditionRule, EntryConditionRuleStatus
         from apps.time_limit.models import TimeLimitRule
         from apps.automation.models import AutomationRule
 
@@ -95,7 +103,7 @@ class Command(BaseCommand):
         from apps.process.models import (
             ProcessStageLink, ProcessTemplate, RecruitmentProcess, StageRule,
         )
-        from apps.entry_condition.models import EntryConditionRule
+        from apps.entry_condition.models import EntryConditionRule, EntryConditionRuleStatus
         from apps.time_limit.models import TimeLimitRule
         from apps.automation.models import AutomationRule
 
@@ -176,25 +184,28 @@ class Command(BaseCommand):
             link_count += 1
 
             # TimeLimitRule
+            # 2026-06-17: 字段对齐 — TimeLimitRule 用 rule_name / lock_duration / enabled
+            #             (之前误用 name / time_limit_days / status='ENABLED', 都会 FieldError)
             if 'time_limit_days' in rule_def:
                 TimeLimitRule.objects.update_or_create(
-                    link=link, name=f'{stage.name} 默认限时',
+                    link=link, rule_name=f'{stage.name} 默认限时',
                     defaults={
-                        'time_limit_days': rule_def['time_limit_days'],
+                        'lock_duration': rule_def['time_limit_days'],
                         'effective_scope': 'ALL',
-                        'status': 'ENABLED',
+                        'enabled': True,
                         'priority': 100,
                     }
                 )
 
             # EntryConditionRule
+            # 2026-06-17: 字段对齐 — 用 rule_name / expression / status (Enum)
+            #             (之前误用 name / rule_json / logic / enabled=Bool, 都会 FieldError)
             for idx, cond in enumerate(stage_def.get('entry_rules', []), 1):
                 EntryConditionRule.objects.update_or_create(
-                    link=link, name=f'{stage.name} 规则{idx}',
+                    link=link, rule_name=f'{stage.name} 规则{idx}',
                     defaults={
-                        'rule_json': [cond],
-                        'logic': 'ALL',
-                        'enabled': True,
+                        'expression': self._build_expression([cond]),
+                        'status': EntryConditionRuleStatus.ENABLED,
                     }
                 )
 

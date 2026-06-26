@@ -152,6 +152,39 @@ export const login = (username: string, password: string) => {
   return api.post('/auth/login/', { username, password });
 };
 
+/**
+ * 当前用户信息 - GET /api/v1/auth/me/
+ *
+ * 后端 (apps/core/views_auth.py:78-101) 返回, 2026-06-17 BE 启用 drf-camel-case 后
+ * 自动 snake_case → camelCase. 单词字段 (id/username/roles/permissions/email/phone/level/department) 不变.
+ *
+ *   { success, data: { id, username, fullName, employeeId, email, phone,
+ *                       department, departmentName, positionTitle, level,
+ *                       roles: string[], permissions: string[] } }
+ *
+ * 用于 boot-time 重调 (main.ts) 防止 stale localStorage 永久卡死 RBAC.
+ * 不走 dedup() 包装: 此调用每次启动只跑一次, 也不希望被其他 GET 的缓存命中.
+ */
+export interface MeResponseBody {
+  success: boolean;
+  data: {
+    id: string | number;
+    username: string;
+    fullName?: string;
+    employeeId?: string;
+    email?: string;
+    phone?: string;
+    department?: string | number | null;
+    departmentName?: string | null;
+    positionTitle?: string | null;
+    level?: string | null;
+    roles: string[];
+    permissions: string[];
+  };
+}
+
+export const me = () => api.get<MeResponseBody>('/auth/me/');
+
 export const register = (data: {
   username: string;
   password: string;

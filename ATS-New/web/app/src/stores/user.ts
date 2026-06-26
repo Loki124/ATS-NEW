@@ -1,20 +1,24 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { me as apiMe } from '../api/auth'
+import { deriveRoleType } from '../utils/role'
 
 export interface User {
   id: string | number
   username: string
+  /** 中文/真实姓名 (后端 emit full_name, Login.vue 桥接到此字段 — FE 约定 realName) */
   realName?: string
-  full_name?: string
   email?: string
   phone?: string
   avatar?: string
-  role?: string
-  roleType?: string
-  departmentId?: string
-  department?: any
-  employee_id?: string
+  /** 工号 (后端 emit employee_id) */
+  employeeId?: string
+  /** 部门 id (后端 emit department) */
+  departmentId?: string | number
+  /** RBAC 角色 codes 列表 — 真值, 后端 apps/core/views_auth.py 直接 emit */
   roles?: string[]
+  /** 按 ROLE_PRIORITY 派生的便利字段, 给路由 guard / 顶栏 UI 用. 数组为空时为 null. */
+  roleType?: string | null
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -80,9 +84,58 @@ export const useUserStore = defineStore('user', () => {
     user.value = null
     accessToken.value = ''
     refreshToken.value = ''
+    // 修复: 同时清掉旧 key 'token' (27 个老 API 文件还在用)
+    // 修复前: logout 后 localStorage.token 仍残留, 路由守卫 fallback 读到 -> 误判已登录 -> 跳不到 /login
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
+    localStorage.removeItem('token')
     localStorage.removeItem('user')
+  }
+
+  /**
+   * 从服务端拉取当前用户最新状态, 覆盖本地 (Pinia + localStorage).
+   *
+   * 用途: main.ts 启动时如有 accessToken 就 await 一次, 防止旧 Login.vue 写入的
+   *       stale localStorage (缺 roles / 字段名漂移) 永久卡死 RBAC guard.
+   *
+   * 行为:
+   *   - 成功 → setUser(后端 snake_case → camelCase), 派生 roleType, 返回 true
+   *   - 401/403 → logout() 强制重登, 返回 false
+   *   - 网络抖动/5xx → 保留 step 1 (localStorage rehydrate 的快照), 返回 false
+   *                     后续 API 401 时由 axios 拦截器再触发 logout
+   */
+  const fetchMe = async (): Promise<boolean> => {
+    try {
+      const response = await apiMe()
+      const body = response.data
+      if (!body?.success || !body.data) {
+        console.warn('[user] fetchMe: non-success response', body)
+        return false
+      }
+      const d = body.data
+      const roles = d.roles ?? []
+      setUser({
+        id: d.id,
+        username: d.username,
+        realName: d.fullName,
+        email: d.email,
+        phone: d.phone,
+        employeeId: d.employeeId,
+        departmentId: (d.department ?? undefined) as string | number | undefined,
+        roles,
+        roleType: deriveRoleType(roles),
+      })
+      return true
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 401 || status === 403) {
+        console.warn('[user] fetchMe: token invalid, logging out')
+        logout()
+      } else {
+        console.warn('[user] fetchMe failed (transient/network?), keeping cached state:', err?.message ?? err)
+      }
+      return false
+    }
   }
 
   return {
@@ -94,6 +147,7 @@ export const useUserStore = defineStore('user', () => {
     setAccessToken,
     setRefreshToken,
     setUserData,
+    fetchMe,
     logout
   }
 })

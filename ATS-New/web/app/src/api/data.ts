@@ -45,7 +45,7 @@ export interface DataSubscription {
 }
 
 export const getKpi = () =>
-  api.get('/data/kpi').then((r) => r.data.data);
+  api.get('/data/kpi/').then((r) => r.data.data);
 
 export const exportResource = (resource: string, format: 'csv' | 'json' = 'csv', fields?: string[]) =>
   api.get(`/data/export/${resource}`, {
@@ -54,10 +54,10 @@ export const exportResource = (resource: string, format: 'csv' | 'json' = 'csv',
   }).then((r) => r.data);
 
 export const listSubscriptions = () =>
-  api.get('/data/subscriptions').then((r) => r.data.data);
+  api.get('/data/subscriptions/').then((r) => r.data.data);
 
 export const createSubscription = (body: Partial<DataSubscription>) =>
-  api.post('/data/subscriptions', body).then((r) => r.data.data);
+  api.post('/data/subscriptions/', body).then((r) => r.data.data);
 
 export const deleteSubscription = (id: string) =>
   api.delete(`/data/subscriptions/${id}`).then((r) => r.data);

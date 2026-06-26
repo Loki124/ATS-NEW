@@ -1,5 +1,15 @@
 /**
  * 招聘流程管理 API 客户端 - PRD G38 (P0)
+ *
+ * 2026-06-17: BE 启用 drf-camel-case, 请求/响应 snake_case ↔ camelCase 自动转换;
+ *             FE 直接发 camelCase (stageType / orderIndex 等), 无需手动桥接.
+ * 2026-06-17: URL 对齐 BE 实际路由 (config/urls.py):
+ *             /recruitment-processes        → /processes
+ *             /recruitment-stages           → /stages
+ *             /recruitment-process-stage-links → /process-stage-links
+ *             /recruitment-rules/entry-conditions → /entry-condition-rules (BE 已挂载)
+ *             /recruitment-rules/{stage-rules,candidates,applications,auto-archive-rules},
+ *             /recruitment-rounds  ← BE 尚未挂载, 命中即 404 (G38 BE 60%, 待续).
  */
 
 import axios from 'axios';
@@ -30,6 +40,8 @@ export interface RecruitmentProcess {
   applicableUserIds?: string[];
   applicableJobs?: string[];
   applicableMode: 'ALL' | 'ANY';
+  // 2026-06-17: 新 4 指标 (含值 + 包含/不包含 + 多值), BE 存到 applicable_scope JSONField
+  applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] };
   // 简历评分开关
   validateResumeScore: boolean;
   // 流转异常提示
@@ -129,57 +141,58 @@ export interface AutoArchiveRule {
 
 // ===== API =====
 export const listProcesses = (params?: { status?: string; keyword?: string }) =>
-  api.get<{ success: boolean; data: RecruitmentProcess[] }>('/recruitment-processes', { params }).then((r) => r.data.data);
+  api.get<{ success: boolean; data: RecruitmentProcess[] }>('/processes/', { params }).then((r) => r.data.data);
 
 export const getProcess = (id: string) =>
-  api.get<{ success: boolean; data: RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] } }>(`/recruitment-processes/${id}`).then((r) => r.data.data);
+  api.get<{ success: boolean; data: RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] } }>(`/processes/${id}/`).then((r) => r.data.data);
 
-export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[] }) =>
-  api.post<{ success: boolean; data: RecruitmentProcess }>('/recruitment-processes', payload).then((r) => r.data.data);
+// 2026-06-17: 加上 applicableScope (4 指标数组). 旧的 applicableDepartments/Levels/UserIds/Jobs 字段保留兼容.
+export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[]; applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] } }) =>
+  api.post<{ success: boolean; data: RecruitmentProcess }>('/processes/', payload).then((r) => r.data.data);
 
 export const updateProcess = (id: string, payload: Partial<RecruitmentProcess>) =>
-  api.put<{ success: boolean; data: RecruitmentProcess }>(`/recruitment-processes/${id}`, payload).then((r) => r.data.data);
+  api.put<{ success: boolean; data: RecruitmentProcess }>(`/processes/${id}/`, payload).then((r) => r.data.data);
 
 export const deleteProcess = (id: string) =>
-  api.delete<{ success: boolean }>(`/recruitment-processes/${id}`).then((r) => r.data);
+  api.delete<{ success: boolean }>(`/processes/${id}/`).then((r) => r.data);
 
 export const copyProcess = (id: string, payload: { newName?: string; createdBy?: string }) =>
-  api.post<{ success: boolean; data: RecruitmentProcess }>(`/recruitment-processes/${id}/copy`, payload).then((r) => r.data.data);
+  api.post<{ success: boolean; data: RecruitmentProcess }>(`/processes/${id}/copy/`, payload).then((r) => r.data.data);
 
 export const updateProcessStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
-  api.put<{ success: boolean; data: RecruitmentProcess }>(`/recruitment-processes/${id}/status`, { status }).then((r) => r.data.data);
+  api.put<{ success: boolean; data: RecruitmentProcess }>(`/processes/${id}/status/`, { status }).then((r) => r.data.data);
 
 // ===== 阶段 =====
 export const listStages = (params?: { stageType?: string; status?: string; keyword?: string }) =>
-  api.get<{ success: boolean; data: RecruitmentStage[] }>('/recruitment-stages', { params }).then((r) => r.data.data);
+  api.get<{ success: boolean; data: RecruitmentStage[] }>('/stages/', { params }).then((r) => r.data.data);
 
 export const createStage = (payload: { name: string; stageType: string; features?: string[]; description?: string; stageLimit?: number }) =>
-  api.post<{ success: boolean; data: RecruitmentStage }>('/recruitment-stages', payload).then((r) => r.data.data);
+  api.post<{ success: boolean; data: RecruitmentStage }>('/stages/', payload).then((r) => r.data.data);
 
 export const updateStage = (id: string, payload: Partial<RecruitmentStage>) =>
-  api.put<{ success: boolean; data: RecruitmentStage }>(`/recruitment-stages/${id}`, payload).then((r) => r.data.data);
+  api.put<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/`, payload).then((r) => r.data.data);
 
 export const deleteStage = (id: string) =>
-  api.delete<{ success: boolean }>(`/recruitment-stages/${id}`).then((r) => r.data);
+  api.delete<{ success: boolean }>(`/stages/${id}/`).then((r) => r.data);
 
 export const updateStageStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
-  api.put<{ success: boolean; data: RecruitmentStage }>(`/recruitment-stages/${id}/status`, { status }).then((r) => r.data.data);
+  api.put<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/status/`, { status }).then((r) => r.data.data);
 
 // ===== 流程-阶段 link =====
 export const listProcessLinks = (processId: string) =>
-  api.get<{ success: boolean; data: ProcessStageLink[] }>('/recruitment-process-stage-links', { params: { processId } }).then((r) => r.data.data);
+  api.get<{ success: boolean; data: ProcessStageLink[] }>('/process-stage-links/', { params: { processId } }).then((r) => r.data.data);
 
 export const addProcessLink = (payload: { processId: string; stageId: string; orderIndex?: number; customName?: string; stageLimit?: number }) =>
-  api.post<{ success: boolean; data: ProcessStageLink }>('/recruitment-process-stage-links', payload).then((r) => r.data.data);
+  api.post<{ success: boolean; data: ProcessStageLink }>('/process-stage-links/', payload).then((r) => r.data.data);
 
 export const updateProcessLink = (id: string, payload: Partial<ProcessStageLink>) =>
-  api.put<{ success: boolean; data: ProcessStageLink }>(`/recruitment-process-stage-links/${id}`, payload).then((r) => r.data.data);
+  api.put<{ success: boolean; data: ProcessStageLink }>(`/process-stage-links/${id}/`, payload).then((r) => r.data.data);
 
 export const deleteProcessLink = (id: string) =>
-  api.delete<{ success: boolean }>(`/recruitment-process-stage-links/${id}`).then((r) => r.data);
+  api.delete<{ success: boolean }>(`/process-stage-links/${id}/`).then((r) => r.data);
 
 export const reorderProcessLinks = (processId: string, orderedLinkIds: string[]) =>
-  api.put<{ success: boolean }>('/recruitment-process-stage-links/reorder', { processId, orderedLinkIds }).then((r) => r.data);
+  api.put<{ success: boolean }>('/process-stage-links/reorder/', { processId, orderedLinkIds }).then((r) => r.data);
 
 // ===== 阶段规则 + 进入条件 =====
 export const upsertStageRule = (stageId: string, payload: Partial<StageRule> & { processId?: string }) =>

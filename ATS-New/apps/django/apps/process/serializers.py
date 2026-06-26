@@ -81,6 +81,16 @@ class RecruitmentStageCreateSerializer(RecruitmentStageSerializer):
             if f not in ['id', 'code']
         ]
 
+    def create(self, validated_data):
+        """2026-06-17: FE (RecruitmentStage.vue:221) 不发 code, 之前 BE 写入空串 → 第 2 个 stage 撞 UNIQUE 约束 → 500.
+        改成缺省时自动生成 P + 3位流水号 (P001, P002, ...). 注意 code 在 read_only_fields 中, 序列化器不读 request['code'],
+        所以这里直接读 validated_data.get('code') (默认 ''), 空就自填."""
+        if not validated_data.get('code'):
+            last = RecruitmentStage.objects.filter(code__regex=r'^P\d+$').order_by('-code').values_list('code', flat=True).first()
+            next_num = (int(last[1:]) + 1) if last and last[1:].isdigit() else 1
+            validated_data['code'] = f'P{next_num:03d}'
+        return super().create(validated_data)
+
 
 # ============================================================
 # 阶段规则（StageRule）
@@ -328,18 +338,20 @@ class NestedStageLinkInputSerializer(serializers.Serializer):
 
 class ProcessWithStagesCreateSerializer(serializers.Serializer):
     """创建流程（含 stages）"""
-    code = serializers.CharField(max_length=20)
+    code = serializers.CharField(max_length=20, required=False, allow_blank=True,
+                                help_text='可选 — 缺省时自动生成 W+3位流水号')
     name = serializers.CharField(max_length=30)
     description = serializers.CharField(required=False, allow_blank=True, max_length=100)
     is_template = serializers.BooleanField(default=False)
     template_code = serializers.CharField(required=False, allow_blank=True, max_length=50)
     applicable_scope = serializers.JSONField(required=False, default=dict)
     validate_resume_score = serializers.BooleanField(default=True)
-    stage_links = NestedStageLinkInputSerializer(many=True)
+    stage_links = NestedStageLinkInputSerializer(many=True, required=False, default=list,
+                                                help_text='可选 — FE 也可后续 addProcessLink 单独补')
 
     def validate_stage_links(self, value):
         if not value:
-            raise serializers.ValidationError('流程至少需要一个阶段')
+            return value  # 2026-06-17: 允许空 stage_links, FE 之后单独 addProcessLink
         # 校验 order 唯一
         orders = [v['order'] for v in value]
         if len(orders) != len(set(orders)):
@@ -352,9 +364,15 @@ class ProcessWithStagesCreateSerializer(serializers.Serializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        stage_links_data = validated_data.pop('stage_links')
+        stage_links_data = validated_data.pop('stage_links', [])
         request = self.context.get('request')
         actor = request.user if request and request.user.is_authenticated else None
+
+        # 2026-06-17: code 缺省时自动生成 W + 3位流水号 (FE 的 CustomRecruitmentProcessModal 不发 code)
+        if not validated_data.get('code'):
+            last = RecruitmentProcess.objects.filter(code__startswith='W').order_by('-code').values_list('code', flat=True).first()
+            next_num = (int(last[1:]) + 1) if last and last[1:].isdigit() else 1
+            validated_data['code'] = f'W{next_num:03d}'
 
         process = RecruitmentProcess.objects.create(
             **validated_data,

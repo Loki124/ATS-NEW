@@ -86,6 +86,10 @@ LOCAL_APPS = [
     'apps.field_acl',
     'apps.permissions',
     'apps.audit',
+    # 2026-06-17: G30 RPA 简历抓取 — 新 app
+    'apps.rpa',
+    # 2026-06-17: G41 数据字典 — 枚举值 single source of truth
+    'apps.data_dict',
     'apps.notification',
     'apps.gdpr',
     'apps.integration',
@@ -252,9 +256,17 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ),
     'DEFAULT_RENDERER_CLASSES': (
+        # 2026-06-17: API 边界 snake_case ↔ camelCase 自动转换 (djangorestframework-camel-case)
+        # 出: Python snake_case → JSON camelCase (FE 直接消费, 无需手桥)
+        # 入: 见 DEFAULT_PARSER_CLASSES
+        # 不变: 单词字段 (id, username, roles, permissions, access, refresh) + 字典 key (例如自由文本 dict)
+        'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_PARSER_CLASSES': (
+        # 入: FE 发 camelCase → DRF serializer 看到 snake_case
+        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.MultiPartParser',
     ),

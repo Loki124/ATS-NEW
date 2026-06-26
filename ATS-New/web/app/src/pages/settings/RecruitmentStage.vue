@@ -61,6 +61,7 @@ import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert } from 'naive-ui'
 import { AddOutline, TrashOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, updateStageStatus } from '../../api/recruitment-process'
+import { listDict } from '../../api/dict'
 
 const message = useMessage()
 const keyword = ref('')
@@ -72,23 +73,30 @@ const showCreateModal = ref(false)
 const editing = ref<any>(null)
 const form = reactive({
   name: '',
-  stageType: 'FILTER' as 'FILTER' | 'INVITATION' | 'INTERVIEW' | 'OFFER' | 'ONBOARDING',
+  // 2026-06-17: 默认值跟 stageTypeOptions 第一个同步 (BE 是 SCREEN, 旧 FILTER 写错导致 400)
+  stageType: 'SCREEN' as 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER' | 'ONBOARDING',
   features: [] as string[],
   description: '',
 })
 
-const stageTypeOptions = [
-  { label: '筛选型', value: 'FILTER' },
+// 2026-06-17: 阶段类型从数据字典 (apps/data_dict) 拿, single source of truth.
+//   之前硬编码 'FILTER' 跟 BE StageType (SCREEN) 不匹配 → POST 400.
+//   FE 启动时 fetch STAGE_TYPE dict, 失败则用 fallback (同样以 BE 为准).
+const FALLBACK_STAGE_TYPE = [
+  { label: '筛选型', value: 'SCREEN' },
   { label: '邀约型', value: 'INVITATION' },
   { label: '面试型', value: 'INTERVIEW' },
   { label: 'Offer 型', value: 'OFFER' },
   { label: '入职型', value: 'ONBOARDING' },
 ]
+const stageTypeOptions = ref<Array<{ label: string; value: string }>>([...FALLBACK_STAGE_TYPE])
 
 const typeFilterOptions = stageTypeOptions
 
+// 2026-06-17: FILTER 改 SCREEN (跟 form.stageType 默认值 + BE StageType 枚举对齐).
+//   之前 filterOptions 的 key 是 FILTER (FE 旧值), BE 用 SCREEN → featureOptions['SCREEN'] 返 undefined → 0 checkbox.
 const featureOptions: Record<string, any[]> = {
-  FILTER: [
+  SCREEN: [
     { label: '邀请筛选', value: 'INVITE_FILTER' },
     { label: '邀请更新信息', value: 'INVITE_UPDATE_INFO' },
     { label: '转移阶段', value: 'TRANSFER_STAGE' },
@@ -192,7 +200,7 @@ async function loadList() {
 
 function handleCreate() {
   editing.value = null
-  Object.assign(form, { name: '', stageType: 'FILTER', features: [], description: '' })
+  Object.assign(form, { name: '', stageType: stageTypeOptions.value[0]?.value || 'SCREEN', features: [], description: '' })
   showCreateModal.value = true
 }
 
@@ -263,7 +271,23 @@ async function handleToggleStatus(row: any) {
   }
 }
 
-onMounted(() => loadList())
+onMounted(async () => {
+  // 2026-06-17: 阶段类型从数据字典拿 (single source of truth).
+  //   拿不到就 fallback (硬编码 SCREEN/INVITATION/...), 不阻塞页面.
+  try {
+    const dicts = await listDict('STAGE_TYPE')
+    if (Array.isArray(dicts) && dicts.length > 0) {
+      stageTypeOptions.value = dicts.map((d) => ({ label: d.label, value: d.value }))
+      // form.stageType 默认用 dict 第 1 个, 跟 BE 同步
+      if (!form.stageType || !stageTypeOptions.value.find((o) => o.value === form.stageType)) {
+        form.stageType = stageTypeOptions.value[0].value as any
+      }
+    }
+  } catch (e) {
+    // fallback 已在 ref 初始值里, 不做事
+  }
+  loadList()
+})
 </script>
 
 <style scoped>

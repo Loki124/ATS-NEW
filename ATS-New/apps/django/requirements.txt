@@ -4,6 +4,7 @@
 # === Runtime ===
 Django==5.0.6
 djangorestframework==3.15.1
+djangorestframework-camel-case==1.4.2  # 2026-06-17: API 边界统一 camelCase, FE 不再手动 snake↔camel 桥接
 django-cors-headers==4.3.1
 djangorestframework-simplejwt==5.3.1
 django-ratelimit==4.1.0

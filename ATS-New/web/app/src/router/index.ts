@@ -165,10 +165,22 @@ const router = createRouter({
  */
 export function routeGuard(to: any, _from: any, next: any) {
   const userStore = useUserStore()
-  const token = userStore.accessToken || localStorage.getItem('accessToken')
+  // 修复前: userStore.token (不存在) + localStorage.getItem('token')
+  //   Pinia store 暴露的是 accessToken, 旧 key 'token' 只在 localStorage 里
+  // 修复后: 优先 store, fallback 到两种 localStorage key (兼容 27 个 API 文件)
+  const token = userStore.accessToken
+    || localStorage.getItem('accessToken')
+    || localStorage.getItem('token')
 
-  // 1. 登录态校验 (existing)
-  if (to.meta.requiresAuth && !token) {
+  // 修复: 关键 bug! Vue Router 4 不会自动继承父路由的 meta 到子路由
+  //   修复前: to.meta.requiresAuth 永远是 undefined (子路由没显式声明)
+  //           => 守卫永远不拦截, 已登录态/未登录态都能访问任何路由
+  //           => 表现: "点击设置跳工作台" (实际是没跳) / "退出登录没到登录页" (实际是没跳)
+  //   修复后: 用 to.matched 检查整条匹配链, 父路由的 requiresAuth 正确生效
+  const requiresAuth = to.matched.some((r: any) => r.meta?.requiresAuth)
+
+  // 1. 登录态校验
+  if (requiresAuth && !token) {
     return next('/login')
   }
   if (to.path === '/login' && token) {
@@ -177,12 +189,17 @@ export function routeGuard(to: any, _from: any, next: any) {
 
   // 2. 角色校验 (new: Todo #5 - route-level RBAC)
   // meta.roles 是允许访问的角色白名单；SUPER_ADMIN 始终放行
+  // 真值: userStore.user.roles (后端 emit string[]); roleType 是 Login.vue 派生的便利字段, 这里也兼容读
   const requiredRoles = (to.meta.roles || []) as string[]
   if (requiredRoles.length > 0) {
-    const userRole = userStore.user?.roleType
-    if (userRole !== 'SUPER_ADMIN' && !requiredRoles.includes(userRole as string)) {
+    const userRoles = userStore.user?.roles
+      ?? (userStore.user?.roleType ? [userStore.user.roleType] : [])
+    const isSuperAdmin = userRoles.includes('SUPER_ADMIN')
+    // 多角色语义: 持有任一所需角色即放行 (.some)
+    if (!isSuperAdmin && !requiredRoles.some(r => userRoles.includes(r))) {
       console.warn(
-        `[router] access denied to ${to.path}: requires ${requiredRoles.join('/')}, user has ${userRole}`
+        `[router] access denied to ${to.path}: requires ${requiredRoles.join('/')}, ` +
+        `user has ${userRoles.length ? userRoles.join(',') : 'undefined'}`
       )
       return next('/forbidden')
     }

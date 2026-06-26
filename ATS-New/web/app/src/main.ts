@@ -26,6 +26,7 @@ import {
   NFormItem,
   NFormItemRow,
   NDataTable,
+  NPageHeader,  // 2026-06-17: 注册 naive-ui 页面头组件 (ScrapedResumeList.vue 等使用)
   NTag,
   NSpace,
   NDivider,
@@ -135,8 +136,15 @@ app.use(naive)
 // meta.roles 守卫看到 user?.roleType === undefined 误判 'user has undefined'
 // → access denied 白名单页跳不进去
 // 2026-06-16: 适配 Django SimpleJWT - 改用 accessToken/refreshToken 双 token
+// 2026-06-17: 加 fetchMe 服务端重调 — 防止旧 Login.vue 写的 stale localStorage 永久卡死 RBAC
+//   Step 1: 同步从 localStorage rehydrate, mount 前 store 不是 null, 网络挂了 UI 也能用快照
+//   Step 2: 如果有 accessToken, await /api/v1/auth/me/ 用服务端数据覆盖本地
+//           失败 401/403 -> logout 强制重登
+//           网络抖动/5xx -> 留快照, 后续 API 401 时再被 axios 拦截器登出
 import { useUserStore } from './stores/user'
 const _userStore = useUserStore()
+
+// Step 1: 同步快照恢复
 try {
   const _accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token')
   const _refreshToken = localStorage.getItem('refreshToken')
@@ -151,10 +159,14 @@ try {
     _userStore.setUser(JSON.parse(_userRaw))
   }
 } catch (e) {
-  localStorage.removeItem('accessToken')
-  localStorage.removeItem('refreshToken')
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+  console.warn('[boot] localStorage rehydrate 失败, 清掉', e)
+  _userStore.logout()
+}
+
+// Step 2: 服务端契约重调 (top-level await; Vite 5 + ESM 原生支持)
+//         注意: 必须在 app.mount 之前 await, 否则 router guard 首次 nav 看到的还是 stale 快照
+if (_userStore.accessToken) {
+  await _userStore.fetchMe()
 }
 
 // 2026-06-14: 全局 error 兜底, 避免任意外部模块 TDZ / unhandled rejection 让整个 app 白屏

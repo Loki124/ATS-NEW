@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Permission as AuthPermission
+from .models import Permission
 
 
 @api_view(['POST'])
@@ -92,10 +93,25 @@ def me_view(request):
             'position_title': user.position_title,
             'level': user.level,
             'roles': list(user.user_roles.values_list('role__code', flat=True)),
-            'permissions': list(
-                AuthPermission.objects.filter(
-                    ats_user_permissions__id=user.id,
-                ).values_list('codename', flat=True).distinct()
+            # 2026-06-17: 改为 role-derived RBAC Permission.code (e.g. 'candidate:read', 'process:write')
+            # 之前用 AuthPermission (django.contrib.auth.models.Permission, codename 如 'add_candidate')
+            # 与 init_demo_data 创建的 apps.core.Permission (code 'candidate:read') 是两套独立体系,
+            # 对 admin 永远返回 []. 现在: SUPER_ADMIN 拿到所有 Permission.code; 其他角色拿到
+            # 通过 user.user_roles → role → RolePermission → Permission 串起来的去重并集.
+            #
+            # 反向关系命名:
+            #   Permission ← (default reverse: rolepermission) ← RolePermission
+            #   Role       ← (default reverse: userrole)        ← UserRole
+            # ('user_roles' 是 UserRole.user → User 的反向 related_name, 不是 Role 侧)
+            'permissions': (
+                list(Permission.objects.values_list('code', flat=True))
+                if user.is_superuser
+                else list(
+                    Permission.objects
+                        .filter(rolepermission__role__userrole__user=user)
+                        .values_list('code', flat=True)
+                        .distinct()
+                )
             ),
         },
     })

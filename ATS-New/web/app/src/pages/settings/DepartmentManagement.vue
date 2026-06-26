@@ -245,7 +245,7 @@ const formState = reactive({
 const loadDepartments = async () => {
   loading.value = true;
   try {
-    const res = await api.get('/departments');
+    const res = await api.get('/departments/');
     if (res.data?.success) {
       departments.value = res.data.data || [];
     } else {
@@ -262,7 +262,7 @@ const loadDepartments = async () => {
 // 加载用户列表（用于下拉选择）
 const loadUsers = async () => {
   try {
-    const res = await api.get('/users');
+    const res = await api.get('/users/');
     if (res.data?.success) {
       users.value = (res.data.data || []).filter((u: User) => u.status === 'ACTIVE');
     }
@@ -397,7 +397,7 @@ const handleDeptSubmit = async () => {
         message.error(res.data?.error || res.data?.message || '更新失败');
       }
     } else {
-      const res = await api.post('/departments', payload);
+      const res = await api.post('/departments/', payload);
       if (res.data?.success) {
         message.success('部门创建成功');
         closeDeptModal();

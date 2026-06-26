@@ -193,6 +193,63 @@ class ApplicationViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         })
 
     # ----------------------------------------------------------
+    # 阶段流转预检 (dry-run advance)  ← G38, 2026-06-17
+    # FE: checkApplicationStageTransition(applicationId, entryConditionId?)
+    # 返回 {allowed, reason?, prompt?} — 不实际推进, 只评估下一阶段的 entry condition.
+    # ----------------------------------------------------------
+    @action(detail=True, methods=['post'], url_path='check-stage-transition')
+    def check_stage_transition(self, request, id=None):
+        """检查能否推进到下一阶段(不实际推进)"""
+        from apps.process.models import ProcessStageLink
+        from apps.entry_condition.services import evaluate_stage_entry
+        from apps.entry_condition.models import EntryConditionRule
+
+        application = self.get_object()
+        entry_condition_id = (request.data or {}).get('entryConditionId')
+
+        # 找下一 link (跟 advance_application_to_next_stage 同款查询)
+        if not application.current_link:
+            return Response({'success': True, 'data': {'allowed': False, 'reason': 'no_current_link'}})
+        next_link = ProcessStageLink.objects.filter(
+            process=application.process,
+            order__gt=application.current_link.order,
+            deleted_at__isnull=True,
+        ).order_by('order').first()
+        if not next_link:
+            return Response({'success': True, 'data': {'allowed': False, 'reason': 'no_next_stage'}})
+
+        # 如果 FE 指定了特定 entryConditionId, 用它的 link; 否则用 next_link
+        if entry_condition_id:
+            try:
+                rule = EntryConditionRule.objects.get(id=entry_condition_id, deleted_at__isnull=True)
+                eval_link = rule.link
+            except EntryConditionRule.DoesNotExist:
+                return Response(
+                    {'success': False, 'code': 'entry_condition_not_found', 'message': '进入条件规则不存在'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            eval_link = next_link
+
+        try:
+            result = evaluate_stage_entry(eval_link, application.candidate)
+        except Exception as e:
+            logger.exception('check_stage_transition: evaluate failed: %s', e)
+            return Response(
+                {'success': False, 'code': 'evaluation_error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'success': True,
+            'data': {
+                'allowed': result.overall_passed,
+                'reason': None if result.overall_passed else 'entry_condition_not_met',
+                'prompt': result.reject_message or None,
+            },
+        })
+
+    # ----------------------------------------------------------
     # 跳过到指定阶段
     # ----------------------------------------------------------
     @action(detail=True, methods=['post'], url_path='jump')

@@ -40,7 +40,7 @@ export const useDepartmentStore = defineStore('department', () => {
     }
     loading.value = true
     try {
-      const res = await api.get('/departments')
+      const res = await api.get('/departments/')
       if (res.data?.success) {
         departments.value = res.data.data || []
         lastFetched.value = Date.now()

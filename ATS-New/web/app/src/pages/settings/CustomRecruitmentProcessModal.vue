@@ -34,16 +34,40 @@
               <n-input v-model:value="form.name" placeholder="如：技术部社招流程" />
             </n-form-item>
           </n-grid-item>
+          <!-- 2026-06-17: 适用范围 4 指标 (含值来源 + 包含/不包含 + 多值) -->
+          <n-grid-item :span="2">
+            <n-form-item label="适用范围 (4 指标 × 包含/不包含 × 多值)">
+              <n-space vertical :size="6" style="width: 100%">
+                <div v-for="(ind, idx) in form.applicableIndicators" :key="ind.key" class="scope-row">
+                  <n-space :wrap-item="false" align="center" :size="8" style="width: 100%">
+                    <n-tag :type="SCOPE_INDICATOR_META[ind.key].tagType" size="small" style="min-width: 88px">
+                      {{ SCOPE_INDICATOR_META[ind.key].label }}
+                    </n-tag>
+                    <n-radio-group v-model:value="ind.mode" size="small">
+                      <n-radio value="include">包含</n-radio>
+                      <n-radio value="exclude">不包含</n-radio>
+                    </n-radio-group>
+                    <n-select
+                      v-model:value="ind.values"
+                      multiple
+                      filterable
+                      clearable
+                      placeholder="留空 = 不约束 (全部通过)"
+                      :options="ind.options"
+                      :loading="ind.loading"
+                      style="min-width: 280px; flex: 1"
+                    />
+                  </n-space>
+                </div>
+              </n-space>
+            </n-form-item>
+          </n-grid-item>
           <n-grid-item>
-            <n-form-item label="适用部门 (多选)">
-              <n-select
-                v-model:value="form.applicableDepartments"
-                multiple
-                filterable
-                :options="deptOptions"
-                placeholder="留空 = 全部"
-                :loading="deptLoading"
-              />
+            <n-form-item label="适用范围组合 (多指标时)">
+              <n-radio-group v-model:value="form.applicableMode" size="small">
+                <n-radio value="ALL">全部满足 (AND)</n-radio>
+                <n-radio value="ANY">任一满足 (OR)</n-radio>
+              </n-radio-group>
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
@@ -63,19 +87,6 @@
         <n-form-item label="流程描述">
           <n-input v-model:value="form.description" type="textarea" :rows="2" placeholder="可选" />
         </n-form-item>
-        <!-- Plan L #3b: 适用范围表达式实时校验 -->
-        <n-form-item
-          label="适用范围表达式 (可选)"
-          :feedback="scopeExprValidation?.error || '留空 = 全部适用. 5 条件字段: 内容/部门/职级/登录人/职务'"
-          :validation-status="scopeExprValidation && !scopeExprValidation.valid ? 'error' : undefined"
-        >
-          <n-input
-            v-model:value="form.applicableScopeExpression"
-            placeholder="如: (1 AND 2) OR (3 AND 4)"
-            :status="scopeExprValidation && !scopeExprValidation.valid ? 'error' : undefined"
-            @blur="onScopeExprBlur"
-          />
-        </n-form-item>
       </n-form>
 
       <!-- ====== 流程阶段 ====== -->
@@ -90,6 +101,8 @@
             v-for="(stage, idx) in stages"
             :key="String(stage.id || stage.code || idx)"
             class="stage-row"
+            :class="{ 'stage-row-selected': selectedStageIdx === idx }"
+            @click.self="selectedStageIdx = idx"
           >
             <div class="stage-num">{{ Number(idx) + 1 }}</div>
             <div class="stage-info">
@@ -101,6 +114,7 @@
                 </n-tag>
                 <span class="name-text">{{ stage.name }}</span>
                 <n-text v-if="stage.code" depth="3" style="font-size: 11px">{{ stage.code }}</n-text>
+                <n-tag v-if="selectedStageIdx === idx" type="primary" size="small" style="margin-left: 6px">已选</n-tag>
               </div>
               <div class="stage-limit">
                 <n-input-number
@@ -113,8 +127,8 @@
               </div>
             </div>
             <div class="stage-actions">
-              <n-button size="small" text type="primary" @click="openStageRuleConfig(stage)">配置阶段规则</n-button>
-              <n-button size="small" text type="primary" @click="openEntryCondition(stage)">配置进入条件</n-button>
+              <n-button size="small" text type="primary" @click.stop="openStageRuleConfig(stage)">配置阶段规则</n-button>
+              <n-button size="small" text type="primary" @click.stop="openEntryCondition(stage)">配置进入条件</n-button>
               <n-popconfirm
                 v-if="!stage.isStart && !stage.isEnd"
                 @positive-click="removeStage(idx)"
@@ -131,12 +145,34 @@
       </n-spin>
 
       <n-space style="margin-top: 12px">
-        <n-button size="small" type="primary" dashed @click="addStage">
+        <n-button size="small" type="primary" dashed @click="addStage('preceding')" :disabled="selectedStageIdx === null">
           <template #icon>+</template>
-          添加前序阶段
+          在选中前插入
         </n-button>
+        <n-button size="small" type="primary" dashed @click="addStage('following')" :disabled="selectedStageIdx === null">
+          <template #icon>+</template>
+          在选中后插入
+        </n-button>
+        <n-button size="small" type="default" dashed @click="addStage('end')">
+          <template #icon>+</template>
+          追加到末尾
+        </n-button>
+        <n-popconfirm @positive-click="removeSelectedStage">
+          <template #trigger>
+            <n-button size="small" type="error" dashed :disabled="selectedStageIdx === null">
+              <template #icon>×</template>
+              删除选中
+            </n-button>
+          </template>
+          确定删除选中的阶段？
+        </n-popconfirm>
         <n-text depth="3" style="font-size: 12px">
-          可选阶段库: {{ availableToAdd.length }} 个
+          {{
+            selectedStageIdx === null
+              ? '未选中任何阶段 (点阶段行的空白处选中)'
+              : `已选中第 ${selectedStageIdx + 1} 行`
+          }}
+          · 可选阶段库: {{ availableToAdd.length }} 个
         </n-text>
       </n-space>
     </n-spin>
@@ -153,6 +189,7 @@
       v-model:show="showRuleConfig"
       :stage="ruleEditingStage"
       :link-id="ruleEditingLinkId"
+      :initial-tab="showRuleConfigTab"
       @saved="onRuleSaved"
     />
   </n-modal>
@@ -170,7 +207,6 @@ import {
   upsertStageRule, upsertEntryCondition,
 } from '../../api/recruitment-process'
 import StageRuleConfigModal from './StageRuleConfigModal.vue'
-import { validateExpression } from '../../utils/condition-expression'
 import type { TagType } from '../../api/offer'
 
 // 阶段类型颜色映射
@@ -210,40 +246,62 @@ const STANDARD_STAGES = [
   { code: 'P002', name: '正式录用',      stageType: 'ONBOARDING', isStart: false, isEnd: true,  stageLimit: 720 },
 ]
 
+// 2026-06-17: 适用范围 4 指标 — 每行 key 固定, 配 mode (含/不含) + values (多选)
+type ScopeKey = 'department' | 'level' | 'position' | 'user'
+interface ScopeIndicator {
+  key: ScopeKey
+  mode: 'include' | 'exclude'
+  values: string[]
+  options: { label: string; value: string }[]
+  loading: boolean
+}
+const SCOPE_INDICATOR_META: Record<ScopeKey, { label: string; tagType: 'info' | 'success' | 'warning' | 'error' }> = {
+  department: { label: '需求部门', tagType: 'info' },
+  level:     { label: '需求职级', tagType: 'success' },
+  position:  { label: '需求职务', tagType: 'warning' },
+  user:      { label: '登录人',   tagType: 'error' },
+}
+// 静态职级选项 (User.level 字段是 CharField, 不受 choices 约束, seed 也没填)
+// 覆盖行业通用 P1-P7 (专业级) + M1-M4 (管理级)
+const LEVEL_OPTIONS = [
+  { label: 'P1 (助理)', value: 'P1' },
+  { label: 'P2 (专员)', value: 'P2' },
+  { label: 'P3 (高级专员)', value: 'P3' },
+  { label: 'P4 (资深)', value: 'P4' },
+  { label: 'P5 (专家)', value: 'P5' },
+  { label: 'P6 (高级专家)', value: 'P6' },
+  { label: 'P7 (资深专家)', value: 'P7' },
+  { label: 'M1 (主管)', value: 'M1' },
+  { label: 'M2 (经理)', value: 'M2' },
+  { label: 'M3 (高级经理)', value: 'M3' },
+  { label: 'M4 (总监)', value: 'M4' },
+]
+
 const form = reactive({
   name: '',
   description: '',
   statusActive: true,
   validateResumeScore: true,
-  applicableDepartments: [] as string[],
-  applicableMode: 'ALL' as 'ALL' | 'ANY',
-  applicableScopeExpression: '', // Plan L: 适用范围表达式
+  applicableMode: 'ALL' as 'ALL' | 'ANY',  // 多指标组合: ALL=全部满足, ANY=任一满足
+  applicableIndicators: [
+    { key: 'department', mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+    { key: 'level',     mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+    { key: 'position',  mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+    { key: 'user',      mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+  ] as ScopeIndicator[],
 })
-
-/**
- * Plan L #3b: 适用范围表达式实时校验
- */
-const scopeExprValidation = computed(() => {
-  if (!form.applicableScopeExpression) return null
-  // 5 条件字段 (内容/部门/职级/登录人/职务) - 我们目前只列出部门, itemCount 估算为 1
-  // 实际数字范围由后端校验
-  return validateExpression(form.applicableScopeExpression, 5)
-})
-
-function onScopeExprBlur() {
-  if (!form.applicableScopeExpression) return
-  const r = validateExpression(form.applicableScopeExpression, 5)
-  if (!r.valid) {
-    message.warning(`适用范围表达式校验失败: ${r.error}`)
-  }
-}
 
 // 当前流程下的所有 link (含 serverId - 已有链接,  vs localOnly - 仅本地)
 const stages = ref<any[]>([])
 const availableToAdd = ref<any[]>([])
 
+// 2026-06-17: 选中的阶段 idx, 用于「添加前序/后序」+ 「删除」操作
+//   点击 stage-row (空白处) 选中, 再点底部「在选中前/后插入」+「删除选中」按钮
+const selectedStageIdx = ref<number | null>(null)
+
 // 嵌套 rule config modal 状态
 const showRuleConfig = ref(false)
+const showRuleConfigTab = ref<'auto' | 'handler' | 'timelimit' | 'interview' | 'condition'>('auto')
 const ruleEditingStage = ref<any>(null)
 const ruleEditingLinkId = ref<string | null>(null)
 
@@ -262,15 +320,39 @@ watch(() => props.show, async (v) => {
       description: props.editing.description || '',
       statusActive: props.editing.status === 'ACTIVE',
       validateResumeScore: props.editing.validateResumeScore ?? true,
-      applicableDepartments: props.editing.applicableDepartments || [],
       applicableMode: props.editing.applicableMode || 'ALL',
     })
+    // 从 BE 的 applicable_scope JSONField 反序列化 4 指标
+    // 兼容老格式: {items, expression} 直接进 mode
+    const scope = props.editing.applicableScope || {}
+    const incoming = Array.isArray(scope.indicators) ? scope.indicators : []
+    for (const ind of form.applicableIndicators) {
+      const found = incoming.find((x: any) => x.key === ind.key)
+      if (found) {
+        ind.mode = found.mode || 'include'
+        ind.values = Array.isArray(found.values) ? [...found.values] : []
+      } else {
+        ind.mode = 'include'
+        ind.values = []
+      }
+    }
+    // 兼容老字段 (旧数据还可能在 applicableDepartments)
+    const depInd = form.applicableIndicators.find(i => i.key === 'department')
+    if (depInd && depInd.values.length === 0 && Array.isArray(props.editing.applicableDepartments)) {
+      depInd.values = [...props.editing.applicableDepartments]
+    }
     await loadExistingStages(props.editing.id)
   } else {
     // 新建模式 - 用 7 阶段标准模板
     Object.assign(form, {
       name: '', description: '', statusActive: true, validateResumeScore: true,
-      applicableDepartments: [], applicableMode: 'ALL',
+      applicableMode: 'ALL',
+      applicableIndicators: [
+        { key: 'department', mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+        { key: 'level',     mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+        { key: 'position',  mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+        { key: 'user',      mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
+      ],
     })
     stages.value = STANDARD_STAGES.map(s => ({ ...s, _local: true }))
     await loadAvailableStages()
@@ -280,15 +362,39 @@ watch(() => props.show, async (v) => {
 async function loadDepartments() {
   deptLoading.value = true
   try {
-    // 简单从后端拉, 走 /api/departments
+    // 同时拉部门/职务/登录人 3 个值源 (一次性塞进 form.applicableIndicators 的 options)
     const { default: axios } = await import('axios')
     const cfg = (await import('../../config')).default
     const token = localStorage.getItem('token')
-    const res = await axios.get(`${cfg.api.baseUrl}/departments`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const list = res.data?.data || []
-    deptOptions.value = list.map((d: any) => ({ label: d.name, value: d.id }))
+    const auth = { headers: { Authorization: `Bearer ${token}` } }
+    const base = cfg.api.baseUrl
+
+    // 并行 3 个请求
+    const [deptRes, posRes, userRes] = await Promise.all([
+      axios.get(`${base}/departments/`, auth).catch(() => ({ data: { data: [] } })),
+      axios.get(`${base}/positions/`,   auth).catch(() => ({ data: { data: [] } })),
+      axios.get(`${base}/users/`,       auth).catch(() => ({ data: { data: [] } })),
+    ])
+
+    const deptList = deptRes.data?.data || []
+    const posList  = posRes.data?.data  || []
+    const userList = userRes.data?.data || []
+
+    deptOptions.value = deptList.map((d: any) => ({ label: d.name, value: d.id }))
+
+    // 写入 indicators 的 options
+    const find = (key: ScopeKey) => form.applicableIndicators.find(i => i.key === key)
+    const depInd = find('department'); if (depInd) depInd.options = deptList.map((d: any) => ({ label: d.name, value: d.id }))
+    const lvlInd = find('level');     if (lvlInd) lvlInd.options = LEVEL_OPTIONS
+    const posInd = find('position');  if (posInd) posInd.options = posList.map((p: any) => ({ label: p.title || p.name || p.code, value: p.id }))
+    const usrInd = find('user');      if (usrInd) usrInd.options = userList.map((u: any) => ({ label: u.realName || u.username, value: u.id }))
+
+    // 兼容旧字段 (可能还有代码读 applicableDepartments)
+    // 加载后从 indicators 反向同步过去
+    const depIndSync = find('department')
+    if (depIndSync) {
+      form.applicableDepartments = [...depIndSync.values]
+    }
   } catch {
     deptOptions.value = []
   } finally {
@@ -321,7 +427,9 @@ async function loadExistingStages(processId: string) {
 
 async function loadAvailableStages(excludeProcessId?: string) {
   try {
-    const all = await listStages({ status: 'ACTIVE' })
+    // 2026-06-17: 修 — BE RecruitmentStage.status 枚举是 ENABLED/DISABLED (StageStatus TextChoices),
+    //             FE 之前发 ACTIVE/INACTIVE → 400 validation_error. 改 ENABLED 即可.
+    const all = await listStages({ status: 'ENABLED' })
     const usedCodes = new Set(stages.value.map(s => s.code).filter(Boolean))
     availableToAdd.value = all.filter(s => !usedCodes.has(s.code))
   } catch (e: any) {
@@ -329,15 +437,22 @@ async function loadAvailableStages(excludeProcessId?: string) {
   }
 }
 
-function addStage() {
-  // 简化: 取第一个可添加的阶段
+function addStage(position: 'preceding' | 'following' | 'end' = 'end') {
+  // 2026-06-17: 基于选中阶段 (selectedStageIdx) 插入 — 前序/后序
   if (availableToAdd.value.length === 0) {
     message.warning('暂无可添加阶段')
     return
   }
   const s = availableToAdd.value[0]
-  // 插入到倒数第二 (正式录用之前)
-  const insertIdx = stages.value.length - 1
+  let insertIdx: number
+  if (position === 'preceding' && selectedStageIdx.value !== null) {
+    insertIdx = selectedStageIdx.value  // 插到选中之前
+  } else if (position === 'following' && selectedStageIdx.value !== null) {
+    insertIdx = selectedStageIdx.value + 1  // 插到选中之后
+  } else {
+    // 默认 / 无选中 → 插到倒数第二 (「正式录用」之前)
+    insertIdx = Math.max(0, stages.value.length - 1)
+  }
   stages.value.splice(insertIdx, 0, {
     code: s.code,
     name: s.name,
@@ -347,8 +462,19 @@ function addStage() {
     stageLimit: 72,
     _local: true,
   })
+  // 新插入的 stage 自动选中 (方便用户继续加前序/后序)
+  selectedStageIdx.value = insertIdx
   // 更新 available
   availableToAdd.value = availableToAdd.value.filter(x => x.code !== s.code)
+}
+
+function removeSelectedStage() {
+  if (selectedStageIdx.value === null) {
+    message.warning('请先选中一个阶段 (点阶段行的空白处)')
+    return
+  }
+  removeStage(selectedStageIdx.value)
+  selectedStageIdx.value = null
 }
 
 function removeStage(idx: number) {
@@ -371,6 +497,7 @@ function openStageRuleConfig(stage: any) {
   }
   ruleEditingStage.value = stage
   ruleEditingLinkId.value = stage._linkId
+  showRuleConfigTab.value = 'auto'  // 2026-06-17: 默认打开「自动化流转」tab
   showRuleConfig.value = true
 }
 
@@ -379,8 +506,12 @@ function openEntryCondition(stage: any) {
     message.warning('请先保存流程, 再配置进入条件')
     return
   }
-  // 复用 stage rule modal 的 tab 设计 - 此处直接路由
-  message.info(`进入条件: 阶段 ${stage.name} (请使用「配置阶段规则」中的进入条件 tab)`)
+  // 2026-06-17: 之前是 message.info 告诉用户去「配置阶段规则」tab — 太绕了.
+  //   现在直接打开同一个 modal 但默认 tab 是「进入条件」.
+  ruleEditingStage.value = stage
+  ruleEditingLinkId.value = stage._linkId
+  showRuleConfigTab.value = 'condition'  // 直接打开「进入条件」tab
+  showRuleConfig.value = true
 }
 
 function onRuleSaved() {
@@ -402,8 +533,13 @@ async function handleSubmit() {
         description: form.description,
         status: form.statusActive ? 'ACTIVE' : 'INACTIVE',
         validateResumeScore: form.validateResumeScore,
-        applicableDepartments: form.applicableDepartments,
-        applicableMode: form.applicableMode,
+        // 2026-06-17: 4 指标 → 序列化到 applicable_scope JSONField (BE 原字段无 schema 变化)
+        applicableScope: {
+          mode: form.applicableMode,
+          indicators: form.applicableIndicators
+            .filter((ind: ScopeIndicator) => ind.values.length > 0)
+            .map((ind: ScopeIndicator) => ({ key: ind.key, mode: ind.mode, values: [...ind.values] })),
+        },
       })
       processId = props.editing.id
     } else {
@@ -412,8 +548,12 @@ async function handleSubmit() {
         name: form.name,
         description: form.description,
         validateResumeScore: form.validateResumeScore,
-        applicableDepartments: form.applicableDepartments,
-        applicableMode: form.applicableMode,
+        applicableScope: {
+          mode: form.applicableMode,
+          indicators: form.applicableIndicators
+            .filter((ind: ScopeIndicator) => ind.values.length > 0)
+            .map((ind: ScopeIndicator) => ({ key: ind.key, mode: ind.mode, values: [...ind.values] })),
+        },
       })
       processId = created.id
     }
@@ -487,6 +627,18 @@ async function handleSubmit() {
   padding: 10px 12px;
   border-radius: 4px;
   border: 1px solid #e8e8e8;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.stage-row:hover {
+  border-color: #b0d4ff;
+  background: #f5faff;
+}
+/* 2026-06-17: 选中高亮 (操作"添加前序/后序/删除选中" 按钮依赖 selectedStageIdx) */
+.stage-row-selected {
+  border-color: #FBCE5B;
+  background: #fffbe6;
+  box-shadow: 0 0 0 2px rgba(251, 206, 91, 0.2);
 }
 .stage-num {
   width: 28px;

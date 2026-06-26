@@ -13,11 +13,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { zhCN, dateZhCN, darkTheme, type GlobalThemeOverrides } from 'naive-ui'
-import { useUserStore } from './stores/user'
+import { zhCN, dateZhCN, type GlobalThemeOverrides } from 'naive-ui'
 
-const userStore = useUserStore()
+// 启动期 user 重水化 + 服务端重调已统一在 main.ts 处理.
+// 此前 App.vue onMounted 里的 localStorage('token') 兼容分支已删除 ——
+// 因为 main.ts step 1 已经覆盖了 'token' / 'accessToken' 双 key fallback,
+// 这里再做一次会产生与 main.ts 顺序竞争, 是 dead code.
 
 // 品牌主色：#FBCE5B（金黄色）
 const themeOverrides: GlobalThemeOverrides = {
@@ -44,24 +45,6 @@ const themeOverrides: GlobalThemeOverrides = {
     textColorFocusPrimary: '#1f2937',
   },
 }
-
-onMounted(() => {
-  // 恢复登录状态
-  const token = localStorage.getItem('token')
-  if (token) {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      // 2026-06-14: 包 try/catch, 避免 localStorage 里 user 脏数据导致 JSON.parse 报错让 app 整个白屏
-      try {
-        userStore.setUser(JSON.parse(userData))
-      } catch (e) {
-        console.warn('[App] localStorage.user JSON.parse 失败, 清掉 token 重新登录', e)
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-      }
-    }
-  }
-})
 </script>
 
 <style>

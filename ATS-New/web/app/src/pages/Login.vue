@@ -149,12 +149,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
 import { PersonOutline, LockClosedOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
 import { login } from '../api/auth'
+import { deriveRoleType } from '../utils/role'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -195,13 +196,22 @@ const handleLogin = async (values: { username: string; password: string }) => {
         localStorage.setItem('refreshToken', _refresh)
         userStore.setRefreshToken(_refresh)
       }
+      // 后端 (apps/core/views_auth.py:49-56) emit:
+      //   { id, username, fullName, employeeId, department, roles: string[] }
+      // 2026-06-17: BE 启用 drf-camel-case 后, snake_case 字段自动转 camelCase, FE 直接消费.
+      // 单词字段 (id, username, roles, department) 不受影响.
+      const roles: string[] = data.data.user.roles ?? []
+      const roleType = deriveRoleType(roles)
+
       userStore.setUser({
         id: data.data.user.id,
         username: data.data.user.username,
-        realName: data.data.user.realName,
-        email: data.data.user.email,
-        phone: data.data.user.phone,
-        roleType: data.data.user.roleType,
+        realName: data.data.user.fullName,
+        employeeId: data.data.user.employeeId,
+        departmentId: data.data.user.department,
+        // roles 是真值 (后端 RBAC); roleType 是 guard / UI 用的派生便利字段
+        roles,
+        roleType,
       })
       if (rememberMe.value) {
         localStorage.setItem('rememberMe', 'true')

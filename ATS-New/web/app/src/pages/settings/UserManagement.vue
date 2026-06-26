@@ -282,7 +282,7 @@ const request = async (url: string, options: RequestInit = {}) => {
 const loadUsers = async () => {
   loading.value = true;
   try {
-    const data = await request('/api/users');
+    const data = await request('/api/v1/users/');
     if (data?.success) {
       users.value = data.data;
     } else {
@@ -299,7 +299,7 @@ const loadUsers = async () => {
 // 加载MOU列表
 const loadMous = async () => {
   try {
-    const data = await request('/api/permissions-v2/mou');
+    const data = await request('/api/v1/permissions/mous/');
     if (data?.success) {
       mous.value = data.data;
     }
@@ -311,7 +311,7 @@ const loadMous = async () => {
 // 加载角色列表
 const loadRoles = async () => {
   try {
-    const data = await request('/api/permissions/roles');
+    const data = await request('/api/v1/permissions/roles/');
     if (data?.success) {
       roles.value = data.data;
     }
@@ -323,7 +323,7 @@ const loadRoles = async () => {
 // 加载用户MOU关联
 const loadUserMous = async (userId: string) => {
   try {
-    const data = await request(`/api/permissions-v2/mou/user-mous/${userId}`);
+    const data = await request(`/api/v1/permissions/user-mous/${userId}`);
     if (data?.success) {
       userMous.value = data.data.map((um: any) => um.mouId);
     }
@@ -335,7 +335,7 @@ const loadUserMous = async (userId: string) => {
 // 加载用户角色
 const loadUserRoles = async (userId: string) => {
   try {
-    const data = await request(`/api/permissions/users/${userId}/roles`);
+    const data = await request(`/api/v1/permissions/users/${userId}/roles`);
     if (data?.success) {
       userRoles.value = data.data.map((ur: any) => ur.roleId);
     }
@@ -379,7 +379,7 @@ const closeUserModal = () => {
 // 创建用户
 const handleCreateUser = async () => {
   try {
-    const data = await request('/api/users', {
+    const data = await request('/api/v1/auth/users', {
       method: 'POST',
       body: JSON.stringify(formState)
     });
@@ -398,7 +398,7 @@ const handleCreateUser = async () => {
 // 更新用户
 const handleUpdateUser = async () => {
   try {
-    const data = await request(`/api/users/${editingUser.value?.id}`, {
+    const data = await request(`/api/v1/users/${editingUser.value?.id}`, {
       method: 'PUT',
       body: JSON.stringify(formState)
     });
@@ -426,7 +426,7 @@ const handleUserSubmit = () => {
 // 删除用户
 const handleDeleteUser = async (userId: string) => {
   try {
-    const data = await request(`/api/users/${userId}`, {
+    const data = await request(`/api/v1/users/${userId}`, {
       method: 'DELETE'
     });
     if (data?.success) {
@@ -443,7 +443,7 @@ const handleDeleteUser = async (userId: string) => {
 // 保存用户MOU关联
 const handleSaveUserMous = async (mouIds: string[]) => {
   try {
-    const data = await request(`/api/permissions-v2/mou/user-mous/${selectedUserId.value}`, {
+    const data = await request(`/api/v1/permissions/user-mous/${selectedUserId.value}`, {
       method: 'POST',
       body: JSON.stringify({ mouIds })
     });
@@ -461,7 +461,7 @@ const handleSaveUserMous = async (mouIds: string[]) => {
 // 保存用户角色
 const handleSaveUserRoles = async (roleIds: string[]) => {
   try {
-    const data = await request(`/api/permissions/users/${selectedUserId.value}/roles`, {
+    const data = await request(`/api/v1/permissions/users/${selectedUserId.value}/roles`, {
       method: 'POST',
       body: JSON.stringify({ roleIds })
     });
@@ -479,7 +479,7 @@ const handleSaveUserRoles = async (roleIds: string[]) => {
 // 绑定企微
 const handleBindWechatWork = async (userId: string, wechatWorkUserId: string) => {
   try {
-    const data = await request(`/api/users/${userId}`, {
+    const data = await request(`/api/v1/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({ wechatWorkUserId })
     });
@@ -497,7 +497,7 @@ const handleBindWechatWork = async (userId: string, wechatWorkUserId: string) =>
 // 解绑企微
 const handleUnbindWechatWork = async (userId: string) => {
   try {
-    const data = await request(`/api/users/${userId}`, {
+    const data = await request(`/api/v1/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({ wechatWorkUserId: null })
     });
@@ -515,7 +515,7 @@ const handleUnbindWechatWork = async (userId: string) => {
 // 绑定摩卡
 const handleBindMocha = async (userId: string, mochaUserId: string) => {
   try {
-    const data = await request(`/api/users/${userId}`, {
+    const data = await request(`/api/v1/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({ mochaUserId })
     });
@@ -533,7 +533,7 @@ const handleBindMocha = async (userId: string, mochaUserId: string) => {
 // 解绑摩卡
 const handleUnbindMocha = async (userId: string) => {
   try {
-    const data = await request(`/api/users/${userId}`, {
+    const data = await request(`/api/v1/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({ mochaUserId: null })
     });

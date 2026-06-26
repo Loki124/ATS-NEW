@@ -2,6 +2,27 @@
 from rest_framework import serializers
 
 from .models import ExportTask, ReportSnapshot
+from .models_data import DataSubscription
+
+
+class DataSubscriptionSerializer(serializers.ModelSerializer):
+    """字段对齐 FE api/data.ts:DataSubscription interface (camelCase)"""
+    userId = serializers.CharField(source='user_id')
+    userName = serializers.CharField(source='user_name')
+    scheduleTime = serializers.CharField(source='schedule_time', allow_null=True, required=False, allow_blank=True)
+    lastRunAt = serializers.DateTimeField(source='last_run_at', allow_null=True, required=False)
+    nextRunAt = serializers.DateTimeField(source='next_run_at', allow_null=True, required=False)
+    runCount = serializers.IntegerField(source='run_count', read_only=True)
+
+    class Meta:
+        model = DataSubscription
+        fields = [
+            'id', 'userId', 'userName', 'resource', 'metric', 'filters',
+            'channel', 'schedule', 'scheduleTime', 'recipients',
+            'is_active', 'lastRunAt', 'nextRunAt', 'runCount',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'lastRunAt', 'nextRunAt', 'runCount', 'created_at', 'updated_at']
 
 
 class ReportSnapshotSerializer(serializers.ModelSerializer):
