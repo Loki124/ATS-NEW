@@ -209,19 +209,18 @@ const handleLogin = async (values: { username: string; password: string }) => {
       message.success('登录成功！')
       // 用 nextTick 避免 message toast 在路由切换时被销毁
       await nextTick()
-      router.push('/dashboard')
+      // 用 replace 而非 push：登录后用替换语义，避免返回按钮回到 /login
+      await router.replace('/dashboard').catch((e: any) => {
+        // Vue Router 在重复 push 或 abort 时 reject NavigationFailure —
+        // replace 通常不会重复，但防御性 catch 防止导航卡住
+        if (e?.name === 'NavigationFailure') return
+        console.error('[login] navigation failed:', e?.message)
+      })
     } else {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
-    // Vue Router 4 在 router.push 抛出 NavigationFailure (重复跳转 / 重定向冲突)，
-    // 这是 router 内部状态问题，不是登录失败
-    if (error?.name === 'NavigationFailure') {
-      return
-    }
-    // 其他错误（网络 / 5xx）只记日志，不再弹「登录失败，请检查后端服务」红色 toast。
-    // 真正的登录失败（用户名密码错）由内层 if (data.success) / else 已处理显示。
-    console.error('[login] post-login error:', error?.response?.status, error?.message)
+    console.error('[login] error:', error?.response?.status, error?.message)
   } finally {
     loading.value = false
   }
