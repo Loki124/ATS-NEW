@@ -214,20 +214,14 @@ const handleLogin = async (values: { username: string; password: string }) => {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
-    // 只捕获 login API 本身的错误（已在 if/else 中处理）
-    // router.push 触发的 NavigationFailure 不在此处处理，让它冒泡
+    // Vue Router 4 在 router.push 抛出 NavigationFailure (重复跳转 / 重定向冲突)，
+    // 这是 router 内部状态问题，不是登录失败
     if (error?.name === 'NavigationFailure') {
-      // 静默忽略 — 这是 router 内部跳转冲突，不是登录失败
       return
     }
-    // 真正的网络/后端错误
-    const status = error?.response?.status
-    if (status === 401 || status === 400) {
-      // 后端已返回明确错误信息，login API 也会进 else 分支显示
-      // 这里只是兜底，不重复显示「登录失败，请检查后端服务」
-      return
-    }
-    message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
+    // 其他错误（网络 / 5xx）只记日志，不再弹「登录失败，请检查后端服务」红色 toast。
+    // 真正的登录失败（用户名密码错）由内层 if (data.success) / else 已处理显示。
+    console.error('[login] post-login error:', error?.response?.status, error?.message)
   } finally {
     loading.value = false
   }
