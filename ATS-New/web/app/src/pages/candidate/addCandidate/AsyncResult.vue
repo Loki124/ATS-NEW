@@ -26,14 +26,64 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 </template>
 
 <style scoped>
-.async-result { text-align: center; padding: 40px 30px; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; }
+.async-result {
+  text-align: center;
+  padding: 40px 30px;
+  max-width: 500px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
 .ar-icon { font-size: 48px; margin-bottom: 16px; }
+.async-result h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
 .ar-sub { font-size: 13px; color: var(--g6); margin-bottom: 24px; }
-.ar-routes { display: flex; flex-direction: column; gap: 10px; text-align: left; margin-bottom: 24px; width: 100%; }
-.ar-route { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 8px; font-size: 12px; }
+.ar-routes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  margin-bottom: 24px;
+  width: 100%;
+}
+.ar-route {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+}
 .ar-route.pass { background: var(--sl); border: 1px solid #A7F3D0; }
 .ar-route.fail { background: var(--wl); border: 1px solid #FDE68A; }
 .ar-route-icon { font-size: 18px; flex-shrink: 0; }
-.btn { padding: 7px 14px; border-radius: 8px; font-size: 11px; font-weight: 500; cursor: pointer; border: none; }
+.nbar {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 10px;
+  margin-top: 8px;
+}
+.nbar.info { background: var(--bl); border: 1px solid #BFDBFE; color: #1E40AF; }
+.btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: 0.15s;
+}
 .bp { background: var(--p); color: #fff; }
+.bp:hover { background: var(--ph); }
+.bp:disabled { background: var(--g4); cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .async-result { padding: 24px 16px; }
+  .ar-route { font-size: 11px; padding: 10px 12px; }
+}
 </style>
