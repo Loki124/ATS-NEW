@@ -8,6 +8,7 @@
 """
 import io
 import pytest
+from django.test import override_settings
 from unittest.mock import patch, MagicMock
 from azure.core.exceptions import (
     ClientAuthenticationError,
@@ -100,6 +101,7 @@ def mock_file():
 class TestResumeParserService:
     """ResumeParserService.parse() 的测试"""
 
+    @override_settings(AFFINDA_API_KEY='real_test_key')
     @patch('affinda.AffindaAPI', create=True)
     def test_parse_success_returns_parsed_resume(self, mock_affinda_api_cls, mock_file, affinda_success_response):
         """成功解析应返回 ParsedResume dataclass"""
@@ -128,6 +130,7 @@ class TestResumeParserService:
         assert result.experiences[0].company == '某某科技'
         assert result.confidence == 0.92  # 最低维度置信度 (min of 0.98/0.95/0.92)
 
+    @override_settings(AFFINDA_API_KEY='real_test_key')
     @patch('affinda.AffindaAPI', create=True)
     def test_parse_low_confidence_raises_error(self, mock_affinda_api_cls, mock_file, affinda_low_confidence_response):
         """核心字段 < 3 个时抛 LowConfidenceError"""
@@ -141,6 +144,7 @@ class TestResumeParserService:
             ResumeParserService.parse(mock_file)
         assert '解析结果不完整' in str(exc_info.value)
 
+    @override_settings(AFFINDA_API_KEY='real_test_key')
     @patch('affinda.AffindaAPI', create=True)
     def test_parse_affinda_4xx_raises_parse_error(self, mock_affinda_api_cls, mock_file):
         """Affinda 401/403 抛 ParseError"""
@@ -154,6 +158,7 @@ class TestResumeParserService:
             ResumeParserService.parse(mock_file)
         assert 'AFFINDA_AUTH' in str(exc_info.value)
 
+    @override_settings(AFFINDA_API_KEY='real_test_key')
     @patch('affinda.AffindaAPI', create=True)
     def test_parse_affinda_timeout_raises_parse_error(self, mock_affinda_api_cls, mock_file):
         """Affinda 超时抛 ParseError"""
@@ -167,6 +172,7 @@ class TestResumeParserService:
             ResumeParserService.parse(mock_file)
         assert 'AFFINDA_TIMEOUT' in str(exc_info.value)
 
+    @override_settings(AFFINDA_API_KEY='real_test_key')
     def test_parsed_resume_to_dict(self):
         """ParsedResume.to_dict() 输出前端期望格式"""
         resume = ParsedResume(
