@@ -165,7 +165,7 @@ const router = createRouter({
  */
 export function routeGuard(to: any, _from: any, next: any) {
   const userStore = useUserStore()
-  const token = userStore.token || localStorage.getItem('token')
+  const token = userStore.accessToken || localStorage.getItem('accessToken')
 
   // 1. 登录态校验 (existing)
   if (to.meta.requiresAuth && !token) {

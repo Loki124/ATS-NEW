@@ -24,6 +24,7 @@ api_v1_patterns = [
 
     # 业务域
     path('candidates/', include('apps.candidate.urls')),
+    path('candidates/add-candidate/', include(('apps.add_candidate.urls', 'add_candidate'))),
     path('applications/', include('apps.application.urls')),
     path('demands/', include('apps.demand.urls')),
     path('positions/', include('apps.position.urls')),

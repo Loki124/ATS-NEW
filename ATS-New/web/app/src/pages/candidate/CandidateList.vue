@@ -11,7 +11,7 @@
           <template #icon><n-icon :component="PaperPlaneOutline" /></template>
           批量发送通知 ({{ selectedCandidates.length }})
         </n-button>
-        <n-button type="primary" size="large" class="add-button" @click="showAddModal">
+        <n-button type="primary" size="large" class="add-button" data-testid="add-candidate-btn" @click="showAddModal">
           <template #icon><n-icon :component="AddOutline" /></template>
           新增候选人
         </n-button>
@@ -104,11 +104,10 @@
       />
     </n-card>
 
-    <!-- 新增候选人弹窗 -->
+    <!-- 新增候选人弹窗 V2 -->
     <AddCandidateModal
-      v-model:visible="addModalVisible"
-      @close="closeAddModal"
-      @success="handleAddSuccess"
+      v-model:show="addModalVisible"
+      @created="handleAddSuccess"
     />
 
     <!-- 批量发送通知弹窗 -->
@@ -299,9 +298,11 @@ const statusFilter = ref<string | null>(null)
 onMounted(async () => {
   try {
     const schema: StatusSchema = await fetchStatusSchema()
-    STATUS_SCHEMA.value = Object.entries(schema)
-      .map(([key, v]) => ({ key, label: v.label, order: v.order }))
-      .sort((a, b) => a.order - b.order)
+    if (schema && typeof schema === 'object') {
+      STATUS_SCHEMA.value = Object.entries(schema)
+        .map(([key, v]) => ({ key, label: v.label, order: v.order }))
+        .sort((a, b) => a.order - b.order)
+    }
   } catch (e) {
     // 静默失败: 11 状态筛选可选
     console.warn('fetchStatusSchema 失败', e)
@@ -451,8 +452,7 @@ function getChannelText(c: string) { return channelMap[c]?.text || c }
 function getStageText(s: string) { return stageMap[s]?.text || s }
 
 const showAddModal = () => { addModalVisible.value = true }
-const closeAddModal = () => { addModalVisible.value = false }
-const handleAddSuccess = () => { message.success('候选人添加成功') }
+const handleAddSuccess = () => { message.success('候选人添加成功'); addModalVisible.value = false }
 const handleSelectionChange = (keys: any[]) => {
   selectedCandidates.value = mockData.filter((d) => keys.includes(d.key))
 }

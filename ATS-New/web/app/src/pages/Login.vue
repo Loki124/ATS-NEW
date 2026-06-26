@@ -209,18 +209,18 @@ const handleLogin = async (values: { username: string; password: string }) => {
       message.success('登录成功！')
       // 用 nextTick 避免 message toast 在路由切换时被销毁
       await nextTick()
-      router.push('/dashboard')
+      // 用 replace 而非 push：登录后用替换语义，避免返回按钮回到 /login
+      await router.replace('/dashboard').catch((e: any) => {
+        // Vue Router 在重复 push 或 abort 时 reject NavigationFailure —
+        // replace 通常不会重复，但防御性 catch 防止导航卡住
+        if (e?.name === 'NavigationFailure') return
+        console.error('[login] navigation failed:', e?.message)
+      })
     } else {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
-    // 忽略 Vue Router 自身的 NavigationFailure (e.g. push 被新 push 取消),
-    // 这种错误跟登录失败无关, 不应误报
-    if (error?.name === 'NavigationFailure' || error?.type === undefined && error?.message?.includes('NavigationFailure')) {
-      // 静默忽略
-    } else {
-      message.error(error?.response?.data?.message || '登录失败，请检查后端服务')
-    }
+    console.error('[login] error:', error?.response?.status, error?.message)
   } finally {
     loading.value = false
   }

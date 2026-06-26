@@ -97,6 +97,7 @@ LOCAL_APPS = [
     'apps.automation',
     # 业务域
     'apps.candidate',
+    'apps.add_candidate',  # 2026-06-22: 新版创建候选人流程
     'apps.application',
     'apps.demand',
     'apps.position',
@@ -501,3 +502,17 @@ ATS_BASE = {
     'AUDIT_LOG_RETENTION_DAYS': 365 * 3,  # 3 年
     'TALENT_POOL_RETENTION_DAYS': 365 * 2,  # 2 年
 }
+
+# ===== Add Candidate V2 - 第三方 API 配置 =====
+# 2026-06-22: 商业简历解析服务 (Affinda)
+# 生产环境通过环境变量注入，本地开发用 .env
+AFFINDA_API_KEY = env('AFFINDA_API_KEY', default='test_affinda_key_dev')
+AFFINDA_BASE_URL = env('AFFINDA_BASE_URL', default='https://api.affinda.com/v3')
+AFFINDA_WORKSPACE = env('AFFINDA_WORKSPACE', default='ats-default')
+AFFINDA_DOCUMENT_TYPE = env('AFFINDA_DOCUMENT_TYPE', default='resume')
+
+# 解析超时（秒）
+AFFINDA_TIMEOUT_SECONDS = int(env('AFFINDA_TIMEOUT_SECONDS', default=30))
+
+# 评分及格线
+SCORING_PASS_THRESHOLD = int(env('SCORING_PASS_THRESHOLD', default=60))
