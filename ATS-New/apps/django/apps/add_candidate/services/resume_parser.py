@@ -103,6 +103,16 @@ class ResumeParserService:
             ParseError: 解析失败（vendor 错误、超时、空结果）
             LowConfidenceError: 核心字段 < 3
         """
+        # Dev fallback: 如果 AFFINDA_API_KEY 是 test_* 或空，跳过真实调用返回 mock
+        # 生产环境（prod settings）会强制要求 AFFINDA_API_KEY，此 fallback 不生效
+        api_key = getattr(settings, 'AFFINDA_API_KEY', '') or ''
+        if not api_key or api_key.startswith('test_'):
+            import logging
+            logger.warning(
+                'AFFINDA_API_KEY 未配置或为 test_*，返回 mock 解析结果（仅 dev 用）'
+            )
+            return _mock_parse(file_obj)
+
         try:
             client = _get_affinda_client()
             response = client.create_document(
@@ -196,6 +206,55 @@ def _get_affinda_client():
     """
     return affinda.AffindaAPI(
         credential=affinda.TokenCredential(token=settings.AFFINDA_API_KEY),
+    )
+
+
+def _mock_parse(file_obj) -> 'ParsedResume':
+    """Dev fallback: 无 Affinda key 时返回 mock 数据，让前端流程跑通
+
+    从文件名猜姓名/电话, 让 demo 看起来真实。生产环境 prod settings 强制要求
+    AFFINDA_API_KEY, 此函数不会被调用。
+    """
+    import hashlib
+    import os
+    from datetime import date
+
+    filename = getattr(file_obj, 'name', 'unknown.pdf')
+    name_part = os.path.splitext(os.path.basename(filename))[0]
+    # 取文件名前两个字作为姓名（简单 heuristic）
+    name = name_part[:2] if len(name_part) >= 2 else name_part or '张三'
+
+    # 用文件大小作为 seed 生成稳定 phone
+    size = getattr(file_obj, 'size', 0)
+    seed = int(hashlib.md5(filename.encode()).hexdigest()[:6], 16)
+    phone = f'138{seed:08d}'[:11]
+
+    return ParsedResume(
+        name=name,
+        phone=phone,
+        email=f'{name.lower()}@example.com',
+        gender='男',
+        age=28,
+        edu='本科',
+        educations=[
+            Education(
+                period='2016-2020', school='某大学', major='计算机科学', degree='本科',
+            ),
+            Education(
+                period='2020-2023', school='某985大学', major='软件工程', degree='硕士',
+            ),
+        ],
+        experiences=[
+            Experience(
+                period='2023-至今', company='某科技公司', position='高级工程师',
+                summary='负责核心业务模块开发与团队管理',
+            ),
+            Experience(
+                period='2020-2023', company='某互联网公司', position='前端工程师',
+                summary='负责电商平台前端开发',
+            ),
+        ],
+        confidence=0.95,
     )
 
 
