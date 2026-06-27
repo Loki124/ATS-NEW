@@ -73,14 +73,17 @@ log "  head: $HEAD"
 # ---------- 2. 后端 deps + 迁移 ----------
 log ""
 if [ "$HAS_DJANGO" -eq 1 ]; then
-  log "[2/5] django: pip install + migrate"
+  log "[2/5] django: uv pip install + migrate"
   cd "$DJANGO_DIR"
-  [ -d ".venv" ] || python3 -m venv .venv
+  # 6/26 兵哥手动部署用 uv 创建 venv (pyvenv.cfg 里有 uv = 0.11.21), uv venv 不带 pip, 写 python3 -m venv 重建会生成无 pip 的 venv (要 ensurepip 才有), 跟 6/26 现状不一致
+  # uv venv 默认带 pyvenv.cfg 指向 uv-python, 跟现状保持一致
+  [ -d ".venv" ] || uv venv --python 3.13.5 .venv
   # shellcheck disable=SC1091
   . .venv/bin/activate
-  pip install --upgrade pip >/dev/null 2>&1
-  pip install -r requirements.txt 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
-  log "  pip install OK"
+  # 之前用 pip install 在 uv venv 下永远 fail, 而且 >/dev/null 2>&1 吞错, set -e 触发但 log 看不到, 是 anti-pattern
+  # uv 装在 /root/.local/bin/uv, /root mode 700 非 root traverse 不了, 复制一份到 /usr/local/bin/uv 让 loki 用户 (webhook-deploy.sh 跑用户) 也能用
+  uv pip install -r requirements.txt 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
+  log "  uv pip install OK"
   # 注意: 不要用 --accept-data-loss,会让列被静默删除
   python manage.py migrate --noinput 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
   log "  migrate OK"

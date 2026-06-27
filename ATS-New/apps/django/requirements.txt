@@ -21,7 +21,7 @@ celery==5.4.0
 redis==5.0.4
 channels==4.1.0
 channels-redis==4.2.0
-django-celery-beat==2.6.0
+django-celery-beat==2.7.0
 django-celery-results==2.5.1
 
 # === Database ===
@@ -32,7 +32,7 @@ cryptography==42.0.7  # PyMySQL 加密支持
 # 备选：如需 mysqlclient，先 `brew install mysql pkg-config` 后启用
 # mysqlclient==2.2.4
 # PostgreSQL 备选
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.12
 # SQLite is built-in for dev/test
 
 # === Monitoring / Logging ===
@@ -48,7 +48,7 @@ django-environ==0.11.2
 # === Utilities ===
 python-dateutil==2.9.0
 pytz==2024.1
-Pillow==10.3.0
+Pillow==10.4.0
 openpyxl==3.1.2  # Excel 导出
 reportlab==4.2.0  # PDF 生成
 python-slugify==8.0.4
