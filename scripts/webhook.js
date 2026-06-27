@@ -151,6 +151,13 @@ const server = http.createServer((req, res) => {
     });
 
     const stream = createWriteStream(DEPLOY_LOG, { flags: 'a' });
+    // 6/28 修复: stream open() 失败 (EACCES/ENOENT) 触发 unhandled error event, Node 主进程会直接挂。
+    // 23:55 + 00:01 两次 status=1/FAILURE 根因都是这里: /tmp/ats-deploy.log root:root 644, loki (User=loki) EACCES。
+    // 加 error handler 兜底, 主进程不死, deploy 脚本自己 tee -a "$LOG_FILE" 才是真正的 log 写入路径 (已经够用)。
+    stream.on('error', (err) => {
+      log(`❌ deploy log stream 打开失败: ${err.message} (path=${DEPLOY_LOG})`);
+      log(`   deploy 进程 PID=${child.pid} 仍在跑, 它的 stdout 走不进来而已`);
+    });
     child.stdout.pipe(stream);
     child.stderr.pipe(stream);
     child.unref();
