@@ -18,14 +18,14 @@ set -o pipefail
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/ats/ATS-New}"
 REPO_URL="${REPO_URL:-https://gitee.com/loki126/ATS-NEW.git}"
 BRANCH="${WEBHOOK_BRANCH:-main}"
-APP_PORT="${APP_PORT:-9908}"
+APP_PORT="${APP_PORT:-8000}"  # 2026-06-27: Django+gunicorn 绑 8000 (ats-django.service),跟 systemd unit 一致
 LOG_FILE="${LOG_FILE:-/tmp/ats-deploy.log}"
 APP_LOG="${APP_LOG:-/home/loki/ats-backend.log}"
 APP_PID_FILE="${APP_PID_FILE:-/tmp/ats.pid}"
 
-# 新结构路径
-DJANGO_DIR="$DEPLOY_DIR/apps/django"
-WEB_DIR="$DEPLOY_DIR/web/app"
+# 新结构路径 (2026-06-27: 仓库根 + ATS-New/ 子目录双层嵌套,Django 项目在 ATS-New/apps/django/)
+DJANGO_DIR="$DEPLOY_DIR/ATS-New/apps/django"
+WEB_DIR="$DEPLOY_DIR/ATS-New/web/app"
 
 # systemd 服务名 (新)
 SERVICE_NAME="${SERVICE_NAME:-ats-django}"
@@ -173,10 +173,10 @@ fi
 log ""
 log "[5/5] verify"
 
-# 健康检查路径 (Django 带 trailing slash, Node.js 不带)
+# 健康检查路径 (2026-06-27: Django 是顶层 /health/ 不在 /api/v1/ 下;Node.js 时代是 /api/health)
 HEALTH_URLS=()
 if [ "$HAS_DJANGO" -eq 1 ]; then
-  HEALTH_URLS=("http://localhost:$APP_PORT/api/health/")
+  HEALTH_URLS=("http://localhost:$APP_PORT/health/")
 else
   HEALTH_URLS=("http://localhost:$APP_PORT/api/health")
 fi
