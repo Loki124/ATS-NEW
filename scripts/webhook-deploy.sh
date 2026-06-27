@@ -36,6 +36,12 @@ log() { echo "[$(ts)] $*" | tee -a "$LOG_FILE"; }
 
 mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$APP_LOG")" "$(dirname "$APP_PID_FILE")"
 
+# 6/27 23:55 修复: deploy 进程由 loki 用户跑 (ats-webhook.service User=loki),
+# 但 /tmp/ats-deploy.log 默认是 root:root 644, loki append 会 EACCES, deploy 异常退出。
+# 提前 touch + chmod 666 保证可写, 老 deploy run 没改这条会留白。
+touch "$LOG_FILE" 2>/dev/null || true
+chmod 666 "$LOG_FILE" 2>/dev/null || true
+
 log "================================================"
 log " ATS-New 部署开始 (branch=$BRANCH, port=$APP_PORT)"
 log "================================================"
@@ -104,7 +110,9 @@ log ""
 if [ -d "$WEB_DIR" ]; then
   log "[3/5] frontend: npm install + build (新 Vite)"
   cd "$WEB_DIR"
-  npm install --omit=dev 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
+  # 6/27 23:58 修复: --omit=dev 不装 devDependencies, 但 vue-tsc 在 devDeps, build script = "vue-tsc && vite build" 必 fail (`sh: 1: vue-tsc: not found`)。
+  # 前端 build 阶段需要 devDeps, 不能 omit。生产 runtime 走 nginx 静态资源, 跟 npm install 是否装 devDeps 无关
+  npm install 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
   npm run build 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
 elif [ -d "$DEPLOY_DIR/frontend" ]; then
   log "[3/5] frontend: npm install + build (legacy)"
