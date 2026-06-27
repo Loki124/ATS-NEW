@@ -9,20 +9,11 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
-# 2026-06-17 G38: 三个 FE-only-half-built endpoints 的直挂 APIView
-from apps.process.views_recruitment_rules import (
-    EvaluateByStageIdView,
-    EvaluateCandidateView,
-)
 from apps.application.views import ApplicationViewSet
 
 api_v1_patterns = [
     # 认证
     path('auth/', include('apps.core.urls_auth')),
-    # 2026-06-17: G41 权限域 (之前 apps/permissions/ 整个 app 未挂载, FE UserManagement 触发 5 个端点全部 404)
-    # 必须先于 path('', apps.core.urls) 挂载, 否则 apps.core.urls 的 r'permissions' 会先匹配 prefix 但内部不匹配
-    # /permissions/roles/ 这种带子路径的 URL, 导致 404
-    path('permissions/', include('apps.permissions.urls')),
     # 2026-06-17: G41 用户管理 + 组织架构 + 角色 + 权限码 4 个 ViewSet (apps/core/urls.py)
     # 挂到 '' 上: users→/api/v1/users/  departments→/api/v1/departments/  roles→/api/v1/roles/  permissions→/api/v1/permissions/
     path('', include('apps.core.urls')),
@@ -40,21 +31,6 @@ api_v1_patterns = [
     path('recruitment-rules/entry-conditions/', include('apps.entry_condition.urls')),
     path('entry-condition-rules/', include('apps.entry_condition.urls')),  # 旧前缀别名
     # 2026-06-17: G38 — 新挂 3 个 alias APIView (覆盖 FE 调用的 stageId/candidateId 路径变体)
-    path(
-        'recruitment-rules/entry-conditions/<str:stage_id>/evaluate',
-        EvaluateByStageIdView.as_view(),
-        name='recruitment-evaluate-by-stage-id',
-    ),
-    path(
-        'recruitment-rules/candidates/<str:candidate_id>/evaluate',
-        EvaluateCandidateView.as_view(),
-        name='recruitment-evaluate-candidate',
-    ),
-    path(
-        'recruitment-rules/applications/<str:id>/check-stage-transition',
-        ApplicationViewSet.as_view({'post': 'check_stage_transition'}),
-        name='recruitment-check-stage-transition',
-    ),
     path('time-limit-rules/', include('apps.time_limit.urls')),
     path('automation-rules/', include('apps.automation.urls')),
     path('expressions/', include('apps.process.urls_expression')),
@@ -76,9 +52,7 @@ api_v1_patterns = [
     # 数据中心
     path('analytics/', include('apps.analytics.urls')),
     # 2026-06-17: G35 数据看板 KPI — FE api/data.ts:48 调 /data/kpi
-    path('data/', include('apps.analytics.urls_data')),
     # 2026-06-17: G35 数据订阅 — FE api/data.ts:57 调 /data/subscriptions
-    path('data/subscriptions/', include('apps.analytics.urls_subscriptions')),
 
     # 通知 / 审计 / GDPR / 集成
     path('notifications/', include('apps.notification.urls')),
@@ -86,9 +60,7 @@ api_v1_patterns = [
     path('gdpr/', include('apps.gdpr.urls')),
     path('integrations/', include('apps.integration.urls')),
     # 2026-06-17: G30 RPA — FE api/scraped-resume.ts:34 调 /scraped-resumes
-    path('scraped-resumes/', include('apps.rpa.urls')),
     # 2026-06-17: G41 数据字典 — FE 用 by-type/{type}/ 拿枚举值
-    path('dicts/', include('apps.data_dict.urls')),
 
     # 公共
     path('field-acl/', include('apps.field_acl.urls')),
