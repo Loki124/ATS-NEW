@@ -216,9 +216,15 @@ USE_I18N = True
 USE_TZ = True
 
 # === 静态文件 ===
+# Static files (admin/rest_framework served by whitenoise from STATIC_ROOT)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = []
+# 2026-06-28 花无缺: 加 web/app/dist 让 whitenoise 也 serve Vite build 出的前端产物.
+# collectstatic 会把 src 1 (admin) + src 2 (前端 dist) 都拷到 STATIC_ROOT,
+# 然后 whitenoise /static/* 一起 serve.
+STATICFILES_DIRS = [
+    BASE_DIR / 'web' / 'app' / 'dist',
+]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # === 媒体文件 ===

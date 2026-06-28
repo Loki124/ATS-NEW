@@ -1,8 +1,10 @@
 """URL 路由总入口"""
+import os
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import FileResponse, Http404
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -82,6 +84,24 @@ urlpatterns = [
 
     # Prometheus
     path('', include('django_prometheus.urls')) if getattr(settings, 'PROMETHEUS_ENABLED', False) else path('', admin.site.urls),
+]
+
+# 2026-06-28 花无缺: 前端 SPA fallback
+#   Vite build 出的 web/app/dist/ 已经被 STATICFILES_DIRS 引入 (settings.base),
+#   whitenoise 会从 STATIC_ROOT serve /static/* (asset js/css/font).
+#   SPA 路由 (/candidates/123 /settings/users 这种深链) 会到 Django,
+#   Django 没匹配 /api/ /admin/ /health/ /static/ 的路径全 fallthrough 到 index.html,
+#   让前端 vue-router 处理 history 模式路由.
+#
+# ⚠️ 必须在 urlpatterns 最末尾 (在所有显式 path 之后) 才能 fallthrough
+def spa_fallback(request, path=''):
+    index_file = os.path.join(settings.BASE_DIR, 'web', 'app', 'dist', 'index.html')
+    if os.path.exists(index_file):
+        return FileResponse(open(index_file, 'rb'), content_type='text/html')
+    raise Http404('index.html not found — vite build 还没跑过')
+
+urlpatterns += [
+    re_path(r'^(?P<path>(?!api/|admin/|health/|static/|__debug__/).*)$', spa_fallback),
 ]
 
 if settings.DEBUG:
