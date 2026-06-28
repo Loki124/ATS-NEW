@@ -69,7 +69,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method !== 'POST' || req.url !== '/webhook') {
+  const reqPath = (req.url || '/').split('?')[0];
+  if (req.method !== 'POST' || reqPath !== '/webhook') {
+    log(`⚠ unmatched ${req.method} ${req.url} from ${req.socket.remoteAddress} ua="${req.headers['user-agent']||''}" ct="${req.headers['content-type']||''}" x-gitee-event="${req.headers['x-gitee-event']||''}"`);
     res.writeHead(404);
     res.end('Not Found');
     return;
