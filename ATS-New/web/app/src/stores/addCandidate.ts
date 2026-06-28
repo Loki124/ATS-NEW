@@ -5,15 +5,17 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import type {
-  ResumeDraft as ApiResumeDraft,
   ParsedResume,
   DuplicateInfo,
   DupStatus,
   Direction,
   SubmitMode,
-  ScoreResult,
 } from '@/api/addCandidate'
 import * as api from '@/api/addCandidate'
+// 2026-06-28 花无缺: ScoreResult 和 ResumeDraft 都是 store 内部定义的 (line 21 + 34),
+//                  不从 @/api/addCandidate 导入 (api 文件没导出这两个).
+//                  TS2305 build fail 修法: 从 import block 里删.
+//                  ApiResumeDraft alias 也跟着删 (没用了).
 
 // ============ Internal types ============
 export interface ResumeDraft {
@@ -150,7 +152,12 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     if (update.status === 'done') {
       const dupStatus = update.duplicate?.status
       r.status = dupStatus ? dupStatus : 'clean'
+    } else if (update.status === 'failed') {
+      // 2026-06-28 花无缺: TS2322 修法 — 任务级 'failed' 业务状态 fallback 到 'clean'
+      //                     (跟 done + 无 dupStatus 行为一致, 用户看到 "待处理" 而不是 "处理中")
+      r.status = 'clean'
     } else {
+      // 'processing'
       r.status = update.status
     }
     if (r.status !== 'processing') r.procPhase = null
