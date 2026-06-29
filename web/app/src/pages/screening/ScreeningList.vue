@@ -122,7 +122,7 @@ onMounted(loadList)
     <div class="page-header">
       <h1 class="page-title">简历筛选</h1>
       <n-space>
-        <n-button @click="loadList" :loading="loading">
+        <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
@@ -141,18 +141,24 @@ onMounted(loadList)
     </div>
 
     <n-grid x-gap="12" y-gap="12" cols="3" class="stats-row">
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">总候选人数</div>
         <div class="stat-value">{{ stats.total }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">活跃</div>
         <div class="stat-value" style="color: #52c41a;">{{ stats.active }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">已选择</div>
         <div class="stat-value" style="color: #fa8c16;">{{ stats.selected }}</div>
-      </n-card></n-gi>
+      </n-card>
+</n-gi>
     </n-grid>
 
     <n-card :bordered="false" class="rounded-xl">
@@ -169,12 +175,12 @@ onMounted(loadList)
       </n-space>
 
       <n-data-table
+        v-model:checked-row-keys="selectedIds"
         :columns="columns"
         :data="candidates"
         :loading="loading"
         :row-key="(row: Candidate) => row.id"
         :pagination="pagination"
-        v-model:checked-row-keys="selectedIds"
         @update:page="(p: number) => { pagination.page = p; loadList() }"
       />
     </n-card>

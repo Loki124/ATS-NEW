@@ -56,6 +56,7 @@ export interface ParsedResume {
   gender?: string
   age?: number
   edu?: string
+  position?: string  // 2026-06-29 花无缺: ResumeCard.vue (line 50) 用 .position 显示求职意向
   educations: Education[]
   experiences: Experience[]
   confidence: number

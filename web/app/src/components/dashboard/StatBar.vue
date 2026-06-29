@@ -1,7 +1,7 @@
 <template>
   <div class="stat-bar" role="group" aria-label="关键指标">
     <div
-      v-for="(stat, idx) in stats"
+      v-for="stat in stats"
       :key="stat.key"
       class="stat-bar__item"
       :class="[`stat-bar__item--${stat.accentColor}`]"

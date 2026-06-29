@@ -81,9 +81,6 @@ urlpatterns = [
 
     # 健康检查
     path('health/', include('apps.core.urls_health')),
-
-    # Prometheus
-    path('', include('django_prometheus.urls')) if getattr(settings, 'PROMETHEUS_ENABLED', False) else path('', admin.site.urls),
 ]
 
 # 2026-06-28 花无缺: 前端 SPA fallback
@@ -95,10 +92,12 @@ urlpatterns = [
 #
 # ⚠️ 必须在 urlpatterns 最末尾 (在所有显式 path 之后) 才能 fallthrough
 def spa_fallback(request, path=''):
-    index_file = os.path.join(settings.BASE_DIR, 'web', 'app', 'dist', 'index.html')
-    if os.path.exists(index_file):
+    # 2026-06-29 拍平: 前端 dist 在 BASE_DIR.parent.parent / 'web' / 'app' / 'dist'
+    #   BASE_DIR = /opt/ats/ATS-New/apps/django  →  父 x2 = /opt/ats/ATS-New
+    index_file = settings.BASE_DIR.parent.parent / 'web' / 'app' / 'dist' / 'index.html'
+    if index_file.exists():
         return FileResponse(open(index_file, 'rb'), content_type='text/html')
-    raise Http404('index.html not found — vite build 还没跑过')
+    raise Http404(f'index.html not found at {index_file}')
 
 urlpatterns += [
     re_path(r'^(?P<path>(?!api/|admin/|health/|static/|__debug__/).*)$', spa_fallback),

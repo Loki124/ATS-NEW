@@ -210,7 +210,7 @@ onMounted(loadList)
             v-model:value="completeForm.risks"
             type="textarea"
             :rows="3"
-            placeholder='[{"category":"学历","severity":"LOW","description":"..."}]'
+            placeholder="[{&quot;category&quot;:&quot;学历&quot;,&quot;severity&quot;:&quot;LOW&quot;,&quot;description&quot;:&quot;...&quot;}]"
           />
         </n-form-item>
       </n-form>

@@ -13,7 +13,7 @@
           style="width: 240px"
           @update:value="reload"
         />
-        <n-button @click="reload" :loading="loading">刷新</n-button>
+        <n-button :loading="loading" @click="reload">刷新</n-button>
         <n-button type="primary" @click="openCreate">
           <template #icon><n-icon :component="AddOutline" /></template>
           新建字段
@@ -82,7 +82,7 @@
       <template #action>
         <n-space justify="end">
           <n-button @click="modalVisible = false">取消</n-button>
-          <n-button type="primary" @click="save" :loading="saving">保存</n-button>
+          <n-button type="primary" :loading="saving" @click="save">保存</n-button>
         </n-space>
       </template>
     </n-modal>

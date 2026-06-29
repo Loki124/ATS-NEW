@@ -17,8 +17,8 @@
         :collapsed-width="64"
         :collapsed-icon-size="22"
         :indent="18"
-        @update:value="handleMenuClick"
         class="settings-menu"
+        @update:value="handleMenuClick"
       />
     </n-layout-sider>
 

@@ -55,7 +55,7 @@
             <p><strong>{{ node.nodeName }}</strong></p>
             <p v-if="node.approverName">{{ node.approverName }}</p>
             <p v-if="node.comment">{{ node.comment }}</p>
-            <p class="node-time" v-if="node.decidedAt">{{ formatDate(node.decidedAt) }}</p>
+            <p v-if="node.decidedAt" class="node-time">{{ formatDate(node.decidedAt) }}</p>
             <p v-else-if="node.status === 'PENDING'" class="node-pending">待审批</p>
           </n-timeline-item>
         </n-timeline>

@@ -4,7 +4,7 @@
 
     <n-card title="权限矩阵" class="mt-4">
       <template #header-extra>
-        <n-button size="small" @click="reload" :loading="loading">刷新</n-button>
+        <n-button size="small" :loading="loading" @click="reload">刷新</n-button>
       </template>
       <n-empty v-if="!rows.length" description="暂无 ACL 规则, 请执行 seed: node prisma/seed/field-acl.seed.js" />
       <n-data-table

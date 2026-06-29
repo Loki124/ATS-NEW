@@ -69,10 +69,12 @@ describe('addCandidate API', () => {
 
   describe('replaceFile', () => {
     it('POSTs multipart to replace-file/{draft_id}/', async () => {
-      mockPost.mockResolvedValueOnce({ data: { new_job_id: 'j2' } })
+      // 2026-06-29 花无缺: replaceFile API 返回 { job_id, draft_id } (line 151),
+      //   旧 test 用 result.new_job_id 不存在, TS2339 fail. 改成 result.job_id.
+      mockPost.mockResolvedValueOnce({ data: { job_id: 'j2' } })
       const file = new File(['y'], 'new.pdf', { type: 'application/pdf' })
       const result = await replaceFile('d1', file)
-      expect(result.new_job_id).toBe('j2')
+      expect(result.job_id).toBe('j2')
     })
   })
 

@@ -29,7 +29,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
         <button class="btn bs" style="font-size:10px;padding:3px 8px;" @click="store.selectedIds = []">取消选择</button>
       </div>
 
-      <div v-if="isAllDone()" @click="emit('upload', [])" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px;text-align:left;">
+      <div v-if="isAllDone()" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px;text-align:left;" @click="emit('upload', [])">
         <span style="font-size:18px;">📎</span>
         <span style="flex:1;color:var(--g6);">拖拽或<span style="color:var(--p);font-weight:500;">点击</span>追加更多简历</span>
         <span style="font-size:10px;color:var(--g5);">PDF / Word / TXT</span>

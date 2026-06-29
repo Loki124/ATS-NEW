@@ -142,5 +142,5 @@ class TestDemandAPI:
         response = auth_hr_client.get('/api/v1/demands/?state=PENDING')
         assert response.status_code == 200
         # 验证过滤生效
-        codes = [d['code'] for d in response.data['data']['results']]
+        codes = [d['code'] for d in response.data['data']]
         assert demand.code in codes

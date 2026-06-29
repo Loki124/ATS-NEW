@@ -130,7 +130,7 @@ function nextStep() {
       </div>
     </div>
 
-    <template #footer v-if="store.step === 1 && store.resumes.length > 0">
+    <template v-if="store.step === 1 && store.resumes.length > 0" #footer>
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <n-button @click="closeModal">取消</n-button>
         <n-button type="primary" :disabled="!store.canGoStep2" data-testid="next-step-btn" @click="nextStep">

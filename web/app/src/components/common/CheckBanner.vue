@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type Status = 'processing' | 'clean' | 'unocc' | 'occupied'
+export type Status = 'processing' | 'clean' | 'unocc' | 'occupied'
 defineProps<{ status: Status }>()
 
 const config = {

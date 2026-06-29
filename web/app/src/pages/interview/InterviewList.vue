@@ -100,7 +100,7 @@ onMounted(loadList)
     <div class="page-header">
       <h1 class="page-title">面试管理</h1>
       <n-space>
-        <n-button @click="loadList" :loading="loading">
+        <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
@@ -108,18 +108,24 @@ onMounted(loadList)
     </div>
 
     <n-grid x-gap="12" y-gap="12" cols="3" class="stats-row">
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">待反馈</div>
         <div class="stat-value" style="color: #fa8c16;">{{ stats.PENDING }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">已反馈</div>
         <div class="stat-value" style="color: #52c41a;">{{ stats.COMPLETED }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">总面试数</div>
         <div class="stat-value">{{ dataSource.length }}</div>
-      </n-card></n-gi>
+      </n-card>
+</n-gi>
     </n-grid>
 
     <n-card :bordered="false" class="rounded-xl">

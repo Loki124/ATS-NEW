@@ -142,7 +142,7 @@ onMounted(loadList)
     <div class="page-header">
       <h1 class="page-title">待入职管理</h1>
       <n-space>
-        <n-button @click="loadList" :loading="loading">
+        <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>

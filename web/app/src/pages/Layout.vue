@@ -9,16 +9,16 @@
       collapse-mode="width"
       :collapsed="collapsed"
       :native-scrollbar="false"
-      @collapse="collapsed = true"
-      @expand="collapsed = false"
       class="bg-gray-900"
       :style="{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }"
+      @collapse="collapsed = true"
+      @expand="collapsed = false"
     >
       <div class="logo-container">
         <div class="logo">
           <div class="logo-icon">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
             </svg>
           </div>
           <span v-if="!collapsed" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
@@ -34,9 +34,9 @@
         :expanded-keys="expandedKeys"
         :inverted="true"
         :theme-overrides="menuThemeOverrides"
+        class="bg-gray-900"
         @update:value="handleMenuClick"
         @update:expanded-keys="onExpandedKeysChange"
-        class="bg-gray-900"
       />
     </n-layout-sider>
 
@@ -45,7 +45,7 @@
       <!-- 头部 -->
       <n-layout-header bordered class="bg-white px-6 flex items-center justify-between h-16">
         <div class="flex items-center gap-4">
-          <n-button text class="layout-header__search-trigger" @click="onSearchClick" aria-label="全局搜索">
+          <n-button text class="layout-header__search-trigger" aria-label="全局搜索" @click="onSearchClick">
             <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-80 cursor-pointer">
               <n-icon :component="SearchOutline" />
               <span class="flex-1 text-sm text-gray-500 text-left">搜索候选人、职位、需求...</span>
@@ -56,7 +56,7 @@
 
         <div class="flex items-center gap-4">
           <n-badge :value="5" :max="99">
-            <n-button text @click="goToNotifications" aria-label="通知">
+            <n-button text aria-label="通知" @click="goToNotifications">
               <n-icon :component="NotificationsOutline" :size="20" />
             </n-button>
           </n-badge>

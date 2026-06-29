@@ -313,7 +313,7 @@
           />
         </n-form-item>
         <n-form-item label="动作配置" required>
-          <n-input v-model:value="ruleFormState.actions" type="textarea" placeholder='JSON格式动作配置，如：[{"type":"assign_role","role_id":"xxx"}]' :rows="3" />
+          <n-input v-model:value="ruleFormState.actions" type="textarea" placeholder="JSON格式动作配置，如：[{&quot;type&quot;:&quot;assign_role&quot;,&quot;role_id&quot;:&quot;xxx&quot;}]" :rows="3" />
         </n-form-item>
         <n-form-item label="优先级">
           <n-input-number v-model:value="ruleFormState.priority" placeholder="数值越小优先级越高" />

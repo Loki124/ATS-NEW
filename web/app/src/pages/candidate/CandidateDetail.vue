@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <div class="page-header">
       <n-space>
-        <n-button @click="goBack" class="back-btn">
+        <n-button class="back-btn" @click="goBack">
           <template #icon><n-icon :component="ChevronBackOutline" /></template>
           返回
         </n-button>
@@ -11,7 +11,7 @@
       </n-space>
 
       <n-space>
-        <n-button type="primary" @click="openNotificationModal" class="send-btn">
+        <n-button type="primary" class="send-btn" @click="openNotificationModal">
           <template #icon><n-icon :component="PaperPlaneOutline" /></template>
           发送通知
         </n-button>
@@ -367,7 +367,7 @@
         </div>
 
         <div class="right-content">
-          <div class="editor-section" v-if="notificationForm.sendEmail">
+          <div v-if="notificationForm.sendEmail" class="editor-section">
             <div class="editor-header">
               <n-icon :component="MailOutline" class="editor-icon" />
               <h4 class="editor-title">邮件通知</h4>
@@ -382,7 +382,7 @@
             </div>
           </div>
 
-          <div class="editor-section" v-if="notificationForm.sendSms">
+          <div v-if="notificationForm.sendSms" class="editor-section">
             <div class="editor-header">
               <n-icon :component="ChatbubblesOutline" class="editor-icon" />
               <h4 class="editor-title">短信通知</h4>

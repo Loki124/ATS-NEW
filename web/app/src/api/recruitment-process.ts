@@ -57,7 +57,11 @@ export interface RecruitmentStage {
   id: string;
   code: string;
   name: string;
-  stageType: 'FILTER' | 'INVITATION' | 'INTERVIEW' | 'OFFER' | 'ONBOARDING';
+  // 2026-06-29 花无缺: BE (apps/process/models.py:23-28) StageType = SCREEN/INVITATION/INTERVIEW/OFFER.
+  //   旧 FE 定义用 'FILTER' + 多了 'ONBOARDING' (BE 没有), 跟 BE 不同步, POST/PUT 走 400.
+  //   改成跟 BE 一致. 前端 'src/pages/settings/RecruitmentStage.vue' 已经用 SCREEN (form.stageType 默认 'SCREEN', FALLBACK_STAGE_TYPE 第 1 个 value=SCREEN),
+  //   本次对齐是 FE 落后 -> 跟上 BE.
+  stageType: 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER';
   features: string[];
   isSystem: boolean;
   description?: string;

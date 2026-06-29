@@ -58,7 +58,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" @click="handleSave" :loading="saving">{{ editing ? '保存' : '创建（含起止阶段）' }}</n-button>
+          <n-button type="primary" :loading="saving" @click="handleSave">{{ editing ? '保存' : '创建（含起止阶段）' }}</n-button>
         </n-space>
       </template>
     </n-modal>

@@ -16,12 +16,12 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
     <div class="sub-progress">
       <div v-for="(item, i) in ['数据完整性校验', '简历信息入库', '人岗匹配评分', '生成应聘记录']" :key="i" class="sub-pi">
-        <span :class="['spd', (i < (store as any)._overallStep ? 'ok' : (i === (store as any)._overallStep ? 'spin' : 'wait'))]"></span>
+        <span :class="['spd', (i < store._overallStep ? 'ok' : (i === store._overallStep ? 'spin' : 'wait'))]"></span>
         <span>{{ item }}</span>
       </div>
     </div>
 
-    <div v-if="(store as any)._overallStep >= 2" class="scoring-list">
+    <div v-if="store._overallStep >= 2" class="scoring-list">
       <div v-for="r in store.resumes" :key="r.id" class="scoring-card">
         <div class="sc-card-header">
           <div class="sc-avatar">{{ r.parsed?.name?.charAt(0) || r.id.charAt(0) }}</div>

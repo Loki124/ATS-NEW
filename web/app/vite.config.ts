@@ -5,7 +5,7 @@ import UnoCSS from 'unocss/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 import { fileURLToPath } from 'url'
-// @ts-ignore: config file is outside tsconfig.node.json file list used for Vite config
+// @ts-expect-error: config file is outside tsconfig.node.json file list used for Vite config
 import config from './src/config'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -51,7 +51,9 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     sourcemap: false,
     // Plan O: 优化产物
-    target: 'es2020',
+    // 2026-06-29: target 升 es2022 — main.ts 用了 top-level await (await fetchMe() 在 mount 前),
+    //            es2020 不支持 top-level await, build:nocheck 也会 esbuild 报错
+    target: 'es2022',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1500,
     // 手动分块: 第三方库单独, 路由懒加载 chunk 由 router 控制

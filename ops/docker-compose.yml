@@ -29,8 +29,9 @@ services:
       - ats-network
 
   backend:
+    # 2026-06-29 花无缺: 拍平后 backend 在 apps/django/ (不是 ./backend/), Dockerfile 也搬了
     build:
-      context: ./backend
+      context: ../apps/django
       dockerfile: Dockerfile
     ports:
       - "5125:5125"
@@ -55,8 +56,9 @@ services:
     ports:
       - "9908:80"
     volumes:
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      # 2026-06-29 拍平: 前端在 ../web/app/, build 后 dist 在 ../web/app/dist
+      - ../../web/app/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../web/app/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
     networks:

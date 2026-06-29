@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">Offer 管理</h1>
       <n-space>
-        <n-button @click="handleRefresh" :loading="loading">
+        <n-button :loading="loading" @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
@@ -31,7 +31,7 @@
           :options="statusOptions"
           @update:value="handleFilter"
         />
-        <n-button @click="handleRefresh" :loading="loading">查询</n-button>
+        <n-button :loading="loading" @click="handleRefresh">查询</n-button>
       </n-space>
 
       <n-data-table
@@ -65,7 +65,7 @@
       <template #action>
         <n-space>
           <n-button @click="templateModal.show = false">取消</n-button>
-          <n-button type="primary" @click="handleGenerateTemplate" :loading="templateModal.loading">生成</n-button>
+          <n-button type="primary" :loading="templateModal.loading" @click="handleGenerateTemplate">生成</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -83,14 +83,14 @@
             {{ OFFER_STATUS_LABEL[transitionModal.form.to] }}
           </n-tag>
         </n-form-item>
-        <n-form-item label="原因" v-if="['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(transitionModal.form.to)">
+        <n-form-item v-if="['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(transitionModal.form.to)" label="原因">
           <n-input v-model:value="transitionModal.form.reason" type="textarea" :rows="3" placeholder="请说明原因" />
         </n-form-item>
       </n-form>
       <template #action>
         <n-space>
           <n-button @click="transitionModal.show = false">取消</n-button>
-          <n-button type="primary" @click="handleTransitionSubmit" :loading="transitionModal.loading">确认</n-button>
+          <n-button type="primary" :loading="transitionModal.loading" @click="handleTransitionSubmit">确认</n-button>
         </n-space>
       </template>
     </n-modal>

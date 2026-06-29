@@ -38,7 +38,7 @@
           <n-grid-item :span="2">
             <n-form-item label="适用范围 (4 指标 × 包含/不包含 × 多值)">
               <n-space vertical :size="6" style="width: 100%">
-                <div v-for="(ind, idx) in form.applicableIndicators" :key="ind.key" class="scope-row">
+                <div v-for="ind in form.applicableIndicators" :key="ind.key" class="scope-row">
                   <n-space :wrap-item="false" align="center" :size="8" style="width: 100%">
                     <n-tag :type="SCOPE_INDICATOR_META[ind.key].tagType" size="small" style="min-width: 88px">
                       {{ SCOPE_INDICATOR_META[ind.key].label }}
@@ -145,11 +145,11 @@
       </n-spin>
 
       <n-space style="margin-top: 12px">
-        <n-button size="small" type="primary" dashed @click="addStage('preceding')" :disabled="selectedStageIdx === null">
+        <n-button size="small" type="primary" dashed :disabled="selectedStageIdx === null" @click="addStage('preceding')">
           <template #icon>+</template>
           在选中前插入
         </n-button>
-        <n-button size="small" type="primary" dashed @click="addStage('following')" :disabled="selectedStageIdx === null">
+        <n-button size="small" type="primary" dashed :disabled="selectedStageIdx === null" @click="addStage('following')">
           <template #icon>+</template>
           在选中后插入
         </n-button>
@@ -289,6 +289,9 @@ const form = reactive({
     { key: 'position',  mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
     { key: 'user',      mode: 'include', values: [], options: [], loading: false } as ScopeIndicator,
   ] as ScopeIndicator[],
+  // 2026-06-29 花无缺: 兼容旧字段 (旧数据 applicableDepartments),
+  //   loadDepartments() 末尾反向同步 form.applicableDepartments = [...indicators[dept].values]
+  applicableDepartments: [] as any[],
 })
 
 // 当前流程下的所有 link (含 serverId - 已有链接,  vs localOnly - 仅本地)

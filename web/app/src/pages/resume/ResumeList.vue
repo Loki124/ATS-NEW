@@ -17,7 +17,7 @@
     </div>
 
     <!-- 子筛选 -->
-    <div class="sub-filters" v-if="activeTab === 'PENDING_ASSIGN'">
+    <div v-if="activeTab === 'PENDING_ASSIGN'" class="sub-filters">
       <n-space>
         <n-radio-group v-model:value="subStatus" @update:value="handleSubStatusChange">
           <n-radio-button value="">全部</n-radio-button>
@@ -55,13 +55,13 @@
             <div class="info-row">
               <n-icon :component="DocumentTextOutline" /> {{ resume.source || '-' }}
             </div>
-            <div class="info-row" v-if="resume.matchScore">
+            <div v-if="resume.matchScore" class="info-row">
               <n-icon :component="StarOutline" /> 匹配度: {{ resume.matchScore }}
             </div>
           </div>
 
           <!-- 锁定人信息 -->
-          <div class="locker-info" v-if="resume.formalLockerId || resume.tempLockerId">
+          <div v-if="resume.formalLockerId || resume.tempLockerId" class="locker-info">
             <n-tooltip :placement="'top'">
               <template #trigger>
                 <div class="locker-badge">
@@ -75,7 +75,7 @@
           </div>
 
           <!-- 子状态标记 -->
-          <div class="sub-status-tags" v-if="resume.resumeSubStatus">
+          <div v-if="resume.resumeSubStatus" class="sub-status-tags">
             <n-tag v-if="resume.resumeSubStatus === 'SCORING'" type="info">
               <template #icon><n-icon :component="SyncOutline" /></template>
               评分中
@@ -90,29 +90,29 @@
             <span class="create-time">{{ formatDate(resume.createdAt) }}</span>
             <n-space size="small">
               <n-button
+                v-if="canAssign(resume)"
                 text
                 type="primary"
                 size="small"
-                v-if="canAssign(resume)"
                 :disabled="resume.resumeSubStatus === 'SCORING'"
                 @click.stop="handleAssign(resume)"
               >
                 分配
               </n-button>
               <n-button
+                v-if="canArchive(resume)"
                 text
                 type="primary"
                 size="small"
-                v-if="canArchive(resume)"
                 @click.stop="handleArchive(resume)"
               >
                 归档
               </n-button>
               <n-button
+                v-if="canActivate(resume)"
                 text
                 type="primary"
                 size="small"
-                v-if="canActivate(resume)"
                 @click.stop="handleActivate(resume)"
               >
                 激活
@@ -127,7 +127,7 @@
     </n-spin>
 
     <!-- 分页 -->
-    <div class="pagination" v-if="total > 0">
+    <div v-if="total > 0" class="pagination">
       <n-pagination
         v-model:page="currentPage"
         :page-size="pageSize"

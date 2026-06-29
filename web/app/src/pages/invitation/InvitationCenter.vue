@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">邀约中心</h1>
       <n-space>
-        <n-button @click="handleRefresh" :loading="loading">
+        <n-button :loading="loading" @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
@@ -34,9 +34,9 @@
           size="large"
           :bordered="false"
           closable
+          style="cursor: pointer;"
           @close="handleRefresh"
           @click="handleClaim(item)"
-          style="cursor: pointer;"
         >
           <template #icon><n-icon :component="FlashOutline" /></template>
           {{ item.ownerName }} · 剩 {{ formatCountdown(item.timeoutAt) }}
@@ -55,7 +55,7 @@
           :options="statusOptions"
           @update:value="handleFilter"
         />
-        <n-button @click="handleRefresh" :loading="loading">查询</n-button>
+        <n-button :loading="loading" @click="handleRefresh">查询</n-button>
       </n-space>
 
       <n-data-table
@@ -84,7 +84,7 @@
       <template #action>
         <n-space>
           <n-button @click="resultModal.show = false">取消</n-button>
-          <n-button type="primary" @click="handleResultSubmit" :loading="resultModal.loading">确认</n-button>
+          <n-button type="primary" :loading="resultModal.loading" @click="handleResultSubmit">确认</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -99,7 +99,7 @@
       <template #action>
         <n-space>
           <n-button @click="actionModal.show = false">取消</n-button>
-          <n-button :type="actionModal.type" @click="handleActionSubmit" :loading="actionModal.loading">确认</n-button>
+          <n-button :type="actionModal.type" :loading="actionModal.loading" @click="handleActionSubmit">确认</n-button>
         </n-space>
       </template>
     </n-modal>

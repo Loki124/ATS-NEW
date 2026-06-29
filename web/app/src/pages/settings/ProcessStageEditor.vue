@@ -8,7 +8,7 @@
         </n-button>
         <h2>{{ processName }} - 阶段配置</h2>
       </n-space>
-      <n-button type="primary" @click="openAddModal" :disabled="!processId">
+      <n-button type="primary" :disabled="!processId" @click="openAddModal">
         <template #icon><n-icon :component="AddOutline" /></template>
         添加阶段
       </n-button>
@@ -36,7 +36,7 @@
                   <span class="stage-code">{{ element.stage.code }}</span>
                   <span class="stage-name">{{ element.customName || element.stage.name }}</span>
                   <span v-if="element.stage.isSystem" class="sys-tag">[系统]</span>
-                  <span class="stage-limit" v-if="element.stageLimit">⏱ {{ element.stageLimit }}h</span>
+                  <span v-if="element.stageLimit" class="stage-limit">⏱ {{ element.stageLimit }}h</span>
                 </div>
                 <div class="stage-actions">
                   <n-button text size="small" type="primary" @click="goRules(element)">规则</n-button>

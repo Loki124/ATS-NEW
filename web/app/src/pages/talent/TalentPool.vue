@@ -158,7 +158,7 @@ function onTabChange(key: string) {
     <div class="page-header">
       <h1 class="page-title">人才库 - 6 子库</h1>
       <n-space>
-        <n-button @click="loadPoolStats" :loading="loading">
+        <n-button :loading="loading" @click="loadPoolStats">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
@@ -172,8 +172,8 @@ function onTabChange(key: string) {
     <n-tabs
       type="line"
       :value="activePool"
-      @update:value="onTabChange"
       animated
+      @update:value="onTabChange"
     >
       <n-tab-pane
         v-for="pool in allPools"

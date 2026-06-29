@@ -185,7 +185,7 @@
             />
 
             <n-space justify="space-between" style="margin-top: 16px">
-              <n-button @click="testCondition" :loading="testing">测试条件</n-button>
+              <n-button :loading="testing" @click="testCondition">测试条件</n-button>
               <n-button type="primary" :loading="condSaving" @click="saveCondition">保存条件</n-button>
             </n-space>
 
@@ -484,7 +484,7 @@ onMounted(async () => {
     const procs = await listProcesses()
     const p = procs.find((x) => x.id === processId.value)
     if (p) processName.value = p.name
-  } catch {}
+  } catch (e) { console.warn('loadProcesses failed:', e) }
   // 加载 link 列表（找 stage 名称 + 全部 linkIds）
   try {
     const links = await listProcessLinks(processId.value)
@@ -494,7 +494,7 @@ onMounted(async () => {
       isInterviewType.value = link.stage?.stageType === 'INTERVIEW'
     }
     allLinkIds.value = links.map((l) => l.id)
-  } catch {}
+  } catch (e) { console.warn('loadProcessLinks failed:', e) }
   await Promise.all([loadRule(), loadCondition(), loadRounds(), loadUsers(), loadArchiveRules()])
 })
 </script>

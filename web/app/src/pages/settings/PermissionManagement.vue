@@ -129,7 +129,7 @@ onMounted(() => {
     <div class="page-header">
       <h1 class="page-title">权限管理</h1>
       <n-space>
-        <n-button @click="loadRoles" :loading="loading">
+        <n-button :loading="loading" @click="loadRoles">
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
@@ -142,26 +142,36 @@ onMounted(() => {
 
     <!-- 统计 -->
     <n-grid x-gap="12" y-gap="12" cols="5" responsive="screen" :item-responsive="true" class="stats-row">
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">总角色数</div>
         <div class="stat-value">{{ stats.total }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">系统角色</div>
         <div class="stat-value" style="color: #fa8c16;">{{ stats.system }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">自定义角色</div>
         <div class="stat-value" style="color: #1890ff;">{{ stats.custom }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">菜单权限</div>
         <div class="stat-value">{{ stats.menus }}</div>
-      </n-card></n-gi>
-      <n-gi><n-card size="small" :bordered="false" class="stat-card">
+      </n-card>
+</n-gi>
+      <n-gi>
+<n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">功能权限</div>
         <div class="stat-value">{{ stats.functions }}</div>
-      </n-card></n-gi>
+      </n-card>
+</n-gi>
     </n-grid>
 
     <n-card :bordered="false" class="rounded-xl">

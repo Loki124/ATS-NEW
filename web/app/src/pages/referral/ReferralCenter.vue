@@ -70,8 +70,8 @@
             :data="records"
             :loading="recordsLoading"
             :pagination="recordsPagination"
-            @update:page="loadRecords"
             :row-key="(row: any) => row.id"
+            @update:page="loadRecords"
           />
           <n-empty v-if="!recordsLoading && records.length === 0" description="暂无推荐记录，去分享你的内推码吧 🎉" class="mt-6" />
         </n-tab-pane>
@@ -83,8 +83,8 @@
             :data="rewards"
             :loading="rewardsLoading"
             :pagination="rewardsPagination"
-            @update:page="loadRewards"
             :row-key="(row: any) => row.id"
+            @update:page="loadRewards"
           />
           <n-empty v-if="!rewardsLoading && rewards.length === 0" description="暂无奖励" class="mt-6" />
         </n-tab-pane>

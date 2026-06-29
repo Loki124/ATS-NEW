@@ -8,7 +8,7 @@
           <template #icon>+</template>
           开始抓取
         </n-button>
-        <n-button @click="reload" :loading="loading" style="margin-left: 8px">刷新</n-button>
+        <n-button :loading="loading" style="margin-left: 8px" @click="reload">刷新</n-button>
       </template>
 
       <n-data-table

@@ -21,13 +21,13 @@
     <!-- G44 11 状态详细字段筛选 -->
     <n-card :bordered="false" class="status-filter-card mb-4">
       <n-space :size="8" :wrap="true">
-        <n-button size="small" @click="setStatusFilter(null)" :type="statusFilter === null ? 'primary' : 'default'">全部</n-button>
+        <n-button size="small" :type="statusFilter === null ? 'primary' : 'default'" @click="setStatusFilter(null)">全部</n-button>
         <n-button
           v-for="s in STATUS_SCHEMA"
           :key="s.key"
           size="small"
-          @click="setStatusFilter(s.key)"
           :type="statusFilter === s.key ? 'primary' : 'default'"
+          @click="setStatusFilter(s.key)"
         >
           {{ s.label }}
         </n-button>
@@ -215,7 +215,7 @@
             <span>系统将基于选择的「发送内容」自动为候选人生成对应待办，选择多个内容时会同时发送</span>
           </div>
 
-          <div class="editor-section" v-if="notificationForm.sendEmail">
+          <div v-if="notificationForm.sendEmail" class="editor-section">
             <div class="editor-header">
               <n-icon :component="MailOutline" class="editor-icon" />
               <h4 class="editor-title">邮件通知</h4>
@@ -230,7 +230,7 @@
             </div>
           </div>
 
-          <div class="editor-section" v-if="notificationForm.sendSms">
+          <div v-if="notificationForm.sendSms" class="editor-section">
             <div class="editor-header">
               <n-icon :component="ChatbubblesOutline" class="editor-icon" />
               <h4 class="editor-title">短信通知</h4>

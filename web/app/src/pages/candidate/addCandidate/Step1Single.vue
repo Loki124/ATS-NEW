@@ -38,7 +38,7 @@ function onSelectPos(pos: string) {
 </script>
 
 <template>
-  <div class="left-panel" v-if="resume">
+  <div v-if="resume" class="left-panel">
     <div class="detail-header">
       <div class="detail-avatar">{{ resume.parsed?.name?.charAt(0) || resume.file_name.charAt(0) }}</div>
       <div style="flex:1;min-width:0">
@@ -57,10 +57,12 @@ function onSelectPos(pos: string) {
     <div class="detail-section">
       <div class="detail-section-title">基本信息</div>
       <div class="frow">
-        <div class="fg"><label>姓名 *</label>
-          <input :value="resume.parsed?.name || ''" @change="onField('name', $event)" data-testid="field-name" />
+        <div class="fg">
+<label>姓名 *</label>
+          <input :value="resume.parsed?.name || ''" data-testid="field-name" @change="onField('name', $event)" />
         </div>
-        <div class="fg"><label>性别</label>
+        <div class="fg">
+<label>性别</label>
           <select :value="resume.parsed?.gender || ''" @change="onField('gender', $event)">
             <option value="男">男</option>
             <option value="女">女</option>
@@ -68,18 +70,22 @@ function onSelectPos(pos: string) {
         </div>
       </div>
       <div class="frow">
-        <div class="fg"><label>年龄</label>
+        <div class="fg">
+<label>年龄</label>
           <input :value="resume.parsed?.age || ''" @change="onField('age', $event)" />
         </div>
-        <div class="fg"><label>手机号 *</label>
-          <input :value="resume.parsed?.phone || ''" @change="onField('phone', $event)" data-testid="field-phone" />
+        <div class="fg">
+<label>手机号 *</label>
+          <input :value="resume.parsed?.phone || ''" data-testid="field-phone" @change="onField('phone', $event)" />
         </div>
       </div>
       <div class="frow">
-        <div class="fg"><label>邮箱 *</label>
-          <input :value="resume.parsed?.email || ''" @change="onField('email', $event)" data-testid="field-email" />
+        <div class="fg">
+<label>邮箱 *</label>
+          <input :value="resume.parsed?.email || ''" data-testid="field-email" @change="onField('email', $event)" />
         </div>
-        <div class="fg"><label>来源文件</label>
+        <div class="fg">
+<label>来源文件</label>
           <input :value="resume.file_name" disabled style="background: var(--g1);" />
         </div>
       </div>
@@ -104,8 +110,9 @@ function onSelectPos(pos: string) {
     </div>
   </div>
 
-  <div class="right-panel" v-if="resume">
-    <div class="rp-section"><div class="rp-title">查重结果</div>
+  <div v-if="resume" class="right-panel">
+    <div class="rp-section">
+<div class="rp-title">查重结果</div>
       <CheckBanner :status="resume.duplicate?.status || 'clean'" />
     </div>
 
@@ -115,19 +122,20 @@ function onSelectPos(pos: string) {
     </div>
 
     <div v-if="resume.occupyAction === 'apply'" class="rp-section">
-      <ApplyPositionSelector :positions="positions" :modelValue="resume.appliedPosition || ''" @update:modelValue="onSelectPos" />
+      <ApplyPositionSelector :positions="positions" :model-value="resume.appliedPosition || ''" @update:model-value="onSelectPos" />
     </div>
 
     <div v-if="isOccupied" class="rp-section">
       <div class="rp-title">处理选项</div>
-      <OccupiedActions :draftId="resume.id" @action="onAction" />
+      <OccupiedActions :draft-id="resume.id" @action="onAction" />
     </div>
 
     <div v-if="resume.scoreSnapshot" class="rp-section">
       <ScorePanel :score="resume.scoreSnapshot" />
     </div>
 
-    <div class="rp-section"><div class="rp-title">步骤说明</div>
+    <div class="rp-section">
+<div class="rp-title">步骤说明</div>
       <div class="nbar info">上传简历后系统将自动解析并查重。<br>• <strong>无重复</strong>：可直接进入下一步<br>• <strong>未占用</strong>：系统有记录但可合并<br>• <strong>已占用</strong>：需选择处理方式</div>
     </div>
   </div>

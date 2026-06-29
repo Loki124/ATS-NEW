@@ -187,19 +187,19 @@
       <n-form label-placement="left" :label-width="120" class="mt-4">
         <n-form-item label="数据权限范围">
           <n-select
+            v-model:value="selectedDataScopes"
             multiple
             placeholder="请选择数据权限范围"
-            v-model:value="selectedDataScopes"
             :options="dataScopeOptions"
           />
         </n-form-item>
 
         <n-form-item label="自定义部门限制">
           <n-tree
+            v-model:checked-keys="customDepts"
             checkable
             :selectable="false"
             :data="deptTreeData"
-            v-model:checked-keys="customDepts"
           />
         </n-form-item>
       </n-form>

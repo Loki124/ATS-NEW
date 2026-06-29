@@ -33,12 +33,12 @@ const isMulti = () => store.resumes.length > 1
 
     <div v-if="store.applyMode === 'all'" class="rp-section">
       <div class="rp-title">选择入库方向</div>
-      <DirectionPicker :modelValue="store.dirAll" :hasOccupied="hasOccupied()" @update:modelValue="(v) => store.setDirAll(v)" />
+      <DirectionPicker :model-value="store.dirAll" :has-occupied="hasOccupied()" @update:model-value="(v) => store.setDirAll(v)" />
     </div>
 
     <div v-if="store.applyMode === 'all' && store.dirAll === 'position'" class="rp-section">
       <div class="rp-title">选择目标职位</div>
-      <div class="pos-selector"><PositionChips :positions="positions" :modelValue="store.posAll ? [store.posAll] : []" @update:modelValue="(v) => store.setPosAll(v[0] || '')" /></div>
+      <div class="pos-selector"><PositionChips :positions="positions" :model-value="store.posAll ? [store.posAll] : []" @update:model-value="(v) => store.setPosAll(v[0] || '')" /></div>
     </div>
 
     <div v-if="hasOccupied()" class="nbar warn">⚠️ 有 {{ store.resumes.filter(r => r.status === 'occupied').length }} 份简历已被占用，仅可选择"待分配"。</div>

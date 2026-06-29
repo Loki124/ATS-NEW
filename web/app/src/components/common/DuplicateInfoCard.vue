@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { DuplicateInfo } from '@/api/addCandidate'
 
-defineProps<{ info: Partial<DuplicateInfo>; status: 'unocc' | 'occupied' }>()
+// 2026-06-29 花无缺: Step1Single.vue (line 114) 传 resume.status (Status 全集: processing|clean|unocc|occupied).
+//   旧 prop 只接 unocc|occupied, TS2322 fail. 改成接全 Status union,
+//   内部 :style 只看 'occupied', 其他值走 else 路径.
+defineProps<{ info: Partial<DuplicateInfo>; status: 'processing' | 'clean' | 'unocc' | 'occupied' }>()
 </script>
 
 <template>

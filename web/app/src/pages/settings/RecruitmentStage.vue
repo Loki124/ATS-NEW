@@ -74,10 +74,16 @@ const editing = ref<any>(null)
 const form = reactive({
   name: '',
   // 2026-06-17: 默认值跟 stageTypeOptions 第一个同步 (BE 是 SCREEN, 旧 FILTER 写错导致 400)
-  stageType: 'SCREEN' as 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER' | 'ONBOARDING',
+  // 2026-06-29 花无缺: BE (apps/process/models.py:23-28) StageType = SCREEN/INVITATION/INTERVIEW/OFFER (无 ONBOARDING).
+  //   旧 form.stageType 类型 includes 'ONBOARDING' (跟 api/recruitment-process.ts 同样的错),
+  //   改成跟 BE 对齐. 入参 createStage stageType Partial<RecruitmentStage> 通过 api 接口校验.
+  //   用 type alias 不用 inline union (inline union 会被 TS 当 enum, + 1 → number, 触发 TS2362/TS2363)
+  stageType: '' as StageType,
   features: [] as string[],
   description: '',
 })
+
+type StageType = 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER'
 
 // 2026-06-17: 阶段类型从数据字典 (apps/data_dict) 拿, single source of truth.
 //   之前硬编码 'FILTER' 跟 BE StageType (SCREEN) 不匹配 → POST 400.

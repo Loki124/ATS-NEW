@@ -38,7 +38,11 @@ env = environ.Env(
 )
 
 # 项目根目录
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# 2026-06-29 拍平后: base.py 在 apps/django/config/settings/base.py
+#   parent x3 = /opt/ats/ATS-New/apps/django  (Django 项目目录)
+# 保持原结构 — 所有路径 (.env, staticfiles, logs, manage.py) 仍在 apps/django/
+# STATICFILES_DIRS 是唯一例外 — 前端 dist 在 BASE_DIR.parent/web/app/dist
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # noqa
 
 # 读取 .env
 env_file = BASE_DIR / '.env'
@@ -219,12 +223,12 @@ USE_TZ = True
 # Static files (admin/rest_framework served by whitenoise from STATIC_ROOT)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# 2026-06-28 花无缺: 加 web/app/dist 让 whitenoise 也 serve Vite build 出的前端产物.
+# 2026-06-29 拍平: 前端 dist 在项目根下 web/app/dist, 不是 apps/django/web/app/dist.
 # collectstatic 会把 src 1 (admin) + src 2 (前端 dist) 都拷到 STATIC_ROOT,
 # 然后 whitenoise /static/* 一起 serve.
 STATICFILES_DIRS = [
-    BASE_DIR / 'web' / 'app' / 'dist',
-]
+    BASE_DIR.parent.parent / 'web' / 'app' / 'dist',
+]  # 2026-06-29 拍平: 前端 dist 在项目根下 web/app/dist, 不是 apps/django/web/app/dist
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # === 媒体文件 ===

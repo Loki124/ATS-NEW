@@ -9,13 +9,13 @@
       v-for="(item, index) in items"
       :key="getKey(item)"
       :draggable="true"
+      :class="['draggable-item', { 'drag-over': dragOverIndex === index, 'dragging': dragIndex === index }]"
       @dragstart="onDragStart($event, index)"
       @dragover.prevent="onDragOver($event, index)"
       @dragenter.prevent="onDragEnter(index)"
       @dragleave="onDragLeave(index)"
       @drop.prevent="onDrop($event, index)"
       @dragend="onDragEnd"
-      :class="['draggable-item', { 'drag-over': dragOverIndex === index, 'dragging': dragIndex === index }]"
     >
       <slot :element="item" :index="index" />
     </div>

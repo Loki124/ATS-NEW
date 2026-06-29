@@ -29,11 +29,11 @@
       <!-- 条件节点 -->
       <div class="node-row">
         <n-select
+          v-if="item.parentId"
           v-model:value="item.relationToParent"
           :options="relationOptions"
           size="small"
           style="width: 100px"
-          v-if="item.parentId"
         />
         <n-tag v-else type="primary" size="small">根</n-tag>
 
@@ -77,7 +77,7 @@
           style="width: 120px"
         />
 
-        <n-button text size="small" type="error" @click="removeItem(item)" :disabled="!canRemove">
+        <n-button text size="small" type="error" :disabled="!canRemove" @click="removeItem(item)">
           删除
         </n-button>
       </div>

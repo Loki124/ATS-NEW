@@ -2,13 +2,13 @@
   <div class="weekly-schedule">
     <div class="weekly-schedule__header">
       <div class="weekly-schedule__nav">
-        <n-button text size="small" @click="prev" :aria-label="mode === 'week' ? '上一周' : '上一月'">
+        <n-button text size="small" :aria-label="mode === 'week' ? '上一周' : '上一月'" @click="prev">
           <template #icon>
             <n-icon :component="ChevronBackOutline" />
           </template>
         </n-button>
         <span class="weekly-schedule__range">{{ rangeLabel }}</span>
-        <n-button text size="small" @click="next" :aria-label="mode === 'week' ? '下一周' : '下一月'">
+        <n-button text size="small" :aria-label="mode === 'week' ? '下一周' : '下一月'" @click="next">
           <template #icon>
             <n-icon :component="ChevronForwardOutline" />
           </template>

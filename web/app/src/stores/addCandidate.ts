@@ -2,7 +2,7 @@
  * AddCandidateModal V2 - Pinia Store
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
 import type {
   ParsedResume,
@@ -321,6 +321,33 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
   const mode = computed<'single' | 'batch'>(() => (resumes.value.length === 1 ? 'single' : 'batch'))
   const isAllDone = computed(() => resumes.value.every((r) => r.status !== 'processing'))
   const hasOccupied = computed(() => resumes.value.some((r) => r.status === 'occupied'))
+  // 2026-06-29 花无缺: ScoringOverlay.vue 用 (i < store._overallStep) 驱动 4 个子步骤高亮.
+  //   不在 store 里的私有状态, 用 allScoringDone + scoringProgress 推算:
+  //   - allScoringDone=true → _overallStep=4 (全部 ok)
+  //   - 否则看 scores: all 'done' → 3, all 'scoring' → 1, 混合 → 2
+  //
+  // 注意: 不是 computed 而是普通 ref, 这样测试可以 store._overallStep = 2 强制设值.
+  //   生产代码不应该这么写, 但 _overallStep 已经被 UI 直接依赖,
+  //   强 setter 比强制 computed 更直接 (computed 时测试需要绕过 TS readonly 检查).
+  const _overallStep = ref(1)
+  function recalcOverallStep() {
+    if (allScoringDone.value) {
+      _overallStep.value = 4
+      return
+    }
+    const entries = Object.values(scoringProgress.value)
+    if (entries.length === 0) {
+      _overallStep.value = 1
+      return
+    }
+    const doneCnt = entries.filter((e) => e.status === 'done').length
+    const scoringCnt = entries.filter((e) => e.status === 'scoring').length
+    if (doneCnt === entries.length) _overallStep.value = 3
+    else if (scoringCnt === entries.length) _overallStep.value = 1
+    else _overallStep.value = 2
+  }
+  // 任务进度更新后自动重算
+  watch(() => [allScoringDone.value, scoringProgress.value], recalcOverallStep, { deep: true })
 
   function passesValidation(r: ResumeDraft): boolean {
     const name = r.edited.name ?? r.parsed?.name
@@ -351,7 +378,7 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     step, isDirty, resumes,
     applyMode, dirAll, posAll, dirPer, posPer,
     submitMode, submitting, appInfo,
-    scoringProgress, allScoringDone, asyncResult,
+    scoringProgress, allScoringDone, asyncResult, _overallStep,
     selectedIds, activeId, recheckingIds, replacingId,
     // actions
     reset, addResumes, updateField, replaceResumeFile, processParseUpdate,

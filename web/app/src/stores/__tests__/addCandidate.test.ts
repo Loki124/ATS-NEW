@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAddCandidateStore } from '../addCandidate'
-import type { ResumeDraft, ParsedResume, DuplicateInfo } from '@/api/addCandidate'
+import type { ResumeDraft } from '../addCandidate'
+// 2026-06-29 花无缺: ResumeDraft 定义在 stores/addCandidate (line 21), 不在 api.
+//   旧代码 import from '@/api/addCandidate', TS2305 fail. 改成从 '../addCandidate' 直接 import.
+import type { ParsedResume, DuplicateInfo } from '@/api/addCandidate'
 
 vi.mock('@/api/addCandidate', () => ({
   uploadAndParse: vi.fn(),
@@ -100,7 +103,10 @@ describe('useAddCandidateStore', () => {
     it('changes status to clean when action=pending', () => {
       const store = useAddCandidateStore()
       store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
-      store.processParseUpdate('d1', { status: 'occupied', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
+      // 2026-06-29 花无缺: processParseUpdate 的 status 是任务级 (done|processing|failed),
+      //   业务 status (clean|unocc|occupied) 通过 duplicate.status 传. 旧 test 用 'occupied'
+      //   直接当 task status, TS2322 fail. 改成 task status='done' + duplicate.status='occupied'.
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
       store.setOccupyAction('d1', 'pending')
       expect(store.resumes[0].status).toBe('clean')
       expect(store.resumes[0].duplicate).toBeUndefined()
@@ -128,7 +134,8 @@ describe('useAddCandidateStore', () => {
         { job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' },
         { job_id: 'j2', draft_id: 'd2', file_name: 'b.pdf' },
       ])
-      store.processParseUpdate('d2', { status: 'occupied', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
+      // 2026-06-29 花无缺: 同上, 业务 status 走 duplicate.status, 不用 task status
+      store.processParseUpdate('d2', { status: 'done', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
       store.setDirAll('position')
       expect(store.dirAll).toBe('position')
       expect(store.dirPer['d1']).toBe('position')
@@ -151,7 +158,8 @@ describe('useAddCandidateStore', () => {
     it('false when occupied exists', () => {
       const store = useAddCandidateStore()
       store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
-      store.processParseUpdate('d1', { status: 'occupied', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
+      // 2026-06-29: status 是 task-level, 业务走 duplicate.status
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'occupied' } as any })
       expect(store.canGoStep2).toBe(false)
     })
 

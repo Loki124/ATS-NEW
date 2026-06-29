@@ -7,7 +7,7 @@
 
     <n-card>
       <template #header-extra>
-        <n-button @click="reload" :loading="loading">刷新</n-button>
+        <n-button :loading="loading" @click="reload">刷新</n-button>
       </template>
 
       <n-space class="filter-row" :wrap="true">
