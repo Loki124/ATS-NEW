@@ -1,13 +1,16 @@
 #!/bin/bash
-# ATS-New 自动部署脚本 (P1-6 同步: 适配 Django 5.x + Vite 新结构)
+# ATS-New 自动部署脚本
 #
-# 由 scripts/webhook.js 触发（push 后）
-# 也可手动跑：bash scripts/webhook-deploy.sh
+# ⚠️ 2026-06-29 DEPRECATED: Gitee webhook 已关闭,此脚本不再被 webhook.js 触发。
+#    保留为参考和手动部署入口（手动: bash scripts/webhook-deploy.sh）。
+#    路径已同步到 2026-06-29 拍平结构（ATS-New/ 子目录嵌套已消除）。
 #
-# 新目录结构（2026-06 重构后）:
-#   ATS-New/apps/django/   <- Python 后端 (Django 5.x + DRF + Celery + Channels)
-#   ATS-New/web/app/       <- 前端 (Vite + Vue 3)
-#   ATS-New/ops/           <- docker-compose / nginx 配置
+# 拍平后目录结构:
+#   /opt/ats/ATS-New/             <- 仓库根 (git root)
+#     apps/django/                <- Python 后端 (Django 5.x + DRF + Celery + Channels)
+#     web/app/                    <- 前端 (Vite + Vue 3)
+#     ops/                        <- docker-compose / nginx 配置
+#     scripts/                    <- 本目录
 #
 # 兼容: 若 DEPLOY_DIR/backend 目录存在（Node.js 时代），自动回退到旧流程
 
@@ -18,14 +21,14 @@ set -o pipefail
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/ats/ATS-New}"
 REPO_URL="${REPO_URL:-https://gitee.com/loki126/ATS-NEW.git}"
 BRANCH="${WEBHOOK_BRANCH:-main}"
-APP_PORT="${APP_PORT:-8000}"  # 2026-06-27: Django+gunicorn 绑 8000 (ats-django.service),跟 systemd unit 一致
+APP_PORT="${APP_PORT:-8000}"  # Django+gunicorn 绑 8000 (ats-django.service),跟 systemd unit 一致
 LOG_FILE="${LOG_FILE:-/tmp/ats-deploy.log}"
 APP_LOG="${APP_LOG:-/home/loki/ats-backend.log}"
 APP_PID_FILE="${APP_PID_FILE:-/tmp/ats.pid}"
 
-# 新结构路径 (2026-06-27: 仓库根 + ATS-New/ 子目录双层嵌套,Django 项目在 ATS-New/apps/django/)
-DJANGO_DIR="$DEPLOY_DIR/ATS-New/apps/django"
-WEB_DIR="$DEPLOY_DIR/ATS-New/web/app"
+# 拍平后路径 (2026-06-29: 消除 ATS-New/ATS-New/ 嵌套, Django 项目直接在 apps/django/)
+DJANGO_DIR="$DEPLOY_DIR/apps/django"
+WEB_DIR="$DEPLOY_DIR/web/app"
 
 # systemd 服务名 (新)
 SERVICE_NAME="${SERVICE_NAME:-ats-django}"
@@ -95,7 +98,7 @@ if [ "$HAS_DJANGO" -eq 1 ]; then
   log "  migrate OK"
   # 6/28 修复: 6/27 12:55 兵哥手动跑 collectstatic 时以 root 身份建了 staticfiles/admin/ 目录 (root:root), deploy 用 loki 跑 (User=loki) 删不动老 files, os.remove PermissionError
   # 用 --clear 先清空, 再 chmod 兜底 (chown 要 root, deploy 跑的是 loki 改不了 owner; chmod 666/777 任何用户可写, 不依赖 owner)
-  STAGE_DIR="${STAGE_DIR:-/opt/ats/ATS-New/ATS-New/apps/django/staticfiles}"
+  STAGE_DIR="${STAGE_DIR:-$DEPLOY_DIR/apps/django/staticfiles}"
   [ -d "$STAGE_DIR" ] && chmod -R ugo+rwX "$STAGE_DIR" 2>/dev/null || true
   python manage.py collectstatic --clear --noinput 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
   log "  collectstatic OK"

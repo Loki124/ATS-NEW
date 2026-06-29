@@ -41,9 +41,16 @@ ATS-NEW/
 │   ├── CHANGELOG.md
 │   └── ...
 │
-├── scripts/                 # Local helper scripts
+├── scripts/                 # Ops scripts (webhook receiver, deploy, e2e smoke, mysql pwd rotate)
 └── tools/                   # Data seeds, fixtures, dev utilities
 ```
+
+> **scripts/ 说明**:
+> - `webhook.js` + `webhook.service` — Gitee 推送触发的部署接收器（**自 2026-06-29 已停用**，Gitee 端 webhook 已关）
+> - `webhook-deploy.sh` — 手动部署入口（不再被自动触发）
+> - `e2e-smoke.sh` — Playwright 烟雾测试
+> - `rotate-mysql-password.sh` — MySQL 密码轮换
+> - `webhook-setup.md` — 旧 webhook 部署文档（仅供历史参考）
 
 ---
 
