@@ -12,6 +12,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export default defineConfig(({ mode }) => ({
+  // 2026-06-29 花无缺: base 放顶级 (不在 build 内), 让 chunk 都用 /static/ 前缀,
+  //   跟 Django STATIC_URL='/static/' 对齐. 之前 vite 默认 '' → /assets/xxx,
+  //   但 whitenoise 只 serve /static/ 不 serve /assets/, 浏览器收到 text/html,
+  //   全部 asset 加载失败. 现在 base='/static/' → /static/assets/xxx.
+  base: '/static/',
   plugins: [
     vue(),
     UnoCSS(),
