@@ -48,6 +48,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  // 2026-06-29 花无缺: 加 suffix/trendValue/meta/icon 默认值消 vue/require-default-prop warnings
+  suffix: '',
+  trendValue: '',
+  meta: '',
+  icon: undefined,  // Component 类型默认 null/undefined
   trend: 'flat',
   clickable: false,
 })

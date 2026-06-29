@@ -65,10 +65,12 @@ class Referral(FullAuditModel):
         db_table = 'referrals'
         verbose_name = '推荐记录'
         verbose_name_plural = verbose_name
+        # 2026-06-29 花无缺: 加 ordering (-created_at) 消除 UnorderedObjectListWarning
+        ordering = ('-created_at',)
         indexes = [
             models.Index(fields=['referrer', 'status']),
             models.Index(fields=['referral_type', 'status']),
-        ]
+        ]  # 2026-06-29 花无缺: 加 ordering (-created_at) 消除 UnorderedObjectListWarning
 
     def __str__(self):
         return f'{self.referrer.full_name} 推荐 {self.candidate.name} ({self.referral_type})'

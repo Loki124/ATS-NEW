@@ -29,6 +29,20 @@ django-celery-results==2.5.1
 # 默认使用 PyMySQL（无需编译），在 config/settings/base.py 顶部通过 pymysql.install_as_MySQLdb() 适配
 PyMySQL==1.1.1
 cryptography==42.0.7  # PyMySQL 加密支持
+# 2026-06-29 花无缺: pip check 报 msal<49 / pyOpenSSL<46 冲突 — 实际不影响运行.
+#   原因: ATS 项目的 python 解释器从 hermes/.venv/ 借用 site-packages (PYTHONPATH 自动注入),
+#   hermes 的 cryptography 49.0.0 被默认优先, 但运行时 (登录/JWT 等核心路径) 都 OK.
+#
+#   不降级 hermes/.venv cryptography 因为它影响 hermes agent 自身 (msal 1.36 在用).
+#   不在 ATS venv 装独立 cryptography 因为 hermes 优先级.
+#
+#   实际 fix 路径 (二选一, 不在本次范围内):
+#   a) 给 ATS 完全独立的 venv (uv venv --python 3.13, pip install requirements.txt)
+#      时间成本: ~30 分钟. 带来 ATS deploy 一次重启
+#   b) 等 msal 升级到 1.37+ (1.37 已发布但 hermes 还在 1.36, 等下一次 hermes agent 升级)
+#
+#   TODO: 选 (a) 在 hermes 重装窗口做
+# cryptography==42.0.7  # 仍是 pin: pyOpenSSL/msal 期望 >=41 (16mb wheel 下载慢, 装在 ATS venv 可解)
 # 备选：如需 mysqlclient，先 `brew install mysql pkg-config` 后启用
 # mysqlclient==2.2.4
 # PostgreSQL 备选

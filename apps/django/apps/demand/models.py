@@ -115,6 +115,13 @@ class Demand(FullAuditModel):
         pass
 
 
+# 2026-06-29 花无缺: pytest 的 UnorderedObjectListWarning 来自 Demand 缺 ordering.
+#   父类 FullAuditModel.Meta 已经声明, Django 不允许子类重声明. 用两种方式都行:
+#   a) 父类加 ordering (影响所有子类, 30+ 模型, 风险大)
+#   b) 子类 meta 修: 通过 metaclass Options 间接注入. 但 Django 不支持.
+#   c) 在 view 的 queryset 里显式 .order_by() (best practice)
+#   这里选 (c): Demand 的 list endpoint 显式 .order_by('-created_at'),
+#   比改 model 影响更小. (model.Meta.ordering 留空)
 class DemandApproval(FullAuditModel):
     """需求审批记录"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)

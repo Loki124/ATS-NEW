@@ -7,10 +7,10 @@
 
     <!-- KPI 卡片 -->
     <n-grid class="stats-row" :cols="6" :x-gap="12" :y-gap="12" responsive="screen">
-      <n-grid-item v-for="kpi in kpiCards" :key="kpi.key">
+      <n-grid-item v-for="card in kpiCards" :key="card.key">
         <n-card class="kpi-card" :bordered="false" embedded>
-          <div class="kpi-value">{{ kpi.value }}</div>
-          <div class="kpi-label">{{ kpi.label }}</div>
+          <div class="kpi-value">{{ card.value }}</div>
+          <div class="kpi-label">{{ card.label }}</div>
         </n-card>
       </n-grid-item>
     </n-grid>

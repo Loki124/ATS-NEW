@@ -22,14 +22,16 @@ from .serializers import (
 
 class DemandViewSet(AuditMixin, viewsets.ModelViewSet):
     """招聘需求 ViewSet - 含状态机流转"""
-    queryset = Demand.objects.all()
+    # 2026-06-29 花无缺: model Meta 缺 ordering, 在 viewset queryset 上默认 .order_by,
+    #   避免 DRF pagination 触发 UnorderedObjectListWarning.
+    queryset = Demand.objects.all().order_by('-created_at')
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority']
     search_fields = ['code', 'title', 'position_title']
     ordering_fields = ['code', 'created_at', 'submitted_at']
-    ordering = ['-created_at']
+    ordering = ['-created_at']  # DRF 默认 ordering (client 不传 ordering param 时)
 
     def get_serializer_class(self):
         if self.action == 'list':

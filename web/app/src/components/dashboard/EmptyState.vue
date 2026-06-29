@@ -25,6 +25,9 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   title: '暂无内容',
   description: '当前没有需要处理的事项',
+  // 2026-06-29 花无缺: 加 actionLabel + icon 默认值消 vue/require-default-prop warning
+  actionLabel: '',
+  icon: undefined,  // Component 类型默认 null/undefined, 必须显式给
 })
 
 const emit = defineEmits<{

@@ -18,11 +18,12 @@ from .serializers import (
 
 class ReferralViewSet(AuditMixin, viewsets.ModelViewSet):
     """内推记录 ViewSet"""
-    queryset = Referral.objects.all()
+    # 2026-06-29 花无缺: model Meta 已经 ordering, viewset queryset 默认 .order_by 兜底
+    queryset = Referral.objects.all().order_by('-created_at')
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['referrer', 'referral_type', 'status', 'detected_type']
+    filterset_fields = ['referrer', 'referral_type', 'status', 'detected_type']  # 2026-06-29 model Meta 已有 ordering
     search_fields = ['candidate__name', 'position__title']
     ordering_fields = ['created_at', 'bonus_paid_at']
     ordering = ['-created_at']
