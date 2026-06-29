@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-06-29 — 全量复盘 + 拍平 + 代码质量升级
+
+### 拍平 (路径变更, breaking for deploy scripts)
+- 项目结构 `ATS-New/ATS-New/{代码}` → `ATS-New/{代码}` (三层嵌套拍平成两层)
+- Django BASE_DIR 从 `ATS-New/ATS-New/apps/django` 变成 `ATS-New/apps/django`
+- `STATICFILES_DIRS` 改成 `BASE_DIR.parent.parent/web/app/dist`
+- `spa_fallback` index_file 改用 `BASE_DIR.parent.parent` 指向项目根
+- scripts/ 目录纳入 git (含 webhook.js / webhook-deploy.sh / e2e-smoke.sh / rotate-mysql-password.sh / webhook.service / webhook-setup.md)
+- Gitee HEAD=`6e613d4d`
+
+### 修复 (兵哥反馈 "Django 默认页")
+- `urls.py`: 删 `path('', admin.site.urls)` —— AdminSite `final_catch_all_view=True` 截胡根 URL, 改成 `spa_fallback` 接管
+- `spa_fallback`: 拍平后路径修正到 `BASE_DIR.parent.parent/web/app/dist`
+- `STATICFILES_DIRS`: 拍平后路径修正
+- `collectstatic`: 之前因 manifest 缺 `admin/css/base.css` 导致 admin 500, 重新 collectstatic 修好
+- 根 URL 现在 serve Vue SPA index.html (前端要先 `npm run build` 才能 fallback 成功)
+
+### 前端代码质量
+- 装 ESLint 9 + eslint-plugin-vue + typescript-eslint, 写 `eslint.config.js` flat config
+- 加 Gitee webhook **marker**: `apps.rpa` / `apps.scraped` 引用已删除 (commit c2d0c5d7)
+- BE/FE StageType enum 对齐 (BE `SCREEN/INVITATION/INTERVIEW/OFFER`, FE 旧 `FILTER/.../ONBOARDING` 改对齐)
+- 前端 `target: es2020` → `es2022` (main.ts 用了 top-level await)
+- `tsconfig.json`: target ES2022 + lib ES2022 (vue-tsc 需要)
+- 新增 `src/api/dict.ts` stub (BE `apps/data_dict` P0-1 没实现, FE fallback 路线)
+- `Storedraft.status` type-only 修复 (tasks vs business status 区分)
+- 修复 ESLint --fix 124 → 7 warnings (0 errors)
+
+### 后端代码质量
+- pytest 31 tests 100% pass (test_candidate / test_demand pagination 适配 `StandardResultsSetPagination` 包装结构)
+- `ops/docker-compose.yml`: backend context 改 `../apps/django`, nginx 路径 `../../web/app/`
+
+### 已知问题 (文档化)
+- ATS 服务从 9906/9908 (Node.js legacy / recruit) 切到 **8000 (gunicorn)**, 旧端口已删
+- CF Tunnel 路由在 CF Zero Trust Dashboard API-managed, 配置文件 `/etc/cloudflared/config.yml` 是过期 snapshot
+- Django admin `/admin/login/` 现在 200 (之前 500), 但建议生产改成非常规路径 (P2 安全优化)
+- `cryptography 49.0.0` vs `msal 1.36.0` (`<49`) / `pyOpenSSL 25.1.0` (`<46`): azure-identity 拉的传递依赖, ATS 不直接用
+
 ## [Unreleased] - 2026-06-12
 
 ### Added (Plan P — Workbench + Process polish)
