@@ -1,0 +1,119 @@
+{
+  "code": "CAMPUS_GENERAL",
+  "name": "校招-通用",
+  "description": "面向校招的标准流程：初评→HR面→专业面→综合面→Offer。校招强调快速批量处理。",
+  "category": "CAMPUS",
+  "is_builtin": true,
+  "is_active": true,
+  "snapshot": {
+    "version": "1.0",
+    "applicable_scope": {
+      "items": [
+        {"field": "recruitment_type", "op": "eq", "value": "CAMPUS"},
+        {"field": "candidate.work_years", "op": "lte", "value": 1}
+      ],
+      "expression": "1 AND 2"
+    },
+    "stages": [
+      {
+        "order": 1,
+        "stage_code": "P001",
+        "stage_name": "初评",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "hiring_manager",
+          "time_limit_days": 1
+        },
+        "entry_rules": [
+          {"field": "candidate.highest_education", "op": "in", "value": ["本科", "硕士", "博士"]}
+        ]
+      },
+      {
+        "order": 2,
+        "stage_code": "P002",
+        "stage_name": "简历评估",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "hiring_manager",
+          "time_limit_days": 2
+        },
+        "entry_rules": [
+          {"field": "candidate.resume_score", "op": "gte", "value": 50}
+        ]
+      },
+      {
+        "order": 3,
+        "stage_code": "P004",
+        "stage_name": "HR 面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "SEQUENTIAL",
+          "processor_order_source": "DEMAND",
+          "processor_field": "hiring_team",
+          "time_limit_days": 3,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": []
+      },
+      {
+        "order": 4,
+        "stage_code": "P005",
+        "stage_name": "专业面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "ROUND_ROBIN",
+          "grab_threshold": 30,
+          "time_limit_days": 5,
+          "interview_rounds": 1,
+          "interview_format": "JOINT"
+        },
+        "entry_rules": [
+          {"field": "evaluation.hr_score", "op": "gte", "value": 60}
+        ]
+      },
+      {
+        "order": 5,
+        "stage_code": "P008",
+        "stage_name": "正式录用",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 14
+        },
+        "entry_rules": []
+      }
+    ],
+    "automation_rules": [
+      {
+        "name": "初评通过自动入简历评估",
+        "trigger_type": "EVALUATION_SUBMITTED",
+        "trigger_timing": "IMMEDIATE",
+        "stage_code": "P001",
+        "condition": "evaluation.score >= 60",
+        "action_type": "AUTO_ADVANCE",
+        "next_stage_code": "P002",
+        "priority": "P0",
+        "enabled": true
+      },
+      {
+        "name": "专业面抢单超时自动释放",
+        "trigger_type": "SCHEDULED",
+        "trigger_timing": "WORKING_DAYS",
+        "working_days": 2,
+        "stage_code": "P005",
+        "condition": "stage.is_grab_mode AND stage.grab_status == WAITING",
+        "action_type": "REMIND",
+        "remind_to": "all_interviewers",
+        "priority": "P1",
+        "enabled": true
+      }
+    ]
+  }
+}

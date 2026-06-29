@@ -1,0 +1,137 @@
+{
+  "code": "HEADHUNTER_SENIOR",
+  "name": "猎头-高级",
+  "description": "面向高级岗位（P7+）的猎头流程：猎头推荐→猎头初筛→HR面→技术委员会→VP面→Offer。流程严格、节点多轮。",
+  "category": "HEADHUNTER",
+  "is_builtin": true,
+  "is_active": true,
+  "snapshot": {
+    "version": "1.0",
+    "applicable_scope": {
+      "items": [
+        {"field": "recruitment_type", "op": "eq", "value": "HEADHUNTER"},
+        {"field": "position.level", "op": "in", "value": ["P7", "P8", "P9", "P10"]}
+      ],
+      "expression": "1 AND 2"
+    },
+    "stages": [
+      {
+        "order": 1,
+        "stage_code": "P001",
+        "stage_name": "猎头推荐评估",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 3
+        },
+        "entry_rules": [
+          {"field": "candidate.source_channel", "op": "eq", "value": "HEADHUNTER"}
+        ]
+      },
+      {
+        "order": 2,
+        "stage_code": "P003",
+        "stage_name": "猎头深度沟通",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "POSITION",
+          "data_field": "position_owner",
+          "time_limit_days": 5
+        },
+        "entry_rules": [
+          {"field": "candidate.work_years", "op": "gte", "value": 8}
+        ]
+      },
+      {
+        "order": 3,
+        "stage_code": "P004",
+        "stage_name": "HR 面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 5,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": []
+      },
+      {
+        "order": 4,
+        "stage_code": "P005",
+        "stage_name": "技术委员会",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 10,
+          "interview_rounds": 3,
+          "interview_format": "COMPREHENSIVE"
+        },
+        "entry_rules": [
+          {"field": "evaluation.hr_score", "op": "gte", "value": 70}
+        ]
+      },
+      {
+        "order": 5,
+        "stage_code": "P006",
+        "stage_name": "VP 面",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "bu_president",
+          "time_limit_days": 7,
+          "interview_rounds": 1,
+          "interview_format": "SINGLE"
+        },
+        "entry_rules": [
+          {"field": "evaluation.tech_score_avg", "op": "gte", "value": 75}
+        ]
+      },
+      {
+        "order": 6,
+        "stage_code": "P008",
+        "stage_name": "正式录用",
+        "is_required": true,
+        "rule": {
+          "processing_rule": "DIRECT",
+          "data_source": "DEMAND",
+          "data_field": "hiring_manager",
+          "time_limit_days": 21
+        },
+        "entry_rules": []
+      }
+    ],
+    "automation_rules": [
+      {
+        "name": "猎头推荐通过后 3 天内未沟通自动入库",
+        "trigger_type": "STAGE_ENTERED",
+        "trigger_timing": "WORKING_DAYS",
+        "working_days": 3,
+        "stage_code": "P001",
+        "condition": "stage.state == PROCESSING",
+        "action_type": "REJECT_TO_POOL",
+        "priority": "P2",
+        "enabled": true
+      },
+      {
+        "name": "技术委员会双 A 通过自动升 VP 面",
+        "trigger_type": "EVALUATION_SUBMITTED",
+        "trigger_timing": "IMMEDIATE",
+        "stage_code": "P005",
+        "condition": "count(evaluation.rating == 'A') >= 2",
+        "action_type": "AUTO_ADVANCE",
+        "next_stage_code": "P006",
+        "skip_check": true,
+        "priority": "P0",
+        "enabled": true
+      }
+    ]
+  }
+}

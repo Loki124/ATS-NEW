@@ -1,41 +1,82 @@
-# Git Large File Storage
-talent-market/
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+ENV/
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
 
-# Dependencies
+# ─── Django ───
+apps/django/staticfiles/
+apps/django/media/
+apps/django/logs/*.log
+
+# ─── Node / Vue ───
 node_modules/
-
-# Environment files
-.env
-
-# Build outputs
 dist/
 build/
+.next/
+.nuxt/
+.output/
+.vite/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.pnpm-store/
 
-# IDE
+# ─── IDE ───
 .vscode/
 .idea/
-
-# Logs
-*.log
-npm-debug.log*
-
-# OS files
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
 
-# Archives（防止再有大文件塞进 history）
+# ─── Env / secrets ───
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ─── Logs ───
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Uploads / media ───
+uploads/
+media/
+staticfiles/
+
+# ─── Archives (no more zip bombs in git) ───
 *.zip
 *.tar
 *.tar.gz
 *.tgz
 
-# Database
-*.db
-*.sqlite
-
-# Uploads
-uploads/
-
-# Git worktrees
+# ─── Git worktrees ───
 .worktrees/
 worktrees/
+
+# ─── Test artifacts ───
+coverage/
+playwright-report/
+test-results/
+.cypress/

@@ -1,0 +1,114 @@
+[
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_001_initial_review",
+    "fields": {
+      "code": "P001",
+      "name": "初评",
+      "stage_type": "SCREEN",
+      "status": "ENABLED",
+      "is_builtin": true,
+      "default_features": ["RESUME_REVIEW", "AUTO_MATCH", "BULK_IMPORT"],
+      "optional_features": ["SCORE_RANK", "DUPLICATE_CHECK"],
+      "description": "对简历进行初步评估，是候选人进入流程的第一道关卡"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_002_resume_eval",
+    "fields": {
+      "code": "P002",
+      "name": "简历评估",
+      "stage_type": "SCREEN",
+      "status": "ENABLED",
+      "is_builtin": false,
+      "default_features": ["RESUME_REVIEW", "SCORING"],
+      "optional_features": ["AI_SCORE"],
+      "description": "HR 对简历进行深入评估"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_003_phone_interview",
+    "fields": {
+      "code": "P003",
+      "name": "电话沟通",
+      "stage_type": "INVITATION",
+      "status": "ENABLED",
+      "is_builtin": false,
+      "default_features": ["PHONE_CALL", "NOTES", "CANDIDATE_INFO"],
+      "optional_features": ["VOICE_RECORD"],
+      "description": "HR 与候选人电话沟通意向、薪资、到岗时间"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_004_hr_interview",
+    "fields": {
+      "code": "P004",
+      "name": "HR 面",
+      "stage_type": "INTERVIEW",
+      "status": "ENABLED",
+      "is_builtin": false,
+      "default_features": ["INTERVIEW_SCHEDULE", "EVALUATION_FORM"],
+      "optional_features": ["VIDEO_RECORD", "MULTI_ROUND"],
+      "description": "HR 初面，了解候选人综合素质"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_005_tech_interview_1",
+    "fields": {
+      "code": "P005",
+      "name": "技术一面",
+      "stage_type": "INTERVIEW",
+      "status": "ENABLED",
+      "is_builtin": false,
+      "default_features": ["INTERVIEW_SCHEDULE", "EVALUATION_FORM", "CODE_EDITOR"],
+      "optional_features": ["VIDEO_RECORD", "JOINT_INTERVIEW"],
+      "description": "技术能力初筛"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_006_tech_interview_2",
+    "fields": {
+      "code": "P006",
+      "name": "技术二面",
+      "stage_type": "INTERVIEW",
+      "status": "ENABLED",
+      "is_builtin": false,
+      "default_features": ["INTERVIEW_SCHEDULE", "EVALUATION_FORM"],
+      "optional_features": ["VIDEO_RECORD", "JOINT_INTERVIEW"],
+      "description": "深度技术考察"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_007_hm_interview",
+    "fields": {
+      "code": "P007",
+      "name": "用人经理面",
+      "stage_type": "INTERVIEW",
+      "status": "ENABLED",
+      "is_builtin": false,
+      "default_features": ["INTERVIEW_SCHEDULE", "EVALUATION_FORM"],
+      "optional_features": ["VIDEO_RECORD"],
+      "description": "用人经理综合面试"
+    }
+  },
+  {
+    "model": "process.recruitmentstage",
+    "pk": "stg_008_offer",
+    "fields": {
+      "code": "P008",
+      "name": "正式录用",
+      "stage_type": "OFFER",
+      "status": "ENABLED",
+      "is_builtin": true,
+      "default_features": ["OFFER_GENERATION", "OFFER_APPROVAL", "CANDIDATE_RESPONSE"],
+      "optional_features": ["SALARY_NEGOTIATION", "BACKGROUND_CHECK"],
+      "description": "发放 Offer，进入入职准备阶段"
+    }
+  }
+]
