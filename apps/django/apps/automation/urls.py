@@ -6,7 +6,7 @@ from .views import AutomationLogViewSet, AutomationRuleViewSet, AutomationTrigge
 
 router = DefaultRouter()
 router.register(r'', AutomationRuleViewSet, basename='automation-rule')
-router.register(r'logs', AutomationLogViewSet, basename='automation-log')
+router.register(r'', AutomationLogViewSet, basename='automation-log')
 
 trigger_view = AutomationTriggerView.as_view({'post': 'create'})
 

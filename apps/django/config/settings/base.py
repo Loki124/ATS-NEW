@@ -114,6 +114,12 @@ LOCAL_APPS = [
     'apps.talent_pool',
     'apps.channel',
     'apps.analytics',
+    # 2026-06-29 花无缺: 补缺失的 stub app, 真实业务留给 G30/G35/G41 任务实现
+    'apps.library',         # G41 院校/公司信息库
+    'apps.scraped_resume',  # G30 RPA 简历抓取
+    'apps.external_sync',   # G40 外部系统同步
+    'apps.duplicate_check', # G45 简历查重 (前端 duplicate-check.ts 调)
+    'apps.data',            # G35 数据中心 (前端 data.ts 调, 实际 endpoint 在 analytics/)
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

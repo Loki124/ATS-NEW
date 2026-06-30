@@ -4,6 +4,6 @@ from rest_framework.routers import DefaultRouter
 from .views import GDPRRequestViewSet
 
 router = DefaultRouter()
-router.register(r'requests', GDPRRequestViewSet, basename='gdpr-request')
+router.register(r'', GDPRRequestViewSet, basename='gdpr-request')
 
 urlpatterns = router.urls

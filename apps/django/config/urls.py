@@ -64,6 +64,14 @@ api_v1_patterns = [
     # 2026-06-17: G30 RPA — FE api/scraped-resume.ts:34 调 /scraped-resumes
     # 2026-06-17: G41 数据字典 — FE 用 by-type/{type}/ 拿枚举值
 
+    # 2026-06-29 花无缺: 5 个 stub app (FE 有 api 代码但 BE 缺, 加 stub 不让 404 误导兵哥)
+    # 真实 G30/G35/G40/G41/G45 任务需要补完整 model + business logic
+    path('library/', include('apps.library.urls')),
+    path('scraped-resumes/', include('apps.scraped_resume.urls')),
+    path('external-sync/', include('apps.external_sync.urls')),
+    path('duplicate-check/', include('apps.duplicate_check.urls')),
+    path('data/', include('apps.data.urls')),
+
     # 公共
     path('field-acl/', include('apps.field_acl.urls')),
 ]

@@ -5,6 +5,6 @@ from .views import InterviewEvaluationViewSet, InterviewViewSet
 
 router = DefaultRouter()
 router.register(r'', InterviewViewSet, basename='interview')
-router.register(r'evaluations', InterviewEvaluationViewSet, basename='interview-evaluation')
+router.register(r'', InterviewEvaluationViewSet, basename='interview-evaluation')
 
 urlpatterns = router.urls

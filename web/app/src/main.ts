@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import axios, { type AxiosResponse, type AxiosError } from 'axios'  // 2026-06-29: 全局 axios 拦截器需要
 import App from './App.vue'
 import router from './router'
 
@@ -93,6 +94,28 @@ import 'virtual:uno.css'
 import '@unocss/reset/tailwind.css'
 import './styles/tokens.css'
 import './index.css'
+
+// 2026-06-29 花无缺: 全局 axios 拦截器 — 区分 401/403 (真权限) vs 404 (endpoint 缺)
+// 之前 404 被 catch 走 → UI 显示 "无权限" / "加载失败" → 兵哥误以为权限问题.
+// 真实根因: 后端 9 个 app 缺实现 (mou/library/scraped-resume 等), 兵哥看到的"超管没权限"全是 404.
+// 全局 hook 让任何 .vue 在 catch 404 时 console.warn 出来, 真实 401/403 仍触发 logout.
+axios.interceptors.response.use(
+  (resp: AxiosResponse) => resp,
+  (err: AxiosError) => {
+    const status = err?.response?.status
+    const url = err?.config?.url ?? '<unknown>'
+    if (status === 404) {
+      // 后端 endpoint 不存在 (开发期常见 — Plan 注释里说"待实现"但还没做)
+      console.warn(
+        `[API 404] 后端没实现这个 endpoint: ${url}\n` +
+        `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
+      )
+    } else if (status === 500) {
+      console.error(`[API 500] 后端 bug: ${url}`, err?.response?.data)
+    }
+    return Promise.reject(err)
+  }
+)
 
 const app = createApp(App)
 
