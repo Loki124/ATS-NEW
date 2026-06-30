@@ -124,12 +124,6 @@ LOCAL_APPS = [
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
-# 2026-06-30 花无缺: Django 5.0 默认 RegexURLResolver 用 re.search 找 substring,
-#   导致嵌套 include 后 /api/v1/candidates/ 错误命中 user-detail (?P<pk>candidates)
-#   Django 5.x 设置 REGEX_URL_RESOLVER_USE_RE_SEARCH=False 让嵌套 regex 用 re.match (前缀必须匹配),
-#   修 candidates/invitations/interviews 等路由被 core.urls 的 user-detail 误吃
-REGEX_URL_RESOLVER_USE_RE_SEARCH = False
-
 # === 中间件 ===
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
