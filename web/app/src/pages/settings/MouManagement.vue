@@ -1020,7 +1020,7 @@ const handleAddMou = () => {
   editingMou.value = null
   mouFormState.name = ''
   mouFormState.code = ''
-  mouFormState.mouType = ''
+  mouFormState.mouType = 'DEPARTMENT'
   mouFormState.description = ''
   mouFormState.status = 'ACTIVE'
   resetScopeForm()
@@ -1031,7 +1031,7 @@ const handleEditMou = (mou: Mou) => {
   editingMou.value = mou
   mouFormState.name = mou.name
   mouFormState.code = mou.code
-  mouFormState.mouType = mou.type
+  mouFormState.mouType = mou.mouType || mou.type || 'DEPARTMENT'
   mouFormState.description = mou.description || ''
   mouFormState.status = mou.status
   scopeTab.value = 'menu'

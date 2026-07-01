@@ -1,11 +1,4 @@
-"""mou serializers - 2026-07-01 修 PUT 400 (scopes 是 nested object)
-
-设计:
-  - POST/PUT: FE 字段 (name/description/mouType/scopes) → backend 字段 (company_name/terms/mou_type/scopes)
-    scopes 是 nested object: { menu: [], function: [], data: { scope: 'ALL', deptIds: [], userIds: [] } }
-  - GET:  输出全部 camelCase (name/description/mouType 都补)
-  - scopes endpoint: /mou/{id}/scopes/ 返 MOU 的 scopes dict
-"""
+"""mou serializers - 2026-07-01 修 PUT 400 (mouType null 兜底)"""
 import re
 import uuid
 from rest_framework import serializers
@@ -13,8 +6,8 @@ from .models import MouAgreement, MouContainer, MutualExclusionGroup, Automation
 
 
 def _camel_to_snake(name):
-    s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+    s1 = re.sub(r'(.)([A-Z][a-z]+)', chr(92) + chr(49) + chr(92) + chr(50), name)
+    return re.sub(r'([a-z0-9])([A-Z])', chr(92) + chr(49) + chr(92) + chr(50), s1).lower()
 
 
 def _snake_to_camel(name):
@@ -65,8 +58,11 @@ class MouContainerSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
 class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSerializer):
     id = serializers.CharField(required=False, allow_blank=True, read_only=True)
     company_name = serializers.CharField(required=False, allow_blank=True, default='')
-    # 2026-07-01: scopes 是 JSONField, 接任意结构 (FE 是 nested object)
     scopes = serializers.JSONField(required=False, default=dict)
+    # 2026-07-01: mou_type 接受空/null, 兜底 STANDARD
+    # CharField 默认可接受空字符串 (allow_blank=True), 不允许 null
+    # 单独处理 null
+    mou_type = serializers.CharField(required=False, allow_blank=True, default='STANDARD')
 
     containers = MouContainerSerializer(many=True, read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
@@ -97,6 +93,9 @@ class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
     def to_internal_value(self, data):
         converted = _convert_keys_to_snake(data) if isinstance(data, dict) else data
         if isinstance(converted, dict):
+            # mouType null 兜底
+            if converted.get('mou_type') is None:
+                converted['mou_type'] = 'STANDARD'
             if 'name' in converted and 'company_name' not in converted:
                 converted['company_name'] = converted.pop('name')
             if 'description' in converted and 'terms' not in converted:
@@ -112,6 +111,8 @@ class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
 
     def update(self, instance, validated_data):
         validated_data.pop('id', None)
+        if 'name' in validated_data and 'company_name' not in validated_data:
+            validated_data['company_name'] = validated_data.pop('name')
         return super().update(instance, validated_data)
 
 
