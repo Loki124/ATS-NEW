@@ -1047,7 +1047,7 @@ const handleDeleteMou = async (mou: Mou) => {
       message.success('删除成功')
       loadMous()
     } else {
-      message.error(data.error || '删除失败')
+      message.error(data.error || data.message || '删除失败')
     }
   } catch (error) {
     message.error('删除失败')
@@ -1078,7 +1078,7 @@ const handleSaveMou = async () => {
       mouModalVisible.value = false
       loadMous()
     } else {
-      message.error(data.error || '操作失败')
+      message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
     console.error(error)
@@ -1115,7 +1115,7 @@ const handleDeleteContainer = async (container: PermissionContainer) => {
       message.success('删除成功')
       loadContainers()
     } else {
-      message.error(data.error || '删除失败')
+      message.error(data.error || data.message || '删除失败')
     }
   } catch (error) {
     message.error('删除失败')
@@ -1134,7 +1134,7 @@ const handleSaveContainer = async () => {
       containerModalVisible.value = false
       loadContainers()
     } else {
-      message.error(data.error || '操作失败')
+      message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
     console.error(error)
@@ -1170,7 +1170,7 @@ const handleDeleteRule = async (rule: AutomationRule) => {
       message.success('删除成功')
       loadAutomationRules()
     } else {
-      message.error(data.error || '删除失败')
+      message.error(data.error || data.message || '删除失败')
     }
   } catch (error) {
     message.error('删除失败')
@@ -1189,7 +1189,7 @@ const handleSaveRule = async () => {
       ruleModalVisible.value = false
       loadAutomationRules()
     } else {
-      message.error(data.error || '操作失败')
+      message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
     console.error(error)
@@ -1222,7 +1222,7 @@ const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
       message.success('删除成功')
       loadMutexGroups()
     } else {
-      message.error(data.error || '删除失败')
+      message.error(data.error || data.message || '删除失败')
     }
   } catch (error) {
     message.error('删除失败')
@@ -1241,7 +1241,7 @@ const handleSaveMutex = async () => {
       mutexModalVisible.value = false
       loadMutexGroups()
     } else {
-      message.error(data.error || '操作失败')
+      message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
     console.error(error)
