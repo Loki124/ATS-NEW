@@ -48,6 +48,21 @@ api_v1_patterns = [
     path('invitations/', include('apps.invitation.urls')),
     path('interviews/', include('apps.interview.urls')),
     path('referrals/', include('apps.referral.urls')),
+    # 2026-07-01 花无缺: FE referral.ts 误用单数 /referral/, 加 alias
+    #   /referral/codes/me  →  /referrals/codes/me
+    #   /referral/records/me  →  /referrals/my-referrals (records/me → my-referrals)
+    #   /referral/rules  →  /referrals/ (list 空, rules 待 G36 实现)
+    #   /referral/expert-configs/me  →  /referrals/ (暂无)
+    #   /referral/records  →  /referrals/
+    #   /referral/records/me/summary  →  /referrals/my-referrals (stats stub)
+    #   /referral/rewards/me  →  /referrals/ (暂无, 返空)
+    path('referral/', include('apps.referral.urls_single')),
+    # 2026-07-01 花无缺: FE 调用了但 backend 缺实现的 22 个 endpoint 一次性 stub
+    #   auth/register, auth/change-password, candidates/batch/*, recruitment-rules/*,
+    #   recruitment-rounds/*, bulk-create, upload-and-parse, scoring/start,
+    #   offer-templates, search, evaluate, login (单数 alias)
+    # 详细 stub 逻辑在 apps.referral.urls_stubs (寄放 referral app, 仅是位置)
+    path('', include('apps.referral.urls_stubs')),
     path('talent-pool/', include('apps.talent_pool.urls')),
     path('channels/', include('apps.channel.urls')),
 
