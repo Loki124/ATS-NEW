@@ -875,7 +875,7 @@ const mutexColumns = [
 const loadMous = async () => {
   loading.value = true
   try {
-    const data = (await api.get('/permissions-v2/mou')).data
+    const data = (await api.get('/permissions-v2/mou/')).data
     if (data.success) {
       mous.value = data.data
     }
@@ -889,7 +889,7 @@ const loadMous = async () => {
 // 加载 Container 列表
 const loadContainers = async (mouId?: string) => {
   try {
-    const url = mouId ? `/permissions-v2/containers?mouId=${mouId}` : '/permissions-v2/containers'
+    const url = mouId ? `/permissions-v2/containers?mouId=${mouId}` : '/permissions-v2/containers/'
     const data = (await api.get(url)).data
     if (data.success) {
       containers.value = data.data
@@ -902,7 +902,7 @@ const loadContainers = async (mouId?: string) => {
 // 加载自动化规则
 const loadAutomationRules = async () => {
   try {
-    const data = (await api.get('/permissions-v2/automation-rules')).data
+    const data = (await api.get('/permissions-v2/automation-rules/')).data
     if (data.success) {
       automationRules.value = data.data
     }
@@ -921,7 +921,7 @@ const loadAuditLogs = async () => {
     if (auditFilters.action) params.append('action', auditFilters.action)
     if (auditFilters.targetType) params.append('targetType', auditFilters.targetType)
 
-    const data = (await api.get(`/permissions-v2/audit-logs?${params}`)).data
+    const data = (await api.get(`/permissions-v2/audit-logs/?${params}`)).data
     if (data.success) {
       auditLogs.value = data.data
     }
@@ -935,7 +935,7 @@ const loadAuditLogs = async () => {
 // 加载互斥组
 const loadMutexGroups = async () => {
   try {
-    const data = (await api.get('/permissions-v2/mutual-exclusion-groups')).data
+    const data = (await api.get('/permissions-v2/mutual-exclusion-groups/')).data
     if (data.success) {
       mutexGroups.value = data.data
     }
@@ -1042,7 +1042,7 @@ const handleEditMou = (mou: Mou) => {
 
 const handleDeleteMou = async (mou: Mou) => {
   try {
-    const data = (await api.delete(`/permissions-v2/mou/${mou.id}`)).data
+    const data = (await api.delete(`/permissions-v2/mou/${mou.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadMous()
@@ -1056,7 +1056,7 @@ const handleDeleteMou = async (mou: Mou) => {
 
 const handleSaveMou = async () => {
   try {
-    const url = editingMou.value ? `/permissions-v2/mou/${editingMou.value.id}` : '/permissions-v2/mou'
+    const url = editingMou.value ? `/permissions-v2/mou/${editingMou.value.id}/` : '/permissions-v2/mou/'
     const method = editingMou.value ? 'PUT' : 'POST'
 
     // 同步 CUSTOM 选定的 deptIds/userIds
@@ -1110,7 +1110,7 @@ const handleEditContainer = (container: PermissionContainer) => {
 
 const handleDeleteContainer = async (container: PermissionContainer) => {
   try {
-    const data = (await api.delete(`/permissions-v2/containers/${container.id}`)).data
+    const data = (await api.delete(`/permissions-v2/containers/${container.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadContainers()
@@ -1124,7 +1124,7 @@ const handleDeleteContainer = async (container: PermissionContainer) => {
 
 const handleSaveContainer = async () => {
   try {
-    const url = editingContainer.value ? `/permissions-v2/containers/${editingContainer.value.id}` : '/permissions-v2/containers'
+    const url = editingContainer.value ? `/permissions-v2/containers/${editingContainer.value.id}/` : '/permissions-v2/containers/'
     const method = editingContainer.value ? 'PUT' : 'POST'
 
     const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, containerFormState)).data
@@ -1165,7 +1165,7 @@ const handleEditRule = (rule: AutomationRule) => {
 
 const handleDeleteRule = async (rule: AutomationRule) => {
   try {
-    const data = (await api.delete(`/permissions-v2/automation-rules/${rule.id}`)).data
+    const data = (await api.delete(`/permissions-v2/automation-rules/${rule.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadAutomationRules()
@@ -1179,7 +1179,7 @@ const handleDeleteRule = async (rule: AutomationRule) => {
 
 const handleSaveRule = async () => {
   try {
-    const url = editingRule.value ? `/permissions-v2/automation-rules/${editingRule.value.id}` : '/permissions-v2/automation-rules'
+    const url = editingRule.value ? `/permissions-v2/automation-rules/${editingRule.value.id}/` : '/permissions-v2/automation-rules/'
     const method = editingRule.value ? 'PUT' : 'POST'
 
     const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, ruleFormState)).data
@@ -1217,7 +1217,7 @@ const handleEditMutex = (mutex: MutualExclusionGroup) => {
 
 const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
   try {
-    const data = (await api.delete(`/permissions-v2/mutual-exclusion-groups/${mutex.id}`)).data
+    const data = (await api.delete(`/permissions-v2/mutual-exclusion-groups/${mutex.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadMutexGroups()
@@ -1231,7 +1231,7 @@ const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
 
 const handleSaveMutex = async () => {
   try {
-    const url = editingMutex.value ? `/permissions-v2/mutual-exclusion-groups/${editingMutex.value.id}` : '/permissions-v2/mutual-exclusion-groups'
+    const url = editingMutex.value ? `/permissions-v2/mutual-exclusion-groups/${editingMutex.value.id}/` : '/permissions-v2/mutual-exclusion-groups/'
     const method = editingMutex.value ? 'PUT' : 'POST'
 
     const data = (await (api as Pick<typeof api, 'get' | 'post' | 'put' | 'delete'>)[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](url, mutexFormState)).data
