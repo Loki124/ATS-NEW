@@ -56,6 +56,26 @@ class ReferralViewSet(AuditMixin, viewsets.ModelViewSet):
         serializer = ReferralListSerializer(qs, many=True)
         return Response({'success': True, 'data': serializer.data})
 
+    @action(detail=False, methods=['get'], url_path='codes/me')
+    def my_codes(self, request):
+        """我的内推码 (FE 调 /referral/codes/me 渲染推荐页). 2026-07-01 stub: 返 user.id 衍生码."""
+        import hashlib
+        user = request.user
+        seed = f'{user.id}-{user.username}'.encode()
+        code = 'REF-' + hashlib.md5(seed).hexdigest()[:8].upper()
+        return Response({
+            'success': True,
+            'data': {
+                'id': f'code-{user.id}',
+                'code': code,
+                'userId': str(user.id),
+                'status': 'ACTIVE',
+                'invalidReason': None,
+                'createdAt': user.date_joined.isoformat() if hasattr(user, 'date_joined') else '',
+                'updatedAt': user.updated_at.isoformat() if hasattr(user, 'updated_at') else '',
+            }
+        })
+
     @action(detail=True, methods=['post'], url_path='detect-type')
     def detect_type(self, request, pk=None):
         """自动检测 N+1/N+2 类型"""

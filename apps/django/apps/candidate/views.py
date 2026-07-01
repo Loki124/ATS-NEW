@@ -370,6 +370,66 @@ class CandidateViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
             'results': CandidateListSerializer(results, many=True).data,
         })
 
+    # ----------------------------------------------------------
+    # G44 状态详情 schema (FE 调 /candidates/status-details/schema 渲染 11 状态字段定义)
+    # ----------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='status-details/schema')
+    def status_details_schema(self, request):
+        """返 11 个候选人状态对应的可编辑字段定义. 2026-07-01 stub."""
+        schema = {
+            'PENDING': [
+                {'key': 'note', 'type': 'textarea', 'required': False, 'label': '备注'},
+            ],
+            'PASS': [
+                {'key': 'feedback', 'type': 'textarea', 'required': True, 'label': '通过原因'},
+            ],
+            'FAIL': [
+                {'key': 'reason', 'type': 'select', 'required': True, 'label': '失败原因',
+                 'options': ['NOT_QUALIFIED', 'EXPERIENCE_INSUFFICIENT', 'SALARY_MISMATCH', 'OTHER']},
+                {'key': 'detail', 'type': 'textarea', 'required': False, 'label': '详细说明'},
+            ],
+            'INVITED': [
+                {'key': 'invitationId', 'type': 'text', 'required': True, 'label': '邀约 ID'},
+            ],
+            'INTERVIEWING': [
+                {'key': 'interviewId', 'type': 'text', 'required': True, 'label': '面试 ID'},
+            ],
+            'OFFERED': [
+                {'key': 'offerId', 'type': 'text', 'required': True, 'label': 'Offer ID'},
+                {'key': 'salary', 'type': 'number', 'required': True, 'label': '薪资'},
+            ],
+            'ONBOARDED': [
+                {'key': 'onboardDate', 'type': 'date', 'required': True, 'label': '入职日期'},
+            ],
+            'PROBATION_PASSED': [
+                {'key': 'passDate', 'type': 'date', 'required': True, 'label': '通过日期'},
+            ],
+            'REJECTED': [
+                {'key': 'reason', 'type': 'select', 'required': True, 'label': '拒绝原因',
+                 'options': ['NOT_QUALIFIED', 'POSITION_FILLED', 'CANDIDATE_WITHDREW', 'OTHER']},
+            ],
+            'ARCHIVED': [
+                {'key': 'archiveReason', 'type': 'textarea', 'required': True, 'label': '归档原因'},
+            ],
+            'BLACKLISTED': [
+                {'key': 'reason', 'type': 'textarea', 'required': True, 'label': '拉黑原因'},
+            ],
+        }
+        return Response({'success': True, 'data': schema})
+
+    @action(detail=True, methods=['put', 'patch'], url_path='status-details')
+    def status_details(self, request, id=None):
+        """更新候选人状态详情字段. 2026-07-01 stub: 不实际存, 只返成功."""
+        instance = self.get_object()
+        return Response({
+            'success': True,
+            'data': {
+                'id': str(instance.id),
+                'status': instance.candidate_status,
+                'details': request.data,
+            }
+        })
+
 
 class CandidateTagViewSet(viewsets.ModelViewSet):
     """候选人标签字典"""
