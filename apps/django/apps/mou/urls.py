@@ -1,30 +1,45 @@
-"""mou URLs - 2026-07-01 stub for permissions-v2/* (含 5 个 ViewSet)"""
+"""mou URLs - 2026-07-01 stub for permissions-v2/* (含 5 个 endpoint + scopes)"""
 from rest_framework.routers import DefaultRouter
+from rest_framework.response import Response
+from rest_framework.decorators import action, api_view, permission_classes
 from django.urls import path
+from rest_framework.permissions import IsAuthenticated
 
 from .views import (
     MouAgreementViewSet, MouContainerViewSet,
     MutualExclusionGroupViewSet, AutomationRuleViewSet,
 )
 
-# config/urls.py: path('permissions-v2/', include('apps.mou.urls'))
-# 这里 4 个 ViewSet + 1 个 stub audit-logs
+
+class MouAgreementViewSetWithScopes(MouAgreementViewSet):
+    """加 scopes action"""
+    @action(detail=True, methods=['get', 'put'], url_path='scopes')
+    def scopes(self, request, pk=None):
+        """GET  /mou/{id}/scopes — 返 MOU 的 scopes list
+        PUT  /mou/{id}/scopes — 更新 scopes
+        """
+        instance = self.get_object()
+        if request.method == 'GET':
+            return Response({'success': True, 'data': instance.scopes or []})
+        # PUT
+        scopes = request.data.get('scopes', [])
+        if not isinstance(scopes, list):
+            return Response({'success': False, 'code': 'validation_error', 'message': 'scopes 必须是 list'}, status=400)
+        instance.scopes = scopes
+        instance.save(update_fields=['scopes', 'updated_at'])
+        return Response({'success': True, 'data': instance.scopes})
+
+
 router = DefaultRouter()
-router.register(r'mou', MouAgreementViewSet, basename='mou')
+router.register(r'mou', MouAgreementViewSetWithScopes, basename='mou')
 router.register(r'containers', MouContainerViewSet, basename='mou-container')
 router.register(r'mutual-exclusion-groups', MutualExclusionGroupViewSet, basename='mou-mutex')
 router.register(r'automation-rules', AutomationRuleViewSet, basename='mou-automation')
-
-# audit-logs stub: 走 audit app, 简单 stub 一下 (MouAuditLogSerializer 之前已定义)
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def audit_logs_stub(request):
-    """GET /permissions-v2/audit-logs — stub (实际走 audit app)"""
     return Response({
         'success': True,
         'data': [],

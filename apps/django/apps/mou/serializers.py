@@ -1,9 +1,10 @@
-"""mou serializers - 2026-07-01 GET/PUT/POST 全部 camelCase
+"""mou serializers - 2026-07-01 GET/PUT/POST 全部 camelCase + 兼容 FE 字段
 
 设计:
-  - POST: FE 可传 id, 不传自动生成; body camelCase/snake_case 都接
-  - PUT:  不需传 id (URL 已有); body camelCase/snake_case 都接
-  - GET:  输出全部 camelCase (FE 期望)
+  - POST/PUT: FE 字段 (name/description/mouType/scopes) → backend 字段 (company_name/terms/scopes)
+    通过 create/update override 显式 pop + 转换
+  - GET:  输出全部 camelCase (name/description/mouType 都补)
+  - scopes endpoint: /mou/{id}/scopes/ 返 MOU 的 scopes list
 """
 import re
 import uuid
@@ -12,41 +13,34 @@ from .models import MouAgreement, MouContainer, MutualExclusionGroup, Automation
 
 
 def _camel_to_snake(name):
-    """companyName → company_name, triggerEvent → trigger_event"""
     s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 def _snake_to_camel(name):
-    """company_name → companyName, created_at → createdAt"""
     parts = name.split('_')
     return parts[0] + ''.join(p.title() for p in parts[1:])
 
 
 def _convert_keys_to_snake(data):
-    """dict key camelCase → snake_case (递归 input)"""
     if not isinstance(data, dict):
         return data
     return {_camel_to_snake(k): _convert_keys_to_snake(v) for k, v in data.items()}
 
 
 def _convert_keys_to_camel(data):
-    """dict key snake_case → camelCase (递归 output)"""
     if isinstance(data, list):
         return [_convert_keys_to_camel(item) for item in data]
     if not isinstance(data, dict):
         return data
     out = {}
     for k, v in data.items():
-        # id / url 这种不转, 但 _id 也转 (mouId)
         new_k = _snake_to_camel(k) if ('_' in k) else k
         out[new_k] = _convert_keys_to_camel(v)
     return out
 
 
 class _CamelCaseSerializerMixin:
-    """input: camelCase → snake_case, output: snake_case → camelCase"""
-
     def to_internal_value(self, data):
         return super().to_internal_value(_convert_keys_to_snake(data))
 
@@ -70,6 +64,10 @@ class MouContainerSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
 
 class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSerializer):
     id = serializers.CharField(required=False, allow_blank=True, read_only=True)
+    # 2026-07-01: company_name 显式字段, 必填
+    company_name = serializers.CharField(required=False, allow_blank=True, default='')
+    scopes = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+
     containers = MouContainerSerializer(many=True, read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
     owner_name = serializers.CharField(source='owner.username', read_only=True)
@@ -80,6 +78,7 @@ class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
         model = MouAgreement
         fields = ['id', 'code', 'company_name', 'department', 'department_name', 'signed_at',
                   'effective_at', 'expire_at', 'status', 'owner', 'owner_name', 'terms',
+                  'mou_type', 'scopes',
                   'containers', 'quota_total', 'quota_used', 'created_at', 'updated_at']
 
     def get_quota_total(self, obj):
@@ -87,6 +86,27 @@ class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
 
     def get_quota_used(self, obj):
         return sum(c.quota_used for c in obj.containers.all())
+
+    def to_representation(self, instance):
+        # 补 FE 字段 name / description / mouType
+        ret = super().to_representation(instance)
+        ret['name'] = instance.company_name
+        ret['description'] = instance.terms
+        ret['mouType'] = instance.mou_type
+        return ret
+
+    def to_internal_value(self, data):
+        # 1. camelCase → snake_case (MixIn)
+        converted = _convert_keys_to_snake(data) if isinstance(data, dict) else data
+        # 2. FE 字段映射: name → company_name, description → terms, mouType → mou_type
+        if isinstance(converted, dict):
+            if 'name' in converted and 'company_name' not in converted:
+                converted['company_name'] = converted.pop('name')
+            if 'description' in converted and 'terms' not in converted:
+                converted['terms'] = converted.pop('description')
+            if 'mouType' in converted and 'mou_type' not in converted:
+                converted['mou_type'] = converted.pop('mouType')
+        return super().to_internal_value(converted)
 
     def create(self, validated_data):
         if not validated_data.get('id'):

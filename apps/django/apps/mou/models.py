@@ -7,6 +7,7 @@ class MouAgreement(models.Model):
     """MOU 协议"""
     id = models.CharField(max_length=32, primary_key=True)
     code = models.CharField(max_length=50, unique=True, help_text='MOU 编码, 如 MOU-2026-001')
+    name = models.CharField(max_length=200, blank=True, default='', help_text='MOU 名称 (FE 字段, 兼容)')  # 2026-07-01: 加给 FE
     company_name = models.CharField(max_length=200)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True)
     signed_at = models.DateField(null=True, blank=True)
@@ -14,7 +15,10 @@ class MouAgreement(models.Model):
     expire_at = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, default='DRAFT', help_text='DRAFT/ACTIVE/EXPIRED/TERMINATED')
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='mou_agreements')
-    terms = models.TextField(blank=True)
+    description = models.TextField(blank=True, default='', help_text='描述 (FE 字段, 兼容 terms)')  # 2026-07-01
+    terms = models.TextField(blank=True, default='', help_text='MOU 条款')
+    mou_type = models.CharField(max_length=50, blank=True, default='STANDARD', help_text='MOU 类型: STANDARD/EXCLUSIVE/PROJECT_BASED')  # 2026-07-01
+    scopes = models.JSONField(default=list, blank=True, help_text='权限范围 list (FE 字段)')  # 2026-07-01
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
