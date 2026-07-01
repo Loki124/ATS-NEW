@@ -311,36 +311,8 @@ def permissions_menus(request):
 
 
 # ============================================================
-# Permissions v2 (MOU 业务, 暂未实现, 返空 stub)
+# 2026-07-01 花无缺: permissions-v2/* 5 个 stub view 删除 — 改由 mou app (apps/mou/urls.py) 接管
 # ============================================================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def permissions_v2_mou(request):
-    return _empty_list()
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def permissions_v2_containers(request):
-    return _empty_list()
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def permissions_v2_audit_logs(request):
-    return _empty_list()
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def permissions_v2_mutual_exclusion(request):
-    return _empty_list()
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def permissions_v2_automation(request):
-    return _empty_list()
 
 
 # ============================================================
@@ -455,18 +427,6 @@ urlpatterns = [
     path('permissions/functions/', permissions_functions),
     path('permissions/menus', permissions_menus, name='permissions-menus'),
     path('permissions/menus/', permissions_menus),
-
-    # Permissions v2 (MOU 业务, 返空)
-    path('permissions-v2/mou', permissions_v2_mou, name='permissions-v2-mou'),
-    path('permissions-v2/mou/', permissions_v2_mou),
-    path('permissions-v2/containers', permissions_v2_containers, name='permissions-v2-containers'),
-    path('permissions-v2/containers/', permissions_v2_containers),
-    path('permissions-v2/audit-logs', permissions_v2_audit_logs, name='permissions-v2-audit-logs'),
-    path('permissions-v2/audit-logs/', permissions_v2_audit_logs),
-    path('permissions-v2/mutual-exclusion-groups', permissions_v2_mutual_exclusion, name='permissions-v2-mutual-exclusion'),
-    path('permissions-v2/mutual-exclusion-groups/', permissions_v2_mutual_exclusion),
-    path('permissions-v2/automation-rules', permissions_v2_automation, name='permissions-v2-automation'),
-    path('permissions-v2/automation-rules/', permissions_v2_automation),
 
     # FE URL 错拼 alias — 2026-07-01: FE 已修, 但保留短暂以防客户端缓存
     path('api/talent-pool/types', talent_pool_types, name='api-talent-pool-types'),

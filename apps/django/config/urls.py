@@ -70,6 +70,10 @@ api_v1_patterns = [
     # path('', include('apps.referral.urls_stubs')),
     path('talent-pool/', include('apps.talent_pool.urls')),
     path('channels/', include('apps.channel.urls')),
+    # 2026-07-01 花无缺: G36 — MOU 业务从 stub 升级到真 app
+    #   之前走 stub (apps.referral.urls_stubs.permissions_v2_*), 路由优先级: stub 先挂 → mou 真接
+    #   删 stub 的 permissions-v2/* 5 个 path, 改挂 mou app (4 个 ViewSet + 1 stub audit-logs)
+    path('permissions-v2/', include('apps.mou.urls')),
 
     # 数据中心
     path('analytics/', include('apps.analytics.urls')),

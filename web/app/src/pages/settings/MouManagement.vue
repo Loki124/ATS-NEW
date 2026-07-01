@@ -140,6 +140,73 @@
           />
         </n-card>
       </n-tab-pane>
+
+      <!-- 2026-07-01 花无缺: G41 重构 — 合并原 PermissionManagement.vue 进来 -->
+      <n-tab-pane name="roles">
+        <template #tab>
+          <span class="tab-label">
+            <n-icon :component="PeopleOutline" />
+            角色管理
+          </span>
+        </template>
+        <n-card title="角色列表 (RBAC)">
+          <template #header-extra>
+            <n-space>
+              <n-input v-model:value="rbacFilter" placeholder="搜索角色..." clearable style="width: 200px" />
+              <n-button @click="loadRbacRoles">
+                <template #icon><n-icon :component="RefreshOutline" /></template>
+                刷新
+              </n-button>
+            </n-space>
+          </template>
+          <n-data-table
+            :columns="rbacRoleColumns"
+            :data="rbacRoles"
+            :loading="rbacLoading"
+            :pagination="{ pageSize: 20 }"
+            size="small"
+            :bordered="false"
+          />
+        </n-card>
+      </n-tab-pane>
+
+      <n-tab-pane name="functions">
+        <template #tab>
+          <span class="tab-label">
+            <n-icon :component="RocketOutline" />
+            功能权限
+          </span>
+        </template>
+        <n-card title="功能权限 (写操作)">
+          <n-data-table
+            :columns="rbacFunctionColumns"
+            :data="rbacFunctions"
+            :loading="rbacLoading"
+            :pagination="{ pageSize: 30 }"
+            size="small"
+            :bordered="false"
+          />
+        </n-card>
+      </n-tab-pane>
+
+      <n-tab-pane name="menus">
+        <template #tab>
+          <span class="tab-label">
+            <n-icon :component="ServerOutline" />
+            菜单权限
+          </span>
+        </template>
+        <n-card title="菜单权限 (读操作)">
+          <n-data-table
+            :columns="rbacMenuColumns"
+            :data="rbacMenus"
+            :loading="rbacLoading"
+            :pagination="{ pageSize: 30 }"
+            size="small"
+            :bordered="false"
+          />
+        </n-card>
+      </n-tab-pane>
     </n-tabs>
 
     <!-- MOU 表单弹窗 -->
@@ -377,7 +444,7 @@
 
 <script setup lang="ts">
 import api from '../../api/auth';
-import { ref, reactive, onMounted, computed, h } from 'vue'
+import { ref, reactive, onMounted, computed, h, watch } from 'vue'
 import {
   NTag,
   NBadge,
@@ -394,6 +461,7 @@ import {
   RocketOutline,
   TimeOutline,
   AlertCircleOutline,
+  RefreshOutline,
 } from '@vicons/ionicons5'
 
 const message = useMessage()
@@ -1184,6 +1252,80 @@ const handleSaveMutex = async () => {
 const handleBindUsers = (_mouId: string) => {
   message.info('绑定用户功能开发中')
 }
+
+// ============================================================
+// 2026-07-01 花无缺: G41 重构 — RBAC 角色 + 权限管理 (合并原 PermissionManagement)
+// ============================================================
+const rbacRoles = ref<any[]>([])
+const rbacFunctions = ref<any[]>([])
+const rbacMenus = ref<any[]>([])
+const rbacFilter = ref('')
+const rbacLoading = ref(false)
+
+const rbacRoleColumns = computed(() => [
+  { title: 'ID', key: 'id', width: 120, ellipsis: { tooltip: true } },
+  { title: '角色名', key: 'name', width: 180 },
+  { title: '角色编码', key: 'code', width: 160 },
+  { title: '部门', key: 'department_name', width: 140 },
+  { title: '创建时间', key: 'created_at', width: 160, render: (row: any) => row.created_at?.slice(0, 16) || '—' },
+])
+
+const rbacFunctionColumns = computed(() => [
+  { title: '权限编码', key: 'code', width: 240, ellipsis: { tooltip: true } },
+  { title: '权限名', key: 'name', width: 180 },
+  { title: '模块', key: 'module', width: 140 },
+  { title: '描述', key: 'description', ellipsis: { tooltip: true } },
+])
+
+const rbacMenuColumns = computed(() => [
+  { title: '权限编码', key: 'code', width: 240, ellipsis: { tooltip: true } },
+  { title: '权限名', key: 'name', width: 180 },
+  { title: '模块', key: 'module', width: 140 },
+])
+
+async function loadRbacRoles() {
+  rbacLoading.value = true
+  try {
+    const { data } = await api.get('/permissions/roles', { params: { search: rbacFilter.value } })
+    if (data.success) rbacRoles.value = data.data || []
+  } catch (e: any) {
+    message.error(`加载角色失败: ${e.message}`)
+  } finally {
+    rbacLoading.value = false
+  }
+}
+
+async function loadRbacFunctions() {
+  rbacLoading.value = true
+  try {
+    const { data } = await api.get('/permissions/functions')
+    if (data.success) rbacFunctions.value = data.data || []
+  } catch (e: any) {
+    message.error(`加载功能权限失败: ${e.message}`)
+  } finally {
+    rbacLoading.value = false
+  }
+}
+
+async function loadRbacMenus() {
+  rbacLoading.value = true
+  try {
+    const { data } = await api.get('/permissions/menus')
+    if (data.success) rbacMenus.value = data.data || []
+  } catch (e: any) {
+    message.error(`加载菜单权限失败: ${e.message}`)
+  } finally {
+    rbacLoading.value = false
+  }
+}
+
+// 监听 tab 切换, 懒加载
+const rbacLoaded = { roles: false, functions: false, menus: false }
+watch(activeTab, (tab) => {
+  if (tab === 'roles' && !rbacLoaded.roles) { rbacLoaded.roles = true; loadRbacRoles() }
+  if (tab === 'functions' && !rbacLoaded.functions) { rbacLoaded.functions = true; loadRbacFunctions() }
+  if (tab === 'menus' && !rbacLoaded.menus) { rbacLoaded.menus = true; loadRbacMenus() }
+})
 
 onMounted(() => {
   loadMous()
