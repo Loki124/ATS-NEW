@@ -218,47 +218,96 @@ def evaluate(request):
 
 # ============================================================
 # Permissions v1 (FE 期望 /permissions/* 走这里)
+# 2026-07-01: 已有 Role/Permission model, 这些是 alias 调真 endpoint
 # ============================================================
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_roles_list(request):
-    return _empty_list()
+    """GET /permissions/roles/ — 角色列表 (alias 调 /roles/)"""
+    from apps.core.models import Role
+    from apps.core.serializers import RoleSerializer
+    qs = Role.objects.filter(is_active=True)
+    search = request.query_params.get('search', '')
+    if search:
+        qs = qs.filter(name__icontains=search) | qs.filter(code__icontains=search)
+    data = RoleSerializer(qs[:50], many=True).data
+    return Response({'success': True, 'data': data})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_user_roles(request, user_id):
-    return _empty_list()
+    """GET /permissions/users/{id}/roles — 用户的角色 (调 UserRole)"""
+    from apps.core.models import UserRole, Role
+    user_role_ids = UserRole.objects.filter(user_id=user_id).values_list('role_id', flat=True)
+    roles = Role.objects.filter(id__in=user_role_ids, is_active=True)
+    from apps.core.serializers import RoleSerializer
+    data = RoleSerializer(roles, many=True).data
+    return Response({'success': True, 'data': data})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_user_info(request):
+    """GET /permissions/user-info/ — 当前用户权限 + 角色"""
+    from apps.core.models import UserRole, Role
     user = request.user
-    return _ok({
-        'userId': str(user.id),
-        'username': user.username,
-        'roles': [],
-        'permissions': [],
+    user_role_ids = UserRole.objects.filter(user_id=user.id).values_list('role_id', flat=True)
+    roles = Role.objects.filter(id__in=user_role_ids, is_active=True)
+    from apps.core.serializers import RoleSerializer
+    return Response({
+        'success': True,
+        'data': {
+            'userId': str(user.id),
+            'username': user.username,
+            'isStaff': user.is_staff,
+            'isSuperuser': user.is_superuser,
+            'roles': RoleSerializer(roles, many=True).data,
+            'permissions': list(user.get_all_permissions()) if hasattr(user, 'get_all_permissions') else [],
+        }
     })
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_list_by_type(request):
-    return _empty_list()
+    """GET /permissions/permissions/list?type=MENU|FUNCTION — 权限字典 (按 module 过滤, model 没有 resource_type 字段)"""
+    from apps.core.models import Permission
+    from apps.core.serializers import PermissionSerializer
+    qs = Permission.objects.all()
+    type_filter = request.query_params.get('type', '')
+    if type_filter == 'MENU':
+        # 菜单权限: module='menu' 或 module 前缀
+        qs = qs.filter(module__icontains='menu') | qs.filter(code__endswith=':view')
+    elif type_filter == 'FUNCTION':
+        # 功能权限: 写操作 (create/update/delete)
+        qs = qs.filter(code__regex=r':(create|update|delete|approve|assign|trigger)$')
+    elif type_filter == 'API':
+        qs = qs.filter(module__icontains='api')
+    data = PermissionSerializer(qs[:200], many=True).data
+    return Response({'success': True, 'data': data})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_functions(request):
-    return _empty_list()
+    """GET /permissions/functions/ — 功能权限 (写操作)"""
+    from apps.core.models import Permission
+    from apps.core.serializers import PermissionSerializer
+    qs = Permission.objects.filter(code__regex=r':(create|update|delete|approve|assign|trigger)$')[:200]
+    data = PermissionSerializer(qs, many=True).data
+    return Response({'success': True, 'data': data})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_menus(request):
-    return _empty_list()
+    """GET /permissions/menus/ — 菜单/读权限"""
+    from apps.core.models import Permission
+    from apps.core.serializers import PermissionSerializer
+    qs = Permission.objects.filter(code__endswith=':view')[:200]
+    data = PermissionSerializer(qs, many=True).data
+    return Response({'success': True, 'data': data})
 
 
 # ============================================================
@@ -419,7 +468,7 @@ urlpatterns = [
     path('permissions-v2/automation-rules', permissions_v2_automation, name='permissions-v2-automation'),
     path('permissions-v2/automation-rules/', permissions_v2_automation),
 
-    # FE URL 错拼 alias
+    # FE URL 错拼 alias — 2026-07-01: FE 已修, 但保留短暂以防客户端缓存
     path('api/talent-pool/types', talent_pool_types, name='api-talent-pool-types'),
     path('api/talent-pool/types/', talent_pool_types),
     path('resumes', resumes_alias, name='resumes-alias'),

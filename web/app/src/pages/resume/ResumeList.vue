@@ -299,7 +299,8 @@ const loadResumes = async () => {
       params.subStatus = subStatus.value
     }
 
-    const res = await get('/resumes', { params })
+    // 2026-07-01 花无缺: 之前是 '/resumes' (404), 实际后端在 '/scraped-resumes/'
+    const res = await get('/scraped-resumes', { params })
     if (res.data.success) {
       resumeList.value = res.data.data.list
       total.value = res.data.data.total

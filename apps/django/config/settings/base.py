@@ -114,7 +114,8 @@ LOCAL_APPS = [
     'apps.talent_pool',
     'apps.channel',
     'apps.analytics',
-    # 2026-06-29 花无缺: 补缺失的 stub app, 真实业务留给 G30/G35/G41 任务实现
+
+    'apps.mou',             # 2026-07-01 花无缺: MOU 业务 (大客户协议), 暂未挂 config/urls (stub 在 referral/urls_stubs)
     'apps.library',         # G41 院校/公司信息库
     'apps.scraped_resume',  # G30 RPA 简历抓取
     'apps.external_sync',   # G40 外部系统同步

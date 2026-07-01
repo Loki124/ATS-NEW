@@ -79,7 +79,8 @@ const movePoolOptions = computed(() =>
 )
 
 async function loadPoolTypes() {
-  const res = await api.get('/api/talent-pool/types')
+  // 2026-07-01 花无缺: FE 之前是 '/api/talent-pool/types' (双 api 前缀), 改 '/talent-pool/types'
+  const res = await api.get('/talent-pool/types')
   poolDefs.value = res.data?.data || {}
   if (!activePool.value && Object.keys(poolDefs.value).length) {
     activePool.value = Object.keys(poolDefs.value)[0]
