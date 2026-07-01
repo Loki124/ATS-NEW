@@ -77,6 +77,22 @@ class InvitationViewSet(AuditMixin, viewsets.ModelViewSet):
         serializer = InvitationListSerializer(qs, many=True)
         return Response({'success': True, 'data': serializer.data})
 
+    @action(detail=False, methods=['get'], url_path='claimable')
+    def claimable(self, request):
+        """可领取邀约 (grab-pool alias). 2026-07-01 stub: 走 grab-pool 同逻辑, FE 命名习惯 claimable."""
+        qs = self.get_queryset().filter(is_grab_pool=True, state='INVITING')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = InvitationListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = InvitationListSerializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    @action(detail=False, methods=['get'], url_path='process-expired')
+    def process_expired(self, request):
+        """处理过期邀约 (定时任务用). 2026-07-01 stub: 返空 list."""
+        return Response({'success': True, 'data': [], 'count': 0})
+
     @action(detail=True, methods=['post'], url_path='grab')
     def grab(self, request, pk=None):
         """抢单 - 把邀约分配给当前用户"""

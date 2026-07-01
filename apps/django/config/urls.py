@@ -16,6 +16,10 @@ from apps.application.views import ApplicationViewSet
 api_v1_patterns = [
     # 认证
     path('auth/', include('apps.core.urls_auth')),
+    # 2026-07-01 花无缺: 把 urls_stubs 挂到 core.urls 之前, 避免 core/permissions router 抢
+    #   /permissions/{roles,functions,menus,user-info,permissions/list} 这些 stub path
+    #   (之前 line 60, 被 core 的 router.register(r'permissions', ...) 抢先吃掉)
+    path('', include('apps.referral.urls_stubs')),
     # 2026-06-17: G41 用户管理 + 组织架构 + 角色 + 权限码 4 个 ViewSet (apps/core/urls.py)
     # 挂到 '' 上: users→/api/v1/users/  departments→/api/v1/departments/  roles→/api/v1/roles/  permissions→/api/v1/permissions/
     path('', include('apps.core.urls')),
@@ -60,9 +64,10 @@ api_v1_patterns = [
     # 2026-07-01 花无缺: FE 调用了但 backend 缺实现的 22 个 endpoint 一次性 stub
     #   auth/register, auth/change-password, candidates/batch/*, recruitment-rules/*,
     #   recruitment-rounds/*, bulk-create, upload-and-parse, scoring/start,
-    #   offer-templates, search, evaluate, login (单数 alias)
+    #   offer-templates, search, evaluate, login (单数 alias), duplicate-check/ list
     # 详细 stub 逻辑在 apps.referral.urls_stubs (寄放 referral app, 仅是位置)
-    path('', include('apps.referral.urls_stubs')),
+    # 2026-07-01 update: urls_stubs 已挂到顶部 (line 21) 在 core.urls 之前, 避免被 permissions router 抢
+    # path('', include('apps.referral.urls_stubs')),
     path('talent-pool/', include('apps.talent_pool.urls')),
     path('channels/', include('apps.channel.urls')),
 
