@@ -1,10 +1,10 @@
-"""mou serializers - 2026-07-01 GET/PUT/POST 全部 camelCase + 兼容 FE 字段
+"""mou serializers - 2026-07-01 修 PUT 400 (scopes 是 nested object)
 
 设计:
-  - POST/PUT: FE 字段 (name/description/mouType/scopes) → backend 字段 (company_name/terms/scopes)
-    通过 create/update override 显式 pop + 转换
+  - POST/PUT: FE 字段 (name/description/mouType/scopes) → backend 字段 (company_name/terms/mou_type/scopes)
+    scopes 是 nested object: { menu: [], function: [], data: { scope: 'ALL', deptIds: [], userIds: [] } }
   - GET:  输出全部 camelCase (name/description/mouType 都补)
-  - scopes endpoint: /mou/{id}/scopes/ 返 MOU 的 scopes list
+  - scopes endpoint: /mou/{id}/scopes/ 返 MOU 的 scopes dict
 """
 import re
 import uuid
@@ -64,9 +64,9 @@ class MouContainerSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
 
 class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSerializer):
     id = serializers.CharField(required=False, allow_blank=True, read_only=True)
-    # 2026-07-01: company_name 显式字段, 必填
     company_name = serializers.CharField(required=False, allow_blank=True, default='')
-    scopes = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+    # 2026-07-01: scopes 是 JSONField, 接任意结构 (FE 是 nested object)
+    scopes = serializers.JSONField(required=False, default=dict)
 
     containers = MouContainerSerializer(many=True, read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
@@ -88,7 +88,6 @@ class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
         return sum(c.quota_used for c in obj.containers.all())
 
     def to_representation(self, instance):
-        # 补 FE 字段 name / description / mouType
         ret = super().to_representation(instance)
         ret['name'] = instance.company_name
         ret['description'] = instance.terms
@@ -96,9 +95,7 @@ class MouAgreementSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
         return ret
 
     def to_internal_value(self, data):
-        # 1. camelCase → snake_case (MixIn)
         converted = _convert_keys_to_snake(data) if isinstance(data, dict) else data
-        # 2. FE 字段映射: name → company_name, description → terms, mouType → mou_type
         if isinstance(converted, dict):
             if 'name' in converted and 'company_name' not in converted:
                 converted['company_name'] = converted.pop('name')
