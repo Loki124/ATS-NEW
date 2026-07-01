@@ -114,7 +114,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
           { path: 'user-management', name: 'UserManagement', component: () => import(/* webpackChunkName: "settings-user" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
-          { path: 'permission', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permission" */ '../pages/settings/PermissionManagement.vue') },
+          // 2026-07-01 花无缺: 删 /settings/permission 路由 (G41 重构合并到 MOU)
+          // { path: 'permission', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permission" */ '../pages/settings/PermissionManagement.vue') },
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },

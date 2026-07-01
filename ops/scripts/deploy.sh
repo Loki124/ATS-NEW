@@ -4,10 +4,13 @@
 # 用法: bash /opt/ats/ATS-New/ops/scripts/deploy.sh [skip-build|skip-restart]
 set -e
 
+# PATH: hermes/root 默认 PATH 没 pnpm, 加 node-v23 (2026-07-01)
+export PATH="/opt/data/home/node-v23.10.0-linux-x64/bin:/usr/bin:/bin"
+
 cd /opt/ats/ATS-New
 
 # chmod 644 hermes 写的 (避免 gunicorn 600 PermissionError)
-chmod -R a+rX apps/django/apps/data apps/django/apps/duplicate_check apps/django/apps/external_sync apps/django/apps/scraped_resume apps/django/apps/library 2>/dev/null || true
+chmod -R a+rX apps/django/apps/data apps/django/apps/duplicate_check apps/django/apps/external_sync apps/django/apps/scraped_resume apps/django/apps/library apps/django/apps/mou 2>/dev/null || true
 
 # 1. build FE (if not skip-build)
 if [[ "${1:-}" != "skip-build" ]]; then
@@ -17,10 +20,13 @@ if [[ "${1:-}" != "skip-build" ]]; then
     cd web/app
     if [[ -f pnpm-lock.yaml ]]; then
       pnpm install --frozen-lockfile
+    elif [[ -f package-lock.json ]]; then
+      npm ci
     else
-      pnpm install
+      npm install
     fi
-    pnpm run build 2>&1 | tail -20
+    # 用 npm 跑 (pnpm 不一定在 PATH)
+    npm run build 2>&1 | tail -10
     cd ../..
     echo "  FE built"
   else
@@ -32,7 +38,8 @@ fi
 echo ""
 echo "=== 2/4 collectstatic ==="
 cd apps/django
-sudo -u loki .venv/bin/python manage.py collectstatic --noinput 2>&1 | tail -5
+# 2026-07-01: 显式传 DJANGO_SETTINGS_MODULE 避免 "unknown settings module, falling back to dev" 警告
+sudo -u loki env DJANGO_SETTINGS_MODULE=config.settings.prod .venv/bin/python manage.py collectstatic --noinput 2>&1 | tail -5
 cd ../..
 
 # 3. fix ownership

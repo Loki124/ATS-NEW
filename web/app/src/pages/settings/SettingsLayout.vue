@@ -89,7 +89,7 @@ const subMenuOptions = [
     children: [
       { key: '/settings/department', label: '部门管理', icon: renderIcon(BusinessOutline) },
       { key: '/settings/user-management', label: '用户管理', icon: renderIcon(PeopleOutline) },
-      { key: '/settings/permission', label: '权限管理', icon: renderIcon(KeyOutline) },
+      // 2026-07-01 花无缺: 删 '权限管理' 菜单 (G41 待重构, 合并到 MOU 权限管理)
       { key: '/settings/mou', label: 'MOU权限管理', icon: renderIcon(LockClosedOutline) },
     ],
   },
