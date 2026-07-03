@@ -1,24 +1,50 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
-import { NMessageProvider } from 'naive-ui'
+import { NMessageProvider, NDialogProvider } from 'naive-ui'
 import { nextTick } from 'vue'
 import type { RecruitmentProcess, ProcessStageLink } from '../../../api/recruitment-process'
 
+// API mock — vi.mock hoists; 路径深度 3 层 (__tests__ → settings → pages → src)
+const mockGetProcess = vi.fn()
+const mockListProcessLinks = vi.fn()
+const mockUpdateProcess = vi.fn()
+const mockListStages = vi.fn()
+const mockReorderProcessLinks = vi.fn()
+const mockAddProcessLink = vi.fn()
+const mockDeleteProcessLink = vi.fn()
+const mockUpdateProcessLink = vi.fn()
+
 vi.mock('../../../api/recruitment-process', () => ({
-  getProcess: vi.fn(),
-  listProcessLinks: vi.fn(),
+  getProcess: (...args: any[]) => mockGetProcess(...args),
+  listProcessLinks: (...args: any[]) => mockListProcessLinks(...args),
+  updateProcess: (...args: any[]) => mockUpdateProcess(...args),
+  listStages: (...args: any[]) => mockListStages(...args),
+  reorderProcessLinks: (...args: any[]) => mockReorderProcessLinks(...args),
+  addProcessLink: (...args: any[]) => mockAddProcessLink(...args),
+  deleteProcessLink: (...args: any[]) => mockDeleteProcessLink(...args),
+  updateProcessLink: (...args: any[]) => mockUpdateProcessLink(...args),
+  listProcesses: vi.fn(),
+  createProcess: vi.fn(),
+  deleteProcess: vi.fn(),
+  copyProcess: vi.fn(),
+  updateProcessStatus: vi.fn(),
+  upsertStageRule: vi.fn(),
+  upsertEntryCondition: vi.fn(),
+  evaluateEntryCondition: vi.fn(),
+  listStageRules: vi.fn(),
+  listEntryConditions: vi.fn(),
+  evaluateCandidateForStage: vi.fn(),
+  checkApplicationStageTransition: vi.fn(),
+  listRounds: vi.fn(),
+  createRound: vi.fn(),
+  updateRound: vi.fn(),
+  updateRoundStatus: vi.fn(),
 }))
 
-import { getProcess, listProcessLinks } from '../../../api/recruitment-process'
 import ProcessDetailModal from '../ProcessDetailModal.vue'
 
-const mockedGetProcess = vi.mocked(getProcess)
-const mockedListProcessLinks = vi.mocked(listProcessLinks)
-
-// Match the REAL RecruitmentProcess type:
-//   id, code, name, description?, status, applicableDepartments?, applicableMode,
-//   validateResumeScore, failPrompt?, createdAt, updatedAt, _count?, updater?, links?
+// 复用现有 PROCESS 形态 (status='ACTIVE', 匹配 recruitment-process.ts:36 类型)
 const PROCESS: RecruitmentProcess = {
   id: 'p1',
   code: 'P001',
@@ -32,11 +58,9 @@ const PROCESS: RecruitmentProcess = {
   createdAt: '2026-06-01T00:00:00Z',
   updatedAt: '2026-06-10T00:00:00Z',
 }
-
-// getProcess returns RecruitmentProcess & { stages, autoRules }; cast to that
 const PROCESS_FULL = { ...PROCESS, stages: [], autoRules: [] } as any
 
-// Match the REAL ProcessStageLink type: condition is EntryCondition | null (object)
+// 复用现有 STAGE_LINKS (3 条, 含 isSystem / isStart / isEnd)
 const STAGE_LINKS: ProcessStageLink[] = [
   {
     id: 'l1', processId: 'p1', stageId: 'st1', orderIndex: 1,
@@ -61,11 +85,8 @@ const STAGE_LINKS: ProcessStageLink[] = [
   },
 ]
 
+// factory: NMessageProvider 包 + attachTo document.body (n-modal teleport 逃出 wrapper)
 function factory(props: any) {
-  // NMessageProvider must wrap the component as a parent (not a plugin) so
-  // useMessage() resolves inside the child component's setup.
-  // n-modal teleports its body to document.body, so we attach to body to
-  // let @vue/test-utils see the teleported content.
   const Wrapper = defineComponent({
     setup(_, { slots }) {
       return () => h(NMessageProvider, null, { default: () => slots.default?.() })
@@ -82,59 +103,134 @@ describe('ProcessDetailModal.vue', () => {
   let wrapper: any
 
   beforeEach(() => {
-    mockedGetProcess.mockReset()
-    mockedListProcessLinks.mockReset()
-    // Clean up any previous body content (teleported modals)
+    mockGetProcess.mockReset()
+    mockListProcessLinks.mockReset()
+    mockUpdateProcess.mockReset()
+    mockListStages.mockReset()
+    mockReorderProcessLinks.mockReset()
+    mockAddProcessLink.mockReset()
+    mockDeleteProcessLink.mockReset()
+    mockUpdateProcessLink.mockReset()
+    mockGetProcess.mockResolvedValue(PROCESS_FULL)
+    mockListProcessLinks.mockResolvedValue(STAGE_LINKS)
+    mockListStages.mockResolvedValue([])
+    mockUpdateProcess.mockResolvedValue(PROCESS_FULL)
+    mockReorderProcessLinks.mockResolvedValue({ success: true })
+    mockAddProcessLink.mockResolvedValue({ id: 'new-link' })
+    mockDeleteProcessLink.mockResolvedValue({ success: true })
+    mockUpdateProcessLink.mockResolvedValue({ success: true })
     document.body.innerHTML = ''
   })
 
   afterEach(() => {
-    if (wrapper) {
-      wrapper.unmount()
-      wrapper = null
-    }
+    if (wrapper) { wrapper.unmount(); wrapper = null }
     document.body.innerHTML = ''
   })
 
+  // --- 旧契约 1 (保留) ---
   it('renders 3 cards in vertical single-column list', async () => {
-    mockedGetProcess.mockResolvedValue(PROCESS_FULL)
-    mockedListProcessLinks.mockResolvedValue(STAGE_LINKS)
-
     wrapper = factory({ show: true, processId: 'p1' })
     await flushPromises()
     await nextTick()
-
-    // n-modal teleports to document.body, so query the body directly
     expect(document.querySelectorAll('.stage-card')).toHaveLength(3)
   })
 
+  // --- 旧契约 2 (保留) ---
   it('shows system built-in badge on first and last stage', async () => {
-    mockedGetProcess.mockResolvedValue(PROCESS_FULL)
-    mockedListProcessLinks.mockResolvedValue(STAGE_LINKS)
-
     wrapper = factory({ show: true, processId: 'p1' })
     await flushPromises()
     await nextTick()
-
-    const badges = document.querySelectorAll('.stage-card__system-badge')
-    expect(badges).toHaveLength(2) // first and last
+    expect(document.querySelectorAll('.stage-card__system-badge')).toHaveLength(2)
   })
 
-  it('emits goEdit when click 前往编辑', async () => {
-    mockedGetProcess.mockResolvedValue(PROCESS_FULL)
-    mockedListProcessLinks.mockResolvedValue(STAGE_LINKS)
-
+  // --- 旧契约 3 (替换为 enterEdit) ---
+  it('emits enterEdit when click [编辑]', async () => {
     wrapper = factory({ show: true, processId: 'p1' })
     await flushPromises()
     await nextTick()
-
-    const btn = document.querySelector('[data-testid="btn-go-edit"]') as HTMLElement
+    const btn = document.querySelector('[data-testid="btn-enter-edit"]') as HTMLElement
     expect(btn).toBeTruthy()
     btn.click()
     await flushPromises()
-    // The inner ProcessDetailModal emits goEdit; check via findComponent
     const inner = wrapper.findComponent(ProcessDetailModal)
-    expect(inner.exists()).toBe(true)
-    expect(inner.emitted('goEdit')).toBeTruthy()
+    expect(inner.emitted('enterEdit')).toBeTruthy()
+  })
+
+  // --- 新契约 4 ---
+  it('enterEdit switches mode to edit and populates editForm', async () => {
+    wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
+    await flushPromises()
+    await nextTick()
+    // 用 defaultMode: 'edit' 直接进 edit 态, editForm.name 应等于 PROCESS.name
+    const nameInput = document.querySelector('input[placeholder="流程名称"]') as HTMLInputElement
+    expect(nameInput).toBeTruthy()
+    expect(nameInput.value).toBe('一级总及以上流程')
+  })
+
+  // --- 新契约 5 ---
+  it('cancelEdit with dirty state opens popconfirm', async () => {
+    wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
+    await flushPromises()
+    await nextTick()
+    // 改 name
+    const nameInput = document.querySelector('input[placeholder="流程名称"]') as HTMLInputElement
+    nameInput.value = '一级总及以上流程-改'
+    nameInput.dispatchEvent(new Event('input'))
+    await flushPromises()
+    // 点取消
+    const cancelBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '取消') as HTMLElement
+    expect(cancelBtn).toBeTruthy()
+    cancelBtn.click()
+    await flushPromises()
+    // popconfirm 应出现 (n-popconfirm 渲染 .n-popconfirm 容器)
+    expect(document.querySelectorAll('.n-popconfirm, .n-popover').length).toBeGreaterThan(0)
+  })
+
+  // --- 新契约 6 ---
+  it('save calls updateProcess and emits saved', async () => {
+    wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
+    await flushPromises()
+    await nextTick()
+    // 直接进 edit 态, 不修改任何字段, 点保存
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '保存') as HTMLElement
+    expect(saveBtn).toBeTruthy()
+    saveBtn.click()
+    await flushPromises()
+    expect(mockUpdateProcess).toHaveBeenCalledTimes(1)
+    const inner = wrapper.findComponent(ProcessDetailModal)
+    expect(inner.emitted('saved')).toBeTruthy()
+  })
+
+  // --- 新契约 7 ---
+  it('handle 409 from updateProcess opens conflict modal', async () => {
+    mockUpdateProcess.mockRejectedValueOnce({
+      response: { status: 409, data: { updatedBy: 'admin', updatedAt: '2026-07-02 10:30:00' } },
+    })
+    wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
+    await flushPromises()
+    await nextTick()
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '保存') as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(document.body.textContent).toContain('修改冲突')
+  })
+
+  // --- 新契约 8 ---
+  it('closing modal with dirty state in edit mode shows popconfirm', async () => {
+    wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
+    await flushPromises()
+    await nextTick()
+    // 修改字段
+    const nameInput = document.querySelector('input[placeholder="流程名称"]') as HTMLInputElement
+    nameInput.value = '一级总及以上流程-改'
+    nameInput.dispatchEvent(new Event('input'))
+    await flushPromises()
+    // 关 modal
+    const closeBtn = document.querySelector('.n-base-close') as HTMLElement
+    expect(closeBtn).toBeTruthy()
+    closeBtn.click()
+    await flushPromises()
+    // 弹 popconfirm (关闭被拦截)
+    expect(document.querySelectorAll('.n-popconfirm, .n-popover').length).toBeGreaterThan(0)
   })
 })
