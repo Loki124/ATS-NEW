@@ -11,8 +11,8 @@
   单测契约保留 (4 条不变量):
   - .stage-card = 每 link 一个根容器
   - .stage-card__system-badge = 首末 2 个
-  - [data-testid=btn-go-edit] = footer 前往编辑按钮
-  - emitted('goEdit') = 点击前往编辑触发
+  - [data-testid=btn-enter-edit] = view 态 HERO 编辑按钮 (Task 2 新契约)
+  - emitted('enterEdit') = 点击编辑触发
 -->
 <template>
   <n-modal
@@ -592,14 +592,6 @@
           <template #icon><n-icon :component="CopyOutline" /></template>
           复制此流程
         </n-button>
-        <n-button
-          v-if="mode === 'view'"
-          type="primary"
-          data-testid="btn-go-edit"
-          @click="onGoEdit"
-        >
-          前往编辑
-        </n-button>
       </n-space>
     </template>
   </n-modal>
@@ -695,7 +687,6 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void
-  (e: 'goEdit', processId: string): void
   (e: 'enterEdit', id: string): void
   (e: 'copied', newProcessId: string): void
   (e: 'saved', processId: string): void
@@ -899,11 +890,6 @@ watch(
   },
   { immediate: true },
 )
-
-function onGoEdit() {
-  if (!props.processId) return
-  emit('goEdit', props.processId)
-}
 
 // ===== Task 3: utils =====
 function formatDate(s: string | undefined | null): string {
