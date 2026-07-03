@@ -48,7 +48,7 @@ export const getKpi = () =>
   api.get('/data/kpi/').then((r) => r.data.data);
 
 export const exportResource = (resource: string, format: 'csv' | 'json' = 'csv', fields?: string[]) =>
-  api.get(`/data/export/${resource}`, {
+  api.get(`/data/export/${resource}/`, {
     params: { format, fields: fields?.join(',') },
     responseType: 'blob',
   }).then((r) => r.data);
@@ -60,7 +60,7 @@ export const createSubscription = (body: Partial<DataSubscription>) =>
   api.post('/data/subscriptions/', body).then((r) => r.data.data);
 
 export const deleteSubscription = (id: string) =>
-  api.delete(`/data/subscriptions/${id}`).then((r) => r.data);
+  api.delete(`/data/subscriptions/${id}/`).then((r) => r.data);
 
 export const RESOURCE_OPTIONS = [
   { label: '候选人 Candidate', value: 'Candidate' },

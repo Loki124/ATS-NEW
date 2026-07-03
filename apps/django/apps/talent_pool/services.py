@@ -14,14 +14,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.candidate.models import Candidate, CandidateState
 from apps.common.exceptions import NotFound
 from apps.core.models import User
 
-from .models import TalentPoolEntry, EntrySource
+from .models import TalentPoolEntry
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class TalentPoolService:
             raise NotFound(f'Candidate {candidate_id} not found') from e
 
         # 校验 entry_source
-        valid_sources = [s[0] for s in EntrySource.choices]
+        valid_sources = [s[0] for s in TalentPoolEntry.EntrySource.choices]
         if entry_source not in valid_sources:
             entry_source = 'MANUAL'
 
@@ -169,18 +169,23 @@ class TalentPoolService:
         - 不自动改候选人状态（由调用方决定：投递新职位 / 二次激活）
         """
         try:
-            entry = TalentPoolEntry.objects.get(
+            # 2026-07-02: 加 select_for_update 防并发激活双写, activated_count 用 F() 原子递增
+            entry = TalentPoolEntry.objects.select_for_update().get(
                 id=entry_id, is_active=True, deleted_at__isnull=True,
             )
         except TalentPoolEntry.DoesNotExist as e:
             raise NotFound(f'Pool entry {entry_id} not found') from e
 
-        entry.is_active = False
-        entry.last_activated_at = timezone.now()
-        entry.activated_count = (entry.activated_count or 0) + 1
+        now = timezone.now()
+        TalentPoolEntry.objects.filter(pk=entry.pk).update(
+            is_active=False,
+            last_activated_at=now,
+            activated_count=F('activated_count') + 1,
+        )
         if notes:
+            entry.refresh_from_db()
             entry.source_detail = (entry.source_detail or '') + f'\n[REACTIVATED] {notes}'
-        entry.save()
+            entry.save(update_fields=['source_detail', 'updated_at'])
 
         logger.info('Pool entry %s reactivated by %s', entry.id, actor.id if actor else 'system')
         return entry

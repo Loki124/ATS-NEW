@@ -203,6 +203,14 @@ class ReplaceFileView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # 2026-07-02: IDOR fix — 只允许 draft 所有者 (或超管) 替换文件
+        #   之前缺校验 → HR-A 可用任意 draft_id 覆盖 HR-B 上传的简历 (PII 篡改)
+        if job.actor_id != request.user.id and not request.user.is_superuser:
+            return Response(
+                {'detail': 'Permission denied', 'code': 'FORBIDDEN'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # 保存新文件（复用原 job_id，避免前端引用断裂）
         year_month = f'{timezone.now().year}/{timezone.now().month:02d}'
         rel_path = f'resumes/{year_month}/{job.job_id}{ext}'
@@ -248,8 +256,21 @@ class BulkCreateView(APIView):
         data = serializer.validated_data
 
         # 收集 draft_id → ParseJob 映射（用于补充 name/phone/email/parsed_data）
+        # 2026-07-02: IDOR fix — 只过滤当前 actor 的 drafts, 防 HR-A 用 HR-B 的 draft_id 偷走数据
         draft_ids = [d['draft_id'] for d in data['drafts']]
-        jobs = {j.draft_id: j for j in ParseJob.objects.filter(draft_id__in=draft_ids)}
+        jobs = {
+            j.draft_id: j for j in ParseJob.objects.filter(
+                draft_id__in=draft_ids, actor=request.user
+            )
+        }
+        # 找出不属于当前 actor 的 draft_id 列表, 全部拒绝
+        foreign_drafts = [d for d in draft_ids if d not in jobs]
+        if foreign_drafts:
+            return Response(
+                {'detail': f'以下 draft 属于其他用户, 无权提交: {foreign_drafts}',
+                 'code': 'FOREIGN_DRAFT_FORBIDDEN', 'foreign_drafts': foreign_drafts},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # 转 BulkCreateDraft
         drafts = []
@@ -299,6 +320,13 @@ class BulkCreateView(APIView):
             logger.warning('Celery unavailable, falling back to local task_id: %s', e)
             task_id = f'local_{uuid.uuid4().hex[:12]}'
 
+        # 2026-07-02: IDOR fix — 记 task_id → actor 关系到 redis, SSE 流校验用
+        try:
+            from apps.add_candidate.sse import _get_redis
+            _get_redis().setex(f'add_candidate:scoring:owner:{task_id}', 3600, str(request.user.id))
+        except Exception:
+            logger.warning('Failed to record scoring task owner (task_id=%s)', task_id)
+
         return Response({
             'task_id': task_id,
             'created_candidate_ids': result.created_candidate_ids,
@@ -326,6 +354,13 @@ class ScoringStartView(APIView):
             submit_mode='async',
             task_id=data['task_id'],
         )
+
+        # 2026-07-02: IDOR fix — 记 owner 到 redis (SSE 流校验)
+        try:
+            from apps.add_candidate.sse import _get_redis
+            _get_redis().setex(f'add_candidate:scoring:owner:{data["task_id"]}', 3600, str(request.user.id))
+        except Exception:
+            logger.warning('Failed to record scoring task owner (task_id=%s)', data['task_id'])
 
         return Response({
             'stream_url': f'/api/v1/candidates/add-candidate/scoring/stream/{data["task_id"]}/',

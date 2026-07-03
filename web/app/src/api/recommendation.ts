@@ -42,13 +42,13 @@ export interface RecommendedCandidate {
 
 /** 给定候选人 → 推荐职位列表 */
 export async function recommendPositionsForCandidate(candidateId: string, limit = 10) {
-  const { data } = await api.get(`/recommendations/positions/for-candidate/${candidateId}`, { params: { limit } });
+  const { data } = await api.get(`/recommendations/positions/for-candidate/${candidateId}/`, { params: { limit } });
   return data.data as RecommendedPosition[];
 }
 
 /** 给定职位 → 推荐候选人列表 */
 export async function recommendCandidatesForPosition(positionId: string, limit = 10) {
-  const { data } = await api.get(`/recommendations/candidates/for-position/${positionId}`, { params: { limit } });
+  const { data } = await api.get(`/recommendations/candidates/for-position/${positionId}/`, { params: { limit } });
   return data.data as RecommendedCandidate[];
 }
 

@@ -388,7 +388,7 @@ const handleDeptSubmit = async () => {
       status: formState.status,
     };
     if (editingDept.value) {
-      const res = await api.put(`/departments/${editingDept.value.id}`, payload);
+      const res = await api.put(`/departments/${editingDept.value.id}/`, payload);
       if (res.data?.success) {
         message.success('部门更新成功');
         closeDeptModal();
@@ -416,7 +416,7 @@ const handleDeptSubmit = async () => {
 // 删除
 const handleDelete = async (record: Department) => {
   try {
-    const res = await api.delete(`/departments/${record.id}`);
+    const res = await api.delete(`/departments/${record.id}/`);
     if (res.data?.success) {
       message.success('部门删除成功');
       loadDepartments();

@@ -149,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick } from 'vue'
+import { ref, reactive, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
 import { PersonOutline, LockClosedOutline } from '@vicons/ionicons5'
@@ -232,7 +232,12 @@ const handleLogin = async (values: { username: string; password: string }) => {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
+    // 2026-07-02: 网络错误 / 5xx 时给用户反馈, 之前只 console.error 用户无感
     console.error('[login] error:', error?.response?.status, error?.message)
+    const msg = error?.response?.data?.message
+      || error?.message
+      || '网络错误, 请稍后重试'
+    message.error(msg)
   } finally {
     loading.value = false
   }
@@ -258,15 +263,25 @@ const sendCode = () => {
   }
   codeSent.value = true
   countdown.value = 60
-  const timer = setInterval(() => {
+  // 2026-07-02: setInterval 提到外面, onBeforeUnmount 清掉, 防路由切换后计时器泄漏
+  if (codeTimer !== null) clearInterval(codeTimer)
+  codeTimer = setInterval(() => {
     countdown.value--
     if (countdown.value <= 0) {
-      clearInterval(timer)
+      if (codeTimer !== null) {
+        clearInterval(codeTimer)
+        codeTimer = null
+      }
       codeSent.value = false
     }
   }, 1000)
   message.success('验证码已发送')
 }
+
+let codeTimer: ReturnType<typeof setInterval> | null = null
+onBeforeUnmount(() => {
+  if (codeTimer !== null) clearInterval(codeTimer)
+})
 </script>
 
 <style scoped>

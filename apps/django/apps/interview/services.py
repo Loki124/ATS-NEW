@@ -87,22 +87,26 @@ class InterviewService:
         return evaluation
 
     @staticmethod
+    @transaction.atomic
     def mark_completed(interview_id: str, actor: User) -> Interview:
-        interview = Interview.objects.get(id=interview_id, deleted_at__isnull=True)
+        # 2026-07-02: select_for_update 防并发完成/取消双写
+        interview = Interview.objects.select_for_update().get(id=interview_id, deleted_at__isnull=True)
         interview.status = InterviewStatus.COMPLETED
         interview.save()
         return interview
 
     @staticmethod
+    @transaction.atomic
     def cancel(interview_id: str, reason: str, actor: User) -> Interview:
-        interview = Interview.objects.get(id=interview_id, deleted_at__isnull=True)
+        interview = Interview.objects.select_for_update().get(id=interview_id, deleted_at__isnull=True)
         interview.status = InterviewStatus.CANCELLED
         interview.save()
         return interview
 
     @staticmethod
+    @transaction.atomic
     def mark_no_show(interview_id: str, actor: User) -> Interview:
-        interview = Interview.objects.get(id=interview_id, deleted_at__isnull=True)
+        interview = Interview.objects.select_for_update().get(id=interview_id, deleted_at__isnull=True)
         interview.status = InterviewStatus.NO_SHOW
         interview.save()
         return interview

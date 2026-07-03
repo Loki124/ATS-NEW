@@ -170,7 +170,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     // 1) 创建候选人
-    const candidateRes = await api.post('/candidates', {
+    const candidateRes = await api.post('/candidates/', {
       name: form.name,
       phone: form.phone,
       email: form.email || undefined,

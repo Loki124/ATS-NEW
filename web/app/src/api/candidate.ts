@@ -44,7 +44,7 @@ export async function listCandidates(params: { page?: number; pageSize?: number;
 
 // 详情
 export async function getCandidate(id: string) {
-  const { data } = await api.get(`/candidates/${id}`)
+  const { data } = await api.get(`/candidates/${id}/`)
   return data
 }
 
@@ -125,7 +125,7 @@ export async function fetchStatusSchema(): Promise<StatusSchema> {
 }
 
 export async function updateCandidateStatusDetail(id: string, key: string, value: StatusValue) {
-  const { data } = await api.put(`/candidates/${id}/status-details`, { key, value })
+  const { data } = await api.put(`/candidates/${id}/status-details/`, { key, value })
   return data
 }
 

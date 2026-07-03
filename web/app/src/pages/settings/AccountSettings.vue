@@ -317,7 +317,7 @@ const loadUserRoles = async () => {
     return
   }
   try {
-    const data = (await api.get(`/permissions/users/${user.value.id}/roles`)).data
+    const data = (await api.get(`/permissions/users/${user.value.id}/roles/`)).data
     if (data.success) {
       userRoles.value = data.data.map((ur: any) => ur.roleId)
     }
@@ -329,7 +329,7 @@ const loadUserRoles = async () => {
 // 加载角色列表
 const loadRoles = async () => {
   try {
-    const data = (await api.get('/permissions/roles')).data
+    const data = (await api.get('/permissions/roles/')).data
     if (data.success) {
       roles.value = data.data
     }
@@ -341,7 +341,7 @@ const loadRoles = async () => {
 // 加载用户权限信息
 const loadMyPermissions = async () => {
   try {
-    const data = (await api.get('/permissions/user-info')).data
+    const data = (await api.get('/permissions/user-info/')).data
     if (data.success) {
       myPermissions.value = {
         menus: data.data.menus || [],
@@ -365,7 +365,7 @@ const handleSaveProfile = async () => {
     return
   }
   try {
-    const data = (await api.put(`/users/${user.value.id}`, {
+    const data = (await api.put(`/users/${user.value.id}/`, {
         realName: formState.realName,
         email: formState.email,
         phone: formState.phone,
@@ -402,7 +402,7 @@ const handleSaveRoles = async (roleIds: string[]) => {
     return
   }
   try {
-    const data = (await api.post(`/permissions/users/${user.value.id}/roles`, { roleIds })).data
+    const data = (await api.post(`/permissions/users/${user.value.id}/roles/`, { roleIds })).data
     if (data.success) {
       message.success('角色分配成功')
       loadMyPermissions()

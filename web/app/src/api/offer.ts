@@ -94,17 +94,17 @@ export async function listOffers(params: { page?: number; pageSize?: number; off
 }
 
 export async function getOffer(id: string) {
-  const { data } = await api.get(`offers/${id}`);
+  const { data } = await api.get(`offers/${id}/`);
   return data;
 }
 
 export async function getOfferHistory(id: string) {
-  const { data } = await api.get(`offers/${id}/status-history`);
+  const { data } = await api.get(`offers/${id}/status-history/`);
   return data;
 }
 
 export async function transitionOffer(id: string, to: string, reason?: string) {
-  const { data } = await api.post(`offers/${id}/transition`, { to, reason });
+  const { data } = await api.post(`offers/${id}/transition/`, { to, reason });
   return data;
 }
 
@@ -163,12 +163,12 @@ export interface BackgroundCheck {
 }
 
 export async function listBackgroundChecks(offerId: string): Promise<BackgroundCheck[]> {
-  const { data } = await api.get(`/offers/${offerId}/background-checks`);
+  const { data } = await api.get(`/offers/${offerId}/background-checks/`);
   return data.data;
 }
 
 export async function createBackgroundCheck(offerId: string, payload: { checkType: string; supplier?: string; note?: string }): Promise<BackgroundCheck> {
-  const { data } = await api.post(`/offers/${offerId}/background-checks`, payload);
+  const { data } = await api.post(`/offers/${offerId}/background-checks/`, payload);
   return data.data;
 }
 
@@ -177,12 +177,12 @@ export async function completeBackgroundCheck(
   bid: string,
   payload: { level: 'PASS' | 'WARN' | 'INCONCLUSIVE' | 'FAIL'; risks?: any[]; reportPath?: string; reportUrl?: string; reportSize?: number },
 ): Promise<BackgroundCheck> {
-  const { data } = await api.put(`/offers/${offerId}/background-checks/${bid}/complete`, payload);
+  const { data } = await api.put(`/offers/${offerId}/background-checks/${bid}/complete/`, payload);
   return data.data;
 }
 
 export async function downloadBackgroundCheckReport(offerId: string, bid: string): Promise<Blob> {
-  const { data } = await api.get(`/offers/${offerId}/background-checks/${bid}/report`, { responseType: 'blob' });
+  const { data } = await api.get(`/offers/${offerId}/background-checks/${bid}/report/`, { responseType: 'blob' });
   return data;
 }
 

@@ -26,9 +26,18 @@ def advance_application_to_next_stage(
     skip_entry_condition: bool = False,
     reason: str = '',
 ) -> dict:
-    """推进申请到下一阶段"""
+    """推进申请到下一阶段
+
+    2026-07-02: 用 select_for_update 重载 application, 防并发推进同一 application
+    导致双阶段记录。
+    """
     from .models import Application, ApplicationStageRecord
     from apps.process.models import ProcessStageLink
+
+    # 在事务里重新锁行, caller 传入的 instance 不一定是最新的
+    application = (
+        Application.objects.select_for_update().get(pk=application.pk)
+    )
 
     if not application.current_link:
         return {
@@ -49,16 +58,21 @@ def advance_application_to_next_stage(
             'reason': 'no next stage',
         }
 
-    # 标记当前阶段完成
-    current_sr = ApplicationStageRecord.objects.filter(
-        application=application,
-        stage=application.current_stage,
-        state__in=[ApplicationStageRecord.StageState.NOT_STARTED,
-                   ApplicationStageRecord.StageState.PENDING,
-                   ApplicationStageRecord.StageState.PROCESSING,
-                   ApplicationStageRecord.StageState.TO_BE_SCHEDULED],
-        deleted_at__isnull=True,
-    ).order_by('-entered_at').first()
+    # 标记当前阶段完成 — 锁住 stage_record 防并发写
+    current_sr = (
+        ApplicationStageRecord.objects
+        .select_for_update()
+        .filter(
+            application=application,
+            stage=application.current_stage,
+            state__in=[ApplicationStageRecord.StageState.NOT_STARTED,
+                       ApplicationStageRecord.StageState.PENDING,
+                       ApplicationStageRecord.StageState.PROCESSING,
+                       ApplicationStageRecord.StageState.TO_BE_SCHEDULED],
+            deleted_at__isnull=True,
+        )
+        .order_by('-entered_at').first()
+    )
     if current_sr:
         current_sr.state = ApplicationStageRecord.StageState.PASSED
         current_sr.exited_at = timezone.now()

@@ -63,7 +63,9 @@ class ApplicationStageRecordSerializer(serializers.ModelSerializer):
 class ApplicationListSerializer(serializers.ModelSerializer):
     """申请列表"""
     candidate_name = serializers.CharField(source='candidate.name', read_only=True)
-    candidate_phone = serializers.CharField(source='candidate.phone', read_only=True)
+    # 2026-07-02: candidate_phone 在 list 端 mask, 详情端保留
+    # 之前 list 端任意 HR 都看全公司候选人手机号 (PII 泄漏)
+    candidate_phone = serializers.SerializerMethodField()
     position_title = serializers.CharField(source='position.title', read_only=True)
     position_code = serializers.CharField(source='position.code', read_only=True)
     process_name = serializers.CharField(source='process.name', read_only=True)
@@ -85,6 +87,17 @@ class ApplicationListSerializer(serializers.ModelSerializer):
             'is_grabbed', 'grabbed_by', 'grabbed_at', 'is_in_grab_pool',
             'created_at', 'last_advanced_at',
         ]
+
+    def get_candidate_phone(self, obj):
+        # 2026-07-02: 列表端根据角色 mask, 超管/Admin 可见, 普通 HR 见 **** 前缀
+        from apps.core.permissions import is_super_admin
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and is_super_admin(request.user):
+            return obj.candidate.phone
+        candidate_phone = obj.candidate.phone or ''
+        if len(candidate_phone) >= 7:
+            return candidate_phone[:3] + '****' + candidate_phone[-4:]
+        return '****' if candidate_phone else ''
 
     def get_is_overdue(self, obj) -> bool:
         from django.utils import timezone

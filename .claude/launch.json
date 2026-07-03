@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Django Backend",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["manage.py", "runserver", "0.0.0.0:8000"],
+      "port": 8000,
+      "cwd": "/Users/loki/ClaudeWorkSpace/ATS-NEW/apps/django"
+    },
+    {
+      "name": "Vue Frontend (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5212,
+      "cwd": "/Users/loki/ClaudeWorkSpace/ATS-NEW/web/app"
+    },
+    {
+      "name": "Gitee Webhook Receiver (deprecated)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/webhook.js"],
+      "port": 9876,
+      "cwd": "/Users/loki/ClaudeWorkSpace/ATS-NEW"
+    }
+  ]
+}

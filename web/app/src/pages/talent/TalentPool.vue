@@ -80,7 +80,7 @@ const movePoolOptions = computed(() =>
 
 async function loadPoolTypes() {
   // 2026-07-01 花无缺: FE 之前是 '/api/talent-pool/types' (双 api 前缀), 改 '/talent-pool/types'
-  const res = await api.get('/talent-pool/types')
+  const res = await api.get('/talent-pool/types/')
   poolDefs.value = res.data?.data || {}
   if (!activePool.value && Object.keys(poolDefs.value).length) {
     activePool.value = Object.keys(poolDefs.value)[0]
@@ -90,7 +90,7 @@ async function loadPoolTypes() {
 async function loadPoolStats() {
   loading.value = true
   try {
-    const res = await api.get('/api/talent-pool/stats')
+    const res = await api.get('/talent-pool/stats/')
     poolStats.value = res.data?.data?.stats || {}
   } catch (e: any) {
     message.error(`加载子库统计失败: ${e.message}`)
@@ -103,7 +103,7 @@ async function loadCandidates() {
   if (!activePool.value) return
   listLoading.value = true
   try {
-    const res = await api.get(`/api/talent-pool/pool/${activePool.value}`, {
+    const res = await api.get(`/talent-pool/pool/${activePool.value}/`, {
       params: { page: 1, pageSize: 50 },
     })
     candidates.value = res.data?.data?.list || []
@@ -128,7 +128,7 @@ async function confirmMove() {
     return
   }
   try {
-    await api.post(`/api/talent-pool/pool/${moveTargetPool.value}/move`, {
+    await api.post(`/talent-pool/pool/${moveTargetPool.value}/move/`, {
       candidateId: moveCandidate.value.id,
       reason: moveReason.value,
     })

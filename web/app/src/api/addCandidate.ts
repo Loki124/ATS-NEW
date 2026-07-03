@@ -185,3 +185,10 @@ export function openScoringStream(task_id: string): EventSource {
   const url = `${BASE}/scoring/stream/${task_id}/`
   return new EventSource(url)
 }
+
+/** 关闭 SSE 流 — 2026-07-02: 必须显式 close, 否则连接 + auth cookie 泄漏 */
+export function closeScoringStream(es: EventSource | null): void {
+  if (es) {
+    try { es.close() } catch { /* ignore */ }
+  }
+}

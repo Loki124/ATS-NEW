@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h } from 'vue'
+import { ref, computed, h, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { NAutoComplete, useMessage } from 'naive-ui'
 import {
@@ -77,23 +77,35 @@ function renderLabel(option: any) {
 }
 
 // ===== 搜索 =====
+// 2026-07-02: AbortController 防 race — 慢的旧请求 abort, 不再覆盖新结果
+let searchController: AbortController | null = null
 
 async function doSearch(q: string) {
   if (!q.trim()) {
     response.value = null
     return
   }
+  // 取消上一次未完成请求
+  if (searchController) searchController.abort()
+  searchController = new AbortController()
   loading.value = true
   error.value = null
   try {
-    response.value = await searchApi({ q, limit: 5 })
+    response.value = await searchApi({ q, limit: 5 }, { signal: searchController.signal })
   } catch (e: any) {
+    if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return
     error.value = e?.message || '搜索失败'
     message.error('搜索失败,请重试')
   } finally {
-    loading.value = false
+    if (searchController && !searchController.signal.aborted) {
+      loading.value = false
+    }
   }
 }
+
+onBeforeUnmount(() => {
+  if (searchController) searchController.abort()
+})
 
 const debouncedSearch = debounce(doSearch, 300)
 

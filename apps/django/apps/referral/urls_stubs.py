@@ -12,7 +12,8 @@ import uuid
 from django.urls import path
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from apps.core.views_auth import RegisterRateThrottle, ChangePasswordRateThrottle
 
 
 def _ok(data=None, code=200):
@@ -34,12 +35,14 @@ def _empty_list_view(request):
 # ============================================================
 @api_view(['POST'])
 @permission_classes([])
+@throttle_classes([RegisterRateThrottle])
 def auth_register(request):
     return _ok({'id': f'user-stub-{uuid.uuid4().hex[:8]}', 'username': request.data.get('username', 'new-user'), 'status': 'ACTIVE'})
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([ChangePasswordRateThrottle])
 def auth_change_password(request):
     return _ok({'message': '密码已更新 (stub)'})
 

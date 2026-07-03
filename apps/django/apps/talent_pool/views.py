@@ -1,4 +1,6 @@
 """Talent Pool Views (DRF) - PRD v4 §14.7"""
+from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -56,12 +58,15 @@ class TalentPoolEntryViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelView
 
     @action(detail=True, methods=['post'], url_path='activate')
     def activate(self, request, pk=None):
-        """激活人才库候选人"""
-        instance = self.get_object()
-        instance.activated_count = (instance.activated_count or 0) + 1
-        instance.last_activated_at = timezone.now()
-        instance.is_active = True
-        instance.save()
+        """激活人才库候选人 (2026-07-02: 改用 F() 原子递增 + select_for_update 防并发)"""
+        with transaction.atomic():
+            instance = self.get_object().__class__.objects.select_for_update().get(pk=pk)
+            instance.__class__.objects.filter(pk=instance.pk).update(
+                is_active=True,
+                last_activated_at=timezone.now(),
+                activated_count=F('activated_count') + 1,
+            )
+            instance.refresh_from_db()
         out = TalentPoolEntryDetailSerializer(instance, context={'request': request})
         return Response({'success': True, 'data': out.data})
 

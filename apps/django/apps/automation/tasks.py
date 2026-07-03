@@ -129,18 +129,24 @@ def check_automation_failure_rate() -> Dict:
                 'failed': failed,
                 'total': total,
             })
-            # 通知超管
+            # 通知超管 (2026-07-02: 改用 module-level send_notification, 之前 kwargs 错配导致静默失败)
             try:
+                from apps.notification.services import send_notification
                 admins = User.objects.filter(is_superuser=True, is_active=True)
                 for admin in admins:
-                    NotificationService.send_notification(
-                        recipient=admin,
-                        event='automation.failure_rate_alert',
-                        context={'rule': rule, 'failure_rate': rate},
-                        channels=['IN_APP', 'EMAIL'],
+                    send_notification(
+                        recipient_id=str(admin.id),
+                        title=f'自动化规则失败率告警: {rule.name}',
+                        content=f'规则 [{rule.name}] 失败率 {rate:.2%} 超过阈值 {threshold:.2%}',
+                        link=f'/automation/rules/{rule.id}',
+                        source='automation.failure_rate_alert',
+                        source_id=str(rule.id),
+                        channel='IN_APP',
+                        template_code='automation.failure_rate_alert',
+                        variables={'rule_id': str(rule.id), 'failure_rate': rate, 'threshold': threshold},
                     )
-            except Exception as e:
-                logger.exception(f'Failure rate notification failed: {e}')
+            except Exception:
+                logger.exception('Failure rate notification dispatch failed (rule_id=%s)', rule.id)
 
     return {
         'checked_at': timezone.now().isoformat(),

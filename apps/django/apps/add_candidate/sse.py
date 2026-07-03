@@ -80,6 +80,27 @@ class ScoringStreamView(APIView):
     permission_classes = [IsAuthenticated, IsHROrAbove]
 
     def get(self, request, task_id):
+        # 2026-07-02: IDOR fix — 校验 task_id 归属当前 actor (或超管)
+        #   之前缺校验 → HR-A 可订阅 HR-B 的 scoring 流, 偷看候选人评分细节
+        #   owner 写入由 ScoringStartView / BulkCreateView 在 redis hash 中完成
+        owner_key = f'add_candidate:scoring:owner:{task_id}'
+        owner_id = _get_redis().get(owner_key)
+        if owner_id is None:
+            from rest_framework.response import Response
+            from rest_framework import status as http_status
+            return Response(
+                {'detail': 'Task not found or expired', 'code': 'TASK_NOT_FOUND'},
+                status=http_status.HTTP_404_NOT_FOUND,
+            )
+        owner_id = owner_id.decode() if isinstance(owner_id, bytes) else str(owner_id)
+        if owner_id != str(request.user.id) and not request.user.is_superuser:
+            from rest_framework.response import Response
+            from rest_framework import status as http_status
+            return Response(
+                {'detail': 'Permission denied', 'code': 'FORBIDDEN'},
+                status=http_status.HTTP_403_FORBIDDEN,
+            )
+
         response = StreamingHttpResponse(
             _consume_events(task_id),
             content_type='text/event-stream',

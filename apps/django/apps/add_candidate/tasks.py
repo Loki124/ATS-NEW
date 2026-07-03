@@ -2,6 +2,7 @@
 import logging
 
 from celery import shared_task
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -12,53 +13,45 @@ def parse_resume_task(self, job_id):
 
     流程：parsing 阶段（调 Affinda） → checking 阶段（查重） → done
     失败：ParseError 立即 fail（不重试）；其他异常重试 3 次
+
+    2026-07-02: 全流程用 select_for_update 锁 job 行, 防并发重试导致
+    progress/phase 倒序覆盖。
     """
     from .models import ParseJob
     from .services.resume_parser import ResumeParserService, ParseError
     from .services.duplicate_check import DuplicateCheckService
 
     try:
-        job = ParseJob.objects.get(job_id=job_id)
+        with transaction.atomic():
+            job = ParseJob.objects.select_for_update().get(job_id=job_id)
     except ParseJob.DoesNotExist:
         logger.error('ParseJob %s not found', job_id)
         return
 
     try:
         # 1. 阶段：parsing
-        job.phase = 'parsing'
-        job.progress = 10
-        job.save(update_fields=['phase', 'progress'])
+        ParseJob.objects.filter(pk=job.pk).update(phase='parsing', progress=10)
 
-        # 2. 调 Affinda
+        # 2. 调 Affinda (网络 IO 在锁外, 这里只用短锁)
         with open(job.file_path, 'rb') as f:
             parsed = ResumeParserService.parse(f)
 
-        job.progress = 70
-        job.parsed_data = parsed.to_dict()
-        job.save(update_fields=['progress', 'parsed_data'])
-
         # 3. 阶段：checking
-        job.phase = 'checking'
-        job.progress = 80
-        job.save(update_fields=['phase', 'progress'])
-
-        # 4. 查重
-        info = DuplicateCheckService.find(
-            phone=parsed.phone or '',
-            email=parsed.email or '',
-            id_card='',
-            moka_id='',
-        )
-        job.duplicate_data = info.to_dict()
-        job.status = 'done'
-        job.progress = 100
-        job.save(update_fields=['duplicate_data', 'status', 'progress'])
+        with transaction.atomic():
+            info = DuplicateCheckService.find(
+                phone=parsed.phone or '',
+                email=parsed.email or '',
+                id_card='',
+                moka_id='',
+            )
+            ParseJob.objects.filter(pk=job.pk).update(
+                progress=100, status='done', phase='done',
+                parsed_data=parsed.to_dict(), duplicate_data=info.to_dict(),
+            )
 
     except ParseError as e:
         logger.error('ParseJob %s parse error: %s', job_id, e.code)
-        job.status = 'failed'
-        job.error = e.code
-        job.save(update_fields=['status', 'error'])
+        ParseJob.objects.filter(pk=job.pk).update(status='failed', error=e.code)
         # 不重试，配置错误/超时应该立即 fail
 
     except Exception as e:
@@ -67,9 +60,9 @@ def parse_resume_task(self, job_id):
         try:
             raise self.retry(exc=e)
         except self.MaxRetriesExceededError:
-            job.status = 'failed'
-            job.error = 'MAX_RETRIES_EXCEEDED'
-            job.save(update_fields=['status', 'error'])
+            ParseJob.objects.filter(pk=job.pk).update(
+                status='failed', error='MAX_RETRIES_EXCEEDED',
+            )
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5, queue='scoring')

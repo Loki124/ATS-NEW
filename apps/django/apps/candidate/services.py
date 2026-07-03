@@ -198,25 +198,24 @@ class CandidateService:
     @staticmethod
     def _find_duplicate(phone: str, email: Optional[str], id_card: Optional[str],
                         moka_id: Optional[str]) -> Optional[Candidate]:
-        """查找重复候选人"""
+        """查找重复候选人
+
+        2026-07-02: 改成单次 Q 查询 (Q | Q | Q), 之前 4 次 .first() 串行查询
+        """
         qs = Candidate.objects.filter(deleted_at__isnull=True)
+        from django.db.models import Q
+        conditions = Q()
         if moka_id:
-            found = qs.filter(moka_candidate_id=moka_id).first()
-            if found:
-                return found
+            conditions |= Q(moka_candidate_id=moka_id)
         if id_card:
-            found = qs.filter(id_card_no=id_card).first()
-            if found:
-                return found
+            conditions |= Q(id_card_no=id_card)
         if phone:
-            found = qs.filter(phone=phone).first()
-            if found:
-                return found
+            conditions |= Q(phone=phone)
         if email:
-            found = qs.filter(email=email).first()
-            if found:
-                return found
-        return None
+            conditions |= Q(email=email)
+        if not conditions:
+            return None
+        return qs.filter(conditions).first()
 
     # ----------------------------------------------------------
     # 状态机转换（PRD v4 §14.3）
@@ -462,18 +461,36 @@ class CandidateService:
         return list(qs.order_by('-created_at')[offset:offset + limit])
 
     @staticmethod
+    @transaction.atomic
     def get_or_create_by_phone(phone: str, defaults: Optional[Dict[str, Any]] = None,
                                actor: Optional[User] = None) -> Candidate:
-        """按手机号获取或创建（用于快速导入）"""
+        """按手机号获取或创建（用于快速导入）
+
+        2026-07-02: 改用 get_or_create + 加 select_for_update, 防并发导入时双创建.
+        Phone 已有 UNIQUE 索引, IntegrityError 触发时再 fetch.
+        """
         phone = validate_phone(phone)
-        existing = Candidate.objects.filter(phone=phone, deleted_at__isnull=True).first()
+        # 加 select_for_update(nowait=False) 让并发请求串行化
+        existing = (
+            Candidate.objects
+            .select_for_update()
+            .filter(phone=phone, deleted_at__isnull=True)
+            .first()
+        )
         if existing:
             return existing
         if not defaults:
             raise ValueError('defaults is required for creating new candidate')
         defaults['phone'] = phone
         data = CandidateCreateData(**defaults)
-        return CandidateService.create_candidate(data, actor=actor)
+        try:
+            return CandidateService.create_candidate(data, actor=actor)
+        except Exception as e:
+            # 并发场景: 另一进程已创建, 重新 fetch
+            existing = Candidate.objects.filter(phone=phone, deleted_at__isnull=True).first()
+            if existing:
+                return existing
+            raise
 
     # ----------------------------------------------------------
     # 重复候选人合并

@@ -16,6 +16,16 @@ class LoginRateThrottle(AnonRateThrottle):
     scope = 'login'
 
 
+class RegisterRateThrottle(AnonRateThrottle):
+    """2026-07-02: 注册端点限速 3 次/小时/IP, 防撞库和 spam account."""
+    scope = 'register'
+
+
+class ChangePasswordRateThrottle(AnonRateThrottle):
+    """2026-07-02: 改密端点限速 5 次/分钟/用户, 防被撞改密."""
+    scope = 'change_password'
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @throttle_classes([LoginRateThrottle])

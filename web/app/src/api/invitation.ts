@@ -95,7 +95,7 @@ export async function getClaimPool() {
 }
 
 export async function getInvitation(id: string) {
-  const { data } = await api.get(`invitations/${id}`);
+  const { data } = await api.get(`invitations/${id}/`);
   return data;
 }
 
@@ -103,24 +103,24 @@ export async function enterPool(id: string, reason?: string) {
   // 2026-06-29 花无缺: 后端 InvitationViewSet 实际只有 /transition (统一 action 路由),
   //   FE 调独立的 /enter-pool /claim /contact /result /intervene /terminate 全部 404.
   //   全部改用 /transition + action body (后端 state machine 走同一入口)
-  const { data } = await api.post(`invitations/${id}/transition`, { action: 'enter_pool', reason })
+  const { data } = await api.post(`invitations/${id}/transition/`, { action: 'enter_pool', reason })
   return data
 }
 
 export async function claim(id: string) {
-  const { data } = await api.post(`invitations/${id}/transition`, { action: 'claim' })
+  const { data } = await api.post(`invitations/${id}/transition/`, { action: 'claim' })
   return data
 }
 
 export async function markContacted(id: string, note?: string) {
   // /contact → /transition + 'contact' action
-  const { data } = await api.post(`invitations/${id}/transition`, { action: 'contact', note })
+  const { data } = await api.post(`invitations/${id}/transition/`, { action: 'contact', note })
   return data
 }
 
 export async function markResult(id: string, success: boolean, reason?: string) {
   // /result → /transition + 'success' or 'fail' action
-  const { data } = await api.post(`invitations/${id}/transition`, {
+  const { data } = await api.post(`invitations/${id}/transition/`, {
     action: success ? 'success' : 'fail',
     reason,
   })
@@ -128,12 +128,12 @@ export async function markResult(id: string, success: boolean, reason?: string) 
 }
 
 export async function intervene(id: string, reason?: string) {
-  const { data } = await api.post(`invitations/${id}/transition`, { action: 'intervene', reason })
+  const { data } = await api.post(`invitations/${id}/transition/`, { action: 'intervene', reason })
   return data
 }
 
 export async function terminate(id: string, reason?: string) {
-  const { data } = await api.post(`invitations/${id}/transition`, { action: 'terminate', reason })
+  const { data } = await api.post(`invitations/${id}/transition/`, { action: 'terminate', reason })
   return data
 }
 

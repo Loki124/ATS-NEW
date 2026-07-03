@@ -60,29 +60,34 @@ class OnboardingService:
         return ob
 
     @staticmethod
+    @transaction.atomic
     def start_preparing(onboarding_id: str, actor: User) -> Onboarding:
-        ob = Onboarding.objects.get(id=onboarding_id, deleted_at__isnull=True)
+        # 2026-07-02: 加 select_for_update 锁, 防并发 start_preparing 重复触发
+        ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
         ob.start_preparing()
         ob.save()
         return ob
 
     @staticmethod
+    @transaction.atomic
     def complete_item(onboarding_id: str, item: str, actor: User) -> Onboarding:
-        ob = Onboarding.objects.get(id=onboarding_id, deleted_at__isnull=True)
+        ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
         ob.todo_completed[item] = True
         ob.save(update_fields=['todo_completed', 'updated_at'])
         return ob
 
     @staticmethod
+    @transaction.atomic
     def mark_completed(onboarding_id: str, actor: User) -> Onboarding:
-        ob = Onboarding.objects.get(id=onboarding_id, deleted_at__isnull=True)
+        ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
         ob.complete()
         ob.save()
         return ob
 
     @staticmethod
+    @transaction.atomic
     def delay(onboarding_id: str, new_date: str, reason: str, actor: User) -> Onboarding:
-        ob = Onboarding.objects.get(id=onboarding_id, deleted_at__isnull=True)
+        ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
         from datetime import datetime
         new_start = datetime.strptime(new_date, '%Y-%m-%d').date()
         ob.delay(new_start)
@@ -90,15 +95,17 @@ class OnboardingService:
         return ob
 
     @staticmethod
+    @transaction.atomic
     def enter_probation(onboarding_id: str, actor: User) -> Onboarding:
-        ob = Onboarding.objects.get(id=onboarding_id, deleted_at__isnull=True)
+        ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
         ob.enter_probation()
         ob.save()
         return ob
 
     @staticmethod
+    @transaction.atomic
     def regularize(onboarding_id: str, result: str, actor: User) -> Onboarding:
-        ob = Onboarding.objects.get(id=onboarding_id, deleted_at__isnull=True)
+        ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
         ob.regularize(result=result)
         ob.save()
         return ob

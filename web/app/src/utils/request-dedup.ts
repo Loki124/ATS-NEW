@@ -86,7 +86,7 @@ export class RequestDedup {
 
   /**
    * 包装 axios 调用
-   *   - 用法: dedup.wrapAxios(() => api.get('/users'))
+   *   - 用法: dedup.wrapAxios(() => api.get('/users/'))
    */
   wrapAxios<T>(fn: () => Promise<T>, key: string): Promise<T> {
     const existing = this.pending.get(key)

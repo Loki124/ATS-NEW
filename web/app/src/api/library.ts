@@ -33,7 +33,7 @@ export const searchSchools = (params?: any) =>
   api.get('/library/schools/', { params }).then((r) => r.data.data);
 
 export const getSchool = (id: string) =>
-  api.get(`/library/schools/${id}`).then((r) => r.data.data);
+  api.get(`/library/schools/${id}/`).then((r) => r.data.data);
 
 export const listSchoolProvinces = () =>
   api.get('/library/schools/provinces/').then((r) => r.data.data);
@@ -54,7 +54,7 @@ export const searchCompanies = (params?: any) =>
   api.get('/library/companies/', { params }).then((r) => r.data.data);
 
 export const getCompany = (id: string) =>
-  api.get(`/library/companies/${id}`).then((r) => r.data.data);
+  api.get(`/library/companies/${id}/`).then((r) => r.data.data);
 
 export const listCompanyIndustries = () =>
   api.get('/library/companies/industries/').then((r) => r.data.data);

@@ -36,7 +36,7 @@ export const useDemandStore = defineStore('demand', () => {
     }
     loading.value = true
     try {
-      const res = await api.get('/demands')
+      const res = await api.get('/demands/')
       if (res.data?.success) {
         demands.value = res.data.data || []
         lastFetched.value = Date.now()

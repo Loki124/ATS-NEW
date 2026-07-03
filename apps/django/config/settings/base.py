@@ -59,6 +59,17 @@ SECRET_KEY = env('DJANGO_SECRET_KEY', default='insecure-dev-key-change-me')
 DEBUG = env('DJANGO_DEBUG')
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
 
+# 2026-07-02: HTTPS / cookie 安全 (生产环境由 prod.py 强制开启)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+X_FRAME_OPTIONS = 'DENY'
+
+# session/cookie 安全 - dev/staging 默认 False (HTTP 本地), prod.py 覆盖
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = True  # JS 不需读 csrftoken
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 # === 应用 ===
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -294,6 +305,9 @@ REST_FRAMEWORK = {
         'user': '1000/minute',
         # Fix 6: 登录端点限速 5/min/IP, 防密码爆破
         'login': '5/minute',
+        # 2026-07-02: 注册 + 改密限速, 防撞库和 spam account
+        'register': '3/hour',
+        'change_password': '5/minute',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',

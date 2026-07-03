@@ -66,7 +66,7 @@ export async function listOnboardings(params: { page?: number; pageSize?: number
 }
 
 export async function transitionOnboarding(id: string, to: string, reason?: string) {
-  const { data } = await api.post(`onboardings/${id}/transition`, { to, reason });
+  const { data } = await api.post(`onboardings/${id}/transition/`, { to, reason });
   return data;
 }
 

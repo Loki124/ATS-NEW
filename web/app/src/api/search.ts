@@ -71,13 +71,17 @@ export function entityLabel(t: SearchEntityType): string {
  * 调后端 /api/search
  * 自动截断 q 到 64 字符
  */
-export async function searchApi(params: SearchParams): Promise<SearchResponse> {
+export async function searchApi(
+  params: SearchParams,
+  options?: { signal?: AbortSignal },
+): Promise<SearchResponse> {
   const q = params.q.slice(0, 64)
   const types = params.types?.length ? params.types.join(',') : undefined
   const limit = params.limit ?? 5
 
-  const res = await api.get<SearchResponse>('/search', {
+  const res = await api.get<SearchResponse>('/search/', {
     params: { q, types, limit },
+    signal: options?.signal,
   })
   return res.data
 }

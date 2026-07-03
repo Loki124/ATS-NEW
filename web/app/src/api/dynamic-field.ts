@@ -46,22 +46,22 @@ export interface FieldDefinition {
 }
 
 export const listFields = (resource: string) =>
-  api.get(`/dynamic-fields/${resource}/fields`).then((r) => r.data.data);
+  api.get(`/dynamic-fields/${resource}/fields/`).then((r) => r.data.data);
 
 export const getField = (resource: string, key: string) =>
-  api.get(`/dynamic-fields/${resource}/fields/${key}`).then((r) => r.data.data);
+  api.get(`/dynamic-fields/${resource}/fields/${key}/`).then((r) => r.data.data);
 
 export const upsertField = (resource: string, body: Partial<FieldDefinition>) =>
-  api.post(`/dynamic-fields/${resource}/fields`, body).then((r) => r.data.data);
+  api.post(`/dynamic-fields/${resource}/fields/`, body).then((r) => r.data.data);
 
 export const deleteField = (resource: string, id: string) =>
-  api.delete(`/dynamic-fields/${resource}/fields/${id}`).then((r) => r.data);
+  api.delete(`/dynamic-fields/${resource}/fields/${id}/`).then((r) => r.data);
 
 export const reorderFields = (resource: string, orderedIds: string[]) =>
-  api.put(`/dynamic-fields/${resource}/fields/reorder`, { orderedIds }).then((r) => r.data);
+  api.put(`/dynamic-fields/${resource}/fields/reorder/`, { orderedIds }).then((r) => r.data);
 
 export const validateValue = (resource: string, id: string, value: any) =>
-  api.post(`/dynamic-fields/${resource}/fields/${id}/validate`, { value }).then((r) => r.data.data);
+  api.post(`/dynamic-fields/${resource}/fields/${id}/validate/`, { value }).then((r) => r.data.data);
 
 export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '文本', value: 'TEXT' },

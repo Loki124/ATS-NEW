@@ -63,62 +63,75 @@ class OfferService:
         return offer
 
     @staticmethod
+    @transaction.atomic
     def submit_approval(offer_id: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        # 2026-07-02: 加 select_for_update 锁, 防并发双审
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.submit_approval()
         offer.save()
         return offer
 
     @staticmethod
+    @transaction.atomic
     def approve(offer_id: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.approver = actor
         offer.approve()
         offer.save()
         return offer
 
     @staticmethod
+    @transaction.atomic
     def reject(offer_id: str, reason: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.reject()
         offer.save()
         return offer
 
     @staticmethod
+    @transaction.atomic
     def send_to_candidate(offer_id: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.send()
         offer.save()
-        # 触发通知
+        # 触发通知 (2026-07-02: 用模块级便捷函数, 之前 kwargs 错配 → 100% 静默失败)
         try:
-            from apps.notification.services import NotificationService
-            NotificationService.send_notification(
-                recipient=offer.candidate,
-                event='offer.sent',
-                context={'offer': offer},
-                channels=['IN_APP', 'EMAIL'],
+            from apps.notification.services import send_notification
+            send_notification(
+                recipient_id=str(offer.candidate_id) if hasattr(offer, 'candidate_id') else str(actor.id),
+                title=f'Offer 已发送',
+                content=f'您的 Offer 已生成, 请查收',
+                link=f'/offers/{offer.id}',
+                source='offer.sent',
+                source_id=str(offer.id),
+                channel='IN_APP',
+                template_code='offer.sent',
+                variables={'offer_id': str(offer.id), 'candidate_name': getattr(offer.candidate, 'full_name', '')},
             )
-        except Exception as e:
-            logger.warning('Offer notification failed: %s', e)
+        except Exception:
+            logger.exception('Offer notification dispatch failed (offer_id=%s)', offer.id)
         return offer
 
     @staticmethod
+    @transaction.atomic
     def candidate_accept(offer_id: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.accept()
         offer.save()
         return offer
 
     @staticmethod
+    @transaction.atomic
     def candidate_reject(offer_id: str, reason: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.candidate_reject(reason=reason)
         offer.save()
         return offer
 
     @staticmethod
+    @transaction.atomic
     def mark_onboarded(offer_id: str, actor: User) -> Offer:
-        offer = Offer.objects.get(id=offer_id, deleted_at__isnull=True)
+        offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
         offer.onboarded()
         offer.save()
         return offer

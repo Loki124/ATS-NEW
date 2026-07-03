@@ -1035,7 +1035,7 @@ const invertScopes = (kind: 'menu' | 'function') => {
 
 const loadMouScopes = async (mouId: string) => {
   try {
-    const res = await api.get(`/permissions-v2/mou/${mouId}/scopes`)
+    const res = await api.get(`/permissions-v2/mou/${mouId}/scopes/`)
     if (res.data?.success) {
       const s = res.data.data
       mouFormState.scopes = {
@@ -1327,7 +1327,7 @@ const rbacMenuColumns = computed(() => [
 async function loadRbacRoles() {
   rbacLoading.value = true
   try {
-    const { data } = await api.get('/permissions/roles', { params: { search: rbacFilter.value } })
+    const { data } = await api.get('/permissions/roles/', { params: { search: rbacFilter.value } })
     if (data.success) rbacRoles.value = data.data || []
   } catch (e: any) {
     message.error(`加载角色失败: ${e.message}`)
@@ -1339,7 +1339,7 @@ async function loadRbacRoles() {
 async function loadRbacFunctions() {
   rbacLoading.value = true
   try {
-    const { data } = await api.get('/permissions/functions')
+    const { data } = await api.get('/permissions/functions/')
     if (data.success) rbacFunctions.value = data.data || []
   } catch (e: any) {
     message.error(`加载功能权限失败: ${e.message}`)
@@ -1351,7 +1351,7 @@ async function loadRbacFunctions() {
 async function loadRbacMenus() {
   rbacLoading.value = true
   try {
-    const { data } = await api.get('/permissions/menus')
+    const { data } = await api.get('/permissions/menus/')
     if (data.success) rbacMenus.value = data.data || []
   } catch (e: any) {
     message.error(`加载菜单权限失败: ${e.message}`)
