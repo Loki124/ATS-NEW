@@ -271,17 +271,23 @@ def permissions_user_info(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_list_by_type(request):
-    """GET /permissions/permissions/list?type=MENU|FUNCTION — 权限字典 (按 module 过滤, model 没有 resource_type 字段)"""
+    """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
+    2026-07-02: 按 demo seed 实际命名 (`:read`/`:write`/`:admin`) 过滤,
+                旧逻辑用 `:view`/`:create|update|delete` 后缀匹配, demo seed 永远 0 条.
+    """
     from apps.core.models import Permission
     from apps.core.serializers import PermissionSerializer
     qs = Permission.objects.all()
     type_filter = request.query_params.get('type', '')
     if type_filter == 'MENU':
-        # 菜单权限: module='menu' 或 module 前缀
-        qs = qs.filter(module__icontains='menu') | qs.filter(code__endswith=':view')
+        # 菜单权限: 业务模块的 :read (排除 system:admin)
+        qs = qs.filter(code__endswith=':read')
     elif type_filter == 'FUNCTION':
-        # 功能权限: 写操作 (create/update/delete)
-        qs = qs.filter(code__regex=r':(create|update|delete|approve|assign|trigger)$')
+        # 功能权限: 写操作 (demo 用 :write 后缀)
+        qs = qs.filter(code__endswith=':write')
+    elif type_filter == 'DATA':
+        # 数据权限: 暂用 system:admin 占位, 业务侧真正 data scope 待 G37+ 实现
+        qs = qs.filter(code='system:admin')
     elif type_filter == 'API':
         qs = qs.filter(module__icontains='api')
     data = PermissionSerializer(qs[:200], many=True).data
@@ -294,7 +300,7 @@ def permissions_functions(request):
     """GET /permissions/functions/ — 功能权限 (写操作)"""
     from apps.core.models import Permission
     from apps.core.serializers import PermissionSerializer
-    qs = Permission.objects.filter(code__regex=r':(create|update|delete|approve|assign|trigger)$')[:200]
+    qs = Permission.objects.filter(code__endswith=':write')[:200]
     data = PermissionSerializer(qs, many=True).data
     return Response({'success': True, 'data': data})
 
@@ -305,7 +311,7 @@ def permissions_menus(request):
     """GET /permissions/menus/ — 菜单/读权限"""
     from apps.core.models import Permission
     from apps.core.serializers import PermissionSerializer
-    qs = Permission.objects.filter(code__endswith=':view')[:200]
+    qs = Permission.objects.filter(code__endswith=':read')[:200]
     data = PermissionSerializer(qs, many=True).data
     return Response({'success': True, 'data': data})
 
