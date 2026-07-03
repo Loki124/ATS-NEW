@@ -49,6 +49,30 @@ class MouContainerSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
         model = MouContainer
         fields = ['id', 'mou', 'code', 'position_title', 'quota_total', 'quota_used', 'created_at']
 
+    def to_internal_value(self, data):
+        converted = _convert_keys_to_snake(data) if isinstance(data, dict) else data
+        if isinstance(converted, dict):
+            # 2026-07-02: FE 字段名兼容
+            #   FE 送 mouId (camelCase, FK 标识), 后端字段叫 mou
+            if 'mou_id' in converted and 'mou' not in converted:
+                converted['mou'] = converted.pop('mou_id')
+            #   FE 用 name 表示职位名, 后端字段叫 position_title
+            if 'name' in converted and 'position_title' not in converted:
+                converted['position_title'] = converted.pop('name')
+            #   FE 还送 type / description / resource_filter / status,
+            #   后端 MouContainer model 没有这些字段, 静默丢弃避免 raise
+            for unknown in ('type', 'description', 'resource_filter', 'status'):
+                converted.pop(unknown, None)
+        return super().to_internal_value(converted)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        # FE 期待 mouId / name (跟 form 字段一致)
+        # 注意: _CamelCaseSerializerMixin.to_representation 已把 keys 转成 camelCase
+        ret['mouId'] = ret.get('mou')
+        ret['name'] = ret.get('positionTitle')
+        return ret
+
     def create(self, validated_data):
         if not validated_data.get('id'):
             validated_data['id'] = 'con_' + uuid.uuid4().hex[:12]
