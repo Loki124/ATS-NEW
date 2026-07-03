@@ -373,8 +373,8 @@
 
       <!-- ====== EDIT MODE ====== -->
       <template v-else>
-        <!-- HERO (edit) -->
-        <div v-if="editForm" class="hero hero--edit">
+        <!-- HERO (edit) — 复用 view 的 .hero 蓝渐变 -->
+        <div v-if="editForm" class="hero">
           <div class="hero__icon">
             <n-icon :component="GitNetworkOutline" size="22" />
           </div>
@@ -383,16 +383,16 @@
               v-model:value="editForm.name"
               size="large"
               placeholder="流程名称"
-              style="font-size: 18px; font-weight: 600"
+              class="hero__title-input"
             />
-            <div class="hero__meta" style="margin-top: 8px">
+            <div class="hero__meta">
               <span class="hero__meta-item">
                 <n-icon :component="LayersOutline" />
                 {{ editForm.stages.length }} 个阶段
               </span>
               <span v-if="data.code" class="hero__meta-item">
                 <n-icon :component="ServerOutline" />
-                编号 {{ data.code }} (BE 自动生成, 不可改)
+                编号 {{ data.code }} (不可改)
               </span>
             </div>
           </div>
@@ -402,7 +402,7 @@
           </div>
         </div>
 
-        <!-- 基础信息 (edit) -->
+        <!-- 基础信息 (edit) — label:value 横排 -->
         <div v-if="editForm" class="section">
           <div class="section__title">
             <span class="section__title-bar" />
@@ -411,15 +411,21 @@
           <div class="section__body">
             <div class="field-row">
               <span class="field-label">流程名称</span>
-              <n-input v-model:value="editForm.name" placeholder="如：技术部社招流程" />
+              <n-input v-model:value="editForm.name" placeholder="如：技术部社招流程" class="field-input" />
             </div>
             <div class="field-row field-row--block">
               <span class="field-label">流程说明</span>
-              <n-input v-model:value="editForm.description" type="textarea" :rows="2" placeholder="可选" />
+              <n-input
+                v-model:value="editForm.description"
+                type="textarea"
+                :rows="2"
+                placeholder="可选"
+                class="field-input field-input--block"
+              />
             </div>
             <div class="field-row">
               <span class="field-label">适用范围组合</span>
-              <n-radio-group v-model:value="editForm.applicableMode">
+              <n-radio-group v-model:value="editForm.applicableMode" size="small">
                 <n-radio value="ALL">全部满足 (AND)</n-radio>
                 <n-radio value="ANY">任一满足 (OR)</n-radio>
               </n-radio-group>
@@ -439,45 +445,54 @@
                 type="textarea"
                 :rows="3"
                 placeholder="候选人不满足进入条件时的展示文本 (可选)"
+                class="field-input field-input--block"
               />
             </div>
           </div>
         </div>
 
-        <!-- 适用范围 4 指标 (edit) -->
+        <!-- 适用范围 4 指标 (edit) — 复用 view 的 .scope-card 视觉 -->
         <div v-if="editForm && editForm.applicableIndicators.length" class="section">
           <div class="section__title">
             <span class="section__title-bar" />
             <span>适用范围</span>
           </div>
-          <div class="scope-edit-list">
-            <div
+          <n-grid :cols="4" :x-gap="10" :y-gap="10" responsive="screen" :item-responsive="true">
+            <n-grid-item
               v-for="ind in editForm.applicableIndicators"
               :key="ind.key"
-              class="scope-edit-row"
             >
-              <n-tag :type="SCOPE_INDICATOR_META[ind.key].tagType" size="small" style="min-width: 88px">
-                {{ SCOPE_INDICATOR_META[ind.key].label }}
-              </n-tag>
-              <n-radio-group v-model:value="ind.mode" size="small">
-                <n-radio value="include">包含</n-radio>
-                <n-radio value="exclude">不包含</n-radio>
-              </n-radio-group>
-              <n-select
-                v-model:value="ind.values"
-                multiple
-                filterable
-                clearable
-                placeholder="留空 = 不约束"
-                :options="ind.options"
-                :loading="ind.loading"
-                style="flex: 1; min-width: 280px"
-              />
-            </div>
-          </div>
+              <div class="scope-card" :class="getScopeEditCardClass(ind)">
+                <div class="scope-card__head">
+                  <n-icon :component="SCOPE_KEY_ICONS[ind.key]" />
+                  <span class="scope-card__name">{{ SCOPE_INDICATOR_META[ind.key].label }}</span>
+                </div>
+                <div class="scope-card__mode">
+                  <n-radio-group v-model:value="ind.mode" size="small">
+                    <n-radio value="include">包含</n-radio>
+                    <n-radio value="exclude">不包含</n-radio>
+                  </n-radio-group>
+                  <span v-if="ind.values.length" class="scope-card__count">{{ ind.values.length }} 项</span>
+                  <span v-else class="scope-card__count">不限</span>
+                </div>
+                <div class="scope-card__values">
+                  <n-select
+                    v-model:value="ind.values"
+                    multiple
+                    filterable
+                    clearable
+                    placeholder="留空 = 不约束"
+                    :options="ind.options"
+                    :loading="ind.loading"
+                    class="scope-card__select"
+                  />
+                </div>
+              </div>
+            </n-grid-item>
+          </n-grid>
         </div>
 
-        <!-- 阶段流程 (edit) -->
+        <!-- 阶段流程 (edit) — 复用 view 的 .stage-timeline + .stage-card 视觉 -->
         <div v-if="editForm" class="section">
           <div class="section__title">
             <span class="section__title-bar" />
@@ -487,38 +502,94 @@
           <n-alert type="info" :show-icon="false" style="margin-bottom: 12px; font-size: 12px">
             起止阶段不可删除. 中间业务阶段可单独配置或删除. 点阶段行的空白处选中, 选中后可插入/删除.
           </n-alert>
-          <div class="stage-list">
+          <div class="stage-timeline">
             <div
               v-for="(stage, idx) in editForm.stages"
               :key="stage._linkId || stage.id || idx"
-              class="stage-row"
-              :class="{ 'stage-row-selected': selectedStageIdx === idx }"
+              class="stage-card"
+              :class="[
+                `stage-card--${(stage.stageType || 'SCREEN').toLowerCase()}`,
+                { 'stage-card--selected': selectedStageIdx === idx },
+              ]"
               @click.self="selectedStageIdx = idx"
             >
-              <div class="stage-num">{{ idx + 1 }}</div>
-              <div class="stage-row__main">
-                <span class="name-text">{{ stage.name }}</span>
+              <!-- 序号圆点 (复用 view 视觉) -->
+              <div
+                class="stage-card__dot"
+                :style="{
+                  background: stageTypeColor(stage.stageType),
+                  boxShadow: `0 0 0 4px #fff, 0 0 0 6px ${stageTypeColor(stage.stageType)}26`,
+                }"
+              >
+                <span class="stage-card__dot-num">{{ idx + 1 }}</span>
+              </div>
+
+              <!-- 阶段 header: 类型 tag + 名称 input + 起止 + 限时 -->
+              <div class="stage-card__header">
+                <n-tag size="small" :type="stageTypeTagType(stage.stageType)">
+                  <template #icon>
+                    <n-icon :component="stageTypeIcon(stage.stageType)" />
+                  </template>
+                  {{ stageTypeLabel(stage.stageType) }}
+                </n-tag>
+                <span v-if="stage._rule || stage._condition" class="stage-card__name" style="flex: 1; min-width: 0">
+                  {{ stage.name }}
+                </span>
+                <n-input
+                  v-else
+                  v-model:value="stage.name"
+                  size="small"
+                  placeholder="阶段名称"
+                  style="flex: 1; min-width: 0"
+                />
+                <n-tag v-if="stage.isStart" type="success" size="small" round>起始</n-tag>
+                <n-tag v-if="stage.isEnd" type="warning" size="small" round>结束</n-tag>
                 <n-input-number
                   v-model:value="stage.stageLimit"
                   :min="0"
                   size="small"
-                  placeholder="阶段限时 (h)"
-                  style="width: 130px"
+                  placeholder="限时(h)"
+                  style="width: 100px"
                 />
               </div>
-              <div class="stage-row__actions" @click.stop>
-                <n-button text type="primary" @click.stop="openStageRuleConfig(stage)">配置阶段规则</n-button>
-                <n-button text type="primary" @click.stop="openEntryCondition(stage)">配置进入条件</n-button>
+
+              <!-- 字段行: 规则 / 条件 -->
+              <div class="stage-card__fields">
+                <div class="field-row">
+                  <span class="field-label">阶段规则</span>
+                  <span class="field-value">
+                    <n-button text type="primary" @click.stop="openStageRuleConfig(stage)">
+                      {{ stage._rule ? '已配置 (点编辑)' : '未配置 (点配置)' }}
+                    </n-button>
+                  </span>
+                </div>
+                <div class="field-row field-row--last">
+                  <span class="field-label">进入条件</span>
+                  <span class="field-value">
+                    <n-button text type="primary" @click.stop="openEntryCondition(stage)">
+                      {{ stage._condition ? '已配置 (点编辑)' : '未配置 (点配置)' }}
+                    </n-button>
+                  </span>
+                </div>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="stage-card__row-actions" @click.stop>
                 <n-popconfirm
                   v-if="!stage.isStart && !stage.isEnd"
                   @positive-click="removeStage(idx)"
                 >
                   <template #trigger>
-                    <n-button text type="error">删除</n-button>
+                    <n-button text type="error" size="small">删除</n-button>
                   </template>
                   确定删除阶段「{{ stage.name }}」？
                 </n-popconfirm>
                 <n-tag v-else type="default" size="small">起止不可删</n-tag>
+              </div>
+
+              <!-- 阶段间下箭头 -->
+              <div v-if="idx < editForm.stages.length - 1" class="stage-card__arrow">
+                <n-icon :component="ArrowDownOutline" size="14" />
               </div>
             </div>
           </div>
@@ -673,6 +744,8 @@ import {
   reorderProcessLinks,
   type RecruitmentProcess,
   type ProcessStageLink,
+  type StageRule,
+  type EntryCondition,
 } from '../../api/recruitment-process'
 import StageRuleConfigModal from './StageRuleConfigModal.vue'
 
@@ -728,6 +801,8 @@ interface EditStage {
   stageLimit?: number
   features?: string[]
   _linkId?: string
+  _rule?: StageRule
+  _condition?: EntryCondition
 }
 
 interface EditForm {
@@ -966,6 +1041,8 @@ function buildEditForm(): EditForm {
     stageLimit: l.stageLimit,
     features: l.stage?.features || [],
     _linkId: l.id,
+    _rule: l.rule || undefined,
+    _condition: l.condition || undefined,
   }))
   return {
     name: d.name || '',
@@ -1344,6 +1421,13 @@ function getScopeCardClass(key: string): string {
   const mode = getScopeMode(key)
   if (mode === 'exclude') return 'scope-card--exclude'
   if (mode === 'include') return 'scope-card--include'
+  return 'scope-card--neutral'
+}
+
+// ===== Edit-mode scope card class (driven by indicator.mode + values) =====
+function getScopeEditCardClass(ind: ScopeIndicator): string {
+  if (ind.mode === 'exclude') return 'scope-card--exclude'
+  if (ind.values?.length) return 'scope-card--include'
   return 'scope-card--neutral'
 }
 
@@ -1872,89 +1956,50 @@ function conditionItemLabel(item: any): string {
   }
 }
 
-/* ===== Task 3: EDIT MODE styles ===== */
-.hero--edit {
-  background: linear-gradient(135deg, #fff7e6 0%, #fff1d6 100%);
-  border-bottom-color: #fbce5b;
-}
+/* ===== EDIT MODE styles ===== */
 .hero__actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
-
-.scope-edit-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.hero__title-input {
+  width: 100%;
 }
-.scope-edit-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #fafbfc;
-  border: 1px solid #f0f0f3;
-  border-radius: 6px;
-}
-
-.stage-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.stage-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #fafbfc;
-  border: 1px solid #e8e8ec;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.stage-row:hover {
-  border-color: #91caff;
-  background: #f0f7ff;
-}
-.stage-row-selected {
-  border-color: #2080f0;
-  background: #e6f0ff;
-  box-shadow: 0 0 0 2px rgba(32, 128, 240, 0.15);
-}
-.stage-num {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #2080f0;
-  color: #fff;
-  font-size: 13px;
+.hero__title-input :deep(.n-input__input-el) {
+  font-size: 18px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.stage-row__main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.stage-row__main .name-text {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
   color: #1f1f1f;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 4px 8px;
 }
-.stage-row__actions {
+
+.field-input {
+  flex: 1;
+}
+.field-input :deep(.n-input__input-el),
+.field-input :deep(.n-input__textarea-el) {
+  font-size: 13px;
+}
+.field-input--block :deep(.n-input) {
+  width: 100%;
+}
+
+.scope-card__select {
+  width: 100%;
+}
+.scope-card__select :deep(.n-base-selection) {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.stage-card--selected {
+  box-shadow: 0 0 0 2px rgba(32, 128, 240, 0.25);
+  border-color: #2080f0;
+}
+.stage-card__row-actions {
   display: flex;
   gap: 8px;
-  flex-shrink: 0;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px dashed #f0f0f3;
+  margin-top: 4px;
 }
 </style>
