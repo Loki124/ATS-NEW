@@ -99,7 +99,9 @@ if [ "$HAS_DJANGO" -eq 1 ]; then
   # 6/28 修复: 6/27 12:55 兵哥手动跑 collectstatic 时以 root 身份建了 staticfiles/admin/ 目录 (root:root), deploy 用 loki 跑 (User=loki) 删不动老 files, os.remove PermissionError
   # 用 --clear 先清空, 再 chmod 兜底 (chown 要 root, deploy 跑的是 loki 改不了 owner; chmod 666/777 任何用户可写, 不依赖 owner)
   STAGE_DIR="${STAGE_DIR:-$DEPLOY_DIR/apps/django/staticfiles}"
-  [ -d "$STAGE_DIR" ] && chmod -R ugo+rwX "$STAGE_DIR" 2>/dev/null || true
+  # Fix 13: 改用 u+rwX,go+rX (任何 local user 可读, 仅 owner 可写)
+  # 原 ugo+rwX 让任何 user 可写 -> 攻击者注入 JS/CSS 投入服务.
+  [ -d "$STAGE_DIR" ] && chmod -R u+rwX,go+rX "$STAGE_DIR" 2>/dev/null || true
   python manage.py collectstatic --clear --noinput 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
   log "  collectstatic OK"
   log "  ✓ django deps + migrate OK"
