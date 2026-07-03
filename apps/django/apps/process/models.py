@@ -96,8 +96,9 @@ class RecruitmentStage(FullAuditModel):
         ordering = ['code']
         constraints = [
             # BR-001: 全局仅 1 个起始阶段, 1 个结束阶段
-            # partial UniqueConstraint 需要 MySQL 8+ / PostgreSQL 12+ 才支持
-            # 若 DB 版本 < 8, constraint 会被静默忽略, 此时靠 model.clean() + serializer.validate() 兜底
+            # partial UniqueConstraint: MySQL 8.0.13+ / PostgreSQL 12+ 支持 (SQLite 早期版本会抛 NotSupportedError).
+            # serializer validate 锁 select_for_update 是性能优化 + 友好错误信息,
+            # DB constraint 是终极防线. 项目用 MySQL, 部署前确认 ≥ 8.0.13.
             models.UniqueConstraint(
                 fields=['is_start'],
                 condition=Q(is_start=True),

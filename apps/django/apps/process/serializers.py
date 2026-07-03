@@ -86,21 +86,35 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
                 {'is_start': '同一阶段不可同时为起始和结束阶段'},
             )
 
-        # select_for_update 防 race (MySQL 8+ / PG 12+)
+        # select_for_update 缩锁粒度, 只锁目标行 (MySQL 8+ / PG 12+)
         with transaction.atomic():
-            qs = RecruitmentStage.objects.select_for_update().all()
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if new_is_start and qs.filter(is_start=True).exists():
-                existing = qs.filter(is_start=True).values_list('name', flat=True).first()
-                raise serializers.ValidationError(
-                    {'is_start': f'阶段「{existing}」已是起始阶段, 全局只能有 1 个起始'},
+            exclude_pk = self.instance.pk if self.instance else None
+            if new_is_start:
+                existing_name = (
+                    RecruitmentStage.objects
+                    .select_for_update()
+                    .filter(is_start=True)
+                    .exclude(pk=exclude_pk)
+                    .values_list('name', flat=True)
+                    .first()
                 )
-            if new_is_end and qs.filter(is_end=True).exists():
-                existing = qs.filter(is_end=True).values_list('name', flat=True).first()
-                raise serializers.ValidationError(
-                    {'is_end': f'阶段「{existing}」已是结束阶段, 全局只能有 1 个结束'},
+                if existing_name:
+                    raise serializers.ValidationError(
+                        {'is_start': f'阶段「{existing_name}」已是起始阶段, 全局只能有 1 个起始'},
+                    )
+            if new_is_end:
+                existing_name = (
+                    RecruitmentStage.objects
+                    .select_for_update()
+                    .filter(is_end=True)
+                    .exclude(pk=exclude_pk)
+                    .values_list('name', flat=True)
+                    .first()
                 )
+                if existing_name:
+                    raise serializers.ValidationError(
+                        {'is_end': f'阶段「{existing_name}」已是结束阶段, 全局只能有 1 个结束'},
+                    )
 
         return attrs
 
