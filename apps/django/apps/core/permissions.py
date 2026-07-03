@@ -73,3 +73,123 @@ class HasProcessPermission(permissions.BasePermission):
         return request.user.is_superuser or request.user.user_roles.filter(
             role__code__in=['SUPER_ADMIN', 'HRBP']
         ).exists()
+
+
+def is_super_admin(user) -> bool:
+    """统一判断超级管理员（is_superuser 或 SUPER_ADMIN 角色）"""
+    if not (user and user.is_authenticated):
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    return user.user_roles.filter(role__code='SUPER_ADMIN').exists()
+
+
+def is_hr_or_above(user) -> bool:
+    """统一判断 HR 及以上"""
+    if not (user and user.is_authenticated):
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    return user.user_roles.filter(
+        role__code__in=['SUPER_ADMIN', 'HRBP', 'HR']
+    ).exists()
+
+
+def user_department_ids(user) -> set:
+    """返回用户所属部门 + 所有祖先部门的 ID 集合（含自己所在部门）。
+
+    用于按部门树过滤业务记录。
+    """
+    if not (user and user.is_authenticated):
+        return set()
+    if not getattr(user, 'department_id', None):
+        return set()
+    from apps.core.models import Department  # 避免循环
+    dept = Department.objects.filter(id=user.department_id).first()
+    if not dept:
+        return set()
+    ids = {dept.id}
+    parent = dept.parent
+    while parent:
+        ids.add(parent.id)
+        parent = parent.parent
+    return ids
+
+
+class ScopedQuerysetMixin:
+    """通用 queryset scope 过滤。
+
+    在 get_queryset() 阶段按以下优先级过滤:
+    1. 超级管理员: 不限
+    2. HR/HRBP: 仅同部门 + 子部门（按 path 前缀匹配）创建/负责的记录
+    3. 其它角色（用人经理/面试官/推荐人）: 仅自己创建或被分配的记录
+
+    用法：ViewSet 在 get_queryset() 末尾调用 `qs = self.scope_queryset(qs, scope_field='department')`.
+    其中 scope_field 是模型上的 ForeignKey 字段名（如 'department', 'position__department'）。
+    """
+
+    scope_field: str = ''  # 子类覆盖：'department' / 'position__department' / '' 等
+    scope_creator_field: str = 'created_by'  # 创建人字段
+
+    def scope_queryset(self, qs, scope_field: str = '', creator_field: str = ''):
+        user = self.request.user
+        if is_super_admin(user):
+            return qs
+        scope_field = scope_field or self.scope_field
+        creator_field = creator_field or self.scope_creator_field
+
+        if is_hr_or_above(user):
+            # HR 范围: 同部门 + 祖先部门下的记录（按 path 前缀）
+            dept_ids = user_department_ids(user)
+            if not dept_ids:
+                # HR 没有部门: 仅看自己创建的
+                return qs.filter(**{creator_field: user})
+            from apps.core.models import Department
+            # 找出用户所有部门 + 子部门 ID (按 path 前缀)
+            sub_dept_ids = set()
+            all_depts = Department.objects.filter(id__in=dept_ids).values('id', 'path')
+            user_paths = {d['path'] for d in all_depts if d['path']}
+            all_active = Department.objects.filter(is_active=True).values('id', 'path')
+            for d in all_active:
+                p = d['path'] or ''
+                if any(p.startswith(up) for up in user_paths):
+                    sub_dept_ids.add(d['id'])
+            sub_dept_ids.update(dept_ids)
+            return qs.filter(**{f'{scope_field}__id__in': sub_dept_ids})
+        # 普通用户（用人经理/面试官/推荐人）：仅自己创建或被分配
+        return qs.filter(**{creator_field: user})
+
+
+class UserViewPermission(permissions.BasePermission):
+    """User ViewSet 权限:
+    - 列表 / 搜索 / active: HRBP+
+    - 详情: 自己 OR HRBP+
+    - 修改/删除: SUPER_ADMIN
+    """
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated):
+            return False
+        if request.method in permissions.SAFE_METHODS:
+            return is_hr_or_above(request.user)
+        return is_super_admin(request.user)
+
+    def has_object_permission(self, request, view, obj):
+        if is_super_admin(request.user):
+            return True
+        if request.method in permissions.SAFE_METHODS:
+            return obj.pk == request.user.pk or is_hr_or_above(request.user)
+        return False
+
+
+class MOUVIEWSetPermission(permissions.BasePermission):
+    """MOU / 自动化规则 ViewSet 权限: 仅 HRBP+ 可读写。
+    普通用户不可见 MOU 协议与容器。
+    """
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated):
+            return False
+        if request.method in permissions.SAFE_METHODS:
+            return is_hr_or_above(request.user)
+        return request.user.is_superuser or request.user.user_roles.filter(
+            role__code__in=['SUPER_ADMIN', 'HRBP']
+        ).exists()

@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Onboarding
 from .serializers import (
@@ -19,8 +19,8 @@ from .serializers import (
 )
 
 
-class OnboardingViewSet(AuditMixin, viewsets.ModelViewSet):
-    """入职流程 ViewSet"""
+class OnboardingViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+    """入职流程 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Onboarding.objects.all()
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
@@ -28,6 +28,8 @@ class OnboardingViewSet(AuditMixin, viewsets.ModelViewSet):
     filterset_fields = ['state', 'candidate', 'position']
     ordering_fields = ['start_date', 'created_at']
     ordering = ['-created_at']
+    scope_field = 'position__department'
+    scope_creator_field = 'created_by'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -41,7 +43,9 @@ class OnboardingViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        return qs.select_related('candidate', 'position', 'offer')
+        qs = qs.select_related('candidate', 'position', 'offer')
+        qs = self.scope_queryset(qs)
+        return qs
 
     def perform_destroy(self, instance):
         from django.utils import timezone

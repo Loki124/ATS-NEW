@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Demand, DemandApproval
 from .serializers import (
@@ -20,10 +20,8 @@ from .serializers import (
 )
 
 
-class DemandViewSet(AuditMixin, viewsets.ModelViewSet):
-    """招聘需求 ViewSet - 含状态机流转"""
-    # 2026-06-29 花无缺: model Meta 缺 ordering, 在 viewset queryset 上默认 .order_by,
-    #   避免 DRF pagination 触发 UnorderedObjectListWarning.
+class DemandViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+    """招聘需求 ViewSet - 按部门 scope 过滤"""
     queryset = Demand.objects.all().order_by('-created_at')
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
@@ -31,7 +29,9 @@ class DemandViewSet(AuditMixin, viewsets.ModelViewSet):
     filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority']
     search_fields = ['code', 'title', 'position_title']
     ordering_fields = ['code', 'created_at', 'submitted_at']
-    ordering = ['-created_at']  # DRF 默认 ordering (client 不传 ordering param 时)
+    ordering = ['-created_at']
+    scope_field = 'department'
+    scope_creator_field = 'requested_by'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -47,7 +47,10 @@ class DemandViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        return qs.select_related('department', 'requested_by', 'hr', 'process')
+        qs = qs.select_related('department', 'requested_by', 'hr', 'process')
+        # IDOR scope 过滤 (Fix 1)
+        qs = self.scope_queryset(qs)
+        return qs
 
     def perform_destroy(self, instance):
         # 软删除

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions import ScopedQuerysetMixin, is_super_admin
 
 from .models import Referral
 from .serializers import (
@@ -16,17 +17,18 @@ from .serializers import (
 )
 
 
-class ReferralViewSet(AuditMixin, viewsets.ModelViewSet):
-    """内推记录 ViewSet"""
-    # 2026-06-29 花无缺: model Meta 已经 ordering, viewset queryset 默认 .order_by 兜底
+class ReferralViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+    """内推记录 ViewSet - 按 referrer 部门 scope 过滤 (Fix 1)"""
     queryset = Referral.objects.all().order_by('-created_at')
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['referrer', 'referral_type', 'status', 'detected_type']  # 2026-06-29 model Meta 已有 ordering
+    filterset_fields = ['referrer', 'referral_type', 'status', 'detected_type']
     search_fields = ['candidate__name', 'position__title']
     ordering_fields = ['created_at', 'bonus_paid_at']
     ordering = ['-created_at']
+    scope_field = 'referrer__department'
+    scope_creator_field = 'referrer'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -38,7 +40,11 @@ class ReferralViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        return qs.select_related('referrer', 'candidate', 'position')
+        qs = qs.select_related('referrer', 'candidate', 'position')
+        # 非超管: 仅看自己作为 referrer 的推荐 (内推天然归属 referrer)
+        if not is_super_admin(self.request.user):
+            qs = qs.filter(referrer=self.request.user)
+        return qs
 
     def perform_destroy(self, instance):
         from django.utils import timezone

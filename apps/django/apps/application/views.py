@@ -40,7 +40,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Application, ApplicationHistory, ApplicationStageRecord
 from .serializers import (
@@ -70,14 +70,16 @@ from .services.soft_reject import SoftRejectService
 logger = logging.getLogger(__name__)
 
 
-class ApplicationViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
-    """申请 ViewSet"""
+class ApplicationViewSet(ScopedQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+    """申请 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Application.objects.filter(deleted_at__isnull=True).select_related(
         'candidate', 'position', 'process', 'current_link', 'current_stage', 'grabbed_by',
     )
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     lookup_field = 'id'
+    scope_field = 'position__department'
+    scope_creator_field = 'created_by'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -114,6 +116,8 @@ class ApplicationViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
                 Q(candidate__name__icontains=keyword) |
                 Q(position__title__icontains=keyword),
             )
+        # IDOR scope (Fix 1)
+        qs = self.scope_queryset(qs)
         return qs.order_by('-created_at')
 
     def create(self, request, *args, **kwargs):

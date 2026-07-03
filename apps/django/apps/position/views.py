@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Position
 from .serializers import (
@@ -19,8 +19,8 @@ from .serializers import (
 )
 
 
-class PositionViewSet(AuditMixin, viewsets.ModelViewSet):
-    """职位 ViewSet - 含状态机流转"""
+class PositionViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+    """职位 ViewSet - 按部门 scope 过滤"""
     queryset = Position.objects.all()
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
@@ -29,6 +29,8 @@ class PositionViewSet(AuditMixin, viewsets.ModelViewSet):
     search_fields = ['code', 'title', 'description']
     ordering_fields = ['code', 'created_at', 'published_at']
     ordering = ['-created_at']
+    scope_field = 'department'
+    scope_creator_field = 'created_by'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -44,7 +46,10 @@ class PositionViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        return qs.select_related('department', 'hiring_manager', 'owner', 'process')
+        qs = qs.select_related('department', 'hiring_manager', 'owner', 'process')
+        # IDOR scope 过滤 (Fix 1)
+        qs = self.scope_queryset(qs)
+        return qs
 
     def perform_destroy(self, instance):
         from django.utils import timezone

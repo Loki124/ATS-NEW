@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Invitation
 from .serializers import (
@@ -18,16 +19,18 @@ from .serializers import (
 )
 
 
-class InvitationViewSet(AuditMixin, viewsets.ModelViewSet):
-    """邀约 ViewSet - 含状态机"""
+class InvitationViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+    """邀约 ViewSet - 收紧到 HR+ 可见, 按 application 部门 scope (Fix 1)"""
     queryset = Invitation.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'application', 'inviter', 'is_grab_pool']
     search_fields = ['application__code']
     ordering_fields = ['invited_at', 'expire_at']
     ordering = ['-invited_at']
+    scope_field = 'application__position__department'
+    scope_creator_field = 'inviter'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -41,7 +44,9 @@ class InvitationViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        return qs.select_related('application', 'inviter')
+        qs = qs.select_related('application', 'inviter')
+        qs = self.scope_queryset(qs)
+        return qs
 
     def perform_destroy(self, instance):
         from django.utils import timezone

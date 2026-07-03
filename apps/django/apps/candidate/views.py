@@ -29,7 +29,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Candidate, CandidateTag
 from .serializers import (
@@ -49,14 +49,18 @@ from .services import CandidateService
 logger = logging.getLogger(__name__)
 
 
-class CandidateViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
-    """候选人 ViewSet"""
+class CandidateViewSet(ScopedQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+    """候选人 ViewSet — 增加部门 scope 过滤防 IDOR"""
     queryset = Candidate.objects.filter(deleted_at__isnull=True).select_related(
         'source_channel', 'referrer',
     )
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     lookup_field = 'id'
+    # Candidate 模型无 department 字段; 用 referrer (推荐人) 间接 scope: HR 看本部门推荐人.
+    # 普通 HRBP+ 仍按 created_by 兜底.
+    scope_field = 'referrer__department'
+    scope_creator_field = 'created_by'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -94,6 +98,8 @@ class CandidateViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         blacklisted = self.request.query_params.get('blacklisted')
         if blacklisted is not None:
             qs = qs.filter(is_blacklisted=blacklisted.lower() == 'true')
+        # IDOR: 按部门 scope + 创建人 二次过滤 (Fix 1)
+        qs = self.scope_queryset(qs)
         return qs.order_by('-created_at')
 
     def create(self, request, *args, **kwargs):

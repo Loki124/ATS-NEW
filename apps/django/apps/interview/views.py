@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
 
 from .models import Interview, InterviewEvaluation
 from .serializers import (
@@ -17,8 +17,8 @@ from .serializers import (
 )
 
 
-class InterviewViewSet(AuditMixin, viewsets.ModelViewSet):
-    """面试 ViewSet"""
+class InterviewViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+    """面试 ViewSet - 按 application.position.department scope 过滤"""
     queryset = Interview.objects.all()
     permission_classes = [IsAuthenticated, IsHROrAbove]
     pagination_class = StandardResultsSetPagination
@@ -27,6 +27,8 @@ class InterviewViewSet(AuditMixin, viewsets.ModelViewSet):
     search_fields = ['code', 'application__code']
     ordering_fields = ['scheduled_at', 'created_at']
     ordering = ['scheduled_at']
+    scope_field = 'application__position__department'
+    scope_creator_field = 'created_by'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -38,6 +40,7 @@ class InterviewViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
+        qs = self.scope_queryset(qs)
         return qs.prefetch_related('interviewers')
 
     def perform_destroy(self, instance):
@@ -60,4 +63,10 @@ class InterviewEvaluationViewSet(AuditMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
+        # 评价默认走 interviewer 字段 scope
+        qs = qs.filter(
+            interviewer=self.request.user
+        ) if not (self.request.user.is_superuser or self.request.user.user_roles.filter(
+            role__code__in=['SUPER_ADMIN', 'HRBP']
+        ).exists()) else qs
         return qs.select_related('interview', 'interviewer')
