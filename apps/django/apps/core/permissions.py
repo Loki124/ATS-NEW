@@ -139,22 +139,22 @@ class ScopedQuerysetMixin:
         creator_field = creator_field or self.scope_creator_field
 
         if is_hr_or_above(user):
-            # HR 范围: 同部门 + 祖先部门下的记录（按 path 前缀）
-            dept_ids = user_department_ids(user)
-            if not dept_ids:
+            # HR 范围: 自己部门 + 自己部门的子部门（向下爬 tree, 不向上到祖先的兄弟分支）
+            # 例: hr_sales 在 sales (path=/总部/销售部) → 范围 [sales, sales_team1], 不含 eng (hq 的另一个子)
+            # 例: hr 在 hq (path=/总部) → 范围 = 全公司
+            from apps.core.models import Department
+            user_dept = Department.objects.filter(id=getattr(user, 'department_id', None)).first()
+            if not user_dept:
                 # HR 没有部门: 仅看自己创建的
                 return qs.filter(**{creator_field: user})
-            from apps.core.models import Department
-            # 找出用户所有部门 + 子部门 ID (按 path 前缀)
+            user_path = user_dept.path or f'/{user_dept.name}'
+            # 收: 自己部门 + 自己 path 的所有后代 (path 严格前缀匹配)
             sub_dept_ids = set()
-            all_depts = Department.objects.filter(id__in=dept_ids).values('id', 'path')
-            user_paths = {d['path'] for d in all_depts if d['path']}
-            all_active = Department.objects.filter(is_active=True).values('id', 'path')
-            for d in all_active:
+            for d in Department.objects.filter(is_active=True).values('id', 'path'):
                 p = d['path'] or ''
-                if any(p.startswith(up) for up in user_paths):
+                if p == user_path or p.startswith(user_path.rstrip('/') + '/'):
                     sub_dept_ids.add(d['id'])
-            sub_dept_ids.update(dept_ids)
+            sub_dept_ids.add(user_dept.id)
             return qs.filter(**{f'{scope_field}__id__in': sub_dept_ids})
         # 普通用户（用人经理/面试官/推荐人）：仅自己创建或被分配
         return qs.filter(**{creator_field: user})
