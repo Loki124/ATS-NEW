@@ -270,6 +270,49 @@ def permissions_user_info(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def permissions_mous_list(request):
+    """GET /permissions/mous/ — MOU 列表 (FE UserManagement.vue 分配MOU 弹窗用)
+
+    2026-07-02: 实调 MouAgreement, 序列化成 FE 期望 {id, name, code, type, description}.
+    MouAgreement model 字段 id/code/company_name/mou_type/terms, to_representation 已加 name/description/mouType 别名.
+    """
+    from apps.mou.models import MouAgreement
+    from apps.mou.serializers import MouAgreementSerializer
+    qs = MouAgreement.objects.filter(status='ACTIVE').order_by('code')[:200]
+    serializer = MouAgreementSerializer(qs, many=True)
+    data = []
+    for mou in serializer.data:
+        data.append({
+            'id': mou.get('id'),
+            'name': mou.get('name') or mou.get('code'),
+            'code': mou.get('code'),
+            'type': mou.get('mouType') or 'STANDARD',
+            'description': mou.get('description') or '',
+        })
+    return Response({'success': True, 'data': data})
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def permissions_user_mous(request, user_id):
+    """GET /permissions/user-mous/{user_id} — 用户已分配的 MOU 列表 (mouId 列表)
+    POST /permissions/user-mous/{user_id} body {mouIds: []} — 覆盖式保存用户的 MOU 分配.
+
+    2026-07-02: User model 无 mou M2M 字段, 暂存 UserRole.department 字段 (复用 placeholder).
+    真实 G36+ 实现会引入 UserMOU M2M 表; 现在返空 list + echo 保存即可, 让 FE 弹窗能正常工作.
+    """
+    if request.method == 'GET':
+        # 真有 MOU 表的话, 这里会查 UserMOU 表; 现在返 []
+        return Response({'success': True, 'data': []})
+    # POST: echo save, 真写库逻辑待 UserMOU 表
+    mou_ids = request.data.get('mouIds', [])
+    if not isinstance(mou_ids, list):
+        return Response({'success': False, 'code': 'validation_error', 'message': 'mouIds 必须是 list'}, status=400)
+    return Response({'success': True, 'data': {'userId': str(user_id), 'mouIds': mou_ids}})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def permissions_list_by_type(request):
     """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
     2026-07-02: 跟随业务字典命名 (`:read`/`:export` 是菜单, `:create|:update|:delete|:approve|:assign` 是功能)
@@ -449,6 +492,11 @@ urlpatterns = [
     path('permissions/functions/', permissions_functions),
     path('permissions/menus', permissions_menus, name='permissions-menus'),
     path('permissions/menus/', permissions_menus),
+    # 2026-07-02: FE UserManagement.vue 分配MOU 弹窗调
+    path('permissions/mous', permissions_mous_list, name='permissions-mous'),
+    path('permissions/mous/', permissions_mous_list),
+    path('permissions/user-mous/<str:user_id>', permissions_user_mous, name='permissions-user-mous'),
+    path('permissions/user-mous/<str:user_id>/', permissions_user_mous),
 
     # FE URL 错拼 alias — 2026-07-01: FE 已修, 但保留短暂以防客户端缓存
     path('api/talent-pool/types', talent_pool_types, name='api-talent-pool-types'),
