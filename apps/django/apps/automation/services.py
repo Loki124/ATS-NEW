@@ -428,8 +428,12 @@ class AutomationEngine:
                 try:
                     app = Application.objects.get(id=self.context.application_id)
                     sr = app.current_stage_record
-                    if sr and sr.current_handler_id:
-                        return [sr.current_handler_id]
+                    # Fix 7: current_handlers 是 JSONField(list[userId]),
+                    # 不存在 current_handler_id 字段; 取列表第一个非空元素.
+                    if sr and sr.current_handlers:
+                        ids = [str(uid) for uid in sr.current_handlers if uid]
+                        if ids:
+                            return [ids[0]]
                 except Exception:
                     pass
         elif recipient_type == 'STAGE_OWNERS':

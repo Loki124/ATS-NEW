@@ -1,17 +1,24 @@
 """Auth 视图 - 登录/登出/刷新"""
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework.throttling import AnonRateThrottle
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Permission as AuthPermission
 from .models import Permission
 
 
+class LoginRateThrottle(AnonRateThrottle):
+    """Fix 6: 登录端点限速 5 次/分钟/IP, 防爆破."""
+    scope = 'login'
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
     """登录 - 支持 username / 工号 / 邮箱 / 手机号"""
     username = request.data.get('username')

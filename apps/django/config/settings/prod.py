@@ -78,6 +78,32 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
 
+# Fix 10: 生产环境强制使用 Redis 缓存, 不允许 LocMemCache fallback.
+# LocMemCache 在多 gunicorn worker 下不同步, throttle / idempotency / session
+# 全部失效, 静默退化导致生产数据损坏. 启动时若 Redis 不可用直接抛错.
+import socket as _socket
+from urllib.parse import urlparse as _urlparse
+_prod_redis_parsed = _urlparse(REDIS_URL)
+_sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+_sock.settimeout(2.0)
+_redis_ok = _sock.connect_ex(
+    (_prod_redis_parsed.hostname or 'localhost', _prod_redis_parsed.port or 6379)
+) == 0
+_sock.close()
+if not _redis_ok:
+    raise ImproperlyConfigured(
+        '生产环境 Redis 不可用 (%s)。不允许 LocMemCache 静默 fallback — '
+        '多 worker 下 throttle / idempotency 失效。请检查 Redis 服务。' % REDIS_URL
+    )
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'KEY_PREFIX': 'ats',
+        'TIMEOUT': 300,
+    }
+}
+
 # Sentry 错误追踪
 if SENTRY_DSN:
     sentry_sdk.init(

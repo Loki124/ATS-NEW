@@ -235,28 +235,7 @@ def archive_stale_applications(self, days: int = 90) -> Dict[str, Any]:
 
 
 # ============================================================
-# Beat Schedule (在 settings 中配置)
+# Beat Schedule — Fix 9:
+#   统一在 config/settings/base.py 的 CELERY_BEAT_SCHEDULE 中定义 (单一来源).
+#   旧 CELERY_BEAT_SCHEDULE 字典已删除以避免重复调度.
 # ============================================================
-CELERY_BEAT_SCHEDULE = {
-    'check-stage-timeouts': {
-        'task': 'apps.application.tasks.check_stage_timeouts',
-        'schedule': 300.0,  # 5 分钟
-    },
-    'reassign-overdue-grabs': {
-        'task': 'apps.application.tasks.reassign_overdue_grabs',
-        'schedule': 300.0,  # 5 分钟
-    },
-    'check-soft-reject-thresholds': {
-        'task': 'apps.application.tasks.check_soft_reject_thresholds',
-        'schedule': 3600.0,  # 1 小时
-    },
-    'check-automation-failure-rate': {
-        'task': 'apps.automation.tasks.check_automation_failure_rate',
-        'schedule': 3600.0,  # 1 小时
-    },
-    'archive-stale-applications': {
-        'task': 'apps.application.tasks.archive_stale_applications',
-        'schedule': 86400.0,  # 1 天
-        'kwargs': {'days': 90},
-    },
-}

@@ -23,12 +23,33 @@ logger = logging.getLogger(__name__)
     retry_backoff=60,
 )
 def run_scheduled_rules() -> Dict:
-    """执行所有启用的自动化规则（每 15 分钟）"""
+    """执行所有启用的 SCHEDULED 类型自动化规则（每 15 分钟）
+
+    Fix 2: 原代码调用 ``AutomationEngine.run(rule)`` 把 rule 当 self 传入,
+    触发 AttributeError. 正确做法: 构造一个 SCHEDULED trigger 的 engine,
+    对每条规则调 evaluate_rule + execute_rule.
+    """
     from .models import AutomationRule
-    from .services import AutomationEngine
+    from .services import AutomationEngine, TriggerContext
+
+    # 构造 SCHEDULED 触发上下文 (actor=None 表示系统触发)
+    engine = AutomationEngine(
+        context=TriggerContext(
+            trigger_type='SCHEDULED',
+            candidate_id=None,
+            application_id=None,
+            stage_id=None,
+            extra={},
+        ),
+        actor=None,
+    )
 
     # P1-3: .iterator() 流式查询,避免规则数量增长后 OOM
-    enabled_rules = AutomationRule.objects.filter(enabled=True).iterator(chunk_size=200)
+    enabled_rules = AutomationRule.objects.filter(
+        enabled=True,
+        trigger_type='SCHEDULED',
+        deleted_at__isnull=True,
+    ).iterator(chunk_size=200)
     triggered = 0
     skipped = 0
     errors = 0
@@ -37,8 +58,17 @@ def run_scheduled_rules() -> Dict:
     for rule in enabled_rules:
         total += 1
         try:
-            result = AutomationEngine.run(rule)
-            if result.get('triggered'):
+            # 熔断检查
+            if engine._is_circuit_open(rule):
+                skipped += 1
+                continue
+            match = engine.evaluate_rule(rule)
+            if not match.matched:
+                engine._save_log(rule, match, _skipped_result(rule, match.skip_reason))
+                skipped += 1
+                continue
+            result = engine.execute_rule(rule, match)
+            if result.get('triggered') if isinstance(result, dict) else True:
                 triggered += 1
             else:
                 skipped += 1
@@ -53,6 +83,18 @@ def run_scheduled_rules() -> Dict:
         'skipped': skipped,
         'errors': errors,
     }
+
+
+def _skipped_result(rule, reason: str):
+    """构造 skipped ExecutionResult (避免循环 import ExecutionResult)"""
+    from .services import ExecutionResult
+    return ExecutionResult(
+        rule_id=rule.id,
+        rule_name=rule.name,
+        matched=False,
+        action_taken='',
+        skip_reason=reason or '',
+    )
 
 
 @shared_task(name='apps.automation.tasks.check_automation_failure_rate')

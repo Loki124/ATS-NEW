@@ -24,9 +24,39 @@ import requests
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound
+from .crypto import SENSITIVE_KEYS, decrypt_secret_dict
 from .models import IntegrationConfig, IntegrationSyncLog, IntegrationType
 
 logger = logging.getLogger(__name__)
+
+
+def _get_decrypted_config(integration_type: str) -> tuple[IntegrationConfig | None, dict]:
+    """读取 IntegrationConfig 并合并解密敏感字段.
+
+    返回 (config_obj, merged_dict).
+    merged_dict 是 config(JSON) + decrypted_secret 合并, 业务代码可直接 cfg.get('corp_secret') 拿明文.
+    """
+    config = IntegrationConfig.objects.filter(
+        type=integration_type, is_active=True,
+    ).first()
+    if not config:
+        return None, {}
+    cfg = dict(config.config or {})
+    secret_raw = config.encrypted_secret or ''
+    if secret_raw:
+        try:
+            secret_dict = json.loads(decrypt_secret(secret_raw))
+        except Exception:
+            logger.exception('IntegrationConfig %s: decrypt failed', integration_type)
+            secret_dict = {}
+        cfg.update(secret_dict)
+    return config, cfg
+
+
+def decrypt_secret(ciphertext: str) -> str:
+    """local import 避免循环依赖"""
+    from .crypto import decrypt_secret as _decrypt
+    return _decrypt(ciphertext)
 
 
 # ============================================================
@@ -35,13 +65,10 @@ logger = logging.getLogger(__name__)
 def send_email(to: str, subject: str, body: str, html: bool = False) -> bool:
     """发送邮件"""
     try:
-        config = IntegrationConfig.objects.filter(
-            type=IntegrationType.EMAIL, is_active=True,
-        ).first()
+        config, cfg = _get_decrypted_config(IntegrationType.EMAIL)
         if not config:
             logger.warning('Email integration not configured')
             return False
-        cfg = config.config or {}
         smtp_host = cfg.get('smtp_host')
         smtp_port = cfg.get('smtp_port', 587)
         username = cfg.get('username')
@@ -95,13 +122,10 @@ def send_sms(phone: str, content: str, template_id: Optional[str] = None,
              template_params: Optional[Dict[str, Any]] = None) -> bool:
     """发送短信"""
     try:
-        config = IntegrationConfig.objects.filter(
-            type=IntegrationType.SMS, is_active=True,
-        ).first()
+        config, cfg = _get_decrypted_config(IntegrationType.SMS)
         if not config:
             logger.warning('SMS integration not configured')
             return False
-        cfg = config.config or {}
         provider = cfg.get('provider', 'aliyun')
         if provider == 'aliyun':
             return _send_sms_aliyun(cfg, phone, content, template_id, template_params)
@@ -173,13 +197,10 @@ def _send_sms_tencent(cfg, phone, content, template_id, template_params) -> bool
 def send_wecom_message(user_id: str, content: str, title: str = '') -> bool:
     """发送企微应用消息"""
     try:
-        config = IntegrationConfig.objects.filter(
-            type=IntegrationType.WECOM, is_active=True,
-        ).first()
+        config, cfg = _get_decrypted_config(IntegrationType.WECOM)
         if not config:
             logger.warning('WeCom integration not configured')
             return False
-        cfg = config.config or {}
         corp_id = cfg.get('corp_id')
         agent_id = cfg.get('agent_id')
         corp_secret = cfg.get('corp_secret')

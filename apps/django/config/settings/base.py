@@ -292,6 +292,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '60/minute',
         'user': '1000/minute',
+        # Fix 6: 登录端点限速 5/min/IP, 防密码爆破
+        'login': '5/minute',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
@@ -533,6 +535,10 @@ ATS_BASE = {
 # 2026-06-22: 商业简历解析服务 (Affinda)
 # 生产环境通过环境变量注入，本地开发用 .env
 AFFINDA_API_KEY = env('AFFINDA_API_KEY', default='test_affinda_key_dev')
+
+# Fix 6: 集成凭据 Fernet 加密密钥 (32-byte base64, 用 `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 生成).
+# 必须在 .env / 生产环境注入; 未配置时 IntegrationConfig 加密迁移会跳过但运行期 _get_decrypted_config 会 RuntimeError.
+INTEGRATION_FERNET_KEY = env('INTEGRATION_FERNET_KEY', default='')
 AFFINDA_BASE_URL = env('AFFINDA_BASE_URL', default='https://api.affinda.com/v3')
 AFFINDA_WORKSPACE = env('AFFINDA_WORKSPACE', default='ats-default')
 AFFINDA_DOCUMENT_TYPE = env('AFFINDA_DOCUMENT_TYPE', default='resume')

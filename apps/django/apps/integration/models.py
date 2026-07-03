@@ -18,11 +18,16 @@ class IntegrationType(models.TextChoices):
 
 
 class IntegrationConfig(TimestampedModel):
-    """外部系统集成配置"""
+    """外部系统集成配置
+
+    Fix 6: 新增 encrypted_secret 字段, 用 Fernet 加密敏感凭据.
+    config JSON 保留为非敏感配置 (URL / 签名名 / 模板号 等).
+    """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     type = models.CharField(max_length=32, choices=IntegrationType.choices, unique=True, verbose_name='类型')
     name = models.CharField(max_length=100, verbose_name='名称')
-    config = models.JSONField(default=dict, verbose_name='配置', help_text='API URL, Key 等敏感配置')
+    config = models.JSONField(default=dict, verbose_name='非敏感配置', help_text='API URL, 签名名, 模板号 等')
+    encrypted_secret = models.TextField(blank=True, verbose_name='加密凭据 (Fernet)', help_text='JSON: {"corp_secret":"...", "access_key_secret":"..."} 加密后')
     field_mapping = models.JSONField(default=dict, verbose_name='字段映射')
 
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='启用')
