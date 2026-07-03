@@ -1078,7 +1078,12 @@ const handleSaveMou = async () => {
       mouModalVisible.value = false
       loadMous()
     } else {
-      message.error(data.error || data.message || '操作失败')
+      // 透出字段级错误 (例: "MOU编码 'cdsd' 已存在")
+      //   DRF validation_error 的 errors 是 { field: [msg1, msg2, ...] }
+      const fieldErr = data.errors && Object.entries(data.errors)
+        .flatMap(([field, msgs]) => (msgs || []).map(m => `${field}: ${m}`))
+        .join('；')
+      message.error(data.error || fieldErr || data.message || '操作失败')
     }
   } catch (error) {
     console.error(error)

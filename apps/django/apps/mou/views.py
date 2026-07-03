@@ -1,5 +1,5 @@
 """mou views - 2026-07-01 stub (G36 待补真业务)"""
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -10,6 +10,13 @@ from .serializers import (
     MouAgreementSerializer, MouContainerSerializer,
     MutualExclusionGroupSerializer, AutomationRuleSerializer,
 )
+
+
+def _wrap_envelope(serializer):
+    """包 {success: true, data: <serializer_data>} 信封, 与 list 端点一致.
+    前端 MouManagement.vue:1076 检查 data.success — 没包就误判失败.
+    """
+    return Response({'success': True, 'data': serializer.data})
 
 
 class MouAgreementViewSet(viewsets.ModelViewSet):
@@ -26,6 +33,24 @@ class MouAgreementViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=status)
         return qs
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return _wrap_envelope(serializer)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return _wrap_envelope(serializer)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
 
 class MouContainerViewSet(viewsets.ModelViewSet):
     """MOU 容器 (配额) CRUD - 仅 HRBP+ (Fix 1)"""
@@ -33,6 +58,24 @@ class MouContainerViewSet(viewsets.ModelViewSet):
     serializer_class = MouContainerSerializer
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return _wrap_envelope(serializer)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return _wrap_envelope(serializer)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
 
 class MutualExclusionGroupViewSet(viewsets.ModelViewSet):
@@ -42,6 +85,24 @@ class MutualExclusionGroupViewSet(viewsets.ModelViewSet):
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return _wrap_envelope(serializer)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return _wrap_envelope(serializer)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
 
 class AutomationRuleViewSet(viewsets.ModelViewSet):
     """自动化规则 CRUD - 仅 HRBP+ (Fix 1)"""
@@ -49,3 +110,21 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
     serializer_class = AutomationRuleSerializer
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return _wrap_envelope(serializer)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return _wrap_envelope(serializer)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
