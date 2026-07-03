@@ -44,10 +44,14 @@ class _CamelCaseSerializerMixin:
 
 class MouContainerSerializer(_CamelCaseSerializerMixin, serializers.ModelSerializer):
     id = serializers.CharField(required=False, allow_blank=True, read_only=True)
+    # 2026-07-02: FE 字段名兼容 — 接受 status (前端) / quota_status (model) 两种叫法
+    quota_status = serializers.CharField(required=False, allow_blank=True, default='ACTIVE')
 
     class Meta:
         model = MouContainer
-        fields = ['id', 'mou', 'code', 'position_title', 'quota_total', 'quota_used', 'created_at']
+        fields = ['id', 'mou', 'code', 'position_title', 'type', 'description',
+                  'resource_filter', 'quota_total', 'quota_used', 'quota_status',
+                  'created_at']
 
     def to_internal_value(self, data):
         converted = _convert_keys_to_snake(data) if isinstance(data, dict) else data
@@ -59,18 +63,18 @@ class MouContainerSerializer(_CamelCaseSerializerMixin, serializers.ModelSeriali
             #   FE 用 name 表示职位名, 后端字段叫 position_title
             if 'name' in converted and 'position_title' not in converted:
                 converted['position_title'] = converted.pop('name')
-            #   FE 还送 type / description / resource_filter / status,
-            #   后端 MouContainer model 没有这些字段, 静默丢弃避免 raise
-            for unknown in ('type', 'description', 'resource_filter', 'status'):
-                converted.pop(unknown, None)
+            #   FE 送 status, 后端字段叫 quota_status
+            if 'status' in converted and 'quota_status' not in converted:
+                converted['quota_status'] = converted.pop('status')
         return super().to_internal_value(converted)
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        # FE 期待 mouId / name (跟 form 字段一致)
+        # FE 期待 mouId / name / status (跟 form 字段一致)
         # 注意: _CamelCaseSerializerMixin.to_representation 已把 keys 转成 camelCase
         ret['mouId'] = ret.get('mou')
         ret['name'] = ret.get('positionTitle')
+        ret['status'] = ret.get('quotaStatus')
         return ret
 
     def create(self, validated_data):

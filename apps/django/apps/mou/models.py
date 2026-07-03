@@ -36,8 +36,13 @@ class MouContainer(models.Model):
     mou = models.ForeignKey(MouAgreement, on_delete=models.CASCADE, related_name='containers')
     code = models.CharField(max_length=50)
     position_title = models.CharField(max_length=200)
+    # 2026-07-02: 加 G36 stub model 缺的字段, 配合前端表单
+    type = models.CharField(max_length=50, blank=True, default='', help_text='容器类型: PROJECT/DEPARTMENT/...')  # FE 字段
+    description = models.TextField(blank=True, default='', help_text='容器描述')  # FE 字段
+    resource_filter = models.JSONField(default=dict, blank=True, help_text='资源过滤条件 (JSON)')  # FE 字段
     quota_total = models.IntegerField(default=0)
     quota_used = models.IntegerField(default=0)
+    quota_status = models.CharField(max_length=20, default='ACTIVE', help_text='ACTIVE/INACTIVE/EXHAUSTED')  # FE 字段 status
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
