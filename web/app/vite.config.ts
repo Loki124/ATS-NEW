@@ -12,11 +12,12 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export default defineConfig(({ mode }) => ({
-  // 2026-06-29 花无缺: base 放顶级 (不在 build 内), 让 chunk 都用 /static/ 前缀,
-  //   跟 Django STATIC_URL='/static/' 对齐. 之前 vite 默认 '' → /assets/xxx,
-  //   但 whitenoise 只 serve /static/ 不 serve /assets/, 浏览器收到 text/html,
-  //   全部 asset 加载失败. 现在 base='/static/' → /static/assets/xxx.
-  base: '/static/',
+  // 2026-06-29 花无缺: 生产环境 base='/static/' 让 chunk 走 /static/assets/xxx,
+  //   跟 Django STATIC_URL='/static/' + whitenoise 对齐.
+  // ⚠️ dev 模式必须用 '/', 否则 index.html 里所有 asset 路径都带 /static/ 前缀,
+  //   Vite dev server 仍能 serve (它有 fallback), 但 SPA history 路由深链
+  //   (如 /settings/mou 直访) 会让浏览器请求 /static/settings/mou, 触发 whitenoise 提示.
+  base: mode === 'development' ? '/' : '/static/',
   plugins: [
     vue(),
     UnoCSS(),
