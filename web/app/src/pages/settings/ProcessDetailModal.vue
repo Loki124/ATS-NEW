@@ -961,6 +961,8 @@ watch(
   () => [props.show, props.processId],
   async ([s]) => {
     if (!s) return
+    // 每次打开前重置 mode 到 defaultMode (覆盖上次 cancelEdit() 的 'view')
+    mode.value = props.defaultMode
     // 新建流程 (processId='')：不调 getProcess / listProcessLinks, 直接进空表单 edit 态
     if (isCreateMode.value) {
       await enterCreateMode()
@@ -1103,6 +1105,7 @@ function cancelEdit() {
     return
   }
   exitEditMode()
+  emit('update:show', false)
 }
 
 function exitEditMode() {
