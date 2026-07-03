@@ -183,17 +183,19 @@ const handleLogin = async (values: { username: string; password: string }) => {
     const data = response.data
     if (data.success) {
       // 修复: 兼容 Django SimpleJWT 双 token 模式
-      //   旧 login API 返回 { token: 'xxx' } (单 token, 写入 localStorage.token)
-      //   新 Django login API 返回 { access, refresh, user } (双 token, 写 accessToken)
-      // 两个 key 都写, 让 27 个老 API 文件 (读 'token') + 新代码 (读 'accessToken') 都兼容
+      //   旧 login API 返回 { token: 'xxx' } (单 token)
+      //   新 Django login API 返回 { access, refresh, user } (双 token)
+      // 仅写 'accessToken' (新规范). 老 API 文件用
+      //   localStorage.getItem('accessToken') || localStorage.getItem('token')
+      // 已经兼容 (见 web/app/src/api/*.ts).
       const _token = data.data.token || data.data.access
       const _refresh = data.data.refresh
       if (_token) {
-        localStorage.setItem('token', _token)
-        userStore.setAccessToken(_token)  // 同步到 Pinia store
+        userStore.setAccessToken(_token)
+        // 清掉旧 key (如果历史登录残留): 双写会导致 401 后 router guard 误判
+        localStorage.removeItem('token')
       }
       if (_refresh) {
-        localStorage.setItem('refreshToken', _refresh)
         userStore.setRefreshToken(_refresh)
       }
       // 后端 (apps/core/views_auth.py:49-56) emit:
