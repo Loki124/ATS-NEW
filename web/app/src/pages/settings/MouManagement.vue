@@ -234,6 +234,14 @@
         <n-form-item label="权限范围">
           <n-tabs v-model:value="scopeTab" type="segment" size="small">
             <n-tab-pane name="menu" tab="菜单权限">
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <n-button size="tiny" @click="selectAllScopes('menu')">全选</n-button>
+                <n-button size="tiny" @click="deselectAllScopes('menu')">全不选</n-button>
+                <n-button size="tiny" @click="invertScopes('menu')">反选</n-button>
+                <span style="color: #999; font-size: 12px; line-height: 24px;">
+                  已选 {{ mouFormState.scopes.menu.length }} / {{ menuPermissions.length }}
+                </span>
+              </div>
               <n-checkbox-group v-model:value="mouFormState.scopes.menu">
                 <n-space vertical>
                   <n-checkbox
@@ -247,6 +255,14 @@
               <div v-if="!menuPermissions.length" style="color: #999; font-size: 12px;">暂无可选菜单权限</div>
             </n-tab-pane>
             <n-tab-pane name="function" tab="功能权限">
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <n-button size="tiny" @click="selectAllScopes('function')">全选</n-button>
+                <n-button size="tiny" @click="deselectAllScopes('function')">全不选</n-button>
+                <n-button size="tiny" @click="invertScopes('function')">反选</n-button>
+                <span style="color: #999; font-size: 12px; line-height: 24px;">
+                  已选 {{ mouFormState.scopes.function.length }} / {{ functionPermissions.length }}
+                </span>
+              </div>
               <n-checkbox-group v-model:value="mouFormState.scopes.function">
                 <n-space vertical>
                   <n-checkbox
@@ -995,6 +1011,26 @@ const loadPermissionCatalog = async () => {
   } catch (error) {
     message.error('加载权限目录失败')
   }
+}
+
+// 2026-07-02: 菜单/功能权限面板批量操作
+//   "全选" = 把当前可选的所有 code 加到 v-model 数组
+//   "全不选" = 清空对应数组
+//   "反选" = 数组里已选的剔除, 没选的加进去
+//   注意: 必须新建数组再赋值, 不能 push/splice 原数组, 否则 n-checkbox-group 不会响应
+const selectAllScopes = (kind: 'menu' | 'function') => {
+  const source = kind === 'menu' ? menuPermissions.value : functionPermissions.value
+  mouFormState.scopes[kind] = source.map(p => p.code)
+}
+
+const deselectAllScopes = (kind: 'menu' | 'function') => {
+  mouFormState.scopes[kind] = []
+}
+
+const invertScopes = (kind: 'menu' | 'function') => {
+  const source = kind === 'menu' ? menuPermissions.value : functionPermissions.value
+  const current = new Set(mouFormState.scopes[kind] || [])
+  mouFormState.scopes[kind] = source.map(p => p.code).filter(c => !current.has(c))
 }
 
 const loadMouScopes = async (mouId: string) => {
