@@ -20,7 +20,7 @@
     preset="card"
     style="width: 760px; max-width: 95vw"
     :mask-closable="true"
-    :title="''"
+    :title="isCreateMode ? '新建流程' : '编辑流程'"
     :bordered="false"
     @update:show="handleUpdateShow"
   >
@@ -398,7 +398,7 @@
           </div>
           <div class="hero__actions">
             <n-button @click="cancelEdit">取消</n-button>
-            <n-button type="primary" :loading="saving" @click="handleSave">保存</n-button>
+            <n-button type="primary" :loading="saving" @click="handleSave">{{ isCreateMode ? '创建' : '保存' }}</n-button>
           </div>
         </div>
 
@@ -665,6 +665,7 @@ import {
   listProcessLinks,
   copyProcess,
   updateProcess,
+  createProcess,
   listStages,
   addProcessLink,
   deleteProcessLink,
@@ -702,6 +703,9 @@ const links = ref<ProcessStageLink[]>([])
 // ===== mode state (Task 2) =====
 type Mode = 'view' | 'edit'
 const mode = ref<Mode>(props.defaultMode)
+
+// ===== Task 7: create mode =====
+const isCreateMode = computed(() => !props.processId)
 
 // ===== Task 3: edit state =====
 type ScopeKey = 'department' | 'level' | 'position' | 'user'
@@ -881,7 +885,12 @@ async function load() {
 watch(
   () => [props.show, props.processId],
   async ([s]) => {
-    if (!s || !props.processId) return
+    if (!s) return
+    // 新建流程 (processId='')：不调 getProcess / listProcessLinks, 直接进空表单 edit 态
+    if (isCreateMode.value) {
+      await enterCreateMode()
+      return
+    }
     await load()
     // 如果初始 defaultMode='edit' (如 list 直接点编辑), 加载完数据后自动进 edit 态
     if (mode.value === 'edit' && !editForm.value) {
@@ -916,7 +925,26 @@ const dirty = computed(() => {
 })
 
 // ===== Task 3: build edit form from current data =====
+function buildEmptyEditForm(): EditForm {
+  const indicators: ScopeIndicator[] = [
+    { key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
+    { key: 'level',      mode: 'include', values: [], options: [], loading: false },
+    { key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
+    { key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
+  ]
+  return {
+    name: '',
+    description: '',
+    validateResumeScore: false,
+    failPrompt: '',
+    applicableMode: 'ALL',
+    applicableIndicators: indicators,
+    stages: [],
+  }
+}
+
 function buildEditForm(): EditForm {
+  if (isCreateMode.value) return buildEmptyEditForm()
   const d = data.value
   const indicators: ScopeIndicator[] = [
     { key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
@@ -966,10 +994,9 @@ async function loadStageLibrary() {
   }
 }
 
-// ===== Task 3: edit lifecycle =====
-async function enterEdit() {
-  if (!props.editable) return
-  emit('enterEdit', props.processId)
+// ===== Task 3/7: edit lifecycle =====
+// 共享: 初始化 editForm + snapshot + 加载选项 + 切到 edit 模式
+async function initEditFormFromSnapshot() {
   await loadScopeOptions()
   await loadStageLibrary()
   const form = buildEditForm()
@@ -977,6 +1004,20 @@ async function enterEdit() {
   originalSnapshot.value = { form: deepClone(form) }
   selectedStageIdx.value = null
   mode.value = 'edit'
+}
+
+async function enterEdit() {
+  if (!props.editable) return
+  emit('enterEdit', props.processId)
+  await initEditFormFromSnapshot()
+}
+
+// 新建流程 (processId='')：跳过 getProcess / listProcessLinks, 直接进空表单
+async function enterCreateMode() {
+  if (!props.editable) return
+  // 把默认 mode 强制为 edit, 不论 defaultMode 传什么
+  mode.value = 'edit'
+  await initEditFormFromSnapshot()
 }
 
 function cancelEdit() {
@@ -1102,8 +1143,7 @@ function validateEditForm(form: EditForm): string | null {
 }
 
 async function handleSave() {
-  // 1. guard: create-new mode (processId empty) — stub for now
-  if (!editForm.value || !props.processId) return
+  if (!editForm.value) return
   const form = editForm.value
 
   // 2. validate
@@ -1115,7 +1155,7 @@ async function handleSave() {
 
   saving.value = true
   try {
-    // 3a. update process meta (name/desc/scope/etc.)
+    // 3a. applicableScope payload (used in both create + update)
     const applicableScope = {
       mode: form.applicableMode,
       indicators: form.applicableIndicators.map((ind: ScopeIndicator) => ({
@@ -1124,32 +1164,52 @@ async function handleSave() {
         values: ind.values || [],
       })),
     }
-    await updateProcess(props.processId, {
-      name: form.name,
-      description: form.description,
-      validateResumeScore: form.validateResumeScore,
-      failPrompt: form.failPrompt,
-      applicableMode: form.applicableMode,
-      applicableScope: applicableScope as any,
-    })
 
-    // 3b. delete removed links (sequential)
-    const originalLinkIds = new Set(
-      (links.value || []).map((l: any) => l.id).filter(Boolean),
-    )
-    const currentLinkIds = new Set(
-      form.stages.map(s => s._linkId).filter(Boolean) as string[],
-    )
-    const toDelete = [...originalLinkIds].filter(id => !currentLinkIds.has(id))
-    for (const oldId of toDelete) {
-      await deleteProcessLink(oldId)
+    // ===== 新建流程路径 =====
+    let currentProcessId = props.processId
+    if (isCreateMode.value) {
+      const created = await createProcess({
+        name: form.name,
+        description: form.description,
+        validateResumeScore: form.validateResumeScore,
+        failPrompt: form.failPrompt,
+        applicableMode: form.applicableMode,
+        applicableScope: applicableScope as any,
+      })
+      currentProcessId = created?.id
+      if (!currentProcessId) {
+        message.error('创建失败: 未返回流程 ID')
+        return
+      }
+    } else {
+      // ===== 更新流程路径 =====
+      await updateProcess(props.processId, {
+        name: form.name,
+        description: form.description,
+        validateResumeScore: form.validateResumeScore,
+        failPrompt: form.failPrompt,
+        applicableMode: form.applicableMode,
+        applicableScope: applicableScope as any,
+      })
+
+      // 3b. delete removed links (sequential)
+      const originalLinkIds = new Set(
+        (links.value || []).map((l: any) => l.id).filter(Boolean),
+      )
+      const currentLinkIds = new Set(
+        form.stages.map(s => s._linkId).filter(Boolean) as string[],
+      )
+      const toDelete = [...originalLinkIds].filter(id => !currentLinkIds.has(id))
+      for (const oldId of toDelete) {
+        await deleteProcessLink(oldId)
+      }
     }
 
     // 3c. add new links (sequential — needed for stageLimit update below)
     for (const s of form.stages) {
       if (!s._linkId && s.id) {
         const created = await addProcessLink({
-          processId: props.processId,
+          processId: currentProcessId,
           stageId: s.id,
           stageLimit: s.stageLimit,
         })
@@ -1162,7 +1222,7 @@ async function handleSave() {
       .map(s => s._linkId)
       .filter(Boolean) as string[]
     if (linkIds.length) {
-      await reorderProcessLinks(props.processId, linkIds)
+      await reorderProcessLinks(currentProcessId, linkIds)
     }
 
     // 3e. update stageLimit on existing links
@@ -1172,20 +1232,26 @@ async function handleSave() {
       }
     }
 
-    // 3f. refresh view data
-    await load()
+    // 3f. 刷新 data + links: create 模式也要 (虽然 data 为空, 但 load() 用 currentProcessId)
+    if (!isCreateMode.value) {
+      await load()
+    } else {
+      // 新建后: 把 data 设为刚创建的流程 (供父组件触发列表刷新)
+      data.value = { id: currentProcessId, name: form.name }
+      links.value = []
+    }
 
     // 3g. success path
     exitEditMode()
-    message.success('已保存')
-    emit('saved', props.processId)
+    message.success(isCreateMode.value ? '已创建' : '已保存')
+    emit('saved', currentProcessId)
   } catch (e: any) {
     // 409 conflict path
     if (e?.response?.status === 409) {
       showConflict.value = true
       conflictInfo.value = e.response.data || {}
     } else {
-      message.error(e?.response?.data?.message || '保存失败')
+      message.error(e?.response?.data?.message || (isCreateMode.value ? '创建失败' : '保存失败'))
     }
   } finally {
     saving.value = false

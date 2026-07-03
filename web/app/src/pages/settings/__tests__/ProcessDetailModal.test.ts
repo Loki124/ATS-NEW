@@ -215,6 +215,25 @@ describe('ProcessDetailModal.vue', () => {
     expect(document.body.textContent).toContain('修改冲突')
   })
 
+  // --- 新契约 9: 新建流程 (processId='') ---
+  it('create mode (processId="") opens edit form with empty fields, no getProcess call', async () => {
+    wrapper = factory({ show: true, processId: '', defaultMode: 'edit' })
+    await flushPromises()
+    await nextTick()
+    // 不应调用 getProcess / listProcessLinks
+    expect(mockGetProcess).not.toHaveBeenCalled()
+    expect(mockListProcessLinks).not.toHaveBeenCalled()
+    // edit mode 应打开, 流程名称输入框 placeholder 可见
+    const nameInput = document.querySelector('input[placeholder="流程名称"]') as HTMLInputElement
+    expect(nameInput).toBeTruthy()
+    expect(nameInput.value).toBe('')
+    // 取消 / 创建 按钮可见
+    const cancelBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '取消') as HTMLElement
+    expect(cancelBtn).toBeTruthy()
+    const createBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '创建') as HTMLElement
+    expect(createBtn).toBeTruthy()
+  })
+
   // --- 新契约 8 ---
   it('closing modal with dirty state in edit mode shows popconfirm', async () => {
     wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
