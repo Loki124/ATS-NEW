@@ -60,7 +60,7 @@
 import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert } from 'naive-ui'
 import { AddOutline, TrashOutline } from '@vicons/ionicons5'
-import { listStages, createStage, updateStage, deleteStage, updateStageStatus } from '../../api/recruitment-process'
+import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
 import { listDict } from '../../api/dict'
 
 const message = useMessage()
@@ -164,7 +164,7 @@ const columns = [
     title: '状态',
     key: 'status',
     width: 90,
-    render: (row: any) => h(NTag, { type: row.status === 'ACTIVE' ? 'success' : 'default', size: 'small' }, { default: () => row.status === 'ACTIVE' ? '启用' : '停用' }),
+    render: (row: any) => h(NTag, { type: row.status === 'ENABLED' ? 'success' : 'default', size: 'small' }, { default: () => row.status === 'ENABLED' ? '启用' : '停用' }),
   },
   { title: '功能项', key: 'features', render: (row: any) => Array.isArray(row.features) ? row.features.join(', ') : '-' },
   {
@@ -174,7 +174,7 @@ const columns = [
     fixed: 'right' as const,
     render: (row: any) => h(NSpace, { size: 'small' }, () => [
       h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row), disabled: row.isSystem }, { default: () => row.status === 'ACTIVE' ? '停用' : '启用' }),
+      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row), disabled: row.isSystem }, { default: () => row.status === 'ENABLED' ? '停用' : '启用' }),
       h(NPopconfirm, { onPositiveClick: () => handleDelete(row), disabled: row.isSystem || (row._count?.links > 0) }, {
         trigger: () => h(NButton, { size: 'small', text: true, type: 'error', disabled: row.isSystem || (row._count?.links > 0) }, { default: () => '删除' }),
         default: () => row.isSystem ? '系统预置阶段不可删除' : row._count?.links > 0 ? `被 ${row._count.links} 个流程引用，请先在流程中移除` : '确定要删除吗？',
@@ -267,10 +267,14 @@ async function handleToggleStatus(row: any) {
     message.warning('系统预置阶段不可停用')
     return
   }
-  const newStatus = row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
   try {
-    await updateStageStatus(row.id, newStatus)
-    message.success(`已${newStatus === 'ACTIVE' ? '启用' : '停用'}`)
+    if (row.status === 'ENABLED') {
+      await disableStage(row.id)
+      message.success('已停用')
+    } else {
+      await enableStage(row.id)
+      message.success('已启用')
+    }
     loadList()
   } catch (e: any) {
     message.error(e?.response?.data?.message || '操作失败')

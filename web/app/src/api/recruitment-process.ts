@@ -71,7 +71,9 @@ export interface RecruitmentStage {
   isStart: boolean;
   isEnd: boolean;
   description?: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  // 2026-07-03: BE StageStatus = ENABLED/DISABLED (apps/process/models.py),
+  //   旧 'ACTIVE'|'INACTIVE' 跟 BE 不一致 → status 列恒显示「停用」.
+  status: 'ENABLED' | 'DISABLED';
   createdAt: string;
   updatedAt: string;
   _count?: { links: number };
@@ -196,8 +198,13 @@ export const updateStage = (id: string, payload: Partial<RecruitmentStage>) =>
 export const deleteStage = (id: string) =>
   api.delete<{ success: boolean }>(`/stages/${id}/`).then((r) => r.data);
 
-export const updateStageStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
-  api.put<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/status/`, { status }).then((r) => r.data.data);
+// 2026-07-03: BE expose POST /stages/{id}/disable/ 和 /enable/ (@action),
+//   旧 PUT /stages/{id}/status/ 路径不存在 → 404.
+export const disableStage = (id: string) =>
+  api.post<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/disable/`, {}).then((r) => r.data.data);
+
+export const enableStage = (id: string) =>
+  api.post<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/enable/`, {}).then((r) => r.data.data);
 
 // ===== 流程-阶段 link =====
 export const listProcessLinks = (processId: string) =>
@@ -272,7 +279,7 @@ export const upsertAutoArchiveRule = (rule: Partial<AutoArchiveRule>) =>
 
 export default {
   listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus,
-  listStages, createStage, updateStage, deleteStage, updateStageStatus,
+  listStages, createStage, updateStage, deleteStage, disableStage, enableStage,
   listProcessLinks, addProcessLink, updateProcessLink, deleteProcessLink, reorderProcessLinks,
   upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listStageRules, listEntryConditions,
   evaluateCandidateForStage, checkApplicationStageTransition,
