@@ -1104,10 +1104,106 @@ async function reloadAndEdit() {
   await enterEdit()
 }
 
-// ===== Task 3: handleSave stub (Task 4 fills) =====
+// ===== Task 4: validate + handleSave =====
+
+function validateEditForm(form: EditForm): string | null {
+  if (!form.name || !form.name.trim()) return '流程名称不能为空'
+  if (form.name.length > 100) return '流程名称不能超过 100 字符'
+  if (!Array.isArray(form.stages) || form.stages.length < 2) return '至少需要 2 个阶段 (含起止)'
+  if (!form.stages.some(s => s.isStart)) return '缺少起始阶段'
+  if (!form.stages.some(s => s.isEnd)) return '缺少结束阶段'
+  return null
+}
+
 async function handleSave() {
-  // Task 4 填充完整 save 逻辑
-  message.info('Task 4 将填充 save 逻辑')
+  // 1. guard: create-new mode (processId empty) — stub for now
+  if (!editForm.value || !props.processId) return
+  const form = editForm.value
+
+  // 2. validate
+  const err = validateEditForm(form)
+  if (err) {
+    message.error(err)
+    return
+  }
+
+  saving.value = true
+  try {
+    // 3a. update process meta (name/desc/scope/etc.)
+    const applicableScope = {
+      mode: form.applicableMode,
+      indicators: form.applicableIndicators.map((ind: ScopeIndicator) => ({
+        key: ind.key,
+        mode: ind.mode,
+        values: ind.values || [],
+      })),
+    }
+    await updateProcess(props.processId, {
+      name: form.name,
+      description: form.description,
+      validateResumeScore: form.validateResumeScore,
+      failPrompt: form.failPrompt,
+      applicableMode: form.applicableMode,
+      applicableScope: applicableScope as any,
+    })
+
+    // 3b. delete removed links (sequential)
+    const originalLinkIds = new Set(
+      (links.value || []).map((l: any) => l.id).filter(Boolean),
+    )
+    const currentLinkIds = new Set(
+      form.stages.map(s => s._linkId).filter(Boolean) as string[],
+    )
+    const toDelete = [...originalLinkIds].filter(id => !currentLinkIds.has(id))
+    for (const oldId of toDelete) {
+      await deleteProcessLink(oldId)
+    }
+
+    // 3c. add new links (sequential — needed for stageLimit update below)
+    for (const s of form.stages) {
+      if (!s._linkId && s.id) {
+        const created = await addProcessLink({
+          processId: props.processId,
+          stageId: s.id,
+          stageLimit: s.stageLimit,
+        })
+        if (created?.id) s._linkId = created.id
+      }
+    }
+
+    // 3d. reorder links
+    const linkIds = form.stages
+      .map(s => s._linkId)
+      .filter(Boolean) as string[]
+    if (linkIds.length) {
+      await reorderProcessLinks(props.processId, linkIds)
+    }
+
+    // 3e. update stageLimit on existing links
+    for (const s of form.stages) {
+      if (s._linkId && s.stageLimit !== undefined && s.stageLimit !== null) {
+        await updateProcessLink(s._linkId, { stageLimit: s.stageLimit })
+      }
+    }
+
+    // 3f. refresh view data
+    await load()
+
+    // 3g. success path
+    exitEditMode()
+    message.success('已保存')
+    emit('saved', props.processId)
+  } catch (e: any) {
+    // 409 conflict path
+    if (e?.response?.status === 409) {
+      showConflict.value = true
+      conflictInfo.value = e.response.data || {}
+    } else {
+      message.error(e?.response?.data?.message || '保存失败')
+    }
+  } finally {
+    saving.value = false
+  }
 }
 
 async function onCopy() {
