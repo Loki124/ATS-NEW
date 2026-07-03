@@ -947,7 +947,7 @@ async function load() {
           isSystem: l.stage.isBuiltin ?? l.stage.isSystem ?? false,
           stageType: l.stage.stageType,
         } : l.stage,
-        isStart: l.stage?.isStart ?? l.isRequired ?? false,
+        isStart: l.stage?.isStart ?? false,
         isEnd: l.stage?.isEnd ?? false,
       }))
   } catch (e: any) {
