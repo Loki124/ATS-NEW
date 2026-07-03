@@ -70,20 +70,86 @@ class Command(BaseCommand):
 
     def init_roles(self):
         from apps.core.models import Permission, Role, RolePermission
-        # 权限字典（精简版，覆盖核心场景）
+        # 权限字典 — 2026-07-02 扩到业务全量
+        # 命名约定:
+        #   :read   — 菜单/读权限 (前端 menuPermissions 复选框)
+        #   :export — 菜单/导出
+        #   :create — 功能/新增
+        #   :update — 功能/编辑
+        #   :delete — 功能/删除
+        #   :approve — 功能/审批
+        #   :assign — 功能/分配
         perms = [
+            # ─── 候选人 (candidate) ───
             ('candidate:read', '查看候选人', 'candidate'),
-            ('candidate:write', '编辑候选人', 'candidate'),
+            ('candidate:export', '导出候选人', 'candidate'),
+            ('candidate:create', '新增候选人', 'candidate'),
+            ('candidate:update', '编辑候选人', 'candidate'),
+            ('candidate:delete', '删除候选人', 'candidate'),
+            ('candidate:assign', '分配面试官', 'candidate'),
+            # ─── 申请 (application) ───
             ('application:read', '查看申请', 'application'),
-            ('application:write', '编辑申请', 'application'),
+            ('application:export', '导出申请', 'application'),
+            ('application:create', '新建申请', 'application'),
+            ('application:update', '编辑申请', 'application'),
+            ('application:delete', '删除申请', 'application'),
+            ('application:approve', '审批申请', 'application'),
+            # ─── 需求 (demand) ───
             ('demand:read', '查看需求', 'demand'),
-            ('demand:write', '编辑需求', 'demand'),
-            ('process:read', '查看流程', 'process'),
-            ('process:write', '编辑流程', 'process'),
+            ('demand:export', '导出需求', 'demand'),
+            ('demand:create', '新建需求', 'demand'),
+            ('demand:update', '编辑需求', 'demand'),
+            ('demand:delete', '删除需求', 'demand'),
+            ('demand:approve', '审批需求', 'demand'),
+            # ─── 职位 (position) ───
+            ('position:read', '查看职位', 'position'),
+            ('position:export', '导出职位', 'position'),
+            ('position:create', '新建职位', 'position'),
+            ('position:update', '编辑职位', 'position'),
+            ('position:delete', '删除职位', 'position'),
+            # ─── 面试 (interview) ───
+            ('interview:read', '查看面试', 'interview'),
+            ('interview:create', '安排面试', 'interview'),
+            ('interview:update', '编辑面试', 'interview'),
+            ('interview:delete', '取消面试', 'interview'),
+            ('interview:approve', '提交面试评价', 'interview'),
+            # ─── Offer ───
+            ('offer:read', '查看 Offer', 'offer'),
+            ('offer:export', '导出 Offer', 'offer'),
+            ('offer:create', '发起 Offer', 'offer'),
+            ('offer:update', '编辑 Offer', 'offer'),
+            ('offer:approve', '审批 Offer', 'offer'),
+            ('offer:delete', '撤销 Offer', 'offer'),
+            # ─── 入职 (onboarding) ───
+            ('onboarding:read', '查看入职', 'onboarding'),
+            ('onboarding:create', '发起入职', 'onboarding'),
+            ('onboarding:update', '编辑入职信息', 'onboarding'),
+            ('onboarding:approve', '审批入职', 'onboarding'),
+            # ─── 推荐 (referral) ───
+            ('referral:read', '查看内推', 'referral'),
+            ('referral:create', '提交内推', 'referral'),
+            ('referral:approve', '审批内推奖励', 'referral'),
+            # ─── 自动化规则 (automation) ───
             ('automation:read', '查看自动化规则', 'automation'),
-            ('automation:write', '编辑自动化规则', 'automation'),
+            ('automation:create', '新建自动化规则', 'automation'),
+            ('automation:update', '编辑自动化规则', 'automation'),
+            ('automation:delete', '删除自动化规则', 'automation'),
+            # ─── 招聘流程 (process) ───
+            ('process:read', '查看流程', 'process'),
+            ('process:create', '新建流程', 'process'),
+            ('process:update', '编辑流程', 'process'),
+            ('process:delete', '删除流程', 'process'),
+            # ─── 人才池 (talent_pool) ───
+            ('talent_pool:read', '查看人才池', 'talent_pool'),
+            ('talent_pool:create', '加入人才池', 'talent_pool'),
+            ('talent_pool:update', '编辑人才池', 'talent_pool'),
+            # ─── 数据分析 (analytics) ───
             ('analytics:read', '查看数据分析', 'analytics'),
+            ('analytics:export', '导出报表', 'analytics'),
+            # ─── 审计 (audit) ───
             ('audit:read', '查看审计日志', 'audit'),
+            ('audit:export', '导出审计日志', 'audit'),
+            # ─── 系统 (system) ───
             ('system:admin', '系统管理', 'system'),
         ]
         perm_objs = {}
@@ -112,21 +178,21 @@ class Command(BaseCommand):
             'AUDITOR':        ('审计人员',   '合规审计'),
         }
 
-        # 角色权限映射
+        # 角色权限映射 — 2026-07-02 跟随新命名 :read/:update/:create/:approve/:delete
         role_perm_map = {
             'SUPER_ADMIN': [p for p in perm_objs.keys()],
             'CHO': ['analytics:read', 'audit:read', 'candidate:read', 'application:read', 'process:read', 'demand:read'],
-            'HR_DIRECTOR': ['candidate:read', 'candidate:write', 'application:read', 'application:write',
-                            'demand:read', 'demand:write', 'process:read', 'process:write',
-                            'analytics:read', 'automation:read'],
-            'HRBP': ['candidate:read', 'candidate:write', 'application:read', 'application:write',
-                     'demand:read', 'process:read', 'analytics:read'],
-            'HR': ['candidate:read', 'candidate:write', 'application:read', 'application:write',
-                   'demand:read', 'process:read'],
-            'HIRING_MANAGER': ['candidate:read', 'application:read', 'demand:read', 'demand:write'],
-            'INTERVIEWER': ['candidate:read', 'application:read'],
-            'REFERRER': ['candidate:read', 'candidate:write'],
-            'AUDITOR': ['audit:read', 'candidate:read', 'application:read', 'process:read'],
+            'HR_DIRECTOR': ['candidate:read', 'candidate:update', 'application:read', 'application:update',
+                            'demand:read', 'demand:update', 'process:read', 'process:update',
+                            'analytics:read', 'automation:read', 'offer:read', 'interview:read'],
+            'HRBP': ['candidate:read', 'candidate:update', 'application:read', 'application:update',
+                     'demand:read', 'process:read', 'analytics:read', 'offer:read', 'interview:read'],
+            'HR': ['candidate:read', 'candidate:update', 'application:read', 'application:update',
+                   'demand:read', 'process:read', 'offer:read'],
+            'HIRING_MANAGER': ['candidate:read', 'application:read', 'demand:read', 'demand:update'],
+            'INTERVIEWER': ['candidate:read', 'application:read', 'interview:read', 'interview:approve'],
+            'REFERRER': ['candidate:read', 'candidate:create', 'referral:read', 'referral:create'],
+            'AUDITOR': ['audit:read', 'audit:export', 'candidate:read', 'application:read', 'process:read'],
             # ADMIN 不在 role_perm_map 中: 它是系统管理员角色, 权限通过 is_staff/is_superuser 直接放行
             #                              如果将来要给 ADMIN 也配 perm, 在此添加
         }

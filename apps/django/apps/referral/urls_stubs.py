@@ -272,19 +272,25 @@ def permissions_user_info(request):
 @permission_classes([IsAuthenticated])
 def permissions_list_by_type(request):
     """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
-    2026-07-02: 按 demo seed 实际命名 (`:read`/`:write`/`:admin`) 过滤,
-                旧逻辑用 `:view`/`:create|update|delete` 后缀匹配, demo seed 永远 0 条.
+    2026-07-02: 跟随业务字典命名 (`:read`/`:export` 是菜单, `:create|:update|:delete|:approve|:assign` 是功能)
     """
     from apps.core.models import Permission
     from apps.core.serializers import PermissionSerializer
     qs = Permission.objects.all()
     type_filter = request.query_params.get('type', '')
     if type_filter == 'MENU':
-        # 菜单权限: 业务模块的 :read (排除 system:admin)
-        qs = qs.filter(code__endswith=':read')
+        # 菜单权限: 读类 (排除写操作后缀)
+        qs = qs.filter(code__endswith=':read') | qs.filter(code__endswith=':export')
     elif type_filter == 'FUNCTION':
-        # 功能权限: 写操作 (demo 用 :write 后缀)
-        qs = qs.filter(code__endswith=':write')
+        # 功能权限: 写操作 (创建/编辑/删除/审批/分配)
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(code__endswith=':create') |
+            Q(code__endswith=':update') |
+            Q(code__endswith=':delete') |
+            Q(code__endswith=':approve') |
+            Q(code__endswith=':assign')
+        )
     elif type_filter == 'DATA':
         # 数据权限: 暂用 system:admin 占位, 业务侧真正 data scope 待 G37+ 实现
         qs = qs.filter(code='system:admin')
@@ -300,7 +306,14 @@ def permissions_functions(request):
     """GET /permissions/functions/ — 功能权限 (写操作)"""
     from apps.core.models import Permission
     from apps.core.serializers import PermissionSerializer
-    qs = Permission.objects.filter(code__endswith=':write')[:200]
+    from django.db.models import Q
+    qs = Permission.objects.filter(
+        Q(code__endswith=':create') |
+        Q(code__endswith=':update') |
+        Q(code__endswith=':delete') |
+        Q(code__endswith=':approve') |
+        Q(code__endswith=':assign')
+    )[:200]
     data = PermissionSerializer(qs, many=True).data
     return Response({'success': True, 'data': data})
 
@@ -311,7 +324,10 @@ def permissions_menus(request):
     """GET /permissions/menus/ — 菜单/读权限"""
     from apps.core.models import Permission
     from apps.core.serializers import PermissionSerializer
-    qs = Permission.objects.filter(code__endswith=':read')[:200]
+    from django.db.models import Q
+    qs = Permission.objects.filter(
+        Q(code__endswith=':read') | Q(code__endswith=':export')
+    ).distinct()[:200]
     data = PermissionSerializer(qs, many=True).data
     return Response({'success': True, 'data': data})
 
