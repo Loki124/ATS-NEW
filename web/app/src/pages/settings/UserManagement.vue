@@ -142,6 +142,7 @@
 <script setup lang="ts">
 import api from '../../api/auth';
 import { ref, reactive, onMounted, computed, h } from 'vue';
+import { useUserStore } from '../../stores/user';
 import {
   LockClosedOutline,
   AddOutline,
@@ -258,7 +259,9 @@ const formState = reactive({
 });
 
 // 获取token
-const getToken = () => localStorage.getItem('token');
+//   Fix 8 之前 token 存在 localStorage.getItem('token'), 现在统一到 useUserStore().accessToken,
+//   老的 'token' key 已被清掉. 此处返回 store 里的 accessToken, 与项目其它处一致.
+const getToken = () => useUserStore().accessToken;
 
 // API请求封装
 const request = async (url: string, options: RequestInit = {}) => {
