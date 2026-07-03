@@ -63,6 +63,12 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('阶段名称不可超过 20 字')
         return value.strip()
 
+    def _resolve_flag(self, attrs, field_name):
+        """从 attrs 或 self.instance 取最终值 (attrs 优先)"""
+        if field_name in attrs:
+            return attrs[field_name]
+        return getattr(self.instance, field_name, False) if self.instance else False
+
     def validate(self, attrs):
         # 预置阶段不可停用/删除
         if self.instance and self.instance.is_builtin:
@@ -71,29 +77,30 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
                     {'status': '预置阶段不可停用'},
                 )
 
-        # BR-001 强化: is_start/is_end 全局互斥且唯一
-        new_is_start = attrs.get('is_start', self.instance.is_start if self.instance else False)
-        new_is_end = attrs.get('is_end', self.instance.is_end if self.instance else False)
+        # BR-001: 互斥 + 全局唯一
+        new_is_start = self._resolve_flag(attrs, 'is_start')
+        new_is_end = self._resolve_flag(attrs, 'is_end')
 
         if new_is_start and new_is_end:
             raise serializers.ValidationError(
                 {'is_start': '同一阶段不可同时为起始和结束阶段'},
             )
 
-        # 全局唯一性 (排除自身): is_start=true 只能有 1 个, is_end=true 只能有 1 个
-        qs = RecruitmentStage.objects.all()
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if new_is_start and qs.filter(is_start=True).exists():
-            existing = qs.filter(is_start=True).first()
-            raise serializers.ValidationError(
-                {'is_start': f'阶段「{existing.name}」已是起始阶段, 全局只能有 1 个起始'},
-            )
-        if new_is_end and qs.filter(is_end=True).exists():
-            existing = qs.filter(is_end=True).first()
-            raise serializers.ValidationError(
-                {'is_end': f'阶段「{existing.name}」已是结束阶段, 全局只能有 1 个结束'},
-            )
+        # select_for_update 防 race (MySQL 8+ / PG 12+)
+        with transaction.atomic():
+            qs = RecruitmentStage.objects.select_for_update().all()
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if new_is_start and qs.filter(is_start=True).exists():
+                existing = qs.filter(is_start=True).values_list('name', flat=True).first()
+                raise serializers.ValidationError(
+                    {'is_start': f'阶段「{existing}」已是起始阶段, 全局只能有 1 个起始'},
+                )
+            if new_is_end and qs.filter(is_end=True).exists():
+                existing = qs.filter(is_end=True).values_list('name', flat=True).first()
+                raise serializers.ValidationError(
+                    {'is_end': f'阶段「{existing}」已是结束阶段, 全局只能有 1 个结束'},
+                )
 
         return attrs
 

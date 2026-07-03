@@ -3,6 +3,18 @@
 from django.db import migrations, models
 
 
+def set_start_end(apps, schema_editor):
+    """BR-001: 全局仅 1 个起始 = 初评(P001), 1 个结束 = 正式录用(P008)"""
+    Stage = apps.get_model('process', 'RecruitmentStage')
+    Stage.objects.filter(code='P001').update(is_start=True)
+    Stage.objects.filter(code='P008').update(is_end=True)
+
+
+def reverse_set_start_end(apps, schema_editor):
+    Stage = apps.get_model('process', 'RecruitmentStage')
+    Stage.objects.filter(code__in=['P001', 'P008']).update(is_start=False, is_end=False)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -20,4 +32,21 @@ class Migration(migrations.Migration):
             name='is_start',
             field=models.BooleanField(db_index=True, default=False, verbose_name='起始阶段'),
         ),
+        migrations.AddConstraint(
+            model_name='recruitmentstage',
+            constraint=models.UniqueConstraint(
+                fields=['is_start'],
+                condition=models.Q(is_start=True),
+                name='uniq_only_one_start_stage',
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name='recruitmentstage',
+            constraint=models.UniqueConstraint(
+                fields=['is_end'],
+                condition=models.Q(is_end=True),
+                name='uniq_only_one_end_stage',
+            ),
+        ),
+        migrations.RunPython(set_start_end, reverse_set_start_end),
     ]

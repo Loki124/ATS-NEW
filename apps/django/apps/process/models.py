@@ -8,6 +8,8 @@
 - StageRule: 阶段规则（自动流转/默认处理人/限时）
 """
 from django.db import models
+from django.db.models import Q
+from django.core.exceptions import ValidationError
 from django_fsm import FSMField, transition
 from apps.common.models import TimestampedModel, SoftDeleteModel, FullAuditModel
 from nanoid import generate as nanoid_generate
@@ -92,9 +94,43 @@ class RecruitmentStage(FullAuditModel):
         verbose_name = '阶段'
         verbose_name_plural = verbose_name
         ordering = ['code']
+        constraints = [
+            # BR-001: 全局仅 1 个起始阶段, 1 个结束阶段
+            # partial UniqueConstraint 需要 MySQL 8+ / PostgreSQL 12+ 才支持
+            # 若 DB 版本 < 8, constraint 会被静默忽略, 此时靠 model.clean() + serializer.validate() 兜底
+            models.UniqueConstraint(
+                fields=['is_start'],
+                condition=Q(is_start=True),
+                name='uniq_only_one_start_stage',
+            ),
+            models.UniqueConstraint(
+                fields=['is_end'],
+                condition=Q(is_end=True),
+                name='uniq_only_one_end_stage',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.code} {self.name}'
+
+    def clean(self):
+        super().clean()
+        # 互斥: 同一阶段不可同时为起始和结束
+        if self.is_start and self.is_end:
+            raise ValidationError({'is_start': '同一阶段不可同时为起始和结束阶段'})
+
+        # 全局唯一性兜底 (model 层; serializer 层会先验, DB constraint 是最终防线)
+        qs = RecruitmentStage.objects.filter(is_start=True)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        if self.is_start and qs.exists():
+            raise ValidationError({'is_start': '全局只能有 1 个起始阶段'})
+
+        qs = RecruitmentStage.objects.filter(is_end=True)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        if self.is_end and qs.exists():
+            raise ValidationError({'is_end': '全局只能有 1 个结束阶段'})
 
     @property
     def reference_count(self):

@@ -198,11 +198,11 @@ async function openAddModal() {
   loadingAddModal.value = true
   try {
     const all = await listStages({ status: 'ACTIVE' })
-    // 排除已被引用的 + 起止（不可重复添加）
+    // 排除已被引用的 + 系统预置起止阶段 (不可重复添加)
     const usedIds = new Set(links.value.map((l) => l.stageId))
-    availableStages.value = all.filter((s) => !usedIds.has(s.id) && !s.isSystem ? true : !usedIds.has(s.id))
-    // 系统预置起止阶段不能重复添加 - 已经在 create 时自动 link 了
-    availableStages.value = availableStages.value.filter((s) => !s.isSystem || !usedIds.has(s.id))
+    availableStages.value = all.filter(
+      (s) => !usedIds.has(s.id) && !s.isStart && !s.isEnd
+    )
   } catch (e: any) {
     message.error(e?.response?.data?.message || '加载候选阶段失败')
   } finally {

@@ -88,3 +88,44 @@ class StageStartEndTestCase(TestCase):
         )
         self.assertFalse(s.is_start)
         self.assertFalse(s.is_end)
+
+    def test_model_save_both_flags_rejected(self):
+        """model.clean() 兜底: 直接走 ORM 也不能双标"""
+        from django.core.exceptions import ValidationError
+        stage = RecruitmentStage(
+            code='P009', name='非法', stage_type=StageType.SCREEN,
+            status=StageStatus.ENABLED, is_start=True, is_end=True,
+        )
+        with self.assertRaises(ValidationError):
+            stage.full_clean()
+
+    def test_self_unset_end_allowed(self):
+        """is_end 自取消允许 (与 is_start 自取消对称)"""
+        from apps.process.serializers import RecruitmentStageSerializer
+        s = RecruitmentStageSerializer(
+            instance=self.offer,
+            data={'is_end': False},
+            partial=True,
+        )
+        self.assertTrue(s.is_valid(), f'Expected valid, got: {s.errors}')
+
+    def test_swap_old_unset_then_new_set_allowed(self):
+        """先取消旧的 is_start, 再设置新的 is_start, 应该允许 (走 save + serializer)"""
+        from apps.process.serializers import RecruitmentStageSerializer
+        # 先取消 initial.is_start (真正 save, 影响 DB 状态)
+        s1 = RecruitmentStageSerializer(
+            instance=self.initial,
+            data={'is_start': False},
+            partial=True,
+        )
+        self.assertTrue(s1.is_valid(), f'Expected valid for unset, got: {s1.errors}')
+        s1.save()
+        self.initial.refresh_from_db()
+        self.assertFalse(self.initial.is_start)
+        # 然后 normal.is_start=true 现在没有冲突了
+        s2 = RecruitmentStageSerializer(
+            instance=self.normal,
+            data={'is_start': True},
+            partial=True,
+        )
+        self.assertTrue(s2.is_valid(), f'Expected valid after unsetting old, got: {s2.errors}')
