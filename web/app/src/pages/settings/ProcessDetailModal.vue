@@ -22,9 +22,10 @@
     :mask-closable="true"
     :title="''"
     :bordered="false"
-    @update:show="(v) => emit('update:show', v)"
+    @update:show="handleUpdateShow"
   >
     <n-spin :show="loading">
+      <template v-if="mode === 'view'">
       <!-- ====== HERO HEADER ====== -->
       <div v-if="data || links.length" class="hero">
         <div class="hero__icon">
@@ -368,12 +369,221 @@
           </div>
         </div>
       </div>
+      </template>
+
+      <!-- ====== EDIT MODE ====== -->
+      <template v-else>
+        <!-- HERO (edit) -->
+        <div v-if="editForm" class="hero hero--edit">
+          <div class="hero__icon">
+            <n-icon :component="GitNetworkOutline" size="22" />
+          </div>
+          <div class="hero__main">
+            <n-input
+              v-model:value="editForm.name"
+              size="large"
+              placeholder="流程名称"
+              style="font-size: 18px; font-weight: 600"
+            />
+            <div class="hero__meta" style="margin-top: 8px">
+              <span class="hero__meta-item">
+                <n-icon :component="LayersOutline" />
+                {{ editForm.stages.length }} 个阶段
+              </span>
+              <span v-if="data.code" class="hero__meta-item">
+                <n-icon :component="ServerOutline" />
+                编号 {{ data.code }} (BE 自动生成, 不可改)
+              </span>
+            </div>
+          </div>
+          <div class="hero__actions">
+            <n-button @click="cancelEdit">取消</n-button>
+            <n-button type="primary" :loading="saving" @click="handleSave">保存</n-button>
+          </div>
+        </div>
+
+        <!-- 基础信息 (edit) -->
+        <div v-if="editForm" class="section">
+          <div class="section__title">
+            <span class="section__title-bar" />
+            <span>基础信息</span>
+          </div>
+          <div class="section__body">
+            <div class="field-row">
+              <span class="field-label">流程名称</span>
+              <n-input v-model:value="editForm.name" placeholder="如：技术部社招流程" />
+            </div>
+            <div class="field-row field-row--block">
+              <span class="field-label">流程说明</span>
+              <n-input v-model:value="editForm.description" type="textarea" :rows="2" placeholder="可选" />
+            </div>
+            <div class="field-row">
+              <span class="field-label">适用范围组合</span>
+              <n-radio-group v-model:value="editForm.applicableMode">
+                <n-radio value="ALL">全部满足 (AND)</n-radio>
+                <n-radio value="ANY">任一满足 (OR)</n-radio>
+              </n-radio-group>
+            </div>
+            <div class="field-row">
+              <span class="field-label">是否启用</span>
+              <n-tag size="small">{{ data.status === 'ACTIVE' ? '启用中' : '已停用' }} (不可改)</n-tag>
+            </div>
+            <div class="field-row">
+              <span class="field-label">校验简历评分</span>
+              <n-switch v-model:value="editForm.validateResumeScore" />
+            </div>
+            <div class="field-row field-row--block field-row--last">
+              <span class="field-label">流转异常提示</span>
+              <n-input
+                v-model:value="editForm.failPrompt"
+                type="textarea"
+                :rows="3"
+                placeholder="候选人不满足进入条件时的展示文本 (可选)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 适用范围 4 指标 (edit) -->
+        <div v-if="editForm && editForm.applicableIndicators.length" class="section">
+          <div class="section__title">
+            <span class="section__title-bar" />
+            <span>适用范围</span>
+          </div>
+          <div class="scope-edit-list">
+            <div
+              v-for="ind in editForm.applicableIndicators"
+              :key="ind.key"
+              class="scope-edit-row"
+            >
+              <n-tag :type="SCOPE_INDICATOR_META[ind.key].tagType" size="small" style="min-width: 88px">
+                {{ SCOPE_INDICATOR_META[ind.key].label }}
+              </n-tag>
+              <n-radio-group v-model:value="ind.mode" size="small">
+                <n-radio value="include">包含</n-radio>
+                <n-radio value="exclude">不包含</n-radio>
+              </n-radio-group>
+              <n-select
+                v-model:value="ind.values"
+                multiple
+                filterable
+                clearable
+                placeholder="留空 = 不约束"
+                :options="ind.options"
+                :loading="ind.loading"
+                style="flex: 1; min-width: 280px"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 阶段流程 (edit) -->
+        <div v-if="editForm" class="section">
+          <div class="section__title">
+            <span class="section__title-bar" />
+            <span>阶段流程</span>
+            <n-tag size="small">{{ editForm.stages.length }} 个</n-tag>
+          </div>
+          <n-alert type="info" :show-icon="false" style="margin-bottom: 12px; font-size: 12px">
+            起止阶段不可删除. 中间业务阶段可单独配置或删除. 点阶段行的空白处选中, 选中后可插入/删除.
+          </n-alert>
+          <div class="stage-list">
+            <div
+              v-for="(stage, idx) in editForm.stages"
+              :key="stage._linkId || stage.id || idx"
+              class="stage-row"
+              :class="{ 'stage-row-selected': selectedStageIdx === idx }"
+              @click.self="selectedStageIdx = idx"
+            >
+              <div class="stage-num">{{ idx + 1 }}</div>
+              <div class="stage-row__main">
+                <span class="name-text">{{ stage.name }}</span>
+                <n-input-number
+                  v-model:value="stage.stageLimit"
+                  :min="0"
+                  size="small"
+                  placeholder="阶段限时 (h)"
+                  style="width: 130px"
+                />
+              </div>
+              <div class="stage-row__actions" @click.stop>
+                <n-button text type="primary" @click.stop="openStageRuleConfig(stage)">配置阶段规则</n-button>
+                <n-button text type="primary" @click.stop="openEntryCondition(stage)">配置进入条件</n-button>
+                <n-popconfirm
+                  v-if="!stage.isStart && !stage.isEnd"
+                  @positive-click="removeStage(idx)"
+                >
+                  <template #trigger>
+                    <n-button text type="error">删除</n-button>
+                  </template>
+                  确定删除阶段「{{ stage.name }}」？
+                </n-popconfirm>
+                <n-tag v-else type="default" size="small">起止不可删</n-tag>
+              </div>
+            </div>
+          </div>
+          <n-space style="margin-top: 12px">
+            <n-button
+              size="small"
+              type="primary"
+              dashed
+              :disabled="selectedStageIdx === null"
+              @click="addStage('preceding')"
+            >
+              <template #icon>+</template>
+              在选中前插入
+            </n-button>
+            <n-button
+              size="small"
+              type="primary"
+              dashed
+              :disabled="selectedStageIdx === null"
+              @click="addStage('following')"
+            >
+              <template #icon>+</template>
+              在选中后插入
+            </n-button>
+            <n-button
+              size="small"
+              type="default"
+              dashed
+              @click="addStage('end')"
+            >
+              <template #icon>+</template>
+              追加到末尾
+            </n-button>
+            <n-popconfirm @positive-click="removeSelectedStage">
+              <template #trigger>
+                <n-button
+                  size="small"
+                  type="error"
+                  dashed
+                  :disabled="selectedStageIdx === null"
+                >
+                  <template #icon>×</template>
+                  删除选中
+                </n-button>
+              </template>
+              确定删除选中的阶段？
+            </n-popconfirm>
+            <n-text depth="3" style="font-size: 12px">
+              {{
+                selectedStageIdx === null
+                  ? '未选中任何阶段 (点阶段行的空白处选中)'
+                  : `已选中第 ${selectedStageIdx + 1 } 行`
+              }}
+              · 可选阶段库: {{ stageLibrary.length }} 个
+            </n-text>
+          </n-space>
+        </div>
+      </template>
     </n-spin>
 
     <template #footer>
       <n-space justify="end">
-        <n-button @click="emit('update:show', false)">关闭</n-button>
+        <n-button @click="handleClose">关闭</n-button>
         <n-button
+          v-if="mode === 'view'"
           type="default"
           :loading="copying"
           data-testid="btn-copy-process"
@@ -383,6 +593,7 @@
           复制此流程
         </n-button>
         <n-button
+          v-if="mode === 'view'"
           type="primary"
           data-testid="btn-go-edit"
           @click="onGoEdit"
@@ -392,13 +603,50 @@
       </n-space>
     </template>
   </n-modal>
+
+  <!-- 关闭确认 Popconfirm -->
+  <n-popconfirm
+    :show="showCloseConfirm"
+    @positive-click="confirmClose"
+    @negative-click="showCloseConfirm = false"
+  >
+    <template #trigger>
+      <span style="display: none" />
+    </template>
+    有未保存的修改, 确定离开?
+  </n-popconfirm>
+
+  <!-- 409 冲突 modal -->
+  <n-modal
+    v-model:show="showConflict"
+    preset="card"
+    title="修改冲突"
+    style="width: 480px"
+  >
+    <p>此流程在您编辑期间被其他用户修改。</p>
+    <p v-if="conflictInfo?.updatedBy">最后修改人: {{ conflictInfo.updatedBy }}</p>
+    <p v-if="conflictInfo?.updatedAt">修改时间: {{ formatDate(conflictInfo.updatedAt) }}</p>
+    <n-space justify="end">
+      <n-button @click="abandonEdit">放弃修改</n-button>
+      <n-button type="primary" @click="reloadAndEdit">重新加载后继续编辑</n-button>
+    </n-space>
+  </n-modal>
+
+  <!-- 嵌套 StageRuleConfigModal -->
+  <StageRuleConfigModal
+    v-model:show="showRuleConfig"
+    :stage="ruleEditingStage"
+    :link-id="ruleEditingLinkId"
+    @saved="onRuleSaved"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   NSpace, NTag, NSpin, NModal, NButton, NIcon,
-  NGrid, NGridItem, useMessage,
+  NGrid, NGridItem, NInput, NRadio, NRadioGroup, NSelect, NSwitch,
+  NAlert, NInputNumber, NPopconfirm, NText, useMessage,
 } from 'naive-ui'
 import {
   GitNetworkOutline,
@@ -424,9 +672,16 @@ import {
   getProcess,
   listProcessLinks,
   copyProcess,
+  updateProcess,
+  listStages,
+  addProcessLink,
+  deleteProcessLink,
+  updateProcessLink,
+  reorderProcessLinks,
   type RecruitmentProcess,
   type ProcessStageLink,
 } from '../../api/recruitment-process'
+import StageRuleConfigModal from './StageRuleConfigModal.vue'
 
 const props = withDefaults(defineProps<{
   show: boolean
@@ -443,17 +698,74 @@ const emit = defineEmits<{
   (e: 'goEdit', processId: string): void
   (e: 'enterEdit', id: string): void
   (e: 'copied', newProcessId: string): void
+  (e: 'saved', processId: string): void
 }>()
 
 const message = useMessage()
 const loading = ref(false)
 const copying = ref(false)
+const saving = ref(false)
 const data = ref<Partial<RecruitmentProcess> & Record<string, any>>({})
 const links = ref<ProcessStageLink[]>([])
 
 // ===== mode state (Task 2) =====
 type Mode = 'view' | 'edit'
 const mode = ref<Mode>(props.defaultMode)
+
+// ===== Task 3: edit state =====
+type ScopeKey = 'department' | 'level' | 'position' | 'user'
+
+interface ScopeIndicator {
+  key: ScopeKey
+  mode: 'include' | 'exclude'
+  values: string[]
+  options: { label: string; value: string }[]
+  loading: boolean
+}
+
+interface EditStage {
+  id?: string
+  code?: string
+  name: string
+  stageType: string
+  isStart?: boolean
+  isEnd?: boolean
+  stageLimit?: number
+  features?: string[]
+  _linkId?: string
+}
+
+interface EditForm {
+  name: string
+  description: string
+  validateResumeScore: boolean
+  failPrompt: string
+  applicableMode: 'ALL' | 'ANY'
+  applicableIndicators: ScopeIndicator[]
+  stages: EditStage[]
+}
+
+interface EditSnapshot {
+  form: EditForm
+}
+
+const editForm = ref<EditForm | null>(null)
+const originalSnapshot = ref<EditSnapshot | null>(null)
+const selectedStageIdx = ref<number | null>(null)
+const showCloseConfirm = ref(false)
+const showConflict = ref(false)
+const conflictInfo = ref<{ updatedBy?: string; updatedAt?: string } | null>(null)
+const showRuleConfig = ref(false)
+const ruleEditingStage = ref<EditStage | null>(null)
+const ruleEditingLinkId = ref<string | null>(null)
+
+// scope options
+const deptOptions = ref<{ label: string; value: string }[]>([])
+const positionOptions = ref<{ label: string; value: string }[]>([])
+const userOptions = ref<{ label: string; value: string }[]>([])
+
+// stage library
+const stageLibrary = ref<{ id: string; code: string; name: string; stageType: string }[]>([])
 
 // ===== 元数据映射 =====
 const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: 'info' | 'warning' | 'success' | 'primary' | 'default'; icon: any }> = {
@@ -508,6 +820,14 @@ const HANDLER_TYPE_LABEL: Record<string, string> = {
   FROM_DEMAND: '来自需求方',
   FROM_POSITION: '来自岗位负责人',
   CUSTOM: '自定义',
+}
+
+// ===== Task 3: edit-mode meta =====
+const SCOPE_INDICATOR_META: Record<ScopeKey, { label: string; tagType: 'info' | 'success' | 'warning' | 'error' }> = {
+  department: { label: '需求部门', tagType: 'info' },
+  level:      { label: '职级',     tagType: 'warning' },
+  position:   { label: '岗位',     tagType: 'success' },
+  user:       { label: '用户',     tagType: 'error' },
 }
 
 const OPERATOR_LABEL: Record<string, string> = {
@@ -569,8 +889,13 @@ async function load() {
 
 watch(
   () => [props.show, props.processId],
-  ([s]) => {
-    if (s && props.processId) load()
+  async ([s]) => {
+    if (!s || !props.processId) return
+    await load()
+    // 如果初始 defaultMode='edit' (如 list 直接点编辑), 加载完数据后自动进 edit 态
+    if (mode.value === 'edit' && !editForm.value) {
+      await enterEdit()
+    }
   },
   { immediate: true },
 )
@@ -580,10 +905,209 @@ function onGoEdit() {
   emit('goEdit', props.processId)
 }
 
-function enterEdit() {
+// ===== Task 3: utils =====
+function formatDate(s: string | undefined | null): string {
+  if (!s) return '-'
+  return new Date(s).toLocaleString('zh-CN', { hour12: false })
+}
+
+function deepClone<T>(v: T): T { return JSON.parse(JSON.stringify(v)) }
+
+function findIndicatorOldFormat(key: ScopeKey): { mode: 'include' | 'exclude'; values: string[] } | null {
+  if (!data.value) return null
+  const inds = (data.value.applicableScope as any)?.indicators
+  if (Array.isArray(inds)) {
+    const i = inds.find((x: any) => x.key === key)
+    return i ? { mode: i.mode, values: i.values || [] } : null
+  }
+  return null
+}
+
+// ===== Task 3: dirty detection =====
+const dirty = computed(() => {
+  if (mode.value !== 'edit' || !editForm.value || !originalSnapshot.value) return false
+  return JSON.stringify(editForm.value) !== JSON.stringify(originalSnapshot.value.form)
+})
+
+// ===== Task 3: build edit form from current data =====
+function buildEditForm(): EditForm {
+  const d = data.value
+  const indicators: ScopeIndicator[] = [
+    { key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
+    { key: 'level',      mode: 'include', values: [], options: [], loading: false },
+    { key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
+    { key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
+  ]
+  for (const ind of indicators) {
+    const old = findIndicatorOldFormat(ind.key)
+    if (old) { ind.mode = old.mode; ind.values = old.values }
+  }
+  const stages: EditStage[] = links.value.map((l: any) => ({
+    id: l.stage?.id,
+    code: l.stage?.code,
+    name: l.stage?.name || '',
+    stageType: l.stage?.stageType || 'SCREEN',
+    isStart: l.isStart,
+    isEnd: l.isEnd,
+    stageLimit: l.stageLimit,
+    features: l.stage?.features || [],
+    _linkId: l.id,
+  }))
+  return {
+    name: d.name || '',
+    description: d.description || '',
+    validateResumeScore: d.validateResumeScore ?? true,
+    failPrompt: d.failPrompt || '',
+    applicableMode: (d.applicableMode as 'ALL' | 'ANY') || 'ALL',
+    applicableIndicators: indicators,
+    stages,
+  }
+}
+
+async function loadScopeOptions() {
+  // 简化版: 不阻塞, 用空数组 (实际从 /departments /positions /users 拉, v2 modal 已有)
+  deptOptions.value = []
+  positionOptions.value = []
+  userOptions.value = []
+}
+
+async function loadStageLibrary() {
+  try {
+    const res = await listStages({ status: 'ACTIVE' })
+    stageLibrary.value = Array.isArray(res) ? res : []
+  } catch {
+    stageLibrary.value = []
+  }
+}
+
+// ===== Task 3: edit lifecycle =====
+async function enterEdit() {
   if (!props.editable) return
   emit('enterEdit', props.processId)
-  // Task 3 将填充完整 enterEdit 逻辑 (populate editForm, switch mode)
+  await loadScopeOptions()
+  await loadStageLibrary()
+  const form = buildEditForm()
+  editForm.value = form
+  originalSnapshot.value = { form: deepClone(form) }
+  selectedStageIdx.value = null
+  mode.value = 'edit'
+}
+
+function cancelEdit() {
+  if (dirty.value) {
+    showCloseConfirm.value = true
+    return
+  }
+  exitEditMode()
+}
+
+function exitEditMode() {
+  mode.value = 'view'
+  editForm.value = null
+  originalSnapshot.value = null
+  showCloseConfirm.value = false
+  selectedStageIdx.value = null
+}
+
+// ===== Task 3: close guard =====
+function handleClose() {
+  if (mode.value === 'edit' && dirty.value) {
+    showCloseConfirm.value = true
+    return
+  }
+  exitEditMode()
+  emit('update:show', false)
+}
+
+function handleUpdateShow(v: boolean) {
+  if (!v) handleClose()
+  else emit('update:show', true)
+}
+
+function confirmClose() {
+  exitEditMode()
+  emit('update:show', false)
+}
+
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (mode.value === 'edit' && dirty.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
+// ===== Task 3: stage ops (stubs, Task 4 fills full save) =====
+function openStageRuleConfig(stage: EditStage) {
+  ruleEditingStage.value = stage
+  ruleEditingLinkId.value = stage._linkId ?? null
+  showRuleConfig.value = true
+}
+
+function openEntryCondition(stage: EditStage) {
+  // Task 4 将拆 entry condition 到独立 modal, 暂复用 rule config modal
+  ruleEditingStage.value = stage
+  ruleEditingLinkId.value = stage._linkId ?? null
+  showRuleConfig.value = true
+}
+
+function onRuleSaved() {
+  message.success('阶段配置已保存')
+}
+
+function addStage(position: 'preceding' | 'following' | 'end') {
+  if (!editForm.value) return
+  const lib = stageLibrary.value.find(s => !editForm.value!.stages.some(es => es.id === s.id))
+  if (!lib) { message.warning('可选阶段库为空, 请先创建阶段'); return }
+  const newStage: EditStage = {
+    id: lib.id,
+    code: lib.code,
+    name: lib.name,
+    stageType: lib.stageType || 'SCREEN',
+    isStart: false,
+    isEnd: false,
+    stageLimit: undefined,
+    features: [],
+  }
+  if (position === 'end') editForm.value.stages.push(newStage)
+  else if (selectedStageIdx.value !== null) {
+    const idx = position === 'preceding' ? selectedStageIdx.value : selectedStageIdx.value + 1
+    editForm.value.stages.splice(idx, 0, newStage)
+  }
+}
+
+function removeStage(idx: number) {
+  if (!editForm.value) return
+  editForm.value.stages.splice(idx, 1)
+  if (selectedStageIdx.value === idx) selectedStageIdx.value = null
+  else if (selectedStageIdx.value !== null && selectedStageIdx.value > idx) {
+    selectedStageIdx.value -= 1
+  }
+}
+
+function removeSelectedStage() {
+  if (selectedStageIdx.value === null || !editForm.value) return
+  removeStage(selectedStageIdx.value)
+}
+
+// ===== Task 3: 409 conflict =====
+function abandonEdit() {
+  showConflict.value = false
+  exitEditMode()
+}
+
+async function reloadAndEdit() {
+  showConflict.value = false
+  await load()
+  await enterEdit()
+}
+
+// ===== Task 3: handleSave stub (Task 4 fills) =====
+async function handleSave() {
+  // Task 4 填充完整 save 逻辑
+  message.info('Task 4 将填充 save 逻辑')
 }
 
 async function onCopy() {
@@ -676,10 +1200,6 @@ function getScopeCardClass(key: string): string {
 }
 
 // ===== 格式化辅助函数 =====
-function formatDate(s: string) {
-  return s ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : '-'
-}
-
 function stageTypeLabel(t?: string): string {
   return STAGE_TYPE_META[t || '']?.label || t || '-'
 }
@@ -1202,5 +1722,91 @@ function conditionItemLabel(item: any): string {
   .stage-timeline::before {
     left: 12px;
   }
+}
+
+/* ===== Task 3: EDIT MODE styles ===== */
+.hero--edit {
+  background: linear-gradient(135deg, #fff7e6 0%, #fff1d6 100%);
+  border-bottom-color: #fbce5b;
+}
+.hero__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.scope-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scope-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fafbfc;
+  border: 1px solid #f0f0f3;
+  border-radius: 6px;
+}
+
+.stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fafbfc;
+  border: 1px solid #e8e8ec;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.stage-row:hover {
+  border-color: #91caff;
+  background: #f0f7ff;
+}
+.stage-row-selected {
+  border-color: #2080f0;
+  background: #e6f0ff;
+  box-shadow: 0 0 0 2px rgba(32, 128, 240, 0.15);
+}
+.stage-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2080f0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stage-row__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.stage-row__main .name-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f1f1f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stage-row__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 </style>
