@@ -18,7 +18,7 @@ const api = axios.create({
 // 注意: 项目约定 token 存放在 localStorage.key = 'token' (见 Login.vue)
 // 27 个 API 文件统一读 'token' 字段, 保持一致
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
   return cfg
 })
@@ -142,7 +142,7 @@ function extractList<T>(raw: unknown): T[] {
 
 async function fetchCandidates(): Promise<{ list: Array<{ candidateStatus?: string; id: string }>; total: number } | null> {
   try {
-    const { data } = await api.get('/candidates', { params: { page: 1, pageSize: 50 } })
+    const { data } = await api.get('/candidates/', { params: { page: 1, pageSize: 50 } })
     return {
       list: extractList<{ candidateStatus?: string; id: string }>(data),
       total: safeNum((data as { data?: { total?: number } })?.data?.total),
@@ -154,7 +154,7 @@ async function fetchCandidates(): Promise<{ list: Array<{ candidateStatus?: stri
 
 async function fetchPositions(): Promise<Array<{ id: string; name?: string; code?: string; status?: string }>> {
   try {
-    const { data } = await api.get('/positions', { params: { page: 1, pageSize: 20 } })
+    const { data } = await api.get('/positions/', { params: { page: 1, pageSize: 20 } })
     return extractList<{ id: string; name?: string; code?: string; status?: string }>(data)
   } catch {
     return []
@@ -163,7 +163,7 @@ async function fetchPositions(): Promise<Array<{ id: string; name?: string; code
 
 async function fetchDemands(): Promise<Array<{ id: string; name?: string; code?: string }>> {
   try {
-    const { data } = await api.get('/demands', { params: { page: 1, pageSize: 20 } })
+    const { data } = await api.get('/demands/', { params: { page: 1, pageSize: 20 } })
     return extractList<{ id: string; name?: string; code?: string }>(data)
   } catch {
     return []
@@ -172,7 +172,7 @@ async function fetchDemands(): Promise<Array<{ id: string; name?: string; code?:
 
 async function fetchInterviews(): Promise<ScheduleItem[]> {
   try {
-    const { data } = await api.get('/interviews', { params: { page: 1, pageSize: 50 } })
+    const { data } = await api.get('/interviews/', { params: { page: 1, pageSize: 50 } })
     const list = extractList<{
       id: string
       scheduledAt?: string

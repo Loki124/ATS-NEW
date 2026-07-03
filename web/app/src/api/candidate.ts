@@ -12,7 +12,7 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
   return cfg
 })
@@ -38,7 +38,7 @@ export interface Candidate {
 
 // 列表
 export async function listCandidates(params: { page?: number; pageSize?: number; candidateStatus?: string; keyword?: string } = {}) {
-  const { data } = await api.get('/candidates', { params })
+  const { data } = await api.get('/candidates/', { params })
   return data
 }
 
@@ -50,37 +50,37 @@ export async function getCandidate(id: string) {
 
 // G9 批量推荐
 export async function batchRecommend(payload: { candidateIds: string[]; positionId: string; comment?: string }) {
-  const { data } = await api.post('/candidates/batch/recommend', payload)
+  const { data } = await api.post('/candidates/batch/recommend/', payload)
   return data
 }
 
 // G9 批量归档
 export async function batchArchive(payload: { candidateIds: string[]; reason?: string }) {
-  const { data } = await api.post('/candidates/batch/archive', payload)
+  const { data } = await api.post('/candidates/batch/archive/', payload)
   return data
 }
 
 // G9 批量分配
 export async function batchAssign(payload: { candidateIds: string[]; recruiterId: string }) {
-  const { data } = await api.post('/candidates/batch/assign', payload)
+  const { data } = await api.post('/candidates/batch/assign/', payload)
   return data
 }
 
 // G9 批量导出
 export async function batchExport(payload: { candidateIds?: string[]; filter?: any } = {}) {
-  const { data } = await api.post('/candidates/batch/export', payload, { responseType: 'blob' })
+  const { data } = await api.post('/candidates/batch/export/', payload, { responseType: 'blob' })
   return data
 }
 
 // G13 批量筛选
 export async function batchScreen(payload: { candidateIds: string[]; result: 'PASS' | 'FAIL'; comment?: string }) {
-  const { data } = await api.post('/candidates/batch/screen', payload)
+  const { data } = await api.post('/candidates/batch/screen/', payload)
   return data
 }
 
 // G11 倒序推荐
 export async function recommendReverse(payload: { positionId: string; candidateIds?: string[] }) {
-  const { data } = await api.post('/candidates/recommend-reverse', payload)
+  const { data } = await api.post('/candidates/recommend-reverse/', payload)
   return data
 }
 
@@ -92,7 +92,7 @@ export interface RecommendationParams {
   limit?: number
 }
 export async function fetchRecommendations(params: RecommendationParams = {}) {
-  const { data } = await api.get('/candidates/recommendations', { params })
+  const { data } = await api.get('/candidates/recommendations/', { params })
   return data
 }
 
@@ -120,7 +120,7 @@ export interface StatusSchemaItem {
 export type StatusSchema = Record<string, StatusSchemaItem>
 
 export async function fetchStatusSchema(): Promise<StatusSchema> {
-  const { data } = await api.get('/candidates/status-details/schema')
+  const { data } = await api.get('/candidates/status-details/schema/')
   return data.data
 }
 

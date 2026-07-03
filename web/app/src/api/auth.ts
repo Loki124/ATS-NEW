@@ -58,14 +58,15 @@ api.interceptors.response.use(
 
     // 处理 401 错误
     if (status === 401) {
-      // 排除登录接口本身的 401（密码错/账号禁用），让 Login.vue 自己处理
-      const isLoginRequest = originalRequest?.url?.includes('/auth/login');
+      // Fix 5: 严格匹配 (去 query string + endsWith), 避免 /auth/login-history 等路径误识别
+      const reqPath = (originalRequest?.url || '').split('?')[0]
+      const isLoginRequest = reqPath.endsWith('/auth/login/')
       if (isLoginRequest) {
         return Promise.reject(error);
       }
 
       // 排除 /auth/refresh 自身的 401（避免循环）
-      const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh');
+      const isRefreshRequest = reqPath.endsWith('/auth/refresh/')
       if (isRefreshRequest) {
         handleAuthFailure('会话已过期，请重新登录');
         return Promise.reject(error);
@@ -194,11 +195,11 @@ export const register = (data: {
   roleType?: string;
   departmentId?: string;
 }) => {
-  return api.post('/auth/register', data);
+  return api.post('/auth/register/', data);
 };
 
 export const changePassword = (oldPassword: string, newPassword: string) => {
-  return api.post('/auth/change-password', { oldPassword, newPassword });
+  return api.post('/auth/change-password/', { oldPassword, newPassword });
 };
 
 // 通用API方法

@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
@@ -89,7 +89,7 @@ export interface OfferTemplate {
 }
 
 export async function listOffers(params: { page?: number; pageSize?: number; offerStatus?: string; demandId?: string } = {}) {
-  const { data } = await api.get('/offers', { params });
+  const { data } = await api.get('/offers/', { params });
   return data;
 }
 
@@ -109,12 +109,12 @@ export async function transitionOffer(id: string, to: string, reason?: string) {
 }
 
 export async function listOfferTemplates() {
-  const { data } = await api.get('/offer-templates');
+  const { data } = await api.get('/offer-templates/');
   return data;
 }
 
 export async function renderOffer(offerId: string, templateKey: string, format: 'html' | 'pdf' = 'html') {
-  const { data } = await api.post('/offer-templates/render-from-offer', { offerId, templateKey, format });
+  const { data } = await api.post('/offer-templates/render-from-offer/', { offerId, templateKey, format });
   return data;
 }
 

@@ -9,7 +9,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
@@ -60,7 +60,7 @@ export interface Interview {
 }
 
 export async function listInterviews(params: { page?: number; pageSize?: number; feedbackStatus?: string; interviewStatus?: string } = {}) {
-  const { data } = await api.get('/interviews', { params });
+  const { data } = await api.get('/interviews/', { params });
   return data;
 }
 

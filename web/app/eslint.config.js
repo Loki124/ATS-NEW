@@ -27,7 +27,9 @@ export default [
       '@typescript-eslint/no-unused-vars': 'off',     // 跟 TS 推荐集一致
       '@typescript-eslint/no-explicit-any': 'off',    // 项目用了大量 any (mock 数据 / 后端类型不全)
       'vue/multi-word-component-names': 'off',         // 一些单字组件名 (Login, Layout) 不强制多字
-      'vue/no-v-html': 'off',                          // 项目里有用 v-html (rarely)
+      // Fix 3 XSS: 重新启用 v-html 规则. OfferList.vue 已改用 sandbox iframe.
+      // 如有特殊场景需 v-html, 必须 // eslint-disable-next-line vue/no-v-html + 安全审计.
+      'vue/no-v-html': 'error',
       'vue/html-self-closing': 'off',                  // 风格问题
       'vue/max-attributes-per-line': 'off',           // 风格问题
       'vue/singleline-html-element-content-newline': 'off',  // 风格

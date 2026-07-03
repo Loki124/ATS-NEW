@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
@@ -61,7 +61,7 @@ export interface Onboarding {
 }
 
 export async function listOnboardings(params: { page?: number; pageSize?: number; onboardingStatus?: string } = {}) {
-  const { data } = await api.get('/onboardings', { params });
+  const { data } = await api.get('/onboardings/', { params });
   return data;
 }
 

@@ -70,9 +70,16 @@
       </template>
     </n-modal>
 
-    <!-- 模板预览 -->
+    <!-- 模板预览 — Fix 3 XSS: 用 sandbox iframe 渲染后端 HTML, 禁用脚本执行 -->
     <n-modal v-model:show="previewModal.show" preset="card" title="Offer 预览" style="width: 800px">
-      <div v-html="previewModal.html" />
+      <iframe
+        v-if="previewModal.html"
+        :srcdoc="previewModal.html"
+        sandbox="allow-same-origin"
+        style="width: 100%; min-height: 480px; border: 0; background: #fff;"
+        title="Offer 预览"
+      />
+      <p v-else style="color: #999; text-align: center;">(无内容)</p>
     </n-modal>
 
     <!-- 状态转移 Modal -->

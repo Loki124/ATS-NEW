@@ -12,7 +12,7 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
   return cfg
 })
@@ -34,7 +34,7 @@ export interface CheckDuplicatePayload {
  * 主动查重: 在表单填写完时实时检查
  */
 export async function checkDuplicate(payload: CheckDuplicatePayload) {
-  const { data } = await api.post('/duplicate-check/check', payload)
+  const { data } = await api.post('/duplicate-check/check/', payload)
   return data
 }
 
@@ -42,6 +42,6 @@ export async function checkDuplicate(payload: CheckDuplicatePayload) {
  * OCR 解析简历 (返回结构化数据)
  */
 export async function ocrParse() {
-  const { data } = await api.post('/duplicate-check/ocr-parse')
+  const { data } = await api.post('/duplicate-check/ocr-parse/')
   return data
 }

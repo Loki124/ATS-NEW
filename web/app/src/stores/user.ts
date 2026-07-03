@@ -27,7 +27,14 @@ export const useUserStore = defineStore('user', () => {
   const refreshToken = ref<string>('')
 
   // 从 localStorage 水合 (避免刷新页面后 user/token 丢失)
+  // Fix 8: 兼容老 key 'token' → 升级到 'accessToken', 然后清掉老 key
   try {
+    const legacyToken = localStorage.getItem('token')
+    if (legacyToken && !localStorage.getItem('accessToken')) {
+      localStorage.setItem('accessToken', legacyToken)
+    }
+    localStorage.removeItem('token')
+
     const cachedUser = localStorage.getItem('user')
     if (cachedUser) user.value = JSON.parse(cachedUser)
     const cachedAccess = localStorage.getItem('accessToken')
