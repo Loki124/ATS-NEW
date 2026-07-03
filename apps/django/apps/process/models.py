@@ -58,7 +58,7 @@ class RecruitmentStage(FullAuditModel):
     """阶段（阶段库，全局共享）
 
     业务规则（PRD §8.2）：
-    - BR-001: 系统预置起止阶段【初评】【正式录用】，可编辑、不可停用、不可删除
+    - BR-001: 系统预置起止阶段【初评】【正式录用】，可编辑、不可停用、不可删除；is_start/is_end 全局各只允许 1 个，由 seed 设置且通过序列化器/clean() 强制
     - BR-002: 阶段被任一流程引用时，不可停用
     - BR-003: 阶段被任一流程引用时，不可删除
     - BR-004: 停用阶段编号不复用，新阶段递增
@@ -75,6 +75,10 @@ class RecruitmentStage(FullAuditModel):
 
     # 预置阶段标志
     is_builtin = models.BooleanField(default=False, db_index=True, verbose_name='预置阶段')
+
+    # 起止阶段标记 (BR-001 强化: 全局有且仅有 1 个起始 = 初评, 1 个结束 = 正式录用)
+    is_start = models.BooleanField(default=False, db_index=True, verbose_name='起始阶段')
+    is_end = models.BooleanField(default=False, db_index=True, verbose_name='结束阶段')
 
     # 默认功能（根据类型自动带出）
     default_features = models.JSONField(default=list, verbose_name='默认功能')

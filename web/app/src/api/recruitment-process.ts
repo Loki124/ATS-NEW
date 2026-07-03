@@ -66,6 +66,10 @@ export interface RecruitmentStage {
   stageType: 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER';
   features: string[];
   isSystem: boolean;
+  // 2026-07-03 BR-001: 起止阶段标记, 后端 RecruitmentStage 加了 is_start/is_end 列;
+  // 全局有且仅有 1 个起始 (=初评) 和 1 个结束 (=正式录用), 由 seed 设置, serializer 强制互斥唯一.
+  isStart: boolean;
+  isEnd: boolean;
   description?: string;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
@@ -80,8 +84,7 @@ export interface ProcessStageLink {
   stageId: string;
   orderIndex: number;
   customName?: string;
-  isStart: boolean;
-  isEnd: boolean;
+  // 2026-07-03 BR-001: isStart/isEnd 已从 link 移到 stage 自身, 此处删除
   stageLimit?: number;
   status: 'ACTIVE' | 'INACTIVE';
   stage: RecruitmentStage;

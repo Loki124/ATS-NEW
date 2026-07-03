@@ -47,7 +47,7 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'code', 'name', 'stage_type', 'stage_type_display',
             'status', 'status_display',
-            'is_builtin',
+            'is_builtin', 'is_start', 'is_end',
             'default_features', 'optional_features',
             'description',
             'reference_count', 'is_referenced', 'supports_to_be_scheduled',
@@ -70,6 +70,31 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {'status': '预置阶段不可停用'},
                 )
+
+        # BR-001 强化: is_start/is_end 全局互斥且唯一
+        new_is_start = attrs.get('is_start', self.instance.is_start if self.instance else False)
+        new_is_end = attrs.get('is_end', self.instance.is_end if self.instance else False)
+
+        if new_is_start and new_is_end:
+            raise serializers.ValidationError(
+                {'is_start': '同一阶段不可同时为起始和结束阶段'},
+            )
+
+        # 全局唯一性 (排除自身): is_start=true 只能有 1 个, is_end=true 只能有 1 个
+        qs = RecruitmentStage.objects.all()
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if new_is_start and qs.filter(is_start=True).exists():
+            existing = qs.filter(is_start=True).first()
+            raise serializers.ValidationError(
+                {'is_start': f'阶段「{existing.name}」已是起始阶段, 全局只能有 1 个起始'},
+            )
+        if new_is_end and qs.filter(is_end=True).exists():
+            existing = qs.filter(is_end=True).first()
+            raise serializers.ValidationError(
+                {'is_end': f'阶段「{existing.name}」已是结束阶段, 全局只能有 1 个结束'},
+            )
+
         return attrs
 
 

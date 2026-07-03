@@ -64,22 +64,22 @@ const PROCESS_FULL = { ...PROCESS, stages: [], autoRules: [] } as any
 const STAGE_LINKS: ProcessStageLink[] = [
   {
     id: 'l1', processId: 'p1', stageId: 'st1', orderIndex: 1,
-    isStart: true, isEnd: false, status: 'ACTIVE',
-    stage: { id: 'st1', code: 'F001', name: '初评', stageType: 'SCREEN', features: ['invite'], isSystem: true, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+    status: 'ACTIVE',
+    stage: { id: 'st1', code: 'F001', name: '初评', stageType: 'SCREEN', features: ['invite'], isSystem: true, isStart: true, isEnd: false, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
     rule: null,
     condition: { id: 'c1', stageId: 'st1', processId: 'p1', matchType: 'ALL', conditionType: 'CANDIDATE', items: [] },
   },
   {
     id: 'l2', processId: 'p1', stageId: 'st2', orderIndex: 2,
-    isStart: false, isEnd: false, status: 'ACTIVE',
-    stage: { id: 'st2', code: 'F002', name: 'HRBP评估', stageType: 'SCREEN', features: [], isSystem: false, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+    status: 'ACTIVE',
+    stage: { id: 'st2', code: 'F002', name: 'HRBP评估', stageType: 'SCREEN', features: [], isSystem: false, isStart: false, isEnd: false, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
     rule: null,
     condition: null,
   },
   {
     id: 'l3', processId: 'p1', stageId: 'st3', orderIndex: 3,
-    isStart: false, isEnd: true, status: 'ACTIVE',
-    stage: { id: 'st3', code: 'F003', name: '正式录用', stageType: 'OFFER', features: [], isSystem: true, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+    status: 'ACTIVE',
+    stage: { id: 'st3', code: 'F003', name: '正式录用', stageType: 'OFFER', features: [], isSystem: true, isStart: false, isEnd: true, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
     rule: null,
     condition: null,
   },

@@ -229,8 +229,8 @@
                 </template>
                 系统内置
               </n-tag>
-              <n-tag v-if="link.isStart" type="success" size="small" round>起始</n-tag>
-              <n-tag v-if="link.isEnd" type="warning" size="small" round>结束</n-tag>
+              <n-tag v-if="link.stage?.isStart" type="success" size="small" round>起始</n-tag>
+              <n-tag v-if="link.stage?.isEnd" type="warning" size="small" round>结束</n-tag>
             </div>
 
             <!-- 阶段字段行 (label: value) -->
@@ -947,8 +947,8 @@ async function load() {
           isSystem: l.stage.isBuiltin ?? l.stage.isSystem ?? false,
           stageType: l.stage.stageType,
         } : l.stage,
-        isStart: l.isStart ?? l.isRequired ?? false,
-        isEnd: l.isEnd ?? false,
+        isStart: l.stage?.isStart ?? l.isRequired ?? false,
+        isEnd: l.stage?.isEnd ?? false,
       }))
   } catch (e: any) {
     message.error(e?.response?.data?.message || '加载流程详情失败')
@@ -1038,8 +1038,8 @@ function buildEditForm(): EditForm {
     code: l.stage?.code,
     name: l.stage?.name || '',
     stageType: l.stage?.stageType || 'SCREEN',
-    isStart: l.isStart,
-    isEnd: l.isEnd,
+    isStart: l.stage?.isStart,
+    isEnd: l.stage?.isEnd,
     stageLimit: l.stageLimit,
     features: l.stage?.features || [],
     _linkId: l.id,

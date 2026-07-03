@@ -28,8 +28,8 @@
             <n-card class="stage-card" size="small">
               <div class="stage-row">
                 <div class="stage-info">
-                  <n-tag v-if="element.isStart" type="success" size="small">起始</n-tag>
-                  <n-tag v-if="element.isEnd" type="warning" size="small">结束</n-tag>
+                  <n-tag v-if="element.stage?.isStart" type="success" size="small">起始</n-tag>
+                  <n-tag v-if="element.stage?.isEnd" type="warning" size="small">结束</n-tag>
                   <n-tag :type="getTypeColor(element.stage.stageType)" size="small">
                     {{ element.stage.stageType }}
                   </n-tag>
@@ -43,7 +43,7 @@
                   <n-button text size="small" type="primary" @click="goConditions(element)">条件</n-button>
                   <n-button text size="small" @click="editLinkStageLimit(element)">时长</n-button>
                   <n-popconfirm
-                    v-if="!element.isStart && !element.isEnd"
+                    v-if="!element.stage?.isStart && !element.stage?.isEnd"
                     @positive-click="removeLink(element)"
                   >
                     <template #trigger>
