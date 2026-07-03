@@ -50,6 +50,8 @@ export interface RecruitmentProcess {
   updatedAt: string;
   _count?: { links: number; stageRules: number };
   updater?: { id: string; realName?: string; username: string };
+  // 2026-07-02: BE getProcess 返回的元信息 (创建人/修改人)
+  creator?: { id: string; realName?: string; username: string };
   links?: ProcessStageLink[];
 }
 
@@ -147,8 +149,20 @@ export interface AutoArchiveRule {
 export const listProcesses = (params?: { status?: string; keyword?: string }) =>
   api.get<{ success: boolean; data: RecruitmentProcess[] }>('/processes/', { params }).then((r) => r.data.data);
 
+// 2026-07-02: BE 部分接口已不再包 {success, data} 包裹, 直接返 root object;
+// normalize 函数兼容两种形态
+const unwrap = (resp: any) => {
+  // axios response: r.data 是 response body
+  const body = resp?.data ?? resp
+  // 包裹形态: {success, data, code, message, errors}
+  if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
+    return body.data
+  }
+  return body
+}
+
 export const getProcess = (id: string) =>
-  api.get<{ success: boolean; data: RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] } }>(`/processes/${id}/`).then((r) => r.data.data);
+  api.get(`/processes/${id}/`).then((r) => unwrap(r)) as unknown as Promise<RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] }>;
 
 // 2026-06-17: 加上 applicableScope (4 指标数组). 旧的 applicableDepartments/Levels/UserIds/Jobs 字段保留兼容.
 export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[]; applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] } }) =>
@@ -184,7 +198,7 @@ export const updateStageStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
 
 // ===== 流程-阶段 link =====
 export const listProcessLinks = (processId: string) =>
-  api.get<{ success: boolean; data: ProcessStageLink[] }>('/process-stage-links/', { params: { processId } }).then((r) => r.data.data);
+  api.get('/process-stage-links/', { params: { processId } }).then((r) => unwrap(r)) as unknown as Promise<ProcessStageLink[]>;
 
 export const addProcessLink = (payload: { processId: string; stageId: string; orderIndex?: number; customName?: string; stageLimit?: number }) =>
   api.post<{ success: boolean; data: ProcessStageLink }>('/process-stage-links/', payload).then((r) => r.data.data);

@@ -31,6 +31,7 @@
       v-model:show="showDetail"
       :process-id="detailProcessId"
       @go-edit="onGoEdit"
+      @copied="onProcessCopied"
     />
 
     <!-- 新增/编辑流程弹窗 -->
@@ -116,11 +117,13 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 120,
+    width: 180,
     fixed: 'right' as const,
-    // 2026-06-17: 列表页只保留「编辑」 — 阶段/详情/复制/启用/删除 都从操作列去掉
-    //   (阶段/详情 → 移到编辑 modal 内; 删除/启用 走 BE admin 或后续单独 UI; 复制功能 G38 暂不需要)
-    render: (row: any) => h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => openCustomModal(row) }, { default: () => '编辑' }),
+    // 2026-07-02: 详情按钮恢复 (ProcessDetailModal 全面升级后, 用户需要从 list 进入详情)
+    render: (row: any) => h(NSpace, { size: 'small' }, () => [
+      h(NButton, { size: 'small', text: true, onClick: () => goDetail(row) }, { default: () => '详情' }),
+      h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => openCustomModal(row) }, { default: () => '编辑' }),
+    ]),
   },
 ]
 
@@ -253,6 +256,11 @@ function onGoEdit(processId: string) {
   showDetail.value = false
   const row = processes.value.find((p: any) => p.id === processId)
   if (row) handleEdit(row)
+}
+
+// 详情 modal 中的 "复制此流程" 按钮 -> modal 已自动关 + 已 toast, list 重新拉即可
+function onProcessCopied(_newProcessId: string) {
+  loadList()
 }
 
 onMounted(() => loadList())
