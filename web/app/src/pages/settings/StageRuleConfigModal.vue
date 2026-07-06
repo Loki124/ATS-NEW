@@ -750,6 +750,12 @@ async function handleSubmit() {
   padding: 4px 4px 4px 4px;
 }
 
+/* preset="card" + :title="undefined" 仍渲染空 n-card-header (含内置关闭按钮, 占 ~57px),
+   与 HERO 内的 .hero__close 重叠. 抑制空 header, 让 HERO 顶到 modal 边缘. */
+:deep(.n-card-header) {
+  display: none !important;
+}
+
 /* ==================== HERO HEADER ==================== */
 .hero {
   background: linear-gradient(135deg, #fafbfc 0%, #f0f5ff 100%);
