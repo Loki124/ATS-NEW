@@ -12,6 +12,7 @@
 <template>
   <n-modal
     :show="show"
+    class="stage-rule-config-modal"
     preset="card"
     :title="undefined"
     style="width: 760px; max-width: 95vw"
@@ -1000,7 +1001,7 @@ async function handleSubmit() {
    to avoid duplicate close button + wasted vertical space.
    Cannot use :deep() in scoped style because n-card teleports
    the header outside the parent's data-v boundary. */
-.n-card-header {
+.stage-rule-config-modal .n-card-header {
   display: none !important;
 }
 </style>
