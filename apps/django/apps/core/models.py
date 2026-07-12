@@ -308,6 +308,7 @@ class RolePermission(models.Model):
         unique_together = [('role', 'permission')]
         verbose_name = '角色权限'
         verbose_name_plural = verbose_name
+        managed = False  # V1 表由 V2 (apps.core.models_permission_v2.RolePermissionV2) 管理,T17 drop_old 阶段删除
 
 
 # ---- V2 权限系统 (spec §3.2, T2) ----
