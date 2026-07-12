@@ -21,6 +21,16 @@ PASSWORD_HASHERS = [
 # 关闭限流
 RATELIMIT_ENABLE = False
 
+# 关掉 DRF throttle, 测试时无限速 (覆盖 base.py 的默认 throttle 配置)
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {},
+}
+
+# 关掉 v2 权限 bootstrap (单测中显式调, 见 spec §4.2)
+PERMISSION_V2_BOOTSTRAP_DISABLED = True
+
 # 更快邮件
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
