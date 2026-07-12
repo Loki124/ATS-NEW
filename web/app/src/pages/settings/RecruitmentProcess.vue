@@ -54,9 +54,9 @@ const columns = [
   },
   {
     title: '阶段数',
-    key: 'links',
+    key: 'stageCount',
     width: 80,
-    render: (row: any) => row._count?.links ?? 0,
+    render: (row: any) => row.stageCount ?? row._count?.links ?? 0,
   },
   {
     title: '状态',

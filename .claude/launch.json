@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "Django Backend",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["manage.py", "runserver", "0.0.0.0:8000"],
+      "runtimeExecutable": "/Users/loki/ClaudeWorkSpace/ATS-NEW/apps/django/.venv/bin/python",
+      "runtimeArgs": ["manage.py", "runserver", "0.0.0.0:8000", "--noreload"],
       "port": 8000,
+      "autoPort": false,
       "cwd": "/Users/loki/ClaudeWorkSpace/ATS-NEW/apps/django"
     },
     {

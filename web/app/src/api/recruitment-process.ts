@@ -84,20 +84,26 @@ export interface ProcessStageLink {
   id: string;
   processId: string;
   stageId: string;
-  orderIndex: number;
+  // 2026-07-03: 改 orderIndex → order 对齐 BE ProcessStageLinkSerializer.fields
+  //   (apps/django/apps/process/serializers.py:213). FE 之前发 'orderIndex' 经
+  //   drf-camel-case 转 'order_index', BE 收到未知字段静默丢弃, 落到 model default order=0.
+  order: number;
   customName?: string;
   // 2026-07-03 BR-001: isStart/isEnd 已从 link 移到 stage 自身, 此处删除
   stageLimit?: number;
   status: 'ACTIVE' | 'INACTIVE';
   stage: RecruitmentStage;
-  rule?: StageRule | null;
-  condition?: EntryCondition | null;
+  // 2026-07-08: BE StageRule/EntryCondition 嵌套在 ProcessStageLink 下, 旧字段名 rule/condition 已废弃.
+  //   BE StageRuleSerializer.Meta.fields 含 stageRule (OneToOne nested), 同理 entryCondition.
+  stageRule?: StageRule | null;
+  entryCondition?: EntryCondition | null;
 }
 
 export interface StageRule {
   id: string;
-  stageId: string;
-  processId: string;
+  link?: string;
+  stageId?: string;
+  processId?: string;
   autoAdvanceType: 'NONE' | 'MEET_NEXT' | 'IGNORE_NEXT' | 'MEET_NEXT_OR_N2' | 'N1_ALL_PASS';
   autoAdvanceTiming: 'NONE' | 'IMMEDIATE' | 'DELAYED';
   autoAdvanceDays?: number;
@@ -107,6 +113,13 @@ export interface StageRule {
   timeLimit?: number;
   timeLimitScope: 'NEW_ONLY' | 'ALL';
   interviewRoundIds?: string[];
+  // 2026-07-08: BE StageRule 新增字段 (apps/process/models.py:260 StageRule model):
+  //   inherit_prior_consensus / is_grab_mode / grab_threshold / interview_format
+  inheritPriorConsensus?: boolean;
+  isGrabMode?: boolean;
+  grabThreshold?: number;
+  interviewFormat?: string;
+  interviewRounds?: number;
 }
 
 export interface EntryCondition {
@@ -210,7 +223,13 @@ export const enableStage = (id: string) =>
 export const listProcessLinks = (processId: string) =>
   api.get('/process-stage-links/', { params: { processId } }).then((r) => unwrap(r)) as unknown as Promise<ProcessStageLink[]>;
 
-export const addProcessLink = (payload: { processId: string; stageId: string; orderIndex?: number; customName?: string; stageLimit?: number }) =>
+export const getProcessLink = (linkId: string) =>
+  api.get(`/process-stage-links/${linkId}/`).then((r) => unwrap(r)) as unknown as Promise<ProcessStageLink>;
+
+// 2026-07-03: 字段名 orderIndex? → order?, 跟 BE ProcessStageLinkSerializer 字段对齐.
+//   BE 收到 'order_index' (drf-camel-case 转换) 是未知字段, ModelSerializer 静默丢弃, 落地 order=0.
+//   配套: 上面 ProcessStageLink 类型同步改 orderIndex → order.
+export const addProcessLink = (payload: { processId: string; stageId: string; order?: number; customName?: string; stageLimit?: number }) =>
   api.post<{ success: boolean; data: ProcessStageLink }>('/process-stage-links/', payload).then((r) => r.data.data);
 
 export const updateProcessLink = (id: string, payload: Partial<ProcessStageLink>) =>
@@ -219,30 +238,73 @@ export const updateProcessLink = (id: string, payload: Partial<ProcessStageLink>
 export const deleteProcessLink = (id: string) =>
   api.delete<{ success: boolean }>(`/process-stage-links/${id}/`).then((r) => r.data);
 
+// 2026-07-03: BE @action(detail=False, methods=['post'], url_path='reorder') (views.py:333)
+//   旧 FE 调 PUT /process-stage-links/reorder/ → 405 Method Not Allowed
+//   Body: { "process_id": "...", "order": [{"link_id": "...", "order": 1}, ...] }
 export const reorderProcessLinks = (processId: string, orderedLinkIds: string[]) =>
-  api.put<{ success: boolean }>('/process-stage-links/reorder/', { processId, orderedLinkIds }).then((r) => r.data);
+  api.post<{ success: boolean }>('/process-stage-links/reorder/', {
+    process_id: processId,
+    order: orderedLinkIds.map((linkId, idx) => ({ link_id: linkId, order: idx + 1 })),
+  }).then((r) => r.data);
 
 // ===== 阶段规则 + 进入条件 =====
-export const upsertStageRule = (stageId: string, payload: Partial<StageRule> & { processId?: string }) =>
-  api.post<{ success: boolean; data: StageRule }>('/recruitment-rules/stage-rules', { stageId, ...payload }).then((r) => r.data.data);
+// 2026-07-03: 桥接到真 BE 端点
+//   - StageRule: BE ModelViewSet @ /api/v1/stage-rules/ (StageRuleViewSet, models.py:260)
+//     FE 之前调 /recruitment-rules/stage-rules (stub urls_stubs.py:113, 不入库) → 假数据.
+//     字段名靠 drf-camel-case 双向翻译: autoAdvanceType → auto_advance_type (✓)
+//   - EntryCondition: BE 没有专用 model. JSON-encode 进 ProcessStageLink.entry_rule_expression
+//     (serializer.py: ProcessStageLinkSerializer.validate, JSON-encode if entry_condition 提供).
+//     写入走 PATCH /api/v1/process-stage-links/{id}/, 入参 { entry_condition: {...} }.
+// 2026-07-03: BE StageRule 是 OneToOne (ProcessStageLink ↔ StageRule),
+//   重复 POST 同 link 会 400 "已存在". 正确做法: 先 GET ?link=X 查现有 rule,
+//   有则 PUT /stage-rules/{id}/, 无则 POST. (FE 之前走 stub 不知道这个, 现在需要做.)
+export const upsertStageRule = async (linkId: string, payload: Partial<StageRule> & { processId?: string }) => {
+  const list = await api.get<{ success: boolean; data: any[] }>('/stage-rules/', { params: { link: linkId } })
+    .then((r) => unwrap(r) as any[]);
+  const existing = Array.isArray(list) ? list.find((r) => r.link === linkId) : null
+  if (existing?.id) {
+    // 2026-07-03: BE StageRuleSerializer.Meta.fields 包含 'link' (OneToOne FK, 非 nullable),
+    //   PUT 走 full validation, 不传 link → 400 "该字段是必填项". 即便 instance 上 link 已有,
+    //   DRF 仍要入参里再传一次. POST 分支 { link: linkId, ...payload } 是正确的, PUT 分支之前漏了.
+    return api.put<{ success: boolean; data: StageRule }>(`/stage-rules/${existing.id}/`, { link: linkId, ...payload })
+      .then((r) => unwrap(r) as StageRule)
+  }
+  return api.post<{ success: boolean; data: StageRule }>('/stage-rules/', { link: linkId, ...payload })
+    .then((r) => unwrap(r) as StageRule)
+}
 
-export const upsertEntryCondition = (stageId: string, payload: {
-  matchType: 'ALL' | 'ANY';
-  conditionType: 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED';
-  prompt?: string;
-  items: ConditionItem[];
-}) =>
-  api.post<{ success: boolean; data: EntryCondition }>('/recruitment-rules/entry-conditions', { stageId, ...payload }).then((r) => r.data.data);
+// FE StageRule 接口没有 link 字段, 但 BE StageRuleSerializer 要求 (OneToOne FK).
+// 调用方需显式传 linkId (从 ProcessStageLink.id 拿). 新建规则时 link 可为全新空 link,
+// 但通常先 addProcessLink 拿到 linkId, 再 upsertStageRule.
+export const upsertEntryCondition = (
+  linkId: string,
+  payload: {
+    matchType: 'ALL' | 'ANY';
+    conditionType: 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED';
+    prompt?: string;
+    items: ConditionItem[];
+  },
+) =>
+  api.patch<{ success: boolean; data: ProcessStageLink }>(`/process-stage-links/${linkId}/`, {
+    entry_condition: payload,
+  }).then((r) => unwrap(r) as ProcessStageLink);
 
 export const evaluateEntryCondition = (stageId: string, context: { candidate: any; stageStatuses?: any }) =>
   api.post<{ success: boolean; data: { passed: boolean; failedItems: any[]; prompt: string | null } }>(`/recruitment-rules/entry-conditions/${stageId}/evaluate`, context).then((r) => r.data.data);
 
 // 列表查询 (G38 #7 阶段规则 / #5 进入条件)
+// 2026-07-08: 改用真实 endpoint /stage-rules/?link=X (跟 upsertStageRule 一致).
+//   之前 /recruitment-rules/stage-rules 是 stub, GET 永远返空 list → modal 重打开看不到已配置.
 export const listStageRules = (params: { linkId: string }) =>
-  api.get<{ success: boolean; data: StageRule[] }>('/recruitment-rules/stage-rules', { params }).then((r) => r.data.data)
+  api.get<{ success: boolean; data: StageRule[] }>('/stage-rules/', { params: { link: params.linkId } })
+    .then((r) => unwrap(r) as StageRule[])
 
-export const listEntryConditions = (params: { linkId: string }) =>
-  api.get<{ success: boolean; data: EntryCondition[] }>('/recruitment-rules/entry-conditions', { params }).then((r) => r.data.data)
+// 进入条件存在 ProcessStageLink.entry_condition (从 entry_rule_expression 解码).
+// 真实来源 = GET /process-stage-links/{id}/, 不是 stub.
+export const listEntryConditions = async (params: { linkId: string }): Promise<EntryCondition[]> => {
+  const link = await getProcessLink(params.linkId) as any
+  return link?.entryCondition ? [link.entryCondition] : []
+}
 
 // 候选人上下文评估 (G10 + G1.5) - 替代 raw fetch
 export const evaluateCandidateForStage = (candidateId: string, entryConditionId: string, applicationId?: string) =>

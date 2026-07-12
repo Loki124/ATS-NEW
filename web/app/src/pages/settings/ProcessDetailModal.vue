@@ -239,12 +239,12 @@
               <div class="field-row">
                 <span class="field-label">自动化流转</span>
                 <span class="field-value">
-                  <template v-if="link.rule && link.rule.autoAdvanceType && link.rule.autoAdvanceType !== 'NONE'">
+                  <template v-if="link.stageRule && link.stageRule.autoAdvanceType && link.stageRule.autoAdvanceType !== 'NONE'">
                     <span class="rule-text">
-                      <strong>{{ AUTO_ADVANCE_LABEL[link.rule.autoAdvanceType] || link.rule.autoAdvanceType }}</strong>
-                      <span v-if="link.rule.autoAdvanceTiming === 'IMMEDIATE'" class="rule-timing">立即执行</span>
-                      <span v-else-if="link.rule.autoAdvanceTiming === 'DELAYED' && link.rule.autoAdvanceDays" class="rule-timing">
-                        延迟 {{ link.rule.autoAdvanceDays }} 天
+                      <strong>{{ AUTO_ADVANCE_LABEL[link.stageRule.autoAdvanceType] || link.stageRule.autoAdvanceType }}</strong>
+                      <span v-if="link.stageRule.autoAdvanceTiming === 'IMMEDIATE'" class="rule-timing">立即执行</span>
+                      <span v-else-if="link.stageRule.autoAdvanceTiming === 'DELAYED' && link.stageRule.autoAdvanceDays" class="rule-timing">
+                        延迟 {{ link.stageRule.autoAdvanceDays }} 天
                       </span>
                     </span>
                   </template>
@@ -256,14 +256,14 @@
               <div class="field-row">
                 <span class="field-label">默认处理人</span>
                 <span class="field-value">
-                  <template v-if="link.rule?.defaultHandlerType">
+                  <template v-if="link.stageRule?.defaultHandlerType">
                     <span class="rule-text">
-                      <strong>{{ HANDLER_TYPE_LABEL[link.rule.defaultHandlerType] || link.rule.defaultHandlerType }}</strong>
-                      <span v-if="Array.isArray(link.rule.defaultHandlerFields) && link.rule.defaultHandlerFields.length">
-                        · 字段: {{ link.rule.defaultHandlerFields.join(', ') }}
+                      <strong>{{ HANDLER_TYPE_LABEL[link.stageRule.defaultHandlerType] || link.stageRule.defaultHandlerType }}</strong>
+                      <span v-if="Array.isArray(link.stageRule.defaultHandlerFields) && link.stageRule.defaultHandlerFields.length">
+                        · 字段: {{ link.stageRule.defaultHandlerFields.join(', ') }}
                       </span>
-                      <span v-if="Array.isArray(link.rule.defaultHandlerUserIds) && link.rule.defaultHandlerUserIds.length">
-                        · {{ link.rule.defaultHandlerUserIds.length }} 人
+                      <span v-if="Array.isArray(link.stageRule.defaultHandlerUserIds) && link.stageRule.defaultHandlerUserIds.length">
+                        · {{ link.stageRule.defaultHandlerUserIds.length }} 人
                       </span>
                     </span>
                   </template>
@@ -275,10 +275,10 @@
               <div class="field-row">
                 <span class="field-label">阶段限时</span>
                 <span class="field-value">
-                  <template v-if="link.rule?.timeLimit">
+                  <template v-if="link.stageRule?.timeLimit">
                     <span class="rule-text">
-                      {{ link.rule.timeLimit }} 天
-                      <span class="rule-scope">({{ link.rule.timeLimitScope === 'NEW_ONLY' ? '仅新申请' : '全部申请' }})</span>
+                      {{ link.stageRule.timeLimit }} 天
+                      <span class="rule-scope">({{ link.stageRule.timeLimitScope === 'NEW_ONLY' ? '仅新申请' : '全部申请' }})</span>
                     </span>
                   </template>
                   <span v-else class="muted-text">未设置</span>
@@ -286,10 +286,10 @@
               </div>
 
               <!-- 关联面试轮次 -->
-              <div v-if="link.rule && Array.isArray(link.rule.interviewRoundIds) && link.rule.interviewRoundIds.length" class="field-row">
+              <div v-if="link.stageRule && Array.isArray(link.stageRule.interviewRoundIds) && link.stageRule.interviewRoundIds.length" class="field-row">
                 <span class="field-label">关联轮次</span>
                 <span class="field-value">
-                  <n-tag v-for="rid in link.rule.interviewRoundIds" :key="rid" size="small" type="primary">
+                  <n-tag v-for="rid in link.stageRule.interviewRoundIds" :key="rid" size="small" type="primary">
                     {{ rid }}
                   </n-tag>
                 </span>
@@ -316,31 +316,31 @@
               <div class="field-row field-row--block field-row--last">
                 <span class="field-label">进入条件</span>
                 <span class="field-value field-value--wrap">
-                  <div v-if="!link.condition" class="cond-empty">
+                  <div v-if="!link.entryCondition" class="cond-empty">
                     未配置进入条件 (任何候选人都可进入此阶段)
                   </div>
                   <div v-else class="cond-group">
                     <div class="cond-group__head">
                       <n-tag
                         size="small"
-                        :type="link.condition.matchType === 'ALL' ? 'success' : 'warning'"
+                        :type="link.entryCondition.matchType === 'ALL' ? 'success' : 'warning'"
                         round
                       >
-                        {{ link.condition.matchType === 'ALL' ? '全部满足' : '任一满足' }}
+                        {{ link.entryCondition.matchType === 'ALL' ? '全部满足' : '任一满足' }}
                       </n-tag>
-                      <span v-if="link.condition.conditionType" class="cond-group__type">
-                        {{ CONDITION_TYPE_LABEL[link.condition.conditionType] || link.condition.conditionType }}
+                      <span v-if="link.entryCondition.conditionType" class="cond-group__type">
+                        {{ CONDITION_TYPE_LABEL[link.entryCondition.conditionType] || link.entryCondition.conditionType }}
                       </span>
-                      <span v-if="link.condition.items?.length" class="cond-group__count">
-                        共 {{ link.condition.items.length }} 条
+                      <span v-if="link.entryCondition.items?.length" class="cond-group__count">
+                        共 {{ link.entryCondition.items.length }} 条
                       </span>
                     </div>
-                    <div v-if="!link.condition.items?.length" class="cond-empty cond-empty--inline">
+                    <div v-if="!link.entryCondition.items?.length" class="cond-empty cond-empty--inline">
                       已启用匹配模式但未配置具体条件项
                     </div>
                     <div v-else class="cond-list">
                       <div
-                        v-for="(item, i) in link.condition.items"
+                        v-for="(item, i) in link.entryCondition.items"
                         :key="i"
                         class="cond-item"
                       >
@@ -575,16 +575,30 @@
 
               <!-- 操作按钮 -->
               <div class="stage-card__row-actions" @click.stop>
+                <!-- 添加前序阶段: 起始阶段 (初评) 写死不可在前面加, 其它行都允许 -->
+                <n-button
+                  v-if="!stage.isStart"
+                  text
+                  type="primary"
+                  size="small"
+                  @click.stop="addStageAt(idx, 'preceding')"
+                >
+                  <template #icon>
+                    <n-icon :component="AddOutline" />
+                  </template>
+                  添加前序阶段
+                </n-button>
                 <n-popconfirm
                   v-if="!stage.isStart && !stage.isEnd"
                   @positive-click="removeStage(idx)"
                 >
                   <template #trigger>
-                    <n-button text type="error" size="small">删除</n-button>
+                    <n-button text type="error" size="small">删除当前阶段</n-button>
                   </template>
                   确定删除阶段「{{ stage.name }}」？
                 </n-popconfirm>
-                <n-tag v-else type="default" size="small">起止不可删</n-tag>
+                <n-tag v-else-if="stage.isStart" type="default" size="small">起始不可删</n-tag>
+                <n-tag v-else type="default" size="small">结束不可删</n-tag>
               </div>
 
               <!-- 阶段间下箭头 -->
@@ -593,59 +607,21 @@
               </div>
             </div>
           </div>
-          <n-space style="margin-top: 12px">
-            <n-button
-              size="small"
-              type="primary"
-              dashed
-              :disabled="selectedStageIdx === null"
-              @click="addStage('preceding')"
-            >
-              <template #icon>+</template>
-              在选中前插入
-            </n-button>
-            <n-button
-              size="small"
-              type="primary"
-              dashed
-              :disabled="selectedStageIdx === null"
-              @click="addStage('following')"
-            >
-              <template #icon>+</template>
-              在选中后插入
-            </n-button>
-            <n-button
-              size="small"
-              type="default"
-              dashed
-              @click="addStage('end')"
-            >
-              <template #icon>+</template>
-              追加到末尾
-            </n-button>
-            <n-popconfirm @positive-click="removeSelectedStage">
-              <template #trigger>
-                <n-button
-                  size="small"
-                  type="error"
-                  dashed
-                  :disabled="selectedStageIdx === null"
-                >
-                  <template #icon>×</template>
-                  删除选中
-                </n-button>
-              </template>
-              确定删除选中的阶段？
-            </n-popconfirm>
-            <n-text depth="3" style="font-size: 12px">
-              {{
-                selectedStageIdx === null
-                  ? '未选中任何阶段 (点阶段行的空白处选中)'
-                  : `已选中第 ${selectedStageIdx + 1 } 行`
-              }}
-              · 可选阶段库: {{ stageLibrary.length }} 个
-            </n-text>
-          </n-space>
+
+          <!-- 末尾的"追加到末尾"按钮 — 与每个阶段的"前序阶段"按钮互补;最后一行已是结束阶段时不再显示 -->
+          <n-button
+            v-if="!editForm.stages.length || !editForm.stages[editForm.stages.length - 1]?.isEnd"
+            style="margin-top: 12px"
+            size="small"
+            dashed
+            block
+            @click="addStageAt(editForm.stages.length, 'following')"
+          >
+            <template #icon>
+              <n-icon :component="AddOutline" />
+            </template>
+            追加到末尾
+          </n-button>
         </div>
       </template>
     </n-spin>
@@ -667,17 +643,18 @@
     </template>
   </n-modal>
 
-  <!-- 关闭确认 Popconfirm -->
-  <n-popconfirm
+  <!-- 关闭确认 dialog (n-modal preset="dialog" 自带 teleport + 居中, 不依赖 trigger) -->
+  <n-modal
     :show="showCloseConfirm"
+    preset="dialog"
+    title="有未保存的修改"
+    content="确定离开? 当前编辑内容将丢失。"
+    positive-text="确定离开"
+    negative-text="继续编辑"
     @positive-click="confirmClose"
     @negative-click="showCloseConfirm = false"
-  >
-    <template #trigger>
-      <span style="display: none" />
-    </template>
-    有未保存的修改, 确定离开?
-  </n-popconfirm>
+    @close="showCloseConfirm = false"
+  />
 
   <!-- 409 冲突 modal -->
   <n-modal
@@ -695,6 +672,81 @@
     </n-space>
   </n-modal>
 
+  <!-- 阶段选择 Picker: 点 "添加前序阶段" / "追加到末尾" 触发 -->
+  <n-modal
+    v-model:show="showStagePicker"
+    preset="card"
+    title="选择要添加的阶段"
+    style="width: 600px; max-width: 95vw"
+  >
+    <n-input
+      v-model:value="stagePickerKeyword"
+      placeholder="搜索阶段名称 / 编号"
+      clearable
+      style="margin-bottom: 12px"
+    >
+      <template #prefix>
+        <n-icon :component="InformationCircleOutline" />
+      </template>
+    </n-input>
+
+    <div v-if="stagePickerCandidates.length === 0" class="picker-empty">
+      <n-empty description="没有可添加的阶段 (本流程已用完所有阶段,或阶段库为空)。请先在「阶段模板库」中创建更多阶段。" />
+    </div>
+    <div v-else class="picker-list">
+      <div
+        v-for="s in stagePickerCandidates"
+        :key="s.id"
+        class="picker-item"
+        :class="{ 'picker-item--start': s.isStart, 'picker-item--end': s.isEnd }"
+        @click="confirmStagePick(s)"
+      >
+        <div
+          class="picker-item__dot"
+          :style="{ background: stageTypeColor(s.stageType) }"
+        />
+        <div class="picker-item__main">
+          <div class="picker-item__name">
+            {{ s.name }}
+            <n-tag
+              v-if="s.isStart"
+              size="tiny"
+              type="success"
+              round
+              style="margin-left: 6px"
+            >
+起始
+</n-tag>
+            <n-tag
+              v-if="s.isEnd"
+              size="tiny"
+              type="warning"
+              round
+              style="margin-left: 6px"
+            >
+结束
+</n-tag>
+          </div>
+          <div class="picker-item__code">{{ s.code }} · {{ stageTypeLabel(s.stageType) }}</div>
+        </div>
+        <div class="picker-item__hint">
+          <span v-if="s.isStart && stagePickerInsertIdx > 0">将插入到开头</span>
+          <span v-else-if="s.isEnd">将插入到末尾</span>
+          <span v-else>将插入到第 {{ stagePickerInsertIdx + 1 }} 行{{ stagePickerInsertPosition === 'preceding' ? '之前' : '之后' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <n-space justify="end">
+        <n-text depth="3" style="font-size: 12px">
+          同一阶段在同一流程中只能被使用一次
+        </n-text>
+        <n-button @click="showStagePicker = false">取消</n-button>
+      </n-space>
+    </template>
+  </n-modal>
+
   <!-- 嵌套 StageRuleConfigModal -->
   <StageRuleConfigModal
     v-model:show="showRuleConfig"
@@ -709,7 +761,7 @@ import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   NSpace, NTag, NSpin, NModal, NButton, NIcon,
   NGrid, NGridItem, NInput, NRadio, NRadioGroup, NSelect, NSwitch,
-  NAlert, NInputNumber, NPopconfirm, NText, useMessage,
+  NAlert, NInputNumber, NPopconfirm, NText, NEmpty, useMessage,
 } from 'naive-ui'
 import {
   GitNetworkOutline,
@@ -730,6 +782,7 @@ import {
   MedalOutline,
   BriefcaseOutline,
   PersonCircleOutline,
+  AddOutline,
 } from '@vicons/ionicons5'
 import {
   getProcess,
@@ -834,8 +887,8 @@ const deptOptions = ref<{ label: string; value: string }[]>([])
 const positionOptions = ref<{ label: string; value: string }[]>([])
 const userOptions = ref<{ label: string; value: string }[]>([])
 
-// stage library
-const stageLibrary = ref<{ id: string; code: string; name: string; stageType: string }[]>([])
+// stage library (含 isStart/isEnd 字段, Picker 用)
+const stageLibrary = ref<{ id: string; code: string; name: string; stageType: string; isStart?: boolean; isEnd?: boolean; status?: string }[]>([])
 
 // ===== 元数据映射 =====
 const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: 'info' | 'warning' | 'success' | 'primary' | 'default'; icon: any }> = {
@@ -935,7 +988,8 @@ async function load() {
     // 适配 BE 新形态: stageLinks / order / defaultFeatures+optionalFeatures / isBuiltin
     links.value = linksArr
       .slice()
-      .sort((a: any, b: any) => (a.order ?? a.orderIndex ?? 0) - (b.order ?? b.orderIndex ?? 0))
+    // 2026-07-03: 字段对齐 FE 'order' (recruitment-process.ts:87) — 之前 a.orderIndex 是 undefined, 排序静默坏.
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
       .map((l: any) => ({
         ...l,
         stage: l.stage ? {
@@ -1009,6 +1063,16 @@ function buildEmptyEditForm(): EditForm {
     { key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
     { key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
   ]
+
+  // 创建流程时, 默认自动添加系统起止 (初评 + 正式录用)。
+  // 这两个 stage 是全局唯一且写死的, 每个新建流程都必须以初评开头、正式录用结尾。
+  // 业务阶段由用户在编辑过程中插入。
+  const startStage = stageLibrary.value.find(s => s.isStart)
+  const endStage = stageLibrary.value.find(s => s.isEnd)
+  const stages: EditStage[] = []
+  if (startStage) stages.push(_mkStageFromLib(startStage))
+  if (endStage) stages.push(_mkStageFromLib(endStage))
+
   return {
     name: '',
     description: '',
@@ -1016,7 +1080,7 @@ function buildEmptyEditForm(): EditForm {
     failPrompt: '',
     applicableMode: 'ALL',
     applicableIndicators: indicators,
-    stages: [],
+    stages,
   }
 }
 
@@ -1043,8 +1107,8 @@ function buildEditForm(): EditForm {
     stageLimit: l.stageLimit,
     features: l.stage?.features || [],
     _linkId: l.id,
-    _rule: l.rule || undefined,
-    _condition: l.condition || undefined,
+    _rule: l.stageRule || undefined,
+    _condition: l.entryCondition || undefined,
   }))
   return {
     name: d.name || '',
@@ -1066,7 +1130,10 @@ async function loadScopeOptions() {
 
 async function loadStageLibrary() {
   try {
-    const res = await listStages({ status: 'ACTIVE' })
+    // BE 不接受 ?status=ACTIVE (BE 只识别 ENABLED/DISABLED, listStages 默认就是 ACTIVE)。
+    // 流程编辑器需要看所有阶段的 stageType 颜色等信息, 不过滤状态, 让用户能用任何 stage
+    // (同一 stage 可被多个流程复用)。
+    const res = await listStages()
     stageLibrary.value = Array.isArray(res) ? res : []
   } catch {
     stageLibrary.value = []
@@ -1160,28 +1227,165 @@ function openEntryCondition(stage: EditStage) {
   showRuleConfig.value = true
 }
 
-function onRuleSaved() {
-  message.success('阶段配置已保存')
+async function onRuleSaved() {
+  // 2026-07-03: 之前只 toast, 不刷新 editForm.stages[i]._rule / _condition,
+  //   导致卡片按钮一直显示 "未配置 (点配置)" 即使后端已经保存了.
+  // 修复: 重新拉取这条 link (含 stage_rule + entry_condition 反序列化),
+  //   找到对应的 editForm.stages[idx], 把 _rule/_condition 更新,
+  //   模板上 :class / button 文本就会立刻反映.
+  const linkId = ruleEditingLinkId.value
+  if (!linkId || !editForm.value) {
+    message.success('阶段配置已保存')
+    return
+  }
+  try {
+    const all = await listProcessLinks(props.processId)
+    const updated = Array.isArray(all) ? all.find((l: any) => l.id === linkId) : null
+    if (!updated) {
+      message.success('阶段配置已保存')
+      return
+    }
+    const idx = editForm.value.stages.findIndex((s: EditStage) => s._linkId === linkId)
+    if (idx < 0) {
+      message.success('阶段配置已保存')
+      return
+    }
+    editForm.value.stages[idx]._rule = updated.stageRule || undefined
+    editForm.value.stages[idx]._condition = updated.entryCondition || undefined
+    message.success('阶段配置已保存')
+  } catch (e: any) {
+    // 即使 refresh 失败也提示用户配置已落库 (避免误导用户重新配置)
+    message.success('阶段配置已保存 (但本地状态刷新失败，请重新打开查看)')
+  }
 }
 
 function addStage(position: 'preceding' | 'following' | 'end') {
+  // 兼容旧路径 - 'end' = 追加到末尾 (用 Following + idx=长度)
   if (!editForm.value) return
-  const lib = stageLibrary.value.find(s => !editForm.value!.stages.some(es => es.id === s.id))
-  if (!lib) { message.warning('可选阶段库为空, 请先创建阶段'); return }
-  const newStage: EditStage = {
+  if (position === 'end') {
+    return addStageAt(editForm.value.stages.length, 'following')
+  }
+  return addStageAt(
+    position === 'preceding'
+      ? 0
+      : editForm.value.stages.length - 1,
+    position,
+  )
+}
+
+function addStageAt(idx: number, position: 'preceding' | 'following') {
+  // 弹窗让用户选 stage; 同流程已用 stage 自动排除, 跨流程可复用。
+  openStagePickerAt(idx, position)
+}
+
+function _mkStageFromLib(lib: any): EditStage {
+  return {
     id: lib.id,
     code: lib.code,
     name: lib.name,
     stageType: lib.stageType || 'SCREEN',
-    isStart: false,
-    isEnd: false,
+    isStart: !!lib.isStart,
+    isEnd: !!lib.isEnd,
     stageLimit: undefined,
     features: [],
   }
-  if (position === 'end') editForm.value.stages.push(newStage)
-  else if (selectedStageIdx.value !== null) {
-    const idx = position === 'preceding' ? selectedStageIdx.value : selectedStageIdx.value + 1
-    editForm.value.stages.splice(idx, 0, newStage)
+}
+
+// ===== Stage Picker =====
+// 点 "添加前序阶段" / "追加到末尾" 触发。
+// 弹窗列出 stageLibrary 中 (a) 本流程已用 stage 已排除 (b) keyword 模糊匹配。
+// 起止 stage 选完后强制落到首/尾。
+const showStagePicker = ref(false)
+const stagePickerKeyword = ref('')
+const stagePickerInsertIdx = ref(0)
+const stagePickerInsertPosition = ref<'preceding' | 'following'>('preceding')
+
+const stagePickerCandidates = computed(() => {
+  if (!editForm.value) return []
+  const usedStageIds = new Set(editForm.value.stages.map(es => es.id))
+  const kw = stagePickerKeyword.value.trim().toLowerCase()
+  return stageLibrary.value
+    .filter(s => !usedStageIds.has(s.id))
+    .filter(s => !kw || s.name.toLowerCase().includes(kw) || s.code.toLowerCase().includes(kw))
+    .sort((a, b) => {
+      // 起止阶段优先 (强制落到首/尾, 显眼), 再按 code 排序
+      const ax = a.isStart ? 0 : a.isEnd ? 2 : 1
+      const bx = b.isStart ? 0 : b.isEnd ? 2 : 1
+      if (ax !== bx) return ax - bx
+      return (a.code || '').localeCompare(b.code || '')
+    })
+})
+
+function openStagePickerAt(idx: number, position: 'preceding' | 'following') {
+  if (!editForm.value) return
+  stagePickerInsertIdx.value = idx
+  stagePickerInsertPosition.value = position
+  stagePickerKeyword.value = ''
+  showStagePicker.value = true
+}
+
+function confirmStagePick(lib: any) {
+  if (!editForm.value) return
+  if (!lib?.id) return
+  const stages = editForm.value.stages
+  const newStage = _mkStageFromLib(lib)
+
+  // 起止阶段: 强制放到首/尾, 忽略用户选的 idx
+  if (lib.isStart) {
+    if (!stages.length || stages[0]?.isStart) {
+      // 已经存在起始阶段 → 跳过, 提示
+      message.warning('此流程已存在起始阶段, 不能再添加')
+      showStagePicker.value = false
+      return
+    }
+    stages.unshift(newStage)
+    message.success(`已添加起始阶段「${newStage.name}」到流程开头`)
+    showStagePicker.value = false
+    return
+  }
+  if (lib.isEnd) {
+    if (stages.length && stages[stages.length - 1]?.isEnd) {
+      message.warning('此流程已存在结束阶段, 不能再添加')
+      showStagePicker.value = false
+      return
+    }
+    stages.push(newStage)
+    message.success(`已添加结束阶段「${newStage.name}」到流程末尾`)
+    showStagePicker.value = false
+    return
+  }
+
+  const insertIdx = stagePickerInsertPosition.value === 'preceding'
+    ? stagePickerInsertIdx.value
+    : stagePickerInsertIdx.value + 1
+  stages.splice(insertIdx, 0, newStage)
+  // 2026-07-03: 防御性 normalize, 防止用户在中间插入后系统起止被挤到非首/尾位置.
+  _normalizeStartEnd(stages)
+  message.success(`已添加阶段「${newStage.name}」到第 ${insertIdx + 1} 位`)
+  showStagePicker.value = false
+}
+
+// 2026-07-03: 强制保证系统起止位置不变量 — 起始必须在位置 0, 结束必须在位置 N-1.
+//  Bug 根因: 之前用户在 "正式录用" 上 "添加前序阶段" 时, stages.splice(N-1, 0, X) 把
+//  系统结束阶段挤到位置 N, 但 reorder endpoint 仍按 form.stages 顺序写入, 导致
+//  DB 中 "初评" 跑到中间 (order=2/3) 而 "正式录用" 跑到末尾.
+//  守护: 状态被 race condition / 直接 props 改写破坏时, 也能复原顺序.
+function _normalizeStartEnd(stages: EditStage[]) {
+  if (!Array.isArray(stages) || stages.length < 2) return
+  // 1. 起始: 找到 isStart=true 的阶段, 强制 unshift 到位置 0
+  const startIdx = stages.findIndex(s => s.isStart)
+  if (startIdx > 0) {
+    const [start] = stages.splice(startIdx, 1)
+    stages.unshift(start)
+  }
+  // 2. 结束: 找到 isEnd=true 的阶段, 强制 push 到位置 N-1
+  //    注: start 和 end 同时在中间的场景 (e.g. [B, A, D, C]) 经上面把 A 移到位置 0 → [A, B, D, C]
+  //    再把 D 移到末尾 → [A, B, C, D], 顺序正确.
+  const endIdx = stages.findIndex(s => s.isEnd)
+  const lastIdx = stages.length - 1
+  if (endIdx >= 0 && endIdx < lastIdx) {
+    const [end] = stages.splice(endIdx, 1)
+    stages.push(end)
   }
 }
 
@@ -1225,6 +1429,10 @@ function validateEditForm(form: EditForm): string | null {
 async function handleSave() {
   if (!editForm.value) return
   const form = editForm.value
+
+  // 2026-07-03: 防御性 normalize, 保证起止位置不变量 (即便 Form 状态因 race condition 被破坏).
+  // 配套 confirmStagePick 里的同款守卫.
+  _normalizeStartEnd(form.stages)
 
   // 2. validate
   const err = validateEditForm(form)
@@ -1286,12 +1494,17 @@ async function handleSave() {
     }
 
     // 3c. add new links (sequential — needed for stageLimit update below)
-    for (const s of form.stages) {
+    // 2026-07-03: 传 order = i+1 (1-based 与 reorder 保持一致). 之前不传 → BE 收不到
+    //   'order' 字段 (drf-camel-case 会把 'orderIndex' 转 'order_index' 然后被静默丢弃),
+    //   落地到 model default order=0, 多个新 link 顺序乱套.
+    for (let i = 0; i < form.stages.length; i++) {
+      const s = form.stages[i]
       if (!s._linkId && s.id) {
         const created = await addProcessLink({
           processId: currentProcessId,
           stageId: s.id,
           stageLimit: s.stageLimit,
+          order: i + 1,
         })
         if (created?.id) s._linkId = created.id
       }
@@ -2004,5 +2217,74 @@ function conditionItemLabel(item: any): string {
   padding-top: 8px;
   border-top: 1px dashed #f0f0f3;
   margin-top: 4px;
+}
+
+/* ===== Stage Picker ===== */
+.picker-empty {
+  padding: 24px 0;
+}
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e6e8eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.picker-item:hover {
+  background-color: #f0f5ff;
+  border-color: #91caff;
+}
+.picker-item--start {
+  background-color: #f6ffed;
+  border-color: #b7eb8f;
+}
+.picker-item--start:hover {
+  background-color: #d9f7be;
+  border-color: #73d13d;
+}
+.picker-item--end {
+  background-color: #fff7e6;
+  border-color: #ffd591;
+}
+.picker-item--end:hover {
+  background-color: #ffe7ba;
+  border-color: #ffa940;
+}
+.picker-item__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 1), 0 0 0 4px rgba(0, 0, 0, 0.06);
+}
+.picker-item__main {
+  flex: 1;
+  min-width: 0;
+}
+.picker-item__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f1f1f;
+  line-height: 1.4;
+}
+.picker-item__code {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 2px;
+}
+.picker-item__hint {
+  font-size: 12px;
+  color: #8c8c8c;
+  flex-shrink: 0;
 }
 </style>

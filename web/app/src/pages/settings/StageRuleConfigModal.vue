@@ -626,7 +626,14 @@ watch(() => props.show, async (v) => {
       }
       // 面试
       form.interviewRounds = r.interviewRoundIds || []
-      form.interviewForms = []
+      // 2026-07-07: 把后端持久化的 interviewFormat (逗号分隔字符串) 拆回数组
+      //   写回 form.interviewForms, 否则重新打开已配置的阶段看不到已选形式.
+      form.interviewForms = r.interviewFormat
+        ? r.interviewFormat.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : []
+      // 2026-07-07: 回填 inheritPriorConsensus / grabModeEnabled, 否则重打开已配置阶段看不到勾选
+      form.inheritPriorConsensus = r.inheritPriorConsensus ?? false
+      form.grabModeEnabled = r.isGrabMode ?? false
     } else {
       // reset
       form.autoAdvanceType = 'NONE'

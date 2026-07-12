@@ -185,7 +185,8 @@ async function loadProcess() {
     processName.value = p.name
     // 后端用 links 字段
     links.value = p.links || []
-    orderedLinks.value = [...links.value].sort((a: any, b: any) => a.orderIndex - b.orderIndex)
+    // 2026-07-03: FE 类型 'order' (apps/api/recruitment-process.ts:87) — 之前 a.orderIndex 是 undefined, 排序静默坏.
+    orderedLinks.value = [...links.value].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
   } catch (e: any) {
     message.error(e?.response?.data?.message || '加载失败')
   } finally {

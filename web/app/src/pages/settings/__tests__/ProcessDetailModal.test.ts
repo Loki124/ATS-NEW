@@ -4,6 +4,7 @@ import { defineComponent, h } from 'vue'
 import { NMessageProvider, NDialogProvider } from 'naive-ui'
 import { nextTick } from 'vue'
 import type { RecruitmentProcess, ProcessStageLink } from '../../../api/recruitment-process'
+import { naivePlugin } from '../../../plugins/naive'
 
 // API mock — vi.mock hoists; 路径深度 3 层 (__tests__ → settings → pages → src)
 const mockGetProcess = vi.fn()
@@ -63,40 +64,45 @@ const PROCESS_FULL = { ...PROCESS, stages: [], autoRules: [] } as any
 // 复用现有 STAGE_LINKS (3 条, 含 isSystem / isStart / isEnd)
 const STAGE_LINKS: ProcessStageLink[] = [
   {
-    id: 'l1', processId: 'p1', stageId: 'st1', orderIndex: 1,
+    id: 'l1', processId: 'p1', stageId: 'st1', order: 1,
     status: 'ACTIVE',
-    stage: { id: 'st1', code: 'F001', name: '初评', stageType: 'SCREEN', features: ['invite'], isSystem: true, isStart: true, isEnd: false, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-    rule: null,
-    condition: { id: 'c1', stageId: 'st1', processId: 'p1', matchType: 'ALL', conditionType: 'CANDIDATE', items: [] },
+    stage: { id: 'st1', code: 'F001', name: '初评', stageType: 'SCREEN', features: ['invite'], isSystem: true, isStart: true, isEnd: false, status: 'ENABLED', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+    stageRule: null,
+    entryCondition: { id: 'c1', stageId: 'st1', processId: 'p1', matchType: 'ALL', conditionType: 'CANDIDATE', items: [] },
   },
   {
-    id: 'l2', processId: 'p1', stageId: 'st2', orderIndex: 2,
+    id: 'l2', processId: 'p1', stageId: 'st2', order: 2,
     status: 'ACTIVE',
-    stage: { id: 'st2', code: 'F002', name: 'HRBP评估', stageType: 'SCREEN', features: [], isSystem: false, isStart: false, isEnd: false, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-    rule: null,
-    condition: null,
+    stage: { id: 'st2', code: 'F002', name: 'HRBP评估', stageType: 'SCREEN', features: [], isSystem: false, isStart: false, isEnd: false, status: 'ENABLED', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+    stageRule: null,
+    entryCondition: null,
   },
   {
-    id: 'l3', processId: 'p1', stageId: 'st3', orderIndex: 3,
+    id: 'l3', processId: 'p1', stageId: 'st3', order: 3,
     status: 'ACTIVE',
-    stage: { id: 'st3', code: 'F003', name: '正式录用', stageType: 'OFFER', features: [], isSystem: true, isStart: false, isEnd: true, status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-    rule: null,
-    condition: null,
+    stage: { id: 'st3', code: 'F003', name: '正式录用', stageType: 'OFFER', features: [], isSystem: true, isStart: false, isEnd: true, status: 'ENABLED', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+    stageRule: null,
+    entryCondition: null,
   },
 ]
 
-// factory: NMessageProvider 包 + attachTo document.body (n-modal teleport 逃出 wrapper)
+// factory: NMessageProvider + NDialogProvider 包 + attachTo document.body (n-modal teleport 逃出 wrapper)
 function factory(props: any) {
   const Wrapper = defineComponent({
     setup(_, { slots }) {
-      return () => h(NMessageProvider, null, { default: () => slots.default?.() })
+      return () => h(NDialogProvider, null, {
+        default: () => h(NMessageProvider, null, { default: () => slots.default?.() }),
+      })
     },
   })
-  return mount(Wrapper, {
+  const w = mount(Wrapper, {
     props,
     slots: { default: () => h(ProcessDetailModal, props) },
     attachTo: document.body,
   })
+  // 注册全部 naive-ui 组件, 模拟生产 app.use(naivePlugin)
+  w.vm.$.appContext.app.use(naivePlugin)
+  return w
 }
 
 describe('ProcessDetailModal.vue', () => {
@@ -182,8 +188,10 @@ describe('ProcessDetailModal.vue', () => {
     expect(cancelBtn).toBeTruthy()
     cancelBtn.click()
     await flushPromises()
-    // popconfirm 应出现 (n-popconfirm 渲染 .n-popconfirm 容器)
-    expect(document.querySelectorAll('.n-popconfirm, .n-popover').length).toBeGreaterThan(0)
+    await nextTick()
+    await new Promise(r => setTimeout(r, 50))
+    // 关闭确认 dialog 应出现 (n-dialog 渲染 .n-dialog 容器)
+    expect(document.querySelectorAll('.n-dialog').length).toBeGreaterThan(0)
   })
 
   // --- 新契约 6 ---
@@ -249,7 +257,9 @@ describe('ProcessDetailModal.vue', () => {
     expect(closeBtn).toBeTruthy()
     closeBtn.click()
     await flushPromises()
-    // 弹 popconfirm (关闭被拦截)
-    expect(document.querySelectorAll('.n-popconfirm, .n-popover').length).toBeGreaterThan(0)
+    await nextTick()
+    await new Promise(r => setTimeout(r, 50))
+    // 弹关闭确认 dialog (关闭被拦截)
+    expect(document.querySelectorAll('.n-dialog').length).toBeGreaterThan(0)
   })
 })
