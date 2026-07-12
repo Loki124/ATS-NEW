@@ -29,7 +29,8 @@ from rest_framework.response import Response
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Candidate, CandidateTag
 from .serializers import (
@@ -49,12 +50,13 @@ from .services import CandidateService
 logger = logging.getLogger(__name__)
 
 
-class CandidateViewSet(ScopedQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """候选人 ViewSet — 增加部门 scope 过滤防 IDOR"""
     queryset = Candidate.objects.filter(deleted_at__isnull=True).select_related(
         'source_channel', 'referrer',
     )
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
     pagination_class = StandardResultsSetPagination
     lookup_field = 'id'
     # Candidate 模型无 department 字段; 用 referrer (推荐人) 间接 scope: HR 看本部门推荐人.

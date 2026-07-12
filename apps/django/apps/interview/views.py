@@ -6,7 +6,8 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Interview, InterviewEvaluation
 from .serializers import (
@@ -17,10 +18,11 @@ from .serializers import (
 )
 
 
-class InterviewViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InterviewViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """面试 ViewSet - 按 application.position.department scope 过滤"""
     queryset = Interview.objects.all()
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:interview:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['application', 'status', 'format', 'round_number']

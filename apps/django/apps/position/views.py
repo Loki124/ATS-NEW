@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Position
 from .serializers import (
@@ -19,10 +19,11 @@ from .serializers import (
 )
 
 
-class PositionViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class PositionViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """职位 ViewSet - 按部门 scope 过滤"""
     queryset = Position.objects.all()
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:position:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'department', 'hiring_manager', 'owner', 'level', 'process']
