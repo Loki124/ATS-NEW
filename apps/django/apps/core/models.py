@@ -245,6 +245,7 @@ class Role(models.Model):
         db_table = 'roles'
         verbose_name = '角色'
         verbose_name_plural = verbose_name
+        managed = False  # V1 表由 V2 (apps.core.models_permission_v2.RoleV2) 管理,T17 drop_old 阶段删除
 
     def __str__(self):
         return self.name
@@ -294,6 +295,7 @@ class UserRole(models.Model):
         unique_together = [('user', 'role', 'department')]
         verbose_name = '用户角色'
         verbose_name_plural = verbose_name
+        managed = False  # V1 表由 V2 (apps.core.models_permission_v2.UserRoleV2) 管理,T17 drop_old 阶段删除
 
 
 class RolePermission(models.Model):
@@ -306,3 +308,16 @@ class RolePermission(models.Model):
         unique_together = [('role', 'permission')]
         verbose_name = '角色权限'
         verbose_name_plural = verbose_name
+
+
+# ---- V2 权限系统 (spec §3.2, T2) ----
+# 显式 import 让 Django 注册器发现 V2 models (V1/V2 共存于 T17 drop_old 前)
+from .models_permission_v2 import (  # noqa: E402,F401
+    PermissionResource,
+    PermissionTemplate,
+    RoleV2,
+    RolePermissionV2,
+    ManagementUnit,
+    UserRoleV2,
+    TenantConfig,
+)
