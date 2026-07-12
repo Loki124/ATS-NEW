@@ -20,6 +20,11 @@ api_v1_patterns = [
     #   /permissions/{roles,functions,menus,user-info,permissions/list} 这些 stub path
     #   (之前 line 60, 被 core 的 router.register(r'permissions', ...) 抢先吃掉)
     path('', include('apps.referral.urls_stubs')),
+    # 2026-07-12 花无缺: V2 权限系统 9 endpoints 必须在 core.urls 之前注册 —
+    #   core.urls 的 router.register(r'permissions', ...) 抢 '^permissions/<pk>/$' 会
+    #   把 V2 的 /api/v1/permissions/resources/ 当 pk=resources 吃掉 (404). 先注册 V2 让
+    #   长前缀 (resources/templates) 优先 match.
+    path('', include('apps.core.urls_permission_v2')),
     # 2026-06-17: G41 用户管理 + 组织架构 + 角色 + 权限码 4 个 ViewSet (apps/core/urls.py)
     # 挂到 '' 上: users→/api/v1/users/  departments→/api/v1/departments/  roles→/api/v1/roles/  permissions→/api/v1/permissions/
     path('', include('apps.core.urls')),
