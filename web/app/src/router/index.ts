@@ -123,6 +123,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'external', name: 'ExternalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'public', name: 'PublicSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: ['SUPER_ADMIN'] } },
+          // ===== V2 权限管理 4-tab (T20) =====
+          { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           // ===== G41 院校/公司信息库 =====
           { path: 'school-library', name: 'SchoolLibrary', component: () => import(/* webpackChunkName: "settings-school" */ '../pages/settings/SchoolLibrary.vue') },
           { path: 'company-library', name: 'CompanyLibrary', component: () => import(/* webpackChunkName: "settings-company-lib" */ '../pages/settings/CompanyLibrary.vue') },
