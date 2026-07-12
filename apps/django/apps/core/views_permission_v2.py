@@ -12,6 +12,7 @@ from .models_permission_v2 import (
     ManagementUnit, UserRoleV2,
 )
 from .permissions_v2 import V2Permission
+from .scope_resolver import resolve_scope
 
 
 class PermissionResourceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -102,3 +103,62 @@ class RoleViewSet(viewsets.ModelViewSet):
             self.get_serializer(role).data,
             status=http_status.HTTP_201_CREATED,
         )
+
+
+class ManagementUnitViewSet(viewsets.ModelViewSet):
+    queryset = ManagementUnit.objects.all()
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:mgmt_unit:list'
+    pagination_class = None
+    filterset_fields = ['unit_type', 'status']
+
+    def get_serializer_class(self):
+        from .serializers_permission_v2 import ManagementUnitSerializer
+        return ManagementUnitSerializer
+
+
+class UserRoleViewSet(viewsets.ModelViewSet):
+    queryset = UserRoleV2.objects.all()
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:user_role:list'
+    pagination_class = None
+    filterset_fields = ['user_id', 'role_code', 'system_code']
+
+    def get_serializer_class(self):
+        from .serializers_permission_v2 import UserRoleSerializer
+        return UserRoleSerializer
+
+    @action(detail=False, methods=['get'])
+    def suggest_scope(self, request):
+        """GET /user-roles/suggest-scope/?user_id=X&role_code=Y"""
+        user_id = request.query_params.get('user_id')
+        role_code = request.query_params.get('role_code')
+        if not (user_id and role_code):
+            return Response({'success': False, 'message': 'user_id + role_code 必填'},
+                            status=http_status.HTTP_400_BAD_REQUEST)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.filter(pk=user_id).first()
+        if not user:
+            return Response({'success': False, 'message': 'user 不存在'},
+                            status=http_status.HTTP_404_NOT_FOUND)
+        try:
+            scope = resolve_scope(user)
+        except (OperationalError, ProgrammingError):
+            scope = {}
+        if scope.get('all'):
+            return Response({
+                'suggested_unit_ids': [],
+                'derived_from': 'L2',
+                'rationale': '角色 default=ALL, 不需要管理单元',
+            })
+        # 简化: 返回所有 unit 让 admin 选
+        try:
+            units = ManagementUnit.objects.filter(status=1).values('id', 'org_scope', 'unit_name')
+        except (OperationalError, ProgrammingError):
+            units = []
+        return Response({
+            'suggested_unit_ids': [u['id'] for u in units],
+            'derived_from': 'L4',
+            'rationale': '兜底: 返回所有可用管理单元',
+        })
