@@ -3,6 +3,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from . import views_permission_v2
+from .permission_check_view import permission_check_view
 
 router = DefaultRouter()
 router.register(r'permissions/resources', views_permission_v2.PermissionResourceViewSet, basename='v2-resource')
@@ -24,4 +25,5 @@ suggest_scope_view = views_permission_v2.UserRoleViewSet.as_view({
 urlpatterns = [
     path('roles/clone-from-template/', clone_from_template_view, name='v2-role-clone-from-template'),
     path('user-roles/suggest-scope/', suggest_scope_view, name='v2-user-role-suggest-scope'),
+    path('permission/check/', permission_check_view, name='v2-permission-check'),
 ] + list(router.urls)
