@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Onboarding
 from .serializers import (
@@ -19,10 +19,11 @@ from .serializers import (
 )
 
 
-class OnboardingViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class OnboardingViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """入职流程 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Onboarding.objects.all()
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:onboarding:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'candidate', 'position']

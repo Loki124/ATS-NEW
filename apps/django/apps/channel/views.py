@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission
 
 from .models import Channel, ChannelCost
 from .serializers import ChannelCostSerializer, ChannelSerializer
@@ -15,7 +16,8 @@ class ChannelViewSet(AuditMixin, viewsets.ModelViewSet):
     """招聘渠道 ViewSet"""
     queryset = Channel.objects.all()
     serializer_class = ChannelSerializer
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:channel:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'is_active']

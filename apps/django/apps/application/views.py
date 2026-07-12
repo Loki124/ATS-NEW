@@ -40,7 +40,8 @@ from rest_framework.response import Response
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Application, ApplicationHistory, ApplicationStageRecord
 from .serializers import (
@@ -70,12 +71,13 @@ from .services.soft_reject import SoftRejectService
 logger = logging.getLogger(__name__)
 
 
-class ApplicationViewSet(ScopedQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """申请 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Application.objects.filter(deleted_at__isnull=True).select_related(
         'candidate', 'position', 'process', 'current_link', 'current_stage', 'grabbed_by',
     )
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:application:list'
     pagination_class = StandardResultsSetPagination
     lookup_field = 'id'
     scope_field = 'position__department'
