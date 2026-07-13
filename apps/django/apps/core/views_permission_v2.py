@@ -26,6 +26,12 @@ class PermissionResourceViewSet(viewsets.ReadOnlyModelViewSet):
         from .serializers_permission_v2 import PermissionResourceSerializer
         return PermissionResourceSerializer
 
+    def list(self, request, *args, **kwargs):
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint (menus/functions/mous) 与 FE helper 期望."""
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
 
 class PermissionTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = PermissionTemplate.objects.filter(status=1)
@@ -36,6 +42,12 @@ class PermissionTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     def get_serializer_class(self):
         from .serializers_permission_v2 import PermissionTemplateSerializer
         return PermissionTemplateSerializer
+
+    def list(self, request, *args, **kwargs):
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
 
 
 class RoleViewSet(viewsets.ModelViewSet):
@@ -49,6 +61,12 @@ class RoleViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         from .serializers_permission_v2 import RoleSerializer
         return RoleSerializer
+
+    def list(self, request, *args, **kwargs):
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint 与 FE helper 期望."""
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
 
     @action(detail=False, methods=['post'])
     @transaction.atomic
@@ -163,6 +181,12 @@ class ManagementUnitViewSet(viewsets.ModelViewSet):
         from .serializers_permission_v2 import ManagementUnitSerializer
         return ManagementUnitSerializer
 
+    def list(self, request, *args, **kwargs):
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
 
 class UserRoleViewSet(viewsets.ModelViewSet):
     queryset = UserRoleV2.objects.all()
@@ -174,6 +198,12 @@ class UserRoleViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         from .serializers_permission_v2 import UserRoleSerializer
         return UserRoleSerializer
+
+    def list(self, request, *args, **kwargs):
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
 
     @action(detail=False, methods=['get'])
     def suggest_scope(self, request):
