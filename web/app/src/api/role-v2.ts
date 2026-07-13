@@ -84,13 +84,15 @@ export async function cloneFromTemplate(payload: {
 }
 
 /**
- * 同步角色已勾选的资源码 (role_permission 表)
- * 后端没有直接的 sync 端点, 通过 PUT /roles/{id}/ 带 permission_codes 触发
+ * 同步角色已勾选的资源码 (role_permission 表整组替换).
+ *
+ * T29 fix: PUT /roles/{id}/ 的 permissionCodes 是 SerializerMethodField (read-only),
+ * DRF 会静默丢弃, 用户以为保存成功实际数据丢失. 此处显式走 sync-resources action.
  */
 export async function syncRolePermissions(roleId: string, codes: string[]) {
-  const { data } = await api.put<{ success: boolean; data: RoleV2 }>(
-    `/roles/${roleId}/`,
-    { permissionCodes: codes },
+  const { data } = await api.post<{ success: boolean; data: RoleV2 }>(
+    `/roles/${roleId}/sync-resources/`,
+    { resourceCodes: codes },
   );
   return data.data;
 }

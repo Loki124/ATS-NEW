@@ -29,7 +29,7 @@
 
       <n-divider title-placement="left">资源授权</n-divider>
       <n-text depth="3" style="display: block; margin-bottom: 12px">
-        按模块分组勾选资源, 保存时整组同步到 role_permission 表 (后端 PUT /roles/{id}/ 带 permissionCodes)
+        按模块分组勾选资源, 保存时整组同步到 role_permission 表 (走 POST /roles/{id}/sync-resources/)
       </n-text>
 
       <div v-for="group in groupedResources" :key="group.module" class="resource-group">
@@ -81,7 +81,7 @@ import {
   NModal, NForm, NFormItem, NInput, NSelect, NSwitch, NButton, NSpace,
   NDivider, NText, NCheckbox, NCheckboxGroup, useMessage,
 } from 'naive-ui'
-import { updateRole, type RoleV2, type DataScopeType } from '@/api/role-v2'
+import { updateRole, syncRolePermissions, type RoleV2, type DataScopeType } from '@/api/role-v2'
 import { listResources, type PermissionResource } from '@/api/permission-resource'
 
 const props = defineProps<{
@@ -169,17 +169,25 @@ async function onSubmit() {
     message.warning('角色编码和名称必填')
     return
   }
+  if (!form.id) {
+    message.error('缺少角色 ID, 无法保存 (请通过列表编辑入口进入)')
+    return
+  }
   saving.value = true
   try {
+    // Step 1: 保存 role 自身字段 (PUT /roles/{id}/)
     await updateRole(form.id, {
       roleCode: form.roleCode,
       roleName: form.roleName,
       defaultDataScopeType: form.defaultDataScopeType,
       description: form.description,
       status: form.status,
-      permissionCodes: selectedCodes.value,
     })
-    message.success('已保存 (资源授权实际生效需 T23 后端同步 action 落地)')
+    // Step 2: 同步资源勾选 (POST /roles/{id}/sync-resources/)
+    // T29 fix: role_permission 是单独表, 必须用专用 action 写. PUT /roles/{id}/ 的
+    // permissionCodes 字段是 SerializerMethodField (read-only), 会被静默丢弃.
+    await syncRolePermissions(form.id, selectedCodes.value)
+    message.success(`已保存 (${selectedCodes.value.length} 个资源授权)`)
     emit('saved')
     emit('update:show', false)
   } catch (e: any) {

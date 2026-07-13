@@ -104,6 +104,53 @@ class RoleViewSet(viewsets.ModelViewSet):
             status=http_status.HTTP_201_CREATED,
         )
 
+    @action(detail=True, methods=['post'], url_path='sync-resources')
+    @transaction.atomic
+    def sync_resources(self, request, pk=None):
+        """POST /roles/{id}/sync-resources/
+        body: {resource_codes: ["recruit:candidate:list", ...]}
+
+        整组替换该 role 在 role_permission 表的所有记录.
+        T29 fix: 之前 PUT /roles/{id}/ 的 permissionCodes 被 SerializerMethodField 忽略,
+        用户保存后 checkbox 数据丢失. 此 action 显式写 role_permission 表.
+        """
+        role = self.get_object()
+        codes = request.data.get('resource_codes') or []
+        if not isinstance(codes, list):
+            return Response(
+                {'success': False, 'message': 'resource_codes 必须是数组'},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+        # 去重 + 过滤空字符串
+        codes = [str(c).strip() for c in codes if c and str(c).strip()]
+        # 校验所有 code 在 permission_resource 表存在 (defense-in-depth)
+        valid_codes = set(
+            PermissionResource.objects.filter(
+                resource_code__in=codes, status=1, system_code='recruit',
+            ).values_list('resource_code', flat=True)
+        )
+        invalid = [c for c in codes if c not in valid_codes]
+        if invalid:
+            return Response(
+                {'success': False, 'message': f'无效资源码: {invalid[:5]}', 'invalid': invalid},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            RolePermissionV2.objects.filter(
+                role_code=role.role_code, system_code=role.system_code,
+            ).delete()
+            RolePermissionV2.objects.bulk_create([
+                RolePermissionV2(role_code=role.role_code, resource_code=c, system_code=role.system_code)
+                for c in codes
+            ])
+        except (OperationalError, ProgrammingError) as e:
+            return Response(
+                {'success': False, 'message': f'role_permission 表不可写: {e}'},
+                status=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        # 返回更新后的 role (含 permission_codes 重算)
+        return Response(self.get_serializer(role).data)
+
 
 class ManagementUnitViewSet(viewsets.ModelViewSet):
     queryset = ManagementUnit.objects.all()
