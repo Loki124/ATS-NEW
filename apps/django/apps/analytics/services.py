@@ -99,12 +99,20 @@ class AnalyticsService:
 
     @staticmethod
     def get_hr_workload() -> List[Dict]:
-        """HR 工作量统计"""
+        """HR 工作量统计
+
+        T30.175: user_roles__role__code 反向 join 不存在, 改为先取 HR/HRBP 的 user_id 集合
+        再 filter User.
+        """
         from apps.core.models import User
+        from apps.core.models_permission_v2 import UserRoleV2
+        hr_user_ids = list(UserRoleV2.objects.filter(
+            role_code__in=['HR', 'HRBP'], system_code='recruit',
+        ).values_list('user_id', flat=True).distinct())
         hrs = User.objects.filter(
-            user_roles__role__code__in=['HR', 'HRBP'],
+            id__in=hr_user_ids,
             is_active=True, deleted_at__isnull=True,
-        ).distinct()
+        )
         return [
             {
                 'hr_id': hr.id,

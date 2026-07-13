@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Demand, DemandApproval
 from .serializers import (
@@ -20,10 +20,11 @@ from .serializers import (
 )
 
 
-class DemandViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """招聘需求 ViewSet - 按部门 scope 过滤"""
     queryset = Demand.objects.all().order_by('-created_at')
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:demand:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority']

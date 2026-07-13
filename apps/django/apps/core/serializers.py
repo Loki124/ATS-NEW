@@ -1,7 +1,16 @@
-"""Core 序列化器"""
+"""Core 序列化器
+
+T30.175 (V2 cutover follow-up):
+- V1 Role/UserRole 表已 DROP.
+- UserSerializer.to_representation / UserMinimalSerializer.to_representation 改读 UserRoleV2.role_code.
+- UserSerializer._apply_role_type 改写 UserRoleV2 (用 role_code 字符串 + system_code).
+"""
 import re
 from rest_framework import serializers
-from .models import User, Department, Role, Permission, UserRole
+from .models import User, Department, Permission
+from django.db import transaction
+
+from .models_permission_v2 import PermissionResource, RoleV2, UserRoleV2  # noqa: F401
 
 
 _camel_to_snake_re = re.compile(r'(?<!^)(?=[A-Z])')
@@ -70,8 +79,11 @@ class UserSerializer(serializers.ModelSerializer):
             ret['status'] = 'ACTIVE'
         else:
             ret['status'] = 'LOCKED' if instance.is_superuser else 'INACTIVE'
-        ur = instance.user_roles.select_related('role').first()
-        ret['roleType'] = ur.role.code if ur else 'HR'
+        ret['roleType'] = (
+            UserRoleV2.objects.filter(
+                user_id=instance.pk, system_code='recruit',
+            ).values_list('role_code', flat=True).first() or 'HR'
+        )
         ret['permissionMode'] = 'MOU'
         ret['wechatWorkUserId'] = ''
         ret['wechatWorkDeptId'] = ''
@@ -110,16 +122,28 @@ class UserSerializer(serializers.ModelSerializer):
         return super().to_internal_value(converted)
 
     def _apply_role_type(self, instance, validated_data):
-        """roleType 写入 UserRole (覆盖式: 先删后建)."""
+        """roleType 写入 UserRoleV2 (覆盖式: 先删后建).
+
+        2026-07-13: 整段包 transaction.atomic() 修复 TOCTOU race —
+        delete + create 之间并发请求可能让用户出现 0 角色或重复角色.
+        V2 表无 FK, 单行 delete/create 也用 atomic 保证 all-or-nothing.
+        """
         new_role_code = validated_data.pop('role_type', None)
         if new_role_code is None:
             return
-        try:
-            new_role = Role.objects.get(code=new_role_code, is_active=True)
-        except Role.DoesNotExist:
+        # V2 schema: 校验 role_code 存在于 RoleV2 且启用
+        if not RoleV2.objects.filter(role_code=new_role_code, status=1).exists():
             return
-        UserRole.objects.filter(user=instance).delete()
-        UserRole.objects.create(user=instance, role=new_role, department=None)
+        with transaction.atomic():
+            UserRoleV2.objects.filter(
+                user_id=instance.pk, system_code='recruit',
+            ).delete()
+            UserRoleV2.objects.create(
+                user_id=instance.pk,
+                role_code=new_role_code,
+                system_code='recruit',
+                granted_by_id=self.context['request'].user.id,
+            )
 
     def create(self, validated_data):
         password = validated_data.pop('password', None) or 'Pass@1234'
@@ -157,8 +181,11 @@ class UserMinimalSerializer(serializers.ModelSerializer):
             ret['status'] = 'ACTIVE'
         else:
             ret['status'] = 'LOCKED' if instance.is_superuser else 'INACTIVE'
-        ur = instance.user_roles.select_related('role').first()
-        ret['roleType'] = ur.role.code if ur else 'HR'
+        ret['roleType'] = (
+            UserRoleV2.objects.filter(
+                user_id=instance.pk, system_code='recruit',
+            ).values_list('role_code', flat=True).first() or 'HR'
+        )
         ret['permissionMode'] = 'MOU'
         ret['wechatWorkUserId'] = ''
         ret['wechatWorkDeptId'] = ''
@@ -187,12 +214,32 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class RoleSerializer(serializers.ModelSerializer):
+    """V2 RoleSerializer — 替代 V1 Role 模型.
+
+    T30.175: V1 Role 表已 DROP. 输出 V2 role_code/role_name. 兼容老字段名 'code'/'name'
+    让前端老字段名 (RoleManagement.vue 等) 仍可读.
+    """
+    code = serializers.CharField(source='role_code', read_only=True)
+    name = serializers.CharField(source='role_name', read_only=True)
+    is_builtin = serializers.BooleanField(source='is_system', read_only=True)
+    is_active = serializers.SerializerMethodField()
+
     class Meta:
-        model = Role
+        model = RoleV2
         fields = ['id', 'code', 'name', 'description', 'is_builtin', 'is_active', 'created_at']
+
+    def get_is_active(self, obj):
+        return obj.status == 1
 
 
 class PermissionSerializer(serializers.ModelSerializer):
+    """V2 PermissionSerializer — 替代 V1 Permission 模型.
+
+    T30.175: V1 permissions 表已 DROP. 改读 V2 PermissionResource.
+    """
+    code = serializers.CharField(source='resource_code', read_only=True)
+    name = serializers.CharField(source='resource_name', read_only=True)
+
     class Meta:
-        model = Permission
+        model = PermissionResource
         fields = ['id', 'code', 'name', 'module', 'description']

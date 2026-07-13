@@ -316,6 +316,42 @@ class StageRule(FullAuditModel):
         help_text='SINGLE/JOINT/COMPREHENSIVE',
     )
 
+    # 2026-07-03: 扩字段对齐 FE StageRuleConfigModal 用的字段集
+    #   (autoAdvanceType / defaultHandlerType / timeLimit / interviewRoundIds).
+    #   之前 FE 调用 /recruitment-rules/stage-rules (stub endpoint, 不入库),
+    #   数据从未落到 model. 加上下面字段让 FE 走真 BE 后能持久化.
+    auto_advance_type = models.CharField(
+        max_length=32, blank=True, default='NONE', verbose_name='自动流转类型',
+        help_text='NONE / MEET_NEXT / IGNORE_NEXT / MEET_NEXT_OR_N2 / N1_ALL_PASS',
+    )
+    auto_advance_timing = models.CharField(
+        max_length=32, blank=True, default='NONE', verbose_name='自动流转触发时机',
+        help_text='NONE / IMMEDIATE / DELAYED',
+    )
+    auto_advance_days = models.IntegerField(
+        null=True, blank=True, verbose_name='延迟天数 (DELAYED 时使用)',
+    )
+    default_handler_type = models.CharField(
+        max_length=32, blank=True, default='CUSTOM', verbose_name='默认处理人类型',
+        help_text='FROM_DEMAND / FROM_POSITION / CUSTOM',
+    )
+    default_handler_fields = models.JSONField(
+        default=list, blank=True, verbose_name='默认处理人字段',
+    )
+    default_handler_user_ids = models.JSONField(
+        default=list, blank=True, verbose_name='默认处理人 user id 列表 (CUSTOM 时)',
+    )
+    time_limit = models.IntegerField(
+        null=True, blank=True, verbose_name='阶段限时 (小时)',
+    )
+    time_limit_scope = models.CharField(
+        max_length=32, blank=True, default='NEW_ONLY', verbose_name='限时范围',
+        help_text='NEW_ONLY / ALL',
+    )
+    interview_round_ids = models.JSONField(
+        default=list, blank=True, verbose_name='关联面试轮次 id 列表',
+    )
+
     class Meta:
         db_table = 'stage_rules'
         verbose_name = '阶段规则'

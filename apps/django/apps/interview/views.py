@@ -1,4 +1,8 @@
-"""Interview Views (DRF) - PRD v4 §14.5"""
+"""Interview Views (DRF) - PRD v4 §14.5
+
+T30.175 (V2 cutover follow-up): user.user_roles.filter(role__code=...) 替换为
+apps.core.role_v2_query.user_has_any_role (直接走 UserRoleV2).
+"""
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -6,7 +10,9 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.role_v2_query import user_has_any_role
 
 from .models import Interview, InterviewEvaluation
 from .serializers import (
@@ -17,10 +23,11 @@ from .serializers import (
 )
 
 
-class InterviewViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InterviewViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """面试 ViewSet - 按 application.position.department scope 过滤"""
     queryset = Interview.objects.all()
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:interview:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['application', 'status', 'format', 'round_number']
@@ -66,7 +73,7 @@ class InterviewEvaluationViewSet(AuditMixin, viewsets.ModelViewSet):
         # 评价默认走 interviewer 字段 scope
         qs = qs.filter(
             interviewer=self.request.user
-        ) if not (self.request.user.is_superuser or self.request.user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP']
-        ).exists()) else qs
+        ) if not (self.request.user.is_superuser or user_has_any_role(
+            self.request.user, ['SUPER_ADMIN', 'HRBP']
+        )) else qs
         return qs.select_related('interview', 'interviewer')

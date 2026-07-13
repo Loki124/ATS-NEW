@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import IsHROrAbove, ScopedQuerysetMixin
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Invitation
 from .serializers import (
@@ -19,10 +19,11 @@ from .serializers import (
 )
 
 
-class InvitationViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InvitationViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """邀约 ViewSet - 收紧到 HR+ 可见, 按 application 部门 scope (Fix 1)"""
     queryset = Invitation.objects.all()
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:invitation:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'application', 'inviter', 'is_grab_pool']

@@ -1,8 +1,13 @@
 """Core DRF 权限类
 
 按 PRD §4 实现的权限矩阵 + 字段级 ACL 接口
+
+T30.175 (V2 cutover follow-up): 所有 V1 user.user_roles.filter(role__code=...)
+已替换为 V2 role_v2_query.user_has_role / user_has_any_role (直接走 UserRoleV2 表).
 """
 from rest_framework import permissions
+
+from .role_v2_query import user_has_any_role, user_has_role, HRBP_TIER, HR_TIER
 
 
 class IsAuthenticated(permissions.IsAuthenticated):
@@ -18,7 +23,7 @@ class IsSuperAdmin(permissions.BasePermission):
         # Django superuser 始终通过
         if getattr(request.user, 'is_superuser', False):
             return True
-        return request.user.user_roles.filter(role__code='SUPER_ADMIN').exists()
+        return user_has_role(request.user, 'SUPER_ADMIN')
 
 
 class IsHRBP(permissions.BasePermission):
@@ -26,9 +31,7 @@ class IsHRBP(permissions.BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
-        return request.user.is_superuser or request.user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP']
-        ).exists()
+        return user_has_any_role(request.user, HRBP_TIER)
 
 
 class IsHROrAbove(permissions.BasePermission):
@@ -36,9 +39,7 @@ class IsHROrAbove(permissions.BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
-        return request.user.is_superuser or request.user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP', 'HR']
-        ).exists()
+        return user_has_any_role(request.user, HR_TIER)
 
 
 class IsPositionRelated(permissions.BasePermission):
@@ -50,9 +51,7 @@ class IsPositionRelated(permissions.BasePermission):
             return False
 
         # 超级管理员 / HRBP / HR：可看所有
-        if request.user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP', 'HR']
-        ).exists():
+        if user_has_any_role(request.user, HR_TIER):
             return True
 
         # 用人经理 / 面试官：仅本部门职位
@@ -70,9 +69,7 @@ class HasProcessPermission(permissions.BasePermission):
             return False
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user.is_superuser or request.user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP']
-        ).exists()
+        return user_has_any_role(request.user, HRBP_TIER)
 
 
 def is_super_admin(user) -> bool:
@@ -81,7 +78,7 @@ def is_super_admin(user) -> bool:
         return False
     if getattr(user, 'is_superuser', False):
         return True
-    return user.user_roles.filter(role__code='SUPER_ADMIN').exists()
+    return user_has_role(user, 'SUPER_ADMIN')
 
 
 def is_hr_or_above(user) -> bool:
@@ -90,9 +87,7 @@ def is_hr_or_above(user) -> bool:
         return False
     if getattr(user, 'is_superuser', False):
         return True
-    return user.user_roles.filter(
-        role__code__in=['SUPER_ADMIN', 'HRBP', 'HR']
-    ).exists()
+    return user_has_any_role(user, HR_TIER)
 
 
 def user_department_ids(user) -> set:
@@ -190,6 +185,4 @@ class MOUVIEWSetPermission(permissions.BasePermission):
             return False
         if request.method in permissions.SAFE_METHODS:
             return is_hr_or_above(request.user)
-        return request.user.is_superuser or request.user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP']
-        ).exists()
+        return user_has_any_role(request.user, HRBP_TIER)

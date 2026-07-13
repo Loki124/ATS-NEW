@@ -3,92 +3,9 @@ import { createPinia } from 'pinia'
 import axios, { type AxiosResponse, type AxiosError } from 'axios'  // 2026-06-29: 全局 axios 拦截器需要
 import App from './App.vue'
 import router from './router'
+import { naivePlugin } from './plugins/naive'
 
-// Naive UI —— 必须显式注册（不像 antd 那样 app.use() 自动）
-// 用 create() 把常用组件包成一个 plugin 一次性注册
-import {
-  create,
-  NConfigProvider,
-  NMessageProvider,
-  NDialogProvider,
-  NNotificationProvider,
-  NLoadingBarProvider,
-  NButton,
-  NCard,
-  NInput,
-  NInputNumber,
-  NSelect,
-  NCheckbox,
-  NCheckboxGroup,
-  NRadio,
-  NRadioGroup,
-  NSwitch,
-  NForm,
-  NFormItem,
-  NFormItemRow,
-  NDataTable,
-  NPageHeader,  // 2026-06-17: 注册 naive-ui 页面头组件 (ScrapedResumeList.vue 等使用)
-  NTag,
-  NSpace,
-  NDivider,
-  NEmpty,
-  NSpin,
-  NAvatar,
-  NBadge,
-  NText,
-  NH1,
-  NH2,
-  NH3,
-  NH4,
-  NH5,
-  NP,
-  NIcon,
-  NLayout,
-  NLayoutHeader,
-  NLayoutSider,
-  NLayoutContent,
-  NMenu,
-  NTabs,
-  NTabPane,
-  NDropdown,
-  NModal,
-  NDrawer,
-  NDrawerContent,
-  NPopconfirm,
-  NPopover,
-  NTooltip,
-  NDescriptions,
-  NDescriptionsItem,
-  NTree,
-  NTreeSelect,
-  NUpload,
-  NUploadDragger,
-  NSteps,
-  NStep,
-  NGrid,
-  NGi,
-  NGridItem,
-  NDatePicker,
-  NTimeline,
-  NTimelineItem,
-  NAlert,
-  NScrollbar,
-  NCollapse,
-  NCollapseItem,
-  NBackTop,
-  NCarousel,
-  NCarouselItem,
-  NImage,
-  NInputGroup,
-  NStatistic,
-  NList,
-  NListItem,
-  NThing,
-  NSkeleton,
-  NResult,
-  NPagination,
-  NRadioButton,
-} from 'naive-ui'
+// Naive UI —— 见 plugins/naive.ts (统一注册, 测试可复用)
 
 import 'virtual:uno.css'
 import '@unocss/reset/tailwind.css'
@@ -119,40 +36,9 @@ axios.interceptors.response.use(
 
 const app = createApp(App)
 
-const naive = create({
-  components: [
-    NConfigProvider, NMessageProvider, NDialogProvider, NNotificationProvider, NLoadingBarProvider,
-    NButton, NCard, NInput, NInputNumber, NSelect,
-    NCheckbox, NCheckboxGroup, NRadio, NRadioGroup, NSwitch,
-    NForm, NFormItem, NFormItemRow,
-    NDataTable, NTag, NSpace, NDivider, NEmpty, NSpin,
-    NAvatar, NBadge, NText,
-    NH1, NH2, NH3, NH4, NH5, NP, NIcon,
-    NLayout, NLayoutHeader, NLayoutSider, NLayoutContent,
-    NMenu, NTabs, NTabPane, NDropdown,
-    NModal, NDrawer, NDrawerContent,
-    NPopconfirm, NPopover, NTooltip,
-    NDescriptions, NDescriptionsItem,
-    NTree, NTreeSelect,
-    NUpload, NUploadDragger,
-    NSteps, NStep,
-    NGrid, NGi, NGridItem,
-    NDatePicker,
-    NTimeline, NTimelineItem,
-    NAlert, NScrollbar,
-    NCollapse, NCollapseItem,
-    NBackTop, NCarousel, NCarouselItem,
-    NImage, NInputGroup,
-    NStatistic,
-    NList, NListItem, NThing,
-    NSkeleton, NResult,
-    NPagination, NRadioButton,
-  ],
-})
-
 app.use(createPinia())
 app.use(router)
-app.use(naive)
+app.use(naivePlugin)
 
 // 2026-06-15: 在 mount 之前从 localStorage 同步恢复 user
 // 否则 router.beforeEach 跑时 userStore.user 还是 null,

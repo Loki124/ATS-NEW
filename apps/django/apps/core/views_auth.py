@@ -59,6 +59,14 @@ def login_view(request):
         )
 
     refresh = RefreshToken.for_user(user)
+    from apps.core.models_permission_v2 import UserRoleV2
+    from django.db.utils import OperationalError, ProgrammingError
+    try:
+        roles = list(UserRoleV2.objects.filter(
+            user_id=user.id, system_code='recruit',
+        ).values_list('role_code', flat=True))
+    except (OperationalError, ProgrammingError):
+        roles = []
     return Response({
         'success': True,
         'data': {
@@ -70,7 +78,7 @@ def login_view(request):
                 'full_name': user.full_name,
                 'employee_id': user.employee_id,
                 'department': user.department_id,
-                'roles': list(user.user_roles.values_list('role__code', flat=True)),
+                'roles': roles,
             },
         },
     })
@@ -94,8 +102,49 @@ def logout_view(request):
 
 @api_view(['GET'])
 def me_view(request):
-    """当前用户信息"""
+    """当前用户信息 - V2 权限 + 数据范围."""
+    from django.db.utils import OperationalError, ProgrammingError
+    from apps.core.models_permission_v2 import (
+        PermissionResource, RolePermissionV2, UserRoleV2,
+    )
+    from apps.core.scope_resolver import resolve_scope
+
     user = request.user
+    permissions = []
+    if user.is_authenticated:
+        if getattr(user, 'is_superuser', False):
+            try:
+                permissions = list(PermissionResource.objects.filter(
+                    status=1, system_code='recruit',
+                ).values_list('resource_code', flat=True))
+            except (OperationalError, ProgrammingError):
+                permissions = []
+        else:
+            try:
+                role_codes = list(UserRoleV2.objects.filter(
+                    user_id=user.pk,
+                ).values_list('role_code', flat=True))
+                if role_codes:
+                    permissions = list(RolePermissionV2.objects.filter(
+                        role_code__in=role_codes, system_code='recruit',
+                    ).values_list('resource_code', flat=True).distinct())
+            except (OperationalError, ProgrammingError):
+                permissions = []
+
+    scope = {}
+    roles = []
+    if user.is_authenticated:
+        try:
+            scope = resolve_scope(user)
+        except (OperationalError, ProgrammingError):
+            scope = {}
+        try:
+            roles = list(UserRoleV2.objects.filter(
+                user_id=user.pk, system_code='recruit',
+            ).values_list('role_code', flat=True))
+        except (OperationalError, ProgrammingError):
+            roles = []
+
     return Response({
         'success': True,
         'data': {
@@ -109,26 +158,9 @@ def me_view(request):
             'department_name': user.department.name if user.department else None,
             'position_title': user.position_title,
             'level': user.level,
-            'roles': list(user.user_roles.values_list('role__code', flat=True)),
-            # 2026-06-17: 改为 role-derived RBAC Permission.code (e.g. 'candidate:read', 'process:write')
-            # 之前用 AuthPermission (django.contrib.auth.models.Permission, codename 如 'add_candidate')
-            # 与 init_demo_data 创建的 apps.core.Permission (code 'candidate:read') 是两套独立体系,
-            # 对 admin 永远返回 []. 现在: SUPER_ADMIN 拿到所有 Permission.code; 其他角色拿到
-            # 通过 user.user_roles → role → RolePermission → Permission 串起来的去重并集.
-            #
-            # 反向关系命名:
-            #   Permission ← (default reverse: rolepermission) ← RolePermission
-            #   Role       ← (default reverse: userrole)        ← UserRole
-            # ('user_roles' 是 UserRole.user → User 的反向 related_name, 不是 Role 侧)
-            'permissions': (
-                list(Permission.objects.values_list('code', flat=True))
-                if user.is_superuser
-                else list(
-                    Permission.objects
-                        .filter(rolepermission__role__userrole__user=user)
-                        .values_list('code', flat=True)
-                        .distinct()
-                )
-            ),
+            'roles': roles,
+            'permissions': permissions,
+            'management_unit_ids': scope.get('management_unit_ids', []),
+            'data_scope': scope,
         },
     })

@@ -317,14 +317,38 @@ class ProcessStageLinkViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['process', 'stage', 'is_required']
+    # 2026-07-03: FE 用 ?processId= 调 list (axios 自动 camelCase),
+    #   drf-camel-case 不转换 query string, 所以 django-filter 收到的 key 还是 'processId'.
+    #   改成 'process_id' 让 drf-camel-case 的 JSON parser 把 'processId' 转成 'process_id'
+    #   ... wait, query string 不走 JSON parser.
+    #   实际方案: 加 custom filter 直接读 request.GET, 同时接受 'processId' 和 'process_id'.
+    #   这里先用 'process_id' (FE 改 axios params 不转 camelCase, 或 FE 直接发 snake_case).
+    #   -- 临时: 加 get_queryset 兜底, 兼容 processId / process_id / process 3 种 query key.
+    filterset_fields = ['process_id', 'stage_id', 'is_required']
     ordering_fields = ['order', 'created_at']
     ordering = ['process', 'order']
 
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        return qs.select_related('stage', 'process', 'stage_rule')
+        qs = qs.select_related('stage', 'process', 'stage_rule')
+        # 2026-07-03: drf-camel-case 不处理 query string, FE 发 'processId' 不会被翻译.
+        #   用 get_queryset 手动接受 processId / process_id / process 3 种 key 兜底.
+        process_id = (
+            self.request.query_params.get('processId')
+            or self.request.query_params.get('process_id')
+            or self.request.query_params.get('process')
+        )
+        if process_id:
+            qs = qs.filter(process_id=process_id)
+        stage_id = (
+            self.request.query_params.get('stageId')
+            or self.request.query_params.get('stage_id')
+            or self.request.query_params.get('stage')
+        )
+        if stage_id:
+            qs = qs.filter(stage_id=stage_id)
+        return qs
 
     def perform_destroy(self, instance):
         instance.soft_delete()

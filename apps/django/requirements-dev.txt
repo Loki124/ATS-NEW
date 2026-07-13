@@ -1,0 +1,6 @@
+# V2 权限重写 - 开发依赖 (test infrastructure)
+# 主依赖见 requirements.txt (pytest-django 等测试包已在那里)
+
+# 显式声明, 便于 CI 单独 install
+pytest-django>=4.5
+pytest-cov>=4.0

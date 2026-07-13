@@ -10,10 +10,8 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import (
-    ScopedQuerysetMixin,
-    is_super_admin,
-)
+from apps.core.permissions import is_super_admin
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import TalentPoolEntry, TalentPoolTag
 from .serializers import (
@@ -24,11 +22,11 @@ from .serializers import (
 )
 
 
-class TalentPoolEntryViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """人才库条目 ViewSet - 收紧权限仅 HR 可读写 (Fix 1)"""
     queryset = TalentPoolEntry.objects.all()
-    from rest_framework.permissions import IsAdminUser
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:talent_pool:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['source', 'is_active', 'candidate']

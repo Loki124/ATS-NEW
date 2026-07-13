@@ -7,7 +7,8 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import ScopedQuerysetMixin, is_super_admin
+from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.permissions import is_super_admin
 
 from .models import Referral
 from .serializers import (
@@ -17,10 +18,11 @@ from .serializers import (
 )
 
 
-class ReferralViewSet(ScopedQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class ReferralViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """内推记录 ViewSet - 按 referrer 部门 scope 过滤 (Fix 1)"""
     queryset = Referral.objects.all().order_by('-created_at')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:referral:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['referrer', 'referral_type', 'status', 'detected_type']

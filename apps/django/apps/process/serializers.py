@@ -155,6 +155,11 @@ class StageRuleSerializer(serializers.ModelSerializer):
             'auto_skip_n_plus_two', 'inherit_prior_consensus',
             'is_grab_mode', 'grab_threshold',
             'interview_rounds', 'interview_format',
+            # 2026-07-03: 扩字段对齐 FE StageRuleConfigModal
+            'auto_advance_type', 'auto_advance_timing', 'auto_advance_days',
+            'default_handler_type', 'default_handler_fields', 'default_handler_user_ids',
+            'time_limit', 'time_limit_scope',
+            'interview_round_ids',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'current_processor_index', 'created_at', 'updated_at']
@@ -190,22 +195,63 @@ class StageRuleSerializer(serializers.ModelSerializer):
 # ============================================================
 # 流程-阶段关联（ProcessStageLink）
 # ============================================================
+import json
+import logging
+log = logging.getLogger(__name__)
+
+
+def _decode_entry_condition(raw: str | None) -> dict | None:
+    """2026-07-03: EntryCondition (FE: matchType/conditionType/items[]) 没有专用 model,
+    FE 之前调 /recruitment-rules/entry-conditions (stub, 不入库) → 配置后丢失.
+    现在 JSON-encode 整段 EntryCondition 进 ProcessStageLink.entry_rule_expression
+    (CharField max_length=500, 单条 item 约 60 字节, 可容纳 ~8 条 items).
+    Returns None if blank/unparseable."""
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        # 兼容旧数据: raw 是表达式字符串 (1 AND 2), 包成 dict 让 FE 不崩
+        log.warning('entry_rule_expression 不是 JSON, 当作表达式 fallback: %r', raw[:80])
+        return {'matchType': 'ALL', 'conditionType': 'CANDIDATE', 'items': [], 'legacyExpression': raw}
+
+
 class ProcessStageLinkSerializer(serializers.ModelSerializer):
     """流程-阶段关联"""
     stage = RecruitmentStageSerializer(read_only=True)
     stage_id = serializers.CharField(write_only=True, help_text='阶段 ID')
+    # 2026-07-03: 用 PrimaryKeyRelatedField + source='process' 替代 auto-gen 的 process FK 字段,
+    #   接受 'process_id' 作为入参 (FE send `processId` → drf-camel-case 转 `process_id`),
+    #   写入到 model.process (FK). 之前用 'process' field 直接暴露 (read_only=False) 时 DRF
+    #   要求入参 key 也叫 'process' → 400 "process: 该字段是必填项".
+    process_id = serializers.PrimaryKeyRelatedField(
+        queryset=RecruitmentProcess.objects.all(),
+        source='process',
+        write_only=True,
+        help_text='所属流程 ID (FE 发 processId)',
+    )
     stage_rule = StageRuleSerializer(read_only=True)
+    # 2026-07-03: 反序列化 EntryCondition (FE: {matchType, conditionType, items[]}) →
+    #   JSON-encode 到 entry_rule_expression 字段.
+    #   序列化时还原为结构化 dict (FE 期望的 shape).
+    entry_condition = serializers.SerializerMethodField()
 
     class Meta:
         model = ProcessStageLink
         fields = [
-            'id', 'process', 'stage', 'stage_id',
+            'id', 'process', 'process_id', 'stage', 'stage_id',
             'order', 'is_required',
-            'entry_rule_expression',
+            'entry_rule_expression', 'entry_condition',
             'stage_rule',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'process', 'stage', 'stage_rule', 'created_at', 'updated_at']
+        # 2026-07-03: 'process' 保留在 fields 用于 read 序列化 (response 包含 processId 字段),
+        #   通过 read_only=True 屏蔽写入, 写入改用上面的 process_id (source='process').
+        #   'entry_condition' 是 method field, 天然 read-only.
+        read_only_fields = ['id', 'process', 'stage', 'stage_rule', 'entry_condition', 'created_at', 'updated_at']
+
+    def get_entry_condition(self, obj) -> dict | None:
+        return _decode_entry_condition(obj.entry_rule_expression)
 
     def validate_order(self, value):
         if value < 0:
@@ -224,6 +270,25 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         except Exception:
             raise serializers.ValidationError('表达式语法错误')
         return value.strip()
+
+    def validate(self, attrs):
+        """2026-07-03: 如果客户端传了 entry_condition (结构化), 优先 JSON-encode 入库.
+        DRF 顺序: 单字段 validate → validate() → save().
+        这里仅在 attrs 没同时设置 entry_rule_expression 时, 从 entry_condition 派生."""
+        ec = self.initial_data.get('entry_condition') if hasattr(self, 'initial_data') else None
+        if ec and isinstance(ec, dict) and 'entry_rule_expression' not in attrs:
+            try:
+                # 大小校验: items 太多会截断 (CharField max_length=500). 这里只 warn 不报错.
+                encoded = json.dumps(ec, ensure_ascii=False)
+                if len(encoded) > 500:
+                    log.warning('entry_condition JSON 长度 %d > 500, 即将被截断', len(encoded))
+                    raise serializers.ValidationError(
+                        {'entry_condition': f'配置过大 ({len(encoded)} 字节), 最多 500, 请精简条件项'},
+                    )
+                attrs['entry_rule_expression'] = encoded
+            except (TypeError, ValueError) as e:
+                raise serializers.ValidationError({'entry_condition': f'JSON 编码失败: {e}'})
+        return attrs
 
 
 # ============================================================
