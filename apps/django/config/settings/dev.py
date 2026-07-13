@@ -25,6 +25,10 @@ SESSION_COOKIE_SECURE = False
 # 邮件
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# V2 启动校验: dev 默认禁用, 配合 `python manage.py migrate` / `seed_v2_init` 等初始化阶段使用
+# 设 PERMISSION_V2_BOOTSTRAP_DISABLED=1 (在 .env 或 shell) 暂时跳过启动校验
+PERMISSION_V2_BOOTSTRAP_DISABLED = env.bool('PERMISSION_V2_BOOTSTRAP_DISABLED', default=False)
+
 # 日志 - 安全写入避免 KeyError
 LOGGING['loggers'].setdefault('django.db.backends', {
     'handlers': ['console'], 'level': 'DEBUG', 'propagate': False,

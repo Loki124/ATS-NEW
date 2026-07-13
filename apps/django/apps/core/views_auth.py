@@ -59,6 +59,14 @@ def login_view(request):
         )
 
     refresh = RefreshToken.for_user(user)
+    from apps.core.models_permission_v2 import UserRoleV2
+    from django.db.utils import OperationalError, ProgrammingError
+    try:
+        roles = list(UserRoleV2.objects.filter(
+            user_id=user.id, system_code='recruit',
+        ).values_list('role_code', flat=True))
+    except (OperationalError, ProgrammingError):
+        roles = []
     return Response({
         'success': True,
         'data': {
@@ -70,7 +78,7 @@ def login_view(request):
                 'full_name': user.full_name,
                 'employee_id': user.employee_id,
                 'department': user.department_id,
-                'roles': list(user.user_roles.values_list('role__code', flat=True)),
+                'roles': roles,
             },
         },
     })
@@ -124,11 +132,18 @@ def me_view(request):
                 permissions = []
 
     scope = {}
+    roles = []
     if user.is_authenticated:
         try:
             scope = resolve_scope(user)
         except (OperationalError, ProgrammingError):
             scope = {}
+        try:
+            roles = list(UserRoleV2.objects.filter(
+                user_id=user.pk, system_code='recruit',
+            ).values_list('role_code', flat=True))
+        except (OperationalError, ProgrammingError):
+            roles = []
 
     return Response({
         'success': True,
@@ -143,10 +158,7 @@ def me_view(request):
             'department_name': user.department.name if user.department else None,
             'position_title': user.position_title,
             'level': user.level,
-            'roles': (
-                list(user.user_roles.values_list('role__code', flat=True))
-                if hasattr(user, 'user_roles') else []
-            ),
+            'roles': roles,
             'permissions': permissions,
             'management_unit_ids': scope.get('management_unit_ids', []),
             'data_scope': scope,

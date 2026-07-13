@@ -226,13 +226,16 @@ def evaluate(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_roles_list(request):
-    """GET /permissions/roles/ — 角色列表 (alias 调 /roles/)"""
-    from apps.core.models import Role
+    """GET /permissions/roles/ — 角色列表 (alias 调 /roles/)
+
+    T30.175: V1 Role 表已 DROP, 改读 RoleV2 (兼容字段 code/name/is_active/...).
+    """
+    from apps.core.models_permission_v2 import RoleV2
     from apps.core.serializers import RoleSerializer
-    qs = Role.objects.filter(is_active=True)
+    qs = RoleV2.objects.filter(status=1)
     search = request.query_params.get('search', '')
     if search:
-        qs = qs.filter(name__icontains=search) | qs.filter(code__icontains=search)
+        qs = qs.filter(role_name__icontains=search) | qs.filter(role_code__icontains=search)
     data = RoleSerializer(qs[:50], many=True).data
     return Response({'success': True, 'data': data})
 
@@ -240,10 +243,15 @@ def permissions_roles_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_user_roles(request, user_id):
-    """GET /permissions/users/{id}/roles — 用户的角色 (调 UserRole)"""
-    from apps.core.models import UserRole, Role
-    user_role_ids = UserRole.objects.filter(user_id=user_id).values_list('role_id', flat=True)
-    roles = Role.objects.filter(id__in=user_role_ids, is_active=True)
+    """GET /permissions/users/{id}/roles — 用户的角色
+
+    T30.175: V1 UserRole 表已 DROP, 改读 UserRoleV2 (role_code) + RoleV2.
+    """
+    from apps.core.models_permission_v2 import UserRoleV2, RoleV2
+    role_codes = list(UserRoleV2.objects.filter(
+        user_id=user_id, system_code='recruit',
+    ).values_list('role_code', flat=True).distinct())
+    roles = RoleV2.objects.filter(role_code__in=role_codes, status=1)
     from apps.core.serializers import RoleSerializer
     data = RoleSerializer(roles, many=True).data
     return Response({'success': True, 'data': data})
@@ -252,11 +260,16 @@ def permissions_user_roles(request, user_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_user_info(request):
-    """GET /permissions/user-info/ — 当前用户权限 + 角色"""
-    from apps.core.models import UserRole, Role
+    """GET /permissions/user-info/ — 当前用户权限 + 角色
+
+    T30.175: V1 UserRole 表已 DROP, 改读 UserRoleV2 + RoleV2.
+    """
+    from apps.core.models_permission_v2 import UserRoleV2, RoleV2
     user = request.user
-    user_role_ids = UserRole.objects.filter(user_id=user.id).values_list('role_id', flat=True)
-    roles = Role.objects.filter(id__in=user_role_ids, is_active=True)
+    role_codes = list(UserRoleV2.objects.filter(
+        user_id=user.id, system_code='recruit',
+    ).values_list('role_code', flat=True).distinct())
+    roles = RoleV2.objects.filter(role_code__in=role_codes, status=1)
     from apps.core.serializers import RoleSerializer
     return Response({
         'success': True,
@@ -318,63 +331,87 @@ def permissions_user_mous(request, user_id):
 @permission_classes([IsAuthenticated])
 def permissions_list_by_type(request):
     """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
-    2026-07-02: 跟随业务字典命名 (`:read`/`:export` 是菜单, `:create|:update|:delete|:approve|:assign` 是功能)
+    2026-07-13 (T30.175 follow-up): 切换到 V2 PermissionResource (V1 permissions 表已在 T17 DROP).
+    V2 用 `resource_type` (MENU/BUTTON/API) 区分菜单 vs 功能. 数据权限 (DATA) 用 config_key 占位.
     """
-    from apps.core.models import Permission
-    from apps.core.serializers import PermissionSerializer
-    qs = Permission.objects.all()
+    from apps.core.models_permission_v2 import PermissionResource
+    qs = PermissionResource.objects.filter(status=1, system_code='recruit')
     type_filter = request.query_params.get('type', '')
     if type_filter == 'MENU':
-        # 菜单权限: 读类 (排除写操作后缀)
-        qs = qs.filter(code__endswith=':read') | qs.filter(code__endswith=':export')
+        qs = qs.filter(resource_type='MENU')
     elif type_filter == 'FUNCTION':
-        # 功能权限: 写操作 (创建/编辑/删除/审批/分配)
-        from django.db.models import Q
-        qs = qs.filter(
-            Q(code__endswith=':create') |
-            Q(code__endswith=':update') |
-            Q(code__endswith=':delete') |
-            Q(code__endswith=':approve') |
-            Q(code__endswith=':assign')
-        )
+        qs = qs.filter(resource_type='BUTTON')
     elif type_filter == 'DATA':
-        # 数据权限: 暂用 system:admin 占位, 业务侧真正 data scope 待 G37+ 实现
-        qs = qs.filter(code='system:admin')
+        # 数据权限字典: 暂返 1 行占位, V2 数据范围配置待 G37+ 实现
+        return Response({'success': True, 'data': [{
+            'id': 'system:admin',
+            'code': 'system:admin',
+            'name': '全公司数据',
+            'type': 'DATA',
+            'resourceType': 'DATA',
+        }]})
     elif type_filter == 'API':
-        qs = qs.filter(module__icontains='api')
-    data = PermissionSerializer(qs[:200], many=True).data
+        qs = qs.filter(resource_type='API')
+    rows = qs.order_by('module', 'sort_order', 'id')[:200].values(
+        'id', 'resource_code', 'resource_name', 'resource_type', 'module', 'parent_code',
+        'sort_order',
+    )
+    data = [
+        {
+            'id': r['resource_code'],
+            'code': r['resource_code'],
+            'name': r['resource_name'],
+            'type': r['resource_type'],
+            'resourceType': r['resource_type'],
+            'module': r['module'],
+            'parentCode': r['parent_code'],
+        }
+        for r in rows
+    ]
     return Response({'success': True, 'data': data})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_functions(request):
-    """GET /permissions/functions/ — 功能权限 (写操作)"""
-    from apps.core.models import Permission
-    from apps.core.serializers import PermissionSerializer
-    from django.db.models import Q
-    qs = Permission.objects.filter(
-        Q(code__endswith=':create') |
-        Q(code__endswith=':update') |
-        Q(code__endswith=':delete') |
-        Q(code__endswith=':approve') |
-        Q(code__endswith=':assign')
-    )[:200]
-    data = PermissionSerializer(qs, many=True).data
+    """GET /permissions/functions/ — 功能权限 (BUTTON 操作).  V2 切到 PermissionResource."""
+    from apps.core.models_permission_v2 import PermissionResource
+    qs = PermissionResource.objects.filter(
+        status=1, system_code='recruit', resource_type='BUTTON',
+    ).order_by('module', 'sort_order', 'id')[:200]
+    data = [
+        {
+            'id': r.resource_code,
+            'code': r.resource_code,
+            'name': r.resource_name,
+            'type': r.resource_type,
+            'resourceType': r.resource_type,
+            'module': r.module,
+        }
+        for r in qs
+    ]
     return Response({'success': True, 'data': data})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_menus(request):
-    """GET /permissions/menus/ — 菜单/读权限"""
-    from apps.core.models import Permission
-    from apps.core.serializers import PermissionSerializer
-    from django.db.models import Q
-    qs = Permission.objects.filter(
-        Q(code__endswith=':read') | Q(code__endswith=':export')
-    ).distinct()[:200]
-    data = PermissionSerializer(qs, many=True).data
+    """GET /permissions/menus/ — 菜单/读权限.  V2 切到 PermissionResource (resource_type=MENU)."""
+    from apps.core.models_permission_v2 import PermissionResource
+    qs = PermissionResource.objects.filter(
+        status=1, system_code='recruit', resource_type='MENU',
+    ).order_by('module', 'sort_order', 'id')[:200]
+    data = [
+        {
+            'id': r.resource_code,
+            'code': r.resource_code,
+            'name': r.resource_name,
+            'type': r.resource_type,
+            'resourceType': r.resource_type,
+            'module': r.module,
+        }
+        for r in qs
+    ]
     return Response({'success': True, 'data': data})
 
 

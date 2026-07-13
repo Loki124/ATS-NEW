@@ -234,13 +234,10 @@ class GrabService:
             stage_rule = None
         if not stage_rule or not stage_rule.processor_order:
             # 默认：所有 HR 角色
-            from apps.core.models import Role
-            hr_role = Role.objects.filter(code='HR').first()
-            if not hr_role:
-                return None
-            user_ids = list(hr_role.user_roles.filter(
-                user__is_active=True, deleted_at__isnull=True,
-            ).values_list('user_id', flat=True))
+            from apps.core.models_permission_v2 import UserRoleV2
+            user_ids = list(UserRoleV2.objects.filter(
+                role_code='HR', system_code='recruit',
+            ).values_list('user_id', flat=True).distinct())
         else:
             user_ids = stage_rule.processor_order
 

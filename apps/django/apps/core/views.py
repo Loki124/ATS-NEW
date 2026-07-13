@@ -1,17 +1,31 @@
-"""用户/部门/角色/权限 视图"""
+"""用户/部门/角色/权限 视图
+
+T30.175 (V2 cutover follow-up):
+- RoleViewSet.queryset 改用 RoleV2 (新表 'roles' 但 schema 是 V2 role_code/role_name)
+- UserViewSet.get_queryset / PermissionViewSet.get_queryset 改用 role_v2_query 辅助
+- PermissionViewSet 改用 V2 PermissionResource (V1 permissions 表已 DROP)
+"""
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-from .models import User, Department, Role, Permission, UserRole
+from .models import User, Department
 from .serializers import (
     UserSerializer, UserMinimalSerializer,
-    DepartmentSerializer, RoleSerializer, PermissionSerializer,
+    DepartmentSerializer,
+)
+from .serializers_permission_v2 import (
+    RoleSerializer as RoleV2Serializer,
+    PermissionResourceSerializer,
 )
 from .permissions import IsAuthenticated, IsSuperAdmin, UserViewPermission
+from .role_v2_query import user_has_any_role
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.mixins import SoftDeleteViewSetMixin
+from apps.core.models_permission_v2 import (
+    RoleV2, UserRoleV2, RolePermissionV2, PermissionResource,
+)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -30,9 +44,7 @@ class UserViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         user = self.request.user
         # HRBP+ 看所有在职; 其它角色仅看自己
-        if user.is_superuser or user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP']
-        ).exists():
+        if user.is_superuser or user_has_any_role(user, HRBP_TIER):
             return qs
         return qs.filter(pk=user.pk)
 
@@ -95,30 +107,47 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
 
 class RoleViewSet(viewsets.ModelViewSet):
-    """角色 CRUD - 仅超管 (Fix 1)"""
-    queryset = Role.objects.filter(is_active=True)
-    serializer_class = RoleSerializer
+    """角色 CRUD (V2 RoleV2) - 仅超管 (Fix 1)
+
+    T30.175: V1 Role 表已 DROP, 改读 RoleV2 (db_table='roles' 但 schema 是 V2).
+    search_fields 改 role_code / role_name.
+    """
+    queryset = RoleV2.objects.filter(status=1)
+    serializer_class = RoleV2Serializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter]
-    search_fields = ['code', 'name']
+    search_fields = ['role_code', 'role_name']
 
 
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
-    """权限列表（只读）- 收紧到 HRBP+ (Fix 1)"""
-    queryset = Permission.objects.all()
-    serializer_class = PermissionSerializer
+    """权限列表（只读）- 收紧到 HRBP+ (Fix 1)
+
+    T30.175: V1 Permission 表已 DROP, 改读 V2 PermissionResource.
+    普通用户视角: 仅返回自己 V2 role_code 关联的 PermissionResource.
+    """
+    queryset = PermissionResource.objects.filter(status=1, system_code='recruit')
+    serializer_class = PermissionResourceSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['module']
+    filterset_fields = ['module', 'resource_type']
 
     def get_queryset(self):
-        qs = super().get_queryset()
         user = self.request.user
-        if user.is_superuser or user.user_roles.filter(
-            role__code__in=['SUPER_ADMIN', 'HRBP']
-        ).exists():
-            return qs
-        # 普通用户仅看自己的权限
-        return qs.filter(rolepermission__role__userrole__user=user).distinct()
+        if user.is_superuser or user_has_any_role(user, HRBP_TIER):
+            return PermissionResource.objects.filter(status=1, system_code='recruit')
+        # 普通用户仅看自己 V2 角色关联的 PermissionResource
+        role_codes = list(UserRoleV2.objects.filter(
+            user_id=user.pk, system_code='recruit',
+        ).values_list('role_code', flat=True))
+        if not role_codes:
+            return PermissionResource.objects.none()
+        resource_codes = set(RolePermissionV2.objects.filter(
+            role_code__in=role_codes, system_code='recruit',
+        ).values_list('resource_code', flat=True))
+        if not resource_codes:
+            return PermissionResource.objects.none()
+        return PermissionResource.objects.filter(
+            resource_code__in=resource_codes, status=1, system_code='recruit',
+        ).distinct()

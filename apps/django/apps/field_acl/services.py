@@ -1,4 +1,8 @@
-"""Field ACL Services (PRD v4 §4.4 G43 字段级 ACL)"""
+"""Field ACL Services (PRD v4 §4.4 G43 字段级 ACL)
+
+T30.175 (V2 cutover follow-up):
+- user.user_roles 反向关联不存在, 改用 UserRoleV2 直查.
+"""
 from __future__ import annotations
 
 import logging
@@ -6,6 +10,8 @@ import re
 from typing import Any, Dict, List, Optional
 
 from apps.core.models import User
+from apps.core.models_permission_v2 import UserRoleV2
+from apps.core.role_v2_query import user_role_codes
 
 from .models import FieldACL, FieldPermission
 
@@ -30,7 +36,7 @@ class FieldAclService:
         if user is None or not user.is_authenticated:
             return data
 
-        user_roles = list(user.user_roles.values_list('role__code', flat=True))
+        user_roles = user_role_codes(user)
         if 'SUPER_ADMIN' in user_roles or user.is_superuser:
             return data  # 超管看所有
 
