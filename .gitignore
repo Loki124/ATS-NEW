@@ -25,13 +25,14 @@ apps/django/logs/*.log
 
 # ─── Node / Vue ───
 node_modules/
-dist/
+dist*/
 build/
 .next/
 .nuxt/
 .output/
 .vite/
 *.tsbuildinfo
+*.timestamp-*.mjs
 .eslintcache
 .stylelintcache
 .pnpm-store/

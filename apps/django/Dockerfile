@@ -79,7 +79,7 @@ USER ats
 EXPOSE 8000
 
 # 健康检查:容器启动后每 30s 探测 /health/
-HEALTHCHECK --interval=30s --timeout=5s --start_period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -fsS http://localhost:${PORT}/health/ || exit 1
 
 # tini 作为 PID 1,正确转发 SIGTERM/SIGINT 给子进程

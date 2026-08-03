@@ -53,7 +53,7 @@ export default [
   // 忽略 dist / node_modules / 静态文件
   {
     ignores: [
-      'dist/**',
+      'dist*/**',
       'node_modules/**',
       '**/*.min.js',
       'public/**',
