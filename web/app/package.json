@@ -11,7 +11,8 @@
     "build:nocheck": "vite build",
     "analyze": "ANALYZE=1 vue-tsc && ANALYZE=1 vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "lint": "eslint . --fix",
+    "lint:ci": "eslint . --max-warnings=0",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "e2e:ui": "playwright test --ui"
