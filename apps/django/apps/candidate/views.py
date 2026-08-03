@@ -273,10 +273,19 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         """加入黑名单"""
         candidate = self.get_object()
         reason = request.data.get('reason', '')
+        old_blacklisted = candidate.is_blacklisted
         candidate.is_blacklisted = True
         candidate.blacklist_reason = reason
-        candidate.save()
         from .models import CandidateHistory
+        # BUG-6: service 显式写 BLACKLIST_CHANGED + 设标志, signal 不会再补一条
+        CandidateHistory.objects.create(
+            candidate=candidate,
+            action='BLACKLIST_CHANGED',
+            detail={'from': old_blacklisted, 'to': True},
+            created_by=request.user,
+        )
+        candidate._blacklist_change_recorded = True
+        candidate.save()
         CandidateHistory.objects.create(
             candidate=candidate,
             action='BLACKLISTED',
@@ -291,10 +300,19 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
     def unblacklist(self, request, id=None):
         """移出黑名单"""
         candidate = self.get_object()
+        old_blacklisted = candidate.is_blacklisted
         candidate.is_blacklisted = False
         candidate.blacklist_reason = ''
-        candidate.save()
         from .models import CandidateHistory
+        # BUG-6: 同上, 显式写 BLACKLIST_CHANGED 并置标志
+        CandidateHistory.objects.create(
+            candidate=candidate,
+            action='BLACKLIST_CHANGED',
+            detail={'from': old_blacklisted, 'to': False},
+            created_by=request.user,
+        )
+        candidate._blacklist_change_recorded = True
+        candidate.save()
         CandidateHistory.objects.create(
             candidate=candidate,
             action='UNBLACKLISTED',

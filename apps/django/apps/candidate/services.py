@@ -24,6 +24,30 @@ from django.db.models import Q
 from django.utils import timezone
 from django_fsm import TransitionNotAllowed
 
+
+def _record_state_change(
+    candidate: 'Candidate',
+    old_state: str,
+    actor: Optional['User'],
+) -> None:
+    """显式记录一次 FSM 状态变更审计, 由 service 层在 save() 前调用。
+
+    2026-08-03 BUG-6 修复: signal 退化为兜底 (created_by=None 表示"自动信号、
+    不可溯源"), 所以**所有业务路径的状态变更必须由 service 显式记录**, 否则审计
+    created_by 就是 NULL。本函数同时设 instance._state_change_recorded=True,
+    让 post_save signal 知道 service 已经记过了, 不要再补一条。
+
+    写入的 history.detail 复用既有约定 {'from_state': old_state, ...},
+    与 withdraw / mark_process_failed / move_to_talent_pool 等一致。
+    """
+    CandidateHistory.objects.create(
+        candidate=candidate,
+        action='STATE_CHANGED',
+        detail={'from_state': old_state, 'to_state': candidate.current_state},
+        created_by=actor,
+    )
+    candidate._state_change_recorded = True
+
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.encryption import hash_for_search
 from apps.core.models import User
@@ -238,10 +262,12 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot enter process from state {candidate.current_state}',
             )
+        old_state = candidate.current_state
         try:
             candidate.enter_process()
-        except Exception as e:
+        except TransitionNotAllowed as e:
             raise StateTransitionError(str(e)) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -263,10 +289,12 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot send offer from state {candidate.current_state}',
             )
+        old_state = candidate.current_state
         try:
             candidate.send_offer()
-        except Exception as e:
+        except TransitionNotAllowed as e:
             raise StateTransitionError(str(e)) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -292,6 +320,7 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot mark onboarded from state {old_state}'
             ) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -319,6 +348,7 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot withdraw from state {old_state}'
             ) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -345,6 +375,7 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot move to talent pool from state {old_state}'
             ) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -372,6 +403,7 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot mark process failed from state {old_state}'
             ) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -397,6 +429,7 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot pause from state {old_state}'
             ) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -422,6 +455,7 @@ class CandidateService:
             raise StateTransitionError(
                 f'Cannot resume from state {old_state}'
             ) from e
+        _record_state_change(candidate, old_state, actor)
         candidate.save()
 
         CandidateHistory.objects.create(
