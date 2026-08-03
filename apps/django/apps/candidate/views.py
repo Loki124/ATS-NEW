@@ -110,7 +110,9 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         serializer.is_valid(raise_exception=True)
         data = serializer.to_data()
         candidate = CandidateService.create_candidate(data, actor=request.user)
-        out = CandidateDetailSerializer(candidate)
+        out = CandidateDetailSerializer(
+            candidate, context=self.get_serializer_context(),
+        )
         return Response(out.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
@@ -122,7 +124,9 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(CandidateDetailSerializer(instance).data)
+        return Response(
+            CandidateDetailSerializer(instance, context=self.get_serializer_context()).data,
+        )
 
     # ----------------------------------------------------------
     # 状态机转换
@@ -200,7 +204,9 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
                 {'error': str(e), 'code': 'STATE_TRANSITION_ERROR'},
                 status=status.HTTP_409_CONFLICT,
             )
-        return Response(CandidateDetailSerializer(candidate).data)
+        return Response(
+            CandidateDetailSerializer(candidate, context=self.get_serializer_context()).data,
+        )
 
     # ----------------------------------------------------------
     # 操作历史
@@ -275,9 +281,11 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
             candidate=candidate,
             action='BLACKLISTED',
             detail={'reason': reason},
-            operator=request.user,
+            created_by=request.user,
         )
-        return Response(CandidateDetailSerializer(candidate).data)
+        return Response(
+            CandidateDetailSerializer(candidate, context=self.get_serializer_context()).data,
+        )
 
     @action(detail=True, methods=['post'], url_path='unblacklist')
     def unblacklist(self, request, id=None):
@@ -291,9 +299,11 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
             candidate=candidate,
             action='UNBLACKLISTED',
             detail={},
-            operator=request.user,
+            created_by=request.user,
         )
-        return Response(CandidateDetailSerializer(candidate).data)
+        return Response(
+            CandidateDetailSerializer(candidate, context=self.get_serializer_context()).data,
+        )
 
     # ----------------------------------------------------------
     # 合并
@@ -344,7 +354,9 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
             moka_data=serializer.validated_data['moka_data'],
             actor=request.user,
         )
-        return Response(CandidateDetailSerializer(candidate).data)
+        return Response(
+            CandidateDetailSerializer(candidate, context=self.get_serializer_context()).data,
+        )
 
     # ----------------------------------------------------------
     # 高级搜索
@@ -375,7 +387,9 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         )
         return Response({
             'count': len(results),
-            'results': CandidateListSerializer(results, many=True).data,
+            'results': CandidateListSerializer(
+                results, many=True, context=self.get_serializer_context(),
+            ).data,
         })
 
     # ----------------------------------------------------------

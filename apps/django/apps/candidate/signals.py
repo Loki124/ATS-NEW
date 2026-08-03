@@ -39,7 +39,7 @@ def log_state_change(sender, instance, created, **kwargs):
                 candidate=instance,
                 action='STATE_CHANGED',
                 detail={'from': old_state, 'to': instance.current_state},
-                operator=getattr(instance, '_updated_by', None),
+                created_by=getattr(instance, '_updated_by', None),
             )
         except Exception as e:
             logger.warning('Failed to log state change: %s', e)
@@ -51,7 +51,7 @@ def log_state_change(sender, instance, created, **kwargs):
                 candidate=instance,
                 action='BLACKLIST_CHANGED',
                 detail={'from': old_blacklisted, 'to': instance.is_blacklisted},
-                operator=getattr(instance, '_updated_by', None),
+                created_by=getattr(instance, '_updated_by', None),
             )
         except Exception as e:
             logger.warning('Failed to log blacklist change: %s', e)

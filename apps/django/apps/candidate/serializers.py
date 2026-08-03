@@ -30,6 +30,7 @@ class CandidateListSerializer(FieldAclSerializerMixin, serializers.ModelSerializ
     此前列表接口对任意登录用户直吐明文 phone / email。
     """
     acl_entity = 'candidate'
+    acl_strict = True  # HTTP API 序列化器: 即便意外没拿到 request context 也 fail-closed 脱敏
 
     state_display = serializers.CharField(source='get_current_state_display', read_only=True)
     source_channel_name = serializers.CharField(
@@ -53,11 +54,12 @@ class CandidateListSerializer(FieldAclSerializerMixin, serializers.ModelSerializ
 
 
 class CandidateHistorySerializer(serializers.ModelSerializer):
-    operator_name = serializers.CharField(source='operator.username', read_only=True, default='')
+    # 模型审计字段为 created_by (FullAuditModel), 无 operator 字段
+    operator_name = serializers.CharField(source='created_by.username', read_only=True, default='')
 
     class Meta:
         model = CandidateHistory
-        fields = ['id', 'action', 'detail', 'operator', 'operator_name', 'created_at']
+        fields = ['id', 'action', 'detail', 'created_by', 'operator_name', 'created_at']
 
 
 class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
@@ -68,6 +70,7 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
     (id_card_no 虽然在 DB 里是密文, 但序列化时 EncryptedCharField 已解密, 等于白加密)。
     """
     acl_entity = 'candidate'
+    acl_strict = True  # HTTP API 序列化器: 即便意外没拿到 request context 也 fail-closed 脱敏
 
     state_display = serializers.CharField(source='get_current_state_display', read_only=True)
     source_channel_name = serializers.CharField(

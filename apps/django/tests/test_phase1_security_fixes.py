@@ -72,11 +72,14 @@ class TestR2FieldAclWiredIntoSerializers:
         assert data['phone'] == '13812348000'
         assert data['id_card_no'] == '110101199001011234'
 
-    def test_no_request_context_keeps_plaintext(self):
-        """内部调用 (无 request) 不脱敏, 否则导出/同步会写回脏数据."""
+    def test_no_request_context_fails_closed_when_acl_strict(self):
+        """acl_strict=True 的 HTTP 序列化器即便没拿到 request context 也 fail-closed 脱敏,
+        防止未来有 view 实例化序列化器忘传 context 又漏明文 (BUG-2)。
+        内部导出/同步等确需明文输出的场景应显式设 acl_strict = False (见 mixins.py)。"""
         cand = self._make_candidate()
         data = CandidateDetailSerializer(cand).data
-        assert data['phone'] == '13812348000'
+        assert data['phone'] == '138****8000', data['phone']
+        assert data['name'] == '王五'
 
     def test_anonymous_user_is_masked(self):
         """R2: 匿名用户原来直接 return data, 等于不登录反而看全明文."""

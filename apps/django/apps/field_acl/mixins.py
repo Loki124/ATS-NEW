@@ -41,6 +41,9 @@ class FieldAclSerializerMixin:
 
     #: 对应 FieldACL.entity, 空字符串表示不启用 ACL
     acl_entity: str = ''
+    #: True 时, 拿不到 request context 也 fail-closed 脱敏 (防未来 view 忘传 context 又漏明文)。
+    #: False (默认) 保持原语义: 无 context = 内部调用, 不做脱敏 (导出/同步等场景需要明文)。
+    acl_strict: bool = False
 
     def to_representation(self, instance: Any) -> Dict[str, Any]:
         data = super().to_representation(instance)
@@ -50,7 +53,11 @@ class FieldAclSerializerMixin:
 
         request = self.context.get('request') if hasattr(self, 'context') else None
         if request is None:
-            # 无请求上下文 = 内部调用, 保持原值 (见模块 docstring)
+            # 无请求上下文: 若 acl_strict 则 fail-closed (宁可多脱敏也不泄漏),
+            # 防止未来有 view 实例化序列化器忘传 context 又漏一次明文 (见 BUG-2 / QA 严过关)。
+            # 内部导出/同步等确需明文输出的场景请显式设 acl_strict = False (或传 context)。
+            if self.acl_strict:
+                return self._apply_default_mask(entity, data)
             return data
 
         user = getattr(request, 'user', None)
@@ -63,8 +70,13 @@ class FieldAclSerializerMixin:
                 getattr(user, 'id', 'anon'),
             )
             # 降级策略: 宁可多脱敏也不泄漏 —— 把默认敏感字段全部打掉
-            fallback = dict(data)
-            for field in FieldAclService.DEFAULT_SENSITIVE_FIELDS.get(entity, []):
-                if field in fallback:
-                    fallback[field] = FieldAclService._mask_value(field, fallback[field])
-            return fallback
+            return self._apply_default_mask(entity, data)
+
+    @staticmethod
+    def _apply_default_mask(entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """fail-closed 兜底: 把默认敏感字段全部脱敏 (同错误降级策略)。"""
+        fallback = dict(data)
+        for field in FieldAclService.DEFAULT_SENSITIVE_FIELDS.get(entity, []):
+            if field in fallback:
+                fallback[field] = FieldAclService._mask_value(field, fallback[field])
+        return fallback
