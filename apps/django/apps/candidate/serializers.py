@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from apps.application.models import Application, ApplicationHistory, ApplicationStageRecord
 from apps.core.models import User
+from apps.field_acl.mixins import FieldAclSerializerMixin
 
 from .models import Candidate, CandidateHistory, CandidateTag
 from .services import CandidateCreateData, normalize_phone, validate_phone, validate_email, validate_id_card
@@ -22,8 +23,14 @@ class CandidateTagSerializer(serializers.ModelSerializer):
 # ============================================================
 # Candidate
 # ============================================================
-class CandidateListSerializer(serializers.ModelSerializer):
-    """候选人列表 - 精简字段"""
+class CandidateListSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
+    """候选人列表 - 精简字段
+
+    2026-08-03 R2 (寇豆码): 接上 FieldAclSerializerMixin。
+    此前列表接口对任意登录用户直吐明文 phone / email。
+    """
+    acl_entity = 'candidate'
+
     state_display = serializers.CharField(source='get_current_state_display', read_only=True)
     source_channel_name = serializers.CharField(
         source='source_channel.name', read_only=True, default='',
@@ -53,8 +60,15 @@ class CandidateHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'action', 'detail', 'operator', 'operator_name', 'created_at']
 
 
-class CandidateDetailSerializer(serializers.ModelSerializer):
-    """候选人详情"""
+class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
+    """候选人详情
+
+    2026-08-03 R2 (寇豆码): 接上 FieldAclSerializerMixin。
+    此前详情接口对任意登录用户直吐明文 phone / email / id_card_no
+    (id_card_no 虽然在 DB 里是密文, 但序列化时 EncryptedCharField 已解密, 等于白加密)。
+    """
+    acl_entity = 'candidate'
+
     state_display = serializers.CharField(source='get_current_state_display', read_only=True)
     source_channel_name = serializers.CharField(
         source='source_channel.name', read_only=True, default='',

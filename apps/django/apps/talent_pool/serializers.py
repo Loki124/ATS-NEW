@@ -1,6 +1,8 @@
 """Talent Pool Serializers (PRD v4 §14.7)"""
 from rest_framework import serializers
 
+from apps.field_acl.mixins import FieldAclSerializerMixin
+
 from .models import TalentPoolEntry, TalentPoolTag
 
 
@@ -11,7 +13,14 @@ class TalentPoolTagSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class TalentPoolEntryListSerializer(serializers.ModelSerializer):
+class TalentPoolEntryListSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
+    """2026-08-03 R2 (寇豆码): 接上字段级 ACL。
+
+    人才库列表把候选人手机号扁平化成 candidate_phone 直出明文,
+    等于绕开了 Candidate 序列化器上的脱敏。
+    """
+    acl_entity = 'candidate'
+
     candidate_name = serializers.CharField(source='candidate.name', read_only=True, default='')
     candidate_phone = serializers.CharField(source='candidate.phone', read_only=True, default='')
     source_display = serializers.CharField(source='get_source_display', read_only=True)
