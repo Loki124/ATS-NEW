@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django_fsm import TransitionNotAllowed
 
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.encryption import hash_for_search
@@ -280,19 +281,17 @@ class CandidateService:
     @transaction.atomic
     def mark_onboarded(candidate: Candidate, actor: Optional[User] = None,
                         onboarding_id: Optional[str] = None) -> Candidate:
-        """OFFER_SENT → ONBOARDED
+        """OFFER_SENT / PENDING_ONBOARDING → ONBOARDED
 
-        触发：完成入职流程
+        触发：完成入职流程。source 合法性由模型 @transition 统一校验。
         """
-        if candidate.current_state not in (
-            CandidateState.OFFER_SENT,
-            CandidateState.PENDING_ONBOARDING,
-        ):
+        old_state = candidate.current_state
+        try:
+            candidate.mark_onboarded()
+        except TransitionNotAllowed as e:
             raise StateTransitionError(
-                f'Cannot mark onboarded from state {candidate.current_state}',
-            )
-        # 直接设置（FSM 模型上没标 transition 方法，兼容）
-        candidate.current_state = CandidateState.ONBOARDED
+                f'Cannot mark onboarded from state {old_state}'
+            ) from e
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -306,20 +305,20 @@ class CandidateService:
     @staticmethod
     @transaction.atomic
     def withdraw(candidate: Candidate, reason: str, actor: Optional[User] = None) -> Candidate:
-        """任意非终态 → WITHDRAWN（候选人主动撤回）
+        """候选人在任意非终态主动撤回 → WITHDRAWN。
 
-        终态：ONBOARDED / WITHDRAWN / PROCESS_FAILED
+        允许 source = {APPLIED, IN_PROCESS, OFFER_SENT, PENDING_ONBOARDING,
+        PROCESS_PAUSED}(见模型 @transition)。ONBOARDED / WITHDRAWN /
+        PROCESS_FAILED / TALENT_POOL 不允许(前者属离职另一业务域, 后三者为
+        终态或人才库移除路径)。source 合法性由模型 @transition 统一校验。
         """
-        terminal_states = {
-            CandidateState.ONBOARDED,
-            CandidateState.WITHDRAWN,
-        }
-        if candidate.current_state in terminal_states:
-            raise StateTransitionError(
-                f'Cannot withdraw from terminal state {candidate.current_state}',
-            )
         old_state = candidate.current_state
-        candidate.current_state = CandidateState.WITHDRAWN
+        try:
+            candidate.withdraw(reason=reason)
+        except TransitionNotAllowed as e:
+            raise StateTransitionError(
+                f'Cannot withdraw from state {old_state}'
+            ) from e
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -334,24 +333,18 @@ class CandidateService:
     @transaction.atomic
     def move_to_talent_pool(candidate: Candidate, entry_source: str, reason: str,
                             actor: Optional[User] = None) -> Candidate:
-        """任意非终态 → TALENT_POOL
+        """候选人在任意非终态入公共人才库 → TALENT_POOL。
 
-        调用方确保已经创建对应的 TalentPool 记录（talent_pool.services）
+        调用方确保已经创建对应的 TalentPool 记录（talent_pool.services）。
+        source 合法性由模型 @transition(source=[IN_PROCESS, OFFER_SENT]) 校验。
         """
-        terminal_states = {
-            CandidateState.ONBOARDED,
-            CandidateState.WITHDRAWN,
-            CandidateState.TALENT_POOL,
-        }
-        if candidate.current_state in terminal_states:
-            raise StateTransitionError(
-                f'Cannot move to talent pool from state {candidate.current_state}',
-            )
         old_state = candidate.current_state
         try:
             candidate.move_to_pool(reason=entry_source)
-        except Exception as e:
-            raise StateTransitionError(str(e)) from e
+        except TransitionNotAllowed as e:
+            raise StateTransitionError(
+                f'Cannot move to talent pool from state {old_state}'
+            ) from e
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -366,20 +359,19 @@ class CandidateService:
     @transaction.atomic
     def mark_process_failed(candidate: Candidate, reason: str,
                             actor: Optional[User] = None) -> Candidate:
-        """IN_PROCESS / OFFER_SENT → PROCESS_FAILED
+        """候选人在任意活跃/暂停态流程未通过 → PROCESS_FAILED(终态)。
 
-        终态：本流程未通过
+        允许 source = {APPLIED, IN_PROCESS, OFFER_SENT, PROCESS_PAUSED}
+        (见模型 @transition)。暂停中可直接判失败, 避免先 resume 再 fail 的
+        无意义跳变污染历史。source 合法性由模型 @transition 统一校验。
         """
-        if candidate.current_state not in (
-            CandidateState.IN_PROCESS,
-            CandidateState.OFFER_SENT,
-            CandidateState.APPLIED,
-        ):
-            raise StateTransitionError(
-                f'Cannot mark process failed from state {candidate.current_state}',
-            )
         old_state = candidate.current_state
-        candidate.current_state = CandidateState.PROCESS_FAILED
+        try:
+            candidate.mark_process_failed()
+        except TransitionNotAllowed as e:
+            raise StateTransitionError(
+                f'Cannot mark process failed from state {old_state}'
+            ) from e
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -394,12 +386,17 @@ class CandidateService:
     @transaction.atomic
     def pause_process(candidate: Candidate, reason: str,
                       actor: Optional[User] = None) -> Candidate:
-        """IN_PROCESS → PROCESS_PAUSED"""
-        if candidate.current_state != CandidateState.IN_PROCESS:
+        """IN_PROCESS → PROCESS_PAUSED(仅 IN_PROCESS 可暂停)。
+
+        source 合法性由模型 @transition(source=IN_PROCESS) 统一校验。
+        """
+        old_state = candidate.current_state
+        try:
+            candidate.pause_process()
+        except TransitionNotAllowed as e:
             raise StateTransitionError(
-                f'Cannot pause from state {candidate.current_state}',
-            )
-        candidate.current_state = CandidateState.PROCESS_PAUSED
+                f'Cannot pause from state {old_state}'
+            ) from e
         candidate.save()
 
         CandidateHistory.objects.create(
@@ -413,12 +410,18 @@ class CandidateService:
     @staticmethod
     @transaction.atomic
     def resume_process(candidate: Candidate, actor: Optional[User] = None) -> Candidate:
-        """PROCESS_PAUSED → IN_PROCESS"""
-        if candidate.current_state != CandidateState.PROCESS_PAUSED:
+        """PROCESS_PAUSED → IN_PROCESS。
+
+        模型 @transition(source=PROCESS_PAUSED) 是单一来源, 故恢复回 IN_PROCESS
+        必然无损, 不需要 previous_state。
+        """
+        old_state = candidate.current_state
+        try:
+            candidate.resume_process()
+        except TransitionNotAllowed as e:
             raise StateTransitionError(
-                f'Cannot resume from state {candidate.current_state}',
-            )
-        candidate.current_state = CandidateState.IN_PROCESS
+                f'Cannot resume from state {old_state}'
+            ) from e
         candidate.save()
 
         CandidateHistory.objects.create(

@@ -1,6 +1,6 @@
 """Candidate Models (PRD v4 §14.3)"""
 from django.db import models
-from django_fsm import FSMField, transition
+from django_fsm import FSMField, FSMModelMixin, transition
 from apps.common.models import FullAuditModel
 from apps.common.encryption import EncryptedCharField
 from nanoid import generate as nanoid_generate
@@ -22,7 +22,7 @@ class CandidateState(models.TextChoices):
     PROCESS_PAUSED = 'PROCESS_PAUSED', '流程暂停'
 
 
-class Candidate(FullAuditModel):
+class Candidate(FSMModelMixin, FullAuditModel):
     """候选人
 
     2026-08-03 S3: PII 字段加密
@@ -187,9 +187,87 @@ class Candidate(FullAuditModel):
         """发送 Offer"""
         pass
 
-    @transition(field=current_state, source=[CandidateState.IN_PROCESS, CandidateState.OFFER_SENT], target=CandidateState.TALENT_POOL)
+    @transition(
+        field=current_state,
+        source=[CandidateState.APPLIED, CandidateState.IN_PROCESS, CandidateState.OFFER_SENT],
+        target=CandidateState.TALENT_POOL,
+    )
     def move_to_pool(self, reason='TIMEOUT'):
-        """入库"""
+        """入库(从 APPLIED / IN_PROCESS / OFFER_SENT 任一态可入人才库)"""
+        # 原有 service 守卫也允许 APPLIED, 保持向后兼容 —— APPLIED 候选人
+        # 可在进入流程前被业务侧直接入人才库(无需先 enter_process)。
+        pass
+
+    # ── 2026-08-03 BUG-5 修复: 补齐缺失的 5 个状态机 transition ──
+    # 此前这 5 个状态变更在 service 层直接给 FSMField 赋值, django-fsm 的
+    # protected=True 会抛 AttributeError: Direct current_state modification is
+    # not allowed, 导致 5 个候选人接口稳定 500。改为在模型上声明 @transition,
+    # 由 FSM 统一校验 source(source 集合见软件架构师 docs/PHASE2_DESIGN §12)。
+    # 原则: source 宁窄勿宽 —— 窄了合法操作得 409(可见可快速放宽),
+    # 宽了非法流转静默污染数据(不可见)。
+
+    @transition(
+        field=current_state,
+        source=[CandidateState.OFFER_SENT, CandidateState.PENDING_ONBOARDING],
+        target=CandidateState.ONBOARDED,
+    )
+    def mark_onboarded(self):
+        """完成入职 → 已入职"""
+        # PENDING_ONBOARDING 当前是孤儿状态(全仓无代码写入), 保留以预留
+        # 将来 Offer FSM 联动写候选人的接入点(见 PHASE2_DESIGN Q10)。
+        pass
+
+    @transition(
+        field=current_state,
+        source=[
+            CandidateState.APPLIED,
+            CandidateState.IN_PROCESS,
+            CandidateState.OFFER_SENT,
+            CandidateState.PENDING_ONBOARDING,
+            CandidateState.PROCESS_PAUSED,
+        ],
+        target=CandidateState.WITHDRAWN,
+    )
+    def withdraw(self, reason=''):
+        """候选人主动撤回 → 已撤回"""
+        # 排除 ONBOARDED(已入职撤回=离职, 属另一业务域) / PROCESS_FAILED /
+        # WITHDRAWN(终态) / TALENT_POOL(应走人才库移除)。
+        pass
+
+    @transition(
+        field=current_state,
+        source=[
+            CandidateState.APPLIED,
+            CandidateState.IN_PROCESS,
+            CandidateState.OFFER_SENT,
+            CandidateState.PROCESS_PAUSED,
+        ],
+        target=CandidateState.PROCESS_FAILED,
+    )
+    def mark_process_failed(self):
+        """本流程未通过 → 终态"""
+        # PROCESS_PAUSED 纳入: 暂停中可直接判失败, 避免先 resume 再 fail 的
+        # 无意义跳变污染历史。PENDING_ONBOARDING 是否纳入待产品拍板(Q9), 先窄。
+        pass
+
+    @transition(
+        field=current_state,
+        source=CandidateState.IN_PROCESS,
+        target=CandidateState.PROCESS_PAUSED,
+    )
+    def pause_process(self):
+        """流程暂停(仅 IN_PROCESS 可暂停)"""
+        pass
+
+    @transition(
+        field=current_state,
+        source=CandidateState.PROCESS_PAUSED,
+        target=CandidateState.IN_PROCESS,
+    )
+    def resume_process(self):
+        """恢复流程: 单一 source → 必然无损回到 IN_PROCESS, 无需 previous_state"""
+        # resume 的 source 仅 PROCESS_PAUSED 一个, 故恢复回 IN_PROCESS 是定理
+        # 而非假设 —— 从 OFFER_SENT 等调 pause 直接 409, 不可能静默丢状态。
         pass
 
 
