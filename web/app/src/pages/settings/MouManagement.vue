@@ -1115,9 +1115,17 @@ const handleSaveMou = async () => {
       loadMous()
     } else {
       // 透出字段级错误 (例: "MOU编码 'cdsd' 已存在")
-      //   DRF validation_error 的 errors 是 { field: [msg1, msg2, ...] }
-      const fieldErr = data.errors && Object.entries(data.errors)
-        .flatMap(([field, msgs]) => (msgs || []).map(m => `${field}: ${m}`))
+      //   DRF validation_error 的 errors 通常是 { field: [msg1, msg2, ...] },
+      //   但 non_field_errors / 自定义 raise 也可能直接给一个字符串, 这里两种都兜住。
+      // R10 (2026-08-03 寇豆码): 原来 data.errors 推导出来是 {}, msgs 上没有 .map,
+      //   vue-tsc 报 TS2339 + TS7006。补显式类型 + 数组归一化, 顺带修掉
+      //   「后端返字符串时 .map 抛 TypeError」的隐患。
+      const fieldErrors = (data.errors ?? {}) as Record<string, string | string[] | undefined>
+      const fieldErr = Object.entries(fieldErrors)
+        .flatMap(([field, msgs]) => {
+          const list: string[] = Array.isArray(msgs) ? msgs : msgs ? [msgs] : []
+          return list.map((m: string) => `${field}: ${m}`)
+        })
         .join('；')
       message.error(data.error || fieldErr || data.message || '操作失败')
     }

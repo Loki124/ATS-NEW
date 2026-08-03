@@ -55,8 +55,14 @@ describe('PermissionManagement', () => {
   })
 
   it('default tab is resources', async () => {
+    // R10 (2026-08-03 寇豆码): 原断言是 `wrapper.vm.activeTab || 'resources'`。
+    //   wrapper 挂的是外层 Wrapper 组件, 它身上根本没有 activeTab, 所以永远走
+    //   `|| 'resources'` 分支 —— 恒真断言, 测不出任何东西, 同时 vue-tsc 报 TS2339。
+    //   改成读真实渲染结果: naive-ui 会给选中的 tab 加 .n-tabs-tab--active。
     const wrapper = factory()
     await flushPromises()
-    expect(wrapper.vm.activeTab || 'resources').toBeTruthy()
+    const activeTab = wrapper.find('.n-tabs-tab--active')
+    expect(activeTab.exists()).toBe(true)
+    expect(activeTab.text()).toContain('资源管理')
   })
 })
