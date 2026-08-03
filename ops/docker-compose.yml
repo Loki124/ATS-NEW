@@ -1,9 +1,25 @@
-version: '3.8'
-
 # Fix 12:
 #   - MySQL 改 expose (docker 网络内可达) 而非 ports (host 不可达)
 #   - 移除弱默认密码 ${VAR:-change-me} ; env 缺失时启动失败而非用 weak default
 #   - Backend 端口同样改 expose, 仅 nginx 暴露 host 端口
+#
+# 2026-08-03 R4 (寇豆码) 修复:
+#   1. 补 redis 服务 —— config/settings/prod.py:86-97 启动时会 TCP 探测 REDIS_URL,
+#      探不通直接 ImproperlyConfigured。原 compose 根本没有 redis, 生产 `docker
+#      compose up` 100% 起不来。同时 CACHES / Celery broker / Channels layer 全依赖它。
+#   2. env 变量名对齐 settings 实际读取的名字:
+#        JWT_SECRET   -> DJANGO_SECRET_KEY      (base.py:58 读的是 DJANGO_SECRET_KEY)
+#        CORS_ORIGIN  -> CORS_ALLOWED_ORIGINS   (base.py:333 读的是 CORS_ALLOWED_ORIGINS)
+#      原来的名字后端一个都不认, 结果就是 SECRET_KEY 用 base.py 的
+#      'insecure-dev-key-change-me' + CORS 白名单为空。
+#   3. 删掉写死的 5125 —— Dockerfile CMD 里 gunicorn 是 `--bind 0.0.0.0:8000`,
+#      从来没监听过 5125, nginx.conf 反代到 backend:5125 是打不通的。统一到 8000。
+#   4. 显式补 REDIS_URL / DJANGO_SETTINGS_MODULE=config.settings.prod (R3)。
+#
+# 必须在 ops/.env 中提供的变量 (缺任意一个 compose 直接拒绝启动):
+#   MYSQL_ROOT_PASSWORD / MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD
+#   DJANGO_SECRET_KEY (50+ 字符随机串) / INTEGRATION_FERNET_KEY (Fernet base64)
+#   CORS_ALLOWED_ORIGINS / DJANGO_ALLOWED_HOSTS
 
 services:
   mysql:
@@ -36,38 +52,80 @@ services:
     networks:
       - ats-network
 
+  # R4: 新增. prod.py 强制要求 Redis 可达 (不允许 LocMemCache fallback),
+  # 同时是 Celery broker / result backend 与 Channels layer 的后端。
+  redis:
+    image: redis:7-alpine
+    container_name: ats-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - ats-network
+
   backend:
     # 2026-06-29 花无缺: 拍平后 backend 在 apps/django/ (不是 ./backend/), Dockerfile 也搬了
     build:
       context: ../apps/django
       dockerfile: Dockerfile
+    container_name: ats-backend
+    restart: unless-stopped
     expose:
-      - "5125"
+      # R4: 原来是 5125, 但 Dockerfile CMD gunicorn --bind 0.0.0.0:8000, 端口对不上
+      - "8000"
     environment:
       - DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET 必须设置 (32+ 字符)}
+      # R4: JWT_SECRET -> DJANGO_SECRET_KEY (base.py:58 实际读取的名字)
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY 必须设置 (50+ 字符随机串, prod.py 会校验长度)}
       - INTEGRATION_FERNET_KEY=${INTEGRATION_FERNET_KEY:?INTEGRATION_FERNET_KEY 必须设置 (Fernet base64)}
+      # PII 字段加密 key, 未单独提供时复用 INTEGRATION_FERNET_KEY (base.py:557)
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-${INTEGRATION_FERNET_KEY}}
       - DJANGO_SETTINGS_MODULE=config.settings.prod
-      - PORT=5125
-      - CORS_ORIGIN=${CORS_ORIGIN:?CORS_ORIGIN 必须设置, 如 https://ats.example.com}
+      - DJANGO_DEBUG=False
+      - PORT=8000
+      # R4: CORS_ORIGIN -> CORS_ALLOWED_ORIGINS (base.py:333 实际读取的名字)
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS 必须设置, 如 https://ats.example.com}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:?DJANGO_ALLOWED_HOSTS 必须设置, 如 ats.example.com}
+      # R4: prod.py 启动即探测 Redis, 必须指向 compose 内的 redis 服务
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - MYSQL_HOST=mysql
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - ats-network
 
   nginx:
     image: nginx:alpine
+    container_name: ats-nginx
     ports:
       # 唯一对外暴露: HTTPS/TLS 在 nginx 或 CF Tunnel 终止
       - "9908:80"
     volumes:
-      - ../../web/app/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ../../web/app/dist:/usr/share/nginx/html:ro
+      - ../web/app/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../web/app/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
     networks:
@@ -80,3 +138,4 @@ networks:
 
 volumes:
   mysql_data:
+  redis_data:
