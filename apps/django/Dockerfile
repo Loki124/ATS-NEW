@@ -4,7 +4,12 @@
 # =============================================================================
 
 # ---------- 1. 基础镜像 ----------
-FROM python:3.12-slim AS base
+# R9 (2026-08-03 寇豆码): 版本号抽成 ARG。原来 `python:3.12-slim` 和下面 runtime 阶段的
+#   `COPY --from=deps /usr/local/lib/python3.12/site-packages` 是两处硬编码, 谁改了基础
+#   镜像却忘了改 COPY 路径, docker build 不会报错 —— COPY 一个不存在的目录只会静默产出
+#   一个"依赖全丢"的镜像, 直到容器起来 ImportError 才发现。用 ARG 绑死, 改一处即可。
+ARG PYTHON_VERSION=3.12
+FROM python:${PYTHON_VERSION}-slim AS base
 
 # 避免 Python 写入 .pyc + 强制 stdout/stderr 不缓冲 (便于日志收集)
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -49,8 +54,11 @@ RUN pip install --upgrade pip && \
 # ---------- 3. 运行时镜像 ----------
 FROM base AS runtime
 
+# ARG 不跨阶段继承, 这里要重新声明才能在 COPY 里用 (Docker 的已知行为)
+ARG PYTHON_VERSION=3.12
+
 # 从 deps 阶段复制已安装的 Python 包
-COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=deps /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 
 # 复制项目源码

@@ -1,6 +1,31 @@
-# V2 权限重写 - 开发依赖 (test infrastructure)
-# 主依赖见 requirements.txt (pytest-django 等测试包已在那里)
+# ATS 招聘管理系统 - 开发 / 测试依赖
+# R9 (2026-08-03 寇豆码)
+#
+# 为什么单独拆一个文件:
+#   原来 pytest / black / mypy / django-stubs 这些全塞在 requirements.txt 里,
+#   Dockerfile 第 45 行 `pip install -r requirements.txt` 会把整套测试和 lint 工具链
+#   一起打进生产镜像 —— 白白增加镜像体积和攻击面 (mypy/flake8 拉一堆传递依赖)。
+#
+# 用法:
+#   开发机 / CI:  pip install -r requirements.txt -r requirements-dev.txt
+#   生产镜像:     pip install -r requirements.txt        (只装运行时)
 
-# 显式声明, 便于 CI 单独 install
-pytest-django>=4.5
-pytest-cov>=4.0
+-r requirements.txt
+
+# === Testing ===
+# 版本 = .venv 实装版本。pytest 9.x 对 conftest 的 pytest_plugins 位置有硬性要求
+# (只允许放在 rootdir 的顶层 conftest.py), 降级前先确认 tests/conftest.py 结构。
+pytest==9.1.1
+pytest-django==4.12.0
+pytest-cov==7.1.0
+
+# === Code Quality ===
+# R9: 这几个当前 .venv 里都没装, 也没有任何 CI 步骤在跑。
+#   保留条目但不锁死小版本 (用 >=), 等 Phase 2 真正接入 lint gate 时再收紧。
+#   在此之前它们不影响运行时, 也不会进生产镜像。
+black>=24.4
+flake8>=7.0
+isort>=5.13
+mypy>=1.10
+django-stubs>=5.0
+djangorestframework-stubs>=3.15
