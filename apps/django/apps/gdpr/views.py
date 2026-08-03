@@ -1,9 +1,24 @@
-"""GDPR Views (DRF) - PRD v4 §4.4"""
+"""GDPR Views (DRF) - PRD v4 §4.4
+
+2026-08-03 S2 改造:
+- 流程变成 5 步:
+  1) 候选人 POST /api/v1/gdpr/requests/ 提交 (无需登录, 走 service.submit_request)
+  2) system 生成 8 位 hex verification code, hash 存, 通过邮件/SMS 发给候选人
+  3) 候选人 POST /api/v1/gdpr/requests/{id}/verify/ 提交 code 验证身份
+  4) 超管看到 status=PENDING 才能 process (ApproveAndForget/ApproveAndExport/Reject)
+  5) reject 不需要候选人 verify (信息不全也能拒)
+- API 暴露:
+  - GET  /api/v1/gdpr/requests/            - 超管列表
+  - POST /api/v1/gdpr/requests/            - 候选人提交 (返回 _plaintext_code, 走邮件)
+  - GET  /api/v1/gdpr/requests/{id}/       - 详情
+  - POST /api/v1/gdpr/requests/{id}/verify/ - 候选人验证
+  - POST /api/v1/gdpr/requests/{id}/process/ - 超管处理 (approve_forget/approve_export/reject)
+"""
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from rest_framework import viewsets, status as drf_status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
@@ -16,7 +31,9 @@ from .serializers import (
     GDPRProcessSerializer,
     GDPRRequestCreateSerializer,
     GDPRRequestSerializer,
+    GDPRVerifySerializer,
 )
+from .services import GdprService
 
 
 class GDPRRequestViewSet(AuditMixin, viewsets.ModelViewSet):
@@ -39,24 +56,68 @@ class GDPRRequestViewSet(AuditMixin, viewsets.ModelViewSet):
         qs = super().get_queryset()
         return qs.select_related('candidate', 'processed_by')
 
+    def get_permissions(self):
+        # 候选人提交 / 验证 不需要登录 (通过 verification code 验证身份)
+        if self.action in ('create', 'verify'):
+            return [AllowAny()]
+        return super().get_permissions()
+
+    def create(self, request, *args, **kwargs):
+        """候选人提交 GDPR 请求 — 公开, 无需登录.
+
+        响应包含 _plaintext_code (仅这一次, 走邮件/SMS 发给候选人, 不再可查).
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        req = GdprService.submit_request(
+            candidate_id=serializer.validated_data['candidate'],
+            request_type=serializer.validated_data['request_type'],
+            submitted_email=serializer.validated_data['submitted_email'],
+        )
+        out = GDPRRequestSerializer(req, context={'request': request}).data
+        # ⚠️ _plaintext_code 只在这一次响应里返回, view 不存日志, 不进 audit.
+        out['verification_code'] = req._plaintext_code  # noqa: SLF001
+        out['verification_code_expires_at'] = req.verification_code_expires_at
+        out['verification_message'] = '请通过邮件/短信查看验证码, 15 分钟内 verify 有效'
+        return Response({'success': True, 'data': out}, status=drf_status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='verify')
+    def verify(self, request, pk=None):
+        """候选人验证身份 — 公开 (走 verification code 验证)."""
+        # 注: 不用 self.get_object() 因为 AllowAny 看不到 list/retrieve
+        serializer = GDPRVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        req = GdprService.verify_code(
+            request_id=pk,
+            plaintext_code=serializer.validated_data['verification_code'],
+        )
+        out = GDPRRequestSerializer(req, context={'request': request}).data
+        return Response({'success': True, 'data': out})
+
     @action(detail=True, methods=['post'], url_path='process')
     def process(self, request, pk=None):
-        """处理 GDPR 请求（approve/reject）"""
+        """超管处理 GDPR 请求.
+
+        action:
+          - approve_forget: 匿名化候选人 (走 service.approve_and_forget)
+          - approve_export: 数据导出 (走 service.approve_and_export)
+          - reject: 拒绝 (无需候选人 verify)
+        """
         instance = self.get_object()
-        if instance.status != 'PENDING':
-            raise ValidationError(f'当前状态 {instance.status} 不可处理')
         serializer = GDPRProcessSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']
-        instance.status = 'PROCESSING'
-        instance.processed_by = request.user
-        if action_name == 'approve':
-            instance.status = 'COMPLETED'
-            instance.result = serializer.validated_data.get('result', '数据已处理')
-        else:
-            instance.status = 'REJECTED'
-            instance.reject_reason = serializer.validated_data.get('reject_reason', '')
-        instance.processed_at = timezone.now()
-        instance.save()
-        out = GDPRRequestSerializer(instance, context={'request': request})
-        return Response({'success': True, 'data': out.data})
+
+        if action_name == 'approve_forget':
+            req = GdprService.approve_and_forget(instance.id, request.user)
+        elif action_name == 'approve_export':
+            req = GdprService.approve_and_export(instance.id, request.user)
+        else:  # reject
+            req = GdprService.reject(
+                instance.id,
+                reason=serializer.validated_data.get('reject_reason', ''),
+                processor=request.user,
+            )
+
+        out = GDPRRequestSerializer(req, context={'request': request}).data
+        return Response({'success': True, 'data': out})

@@ -1,53 +1,71 @@
 # ATS招聘管理系统 - 技术说明文档
 
-> **最后更新**: 2026-06-06 — P0 14/14 完成 + 安全修复 + PDF 生成 + deletedAt middleware + CI workflow
+> **最后更新**: 2026-08-03 — 实际已切到 Django 6.0.6 + DRF 3.15 (旧 Node.js/Express 栈 2026-06 已废弃, 详见 `MIGRATION.md`)
+>
+> 当前真实状态: 28 apps / 60+ 端点 / 78 张表 / 9 业务状态机 / 39 pytest + 132 vitest 全过
+> 真实架构图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## 1. 技术架构
 
-### 1.1 整体架构
+### 1.1 整体架构 (2026-08-03 当前)
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        前端 (Vue 3)                         │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐      │
-│   │  Router │  │  Pinia  │  │  Axios  │  │ 组件库  │      │
-│   └─────────┘  └─────────┘  └─────────┘  └─────────┘      │
-└─────────────────────────────────────────────────────────────┘
-                              ↓ HTTP/HTTPS
-┌─────────────────────────────────────────────────────────────┐
-│                        后端 (Express)                       │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐      │
-│   │ JWT认证 │  │ 路由    │  │ Prisma  │  │ 中间件  │      │
-│   └─────────┘  └─────────┘  └─────────┘  └─────────┘      │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                     数据库 (SQLite)                         │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐      │
-│   │  User   │  │ Demand  │  │Candidate│  │Position │      │
-│   └─────────┘  └─────────┘  └─────────┘  └─────────┘      │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────┐         ┌──────────────────┐
+│  Browser (Vue 3) │ ──────▶ │  Vite Dev Server │
+│  :5212           │  /api/* │  + Proxy         │
+└──────────────────┘         └────────┬─────────┘
+                                      │ proxy_pass → :8000
+                                      ▼
+                            ┌──────────────────┐
+                            │  gunicorn 4w     │
+                            │  Django 6.0      │
+                            │  + DRF 3.15      │
+                            │  :8000           │
+                            └────────┬─────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              ▼                      ▼                      ▼
+       ┌─────────────┐       ┌─────────────┐        ┌─────────────┐
+       │   MySQL 8   │       │ Redis 7     │        │ Celery      │
+       │   :3306     │       │ :6379       │        │ worker+beat │
+       │  78 张表     │       │ cache+broker│        │             │
+       └─────────────┘       └─────────────┘        └─────────────┘
 ```
 
-### 1.2 技术栈
+### 1.2 技术栈 (2026-08-03 当前)
 
 | 层级 | 技术 | 版本 | 说明 |
 |------|------|------|------|
+| **前端** | | | |
 | 前端框架 | Vue 3 | 3.4+ | Composition API |
 | 构建工具 | Vite | 5.x | 快速启动/热更新 |
-| UI框架 | **Naive UI** (2026-06 迁移) | 2.44+ | 企业级组件库 |
-| 样式方案 | **UnoCSS** (2026-06 迁移) | 66.7+ | 原子化CSS |
-| 图标库 | **@vicons/ionicons5** (2026-06 迁移) | 0.13+ | 统一图标 |
-| 状态管理 | Pinia | 2.x | Vue状态管理 |
-| 路由 | Vue Router | 4.x | SPA路由 |
-| HTTP客户端 | Axios | 1.x | API请求（含 token 拦截器 + 401 自动处理） |
-| 后端框架 | Express.js | 4.x | Node.js服务器 |
-| ORM | Prisma | 5.22+ | 数据库操作（54+ 张表） |
-| 数据库 | **MySQL 9** (2026-06 升级) | 9.x | 生产级数据库（之前是 SQLite） |
-| 认证 | JWT | - | 无状态认证（authMiddleware 强制挂载） |
-| 状态机 | **Prisma 字段 + 函数式转换** (本会话) | - | 替代 XState v5，更易维护 |
-| 调度 | node-cron | 3.x | Referral / 邀约超时 |
-| PDF | **纯 JS PDF 1.4** (2026-06) | 零依赖 | 服务端生成 |
-| 端到端测试 | 待集成 Playwright | - | 下个迭代 |
+| UI 框架 | **Naive UI** (2026-06 迁移) | 2.44+ | 企业级组件库 |
+| 样式方案 | **UnoCSS** (2026-06 迁移) | 66.7+ | 原子化 CSS |
+| 图标库 | **@vicons/ionicons5** | 0.13+ | 统一图标 |
+| 状态管理 | Pinia | 2.x | Vue 状态管理 |
+| 路由 | Vue Router | 4.x | SPA 路由 + RBAC 守卫 |
+| HTTP | Axios | 1.x | API 客户端 (含 JWT 拦截器 + request dedup) |
+| 单元测试 | Vitest | 2.x | 132 tests, happy-dom |
+| E2E | Playwright | 1.49 | 6 spec / 18 场景 |
+| **后端** | | | |
+| 后端框架 | **Django** (2026-06 切) | **6.0.6** | 实际版本, 2026-07 解锁主版本锁 |
+| API 框架 | **Django REST Framework** | 3.15 | ViewSet + Router + drf-spectacular |
+| ORM | **Django ORM** | - | 78 张表, 28 apps |
+| 数据库 | **MySQL 8** | 8.x | 生产 (SQLite 3 用于 dev/test) |
+| 认证 | **djangorestframework-simplejwt** | 5.3+ | access 60min + refresh 7d, ROTATE |
+| 状态机 | **django-fsm** | 2.8.1 | 9 业务状态机 (⚠️ 已废弃, 迁 viewflow.fsm) |
+| 异步任务 | **Celery + Redis** | 5.4 + 5.0 | cron / 报表导出 / GDPR 清理 |
+| WebSocket | **Channels 4.1** | - | 实时通知 / 协作 |
+| 缓存 | **django-redis / LocMem** | 5.0+ | 限流 + 幂等 + session (prod 强 Redis) |
+| 监控 | **Sentry + django-prometheus** | 2.3 + 2.3 | 错误追踪 + 性能指标 |
+| 字段脱敏 | **FieldAclService** (G8 + G43) | - | phone/email/id_card 自动 mask |
+| PDF | **reportlab 4.2** | - | 服务端 PDF (4 个 Offer 模板 + 背调报告) |
+| 集成 | **affinda 4.0** | - | 简历解析 (V2 add-candidate) |
+| **测试** | | | |
+| 后端测试 | pytest + pytest-django | 9.x | 39 tests, 12 套件 |
+| 前端测试 | vitest + @vue/test-utils | 2.x | 132 tests |
+| E2E | Playwright | 1.49 | 6 spec / 18 场景 |
+| Lint | flake8 + ESLint 9 (flat) | - | Python + TypeScript/Vue |
+| Type check | mypy + vue-tsc 2.2 | - | Django + Vue |
 
 ---
 
@@ -298,13 +316,30 @@ node src/app.js
 
 1. **Vue 3 Composition API** - 代码组织更清晰
 2. **Pinia 状态管理** - 类型安全的状态管理
-3. **Prisma ORM** - 现代化的数据库操作
-4. **Ant Design Vue 5** - 企业级UI组件
-5. **Vite 快速构建** - 秒级启动/热更新
-6. **JWT 认证** - 无状态安全认证
+3. ~~**Prisma ORM**~~ → **Django ORM** (2026-06 切, 更成熟的内置 ORM, 78 张表)
+4. ~~**Ant Design Vue 5**~~ → **Naive UI 2.44** (2026-06 改, ATS 风格更搭, TypeScript 支持更好)
+5. **Vite 5 快速构建** - 秒级启动/热更新, manualChunks vendor-naive-ui atomic 避免 TDZ
+6. **JWT 认证** - djangorestframework-simplejwt, access 60min + refresh 7d + ROTATE + BLACKLIST
+
+### 2026-06 ~ 2026-08 关键架构变更
+
+| 时间 | 变更 | 影响 |
+|---|---|---|
+| 2026-06 | Node.js/Express/Prisma → Django 6.0/DRF 3.15 | 全栈重写, 35 → 60+ 端点 |
+| 2026-06 | SQLite-only → MySQL 8 (生产) + SQLite (dev/test) | 生产数据库升级 |
+| 2026-06 | Ant Design Vue → Naive UI 2.44 | UI 框架替换, 配套 dashboard 重设计 |
+| 2026-06 | Tailwind + DaisyUI → UnoCSS | 原子化 CSS |
+| 2026-06 | XState v5 → django-fsm | 状态机迁移, 9 个业务状态机 |
+| 2026-07 | Django 5.0.6 → 6.0.x | 解锁主版本锁 |
+| 2026-07 | node-cron → Celery + Redis | 异步任务平台化, beat scheduler |
+| 2026-07 | authMiddleware → djangorestframework-simplejwt | JWT 双 token + blacklist |
+| 2026-07 | Admin `/admin/` → `/${ADMIN_URL_TOKEN}/` | 后门 token env 化 (2026-08-03) |
+| 2026-08 | CI 切到 pytest + npm | .github/workflows/ci.yml 重写 |
+| 2026-08 | stub 路由加 X-Stub header + 告警 | 20+ 兜底端点可视化, 防静默丢数据 |
+| 2026-08 | 39/39 pytest + 132/132 vitest 全过 | 修复 10 个长期 fail |
 
 ---
 
-*文档版本: V1.0*
+*文档版本: V2.0 (2026-08-03 Mavis 现状对齐)*
 *创建时间: 2026/05/11*
-*技术栈: Vue 3 + Express + Prisma + SQLite*
+*技术栈: Django 6.0.6 + DRF 3.15 + MySQL 8 + Redis 7 + Celery 5.4 + Vue 3 + Vite 5 + Naive UI 2.44 + UnoCSS*

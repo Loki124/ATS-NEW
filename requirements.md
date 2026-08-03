@@ -1,8 +1,12 @@
 # ATS招聘管理系统 - 需求说明文档
 
-> **最后更新**: 2026-06-08 — 14/14 P0 + **12/12 P1** + Tech 债全部 done
+> **最后更新**: 2026-08-03 — 原始 PRD 仍准确, 14/14 P0 + 12/12 P1 + 5/5 P3 全部 done
 >
 > 本文档是**原始 PRD**（产品需求说明），代码实现的进度同步在 [CHANGELOG.md](CHANGELOG.md) 和 [PROJECT_PLAN.md](PROJECT_PLAN.md)。
+>
+> **2026-08-03 现状**: P0 14/14 ✅ / P1 12/12 ✅ / P3 5/5 ✅ (含 stub 兜底) / P2 11/11 ⬜ (需企业 API 授权)。
+> 真实架构已切到 Django 6.0.6 + DRF 3.15 + Vue 3 + Vite 5 + Naive UI 2.44 (旧 Node.js/Express/Prisma 栈 2026-06 已废弃)。
+> 详细见 [`docs/COMPLIANCE_AUDIT_2026-08-03.md`](docs/COMPLIANCE_AUDIT_2026-08-03.md) 的 23 项问题清单。
 
 ## 0. 实现进度速览（2026-06-08）
 

@@ -2,6 +2,7 @@
 from django.db import models
 from django_fsm import FSMField, transition
 from apps.common.models import FullAuditModel
+from apps.common.encryption import EncryptedCharField
 from nanoid import generate as nanoid_generate
 
 
@@ -22,17 +23,34 @@ class CandidateState(models.TextChoices):
 
 
 class Candidate(FullAuditModel):
-    """候选人"""
+    """候选人
+
+    2026-08-03 S3: PII 字段加密
+    - id_card_no 改用 EncryptedCharField (DB 存密文, 应用层透明加解密)
+    - phone/email 加 PHONE_HASH/EMAIL_HASH 索引字段 (sha256(plaintext), 不可逆, 用于查重)
+    - phone/email 仍存明文 (因为需要 FieldAclService 脱敏和 search/filter 频繁使用)
+      未来用 AES-SIV 等 deterministic encryption 可全加密, 当前方案是 trade-off
+    """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
 
     # 基本信息
     name = models.CharField(max_length=50, db_index=True, verbose_name='姓名')
     phone = models.CharField(max_length=20, db_index=True, verbose_name='手机号')
+    phone_hash = models.CharField(
+        max_length=64, blank=True, db_index=True,
+        verbose_name='手机号 hash (sha256, 用于查重/匿名查询)',
+        help_text='hash_for_search(phone) 写入, 同明文 → 同 hash',
+    )
     email = models.EmailField(max_length=100, db_index=True, null=True, blank=True, verbose_name='邮箱')
+    email_hash = models.CharField(
+        max_length=64, blank=True, db_index=True,
+        verbose_name='邮箱 hash (sha256, 用于查重/匿名查询)',
+    )
     gender = models.CharField(max_length=8, blank=True, verbose_name='性别')
     age = models.IntegerField(null=True, blank=True, verbose_name='年龄')
     birth_date = models.DateField(null=True, blank=True, verbose_name='出生日期')
-    id_card_no = models.CharField(max_length=20, blank=True, db_index=True, verbose_name='身份证号')
+    # id_card_no 改用 EncryptedCharField (DB 存密文, 不影响业务代码)
+    id_card_no = EncryptedCharField(max_length=512, blank=True, verbose_name='身份证号 (加密存储)')
 
     # 学历/工作
     highest_education = models.CharField(max_length=50, blank=True, verbose_name='最高学历')
@@ -96,6 +114,46 @@ class Candidate(FullAuditModel):
 
     def __str__(self):
         return f'{self.name} ({self.phone})'
+
+    def save(self, *args, **kwargs):
+        """2026-08-03 S3: 自动同步 phone_hash / email_hash (查重/匿名查询用).
+
+        只在 phone/email 改变时重算 hash (避免每次 save 都 hash).
+        注意: 这里 import 在函数内避免循环 import.
+        """
+        from apps.common.encryption import hash_for_search
+        # 计算 hash (无论是否变化, 简单起见都重算; 候选人 save 不频繁)
+        new_phone_hash = hash_for_search(self.phone) if self.phone else ''
+        new_email_hash = hash_for_search(self.email) if self.email else ''
+        # 写进 instance 字段 (save 不会自动加 update_fields 之外的)
+        if self.pk:
+            old = Candidate.objects.filter(pk=self.pk).only('phone', 'email').first()
+            if old:
+                if old.phone != self.phone:
+                    self.phone_hash = new_phone_hash
+                if old.email != self.email:
+                    self.email_hash = new_email_hash
+            else:
+                self.phone_hash = new_phone_hash
+                self.email_hash = new_email_hash
+        else:
+            self.phone_hash = new_phone_hash
+            self.email_hash = new_email_hash
+
+        # 决定 update_fields: 如果只 save 一个字段, 不应该覆盖 hash
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            # 如果显式指定了 update_fields 且不包含 hash 字段, 自动加上
+            if 'phone_hash' not in update_fields and (
+                'phone' in update_fields or 'email' in update_fields
+            ):
+                update_fields = set(update_fields)
+                if 'phone' in update_fields:
+                    update_fields.add('phone_hash')
+                if 'email' in update_fields:
+                    update_fields.add('email_hash')
+                kwargs['update_fields'] = frozenset(update_fields)
+        super().save(*args, **kwargs)
 
     # === 状态机转换 ===
     @transition(field=current_state, source=CandidateState.APPLIED, target=CandidateState.IN_PROCESS)

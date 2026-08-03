@@ -1,5 +1,9 @@
 # ATS 项目设计 DNA (Dashboard / Studied-DNA)
 
+> **最后更新**: 2026-08-03 — 设计 DNA 仍然有效 (2026-06 Plan N 锁定), 应用在 `/dashboard` 页面。
+> **配套**: `frontend/src/styles/tokens.css` (CSS variables) + `frontend/src/components/dashboard/` (7 子组件)。
+> **真实状态**: Dashboard 已上线, 工作台模式 (Workbench) + warm-orange accent (≤5%) + OKLCH 调色板全部按 DNA 实施。
+
 > 来源: 公开的"北森 HR 仪表板"截图 (Beisen ATS HR Dashboard) —— 企业级 HR 招聘工作台参考图。
 > 适用页面: `/dashboard` (登录后首页, 由 `pages/Dashboard.vue` 承载)。
 

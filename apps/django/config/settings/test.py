@@ -43,3 +43,9 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 # 日志静默
 LOGGING['loggers']['apps']['level'] = 'WARNING'
+
+# 2026-08-03 S3: PII 字段加密测试 fallback key
+# 测试环境不设 ENCRYPTION_KEY / INTEGRATION_FERNET_KEY, 用固定 dev key 避免启动报错
+# ⚠️ 这个 key 不能在生产用, 仅供测试
+ENCRYPTION_KEY = 'EgnPPJWZCoGgt-GALcXYPuKhaJHx8s5297wmzS_ykK8='
+INTEGRATION_FERNET_KEY = ENCRYPTION_KEY

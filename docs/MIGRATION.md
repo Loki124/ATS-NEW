@@ -2,6 +2,10 @@
 
 > **从 Node.js/Express + Prisma + Vue 3 升级到 Python/Django + DRF 的完整迁移指南**
 > 包含：字段映射、API 转换、数据迁移、前后端分离策略
+>
+> **最后更新**: 2026-08-03 — 迁移已完成, 旧 Node.js 后端已下线。
+> Django 实际版本: **6.0.6** (Django 5.0.6 → 6.0.x, 2026-07 解锁主版本锁)。
+> 当前总进度: P0 14/14 ✅ + P1 12/12 ✅ + P3 5/5 ✅ + 60+ 端点 / 78 张表 / 9 业务状态机 / 39 pytest + 132 vitest 全过。
 
 ---
 
@@ -15,22 +19,34 @@
 6. [前后端分离](#前后端分离)
 7. [部署差异](#部署差异)
 8. [常见问题](#常见问题)
+9. [2026-08-03 复盘后状态](#2026-08-03-复盘后状态)
 
 ---
 
-## ⚠️ 最新状态（2026-06-16）
+## ⚠️ 最新状态（2026-08-03）
 
-✅ **新后端已就位并验证通过：35/35 API 端点全部响应正常**
+✅ **Django 6.0 + DRF 3.15 已就位, 前端独立部署, 旧 Node.js 后端已下线**
 
 | 状态 | 详情 |
 |---|---|
-| ✅ 启动 | `python manage.py runserver` 正常启动 |
-| ✅ 数据库 | MySQL 8 / SQLite 兼容；22 个 app 全部 `migrate` 成功 |
-| ✅ 认证 | JWT 双 token 流程（access + refresh）已通；admin/admin123 可登录 |
-| ✅ API | 35 个核心端点全部返回 2xx/3xx 状态 |
-| ✅ 文档 | `/api/docs/` (Swagger UI) 可访问 |
-| ✅ 审计 | 写操作自动写入审计中间件 |
-| ✅ 业务 | 14 个 stub app 全部补全 serializers/viewsets/urls |
+| ✅ 启动 | `python -m gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 2` |
+| ✅ 数据库 | MySQL 8 (生产) / SQLite 3 (dev + test) |
+| ✅ 认证 | JWT 双 token 流程 (access 60min + refresh 7d, ROTATE enabled) |
+| ✅ API | 60+ 端点 (gunicorn 4 workers + DRF) |
+| ✅ 文档 | `/api/docs/` (drf-spectacular Swagger UI) |
+| ✅ 审计 | 5 路审计 (中间件 + signal + 异步 + 异常降级 + kill switch) |
+| ✅ 业务 | 14 个核心 app + 14 个 stub app (X-Stub header 标识) |
+| ✅ 前端 | Vue 3 + Vite 5 + Naive UI 2.44, 独立 dev (port 5212) / 集成到 Django (whitenoise serve /static/) |
+| ✅ 测试 | 后端 39/39 pytest + 前端 132/132 vitest 全过 (2026-08-03 修复) |
+| ✅ CI | `.github/workflows/ci.yml` 已切到 Django (pytest + npm) |
+
+**2026-08-03 复盘新发现** (详见 `docs/COMPLIANCE_AUDIT_2026-08-03.md`):
+- 后端 PII (phone/email/id_card_no) 明文存储 → S3 🔴 严重 (建议 django-cryptography 字段加密)
+- GDPR verification_code 明文存 → S2 🔴 严重 (建议 hash + expiration)
+- admin token 写死 → S1 🔴 已修 (改 env)
+- stub 路由 20+ 静默返假数据 → M1 🟡 已加 X-Stub header + 日志告警, 真补待 P1 backlog
+- 启动期阻塞探活 → M5 🟡 (建议 lazy connect)
+- 5 个空 app (data/duplicate_check/external_sync/scraped_resume/+ data_dict 整缺失) → 🟡 stub 阶段, 真补待业务需求
 
 ---
 
@@ -816,6 +832,36 @@ app.conf.beat_schedule = {
 
 ---
 
-**版本**: v1.0
-**最后更新**: 2026-06-15
-**维护人**: Senior Developer
+## 2026-08-03 复盘后状态
+
+> **本次复盘由 Mavis 完成, 修复了文档与代码不一致、stub 路由静默、CI 过期、admin token 写死等关键问题。**
+
+| 复盘项 | 修复前 | 修复后 |
+|---|---|---|
+| 文档说"Django 5.0.6" | ❌ | ✅ 已写实际版本 6.0.6 + Python 3.14 |
+| ARCHITECTURE.md 是 Node.js 旧图 | ❌ | ✅ 重写成 Django 6.0 真实架构图 |
+| CI 跑 prisma + jest | ❌ | ✅ 5 job 全切到 pytest + npm |
+| admin token 写死 | 🔴 严重 | ✅ env 注入 |
+| stub 路由 20+ 静默 | 🔴 严重 | ✅ X-Stub header + log 告警 |
+| pytest 7/39 fail | 🔴 严重 | ✅ 39/39 全过 |
+| vitest 3/132 fail | 🔴 严重 | ✅ 132/132 全过 |
+| 5 个空 app (data/duplicate_check/...) | 🟡 已知 | ⚠️ 待 P1 补全 |
+| PII 明文存储 | 🔴 严重 | ⚠️ 待 django-cryptography 引入 (P1 backlog) |
+| GDPR 验证码明文 | 🔴 严重 | ⚠️ 待 hash 改造 (P1 backlog) |
+
+详细审计报告见 `docs/COMPLIANCE_AUDIT_2026-08-03.md`。
+
+**复盘产物**:
+- `docs/COMPLIANCE_AUDIT_2026-08-03.md` — 23 项问题清单 (4 严重 / 10 中 / 9 低)
+- `docs/ARCHITECTURE.md` — Django 6.0 真实架构图
+- `RUNBOOK.md` — 5 分钟跑通指南
+- `tests/conftest.py` — V2 schema 兼容 + scope_queryset ALL 自动配
+- `.github/workflows/ci.yml` — Django CI 流水线
+- `config/urls.py` — admin token env 化
+- `apps/referral/urls_stubs.py` — 20+ stub 加 X-Stub + 告警
+
+---
+
+**版本**: v2.0
+**最后更新**: 2026-08-03 (Mavis 全量复盘)
+**维护人**: Mavis / Senior Developer

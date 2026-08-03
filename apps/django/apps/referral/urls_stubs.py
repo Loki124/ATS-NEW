@@ -7,7 +7,13 @@
   - GET 返空 list / 空 data
   - POST 返 {success: true, data: {id: 'stub-uuid'}}
   - PUT/PATCH 返 echo
+
+2026-08-03 警告机制 (产品经理跑通):
+  - 每次 stub 调用: 1) response 加 X-Stub: true header 2) WARNING log 记录
+  - 监控/审计: 生产环境日志聚合 (ELK / Sentry) 检测到 'stub endpoint called' 应该立即跟进
+  - 真要补实现: 把 view 改到对应 app 的 views.py, 在 urls.py 删 stub import
 """
+import logging
 import uuid
 from django.urls import path
 from rest_framework.response import Response
@@ -15,18 +21,38 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from apps.core.views_auth import RegisterRateThrottle, ChangePasswordRateThrottle
 
+logger = logging.getLogger('apps.stub')
+
 
 def _ok(data=None, code=200):
-    return Response({'success': True, 'data': data}, status=code)
+    """构造 stub 响应 + 标记 X-Stub header + 日志告警."""
+    response = Response({'success': True, 'data': data}, status=code)
+    response['X-Stub'] = 'true'
+    return response
 
 
 def _empty_list():
-    return Response({'success': True, 'data': [], 'pagination': {'page': 1, 'pageSize': 20, 'total': 0, 'totalPages': 1, 'hasNext': False, 'hasPrevious': False}})
+    response = Response({'success': True, 'data': [], 'pagination': {'page': 1, 'pageSize': 20, 'total': 0, 'totalPages': 1, 'hasNext': False, 'hasPrevious': False}})
+    response['X-Stub'] = 'true'
+    return response
+
+
+def _log_stub_hit(view_name: str, request):
+    """记录 stub 被调用, 方便监控告警 + 后续补实现."""
+    logger.warning(
+        'STUB endpoint called: view=%s method=%s path=%s user=%s ip=%s — 请到 apps/referral/urls_stubs.py 补真实现',
+        view_name,
+        request.method,
+        request.path,
+        getattr(request.user, 'id', 'anon'),
+        request.META.get('REMOTE_ADDR', 'unknown'),
+    )
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def _empty_list_view(request):
+    _log_stub_hit('_empty_list_view', request)
     return _empty_list()
 
 
@@ -37,6 +63,7 @@ def _empty_list_view(request):
 @permission_classes([])
 @throttle_classes([RegisterRateThrottle])
 def auth_register(request):
+    _log_stub_hit('auth_register', request)
     return _ok({'id': f'user-stub-{uuid.uuid4().hex[:8]}', 'username': request.data.get('username', 'new-user'), 'status': 'ACTIVE'})
 
 
@@ -44,6 +71,7 @@ def auth_register(request):
 @permission_classes([IsAuthenticated])
 @throttle_classes([ChangePasswordRateThrottle])
 def auth_change_password(request):
+    _log_stub_hit('auth_change_password', request)
     return _ok({'message': '密码已更新 (stub)'})
 
 
@@ -75,6 +103,7 @@ def login_alias(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def candidate_batch_recommend(request):
+    _log_stub_hit('candidate_batch_recommend', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True, 'recommendationId': f'rec-stub-{uuid.uuid4().hex[:8]}'} for cid in ids]})
 
@@ -82,6 +111,7 @@ def candidate_batch_recommend(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def candidate_batch_archive(request):
+    _log_stub_hit('candidate_batch_archive', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True} for cid in ids]})
 
@@ -89,6 +119,7 @@ def candidate_batch_archive(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def candidate_batch_assign(request):
+    _log_stub_hit('candidate_batch_assign', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True, 'recruiterId': request.data.get('recruiterId')} for cid in ids]})
 
@@ -96,12 +127,14 @@ def candidate_batch_assign(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def candidate_batch_export(request):
+    _log_stub_hit('candidate_batch_export', request)
     return _ok({'jobId': f'export-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING'})
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def candidate_batch_screen(request):
+    _log_stub_hit('candidate_batch_screen', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True, 'result': request.data.get('result', 'PASS')} for cid in ids]})
 
@@ -112,6 +145,7 @@ def candidate_batch_screen(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def stage_rules(request):
+    _log_stub_hit('stage_rules', request)
     if request.method == 'GET':
         return _empty_list()
     return _ok({'id': f'sr-stub-{uuid.uuid4().hex[:8]}', **request.data})
@@ -120,6 +154,7 @@ def stage_rules(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def auto_archive_rules(request):
+    _log_stub_hit('auto_archive_rules', request)
     if request.method == 'GET':
         return _empty_list()
     return _ok({'id': f'aar-stub-{uuid.uuid4().hex[:8]}', **request.data})
@@ -128,30 +163,35 @@ def auto_archive_rules(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def evaluate_candidate(request, candidate_id):
+    _log_stub_hit('evaluate_candidate', request)
     return _ok({'passed': True, 'failedItems': [], 'prompt': None, 'candidateId': candidate_id})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_stage_transition(request, application_id):
+    _log_stub_hit('check_stage_transition', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': application_id, 'checks': []})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_stage_transition_no_id(request):
+    _log_stub_hit('check_stage_transition_no_id', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': None, 'checks': []})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_stage_transition_top(request):
+    _log_stub_hit('check_stage_transition_top', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': None, 'checks': []})
 
 
 @api_view(['GET', 'POST', 'PUT'])
 @permission_classes([IsAuthenticated])
 def recruitment_rounds(request, id=None):
+    _log_stub_hit('recruitment_rounds', request)
     if request.method == 'GET':
         return _empty_list()
     if request.method == 'POST':
@@ -162,6 +202,7 @@ def recruitment_rounds(request, id=None):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def recruitment_rounds_status(request, id):
+    _log_stub_hit('recruitment_rounds_status', request)
     return _ok({'id': id, 'status': request.data.get('status', 'ACTIVE')})
 
 
@@ -171,6 +212,7 @@ def recruitment_rounds_status(request, id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def bulk_create(request):
+    _log_stub_hit('bulk_create', request)
     candidates = request.data.get('candidates', [])
     return _ok({'results': [{'success': True, 'id': f'c-stub-{uuid.uuid4().hex[:8]}'} for _ in candidates]})
 
@@ -178,12 +220,14 @@ def bulk_create(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def upload_and_parse(request):
+    _log_stub_hit('upload_and_parse', request)
     return _ok({'jobId': f'parse-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING', 'fileCount': len(request.FILES)})
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def scoring_start(request):
+    _log_stub_hit('scoring_start', request)
     return _ok({'jobId': f'score-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING'})
 
 
@@ -193,6 +237,7 @@ def scoring_start(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def offer_templates(request):
+    _log_stub_hit('offer_templates', request)
     if request.method == 'GET':
         return _empty_list()
     return _ok({'id': f'ot-stub-{uuid.uuid4().hex[:8]}', **request.data})
@@ -201,6 +246,7 @@ def offer_templates(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def offer_template_render(request):
+    _log_stub_hit('offer_template_render', request)
     return _ok({'fileUrl': f'https://stub.example.com/render-{uuid.uuid4().hex[:8]}.pdf', 'format': request.data.get('format', 'pdf')})
 
 
@@ -210,12 +256,14 @@ def offer_template_render(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def global_search(request):
+    _log_stub_hit('global_search', request)
     return _ok({'candidates': [], 'positions': [], 'demands': [], 'invitations': [], 'total': 0, 'query': request.query_params.get('q', '')})
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def evaluate(request):
+    _log_stub_hit('evaluate', request)
     return _ok({'score': 0, 'passed': False, 'details': []})
 
 
@@ -226,6 +274,7 @@ def evaluate(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_roles_list(request):
+    _log_stub_hit('permissions_roles_list', request)
     """GET /permissions/roles/ — 角色列表 (alias 调 /roles/)
 
     T30.175: V1 Role 表已 DROP, 改读 RoleV2 (兼容字段 code/name/is_active/...).
@@ -243,6 +292,7 @@ def permissions_roles_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_user_roles(request, user_id):
+    _log_stub_hit('permissions_user_roles', request)
     """GET /permissions/users/{id}/roles — 用户的角色
 
     T30.175: V1 UserRole 表已 DROP, 改读 UserRoleV2 (role_code) + RoleV2.
@@ -260,6 +310,7 @@ def permissions_user_roles(request, user_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_user_info(request):
+    _log_stub_hit('permissions_user_info', request)
     """GET /permissions/user-info/ — 当前用户权限 + 角色
 
     T30.175: V1 UserRole 表已 DROP, 改读 UserRoleV2 + RoleV2.
@@ -287,6 +338,7 @@ def permissions_user_info(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_mous_list(request):
+    _log_stub_hit('permissions_mous_list', request)
     """GET /permissions/mous/ — MOU 列表 (FE UserManagement.vue 分配MOU 弹窗用)
 
     2026-07-02: 实调 MouAgreement, 序列化成 FE 期望 {id, name, code, type, description}.
@@ -311,6 +363,7 @@ def permissions_mous_list(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def permissions_user_mous(request, user_id):
+    _log_stub_hit('permissions_user_mous', request)
     """GET /permissions/user-mous/{user_id} — 用户已分配的 MOU 列表 (mouId 列表)
     POST /permissions/user-mous/{user_id} body {mouIds: []} — 覆盖式保存用户的 MOU 分配.
 
@@ -330,6 +383,7 @@ def permissions_user_mous(request, user_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_list_by_type(request):
+    _log_stub_hit('permissions_list_by_type', request)
     """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
     2026-07-13 (T30.175 follow-up): 切换到 V2 PermissionResource (V1 permissions 表已在 T17 DROP).
     V2 用 `resource_type` (MENU/BUTTON/API) 区分菜单 vs 功能. 数据权限 (DATA) 用 config_key 占位.
@@ -374,6 +428,7 @@ def permissions_list_by_type(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_functions(request):
+    _log_stub_hit('permissions_functions', request)
     """GET /permissions/functions/ — 功能权限 (BUTTON 操作).  V2 切到 PermissionResource."""
     from apps.core.models_permission_v2 import PermissionResource
     qs = PermissionResource.objects.filter(
@@ -396,6 +451,7 @@ def permissions_functions(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def permissions_menus(request):
+    _log_stub_hit('permissions_menus', request)
     """GET /permissions/menus/ — 菜单/读权限.  V2 切到 PermissionResource (resource_type=MENU)."""
     from apps.core.models_permission_v2 import PermissionResource
     qs = PermissionResource.objects.filter(
@@ -426,6 +482,7 @@ def permissions_menus(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def talent_pool_types(request):
+    _log_stub_hit('talent_pool_types', request)
     """GET /api/talent-pool/types — FE 错拼双 api 前缀"""
     return _ok([
         {'key': 'EXTERNAL_REFERRAL', 'label': '外推'},
@@ -438,6 +495,7 @@ def talent_pool_types(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def resumes_alias(request):
+    _log_stub_hit('resumes_alias', request)
     """GET /resumes — FE 错路径, 实际 /scraped-resumes/"""
     return _empty_list()
 
@@ -445,6 +503,7 @@ def resumes_alias(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def duplicate_check_list(request):
+    _log_stub_hit('duplicate_check_list', request)
     """GET /duplicate-check/ — 拿历史 (FE 期望)"""
     return _empty_list()
 

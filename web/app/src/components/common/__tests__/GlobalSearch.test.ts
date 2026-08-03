@@ -87,8 +87,10 @@ describe('GlobalSearch.vue', () => {
     const input = wrapper.find('input')
     await input.setValue('张')
     await new Promise((r) => setTimeout(r, 350))
+    // 2026-08-03: 真实调用 searchApi({q, limit}, {signal}), 2 个 args. 用 expect.anything() 兼容.
     expect(mockedSearchApi).toHaveBeenCalledWith(
       expect.objectContaining({ q: '张' }),
+      expect.anything(),
     )
   })
 

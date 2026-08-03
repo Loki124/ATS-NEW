@@ -105,10 +105,13 @@ api_v1_patterns = [
     path('field-acl/', include('apps.field_acl.urls')),
 ]
 
+# 2026-08-03 兵哥: admin token 从 env 读, 避免在 git 历史里漏.
+# 设置 ADMIN_URL_TOKEN=<random> 在 .env, 不设则用 dev 默认 'ops-dashboard-7f3b9c2e' (跟旧版本兼容).
+# 生产必须设, 部署时生成 secrets.token_urlsafe(24) 即可.
+_ADMIN_URL_TOKEN = os.environ.get('ADMIN_URL_TOKEN') or 'ops-dashboard-7f3b9c2e'
+
 urlpatterns = [
-    # 2026-06-29 花无缺: admin 路径加 token (公共 bot 扫描不到 /admin/)
-    # token 在 urls.py 写死 (换 token 改这里一行). 想用环境变量可以拆 cfg 里
-    path('ops-dashboard-7f3b9c2e/', admin.site.urls),
+    path(f'{_ADMIN_URL_TOKEN}/', admin.site.urls),
 
     # API v1
     path('api/v1/', include((api_v1_patterns, 'v1'))),
@@ -126,7 +129,7 @@ urlpatterns = [
 #   Vite build 出的 web/app/dist/ 已经被 STATICFILES_DIRS 引入 (settings.base),
 #   whitenoise 会从 STATIC_ROOT serve /static/* (asset js/css/font).
 #   SPA 路由 (/candidates/123 /settings/users 这种深链) 会到 Django,
-#   Django 没匹配 /api/ /ops-dashboard-7f3b9c2e/ /health/ /static/ 的路径全 fallthrough 到 index.html,
+#   Django 没匹配 /api/ /<admin_token>/ /health/ /static/ 的路径全 fallthrough 到 index.html,
 #   让前端 vue-router 处理 history 模式路由.
 #
 # ⚠️ 必须在 urlpatterns 最末尾 (在所有显式 path 之后) 才能 fallthrough
@@ -139,7 +142,7 @@ def spa_fallback(request, path=''):
     raise Http404(f'index.html not found at {index_file}')
 
 urlpatterns += [
-    re_path(r'^(?P<path>(?!api/|ops-dashboard-7f3b9c2e/|health/|static/|__debug__/).*)$', spa_fallback),
+    re_path(r'^(?P<path>(?!api/|health/|static/|__debug__/).*)$', spa_fallback),
 ]
 
 if settings.DEBUG:

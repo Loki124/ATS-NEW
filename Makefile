@@ -24,14 +24,14 @@ install:  ## Install backend + frontend dependencies
 backend:  ## Run Django backend on :8000
 	cd apps/django && . .venv/bin/activate && python manage.py runserver 0.0.0.0:8000
 
-web:  ## Run Vue frontend on :5173
+web:  ## Run Vue frontend on :5212
 	cd web/app && pnpm dev
 
 # ────── Docker stack ──────
 
 up:  ## Bring up the full stack via docker-compose
 	docker compose -f ops/docker-compose.yml up -d
-	@echo "✓ Stack up. Backend :8000  Frontend :8080"
+	@echo "✓ Stack up. Backend :5125 (gunicorn in container)  Frontend :9908 (nginx → 80 in container)"
 
 down:  ## Stop the stack
 	docker compose -f ops/docker-compose.yml down
@@ -45,7 +45,7 @@ status:  ## Show git status + service health
 	@git status --short
 	@echo "---"
 	@curl -s -o /dev/null -w "backend  http://localhost:8000  → %{http_code}\n" http://localhost:8000/api/v1/health/ || echo "backend  ✗"
-	@curl -s -o /dev/null -w "frontend http://localhost:5173  → %{http_code}\n" http://localhost:5173 || echo "frontend ✗"
+	@curl -s -o /dev/null -w "frontend http://localhost:5212  → %{http_code}\n" http://localhost:5212 || echo "frontend ✗"
 
 clean:  ## Remove caches and build artifacts
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

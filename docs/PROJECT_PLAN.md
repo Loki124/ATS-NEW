@@ -1,5 +1,19 @@
 # ATS招聘管理系统 - 项目实施计划
 
+> **最后更新**: 2026-08-03 — 实际技术栈与当前实现对齐
+> **重要**: 本文档是**历史规划记录** (2025/10 → 2026/04), 不是当前架构。
+> 当前真实状态见 [README.md](../README.md) + [ARCHITECTURE.md](ARCHITECTURE.md) + [CHANGELOG.md](CHANGELOG.md) + [COMPLIANCE_AUDIT_2026-08-03.md](COMPLIANCE_AUDIT_2026-08-03.md)。
+>
+> **当前实际技术栈** (2026-08-03):
+> - 后端: Django 6.0.6 + DRF 3.15 + Celery 5.4 + Channels 4.1 (不是 Django 4.2+)
+> - 前端: Vue 3 + Vite 5 + **Naive UI 2.44 + UnoCSS** (不是 Tailwind + DaisyUI)
+> - 数据库: MySQL 8 (生产) / SQLite 3 (dev + test)
+> - Python: 3.14 (不是 3.10+)
+> - 目录: `apps/django/` + `web/app/` (不是 `backend/` + `frontend/`)
+> - 28 个 app / 60+ 端点 / 78 张表 / 9 业务状态机 / 39 pytest + 132 vitest 全过
+
+---
+
 ## 1. 项目概述
 
 **项目名称**: ATS (Applicant Tracking System) 招聘管理系统
@@ -8,22 +22,24 @@
 
 ## 2. 技术栈规划（已更新）
 
+> **2026-08-03 注释**: 以下是 2026-04 规划时版本,实际部署是 6.0.6 (2026-07 升级)。
+
 ### 前端技术栈 ✅ 已更新
 - **框架**: Vue 3 (Composition API)
 - **构建工具**: Vite
-- **UI框架**: Tailwind CSS + DaisyUI
+- **UI框架**: ~~Tailwind CSS + DaisyUI~~ **Naive UI 2.44 + UnoCSS** (2026-05 改)
 - **状态管理**: Pinia
 - **路由**: Vue Router 4
 - **HTTP客户端**: Axios
 - **类型支持**: TypeScript
 
 ### 后端技术栈 ✅ 已更新
-- **框架**: Django 4.2+
-- **API框架**: Django REST Framework
-- **数据库**: PostgreSQL
+- **框架**: ~~Django 4.2+~~ **Django 6.0.6** (实际, 2026-07 解锁主版本锁)
+- **API框架**: Django REST Framework 3.15
+- **数据库**: ~~PostgreSQL~~ **MySQL 8** (生产) / **SQLite 3** (dev + test)
 - **认证**: JWT (djangorestframework-simplejwt)
 - **ORM**: Django ORM
-- **文档**: Swagger/OpenAPI
+- **文档**: Swagger/OpenAPI (drf-spectacular)
 
 ### 基础设施
 - **容器化**: Docker
@@ -344,18 +360,23 @@ Offer沟通 → 背调 → 待入职 → 入职
 | 后端框架 | Express.js | Node.js服务器 |
 | 数据库ORM | Prisma | 现代ORM工具 |
 
-### 调整后 ✅
-| 层级 | 技术 | 说明 |
-|------|------|------|
-| 前端框架 | Vue 3 | Composition API |
-| UI框架 | Tailwind + DaisyUI | 现代化轻量UI |
-| 后端框架 | Django 4.2+ | Python Web框架 |
-| API框架 | DRF | Django REST Framework |
-| 数据库ORM | Django ORM | 内置强大ORM |
+### 调整后 ✅ (2026-04 规划, 2026-08 实际)
+| 层级 | 规划技术 | 实际技术 | 说明 |
+|------|------|------|------|
+| 前端框架 | Vue 3 | Vue 3 | Composition API |
+| UI框架 | Tailwind + DaisyUI | **Naive UI 2.44 + UnoCSS** | 改用企业级组件库,跟 ATS 风格更搭 |
+| 后端框架 | Django 4.2+ | **Django 6.0.6** | 2026-07 解锁主版本锁 |
+| API框架 | DRF | DRF 3.15 | Django REST Framework |
+| 数据库ORM | Django ORM | Django ORM | 内置强大ORM |
+| 异步任务 | (未规划) | Celery 5.4 + Redis 7 | 抢单 cron / 报表导出 / GDPR 清理 |
+| WebSocket | (未规划) | Channels 4.1 | 通知推送 / 实时协作 |
+| 缓存 | (未规划) | Redis (生产) / LocMem (dev fallback) | 限流 + 幂等 + session |
+| 监控 | (未规划) | Sentry + django-prometheus | 错误追踪 + 性能指标 |
+| 字段脱敏 | (未规划) | FieldAclService (G8 + G43) | phone/email/id_card 自动 mask |
 
 ### 调整优势
 1. **Django优势**：
-   - 内置Admin后台，开箱即用
+   - 内置Admin后台，开箱即用 (现已 token 化 `/<ADMIN_URL_TOKEN>/`)
    - ORM系统成熟稳定
    - 认证系统完善
    - 适合复杂业务逻辑
@@ -367,15 +388,15 @@ Offer沟通 → 背调 → 待入职 → 入职
    - 性能更优
    - 学习曲线更平缓
 
-3. **Tailwind + DaisyUI优势**：
-   - 原子化CSS，更灵活定制
-   - 包体积更小
-   - 现代化设计风格
-   - 响应式设计更便捷
+3. **Naive UI + UnoCSS 优势** (2026-05 改方案):
+   - Naive UI 是企业级组件库 (Form/Table/Tree/Cascader 都很强), 比 DaisyUI 更适合 ATS
+   - UnoCSS 原子化, dev 快, prod 体积小
+   - Vite vendor chunk atomic (避免 naive-ui 生态 TDZ 白屏)
+   - 配套 Plan N Dashboard 重设计 (Beisen HR 仪表板参考)
 
 ---
 
-*文档版本: V2.0*
+*文档版本: V2.0 → V2.1 (2026-08-03 Mavis 现状对齐)*
 *创建时间: 2025/10/30*
-*最后更新: 2026/04/27*
-*技术栈版本: Vue3 + Django + TailwindCSS + DaisyUI*
+*最后更新: 2026-08-03*
+*技术栈版本: Django 6.0.6 + DRF 3.15 + Vue 3 + Vite 5 + Naive UI 2.44 + UnoCSS*

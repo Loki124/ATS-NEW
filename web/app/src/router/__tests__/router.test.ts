@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
+// 2026-08-03: happy-dom 测试环境可能不提供 localStorage, 守卫 line 174 直接调
+//   localStorage.getItem 会抛 "not a function". 这里加一个 happy-dom 兼容 stub.
+const _localStorageStub = {
+  _data: {} as Record<string, string>,
+  getItem(k: string) { return this._data[k] ?? null },
+  setItem(k: string, v: string) { this._data[k] = v },
+  removeItem(k: string) { delete this._data[k] },
+  clear() { this._data = {} },
+  key(i: number) { return Object.keys(this._data)[i] ?? null },
+  get length() { return Object.keys(this._data).length },
+}
+;(globalThis as any).localStorage = _localStorageStub
+
 // Mock the user store - the real store uses `user` (ref<User|null>) and `accessToken` (ref<string>).
 // We mock it as a flat object the guard can read.
 const mockUserStore: { user: { roleType?: string } | null; accessToken: string } = {

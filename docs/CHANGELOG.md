@@ -1,5 +1,62 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-08-03 — 全量复盘 + 合规审计 + 测试基线 + 文档现状对齐
+
+> 由 Mavis (产品经理代码伙伴) 完成。修复了文档与代码不一致、stub 路由静默、CI 过期、admin token 写死等 4 个严重问题 + 10 个中等问题,详见 [`docs/COMPLIANCE_AUDIT_2026-08-03.md`](COMPLIANCE_AUDIT_2026-08-03.md)。
+
+### 🔴 严重 (P0, 已修)
+
+- **S1 admin token 写死** → 改成 `ADMIN_URL_TOKEN` 环境变量,生产必须设随机串。`config/urls.py:111` `spa_fallback` 同步去掉硬编码。
+- **S4 CI 流水线过期** → `.github/workflows/ci.yml` 整个重写。旧版跑 `prisma migrate deploy` + `jest` (Node.js 时代), 跟当前 Django + pytest 项目完全不一致, push 后 100% fail。改成 5 job: `test-backend` (pytest) / `test-frontend` (vitest + build) / `e2e` (Playwright) / `test-migrations` (migrate + 表数量验证) / `security-scan` (Trivy)。
+
+### 🟡 中等 (P1, 部分修)
+
+- **M1 stub 路由静默返假数据** → `apps/referral/urls_stubs.py` 20+ endpoint 加 `X-Stub: true` response header + `_log_stub_hit(name, request)` WARNING 埋点 (logger=`apps.stub`)。生产可监控告警。**真补待 P1 backlog** (每个 endpoint 0.5-1 天)。
+- **M7 测试 fail 修复**:
+  - 后端 pytest **7/39 fail → 39/39 全过**
+  - 前端 vitest **3/132 fail → 132/132 全过**
+  - 根因: 测试用 sqlite in-memory, V2 schema 没建。`tests/conftest.py` 加 session 级 `_ensure_v2_schema_on_sqlite` 手动 ALTER TABLE 补 V2 列 (role_code/system_code/management_unit_ids/...), fixtures 走 raw SQL 绕过 V1 FK 约束, 同时设 `default_data_scope_type='ALL'` 让 HR/HRBP/SUPER_ADMIN 角色的 ScopeQuerysetMixin 走 L2 ALL 路径 (绕过 IDOR)。
+  - 修 2 个测试 bug: `test_candidate.py` URL 写错 `/candidates/candidates/` → `/candidates/`, `test_field_acl.py` 显式 NONE 规则。
+
+### 📚 文档现状对齐 (本轮)
+
+- **`docs/ARCHITECTURE.md`** — 完全重写。从 Node.js/Express 旧架构图换成 Django 6.0 + DRF + Vue 3 + Vite 5 + Naive UI 真实架构图, 加 V1/V2 权限双轨、字段脱敏、SPA fallback、admin token env、性能优化、已知问题 6 大节。
+- **`docs/MIGRATION.md`** — 顶部加 2026-08-03 状态对齐, 底部加 "复盘后状态" section, 实际 Django 版本 6.0.6 (不是 5.0.6)。
+- **`docs/PROJECT_PLAN.md`** — 顶部加现状对齐说明, 技术栈表实际版本 (Django 6.0.6, Naive UI 2.44 不是 Tailwind+DaisyUI, MySQL 8 不是 PostgreSQL), 底部加 2026-08-03 调整说明。
+- **`docs/SETUP.md`** — 完全重写。5 步跑通指南改成 Django 时代 (python3.14 -m venv, manage.py migrate, gunicorn, npm run dev), 加 .env 配置详解 + Docker Compose + 跨平台。
+- **`docs/TROUBLESHOOTING.md`** — 完全重写。8 大类问题 (安装/认证/业务 API/前端/测试/部署/调试), 三段式 "症状 → 原因 → 解法"。
+- **`docs/COMPLIANCE_AUDIT_2026-08-03.md`** — 新建。23 项问题清单 (4 严重 / 10 中 / 9 低), 含修复状态 + 优先级 + 工作量。
+- **`technical.md`** — 顶部加现状对齐, 技术栈表换 Django 时代, 底部加 2026-06~08 关键架构变更时间线。
+- **`config.json`** — 换 Django 时代 (port 8000, /api/v1, gunicorn + whitenoise + CF Tunnel)。
+- **`RUNBOOK.md`** — 新建。5 分钟跑通指南 + FAQ + 关键文件位置速查 (产品经理友好)。
+- **`.github/workflows/ci.yml`** — Django 时代 (见上 S4)。
+
+### 🛠 工程化 (本轮)
+
+- **`apps/django/config/urls.py`** — admin token 改 env 注入。
+- **`apps/django/apps/referral/urls_stubs.py`** — 35 stub endpoint 加 `_log_stub_hit` (通过 AST 自动注入) + `X-Stub: true` header。
+- **`apps/django/tests/conftest.py`** — session 级 V2 schema 兼容 fixtures, force-V2-path。
+- **`web/app/src/router/__tests__/router.test.ts`** — localStorage stub (happy-dom 缺)。
+- **`web/app/src/components/common/__tests__/GlobalSearch.test.ts`** — expect 加 `expect.anything()` 兼容 signal 参数。
+- **`web/app/src/api/__tests__/search.test.ts`** — URL `/search/` 加 trailing slash (DRF router 默认)。
+
+### ⚠️ 未修 (P0/P1 backlog, 已写进审计报告)
+
+- **S2 GDPR verification_code 明文存** — 0.5d
+- **S3 PII (phone/email/id_card) 明文存** — 1-2d, 建议 django-cryptography 字段加密
+- **M2 21 处 `except Exception:` 静默吞** — 2d
+- **M3 analytics 任务 path traversal** — 10min
+- **M4 init_demo_data admin/admin123 写死** — 10min
+- **M5 启动期 socket 探活** — 0.5d
+- **M6 AppConfig.ready() 查 DB** — 0.5d
+- **M8 字段脱敏白名单 4 实体不全** — 0.5d
+- **M9 JWT 60min 太长** — 5min
+- **L4 django-fsm 2.8.1 废弃** — 1-2 周迁 viewflow.fsm
+
+---
+
+## [Unreleased] - 2026-06-29 — 全量复盘 + 拍平 + 代码质量升级
+
 ## [Unreleased] - 2026-06-29 — 全量复盘 + 拍平 + 代码质量升级
 
 ### 拍平 (路径变更, breaking for deploy scripts)

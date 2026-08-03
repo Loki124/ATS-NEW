@@ -39,7 +39,7 @@ describe('searchApi', () => {
 
     expect(mockGet).toHaveBeenCalledTimes(1)
     expect(mockGet).toHaveBeenCalledWith(
-      '/search',
+      '/search/',
       expect.objectContaining({
         params: expect.objectContaining({ q: '张', types: 'candidate', limit: 5 }),
       }),

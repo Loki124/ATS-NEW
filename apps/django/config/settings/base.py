@@ -553,6 +553,10 @@ AFFINDA_API_KEY = env('AFFINDA_API_KEY', default='test_affinda_key_dev')
 # Fix 6: 集成凭据 Fernet 加密密钥 (32-byte base64, 用 `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 生成).
 # 必须在 .env / 生产环境注入; 未配置时 IntegrationConfig 加密迁移会跳过但运行期 _get_decrypted_config 会 RuntimeError.
 INTEGRATION_FERNET_KEY = env('INTEGRATION_FERNET_KEY', default='')
+
+# 2026-08-03 S3: PII 字段加密 (Candidate.id_card_no 等) 复用同一 Fernet key.
+#   推荐单独设 ENCRYPTION_KEY, 但 fallback 到 INTEGRATION_FERNET_KEY (同算法可复用)
+ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=INTEGRATION_FERNET_KEY)
 AFFINDA_BASE_URL = env('AFFINDA_BASE_URL', default='https://api.affinda.com/v3')
 AFFINDA_WORKSPACE = env('AFFINDA_WORKSPACE', default='ats-default')
 AFFINDA_DOCUMENT_TYPE = env('AFFINDA_DOCUMENT_TYPE', default='resume')

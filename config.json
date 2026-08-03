@@ -1,10 +1,25 @@
 {
   "appName": "ATS招聘管理系统",
   "backend": {
-    "port": 5125,
-    "url": "http://localhost:5125"
+    "port": 8000,
+    "url": "http://localhost:8000",
+    "apiPrefix": "/api/v1"
   },
   "frontend": {
-    "port": 5212
+    "port": 5212,
+    "devServer": "http://localhost:5212"
+  },
+  "stack": {
+    "framework": "Django 6.0 + DRF 3.15 + Vue 3 + Vite 5",
+    "database": "MySQL 8 (prod) / SQLite (dev + test)",
+    "auth": "JWT (djangorestframework-simplejwt)",
+    "asgiServer": "gunicorn (sync) / daphne (WebSocket via Channels)",
+    "deploy": "gunicorn + whitenoise + Cloudflare Tunnel → https://ats.lokisong.cloud"
+  },
+  "endpoints": {
+    "apiHealth": "/api/v1/health/",
+    "apiDocs": "/api/docs/",
+    "apiSchema": "/api/schema/",
+    "frontend": "http://localhost:5212 (dev) / https://ats.lokisong.cloud (prod)"
   }
 }

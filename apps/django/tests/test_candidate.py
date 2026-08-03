@@ -20,7 +20,7 @@ def candidates(db, department):
 @pytest.mark.django_db
 class TestCandidateAPI:
     def test_list_candidates(self, auth_hr_client, candidates):
-        response = auth_hr_client.get('/api/v1/candidates/candidates/')
+        response = auth_hr_client.get('/api/v1/candidates/')
         assert response.status_code == 200
         assert response.data['success'] is True
         # 2026-06-29 花无缺: StandardResultsSetPagination 把 data 包成 {success, data: [...list...], pagination}.
@@ -29,17 +29,17 @@ class TestCandidateAPI:
         assert len(response.data['data']) == 5
 
     def test_candidate_pagination(self, auth_hr_client, candidates):
-        response = auth_hr_client.get('/api/v1/candidates/candidates/?page_size=2')
+        response = auth_hr_client.get('/api/v1/candidates/?page_size=2')
         assert response.status_code == 200
         assert len(response.data['data']) == 2
         assert response.data['pagination']['total'] == 5
 
     def test_search_candidate_by_name(self, auth_hr_client, candidates):
-        response = auth_hr_client.get('/api/v1/candidates/candidates/?search=候选人2')
+        response = auth_hr_client.get('/api/v1/candidates/?search=候选人2')
         assert response.status_code == 200
         names = [c['name'] for c in response.data['data']]
         assert '候选人2' in names
 
     def test_unauth_returns_401(self, api_client):
-        response = api_client.get('/api/v1/candidates/candidates/')
+        response = api_client.get('/api/v1/candidates/')
         assert response.status_code == 401

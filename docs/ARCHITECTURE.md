@@ -1,83 +1,152 @@
 # ARCHITECTURE — 系统架构
 
-> **最后更新**: 2026-06-06 — P0 14/14 完成，新增 8 张表 / 60+ 端点 / 9 个业务状态机 / 214 单元测试
+> **最后更新**: 2026-08-03 — Django 6.0 + DRF 3.15, 28 apps / 60+ 端点 / 9 业务状态机 / 39 pytest + 132 vitest 全过
+>
+> 旧 Node.js/Express 架构已废弃 (2026-06 切到 Django, 详见 `MIGRATION.md`).
 
 ## 总览
 
 ```
 ┌──────────────────┐         ┌──────────────────┐
 │  Browser (Vue 3) │ ──────▶ │  Vite Dev Server │
-│  5212            │  /api/* │  + Proxy         │
+│  :5212           │  /api/* │  + Proxy         │
 └──────────────────┘         └────────┬─────────┘
-                                      │ proxy_pass
+                                      │ proxy_pass → :8000
                                       ▼
                             ┌──────────────────┐
-                            │  Express Backend │
-                            │  5125            │
-                            │  + Prisma ORM    │
+                            │  gunicorn 4w     │
+                            │  Django 6.0      │
+                            │  + DRF 3.15      │
+                            │  :8000           │
                             └────────┬─────────┘
                                      │
-                                     ▼
-                            ┌──────────────────┐
-                            │   MySQL 8/9     │
-                            │   3306           │
-                            └──────────────────┘
+              ┌──────────────────────┼──────────────────────┐
+              ▼                      ▼                      ▼
+       ┌─────────────┐       ┌─────────────┐        ┌─────────────┐
+       │   MySQL 8   │       │ Redis 7     │        │ Celery      │
+       │   :3306     │       │ :6379       │        │ worker+beat │
+       │  54+ 表     │       │ cache+broker│        │             │
+       └─────────────┘       └─────────────┘        └─────────────┘
 ```
+
+生产部署: gunicorn 绑 127.0.0.1:8000 → Cloudflare Tunnel → https://ats.lokisong.cloud
+(本机 systemd `ats-django.service` + `ats-celery.service` + `ats-celery-beat.service`)
 
 ## 模块依赖
 
 ### 后端模块树
 
 ```
-src/
-├── app.js                          # Express 主入口
-│   ├── helmet()                    # 安全头
-│   ├── cors()                      # 跨域
-│   ├── express.json()              # JSON 解析
-│   ├── rateLimit()                 # /api 速率限制（300/分钟）
-│   ├── /api/auth → authRoutes      # 公开
-│   ├── /api/*    → authMiddleware → *Routes  # 受保护
-│   └── static(FRONTEND_DIST)       # 生产模式直出前端
+apps/django/
+├── config/                        # Django 项目设置
+│   ├── settings/
+│   │   ├── base.py                # 通用配置 (DRF/JWT/CORS/Celery/Channels)
+│   │   ├── dev.py                 # 开发 (SQLite, 关闭 throttle, CORS *)
+│   │   ├── prod.py                # 生产 (强校验 SECRET/CORS/DB, Redis 强依赖)
+│   │   └── test.py                # 测试 (in-memory SQLite, throttle 关闭, eager Celery)
+│   ├── urls.py                    # 根路由 (api_v1 + spa_fallback + admin)
+│   ├── asgi.py / wsgi.py
+│   └── celery_app.py              # Celery app 实例
 │
-├── config/
-│   └── index.js                    # 统一读 .env，提供 app/database/jwt/cors
+├── apps/                          # 28 个业务 app
+│   ├── core/                      # User/Department/Role + V2 权限 (permission_check/role_v2_query/scope_resolver)
+│   ├── field_acl/                 # 字段级 ACL (mask phone/email/salary)
+│   ├── audit/                     # 5 路审计 (中间件 + signal + models)
+│   ├── notification/              # 22 模板 + 4 渠道
+│   ├── integration/               # 企微/短信/RPA adapter (Fernet 加密凭据)
+│   ├── gdpr/                      # 数据保留 + 软删除
+│   │
+│   ├── process/                   # 招聘流程引擎 (RecruitmentProcess/Stage/Link/Rule)
+│   ├── entry_condition/           # 阶段进入条件
+│   ├── time_limit/                # 阶段限时规则
+│   ├── automation/                # 自动化规则
+│   │
+│   ├── candidate/                 # 候选人 (11 状态机 G44, 字段脱敏 G8, 倒序推荐 G11)
+│   ├── add_candidate/             # V2 创建候选人 (Affinda 简历解析)
+│   ├── application/               # 应聘记录
+│   ├── demand/                    # 需求 (8 状态机 + 4 步审批链)
+│   ├── position/                  # 职位 (3 状态机)
+│   ├── offer/                     # Offer (9 状态机 + 4 PDF 模板)
+│   ├── onboarding/                # 待入职 (8 状态机)
+│   ├── invitation/                # 邀约中心 (抢单 + cron 3 次归档)
+│   ├── interview/                 # 面试 (5 状态机)
+│   ├── referral/                  # 内推 (N+1 检测 + 奖金)
+│   │   └── urls_stubs.py          # ⚠️ 20+ stub 端点 (2026-08-03 加 X-Stub header + 日志告警)
+│   ├── talent_pool/               # 6 子库人才库
+│   ├── channel/                   # 渠道
+│   ├── analytics/                 # 数据中心 KPI
+│   ├── mou/                       # V2 权限管理 (9 endpoints)
+│   ├── library/                   # G41 院校/公司库
+│   ├── scraped_resume/            # G30 RPA (mock adapter)
+│   ├── external_sync/             # G40 法人公司同步 (stub)
+│   ├── duplicate_check/           # G45 简历查重 (stub)
+│   └── data/                      # G35 数据中心 (stub, 实际 endpoint 在 analytics/)
 │
-├── middleware/
-│   ├── auth.middleware.js          # JWT 校验 + 注入 req.user / req.userId
-│   └── error.middleware.js         # 全局错误处理
-│
-├── routes/
-│   ├── auth.routes.js              # /auth/login, /auth/me, /auth/register, /auth/change-password
-│   ├── user.routes.js              # /users CRUD
-│   ├── department.routes.js        # /departments + 部门树
-│   ├── candidate.routes.js         # /candidates（含 archive/restore）
-│   ├── demand.routes.js            # /demands
-│   ├── resume.routes.js            # /resumes
-│   ├── process.routes.js           # /processes
-│   ├── system.routes.js            # /system
-│   └── permission-v2.routes.js     # /permissions-v2 (MOU)
-│
-└── referral/                       # 内推门户（独立模块）
-    ├── index.js                    # 挂载 5 个子路由 + 启动 scheduler
-    ├── machines/                   # XState v5 状态机
-    │   ├── code.machine.js
-    │   ├── record.machine.js
-    │   └── reward.machine.js
-    ├── services/                   # 业务逻辑
-    │   ├── code.service.js
-    │   ├── record.service.js
-    │   ├── reward.service.js
-    │   └── rule-evaluator.js
-    ├── routes/                     # 5 个 REST 路由
-    │   ├── codes.routes.js         # /codes/me, /codes/validate
-    │   ├── records.routes.js       # /records (含 /me/summary)
-    │   ├── rewards.routes.js
-    │   ├── rules.routes.js
-    │   └── expert-configs.routes.js
-    ├── scheduler/                  # cron 任务
-    │   └── referral.scheduler.js   # 3 个定时任务
-    ├── events/
-    ├── validators/
+├── tests/                         # 39 pytest (12 套件, 100% pass)
+├── seeds/                         # 7 个 seed JSON (system_stages / system_roles / 4 offer 模板 / demo_user)
+├── scripts/                       # init.sh / create_tables_sql.py / verify_audit_fixes.py
+├── conftest.py                    # pytest fixtures + V2 schema 兼容 (sqlite 上补 V2 列)
+└── pytest.ini                     # DJANGO_SETTINGS_MODULE=config.settings.test
+```
+
+### 前端模块树
+
+```
+web/app/
+├── src/
+│   ├── api/                       # 27+ 业务 API 客户端 (axios + JWT 拦截器 + request dedup)
+│   ├── stores/                    # Pinia (user/addCandidate/demand/department)
+│   ├── router/                    # vue-router 4 + RBAC 守卫 (meta.roles + requiresAuth)
+│   ├── components/                # 通用 + dashboard + common + candidate
+│   ├── pages/                     # 38+ 路由页面 (Layout/Login/Dashboard/各业务域)
+│   ├── styles/                    # tokens.css (OKLCH + 4pt spacing + fade-up stagger)
+│   ├── utils/                     # debounce/request-dedup/role 派生
+│   └── config/                    # api.baseUrl + backend.url/port 统一配置
+├── e2e/                           # Playwright 6 spec
+├── vite.config.ts                 # es2022 + manualChunks (vendor-naive-ui atomic)
+├── tsconfig.json                  # target: ES2022 + strict
+└── eslint.config.js               # ESLint 9 flat
+```
+
+## 关键设计决策
+
+### 1. V1/V2 权限双轨 (T30 cutover)
+
+V1 (legacy) 和 V2 (current) **模型并存**, `apps/core/models.py` (V1, managed=False) + `apps/core/models_permission_v2.py` (V2, managed=True)。
+V2 切库 `T17 v2_apply_schema` 后 V1 表 drop。当前 fixtures 兼容双 schema (V2 columns 通过 conftest `_ensure_v2_schema_on_sqlite` 补到 sqlite 测试 DB)。
+
+### 2. snake_case ↔ camelCase 自动桥 (DRF + djangorestframework-camel-case)
+
+API 出 Python snake_case → JSON camelCase (FE 直接消费); API 入 FE camelCase → DRF serializer snake_case。
+单词字段 (id/username/access/refresh) 不变,字典 key 不变。
+
+### 3. 字段级脱敏 (G8) + 字段级 ACL (G43)
+
+`FieldAclService.apply_acl(entity, data, user)` 在 view 层包装:
+- 敏感字段 (phone/email/id_card/salary) 默认 mask (maskPhone/maskEmail/maskIdCard/maskBankCard)
+- ACL 规则 (FieldACL 表) 可显式 NONE/MASK/READ,优先级 role-tier 严格
+- superuser bypass
+
+### 4. SPA fallback
+
+`config/urls.py` 末尾 re_path 排除 `/api/ /health/ /static/ /__debug__/` 后 fallthrough 到 `web/app/dist/index.html` (whitenoise serve `/static/*`)。深链 `/candidates/123` 走 vue-router。
+
+### 5. admin token env 注入
+
+`/admin/` 改成 `/${ADMIN_URL_TOKEN}/` (默认 `ops-dashboard-7f3b9c2e`, 生产必须设随机串)。spa_fallback 同步。
+
+## 性能优化 (Plan O, 2026-06-11)
+
+- 后端: gzip + ETag 30s + 304 协商, 列表分页 middleware (max 100), N+1 detector, Offer 列表 include (3 表 1 query)
+- 前端: Dashboard 7 子组件 defineAsyncComponent, 路由级 code splitting (webpackChunkName), vite manualChunks (vendor-naive-ui atomic 避免 TDZ), debounce 300ms, request dedup, rollup-plugin-visualizer analyze
+- 度量: /dashboard 首屏 JS 365KB gzip, /api/offers 38KB gzip (-60%)
+
+## 已知问题 (2026-08-03)
+
+- **stub 路由**: 20+ endpoint 返 fake UUID + PENDING, 已在 `urls_stubs.py` 加 `X-Stub: true` header + WARNING log + `_log_stub_hit` 监控埋点,生产应监控 `apps.stub` logger
+- **django-fsm 2.8.1**: 已废弃, 迁 viewflow.fsm (P2 升级窗口)
+- **P2 集成**: 企微/腾讯会议/摩卡/背调/RPA/IM 需企业 API 授权
+
     └── __tests__/                  # Jest 单元测试
 ```
 
