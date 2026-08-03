@@ -51,6 +51,11 @@ class Candidate(FullAuditModel):
     birth_date = models.DateField(null=True, blank=True, verbose_name='出生日期')
     # id_card_no 改用 EncryptedCharField (DB 存密文, 不影响业务代码)
     id_card_no = EncryptedCharField(max_length=512, blank=True, verbose_name='身份证号 (加密存储)')
+    # 身份证号 hash (sha256, 不可逆, 用于查重/匿名查询) —— 与 phone_hash/email_hash 同构
+    id_card_hash = models.CharField(
+        max_length=64, blank=True, db_index=True,
+        verbose_name='身份证号 hash (sha256, 用于查重/匿名查询)',
+    )
 
     # 学历/工作
     highest_education = models.CharField(max_length=50, blank=True, verbose_name='最高学历')
@@ -123,43 +128,52 @@ class Candidate(FullAuditModel):
         return f'{self.name} ({mask_phone_tail(self.phone)})'
 
     def save(self, *args, **kwargs):
-        """2026-08-03 S3: 自动同步 phone_hash / email_hash (查重/匿名查询用).
+        """2026-08-03 S3: 自动同步 phone_hash / email_hash / id_card_hash (查重/匿名查询用).
 
-        只在 phone/email 改变时重算 hash (避免每次 save 都 hash).
+        只在对应字段改变时重算 hash (避免每次 save 都 hash).
         注意: 这里 import 在函数内避免循环 import.
+        id_card_no 是 Fernet 非确定性加密字段, 不能直接 = 匹配, 查重必须走
+        不可逆的 id_card_hash (见 apps/common/encryption.hash_for_search), 与
+        phone_hash/email_hash 同构.
         """
         from apps.common.encryption import hash_for_search
         # 计算 hash (无论是否变化, 简单起见都重算; 候选人 save 不频繁)
         new_phone_hash = hash_for_search(self.phone) if self.phone else ''
         new_email_hash = hash_for_search(self.email) if self.email else ''
+        new_id_card_hash = hash_for_search(self.id_card_no) if self.id_card_no else ''
         # 写进 instance 字段 (save 不会自动加 update_fields 之外的)
         if self.pk:
-            old = Candidate.objects.filter(pk=self.pk).only('phone', 'email').first()
+            old = Candidate.objects.filter(pk=self.pk).only(
+                'phone', 'email', 'id_card_no',
+            ).first()
             if old:
                 if old.phone != self.phone:
                     self.phone_hash = new_phone_hash
                 if old.email != self.email:
                     self.email_hash = new_email_hash
+                if old.id_card_no != self.id_card_no:
+                    self.id_card_hash = new_id_card_hash
             else:
                 self.phone_hash = new_phone_hash
                 self.email_hash = new_email_hash
+                self.id_card_hash = new_id_card_hash
         else:
             self.phone_hash = new_phone_hash
             self.email_hash = new_email_hash
+            self.id_card_hash = new_id_card_hash
 
         # 决定 update_fields: 如果只 save 一个字段, 不应该覆盖 hash
         update_fields = kwargs.get('update_fields')
         if update_fields is not None:
-            # 如果显式指定了 update_fields 且不包含 hash 字段, 自动加上
-            if 'phone_hash' not in update_fields and (
-                'phone' in update_fields or 'email' in update_fields
-            ):
-                update_fields = set(update_fields)
-                if 'phone' in update_fields:
-                    update_fields.add('phone_hash')
-                if 'email' in update_fields:
-                    update_fields.add('email_hash')
-                kwargs['update_fields'] = frozenset(update_fields)
+            update_fields = set(update_fields)
+            # 任一源字段变化都带上对应的 hash 字段, 避免 hash 与明文不一致
+            if 'phone' in update_fields:
+                update_fields.add('phone_hash')
+            if 'email' in update_fields:
+                update_fields.add('email_hash')
+            if 'id_card_no' in update_fields:
+                update_fields.add('id_card_hash')
+            kwargs['update_fields'] = frozenset(update_fields)
         super().save(*args, **kwargs)
 
     # === 状态机转换 ===

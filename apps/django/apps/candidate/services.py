@@ -24,6 +24,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound, StateTransitionError
+from apps.common.encryption import hash_for_search
 from apps.core.models import User
 
 from .models import Candidate, CandidateHistory, CandidateState
@@ -208,7 +209,9 @@ class CandidateService:
         if moka_id:
             conditions |= Q(moka_candidate_id=moka_id)
         if id_card:
-            conditions |= Q(id_card_no=id_card)
+            # id_card_no 是 Fernet 非确定性加密字段, 不能用 = 明文匹配 (密文每次不同)。
+            # 必须走不可逆的 id_card_hash 列 (与 phone_hash/email_hash 同构)。
+            conditions |= Q(id_card_hash=hash_for_search(id_card))
         if phone:
             conditions |= Q(phone=phone)
         if email:
