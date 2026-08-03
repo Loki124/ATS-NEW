@@ -45,6 +45,17 @@ class ScopeQuerysetMixin:
         scope = resolve_scope(user)
         if scope.get('all'):
             return qs
+
+        # R8 (2026-08-03): resolve_scope 的 DEPT / DEPT_AND_SUB 分支直接返回部门 id
+        # 集合 (Department.pk 是 CharField(32), 和 ManagementUnit 的 int 主键不是同一
+        # id 空间), 这里单独处理, 不要再过 ManagementUnit 那一层转换。
+        dept_ids = scope.get('department_ids') or []
+        if dept_ids:
+            if not scope_field:
+                # 没声明 scope_field 就无法按部门过滤, 保守退回 SELF
+                return qs.filter(created_by=user)
+            return qs.filter(**{f'{scope_field}__in': dept_ids})
+
         unit_ids = scope.get('management_unit_ids', [])
         if not unit_ids:
             # SELF 兜底: 仅自己创建的

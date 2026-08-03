@@ -161,6 +161,8 @@ def me_view(request):
             'roles': roles,
             'permissions': permissions,
             'management_unit_ids': scope.get('management_unit_ids', []),
+            # R8 (2026-08-03): DEPT / DEPT_AND_SUB 范围走 department_ids
+            'department_ids': scope.get('department_ids', []),
             'data_scope': scope,
         },
     })

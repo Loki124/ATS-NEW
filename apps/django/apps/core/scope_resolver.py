@@ -6,7 +6,11 @@ from .models import Department
 
 
 def resolve_scope(user, resource_code: str = None) -> dict:
-    """返回 {'management_unit_ids': list[int]} 或 {'all': True}.
+    """返回下列三种形态之一:
+
+      - {'all': True}                        全量可见
+      - {'department_ids': list[str]}        按部门可见 (DEPT / DEPT_AND_SUB)
+      - {'management_unit_ids': list[int]}   按管理单元可见 (空 list = SELF 兜底)
 
     4 层堆栈 (从高到低优先级):
       L1: user_role.management_unit_ids (非 NULL + 非空)
@@ -15,7 +19,18 @@ def resolve_scope(user, resource_code: str = None) -> dict:
       L4: 硬编码兜底 'SELF'
 
     T17 schema 未应用前: user_roles/roles 表缺 V2 列, 任何 .filter() 都会抛
-    OperationalError. catch 后降级到 L3/L4 (保守兜底, 不放行 ALL scope)."""
+    OperationalError. catch 后降级到 L3/L4 (保守兜底, 不放行 ALL scope).
+
+    2026-08-03 R8 (寇豆码):
+      原 L2 的 DEPT 分支写成 `_ = _dept_ids(user); return {'management_unit_ids': []}`
+      —— 部门算出来直接丢进下划线扔掉, 返回空 list, 下游 ScopeQuerysetMixin
+      看到空 list 就判 SELF。结果任何配了 DEPT 数据范围的角色实际只能看到自己
+      创建的数据, 部门主管看不到组员的候选人。
+      修复: DEPT 返回本部门 id 集合, DEPT_AND_SUB 返回本部门 + 所有子部门,
+      并用独立的 'department_ids' key —— 因为 management_unit_ids 是
+      ManagementUnit 的主键 (BigAuto int), 而部门主键是 CharField(32),
+      两者不是一个 id 空间, 混用会被 ManagementUnit.objects.filter(id__in=...)
+      静默过滤成空集。"""
     if not (user and user.is_authenticated):
         return {'management_unit_ids': []}
 
@@ -51,9 +66,19 @@ def resolve_scope(user, resource_code: str = None) -> dict:
                 if scope_type == 'ALL':
                     return {'all': True}
                 if scope_type == 'DEPT':
-                    _ = _dept_ids(user)
-                    return {'management_unit_ids': []}
-                # SELF/DEPT_AND_SUB 走 L3/L4
+                    # R8: 本部门 (不含祖先 —— 含祖先等于向上越权)
+                    own = _own_dept_ids(user)
+                    if own:
+                        return {'department_ids': own}
+                    # 用户没挂部门 → 无法按部门圈范围, 落 L3/L4 保守兜底
+                    continue
+                if scope_type == 'DEPT_AND_SUB':
+                    # R8: 本部门 + 所有子部门 (按 Department.path 前缀匹配)
+                    sub = _dept_and_sub_ids(user)
+                    if sub:
+                        return {'department_ids': sub}
+                    continue
+                # SELF 走 L3/L4
         except (OperationalError, ProgrammingError):
             pass
         except Exception:
@@ -69,8 +94,49 @@ def resolve_scope(user, resource_code: str = None) -> dict:
     return {'management_unit_ids': []}
 
 
+def _own_dept_ids(user) -> list:
+    """R8: DEPT 范围 —— 只包含用户自己所在部门.
+
+    不含祖先: 祖先部门是"上级", 把上级塞进可见范围等于向上越权。
+    不含子部门: 那是 DEPT_AND_SUB 的语义。
+    """
+    dept_id = getattr(user, 'department_id', None)
+    if not dept_id:
+        return []
+    if not Department.objects.filter(id=dept_id).exists():
+        return []
+    return [dept_id]
+
+
+def _dept_and_sub_ids(user) -> list:
+    """R8: DEPT_AND_SUB 范围 —— 用户所在部门 + 其所有子孙部门.
+
+    用 Department.path 前缀匹配向下爬树 (与 V1
+    apps/core/permissions.py:ScopedQuerysetMixin 的 HR 范围口径一致)。
+    path 为空时退化成只返回本部门。
+    """
+    dept_id = getattr(user, 'department_id', None)
+    if not dept_id:
+        return []
+    dept = Department.objects.filter(id=dept_id).first()
+    if not dept:
+        return []
+    ids = {dept.id}
+    if dept.path:
+        ids.update(
+            Department.objects.filter(path__startswith=dept.path)
+            .values_list('id', flat=True)
+        )
+    return list(ids)
+
+
 def _dept_ids(user) -> list:
-    """返回 user.department + 所有 ancestor (含自身)."""
+    """返回 user.department + 所有 ancestor (含自身).
+
+    注意: 这是"向上"的集合, 语义上用于"我属于哪几层组织", 不适合直接当
+    数据可见范围 (会向上越权)。R8 之后 resolve_scope 不再使用它,
+    保留是因为 scripts/ 和历史调用方可能还依赖。
+    """
     if not getattr(user, 'department_id', None):
         return []
     dept = Department.objects.filter(id=user.department_id).first()
