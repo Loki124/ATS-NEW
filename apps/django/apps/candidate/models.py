@@ -113,7 +113,14 @@ class Candidate(FullAuditModel):
         ]
 
     def __str__(self):
-        return f'{self.name} ({self.phone})'
+        """2026-08-03 R15 (寇豆码): 原来返回明文手机号 f'{name} ({phone})'.
+
+        __str__ 会被 Django admin 列表、DRF 错误信息、logger.info('%s', obj)、
+        异常栈 repr 等无数地方隐式调用, 等于把手机号成批写进日志文件和
+        Sentry event —— 日志系统通常没有 PII 保护策略。改为只保留后 4 位。
+        """
+        from apps.common.masking import mask_phone_tail
+        return f'{self.name} ({mask_phone_tail(self.phone)})'
 
     def save(self, *args, **kwargs):
         """2026-08-03 S3: 自动同步 phone_hash / email_hash (查重/匿名查询用).
