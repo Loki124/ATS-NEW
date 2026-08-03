@@ -173,7 +173,9 @@ class CandidateService:
             expected_salary=data.expected_salary,
             resume_file_url=data.resume_file_url,
             resume_text=data.resume_text or '',
-            id_card_no=id_card,
+            # id_card_no 是 blank=True 但 null=False 的加密列, 传 None 会直接
+            # IntegrityError(NOT NULL constraint). 未填身份证时必须落空串。
+            id_card_no=id_card or '',
             source_channel_id=data.source_channel_id,
             referrer_id=data.referrer_id,
             referral_type=data.referral_type or '',
@@ -190,7 +192,7 @@ class CandidateService:
                 'has_referrer': bool(data.referrer_id),
                 'extra': data.extra or {},
             },
-            operator=actor,
+            created_by=actor,
         )
 
         logger.info('Candidate created: %s (%s)', candidate.id, candidate.name)
@@ -245,7 +247,7 @@ class CandidateService:
             candidate=candidate,
             action='ENTER_PROCESS',
             detail={'application_id': application_id} if application_id else {},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -270,7 +272,7 @@ class CandidateService:
             candidate=candidate,
             action='OFFER_SENT',
             detail={'offer_id': offer_id},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -297,7 +299,7 @@ class CandidateService:
             candidate=candidate,
             action='ONBOARDED',
             detail={'onboarding_id': onboarding_id} if onboarding_id else {},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -324,7 +326,7 @@ class CandidateService:
             candidate=candidate,
             action='WITHDRAWN',
             detail={'reason': reason, 'from_state': old_state},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -356,7 +358,7 @@ class CandidateService:
             candidate=candidate,
             action='TO_TALENT_POOL',
             detail={'entry_source': entry_source, 'reason': reason, 'from_state': old_state},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -384,7 +386,7 @@ class CandidateService:
             candidate=candidate,
             action='PROCESS_FAILED',
             detail={'reason': reason, 'from_state': old_state},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -404,7 +406,7 @@ class CandidateService:
             candidate=candidate,
             action='PAUSED',
             detail={'reason': reason},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -423,7 +425,7 @@ class CandidateService:
             candidate=candidate,
             action='RESUMED',
             detail={},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
@@ -548,7 +550,7 @@ class CandidateService:
                 candidate=primary,
                 action='MERGED',
                 detail={'merged_from': dup.id, 'merged_fields': merged_fields},
-                operator=actor,
+                created_by=actor,
             )
             duplicates.append(dup)
 
@@ -600,7 +602,7 @@ class CandidateService:
                 candidate=existing,
                 action='MOKA_SYNCED',
                 detail={'moka_id': moka_id, 'updated': True},
-                operator=actor,
+                created_by=actor,
             )
             return existing
 
@@ -610,7 +612,7 @@ class CandidateService:
             candidate=candidate,
             action='MOKA_SYNCED',
             detail={'moka_id': moka_id, 'updated': False},
-            operator=actor,
+            created_by=actor,
         )
         return candidate
 
