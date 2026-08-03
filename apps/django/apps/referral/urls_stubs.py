@@ -12,6 +12,14 @@
   - 每次 stub 调用: 1) response 加 X-Stub: true header 2) WARNING log 记录
   - 监控/审计: 生产环境日志聚合 (ELK / Sentry) 检测到 'stub endpoint called' 应该立即跟进
   - 真要补实现: 把 view 改到对应 app 的 views.py, 在 urls.py 删 stub import
+
+2026-08-03 R5/R6 (寇豆码) 安全收敛:
+  - **安全敏感的 stub 一律不许假成功**。auth/register 与 auth/change-password
+    原本返 200 success:true 却一行库都不写, 用户以为注册成功 / 密码已改, 实际没有。
+    现在统一走 _not_implemented() 返 501 + success:false + X-Stub:true + ERROR 日志。
+  - /login 别名补上 LoginRateThrottle, 与 /auth/login 共用 'login' scope,
+    否则换个 URL 就能绕开撞库限流。
+  - 只读类 stub (返空 list) 保持原样, 它们不会误导用户以为写入成功。
 """
 import logging
 import uuid
@@ -19,7 +27,11 @@ from django.urls import path
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from apps.core.views_auth import RegisterRateThrottle, ChangePasswordRateThrottle
+from apps.core.views_auth import (
+    LoginRateThrottle,
+    RegisterRateThrottle,
+    ChangePasswordRateThrottle,
+)
 
 logger = logging.getLogger('apps.stub')
 
@@ -49,6 +61,43 @@ def _log_stub_hit(view_name: str, request):
     )
 
 
+def _not_implemented(view_name: str, request, message: str, code: int = 501,
+                     error_code: str = 'not_implemented'):
+    """2026-08-03 R5/R6 (寇豆码): 安全敏感 stub 一律返明确错误, 绝不假装成功.
+
+    背景 (docs/ARCHITECTURE_REVIEW_2026-08-03.md):
+      原 auth_register / auth_change_password 直接 `_ok(...)` 返 200 + success:true,
+      但**一行库都没写**。前端拿到 200 就提示"注册成功 / 密码已更新",
+      用户以为改了密码,实际旧密码依然有效 —— 这是安全事故级别的假成功。
+
+    统一约定:
+      - HTTP 501 Not Implemented (功能尚未实现) 或 403 (明确拒绝)
+      - body: {success: false, code, message, stub: true}
+      - 保留 X-Stub: true 响应头, 便于网关/前端识别
+      - 日志级别提到 ERROR (不是 WARNING), 生产日志聚合必须能告警
+    """
+    logger.error(
+        'STUB endpoint REFUSED (未实现, 已返回 %s): view=%s method=%s path=%s user=%s ip=%s',
+        code,
+        view_name,
+        request.method,
+        request.path,
+        getattr(request.user, 'id', 'anon'),
+        request.META.get('REMOTE_ADDR', 'unknown'),
+    )
+    response = Response(
+        {
+            'success': False,
+            'code': error_code,
+            'message': message,
+            'stub': True,
+        },
+        status=code,
+    )
+    response['X-Stub'] = 'true'
+    return response
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def _empty_list_view(request):
@@ -63,16 +112,36 @@ def _empty_list_view(request):
 @permission_classes([])
 @throttle_classes([RegisterRateThrottle])
 def auth_register(request):
-    _log_stub_hit('auth_register', request)
-    return _ok({'id': f'user-stub-{uuid.uuid4().hex[:8]}', 'username': request.data.get('username', 'new-user'), 'status': 'ACTIVE'})
+    """POST /auth/register — 尚未实现.
+
+    R5 (2026-08-03): 原实现返 200 + {id: 'user-stub-xxxx', status: 'ACTIVE'},
+    前端据此提示"注册成功",但数据库里根本没有这个用户,下一步登录必然失败。
+    现在明确返 501,由前端展示"该功能尚未开放"。
+    """
+    return _not_implemented(
+        'auth_register',
+        request,
+        '用户自助注册功能尚未实现。请联系管理员在「用户管理」中创建账号。',
+        code=501,
+    )
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([ChangePasswordRateThrottle])
 def auth_change_password(request):
-    _log_stub_hit('auth_change_password', request)
-    return _ok({'message': '密码已更新 (stub)'})
+    """POST /auth/change-password — 尚未实现.
+
+    R6 (2026-08-03): 原实现返 200 + {'message': '密码已更新 (stub)'},
+    但**没有任何写库动作**。用户以为密码已改、旧密码已失效,实际旧密码仍可登录 ——
+    典型的安全假成功。现在明确返 501。
+    """
+    return _not_implemented(
+        'auth_change_password',
+        request,
+        '修改密码功能尚未实现，你的密码没有被更改。请联系管理员重置密码。',
+        code=501,
+    )
 
 
 # ============================================================
@@ -80,11 +149,24 @@ def auth_change_password(request):
 # ============================================================
 @api_view(['POST'])
 @permission_classes([])
+@throttle_classes([LoginRateThrottle])
 def login_alias(request):
+    """POST /login — /auth/login 的单数别名, 走真实认证.
+
+    R6 (2026-08-03): 原来这个 alias **没有任何限流**, 而 apps/core/views_auth.py:31
+    的正式登录入口挂了 LoginRateThrottle(scope='login')。攻击者只要把 URL 从
+    /auth/login 换成 /login 就能无限次撞库。这里补上同一个 throttle class,
+    与正式入口共用 'login' scope, 配额也就共享。
+    """
     from django.contrib.auth import authenticate
     from rest_framework_simplejwt.tokens import RefreshToken
     user = authenticate(username=request.data.get('username', ''), password=request.data.get('password', ''))
     if user is None:
+        logger.warning(
+            'login_alias 认证失败: username=%s ip=%s',
+            request.data.get('username', ''),
+            request.META.get('REMOTE_ADDR', 'unknown'),
+        )
         return Response({'success': False, 'code': 'invalid_credentials', 'message': '用户名或密码错误'}, status=401)
     refresh = RefreshToken.for_user(user)
     return Response({

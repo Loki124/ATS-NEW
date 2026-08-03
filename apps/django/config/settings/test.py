@@ -22,10 +22,25 @@ PASSWORD_HASHERS = [
 RATELIMIT_ENABLE = False
 
 # 关掉 DRF throttle, 测试时无限速 (覆盖 base.py 的默认 throttle 配置)
+#
+# R6 (2026-08-03 寇豆码): 原来这里把 DEFAULT_THROTTLE_RATES 直接清成 {} —— 这是个坑。
+#   DEFAULT_THROTTLE_CLASSES 置空只是取消了"全局默认"限流, 但视图上用
+#   @throttle_classes([LoginRateThrottle]) 显式声明的限流类照样会被实例化,
+#   SimpleRateThrottle.__init__ → get_rate() 在 THROTTLE_RATES 里找不到自己的 scope
+#   就会 raise ImproperlyConfigured("No default throttle rate set for 'login' scope"),
+#   结果是请求直接 500。也就是说 /api/v1/auth/login、/api/v1/auth/register、
+#   /api/v1/auth/change-password 这些带显式 throttle 的端点在测试里根本跑不通。
+#
+#   正确做法: 保留 base.py 里所有 scope key, 只把配额抬到测试期不可能触达的量级。
+#   需要验证限流真实生效的用例, 用 @override_settings 单独把对应 scope 调小。
+_TEST_UNLIMITED_RATE = '100000/minute'
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     'DEFAULT_THROTTLE_CLASSES': [],
-    'DEFAULT_THROTTLE_RATES': {},
+    'DEFAULT_THROTTLE_RATES': {
+        scope: _TEST_UNLIMITED_RATE
+        for scope in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
+    },
 }
 
 # 关掉 v2 权限 bootstrap (单测中显式调, 见 spec §4.2)
