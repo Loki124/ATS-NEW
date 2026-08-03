@@ -6,7 +6,10 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    # 2026-08-03 R3 (寇豆码): manage.py 是开发者 CLI,显式默认 dev。
+    # 生产容器里 Dockerfile 已经 ENV DJANGO_SETTINGS_MODULE=config.settings.prod,
+    # setdefault 不会覆盖,所以 `manage.py migrate` 在容器内仍然走 prod 配置。
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

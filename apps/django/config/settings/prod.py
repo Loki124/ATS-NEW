@@ -48,6 +48,22 @@ def _validate_production_config():
             '  设置方法: CORS_ALLOWED_ORIGINS=https://ats.example.com,https://admin.example.com'
         )
 
+    # 4b) R3 (2026-08-03): CORS 绝不允许全放开。
+    #     dev.py 里有 CORS_ALLOW_ALL_ORIGINS = True,一旦 settings 误回落到 dev
+    #     或有人手工写进 prod,任意站点都能带凭据打 API。这里显式拦死。
+    if globals().get('CORS_ALLOW_ALL_ORIGINS', False):
+        raise ImproperlyConfigured(
+            '生产环境禁止 CORS_ALLOW_ALL_ORIGINS=True。请改用白名单 '
+            'CORS_ALLOWED_ORIGINS。'
+        )
+
+    # 4c) R3: 白名单里也不允许出现通配符 / 明文 http (本地回环除外)
+    for _origin in CORS_ALLOWED_ORIGINS:
+        if _origin.strip() in ('*', 'http://*', 'https://*'):
+            raise ImproperlyConfigured(
+                "CORS_ALLOWED_ORIGINS 不能包含通配符 '%s',必须逐个列出前端域名。" % _origin
+            )
+
     # 5) 数据库必须是 MySQL/PostgreSQL,不能是 SQLite
     db_url = globals().get('DATABASE_URL', '') or ''
     if db_url.startswith('sqlite'):
@@ -67,6 +83,8 @@ _validate_production_config()
 
 
 DEBUG = False
+# R3 (2026-08-03): 显式钉死,防止 base/dev 的值漏进来
+CORS_ALLOW_ALL_ORIGINS = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = True

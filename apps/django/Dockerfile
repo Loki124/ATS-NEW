@@ -12,7 +12,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     # 应用配置 (可被 docker-compose -e 覆盖)
-    DJANGO_SETTINGS_MODULE=config.settings \
+    # R3 (2026-08-03): 原值 config.settings 会被 settings/__init__.py 静默回落
+    # 到 dev(DEBUG=True + CORS 全放开)。镜像默认必须是 prod。
+    DJANGO_SETTINGS_MODULE=config.settings.prod \
     PORT=8000
 
 # 系统依赖:仅装 PyMySQL 真正需要的 (mysqlclient 才是 C 扩展,这里用 PyMySQL 所以更轻)
