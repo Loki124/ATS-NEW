@@ -69,31 +69,47 @@ def parse_resume_task(self, job_id):
 def score_batch_task(self, candidate_ids, submit_mode, task_id):
     """批量评分任务
 
-    对每个候选评分（用 ScoringService），通过 broadcast_event 推 SSE 进度
-    完成后如果是 async 模式，调用 send_async_notification_task
+    对每个候选调用 ScoringService.score() 真引擎评分，通过 broadcast_event 推 SSE 进度。
+    完成后如果是 async 模式，调用 send_async_notification_task。
+
+    数据源：P1 最小策略 — candidate.extra['resume'] + position.extra['jd'] JSONField。
+    无数据时退化为空 dict → 低分兜底。
     """
     from .sse import broadcast_event
     from .services.scoring import ScoringService
+    from apps.candidate.models import Candidate
+    from apps.application.models import Application
 
-    for idx, cand_id in enumerate(candidate_ids):
+    passed_count = 0
+    for cand_id in candidate_ids:
         try:
-            # 模拟：根据 candidate_id 查简历+职位
-            # 真实实现需要查 DB；v1 简化：随机生成评分
-            score = 50 + (idx * 10) % 50  # 50-90 循环
-            passed = score >= 60
+            cand = Candidate.objects.select_related().get(pk=cand_id)
+
+            # 通过最近的 Application 拿到关联 Position
+            app = (Application.objects
+                   .filter(candidate_id=cand_id, deleted_at__isnull=True)
+                   .select_related('position')
+                   .order_by('-created_at').first())
+            position = app.position if app else None
+
+            # P1 最小策略：全从 extra JSONField 读，无则空 dict 退化为低分兜底
+            resume = cand.extra.get('resume') or {}
+            pos_extra = getattr(position, 'extra', None) if position else None
+            jd = (pos_extra.get('jd') if pos_extra else {}) or {}
+
+            result = ScoringService.score(resume=resume, position_jd=jd)
+            if result.passed:
+                passed_count += 1
+
             broadcast_event(task_id, {
                 'event': 'scoring-done',
-                'data': {
-                    'candidate_id': cand_id,
-                    'score': score,
-                    'passed': passed,
-                    'dimensions': [
-                        {'name': '技术匹配', 'score': 75 + idx % 20},
-                        {'name': '经验匹配', 'score': 70 + idx % 25},
-                        {'name': '学历匹配', 'score': 80 + idx % 15},
-                        {'name': '综合素质', 'score': 65 + idx % 30},
-                    ],
-                },
+                'data': {'candidate_id': cand_id, **result.to_dict()},
+            })
+        except Candidate.DoesNotExist:
+            logger.warning('Candidate %s not found, skipping', cand_id)
+            broadcast_event(task_id, {
+                'event': 'scoring-failed',
+                'data': {'candidate_id': cand_id, 'error': 'CANDIDATE_NOT_FOUND'},
             })
         except Exception as e:
             logger.exception('Score failed for %s: %s', cand_id, e)
@@ -104,7 +120,7 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
 
     broadcast_event(task_id, {
         'event': 'task-complete',
-        'data': {'summary': {'total': len(candidate_ids), 'passed': len(candidate_ids)}},
+        'data': {'summary': {'total': len(candidate_ids), 'passed': passed_count}},
     })
 
     if submit_mode == 'async':
