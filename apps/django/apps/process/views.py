@@ -34,6 +34,8 @@ from apps.core.permissions_v2 import V2Permission
 # 移除裸 IsAuthenticated, 避免被全局 deny-by-default 拦截.
 
 from .models import (
+    CandidateRecommendation,
+    CandidateScreen,
     ProcessStageLink,
     ProcessTemplate,
     RecruitmentProcess,
@@ -306,6 +308,131 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
                 'id': instance.id,
                 'current_version': new_version,
             }
+        })
+
+    # ============================================================
+    # Phase 2 T06: batch/screen + batch/recommend 真实现
+    # ============================================================
+    @extend_schema(
+        summary='批量筛选候选人',
+        description='对一批候选人做筛选结论（通过/淘汰/待议），写入 CandidateScreen 审计记录。',
+        request={'type': 'object', 'properties': {
+            'candidate_ids': {'type': 'array', 'items': {'type': 'string'}},
+            'decision': {'type': 'string', 'enum': ['PASS', 'REJECT', 'KEEP']},
+            'stage_id': {'type': 'string', 'description': '当前阶段ID'},
+            'comment': {'type': 'string'},
+        }, 'required': ['candidate_ids', 'decision']},
+        responses={200: {'type': 'object', 'properties': {
+            'success': {'type': 'boolean'},
+            'data': {'type': 'object', 'properties': {
+                'results': {'type': 'array'},
+            }},
+        }}},
+    )
+    @action(detail=True, methods=['post'], url_path='batch-screen',
+            permission_classes=[V2Permission])
+    def batch_screen(self, request, pk=None):
+        """批量筛选候选人
+
+        保持现有响应壳 {results: [{candidateId, success, result, screenId}]}。
+        """
+        process = self.get_object()
+        candidate_ids = request.data.get('candidate_ids', [])
+        decision = request.data.get('decision', 'PASS')
+        stage_id = request.data.get('stage_id', '')
+        comment = request.data.get('comment', '')
+
+        if not candidate_ids:
+            raise ValidationError('candidate_ids 不能为空')
+
+        from apps.candidate.models import Candidate
+
+        results = []
+        for cid in candidate_ids:
+            try:
+                cand = Candidate.objects.get(pk=cid)
+                screen_record = CandidateScreen.objects.create(
+                    process=process,
+                    candidate=cand,
+                    stage_id=stage_id or None,
+                    screen_result={'decision': decision, 'comment': comment},
+                    screened_by=request.user,
+                )
+                results.append({
+                    'candidate_id': cid,
+                    'success': True,
+                    'result': decision,
+                    'screen_id': screen_record.id,
+                })
+            except Candidate.DoesNotExist:
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'result': None,
+                    'error': 'CANDIDATE_NOT_FOUND',
+                })
+
+        return Response({
+            'success': True,
+            'data': {'results': results},
+        })
+
+    @extend_schema(
+        summary='批量推荐候选人',
+        description='为一批候选人创建推荐记录，recommendationId 由真 model 主键填充。',
+        request={'type': 'object', 'properties': {
+            'candidate_ids': {'type': 'array', 'items': {'type': 'string'}},
+            'reason': {'type': 'string', 'description': '推荐理由'},
+        }, 'required': ['candidate_ids']},
+        responses={200: {'type': 'object', 'properties': {
+            'success': {'type': 'boolean'},
+            'data': {'type': 'object', 'properties': {
+                'results': {'type': 'array'},
+            }},
+        }}},
+    )
+    @action(detail=True, methods=['post'], url_path='batch-recommend',
+            permission_classes=[V2Permission])
+    def batch_recommend(self, request, pk=None):
+        """批量推荐候选人
+
+        保持现有响应壳 {results: [{candidateId, success, recommendationId}]}。
+        """
+        process = self.get_object()
+        candidate_ids = request.data.get('candidate_ids', [])
+        reason = request.data.get('reason', '')
+
+        if not candidate_ids:
+            raise ValidationError('candidate_ids 不能为空')
+
+        from apps.candidate.models import Candidate
+
+        results = []
+        for cid in candidate_ids:
+            try:
+                cand = Candidate.objects.get(pk=cid)
+                rec = CandidateRecommendation.objects.create(
+                    process=process,
+                    candidate=cand,
+                    reason=reason,
+                    recommender=request.user,
+                )
+                results.append({
+                    'candidate_id': cid,
+                    'success': True,
+                    'recommendation_id': rec.id,
+                })
+            except Candidate.DoesNotExist:
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'recommendation_id': None,
+                    'error': 'CANDIDATE_NOT_FOUND',
+                })
+
+        return Response({
+            'success': True,
+            'data': {'results': results},
         })
 
 

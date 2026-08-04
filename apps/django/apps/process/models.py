@@ -386,3 +386,94 @@ class ProcessTemplate(FullAuditModel):
 
     def __str__(self):
         return f'[{self.code}] {self.name}'
+
+
+# ============================================================
+# Phase 2 T06: CandidateScreen + CandidateRecommendation
+# ============================================================
+class CandidateScreen(models.Model):
+    """批量筛选记录 — 审计+查询
+
+    POST /api/v1/processes/{id}/batch-screen/ 写入。
+    设计依据: docs/PHASE2_DESIGN_2026-08-03.md §C.3.1
+    """
+    SCREEN_DECISIONS = [
+        ('PASS', '通过'),
+        ('REJECT', '淘汰'),
+        ('KEEP', '待议'),
+    ]
+
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    process = models.ForeignKey(
+        RecruitmentProcess, on_delete=models.PROTECT,
+        related_name='candidate_screens', verbose_name='所属流程',
+    )
+    candidate = models.ForeignKey(
+        'candidate.Candidate', on_delete=models.PROTECT,
+        related_name='screen_records', verbose_name='候选人',
+    )
+    stage = models.ForeignKey(
+        RecruitmentStage, on_delete=models.PROTECT,
+        related_name='candidate_screens', verbose_name='当前阶段',
+        null=True, blank=True,
+    )
+    screen_result = models.JSONField(
+        default=dict, verbose_name='筛选结果',
+        help_text='{decision, comment, ...}',
+    )
+    screened_by = models.ForeignKey(
+        'core.User', on_delete=models.PROTECT,
+        related_name='screen_decisions', verbose_name='筛选人',
+    )
+    screened_at = models.DateTimeField(auto_now_add=True, verbose_name='筛选时间')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        db_table = 'candidate_screens'
+        verbose_name = '候选人筛选记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-screened_at']
+        indexes = [
+            models.Index(fields=['process', 'candidate']),
+            models.Index(fields=['screened_by', 'screened_at']),
+        ]
+
+    def __str__(self):
+        decision = self.screen_result.get('decision', 'N/A')
+        return f'CandidateScreen[{self.candidate_id}] {decision}'
+
+
+class CandidateRecommendation(models.Model):
+    """候选人推荐记录 — 审计+查询
+
+    POST /api/v1/processes/{id}/batch-recommend/ 写入。
+    设计依据: docs/PHASE2_DESIGN_2026-08-03.md §C.3.2
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    process = models.ForeignKey(
+        RecruitmentProcess, on_delete=models.PROTECT,
+        related_name='candidate_recommendations', verbose_name='所属流程',
+    )
+    candidate = models.ForeignKey(
+        'candidate.Candidate', on_delete=models.PROTECT,
+        related_name='recommendation_records', verbose_name='候选人',
+    )
+    reason = models.TextField(blank=True, verbose_name='推荐理由')
+    recommender = models.ForeignKey(
+        'core.User', on_delete=models.PROTECT,
+        related_name='candidate_recommendations', verbose_name='推荐人',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='推荐时间')
+
+    class Meta:
+        db_table = 'candidate_recommendations'
+        verbose_name = '候选人推荐记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['process', 'candidate']),
+            models.Index(fields=['recommender', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'CandidateRecommendation[{self.candidate_id}] by {self.recommender_id}'
