@@ -44,7 +44,7 @@ logs:  ## Tail logs from all services
 status:  ## Show git status + service health
 	@git status --short
 	@echo "---"
-	@curl -s -o /dev/null -w "backend  http://localhost:8000  → %{http_code}\n" http://localhost:8000/api/v1/health/ || echo "backend  ✗"
+	@curl -s -o /dev/null -w "backend  http://localhost:8000  → %{http_code}\n" http://localhost:8000/health/ || echo "backend  ✗"
 	@curl -s -o /dev/null -w "frontend http://localhost:5212  → %{http_code}\n" http://localhost:5212 || echo "frontend ✗"
 
 clean:  ## Remove caches and build artifacts
