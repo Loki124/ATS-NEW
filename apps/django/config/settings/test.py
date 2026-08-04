@@ -1,7 +1,9 @@
 """测试环境配置"""
+import os
+
 from .base import *  # noqa
 
-DEBUG = False
+DEBUG = True
 
 # 测试环境允许所有 host
 ALLOWED_HOSTS = ['*']
@@ -9,7 +11,13 @@ ALLOWED_HOSTS = ['*']
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+        'NAME': os.environ.get('DJANGO_DB_NAME', str(BASE_DIR / 'dev_db.sqlite3')),
+        # 2026-08-04: 改文件 SQLite 代替 :memory:。:memory: 每次 HTTP 请求
+        # 用独立连接 → 独立空数据库, 登录和后续 POST 互不可见 → 500。
+        # 测试环境(pytest) 用 --reuse-db + :memory: 不受影响。
+        'TEST': {
+            'NAME': ':memory:',  # pytEST 继续 :memory: 加速
+        },
     }
 }
 
