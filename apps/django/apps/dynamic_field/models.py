@@ -16,8 +16,7 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         BOOLEAN = 'BOOLEAN', '布尔'
 
     id = models.CharField(
-        max_length=32, primary_key=True, default=nanoid_generate,
-        editable=False, help_text='唯一标识'
+        max_length=32, primary_key=True, editable=False, help_text='唯一标识'
     )
     resource = models.CharField(max_length=128, db_index=True, help_text='资源类型 (Candidate/Position/...)')
     field_key = models.CharField(max_length=128, help_text='字段 key (snake_case)')
@@ -38,6 +37,11 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         db_table = 'dynamic_fields'
         unique_together = [('resource', 'field_key')]
         ordering = ['resource', 'order_index']
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = nanoid_generate(size=21)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.resource}/{self.field_key}'
