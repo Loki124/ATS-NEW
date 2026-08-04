@@ -1,5 +1,11 @@
 """V1 → V2 数据迁移命令. Idempotent.
 T16: 拷贝 V1 Role / RolePermission / UserRole 数据到 V2 表.
+
+2026-08-03 T01.1 (寇豆码): V1 影子模型 (Role / UserRole / RolePermission)
+从 apps.core.models 删除, 导致本命令 V1 导入失败. 改为 graceful skip:
+- 尝试 import V1 models, 失败 (ImportError) 时输出 warning + no-op
+- 这样 T01.1 后本命令在 fresh DB 上不会 crash (兼容旧 CI 测试)
+- T01.2 会整体重写本命令, 直接读 V1 备份表 (roles_v1_backup 等) 拷到 V2 表
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -12,7 +18,15 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         from django.db.utils import OperationalError, ProgrammingError
         # V1 models (managed=False, 但能读)
-        from apps.core.models import Role, RolePermission, UserRole
+        # 2026-08-03 T01.1: V1 影子模型已删, ImportError 时整体 skip
+        try:
+            from apps.core.models import Role, RolePermission, UserRole  # noqa: F401
+        except ImportError as e:
+            self.stdout.write(self.style.WARNING(
+                f'V1 models 不可用 (T01.1 已删), skip 整个数据迁移: {e}. '
+                f'T01.2 会从 *_v1_backup 表重写.'
+            ))
+            return
         # V2 models
         from apps.core.models_permission_v2 import (
             RoleV2, RolePermissionV2, UserRoleV2, ManagementUnit,

@@ -2,10 +2,16 @@
 
 - User: 用户（扩展 Django AbstractUser）
 - Department: 部门（树形结构）
-- Role: 角色
-- Permission: 权限
-- UserRole: 用户-角色多对多
-- RolePermission: 角色-权限多对多
+- Permission: V1 权限表（managed=False, T01.2 计划清理）
+- RolePermission: V1 角色-权限关联（managed=False, T01.2 计划清理）
+
+2026-08-03 (寇豆码 T01.1):
+- 删除 Role (db_table='roles') V1 影子模型 — 与 RoleV2 (db_table='roles') 同表冲突
+- 删除 UserRole (db_table='user_roles') V1 影子模型 — 与 UserRoleV2 (db_table='user_roles') 同表冲突
+- Permission / RolePermission 仍被 init_demo_data.py 与 migrate_v2_data.py 引用,
+  暂保留 (managed=False) 留 T01.2 处理
+- 调用 Role/UserRole 的管理命令 (migrate_v2_data.py / init_demo_data.py)
+  会因 ImportError 而失败, 这是 T01.2 范围
 """
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
@@ -216,49 +222,16 @@ class Department(models.Model):
         return descendants
 
 
-class Role(models.Model):
-    """角色
-
-    预置角色（PRD §4）：
-    - SUPER_ADMIN: 超级-产线（系统管理员）
-    - HRBP: HRBP
-    - HR: HR（招聘专员）
-    - HIRING_MANAGER: 用人经理
-    - INTERVIEWER: 面试官
-    - REFERRER: 推荐人
-    - HR_DIRECTOR: HR 负责人
-    - CHO: CHO
-    - AUDITOR: 审计人员
-    """
-    id = models.CharField(max_length=32, primary_key=True)
-    code = models.CharField(max_length=50, unique=True, verbose_name='角色编码')
-    name = models.CharField(max_length=100, verbose_name='角色名称')
-    description = models.TextField(blank=True, verbose_name='描述')
-
-    is_builtin = models.BooleanField(default=False, verbose_name='内置')
-    is_active = models.BooleanField(default=True, db_index=True, verbose_name='启用')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'roles'
-        verbose_name = '角色'
-        verbose_name_plural = verbose_name
-        managed = False  # V1 表由 V2 (apps.core.models_permission_v2.RoleV2) 管理,T17 drop_old 阶段删除
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        from nanoid import generate as nanoid_generate
-        if not self.id:
-            self.id = nanoid_generate(size=21)
-        super().save(*args, **kwargs)
-
-
 class Permission(models.Model):
-    """权限"""
+    """权限 (V1 残留)
+
+    2026-08-03 T01.1 (寇豆码): 暂保留, 因 init_demo_data.py 仍 import.
+    T01.2 会改为直接用 PermissionResource (V2 资源表) + 清理 init_demo_data.
+
+    不加 managed=False (避免 migration drift): 0001 已建好 `permissions` 表,
+    字段与本 model 一致, Django 自动管理. 等 T01.2 删除此 model 时再加
+    managed=False 防止误操作.
+    """
     id = models.CharField(max_length=32, primary_key=True)
     code = models.CharField(max_length=100, unique=True, verbose_name='权限编码', help_text='如 stage:create')
     name = models.CharField(max_length=100, verbose_name='权限名称')
@@ -277,38 +250,6 @@ class Permission(models.Model):
         if not self.id:
             self.id = nanoid_generate(size=21)
         super().save(*args, **kwargs)
-
-
-class UserRole(models.Model):
-    """用户-角色关联"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_roles')
-    role = models.ForeignKey(Role, on_delete=models.CASCADE)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True,
-        help_text='角色限定部门（NULL 表示全公司）',
-    )
-    granted_at = models.DateTimeField(auto_now_add=True)
-    granted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
-
-    class Meta:
-        db_table = 'user_roles'
-        unique_together = [('user', 'role', 'department')]
-        verbose_name = '用户角色'
-        verbose_name_plural = verbose_name
-        managed = False  # V1 表由 V2 (apps.core.models_permission_v2.UserRoleV2) 管理,T17 drop_old 阶段删除
-
-
-class RolePermission(models.Model):
-    """角色-权限关联"""
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='role_permissions')
-    permission = models.ForeignKey(Permission, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = 'role_permissions'
-        unique_together = [('role', 'permission')]
-        verbose_name = '角色权限'
-        verbose_name_plural = verbose_name
-        managed = False  # V1 表由 V2 (apps.core.models_permission_v2.RolePermissionV2) 管理,T17 drop_old 阶段删除
 
 
 # ---- V2 权限系统 (spec §3.2, T2) ----

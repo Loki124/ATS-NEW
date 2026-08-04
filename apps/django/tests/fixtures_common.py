@@ -26,7 +26,7 @@ from django.db import connection
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.core.models import Department, Role as _V1_Role
+from apps.core.models import Department
 from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 
 
@@ -112,8 +112,13 @@ def _raw_attach_v2_role(user, role):
 
     V2 fixtures 调用此函数 (替代 UserRoleV2.objects.get_or_create):
     - user_role_codes() 查 user_roles.role_code 命中
-    - 写一个真实 role_id (V1 FK → roles.id, 我们刚才 raw SQL 写的 V1 PK)
+    - T01.1 前 (V1 hybrid schema): 写 user_id + role_id (V1 FK) + role_code (V2)
+    - T01.1 后 (V2 fresh schema): 写 user_id + role_code + system_code + granted_by_id + granted_at
+      (无 role_id 列)
+
+    检测: 看 user_roles 是否有 role_id 列.
     """
+    from django.utils import timezone
     with connection.cursor() as c:
         c.execute(
             "SELECT id FROM roles WHERE role_code=%s AND system_code='recruit' LIMIT 1",
@@ -122,29 +127,51 @@ def _raw_attach_v2_role(user, role):
         row = c.fetchone()
         if not row:
             raise RuntimeError(f'V2 role {role.role_code} not in roles table — call _create_role_v2 first')
-        v1_role_pk = row[0]
-        c.execute(
-            """INSERT INTO user_roles
-               (user_id, role_id, role_code, system_code, granted_at)
-               VALUES (%s, %s, %s, 'recruit', CURRENT_TIMESTAMP)""",
-            [user.pk, v1_role_pk, role.role_code],
-        )
+        role_pk = row[0]
+
+        c.execute("PRAGMA table_info(user_roles)")
+        cols = {row[1] for row in c.fetchall()}
+
+        if 'role_id' in cols:
+            # V1 hybrid schema (T01.1 前): 写 V1 FK + V2 列
+            c.execute(
+                """INSERT INTO user_roles
+                   (user_id, role_id, role_code, system_code, granted_at)
+                   VALUES (%s, %s, %s, 'recruit', CURRENT_TIMESTAMP)""",
+                [user.pk, role_pk, role.role_code],
+            )
+        else:
+            # V2 fresh schema (T01.1 后): 只写 V2 列
+            now = timezone.now()
+            c.execute(
+                """INSERT INTO user_roles
+                   (user_id, role_code, system_code, granted_by_id, granted_at, updated_at)
+                   VALUES (%s, %s, 'recruit', %s, %s, %s)""",
+                [user.pk, role.role_code, user.pk, now, now],
+            )
 
 
 @pytest.fixture(autouse=True, scope='session')
 def _ensure_v2_schema(django_db_setup, django_db_blocker):
     """session 级 autouse: 测试 DB 初始化完后, 强制补 V2 schema + seed 权限表.
 
-    - 补 V2 列 (role_code / system_code / ...) 到 user_roles + roles
+    - 补 V2 列 (role_code / system_code / ...) 到 user_roles + roles (兼容 V1 表)
     - seed role_permission 表 (V2 业务 has_perm 查这个, 没 seed 永远 403)
+
+    2026-08-03 T01.1 (寇豆码): 移除 `call_command('migrate', run_syncdb=True)` —
+    pytest-django --create-db 已经跑过 migrate, 重复调用会触发 SQLite FK check
+    报错 (NotSupportedError). 同时 T01.1 把 0004_v2_apply_schema 加进迁移图,
+    pytest-django 自然会 apply, 不需要这里手动 migrate.
     """
     from django.utils import timezone
-    from django.core.management import call_command
     with django_db_blocker.unblock():
-        # pytest-django 默认在 test 时 migrate, 但 fixture 可能在 migrate 之前跑.
-        # 显式跑一次 migrate 确保所有表都在.
-        call_command('migrate', verbosity=0, interactive=False, run_syncdb=True)
         _ensure_v2_schema_on_sqlite()
+        # 2026-08-03 T01.1 (寇豆码): 不再在 session 起始 seed permission_resources /
+        # permission_templates (那会破坏 test_bootstrap 测试 — 它假设空 DB).
+        # test_sync_resources_t29 改由 test_sync_resources_empty_array_clears 显式
+        # call_command('seed_v2_init') 提供 seed, 这条用例仍能跑通; 其他两条
+        # (test_sync_resources_persists_codes / test_sync_resources_rejects_invalid_codes)
+        # 暂时仍依赖 QUARANTINE 隔离 (RT-2 验收将由 T01.2/T05 解决).
         # ---- seed role_permission: HR/HRBP/SUPER_ADMIN 都有 recruit:domain:list 权限 ----
         with connection.cursor() as c:
             c.execute("SELECT COUNT(*) FROM role_permission")
@@ -206,49 +233,60 @@ def department(db):
 def hr_role(db):
     if _v2_schema_present():
         return _create_role_v2('HR', 'HR')
-    return _V1_Role.objects.create(
-        id='role-hr-001', code='HR', name='HR', is_active=True,
-    )
+    pytest.skip('V1 path disabled — Role V1 shadow model removed in T01.1')
 
 
 @pytest.fixture
 def hrbp_role(db):
     if _v2_schema_present():
         return _create_role_v2('HRBP', 'HRBP')
-    return _V1_Role.objects.create(
-        id='role-hrbp-001', code='HRBP', name='HRBP', is_active=True,
-    )
+    pytest.skip('V1 path disabled — Role V1 shadow model removed in T01.1')
 
 
 @pytest.fixture
 def super_admin_role(db):
     if _v2_schema_present():
         return _create_role_v2('SUPER_ADMIN', '超级管理员')
-    return _V1_Role.objects.create(
-        id='role-super-001', code='SUPER_ADMIN', name='超级管理员', is_active=True,
-    )
+    pytest.skip('V1 path disabled — Role V1 shadow model removed in T01.1')
 
 
 def _create_role_v2(code: str, name: str):
-    """V2 fixtures: 用 raw SQL 写 roles 表, 兼容 V1 VARCHAR(32) PK 约束.
+    """V2 fixtures: 用 raw SQL 写 roles 表, V2 schema (T01.1 后真表).
 
-    V1 roles 表 id 是 VARCHAR(32) NOT NULL, V2 RoleV2 是 BigAuto, 在 sqlite 上 model save() 不
-    自动给 id (BigAuto 在 sqlite 不通过 INTEGER PRIMARY KEY 推断). 我们手动 INSERT 显式 id.
+    T01.1 前 (V1 path): roles 表是 V1 schema (id VARCHAR(32) + code/name/is_builtin/is_active
+    + role_code/role_name/system_code 同时存在, 由 conftest session fixture 临时 ALTER
+    ADD COLUMN 补 V2 列). 写时既要写 V1 列又要写 V2 列.
 
-    2026-08-03: 同时设 default_data_scope_type='ALL', 让 HR/HRBP/SUPER_ADMIN 角色的
-    ScopeQuerysetMixin 走 L2 ALL 路径 (绕过 IDOR, list 端点能拿到全部数据).
+    T01.1 后 (V2 path, fresh DB): roles 表是 V2 schema (id BigAuto + system_code/role_code/
+    role_name 等, 无 V1 列). 用 BigAuto 自动 PK, 只需写 V2 列.
+
+    检测方法: 看 `code` 列是否存在. V1 有, V2 无.
     """
     from django.utils import timezone
     import uuid
+    now = timezone.now()
     with connection.cursor() as c:
-        c.execute(
-            """INSERT INTO roles
-               (id, code, name, description, is_builtin, is_active, role_code, role_name,
-                system_code, status, default_data_scope_type, created_at, updated_at)
-               VALUES (%s, %s, %s, '', 0, 1, %s, %s, 'recruit', 1, 'ALL', %s, %s)""",
-            [f'role-{code.lower()}-{uuid.uuid4().hex[:8]}', code, name, code, name,
-             timezone.now(), timezone.now()],
-        )
+        c.execute('PRAGMA table_info(roles)')
+        cols = {row[1] for row in c.fetchall()}
+        if 'code' in cols:
+            # V1 fallback (历史代码路径): 同时写 V1 + V2 列
+            c.execute(
+                """INSERT INTO roles
+                   (id, code, name, description, is_builtin, is_active, role_code, role_name,
+                    system_code, status, default_data_scope_type, created_at, updated_at)
+                   VALUES (%s, %s, %s, '', 0, 1, %s, %s, 'recruit', 1, 'ALL', %s, %s)""",
+                [f'role-{code.lower()}-{uuid.uuid4().hex[:8]}', code, name, code, name,
+                 now, now],
+            )
+        else:
+            # V2 fresh schema (T01.1 后): 只写 V2 列
+            c.execute(
+                """INSERT INTO roles
+                   (system_code, role_code, role_name, description,
+                    is_system, status, default_data_scope_type, created_at, updated_at)
+                   VALUES ('recruit', %s, %s, '', 0, 1, 'ALL', %s, %s)""",
+                [code, name, now, now],
+            )
     return RoleV2.objects.get(role_code=code, system_code='recruit')
 
 
