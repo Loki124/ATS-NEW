@@ -94,7 +94,7 @@ import { ref, computed, h, onMounted, reactive, watch } from 'vue';
 import { NTag, NButton, NSpace, NSwitch, NInputNumber, NIcon, useMessage } from 'naive-ui';
 import { AddOutline, TrashOutline, CreateOutline, ConstructOutline } from '@vicons/ionicons5';
 import {
-  listFields, upsertField, deleteField,
+  listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, RESOURCE_OPTIONS,
   type FieldDefinition, type FieldType,
 } from '@/api/dynamic-field';
@@ -192,7 +192,7 @@ async function reload() {
   try {
     rows.value = await listFields(currentResource.value);
   } catch (e: any) {
-    message.error('加载字段失败: ' + (e?.response?.data?.message || e.message));
+    message.error('加载字段失败: ' + extractApiError(e));
   } finally {
     loading.value = false;
   }
@@ -247,14 +247,16 @@ async function save() {
   }
   saving.value = true;
   try {
-    const payload: any = { ...form };
-    if (!needsOptions.value) delete payload.options;
+    // editing 时 form.id 必定存在 → upsertField 走 PUT 更新; 新建时无 id → POST
+    const payload: any = { ...form, id: editing.value?.id };
+    // 非选项类字段要显式清空 options, 否则编辑时 PUT 缺字段会保留旧选项
+    if (!needsOptions.value) payload.options = [];
     await upsertField(currentResource.value, payload);
     modalVisible.value = false;
     message.success('保存成功');
     await reload();
   } catch (e: any) {
-    message.error('保存失败: ' + (e?.response?.data?.message || e.message));
+    message.error('保存失败: ' + extractApiError(e));
   } finally {
     saving.value = false;
   }
@@ -267,7 +269,7 @@ async function confirmDelete(row: FieldDefinition) {
     message.success('删除成功');
     await reload();
   } catch (e: any) {
-    message.error('删除失败: ' + (e?.response?.data?.message || e.message));
+    message.error('删除失败: ' + extractApiError(e));
   }
 }
 
