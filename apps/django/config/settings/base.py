@@ -122,6 +122,7 @@ LOCAL_APPS = [
     'apps.invitation',
     'apps.interview',
     'apps.referral',
+    'apps.resume_flow',    # Phase 2 T06: 审批流独立 app
     'apps.talent_pool',
     'apps.channel',
     'apps.analytics',
