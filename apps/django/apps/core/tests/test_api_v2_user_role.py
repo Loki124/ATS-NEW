@@ -3,7 +3,6 @@ import pytest
 
 # UserRoleV2 db_table='user_roles' 是 V2-deferred (DDL 在 T17), INSERT 会 'no such column: user_roles.role_code'
 # 等 T17 schema 落地后取消 skip.
-NEEDS_T17_SCHEMA = pytest.mark.skip(reason='UserRoleV2 INSERT blocked until T17 v2 schema')
 
 
 @pytest.mark.django_db
@@ -21,7 +20,6 @@ def test_management_unit_list(auth_client):
     assert any(u['unitName'] == 'East Division' for u in items)
 
 
-@NEEDS_T17_SCHEMA
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_user_role_assign_persists_granted_by(auth_client, super_user):
@@ -38,7 +36,6 @@ def test_user_role_assign_persists_granted_by(auth_client, super_user):
     assert ur.management_unit_ids == [1, 2]
 
 
-@NEEDS_T17_SCHEMA
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_user_role_unique_per_user(super_user):

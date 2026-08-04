@@ -4,10 +4,78 @@
 
 T30.175 (V2 cutover follow-up): 所有 V1 user.user_roles.filter(role__code=...)
 已替换为 V2 role_v2_query.user_has_role / user_has_any_role (直接走 UserRoleV2 表).
+
+T01.2 (2026-08-04): 新增 IsAuthenticatedDenyByDefault + ResourceScoped fail-closed 默认.
 """
 from rest_framework import permissions
 
 from .role_v2_query import user_has_any_role, user_has_role, HRBP_TIER, HR_TIER
+
+
+class IsAuthenticatedDenyByDefault(permissions.BasePermission):
+    """Fail-closed default permission for views without explicit policy."""
+
+    message = "默认拒绝：此端点未声明资源级权限，请联系管理员配置"
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not (user and user.is_authenticated):
+            return False
+        if getattr(user, 'is_superuser', False):
+            return True
+        from django.conf import settings
+        if getattr(settings, 'ATSSEC_DRY_RUN', False):
+            import logging
+            logging.getLogger('atssec').warning(
+                'DRY-RUN deny: view=%s user=%s path=%s',
+                view.__class__.__name__, getattr(user, 'id', None), request.path,
+            )
+            return True
+        return False
+
+
+class ResourceScoped(permissions.BasePermission):
+    """Require a view resource_code and resolve its V2 scope."""
+
+    message = "无此资源的访问权限"
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not (user and user.is_authenticated):
+            return False
+        if getattr(user, 'is_superuser', False):
+            return True
+        resource_code = getattr(view, 'resource_code', None)
+        if not resource_code:
+            return False
+        from apps.core.scope_resolver import resolve_scope
+        try:
+            return resolve_scope(user, resource_code) is not None
+        except Exception:
+            return False
+
+
+class IsAuthenticatedReadOnly(permissions.BasePermission):
+    """GET 走 IsAuthenticated, 写操作必须 view 同时声明 ResourceScoped.
+
+    用途: 列表 GET 任何登录用户可看 (用于前端侧栏/菜单), 但 POST/PUT/DELETE
+    仍走 ResourceScoped 校验资源权限. 写法:
+        permission_classes = [IsAuthenticatedReadOnly, ResourceScoped]
+        resource_code = 'candidates'
+    """
+
+    message = "GET 接口需登录; 写接口需资源级权限"
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not (user and user.is_authenticated):
+            return False
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # 写操作必须 view 同时声明 [ResourceScoped] 才能放行
+        return False
+
+
 
 
 class IsAuthenticated(permissions.IsAuthenticated):

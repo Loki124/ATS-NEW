@@ -2,7 +2,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
@@ -20,7 +19,7 @@ class IntegrationConfigViewSet(AuditMixin, viewsets.ModelViewSet):
     """集成配置 ViewSet - 仅超管可操作"""
     queryset = IntegrationConfig.objects.all()
     serializer_class = IntegrationConfigSerializer
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsSuperAdmin]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['type', 'is_active']
@@ -66,7 +65,7 @@ class IntegrationSyncLogViewSet(viewsets.ReadOnlyModelViewSet):
     """集成同步日志 ViewSet - 只读"""
     queryset = IntegrationSyncLog.objects.all()
     serializer_class = IntegrationSyncLogSerializer
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsSuperAdmin]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['config', 'sync_type', 'status']

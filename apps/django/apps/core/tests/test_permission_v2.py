@@ -11,7 +11,7 @@ from apps.core.models_permission_v2 import (
 User = get_user_model()
 
 
-NEEDS_T17_SCHEMA = pytest.mark.skip(reason='UserRoleV2/RoleV2 INSERT blocked until T17 v2 schema applied')
+# V2 schema is applied by migrations; tests execute against real tables.
 
 
 @pytest.fixture
@@ -45,7 +45,6 @@ def test_has_perm_no_role_returns_false(user, resource):
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-@NEEDS_T17_SCHEMA
 def test_has_perm_with_single_role(user, resource):
     """1 个 role 有 resource → True; 其它 resource → False."""
     RolePermissionV2.objects.create(
@@ -62,7 +61,6 @@ def test_has_perm_with_single_role(user, resource):
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-@NEEDS_T17_SCHEMA
 def test_has_perm_multi_roles_union(user, resource):
     """多 role union: 任一 role 有 resource → True."""
     RolePermissionV2.objects.create(
@@ -98,7 +96,6 @@ def test_has_perm_anonymous_user_returns_false(resource):
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-@NEEDS_T17_SCHEMA
 def test_scope_l1_user_explicit_priority(user, resource):
     """L1 > L2: user.management_unit_ids=[5] 覆盖 role.default=ALL."""
     from apps.core.models_permission_v2 import RoleV2
@@ -116,7 +113,6 @@ def test_scope_l1_user_explicit_priority(user, resource):
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-@NEEDS_T17_SCHEMA
 def test_scope_l2_role_default_all(user):
     """L2: role.default=ALL + 无 L1 → 返回 {'all': True}."""
     from apps.core.models_permission_v2 import RoleV2

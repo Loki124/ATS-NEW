@@ -26,6 +26,7 @@ from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.core.models_permission_v2 import (
     RoleV2, UserRoleV2, RolePermissionV2, PermissionResource,
 )
+from .permissions_v2 import V2Permission
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -72,7 +73,8 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     """部门 CRUD - HRBP+ 可写, 其它角色只读 (Fix 1)"""
     queryset = Department.objects.filter(is_active=True).select_related('parent', 'leader')
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['name', 'code']
@@ -114,7 +116,7 @@ class RoleViewSet(viewsets.ModelViewSet):
     """
     queryset = RoleV2.objects.filter(status=1)
     serializer_class = RoleV2Serializer
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsSuperAdmin]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ['role_code', 'role_name']
@@ -128,7 +130,8 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = PermissionResource.objects.filter(status=1, system_code='recruit')
     serializer_class = PermissionResourceSerializer
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['module', 'resource_type']

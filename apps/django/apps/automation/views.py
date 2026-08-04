@@ -2,13 +2,13 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import HasProcessPermission
+from apps.core.permissions_v2 import V2Permission
 
 from .models import AutomationLog, AutomationRule
 from .serializers import (
@@ -23,7 +23,7 @@ class AutomationRuleViewSet(AuditMixin, viewsets.ModelViewSet):
     """自动化规则 ViewSet"""
     queryset = AutomationRule.objects.all()
     serializer_class = AutomationRuleSerializer
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['process', 'stage', 'trigger_type', 'action_type', 'enabled', 'priority']
@@ -89,7 +89,7 @@ class AutomationRuleViewSet(AuditMixin, viewsets.ModelViewSet):
 
 class AutomationTriggerView(viewsets.ViewSet):
     """手动触发自动化引擎（用于测试 / 重放）"""
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = None
 
     @extend_schema(
@@ -132,7 +132,8 @@ class AutomationLogViewSet(viewsets.ReadOnlyModelViewSet):
     """自动化执行日志"""
     queryset = AutomationLog.objects.all()
     serializer_class = AutomationLogSerializer
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['rule', 'candidate_id', 'evaluate_result']

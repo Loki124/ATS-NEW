@@ -2,12 +2,12 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission
 
 from .models import ExportTask, ReportSnapshot
 from .serializers import (
@@ -21,7 +21,7 @@ class ReportSnapshotViewSet(AuditMixin, viewsets.ModelViewSet):
     """报表快照 ViewSet"""
     queryset = ReportSnapshot.objects.all()
     serializer_class = ReportSnapshotSerializer
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['report_type', 'generated_by']
@@ -33,7 +33,7 @@ class ReportSnapshotViewSet(AuditMixin, viewsets.ModelViewSet):
 class ExportTaskViewSet(AuditMixin, viewsets.ModelViewSet):
     """数据导出任务 ViewSet"""
     queryset = ExportTask.objects.all()
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['entity', 'format', 'status', 'requested_by']
@@ -90,7 +90,7 @@ class KpiViewSet(viewsets.ViewSet):
     字段定义来自 web/app/src/api/data.ts:DashboardKpi interface.
     全部包 try/except (含 queryset 构造): 任何 model 字段名漂移都不会 500, 顶多返 0.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
 
     def list(self, request):
         from django.utils import timezone

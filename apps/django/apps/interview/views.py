@@ -5,7 +5,6 @@ apps.core.role_v2_query.user_has_any_role (直接走 UserRoleV2).
 """
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
@@ -60,7 +59,7 @@ class InterviewEvaluationViewSet(AuditMixin, viewsets.ModelViewSet):
     """面试评价 ViewSet"""
     queryset = InterviewEvaluation.objects.all()
     serializer_class = InterviewEvaluationSerializer
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['interview', 'interviewer', 'recommendation']

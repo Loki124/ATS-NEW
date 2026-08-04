@@ -3,10 +3,8 @@ import pytest
 
 # RoleV2 db_table='roles' 是 V2-deferred (DDL 在 T17), INSERT 会 'no such column: roles.role_code'
 # RolePermissionV2 同理. 等 T17 schema 落地后取消 skip.
-NEEDS_T17_SCHEMA = pytest.mark.skip(reason='RoleV2/RolePermissionV2 INSERT blocked until T17 v2 schema')
 
 
-@NEEDS_T17_SCHEMA
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_clone_from_template_creates_role_with_permissions(auth_client):
@@ -33,7 +31,6 @@ def test_clone_from_template_creates_role_with_permissions(auth_client):
     assert set(rps) == {'recruit:candidate:list', 'recruit:candidate:edit'}
 
 
-@NEEDS_T17_SCHEMA
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_template_edit_does_not_affect_cloned_role(auth_client):

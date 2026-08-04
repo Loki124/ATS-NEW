@@ -25,8 +25,9 @@ import logging
 import uuid
 from django.urls import path
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from apps.core.permissions import ResourceScoped, IsAuthenticatedReadOnly
 from apps.core.views_auth import (
     LoginRateThrottle,
     RegisterRateThrottle,
@@ -34,6 +35,36 @@ from apps.core.views_auth import (
 )
 
 logger = logging.getLogger('apps.stub')
+
+
+# T01.2 (2026-08-04 寇豆码): 默认 deny-by-default 落地后, 所有 stub 必须显式声明
+# permission_classes. 这里给两个常用 mode 写工厂函数, 替代原本裸 @permission_classes([IsAuthenticated]).
+#
+# - scoped_view  → 业务端点, [ResourceScoped] + resource_code
+# - readonly_view → 纯读列表 stub, [IsAuthenticatedReadOnly] + resource_code
+# - public_view → 真正公开 (rare, 当前没用上)
+def _scoped_view(methods, resource_code):
+    """包装业务 stub: ResourceScoped + resource_code.
+    ResourceScoped 走 apps.core.scope_resolver.resolve_scope 4 层堆栈, superuser bypass.
+    """
+    def deco(func):
+        wrapped = api_view(methods)(permission_classes([ResourceScoped])(func))
+        wrapped.cls.resource_code = resource_code
+        wrapped.cls.__name__ = func.__name__
+        return wrapped
+    return deco
+
+
+def _readonly_view(methods, resource_code):
+    """包装只读 stub: IsAuthenticatedReadOnly + resource_code.
+    GET → 仅需登录; 写方法必须 view 同时声明 [ResourceScoped] 才能放行.
+    """
+    def deco(func):
+        wrapped = api_view(methods)(permission_classes([IsAuthenticatedReadOnly])(func))
+        wrapped.cls.resource_code = resource_code
+        wrapped.cls.__name__ = func.__name__
+        return wrapped
+    return deco
 
 
 def _ok(data=None, code=200):
@@ -99,17 +130,21 @@ def _not_implemented(view_name: str, request, message: str, code: int = 501,
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticatedReadOnly])
 def _empty_list_view(request):
     _log_stub_hit('_empty_list_view', request)
     return _empty_list()
+
+
+# 多 URL 复用同一 view, resource_code 按 URL 注入 (route 注册时覆盖).
+_empty_list_view.cls.resource_code = 'recruit:candidate:list'
 
 
 # ============================================================
 # Auth
 # ============================================================
 @api_view(['POST'])
-@permission_classes([])
+@permission_classes([AllowAny])
 @throttle_classes([RegisterRateThrottle])
 def auth_register(request):
     """POST /auth/register — 尚未实现.
@@ -126,6 +161,8 @@ def auth_register(request):
     )
 
 
+# DEPRECATED stub (T03 删): 留 IsAuthenticated 是为了让 FE 拿到 501 而不是 403.
+# 全局默认 deny-by-default 后, 这里显式声明 IsAuthenticated 放行登录用户, 由 view 体返回 501.
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([ChangePasswordRateThrottle])
@@ -148,7 +185,7 @@ def auth_change_password(request):
 # Login alias (单数) — POST /login
 # ============================================================
 @api_view(['POST'])
-@permission_classes([])
+@permission_classes([AllowAny])
 @throttle_classes([LoginRateThrottle])
 def login_alias(request):
     """POST /login — /auth/login 的单数别名, 走真实认证.
@@ -182,39 +219,34 @@ def login_alias(request):
 # ============================================================
 # Candidate batch (G9 PRD)
 # ============================================================
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def candidate_batch_recommend(request):
     _log_stub_hit('candidate_batch_recommend', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True, 'recommendationId': f'rec-stub-{uuid.uuid4().hex[:8]}'} for cid in ids]})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
 def candidate_batch_archive(request):
     _log_stub_hit('candidate_batch_archive', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True} for cid in ids]})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
 def candidate_batch_assign(request):
     _log_stub_hit('candidate_batch_assign', request)
     ids = request.data.get('candidateIds', [])
     return _ok({'results': [{'candidateId': cid, 'success': True, 'recruiterId': request.data.get('recruiterId')} for cid in ids]})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:export')
 def candidate_batch_export(request):
     _log_stub_hit('candidate_batch_export', request)
     return _ok({'jobId': f'export-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING'})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
 def candidate_batch_screen(request):
     _log_stub_hit('candidate_batch_screen', request)
     ids = request.data.get('candidateIds', [])
@@ -224,8 +256,7 @@ def candidate_batch_screen(request):
 # ============================================================
 # Recruitment process (G38)
 # ============================================================
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:role:list')
 def stage_rules(request):
     _log_stub_hit('stage_rules', request)
     if request.method == 'GET':
@@ -233,8 +264,7 @@ def stage_rules(request):
     return _ok({'id': f'sr-stub-{uuid.uuid4().hex[:8]}', **request.data})
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:role:list')
 def auto_archive_rules(request):
     _log_stub_hit('auto_archive_rules', request)
     if request.method == 'GET':
@@ -242,36 +272,31 @@ def auto_archive_rules(request):
     return _ok({'id': f'aar-stub-{uuid.uuid4().hex[:8]}', **request.data})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:candidate:list')
 def evaluate_candidate(request, candidate_id):
     _log_stub_hit('evaluate_candidate', request)
     return _ok({'passed': True, 'failedItems': [], 'prompt': None, 'candidateId': candidate_id})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:application:list')
 def check_stage_transition(request, application_id):
     _log_stub_hit('check_stage_transition', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': application_id, 'checks': []})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:application:list')
 def check_stage_transition_no_id(request):
     _log_stub_hit('check_stage_transition_no_id', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': None, 'checks': []})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:application:list')
 def check_stage_transition_top(request):
     _log_stub_hit('check_stage_transition_top', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': None, 'checks': []})
 
 
-@api_view(['GET', 'POST', 'PUT'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET', 'POST', 'PUT'], resource_code='recruit:application:list')
 def recruitment_rounds(request, id=None):
     _log_stub_hit('recruitment_rounds', request)
     if request.method == 'GET':
@@ -281,8 +306,7 @@ def recruitment_rounds(request, id=None):
     return _ok({'id': id, 'status': request.data.get('status', 'ACTIVE')})
 
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['PUT'], resource_code='recruit:application:advance')
 def recruitment_rounds_status(request, id):
     _log_stub_hit('recruitment_rounds_status', request)
     return _ok({'id': id, 'status': request.data.get('status', 'ACTIVE')})
@@ -291,23 +315,20 @@ def recruitment_rounds_status(request, id):
 # ============================================================
 # Add candidate: bulk-create, upload-and-parse, scoring
 # ============================================================
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def bulk_create(request):
     _log_stub_hit('bulk_create', request)
     candidates = request.data.get('candidates', [])
     return _ok({'results': [{'success': True, 'id': f'c-stub-{uuid.uuid4().hex[:8]}'} for _ in candidates]})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def upload_and_parse(request):
     _log_stub_hit('upload_and_parse', request)
     return _ok({'jobId': f'parse-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING', 'fileCount': len(request.FILES)})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def scoring_start(request):
     _log_stub_hit('scoring_start', request)
     return _ok({'jobId': f'score-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING'})
@@ -316,8 +337,7 @@ def scoring_start(request):
 # ============================================================
 # Offer templates
 # ============================================================
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:offer:list')
 def offer_templates(request):
     _log_stub_hit('offer_templates', request)
     if request.method == 'GET':
@@ -325,8 +345,7 @@ def offer_templates(request):
     return _ok({'id': f'ot-stub-{uuid.uuid4().hex[:8]}', **request.data})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:offer:edit')
 def offer_template_render(request):
     _log_stub_hit('offer_template_render', request)
     return _ok({'fileUrl': f'https://stub.example.com/render-{uuid.uuid4().hex[:8]}.pdf', 'format': request.data.get('format', 'pdf')})
@@ -335,15 +354,13 @@ def offer_template_render(request):
 # ============================================================
 # Global search + Evaluate
 # ============================================================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_readonly_view(methods=['GET'], resource_code='recruit:candidate:list')
 def global_search(request):
     _log_stub_hit('global_search', request)
     return _ok({'candidates': [], 'positions': [], 'demands': [], 'invitations': [], 'total': 0, 'query': request.query_params.get('q', '')})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['POST'], resource_code='recruit:candidate:list')
 def evaluate(request):
     _log_stub_hit('evaluate', request)
     return _ok({'score': 0, 'passed': False, 'details': []})
@@ -353,8 +370,7 @@ def evaluate(request):
 # Permissions v1 (FE 期望 /permissions/* 走这里)
 # 2026-07-01: 已有 Role/Permission model, 这些是 alias 调真 endpoint
 # ============================================================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
 def permissions_roles_list(request):
     _log_stub_hit('permissions_roles_list', request)
     """GET /permissions/roles/ — 角色列表 (alias 调 /roles/)
@@ -371,8 +387,7 @@ def permissions_roles_list(request):
     return Response({'success': True, 'data': data})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:user_role:list')
 def permissions_user_roles(request, user_id):
     _log_stub_hit('permissions_user_roles', request)
     """GET /permissions/users/{id}/roles — 用户的角色
@@ -389,8 +404,7 @@ def permissions_user_roles(request, user_id):
     return Response({'success': True, 'data': data})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
 def permissions_user_info(request):
     _log_stub_hit('permissions_user_info', request)
     """GET /permissions/user-info/ — 当前用户权限 + 角色
@@ -417,8 +431,7 @@ def permissions_user_info(request):
     })
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:mou:list')
 def permissions_mous_list(request):
     _log_stub_hit('permissions_mous_list', request)
     """GET /permissions/mous/ — MOU 列表 (FE UserManagement.vue 分配MOU 弹窗用)
@@ -442,8 +455,7 @@ def permissions_mous_list(request):
     return Response({'success': True, 'data': data})
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:user_role:edit')
 def permissions_user_mous(request, user_id):
     _log_stub_hit('permissions_user_mous', request)
     """GET /permissions/user-mous/{user_id} — 用户已分配的 MOU 列表 (mouId 列表)
@@ -462,8 +474,7 @@ def permissions_user_mous(request, user_id):
     return Response({'success': True, 'data': {'userId': str(user_id), 'mouIds': mou_ids}})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
 def permissions_list_by_type(request):
     _log_stub_hit('permissions_list_by_type', request)
     """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
@@ -507,8 +518,7 @@ def permissions_list_by_type(request):
     return Response({'success': True, 'data': data})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
 def permissions_functions(request):
     _log_stub_hit('permissions_functions', request)
     """GET /permissions/functions/ — 功能权限 (BUTTON 操作).  V2 切到 PermissionResource."""
@@ -530,8 +540,7 @@ def permissions_functions(request):
     return Response({'success': True, 'data': data})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_scoped_view(methods=['GET'], resource_code='recruit:role:menu:view')
 def permissions_menus(request):
     _log_stub_hit('permissions_menus', request)
     """GET /permissions/menus/ — 菜单/读权限.  V2 切到 PermissionResource (resource_type=MENU)."""
@@ -561,8 +570,7 @@ def permissions_menus(request):
 # ============================================================
 # FE URL 错拼 alias
 # ============================================================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_readonly_view(methods=['GET'], resource_code='recruit:talent_pool:menu:view')
 def talent_pool_types(request):
     _log_stub_hit('talent_pool_types', request)
     """GET /api/talent-pool/types — FE 错拼双 api 前缀"""
@@ -574,16 +582,14 @@ def talent_pool_types(request):
     ])
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_readonly_view(methods=['GET'], resource_code='recruit:candidate:menu:view')
 def resumes_alias(request):
     _log_stub_hit('resumes_alias', request)
     """GET /resumes — FE 错路径, 实际 /scraped-resumes/"""
     return _empty_list()
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@_readonly_view(methods=['GET'], resource_code='recruit:candidate:list')
 def duplicate_check_list(request):
     _log_stub_hit('duplicate_check_list', request)
     """GET /duplicate-check/ — 拿历史 (FE 期望)"""

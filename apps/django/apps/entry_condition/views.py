@@ -14,7 +14,6 @@ from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
@@ -40,7 +39,7 @@ logger = logging.getLogger(__name__)
 class EntryConditionRuleViewSet(viewsets.ModelViewSet):
     """进入条件规则 ViewSet"""
     queryset = EntryConditionRule.objects.all()
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['link', 'status', 'link__process']

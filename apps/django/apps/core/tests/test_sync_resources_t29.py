@@ -22,6 +22,20 @@ def admin(db):
     )
 
 
+@pytest.fixture
+def seed_templates(db):
+    """R7 (2026-08-03 寇豆码): sync_resources_t29 测试依赖 TMPL_ADMIN 模板存在.
+
+    conftest.py (fixtures_common._ensure_v2_schema) 故意不 seed permission_resources /
+    permission_templates (会破坏 test_bootstrap 假设空 DB). 各 sync_resources 用例
+    必须显式 seed 才能 clone-from-template 成功. empty_array_clears 在用例体里手动
+    call_command, 这两条 (persists_codes / rejects_invalid_codes) 通过本 fixture 统一处理.
+    """
+    from django.core.management import call_command
+    call_command('seed_v2_init', verbosity=0)
+    return None
+
+
 def _v2_schema_ready():
     """探测 V2 roles + role_permission 表是否已有 V2-only 列 (T17-applied).
     如果未应用, 表是 V1 schema, 跳过这些测试.
@@ -49,7 +63,7 @@ def _v2_schema_ready():
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-def test_sync_resources_persists_codes(admin):
+def test_sync_resources_persists_codes(admin, seed_templates):
     """POST sync-resources → role_permission 表实际入库, 重读 ROLE 看到 codes."""
     if not _v2_schema_ready():
         pytest.skip('needs T17 v2 schema (role_permission.resource_code column)')
@@ -109,7 +123,7 @@ def test_sync_resources_persists_codes(admin):
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-def test_sync_resources_rejects_invalid_codes(admin):
+def test_sync_resources_rejects_invalid_codes(admin, seed_templates):
     """无效 resource_code 应返回 400 而非 crash."""
     if not _v2_schema_ready():
         pytest.skip('needs T17 v2 schema (role_permission.resource_code column)')

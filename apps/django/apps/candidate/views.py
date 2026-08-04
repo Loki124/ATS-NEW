@@ -23,7 +23,6 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.exceptions import StateTransitionError
@@ -475,5 +474,5 @@ class CandidateTagViewSet(viewsets.ModelViewSet):
     """候选人标签字典"""
     queryset = CandidateTag.objects.all()
     serializer_class = CandidateTagSerializer
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination

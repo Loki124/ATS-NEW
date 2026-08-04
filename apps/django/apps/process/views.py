@@ -16,7 +16,6 @@ from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -30,6 +29,9 @@ from apps.common.exceptions import (
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import HasProcessPermission
+from apps.core.permissions_v2 import V2Permission
+# T01.2 (2026-08-04 寇豆码): HasProcessPermission / V2Permission 自身已校验登录, 显式
+# 移除裸 IsAuthenticated, 避免被全局 deny-by-default 拦截.
 
 from .models import (
     ProcessStageLink,
@@ -78,7 +80,7 @@ class RecruitmentStageViewSet(viewsets.ModelViewSet):
     destroy:   删除 (HRBP+) - 引用中不可删
     """
     queryset = RecruitmentStage.objects.all()
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['stage_type', 'status', 'is_builtin']
@@ -196,7 +198,7 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
     list_versions:  列出历史版本
     """
     queryset = RecruitmentProcess.objects.all()
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'is_template', 'template_code', 'is_enabled']
@@ -314,7 +316,7 @@ class ProcessStageLinkViewSet(viewsets.ModelViewSet):
     """流程-阶段关联 ViewSet"""
     queryset = ProcessStageLink.objects.all()
     serializer_class = ProcessStageLinkSerializer
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     # 2026-07-03: FE 用 ?processId= 调 list (axios 自动 camelCase),
@@ -396,7 +398,7 @@ class StageRuleViewSet(viewsets.ModelViewSet):
     """阶段规则 ViewSet"""
     queryset = StageRule.objects.all()
     serializer_class = StageRuleSerializer
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['link', 'processing_rule', 'is_grab_mode']
@@ -416,7 +418,8 @@ class ProcessTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     """流程模板 - 只读 (由 seed/管理后台维护)"""
     queryset = ProcessTemplate.objects.filter(is_active=True)
     serializer_class = ProcessTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'is_builtin', 'is_active']
@@ -430,7 +433,8 @@ class ProcessTemplateViewSet(viewsets.ReadOnlyModelViewSet):
 # ============================================================
 class ExpressionValidationView(APIView):
     """表达式校验 - 实时反馈给前端"""
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission.
+    permission_classes = [V2Permission]
 
     @extend_schema(
         summary='条件表达式校验',
@@ -457,7 +461,7 @@ class ExpressionValidationView(APIView):
 # ============================================================
 class ProcessApplyTemplateView(APIView):
     """应用流程模板创建新流程"""
-    permission_classes = [IsAuthenticated, HasProcessPermission]
+    permission_classes = [HasProcessPermission]
 
     @extend_schema(
         summary='从模板创建流程',

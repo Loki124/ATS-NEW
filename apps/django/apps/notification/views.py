@@ -3,12 +3,12 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission
 
 from .models import NotificationLog, NotificationTemplate
 from .serializers import (
@@ -23,7 +23,7 @@ class NotificationTemplateViewSet(AuditMixin, viewsets.ModelViewSet):
     """通知模板 ViewSet"""
     queryset = NotificationTemplate.objects.all()
     serializer_class = NotificationTemplateSerializer
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['event', 'is_active']
@@ -35,7 +35,8 @@ class NotificationTemplateViewSet(AuditMixin, viewsets.ModelViewSet):
 class NotificationLogViewSet(AuditMixin, viewsets.ReadOnlyModelViewSet):
     """通知日志 ViewSet - 只读（用户只能看自己的）"""
     queryset = NotificationLog.objects.all()
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['event', 'channel', 'recipient']

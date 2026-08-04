@@ -58,10 +58,7 @@ class TestV2ModelsSmoke:
         assert 'valid_from' in field_names
         assert 'valid_to' in field_names
         assert 'granted_by_id' in field_names
-        pytest.skip(
-            'user_roles table is V1-schema until T17 (drop_old phase); V2 INSERT '
-            'round-trip for management_unit_ids JSON deferred to T17/v2_apply_schema'
-        )
+        # V2 schema is now applied; verify round-trip fields below.
 
     def test_tenant_config_unique(self):
         TenantConfig.objects.create(

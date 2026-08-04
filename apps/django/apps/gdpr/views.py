@@ -18,7 +18,7 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status as drf_status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
@@ -39,7 +39,7 @@ from .services import GdprService
 class GDPRRequestViewSet(AuditMixin, viewsets.ModelViewSet):
     """GDPR 请求 ViewSet"""
     queryset = GDPRRequest.objects.all()
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsSuperAdmin]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['request_type', 'status', 'candidate']

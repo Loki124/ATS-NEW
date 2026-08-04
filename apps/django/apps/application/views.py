@@ -34,7 +34,6 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.exceptions import NotFound, StateTransitionError
@@ -502,7 +501,7 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
 
 class GrabPoolViewSet(viewsets.ViewSet):
     """抢单池 ViewSet"""
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
 
     def list(self, request):
@@ -546,7 +545,8 @@ class GrabPoolViewSet(viewsets.ViewSet):
 
 class InvitationViewSet(viewsets.ViewSet):
     """邀请 ViewSet"""
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
 
     def create(self, request):
         """创建邀请"""

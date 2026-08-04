@@ -5,7 +5,6 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
@@ -82,7 +81,8 @@ class TalentPoolTagViewSet(AuditMixin, viewsets.ModelViewSet):
     """人才库标签 ViewSet"""
     queryset = TalentPoolTag.objects.all()
     serializer_class = TalentPoolTagSerializer
-    permission_classes = [IsAuthenticated]
+    # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
+    permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category']

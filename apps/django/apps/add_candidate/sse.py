@@ -11,7 +11,6 @@ import time
 import redis
 from django.conf import settings
 from django.http import StreamingHttpResponse
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsHROrAbove
@@ -77,7 +76,7 @@ class ScoringStreamView(APIView):
 
     SSE 评分进度流。前端 EventSource 连这个端点。
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
 
     def get(self, request, task_id):
         # 2026-07-02: IDOR fix — 校验 task_id 归属当前 actor (或超管)

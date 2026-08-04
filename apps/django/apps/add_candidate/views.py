@@ -25,7 +25,6 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -48,7 +47,7 @@ class UploadAndParseView(APIView):
     上传 1-20 个简历文件（PDF/Word/TXT，单文件 ≤ 10MB），立即返回 202
     + job_id 列表。前端轮询 /parse-status/{job_id}/ 获取进度。
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -114,7 +113,7 @@ class ParseStatusView(APIView):
 
     前端每 1.5s 轮询获取解析状态。完成时返回 parsed + duplicate。
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
 
     def get(self, request, job_id):
         try:
@@ -148,7 +147,7 @@ class DuplicateCheckView(APIView):
 
     用户编辑字段后触发重新查重。返回 clean/unocc/occupied + duplicate info。
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
 
     def post(self, request):
         from .serializers import DuplicateCheckRequest
@@ -171,7 +170,7 @@ class ReplaceFileView(APIView):
     替换简历附件并重新解析。
     复用原 job_id/draft_id，原地更新 ParseJob，避免前端 dangling reference。
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     parser_classes = [MultiPartParser]
 
     def post(self, request, draft_id):
@@ -245,7 +244,7 @@ class BulkCreateView(APIView):
     sync (wait) 模式：同步触发评分任务，立即返 task_id
     async 模式：仅入库，评分后台跑，通知中心推结果
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
 
     def post(self, request):
         from .serializers import BulkCreateRequest
@@ -339,7 +338,7 @@ class ScoringStartView(APIView):
 
     async 模式由前端显式调用启动评分（wait 模式由 bulk-create 触发）。
     """
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
 
     def post(self, request):
         from .serializers import ScoringStartRequest

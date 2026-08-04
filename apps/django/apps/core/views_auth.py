@@ -1,7 +1,7 @@
 """Auth 视图 - 登录/登出/刷新"""
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -9,6 +9,8 @@ from rest_framework.throttling import AnonRateThrottle
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Permission as AuthPermission
 from .models import Permission
+# T01.2 (2026-08-04 寇豆码): 显式声明 IsAuthenticated, 覆盖全局 deny-by-default.
+from .permissions import IsAuthenticated
 
 
 class LoginRateThrottle(AnonRateThrottle):
@@ -85,6 +87,7 @@ def login_view(request):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def logout_view(request):
     """登出 - 撤销 refresh token"""
     try:
@@ -101,6 +104,7 @@ def logout_view(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def me_view(request):
     """当前用户信息 - V2 权限 + 数据范围."""
     from django.db.utils import OperationalError, ProgrammingError

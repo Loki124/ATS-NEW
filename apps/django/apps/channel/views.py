@@ -1,7 +1,6 @@
 """Channel Views (DRF) - PRD v4 §14.5"""
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
@@ -30,7 +29,7 @@ class ChannelCostViewSet(AuditMixin, viewsets.ModelViewSet):
     """渠道成本 ViewSet"""
     queryset = ChannelCost.objects.all()
     serializer_class = ChannelCostSerializer
-    permission_classes = [IsAuthenticated, IsHROrAbove]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['channel', 'cost_type']
