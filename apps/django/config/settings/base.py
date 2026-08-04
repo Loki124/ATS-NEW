@@ -128,11 +128,14 @@ LOCAL_APPS = [
 
     'apps.mou',             # 2026-07-01 花无缺: MOU 业务 (大客户协议), 暂未挂 config/urls (stub 在 referral/urls_stubs)
     'apps.library',         # G41 院校/公司信息库
-    'apps.scraped_resume',  # G30 RPA 简历抓取
-    'apps.external_sync',   # G40 外部系统同步
-    'apps.duplicate_check', # G45 简历查重 (前端 duplicate-check.ts 调)
-    'apps.data',            # G35 数据中心 (前端 data.ts 调, 实际 endpoint 在 analytics/)
-]
+    # Phase 2 T02 (寇豆码): scraped_resume / duplicate_check 是真实功能, 务必保留!
+    #   - scraped_resume  已补 ScrapedResume 最小 model (G30 完整功能由 T06 落地)
+    #   - duplicate_check  7 处前端调用 (web/app/src/api/duplicate-check.ts), 无状态算法服务, 不能删
+    #   决策依据: docs/PHASE2_DESIGN_2026-08-03.md §T02 (T02.4 保留 + T02.5 补 model)
+    'apps.scraped_resume',
+    'apps.duplicate_check',
+]  # Phase 2 T02 (寇豆码): 删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app
+                          #   上游 grep 0 调用方, 无 model 无迁移. 详见 §T02.
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -262,6 +265,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # === 自定义用户模型 ===
 AUTH_USER_MODEL = 'core.User'
 
+# Default deny-by-default shadow toggle. Keep False in production.
+ATSSEC_DRY_RUN = False
+
 # === DRF 配置 ===
 REST_FRAMEWORK = {
     # 2026-06-16: 移除 SessionAuthentication，只保留 JWT
@@ -271,7 +277,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'apps.core.permissions.IsAuthenticatedDenyByDefault',
     ),
     'DEFAULT_PAGINATION_CLASS': 'apps.common.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 20,
