@@ -1,4 +1,5 @@
 from django.db import models
+from nanoid import generate as nanoid_generate
 
 from apps.common.models import TimestampedModel, SoftDeleteModel
 
@@ -14,7 +15,10 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         MULTISELECT = 'MULTISELECT', '多选'
         BOOLEAN = 'BOOLEAN', '布尔'
 
-    id = models.CharField(max_length=64, primary_key=True)
+    id = models.CharField(
+        max_length=32, primary_key=True, default=nanoid_generate,
+        editable=False, help_text='唯一标识'
+    )
     resource = models.CharField(max_length=128, db_index=True, help_text='资源类型 (Candidate/Position/...)')
     field_key = models.CharField(max_length=128, help_text='字段 key (snake_case)')
     label = models.CharField(max_length=256, help_text='显示名称')
