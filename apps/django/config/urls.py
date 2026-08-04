@@ -97,7 +97,7 @@ api_v1_patterns = [
     #   scraped_resume / duplicate_check 是真实功能, 保留 (FE 真实调用)!
     #   scraped-resumes: T02.5 落地最小 model, G30 完整功能由 T06
     #   duplicate-check: 7 处前端调用, T02.4 保留
-    # Phase 2 T06: 审批流
+    path('dynamic-fields/', include('apps.dynamic_field.urls')),
     path('resumes/approval-flows/', include('apps.resume_flow.urls')),
     path('library/', include('apps.library.urls')),
     path('scraped-resumes/', include('apps.scraped_resume.urls')),

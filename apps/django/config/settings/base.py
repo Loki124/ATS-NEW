@@ -135,6 +135,7 @@ LOCAL_APPS = [
     #   决策依据: docs/PHASE2_DESIGN_2026-08-03.md §T02 (T02.4 保留 + T02.5 补 model)
     'apps.scraped_resume',
     'apps.duplicate_check',
+    'apps.dynamic_field',   # G42 动态字段定义 — admin 自定义 Candidate/Position 等资源字段
 ]  # Phase 2 T02 (寇豆码): 删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app
                           #   上游 grep 0 调用方, 无 model 无迁移. 详见 §T02.
 

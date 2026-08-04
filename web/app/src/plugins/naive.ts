@@ -51,6 +51,7 @@ import {
   NList, NListItem, NThing,
   NSkeleton, NResult,
   NPagination, NRadioButton,
+  NDynamicInput,
 } from 'naive-ui'
 
 export const naivePlugin = create({
@@ -81,5 +82,6 @@ export const naivePlugin = create({
     NList, NListItem, NThing,
     NSkeleton, NResult,
     NPagination, NRadioButton,
+    NDynamicInput,
   ],
 })
