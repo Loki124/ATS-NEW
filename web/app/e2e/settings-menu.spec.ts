@@ -10,7 +10,9 @@ import { test, expect } from '@playwright/test';
 const SETTINGS_PAGES = [
   { url: '/settings/account', label: '员工信息' },
   { url: '/settings/department', label: '部门管理' },
-  { url: '/settings/permission', label: '权限管理' },
+  // 2026-08-06 寇豆码: 真实路由是复数 permissions (src/router/index.ts:127)，
+  // 单数 /settings/permission 的路由已于 2026-07-01 删除 → 此处修正为复数
+  { url: '/settings/permissions', label: '权限管理' },
   { url: '/settings/demand-config', label: '招聘需求设置' },
   { url: '/settings/dictionary', label: '数据字典' },
   { url: '/settings/scoring', label: '评分规则' },

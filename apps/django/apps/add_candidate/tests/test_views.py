@@ -50,10 +50,11 @@ class TestUploadAndParseView:
         )
         assert response.status_code == 202
         data = response.json()
-        assert 'job_ids' in data
-        assert 'draft_ids' in data
-        assert len(data['job_ids']) == 1
-        assert len(data['draft_ids']) == 1
+        # 响应经 CamelCaseJSONRenderer 渲染 (settings.base:296)，键为 camelCase
+        assert 'jobIds' in data
+        assert 'draftIds' in data
+        assert len(data['jobIds']) == 1
+        assert len(data['draftIds']) == 1
         assert mock_parse_task.call_count == 1
 
     def test_upload_rejects_non_whitelist(self, api_client, mock_parse_task):
@@ -98,7 +99,8 @@ class TestParseStatusView:
         response = api_client.get('/api/v1/candidates/add-candidate/parse-status/test_001/')
         assert response.status_code == 200
         data = response.json()
-        assert data['draft_id'] == job.draft_id
+        # 响应经 CamelCaseJSONRenderer 渲染，draft_id → draftId
+        assert data['draftId'] == job.draft_id
         assert data['status'] == 'processing'
         assert data['progress'] == 50
 
@@ -186,8 +188,9 @@ class TestReplaceFileView:
         )
         assert response.status_code == 202
         data = response.json()
-        assert data['job_id'] == 'rpl_001'  # SAME job_id (reused, not new)
-        assert data['draft_id'] == 'd_replace'
+        # 响应经 CamelCaseJSONRenderer 渲染，job_id → jobId / draft_id → draftId
+        assert data['jobId'] == 'rpl_001'  # SAME job_id (reused, not new)
+        assert data['draftId'] == 'd_replace'
         # 原 ParseJob 原地更新（不是新插入一条）
         assert ParseJob.objects.filter(draft_id='d_replace').count() == 1
         job = ParseJob.objects.get(job_id='rpl_001')
@@ -264,8 +267,11 @@ class TestBulkCreateView:
         )
         assert response.status_code == 200
         data = response.json()
-        assert 'task_id' in data
-        assert len(data['created_candidate_ids']) == 1
+        # 响应经 CamelCaseJSONRenderer 渲染；
+        # 注意请求体里的 draft_id/submit_mode 是入参（CamelCaseJSONParser 兼容 snake_case），不改
+        assert 'taskId' in data
+        assert len(data['createdCandidateIds']) == 1
+        # route 的 key 是 draft_id 值本身（数据不是字段名），渲染器不转换
         assert data['route'] == {'d1': 'pending'}
         assert mock_score_task.call_count == 1
 
@@ -343,11 +349,19 @@ class TestScoringEndpoints:
             )
         assert response.status_code == 200
         data = response.json()
-        assert 'stream_url' in data
-        assert 'task_test' in data['stream_url']
+        # 响应经 CamelCaseJSONRenderer 渲染，stream_url → streamUrl
+        # （上面请求体里的 task_id 是入参，保持 snake_case 不动）
+        assert 'streamUrl' in data
+        assert 'task_test' in data['streamUrl']
 
-    def test_scoring_stream_returns_event_stream(self, api_client):
-        """I-4: SSE 改用 Redis pub/sub — test env 无 Redis，用 mock _get_redis 注入 fake pubsub"""
+    def test_scoring_stream_returns_event_stream(self, api_client, hr_user):
+        """I-4: SSE 改用 Redis pub/sub — test env 无 Redis，用 mock _get_redis 注入 fake pubsub
+
+        I-6 (2026-07-02) 之后 ScoringStreamView.get 先做 IDOR 归属校验：
+        读 redis key `add_candidate:scoring:owner:<task_id>`，None → 404，
+        非当前用户 → 403。所以 fake redis 的 .get() 必须返回当前用户 id，
+        否则 MagicMock 会被 str() 成 "<MagicMock ...>" 判定为他人 → 403。
+        """
         from unittest.mock import patch, MagicMock
         fake_pubsub = MagicMock()
         fake_pubsub.listen.return_value = [
@@ -355,12 +369,33 @@ class TestScoringEndpoints:
             {'type': 'message', 'data': json.dumps({'event': 'task-complete', 'data': {}})},
         ]
         with patch('apps.add_candidate.sse._get_redis') as mock_redis:
+            mock_redis.return_value.get.return_value = str(hr_user.id).encode()
             mock_redis.return_value.pubsub.return_value = fake_pubsub
             response = api_client.get(
                 '/api/v1/candidates/add-candidate/scoring/stream/sse_test_1/'
             )
         assert response.status_code == 200
         assert response['Content-Type'] == 'text/event-stream'
+
+    def test_scoring_stream_rejects_other_users_task(self, api_client):
+        """I-6: task 归属他人 → 403（锁死 IDOR 修复，防回归）"""
+        from unittest.mock import patch
+        with patch('apps.add_candidate.sse._get_redis') as mock_redis:
+            mock_redis.return_value.get.return_value = b'someone-else-user-id'
+            response = api_client.get(
+                '/api/v1/candidates/add-candidate/scoring/stream/sse_test_2/'
+            )
+        assert response.status_code == 403
+
+    def test_scoring_stream_unknown_task_404(self, api_client):
+        """I-6: owner key 不存在（任务不存在/已过期）→ 404"""
+        from unittest.mock import patch
+        with patch('apps.add_candidate.sse._get_redis') as mock_redis:
+            mock_redis.return_value.get.return_value = None
+            response = api_client.get(
+                '/api/v1/candidates/add-candidate/scoring/stream/sse_test_3/'
+            )
+        assert response.status_code == 404
 
     def test_scoring_start_requires_auth(self, plain_client):
         response = plain_client.post(

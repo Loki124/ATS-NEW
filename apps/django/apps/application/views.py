@@ -17,14 +17,16 @@ API Endpoints:
 - GET    /api/v1/applications/{id}/histories/ 操作历史
 - GET    /api/v1/applications/{id}/records/  阶段记录
 
-- GET    /api/v1/grab-pool/                  抢单池
+- GET    /api/v1/grab-pool/                  抢单池        (URLconf: urls_grab_pool.py)
 - POST   /api/v1/grab-pool/reassign/         抢单超时重分配（管理员）
 - GET    /api/v1/grab-pool/summary/          抢单池汇总
 
-- POST   /api/v1/invitations/                创建邀请
-- POST   /api/v1/invitations/{id}/send/      发送
-- GET    /api/v1/invitations/by-code/{code}/  按 code 查询
-- POST   /api/v1/invitations/respond/        候选人响应
+⚠️ 2026-08-06 寇豆码: 本模块的 InvitationViewSet 已从 URLconf 摘除 —
+   /api/v1/invitations/ 统一由 apps/invitation/urls.py + apps/invitation/views.InvitationViewSet
+   提供。原因：两处同名同 basename='invitation' 注册会造成 URL name 冲突（reverse 结果
+   取决于注册顺序），且本类的 list/create/respond/send 路由本就被同一 router 上先注册的
+   ApplicationViewSet 的 `^$` / `^(?P<id>[^/.]+)/$` 吃掉，长期不可达（仅 by-code/{code}/
+   因为是两段路径而侥幸可达）。类保留（InvitationService 逻辑仍可复用），不再暴露 HTTP 路由。
 """
 from __future__ import annotations
 
@@ -499,10 +501,21 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
         })
 
 
-class GrabPoolViewSet(viewsets.ViewSet):
-    """抢单池 ViewSet"""
+class GrabPoolViewSet(viewsets.GenericViewSet):
+    """抢单池 ViewSet
+
+    2026-08-06 寇豆码: 原来继承 viewsets.ViewSet（APIView 系），它**没有**
+    paginate_queryset / get_paginated_response —— 那两个方法来自 GenericAPIView，
+    所以 list() 里的 `self.paginate_queryset(apps)` 必然 AttributeError → 500。
+    之前因为整个 ViewSet 的路由被 ApplicationViewSet 吃掉，这个 500 从未被触发。
+    改继承 GenericViewSet 后声明的 pagination_class 才真正生效。
+    queryset/serializer_class 显式声明：list() 虽直接用 GrabService 取数不走
+    get_queryset()，但 drf-spectacular 生成 schema 时会访问，避免告警。
+    """
     permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
+    queryset = Application.objects.none()
+    serializer_class = ApplicationListSerializer
 
     def list(self, request):
         """抢单池列表"""

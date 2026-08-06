@@ -10,7 +10,16 @@ from apps.process.serializers import (
     RecruitmentStageSerializer,
 )
 
-from .models import Application, ApplicationHistory, ApplicationStageRecord
+# 2026-08-06 寇豆码: ApplicationState 是 models.py 的**模块级** TextChoices，
+#   不是 Application 的内部类。原 get_is_in_grab_pool 写
+#   `Application.ApplicationState.ACTIVE` → AttributeError；只要 applications 表非空，
+#   GET /api/v1/applications/ 就会 500（表为空时该方法不执行，才侥幸返回 200）。
+from .models import (
+    Application,
+    ApplicationHistory,
+    ApplicationStageRecord,
+    ApplicationState,
+)
 
 
 # ============================================================
@@ -108,8 +117,10 @@ class ApplicationListSerializer(serializers.ModelSerializer):
         return timezone.now() > obj.stage_deadline
 
     def get_is_in_grab_pool(self, obj) -> bool:
-        return (
-            obj.state == Application.ApplicationState.ACTIVE
+        # bool() 包裹: and 链在中途短路时会返回 None / 模型实例而非 bool，
+        # 与 `-> bool` 注解（drf-spectacular 据此生成 schema）不符
+        return bool(
+            obj.state == ApplicationState.ACTIVE
             and not obj.is_grabbed
             and obj.current_link
             and getattr(obj.current_link, 'stage_rule', None)

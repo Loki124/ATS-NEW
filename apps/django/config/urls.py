@@ -50,6 +50,12 @@ api_v1_patterns = [
     path('candidates/', include('apps.candidate.urls')),
     path('candidates/add-candidate/', include(('apps.add_candidate.urls', 'add_candidate'))),
     path('applications/', include('apps.application.urls')),
+    # 2026-08-06 寇豆码: GrabPoolViewSet 原来与 ApplicationViewSet 共用同一个 router 且都
+    #   register(r''), `^$`/`^summary/$`/`^reassign/$` 全被 ApplicationViewSet 的
+    #   `^$` 和 `^(?P<id>[^/.]+)/$` 吃掉 → 整块不可达. 拆独立 URLconf 并按
+    #   apps/application/views.py docstring 声明的契约挂顶层 /api/v1/grab-pool/
+    #   (挂 applications/ 之下会与 /api/v1/applications/{id}/grab/ 语义混淆).
+    path('grab-pool/', include('apps.application.urls_grab_pool')),
     path('demands/', include('apps.demand.urls')),
     path('positions/', include('apps.position.urls')),
     path('offers/', include('apps.offer.urls')),

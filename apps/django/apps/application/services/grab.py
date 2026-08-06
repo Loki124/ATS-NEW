@@ -28,7 +28,11 @@ from apps.common.exceptions import NotFound, StateTransitionError
 from apps.core.models import User
 from apps.position.models import Position
 
-from ..models import Application, ApplicationStageRecord
+# 2026-08-06 寇豆码: ApplicationState 是 models.py 的**模块级** TextChoices，
+#   不是 Application 的内部类 —— 原来写 `Application.ApplicationState.ACTIVE`
+#   会 AttributeError（之前因为 GrabPoolViewSet 路由被吃掉、且 applications 表为空
+#   而一直没被触发）。改为直接导入模块级枚举。
+from ..models import Application, ApplicationStageRecord, ApplicationState
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +82,7 @@ class GrabService:
         """获取抢单池（候选人已到抢单阶段但未被认领的申请）"""
         from apps.process.models import ProcessStageLink
         qs = Application.objects.filter(
-            state=Application.ApplicationState.ACTIVE,
+            state=ApplicationState.ACTIVE,
             is_grabbed=False,
             deleted_at__isnull=True,
         ).select_related('current_link', 'current_stage', 'candidate', 'position')
@@ -123,7 +127,7 @@ class GrabService:
             raise StateTransitionError(
                 f'Application already grabbed by {application.grabbed_by_id}',
             )
-        if application.state != Application.ApplicationState.ACTIVE:
+        if application.state != ApplicationState.ACTIVE:
             raise StateTransitionError(
                 f'Cannot grab application in state {application.state}',
             )
@@ -200,7 +204,7 @@ class GrabService:
         from .models import ApplicationHistory
         cutoff = timezone.now() - timedelta(minutes=threshold_minutes)
         overdue = Application.objects.filter(
-            state=Application.ApplicationState.ACTIVE,
+            state=ApplicationState.ACTIVE,
             is_grabbed=False,
             stage_entered_at__lte=cutoff,
             deleted_at__isnull=True,
@@ -252,7 +256,7 @@ class GrabService:
         """抢单池汇总统计"""
         from django.db.models import Count
         pool = Application.objects.filter(
-            state=Application.ApplicationState.ACTIVE,
+            state=ApplicationState.ACTIVE,
             is_grabbed=False,
             deleted_at__isnull=True,
         )
