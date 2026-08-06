@@ -150,7 +150,7 @@ class GrabService:
             sr.state = ApplicationStageRecord.StageState.PROCESSING
             sr.save()
 
-        from .models import ApplicationHistory
+        from ..models import ApplicationHistory
         ApplicationHistory.objects.create(
             application=application,
             action=ApplicationHistory.ActionType.GRABBED,
@@ -187,7 +187,7 @@ class GrabService:
         application.grabbed_at = None
         application.save()
 
-        from .models import ApplicationHistory
+        from ..models import ApplicationHistory
         ApplicationHistory.objects.create(
             application=application,
             action=ApplicationHistory.ActionType.ADVANCED,
@@ -201,7 +201,11 @@ class GrabService:
     def reassign_overdue(threshold_minutes: int = 30,
                         limit: int = 100) -> List[GrabResult]:
         """重分配超时未认领的申请"""
-        from .models import ApplicationHistory
+        # 2026-08-06 寇豆码: 本文件在 apps/application/services/ 子包内，单点 `.models`
+        #   会解析成 apps.application.services.models（不存在）→ ModuleNotFoundError。
+        #   父包的 apps/application/models.py 必须用两个点 `..models`，与本文件顶部
+        #   模块级 `from ..models import ...` 保持一致。
+        from ..models import ApplicationHistory
         cutoff = timezone.now() - timedelta(minutes=threshold_minutes)
         overdue = Application.objects.filter(
             state=ApplicationState.ACTIVE,

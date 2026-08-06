@@ -86,7 +86,7 @@ def clone_process_with_new_version(
     - 引用中流程的配置修改（PRD BR-101）
     - 历史候选人"升版本"（BR-104）
     """
-    from .models import (
+    from ..models import (
         ProcessStageLink,
         RecruitmentProcess,
         StageRule,
@@ -147,7 +147,7 @@ def clone_process_with_new_version(
 
 def list_process_versions(process_code: str) -> List[dict]:
     """列出某流程编号的所有历史版本（按版本号排序）"""
-    from .models import RecruitmentProcess
+    from ..models import RecruitmentProcess
 
     versions = RecruitmentProcess.objects.filter(code=process_code).order_by('current_version')
     return [

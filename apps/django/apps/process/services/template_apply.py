@@ -30,7 +30,7 @@ def apply_template_to_process(template, name: str, code: str, actor=None):
     from apps.time_limit.models import TimeLimitRule
     from apps.automation.models import AutomationRule
 
-    from .models import (
+    from ..models import (
         ProcessStageLink,
         RecruitmentProcess,
         StageRule,
@@ -161,7 +161,7 @@ def apply_template_to_process(template, name: str, code: str, actor=None):
         next_stage_name = au_data.get('next_stage_name')
         next_stage = None
         if next_stage_name:
-            from .models import RecruitmentStage
+            from ..models import RecruitmentStage
             next_stage = RecruitmentStage.objects.filter(name=next_stage_name).first()
         AutomationRule.objects.create(
             name=au_data.get('name', ''),

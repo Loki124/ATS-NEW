@@ -31,7 +31,7 @@ def advance_application_to_next_stage(
     2026-07-02: 用 select_for_update 重载 application, 防并发推进同一 application
     导致双阶段记录。
     """
-    from .models import Application, ApplicationStageRecord
+    from ..models import Application, ApplicationStageRecord
     from apps.process.models import ProcessStageLink
 
     # 在事务里重新锁行, caller 传入的 instance 不一定是最新的
@@ -116,7 +116,7 @@ def advance_application_to_next_stage(
     ])
 
     # 写 history
-    from .models import ApplicationHistory
+    from ..models import ApplicationHistory
     ApplicationHistory.objects.create(
         application=application,
         action=ApplicationHistory.ActionType.ADVANCED,
@@ -153,7 +153,7 @@ def jump_application_to_stage(
     reason: str = '',
 ) -> dict:
     """跳转到指定阶段"""
-    from .models import Application, ApplicationStageRecord, ApplicationHistory
+    from ..models import Application, ApplicationStageRecord, ApplicationHistory
     from apps.process.models import ProcessStageLink
 
     target_link = ProcessStageLink.objects.filter(
@@ -247,7 +247,7 @@ def resume_application(application, actor=None) -> dict:
 @transaction.atomic
 def timeout_application(application, reason: str = '', actor=None) -> dict:
     """超时归档"""
-    from .models import ApplicationHistory
+    from ..models import ApplicationHistory
     if application.state in ('ONBOARDED', 'REJECTED', 'WITHDRAWN', 'TIMEOUT'):
         return {'timed_out': False, 'reason': 'final state'}
     application.state = 'TIMEOUT'

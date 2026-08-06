@@ -527,11 +527,16 @@ class GrabPoolViewSet(viewsets.GenericViewSet):
             position_id=v.get('position_id') or None,
             limit=v.get('limit', 50),
         )
+        # 2026-08-07 寇豆码: 改用 self.get_serializer(...) 取代裸 ApplicationListSerializer(...)。
+        # 根因: 裸实例化不带 context，get_candidate_phone 取不到 request.user 直接走脱敏分支，
+        # 导致 grab-pool 端点对超管也返回掩码号码，与 applications 端点语义分叉。
+        # self.get_serializer 自动注入 {'request','view','format'} context，与 ApplicationViewSet.list()
+        # （DRF ListModelMixin 走 self.get_serializer）完全一致，从根本上保证两边行为统一。
         page = self.paginate_queryset(apps)
         if page is not None:
-            serializer = ApplicationListSerializer(page, many=True)
+            serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        return Response(ApplicationListSerializer(apps, many=True).data)
+        return Response(self.get_serializer(apps, many=True).data)
 
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
