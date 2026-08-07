@@ -734,7 +734,7 @@ class ApplicationService:
     # ----------------------------------------------------------
     @staticmethod
     @transaction.atomic
-    def archive_timeout(application: Application) -> Application:
+    def timeout_archive(application: Application) -> Application:
         """超时归档（Celery 调用）
 
         幂等：状态不在 ``TIMEOUT_ARCHIVABLE_STATES`` 内时原样返回、不做任何写入。

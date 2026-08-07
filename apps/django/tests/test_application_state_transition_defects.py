@@ -35,7 +35,7 @@ view 只 ``except StateTransitionError``，``AttributeError`` 穿透到
 
 D2 — 超时归档静默失败
 ---------------------
-``ApplicationService.archive_timeout()``（services/__init__.py:716）同样裸赋值
+``ApplicationService.timeout_archive()``（services/__init__.py:716）同样裸赋值
 ``application.state = ApplicationState.TIMEOUT`` → 必抛 AttributeError。
 其唯一调用方 ``apps/application/tasks.py:227`` 把它包在
 ``try/except Exception: logger.warning(...)`` 里，异常被吞。
@@ -56,7 +56,7 @@ D1 / D2 / D3 **均已修复**，本文件 7 个 ``xfail(strict=True)`` 装饰器
 
     D1  views.py 331/352/368 → ``.withdraw(`` / ``.pause(`` / ``.resume(``
     D1  ApplicationService.withdraw() 裸赋值 → ``application.withdraw()`` 状态机方法
-    D2  ApplicationService.archive_timeout() 裸赋值 → ``application.timeout_archive()``
+    D2  ApplicationService.timeout_archive() 裸赋值 → ``application.timeout_archive()``
     D3  补 ``withdraw`` / ``timeout_archive`` 两条 @transition，死枚举清零
 
 本文件的红绿策略（重要，供后续沿用）
@@ -166,7 +166,7 @@ def defect_position(db, department, super_user, defect_process):
         id='pos-state-defect',
         code='P_STATE_DEFECT',
         title='状态缺陷回归职位',
-        description='用于验证 withdraw / pause / resume / archive_timeout 链路',
+        description='用于验证 withdraw / pause / resume / timeout_archive 链路',
         department=department,
         hiring_manager=super_user,
         owner=super_user,
@@ -507,14 +507,14 @@ class TestPauseResumeEndpoints:
 # ============================================================
 @pytest.mark.django_db
 class TestArchiveTimeout:
-    """``ApplicationService.archive_timeout()`` 与 Celery 任务 ``archive_stale_applications``。"""
+    """``ApplicationService.timeout_archive()`` 与 Celery 任务 ``archive_stale_applications``。"""
 
-    def test_archive_timeout_currently_cannot_write_state(self, active_application):
+    def test_timeout_archive_currently_cannot_write_state(self, active_application):
         """根因取证（当前绿）：服务层裸赋值 TIMEOUT 必抛 AttributeError。
 
         这条断言的是 **protected FSMField 的框架语义**，不是产品行为，
         因此它现在绿、修好之后（改用 @transition）依然应该绿 ——
-        因为届时 ``archive_timeout`` 不再走裸赋值，而是走状态机方法。
+        因为届时 ``timeout_archive`` 不再走裸赋值，而是走状态机方法。
 
         它的守卫价值：如果哪天有人把 ``protected`` 关掉来"绕过"这个问题，
         本断言会立刻变红，提醒团队这是在拆掉状态机的保护而非修复问题。
@@ -523,15 +523,15 @@ class TestArchiveTimeout:
         with pytest.raises(AttributeError, match='Direct state modification is not allowed'):
             app.state = ApplicationState.TIMEOUT
 
-    def test_archive_timeout_sets_state_to_timeout(self, active_application):
-        """单元层：archive_timeout 应把状态写成 TIMEOUT 并落库。
+    def test_timeout_archive_sets_state_to_timeout(self, active_application):
+        """单元层：timeout_archive 应把状态写成 TIMEOUT 并落库。
 
         （原为 xfail(strict=True)；改用 ``application.timeout_archive()``
         状态机方法后转绿，2026-08-08 摘除。）
         """
         from apps.application.services import ApplicationService
 
-        ApplicationService.archive_timeout(_reload(active_application))
+        ApplicationService.timeout_archive(_reload(active_application))
 
         assert _reload(active_application).state == ApplicationState.TIMEOUT
 
@@ -712,15 +712,15 @@ class TestStateChangesArePersisted:
             pk=active_application.pk, state=ApplicationState.WITHDRAWN,
         ).exists()
 
-    def test_archive_timeout_persists_timeout_state(self, active_application):
-        """``ApplicationService.archive_timeout`` 后数据库必须是 TIMEOUT。"""
+    def test_timeout_archive_persists_timeout_state(self, active_application):
+        """``ApplicationService.timeout_archive`` 后数据库必须是 TIMEOUT。"""
         from apps.application.services import ApplicationService
 
-        returned = ApplicationService.archive_timeout(_reload(active_application))
+        returned = ApplicationService.timeout_archive(_reload(active_application))
 
         assert returned.state == ApplicationState.TIMEOUT
         assert _reload(active_application).state == ApplicationState.TIMEOUT, (
-            'archive_timeout 改了内存状态但没落库'
+            'timeout_archive 改了内存状态但没落库'
         )
         assert Application.objects.filter(
             pk=active_application.pk, state=ApplicationState.TIMEOUT,
@@ -779,15 +779,15 @@ class TestStateChangesArePersisted:
             '撤回被拒绝，但 DB 状态却被改动了'
         )
 
-    def test_archive_timeout_is_idempotent_and_does_not_write(self, onboarded_application):
+    def test_timeout_archive_is_idempotent_and_does_not_write(self, onboarded_application):
         """状态不在 TIMEOUT_ARCHIVABLE_STATES 内时原样返回、不写库（幂等契约）。"""
         from apps.application.services import ApplicationService
 
-        returned = ApplicationService.archive_timeout(_reload(onboarded_application))
+        returned = ApplicationService.timeout_archive(_reload(onboarded_application))
 
         assert returned.state == ApplicationState.ONBOARDED
         assert _reload(onboarded_application).state == ApplicationState.ONBOARDED, (
-            'archive_timeout 对不可归档状态应当完全不写库'
+            'timeout_archive 对不可归档状态应当完全不写库'
         )
 
 

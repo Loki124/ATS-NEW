@@ -219,7 +219,7 @@ def archive_stale_applications(self, days: int = 90) -> Dict[str, Any]:
     调用方/监控可以据 ``failed_count > 0`` 判定本次批处理带病完成。
 
     ``archived_count`` 只统计**状态确实变成 TIMEOUT**的条数，
-    ``skipped_count`` 统计 ``archive_timeout`` 幂等跳过（状态不可归档）的条数，
+    ``skipped_count`` 统计 ``timeout_archive`` 幂等跳过（状态不可归档）的条数，
     因此 ``archived_count`` 与 DB 中新增的 TIMEOUT 记录数恒等。
     """
     from .models import Application, ApplicationState
@@ -236,7 +236,7 @@ def archive_stale_applications(self, days: int = 90) -> Dict[str, Any]:
     failed_ids: List[str] = []
     for app in stale:
         try:
-            result = ApplicationService.archive_timeout(app)
+            result = ApplicationService.timeout_archive(app)
         except Exception:
             failed_ids.append(app.id)
             logger.error(

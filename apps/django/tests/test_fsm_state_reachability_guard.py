@@ -449,7 +449,7 @@ class TestApplicationStateReachability:
     """A4 专项 —— Application 的 WITHDRAWN / TIMEOUT。
 
     这两个曾是全部 6 个死枚举里危害最大的：它们**已经有调用方**
-    （``ApplicationService.withdraw()`` / ``archive_timeout()``），
+    （``ApplicationService.withdraw()`` / ``timeout_archive()``），
     调用方因为拿不到 transition 而退回裸赋值，直接造成 D1/D2 两个生产缺陷。
     2026-08-08 补上 transition 后已修复，本类转为常驻回归守卫。
     其余 4 个死枚举目前没有调用方，属于纯定义冗余，危害等级低得多。
@@ -645,7 +645,7 @@ class TestServiceConstantsMatchTransitionSources:
             '@transition source 不一致：\n'
             f'  服务层常量:      {sorted(constant)}\n'
             f'  状态机 source:   {sorted(sources)}\n'
-            f'  仅常量有（archive_timeout 会走到状态机然后抛 StateTransitionError，'
+            f'  仅常量有（timeout_archive 会走到状态机然后抛 StateTransitionError，'
             f'而调用方 tasks.py 把异常吞掉 → 静默失败）: {sorted(constant - sources)}\n'
             f'  仅状态机有（可归档的记录被业务层提前放行掉 → 永远归档不到）: '
             f'{sorted(sources - constant)}\n'
