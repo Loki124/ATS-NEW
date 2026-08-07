@@ -40,6 +40,29 @@ from ..models import Application, ApplicationHistory, ApplicationState, Applicat
 
 logger = logging.getLogger(__name__)
 
+# 可被"超时归档"处理的状态集合。
+# 必须与 Application.timeout_archive 的 @transition source 保持一致 ——
+# 前者是业务前置判断（不满足则幂等返回），后者是状态机的硬约束。
+# 已发 Offer（OFFER_SENT / OFFER_ACCEPTED）属结果待定，不做自动超时归档；
+# ONBOARDED / REJECTED / WITHDRAWN / TIMEOUT 是终态。
+TIMEOUT_ARCHIVABLE_STATES: Tuple[str, ...] = (
+    ApplicationState.PENDING,
+    ApplicationState.ACTIVE,
+    ApplicationState.PAUSED,
+)
+
+# 必须与 Application.withdraw 的 @transition source 一致 ——
+# 前者是业务前置判断（不满足则直接 409），后者是状态机的硬约束。
+# 已发 Offer（OFFER_SENT / OFFER_ACCEPTED）仍属"入职前可反悔"区间，允许撤回；
+# ONBOARDED / REJECTED / TIMEOUT / WITHDRAWN 是终态，不允许撤回。
+WITHDRAWABLE_STATES: Tuple[str, ...] = (
+    ApplicationState.PENDING,
+    ApplicationState.ACTIVE,
+    ApplicationState.PAUSED,
+    ApplicationState.OFFER_SENT,
+    ApplicationState.OFFER_ACCEPTED,
+)
+
 
 @dataclass
 class ApplicationCreateData:
@@ -299,11 +322,17 @@ class ApplicationService:
 
         if not next_link:
             # 已到终阶段 → OFFER_SENT
+            # 状态机拒绝转换时**不得**裸赋值绕过（state 是 protected FSMField，
+            # 裸赋值必抛 AttributeError；即便不抛也属于 fail-open）。
+            # 统一转成项目既有的 StateTransitionError，view 层会返 409。
             try:
                 application.send_offer_state()
-            except Exception:
-                application.state = ApplicationState.OFFER_SENT
-                application.save()
+            except Exception as e:
+                raise StateTransitionError(
+                    f'Cannot mark application {application.code} as OFFER_SENT '
+                    f'from state {application.state}: {e}',
+                ) from e
+            application.save()
             ApplicationHistory.objects.create(
                 application=application,
                 action=ApplicationHistory.ActionType.OFFER_SENT,
@@ -349,10 +378,17 @@ class ApplicationService:
                     )
                 except Exception as e:
                     logger.warning('Pool entry create failed: %s', e)
+                # 同上：不允许用裸赋值绕过状态机。
+                # mark_rejected 的 source 是 [ACTIVE, PAUSED]，若当前是 PENDING
+                # 则转换会被拒绝 —— 明确抛错，而不是静默带病继续。
                 try:
                     application.mark_rejected()
-                except Exception:
-                    application.state = ApplicationState.REJECTED
+                except Exception as e:
+                    raise StateTransitionError(
+                        f'Entry condition not met ({cond_result.reject_message}), '
+                        f'and application {application.code} cannot transition to '
+                        f'REJECTED from state {application.state}: {e}',
+                    ) from e
                 application.save()
                 raise StateTransitionError(
                     f'Entry condition not met: {cond_result.reject_message}',
@@ -594,16 +630,21 @@ class ApplicationService:
     def withdraw(application: Application, reason: str,
                  actor: Optional[User] = None) -> Application:
         """候选人主动撤回"""
-        if application.state in (
-            ApplicationState.ONBOARDED,
-            ApplicationState.WITHDRAWN,
-        ):
+        if application.state not in WITHDRAWABLE_STATES:
             raise StateTransitionError(
                 f'Cannot withdraw in state {application.state}',
             )
         from apps.candidate.services import CandidateService
         CandidateService.withdraw(application.candidate, reason, actor=actor)
-        application.state = ApplicationState.WITHDRAWN
+        # state 是 protected FSMField，只能走 @transition 方法（Application.withdraw）。
+        # 转换被拒绝时统一转成 StateTransitionError，view 层返 409。
+        try:
+            application.withdraw()
+        except Exception as e:
+            raise StateTransitionError(
+                f'Cannot withdraw application {application.code} '
+                f'in state {application.state}: {e}',
+            ) from e
         application.save()
         # 关闭所有未完结记录
         now = timezone.now()
@@ -694,10 +735,12 @@ class ApplicationService:
     @staticmethod
     @transaction.atomic
     def archive_timeout(application: Application) -> Application:
-        """超时归档（Celery 调用）"""
-        if application.state in (
-            ApplicationState.ONBOARDED, ApplicationState.WITHDRAWN, ApplicationState.TIMEOUT,
-        ):
+        """超时归档（Celery 调用）
+
+        幂等：状态不在 ``TIMEOUT_ARCHIVABLE_STATES`` 内时原样返回、不做任何写入。
+        调用方（tasks.archive_stale_applications）据返回值的 state 判定是否真的归档。
+        """
+        if application.state not in TIMEOUT_ARCHIVABLE_STATES:
             return application
 
         # 关闭当前 record
@@ -713,7 +756,14 @@ class ApplicationService:
             current_record.exited_at = timezone.now()
             current_record.save()
 
-        application.state = ApplicationState.TIMEOUT
+        # 同 withdraw：protected FSMField 只能走 @transition（Application.timeout_archive）。
+        try:
+            application.timeout_archive()
+        except Exception as e:
+            raise StateTransitionError(
+                f'Cannot archive application {application.code} as TIMEOUT '
+                f'from state {application.state}: {e}',
+            ) from e
         application.save()
         ApplicationHistory.objects.create(
             application=application,

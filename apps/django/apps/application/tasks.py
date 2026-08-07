@@ -211,7 +211,17 @@ def _send_failure_alert(rule, failure_rate: float, total: int, failed: int):
     bind=True, max_retries=2,
 )
 def archive_stale_applications(self, days: int = 90) -> Dict[str, Any]:
-    """归档 N 天未推进的申请"""
+    """归档 N 天未推进的申请。
+
+    失败可见性（2026-08-07）：
+    单条失败仍然被捕获（避免一条坏数据拖垮整批），但**不再静默** ——
+    失败条数与申请 id 会写进返回值，日志用 ``logger.error(..., exc_info=True)``。
+    调用方/监控可以据 ``failed_count > 0`` 判定本次批处理带病完成。
+
+    ``archived_count`` 只统计**状态确实变成 TIMEOUT**的条数，
+    ``skipped_count`` 统计 ``archive_timeout`` 幂等跳过（状态不可归档）的条数，
+    因此 ``archived_count`` 与 DB 中新增的 TIMEOUT 记录数恒等。
+    """
     from .models import Application, ApplicationState
     from .services import ApplicationService
 
@@ -222,14 +232,39 @@ def archive_stale_applications(self, days: int = 90) -> Dict[str, Any]:
         deleted_at__isnull=True,
     )
     archived = 0
+    skipped = 0
+    failed_ids: List[str] = []
     for app in stale:
         try:
-            ApplicationService.archive_timeout(app)
+            result = ApplicationService.archive_timeout(app)
+        except Exception:
+            failed_ids.append(app.id)
+            logger.error(
+                'Archive stale application %s (id=%s) failed',
+                app.code, app.id, exc_info=True,
+            )
+            continue
+        if result.state == ApplicationState.TIMEOUT:
             archived += 1
-        except Exception as e:
-            logger.warning('Archive stale application %s failed: %s', app.code, e)
+        else:
+            skipped += 1
+            logger.warning(
+                'Archive stale application %s (id=%s) skipped: state=%s not archivable',
+                app.code, app.id, result.state,
+            )
+
+    total = archived + skipped + len(failed_ids)
+    log = logger.error if failed_ids else logger.info
+    log(
+        'archive_stale_applications: total=%d archived=%d skipped=%d failed=%d failed_ids=%s',
+        total, archived, skipped, len(failed_ids), failed_ids,
+    )
     return {
         'archived_count': archived,
+        'skipped_count': skipped,
+        'failed_count': len(failed_ids),
+        'failed_ids': failed_ids,
+        'total_candidates': total,
         'cutoff_days': days,
     }
 

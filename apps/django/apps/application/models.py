@@ -134,6 +134,53 @@ class Application(FullAuditModel):
         """本流程未通过"""
         pass
 
+    @transition(
+        field=state,
+        source=[
+            ApplicationState.PENDING,
+            ApplicationState.ACTIVE,
+            ApplicationState.PAUSED,
+            ApplicationState.OFFER_SENT,
+            ApplicationState.OFFER_ACCEPTED,
+        ],
+        target=ApplicationState.WITHDRAWN,
+    )
+    def withdraw(self):
+        """候选人主动撤回
+
+        source 取"入职尚未完成、结果仍可由候选人反悔"的全部状态：
+        PENDING / ACTIVE / PAUSED / OFFER_SENT / OFFER_ACCEPTED。
+        纳入 OFFER_ACCEPTED 是因为"接了 Offer 但入职前违约"是真实高频场景，
+        把它压成 REJECTED（本流程未通过）会歪曲语义与漏斗统计。
+
+        排除：
+        - ONBOARDED —— 已入职，应走离职流程而非撤回；
+        - REJECTED —— "本流程未通过"的终态，撤回会抹掉这个事实；
+        - TIMEOUT —— 系统归档终态，撤回等于篡改归档；
+        - WITHDRAWN —— 本身即目标态。
+
+        注意：服务层 ``WITHDRAWABLE_STATES`` 必须与本 source 保持一致。
+        """
+        pass
+
+    @transition(
+        field=state,
+        source=[
+            ApplicationState.PENDING,
+            ApplicationState.ACTIVE,
+            ApplicationState.PAUSED,
+        ],
+        target=ApplicationState.TIMEOUT,
+    )
+    def timeout_archive(self):
+        """超时归档（由 Celery 巡检触发）
+
+        source 只取流程推进中的三态。已发 Offer（OFFER_SENT / OFFER_ACCEPTED）
+        属于结果待定阶段，不应被"长期未推进"规则自动归档；
+        ONBOARDED / REJECTED / WITHDRAWN / TIMEOUT 是终态，同样不归档。
+        """
+        pass
+
 
 class ApplicationStageRecord(FullAuditModel):
     """申请-阶段记录 - 候选人在每个阶段的历史（PRD §6.2, §13.1）

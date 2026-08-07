@@ -328,7 +328,7 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
         serializer = ApplicationWithdrawSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            application = ApplicationService.withdraw_application(
+            application = ApplicationService.withdraw(
                 application, reason=serializer.validated_data['reason'],
                 actor=request.user,
             )
@@ -349,7 +349,7 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
         serializer = ApplicationPauseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            application = ApplicationService.pause_application(
+            application = ApplicationService.pause(
                 application, reason=serializer.validated_data.get('reason', ''),
                 actor=request.user,
             )
@@ -365,7 +365,7 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
         """恢复"""
         application = self.get_object()
         try:
-            application = ApplicationService.resume_application(
+            application = ApplicationService.resume(
                 application, actor=request.user,
             )
         except StateTransitionError as e:
