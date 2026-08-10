@@ -211,6 +211,19 @@ def _clone_related(model, source, *, exclude: frozenset, overrides: dict):
       并不会把已写入的 ``next_stage_id`` 清回 None，结果就是**静默保留旧外键**。
       这正是 ``test_clone_disables_automation_rule_whose_next_stage_was_removed``
       守的那条线：必须写 ``overrides['next_stage_id'] = None``。
+
+    正反例对照（以「把 AutomationRule 的 next_stage 置空」为例）::
+
+        # ❌ 无效：data 里已有 'next_stage_id'，这行只是多塞了一个无人读的 key
+        data.update({'next_stage': None})
+        # ✅ 有效：自省产出的 key 是 attname，覆写必须用 attname
+        data.update({'next_stage_id': None})
+
+    这个坑**不限于 clone**：项目里任何「自省字段 → dict → 重建实例」的写法都会踩
+    （批量复制、导入导出、快照回滚、测试夹具工厂……）。它的恶劣之处在于**没有任何
+    信号**——不抛异常、不打日志、DB 层也没有 FK 约束会拦（本仓 FK 多为逻辑外键），
+    表现只是新行悄悄指着旧版本的对象。肉眼 review 极难发现，唯一可靠的兜底是
+    **断言**：凡自省拷贝出来的行，都要显式断言其外键不指回源对象。
     """
     data = _copy_field_values(source, exclude=exclude)
     data.update(overrides)
