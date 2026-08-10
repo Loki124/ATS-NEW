@@ -223,6 +223,21 @@ class ApplicationJumpSerializer(serializers.Serializer):
     skip_entry_condition = serializers.BooleanField(default=False)
 
 
+class ApplicationChangeProcessSerializer(serializers.Serializer):
+    """跨流程线迁移入参（T8 / §3.1）。
+
+    三个字段全部 required —— 落点不允许由服务端猜（§3.3：两条流程线的 order
+    编号体系彼此独立，自动映射会得到"看起来有、实则错"的落点）。
+
+    ``reason`` 强制非空白：跨流程线是 correction 操作，审计里没有理由等于没有审计。
+    这一层只管入参形态（缺参 / 空白 → 400）；"目标流程是否可用""阶段是否属于目标
+    流程"这类业务校验属服务层，抛 StateTransitionError → 409。
+    """
+    target_process_id = serializers.CharField(required=True, allow_blank=False)
+    target_stage_id = serializers.CharField(required=True, allow_blank=False)
+    reason = serializers.CharField(required=True, allow_blank=False, max_length=500)
+
+
 class ApplicationSoftRejectSerializer(serializers.Serializer):
     """软拒"""
     reason = serializers.CharField()

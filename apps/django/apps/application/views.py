@@ -12,6 +12,7 @@ API Endpoints:
 - POST   /api/v1/applications/{id}/pause/    暂停
 - POST   /api/v1/applications/{id}/resume/   恢复
 - POST   /api/v1/applications/{id}/upgrade-version/ 升版本
+- POST   /api/v1/applications/{id}/change-process/  跨流程线迁移
 - POST   /api/v1/applications/{id}/grab/     抢单认领
 - POST   /api/v1/applications/{id}/release/  抢单释放
 - GET    /api/v1/applications/{id}/histories/ 操作历史
@@ -47,6 +48,7 @@ from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from .models import Application, ApplicationHistory, ApplicationStageRecord
 from .serializers import (
     ApplicationAdvanceSerializer,
+    ApplicationChangeProcessSerializer,
     ApplicationCreateSerializer,
     ApplicationDetailSerializer,
     ApplicationGrabSerializer,
@@ -385,6 +387,58 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
         try:
             application = ApplicationService.upgrade_workflow_version(
                 application, actor=request.user,
+            )
+        except StateTransitionError as e:
+            return Response(
+                {'error': str(e), 'code': 'STATE_TRANSITION_ERROR'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(ApplicationDetailSerializer(application).data)
+
+    # ----------------------------------------------------------
+    # 跨流程线迁移
+    # ----------------------------------------------------------
+    @action(detail=True, methods=['post'], url_path='change-process')
+    def change_process(self, request, id=None):
+        """跨流程线迁移（§3.1）
+
+        与 upgrade-version 的分工：同 code 换版本走 upgrade-version（服务端算落点），
+        跨 code 换流程线走这里（落点由操作员显式指定，服务端只校验）。
+
+        状态码分工：
+        - 400：入参形态不合法（缺 target_process_id / target_stage_id / reason，或 reason 空白）
+        - 404：target_process_id / target_stage_id 指向不存在（或已软删）的行
+        - 409：业务校验不通过（同流程 / 目标已归档 / 阶段不属于目标流程 / 目标已软删）
+        """
+        from apps.process.models import ProcessStageLink, RecruitmentProcess
+
+        application = self.get_object()
+        serializer = ApplicationChangeProcessSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        v = serializer.validated_data
+
+        # 软删过滤必写：§1.5 跨模块约定。漏掉会让已删除的流程/阶段被选成迁移目标，
+        # 且服务层的 deleted_at 兜底只在对象真被取出来时才生效。
+        try:
+            target_process = RecruitmentProcess.objects.get(
+                id=v['target_process_id'], deleted_at__isnull=True,
+            )
+        except RecruitmentProcess.DoesNotExist as e:
+            raise NotFound(f'Process {v["target_process_id"]} not found') from e
+        try:
+            target_stage_link = ProcessStageLink.objects.select_related('stage').get(
+                id=v['target_stage_id'], deleted_at__isnull=True,
+            )
+        except ProcessStageLink.DoesNotExist as e:
+            raise NotFound(f'Stage link {v["target_stage_id"]} not found') from e
+
+        try:
+            application = ApplicationService.change_process(
+                application,
+                target_process=target_process,
+                target_stage_link=target_stage_link,
+                actor=request.user,
+                reason=v['reason'],
             )
         except StateTransitionError as e:
             return Response(

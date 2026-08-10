@@ -868,6 +868,112 @@ class ApplicationService:
         return application
 
     # ----------------------------------------------------------
+    # 跨流程线迁移
+    # ----------------------------------------------------------
+    @staticmethod
+    @transaction.atomic
+    def change_process(
+        application: Application,
+        target_process: RecruitmentProcess,
+        target_stage_link: ProcessStageLink,
+        actor: Optional[User] = None,
+        reason: str = '',
+    ) -> Application:
+        """跨流程线迁移（决策 2 / §3.2）。
+
+        与 :meth:`upgrade_workflow_version` 的区别有两点，都是本质区别：
+
+        1. **跨 code**：upgrade 明确禁跨 code（换流程线得走这里）；这里则相反，
+           同一行流程会被当成无意义操作直接拒。
+        2. **落点由操作员显式指定**：不调 :func:`resolve_stage_mapping` 的
+           "最近前序"算法。两条流程线的 ``order`` 编号体系彼此独立（社招线
+           INTERVIEW=3、校招线 INTERVIEW=2），数值无可比性；硬套 order 会得到
+           "看起来有、实则错"的落点，比让 HR 自己选更危险（§3.3）。
+           服务端只做合法性校验，不猜。
+
+        历史 ``ApplicationStageRecord`` 保留指向旧流程的 link（冻结审计）。
+        跨线后阶段记录混合两条线的 link，是 correction 操作的正常结果。
+
+        Args:
+            application: 待迁移的申请。
+            target_process: 目标流程线的版本行。
+            target_stage_link: 目标流程内的落点关联（``ProcessStageLink``），
+                必须属于 ``target_process``。
+            actor: 操作人，写进审计。
+            reason: 变更理由（端点层已强制必填，审计完整性 / 防滥用）。
+
+        Returns:
+            改指后的 ``application``（已落库）。
+
+        Raises:
+            StateTransitionError: 任一校验不通过。view 层统一转 409。
+        """
+        # ---------- 1. 校验（全部先于任何写入） ----------
+        if target_process.id == application.process_id:
+            raise StateTransitionError('目标流程与当前流程相同')
+        if target_process.status != 'ENABLED':
+            raise StateTransitionError('目标流程不可用（已归档或非启用）')
+        if getattr(target_process, 'deleted_at', None) is not None:
+            raise StateTransitionError('目标流程不可用（已删除）')
+        if target_stage_link.process_id != target_process.id:
+            raise StateTransitionError('目标阶段不属于目标流程')
+        if getattr(target_stage_link, 'deleted_at', None) is not None:
+            raise StateTransitionError('目标阶段已删除')
+
+        # ---------- 2. 采集审计快照 ----------
+        # §1.3.2 硬约定：快照必须早于任何赋值。死代码
+        # ``versioning.upgrade_application_to_latest_version`` 的 V5 bug 就是先写
+        # ``application.workflow_version = ...`` 再读它当 ``from_version``，
+        # 使审计里"从哪来"恒等于"到哪去"—— 有记录，但永远查不出真相。
+        old_process = application.process
+        old_stage = application.current_stage
+        old_link = application.current_link
+        old_version = application.workflow_version
+
+        # ---------- 3. 真正改指（四件套一起落库，不留半截状态） ----------
+        application.process = target_process
+        application.workflow_version = target_process.current_version
+        application.current_link = target_stage_link
+        application.current_stage = target_stage_link.stage
+        application.save(update_fields=[
+            'process', 'workflow_version', 'current_link', 'current_stage', 'updated_at',
+        ])
+
+        # ---------- 4. 审计 ----------
+        # from_stage / to_stage 两个 **FK 列** 必须与 detail 里的 code 字符串并存：
+        # 规格 §3.2 的伪代码只写了 detail，照抄会让这两列全 NULL，与
+        # UPGRADE_VERSION 的审计形态分叉，前端时间线渲染会缺阶段信息。
+        ApplicationHistory.objects.create(
+            application=application,
+            action=ApplicationHistory.ActionType.CHANGE_PROCESS,
+            from_stage=old_stage,
+            to_stage=target_stage_link.stage,
+            detail={
+                'from_process_id': old_process.id if old_process else None,
+                'to_process_id': target_process.id,
+                'from_process_code': old_process.code if old_process else None,
+                'to_process_code': target_process.code,
+                'from_version': old_version,
+                'to_version': target_process.current_version,
+                'from_link_id': old_link.id if old_link else None,
+                'to_link_id': target_stage_link.id,
+                'from_stage': old_stage.code if old_stage else None,
+                'to_stage': target_stage_link.stage.code,
+                'reason': reason,
+            },
+            operator=actor,
+        )
+
+        logger.info(
+            'Application %s changed process: %s(%s) -> %s(%s), stage %s -> %s',
+            application.code,
+            old_process.code if old_process else None, old_version,
+            target_process.code, target_process.current_version,
+            old_stage.code if old_stage else None, target_stage_link.stage.code,
+        )
+        return application
+
+    # ----------------------------------------------------------
     # 超时归档
     # ----------------------------------------------------------
     @staticmethod

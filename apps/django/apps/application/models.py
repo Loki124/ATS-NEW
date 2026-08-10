@@ -264,6 +264,12 @@ class ApplicationHistory(FullAuditModel):
         GRABBED = 'GRABBED', '抢单'
         TIMEOUT = 'TIMEOUT', '超时'
         UPGRADE_VERSION = 'UPGRADE_VERSION', '升版本'
+        # T8 / §3.4：跨流程线迁移是**独立**审计动作，不得复用 UPGRADE_VERSION ——
+        # 后者语义是"同一条流程线（code）内换版本行"，前者是"整条流程线都换了"，
+        # 两者的可回溯范围与前端时间线文案完全不同。
+        # TextChoices 加值不产生 migration（action 是 CharField(max_length=32, choices=...)，
+        # choices 变更不影响 DB schema）。
+        CHANGE_PROCESS = 'CHANGE_PROCESS', '更换流程线'
         AUTO = 'AUTO', '自动操作'
 
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
