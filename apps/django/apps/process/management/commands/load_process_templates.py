@@ -124,7 +124,7 @@ class Command(BaseCommand):
                 'code': f'W{self._next_process_code()}',
                 'is_template': True,
                 'is_enabled': True,
-                'current_version': '1.0',
+                'current_version': 'V1.0',
                 'applicable_scope': data['snapshot'].get('applicable_scope', {}),
                 'description': data['description'],
                 'status': 'ENABLED',
@@ -237,6 +237,16 @@ class Command(BaseCommand):
         return ' AND '.join(str(i + 1) for i in range(len(rules)))
 
     def _next_process_code(self) -> str:
+        """返回下一个流程编号的三位流水号部分（调用方拼 'W' 前缀）。
+
+        T1 去掉 ``code`` 的 unique 后，同一 code 会有多行（每行一个版本），
+        原先的 ``count()`` 会被版本行数撑大 → 跳号甚至撞号。
+        改为按现有最大 code 递推，保持返回三位数字串的原契约不变。
+        """
         from apps.process.models import RecruitmentProcess
-        existing = RecruitmentProcess.objects.filter(code__startswith='W').count()
-        return f'{existing + 1:03d}'
+        last = (RecruitmentProcess.objects
+                .filter(code__startswith='W')
+                .values_list('code', flat=True)
+                .distinct().order_by('-code').first())
+        nxt = (int(last[1:]) + 1) if (last and last[1:].isdigit()) else 1
+        return f'{nxt:03d}'

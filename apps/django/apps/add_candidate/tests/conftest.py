@@ -21,9 +21,10 @@ def process(db):
         id='proc-add-candidate-test',
         code='ADD_CANDIDATE_TEST',
         name='Add Candidate 测试流程',
-        current_version='1.0',  # 与 Position.process_version 默认值一致
+        current_version='1.0',  # 与 Position.process_version 默认值一致（显式传值，不受模型 default 变更影响）
         is_template=False,
         is_enabled=True,
+        is_latest=True,  # T1：is_latest 默认 False，依赖 is_latest=True 过滤的查询会落空
         # status 字段默认 'ENABLED'，无需显式传
     )
 

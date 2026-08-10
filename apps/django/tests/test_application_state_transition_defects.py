@@ -131,6 +131,7 @@ def defect_process(db):
         current_version='1.0',
         is_template=False,
         is_enabled=True,
+        is_latest=True,  # T1：is_latest 默认 False，依赖 is_latest=True 过滤的查询会落空
     )
 
 

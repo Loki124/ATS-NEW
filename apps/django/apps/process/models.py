@@ -169,9 +169,13 @@ class RecruitmentProcess(FullAuditModel):
     ]
 
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
-    code = models.CharField(max_length=20, unique=True, verbose_name='流程编号', help_text='W+三位流水号')
+    # code 刻意**不加** unique：同一条流程线（code）可有多行，每行是一个版本（T1 版本化）。
+    # 唯一性改由 Meta.constraints 的 (code, version_seq) / (code, current_version) / C3' 三条约束承担。
+    code = models.CharField(max_length=20, verbose_name='流程编号', help_text='W+三位流水号')
     name = models.CharField(max_length=30, verbose_name='流程名称', help_text='限 30 字，不可重复')
-    current_version = models.CharField(max_length=20, default='1.0', verbose_name='当前版本', help_text='如 V1.2')
+    # default 与解析逻辑必须对同一格式达成一致：serializers.py / template_apply.py 均写 'V1.0'，
+    # 此处若留 '1.0' 会形成双来源，且升版逻辑拼出 '1.0+1' 这类垃圾版本号并经 __str__ 直达 UI。
+    current_version = models.CharField(max_length=20, default='V1.0', verbose_name='当前版本', help_text='如 V1.2')
 
     # 适用范围条件表达式（PRD v4 §9.4）
     applicable_scope = models.JSONField(
@@ -198,14 +202,65 @@ class RecruitmentProcess(FullAuditModel):
     )
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name='归档时间')
 
+    # 版本化（T1）
+    version_seq = models.PositiveIntegerField(default=1, db_index=True, verbose_name='版本序号')
+    # is_latest 刻意**不加** db_index=True：低基数布尔单列索引近乎无用。
+    # 主力查询 filter(code=..., is_latest=True, ...) 由下方复合索引 idx_process_code_latest 服务
+    # （MySQL EXPLAIN 实测：仅有表达式索引时是 Table scan，加复合索引后为 Covering index lookup）。
+    is_latest = models.BooleanField(default=False, verbose_name='是否最新版')
+
     class Meta:
         db_table = 'recruitment_processes'
         verbose_name = '招聘流程'
         verbose_name_plural = verbose_name
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['code', 'is_latest'], name='idx_process_code_latest'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['code', 'version_seq'],
+                name='uniq_process_code_version_seq',
+            ),
+            models.UniqueConstraint(
+                fields=['code', 'current_version'],
+                name='uniq_process_code_current_version',
+            ),
+            # C3'：每个 code 至多一行 is_latest=True。
+            # 用表达式唯一索引让 DB 现算键值：is_latest=True 的行贡献 code，其余贡献 NULL；
+            # 两库唯一索引均允许多个 NULL，故等价于「每 code 至多 1 行 latest」。
+            # 严禁改成带 condition= 的 partial UniqueConstraint：MySQL supports_partial_indexes=False
+            # 会让 Django 静默跳过（不报错、不建索引、不留痕迹），CI 全绿而生产无约束。
+            models.UniqueConstraint(
+                models.Case(
+                    models.When(is_latest=True, then=models.F('code')),
+                    default=models.Value(None),
+                ),
+                name='uniq_one_latest_per_code',
+                violation_error_message='同一流程线（code）只能有一个最新版本（is_latest=True）',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.code} {self.name} ({self.current_version})'
+
+    def soft_delete(self, *args, **kwargs):
+        """软删除时同步降级 is_latest。
+
+        软删的流程行不得继续持有 is_latest=True：否则同 code 再建/克隆新行时会出现两行 latest
+        （C3' 会直接抛 IntegrityError 打断正常业务）。
+
+        基类 ``SoftDeleteModel.soft_delete()`` 只置 ``deleted_at`` 且用窄
+        ``save(update_fields=['deleted_at', 'updated_at'])``——**不会**把 ``is_latest``
+        写进库。故此处必须在调用 super() 之前显式单独落库一次。
+        """
+        if self.is_latest:
+            self.is_latest = False
+            self.save(update_fields=['is_latest', 'updated_at'])
+        return super().soft_delete(*args, **kwargs)
+
+    # 刻意**不** override restore()：恢复旧版本不得无条件抢回 latest，
+    # 保持 is_latest=False 才是正确语义（如需提升须显式 promote）。
 
     @property
     def reference_count(self):
