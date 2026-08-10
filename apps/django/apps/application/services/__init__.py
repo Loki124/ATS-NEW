@@ -37,6 +37,7 @@ from apps.core.models import User
 from apps.position.models import Position
 
 from ..models import Application, ApplicationHistory, ApplicationState, ApplicationStageRecord
+from .stage_mapping import StageMappingError, resolve_stage_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -713,19 +714,156 @@ class ApplicationService:
     # ----------------------------------------------------------
     @staticmethod
     @transaction.atomic
-    def upgrade_workflow_version(application: Application, actor: Optional[User] = None) -> Application:
-        """升版本（BR-104）"""
-        new_version = application.process.current_version
-        if new_version == application.workflow_version:
+    def upgrade_workflow_version(
+        application: Application,
+        actor: Optional[User] = None,
+        target_process: Optional[RecruitmentProcess] = None,
+    ) -> Application:
+        """把申请升到同一流程线（``code``）的最新版本行（BR-104 / §1.3）。
+
+        T3 之前这里只改了一个 ``workflow_version`` 字符串：``application.process``
+        仍指向旧版本行，``current_link`` 仍指向**旧流程的**关联。也就是说"升版本"
+        只是把一个展示用的版本号刷新了一下，候选人实际跑的还是老流程 —— 而且
+        ``workflow_version`` 与 ``process.current_version`` 从此可能不一致，
+        后续任何按版本号做的判断都会读到自相矛盾的数据。
+
+        现在做的是真升版本：
+
+        1. **解析目标**：默认取同 ``code`` 且 ``is_latest=True`` 的 live 行
+           （T1 的 C3' 表达式唯一索引保证这样的行至多一条）；
+        2. **校验**：禁跨 code / 禁升到非最新的中间版 / 禁升到归档版 / 禁降版本；
+        3. **算落点**：调 T7 的 :func:`resolve_stage_mapping`（纯函数，先算后写）；
+        4. **改指**：``process`` + ``workflow_version`` + ``current_link`` +
+           ``current_stage`` 四个字段一起落库，不留半截状态；
+        5. **写审计**：``detail`` 含 ``stage_remapped``，``from_*`` 全部取自
+           **赋值前**采集的快照。
+
+        ⚠️ 审计快照必须在改指**之前**采集（§1.3.2）。被删除的死代码
+        ``versioning.upgrade_application_to_latest_version`` 正是先写
+        ``application.workflow_version = ...`` 再在 return 里读它当 ``from_version``
+        （V5 读后写 bug），使审计里的 ``from_version`` 恒等于 ``to_version``——
+        审计看上去有记录，实际上永远查不出"从哪升上来的"。
+
+        Args:
+            application: 待升版本的申请。
+            actor: 操作人，写进审计。
+            target_process: 显式指定目标版本行。不传则自动解析同 code 的最新版。
+                传了也必须通过全部校验（同 code + is_latest + 未归档 + 不降版本），
+                它只是省掉一次查询，**不是**绕过校验的后门。
+
+        Returns:
+            改指后的 ``application``（已落库）。
+
+        Raises:
+            StateTransitionError: 任一校验不通过，或目标流程没有可落脚的阶段。
+                view 层统一转 409。
+        """
+        current_process = application.process
+
+        # ---------- 1. 解析目标版本行 ----------
+        if target_process is None:
+            target_process = RecruitmentProcess.objects.filter(
+                code=current_process.code,
+                is_latest=True,
+                deleted_at__isnull=True,
+            ).first()
+            if target_process is None:
+                raise StateTransitionError(
+                    f'流程线 {current_process.code} 没有 is_latest=True 的最新版本行，无法升版本',
+                )
+
+        # ---------- 2. 校验 ----------
+        # 2.1 禁跨 code：换流程线是 change-process 的语义，不能借升版本的壳偷偷做掉
+        if target_process.code != current_process.code:
+            raise StateTransitionError(
+                f'禁止跨流程线升版本：当前 {current_process.code} → 目标 {target_process.code}；'
+                f'如需更换流程请走换流程接口',
+            )
+
+        # 2.2 目标必须是最新版：升到中间版本会让 is_latest 失去"大家都在最新版上"的含义，
+        #     且下次再升时无从判断该不该动
+        if not target_process.is_latest:
+            raise StateTransitionError(
+                f'目标版本 {target_process.current_version} 不是最新版（is_latest=False），'
+                f'不允许升到中间版本',
+            )
+        if target_process.deleted_at is not None:
+            raise StateTransitionError(
+                f'目标版本 {target_process.current_version} 已被删除，不允许升版本',
+            )
+
+        # 2.3 禁归档
+        if target_process.status == 'ARCHIVED':
+            raise StateTransitionError(
+                f'目标版本 {target_process.current_version} 已归档，不允许升版本',
+            )
+
+        # 2.4 已在目标行上 → 幂等地拒绝（保持既有 409 语义，避免刷出无意义的审计）
+        if target_process.id == current_process.id:
             raise StateTransitionError('Application is already on the latest version')
-        old_version = application.workflow_version
-        application.workflow_version = new_version
-        application.save()
+
+        # 2.5 禁降版本
+        if target_process.version_seq < current_process.version_seq:
+            raise StateTransitionError(
+                f'禁止降版本：当前 V{current_process.version_seq} → '
+                f'目标 V{target_process.version_seq}',
+            )
+
+        # ---------- 3. 先算落点（纯函数，算不出来就在写库之前失败） ----------
+        try:
+            mapping = resolve_stage_mapping(application, target_process)
+        except StageMappingError as e:
+            raise StateTransitionError(
+                f'无法升级到版本 {target_process.current_version}：{e}',
+            ) from e
+
+        # ---------- 4. 采集快照（必须早于任何赋值，§1.3.2） ----------
+        old_process_id = current_process.id
+        old_process_version = current_process.current_version
+        old_workflow_version = application.workflow_version
+        old_stage = application.current_stage
+        old_stage_id = application.current_stage_id
+        old_link_id = application.current_link_id
+
+        # ---------- 5. 真正改指 ----------
+        application.process = target_process
+        application.workflow_version = target_process.current_version
+        application.current_link = mapping.link
+        application.current_stage = mapping.stage
+        application.save(update_fields=[
+            'process', 'workflow_version', 'current_link', 'current_stage', 'updated_at',
+        ])
+
+        # ---------- 6. 审计 ----------
+        detail = mapping.as_audit_detail()
+        detail.update({
+            'from_version': old_workflow_version,
+            'to_version': target_process.current_version,
+            'from_process_id': old_process_id,
+            'to_process_id': target_process.id,
+            'from_process_version': old_process_version,
+            'to_process_version': target_process.current_version,
+            'process_code': target_process.code,
+        })
+        # mapping 的 from_* 快照在「current_link 为空」时是 None，用申请自身的
+        # 残留字段补齐，保证审计里"从哪来"永远可追
+        detail['from_link_id'] = detail['from_link_id'] or old_link_id
+        detail['from_stage_id'] = detail['from_stage_id'] or old_stage_id
+
         ApplicationHistory.objects.create(
             application=application,
             action=ApplicationHistory.ActionType.UPGRADE_VERSION,
-            detail={'from_version': old_version, 'to_version': new_version},
+            from_stage=old_stage,
+            to_stage=mapping.stage,
+            detail=detail,
             operator=actor,
+        )
+
+        logger.info(
+            'Application %s upgraded: process %s(%s) -> %s(%s), stage %s -> %s (remapped=%s)',
+            application.code, old_process_id, old_workflow_version,
+            target_process.id, target_process.current_version,
+            old_stage_id, mapping.link.stage_id, mapping.remapped,
         )
         return application
 
@@ -819,3 +957,11 @@ def pause_application(application: Application, reason: str,
 
 def resume_application(application: Application, actor: Optional[User] = None) -> Application:
     return ApplicationService.resume(application, actor)
+
+
+def upgrade_workflow_version(
+    application: Application,
+    actor: Optional[User] = None,
+    target_process: Optional[RecruitmentProcess] = None,
+) -> Application:
+    return ApplicationService.upgrade_workflow_version(application, actor, target_process)
