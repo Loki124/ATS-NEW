@@ -243,13 +243,20 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary='归档流程',
-        description='BR-106: 流程无停用态，只能归档。归档后只读。',
+        description='BR-106: 流程无停用态，只能归档。归档作用于整条流程线（同 code 的全部版本行），归档后只读。',
         responses={200: RecruitmentProcessDetailSerializer},
     )
     @action(detail=True, methods=['post'], url_path='archive')
     def archive(self, request, pk=None):
         instance = self.get_object()
-        if instance.status == 'ARCHIVED':
+        # 产品 Q5：归档的作用域是整条 code 线，故「重复归档」的判据也必须是整条线——
+        # 「该 code 下已无 ENABLED 行」。原判据只看当前这一行的 status：从一个历史版本
+        # 行（多半已是 ARCHIVED）发起归档会被误判成重复归档而 409，而该线的最新版
+        # 其实还是 ENABLED，真正需要归档的行反而永远归不掉。
+        has_enabled_row = RecruitmentProcess.objects.filter(
+            code=instance.code, deleted_at__isnull=True, status='ENABLED',
+        ).exists()
+        if not has_enabled_row:
             raise StateTransitionError('流程已归档')
         result = archive_process(instance, actor=request.user)
         serializer = RecruitmentProcessDetailSerializer(instance, context={'request': request})
@@ -275,8 +282,16 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
             actor=request.user,
         )
         serializer = RecruitmentProcessDetailSerializer(new_process, context={'request': request})
+        # 产品 Q3：因阶段变更被跳过/禁用的自动化规则要回给前端，用于提示
+        # 「N 条自动化规则因阶段变更需要重新配置」。服务层把清单挂在返回对象上
+        # （而非改成元组返回），既不破坏既有调用方也不用动序列化器。
+        degraded_rules = getattr(new_process, '_degraded_automation_rules', [])
         return Response(
-            {'success': True, 'data': serializer.data},
+            {
+                'success': True,
+                'data': serializer.data,
+                'extra': {'degraded_automation_rules': degraded_rules},
+            },
             status=status.HTTP_201_CREATED,
         )
 

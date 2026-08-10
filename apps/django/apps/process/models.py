@@ -264,7 +264,13 @@ class RecruitmentProcess(FullAuditModel):
 
     @property
     def reference_count(self):
-        return self.demands.count()
+        """被引用的 **live** 需求数（X3/V8）。
+
+        必须过滤软删：同语义的 ``versioning.is_process_referenced()`` 从来都过滤，
+        这里不过滤等于同一个问题两套口径——``is_process_referenced()`` 说「没被引用」
+        而 ``reference_count`` 说「3 个」，删除校验与提示文案会互相打脸。
+        """
+        return self.demands.filter(deleted_at__isnull=True).count()
 
 
 # ============================================================
