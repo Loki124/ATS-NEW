@@ -26,12 +26,25 @@ CLEAN_VERSION = re.compile(r'^V?\d+\.\d+$')
 
 
 def normalize_current_version(raw, seq):
-    """current_version → 规范化 'V{seq}.0'。解析失败不静默兜底：强制归一 + 返回告警串。"""
+    """current_version → 规范化 'V{seq}.0'。任何改写都不静默：全部返回告警串。
+
+    两类改写各自告警，不得合并、不得省略其一：
+
+    - **干净但被改写**（``'V1.2'`` → ``'V1.0'``、``'1.0'`` → ``'V1.0'``）：值是可解析的，
+      但归一到 ``V{seq}.0`` 会**丢掉 minor 位**。原实现在这一支返回 ``None``（无告警），
+      于是 ``'V1.2'`` 这类人工维护过的版本号会被**静默**抹平——运维事后无从察觉。
+      本支现在照样收集 warning，只是措辞区分于「污染」。
+    - **污染/不可识别**（``'1.0+1'``）：无法反推真实版本，按 seq 强制归一 + 告警。
+    """
     raw = raw or ''
+    norm = f'V{seq}.0'
     if CLEAN_VERSION.match(raw):
-        return f'V{seq}.0', None
+        if norm != raw:
+            # 干净值也可能被改写（如 'V1.2' → 'V1.0'）：minor 位丢失必须留痕，不得静默
+            return norm, f'current_version={raw!r} normalized to {norm!r} (minor version dropped)'
+        return norm, None
     # 已污染（'1.0+1'）或不可识别：无法反推真实版本，按 seq 强制归一，显式告警（非静默）
-    return f'V{seq}.0', f'current_version={raw!r} coerced to V{seq}.0 (was not clean)'
+    return norm, f'current_version={raw!r} coerced to {norm!r} (was not clean)'
 
 
 def backfill_version_fields(apps, schema_editor):

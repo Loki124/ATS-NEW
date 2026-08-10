@@ -63,7 +63,6 @@ from .services.versioning import (
     clone_process_with_new_version,
     is_process_referenced,
     list_process_versions,
-    bump_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -291,24 +290,11 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
             'data': versions,
         })
 
-    @extend_schema(
-        summary='升版本',
-        description='BR-104: 支持历史候选人升版本到最新版本',
-        request={'type': 'object', 'properties': {
-            'target_version': {'type': 'string', 'description': '目标版本号，如 V1.2'},
-        }},
-    )
-    @action(detail=True, methods=['post'], url_path='bump-version')
-    def bump_version_action(self, request, pk=None):
-        instance = self.get_object()
-        new_version = bump_version(instance)
-        return Response({
-            'success': True,
-            'data': {
-                'id': instance.id,
-                'current_version': new_version,
-            }
-        })
+    # 已废弃并删除：POST /processes/{id}/bump-version/（T2，产品 Q1 裁定）
+    # 该端点是三重错配——summary 写"升版本(BR-104 候选人升版)"、路由叫 bump-version、
+    # 实现却是"原地改流程自己的版本号"且完全忽略 target_version 入参；与 BR-101
+    # 「配置修改生成新版本」/ BR-103「历史版本只读」直接冲突。前端零调用、零测试覆盖。
+    # 「产生新版本」在产品上有且只有一个动作 = clone-version（上方 clone_version）。
 
     # ============================================================
     # Phase 2 T06: batch/screen + batch/recommend 真实现

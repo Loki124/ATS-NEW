@@ -15,6 +15,7 @@ from copy import deepcopy
 from typing import List, Tuple
 
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -48,30 +49,63 @@ def archive_process(process, actor=None) -> dict:
     }
 
 
-@transaction.atomic
-def bump_version(process, new_version: str = None) -> str:
-    """生成新版本号
+def _compute_next_version_seq(process) -> int:
+    """纯计算：给出 ``process`` 所在流程线（同 ``code``）的下一个 ``version_seq``。
+
+    ⚠️ **刻意不过滤软删**：C1 ``uniq_process_code_version_seq`` 是无条件唯一约束，
+    软删行同样占位。若这里只统计 live 行，克隆一条曾被软删过版本的流程线会算出已被
+    占用的 seq，直接撞 C1 抛 ``IntegrityError``。
+
+    ⚠️ **取全线 MAX 而非 ``process.version_seq + 1``**：允许从任意历史版本发起克隆
+    （例如线上已有 seq=1/2，从 seq=1 那行克隆）。用 ``+1`` 会算出 2 → 撞 C1；
+    取 MAX+1 得 3，才是「追加一个新版本」的正确语义。
+    ``max(..., process.version_seq)`` 兜底传入的是尚未落库的内存实例的情形。
+
+    并发下两个 clone 可能算出同一个 seq：这不会静默腐化——C1 会让后到者
+    ``IntegrityError``（响亮失败），与 C3' 的兜底策略一致。
 
     Args:
-        process: RecruitmentProcess 实例
-        new_version: 自定义版本号，默认 V{N+1}.0
+        process: 当前（待被克隆的）RecruitmentProcess 实例。
 
     Returns:
-        新版本字符串
+        下一个可用的版本序号（整数，>= 2）。
     """
-    if new_version is None:
-        # 解析当前版本如 "V1.2" → "V1.3"
-        cur = process.current_version or 'V1.0'
-        if cur.startswith('V') and '.' in cur:
-            major, minor = cur[1:].split('.', 1)
-            new_version = f'V{major}.{int(minor) + 1}'
-        else:
-            new_version = f'{cur}+1'
+    from ..models import RecruitmentProcess
 
-    process.current_version = new_version
-    process.save(update_fields=['current_version', 'updated_at'])
-    logger.info('Process %s version bumped to %s', process.id, new_version)
-    return new_version
+    max_seq = RecruitmentProcess.objects.filter(code=process.code).aggregate(
+        max_seq=Max('version_seq'),
+    )['max_seq'] or 0
+    return max(max_seq, process.version_seq or 0) + 1
+
+
+def _compute_next_version(process, seq: int = None) -> str:
+    """纯计算：给出 ``process`` 所在流程线的下一个版本号字符串，**不写库**。
+
+    T2 之前这里叫 ``bump_version``，既算版本号又 ``process.save()`` 原地改写**老行**的
+    ``current_version``——那是 V2/V3/V4 三个缺陷的共同根因：
+
+    - V2：克隆时改写老行版本号，违反 BR-103「历史版本只读」；实测把 ``'1.0'``
+      反复写成 ``'1.0+1+1+1'``（数据损坏）。
+    - V3：老 default 是 ``'1.0'``（无 ``V`` 前缀），进不了 ``startswith('V')`` 分支，
+      直接掉进 ``f'{cur}+1'`` 兜底，垃圾版本号经 ``__str__`` 直达 UI。
+    - V4：从字符串反解 major/minor 本身不可靠，污染串一旦产生便不可恢复。
+
+    改法：版本号的唯一权威来源是整数 ``version_seq``（DB 侧由
+    ``uniq_process_code_version_seq`` 兜底），不再解析字符串、不再触碰老行。
+    落库由调用方在**新建行**时完成，本函数零副作用。
+
+    Args:
+        process: 当前（待被克隆的）RecruitmentProcess 实例。
+        seq: 已算好的目标版本序号；省略时内部调用 :func:`_compute_next_version_seq`。
+            调用方若同时需要 seq 与版本串，应先算 seq 再传入，避免两次聚合查询
+            之间取到不一致的结果。
+
+    Returns:
+        新版本字符串，形如 ``'V2.0'``。
+    """
+    if seq is None:
+        seq = _compute_next_version_seq(process)
+    return f'V{seq}.0'
 
 
 @transaction.atomic
@@ -85,6 +119,12 @@ def clone_process_with_new_version(
     用于：
     - 引用中流程的配置修改（PRD BR-101）
     - 历史候选人"升版本"（BR-104）
+
+    **老行只读**：本函数不再改写老行的 ``current_version`` / ``version_seq``
+    （BR-103），唯一会被写的老行字段是 ``is_latest``——降级让位给新行。
+
+    **按 Q4 裁定，克隆不改指任何 Demand/Position/Application（有意为之）**：
+    在跑的候选人继续走创建时的版本（BR-102），改指必须由显式的升版本动作发起。
     """
     from ..models import (
         ProcessStageLink,
@@ -92,13 +132,20 @@ def clone_process_with_new_version(
         StageRule,
     )
 
-    new_version = bump_version(process)
+    # 先算 seq 再由它派生版本串，保证 version_seq 与 current_version 永远同源，
+    # 不会出现 C1 通过而 C2 撞车（或反之）这种半截状态。
+    new_seq = _compute_next_version_seq(process)
+    new_version = _compute_next_version(process, seq=new_seq)
 
     # 创建新流程
     new_process = RecruitmentProcess.objects.create(
         code=process.code,  # 编号不变，新版本是同一流程
         name=new_name or f'{process.name} ({new_version})',
         current_version=new_version,
+        version_seq=new_seq,
+        # 新行先落为非 latest：翻转必须「先降后升」，此处若直接 True 会与老行瞬时
+        # 并存两个 latest → C3' 立即 IntegrityError。
+        is_latest=False,
         applicable_scope=deepcopy(process.applicable_scope),
         is_template=process.is_template,
         template_code=process.template_code,
@@ -140,6 +187,17 @@ def clone_process_with_new_version(
                 created_by=actor,
                 updated_by=actor,
             )
+
+    # ============================================================
+    # is_latest 原子翻转 —— **顺序是硬约束：必须先降后升**
+    # 双库实测：先升后降在 ① 执行瞬间同 code 存在 2 行 is_latest=True
+    # → C3'（uniq_one_latest_per_code）立即抛 IntegrityError，克隆整体回滚。
+    # ============================================================
+    # ① 先降级：filter(code=...) 刻意不过滤软删，一并降级软删行（自愈，见 C3' soft_delete 条）
+    RecruitmentProcess.objects.filter(code=new_process.code).exclude(id=new_process.id).update(is_latest=False)
+    # ② 后升级
+    new_process.is_latest = True
+    new_process.save(update_fields=['is_latest'])
 
     logger.info('Process %s cloned to new version %s by %s', process.id, new_version, actor)
     return new_process
