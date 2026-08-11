@@ -91,6 +91,9 @@ const subMenuOptions = [
       { key: '/settings/user-management', label: '用户管理', icon: renderIcon(PeopleOutline) },
       // 2026-07-01 花无缺: 删 '权限管理' 菜单 (G41 待重构, 合并到 MOU 权限管理)
       { key: '/settings/mou', label: 'MOU权限管理', icon: renderIcon(LockClosedOutline) },
+      { key: '/settings/field-acl', label: '字段权限', icon: renderIcon(KeyOutline) },
+      // 2026-07-13 花无缺: G44 V2 权限管理 (4 tab: 资源/模板/角色/用户授权) (T20)
+      { key: '/settings/permissions', label: '权限管理', icon: renderIcon(LockClosedOutline) },
     ],
   },
   {
@@ -121,9 +124,6 @@ const subMenuOptions = [
       { key: '/settings/company', label: '公司信息', icon: renderIcon(InformationCircleOutline) },
       { key: '/settings/external', label: '对外接口', icon: renderIcon(ServerOutline) },
       { key: '/settings/public', label: '公共设置', icon: renderIcon(CloudUploadOutline) },
-      { key: '/settings/field-acl', label: '字段权限', icon: renderIcon(KeyOutline) },
-      // 2026-07-13 花无缺: G44 V2 权限管理 (4 tab: 资源/模板/角色/用户授权) (T20)
-      { key: '/settings/permissions', label: '权限管理', icon: renderIcon(LockClosedOutline) },
       { key: '/settings/school-library', label: '院校库', icon: renderIcon(SchoolOutline) },
       { key: '/settings/company-library', label: '公司库', icon: renderIcon(BusinessOutline) },
       { key: '/settings/dynamic-fields', label: '动态字段', icon: renderIcon(ConstructOutline) },
