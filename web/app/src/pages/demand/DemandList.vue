@@ -566,11 +566,20 @@ const fetchDemands = async () => {
     if (keyword.value) params.keyword = keyword.value
     if (filterStatus.value) params.status = filterStatus.value
 
-    const res = await get('/demands', params)
+    const res = await get('/demands/', params)
     if (res.data.success) {
       // 后端 StandardResultsSetPagination 返回的 data 即为数组({success,data:[...],pagination}),
       // 无 .list 键;对齐全仓约定(res.data.data 直接取数组)
-      demands.value = res.data.data || []
+      // 列表/详情模板用的是旧契约字段(name/positionCount/demandStatus/hiredCount),
+      // 后端返回的是 title/headcount/state/filled_count,在此归一化以便正确回显。
+      demands.value = (res.data.data || []).map((d: any) => ({
+        ...d,
+        name: d.title,
+        positionCount: d.headcount,
+        demandStatus: d.state,
+        hiredCount: d.filled_count ?? 0,
+        onBoardCount: d.filled_count ?? 0,
+      }))
     }
   } catch (error) {
     message.error('获取需求列表失败')
@@ -628,16 +637,26 @@ const handleSave = async () => {
   submitting.value = true
   try {
     const data = {
-      ...formData.value,
+      // 后端 DemandCreateSerializer 契约：title / department / headcount（FK/必填）
+      // 由表单的 name / departmentId / positionCount 映射而来；其余字段后端忽略或
+      // 由服务端填充（requested_by / hr / process 在后端 perform_create 自动补）。
+      title: formData.value.name,
+      department: formData.value.departmentId,
+      headcount: formData.value.positionCount,
+      level: formData.value.jobLevel || '',
+      position_title: formData.value.positionSeries || '',
+      jd: formData.value.description || '',
+      requirements: formData.value.requirements || '',
+      priority: 'P1',
       startDate: formData.value.startDate ? dayjs(formData.value.startDate).format('YYYY-MM-DD') : null,
       endDate: formData.value.endDate ? dayjs(formData.value.endDate).format('YYYY-MM-DD') : null
     }
 
     if (formData.value.id) {
-      await put(`/demands/${formData.value.id}`, data)
+      await put(`/demands/${formData.value.id}/`, data)
       message.success('更新成功')
     } else {
-      await post('/demands', data)
+      await post('/demands/', data)
       message.success('创建成功')
     }
     modalVisible.value = false
