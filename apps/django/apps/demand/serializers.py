@@ -69,6 +69,18 @@ class DemandTransitionSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
+class DemandUpgradeProcessSerializer(serializers.Serializer):
+    """需求升级到最新流程版本入参（T9 / §4.1）。
+
+    ``target_process_id`` 可选：不传则自动取同 code 下 ``is_latest=True`` 且
+    ``status='ENABLED'`` 的版本。传了也**不会**绕过校验（见
+    ``DemandService.upgrade_demand_process``）。
+    """
+    target_process_id = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=32,
+    )
+
+
 class DemandApprovalSerializer(serializers.ModelSerializer):
     approver_name = serializers.CharField(source='approver.username', read_only=True, default='')
 

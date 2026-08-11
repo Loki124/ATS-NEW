@@ -49,7 +49,10 @@ class Demand(FullAuditModel):
         RecruitmentProcess, on_delete=models.PROTECT,
         related_name='demands', verbose_name='招聘流程',
     )
-    process_version = models.CharField(max_length=20, default='1.0', verbose_name='流程版本')
+    # T9/G2：与 RecruitmentProcess.current_version（default 'V1.0'）以及 service 层
+    # 实际写入值（demand/services.py:78 写 process.current_version，带 V 前缀）对齐。
+    # 旧 default '1.0' 与真实写入自相矛盾。
+    process_version = models.CharField(max_length=20, default='V1.0', verbose_name='流程版本')
 
     jd = models.TextField(blank=True, verbose_name='JD')
     requirements = models.TextField(blank=True, verbose_name='任职要求')

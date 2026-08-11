@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.common.exceptions import ValidationError
+from apps.common.exceptions import NotFound, ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
@@ -17,7 +17,9 @@ from .serializers import (
     DemandDetailSerializer,
     DemandListSerializer,
     DemandTransitionSerializer,
+    DemandUpgradeProcessSerializer,
 )
+from .services import DemandService
 
 
 class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
@@ -43,6 +45,8 @@ class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
             return DemandCreateSerializer
         if self.action == 'transition':
             return DemandTransitionSerializer
+        if self.action == 'upgrade_process_version':
+            return DemandUpgradeProcessSerializer
         return DemandDetailSerializer
 
     def get_queryset(self):
@@ -73,6 +77,48 @@ class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         instance.save()
         out = DemandDetailSerializer(instance, context={'request': request})
         return Response({'success': True, 'data': out.data})
+
+    @action(detail=True, methods=['post'], url_path='upgrade-process-version')
+    def upgrade_process_version(self, request, pk=None):
+        """需求升级到最新流程版本（T9 / §4.1）。
+
+        契约：
+        - 成功升级 → 200，``upgraded=true``，``moved_position_ids`` 为实际改指的职位 id。
+        - 已在最新版 → 200 幂等，``upgraded=false``，``moved_position_ids=[]``。
+          （这是正常状态而非冲突，与 archive/clone 的 409「状态非法」语义不同。）
+        - 目标版本已归档 / 非最新 / 跨流程线 / 流程线无可用最新版 / 需求未关联流程
+          → 409（``StateTransitionError``，由全局 exception handler 转换）。
+
+        **不改指 Application**：BR-102 硬红线，在跑候选人继续走创建时的版本。
+        """
+        instance = self.get_object()
+        serializer = DemandUpgradeProcessSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        target_process = None
+        target_process_id = serializer.validated_data.get('target_process_id') or None
+        if target_process_id:
+            from apps.process.models import RecruitmentProcess
+            target_process = RecruitmentProcess.objects.filter(
+                id=target_process_id, deleted_at__isnull=True,
+            ).first()
+            if target_process is None:
+                raise NotFound(f'流程版本 {target_process_id} 不存在')
+
+        old_process_id = instance.process_id  # §1.3.2：快照早于任何赋值
+        demand, moved = DemandService.upgrade_demand_process(
+            instance, actor=request.user, target_process=target_process,
+        )
+        out = DemandDetailSerializer(demand, context={'request': request})
+        return Response({
+            'success': True,
+            'data': {
+                'demand': out.data,
+                'moved_position_ids': moved,
+                'upgraded': demand.process_id != old_process_id,
+                'previous_process_id': old_process_id,
+            },
+        })
 
     @action(detail=True, methods=['get'], url_path='approvals')
     def approvals(self, request, pk=None):

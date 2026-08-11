@@ -55,11 +55,29 @@ class Position(FullAuditModel):
     headcount = models.IntegerField(default=1, verbose_name='招聘人数')
     filled_count = models.IntegerField(default=0, verbose_name='已招人数')
 
+    # T9/G1 路径 (c)：Demand ↔ Position 之前**没有**任何外键关联，
+    # `demand.positions` 在运行时是 AttributeError（`positions` 是 Position.process
+    # 的反向名，即 `process.positions`）。需求升级要"升 Demand 及其 Positions"，
+    # 只有显式外键才能给"该需求的职位"一个确定定义；按 process_id 反查会把**其他需求**
+    # 的职位一并改指（跨需求污染）。
+    demand = models.ForeignKey(
+        'demand.Demand',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='positions',
+        verbose_name='所属需求',
+        help_text='可空：职位可脱离需求独立存在；存量职位 demand_id 一律 NULL（归属无法反推）',
+    )
+
     process = models.ForeignKey(
         RecruitmentProcess, on_delete=models.PROTECT,
         related_name='positions', verbose_name='使用的流程',
     )
-    process_version = models.CharField(max_length=20, default='1.0', verbose_name='流程版本')
+    # T9/G2：与 RecruitmentProcess.current_version（default 'V1.0'）以及 service 层
+    # 实际写入值（position/services.py 写 process.current_version，带 V 前缀）对齐。
+    # 旧 default '1.0' 与真实写入自相矛盾，且 time_limit 按版本字符串精确匹配时
+    # 格式漂移会静默匹配空集（fail-silent）。
+    process_version = models.CharField(max_length=20, default='V1.0', verbose_name='流程版本')
 
     state = FSMField(
         default=PositionState.DRAFT, db_index=True,

@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from apps.common.exceptions import NotFound, PermissionDenied, StateTransitionError
 from apps.core.models import User
+from apps.process.models import RecruitmentProcess
 
 from .models import Demand, DemandApproval, DemandState
 
@@ -180,6 +181,90 @@ class DemandService:
         demand.cancel()
         demand.save()
         return demand
+
+    @staticmethod
+    @transaction.atomic
+    def upgrade_demand_process(
+        demand: Demand,
+        actor: Optional[User] = None,
+        target_process: Optional[RecruitmentProcess] = None,
+    ) -> tuple[Demand, List[str]]:
+        """需求升级到最新流程版本（决策 3 / §4.2）。
+
+        只改指 Demand 本体 + 其 **live** Positions（``Position.demand == demand`` 且
+        ``deleted_at IS NULL``），**不改指 Application**——BR-102「已在跑的候选人走创建
+        时的版本」是硬红线（§4.3），级联改指 Application 属违规。
+
+        Args:
+            demand: 待升级的需求实例。
+            actor: 操作人，仅用于审计日志。
+            target_process: 可选的显式目标版本；不传则自动取同 ``code`` 下
+                ``is_latest=True`` 且 ``status='ENABLED'`` 的 live 版本。
+
+        Returns:
+            ``(demand, moved_position_ids)``。已在最新版时幂等返回 ``(demand, [])``。
+
+        Raises:
+            StateTransitionError: 需求未关联流程 / 该流程线无可用最新版 /
+                显式目标版本跨流程线、已归档、已软删或不是最新版。
+        """
+        if demand.process_id is None:
+            # 无此守卫，下一行 demand.process.code 会 AttributeError（500 而非 409）
+            raise StateTransitionError('该需求未关联流程，无法升级')
+
+        if target_process is None:
+            target_process = (
+                RecruitmentProcess.objects
+                .filter(
+                    code=demand.process.code,
+                    status='ENABLED',
+                    is_latest=True,
+                    deleted_at__isnull=True,
+                )
+                .first()
+            )
+        else:
+            # 显式指定目标时同样要过校验，否则等于给了绕过归档限制的后门
+            if target_process.code != demand.process.code:
+                raise StateTransitionError('目标流程与当前流程不属于同一流程线')
+            if target_process.status != 'ENABLED' or target_process.deleted_at is not None:
+                raise StateTransitionError('目标流程版本不可用（已归档或已删除）')
+            if not target_process.is_latest:
+                raise StateTransitionError('目标流程版本不是最新版')
+
+        if target_process is None:
+            # 不能静默 return：「流程线整条被归档」与「已是最新版」是两种完全不同的
+            # 情况，混成同一个返回值即 fail-silent。
+            raise StateTransitionError('该流程线下没有可用的最新版本')
+
+        if target_process.id == demand.process_id:
+            return demand, []  # 幂等：已在最新版，不产生任何写入
+
+        old_pid = demand.process_id  # §1.3.2：审计快照必须早于赋值
+        demand.process = target_process
+        demand.process_version = target_process.current_version
+        demand.save(update_fields=['process', 'process_version', 'updated_at'])
+
+        moved: List[str] = []
+        # 必须显式过滤软删：本方法 docstring 承诺只改指 **live** Positions，而
+        # SoftDeleteModel（apps/common/models.py）并未重写默认 manager，
+        # `.all()` 会把已软删职位一并捞出来改指，与承诺不符。
+        # 该行为由 demand/tests/test_upgrade_demand_process.py::
+        # test_upgrade_skips_soft_deleted_positions 钉住。
+        for pos in demand.positions.filter(deleted_at__isnull=True):
+            if pos.process_id != target_process.id:
+                pos.process = target_process
+                pos.process_version = target_process.current_version
+                pos.save(update_fields=['process', 'process_version', 'updated_at'])
+                moved.append(pos.id)
+
+        logger.info(
+            'Demand %s upgraded process %s → %s (version=%s) by %s; moved positions=%s',
+            demand.code, old_pid, target_process.id,
+            target_process.current_version,
+            getattr(actor, 'username', None), moved,
+        )
+        return demand, moved
 
     @staticmethod
     def update_filled_count(demand_id: str) -> Demand:
