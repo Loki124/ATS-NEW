@@ -9,7 +9,7 @@
 - 自定义提示内容
 """
 from django.db import models
-from apps.common.models import TimestampedModel
+from apps.common.models import SoftDeleteModel, TimestampedModel
 from apps.process.models import ProcessStageLink
 from nanoid import generate as nanoid_generate
 
@@ -45,10 +45,15 @@ class ConditionOperator(models.TextChoices):
     IS_NOT_EMPTY = 'IS_NOT_EMPTY', '不为空'
 
 
-class EntryConditionRule(TimestampedModel):
+class EntryConditionRule(TimestampedModel, SoftDeleteModel):
     """进入条件规则
 
     对应 PRD §10 规则列表中的每条规则
+
+    P0 修复（2026-08-10）：本模型原先只继承 TimestampedModel，但 3 处调用点
+    （entry_condition/services.py:81、application/views.py:233、
+    process/services/template_apply.py:223）过滤 deleted_at__isnull=True。
+    其中 services.py:81 位于 create_application 主链路上，是本批 10 个用例转红的直接根因。
     """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     link = models.ForeignKey(
@@ -103,8 +108,12 @@ class EntryConditionRule(TimestampedModel):
         return f'Rule[{self.rule_seq}] {self.rule_name} ({self.status})'
 
 
-class ConditionItem(TimestampedModel):
+class ConditionItem(TimestampedModel, SoftDeleteModel):
     """条件项 - 规则的原子条件
+
+    P0 修复（2026-08-10）：entry_condition/services.py:129 过滤 deleted_at__isnull=True，
+    模型无该字段必抛 FieldError。
+
 
     字段（field）枚举：
     - 阶段条件：STAGE_NAME + 状态多选

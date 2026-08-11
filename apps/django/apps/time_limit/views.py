@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema
 
 from apps.candidate.models import Candidate
 from apps.common.exceptions import NotFound
-from apps.common.mixins import AuditMixin
+from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import HasProcessPermission
 from apps.process.models import ProcessStageLink
@@ -24,7 +24,7 @@ from .services import (
 )
 
 
-class TimeLimitRuleViewSet(AuditMixin, viewsets.ModelViewSet):
+class TimeLimitRuleViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelViewSet):
     """阶段限时规则 ViewSet"""
     queryset = TimeLimitRule.objects.all()
     serializer_class = TimeLimitRuleSerializer
@@ -38,13 +38,22 @@ class TimeLimitRuleViewSet(AuditMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        return qs.select_related('link', 'link__stage', 'link__process')
+        # 软删过滤：TimeLimitRule 补上 deleted_at 之前，这里不过滤也"看不出问题"
+        # （因为压根删不掉）。字段补齐后若仍不过滤，已删规则会重新出现在列表里。
+        return qs.filter(deleted_at__isnull=True).select_related(
+            'link', 'link__stage', 'link__process',
+        )
 
-    def perform_destroy(self, instance):
-        from django.utils import timezone
-        if hasattr(instance, 'deleted_at'):
-            instance.deleted_at = timezone.now()
-        instance.save()
+    # perform_destroy 由 SoftDeleteViewSetMixin 提供（instance.soft_delete()）。
+    #
+    # 原先这里手搓了一份：
+    #     if hasattr(instance, 'deleted_at'):
+    #         instance.deleted_at = timezone.now()
+    #     instance.save()
+    # 而模型当时并没有 deleted_at 字段 —— hasattr 恒假、分支永不执行，只剩一句
+    # 无意义的 save()：接口返回 204、前端提示"删除成功"，规则却纹丝不动，并继续
+    # 参与限时计算。hasattr 守卫把"字段缺失"这个硬错误吞成了静默无操作。
+    # 现改用全仓统一的 mixin：缺字段会当场 AttributeError，而不是继续装死。
 
     @extend_schema(
         summary='计算候选人阶段限时',

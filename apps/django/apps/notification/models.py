@@ -1,6 +1,6 @@
 """Notification Models (PRD v4 §14.10)"""
 from django.db import models
-from apps.common.models import TimestampedModel
+from apps.common.models import SoftDeleteModel, TimestampedModel
 from nanoid import generate as nanoid_generate
 
 
@@ -44,8 +44,14 @@ class NotificationTemplate(TimestampedModel):
         return f'[{self.code}] {self.name}'
 
 
-class NotificationLog(TimestampedModel):
-    """通知发送日志"""
+class NotificationLog(TimestampedModel, SoftDeleteModel):
+    """通知发送日志
+
+    P0 修复（2026-08-10）：本模型原先只继承 TimestampedModel，但 3 处调用点
+    （notification/services.py:254 mark_as_read / :265 get_unread_count /
+    :279 list_notifications）过滤 deleted_at__isnull=True，必抛 FieldError。
+    这三个都是站内信读取主路径，属用户可见功能。
+    """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     template = models.ForeignKey(
         NotificationTemplate, on_delete=models.SET_NULL,

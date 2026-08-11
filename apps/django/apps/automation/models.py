@@ -7,7 +7,7 @@
 4. 动作 (action): 自动推进/跳过/发提醒/入库
 """
 from django.db import models
-from apps.common.models import TimestampedModel
+from apps.common.models import SoftDeleteModel, TimestampedModel
 from apps.process.models import RecruitmentStage, RecruitmentProcess
 from nanoid import generate as nanoid_generate
 
@@ -16,8 +16,16 @@ def gen_id():
     return nanoid_generate(size=21)
 
 
-class AutomationRule(TimestampedModel):
-    """自动化规则"""
+class AutomationRule(TimestampedModel, SoftDeleteModel):
+    """自动化规则
+
+    P0 修复（2026-08-10）：本模型原先只继承 TimestampedModel，但全仓有 4 处调用点
+    （application/tasks.py:158、automation/services.py:81、automation/tasks.py:48、
+    process/services/template_apply.py:260）按「本模型有软删」编写，过滤
+    deleted_at__isnull=True，运行到即抛 FieldError。且 automation/views.py:38 的
+    perform_destroy 已调 instance.soft_delete() —— 设计意图本就是软删，仅字段漏加。
+    故补 SoftDeleteModel 基类而非删除过滤（删过滤会破坏审计可追溯性）。
+    """
     class TriggerType(models.TextChoices):
         STAGE_ENTERED = 'STAGE_ENTERED', '进入阶段'
         STATE_CHANGED = 'STATE_CHANGED', '状态变更'
@@ -111,8 +119,12 @@ class AutomationRule(TimestampedModel):
         return f'[{self.priority}] {self.name} ({self.get_action_type_display()})'
 
 
-class AutomationLog(TimestampedModel):
-    """自动化执行日志"""
+class AutomationLog(TimestampedModel, SoftDeleteModel):
+    """自动化执行日志
+
+    P0 修复（2026-08-10）：同 AutomationRule，2 处调用点
+    （application/tasks.py:161、automation/services.py:284）过滤 deleted_at 必抛 FieldError。
+    """
     class EvaluateResult(models.TextChoices):
         MATCHED = 'MATCHED', '匹配'
         UNMATCHED = 'UNMATCHED', '不匹配'
