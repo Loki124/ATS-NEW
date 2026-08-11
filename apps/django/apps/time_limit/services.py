@@ -39,13 +39,34 @@ def calc_time_limit(
     """计算阶段限时
 
     Args:
-        link: ProcessStageLink
+        link: ProcessStageLink。**已唯一确定流程版本行**——clone 新版本时
+            ProcessStageLink 被深拷贝，每个版本行持有自己独立的一套 link，
+            故 ``filter(link=link)`` 本身即完成了版本维度的筛选。
         candidate: Candidate 实例
         interviewer_count: 面试官人数（用于加时计算）
-        process_version: 流程版本号（过滤规则）
+        process_version: **已弃用（deprecated）**，不再参与规则过滤，保留仅为
+            向后兼容 API 入参（``time_limit/views.py`` 的 workflow_version）。
+            传入值若与 link 所属流程行的 current_version 不一致，会记 warning
+            而非静默丢弃——见下方治理说明。
 
     Returns:
         TimeLimitCalcResult
+
+    治理说明（G2 配套，2026-08-10）—— 原实现的 fail-silent 缺陷：
+
+        原代码为 ``if process_version: rules = rules.filter(workflow_version=process_version)``。
+        ``RecruitmentProcess.current_version`` 使用 ``'V1.0'`` 格式，而
+        ``Demand/Position.process_version`` 的 default 曾是 ``'1.0'``（无 V 前缀），
+        两种格式一旦在调用链上相遇，这个精确字符串比较就静默匹配到**空集**：
+        不抛异常、不告警、不留痕迹，时限规则全部失效，表面症状只是"规则配了但从不生效"。
+
+        更严重的是数据面实测（dev 库审计窗口）：现存 23 条 TimeLimitRule 的
+        ``workflow_version`` 与 ``process_id`` **全部为空字符串**。这意味着只要调用方
+        传入任何非空 process_version，这 23 条规则就一条都匹配不上。
+
+        修复采取"移除冗余过滤"而非"改按 process_id 匹配"：后者看似更严谨，
+        但对上述存量数据（``process_id=''``）同样会全量落空，属于把一个 fail-silent
+        换成另一个 fail-silent。link 已唯一确定版本行，无需二次确认。
     """
     from .models import TimeLimitRule
 
@@ -54,8 +75,19 @@ def calc_time_limit(
         enabled=True,
         deleted_at__isnull=True,
     )
+
+    # process_version 不再参与过滤（见上方治理说明）。仅在与 link 实际所属
+    # 版本不一致时留下告警痕迹，避免调用方以为自己筛选生效了。
     if process_version:
-        rules = rules.filter(workflow_version=process_version)
+        actual_version = getattr(link.process, 'current_version', None)
+        if actual_version and process_version != actual_version:
+            logger.warning(
+                'calc_time_limit: 入参 process_version=%r 与 link 所属流程行的 '
+                'current_version=%r 不一致；该入参已弃用、不参与过滤，'
+                '规则集以 link=%r 为准。（旧实现会在此静默返回空规则集）',
+                process_version, actual_version, link.id,
+            )
+
     rules = rules.order_by('priority')
 
     # 取优先级最高的第一条匹配规则

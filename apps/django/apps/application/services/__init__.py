@@ -181,9 +181,9 @@ class ApplicationService:
             current_stage=first_link.stage,
             state=ApplicationState.PENDING,
             time_limit_rule_id=tl.rule_id,
-            total_time_limit_days=tl.total_days,
+            total_time_limit_days=tl.total_lock_days,
             stage_entered_at=timezone.now(),
-            stage_deadline=timezone.now() + timedelta(days=tl.total_days) if tl.total_days else None,
+            stage_deadline=timezone.now() + timedelta(days=tl.total_lock_days) if tl.total_lock_days else None,
         )
 
         # 创建初始 stage_record
@@ -194,8 +194,8 @@ class ApplicationService:
             state=ApplicationStageRecord.StageState.PENDING,
             entered_at=timezone.now(),
             time_limit_rule_id=tl.rule_id,
-            total_time_limit_days=tl.total_days,
-            deadline=timezone.now() + timedelta(days=tl.total_days) if tl.total_days else None,
+            total_time_limit_days=tl.total_lock_days,
+            deadline=timezone.now() + timedelta(days=tl.total_lock_days) if tl.total_lock_days else None,
         )
 
         # 写历史
@@ -208,7 +208,7 @@ class ApplicationService:
                 'process_code': process.code,
                 'process_version': process.current_version,
                 'initial_stage': first_link.stage.name,
-                'time_limit_days': tl.total_days,
+                'time_limit_days': tl.total_lock_days,
             },
             operator=data.actor,
         )
@@ -410,15 +410,26 @@ class ApplicationService:
             ),
             entered_at=now,
             time_limit_rule_id=tl.rule_id,
-            total_time_limit_days=tl.total_days,
-            deadline=now + timedelta(days=tl.total_days) if tl.total_days else None,
+            total_time_limit_days=tl.total_lock_days,
+            deadline=now + timedelta(days=tl.total_lock_days) if tl.total_lock_days else None,
         )
 
         # 处理人初始化
-        handlers = SequentialInvitationService.get_initial_handlers(next_link, application)
-        if handlers:
-            new_record.current_handlers = handlers
-            new_record.save(update_fields=['current_handlers'])
+        #
+        # P0 修复（2026-08-10）：原为
+        #     handlers = SequentialInvitationService.get_initial_handlers(next_link, application)
+        # 而 SequentialInvitationService 在**全仓零定义、零导入**，仅此一处使用，
+        # 且自仓库初始 commit（b0fd6ad，2026-06-29）起就是这副样子。也就是说
+        # advance_application_to_next_stage 只要「存在下一阶段」，走到这里必抛
+        # NameError —— 这条核心推进路径从来没有真正跑通过。这是一段写了调用、
+        # 没写实现的占位代码。
+        #
+        # 现处置：不臆造业务语义。current_handlers 走模型默认值（空列表），
+        # 语义为「新阶段暂无预设处理人，等待抢单/指派」，与 services/grab.py
+        # 的认领流程（抢单时把 user.id 追加进 current_handlers）自洽。
+        #
+        # TODO(产品确认)：顺序邀约（SequentialInvitation）的初始处理人规则若确有需求，
+        #   须先补产品规格再单独实现，不得再以裸调用形式挂在主链路上。
 
         # 更新 application
         old_stage = application.current_stage
@@ -428,7 +439,7 @@ class ApplicationService:
         application.stage_entered_at = now
         application.stage_deadline = new_record.deadline
         application.time_limit_rule_id = tl.rule_id
-        application.total_time_limit_days = tl.total_days
+        application.total_time_limit_days = tl.total_lock_days
         application.save()
 
         # 写历史
@@ -441,7 +452,7 @@ class ApplicationService:
                 'reason': reason,
                 'from_stage': old_stage.name if old_stage else None,
                 'to_stage': next_link.stage.name,
-                'time_limit_days': tl.total_days,
+                'time_limit_days': tl.total_lock_days,
             },
             operator=actor,
         )
@@ -548,8 +559,8 @@ class ApplicationService:
             ),
             entered_at=now,
             time_limit_rule_id=tl.rule_id,
-            total_time_limit_days=tl.total_days,
-            deadline=now + timedelta(days=tl.total_days) if tl.total_days else None,
+            total_time_limit_days=tl.total_lock_days,
+            deadline=now + timedelta(days=tl.total_lock_days) if tl.total_lock_days else None,
         )
 
         old_stage = application.current_stage
@@ -559,7 +570,7 @@ class ApplicationService:
         application.stage_entered_at = now
         application.stage_deadline = new_record.deadline
         application.time_limit_rule_id = tl.rule_id
-        application.total_time_limit_days = tl.total_days
+        application.total_time_limit_days = tl.total_lock_days
         application.save()
 
         ApplicationHistory.objects.create(

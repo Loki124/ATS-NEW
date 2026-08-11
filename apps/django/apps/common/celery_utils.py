@@ -158,15 +158,31 @@ def retryable_scheduled_task(
             acks_late=True,  # 任务执行完才确认,与 celery_app.py 配合
         )
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(*args, **kwargs):
+            # bind=True 时 Celery 把 Task 实例作为第一个位置参数传进来。
+            # 它只用于取 retry 计数，**不得透传给业务函数** —— 本装饰器的契约
+            # （见上方 docstring 的用法示例）就是业务函数不带 self。
+            #
+            # P0 修复（2026-08-10）：原实现为
+            #     result = func(self, *args, **kwargs) if bind else func(*args, **kwargs)
+            # 而 bind 默认 True，于是全仓 3 个使用者全部按 docstring 定义成 0 参数：
+            #   automation.run_scheduled_rules
+            #   time_limit.check_stage_time_limit
+            #   time_limit.send_deadline_warnings
+            # 一经调度即抛 TypeError('takes 0 positional arguments but 1 was given')，
+            # 随后被下方 BUSINESS_ERROR_EXCEPTIONS 记一条日志后重抛。
+            # 这三个任务此前零测试覆盖，所以从没人发现它们「从来没跑通过」——
+            # 这也正是 tasks.py 里实参传反（P0-C/D）能长期潜伏的原因：函数根本进不去。
+            task_self = args[0] if (bind and args) else None
+            call_args = args[1:] if bind else args
             try:
-                result = func(self, *args, **kwargs) if bind else func(*args, **kwargs)
+                result = func(*call_args, **kwargs)
                 _clear_failure_count(name)
                 return result
             except DB_RETRY_EXCEPTIONS as exc:
                 # celery autoretry 实际不抛到这里 (它会捕获并重试)
                 # 但若达到 max_retries 仍失败,会作为原始异常重抛
-                retry_count = self.request.retries if bind else 0
+                retry_count = task_self.request.retries if task_self is not None else 0
                 _alert_on_fatal_failure(name, exc, retry_count)
                 raise
             except BUSINESS_ERROR_EXCEPTIONS:
