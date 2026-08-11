@@ -568,7 +568,9 @@ const fetchDemands = async () => {
 
     const res = await get('/demands', params)
     if (res.data.success) {
-      demands.value = res.data.data.list
+      // 后端 StandardResultsSetPagination 返回的 data 即为数组({success,data:[...],pagination}),
+      // 无 .list 键;对齐全仓约定(res.data.data 直接取数组)
+      demands.value = res.data.data || []
     }
   } catch (error) {
     message.error('获取需求列表失败')

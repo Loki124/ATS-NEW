@@ -35,8 +35,8 @@ export interface Position {
 /** 获取需求列表（用于内推选职位） */
 export const listDemands = (params?: { keyword?: string; status?: string }) =>
   api
-    .get<{ success: boolean; data: { list: Demand[]; total: number } }>('/demands', { params })
-    .then((r) => r.data.data.list ?? []);
+    .get<{ success: boolean; data: Demand[] }>('/demands', { params })
+    .then((r) => r.data.data ?? []);
 
 /** 获取需求详情（含 active 职位列表） */
 export const getDemand = (id: string) =>
