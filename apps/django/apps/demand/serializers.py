@@ -52,6 +52,13 @@ class DemandCreateSerializer(serializers.ModelSerializer):
             'jd', 'requirements', 'priority',
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # requested_by / hr / process 由视图 perform_create 按当前用户与默认流程
+        # 服务端填充（前端建需求表单不收集这些字段），故此处放宽为非必填。
+        for _f in ('requested_by', 'hr', 'process'):
+            self.fields[_f].required = False
+
 
 class DemandTransitionSerializer(serializers.Serializer):
     """需求状态转换"""

@@ -1,5 +1,7 @@
 """Demand Views (DRF) - PRD v4 §14.1"""
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
+from nanoid import generate as nanoid_generate
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -9,6 +11,7 @@ from apps.common.exceptions import NotFound, ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.process.models import RecruitmentProcess
 
 from .models import Demand, DemandApproval
 from .serializers import (
@@ -62,6 +65,36 @@ class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         from django.utils import timezone
         instance.deleted_at = timezone.now()
         instance.save(update_fields=['deleted_at', 'updated_at'])
+
+    def perform_create(self, serializer):
+        """建需求：requested_by / hr 取当前用户，process 默认最新启用流程。
+
+        前端建需求表单仅收集 title / department / headcount 等业务字段，不收集
+        提出人 / 负责HR / 流程（无流程选择器）。这些服务端已知项在此统一填充，
+        既避免信任客户端伪造提出人，也保证 process FK 必填可满足。
+        保留 AuditMixin 的 created_by / updated_by 审计注入。
+        """
+        user = self.request.user
+        process = (
+            RecruitmentProcess.objects
+            .filter(is_latest=True, status='ENABLED', deleted_at__isnull=True)
+            .first()
+            or RecruitmentProcess.objects.filter(deleted_at__isnull=True).first()
+        )
+        # 生成需求编号 D + yyyymmdd + 4位（与 DemandService.create_demand 同款格式）。
+        # API 建需求走 serializer 直建、不经过 DemandService，故此处补生成，否则
+        # code 留空会撞 demands.code 唯一约束（第二次创建即 500）。
+        code = f'D{timezone.now().strftime("%Y%m%d")}{nanoid_generate(size=4).upper()}'
+        audit_kwargs = self.build_audit_kwargs(
+            serializer,
+            (self.audit_created_by_field, self.audit_updated_by_field),
+        )
+        serializer.save(
+            requested_by=user, hr=user, process=process,
+            code=code,
+            process_version=process.current_version if process else 'V1.0',
+            **audit_kwargs,
+        )
 
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, pk=None):
