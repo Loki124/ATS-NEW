@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import pytest
+from unittest.mock import patch
 from rest_framework.test import APIClient
 
 from apps.demand.models import Demand
+from apps.demand.services import DemandCreateData, DemandService
 from apps.process.models import RecruitmentProcess
 
 LIST_URL = '/api/v1/demands/'
@@ -113,3 +115,25 @@ class TestCreateDemandAPI:
         assert body['demandType'] == 'CAMPUS'
         demand = _latest_demand(department, 'TODO-C 测试需求')
         assert demand.demand_type == 'CAMPUS'
+
+    def test_create_delegates_to_demand_service(self, client, department, process, hr_user):
+        """API 建需求必须走 DemandService.create_demand 单一来源 (TODO-A 收口),
+        而非视图内联重写 —— 守护「分叉」不回流。
+
+        用 patch.object(wraps=真实方法): 既真实落库, 又能断言被调用且入参正确。
+        """
+        with patch.object(
+            DemandService, 'create_demand', wraps=DemandService.create_demand,
+        ) as spy:
+            resp = client.post(
+                LIST_URL, _build_payload(department, demand_type='CAMPUS'),
+                format='json',
+            )
+            assert resp.status_code == 201, resp.content
+            spy.assert_called_once()
+            call_data = spy.call_args.args[0]
+            assert isinstance(call_data, DemandCreateData)
+            assert call_data.process_id == process.id
+            assert call_data.requested_by_id == hr_user.id
+            assert call_data.hr_id == hr_user.id
+            assert call_data.demand_type == 'CAMPUS'
