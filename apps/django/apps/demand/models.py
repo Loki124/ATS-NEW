@@ -68,6 +68,16 @@ class Demand(FullAuditModel):
         verbose_name='优先级',
     )
 
+    # TODO-B 选项①：恢复前端 demandType 对应的后端字段（社招 / 校招）。
+    # 此前模型无 demand_type，前端 DemandList.vue 的 demandType（SOCIAL/CAMPUS）
+    # 一直是"发送了但后端不收、读取了但后端不返回"的脱节状态：列表/详情页
+    # 一律按 undefined 渲染成「校招」，表单选中「社招」提交后也被静默丢弃。
+    demand_type = models.CharField(
+        max_length=10, default='SOCIAL',
+        choices=[('SOCIAL', '社会招聘'), ('CAMPUS', '校园招聘')],
+        verbose_name='需求类型',
+    )
+
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='提交时间')
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name='审批通过时间')
 

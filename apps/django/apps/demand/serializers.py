@@ -22,7 +22,7 @@ class DemandListSerializer(serializers.ModelSerializer):
             'headcount', 'filled_count', 'headcount_remaining',
             'level', 'position_title',
             'process', 'process_version',
-            'state', 'state_display', 'priority',
+            'state', 'state_display', 'priority', 'demand_type',
             'submitted_at', 'approved_at',
             'position_count',
             'created_at',
@@ -49,7 +49,7 @@ class DemandCreateSerializer(serializers.ModelSerializer):
             'title', 'department', 'requested_by', 'hr',
             'headcount', 'level', 'position_title',
             'process', 'process_version',
-            'jd', 'requirements', 'priority',
+            'jd', 'requirements', 'priority', 'demand_type',
         ]
 
     def __init__(self, *args, **kwargs):
