@@ -38,6 +38,7 @@ class DemandCreateData:
     jd: str = ''
     requirements: str = ''
     priority: str = 'P1'
+    demand_type: str = 'SOCIAL'
     actor: Optional[User] = None
 
 
@@ -80,6 +81,7 @@ class DemandService:
             jd=data.jd,
             requirements=data.requirements,
             priority=data.priority,
+            demand_type=data.demand_type,
             state=DemandState.DRAFT,
             created_by=data.actor,
             updated_by=data.actor,
