@@ -577,6 +577,7 @@ const fetchDemands = async () => {
         name: d.title,
         positionCount: d.headcount,
         demandStatus: d.state,
+        demandType: d.demand_type,
         hiredCount: d.filled_count ?? 0,
         onBoardCount: d.filled_count ?? 0,
       }))
@@ -645,6 +646,7 @@ const handleSave = async () => {
       headcount: formData.value.positionCount,
       level: formData.value.jobLevel || '',
       position_title: formData.value.positionSeries || '',
+      demand_type: formData.value.demandType,
       jd: formData.value.description || '',
       requirements: formData.value.requirements || '',
       priority: 'P1',
