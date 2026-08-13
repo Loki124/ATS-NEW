@@ -68,7 +68,7 @@ export const createAnnouncement = (payload: AnnouncementPayload) =>
 
 export const updateAnnouncement = (id: string, payload: AnnouncementPayload) =>
   api
-    .put<{ success: boolean; data: Announcement }>(`/announcements/${id}/`, payload)
+    .patch<{ success: boolean; data: Announcement }>(`/announcements/${id}/`, payload)
     .then((r) => r.data.data)
 
 export const deleteAnnouncement = (id: string) =>
