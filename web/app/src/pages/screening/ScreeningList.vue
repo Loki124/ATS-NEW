@@ -55,8 +55,8 @@ async function loadList() {
       pageSize: pagination.value.pageSize,
       ...(filterStatus.value && { candidateStatus: filterStatus.value }),
     })
-    candidates.value = res.data.list
-    pagination.value.itemCount = res.data.pagination.total
+    candidates.value = res.data ?? []
+    pagination.value.itemCount = res.pagination?.total ?? 0
   } catch (e: any) {
     message.error(`加载失败: ${e.message}`)
   } finally {
@@ -110,7 +110,7 @@ async function handleExport() {
 
 const stats = computed(() => ({
   total: pagination.value.itemCount,
-  active: candidates.value.filter((c) => c.candidateStatus === 'ACTIVE').length,
+  active: (candidates.value ?? []).filter((c) => c.candidateStatus === 'ACTIVE').length,
   selected: selectedIds.value.length,
 }))
 

@@ -16,7 +16,7 @@ const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })
 
 const stats = computed(() => {
   const counts = { PENDING: 0, COMPLETED: 0 }
-  for (const it of dataSource.value) {
+  for (const it of (dataSource.value ?? [])) {
     if (it.feedbackStatus === 'PENDING') counts.PENDING++
     else counts.COMPLETED++
   }
@@ -62,9 +62,9 @@ async function loadList() {
       pageSize: pagination.value.pageSize,
       ...(filterFeedback.value && { feedbackStatus: filterFeedback.value }),
     })
-    dataSource.value = res.data.list
-    pagination.value.itemCount = res.data.pagination.total
-    pagination.value.pageCount = res.data.pagination.totalPages
+    dataSource.value = res.data ?? []
+    pagination.value.itemCount = res.pagination?.total ?? 0
+    pagination.value.pageCount = res.pagination?.totalPages ?? 0
   } catch (e: any) {
     message.error(`加载失败: ${e.message}`)
   } finally {
