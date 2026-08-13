@@ -38,6 +38,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Demands',
         component: () => import(/* webpackChunkName: "list-demand" */ '../pages/demand/DemandList.vue')
       },
+      // ===== 制度公告（普通用户公开查看全部公告）=====
+      {
+        path: 'announcements',
+        name: 'Announcements',
+        component: () => import(/* webpackChunkName: "announcement-list" */ '../pages/announcement/AnnouncementList.vue')
+      },
       {
         path: 'positions',
         name: 'Positions',
