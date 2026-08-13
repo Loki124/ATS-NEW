@@ -196,6 +196,7 @@ function renderIcon(icon: any) {
 
 const menuOptions = [
   { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
+  { key: '/announcements', label: '制度公告', icon: renderIcon(NotificationsOutline) },
   { key: '/demands', label: '需求管理', icon: renderIcon(DocumentTextOutline) },
   { key: '/positions', label: '职位管理', icon: renderIcon(PeopleOutline) },
   {

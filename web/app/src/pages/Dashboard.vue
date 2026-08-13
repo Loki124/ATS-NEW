@@ -91,7 +91,7 @@
           :bordered="true"
         >
           <template #header-extra>
-            <n-button text size="small" type="primary" @click="goAnnouncementAdmin">查看全部</n-button>
+            <n-button text size="small" type="primary" @click="goAnnouncementList">查看全部</n-button>
           </template>
           <div class="announcement-list">
             <div
@@ -293,8 +293,8 @@ async function fetchAnnouncementConfig() {
   }
 }
 
-function goAnnouncementAdmin() {
-  router.push('/settings/announcements')
+function goAnnouncementList() {
+  router.push('/announcements')
 }
 
 const MATTER_TABS = [
