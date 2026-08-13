@@ -57,6 +57,7 @@ api_v1_patterns = [
     #   (挂 applications/ 之下会与 /api/v1/applications/{id}/grab/ 语义混淆).
     path('grab-pool/', include('apps.application.urls_grab_pool')),
     path('demands/', include('apps.demand.urls')),
+    path('announcements/', include('apps.announcement.urls')),
     path('positions/', include('apps.position.urls')),
     path('offers/', include('apps.offer.urls')),
     path('onboardings/', include('apps.onboarding.urls')),

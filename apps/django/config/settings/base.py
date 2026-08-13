@@ -136,6 +136,7 @@ LOCAL_APPS = [
     'apps.scraped_resume',
     'apps.duplicate_check',
     'apps.dynamic_field',   # G42 动态字段定义 — admin 自定义 Candidate/Position 等资源字段
+    'apps.announcement',    # 制度公告 — 招聘专家查看 / HR 及以上维护
 ]  # Phase 2 T02 (寇豆码): 删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app
                           #   上游 grep 0 调用方, 无 model 无迁移. 详见 §T02.
 
