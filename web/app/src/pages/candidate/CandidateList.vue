@@ -21,11 +21,12 @@
     <!-- G44 11 状态详细字段筛选 -->
     <n-card :bordered="false" class="status-filter-card mb-4">
       <n-space :size="8" :wrap="true">
-        <n-button size="small" :type="statusFilter === null ? 'primary' : 'default'" @click="setStatusFilter(null)">全部</n-button>
+        <n-button size="small" round :type="statusFilter === null ? 'primary' : 'default'" @click="setStatusFilter(null)">全部</n-button>
         <n-button
           v-for="s in STATUS_SCHEMA"
           :key="s.key"
           size="small"
+          round
           :type="statusFilter === s.key ? 'primary' : 'default'"
           @click="setStatusFilter(s.key)"
         >
@@ -64,33 +65,18 @@
       </div>
     </n-card>
 
-    <!-- 统计数据 -->
-    <n-grid :cols="4" :x-gap="16" :y-gap="16" responsive="screen" :item-responsive="true" class="mb-4">
-      <n-grid-item span="4 m:2 l:1">
-        <n-card size="small" class="stat-card text-center">
-          <div class="stat-value" style="color: #FBCE5B">156</div>
-          <div class="stat-label">候选人总数</div>
-        </n-card>
-      </n-grid-item>
-      <n-grid-item span="4 m:2 l:1">
-        <n-card size="small" class="stat-card text-center">
-          <div class="stat-value" style="color: #13c2c2">45</div>
-          <div class="stat-label">筛选中</div>
-        </n-card>
-      </n-grid-item>
-      <n-grid-item span="4 m:2 l:1">
-        <n-card size="small" class="stat-card text-center">
-          <div class="stat-value" style="color: #faad14">28</div>
-          <div class="stat-label">面试中</div>
-        </n-card>
-      </n-grid-item>
-      <n-grid-item span="4 m:2 l:1">
-        <n-card size="small" class="stat-card text-center">
-          <div class="stat-value" style="color: #52c41a">8</div>
-          <div class="stat-label">待入职</div>
-        </n-card>
-      </n-grid-item>
-    </n-grid>
+    <!-- 统计概览 -->
+    <div class="stat-overview mb-4">
+      <div v-for="s in statCards" :key="s.label" class="stat-card">
+        <div class="stat-icon" :style="{ background: s.bg, color: s.color }">
+          <n-icon :component="s.icon" :size="22" />
+        </div>
+        <div class="stat-meta">
+          <div class="stat-value">{{ s.value }}</div>
+          <div class="stat-label">{{ s.label }}</div>
+        </div>
+      </div>
+    </div>
 
     <!-- 表格 -->
     <n-card class="table-card">
@@ -265,7 +251,7 @@
 <script setup lang="ts">
 import { ref, reactive, h, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, NTag, NIcon, NButton, NSpace } from 'naive-ui'
+import { useMessage, NTag, NIcon, NButton, NSpace, NAvatar } from 'naive-ui'
 import {
   AddOutline,
   SearchOutline,
@@ -278,6 +264,8 @@ import {
   MailOutline,
   ChatbubblesOutline,
   LogoWechat,
+  PeopleOutline,
+  PersonAddOutline,
 } from '@vicons/ionicons5'
 import AddCandidateModal from './AddCandidateModal.vue'
 import { fetchStatusSchema, type StatusSchema } from '@/api/candidate'
@@ -351,7 +339,11 @@ const columns = [
     key: 'name',
     render: (row: any) =>
       h('div', { class: 'candidate-cell', onClick: () => handleViewDetail(row) }, [
-        h(NIcon, { size: 32, color: '#FBCE5B', round: true }, { default: () => row.name?.[0] || 'A' }),
+        h(NAvatar, {
+          size: 38,
+          round: true,
+          style: 'background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%); color: #1f2937; font-weight: 600;',
+        }, { default: () => row.name?.[0] || 'A' }),
         h('div', { class: 'candidate-info' }, [
           h('div', { class: 'candidate-name' }, row.name),
           h('div', { class: 'candidate-email' }, row.email),
@@ -425,6 +417,14 @@ const stageOptions = [
   { label: '已入职', value: 'hired' },
 ]
 
+// 统计概览卡片（数据仍为演示值，后续接入真实接口）
+const statCards = [
+  { label: '候选人总数', value: 156, icon: PeopleOutline, color: '#FBCE5B', bg: 'rgba(251,206,91,0.14)' },
+  { label: '筛选中', value: 45, icon: FunnelOutline, color: '#1890ff', bg: 'rgba(24,144,255,0.12)' },
+  { label: '面试中', value: 28, icon: ChatbubblesOutline, color: '#faad14', bg: 'rgba(250,173,20,0.14)' },
+  { label: '待入职', value: 8, icon: PersonAddOutline, color: '#52c41a', bg: 'rgba(82,196,26,0.12)' },
+]
+
 const mockData = [
   { key: '1', name: '张三', email: 'zhangsan@example.com', phone: '138****8888', position: '前端开发工程师', channel: 'boss', stage: 'screening', createdAt: '2026-04-27' },
   { key: '2', name: '李四', email: 'lisi@example.com', phone: '139****6666', position: '产品经理', channel: 'lagou', stage: 'interview', createdAt: '2026-04-26' },
@@ -490,6 +490,9 @@ const showMoreFilter = () => { message.info('更多筛选功能开发中') }
 
 <style scoped>
 .candidate-list-page { padding: 24px; }
+.status-filter-card, .filter-card, .table-card {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
 .page-header {
   margin-bottom: 24px;
   display: flex;
@@ -506,9 +509,41 @@ const showMoreFilter = () => { message.info('更多筛选功能开发中') }
   border: none !important;
   color: #000 !important;
 }
-.stat-card { border-radius: 8px; }
-.stat-value { font-size: 24px; font-weight: 600; }
-.stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+.stat-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.stat-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-meta { display: flex; flex-direction: column; min-width: 0; }
+.stat-value { font-size: 26px; font-weight: 700; color: #1f2937; line-height: 1.15; }
+.stat-label { font-size: 13px; color: #8c8c8c; margin-top: 2px; }
+@media (max-width: 768px) {
+  .stat-overview { grid-template-columns: repeat(2, 1fr); }
+}
 .candidate-cell {
   display: flex;
   align-items: center;
@@ -516,7 +551,7 @@ const showMoreFilter = () => { message.info('更多筛选功能开发中') }
   cursor: pointer;
 }
 .candidate-info { display: flex; flex-direction: column; }
-.candidate-name { font-weight: 500; color: #FBCE5B; }
+.candidate-name { font-weight: 600; color: #1f2937; }
 .candidate-email { font-size: 12px; color: #999; }
 
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
