@@ -122,3 +122,35 @@ class TestAnnouncementAPI:
         assert auth_hr_client.get(CONFIG_URL).json()['data']['showOnWorkbench'] is False
         cfg = AnnouncementConfig.objects.get(pk=1)
         assert cfg.show_on_workbench is False
+
+    # ===== 更新（PATCH 局部更新，支持只改上架开关）=====
+    def test_partial_update_toggle_active(self, auth_hr_client):
+        """仅发 is_active 的 PATCH 应 200，且其余字段不被清空（开关场景）。"""
+        obj = Announcement.objects.create(
+            title='开关测试', category='SYSTEM', audience='RECRUIT_EXPERT',
+            summary='概述', body='正文', is_active=True,
+        )
+        resp = auth_hr_client.patch(f'{URL}{obj.id}/', {'is_active': False}, format='json')
+        assert resp.status_code == 200, resp.content
+        obj.refresh_from_db()
+        assert obj.is_active is False
+        # 其余字段保持不变
+        assert obj.title == '开关测试'
+        assert obj.body == '正文'
+
+    def test_full_update_via_patch(self, auth_hr_client):
+        """PATCH 携带全量可编辑字段 → 200 且字段更新。"""
+        obj = Announcement.objects.create(
+            title='旧标题', category='SYSTEM', audience='RECRUIT_EXPERT',
+            summary='旧概述', body='旧正文', is_active=True,
+        )
+        resp = auth_hr_client.patch(f'{URL}{obj.id}/', {
+            'title': '新标题', 'category': 'NOTICE', 'audience': 'RECRUIT_EXPERT',
+            'summary': '新概述', 'body': '新正文', 'pinned': True, 'is_active': False,
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        obj.refresh_from_db()
+        assert obj.title == '新标题'
+        assert obj.category == 'NOTICE'
+        assert obj.summary == '新概述'
+        assert obj.is_active is False
