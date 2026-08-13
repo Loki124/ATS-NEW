@@ -302,8 +302,8 @@ const loadResumes = async () => {
     // 2026-07-01 花无缺: 之前是 '/resumes' (404), 实际后端在 '/scraped-resumes/'
     const res = await get('/scraped-resumes', { params })
     if (res.data.success) {
-      resumeList.value = res.data.data.list
-      total.value = res.data.data.total
+      resumeList.value = res.data.data
+      total.value = res.data.pagination?.total ?? 0
     }
   } catch (error) {
     console.error('加载简历失败', error)
