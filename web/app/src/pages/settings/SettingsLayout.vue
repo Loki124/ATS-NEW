@@ -43,6 +43,7 @@ import {
   PersonAddOutline,
   CheckmarkDoneOutline,
   BusinessOutline,
+  BookOutline,
   PeopleOutline,
   KeyOutline,
   LockClosedOutline,
@@ -114,6 +115,14 @@ const subMenuOptions = [
       { key: '/settings/recruitment-stage', label: '阶段模板库', icon: renderIcon(LayersOutline) },
       { key: '/settings/recruitment-process', label: '招聘流程', icon: renderIcon(GitNetworkOutline) },
       { key: '/settings/recruitment-round', label: '面试轮次', icon: renderIcon(StopwatchOutline) },
+    ],
+  },
+  {
+    key: 'group-content',
+    type: 'group',
+    label: '内容管理',
+    children: [
+      { key: '/settings/announcements', label: '制度公告', icon: renderIcon(BookOutline) },
     ],
   },
   {

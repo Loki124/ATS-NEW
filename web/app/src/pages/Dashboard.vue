@@ -33,6 +33,40 @@
         >
           <WeeklySchedule :interviews="data?.interviews ?? []" />
         </n-card>
+
+        <!-- ========== 重要事项 (tabbed panel) — 置于招聘日程下方 ========== -->
+        <n-card
+          title="重要事项"
+          class="workbench-card workbench-card--stagger-7 matters-card"
+          :bordered="true"
+        >
+          <n-tabs v-model:value="matterTab" type="line" :tabs-padding="12">
+            <n-tab-pane
+              v-for="tab in MATTER_TABS"
+              :key="tab.key"
+              :name="tab.key"
+            >
+              <template #tab>
+                <span class="matter-tab">
+                  {{ tab.label }}
+                  <span v-if="(data?.matterCounts?.[tab.key] ?? 0) > 0" class="matter-tab__count">
+                    {{ data?.matterCounts?.[tab.key] }}
+                  </span>
+                </span>
+              </template>
+              <MatterList
+                v-if="(data?.matters?.[tab.key]?.length ?? 0) > 0"
+                :matters="data?.matters?.[tab.key] ?? []"
+                @action="onMatterAction"
+              />
+              <EmptyState
+                v-else
+                title="暂无相关事项"
+                description="当前 tab 下没有需要处理的提醒"
+              />
+            </n-tab-pane>
+          </n-tabs>
+        </n-card>
       </div>
 
       <!-- 右辅: 搜索 / 雷达访问 / 快捷入口 / 我发的筛选 -->
@@ -48,6 +82,76 @@
             </template>
           </n-input>
         </div>
+
+        <!-- 制度公告：招聘专家查看招聘相关制度与公告内容 -->
+        <n-card
+          v-if="showAnnouncementModule"
+          title="制度公告"
+          class="workbench-card workbench-card--stagger-3 side-card announcement-card"
+          :bordered="true"
+        >
+          <template #header-extra>
+            <n-button text size="small" type="primary" @click="goAnnouncementAdmin">查看全部</n-button>
+          </template>
+          <div class="announcement-list">
+            <div
+              v-for="item in announcements.slice(0, 5)"
+              :key="item.id"
+              class="announcement-item"
+              role="button"
+              tabindex="0"
+              @click="openAnnouncementDetail(item)"
+              @keydown.enter="openAnnouncementDetail(item)"
+            >
+              <div class="announcement-item__head">
+                <n-tag v-if="item.pinned" size="tiny" type="error" round>置顶</n-tag>
+                <n-tag size="tiny" :type="categoryType(item.category)" round>{{ item.categoryDisplay }}</n-tag>
+                <span class="announcement-item__title">{{ item.title }}</span>
+                <span v-if="item.attachments?.length" class="announcement-item__attach" title="含附件">📎</span>
+              </div>
+              <p class="announcement-item__preview">{{ item.summary || '（暂无概述，请在后台配置）' }}</p>
+            </div>
+            <div v-if="announcements.length === 0" class="announcement-list__empty">
+              <n-empty size="small" description="暂无制度公告" />
+            </div>
+          </div>
+        </n-card>
+
+        <!-- 制度公告 详情抽屉 -->
+        <n-drawer
+          v-model:show="announcementDetailVisible"
+          :width="440"
+          placement="right"
+          :trap-focus="false"
+        >
+          <n-drawer-content :native-scrollbar="false">
+            <template #header>
+              <span class="ann-detail__title">{{ announcementDetail?.title }}</span>
+            </template>
+            <div v-if="announcementDetail" class="ann-detail">
+              <div class="ann-detail__meta">
+                <n-tag size="small" :type="categoryType(announcementDetail.category)" round>{{ announcementDetail.categoryDisplay }}</n-tag>
+                <n-tag size="small" round>{{ announcementDetail.audienceDisplay }}</n-tag>
+                <span class="ann-detail__time">{{ fmtAnnouncementTime(announcementDetail.publishedAt) }}</span>
+              </div>
+              <p class="ann-detail__body">{{ announcementDetail.body }}</p>
+              <div v-if="announcementDetail.attachments && announcementDetail.attachments.length" class="ann-detail__attachments">
+                <div class="ann-detail__attach-title">附件</div>
+                <a
+                  v-for="att in announcementDetail.attachments"
+                  :key="att.id"
+                  class="ann-detail__attach"
+                  :href="att.fileUrl"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span class="ann-detail__attach-name">📎 {{ att.originalName }}</span>
+                  <span class="ann-detail__attach-size">{{ formatFileSize(att.fileSize) }}</span>
+                </a>
+              </div>
+            </div>
+          </n-drawer-content>
+        </n-drawer>
 
         <n-card
           title="雷达访问职位"
@@ -103,40 +207,6 @@
         </n-card>
       </aside>
     </div>
-
-    <!-- ========== 重要事项 (tabbed panel) ========== -->
-    <n-card
-      title="重要事项"
-      class="workbench-card workbench-card--stagger-6 matters-card"
-      :bordered="true"
-    >
-      <n-tabs v-model:value="matterTab" type="line" :tabs-padding="12">
-        <n-tab-pane
-          v-for="tab in MATTER_TABS"
-          :key="tab.key"
-          :name="tab.key"
-        >
-          <template #tab>
-            <span class="matter-tab">
-              {{ tab.label }}
-              <span v-if="(data?.matterCounts?.[tab.key] ?? 0) > 0" class="matter-tab__count">
-                {{ data?.matterCounts?.[tab.key] }}
-              </span>
-            </span>
-          </template>
-          <MatterList
-            v-if="(data?.matters?.[tab.key]?.length ?? 0) > 0"
-            :matters="data?.matters?.[tab.key] ?? []"
-            @action="onMatterAction"
-          />
-          <EmptyState
-            v-else
-            title="暂无相关事项"
-            description="当前 tab 下没有需要处理的提醒"
-          />
-        </n-tab-pane>
-      </n-tabs>
-    </n-card>
   </div>
 </template>
 
@@ -149,6 +219,7 @@ import { SearchOutline, MailUnreadOutline, StarOutline, LockClosedOutline, Brief
 //   - 配合 SkeletonCard 占位, 加载完才显示真实内容
 import { SkeletonCard } from '../components/dashboard'
 import { loadDashboardData, type DashboardData } from '../api/dashboard'
+import { listAnnouncements, getAnnouncementConfig, type Announcement, type AnnouncementCategory } from '../api/announcement'
 import type { QuickEntryData, JobCardData, ScreeningItemData, MatterItem } from '../components/dashboard'
 // Plan O Task 6: 搜索 debounce (300ms)
 import { debounce } from '../utils/debounce'
@@ -166,6 +237,65 @@ const router = useRouter()
 const searchKeyword = ref('')
 const matterTab = ref<string>('recruit')
 const data = ref<DashboardData | null>(null)
+
+// 制度公告（工作台右侧模块，招聘专家查看）
+const announcements = ref<Announcement[]>([])
+// 工作台是否展示制度公告模块（后台配置；默认 true，配置读取失败时 fail-open 仍展示）
+const showAnnouncementModule = ref(true)
+
+// 制度公告详情抽屉
+const announcementDetailVisible = ref(false)
+const announcementDetail = ref<Announcement | null>(null)
+
+function openAnnouncementDetail(item: Announcement) {
+  announcementDetail.value = item
+  announcementDetailVisible.value = true
+}
+
+function categoryType(c: AnnouncementCategory): 'info' | 'success' | 'warning' {
+  if (c === 'NOTICE') return 'success'
+  if (c === 'PROCESS') return 'warning'
+  return 'info'
+}
+
+function fmtAnnouncementTime(iso?: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '-'
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`
+}
+
+async function fetchAnnouncements() {
+  try {
+    announcements.value = await listAnnouncements()
+  } catch {
+    announcements.value = []
+  }
+}
+
+async function fetchAnnouncementConfig() {
+  try {
+    const cfg = await getAnnouncementConfig()
+    if (typeof cfg?.showOnWorkbench === 'boolean') {
+      showAnnouncementModule.value = cfg.showOnWorkbench
+    }
+  } catch {
+    // 配置读取失败：fail-open，保持展示
+    showAnnouncementModule.value = true
+  }
+}
+
+function goAnnouncementAdmin() {
+  router.push('/settings/announcements')
+}
 
 const MATTER_TABS = [
   { key: 'recruit', label: '招聘需求相关' },
@@ -267,6 +397,8 @@ watch(searchKeyword, (val) => {
 
 onMounted(() => {
   void fetchData()
+  void fetchAnnouncements()
+  void fetchAnnouncementConfig()
 })
 
 // ===== 事件 =====
@@ -427,6 +559,118 @@ function onMatterAction(_matter: MatterItem) {
 
 .quick-entry-item {
   display: block;
+}
+
+/* ===== 制度公告 (右侧栏) ===== */
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.announcement-item {
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.announcement-item:hover {
+  background: var(--color-surface-sunk);
+}
+
+.announcement-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.announcement-item__title {
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement-item__attach {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.announcement-item__preview {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-1);
+  color: var(--color-ink-soft);
+  font-size: var(--text-small);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.announcement-list__empty {
+  padding: var(--space-4) 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* ===== 制度公告 详情抽屉 ===== */
+.ann-detail__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.ann-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.ann-detail__time {
+  color: var(--color-ink-soft);
+  font-size: var(--text-small);
+}
+.ann-detail__body {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.ann-detail__attachments {
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-border-hairline);
+  padding-top: var(--space-4);
+}
+.ann-detail__attach-title {
+  font-size: var(--text-small);
+  color: var(--color-ink-soft);
+  margin-bottom: var(--space-2);
+}
+.ann-detail__attach {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunk);
+  color: var(--color-ink);
+  text-decoration: none;
+  margin-bottom: var(--space-2);
+  transition: background 0.15s ease;
+}
+.ann-detail__attach:hover {
+  background: var(--color-border-hairline);
+}
+.ann-detail__attach-size {
+  color: var(--color-ink-soft);
+  font-size: var(--text-small);
+  flex-shrink: 0;
 }
 
 /* ===== Matters tab badge ===== */
