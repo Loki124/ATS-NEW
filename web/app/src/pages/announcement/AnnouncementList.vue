@@ -1,120 +1,199 @@
 <template>
-  <div class="ann-page">
-    <!-- 页头 -->
-    <header class="ann-page__header">
-      <div class="ann-page__title-row">
-        <h1 class="ann-page__title">制度公告</h1>
-        <span class="ann-page__subtitle">招聘相关的制度、公告与流程指引</span>
+  <div class="ann-kb">
+    <!-- 左侧分类树 -->
+    <aside class="ann-kb__side">
+      <div class="ann-kb__side-header">
+        <n-button text class="ann-kb__back" @click="router.push('/dashboard')">
+          <n-icon :component="ChevronBackOutline" :size="20" />
+        </n-button>
+        <span>政策制度</span>
       </div>
-      <n-tabs
-        v-model:value="categoryFilter"
-        type="segment"
-        size="small"
-        class="ann-page__filter"
-      >
-        <n-tab-pane name="ALL" tab="全部" />
-        <n-tab-pane name="SYSTEM" tab="制度" />
-        <n-tab-pane name="NOTICE" tab="公告" />
-        <n-tab-pane name="PROCESS" tab="流程" />
-      </n-tabs>
-    </header>
-
-    <!-- 列表 -->
-    <section class="ann-page__list">
-      <n-spin :show="loading">
+      <nav class="ann-kb__tree">
         <div
-          v-for="item in filteredAnnouncements"
-          :key="item.id"
-          class="ann-row"
+          v-for="node in treeNodes"
+          :key="node.key"
+          class="ann-kb__tree-node"
+          :class="{ active: currentKey === node.key }"
+          :style="{ paddingLeft: `${12 + (node.level ?? 0) * 16}px` }"
           role="button"
           tabindex="0"
-          @click="openDetail(item)"
-          @keydown.enter="openDetail(item)"
+          @click="selectNode(node.key)"
+          @keydown.enter="selectNode(node.key)"
         >
-          <div class="ann-row__head">
-            <n-tag v-if="item.pinned" size="tiny" type="error" round>置顶</n-tag>
-            <n-tag size="tiny" :type="categoryType(item.category)" round>{{ item.categoryDisplay }}</n-tag>
-            <span class="ann-row__title">{{ item.title }}</span>
-            <span v-if="item.attachments?.length" class="ann-row__attach" title="含附件">📎</span>
-          </div>
-          <p class="ann-row__summary">{{ item.summary || '（暂无概述）' }}</p>
-          <div class="ann-row__meta">
-            <span>{{ item.audienceDisplay }}</span>
-            <span class="ann-row__dot">·</span>
-            <span>{{ fmtTime(item.publishedAt) }}</span>
-          </div>
+          <n-icon :component="node.icon" :size="16" class="ann-kb__tree-icon" />
+          <span class="ann-kb__tree-label">{{ node.label }}</span>
+          <span v-if="node.count != null" class="ann-kb__tree-count">{{ node.count }}</span>
         </div>
+      </nav>
+    </aside>
 
-        <div v-if="!loading && filteredAnnouncements.length === 0" class="ann-page__empty">
-          <n-empty :description="categoryFilter === 'ALL' ? '暂无制度公告' : '该分类下暂无公告'" />
-        </div>
-      </n-spin>
-    </section>
-
-    <!-- 详情抽屉 -->
-    <n-drawer
-      v-model:show="detailVisible"
-      :width="480"
-      placement="right"
-      :trap-focus="false"
-    >
-      <n-drawer-content :native-scrollbar="false">
-        <template #header>
-          <span class="ann-detail__title">{{ detail?.title }}</span>
-        </template>
-        <div v-if="detail" class="ann-detail">
-          <div class="ann-detail__meta">
-            <n-tag size="small" :type="categoryType(detail.category)" round>{{ detail.categoryDisplay }}</n-tag>
-            <n-tag size="small" round>{{ detail.audienceDisplay }}</n-tag>
-            <span class="ann-detail__time">{{ fmtTime(detail.publishedAt) }}</span>
-          </div>
-          <p class="ann-detail__body">{{ detail.body }}</p>
-          <div v-if="detail.attachments && detail.attachments.length" class="ann-detail__attachments">
-            <div class="ann-detail__attach-title">附件</div>
-            <a
-              v-for="att in detail.attachments"
-              :key="att.id"
-              class="ann-detail__attach"
-              :href="att.fileUrl"
-              target="_blank"
-              rel="noopener"
+    <!-- 右侧内容 -->
+    <main class="ann-kb__main">
+      <n-spin :show="loading">
+        <!-- 最近浏览 -->
+        <section class="ann-kb__section">
+          <div class="ann-kb__section-title">最近浏览</div>
+          <div v-if="recentViews.length > 0" class="ann-kb__recent">
+            <div
+              v-for="item in recentViews.slice(0, 4)"
+              :key="item.id"
+              class="ann-kb__recent-card"
+              role="button"
+              tabindex="0"
+              @click="goDetail(item.id)"
+              @keydown.enter="goDetail(item.id)"
             >
-              <span class="ann-detail__attach-name">📎 {{ att.originalName }}</span>
-              <span class="ann-detail__attach-size">{{ formatFileSize(att.fileSize) }}</span>
-            </a>
+              <div class="ann-kb__recent-icon">
+                <n-icon :component="DocumentTextOutline" :size="22" />
+              </div>
+              <div class="ann-kb__recent-info">
+                <div class="ann-kb__recent-title" :title="item.title">{{ item.title }}</div>
+                <div class="ann-kb__recent-meta">{{ item.categoryDisplay }} · {{ fmtRecentTime(item.viewedAt) }}</div>
+              </div>
+            </div>
           </div>
-        </div>
-      </n-drawer-content>
-    </n-drawer>
+          <n-empty v-else size="small" description="暂无最近浏览记录" />
+        </section>
+
+        <!-- 最近更新 -->
+        <section class="ann-kb__section">
+          <div class="ann-kb__section-title">最近更新</div>
+          <div v-if="tableData.length > 0" class="ann-kb__table-wrap">
+            <table class="ann-kb__table">
+              <thead>
+                <tr>
+                  <th class="col-name">文档名称</th>
+                  <th class="col-folder">所属文件夹</th>
+                  <th class="col-editor">最近修改人</th>
+                  <th class="col-time">修改时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="item in tableData"
+                  :key="item.id"
+                  class="ann-kb__row"
+                  @click="goDetail(item.id)"
+                >
+                  <td class="col-name">
+                    <div class="ann-kb__doc-cell">
+                      <div class="ann-kb__doc-icon">
+                        <n-icon :component="DocumentTextOutline" :size="18" />
+                      </div>
+                      <div class="ann-kb__doc-info">
+                        <span class="ann-kb__doc-title" :title="item.title">{{ item.title }}</span>
+                        <span v-if="item.attachments?.length" class="ann-kb__doc-attach" title="含附件">📎</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="col-folder">
+                    <n-tag size="small" :type="categoryType(item.category)" round>{{ item.categoryDisplay }}</n-tag>
+                  </td>
+                  <td class="col-editor">
+                    <div class="ann-kb__editor">
+                      <n-avatar
+                        v-if="item.updatedByName"
+                        :style="{ background: '#3b82f6', color: '#fff' }"
+                        round
+                        :size="22"
+                      >
+                        {{ initials(item.updatedByName) }}
+                      </n-avatar>
+                      <span>{{ item.updatedByName || '-' }}</span>
+                    </div>
+                  </td>
+                  <td class="col-time">{{ fmtTime(item.updatedAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <n-empty v-else size="small" description="暂无公告" />
+        </section>
+      </n-spin>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  ChevronBackOutline,
+  DocumentTextOutline,
+  FolderOpenOutline,
+  TimeOutline,
+  GridOutline,
+} from '@vicons/ionicons5'
 import { listAnnouncements, type Announcement, type AnnouncementCategory } from '../../api/announcement'
+
+const router = useRouter()
 
 const loading = ref(false)
 const announcements = ref<Announcement[]>([])
-const categoryFilter = ref<'ALL' | AnnouncementCategory>('ALL')
+const currentKey = ref<string>('ALL')
+const recentViews = ref<{ id: string; title: string; categoryDisplay: string; viewedAt: string }[]>([])
 
-// 详情抽屉
-const detailVisible = ref(false)
-const detail = ref<Announcement | null>(null)
-
-function openDetail(item: Announcement) {
-  detail.value = item
-  detailVisible.value = true
+type TreeNode = {
+  key: string
+  label: string
+  icon: any
+  level?: number
+  count?: number
 }
 
-const filteredAnnouncements = computed(() => {
-  if (categoryFilter.value === 'ALL') return announcements.value
-  return announcements.value.filter((a) => a.category === categoryFilter.value)
+const treeNodes = computed<TreeNode[]>(() => {
+  const nodes: TreeNode[] = [
+    { key: 'RECENT', label: '最近动态', icon: TimeOutline },
+    { key: 'ALL', label: '全部文件', icon: GridOutline },
+  ]
+  const counts: Record<string, number> = {
+    SYSTEM: announcements.value.filter((a) => a.category === 'SYSTEM').length,
+    NOTICE: announcements.value.filter((a) => a.category === 'NOTICE').length,
+    PROCESS: announcements.value.filter((a) => a.category === 'PROCESS').length,
+  }
+  const categoryMeta: Record<AnnouncementCategory, { label: string; icon: any }> = {
+    SYSTEM: { label: '制度', icon: FolderOpenOutline },
+    NOTICE: { label: '公告', icon: FolderOpenOutline },
+    PROCESS: { label: '流程', icon: FolderOpenOutline },
+  }
+  ;(['SYSTEM', 'NOTICE', 'PROCESS'] as AnnouncementCategory[]).forEach((cat) => {
+    nodes.push({
+      key: cat,
+      label: categoryMeta[cat].label,
+      icon: categoryMeta[cat].icon,
+      level: 0,
+      count: counts[cat],
+    })
+  })
+  return nodes
 })
+
+const tableData = computed(() => {
+  let list = announcements.value
+  if (currentKey.value === 'RECENT') {
+    list = [...list].sort((a, b) => new Date(b.updatedAt || b.publishedAt).getTime() - new Date(a.updatedAt || a.publishedAt).getTime())
+  } else if (currentKey.value !== 'ALL') {
+    list = list.filter((a) => a.category === currentKey.value)
+  }
+  return list
+})
+
+function selectNode(key: string) {
+  currentKey.value = key
+}
+
+function goDetail(id: string) {
+  router.push(`/announcements/${id}`)
+}
 
 function categoryType(c: AnnouncementCategory): 'info' | 'success' | 'warning' {
   if (c === 'NOTICE') return 'success'
   if (c === 'PROCESS') return 'warning'
   return 'info'
+}
+
+function initials(name: string): string {
+  return name.slice(0, 1).toUpperCase()
 }
 
 function fmtTime(iso?: string): string {
@@ -125,17 +204,28 @@ function fmtTime(iso?: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-function formatFileSize(bytes: number): string {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`
+function fmtRecentTime(iso?: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '-'
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+function loadRecentViews() {
+  try {
+    const raw = localStorage.getItem('ann_recent_views')
+    recentViews.value = raw
+      ? (JSON.parse(raw) as { id: string; title: string; categoryDisplay: string; viewedAt: string }[])
+      : []
+  } catch {
+    recentViews.value = []
+  }
 }
 
 async function refresh() {
   loading.value = true
   try {
-    // 公开列表仅取上架公告（默认行为），与管理后台「全部历史」区分
     announcements.value = await listAnnouncements()
   } catch {
     announcements.value = []
@@ -144,177 +234,304 @@ async function refresh() {
   }
 }
 
-onMounted(refresh)
+onMounted(() => {
+  void refresh()
+  loadRecentViews()
+})
 </script>
 
 <style scoped>
-.ann-page {
+.ann-kb {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  max-width: 880px;
-  margin: 0 auto;
-  width: 100%;
+  min-height: 100%;
+  background: #f5f7fa;
 }
 
-.ann-page__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* 左侧边栏 */
+.ann-kb__side {
+  width: 220px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  padding: 20px 0;
 }
 
-.ann-page__title-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.ann-page__title {
-  margin: 0;
-  font-size: var(--text-h2);
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
-.ann-page__subtitle {
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
-}
-
-.ann-page__filter {
-  align-self: flex-start;
-}
-
-.ann-page__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 200px;
-}
-
-.ann-row {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-hairline);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
-}
-
-.ann-row:hover {
-  border-color: var(--color-accent);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-.ann-row:active {
-  transform: scale(0.997);
-}
-
-.ann-row__head {
+.ann-kb__side-header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 20px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
-.ann-row__title {
-  color: var(--color-ink);
-  font-size: var(--text-h4);
+.ann-kb__back {
+  margin-left: -4px;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.ann-kb__back:hover {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.ann-kb__tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.ann-kb__tree-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  margin: 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #4b5563;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ann-kb__tree-node:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.ann-kb__tree-node.active {
+  background: #eff6ff;
+  color: #2563eb;
   font-weight: 500;
-  line-height: 1.4;
+}
+
+.ann-kb__tree-icon {
+  flex-shrink: 0;
+}
+
+.ann-kb__tree-label {
   flex: 1;
   min-width: 0;
-}
-
-.ann-row__attach {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.ann-row__summary {
-  margin: var(--space-2) 0 0;
-  color: var(--color-ink-soft);
-  font-size: var(--text-body);
-  line-height: 1.6;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ann-row__meta {
-  margin-top: var(--space-3);
+.ann-kb__tree-count {
+  font-size: 12px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.ann-kb__tree-node.active .ann-kb__tree-count {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+/* 右侧主内容 */
+.ann-kb__main {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 32px;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
+  flex-direction: column;
+  gap: 24px;
 }
 
-.ann-row__dot {
-  opacity: 0.5;
+.ann-kb__section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.03);
 }
 
-.ann-page__empty {
-  padding: var(--space-10) 0;
-  display: flex;
-  justify-content: center;
+/* 相邻 section 之间增加垂直间距（最近浏览 / 最近更新） */
+.ann-kb__section + .ann-kb__section {
+  margin-top: 24px;
 }
 
-/* ===== 详情抽屉 ===== */
-.ann-detail__title {
+.ann-kb__section-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-ink);
+  color: #1f2937;
+  margin-bottom: 16px;
 }
-.ann-detail__meta {
+
+/* 最近浏览卡片 */
+.ann-kb__recent {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: var(--space-4);
 }
-.ann-detail__time {
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
-}
-.ann-detail__body {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: var(--text-body);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-.ann-detail__attachments {
-  margin-top: var(--space-6);
-  border-top: 1px solid var(--color-border-hairline);
-  padding-top: var(--space-4);
-}
-.ann-detail__attach-title {
-  font-size: var(--text-small);
-  color: var(--color-ink-soft);
-  margin-bottom: var(--space-2);
-}
-.ann-detail__attach {
+
+.ann-kb__recent-card {
+  width: 240px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunk);
-  color: var(--color-ink);
-  text-decoration: none;
-  margin-bottom: var(--space-2);
-  transition: background 0.15s ease;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.ann-detail__attach:hover {
-  background: var(--color-border-hairline);
+
+.ann-kb__recent-card:hover {
+  background: #fff;
+  border-color: #bfdbfe;
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.08);
 }
-.ann-detail__attach-size {
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
+
+.ann-kb__recent-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.ann-kb__recent-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ann-kb__recent-title {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ann-kb__recent-meta {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* 表格 */
+.ann-kb__table-wrap {
+  overflow-x: auto;
+}
+
+.ann-kb__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ann-kb__table th {
+  text-align: left;
+  color: #9ca3af;
+  font-weight: 500;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+}
+
+.ann-kb__table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f5f5f5;
+  color: #4b5563;
+  vertical-align: middle;
+}
+
+.ann-kb__row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ann-kb__row:hover {
+  background: #f8fafc;
+}
+
+.ann-kb__row:last-child td {
+  border-bottom: none;
+}
+
+.col-name {
+  width: 45%;
+}
+
+.col-folder {
+  width: 18%;
+}
+
+.col-editor {
+  width: 18%;
+}
+
+.col-time {
+  width: 19%;
+  white-space: nowrap;
+}
+
+.ann-kb__doc-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ann-kb__doc-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ann-kb__doc-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ann-kb__doc-title {
+  color: #1f2937;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ann-kb__doc-attach {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ann-kb__editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .ann-kb__side {
+    display: none;
+  }
+  .ann-kb__main {
+    padding: 16px;
+  }
+  .ann-kb__recent-card {
+    width: 100%;
+  }
 }
 </style>

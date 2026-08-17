@@ -1,7 +1,8 @@
 <template>
-  <n-layout has-sider class="app-layout">
-    <!-- 侧边栏 -->
+  <div class="app-layout">
+    <!-- 侧边栏（左侧竖排模式） -->
     <n-layout-sider
+      v-if="menuLayout === 'side'"
       bordered
       :width="240"
       :collapsed-width="64"
@@ -9,8 +10,7 @@
       collapse-mode="width"
       :collapsed="collapsed"
       :native-scrollbar="false"
-      class="bg-gray-900"
-      :style="{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }"
+      class="bg-gray-900 app-sider"
       @collapse="collapsed = true"
       @expand="collapsed = false"
     >
@@ -41,11 +41,34 @@
     </n-layout-sider>
 
     <!-- 主体 -->
-    <n-layout :style="{ height: '100vh' }">
+    <div class="main-area">
       <!-- 头部 -->
       <n-layout-header bordered class="bg-white px-6 flex items-center justify-between h-16">
-        <div class="flex items-center gap-4">
-          <n-button text class="layout-header__search-trigger" aria-label="全局搜索" @click="onSearchClick">
+        <!-- 左集群 -->
+        <div class="flex items-center gap-4 min-w-0" :class="menuLayout === 'top' ? 'flex-1' : ''">
+          <!-- 顶部横排：Logo -->
+          <div v-if="menuLayout === 'top'" class="top-logo flex items-center gap-2 shrink-0">
+            <div class="logo-icon">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+              </svg>
+            </div>
+            <span class="text-base font-semibold text-gray-800 whitespace-nowrap">ATS招聘系统</span>
+          </div>
+
+          <!-- 顶部横排：水平菜单 -->
+          <n-menu
+            v-if="menuLayout === 'top'"
+            mode="horizontal"
+            :options="menuOptions"
+            :value="selectedKey"
+            :theme-overrides="topMenuThemeOverrides"
+            class="top-menu flex-1 min-w-0"
+            @update:value="handleMenuClick"
+          />
+
+          <!-- 左侧竖排：搜索框在左 -->
+          <n-button v-if="menuLayout === 'side'" text class="layout-header__search-trigger shrink-0" aria-label="全局搜索" @click="onSearchClick">
             <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-80 cursor-pointer">
               <n-icon :component="SearchOutline" />
               <span class="flex-1 text-sm text-gray-500 text-left">搜索候选人、职位、需求...</span>
@@ -54,7 +77,17 @@
           </n-button>
         </div>
 
-        <div class="flex items-center gap-4">
+        <!-- 右集群 -->
+        <div class="flex items-center gap-4 shrink-0">
+          <!-- 顶部横排：搜索框在右 -->
+          <n-button v-if="menuLayout === 'top'" text class="layout-header__search-trigger" aria-label="全局搜索" @click="onSearchClick">
+            <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-72 cursor-pointer">
+              <n-icon :component="SearchOutline" />
+              <span class="flex-1 text-sm text-gray-500 text-left">搜索候选人、职位、需求...</span>
+              <span class="text-xs text-gray-400 kbd-hint">⌘K</span>
+            </div>
+          </n-button>
+
           <n-badge :value="5" :max="99">
             <n-button text aria-label="通知" @click="goToNotifications">
               <n-icon :component="NotificationsOutline" :size="20" />
@@ -76,11 +109,11 @@
       </n-layout-header>
 
       <!-- 内容区 -->
-      <n-layout-content class="bg-gray-50 layout-content">
+      <div class="bg-gray-50 layout-content">
         <div class="content-wrapper p-6">
           <router-view />
         </div>
-      </n-layout-content>
+      </div>
 
       <!-- ⌘K 全局搜索 Modal -->
       <n-modal
@@ -94,8 +127,8 @@
       >
         <GlobalSearch />
       </n-modal>
-    </n-layout>
-  </n-layout>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -190,13 +223,36 @@ const menuThemeOverrides = {
   borderRadius: '6px',
 }
 
+// 顶部横排菜单：浅色主题（header 为白底，用深色文字 + 金色激活）
+const topMenuThemeOverrides = {
+  itemTextColor: '#374151',
+  itemTextColorHover: '#111827',
+  itemTextColorActive: '#C8961A',
+  itemTextColorActiveHover: '#C8961A',
+  itemIconColor: '#6b7280',
+  itemIconColorHover: '#374151',
+  itemIconColorActive: '#C8961A',
+  itemColorActive: 'rgba(251, 206, 91, 0.18)',
+  itemColorActiveHover: 'rgba(251, 206, 91, 0.28)',
+  itemColorActiveCollapsed: 'rgba(251, 206, 91, 0.18)',
+  itemTextColorChildActive: '#C8961A',
+  itemTextColorChildActiveHover: '#C8961A',
+  itemIconColorChildActive: '#C8961A',
+  itemColorActiveTop: 'rgba(251, 206, 91, 0.18)',
+  itemColorActiveHoverTop: 'rgba(251, 206, 91, 0.28)',
+  borderRadius: '6px',
+}
+
+const menuLayout = computed<'side' | 'top'>(() =>
+  userStore.uiSettings?.menuLayout === 'top' ? 'top' : 'side',
+)
+
 function renderIcon(icon: any) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
 const menuOptions = [
   { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
-  { key: '/announcements', label: '制度公告', icon: renderIcon(NotificationsOutline) },
   { key: '/demands', label: '需求管理', icon: renderIcon(DocumentTextOutline) },
   { key: '/positions', label: '职位管理', icon: renderIcon(PeopleOutline) },
   {
@@ -233,12 +289,24 @@ const menuOptions = [
   { key: '/settings/account', label: '设置', icon: renderIcon(SettingsOutline) },
 ]
 
-const userMenuOptions = [
-  { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
-  { key: 'settings', label: '账号设置', icon: renderIcon(CogOutline) },
-  { type: 'divider', key: 'd1' },
-  { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline) },
-]
+const userMenuOptions = computed(() => {
+  const current = menuLayout.value
+  return [
+    { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
+    { key: 'settings', label: '账号设置', icon: renderIcon(CogOutline) },
+    { type: 'divider', key: 'd1' },
+    {
+      key: 'menu-side',
+      label: (current === 'side' ? '✓ ' : '') + '菜单：左侧竖排',
+    },
+    {
+      key: 'menu-top',
+      label: (current === 'top' ? '✓ ' : '') + '菜单：顶部横排',
+    },
+    { type: 'divider', key: 'd2' },
+    { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline) },
+  ]
+})
 
 // 当前选中菜单项
 // 优化方案：computed 兜底（路由 commit 后），optimisticKey 覆盖（点击时立即更新）
@@ -316,6 +384,13 @@ function goToNotifications() {
 
 function handleUserMenu(key: string) {
   if (key === 'settings') router.push('/settings/account')
+  if (key === 'menu-side' || key === 'menu-top') {
+    const layout = key === 'menu-side' ? 'side' : 'top'
+    if (layout === menuLayout.value) return
+    userStore.setUiSettings({ menuLayout: layout })
+    message.success(layout === 'top' ? '已切换为顶部横排菜单' : '已切换为左侧竖排菜单')
+    return
+  }
   if (key === 'logout') {
     userStore.logout()
     message.success('已退出登录')
@@ -339,6 +414,18 @@ function handleUserMenu(key: string) {
 .layout-header__search-trigger {
   padding: 0;
   height: auto;
+}
+
+/* === 顶栏返回按钮 === */
+.layout-header__back {
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.layout-header__back:hover {
+  color: #2563eb;
+  background: #eff6ff;
 }
 .kbd-hint {
   padding: 1px 6px;
@@ -384,6 +471,26 @@ function handleUserMenu(key: string) {
   line-height: 1;
 }
 
+/* === 顶部横排：Logo + 水平菜单 === */
+.top-logo {
+  height: 32px;
+}
+.top-logo .logo-icon {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+}
+.top-menu {
+  /* 只占 header 中间区域，子项超出可滚动 */
+  overflow: hidden;
+}
+:deep(.top-menu .n-menu-item-content) {
+  transition: none !important;
+}
+:deep(.top-menu .n-submenu-children .n-menu-item-content--selected) {
+  font-weight: 600;
+}
+
 /* === 菜单项：彻底关掉所有 transition === */
 /* Naive UI 默认在 .n-menu-item-content / icon / arrow 上有 300ms background-color + color 渐变
    这导致点击切换时新旧 item 的 active 态会"叠在一起"约 300ms（视觉上的闪烁）
@@ -417,20 +524,29 @@ function handleUserMenu(key: string) {
 }
 
 /* === 整个 app 限定在 viewport 内, body 不滚 === */
-:deep(.app-layout) {
-  height: 100vh !important;
-  overflow: hidden !important;
+.app-layout {
+  height: 100vh;
+  display: flex;
+  overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }
-:deep(.app-layout > .n-layout-scroll-container) {
-  height: 100% !important;
-  overflow: hidden !important;
+/* 侧边栏: 固定高度, 不随内容滚动 */
+.app-sider {
+  height: 100vh;
+  flex-shrink: 0;
+}
+/* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充) */
+.main-area {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-/* === 头部固定 === */
-:deep(.app-layout .n-layout-header) {
+/* === 头部固定不滚动 === */
+.app-layout :deep(.n-layout-header) {
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
 }
 
@@ -447,6 +563,6 @@ function handleUserMenu(key: string) {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: auto; /* 关键: 内容超出时这个容器内部滚, body 不滚 */
+  overflow: auto; /* 关键: 内容超出时这个容器内部滚, header 不滚 */
 }
 </style>
