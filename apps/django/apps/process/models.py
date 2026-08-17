@@ -69,7 +69,7 @@ class RecruitmentStage(FullAuditModel):
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     code = models.CharField(max_length=20, unique=True, verbose_name='阶段编号', help_text='P+三位流水号')
     name = models.CharField(max_length=20, unique=True, verbose_name='阶段名称', help_text='限 20 字，不可重复')
-    stage_type = models.CharField(max_length=20, choices=StageType.choices, verbose_name='阶段类型')
+    stage_type = models.CharField(max_length=20, verbose_name='阶段类型')
     status = models.CharField(
         max_length=16, choices=StageStatus.choices,
         default=StageStatus.ENABLED, db_index=True, verbose_name='状态',
@@ -116,6 +116,18 @@ class RecruitmentStage(FullAuditModel):
 
     def clean(self):
         super().clean()
+        # 阶段类型必须从数据字典中读取且已启用
+        if self.stage_type:
+            from apps.dictionary.models import DictionaryItem
+            exists = DictionaryItem.objects.filter(
+                type__code='recruitment_stage_type',
+                key=self.stage_type,
+                is_active=True,
+                deleted_at__isnull=True,
+            ).exists()
+            if not exists:
+                raise ValidationError({'stage_type': f'无效的阶段类型: {self.stage_type}'})
+
         # 互斥: 同一阶段不可同时为起始和结束
         if self.is_start and self.is_end:
             raise ValidationError({'is_start': '同一阶段不可同时为起始和结束阶段'})
@@ -135,8 +147,9 @@ class RecruitmentStage(FullAuditModel):
 
     @property
     def reference_count(self):
+        """被启用中流程引用的次数（已归档流程不计入）"""
         return self.process_stage_links.filter(
-            process__status__in=['ENABLED', 'ARCHIVED']
+            process__status='ENABLED'
         ).count()
 
     @property
@@ -146,7 +159,7 @@ class RecruitmentStage(FullAuditModel):
     @property
     def supports_to_be_scheduled(self):
         """仅面试型阶段支持"待安排"中间态"""
-        return self.stage_type == StageType.INTERVIEW
+        return self.stage_type == 'INTERVIEW'
 
 
 # ============================================================

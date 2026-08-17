@@ -113,9 +113,9 @@
   },
   {
     "model": "process.recruitmentstage",
-    "pk": "stg_008_offer",
+    "pk": "stg_099_offer",
     "fields": {
-      "code": "P008",
+      "code": "P099",
       "name": "正式录用",
       "stage_type": "OFFER",
       "status": "ENABLED",

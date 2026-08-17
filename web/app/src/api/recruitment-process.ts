@@ -64,8 +64,10 @@ export interface RecruitmentStage {
   //   改成跟 BE 一致. 前端 'src/pages/settings/RecruitmentStage.vue' 已经用 SCREEN (form.stageType 默认 'SCREEN', FALLBACK_STAGE_TYPE 第 1 个 value=SCREEN),
   //   本次对齐是 FE 落后 -> 跟上 BE.
   stageType: 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER';
-  features: string[];
-  isSystem: boolean;
+  // 2026-08-17: BE 用 is_builtin, 旧 FE 字段 isSystem 已废弃. reference_count 替代 _count.links.
+  isBuiltin?: boolean;
+  // 兼容旧代码 / 测试数据
+  isSystem?: boolean;
   // 2026-07-03 BR-001: 起止阶段标记, 后端 RecruitmentStage 加了 is_start/is_end 列;
   // 全局有且仅有 1 个起始 (=初评) 和 1 个结束 (=正式录用), 由 seed 设置, serializer 强制互斥唯一.
   isStart: boolean;
@@ -76,6 +78,11 @@ export interface RecruitmentStage {
   status: 'ENABLED' | 'DISABLED';
   createdAt: string;
   updatedAt: string;
+  // 2026-08-17: 功能项. BE 输出 defaultFeatures + optionalFeatures, 同时用 features 映射 defaultFeatures.
+  features?: string[];
+  defaultFeatures?: string[];
+  optionalFeatures?: string[];
+  referenceCount?: number;
   _count?: { links: number };
 }
 

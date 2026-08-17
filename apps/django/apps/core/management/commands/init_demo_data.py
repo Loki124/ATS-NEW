@@ -33,10 +33,14 @@ class Command(BaseCommand):
         self.init_roles()
         self.init_users()
         self.init_channels()
+
+        # 2026-08-17: 先初始化数据字典（阶段类型等），再初始化依赖字典的业务数据
+        from django.core.management import call_command
+        call_command('init_dictionary')
+
         self.init_stages()
 
         # 4 套流程模板 (依赖 RecruitmentStage 行, 已由 init_stages 保证)
-        from django.core.management import call_command
         call_command('load_process_templates')
 
         self.stdout.write(self.style.SUCCESS('\n✅ 演示数据初始化完成！'))

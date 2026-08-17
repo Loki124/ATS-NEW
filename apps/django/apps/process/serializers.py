@@ -39,8 +39,14 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
     reference_count = serializers.IntegerField(read_only=True)
     is_referenced = serializers.BooleanField(read_only=True)
     supports_to_be_scheduled = serializers.BooleanField(read_only=True)
-    stage_type_display = serializers.CharField(source='get_stage_type_display', read_only=True)
+    stage_type_display = serializers.SerializerMethodField(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    # FE 用 features 字段维护「功能项」，映射到模型的 default_features
+    features = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+        source='default_features',
+    )
 
     class Meta:
         model = RecruitmentStage
@@ -48,7 +54,7 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
             'id', 'code', 'name', 'stage_type', 'stage_type_display',
             'status', 'status_display',
             'is_builtin', 'is_start', 'is_end',
-            'default_features', 'optional_features',
+            'default_features', 'optional_features', 'features',
             'description',
             'reference_count', 'is_referenced', 'supports_to_be_scheduled',
             'created_at', 'updated_at', 'created_by', 'updated_by',
@@ -56,6 +62,16 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'code', 'reference_count', 'is_referenced',
                             'supports_to_be_scheduled', 'created_at', 'updated_at',
                             'created_by', 'updated_by']
+
+    def get_stage_type_display(self, obj: RecruitmentStage) -> str:
+        from apps.dictionary.models import DictionaryItem
+        item = DictionaryItem.objects.filter(
+            type__code='recruitment_stage_type',
+            key=obj.stage_type,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).first()
+        return item.value if item else obj.stage_type
 
     def validate_name(self, value):
         """BR-001~003: 阶段名称约束"""
@@ -70,6 +86,21 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
         return getattr(self.instance, field_name, False) if self.instance else False
 
     def validate(self, attrs):
+        # 阶段类型必须从数据字典读取
+        stage_type = attrs.get('stage_type')
+        if stage_type:
+            from apps.dictionary.models import DictionaryItem
+            exists = DictionaryItem.objects.filter(
+                type__code='recruitment_stage_type',
+                key=stage_type,
+                is_active=True,
+                deleted_at__isnull=True,
+            ).exists()
+            if not exists:
+                raise serializers.ValidationError(
+                    {'stage_type': f'无效的阶段类型: {stage_type}'},
+                )
+
         # 预置阶段不可停用/删除
         if self.instance and self.instance.is_builtin:
             if 'status' in attrs and attrs['status'] == StageStatus.DISABLED:

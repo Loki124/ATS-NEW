@@ -1,7 +1,7 @@
 <template>
   <div class="recruitment-stage">
     <div class="page-header">
-      <h2>阶段配置（全局模板库）</h2>
+      <h2>招聘阶段配置</h2>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px" />
         <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
@@ -58,10 +58,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h } from 'vue'
-import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert } from 'naive-ui'
+import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip } from 'naive-ui'
 import { AddOutline, TrashOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
-import { listDict } from '../../api/dict'
+// 2026-08-17 PR #69: 阶段类型改从后端数据字典 (apps/dictionary) 读取, single source of truth.
+//   旧 api/dict.ts 是占位 stub (永远返回 []), 现在接真端点 /api/v1/dictionary-items/?type_code=recruitment_stage_type.
+import { listStageTypeOptions } from '../../api/dictionary'
 
 const message = useMessage()
 const keyword = ref('')
@@ -85,15 +87,14 @@ const form = reactive({
 
 type StageType = 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER'
 
-// 2026-06-17: 阶段类型从数据字典 (apps/data_dict) 拿, single source of truth.
-//   之前硬编码 'FILTER' 跟 BE StageType (SCREEN) 不匹配 → POST 400.
-//   FE 启动时 fetch STAGE_TYPE dict, 失败则用 fallback (同样以 BE 为准).
+// 2026-08-17 PR #69: 阶段类型从后端数据字典 (apps/dictionary, type_code=recruitment_stage_type) 拿, single source of truth.
+//   FE 启动时 fetch 字典项, 拿不到 (网络/未登录) 才用 fallback — 同样以 BE 字典为准.
+//   fallback 的 value=stage_type 存储值 (key), label=展示名 (value), 必须跟字典项一致.
 const FALLBACK_STAGE_TYPE = [
-  { label: '筛选型', value: 'SCREEN' },
-  { label: '邀约型', value: 'INVITATION' },
-  { label: '面试型', value: 'INTERVIEW' },
-  { label: 'Offer 型', value: 'OFFER' },
-  { label: '入职型', value: 'ONBOARDING' },
+  { label: '筛选', value: 'SCREEN' },
+  { label: '邀约', value: 'INVITATION' },
+  { label: '面试', value: 'INTERVIEW' },
+  { label: '录用', value: 'OFFER' },
 ]
 const stageTypeOptions = ref<Array<{ label: string; value: string }>>([...FALLBACK_STAGE_TYPE])
 
@@ -136,6 +137,12 @@ const featureOptions: Record<string, any[]> = {
   ],
 }
 
+// 功能项 code -> 中文 label 映射，从 featureOptions 推导（单一来源，避免重复维护）。
+const featureLabelMap: Record<string, string> = {}
+Object.values(featureOptions).forEach((opts) => {
+  opts.forEach((opt) => { featureLabelMap[opt.value] = opt.label })
+})
+
 const columns = [
   { title: '阶段编号', key: 'code', width: 100 },
   { title: '阶段名称', key: 'name', width: 160 },
@@ -147,16 +154,16 @@ const columns = [
   },
   {
     title: '系统预置',
-    key: 'isSystem',
+    key: 'isBuiltin',
     width: 90,
-    render: (row: any) => row.isSystem ? h(NTag, { type: 'warning', size: 'small' }, { default: () => '系统' }) : '-',
+    render: (row: any) => (row.isBuiltin ?? row.isSystem) ? h(NTag, { type: 'warning', size: 'small' }, { default: () => '系统' }) : '-',
   },
   {
     title: '使用',
     key: 'links',
     width: 80,
     render: (row: any) => {
-      const count = row._count?.links ?? 0
+      const count = row.referenceCount ?? row._count?.links ?? 0
       return h(NTag, { type: count > 0 ? 'success' : 'default', size: 'small' }, { default: () => `${count} 流程` })
     },
   },
@@ -166,7 +173,18 @@ const columns = [
     width: 90,
     render: (row: any) => h(NTag, { type: row.status === 'ENABLED' ? 'success' : 'default', size: 'small' }, { default: () => row.status === 'ENABLED' ? '启用' : '停用' }),
   },
-  { title: '功能项', key: 'features', render: (row: any) => Array.isArray(row.features) ? row.features.join(', ') : '-' },
+  { title: '功能项', key: 'features', render: (row: any) => {
+    const feats = row.features ?? row.defaultFeatures
+    if (!Array.isArray(feats) || feats.length === 0) return '-'
+    const items = feats.map((code: string) => {
+      const label = featureLabelMap[code] || code
+      return h(NTooltip, { key: code }, {
+        trigger: () => h(NTag, { size: 'small', type: 'default' }, { default: () => label }),
+        default: () => code,
+      })
+    })
+    return h(NSpace, { size: 'small', wrap: true }, () => items)
+  }},
   {
     title: '操作',
     key: 'action',
@@ -174,10 +192,10 @@ const columns = [
     fixed: 'right' as const,
     render: (row: any) => h(NSpace, { size: 'small' }, () => [
       h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row), disabled: row.isSystem }, { default: () => row.status === 'ENABLED' ? '停用' : '启用' }),
-      h(NPopconfirm, { onPositiveClick: () => handleDelete(row), disabled: row.isSystem || (row._count?.links > 0) }, {
-        trigger: () => h(NButton, { size: 'small', text: true, type: 'error', disabled: row.isSystem || (row._count?.links > 0) }, { default: () => '删除' }),
-        default: () => row.isSystem ? '系统预置阶段不可删除' : row._count?.links > 0 ? `被 ${row._count.links} 个流程引用，请先在流程中移除` : '确定要删除吗？',
+      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row), disabled: row.isBuiltin ?? row.isSystem }, { default: () => row.status === 'ENABLED' ? '停用' : '启用' }),
+      h(NPopconfirm, { onPositiveClick: () => handleDelete(row), disabled: (row.isBuiltin ?? row.isSystem) || ((row.referenceCount ?? row._count?.links ?? 0) > 0) }, {
+        trigger: () => h(NButton, { size: 'small', text: true, type: 'error', disabled: (row.isBuiltin ?? row.isSystem) || ((row.referenceCount ?? row._count?.links ?? 0) > 0) }, { default: () => '删除' }),
+        default: () => (row.isBuiltin ?? row.isSystem) ? '系统预置阶段不可删除' : (row.referenceCount ?? row._count?.links ?? 0) > 0 ? `被 ${row.referenceCount ?? row._count?.links} 个流程引用，请先在流程中移除` : '确定要删除吗？',
       }),
     ]),
   },
@@ -215,7 +233,7 @@ function handleEdit(row: any) {
   Object.assign(form, {
     name: row.name,
     stageType: row.stageType,
-    features: Array.isArray(row.features) ? row.features : [],
+    features: Array.isArray(row.features) ? row.features : (Array.isArray(row.defaultFeatures) ? row.defaultFeatures : []),
     description: row.description || '',
   })
   showCreateModal.value = true
@@ -245,12 +263,13 @@ async function handleSave() {
 }
 
 async function handleDelete(row: any) {
-  if (row.isSystem) {
+  if (row.isBuiltin ?? row.isSystem) {
     message.warning('系统预置阶段不可删除')
     return
   }
-  if (row._count?.links > 0) {
-    message.warning(`被 ${row._count.links} 个流程引用，请先在流程中移除`)
+  const refs = row.referenceCount ?? row._count?.links ?? 0
+  if (refs > 0) {
+    message.warning(`被 ${refs} 个流程引用，请先在流程中移除`)
     return
   }
   try {
@@ -263,7 +282,7 @@ async function handleDelete(row: any) {
 }
 
 async function handleToggleStatus(row: any) {
-  if (row.isSystem) {
+  if (row.isBuiltin ?? row.isSystem) {
     message.warning('系统预置阶段不可停用')
     return
   }
@@ -282,13 +301,13 @@ async function handleToggleStatus(row: any) {
 }
 
 onMounted(async () => {
-  // 2026-06-17: 阶段类型从数据字典拿 (single source of truth).
-  //   拿不到就 fallback (硬编码 SCREEN/INVITATION/...), 不阻塞页面.
+  // 2026-08-17 PR #69: 阶段类型从后端数据字典拿 (single source of truth).
+  //   listStageTypeOptions() 返回 [{label:展示名, value:stage_type存储值}], 拿不到就 fallback, 不阻塞页面.
   try {
-    const dicts = await listDict('STAGE_TYPE')
-    if (Array.isArray(dicts) && dicts.length > 0) {
-      stageTypeOptions.value = dicts.map((d) => ({ label: d.label, value: d.value }))
-      // form.stageType 默认用 dict 第 1 个, 跟 BE 同步
+    const opts = await listStageTypeOptions()
+    if (Array.isArray(opts) && opts.length > 0) {
+      stageTypeOptions.value = opts
+      // form.stageType 默认用字典第 1 个, 跟 BE 同步
       if (!form.stageType || !stageTypeOptions.value.find((o) => o.value === form.stageType)) {
         form.stageType = stageTypeOptions.value[0].value as any
       }

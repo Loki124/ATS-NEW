@@ -218,7 +218,7 @@
                 {{ stageTypeLabel(link.stage?.stageType) }}
               </n-tag>
               <n-tag
-                v-if="link.stage?.isSystem"
+                v-if="link.stage?.isBuiltin ?? link.stage?.isSystem"
                 class="stage-card__system-badge"
                 type="info"
                 size="small"

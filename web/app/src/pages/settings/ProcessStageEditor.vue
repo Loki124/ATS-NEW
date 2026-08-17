@@ -35,7 +35,7 @@
                   </n-tag>
                   <span class="stage-code">{{ element.stage.code }}</span>
                   <span class="stage-name">{{ element.customName || element.stage.name }}</span>
-                  <span v-if="element.stage.isSystem" class="sys-tag">[系统]</span>
+                  <span v-if="element.stage.isBuiltin ?? element.stage.isSystem" class="sys-tag">[系统]</span>
                   <span v-if="element.stageLimit" class="stage-limit">⏱ {{ element.stageLimit }}h</span>
                 </div>
                 <div class="stage-actions">
@@ -54,8 +54,8 @@
                   <n-tag v-else type="default" size="small">起止不可移除</n-tag>
                 </div>
               </div>
-              <div v-if="element.stage.features?.length" class="stage-features">
-                <span v-for="f in element.stage.features" :key="f" class="feature-chip">{{ f }}</span>
+              <div v-if="(element.stage.features ?? element.stage.defaultFeatures)?.length" class="stage-features">
+                <span v-for="f in (element.stage.features ?? element.stage.defaultFeatures)" :key="f" class="feature-chip">{{ f }}</span>
               </div>
             </n-card>
           </template>
@@ -124,13 +124,13 @@ import {
 import DraggableList from '../../components/DraggableList.vue'
 import type { TagType } from '../../api/offer'
 
-// 类型颜色映射
+// 类型颜色映射 (key 对齐后端数据字典 recruitment_stage_type 的 key)
 const STAGE_TYPE_COLOR: Record<string, string> = {
-  FILTER: 'info',
+  SCREEN: 'info',
+  INVITATION: 'default',
   INTERVIEW: 'success',
   OFFER: 'warning',
   ONBOARDING: 'error',
-  INVITATION: 'default',
 }
 
 const message = useMessage()
@@ -166,9 +166,12 @@ const addModalColumns = [
     title: '使用',
     key: 'use',
     width: 100,
-    render: (r: any) => h('span', { class: 'dim' }, `${r._count?.links || 0} 个流程`),
+    render: (r: any) => h('span', { class: 'dim' }, `${r.referenceCount ?? r._count?.links ?? 0} 个流程`),
   },
-  { title: '功能项', key: 'features', render: (r: any) => Array.isArray(r.features) ? r.features.join(', ') : '-' },
+  { title: '功能项', key: 'features', render: (r: any) => {
+    const feats = r.features ?? r.defaultFeatures
+    return Array.isArray(feats) && feats.length > 0 ? feats.join(', ') : '-'
+  }},
   {
     title: '操作',
     key: 'action',
