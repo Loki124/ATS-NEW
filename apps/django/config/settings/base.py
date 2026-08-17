@@ -123,6 +123,7 @@ LOCAL_APPS = [
     'apps.invitation',
     'apps.interview',
     'apps.referral',
+    'apps.search',         # 全局统一搜索端点 (Plan P), 无 model, 仅 APIView
     'apps.resume_flow',    # Phase 2 T06: 审批流独立 app
     'apps.talent_pool',
     'apps.channel',

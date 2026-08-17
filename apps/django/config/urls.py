@@ -14,6 +14,9 @@ from drf_spectacular.views import (
 from apps.application.views import ApplicationViewSet
 
 api_v1_patterns = [
+    # 全局统一搜索 (Plan P): 必须排在 urls_stubs 的 search stub 之前以优先命中
+    # (urls_stubs 挂在 '' 上内含 path('search/', global_search), 若在其后会被 stub 抢先)
+    path('search/', include('apps.search.urls')),
     # 认证
     path('auth/', include('apps.core.urls_auth')),
     # 2026-07-01 花无缺: 把 urls_stubs 挂到 core.urls 之前, 避免 core/permissions router 抢
