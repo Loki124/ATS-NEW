@@ -32,12 +32,16 @@ export interface Announcement {
   pinned: boolean
   publishedAt: string
   isActive: boolean
+  showOnWorkbench: boolean
+  showInMore: boolean
+  createdByName?: string
+  updatedByName?: string
   attachments?: AnnouncementAttachment[]
   createdAt?: string
   updatedAt?: string
 }
 
-/** 模块级配置（驼峰键 showOnWorkbench）。 */
+/** 模块级配置（驼峰键 showOnWorkbench，仅模块总开关）。 */
 export interface AnnouncementConfig {
   showOnWorkbench: boolean
 }
@@ -52,7 +56,7 @@ export interface AnnouncementAttachment {
 }
 
 export type AnnouncementPayload = Partial<
-  Pick<Announcement, 'title' | 'category' | 'audience' | 'summary' | 'body' | 'pinned' | 'publishedAt' | 'isActive'>
+  Pick<Announcement, 'title' | 'category' | 'audience' | 'summary' | 'body' | 'pinned' | 'publishedAt' | 'isActive' | 'showOnWorkbench' | 'showInMore'>
 >
 
 /** 工作台 / 列表：默认仅上架；管理页传 show_inactive=true 含下架。 */
@@ -60,6 +64,19 @@ export const listAnnouncements = (params?: { show_inactive?: boolean }) =>
   api
     .get<{ success: boolean; data: Announcement[] }>('/announcements/', { params })
     .then((r) => r.data.data ?? [])
+
+/** 单条公告详情（用于详情页刷新 / 直接访问）。
+ * 后端 retrieve 可能直接返回对象，也可能包在 {success, data} 中，做兼容取值。 */
+export const getAnnouncement = (id: string) =>
+  api
+    .get<Announcement | { success: boolean; data: Announcement }>(`/announcements/${id}/`)
+    .then((r) => {
+      const payload = r.data as any
+      if (payload && typeof payload === 'object' && 'data' in payload && 'success' in payload) {
+        return payload.data as Announcement
+      }
+      return payload as Announcement
+    })
 
 export const createAnnouncement = (payload: AnnouncementPayload) =>
   api

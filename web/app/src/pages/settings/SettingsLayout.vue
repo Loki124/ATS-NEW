@@ -11,15 +11,39 @@
       <div class="sider-header">
         <h2 class="sider-title">设置</h2>
       </div>
-      <n-menu
-        :value="activeKey"
-        :options="subMenuOptions"
-        :collapsed-width="64"
-        :collapsed-icon-size="22"
-        :indent="18"
-        class="settings-menu"
-        @update:value="handleMenuClick"
-      />
+
+      <div class="settings-menu">
+        <div
+          v-for="group in subMenuOptions"
+          :key="group.key"
+          class="menu-group"
+        >
+          <div
+            class="group-header"
+            :class="{ expanded: isExpanded(group.key) }"
+            @click="toggleGroup(group.key)"
+          >
+            <span class="group-title">{{ group.label }}</span>
+            <n-icon
+              class="group-arrow"
+              :component="isExpanded(group.key) ? ChevronUpOutline : ChevronDownOutline"
+            />
+          </div>
+
+          <div v-show="isExpanded(group.key)" class="group-body">
+            <div
+              v-for="item in group.children"
+              :key="item.key"
+              class="menu-item"
+              :class="{ active: activeKey === item.key }"
+              @click="handleMenuClick(item.key)"
+            >
+              <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
+              <span class="menu-label">{{ item.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </n-layout-sider>
 
     <!-- 右侧内容 -->
@@ -30,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, nextTick, watch } from 'vue'
+import { computed, ref, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NIcon,
@@ -62,85 +86,100 @@ import {
   ServerOutline,
   SearchOutline,
   AnalyticsOutline,
+  ChevronDownOutline,
+  ChevronUpOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
 const route = useRoute()
 
-function renderIcon(icon: any) {
-  return () => h(NIcon, null, { default: () => h(icon) })
-}
-
 // 子菜单：分组结构（与原 Layout.vue 的 系统管理 子树对齐）
 const subMenuOptions = [
   {
     key: 'group-hr',
-    type: 'group',
     label: '人事设置',
     children: [
-      { key: '/settings/account', label: '员工信息设置', icon: renderIcon(PersonCircleOutline) },
-      { key: '/settings/onboarding', label: '入职设置', icon: renderIcon(PersonAddOutline) },
-      { key: '/settings/approval', label: '审批设置', icon: renderIcon(CheckmarkDoneOutline) },
+      { key: '/settings/account', label: '员工信息设置', icon: PersonCircleOutline },
+      { key: '/settings/onboarding', label: '入职设置', icon: PersonAddOutline },
+      { key: '/settings/approval', label: '审批设置', icon: CheckmarkDoneOutline },
     ],
   },
   {
     key: 'group-org',
-    type: 'group',
     label: '组织设置',
     children: [
-      { key: '/settings/department', label: '部门管理', icon: renderIcon(BusinessOutline) },
-      { key: '/settings/user-management', label: '用户管理', icon: renderIcon(PeopleOutline) },
-      // 2026-07-01 花无缺: 删 '权限管理' 菜单 (G41 待重构, 合并到 MOU 权限管理)
-      { key: '/settings/mou', label: 'MOU权限管理', icon: renderIcon(LockClosedOutline) },
-      { key: '/settings/field-acl', label: '字段权限', icon: renderIcon(KeyOutline) },
-      // 2026-07-13 花无缺: G44 V2 权限管理 (4 tab: 资源/模板/角色/用户授权) (T20)
-      { key: '/settings/permissions', label: '权限管理', icon: renderIcon(LockClosedOutline) },
+      { key: '/settings/department', label: '部门管理', icon: BusinessOutline },
+      { key: '/settings/user-management', label: '用户管理', icon: PeopleOutline },
+      { key: '/settings/mou', label: 'MOU权限管理', icon: LockClosedOutline },
+      { key: '/settings/field-acl', label: '字段权限', icon: KeyOutline },
+      { key: '/settings/permissions', label: '权限管理', icon: LockClosedOutline },
     ],
   },
   {
     key: 'group-process',
-    type: 'group',
     label: '过程管理',
     children: [
-      { key: '/settings/demand-config', label: '招聘需求设置', icon: renderIcon(ClipboardOutline) },
-      { key: '/settings/dictionary', label: '数据字典', icon: renderIcon(BookmarkOutline) },
-      { key: '/settings/scoring', label: '评分规则', icon: renderIcon(StarOutline) },
+      { key: '/settings/demand-config', label: '招聘需求设置', icon: ClipboardOutline },
+      { key: '/settings/dictionary', label: '数据字典', icon: BookmarkOutline },
+      { key: '/settings/scoring', label: '评分规则', icon: StarOutline },
     ],
   },
   {
     key: 'group-speedup',
-    type: 'group',
     label: '招聘提速',
     children: [
-      { key: '/settings/recruitment-stage', label: '阶段模板库', icon: renderIcon(LayersOutline) },
-      { key: '/settings/recruitment-process', label: '招聘流程', icon: renderIcon(GitNetworkOutline) },
-      { key: '/settings/recruitment-round', label: '面试轮次', icon: renderIcon(StopwatchOutline) },
+      { key: '/settings/recruitment-stage', label: '招聘阶段配置', icon: LayersOutline },
+      { key: '/settings/recruitment-process', label: '招聘流程', icon: GitNetworkOutline },
+      { key: '/settings/recruitment-round', label: '面试轮次', icon: StopwatchOutline },
     ],
   },
   {
     key: 'group-content',
-    type: 'group',
     label: '内容管理',
     children: [
-      { key: '/settings/announcements', label: '制度公告', icon: renderIcon(BookOutline) },
+      { key: '/settings/announcements', label: '制度公告', icon: BookOutline },
     ],
   },
   {
     key: 'group-misc',
-    type: 'group',
     label: '其他',
     children: [
-      { key: '/settings/company', label: '公司信息', icon: renderIcon(InformationCircleOutline) },
-      { key: '/settings/external', label: '对外接口', icon: renderIcon(ServerOutline) },
-      { key: '/settings/public', label: '公共设置', icon: renderIcon(CloudUploadOutline) },
-      { key: '/settings/school-library', label: '院校库', icon: renderIcon(SchoolOutline) },
-      { key: '/settings/company-library', label: '公司库', icon: renderIcon(BusinessOutline) },
-      { key: '/settings/dynamic-fields', label: '动态字段', icon: renderIcon(ConstructOutline) },
-      { key: '/settings/scraped-resumes', label: '我找的简历', icon: renderIcon(SearchOutline) },
-      { key: '/settings/data-dashboard', label: '数据中心', icon: renderIcon(AnalyticsOutline) },
+      { key: '/settings/company', label: '公司信息', icon: InformationCircleOutline },
+      { key: '/settings/external', label: '对外接口', icon: ServerOutline },
+      { key: '/settings/public', label: '公共设置', icon: CloudUploadOutline },
+      { key: '/settings/school-library', label: '院校库', icon: SchoolOutline },
+      { key: '/settings/company-library', label: '公司库', icon: BusinessOutline },
+      { key: '/settings/dynamic-fields', label: '动态字段', icon: ConstructOutline },
+      { key: '/settings/scraped-resumes', label: '我找的简历', icon: SearchOutline },
+      { key: '/settings/data-dashboard', label: '数据中心', icon: AnalyticsOutline },
     ],
   },
 ]
+
+// 默认全部折叠
+const expandedKeys = ref<string[]>([])
+
+function isExpanded(key: string) {
+  return expandedKeys.value.includes(key)
+}
+
+function toggleGroup(key: string) {
+  if (isExpanded(key)) {
+    expandedKeys.value = expandedKeys.value.filter(k => k !== key)
+  } else {
+    expandedKeys.value = [...expandedKeys.value, key]
+  }
+}
+
+// 进入页面或路由变化时，自动展开当前路由所在的分组
+function expandCurrentGroup() {
+  const group = subMenuOptions.find(g => g.children.some(c => c.key === route.path))
+  if (group && !isExpanded(group.key)) {
+    expandedKeys.value = [...expandedKeys.value, group.key]
+  }
+}
+
+watch(() => route.path, expandCurrentGroup, { immediate: true })
 
 // 当前路由对应的菜单 key —— 优化：computed 兜底 + optimisticKey 覆盖
 // 路由异步 commit 期间，optimisticKey 立即接管，消除"原菜单闪一下"
@@ -181,7 +220,7 @@ watch(
 
 <style scoped>
 .settings-layout {
-  height: calc(100vh - 64px); /* 减掉主 Layout 头部高度, 强制填满剩余 */
+  height: 100%; /* 填满父级 content-wrapper 的内容盒, 避免与 padding 叠加产生双滚动 */
   background: #fff;
   /* 关键: 让内部 n-layout-sider 和 n-layout-content 都按比例填满, 内容溢出时 .settings-content 内部滚 */
   overflow: hidden;
@@ -206,23 +245,63 @@ watch(
   font-weight: 600;
   color: #1f2937;
 }
+
 .settings-menu {
-  background: transparent;
-}
-.settings-menu :deep(.n-menu-item-content) {
-  font-size: 14px;
-}
-.settings-menu :deep(.n-menu-item-content--selected) {
-  font-weight: 600;
+  padding: 0 0 16px;
 }
 
-/* 关闭所有 transition —— 避免切换菜单时 active 态叠加 ~300ms 造成闪烁 */
-.settings-menu :deep(.n-menu-item-content),
-.settings-menu :deep(.n-menu-item-content::before),
-.settings-menu :deep(.n-menu-item-content .n-icon),
-.settings-menu :deep(.n-menu-item-content-arrow) {
-  transition: none !important;
-  animation: none !important;
+.menu-group {
+  user-select: none;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.group-header:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.group-title {
+  font-size: 13px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+.group-arrow {
+  font-size: 14px;
+  color: #9ca3af;
+  transition: transform 0.2s;
+}
+
+.group-body {
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px 10px 44px;
+  cursor: pointer;
+  color: #374151;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s;
+  position: relative;
+}
+.menu-item:hover {
+  background: #f3f4f6;
+}
+.menu-item.active {
+  color: #f59e0b;
+  background: #fff7ed;
+  font-weight: 600;
+}
+.menu-icon {
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 /* 右侧内容区 —— flex 列布局, 子页面可填满高度 */

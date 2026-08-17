@@ -96,13 +96,15 @@ class TestAnnouncementAPI:
         list_resp = auth_hr_client.get(URL).json()['data']
         assert any(d['title'] == '带概述' and d['summary'] == '这是概述' for d in list_resp)
 
-    # ===== 模块配置：工作台展示开关 =====
-    def test_config_get_default_true(self, auth_hr_client):
-        """GET 配置默认 show_on_workbench=True，且单例行被保证存在。"""
+    # ===== 模块配置：工作台模块总开关 =====
+    def test_config_get_default(self, auth_hr_client):
+        """GET 配置默认 show_on_workbench=True（单条公告展示位置由自身字段决定）。"""
         resp = auth_hr_client.get(CONFIG_URL)
         assert resp.status_code == 200
-        # 渲染器输出为驼峰 showOnWorkbench
-        assert resp.json()['data']['showOnWorkbench'] is True
+        # 渲染器输出为驼峰；配置仅含模块总开关
+        data = resp.json()['data']
+        assert data['showOnWorkbench'] is True
+        assert 'showInMore' not in data
         assert AnnouncementConfig.objects.filter(pk=1).exists()
 
     def test_config_put_requires_hr(self, api_client):
@@ -114,14 +116,96 @@ class TestAnnouncementAPI:
         assert resp.status_code == 403
 
     def test_config_put_updates_and_persists(self, auth_hr_client):
-        """HR 关闭工作台展示，GET 与 DB 均反映。"""
+        """HR 关闭工作台模块，GET 与 DB 均反映。"""
         put = auth_hr_client.put(CONFIG_URL, {'show_on_workbench': False}, format='json')
         assert put.status_code == 200
-        assert put.json()['data']['showOnWorkbench'] is False
-        # 再次读取保持关闭
-        assert auth_hr_client.get(CONFIG_URL).json()['data']['showOnWorkbench'] is False
+        data = put.json()['data']
+        assert data['showOnWorkbench'] is False
+        # 再次读取保持
+        again = auth_hr_client.get(CONFIG_URL).json()['data']
+        assert again['showOnWorkbench'] is False
         cfg = AnnouncementConfig.objects.get(pk=1)
         assert cfg.show_on_workbench is False
+
+    # ===== 单条公告展示位置（两个独立开关）=====
+    def test_announcement_display_flags_default_and_persist(self, auth_hr_client):
+        """创建带展示位置开关的公告，序列化与 DB 均反映。"""
+        payload = {
+            'title': '展示位置测试', 'category': 'SYSTEM', 'audience': 'RECRUIT_EXPERT',
+            'body': '正文', 'show_on_workbench': False, 'show_in_more': True,
+        }
+        create = auth_hr_client.post(URL, payload, format='json')
+        assert create.status_code == 201, create.content
+        data = create.json()['data']
+        assert data['showOnWorkbench'] is False
+        assert data['showInMore'] is True
+        obj = Announcement.objects.get(title='展示位置测试')
+        assert obj.show_on_workbench is False
+        assert obj.show_in_more is True
+
+    def test_announcement_display_flags_default_values(self, auth_hr_client):
+        """未传展示开关时，show_on_workbench=True；已发布公告 show_in_more=True。"""
+        obj = Announcement.objects.create(
+            title='默认位置', category='SYSTEM', audience='RECRUIT_EXPERT', body='x',
+        )
+        assert obj.show_on_workbench is True
+        assert obj.show_in_more is True
+        resp = auth_hr_client.get(f'{URL}{obj.id}/')
+        data = resp.json()['data']
+        assert data['showOnWorkbench'] is True
+        assert data['showInMore'] is True
+
+    def test_partial_update_display_flags(self, auth_hr_client):
+        """仅 PATCH 展示开关，其余字段不被清空。"""
+        obj = Announcement.objects.create(
+            title='改位置', category='SYSTEM', audience='RECRUIT_EXPERT',
+            summary='概述', body='正文', is_active=True,
+        )
+        resp = auth_hr_client.patch(f'{URL}{obj.id}/', {'show_on_workbench': False, 'show_in_more': True}, format='json')
+        assert resp.status_code == 200, resp.content
+        obj.refresh_from_db()
+        assert obj.show_on_workbench is False
+        assert obj.show_in_more is True
+        # 其余字段保持不变
+        assert obj.title == '改位置'
+        assert obj.body == '正文'
+
+    # ===== 推送记录 =====
+    def test_push_creates_record_and_notifications(self, auth_hr_client, hr_user):
+        """HR 推送公告 → 创建推送记录并发送站内信通知。"""
+        obj = Announcement.objects.create(
+            title='推送测试', category='NOTICE', audience='RECRUIT_EXPERT',
+            body='正文', is_active=True,
+        )
+        resp = auth_hr_client.post(f'{URL}{obj.id}/push/', {'channel': 'IN_APP'}, format='json')
+        assert resp.status_code == 201, resp.content
+        data = resp.json()['data']
+        assert data['totalCount'] >= 1  # hr_user 在受众内
+        assert data['pushedByName'] == hr_user.username
+        # retrieve 返回 pushRecords
+        get_resp = auth_hr_client.get(f'{URL}{obj.id}/')
+        records = get_resp.json()['data']['pushRecords']
+        assert len(records) == 1
+        assert records[0]['readCount'] == 0
+        assert records[0]['unreadCount'] >= 1
+
+    def test_notify_unread_resends_to_unread(self, auth_hr_client):
+        """通知未读人员 → 未读数为 0 时返回 400。"""
+        obj = Announcement.objects.create(
+            title='提醒测试', category='NOTICE', audience='RECRUIT_EXPERT',
+            body='正文', is_active=True,
+        )
+        push = auth_hr_client.post(f'{URL}{obj.id}/push/', {'channel': 'IN_APP'}, format='json')
+        push_id = push.json()['data']['id']
+        # 取出本次推送产生的通知日志 id，全部标记为已读后再提醒应无未读人员
+        from apps.announcement.models import AnnouncementPushRecord
+        from apps.notification.models import NotificationLog
+        rec = AnnouncementPushRecord.objects.get(id=push_id)
+        log_ids = (rec.context or {}).get('log_ids', [])
+        NotificationLog.objects.filter(id__in=log_ids).update(read_at='2026-01-01T00:00:00Z')
+        remind = auth_hr_client.post(f'{URL}{obj.id}/push/{push_id}/notify-unread/', {}, format='json')
+        assert remind.status_code == 400
+        assert '已无未读' in remind.json()['detail']
 
     # ===== 更新（PATCH 局部更新，支持只改上架开关）=====
     def test_partial_update_toggle_active(self, auth_hr_client):

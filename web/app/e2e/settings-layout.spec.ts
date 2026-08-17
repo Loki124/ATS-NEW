@@ -39,13 +39,16 @@ test.describe('Settings layout (regression guard)', () => {
     await page.goto('/settings/account');
     await page.waitForLoadState('networkidle');
 
+    // 分组默认折叠，先展开对应分组
+    await page.getByText('组织设置').click();
     // 切到权限管理 (route: /settings/permission)
-    await page.getByText('权限管理').first().click();
+    await page.locator('.menu-item').filter({ hasText: /^权限管理$/ }).click();
     await page.waitForURL(/permission/);
     await page.waitForLoadState('networkidle');
 
     // 再切到公司信息 (route: /settings/company)
-    await page.getByText('公司信息').first().click();
+    await page.getByText('其他').click();
+    await page.locator('.menu-item').filter({ hasText: /^公司信息$/ }).click();
     await page.waitForURL(/company/);
     await page.waitForLoadState('networkidle');
 

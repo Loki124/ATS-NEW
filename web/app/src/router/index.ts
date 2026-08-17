@@ -45,6 +45,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import(/* webpackChunkName: "announcement-list" */ '../pages/announcement/AnnouncementList.vue')
       },
       {
+        path: 'announcements/:id',
+        name: 'AnnouncementDetail',
+        component: () => import(/* webpackChunkName: "announcement-detail" */ '../pages/announcement/AnnouncementDetail.vue')
+      },
+      {
         path: 'positions',
         name: 'Positions',
         component: () => import(/* webpackChunkName: "list-position" */ '../pages/position/PositionList.vue')

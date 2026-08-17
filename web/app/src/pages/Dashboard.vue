@@ -2,13 +2,25 @@
   <div class="dashboard-workbench">
     <!-- ========== Hero: AI 助手问候 (H5 Letter) ========== -->
     <section class="dashboard-hero workbench-card workbench-card--stagger-1">
-      <div class="hero-greeting">
-        <div class="ai-avatar" aria-hidden="true">小森</div>
-        <div class="hero-text">
-          <h1 class="hero-title">{{ greeting }}, {{ userName }}</h1>
-          <p class="hero-subtitle">欢迎回来 — 这是您今天的招聘概况</p>
+      <div class="hero-main">
+        <div class="hero-greeting">
+          <div class="ai-avatar" aria-hidden="true">小森</div>
+          <div class="hero-text">
+            <h1 class="hero-title">{{ greeting }}, {{ userName }}</h1>
+            <p class="hero-subtitle">{{ todaySummary }}</p>
+          </div>
         </div>
-        <n-button class="hero-action" @click="onHeroAction">查看更多</n-button>
+        <div class="hero-search">
+          <n-input
+            v-model:value="searchKeyword"
+            placeholder="搜索网络简历"
+            clearable
+          >
+            <template #prefix>
+              <n-icon :component="SearchOutline" />
+            </template>
+          </n-input>
+        </div>
       </div>
     </section>
 
@@ -20,24 +32,16 @@
           class="workbench-card workbench-card--stagger-2"
           :stats="[
             { key: 'pendingScreening', label: '待初筛', value: data?.stats?.pendingInitial ?? 0, accentColor: 'amber', href: '/candidates' },
-            { key: 'pendingTodo', label: '待处理', value: data?.stats?.pendingTodo ?? 0, accentColor: 'rose', href: '/notifications' },
-            { key: 'pendingRecommend', label: '推荐', value: data?.stats?.pendingRecommend ?? 0, accentColor: 'sky', href: '/referral' },
-            { key: 'pendingScreeningDone', label: '初筛', value: data?.stats?.pendingScreening ?? 0, accentColor: 'emerald', href: '/screenings' },
+            { key: 'pendingTodo', label: '待办', value: data?.stats?.pendingTodo ?? 0, accentColor: 'rose', href: '/notifications' },
+            { key: 'pendingRecommend', label: '推荐人才', value: data?.stats?.pendingRecommend ?? 0, accentColor: 'sky', href: '/referral' },
+            { key: 'pendingScreeningDone', label: '初筛中', value: data?.stats?.pendingScreening ?? 0, accentColor: 'emerald', href: '/screenings' },
           ]"
         />
 
-        <n-card
-          title="招聘日程"
-          class="workbench-card workbench-card--stagger-6 schedule-card"
-          :bordered="true"
-        >
-          <WeeklySchedule :interviews="data?.interviews ?? []" />
-        </n-card>
-
-        <!-- ========== 重要事项 (tabbed panel) — 置于招聘日程下方 ========== -->
+        <!-- ========== 重要事项 (tabbed panel) — 主区第二顺位, 强引导 ========== -->
         <n-card
           title="重要事项"
-          class="workbench-card workbench-card--stagger-7 matters-card"
+          class="workbench-card workbench-card--stagger-3 matters-card"
           :bordered="true"
         >
           <n-tabs v-model:value="matterTab" type="line" :tabs-padding="12">
@@ -67,91 +71,54 @@
             </n-tab-pane>
           </n-tabs>
         </n-card>
+
+        <n-card
+          title="招聘日程"
+          class="workbench-card workbench-card--stagger-6 schedule-card"
+          :bordered="true"
+        >
+          <WeeklySchedule :interviews="data?.interviews ?? []" />
+        </n-card>
       </div>
 
       <!-- 右辅: 搜索 / 雷达访问 / 快捷入口 / 我发的筛选 -->
       <aside class="dashboard-side">
-        <div class="workbench-card workbench-card--stagger-2">
-          <n-input
-            v-model:value="searchKeyword"
-            placeholder="搜索网络简历, 多个关键词用逗号或空格隔开"
-            clearable
-          >
-            <template #prefix>
-              <n-icon :component="SearchOutline" />
-            </template>
-          </n-input>
-        </div>
-
-        <!-- 制度公告：招聘专家查看招聘相关制度与公告内容 -->
+        <!-- 政策制度：工作台右侧卡片（知识库风格），置顶于参考资源区 -->
         <n-card
           v-if="showAnnouncementModule"
-          title="制度公告"
+          title="政策制度"
           class="workbench-card workbench-card--stagger-3 side-card announcement-card"
           :bordered="true"
         >
           <template #header-extra>
-            <n-button text size="small" type="primary" @click="goAnnouncementList">查看全部</n-button>
+            <n-button text size="small" type="primary" @click="goAnnouncementList">
+              更多<n-icon :component="ChevronForwardOutline" :size="16" style="margin-left: 2px" />
+            </n-button>
           </template>
           <div class="announcement-list">
             <div
-              v-for="item in announcements.slice(0, 5)"
+              v-for="item in workbenchAnnouncements.slice(0, 6)"
               :key="item.id"
               class="announcement-item"
               role="button"
               tabindex="0"
-              @click="openAnnouncementDetail(item)"
-              @keydown.enter="openAnnouncementDetail(item)"
+              @click="goAnnouncementDetail(item.id)"
+              @keydown.enter="goAnnouncementDetail(item.id)"
             >
-              <div class="announcement-item__head">
-                <n-tag v-if="item.pinned" size="tiny" type="error" round>置顶</n-tag>
-                <n-tag size="tiny" :type="categoryType(item.category)" round>{{ item.categoryDisplay }}</n-tag>
-                <span class="announcement-item__title">{{ item.title }}</span>
-                <span v-if="item.attachments?.length" class="announcement-item__attach" title="含附件">📎</span>
+              <div class="announcement-item__icon">
+                <n-icon :component="DocumentTextOutline" :size="18" />
               </div>
-              <p class="announcement-item__preview">{{ item.summary || '（暂无概述，请在后台配置）' }}</p>
+              <div class="announcement-item__content">
+                <span class="announcement-item__title" :title="item.title">{{ item.title }}</span>
+                <span class="announcement-item__date">{{ fmtAnnouncementDate(item.updatedAt || item.publishedAt) }} 更新</span>
+              </div>
+              <n-icon :component="ChevronForwardOutline" :size="16" class="announcement-item__arrow" />
             </div>
             <div v-if="announcements.length === 0" class="announcement-list__empty">
               <n-empty size="small" description="暂无制度公告" />
             </div>
           </div>
         </n-card>
-
-        <!-- 制度公告 详情抽屉 -->
-        <n-drawer
-          v-model:show="announcementDetailVisible"
-          :width="440"
-          placement="right"
-          :trap-focus="false"
-        >
-          <n-drawer-content :native-scrollbar="false">
-            <template #header>
-              <span class="ann-detail__title">{{ announcementDetail?.title }}</span>
-            </template>
-            <div v-if="announcementDetail" class="ann-detail">
-              <div class="ann-detail__meta">
-                <n-tag size="small" :type="categoryType(announcementDetail.category)" round>{{ announcementDetail.categoryDisplay }}</n-tag>
-                <n-tag size="small" round>{{ announcementDetail.audienceDisplay }}</n-tag>
-                <span class="ann-detail__time">{{ fmtAnnouncementTime(announcementDetail.publishedAt) }}</span>
-              </div>
-              <p class="ann-detail__body">{{ announcementDetail.body }}</p>
-              <div v-if="announcementDetail.attachments && announcementDetail.attachments.length" class="ann-detail__attachments">
-                <div class="ann-detail__attach-title">附件</div>
-                <a
-                  v-for="att in announcementDetail.attachments"
-                  :key="att.id"
-                  class="ann-detail__attach"
-                  :href="att.fileUrl"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  <span class="ann-detail__attach-name">📎 {{ att.originalName }}</span>
-                  <span class="ann-detail__attach-size">{{ formatFileSize(att.fileSize) }}</span>
-                </a>
-              </div>
-            </div>
-          </n-drawer-content>
-        </n-drawer>
 
         <n-card
           title="雷达访问职位"
@@ -211,9 +178,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { SearchOutline, MailUnreadOutline, StarOutline, LockClosedOutline, BriefcaseOutline } from '@vicons/ionicons5'
+import { SearchOutline, MailUnreadOutline, StarOutline, LockClosedOutline, BriefcaseOutline, DocumentTextOutline, ChevronForwardOutline } from '@vicons/ionicons5'
 // Plan O: 子组件改 defineAsyncComponent 异步加载
 //   - 减小首屏 JS bundle
 //   - 配合 SkeletonCard 占位, 加载完才显示真实内容
@@ -240,16 +207,19 @@ const data = ref<DashboardData | null>(null)
 
 // 制度公告（工作台右侧模块，招聘专家查看）
 const announcements = ref<Announcement[]>([])
-// 工作台是否展示制度公告模块（后台配置；默认 true，配置读取失败时 fail-open 仍展示）
+// 工作台是否展示政策制度模块（模块总开关；默认 true，配置读取失败时 fail-open 仍展示）
 const showAnnouncementModule = ref(true)
+// 仅展示标记为「工作台」的单条公告
+const workbenchAnnouncements = computed(() =>
+  announcements.value.filter((a) => a.showOnWorkbench),
+)
+// 是否存在已发布公告（用于快捷入口是否出现政策制度入口）
+const hasMoreAnnouncements = computed(() =>
+  announcements.value.some((a) => a.isActive),
+)
 
-// 制度公告详情抽屉
-const announcementDetailVisible = ref(false)
-const announcementDetail = ref<Announcement | null>(null)
-
-function openAnnouncementDetail(item: Announcement) {
-  announcementDetail.value = item
-  announcementDetailVisible.value = true
+function goAnnouncementDetail(id: string) {
+  router.push(`/announcements/${id}`)
 }
 
 function categoryType(c: AnnouncementCategory): 'info' | 'success' | 'warning' {
@@ -258,19 +228,12 @@ function categoryType(c: AnnouncementCategory): 'info' | 'success' | 'warning' {
   return 'info'
 }
 
-function fmtAnnouncementTime(iso?: string): string {
+function fmtAnnouncementDate(iso?: string): string {
   if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '-'
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-function formatFileSize(bytes: number): string {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 async function fetchAnnouncements() {
@@ -288,7 +251,7 @@ async function fetchAnnouncementConfig() {
       showAnnouncementModule.value = cfg.showOnWorkbench
     }
   } catch {
-    // 配置读取失败：fail-open，保持展示
+    // 配置读取失败：fail-open，保持模块展示
     showAnnouncementModule.value = true
   }
 }
@@ -315,6 +278,19 @@ const greeting = computed(() => {
   return '晚上好'
 })
 
+// 今日摘要: 基于真实 stats 字段拼接, 不造假数据
+const todaySummary = computed(() => {
+  const s = data.value?.stats
+  if (!s) return '正在加载今天的招聘概况…'
+  const parts: string[] = []
+  if (s.pendingInitial) parts.push(`${s.pendingInitial} 份待初筛`)
+  if (s.pendingTodo) parts.push(`${s.pendingTodo} 条待办`)
+  if (s.pendingRecommend) parts.push(`${s.pendingRecommend} 个推荐`)
+  if (s.pendingScreening) parts.push(`${s.pendingScreening} 个初筛中`)
+  if (parts.length === 0) return '今天的事项都已处理完毕，状态很棒！'
+  return `今天有 ${parts.join(' · ')}`
+})
+
 const userName = computed(() => {
   try {
     const raw = localStorage.getItem('user')
@@ -328,40 +304,54 @@ const userName = computed(() => {
   return '招聘官'
 })
 
-const quickEntries = computed<QuickEntryData[]>(() => [
-  {
-    key: 'archived',
-    label: '未归档简历',
-    subtitle: '从历史记录继续',
-    count: data.value?.quickCounts.archivedResumes ?? 0,
-    icon: MailUnreadOutline,
-    to: '/candidates',
-  },
-  {
-    key: 'watching-positions',
-    label: '我关注的职位',
-    subtitle: '订阅职位动态',
-    count: data.value?.quickCounts.watchingPositions ?? 0,
-    icon: BriefcaseOutline,
-    to: '/positions',
-  },
-  {
-    key: 'watching-candidates',
-    label: '我关注的应聘者',
-    subtitle: '状态变化时通知我',
-    count: data.value?.quickCounts.watchingCandidates ?? 0,
-    icon: StarOutline,
-    to: '/talent-pool',
-  },
-  {
-    key: 'locked',
-    label: '已锁定的应聘者',
-    subtitle: '本季度独占',
-    count: data.value?.quickCounts.lockedCandidates ?? 0,
-    icon: LockClosedOutline,
-    to: '/candidates',
-  },
-])
+const quickEntries = computed<QuickEntryData[]>(() => {
+  const entries: QuickEntryData[] = [
+    {
+      key: 'archived',
+      label: '未归档简历',
+      subtitle: '从历史记录继续',
+      count: data.value?.quickCounts.archivedResumes ?? 0,
+      icon: MailUnreadOutline,
+      to: '/candidates',
+    },
+    {
+      key: 'watching-positions',
+      label: '我关注的职位',
+      subtitle: '订阅职位动态',
+      count: data.value?.quickCounts.watchingPositions ?? 0,
+      icon: BriefcaseOutline,
+      to: '/positions',
+    },
+    {
+      key: 'watching-candidates',
+      label: '我关注的应聘者',
+      subtitle: '状态变化时通知我',
+      count: data.value?.quickCounts.watchingCandidates ?? 0,
+      icon: StarOutline,
+      to: '/talent-pool',
+    },
+    {
+      key: 'locked',
+      label: '已锁定的应聘者',
+      subtitle: '本季度独占',
+      count: data.value?.quickCounts.lockedCandidates ?? 0,
+      icon: LockClosedOutline,
+      to: '/candidates',
+    },
+  ]
+  // 存在标记为「更多」的单条公告时，在「快捷入口」提供政策制度入口
+  if (hasMoreAnnouncements.value) {
+    entries.push({
+      key: 'announcements',
+      label: '政策制度',
+      subtitle: '制度、公告与流程指引',
+      count: announcements.value.filter((a) => a.isActive).length,
+      icon: DocumentTextOutline,
+      to: '/announcements',
+    })
+  }
+  return entries
+})
 
 async function fetchData() {
   try {
@@ -402,16 +392,6 @@ onMounted(() => {
 })
 
 // ===== 事件 =====
-
-function onHeroAction() {
-  matterTab.value = 'other'
-  void nextTick(() => {
-    const el = document.querySelector('.matters-card')
-    if (el && 'scrollIntoView' in el) {
-      (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  })
-}
 
 function onJobClick(job: JobCardData) {
   router.push(`/positions/${job.id}`)
@@ -455,10 +435,18 @@ function onMatterAction(_matter: MatterItem) {
   padding: var(--space-8) var(--space-8);
 }
 
+.hero-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
 .hero-greeting {
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  min-width: 0;
 }
 
 .ai-avatar {
@@ -477,6 +465,7 @@ function onMatterAction(_matter: MatterItem) {
 
 .hero-text {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -497,8 +486,22 @@ function onMatterAction(_matter: MatterItem) {
   line-height: 1.5;
 }
 
-.hero-action {
+.hero-search {
   flex-shrink: 0;
+  width: 300px;
+  max-width: 40vw;
+}
+
+@media (max-width: 768px) {
+  .hero-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+  .hero-search {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 /* ===== Grid (左主右辅) ===== */
@@ -561,116 +564,74 @@ function onMatterAction(_matter: MatterItem) {
   display: block;
 }
 
-/* ===== 制度公告 (右侧栏) ===== */
+/* ===== 政策制度 (右侧栏 - 知识库风格) ===== */
 .announcement-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
 .announcement-item {
-  padding: var(--space-2) var(--space-2);
-  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
 .announcement-item:hover {
-  background: var(--color-surface-sunk);
+  background: #f3f4f6;
 }
 
-.announcement-item__head {
+.announcement-item__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #3b82f6;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.announcement-item__title {
-  color: var(--color-ink);
-  font-size: var(--text-body);
-  line-height: 1.4;
-  flex: 1;
-  min-width: 0;
-}
-
-.announcement-item__attach {
-  font-size: 13px;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.announcement-item__preview {
-  margin: var(--space-1) 0 0;
-  padding-left: var(--space-1);
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.announcement-item__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.announcement-item__title {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.announcement-item__date {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.announcement-item__arrow {
+  color: #d1d5db;
+  flex-shrink: 0;
+}
+
+.announcement-item:hover .announcement-item__arrow {
+  color: #3b82f6;
 }
 
 .announcement-list__empty {
   padding: var(--space-4) 0;
   display: flex;
   justify-content: center;
-}
-
-/* ===== 制度公告 详情抽屉 ===== */
-.ann-detail__title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-ink);
-}
-.ann-detail__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-4);
-}
-.ann-detail__time {
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
-}
-.ann-detail__body {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: var(--text-body);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-.ann-detail__attachments {
-  margin-top: var(--space-6);
-  border-top: 1px solid var(--color-border-hairline);
-  padding-top: var(--space-4);
-}
-.ann-detail__attach-title {
-  font-size: var(--text-small);
-  color: var(--color-ink-soft);
-  margin-bottom: var(--space-2);
-}
-.ann-detail__attach {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunk);
-  color: var(--color-ink);
-  text-decoration: none;
-  margin-bottom: var(--space-2);
-  transition: background 0.15s ease;
-}
-.ann-detail__attach:hover {
-  background: var(--color-border-hairline);
-}
-.ann-detail__attach-size {
-  color: var(--color-ink-soft);
-  font-size: var(--text-small);
-  flex-shrink: 0;
 }
 
 /* ===== Matters tab badge ===== */

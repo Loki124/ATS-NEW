@@ -17,7 +17,7 @@ const SETTINGS_PAGES = [
   { url: '/settings/dictionary', label: '数据字典' },
   { url: '/settings/scoring', label: '评分规则' },
   { url: '/settings/recruitment-process', label: '招聘流程' },
-  { url: '/settings/recruitment-stage', label: '阶段模板库' },
+  { url: '/settings/recruitment-stage', label: '招聘阶段配置' },
   { url: '/settings/recruitment-round', label: '面试轮次' },
   { url: '/settings/company', label: '公司信息' },
   { url: '/settings/field-acl', label: '字段权限' },

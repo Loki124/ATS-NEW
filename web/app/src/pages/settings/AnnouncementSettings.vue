@@ -1,19 +1,41 @@
 <template>
-  <div class="announcement-admin">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">制度公告</h1>
-        <p class="page-desc">维护招聘专家可见的制度、公告与流程内容（HR 及以上可管理）。</p>
-      </div>
-      <n-button type="primary" @click="openCreate">新建公告</n-button>
-    </div>
-
-    <n-card class="config-card" :bordered="false">
-      <div class="config-row">
-        <div class="config-text">
-          <div class="config-title">在工作台展示制度公告</div>
-          <div class="config-desc">关闭后，招聘专家的工作台右侧将不再显示「制度公告」模块。</div>
+  <div class="policy-admin">
+    <!-- 左侧分类树 -->
+    <aside class="policy-admin__side">
+      <div class="policy-admin__side-header">政策制度</div>
+      <nav class="policy-tree">
+        <div
+          v-for="node in treeNodes"
+          :key="node.key"
+          class="policy-tree__node"
+          :class="{ active: currentKey === node.key }"
+          role="button"
+          tabindex="0"
+          @click="currentKey = node.key"
+          @keydown.enter="currentKey = node.key"
+        >
+          <n-icon :component="node.icon" :size="16" class="policy-tree__icon" />
+          <span class="policy-tree__label">{{ node.label }}</span>
+          <span v-if="node.count != null" class="policy-tree__count">{{ node.count }}</span>
         </div>
+      </nav>
+    </aside>
+
+    <!-- 右侧主内容 -->
+    <main class="policy-admin__main">
+      <div class="policy-admin__header">
+        <div>
+          <h1 class="policy-admin__title">{{ currentFolderLabel }}</h1>
+          <p class="policy-admin__desc">维护招聘专家可见的制度、公告与流程内容</p>
+        </div>
+        <n-space>
+          <n-button type="primary" @click="openCreate">添加文档</n-button>
+        </n-space>
+      </div>
+
+      <!-- 工作台展示开关（模块总开关） -->
+      <div class="policy-admin__config">
+        <span class="policy-admin__config-text">工作台展示政策制度模块</span>
         <n-switch
           :value="configShowOnWorkbench"
           :loading="configSaving"
@@ -23,159 +45,236 @@
           <template #unchecked>隐藏</template>
         </n-switch>
       </div>
-    </n-card>
 
-    <n-card class="admin-card" :bordered="false">
-      <div class="table-toolbar">
-        <n-segmented
-          v-model:value="filterMode"
-          :options="filterOptions"
-          size="small"
-          @update:value="onFilterChange"
+      <!-- 筛选栏 -->
+      <div class="policy-admin__filter">
+        <n-input
+          v-model:value="searchKeyword"
+          placeholder="搜索文档名称"
+          clearable
+          style="width: 260px;"
+        >
+          <template #prefix>
+            <n-icon :component="SearchOutline" />
+          </template>
+        </n-input>
+        <n-select
+          v-model:value="filterStatus"
+          :options="statusOptions"
+          placeholder="发布状态"
+          clearable
+          style="width: 140px;"
         />
-        <span class="table-toolbar__hint">此处展示全部历史公告（含已下架）</span>
       </div>
-      <n-data-table
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :row-key="(row: any) => row.id"
-        :pagination="false"
-        size="small"
-      />
-    </n-card>
 
-    <!-- 新建 / 编辑 弹窗 -->
-    <n-modal
-      v-model:show="showModal"
-      :title="editingId ? '编辑公告' : '新建公告'"
-      preset="card"
-      style="width: 640px; max-width: 92vw;"
-    >
-      <n-form :model="form" :rules="rules" ref="formRef" label-placement="top">
-        <n-form-item label="标题" path="title">
-          <n-input v-model:value="form.title" placeholder="如：招聘需求提报规范（2026 版）" />
-        </n-form-item>
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item label="分类" path="category">
-              <n-select v-model:value="form.category" :options="categoryOptions" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="受众" path="audience">
-              <n-select v-model:value="form.audience" :options="audienceOptions" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-form-item label="正文" path="body">
-          <n-input
-            v-model:value="form.body"
-            type="textarea"
-            :autosize="{ minRows: 4, maxRows: 10 }"
-            placeholder="支持多行文本"
-          />
-        </n-form-item>
-        <n-form-item label="概述" path="summary">
-          <n-input
-            v-model:value="form.summary"
-            type="textarea"
-            :autosize="{ minRows: 2, maxRows: 5 }"
-            placeholder="列表/工作台仅展示概述，建议一句话概括（可选）"
-          />
-        </n-form-item>
-        <n-form-item label="附件">
-          <div class="attach-block">
-            <div v-for="att in currentAttachments" :key="att.id" class="attach-row">
-              <span class="attach-name">📎 {{ att.originalName }} <em>{{ formatSize(att.fileSize) }}</em></span>
-              <n-button size="tiny" text type="error" @click="removeExistingAttachment(att)">移除</n-button>
-            </div>
-            <div v-for="(f, i) in pendingFiles" :key="`new-${i}`" class="attach-row">
-              <span class="attach-name">📎 {{ f.name }} <em>{{ formatSize(f.size) }}</em></span>
-              <n-button size="tiny" text type="error" @click="pendingFiles.splice(i, 1)">移除</n-button>
-            </div>
-            <n-upload
-              :show-file-list="false"
-              multiple
-              @before-upload="onBeforeUpload"
-            >
-              <n-button size="small" tertiary>选择文件</n-button>
-            </n-upload>
-            <p class="attach-hint">支持 PDF / Word / Excel / PPT / 图片 / 压缩包，单文件 ≤ 10MB</p>
+      <!-- 表格 -->
+      <n-card class="policy-table-card" :bordered="false">
+        <n-spin :show="loading">
+          <div v-if="filteredRows.length > 0" class="policy-table-wrap">
+            <table class="policy-table">
+              <thead>
+                <tr>
+                  <th class="col-name">文档名称</th>
+                  <th class="col-scope">发布范围</th>
+                  <th class="col-editor">最近修改人</th>
+                  <th class="col-time">修改时间</th>
+                  <th class="col-publish">是否发布</th>
+                  <th class="col-place">展示位置</th>
+                  <th class="col-actions">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in filteredRows" :key="row.id" class="policy-table__row">
+                  <td class="col-name">
+                    <div class="policy-doc-cell">
+                      <div class="policy-doc-icon">
+                        <n-icon :component="DocumentTextOutline" :size="18" />
+                      </div>
+                      <div class="policy-doc-info">
+                        <span class="policy-doc-title" :title="row.title">{{ row.title }}</span>
+                        <span v-if="row.pinned" class="policy-doc-pinned">置顶</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="col-scope">{{ row.audienceDisplay }}</td>
+                  <td class="col-editor">
+                    <div class="policy-editor">
+                      <n-avatar
+                        v-if="row.updatedByName"
+                        round
+                        :size="22"
+                        :style="{ background: '#3b82f6', color: '#fff' }"
+                      >
+                        {{ initials(row.updatedByName) }}
+                      </n-avatar>
+                      <span>{{ row.updatedByName || '-' }}</span>
+                    </div>
+                  </td>
+                  <td class="col-time">{{ fmtDate(row.updatedAt) }}</td>
+                  <td class="col-publish">
+                    <n-switch :value="row.isActive" @update:value="(v) => toggleActive(row, v)" />
+                  </td>
+                  <td class="col-place">
+                    <div class="policy-place">
+                      <n-tag v-if="row.showOnWorkbench" size="small" type="info" :bordered="false">工作台</n-tag>
+                      <span v-else class="policy-place__none">不展示</span>
+                    </div>
+                  </td>
+                  <td class="col-actions">
+                    <div class="policy-actions">
+                      <n-button text type="primary" size="small" @click="openPush(row)">推送</n-button>
+                      <n-button text type="primary" size="small" @click="openEdit(row)">编辑</n-button>
+                      <n-button text type="error" size="small" @click="remove(row)">删除</n-button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        </n-form-item>
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item label="发布时间" path="publishedAt">
-              <n-date-picker
-                v-model:value="form.publishedAt"
-                type="datetime"
-                clearable
-                style="width: 100%;"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="置顶 / 上架">
-              <n-space align="center">
-                <n-switch v-model:value="form.pinned"><template #checked>置顶</template><template #unchecked>普通</template></n-switch>
-                <n-switch v-model:value="form.isActive"><template #checked>上架</template><template #unchecked>下架</template></n-switch>
-              </n-space>
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" :loading="saving" @click="save">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+          <n-empty v-else description="暂无文档" />
+        </n-spin>
+      </n-card>
+    </main>
 
-    <!-- 查看详情 抽屉（只读） -->
-    <n-drawer v-model:show="detailVisible" :width="460" placement="right" :trap-focus="false">
+    <!-- 添加/编辑 抽屉 -->
+    <n-drawer
+      v-model:show="drawerVisible"
+      :width="560"
+      placement="right"
+      :trap-focus="false"
+    >
       <n-drawer-content :native-scrollbar="false">
         <template #header>
-          <span class="ann-detail__title">{{ detailItem?.title }}</span>
+          <span class="drawer-title">{{ editingId ? '编辑文档' : '添加文档' }}</span>
         </template>
-        <div v-if="detailItem" class="ann-detail">
-          <div class="ann-detail__meta">
-            <n-tag size="small" :type="detailItem.category === 'NOTICE' ? 'success' : detailItem.category === 'PROCESS' ? 'warning' : 'info'" round>{{ detailItem.categoryDisplay }}</n-tag>
-            <n-tag size="small" round>{{ detailItem.audienceDisplay }}</n-tag>
-            <span class="ann-detail__time">{{ fmtTime(detailItem.publishedAt) }}</span>
-          </div>
-          <p class="ann-detail__body">{{ detailItem.body }}</p>
-          <div v-if="detailItem.attachments && detailItem.attachments.length" class="ann-detail__attachments">
-            <div class="ann-detail__attach-title">附件</div>
-            <a
-              v-for="att in detailItem.attachments"
-              :key="att.id"
-              class="ann-detail__attach"
-              :href="att.fileUrl"
-              target="_blank"
-              rel="noopener"
-            >
-              <span class="ann-detail__attach-name">📎 {{ att.originalName }}</span>
-              <span class="ann-detail__attach-size">{{ formatSize(att.fileSize) }}</span>
-            </a>
-          </div>
-        </div>
+
+        <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="84px">
+          <n-form-item label="文档名称" path="title">
+            <n-input v-model:value="form.title" placeholder="请输入文档名称" />
+          </n-form-item>
+
+          <n-form-item label="文档说明" path="body">
+            <rich-editor v-model:html="form.body" placeholder="请输入文档说明" />
+          </n-form-item>
+
+          <n-form-item label="发布范围" path="audience">
+            <n-radio-group v-model:value="form.audience">
+              <n-space>
+                <n-radio value="ALL">全体员工</n-radio>
+                <n-radio value="RECRUIT_EXPERT">招聘专家</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+
+          <n-form-item label="分类" path="category">
+            <n-select v-model:value="form.category" :options="categoryOptions" />
+          </n-form-item>
+
+          <n-form-item label="置顶文档" path="pinned">
+            <n-radio-group v-model:value="form.pinned">
+              <n-space>
+                <n-radio :value="true">是</n-radio>
+                <n-radio :value="false">否</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+
+          <n-form-item label="工作台展示">
+            <n-radio-group v-model:value="form.showOnWorkbench">
+              <n-space>
+                <n-radio :value="true">是</n-radio>
+                <n-radio :value="false">否</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+
+          <n-form-item label="上传附件">
+            <div class="attach-block">
+              <div v-for="att in currentAttachments" :key="att.id" class="attach-row">
+                <div class="attach-row__icon">
+                  <n-icon :component="DocumentTextOutline" :size="16" />
+                </div>
+                <span class="attach-name">{{ att.originalName }} <em>{{ formatSize(att.fileSize) }}</em></span>
+                <n-button size="tiny" text type="error" @click="removeExistingAttachment(att)">移除</n-button>
+              </div>
+              <div v-for="(f, i) in pendingFiles" :key="`new-${i}`" class="attach-row">
+                <div class="attach-row__icon">
+                  <n-icon :component="DocumentTextOutline" :size="16" />
+                </div>
+                <span class="attach-name">{{ f.name }} <em>{{ formatSize(f.size) }}</em></span>
+                <n-button size="tiny" text type="error" @click="pendingFiles.splice(i, 1)">移除</n-button>
+              </div>
+              <n-upload :show-file-list="false" multiple @before-upload="onBeforeUpload">
+                <n-button size="small" tertiary>
+                  <template #icon>
+                    <n-icon :component="CloudUploadOutline" />
+                  </template>
+                  点击上传
+                </n-button>
+              </n-upload>
+              <p class="attach-hint">支持 PDF、DOCX、PPT、ZIP 等格式，单文件 ≤ 10MB</p>
+            </div>
+          </n-form-item>
+
+          <n-form-item label="发布时间" path="publishedAt">
+            <n-date-picker
+              v-model:value="form.publishedAt"
+              type="datetime"
+              clearable
+              style="width: 100%;"
+            />
+          </n-form-item>
+        </n-form>
+
+        <template #footer>
+          <n-space justify="end">
+            <n-button @click="drawerVisible = false">取消</n-button>
+            <n-button type="primary" :loading="saving" @click="save">确定</n-button>
+          </n-space>
+        </template>
       </n-drawer-content>
     </n-drawer>
+
+    <!-- 推送弹窗 -->
+    <n-modal
+      v-model:show="pushVisible"
+      title="推送政策制度"
+      preset="dialog"
+      positive-text="确定"
+      negative-text="取消"
+      @positive-click="confirmPush"
+      @negative-click="pushVisible = false"
+    >
+      <div class="push-body">
+        <p class="push-desc">推送后，发布范围内的员工进入系统后将收到弹窗推送。</p>
+        <n-checkbox v-model:checked="pushWithIM">IM 通知</n-checkbox>
+      </div>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
   NButton,
   NTag,
-  NSpace,
   NSwitch,
+  NSpace,
+  NAvatar,
+  NRadio,
+  NRadioGroup,
   useDialog,
   useMessage,
 } from 'naive-ui'
+import {
+  SearchOutline,
+  DocumentTextOutline,
+  FolderOpenOutline,
+  GridOutline,
+  TimeOutline,
+  CloudUploadOutline,
+} from '@vicons/ionicons5'
+import RichEditor from '../../components/RichEditor.vue'
 import {
   listAnnouncements,
   createAnnouncement,
@@ -198,31 +297,60 @@ const loading = ref(false)
 const saving = ref(false)
 const rows = ref<Announcement[]>([])
 
-// 附件上传：待上传文件 / 编辑时标记删除的已有附件 / 当前已有的附件
-const pendingFiles = ref<File[]>([])
-const removedAttachmentIds = ref<string[]>([])
-const currentAttachments = ref<AnnouncementAttachment[]>([])
-// 查看详情抽屉
-const detailVisible = ref(false)
-const detailItem = ref<Announcement | null>(null)
+// 分类树
+const currentKey = ref<string>('ALL')
+const treeNodes = computed(() => {
+  const counts = {
+    SYSTEM: rows.value.filter((r) => r.category === 'SYSTEM').length,
+    NOTICE: rows.value.filter((r) => r.category === 'NOTICE').length,
+    PROCESS: rows.value.filter((r) => r.category === 'PROCESS').length,
+  }
+  return [
+    { key: 'ALL', label: '全部文件', icon: GridOutline, count: rows.value.length },
+    { key: 'SYSTEM', label: '制度', icon: FolderOpenOutline, count: counts.SYSTEM },
+    { key: 'NOTICE', label: '公告', icon: FolderOpenOutline, count: counts.NOTICE },
+    { key: 'PROCESS', label: '流程', icon: FolderOpenOutline, count: counts.PROCESS },
+  ]
+})
 
-// 模块设置：工作台展示开关（后台配置）
+const currentFolderLabel = computed(() => {
+  const node = treeNodes.value.find((n) => n.key === currentKey.value)
+  return node?.label || '全部文件'
+})
+
+// 搜索与状态筛选
+const searchKeyword = ref('')
+const filterStatus = ref<boolean | null>(null)
+const statusOptions = [
+  { label: '已发布', value: true },
+  { label: '已停用', value: false },
+]
+
+const filteredRows = computed(() => {
+  let list = rows.value
+  if (currentKey.value !== 'ALL') {
+    list = list.filter((r) => r.category === currentKey.value)
+  }
+  if (filterStatus.value !== null) {
+    list = list.filter((r) => r.isActive === filterStatus.value)
+  }
+  if (searchKeyword.value.trim()) {
+    const kw = searchKeyword.value.trim().toLowerCase()
+    list = list.filter((r) => r.title.toLowerCase().includes(kw))
+  }
+  return list
+})
+
+// 模块设置
 const configShowOnWorkbench = ref(true)
 const configSaving = ref(false)
-
-// 历史筛选：全部(含已下架) / 仅上架
-const filterMode = ref<'all' | 'active'>('all')
-const filterOptions = [
-  { label: '全部历史', value: 'all' },
-  { label: '仅上架', value: 'active' },
-]
 
 async function onToggleWorkbench(value: boolean) {
   configSaving.value = true
   try {
     const cfg = await updateAnnouncementConfig({ showOnWorkbench: value })
     configShowOnWorkbench.value = cfg.showOnWorkbench
-    message.success(value ? '已在工作台展示制度公告' : '已隐藏工作台制度公告模块')
+    message.success(value ? '已在工作台展示政策制度' : '已隐藏工作台政策制度模块')
   } catch (e: any) {
     message.error(e?.response?.data?.detail || '配置保存失败')
   } finally {
@@ -230,100 +358,34 @@ async function onToggleWorkbench(value: boolean) {
   }
 }
 
-function onFilterChange() {
-  void refresh()
-}
+// 表单
+const drawerVisible = ref(false)
+const editingId = ref<string | null>(null)
+const formRef = ref<any>(null)
+const defaultForm = () => ({
+  title: '',
+  category: 'SYSTEM' as AnnouncementCategory,
+  audience: 'ALL' as AnnouncementAudience,
+  body: '',
+  pinned: false,
+  isActive: true,
+  showOnWorkbench: true,
+  publishedAt: Date.now(),
+})
+const form = reactive(defaultForm())
+const pendingFiles = ref<File[]>([])
+const removedAttachmentIds = ref<string[]>([])
+const currentAttachments = ref<AnnouncementAttachment[]>([])
 
 const categoryOptions = [
   { label: '制度', value: 'SYSTEM' },
   { label: '公告', value: 'NOTICE' },
   { label: '流程', value: 'PROCESS' },
 ]
-const audienceOptions = [
-  { label: '招聘专家', value: 'RECRUIT_EXPERT' },
-  { label: '全员', value: 'ALL' },
-]
-
-function fmtTime(iso?: string): string {
-  if (!iso) return '-'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '-'
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-const columns = [
-  {
-    title: '置顶',
-    key: 'pinned',
-    width: 64,
-    render: (row: Announcement) =>
-      row.pinned ? h(NTag, { type: 'error', size: 'small', round: true }, { default: () => '置顶' }) : h('span', {}, '-'),
-  },
-  { title: '标题', key: 'title', ellipsis: { tooltip: true } },
-  {
-    title: '概述',
-    key: 'summary',
-    ellipsis: { tooltip: true },
-    render: (row: Announcement) => row.summary || '-',
-  },
-  {
-    title: '分类',
-    key: 'categoryDisplay',
-    width: 90,
-    render: (row: Announcement) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.categoryDisplay }),
-  },
-  {
-    title: '受众',
-    key: 'audienceDisplay',
-    width: 100,
-    render: (row: Announcement) => h(NTag, { size: 'small' }, { default: () => row.audienceDisplay }),
-  },
-  {
-    title: '上架',
-    key: 'isActive',
-    width: 80,
-    render: (row: Announcement) =>
-      h(NSwitch, {
-        value: row.isActive,
-        onUpdateValue: (v: boolean) => toggleActive(row, v),
-      }),
-  },
-  { title: '发布时间', key: 'publishedAt', width: 140, render: (row: Announcement) => fmtTime(row.publishedAt) },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 130,
-    render: (row: Announcement) =>
-      h(NSpace, {}, {
-        default: () => [
-          h(NButton, { size: 'small', tertiary: true, onClick: () => openDetail(row) }, { default: () => '查看' }),
-          h(NButton, { size: 'small', tertiary: true, onClick: () => openEdit(row) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', tertiary: true, type: 'error', onClick: () => remove(row) }, { default: () => '删除' }),
-        ],
-      }),
-  },
-]
-
-// ===== 弹窗表单 =====
-const showModal = ref(false)
-const editingId = ref<string | null>(null)
-const formRef = ref<any>(null)
-const defaultForm = () => ({
-  title: '',
-  category: 'SYSTEM' as AnnouncementCategory,
-  audience: 'RECRUIT_EXPERT' as AnnouncementAudience,
-  body: '',
-  summary: '',
-  pinned: false,
-  isActive: true,
-  publishedAt: Date.now(),
-})
-const form = reactive(defaultForm())
 
 const rules = {
-  title: { required: true, message: '请输入标题', trigger: 'blur' },
-  body: { required: true, message: '请输入正文', trigger: 'blur' },
+  title: { required: true, message: '请输入文档名称', trigger: 'blur' },
+  body: { required: true, message: '请输入文档说明', trigger: 'blur' },
 }
 
 function openCreate() {
@@ -332,7 +394,7 @@ function openCreate() {
   pendingFiles.value = []
   removedAttachmentIds.value = []
   currentAttachments.value = []
-  showModal.value = true
+  drawerVisible.value = true
 }
 
 function openEdit(row: Announcement) {
@@ -342,20 +404,27 @@ function openEdit(row: Announcement) {
     category: row.category,
     audience: row.audience,
     body: row.body,
-    summary: row.summary || '',
     pinned: row.pinned,
     isActive: row.isActive,
+    showOnWorkbench: row.showOnWorkbench,
     publishedAt: row.publishedAt ? new Date(row.publishedAt).getTime() : Date.now(),
   })
   pendingFiles.value = []
   removedAttachmentIds.value = []
   currentAttachments.value = row.attachments ? [...row.attachments] : []
-  showModal.value = true
+  drawerVisible.value = true
 }
 
-function openDetail(row: Announcement) {
-  detailItem.value = row
-  detailVisible.value = true
+function initials(name: string): string {
+  return name.slice(0, 1).toUpperCase()
+}
+
+function fmtDate(iso?: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '-'
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 function formatSize(bytes: number): string {
@@ -365,7 +434,6 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`
 }
 
-// 选文件时仅收集到 pendingFiles，保存时统一上传（阻止 n-upload 自动上传）。
 function onBeforeUpload(data: { file: { file?: File } }): boolean {
   const f = data?.file?.file
   if (f) pendingFiles.value.push(f)
@@ -388,29 +456,28 @@ async function save() {
     title: form.title.trim(),
     category: form.category,
     audience: form.audience,
-    summary: form.summary.trim(),
+    summary: '',
     body: form.body,
     pinned: form.pinned,
     isActive: form.isActive,
+    showOnWorkbench: form.showOnWorkbench,
     publishedAt: form.publishedAt ? new Date(form.publishedAt).toISOString() : new Date().toISOString(),
   }
   try {
     let saved: Announcement
     if (editingId.value) {
       saved = await updateAnnouncement(editingId.value, payload)
-      // 删除被标记的已有附件
       for (const aid of removedAttachmentIds.value) {
         await deleteAnnouncementAttachment(editingId.value, aid)
       }
     } else {
       saved = await createAnnouncement(payload)
     }
-    // 上传待上传附件
     for (const f of pendingFiles.value) {
       await uploadAnnouncementAttachment(saved.id, f)
     }
     message.success('已保存')
-    showModal.value = false
+    drawerVisible.value = false
     await refresh()
   } catch (e: any) {
     message.error(e?.response?.data?.detail || e?.message || '保存失败')
@@ -422,7 +489,7 @@ async function save() {
 async function toggleActive(row: Announcement, value: boolean) {
   try {
     await updateAnnouncement(row.id, { isActive: value })
-    message.success(value ? '已上架' : '已下架')
+    message.success(value ? '已发布' : '已停用')
     await refresh()
   } catch (e: any) {
     message.error(e?.response?.data?.detail || '操作失败')
@@ -431,8 +498,8 @@ async function toggleActive(row: Announcement, value: boolean) {
 
 function remove(row: Announcement) {
   dialog.warning({
-    title: '删除公告',
-    content: `确定删除「${row.title}」？删除后将从列表移除（可保留审计）。`,
+    title: '删除文档',
+    content: `确定删除「${row.title}」？删除后将从列表移除。`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -447,10 +514,27 @@ function remove(row: Announcement) {
   })
 }
 
+// 推送
+const pushVisible = ref(false)
+const pushRow = ref<Announcement | null>(null)
+const pushWithIM = ref(false)
+
+function openPush(row: Announcement) {
+  pushRow.value = row
+  pushWithIM.value = false
+  pushVisible.value = true
+}
+
+function confirmPush() {
+  // TODO: 接入后端推送 API
+  message.success(`已向「${pushRow.value?.audienceDisplay || '发布范围'}」推送「${pushRow.value?.title}」`)
+  pushVisible.value = false
+}
+
 async function refresh() {
   loading.value = true
   try {
-    rows.value = await listAnnouncements({ show_inactive: filterMode.value === 'all' })
+    rows.value = await listAnnouncements({ show_inactive: true })
   } catch (e: any) {
     message.error(e?.response?.data?.detail || '加载失败')
     rows.value = []
@@ -477,68 +561,349 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.announcement-admin {
+.policy-admin {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
   height: 100%;
   min-height: 0;
+  background: #f5f7fa;
 }
-.page-header {
+
+/* 左侧边栏 */
+.policy-admin__side {
+  width: 220px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  padding: 20px 0;
+}
+
+.policy-admin__side-header {
+  padding: 0 20px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.policy-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.policy-tree__node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  margin: 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #4b5563;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.policy-tree__node:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.policy-tree__node.active {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.policy-tree__icon {
+  flex-shrink: 0;
+}
+
+.policy-tree__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy-tree__count {
+  font-size: 12px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.policy-tree__node.active .policy-tree__count {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+/* 右侧主内容 */
+.policy-admin__main {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: auto;
+}
+
+.policy-admin__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  flex-shrink: 0;
 }
-.page-title {
+
+.policy-admin__title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #1f2937;
 }
-.page-desc {
+
+.policy-admin__desc {
   margin: 4px 0 0;
   font-size: 13px;
   color: #6b7280;
 }
-.admin-card {
-  flex: 1;
-  min-height: 0;
-}
 
-/* ===== 模块设置卡片 ===== */
-.config-card {
-  flex-shrink: 0;
-}
-.config-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.config-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-}
-.config-desc {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-/* ===== 表格工具条 ===== */
-.table-toolbar {
+.policy-admin__config {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
 }
-.table-toolbar__hint {
+
+.policy-admin__config-text {
+  font-size: 14px;
+  color: #374151;
+}
+
+.policy-admin__filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.policy-table-card {
+  flex: 1;
+  min-height: 0;
+  border-radius: 8px;
+}
+
+/* 表格 */
+.policy-table-wrap {
+  overflow-x: auto;
+}
+
+.policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.policy-table th {
+  text-align: left;
+  color: #9ca3af;
+  font-weight: 500;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+  background: #fafafa;
+}
+
+.policy-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f5f5f5;
+  color: #4b5563;
+  vertical-align: middle;
+}
+
+.policy-table__row {
+  transition: background 0.15s;
+}
+
+.policy-table__row:hover {
+  background: #f8fafc;
+}
+
+.policy-table__row:last-child td {
+  border-bottom: none;
+}
+
+.col-name {
+  width: 32%;
+}
+
+.col-scope {
+  width: 16%;
+}
+
+.col-editor {
+  width: 14%;
+}
+
+.col-time {
+  width: 14%;
+  white-space: nowrap;
+}
+
+.col-publish {
+  width: 12%;
+}
+
+.col-place {
+  width: 14%;
+  white-space: nowrap;
+}
+
+.col-actions {
+  width: 12%;
+  white-space: nowrap;
+}
+
+.policy-place {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.policy-place__none {
   font-size: 12px;
   color: #9ca3af;
+}
+
+.policy-doc-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.policy-doc-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.policy-doc-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.policy-doc-title {
+  color: #1f2937;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy-doc-pinned {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #ef4444;
+  background: #fef2f2;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.policy-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.policy-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 抽屉内样式 */
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.attach-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attach-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.attach-row__icon {
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attach-name em {
+  color: #9ca3af;
+  font-style: normal;
+  margin-left: 6px;
+}
+
+.attach-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* 推送弹窗 */
+.push-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.push-desc {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .policy-admin__side {
+    display: none;
+  }
+  .policy-admin__main {
+    padding: 16px;
+  }
 }
 </style>

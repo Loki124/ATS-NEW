@@ -12,12 +12,17 @@ from rest_framework.response import Response
 from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
 from apps.core.role_v2_query import HR_TIER, user_has_any_role
 
-from .models import Announcement, AnnouncementAttachment, AnnouncementConfig
+from apps.core.models import User
+from apps.notification.models import NotificationLog
+from apps.notification.services import NotificationService, SendNotificationData
+
+from .models import Announcement, AnnouncementAttachment, AnnouncementConfig, AnnouncementPushRecord
 from .serializers import (
     AnnouncementSerializer,
     AnnouncementWriteSerializer,
     AnnouncementAttachmentSerializer,
     AnnouncementConfigSerializer,
+    AnnouncementPushRecordSerializer,
 )
 
 ALLOWED_EXT = {
@@ -59,8 +64,9 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
 
     def get_queryset(self):
         qs = Announcement.objects.all().filter(deleted_at__isnull=True).prefetch_related('attachments')
-        # 管理后台传 show_inactive=true 时连下架项一并展示（供重新上架）。
-        if not self.request.query_params.get('show_inactive'):
+        # 列表默认仅上架; 详情/编辑/删除等动作需能操作下架项(否则下架记录无法重新上架/删除, 会 404)。
+        # 管理后台传 show_inactive=true 时列表连下架项一并展示。
+        if self.action == 'list' and not self.request.query_params.get('show_inactive'):
             qs = qs.filter(is_active=True)
         return qs
 
@@ -70,21 +76,28 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         serializer = self.get_serializer(queryset, many=True)
         return Response({'success': True, 'data': serializer.data})
 
-    # ===== 模块级配置：工作台展示开关 =====
+    def retrieve(self, request, *args, **kwargs):
+        """覆盖 retrieve 以返回 {success, data} 信封（与 list 一致）。"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, context={'request': request})
+        return Response({'success': True, 'data': serializer.data})
+
+    # ===== 模块级配置：工作台展示开关（总开关）=====
     @action(detail=False, methods=['get', 'put'], url_path='config')
     def config(self, request, pk=None):
-        """GET 读取工作台展示开关（登录即可）；PUT 更新（HR 及以上）。
+        """GET 读取工作台模块开关（登录即可）；PUT 更新（HR 及以上）。
 
         配置为单例行(pk=1)，由 AnnouncementConfig.get_or_create_default 保证存在。
+        单条公告的展示位置（工作台卡片 / 更多入口）由公告自身字段控制，不在此处。
         """
         if request.method == 'PUT' and not user_has_any_role(request.user, HR_TIER):
             return Response({'detail': '无权限修改公告配置'}, status=status.HTTP_403_FORBIDDEN)
         cfg, _ = AnnouncementConfig.objects.get_or_create(pk=1, defaults={'show_on_workbench': True})
         if request.method == 'PUT':
-            raw = request.data.get('show_on_workbench', cfg.show_on_workbench)
-            if isinstance(raw, str):
-                raw = raw.strip().lower() in ('1', 'true', 'yes', 'on', '是')
-            cfg.show_on_workbench = bool(raw)
+            wb = request.data.get('show_on_workbench', cfg.show_on_workbench)
+            if isinstance(wb, str):
+                wb = wb.strip().lower() in ('1', 'true', 'yes', 'on', '是')
+            cfg.show_on_workbench = bool(wb)
             cfg.save(update_fields=['show_on_workbench', 'updated_at'])
         out = AnnouncementConfigSerializer(cfg)
         return Response({'success': True, 'data': out.data})
@@ -158,3 +171,115 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
             pass
         att.soft_delete()
         return Response({'success': True})
+
+    # ===== 推送记录 =====
+    def _audience_users(self, announcement: Announcement):
+        """返回公告受众对应的活跃用户 queryset。"""
+        qs = User.objects.filter(is_active=True, deleted_at__isnull=True)
+        if announcement.audience == 'ALL':
+            return qs
+        # RECRUIT_EXPERT 暂按 HR/HRBP/SUPER_ADMIN 兜底（系统尚无独立 RECRUITER 角色码）
+        recruit_role_codes = ('HR', 'HRBP', 'SUPER_ADMIN')
+        from apps.core.models_permission_v2 import UserRoleV2
+        user_ids = UserRoleV2.objects.filter(
+            role_code__in=recruit_role_codes, system_code='recruit',
+        ).values_list('user_id', flat=True)
+        return qs.filter(id__in=user_ids)
+
+    def _send_push_notifications(self, request, announcement: Announcement, channel: str):
+        """向受众批量发送通知，并创建推送记录。"""
+        users = list(self._audience_users(announcement))
+        total = len(users)
+        if total == 0:
+            return None, '当前受众范围内没有可推送用户'
+
+        record = AnnouncementPushRecord.objects.create(
+            announcement=announcement,
+            pushed_by=request.user if request.user.is_authenticated else None,
+            total_count=total,
+            channel=channel,
+            context={},
+            created_by=request.user if request.user.is_authenticated else None,
+            updated_by=request.user if request.user.is_authenticated else None,
+        )
+
+        link = f'/announcements/{announcement.id}'
+        log_ids = []
+        for user in users:
+            try:
+                result = NotificationService.send_notification(SendNotificationData(
+                    recipient_id=str(user.id),
+                    title=f'《{announcement.title}》已发布',
+                    content=f'请查看新{announcement.get_category_display()}《{announcement.title}》。',
+                    link=link,
+                    source='ANNOUNCEMENT',
+                    source_id=str(announcement.id),
+                    channel=channel,
+                ))
+                if result.get('sent'):
+                    log_ids.append(result.get('log_id'))
+            except Exception:
+                # 单用户发送失败不影响整体流程，记录中不含该失败日志
+                continue
+
+        record.context = {'log_ids': log_ids}
+        record.save(update_fields=['context'])
+        return record, None
+
+    @action(detail=True, methods=['post'], url_path='push')
+    def push(self, request, pk=None):
+        """POST /api/v1/announcements/{id}/push/ — 推送公告给受众。"""
+        if not user_has_any_role(request.user, HR_TIER):
+            return Response({'detail': '无权限推送'}, status=status.HTTP_403_FORBIDDEN)
+        announcement = self.get_object()
+        channel = request.data.get('channel', 'IN_APP')
+        if channel not in ('IN_APP', 'WECOM'):
+            channel = 'IN_APP'
+        record, error = self._send_push_notifications(request, announcement, channel)
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        out = AnnouncementPushRecordSerializer(record, context={'request': request})
+        return Response({'success': True, 'data': out.data}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='push/(?P<push_id>[^/.]+)/notify-unread')
+    def notify_unread(self, request, pk=None, push_id=None):
+        """POST /api/v1/announcements/{id}/push/{push_id}/notify-unread/ — 再次通知未读人员。"""
+        if not user_has_any_role(request.user, HR_TIER):
+            return Response({'detail': '无权限操作'}, status=status.HTTP_403_FORBIDDEN)
+        announcement = self.get_object()
+        record = AnnouncementPushRecord.objects.filter(
+            announcement=announcement, id=push_id, deleted_at__isnull=True,
+        ).first()
+        if not record:
+            return Response({'detail': '推送记录不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        log_ids = record.log_ids
+        if not log_ids:
+            return Response({'detail': '没有可通知的用户'}, status=status.HTTP_400_BAD_REQUEST)
+
+        unread_logs = list(NotificationLog.objects.filter(
+            id__in=log_ids, read_at__isnull=True, deleted_at__isnull=True,
+        ).select_related('recipient'))
+        if not unread_logs:
+            return Response({'detail': '已无未读人员'}, status=status.HTTP_400_BAD_REQUEST)
+
+        link = f'/announcements/{announcement.id}'
+        notified = 0
+        for log in unread_logs:
+            if not log.recipient:
+                continue
+            try:
+                NotificationService.send_notification(SendNotificationData(
+                    recipient_id=str(log.recipient_id),
+                    title=f'提醒：您还未阅读《{announcement.title}》',
+                    content=f'请及时查看新{announcement.get_category_display()}《{announcement.title}》。',
+                    link=link,
+                    source='ANNOUNCEMENT_REMIND',
+                    source_id=str(announcement.id),
+                    channel=record.channel,
+                ))
+                notified += 1
+            except Exception:
+                continue
+
+        return Response({'success': True, 'data': {'notified': notified}})
