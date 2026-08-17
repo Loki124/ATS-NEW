@@ -181,10 +181,26 @@ export interface MeResponseBody {
     level?: string | null;
     roles: string[];
     permissions: string[];
+    /** 用户 UI 偏好（菜单布局等），跟随账号。 */
+    uiSettings?: {
+      /** 菜单布局：'side' 左侧竖排（默认） | 'top' 顶部横排 */
+      menuLayout?: 'side' | 'top';
+      [key: string]: any;
+    };
   };
 }
 
 export const me = () => api.get<MeResponseBody>('/auth/me/');
+
+/**
+ * 更新用户 UI 偏好 - PATCH /api/v1/auth/me/
+ * 仅写入 uiSettings（后端合并 JSON），返回 { success, data: { uiSettings } }。
+ */
+export const updateUiSettings = (uiSettings: Record<string, any>) =>
+  api.patch<{ success: boolean; data: { uiSettings: Record<string, any> } }>(
+    '/auth/me/',
+    { uiSettings },
+  );
 
 export const register = (data: {
   username: string;

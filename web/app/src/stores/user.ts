@@ -19,12 +19,19 @@ export interface User {
   roles?: string[]
   /** 按 ROLE_PRIORITY 派生的便利字段, 给路由 guard / 顶栏 UI 用. 数组为空时为 null. */
   roleType?: string | null
+  /** 用户 UI 偏好（菜单布局等），跟随账号 */
+  uiSettings?: {
+    menuLayout?: 'side' | 'top'
+    [key: string]: any
+  }
 }
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
   const accessToken = ref<string>('')
   const refreshToken = ref<string>('')
+  // 用户 UI 偏好（菜单布局等）。后端为源，localStorage 仅作首屏缓存（避免刷新闪烁）。
+  const uiSettings = ref<Record<string, any>>({})
 
   // 从 localStorage 水合 (避免刷新页面后 user/token 丢失)
   // Fix 8: 兼容老 key 'token' → 升级到 'accessToken', 然后清掉老 key
@@ -41,17 +48,40 @@ export const useUserStore = defineStore('user', () => {
     if (cachedAccess) accessToken.value = cachedAccess
     const cachedRefresh = localStorage.getItem('refreshToken')
     if (cachedRefresh) refreshToken.value = cachedRefresh
+    const cachedUi = localStorage.getItem('uiSettings')
+    if (cachedUi) uiSettings.value = JSON.parse(cachedUi)
   } catch (e) {
     // localStorage 数据损坏，清空避免反复报错
     localStorage.removeItem('user')
+    localStorage.removeItem('uiSettings')
   }
 
   const setUser = (userData: User | null) => {
     user.value = userData
     if (userData) {
       localStorage.setItem('user', JSON.stringify(userData))
+      if (userData.uiSettings) setUiSettings(userData.uiSettings)
     } else {
       localStorage.removeItem('user')
+    }
+  }
+
+  /**
+   * 写入用户 UI 偏好（合并到现有，不整体覆盖）。同时持久化到 localStorage 缓存。
+   * @param persist 是否同步到后端（默认 true）。极少数场景（如仅本地草稿）可传 false。
+   */
+  const setUiSettings = (data: Record<string, any>, persist = true) => {
+    uiSettings.value = { ...uiSettings.value, ...data }
+    try {
+      localStorage.setItem('uiSettings', JSON.stringify(uiSettings.value))
+    } catch {
+      /* 容量溢出忽略 */
+    }
+    if (persist && data.menuLayout) {
+      // 异步同步到后端，失败不影响本地（下次 me 会修正）
+      import('../api/auth').then(({ updateUiSettings }) => {
+        updateUiSettings({ menuLayout: data.menuLayout }).catch(() => {})
+      })
     }
   }
 
@@ -131,6 +161,7 @@ export const useUserStore = defineStore('user', () => {
         departmentId: (d.department ?? undefined) as string | number | undefined,
         roles,
         roleType: deriveRoleType(roles),
+        uiSettings: d.uiSettings,
       })
       return true
     } catch (err: any) {
@@ -149,11 +180,13 @@ export const useUserStore = defineStore('user', () => {
     user,
     accessToken,
     refreshToken,
+    uiSettings,
     setUser,
     setToken,
     setAccessToken,
     setRefreshToken,
     setUserData,
+    setUiSettings,
     fetchMe,
     logout
   }

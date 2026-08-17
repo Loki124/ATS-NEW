@@ -4,148 +4,158 @@
       <h1 class="page-title">账号设置</h1>
     </div>
 
-    <n-tabs v-model:value="activeTab" type="line" animated default-value="profile">
+    <n-tabs v-model:value="activeTab" type="line" default-value="profile" class="account-tabs">
       <n-tab-pane name="profile">
         <template #tab>
           <span class="inline-flex items-center gap-1"><n-icon :component="PersonOutline" /> 基本信息</span>
         </template>
-        <n-card title="个人信息">
-          <n-form :model="formState" label-placement="left" :label-width="100">
-            <div class="grid grid-cols-2 gap-x-6">
-              <n-form-item label="用户名">
-                <n-input v-model:value="formState.username" disabled />
-              </n-form-item>
-              <n-form-item label="真实姓名" path="realName">
-                <n-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
-              </n-form-item>
-              <n-form-item label="邮箱" path="email">
-                <n-input v-model:value="formState.email" placeholder="请输入邮箱" />
-              </n-form-item>
-              <n-form-item label="手机号" path="phone">
-                <n-input v-model:value="formState.phone" placeholder="请输入手机号" />
-              </n-form-item>
-            </div>
-            <n-divider />
-            <div class="grid grid-cols-2 gap-x-6">
-              <n-form-item label="新密码">
-                <n-input v-model:value="formState.newPassword" type="password" show-password-on="click" placeholder="请输入新密码（不修改请留空）" />
-              </n-form-item>
-              <n-form-item label="确认密码">
-                <n-input v-model:value="formState.confirmPassword" type="password" show-password-on="click" placeholder="请再次输入密码" />
-              </n-form-item>
-            </div>
-            <n-space>
-              <n-button type="primary" @click="handleSaveProfile">保存</n-button>
-              <n-button @click="handleReset">重置</n-button>
-            </n-space>
-          </n-form>
-        </n-card>
+        <div class="tab-pane-content">
+          <n-card title="个人信息">
+            <n-form :model="formState" label-placement="left" :label-width="100">
+              <div class="grid grid-cols-2 gap-x-6">
+                <n-form-item label="用户名">
+                  <n-input v-model:value="formState.username" disabled />
+                </n-form-item>
+                <n-form-item label="真实姓名" path="realName">
+                  <n-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
+                </n-form-item>
+                <n-form-item label="邮箱" path="email">
+                  <n-input v-model:value="formState.email" placeholder="请输入邮箱" />
+                </n-form-item>
+                <n-form-item label="手机号" path="phone">
+                  <n-input v-model:value="formState.phone" placeholder="请输入手机号" />
+                </n-form-item>
+              </div>
+              <n-divider />
+              <div class="grid grid-cols-2 gap-x-6">
+                <n-form-item label="新密码">
+                  <n-input v-model:value="formState.newPassword" type="password" show-password-on="click" placeholder="请输入新密码（不修改请留空）" />
+                </n-form-item>
+                <n-form-item label="确认密码">
+                  <n-input v-model:value="formState.confirmPassword" type="password" show-password-on="click" placeholder="请再次输入密码" />
+                </n-form-item>
+              </div>
+              <n-space>
+                <n-button type="primary" @click="handleSaveProfile">保存</n-button>
+                <n-button @click="handleReset">重置</n-button>
+              </n-space>
+            </n-form>
+          </n-card>
+        </div>
       </n-tab-pane>
 
       <n-tab-pane name="roles">
         <template #tab>
           <span class="inline-flex items-center gap-1"><n-icon :component="ShieldCheckmarkOutline" /> 角色分配</span>
         </template>
-        <n-card title="我的角色">
-          <template #header-extra>
-            <n-button type="primary" @click="showRoleModal = true">分配角色</n-button>
-          </template>
-          <template v-if="userRoles.length > 0">
-            <n-space size="large" :wrap="true">
-              <n-tag v-for="roleId in userRoles" :key="roleId" type="info" :style="{ padding: '8px 16px', fontSize: '14px' }">
-                {{ getRoleName(roleId) }}
-              </n-tag>
-            </n-space>
-          </template>
-          <n-empty v-else description="暂未分配角色" />
+        <div class="tab-pane-content">
+          <n-card title="我的角色">
+            <template #header-extra>
+              <n-button type="primary" @click="showRoleModal = true">分配角色</n-button>
+            </template>
+            <template v-if="userRoles.length > 0">
+              <n-space size="large" :wrap="true">
+                <n-tag v-for="roleId in userRoles" :key="roleId" type="info" :style="{ padding: '8px 16px', fontSize: '14px' }">
+                  {{ getRoleName(roleId) }}
+                </n-tag>
+              </n-space>
+            </template>
+            <n-empty v-else description="暂未分配角色" />
 
-          <n-divider />
+            <n-divider />
 
-          <h4 style="margin-bottom: 16px">可选角色列表</h4>
-          <n-data-table
-            :data="roles"
-            :columns="roleColumnsWithSelection"
-            :row-key="(row: any) => row.id"
-            size="small"
-            :pagination="{ pageSize: 5 }"
-            :checked-row-keys="userRoles"
-            @update:checked-row-keys="handleRoleSelectChange"
-          />
-        </n-card>
+            <h4 style="margin-bottom: 16px">可选角色列表</h4>
+            <n-data-table
+              :data="roles"
+              :columns="roleColumnsWithSelection"
+              :row-key="(row: any) => row.id"
+              size="small"
+              :pagination="{ pageSize: 5 }"
+              :checked-row-keys="userRoles"
+              @update:checked-row-keys="handleRoleSelectChange"
+            />
+          </n-card>
+        </div>
       </n-tab-pane>
 
       <n-tab-pane name="menus">
         <template #tab>
           <span class="inline-flex items-center gap-1"><n-icon :component="LockClosedOutline" /> 菜单权限</span>
         </template>
-        <n-card title="可访问的菜单">
-          <template v-if="myPermissions.menus && myPermissions.menus.length > 0">
-            <div class="grid grid-cols-4 gap-4">
-              <n-card v-for="menu in myPermissions.menus" :key="menu.id" size="small" style="background: #f5f5f5">
-                <n-space>
-                  <span style="font-size: 16px">📁</span>
-                  <span>{{ menu.name }}</span>
-                </n-space>
-                <n-tag v-if="menu.resource" type="info" style="margin-left: 8px">{{ menu.resource }}</n-tag>
-              </n-card>
-            </div>
-          </template>
-          <n-empty v-else description="暂无可访问的菜单" />
-        </n-card>
+        <div class="tab-pane-content">
+          <n-card title="可访问的菜单">
+            <template v-if="myPermissions.menus && myPermissions.menus.length > 0">
+              <div class="grid grid-cols-4 gap-4">
+                <n-card v-for="menu in myPermissions.menus" :key="menu.id" size="small" style="background: #f5f5f5">
+                  <n-space>
+                    <span style="font-size: 16px">📁</span>
+                    <span>{{ menu.name }}</span>
+                  </n-space>
+                  <n-tag v-if="menu.resource" type="info" style="margin-left: 8px">{{ menu.resource }}</n-tag>
+                </n-card>
+              </div>
+            </template>
+            <n-empty v-else description="暂无可访问的菜单" />
+          </n-card>
+        </div>
       </n-tab-pane>
 
       <n-tab-pane name="functions">
         <template #tab>
           <span class="inline-flex items-center gap-1"><n-icon :component="KeyOutline" /> 功能权限</span>
         </template>
-        <n-card title="可执行的操作">
-          <template v-if="myPermissions.functions && myPermissions.functions.length > 0">
-            <div class="grid grid-cols-3 gap-3">
-              <n-card v-for="func in myPermissions.functions" :key="func.id" size="small" style="background: #f0f5ff">
-                <n-space vertical :size="4">
-                  <strong>{{ func.name }}</strong>
-                  <n-space>
-                    <n-tag type="success">{{ func.action || '*' }}</n-tag>
-                    <n-tag v-if="func.resource" type="info">{{ func.resource }}</n-tag>
+        <div class="tab-pane-content">
+          <n-card title="可执行的操作">
+            <template v-if="myPermissions.functions && myPermissions.functions.length > 0">
+              <div class="grid grid-cols-3 gap-3">
+                <n-card v-for="func in myPermissions.functions" :key="func.id" size="small" style="background: #f0f5ff">
+                  <n-space vertical :size="4">
+                    <strong>{{ func.name }}</strong>
+                    <n-space>
+                      <n-tag type="success">{{ func.action || '*' }}</n-tag>
+                      <n-tag v-if="func.resource" type="info">{{ func.resource }}</n-tag>
+                    </n-space>
                   </n-space>
-                </n-space>
-              </n-card>
-            </div>
-          </template>
-          <n-empty v-else description="暂无功能权限" />
-        </n-card>
+                </n-card>
+              </div>
+            </template>
+            <n-empty v-else description="暂无功能权限" />
+          </n-card>
+        </div>
       </n-tab-pane>
 
       <n-tab-pane name="data">
         <template #tab>
           <span class="inline-flex items-center gap-1"><n-icon :component="KeyOutline" /> 数据权限</span>
         </template>
-        <n-card title="数据访问范围">
-          <template #header-extra>
-            <n-button type="primary" @click="showDataPermissionModal = true">配置数据权限</n-button>
-          </template>
-          <n-space vertical size="large" style="width: 100%">
-            <template v-if="myPermissions.dataScopes && myPermissions.dataScopes.length > 0">
-              <n-card v-for="(scope, index) in myPermissions.dataScopes" :key="index" size="small">
-                <n-space>
-                  <n-tag :type="getDataScopeType(scope.scope)">{{ getDataScopeLabel(scope.scope) }}</n-tag>
-                  <span>{{ scope.label }}</span>
-                </n-space>
-              </n-card>
+        <div class="tab-pane-content">
+          <n-card title="数据访问范围">
+            <template #header-extra>
+              <n-button type="primary" @click="showDataPermissionModal = true">配置数据权限</n-button>
             </template>
-            <n-empty v-else description="默认仅有本人数据访问权限" />
-          </n-space>
+            <n-space vertical size="large" style="width: 100%">
+              <template v-if="myPermissions.dataScopes && myPermissions.dataScopes.length > 0">
+                <n-card v-for="(scope, index) in myPermissions.dataScopes" :key="index" size="small">
+                  <n-space>
+                    <n-tag :type="getDataScopeType(scope.scope)">{{ getDataScopeLabel(scope.scope) }}</n-tag>
+                    <span>{{ scope.label }}</span>
+                  </n-space>
+                </n-card>
+              </template>
+              <n-empty v-else description="默认仅有本人数据访问权限" />
+            </n-space>
 
-          <n-divider />
+            <n-divider />
 
-          <h4>数据权限说明</h4>
-          <n-data-table
-            :data="dataScopeDesc"
-            :columns="dataScopeColumns"
-            :pagination="false"
-            size="small"
-          />
-        </n-card>
+            <h4>数据权限说明</h4>
+            <n-data-table
+              :data="dataScopeDesc"
+              :columns="dataScopeColumns"
+              :pagination="false"
+              size="small"
+            />
+          </n-card>
+        </div>
       </n-tab-pane>
     </n-tabs>
 
@@ -433,14 +443,43 @@ onMounted(() => {
 
 <style scoped>
 .page-container {
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* padding 由 SettingsLayout 统一提供, 避免双重留白 */
+  padding: 0;
 }
 .page-header {
-  margin-bottom: 24px;
+  flex-shrink: 0;
+  margin-bottom: 16px;
 }
 .page-title {
   font-size: 24px;
   font-weight: 600;
   margin: 0;
+}
+
+/* 账号设置 tabs：固定 tab 栏，内容区内部滚动 */
+.account-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.account-tabs :deep(.n-tabs-nav) {
+  flex-shrink: 0;
+}
+.account-tabs :deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.account-tabs :deep(.n-tab-pane) {
+  min-height: 100%;
+}
+.tab-pane-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 </style>

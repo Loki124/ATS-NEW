@@ -103,17 +103,47 @@ def logout_view(request):
         )
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def me_view(request):
-    """当前用户信息 - V2 权限 + 数据范围."""
+    """当前用户信息 - V2 权限 + 数据范围.
+
+    GET  : 返回用户资料 + 偏好（uiSettings）。
+    PATCH: 仅更新 uiSettings（合并写入 JSON，不覆盖整段），返回更新后的 me。
+    """
     from django.db.utils import OperationalError, ProgrammingError
     from apps.core.models_permission_v2 import (
         PermissionResource, RolePermissionV2, UserRoleV2,
     )
     from apps.core.scope_resolver import resolve_scope
+    from apps.core.models import UserPreference
 
     user = request.user
+
+    # ===== PATCH: 更新 UI 偏好 =====
+    if request.method == 'PATCH':
+        payload = request.data or {}
+        # 入参经 camel-case parser 转 snake，兼容两种 key
+        ui_settings = payload.get('ui_settings')
+        if ui_settings is None:
+            ui_settings = payload.get('uiSettings')
+        if not isinstance(ui_settings, dict):
+            return Response(
+                {'success': False, 'message': 'uiSettings 必须是对象'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        pref = UserPreference.get_for_user(user)
+        merged = {**(pref.settings or {}), **ui_settings}
+        # 校验 menu_layout 合法值
+        if 'menu_layout' in merged and merged['menu_layout'] not in ('side', 'top'):
+            merged['menu_layout'] = 'side'
+        pref.settings = merged
+        pref.save(update_fields=['settings'])
+        return Response({
+            'success': True,
+            'data': {'uiSettings': pref.settings},
+        })
+
     permissions = []
     if user.is_authenticated:
         if getattr(user, 'is_superuser', False):
@@ -168,5 +198,7 @@ def me_view(request):
             # R8 (2026-08-03): DEPT / DEPT_AND_SUB 范围走 department_ids
             'department_ids': scope.get('department_ids', []),
             'data_scope': scope,
+            # 用户 UI 偏好（菜单布局等），跟随账号
+            'uiSettings': UserPreference.get_for_user(user).settings,
         },
     })

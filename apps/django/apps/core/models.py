@@ -252,6 +252,37 @@ class Permission(models.Model):
         super().save(*args, **kwargs)
 
 
+class UserPreference(models.Model):
+    """用户偏好（UI 等），按用户存储，跟随账号而非浏览器。
+
+    - settings: JSON 字典。当前使用键：
+        - menu_layout: 'side'（左侧竖排，默认）| 'top'（顶部横排）
+      保留扩展空间，后续可加主题、密度等 UI 偏好。
+    """
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='preference', verbose_name='用户'
+    )
+    settings = models.JSONField(default=dict, blank=True, verbose_name='偏好设置')
+
+    class Meta:
+        verbose_name = '用户偏好'
+        verbose_name_plural = '用户偏好'
+
+    def __str__(self):
+        return f'用户偏好(uid={self.user_id})'
+
+    @classmethod
+    def get_for_user(cls, user):
+        """取或建当前用户的偏好（保证单例行存在）。"""
+        obj, _ = cls.objects.get_or_create(user=user, defaults={'settings': {}})
+        return obj
+
+    def get_menu_layout(self) -> str:
+        layout = (self.settings or {}).get('menu_layout', 'side')
+        return layout if layout in ('side', 'top') else 'side'
+
+
 # ---- V2 权限系统 (spec §3.2, T2) ----
 # 显式 import 让 Django 注册器发现 V2 models (V1/V2 共存于 T17 drop_old 前)
 from .models_permission_v2 import (  # noqa: E402,F401

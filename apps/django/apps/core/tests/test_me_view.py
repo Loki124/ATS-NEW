@@ -32,3 +32,38 @@ def test_me_view_anonymous_returns_empty(auth_client):
     resp = auth_client.get('/api/v1/auth/me/')
     # 401 (token 缺失) 或 403 (auth middleware) 都算正常, 关键是不要 500
     assert resp.status_code in (200, 401, 403)
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_me_view_ui_settings_default_and_patch(auth_client):
+    """me 默认返回空 uiSettings; PATCH 写入 menuLayout 并持久化; 非法值回落 side."""
+    resp = auth_client.get('/api/v1/auth/me/')
+    assert resp.status_code == 200
+    assert resp.json()['data']['uiSettings'] == {}
+
+    # PATCH 切换为顶部横排
+    patch = auth_client.patch(
+        '/api/v1/auth/me/', {'uiSettings': {'menuLayout': 'top'}}, format='json'
+    )
+    assert patch.status_code == 200
+    assert patch.json()['data']['uiSettings'] == {'menuLayout': 'top'}
+
+    # GET 持久化
+    again = auth_client.get('/api/v1/auth/me/')
+    assert again.json()['data']['uiSettings'] == {'menuLayout': 'top'}
+
+    # 非法 menu_layout 回落 side
+    bad = auth_client.patch(
+        '/api/v1/auth/me/', {'uiSettings': {'menuLayout': 'diagonal'}}, format='json'
+    )
+    assert bad.status_code == 200
+    assert bad.json()['data']['uiSettings']['menuLayout'] == 'side'
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_me_view_ui_settings_rejects_non_dict(auth_client):
+    """uiSettings 必须是对象, 否则 400."""
+    resp = auth_client.patch('/api/v1/auth/me/', {'uiSettings': 'top'}, format='json')
+    assert resp.status_code == 400
