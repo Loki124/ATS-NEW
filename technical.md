@@ -1,6 +1,6 @@
 # ATS-NEW 技术说明文档
 
-> **最后更新**: 2026-08-04 @ HEAD `010e4d4`
+> **最后更新**: 2026-08-17 @ HEAD `9e353ee`
 > **作者**: 许清楚（PM 文档 overhaul）+ 寇豆码（T01.1 修复）
 > **修复 commit**: 本文档经历整段重写，删除所有 Node.js/Express/Prisma 残留（架构师已在 ARCHITECTURE_REVIEW_2026-08-03 §6.1 D1-D4 标出）
 > **真实架构图**: 见 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` §3 Mermaid 图（最权威）
@@ -15,7 +15,7 @@
 | 业务表 | **59** (`db_table=`) + V2 9 表 + 备份 4 表 | grep `db_table =` |
 | API 路由 | **148 条** + 49 router | `config/urls.py` 计数 |
 | 状态机 | **7 FSMField / 43 @transition** | `django-fsm==3.0.1` |
-| 后端测试 | **384 passed / 0 failed** | `pytest --deselect` CI 等价 |
+| 后端测试 | **518 passed / 0 failed**（2026-08-11 基线；本次又新增字典 22 + 公告 18 等，详见 CHANGELOG） | `pytest` 全量 |
 | 前端测试 | **132 vitest passed** | `npm test` |
 | Migrations | **45 个**（24 app, 26 目录） | `find apps/django -name migrations` |
 | 健康检查 | `/health/` | `config/urls.py:125` |
@@ -70,7 +70,7 @@ graph TB
 
 ---
 
-## 3. 技术栈（2026-08-04 真实）
+## 3. 技术栈（2026-08-17 真实）
 
 | 层级 | 技术 | 版本 | 说明 |
 |---|---|---|---|
@@ -84,6 +84,7 @@ graph TB
 | | vue-tsc | 2.2 | TS 严格模式 (R10 修复 3 error) |
 | | vitest | 2.x | 132 tests, happy-dom |
 | | Playwright | 1.49 | 6 spec / 18 场景 |
+| | @wangeditor/editor + editor-for-vue | 5.x | 富文本编辑器 RichEditor（全屏编辑，独立分包 vendor-rich-editor） |
 | **后端** | Django | **6.0.6** | 2026-07 解锁主版本锁 |
 | | DRF | **3.17.1** | ViewSet + drf-spectacular |
 | | djangorestframework-simplejwt | 5.5.1 | access 60min + refresh 7d + ROTATE |

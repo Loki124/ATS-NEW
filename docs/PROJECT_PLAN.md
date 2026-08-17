@@ -1,6 +1,6 @@
 # ATS招聘管理系统 - 项目实施计划
 
-> **最后更新**: 2026-08-03 — 实际技术栈与当前实现对齐
+> **最后更新**: 2026-08-17 — 实际技术栈与当前实现对齐（本次新增 6 大功能，详见 [CHANGELOG.md](CHANGELOG.md) 2026-08-17 条目）
 > **重要**: 本文档是**历史规划记录** (2025/10 → 2026/04), 不是当前架构。
 > 当前真实状态见 [README.md](../README.md) + [ARCHITECTURE.md](ARCHITECTURE.md) + [CHANGELOG.md](CHANGELOG.md) + [COMPLIANCE_AUDIT_2026-08-03.md](COMPLIANCE_AUDIT_2026-08-03.md)。
 >
@@ -10,7 +10,7 @@
 > - 数据库: MySQL 8 (生产) / SQLite 3 (dev + test)
 > - Python: 3.14 (不是 3.10+)
 > - 目录: `apps/django/` + `web/app/` (不是 `backend/` + `frontend/`)
-> - 28 个 app / 60+ 端点 / 78 张表 / 9 业务状态机 / 39 pytest + 132 vitest 全过
+> - 29 个 app / 60+ 端点 / 78 张表 / 9 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest，详见 CHANGELOG）
 
 ---
 
@@ -396,7 +396,7 @@ Offer沟通 → 背调 → 待入职 → 入职
 
 ---
 
-*文档版本: V2.0 → V2.1 (2026-08-03 Mavis 现状对齐)*
+*文档版本: V2.0 → V2.2 (2026-08-17 交付里程碑对齐)*
 *创建时间: 2025/10/30*
-*最后更新: 2026-08-03*
-*技术栈版本: Django 6.0.6 + DRF 3.15 + Vue 3 + Vite 5 + Naive UI 2.44 + UnoCSS*
+*最后更新: 2026-08-17*
+*技术栈版本: Django 6.0.6 + DRF 3.15 + Vue 3 + Vite 5 + Naive UI 2.44 + UnoCSS + wangEditor 5*

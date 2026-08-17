@@ -1,21 +1,22 @@
 # ATS-NEW 需求说明文档
 
-> **最后更新**: 2026-08-04 @ HEAD `010e4d4` (T01.1 落地)
+> **最后更新**: 2026-08-17 @ HEAD `9e353ee`
 > **作者**: 许清楚（PM 文档 overhaul）
 > **真实架构**: Django 6.0.6 + DRF 3.17.1 + Vue 3 + Vite 5 + Naive UI 2.44
 > **实施进度**: 同步 [docs/CHANGELOG.md](./docs/CHANGELOG.md) + [docs/PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) + [docs/PHASE2_DESIGN_2026-08-03.md](./docs/PHASE2_DESIGN_2026-08-03.md)
 
 ---
 
-## 0. 实现进度速览（2026-08-04）
+## 0. 实现进度速览（2026-08-17）
 
 | 阶段 | 状态 | 关键交付 |
 |---|---|---|
 | **P0 核心 14 项** | ✅ **14/14 done** | 业务 + V2 共 78 张表 / 60+ 端点 / 7 业务状态机 / 384 pytest + 132 vitest |
 | **P1 重要模块** | ✅ **12/12 done** | 字段脱敏 / 倒序推荐 / 历史评价预填 / 手动背调 / 智能分配 / 6 子库 / Moka 同步 / 字段 ACL / 11 状态字段 |
 | **P2 外部集成** | 🟡 部分 | 企微 / 腾讯会议 / 摩卡 / 背调 / RPA / IM — 需企业 API 授权 |
-| **P3 数据治理** | ⬜ **0/5 done**（4 个 0-model 空壳 app + 1 枚举字典） | 院校公司库 / 动态字段表 / OCR 查重 |
+| **P3 数据治理** | ✅ **5/5 done** | 院校公司库 / 动态字段表 / OCR 查重（详见 CHANGELOG / PROJECT_PLAN） |
 | **Phase 2 (T01-T07)** | 🟡 T01.1 ✅ (010e4d4) 余下进行中 | 权限单轨化 / stub 端点落地 / 空壳 app 清理 / 路由收敛 |
+| **2026-08-17 交付** | ✅ done | 通用数据字典(注册表模式) / 用户偏好 / 招聘阶段接入字典 / 候选人列表重构 / 富文本编辑器(wangEditor 全屏) / 政策制度模块 |
 
 **已实现的核心能力**:
 - ✅ 多角色登录（SUPER_ADMIN / ADMIN / HR / HRBP / 面试官 / 用人经理）+ JWT 双 token
@@ -30,9 +31,15 @@
 - ✅ V2 字段级权限系统（资源码 + 4 层数据范围 L1-L4）+ FieldAclService
 - ✅ GDPR 数据主体请求（匿名化 + 留存清理）
 - ✅ Moka 同步（`wechatWorkUserId` / `mochaUserId` 字段 + 集成配置 Fernet 加密）
+- ✅ 通用数据字典模块（apps.dictionary）：DictionaryType/DictionaryItem CRUD + 注册表模式，业务枚举（如招聘阶段类型）由各业务模块经 `register_dictionary_seed` 注入，字典 app 零业务硬编码
+- ✅ 用户偏好 / 账号设置（UserPreference）：菜单布局等个性化设置持久化
+- ✅ 招聘阶段类型接入数据字典：stage_type 去硬编码 choices，改由字典 `recruitment_stage_type` 校验
+- ✅ 候选人列表重构：列表展示 / 筛选 / 交互重做
+- ✅ 真实富文本编辑器（wangEditor 5）：通用 RichEditor 组件 + 全屏编辑，应用于政策制度「文档说明」
+- ✅ 政策制度 / 公告模块：返回按钮 / 模块间距 UI 调整 + 公告详情页 + 后端 CRUD 收口
 
-**统计指标**（2026-08-04 实测）:
-- 后端: 30 apps / 148 路由 / 49 ViewSet / 24 pytest 套件 / 384 pytest + 132 vitest
+**统计指标**（持续更新，详见 CHANGELOG）:
+- 后端: 30 apps / 148 路由 / 49 ViewSet / pytest 全量持续全过（2026-08-11 基线 518 passed，本次又新增字典 22 + 公告 18 等）+ 132 vitest
 - 前端: 38 .vue 页面 / 27 API 客户端 / 5 核心 CRUD 接后端
 - DB: MySQL 8 / 78 张表（59 业务 + 9 V2 权限 + 4 V1 备份 + 6 内建）
 - CI: `.github/workflows/ci.yml` (Trivy + 后端全量 + 前端类型 + lint 真阻断)

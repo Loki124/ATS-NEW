@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-08-17 — 通用数据字典 + 用户偏好 + 招聘阶段接入字典 + 候选人列表重构 + 富文本编辑器 + 政策制度模块
+
+> 由主理人（SoftwareCompany 工作流）完成。本批 89 个提交已推送 Gitee `origin/main`（`5121985..9e353ee`）。
+
+### 🧩 新增：通用数据字典模块（apps.dictionary，注册表模式）
+- **`864e9f7`** 补全 `DictionaryType` / `DictionaryItem` 模型、CRUD 路由（dictionary-types / dictionary-items）、admin 占位、CRUD 测试与初始迁移 `0001_init_dictionary`；`config/settings/base.py` 注册 `apps.dictionary`，`config/urls.py` 挂载字典路由（spa_fallback 正则补 media/ 排除项）。
+- **注册表模式（零业务硬编码）**：`apps/dictionary/registry.py` 提供 `SEED_REGISTRY` + `register_dictionary_seed()` + `run_dictionary_seeds()`；`apps/dictionary/apps.py` 在 `post_migrate` 钩子调用 `run_dictionary_seeds()` 幂等注入（`update_or_create`）。业务模块（如 `process`）自行 `register_dictionary_seed(seed_recruitment_stage_type)` 注入枚举项，dictionary app 本身不含任何业务字段。`init_dictionary` management command 改走 `run_dictionary_seeds()`。
+
+### 👤 新增：用户偏好 / 账号设置（UserPreference）
+- **`f0d6b07`** `core/models.py` 新增 `UserPreference`（OneToOne User，JSON `settings` 含 `menu_layout`）+ 迁移 `0005_userpreference`；`core/views_auth.py` 提供偏好读写接口；`core/tests/test_me_view.py` 补偏好用例。前端 `stores/user.ts` / `api/auth.ts` 接入偏好，`AccountSettings.vue` 重做账号设置页。
+
+### 🔗 改：招聘阶段类型接入数据字典 + 流程版本化
+- **`72f9196`** `process/models.py`：`stage_type` 去除硬编码 `choices`，改由数据字典 `recruitment_stage_type` 校验（`clean()` 校验已启用且未软删）；迁移 `0006_stage_type_from_dictionary` 将 `stage_type` 改为普通 `CharField`。`process/serializers.py` 同步；`init_demo_data` 改先 `init_dictionary` 再 `init_stages`；`seeds/01_system_stages.json` 更新取值。前端 `api/recruitment-process.ts` 与 `ProcessDetailModal` / `StageEditor` / `RecruitmentStage` 对接字典来源阶段类型。
+
+### 📋 重构：候选人列表
+- **`9e353ee`** `CandidateList.vue` 大幅重写（约 +670/-184），重做列表展示、筛选与交互。
+
+### 📝 富文本编辑器（真实 wangEditor 5 + 全屏）
+- **`a5fac14`** 新增 `web/app/src/components/RichEditor.vue`：基于 `@wangeditor/editor` + `@wangeditor/editor-for-vue` 的通用富文本组件，支持 `v-model:html` 双向绑定；全屏编辑用 `n-modal` 承载第二个编辑器实例（规避 wangEditor 自带 `fullScreen` 在 `n-drawer` transform 祖先内被 z-index 裁剪），两实例共享同一 HTML、关闭回写主编辑器。
+- `vite.config.ts` 将 wangEditor 独立分包 `vendor-rich-editor`（≈807KB JS + 14KB CSS），不拖累首屏；`tsconfig.json` 直指 `@wangeditor/editor-for-vue` d.ts 解决 TS7016。应用于政策制度设置页「文档说明」字段，替换原 contenteditable 伪编辑器。
+
+### 🏛 政策制度 / 公告模块收口（UI）
+- **`f0c6a62`** + **`7b20fc8`**：列表页返回按钮下沉至左侧栏标题左侧（文字型 `n-button` + `ChevronBackOutline`，点击回 `/dashboard`）；「最近浏览」与「最近更新」两模块间距 24px；移除 `Layout.vue` 顶栏重复返回块（并移除 import 中 `ChevronBackOutline` 避免 `noUnusedLocals`）。新增公告详情页 `AnnouncementDetail.vue` + `api/announcement.ts`；公告后端（models/serializers/tests/views）+ 迁移 0004-0006 收口（`7b20fc8`，15 文件 +1855/-600）。
+
+### ✅ 验证
+- 工程师自测 + QA 独立复核：vue-tsc 0 错、vite build 全过、零 Bug。字典模块后端 22/22 通过；公告 18 个 pytest 通过；全量基线（不含临时探针、不再 deselect）已达 **518 passed**（2026-08-11），本次又新增字典 22 + 公告 18 等。
+
+---
+
 ## [Unreleased] - 2026-08-03 — 全量复盘 + 合规审计 + 测试基线 + 文档现状对齐
 
 > 由 Mavis (产品经理代码伙伴) 完成。修复了文档与代码不一致、stub 路由静默、CI 过期、admin token 写死等 4 个严重问题 + 10 个中等问题,详见 [`docs/COMPLIANCE_AUDIT_2026-08-03.md`](COMPLIANCE_AUDIT_2026-08-03.md)。

@@ -1,8 +1,10 @@
 # ARCHITECTURE — 系统架构
 
-> **最后更新**: 2026-08-03 — Django 6.0 + DRF 3.15, 28 apps / 60+ 端点 / 9 业务状态机 / 39 pytest + 132 vitest 全过
+> **最后更新**: 2026-08-17 — Django 6.0 + DRF 3.15, 29 apps / 60+ 端点 / 9 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest；详见 CHANGELOG）
 >
 > 旧 Node.js/Express 架构已废弃 (2026-06 切到 Django, 详见 `MIGRATION.md`).
+>
+> ⚠️ 注意：本文档「数据流示例 / 关键技术决策 / 部署架构 / 安全模型」等节仍保留 2026-06 之前的 Node.js/Express/Prisma 描述，与上方 Django 架构不一致，正在专项清理中（当前权威栈见 [`../technical.md`](../technical.md)）。
 
 ## 总览
 
@@ -49,14 +51,14 @@ apps/django/
 │   └── celery_app.py              # Celery app 实例
 │
 ├── apps/                          # 28 个业务 app
-│   ├── core/                      # User/Department/Role + V2 权限 (permission_check/role_v2_query/scope_resolver)
+│   ├── core/                      # User/Department/Role + V2 权限 + UserPreference (账号设置/菜单布局偏好)
 │   ├── field_acl/                 # 字段级 ACL (mask phone/email/salary)
 │   ├── audit/                     # 5 路审计 (中间件 + signal + models)
 │   ├── notification/              # 22 模板 + 4 渠道
 │   ├── integration/               # 企微/短信/RPA adapter (Fernet 加密凭据)
 │   ├── gdpr/                      # 数据保留 + 软删除
 │   │
-│   ├── process/                   # 招聘流程引擎 (RecruitmentProcess/Stage/Link/Rule)
+│   ├── process/                   # 招聘流程引擎 (RecruitmentProcess/Stage/Link/Rule); stage_type 现由数据字典 recruitment_stage_type 校验
 │   ├── entry_condition/           # 阶段进入条件
 │   ├── time_limit/                # 阶段限时规则
 │   ├── automation/                # 自动化规则
@@ -80,9 +82,10 @@ apps/django/
 │   ├── scraped_resume/            # G30 RPA (mock adapter)
 │   ├── external_sync/             # G40 法人公司同步 (stub)
 │   ├── duplicate_check/           # G45 简历查重 (stub)
+│   ├── dictionary/                # 通用数据字典 CRUD + 注册表模式 (业务枚举经 register_dictionary_seed 注入, 零业务硬编码)
 │   └── data/                      # G35 数据中心 (stub, 实际 endpoint 在 analytics/)
 │
-├── tests/                         # 39 pytest (12 套件, 100% pass)
+├── tests/                         # pytest 全量持续全过 (2026-08-11 基线 518 passed, 详见 CHANGELOG)
 ├── seeds/                         # 7 个 seed JSON (system_stages / system_roles / 4 offer 模板 / demo_user)
 ├── scripts/                       # init.sh / create_tables_sql.py / verify_audit_fixes.py
 ├── conftest.py                    # pytest fixtures + V2 schema 兼容 (sqlite 上补 V2 列)
@@ -97,13 +100,13 @@ web/app/
 │   ├── api/                       # 27+ 业务 API 客户端 (axios + JWT 拦截器 + request dedup)
 │   ├── stores/                    # Pinia (user/addCandidate/demand/department)
 │   ├── router/                    # vue-router 4 + RBAC 守卫 (meta.roles + requiresAuth)
-│   ├── components/                # 通用 + dashboard + common + candidate
-│   ├── pages/                     # 38+ 路由页面 (Layout/Login/Dashboard/各业务域)
+│   ├── components/                # 通用 + dashboard + common + candidate + RichEditor (wangEditor 5, 支持全屏)
+│   ├── pages/                     # 38+ 路由页面 (Layout/Login/Dashboard/各业务域/Announcement 政策制度/AccountSettings)
 │   ├── styles/                    # tokens.css (OKLCH + 4pt spacing + fade-up stagger)
 │   ├── utils/                     # debounce/request-dedup/role 派生
 │   └── config/                    # api.baseUrl + backend.url/port 统一配置
 ├── e2e/                           # Playwright 6 spec
-├── vite.config.ts                 # es2022 + manualChunks (vendor-naive-ui atomic)
+├── vite.config.ts                 # es2022 + manualChunks (vendor-naive-ui atomic + vendor-rich-editor 独立分包)
 ├── tsconfig.json                  # target: ES2022 + strict
 └── eslint.config.js               # ESLint 9 flat
 ```
@@ -134,6 +137,17 @@ API 出 Python snake_case → JSON camelCase (FE 直接消费); API 入 FE camel
 ### 5. admin token env 注入
 
 `/admin/` 改成 `/${ADMIN_URL_TOKEN}/` (默认 `ops-dashboard-7f3b9c2e`, 生产必须设随机串)。spa_fallback 同步。
+
+### 6. 通用数据字典 + 注册表模式 (2026-08-17)
+
+`apps/dictionary` 是**通用基础模块**,不含任何业务硬编码字段。`DictionaryType`(字典类型,如 `recruitment_stage_type`) + `DictionaryItem`(字典项,含启用/软删状态) 提供 CRUD。
+
+枚举注入走**注册表模式**:
+- `apps/dictionary/registry.py`: `SEED_REGISTRY` + `register_dictionary_seed(seeder)`(去重) + `run_dictionary_seeds()`。
+- `apps/dictionary/apps.py` 在 `post_migrate` 钩子调用 `run_dictionary_seeds()`,对每项 `update_or_create`(幂等)。
+- 业务模块(如 `apps/process/seeds.py` 的 `seed_recruitment_stage_type`)在自身 `apps.py.ready()` 里 `register_dictionary_seed(...)`,自行注入所需枚举。**dictionary app 本身零业务耦合**。
+
+`process` 的 `stage_type` 原是模型 `choices` 硬编码,现改为普通 `CharField`,由 `clean()` 校验取值属于「已启用且未软删」的 `recruitment_stage_type` 字典项(迁移 `0006_stage_type_from_dictionary`)。
 
 ## 性能优化 (Plan O, 2026-06-11)
 

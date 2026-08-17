@@ -1,6 +1,6 @@
 # ATS 招聘管理系统 — 文档索引
 
-> **最后更新**: 2026-08-03 — Django 6.0.6 + DRF 3.15 + Vue 3 + Vite 5 + Naive UI 2.44
+> **最后更新**: 2026-08-17 — Django 6.0.6 + DRF 3.15 + Vue 3 + Vite 5 + Naive UI 2.44
 > 项目是 Django 时代 (2026-06 切换, 旧 Node.js/Express/Prisma 栈已下线)。
 
 ## 📋 入口
@@ -21,7 +21,7 @@
 
 ---
 
-## 🏆 项目状态 (2026-08-03)
+## 🏆 项目状态 (2026-08-17)
 
 | 阶段 | 状态 | 关键交付 |
 |---|---|---|
@@ -44,9 +44,15 @@
 - ✅ 字段级脱敏 (G8: phone/email/id_card/bankCard/salary) + 字段 ACL (G43)
 - ✅ 5 路审计 + 批量修 critical
 - ✅ 性能优化 (Plan O): gzip + ETag 304 + 分页 + N+1 检测 + lazy load + code splitting
+- ✅ 通用数据字典模块（apps.dictionary）：DictionaryType/DictionaryItem CRUD + 注册表模式，业务枚举（如招聘阶段类型）由各业务模块经 `register_dictionary_seed` 注入，字典 app 零业务硬编码
+- ✅ 用户偏好 / 账号设置（UserPreference）：菜单布局等个性化设置持久化
+- ✅ 招聘阶段类型接入数据字典：stage_type 去硬编码 choices，改由字典 `recruitment_stage_type` 校验
+- ✅ 候选人列表重构：列表展示 / 筛选 / 交互重做
+- ✅ 真实富文本编辑器（wangEditor 5）：通用 RichEditor 组件 + 全屏编辑，应用于政策制度「文档说明」
+- ✅ 政策制度 / 公告模块：返回按钮 / 模块间距 UI 调整 + 公告详情页 + 后端 CRUD 收口
 
-**测试基线** (2026-08-03):
-- 后端 pytest: **39 passed / 0 failed** (12 套件)
+**测试基线** (持续更新, 详见 [`CHANGELOG.md`](CHANGELOG.md)):
+- 后端 pytest: 全量持续全过（2026-08-11 基线 **518 passed**；本次又新增字典 22 + 公告 18 等）
 - 前端 vitest: **132 passed / 0 failed** (29 spec)
 - Playwright e2e: 6 spec / 18 场景
 - CI: `.github/workflows/ci.yml` 5 job 全部切到 Django
@@ -82,13 +88,13 @@
 ATS-NEW/
 ├── apps/django/                    # Django 后端
 │   ├── config/settings/            # base/dev/prod/test
-│   ├── apps/                       # 28 个业务 app
+│   ├── apps/                       # 29 个业务 app (含 dictionary 通用数据字典)
 │   ├── tests/                      # 39 pytest
 │   ├── seeds/                      # 7 个 seed JSON
 │   └── conftest.py                 # V2 schema 兼容 fixtures
 │
 ├── web/app/                        # Vue 前端
-│   ├── src/api/                    # 27+ API 客户端
+│   ├── src/api/                    # 27+ API 客户端 (含 announcement / recruitment-process)
 │   ├── src/router/                 # vue-router 4 + RBAC
 │   ├── src/stores/                 # Pinia
 │   └── vite.config.ts              # es2022 + manualChunks
