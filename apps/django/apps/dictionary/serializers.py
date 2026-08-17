@@ -23,6 +23,12 @@ class DictionaryTypeSerializer(serializers.ModelSerializer):
             'code': {'required': False},
         }
 
+    def __init__(self, *args, **kwargs):
+        """创建 (self.instance is None) 时 code 必填, 编辑时保持可选。"""
+        super().__init__(*args, **kwargs)
+        if self.instance is None:
+            self.fields['code'].required = True
+
     def validate_code(self, value: str) -> str:
         """code 非空且只能含小写字母、数字、下划线。"""
         if not value:
