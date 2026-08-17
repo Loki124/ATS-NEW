@@ -11,6 +11,49 @@ import config from './src/config'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// 2026-08-17 寇豆码: 富文本编辑器 (wangEditor 5) 及其全部间接依赖。
+// wangEditor 体积 ~860KB, 只有「政策制度/文档说明」编辑页用到; 若落进默认的
+// vendor-misc, 会被 index.html modulepreload 拖到首屏 (55KB -> 860KB)。
+// 这里按 node_modules 目录段精确匹配, 单独切一个 chunk, 随路由懒加载。
+// 注意: 必须用 `/node_modules/<pkg>/` 全段匹配, 不能用 includes('slate') —
+//       会误伤 translate 之类的包名。
+const RICH_EDITOR_PKGS = [
+  '@wangeditor',
+  '@uppy',
+  'slate',
+  'slate-history',
+  'snabbdom',
+  'dom7',
+  'is-hotkey',
+  'is-url',
+  'nanoid',
+  'event-emitter',
+  'es5-ext',
+  'es6-symbol',
+  'next-tick',
+  'd',
+  'html-void-elements',
+  'i18next',
+  'scroll-into-view-if-needed',
+  'compute-scroll-into-view',
+  'prismjs',
+  'namespace-emitter',
+  'mime-match',
+  'wildcard',
+  'lodash.camelcase',
+  'lodash.clonedeep',
+  'lodash.debounce',
+  'lodash.foreach',
+  'lodash.isequal',
+  'lodash.throttle',
+  'lodash.toarray',
+]
+
+/** 判断模块 id 是否属于指定 node_modules 包 (按路径段匹配, 避免子串误伤) */
+function isNodeModulePkg(id: string, pkg: string): boolean {
+  return id.includes(`/node_modules/${pkg}/`)
+}
+
 export default defineConfig(({ mode }) => ({
   // 2026-06-29 花无缺: 生产环境 base='/static/' 让 chunk 走 /static/assets/xxx,
   //   跟 Django STATIC_URL='/static/' + whitenoise 对齐.
@@ -43,6 +86,11 @@ export default defineConfig(({ mode }) => ({
         target: config.backend.url,
         changeOrigin: true,
       },
+      // 附件等用户上传的 media 文件走 Django serve, 经 Vite 代理转发, 避免前端跨端口直连 8000。
+      '/media': {
+        target: config.backend.url,
+        changeOrigin: true,
+      },
     },
   },
   // 依赖预构建 — dev 启动 + build 前都会跑
@@ -67,6 +115,11 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
+            // 富文本编辑器: 放最前面, 优先于 lodash -> vendor-naive-ui 的规则,
+            // 保证 lodash.xxx 这些只被 wangEditor 用到的微包不落首屏 chunk
+            if (RICH_EDITOR_PKGS.some((pkg) => isNodeModulePkg(id, pkg))) {
+              return 'vendor-rich-editor'
+            }
             // Naive UI 生态 + 它全部间接依赖必须放同一 chunk
             // (treemate / async-validator / seemly / vueuc / vdirs / vooks / csstype /
             //  highlight.js / lodash(-es) / date-fns / date-fns-tz / @css-render 系

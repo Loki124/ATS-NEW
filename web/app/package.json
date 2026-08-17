@@ -20,6 +20,8 @@
   "dependencies": {
     "@vicons/ionicons5": "^0.13.0",
     "@vueuse/core": "^10.7.0",
+    "@wangeditor/editor": "^5.1.23",
+    "@wangeditor/editor-for-vue": "^5.1.12",
     "axios": "^1.6.0",
     "dayjs": "^1.11.0",
     "naive-ui": "^2.44.1",
