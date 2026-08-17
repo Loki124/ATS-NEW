@@ -97,8 +97,11 @@ api_v1_patterns = [
     path('audit-logs/', include('apps.audit.urls')),
     path('gdpr/', include('apps.gdpr.urls')),
     path('integrations/', include('apps.integration.urls')),
-    # 2026-06-17: G30 RPA — FE api/scraped-resume.ts:34 调 /scraped-resumes
-    # 2026-06-17: G41 数据字典 — FE 用 by-type/{type}/ 拿枚举值
+    # 2026-08-17 PR #69: 数据字典 (apps.dictionary) — 阶段类型等枚举 single source of truth.
+    #   router 注册 dictionary-items / dictionary-types, 挂在 api_v1 根下 →
+    #   /api/v1/dictionary-items/?type_code=recruitment_stage_type
+    #   /api/v1/dictionary-types/
+    path('', include('apps.dictionary.urls')),
 
     # Phase 2 T02 (寇豆码): 删 'external-sync'/'data' 两个 0-model 空壳 URL 挂载.
     #   scraped_resume / duplicate_check 是真实功能, 保留 (FE 真实调用)!
@@ -151,7 +154,7 @@ def spa_fallback(request, path=''):
     raise Http404(f'index.html not found at {index_file}')
 
 urlpatterns += [
-    re_path(r'^(?P<path>(?!api/|health/|static/|__debug__/).*)$', spa_fallback),
+    re_path(r'^(?P<path>(?!api/|health/|static/|media/|__debug__/).*)$', spa_fallback),
 ]
 
 if settings.DEBUG:

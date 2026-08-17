@@ -102,6 +102,7 @@ LOCAL_APPS = [
     'apps.audit',
     # 2026-06-17: G30 RPA 简历抓取 — 新 app
     # 2026-06-17: G41 数据字典 — 枚举值 single source of truth
+    'apps.dictionary',
     'apps.notification',
     'apps.gdpr',
     'apps.integration',
