@@ -53,7 +53,7 @@
             <span style="font-size: 16px">←</span> 返回
           </n-button>
           <div>
-            <h1 class="page-title">{{ headDraft.name || currentType.name }}</h1>
+            <h1 class="page-title">编辑字典：{{ headDraft.name || currentType.name }}</h1>
             <p class="page-subtitle">
               <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
                 {{ currentType.isSystem ? '系统预置' : '自定义' }}
@@ -63,21 +63,29 @@
             </p>
           </div>
         </div>
-        <n-button type="primary" :disabled="!hasUnsavedChanges" :loading="submitting" @click="submitDraft">
-          提交
-        </n-button>
       </div>
 
+      <!-- 顶部提示条 -->
+      <n-alert type="warning" :show-icon="false" class="section">
+        <ul class="dict-hints">
+          <li>支持元素分级。</li>
+          <li>元素描述支持 hover 提示。</li>
+          <li>编辑时仅支持删除新添加的元素，原有元素不支持删除。</li>
+          <li>停用及删除仅支持操作没有下级的元素。</li>
+          <li>配置项修改后，需提交后才会生效。</li>
+        </ul>
+      </n-alert>
+
       <n-card title="字典信息" :bordered="false" class="section">
-        <n-form label-placement="left" label-width="96" :model="headDraft">
-          <n-grid :cols="2" :x-gap="24">
+        <n-form label-placement="top" :model="headDraft">
+          <n-grid :cols="4" :x-gap="24" :y-gap="4">
             <n-gi>
               <n-form-item label="字典名称" path="name">
-                <n-input v-model:value="headDraft.name" placeholder="字典名称" />
+                <n-input v-model:value="headDraft.name" placeholder="请输入" />
               </n-form-item>
             </n-gi>
             <n-gi>
-              <n-form-item label="字典代码">
+              <n-form-item label="字典代码" path="code">
                 <n-input :value="currentType.code" disabled placeholder="创建后锁定" />
               </n-form-item>
             </n-gi>
@@ -87,17 +95,17 @@
               </n-form-item>
             </n-gi>
             <n-gi>
-              <n-form-item label="是否启用">
+              <n-form-item label="是否启用" path="isEnabled">
                 <n-switch v-model:value="headDraft.isEnabled" :disabled="currentType.isSystem" />
                 <span v-if="currentType.isSystem" class="hint">系统预置字典不可停用</span>
               </n-form-item>
             </n-gi>
-            <n-gi :span="2">
+            <n-gi :span="4">
               <n-form-item label="字典描述" path="description">
                 <n-input
                   v-model:value="headDraft.description"
                   type="textarea"
-                  placeholder="简要说明"
+                  placeholder="请输入"
                   :autosize="{ minRows: 2, maxRows: 4 }"
                 />
               </n-form-item>
@@ -210,12 +218,19 @@
         </div>
       </n-card>
 
-      <!-- 草稿提示条 -->
+      <!-- 底部固定提交栏 -->
+      <div class="submit-bar">
+        <n-space justify="end" :size="12" align="center">
+          <n-button size="large" :disabled="submitting" @click="backToList">取消</n-button>
+          <n-button size="large" type="primary" :loading="submitting" :disabled="!hasUnsavedChanges" @click="submitDraft">
+            提交
+          </n-button>
+        </n-space>
+      </div>
+
+      <!-- 草稿提示条（仅未保存时显示在底部提交栏上方） -->
       <div v-if="hasUnsavedChanges" class="draft-bar">
-        <n-icon class="draft-icon"><span>⚠️</span></n-icon>
-        <span>有未保存的草稿，离开将丢失。</span>
-        <n-button size="small" type="primary" :loading="submitting" @click="submitDraft">立即提交</n-button>
-        <n-button size="small" @click="discardDraft">忽略</n-button>
+        <span>⚠️ 有未保存的草稿，离开将丢失。</span>
       </div>
     </template>
 
@@ -271,6 +286,7 @@ import {
   NFormItem,
   NGrid,
   NGi,
+  NAlert,
   type FormRules,
   type DataTableColumns,
 } from 'naive-ui'
@@ -774,6 +790,8 @@ onUnmounted(() => {
 .edit-head { display: flex; align-items: center; gap: 16px; }
 
 .hint { color: #aaa; font-size: 12px; margin-left: 8px; }
+.dict-hints { margin: 0; padding-left: 18px; font-size: 13px; }
+.dict-hints li { margin-bottom: 2px; }
 
 /* 元素树形表格 */
 .el-table { border: 1px solid #eee; border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
@@ -795,10 +813,17 @@ onUnmounted(() => {
 .el-cell .n-button { white-space: nowrap; }
 
 .draft-bar {
-  position: sticky; bottom: 0; margin-top: 12px;
+  position: sticky; bottom: 72px; margin-top: 12px;
   display: flex; align-items: center; gap: 12px;
   background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
   padding: 10px 16px; font-size: 13px;
 }
 .draft-icon { color: #fa8c16; }
+
+.submit-bar {
+  position: sticky; bottom: 0; left: 0; right: 0;
+  background: #fff; border-top: 1px solid #f0f0f0;
+  padding: 12px 24px; margin: 0 -24px -24px;
+  z-index: 10;
+}
 </style>
