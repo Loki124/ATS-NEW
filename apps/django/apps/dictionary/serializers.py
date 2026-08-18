@@ -65,9 +65,8 @@ class DictionaryTypeSerializer(serializers.ModelSerializer):
         return value
 
     def validate_english_name(self, value: str) -> str:
-        if not value or not value.strip():
-            raise serializers.ValidationError('英文名称不能为空')
-        if not CODE_PATTERN.match(value):
+        # 英文名称允许留空，若填写则校验格式
+        if value and not CODE_PATTERN.match(value):
             raise serializers.ValidationError('英文名称只能包含字母、数字和下划线')
         return value
 

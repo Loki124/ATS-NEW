@@ -71,27 +71,37 @@
       <n-card title="字典信息" :bordered="false" class="section">
         <n-form label-placement="left" label-width="96" :model="headDraft">
           <n-grid :cols="2" :x-gap="24">
-            <n-form-item label="字典名称" path="name">
-              <n-input v-model:value="headDraft.name" placeholder="字典名称" />
-            </n-form-item>
-            <n-form-item label="字典代码">
-              <n-input :value="currentType.code" disabled placeholder="创建后锁定" />
-            </n-form-item>
-            <n-form-item label="英文名称" path="englishName">
-              <n-input v-model:value="headDraft.englishName" placeholder="如 MAJOR_SUBJECT" />
-            </n-form-item>
-            <n-form-item label="是否启用">
-              <n-switch v-model:value="headDraft.isEnabled" :disabled="currentType.isSystem" />
-              <span v-if="currentType.isSystem" class="hint">系统预置字典不可停用</span>
-            </n-form-item>
-            <n-form-item label="字典描述" path="description" :span="2">
-              <n-input
-                v-model:value="headDraft.description"
-                type="textarea"
-                placeholder="简要说明"
-                :autosize="{ minRows: 2, maxRows: 4 }"
-              />
-            </n-form-item>
+            <n-gi>
+              <n-form-item label="字典名称" path="name">
+                <n-input v-model:value="headDraft.name" placeholder="字典名称" />
+              </n-form-item>
+            </n-gi>
+            <n-gi>
+              <n-form-item label="字典代码">
+                <n-input :value="currentType.code" disabled placeholder="创建后锁定" />
+              </n-form-item>
+            </n-gi>
+            <n-gi>
+              <n-form-item label="英文名称" path="englishName">
+                <n-input v-model:value="headDraft.englishName" placeholder="如 MAJOR_SUBJECT（可选）" />
+              </n-form-item>
+            </n-gi>
+            <n-gi>
+              <n-form-item label="是否启用">
+                <n-switch v-model:value="headDraft.isEnabled" :disabled="currentType.isSystem" />
+                <span v-if="currentType.isSystem" class="hint">系统预置字典不可停用</span>
+              </n-form-item>
+            </n-gi>
+            <n-gi :span="2">
+              <n-form-item label="字典描述" path="description">
+                <n-input
+                  v-model:value="headDraft.description"
+                  type="textarea"
+                  placeholder="简要说明"
+                  :autosize="{ minRows: 2, maxRows: 4 }"
+                />
+              </n-form-item>
+            </n-gi>
           </n-grid>
         </n-form>
       </n-card>
@@ -101,7 +111,8 @@
           <n-button size="small" @click="addRootItem">+ 新增元素</n-button>
         </template>
 
-        <div class="el-table">
+        <div style="overflow-x: auto;">
+          <div class="el-table">
           <div class="el-row el-head">
             <div class="el-cell" style="flex: 1.4">元素名称</div>
             <div class="el-cell" style="flex: 1.2">元素代码</div>
@@ -195,6 +206,7 @@
           </div>
 
           <div v-if="flatTree.length === 0" class="el-empty">暂无元素，点击右上角“新增元素”</div>
+          </div>
         </div>
       </n-card>
 
@@ -223,7 +235,7 @@
           <n-input v-model:value="createForm.name" placeholder="如 专业学科" />
         </n-form-item>
         <n-form-item label="英文名称" path="englishName">
-          <n-input v-model:value="createForm.englishName" placeholder="如 MAJOR_SUBJECT" />
+          <n-input v-model:value="createForm.englishName" placeholder="如 MAJOR_SUBJECT（可选）" />
         </n-form-item>
         <n-form-item label="说明" path="description">
           <n-input v-model:value="createForm.description" type="textarea" placeholder="可选" />
@@ -258,6 +270,7 @@ import {
   NForm,
   NFormItem,
   NGrid,
+  NGi,
   type FormRules,
   type DataTableColumns,
 } from 'naive-ui'
@@ -652,14 +665,31 @@ async function submitDraft() {
         const msg = Object.entries(data.headErrors).map(([, v]: any) => (Array.isArray(v) ? v[0] : v)).join('；')
         message.error(msg || '字典头校验失败')
       }
-      if (data.itemErrors) {
+      if (data.itemErrors && typeof data.itemErrors === 'object') {
+        const fieldLabels: Record<string, string> = {
+          key: '元素代码',
+          value: '元素名称',
+          english_name: '英文名称',
+          sort_order: '排序',
+          parent_id: '父级',
+        }
         const firstKey = Object.keys(data.itemErrors)[0]
         const errs = data.itemErrors[firstKey]
-        const msg = Object.values(errs || {}).map((v: any) => (Array.isArray(v) ? v[0] : v)).join('；')
-        message.error(`第 ${Number(firstKey) + 1} 行：${msg || '校验失败'}`)
-        // 把对应行置为编辑态以便修改
-        const idx = Number(firstKey)
-        if (itemsDraft.value[idx]) itemsDraft.value[idx].editing = true
+        const errMsg = Object.entries(errs || {})
+          .map(([k, v]: any) => {
+            const text = Array.isArray(v) ? v[0] : v
+            return `${fieldLabels[k] || k}：${text}`
+          })
+          .join('；')
+        const idxNum = Number(firstKey)
+        // 后端 item_errors key 为提交数组下标（0-based）
+        if (!Number.isNaN(idxNum) && itemsDraft.value[idxNum]) {
+          message.error(`第 ${idxNum + 1} 行：${errMsg || '校验失败'}`)
+          itemsDraft.value[idxNum].editing = true
+        } else {
+          // 兜底：非数字 key 或无法定位行时，直接展示元素错误
+          message.error(`元素校验失败：${errMsg || '请检查输入'}`)
+        }
       }
     } else {
       message.error(extractApiError(e, '提交失败'))
@@ -682,7 +712,6 @@ const createForm = reactive({ code: '', name: '', englishName: '', description: 
 const createRules: FormRules = {
   code: { required: true, message: '请输入字典代码', trigger: ['input', 'blur'] },
   name: { required: true, message: '请输入字典名称', trigger: ['input', 'blur'] },
-  englishName: { required: true, message: '请输入英文名称', trigger: ['input', 'blur'] },
 }
 
 function openCreateType() {
@@ -735,7 +764,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.page-container { padding: 24px; max-width: 1280px; }
+.page-container { padding: 24px; max-width: 1400px; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
 .page-title { font-size: 22px; font-weight: 600; margin: 0; }
 .page-subtitle { color: #888; margin: 6px 0 0; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -747,19 +776,23 @@ onUnmounted(() => {
 .hint { color: #aaa; font-size: 12px; margin-left: 8px; }
 
 /* 元素树形表格 */
-.el-table { border: 1px solid #eee; border-radius: 6px; overflow: hidden; }
-.el-row { display: flex; align-items: center; border-bottom: 1px solid #f2f3f5; min-height: 44px; }
+.el-table { border: 1px solid #eee; border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
+.el-row { display: flex; align-items: center; border-bottom: 1px solid #f2f3f5; min-height: 48px; }
 .el-row:last-child { border-bottom: none; }
-.el-head { background: #fafafa; font-weight: 600; font-size: 13px; color: #555; }
+.el-head { background: #fafafa; font-weight: 600; font-size: 13px; color: #555; white-space: nowrap; }
 .el-row.editing { background: #fafcff; }
 .el-row.isnew { background: #fffbe6; }
 .el-row.isnew.editing { background: #fff7cc; }
-.el-cell { padding: 6px 10px; font-size: 13px; overflow: hidden; }
+.el-cell { padding: 8px 12px; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .el-cell code { background: #f2f3f5; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.el-cell .n-input, .el-cell .n-input-number { min-width: 80px; width: 100%; }
 .tree-guide { color: #bbb; margin-right: 4px; }
 .strikethrough { text-decoration: line-through; color: #aaa; }
 .desc-cell { color: #666; }
 .el-empty { padding: 32px; text-align: center; color: #aaa; font-size: 13px; }
+/* 操作列不换行、按钮紧凑 */
+.el-cell .n-space { flex-wrap: nowrap; }
+.el-cell .n-button { white-space: nowrap; }
 
 .draft-bar {
   position: sticky; bottom: 0; margin-top: 12px;

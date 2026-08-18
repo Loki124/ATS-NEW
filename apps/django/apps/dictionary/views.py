@@ -185,6 +185,8 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
                     item.is_active = p['is_active']
                     item.parent = _resolve_parent(p, created_map, dtype)
                     item.save()
+        except DictionaryItem.DoesNotExist:
+            return Response({'detail': '元素不存在或已被删除，请刷新后重试'}, status=400)
         except DjangoValidationError as e:
             return Response({'detail': str(e)}, status=400)
         except IntegrityError as e:
@@ -202,9 +204,7 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
         english_name = (head.get('english_name') or '').strip()
         if not name:
             errors['name'] = ['字典名称不能为空']
-        if not english_name:
-            errors['english_name'] = ['英文名称不能为空']
-        elif not CODE_PATTERN.match(english_name):
+        if english_name and not CODE_PATTERN.match(english_name):
             errors['english_name'] = ['英文名称只能包含字母、数字和下划线']
         if dtype.is_system and head.get('is_enabled') is False:
             errors['is_enabled'] = ['系统预置字典不可停用']
