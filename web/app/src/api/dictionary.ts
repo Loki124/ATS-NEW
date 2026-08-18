@@ -166,12 +166,13 @@ export async function createDictionaryType(payload: {
   return body?.data ?? body;
 }
 
-/** 更新字典类型(按 code, 可含 is_enabled)。 */
+/** 更新字典类型(按 code, 可含 is_enabled)。用 PATCH 部分更新,
+ *  允许只传 is_enabled 切换启用/停用, 不触发 name 必填校验。 */
 export async function updateDictionaryType(
   code: string,
   payload: { name?: string; englishName?: string; description?: string; isEnabled?: boolean },
 ): Promise<DictionaryType> {
-  const resp = await api.put(`/dictionary-types/${code}/`, payload);
+  const resp = await api.patch(`/dictionary-types/${code}/`, payload);
   const body = resp.data as any;
   return body?.data ?? body;
 }

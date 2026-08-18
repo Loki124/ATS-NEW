@@ -419,6 +419,17 @@ const listColumns: DataTableColumns<DictionaryType> = [
       h(NTag, { size: 'small', type: row.isSystem ? 'warning' : 'success' }, { default: () => (row.isSystem ? '系统预置' : '自定义') }),
   },
   {
+    title: '启用状态',
+    key: 'isEnabled',
+    width: 100,
+    render: (row: DictionaryType) =>
+      h(
+        NTag,
+        { size: 'small', type: row.isEnabled ? 'success' : 'error' },
+        { default: () => (row.isEnabled ? '启用' : '停用') },
+      ),
+  },
+  {
     title: '创建人 / 时间',
     key: 'created',
     width: 170,

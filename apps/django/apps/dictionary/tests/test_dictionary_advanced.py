@@ -219,6 +219,30 @@ def test_submit_head_name_empty_400(auth_client, custom_type):
 
 
 # ---------------------------------------------------------------------------
+# 单独切换启用/停用 (PATCH 部分更新)
+# ---------------------------------------------------------------------------
+
+def test_type_toggle_disable_via_patch_200(auth_client, custom_type):
+    """列表页"停用"按钮只传 is_enabled, 后端须用 PATCH 部分更新接受 (不要求 name)。"""
+    resp = auth_client.patch(f'{TYPE_LIST}{custom_type}/', {'is_enabled': False}, format='json')
+    assert resp.status_code == 200, resp.content
+    assert DictionaryType.objects.get(code=custom_type).is_enabled is False
+
+
+def test_type_toggle_enable_via_patch_200(auth_client, custom_type):
+    DictionaryType.objects.filter(code=custom_type).update(is_enabled=False)
+    resp = auth_client.patch(f'{TYPE_LIST}{custom_type}/', {'is_enabled': True}, format='json')
+    assert resp.status_code == 200, resp.content
+    assert DictionaryType.objects.get(code=custom_type).is_enabled is True
+
+
+def test_type_update_full_put_requires_name_400(auth_client, custom_type):
+    """PUT 全量更新缺 name 仍应 400 (契约不变, 前端须用 PATCH 而非 PUT 切换)。"""
+    resp = auth_client.put(f'{TYPE_LIST}{custom_type}/', {'is_enabled': True}, format='json')
+    assert resp.status_code == 400, resp.content
+
+
+# ---------------------------------------------------------------------------
 # 列表搜索 / 筛选
 # ---------------------------------------------------------------------------
 
