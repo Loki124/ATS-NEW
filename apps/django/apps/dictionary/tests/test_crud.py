@@ -81,8 +81,8 @@ def test_create_dictionary_type_201(auth_client):
     body = resp.json()
     assert body['code'] == 'test_color'
     assert body['name'] == '颜色'
-    # code 非法 (含大写) → 400
-    bad = auth_client.post(TYPE_LIST, {'code': 'BadCode', 'name': 'x'}, format='json')
+    # code 非法 (含空格等非法字符) → 400
+    bad = auth_client.post(TYPE_LIST, {'code': 'bad code', 'name': 'x'}, format='json')
     assert bad.status_code == 400
 
 
@@ -162,34 +162,36 @@ def test_update_dictionary_item_200(auth_client, stage_type):
     assert body['key'] == 'TEST_ITEM_U'
 
 
-def test_delete_dictionary_item_204_and_excluded(auth_client, stage_type):
+def test_delete_history_item_rejected_400(auth_client, stage_type):
+    """历史字典项不支持删除（PRD 5.2），API 必须 400 拦截。"""
     created = auth_client.post(
         ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_D', 'value': '待删'}, format='json'
     ).json()
     item_id = created['id']
     del_resp = auth_client.delete(f'{ITEM_LIST}{item_id}/')
-    assert del_resp.status_code == 204
+    assert del_resp.status_code == 400, del_resp.content
+    assert '删除' in str(del_resp.json()['errors']['detail'])
 
+    # 项仍存在于列表
     list_resp = auth_client.get(ITEM_LIST, {'type_code': 'recruitment_stage_type', 'page_size': 200})
     ids = [it['id'] for it in list_resp.json()['data']]
-    assert item_id not in ids
+    assert item_id in ids
 
 
 # ---------------------------------------------------------------------------
 # 关键风险: 软删行仍占唯一约束坑位, 重建同名应被拦截为 400 (而非 500 / 200)
 # ---------------------------------------------------------------------------
 
-def test_recreate_soft_deleted_item_key_400(auth_client, stage_type):
-    """软删某 key 后, 重建同 type+key → 必须 400 (不能 500, 也不能 200 重复写入)。"""
+def test_duplicate_item_key_400(auth_client, stage_type):
+    """重建同 type+key → 必须 400 (不能 500, 也不能 200 重复写入)。"""
     created = auth_client.post(
-        ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_SOFT', 'value': '软删前'}, format='json'
+        ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_SOFT', 'value': '已存在'}, format='json'
     ).json()
     item_id = created['id']
-    assert auth_client.delete(f'{ITEM_LIST}{item_id}/').status_code == 204
 
-    # 软删行仍在 DB (deleted_at 非空), 重建同名 key 应被校验阶段拦截 → 400
+    # 同名 key 重建应被校验阶段拦截 → 400
     recreate = auth_client.post(
-        ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_SOFT', 'value': '软删后重建'}, format='json'
+        ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_SOFT', 'value': '重复'}, format='json'
     )
     assert recreate.status_code == 400, recreate.content
     assert 'key' in recreate.json()['errors']

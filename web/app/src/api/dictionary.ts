@@ -1,15 +1,18 @@
 /**
- * 数据字典 API 客户端  (PR #69 — 阶段类型数据字典化)
+ * 数据字典 API 客户端 (终稿 PRD — 树形 / 系统自定义差异化 / 草稿批量提交)
  *
- * 后端 apps/dictionary (DictionaryType / DictionaryItem):
- *   - GET /api/v1/dictionary-items/?type_code=<code>
- *       返回该类型下所有「启用」字典项, 按 sort_order 升序.
- *   - 响应包 { success, data:[...], pagination:{...} } (StandardResultsSetPagination).
- *   - 全局 camelCase 渲染: sort_order→sortOrder, type.code→typeCode, is_active→isActive.
+ * 后端 apps/dictionary:
+ *   - GET  /api/v1/dictionary-types/?q=<搜索>&type=system|custom   列表(搜索/筛选)
+ *   - GET  /api/v1/dictionary-types/<code>/                       详情(含 items 扁平树)
+ *   - POST /api/v1/dictionary-types/<code>/submit/                 批量提交草稿
+ *   - POST /api/v1/dictionary-types/                              新建字典类型
+ *   - PUT  /api/v1/dictionary-types/<code>/                       更新(含 is_enabled)
+ *   - DELETE /api/v1/dictionary-types/<code>/                     删除(仅自定义)
+ * 响应: 列表走 { success, data:[...], pagination }, 单对象直出 camelCase。
+ * submit 端点成功/失败均返回裸体: 成功 {detail, dictNumber, code};
+ *   失败 {detail:'校验失败', headErrors:{...}, itemErrors:{'0':{...}}}。
  *
- * 设计: 字典项是枚举的 single source of truth.
- *   阶段类型字典 code = 'recruitment_stage_type', 业务字段 stage_type 存的是 item.key
- *   (如 'SCREEN'), 展示名用 item.value (如 '筛选').
+ * 设计: 字典项是枚举 single source of truth; 阶段类型 code='recruitment_stage_type'。
  */
 import axios from 'axios';
 import config from '../config';
@@ -26,170 +29,167 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
-/** 字典项 (驼峰键, 与后端 DictionaryItemSerializer 对齐). */
-export interface DictionaryItem {
+/** 字典类型(列表/详情, 驼峰键)。 */
+export interface DictionaryType {
   id: string;
-  type: string;
-  /** 所属字典类型 code (type.code). */
-  typeCode: string;
-  /** 字典项编码 — 业务字段实际存储的值 (如 stage_type='SCREEN'). */
-  key: string;
-  /** 展示名 (如 '筛选'). */
-  value: string;
-  sortOrder: number;
-  isActive: boolean;
+  code: string;
+  name: string;
+  englishName: string;
+  description: string;
+  dictNumber: string;
+  isSystem: boolean;
+  isEnabled: boolean;
+  createdByName: string;
   createdAt: string;
+  updatedByName: string;
   updatedAt: string;
 }
 
-/** naive-ui n-select 用的 option. value=业务存储值(key), label=展示名(value). */
+/** 字典项(扁平, 含 parentId, 供前端构建树)。 */
+export interface DictionaryItem {
+  id: string;
+  parentId: string | null;
+  key: string;
+  value: string;
+  englishName: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface DictionaryDetail extends DictionaryType {
+  items: DictionaryItem[];
+}
+
+/** 列表查询参数。 */
+export interface DictionaryTypeQuery {
+  q?: string;
+  type?: 'system' | 'custom' | 'all';
+}
+
+/** naive-ui n-select 用的 option。 */
 export interface DictionaryOption {
   label: string;
   value: string;
   sortOrder?: number;
 }
 
-/** 阶段类型字典 code. */
 export const STAGE_TYPE_DICT_CODE = 'recruitment_stage_type';
 
 /**
- * 取某类型下所有启用字典项 (按 sortOrder 升序).
- * 兼容 {success,data} 包裹或裸数组两种响应形态.
+ * --- 阶段类型枚举读取 (PR #69 single source of truth) ---
+ * RecruitmentStage.vue 依赖 listStageTypeOptions(); 此处保留兼容实现,
+ * 与新版树形/草稿 API 共存 (字段名互不冲突)。
  */
-export async function listDictionaryItems(typeCode: string): Promise<DictionaryItem[]> {
-  const resp = await api.get<{ success: boolean; data: DictionaryItem[] }>('/dictionary-items/', {
+
+/** 阶段类型读取用的扁平项 (仅取枚举所需字段)。 */
+export interface DictionaryItemLite {
+  key: string;
+  value: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+/** 取某类型下所有字典项 (按 sortOrder 升序)。兼容包裹或裸数组。 */
+export async function listDictionaryItems(typeCode: string): Promise<DictionaryItemLite[]> {
+  const resp = await api.get('/dictionary-items/', {
     params: { type_code: typeCode, page_size: 200 },
   });
   const body = resp.data;
-  const items: DictionaryItem[] = Array.isArray(body)
+  const items: any[] = Array.isArray(body)
     ? body
     : body && typeof body === 'object' && 'data' in body && Array.isArray((body as any).data)
       ? (body as any).data
       : [];
-  return items.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  return items
+    .slice()
+    .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map((it: any) => ({
+      key: it.key,
+      value: it.value,
+      sortOrder: it.sortOrder,
+      isActive: it.isActive,
+    }));
 }
 
-/** 字典类型 (驼峰键, 与后端 DictionaryTypeSerializer 对齐). */
-export interface DictionaryType {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/** 取所有字典类型 (按名称排序). 兼容 {success,data} 包裹或裸数组. */
-export async function listDictionaryTypes(): Promise<DictionaryType[]> {
-  const resp = await api.get<{ success: boolean; data: DictionaryType[] }>('/dictionary-types/', {
-    params: { page_size: 200 },
-  });
-  const body = resp.data;
-  const types: DictionaryType[] = Array.isArray(body)
-    ? body
-    : body && typeof body === 'object' && 'data' in body && Array.isArray((body as any).data)
-      ? (body as any).data
-      : [];
-  return types.slice().sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-}
-
-/** 字典项 → n-select options (value=key, label=value). */
-export function toOptions(items: DictionaryItem[]): DictionaryOption[] {
+/** 字典项 → n-select options (value=key, label=value)。 */
+export function toOptions(items: DictionaryItemLite[]): DictionaryOption[] {
   return items.map((it) => ({ label: it.value, value: it.key, sortOrder: it.sortOrder }));
 }
 
-/** 直接拉「阶段类型」可选列表. */
+/** 直接拉「阶段类型」可选列表。 */
 export async function listStageTypeOptions(): Promise<DictionaryOption[]> {
   const items = await listDictionaryItems(STAGE_TYPE_DICT_CODE);
   return toOptions(items);
 }
 
-/**
- * 新建字典类型. POST /dictionary-types/
- * 返回包兼容 {success,data} 或直接对象, 取 resp.data.data ?? resp.data.
- */
+/** 取字典类型列表(支持搜索 q 与类型筛选 type)。兼容包裹或裸数组。 */
+export async function listDictionaryTypes(
+  params: DictionaryTypeQuery = {},
+): Promise<DictionaryType[]> {
+  const query: Record<string, any> = { page_size: 200 };
+  if (params.q) query.q = params.q;
+  if (params.type && params.type !== 'all') query.type = params.type;
+  const resp = await api.get('/dictionary-types/', { params: query });
+  const body = resp.data;
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === 'object' && Array.isArray((body as any).data)) {
+    return (body as any).data;
+  }
+  return [];
+}
+
+/** 取某字典类型详情(含元素扁平列表, 已含 parentId)。 */
+export async function getDictionaryDetail(code: string): Promise<DictionaryDetail> {
+  const resp = await api.get<DictionaryDetail>(`/dictionary-types/${code}/`);
+  return resp.data as any;
+}
+
+/** 提交草稿: 头部修改 + 元素增改/停用, 事务一次性落库。 */
+export async function submitDictionaryDraft(
+  code: string,
+  payload: { head: Record<string, any>; items: Record<string, any>[] },
+): Promise<any> {
+  const resp = await api.post(`/dictionary-types/${code}/submit/`, payload);
+  return resp.data;
+}
+
+/** 新建字典类型。 */
 export async function createDictionaryType(payload: {
   code: string;
   name: string;
+  englishName?: string;
   description?: string;
 }): Promise<DictionaryType> {
-  const resp = await api.post<{ success: boolean; data: DictionaryType }>('/dictionary-types/', payload);
+  const resp = await api.post('/dictionary-types/', payload);
   const body = resp.data as any;
   return body?.data ?? body;
 }
 
-/**
- * 更新字典类型 (按 code). PUT /dictionary-types/<code>/
- * code 为 URL lookup, body 只含可改字段 (name / description).
- */
+/** 更新字典类型(按 code, 可含 is_enabled)。 */
 export async function updateDictionaryType(
   code: string,
-  payload: { name: string; description?: string },
+  payload: { name?: string; englishName?: string; description?: string; isEnabled?: boolean },
 ): Promise<DictionaryType> {
-  const resp = await api.put<{ success: boolean; data: DictionaryType }>(
-    `/dictionary-types/${code}/`,
-    payload,
-  );
+  const resp = await api.put(`/dictionary-types/${code}/`, payload);
   const body = resp.data as any;
   return body?.data ?? body;
 }
 
-/** 删除字典类型 (软删). DELETE /dictionary-types/<code>/ */
+/** 删除字典类型(软删, 仅自定义)。 */
 export async function deleteDictionaryType(code: string): Promise<void> {
-  const resp = await api.delete(`/dictionary-types/${code}/`);
-  const body = resp.data as any;
-  return body?.data ?? body;
-}
-
-/**
- * 新建字典项. POST /dictionary-items/
- * type 传字典类型 id (由前端在选中类型下创建时填入).
- */
-export async function createDictionaryItem(payload: {
-  type: string;
-  key: string;
-  value: string;
-  sortOrder?: number;
-  isActive?: boolean;
-}): Promise<DictionaryItem> {
-  const resp = await api.post<{ success: boolean; data: DictionaryItem }>('/dictionary-items/', payload);
-  const body = resp.data as any;
-  return body?.data ?? body;
-}
-
-/**
- * 更新字典项 (按 id). PUT /dictionary-items/<id>/
- * 仅传需要修改的字段; type 不可改 (创建时固定).
- */
-export async function updateDictionaryItem(
-  id: string,
-  payload: { key?: string; value?: string; sortOrder?: number; isActive?: boolean },
-): Promise<DictionaryItem> {
-  const resp = await api.put<{ success: boolean; data: DictionaryItem }>(
-    `/dictionary-items/${id}/`,
-    payload,
-  );
-  const body = resp.data as any;
-  return body?.data ?? body;
-}
-
-/** 删除字典项 (软删). DELETE /dictionary-items/<id>/ */
-export async function deleteDictionaryItem(id: string): Promise<void> {
-  const resp = await api.delete(`/dictionary-items/${id}/`);
-  const body = resp.data as any;
-  return body?.data ?? body;
+  await api.delete(`/dictionary-types/${code}/`);
 }
 
 export default {
-  listDictionaryItems,
   listDictionaryTypes,
-  toOptions,
-  listStageTypeOptions,
-  STAGE_TYPE_DICT_CODE,
+  getDictionaryDetail,
+  submitDictionaryDraft,
   createDictionaryType,
   updateDictionaryType,
   deleteDictionaryType,
-  createDictionaryItem,
-  updateDictionaryItem,
-  deleteDictionaryItem,
+  STAGE_TYPE_DICT_CODE,
+  listDictionaryItems,
+  toOptions,
+  listStageTypeOptions,
 };

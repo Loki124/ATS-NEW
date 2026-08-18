@@ -15,6 +15,16 @@ def register_dictionary_seed(seeder):
 
 
 def run_dictionary_seeds():
-    """遍历注册表，逐个执行种子函数。"""
-    for seeder in SEED_REGISTRY:
-        seeder()
+    """遍历注册表，逐个执行种子函数。
+
+    运行期间标记 ``_seed_active``，使被注入的字典类型在 ``DictionaryType.save()``
+    中自动置 ``is_system=True``（系统预置字典），与用户自定义字典区分。
+    """
+    from .seed_context import set_seed_active
+
+    set_seed_active(True)
+    try:
+        for seeder in SEED_REGISTRY:
+            seeder()
+    finally:
+        set_seed_active(False)

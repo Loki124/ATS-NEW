@@ -1,137 +1,238 @@
 <template>
   <div class="page-container">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">数据字典</h1>
-        <p class="page-subtitle">枚举与配置项的统一来源（可维护）</p>
-      </div>
-    </div>
-
-    <div class="dd-layout">
-      <!-- 左栏: 字典类型列表 -->
-      <n-card class="dd-left" :bordered="true">
-        <div class="dd-left-header">
-          <span class="dd-left-title">字典类型</span>
-          <n-button size="small" type="primary" @click="openCreateType">新增类型</n-button>
+    <!-- ===================== 列表模式 ===================== -->
+    <template v-if="mode === 'list'">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">数据字典</h1>
+          <p class="page-subtitle">管理系统枚举与配置项（树形结构 · 草稿暂存 · 系统/自定义差异化）</p>
         </div>
-        <n-spin :show="typesLoading">
-          <n-menu
-            :options="menuOptions"
-            :value="selectedType?.code"
-            @update:value="handleMenuSelect"
-          />
-          <template v-if="!typesLoading && types.length === 0">
-            <n-empty description="暂无字典类型" size="small" />
-          </template>
-        </n-spin>
-      </n-card>
+        <n-button type="primary" @click="openCreateType">新增字典</n-button>
+      </div>
 
-      <!-- 右栏: 选中类型详情 + 字典项 -->
-      <n-card class="dd-right" :bordered="true">
-        <template v-if="selectedType">
-          <div class="dd-detail-header">
-            <span class="dd-detail-title">{{ selectedType.name }}</span>
-            <n-tag size="small" type="info">{{ selectedType.code }}</n-tag>
-            <n-space class="dd-detail-actions" :size="8">
-              <n-button size="small" tertiary @click="openEditType">编辑类型</n-button>
-              <n-button size="small" tertiary type="error" @click="confirmDeleteType">删除类型</n-button>
-              <n-button size="small" type="primary" @click="openCreateItem">新增项</n-button>
-            </n-space>
-          </div>
-          <p v-if="selectedType.description" class="dd-detail-desc">{{ selectedType.description }}</p>
-
-          <n-data-table
-            :columns="columns"
-            :data="items"
-            :loading="itemsLoading"
-            :row-key="(r: any) => r.id"
-            :pagination="false"
+      <n-card :bordered="false" class="toolbar">
+        <n-space align="center" :wrap="false">
+          <n-input
+            v-model:value="searchText"
+            placeholder="搜索字典名称 / 代码 / 元素名称 / 元素代码"
+            clearable
+            style="width: 360px"
+            @update:value="onSearchInput"
           >
-            <template #empty>
-              <n-empty description="该类型暂无可展示的字典项" />
+            <template #prefix>
+              <span>🔍</span>
             </template>
-          </n-data-table>
-        </template>
-        <template v-else>
-          <n-empty
-            :description="typesLoading ? '加载中…' : (types.length === 0 ? '暂无字典类型' : '请选择左侧字典类型')"
+          </n-input>
+          <n-select
+            v-model:value="typeFilter"
+            :options="typeOptions"
+            style="width: 160px"
+            @update:value="loadList"
           />
-        </template>
+        </n-space>
       </n-card>
-    </div>
 
-    <!-- 字典类型弹窗 -->
+      <n-data-table
+        :columns="listColumns"
+        :data="types"
+        :loading="listLoading"
+        :row-key="(r: any) => r.code"
+        :pagination="false"
+      >
+        <template #empty>
+          <n-empty description="暂无字典" />
+        </template>
+      </n-data-table>
+    </template>
+
+    <!-- ===================== 编辑模式 ===================== -->
+    <template v-else-if="currentType">
+      <div class="page-header">
+        <div class="edit-head">
+          <n-button text size="small" @click="backToList">
+            <span style="font-size: 16px">←</span> 返回
+          </n-button>
+          <div>
+            <h1 class="page-title">{{ headDraft.name || currentType.name }}</h1>
+            <p class="page-subtitle">
+              <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
+                {{ currentType.isSystem ? '系统预置' : '自定义' }}
+              </n-tag>
+              <span class="code-pill">{{ currentType.code }}</span>
+              <span class="num-pill">编号 {{ currentType.dictNumber }}</span>
+            </p>
+          </div>
+        </div>
+        <n-button type="primary" :disabled="!hasUnsavedChanges" :loading="submitting" @click="submitDraft">
+          提交
+        </n-button>
+      </div>
+
+      <n-card title="字典信息" :bordered="false" class="section">
+        <n-form label-placement="left" label-width="96" :model="headDraft">
+          <n-grid :cols="2" :x-gap="24">
+            <n-form-item label="字典名称" path="name">
+              <n-input v-model:value="headDraft.name" placeholder="字典名称" />
+            </n-form-item>
+            <n-form-item label="字典代码">
+              <n-input :value="currentType.code" disabled placeholder="创建后锁定" />
+            </n-form-item>
+            <n-form-item label="英文名称" path="englishName">
+              <n-input v-model:value="headDraft.englishName" placeholder="如 MAJOR_SUBJECT" />
+            </n-form-item>
+            <n-form-item label="是否启用">
+              <n-switch v-model:value="headDraft.isEnabled" :disabled="currentType.isSystem" />
+              <span v-if="currentType.isSystem" class="hint">系统预置字典不可停用</span>
+            </n-form-item>
+            <n-form-item label="字典描述" path="description" :span="2">
+              <n-input
+                v-model:value="headDraft.description"
+                type="textarea"
+                placeholder="简要说明"
+                :autosize="{ minRows: 2, maxRows: 4 }"
+              />
+            </n-form-item>
+          </n-grid>
+        </n-form>
+      </n-card>
+
+      <n-card title="字典元素" :bordered="false" class="section">
+        <template #header-extra>
+          <n-button size="small" @click="addRootItem">+ 新增元素</n-button>
+        </template>
+
+        <div class="el-table">
+          <div class="el-row el-head">
+            <div class="el-cell" style="flex: 1.4">元素名称</div>
+            <div class="el-cell" style="flex: 1.2">元素代码</div>
+            <div class="el-cell" style="flex: 1.2">英文名称</div>
+            <div class="el-cell" style="flex: 0.6">排序</div>
+            <div class="el-cell" style="flex: 1.6">描述</div>
+            <div class="el-cell" style="flex: 2.2">操作</div>
+          </div>
+
+          <div
+            v-for="node in flatTree"
+            :key="node.row.clientId"
+            class="el-row"
+            :class="{ editing: node.row.editing, isnew: node.row.isNew }"
+            :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }"
+          >
+            <!-- 元素名称 -->
+            <div class="el-cell" style="flex: 1.4">
+              <span v-if="node.depth > 0" class="tree-guide">└</span>
+              <template v-if="node.row.editing">
+                <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
+              </template>
+              <template v-else>
+                <span :class="{ strikethrough: !node.row.isActive }">{{ node.row.value }}</span>
+              </template>
+            </div>
+            <!-- 元素代码 -->
+            <div class="el-cell" style="flex: 1.2">
+              <template v-if="node.row.editing">
+                <n-input v-model:value="node.row.key" size="small" placeholder="代码" />
+              </template>
+              <template v-else>
+                <code>{{ node.row.key }}</code>
+              </template>
+            </div>
+            <!-- 英文名称 -->
+            <div class="el-cell" style="flex: 1.2">
+              <template v-if="node.row.editing">
+                <n-input v-model:value="node.row.englishName" size="small" placeholder="英文" />
+              </template>
+              <template v-else>{{ node.row.englishName }}</template>
+            </div>
+            <!-- 排序 -->
+            <div class="el-cell" style="flex: 0.6">
+              <template v-if="node.row.editing">
+                <n-input-number v-model:value="node.row.sortOrder" size="small" :min="0" style="width: 80px" />
+              </template>
+              <template v-else>{{ node.row.sortOrder }}</template>
+            </div>
+            <!-- 描述 -->
+            <div class="el-cell desc-cell" style="flex: 1.6">
+              <template v-if="node.row.editing">
+                <n-input v-model:value="node.row.description" size="small" placeholder="描述" />
+              </template>
+              <template v-else>
+                <n-ellipsis :line-clamp="1" :tooltip="!!node.row.description">{{ node.row.description }}</n-ellipsis>
+              </template>
+            </div>
+            <!-- 操作 -->
+            <div class="el-cell" style="flex: 2.2">
+              <n-space :size="4" align="center">
+                <template v-if="node.row.editing">
+                  <n-button size="tiny" type="primary" @click="saveRow(node.row)">保存</n-button>
+                  <n-button size="tiny" @click="cancelRow(node.row)">取消</n-button>
+                </template>
+                <template v-else>
+                  <n-button size="tiny" @click="startEdit(node.row)">编辑</n-button>
+                  <n-button size="tiny" @click="addSibling(node.row)">加同级</n-button>
+                  <n-button size="tiny" @click="addChild(node.row)">加下级</n-button>
+                  <n-button
+                    v-if="!node.row.isNew"
+                    size="tiny"
+                    :type="node.row.isActive ? 'warning' : 'default'"
+                    :disabled="hasChildren(node.row)"
+                    :title="hasChildren(node.row) ? '请先移除或转移所有子级元素' : ''"
+                    @click="toggleActive(node.row)"
+                  >
+                    {{ node.row.isActive ? '停用' : '启用' }}
+                  </n-button>
+                  <n-button
+                    v-if="node.row.isNew"
+                    size="tiny"
+                    type="error"
+                    @click="deleteRow(node.row)"
+                  >
+                    删除
+                  </n-button>
+                </template>
+              </n-space>
+            </div>
+          </div>
+
+          <div v-if="flatTree.length === 0" class="el-empty">暂无元素，点击右上角“新增元素”</div>
+        </div>
+      </n-card>
+
+      <!-- 草稿提示条 -->
+      <div v-if="hasUnsavedChanges" class="draft-bar">
+        <n-icon class="draft-icon"><span>⚠️</span></n-icon>
+        <span>有未保存的草稿，离开将丢失。</span>
+        <n-button size="small" type="primary" :loading="submitting" @click="submitDraft">立即提交</n-button>
+        <n-button size="small" @click="discardDraft">忽略</n-button>
+      </div>
+    </template>
+
+    <!-- 新增字典弹窗 -->
     <n-modal
-      v-model:show="showTypeModal"
-      :title="typeModalMode === 'create' ? '新增字典类型' : '编辑字典类型'"
+      v-model:show="showCreateModal"
+      title="新增字典"
       preset="card"
       style="width: 480px"
       :mask-closable="false"
     >
-      <n-form
-        ref="typeFormRef"
-        :model="typeForm"
-        :rules="typeRules"
-        label-placement="top"
-      >
-        <n-form-item label="类型编码" path="code">
-          <n-input
-            v-model:value="typeForm.code"
-            placeholder="如 recruitment_stage_type（小写字母/数字/下划线）"
-            :disabled="typeModalMode === 'edit'"
-          />
+      <n-form ref="createFormRef" :model="createForm" :rules="createRules" label-placement="top">
+        <n-form-item label="字典代码" path="code">
+          <n-input v-model:value="createForm.code" placeholder="如 major_subject（字母/数字/下划线）" />
         </n-form-item>
-        <n-form-item label="类型名称" path="name">
-          <n-input v-model:value="typeForm.name" placeholder="如 招聘阶段类型" />
+        <n-form-item label="字典名称" path="name">
+          <n-input v-model:value="createForm.name" placeholder="如 专业学科" />
+        </n-form-item>
+        <n-form-item label="英文名称" path="englishName">
+          <n-input v-model:value="createForm.englishName" placeholder="如 MAJOR_SUBJECT" />
         </n-form-item>
         <n-form-item label="说明" path="description">
-          <n-input
-            v-model:value="typeForm.description"
-            type="textarea"
-            placeholder="可选"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-          />
+          <n-input v-model:value="createForm.description" type="textarea" placeholder="可选" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button :disabled="typeSaving" @click="showTypeModal = false">取消</n-button>
-          <n-button type="primary" :loading="typeSaving" @click="submitType">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
-
-    <!-- 字典项弹窗 -->
-    <n-modal
-      v-model:show="showItemModal"
-      :title="itemModalMode === 'create' ? '新增字典项' : '编辑字典项'"
-      preset="card"
-      style="width: 480px"
-      :mask-closable="false"
-    >
-      <n-form
-        ref="itemFormRef"
-        :model="itemForm"
-        :rules="itemRules"
-        label-placement="top"
-      >
-        <n-form-item label="字典项编码" path="key">
-          <n-input v-model:value="itemForm.key" placeholder="如 SCREEN" />
-        </n-form-item>
-        <n-form-item label="展示名" path="value">
-          <n-input v-model:value="itemForm.value" placeholder="如 筛选" />
-        </n-form-item>
-        <n-form-item label="排序" path="sortOrder">
-          <n-input-number v-model:value="itemForm.sortOrder" :min="0" />
-        </n-form-item>
-        <n-form-item label="启用" path="isActive">
-          <n-switch v-model:value="itemForm.isActive" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button :disabled="itemSaving" @click="showItemModal = false">取消</n-button>
-          <n-button type="primary" :loading="itemSaving" @click="submitItem">保存</n-button>
+          <n-button :disabled="creating" @click="showCreateModal = false">取消</n-button>
+          <n-button type="primary" :loading="creating" @click="submitCreate">创建</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -139,36 +240,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
 import {
   useMessage,
   useDialog,
+  NButton,
   NCard,
-  NMenu,
   NDataTable,
   NTag,
   NEmpty,
-  NSpin,
-  NButton,
-  NModal,
-  NForm,
-  NFormItem,
   NInput,
   NInputNumber,
   NSwitch,
+  NSelect,
   NSpace,
+  NModal,
+  NForm,
+  NFormItem,
+  NGrid,
   type FormRules,
+  type DataTableColumns,
 } from 'naive-ui'
 import {
   listDictionaryTypes,
-  listDictionaryItems,
+  getDictionaryDetail,
+  submitDictionaryDraft,
   createDictionaryType,
   updateDictionaryType,
   deleteDictionaryType,
-  createDictionaryItem,
-  updateDictionaryItem,
-  deleteDictionaryItem,
   type DictionaryType,
+  type DictionaryDetail,
   type DictionaryItem,
 } from '../../api/dictionary'
 import { extractApiError } from '../../api/dynamic-field'
@@ -176,297 +277,495 @@ import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 const dialog = useDialog()
 
-interface TypeForm {
-  code: string
-  name: string
-  description: string
-}
-
-interface ItemForm {
-  id: string
-  key: string
-  value: string
-  sortOrder: number
-  isActive: boolean
-}
+// ===================== 状态 =====================
+type Mode = 'list' | 'edit'
+const mode = ref<Mode>('list')
 
 const types = ref<DictionaryType[]>([])
-const typesLoading = ref(false)
-const selectedType = ref<DictionaryType | null>(null)
-const items = ref<DictionaryItem[]>([])
-const itemsLoading = ref(false)
+const listLoading = ref(false)
+const searchText = ref('')
+const typeFilter = ref<'all' | 'system' | 'custom'>('all')
+const typeOptions = [
+  { label: '全部', value: 'all' },
+  { label: '系统预置', value: 'system' },
+  { label: '自定义', value: 'custom' },
+]
 
-// 左栏菜单选项: label=类型名称, key=类型 code, extra=code 便于辨识.
-const menuOptions = computed(() =>
-  types.value.map((t) => ({
-    label: t.name,
-    key: t.code,
-    extra: t.code,
-  })),
-)
+const currentType = ref<DictionaryType | null>(null)
+const headDraft = reactive({ name: '', englishName: '', isEnabled: true, description: '' })
+const itemsDraft = ref<ElementRow[]>([])
+const hasUnsavedChanges = ref(false)
+const submitting = ref(false)
 
-/** 拉取全部字典类型; 成功后选中 selectCode(默认第一个) 并加载其字典项. */
-async function loadTypes(selectCode?: string) {
-  typesLoading.value = true
-  try {
-    const list = await listDictionaryTypes()
-    types.value = list
-    if (list.length > 0) {
-      const target = (selectCode && list.find((t) => t.code === selectCode)) || list[0]
-      await selectType(target)
-    } else {
-      selectedType.value = null
-      items.value = []
+let searchTimer: any = null
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(loadList, 300)
+}
+
+// ===================== 元素行模型 =====================
+interface ElementRow {
+  clientId: string
+  id: string | null
+  parentId: string | null // 父级为已存在元素时的 db id
+  parentClientId: string | null // 父级为新增元素时的 clientId
+  key: string
+  value: string
+  englishName: string
+  description: string
+  sortOrder: number
+  isActive: boolean
+  isNew: boolean
+  editing: boolean
+  _backup?: Partial<ElementRow>
+}
+
+let clientSeq = 0
+function genClientId(): string {
+  clientSeq += 1
+  return 'c_' + clientSeq
+}
+
+/** 解析某行的父级 key（用于建树 / 判断子级）。 */
+function parentKeyOf(row: ElementRow): string | null {
+  if (row.parentId) return row.parentId
+  if (row.parentClientId) return row.parentClientId
+  return null
+}
+
+/** 某行是否拥有子级（最终草稿态）。 */
+function hasChildren(row: ElementRow): boolean {
+  return itemsDraft.value.some(
+    (c) => (c.parentId && c.parentId === row.id) || (c.parentClientId && c.parentClientId === row.clientId),
+  )
+}
+
+/** 将草稿构建为带深度的扁平树（DFS）。 */
+const flatTree = computed(() => {
+  const list = itemsDraft.value
+  const childrenMap = new Map<string | null, ElementRow[]>()
+  for (const row of list) {
+    const pk = parentKeyOf(row)
+    if (!childrenMap.has(pk)) childrenMap.set(pk, [])
+    childrenMap.get(pk)!.push(row)
+  }
+  const out: { row: ElementRow; depth: number }[] = []
+  const visit = (parentKey: string | null, depth: number) => {
+    const children = (childrenMap.get(parentKey) || []).slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    for (const c of children) {
+      out.push({ row: c, depth })
+      visit(c.id ?? c.clientId, depth + 1)
     }
+  }
+  visit(null, 0)
+  return out
+})
+
+// ===================== 列表 =====================
+async function loadList() {
+  listLoading.value = true
+  try {
+    types.value = await listDictionaryTypes({
+      q: searchText.value || undefined,
+      type: typeFilter.value,
+    })
   } catch (e: any) {
     message.error('加载失败')
   } finally {
-    typesLoading.value = false
+    listLoading.value = false
   }
 }
 
-/** 选中某字典类型并加载其字典项 (按 sortOrder 升序, 仅启用项). */
-async function selectType(t: DictionaryType | null) {
-  if (!t) return
-  selectedType.value = t
-  itemsLoading.value = true
-  try {
-    items.value = await listDictionaryItems(t.code)
-  } catch (e: any) {
-    items.value = []
-    message.error('加载失败')
-  } finally {
-    itemsLoading.value = false
-  }
-}
-
-/** 左栏菜单点击 → 根据 code 找到类型并加载. */
-function handleMenuSelect(key: string) {
-  const t = types.value.find((x) => x.code === key) || null
-  selectType(t)
-}
-
-// --- 字典类型弹窗 ----------------------------------------------------------
-
-const showTypeModal = ref(false)
-const typeModalMode = ref<'create' | 'edit'>('create')
-const typeFormRef = ref<any>(null)
-const typeSaving = ref(false)
-const typeForm = ref<TypeForm>({ code: '', name: '', description: '' })
-
-const typeRules: FormRules = {
-  code: { required: true, message: '请输入类型编码', trigger: ['input', 'blur'] },
-  name: { required: true, message: '请输入类型名称', trigger: ['input', 'blur'] },
-}
-
-function openCreateType() {
-  typeModalMode.value = 'create'
-  typeForm.value = { code: '', name: '', description: '' }
-  showTypeModal.value = true
-}
-
-function openEditType() {
-  if (!selectedType.value) return
-  typeModalMode.value = 'edit'
-  typeForm.value = {
-    code: selectedType.value.code,
-    name: selectedType.value.name,
-    description: selectedType.value.description,
-  }
-  showTypeModal.value = true
-}
-
-async function submitType() {
-  if (!typeFormRef.value) return
-  try {
-    await typeFormRef.value.validate()
-  } catch {
-    return
-  }
-  typeSaving.value = true
-  try {
-    const form = typeForm.value
-    if (typeModalMode.value === 'create') {
-      await createDictionaryType({ code: form.code, name: form.name, description: form.description })
-      message.success('创建成功')
-    } else {
-      await updateDictionaryType(form.code, { name: form.name, description: form.description })
-      message.success('更新成功')
-    }
-    showTypeModal.value = false
-    await loadTypes(form.code) // 重载并保持在当前类型
-  } catch (e: any) {
-    message.error(extractApiError(e, '操作失败'))
-  } finally {
-    typeSaving.value = false
-  }
-}
-
-function confirmDeleteType() {
-  if (!selectedType.value) return
-  const t = selectedType.value
-  dialog.warning({
-    title: '删除字典类型',
-    content: `确认删除「${t.name}」(${t.code})？删除后该类型下的字典项将一并不可见，此操作不可恢复。`,
-    positiveText: '删除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await deleteDictionaryType(t.code)
-        message.success('删除成功')
-        await loadTypes() // 回退选中第一个
-      } catch (e: any) {
-        message.error(extractApiError(e, '删除失败'))
-      }
-    },
-  })
-}
-
-// --- 字典项弹窗 ------------------------------------------------------------
-
-const showItemModal = ref(false)
-const itemModalMode = ref<'create' | 'edit'>('create')
-const itemFormRef = ref<any>(null)
-const itemSaving = ref(false)
-const itemForm = ref<ItemForm>({ id: '', key: '', value: '', sortOrder: 0, isActive: true })
-
-const itemRules: FormRules = {
-  key: { required: true, message: '请输入字典项编码', trigger: ['input', 'blur'] },
-  value: { required: true, message: '请输入展示名', trigger: ['input', 'blur'] },
-}
-
-function openCreateItem() {
-  if (!selectedType.value) return
-  itemModalMode.value = 'create'
-  itemForm.value = { id: '', key: '', value: '', sortOrder: 0, isActive: true }
-  showItemModal.value = true
-}
-
-function openEditItem(row: DictionaryItem) {
-  itemModalMode.value = 'edit'
-  itemForm.value = {
-    id: row.id,
-    key: row.key,
-    value: row.value,
-    sortOrder: row.sortOrder,
-    isActive: row.isActive,
-  }
-  showItemModal.value = true
-}
-
-async function submitItem() {
-  if (!itemFormRef.value) return
-  try {
-    await itemFormRef.value.validate()
-  } catch {
-    return
-  }
-  if (!selectedType.value) return
-  const form = itemForm.value
-  itemSaving.value = true
-  try {
-    if (itemModalMode.value === 'create') {
-      await createDictionaryItem({
-        type: selectedType.value.id,
-        key: form.key,
-        value: form.value,
-        sortOrder: form.sortOrder,
-        isActive: form.isActive,
-      })
-      message.success('创建成功')
-    } else {
-      await updateDictionaryItem(form.id, {
-        key: form.key,
-        value: form.value,
-        sortOrder: form.sortOrder,
-        isActive: form.isActive,
-      })
-      message.success('更新成功')
-    }
-    showItemModal.value = false
-    if (selectedType.value) await selectType(selectedType.value) // 重载当前类型字典项
-  } catch (e: any) {
-    message.error(extractApiError(e, '操作失败'))
-  } finally {
-    itemSaving.value = false
-  }
-}
-
-function confirmDeleteItem(row: DictionaryItem) {
-  dialog.warning({
-    title: '删除字典项',
-    content: `确认删除「${row.value}」(${row.key})？此操作不可恢复。`,
-    positiveText: '删除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await deleteDictionaryItem(row.id)
-        message.success('删除成功')
-        if (selectedType.value) await selectType(selectedType.value)
-      } catch (e: any) {
-        message.error(extractApiError(e, '删除失败'))
-      }
-    },
-  })
-}
-
-const columns = [
-  { title: '字典项编码', key: 'key', width: 180 },
-  { title: '展示名', key: 'value', minWidth: 160 },
-  { title: '排序', key: 'sortOrder', width: 90 },
+const listColumns: DataTableColumns<DictionaryType> = [
+  { title: '字典编号', key: 'dictNumber', width: 100 },
+  { title: '字典名称', key: 'name', minWidth: 120 },
+  { title: '字典代码', key: 'code', width: 180 },
+  { title: '英文名称', key: 'englishName', minWidth: 120 },
+  { title: '字典描述', key: 'description', minWidth: 160, ellipsis: { tooltip: true } },
   {
-    title: '状态',
-    key: 'isActive',
-    width: 100,
-    render: (row: DictionaryItem) =>
-      h(
-        NTag,
-        { type: row.isActive ? 'success' : 'default', size: 'small' },
-        { default: () => (row.isActive ? '启用' : '停用') },
-      ),
+    title: '类型',
+    key: 'isSystem',
+    width: 110,
+    render: (row: DictionaryType) =>
+      h(NTag, { size: 'small', type: row.isSystem ? 'warning' : 'success' }, { default: () => (row.isSystem ? '系统预置' : '自定义') }),
+  },
+  {
+    title: '创建人 / 时间',
+    key: 'created',
+    width: 170,
+    render: (row: DictionaryType) => `${row.createdByName || '-'}\n${row.createdAt?.slice(0, 10) || ''}`,
+  },
+  {
+    title: '修改人 / 时间',
+    key: 'updated',
+    width: 170,
+    render: (row: DictionaryType) => `${row.updatedByName || '-'}\n${row.updatedAt?.slice(0, 10) || ''}`,
   },
   {
     title: '操作',
     key: 'actions',
-    width: 140,
-    render: (row: DictionaryItem) =>
+    width: 200,
+    fixed: 'right',
+    render: (row: DictionaryType) =>
       h(
         NSpace,
-        { align: 'center' },
+        { size: 4, align: 'center' },
         {
-          default: () => [
-            h(NButton, { size: 'small', onClick: () => openEditItem(row) }, { default: () => '编辑' }),
-            h(
-              NButton,
-              { size: 'small', type: 'error', onClick: () => confirmDeleteItem(row) },
-              { default: () => '删除' },
-            ),
-          ],
+          default: () => {
+            const btns = [
+              h(NButton, { size: 'small', onClick: () => enterEdit(row) }, { default: () => '编辑' }),
+            ]
+            if (!row.isSystem) {
+              btns.push(
+                h(
+                  NButton,
+                  { size: 'small', type: row.isEnabled ? 'warning' : 'default', onClick: () => toggleType(row) },
+                  { default: () => (row.isEnabled ? '停用' : '启用') },
+                ),
+              )
+              btns.push(
+                h(NButton, { size: 'small', type: 'error', onClick: () => confirmDeleteType(row) }, { default: () => '删除' }),
+              )
+            }
+            return btns
+          },
         },
       ),
   },
 ]
 
+async function toggleType(row: DictionaryType) {
+  try {
+    await updateDictionaryType(row.code, { isEnabled: !row.isEnabled })
+    message.success('操作成功')
+    await loadList()
+  } catch (e: any) {
+    message.error(extractApiError(e, '操作失败'))
+  }
+}
+
+function confirmDeleteType(row: DictionaryType) {
+  dialog.warning({
+    title: '删除字典',
+    content: `确认删除「${row.name}」(${row.code})？此操作不可恢复。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteDictionaryType(row.code)
+        message.success('删除成功')
+        await loadList()
+      } catch (e: any) {
+        message.error(extractApiError(e, '删除失败'))
+      }
+    },
+  })
+}
+
+// ===================== 编辑 =====================
+async function enterEdit(type: DictionaryType) {
+  currentType.value = type
+  const detail: DictionaryDetail = await getDictionaryDetail(type.code)
+  headDraft.name = detail.name
+  headDraft.englishName = detail.englishName
+  headDraft.isEnabled = detail.isEnabled
+  headDraft.description = detail.description
+  itemsDraft.value = (detail.items || []).map((it: DictionaryItem) => ({
+    clientId: 'e_' + it.id,
+    id: it.id,
+    parentId: it.parentId,
+    parentClientId: null,
+    key: it.key,
+    value: it.value,
+    englishName: it.englishName,
+    description: it.description,
+    sortOrder: it.sortOrder,
+    isActive: it.isActive,
+    isNew: false,
+    editing: false,
+  }))
+  hasUnsavedChanges.value = false
+  mode.value = 'edit'
+}
+
+function backToList() {
+  if (hasUnsavedChanges.value) {
+    dialog.warning({
+      title: '离开编辑页',
+      content: '当前有未保存的草稿，离开将丢失。确认离开？',
+      positiveText: '离开',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        mode.value = 'list'
+        currentType.value = null
+        loadList()
+      },
+    })
+    return
+  }
+  mode.value = 'list'
+  currentType.value = null
+  loadList()
+}
+
+// --- 行操作 ---
+function addRootItem() {
+  const row = blankRow()
+  itemsDraft.value.push(row)
+  markDirty()
+}
+
+function addSibling(refRow: ElementRow) {
+  const row = blankRow()
+  row.parentId = refRow.parentId
+  row.parentClientId = refRow.parentClientId
+  itemsDraft.value.push(row)
+  markDirty()
+}
+
+function addChild(refRow: ElementRow) {
+  const row = blankRow()
+  // 父级为已存在元素 → 用其 id; 父级为新增元素 → 用其 clientId
+  if (refRow.id) row.parentId = refRow.id
+  else row.parentClientId = refRow.clientId
+  itemsDraft.value.push(row)
+  markDirty()
+}
+
+function blankRow(): ElementRow {
+  return {
+    clientId: genClientId(),
+    id: null,
+    parentId: null,
+    parentClientId: null,
+    key: '',
+    value: '',
+    englishName: '',
+    description: '',
+    sortOrder: (itemsDraft.value.length + 1) * 10,
+    isActive: true,
+    isNew: true,
+    editing: true,
+  }
+}
+
+function startEdit(row: ElementRow) {
+  row._backup = { ...row }
+  row.editing = true
+}
+
+function rowValid(row: ElementRow): string | null {
+  if (!row.key.trim()) return '元素代码不能为空'
+  if (!/^[A-Za-z0-9_]+$/.test(row.key.trim())) return '元素代码只能含字母、数字、下划线'
+  if (!row.value.trim()) return '元素名称不能为空'
+  if (row.sortOrder == null || row.sortOrder < 0) return '排序须为非负整数'
+  return null
+}
+
+function saveRow(row: ElementRow) {
+  const err = rowValid(row)
+  if (err) {
+    message.warning(err)
+    return
+  }
+  row.editing = false
+  markDirty()
+}
+
+function cancelRow(row: ElementRow) {
+  if (row.isNew) {
+    itemsDraft.value = itemsDraft.value.filter((r) => r.clientId !== row.clientId)
+    return
+  }
+  if (row._backup) Object.assign(row, row._backup)
+  row.editing = false
+}
+
+function deleteRow(row: ElementRow) {
+  // 仅新增未提交的行可删除（历史元素只能停用）
+  itemsDraft.value = itemsDraft.value.filter((r) => r.clientId !== row.clientId)
+  markDirty()
+}
+
+function toggleActive(row: ElementRow) {
+  if (hasChildren(row)) {
+    message.warning('该元素包含子级，不可停用，请先移除或转移所有子级元素')
+    return
+  }
+  row.isActive = !row.isActive
+  markDirty()
+}
+
+function markDirty() {
+  hasUnsavedChanges.value = true
+}
+
+// ===================== 提交草稿 =====================
+async function submitDraft() {
+  if (!currentType.value) return
+  // 提交前对所有处于编辑态的新行做一次校验
+  for (const row of itemsDraft.value) {
+    if (row.editing) {
+      const err = rowValid(row)
+      if (err) {
+        message.warning(`元素「${row.value || row.key}」：${err}`)
+        return
+      }
+    }
+  }
+  submitting.value = true
+  try {
+    const items = itemsDraft.value.map((row) => ({
+      id: row.id,
+      client_id: row.isNew ? row.clientId : undefined,
+      parent_id: row.parentId || undefined,
+      parent_client_id: row.parentClientId || undefined,
+      key: row.key.trim(),
+      value: row.value.trim(),
+      english_name: row.englishName.trim(),
+      description: row.description,
+      sort_order: row.sortOrder,
+      is_active: row.isActive,
+    }))
+    const payload = {
+      head: {
+        name: headDraft.name.trim(),
+        english_name: headDraft.englishName.trim(),
+        is_enabled: headDraft.isEnabled,
+        description: headDraft.description,
+      },
+      items,
+    }
+    const resp = await submitDictionaryDraft(currentType.value.code, payload)
+    if (resp && resp.detail === '提交成功') {
+      message.success('提交成功')
+      hasUnsavedChanges.value = false
+      await enterEdit({ ...currentType.value } as DictionaryType)
+    } else {
+      message.success('提交成功')
+      hasUnsavedChanges.value = false
+    }
+  } catch (e: any) {
+    const data = e?.response?.data
+    if (data && (data.headErrors || data.itemErrors)) {
+      if (data.headErrors) {
+        const msg = Object.entries(data.headErrors).map(([, v]: any) => (Array.isArray(v) ? v[0] : v)).join('；')
+        message.error(msg || '字典头校验失败')
+      }
+      if (data.itemErrors) {
+        const firstKey = Object.keys(data.itemErrors)[0]
+        const errs = data.itemErrors[firstKey]
+        const msg = Object.values(errs || {}).map((v: any) => (Array.isArray(v) ? v[0] : v)).join('；')
+        message.error(`第 ${Number(firstKey) + 1} 行：${msg || '校验失败'}`)
+        // 把对应行置为编辑态以便修改
+        const idx = Number(firstKey)
+        if (itemsDraft.value[idx]) itemsDraft.value[idx].editing = true
+      }
+    } else {
+      message.error(extractApiError(e, '提交失败'))
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+function discardDraft() {
+  if (!currentType.value) return
+  enterEdit(currentType.value)
+}
+
+// ===================== 新增字典 =====================
+const showCreateModal = ref(false)
+const createFormRef = ref<any>(null)
+const creating = ref(false)
+const createForm = reactive({ code: '', name: '', englishName: '', description: '' })
+const createRules: FormRules = {
+  code: { required: true, message: '请输入字典代码', trigger: ['input', 'blur'] },
+  name: { required: true, message: '请输入字典名称', trigger: ['input', 'blur'] },
+  englishName: { required: true, message: '请输入英文名称', trigger: ['input', 'blur'] },
+}
+
+function openCreateType() {
+  createForm.code = ''
+  createForm.name = ''
+  createForm.englishName = ''
+  createForm.description = ''
+  showCreateModal.value = true
+}
+
+async function submitCreate() {
+  if (!createFormRef.value) return
+  try {
+    await createFormRef.value.validate()
+  } catch {
+    return
+  }
+  creating.value = true
+  try {
+    await createDictionaryType({
+      code: createForm.code.trim(),
+      name: createForm.name.trim(),
+      englishName: createForm.englishName.trim(),
+      description: createForm.description,
+    })
+    message.success('创建成功')
+    showCreateModal.value = false
+    await loadList()
+  } catch (e: any) {
+    message.error(extractApiError(e, '创建失败'))
+  } finally {
+    creating.value = false
+  }
+}
+
+// ===================== beforeunload 守卫 =====================
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
 onMounted(() => {
-  loadTypes()
+  loadList()
+  window.addEventListener('beforeunload', onBeforeUnload)
+})
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 
 <style scoped>
-.page-container { padding: 24px; }
-.page-header { margin-bottom: 24px; }
-.page-title { font-size: 24px; font-weight: 600; margin: 0; }
-.page-subtitle { color: #888; margin: 4px 0 0; font-size: 13px; }
+.page-container { padding: 24px; max-width: 1280px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
+.page-title { font-size: 22px; font-weight: 600; margin: 0; }
+.page-subtitle { color: #888; margin: 6px 0 0; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.code-pill, .num-pill { font-size: 12px; color: #666; background: #f2f3f5; padding: 2px 8px; border-radius: 4px; }
+.toolbar { margin-bottom: 16px; }
+.section { margin-bottom: 16px; }
+.edit-head { display: flex; align-items: center; gap: 16px; }
 
-.dd-layout { display: flex; gap: 16px; align-items: flex-start; }
-.dd-left { width: 260px; flex: 0 0 260px; }
-.dd-right { flex: 1; min-width: 0; }
+.hint { color: #aaa; font-size: 12px; margin-left: 8px; }
 
-.dd-left-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.dd-left-title { font-weight: 600; font-size: 14px; }
+/* 元素树形表格 */
+.el-table { border: 1px solid #eee; border-radius: 6px; overflow: hidden; }
+.el-row { display: flex; align-items: center; border-bottom: 1px solid #f2f3f5; min-height: 44px; }
+.el-row:last-child { border-bottom: none; }
+.el-head { background: #fafafa; font-weight: 600; font-size: 13px; color: #555; }
+.el-row.editing { background: #fafcff; }
+.el-row.isnew { background: #fffbe6; }
+.el-row.isnew.editing { background: #fff7cc; }
+.el-cell { padding: 6px 10px; font-size: 13px; overflow: hidden; }
+.el-cell code { background: #f2f3f5; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.tree-guide { color: #bbb; margin-right: 4px; }
+.strikethrough { text-decoration: line-through; color: #aaa; }
+.desc-cell { color: #666; }
+.el-empty { padding: 32px; text-align: center; color: #aaa; font-size: 13px; }
 
-.dd-detail-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.dd-detail-title { font-size: 18px; font-weight: 600; }
-.dd-detail-actions { margin-left: auto; }
-.dd-detail-desc { color: #888; margin: 4px 0 16px; font-size: 13px; }
+.draft-bar {
+  position: sticky; bottom: 0; margin-top: 12px;
+  display: flex; align-items: center; gap: 12px;
+  background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
+  padding: 10px 16px; font-size: 13px;
+}
+.draft-icon { color: #fa8c16; }
 </style>

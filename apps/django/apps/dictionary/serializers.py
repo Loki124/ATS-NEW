@@ -6,19 +6,31 @@ from rest_framework.validators import UniqueTogetherValidator
 
 from .models import DictionaryItem, DictionaryType
 
-# code 只允许小写字母 / 数字 / 下划线, 保证可作为 URL / 标识符稳定使用.
-CODE_PATTERN = re.compile(r'^[a-z0-9_]+$')
+# code / key 只允许字母、数字、下划线, 保证可作为标识符稳定使用.
+CODE_PATTERN = re.compile(r'^[A-Za-z0-9_]+$')
 
 
 class DictionaryTypeSerializer(serializers.ModelSerializer):
-    """字典类型。"""
+    """字典类型（列表 / 详情基础）。"""
+
+    created_by_name = serializers.SerializerMethodField()
+    updated_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DictionaryType
-        fields = ['id', 'code', 'name', 'description', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-        # code 在创建时由前端提供 (同时作为 URL lookup), 编辑时随 URL 传入、不在 body 中,
-        # 故放宽为非必填, 避免 PUT 整量更新因缺 code 触发 400.
+        fields = [
+            'id', 'code', 'name', 'english_name', 'description',
+            'dict_number', 'is_system', 'is_enabled',
+            'created_by_name', 'created_at',
+            'updated_by_name', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'dict_number', 'is_system',
+            'created_by_name', 'created_at',
+            'updated_by_name', 'updated_at',
+        ]
+        # code 创建时由前端提供 (同时作为 URL lookup), 编辑时随 URL 传入、不在 body 中,
+        # 故放宽为非必填, 避免 PUT 整量更新因缺 code 触发 400; 创建时的必填在 __init__ 中保证.
         extra_kwargs = {
             'code': {'required': False},
         }
@@ -30,30 +42,91 @@ class DictionaryTypeSerializer(serializers.ModelSerializer):
             self.fields['code'].required = True
 
     def validate_code(self, value: str) -> str:
-        """code 非空且只能含小写字母、数字、下划线。"""
-        if not value:
+        """code 非空且只能含字母、数字、下划线。"""
+        if not value or not value.strip():
             raise serializers.ValidationError('code 不能为空')
         if not CODE_PATTERN.match(value):
-            raise serializers.ValidationError('code 只能包含小写字母、数字和下划线')
+            raise serializers.ValidationError('code 只能包含字母、数字和下划线')
         return value
 
+    def validate(self, attrs: dict) -> dict:
+        """编辑时字典代码不可修改（PRD 4.2：创建后锁定）。"""
+        attrs = super().validate(attrs)
+        if self.instance is not None and 'code' in attrs:
+            if attrs['code'] != self.instance.code:
+                raise serializers.ValidationError(
+                    {'code': ['字典代码创建后不可修改']}
+                )
+        return attrs
+
     def validate_name(self, value: str) -> str:
-        """name 非空。"""
         if not value or not value.strip():
             raise serializers.ValidationError('name 不能为空')
         return value
 
+    def validate_english_name(self, value: str) -> str:
+        if not value or not value.strip():
+            raise serializers.ValidationError('英文名称不能为空')
+        if not CODE_PATTERN.match(value):
+            raise serializers.ValidationError('英文名称只能包含字母、数字和下划线')
+        return value
 
-class DictionaryItemSerializer(serializers.ModelSerializer):
-    """字典项 — 含所属类型编码（typeCode）。"""
+    def get_created_by_name(self, obj) -> str:
+        u = getattr(obj, 'created_by', None)
+        return u.full_name if u else ''
 
-    type_code = serializers.CharField(source='type.code', read_only=True)
+    def get_updated_by_name(self, obj) -> str:
+        u = getattr(obj, 'updated_by', None)
+        return u.full_name if u else ''
+
+
+class DictionaryItemFlatSerializer(serializers.ModelSerializer):
+    """字典项（扁平, 含 parent_id, 供前端构建树形）。"""
+
+    parent_id = serializers.PrimaryKeyRelatedField(
+        source='parent',
+        queryset=DictionaryItem.objects.all(),
+        allow_null=True,
+        required=False,
+    )
 
     class Meta:
         model = DictionaryItem
         fields = [
-            'id', 'type', 'type_code', 'key', 'value',
-            'sort_order', 'is_active',
+            'id', 'parent_id', 'key', 'value',
+            'english_name', 'description', 'sort_order', 'is_active',
+        ]
+
+
+class DictionaryTypeDetailSerializer(DictionaryTypeSerializer):
+    """字典类型详情, 含元素扁平列表（带 parent_id, 仅 live 项）。"""
+
+    items = serializers.SerializerMethodField()
+
+    class Meta(DictionaryTypeSerializer.Meta):
+        fields = DictionaryTypeSerializer.Meta.fields + ['items']
+
+    def get_items(self, obj):
+        qs = obj.items.filter(deleted_at__isnull=True).order_by('sort_order', 'key')
+        return DictionaryItemFlatSerializer(qs, many=True, context=self.context).data
+
+
+class DictionaryItemSerializer(serializers.ModelSerializer):
+    """字典项 — 含所属类型编码（type_code）与 parent_id。"""
+
+    type_code = serializers.CharField(source='type.code', read_only=True)
+    parent_id = serializers.PrimaryKeyRelatedField(
+        source='parent',
+        queryset=DictionaryItem.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
+    class Meta:
+        model = DictionaryItem
+        fields = [
+            'id', 'type', 'type_code', 'parent_id', 'key', 'value',
+            'english_name', 'description', 'sort_order', 'is_active',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'type_code']
@@ -67,15 +140,21 @@ class DictionaryItemSerializer(serializers.ModelSerializer):
         }
 
     def validate_key(self, value: str) -> str:
-        """key 非空。"""
         if not value or not value.strip():
             raise serializers.ValidationError('key 不能为空')
+        if not CODE_PATTERN.match(value):
+            raise serializers.ValidationError('key 只能包含字母、数字和下划线')
         return value
 
     def validate_value(self, value: str) -> str:
-        """value 非空。"""
         if not value or not value.strip():
             raise serializers.ValidationError('value 不能为空')
+        return value
+
+    def validate_english_name(self, value: str) -> str:
+        # 英文名称允许留空, 若填写则校验格式
+        if value and not CODE_PATTERN.match(value):
+            raise serializers.ValidationError('英文名称只能包含字母、数字和下划线')
         return value
 
     def get_validators(self):
@@ -92,11 +171,7 @@ class DictionaryItemSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs: dict) -> dict:
-        """(type, key) 唯一性校验: 含软删记录占位 (DB 约束不认 deleted_at)。
-
-        软删行仍占着 unique_together 坑位, 若只依赖 DB 写时拦截会落到
-        IntegrityError → 500; 这里在校验阶段提前拦截并给出中文提示, 错误挂到 key 字段.
-        """
+        """(type, key) 唯一性校验: 含软删记录占位 (DB 约束不认 deleted_at)。"""
         attrs = super().validate(attrs)
         instance = self.instance
         type_obj = attrs.get('type') or getattr(instance, 'type', None)
