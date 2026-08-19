@@ -68,7 +68,7 @@
       <!-- 顶部提示条 -->
       <n-alert type="warning" :show-icon="false" class="section">
         <ul class="dict-hints">
-          <li>支持元素分级。</li>
+          <li>支持元素分级（推荐不超过 {{ MAX_TREE_LEVEL }} 级）。</li>
           <li>元素描述支持 hover 提示。</li>
           <li>编辑时仅支持删除新添加的元素，原有元素不支持删除。</li>
           <li>停用及删除仅支持操作没有下级的元素。</li>
@@ -189,7 +189,12 @@
                 <template v-else>
                   <n-button size="tiny" @click="startEdit(node.row)">编辑</n-button>
                   <n-button size="tiny" @click="addSibling(node.row)">加同级</n-button>
-                  <n-button size="tiny" @click="addChild(node.row)">加下级</n-button>
+                  <n-button
+                    size="tiny"
+                    :disabled="node.depth >= MAX_TREE_LEVEL - 1"
+                    :title="node.depth >= MAX_TREE_LEVEL - 1 ? `已达推荐最大层级（${MAX_TREE_LEVEL} 级），不可再加下级` : ''"
+                    @click="addChild(node.row)"
+                  >加下级</n-button>
                   <n-button
                     v-if="!node.row.isNew"
                     size="tiny"
@@ -309,6 +314,9 @@ const dialog = useDialog()
 // ===================== 状态 =====================
 type Mode = 'list' | 'edit'
 const mode = ref<Mode>('list')
+
+/** 树形层级软上限：PRD 建议不超过 5 级。超出则该节点禁止再加下级。 */
+const MAX_TREE_LEVEL = 5
 
 const types = ref<DictionaryType[]>([])
 const listLoading = ref(false)
@@ -758,7 +766,7 @@ async function submitCreate() {
   }
   creating.value = true
   try {
-    await createDictionaryType({
+    const created = await createDictionaryType({
       code: createForm.code.trim(),
       name: createForm.name.trim(),
       englishName: createForm.englishName.trim(),
@@ -766,7 +774,12 @@ async function submitCreate() {
     })
     message.success('创建成功')
     showCreateModal.value = false
-    await loadList()
+    // 创建成功后直接进入编辑页（详情为空，可继续配置元素）
+    if (created && created.code) {
+      await enterEdit(created)
+    } else {
+      await loadList()
+    }
   } catch (e: any) {
     message.error(extractApiError(e, '创建失败'))
   } finally {
