@@ -269,7 +269,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, h } from 'vue'
 import {
   useMessage,
   useDialog,
@@ -327,9 +327,19 @@ const typeOptions = [
 
 const currentType = ref<DictionaryType | null>(null)
 const headDraft = reactive({ name: '', englishName: '', isEnabled: true, description: '' })
+let skipHeadDirty = false
 const itemsDraft = ref<ElementRow[]>([])
 const hasUnsavedChanges = ref(false)
 const submitting = ref(false)
+
+// 监听字典头信息变化，自动标记草稿未保存（初始化时跳过）
+watch(
+  headDraft,
+  () => {
+    if (!skipHeadDirty) markDirty()
+  },
+  { deep: true },
+)
 
 let searchTimer: any = null
 function onSearchInput() {
@@ -519,10 +529,12 @@ function confirmDeleteType(row: DictionaryType) {
 async function enterEdit(type: DictionaryType) {
   currentType.value = type
   const detail: DictionaryDetail = await getDictionaryDetail(type.code)
+  skipHeadDirty = true
   headDraft.name = detail.name
   headDraft.englishName = detail.englishName
   headDraft.isEnabled = detail.isEnabled
   headDraft.description = detail.description
+  skipHeadDirty = false
   itemsDraft.value = (detail.items || []).map((it: DictionaryItem) => ({
     clientId: 'e_' + it.id,
     id: it.id,
