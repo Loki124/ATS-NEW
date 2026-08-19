@@ -854,17 +854,19 @@ onUnmounted(() => {
 .el-cell .n-button { white-space: nowrap; }
 
 .draft-bar {
-  position: sticky; bottom: 64px; margin-top: 16px;
+  position: sticky; bottom: 80px; margin-top: 16px;
   display: flex; align-items: center; gap: 12px;
   background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
   padding: 10px 16px; font-size: 13px;
+  z-index: 11;
 }
 .draft-icon { color: #fa8c16; }
 
 .submit-bar {
-  position: sticky; bottom: 0; left: 0; right: 0;
-  background: #fff; border-top: 1px solid #f0f0f0;
-  padding: 12px 24px; margin: 0 -24px;
+  position: sticky; bottom: 16px; left: 0; right: 0;
+  background: #fff; border: 1px solid #f0f0f0; border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  padding: 12px 24px; margin: 24px 0 0;
   z-index: 10;
 }
 </style>

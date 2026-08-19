@@ -43,6 +43,8 @@ const themeOverrides: GlobalThemeOverrides = {
     textColorHoverPrimary: '#1f2937',
     textColorPressedPrimary: '#1f2937',
     textColorFocusPrimary: '#1f2937',
+    // 修复：disabled 主色按钮同样使用深色文字，避免半透明白字看不清
+    textColorDisabledPrimary: '#1f2937',
   },
 }
 </script>
