@@ -34,16 +34,19 @@ class DictionaryCRUDMixin:
     _unique_message: str = '该 key 已存在（同一字典类型下不可重复）'
 
     def perform_create(self, serializer):
-        """写入新记录; 唯一约束冲突 → 视作校验失败转 400。"""
+        """写入新记录; 自动带入当前用户, 唯一约束冲突 → 视作校验失败转 400。"""
         try:
-            serializer.save()
+            serializer.save(
+                created_by=self.request.user,
+                updated_by=self.request.user,
+            )
         except IntegrityError:
             raise ValidationError({self._unique_field: [self._unique_message]})
 
     def perform_update(self, serializer):
-        """更新记录; 唯一约束冲突 → 视作校验失败转 400。"""
+        """更新记录; 自动带入当前用户, 唯一约束冲突 → 视作校验失败转 400。"""
         try:
-            serializer.save()
+            serializer.save(updated_by=self.request.user)
         except IntegrityError:
             raise ValidationError({self._unique_field: [self._unique_message]})
 
@@ -136,8 +139,12 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
                 dtype.english_name = (head.get('english_name') or '').strip()
                 dtype.description = head.get('description', '') or ''
                 dtype.is_enabled = bool(head.get('is_enabled', dtype.is_enabled))
+                dtype.updated_by = request.user
                 dtype.save(
-                    update_fields=['name', 'english_name', 'description', 'is_enabled', 'updated_at']
+                    update_fields=[
+                        'name', 'english_name', 'description', 'is_enabled',
+                        'updated_at', 'updated_by_id',
+                    ]
                 )
 
                 # 2) 新增项（先建父级为 None, 再回填 parent）
@@ -154,6 +161,8 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
                         description=p['description'],
                         sort_order=p['sort_order'],
                         is_active=True,
+                        created_by=request.user,
+                        updated_by=request.user,
                     )
                     item.save()
                     created_map[p['client_id']] = item
@@ -184,7 +193,11 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
                     item.sort_order = p['sort_order']
                     item.is_active = p['is_active']
                     item.parent = _resolve_parent(p, created_map, dtype)
-                    item.save()
+                    item.updated_by = request.user
+                    item.save(update_fields=[
+                        'key', 'value', 'english_name', 'description',
+                        'sort_order', 'is_active', 'parent', 'updated_at', 'updated_by_id',
+                    ])
         except DictionaryItem.DoesNotExist:
             return Response({'detail': '元素不存在或已被删除，请刷新后重试'}, status=400)
         except DjangoValidationError as e:

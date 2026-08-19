@@ -405,6 +405,14 @@ const flatTree = computed(() => {
 })
 
 // ===================== 列表 =====================
+function formatDateTime(iso: string | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso.replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${pad(d.getFullYear() % 100)}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 async function loadList() {
   listLoading.value = true
   try {
@@ -447,13 +455,21 @@ const listColumns: DataTableColumns<DictionaryType> = [
     title: '创建人 / 时间',
     key: 'created',
     width: 170,
-    render: (row: DictionaryType) => `${row.createdByName || '-'}\n${row.createdAt?.slice(0, 10) || ''}`,
+    render: (row: DictionaryType) =>
+      h('div', { style: { lineHeight: '1.5' } }, [
+        h('div', {}, row.createdByName || '-'),
+        h('div', { style: { color: '#888', fontSize: '12px' } }, formatDateTime(row.createdAt)),
+      ]),
   },
   {
     title: '修改人 / 时间',
     key: 'updated',
     width: 170,
-    render: (row: DictionaryType) => `${row.updatedByName || '-'}\n${row.updatedAt?.slice(0, 10) || ''}`,
+    render: (row: DictionaryType) =>
+      h('div', { style: { lineHeight: '1.5' } }, [
+        h('div', {}, row.updatedByName || '-'),
+        h('div', { style: { color: '#888', fontSize: '12px' } }, formatDateTime(row.updatedAt)),
+      ]),
   },
   {
     title: '操作',
