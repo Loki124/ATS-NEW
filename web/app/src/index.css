@@ -47,3 +47,13 @@ a:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: #bfbfbf;
 }
+
+/* 覆盖 @unocss/reset/tailwind.css 对 button 背景的重置，
+   避免其以相同优先级覆盖 Naive UI 按钮的 var(--n-color) 背景。
+   使用 button.n-button 提升特异性（0,2,0 > reset 的 [type="button"] 0,1,0）。 */
+button.n-button,
+.n-button[type="button"],
+.n-button[type="reset"],
+.n-button[type="submit"] {
+  background-color: var(--n-color);
+}
