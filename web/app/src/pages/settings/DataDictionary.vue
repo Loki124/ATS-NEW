@@ -222,17 +222,16 @@
 
       <!-- 底部固定提交栏 -->
       <div class="submit-bar">
+        <div v-if="hasUnsavedChanges" class="draft-hint">
+          <span class="draft-icon">⚠️</span>
+          <span>有未保存的草稿，离开将丢失。</span>
+        </div>
         <n-space justify="end" :size="12" align="center">
           <n-button size="large" :disabled="submitting" @click="backToList">取消</n-button>
           <n-button size="large" type="primary" :loading="submitting" :disabled="!hasUnsavedChanges" @click="submitDraft">
             提交
           </n-button>
         </n-space>
-      </div>
-
-      <!-- 草稿提示条（仅未保存时显示在底部提交栏上方） -->
-      <div v-if="hasUnsavedChanges" class="draft-bar">
-        <span>⚠️ 有未保存的草稿，离开将丢失。</span>
       </div>
     </template>
 
@@ -865,20 +864,20 @@ onUnmounted(() => {
 .el-cell .n-space { flex-wrap: nowrap; }
 .el-cell .n-button { white-space: nowrap; }
 
-.draft-bar {
-  position: sticky; bottom: 80px; margin-top: 16px;
-  display: flex; align-items: center; gap: 12px;
-  background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
-  padding: 10px 16px; font-size: 13px;
-  z-index: 11;
+.draft-hint {
+  display: flex; align-items: center; gap: 8px;
+  color: #fa8c16; font-size: 13px; font-weight: 500;
+  white-space: nowrap;
 }
 .draft-icon { color: #fa8c16; }
 
 .submit-bar {
   position: sticky; bottom: 16px; left: 0; right: 0;
+  display: flex; justify-content: space-between; align-items: center;
   background: #fff; border: 1px solid #f0f0f0; border-radius: 12px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   padding: 12px 24px; margin: 24px 0 0;
   z-index: 10;
+  gap: 16px;
 }
 </style>
