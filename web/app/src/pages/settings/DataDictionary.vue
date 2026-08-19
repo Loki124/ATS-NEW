@@ -133,10 +133,9 @@
             :key="node.row.clientId"
             class="el-row"
             :class="{ editing: node.row.editing, isnew: node.row.isNew }"
-            :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }"
           >
-            <!-- 元素名称 -->
-            <div class="el-cell" style="flex: 1.4">
+            <!-- 元素名称：仅本列按树形层级缩进 -->
+            <div class="el-cell" style="flex: 1.4" :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }">
               <span v-if="node.depth > 0" class="tree-guide">└</span>
               <template v-if="node.row.editing">
                 <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
