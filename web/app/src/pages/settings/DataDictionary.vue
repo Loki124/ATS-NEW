@@ -195,8 +195,7 @@
                   <n-button
                     v-if="!node.row.isNew"
                     size="tiny"
-                    :color="node.row.isActive ? '#fa8c16' : '#52c41a'"
-                    text-color="#fff"
+                    :type="node.row.isActive ? 'warning' : 'success'"
                     :disabled="hasChildren(node.row)"
                     :title="hasChildren(node.row) ? '请先移除或转移所有子级元素' : ''"
                     @click="toggleActive(node.row)"
@@ -206,8 +205,7 @@
                   <n-button
                     v-if="node.row.isNew"
                     size="tiny"
-                    color="#ff4d4f"
-                    text-color="#fff"
+                    type="error"
                     @click="deleteRow(node.row)"
                   >
                     删除
@@ -451,12 +449,12 @@ const listColumns: DataTableColumns<DictionaryType> = [
   {
     title: '操作',
     key: 'actions',
-    width: 200,
+    width: 220,
     fixed: 'right',
     render: (row: DictionaryType) =>
       h(
         NSpace,
-        { size: 4, align: 'center' },
+        { size: 4, align: 'center', wrap: false },
         {
           default: () => {
             const btns = [
@@ -468,8 +466,7 @@ const listColumns: DataTableColumns<DictionaryType> = [
                   NButton,
                   {
                     size: 'small',
-                    color: row.isEnabled ? '#fa8c16' : '#52c41a',
-                    textColor: '#fff',
+                    type: row.isEnabled ? 'warning' : 'success',
                     onClick: () => toggleType(row),
                   },
                   { default: () => (row.isEnabled ? '停用' : '启用') },
@@ -478,7 +475,7 @@ const listColumns: DataTableColumns<DictionaryType> = [
               btns.push(
                 h(
                   NButton,
-                  { size: 'small', color: '#ff4d4f', textColor: '#fff', onClick: () => confirmDeleteType(row) },
+                  { size: 'small', type: 'error', onClick: () => confirmDeleteType(row) },
                   { default: () => '删除' },
                 ),
               )
