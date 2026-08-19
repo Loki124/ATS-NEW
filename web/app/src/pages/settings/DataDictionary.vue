@@ -47,21 +47,19 @@
 
     <!-- ===================== 编辑模式 ===================== -->
     <template v-else-if="currentType">
-      <div class="page-header">
-        <div class="edit-head">
-          <n-button text size="small" @click="backToList">
-            <span style="font-size: 16px">←</span> 返回
-          </n-button>
-          <div>
-            <h1 class="page-title">编辑字典：{{ headDraft.name || currentType.name }}</h1>
-            <p class="page-subtitle">
-              <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
-                {{ currentType.isSystem ? '系统预置' : '自定义' }}
-              </n-tag>
-              <span class="code-pill">{{ currentType.code }}</span>
-              <span class="num-pill">编号 {{ currentType.dictNumber }}</span>
-            </p>
-          </div>
+      <div class="page-header edit-header">
+        <n-button text size="small" class="back-btn" @click="backToList">
+          <span style="font-size: 16px">←</span> 返回
+        </n-button>
+        <div class="title-block">
+          <h1 class="page-title">编辑字典：{{ headDraft.name || currentType.name }}</h1>
+          <p class="page-subtitle">
+            <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
+              {{ currentType.isSystem ? '系统预置' : '自定义' }}
+            </n-tag>
+            <span class="code-pill">{{ currentType.code }}</span>
+            <span class="num-pill">编号 {{ currentType.dictNumber }}</span>
+          </p>
         </div>
       </div>
 
@@ -198,7 +196,8 @@
                   <n-button
                     v-if="!node.row.isNew"
                     size="tiny"
-                    :type="node.row.isActive ? 'warning' : 'default'"
+                    :color="node.row.isActive ? '#fa8c16' : '#52c41a'"
+                    :ghost="node.row.isActive"
                     :disabled="hasChildren(node.row)"
                     :title="hasChildren(node.row) ? '请先移除或转移所有子级元素' : ''"
                     @click="toggleActive(node.row)"
@@ -467,7 +466,7 @@ const listColumns: DataTableColumns<DictionaryType> = [
               btns.push(
                 h(
                   NButton,
-                  { size: 'small', type: row.isEnabled ? 'warning' : 'default', onClick: () => toggleType(row) },
+                  { size: 'small', color: row.isEnabled ? '#fa8c16' : '#52c41a', ghost: row.isEnabled, onClick: () => toggleType(row) },
                   { default: () => (row.isEnabled ? '停用' : '启用') },
                 ),
               )
@@ -804,14 +803,26 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.page-container { padding: 24px; max-width: 1400px; }
+.page-container {
+  display: block !important;
+  padding: 24px 24px 120px !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100% !important;
+  box-sizing: border-box;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  gap: 0 !important;
+}
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
 .page-title { font-size: 22px; font-weight: 600; margin: 0; }
 .page-subtitle { color: #888; margin: 6px 0 0; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .code-pill, .num-pill { font-size: 12px; color: #666; background: #f2f3f5; padding: 2px 8px; border-radius: 4px; }
 .toolbar { margin-bottom: 16px; }
 .section { margin-bottom: 16px; }
-.edit-head { display: flex; align-items: center; gap: 16px; }
+.edit-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.back-btn { align-self: baseline; margin-top: 6px; }
+.title-block { display: flex; flex-direction: column; gap: 4px; }
 
 .hint { color: #aaa; font-size: 12px; margin-left: 8px; }
 .dict-hints { margin: 0; padding-left: 18px; font-size: 13px; }
@@ -837,7 +848,7 @@ onUnmounted(() => {
 .el-cell .n-button { white-space: nowrap; }
 
 .draft-bar {
-  position: sticky; bottom: 72px; margin-top: 12px;
+  position: sticky; bottom: 64px; margin-top: 16px;
   display: flex; align-items: center; gap: 12px;
   background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
   padding: 10px 16px; font-size: 13px;
@@ -847,7 +858,7 @@ onUnmounted(() => {
 .submit-bar {
   position: sticky; bottom: 0; left: 0; right: 0;
   background: #fff; border-top: 1px solid #f0f0f0;
-  padding: 12px 24px; margin: 0 -24px -24px;
+  padding: 12px 24px; margin: 0 -24px;
   z-index: 10;
 }
 </style>
