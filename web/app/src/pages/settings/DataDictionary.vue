@@ -222,11 +222,11 @@
 
       <!-- 底部固定提交栏 -->
       <div class="submit-bar">
-        <div v-if="hasUnsavedChanges" class="draft-hint">
+        <div class="draft-hint" :class="{ 'hint-hidden': !hasUnsavedChanges }">
           <span class="draft-icon">⚠️</span>
           <span>有未保存的草稿，离开将丢失。</span>
         </div>
-        <n-space justify="end" :size="12" align="center">
+        <n-space class="submit-actions" justify="end" :size="12" align="center">
           <n-button size="large" :disabled="submitting" @click="backToList">取消</n-button>
           <n-button size="large" type="primary" :loading="submitting" :disabled="!hasUnsavedChanges" @click="submitDraft">
             提交
@@ -869,7 +869,7 @@ onUnmounted(() => {
 .el-row.editing { background: #fafcff; }
 .el-row.isnew { background: #fffbe6; }
 .el-row.isnew.editing { background: #fff7cc; }
-.el-cell { padding: 8px 12px; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.el-cell { padding: 8px 12px; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; min-height: 48px; box-sizing: border-box; }
 .el-cell code { background: #f2f3f5; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
 .el-cell .n-input, .el-cell .n-input-number { min-width: 80px; width: 100%; }
 .tree-guide { color: #bbb; margin-right: 4px; }
@@ -881,10 +881,12 @@ onUnmounted(() => {
 .el-cell .n-button { white-space: nowrap; }
 
 .draft-hint {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex: 1;
   color: #fa8c16; font-size: 13px; font-weight: 500;
   white-space: nowrap;
+  transition: opacity 0.2s ease;
 }
+.draft-hint.hint-hidden { opacity: 0; pointer-events: none; }
 .draft-icon { color: #fa8c16; }
 
 .submit-bar {
@@ -896,4 +898,5 @@ onUnmounted(() => {
   z-index: 10;
   gap: 16px;
 }
+.submit-actions { margin-left: auto; flex-shrink: 0; }
 </style>
