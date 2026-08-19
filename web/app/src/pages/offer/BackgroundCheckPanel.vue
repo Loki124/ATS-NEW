@@ -144,12 +144,12 @@ const columns: DataTableColumns<BackgroundCheck> = [
     render: (row) => {
       return h(NSpace, { size: 'small' }, () => [
         h(NButton, {
-          size: 'small', type: 'primary', ghost: true,
+          size: 'small', type: 'primary',
           disabled: !!row.level,
           onClick: () => openComplete(row.id),
         }, () => row.level ? '已完成' : '完成'),
         h(NButton, {
-          size: 'small', type: 'info', ghost: true,
+          size: 'small', type: 'info',
           disabled: !row.level,
           onClick: () => handleDownload(row.id),
         }, () => '下载报告'),

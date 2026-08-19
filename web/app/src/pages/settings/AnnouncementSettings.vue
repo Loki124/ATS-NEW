@@ -122,9 +122,9 @@
                   </td>
                   <td class="col-actions">
                     <div class="policy-actions">
-                      <n-button text type="primary" size="small" @click="openPush(row)">推送</n-button>
-                      <n-button text type="primary" size="small" @click="openEdit(row)">编辑</n-button>
-                      <n-button text type="error" size="small" @click="remove(row)">删除</n-button>
+                      <n-button tertiary type="primary" size="small" @click="openPush(row)">推送</n-button>
+                      <n-button tertiary type="primary" size="small" @click="openEdit(row)">编辑</n-button>
+                      <n-button color="#ff4d4f" text-color="#fff" size="small" @click="remove(row)">删除</n-button>
                     </div>
                   </td>
                 </tr>
@@ -195,14 +195,14 @@
                   <n-icon :component="DocumentTextOutline" :size="16" />
                 </div>
                 <span class="attach-name">{{ att.originalName }} <em>{{ formatSize(att.fileSize) }}</em></span>
-                <n-button size="tiny" text type="error" @click="removeExistingAttachment(att)">移除</n-button>
+                <n-button size="tiny" color="#ff4d4f" text-color="#fff" @click="removeExistingAttachment(att)">移除</n-button>
               </div>
               <div v-for="(f, i) in pendingFiles" :key="`new-${i}`" class="attach-row">
                 <div class="attach-row__icon">
                   <n-icon :component="DocumentTextOutline" :size="16" />
                 </div>
                 <span class="attach-name">{{ f.name }} <em>{{ formatSize(f.size) }}</em></span>
-                <n-button size="tiny" text type="error" @click="pendingFiles.splice(i, 1)">移除</n-button>
+                <n-button size="tiny" color="#ff4d4f" text-color="#fff" @click="pendingFiles.splice(i, 1)">移除</n-button>
               </div>
               <n-upload :show-file-list="false" multiple @before-upload="onBeforeUpload">
                 <n-button size="small" tertiary>

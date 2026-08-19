@@ -196,7 +196,7 @@
                     v-if="!node.row.isNew"
                     size="tiny"
                     :color="node.row.isActive ? '#fa8c16' : '#52c41a'"
-                    :ghost="node.row.isActive"
+                    text-color="#fff"
                     :disabled="hasChildren(node.row)"
                     :title="hasChildren(node.row) ? '请先移除或转移所有子级元素' : ''"
                     @click="toggleActive(node.row)"
@@ -206,7 +206,8 @@
                   <n-button
                     v-if="node.row.isNew"
                     size="tiny"
-                    type="error"
+                    color="#ff4d4f"
+                    text-color="#fff"
                     @click="deleteRow(node.row)"
                   >
                     删除
@@ -465,12 +466,21 @@ const listColumns: DataTableColumns<DictionaryType> = [
               btns.push(
                 h(
                   NButton,
-                  { size: 'small', color: row.isEnabled ? '#fa8c16' : '#52c41a', ghost: row.isEnabled, onClick: () => toggleType(row) },
+                  {
+                    size: 'small',
+                    color: row.isEnabled ? '#fa8c16' : '#52c41a',
+                    textColor: '#fff',
+                    onClick: () => toggleType(row),
+                  },
                   { default: () => (row.isEnabled ? '停用' : '启用') },
                 ),
               )
               btns.push(
-                h(NButton, { size: 'small', type: 'error', onClick: () => confirmDeleteType(row) }, { default: () => '删除' }),
+                h(
+                  NButton,
+                  { size: 'small', color: '#ff4d4f', textColor: '#fff', onClick: () => confirmDeleteType(row) },
+                  { default: () => '删除' },
+                ),
               )
             }
             return btns

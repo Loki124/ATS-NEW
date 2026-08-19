@@ -593,7 +593,7 @@
                   @positive-click="removeStage(idx)"
                 >
                   <template #trigger>
-                    <n-button text type="error" size="small">删除当前阶段</n-button>
+                    <n-button color="#ff4d4f" text-color="#fff" size="small">删除当前阶段</n-button>
                   </template>
                   确定删除阶段「{{ stage.name }}」？
                 </n-popconfirm>

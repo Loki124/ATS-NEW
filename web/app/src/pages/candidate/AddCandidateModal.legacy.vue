@@ -118,7 +118,7 @@
               <div class="file-name">{{ resumeFile.name }}</div>
               <div class="file-size">{{ (resumeFile.size / 1024 / 1024).toFixed(2) }} MB</div>
             </div>
-            <n-button text type="error" @click="removeFile">移除</n-button>
+            <n-button size="small" color="#ff4d4f" text-color="#fff" @click="removeFile">移除</n-button>
           </div>
         </div>
       </div>
