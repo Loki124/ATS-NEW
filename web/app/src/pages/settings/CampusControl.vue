@@ -22,7 +22,7 @@
         <!-- ===================== 实时看板 ===================== -->
         <n-tab-pane name="ratio" tab="实时看板">
           <n-alert v-if="!scopeOk" type="warning" :show-icon="true" style="margin-bottom: 12px">
-            该方案存在维度目标占比未加和到 100% 的项，请前往「规则配置」补全。
+            该方案存在维度目标占比未加和到 100% 的项，请前往「规则与目标配置」补全。
           </n-alert>
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
@@ -66,102 +66,62 @@
           </n-data-table>
         </n-tab-pane>
 
-        <!-- ===================== 目标配置（年度 + 12 月） ===================== -->
-        <n-tab-pane name="targets" tab="目标配置">
+        <!-- ===================== 规则与目标配置（适用范围 + 规则 + 目标 三合一） ===================== -->
+        <n-tab-pane name="rules" tab="规则与目标配置">
           <div class="filter-row">
-            <n-space>
-              <n-input-number v-model:value="targetYear" :min="2020" :max="2100" style="width: 120px" @update:value="loadHeadcounts" />
-              <n-button type="primary" @click="openAddHeadcount">+ 新增人数目标</n-button>
+            <n-space align="center" wrap>
+              <n-button @click="scopeDrawerShow = true">管理方案</n-button>
+              <n-input-number v-model:value="targetYear" :min="2020" :max="2100" style="width: 120px" @update:value="loadUnified" />
             </n-space>
           </div>
-          <n-data-table
-            :columns="headcountColumns"
-            :data="headcounts"
-            :loading="loading.headcounts"
-            :row-key="(r: any) => r.id"
-            :pagination="false"
-          >
-            <template #empty><n-empty description="暂无目标，点击右上角新增" /></template>
-          </n-data-table>
-        </n-tab-pane>
 
-        <!-- ===================== 规则配置（100% 加和） ===================== -->
-        <n-tab-pane name="rules" tab="规则配置">
-          <div class="filter-row">
-            <n-space align="center">
-              <span class="scope-label">维度</span>
-              <n-select v-model:value="ruleDimensionId" :options="dimensionOptions" style="width: 180px" @update:value="loadRuleRows" />
-              <n-tag :type="sumPct === 100 ? 'success' : 'error'" :bordered="false" size="large">
-                目标占比加和：{{ sumPct.toFixed(1) }}%
-              </n-tag>
-            </n-space>
+          <div class="dim-filter-row">
+            <span
+              v-for="d in dimFilterOptions"
+              :key="d.value"
+              class="dim-tag"
+              :class="{ active: dimFilter === d.value, ok: d.ok, bad: d.ok === false }"
+              @click="dimFilter = d.value"
+            >
+              {{ d.label }}
+              <span class="dim-sum">{{ d.sumText }}</span>
+            </span>
           </div>
+
           <n-data-table
-            :columns="ruleEditColumns"
-            :data="ruleRows"
-            :loading="loading.rules"
+            :columns="unifiedColumns"
+            :data="filteredUnifiedRows"
+            :loading="loading.unified"
             :row-key="(r: any) => r.indicatorId"
             :pagination="false"
           >
-            <template #empty><n-empty description="该维度下暂无指标，请先到「维度与指标」配置指标" /></template>
+            <template #empty><n-empty description="该方案下暂无指标，请先到「指标管理」配置指标" /></template>
           </n-data-table>
+
           <n-space justify="end" style="margin-top: 12px">
-            <n-button type="primary" :loading="loading.saveRules" :disabled="!ruleRows.length" @click="saveRuleRows">
-              保存规则
-            </n-button>
+            <n-button :loading="loading.saveTargets" @click="saveTargets">保存目标</n-button>
+            <n-button type="primary" :loading="loading.saveRules" @click="saveRules">批量保存规则</n-button>
           </n-space>
         </n-tab-pane>
 
-        <!-- ===================== 适用范围 ===================== -->
-        <n-tab-pane name="scopes" tab="适用范围">
-          <div class="toolbar">
-            <n-button type="primary" @click="openAddScope">+ 新增方案</n-button>
+        <!-- ===================== 指标管理（维度+指标扁平化） ===================== -->
+        <n-tab-pane name="indicators" tab="指标管理">
+          <div class="filter-row">
+            <n-space>
+              <n-select v-model:value="indicatorDimFilter" :options="dimOptions" placeholder="全部维度" style="width: 180px" clearable />
+              <n-button type="primary" @click="openAddIndicator">+ 新增指标</n-button>
+              <n-button @click="dimDrawerShow = true">管理维度</n-button>
+            </n-space>
           </div>
           <n-data-table
-            :columns="scopeColumns"
-            :data="scopes"
-            :loading="loading.scopes"
+            :columns="indicatorColumns"
+            :data="filteredIndicators"
+            :loading="loading.indicators"
             :row-key="(r: any) => r.id"
             :pagination="false"
           >
-            <template #empty><n-empty description="暂无方案" /></template>
+            <template #empty><n-empty description="暂无指标" /></template>
           </n-data-table>
-        </n-tab-pane>
-
-        <!-- ===================== 维度与指标 ===================== -->
-        <n-tab-pane name="dims" tab="维度与指标">
-          <n-grid :cols="2" :x-gap="16" item-responsive responsive="screen">
-            <n-gi span="2 m:1">
-              <div class="panel-title-row">
-                <span class="panel-title">维度</span>
-                <n-button size="small" type="primary" @click="openAddDimension">+ 新增维度</n-button>
-              </div>
-              <n-data-table
-                :columns="dimensionColumns"
-                :data="dimensions"
-                :loading="loading.dimensions"
-                :row-key="(r: any) => r.id"
-                :pagination="false"
-              >
-                <template #empty><n-empty description="暂无维度" /></template>
-              </n-data-table>
-            </n-gi>
-            <n-gi span="2 m:1">
-              <div class="panel-title-row">
-                <span class="panel-title">指标（{{ selectedDimensionName || '请先选择维度' }}）</span>
-                <n-button size="small" type="primary" :disabled="!selectedDimensionId" @click="openAddIndicator">+ 新增指标</n-button>
-              </div>
-              <n-data-table
-                :columns="indicatorColumns"
-                :data="indicators"
-                :loading="loading.indicators"
-                :row-key="(r: any) => r.id"
-                :pagination="false"
-              >
-                <template #empty><n-empty description="暂无指标" /></template>
-              </n-data-table>
-            </n-gi>
-          </n-grid>
         </n-tab-pane>
 
         <!-- ===================== 录入校验 ===================== -->
@@ -217,25 +177,26 @@
       </n-tabs>
     </n-card>
 
-    <!-- 规则单条配置弹窗 -->
-    <n-modal v-model:show="ruleEditModal.show" :title="`配置指标：${ruleEditModal.indicatorName}`" preset="card" style="width: 460px">
-      <n-form label-placement="top">
-        <n-form-item label="目标占比 %"><n-input-number v-model:value="ruleEditModal.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item>
-        <n-grid :cols="2" :x-gap="16">
-          <n-gi><n-form-item label="下限 %"><n-input-number v-model:value="ruleEditModal.loPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="上限 %"><n-input-number v-model:value="ruleEditModal.hiPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
-        </n-grid>
-        <n-form-item label="控制强度"><n-select v-model:value="ruleEditModal.strength" :options="strengthOptions" /></n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="ruleEditModal.show = false">取消</n-button>
-          <n-button type="primary" @click="applyRuleEdit">确定</n-button>
+    <!-- 适用范围管理（抽屉） -->
+    <n-drawer v-model:show="scopeDrawerShow" :width="560" placement="right">
+      <n-drawer-content title="适用范围管理" closable>
+        <n-space justify="end" style="margin-bottom: 12px">
+          <n-button type="primary" size="small" @click="openAddScope">+ 新增方案</n-button>
         </n-space>
-      </template>
-    </n-modal>
+        <n-data-table
+          :columns="scopeDrawerColumns"
+          :data="scopes"
+          :loading="loading.scopes"
+          :row-key="(r: any) => r.id"
+          :pagination="false"
+          size="small"
+        >
+          <template #empty><n-empty description="暂无方案" /></template>
+        </n-data-table>
+      </n-drawer-content>
+    </n-drawer>
 
-    <!-- 方案弹窗 -->
+    <!-- 方案表单弹窗 -->
     <n-modal v-model:show="scopeModal.show" :title="scopeModal.editingId ? '编辑方案' : '新增方案'" preset="card" style="width: 520px">
       <n-form label-placement="top">
         <n-grid :cols="2" :x-gap="16">
@@ -254,24 +215,26 @@
       </template>
     </n-modal>
 
-    <!-- 维度弹窗 -->
-    <n-modal v-model:show="dimensionModal.show" :title="dimensionModal.editingId ? '编辑维度' : '新增维度'" preset="card" style="width: 420px">
-      <n-form label-placement="top">
-        <n-form-item label="维度名称"><n-select v-model:value="dimensionModal.name" :options="dimOptions" /></n-form-item>
-        <n-form-item label="编码（可选）"><n-input v-model:value="dimensionModal.code" placeholder="如 SCHOOL" /></n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="dimensionModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="loading.dimensions" @click="saveDimension">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <!-- 维度管理（抽屉） -->
+    <n-drawer v-model:show="dimDrawerShow" :width="480" placement="right">
+      <n-drawer-content title="维度管理" closable>
+        <n-data-table
+          :columns="dimDrawerColumns"
+          :data="dimensions"
+          :loading="loading.dimensions"
+          :row-key="(r: any) => r.id"
+          :pagination="false"
+          size="small"
+        >
+          <template #empty><n-empty description="暂无维度" /></template>
+        </n-data-table>
+      </n-drawer-content>
+    </n-drawer>
 
-    <!-- 指标弹窗 -->
+    <!-- 指标表单弹窗 -->
     <n-modal v-model:show="indicatorModal.show" :title="indicatorModal.editingId ? '编辑指标' : '新增指标'" preset="card" style="width: 420px">
       <n-form label-placement="top">
-        <n-form-item label="所属维度"><n-select v-model:value="indicatorModal.dimensionId" :options="dimensionOptions" :disabled="!!indicatorModal.editingId" /></n-form-item>
+        <n-form-item label="所属维度"><n-select v-model:value="indicatorModal.dimension" :options="dimOptions" :disabled="!!indicatorModal.editingId" /></n-form-item>
         <n-form-item label="指标名称"><n-input v-model:value="indicatorModal.name" placeholder="如 985 / 男 / 工学" /></n-form-item>
       </n-form>
       <template #footer>
@@ -282,40 +245,23 @@
       </template>
     </n-modal>
 
-    <!-- 人数目标弹窗（年度 + 12 月） -->
-    <n-modal v-model:show="headcountModal.show" :title="headcountModal.editingId ? '编辑人数目标' : '新增人数目标'" preset="card" style="width: 680px">
+    <!-- 12 月度目标弹窗（年度 + 12 月） -->
+    <n-modal v-model:show="monthlyModal.show" :title="`${monthlyModal.indicatorName} · ${targetYear} 年度目标`" preset="card" style="width: 680px">
       <n-form label-placement="top">
-        <n-grid :cols="2" :x-gap="16">
-          <n-gi>
-            <n-form-item label="维度">
-              <n-select v-model:value="headcountModal.dimensionId" :options="dimensionOptions" :disabled="!!headcountModal.editingId" @update:value="onHeadcountDimChange" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="指标">
-              <n-select v-model:value="headcountModal.indicatorId" :options="indicatorOptionsFor(headcountModal.dimensionId)" :disabled="!!headcountModal.editingId" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="所属年度"><n-input-number v-model:value="headcountModal.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="年度目标人数"><n-input-number v-model:value="headcountModal.annualTarget" :min="0" style="width: 100%" /></n-form-item>
-          </n-gi>
-        </n-grid>
+        <n-form-item label="年度目标人数"><n-input-number v-model:value="monthlyModal.annualTarget" :min="0" style="width: 100%" /></n-form-item>
         <n-divider>12 个月目标（单位：人）</n-divider>
         <n-grid :cols="4" :x-gap="8" :y-gap="8">
           <n-gi v-for="(_, i) in 12" :key="i">
             <n-form-item :label="ALL_MONTHS[i]" label-placement="top">
-              <n-input-number v-model:value="headcountModal.monthly[i]" :min="0" style="width: 100%" />
+              <n-input-number v-model:value="monthlyModal.monthly[i]" :min="0" style="width: 100%" />
             </n-form-item>
           </n-gi>
         </n-grid>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="headcountModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="loading.headcounts" @click="saveHeadcount">保存</n-button>
+          <n-button @click="monthlyModal.show = false">取消</n-button>
+          <n-button type="primary" @click="applyMonthly">确定</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -350,8 +296,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import {
-  NTag, NButton, NSpace, NSwitch, NDivider, useMessage, useDialog,
-  type DataTableColumns,
+  NTag, NButton, NSpace, NSwitch, NDivider, NDrawer, NDrawerContent,
+  NInputNumber, NSelect,
+  useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
 import {
@@ -364,8 +311,8 @@ import {
   listPersons, upsertPerson, deletePerson,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, DIMS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlScope, type ControlDimension, type ControlIndicator,
-  type ControlHeadcount, type Person, type RatioRow, type RatioResult,
-  type PlanRow, type PlanResult, type ValidationResult, type Strength, type RuleDraft,
+  type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
+  type ValidationResult, type Strength, type RuleDraft,
 } from '../../api/campusControl'
 
 const message = useMessage()
@@ -394,9 +341,9 @@ const verdictType = (v: string) => (v.startsWith('❌') ? 'error' : v.startsWith
 /* ============================ 全局状态 ============================ */
 const activeTab = ref('ratio')
 const loading = reactive({
-  ratio: false, plan: false, rules: false, saveRules: false,
+  ratio: false, plan: false, unified: false, saveRules: false, saveTargets: false,
   scopes: false, dimensions: false, indicators: false,
-  headcounts: false, persons: false, validate: false,
+  persons: false, validate: false,
 })
 const scopes = ref<ControlScope[]>([])
 const dimensions = ref<ControlDimension[]>([])
@@ -406,10 +353,11 @@ const persons = ref<Person[]>([])
 const selectedScopeId = ref<string>('')
 const selectedYear = ref(2026)
 const planMonth = ref('8月')
+const targetYear = ref(2026)
 
 const scopeOptions = computed(() => scopes.value.map((s) => ({ label: s.name, value: s.id })))
 const dimensionOptions = computed(() => dimensions.value.map((d) => ({ label: d.name, value: d.id })))
-const scopeScoped = computed(() => ['ratio', 'plan', 'targets', 'rules', 'validate'].includes(activeTab.value))
+const scopeScoped = computed(() => ['ratio', 'plan', 'rules', 'validate'].includes(activeTab.value))
 const selectedScope = computed(() => scopes.value.find((s) => s.id === selectedScopeId.value))
 
 /* ============================ 实时看板 ============================ */
@@ -430,136 +378,133 @@ const planData = ref<PlanResult>({
   year: 2026,
 })
 
-/* ============================ 目标配置 ============================ */
-const targetYear = ref(2026)
-const headcounts = ref<ControlHeadcount[]>([])
+/* ============================ 统一规则与目标配置 ============================ */
+interface UnifiedRow {
+  indicatorId: string
+  dimensionId: string
+  dimensionName: string
+  indicatorName: string
+  // 规则字段
+  targetPct: number
+  loPct: number
+  hiPct: number
+  strength: Strength
+  // 目标字段
+  headcountId: string | null
+  annualTarget: number
+  monthlyTargets: number[]
+}
+const unifiedRows = ref<UnifiedRow[]>([])
+const dimFilter = ref<string>('all') // 'all' 或 dimensionId
 
-/* ============================ 规则配置 ============================ */
-const ruleDimensionId = ref<string>('')
-interface RuleEditRow { indicatorId: string; indicatorName: string; targetPct: number; loPct: number; hiPct: number; strength: Strength }
-const ruleRows = ref<RuleEditRow[]>([])
-const sumPct = computed(() => ruleRows.value.reduce((s, r) => s + (Number(r.targetPct) || 0), 0))
+const dimFilterOptions = computed(() => {
+  const all: { value: string; label: string; ok?: boolean; sumText: string }[] = [
+    { value: 'all', label: '全部', sumText: `${unifiedRows.value.length} 项` },
+  ]
+  for (const d of dimensions.value) {
+    const rows = unifiedRows.value.filter((r) => r.dimensionId === d.id)
+    const sum = rows.reduce((s, r) => s + (Number(r.targetPct) || 0), 0)
+    const ok = Math.abs(sum - 100) < 0.05
+    all.push({ value: d.id, label: d.name, ok, sumText: `${sum.toFixed(1)}%` })
+  }
+  return all
+})
+
+const filteredUnifiedRows = computed(() => {
+  if (dimFilter.value === 'all') return unifiedRows.value
+  return unifiedRows.value.filter((r) => r.dimensionId === dimFilter.value)
+})
+
+/* ============================ 指标管理 ============================ */
+const indicatorDimFilter = ref<string | null>(null)
+const filteredIndicators = computed(() => {
+  if (!indicatorDimFilter.value) return indicators.value
+  return indicators.value.filter((i) => i.dimension === indicatorDimFilter.value)
+})
 
 /* ============================ 加载 ============================ */
 async function loadScopes() {
   loading.scopes = true
   try {
     scopes.value = await listScopes()
-    if (!selectedScopeId.value && scopes.value.length) {
-      selectedScopeId.value = scopes.value[0].id
-    }
-  } catch (e) {
-    message.error(extractApiError(e, '加载方案失败'))
-  } finally {
-    loading.scopes = false
-  }
+    if (!selectedScopeId.value && scopes.value.length) selectedScopeId.value = scopes.value[0].id
+  } catch (e) { message.error(extractApiError(e, '加载方案失败')) }
+  finally { loading.scopes = false }
 }
 async function loadDimensions() {
   loading.dimensions = true
-  try {
-    dimensions.value = await listDimensions()
-    if (!ruleDimensionId.value && dimensions.value.length) {
-      ruleDimensionId.value = dimensions.value[0].id
-    }
-  } catch (e) {
-    message.error(extractApiError(e, '加载维度失败'))
-  } finally {
-    loading.dimensions = false
-  }
+  try { dimensions.value = await listDimensions() }
+  catch (e) { message.error(extractApiError(e, '加载维度失败')) }
+  finally { loading.dimensions = false }
 }
 async function loadIndicators() {
   loading.indicators = true
-  try {
-    indicators.value = await listIndicators()
-  } catch (e) {
-    message.error(extractApiError(e, '加载指标失败'))
-  } finally {
-    loading.indicators = false
-  }
+  try { indicators.value = await listIndicators() }
+  catch (e) { message.error(extractApiError(e, '加载指标失败')) }
+  finally { loading.indicators = false }
 }
 async function loadPersons() {
   loading.persons = true
-  try {
-    persons.value = await listPersons()
-  } catch (e) {
-    message.error(extractApiError(e, '加载人员失败'))
-  } finally {
-    loading.persons = false
-  }
+  try { persons.value = await listPersons() }
+  catch (e) { message.error(extractApiError(e, '加载人员失败')) }
+  finally { loading.persons = false }
 }
 async function loadRatio() {
   if (!selectedScopeId.value) return
   loading.ratio = true
-  try {
-    ratioData.value = await getRatio(selectedScopeId.value)
-  } catch (e) {
-    message.error(extractApiError(e, '加载看板失败'))
-  } finally {
-    loading.ratio = false
-  }
+  try { ratioData.value = await getRatio(selectedScopeId.value) }
+  catch (e) { message.error(extractApiError(e, '加载看板失败')) }
+  finally { loading.ratio = false }
 }
 async function loadPlan() {
   if (!selectedScopeId.value) return
   loading.plan = true
-  try {
-    planData.value = await getPlan(selectedScopeId.value, selectedYear.value, planMonth.value)
-  } catch (e) {
-    message.error(extractApiError(e, '加载规划失败'))
-  } finally {
-    loading.plan = false
-  }
+  try { planData.value = await getPlan(selectedScopeId.value, selectedYear.value, planMonth.value) }
+  catch (e) { message.error(extractApiError(e, '加载规划失败')) }
+  finally { loading.plan = false }
 }
-async function loadHeadcounts() {
+async function loadUnified() {
   if (!selectedScopeId.value) return
-  loading.headcounts = true
+  loading.unified = true
   try {
-    headcounts.value = await listHeadcounts(selectedScopeId.value, targetYear.value)
-  } catch (e) {
-    message.error(extractApiError(e, '加载目标失败'))
-  } finally {
-    loading.headcounts = false
-  }
-}
-async function loadRuleRows() {
-  if (!selectedScopeId.value || !ruleDimensionId.value) return
-  loading.rules = true
-  try {
-    const rules = await listRules(selectedScopeId.value)
-    const dimRules = rules.filter((r) => r.dimension === ruleDimensionId.value)
-    const dimIndicators = indicators.value.filter((i) => i.dimension === ruleDimensionId.value)
-    const byInd = new Map(dimRules.map((r) => [r.indicator, r]))
-    ruleRows.value = dimIndicators.map((ind) => {
-      const r = byInd.get(ind.id)
+    const [rules, headcounts] = await Promise.all([
+      listRules(selectedScopeId.value),
+      listHeadcounts(selectedScopeId.value, targetYear.value),
+    ])
+    const ruleByInd = new Map(rules.map((r) => [r.indicator, r]))
+    const hcByInd = new Map(headcounts.map((h) => [h.indicator, h]))
+    unifiedRows.value = indicators.value.map((ind) => {
+      const r = ruleByInd.get(ind.id)
+      const h = hcByInd.get(ind.id)
       return {
         indicatorId: ind.id,
+        dimensionId: ind.dimension,
+        dimensionName: ind.dimensionName,
         indicatorName: ind.name,
         targetPct: r ? Math.round(r.target * 1000) / 10 : 0,
         loPct: r ? Math.round(r.lo * 1000) / 10 : 0,
         hiPct: r ? Math.round(r.hi * 1000) / 10 : 0,
         strength: (r?.strength ?? '硬约束') as Strength,
+        headcountId: h?.id ?? null,
+        annualTarget: h?.annualTarget ?? 0,
+        monthlyTargets: h ? [...h.monthlyTargets] : Array(12).fill(0),
       }
     })
-  } catch (e) {
-    message.error(extractApiError(e, '加载规则失败'))
-  } finally {
-    loading.rules = false
-  }
+  } catch (e) { message.error(extractApiError(e, '加载配置失败')) }
+  finally { loading.unified = false }
 }
 
 function onScopeChange() {
   if (activeTab.value === 'ratio') loadRatio()
   else if (activeTab.value === 'plan') loadPlan()
-  else if (activeTab.value === 'targets') loadHeadcounts()
-  else if (activeTab.value === 'rules') loadRuleRows()
+  else if (activeTab.value === 'rules') loadUnified()
 }
 function onTabChange(name: string) {
   if (name === 'ratio') loadRatio()
   else if (name === 'plan') loadPlan()
-  else if (name === 'targets') loadHeadcounts()
-  else if (name === 'rules') loadRuleRows()
+  else if (name === 'rules') loadUnified()
   else if (name === 'persons') loadPersons()
-  else if (name === 'scopes') loadScopes()
-  else if (name === 'dims') { loadDimensions(); loadIndicators() }
+  else if (name === 'indicators') loadIndicators()
 }
 
 /* ============================ 列定义 ============================ */
@@ -588,129 +533,120 @@ const planColumns: DataTableColumns<PlanRow> = [
   { title: '状态', key: 'status', render: (r) => h(NTag, { type: countStatusType(r.status), bordered: false }, { default: () => r.status }) },
 ]
 
-const headcountColumns: DataTableColumns<ControlHeadcount> = [
-  { title: '维度', key: 'dimensionName' },
-  { title: '指标', key: 'indicatorName' },
-  { title: '年度', key: 'year' },
-  { title: '年度目标', key: 'annualTarget' },
-  { title: '月度合计', key: 'monthlyTargets', render: (r) => r.monthlyTargets.reduce((a, b) => a + b, 0) },
-  {
-    title: '操作',
-    key: 'actions',
-    render: (r) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openEditHeadcount(r) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeHeadcount(r) }, { default: () => '删除' }),
-        ],
-      }),
-  },
-]
+// 统一表的单元格编辑渲染：返回对应控件
+const renderPctInput = (key: 'targetPct' | 'loPct' | 'hiPct') => (row: UnifiedRow) =>
+  h(NInputNumber, {
+    value: row[key],
+    min: 0,
+    max: 100,
+    step: 0.5,
+    size: 'small',
+    style: 'width: 88px',
+    showButton: false,
+    'onUpdate:value': (v: number | null) => { if (v != null) row[key] = v },
+  })
 
-const ruleEditColumns: DataTableColumns<RuleEditRow> = [
-  { title: '指标', key: 'indicatorName' },
-  { title: '目标占比 %', key: 'targetPct', render: (r) => h('span', {}, `${r.targetPct}%`) },
-  { title: '下限 %', key: 'loPct', render: (r) => h('span', {}, `${r.loPct}%`) },
-  { title: '上限 %', key: 'hiPct', render: (r) => h('span', {}, `${r.hiPct}%`) },
-  { title: '强度', key: 'strength', render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false }, { default: () => r.strength }) },
+const unifiedColumns: DataTableColumns<UnifiedRow> = [
+  { title: '维度', key: 'dimensionName', width: 100 },
+  { title: '指标', key: 'indicatorName', width: 100 },
+  { title: '目标占比 %', key: 'targetPct', width: 110, render: renderPctInput('targetPct') },
+  { title: '下限 %', key: 'loPct', width: 100, render: renderPctInput('loPct') },
+  { title: '上限 %', key: 'hiPct', width: 100, render: renderPctInput('hiPct') },
   {
-    title: '操作',
-    key: 'actions',
-    render: (r) => h(NButton, { size: 'small', onClick: () => openEditRuleRow(r) }, { default: () => '配置' }),
+    title: '强度', key: 'strength', width: 110,
+    render: (row) => h(NSelect, {
+      value: row.strength,
+      size: 'small',
+      options: strengthOptions,
+      style: 'width: 110px',
+      'onUpdate:value': (v: string) => { row.strength = v as Strength },
+    }),
   },
-]
-
-const scopeColumns: DataTableColumns<ControlScope> = [
-  { title: '方案名称', key: 'name' },
-  { title: 'BG部门', key: 'bu' },
-  { title: '职务', key: 'position', render: (r) => r.position || '不限' },
-  { title: '职级', key: 'level', render: (r) => r.level || '不限' },
-  { title: '启用', key: 'isActive', render: (r) => h(NTag, { type: r.isActive ? 'success' : 'default', bordered: false }, { default: () => (r.isActive ? '启用' : '停用') }) },
   {
-    title: '操作',
-    key: 'actions',
-    render: (r) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openEditScope(r) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeScope(r) }, { default: () => '删除' }),
-        ],
-      }),
+    title: '年度目标', key: 'annualTarget', width: 130,
+    render: (row) => h(NInputNumber, {
+      value: row.annualTarget,
+      min: 0,
+      size: 'small',
+      style: 'width: 120px',
+      showButton: false,
+      'onUpdate:value': (v: number | null) => { if (v != null) row.annualTarget = v },
+    }),
   },
-]
-
-const dimensionColumns: DataTableColumns<ControlDimension> = [
-  { title: '维度', key: 'name' },
-  { title: '编码', key: 'code', render: (r) => r.code || '—' },
   {
-    title: '操作',
-    key: 'actions',
-    render: (r) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => selectDimension(r) }, { default: () => '查看指标' }),
-          h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeDimension(r) }, { default: () => '删除' }),
-        ],
-      }),
+    title: '月度合计', key: 'monthlySum', width: 90,
+    render: (row) => row.monthlyTargets.reduce((a, b) => a + b, 0),
+  },
+  {
+    title: '操作', key: 'actions', width: 120, fixed: 'right',
+    render: (row) => h(NButton, { size: 'small', onClick: () => openMonthlyModal(row) }, { default: () => '编辑月度' }),
   },
 ]
 
 const indicatorColumns: DataTableColumns<ControlIndicator> = [
+  { title: '维度', key: 'dimensionName' },
   { title: '指标', key: 'name' },
   {
     title: '操作',
     key: 'actions',
-    render: (r) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openEditIndicator(r) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeIndicator(r) }, { default: () => '删除' }),
-        ],
-      }),
+    render: (r) => h(NSpace, { size: 'small' }, {
+      default: () => [
+        h(NButton, { size: 'small', onClick: () => openEditIndicator(r) }, { default: () => '编辑' }),
+        h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeIndicator(r) }, { default: () => '删除' }),
+      ],
+    }),
   },
 ]
 
 const personColumns: DataTableColumns<Person> = [
-  { title: '编码', key: 'code' },
-  { title: '姓名', key: 'name' },
-  { title: '部门', key: 'bu' },
-  { title: '院校', key: 'school' },
-  { title: '性别', key: 'sex' },
-  { title: '专业', key: 'major' },
-  { title: '月份', key: 'month' },
-  { title: '职务', key: 'position', render: (r) => r.position || '—' },
+  { title: '编码', key: 'code' }, { title: '姓名', key: 'name' }, { title: '部门', key: 'bu' },
+  { title: '院校', key: 'school' }, { title: '性别', key: 'sex' }, { title: '专业', key: 'major' },
+  { title: '月份', key: 'month' }, { title: '职务', key: 'position', render: (r) => r.position || '—' },
   { title: '职级', key: 'level', render: (r) => r.level || '—' },
   { title: '状态', key: 'status' },
   { title: '计入核算', key: 'counted', render: (r) => h(NTag, { type: r.counted ? 'success' : 'default', bordered: false }, { default: () => (r.counted ? '是' : '否') }) },
   {
-    title: '操作',
-    key: 'actions',
-    render: (r) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openEditPerson(r) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removePerson(r) }, { default: () => '删除' }),
-        ],
-      }),
+    title: '操作', key: 'actions',
+    render: (r) => h(NSpace, { size: 'small' }, {
+      default: () => [
+        h(NButton, { size: 'small', onClick: () => openEditPerson(r) }, { default: () => '编辑' }),
+        h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removePerson(r) }, { default: () => '删除' }),
+      ],
+    }),
   },
 ]
 
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
-  { title: '维度', key: 'dimension' },
-  { title: '指标', key: 'indicator' },
+  { title: '维度', key: 'dimension' }, { title: '指标', key: 'indicator' },
   { title: '强度', key: 'strength', render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false }, { default: () => r.strength }) },
   { title: '占比', key: 'ratio', render: (r) => pct(r.ratio) },
   { title: '占比状态', key: 'ratioStatus', render: (r) => h(NTag, { type: ratioStatusType(r.ratioStatus), bordered: false }, { default: () => r.ratioStatus }) },
-  { title: '本月实际', key: 'monthActual' },
-  { title: '本月目标', key: 'monthTarget' },
+  { title: '本月实际', key: 'monthActual' }, { title: '本月目标', key: 'monthTarget' },
   { title: '人数状态', key: 'countStatus', render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false }, { default: () => r.countStatus }) },
 ]
 
-/* ============================ 方案 CRUD ============================ */
+/* ============================ 方案 CRUD（抽屉 + 弹窗） ============================ */
+const scopeDrawerShow = ref(false)
 const scopeModal = reactive({
   show: false, editingId: '' as string | null,
   name: '', bu: '能电BG', position: '', level: '', isActive: true,
 })
+const scopeDrawerColumns: DataTableColumns<ControlScope> = [
+  { title: '方案名称', key: 'name' },
+  { title: 'BG部门', key: 'bu' },
+  { title: '职务', key: 'position', render: (r) => r.position || '不限' },
+  { title: '职级', key: 'level', render: (r) => r.level || '不限' },
+  { title: '启用', key: 'isActive', render: (r) => h(NTag, { size: 'small', type: r.isActive ? 'success' : 'default', bordered: false }, { default: () => (r.isActive ? '是' : '否') }) },
+  {
+    title: '操作', key: 'actions',
+    render: (r) => h(NSpace, { size: 'small' }, {
+      default: () => [
+        h(NButton, { size: 'small', onClick: () => openEditScope(r) }, { default: () => '编辑' }),
+        h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeScope(r) }, { default: () => '删除' }),
+      ],
+    }),
+  },
+]
 function openAddScope() {
   scopeModal.editingId = null; scopeModal.name = ''; scopeModal.bu = '能电BG'
   scopeModal.position = ''; scopeModal.level = ''; scopeModal.isActive = true; scopeModal.show = true
@@ -722,10 +658,7 @@ function openEditScope(r: ControlScope) {
 async function saveScope() {
   if (!scopeModal.name.trim()) { message.warning('请填写方案名称'); return }
   try {
-    const payload = {
-      name: scopeModal.name.trim(), bu: scopeModal.bu,
-      position: scopeModal.position, level: scopeModal.level, isActive: scopeModal.isActive,
-    }
+    const payload = { name: scopeModal.name.trim(), bu: scopeModal.bu, position: scopeModal.position, level: scopeModal.level, isActive: scopeModal.isActive }
     if (scopeModal.editingId) await updateScope(scopeModal.editingId, payload)
     else await createScope(payload)
     message.success('保存成功')
@@ -747,55 +680,46 @@ function removeScope(r: ControlScope) {
   })
 }
 
-/* ============================ 维度 CRUD ============================ */
-const dimensionModal = reactive({ show: false, editingId: '' as string | null, name: '院校标签' as string, code: '' })
-function openAddDimension() { dimensionModal.editingId = null; dimensionModal.name = '院校标签'; dimensionModal.code = ''; dimensionModal.show = true }
-function openEditDimension(r: ControlDimension) { dimensionModal.editingId = r.id; dimensionModal.name = r.name; dimensionModal.code = r.code; dimensionModal.show = true }
-async function saveDimension() {
-  if (!dimensionModal.name) { message.warning('请选择维度'); return }
-  try {
-    const payload = { name: dimensionModal.name as any, code: dimensionModal.code, isActive: true }
-    if (dimensionModal.editingId) await updateDimension(dimensionModal.editingId, payload)
-    else await createDimension(payload)
-    message.success('保存成功')
-    dimensionModal.show = false
-    await loadDimensions()
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
-}
-function removeDimension(r: ControlDimension) {
-  dialog.warning({
-    title: '删除维度', content: `确认删除维度「${r.name}」？其下指标将被级联删除。`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await deleteDimension(r.id); message.success('删除成功'); await loadDimensions(); await loadIndicators() }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
-  })
-}
+/* ============================ 维度管理（抽屉：仅启用切换） ============================ */
+const dimDrawerShow = ref(false)
+const dimDrawerColumns: DataTableColumns<ControlDimension> = [
+  { title: '维度', key: 'name' },
+  { title: '编码', key: 'code', render: (r) => r.code || '—' },
+  {
+    title: '启用', key: 'isActive',
+    render: (r) => h(NSwitch, {
+      value: r.isActive,
+      onUpdateValue: async (v: boolean) => {
+        try {
+          await updateDimension(r.id, { isActive: v })
+          r.isActive = v
+          message.success(v ? '已启用' : '已停用')
+        } catch (e) { message.error(extractApiError(e, '切换失败')) }
+      },
+    }),
+  },
+]
 
 /* ============================ 指标 CRUD ============================ */
-const selectedDimensionId = ref<string>('')
-const selectedDimensionName = computed(() => dimensions.value.find((d) => d.id === selectedDimensionId.value)?.name ?? '')
-const indicatorOptionsFor = (dimId: string) => indicators.value.filter((i) => i.dimension === dimId).map((i) => ({ label: i.name, value: i.id }))
-function selectDimension(r: ControlDimension) {
-  selectedDimensionId.value = r.id
-  loadIndicators()
-}
-const indicatorModal = reactive({ show: false, editingId: '' as string | null, dimensionId: '', name: '' })
+const indicatorModal = reactive({ show: false, editingId: '' as string | null, dimension: '院校标签' as string, name: '' })
 function openAddIndicator() {
-  indicatorModal.editingId = null; indicatorModal.dimensionId = selectedDimensionId.value; indicatorModal.name = ''; indicatorModal.show = true
+  indicatorModal.editingId = null
+  indicatorModal.dimension = indicatorDimFilter.value || '院校标签'
+  indicatorModal.name = ''
+  indicatorModal.show = true
 }
 function openEditIndicator(r: ControlIndicator) {
-  indicatorModal.editingId = r.id; indicatorModal.dimensionId = r.dimension; indicatorModal.name = r.name; indicatorModal.show = true
+  indicatorModal.editingId = r.id; indicatorModal.dimension = r.dimension; indicatorModal.name = r.name; indicatorModal.show = true
 }
 async function saveIndicator() {
-  if (!indicatorModal.dimensionId || !indicatorModal.name.trim()) { message.warning('请选择维度并填写指标名称'); return }
+  if (!indicatorModal.dimension || !indicatorModal.name.trim()) { message.warning('请选择维度并填写指标名称'); return }
   try {
     if (indicatorModal.editingId) await updateIndicator(indicatorModal.editingId, { name: indicatorModal.name.trim() })
-    else await createIndicator({ dimension: indicatorModal.dimensionId, name: indicatorModal.name.trim() })
+    else await createIndicator({ dimension: indicatorModal.dimension, name: indicatorModal.name.trim() })
     message.success('保存成功')
     indicatorModal.show = false
     await loadIndicators()
-    if (activeTab.value === 'rules') await loadRuleRows()
+    if (activeTab.value === 'rules') await loadUnified()
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeIndicator(r: ControlIndicator) {
@@ -808,87 +732,82 @@ function removeIndicator(r: ControlIndicator) {
   })
 }
 
-/* ============================ 规则配置（100% 批量保存） ============================ */
-const ruleEditModal = reactive({ show: false, indicatorId: '', indicatorName: '', targetPct: 0, loPct: 0, hiPct: 0, strength: '硬约束' as Strength })
-function openEditRuleRow(r: RuleEditRow) {
-  ruleEditModal.indicatorId = r.indicatorId; ruleEditModal.indicatorName = r.indicatorName
-  ruleEditModal.targetPct = r.targetPct; ruleEditModal.loPct = r.loPct; ruleEditModal.hiPct = r.hiPct; ruleEditModal.strength = r.strength
-  ruleEditModal.show = true
-}
-function applyRuleEdit() {
-  const row = ruleRows.value.find((r) => r.indicatorId === ruleEditModal.indicatorId)
-  if (row) {
-    row.targetPct = ruleEditModal.targetPct; row.loPct = ruleEditModal.loPct; row.hiPct = ruleEditModal.hiPct; row.strength = ruleEditModal.strength
+/* ============================ 统一表 — 规则批量保存 ============================ */
+async function saveRules() {
+  if (!selectedScopeId.value) return
+  // 按维度分组，逐维度校验 lo<=target<=hi 并加和==100%
+  const grouped = new Map<string, UnifiedRow[]>()
+  for (const r of filteredUnifiedRows.value) {
+    if (!grouped.has(r.dimensionId)) grouped.set(r.dimensionId, [])
+    grouped.get(r.dimensionId)!.push(r)
   }
-  ruleEditModal.show = false
-}
-async function saveRuleRows() {
-  if (!selectedScopeId.value || !ruleDimensionId.value) return
-  for (const r of ruleRows.value) {
-    if (!(r.loPct <= r.targetPct && r.targetPct <= r.hiPct)) {
-      message.warning(`指标「${r.indicatorName}」需满足 下限% ≤ 目标% ≤ 上限%`)
-      return
+  for (const [, rows] of grouped) {
+    for (const r of rows) {
+      if (!(r.loPct <= r.targetPct && r.targetPct <= r.hiPct)) {
+        message.warning(`指标「${r.indicatorName}」需满足 下限% ≤ 目标% ≤ 上限%`); return
+      }
     }
   }
   loading.saveRules = true
   try {
-    const rules: RuleDraft[] = ruleRows.value.map((r) => ({
-      indicator: r.indicatorId,
-      target: r.targetPct / 100,
-      lo: r.loPct / 100,
-      hi: r.hiPct / 100,
-      strength: r.strength,
-    }))
-    await batchSaveRules(selectedScopeId.value, ruleDimensionId.value, rules)
-    message.success('保存成功，目标占比加和 = 100%')
-    await Promise.all([loadRuleRows(), loadRatio(), loadPlan()])
+    let okCount = 0
+    for (const [dimensionId, rows] of grouped) {
+      const rules: RuleDraft[] = rows.map((r) => ({
+        indicator: r.indicatorId, target: r.targetPct / 100, lo: r.loPct / 100, hi: r.hiPct / 100, strength: r.strength,
+      }))
+      await batchSaveRules(selectedScopeId.value, dimensionId, rules)
+      okCount++
+    }
+    message.success(`已保存 ${okCount} 个维度的规则（每维度加和 = 100%）`)
+    await Promise.all([loadUnified(), loadRatio(), loadPlan()])
   } catch (e) {
     message.error(extractApiError(e, '保存失败'))
-  } finally {
-    loading.saveRules = false
-  }
+  } finally { loading.saveRules = false }
 }
 
-/* ============================ 目标配置 ============================ */
-const headcountModal = reactive({
-  show: false, editingId: '' as string | null,
-  dimensionId: '', indicatorId: '', year: 2026, annualTarget: 0, monthly: Array(12).fill(0),
-})
-function onHeadcountDimChange() { headcountModal.indicatorId = '' }
-function openAddHeadcount() {
-  headcountModal.editingId = null; headcountModal.dimensionId = ruleDimensionId.value || dimensions.value[0]?.id || ''
-  headcountModal.indicatorId = ''; headcountModal.year = targetYear.value; headcountModal.annualTarget = 0
-  headcountModal.monthly = Array(12).fill(0); headcountModal.show = true
-}
-function openEditHeadcount(r: ControlHeadcount) {
-  headcountModal.editingId = r.id; headcountModal.dimensionId = dimensions.value.find((d) => d.name === r.dimensionName)?.id ?? ''
-  headcountModal.indicatorId = r.indicator; headcountModal.year = r.year; headcountModal.annualTarget = r.annualTarget
-  headcountModal.monthly = [...r.monthlyTargets]; headcountModal.show = true
-}
-async function saveHeadcount() {
-  if (!headcountModal.indicatorId) { message.warning('请选择指标'); return }
+/* ============================ 统一表 — 目标保存 ============================ */
+async function saveTargets() {
+  if (!selectedScopeId.value) return
+  loading.saveTargets = true
   try {
-    await upsertHeadcount({
-      id: headcountModal.editingId ?? undefined,
-      scope: selectedScopeId.value,
-      indicator: headcountModal.indicatorId,
-      year: headcountModal.year,
-      annualTarget: headcountModal.annualTarget,
-      monthlyTargets: headcountModal.monthly,
-    })
-    message.success('保存成功')
-    headcountModal.show = false
-    await loadHeadcounts()
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
+    let ok = 0
+    for (const r of filteredUnifiedRows.value) {
+      await upsertHeadcount({
+        id: r.headcountId ?? undefined,
+        scope: selectedScopeId.value,
+        indicator: r.indicatorId,
+        year: targetYear.value,
+        annualTarget: r.annualTarget,
+        monthlyTargets: r.monthlyTargets,
+      })
+      ok++
+    }
+    message.success(`已保存 ${ok} 项目标`)
+    await Promise.all([loadUnified(), loadPlan()])
+  } catch (e) {
+    message.error(extractApiError(e, '保存失败'))
+  } finally { loading.saveTargets = false }
 }
-function removeHeadcount(r: ControlHeadcount) {
-  dialog.warning({
-    title: '删除目标', content: `确认删除「${r.indicatorName}」的 ${r.year} 年度目标？`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await deleteHeadcount(r.id); message.success('删除成功'); await loadHeadcounts() }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
-  })
+
+/* ============================ 12 月度目标弹窗 ============================ */
+const monthlyModal = reactive({
+  show: false, indicatorId: '', indicatorName: '',
+  annualTarget: 0, monthly: Array(12).fill(0),
+})
+function openMonthlyModal(row: UnifiedRow) {
+  monthlyModal.indicatorId = row.indicatorId
+  monthlyModal.indicatorName = row.indicatorName
+  monthlyModal.annualTarget = row.annualTarget
+  monthlyModal.monthly = [...row.monthlyTargets]
+  monthlyModal.show = true
+}
+function applyMonthly() {
+  const row = unifiedRows.value.find((r) => r.indicatorId === monthlyModal.indicatorId)
+  if (row) {
+    row.annualTarget = monthlyModal.annualTarget
+    row.monthlyTargets = [...monthlyModal.monthly]
+  }
+  monthlyModal.show = false
 }
 
 /* ============================ 录入校验 ============================ */
@@ -967,25 +886,13 @@ function removePerson(r: Person) {
 
 onMounted(async () => {
   await Promise.all([loadScopes(), loadDimensions(), loadIndicators(), loadPersons()])
-  if (selectedScopeId.value) await Promise.all([loadRatio(), loadPlan(), loadHeadcounts(), loadRuleRows()])
+  if (selectedScopeId.value) await Promise.all([loadRatio(), loadPlan(), loadUnified()])
 })
 </script>
 
 <style scoped>
-.page-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  height: 100%;
-  min-height: 0;
-}
-.page-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-shrink: 0;
-}
+.page-container { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-shrink: 0; }
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .page-subtitle { margin: 4px 0 0; color: #6b7280; font-size: 13px; }
 .scope-label { color: #6b7280; font-size: 13px; white-space: nowrap; }
@@ -1003,6 +910,17 @@ onMounted(async () => {
 .kpi-card.warn .kpi-value { color: #d97706; }
 .validate-result { margin-top: 16px; }
 .block-hint { color: #dc2626; font-size: 13px; margin: 8px 0 0; }
-.panel-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.panel-title { font-weight: 600; font-size: 14px; }
+
+.dim-filter-row { display: flex; gap: 8px; margin-bottom: 12px; flex-shrink: 0; flex-wrap: wrap; }
+.dim-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 16px; border: 1px solid #d1d5db;
+  background: #fff; cursor: pointer; font-size: 13px; user-select: none;
+  transition: all 0.15s;
+}
+.dim-tag:hover { border-color: #93c5fd; }
+.dim-tag.active { background: #eff6ff; border-color: #2563eb; color: #1d4ed8; font-weight: 600; }
+.dim-tag.ok .dim-sum { color: #059669; }
+.dim-tag.bad .dim-sum { color: #dc2626; font-weight: 600; }
+.dim-sum { font-size: 12px; color: #6b7280; font-weight: 400; }
 </style>
