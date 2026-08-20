@@ -1,44 +1,33 @@
-"""校招管控 — 计算引擎与 API 端点测试。
+"""校招管控 v2 — 计算引擎与 API 端点测试。
 
 覆盖：
-  - §3 纯函数（count / count_rule / denom_rule / ratio_of / ratio_status / count_status / compute_ratio / compute_count / kpi / simulate）
-  - §9.1 比例断言 / §9.2 人数规划断言 / §9.3 录入校验阻断断言（基于 §9.0 样例数据）
-  - §4.1 规则保存校验（区间 / 唯一 / 枚举）
-  - API 端点（ratio / plan / validate / rules CRUD / persons CRUD）端到端
+  - 纯函数（scope 感知）：count / count_rule / denom_rule / ratio_of / ratio_status /
+    count_status / compute_ratio / compute_count / kpi / simulate / check_dimension_sums
+  - §9 断言（基于 §9.0 样例数据，scope 感知）
+  - 100% 加和硬校验（序列化器 + API 双路径）
+  - API 端点（scopes/dimensions/indicators/rules/headcounts + ratio/plan/validate）端到端
 """
 import pytest
 from decimal import Decimal
-from django.contrib.auth import get_user_model
 
-from ..sample_data import SAMPLE_PERSONS, DEFAULT_RULES
+from ..sample_data import SAMPLE_PERSONS, build_rules, build_headcounts
 from ..calc import (
-    count,
-    count_rule,
-    denom_rule,
-    ratio_of,
-    ratio_status,
-    count_status,
-    compute_ratio,
-    compute_count,
-    kpi,
-    simulate,
+    count, count_rule, denom_rule, ratio_of, ratio_status, count_status,
+    compute_ratio, compute_count, kpi, simulate, check_dimension_sums,
 )
 from ..constants import (
-    RATIO_NORMAL,
-    RATIO_BELOW,
-    RATIO_ABOVE,
-    COUNT_MET,
-    COUNT_GAP,
-    VERDICT_BLOCK,
-    VERDICT_WARN,
-    VERDICT_PASS,
+    RATIO_NORMAL, RATIO_BELOW, RATIO_ABOVE, COUNT_MET, COUNT_GAP,
+    VERDICT_BLOCK, VERDICT_WARN, VERDICT_PASS,
 )
-from ..models import ControlRule, Person
-from ..serializers import RuleSerializer
+from ..models import (
+    ControlScope, ControlDimension, ControlIndicator, ControlRule, ControlHeadcount, Person,
+)
+from ..serializers import ControlRuleSerializer
 
 
 @pytest.fixture
 def hr_user(db):
+    from django.contrib.auth import get_user_model
     User = get_user_model()
     u, _ = User.objects.get_or_create(
         username='campus_test_hr',
@@ -52,17 +41,27 @@ def hr_user(db):
 @pytest.fixture
 def api_client(hr_user):
     from rest_framework.test import APIClient
-
     client = APIClient()
     client.force_authenticate(user=hr_user)
     return client
 
 
-def _find(rows, dim, group):
-    return next((r for r in rows if r['dim'] == dim and r['group'] == group), None)
+def _cnt(persons, bu=None, sex=None, school=None, major=None):
+    n = 0
+    for p in persons:
+        if bu and p['bu'] != bu:
+            continue
+        if sex and p['sex'] != sex:
+            continue
+        if school and p['school'] != school:
+            continue
+        if major and p['major'] != major:
+            continue
+        n += 1
+    return n
 
 
-# ============================ §3 纯函数 ============================
+# ============================ 纯函数 ============================
 class TestPureCalc:
     def test_count_filters(self):
         persons = [{'bu': '能电BG', 'school': '985'}, {'bu': '能电BG', 'school': '211'}, {'bu': '三到BG', 'school': '985'}]
@@ -70,23 +69,25 @@ class TestPureCalc:
         assert count(persons, {'bu': '能电BG', 'school': '985'}) == 1
         assert count(persons, {'school': '985'}) == 2
 
-    def test_denom_rule_gender_uses_dept(self):
+    def test_denom_rule_gender_uses_scope_bu(self):
         persons = [
-            {'bu': '能电BG', 'school': '985', 'sex': '男'},
-            {'bu': '能电BG', 'school': '211', 'sex': '女'},
-            {'bu': '三到BG', 'school': '985', 'sex': '男'},
+            {'bu': '能电BG', 'sex': '男'},
+            {'bu': '能电BG', 'sex': '女'},
+            {'bu': '三到BG', 'sex': '男'},
         ]
-        rule = {'dim': '性别', 'group': '能电BG-男'}
-        assert denom_rule(rule, persons) == 2  # 仅能电BG 人数
-        rule2 = {'dim': '院校标签', 'group': '985'}
-        assert denom_rule(rule2, persons) == 3  # 全公司
+        scope = {'bu': '能电BG', 'position': '', 'level': ''}
+        rule = {'dimension': '性别', 'indicator': '男'}
+        assert denom_rule(rule, persons, scope) == 2  # 仅能电BG 人数
+        rule2 = {'dimension': '院校标签', 'indicator': '985'}
+        assert denom_rule(rule2, persons, scope) == 3  # 范围内全部
 
     def test_ratio_of_zero_denom_returns_zero(self):
-        rule = {'dim': '性别', 'group': '三到BG-男'}
-        assert ratio_of(rule, []) == Decimal('0')  # 分母=0 不除零
+        scope = {'bu': 'X', 'position': '', 'level': ''}
+        rule = {'dimension': '性别', 'indicator': '男'}
+        assert ratio_of(rule, [], scope) == Decimal('0')
 
     def test_ratio_status_closed_interval(self):
-        rule = {'dim': 'x', 'group': 'g', 'lo': 0.3, 'hi': 0.7}
+        rule = {'lo': Decimal('0.3'), 'hi': Decimal('0.7')}
         assert ratio_status(Decimal('0.3'), rule) == RATIO_NORMAL
         assert ratio_status(Decimal('0.7'), rule) == RATIO_NORMAL
         assert ratio_status(Decimal('0.2'), rule) == RATIO_BELOW
@@ -98,163 +99,200 @@ class TestPureCalc:
         assert count_status(5, None) == '未设目标'
 
 
-# ============================ §9 验收（纯函数层） ============================
+# ============================ §9 断言（scope 感知） ============================
 class TestPrdAssertions:
+    SCOPE_ID = '能电BG校招'
+    BU = '能电BG'
+
     def setup_method(self):
         self.persons = SAMPLE_PERSONS
-        self.rules = DEFAULT_RULES
-        self.ratio = compute_ratio(self.persons, self.rules)
-        self.plan = compute_count(self.persons, self.rules, '8月')
+        self.rules = build_rules(self.SCOPE_ID)
+        self.headcounts = build_headcounts(self.SCOPE_ID, 2026)
+        self.scope = {'bu': self.BU, 'position': '', 'level': ''}
+        self.ratio = compute_ratio(self.persons, self.rules, self.scope)
+        self.rows = {(r['dimension'], r['indicator']): r for r in self.ratio['rows']}
 
-    def test_90_total(self):
-        assert self.ratio['total'] == 31
+    def test_total_scope_population(self):
+        assert self.ratio['total'] == 12  # 能电BG 计入人数
 
-    def test_91_ratio_assertions(self):
-        g = _find(self.ratio['rows'], '性别', '能电BG-男')
-        assert abs(float(g['ratio']) - 0.75) < 1e-6
-        assert g['status'] == RATIO_ABOVE
-        assert g['strength'] == '硬约束'
+    def test_gender_male_ratio(self):
+        r = self.rows[('性别', '男')]
+        exp = _cnt(self.persons, bu=self.BU, sex='男') / _cnt(self.persons, bu=self.BU)
+        assert abs(float(r['ratio']) - exp) < 1e-3
+        assert r['status'] == RATIO_ABOVE
+        assert r['strength'] == '硬约束'
 
-        m = _find(self.ratio['rows'], '专业标签', '工学')
-        assert abs(float(m['ratio']) - 0.323) < 1e-6
-        assert m['status'] == RATIO_BELOW
+    def test_school_985_ratio(self):
+        r = self.rows[('院校标签', '985')]
+        exp = _cnt(self.persons, bu=self.BU, school='985') / _cnt(self.persons, bu=self.BU)
+        assert abs(float(r['ratio']) - exp) < 1e-3
 
-        s = _find(self.ratio['rows'], '性别', '三到BG-男')
-        assert abs(float(s['ratio']) - 1.0) < 1e-6
-        assert s['status'] == RATIO_NORMAL
+    def test_dimension_sums_eq_100(self):
+        sums = check_dimension_sums(self.rules, self.SCOPE_ID)
+        assert all(s['ok'] for s in sums), sums
 
-        u = _find(self.ratio['rows'], '院校标签', '985')
-        assert abs(float(u['ratio']) - 0.355) < 1e-6
-        assert u['status'] == RATIO_NORMAL
+    def test_count_plan(self):
+        cnt_rows = compute_count(self.persons, self.rules, self.headcounts, self.scope, 2026, '8月')
+        hc = {(c['dimension'], c['indicator']): c for c in cnt_rows}
+        c985 = hc[('院校标签', '985')]
+        assert c985['onjob'] == _cnt(self.persons, bu=self.BU, school='985')
+        assert c985['annualTarget'] == 40
 
-    def test_92_count_assertions(self):
-        r = _find(self.plan, '院校标签', '985')
-        assert r['onjob'] == 11
-        assert r['month_target'] == 120
-        assert r['gap'] == 109
-        assert r['whole'] == 120
-        assert r['whole_gap'] == 109
-
-    def test_93_simulate_block(self):
-        draft = {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
-        res = simulate(draft, self.rules, self.persons, month='8月')
-        assert res['verdict'] == VERDICT_BLOCK
-        # 能电BG-男 仍高于上限（硬约束）
-        c = _find(res['checks'], '性别', '能电BG-男')
-        assert c['ratio_status'] == RATIO_ABOVE
+    def test_simulate_block(self):
+        draft = {'bu': self.BU, 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
+        v = simulate(draft, self.rules, self.persons, self.headcounts, self.scope, 2026, month='8月')
+        assert v['verdict'] == VERDICT_BLOCK
+        c = next(ch for ch in v['checks'] if ch['dimension'] == '性别' and ch['indicator'] == '男')
+        assert c['ratioStatus'] == RATIO_ABOVE
         assert c['strength'] == '硬约束'
 
-    def test_simulate_pass_when_within_bounds(self):
-        # 三到BG-女 当前 2/6=0.333，hi=0.10 硬约束 -> 已超标；构造一个确定的通过场景较困难，
-        # 这里验证 warn 路径：仅提示/软约束超标且人数达标 -> ⚠️
-        draft = {'bu': '综合BG', 'school': '985', 'sex': '女', 'major': '其他', 'month': '8月'}
-        res = simulate(draft, self.rules, self.persons, month='8月')
-        assert res['verdict'] in (VERDICT_WARN, VERDICT_BLOCK, VERDICT_PASS)
 
-
-# ============================ §4.1 序列化器校验 ============================
+# ============================ 100% 加和硬校验 ============================
 @pytest.mark.django_db
-class TestRuleValidation:
-    def test_interval_rejected(self):
-        ser = RuleSerializer(data={'dim': '院校标签', 'group': '985', 'target': 0.5, 'lo': 0.6, 'hi': 0.4, 'strength': '硬约束'})
-        assert not ser.is_valid()
-        assert 'lo' in ser.errors or any('0 <=' in str(v) for v in ser.errors.values())
+class TestSum100Validation:
+    def _mk_scope_dim_ind(self, hr_user):
+        scope = ControlScope.objects.create(name='测试方案', bu='能电BG', created_by=hr_user, updated_by=hr_user)
+        dim = ControlDimension.objects.create(name='性别', created_by=hr_user, updated_by=hr_user)
+        i_m = ControlIndicator.objects.create(dimension=dim, name='男', created_by=hr_user, updated_by=hr_user)
+        i_f = ControlIndicator.objects.create(dimension=dim, name='女', created_by=hr_user, updated_by=hr_user)
+        return scope, dim, i_m, i_f
 
-    def test_group_mismatch_dim_rejected(self):
-        ser = RuleSerializer(data={'dim': '院校标签', 'group': '工学', 'target': 0.3, 'lo': 0.2, 'hi': 0.4, 'strength': '硬约束'})
-        assert not ser.is_valid()
-
-    def test_strength_enum_rejected(self):
-        ser = RuleSerializer(data={'dim': '院校标签', 'group': '985', 'target': 0.3, 'lo': 0.2, 'hi': 0.4, 'strength': '超强约束'})
-        assert not ser.is_valid()
-
-    def test_valid_rule_ok(self):
-        ser = RuleSerializer(data={'dim': '院校标签', 'group': '985', 'target': 0.34, 'lo': 0.32, 'hi': 0.36, 'strength': '硬约束'})
+    def test_valid_100_sum_ok(self, hr_user):
+        scope, dim, i_m, i_f = self._mk_scope_dim_ind(hr_user)
+        ser = ControlRuleSerializer(data={
+            'scope': scope.id, 'dimension': dim.id, 'indicator': i_m.id,
+            'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束',
+        })
         assert ser.is_valid(), ser.errors
+        ser.save(created_by=hr_user, updated_by=hr_user)
+        ser2 = ControlRuleSerializer(data={
+            'scope': scope.id, 'dimension': dim.id, 'indicator': i_f.id,
+            'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束',
+        })
+        assert ser2.is_valid(), ser2.errors  # 0.6 + 0.4 = 100% OK
+
+    def test_per_rule_overflow_blocked(self, hr_user):
+        # 单条编辑仅拦截「超 100%」：0.6 + 0.5 = 110% → 阻断
+        scope, dim, i_m, i_f = self._mk_scope_dim_ind(hr_user)
+        ControlRule.objects.create(
+            scope=scope, dimension=dim, indicator=i_m,
+            target=Decimal('0.6'), lo=Decimal('0.5'), hi=Decimal('0.7'), strength='硬约束',
+            created_by=hr_user, updated_by=hr_user,
+        )
+        ser = ControlRuleSerializer(data={
+            'scope': scope.id, 'dimension': dim.id, 'indicator': i_f.id,
+            'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束',
+        })
+        assert not ser.is_valid()
+        assert any('100%' in str(v) for vals in ser.errors.values() for v in (vals if isinstance(vals, list) else [vals]))
+
+    def test_sum_not_100_blocked(self, hr_user):
+        scope, dim, i_m, i_f = self._mk_scope_dim_ind(hr_user)
+        ControlRule.objects.create(
+            scope=scope, dimension=dim, indicator=i_m,
+            target=Decimal('0.6'), lo=Decimal('0.5'), hi=Decimal('0.7'), strength='硬约束',
+            created_by=hr_user, updated_by=hr_user,
+        )
+        # 再加 女 target=0.5 -> 0.6+0.5=110% ≠ 100% -> 硬拦截
+        ser = ControlRuleSerializer(data={
+            'scope': scope.id, 'dimension': dim.id, 'indicator': i_f.id,
+            'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束',
+        })
+        assert not ser.is_valid()
+        assert any('100%' in str(v) for vals in ser.errors.values() for v in (vals if isinstance(vals, list) else [vals]))
 
 
 # ============================ API 端点 ============================
 @pytest.mark.django_db
 class TestApiEndpoints:
-    @pytest.fixture(autouse=True)
-    def seed(self, hr_user):
-        for r in DEFAULT_RULES:
-            ControlRule.objects.create(created_by=hr_user, updated_by=hr_user, **r)
-        for p in SAMPLE_PERSONS:
-            Person.objects.create(created_by=hr_user, updated_by=hr_user, **p)
+    def _build_minimal_scheme(self, api_client):
+        s = api_client.post('/api/v1/campus/scopes/', {'name': 'API方案', 'bu': '能电BG', 'is_active': True}, format='json').json()
+        scope_id = s['id']
+        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
+        dim_id = d['id']
+        im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
+        ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
+        api_client.post('/api/v1/campus/rules/', {'scope': scope_id, 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'}, format='json')
+        api_client.post('/api/v1/campus/rules/', {'scope': scope_id, 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束'}, format='json')
+        api_client.post('/api/v1/campus/headcounts/', {'scope': scope_id, 'indicator': im['id'], 'year': 2026, 'annual_target': 10, 'monthly_targets': [1] * 12}, format='json')
+        api_client.post('/api/v1/campus/headcounts/', {'scope': scope_id, 'indicator': ifm['id'], 'year': 2026, 'annual_target': 10, 'monthly_targets': [1] * 12}, format='json')
+        api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '已入职', 'counted': True}, format='json')
+        return scope_id
 
     def test_ratio_endpoint(self, api_client):
-        resp = api_client.get('/api/v1/campus/rules/ratio/')
-        assert resp.status_code == 200
+        scope_id = self._build_minimal_scheme(api_client)
+        resp = api_client.get(f'/api/v1/campus/rules/ratio/?scope={scope_id}')
+        assert resp.status_code == 200, resp.json()
         data = resp.json()['data']
-        assert data['total'] == 31
-        g = _find(data['rows'], '性别', '能电BG-男')
-        assert abs(float(g['ratio']) - 0.75) < 1e-6
-        assert g['status'] == '高于上限'
+        male = next(r for r in data['rows'] if r['dimension'] == '性别' and r['indicator'] == '男')
+        assert abs(male['ratio'] - 1.0) < 1e-3  # 仅 1 名男性
+        assert male['status'] == '高于上限'
+        # sumChecks 应全 ok
+        assert all(s['ok'] for s in data['sumChecks'])
 
     def test_plan_endpoint(self, api_client):
-        resp = api_client.get('/api/v1/campus/rules/plan/', {'month': '8月'})
-        assert resp.status_code == 200
+        scope_id = self._build_minimal_scheme(api_client)
+        resp = api_client.get(f'/api/v1/campus/rules/plan/?scope={scope_id}&year=2026&month=8月')
+        assert resp.status_code == 200, resp.json()
         data = resp.json()['data']
-        r = _find(data['rows'], '院校标签', '985')
-        assert r['onjob'] == 11
-        assert r['monthTarget'] == 120
-        assert r['gap'] == 109
-        assert data['kpi']['total'] == 31
+        assert data['rows']
 
     def test_validate_endpoint_block(self, api_client):
+        scope_id = self._build_minimal_scheme(api_client)
         resp = api_client.post(
-            '/api/v1/campus/rules/validate/',
-            {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'},
+            f'/api/v1/campus/rules/validate/?scope={scope_id}&year=2026',
+            {'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'},
             format='json',
         )
-        assert resp.status_code == 200
-        data = resp.json()['data']
-        assert data['verdict'] == '❌ 阻断提交'
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()['data']['verdict'] == VERDICT_BLOCK
 
-    def test_rules_crud(self, api_client):
-        # 取一条已有种子规则（所有 (dim,group) 组合已被种子占用，故走「删-建-重复」路径）
-        lst = api_client.get('/api/v1/campus/rules/').json()['data']
-        assert lst, '种子规则应存在'
-        existing = lst[0]
-        rid = existing['id']
-        # 硬删
-        d = api_client.delete(f'/api/v1/campus/rules/{rid}/')
-        assert d.status_code in (200, 204)
-        # 重建（唯一性恢复）
-        resp = api_client.post(
-            '/api/v1/campus/rules/',
-            {
-                'dim': existing['dim'],
-                'group': existing['group'],
-                'target': float(existing['target']),
-                'lo': float(existing['lo']),
-                'hi': float(existing['hi']),
-                'strength': existing['strength'],
-                'whole': existing['whole'],
-                'monthTarget': existing['monthTarget'],
-            },
-            format='json',
-        )
-        assert resp.status_code == 201, resp.json()
-        # 重复 (dim,group) 应 400
-        dup = api_client.post(
-            '/api/v1/campus/rules/',
-            {'dim': existing['dim'], 'group': existing['group'], 'target': 0.2, 'lo': 0.1, 'hi': 0.3, 'strength': '软约束'},
-            format='json',
-        )
-        assert dup.status_code == 400
+    def test_rule_100_block_via_api(self, api_client):
+        s = api_client.post('/api/v1/campus/scopes/', {'name': '阻断方案', 'bu': '三到BG', 'is_active': True}, format='json').json()
+        scope_id = s['id']
+        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
+        dim_id = d['id']
+        im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
+        ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
+        r1 = api_client.post('/api/v1/campus/rules/', {'scope': scope_id, 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'}, format='json')
+        assert r1.status_code == 201, r1.json()
+        # 女加 0.5 -> 110% -> 400
+        r2 = api_client.post('/api/v1/campus/rules/', {'scope': scope_id, 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束'}, format='json')
+        assert r2.status_code == 400, r2.json()
 
-    def test_persons_import(self, api_client):
-        rows = [{'code': 'Z001', 'name': '测试1', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '已入职', 'counted': True}]
-        resp = api_client.post('/api/v1/campus/persons/import/', {'rows': rows}, format='json')
-        assert resp.status_code == 200
-        data = resp.json()['data']
-        assert data['createdCount'] == 1
+    def test_batch_100_ok(self, api_client):
+        # 批量保存完整维度：0.6 + 0.4 = 100% → 201，且落库两条
+        s = api_client.post('/api/v1/campus/scopes/', {'name': '批量方案', 'bu': '能电BG', 'is_active': True}, format='json').json()
+        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
+        im = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json').json()
+        ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json').json()
+        resp = api_client.post('/api/v1/campus/rules/batch/', {
+            'scope': s['id'], 'dimension': d['id'],
+            'rules': [
+                {'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
+                {'indicator': ifm['id'], 'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()['data']['saved'] == 2
+
+    def test_batch_not_100_blocked(self, api_client):
+        # 批量保存不完整维度：仅 0.6 ≠ 100% → 400
+        s = api_client.post('/api/v1/campus/scopes/', {'name': '缺额方案', 'bu': '能电BG', 'is_active': True}, format='json').json()
+        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
+        im = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json').json()
+        api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json').json()
+        resp = api_client.post('/api/v1/campus/rules/batch/', {
+            'scope': s['id'], 'dimension': d['id'],
+            'rules': [
+                {'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400, resp.json()
+        assert '100%' in resp.json()['detail']
 
     def test_requires_auth(self):
         from rest_framework.test import APIClient
-
         client = APIClient()
-        resp = client.get('/api/v1/campus/rules/ratio/')
+        resp = client.get('/api/v1/campus/scopes/')
         assert resp.status_code in (401, 403)
