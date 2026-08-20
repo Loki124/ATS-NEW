@@ -153,7 +153,7 @@
                   <n-input v-model:value="node.row.key" size="small" placeholder="代码" />
                 </template>
                 <template v-else>
-                  <code>{{ node.row.key }}</code>
+                  <span class="code-text">{{ node.row.key }}</span>
                 </template>
               </div>
             </div>
@@ -880,8 +880,11 @@ onUnmounted(() => {
 .el-row.isnew { background: #fffbe6; }
 .el-row.isnew.editing { background: #fff7cc; }
 .el-cell { display: flex; align-items: center; min-height: 48px; padding: 0 12px; font-size: 13px; box-sizing: border-box; }
-.el-cell-content { display: flex; align-items: center; gap: 4px; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.el-cell code { background: #f2f3f5; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.el-cell-content { display: flex; align-items: center; gap: 4px; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
+/* 统一所有直接子元素为 inline-flex，消除 inline 元素基线/line-height 造成的视觉偏移 */
+.el-cell-content > * { display: inline-flex; align-items: center; line-height: 1; }
+.el-cell-content .n-input, .el-cell-content .n-input-number { display: flex; }
+.el-cell .code-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #333; font-size: 13px; }
 .el-cell .n-input, .el-cell .n-input-number { min-width: 80px; width: 100%; }
 .tree-guide { color: #bbb; margin-right: 4px; }
 .strikethrough { text-decoration: line-through; color: #aaa; }
