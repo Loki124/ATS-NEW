@@ -134,11 +134,17 @@
             class="el-row"
             :class="{ editing: node.row.editing, isnew: node.row.isNew }"
           >
-            <!-- 元素名称：仅本列按树形层级缩进 -->
+            <!-- 元素名称：仅本列按树形层级缩进；引导符绝对定位，避免把文字继续往右顶 -->
             <div class="el-cell el-name-cell" style="flex: 1.4" :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }">
+              <span
+                v-if="node.depth > 0"
+                class="tree-guide"
+                :style="{ left: 8 + (node.depth - 1) * 24 + 'px' }"
+              >
+                <span class="tree-guide-char">└</span>
+              </span>
               <div class="el-cell-content">
                 <span class="cell-inner name-inner">
-                  <span v-if="node.depth > 0" class="tree-guide"><span class="tree-guide-char">└</span></span>
                   <template v-if="node.row.editing">
                     <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
                   </template>
@@ -893,10 +899,12 @@ onUnmounted(() => {
 /* 每个单元格只包一个 .cell-inner，由它统一承载内容；避免多个 inline 元素在 flex 容器里因基线/字高不同而错位 */
 .el-cell-content { display: flex; align-items: center; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
 .cell-inner { display: inline-flex; align-items: center; gap: 4px; min-height: 20px; line-height: 1; }
-/* 树形引导符固定在一个 14×14px 的盒子里，不再把名称文字顶高 */
-.tree-guide { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex-shrink: 0; overflow: hidden; }
+/* 树形引导符绝对定位在左侧 padding 沟里，不再把名称文字继续往右顶 */
+.tree-guide { position: absolute; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; overflow: hidden; }
 .tree-guide-char { font-size: 12px; line-height: 1; color: #bbb; transform: translateY(-1px); }
 .name-inner { gap: 2px; }
+/* 名称列作为引导符的绝对定位参照 */
+.el-name-cell { position: relative; }
 .cell-inner .n-input, .cell-inner .n-input-number { display: flex; }
 .el-cell .code-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #333; font-size: 13px; }
 .el-cell .n-input, .el-cell .n-input-number { min-width: 80px; width: 100%; }
