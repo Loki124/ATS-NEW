@@ -129,6 +129,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },
+          { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
           { path: 'scoring', name: 'ScoringRules', component: () => import(/* webpackChunkName: "settings-scoring" */ '../pages/settings/ScoringRules.vue') },
           { path: 'company', name: 'CompanySettings', component: () => import(/* webpackChunkName: "settings-company" */ '../pages/settings/CompanySettings.vue') },
           { path: 'external', name: 'ExternalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },

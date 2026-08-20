@@ -105,6 +105,8 @@ api_v1_patterns = [
     #   /api/v1/dictionary-items/?type_code=recruitment_stage_type
     #   /api/v1/dictionary-types/
     path('', include('apps.dictionary.urls')),
+    # 2026-08-20: 校招管控（人员比例管控系统）— 规则 / 人员 / 看板 / 规划 / 校验
+    path('campus/', include('apps.campus_control.urls')),
 
     # Phase 2 T02 (寇豆码): 删 'external-sync'/'data' 两个 0-model 空壳 URL 挂载.
     #   scraped_resume / duplicate_check 是真实功能, 保留 (FE 真实调用)!

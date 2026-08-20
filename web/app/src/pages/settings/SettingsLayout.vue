@@ -121,6 +121,7 @@ const subMenuOptions = [
     children: [
       { key: '/settings/demand-config', label: '招聘需求设置', icon: ClipboardOutline },
       { key: '/settings/dictionary', label: '数据字典', icon: BookmarkOutline },
+      { key: '/settings/campus-control', label: '校招管控', icon: SchoolOutline },
       { key: '/settings/scoring', label: '评分规则', icon: StarOutline },
     ],
   },
