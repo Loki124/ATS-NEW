@@ -1,22 +1,21 @@
-"""人员比例管控系统 v2 — 数据模型。
+"""人员比例管控系统 v2.1 — 数据模型（规则/目标直接携带适用范围）。
 
-建模层次（v2）：
-  ControlScope      适用范围（管控方案）：绑定 BG部门/职务/职级，各自独立维护规则。
+建模层次：
   ControlDimension  维度（院校标签/专业标签/性别），可单独配置。
-  ControlIndicator  指标（原「分组」）：关联维度，可单独配置（如 985 / 男 / 工学）。
-  ControlRule       管控规则：scope+dimension+indicator -> 目标占比/上下限/强度。
-  ControlHeadcount  人数目标：scope+indicator+年度 -> 年度目标 + 12 个月目标（指标层）。
+  ControlIndicator  指标（关联维度，如 985 / 男 / 工学）。
+  ControlRule       管控规则：适用范围(bu/position/level) + 维度 + 指标 -> 目标占比/上下限/强度。
+  ControlHeadcount  人数目标：适用范围(bu/position/level) + 指标 + 年度 -> 年度目标 + 12 个月目标。
 
-Person 增加 position（职务）/ level（职级）以支持适用范围过滤。
+适用范围语义：bu / position / level 三者均空 = 「全局」（不限定）；否则按部门/职务/职级过滤。
+Person 的 position（职务）/ level（职级）用于命中指定范围。
 
-所有模型继承 FullAuditModel（审计）+ UUIDModel（nanoid 主键）；
-删除采用硬删（instance.delete()），避开唯一约束软删占位陷阱。
+所有模型继承 FullAuditModel（审计）+ UUIDModel（nanoid 主键）；删除采用硬删。
 """
 from django.db import models
 
 from apps.common.models import FullAuditModel, UUIDModel
 from .constants import (
-    DEPTS, SCHOOLS, MAJORS, SEXES, MONTHS, DIMS, STRENGTH, STATUS,
+    DEPTS, SCHOOLS, MAJORS, SEXES, DIMS, STRENGTH, STATUS,
     POSITIONS, LEVELS,
 )
 
@@ -24,32 +23,6 @@ from .constants import (
 def _default_monthly():
     """12 个日历月目标，默认全 0。"""
     return [0] * 12
-
-
-class ControlScope(FullAuditModel, UUIDModel):
-    """适用范围（管控方案）：绑定 BG部门/职务/职级，独立维护维度-指标-目标。"""
-
-    name = models.CharField(max_length=64, unique=True, verbose_name='方案名称')
-    bu = models.CharField(
-        max_length=16, choices=[(d, d) for d in DEPTS], verbose_name='BG部门'
-    )
-    position = models.CharField(
-        max_length=32, blank=True, default='',
-        choices=[(p, p) for p in POSITIONS], verbose_name='职务'
-    )
-    level = models.CharField(
-        max_length=32, blank=True, default='',
-        choices=[(l, l) for l in LEVELS], verbose_name='职级'
-    )
-    is_active = models.BooleanField(default=True, verbose_name='启用')
-
-    class Meta:
-        verbose_name = '适用范围'
-        verbose_name_plural = '适用范围'
-        ordering = ['bu', 'name']
-
-    def __str__(self):
-        return self.name
 
 
 class ControlDimension(FullAuditModel, UUIDModel):
@@ -71,7 +44,7 @@ class ControlDimension(FullAuditModel, UUIDModel):
 
 
 class ControlIndicator(FullAuditModel, UUIDModel):
-    """指标（原「分组」）：关联维度，可单独配置。如 985 / 男 / 工学。"""
+    """指标（关联维度，可单独配置）。如 985 / 男 / 工学。"""
 
     dimension = models.ForeignKey(
         ControlDimension, on_delete=models.CASCADE, related_name='indicators',
@@ -91,15 +64,27 @@ class ControlIndicator(FullAuditModel, UUIDModel):
 
 
 class ControlRule(FullAuditModel, UUIDModel):
-    """管控规则：scope+dimension+indicator -> 目标占比/上下限/强度。
+    """管控规则：适用范围 + 维度 + 指标 -> 目标占比/上下限/强度。
 
-    同一 (scope, dimension) 下所有 indicator 的 target 之和必须 == 1.0（100%），
-    保存时由序列化器硬拦截（见 §q-3）。
+    适用范围：bu / position / level 均空 = 全局；否则按部门/职务/职级过滤。
+    同一 (bu, position, level, dimension) 下所有 indicator 的 target 之和必须 == 1.0（100%），
+    由批量保存端点硬校验（见 views.batch）。
     """
 
-    scope = models.ForeignKey(
-        ControlScope, on_delete=models.CASCADE, related_name='rules', verbose_name='适用范围'
+    # 适用范围（全空 = 全局）
+    bu = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(d, d) for d in DEPTS], verbose_name='部门'
     )
+    position = models.CharField(
+        max_length=32, blank=True, default='',
+        choices=[(p, p) for p in POSITIONS], verbose_name='职务'
+    )
+    level = models.CharField(
+        max_length=32, blank=True, default='',
+        choices=[(l, l) for l in LEVELS], verbose_name='职级'
+    )
+
     dimension = models.ForeignKey(
         ControlDimension, on_delete=models.CASCADE, related_name='rules', verbose_name='维度'
     )
@@ -118,19 +103,31 @@ class ControlRule(FullAuditModel, UUIDModel):
     class Meta:
         verbose_name = '管控规则'
         verbose_name_plural = '管控规则'
-        unique_together = [('scope', 'dimension', 'indicator')]
-        ordering = ['scope', 'dimension', 'indicator']
+        unique_together = [('bu', 'position', 'level', 'dimension', 'indicator')]
+        ordering = ['bu', 'position', 'level', 'dimension', 'indicator']
 
     def __str__(self):
-        return f'{self.scope.name}·{self.dimension.name}·{self.indicator.name}'
+        scope = self.bu or '全局'
+        return f'[{scope}]·{self.dimension.name}·{self.indicator.name}'
 
 
 class ControlHeadcount(FullAuditModel, UUIDModel):
-    """人数目标（指标层）：scope+indicator+年度 -> 年度目标 + 12 个月目标。"""
+    """人数目标：适用范围 + 指标 + 年度 -> 年度目标 + 12 个月目标（指标层）。"""
 
-    scope = models.ForeignKey(
-        ControlScope, on_delete=models.CASCADE, related_name='headcounts', verbose_name='适用范围'
+    # 适用范围（全空 = 全局）
+    bu = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(d, d) for d in DEPTS], verbose_name='部门'
     )
+    position = models.CharField(
+        max_length=32, blank=True, default='',
+        choices=[(p, p) for p in POSITIONS], verbose_name='职务'
+    )
+    level = models.CharField(
+        max_length=32, blank=True, default='',
+        choices=[(l, l) for l in LEVELS], verbose_name='职级'
+    )
+
     indicator = models.ForeignKey(
         ControlIndicator, on_delete=models.CASCADE, related_name='headcounts', verbose_name='指标'
     )
@@ -142,17 +139,18 @@ class ControlHeadcount(FullAuditModel, UUIDModel):
     class Meta:
         verbose_name = '人数目标'
         verbose_name_plural = '人数目标'
-        unique_together = [('scope', 'indicator', 'year')]
-        ordering = ['scope', 'indicator', 'year']
+        unique_together = [('bu', 'position', 'level', 'indicator', 'year')]
+        ordering = ['bu', 'position', 'level', 'indicator', 'year']
 
     def __str__(self):
-        return f'{self.scope.name}·{self.indicator.name}·{self.year}'
+        scope = self.bu or '全局'
+        return f'[{scope}]·{self.indicator.name}·{self.year}'
 
 
 class Person(FullAuditModel, UUIDModel):
     """人员主数据：一行一人。counted=True 才计入核算。
 
-    v2 增加 position（职务）/ level（职级）以支持适用范围过滤。
+    position（职务）/ level（职级）用于命中指定适用范围。
     """
 
     code = models.CharField(max_length=32, unique=True, verbose_name='人员编码')

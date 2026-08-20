@@ -1,14 +1,12 @@
-"""校招管控 v2 — 样本数据（§9.0 样例人员 + 默认方案/维度/指标/规则/人数目标）。
+"""校招管控 v2.1 — 样本数据（§9.0 样例人员 + 默认维度/指标/规则/人数目标）。
 
-供 seed_campus（写库）与 verify_prd（纯函数验收）共用，保证验收与运行时数据一致。
-
-v2 建模：
-- 4 个适用范围（各 BG 一套方案）。
+v2.1 建模：
+- 适用范围（bu/position/level，全空=全局）直接挂在规则/目标上。
 - 3 个维度（院校标签/专业标签/性别）；性别指标为 男/女。
-- 每方案的每个维度下，指标目标占比之和 == 100%。
-- 人数目标落在指标层：每方案每指标每年度 年度目标 + 12 个月目标。
+- 规则：院校/专业为「全局」；性别按「部门」各一套，同适用范围同维度加和 == 100%。
+- 人数目标：院校/专业为全局；性别按部门，落在指标层（年度 + 12 月）。
 """
-from .constants import DEPTS, SCHOOLS, MAJORS, SEXES, DIMS  # noqa: F401
+from .constants import DEPTS, SCHOOLS, MAJORS, SEXES  # noqa: F401
 
 
 def _monthly_from_annual(annual: int) -> list:
@@ -45,7 +43,7 @@ for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
     })
 
 
-# 各维度默认指标占比（院校/专业 全方案一致）
+# 全局维度默认指标占比（院校/专业，全公司一致）
 _SCHOOL_RULES = [
     ('985', 0.34, 0.32, 0.36, '硬约束'),
     ('211', 0.27, 0.20, 0.35, '硬约束'),
@@ -64,20 +62,12 @@ _SEX_RULES = {
     '醒电BG': [('男', 0.70, 0.60, 0.90, '软约束'), ('女', 0.30, 0.10, 0.30, '软约束')],
 }
 
-# 各指标年度目标（指标层）；月度 = 年度 / 12 余数摊入前几个月
+# 各指标年度目标（指标层）；性别按部门近似
 _INDICATOR_ANNUAL = {
     '985': 40, '211': 30, '双一流': 20, '其他': 30,
     '工学': 60, '其他': 60,
-    '男': 70, '女': 50,
 }
-
-# 方案定义：方案名 -> {bu, 性别规则}
-SCHEME_DEFS = {
-    '能电BG校招': {'bu': '能电BG', 'sex': _SEX_RULES['能电BG']},
-    '三到BG校招': {'bu': '三到BG', 'sex': _SEX_RULES['三到BG']},
-    '综合BG校招': {'bu': '综合BG', 'sex': _SEX_RULES['综合BG']},
-    '醒电BG校招': {'bu': '醒电BG', 'sex': _SEX_RULES['醒电BG']},
-}
+_SEX_ANNUAL = {'男': 70, '女': 50}
 
 DIMENSION_NAMES = ['院校标签', '专业标签', '性别']
 INDICATOR_NAMES = {
@@ -87,39 +77,33 @@ INDICATOR_NAMES = {
 }
 
 
-def build_rules(scope_id: str) -> list:
-    """构建某方案的规则（calc 用 dict 列表：scope_id/dimension/indicator/target/lo/hi/strength）。"""
+def build_rules() -> list:
+    """构建全部规则（calc 用 dict 列表，含 bu/position/level）。"""
     rules = []
     for ind, t, lo, hi, st in _SCHOOL_RULES:
-        rules.append({'scope_id': scope_id, 'dimension': '院校标签', 'indicator': ind,
-                      'target': t, 'lo': lo, 'hi': hi, 'strength': st})
+        rules.append({'bu': '', 'position': '', 'level': '', 'dimension': '院校标签',
+                      'indicator': ind, 'target': t, 'lo': lo, 'hi': hi, 'strength': st})
     for ind, t, lo, hi, st in _MAJOR_RULES:
-        rules.append({'scope_id': scope_id, 'dimension': '专业标签', 'indicator': ind,
-                      'target': t, 'lo': lo, 'hi': hi, 'strength': st})
-    for ind, t, lo, hi, st in SCHEME_DEFS[scope_id]['sex']:
-        rules.append({'scope_id': scope_id, 'dimension': '性别', 'indicator': ind,
-                      'target': t, 'lo': lo, 'hi': hi, 'strength': st})
+        rules.append({'bu': '', 'position': '', 'level': '', 'dimension': '专业标签',
+                      'indicator': ind, 'target': t, 'lo': lo, 'hi': hi, 'strength': st})
+    for bu, sex_rules in _SEX_RULES.items():
+        for ind, t, lo, hi, st in sex_rules:
+            rules.append({'bu': bu, 'position': '', 'level': '', 'dimension': '性别',
+                          'indicator': ind, 'target': t, 'lo': lo, 'hi': hi, 'strength': st})
     return rules
 
 
-def build_headcounts(scope_id: str, year: int = 2026) -> list:
-    """构建某方案的人数目标（calc 用 dict 列表）。"""
+def build_headcounts(year: int = 2026) -> list:
+    """构建全部人数目标（calc 用 dict 列表）。"""
     out = []
-    for dim, inds in INDICATOR_NAMES.items():
+    for dim, inds in [('院校标签', SCHOOLS), ('专业标签', MAJORS)]:
         for ind in inds:
             annual = _INDICATOR_ANNUAL.get(ind, 0)
-            out.append({
-                'scope_id': scope_id,
-                'indicator': ind,
-                'dimension': dim,
-                'year': year,
-                'annual_target': annual,
-                'monthly_targets': _monthly_from_annual(annual),
-            })
+            out.append({'bu': '', 'position': '', 'level': '', 'indicator': ind, 'dimension': dim,
+                        'year': year, 'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
+    for bu in DEPTS:
+        for ind in SEXES:
+            annual = _SEX_ANNUAL.get(ind, 0)
+            out.append({'bu': bu, 'position': '', 'level': '', 'indicator': ind, 'dimension': '性别',
+                        'year': year, 'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
     return out
-
-
-def build_scopes() -> list:
-    """适用范围（calc 用 dict）。scope_id 用方案名。"""
-    return [{'scope_id': name, 'bu': d['bu'], 'position': '', 'level': ''}
-            for name, d in SCHEME_DEFS.items()]

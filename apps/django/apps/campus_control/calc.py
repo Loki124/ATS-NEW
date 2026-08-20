@@ -1,13 +1,9 @@
-"""人员比例管控系统 v2 — 核心计算引擎（纯函数，scope 感知，与 v2 数据模型对齐）。
+"""人员比例管控系统 v2.1 — 核心计算引擎（纯函数，适用范围由规则/目标自带）。
 
-所有函数输入 persons / rules / headcounts 均为 dict 列表，便于在 View 层（模型 → dict）
-与 verify 脚本（内存数据）之间共用。计算仅对 counted=True 且命中适用范围的人员生效。
-
-v2 关键变更：
-- 维度/指标取代旧的 (dim, group)：rule 含 dimension（维度名）+ indicator（指标名）。
-- 性别维度指标为「男/女」，分母按 scope.bu（适用范围所属部门）。
-- 人数目标（年度 + 12 个月）落在 headcount（指标层），由 compute_count / simulate 使用。
-- 新增 sum100 校验：同一 (scope, dimension) 下所有 indicator 的 target 之和必须 == 1.0。
+v2.1 关键变更：
+- 适用范围（bu/position/level，全空=全局）直接挂在 rule / headcount 上，不再有独立「方案」。
+- 比例分母统一 = 该规则适用范围内的计入人数。
+- 100% 加和校验按 (bu, position, level, dimension) 分组。
 """
 from decimal import Decimal
 
@@ -32,6 +28,15 @@ def _round3(d: Decimal) -> Decimal:
     return d.quantize(Decimal('0.001'))
 
 
+def _scope_key(x: dict) -> tuple:
+    """适用范围分组键：bu/position/level 归一为空串。"""
+    return (
+        (x.get('bu') or '').strip(),
+        (x.get('position') or '').strip(),
+        (x.get('level') or '').strip(),
+    )
+
+
 def _indicator_filter(dimension: str, indicator: str) -> dict:
     """维度 + 指标 -> 人员过滤条件。"""
     if dimension == '院校标签':
@@ -43,22 +48,18 @@ def _indicator_filter(dimension: str, indicator: str) -> dict:
     return {}
 
 
-def scope_filter(p: dict, scope: dict) -> bool:
-    """人员是否命中适用范围（bu 必匹配；position/level 为空表示不限）。"""
-    if p.get('bu') != scope.get('bu'):
-        return False
-    pos = scope.get('position') or ''
-    lvl = scope.get('level') or ''
-    if pos and p.get('position') != pos:
-        return False
-    if lvl and p.get('level') != lvl:
-        return False
+def rule_matches(p: dict, rule: dict) -> bool:
+    """人员是否命中规则的适用范围（bu/position/level 为空表示不限）。"""
+    for field in ('bu', 'position', 'level'):
+        rv = rule.get(field) or ''
+        if rv and p.get(field) != rv:
+            return False
     return True
 
 
-def persons_in_scope(persons, scope: dict) -> list:
-    """适用范围内、且计入核算的人员。"""
-    return [p for p in persons if p.get('counted') and scope_filter(p, scope)]
+def persons_for_rule(persons, rule) -> list:
+    """命中规则适用范围、且计入核算的人员。"""
+    return [p for p in persons if p.get('counted') and rule_matches(p, rule)]
 
 
 def count(persons, filters):
@@ -75,19 +76,18 @@ def count(persons, filters):
 
 
 def count_rule(rule, persons):
-    return count(persons, _indicator_filter(rule['dimension'], rule['indicator']))
+    in_scope = persons_for_rule(persons, rule)
+    return count(in_scope, _indicator_filter(rule['dimension'], rule['indicator']))
 
 
-def denom_rule(rule, persons, scope):
-    """比例分母：性别维度 = 该适用范围所属部门人数；其余 = 范围内全部人数。"""
-    if rule['dimension'] == '性别':
-        return count(persons, {'bu': scope['bu']})
-    return len(persons)
+def denom_rule(rule, persons):
+    """比例分母 = 该规则适用范围内的计入人数。"""
+    return len(persons_for_rule(persons, rule))
 
 
-def ratio_of(rule, persons, scope):
+def ratio_of(rule, persons):
     n = count_rule(rule, persons)
-    d = denom_rule(rule, persons, scope)
+    d = denom_rule(rule, persons)
     if d == 0:
         return Decimal('0')
     return _dec(n) / _dec(d)
@@ -111,18 +111,20 @@ def count_status(actual, target):
     return COUNT_GAP
 
 
-def compute_ratio(persons, rules, scope):
-    """实时看板比例（scope 感知）。返回 {total, rows}。"""
-    active = persons_in_scope(persons, scope)
-    total = len(active)
+def compute_ratio(persons, rules):
+    """实时看板比例。返回 {total, rows}。total = 全部计入人数（跨适用范围）。"""
+    total = len([p for p in persons if p.get('counted')])
     rows = []
     for r in rules:
-        ratio = ratio_of(r, active, scope)
+        ratio = ratio_of(r, persons)
         rows.append({
             'dimension': r['dimension'],
             'indicator': r['indicator'],
-            'actual': count_rule(r, active),
-            'denom': denom_rule(r, active, scope),
+            'bu': r.get('bu') or '',
+            'position': r.get('position') or '',
+            'level': r.get('level') or '',
+            'actual': count_rule(r, persons),
+            'denom': denom_rule(r, persons),
             'ratio': _round3(ratio),
             'target': _dec(r['target']),
             'lo': _dec(r['lo']),
@@ -133,27 +135,29 @@ def compute_ratio(persons, rules, scope):
     return {'total': total, 'rows': rows}
 
 
-def compute_count(persons, rules, headcounts, scope, year, month):
-    """人数规划（scope 感知，指标层 headcount）。返回 CountRow[]。"""
-    active = persons_in_scope(persons, scope)
-    # indicator -> strength（来自规则，便于展示）
-    strength_map = {(r['dimension'], r['indicator']): r['strength'] for r in rules}
+def compute_count(persons, rules, headcounts, year, month):
+    """人数规划（适用范围由 headcount 自带）。返回 CountRow[]。"""
+    strength_map = {(_scope_key(r), r['dimension'], r['indicator']): r['strength'] for r in rules}
     rows = []
     for h in headcounts:
         dim = h['dimension']
         ind = h['indicator']
-        onjob = count(active, _indicator_filter(dim, ind))
+        in_scope = persons_for_rule(persons, h)
+        onjob = count(in_scope, _indicator_filter(dim, ind))
         annual_target = int(h.get('annual_target', 0) or 0)
         annual_gap = max(annual_target - onjob, 0)
         idx = month_to_index(month)
         monthly = h.get('monthly_targets') or [0] * 12
         month_target = int(monthly[idx - 1]) if 1 <= idx <= 12 else 0
-        month_actual = count(active, {**_indicator_filter(dim, ind), 'month': month}) if 1 <= idx <= 12 else 0
+        month_actual = count(in_scope, {**_indicator_filter(dim, ind), 'month': month}) if 1 <= idx <= 12 else 0
         gap = max(month_target - month_actual, 0)
         rows.append({
             'dimension': dim,
             'indicator': ind,
-            'strength': strength_map.get((dim, ind), ''),
+            'bu': h.get('bu') or '',
+            'position': h.get('position') or '',
+            'level': h.get('level') or '',
+            'strength': strength_map.get((_scope_key(h), dim, ind), ''),
             'onjob': onjob,
             'annualTarget': annual_target,
             'annualGap': annual_gap,
@@ -165,9 +169,9 @@ def compute_count(persons, rules, headcounts, scope, year, month):
     return rows
 
 
-def kpi(persons, rules, headcounts, scope, year, month):
-    ratio_res = compute_ratio(persons, rules, scope)
-    count_res = compute_count(persons, rules, headcounts, scope, year, month)
+def kpi(persons, rules, headcounts, year, month):
+    ratio_res = compute_ratio(persons, rules)
+    count_res = compute_count(persons, rules, headcounts, year, month)
     warn_count = 0
     hard_violation = 0
     for row in ratio_res['rows']:
@@ -186,51 +190,52 @@ def kpi(persons, rules, headcounts, scope, year, month):
     }
 
 
-def simulate(draft, rules, persons, headcounts, scope, year, month=None):
-    """录入校验（scope 感知）。draft = {school, sex, major, month?}（bu 取 scope）。"""
-    active = persons_in_scope(persons, scope)
-    tmp_month = draft.get('month') or month
-    if month is None:
-        month = tmp_month
-    tmp = {
-        'bu': scope['bu'],
-        'school': draft['school'],
-        'sex': draft['sex'],
-        'major': draft['major'],
-        'month': tmp_month,
-        'position': scope.get('position') or '',
-        'level': scope.get('level') or '',
-        'counted': True,
-    }
-    sim = active + [tmp]
+def _draft_hits_rule(draft, rule) -> bool:
+    """录入草稿是否命中某规则（适用范围匹配 且 指标匹配）。"""
+    if not rule_matches(draft, rule):
+        return False
+    d = rule['dimension']
+    if d == '院校标签':
+        return rule['indicator'] == draft.get('school')
+    if d == '专业标签':
+        return rule['indicator'] == draft.get('major')
+    if d == '性别':
+        return rule['indicator'] == draft.get('sex')
+    return False
 
-    # 指标层月度目标查找表：(indicator, year) -> 12 月目标
-    hmap = {(h['indicator'], h['year']): (h.get('monthly_targets') or [0] * 12) for h in headcounts}
-    idx = month_to_index(month)
 
-    rel = [
-        next((r for r in rules if r['dimension'] == '院校标签' and r['indicator'] == draft['school']), None),
-        next((r for r in rules if r['dimension'] == '专业标签' and r['indicator'] == draft['major']), None),
-        next((r for r in rules if r['dimension'] == '性别' and r['indicator'] == draft['sex']), None),
-    ]
+def simulate(draft, rules, persons, headcounts, year, month=None):
+    """录入校验。draft = {bu, position?, level?, school, sex, major, month?}。"""
+    tmp_month = draft.get('month') or month or '8月'
+    tmp = {**draft, 'month': tmp_month, 'counted': True}
+
+    hmap = {}
+    for h in headcounts:
+        hmap[(_scope_key(h), h['indicator'], h['year'])] = h.get('monthly_targets') or [0] * 12
+    idx = month_to_index(tmp_month)
 
     block = False
     warn = False
     checks = []
-    for r in rel:
-        if r is None:
+    sim = persons + [tmp]
+    for r in rules:
+        if not _draft_hits_rule(draft, r):
             continue
-        ratio = ratio_of(r, sim, scope)
+        ratio = ratio_of(r, sim)
         rstatus = ratio_status(ratio, r)
-        month_target = 0
-        if 1 <= idx <= 12:
-            mt = hmap.get((r['indicator'], year))
-            month_target = int(mt[idx - 1]) if mt else 0
-        month_actual = count(sim, {**_indicator_filter(r['dimension'], r['indicator']), 'month': month}) if 1 <= idx <= 12 else 0
+        mt = hmap.get((_scope_key(r), r['indicator'], year))
+        month_target = int(mt[idx - 1]) if mt and 1 <= idx <= 12 else 0
+        month_actual = count(
+            [p for p in sim if rule_matches(p, r)],
+            {**_indicator_filter(r['dimension'], r['indicator']), 'month': tmp_month},
+        ) if 1 <= idx <= 12 else 0
         cstatus = count_status(month_actual, month_target)
         checks.append({
             'dimension': r['dimension'],
             'indicator': r['indicator'],
+            'bu': r.get('bu') or '',
+            'position': r.get('position') or '',
+            'level': r.get('level') or '',
             'strength': r['strength'],
             'ratio': _round3(ratio),
             'ratioStatus': rstatus,
@@ -243,8 +248,7 @@ def simulate(draft, rules, persons, headcounts, scope, year, month=None):
                 block = True
             else:
                 warn = True
-        mt = month_target or 0
-        if cstatus == COUNT_GAP and mt > 0:
+        if cstatus == COUNT_GAP and month_target > 0:
             warn = True
 
     if block:
@@ -256,25 +260,35 @@ def simulate(draft, rules, persons, headcounts, scope, year, month=None):
     return {'verdict': verdict, 'checks': checks}
 
 
-# ============================ 100% 加和校验 ============================
-def dimension_target_sum(rules, scope_id, dimension) -> Decimal:
-    """给定 (scope, dimension)，返回所有 indicator 的 target 之和。"""
+# ============================ 100% 加和校验（按适用范围分组） ============================
+def distinct_scope_keys(rules) -> list:
+    """返回规则中出现的所有适用范围分组键。"""
+    keys = []
+    for r in rules:
+        k = _scope_key(r)
+        if k not in keys:
+            keys.append(k)
+    return keys
+
+
+def dimension_target_sum(rules, scope_key, dimension) -> Decimal:
+    """给定 (适用范围, 维度)，返回所有 indicator 的 target 之和。"""
     s = Decimal('0')
     for r in rules:
-        if r.get('scope_id') == scope_id and r.get('dimension') == dimension:
+        if _scope_key(r) == scope_key and r.get('dimension') == dimension:
             s += _dec(r.get('target', 0))
     return s
 
 
-def check_dimension_sums(rules, scope_id) -> list:
-    """返回该 scope 下每个维度的加和校验结果；ok=True 表示 == 100%。"""
+def check_dimension_sums(rules, scope_key) -> list:
+    """返回该适用范围下每个维度的加和校验结果；ok=True 表示 == 100%。"""
     dims = []
     for r in rules:
-        if r.get('scope_id') == scope_id and r.get('dimension') not in dims:
+        if _scope_key(r) == scope_key and r.get('dimension') not in dims:
             dims.append(r['dimension'])
     out = []
     for d in dims:
-        s = dimension_target_sum(rules, scope_id, d)
+        s = dimension_target_sum(rules, scope_key, d)
         out.append({
             'dimension': d,
             'sum': _round3(s),
