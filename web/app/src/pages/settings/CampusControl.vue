@@ -3,17 +3,19 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">校招管控</h1>
-        <p class="page-subtitle">人员比例管控系统 v2 · 适用范围 / 维度 / 指标 / 规则(100% 加和) / 年度·月度目标 / 看板 / 录入校验 / 人员数据</p>
+        <p class="page-subtitle">人员比例管控系统 v2.1 · 规则自带适用范围(全局/部门/职务/职级) · 维度 / 指标 / 规则(100% 加和) / 年度·月度目标</p>
       </div>
       <n-space v-if="scopeScoped" align="center" style="flex-shrink: 0">
         <span class="scope-label">适用范围</span>
-        <n-select
-          v-model:value="selectedScopeId"
-          :options="scopeOptions"
-          style="width: 220px"
-          placeholder="请选择方案"
-          @update:value="onScopeChange"
-        />
+        <n-switch v-model:value="isGlobal" @update:value="onGlobalChange">
+          <template #checked>全局</template>
+          <template #unchecked>指定</template>
+        </n-switch>
+        <template v-if="!isGlobal">
+          <n-select v-model:value="scopeBu" :options="deptOptions" placeholder="部门" style="width: 130px" @update:value="onScopeChange" />
+          <n-select v-model:value="scopePosition" :options="positionOptions" placeholder="职务(不限)" clearable style="width: 140px" @update:value="onScopeChange" />
+          <n-select v-model:value="scopeLevel" :options="levelOptions" placeholder="职级(不限)" clearable style="width: 140px" @update:value="onScopeChange" />
+        </template>
       </n-space>
     </div>
 
@@ -22,7 +24,7 @@
         <!-- ===================== 实时看板 ===================== -->
         <n-tab-pane name="ratio" tab="实时看板">
           <n-alert v-if="!scopeOk" type="warning" :show-icon="true" style="margin-bottom: 12px">
-            该方案存在维度目标占比未加和到 100% 的项，请前往「规则与目标配置」补全。
+            当前适用范围存在维度目标占比未加和到 100% 的项，请前往「规则与目标配置」补全。
           </n-alert>
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
@@ -34,7 +36,7 @@
             :columns="ratioColumns"
             :data="ratioData.rows"
             :loading="loading.ratio"
-            :row-key="(r: any) => r.dimension + '|' + r.indicator"
+            :row-key="(r: any) => r.bu + '|' + r.dimension + '|' + r.indicator"
             :pagination="false"
           >
             <template #empty><n-empty description="暂无数据" /></template>
@@ -69,9 +71,9 @@
         <!-- ===================== 规则与目标配置（适用范围 + 规则 + 目标 三合一） ===================== -->
         <n-tab-pane name="rules" tab="规则与目标配置">
           <div class="filter-row">
-            <n-space align="center" wrap>
-              <n-button @click="scopeDrawerShow = true">管理方案</n-button>
+            <n-space align="center">
               <n-input-number v-model:value="targetYear" :min="2020" :max="2100" style="width: 120px" @update:value="loadUnified" />
+              <n-tag size="small" :bordered="false" type="info">适用范围：{{ scopeLabel }}</n-tag>
             </n-space>
           </div>
 
@@ -95,7 +97,7 @@
             :row-key="(r: any) => r.indicatorId"
             :pagination="false"
           >
-            <template #empty><n-empty description="该方案下暂无指标，请先到「指标管理」配置指标" /></template>
+            <template #empty><n-empty description="该维度下暂无指标，请先到「指标管理」配置指标" /></template>
           </n-data-table>
 
           <n-space justify="end" style="margin-top: 12px">
@@ -129,6 +131,9 @@
           <n-grid :cols="4" :x-gap="16" :y-gap="12" item-responsive responsive="screen">
             <n-gi span="4 m:1"><n-form-item label="人员编码" label-placement="top"><n-input v-model:value="draft.code" placeholder="如 P032" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="姓名" label-placement="top"><n-input v-model:value="draft.name" placeholder="如 员工32" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item label="部门" label-placement="top"><n-select v-model:value="draft.bu" :options="deptOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item label="职务" label-placement="top"><n-select v-model:value="draft.position" :options="positionOptions" clearable placeholder="不限" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item label="职级" label-placement="top"><n-select v-model:value="draft.level" :options="levelOptions" clearable placeholder="不限" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="院校标签" label-placement="top"><n-select v-model:value="draft.school" :options="schoolOptions" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="性别" label-placement="top"><n-select v-model:value="draft.sex" :options="sexOptions" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="专业标签" label-placement="top"><n-select v-model:value="draft.major" :options="majorOptions" /></n-form-item></n-gi>
@@ -150,7 +155,7 @@
             <n-data-table
               :columns="checkColumns"
               :data="validation.checks"
-              :row-key="(r: any) => r.dimension + '|' + r.indicator"
+              :row-key="(r: any) => r.dimension + '|' + r.indicator + '|' + r.bu"
               :pagination="false"
               style="margin-top: 12px"
             >
@@ -176,44 +181,6 @@
         </n-tab-pane>
       </n-tabs>
     </n-card>
-
-    <!-- 适用范围管理（抽屉） -->
-    <n-drawer v-model:show="scopeDrawerShow" :width="560" placement="right">
-      <n-drawer-content title="适用范围管理" closable>
-        <n-space justify="end" style="margin-bottom: 12px">
-          <n-button type="primary" size="small" @click="openAddScope">+ 新增方案</n-button>
-        </n-space>
-        <n-data-table
-          :columns="scopeDrawerColumns"
-          :data="scopes"
-          :loading="loading.scopes"
-          :row-key="(r: any) => r.id"
-          :pagination="false"
-          size="small"
-        >
-          <template #empty><n-empty description="暂无方案" /></template>
-        </n-data-table>
-      </n-drawer-content>
-    </n-drawer>
-
-    <!-- 方案表单弹窗 -->
-    <n-modal v-model:show="scopeModal.show" :title="scopeModal.editingId ? '编辑方案' : '新增方案'" preset="card" style="width: 520px">
-      <n-form label-placement="top">
-        <n-grid :cols="2" :x-gap="16">
-          <n-gi span="2"><n-form-item label="方案名称"><n-input v-model:value="scopeModal.name" placeholder="如 能电BG校招" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="BG部门"><n-select v-model:value="scopeModal.bu" :options="deptOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="职务（可选）"><n-select v-model:value="scopeModal.position" :options="positionOptions" clearable placeholder="不限" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="职级（可选）"><n-select v-model:value="scopeModal.level" :options="levelOptions" clearable placeholder="不限" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="启用"><n-switch v-model:value="scopeModal.isActive" /></n-form-item></n-gi>
-        </n-grid>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="scopeModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="loading.scopes" @click="saveScope">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
 
     <!-- 维度管理（抽屉） -->
     <n-drawer v-model:show="dimDrawerShow" :width="480" placement="right">
@@ -302,7 +269,6 @@ import {
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
 import {
-  listScopes, createScope, updateScope, deleteScope,
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, batchSaveRules,
@@ -310,7 +276,7 @@ import {
   listHeadcounts, upsertHeadcount, deleteHeadcount,
   listPersons, upsertPerson, deletePerson,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, DIMS, STRENGTH, STATUS, POSITIONS, LEVELS,
-  type ControlScope, type ControlDimension, type ControlIndicator,
+  type ScopeFilter, type ControlDimension, type ControlIndicator,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
   type ValidationResult, type Strength, type RuleDraft,
 } from '../../api/campusControl'
@@ -342,23 +308,32 @@ const verdictType = (v: string) => (v.startsWith('❌') ? 'error' : v.startsWith
 const activeTab = ref('ratio')
 const loading = reactive({
   ratio: false, plan: false, unified: false, saveRules: false, saveTargets: false,
-  scopes: false, dimensions: false, indicators: false,
-  persons: false, validate: false,
+  dimensions: false, indicators: false, persons: false, validate: false,
 })
-const scopes = ref<ControlScope[]>([])
 const dimensions = ref<ControlDimension[]>([])
 const indicators = ref<ControlIndicator[]>([])
 const persons = ref<Person[]>([])
 
-const selectedScopeId = ref<string>('')
 const selectedYear = ref(2026)
 const planMonth = ref('8月')
 const targetYear = ref(2026)
 
-const scopeOptions = computed(() => scopes.value.map((s) => ({ label: s.name, value: s.id })))
-const dimensionOptions = computed(() => dimensions.value.map((d) => ({ label: d.name, value: d.id })))
-const scopeScoped = computed(() => ['ratio', 'plan', 'rules', 'validate'].includes(activeTab.value))
-const selectedScope = computed(() => scopes.value.find((s) => s.id === selectedScopeId.value))
+/* ============================ 适用范围 ============================ */
+const isGlobal = ref(true)
+const scopeBu = ref('')
+const scopePosition = ref('')
+const scopeLevel = ref('')
+const currentScope = computed<ScopeFilter>(() => ({
+  bu: isGlobal.value ? '' : scopeBu.value,
+  position: isGlobal.value ? '' : scopePosition.value,
+  level: isGlobal.value ? '' : scopeLevel.value,
+}))
+const scopeLabel = computed(() => {
+  if (isGlobal.value) return '全局'
+  const parts = [scopeBu.value, scopePosition.value || '职务不限', scopeLevel.value || '职级不限']
+  return parts.filter(Boolean).join(' · ')
+})
+const scopeScoped = computed(() => ['ratio', 'plan', 'rules'].includes(activeTab.value))
 
 /* ============================ 实时看板 ============================ */
 const ratioData = ref<RatioResult>({ total: 0, rows: [], sumChecks: [] })
@@ -384,18 +359,16 @@ interface UnifiedRow {
   dimensionId: string
   dimensionName: string
   indicatorName: string
-  // 规则字段
   targetPct: number
   loPct: number
   hiPct: number
   strength: Strength
-  // 目标字段
   headcountId: string | null
   annualTarget: number
   monthlyTargets: number[]
 }
 const unifiedRows = ref<UnifiedRow[]>([])
-const dimFilter = ref<string>('all') // 'all' 或 dimensionId
+const dimFilter = ref<string>('all')
 
 const dimFilterOptions = computed(() => {
   const all: { value: string; label: string; ok?: boolean; sumText: string }[] = [
@@ -423,14 +396,6 @@ const filteredIndicators = computed(() => {
 })
 
 /* ============================ 加载 ============================ */
-async function loadScopes() {
-  loading.scopes = true
-  try {
-    scopes.value = await listScopes()
-    if (!selectedScopeId.value && scopes.value.length) selectedScopeId.value = scopes.value[0].id
-  } catch (e) { message.error(extractApiError(e, '加载方案失败')) }
-  finally { loading.scopes = false }
-}
 async function loadDimensions() {
   loading.dimensions = true
   try { dimensions.value = await listDimensions() }
@@ -450,26 +415,23 @@ async function loadPersons() {
   finally { loading.persons = false }
 }
 async function loadRatio() {
-  if (!selectedScopeId.value) return
   loading.ratio = true
-  try { ratioData.value = await getRatio(selectedScopeId.value) }
+  try { ratioData.value = await getRatio(currentScope.value) }
   catch (e) { message.error(extractApiError(e, '加载看板失败')) }
   finally { loading.ratio = false }
 }
 async function loadPlan() {
-  if (!selectedScopeId.value) return
   loading.plan = true
-  try { planData.value = await getPlan(selectedScopeId.value, selectedYear.value, planMonth.value) }
+  try { planData.value = await getPlan(currentScope.value, selectedYear.value, planMonth.value) }
   catch (e) { message.error(extractApiError(e, '加载规划失败')) }
   finally { loading.plan = false }
 }
 async function loadUnified() {
-  if (!selectedScopeId.value) return
   loading.unified = true
   try {
     const [rules, headcounts] = await Promise.all([
-      listRules(selectedScopeId.value),
-      listHeadcounts(selectedScopeId.value, targetYear.value),
+      listRules(currentScope.value),
+      listHeadcounts(currentScope.value, targetYear.value),
     ])
     const ruleByInd = new Map(rules.map((r) => [r.indicator, r]))
     const hcByInd = new Map(headcounts.map((h) => [h.indicator, h]))
@@ -494,6 +456,10 @@ async function loadUnified() {
   finally { loading.unified = false }
 }
 
+function onGlobalChange(v: boolean) {
+  if (!v && !scopeBu.value) scopeBu.value = DEPTS[0]
+  onScopeChange()
+}
 function onScopeChange() {
   if (activeTab.value === 'ratio') loadRatio()
   else if (activeTab.value === 'plan') loadPlan()
@@ -509,6 +475,7 @@ function onTabChange(name: string) {
 
 /* ============================ 列定义 ============================ */
 const ratioColumns: DataTableColumns<RatioRow> = [
+  { title: '适用范围', key: 'bu', render: (r) => r.bu || '全局' },
   { title: '维度', key: 'dimension' },
   { title: '指标', key: 'indicator' },
   { title: '实际/分母', key: 'actual', render: (r) => `${r.actual} / ${r.denom}` },
@@ -521,6 +488,7 @@ const ratioColumns: DataTableColumns<RatioRow> = [
 ]
 
 const planColumns: DataTableColumns<PlanRow> = [
+  { title: '适用范围', key: 'bu', render: (r) => r.bu || '全局' },
   { title: '维度', key: 'dimension' },
   { title: '指标', key: 'indicator' },
   { title: '强度', key: 'strength', render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false }, { default: () => r.strength }) },
@@ -533,16 +501,9 @@ const planColumns: DataTableColumns<PlanRow> = [
   { title: '状态', key: 'status', render: (r) => h(NTag, { type: countStatusType(r.status), bordered: false }, { default: () => r.status }) },
 ]
 
-// 统一表的单元格编辑渲染：返回对应控件
 const renderPctInput = (key: 'targetPct' | 'loPct' | 'hiPct') => (row: UnifiedRow) =>
   h(NInputNumber, {
-    value: row[key],
-    min: 0,
-    max: 100,
-    step: 0.5,
-    size: 'small',
-    style: 'width: 88px',
-    showButton: false,
+    value: row[key], min: 0, max: 100, step: 0.5, size: 'small', style: 'width: 88px', showButton: false,
     'onUpdate:value': (v: number | null) => { if (v != null) row[key] = v },
   })
 
@@ -555,40 +516,26 @@ const unifiedColumns: DataTableColumns<UnifiedRow> = [
   {
     title: '强度', key: 'strength', width: 110,
     render: (row) => h(NSelect, {
-      value: row.strength,
-      size: 'small',
-      options: strengthOptions,
-      style: 'width: 110px',
+      value: row.strength, size: 'small', options: strengthOptions, style: 'width: 110px',
       'onUpdate:value': (v: string) => { row.strength = v as Strength },
     }),
   },
   {
     title: '年度目标', key: 'annualTarget', width: 130,
     render: (row) => h(NInputNumber, {
-      value: row.annualTarget,
-      min: 0,
-      size: 'small',
-      style: 'width: 120px',
-      showButton: false,
+      value: row.annualTarget, min: 0, size: 'small', style: 'width: 120px', showButton: false,
       'onUpdate:value': (v: number | null) => { if (v != null) row.annualTarget = v },
     }),
   },
-  {
-    title: '月度合计', key: 'monthlySum', width: 90,
-    render: (row) => row.monthlyTargets.reduce((a, b) => a + b, 0),
-  },
-  {
-    title: '操作', key: 'actions', width: 120, fixed: 'right',
-    render: (row) => h(NButton, { size: 'small', onClick: () => openMonthlyModal(row) }, { default: () => '编辑月度' }),
-  },
+  { title: '月度合计', key: 'monthlySum', width: 90, render: (row) => row.monthlyTargets.reduce((a, b) => a + b, 0) },
+  { title: '操作', key: 'actions', width: 120, fixed: 'right', render: (row) => h(NButton, { size: 'small', onClick: () => openMonthlyModal(row) }, { default: () => '编辑月度' }) },
 ]
 
 const indicatorColumns: DataTableColumns<ControlIndicator> = [
   { title: '维度', key: 'dimensionName' },
   { title: '指标', key: 'name' },
   {
-    title: '操作',
-    key: 'actions',
+    title: '操作', key: 'actions',
     render: (r) => h(NSpace, { size: 'small' }, {
       default: () => [
         h(NButton, { size: 'small', onClick: () => openEditIndicator(r) }, { default: () => '编辑' }),
@@ -617,6 +564,7 @@ const personColumns: DataTableColumns<Person> = [
 ]
 
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
+  { title: '适用范围', key: 'bu', render: (r) => r.bu || '全局' },
   { title: '维度', key: 'dimension' }, { title: '指标', key: 'indicator' },
   { title: '强度', key: 'strength', render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false }, { default: () => r.strength }) },
   { title: '占比', key: 'ratio', render: (r) => pct(r.ratio) },
@@ -625,62 +573,7 @@ const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
   { title: '人数状态', key: 'countStatus', render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false }, { default: () => r.countStatus }) },
 ]
 
-/* ============================ 方案 CRUD（抽屉 + 弹窗） ============================ */
-const scopeDrawerShow = ref(false)
-const scopeModal = reactive({
-  show: false, editingId: '' as string | null,
-  name: '', bu: '能电BG', position: '', level: '', isActive: true,
-})
-const scopeDrawerColumns: DataTableColumns<ControlScope> = [
-  { title: '方案名称', key: 'name' },
-  { title: 'BG部门', key: 'bu' },
-  { title: '职务', key: 'position', render: (r) => r.position || '不限' },
-  { title: '职级', key: 'level', render: (r) => r.level || '不限' },
-  { title: '启用', key: 'isActive', render: (r) => h(NTag, { size: 'small', type: r.isActive ? 'success' : 'default', bordered: false }, { default: () => (r.isActive ? '是' : '否') }) },
-  {
-    title: '操作', key: 'actions',
-    render: (r) => h(NSpace, { size: 'small' }, {
-      default: () => [
-        h(NButton, { size: 'small', onClick: () => openEditScope(r) }, { default: () => '编辑' }),
-        h(NButton, { size: 'small', type: 'error', quaternary: true, onClick: () => removeScope(r) }, { default: () => '删除' }),
-      ],
-    }),
-  },
-]
-function openAddScope() {
-  scopeModal.editingId = null; scopeModal.name = ''; scopeModal.bu = '能电BG'
-  scopeModal.position = ''; scopeModal.level = ''; scopeModal.isActive = true; scopeModal.show = true
-}
-function openEditScope(r: ControlScope) {
-  scopeModal.editingId = r.id; scopeModal.name = r.name; scopeModal.bu = r.bu
-  scopeModal.position = r.position; scopeModal.level = r.level; scopeModal.isActive = r.isActive; scopeModal.show = true
-}
-async function saveScope() {
-  if (!scopeModal.name.trim()) { message.warning('请填写方案名称'); return }
-  try {
-    const payload = { name: scopeModal.name.trim(), bu: scopeModal.bu, position: scopeModal.position, level: scopeModal.level, isActive: scopeModal.isActive }
-    if (scopeModal.editingId) await updateScope(scopeModal.editingId, payload)
-    else await createScope(payload)
-    message.success('保存成功')
-    scopeModal.show = false
-    await loadScopes()
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
-}
-function removeScope(r: ControlScope) {
-  dialog.warning({
-    title: '删除方案', content: `确认删除「${r.name}」？其下规则/目标将一并删除。`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await deleteScope(r.id)
-        message.success('删除成功')
-        if (selectedScopeId.value === r.id) selectedScopeId.value = ''
-        await loadScopes()
-      } catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
-  })
-}
-
-/* ============================ 维度管理（抽屉：仅启用切换） ============================ */
+/* ============================ 维度管理 ============================ */
 const dimDrawerShow = ref(false)
 const dimDrawerColumns: DataTableColumns<ControlDimension> = [
   { title: '维度', key: 'name' },
@@ -690,11 +583,8 @@ const dimDrawerColumns: DataTableColumns<ControlDimension> = [
     render: (r) => h(NSwitch, {
       value: r.isActive,
       onUpdateValue: async (v: boolean) => {
-        try {
-          await updateDimension(r.id, { isActive: v })
-          r.isActive = v
-          message.success(v ? '已启用' : '已停用')
-        } catch (e) { message.error(extractApiError(e, '切换失败')) }
+        try { await updateDimension(r.id, { isActive: v }); r.isActive = v; message.success(v ? '已启用' : '已停用') }
+        catch (e) { message.error(extractApiError(e, '切换失败')) }
       },
     }),
   },
@@ -734,8 +624,6 @@ function removeIndicator(r: ControlIndicator) {
 
 /* ============================ 统一表 — 规则批量保存 ============================ */
 async function saveRules() {
-  if (!selectedScopeId.value) return
-  // 按维度分组，逐维度校验 lo<=target<=hi 并加和==100%
   const grouped = new Map<string, UnifiedRow[]>()
   for (const r of filteredUnifiedRows.value) {
     if (!grouped.has(r.dimensionId)) grouped.set(r.dimensionId, [])
@@ -755,44 +643,37 @@ async function saveRules() {
       const rules: RuleDraft[] = rows.map((r) => ({
         indicator: r.indicatorId, target: r.targetPct / 100, lo: r.loPct / 100, hi: r.hiPct / 100, strength: r.strength,
       }))
-      await batchSaveRules(selectedScopeId.value, dimensionId, rules)
+      await batchSaveRules(currentScope.value, dimensionId, rules)
       okCount++
     }
     message.success(`已保存 ${okCount} 个维度的规则（每维度加和 = 100%）`)
     await Promise.all([loadUnified(), loadRatio(), loadPlan()])
-  } catch (e) {
-    message.error(extractApiError(e, '保存失败'))
-  } finally { loading.saveRules = false }
+  } catch (e) { message.error(extractApiError(e, '保存失败')) }
+  finally { loading.saveRules = false }
 }
 
 /* ============================ 统一表 — 目标保存 ============================ */
 async function saveTargets() {
-  if (!selectedScopeId.value) return
   loading.saveTargets = true
   try {
     let ok = 0
     for (const r of filteredUnifiedRows.value) {
       await upsertHeadcount({
         id: r.headcountId ?? undefined,
-        scope: selectedScopeId.value,
-        indicator: r.indicatorId,
-        year: targetYear.value,
-        annualTarget: r.annualTarget,
-        monthlyTargets: r.monthlyTargets,
+        bu: currentScope.value.bu, position: currentScope.value.position, level: currentScope.value.level,
+        indicator: r.indicatorId, year: targetYear.value, annualTarget: r.annualTarget, monthlyTargets: r.monthlyTargets,
       })
       ok++
     }
     message.success(`已保存 ${ok} 项目标`)
     await Promise.all([loadUnified(), loadPlan()])
-  } catch (e) {
-    message.error(extractApiError(e, '保存失败'))
-  } finally { loading.saveTargets = false }
+  } catch (e) { message.error(extractApiError(e, '保存失败')) }
+  finally { loading.saveTargets = false }
 }
 
 /* ============================ 12 月度目标弹窗 ============================ */
 const monthlyModal = reactive({
-  show: false, indicatorId: '', indicatorName: '',
-  annualTarget: 0, monthly: Array(12).fill(0),
+  show: false, indicatorId: '', indicatorName: '', annualTarget: 0, monthly: Array(12).fill(0),
 })
 function openMonthlyModal(row: UnifiedRow) {
   monthlyModal.indicatorId = row.indicatorId
@@ -803,23 +684,22 @@ function openMonthlyModal(row: UnifiedRow) {
 }
 function applyMonthly() {
   const row = unifiedRows.value.find((r) => r.indicatorId === monthlyModal.indicatorId)
-  if (row) {
-    row.annualTarget = monthlyModal.annualTarget
-    row.monthlyTargets = [...monthlyModal.monthly]
-  }
+  if (row) { row.annualTarget = monthlyModal.annualTarget; row.monthlyTargets = [...monthlyModal.monthly] }
   monthlyModal.show = false
 }
 
 /* ============================ 录入校验 ============================ */
 const draft = reactive({
-  code: '', name: '', bu: '能电BG', school: '985', sex: '男', major: '工学', month: '8月', status: '已入职',
+  code: '', name: '', bu: '能电BG', position: '', level: '',
+  school: '985', sex: '男', major: '工学', month: '8月', status: '已入职',
 })
 const validation = ref<ValidationResult | null>(null)
 async function runValidate() {
   validation.value = null
   loading.validate = true
   try {
-    validation.value = await validateDraft(selectedScopeId.value, selectedYear.value, {
+    validation.value = await validateDraft(selectedYear.value, {
+      bu: draft.bu, position: draft.position, level: draft.level,
       school: draft.school, sex: draft.sex, major: draft.major, month: draft.month,
     })
   } catch (e) { message.error(extractApiError(e, '校验失败')) }
@@ -832,9 +712,9 @@ async function confirmEntry() {
   if (!draft.code.trim() || !draft.name.trim()) { message.warning('请先填写人员编码与姓名'); return }
   try {
     await upsertPerson({
-      code: draft.code.trim(), name: draft.name.trim(), bu: selectedScope.value?.bu ?? draft.bu,
+      code: draft.code.trim(), name: draft.name.trim(), bu: draft.bu,
       school: draft.school, sex: draft.sex, major: draft.major, month: draft.month, status: draft.status, counted: true,
-      position: selectedScope.value?.position ?? '', level: selectedScope.value?.level ?? '',
+      position: draft.position, level: draft.level,
     })
     message.success('已录入人员')
     validation.value = null
@@ -885,8 +765,8 @@ function removePerson(r: Person) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadScopes(), loadDimensions(), loadIndicators(), loadPersons()])
-  if (selectedScopeId.value) await Promise.all([loadRatio(), loadPlan(), loadUnified()])
+  await Promise.all([loadDimensions(), loadIndicators(), loadPersons()])
+  await Promise.all([loadRatio(), loadPlan(), loadUnified()])
 })
 </script>
 
