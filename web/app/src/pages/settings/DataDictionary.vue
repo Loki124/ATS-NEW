@@ -137,53 +137,63 @@
             <!-- 元素名称：仅本列按树形层级缩进 -->
             <div class="el-cell el-name-cell" style="flex: 1.4" :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }">
               <div class="el-cell-content">
-                <span v-if="node.depth > 0" class="tree-guide">└</span>
-                <template v-if="node.row.editing">
-                  <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
-                </template>
-                <template v-else>
-                  <span :class="{ strikethrough: !node.row.isActive }">{{ node.row.value }}</span>
-                </template>
+                <span class="cell-inner name-inner">
+                  <span v-if="node.depth > 0" class="tree-guide"><span class="tree-guide-char">└</span></span>
+                  <template v-if="node.row.editing">
+                    <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
+                  </template>
+                  <template v-else>
+                    <span :class="{ strikethrough: !node.row.isActive }">{{ node.row.value }}</span>
+                  </template>
+                </span>
               </div>
             </div>
             <!-- 元素代码 -->
             <div class="el-cell" style="flex: 1.2">
               <div class="el-cell-content">
-                <template v-if="node.row.editing">
-                  <n-input v-model:value="node.row.key" size="small" placeholder="代码" />
-                </template>
-                <template v-else>
-                  <span class="code-text">{{ node.row.key }}</span>
-                </template>
+                <span class="cell-inner">
+                  <template v-if="node.row.editing">
+                    <n-input v-model:value="node.row.key" size="small" placeholder="代码" />
+                  </template>
+                  <template v-else>
+                    <span class="code-text">{{ node.row.key }}</span>
+                  </template>
+                </span>
               </div>
             </div>
             <!-- 英文名称 -->
             <div class="el-cell" style="flex: 1.2">
               <div class="el-cell-content">
-                <template v-if="node.row.editing">
-                  <n-input v-model:value="node.row.englishName" size="small" placeholder="英文" />
-                </template>
-                <template v-else>{{ node.row.englishName }}</template>
+                <span class="cell-inner">
+                  <template v-if="node.row.editing">
+                    <n-input v-model:value="node.row.englishName" size="small" placeholder="英文" />
+                  </template>
+                  <template v-else>{{ node.row.englishName }}</template>
+                </span>
               </div>
             </div>
             <!-- 排序 -->
             <div class="el-cell" style="flex: 0.6">
               <div class="el-cell-content">
-                <template v-if="node.row.editing">
-                  <n-input-number v-model:value="node.row.sortOrder" size="small" :min="0" style="width: 80px" />
-                </template>
-                <template v-else>{{ node.row.sortOrder }}</template>
+                <span class="cell-inner">
+                  <template v-if="node.row.editing">
+                    <n-input-number v-model:value="node.row.sortOrder" size="small" :min="0" style="width: 80px" />
+                  </template>
+                  <template v-else>{{ node.row.sortOrder }}</template>
+                </span>
               </div>
             </div>
             <!-- 描述 -->
             <div class="el-cell desc-cell" style="flex: 1.6">
               <div class="el-cell-content">
-                <template v-if="node.row.editing">
-                  <n-input v-model:value="node.row.description" size="small" placeholder="描述" />
-                </template>
-                <template v-else>
-                  <n-ellipsis :line-clamp="1" :tooltip="!!node.row.description">{{ node.row.description }}</n-ellipsis>
-                </template>
+                <span class="cell-inner">
+                  <template v-if="node.row.editing">
+                    <n-input v-model:value="node.row.description" size="small" placeholder="描述" />
+                  </template>
+                  <template v-else>
+                    <n-ellipsis :line-clamp="1" :tooltip="!!node.row.description">{{ node.row.description }}</n-ellipsis>
+                  </template>
+                </span>
               </div>
             </div>
             <!-- 操作 -->
@@ -880,13 +890,16 @@ onUnmounted(() => {
 .el-row.isnew { background: #fffbe6; }
 .el-row.isnew.editing { background: #fff7cc; }
 .el-cell { display: flex; align-items: center; min-height: 48px; padding: 0 12px; font-size: 13px; box-sizing: border-box; }
-.el-cell-content { display: flex; align-items: center; gap: 4px; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
-/* 统一所有直接子元素为 inline-flex，消除 inline 元素基线/line-height 造成的视觉偏移 */
-.el-cell-content > * { display: inline-flex; align-items: center; line-height: 1; }
-.el-cell-content .n-input, .el-cell-content .n-input-number { display: flex; }
+/* 每个单元格只包一个 .cell-inner，由它统一承载内容；避免多个 inline 元素在 flex 容器里因基线/字高不同而错位 */
+.el-cell-content { display: flex; align-items: center; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
+.cell-inner { display: inline-flex; align-items: center; gap: 4px; min-height: 20px; line-height: 1; }
+/* 树形引导符固定在一个 14×14px 的盒子里，不再把名称文字顶高 */
+.tree-guide { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex-shrink: 0; overflow: hidden; }
+.tree-guide-char { font-size: 12px; line-height: 1; color: #bbb; transform: translateY(-1px); }
+.name-inner { gap: 2px; }
+.cell-inner .n-input, .cell-inner .n-input-number { display: flex; }
 .el-cell .code-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #333; font-size: 13px; }
 .el-cell .n-input, .el-cell .n-input-number { min-width: 80px; width: 100%; }
-.tree-guide { color: #bbb; margin-right: 4px; }
 .strikethrough { text-decoration: line-through; color: #aaa; }
 .desc-cell { color: #666; }
 .el-empty { padding: 32px; text-align: center; color: #aaa; font-size: 13px; }
