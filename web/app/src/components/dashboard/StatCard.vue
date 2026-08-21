@@ -73,8 +73,10 @@ function onClick() {
 
 <style scoped>
 .stat-card {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-hairline);
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-4);
   display: flex;
@@ -84,27 +86,28 @@ function onClick() {
   transition: border-color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
   min-height: 96px;
+  box-shadow: var(--shadow-card);
 }
 
 .stat-card--clickable {
   cursor: pointer;
 }
 .stat-card--clickable:hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  border-color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .stat-card__label {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
   font-size: var(--text-body);
   font-weight: 400;
 }
 
 .stat-card__icon {
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
 }
 
 .stat-card__value-row {
@@ -114,7 +117,7 @@ function onClick() {
 }
 
 .stat-card__value {
-  color: var(--color-ink);
+  color: var(--ink);
   font-size: var(--text-h2);
   font-weight: 500;
   line-height: 1.1;
@@ -122,11 +125,11 @@ function onClick() {
 }
 
 .stat-card--urgent .stat-card__value {
-  color: var(--color-accent);
+  color: var(--brand);
 }
 
 .stat-card__suffix {
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
   font-size: var(--text-meta);
 }
 
@@ -148,21 +151,21 @@ function onClick() {
 }
 
 .stat-card__pill--urgent {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 
 .stat-card__pill--up {
-  background: oklch(95% 0.04 145);
-  color: oklch(50% 0.14 145);
+  background: var(--c-success-soft);
+  color: var(--c-success);
 }
 
 .stat-card__pill--down {
-  background: oklch(95% 0.04 25);
-  color: oklch(50% 0.16 25);
+  background: var(--c-error-soft);
+  color: var(--c-error);
 }
 
 .stat-card__meta-text {
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
 }
 </style>

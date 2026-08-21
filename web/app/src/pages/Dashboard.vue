@@ -429,10 +429,13 @@ function onMatterAction(_matter: MatterItem) {
 
 /* ===== Hero ===== */
 .dashboard-hero {
-  background: var(--color-surface-sunk);
-  border: 1px solid var(--color-border-hairline);
+  background: var(--glass-bg-panel);
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-8) var(--space-8);
+  box-shadow: var(--shadow-panel);
 }
 
 .hero-main {
@@ -453,7 +456,7 @@ function onMatterAction(_matter: MatterItem) {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent);
+  background: var(--brand);
   color: white;
   display: flex;
   align-items: center;
@@ -473,7 +476,7 @@ function onMatterAction(_matter: MatterItem) {
 
 .hero-title {
   margin: 0;
-  color: var(--color-ink);
+  color: var(--ink);
   font-size: var(--text-h2);
   font-weight: 500;
   line-height: 1.3;
@@ -481,7 +484,7 @@ function onMatterAction(_matter: MatterItem) {
 
 .hero-subtitle {
   margin: 0;
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
   font-size: var(--text-body);
   line-height: 1.5;
 }
@@ -493,6 +496,8 @@ function onMatterAction(_matter: MatterItem) {
 }
 
 @media (max-width: 768px) {
+  .dashboard-workbench { gap: var(--space-4); }
+  .dashboard-hero { padding: var(--space-6); }
   .hero-main {
     flex-direction: column;
     align-items: stretch;
@@ -530,12 +535,9 @@ function onMatterAction(_matter: MatterItem) {
   gap: var(--space-3);
 }
 
-/* ===== Cards overrides ===== */
-.schedule-card,
-.side-card,
-.matters-card {
-  background: var(--color-surface-raised);
-}
+/* ===== Cards overrides =====
+ * 卡片底色统一由全局 .n-card.n-card 玻璃规则提供，无需在此覆盖。
+ * 仅保留内容区 padding 微调（见下方 :deep）。 */
 
 .schedule-card :deep(.n-card__content) {
   padding-top: var(--space-2);
@@ -575,21 +577,21 @@ function onMatterAction(_matter: MatterItem) {
   align-items: center;
   gap: 10px;
   padding: 10px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .announcement-item:hover {
-  background: #f3f4f6;
+  background: var(--brand-tint);
 }
 
 .announcement-item__icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #3b82f6;
+  border-radius: var(--radius-sm);
+  background: var(--c-info-soft);
+  color: var(--c-info);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -605,7 +607,7 @@ function onMatterAction(_matter: MatterItem) {
 }
 
 .announcement-item__title {
-  color: #1f2937;
+  color: var(--ink);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
@@ -615,17 +617,17 @@ function onMatterAction(_matter: MatterItem) {
 }
 
 .announcement-item__date {
-  color: #9ca3af;
+  color: var(--ink-faint);
   font-size: 12px;
 }
 
 .announcement-item__arrow {
-  color: #d1d5db;
+  color: var(--ink-faint);
   flex-shrink: 0;
 }
 
 .announcement-item:hover .announcement-item__arrow {
-  color: #3b82f6;
+  color: var(--c-info);
 }
 
 .announcement-list__empty {
@@ -649,8 +651,8 @@ function onMatterAction(_matter: MatterItem) {
   height: 18px;
   padding: 0 6px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--brand-soft);
+  color: var(--brand);
   font-size: 10px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
