@@ -88,6 +88,7 @@ import {
   AnalyticsOutline,
   ChevronDownOutline,
   ChevronUpOutline,
+  ColorPaletteOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -145,6 +146,7 @@ const subMenuOptions = [
     key: 'group-misc',
     label: '其他',
     children: [
+      { key: '/settings/theme', label: '主题外观', icon: ColorPaletteOutline },
       { key: '/settings/company', label: '公司信息', icon: InformationCircleOutline },
       { key: '/settings/external', label: '对外接口', icon: ServerOutline },
       { key: '/settings/public', label: '公共设置', icon: CloudUploadOutline },
@@ -222,7 +224,7 @@ watch(
 <style scoped>
 .settings-layout {
   height: 100%; /* 填满父级 content-wrapper 的内容盒, 避免与 padding 叠加产生双滚动 */
-  background: #fff;
+  background: transparent; /* 透出 Layout 的全局极光底 */
   /* 关键: 让内部 n-layout-sider 和 n-layout-content 都按比例填满, 内容溢出时 .settings-content 内部滚 */
   overflow: hidden;
 }
@@ -231,20 +233,23 @@ watch(
   overflow: hidden;
 }
 
-/* 左侧子菜单栏 */
+/* 左侧子菜单栏 —— 玻璃面板（DESIGN.md §4 glass-panel） */
 .settings-sider {
-  background: #fafafa;
+  background: var(--glass-bg-panel) !important;
+  backdrop-filter: blur(var(--glass-blur-panel)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) !important;
+  border-right: 1px solid var(--glass-border) !important;
 }
 .sider-header {
   padding: 0 20px 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-hairline);
   margin-bottom: 8px;
 }
 .sider-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .settings-menu {
@@ -261,20 +266,20 @@ watch(
   justify-content: space-between;
   padding: 10px 20px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 .group-header:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--brand-tint);
 }
 .group-title {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--ink-faint);
   font-weight: 500;
 }
 .group-arrow {
   font-size: 14px;
-  color: #9ca3af;
-  transition: transform 0.2s;
+  color: var(--ink-faint);
+  transition: transform var(--duration-base) var(--ease-out);
 }
 
 .group-body {
@@ -287,18 +292,29 @@ watch(
   gap: 10px;
   padding: 10px 20px 10px 44px;
   cursor: pointer;
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 14px;
-  transition: background 0.2s, color 0.2s;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
   position: relative;
 }
 .menu-item:hover {
-  background: #f3f4f6;
+  background: var(--brand-tint);
 }
+/* 激活态：品牌浅底 + 品牌字 + 左侧 3px accent bar（DESIGN.md §4 导航激活态） */
 .menu-item.active {
-  color: #f59e0b;
-  background: #fff7ed;
+  color: var(--brand);
+  background: var(--brand-soft);
   font-weight: 600;
+}
+.menu-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--brand);
+  border-radius: 0 2px 2px 0;
 }
 .menu-icon {
   font-size: 18px;
@@ -312,6 +328,7 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0; /* 关键: flex 子元素需要 min-height:0 才能正确收缩 */
+  background: transparent; /* 透出极光底 */
 }
 
 /* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class)
@@ -335,13 +352,18 @@ watch(
 .settings-content :deep(.filter-row) {
   flex-shrink: 0;
 }
-/* 主内容卡片 (n-card) 撑开 + 内部滚 */
+/* 主内容卡片 (n-card) 撑开 + 内部滚 + 玻璃材质（DESIGN.md §4 glass-card） */
 .settings-content :deep(.n-card) {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* 玻璃：半透明白 + blur + 描边（不透明兜底由 --glass-bg-card 的 rgba 保证） */
+  background: var(--glass-bg-card) !important;
+  backdrop-filter: blur(var(--glass-blur-card)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-card)) !important;
+  border: 1px solid var(--glass-border) !important;
 }
 .settings-content :deep(.n-card__content) {
   flex: 1;
