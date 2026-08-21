@@ -276,3 +276,109 @@ class TestApiEndpoints:
         client = APIClient()
         resp = client.get('/api/v1/campus/dimensions/')
         assert resp.status_code in (401, 403)
+
+
+class TestBatchConfigWithTargets:
+    """POST /rules/with-targets/ 端点：批量配置规则 + 人数目标（原子写入）。
+
+    契约：
+    - 占比加和须 == 100%，否则 400
+    - indicator 必须属于 dimension，否则 400
+    - 年度人数 = round(totalTarget × target)
+    - 事务内：删除该(适用范围, 维度)旧规则 → 创建新规则 → upsert headcount
+    """
+
+    def _setup_scheme(self, api_client):
+        s = api_client.post('/api/v1/campus/scopes/' if False else '/api/v1/campus/dimensions/', {'name': '测试维度WT'}, format='json')
+        assert s.status_code == 201, s.json()
+        dim_id = s.json()['id']
+        i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
+        i2 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json').json()
+        return dim_id, i1['id'], i2['id']
+
+    def test_with_targets_100_ok(self, api_client):
+        """占比加和 = 100% → 规则与 headcount 创建成功，annual = round(totalTarget×target)。"""
+        dim_id, i1, i2 = self._setup_scheme(api_client)
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '', 'position': '', 'level': '',
+            'dimension': dim_id, 'year': 2026, 'totalTarget': 100,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        body = resp.json()['data']
+        assert body['saved'] == 2
+        assert body['totalTarget'] == 100
+
+        # 规则被创建
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 2
+        targets = sorted(float(r['target']) for r in dim_rules)
+        assert abs(targets[0] - 0.4) < 0.001 and abs(targets[1] - 0.6) < 0.001
+
+        # headcount 创建：annual = round(100 × 0.6) = 60 / round(100 × 0.4) = 40
+        hcs = api_client.get('/api/v1/campus/headcounts/', {'params': {'page_size': 200, 'year': 2026}}).json()['data']
+        dim_hcs = [h for h in hcs if h['dimensionName'] == '测试维度WT']
+        assert len(dim_hcs) == 2
+        annuals = sorted(h['annualTarget'] for h in dim_hcs)
+        assert annuals == [40, 60]
+
+    def test_with_targets_not_100_blocked(self, api_client):
+        """占比加和 ≠ 100% → 400。"""
+        dim_id, i1, i2 = self._setup_scheme(api_client)
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '', 'position': '', 'level': '',
+            'dimension': dim_id, 'year': 2026, 'totalTarget': 50,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        assert '100%' in resp.json().get('detail', '')
+
+    def test_with_targets_indicator_not_in_dim_blocked(self, api_client):
+        """indicator 不属于 dimension → 400。"""
+        dim_id, i1, i2 = self._setup_scheme(api_client)
+        # 另建一个维度下的指标
+        s2 = api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度WT'}, format='json').json()
+        i_other = api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json').json()
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '', 'position': '', 'level': '',
+            'dimension': dim_id, 'year': 2026, 'totalTarget': 100,
+            'rules': [
+                {'indicator': i1, 'target': 0.5, 'lo': 0, 'hi': 1, 'strength': '硬约束'},
+                {'indicator': i_other['id'], 'target': 0.5, 'lo': 0, 'hi': 1, 'strength': '硬约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        assert '不属于' in resp.json().get('detail', '')
+
+    def test_with_targets_atomic_replaces_old_rules(self, api_client):
+        """事务原子：with-targets 调用后该 (适用范围, 维度) 下旧规则被替换。"""
+        dim_id, i1, i2 = self._setup_scheme(api_client)
+        # 先创建旧规则
+        api_client.post('/api/v1/campus/rules/', {
+            'bu': '', 'dimension': dim_id, 'indicator': i1, 'target': 0.5, 'lo': 0, 'hi': 1, 'strength': '硬约束',
+        }, format='json')
+        # with-targets
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '', 'position': '', 'level': '',
+            'dimension': dim_id, 'year': 2026, 'totalTarget': 200,
+            'rules': [
+                {'indicator': i1, 'target': 0.7, 'lo': 0.5, 'hi': 0.9, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.3, 'lo': 0.1, 'hi': 0.5, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200
+        # 验证只有 2 条规则（旧被替换）
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 2
+        # headcount annual = round(200 × 0.7) = 140 / round(200 × 0.3) = 60
+        hcs = api_client.get('/api/v1/campus/headcounts/', {'params': {'page_size': 200, 'year': 2026}}).json()['data']
+        dim_hcs = sorted([h['annualTarget'] for h in hcs if h['dimensionName'] == '测试维度WT'])
+        assert dim_hcs == [60, 140]

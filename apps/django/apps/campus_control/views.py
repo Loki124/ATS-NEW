@@ -20,7 +20,7 @@
   GET    /persons/                 人员主数据
   POST/PUT/DELETE /persons/{id}/
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import IntegrityError, transaction
 from rest_framework import viewsets
@@ -265,6 +265,112 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                     created_by=request.user, updated_by=request.user,
                 )
         return Response({'success': True, 'data': {'saved': len(prepared)}})
+
+    @action(detail=False, methods=['post'], url_path='with-targets')
+    def with_targets(self, request):
+        """批量配置规则 + 人数目标（一次性原子操作）。
+
+        入参: { bu, position, level, dimension, year, totalTarget, rules: [{indicator, target, lo, hi, strength}] }
+        行为:
+          - 校验 100% 加和 + 0<=lo<=target<=hi<=1 + indicator∈dimension
+          - 事务内: 删除该(适用范围, 维度)旧规则 → 创建新规则
+          - 为每条规则 upsert headcount(annual=round(totalTarget×target), monthly 留 0，保留 created_by)
+        """
+        bu = request.data.get('bu', '') or ''
+        position = request.data.get('position', '') or ''
+        level = request.data.get('level', '') or ''
+        dimension_id = request.data.get('dimension')
+        year_in = request.data.get('year')
+        total_target_in = request.data.get('total_target')
+        rules_in = request.data.get('rules')
+
+        if not dimension_id:
+            return Response({'success': False, 'detail': '缺少 dimension 参数'}, status=400)
+        dimension = ControlDimension.objects.filter(pk=dimension_id).first()
+        if not dimension:
+            return Response({'success': False, 'detail': '维度不存在'}, status=404)
+        try:
+            year = int(year_in)
+        except (TypeError, ValueError):
+            return Response({'success': False, 'detail': 'year 必填且为整数'}, status=400)
+        try:
+            total_target = int(total_target_in)
+        except (TypeError, ValueError):
+            return Response({'success': False, 'detail': 'totalTarget 必填且为非负整数'}, status=400)
+        if total_target < 0:
+            return Response({'success': False, 'detail': 'totalTarget 不能为负数'}, status=400)
+        if not isinstance(rules_in, list) or not rules_in:
+            return Response({'success': False, 'detail': 'rules 不能为空'}, status=400)
+
+        total = Decimal('0')
+        prepared = []
+        seen = set()
+        for r in rules_in:
+            if not isinstance(r, dict):
+                return Response({'success': False, 'detail': 'rules 项须为对象'}, status=400)
+            indicator_id = r.get('indicator')
+            if indicator_id in seen:
+                return Response({'success': False, 'detail': f'指标 {indicator_id} 重复提交'}, status=400)
+            seen.add(indicator_id)
+            indicator = ControlIndicator.objects.filter(pk=indicator_id, dimension_id=dimension_id).first()
+            if not indicator:
+                return Response({'success': False, 'detail': f'指标 {indicator_id} 不属于该维度'}, status=400)
+            target = _to_decimal(r.get('target'))
+            lo = _to_decimal(r.get('lo'))
+            hi = _to_decimal(r.get('hi'))
+            strength = r.get('strength', '硬约束')
+            if None in (target, lo, hi):
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标/下限/上限必填且为数值'}, status=400)
+            if not (Decimal('0') <= lo <= target <= hi <= Decimal('1')):
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 需满足 0<=下限<=目标<=上限<=1'}, status=400)
+            if strength not in STRENGTH:
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 控制强度非法'}, status=400)
+            total += target
+            prepared.append((indicator, target, lo, hi, strength))
+
+        if abs(total - Decimal('1')) > Decimal('0.0001'):
+            pct = (total * 100).quantize(Decimal('0.01'))
+            return Response({
+                'success': False,
+                'detail': f'该维度下所有指标目标占比之和须为 100%，当前为 {pct}%',
+            }, status=400)
+
+        with transaction.atomic():
+            # 删除该 (适用范围, 维度) 旧规则
+            ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension).delete()
+            indicator_ids = []
+            for indicator, target, lo, hi, strength in prepared:
+                ControlRule.objects.create(
+                    bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
+                    target=target, lo=lo, hi=hi, strength=strength,
+                    created_by=request.user, updated_by=request.user,
+                )
+                indicator_ids.append(indicator.id)
+            # upsert headcount (annual = totalTarget * target，monthly 留 0，保留 created_by)
+            existing_hcs = {
+                (h.indicator_id, h.year): h for h in ControlHeadcount.objects.filter(
+                    bu=bu, position=position, level=level, indicator_id__in=indicator_ids, year=year,
+                )
+            }
+            for indicator, target, lo, hi, strength in prepared:
+                annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+                key = (indicator.id, year)
+                if key in existing_hcs:
+                    hc = existing_hcs[key]
+                    hc.annual_target = annual
+                    hc.monthly_targets = [0]*12
+                    hc.updated_by = request.user
+                    hc.save()
+                else:
+                    ControlHeadcount.objects.create(
+                        bu=bu, position=position, level=level, indicator=indicator, year=year,
+                        annual_target=annual, monthly_targets=[0]*12,
+                        created_by=request.user, updated_by=request.user,
+                    )
+        return Response({
+            'success': True,
+            'data': {'saved': len(prepared), 'totalTarget': total_target, 'year': year},
+        })
 
 
 class ControlHeadcountViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
