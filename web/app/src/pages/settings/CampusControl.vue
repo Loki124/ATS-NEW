@@ -60,16 +60,10 @@
             <template #empty><n-empty description="暂无数据" /></template>
           </n-data-table>
 
-          <n-divider style="margin: 20px 0 14px">人数目标配置（年度 + 12 月）</n-divider>
-          <n-data-table
-            :columns="headcountColumns"
-            :data="headcounts"
-            :loading="loading.rules"
-            :row-key="(r: any) => r.id"
-            :pagination="false"
-          >
-            <template #empty><n-empty description="暂无目标，请为指标设定年度目标与 12 个月目标" /></template>
-          </n-data-table>
+          <n-alert type="info" :show-icon="true" style="margin-top: 16px">
+            人数规划的目标数据（年度目标 / 12 个月目标）直接来源于「规则配置」中每条规则的管控人数配置；
+            新增或编辑规则时即可维护年度与 12 个月度管控人数。
+          </n-alert>
         </n-tab-pane>
 
         <!-- ===================== 规则配置 ===================== -->
@@ -169,7 +163,7 @@
     </div>
 
     <!-- ===================== 规则详情抽屉（新增/编辑） ===================== -->
-    <n-drawer v-model:show="ruleDrawer.show" :width="520" placement="right">
+    <n-drawer v-model:show="ruleDrawer.show" :width="600" placement="right">
       <n-drawer-content :title="ruleDrawer.editingId ? '编辑规则' : '新增规则'" closable>
         <n-form label-placement="top">
           <n-form-item label="维度" required>
@@ -194,15 +188,24 @@
           <n-form-item v-if="!ruleDrawer.isGlobal" label="职级">
             <n-select v-model:value="ruleDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
           </n-form-item>
-          <n-divider>管控占比</n-divider>
-          <n-grid :cols="3" :x-gap="12">
-            <n-gi><n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
-            <n-gi><n-form-item label="下限 %"><n-input-number v-model:value="ruleDrawer.loPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
-            <n-gi><n-form-item label="上限 %"><n-input-number v-model:value="ruleDrawer.hiPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
-          </n-grid>
+          <n-divider>管控占比（占比上限）</n-divider>
+          <n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item>
           <n-form-item label="控制强度">
             <n-select v-model:value="ruleDrawer.strength" :options="strengthOptions" />
           </n-form-item>
+          <n-divider>管控人数（年度 + 12 月）</n-divider>
+          <n-grid :cols="2" :x-gap="12">
+            <n-gi><n-form-item label="规划年度"><n-input-number v-model:value="ruleDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
+            <n-gi><n-form-item label="年度目标人数"><n-input-number v-model:value="ruleDrawer.annualTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
+          </n-grid>
+          <n-divider>12 个月目标（单位：人）</n-divider>
+          <n-grid :cols="4" :x-gap="8" :y-gap="8">
+            <n-gi v-for="(_, i) in 12" :key="i">
+              <n-form-item :label="ALL_MONTHS[i]" label-placement="top">
+                <n-input-number v-model:value="ruleDrawer.monthly[i]" :min="0" style="width: 100%" />
+              </n-form-item>
+            </n-gi>
+          </n-grid>
         </n-form>
         <template #footer>
           <div class="drawer-footer">
@@ -252,10 +255,6 @@
               <span v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-row-controls">
                 <span class="batch-row-label">占比%</span>
                 <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 86px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
-                <span class="batch-row-label">下限%</span>
-                <n-input-number :value="batchDrawer.rows[ind.id]?.loPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 78px" @update:value="(v: number | null) => setBatchRow(ind.id, 'loPct', v || 0)" />
-                <span class="batch-row-label">上限%</span>
-                <n-input-number :value="batchDrawer.rows[ind.id]?.hiPct || 100" :min="0" :max="100" :step="0.5" size="small" style="width: 78px" @update:value="(v: number | null) => setBatchRow(ind.id, 'hiPct', v || 100)" />
                 <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 100px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
                 <span class="batch-row-annual">管控 {{ batchIndicatorAnnual(ind.id) }} 人</span>
               </span>
@@ -326,27 +325,6 @@
       </template>
     </n-modal>
 
-    <!-- ===================== 12 月度目标弹窗 ===================== -->
-    <n-modal v-model:show="monthlyModal.show" :title="`${monthlyModal.indicatorName} · ${monthlyModal.year} 年度目标`" preset="card" style="width: 680px">
-      <n-form label-placement="top">
-        <n-form-item label="年度目标人数"><n-input-number v-model:value="monthlyModal.annualTarget" :min="0" style="width: 100%" /></n-form-item>
-        <n-divider>12 个月目标（单位：人）</n-divider>
-        <n-grid :cols="4" :x-gap="8" :y-gap="8">
-          <n-gi v-for="(_, i) in 12" :key="i">
-            <n-form-item :label="ALL_MONTHS[i]" label-placement="top">
-              <n-input-number v-model:value="monthlyModal.monthly[i]" :min="0" style="width: 100%" />
-            </n-form-item>
-          </n-gi>
-        </n-grid>
-      </n-form>
-      <template #footer>
-        <div class="drawer-footer">
-          <n-button @click="monthlyModal.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="applyMonthly">确定</n-button>
-        </div>
-      </template>
-    </n-modal>
-
     <!-- ===================== 人员表单弹窗 ===================== -->
     <n-modal v-model:show="personModal.show" :title="personModal.editingId ? '编辑人员' : '新增人员'" preset="card" style="width: 560px">
       <n-form label-placement="top">
@@ -387,10 +365,9 @@ import {
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, createRule, updateRule, deleteRule, batchConfigRules,
   getRatio, getPlan, validateDraft,
-  listHeadcounts, upsertHeadcount,
   listPersons, upsertPerson, deletePerson,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
-  type ControlDimension, type ControlIndicator, type ControlRule, type ControlHeadcount,
+  type ControlDimension, type ControlIndicator, type ControlRule,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
   type ValidationResult, type Strength, type RuleInput, type BatchConfigPayload,
 } from '../../api/campusControl'
@@ -432,7 +409,6 @@ const loading = reactive({
 const dimensions = ref<ControlDimension[]>([])
 const indicators = ref<ControlIndicator[]>([])
 const rules = ref<ControlRule[]>([])
-const headcounts = ref<ControlHeadcount[]>([])
 const persons = ref<Person[]>([])
 
 const selectedYear = ref(2026)
@@ -509,10 +485,6 @@ async function loadRules() {
   catch (e) { message.error(extractApiError(e, '加载规则失败')) }
   finally { loading.rules = false }
 }
-async function loadHeadcounts() {
-  try { headcounts.value = await listHeadcounts(selectedYear.value) }
-  catch (e) { /* 目标加载失败不阻断主流程 */ }
-}
 async function loadPersons() {
   loading.persons = true
   try { persons.value = await listPersons() }
@@ -548,8 +520,6 @@ const ratioColumns: DataTableColumns<RatioRow> = [
   { title: '实际/分母', key: 'actual', width: 100, render: (r) => `${r.actual} / ${r.denom}` },
   { title: '占比', key: 'ratio', width: 80, render: (r) => h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => pct(r.ratio) }) },
   { title: '目标', key: 'target', width: 70, render: (r) => pct(r.target) },
-  { title: '下限', key: 'lo', width: 70, render: (r) => pct(r.lo) },
-  { title: '上限', key: 'hi', width: 70, render: (r) => pct(r.hi) },
   { title: '状态', key: 'status', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.status), bordered: false, size: 'small' }, { default: () => r.status }) },
   { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
 ]
@@ -576,8 +546,9 @@ const ruleColumns: DataTableColumns<ControlRule> = [
     render: (r) => h(NTag, { type: r.bu || r.position || r.level ? 'info' : 'success', bordered: false, size: 'small' }, { default: () => scopeText(r.bu, r.position, r.level) }),
   },
   { title: '目标占比', key: 'target', width: 90, render: (r) => pct(r.target) },
-  { title: '下限', key: 'lo', width: 70, render: (r) => pct(r.lo) },
-  { title: '上限', key: 'hi', width: 70, render: (r) => pct(r.hi) },
+  { title: '规划年度', key: 'year', width: 80 },
+  { title: '年度目标', key: 'annualTarget', width: 80 },
+  { title: '月度合计', key: 'monthlySum', width: 90, render: (r: any) => (r.monthlyTargets || []).reduce((a: number, b: number) => a + b, 0) },
   { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
   {
     title: '加和', key: 'sum', width: 90,
@@ -646,19 +617,6 @@ const personColumns: DataTableColumns<Person> = [
   },
 ]
 
-const headcountColumns: DataTableColumns<ControlHeadcount> = [
-  { title: '适用范围', key: 'bu', width: 150, render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: '维度', key: 'dimensionName', width: 110 },
-  { title: '指标', key: 'indicatorName', width: 100 },
-  { title: '年度', key: 'year', width: 80 },
-  { title: '年度目标', key: 'annualTarget', width: 90 },
-  { title: '月度合计', key: 'monthlySum', width: 90, render: (r) => r.monthlyTargets.reduce((a, b) => a + b, 0) },
-  {
-    title: '操作', key: 'actions', width: 130, fixed: 'right',
-    render: (r) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openMonthlyModal(r) }, { default: () => '编辑年度 / 12 月' }),
-  },
-]
-
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
   { title: '适用范围', key: 'bu', width: 150, render: (r) => scopeText(r.bu, r.position, r.level) },
   { title: '维度', key: 'dimension', width: 100 }, { title: '指标', key: 'indicator', width: 90 },
@@ -677,7 +635,7 @@ const ruleDrawer = reactive({
   indicatorId: '' as string | null,
   isGlobal: true,
   bu: '', position: '', level: '',
-  targetPct: 50, loPct: 0, hiPct: 100,
+  targetPct: 50, year: 2026, annualTarget: 0, monthly: Array(12).fill(0),
   strength: '硬约束' as Strength,
 })
 
@@ -697,8 +655,11 @@ function openRuleDrawer(rule?: ControlRule) {
   ruleDrawer.position = rule?.position ?? ''
   ruleDrawer.level = rule?.level ?? ''
   ruleDrawer.targetPct = rule ? Math.round(rule.target * 1000) / 10 : 50
-  ruleDrawer.loPct = rule ? Math.round(rule.lo * 1000) / 10 : 0
-  ruleDrawer.hiPct = rule ? Math.round(rule.hi * 1000) / 10 : 100
+  ruleDrawer.year = rule?.year ?? 2026
+  ruleDrawer.annualTarget = rule ? Number(rule.annualTarget) || 0 : 0
+  ruleDrawer.monthly = rule
+    ? Array.from({ length: 12 }, (_, i) => Number(rule.monthlyTargets?.[i]) || 0)
+    : Array(12).fill(0)
   ruleDrawer.strength = rule?.strength ?? '硬约束'
   ruleDrawer.show = true
 }
@@ -713,19 +674,17 @@ function onRuleScopeToggle(v: boolean) {
 async function saveRule() {
   if (!ruleDrawer.dimensionId) { message.warning('请选择维度'); return }
   if (!ruleDrawer.indicatorId) { message.warning('请从指标库中选择指标'); return }
-  if (!(ruleDrawer.loPct <= ruleDrawer.targetPct && ruleDrawer.targetPct <= ruleDrawer.hiPct)) {
-    message.warning('需满足 下限% ≤ 目标% ≤ 上限%'); return
-  }
   const payload: RuleInput = {
     bu: ruleDrawer.isGlobal ? '' : ruleDrawer.bu,
     position: ruleDrawer.isGlobal ? '' : ruleDrawer.position,
     level: ruleDrawer.isGlobal ? '' : ruleDrawer.level,
     dimension: ruleDrawer.dimensionId,
     indicator: ruleDrawer.indicatorId,
+    year: ruleDrawer.year,
     target: ruleDrawer.targetPct / 100,
-    lo: ruleDrawer.loPct / 100,
-    hi: ruleDrawer.hiPct / 100,
     strength: ruleDrawer.strength,
+    annualTarget: Math.round(ruleDrawer.annualTarget) || 0,
+    monthlyTargets: ruleDrawer.monthly.map((v) => Math.round(v) || 0),
   }
   loading.saveRule = true
   try {
@@ -751,8 +710,6 @@ function removeRule(r: ControlRule) {
 /* ============================ 批量配置规则 + 人数目标 ============================ */
 interface BatchRow {
   targetPct: number
-  loPct: number
-  hiPct: number
   strength: Strength
 }
 const batchDrawer = reactive({
@@ -803,7 +760,7 @@ function onBatchIndicatorToggle(ind: ControlIndicator, checked: boolean) {
     // 首个勾选时均分剩余比例（提示用户）
     const curCount = batchDrawer.indicatorIds.length
     const equal = curCount > 0 ? Math.round((100 / curCount) * 10) / 10 : 0
-    batchDrawer.rows = { ...batchDrawer.rows, [ind.id]: { targetPct: equal, loPct: 0, hiPct: 100, strength: '硬约束' } }
+    batchDrawer.rows = { ...batchDrawer.rows, [ind.id]: { targetPct: equal, strength: '硬约束' } }
   } else {
     batchDrawer.indicatorIds = batchDrawer.indicatorIds.filter((id) => id !== ind.id)
     const nr: Record<string, BatchRow> = {}
@@ -825,12 +782,6 @@ function batchIndicatorAnnual(indId: string) {
 async function saveBatchConfig() {
   if (!batchDrawer.dimensionId) { message.warning('请选择维度'); return }
   if (batchDrawer.indicatorIds.length === 0) { message.warning('请至少勾选一个指标'); return }
-  for (const id of batchDrawer.indicatorIds) {
-    const r = batchDrawer.rows[id]
-    if (!(r.loPct <= r.targetPct && r.targetPct <= r.hiPct)) {
-      message.warning('存在指标需满足 0 <= 下限% <= 目标% <= 上限% <= 100'); return
-    }
-  }
   if (!batchSumOk.value) {
     message.warning(`占比之和须=100%，当前 ${batchSumPct.value.toFixed(1)}%`); return
   }
@@ -847,8 +798,6 @@ async function saveBatchConfig() {
       return {
         indicator: id,
         target: r.targetPct / 100,
-        lo: r.loPct / 100,
-        hi: r.hiPct / 100,
         strength: r.strength,
       }
     }),
@@ -858,7 +807,7 @@ async function saveBatchConfig() {
     const res = await batchConfigRules(payload)
     message.success(`已保存 ${res.data.saved} 条规则 + ${res.data.saved} 项目标（总人数 ${res.data.totalTarget}）`)
     batchDrawer.show = false
-    await Promise.all([loadRules(), loadRatio(), loadPlan(), loadHeadcounts()])
+    await Promise.all([loadRules(), loadRatio(), loadPlan()])
   } catch (e) {
     message.error(extractApiError(e, '保存失败'))
   } finally {
@@ -923,35 +872,6 @@ function removeIndicator(ind: ControlIndicator) {
       catch (e) { message.error(extractApiError(e, '删除失败')) }
     },
   })
-}
-
-/* ============================ 12 月度目标弹窗 ============================ */
-const monthlyModal = reactive({
-  show: false, headcountId: '' as string | null, indicatorId: '', indicatorName: '', year: 2026,
-  bu: '', position: '', level: '', annualTarget: 0, monthly: Array(12).fill(0),
-})
-function openMonthlyModal(h: ControlHeadcount) {
-  monthlyModal.headcountId = h.id
-  monthlyModal.indicatorId = h.indicator
-  monthlyModal.indicatorName = h.indicatorName
-  monthlyModal.year = h.year
-  monthlyModal.bu = h.bu; monthlyModal.position = h.position; monthlyModal.level = h.level
-  monthlyModal.annualTarget = h.annualTarget
-  monthlyModal.monthly = [...h.monthlyTargets]
-  monthlyModal.show = true
-}
-async function applyMonthly() {
-  try {
-    await upsertHeadcount({
-      id: monthlyModal.headcountId ?? undefined,
-      bu: monthlyModal.bu, position: monthlyModal.position, level: monthlyModal.level,
-      indicator: monthlyModal.indicatorId, year: monthlyModal.year,
-      annualTarget: monthlyModal.annualTarget, monthlyTargets: monthlyModal.monthly,
-    })
-    message.success('已保存目标')
-    monthlyModal.show = false
-    await Promise.all([loadHeadcounts(), loadPlan()])
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 
 /* ============================ 录入校验 ============================ */
@@ -1029,7 +949,7 @@ function removePerson(p: Person) {
 
 onMounted(async () => {
   await Promise.all([loadDimensions(), loadIndicators(), loadPersons()])
-  await Promise.all([loadRatio(), loadPlan(), loadRules(), loadHeadcounts()])
+  await Promise.all([loadRatio(), loadPlan(), loadRules()])
 })
 </script>
 

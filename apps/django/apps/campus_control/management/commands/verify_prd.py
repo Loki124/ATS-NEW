@@ -1,10 +1,10 @@
-"""PRD §9 验收（v2.1，适用范围由规则自带，纯函数，不依赖数据库）。
+"""PRD §9 验收（v2.4，人数目标承载于规则上，纯函数，不依赖数据库）。
 
 用法：
     python manage.py verify_prd
 
-用 §9.0 样例人员 + 默认规则/人数目标 跑 compute_ratio + compute_count + simulate，
-断言 v2.1 关键结论：同适用范围同维度目标占比加和=100%、性别男比例（部门口径）、录入校验阻断。
+用 §9.0 样例人员 + 默认规则（含人数目标）跑 compute_ratio + compute_count + simulate，
+断言 v2.4 关键结论：同(适用范围,年度)同维度目标占比加和=100%、性别男比例（部门口径）、录入校验阻断。
 """
 from decimal import Decimal
 
@@ -15,7 +15,7 @@ from apps.campus_control.calc import (
 )
 from apps.campus_control.constants import VERDICT_BLOCK, RATIO_ABOVE
 from apps.campus_control.sample_data import (
-    SAMPLE_PERSONS, build_rules, build_headcounts, _INDICATOR_ANNUAL,
+    SAMPLE_PERSONS, build_rules,
 )
 
 
@@ -45,8 +45,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         persons = SAMPLE_PERSONS
-        rules = build_rules()
-        headcounts = build_headcounts(2026)
+        rules = build_rules(2026)
 
         # ---------- §9.1 比例断言（适用范围自带） ----------
         res = compute_ratio(persons, rules)
@@ -65,27 +64,27 @@ class Command(BaseCommand):
         assert r_male['status'] == RATIO_ABOVE, r_male
         assert r_male['strength'] == '硬约束', r_male
 
-        # ---------- §9.x 100% 加和断言（按适用范围分组） ----------
-        g_sum = check_dimension_sums(rules, ('', '', ''))
+        # ---------- §9.x 100% 加和断言（按适用范围+年度分组） ----------
+        g_sum = check_dimension_sums(rules, ('', '', ''), 2026)
         assert all(s['ok'] for s in g_sum), f'全局存在未加和到100%的维度：{g_sum}'
-        ne_sum = check_dimension_sums(rules, ('能电BG', '', ''))
+        ne_sum = check_dimension_sums(rules, ('能电BG', '', ''), 2026)
         assert all(s['ok'] for s in ne_sum), f'能电BG存在未加和到100%的维度：{ne_sum}'
-        self.stdout.write(self.style.SUCCESS('✅ 各适用范围各维度目标占比加和均 = 100%'))
+        self.stdout.write(self.style.SUCCESS('✅ 各(适用范围,年度)各维度目标占比加和均 = 100%'))
 
-        # ---------- §9.2 人数规划断言（指标层，适用范围自带） ----------
-        cnt_rows = compute_count(persons, rules, headcounts, 2026, '8月')
+        # ---------- §9.2 人数规划断言（指标层，目标承载于规则） ----------
+        cnt_rows = compute_count(persons, rules, 2026, '8月')
         hc = {(_scope_key(c), c['dimension'], c['indicator']): c for c in cnt_rows}
         c985 = hc[(('', '', ''), '院校标签', '985')]
         assert c985['onjob'] == _cnt(persons, school='985'), c985
-        assert c985['annualTarget'] == _INDICATOR_ANNUAL['985'], c985
-        mt = _monthly_annual(_INDICATOR_ANNUAL['985'], 8)
+        assert c985['annualTarget'] == 40, c985
+        mt = _monthly_annual(40, 8)
         assert c985['monthTarget'] == mt, (c985['monthTarget'], mt)
 
         # ---------- §9.3 录入校验断言 ----------
         draft = {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
-        v = simulate(draft, rules, persons, headcounts, 2026, month='8月')
+        v = simulate(draft, rules, persons, 2026, month='8月')
         assert v['verdict'] == VERDICT_BLOCK, v
 
         self.stdout.write(self.style.SUCCESS(
-            '✅ PRD §9 v2.1 断言通过：比例 / 100%加和 / 人数规划 / 录入校验(阻断)'
+            '✅ PRD §9 v2.4 断言通过：比例 / 100%加和 / 人数规划 / 录入校验(阻断)'
         ))

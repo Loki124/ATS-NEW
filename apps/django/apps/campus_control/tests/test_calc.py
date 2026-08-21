@@ -1,28 +1,28 @@
-"""校招管控 v2.1 — 计算引擎与 API 端点测试。
+"""校招管控 v2.4 — 计算引擎与 API 端点测试。
 
 覆盖：
   - 纯函数：count / rule_matches / persons_for_rule / count_rule / denom_rule /
     ratio_of / ratio_status / count_status / compute_ratio / compute_count / kpi /
-    simulate / check_dimension_sums（适用范围由规则自带）
+    simulate / check_dimension_sums（适用范围由规则自带，人数目标承载于规则）
   - §9 断言（基于 §9.0 样例数据）
-  - 100% 加和硬校验（序列化器 + API 双路径，按适用范围分组）
-  - API 端点（dimensions/indicators/rules+ratio/plan/validate/batch/headcounts/persons）
+  - 100% 加和硬校验（序列化器 + API 双路径，按(适用范围, 年度)分组）
+  - API 端点（dimensions/indicators/rules+ratio/plan/validate/batch/with-targets/persons）
 """
 import pytest
 from decimal import Decimal
 
-from ..sample_data import SAMPLE_PERSONS, build_rules, build_headcounts
+from ..sample_data import SAMPLE_PERSONS, build_rules
 from ..calc import (
     count, rule_matches, persons_for_rule, count_rule, denom_rule,
     ratio_of, ratio_status, count_status,
     compute_ratio, compute_count, kpi, simulate, check_dimension_sums, _scope_key,
 )
 from ..constants import (
-    RATIO_NORMAL, RATIO_BELOW, RATIO_ABOVE, COUNT_MET, COUNT_GAP,
+    RATIO_NORMAL, RATIO_ABOVE, COUNT_MET, COUNT_GAP,
     VERDICT_BLOCK, VERDICT_WARN, VERDICT_PASS,
 )
 from ..models import (
-    ControlDimension, ControlIndicator, ControlRule, ControlHeadcount, Person,
+    ControlDimension, ControlIndicator, ControlRule, Person,
 )
 from ..serializers import ControlRuleSerializer
 
@@ -72,14 +72,11 @@ class TestPureCalc:
         assert count(persons, {'school': '985'}) == 2
 
     def test_rule_matches_scope(self):
-        # 全局规则匹配所有人
         rule = {'bu': '', 'position': '', 'level': ''}
         assert rule_matches({'bu': '能电BG', 'position': '', 'level': ''}, rule)
-        # 指定部门
         rule_bu = {'bu': '能电BG', 'position': '', 'level': ''}
         assert rule_matches({'bu': '能电BG'}, rule_bu)
         assert not rule_matches({'bu': '三到BG'}, rule_bu)
-        # 指定部门+职务
         rule_pos = {'bu': '能电BG', 'position': '技术研发', 'level': ''}
         assert rule_matches({'bu': '能电BG', 'position': '技术研发'}, rule_pos)
         assert not rule_matches({'bu': '能电BG', 'position': ''}, rule_pos)
@@ -91,20 +88,21 @@ class TestPureCalc:
             {'bu': '三到BG', 'sex': '男', 'counted': True},
         ]
         rule_bu = {'bu': '能电BG', 'position': '', 'level': '', 'dimension': '性别', 'indicator': '男'}
-        assert denom_rule(rule_bu, persons) == 2  # 能电BG 2 人
+        assert denom_rule(rule_bu, persons) == 2
         rule_global = {'bu': '', 'position': '', 'level': '', 'dimension': '性别', 'indicator': '男'}
-        assert denom_rule(rule_global, persons) == 3  # 全局 3 人
+        assert denom_rule(rule_global, persons) == 3
 
     def test_ratio_of_zero_denom_returns_zero(self):
         rule = {'bu': 'X', 'position': '', 'level': '', 'dimension': '性别', 'indicator': '男'}
         assert ratio_of(rule, []) == Decimal('0')
 
-    def test_ratio_status_closed_interval(self):
-        rule = {'lo': Decimal('0.3'), 'hi': Decimal('0.7')}
+    def test_ratio_status_ceiling(self):
+        # v2.4：以 target 为管控上限，超过 target+TOL 即「高于上限」
+        rule = {'target': Decimal('0.3')}
+        assert ratio_status(Decimal('0.5'), rule) == RATIO_ABOVE
+        assert ratio_status(Decimal('0.301'), rule) == RATIO_ABOVE
         assert ratio_status(Decimal('0.3'), rule) == RATIO_NORMAL
-        assert ratio_status(Decimal('0.7'), rule) == RATIO_NORMAL
-        assert ratio_status(Decimal('0.2'), rule) == RATIO_BELOW
-        assert ratio_status(Decimal('0.8'), rule) == RATIO_ABOVE
+        assert ratio_status(Decimal('0.1'), rule) == RATIO_NORMAL
 
     def test_count_status(self):
         assert count_status(10, 10) == COUNT_MET
@@ -112,12 +110,11 @@ class TestPureCalc:
         assert count_status(5, None) == '未设目标'
 
 
-# ============================ §9 断言（适用范围自带） ============================
+# ============================ §9 断言（适用范围自带，人数目标在规则上） ============================
 class TestPrdAssertions:
     def setup_method(self):
         self.persons = SAMPLE_PERSONS
-        self.rules = build_rules()
-        self.headcounts = build_headcounts(2026)
+        self.rules = build_rules(2026)
         self.ratio = compute_ratio(self.persons, self.rules)
         self.rows = {(_scope_key(r), r['dimension'], r['indicator']): r for r in self.ratio['rows']}
 
@@ -137,13 +134,13 @@ class TestPrdAssertions:
         assert abs(float(r['ratio']) - exp) < 1e-3
 
     def test_dimension_sums_eq_100(self):
-        g = check_dimension_sums(self.rules, ('', '', ''))
+        g = check_dimension_sums(self.rules, ('', '', ''), 2026)
         assert all(s['ok'] for s in g), g
-        ne = check_dimension_sums(self.rules, ('能电BG', '', ''))
+        ne = check_dimension_sums(self.rules, ('能电BG', '', ''), 2026)
         assert all(s['ok'] for s in ne), ne
 
     def test_count_plan(self):
-        rows = compute_count(self.persons, self.rules, self.headcounts, 2026, '8月')
+        rows = compute_count(self.persons, self.rules, 2026, '8月')
         hc = {(_scope_key(c), c['dimension'], c['indicator']): c for c in rows}
         c985 = hc[(('', '', ''), '院校标签', '985')]
         assert c985['onjob'] == _cnt(self.persons, school='985')
@@ -151,7 +148,7 @@ class TestPrdAssertions:
 
     def test_simulate_block(self):
         draft = {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
-        v = simulate(draft, self.rules, self.persons, self.headcounts, 2026, month='8月')
+        v = simulate(draft, self.rules, self.persons, 2026, month='8月')
         assert v['verdict'] == VERDICT_BLOCK
         c = next(ch for ch in v['checks'] if ch['dimension'] == '性别' and ch['indicator'] == '男' and ch['bu'] == '能电BG')
         assert c['ratioStatus'] == RATIO_ABOVE
@@ -171,13 +168,13 @@ class TestSum100Validation:
         dim, i_m, i_f = self._mk_dim_ind(hr_user)
         ser = ControlRuleSerializer(data={
             'bu': '能电BG', 'dimension': dim.id, 'indicator': i_m.id,
-            'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束',
+            'target': 0.6, 'strength': '硬约束',
         })
         assert ser.is_valid(), ser.errors
         ser.save(created_by=hr_user, updated_by=hr_user)
         ser2 = ControlRuleSerializer(data={
             'bu': '能电BG', 'dimension': dim.id, 'indicator': i_f.id,
-            'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束',
+            'target': 0.4, 'strength': '软约束',
         })
         assert ser2.is_valid(), ser2.errors  # 0.6 + 0.4 = 100% OK
 
@@ -185,12 +182,12 @@ class TestSum100Validation:
         dim, i_m, i_f = self._mk_dim_ind(hr_user)
         ControlRule.objects.create(
             bu='能电BG', dimension=dim, indicator=i_m,
-            target=Decimal('0.6'), lo=Decimal('0.5'), hi=Decimal('0.7'), strength='硬约束',
+            target=Decimal('0.6'), strength='硬约束',
             created_by=hr_user, updated_by=hr_user,
         )
         ser = ControlRuleSerializer(data={
             'bu': '能电BG', 'dimension': dim.id, 'indicator': i_f.id,
-            'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束',
+            'target': 0.5, 'strength': '软约束',
         })
         assert not ser.is_valid()
         assert any('100%' in str(v) for vals in ser.errors.values() for v in (vals if isinstance(vals, list) else [vals]))
@@ -204,10 +201,8 @@ class TestApiEndpoints:
         dim_id = d['id']
         im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
         ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
-        api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'}, format='json')
-        api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束'}, format='json')
-        api_client.post('/api/v1/campus/headcounts/', {'bu': '能电BG', 'indicator': im['id'], 'year': 2026, 'annual_target': 10, 'monthly_targets': [1] * 12}, format='json')
-        api_client.post('/api/v1/campus/headcounts/', {'bu': '能电BG', 'indicator': ifm['id'], 'year': 2026, 'annual_target': 10, 'monthly_targets': [1] * 12}, format='json')
+        api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}, format='json')
+        api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.4, 'strength': '软约束'}, format='json')
         api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '已入职', 'counted': True}, format='json')
 
     def test_ratio_endpoint(self, api_client):
@@ -241,9 +236,9 @@ class TestApiEndpoints:
         dim_id = d['id']
         im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
         ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
-        r1 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'}, format='json')
+        r1 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}, format='json')
         assert r1.status_code == 201, r1.json()
-        r2 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束'}, format='json')
+        r2 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.5, 'strength': '软约束'}, format='json')
         assert r2.status_code == 400, r2.json()
 
     def test_batch_100_ok(self, api_client):
@@ -253,8 +248,8 @@ class TestApiEndpoints:
         resp = api_client.post('/api/v1/campus/rules/batch/', {
             'bu': '能电BG', 'dimension': d['id'],
             'rules': [
-                {'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
-                {'indicator': ifm['id'], 'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束'},
+                {'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': ifm['id'], 'target': 0.4, 'strength': '软约束'},
             ],
         }, format='json')
         assert resp.status_code == 200, resp.json()
@@ -266,7 +261,7 @@ class TestApiEndpoints:
         api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json').json()
         resp = api_client.post('/api/v1/campus/rules/batch/', {
             'bu': '能电BG', 'dimension': d['id'],
-            'rules': [{'indicator': im['id'], 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'}],
+            'rules': [{'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}],
         }, format='json')
         assert resp.status_code == 400, resp.json()
         assert '100%' in resp.json()['detail']
@@ -279,17 +274,17 @@ class TestApiEndpoints:
 
 
 class TestBatchConfigWithTargets:
-    """POST /rules/with-targets/ 端点：批量配置规则 + 人数目标（原子写入）。
+    """POST /rules/with-targets/ 端点：批量配置规则 + 人数目标（原子写入，目标承载于规则）。
 
     契约：
     - 占比加和须 == 100%，否则 400
     - indicator 必须属于 dimension，否则 400
-    - 年度人数 = round(totalTarget × target)
-    - 事务内：删除该(适用范围, 维度)旧规则 → 创建新规则 → upsert headcount
+    - 年度人数 = round(totalTarget × target)，直接写入规则的 annual_target
+    - 事务内：删除该(适用范围, 维度, 年度)旧规则 → 创建新规则（含人数目标）
     """
 
     def _setup_scheme(self, api_client):
-        s = api_client.post('/api/v1/campus/scopes/' if False else '/api/v1/campus/dimensions/', {'name': '测试维度WT'}, format='json')
+        s = api_client.post('/api/v1/campus/dimensions/', {'name': '测试维度WT'}, format='json')
         assert s.status_code == 201, s.json()
         dim_id = s.json()['id']
         i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
@@ -297,14 +292,14 @@ class TestBatchConfigWithTargets:
         return dim_id, i1['id'], i2['id']
 
     def test_with_targets_100_ok(self, api_client):
-        """占比加和 = 100% → 规则与 headcount 创建成功，annual = round(totalTarget×target)。"""
+        """占比加和 = 100% → 规则创建成功且 annual_target = round(totalTarget×target)。"""
         dim_id, i1, i2 = self._setup_scheme(api_client)
         resp = api_client.post('/api/v1/campus/rules/with-targets/', {
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 100,
             'rules': [
-                {'indicator': i1, 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.4, 'lo': 0.3, 'hi': 0.5, 'strength': '软约束'},
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
             ],
         }, format='json')
         assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
@@ -319,11 +314,8 @@ class TestBatchConfigWithTargets:
         targets = sorted(float(r['target']) for r in dim_rules)
         assert abs(targets[0] - 0.4) < 0.001 and abs(targets[1] - 0.6) < 0.001
 
-        # headcount 创建：annual = round(100 × 0.6) = 60 / round(100 × 0.4) = 40
-        hcs = api_client.get('/api/v1/campus/headcounts/', {'params': {'page_size': 200, 'year': 2026}}).json()['data']
-        dim_hcs = [h for h in hcs if h['dimensionName'] == '测试维度WT']
-        assert len(dim_hcs) == 2
-        annuals = sorted(h['annualTarget'] for h in dim_hcs)
+        # annual_target = round(100 × 0.6) = 60 / round(100 × 0.4) = 40
+        annuals = sorted(r['annualTarget'] for r in dim_rules)
         assert annuals == [40, 60]
 
     def test_with_targets_not_100_blocked(self, api_client):
@@ -333,8 +325,8 @@ class TestBatchConfigWithTargets:
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 50,
             'rules': [
-                {'indicator': i1, 'target': 0.6, 'lo': 0.5, 'hi': 0.7, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.5, 'lo': 0.3, 'hi': 0.6, 'strength': '软约束'},
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.5, 'strength': '软约束'},
             ],
         }, format='json')
         assert resp.status_code == 400
@@ -343,34 +335,33 @@ class TestBatchConfigWithTargets:
     def test_with_targets_indicator_not_in_dim_blocked(self, api_client):
         """indicator 不属于 dimension → 400。"""
         dim_id, i1, i2 = self._setup_scheme(api_client)
-        # 另建一个维度下的指标
         s2 = api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度WT'}, format='json').json()
         i_other = api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json').json()
         resp = api_client.post('/api/v1/campus/rules/with-targets/', {
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 100,
             'rules': [
-                {'indicator': i1, 'target': 0.5, 'lo': 0, 'hi': 1, 'strength': '硬约束'},
-                {'indicator': i_other['id'], 'target': 0.5, 'lo': 0, 'hi': 1, 'strength': '硬约束'},
+                {'indicator': i1, 'target': 0.5, 'strength': '硬约束'},
+                {'indicator': i_other['id'], 'target': 0.5, 'strength': '硬约束'},
             ],
         }, format='json')
         assert resp.status_code == 400
         assert '不属于' in resp.json().get('detail', '')
 
     def test_with_targets_atomic_replaces_old_rules(self, api_client):
-        """事务原子：with-targets 调用后该 (适用范围, 维度) 下旧规则被替换。"""
+        """事务原子：with-targets 调用后该 (适用范围, 维度, 年度) 下旧规则被替换。"""
         dim_id, i1, i2 = self._setup_scheme(api_client)
         # 先创建旧规则
         api_client.post('/api/v1/campus/rules/', {
-            'bu': '', 'dimension': dim_id, 'indicator': i1, 'target': 0.5, 'lo': 0, 'hi': 1, 'strength': '硬约束',
+            'bu': '', 'dimension': dim_id, 'indicator': i1, 'target': 0.5, 'strength': '硬约束',
         }, format='json')
         # with-targets
         resp = api_client.post('/api/v1/campus/rules/with-targets/', {
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 200,
             'rules': [
-                {'indicator': i1, 'target': 0.7, 'lo': 0.5, 'hi': 0.9, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.3, 'lo': 0.1, 'hi': 0.5, 'strength': '软约束'},
+                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.3, 'strength': '软约束'},
             ],
         }, format='json')
         assert resp.status_code == 200
@@ -378,7 +369,6 @@ class TestBatchConfigWithTargets:
         rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
         dim_rules = [r for r in rules if r['dimension'] == dim_id]
         assert len(dim_rules) == 2
-        # headcount annual = round(200 × 0.7) = 140 / round(200 × 0.3) = 60
-        hcs = api_client.get('/api/v1/campus/headcounts/', {'params': {'page_size': 200, 'year': 2026}}).json()['data']
-        dim_hcs = sorted([h['annualTarget'] for h in hcs if h['dimensionName'] == '测试维度WT'])
-        assert dim_hcs == [60, 140]
+        # annual_target = round(200 × 0.7) = 140 / round(200 × 0.3) = 60
+        annuals = sorted(r['annualTarget'] for r in dim_rules)
+        assert annuals == [60, 140]

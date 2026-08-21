@@ -1,10 +1,10 @@
-"""校招管控 v2.1 — 样本数据（§9.0 样例人员 + 默认维度/指标/规则/人数目标）。
+"""校招管控 v2.4 — 样本数据（§9.0 样例人员 + 默认维度/指标/规则[含人数目标]）。
 
-v2.1 建模：
-- 适用范围（bu/position/level，全空=全局）直接挂在规则/目标上。
+v2.4 建模：
+- 适用范围（bu/position/level，全空=全局）直接挂在规则上。
 - 3 个维度（院校标签/专业标签/性别）；性别指标为 男/女。
-- 规则：院校/专业为「全局」；性别按「部门」各一套，同适用范围同维度加和 == 100%。
-- 人数目标：院校/专业为全局；性别按部门，落在指标层（年度 + 12 月）。
+- 规则：院校/专业为「全局」；性别按「部门」各一套，同(适用范围,年度)同维度加和 == 100%。
+- 人数目标（年度 + 12 月）直接承载于规则上（指标层）。
 """
 from .constants import DEPTS, SCHOOLS, MAJORS, SEXES  # noqa: F401
 
@@ -43,31 +43,24 @@ for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
     })
 
 
-# 全局维度默认指标占比（院校/专业，全公司一致）
+# 全局维度默认指标占比（院校/专业，全公司一致）：(指标, 目标占比, 年度目标, 强度)
 _SCHOOL_RULES = [
-    ('985', 0.34, 0.32, 0.36, '硬约束'),
-    ('211', 0.27, 0.20, 0.35, '硬约束'),
-    ('双一流', 0.16, 0.10, 0.25, '硬约束'),
-    ('其他', 0.23, 0.15, 0.30, '硬约束'),
+    ('985', 0.34, 40, '硬约束'),
+    ('211', 0.27, 30, '硬约束'),
+    ('双一流', 0.16, 20, '硬约束'),
+    ('其他', 0.23, 30, '硬约束'),
 ]
 _MAJOR_RULES = [
-    ('工学', 0.35, 0.33, 0.40, '软约束'),
-    ('其他', 0.65, 0.55, 0.75, '软约束'),
+    ('工学', 0.35, 60, '软约束'),
+    ('其他', 0.65, 60, '软约束'),
 ]
-# 各方案性别指标占比（男+女 之和 == 100%）
+# 各方案性别指标占比（男+女 之和 == 100%）：(指标, 目标占比, 年度目标, 强度)
 _SEX_RULES = {
-    '能电BG': [('男', 0.65, 0.60, 0.70, '硬约束'), ('女', 0.35, 0.20, 0.40, '软约束')],
-    '三到BG': [('男', 0.95, 0.90, 1.00, '硬约束'), ('女', 0.05, 0.00, 0.10, '硬约束')],
-    '综合BG': [('男', 0.50, 0.40, 0.60, '软约束'), ('女', 0.50, 0.40, 0.60, '软约束')],
-    '醒电BG': [('男', 0.70, 0.60, 0.90, '软约束'), ('女', 0.30, 0.10, 0.30, '软约束')],
+    '能电BG': [('男', 0.65, 70, '硬约束'), ('女', 0.35, 50, '软约束')],
+    '三到BG': [('男', 0.95, 90, '硬约束'), ('女', 0.05, 10, '硬约束')],
+    '综合BG': [('男', 0.50, 60, '软约束'), ('女', 0.50, 60, '软约束')],
+    '醒电BG': [('男', 0.70, 70, '软约束'), ('女', 0.30, 30, '软约束')],
 }
-
-# 各指标年度目标（指标层）；性别按部门近似
-_INDICATOR_ANNUAL = {
-    '985': 40, '211': 30, '双一流': 20, '其他': 30,
-    '工学': 60, '其他': 60,
-}
-_SEX_ANNUAL = {'男': 70, '女': 50}
 
 DIMENSION_NAMES = ['院校标签', '专业标签', '性别']
 INDICATOR_NAMES = {
@@ -77,33 +70,20 @@ INDICATOR_NAMES = {
 }
 
 
-def build_rules() -> list:
-    """构建全部规则（calc 用 dict 列表，含 bu/position/level）。"""
+def build_rules(year: int = 2026) -> list:
+    """构建全部规则（calc 用 dict 列表，含 bu/position/level/year/人数目标）。"""
     rules = []
-    for ind, t, lo, hi, st in _SCHOOL_RULES:
+    for ind, t, annual, st in _SCHOOL_RULES:
         rules.append({'bu': '', 'position': '', 'level': '', 'dimension': '院校标签',
-                      'indicator': ind, 'target': t, 'lo': lo, 'hi': hi, 'strength': st})
-    for ind, t, lo, hi, st in _MAJOR_RULES:
+                      'indicator': ind, 'year': year, 'target': t, 'strength': st,
+                      'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
+    for ind, t, annual, st in _MAJOR_RULES:
         rules.append({'bu': '', 'position': '', 'level': '', 'dimension': '专业标签',
-                      'indicator': ind, 'target': t, 'lo': lo, 'hi': hi, 'strength': st})
+                      'indicator': ind, 'year': year, 'target': t, 'strength': st,
+                      'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
     for bu, sex_rules in _SEX_RULES.items():
-        for ind, t, lo, hi, st in sex_rules:
+        for ind, t, annual, st in sex_rules:
             rules.append({'bu': bu, 'position': '', 'level': '', 'dimension': '性别',
-                          'indicator': ind, 'target': t, 'lo': lo, 'hi': hi, 'strength': st})
+                          'indicator': ind, 'year': year, 'target': t, 'strength': st,
+                          'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
     return rules
-
-
-def build_headcounts(year: int = 2026) -> list:
-    """构建全部人数目标（calc 用 dict 列表）。"""
-    out = []
-    for dim, inds in [('院校标签', SCHOOLS), ('专业标签', MAJORS)]:
-        for ind in inds:
-            annual = _INDICATOR_ANNUAL.get(ind, 0)
-            out.append({'bu': '', 'position': '', 'level': '', 'indicator': ind, 'dimension': dim,
-                        'year': year, 'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
-    for bu in DEPTS:
-        for ind in SEXES:
-            annual = _SEX_ANNUAL.get(ind, 0)
-            out.append({'bu': bu, 'position': '', 'level': '', 'indicator': ind, 'dimension': '性别',
-                        'year': year, 'annual_target': annual, 'monthly_targets': _monthly_from_annual(annual)})
-    return out

@@ -31,14 +31,14 @@ from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 
-from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums, distinct_scope_keys
+from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
 from .constants import STRENGTH
 from .models import (
-    ControlDimension, ControlIndicator, ControlRule, ControlHeadcount, Person,
+    ControlDimension, ControlIndicator, ControlRule, Person,
 )
 from .serializers import (
     ControlDimensionSerializer, ControlIndicatorSerializer,
-    ControlRuleSerializer, ControlHeadcountSerializer, PersonSerializer, _to_decimal,
+    ControlRuleSerializer, PersonSerializer, _to_decimal,
 )
 
 
@@ -59,10 +59,11 @@ def _rule_to_dict(r):
         'level': r.level or '',
         'dimension': r.dimension.name,
         'indicator': r.indicator.name,
+        'year': r.year,
         'target': float(r.target),
-        'lo': float(r.lo),
-        'hi': float(r.hi),
         'strength': r.strength,
+        'annual_target': r.annual_target,
+        'monthly_targets': list(r.monthly_targets) if isinstance(r.monthly_targets, (list, tuple)) else [0] * 12,
     }
 
 
@@ -77,19 +78,6 @@ def _person_to_dict(p):
         'counted': p.counted,
         'position': p.position or '',
         'level': p.level or '',
-    }
-
-
-def _headcount_to_dict(h):
-    return {
-        'bu': h.bu or '',
-        'position': h.position or '',
-        'level': h.level or '',
-        'indicator': h.indicator.name,
-        'dimension': h.indicator.dimension.name,
-        'year': h.year,
-        'annual_target': h.annual_target,
-        'monthly_targets': list(h.monthly_targets) if isinstance(h.monthly_targets, (list, tuple)) else [0] * 12,
     }
 
 
@@ -154,14 +142,20 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='ratio')
     def ratio(self, request):
-        """实时看板：展示全部规则（每条按自身适用范围独立计算）+ 各适用范围的 100% 加和。"""
+        """实时看板：展示全部规则（每条按自身适用范围独立计算）+ 各(适用范围,年度)的 100% 加和。"""
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
         persons = [_person_to_dict(p) for p in Person.objects.all()]
         result = compute_ratio(persons, rules)
         sums = []
-        for sk in distinct_scope_keys(rules):
-            for s in check_dimension_sums(rules, sk):
-                sums.append({'bu': sk[0], 'position': sk[1], 'level': sk[2], **s})
+        seen = set()
+        for r in rules:
+            sk = (r['bu'], r['position'], r['level'])
+            yk = (sk, r.get('year'))
+            if yk in seen:
+                continue
+            seen.add(yk)
+            for s in check_dimension_sums(rules, sk, r.get('year')):
+                sums.append({'bu': sk[0], 'position': sk[1], 'level': sk[2], 'year': r.get('year'), **s})
         return Response({
             'success': True,
             'data': {
@@ -173,17 +167,16 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='plan')
     def plan(self, request):
-        """人数规划：展示全部目标（每条按自身适用范围独立计算）。"""
+        """人数规划：展示全部规则的人数目标（每条按自身适用范围独立计算）。"""
         year = request.query_params.get('year')
         month = request.query_params.get('month')
         if not month:
             return Response({'success': False, 'detail': '缺少 month 参数'}, status=400)
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
         persons = [_person_to_dict(p) for p in Person.objects.all()]
-        headcounts = [_headcount_to_dict(h) for h in ControlHeadcount.objects.all()]
         year = int(year) if year else 2026
-        rows = compute_count(persons, rules, headcounts, year, month)
-        k = kpi(persons, rules, headcounts, year, month)
+        rows = compute_count(persons, rules, year, month)
+        k = kpi(persons, rules, year, month)
         return Response({
             'success': True,
             'data': {'rows': _jsonify(rows), 'kpi': _jsonify(k), 'year': year},
@@ -198,22 +191,23 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             return Response({'success': False, 'detail': f'缺少字段：{",".join(missing)}'}, status=400)
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
         persons = [_person_to_dict(p) for p in Person.objects.all()]
-        headcounts = [_headcount_to_dict(h) for h in ControlHeadcount.objects.all()]
         year = request.query_params.get('year')
         year = int(year) if year else 2026
-        result = simulate(draft, rules, persons, headcounts, year, month=draft.get('month'))
+        result = simulate(draft, rules, persons, year, month=draft.get('month'))
         return Response({'success': True, 'data': _jsonify(result)})
 
     @action(detail=False, methods=['post'], url_path='batch')
     def batch(self, request):
-        """批量保存某 (bu, position, level, dimension) 下全部规则（原子替换）。
+        """批量保存某 (bu, position, level, dimension, year) 下全部规则（原子替换）。
 
         硬校验「目标占比加和 == 100%」，不等于 100% 直接 400；通过则事务内删除旧规则重建。
+        v2.4：取消上下限；人数目标（annual_target / monthly_targets）默认 0，可在规则中单独编辑。
         """
         bu = request.data.get('bu', '') or ''
         position = request.data.get('position', '') or ''
         level = request.data.get('level', '') or ''
         dimension_id = request.data.get('dimension')
+        year = int(request.data.get('year') or 2026)
         rules = request.data.get('rules')
         if not dimension_id:
             return Response({'success': False, 'detail': '缺少 dimension 参数'}, status=400)
@@ -236,17 +230,15 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             if indicator_id in seen:
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 重复提交'}, status=400)
             target = _to_decimal(r.get('target'))
-            lo = _to_decimal(r.get('lo'))
-            hi = _to_decimal(r.get('hi'))
             strength = r.get('strength', '硬约束')
-            if None in (target, lo, hi):
-                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标/下限/上限必填且为数值'}, status=400)
-            if not (Decimal('0') <= lo <= target <= hi <= Decimal('1')):
-                return Response({'success': False, 'detail': f'指标 {indicator.name} 需满足 0<=下限<=目标<=上限<=1'}, status=400)
+            if target is None:
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比必填且为数值'}, status=400)
+            if not (Decimal('0') <= target <= Decimal('1')):
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比须满足 0<=目标<=1'}, status=400)
             if strength not in STRENGTH:
                 return Response({'success': False, 'detail': f'控制强度非法：{strength}'}, status=400)
             total += target
-            prepared.append((indicator, target, lo, hi, strength))
+            prepared.append((indicator, target, strength))
             seen.add(indicator_id)
 
         if abs(total - Decimal('1')) > Decimal('0.0001'):
@@ -257,11 +249,11 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             }, status=400)
 
         with transaction.atomic():
-            ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension).delete()
-            for indicator, target, lo, hi, strength in prepared:
+            ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
+            for indicator, target, strength in prepared:
                 ControlRule.objects.create(
                     bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
-                    target=target, lo=lo, hi=hi, strength=strength,
+                    year=year, target=target, strength=strength,
                     created_by=request.user, updated_by=request.user,
                 )
         return Response({'success': True, 'data': {'saved': len(prepared)}})
@@ -270,11 +262,11 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     def with_targets(self, request):
         """批量配置规则 + 人数目标（一次性原子操作）。
 
-        入参: { bu, position, level, dimension, year, totalTarget, rules: [{indicator, target, lo, hi, strength}] }
-        行为:
-          - 校验 100% 加和 + 0<=lo<=target<=hi<=1 + indicator∈dimension
-          - 事务内: 删除该(适用范围, 维度)旧规则 → 创建新规则
-          - 为每条规则 upsert headcount(annual=round(totalTarget×target), monthly 留 0，保留 created_by)
+        入参: { bu, position, level, dimension, year, totalTarget, rules: [{indicator, target, strength}] }
+        行为（v2.4）：取消上下限；人数目标直接承载于规则上。
+          - 校验 100% 加和 + 0<=target<=1 + indicator∈dimension
+          - 事务内: 删除该(适用范围, 维度, 年度)旧规则 → 创建新规则
+          - 每条规则写入 annual_target=round(totalTarget×target)、monthly_targets=[0]*12
         """
         bu = request.data.get('bu', '') or ''
         position = request.data.get('position', '') or ''
@@ -316,17 +308,15 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             if not indicator:
                 return Response({'success': False, 'detail': f'指标 {indicator_id} 不属于该维度'}, status=400)
             target = _to_decimal(r.get('target'))
-            lo = _to_decimal(r.get('lo'))
-            hi = _to_decimal(r.get('hi'))
             strength = r.get('strength', '硬约束')
-            if None in (target, lo, hi):
-                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标/下限/上限必填且为数值'}, status=400)
-            if not (Decimal('0') <= lo <= target <= hi <= Decimal('1')):
-                return Response({'success': False, 'detail': f'指标 {indicator.name} 需满足 0<=下限<=目标<=上限<=1'}, status=400)
+            if target is None:
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比必填且为数值'}, status=400)
+            if not (Decimal('0') <= target <= Decimal('1')):
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比须满足 0<=目标<=1'}, status=400)
             if strength not in STRENGTH:
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 控制强度非法'}, status=400)
             total += target
-            prepared.append((indicator, target, lo, hi, strength))
+            prepared.append((indicator, target, strength))
 
         if abs(total - Decimal('1')) > Decimal('0.0001'):
             pct = (total * 100).quantize(Decimal('0.01'))
@@ -336,64 +326,20 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             }, status=400)
 
         with transaction.atomic():
-            # 删除该 (适用范围, 维度) 旧规则
-            ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension).delete()
-            indicator_ids = []
-            for indicator, target, lo, hi, strength in prepared:
+            # 删除该 (适用范围, 维度, 年度) 旧规则
+            ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
+            for indicator, target, strength in prepared:
+                annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
                 ControlRule.objects.create(
                     bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
-                    target=target, lo=lo, hi=hi, strength=strength,
+                    year=year, target=target, strength=strength,
+                    annual_target=annual, monthly_targets=[0] * 12,
                     created_by=request.user, updated_by=request.user,
                 )
-                indicator_ids.append(indicator.id)
-            # upsert headcount (annual = totalTarget * target，monthly 留 0，保留 created_by)
-            existing_hcs = {
-                (h.indicator_id, h.year): h for h in ControlHeadcount.objects.filter(
-                    bu=bu, position=position, level=level, indicator_id__in=indicator_ids, year=year,
-                )
-            }
-            for indicator, target, lo, hi, strength in prepared:
-                annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
-                key = (indicator.id, year)
-                if key in existing_hcs:
-                    hc = existing_hcs[key]
-                    hc.annual_target = annual
-                    hc.monthly_targets = [0]*12
-                    hc.updated_by = request.user
-                    hc.save()
-                else:
-                    ControlHeadcount.objects.create(
-                        bu=bu, position=position, level=level, indicator=indicator, year=year,
-                        annual_target=annual, monthly_targets=[0]*12,
-                        created_by=request.user, updated_by=request.user,
-                    )
         return Response({
             'success': True,
             'data': {'saved': len(prepared), 'totalTarget': total_target, 'year': year},
         })
-
-
-class ControlHeadcountViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
-    queryset = ControlHeadcount.objects.all()
-    serializer_class = ControlHeadcountSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
-
-    def get_queryset(self):
-        qs = ControlHeadcount.objects.all()
-        bu = self.request.query_params.get('bu')
-        position = self.request.query_params.get('position')
-        level = self.request.query_params.get('level')
-        year = self.request.query_params.get('year')
-        if bu is not None:
-            qs = qs.filter(bu=bu)
-        if position is not None:
-            qs = qs.filter(position=position)
-        if level is not None:
-            qs = qs.filter(level=level)
-        if year:
-            qs = qs.filter(year=year)
-        return qs
 
 
 class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):

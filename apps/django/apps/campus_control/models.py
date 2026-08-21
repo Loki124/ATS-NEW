@@ -1,10 +1,12 @@
-"""人员比例管控系统 v2.1 — 数据模型（规则/目标直接携带适用范围）。
+"""人员比例管控系统 v2.4 — 数据模型（管控人数直接承载于规则上）。
 
 建模层次：
   ControlDimension  维度（院校标签/专业标签/性别），可单独配置。
   ControlIndicator  指标（关联维度，如 985 / 男 / 工学）。
-  ControlRule       管控规则：适用范围(bu/position/level) + 维度 + 指标 -> 目标占比/上下限/强度。
-  ControlHeadcount  人数目标：适用范围(bu/position/level) + 指标 + 年度 -> 年度目标 + 12 个月目标。
+  ControlRule       管控规则 + 人数目标（单一事实来源）：
+                    适用范围(bu/position/level) + 维度 + 指标 + 年度
+                    -> 目标占比 / 控制强度 / 年度目标人数 / 12 个月目标。
+                    （取消原上下限 lo/hi 配置；取消独立的人数目标表 ControlHeadcount）
 
 适用范围语义：bu / position / level 三者均空 = 「全局」（不限定）；否则按部门/职务/职级过滤。
 Person 的 position（职务）/ level（职级）用于命中指定范围。
@@ -62,11 +64,12 @@ class ControlIndicator(FullAuditModel, UUIDModel):
 
 
 class ControlRule(FullAuditModel, UUIDModel):
-    """管控规则：适用范围 + 维度 + 指标 -> 目标占比/上下限/强度。
+    """管控规则 + 人数目标（单一事实来源）。
 
     适用范围：bu / position / level 均空 = 全局；否则按部门/职务/职级过滤。
-    同一 (bu, position, level, dimension) 下所有 indicator 的 target 之和必须 == 1.0（100%），
-    由批量保存端点硬校验（见 views.batch）。
+    同一 (bu, position, level, dimension, year) 下所有 indicator 的 target 之和必须 == 1.0（100%），
+    由批量保存端点硬校验（见 views.batch / views.with_targets）。
+    人数目标（年度 + 12 个月）直接承载于规则上（指标层），取消独立 ControlHeadcount 表。
     """
 
     # 适用范围（全空 = 全局）
@@ -89,60 +92,28 @@ class ControlRule(FullAuditModel, UUIDModel):
     indicator = models.ForeignKey(
         ControlIndicator, on_delete=models.CASCADE, related_name='rules', verbose_name='指标'
     )
+    # 规划年度（人数目标所属年）；同 (适用范围, 维度, 指标, 年度) 唯一
+    year = models.IntegerField(default=2026, verbose_name='规划年度')
     # 占比以小数存储（0~1）；前端以百分比输入后 ÷100
     target = models.DecimalField(max_digits=6, decimal_places=4, verbose_name='目标占比')
-    lo = models.DecimalField(max_digits=6, decimal_places=4, verbose_name='下限占比')
-    hi = models.DecimalField(max_digits=6, decimal_places=4, verbose_name='上限占比')
     strength = models.CharField(
         max_length=16, choices=[(s, s) for s in STRENGTH],
         default='硬约束', verbose_name='控制强度'
     )
-
-    class Meta:
-        verbose_name = '管控规则'
-        verbose_name_plural = '管控规则'
-        unique_together = [('bu', 'position', 'level', 'dimension', 'indicator')]
-        ordering = ['bu', 'position', 'level', 'dimension', 'indicator']
-
-    def __str__(self):
-        scope = self.bu or '全局'
-        return f'[{scope}]·{self.dimension.name}·{self.indicator.name}'
-
-
-class ControlHeadcount(FullAuditModel, UUIDModel):
-    """人数目标：适用范围 + 指标 + 年度 -> 年度目标 + 12 个月目标（指标层）。"""
-
-    # 适用范围（全空 = 全局）
-    bu = models.CharField(
-        max_length=16, blank=True, default='',
-        choices=[(d, d) for d in DEPTS], verbose_name='部门'
-    )
-    position = models.CharField(
-        max_length=32, blank=True, default='',
-        choices=[(p, p) for p in POSITIONS], verbose_name='职务'
-    )
-    level = models.CharField(
-        max_length=32, blank=True, default='',
-        choices=[(l, l) for l in LEVELS], verbose_name='职级'
-    )
-
-    indicator = models.ForeignKey(
-        ControlIndicator, on_delete=models.CASCADE, related_name='headcounts', verbose_name='指标'
-    )
-    year = models.IntegerField(verbose_name='所属年度')
+    # 人数目标（管控人数）：年度目标 + 12 个月目标（指标层）
     annual_target = models.IntegerField(default=0, verbose_name='年度目标人数')
     # 长度 12，下标 0=1月 .. 11=12月
     monthly_targets = models.JSONField(default=_default_monthly, verbose_name='12个月目标')
 
     class Meta:
-        verbose_name = '人数目标'
-        verbose_name_plural = '人数目标'
-        unique_together = [('bu', 'position', 'level', 'indicator', 'year')]
-        ordering = ['bu', 'position', 'level', 'indicator', 'year']
+        verbose_name = '管控规则'
+        verbose_name_plural = '管控规则'
+        unique_together = [('bu', 'position', 'level', 'dimension', 'indicator', 'year')]
+        ordering = ['bu', 'position', 'level', 'dimension', 'indicator', 'year']
 
     def __str__(self):
         scope = self.bu or '全局'
-        return f'[{scope}]·{self.indicator.name}·{self.year}'
+        return f'[{scope}]·{self.dimension.name}·{self.indicator.name}·{self.year}'
 
 
 class Person(FullAuditModel, UUIDModel):

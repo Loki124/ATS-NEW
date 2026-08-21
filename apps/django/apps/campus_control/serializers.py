@@ -1,10 +1,10 @@
-"""人员比例管控系统 v2.1 — 序列化器与校验。
+"""人员比例管控系统 v2.4 — 序列化器与校验。
 
 校验要点：
-- Rule：(bu, position, level, dimension, indicator) 唯一；indicator 须属于 dimension；
-  lo<=target<=hi 且 0~1；单条编辑仅拦「超 100%」（防溢出），恰好 ==100% 由批量端点强制。
-- Headcount：(bu, position, level, indicator, year) 唯一；monthly_targets 归一到长度 12。
+- Rule：(bu, position, level, dimension, indicator, year) 唯一；indicator 须属于 dimension；
+  target 0~1；年/月人数目标归一；单条编辑仅拦「超 100%」（防溢出），恰好 ==100% 由批量端点强制。
 - 适用范围：bu/position/level 均可空（空 = 不限 / 全局）。
+- 取消原 lo/hi 上下限配置；人数目标（annual_target / monthly_targets）直接承载于规则。
 """
 from decimal import Decimal, InvalidOperation
 
@@ -14,7 +14,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .constants import DEPTS, SCHOOLS, MAJORS, SEXES, STRENGTH, STATUS, POSITIONS, LEVELS
 from .models import (
-    ControlDimension, ControlIndicator, ControlRule, ControlHeadcount, Person,
+    ControlDimension, ControlIndicator, ControlRule, Person,
 )
 
 
@@ -99,7 +99,8 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         model = ControlRule
         fields = [
             'id', 'bu', 'position', 'level', 'dimension', 'dimension_name',
-            'indicator', 'indicator_name', 'target', 'lo', 'hi', 'strength',
+            'indicator', 'indicator_name', 'year', 'target', 'strength',
+            'annual_target', 'monthly_targets',
             'created_by_name', 'created_at', 'updated_by_name', 'updated_at',
         ]
         read_only_fields = [
@@ -136,12 +137,10 @@ class ControlRuleSerializer(serializers.ModelSerializer):
             raise DRFValidationError({'indicator': ['指标不属于所选维度']})
 
         target = _to_decimal(attrs.get('target'))
-        lo = _to_decimal(attrs.get('lo'))
-        hi = _to_decimal(attrs.get('hi'))
-        if None in (target, lo, hi):
-            raise DRFValidationError({'target': ['目标/下限/上限必填且为数值']})
-        if not (Decimal('0') <= lo <= target <= hi <= Decimal('1')):
-            raise DRFValidationError({'lo': ['需满足 0 <= 下限 <= 目标 <= 上限 <= 1']})
+        if target is None:
+            raise DRFValidationError({'target': ['目标占比必填且为数值']})
+        if not (Decimal('0') <= target <= Decimal('1')):
+            raise DRFValidationError({'target': ['目标占比须满足 0 <= 目标 <= 1']})
         strength = attrs.get('strength')
         if strength is None and self.instance:
             strength = self.instance.strength
@@ -152,17 +151,48 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         position = attrs.get('position') or ''
         level = attrs.get('level') or ''
 
-        # 唯一 (bu, position, level, dimension, indicator)，排除自身
+        # year 默认当前规划年
+        year = attrs.get('year')
+        if year is None:
+            year = self.instance.year if self.instance else 2026
+        try:
+            year = int(year)
+        except (TypeError, ValueError):
+            raise DRFValidationError({'year': ['规划年度须为整数']})
+        attrs['year'] = year
+
+        # 人数目标归一
+        at = attrs.get('annual_target')
+        if at is None and self.instance:
+            at = self.instance.annual_target
+        try:
+            attrs['annual_target'] = max(int(at or 0), 0)
+        except (TypeError, ValueError):
+            raise DRFValidationError({'annualTarget': ['年度目标须为整数']})
+        mt = attrs.get('monthly_targets')
+        if mt is None and self.instance:
+            mt = self.instance.monthly_targets
+        norm = [0] * 12
+        if isinstance(mt, (list, tuple)):
+            for i in range(12):
+                v = mt[i] if i < len(mt) else 0
+                try:
+                    norm[i] = max(int(v), 0)
+                except (ValueError, TypeError):
+                    norm[i] = 0
+        attrs['monthly_targets'] = norm
+
+        # 唯一 (bu, position, level, dimension, indicator, year)，排除自身
         qs = ControlRule.objects.filter(
-            bu=bu, position=position, level=level, dimension=dimension, indicator=indicator
+            bu=bu, position=position, level=level, dimension=dimension, indicator=indicator, year=year
         )
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise DRFValidationError({'indicator': ['该适用范围-维度-指标组合已存在，请直接编辑']})
+            raise DRFValidationError({'indicator': ['该适用范围-维度-指标-年度组合已存在，请直接编辑']})
 
         # 单条编辑仅拦「超 100%」（防溢出）；恰好 ==100% 由批量端点强制
-        existing = ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension)
+        existing = ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year)
         if self.instance is not None:
             existing = existing.exclude(pk=self.instance.pk)
         s = sum((r.target for r in existing), Decimal('0')) + target
@@ -173,64 +203,6 @@ class ControlRuleSerializer(serializers.ModelSerializer):
             })
 
         attrs['target'] = target
-        attrs['lo'] = lo
-        attrs['hi'] = hi
-        return attrs
-
-
-class ControlHeadcountSerializer(serializers.ModelSerializer):
-    dimension_name = serializers.SerializerMethodField()
-    indicator_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ControlHeadcount
-        fields = [
-            'id', 'bu', 'position', 'level', 'indicator', 'indicator_name',
-            'dimension_name', 'year', 'annual_target', 'monthly_targets',
-            'created_at', 'updated_at',
-        ]
-        read_only_fields = [
-            'id', 'indicator_name', 'dimension_name', 'created_at', 'updated_at',
-        ]
-
-    def get_indicator_name(self, obj):
-        return obj.indicator.name if obj.indicator_id else ''
-
-    def get_dimension_name(self, obj):
-        return obj.indicator.dimension.name if obj.indicator_id else ''
-
-    def validate(self, attrs):
-        _validate_scope_fields(attrs)
-
-        indicator = attrs.get('indicator')
-        year = attrs.get('year')
-        if not (indicator and year):
-            raise DRFValidationError({'indicator': ['指标 / 年度 均必填']})
-
-        bu = attrs.get('bu') or ''
-        position = attrs.get('position') or ''
-        level = attrs.get('level') or ''
-
-        qs = ControlHeadcount.objects.filter(
-            bu=bu, position=position, level=level, indicator=indicator, year=year
-        )
-        if self.instance is not None:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise DRFValidationError({'year': ['该适用范围-指标-年度的人数目标已存在，请直接编辑']})
-
-        mt = attrs.get('monthly_targets')
-        norm = [0] * 12
-        if isinstance(mt, (list, tuple)):
-            for i in range(12):
-                v = mt[i] if i < len(mt) else 0
-                try:
-                    norm[i] = max(int(v), 0)
-                except (ValueError, TypeError):
-                    norm[i] = 0
-        attrs['monthly_targets'] = norm
-        at = attrs.get('annual_target')
-        attrs['annual_target'] = max(int(at or 0), 0)
         return attrs
 
 
@@ -285,5 +257,5 @@ class PersonSerializer(serializers.ModelSerializer):
 
 __all__ = [
     'ControlDimensionSerializer', 'ControlIndicatorSerializer',
-    'ControlRuleSerializer', 'ControlHeadcountSerializer', 'PersonSerializer', 'IntegrityError',
+    'ControlRuleSerializer', 'PersonSerializer', 'IntegrityError',
 ]

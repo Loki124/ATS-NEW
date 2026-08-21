@@ -1,5 +1,5 @@
 /**
- * 校招管控（人员比例管控系统）v2.2 API。
+ * 校招管控（人员比例管控系统）v2.4 API。
  * 后端挂 /api/v1/campus/，camelCase 自动转换。
  *
  * 响应契约：
@@ -7,10 +7,15 @@
  *  - 新建/更新（POST/PUT 单对象）→ 裸 camelCase 对象
  *  - @action（ratio/plan/validate/batch）→ 信封 { success, data }（或 400 { success:false, detail }）
  *  - 删除 → 204
- *  - Decimal 字段（target/lo/hi）序列化为字符串，本封装统一转 number
+ *  - Decimal 字段（target）序列化为字符串，本封装统一转 number
  *
- * v2.2：适用范围（bu/position/level，全空 = 全局）是每条规则/目标的独立属性；
- *       看板/规划展示全量（每条按自身适用范围计算），不再有全局适用范围筛选。
+ * v2.4：
+ *  - 取消上下限（lo/hi）配置，以 target 为管控上限。
+ *  - 管控人数（年度 annualTarget + 12 个月度 monthlyTargets）承载于规则（ControlRule）上，
+ *    不再有独立的 ControlHeadcount 表；人数规划的目标数据直接来自规则。
+ *  - 适用范围（bu/position/level，全空 = 全局）是每条规则的独立属性；
+ *    看板/规划展示全量（每条按自身适用范围计算）。
+ *  - 规则新增 year 维度键（unique_together 含 year）。
  */
 import axios from 'axios'
 import config from '../config'
@@ -70,6 +75,7 @@ export interface ControlIndicator {
   updatedAt?: string
 }
 
+/** 管控规则：自带适用范围、占比 target（管控上限）、以及该指标在该适用范围下的管控人数。 */
 export interface ControlRule {
   id: string
   bu: string
@@ -79,28 +85,14 @@ export interface ControlRule {
   dimensionName: string
   indicator: string
   indicatorName: string
-  target: number // 0~1
-  lo: number
-  hi: number
+  year: number
+  target: number // 0~1，占比管控上限
   strength: Strength
+  annualTarget: number // 年度管控人数
+  monthlyTargets: number[] // 12 个月度管控人数
   createdByName?: string
   createdAt?: string
   updatedByName?: string
-  updatedAt?: string
-}
-
-export interface ControlHeadcount {
-  id: string
-  bu: string
-  position: string
-  level: string
-  indicator: string
-  indicatorName: string
-  dimensionName: string
-  year: number
-  annualTarget: number
-  monthlyTargets: number[] // 长度 12
-  createdAt?: string
   updatedAt?: string
 }
 
@@ -129,9 +121,7 @@ export interface RatioRow {
   denom: number
   ratio: number
   target: number
-  lo: number
-  hi: number
-  status: '正常' | '低于下限' | '高于上限'
+  status: '正常' | '高于上限'
   strength: Strength
 }
 
@@ -188,7 +178,7 @@ export interface ValidationCheck {
   level: string
   strength: Strength
   ratio: number
-  ratioStatus: '正常' | '低于下限' | '高于上限'
+  ratioStatus: '正常' | '高于上限'
   monthActual: number
   monthTarget: number
   countStatus: '本月达标' | '缺口未达成' | '未设目标'
@@ -230,15 +220,23 @@ export interface RuleInput {
   level: string
   dimension: string
   indicator: string
-  target: number // 0~1
-  lo: number
-  hi: number
+  year: number
+  target: number // 0~1，占比管控上限
   strength: Strength
+  annualTarget: number // 年度管控人数
+  monthlyTargets: number[] // 12 个月度管控人数
 }
 
-const ruleToNum = (x: any): ControlRule => ({ ...x, target: num(x.target), lo: num(x.lo), hi: num(x.hi) })
+const ruleToNum = (x: any): ControlRule => ({
+  ...x,
+  target: num(x.target),
+  annualTarget: num(x.annualTarget),
+  monthlyTargets: Array.isArray(x.monthlyTargets) && x.monthlyTargets.length === 12
+    ? x.monthlyTargets.map((v: any) => Number(v))
+    : Array(12).fill(0),
+})
 
-/** 全部规则（每条自带适用范围）。 */
+/** 全部规则（每条自带适用范围 + 管控人数）。 */
 export const listRules = () =>
   api.get('/campus/rules/', { params: { page_size: 200 } }).then((r) => listData<ControlRule>(r).map(ruleToNum))
 
@@ -251,8 +249,6 @@ export const deleteRule = (id: string) => api.delete(`/campus/rules/${id}/`).the
 export interface RuleDraft {
   indicator: string
   target: number // 0~1
-  lo: number
-  hi: number
   strength: Strength
 }
 
@@ -282,7 +278,7 @@ export const batchConfigRules = (payload: BatchConfigPayload) =>
 export const getRatio = () =>
   api.get('/campus/rules/ratio/').then((r) => r.data.data as RatioResult)
 
-/* ============================ 人数规划（全量） ============================ */
+/* ============================ 人数规划（全量，目标数据来自规则） ============================ */
 export const getPlan = (year: number, month: string) =>
   api.get('/campus/rules/plan/', { params: { year, month } }).then((r) => r.data.data as PlanResult)
 
@@ -295,29 +291,6 @@ export const validateDraft = (
     .post('/campus/rules/validate/', draft, { params: { year } })
     .then((r) => r.data.data as ValidationResult)
 
-/* ============================ 人数目标 ============================ */
-export const listHeadcounts = (year: number) =>
-  api.get('/campus/headcounts/', { params: { page_size: 200, year } }).then((r) =>
-    listData<ControlHeadcount>(r).map((x) => ({
-      ...x,
-      monthlyTargets: Array.isArray(x.monthlyTargets) && x.monthlyTargets.length === 12 ? x.monthlyTargets : Array(12).fill(0),
-    })),
-  )
-export const upsertHeadcount = (
-  h: Partial<ControlHeadcount> & { bu: string; position: string; level: string; indicator: string; year: number; annualTarget: number; monthlyTargets: number[] },
-) => {
-  const payload = {
-    bu: h.bu ?? '', position: h.position ?? '', level: h.level ?? '',
-    indicator: h.indicator,
-    year: h.year,
-    annualTarget: Number(h.annualTarget),
-    monthlyTargets: h.monthlyTargets.map((v) => Number(v)),
-  }
-  if (h.id) return api.put(`/campus/headcounts/${h.id}/`, payload).then((r) => r.data as ControlHeadcount)
-  return api.post('/campus/headcounts/', payload).then((r) => r.data as ControlHeadcount)
-}
-export const deleteHeadcount = (id: string) => api.delete(`/campus/headcounts/${id}/`).then((r) => r.data)
-
 /* ============================ 人员主数据 ============================ */
 export const listPersons = () =>
   api.get('/campus/persons/', { params: { page_size: 200 } }).then((r) => listData<Person>(r))
@@ -327,7 +300,7 @@ export const upsertPerson = (p: Partial<Person> & { code: string; name: string; 
     month: p.month, status: p.status, position: p.position ?? '', level: p.level ?? '', counted: p.counted ?? true,
   }
   if (p.id) return api.put(`/campus/persons/${p.id}/`, payload).then((r) => r.data as Person)
-  return api.post('/campus/persons/', payload).then((r) => r.data as Person)
+  return api.post(`/campus/persons/`, payload).then((r) => r.data as Person)
 }
 export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`).then((r) => r.data)
 
@@ -336,6 +309,5 @@ export default {
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, createRule, updateRule, deleteRule, batchSaveRules, batchConfigRules,
   getRatio, getPlan, validateDraft,
-  listHeadcounts, upsertHeadcount, deleteHeadcount,
   listPersons, upsertPerson, deletePerson,
 }
