@@ -77,7 +77,7 @@
           <div class="toolbar">
             <n-select v-model:value="ruleDimFilter" :options="ruleDimOptions" placeholder="全部维度" clearable style="width: 180px" />
             <div class="spacer"></div>
-            <n-button type="primary" class="gradient-btn" @click="openRuleDrawer()">+ 新增规则</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openBatchDrawer()">+ 批量配置规则 + 目标</n-button>
           </div>
           <n-data-table
             :columns="ruleColumns"
@@ -213,6 +213,71 @@
       </n-drawer-content>
     </n-drawer>
 
+    <!-- ===================== 批量配置规则 + 人数目标抽屉 ===================== -->
+    <n-drawer v-model:show="batchDrawer.show" :width="640" placement="right">
+      <n-drawer-content title="批量配置规则 + 人数目标" closable>
+        <n-form label-placement="top">
+          <n-form-item label="维度" required>
+            <n-select v-model:value="batchDrawer.dimensionId" :options="dimensionOptions" placeholder="先选维度" @update:value="onBatchDimChange" />
+          </n-form-item>
+          <n-divider>适用范围（每个指标的适用范围独立配置）</n-divider>
+          <n-form-item label="适用范围">
+            <n-switch v-model:value="batchDrawer.isGlobal">
+              <template #checked>全局</template>
+              <template #unchecked>指定</template>
+            </n-switch>
+          </n-form-item>
+          <n-form-item v-if="!batchDrawer.isGlobal" label="部门">
+            <n-select v-model:value="batchDrawer.bu" :options="deptOptions" placeholder="部门" />
+          </n-form-item>
+          <n-form-item v-if="!batchDrawer.isGlobal" label="职务">
+            <n-select v-model:value="batchDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
+          </n-form-item>
+          <n-form-item v-if="!batchDrawer.isGlobal" label="职级">
+            <n-select v-model:value="batchDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
+          </n-form-item>
+          <n-divider>总人数 → 各指标人数</n-divider>
+          <n-grid :cols="2" :x-gap="12">
+            <n-gi><n-form-item label="年度"><n-input-number v-model:value="batchDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
+            <n-gi><n-form-item label="年度总人数（管控人数）"><n-input-number v-model:value="batchDrawer.totalTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
+          </n-grid>
+          <n-divider>指标与占比（占比之和 = 100%）</n-divider>
+          <div v-if="!batchDrawer.dimensionId" style="color: #94a3b8; padding: 12px 0;">请先选择维度</div>
+          <div v-else-if="batchIndicators.length === 0" style="color: #94a3b8; padding: 12px 0;">该维度下暂无指标，请先到「指标管理」新增</div>
+          <div v-else>
+            <div v-for="ind in batchIndicators" :key="ind.id" class="batch-row">
+              <n-checkbox :checked="batchDrawer.indicatorIds.includes(ind.id)" @update:checked="(v: boolean) => onBatchIndicatorToggle(ind, v)">
+                <span style="font-weight: 500;">{{ ind.name }}</span>
+              </n-checkbox>
+              <span v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-row-controls">
+                <span class="batch-row-label">占比%</span>
+                <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 86px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
+                <span class="batch-row-label">下限%</span>
+                <n-input-number :value="batchDrawer.rows[ind.id]?.loPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 78px" @update:value="(v: number | null) => setBatchRow(ind.id, 'loPct', v || 0)" />
+                <span class="batch-row-label">上限%</span>
+                <n-input-number :value="batchDrawer.rows[ind.id]?.hiPct || 100" :min="0" :max="100" :step="0.5" size="small" style="width: 78px" @update:value="(v: number | null) => setBatchRow(ind.id, 'hiPct', v || 100)" />
+                <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 100px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
+                <span class="batch-row-annual">管控 {{ batchIndicatorAnnual(ind.id) }} 人</span>
+              </span>
+            </div>
+            <div class="batch-sum">
+              <span class="batch-row-label">占比之和：</span>
+              <n-tag :type="batchSumOk ? 'success' : 'warning'" :bordered="false">
+                {{ batchSumPct.toFixed(1) }}% {{ batchSumOk ? '✓ = 100%' : '⚠ 需 = 100%' }}
+              </n-tag>
+              <span v-if="!batchSumOk" class="batch-row-label">（差 {{ (100 - batchSumPct).toFixed(1) }}%）</span>
+            </div>
+          </div>
+        </n-form>
+        <template #footer>
+          <div class="drawer-footer">
+            <n-button @click="batchDrawer.show = false">取消</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="loading.batchConfig" :disabled="!batchSumOk || batchDrawer.indicatorIds.length === 0" @click="saveBatchConfig">保存</n-button>
+          </div>
+        </template>
+      </n-drawer-content>
+    </n-drawer>
+
     <!-- ===================== 维度管理抽屉 ===================== -->
     <n-drawer v-model:show="dimDrawer.show" :width="520" placement="right">
       <n-drawer-content title="维度管理" closable>
@@ -312,7 +377,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import {
-  NTag, NButton, NSwitch, NDivider, NDrawer, NDrawerContent,
+  NTag, NButton, NSwitch, NCheckbox, NDivider, NDrawer, NDrawerContent,
   NInputNumber, NSelect, NInput, NEmpty, NAlert,
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
@@ -320,14 +385,14 @@ import { extractApiError } from '../../api/dynamic-field'
 import {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
-  listRules, createRule, updateRule, deleteRule,
+  listRules, createRule, updateRule, deleteRule, batchConfigRules,
   getRatio, getPlan, validateDraft,
   listHeadcounts, upsertHeadcount,
   listPersons, upsertPerson, deletePerson,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule, type ControlHeadcount,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
-  type ValidationResult, type Strength, type RuleInput,
+  type ValidationResult, type Strength, type RuleInput, type BatchConfigPayload,
 } from '../../api/campusControl'
 
 const message = useMessage()
@@ -361,7 +426,7 @@ const scopeText = (bu: string, position: string, level: string) => {
 /* ============================ 全局状态 ============================ */
 const activeTab = ref('ratio')
 const loading = reactive({
-  ratio: false, plan: false, rules: false, saveRule: false,
+  ratio: false, plan: false, rules: false, saveRule: false, batchConfig: false,
   dimensions: false, indicators: false, persons: false, validate: false,
 })
 const dimensions = ref<ControlDimension[]>([])
@@ -683,6 +748,124 @@ function removeRule(r: ControlRule) {
   })
 }
 
+/* ============================ 批量配置规则 + 人数目标 ============================ */
+interface BatchRow {
+  targetPct: number
+  loPct: number
+  hiPct: number
+  strength: Strength
+}
+const batchDrawer = reactive({
+  show: false,
+  dimensionId: '' as string | null,
+  indicatorIds: [] as string[],
+  isGlobal: true,
+  bu: '', position: '', level: '',
+  year: 2026,
+  totalTarget: 0,
+  rows: {} as Record<string, BatchRow>,
+})
+
+const batchIndicators = computed(() => {
+  if (!batchDrawer.dimensionId) return []
+  return indicators.value.filter((i) => i.dimension === batchDrawer.dimensionId)
+})
+
+const batchSumPct = computed(() => {
+  let s = 0
+  for (const id of batchDrawer.indicatorIds) {
+    const r = batchDrawer.rows[id]
+    if (r) s += r.targetPct || 0
+  }
+  return s
+})
+const batchSumOk = computed(() => Math.abs(batchSumPct.value - 100) < 0.05)
+
+function openBatchDrawer() {
+  batchDrawer.dimensionId = null
+  batchDrawer.indicatorIds = []
+  batchDrawer.isGlobal = true
+  batchDrawer.bu = ''; batchDrawer.position = ''; batchDrawer.level = ''
+  batchDrawer.year = 2026
+  batchDrawer.totalTarget = 0
+  batchDrawer.rows = {}
+  batchDrawer.show = true
+}
+
+function onBatchDimChange() {
+  batchDrawer.indicatorIds = []
+  batchDrawer.rows = {}
+}
+
+function onBatchIndicatorToggle(ind: ControlIndicator, checked: boolean) {
+  if (checked) {
+    batchDrawer.indicatorIds = [...batchDrawer.indicatorIds, ind.id]
+    // 首个勾选时均分剩余比例（提示用户）
+    const curCount = batchDrawer.indicatorIds.length
+    const equal = curCount > 0 ? Math.round((100 / curCount) * 10) / 10 : 0
+    batchDrawer.rows = { ...batchDrawer.rows, [ind.id]: { targetPct: equal, loPct: 0, hiPct: 100, strength: '硬约束' } }
+  } else {
+    batchDrawer.indicatorIds = batchDrawer.indicatorIds.filter((id) => id !== ind.id)
+    const nr: Record<string, BatchRow> = {}
+    for (const id of batchDrawer.indicatorIds) nr[id] = batchDrawer.rows[id]
+    batchDrawer.rows = nr
+  }
+}
+
+function setBatchRow(id: string, key: keyof BatchRow, val: any) {
+  batchDrawer.rows = { ...batchDrawer.rows, [id]: { ...batchDrawer.rows[id], [key]: val } }
+}
+
+function batchIndicatorAnnual(indId: string) {
+  const r = batchDrawer.rows[indId]
+  if (!r) return 0
+  return Math.round(batchDrawer.totalTarget * (r.targetPct / 100))
+}
+
+async function saveBatchConfig() {
+  if (!batchDrawer.dimensionId) { message.warning('请选择维度'); return }
+  if (batchDrawer.indicatorIds.length === 0) { message.warning('请至少勾选一个指标'); return }
+  for (const id of batchDrawer.indicatorIds) {
+    const r = batchDrawer.rows[id]
+    if (!(r.loPct <= r.targetPct && r.targetPct <= r.hiPct)) {
+      message.warning('存在指标需满足 0 <= 下限% <= 目标% <= 上限% <= 100'); return
+    }
+  }
+  if (!batchSumOk.value) {
+    message.warning(`占比之和须=100%，当前 ${batchSumPct.value.toFixed(1)}%`); return
+  }
+
+  const payload: BatchConfigPayload = {
+    bu: batchDrawer.isGlobal ? '' : batchDrawer.bu,
+    position: batchDrawer.isGlobal ? '' : batchDrawer.position,
+    level: batchDrawer.isGlobal ? '' : batchDrawer.level,
+    dimension: batchDrawer.dimensionId,
+    year: batchDrawer.year,
+    totalTarget: batchDrawer.totalTarget,
+    rules: batchDrawer.indicatorIds.map((id) => {
+      const r = batchDrawer.rows[id]
+      return {
+        indicator: id,
+        target: r.targetPct / 100,
+        lo: r.loPct / 100,
+        hi: r.hiPct / 100,
+        strength: r.strength,
+      }
+    }),
+  }
+  loading.batchConfig = true
+  try {
+    const res = await batchConfigRules(payload)
+    message.success(`已保存 ${res.data.saved} 条规则 + ${res.data.saved} 项目标（总人数 ${res.data.totalTarget}）`)
+    batchDrawer.show = false
+    await Promise.all([loadRules(), loadRatio(), loadPlan(), loadHeadcounts()])
+  } catch (e) {
+    message.error(extractApiError(e, '保存失败'))
+  } finally {
+    loading.batchConfig = false
+  }
+}
+
 /* ============================ 维度管理 ============================ */
 const dimDrawer = reactive({ show: false })
 function openDimDrawer() { dimDrawer.show = true }
@@ -930,4 +1113,30 @@ onMounted(async () => {
 .block-hint { color: #dc2626; font-size: 13px; margin: 8px 0 0; }
 
 .drawer-footer { display: flex; justify-content: flex-end; gap: 12px; }
+
+.batch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #eef2f7;
+}
+.batch-row-controls { flex: 1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.batch-row-label { color: #6b7280; font-size: 12px; }
+.batch-row-annual {
+  margin-left: auto;
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 88px;
+  text-align: right;
+}
+.batch-sum {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0 0;
+  margin-top: 10px;
+  border-top: 1px solid #eef2f7;
+}
 </style>

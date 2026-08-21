@@ -262,6 +262,22 @@ export const batchSaveRules = (scope: ScopeFilter, dimension: string, rules: Rul
     .post('/campus/rules/batch/', { bu: scope.bu ?? '', position: scope.position ?? '', level: scope.level ?? '', dimension, rules })
     .then((r) => r.data as { success: boolean; data: { saved: number } })
 
+export interface BatchConfigPayload {
+  bu: string
+  position: string
+  level: string
+  dimension: string
+  year: number
+  totalTarget: number
+  rules: RuleDraft[]
+}
+
+/** 批量配置规则 + 人数目标：先按维度设定总人数，再选多个指标占比加和=100%；每指标 annual=round(totalTarget×target)。 */
+export const batchConfigRules = (payload: BatchConfigPayload) =>
+  api
+    .post('/campus/rules/with-targets/', payload)
+    .then((r) => r.data as { success: boolean; data: { saved: number; totalTarget: number; year: number } })
+
 /* ============================ 实时看板（全量，每条按自身适用范围） ============================ */
 export const getRatio = () =>
   api.get('/campus/rules/ratio/').then((r) => r.data.data as RatioResult)
@@ -318,7 +334,7 @@ export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`)
 export default {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
-  listRules, createRule, updateRule, deleteRule, batchSaveRules,
+  listRules, createRule, updateRule, deleteRule, batchSaveRules, batchConfigRules,
   getRatio, getPlan, validateDraft,
   listHeadcounts, upsertHeadcount, deleteHeadcount,
   listPersons, upsertPerson, deletePerson,
