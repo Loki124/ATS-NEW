@@ -87,7 +87,7 @@
         >
           <n-upload-dragger style="padding: 40px">
             <div class="upload-drag-icon">
-              <n-icon :component="FileTrayFullOutline" :size="48" color="#FBCE5B" />
+              <n-icon :component="FileTrayFullOutline" :size="48" color="var(--brand)" />
             </div>
             <p style="font-size: 16px; font-weight: 500">
               点击或拖拽上传简历文件
@@ -192,7 +192,7 @@
       :mask-closable="false"
       title="检测到重复候选人"
     >
-      <div style="margin-bottom: 12px; color: #d97706;">
+      <div style="margin-bottom: 12px; color: var(--c-warning);">
         系统检测到 {{ duplicates.length }} 个相似的候选人, 请确认是否继续创建。
       </div>
       <n-data-table
@@ -456,7 +456,7 @@ const resetForm = () => {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -477,7 +477,7 @@ const resetForm = () => {
 .file-preview {
   margin-top: 24px;
   padding: 16px;
-  background: #f5f5f5;
+  background: var(--glass-bg-input);
   border-radius: 8px;
 }
 
@@ -491,7 +491,7 @@ const resetForm = () => {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: #FBCE5B;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -572,9 +572,9 @@ const resetForm = () => {
 .tip-box {
   margin-top: 24px;
   padding: 16px;
-  background: #f5f5f5;
+  background: var(--glass-bg-input);
   border-radius: 8px;
-  color: #FBCE5B;
+  color: var(--brand);
   font-weight: 500;
 }
 

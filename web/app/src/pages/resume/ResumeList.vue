@@ -602,7 +602,7 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: #f0f0f0;
+  background: var(--glass-bg-input);
   border-radius: 4px;
   font-size: 12px;
   color: #666;
@@ -617,7 +617,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-hairline);
 }
 
 .create-time {

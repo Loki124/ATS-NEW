@@ -2,19 +2,19 @@
 export type Status = 'processing' | 'clean' | 'unocc' | 'occupied'
 const props = defineProps<{ status: Status }>()
 
-const config: Record<Status, { label: string; color: string }> = {
-  clean: { label: '无重复', color: 'g' },
-  unocc: { label: '未占用', color: 'y' },
-  occupied: { label: '已占用', color: 'r' },
-  processing: { label: '处理中', color: 'b' },
+const config: Record<Status, { label: string; tone: 'success' | 'warning' | 'error' | 'info' }> = {
+  clean:      { label: '无重复',  tone: 'success' },
+  unocc:      { label: '未占用',  tone: 'warning' },
+  occupied:   { label: '已占用',  tone: 'error' },
+  processing: { label: '处理中',  tone: 'info' },
 }
 
-const cfg = config[props.status] || { label: '未知', color: 'g' }
+const cfg = config[props.status] || { label: '未知', tone: 'success' as const }
 </script>
 
 <template>
-  <span :class="['tag', `tag-${cfg.color}`]">
-    <span :class="['td', `td-${cfg.color}`]"></span>
+  <span :class="['tag', `tag-${cfg.tone}`]">
+    <span :class="['td', `td-${cfg.tone}`]"></span>
     {{ cfg.label }}
   </span>
 </template>
@@ -25,23 +25,27 @@ const cfg = config[props.status] || { label: '未知', color: 'g' }
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  border-radius: 20px;
-  font-size: 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-meta);
   font-weight: 500;
   white-space: nowrap;
+  line-height: 1.6;
 }
 .td {
   width: 5px;
   height: 5px;
   border-radius: 50%;
 }
-.tag-g { background: var(--sl); color: #065F46; }
-.tag-y { background: var(--wl); color: #92400E; }
-.tag-r { background: var(--dl); color: #991B1B; }
-.tag-b { background: var(--bl); color: #1E40AF; }
-.td-g { background: var(--s); }
-.td-y { background: var(--w); }
-.td-r { background: var(--d); }
-.td-b { background: var(--b); animation: pulse2 1s infinite; }
-@keyframes pulse2 { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }
+/* 语义四态（DESIGN.md §4 Badges · v2 液态玻璃） */
+.tag-success { background: var(--c-success-soft); color: var(--c-success); }
+.tag-warning { background: var(--c-warning-soft); color: var(--c-warning); }
+.tag-error   { background: var(--c-error-soft);   color: var(--c-error); }
+.tag-info    { background: var(--c-info-soft);    color: var(--c-info); }
+
+.td-success { background: var(--c-success); }
+.td-warning { background: var(--c-warning); }
+.td-error   { background: var(--c-error); }
+.td-info    { background: var(--c-info); animation: status-pulse 1s infinite; }
+
+@keyframes status-pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }
 </style>

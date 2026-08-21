@@ -795,7 +795,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   margin: 0 0 4px;
   font-size: 22px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 /* 顶部流程统计条 */
@@ -806,29 +806,29 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   padding-bottom: 4px;
 }
 .pipeline-stats::-webkit-scrollbar { height: 4px; }
-.pipeline-stats::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+.pipeline-stats::-webkit-scrollbar-thumb { background: var(--border-hairline); border-radius: 2px; }
 .pipeline-stat-item {
   flex: 0 0 auto;
   min-width: 84px;
   padding: 10px 14px;
   background: #fff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-hairline);
   border-radius: 10px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--duration-base) var(--ease-out);
 }
 .pipeline-stat-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .pipeline-stat-item.active {
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
-  border-color: #FBCE5B;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
+  border-color: var(--brand);
 }
 .pipeline-stat-item.active .pipeline-stat-value,
-.pipeline-stat-item.active .pipeline-stat-label { color: #1f2937; }
+.pipeline-stat-item.active .pipeline-stat-label { color: var(--ink); }
 .pipeline-stat-value {
   font-size: 18px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--ink);
   line-height: 1.2;
 }
 .pipeline-stat-label {
@@ -854,9 +854,9 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 
 /* 按钮品牌色 */
 .add-button, .batch-notify-btn, .send-btn-primary {
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%) !important;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%) !important;
   border: none !important;
-  color: #1f2937 !important;
+  color: var(--ink) !important;
 }
 
 /* 候选人列表 */
@@ -870,13 +870,13 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   gap: 12px;
   padding: 12px 16px;
   background: #fff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-hairline);
   border-radius: 12px;
   transition: box-shadow 0.2s, border-color 0.2s;
 }
 .candidate-row:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  border-color: #e5e7eb;
+  border-color: var(--border-hairline);
 }
 .row-checkbox {
   padding-top: 2px;
@@ -906,7 +906,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   flex-direction: row;
   flex-wrap: wrap;
   gap: 6px;
-  border-left: 1px solid #f0f0f0;
+  border-left: 1px solid var(--border-hairline);
   padding-left: 16px;
   align-items: flex-start;
 }
@@ -922,10 +922,10 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .candidate-name {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ink);
   cursor: pointer;
 }
-.candidate-name:hover { color: #E5B82A; }
+.candidate-name:hover { color: var(--brand-hover); }
 .candidate-id {
   font-size: 12px;
   color: #8c8c8c;
@@ -959,7 +959,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .timeline-icon { color: #8c8c8c; flex-shrink: 0; }
 .timeline-date { color: #8c8c8c; white-space: nowrap; }
 .timeline-company { color: #262626; font-weight: 500; }
-.timeline-divider { color: #d9d9d9; }
+.timeline-divider { color: var(--ink-faint); }
 .timeline-position { color: #595959; }
 .timeline-more {
   font-size: 12px;
@@ -1009,7 +1009,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   justify-content: space-between;
   align-items: center;
   padding-top: 8px;
-  border-top: 1px dashed #f0f0f0;
+  border-top: 1px dashed var(--border-hairline);
 }
 
 /* 分页 */
@@ -1020,7 +1020,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   gap: 12px;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--border-hairline);
 }
 .pagination-total { font-size: 13px; color: #8c8c8c; }
 
@@ -1048,11 +1048,11 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .close-btn:hover { color: #333; }
 .candidate-summary {
   display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px;
-  background: #f5f5f5; border-radius: 8px;
+  background: var(--glass-bg-input); border-radius: 8px;
 }
 .candidate-avatar-sm {
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%) !important;
-  color: #1f2937 !important; font-weight: 600;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%) !important;
+  color: var(--ink) !important; font-weight: 600;
 }
 .modal-content { display: flex; gap: 24px; margin-top: 24px; }
 .left-sidebar { width: 280px; flex-shrink: 0; }
@@ -1060,8 +1060,8 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .step-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin: 0 0 12px; }
 .step-number {
   width: 24px; height: 24px;
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
-  color: #1f2937; border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
+  color: var(--ink); border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-size: 12px;
 }
 .step-content { padding-left: 32px; }
@@ -1071,24 +1071,24 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   display: flex; align-items: center; gap: 8px; padding: 8px;
   border-radius: 6px; cursor: pointer; transition: background 0.3s;
 }
-.content-item:hover { background: #f5f5f5; }
-.content-item.selected { background: #f0f0ff; }
+.content-item:hover { background: var(--brand-tint); }
+.content-item.selected { background: var(--brand-soft); }
 .method-item {
   display: flex; align-items: center; gap: 8px; padding: 12px;
   border-radius: 8px; cursor: pointer; transition: background 0.3s; margin-bottom: 8px;
 }
-.method-item:hover { background: #f5f5f5; }
-.method-item.selected { background: #f0f0ff; border: 1px solid #FBCE5B; }
-.method-icon { font-size: 18px; color: #FBCE5B; }
+.method-item:hover { background: var(--glass-bg-input); }
+.method-item.selected { background: var(--brand-tint); border: 1px solid var(--brand); }
+.method-icon { font-size: 18px; color: var(--brand); }
 .method-name { font-weight: 500; }
 .right-content { flex: 1; min-width: 0; }
 .info-callout {
   background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 6px;
   padding: 12px; font-size: 13px; color: #1890ff; margin-bottom: 16px;
 }
-.editor-section { background: #fafafa; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.editor-section { background: var(--glass-bg-input); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 .editor-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.editor-icon { font-size: 18px; color: #FBCE5B; }
+.editor-icon { font-size: 18px; color: var(--brand); }
 .editor-title { font-weight: 600; margin: 0; }
 .editor-field { margin-bottom: 12px; }
 .field-label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
@@ -1096,7 +1096,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .counter-text { font-size: 12px; color: #999; }
 .modal-footer {
   display: flex; justify-content: space-between; align-items: center;
-  margin-top: 24px; padding-top: 16px; border-top: 1px solid #f0f0f0;
+  margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-hairline);
 }
 .recipient-info { font-size: 14px; color: #666; }
 .footer-buttons { display: flex; gap: 8px; }
