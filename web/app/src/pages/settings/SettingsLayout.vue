@@ -387,4 +387,116 @@ watch(
 .settings-content :deep(.n-data-table-base-table) {
   width: 100%;
 }
+
+/* =============================================================
+ * 校招管控视觉锚点全局注入（DESIGN.md §4 · 阶段 5）
+ * 父级 :deep 一次性覆盖所有 25+ 设置子页面,
+ * 子页面零侵入,逻辑完全不动,只换视觉层。
+ * 锚点：渐变标题 + 卡片头玻璃 + 透明 tab + 玻璃 filter row + kpi 行玻璃
+ * ============================================================= */
+
+/* ① page-title 渐变文字（= cc-title · 一次性替换所有子页面 H1） */
+.settings-content :deep(.page-title),
+.settings-content :deep(.page-header h2),
+.settings-content :deep(.policy-admin__title) {
+  font-size: var(--text-h1) !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 55%, var(--brand-grad-b) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+/* 标题容器为 flex 让 h1 + 按钮同行（部分子页面用 .page-header） */
+.settings-content :deep(.page-header) {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) 0;
+}
+/* 子页面常见的副标题描述行 */
+.settings-content :deep(.page-subtitle),
+.settings-content :deep(.page-desc) {
+  color: var(--ink-soft);
+  font-size: var(--text-body);
+  margin: 4px 0 0;
+}
+
+/* ② n-card 卡片头玻璃化（= cc-glass-panel 局部版） */
+.settings-content :deep(.n-card-header) {
+  background: rgba(255, 255, 255, .5) !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+}
+body.dark .settings-content :deep(.n-card-header) {
+  background: rgba(30, 41, 59, .5) !important;
+}
+.settings-content :deep(.n-card-header__main) {
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+  font-size: var(--text-h4) !important;
+}
+
+/* ③ n-tabs 透明导航（= cc-tabs 透明 nav） */
+.settings-content :deep(.n-tabs-nav) {
+  background: transparent !important;
+}
+.settings-content :deep(.n-tabs-tab) {
+  font-weight: 500;
+}
+
+/* ④ filter-row / stats-row 玻璃面板（filter toolbar 容器） */
+.settings-content :deep(.filter-row),
+.settings-content :deep(.stats-row) {
+  flex-shrink: 0;
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--space-3);
+}
+
+/* ⑤ n-button type="primary" 升级为渐变按钮（= cc-gradient-btn） */
+.settings-content :deep(.n-button--primary-type:not(.n-button--disabled):not([disabled])) {
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px var(--glow-brand) !important;
+  transition: all var(--duration-base) var(--ease-out) !important;
+}
+.settings-content :deep(.n-button--primary-type:not(.n-button--disabled):not([disabled]):hover) {
+  box-shadow: 0 6px 20px var(--glow-brand) !important;
+  transform: translateY(-1px);
+}
+
+/* ⑥ 配置容器 .config-container / .container 类如果是浅灰底,改透出极光 */
+.settings-content :deep(.config-container),
+.settings-content :deep(.container),
+.settings-content :deep(.settings-page-body) {
+  background: transparent;
+}
+
+/* ⑦ n-card 内部 form/table 默认 padding 微调 */
+.settings-content :deep(.n-card__content) {
+  padding: var(--space-4) var(--space-4);
+}
+.settings-content :deep(.n-data-table-th) {
+  background: rgba(255, 255, 255, .5) !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+body.dark .settings-content :deep(.n-data-table-th) {
+  background: rgba(30, 41, 59, .5) !important;
+}
+.settings-content :deep(.n-data-table-tr:hover .n-data-table-td) {
+  background: var(--brand-tint) !important;
+}
 </style>
