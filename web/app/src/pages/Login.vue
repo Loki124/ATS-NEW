@@ -1,23 +1,24 @@
 <template>
   <div class="login-page">
-    <div class="login-background">
-      <div class="shape shape-1"></div>
-      <div class="shape shape-2"></div>
-      <div class="shape shape-3"></div>
+    <!-- T2.1: 全局极光底（DESIGN.md §2）—— 全站 fixed，z-index 0，pointer-events none -->
+    <div class="app-aurora">
+      <div class="aurora-spot"></div>
     </div>
 
     <div class="login-container">
+      <!-- 顶部品牌区 -->
       <div class="login-brand">
         <div class="brand-logo">
-          <svg viewBox="0 0 24 24" fill="currentColor" class="logo-icon text-primary">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+          <svg viewBox="0 0 24 24" fill="currentColor" class="logo-icon">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
           </svg>
         </div>
-        <h1 class="brand-title">ATS招聘管理系统</h1>
+        <h1 class="brand-title gradient-title">ATS 招聘管理系统</h1>
         <p class="brand-subtitle">智能招聘 · 高效管理 · 数据驱动</p>
       </div>
 
-      <n-card class="login-card" :bordered="false">
+      <!-- T2.2: 玻璃面板登录卡（DESIGN.md §4 玻璃面板 · .glass-panel） -->
+      <div class="glass-panel login-card">
         <n-tabs v-model:value="activeTab" type="line" animated centered>
           <!-- 账号密码登录 -->
           <n-tab-pane name="account" tab="账号密码">
@@ -33,6 +34,7 @@
                   v-model:value="formAccount.username"
                   placeholder="用户名"
                   size="large"
+                  class="glass-input login-input"
                 >
                   <template #prefix>
                     <n-icon :component="PersonOutline" />
@@ -47,6 +49,7 @@
                   show-password-on="click"
                   placeholder="密码"
                   size="large"
+                  class="glass-input login-input"
                   @keyup.enter="onAccountFinish"
                 >
                   <template #prefix>
@@ -80,7 +83,12 @@
           <n-tab-pane name="sms" tab="手机验证码">
             <n-form :model="formSms" size="large" @submit.prevent="onSmsFinish">
               <n-form-item>
-                <n-input v-model:value="formSms.phone" placeholder="请输入手机号" size="large">
+                <n-input
+                  v-model:value="formSms.phone"
+                  placeholder="请输入手机号"
+                  size="large"
+                  class="glass-input login-input"
+                >
                   <template #prefix>
                     <span class="input-icon">📱</span>
                   </template>
@@ -89,7 +97,12 @@
 
               <n-form-item>
                 <div class="code-input-wrapper">
-                  <n-input v-model:value="formSms.code" placeholder="验证码" class="code-input" size="large">
+                  <n-input
+                    v-model:value="formSms.code"
+                    placeholder="验证码"
+                    class="code-input glass-input login-input"
+                    size="large"
+                  >
                     <template #prefix>
                       <n-icon :component="LockClosedOutline" />
                     </template>
@@ -124,8 +137,9 @@
         <div class="login-footer">
           <p>默认账号: admin / admin123</p>
         </div>
-      </n-card>
+      </div>
 
+      <!-- 底部功能特性（玻璃小卡） -->
       <div class="login-features">
         <div class="feature-item">
           <span class="feature-icon">📊</span>
@@ -285,33 +299,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ============================================================
+ * Login.vue — 阶段 2 玻璃化（T2.2）
+ *   - 极光底（DESIGN.md §2）
+ *   - 玻璃面板登录卡（DESIGN.md §4 玻璃面板 · .glass-panel）
+ *   - 输入框穿透 Naive UI：使用 .glass-input 等价样式（tokens.css 变量驱动）
+ *   - 渐变标题（DESIGN.md §3 · .gradient-title）
+ *   - 暗色模式：组件 CSS 不变，自动跟随 body.dark
+ *   - 响应式：< 600px 卡片占满宽度
+ * ============================================================ */
+
 .login-page {
   width: 100%;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
   position: relative;
   overflow: hidden;
   padding: 40px 20px;
-}
-.login-background {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-.shape {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-}
-.shape-1 { width: 400px; height: 400px; top: -100px; right: -100px; animation: float 6s ease-in-out infinite; }
-.shape-2 { width: 300px; height: 300px; bottom: -50px; left: -50px; animation: float 8s ease-in-out infinite; }
-.shape-3 { width: 200px; height: 200px; top: 50%; left: 50%; animation: float 10s ease-in-out infinite; }
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-20px) rotate(5deg); }
 }
 
 .login-container {
@@ -320,41 +326,84 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 480px;
 }
+
+/* === 顶部品牌区 === */
 .login-brand {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
 .brand-logo {
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
-  background: white;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
+  box-shadow: 0 12px 32px var(--glow-brand), inset 0 1px 0 rgba(255, 255, 255, .4);
+  color: #fff; /* 品牌色块上的图标 = 白色（DESIGN.md §4 btn-primary） */
 }
 .logo-icon { width: 50px; height: 50px; }
 .brand-title {
   font-size: 32px;
   font-weight: 700;
-  color: white;
   margin: 0 0 10px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  line-height: 1.25;
+  /* 渐变文字（DESIGN.md §3）：brand → brand-grad-a → brand-grad-b */
 }
 .brand-subtitle {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--text-body);
+  color: var(--ink-soft);
   margin: 0;
 }
+
+/* === 玻璃面板登录卡 === */
 .login-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
+  padding: var(--space-6) var(--space-8);
+  /* .glass-panel 已提供背景/blur/边框/高光/圆角/阴影 */
 }
-.login-form { padding: 0; }
+
+/* === 输入框：穿透 Naive UI 内部，套用 .glass-input 等价样式 === */
+:deep(.login-input .n-input) {
+  background: var(--glass-bg-input);
+  backdrop-filter: blur(var(--glass-blur-input));
+  -webkit-backdrop-filter: blur(var(--glass-blur-input));
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+/* Naive UI 内层 .n-input-wrapper 用作视觉层（border 在这里），让其透明显示外层 */
+:deep(.login-input .n-input-wrapper) {
+  background: transparent;
+}
+/* Naive UI 的边框层（绝对定位在 wrapper 里） */
+:deep(.login-input .n-input__border),
+:deep(.login-input .n-input__state-border) {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+/* focus 态（n-input--focus） */
+:deep(.login-input.n-input--focus .n-input__border),
+:deep(.login-input.n-input--focus .n-input__state-border) {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-tint);
+}
+/* placeholder / prefix 图标颜色 */
+:deep(.login-input .n-input__placeholder),
+:deep(.login-input .n-input__input-el),
+:deep(.login-input .n-input__textarea-el) {
+  color: var(--ink);
+}
+:deep(.login-input .n-input__placeholder) {
+  color: var(--ink-faint);
+}
+:deep(.login-input .n-input__prefix),
+:deep(.login-input .n-input__suffix) {
+  color: var(--ink-soft);
+}
+
+/* === 表单选项（记住我 / 忘记密码）=== */
 .form-options {
   display: flex;
   justify-content: space-between;
@@ -362,44 +411,103 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .forgot-link {
-  color: #FBCE5B;
-  font-size: 14px;
+  color: var(--brand);
+  font-size: var(--text-small);
   text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
 }
-.forgot-link:hover { color: #E5B82A; }
+.forgot-link:hover {
+  color: var(--brand-hover);
+}
+
+/* === 短信验证码输入框组 === */
 .code-input-wrapper {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   width: 100%;
 }
 .code-input { flex: 1; }
+/* code-button 用玻璃次按钮（hover 描边变品牌色） */
+:deep(.code-button) {
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  color: var(--ink);
+  backdrop-filter: blur(var(--glass-blur-input));
+  -webkit-backdrop-filter: blur(var(--glass-blur-input));
+  transition: all var(--duration-fast) var(--ease-out);
+}
+:deep(.code-button:not([disabled]):hover) {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+:deep(.code-button[disabled]) {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+/* === 底部 footer（默认账号提示）=== */
 .login-footer {
   text-align: center;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-hairline);
 }
 .login-footer p {
-  color: #8c8c8c;
-  font-size: 14px;
+  color: var(--ink-faint);
+  font-size: var(--text-meta);
   margin: 0;
 }
+
+/* === 底部特性（玻璃小卡风格）=== */
 .login-features {
   display: flex;
   justify-content: center;
-  gap: 40px;
-  margin-top: 40px;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+  flex-wrap: wrap;
 }
 .feature-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
+  gap: var(--space-2);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  color: var(--ink-soft);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  backdrop-filter: blur(var(--glass-blur-input));
+  -webkit-backdrop-filter: blur(var(--glass-blur-input));
 }
-.feature-icon { font-size: 20px; }
-@media (max-width: 768px) {
-  .login-features { gap: 20px; }
-  .feature-item { font-size: 12px; }
+.feature-icon { font-size: var(--text-body); line-height: 1; }
+
+/* === 响应式（DESIGN.md §8）===
+ *  < 600px：卡片占满宽度，去掉 max-width 限制，缩小 padding
+ */
+@media (max-width: 600px) {
+  .login-page {
+    padding: 24px 16px;
+  }
+  .login-container {
+    max-width: none; /* 关键：去掉 480px 上限，让卡片占满宽度 */
+    width: 100%;
+  }
+  .login-card {
+    padding: var(--space-4) var(--space-4);
+  }
+  .login-features {
+    gap: var(--space-3);
+  }
+}
+@media (max-width: 380px) {
+  .login-features {
+    gap: var(--space-2);
+  }
+  .feature-item {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
 }
 </style>
