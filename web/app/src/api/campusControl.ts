@@ -1,5 +1,5 @@
 /**
- * 校招管控（人员比例管控系统）v2.1 API。
+ * 校招管控（人员比例管控系统）v2.2 API。
  * 后端挂 /api/v1/campus/，camelCase 自动转换。
  *
  * 响应契约：
@@ -9,7 +9,8 @@
  *  - 删除 → 204
  *  - Decimal 字段（target/lo/hi）序列化为字符串，本封装统一转 number
  *
- * v2.1：适用范围（bu/position/level，全空 = 全局）由规则/目标自带，不再有「方案」实体。
+ * v2.2：适用范围（bu/position/level，全空 = 全局）是每条规则/目标的独立属性；
+ *       看板/规划展示全量（每条按自身适用范围计算），不再有全局适用范围筛选。
  */
 import axios from 'axios'
 import config from '../config'
@@ -43,7 +44,7 @@ export type Dim = (typeof DIMS)[number]
 export type Strength = (typeof STRENGTH)[number]
 
 /* ============================ 类型定义 ============================ */
-/** 适用范围（全空 = 全局）。 */
+/** 适用范围（bu/position/level 全空 = 全局）。 */
 export interface ScopeFilter {
   bu: string
   position: string
@@ -52,7 +53,7 @@ export interface ScopeFilter {
 
 export interface ControlDimension {
   id: string
-  name: Dim
+  name: string
   code: string
   isActive: boolean
   createdAt?: string
@@ -119,7 +120,7 @@ export interface Person {
 }
 
 export interface RatioRow {
-  dimension: Dim
+  dimension: string
   indicator: string
   bu: string
   position: string
@@ -135,7 +136,10 @@ export interface RatioRow {
 }
 
 export interface SumCheck {
-  dimension: Dim
+  dimension: string
+  bu: string
+  position: string
+  level: string
   sum: number
   ok: boolean
 }
@@ -147,7 +151,7 @@ export interface RatioResult {
 }
 
 export interface PlanRow {
-  dimension: Dim
+  dimension: string
   indicator: string
   bu: string
   position: string
@@ -177,7 +181,7 @@ export interface PlanResult {
 }
 
 export interface ValidationCheck {
-  dimension: Dim
+  dimension: string
   indicator: string
   bu: string
   position: string
@@ -198,12 +202,11 @@ export interface ValidationResult {
 /* ============================ 工具 ============================ */
 const num = (v: unknown): number => (v == null ? 0 : Number(v))
 const listData = <T>(r: any): T[] => (r?.data?.data ?? []) as T[]
-const scopeParams = (s: ScopeFilter) => ({ bu: s.bu ?? '', position: s.position ?? '', level: s.level ?? '' })
 
 /* ============================ 维度 ============================ */
 export const listDimensions = () =>
   api.get('/campus/dimensions/', { params: { page_size: 200 } }).then((r) => listData<ControlDimension>(r))
-export const createDimension = (payload: { name: Dim; code?: string; isActive?: boolean }) =>
+export const createDimension = (payload: { name: string; code?: string; isActive?: boolean }) =>
   api.post('/campus/dimensions/', payload).then((r) => r.data as ControlDimension)
 export const updateDimension = (id: string, payload: Partial<ControlDimension>) =>
   api.put(`/campus/dimensions/${id}/`, payload).then((r) => r.data as ControlDimension)
@@ -221,10 +224,29 @@ export const updateIndicator = (id: string, payload: Partial<ControlIndicator>) 
 export const deleteIndicator = (id: string) => api.delete(`/campus/indicators/${id}/`).then((r) => r.data)
 
 /* ============================ 规则 ============================ */
-export const listRules = (scope: ScopeFilter) =>
-  api.get('/campus/rules/', { params: { page_size: 200, ...scopeParams(scope) } }).then((r) =>
-    listData<ControlRule>(r).map((x) => ({ ...x, target: num(x.target), lo: num(x.lo), hi: num(x.hi) })),
-  )
+export interface RuleInput {
+  bu: string
+  position: string
+  level: string
+  dimension: string
+  indicator: string
+  target: number // 0~1
+  lo: number
+  hi: number
+  strength: Strength
+}
+
+const ruleToNum = (x: any): ControlRule => ({ ...x, target: num(x.target), lo: num(x.lo), hi: num(x.hi) })
+
+/** 全部规则（每条自带适用范围）。 */
+export const listRules = () =>
+  api.get('/campus/rules/', { params: { page_size: 200 } }).then((r) => listData<ControlRule>(r).map(ruleToNum))
+
+export const createRule = (payload: RuleInput) =>
+  api.post('/campus/rules/', payload).then((r) => ruleToNum(r.data))
+export const updateRule = (id: string, payload: Partial<RuleInput>) =>
+  api.put(`/campus/rules/${id}/`, payload).then((r) => ruleToNum(r.data))
+export const deleteRule = (id: string) => api.delete(`/campus/rules/${id}/`).then((r) => r.data)
 
 export interface RuleDraft {
   indicator: string
@@ -234,21 +256,19 @@ export interface RuleDraft {
   strength: Strength
 }
 
-/** 批量保存某 (适用范围, 维度) 的全部规则，硬校验 100% 加和。 */
+/** 批量保存某 (适用范围, 维度) 的全部规则，硬校验 100% 加和（保留供可选使用）。 */
 export const batchSaveRules = (scope: ScopeFilter, dimension: string, rules: RuleDraft[]) =>
   api
-    .post('/campus/rules/batch/', { ...scopeParams(scope), dimension, rules })
+    .post('/campus/rules/batch/', { bu: scope.bu ?? '', position: scope.position ?? '', level: scope.level ?? '', dimension, rules })
     .then((r) => r.data as { success: boolean; data: { saved: number } })
 
-export const deleteRule = (id: string) => api.delete(`/campus/rules/${id}/`).then((r) => r.data)
+/* ============================ 实时看板（全量，每条按自身适用范围） ============================ */
+export const getRatio = () =>
+  api.get('/campus/rules/ratio/').then((r) => r.data.data as RatioResult)
 
-/* ============================ 实时看板 ============================ */
-export const getRatio = (scope: ScopeFilter) =>
-  api.get('/campus/rules/ratio/', { params: scopeParams(scope) }).then((r) => r.data.data as RatioResult)
-
-/* ============================ 人数规划（计算看板） ============================ */
-export const getPlan = (scope: ScopeFilter, year: number, month: string) =>
-  api.get('/campus/rules/plan/', { params: { ...scopeParams(scope), year, month } }).then((r) => r.data.data as PlanResult)
+/* ============================ 人数规划（全量） ============================ */
+export const getPlan = (year: number, month: string) =>
+  api.get('/campus/rules/plan/', { params: { year, month } }).then((r) => r.data.data as PlanResult)
 
 /* ============================ 录入校验 ============================ */
 export const validateDraft = (
@@ -260,8 +280,8 @@ export const validateDraft = (
     .then((r) => r.data.data as ValidationResult)
 
 /* ============================ 人数目标 ============================ */
-export const listHeadcounts = (scope: ScopeFilter, year: number) =>
-  api.get('/campus/headcounts/', { params: { page_size: 200, ...scopeParams(scope), year } }).then((r) =>
+export const listHeadcounts = (year: number) =>
+  api.get('/campus/headcounts/', { params: { page_size: 200, year } }).then((r) =>
     listData<ControlHeadcount>(r).map((x) => ({
       ...x,
       monthlyTargets: Array.isArray(x.monthlyTargets) && x.monthlyTargets.length === 12 ? x.monthlyTargets : Array(12).fill(0),
@@ -298,7 +318,7 @@ export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`)
 export default {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
-  listRules, batchSaveRules, deleteRule,
+  listRules, createRule, updateRule, deleteRule, batchSaveRules,
   getRatio, getPlan, validateDraft,
   listHeadcounts, upsertHeadcount, deleteHeadcount,
   listPersons, upsertPerson, deletePerson,
