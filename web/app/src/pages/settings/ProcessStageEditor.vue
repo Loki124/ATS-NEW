@@ -302,7 +302,7 @@ onMounted(() => loadProcess())
 .stage-card {
   margin-bottom: 8px;
   cursor: move;
-  transition: all 0.2s;
+  transition: all var(--duration-base) var(--ease-out);
 }
 .stage-card:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);

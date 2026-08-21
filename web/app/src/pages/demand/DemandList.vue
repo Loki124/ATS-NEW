@@ -724,7 +724,7 @@ onMounted(() => {
   background: white;
   border-radius: 8px;
   padding: 16px 20px;
-  transition: all 0.3s;
+  transition: all var(--duration-base) var(--ease-out);
   border: 2px solid transparent;
 }
 
@@ -733,7 +733,7 @@ onMounted(() => {
 }
 
 .demand-card.selected {
-  border-color: #FBCE5B;
+  border-color: var(--brand);
 }
 
 .card-left {

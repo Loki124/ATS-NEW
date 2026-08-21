@@ -222,7 +222,7 @@ watch(visible, (v) => {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
   display: flex;
   align-items: center;
   justify-content: center;

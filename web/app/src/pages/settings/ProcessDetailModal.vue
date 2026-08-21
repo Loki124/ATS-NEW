@@ -1853,7 +1853,7 @@ function conditionItemLabel(item: any): string {
   flex-direction: column;
   gap: 6px;
   min-height: 92px;
-  transition: all 0.15s ease;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .scope-card:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);

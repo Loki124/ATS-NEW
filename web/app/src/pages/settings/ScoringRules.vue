@@ -6,7 +6,7 @@
     <n-card>
       <n-empty description="评分规则功能开发中">
         <template #icon>
-          <n-icon :component="StarOutline" :size="64" color="#FBCE5B" />
+          <n-icon :component="StarOutline" :size="64" color="var(--brand)" />
         </template>
       </n-empty>
     </n-card>

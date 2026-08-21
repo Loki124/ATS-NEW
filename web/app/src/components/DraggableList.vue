@@ -92,7 +92,7 @@ function onDragEnd() {
 
 <style scoped>
 .draggable-item {
-  transition: all 0.2s;
+  transition: all var(--duration-base) var(--ease-out);
   border-radius: 6px;
 }
 .draggable-item.dragging {

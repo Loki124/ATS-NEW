@@ -108,7 +108,7 @@
                     <n-descriptions-item label="职级">{{ rule.positionLevel || '不限' }}</n-descriptions-item>
                     <n-descriptions-item label="触发阶段">{{ rule.triggerStage || '不限' }}</n-descriptions-item>
                     <n-descriptions-item v-if="rule.amount" label="奖励金额">
-                      <span style="color: #FBCE5B; font-weight: 600">¥{{ rule.amount }}</span>
+                      <span style="color: var(--brand); font-weight: 600">¥{{ rule.amount }}</span>
                     </n-descriptions-item>
                     <n-descriptions-item label="说明">
                       <n-text :depth="3">
@@ -205,7 +205,7 @@ const summaryCards = computed(() => {
     { label: '过试用期', value: summary.value.probationPassedCount, icon: StarOutline, color: '#722ed1' },
     { label: '待确认奖励', value: summary.value.rewardToConfirmTotal, icon: GiftOutline, color: '#fa8c16' },
     { label: '已确认奖励', value: summary.value.rewardConfirmedTotal, icon: TrendingUpOutline, color: '#13c2c2' },
-    { label: '已发放奖励', value: summary.value.rewardIssuedTotal, icon: CashOutline, color: '#FBCE5B' },
+    { label: '已发放奖励', value: summary.value.rewardIssuedTotal, icon: CashOutline, color: 'var(--brand)' },
   ]
 })
 
@@ -251,7 +251,7 @@ const rewardColumns = [
     title: '金额',
     key: 'amount',
     render: (row: any) =>
-      h('span', { style: { color: '#FBCE5B', fontWeight: 600 } }, `¥${row.amount}`),
+      h('span', { style: { color: 'var(--brand)', fontWeight: 600 } }, `¥${row.amount}`),
   },
   {
     title: '状态',
@@ -401,7 +401,7 @@ onMounted(() => loadCode())
   align-items: center;
   gap: 12px;
   padding: 24px;
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
   border-radius: 8px;
   color: white;
 }

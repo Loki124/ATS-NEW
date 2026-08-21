@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ATS-NEW · 液态玻璃 UI 预览（DESIGN.md v1.0-draft）</title>
+<style>
+  /* ============ 设计变量（与 DESIGN.md 对齐） ============ */
+  :root{
+    --brand:#6366F1;
+    --brand-hover:color-mix(in srgb,var(--brand) 80%,#fff);
+    --brand-pressed:color-mix(in srgb,var(--brand) 82%,#000);
+    --brand-dark:color-mix(in srgb,var(--brand) 66%,#000);
+    --brand-grad-a:#A855F7; --brand-grad-b:#EC4899;
+    --ink:#0F172A; --ink-soft:#475569; --ink-faint:#94A3B8;
+    --surface:#FFFFFF; --border-hairline:rgba(15,23,42,.08);
+    --glass-bg-panel:rgba(255,255,255,.55); --glass-bg-card:rgba(255,255,255,.62);
+    --glass-bg-elevated:rgba(255,255,255,.72); --glass-bg-input:rgba(255,255,255,.45);
+    --glass-border:rgba(255,255,255,.70); --glass-border-strong:rgba(255,255,255,.90);
+    --glass-blur-panel:24px; --glass-blur-card:16px; --glass-blur-input:10px; --glass-blur-overlay:6px;
+    --c-success:#16A34A; --c-success-soft:rgba(22,163,74,.12);
+    --c-warning:#F59E0B; --c-warning-soft:rgba(245,158,11,.14);
+    --c-error:#EF4444; --c-error-soft:rgba(239,68,68,.12);
+    --c-info:#3B82F6; --c-info-soft:rgba(59,130,246,.12);
+    --shadow-card:0 8px 32px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.6);
+    --shadow-panel:0 12px 40px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.6);
+    --shadow-elevated:0 16px 48px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.7);
+    --glow-brand:rgba(99,102,241,.32);
+    --radius-sm:10px; --radius-md:16px; --radius-lg:22px; --radius-xl:28px; --radius-pill:9999px;
+    --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
+    --text-h1:2rem; --text-h2:1.5rem; --text-h3:1.25rem; --text-body:.9375rem; --text-small:.8125rem; --text-meta:.75rem;
+    --ease-out:cubic-bezier(.16,1,.3,1); --dur:240ms;
+    --aurora-base:linear-gradient(180deg,#EEF1FB 0%,#E7ECFB 100%);
+    --aurora-1:radial-gradient(circle,rgba(99,102,241,.30),transparent 65%);
+    --aurora-2:radial-gradient(circle,rgba(168,85,247,.20),transparent 65%);
+    --aurora-3:radial-gradient(circle,rgba(34,211,238,.16),transparent 65%);
+  }
+  body.dark{
+    --ink:#E8ECF6; --ink-soft:#AEB8CC; --ink-faint:#7C879B;
+    --glass-bg-panel:rgba(30,41,59,.55); --glass-bg-card:rgba(30,41,59,.62);
+    --glass-bg-elevated:rgba(30,41,59,.72); --glass-bg-input:rgba(30,41,59,.45);
+    --glass-border:rgba(255,255,255,.14); --glass-border-strong:rgba(255,255,255,.22);
+    --border-hairline:rgba(255,255,255,.10);
+    --shadow-card:0 8px 32px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.10);
+    --shadow-panel:0 12px 40px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.10);
+    --shadow-elevated:0 16px 48px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12);
+    --aurora-base:linear-gradient(180deg,#0B1020 0%,#111936 100%);
+    --aurora-1:radial-gradient(circle,rgba(99,102,241,.40),transparent 65%);
+    --aurora-2:radial-gradient(circle,rgba(168,85,247,.30),transparent 65%);
+    --aurora-3:radial-gradient(circle,rgba(34,211,238,.22),transparent 65%);
+    --c-success-soft:rgba(22,163,74,.22); --c-warning-soft:rgba(245,158,11,.22);
+    --c-error-soft:rgba(239,68,68,.22); --c-info-soft:rgba(59,130,246,.22);
+  }
+
+  *{margin:0;box-sizing:border-box;}
+  body{font-family:"PingFang SC","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);min-height:100vh;background:var(--aurora-base);position:relative;overflow-x:hidden;
+    transition:background .4s var(--ease-out),color .3s;}
+  .app-aurora{position:fixed;inset:0;z-index:0;pointer-events:none;}
+  .app-aurora span{position:absolute;border-radius:50%;filter:blur(70px);}
+  .app-aurora .b1{width:560px;height:560px;top:-200px;left:-140px;background:var(--aurora-1);}
+  .app-aurora .b2{width:480px;height:480px;top:-80px;right:-160px;background:var(--aurora-2);}
+  .app-aurora .b3{width:440px;height:440px;bottom:-180px;left:38%;background:var(--aurora-3);}
+
+  /* 玻璃原子类 */
+  .glass-panel{position:relative;background:var(--glass-bg-panel);backdrop-filter:blur(var(--glass-blur-panel));
+    -webkit-backdrop-filter:blur(var(--glass-blur-panel));border:1px solid var(--glass-border);
+    border-radius:var(--radius-lg);box-shadow:var(--shadow-panel);}
+  .glass-panel::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0) 40%);}
+  body.dark .glass-panel::before{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 40%);}
+  .glass-card{position:relative;background:var(--glass-bg-card);backdrop-filter:blur(var(--glass-blur-card));
+    -webkit-backdrop-filter:blur(var(--glass-blur-card));border:1px solid var(--glass-border);
+    border-radius:var(--radius-md);box-shadow:var(--shadow-card);padding:var(--space-4);}
+  .gradient-title{background:linear-gradient(135deg,var(--brand),var(--brand-grad-a) 55%,var(--brand-grad-b));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+
+  .app{position:relative;z-index:1;display:flex;min-height:100vh;}
+
+  /* 侧栏 */
+  .sider{width:236px;flex-shrink:0;margin:var(--space-4);padding:var(--space-4);display:flex;flex-direction:column;gap:6px;}
+  .logo{display:flex;align-items:center;gap:12px;padding:6px 4px 14px;}
+  .logo .ic{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand-grad-a));
+    color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:var(--shadow-card);}
+  .logo b{font-size:15px;font-weight:600;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--ink-soft);
+    font-size:var(--text-body);cursor:pointer;position:relative;transition:all .18s var(--ease-out);}
+  .nav-item:hover{background:rgba(15,23,42,.04);color:var(--ink);}
+  body.dark .nav-item:hover{background:rgba(255,255,255,.06);}
+  .nav-item.active{background:rgba(99,102,241,.14);color:var(--brand);font-weight:600;}
+  .nav-item.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--brand);border-radius:0 3px 3px 0;}
+  .nav-item .dot{width:18px;height:18px;border-radius:6px;background:rgba(99,102,241,.16);display:flex;align-items:center;justify-content:center;font-size:11px;}
+
+  /* 主体 */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:var(--space-4) var(--space-4) var(--space-8) 0;}
+  .topbar{display:flex;align-items:center;gap:16px;padding:12px var(--space-6);margin-bottom:var(--space-6);border-radius:var(--radius-lg);}
+  .search{flex:1;max-width:420px;display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:var(--radius-sm);
+    background:var(--glass-bg-input);border:1px solid var(--glass-border);backdrop-filter:blur(var(--glass-blur-input));
+    -webkit-backdrop-filter:blur(var(--glass-blur-input));color:var(--ink-faint);font-size:var(--text-small);}
+  .spacer{flex:1;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-grad-a));color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .content{max-width:1280px;width:100%;display:flex;flex-direction:column;gap:var(--space-6);}
+
+  h1.page{font-size:var(--text-h1);font-weight:700;}
+  .sub{color:var(--ink-soft);font-size:var(--text-body);margin-top:6px;}
+
+  /* KPI */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);}
+  .kpi{display:flex;flex-direction:column;gap:6px;padding:var(--space-4) var(--space-6);border-radius:var(--radius-md);
+    background:var(--glass-bg-card);backdrop-filter:blur(var(--glass-blur-card));-webkit-backdrop-filter:blur(var(--glass-blur-card));
+    border:1px solid var(--glass-border);box-shadow:var(--shadow-card);transition:all .2s var(--ease-out);}
+  .kpi:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(99,102,241,.22),0 14px 34px rgba(99,102,241,.12);}
+  .kpi .l{font-size:var(--text-small);color:var(--ink-soft);}
+  .kpi .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .kpi.danger .v{color:var(--c-error);} .kpi.warn .v{color:var(--c-warning);}
+
+  /* 统计卡 */
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);}
+  .stat{background:var(--surface);border:1px solid var(--border-hairline);border-radius:var(--radius-md);padding:var(--space-4);
+    display:flex;flex-direction:column;gap:6px;transition:all .18s var(--ease-out);}
+  .stat:hover{border-color:var(--brand);background:rgba(99,102,241,.05);}
+  .stat .l{display:flex;align-items:center;gap:8px;color:var(--ink-soft);font-size:var(--text-body);}
+  .stat .v{font-size:var(--text-h2);font-weight:600;font-variant-numeric:tabular-nums;}
+  .stat .pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--radius-pill);font-size:var(--text-meta);font-weight:500;}
+  .pill.brand{background:rgba(99,102,241,.12);color:var(--brand);}
+  .pill.up{background:var(--c-success-soft);color:var(--c-success);}
+  .pill.down{background:var(--c-error-soft);color:var(--c-error);}
+
+  /* 按钮 */
+  .btn{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-size:var(--text-body);font-weight:600;
+    border-radius:var(--radius-md);padding:10px 18px;transition:all var(--dur) var(--ease-out);font-family:inherit;}
+  .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-grad-a));color:#fff;border:1px solid rgba(255,255,255,.35);
+    box-shadow:0 4px 14px var(--glow-brand),inset 0 1px 0 rgba(255,255,255,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  .btn-primary:hover{box-shadow:0 6px 20px rgba(99,102,241,.45);transform:translateY(-1px);}
+  .btn-secondary{background:var(--glass-bg-card);border:1px solid var(--glass-border);color:var(--ink);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+  .btn-secondary:hover{border-color:var(--brand);color:var(--brand);}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid transparent;}
+  .btn-ghost:hover{background:rgba(15,23,42,.04);color:var(--ink);} body.dark .btn-ghost:hover{background:rgba(255,255,255,.06);}
+  .btn-danger{background:var(--c-error-soft);border:1px solid rgba(239,68,68,.3);color:var(--c-error);}
+  .btn-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+
+  /* 表格 */
+  .tbl-wrap{overflow:hidden;}
+  table{width:100%;border-collapse:collapse;font-size:var(--text-small);}
+  thead th{text-align:left;padding:12px 14px;color:var(--ink-soft);font-weight:600;background:rgba(255,255,255,.5);
+    border-bottom:1px solid var(--border-hairline);} body.dark thead th{background:rgba(255,255,255,.06);}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--border-hairline);color:var(--ink);}
+  tbody tr{transition:background .15s;} tbody tr:hover{background:rgba(99,102,241,.06);}
+  .tag{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--radius-pill);background:var(--glass-bg-card);
+    border:1px solid var(--glass-border);color:var(--ink-soft);font-size:var(--text-meta);font-weight:500;}
+  .tag.brand{background:rgba(99,102,241,.12);color:var(--brand);border-color:rgba(99,102,241,.25);}
+  .tag.warn{background:var(--c-warning-soft);color:var(--c-warning);border-color:rgba(245,158,11,.3);}
+  .tag.err{background:var(--c-error-soft);color:var(--c-error);border-color:rgba(239,68,68,.3);}
+
+  /* 控件 */
+  .toggle{display:inline-flex;align-items:center;gap:8px;font-size:var(--text-small);color:var(--ink-soft);cursor:pointer;}
+  .seg{display:inline-flex;gap:8px;align-items:center;}
+  .sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s var(--ease-out);}
+  .sw:hover{transform:scale(1.18);}
+  .sw.on{border-color:var(--ink);}
+  #brandPick{width:26px;height:26px;border:none;background:none;cursor:pointer;padding:0;border-radius:50%;}
+  #brandPick::-webkit-color-swatch-wrapper{padding:0;} #brandPick::-webkit-color-swatch{border:none;border-radius:50%;}
+  /* 弹窗 */
+  .modal-mask{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.28);backdrop-filter:blur(var(--glass-blur-overlay));
+    -webkit-backdrop-filter:blur(var(--glass-blur-overlay));display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-mask.show{display:flex;}
+  .modal{width:440px;max-width:92vw;padding:var(--space-6);background:var(--glass-bg-elevated);backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border-strong);border-radius:var(--radius-lg);box-shadow:var(--shadow-elevated);}
+  .modal h3{font-size:var(--text-h3);margin-bottom:8px;} .modal p{color:var(--ink-soft);font-size:var(--text-body);margin-bottom:18px;}
+
+  .hint{font-size:var(--text-meta);color:var(--ink-faint);margin-top:4px;}
+  @media(max-width:1024px){.kpi-row,.stat-row{grid-template-columns:repeat(2,1fr);} .sider{display:none;}}
+  @media(max-width:560px){.kpi-row,.stat-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="app-aurora"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+
+<div class="app">
+  <!-- 侧栏 -->
+  <aside class="sider glass-panel">
+    <div class="logo"><div class="ic">A</div><b>ATS招聘系统</b></div>
+    <div class="nav-item active"><span class="dot">▦</span>工作台</div>
+    <div class="nav-item"><span class="dot">▤</span>需求管理</div>
+    <div class="nav-item"><span class="dot">◍</span>候选人</div>
+    <div class="nav-item"><span class="dot">◷</span>面试管理</div>
+    <div class="nav-item"><span class="dot">♥</span>Offer管理</div>
+    <div class="nav-item"><span class="dot">⚑</span>校招管控</div>
+    <div class="nav-item"><span class="dot">⚙</span>设置</div>
+  </aside>
+
+  <!-- 主体 -->
+  <div class="main">
+    <header class="topbar glass-panel">
+      <div class="search">🔍 搜索候选人、职位、需求… <span style="margin-left:auto;opacity:.6">⌘K</span></div>
+      <div class="spacer"></div>
+      <div class="seg" id="brandSeg" title="自定义品牌色（换肤）">
+        <span class="sw on" data-c="#6366F1" style="background:#6366F1"></span>
+        <span class="sw" data-c="#0052D9" style="background:#0052D9"></span>
+        <span class="sw" data-c="#06B6D4" style="background:#06B6D4"></span>
+        <span class="sw" data-c="#EC4899" style="background:#EC4899"></span>
+        <span class="sw" data-c="#F59E0B" style="background:#F59E0B"></span>
+        <input type="color" id="brandPick" value="#6366F1" title="自定义品牌色" />
+      </div>
+      <span class="toggle" id="themeBtn">🌗 暗色</span>
+      <span class="avatar">兵</span>
+    </header>
+
+    <div class="content">
+      <section>
+        <h1 class="page gradient-title">校招管控 · 液态玻璃预览</h1>
+        <p class="sub">统一品牌色 #6366F1 · 极光底 + 半透明玻璃表面 + 顶部高光。本页为 DESIGN.md v1.0 目标态的可视化确认稿。</p>
+      </section>
+
+      <!-- KPI -->
+      <section class="kpi-row">
+        <div class="kpi"><span class="l">计入核算人数</span><span class="v">1,286</span></div>
+        <div class="kpi"><span class="l">管控规则数</span><span class="v">14</span></div>
+        <div class="kpi danger"><span class="l">硬约束超标</span><span class="v">3</span></div>
+        <div class="kpi warn"><span class="l">软/仅提示超标</span><span class="v">5</span></div>
+      </section>
+
+      <!-- 统计卡 -->
+      <section class="stat-row">
+        <div class="stat"><div class="l">📋 待初筛</div><div class="v">42</div><span class="pill brand">进行中</span></div>
+        <div class="stat"><div class="l">✉ 待办</div><div class="v">17</div><span class="pill warn">需处理</span></div>
+        <div class="stat"><div class="l">⤴ 推荐人才</div><div class="v">9</div><span class="pill up">+12%</span></div>
+        <div class="stat"><div class="l">◷ 初筛中</div><div class="v">23</div><span class="pill down">-4%</span></div>
+      </section>
+
+      <!-- 玻璃面板 + 表格 -->
+      <section class="glass-panel tbl-wrap" style="padding:var(--space-6)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <h3 style="font-size:var(--text-h3);font-weight:600">实时看板 · 比例管控</h3>
+          <div class="btn-row">
+            <button class="btn btn-secondary">管理维度</button>
+            <button class="btn btn-primary" onclick="document.getElementById('m').classList.add('show')">+ 批量配置规则</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>适用范围</th><th>维度</th><th>指标</th><th>实际/分母</th><th>占比</th><th>状态</th><th>强度</th></tr></thead>
+          <tbody>
+            <tr><td>全局</td><td>学历</td><td>985</td><td>320 / 1286</td><td>24.9%</td><td><span class="tag brand">正常</span></td><td><span class="tag">硬约束</span></td></tr>
+            <tr><td>技术部</td><td>院校标签</td><td>985</td><td>88 / 210</td><td>41.9%</td><td><span class="tag err">高于上限</span></td><td><span class="tag">硬约束</span></td></tr>
+            <tr><td>产品部</td><td>性别</td><td>男</td><td>120 / 180</td><td>66.7%</td><td><span class="tag warn">接近上限</span></td><td><span class="tag">软约束</span></td></tr>
+            <tr><td>全局</td><td>专业</td><td>工学</td><td>540 / 1286</td><td>42.0%</td><td><span class="tag brand">正常</span></td><td><span class="tag">硬约束</span></td></tr>
+          </tbody>
+        </table>
+        <p class="hint">表格为玻璃材质：表头半透明白、行 hairline 分隔、hover 行品牌浅底，无斑马纹实底（替换 Naive 默认白条纹）。</p>
+      </section>
+
+      <!-- 按钮规范 -->
+      <section class="glass-card">
+        <h3 style="font-size:var(--text-h3);font-weight:600;margin-bottom:14px">按钮变体（玻璃化）</h3>
+        <div class="btn-row">
+          <button class="btn btn-primary">主按钮 Primary</button>
+          <button class="btn btn-secondary">次按钮 Secondary</button>
+          <button class="btn btn-ghost">幽灵 Ghost</button>
+          <button class="btn btn-danger">危险 Danger</button>
+        </div>
+        <p class="hint">主按钮=品牌渐变+辉光+玻璃；次按钮=玻璃表面+描边；激活态金 #FBCE5B / 橙 #FF7A45 已全部弃用。</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗 -->
+<div class="modal-mask" id="m" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <h3 class="gradient-title">批量配置规则 + 人数目标</h3>
+    <p>玻璃模态：遮罩 6px 毛玻璃 + 浮起玻璃卡片。这是液态玻璃系统在 Dialog/Drawer 上的统一表现。</p>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="document.getElementById('m').classList.remove('show')">取消</button>
+      <button class="btn btn-primary" onclick="document.getElementById('m').classList.remove('show')">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 暗色切换
+  document.getElementById('themeBtn').onclick=function(){
+    document.body.classList.toggle('dark');
+    this.textContent=document.body.classList.contains('dark')?'☀ 浅色':'🌗 暗色';
+  };
+  // 自定义品牌色（换肤）：仅改 --brand，hover/pressed/dark 经 color-mix 自动派生
+  function hexToHsl(hex){hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
+    let r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,6),16)/255;
+    const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0;
+    if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360;}
+    return {h};}
+  function hslToHex(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);
+    const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+    const to=x=>Math.round(255*x).toString(16).padStart(2,'0');
+    return '#'+to(f(0))+to(f(8))+to(f(4));}
+  const root=document.documentElement.style;
+  function setBrand(hex){
+    root.setProperty('--brand',hex);
+    const {h}=hexToHsl(hex);
+    root.setProperty('--brand-grad-a',hslToHex((h+25)%360,72,62));
+    root.setProperty('--brand-grad-b',hslToHex((h+330)%360,74,62));
+    document.querySelectorAll('#brandSeg .sw').forEach(s=>s.classList.toggle('on',s.dataset.c.toLowerCase()===hex.toLowerCase()));
+    document.getElementById('brandPick').value=hex;
+  }
+  document.querySelectorAll('#brandSeg .sw').forEach(s=>s.onclick=()=>setBrand(s.dataset.c));
+  document.getElementById('brandPick').oninput=e=>setBrand(e.target.value);
+  setBrand('#6366F1'); // 初始化 + 标记当前
+</script>
+</body>
+</html>

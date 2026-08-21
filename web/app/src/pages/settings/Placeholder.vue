@@ -3,7 +3,7 @@
     <n-card :bordered="false" class="rounded-xl" style="box-shadow: 0 2px 12px rgba(0,0,0,0.08)">
       <n-empty :description="descriptionText">
         <template #icon>
-          <n-icon :component="icon" :size="64" color="#FBCE5B" />
+          <n-icon :component="icon" :size="64" color="var(--brand)" />
         </template>
       </n-empty>
     </n-card>
