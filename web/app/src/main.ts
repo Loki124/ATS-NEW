@@ -10,6 +10,8 @@ import { naivePlugin } from './plugins/naive'
 import 'virtual:uno.css'
 import '@unocss/reset/tailwind.css'
 import './styles/tokens.css'
+import './styles/glass.css'
+import './styles/glass-modal.css' // T2.3: 模态/抽屉玻璃化扩展（n-modal-container / n-drawer 等）
 import './index.css'
 
 // 2026-06-29 花无缺: 全局 axios 拦截器 — 区分 401/403 (真权限) vs 404 (endpoint 缺)
@@ -51,7 +53,25 @@ app.use(naivePlugin)
 //           失败 401/403 -> logout 强制重登
 //           网络抖动/5xx -> 留快照, 后续 API 401 时再被 axios 拦截器登出
 import { useUserStore } from './stores/user'
+import { useThemeStore } from './stores/theme'
 const _userStore = useUserStore()
+const _themeStore = useThemeStore()
+
+// v2 液态玻璃：从 localStorage 恢复主题偏好（品牌色 + 暗色模式）
+// 必须在 Vue mount 之前调用，否则初始渲染用旧值会闪烁
+_themeStore.init()
+
+// 暴露测试 API（dev only）—— 给浏览器 console / 自动化测试用
+// 例：window.__ats.theme.setBrand('#FF6B6B'); window.__ats.theme.setMode('dark');
+if (import.meta.env.DEV) {
+  ;(window as any).__ats = (window as any).__ats || {}
+  ;(window as any).__ats.theme = {
+    setBrand: (hex: string) => _themeStore.setBrand(hex),
+    setMode: (m: 'light' | 'dark' | 'auto') => _themeStore.setMode(m),
+    reset: () => _themeStore.reset(),
+    get: () => ({ brand: _themeStore.brandHex, mode: _themeStore.mode }),
+  }
+}
 
 // Step 1: 同步快照恢复
 try {

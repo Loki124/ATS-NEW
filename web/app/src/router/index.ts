@@ -154,6 +154,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'data-dashboard', name: 'DataDashboard', component: () => import(/* webpackChunkName: "settings-data-dashboard" */ '../pages/settings/DataDashboard.vue') },
           // ===== 制度公告管理 (HR 及以上维护) =====
           { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'HRBP', 'HR'] } },
+          // ===== G44 V2 主题外观 (液态玻璃 v2) — 全员可见 =====
+          { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
         ],
       },
       {

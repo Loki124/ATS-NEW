@@ -1,16 +1,20 @@
 <template>
+  <!-- v2 液态玻璃：全局极光背景层（DESIGN.md §2 + §9 Agent Prompt #5） -->
+  <div class="app-aurora">
+    <div class="aurora-spot"></div>
+  </div>
+
   <div class="app-layout">
-    <!-- 侧边栏（左侧竖排模式） -->
+    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化） -->
     <n-layout-sider
       v-if="menuLayout === 'side'"
-      bordered
       :width="240"
       :collapsed-width="64"
       show-trigger
       collapse-mode="width"
       :collapsed="collapsed"
       :native-scrollbar="false"
-      class="bg-gray-900 app-sider"
+      class="glass-sidebar app-sider"
       @collapse="collapsed = true"
       @expand="collapsed = false"
     >
@@ -32,9 +36,8 @@
         :options="menuOptions"
         :value="selectedKey"
         :expanded-keys="expandedKeys"
-        :inverted="true"
         :theme-overrides="menuThemeOverrides"
-        class="bg-gray-900"
+        class="glass-sidebar"
         @update:value="handleMenuClick"
         @update:expanded-keys="onExpandedKeysChange"
       />
@@ -42,8 +45,8 @@
 
     <!-- 主体 -->
     <div class="main-area">
-      <!-- 头部 -->
-      <n-layout-header bordered class="bg-white px-6 flex items-center justify-between h-16">
+      <!-- 头部（v2 玻璃化 · DESIGN.md §4 Navigation） -->
+      <n-layout-header class="glass-panel glass-header px-6 flex items-center justify-between h-16">
         <!-- 左集群 -->
         <div class="flex items-center gap-4 min-w-0" :class="menuLayout === 'top' ? 'flex-1' : ''">
           <!-- 顶部横排：Logo -->
@@ -53,7 +56,7 @@
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </div>
-            <span class="text-base font-semibold text-gray-800 whitespace-nowrap">ATS招聘系统</span>
+            <span class="text-base font-semibold text-ink whitespace-nowrap">ATS招聘系统</span>
           </div>
 
           <!-- 顶部横排：水平菜单 -->
@@ -67,24 +70,24 @@
             @update:value="handleMenuClick"
           />
 
-          <!-- 左侧竖排：搜索框在左 -->
+          <!-- 左侧竖排：搜索框在左（v2 玻璃化） -->
           <n-button v-if="menuLayout === 'side'" text class="layout-header__search-trigger shrink-0" aria-label="全局搜索" @click="onSearchClick">
-            <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-80 cursor-pointer">
+            <div class="search-box glass-input flex items-center gap-2 w-80 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-gray-500 text-left">搜索候选人、职位、需求...</span>
-              <span class="text-xs text-gray-400 kbd-hint">⌘K</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">搜索候选人、职位、需求...</span>
+              <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
         </div>
 
         <!-- 右集群 -->
         <div class="flex items-center gap-4 shrink-0">
-          <!-- 顶部横排：搜索框在右 -->
+          <!-- 顶部横排：搜索框在右（v2 玻璃化） -->
           <n-button v-if="menuLayout === 'top'" text class="layout-header__search-trigger" aria-label="全局搜索" @click="onSearchClick">
-            <div class="search-box flex items-center gap-2 px-3 py-1.5 rounded-md bg-gray-100 w-72 cursor-pointer">
+            <div class="search-box glass-input flex items-center gap-2 w-72 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-gray-500 text-left">搜索候选人、职位、需求...</span>
-              <span class="text-xs text-gray-400 kbd-hint">⌘K</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">搜索候选人、职位、需求...</span>
+              <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
 
@@ -96,20 +99,20 @@
 
           <n-dropdown :options="userMenuOptions" trigger="click" @select="handleUserMenu">
             <div class="flex items-center gap-2 cursor-pointer">
-              <n-avatar :size="36" round class="bg-primary text-gray-900 font-semibold">
+              <n-avatar :size="36" round class="bg-primary-gradient text-white font-semibold">
                 {{ userStore.user?.realName?.[0] || 'A' }}
               </n-avatar>
               <div class="flex flex-col leading-tight">
-                <span class="text-sm font-medium text-gray-800">{{ userStore.user?.realName || '管理员' }}</span>
-                <span class="text-xs text-gray-500">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? '超级管理员' : '用户' }}</span>
+                <span class="text-sm font-medium text-ink">{{ userStore.user?.realName || '管理员' }}</span>
+                <span class="text-xs text-ink-soft">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? '超级管理员' : '用户' }}</span>
               </div>
             </div>
           </n-dropdown>
         </div>
       </n-layout-header>
 
-      <!-- 内容区 -->
-      <div class="bg-gray-50 layout-content">
+      <!-- 内容区（v2：透明背景让极光底透出） -->
+      <div class="layout-content">
         <div class="content-wrapper p-6">
           <router-view />
         </div>
@@ -189,57 +192,58 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
 })
 
-// 菜单主题覆盖 —— 适配深色侧边栏（配合 :inverted="true"）
-// Naive UI inverted 模式用 *Inverted 后缀的变量，否则覆盖无效
+// 菜单主题覆盖 —— 适配 v2 玻璃侧栏（DESIGN.md §4 Navigation）
+// 浅底 + 墨色文字 + 品牌色激活（替换原金色 #FBCE5B + 深底白字 inverted 模式）
+// 玻璃侧栏在深色模式下通过 CSS 变量自动切换（见 glass.css .glass-sidebar）
 const menuThemeOverrides = {
-  // 未选中：白色透明
-  itemTextColorInverted: 'rgba(255, 255, 255, 0.88)',
-  itemTextColorHoverInverted: '#ffffff',
-  itemIconColorInverted: 'rgba(255, 255, 255, 0.88)',
-  itemIconColorHoverInverted: '#ffffff',
+  // === 未选中态（墨色 ink-soft）===
+  itemTextColor: 'var(--ink-soft)',
+  itemTextColorHover: 'var(--ink)',
+  itemIconColor: 'var(--ink-soft)',
+  itemIconColorHover: 'var(--ink)',
 
-  // 选中态：品牌金文字 + 30% 金色背景（更高对比度）
-  itemTextColorActiveInverted: '#FBCE5B',
-  itemTextColorActiveHoverInverted: '#FBCE5B',
-  itemIconColorActiveInverted: '#FBCE5B',
-  itemIconColorActiveHoverInverted: '#FBCE5B',
-  itemColorActiveInverted: 'rgba(251, 206, 91, 0.18)',
-  itemColorActiveHoverInverted: 'rgba(251, 206, 91, 0.28)',
-  itemColorActiveCollapsedInverted: 'rgba(251, 206, 91, 0.18)',
+  // === 选中态：品牌色文字 + 品牌色浅底（更高对比度）===
+  itemTextColorActive: 'var(--brand)',
+  itemTextColorActiveHover: 'var(--brand)',
+  itemIconColorActive: 'var(--brand)',
+  itemIconColorActiveHover: 'var(--brand)',
+  itemColorActive: 'var(--brand-soft)',
+  itemColorActiveHover: 'var(--brand-soft)',
+  itemColorActiveCollapsed: 'var(--brand-soft)',
 
-  // 子项激活：金色
-  itemTextColorChildActiveInverted: '#FBCE5B',
-  itemTextColorChildActiveHoverInverted: '#FBCE5B',
-  itemIconColorChildActiveInverted: '#FBCE5B',
-  itemIconColorChildActiveHoverInverted: '#FBCE5B',
+  // === 子项激活：品牌色 ===
+  itemTextColorChildActive: 'var(--brand)',
+  itemTextColorChildActiveHover: 'var(--brand)',
+  itemIconColorChildActive: 'var(--brand)',
+  itemIconColorChildActiveHover: 'var(--brand)',
 
-  // 箭头 / 分组
-  arrowColorInverted: 'rgba(255, 255, 255, 0.6)',
-  arrowColorHoverInverted: '#ffffff',
-  arrowColorActiveInverted: '#FBCE5B',
-  arrowColorChildActiveInverted: '#FBCE5B',
-  groupTextColorInverted: 'rgba(255, 255, 255, 0.5)',
+  // === 箭头 / 分组 ===
+  arrowColor: 'var(--ink-faint)',
+  arrowColorHover: 'var(--ink)',
+  arrowColorActive: 'var(--brand)',
+  arrowColorChildActive: 'var(--brand)',
+  groupTextColor: 'var(--ink-faint)',
 
   borderRadius: '6px',
 }
 
-// 顶部横排菜单：浅色主题（header 为白底，用深色文字 + 金色激活）
+// 顶部横排菜单（玻璃 header 上）：浅色主题 + 品牌色激活
 const topMenuThemeOverrides = {
-  itemTextColor: '#374151',
-  itemTextColorHover: '#111827',
-  itemTextColorActive: '#C8961A',
-  itemTextColorActiveHover: '#C8961A',
-  itemIconColor: '#6b7280',
-  itemIconColorHover: '#374151',
-  itemIconColorActive: '#C8961A',
-  itemColorActive: 'rgba(251, 206, 91, 0.18)',
-  itemColorActiveHover: 'rgba(251, 206, 91, 0.28)',
-  itemColorActiveCollapsed: 'rgba(251, 206, 91, 0.18)',
-  itemTextColorChildActive: '#C8961A',
-  itemTextColorChildActiveHover: '#C8961A',
-  itemIconColorChildActive: '#C8961A',
-  itemColorActiveTop: 'rgba(251, 206, 91, 0.18)',
-  itemColorActiveHoverTop: 'rgba(251, 206, 91, 0.28)',
+  itemTextColor: 'var(--ink-soft)',
+  itemTextColorHover: 'var(--ink)',
+  itemTextColorActive: 'var(--brand)',
+  itemTextColorActiveHover: 'var(--brand)',
+  itemIconColor: 'var(--ink-soft)',
+  itemIconColorHover: 'var(--ink)',
+  itemIconColorActive: 'var(--brand)',
+  itemColorActive: 'var(--brand-soft)',
+  itemColorActiveHover: 'var(--brand-soft)',
+  itemColorActiveCollapsed: 'var(--brand-soft)',
+  itemTextColorChildActive: 'var(--brand)',
+  itemTextColorChildActiveHover: 'var(--brand)',
+  itemIconColorChildActive: 'var(--brand)',
+  itemColorActiveTop: 'var(--brand-soft)',
+  itemColorActiveHoverTop: 'var(--brand-soft)',
   borderRadius: '6px',
 }
 
@@ -400,15 +404,7 @@ function handleUserMenu(key: string) {
 </script>
 
 <style scoped>
-.bg-gray-900 {
-  background-color: #1f2937;
-}
-.bg-gray-50 {
-  background-color: #f9fafb;
-}
-.search-box {
-  background-color: #f3f4f6;
-}
+/* v2 液态玻璃：移除硬编码 hex，全部走 tokens.css 变量（DESIGN.md §7 Don'ts #4）*/
 
 /* === 全局搜索触发按钮（顶栏） === */
 .layout-header__search-trigger {
@@ -418,21 +414,24 @@ function handleUserMenu(key: string) {
 
 /* === 顶栏返回按钮 === */
 .layout-header__back {
-  color: #6b7280;
+  color: var(--ink-soft);
   padding: 4px;
   border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .layout-header__back:hover {
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--brand);
+  background: var(--brand-tint);
 }
+
+/* === ⌘K 快捷键提示 === */
 .kbd-hint {
   padding: 1px 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-hairline);
   border-radius: 4px;
-  background: #ffffff;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: var(--surface);
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
   line-height: 1.2;
 }
 
@@ -444,10 +443,10 @@ function handleUserMenu(key: string) {
   padding: 0;
 }
 
-/* === Logo 尺寸约束 === */
+/* === Logo 容器（玻璃侧栏顶部） === */
 .logo-container {
   padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-hairline);
 }
 .logo {
   display: flex;
@@ -462,13 +461,14 @@ function handleUserMenu(key: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #FBCE5B 0%, #E5B82A 100%);
-  color: #1f2937;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
+  color: #ffffff;
   flex-shrink: 0;
 }
 .logo-text {
   line-height: 1;
+  color: var(--ink);
 }
 
 /* === 顶部横排：Logo + 水平菜单 === */
@@ -504,7 +504,7 @@ function handleUserMenu(key: string) {
   animation: none !important;
 }
 
-/* === 激活菜单项左侧金色 accent bar（无渐变） === */
+/* === 激活菜单项左侧品牌色 accent bar（无渐变） === */
 :deep(.n-menu-item-content--selected)::before {
   content: '';
   position: absolute;
@@ -512,7 +512,7 @@ function handleUserMenu(key: string) {
   top: 8px;
   bottom: 8px;
   width: 3px;
-  background: #FBCE5B;
+  background: var(--brand);
   border-radius: 0 2px 2px 0;
   transition: none !important;
 }
@@ -543,11 +543,17 @@ function handleUserMenu(key: string) {
   flex-direction: column;
 }
 
-/* === 头部固定不滚动 === */
+/* === 头部固定不滚动（v2 玻璃 header） === */
 .app-layout :deep(.n-layout-header) {
   flex-shrink: 0;
   position: relative;
-  z-index: 10;
+  z-index: var(--z-header);
+  border-bottom: 1px solid var(--border-hairline);
+}
+/* 玻璃 header 顶部圆角与侧栏对齐：左侧贴合侧栏 0 圆角，右侧保留 */
+.glass-header {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 /* === 主内容区: 撑开剩余, 内容溢出时内部滚 === */
@@ -557,6 +563,7 @@ function handleUserMenu(key: string) {
   flex: 1;
   min-height: 0; /* 关键 */
   overflow: hidden; /* 内容溢出时, .content-wrapper 内部滚 */
+  background: transparent; /* 让 .app-aurora 极光底透出 */
 }
 .content-wrapper {
   display: flex;

@@ -1,9 +1,11 @@
 /* Global styles - UnoCSS 接管工具类，组件库换为 Naive UI */
 
 :root {
-  --primary-color: #FBCE5B;
-  --primary-hover: #E5B82A;
-  --primary-bg: rgba(251, 206, 91, 0.1);
+  /* v2 品牌色代理（被 App.vue themeOverrides / Layout.vue 实际接管），
+   * 保留旧名仅给历史 css 引用兜底，来源单一化为 var(--brand)。 */
+  --primary-color: var(--brand);
+  --primary-hover: var(--brand-hover);
+  --primary-bg: var(--brand-soft);
 }
 
 html, body, #app {

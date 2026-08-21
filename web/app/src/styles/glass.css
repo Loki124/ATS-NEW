@@ -1,0 +1,358 @@
+/* =============================================================
+ * Liquid Glass Components — v2 (液态玻璃)
+ * -------------------------------------------------------------
+ * 单一事实来源：DESIGN.md §4 Component Stylings + §6 Depth
+ * 玻璃原子类，配合 tokens.css 的 --glass-* / --shadow-* 变量使用。
+ * -------------------------------------------------------------
+ * 设计原则：
+ *   - 必带 -webkit-backdrop-filter 前缀（Safari/微信内置浏览器）
+ *   - 必有不透明兜底 background（不支持 backdrop-filter 的浏览器可读）
+ *   - 玻璃面板加 ::before 顶部高光（液态质感）
+ *   - 圆角/间距/模糊全部走 CSS 变量
+ *   - 暗色模式不写硬色，组件 CSS 不变，仅切 tokens.css 的变量集
+ * ============================================================= */
+
+/* === 全局极光背景（DESIGN.md §2 + §9 Agent Prompt #5）===
+ * 固定在 body 之后、app 之前，z-index 0。
+ * 用 fixed + pointer-events:none 保证不影响交互。
+ * 三层光斑叠在底色之上，营造「可透」内容给玻璃用。
+ */
+.app-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--aurora-base);
+}
+.app-aurora::before,
+.app-aurora::after,
+.app-aurora > .aurora-spot {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px); /* 光斑自身模糊（与 backdrop-filter 不同） */
+  pointer-events: none;
+}
+.app-aurora::before {
+  /* 靛光斑（左上） */
+  inset: -20% -20% auto auto;
+  width: 60vw;
+  height: 60vw;
+  background: var(--aurora-1);
+}
+.app-aurora::after {
+  /* 紫光斑（右下） */
+  inset: auto auto -20% -20%;
+  width: 50vw;
+  height: 50vw;
+  background: var(--aurora-2);
+}
+.app-aurora > .aurora-spot {
+  /* 青光斑（中上） */
+  top: 20%;
+  left: 30%;
+  width: 40vw;
+  height: 40vw;
+  background: var(--aurora-3);
+}
+
+/* === .glass-panel（DESIGN.md §4 玻璃面板）===
+ * 用于框架侧栏/顶栏/大块面板容器。
+ * 浅色：半透明白 + blur(24px) + 强高光；暗色：拉丝深玻璃（变量集自动切换）。
+ */
+.glass-panel {
+  position: relative;
+  background: var(--glass-bg-panel);
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden; /* 防止 ::before 高光溢出 */
+}
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 40%);
+}
+/* 暗色下顶部高光转深（极弱白色，模拟暗色玻璃反光） */
+body.dark .glass-panel::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 40%);
+}
+
+/* === .glass-card（DESIGN.md §4 玻璃卡片）===
+ * 用于统计卡/列表卡/表单容器。
+ * 比 .glass-panel 更轻（背景透明度更低、blur 更小）。
+ */
+.glass-card {
+  position: relative;
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+}
+body.dark .glass-card {
+  box-shadow: var(--shadow-card); /* 暗色下阴影由变量集自动加深 */
+}
+
+/* === 全局 n-card 玻璃化（DESIGN.md §4 · Phase 3 中心杠杆）===
+ * 让全站所有 n-card（设置中心 / 工作台 / 招聘主流程 / 通用件）统一玻璃材质，
+ * 消除「扁平白卡与玻璃混排」。不透明兜底由 --glass-bg-card 的 rgba 保证；
+ * backdrop-filter 失效时仍是半透明白卡，可读性不崩。
+ * 用 .n-card.n-card 重复类提升特异性，稳定覆盖 Naive 默认背景色。 */
+.n-card.n-card {
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border: 1px solid var(--glass-border);
+}
+/* 暗色变量集已自动转深玻璃，无需额外覆写（保留以便未来微调） */
+
+/* === .glass-input（DESIGN.md §4 Inputs）===
+ * focus 时 3px 品牌辉光环。
+ */
+.glass-input {
+  background: var(--glass-bg-input);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--ink);
+  backdrop-filter: blur(var(--glass-blur-input));
+  -webkit-backdrop-filter: blur(var(--glass-blur-input));
+  transition: all var(--duration-fast) var(--ease-out);
+  font: inherit;
+  width: 100%;
+}
+.glass-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-tint);
+  outline: none;
+}
+.glass-input::placeholder {
+  color: var(--ink-faint);
+}
+
+/* === .glass-tag / 语义 tag（DESIGN.md §4 Badges）=== */
+.glass-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  color: var(--ink-soft);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1.6;
+}
+.glass-tag--brand {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-color: var(--brand-soft);
+}
+.glass-tag--success {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+  border-color: var(--c-success-soft);
+}
+.glass-tag--warning {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+  border-color: var(--c-warning-soft);
+}
+.glass-tag--error {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+  border-color: var(--c-error-soft);
+}
+.glass-tag--info {
+  background: var(--c-info-soft);
+  color: var(--c-info);
+  border-color: var(--c-info-soft);
+}
+
+/* === .btn-primary（DESIGN.md §4 Primary）===
+ * 玻璃浮起 + 品牌渐变 + 辉光 + backdrop-filter。
+ */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .35);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 600;
+  font-size: var(--text-body);
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--glow-brand), inset 0 1px 0 rgba(255, 255, 255, .4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all var(--duration-base) var(--ease-out);
+}
+.btn-primary:hover {
+  box-shadow: 0 6px 20px var(--glow-brand);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* === .btn-secondary（DESIGN.md §4 Secondary）===
+ * 玻璃表面 + 描边；hover 时描边变品牌色。
+ */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  color: var(--ink);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: var(--text-body);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all var(--duration-base) var(--ease-out);
+}
+.btn-secondary:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.btn-secondary:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* === .btn-ghost（DESIGN.md §4 Ghost）=== */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.btn-ghost:hover {
+  background: var(--brand-tint);
+  color: var(--ink);
+}
+
+/* === .btn-danger（DESIGN.md §4 Danger）=== */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--c-error-soft);
+  border: 1px solid rgba(239, 68, 68, .3);
+  color: var(--c-error);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 600;
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-out);
+}
+.btn-danger:hover {
+  background: var(--c-error);
+  color: #fff;
+}
+
+/* === .gradient-title（DESIGN.md §3 渐变标题）===
+ * 仅用于页面/Hero 主标题，正文保持纯墨。
+ */
+.gradient-title {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 55%, var(--brand-grad-b) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent; /* fallback */
+}
+
+/* === .n-menu 玻璃化覆盖（DESIGN.md §4 Navigation）===
+ * 侧栏激活项：品牌浅底 + 3px 品牌 accent bar。
+ * 这里只覆盖 Naive UI 内部生成的样式（不可改 Naive 组件源码）。
+ * 注：Layout.vue 当前是深色实底侧栏，T1.5 会改为玻璃化侧栏，
+ *     本节定义的玻璃激活态届时生效。
+ */
+.glass-sidebar {
+  background: var(--glass-bg-panel) !important;
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  border-right: 1px solid var(--glass-border);
+}
+.glass-sidebar :deep(.n-menu-item-content--selected) {
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
+  font-weight: 600;
+}
+.glass-sidebar :deep(.n-menu-item-content--selected)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--brand);
+  border-radius: 0 2px 2px 0;
+}
+
+/* === Modal / Drawer 毛玻璃遮罩（DESIGN.md §4 Modals）===
+ * Naive UI n-modal 自带遮罩，需要覆盖成毛玻璃。
+ * 配合 .glass-card 作为浮起内容（modal preset="card" 时已自带 padding）。
+ */
+.n-modal-mask {
+  background: rgba(15, 23, 42, .28) !important;
+  backdrop-filter: blur(var(--glass-blur-overlay));
+  -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
+}
+body.dark .n-modal-mask {
+  background: rgba(0, 0, 0, .45) !important;
+}
+
+/* === Data Table 玻璃化（DESIGN.md §4 Data Table）===
+ * 表头半透明白，行 hairline 分隔，hover 行品牌浅底，去斑马纹。
+ */
+.glass-table .n-data-table-th {
+  background: rgba(255, 255, 255, .5) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.glass-table .n-data-table-td {
+  border-bottom: 1px solid var(--border-hairline);
+}
+.glass-table .n-data-table-tr:hover .n-data-table-td {
+  background: var(--brand-tint) !important;
+}
+.glass-table .n-data-table-tr.n-data-table-tr--hover .n-data-table-td {
+  background: var(--brand-tint) !important;
+}
+body.dark .glass-table .n-data-table-th {
+  background: rgba(30, 41, 59, .5) !important;
+}

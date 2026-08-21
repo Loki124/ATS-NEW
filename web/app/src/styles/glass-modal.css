@@ -1,0 +1,155 @@
+/* =============================================================
+ * Glass Modal / Drawer 扩展 — 阶段 2（T2.3）
+ * -------------------------------------------------------------
+ * 单一事实来源：DESIGN.md §4 Modals + §6 Depth
+ *
+ * 与 glass.css 的 .n-modal-mask 规则互补：
+ *   - glass.css 提供：n-modal-mask 毛玻璃遮罩（阶段 1 已落）
+ *   - 本文件提供：n-modal-container / n-modal / n-drawer-* 全套玻璃化
+ *
+ * 设计原则（与 glass.css 一致）：
+ *   - 必带 -webkit-backdrop-filter 前缀
+ *   - 玻璃面板 ::before 顶部高光
+ *   - 暗色模式不写硬色，组件 CSS 不变
+ *   - 所有颜色走 tokens.css 变量
+ * ============================================================= */
+
+/* === Modal 容器（DESIGN.md §4 Modals）
+ * Naive UI 内部结构：.n-modal-container > .n-modal-body-wrapper > [.n-modal-mask] + .n-modal
+ * 我们只覆盖「中央 modal 面板本体」，容器本身保持 fixed/centered。
+ */
+.n-modal-container {
+  /* 不改 position，由 Naive UI 控制；只确保模糊背景正确生效 */
+  pointer-events: none;
+}
+.n-modal-container > * {
+  pointer-events: auto;
+}
+
+/* === Modal 面板本体（preset="card" 时，内部会再包一层 .n-card）
+ * 用 .glass-panel 的玻璃面板样式（DESIGN.md §4 玻璃面板）：
+ *   - 半透明白底 + blur(24px) + 强高光
+ *   - 暗色下走 --glass-bg-elevated（拉丝深玻璃）
+ */
+.n-modal {
+  position: relative;
+  background: var(--glass-bg-elevated) !important;
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden; /* 防止 ::before 高光溢出 */
+}
+.n-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 40%);
+  z-index: 0;
+}
+.n-modal > * {
+  position: relative;
+  z-index: 1;
+}
+body.dark .n-modal::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 40%);
+}
+
+/* === preset="card"：把 Naive UI Card 内的样式也对齐玻璃面板
+ * 卡片本身有 background，我们用透明让外层 .n-modal 的玻璃透出
+ */
+.n-modal .n-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.n-modal .n-card__content {
+  background: transparent;
+}
+
+/* === preset="dialog"（默认 preset）：保留 close / title / body 正常排版 */
+.n-modal .n-modal__title {
+  color: var(--ink);
+}
+.n-modal .n-modal__body {
+  color: var(--ink);
+}
+.n-modal .n-modal-header {
+  border-bottom: 1px solid var(--border-hairline);
+}
+.n-modal .n-modal-footer {
+  border-top: 1px solid var(--border-hairline);
+}
+
+/* === Drawer 遮罩（与 Modal mask 一致的毛玻璃）
+ * 注：glass.css 没定义 n-drawer-mask，这里补全
+ */
+.n-drawer-mask {
+  background: rgba(15, 23, 42, .28) !important;
+  backdrop-filter: blur(var(--glass-blur-overlay));
+  -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
+}
+body.dark .n-drawer-mask {
+  background: rgba(0, 0, 0, .45) !important;
+}
+
+/* === Drawer 容器：让面板可正常铺满，pointer 事件仅在面板本体生效
+ * （mask 仍是可点击关闭区，所以不能像 modal 那样全部禁用）
+ */
+.n-drawer-container {
+  position: fixed;
+}
+
+/* === Drawer 面板本体：玻璃面板（DESIGN.md §4 Modals）
+ * 与 .n-modal 同款：半透明白底 + blur + 高光 + 暗色深玻璃
+ */
+.n-drawer {
+  position: absolute !important;
+  background: var(--glass-bg-elevated) !important;
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden; /* 防止 ::before 高光溢出 */
+}
+.n-drawer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 40%);
+  z-index: 0;
+}
+.n-drawer > * {
+  position: relative;
+  z-index: 1;
+}
+body.dark .n-drawer::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 40%);
+}
+
+/* === Drawer 内部 header/body/footer 颜色与分隔对齐 token */
+.n-drawer-header {
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--ink);
+}
+.n-drawer-footer {
+  border-top: 1px solid var(--border-hairline);
+}
+.n-drawer-body {
+  color: var(--ink);
+}
+
+/* === 不支持 backdrop-filter 的老 Safari 兜底 === */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .n-modal {
+    background: var(--surface) !important; /* 暗色下也是 var(--surface) = #1E293B */
+  }
+  .n-drawer {
+    background: var(--surface) !important;
+  }
+}
