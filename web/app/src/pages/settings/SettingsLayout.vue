@@ -399,26 +399,37 @@ watch(
 .settings-content :deep(.page-title),
 .settings-content :deep(.page-header h2),
 .settings-content :deep(.policy-admin__title) {
-  font-size: var(--text-h1) !important;
+  font-size: var(--text-h1) !important;        /* 32px 统一字号 */
   font-weight: 700 !important;
-  margin: 0 !important;
+  margin: 0 !important;                         /* 强制零外边距,位置稳定 */
+  line-height: 1.25 !important;                /* 统一行高 → 视觉高度 40px */
+  height: 40px !important;                     /* 强制高度,容器内垂直对齐 */
+  display: inline-flex !important;
+  align-items: center !important;
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 55%, var(--brand-grad-b) 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   color: transparent !important;
   letter-spacing: -0.01em;
-  line-height: 1.25;
 }
-/* 标题容器为 flex 让 h1 + 按钮同行（部分子页面用 .page-header） */
+/* 标题容器为 flex 让 h1 + 按钮同行（部分子页面用 .page-header）
+ * 统一容器高度 56px：标题(40px) + padding(8px 上下) = 56px */
 .settings-content :deep(.page-header) {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) 0;
+  min-height: 56px !important;
+  height: auto;
+  margin: 0 0 var(--space-4) !important;
+  padding: var(--space-3) 0 !important;
+}
+/* 强制 h1/h2 浏览器默认 margin 归零,防止子页面 scoped style 把标题挤偏 */
+.settings-content :deep(h1),
+.settings-content :deep(h2) {
+  margin: 0 !important;
 }
 /* 子页面常见的副标题描述行 */
 .settings-content :deep(.page-subtitle),
@@ -426,6 +437,8 @@ watch(
   color: var(--ink-soft);
   font-size: var(--text-body);
   margin: 4px 0 0;
+  line-height: 1.5;
+  height: auto;
 }
 
 /* ② n-card 卡片头玻璃化（= cc-glass-panel 局部版） */
