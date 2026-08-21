@@ -26,11 +26,9 @@ def _default_monthly():
 
 
 class ControlDimension(FullAuditModel, UUIDModel):
-    """维度（院校标签/专业标签/性别），可单独配置。"""
+    """维度（如 院校标签/专业标签/性别），可自由新增，可单独配置。"""
 
-    name = models.CharField(
-        max_length=16, unique=True, choices=[(d, d) for d in DIMS], verbose_name='维度'
-    )
+    name = models.CharField(max_length=16, unique=True, verbose_name='维度')
     code = models.CharField(max_length=16, blank=True, default='', verbose_name='编码')
     is_active = models.BooleanField(default=True, verbose_name='启用')
 

@@ -31,7 +31,7 @@ from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 
-from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
+from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums, distinct_scope_keys
 from .constants import STRENGTH
 from .models import (
     ControlDimension, ControlIndicator, ControlRule, ControlHeadcount, Person,
@@ -152,23 +152,16 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             qs = qs.filter(level=level)
         return qs
 
-    def _scope_params(self):
-        return (
-            self.request.query_params.get('bu', '') or '',
-            self.request.query_params.get('position', '') or '',
-            self.request.query_params.get('level', '') or '',
-        )
-
-    def _scope_rules(self, bu, position, level):
-        return [_rule_to_dict(r) for r in ControlRule.objects.filter(bu=bu, position=position, level=level)]
-
     @action(detail=False, methods=['get'], url_path='ratio')
     def ratio(self, request):
-        bu, position, level = self._scope_params()
-        rules = self._scope_rules(bu, position, level)
+        """实时看板：展示全部规则（每条按自身适用范围独立计算）+ 各适用范围的 100% 加和。"""
+        rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
         persons = [_person_to_dict(p) for p in Person.objects.all()]
         result = compute_ratio(persons, rules)
-        sums = check_dimension_sums(rules, (bu, position, level))
+        sums = []
+        for sk in distinct_scope_keys(rules):
+            for s in check_dimension_sums(rules, sk):
+                sums.append({'bu': sk[0], 'position': sk[1], 'level': sk[2], **s})
         return Response({
             'success': True,
             'data': {
@@ -180,16 +173,14 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='plan')
     def plan(self, request):
-        bu, position, level = self._scope_params()
+        """人数规划：展示全部目标（每条按自身适用范围独立计算）。"""
         year = request.query_params.get('year')
         month = request.query_params.get('month')
         if not month:
             return Response({'success': False, 'detail': '缺少 month 参数'}, status=400)
-        rules = self._scope_rules(bu, position, level)
+        rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
         persons = [_person_to_dict(p) for p in Person.objects.all()]
-        headcounts = [
-            _headcount_to_dict(h) for h in ControlHeadcount.objects.filter(bu=bu, position=position, level=level)
-        ]
+        headcounts = [_headcount_to_dict(h) for h in ControlHeadcount.objects.all()]
         year = int(year) if year else 2026
         rows = compute_count(persons, rules, headcounts, year, month)
         k = kpi(persons, rules, headcounts, year, month)

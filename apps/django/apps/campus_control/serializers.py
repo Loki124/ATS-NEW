@@ -12,7 +12,7 @@ from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from .constants import DEPTS, SCHOOLS, MAJORS, SEXES, DIMS, STRENGTH, STATUS, POSITIONS, LEVELS
+from .constants import DEPTS, SCHOOLS, MAJORS, SEXES, STRENGTH, STATUS, POSITIONS, LEVELS
 from .models import (
     ControlDimension, ControlIndicator, ControlRule, ControlHeadcount, Person,
 )
@@ -49,8 +49,9 @@ class ControlDimensionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate_name(self, value):
-        if value not in DIMS:
-            raise serializers.ValidationError('维度非法')
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError('维度名称必填')
         qs = ControlDimension.objects.filter(name=value)
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
