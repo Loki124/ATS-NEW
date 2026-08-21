@@ -250,6 +250,7 @@ export interface RuleDraft {
   indicator: string
   target: number // 0~1
   strength: Strength
+  monthlyTargets?: number[] // 12 个月度管控人数；未传时后端按年度目标均分
 }
 
 /** 批量保存某 (适用范围, 维度) 的全部规则，硬校验 100% 加和（保留供可选使用）。 */

@@ -52,6 +52,45 @@ def _jsonify(obj):
     return obj
 
 
+def _normalize_monthly_targets(raw, total_target, target, indicator_name):
+    """校验并返回 12 个月度目标数组。"""
+    annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    if raw is None:
+        # 未传则均分年度目标
+        base = annual // 12
+        rem = annual - base * 12
+        return [base + (1 if i < rem else 0) for i in range(12)]
+    if not isinstance(raw, list) or len(raw) != 12:
+        return Response(
+            {'success': False, 'detail': f'指标 {indicator_name} 的 monthly_targets 须为长度 12 的数组'},
+            status=400,
+        )
+    try:
+        monthly = [int(v) for v in raw]
+    except (TypeError, ValueError):
+        return Response(
+            {'success': False, 'detail': f'指标 {indicator_name} 的 monthly_targets 每项须为整数'},
+            status=400,
+        )
+    if any(v < 0 for v in monthly):
+        return Response(
+            {'success': False, 'detail': f'指标 {indicator_name} 的月度目标不能为负数'},
+            status=400,
+        )
+    if sum(monthly) != annual:
+        return Response(
+            {
+                'success': False,
+                'detail': (
+                    f'指标 {indicator_name} 的 12 个月度目标之和({sum(monthly)})'
+                    f'须等于年度目标({annual})'
+                ),
+            },
+            status=400,
+        )
+    return monthly
+
+
 def _rule_to_dict(r):
     return {
         'bu': r.bu or '',
@@ -262,11 +301,14 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     def with_targets(self, request):
         """批量配置规则 + 人数目标（一次性原子操作）。
 
-        入参: { bu, position, level, dimension, year, totalTarget, rules: [{indicator, target, strength}] }
+        入参: { bu, position, level, dimension, year, totalTarget,
+                 rules: [{indicator, target, strength, monthly_targets?}] }
         行为（v2.4）：取消上下限；人数目标直接承载于规则上。
           - 校验 100% 加和 + 0<=target<=1 + indicator∈dimension
           - 事务内: 删除该(适用范围, 维度, 年度)旧规则 → 创建新规则
-          - 每条规则写入 annual_target=round(totalTarget×target)、monthly_targets=[0]*12
+          - 每条规则 annual_target=round(totalTarget×target)
+          - monthly_targets 优先取前端传入；未传则按年度目标均分 12 个月
+          - 校验 monthly_targets 为长度 12 的非负整数数组且加和=annual_target
         """
         bu = request.data.get('bu', '') or ''
         position = request.data.get('position', '') or ''
@@ -315,8 +357,13 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比须满足 0<=目标<=1'}, status=400)
             if strength not in STRENGTH:
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 控制强度非法'}, status=400)
+            # monthly_targets 校验
+            raw_monthly = r.get('monthly_targets')
+            monthly = _normalize_monthly_targets(raw_monthly, total_target, target, indicator.name)
+            if isinstance(monthly, Response):
+                return monthly
             total += target
-            prepared.append((indicator, target, strength))
+            prepared.append((indicator, target, strength, monthly))
 
         if abs(total - Decimal('1')) > Decimal('0.0001'):
             pct = (total * 100).quantize(Decimal('0.01'))
@@ -328,12 +375,12 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         with transaction.atomic():
             # 删除该 (适用范围, 维度, 年度) 旧规则
             ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
-            for indicator, target, strength in prepared:
+            for indicator, target, strength, monthly in prepared:
                 annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
                 ControlRule.objects.create(
                     bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
                     year=year, target=target, strength=strength,
-                    annual_target=annual, monthly_targets=[0] * 12,
+                    annual_target=annual, monthly_targets=monthly,
                     created_by=request.user, updated_by=request.user,
                 )
         return Response({

@@ -248,16 +248,36 @@
           <div v-if="!batchDrawer.dimensionId" style="color: #94a3b8; padding: 12px 0;">请先选择维度</div>
           <div v-else-if="batchIndicators.length === 0" style="color: #94a3b8; padding: 12px 0;">该维度下暂无指标，请先到「指标管理」新增</div>
           <div v-else>
-            <div v-for="ind in batchIndicators" :key="ind.id" class="batch-row">
-              <n-checkbox :checked="batchDrawer.indicatorIds.includes(ind.id)" @update:checked="(v: boolean) => onBatchIndicatorToggle(ind, v)">
-                <span style="font-weight: 500;">{{ ind.name }}</span>
-              </n-checkbox>
-              <span v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-row-controls">
-                <span class="batch-row-label">占比%</span>
-                <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 86px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
-                <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 100px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
-                <span class="batch-row-annual">管控 {{ batchIndicatorAnnual(ind.id) }} 人</span>
-              </span>
+            <div v-for="ind in batchIndicators" :key="ind.id" class="batch-row" :class="{ expanded: batchDrawer.indicatorIds.includes(ind.id) }">
+              <div class="batch-row-header">
+                <n-checkbox :checked="batchDrawer.indicatorIds.includes(ind.id)" @update:checked="(v: boolean) => onBatchIndicatorToggle(ind, v)">
+                  <span style="font-weight: 500;">{{ ind.name }}</span>
+                </n-checkbox>
+                <span v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-row-controls">
+                  <span class="batch-row-label">占比%</span>
+                  <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 86px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
+                  <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 100px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
+                  <span class="batch-row-annual">年度 {{ batchIndicatorAnnual(ind.id) }} 人</span>
+                </span>
+              </div>
+              <div v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-monthly-panel">
+                <div class="batch-monthly-header">
+                  <span class="batch-row-label">12 个月度目标（单位：人）</span>
+                  <n-button text type="primary" size="tiny" @click="redistributeBatchMonthly(ind.id)">均分年度目标</n-button>
+                </div>
+                <n-grid :cols="4" :x-gap="8" :y-gap="8">
+                  <n-gi v-for="(_, i) in 12" :key="i">
+                    <n-form-item :label="ALL_MONTHS[i]" label-placement="top" :show-feedback="false">
+                      <n-input-number :value="batchDrawer.rows[ind.id]?.monthly?.[i] || 0" :min="0" size="small" style="width: 100%" @update:value="(v: number | null) => setBatchMonthly(ind.id, i, v)" />
+                    </n-form-item>
+                  </n-gi>
+                </n-grid>
+                <div class="batch-monthly-sum">
+                  已分配：{{ (batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) }} 人
+                  <n-tag v-if="(batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) === batchIndicatorAnnual(ind.id)" type="success" size="small" :bordered="false">✓ 等于年度目标</n-tag>
+                  <n-tag v-else type="warning" size="small" :bordered="false">⚠ 不等于年度目标 {{ batchIndicatorAnnual(ind.id) }} 人</n-tag>
+                </div>
+              </div>
             </div>
             <div class="batch-sum">
               <span class="batch-row-label">占比之和：</span>
@@ -271,7 +291,7 @@
         <template #footer>
           <div class="drawer-footer">
             <n-button @click="batchDrawer.show = false">取消</n-button>
-            <n-button type="primary" class="gradient-btn" :loading="loading.batchConfig" :disabled="!batchSumOk || batchDrawer.indicatorIds.length === 0" @click="saveBatchConfig">保存</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="loading.batchConfig" :disabled="!batchSumOk || !batchMonthlyOk || batchDrawer.indicatorIds.length === 0" @click="saveBatchConfig">保存</n-button>
           </div>
         </template>
       </n-drawer-content>
@@ -435,6 +455,7 @@ const planData = ref<PlanResult>({
 })
 
 /* ============================ 规则配置 ============================ */
+const currentMonthIdx = computed(() => new Date().getMonth()) // 0=1月
 const ruleDimFilter = ref<string | null>(null)
 const ruleDimOptions = computed(() => [
   { label: '全部维度', value: '' },
@@ -548,6 +569,7 @@ const ruleColumns: DataTableColumns<ControlRule> = [
   { title: '目标占比', key: 'target', width: 90, render: (r) => pct(r.target) },
   { title: '规划年度', key: 'year', width: 80 },
   { title: '年度目标', key: 'annualTarget', width: 80 },
+  { title: '本月目标', key: 'monthTarget', width: 80, render: (r: any) => (r.monthlyTargets || [])[currentMonthIdx.value] ?? 0 },
   { title: '月度合计', key: 'monthlySum', width: 90, render: (r: any) => (r.monthlyTargets || []).reduce((a: number, b: number) => a + b, 0) },
   { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
   {
@@ -711,6 +733,7 @@ function removeRule(r: ControlRule) {
 interface BatchRow {
   targetPct: number
   strength: Strength
+  monthly: number[] // 12 个月度目标
 }
 const batchDrawer = reactive({
   show: false,
@@ -737,6 +760,16 @@ const batchSumPct = computed(() => {
   return s
 })
 const batchSumOk = computed(() => Math.abs(batchSumPct.value - 100) < 0.05)
+const batchMonthlyOk = computed(() => {
+  for (const id of batchDrawer.indicatorIds) {
+    const r = batchDrawer.rows[id]
+    if (!r) return false
+    const annual = batchIndicatorAnnual(id)
+    const sum = (r.monthly || []).reduce((a, b) => a + (b || 0), 0)
+    if (sum !== annual) return false
+  }
+  return true
+})
 
 function openBatchDrawer() {
   batchDrawer.dimensionId = null
@@ -754,13 +787,20 @@ function onBatchDimChange() {
   batchDrawer.rows = {}
 }
 
+function distributeMonthly(annual: number): number[] {
+  const base = Math.floor(annual / 12)
+  const rem = annual - base * 12
+  return Array.from({ length: 12 }, (_, i) => base + (i < rem ? 1 : 0))
+}
+
 function onBatchIndicatorToggle(ind: ControlIndicator, checked: boolean) {
   if (checked) {
     batchDrawer.indicatorIds = [...batchDrawer.indicatorIds, ind.id]
     // 首个勾选时均分剩余比例（提示用户）
     const curCount = batchDrawer.indicatorIds.length
     const equal = curCount > 0 ? Math.round((100 / curCount) * 10) / 10 : 0
-    batchDrawer.rows = { ...batchDrawer.rows, [ind.id]: { targetPct: equal, strength: '硬约束' } }
+    const annual = Math.round((batchDrawer.totalTarget || 0) * (equal / 100))
+    batchDrawer.rows = { ...batchDrawer.rows, [ind.id]: { targetPct: equal, strength: '硬约束', monthly: distributeMonthly(annual) } }
   } else {
     batchDrawer.indicatorIds = batchDrawer.indicatorIds.filter((id) => id !== ind.id)
     const nr: Record<string, BatchRow> = {}
@@ -771,6 +811,16 @@ function onBatchIndicatorToggle(ind: ControlIndicator, checked: boolean) {
 
 function setBatchRow(id: string, key: keyof BatchRow, val: any) {
   batchDrawer.rows = { ...batchDrawer.rows, [id]: { ...batchDrawer.rows[id], [key]: val } }
+}
+function setBatchMonthly(id: string, idx: number, val: number | null) {
+  const monthly = [...(batchDrawer.rows[id]?.monthly || Array(12).fill(0))]
+  monthly[idx] = Math.max(0, Math.round(val || 0))
+  setBatchRow(id, 'monthly', monthly)
+}
+function redistributeBatchMonthly(id: string) {
+  const r = batchDrawer.rows[id]
+  if (!r) return
+  setBatchRow(id, 'monthly', distributeMonthly(batchIndicatorAnnual(id)))
 }
 
 function batchIndicatorAnnual(indId: string) {
@@ -784,6 +834,9 @@ async function saveBatchConfig() {
   if (batchDrawer.indicatorIds.length === 0) { message.warning('请至少勾选一个指标'); return }
   if (!batchSumOk.value) {
     message.warning(`占比之和须=100%，当前 ${batchSumPct.value.toFixed(1)}%`); return
+  }
+  if (!batchMonthlyOk.value) {
+    message.warning('存在指标的 12 个月度目标之和不等于年度目标，请检查或点击「均分年度目标」'); return
   }
 
   const payload: BatchConfigPayload = {
@@ -799,6 +852,7 @@ async function saveBatchConfig() {
         indicator: id,
         target: r.targetPct / 100,
         strength: r.strength,
+        monthlyTargets: (r.monthly || []).map((v) => Math.round(v) || 0),
       }
     }),
   }
@@ -1036,10 +1090,16 @@ onMounted(async () => {
 
 .batch-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 10px 0;
   border-bottom: 1px dashed #eef2f7;
+}
+.batch-row-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 .batch-row-controls { flex: 1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .batch-row-label { color: #6b7280; font-size: 12px; }
@@ -1050,6 +1110,27 @@ onMounted(async () => {
   font-weight: 600;
   min-width: 88px;
   text-align: right;
+}
+.batch-monthly-panel {
+  width: 100%;
+  padding: 12px 14px 6px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.08);
+}
+.batch-monthly-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.batch-monthly-sum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #374151;
 }
 .batch-sum {
   display: flex;
