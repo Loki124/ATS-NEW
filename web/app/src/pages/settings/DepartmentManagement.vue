@@ -562,8 +562,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* .page-container 的 padding 由 SettingsLayout 统一注入,本页面不再写 */
 .page-container {
-  padding: 0;
+  /* 故意留空 */
 }
 
 .page-header {

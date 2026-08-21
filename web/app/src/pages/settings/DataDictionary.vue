@@ -864,7 +864,8 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   display: block !important;
-  padding: 24px 24px 120px !important;
+  /* padding 由 SettingsLayout 统一注入 (16px 24px); 保留 120px 底部留白 */
+  padding-bottom: 120px !important;
   width: 100% !important;
   max-width: none !important;
   min-height: 100% !important;

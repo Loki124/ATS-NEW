@@ -114,7 +114,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container { padding: 24px; }
+/* .page-container 的 padding 由 SettingsLayout 统一注入 */
+.page-container { /* 故意留空 */ }
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 </style>

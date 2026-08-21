@@ -332,16 +332,22 @@ watch(
 }
 
 /* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class)
-   用 :deep 穿透 scoped CSS 边界 (子页面是另一个组件实例) */
+   用 :deep 穿透 scoped CSS 边界 (子页面是另一个组件实例)
+   - padding 用 !important 强制统一（子页面 scoped .page-container 的 specificity 0,2,0 > 全局 0,1,1，必须用 !important）
+   - 防止 DepartmentManagement/CompanySettings/ScoringRules/Settings 等子页面自定义 padding 偏移位置 */
 .settings-content :deep(> *) {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   flex: 1;
   min-height: 0;
-  box-sizing: border-box;
-  padding: 16px 24px;
+  box-sizing: border-box !important;
+  padding: var(--space-4) var(--space-6) !important;
   gap: 12px;
   overflow: hidden;
+}
+/* 允许子页面通过 .page-container--extra-pad 类加 padding-bottom 留白（如 DataDictionary 120px 底部） */
+.settings-content :deep(.page-container--extra-pad) {
+  padding-bottom: var(--page-container-extra-pad, 120px) !important;
 }
 /* page-header (h1 + buttons) 不压缩 */
 .settings-content :deep(.page-header) {
