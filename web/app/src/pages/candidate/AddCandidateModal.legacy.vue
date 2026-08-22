@@ -118,7 +118,8 @@
               <div class="file-name">{{ resumeFile.name }}</div>
               <div class="file-size">{{ (resumeFile.size / 1024 / 1024).toFixed(2) }} MB</div>
             </div>
-            <n-button size="small" color="#ff4d4f" text-color="#fff" @click="removeFile">移除</n-button>
+            <!-- v2 bugfix P0-B：硬编码红按钮 color→c-error / type=error 接管 -->
+            <n-button size="small" type="error" @click="removeFile">移除</n-button>
           </div>
         </div>
       </div>

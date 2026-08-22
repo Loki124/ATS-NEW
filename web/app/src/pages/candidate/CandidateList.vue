@@ -1003,7 +1003,8 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .stage-status { color: var(--ink-soft); font-size: 12px; }
 .stage-status.pass { color: var(--c-success); }
 .stage-status.reject { color: var(--c-error); }
-.stage-status.placeholder { color: #bfbfbf; }
+/* v2 bugfix P0-B: #bfbfbf → var(--ink-faint) */
+.stage-status.placeholder { color: var(--ink-faint); }
 .stage-foot {
   display: flex;
   gap: 4px;

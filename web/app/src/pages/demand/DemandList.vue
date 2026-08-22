@@ -756,8 +756,9 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 
+/* v2 bugfix P0-B: #1890ff → var(--c-info) */
 .demand-code {
-  color: #1890ff;
+  color: var(--c-info);
   font-weight: 600;
   font-size: 14px;
 }
@@ -798,7 +799,7 @@ onMounted(() => {
   align-items: center;
   margin-left: 40px;
   padding-left: 40px;
-  border-left: 1px solid #f0f0f0;
+  border-left: 1px solid var(--border-hairline);
 }
 
 .stat-item {
@@ -819,10 +820,11 @@ onMounted(() => {
   color: var(--ink-faint);
 }
 
+/* v2 bugfix P0-B: #f0f0f0 → var(--border-hairline) */
 .stat-divider {
   width: 1px;
   height: 32px;
-  background: #f0f0f0;
+  background: var(--border-hairline);
   margin: 0 16px;
 }
 
@@ -844,8 +846,9 @@ onMounted(() => {
   padding: 60px;
 }
 
+/* v2 bugfix P0-B: #1890ff → var(--c-info) */
 .drawer-code {
-  color: #1890ff;
+  color: var(--c-info);
   font-weight: 600;
 }
 
@@ -863,7 +866,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .section-title {
@@ -894,8 +897,9 @@ onMounted(() => {
   color: var(--ink);
 }
 
+/* v2 bugfix P0-B: #1890ff → var(--c-info) */
 .info-value.code {
-  color: #1890ff;
+  color: var(--c-info);
   font-weight: 500;
 }
 
@@ -1050,10 +1054,11 @@ onMounted(() => {
   align-items: center;
 }
 
+/* v2 bugfix P0-B: #1890ff → var(--c-info) */
 .salary-num {
   font-size: 20px;
   font-weight: 600;
-  color: #1890ff;
+  color: var(--c-info);
 }
 
 .salary-separator {

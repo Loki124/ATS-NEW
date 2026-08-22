@@ -326,7 +326,8 @@ onMounted(() => {
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }
 .stat-card { text-align: center; }
-.stat-label { font-size: 12px; color: #8c8c8c; }
+/* v2 bugfix P0-B: #8c8c8c → var(--ink-faint) */
+.stat-label { font-size: 12px; color: var(--ink-faint); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
 .filter-row { margin-bottom: 12px; }
 
