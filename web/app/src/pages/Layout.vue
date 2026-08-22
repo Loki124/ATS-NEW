@@ -5,9 +5,9 @@
   </div>
 
   <div class="app-layout">
-    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化） -->
+    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 移动端 ≤768 隐藏） [T6.2] -->
     <n-layout-sider
-      v-if="menuLayout === 'side'"
+      v-if="menuLayout === 'side' && !isMobile"
       :width="240"
       :collapsed-width="64"
       show-trigger
@@ -43,12 +43,37 @@
       />
     </n-layout-sider>
 
+    <!-- 移动端侧栏抽屉 [T6.2] -->
+    <n-drawer
+      v-if="menuLayout === 'side'"
+      v-model:show="mobileMenuOpen"
+      :width="280"
+      placement="left"
+      class="mobile-sidebar-drawer"
+    >
+      <n-menu
+        :options="menuOptions"
+        :value="selectedKey"
+        :expanded-keys="expandedKeys"
+        :theme-overrides="menuThemeOverrides"
+        @update:value="onDrawerMenu"
+        @update:expanded-keys="onExpandedKeysChange"
+      />
+    </n-drawer>
+
     <!-- 主体 -->
     <div class="main-area">
       <!-- 头部（v2 玻璃化 · DESIGN.md §4 Navigation） -->
       <n-layout-header class="glass-panel glass-header px-6 flex items-center justify-between h-16">
         <!-- 左集群 -->
         <div class="flex items-center gap-4 min-w-0" :class="menuLayout === 'top' ? 'flex-1' : ''">
+          <!-- 移动端汉堡按钮 [T6.2] -->
+          <button
+            v-if="isMobile && menuLayout === 'side'"
+            class="hamburger-btn glass-input"
+            aria-label="打开菜单"
+            @click="mobileMenuOpen = true"
+          >☰</button>
           <!-- 顶部横排：Logo -->
           <div v-if="menuLayout === 'top'" class="top-logo flex items-center gap-2 shrink-0">
             <div class="logo-icon">
@@ -135,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, h, computed, watch, nextTick, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, NIcon, NModal } from 'naive-ui'
 import {
@@ -163,6 +188,24 @@ const userStore = useUserStore()
 const message = useMessage()
 
 const collapsed = ref(false)
+
+// === 移动端响应式（≤768 折叠为 n-drawer）[T6.2] ===
+const isMobile = ref(false)
+const mobileMenuOpen = ref(false)
+function onDrawerMenu(key: string) {
+  router.push(key)
+  mobileMenuOpen.value = false
+}
+function updateIsMobile() {
+  isMobile.value = window.innerWidth < 768
+}
+onMounted(() => {
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIsMobile)
+})
 
 // === 全局搜索 Modal（⌘K / Ctrl+K 打开，Esc 关闭） ===
 const globalSearchOpen = ref(false)
@@ -571,5 +614,29 @@ function handleUserMenu(key: string) {
   flex: 1;
   min-height: 0;
   overflow: auto; /* 关键: 内容超出时这个容器内部滚, header 不滚 */
+}
+
+/* === T6.2 移动端响应式 === */
+.hamburger-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur-input));
+  -webkit-backdrop-filter: blur(var(--glass-blur-input));
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.hamburger-btn:hover {
+  background: var(--brand-soft);
+}
+.mobile-sidebar-drawer :deep(.n-drawer-body-content-wrapper) {
+  padding: 0;
 }
 </style>
