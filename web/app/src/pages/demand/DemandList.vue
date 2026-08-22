@@ -696,6 +696,7 @@ onMounted(() => {
   padding: 24px;
   min-height: 100%;
   background: transparent; /* 让 --aurora-base 透出 */
+  animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
 }
 
 .page-header {

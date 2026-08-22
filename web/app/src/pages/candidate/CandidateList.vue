@@ -793,7 +793,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 </script>
 
 <style scoped>
-.candidate-list-page { padding: 24px; }
+.candidate-list-page { padding: 24px; animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
 .page-header {
   margin-bottom: 20px;
   display: flex;
