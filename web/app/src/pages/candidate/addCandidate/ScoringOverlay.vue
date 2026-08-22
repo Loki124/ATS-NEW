@@ -105,10 +105,11 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   margin: 0 auto;
   width: 100%;
 }
+/* v2 bugfix P0-C: 评分卡白底 → 玻璃 */
 .scoring-card {
   border: 1px solid var(--g3);
   border-radius: 8px;
-  background: #fff;
+  background: var(--glass-bg-card);
   overflow: hidden;
   transition: 0.15s;
 }

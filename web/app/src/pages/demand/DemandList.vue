@@ -920,11 +920,12 @@ onMounted(() => {
   color: var(--ink-faint);
 }
 
+/* v2 bugfix P0-C: #fafafa → var(--glass-bg-input) 让极光底透出 */
 .desc-value {
   font-size: 14px;
   color: var(--ink);
   line-height: 1.6;
-  background: #fafafa;
+  background: var(--glass-bg-input);
   padding: 12px;
   border-radius: 4px;
 }
@@ -940,7 +941,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 16px;
-  background: #fafafa;
+  background: var(--glass-bg-input);
   border-radius: 8px;
 }
 
@@ -985,8 +986,9 @@ onMounted(() => {
   gap: 20px;
 }
 
+/* v2 bugfix P0-C: #fafafa → var(--glass-bg-input) */
 .profile-block {
-  background: #fafafa;
+  background: var(--glass-bg-input);
   border-radius: 8px;
   padding: 16px;
 }

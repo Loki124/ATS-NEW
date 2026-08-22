@@ -139,10 +139,11 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .upload-zone .up-text { font-size: 13px; font-weight: 500; color: var(--g7); }
 .upload-zone .up-hint { font-size: 11px; color: var(--g5); margin-top: 4px; }
 .upload-zone .up-quick { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+/* v2 bugfix P0-C: 业务页白底透出极光 */
 .upload-zone .up-quick span {
   font-size: 11px;
   padding: 4px 10px;
-  background: #fff;
+  background: var(--glass-bg-card);
   border: 1px solid var(--g3);
   border-radius: 20px;
   color: var(--g6);
@@ -150,10 +151,11 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .upload-zone .up-quick span:hover { border-color: var(--p); color: var(--p); }
 .card-list { display: flex; flex-direction: column; gap: 8px; }
+/* v2 bugfix P0-C: 业务卡片白底 → 玻璃 */
 .card-item {
   border: 1px solid var(--g3);
   border-radius: 8px;
-  background: #fff;
+  background: var(--glass-bg-card);
   overflow: hidden;
   transition: 0.15s;
 }
@@ -335,6 +337,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .occ-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+/* v2 bugfix P0-C: 业务按钮白底 → 玻璃 */
 .occ-btn {
   padding: 5px 12px;
   border: 1px solid var(--g3);
@@ -342,13 +345,14 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   font-size: 10px;
   cursor: pointer;
   transition: 0.15s;
-  background: #fff;
+  background: var(--glass-bg-card);
   color: var(--g7);
 }
 .occ-btn:hover { border-color: var(--p); background: var(--pl); }
 .occ-btn.primary { background: var(--p); color: #fff; border-color: var(--p); }
 .occ-btn.primary:hover { background: var(--ph); }
-.occ-btn.warn { background: #fff; color: #991B1B; border-color: var(--d); }
+/* v2 bugfix P0-C: .occ-btn.warn 白底 → 玻璃 */
+.occ-btn.warn { background: var(--glass-bg-card); color: #991B1B; border-color: var(--d); }
 .occ-btn.warn:hover { background: var(--dl); }
 .apply-pos {
   margin-top: 8px;
@@ -359,13 +363,14 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .apply-pos-title { font-size: 11px; font-weight: 600; color: #1E40AF; margin-bottom: 6px; }
 .apply-pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
+/* v2 bugfix P0-C: 职位 chip 白底 → 玻璃 */
 .apply-pos-item {
   padding: 4px 10px;
   border: 1px solid var(--g3);
   border-radius: 8px;
   cursor: pointer;
   font-size: 10px;
-  background: #fff;
+  background: var(--glass-bg-card);
   transition: 0.15s;
 }
 .apply-pos-item:hover { border-color: var(--p); }
@@ -448,11 +453,12 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .pfill.ye { background: #F59E0B; }
 .pfill.pu { background: #8B5CF6; }
 .pfill.gr { background: var(--s); }
+/* v2 bugfix P0-C: 业务按钮白底 → 玻璃（同一文件中其他业务卡片一起清理） */
 .replace-file-btn {
   padding: 4px 8px;
   border: 1px solid var(--g3);
   border-radius: 6px;
-  background: #fff;
+  background: var(--glass-bg-card);
   color: var(--g7);
   font-size: 11px;
   cursor: pointer;
@@ -500,7 +506,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   gap: 4px;
   transition: 0.15s;
 }
-.bs { background: #fff; color: var(--g7); border: 1px solid var(--g4); }
+/* v2 bugfix P0-C: .bs 业务按钮白底 → 玻璃 */
+.bs { background: var(--glass-bg-card); color: var(--g7); border: 1px solid var(--g4); }
 .bs:hover { background: var(--g2); }
 .rp-section { margin-bottom: 4px; }
 .rp-title {
