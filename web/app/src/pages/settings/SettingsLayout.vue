@@ -2,7 +2,6 @@
   <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220">
     <!-- 左侧子菜单 -->
     <n-layout-sider
-      bordered
       :width="220"
       :collapsed-width="64"
       :collapsed="collapsed"
@@ -280,7 +279,7 @@ watch(
   background: var(--glass-bg-panel) !important;
   backdrop-filter: blur(var(--glass-blur-panel)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur-panel)) !important;
-  border-right: 1px solid var(--glass-border) !important;
+  border-right: none !important;
 }
 .sider-header {
   display: flex;
