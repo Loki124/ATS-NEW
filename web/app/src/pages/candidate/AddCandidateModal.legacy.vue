@@ -541,7 +541,7 @@ const resetForm = () => {
 }
 
 .resume-uploaded {
-  background: #fff7e6;
+  background: var(--c-warning-soft); /* v2.8 T2.8.1: #fff7e6 → var(--c-warning-soft) */
   padding: 16px;
   border-radius: 8px;
   border: 1px solid #ffe58f;

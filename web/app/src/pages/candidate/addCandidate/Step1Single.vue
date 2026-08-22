@@ -200,7 +200,7 @@ function onSelectPos(pos: string) {
   padding: 6px 10px;
   border: 1px solid var(--g3);
   border-radius: 6px;
-  background: #fff;
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
   color: var(--g7);
   font-size: 12px;
   cursor: pointer;
@@ -362,13 +362,13 @@ function onSelectPos(pos: string) {
   font-size: 10px;
   cursor: pointer;
   transition: 0.15s;
-  background: #fff;
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
   color: var(--g7);
 }
 .occ-btn:hover { border-color: var(--p); background: var(--pl); }
 .occ-btn.primary { background: var(--p); color: #fff; border-color: var(--p); }
 .occ-btn.primary:hover { background: var(--ph); }
-.occ-btn.warn { background: #fff; color: #991B1B; border-color: var(--d); }
+.occ-btn.warn { background: var(--c-warning-soft); color: #991B1B; border-color: var(--d); } /* v2.8 T2.8.1: #fff → var(--c-warning-soft) */
 .occ-btn.warn:hover { background: var(--dl); }
 .score-panel {
   border: 1px solid var(--g3);
@@ -446,7 +446,7 @@ function onSelectPos(pos: string) {
   border-radius: 8px;
   cursor: pointer;
   font-size: 10px;
-  background: #fff;
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
   transition: 0.15s;
 }
 .apply-pos-item:hover { border-color: var(--p); }

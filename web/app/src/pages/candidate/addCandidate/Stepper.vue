@@ -47,7 +47,7 @@ const stepClass = computed(() => (s: 1 | 2) => {
   font-weight: 600;
   transition: 0.2s;
   border: 2px solid var(--g4);
-  background: #fff;
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
   color: var(--g5);
 }
 .sdot.on { border-color: var(--p); background: var(--p); color: #fff; }
