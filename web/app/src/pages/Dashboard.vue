@@ -651,10 +651,14 @@ function onMatterAction(_matter: MatterItem) {
   height: 18px;
   padding: 0 6px;
   border-radius: var(--radius-pill);
-  background: var(--brand-soft);
-  color: var(--brand);
+  background: var(--c-info-soft);
+  color: var(--c-info);
   font-size: 10px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+.matter-tab__count--urgent {
+  background: var(--c-error-soft);
+  color: var(--c-error);
 }
 </style>
