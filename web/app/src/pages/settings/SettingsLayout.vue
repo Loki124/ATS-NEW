@@ -1,48 +1,84 @@
 <template>
-  <n-layout class="settings-layout" has-sider :sider-width="220">
+  <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220">
     <!-- 左侧子菜单 -->
     <n-layout-sider
       bordered
       :width="220"
+      :collapsed-width="64"
+      :collapsed="collapsed"
+      collapse-mode="width"
       :native-scrollbar="false"
       content-style="padding: 16px 0;"
       class="settings-sider"
     >
-      <div class="sider-header">
-        <h2 class="sider-title">设置</h2>
+      <div class="sider-header" :class="{ collapsed: collapsed }">
+        <h2 v-if="!collapsed" class="sider-title">设置</h2>
+        <button
+          class="collapse-btn"
+          :class="{ collapsed: collapsed }"
+          type="button"
+          aria-label="折叠设置菜单"
+          @click="collapsed = !collapsed"
+        >
+          <n-icon :component="collapsed ? ChevronForwardOutline : ChevronBackOutline" />
+        </button>
       </div>
 
-      <div class="settings-menu">
-        <div
-          v-for="group in subMenuOptions"
-          :key="group.key"
-          class="menu-group"
-        >
-          <div
-            class="group-header"
-            :class="{ expanded: isExpanded(group.key) }"
-            @click="toggleGroup(group.key)"
+      <div class="settings-menu" :class="{ collapsed: collapsed }">
+        <!-- 折叠态：扁平图标列表 + tooltip -->
+        <template v-if="collapsed">
+          <n-tooltip
+            v-for="item in flatMenuItems"
+            :key="item.key"
+            placement="right"
+            trigger="hover"
           >
-            <span class="group-title">{{ group.label }}</span>
-            <n-icon
-              class="group-arrow"
-              :component="isExpanded(group.key) ? ChevronUpOutline : ChevronDownOutline"
-            />
-          </div>
+            <template #trigger>
+              <div
+                class="menu-item menu-item--collapsed"
+                :class="{ active: activeKey === item.key }"
+                @click="handleMenuClick(item.key)"
+              >
+                <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
+              </div>
+            </template>
+            {{ item.label }}
+          </n-tooltip>
+        </template>
 
-          <div v-show="isExpanded(group.key)" class="group-body">
+        <!-- 展开态：分组菜单 -->
+        <template v-else>
+          <div
+            v-for="group in subMenuOptions"
+            :key="group.key"
+            class="menu-group"
+          >
             <div
-              v-for="item in group.children"
-              :key="item.key"
-              class="menu-item"
-              :class="{ active: activeKey === item.key }"
-              @click="handleMenuClick(item.key)"
+              class="group-header"
+              :class="{ expanded: isExpanded(group.key) }"
+              @click="toggleGroup(group.key)"
             >
-              <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
-              <span class="menu-label">{{ item.label }}</span>
+              <span class="group-title">{{ group.label }}</span>
+              <n-icon
+                class="group-arrow"
+                :component="isExpanded(group.key) ? ChevronUpOutline : ChevronDownOutline"
+              />
+            </div>
+
+            <div v-show="isExpanded(group.key)" class="group-body">
+              <div
+                v-for="item in group.children"
+                :key="item.key"
+                class="menu-item"
+                :class="{ active: activeKey === item.key }"
+                @click="handleMenuClick(item.key)"
+              >
+                <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
+                <span class="menu-label">{{ item.label }}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </n-layout-sider>
 
@@ -61,6 +97,7 @@ import {
   NLayout,
   NLayoutSider,
   NLayoutContent,
+  NTooltip,
 } from 'naive-ui'
 import {
   PersonCircleOutline,
@@ -88,11 +125,19 @@ import {
   AnalyticsOutline,
   ChevronDownOutline,
   ChevronUpOutline,
+  ChevronBackOutline,
+  ChevronForwardOutline,
   ColorPaletteOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
 const route = useRoute()
+
+// 设置侧边栏折叠状态
+const collapsed = ref(false)
+
+// 折叠态使用的扁平菜单项（保留原分组顺序）
+const flatMenuItems = computed(() => subMenuOptions.flatMap(g => g.children))
 
 // 子菜单：分组结构（与原 Layout.vue 的 系统管理 子树对齐）
 const subMenuOptions = [
@@ -238,15 +283,45 @@ watch(
   border-right: 1px solid var(--glass-border) !important;
 }
 .sider-header {
-  padding: 0 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 12px 20px;
   border-bottom: 1px solid var(--border-hairline);
   margin-bottom: 8px;
+}
+.sider-header.collapsed {
+  justify-content: center;
+  padding: 0 8px 12px;
 }
 .sider-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: var(--ink);
+}
+.collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 16px;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.collapse-btn:hover {
+  background: var(--brand-tint);
+  color: var(--brand);
+  border-color: var(--glass-border);
+}
+.collapse-btn.collapsed {
+  width: 32px;
+  height: 32px;
 }
 
 .settings-menu {
@@ -283,6 +358,10 @@ watch(
   overflow: hidden;
 }
 
+.settings-menu.collapsed {
+  padding: 0;
+}
+
 .menu-item {
   display: flex;
   align-items: center;
@@ -296,6 +375,19 @@ watch(
 }
 .menu-item:hover {
   background: var(--brand-tint);
+}
+
+/* 折叠态：图标居中，无文字 */
+.menu-item--collapsed {
+  justify-content: center;
+  padding: 12px 0;
+}
+.menu-item--collapsed .menu-icon {
+  margin: 0;
+}
+.menu-item--collapsed.active::before {
+  top: 6px;
+  bottom: 6px;
 }
 /* 激活态：品牌浅底 + 品牌字 + 左侧 3px accent bar（DESIGN.md §4 导航激活态） */
 .menu-item.active {
