@@ -412,6 +412,7 @@ watch(
 /* 右侧内容区 —— flex 列布局, 子页面可填满高度 */
 .settings-content {
   padding: 0;
+  margin-left: 16px; /* 与左侧设置导航栏保持呼吸间距（替代已移除的 border） */
   overflow: auto;
   display: flex;
   flex-direction: column;
