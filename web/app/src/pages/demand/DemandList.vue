@@ -695,7 +695,7 @@ onMounted(() => {
 .demand-container {
   padding: 24px;
   min-height: 100%;
-  background: #f0f2f5;
+  background: transparent; /* 让 --aurora-base 透出 */
 }
 
 .page-header {
@@ -721,7 +721,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: white;
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
   border-radius: 8px;
   padding: 16px 20px;
   transition: all var(--duration-base) var(--ease-out);
@@ -767,7 +768,7 @@ onMounted(() => {
 .demand-name {
   font-size: 15px;
   font-weight: 500;
-  color: #333;
+  color: var(--ink);
   margin-bottom: 6px;
 }
 
@@ -784,11 +785,11 @@ onMounted(() => {
 }
 
 .meta-item .label {
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .meta-item .value {
-  color: #666;
+  color: var(--ink-soft);
 }
 
 .card-stats {
@@ -809,12 +810,12 @@ onMounted(() => {
 .stat-value {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
 }
 
 .stat-label {
   font-size: 12px;
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .stat-divider {
@@ -867,7 +868,7 @@ onMounted(() => {
 .section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
 }
 
 .info-grid {
@@ -884,12 +885,12 @@ onMounted(() => {
 
 .info-label {
   font-size: 12px;
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .info-value {
   font-size: 14px;
-  color: #333;
+  color: var(--ink);
 }
 
 .info-value.code {
@@ -911,12 +912,12 @@ onMounted(() => {
 
 .desc-label {
   font-size: 12px;
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .desc-value {
   font-size: 14px;
-  color: #333;
+  color: var(--ink);
   line-height: 1.6;
   background: #fafafa;
   padding: 12px;
@@ -941,12 +942,12 @@ onMounted(() => {
 .stat-num {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
 }
 
 .stat-label {
   font-size: 12px;
-  color: #999;
+  color: var(--ink-faint);
   margin-top: 4px;
 }
 
@@ -965,12 +966,12 @@ onMounted(() => {
 .profile-title {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
 }
 
 .profile-subtitle {
   font-size: 12px;
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .profile-content {
@@ -995,7 +996,7 @@ onMounted(() => {
 .block-title {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--ink);
 }
 
 .block-items {
@@ -1016,13 +1017,13 @@ onMounted(() => {
 
 .item-label {
   font-size: 13px;
-  color: #999;
+  color: var(--ink-faint);
   min-width: 70px;
 }
 
 .item-value {
   font-size: 13px;
-  color: #333;
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -1034,7 +1035,7 @@ onMounted(() => {
 
 .no-data {
   font-size: 13px;
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .salary-info {
@@ -1056,13 +1057,13 @@ onMounted(() => {
 
 .salary-separator {
   font-size: 16px;
-  color: #999;
+  color: var(--ink-faint);
   margin: 0 4px;
 }
 
 .salary-unit {
   font-size: 13px;
-  color: #999;
+  color: var(--ink-faint);
 }
 
 .bonus-list {
@@ -1076,7 +1077,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #666;
+  color: var(--ink-soft);
 }
 
 .bonus-icon {
@@ -1095,6 +1096,6 @@ onMounted(() => {
 
 .location-text {
   font-size: 13px;
-  color: #333;
+  color: var(--ink);
 }
 </style>
