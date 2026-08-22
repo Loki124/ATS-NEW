@@ -111,13 +111,13 @@ onMounted(loadList)
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">待反馈</div>
-        <div class="stat-value" style="color: #fa8c16;">{{ stats.PENDING }}</div>
+        <div class="stat-value" style="color: var(--c-warning);">{{ stats.PENDING }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">已反馈</div>
-        <div class="stat-value" style="color: #52c41a;">{{ stats.COMPLETED }}</div>
+        <div class="stat-value" style="color: var(--c-success);">{{ stats.COMPLETED }}</div>
       </n-card>
 </n-gi>
       <n-gi>
@@ -157,7 +157,7 @@ onMounted(loadList)
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }
 .stat-card { text-align: center; }
-.stat-label { font-size: 12px; color: #8c8c8c; }
+.stat-label { font-size: var(--text-meta); color: var(--ink-faint); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
 .filter-row { margin-bottom: 12px; }
 </style>
