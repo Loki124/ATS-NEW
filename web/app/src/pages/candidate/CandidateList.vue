@@ -1125,10 +1125,10 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 @media (max-width: 768px) {
   .page-container { padding: var(--space-3); }
   .page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
-  .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+  .stats-row { grid-template-columns: repeat(2, 1fr) !important; } /* v2.9: 保留 !important（覆盖 Naive n-grid 内联 grid-template-columns，移除则移动端不退化为 2 列） */
 }
 @media (max-width: 480px) {
-  .stats-row { grid-template-columns: 1fr !important; }
+  .stats-row { grid-template-columns: 1fr !important; } /* v2.9: 保留 !important（覆盖 Naive n-grid 内联 grid-template-columns，移除则移动端不退化为 1 列） */
 }
 
 </style>

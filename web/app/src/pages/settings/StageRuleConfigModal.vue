@@ -1014,6 +1014,6 @@ async function handleSubmit() {
    Cannot use :deep() in scoped style because n-card teleports
    the header outside the parent's data-v boundary. */
 .stage-rule-config-modal .n-card-header {
-  display: none !important;
+  display: none; /* v2.9: 移除 !important；.stage-rule-config-modal .n-card-header 特异性(0,2,0) 已压 Naive 默认 header */
 }
 </style>
