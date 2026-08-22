@@ -7,7 +7,6 @@
       :collapsed="collapsed"
       collapse-mode="width"
       :native-scrollbar="false"
-      content-style="padding: 16px 0;"
       class="settings-sider"
     >
       <div class="sider-header" :class="{ collapsed: collapsed }">
@@ -380,16 +379,21 @@ watch(
   border-right: none !important;
 }
 .sider-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px 12px 20px;
+  padding: 16px 16px 12px 20px;
   border-bottom: 1px solid var(--border-hairline);
-  margin-bottom: 8px;
+  background: var(--glass-bg-panel);
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
 }
 .sider-header.collapsed {
   justify-content: center;
-  padding: 0 8px 12px;
+  padding: 16px 8px 12px;
 }
 .sider-title {
   margin: 0;
@@ -422,10 +426,10 @@ watch(
 }
 
 .settings-menu {
-  padding: 0 0 16px;
+  padding: 8px 0 16px;
 }
 .settings-menu.collapsed {
-  padding: 0;
+  padding: 8px 0;
 }
 
 .menu-group {
