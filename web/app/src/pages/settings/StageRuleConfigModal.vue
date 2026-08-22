@@ -925,13 +925,18 @@ async function handleSubmit() {
   margin: 4px 0 0 0;
 }
 .rule-table :deep(.n-data-table-th) {
-  background: #fafbfc !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
-  color: #1f1f1f !important;
+  background: var(--glass-bg-input);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink);
+}
+.rule-table :deep(.n-data-table-td) {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink);
 }
 .rule-table :deep(.n-data-table-th__title) {
-  font-weight: 600 !important;
+  font-weight: 600;
 }
 .rule-table :deep(.n-data-table-td) {
   font-size: 12px !important;
