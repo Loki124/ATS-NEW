@@ -199,7 +199,8 @@ const message = useMessage()
 
 const collapsed = ref(false)
 
-// === 移动端响应式（≤768 折叠为 n-drawer）[T6.2] ===
+// === 移动端响应式（≤768 折叠为 n-drawer）[T6.2]
+// v2 bugfix P1-C：用 <= 768 包含边界值（严格 < 在 768 viewport 下仍判为桌面）
 const isMobile = ref(false)
 const mobileMenuOpen = ref(false)
 function onDrawerMenu(key: string) {
@@ -207,7 +208,7 @@ function onDrawerMenu(key: string) {
   mobileMenuOpen.value = false
 }
 function updateIsMobile() {
-  isMobile.value = window.innerWidth < 768
+  isMobile.value = window.innerWidth <= 768
 }
 onMounted(() => {
   updateIsMobile()
