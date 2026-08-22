@@ -57,7 +57,8 @@ export default defineConfig({
     // === 常用布局快捷类 ===
     'flex-center': 'flex items-center justify-center',
     'flex-between': 'flex items-center justify-between',
-    'page-container': 'p-6 min-h-screen',
+    // 'page-container' shortcut 已移除：各页面自行管理 padding/height/min-height，
+    // 避免在 SettingsLayout 等嵌套 flex 布局中 min-h-screen 把内容撑到 100vh 与极光底拼贴。
 
     // === 品牌色渐变背景（v2：用 --brand + --brand-grad-a 派生）===
     // 用于 Logo / 标题图标 / 强调徽标。改色只改 tokens.css 的 --brand 即全站联动。

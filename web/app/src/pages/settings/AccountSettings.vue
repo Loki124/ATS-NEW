@@ -446,6 +446,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; /* 关键：覆盖任何全局 min-height，防止在嵌套布局中被撑到 100vh */
   /* padding 由 SettingsLayout 统一提供, 避免双重留白 */
   padding: 0;
 }
@@ -475,11 +476,10 @@ onMounted(() => {
   overflow: auto;
 }
 .account-tabs :deep(.n-tab-pane) {
-  min-height: 100%;
+  height: 100%;
+  min-height: 0; /* 配合 n-tabs-pane-wrapper flex:1，避免 nav + pane 总高超出容器 */
 }
 .tab-pane-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
+  min-height: 0;
 }
 </style>
