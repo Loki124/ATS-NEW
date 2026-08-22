@@ -852,11 +852,11 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   gap: 12px;
 }
 
-/* 按钮品牌色 */
+/* 按钮品牌色 · v2: 移除 !important · 字色由 App.vue themeOverrides 统一 */
 .add-button, .batch-notify-btn, .send-btn-primary {
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%) !important;
-  border: none !important;
-  color: var(--ink) !important;
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
+  border: 1px solid rgba(255, 255, 255, .35);
+  /* 不再覆盖 color — 走全局主按钮字色 #fff */
 }
 
 /* 候选人列表 */
@@ -1052,8 +1052,9 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   background: var(--glass-bg-input); border-radius: 8px;
 }
 .candidate-avatar-sm {
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%) !important;
-  color: var(--ink) !important; font-weight: 600;
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
+  /* 不再覆盖 color — 走全局主按钮字色 #fff */
+  font-weight: 600;
 }
 .modal-content { display: flex; gap: 24px; margin-top: 24px; }
 .left-sidebar { width: 280px; flex-shrink: 0; }
