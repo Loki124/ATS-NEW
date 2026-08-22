@@ -811,8 +811,8 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   flex: 0 0 auto;
   min-width: 84px;
   padding: 10px 14px;
-  background: #fff;
-  border: 1px solid var(--border-hairline);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
   text-align: center;
   cursor: pointer;
@@ -833,7 +833,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 }
 .pipeline-stat-label {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--ink-faint);
   margin-top: 4px;
   white-space: nowrap;
 }
@@ -869,7 +869,8 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   display: flex;
   gap: 12px;
   padding: 12px 16px;
-  background: #fff;
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
   border: 1px solid var(--border-hairline);
   border-radius: 12px;
   transition: box-shadow 0.2s, border-color 0.2s;
@@ -928,11 +929,11 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .candidate-name:hover { color: var(--brand-hover); }
 .candidate-id {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--ink-faint);
 }
 .candidate-meta {
   font-size: 12px;
-  color: #595959;
+  color: var(--ink-soft);
 }
 .candidate-meta span {
   display: inline-flex;
@@ -954,16 +955,16 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #595959;
+  color: var(--ink-soft);
 }
-.timeline-icon { color: #8c8c8c; flex-shrink: 0; }
-.timeline-date { color: #8c8c8c; white-space: nowrap; }
-.timeline-company { color: #262626; font-weight: 500; }
+.timeline-icon { color: var(--ink-faint); flex-shrink: 0; }
+.timeline-date { color: var(--ink-faint); white-space: nowrap; }
+.timeline-company { color: var(--ink); font-weight: 500; }
 .timeline-divider { color: var(--ink-faint); }
-.timeline-position { color: #595959; }
+.timeline-position { color: var(--ink-soft); }
 .timeline-more {
   font-size: 12px;
-  color: #1890ff;
+  color: var(--c-info);
   cursor: default;
 }
 
@@ -977,7 +978,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   font-size: 12px;
 }
 .stage-label {
-  color: #8c8c8c;
+  color: var(--ink-faint);
   font-size: 12px;
   line-height: 1.4;
   margin-bottom: 1px;
@@ -989,19 +990,19 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   flex-direction: column;
   gap: 1px;
 }
-.stage-name { color: #262626; font-weight: 500; font-size: 12px; }
-.stage-status { color: #595959; font-size: 12px; }
-.stage-status.pass { color: #52c41a; }
-.stage-status.reject { color: #ff4d4f; }
+.stage-name { color: var(--ink); font-weight: 500; font-size: 12px; }
+.stage-status { color: var(--ink-soft); font-size: 12px; }
+.stage-status.pass { color: var(--c-success); }
+.stage-status.reject { color: var(--c-error); }
 .stage-status.placeholder { color: #bfbfbf; }
 .stage-foot {
   display: flex;
   gap: 4px;
-  color: #8c8c8c;
+  color: var(--ink-faint);
   font-size: 11px;
   flex-wrap: wrap;
 }
-.stage-handler { color: #595959; }
+.stage-handler { color: var(--ink-soft); }
 
 /* 底部操作 */
 .row-bottom {
@@ -1022,7 +1023,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   padding-top: 16px;
   border-top: 1px solid var(--border-hairline);
 }
-.pagination-total { font-size: 13px; color: #8c8c8c; }
+.pagination-total { font-size: 13px; color: var(--ink-faint); }
 
 /* 响应式 */
 @media (max-width: 1024px) {
@@ -1084,7 +1085,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .right-content { flex: 1; min-width: 0; }
 .info-callout {
   background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 6px;
-  padding: 12px; font-size: 13px; color: #1890ff; margin-bottom: 16px;
+  padding: var(--space-3); font-size: var(--text-body); color: var(--c-info); margin-bottom: var(--space-4);
 }
 .editor-section { background: var(--glass-bg-input); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 .editor-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
