@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Permission as AuthPermission
 from .models import Permission
@@ -23,7 +23,7 @@ class RegisterRateThrottle(AnonRateThrottle):
     scope = 'register'
 
 
-class ChangePasswordRateThrottle(AnonRateThrottle):
+class ChangePasswordRateThrottle(UserRateThrottle):
     """2026-07-02: 改密端点限速 5 次/分钟/用户, 防被撞改密."""
     scope = 'change_password'
 
@@ -101,6 +101,38 @@ def logout_view(request):
             {'success': False, 'message': '登出失败'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([ChangePasswordRateThrottle])
+def change_password_view(request):
+    """更改当前用户密码"""
+    user = request.user
+    old_password = request.data.get('oldPassword') or request.data.get('old_password')
+    new_password = request.data.get('newPassword') or request.data.get('new_password')
+
+    if not old_password or not new_password:
+        return Response(
+            {'success': False, 'code': 'missing_password', 'message': '原密码和新密码必填'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(new_password) < 6:
+        return Response(
+            {'success': False, 'code': 'password_too_short', 'message': '新密码长度不能少于 6 位'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not user.check_password(old_password):
+        return Response(
+            {'success': False, 'code': 'invalid_old_password', 'message': '原密码错误'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user.set_password(new_password)
+    user.save(update_fields=['password'])
+    return Response({'success': True, 'message': '密码修改成功'})
 
 
 @api_view(['GET', 'PATCH'])

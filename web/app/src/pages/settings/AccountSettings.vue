@@ -21,17 +21,17 @@
         <n-grid :cols="1" :x-gap="24">
           <n-gi>
             <n-form-item label="姓名">
-              <n-input v-model:value="formState.realName" placeholder="请输入姓名" />
+              <n-input v-model:value="formState.realName" placeholder="请输入姓名" disabled />
             </n-form-item>
           </n-gi>
           <n-gi>
             <n-form-item label="电话">
-              <n-input v-model:value="formState.phone" placeholder="请输入电话" />
+              <n-input v-model:value="formState.phone" placeholder="请输入电话" disabled />
             </n-form-item>
           </n-gi>
           <n-gi>
             <n-form-item label="邮箱" :feedback="emailFeedback" :validation-status="emailStatus">
-              <n-input v-model:value="formState.email" placeholder="请输入邮箱" />
+              <n-input v-model:value="formState.email" placeholder="请输入邮箱" disabled />
             </n-form-item>
           </n-gi>
           <n-gi>
@@ -57,9 +57,6 @@
         </n-grid>
       </n-form>
 
-      <n-space justify="end" class="section-actions">
-        <n-button type="primary" @click="handleSaveProfile">保存</n-button>
-      </n-space>
     </n-card>
 
     <!-- 浏览器通知 -->
@@ -179,7 +176,7 @@ import {
   CloudUploadOutline,
 } from '@vicons/ionicons5'
 import { useUserStore } from '../../stores/user'
-import api from '../../api/auth'
+import api, { changePassword } from '../../api/auth'
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -299,7 +296,7 @@ function handleUploadEnv() {
   message.success('浏览器环境已上传')
 }
 
-function handleChangePassword() {
+async function handleChangePassword() {
   if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
     message.error('请填写完整密码信息')
     return
@@ -308,11 +305,21 @@ function handleChangePassword() {
     message.error('两次输入的密码不一致')
     return
   }
-  message.success('密码修改成功')
-  showPasswordModal.value = false
-  passwordForm.oldPassword = ''
-  passwordForm.newPassword = ''
-  passwordForm.confirmPassword = ''
+  try {
+    const { data } = await changePassword(passwordForm.oldPassword, passwordForm.newPassword)
+    if (data.success) {
+      message.success(data.message || '密码修改成功')
+      showPasswordModal.value = false
+      passwordForm.oldPassword = ''
+      passwordForm.newPassword = ''
+      passwordForm.confirmPassword = ''
+    } else {
+      message.error(data.message || '密码修改失败')
+    }
+  } catch (error: any) {
+    const errMsg = error.response?.data?.message || error.message || '密码修改失败'
+    message.error(errMsg)
+  }
 }
 </script>
 
