@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, NDrawer, NDrawerContent, NDataTable, NDropdown, useMessage } from 'naive-ui'
+import { NTag, NSpace, NButton, NIcon, NDrawer, NDrawerContent, NDataTable, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline, BulbOutline } from '@vicons/ionicons5'
 import {
   listOnboardings, transitionOnboarding,
@@ -129,6 +129,18 @@ async function loadList() {
 }
 
 async function handleTransition(row: Onboarding, to: string) {
+  // v2: 危险状态（PENDING_REJECT / CANCELLED）弹 dialog 二次确认
+  if (['PENDING_REJECT', 'CANCELLED'].includes(to)) {
+    try {
+      const dialog = useDialog()
+      await dialog.warning({
+        title: '确认操作',
+        content: `将该入职记录状态变更为「${to === 'PENDING_REJECT' ? '拒入职' : '取消'}」，是否继续？`,
+        positiveText: '确认',
+        negativeText: '取消',
+      })
+    } catch { return }
+  }
   try {
     await transitionOnboarding(row.id, to)
     message.success('状态已更新')
@@ -157,6 +169,15 @@ async function openRecommendDrawer(row: Onboarding) {
 }
 
 onMounted(loadList)
+
+// v2: 表格行键盘可达 [T8.4]
+function rowProps(row: any) {
+  return {
+    tabindex: 0,
+    role: 'button',
+    'aria-label': `入职记录 ${row.candidateName || row.id}`,
+  }
+}
 </script>
 
 <template>
@@ -193,6 +214,7 @@ onMounted(loadList)
       </n-space>
       <n-data-table
         :columns="columns"
+        :row-props="rowProps"
         :data="dataSource"
         :loading="loading"
         :row-key="(row: Onboarding) => row.id"
@@ -220,7 +242,7 @@ onMounted(loadList)
 </template>
 
 <style scoped>
-.page-container { padding: 24px; }
+.page-container { padding: 24px; animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
 .page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }

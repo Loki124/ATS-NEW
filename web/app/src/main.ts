@@ -14,6 +14,10 @@ import './styles/glass.css'
 import './styles/glass-modal.css' // T2.3: 模态/抽屉玻璃化扩展（n-modal-container / n-drawer 等）
 import './index.css'
 
+import { createDiscreteApi } from 'naive-ui'
+// v2: 全局 toast（拦截器 + shortcuts 帮助面板共用）· 必须在 axios 拦截器之前声明
+const _toast = createDiscreteApi(['message']).message
+
 // 2026-06-29 花无缺: 全局 axios 拦截器 — 区分 401/403 (真权限) vs 404 (endpoint 缺)
 // 之前 404 被 catch 走 → UI 显示 "无权限" / "加载失败" → 兵哥误以为权限问题.
 // 真实根因: 后端 9 个 app 缺实现 (mou/library/scraped-resume 等), 兵哥看到的"超管没权限"全是 404.
@@ -29,8 +33,10 @@ axios.interceptors.response.use(
         `[API 404] 后端没实现这个 endpoint: ${url}\n` +
         `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
       )
+      _toast.warning(`接口不存在: ${url.split('?')[0]}`)
     } else if (status === 500) {
       console.error(`[API 500] 后端 bug: ${url}`, err?.response?.data)
+      _toast.error('服务异常，请稍后再试')
     }
     return Promise.reject(err)
   }

@@ -35,6 +35,7 @@
       </n-space>
 
       <n-data-table
+        :row-props="rowProps"
         :columns="columns"
         :data="dataSource"
         :loading="loading"
@@ -106,7 +107,7 @@
 
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage } from 'naive-ui'
+import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import {
   listOffers, transitionOffer, renderOffer,
@@ -115,6 +116,18 @@ import {
 } from '../../api/offer'
 
 const message = useMessage()
+const dialog = useDialog()
+// v2: 危险状态二次确认
+const DANGER_STATES = ['REJECTED', 'WITHDRAWN', 'EXPIRED']
+
+// v2: 表格行键盘可达 [T8.4]
+function rowProps(row: any) {
+  return {
+    tabindex: 0,
+    role: 'button',
+    'aria-label': `Offer ${row.candidateName || row.id}`,
+  }
+}
 
 const loading = ref(false)
 const dataSource = ref<Offer[]>([])
@@ -274,9 +287,20 @@ function openTransition(row: Offer, to: string) {
 }
 
 async function handleTransitionSubmit() {
-  if (['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(transitionModal.value.form.to) && !transitionModal.value.form.reason.trim()) {
+  if (DANGER_STATES.includes(transitionModal.value.form.to) && !transitionModal.value.form.reason.trim()) {
     message.warning('请填写原因')
     return
+  }
+  // v2: 危险状态弹 dialog 二次确认
+  if (DANGER_STATES.includes(transitionModal.value.form.to)) {
+    try {
+      await dialog.warning({
+        title: '确认操作',
+        content: `将 Offer 状态变更为「${OFFER_STATUS_LABEL[transitionModal.value.form.to]}」，是否继续？`,
+        positiveText: '确认',
+        negativeText: '取消',
+      })
+    } catch { return }
   }
   transitionModal.value.loading = true
   try {
@@ -297,7 +321,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container { padding: 24px; }
+.page-container { padding: 24px; animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
 .page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }

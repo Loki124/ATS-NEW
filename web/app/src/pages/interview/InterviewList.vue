@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage } from 'naive-ui'
+import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import {
   listInterviews, submitFeedback, cancelInterview,
@@ -104,6 +104,16 @@ async function quickFeedback(row: Interview, result: 'PASS' | 'FAIL') {
 }
 
 async function handleCancel(row: Interview) {
+  // v2: 取消面试弹 dialog 二次确认
+  try {
+    const dialog = useDialog()
+    await dialog.warning({
+      title: '确认取消',
+      content: `确认取消「${row.roundName || '面试'}」？取消后候选人将收到通知。`,
+      positiveText: '确认取消',
+      negativeText: '返回',
+    })
+  } catch { return }
   try {
     await cancelInterview(row.id, 'HR 取消面试')
     message.success('已取消面试')
@@ -114,6 +124,15 @@ async function handleCancel(row: Interview) {
 }
 
 onMounted(loadList)
+
+// v2: 表格行键盘可达 [T8.4]
+function rowProps(row: any) {
+  return {
+    tabindex: 0,
+    role: 'button',
+    'aria-label': `面试 ${row.roundName || row.id}`,
+  }
+}
 </script>
 
 <template>
@@ -162,6 +181,7 @@ onMounted(loadList)
       </n-space>
       <n-data-table
         :columns="columns"
+        :row-props="rowProps"
         :data="dataSource"
         :loading="loading"
         :row-key="(row: Interview) => row.id"
@@ -173,7 +193,7 @@ onMounted(loadList)
 </template>
 
 <style scoped>
-.page-container { padding: 24px; }
+.page-container { padding: 24px; animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
 .page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }
