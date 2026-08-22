@@ -25,7 +25,7 @@
     <main class="policy-admin__main">
       <div class="policy-admin__header">
         <div>
-          <h1 class="policy-admin__title">{{ currentFolderLabel }}</h1>
+          <h1 class="policy-admin__title page-title">{{ currentFolderLabel }}</h1>
           <p class="policy-admin__desc">维护招聘专家可见的制度、公告与流程内容</p>
         </div>
         <n-space>

@@ -113,7 +113,15 @@
 
     <!-- 右侧内容 -->
     <n-layout-content class="settings-content">
-      <router-view />
+      <!-- 页面级极光（不随内容滚动，与校招管控 .cc-aurora 同源） -->
+      <div class="settings-aurora" aria-hidden="true">
+        <span class="blob blob-a"></span>
+        <span class="blob blob-b"></span>
+        <span class="blob blob-c"></span>
+      </div>
+      <div class="settings-scroll">
+        <router-view />
+      </div>
     </n-layout-content>
   </n-layout>
 </template>
@@ -538,12 +546,22 @@ watch(
 
 /* 右侧内容区 */
 .settings-content {
+  position: relative;
   padding: 0;
   margin-left: 16px;
-  overflow: auto;
+  overflow: hidden; /* 外层不滚动，交给内部 .settings-scroll，极光才能固定 */
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: transparent;
+}
+/* 内部滚动容器：承载各设置页，极光在其下层固定不动 */
+.settings-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
 }
 </style>

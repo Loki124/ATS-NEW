@@ -1,7 +1,7 @@
 <template>
   <div class="interview-round">
     <div class="page-header">
-      <h2>面试轮次管理</h2>
+      <h2 class="page-title">面试轮次管理</h2>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px" />
         <n-button type="primary" @click="showModal = true">

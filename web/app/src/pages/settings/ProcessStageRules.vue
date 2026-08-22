@@ -6,7 +6,7 @@
           <template #icon><n-icon :component="ArrowBackOutline" /></template>
           返回
         </n-button>
-        <h2>{{ processName }} - {{ stageName }} - 规则配置</h2>
+        <h2 class="page-title">{{ processName }} - {{ stageName }} - 规则配置</h2>
       </n-space>
     </div>
 

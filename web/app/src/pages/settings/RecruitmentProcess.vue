@@ -1,7 +1,7 @@
 <template>
   <div class="recruitment-process">
     <div class="page-header">
-      <h2>招聘流程管理</h2>
+      <h2 class="page-title">招聘流程管理</h2>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px" />
         <n-button type="primary" @click="openCreateProcess">

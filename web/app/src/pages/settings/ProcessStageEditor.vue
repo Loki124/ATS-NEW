@@ -6,7 +6,7 @@
           <template #icon><n-icon :component="ArrowBackOutline" /></template>
           返回
         </n-button>
-        <h2>{{ processName }} - 阶段配置</h2>
+        <h2 class="page-title">{{ processName }} - 阶段配置</h2>
       </n-space>
       <n-button type="primary" :disabled="!processId" @click="openAddModal">
         <template #icon><n-icon :component="AddOutline" /></template>
