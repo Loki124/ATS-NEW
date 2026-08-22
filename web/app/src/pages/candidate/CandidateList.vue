@@ -185,17 +185,22 @@
                 </div>
               </div>
 
-              <!-- 底部操作栏 -->
+              <!-- 底部操作栏 · v2: 1 主按钮 + 更多 ⌄ 下拉 -->
               <div class="row-bottom">
-                <n-space :size="16">
+                <n-space :size="12">
                   <n-button text type="primary" size="small" @click="handleViewDetail(row)">查看详情</n-button>
-                  <n-button text size="small">转发简历</n-button>
-                  <n-button text size="small">备注</n-button>
-                  <n-button text size="small">安排面试</n-button>
+                  <n-dropdown
+                    trigger="click"
+                    :options="[
+                      { label: '转发简历', key: 'forward' },
+                      { label: '备注', key: 'note' },
+                      { label: '安排面试', key: 'interview' },
+                    ]"
+                    @select="(k: string) => onCandidateRowAction(k, row)"
+                  >
+                    <n-button text size="small">更多 ⌄</n-button>
+                  </n-dropdown>
                 </n-space>
-                <n-button text size="small">
-                  <n-icon :component="EllipsisHorizontalCircleOutline" size="18" />
-                </n-button>
               </div>
             </div>
           </div>
@@ -377,7 +382,7 @@
 <script setup lang="ts">
 import { ref, reactive, h, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, NTag, NIcon, NButton, NSpace, NAvatar, NCheckbox, NCheckboxGroup, NPagination } from 'naive-ui'
+import { useMessage, NTag, NIcon, NButton, NSpace, NAvatar, NCheckbox, NCheckboxGroup, NPagination, NDropdown } from 'naive-ui'
 import {
   AddOutline,
   SearchOutline,
@@ -775,6 +780,10 @@ const handleBatchSendNotification = () => {
   selectedKeys.value = []
 }
 const handleViewDetail = (record: any) => { router.push(`/candidates/${record.key}`) }
+const onCandidateRowAction = (key: string, _row: any) => {
+  // v2: row-bottom 下拉（占位 handler · 后续接入）
+  message.info({ forward: '转发简历功能开发中', note: '备注功能开发中', interview: '安排面试功能开发中' }[key] || '未知操作')
+}
 const handleSearch = () => { /* search */ }
 const exportData = () => { message.info('导出功能开发中') }
 const showMoreFilter = () => { message.info('更多筛选功能开发中') }
