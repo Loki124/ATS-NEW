@@ -672,15 +672,15 @@ const handleSendNotification = () => {
 .step-content { display: flex; flex-direction: column; gap: 16px; }
 .content-group { display: flex; flex-direction: column; gap: 8px; }
 .content-group-title { font-size: 14px; font-weight: 600; color: #161c23; padding-left: 4px; }
-.content-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid #c1c6d5; background: #fff; cursor: pointer; transition: all var(--duration-base) var(--ease-out); font-size: 14px; color: #161c23; }
+.content-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); font-size: 14px; color: var(--ink); } /* v2.8 T2.8.2: #c1c6d5/#fff/#161c23 → var(--border-hairline)/var(--glass-bg-card)/var(--ink) */
 .content-item:hover { border-color: #005ab6; background: #f0f7ff; }
 .content-item.selected { border-color: #005ab6; background: rgba(215, 227, 255, 0.2); }
-.method-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid #c1c6d5; background: #fff; cursor: pointer; transition: all var(--duration-base) var(--ease-out); }
+.method-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); } /* v2.8 T2.8.2: #c1c6d5/#fff → var(--border-hairline)/var(--glass-bg-card) */
 .method-item:hover { border-color: #005ab6; background: #f0f7ff; }
 .method-item.selected { border-color: #005ab6; background: rgba(215, 227, 255, 0.2); }
 .method-icon { font-size: 20px; color: #005ab6; }
 .method-name { font-size: 14px; font-weight: 600; color: #161c23; }
-.right-content { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: #fff; }
+.right-content { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: var(--glass-bg-card); } /* v2.8 T2.8.2: #fff → var(--glass-bg-card) */
 /* v2 bugfix P0-A: 金色硬编码 #ffd666/#765c00/RGBA(255,214,102,0.1) → 改用 --c-warning 系列 token */
 .info-callout { display: flex; align-items: flex-start; gap: 8px; padding: 12px; background: var(--c-warning-soft); border: 1px solid var(--c-warning); border-radius: 8px; font-size: 14px; color: var(--ink); }
 .editor-section { display: flex; flex-direction: column; gap: 12px; }
