@@ -82,9 +82,6 @@
         </n-checkbox-group>
       </n-collapse-transition>
 
-      <n-space justify="end" class="section-actions">
-        <n-button type="primary" @click="handleSaveNotifications">保存</n-button>
-      </n-space>
     </n-card>
 
     <!-- 自定义默认选项设置 -->
@@ -111,9 +108,6 @@
         </n-form-item>
       </n-form>
 
-      <n-space justify="end" class="section-actions">
-        <n-button type="primary" @click="handleSaveDefaults">保存</n-button>
-      </n-space>
     </n-card>
 
     <!-- 更改密码弹窗 -->
@@ -171,7 +165,7 @@ import {
   CloudUploadOutline,
 } from '@vicons/ionicons5'
 import { useUserStore } from '../../stores/user'
-import api, { changePassword } from '../../api/auth'
+import { changePassword } from '../../api/auth'
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -252,39 +246,6 @@ onMounted(() => {
 })
 
 // ===== 事件处理 =====
-async function handleSaveProfile() {
-  if (emailStatus.value === 'error') {
-    message.error('请检查邮箱格式')
-    return
-  }
-  if (!user.value?.id) {
-    message.error('用户未登录')
-    return
-  }
-  try {
-    const { data } = await api.put(`/users/${user.value.id}/`, {
-      realName: formState.realName,
-      email: formState.email,
-      phone: formState.phone,
-    })
-    if (data.success) {
-      message.success('个人信息保存成功')
-    } else {
-      message.error(data.error || '保存失败')
-    }
-  } catch (error) {
-    message.error('保存失败')
-  }
-}
-
-function handleSaveNotifications() {
-  message.success('浏览器通知设置已保存')
-}
-
-function handleSaveDefaults() {
-  message.success('默认选项设置已保存')
-}
-
 function handleUploadEnv() {
   const env = navigator.userAgent
   console.log('上传当前浏览器环境:', env)
@@ -360,10 +321,5 @@ async function handleChangePassword() {
 }
 .notification-grid {
   padding: 12px 0 4px;
-}
-.section-actions {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-hairline);
 }
 </style>
