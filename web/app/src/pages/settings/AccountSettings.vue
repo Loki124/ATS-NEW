@@ -13,10 +13,6 @@
         </div>
       </template>
 
-      <n-alert type="info" :show-icon="true" class="section-alert">
-        企业已购买 Moka People 系统，需从 People 花名册修改员工姓名、邮箱、手机号。
-      </n-alert>
-
       <n-form label-placement="left" :label-width="96" :model="formState" class="profile-form">
         <n-grid :cols="1" :x-gap="24">
           <n-gi>
@@ -159,7 +155,6 @@ import {
   NButton,
   NSpace,
   NTag,
-  NAlert,
   NSwitch,
   NCheckbox,
   NCheckboxGroup,
@@ -354,9 +349,6 @@ async function handleChangePassword() {
 }
 .section-tag {
   font-weight: 500;
-}
-.section-alert {
-  margin-bottom: 16px;
 }
 .section-desc {
   margin: 0 0 16px;
