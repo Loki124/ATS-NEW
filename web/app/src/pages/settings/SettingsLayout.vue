@@ -45,7 +45,7 @@
           </n-tooltip>
         </template>
 
-        <!-- 展开态：分组菜单 -->
+        <!-- 展开态：分组菜单（支持二级 + 三级嵌套） -->
         <template v-else>
           <div
             v-for="group in subMenuOptions"
@@ -54,27 +54,58 @@
           >
             <div
               class="group-header"
-              :class="{ expanded: isExpanded(group.key) }"
+              :class="{ expanded: isGroupExpanded(group.key) }"
               @click="toggleGroup(group.key)"
             >
               <span class="group-title">{{ group.label }}</span>
               <n-icon
                 class="group-arrow"
-                :component="isExpanded(group.key) ? ChevronUpOutline : ChevronDownOutline"
+                :component="isGroupExpanded(group.key) ? ChevronUpOutline : ChevronDownOutline"
               />
             </div>
 
-            <div v-show="isExpanded(group.key)" class="group-body">
-              <div
-                v-for="item in group.children"
-                :key="item.key"
-                class="menu-item"
-                :class="{ active: activeKey === item.key }"
-                @click="handleMenuClick(item.key)"
-              >
-                <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
-                <span class="menu-label">{{ item.label }}</span>
-              </div>
+            <div v-show="isGroupExpanded(group.key)" class="group-body">
+              <template v-for="item in group.children" :key="item.key">
+                <!-- 叶子菜单项 -->
+                <div
+                  v-if="!item.children?.length"
+                  class="menu-item"
+                  :class="{ active: activeKey === item.key }"
+                  @click="handleMenuClick(item.key)"
+                >
+                  <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
+                  <span class="menu-label">{{ item.label }}</span>
+                </div>
+
+                <!-- 可展开父菜单项 -->
+                <div v-else class="menu-item-parent">
+                  <div
+                    class="menu-item has-children"
+                    :class="{ active: isParentActive(item) }"
+                    @click="toggleItem(item.key)"
+                  >
+                    <n-icon v-if="item.icon" class="menu-icon" :component="item.icon" />
+                    <span class="menu-label">{{ item.label }}</span>
+                    <n-icon
+                      class="group-arrow item-arrow"
+                      :component="isItemExpanded(item.key) ? ChevronUpOutline : ChevronDownOutline"
+                    />
+                  </div>
+
+                  <div v-show="isItemExpanded(item.key)" class="sub-menu">
+                    <div
+                      v-for="sub in item.children"
+                      :key="sub.key"
+                      class="menu-item sub-menu-item"
+                      :class="{ active: activeKey === sub.key }"
+                      @click="handleMenuClick(sub.key)"
+                    >
+                      <n-icon v-if="sub.icon" class="menu-icon sub-menu-icon" :component="sub.icon" />
+                      <span class="menu-label">{{ sub.label }}</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -91,6 +122,7 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import type { Component } from 'vue'
 import {
   NIcon,
   NLayout,
@@ -100,14 +132,9 @@ import {
 } from 'naive-ui'
 import {
   PersonCircleOutline,
-  PersonAddOutline,
-  CheckmarkDoneOutline,
   BusinessOutline,
-  BookOutline,
   PeopleOutline,
-  KeyOutline,
-  LockClosedOutline,
-  SettingsOutline,
+  BookOutline,
   BookmarkOutline,
   ClipboardOutline,
   StarOutline,
@@ -127,6 +154,11 @@ import {
   ChevronBackOutline,
   ChevronForwardOutline,
   ColorPaletteOutline,
+  LocationOutline,
+  VideocamOutline,
+  MailOutline,
+  ShieldCheckmarkOutline,
+  PeopleCircleOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -135,29 +167,49 @@ const route = useRoute()
 // 设置侧边栏折叠状态
 const collapsed = ref(false)
 
-// 折叠态使用的扁平菜单项（保留原分组顺序）
-const flatMenuItems = computed(() => subMenuOptions.flatMap(g => g.children))
+interface MenuItem {
+  key: string
+  label: string
+  icon?: Component
+  children?: MenuItem[]
+}
 
-// 子菜单：分组结构（与原 Layout.vue 的 系统管理 子树对齐）
-const subMenuOptions = [
+interface MenuGroup {
+  key: string
+  label: string
+  children: MenuItem[]
+}
+
+// 子菜单：分组结构（按产品最新设置架构）
+const subMenuOptions: MenuGroup[] = [
   {
-    key: 'group-hr',
-    label: '人事设置',
+    key: 'group-basic',
+    label: '基本信息',
     children: [
-      { key: '/settings/account', label: '员工信息设置', icon: PersonCircleOutline },
-      { key: '/settings/onboarding', label: '入职设置', icon: PersonAddOutline },
-      { key: '/settings/approval', label: '审批设置', icon: CheckmarkDoneOutline },
-    ],
-  },
-  {
-    key: 'group-org',
-    label: '组织设置',
-    children: [
-      { key: '/settings/department', label: '部门管理', icon: BusinessOutline },
-      { key: '/settings/user-management', label: '用户管理', icon: PeopleOutline },
-      { key: '/settings/mou', label: 'MOU权限管理', icon: LockClosedOutline },
-      { key: '/settings/field-acl', label: '字段权限', icon: KeyOutline },
-      { key: '/settings/permissions', label: '权限管理', icon: LockClosedOutline },
+      { key: '/settings/account', label: '个人信息管理', icon: PersonCircleOutline },
+      {
+        key: '/settings/company-mgmt',
+        label: '公司信息管理',
+        icon: BusinessOutline,
+        children: [
+          { key: '/settings/company', label: '公司信息', icon: BusinessOutline },
+          { key: '/settings/company/address', label: '公司地址', icon: LocationOutline },
+          { key: '/settings/company/meeting-rooms', label: '公司会议室', icon: VideocamOutline },
+          { key: '/settings/company/resume-mailbox', label: '接收简历邮箱', icon: MailOutline },
+          { key: '/settings/company/brand', label: '品牌信息管理', icon: ColorPaletteOutline },
+        ],
+      },
+      {
+        key: '/settings/org-mgmt',
+        label: '组织信息管理',
+        icon: PeopleOutline,
+        children: [
+          { key: '/settings/department', label: '组织职责管理', icon: BusinessOutline },
+          { key: '/settings/permissions', label: '角色管理', icon: ShieldCheckmarkOutline },
+          { key: '/settings/user-management', label: '团队成员管理', icon: PeopleOutline },
+          { key: '/settings/user-groups', label: '用户组管理', icon: PeopleCircleOutline },
+        ],
+      },
     ],
   },
   {
@@ -191,45 +243,93 @@ const subMenuOptions = [
     label: '其他',
     children: [
       { key: '/settings/theme', label: '主题外观', icon: ColorPaletteOutline },
-      { key: '/settings/company', label: '公司信息', icon: InformationCircleOutline },
-      { key: '/settings/external', label: '对外接口', icon: ServerOutline },
-      { key: '/settings/public', label: '公共设置', icon: CloudUploadOutline },
-      { key: '/settings/school-library', label: '院校库', icon: SchoolOutline },
       { key: '/settings/company-library', label: '公司库', icon: BusinessOutline },
+      { key: '/settings/school-library', label: '院校库', icon: SchoolOutline },
       { key: '/settings/dynamic-fields', label: '动态字段', icon: ConstructOutline },
       { key: '/settings/scraped-resumes', label: '我找的简历', icon: SearchOutline },
       { key: '/settings/data-dashboard', label: '数据中心', icon: AnalyticsOutline },
+      { key: '/settings/external', label: '对外接口', icon: ServerOutline },
+      { key: '/settings/public', label: '公共设置', icon: CloudUploadOutline },
     ],
   },
 ]
 
-// 默认全部折叠
-const expandedKeys = ref<string[]>([])
+// 扁平化所有叶子节点（折叠态用）
+const flatMenuItems = computed<MenuItem[]>(() => {
+  const result: MenuItem[] = []
+  function walk(items: MenuItem[]) {
+    for (const item of items) {
+      if (item.children?.length) {
+        walk(item.children)
+      } else {
+        result.push(item)
+      }
+    }
+  }
+  subMenuOptions.forEach(g => walk(g.children))
+  return result
+})
 
-function isExpanded(key: string) {
-  return expandedKeys.value.includes(key)
+// 查找当前路由所在的 group / 父级 item，用于自动展开
+function findLeafContext(path: string) {
+  for (const group of subMenuOptions) {
+    for (const item of group.children) {
+      if (item.key === path) return { group, parent: undefined as MenuItem | undefined }
+      if (item.children?.length) {
+        for (const sub of item.children) {
+          if (sub.key === path) return { group, parent: item }
+        }
+      }
+    }
+  }
+  return null
 }
 
+// 顶级分组展开状态
+const expandedKeys = ref<string[]>([])
+function isGroupExpanded(key: string) {
+  return expandedKeys.value.includes(key)
+}
 function toggleGroup(key: string) {
-  if (isExpanded(key)) {
+  if (isGroupExpanded(key)) {
     expandedKeys.value = expandedKeys.value.filter(k => k !== key)
   } else {
     expandedKeys.value = [...expandedKeys.value, key]
   }
 }
 
-// 进入页面或路由变化时，自动展开当前路由所在的分组
-function expandCurrentGroup() {
-  const group = subMenuOptions.find(g => g.children.some(c => c.key === route.path))
-  if (group && !isExpanded(group.key)) {
-    expandedKeys.value = [...expandedKeys.value, group.key]
+// 二级可展开项状态
+const expandedItemKeys = ref<string[]>([])
+function isItemExpanded(key: string) {
+  return expandedItemKeys.value.includes(key)
+}
+function toggleItem(key: string) {
+  if (isItemExpanded(key)) {
+    expandedItemKeys.value = expandedItemKeys.value.filter(k => k !== key)
+  } else {
+    expandedItemKeys.value = [...expandedItemKeys.value, key]
   }
 }
 
-watch(() => route.path, expandCurrentGroup, { immediate: true })
+function isParentActive(item: MenuItem) {
+  return item.children?.some(sub => sub.key === activeKey.value) ?? false
+}
+
+// 进入页面或路由变化时，自动展开当前路由所在的分组与父级菜单
+function expandCurrentContext() {
+  const ctx = findLeafContext(route.path)
+  if (!ctx) return
+  if (ctx.group && !isGroupExpanded(ctx.group.key)) {
+    expandedKeys.value = [...expandedKeys.value, ctx.group.key]
+  }
+  if (ctx.parent && !isItemExpanded(ctx.parent.key)) {
+    expandedItemKeys.value = [...expandedItemKeys.value, ctx.parent.key]
+  }
+}
+
+watch(() => route.path, expandCurrentContext, { immediate: true })
 
 // 当前路由对应的菜单 key —— 优化：computed 兜底 + optimisticKey 覆盖
-// 路由异步 commit 期间，optimisticKey 立即接管，消除"原菜单闪一下"
 const optimisticKey = ref('')
 const optimisticTimer = ref<number>()
 
@@ -267,14 +367,12 @@ watch(
 
 <style scoped>
 .settings-layout {
-  height: 100%; /* 填满父级 content-wrapper 的内容盒, 避免与 padding 叠加产生双滚动 */
-  background: transparent; /* 透出 Layout 的全局极光底 */
-  /* 关键: 让内部 n-layout-sider 和 n-layout-content 都按比例填满, 内容溢出时 .settings-content 内部滚 */
+  height: 100%;
+  background: transparent;
   overflow: hidden;
-  /* n-layout-scroll-container 规则已迁移到 styles/glass.css（v2 bugfix P1-A 删 :deep） */
 }
 
-/* 左侧子菜单栏 —— 玻璃面板（DESIGN.md §4 glass-panel） */
+/* 左侧子菜单栏 —— 玻璃面板 */
 .settings-sider {
   background: var(--glass-bg-panel) !important;
   backdrop-filter: blur(var(--glass-blur-panel)) !important;
@@ -326,6 +424,9 @@ watch(
 .settings-menu {
   padding: 0 0 16px;
 }
+.settings-menu.collapsed {
+  padding: 0;
+}
 
 .menu-group {
   user-select: none;
@@ -351,14 +452,11 @@ watch(
   font-size: 14px;
   color: var(--ink-faint);
   transition: transform var(--duration-base) var(--ease-out);
+  flex-shrink: 0;
 }
 
 .group-body {
   overflow: hidden;
-}
-
-.settings-menu.collapsed {
-  padding: 0;
 }
 
 .menu-item {
@@ -376,6 +474,30 @@ watch(
   background: var(--brand-tint);
 }
 
+/* 可展开父菜单项 */
+.menu-item.has-children {
+  padding-left: 20px;
+  justify-content: flex-start;
+}
+.menu-item.has-children .menu-label {
+  flex: 1;
+}
+.item-arrow {
+  margin-left: auto;
+}
+
+/* 三级子菜单 */
+.sub-menu {
+  overflow: hidden;
+}
+.sub-menu-item {
+  padding: 9px 20px 9px 56px;
+  font-size: 13px;
+}
+.sub-menu-icon {
+  font-size: 15px;
+}
+
 /* 折叠态：图标居中，无文字 */
 .menu-item--collapsed {
   justify-content: center;
@@ -388,7 +510,8 @@ watch(
   top: 6px;
   bottom: 6px;
 }
-/* 激活态：品牌浅底 + 品牌字 + 左侧 3px accent bar（DESIGN.md §4 导航激活态） */
+
+/* 激活态：品牌浅底 + 品牌字 + 左侧 3px accent bar */
 .menu-item.active {
   color: var(--brand);
   background: var(--brand-soft);
@@ -409,17 +532,14 @@ watch(
   flex-shrink: 0;
 }
 
-/* 右侧内容区 —— flex 列布局, 子页面可填满高度 */
+/* 右侧内容区 */
 .settings-content {
   padding: 0;
-  margin-left: 16px; /* 与左侧设置导航栏保持呼吸间距（替代已移除的 border） */
+  margin-left: 16px;
   overflow: auto;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 关键: flex 子元素需要 min-height:0 才能正确收缩 */
-  background: transparent; /* 透出极光底 */
+  min-height: 0;
+  background: transparent;
 }
-
-/* v2.7: 删 :deep 300 行注入 · 依赖 glass.css 全局 .n-card.n-card / .gradient-title / .n-button--primary-type 规则
-   v2 bugfix P1-A：n-layout-scroll-container 子选择器已迁到 glass.css（直接子元素 > 关系，无需穿透） */
 </style>

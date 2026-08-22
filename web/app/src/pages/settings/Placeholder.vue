@@ -36,7 +36,20 @@ const META_MAP: Record<string, any> = {
   '/settings/public':     { icon: '🌐', title: '公共设置', description: '公开页面配置（招聘门户 / 自定义字段）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
   '/report':              { icon: '📊', title: '数据中心', description: '招聘数据报表与分析（漏斗 / 转化 / 周期 / 来源）', eta: '规划中', issue: 'ATS-201', owner: '—', pr: '—' },
 }
-const meta = computed(() => META_MAP[route.path] || { icon: '🚧', title: '页面建设中', description: '', eta: '待规划', issue: '—', owner: '—', pr: '—' })
+const meta = computed(() => {
+  if (route.meta?.title) {
+    return {
+      icon: route.meta.icon || '🚧',
+      title: route.meta.title,
+      description: (route.meta.description || '') as string,
+      eta: '待规划',
+      issue: '—',
+      owner: '—',
+      pr: '—',
+    }
+  }
+  return META_MAP[route.path] || { icon: '🚧', title: '页面建设中', description: '', eta: '待规划', issue: '—', owner: '—', pr: '—' }
+})
 </script>
 
 <style scoped>
