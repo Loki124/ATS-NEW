@@ -40,19 +40,9 @@ const meta = computed(() => META_MAP[route.path] || { icon: '🚧', title: '页�
 </script>
 
 <style scoped>
-.err-page { display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: var(--space-6); text-align: left; }
-.err-card { padding: var(--space-8); display: grid; grid-template-columns: auto 1fr; gap: var(--space-8); align-items: center; max-width: 620px; border: 1.5px solid var(--glass-border-strong); }
-.err-left  { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
-.err-right { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+/* v2 bugfix P1-B: .err-* CSS 已统一抽到 styles/glass.css（DRY 修复）
+   此处仅保留占位页专属样式（.placeholder-icon / .placeholder-tag / .placeholder-eta）。 */
 .placeholder-icon { font-size: 48px; background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: initial; color: var(--ink); font-feature-settings: normal; letter-spacing: 0; }
-.err-tag { font-size: var(--text-meta); color: var(--ink-faint); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
-.err-title { font-size: var(--text-h2); font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
-.err-desc  { color: var(--ink-soft); font-size: var(--text-body); margin: 0; line-height: 1.7; max-width: 36ch; }
-.err-actions { display: flex; gap: var(--space-3); margin-top: var(--space-3); flex-wrap: wrap; }
 .placeholder-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: var(--radius-pill); background: var(--c-info-soft); color: var(--c-info); font-size: var(--text-meta); font-weight: 500; }
 .placeholder-eta { font-size: var(--text-small); color: var(--ink-soft); font-family: monospace; }
-@media (max-width: 560px) {
-  .err-card { grid-template-columns: 1fr; gap: var(--space-5); padding: var(--space-6); }
-  .err-left, .err-right { align-items: center; text-align: center; }
-}
 </style>

@@ -22,37 +22,4 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 </script>
 
-<style scoped>
-/* v2.7 错误页双列布局 */
-.err-page {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 60vh; padding: var(--space-6); text-align: left;
-}
-.err-card {
-  padding: var(--space-8);
-  display: grid; grid-template-columns: auto 1fr;
-  gap: var(--space-8); align-items: center;
-  max-width: 620px;
-  border: 1.5px solid var(--glass-border-strong);
-}
-.err-left  { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
-.err-right { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
-.err-code {
-  font-size: 72px; font-weight: 800; line-height: 1; margin: 0;
-  letter-spacing: -.04em;
-  background: linear-gradient(135deg, var(--brand) 0%,
-    color-mix(in srgb, var(--brand) 40%, transparent) 100%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-feature-settings: "tnum";
-}
-.err-tag { font-size: var(--text-meta); color: var(--ink-faint); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
-.err-title { font-size: var(--text-h2); font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
-.err-desc  { color: var(--ink-soft); font-size: var(--text-body); margin: 0; line-height: 1.7; max-width: 36ch; }
-.err-actions { display: flex; gap: var(--space-3); margin-top: var(--space-3); flex-wrap: wrap; }
-@media (max-width: 560px) {
-  .err-card { grid-template-columns: 1fr; gap: var(--space-5); padding: var(--space-6); }
-  .err-left, .err-right { align-items: center; text-align: center; }
-  .err-code { font-size: 56px; }
-}
-</style>
+<!-- v2 bugfix P1-B: .err-* CSS 已统一抽到 styles/glass.css（DRY 修复），组件无 scoped 样式 -->
