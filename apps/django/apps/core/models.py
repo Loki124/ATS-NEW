@@ -180,6 +180,27 @@ class Department(models.Model):
         related_name='+',
         verbose_name='部门负责人',
     )
+    manager_2 = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='+',
+        verbose_name='部门负责人2',
+    )
+    manager_3 = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='+',
+        verbose_name='分管VP',
+    )
+    hrbp = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='+',
+        verbose_name='部门HRBP',
+    )
 
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='启用')
     created_at = models.DateTimeField(auto_now_add=True)

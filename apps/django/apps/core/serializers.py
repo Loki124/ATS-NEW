@@ -197,20 +197,46 @@ class UserMinimalSerializer(serializers.ModelSerializer):
 
 class DepartmentSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(source='parent.name', read_only=True)
-    leader_name = serializers.CharField(source='leader.full_name', read_only=True)
+    # 与 FE 字段名对齐: managerId / manager2Id / manager3Id / hrbpId
+    # djangorestframework-camel-case 将 camelCase 中的数字边界也视为分词点：
+    # manager2Id -> manager_2_id, manager3Id -> manager_3_id
+    manager_id = serializers.PrimaryKeyRelatedField(
+        source='leader', queryset=User.objects.all(), required=False, allow_null=True,
+    )
+    manager_2_id = serializers.PrimaryKeyRelatedField(
+        source='manager_2', queryset=User.objects.all(), required=False, allow_null=True,
+    )
+    manager_3_id = serializers.PrimaryKeyRelatedField(
+        source='manager_3', queryset=User.objects.all(), required=False, allow_null=True,
+    )
+    hrbp_id = serializers.PrimaryKeyRelatedField(
+        source='hrbp', queryset=User.objects.all(), required=False, allow_null=True,
+    )
     children_count = serializers.SerializerMethodField()
+
+    # FE 习惯字段名：status 字符串 -> is_active
+    status = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = Department
         fields = [
             'id', 'name', 'code', 'parent', 'parent_name', 'path', 'sort_order',
-            'leader', 'leader_name', 'is_active', 'children_count',
+            'manager_id', 'manager_2_id', 'manager_3_id', 'hrbp_id',
+            'is_active', 'status', 'children_count',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'path', 'created_at', 'updated_at', 'children_count']
 
     def get_children_count(self, obj):
         return obj.children.count()
+
+    def to_internal_value(self, data):
+        converted = super().to_internal_value(data)
+        # FE 发 status='ACTIVE'/'INACTIVE' -> is_active
+        status = converted.pop('status', None)
+        if status is not None:
+            converted['is_active'] = status == 'ACTIVE'
+        return converted
 
 
 class RoleSerializer(serializers.ModelSerializer):

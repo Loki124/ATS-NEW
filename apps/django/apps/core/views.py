@@ -71,7 +71,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     """部门 CRUD - HRBP+ 可写, 其它角色只读 (Fix 1)"""
-    queryset = Department.objects.filter(is_active=True).select_related('parent', 'leader')
+    queryset = Department.objects.filter(is_active=True).select_related(
+        'parent', 'leader', 'manager_2', 'manager_3', 'hrbp'
+    )
     serializer_class = DepartmentSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
@@ -79,6 +81,33 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['name', 'code']
     filterset_fields = ['parent', 'is_active']
+
+    def _envelope(self, data):
+        return Response({'success': True, 'data': data})
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return self._envelope(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return self._envelope(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return self._envelope(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return self._envelope({'id': instance.id})
 
     @action(detail=True, methods=['get'])
     def members(self, request, pk=None):

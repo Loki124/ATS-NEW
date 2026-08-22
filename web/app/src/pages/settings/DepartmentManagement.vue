@@ -206,10 +206,6 @@ interface Department {
   hrbpId?: string | null;
   status: string;
   sortOrder?: number;
-  manager?: DeptUserRef | null;
-  manager2?: DeptUserRef | null;
-  manager3?: DeptUserRef | null;
-  hrbp?: DeptUserRef | null;
   createdAt?: string;
 }
 
@@ -389,7 +385,7 @@ const handleDeptSubmit = async () => {
     };
     if (editingDept.value) {
       const res = await api.put(`/departments/${editingDept.value.id}/`, payload);
-      if (res.data?.success) {
+      if (res.status === 200 || res.data?.success === true) {
         message.success('部门更新成功');
         closeDeptModal();
         loadDepartments();
@@ -398,7 +394,7 @@ const handleDeptSubmit = async () => {
       }
     } else {
       const res = await api.post('/departments/', payload);
-      if (res.data?.success) {
+      if (res.status === 201 || res.data?.success === true) {
         message.success('部门创建成功');
         closeDeptModal();
         loadDepartments();
@@ -428,10 +424,17 @@ const handleDelete = async (record: Department) => {
   }
 };
 
-const renderUser = (user?: DeptUserRef | null) => {
-  if (!user) return h('span', { style: 'color: #bfbfbf' }, '—');
+const getUserName = (userId?: string | null) => {
+  if (!userId) return null;
+  const user = users.value.find(u => String(u.id) === String(userId));
+  return user ? user.realName || user.username : null;
+};
+
+const renderUser = (userId?: string | null) => {
+  const name = getUserName(userId);
+  if (!name) return h('span', { style: 'color: #bfbfbf' }, '—');
   return h(NTag, { type: 'info', size: 'small' }, {
-    default: () => user.realName || user.username,
+    default: () => name,
     icon: () => h(NIcon, { component: PersonOutline }),
   });
 };
@@ -474,27 +477,27 @@ const columns = computed(() => [
   },
   {
     title: '部门负责人',
-    key: 'manager',
+    key: 'managerId',
     width: 130,
-    render: (row: Department) => renderUser(row.manager),
+    render: (row: Department) => renderUser(row.managerId),
   },
   {
     title: '部门负责人 2',
-    key: 'manager2',
+    key: 'manager2Id',
     width: 130,
-    render: (row: Department) => renderUser(row.manager2),
+    render: (row: Department) => renderUser(row.manager2Id),
   },
   {
     title: '部门 HRBP',
-    key: 'hrbp',
+    key: 'hrbpId',
     width: 130,
-    render: (row: Department) => renderUser(row.hrbp),
+    render: (row: Department) => renderUser(row.hrbpId),
   },
   {
     title: '分管 VP',
-    key: 'manager3',
+    key: 'manager3Id',
     width: 130,
-    render: (row: Department) => renderUser(row.manager3),
+    render: (row: Department) => renderUser(row.manager3Id),
   },
   {
     title: '状态',
