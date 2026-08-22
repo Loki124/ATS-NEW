@@ -681,7 +681,8 @@ const handleSendNotification = () => {
 .method-icon { font-size: 20px; color: #005ab6; }
 .method-name { font-size: 14px; font-weight: 600; color: #161c23; }
 .right-content { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: #fff; }
-.info-callout { display: flex; align-items: flex-start; gap: 8px; padding: 12px; background: rgba(255, 214, 102, 0.1); border: 1px solid #ffd666; border-radius: 8px; font-size: 14px; color: #765c00; }
+/* v2 bugfix P0-A: 金色硬编码 #ffd666/#765c00/RGBA(255,214,102,0.1) → 改用 --c-warning 系列 token */
+.info-callout { display: flex; align-items: flex-start; gap: 8px; padding: 12px; background: var(--c-warning-soft); border: 1px solid var(--c-warning); border-radius: 8px; font-size: 14px; color: var(--ink); }
 .editor-section { display: flex; flex-direction: column; gap: 12px; }
 .editor-header { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(194, 198, 213, 0.3); }
 .editor-icon { font-size: 24px; color: #005ab6; }
@@ -694,6 +695,13 @@ const handleSendNotification = () => {
 .modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid rgba(194, 198, 213, 0.4); background: #f8f9ff; }
 .recipient-info { font-size: 12px; color: #414753; }
 .footer-buttons { display: flex; gap: 16px; align-items: center; }
-.send-btn-primary { background: #ffd666 !important; border-color: #ffd666 !important; color: #241a00 !important; }
-.send-btn-primary:hover { background: #ffdf90 !important; border-color: #ffdf90 !important; }
+/* v2 bugfix P0-A: 删 !important 金色硬编码（#ffd666/#ffdf90/#241a00），n-button type="primary" 已全局接管（App.vue themeOverrides 渐变按钮） */
+.send-btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
+  border-color: rgba(255, 255, 255, .35);
+}
+.send-btn-primary:hover {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 45%, transparent);
+  transform: translateY(-1px);
+}
 </style>
