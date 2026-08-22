@@ -106,7 +106,7 @@
 
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, useMessage } from 'naive-ui'
+import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import {
   listOffers, transitionOffer, renderOffer,
@@ -167,32 +167,53 @@ const columns = computed(() => [
   { title: '转正月薪', key: 'baseSalaryFormal', width: 110, render: (row: Offer) => row.baseSalaryFormal ? `¥ ${row.baseSalaryFormal}` : '—' },
   { title: '发送时间', key: 'sentAt', width: 140, render: (row: Offer) => row.sentAt?.slice(0, 16) || '—' },
   {
-    title: '操作', key: 'actions', width: 320, fixed: 'right' as const,
+    title: '操作', key: 'actions', width: 180, fixed: 'right' as const,
     render: (row: Offer) => {
-      const buttons: any[] = []
+      // v2: 主按钮 + 下拉菜单（drop non-primary actions into dropdown）
+      const items: Array<{ label: string; key: string; danger?: boolean; onClick: () => void }> = []
       if (['DRAFT', 'APPROVED', 'PENDING_APPROVAL', 'REJECTED', 'EXPIRED'].includes(row.offerStatus)) {
-        buttons.push(h(NButton, { size: 'tiny', onClick: () => openTemplate(row) }, { default: () => '生成模板' }))
+        items.push({ label: '生成模板', key: 'template', onClick: () => openTemplate(row) })
       }
       if (row.offerStatus === 'DRAFT') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'warning', onClick: () => openTransition(row, 'PENDING_APPROVAL') }, { default: () => '提交审批' }))
+        items.push({ label: '提交审批', key: 'submit', onClick: () => openTransition(row, 'PENDING_APPROVAL') })
       }
       if (row.offerStatus === 'PENDING_APPROVAL') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'success', onClick: () => openTransition(row, 'APPROVED') }, { default: () => '审批通过' }))
-        buttons.push(h(NButton, { size: 'tiny', type: 'error', onClick: () => openTransition(row, 'WITHDRAWN') }, { default: () => '撤销' }))
+        items.push({ label: '审批通过', key: 'approve', onClick: () => openTransition(row, 'APPROVED') })
+        items.push({ label: '撤销', key: 'withdraw1', danger: true, onClick: () => openTransition(row, 'WITHDRAWN') })
       }
       if (row.offerStatus === 'APPROVED') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'primary', onClick: () => openTransition(row, 'SENT') }, { default: () => '发送' }))
-        buttons.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => openTransition(row, 'WITHDRAWN') }, { default: () => '撤销' }))
+        items.push({ label: '发送', key: 'send', onClick: () => openTransition(row, 'SENT') })
+        items.push({ label: '撤销', key: 'withdraw2', danger: true, onClick: () => openTransition(row, 'WITHDRAWN') })
       }
       if (row.offerStatus === 'SENT') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'success', onClick: () => openTransition(row, 'ACCEPTED') }, { default: () => '已接受' }))
-        buttons.push(h(NButton, { size: 'tiny', type: 'error', onClick: () => openTransition(row, 'REJECTED') }, { default: () => '已拒绝' }))
-        buttons.push(h(NButton, { size: 'tiny', type: 'warning', onClick: () => openTransition(row, 'EXPIRED') }, { default: () => '过期' }))
+        items.push({ label: '已接受', key: 'accept', onClick: () => openTransition(row, 'ACCEPTED') })
+        items.push({ label: '已拒绝', key: 'reject', danger: true, onClick: () => openTransition(row, 'REJECTED') })
+        items.push({ label: '过期', key: 'expire', onClick: () => openTransition(row, 'EXPIRED') })
       }
       if (row.offerStatus === 'REJECTED' || row.offerStatus === 'EXPIRED') {
-        buttons.push(h(NButton, { size: 'tiny', onClick: () => openTransition(row, 'DRAFT') }, { default: () => '重新编辑' }))
+        items.push({ label: '重新编辑', key: 'redraft', onClick: () => openTransition(row, 'DRAFT') })
       }
-      return h(NSpace, { size: 4 }, { default: () => buttons })
+      if (items.length === 0) return '—'
+      const primary = items[0]
+      const rest = items.slice(1)
+      return h(NSpace, { size: 4 }, {
+        default: () => [
+          h(NButton, { size: 'tiny', onClick: primary.onClick }, { default: () => primary.label }),
+          rest.length
+            ? h(NDropdown, {
+                options: rest.map(it => ({
+                  label: it.label,
+                  key: it.key,
+                  ...(it.danger ? { props: { style: 'color: var(--c-error)' } } : {}),
+                })),
+                trigger: 'click',
+                onSelect: (k: string) => rest.find(it => it.key === k)?.onClick(),
+              }, {
+                default: () => h(NButton, { size: 'tiny', quaternary: true }, { default: () => '更多 ⌄' }),
+              })
+            : null,
+        ].filter(Boolean),
+      })
     },
   },
 ])

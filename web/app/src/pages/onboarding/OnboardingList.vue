@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, NDrawer, NDrawerContent, NDataTable, useMessage } from 'naive-ui'
+import { NTag, NSpace, NButton, NIcon, NDrawer, NDrawerContent, NDataTable, NDropdown, useMessage } from 'naive-ui'
 import { RefreshOutline, BulbOutline } from '@vicons/ionicons5'
 import {
   listOnboardings, transitionOnboarding,
@@ -54,36 +54,58 @@ const columns = computed(() => [
     render: (row: Onboarding) => h(NTag, { type: ONBOARDING_STATUS_COLOR[row.onboardingStatus] as any, size: 'small' }, { default: () => ONBOARDING_STATUS_LABEL[row.onboardingStatus] || row.onboardingStatus }),
   },
   {
-    title: '操作', key: 'actions', width: 360, fixed: 'right' as const,
+    title: '操作', key: 'actions', width: 180, fixed: 'right' as const,
     render: (row: Onboarding) => {
-      const buttons: any[] = []
-      // G31 智能分配按钮 (有 candidateId 才能推荐)
-      if (row.candidateId) {
-        buttons.push(h(NButton, { size: 'tiny', type: 'info', onClick: () => openRecommendDrawer(row) }, {
-          default: () => '智能分配',
-          icon: () => h(NIcon, null, { default: () => h(BulbOutline) }),
-        }))
-      }
+      // v2: 主按钮「智能分配」 + 下拉（状态变更 + 取消）
+      const items: Array<{ label: string; key: string; danger?: boolean; onClick: () => void }> = []
       if (row.onboardingStatus === 'NOT_STARTED') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'warning', onClick: () => handleTransition(row, 'PENDING_CONFIRM') }, { default: () => '提醒确认' }))
+        items.push({ label: '提醒确认', key: 'remind', onClick: () => handleTransition(row, 'PENDING_CONFIRM') })
       }
       if (row.onboardingStatus === 'PENDING_CONFIRM') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'success', onClick: () => handleTransition(row, 'CONFIRMED') }, { default: () => '已确认' }))
-        buttons.push(h(NButton, { size: 'tiny', type: 'error', onClick: () => handleTransition(row, 'PENDING_REJECT') }, { default: () => '拒入职' }))
+        items.push({ label: '已确认', key: 'confirm', onClick: () => handleTransition(row, 'CONFIRMED') })
+        items.push({ label: '拒入职', key: 'reject', danger: true, onClick: () => handleTransition(row, 'PENDING_REJECT') })
       }
       if (row.onboardingStatus === 'CONFIRMED') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'primary', onClick: () => handleTransition(row, 'PENDING_ONBOARD') }, { default: () => '到入职日' }))
+        items.push({ label: '到入职日', key: 'to_onboard', onClick: () => handleTransition(row, 'PENDING_ONBOARD') })
       }
       if (row.onboardingStatus === 'PENDING_ONBOARD') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'primary', onClick: () => handleTransition(row, 'ONBOARDING') }, { default: () => '开始入职' }))
+        items.push({ label: '开始入职', key: 'start', onClick: () => handleTransition(row, 'ONBOARDING') })
       }
       if (row.onboardingStatus === 'ONBOARDING') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'success', onClick: () => handleTransition(row, 'ONBOARDED') }, { default: () => '完成入职' }))
+        items.push({ label: '完成入职', key: 'finish', onClick: () => handleTransition(row, 'ONBOARDED') })
       }
       if (!['ONBOARDED', 'CANCELLED'].includes(row.onboardingStatus)) {
-        buttons.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => handleTransition(row, 'CANCELLED') }, { default: () => '取消' }))
+        items.push({ label: '取消', key: 'cancel', danger: true, onClick: () => handleTransition(row, 'CANCELLED') })
       }
-      return buttons.length ? h(NSpace, { size: 4 }, { default: () => buttons }) : '—'
+      if (items.length === 0 && !row.candidateId) return '—'
+      // 主按钮：智能分配（drawer 操作）；若无 candidateId 则选第一个状态变更
+      const hasRecommend = !!row.candidateId
+      const primary = hasRecommend
+        ? { label: '智能分配', onClick: () => openRecommendDrawer(row) }
+        : (items[0] ? { label: items[0].label, onClick: items[0].onClick } : null)
+      if (!primary) return '—'
+      const rest = hasRecommend ? items : items.slice(1)
+      return h(NSpace, { size: 4 }, {
+        default: () => [
+          h(NButton, { size: 'tiny', type: hasRecommend ? 'info' : 'primary', onClick: primary.onClick }, {
+            default: () => primary.label,
+            icon: hasRecommend ? () => h(NIcon, null, { default: () => h(BulbOutline) }) : undefined,
+          }),
+          rest.length
+            ? h(NDropdown, {
+                options: rest.map(it => ({
+                  label: it.label,
+                  key: it.key,
+                  ...(it.danger ? { props: { style: 'color: var(--c-error)' } } : {}),
+                })),
+                trigger: 'click',
+                onSelect: (k: string) => rest.find(it => it.key === k)?.onClick(),
+              }, {
+                default: () => h(NButton, { size: 'tiny', quaternary: true }, { default: () => '更多 ⌄' }),
+              })
+            : null,
+        ].filter(Boolean),
+      })
     },
   },
 ])

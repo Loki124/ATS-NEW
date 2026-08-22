@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, h, onMounted, computed } from 'vue'
-import { NTag, NSpace, NButton, NIcon, useMessage } from 'naive-ui'
+import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import {
   listInterviews, submitFeedback, cancelInterview,
@@ -39,17 +39,38 @@ const columns = computed(() => [
     render: (row: Interview) => h(NTag, { type: FEEDBACK_STATUS_COLOR[row.feedbackStatus], size: 'small' }, { default: () => FEEDBACK_STATUS_LABEL[row.feedbackStatus] || row.feedbackStatus }),
   },
   {
-    title: '操作', key: 'actions', width: 200, fixed: 'right' as const,
+    title: '操作', key: 'actions', width: 140, fixed: 'right' as const,
     render: (row: Interview) => {
-      const buttons: any[] = []
+      // v2: 主按钮（反馈·通过 / 取消） + 下拉其他
+      const items: Array<{ label: string; key: string; danger?: boolean; onClick: () => void }> = []
+      let primary: { label: string; type: 'primary' | 'error' | 'default'; onClick: () => void } | null = null
       if (row.feedbackStatus === 'PENDING' && row.interviewStatus !== 'CANCELLED') {
-        buttons.push(h(NButton, { size: 'tiny', type: 'primary', onClick: () => quickFeedback(row, 'PASS') }, { default: () => '反馈·通过' }))
-        buttons.push(h(NButton, { size: 'tiny', type: 'error', onClick: () => quickFeedback(row, 'FAIL') }, { default: () => '反馈·未通过' }))
+        primary = { label: '反馈·通过', type: 'primary', onClick: () => quickFeedback(row, 'PASS') }
+        items.push({ label: '反馈·未通过', key: 'fail', danger: true, onClick: () => quickFeedback(row, 'FAIL') })
       }
       if (row.interviewStatus !== 'CANCELLED' && row.interviewStatus !== 'COMPLETED') {
-        buttons.push(h(NButton, { size: 'tiny', quaternary: true, onClick: () => handleCancel(row) }, { default: () => '取消' }))
+        if (!primary) primary = { label: '取消', type: 'error', onClick: () => handleCancel(row) }
+        else items.push({ label: '取消', key: 'cancel', danger: true, onClick: () => handleCancel(row) })
       }
-      return buttons.length ? h(NSpace, { size: 4 }, { default: () => buttons }) : '—'
+      if (!primary) return '—'
+      return h(NSpace, { size: 4 }, {
+        default: () => [
+          h(NButton, { size: 'tiny', type: primary.type, onClick: primary.onClick }, { default: () => primary!.label }),
+          items.length
+            ? h(NDropdown, {
+                options: items.map(it => ({
+                  label: it.label,
+                  key: it.key,
+                  ...(it.danger ? { props: { style: 'color: var(--c-error)' } } : {}),
+                })),
+                trigger: 'click',
+                onSelect: (k: string) => items.find(it => it.key === k)?.onClick(),
+              }, {
+                default: () => h(NButton, { size: 'tiny', quaternary: true }, { default: () => '更多 ⌄' }),
+              })
+            : null,
+        ].filter(Boolean),
+      })
     },
   },
 ])
