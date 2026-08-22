@@ -206,4 +206,23 @@ onMounted(loadList)
 .stat-label { font-size: 12px; color: var(--ink-faint); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
 .filter-row { margin-bottom: 12px; }
+
+/* === v2 响应式补丁 === */
+@media (max-width: 1280px) {
+  .page-container { padding: var(--space-4); }
+  .page-title { font-size: var(--text-h2); }
+  :deep(.n-data-table-wrapper) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+@media (max-width: 768px) {
+  .page-container { padding: var(--space-3); }
+  .page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 480px) {
+  .stats-row { grid-template-columns: 1fr !important; }
+}
+
 </style>
