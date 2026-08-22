@@ -137,10 +137,10 @@ const statusStats = computed(() => {
 
 function statusColor(s: string): string {
   const map: Record<string, string> = {
-    DRAFT: '#1890ff', PENDING_APPROVAL: '#fa8c16', APPROVED: '#52c41a',
-    SENT: '#722ed1', ACCEPTED: '#52c41a', REJECTED: '#f5222d', EXPIRED: '#fa8c16',
+    DRAFT: 'var(--c-info)', PENDING_APPROVAL: 'var(--c-warning)', APPROVED: 'var(--c-success)',
+    SENT: 'var(--brand-grad-a)', ACCEPTED: 'var(--c-success)', REJECTED: 'var(--c-error)', EXPIRED: 'var(--c-warning)',
   }
-  return map[s] || '#8c8c8c'
+  return map[s] || 'var(--ink-faint)'
 }
 
 const templateModal = ref({
