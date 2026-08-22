@@ -81,3 +81,12 @@ coverage/
 playwright-report/
 test-results/
 .cypress/
+
+# ─── WorkBuddy project memory / agent data (not source) ───
+.workbuddy/
+
+# ─── Ad-hoc QA / Playwright probe scripts (not source) ───
+qa-*.mjs
+test-*.mjs
+web/app/qa-*.mjs
+web/app/test-*.mjs
