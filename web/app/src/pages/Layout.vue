@@ -4,7 +4,7 @@
     <div class="aurora-spot"></div>
   </div>
 
-  <div class="app-layout">
+  <n-layout has-sider class="app-layout">
     <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 移动端 ≤768 隐藏） [T6.2] -->
     <n-layout-sider
       v-if="menuLayout === 'side' && !isMobile"
@@ -62,7 +62,7 @@
     </n-drawer>
 
     <!-- 主体 -->
-    <div class="main-area">
+    <n-layout class="main-area">
       <!-- 头部（v2 玻璃化 · DESIGN.md §4 Navigation） -->
       <n-layout-header class="glass-panel glass-header px-6 flex items-center justify-between h-16">
         <!-- 左集群 -->
@@ -142,11 +142,11 @@
       </div>
 
       <!-- 内容区（v2：透明背景让极光底透出） -->
-      <div class="layout-content">
+      <n-layout-content class="layout-content">
         <div class="content-wrapper p-6">
           <router-view />
         </div>
-      </div>
+      </n-layout-content>
 
       <!-- ⌘K 全局搜索 Modal -->
       <n-modal
@@ -160,8 +160,8 @@
       >
         <GlobalSearch />
       </n-modal>
-    </div>
-  </div>
+    </n-layout>
+  </n-layout>
 </template>
 
 <script setup lang="ts">
