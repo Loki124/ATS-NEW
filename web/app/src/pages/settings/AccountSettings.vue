@@ -108,7 +108,7 @@
           <n-card title="可执行的操作">
             <template v-if="myPermissions.functions && myPermissions.functions.length > 0">
               <div class="grid grid-cols-3 gap-3">
-                <n-card v-for="func in myPermissions.functions" :key="func.id" size="small" style="background: #f0f5ff">
+                <n-card v-for="func in myPermissions.functions" :key="func.id" size="small" style="background: var(--c-info-soft)"> <!-- v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) -->
                   <n-space vertical :size="4">
                     <strong>{{ func.name }}</strong>
                     <n-space>

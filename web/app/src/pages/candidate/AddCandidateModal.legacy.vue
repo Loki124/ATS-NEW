@@ -513,7 +513,7 @@ const resetForm = () => {
 }
 
 .info-confirm {
-  background: #f8f9ff;
+  background: var(--c-info-soft); /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
   padding: 24px;
   border-radius: 12px;
   margin-bottom: 24px;
@@ -541,7 +541,7 @@ const resetForm = () => {
 }
 
 .resume-uploaded {
-  background: var(--c-warning-soft); /* v2.8 T2.8.1: #fff7e6 → var(--c-warning-soft) */
+  background: var(--c-warning-soft); /* v2.8 T2.8.1: 浅黄背景 → var(--c-warning-soft) */
   padding: 16px;
   border-radius: 8px;
   border: 1px solid #ffe58f;

@@ -620,7 +620,7 @@ const handleSendNotification = () => {
 </script>
 
 <style scoped>
-.candidate-detail-page { padding: 24px; background: #f8f9ff; min-height: 100vh; }
+.candidate-detail-page { padding: 24px; background: var(--c-info-soft); min-height: 100vh; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 .page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
 .back-btn { border: none; background: transparent; }
 .send-btn { background: #005ab6; border-color: #005ab6; border-radius: 8px; font-weight: 600; }
@@ -636,13 +636,13 @@ const handleSendNotification = () => {
 .info-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #dee3ed; }
 .info-label { width: 100px; color: #414753; font-size: 14px; }
 .info-value { font-weight: 600; color: #161c23; }
-.process-section, .interview-table { background: #f8f9ff; border-radius: 12px; padding: 16px; }
+.process-section, .interview-table { background: var(--c-info-soft); border-radius: 12px; padding: 16px; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 .interview-header { font-weight: 600; color: #414753; padding: 12px 0; border-bottom: 1px solid #dee3ed; }
 .interview-row { padding: 12px 0; border-bottom: 1px solid #dee3ed; }
 .resume-section { padding: 24px; }
 .resume-content { display: flex; flex-direction: column; gap: 24px; }
 .resume-toolbar { display: flex; justify-content: flex-start; }
-.resume-preview { background: #f8f9ff; border-radius: 12px; padding: 24px; }
+.resume-preview { background: var(--c-info-soft); border-radius: 12px; padding: 24px; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 .resume-info { display: flex; flex-direction: column; gap: 12px; }
 .resume-field { display: flex; align-items: center; }
 .resume-field .field-label { width: 100px; color: #414753; font-size: 14px; }
@@ -665,7 +665,7 @@ const handleSendNotification = () => {
 .candidate-contact-row { display: flex; gap: 16px; font-size: 14px; color: #414753; }
 .candidate-contact-row span { display: flex; align-items: center; gap: 4px; }
 .modal-content { display: flex; min-height: 400px; }
-.left-sidebar { width: 340px; background: #f8f9ff; border-right: 1px solid rgba(194, 198, 213, 0.4); padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 32px; }
+.left-sidebar { width: 340px; background: var(--c-info-soft); border-right: 1px solid rgba(194, 198, 213, 0.4); padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 32px; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 .step-section { display: flex; flex-direction: column; gap: 16px; }
 .step-title { font-size: 16px; font-weight: 600; color: #161c23; display: flex; align-items: center; gap: 8px; margin: 0; }
 .step-number { width: 24px; height: 24px; border-radius: 50%; background: #1672df; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
@@ -692,7 +692,7 @@ const handleSendNotification = () => {
 .sms-counter { display: flex; justify-content: space-between; align-items: center; }
 .counter-text { font-size: 12px; color: #727785; }
 .email-subject-input, .email-content-input, .sms-content-input { background: rgba(222, 227, 237, 0.3); border: 1px solid rgba(194, 198, 213, 0.3); border-radius: 6px; }
-.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid rgba(194, 198, 213, 0.4); background: #f8f9ff; }
+.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid rgba(194, 198, 213, 0.4); background: var(--c-info-soft); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 .recipient-info { font-size: 12px; color: #414753; }
 .footer-buttons { display: flex; gap: 16px; align-items: center; }
 /* v2 bugfix P0-A: 删 !important 金色硬编码（#ffd666/#ffdf90/#241a00），n-button type="primary" 已全局接管（App.vue themeOverrides 渐变按钮） */

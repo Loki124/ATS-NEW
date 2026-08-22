@@ -760,7 +760,7 @@ async function handleSubmit() {
 
 /* ==================== HERO HEADER ==================== */
 .hero {
-  background: linear-gradient(135deg, #fafbfc 0%, #f0f5ff 100%);
+  background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色硬编码渐变 → tokens */
   margin: -20px -20px 20px -20px;
   padding: 20px 24px;
   border-bottom: 1px solid #f0f0f3;
@@ -818,7 +818,7 @@ async function handleSubmit() {
 
 /* ==================== Section Card ==================== */
 .section-card {
-  background: #fafbfc;
+  background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
   border: 1px solid #f0f0f3;
   border-radius: 8px;
   padding: 16px 20px;
@@ -949,7 +949,7 @@ async function handleSubmit() {
 .modal-footer {
   position: sticky;
   bottom: 0;
-  background: #fafbfc;
+  background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
   border-top: 1px solid #f0f0f3;
   padding: 12px 20px;
   margin: 16px -20px -20px -20px;

@@ -329,7 +329,7 @@ onMounted(() => loadProcess())
 .sys-tag {
   font-size: 11px;
   color: #fa8c16;
-  background: #fff7e6;
+  background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
   padding: 1px 6px;
   border-radius: 3px;
 }

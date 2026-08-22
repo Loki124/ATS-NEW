@@ -1693,7 +1693,7 @@ function conditionItemLabel(item: any): string {
   gap: 16px;
   margin: -20px -20px 20px -20px;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #fafbfc 0%, #f0f5ff 100%);
+  background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色渐变 → tokens */
   border-bottom: 1px solid #e8e8ec;
 }
 .hero__icon {
@@ -1759,7 +1759,7 @@ function conditionItemLabel(item: any): string {
 }
 .hero__edit-btn:hover {
   border-color: #2080f0;
-  background: #f0f5ff;
+  background: var(--c-info-soft); /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 }
 
 /* ===== Section 通用 ===== */
@@ -1787,7 +1787,7 @@ function conditionItemLabel(item: any): string {
   border-radius: 2px;
 }
 .section__body {
-  background: #fafbfc;
+  background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
   border: 1px solid #f0f0f3;
   border-radius: 6px;
   padding: 0 14px;
@@ -2051,7 +2051,7 @@ function conditionItemLabel(item: any): string {
 .feature-tag {
   display: inline-flex;
   align-items: center;
-  background: #fff7e6;
+  background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
   border: 1px solid #fbce5b;
   color: #d48806;
   font-size: 12px;
@@ -2241,7 +2241,7 @@ function conditionItemLabel(item: any): string {
   transition: background-color 0.15s, border-color 0.15s;
 }
 .picker-item:hover {
-  background-color: #f0f5ff;
+  background-color: var(--c-info-soft); /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
   border-color: #91caff;
 }
 .picker-item--start {
@@ -2253,7 +2253,7 @@ function conditionItemLabel(item: any): string {
   border-color: #73d13d;
 }
 .picker-item--end {
-  background-color: #fff7e6;
+  background-color: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
   border-color: #ffd591;
 }
 .picker-item--end:hover {
