@@ -227,10 +227,7 @@ watch(
   background: transparent; /* 透出 Layout 的全局极光底 */
   /* 关键: 让内部 n-layout-sider 和 n-layout-content 都按比例填满, 内容溢出时 .settings-content 内部滚 */
   overflow: hidden;
-}
-.settings-layout :deep(.n-layout-scroll-container) {
-  height: 100%;
-  overflow: hidden;
+  /* n-layout-scroll-container 规则已迁移到 styles/glass.css（v2 bugfix P1-A 删 :deep） */
 }
 
 /* 左侧子菜单栏 —— 玻璃面板（DESIGN.md §4 glass-panel） */
@@ -331,9 +328,6 @@ watch(
   background: transparent; /* 透出极光底 */
 }
 
-/* 让所有 Settings 子页面的根 wrapper 撑满父高度 (不依赖具体 class)
-   用 :deep 穿透 scoped CSS 边界 (子页面是另一个组件实例)
-   - padding 用 !important 强制统一（子页面 scoped .page-container 的 specificity 0,2,0 > 全局 0,1,1，必须用 !important）
-   - 防止 DepartmentManagement/CompanySettings/ScoringRules/Settings 等子页面自定义 padding 偏移位置 */
-/* v2.7: 删 :deep 300 行注入 · 依赖 glass.css 全局 .n-card.n-card / .gradient-title / .n-button--primary-type 规则 */
+/* v2.7: 删 :deep 300 行注入 · 依赖 glass.css 全局 .n-card.n-card / .gradient-title / .n-button--primary-type 规则
+   v2 bugfix P1-A：n-layout-scroll-container 子选择器已迁到 glass.css（直接子元素 > 关系，无需穿透） */
 </style>

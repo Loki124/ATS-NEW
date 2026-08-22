@@ -369,3 +369,12 @@ body.dark .n-data-table .n-data-table-th {
   background: rgba(255, 255, 255, .06);
   color: var(--ink);
 }
+
+/* === T9.x v2 SettingsLayout 迁移：删 :deep === 
+   原 .settings-layout :deep(.n-layout-scroll-container)（SettingsLayout.vue L231）
+   移到全局：n-layout-scroll-container 是 n-layout 的直接子元素（参见 naive-ui Layout.js render()），
+   设置 height:100% / overflow:hidden 让 settings-content 内部滚动而非整页滚动。 */
+.settings-layout > .n-layout-scroll-container {
+  height: 100%;
+  overflow: hidden;
+}
