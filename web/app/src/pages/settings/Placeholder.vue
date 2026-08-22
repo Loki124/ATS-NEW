@@ -1,40 +1,58 @@
 <template>
-  <div class="placeholder-page">
-    <n-card :bordered="false" class="rounded-xl" style="box-shadow: 0 2px 12px rgba(0,0,0,0.08)">
-      <n-empty :description="descriptionText">
-        <template #icon>
-          <n-icon :component="icon" :size="64" color="var(--brand)" />
-        </template>
-      </n-empty>
-    </n-card>
+  <div class="err-page">
+    <div class="glass-panel err-card">
+      <div class="err-left">
+        <h1 class="err-code placeholder-icon">{{ meta.icon }}</h1>
+        <span class="err-tag">PLACEHOLDER</span>
+      </div>
+      <div class="err-right">
+        <h2 class="err-title">{{ meta.title }}</h2>
+        <p class="err-desc">{{ meta.description }}</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span class="placeholder-tag">🚧 开发中</span>
+          <span class="placeholder-eta">ETA: {{ meta.eta }}</span>
+        </div>
+        <p style="font-size:var(--text-meta);color:var(--ink-faint);margin:0;font-family:monospace">
+          Issue: {{ meta.issue }} · Owner: {{ meta.owner }} · PR: {{ meta.pr }}
+        </p>
+        <div class="err-actions">
+          <button class="btn btn-primary" @click="$router.replace('/dashboard')">返回工作台</button>
+          <button class="btn btn-secondary" @click="$router.back()">返回上一页</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import {
-  TrendingUpOutline,
-  TimeOutline,
-} from '@vicons/ionicons5'
+import { computed } from 'vue'
 
 const route = useRoute()
-
-// 路由名 → 友好的占位文案
-const placeholderMap: Record<string, { icon: any; text: string }> = {
-  Report: { icon: TrendingUpOutline, text: '数据中心 - 即将上线' },
+const META_MAP: Record<string, any> = {
+  '/settings/onboarding': { icon: '👋', title: '入职设置', description: '员工入职流程配置（部门 / 资料模板 / 流程节点 / 自动通知规则）', eta: '2026-Q4', issue: 'ATS-142', owner: '花无缺', pr: '#438' },
+  '/settings/approval':   { icon: '📋', title: '审批设置', description: '审批流配置（审批人 / 节点 / 通知规则）', eta: '2026-Q4', issue: 'ATS-143', owner: '花无缺', pr: '#439' },
+  '/settings/external':   { icon: '🔌', title: '对外接口', description: '第三方系统对接配置（HRIS / OA / 背调）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
+  '/settings/public':     { icon: '🌐', title: '公共设置', description: '公开页面配置（招聘门户 / 自定义字段）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
+  '/report':              { icon: '📊', title: '数据中心', description: '招聘数据报表与分析（漏斗 / 转化 / 周期 / 来源）', eta: '规划中', issue: 'ATS-201', owner: '—', pr: '—' },
 }
-
-const icon = computed(() => placeholderMap[route.name as string]?.icon ?? TimeOutline)
-const descriptionText = computed(() => placeholderMap[route.name as string]?.text ?? '该功能开发中，敬请期待')
+const meta = computed(() => META_MAP[route.path] || { icon: '🚧', title: '页面建设中', description: '', eta: '待规划', issue: '—', owner: '—', pr: '—' })
 </script>
 
 <style scoped>
-.placeholder-page {
-  padding: 24px;
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.err-page { display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: var(--space-6); text-align: left; }
+.err-card { padding: var(--space-8); display: grid; grid-template-columns: auto 1fr; gap: var(--space-8); align-items: center; max-width: 620px; border: 1.5px solid var(--glass-border-strong); }
+.err-left  { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
+.err-right { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.placeholder-icon { font-size: 48px; background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: initial; color: var(--ink); font-feature-settings: normal; letter-spacing: 0; }
+.err-tag { font-size: var(--text-meta); color: var(--ink-faint); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.err-title { font-size: var(--text-h2); font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
+.err-desc  { color: var(--ink-soft); font-size: var(--text-body); margin: 0; line-height: 1.7; max-width: 36ch; }
+.err-actions { display: flex; gap: var(--space-3); margin-top: var(--space-3); flex-wrap: wrap; }
+.placeholder-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: var(--radius-pill); background: var(--c-info-soft); color: var(--c-info); font-size: var(--text-meta); font-weight: 500; }
+.placeholder-eta { font-size: var(--text-small); color: var(--ink-soft); font-family: monospace; }
+@media (max-width: 560px) {
+  .err-card { grid-template-columns: 1fr; gap: var(--space-5); padding: var(--space-6); }
+  .err-left, .err-right { align-items: center; text-align: center; }
 }
 </style>

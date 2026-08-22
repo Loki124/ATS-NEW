@@ -17,7 +17,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/forbidden',
     name: 'Forbidden',
-    component: () => import(/* webpackChunkName: "forbidden" */ '../pages/Forbidden.vue')
+    component: () => import(/* webpackChunkName: "forbidden" */ '../pages/errors/Forbidden.vue')
   },
   {
     path: '/',
@@ -166,8 +166,14 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: '/404',
+    name: 'NotFound',
+    component: () => import(/* webpackChunkName: 'not-found' */ '../pages/errors/NotFound.vue'),
+    meta: { title: '页面不存在' }
+  },
+  {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard'
+    redirect: '/404'
   }
 ]
 
