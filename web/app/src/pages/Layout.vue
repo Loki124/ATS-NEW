@@ -136,6 +136,11 @@
         </div>
       </n-layout-header>
 
+      <!-- v2.7: 面包屑导航 [T8.5] -->
+      <div class="layout-breadcrumb-wrap">
+        <Breadcrumb />
+      </div>
+
       <!-- 内容区（v2：透明背景让极光底透出） -->
       <div class="layout-content">
         <div class="content-wrapper p-6">
@@ -180,11 +185,16 @@ import {
   SettingsOutline,
 } from '@vicons/ionicons5'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
+import Breadcrumb from '../components/common/Breadcrumb.vue'
+import { useShortcuts } from '../composables/useShortcuts'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+
+// v2.7: 全局键盘快捷键（`/` 聚焦搜索 / `?` 帮助 / `G D` 跳工作台）[T8.7]
+useShortcuts()
 const message = useMessage()
 
 const collapsed = ref(false)
@@ -578,6 +588,10 @@ function handleUserMenu(key: string) {
   flex-shrink: 0;
 }
 /* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充) */
+.layout-breadcrumb-wrap {
+  padding: 0 var(--space-6);
+  background: transparent;
+}
 .main-area {
   flex: 1;
   min-width: 0;
