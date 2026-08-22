@@ -364,6 +364,19 @@ const closeDeptModal = () => {
   editingDept.value = null;
 };
 
+// 从 envelope / DRF 错误结构中提取第一条可读错误信息
+const extractErrorMessage = (data: any): string => {
+  if (!data) return '';
+  if (data.errors && typeof data.errors === 'object') {
+    for (const key of Object.keys(data.errors)) {
+      const val = data.errors[key];
+      if (Array.isArray(val) && val.length) return `${key}: ${val[0]}`;
+      if (typeof val === 'string') return `${key}: ${val}`;
+    }
+  }
+  return data.error || data.message || data.detail || '';
+};
+
 // 提交表单
 const handleDeptSubmit = async () => {
   if (!formState.name || !formState.code) {
@@ -390,7 +403,7 @@ const handleDeptSubmit = async () => {
         closeDeptModal();
         loadDepartments();
       } else {
-        message.error(res.data?.error || res.data?.message || '更新失败');
+        message.error(extractErrorMessage(res.data) || '更新失败');
       }
     } else {
       const res = await api.post('/departments/', payload);
@@ -399,11 +412,11 @@ const handleDeptSubmit = async () => {
         closeDeptModal();
         loadDepartments();
       } else {
-        message.error(res.data?.error || res.data?.message || '创建失败');
+        message.error(extractErrorMessage(res.data) || '创建失败');
       }
     }
   } catch (error: any) {
-    message.error(error.response?.data?.error || error.response?.data?.message || '操作失败');
+    message.error(extractErrorMessage(error.response?.data) || '操作失败');
   } finally {
     submitting.value = false;
   }
