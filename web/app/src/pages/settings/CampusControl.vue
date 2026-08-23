@@ -1298,10 +1298,14 @@ onMounted(async () => {
 .table-wrap {
   flex: 1;
   min-height: 180px;
-  overflow: hidden;
+  /* ★ 改 auto：触控板/滚轮需要触发外层滚动；
+     表格 flex-height 模式让 n-data-table 撑满容器高度（不依赖内部 n-scrollbar 滚动）。
+     外层 .table-wrap 滚，表格跟着滚——任何位置滚都生效。 */
+  overflow: auto;
   position: relative;
   display: flex;
   flex-direction: column;
+  border-radius: var(--radius-md); /* 兜底：内部内容被圆角裁切 */
 }
 .table-wrap :deep(.n-data-table) {
   flex: 1;
@@ -1311,18 +1315,15 @@ onMounted(async () => {
   overflow: hidden;
 }
 /* 表格内部层级圆角统一：
-   - wrapper/header/body 分别负责上/下半圆角
-   - table 根背景透明，避免 light 模式下白色直角底露出
-   - th 首尾单元格顶角分别圆角，避免 thead 背景直角顶穿
-   - n-scrollbar 内层容器必须 overflow:auto（保持滚动能力），不能用 hidden 阻断
-     （用户反馈：触控板在表格上滚不动 = overflow:hidden 吃掉了滚动事件） */
+   真实滚动由外层 .table-wrap 承载（flex-height 模式内部不需要滚），
+   内部所有层级都 hidden 用于视觉裁切；任何位置滚动都冒泡到外层触发 */
 .table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-body) { border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-body > .n-scrollbar),
 .table-wrap :deep(.n-data-table-base-table-body .n-scrollbar-container) {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  overflow: auto !important; /* 关键：必须 auto，hidden 会阻断触控板/滚轮 */
+  overflow: hidden;
 }
 .table-wrap :deep(.n-data-table-table) { background: transparent !important; border-radius: 0; }
 .table-wrap :deep(.n-data-table-thead) { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
