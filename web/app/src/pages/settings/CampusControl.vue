@@ -416,6 +416,8 @@
           <n-gi><n-form-item label="专业标签"><n-select v-model:value="personModal.major" :options="majorOptions" /></n-form-item></n-gi>
           <n-gi><n-form-item label="招聘月份"><n-select v-model:value="personModal.month" :options="monthOptions" /></n-form-item></n-gi>
           <n-gi><n-form-item label="状态"><n-select v-model:value="personModal.status" :options="statusOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item label="预计入职日期"><n-date-picker v-model:formatted-value="personModal.expectedEntryDate" value-format="yyyy-MM-dd" type="date" clearable style="width:100%" /></n-form-item></n-gi>
+          <n-gi><n-form-item label="实际入职日期"><n-date-picker v-model:formatted-value="personModal.actualEntryDate" value-format="yyyy-MM-dd" type="date" clearable style="width:100%" /></n-form-item></n-gi>
           <n-gi><n-form-item label="职务"><n-select v-model:value="personModal.position" :options="positionOptions" clearable placeholder="不限" /></n-form-item></n-gi>
           <n-gi><n-form-item label="职级"><n-select v-model:value="personModal.level" :options="levelOptions" clearable placeholder="不限" /></n-form-item></n-gi>
           <n-gi><n-form-item label="计入核算"><n-switch v-model:value="personModal.counted" /></n-form-item></n-gi>
@@ -435,7 +437,7 @@
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import {
   NTag, NButton, NSwitch, NCheckbox, NDivider, NDrawer, NDrawerContent,
-  NInputNumber, NSelect, NInput, NEmpty, NAlert,
+  NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker,
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
@@ -657,7 +659,7 @@ const mergedColumns: DataTableColumns<any> = [
   { title: '强度', key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
   // —— 人数达成（来自人数规划）—— //
   { title: '在职', key: 'onjob', width: 66 },
-  { title: '在途offer', key: 'pendingOffer', width: 82 },
+  { title: '在途 Offer', key: 'pendingOffer', width: 88 },
   { title: '在途待入职', key: 'pendingEntry', width: 90 },
   { title: '年度目标', key: 'annualTarget', width: 86 },
   { title: '年度缺口', key: 'annualGap', width: 86, render: (r) => r.annualTarget == null ? '—' : r.annualGap },
@@ -1104,7 +1106,7 @@ function removeIndicator(ind: ControlIndicator) {
 /* ============================ 录入校验 ============================ */
 const draft = reactive({
   code: '', name: '', bu: '能电BG', position: '', level: '',
-  school: '985', sex: '男', major: '工学', month: '8月', status: '已入职',
+  school: '985', sex: '男', major: '工学', month: '8月', status: '在职',
 })
 const validation = ref<ValidationResult | null>(null)
 async function runValidate() {
@@ -1138,7 +1140,9 @@ async function confirmEntry() {
 /* ============================ 人员 CRUD ============================ */
 const personModal = reactive({
   show: false, editingId: '' as string | null,
-  code: '', name: '', bu: '能电BG', school: '985', sex: '男', major: '工学', month: '8月', status: '已入职',
+  code: '', name: '', bu: '能电BG', school: '985', sex: '男', major: '工学', month: '8月', status: '在职',
+  expectedEntryDate: null as string | null,
+  actualEntryDate: null as string | null,
   position: '', level: '', counted: true,
 })
 function openPersonModal(p?: Person) {
@@ -1146,7 +1150,10 @@ function openPersonModal(p?: Person) {
   personModal.code = p?.code ?? ''; personModal.name = p?.name ?? ''
   personModal.bu = p?.bu ?? '能电BG'; personModal.school = p?.school ?? '985'
   personModal.sex = p?.sex ?? '男'; personModal.major = p?.major ?? '工学'; personModal.month = p?.month ?? '8月'
-  personModal.status = p?.status ?? '已入职'; personModal.position = p?.position ?? ''
+  personModal.status = p?.status ?? '在职'
+  personModal.expectedEntryDate = p?.expectedEntryDate ?? null
+  personModal.actualEntryDate = p?.actualEntryDate ?? null
+  personModal.position = p?.position ?? ''
   personModal.level = p?.level ?? ''; personModal.counted = p?.counted ?? true
   personModal.show = true
 }
@@ -1157,6 +1164,8 @@ async function savePerson() {
       id: personModal.editingId ?? undefined,
       code: personModal.code.trim(), name: personModal.name.trim(), bu: personModal.bu,
       school: personModal.school, sex: personModal.sex, major: personModal.major, month: personModal.month, status: personModal.status,
+      expectedEntryDate: personModal.expectedEntryDate,
+      actualEntryDate: personModal.actualEntryDate,
       position: personModal.position, level: personModal.level, counted: personModal.counted,
     })
     message.success('保存成功')

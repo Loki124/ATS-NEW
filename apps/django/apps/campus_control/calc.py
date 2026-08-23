@@ -61,9 +61,43 @@ def rule_matches(p: dict, rule: dict) -> bool:
     return True
 
 
+# 计入核算的人员状态集合（v2.5 核心术语）
+_COUNTED_STATUSES = {'在职', '在途Offer', '在途待入职'}
+
+
+def _accounting_month(p: dict) -> str:
+    """返回人员应被计入的核算月份。
+
+    在职人员按「实际入职日期」计入；在途Offer / 在途待入职按「预计入职日期」计入。
+    日期不存在时回退到 month 字段。
+    """
+    status = p.get('status')
+    if status == '在职':
+        d = p.get('actual_entry_date')
+    else:
+        d = p.get('expected_entry_date')
+    if d:
+        # ISO 日期字符串或 date 对象统一处理
+        s = str(d)
+        try:
+            from datetime import date
+            if isinstance(d, date):
+                return f'{d.month}月'
+            # 尝试解析 ISO 字符串
+            parts = s.split('-')
+            if len(parts) >= 2:
+                return f'{int(parts[1])}月'
+        except (ValueError, TypeError):
+            pass
+    return p.get('month') or ''
+
+
 def persons_for_rule(persons, rule) -> list:
-    """命中规则适用范围、且计入核算的人员。"""
-    return [p for p in persons if p.get('counted') and rule_matches(p, rule)]
+    """命中规则适用范围、且计入核算的人员（counted=true 且状态在核算范围内）。"""
+    return [
+        p for p in persons
+        if p.get('counted') and p.get('status') in _COUNTED_STATUSES and rule_matches(p, rule)
+    ]
 
 
 def count(persons, filters):
@@ -118,8 +152,8 @@ def count_status(actual, target):
 
 
 def compute_ratio(persons, rules):
-    """实时看板比例。返回 {total, rows}。total = 全部计入人数（跨适用范围）。"""
-    total = len([p for p in persons if p.get('counted')])
+    """实时看板比例。返回 {total, rows}。total = 全部计入核算人数。"""
+    total = len([p for p in persons if p.get('counted') and p.get('status') in _COUNTED_STATUSES])
     rows = []
     for r in rules:
         ratio = ratio_of(r, persons)
@@ -142,10 +176,14 @@ def compute_ratio(persons, rules):
 def compute_count(persons, rules, year, month):
     """人数规划（目标承载于规则上，按年度过滤）。返回 CountRow[]。
 
-    每条规则（指标层）自带 annual_target / monthly_targets，作为该指标在该适用范围内的
-    人数目标；人数规划的目标数据即直接来源于规则。
+    v2.5 核心术语对齐：
+    - 在职：status='在职'（按 actual_entry_date 计入月份）
+    - 在途Offer：status='在途Offer'（按 expected_entry_date 计入月份）
+    - 在途待入职：status='在途待入职'（按 expected_entry_date 计入月份）
+    - 计入核算：counted=true 且状态 ∈ _COUNTED_STATUSES
     """
     rows = []
+    idx = month_to_index(month)
     for r in rules:
         if r.get('year') != year:
             continue
@@ -153,18 +191,27 @@ def compute_count(persons, rules, year, month):
         ind = r['indicator']
         in_scope = persons_for_rule(persons, r)
         filt = _indicator_filter(dim, ind)
-        onjob = count(in_scope, filt)
-        # 在途 offer：命中指标 + 状态=已Offer（不限月份，视为当前在途）
-        pending_offer = count(in_scope, {**filt, 'status': '已Offer'})
-        # 在途待入职：命中指标 + 状态=已入职 且 招聘月份 > 当前 month（未来月份到岗，视为待入职）
-        pending_entry = count(in_scope, {**filt, 'status': '已入职', 'month': month}) if month else 0
+
+        onjob = count(in_scope, {**filt, 'status': '在职'})
+        pending_offer = count(in_scope, {**filt, 'status': '在途Offer'})
+        pending_entry = count(in_scope, {**filt, 'status': '在途待入职'})
+
         annual_target = int(r.get('annual_target', 0) or 0)
         annual_gap = max(annual_target - onjob - pending_offer - pending_entry, 0)
-        idx = month_to_index(month)
+
         monthly = r.get('monthly_targets') or [0] * 12
         month_target = int(monthly[idx - 1]) if 1 <= idx <= 12 else 0
-        month_actual = count(in_scope, {**filt, 'month': month}) if 1 <= idx <= 12 else 0
+
+        # 本月实际：按对应日期月份匹配当前选中月
+        if 1 <= idx <= 12:
+            month_actual = sum(
+                1 for p in in_scope
+                if all(p.get(k) == v for k, v in filt.items()) and _accounting_month(p) == month
+            )
+        else:
+            month_actual = 0
         gap = max(month_target - month_actual, 0)
+
         rows.append({
             'dimension': dim,
             'indicator': ind,
@@ -224,9 +271,15 @@ def simulate(draft, rules, persons, year, month=None):
     """录入校验。draft = {bu, position?, level?, school, sex, major, month?}。
 
     月度目标从规则（annual_target / monthly_targets）读取，不再依赖独立人数目标表。
+    v2.5 按新核心术语计算：draft 默认视为「在途待入职」，按 expected_entry_date 回退到 month。
     """
     tmp_month = draft.get('month') or month or '8月'
-    tmp = {**draft, 'month': tmp_month, 'counted': True}
+    tmp = {
+        **draft, 'month': tmp_month, 'counted': True,
+        'status': '在途待入职',
+        'expected_entry_date': None,
+        'actual_entry_date': None,
+    }
 
     rmap = {}
     for r in rules:
@@ -244,10 +297,15 @@ def simulate(draft, rules, persons, year, month=None):
         rstatus = ratio_status(ratio, r)
         mt = rmap.get((_scope_key(r), r['indicator'], r.get('year')))
         month_target = int(mt[idx - 1]) if mt and 1 <= idx <= 12 else 0
-        month_actual = count(
-            [p for p in sim if rule_matches(p, r)],
-            {**_indicator_filter(r['dimension'], r['indicator']), 'month': tmp_month},
-        ) if 1 <= idx <= 12 else 0
+        if 1 <= idx <= 12:
+            month_actual = sum(
+                1 for p in sim
+                if rule_matches(p, r) and p.get('counted') and p.get('status') in _COUNTED_STATUSES
+                and _accounting_month(p) == tmp_month
+                and all(p.get(k) == v for k, v in _indicator_filter(r['dimension'], r['indicator']).items())
+            )
+        else:
+            month_actual = 0
         cstatus = count_status(month_actual, month_target)
         checks.append({
             'dimension': r['dimension'],

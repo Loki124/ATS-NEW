@@ -216,7 +216,8 @@ class PersonSerializer(serializers.ModelSerializer):
         model = Person
         fields = [
             'id', 'code', 'name', 'bu', 'school', 'sex', 'major',
-            'month', 'status', 'position', 'level', 'counted',
+            'month', 'status', 'expected_entry_date', 'actual_entry_date',
+            'position', 'level', 'counted',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

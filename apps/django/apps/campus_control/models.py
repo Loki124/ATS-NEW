@@ -139,7 +139,14 @@ class Person(FullAuditModel, UUIDModel):
     month = models.CharField(max_length=8, verbose_name='招聘月份')
     status = models.CharField(
         max_length=16, choices=[(s, s) for s in STATUS],
-        default='已入职', verbose_name='状态'
+        default='在职', verbose_name='状态'
+    )
+    # 日期字段：用于按「预计入职日期 / 实际入职日期」计入核算月份
+    expected_entry_date = models.DateField(
+        null=True, blank=True, verbose_name='预计入职日期'
+    )
+    actual_entry_date = models.DateField(
+        null=True, blank=True, verbose_name='实际入职日期'
     )
     position = models.CharField(
         max_length=32, blank=True, default='',

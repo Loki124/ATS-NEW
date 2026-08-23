@@ -39,7 +39,7 @@ export const MAJORS = ['工学', '其他']
 export const SEXES = ['男', '女']
 export const DIMS = ['院校标签', '专业标签', '性别'] as const
 export const STRENGTH = ['硬约束', '软约束', '仅提示'] as const
-export const STATUS = ['已入职', '已Offer', '候选池'] as const
+export const STATUS = ['在职', '在途Offer', '在途待入职', '候选池'] as const
 export const POSITIONS = ['技术研发', '产品', '设计', '运营', '职能', '销售']
 export const LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5']
 export const ALL_MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
@@ -106,6 +106,8 @@ export interface Person {
   major: string
   month: string
   status: string
+  expectedEntryDate: string | null
+  actualEntryDate: string | null
   position: string
   level: string
   counted: boolean
@@ -343,7 +345,10 @@ export const listPersons = () =>
 export const upsertPerson = (p: Partial<Person> & { code: string; name: string; bu: string; school: string; sex: string; major: string; month: string; status: string }) => {
   const payload = {
     code: p.code, name: p.name, bu: p.bu, school: p.school, sex: p.sex, major: p.major,
-    month: p.month, status: p.status, position: p.position ?? '', level: p.level ?? '', counted: p.counted ?? true,
+    month: p.month, status: p.status,
+    expected_entry_date: p.expectedEntryDate || null,
+    actual_entry_date: p.actualEntryDate || null,
+    position: p.position ?? '', level: p.level ?? '', counted: p.counted ?? true,
   }
   if (p.id) return api.put(`/campus/persons/${p.id}/`, payload).then((r) => r.data as Person)
   return api.post(`/campus/persons/`, payload).then((r) => r.data as Person)

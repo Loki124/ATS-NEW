@@ -115,6 +115,8 @@ def _person_to_dict(p):
         'major': p.major,
         'month': p.month,
         'status': p.status,
+        'expected_entry_date': p.expected_entry_date.isoformat() if p.expected_entry_date else None,
+        'actual_entry_date': p.actual_entry_date.isoformat() if p.actual_entry_date else None,
         'counted': p.counted,
         'position': p.position or '',
         'level': p.level or '',
