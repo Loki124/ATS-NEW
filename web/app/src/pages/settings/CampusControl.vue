@@ -16,44 +16,28 @@
 
     <div class="glass-panel">
       <n-tabs v-model:value="activeTab" type="line" class="cc-tabs" @update:value="onTabChange">
-        <!-- ===================== 实时看板 ===================== -->
+        <!-- ===================== 实时看板（含人数规划） ===================== -->
         <n-tab-pane name="ratio" tab="实时看板">
           <n-alert v-if="hasBadSum" type="warning" :show-icon="true" style="margin-bottom: 14px">
             存在目标占比未加和到 100% 的维度（见下方「加和」状态），请前往「规则配置」补全。
           </n-alert>
+          <div class="toolbar">
+            <n-input-number v-model:value="selectedYear" :min="2020" :max="2100" style="width: 130px" @update:value="loadPlan" />
+            <n-select v-model:value="planMonth" :options="monthOptions" style="width: 140px" @update:value="loadPlan" />
+            <div class="spacer"></div>
+            <n-text depth="3" style="font-size: 12px">看板下方「人数达成」信息随年份 / 月份联动</n-text>
+          </div>
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
             <div class="kpi-card"><span class="kpi-label">管控规则数</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
             <div class="kpi-card danger"><span class="kpi-label">硬约束超标</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
             <div class="kpi-card warn"><span class="kpi-label">软/仅提示超标</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
-          </div>
-          <n-data-table
-            :columns="ratioColumns"
-            :data="ratioData.rows"
-            :loading="loading.ratio"
-            :row-key="(r: any) => [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')"
-            :pagination="false"
-          >
-            <template #empty><n-empty description="暂无数据" /></template>
-          </n-data-table>
-        </n-tab-pane>
-
-        <!-- ===================== 人数规划 ===================== -->
-        <n-tab-pane name="plan" tab="人数规划">
-          <div class="toolbar">
-            <n-input-number v-model:value="selectedYear" :min="2020" :max="2100" style="width: 130px" @update:value="loadPlan" />
-            <n-select v-model:value="planMonth" :options="monthOptions" style="width: 140px" @update:value="loadPlan" />
-          </div>
-          <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">本月总缺口</span><span class="kpi-value">{{ planData.kpi.monthGap }}</span></div>
-            <div class="kpi-card"><span class="kpi-label">管控规则数</span><span class="kpi-value">{{ planData.kpi.ruleCount }}</span></div>
-            <div class="kpi-card danger"><span class="kpi-label">硬约束超标</span><span class="kpi-value">{{ planData.kpi.hardViolationCount }}</span></div>
-            <div class="kpi-card warn"><span class="kpi-label">软/仅提示超标</span><span class="kpi-value">{{ planData.kpi.warnCount }}</span></div>
           </div>
           <n-data-table
-            :columns="planColumns"
-            :data="planData.rows"
-            :loading="loading.plan"
+            :columns="mergedColumns"
+            :data="mergedRows"
+            :loading="loading.ratio || loading.plan"
             :row-key="(r: any) => [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')"
             :pagination="false"
           >
@@ -61,8 +45,8 @@
           </n-data-table>
 
           <n-alert type="info" :show-icon="true" style="margin-top: 16px">
-            人数规划的目标数据（年度目标 / 12 个月目标）直接来源于「规则配置」中每条规则的管控人数配置；
-            新增或编辑规则时即可维护年度与 12 个月度管控人数。
+            本看板已合并「实时看板」与「人数规划」：上半部分展示各指标的<strong>占比管控</strong>（实际/分母、占比、目标、占比状态），
+            下半部分展示<strong>人数达成</strong>（在职、年度目标/缺口、本月目标/实际/缺口）——目标数据（年度 / 12 个月）直接来源于「规则配置」。
           </n-alert>
         </n-tab-pane>
 
@@ -499,6 +483,51 @@ const planData = ref<PlanResult>({
   year: 2026,
 })
 
+/* ============================ 实时看板 + 人数规划 合并行 ============================ */
+// 以实时看板（ratio）为主，左连接人数规划（plan）；plan 缺失的指标，人数达成字段留空。
+const mergedRows = computed(() => {
+  const planMap = new Map<string, PlanRow>()
+  for (const p of planData.value.rows) {
+    planMap.set([p.bu, p.position, p.level, p.dimension, p.indicator].join('|'), p)
+  }
+  const out: any[] = []
+  for (const r of ratioData.value.rows) {
+    const key = [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')
+    const p = planMap.get(key)
+    out.push({
+      bu: r.bu, position: r.position, level: r.level, dimension: r.dimension, indicator: r.indicator,
+      actual: r.actual, denom: r.denom, ratio: r.ratio, target: r.target,
+      ratioStatus: r.status, strength: r.strength,
+      onjob: p?.onjob ?? null,
+      annualTarget: p?.annualTarget ?? null,
+      annualGap: p?.annualGap ?? null,
+      monthTarget: p?.monthTarget ?? null,
+      monthActual: p?.monthActual ?? null,
+      gap: p?.gap ?? null,
+      countStatus: p?.status ?? null,
+    })
+  }
+  // 把 plan 中有、ratio 中无的行（占比未算到但有人数目标）也补进来
+  const ratioKeys = new Set(out.map((o) => [o.bu, o.position, o.level, o.dimension, o.indicator].join('|')))
+  for (const p of planData.value.rows) {
+    const key = [p.bu, p.position, p.level, p.dimension, p.indicator].join('|')
+    if (ratioKeys.has(key)) continue
+    out.push({
+      bu: p.bu, position: p.position, level: p.level, dimension: p.dimension, indicator: p.indicator,
+      actual: null, denom: null, ratio: null, target: null,
+      ratioStatus: null, strength: p.strength ?? null,
+      onjob: p.onjob ?? null,
+      annualTarget: p.annualTarget ?? null,
+      annualGap: p.annualGap ?? null,
+      monthTarget: p.monthTarget ?? null,
+      monthActual: p.monthActual ?? null,
+      gap: p.gap ?? null,
+      countStatus: p.status ?? null,
+    })
+  }
+  return out
+})
+
 /* ============================ 规则配置 ============================ */
 const currentMonthIdx = computed(() => new Date().getMonth()) // 0=1月
 const ruleDimFilter = ref<string | null>(null)
@@ -571,37 +600,32 @@ async function loadPlan() {
 }
 
 function onTabChange(name: string) {
-  if (name === 'ratio') loadRatio()
-  else if (name === 'plan') loadPlan()
+  if (name === 'ratio') { loadRatio(); loadPlan() }
   else if (name === 'rules') loadRules()
   else if (name === 'persons') loadPersons()
   else if (name === 'indicators') loadIndicators()
 }
 
 /* ============================ 列定义 ============================ */
-const ratioColumns: DataTableColumns<RatioRow> = [
-  { title: '适用范围', key: 'bu', width: 150, render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: '维度', key: 'dimension', width: 100 },
-  { title: '指标', key: 'indicator', width: 90 },
-  { title: '实际/分母', key: 'actual', width: 100, render: (r) => `${r.actual} / ${r.denom}` },
-  { title: '占比', key: 'ratio', width: 80, render: (r) => h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => pct(r.ratio) }) },
-  { title: '目标', key: 'target', width: 70, render: (r) => pct(r.target) },
-  { title: '状态', key: 'status', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.status), bordered: false, size: 'small' }, { default: () => r.status }) },
-  { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
-]
-
-const planColumns: DataTableColumns<PlanRow> = [
-  { title: '适用范围', key: 'bu', width: 150, render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: '维度', key: 'dimension', width: 100 },
-  { title: '指标', key: 'indicator', width: 90 },
-  { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
-  { title: '在职', key: 'onjob', width: 70 },
-  { title: '年度目标', key: 'annualTarget', width: 90 },
-  { title: '年度缺口', key: 'annualGap', width: 90 },
-  { title: '本月目标', key: 'monthTarget', width: 90 },
-  { title: '本月实际', key: 'monthActual', width: 90 },
-  { title: '缺口', key: 'gap', width: 70 },
-  { title: '状态', key: 'status', width: 100, render: (r) => h(NTag, { type: countStatusType(r.status), bordered: false, size: 'small' }, { default: () => r.status }) },
+// 实时看板（实时看板 + 人数规划 合并）
+const mergedColumns: DataTableColumns<any> = [
+  { title: '适用范围', key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) },
+  { title: '维度', key: 'dimension', width: 90, fixed: 'left' },
+  { title: '指标', key: 'indicator', width: 80, fixed: 'left' },
+  // —— 占比管控（来自实时看板）—— //
+  { title: '实际/分母', key: 'actual', width: 100, render: (r) => `${r.actual ?? '-'} / ${r.denom ?? '-'}` },
+  { title: '占比', key: 'ratio', width: 76, render: (r) => r.ratio == null ? h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => '—' }) : h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => pct(r.ratio) }) },
+  { title: '目标', key: 'target', width: 68, render: (r) => r.target == null ? '—' : pct(r.target) },
+  { title: '占比状态', key: 'ratioStatus', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.ratioStatus || '正常'), bordered: false, size: 'small' }, { default: () => r.ratioStatus || '—' }) },
+  { title: '强度', key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
+  // —— 人数达成（来自人数规划）—— //
+  { title: '在职', key: 'onjob', width: 66 },
+  { title: '年度目标', key: 'annualTarget', width: 86 },
+  { title: '年度缺口', key: 'annualGap', width: 86, render: (r) => r.annualTarget == null ? '—' : r.annualGap },
+  { title: '本月目标', key: 'monthTarget', width: 86 },
+  { title: '本月实际', key: 'monthActual', width: 86 },
+  { title: '缺口', key: 'gap', width: 66, render: (r) => r.monthTarget == null ? '—' : r.gap },
+  { title: '人数状态', key: 'countStatus', width: 100, render: (r) => r.countStatus ? h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
 ]
 
 const ruleColumns: DataTableColumns<ControlRule> = [
