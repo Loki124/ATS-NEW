@@ -341,6 +341,9 @@
           <n-alert v-else type="error" :show-icon="true">
             导入失败（{{ importDrawer.result.data.groups }} 个分组 / 已写入 {{ importDrawer.result.data.savedRules }} 条）：
           </n-alert>
+          <div v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-error-actions">
+            <n-button size="small" @click="downloadImportErrorReport">下载错误报告（txt）</n-button>
+          </div>
           <ul v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-errors">
             <li v-for="(e, i) in importDrawer.result.data.errors" :key="i">{{ e }}</li>
           </ul>
@@ -442,7 +445,7 @@ import {
   listRules, createRule, updateRule, deleteRule, batchConfigRules,
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
-  exportRules, downloadRuleTemplate, importRules,
+  exportRules, downloadRuleTemplate, importRules, triggerDownload,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
@@ -877,10 +880,22 @@ function handleImportUpload({ file, onFinish, onError }: any) {
       }
     })
     .catch((e) => {
-      message.error(extractApiError(e, '导入失败'))
+      const errRes = e?.response?.data
+      if (errRes?.data?.errors) {
+        importDrawer.result = errRes
+      } else {
+        message.error(extractApiError(e, '导入失败'))
+      }
       onError()
     })
     .finally(() => { loading.import = false })
+}
+function downloadImportErrorReport() {
+  const errors = importDrawer.result?.data?.errors || []
+  if (!errors.length) return
+  const text = ['规则导入失败原因明细', '====================', ...errors].join('\n')
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  triggerDownload(blob, `campus_rules_import_errors_${Date.now()}.txt`)
 }
 function onImportFileRemove() {
   importDrawer.fileList = []
@@ -1401,6 +1416,11 @@ onMounted(async () => {
   line-height: 1.6;
 }
 .import-result { margin-top: 16px; }
+.import-error-actions {
+  margin: 8px 0;
+  display: flex;
+  justify-content: flex-end;
+}
 .import-errors {
   margin: 8px 0 0;
   padding-left: 18px;

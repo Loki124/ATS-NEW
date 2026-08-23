@@ -294,18 +294,22 @@ export interface RuleImportResult {
   success: boolean
   data: { groups: number; savedRules: number; errors: string[] }
 }
-/** 导入规则 xlsx 文件，返回成功/失败明细。 */
+/** 导入规则 xlsx 文件，返回成功/失败明细。
+ * 业务校验错误（400）会被后端显式返回，这里设置 validateStatus 让 4xx 也进入 then 分支，
+ * 便于前端展示详细的 errors 列表，而不是只弹一个 "Request failed with status code 400"。
+ */
 export const importRules = (file: File): Promise<RuleImportResult> => {
   const fd = new FormData()
   fd.append('file', file)
   return api
     .post('/campus/rules/import/', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      validateStatus: (status) => status < 500,
     })
     .then((r) => r.data as RuleImportResult)
 }
 
-function triggerDownload(blob: Blob, filename: string) {
+export function triggerDownload(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
