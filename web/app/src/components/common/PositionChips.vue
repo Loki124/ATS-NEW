@@ -32,7 +32,7 @@ function toggle(pos: string) {
   border-radius: 8px;
   cursor: pointer;
   font-size: 11px;
-  background: #fff;
+  background: var(--glass-bg-card);
   transition: 0.15s;
 }
 .pos-item:hover { border-color: var(--p); }

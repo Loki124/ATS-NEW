@@ -247,7 +247,7 @@ onMounted(loadDetail)
 }
 
 .ann-detail-card {
-  background: #fff;
+  background: var(--glass-bg-card);
   border-radius: 12px;
   padding: 32px 40px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);

@@ -251,7 +251,7 @@ onMounted(() => {
 .ann-kb__side {
   width: 220px;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--glass-bg-card);
   border-right: 1px solid #f0f0f0;
   padding: 20px 0;
 }
@@ -343,7 +343,7 @@ onMounted(() => {
 }
 
 .ann-kb__section {
-  background: #fff;
+  background: var(--glass-bg-card);
   border-radius: 12px;
   padding: 20px 24px;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.03);
@@ -382,7 +382,7 @@ onMounted(() => {
 }
 
 .ann-kb__recent-card:hover {
-  background: #fff;
+  background: var(--glass-bg-card);
   border-color: #bfdbfe;
   box-shadow: 0 2px 10px rgba(59, 130, 246, 0.08);
 }

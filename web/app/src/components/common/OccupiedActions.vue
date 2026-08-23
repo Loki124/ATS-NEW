@@ -23,7 +23,7 @@ const emit = defineEmits<{
   border-radius: 8px;
   font-size: 10px;
   cursor: pointer;
-  background: #fff;
+  background: var(--glass-bg-card);
   color: var(--g7);
   transition: 0.15s;
 }

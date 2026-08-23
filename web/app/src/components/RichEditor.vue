@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   overflow: hidden;
-  background: #fff;
+  background: var(--glass-bg-card);
 }
 
 .rich-editor--fullscreen {

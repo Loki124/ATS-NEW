@@ -41,7 +41,7 @@ function select(opt: Direction) {
   border-radius: 12px;
   cursor: pointer;
   transition: 0.15s;
-  background: #fff;
+  background: var(--glass-bg-card);
   display: flex;
   align-items: center;
   gap: 10px;

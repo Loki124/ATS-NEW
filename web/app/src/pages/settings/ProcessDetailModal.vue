@@ -1748,7 +1748,7 @@ function conditionItemLabel(item: any): string {
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  background: #fff;
+  background: var(--glass-bg-card);
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   color: #2080f0;
@@ -1848,7 +1848,7 @@ function conditionItemLabel(item: any): string {
   border: 1px solid #e0e0e6;
   border-radius: 6px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--glass-bg-card);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1966,7 +1966,7 @@ function conditionItemLabel(item: any): string {
 /* ===== 阶段卡片 ===== */
 .stage-card {
   position: relative;
-  background: #fff;
+  background: var(--glass-bg-card);
   border: 1px solid #e8e8ec;
   border-radius: 8px;
   padding: 14px 16px 14px 16px;
@@ -2039,7 +2039,7 @@ function conditionItemLabel(item: any): string {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--glass-bg-card);
   color: #bbb;
   display: flex;
   align-items: center;

@@ -39,7 +39,7 @@ function select(pos: string) {
   border-radius: 8px;
   cursor: pointer;
   font-size: 10px;
-  background: #fff;
+  background: var(--glass-bg-card);
   transition: 0.15s;
 }
 .apply-pos-item:hover { border-color: var(--p); }

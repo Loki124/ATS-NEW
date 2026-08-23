@@ -77,7 +77,7 @@
         v-if="previewModal.html"
         :srcdoc="previewModal.html"
         sandbox="allow-same-origin"
-        style="width: 100%; min-height: 480px; border: 0; background: #fff;"
+        style="width: 100%; min-height: 480px; border: 0; background: var(--glass-bg-card);"
         title="Offer 预览"
       />
       <p v-else style="color: #999; text-align: center;">(无内容)</p>

@@ -932,7 +932,7 @@ onUnmounted(() => {
 .submit-bar {
   position: sticky; bottom: 16px; left: 0; right: 0;
   display: flex; justify-content: space-between; align-items: center;
-  background: #fff; border: 1px solid #f0f0f0; border-radius: 12px;
+  background: var(--glass-bg-card); border: 1px solid #f0f0f0; border-radius: 12px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   padding: 12px 24px; margin: 24px 0 0;
   z-index: 10;

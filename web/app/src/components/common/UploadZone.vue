@@ -60,7 +60,7 @@ function handleDrop(e: DragEvent) {
 .up-quick span {
   font-size: 11px;
   padding: 4px 10px;
-  background: #fff;
+  background: var(--glass-bg-card);
   border: 1px solid var(--g3);
   border-radius: 20px;
   color: var(--g6);

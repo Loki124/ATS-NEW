@@ -576,7 +576,7 @@ onMounted(() => {
 .policy-admin__side {
   width: 220px;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--glass-bg-card);
   border-right: 1px solid #f0f0f0;
   padding: 20px 0;
 }
@@ -679,7 +679,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  background: #fff;
+  background: var(--glass-bg-card);
   border-radius: 8px;
   border: 1px solid #f0f0f0;
 }
