@@ -197,7 +197,7 @@ const JobCard = defineAsyncComponent(() => import('../components/dashboard/JobCa
 const QuickEntryCard = defineAsyncComponent(() => import('../components/dashboard/QuickEntryCard.vue'))
 const ScreeningListItem = defineAsyncComponent(() => import('../components/dashboard/ScreeningListItem.vue'))
 const MatterList = defineAsyncComponent(() => import('../components/dashboard/MatterList.vue'))
-const EmptyState = defineAsyncComponent(() => import('../components/dashboard/EmptyState.vue'))
+const EmptyState = defineAsyncComponent(() => import('../components/common/EmptyState.vue'))
 
 const router = useRouter()
 

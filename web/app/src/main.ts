@@ -29,14 +29,16 @@ axios.interceptors.response.use(
     const url = err?.config?.url ?? '<unknown>'
     if (status === 404) {
       // 后端 endpoint 不存在 (开发期常见 — Plan 注释里说"待实现"但还没做)
+      // ★ 2026-08-23 V3 §新 #4 收口：404 静默 + 仅 console.warn，不弹 toast（避免吓用户"接口不存在"）
+      // 业务页自己跳占位（Placeholder.vue 机制）
       console.warn(
         `[API 404] 后端没实现这个 endpoint: ${url}\n` +
         `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
       )
-      _toast.warning(`接口不存在: ${url.split('?')[0]}`)
     } else if (status === 500) {
       console.error(`[API 500] 后端 bug: ${url}`, err?.response?.data)
-      _toast.error('服务异常，请稍后再试')
+      // ★ V3 §新 #4 改文案：从"服务异常，请稍后再试" → "服务繁忙，请稍后重试"（避免暗示系统 bug）
+      _toast.error('服务繁忙，请稍后重试')
     }
     return Promise.reject(err)
   }

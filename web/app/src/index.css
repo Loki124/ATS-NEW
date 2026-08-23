@@ -35,8 +35,11 @@ body {
   font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
-  color: rgba(0, 0, 0, 0.88);
+  /* ★ 2026-08-23 暗色修复（V3 §新 #1 P0）：body 背景从硬编码 #f5f5f5 改为透明，
+     让极光底（.app-aurora / .cc-aurora / .settings-aurora）接管。
+     暗色模式下不再"白纸一张"漂浮各玻璃面板。 */
+  background-color: transparent;
+  color: var(--ink);
 }
 
 #app {
@@ -51,22 +54,6 @@ a:hover {
   color: var(--primary-hover);
 }
 
-/* 自定义滚动条 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #bfbfbf;
-}
-
 /* 覆盖 @unocss/reset/tailwind.css 对 button 背景的重置，
    避免其以相同优先级覆盖 Naive UI 按钮的 var(--n-color) 背景。
    使用 button.n-button 提升特异性（0,2,0 > reset 的 [type="button"] 0,1,0）。 */
@@ -76,3 +63,5 @@ button.n-button,
 .n-button[type="submit"] {
   background-color: var(--n-color);
 }
+
+/* === 重复滚动条定义已删除（原 L55-68 与上方 ::-webkit-scrollbar-thumb 重复，留 var(--ink-faint) 单一来源）=== */

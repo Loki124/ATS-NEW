@@ -81,8 +81,15 @@
           </div>
         </div>
         <div class="card-right">
-          <n-button text type="primary" @click.stop="handleEdit(item)">编辑</n-button>
-          <n-button text type="primary" @click.stop="handleCardClick(item)">详情</n-button>
+          <!-- ★ 2026-08-23 V3 §四P0 第5项 (T7.4)：操作列下拉化，对齐 CandidateList 模式 -->
+          <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">详情</n-button>
+          <n-dropdown
+            trigger="click"
+            :options="[{ label: '编辑', key: 'edit' }]"
+            @select="(k: string) => onDemandRowAction(k, item)"
+          >
+            <n-button text size="small">更多 ⌄</n-button>
+          </n-dropdown>
         </div>
       </div>
     </div>
@@ -426,7 +433,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NDropdown } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
@@ -627,6 +634,11 @@ const handleCreate = () => {
 const handleEdit = (item: any) => {
   formData.value = { ...item }
   modalVisible.value = true
+}
+
+// ★ V3 §四P0 第5项 (T7.4)：卡片操作列下拉分发
+const onDemandRowAction = (key: string, item: any) => {
+  if (key === 'edit') handleEdit(item)
 }
 
 const handleSave = async () => {
