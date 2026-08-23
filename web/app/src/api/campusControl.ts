@@ -148,6 +148,8 @@ export interface PlanRow {
   level: string
   strength: Strength
   onjob: number
+  pendingOffer: number
+  pendingEntry: number
   annualTarget: number
   annualGap: number
   monthTarget: number

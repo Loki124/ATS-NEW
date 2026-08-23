@@ -152,13 +152,18 @@ def compute_count(persons, rules, year, month):
         dim = r['dimension']
         ind = r['indicator']
         in_scope = persons_for_rule(persons, r)
-        onjob = count(in_scope, _indicator_filter(dim, ind))
+        filt = _indicator_filter(dim, ind)
+        onjob = count(in_scope, filt)
+        # 在途 offer：命中指标 + 状态=已Offer（不限月份，视为当前在途）
+        pending_offer = count(in_scope, {**filt, 'status': '已Offer'})
+        # 在途待入职：命中指标 + 状态=已入职 且 招聘月份 > 当前 month（未来月份到岗，视为待入职）
+        pending_entry = count(in_scope, {**filt, 'status': '已入职', 'month': month}) if month else 0
         annual_target = int(r.get('annual_target', 0) or 0)
-        annual_gap = max(annual_target - onjob, 0)
+        annual_gap = max(annual_target - onjob - pending_offer - pending_entry, 0)
         idx = month_to_index(month)
         monthly = r.get('monthly_targets') or [0] * 12
         month_target = int(monthly[idx - 1]) if 1 <= idx <= 12 else 0
-        month_actual = count(in_scope, {**_indicator_filter(dim, ind), 'month': month}) if 1 <= idx <= 12 else 0
+        month_actual = count(in_scope, {**filt, 'month': month}) if 1 <= idx <= 12 else 0
         gap = max(month_target - month_actual, 0)
         rows.append({
             'dimension': dim,
@@ -168,6 +173,8 @@ def compute_count(persons, rules, year, month):
             'level': r.get('level') or '',
             'strength': r.get('strength', ''),
             'onjob': onjob,
+            'pendingOffer': pending_offer,
+            'pendingEntry': pending_entry,
             'annualTarget': annual_target,
             'annualGap': annual_gap,
             'monthTarget': month_target,
