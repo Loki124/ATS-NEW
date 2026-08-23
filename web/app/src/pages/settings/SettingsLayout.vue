@@ -544,6 +544,10 @@ watch(
   flex-shrink: 0;
 }
 
+.settings-layout {
+  height: 100% !important;
+}
+
 /* 右侧内容区 */
 .settings-content {
   position: relative;
@@ -562,6 +566,7 @@ watch(
   z-index: 1;
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow: auto;
   padding: 20px;
 }

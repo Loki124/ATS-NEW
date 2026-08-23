@@ -614,6 +614,7 @@ function handleUserMenu(key: string) {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  height: 100%;
   /* header 固定定位脱离文档流，主内容区顶部留出 header 高度 */
   padding-top: 64px;
   overflow: hidden;
@@ -638,6 +639,7 @@ function handleUserMenu(key: string) {
   flex-direction: column;
   flex: 1;
   min-height: 0; /* 关键 */
+  height: 100%;
   overflow: hidden; /* 内容溢出时, .content-wrapper 内部滚 */
   background: transparent; /* 让 .app-aurora 极光底透出 */
 }
@@ -646,6 +648,7 @@ function handleUserMenu(key: string) {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow: auto; /* 关键: 内容超出时这个容器内部滚, header 不滚 */
   padding: 0; /* 内边距下放到页面根容器（.page-container / .cc-page 等）自管 */
 }
