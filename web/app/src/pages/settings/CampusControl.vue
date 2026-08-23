@@ -1310,6 +1310,17 @@ onMounted(async () => {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
+/* 表格内部层级圆角统一：
+   - wrapper/header/body 分别负责上/下半圆角
+   - table 根背景透明，避免 light 模式下白色直角底露出
+   - th 首尾单元格顶角分别圆角，避免 thead 背景直角顶穿 */
+.table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
+.table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; }
+.table-wrap :deep(.n-data-table-base-table-body) { border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; }
+.table-wrap :deep(.n-data-table-table) { background: transparent !important; border-radius: 0; }
+.table-wrap :deep(.n-data-table-thead) { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
+.table-wrap :deep(.n-data-table-th:first-child) { border-top-left-radius: var(--radius-md); }
+.table-wrap :deep(.n-data-table-th:last-child) { border-top-right-radius: var(--radius-md); }
 .validate-result {
   flex: 1;
   min-height: 0;
@@ -1333,11 +1344,12 @@ onMounted(async () => {
 .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
 .kpi-card {
   position: relative;
-  z-index: 1; /* 浮在 glass-panel 顶部高光之上，避免边界被压白/压暗 */
+  z-index: 1;
   background: var(--glass-bg-card);
   backdrop-filter: blur(var(--glass-blur-card));
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
-  border: 1px solid var(--glass-border);
+  /* 去掉边框与投影，让 KPI 卡片完全融入玻璃面板，消除边界感 */
+  border: none;
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   display: flex;
@@ -1345,16 +1357,16 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  box-shadow: none; /* 基础态无投影，避免厚重边界感 */
+  box-shadow: none;
   transition: all var(--duration-base) var(--ease-out);
 }
 .kpi-card:hover {
-  /* 柔化投影：尺寸/透明度减半，保留发光环 */
-  box-shadow: 0 0 0 1px var(--brand-a22), 0 8px 24px var(--brand-a12);
+  /* 无投影：仅通过背景微亮 + 轻微上移提供反馈，保持无边际感 */
+  background: var(--brand-a12);
   transform: translateY(-2px);
 }
-.kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 8px 24px rgba(239, 68, 68, .14); }
-.kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 8px 24px rgba(245, 158, 11, .14); }
+.kpi-card.danger:hover { background: rgba(239, 68, 68, .12); }
+.kpi-card.warn:hover { background: rgba(245, 158, 11, .12); }
 .kpi-label { font-size: var(--text-meta); color: var(--ink-soft); }
 .kpi-value { font-size: 26px; font-weight: 700; color: var(--ink); }
 .kpi-card.danger .kpi-value { color: var(--c-error); }
