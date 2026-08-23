@@ -1187,10 +1187,12 @@ onMounted(async () => {
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   transition: all var(--duration-base) var(--ease-out);
 }
 .kpi-card:hover {

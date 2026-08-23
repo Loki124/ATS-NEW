@@ -573,11 +573,9 @@ body.dark .kpi-card:hover {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--glass-bg-card);
-  backdrop-filter: blur(var(--glass-blur-card));
-  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  background: transparent;
   border-bottom: 1px solid var(--glass-border);
-  margin: 0 -20px 16px -20px;   /* 抵消 .settings-scroll 的 20px padding，让背景顶到左右边 */
+  margin: 0 -20px 16px -20px;   /* 抵消 .settings-scroll 的 20px padding */
   padding: 20px 20px 4px 20px;  /* 上 padding 补回被 margin 抵消的顶部空间 */
 }
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
