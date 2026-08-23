@@ -1143,7 +1143,7 @@ onMounted(async () => {
 .blob-b { width: 460px; height: 460px; top: -80px; right: -160px; background: radial-gradient(circle, rgba(236,72,153,0.18), transparent 65%); }
 .blob-c { width: 420px; height: 420px; bottom: -180px; left: 40%; background: radial-gradient(circle, rgba(34,197,94,0.14), transparent 65%); }
 
-.cc-header { position: relative; z-index: 1; margin-bottom: 16px; }
+.cc-header { position: relative; z-index: 1; margin-bottom: 16px; padding-top: 0; padding-bottom: 0; }
 .cc-title {
   margin: 0;
   font-size: 26px;
