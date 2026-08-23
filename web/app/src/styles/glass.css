@@ -562,3 +562,25 @@ body.dark .kpi-card:hover {
 .kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 @media (max-width: 1024px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .kpi-row { grid-template-columns: 1fr; } }
+
+/* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
+/* 右侧 .settings-scroll 滚动时，子页标题块用 sticky 吸顶在容器顶部，
+   避免标题随长表格一起滚走。背景用玻璃材质，覆盖从后面滚过的内容。 */
+.settings-scroll .page-header,
+.settings-scroll .cc-header,
+.settings-scroll .n-page-header,
+.settings-scroll .policy-admin__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border-bottom: 1px solid var(--glass-border);
+  margin: 0 -20px 16px -20px;   /* 抵消 .settings-scroll 的 20px padding，让背景顶到左右边 */
+  padding: 20px 20px 4px 20px;  /* 上 padding 补回被 margin 抵消的顶部空间 */
+}
+/* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
+.settings-page-shell { display: block; }
+.settings-page-header,
+.settings-page-body { display: block; }
