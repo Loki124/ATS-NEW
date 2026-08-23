@@ -2,6 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">系统设置</h1>
+      <p class="page-subtitle">招聘流程与阶段的基础配置概览</p>
     </div>
     <n-card>
       <n-tabs v-model:value="activeTab" type="line" animated>

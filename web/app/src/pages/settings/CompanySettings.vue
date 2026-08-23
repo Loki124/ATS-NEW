@@ -2,6 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">公司设置</h1>
+      <p class="page-subtitle">维护公司基础信息、品牌素材与系统同步配置</p>
     </div>
 
     <n-card title="法人公司 - 外部同步 (G40)">

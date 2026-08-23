@@ -81,7 +81,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showAddSub = false">取消</n-button>
-          <n-button type="primary" :loading="creating" @click="handleCreateSub">创建</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="creating" @click="handleCreateSub">创建</n-button>
         </n-space>
       </template>
     </n-modal>

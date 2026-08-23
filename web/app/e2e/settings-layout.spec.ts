@@ -40,7 +40,7 @@ test.describe('Settings layout (regression guard)', () => {
     await page.waitForLoadState('networkidle');
 
     // 分组默认折叠，先展开对应分组
-    await page.getByText('组织设置').click();
+    await page.getByText('组织信息管理').click();
     // 切到权限管理 (route: /settings/permission)
     await page.locator('.menu-item').filter({ hasText: /^权限管理$/ }).click();
     await page.waitForURL(/permission/);

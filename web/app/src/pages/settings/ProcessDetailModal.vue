@@ -398,7 +398,7 @@
           </div>
           <div class="hero__actions">
             <n-button @click="cancelEdit">取消</n-button>
-            <n-button type="primary" :loading="saving" @click="handleSave">{{ isCreateMode ? '创建' : '保存' }}</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{{ isCreateMode ? '创建' : '保存' }}</n-button>
           </div>
         </div>
 
@@ -668,7 +668,7 @@
     <p v-if="conflictInfo?.updatedAt">修改时间: {{ formatDate(conflictInfo.updatedAt) }}</p>
     <n-space justify="end">
       <n-button @click="abandonEdit">放弃修改</n-button>
-      <n-button type="primary" @click="reloadAndEdit">重新加载后继续编辑</n-button>
+      <n-button type="primary" class="gradient-btn" @click="reloadAndEdit">重新加载后继续编辑</n-button>
     </n-space>
   </n-modal>
 

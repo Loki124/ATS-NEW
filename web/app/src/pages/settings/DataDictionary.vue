@@ -10,6 +10,10 @@
         <n-button type="primary" @click="openCreateType">新增字典</n-button>
       </div>
 
+      <div class="kpi-row">
+        <div class="kpi-card"><span class="kpi-label">字典类型</span><span class="kpi-value">{{ types.length }}</span></div>
+      </div>
+
       <n-card :bordered="false" class="toolbar">
         <n-space align="center" :wrap="false">
           <n-input
@@ -286,7 +290,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="creating" @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" :loading="creating" @click="submitCreate">创建</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="creating" @click="submitCreate">创建</n-button>
         </n-space>
       </template>
     </n-modal>

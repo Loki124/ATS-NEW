@@ -1,7 +1,10 @@
 <template>
   <div class="recruitment-process">
     <div class="page-header">
-      <h2 class="page-title">招聘流程管理</h2>
+      <div>
+        <h2 class="page-title">招聘流程管理</h2>
+        <p class="page-subtitle">定义招聘流程及其阶段编排</p>
+      </div>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px" />
         <n-button type="primary" @click="openCreateProcess">
@@ -9,6 +12,10 @@
           新建流程
         </n-button>
       </n-space>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">流程总数</span><span class="kpi-value">{{ processes.length }}</span></div>
     </div>
 
     <n-data-table

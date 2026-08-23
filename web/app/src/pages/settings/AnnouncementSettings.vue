@@ -26,7 +26,11 @@
       <div class="policy-admin__header">
         <div>
           <h1 class="policy-admin__title page-title">{{ currentFolderLabel }}</h1>
+          <p class="page-subtitle">制度公告的新增、编辑、推送与版本管理</p>
           <p class="policy-admin__desc">维护招聘专家可见的制度、公告与流程内容</p>
+          <div class="kpi-row">
+            <div class="kpi-card"><span class="kpi-label">公告总数</span><span class="kpi-value">{{ rows.length }}</span></div>
+          </div>
         </div>
         <n-space>
           <n-button type="primary" @click="openCreate">添加文档</n-button>
@@ -229,7 +233,7 @@
         <template #footer>
           <n-space justify="end">
             <n-button @click="drawerVisible = false">取消</n-button>
-            <n-button type="primary" :loading="saving" @click="save">确定</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="saving" @click="save">确定</n-button>
           </n-space>
         </template>
       </n-drawer-content>

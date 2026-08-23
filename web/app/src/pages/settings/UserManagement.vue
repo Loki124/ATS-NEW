@@ -1,7 +1,14 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">用户管理</h1>
+      <div>
+        <h1 class="page-title">用户管理</h1>
+        <p class="page-subtitle">管理团队成员账号、角色与所属组织单元</p>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card"><span class="kpi-label">用户总数</span><span class="kpi-value">{{ users.length }}</span></div>
+        <div class="kpi-card"><span class="kpi-label">角色数</span><span class="kpi-value">{{ roles.length }}</span></div>
+      </div>
       <div class="page-header-actions">
         <n-button type="primary" @click="openCreateModal">
           <template #icon><n-icon :component="AddOutline" /></template>
@@ -96,7 +103,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <n-button @click="closeUserModal">取消</n-button>
-          <n-button type="primary" @click="handleUserSubmit">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleUserSubmit">确定</n-button>
         </div>
       </template>
     </n-modal>

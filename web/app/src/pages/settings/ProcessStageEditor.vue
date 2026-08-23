@@ -1,13 +1,16 @@
 <template>
   <div class="process-stage-editor">
     <div class="page-header">
-      <n-space align="center">
-        <n-button text @click="$router.back()">
-          <template #icon><n-icon :component="ArrowBackOutline" /></template>
-          返回
-        </n-button>
-        <h2 class="page-title">{{ processName }} - 阶段配置</h2>
-      </n-space>
+      <div>
+        <n-space align="center">
+          <n-button text @click="$router.back()">
+            <template #icon><n-icon :component="ArrowBackOutline" /></template>
+            返回
+          </n-button>
+          <h2 class="page-title">{{ processName }} - 阶段配置</h2>
+        </n-space>
+        <p class="page-subtitle">编排流程下的阶段顺序与阶段属性</p>
+      </div>
       <n-button type="primary" :disabled="!processId" @click="openAddModal">
         <template #icon><n-icon :component="AddOutline" /></template>
         添加阶段
@@ -100,7 +103,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showLimitModal = false">取消</n-button>
-          <n-button type="primary" @click="saveStageLimit">保存</n-button>
+          <n-button type="primary" class="gradient-btn" @click="saveStageLimit">保存</n-button>
         </n-space>
       </template>
     </n-modal>

@@ -2,6 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">评分规则</h1>
+      <p class="page-subtitle">定义候选人评分维度与权重，支撑面试评价标准化</p>
     </div>
     <n-card>
       <n-empty description="评分规则功能开发中">

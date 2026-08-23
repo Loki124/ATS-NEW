@@ -1,7 +1,10 @@
 <template>
   <div class="interview-round">
     <div class="page-header">
-      <h2 class="page-title">面试轮次管理</h2>
+      <div>
+        <h2 class="page-title">面试轮次管理</h2>
+        <p class="page-subtitle">配置面试轮次、形式与面试官指派规则</p>
+      </div>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px" />
         <n-button type="primary" @click="showModal = true">
@@ -9,6 +12,10 @@
           新增轮次
         </n-button>
       </n-space>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">轮次总数</span><span class="kpi-value">{{ rounds.length }}</span></div>
     </div>
 
     <n-data-table
@@ -37,7 +44,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" :loading="saving" @click="handleSave">保存</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存</n-button>
         </n-space>
       </template>
     </n-modal>

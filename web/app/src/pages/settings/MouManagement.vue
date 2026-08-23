@@ -1,5 +1,10 @@
 <template>
   <div class="permission-management">
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">MOU 总数</span><span class="kpi-value">{{ mous.length }}</span></div>
+      <div class="kpi-card"><span class="kpi-label">权限容器</span><span class="kpi-value">{{ containers.length }}</span></div>
+    </div>
+
     <n-tabs v-model:value="activeTab" type="line" default-value="mou">
       <!-- MOU 管理 Tab -->
       <n-tab-pane name="mou">
@@ -318,7 +323,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <n-button @click="mouModalVisible = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveMou">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveMou">确定</n-button>
         </div>
       </template>
     </n-modal>
@@ -368,7 +373,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <n-button @click="containerModalVisible = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveContainer">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveContainer">确定</n-button>
         </div>
       </template>
     </n-modal>
@@ -414,7 +419,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <n-button @click="ruleModalVisible = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveRule">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveRule">确定</n-button>
         </div>
       </template>
     </n-modal>
@@ -451,7 +456,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <n-button @click="mutexModalVisible = false">取消</n-button>
-          <n-button type="primary" @click="handleSaveMutex">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveMutex">确定</n-button>
         </div>
       </template>
     </n-modal>

@@ -2,6 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">个人设置</h1>
+      <p class="page-subtitle">管理个人资料、登录密码与通知偏好</p>
     </div>
 
     <!-- 个人设置 -->
@@ -132,7 +133,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showPasswordModal = false">取消</n-button>
-          <n-button type="primary" @click="handleChangePassword">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleChangePassword">确定</n-button>
         </n-space>
       </template>
     </n-modal>

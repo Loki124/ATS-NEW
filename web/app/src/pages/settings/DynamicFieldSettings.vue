@@ -5,6 +5,10 @@
       <p class="page-subtitle">G42 - 元数据驱动的字段配置, 支持字段类型/选项/排序</p>
     </div>
 
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">字段总数</span><span class="kpi-value">{{ rows.length }}</span></div>
+    </div>
+
     <n-card>
       <n-space class="filter-row" :wrap="true">
         <n-select
@@ -82,7 +86,7 @@
       <template #action>
         <n-space justify="end">
           <n-button @click="modalVisible = false">取消</n-button>
-          <n-button type="primary" :loading="saving" @click="save">保存</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="save">保存</n-button>
         </n-space>
       </template>
     </n-modal>

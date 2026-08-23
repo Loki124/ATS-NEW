@@ -53,7 +53,7 @@
     <template #footer>
       <n-space justify="end">
         <n-button @click="$emit('update:show', false)">取消</n-button>
-        <n-button type="primary" :loading="saving" @click="onSubmit">保存</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="onSubmit">保存</n-button>
       </n-space>
     </template>
   </n-modal>

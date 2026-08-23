@@ -2,6 +2,10 @@
   <div class="field-acl">
     <n-page-header title="字段级访问控制" subtitle="G43 - 配置角色对字段的 VIEW / MASK / HIDE 权限" />
 
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">权限规则</span><span class="kpi-value">{{ rules.length }}</span></div>
+    </div>
+
     <n-card title="权限矩阵" class="mt-4">
       <template #header-extra>
         <n-button size="small" :loading="loading" @click="reload">刷新</n-button>

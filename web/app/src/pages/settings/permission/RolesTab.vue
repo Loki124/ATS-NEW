@@ -38,7 +38,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="cloneModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="cloneModal.saving" @click="onSubmitClone">克隆</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="cloneModal.saving" @click="onSubmitClone">克隆</n-button>
         </n-space>
       </template>
     </n-modal>

@@ -240,7 +240,7 @@
     <template #footer>
       <div class="modal-footer">
         <n-button @click="emit('update:show', false)">取消</n-button>
-        <n-button type="primary" :loading="saving" @click="handleSubmit">保存</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSubmit">保存</n-button>
       </div>
     </template>
   </n-modal>

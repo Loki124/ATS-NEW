@@ -5,6 +5,10 @@
       <p class="page-subtitle">G41 - 公司信息库 (央企/民企/外企)</p>
     </div>
 
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">公司总数</span><span class="kpi-value">{{ rows.length }}</span></div>
+    </div>
+
     <n-card>
       <template #header-extra>
         <n-button :loading="loading" @click="reload">刷新</n-button>

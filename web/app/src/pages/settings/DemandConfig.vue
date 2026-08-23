@@ -1,7 +1,10 @@
 <template>
   <div class="config-container">
     <div class="page-header">
-      <h1 class="page-title">招聘需求设置</h1>
+      <div>
+        <h1 class="page-title">招聘需求设置</h1>
+        <p class="page-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
+      </div>
       <n-space>
         <n-button @click="handleReset">重置</n-button>
         <n-button type="primary" :loading="saving" @click="handleSave">保存配置</n-button>

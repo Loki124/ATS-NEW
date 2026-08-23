@@ -1,7 +1,10 @@
 <template>
   <div class="recruitment-stage">
     <div class="page-header">
-      <h2 class="page-title">招聘阶段配置</h2>
+      <div>
+        <h2 class="page-title">招聘阶段配置</h2>
+        <p class="page-subtitle">定义可跨流程复用的招聘阶段库</p>
+      </div>
       <n-space>
         <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px" />
         <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
@@ -10,6 +13,10 @@
           新增阶段
         </n-button>
       </n-space>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card"><span class="kpi-label">阶段总数</span><span class="kpi-value">{{ stages.length }}</span></div>
     </div>
 
     <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
@@ -49,7 +56,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" :loading="saving" @click="handleSave">保存</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存</n-button>
         </n-space>
       </template>
     </n-modal>

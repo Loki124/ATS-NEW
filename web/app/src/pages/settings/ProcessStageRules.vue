@@ -1,13 +1,16 @@
 <template>
   <div class="process-stage-rules">
     <div class="page-header">
-      <n-space align="center">
-        <n-button text @click="$router.back()">
-          <template #icon><n-icon :component="ArrowBackOutline" /></template>
-          返回
-        </n-button>
-        <h2 class="page-title">{{ processName }} - {{ stageName }} - 规则配置</h2>
-      </n-space>
+      <div>
+        <n-space align="center">
+          <n-button text @click="$router.back()">
+            <template #icon><n-icon :component="ArrowBackOutline" /></template>
+            返回
+          </n-button>
+          <h2 class="page-title">{{ processName }} - {{ stageName }} - 规则配置</h2>
+        </n-space>
+        <p class="page-subtitle">配置该阶段的自动处理规则与进入条件</p>
+      </div>
     </div>
 
     <n-tabs v-model:value="activeTab" type="line" animated>

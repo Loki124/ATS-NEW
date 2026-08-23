@@ -1,7 +1,13 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">部门管理</h1>
+      <div>
+        <h1 class="page-title">部门管理</h1>
+        <p class="page-subtitle">维护组织架构与部门职责，作为管控与权限的归属单元</p>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card"><span class="kpi-label">部门总数</span><span class="kpi-value">{{ departments.length }}</span></div>
+      </div>
       <div class="page-header-actions">
         <n-space>
           <n-input
@@ -157,7 +163,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <n-button @click="closeDeptModal">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="handleDeptSubmit">确定</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">确定</n-button>
         </div>
       </template>
     </n-modal>
