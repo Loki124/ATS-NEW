@@ -268,8 +268,8 @@
           <n-gi><n-form-item label="年度总人数（管控人数）" :show-feedback="false"><n-input-number v-model:value="batchDrawer.totalTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
         </n-grid>
         <n-divider style="margin: 10px 0;">指标与占比（占比之和 = 100%）</n-divider>
-        <div v-if="!batchDrawer.dimensionId" style="color: #94a3b8; padding: 8px 0; font-size: 13px;">请先选择维度</div>
-        <div v-else-if="batchIndicators.length === 0" style="color: #94a3b8; padding: 8px 0; font-size: 13px;">该维度下暂无指标，请先到「指标管理」新增</div>
+        <div v-if="!batchDrawer.dimensionId" style="color: var(--ink-faint); padding: 8px 0; font-size: 13px;">请先选择维度</div>
+        <div v-else-if="batchIndicators.length === 0" style="color: var(--ink-faint); padding: 8px 0; font-size: 13px;">该维度下暂无指标，请先到「指标管理」新增</div>
         <div v-else>
           <div v-for="ind in batchIndicators" :key="ind.id" class="batch-row" :class="{ expanded: batchDrawer.indicatorIds.includes(ind.id) }">
             <div class="batch-row-header">
@@ -1401,7 +1401,7 @@ onMounted(async () => {
   gap: 8px;
   margin-top: 4px;
   font-size: 12px;
-  color: #374151;
+  color: var(--ink);
 }
 .batch-sum {
   display: flex;
@@ -1409,7 +1409,7 @@ onMounted(async () => {
   gap: 12px;
   padding: 14px 0 0;
   margin-top: 10px;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid var(--border-hairline);
 }
 
 /* 批量配置弹窗：居中 + 紧凑 */
