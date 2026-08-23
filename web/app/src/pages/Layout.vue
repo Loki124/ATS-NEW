@@ -599,12 +599,16 @@ function handleUserMenu(key: string) {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* 作为 header sticky 的 containing block，并禁止自身滚动 */
+  position: relative;
+  overflow: hidden;
 }
 
 /* === 头部固定不滚动（v2 玻璃 header） === */
 .app-layout :deep(.n-layout-header) {
   flex-shrink: 0;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: var(--z-header);
   border-bottom: 1px solid var(--border-hairline);
 }
