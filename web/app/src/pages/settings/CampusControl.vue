@@ -1314,14 +1314,15 @@ onMounted(async () => {
    - wrapper/header/body 分别负责上/下半圆角
    - table 根背景透明，避免 light 模式下白色直角底露出
    - th 首尾单元格顶角分别圆角，避免 thead 背景直角顶穿
-   - n-scrollbar 内层容器也带底圆角（兜底右侧/底部直角露出） */
+   - n-scrollbar 内层容器必须 overflow:auto（保持滚动能力），不能用 hidden 阻断
+     （用户反馈：触控板在表格上滚不动 = overflow:hidden 吃掉了滚动事件） */
 .table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-body) { border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-body > .n-scrollbar),
 .table-wrap :deep(.n-data-table-base-table-body .n-scrollbar-container) {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  overflow: hidden;
+  overflow: auto !important; /* 关键：必须 auto，hidden 会阻断触控板/滚轮 */
 }
 .table-wrap :deep(.n-data-table-table) { background: transparent !important; border-radius: 0; }
 .table-wrap :deep(.n-data-table-thead) { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
