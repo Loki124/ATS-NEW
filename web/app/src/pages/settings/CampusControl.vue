@@ -1313,14 +1313,23 @@ onMounted(async () => {
 /* 表格内部层级圆角统一：
    - wrapper/header/body 分别负责上/下半圆角
    - table 根背景透明，避免 light 模式下白色直角底露出
-   - th 首尾单元格顶角分别圆角，避免 thead 背景直角顶穿 */
+   - th 首尾单元格顶角分别圆角，避免 thead 背景直角顶穿
+   - n-scrollbar 内层容器也带底圆角（兜底右侧/底部直角露出） */
 .table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table-body) { border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; }
+.table-wrap :deep(.n-data-table-base-table-body > .n-scrollbar),
+.table-wrap :deep(.n-data-table-base-table-body .n-scrollbar-container) {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+}
 .table-wrap :deep(.n-data-table-table) { background: transparent !important; border-radius: 0; }
 .table-wrap :deep(.n-data-table-thead) { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
 .table-wrap :deep(.n-data-table-th:first-child) { border-top-left-radius: var(--radius-md); }
 .table-wrap :deep(.n-data-table-th:last-child) { border-top-right-radius: var(--radius-md); }
+/* 末行首末单元格左下/右下圆角（防止表格底部转角直角） */
+.table-wrap :deep(.n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:first-child) { border-bottom-left-radius: var(--radius-md); }
+.table-wrap :deep(.n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:last-child) { border-bottom-right-radius: var(--radius-md); }
 .validate-result {
   flex: 1;
   min-height: 0;
