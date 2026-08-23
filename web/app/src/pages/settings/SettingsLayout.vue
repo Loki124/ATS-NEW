@@ -268,45 +268,8 @@ watch(() => route.path, () => {
 }
 .settings-scroll :deep(.page-container) { padding: 0; min-height: 100%; }
 
-/* === 阶段 D：旧自写 menu CSS 暂时保留（避免塌陷，下一轮删）=== */
+/* === 阶段 D 第 2 轮：旧自写 menu CSS 已删除（DOM 已被 n-menu 取代）
+   仅保留 n-menu wrapper 微调（settings-menu 是 n-menu 的 class 容器）=== */
 .settings-menu { padding: 8px 0 16px; }
 .settings-menu.collapsed { padding: 8px 0; }
-.menu-group { user-select: none; }
-.group-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 20px; cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-.group-header:hover { background: var(--brand-tint); }
-.group-title { font-size: 13px; color: var(--ink-faint); font-weight: 500; }
-.group-arrow {
-  font-size: 14px; color: var(--ink-faint);
-  transition: transform var(--duration-base) var(--ease-out); flex-shrink: 0;
-}
-.group-body { overflow: hidden; }
-.menu-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 20px 10px 44px; cursor: pointer;
-  color: var(--ink-soft); font-size: 14px;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-  position: relative;
-}
-.menu-item:hover { background: var(--brand-tint); }
-.menu-item.has-children { padding-left: 20px; justify-content: flex-start; }
-.menu-item.has-children .menu-label { flex: 1; }
-.item-arrow { margin-left: auto; }
-.sub-menu { overflow: hidden; }
-.sub-menu-item { padding: 9px 20px 9px 56px; font-size: 13px; }
-.sub-menu-icon { font-size: 15px; }
-.menu-item--collapsed { justify-content: center; padding: 12px 0; }
-.menu-item--collapsed .menu-icon { margin: 0; }
-.menu-item--collapsed.active::before { top: 6px; bottom: 6px; }
-.menu-item.active {
-  color: var(--brand); background: var(--brand-soft); font-weight: 600;
-}
-.menu-item.active::before {
-  content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
-  width: 3px; background: var(--brand); border-radius: 0 2px 2px 0;
-}
-.menu-icon { font-size: 18px; flex-shrink: 0; }
 </style>
