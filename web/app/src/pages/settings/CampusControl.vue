@@ -1179,7 +1179,7 @@ onMounted(async () => {
 }
 .gradient-btn:hover { box-shadow: 0 6px 20px var(--glow-brand); transform: translateY(-1px); }
 
-.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
+.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
 .kpi-card {
   position: relative;
   background: var(--glass-bg-card);
