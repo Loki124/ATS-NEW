@@ -255,7 +255,7 @@ watch(() => route.path, () => {
 
 /* 右侧内容区 */
 .settings-content {
-  position: relative; padding: 0; margin-left: 16px;
+  position: relative; padding: 0;
   overflow: hidden;
   display: flex; flex-direction: column;
   min-height: 0; height: 100%;
