@@ -110,6 +110,13 @@ export const useThemeStore = defineStore('theme', () => {
   const brandHex = ref<string>(DEFAULT_PREFS.brand)
   const mode = ref<ThemeMode>(DEFAULT_PREFS.mode)
 
+  // ★ 2026-08-23 暗色修复：暴露 isDark 供 App.vue 的 n-config-provider :theme 使用
+  // 原代码仅通过 body.classList.toggle('dark', ...) 表达，storeToRefs 取不到 → 拿 undefined
+  const isDark = ref(false)
+
+  // auto 模式下保存 mq 引用，监听系统主题切换（单例 listener，避免 addEventListener 泄漏）
+  let autoMq: MediaQueryList | null = null
+
   // === 派生（Naive UI themeOverrides 用） ===
   const brandHoverHex = computed(() => deriveHover(brandHex.value))
   const brandPressedHex = computed(() => derivePressed(brandHex.value))
@@ -123,20 +130,34 @@ export const useThemeStore = defineStore('theme', () => {
     // color-mix 自动派生 hover/pressed/dark；无需手动计算
   }
 
+  function syncAutoListener(m: ThemeMode) {
+    // 仅在 auto 模式下挂一个监听器；非 auto 模式不挂（避免泄漏）
+    if (typeof window === 'undefined') return
+    if (m === 'auto' && !autoMq) {
+      autoMq = window.matchMedia('(prefers-color-scheme: dark)')
+      autoMq.addEventListener('change', (e) => {
+        document.body.classList.toggle('dark', e.matches)
+        isDark.value = e.matches
+      })
+    }
+  }
+
   function applyModeToDom(m: ThemeMode) {
     const body = document.body
-    const apply = (dark: boolean) => body.classList.toggle('dark', dark)
 
+    let dark: boolean
     if (m === 'auto') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      apply(mq.matches)
-      // 监听系统主题变化
-      const listener = (e: MediaQueryListEvent) => apply(e.matches)
-      mq.addEventListener('change', listener)
-      // 不清理——store 生命周期 = 应用生命周期
+      if (!autoMq && typeof window !== 'undefined') {
+        autoMq = window.matchMedia('(prefers-color-scheme: dark)')
+      }
+      dark = autoMq ? autoMq.matches : false
     } else {
-      apply(m === 'dark')
+      dark = m === 'dark'
     }
+
+    body.classList.toggle('dark', dark)
+    isDark.value = dark   // ★ 与 DOM 同步，供 App.vue :theme 响应
+    syncAutoListener(m)
   }
 
   function persist() {
@@ -204,6 +225,7 @@ export const useThemeStore = defineStore('theme', () => {
     // state
     brandHex,
     mode,
+    isDark,            // ★ 2026-08-23 暗色修复新增
     // 派生
     brandHoverHex,
     brandPressedHex,
