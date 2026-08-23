@@ -34,17 +34,20 @@
             <div class="kpi-card warn"><span class="kpi-label">软/仅提示超标</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
             <div class="kpi-card"><span class="kpi-label">本月总缺口</span><span class="kpi-value">{{ planData.kpi.monthGap }}</span></div>
           </div>
-          <n-data-table
-            :columns="mergedColumns"
-            :data="mergedRows"
-            :loading="loading.ratio || loading.plan"
-            :row-key="(r: any) => [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')"
-            :pagination="false"
-          >
-            <template #empty><n-empty description="暂无数据" /></template>
-          </n-data-table>
+          <div class="table-wrap">
+            <n-data-table
+              :columns="mergedColumns"
+              :data="mergedRows"
+              :loading="loading.ratio || loading.plan"
+              :row-key="(r: any) => [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')"
+              :pagination="false"
+              flex-height
+            >
+              <template #empty><n-empty description="暂无数据" /></template>
+            </n-data-table>
+          </div>
 
-          <n-alert type="info" :show-icon="true" style="margin-top: 16px">
+          <n-alert type="info" :show-icon="true" style="margin-top: 16px; flex-shrink: 0">
             本看板已合并「实时看板」与「人数规划」：上半部分展示各指标的<strong>占比管控</strong>（实际/分母、占比、目标、占比状态），
             下半部分展示<strong>人数达成</strong>（在职、年度目标/缺口、本月目标/实际/缺口）——目标数据（年度 / 12 个月）直接来源于「规则配置」。
           </n-alert>
@@ -60,17 +63,20 @@
             <n-button @click="importDrawer.show = true">导入规则</n-button>
             <n-button type="primary" class="gradient-btn" @click="openBatchDrawer()">+ 批量配置规则 + 目标</n-button>
           </div>
-          <n-data-table
-            :columns="ruleColumns"
-            :data="filteredRules"
-            :loading="loading.rules"
-            :row-key="(r: any) => r.id"
-            :pagination="false"
-          >
-            <template #empty>
-              <n-empty description="暂无规则，点击右上角「新增规则」从指标库中选择指标并设定适用范围" />
-            </template>
-          </n-data-table>
+          <div class="table-wrap">
+            <n-data-table
+              :columns="ruleColumns"
+              :data="filteredRules"
+              :loading="loading.rules"
+              :row-key="(r: any) => r.id"
+              :pagination="false"
+              flex-height
+            >
+              <template #empty>
+                <n-empty description="暂无规则，点击右上角「新增规则」从指标库中选择指标并设定适用范围" />
+              </template>
+            </n-data-table>
+          </div>
         </n-tab-pane>
 
         <!-- ===================== 指标管理（维度 + 指标库） ===================== -->
@@ -81,15 +87,18 @@
             <div class="spacer"></div>
             <n-button type="primary" class="gradient-btn" @click="openIndicatorModal()">+ 新增指标</n-button>
           </div>
-          <n-data-table
-            :columns="indicatorColumns"
-            :data="filteredIndicators"
-            :loading="loading.indicators"
-            :row-key="(r: any) => r.id"
-            :pagination="false"
-          >
-            <template #empty><n-empty description="暂无指标，请先新增维度，再在维度下新增指标" /></template>
-          </n-data-table>
+          <div class="table-wrap">
+            <n-data-table
+              :columns="indicatorColumns"
+              :data="filteredIndicators"
+              :loading="loading.indicators"
+              :row-key="(r: any) => r.id"
+              :pagination="false"
+              flex-height
+            >
+              <template #empty><n-empty description="暂无指标，请先新增维度，再在维度下新增指标" /></template>
+            </n-data-table>
+          </div>
         </n-tab-pane>
 
         <!-- ===================== 录入校验 ===================== -->
@@ -112,21 +121,23 @@
           </div>
 
           <div v-if="validation" class="validate-result">
-            <n-tag :type="verdictType(validation.verdict)" size="large" :bordered="false">
+            <n-tag :type="verdictType(validation.verdict)" size="large" :bordered="false" style="flex-shrink: 0">
               {{ validation.verdict }}
             </n-tag>
-            <p v-if="validation.verdict === '❌ 阻断提交'" class="block-hint">
+            <p v-if="validation.verdict === '❌ 阻断提交'" class="block-hint" style="flex-shrink: 0">
               命中硬约束超标，系统已阻断提交。请调整候选人标签或目标配置后再试。
             </p>
-            <n-data-table
-              :columns="checkColumns"
-              :data="validation.checks"
-              :row-key="(r: any) => [r.dimension, r.indicator, r.bu, r.position, r.level].join('|')"
-              :pagination="false"
-              style="margin-top: 12px"
-            >
-              <template #empty><n-empty description="无校验明细" /></template>
-            </n-data-table>
+            <div class="table-wrap" style="margin-top: 12px">
+              <n-data-table
+                :columns="checkColumns"
+                :data="validation.checks"
+                :row-key="(r: any) => [r.dimension, r.indicator, r.bu, r.position, r.level].join('|')"
+                :pagination="false"
+                flex-height
+              >
+                <template #empty><n-empty description="无校验明细" /></template>
+              </n-data-table>
+            </div>
           </div>
         </n-tab-pane>
 
@@ -136,15 +147,18 @@
             <div class="spacer"></div>
             <n-button type="primary" class="gradient-btn" @click="openPersonModal()">+ 新增人员</n-button>
           </div>
-          <n-data-table
-            :columns="personColumns"
-            :data="persons"
-            :loading="loading.persons"
-            :row-key="(r: any) => r.id"
-            :pagination="false"
-          >
-            <template #empty><n-empty description="暂无人员" /></template>
-          </n-data-table>
+          <div class="table-wrap">
+            <n-data-table
+              :columns="personColumns"
+              :data="persons"
+              :loading="loading.persons"
+              :row-key="(r: any) => r.id"
+              :pagination="false"
+              flex-height
+            >
+              <template #empty><n-empty description="暂无人员" /></template>
+            </n-data-table>
+          </div>
         </n-tab-pane>
       </n-tabs>
     </div>
@@ -1154,10 +1168,14 @@ onMounted(async () => {
 .cc-page {
   position: relative;
   min-height: 100%;
+  height: 100%;
   border-radius: 16px;
   background: var(--aurora-base);
   overflow: hidden;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 .cc-aurora { position: absolute; inset: 0; pointer-events: none; }
 .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }
@@ -1165,7 +1183,7 @@ onMounted(async () => {
 .blob-b { width: 460px; height: 460px; top: -80px; right: -160px; background: radial-gradient(circle, rgba(236,72,153,0.18), transparent 65%); }
 .blob-c { width: 420px; height: 420px; bottom: -180px; left: 40%; background: radial-gradient(circle, rgba(34,197,94,0.14), transparent 65%); }
 
-.cc-header { position: relative; z-index: 1; margin-bottom: 16px; padding-top: 0; padding-bottom: 0; }
+.cc-header { position: relative; z-index: 1; margin-bottom: 16px; padding-top: 0; padding-bottom: 0; flex-shrink: 0; }
 .cc-title {
   margin: 0;
   font-size: 26px;
@@ -1187,8 +1205,46 @@ onMounted(async () => {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   padding: var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.cc-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 .cc-tabs :deep(.n-tabs-nav) { background: transparent; }
+.cc-tabs :deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.cc-tabs :deep(.n-tab-pane) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.table-wrap {
+  flex: 1;
+  min-height: 180px;
+  overflow: auto;
+  position: relative;
+}
+.validate-result {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .spacer { flex: 1; }
