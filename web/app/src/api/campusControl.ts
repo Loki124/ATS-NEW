@@ -275,6 +275,45 @@ export const batchConfigRules = (payload: BatchConfigPayload) =>
     .post('/campus/rules/with-targets/', payload)
     .then((r) => r.data as { success: boolean; data: { saved: number; totalTarget: number; year: number } })
 
+/* ============================ 规则导入 / 导出 ============================ */
+/** 导出全部规则为 xlsx（浏览器直接下载）。 */
+export const exportRules = () =>
+  api
+    .get('/campus/rules/export/', { responseType: 'blob' })
+    .then((r) => triggerDownload(r.data, 'campus_rules_export.xlsx'))
+
+/** 下载规则导入模板 xlsx。 */
+export const downloadRuleTemplate = () =>
+  api
+    .get('/campus/rules/template/', { responseType: 'blob' })
+    .then((r) => triggerDownload(r.data, 'campus_rules_template.xlsx'))
+
+export interface RuleImportResult {
+  success: boolean
+  data: { groups: number; savedRules: number; errors: string[] }
+}
+/** 导入规则 xlsx 文件，返回成功/失败明细。 */
+export const importRules = (file: File): Promise<RuleImportResult> => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return api
+    .post('/campus/rules/import/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then((r) => r.data as RuleImportResult)
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
 /* ============================ 实时看板（全量，每条按自身适用范围） ============================ */
 export const getRatio = () =>
   api.get('/campus/rules/ratio/').then((r) => r.data.data as RatioResult)
@@ -311,4 +350,5 @@ export default {
   listRules, createRule, updateRule, deleteRule, batchSaveRules, batchConfigRules,
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
+  exportRules, downloadRuleTemplate, importRules,
 }

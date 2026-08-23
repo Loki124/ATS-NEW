@@ -33,6 +33,7 @@ from apps.common.pagination import StandardResultsSetPagination
 
 from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
 from .constants import STRENGTH
+from .io_xlsx import build_export_workbook, build_template_workbook, parse_import_workbook
 from .models import (
     ControlDimension, ControlIndicator, ControlRule, Person,
 )
@@ -387,6 +388,147 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             'success': True,
             'data': {'saved': len(prepared), 'totalTarget': total_target, 'year': year},
         })
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_xlsx(self, request):
+        """导出全部规则为 xlsx（列结构与导入模板一致）。"""
+        rules = [_rule_to_dict(r) for r in ControlRule.objects.all().order_by(
+            'bu', 'position', 'level', 'dimension__name', 'indicator__name', 'year'
+        )]
+        wb = build_export_workbook(rules)
+        from io import BytesIO
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        from django.http import HttpResponse
+        resp = HttpResponse(
+            buf.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = 'attachment; filename="campus_rules_export.xlsx"'
+        return resp
+
+    @action(detail=False, methods=['get'], url_path='template')
+    def template_xlsx(self, request):
+        """下载规则导入模板（含表头 + 示例 + 填写说明）。"""
+        wb, _ = build_template_workbook()
+        from io import BytesIO
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        from django.http import HttpResponse
+        resp = HttpResponse(
+            buf.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = 'attachment; filename="campus_rules_template.xlsx"'
+        return resp
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_xlsx(self, request):
+        """导入 xlsx 规则文件：按 (适用范围, 维度, 年度) 分组，校验 100% 与月度一致性，事务原子替换。
+
+        复用 with_targets 的校验语义；每组独立事务，任一组失败则该组回滚并计入错误。
+        返回 { success, data: { groups, saved_rules, errors } }。
+        """
+        f = request.FILES.get('file')
+        if not f:
+            return Response({'success': False, 'detail': '缺少 file 文件字段'}, status=400)
+        if not f.name.lower().endswith(('.xlsx', '.xlsm')):
+            return Response({'success': False, 'detail': '仅支持 .xlsx 文件'}, status=400)
+
+        try:
+            groups, parse_errors = parse_import_workbook(f)
+        except Exception as e:  # noqa: BLE001 - 解析异常统一返回
+            return Response({'success': False, 'detail': f'文件解析失败：{e}'}, status=400)
+
+        if parse_errors:
+            return Response({
+                'success': False,
+                'data': {'groups': 0, 'saved_rules': 0, 'errors': parse_errors},
+            }, status=400)
+
+        if not groups:
+            return Response({
+                'success': False,
+                'data': {'groups': 0, 'saved_rules': 0, 'errors': ['文件中未解析到任何有效规则行']},
+            }, status=400)
+
+        saved_rules = 0
+        group_errors = []
+        for g in groups:
+            ok, msg, n = self._import_group(g, request.user)
+            if not ok:
+                group_errors.append(msg)
+            else:
+                saved_rules += n
+
+        if group_errors:
+            return Response({
+                'success': False,
+                'data': {'groups': len(groups), 'saved_rules': saved_rules, 'errors': group_errors},
+            }, status=400)
+
+        return Response({
+            'success': True,
+            'data': {'groups': len(groups), 'saved_rules': saved_rules, 'errors': []},
+        })
+
+    def _import_group(self, g, user):
+        """导入单个 (适用范围, 维度, 年度) 组，事务原子替换。返回 (ok, msg, saved_count)。"""
+        bu = g.get('bu', '') or ''
+        position = g.get('position', '') or ''
+        level = g.get('level', '') or ''
+        dimension_name = g.get('dimension')
+        year = int(g.get('year') or 2026)
+        rules_in = g.get('rules') or []
+
+        dimension = ControlDimension.objects.filter(name=dimension_name).first()
+        if not dimension:
+            return False, f'组[{dimension_name}]：维度不存在', 0
+
+        total = Decimal('0')
+        prepared = []
+        seen = set()
+        for r in rules_in:
+            indicator_name = r.get('indicator')
+            if indicator_name in seen:
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」重复', 0
+            seen.add(indicator_name)
+            indicator = ControlIndicator.objects.filter(name=indicator_name, dimension=dimension).first()
+            if not indicator:
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」不属于该维度', 0
+            target = _to_decimal(r.get('target'))
+            if target is None:
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」目标占比非法', 0
+            if not (Decimal('0') <= target <= Decimal('1')):
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」目标占比须 0~1', 0
+            strength = r.get('strength', '硬约束')
+            if strength not in STRENGTH:
+                return False, f'组[{dimension_name}]：控制强度非法：{strength}', 0
+            monthly = r.get('monthly_targets') or [0] * 12
+            if len(monthly) != 12:
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」月度目标须为长度 12', 0
+            if any(v < 0 for v in monthly):
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」月度目标不能为负', 0
+            total += target
+            prepared.append((indicator, target, strength, monthly))
+
+        if abs(total - Decimal('1')) > Decimal('0.0001'):
+            pct = (total * 100).quantize(Decimal('0.01'))
+            return False, f'组[{dimension_name}]：目标占比之和须=100%，当前 {pct}%', 0
+
+        with transaction.atomic():
+            ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
+            for indicator, target, strength, monthly in prepared:
+                annual = int((Decimal(str(g.get('total_target', 0))) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+                ControlRule.objects.create(
+                    bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
+                    year=year, target=target, strength=strength,
+                    annual_target=annual, monthly_targets=monthly,
+                    created_by=user, updated_by=user,
+                )
+        return True, '', len(prepared)
 
 
 class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):

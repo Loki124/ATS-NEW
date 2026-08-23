@@ -71,6 +71,9 @@
           <div class="toolbar">
             <n-select v-model:value="ruleDimFilter" :options="ruleDimOptions" placeholder="全部维度" clearable style="width: 180px" />
             <div class="spacer"></div>
+            <n-button @click="onExportRules">导出规则</n-button>
+            <n-button @click="onDownloadTemplate">下载模板</n-button>
+            <n-button @click="importDrawer.show = true">导入规则</n-button>
             <n-button type="primary" class="gradient-btn" @click="openBatchDrawer()">+ 批量配置规则 + 目标</n-button>
           </div>
           <n-data-table
@@ -297,6 +300,45 @@
       </n-drawer-content>
     </n-drawer>
 
+    <!-- ===================== 导入规则抽屉 ===================== -->
+    <n-drawer v-model:show="importDrawer.show" :width="560" placement="right">
+      <n-drawer-content title="导入规则（Excel）" closable>
+        <n-upload
+          accept=".xlsx,.xlsm"
+          :max="1"
+          :custom-request="handleImportUpload"
+          :file-list="importDrawer.fileList"
+          @remove="onImportFileRemove"
+        >
+          <n-button>选择 Excel 文件</n-button>
+        </n-upload>
+        <p class="import-hint">
+          请使用「下载模板」导出的结构填写；每行一条规则，同一「部门+职务+职级+维度+规划年度」下
+          所有指标的目标占比之和须 = 100%，且 12 个月目标之和须等于年度目标人数。
+        </p>
+        <div v-if="importDrawer.result" class="import-result">
+          <n-alert
+            v-if="importDrawer.result.success"
+            type="success"
+            :show-icon="true"
+          >
+            导入成功：{{ importDrawer.result.data.groups }} 个分组 / {{ importDrawer.result.data.savedRules }} 条规则已写入。
+          </n-alert>
+          <n-alert v-else type="error" :show-icon="true">
+            导入失败（{{ importDrawer.result.data.groups }} 个分组 / 已写入 {{ importDrawer.result.data.savedRules }} 条）：
+          </n-alert>
+          <ul v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-errors">
+            <li v-for="(e, i) in importDrawer.result.data.errors" :key="i">{{ e }}</li>
+          </ul>
+        </div>
+        <template #footer>
+          <div class="drawer-footer">
+            <n-button @click="importDrawer.show = false">关闭</n-button>
+          </div>
+        </template>
+      </n-drawer-content>
+    </n-drawer>
+
     <!-- ===================== 维度管理抽屉 ===================== -->
     <n-drawer v-model:show="dimDrawer.show" :width="520" placement="right">
       <n-drawer-content title="维度管理" closable>
@@ -386,10 +428,12 @@ import {
   listRules, createRule, updateRule, deleteRule, batchConfigRules,
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
+  exportRules, downloadRuleTemplate, importRules,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
   type ValidationResult, type Strength, type RuleInput, type BatchConfigPayload,
+  type RuleImportResult,
 } from '../../api/campusControl'
 
 const message = useMessage()
@@ -425,6 +469,7 @@ const activeTab = ref('ratio')
 const loading = reactive({
   ratio: false, plan: false, rules: false, saveRule: false, batchConfig: false,
   dimensions: false, indicators: false, persons: false, validate: false,
+  import: false,
 })
 const dimensions = ref<ControlDimension[]>([])
 const indicators = ref<ControlIndicator[]>([])
@@ -570,7 +615,6 @@ const ruleColumns: DataTableColumns<ControlRule> = [
   { title: '规划年度', key: 'year', width: 80 },
   { title: '年度目标', key: 'annualTarget', width: 80 },
   { title: '本月目标', key: 'monthTarget', width: 80, render: (r: any) => (r.monthlyTargets || [])[currentMonthIdx.value] ?? 0 },
-  { title: '月度合计', key: 'monthlySum', width: 90, render: (r: any) => (r.monthlyTargets || []).reduce((a: number, b: number) => a + b, 0) },
   { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
   {
     title: '加和', key: 'sum', width: 90,
@@ -727,6 +771,59 @@ function removeRule(r: ControlRule) {
       catch (e) { message.error(extractApiError(e, '删除失败')) }
     },
   })
+}
+
+/* ============================ 规则导入 / 导出 ============================ */
+const importDrawer = reactive({
+  show: false,
+  fileList: [] as any[],
+  result: null as RuleImportResult | null,
+})
+
+async function onExportRules() {
+  try {
+    await exportRules()
+    message.success('已导出规则 Excel')
+  } catch (e) {
+    message.error(extractApiError(e, '导出失败'))
+  }
+}
+async function onDownloadTemplate() {
+  try {
+    await downloadRuleTemplate()
+    message.success('已下载导入模板')
+  } catch (e) {
+    message.error(extractApiError(e, '下载模板失败'))
+  }
+}
+
+function handleImportUpload({ file, onFinish, onError }: any) {
+  importDrawer.result = null
+  const raw = file.file as File
+  if (!raw) { onError(); return }
+  loading.import = true
+  importRules(raw)
+    .then((res) => {
+      importDrawer.result = res
+      if (res.success) {
+        message.success(`导入成功：${res.data.groups} 组 / ${res.data.savedRules} 条规则`)
+        loadRules()
+        loadRatio()
+        loadPlan()
+      } else {
+        message.error(`导入失败：${res.data.errors.length} 处错误`)
+      }
+      onFinish()
+    })
+    .catch((e) => {
+      message.error(extractApiError(e, '导入失败'))
+      onError()
+    })
+    .finally(() => { loading.import = false })
+}
+function onImportFileRemove() {
+  importDrawer.fileList = []
+  importDrawer.result = null
 }
 
 /* ============================ 批量配置规则 + 人数目标 ============================ */
@@ -1139,5 +1236,24 @@ onMounted(async () => {
   padding: 14px 0 0;
   margin-top: 10px;
   border-top: 1px solid #eef2f7;
+}
+
+.import-hint {
+  margin: 12px 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.import-result { margin-top: 16px; }
+.import-errors {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  max-height: 240px;
+  overflow: auto;
+}
+.import-errors li {
+  font-size: 12px;
+  color: var(--c-error);
+  margin-bottom: 4px;
 }
 </style>
