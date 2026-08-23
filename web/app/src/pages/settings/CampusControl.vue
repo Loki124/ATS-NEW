@@ -59,7 +59,6 @@
             <n-select v-model:value="ruleDimFilter" :options="ruleDimOptions" placeholder="全部维度" clearable style="width: 180px" />
             <div class="spacer"></div>
             <n-button @click="onExportRules">导出规则</n-button>
-            <n-button @click="onDownloadTemplate">下载模板</n-button>
             <n-button @click="importDrawer.show = true">导入规则</n-button>
             <n-button type="primary" class="gradient-btn" @click="openBatchDrawer()">+ 批量配置规则 + 目标</n-button>
           </div>
@@ -163,59 +162,65 @@
       </n-tabs>
     </div>
 
-    <!-- ===================== 规则详情抽屉（新增/编辑） ===================== -->
-    <n-drawer v-model:show="ruleDrawer.show" :width="600" placement="right">
-      <n-drawer-content :title="ruleDrawer.editingId ? '编辑规则' : '新增规则'" closable>
-        <n-form label-placement="top">
-          <n-form-item label="维度" required>
-            <n-select v-model:value="ruleDrawer.dimensionId" :options="dimensionOptions" placeholder="选择维度" @update:value="onRuleDimChange" />
-          </n-form-item>
-          <n-form-item label="指标（来自指标库）" required>
-            <n-select v-model:value="ruleDrawer.indicatorId" :options="ruleIndicatorOptions" placeholder="先选维度，再从指标库选择" />
-          </n-form-item>
-          <n-divider>适用范围（每个指标独立设定）</n-divider>
-          <n-form-item label="适用范围">
-            <n-switch v-model:value="ruleDrawer.isGlobal" @update:value="onRuleScopeToggle">
-              <template #checked>全局</template>
-              <template #unchecked>指定</template>
-            </n-switch>
-          </n-form-item>
-          <n-form-item v-if="!ruleDrawer.isGlobal" label="部门">
-            <n-select v-model:value="ruleDrawer.bu" :options="deptOptions" placeholder="部门" />
-          </n-form-item>
-          <n-form-item v-if="!ruleDrawer.isGlobal" label="职务">
-            <n-select v-model:value="ruleDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
-          </n-form-item>
-          <n-form-item v-if="!ruleDrawer.isGlobal" label="职级">
-            <n-select v-model:value="ruleDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
-          </n-form-item>
-          <n-divider>管控占比（占比上限）</n-divider>
-          <n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item>
-          <n-form-item label="控制强度">
-            <n-select v-model:value="ruleDrawer.strength" :options="strengthOptions" />
-          </n-form-item>
-          <n-divider>管控人数（年度 + 12 月）</n-divider>
-          <n-grid :cols="2" :x-gap="12">
-            <n-gi><n-form-item label="规划年度"><n-input-number v-model:value="ruleDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
-            <n-gi><n-form-item label="年度目标人数"><n-input-number v-model:value="ruleDrawer.annualTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
-          </n-grid>
-          <n-divider>12 个月目标（单位：人）</n-divider>
-          <n-grid :cols="4" :x-gap="8" :y-gap="8">
-            <n-gi v-for="(_, i) in 12" :key="i">
-              <n-form-item :label="ALL_MONTHS[i]" label-placement="top">
-                <n-input-number v-model:value="ruleDrawer.monthly[i]" :min="0" style="width: 100%" />
-              </n-form-item>
-            </n-gi>
-          </n-grid>
-        </n-form>
-        <template #footer>
-          <div class="drawer-footer">
-            <n-button @click="ruleDrawer.show = false">取消</n-button>
-            <n-button type="primary" class="gradient-btn" :loading="loading.saveRule" @click="saveRule">保存</n-button>
-          </div>
-        </template>
-      </n-drawer-content>
-    </n-drawer>
+    <!-- ===================== 规则详情弹窗（新增/编辑，页面居中） ===================== -->
+    <n-modal
+      v-model:show="ruleDrawer.show"
+      preset="card"
+      :title="ruleDrawer.editingId ? '编辑规则' : '新增规则'"
+      :style="{ width: '620px', maxWidth: '94vw' }"
+      :bordered="false"
+      :segmented="{ content: true, footer: true }"
+      class="rule-modal"
+    >
+      <n-form label-placement="top">
+        <n-form-item label="维度" required>
+          <n-select v-model:value="ruleDrawer.dimensionId" :options="dimensionOptions" placeholder="选择维度" @update:value="onRuleDimChange" />
+        </n-form-item>
+        <n-form-item label="指标（来自指标库）" required>
+          <n-select v-model:value="ruleDrawer.indicatorId" :options="ruleIndicatorOptions" placeholder="先选维度，再从指标库选择" />
+        </n-form-item>
+        <n-divider>适用范围（每个指标独立设定）</n-divider>
+        <n-form-item label="适用范围">
+          <n-switch v-model:value="ruleDrawer.isGlobal" @update:value="onRuleScopeToggle">
+            <template #checked>全局</template>
+            <template #unchecked>指定</template>
+          </n-switch>
+        </n-form-item>
+        <n-form-item v-if="!ruleDrawer.isGlobal" label="部门">
+          <n-select v-model:value="ruleDrawer.bu" :options="deptOptions" placeholder="部门" />
+        </n-form-item>
+        <n-form-item v-if="!ruleDrawer.isGlobal" label="职务">
+          <n-select v-model:value="ruleDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
+        </n-form-item>
+        <n-form-item v-if="!ruleDrawer.isGlobal" label="职级">
+          <n-select v-model:value="ruleDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
+        </n-form-item>
+        <n-divider>管控占比（占比上限）</n-divider>
+        <n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item>
+        <n-form-item label="控制强度">
+          <n-select v-model:value="ruleDrawer.strength" :options="strengthOptions" />
+        </n-form-item>
+        <n-divider>管控人数（年度 + 12 月）</n-divider>
+        <n-grid :cols="2" :x-gap="12">
+          <n-gi><n-form-item label="规划年度"><n-input-number v-model:value="ruleDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
+          <n-gi><n-form-item label="年度目标人数"><n-input-number v-model:value="ruleDrawer.annualTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
+        </n-grid>
+        <n-divider>12 个月目标（单位：人）</n-divider>
+        <n-grid :cols="4" :x-gap="8" :y-gap="8">
+          <n-gi v-for="(_, i) in 12" :key="i">
+            <n-form-item :label="ALL_MONTHS[i]" label-placement="top">
+              <n-input-number v-model:value="ruleDrawer.monthly[i]" :min="0" style="width: 100%" />
+            </n-form-item>
+          </n-gi>
+        </n-grid>
+      </n-form>
+      <template #footer>
+        <div class="drawer-footer">
+          <n-button @click="ruleDrawer.show = false">取消</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="loading.saveRule" @click="saveRule">保存</n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- ===================== 批量配置规则 + 人数目标弹窗 ===================== -->
     <n-modal
@@ -314,9 +319,17 @@
       </template>
     </n-modal>
 
-    <!-- ===================== 导入规则抽屉 ===================== -->
-    <n-drawer v-model:show="importDrawer.show" :width="560" placement="right">
-      <n-drawer-content title="导入规则（Excel）" closable>
+    <!-- ===================== 导入规则弹窗（页面居中） ===================== -->
+    <n-modal
+      v-model:show="importDrawer.show"
+      preset="card"
+      title="导入规则（Excel）"
+      :style="{ width: '600px', maxWidth: '94vw' }"
+      :bordered="false"
+      :segmented="{ content: true, footer: true }"
+      class="import-modal"
+    >
+      <n-space vertical :size="14">
         <n-upload
           accept=".xlsx,.xlsm"
           :max="1"
@@ -326,10 +339,12 @@
         >
           <n-button>选择 Excel 文件</n-button>
         </n-upload>
-        <p class="import-hint">
-          请使用「下载模板」导出的结构填写；每行一条规则，同一「部门+职务+职级+维度+规划年度」下
-          所有指标的目标占比之和须 = 100%，且 12 个月目标之和须等于年度目标人数。
-        </p>
+        <n-space align="center" :wrap="false">
+          <n-button size="small" quaternary type="primary" @click="onDownloadTemplate">下载模板</n-button>
+          <span class="import-hint" style="margin: 0">
+            每行一条规则，同一「部门+职务+职级+维度+规划年度」下目标占比之和须 = 100%，且 12 个月目标之和须等于年度目标人数。
+          </span>
+        </n-space>
         <div v-if="importDrawer.result" class="import-result">
           <n-alert
             v-if="importDrawer.result.success"
@@ -339,27 +354,36 @@
             导入成功：{{ importDrawer.result.data.groups }} 个分组 / {{ importDrawer.result.data.savedRules }} 条规则已写入。
           </n-alert>
           <n-alert v-else type="error" :show-icon="true">
-            导入失败（{{ importDrawer.result.data.groups }} 个分组 / 已写入 {{ importDrawer.result.data.savedRules }} 条）：
+            导入失败（{{ importDrawer.result.data.groups }} 个分组 / 已写入 {{ importDrawer.result.data.savedRules }} 条），请下载错误明细 Excel 修正后重传。
           </n-alert>
           <div v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-error-actions">
-            <n-button size="small" @click="downloadImportErrorReport">下载错误报告（txt）</n-button>
+            <n-button v-if="importDrawer.result.data.errorFile" size="small" type="error" @click="downloadImportErrorExcel">下载错误明细（Excel）</n-button>
+            <n-button v-else size="small" @click="downloadImportErrorReport">下载错误报告（txt）</n-button>
           </div>
           <ul v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-errors">
             <li v-for="(e, i) in importDrawer.result.data.errors" :key="i">{{ e }}</li>
           </ul>
         </div>
-        <template #footer>
-          <div class="drawer-footer">
-            <n-button @click="importDrawer.show = false">关闭</n-button>
-          </div>
-        </template>
-      </n-drawer-content>
-    </n-drawer>
+      </n-space>
+      <template #footer>
+        <div class="drawer-footer">
+          <n-button @click="importDrawer.show = false">关闭</n-button>
+        </div>
+      </template>
+    </n-modal>
 
-    <!-- ===================== 维度管理抽屉 ===================== -->
-    <n-drawer v-model:show="dimDrawer.show" :width="520" placement="right">
-      <n-drawer-content title="维度管理" closable>
-        <div class="toolbar">
+    <!-- ===================== 维度管理弹窗（页面居中） ===================== -->
+    <n-modal
+      v-model:show="dimDrawer.show"
+      preset="card"
+      title="维度管理"
+      :style="{ width: '560px', maxWidth: '94vw' }"
+      :bordered="false"
+      :segmented="{ content: true, footer: true }"
+      class="dim-modal"
+    >
+      <n-space vertical :size="12">
+        <div class="toolbar" style="margin-bottom: 0">
           <div class="spacer"></div>
           <n-button type="primary" class="gradient-btn" @click="openDimModal()">+ 新增维度</n-button>
         </div>
@@ -373,8 +397,8 @@
         >
           <template #empty><n-empty description="暂无维度" /></template>
         </n-data-table>
-      </n-drawer-content>
-    </n-drawer>
+      </n-space>
+    </n-modal>
 
     <!-- ===================== 维度表单弹窗 ===================== -->
     <n-modal v-model:show="dimModal.show" :title="dimModal.editingId ? '编辑维度' : '新增维度'" preset="card" style="width: 420px">
@@ -436,7 +460,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import {
-  NTag, NButton, NSwitch, NCheckbox, NDivider, NDrawer, NDrawerContent,
+  NTag, NButton, NSwitch, NCheckbox, NDivider, NSpace,
   NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker,
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
@@ -898,6 +922,21 @@ function downloadImportErrorReport() {
   const text = ['规则导入失败原因明细', '====================', ...errors].join('\n')
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
   triggerDownload(blob, `campus_rules_import_errors_${Date.now()}.txt`)
+}
+function downloadImportErrorExcel() {
+  const b64 = importDrawer.result?.data?.errorFile
+  if (!b64) return
+  try {
+    const bin = atob(b64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    const blob = new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    triggerDownload(blob, `campus_rules_import_errors_${Date.now()}.xlsx`)
+  } catch (e) {
+    message.error('错误明细 Excel 解析失败，请改用 txt 报告')
+  }
 }
 function onImportFileRemove() {
   importDrawer.fileList = []
@@ -1440,5 +1479,31 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--c-error);
   margin-bottom: 4px;
+}
+
+/* 校招管控：弹窗统一页面居中 + 高度自适应屏幕（超出 90vh 内部滚动） */
+.import-modal :deep(.n-card),
+.dim-modal :deep(.n-card),
+.rule-modal :deep(.n-card) {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.import-modal :deep(.n-card__content),
+.dim-modal :deep(.n-card__content),
+.rule-modal :deep(.n-card__content) {
+  overflow-y: auto;
+  max-height: calc(90vh - 110px);
+}
+.import-modal :deep(.n-card-header__main),
+.dim-modal :deep(.n-card-header__main),
+.rule-modal :deep(.n-card-header__main) {
+  font-size: 16px;
+  font-weight: 600;
+}
+.import-modal .import-hint {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  line-height: 1.6;
 }
 </style>

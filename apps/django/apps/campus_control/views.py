@@ -33,7 +33,10 @@ from apps.common.pagination import StandardResultsSetPagination
 
 from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
 from .constants import STRENGTH
-from .io_xlsx import build_export_workbook, build_template_workbook, parse_import_workbook
+from .io_xlsx import (
+    build_export_workbook, build_template_workbook, parse_import_workbook,
+    build_error_report_workbook,
+)
 from .models import (
     ControlDimension, ControlIndicator, ControlRule, Person,
 )
@@ -440,20 +443,36 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             return Response({'success': False, 'detail': '仅支持 .xlsx 文件'}, status=400)
 
         try:
-            groups, parse_errors = parse_import_workbook(f)
+            groups, parse_errors, original_rows, errors_by_line = parse_import_workbook(f)
         except Exception as e:  # noqa: BLE001 - 解析异常统一返回
             return Response({'success': False, 'detail': f'文件解析失败：{e}'}, status=400)
+
+        def _error_payload(extra_errors):
+            """构造失败响应：除 errors 文本列表外，附融合后的错误报告 xlsx（base64）。"""
+            errs = list(parse_errors) + list(extra_errors)
+            payload = {'groups': 0, 'saved_rules': 0, 'errors': errs, 'error_file': None}
+            if original_rows:
+                try:
+                    from io import BytesIO
+                    import base64
+                    wb = build_error_report_workbook(original_rows, errors_by_line)
+                    buf = BytesIO()
+                    wb.save(buf)
+                    payload['error_file'] = base64.b64encode(buf.getvalue()).decode('ascii')
+                except Exception:  # noqa: BLE001 - 报告生成失败不影响主错误返回
+                    payload['error_file'] = None
+            return payload
 
         if parse_errors:
             return Response({
                 'success': False,
-                'data': {'groups': 0, 'saved_rules': 0, 'errors': parse_errors},
+                'data': _error_payload([]),
             }, status=400)
 
         if not groups:
             return Response({
                 'success': False,
-                'data': {'groups': 0, 'saved_rules': 0, 'errors': ['文件中未解析到任何有效规则行']},
+                'data': _error_payload(['文件中未解析到任何有效规则行']),
             }, status=400)
 
         saved_rules = 0
@@ -468,7 +487,7 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if group_errors:
             return Response({
                 'success': False,
-                'data': {'groups': len(groups), 'saved_rules': saved_rules, 'errors': group_errors},
+                'data': _error_payload(group_errors),
             }, status=400)
 
         return Response({

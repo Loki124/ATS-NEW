@@ -294,7 +294,7 @@ export const downloadRuleTemplate = () =>
 
 export interface RuleImportResult {
   success: boolean
-  data: { groups: number; savedRules: number; errors: string[] }
+  data: { groups: number; savedRules: number; errors: string[]; errorFile?: string | null }
 }
 /** 导入规则 xlsx 文件，返回成功/失败明细。
  * 业务校验错误（400）会被后端显式返回，这里设置 validateStatus 让 4xx 也进入 then 分支，

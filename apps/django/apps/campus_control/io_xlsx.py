@@ -145,12 +145,17 @@ def build_template_workbook():
     return wb, header_row
 
 
-def parse_import_workbook(file_obj):
-    """解析上传的 xlsx，返回 { groups, errors }。
+ERROR_COL = '错误原因'
 
-    groups: list[ (scope_key, group_payload) ]，group_payload 同 with_targets 入参：
+
+def parse_import_workbook(file_obj):
+    """解析上传的 xlsx，返回 (groups, errors, original_rows, errors_by_line)。
+
+    groups: list[group_payload]，同 with_targets 入参：
         { bu, position, level, dimension(name), year, total_target, rules:[{indicator, target, strength, monthly_targets}] }
-    errors: list[str]（行级/组级错误，给用户看）。
+    errors: list[str]（行级/组级错误，给用户看，已带行号前缀）。
+    original_rows: list[(line_no, row_values)]，保留解析时的原始数据行（含行号），用于生成融合错误报告。
+    errors_by_line: dict[int, str]，行号 → 该行错误原因（组级错误映射到组内首行），用于按行融合到 Excel。
     """
     wb = load_workbook(file_obj, data_only=True)
     ws = wb.active
@@ -163,15 +168,19 @@ def parse_import_workbook(file_obj):
             header_row = ridx
             break
     if header_row is None:
-        return [], ['未找到表头（需含「维度」「指标」列）']
+        return [], ['未找到表头（需含「维度」「指标」列）'], [], {}
 
     groups = {}
     errors = []
+    original_rows = []  # (line_no, [原始单元格值])
+    errors_by_line = {}  # line_no -> 错误原因
     for ridx in range(header_row + 1, ws.max_row + 1):
         vals = [ws.cell(row=ridx, column=c).value for c in range(1, len(HEADERS) + 1)]
         if all(v is None or v == '' for v in vals[:9]):
             continue  # 空行
         line_no = ridx
+        # 保留原始数据行（含表头列数）
+        original_rows.append((line_no, vals[:len(HEADERS)]))
         dimension = str(vals[0] or '').strip()
         indicator = str(vals[1] or '').strip()
         bu = str(vals[2] or '').strip()
@@ -183,49 +192,43 @@ def parse_import_workbook(file_obj):
         annual = _to_int(vals[8], 0)
         monthly = [_to_int(vals[MONTH_START_COL + i], 0) for i in range(N_MONTH_COLS)]
 
-        # 行级基础校验
+        # 行级基础校验：同时记录到 errors（带行号前缀，给用户看）与 errors_by_line（用于按行融合 Excel）
+        def _row_err(msg: str):
+            errors.append(f'第{line_no}行：{msg}')
+            errors_by_line[line_no] = msg
+
         if not dimension:
-            errors.append(f'第{line_no}行：维度为空')
-            continue
+            _row_err('维度为空'); continue
         if dimension not in DIMS:
-            errors.append(f'第{line_no}行：维度「{dimension}」非法（须为 {",".join(DIMS)}）')
-            continue
+            _row_err(f'维度「{dimension}」非法（须为 {",".join(DIMS)}）'); continue
         if not indicator:
-            errors.append(f'第{line_no}行：指标为空')
-            continue
+            _row_err('指标为空'); continue
         if bu and bu not in DEPTS:
-            errors.append(f'第{line_no}行：部门「{bu}」非法')
-            continue
+            _row_err(f'部门「{bu}」非法'); continue
         if position and position not in POSITIONS:
-            errors.append(f'第{line_no}行：职务「{position}」非法')
-            continue
+            _row_err(f'职务「{position}」非法'); continue
         if level and level not in LEVELS:
-            errors.append(f'第{line_no}行：职级「{level}」非法')
-            continue
+            _row_err(f'职级「{level}」非法'); continue
         try:
             year = int(year_raw)
         except (TypeError, ValueError):
-            errors.append(f'第{line_no}行：规划年度「{year_raw}」须为整数')
-            continue
+            _row_err(f'规划年度「{year_raw}」须为整数'); continue
         target = _to_decimal_target(target_raw)
         if target is None:
-            errors.append(f'第{line_no}行：目标占比「{target_raw}」须为 0~100 的数值')
-            continue
+            _row_err(f'目标占比「{target_raw}」须为 0~100 的数值'); continue
         if not (Decimal('0') <= target <= Decimal('1')):
-            errors.append(f'第{line_no}行：目标占比须 0~100')
-            continue
+            _row_err('目标占比须 0~100'); continue
         if strength and strength not in STRENGTH:
-            errors.append(f'第{line_no}行：控制强度「{strength}」非法（须为 {",".join(STRENGTH)}）')
-            continue
+            _row_err(f'控制强度「{strength}」非法（须为 {",".join(STRENGTH)}）'); continue
         if sum(monthly) != annual:
-            errors.append(f'第{line_no}行（{dimension}·{indicator}）：12个月目标之和({sum(monthly)})≠年度目标({annual})')
-            continue
+            _row_err(f'（{dimension}·{indicator}）12个月目标之和({sum(monthly)})≠年度目标({annual})'); continue
 
         scope_key = (bu, position, level, dimension, year)
         g = groups.setdefault(scope_key, {
             'bu': bu, 'position': position, 'level': level,
             'dimension': dimension, 'year': year,
             'total_target': 0, 'rules': [],
+            'first_line': line_no,  # 组内首行行号（用于组级错误映射）
         })
         # totalTarget = 该组年度目标之和（用于后端 annual=round(totalTarget*target)）
         g['total_target'] += annual
@@ -237,17 +240,20 @@ def parse_import_workbook(file_obj):
             'annual_target': annual,
         })
 
-    # 组级 100% 校验
+    # 组级 100% 校验：错误同时写入 errors，并把行级映射补写到组内每一行（含首行）
     for key, g in groups.items():
         s = sum(Decimal(str(r['target'])) for r in g['rules'])
         if abs(s - Decimal('1')) > Decimal('0.0001'):
             pct = (s * 100).quantize(Decimal('0.01'))
             bu, position, level, dimension, year = key
             scope = scope_text(bu, position, level)
-            errors.append(f'组[{scope}·{dimension}·{year}]：目标占比之和须=100%，当前 {pct}%')
+            msg = f'组[{scope}·{dimension}·{year}]：目标占比之和须=100%，当前 {pct}%'
+            errors.append(msg)
+            # 映射到组内首行（融合 Excel 时该行会标红+显示组错误）
+            errors_by_line[g.get('first_line')] = errors_by_line.get(g.get('first_line'), '') + ('；' if errors_by_line.get(g.get('first_line')) else '') + msg
 
     group_list = [g for g in groups.values()]
-    return group_list, errors
+    return group_list, errors, original_rows, errors_by_line
 
 
 def scope_text(bu, position, level):
@@ -256,4 +262,45 @@ def scope_text(bu, position, level):
     return ' · '.join(filter(bool, [bu, position or '职务不限', level or '职级不限']))
 
 
-__all__ = ['build_export_workbook', 'build_template_workbook', 'parse_import_workbook', 'HEADERS']
+ERROR_FILL = PatternFill('solid', fgColor='FEE2E2')  # 浅红底标注错误行
+ERROR_FONT = Font(color='B91C1C', size=11)
+
+
+def build_error_report_workbook(original_rows, errors_by_line):
+    """生成「融合错误报告」xlsx：保留用户上传文件的原始数据行，并在每行末尾追加「错误原因」列。
+
+    original_rows: list[(line_no, row_values)]（来自 parse_import_workbook）。
+    errors_by_line: dict[line_no -> 错误原因字符串]。
+    返回 Workbook。
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '导入错误明细'
+    headers = list(HEADERS) + [ERROR_COL]
+    ws.append(headers)
+    for c in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=c)
+        cell.fill = HEADER_FILL if c <= len(HEADERS) else ERROR_FILL
+        cell.font = HEADER_FONT if c <= len(HEADERS) else ERROR_FONT
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = BORDER
+
+    for line_no, vals in original_rows:
+        err = errors_by_line.get(line_no, '')
+        row_vals = list(vals) + [err]
+        ws.append(row_vals)
+        excel_row = ws.max_row
+        if err:
+            for c in range(1, len(headers) + 1):
+                ws.cell(row=excel_row, column=c).fill = ERROR_FILL
+            ws.cell(row=excel_row, column=len(headers)).font = ERROR_FONT
+
+    widths = [10, 10, 10, 10, 8, 10, 12, 10, 12] + [7] * N_MONTH_COLS + [50]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = 'A2'
+    return wb
+
+
+__all__ = ['build_export_workbook', 'build_template_workbook', 'parse_import_workbook',
+           'build_error_report_workbook', 'HEADERS', 'ERROR_COL']
