@@ -1235,8 +1235,14 @@ onMounted(async () => {
 .table-wrap {
   flex: 1;
   min-height: 180px;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.table-wrap :deep(.n-data-table) {
+  flex: 1;
+  min-height: 0;
 }
 .validate-result {
   flex: 1;
@@ -1244,6 +1250,7 @@ onMounted(async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  margin-top: var(--space-4);
 }
 
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
@@ -1284,7 +1291,6 @@ onMounted(async () => {
 .kpi-card.danger .kpi-value { color: var(--c-error); }
 .kpi-card.warn .kpi-value { color: var(--c-warning); }
 
-.validate-result { margin-top: var(--space-4); }
 .block-hint { color: var(--c-error); font-size: var(--text-small); margin: var(--space-2) 0 0; }
 
 .drawer-footer { display: flex; justify-content: flex-end; gap: var(--space-3); }
