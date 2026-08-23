@@ -64,7 +64,7 @@
     <!-- 主体 -->
     <n-layout class="main-area">
       <!-- 头部（v2 玻璃化 · DESIGN.md §4 Navigation） -->
-      <n-layout-header class="glass-panel glass-header px-6 flex items-center justify-between h-16">
+      <n-layout-header :style="headerStyle" class="glass-panel glass-header px-6 flex items-center justify-between h-16">
         <!-- 左集群 -->
         <div class="flex items-center gap-4 min-w-0" :class="menuLayout === 'top' ? 'flex-1' : ''">
           <!-- 移动端汉堡按钮 [T6.2] -->
@@ -304,6 +304,20 @@ const topMenuThemeOverrides = {
 const menuLayout = computed<'side' | 'top'>(() =>
   userStore.uiSettings?.menuLayout === 'top' ? 'top' : 'side',
 )
+
+// header 固定定位后宽度需跟随侧边栏展开/折叠及移动端状态
+const headerStyle = computed(() => {
+  if (menuLayout.value === 'top') {
+    return { left: '0px', width: '100vw' }
+  }
+  if (isMobile.value) {
+    return { left: '0px', width: '100vw' }
+  }
+  return {
+    left: collapsed.value ? '64px' : '240px',
+    width: collapsed.value ? 'calc(100vw - 64px)' : 'calc(100vw - 240px)',
+  }
+})
 
 function renderIcon(icon: any) {
   return () => h(NIcon, null, { default: () => h(icon) })
@@ -599,15 +613,14 @@ function handleUserMenu(key: string) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* 作为 header sticky 的 containing block，并禁止自身滚动 */
-  position: relative;
+  /* header 固定定位脱离文档流，主内容区顶部留出 header 高度 */
+  padding-top: 64px;
   overflow: hidden;
 }
 
 /* === 头部固定不滚动（v2 玻璃 header） === */
 .app-layout :deep(.n-layout-header) {
-  flex-shrink: 0;
-  position: sticky;
+  position: fixed;
   top: 0;
   z-index: var(--z-header);
   border-bottom: 1px solid var(--border-hairline);
