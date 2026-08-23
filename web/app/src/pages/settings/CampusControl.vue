@@ -1312,10 +1312,12 @@ onMounted(async () => {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
-/* 表格内部层级圆角统一 + 强制 body 成为滚动容器：
-   - base-table flex column；header flex-shrink:0 固定高度；body flex:1 撑满剩余空间
-   - body overflow-y:auto，数据行溢出时可滚动；wheel 事件落 <td> 直接滚 body（不需要冒泡外层）
-   - 横向滚动的兜底：body overflow-x:hidden 让 Naive 的 header 跟随机制仍生效 */
+/* 表格内部层级圆角统一 + n-scrollbar-container 承担真滚动：
+   - base-table flex column；header flex-shrink:0 固定高度
+   - body 只做布局（flex:1, min-height:0, overflow:hidden），不自己滚
+   - 真滚动在 .n-scrollbar-container：flex:1 + overflow-y:auto 保证它撑满 body 剩余空间
+     wheel 事件从 <td> 冒泡上来 → 直接被它接住 → 滚它自己
+   - 横向：container overflow-x:hidden 让 Naive 的 header 同步跟随机制仍生效 */
 .table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
 .table-wrap :deep(.n-data-table-base-table) { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; flex-shrink: 0; }
@@ -1323,13 +1325,17 @@ onMounted(async () => {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto !important; /* 关键：body 自身是滚动容器 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 只做布局，不再自己滚 */
 }
 .table-wrap :deep(.n-data-table-base-table-body > .n-scrollbar),
 .table-wrap :deep(.n-data-table-base-table-body .n-scrollbar-container) {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  overflow: hidden;
+  overflow-x: hidden !important;
+  overflow-y: auto !important; /* 关键：n-scrollbar-container 自己滚 */
+  flex: 1;
+  min-height: 0; /* flex 子项撑开父容器剩余空间 */
 }
 .table-wrap :deep(.n-data-table-table) { background: transparent !important; border-radius: 0; }
 .table-wrap :deep(.n-data-table-thead) { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
