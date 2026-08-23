@@ -1298,28 +1298,34 @@ onMounted(async () => {
 .table-wrap {
   flex: 1;
   min-height: 180px;
-  /* ★ 改 auto：触控板/滚轮需要触发外层滚动；
-     表格 flex-height 模式让 n-data-table 撑满容器高度（不依赖内部 n-scrollbar 滚动）。
-     外层 .table-wrap 滚，表格跟着滚——任何位置滚都生效。 */
-  overflow: auto;
+  /* ★ 外层只做布局容器，自身不滚动（避免双重滚动容器）；
+     真实滚动由 .n-data-table-base-table-body 承担 */
+  overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius-md); /* 兜底：内部内容被圆角裁切 */
+  border-radius: var(--radius-md);
 }
 .table-wrap :deep(.n-data-table) {
   flex: 1;
   min-height: 0;
-  /* ★ 与外层 glass-panel 圆角一致，避免表格直角与面板圆角重叠 */
   border-radius: var(--radius-md);
   overflow: hidden;
 }
-/* 表格内部层级圆角统一：
-   真实滚动由外层 .table-wrap 承载（flex-height 模式内部不需要滚），
-   内部所有层级都 hidden 用于视觉裁切；任何位置滚动都冒泡到外层触发 */
+/* 表格内部层级圆角统一 + 强制 body 成为滚动容器：
+   - base-table flex column；header flex-shrink:0 固定高度；body flex:1 撑满剩余空间
+   - body overflow-y:auto，数据行溢出时可滚动；wheel 事件落 <td> 直接滚 body（不需要冒泡外层）
+   - 横向滚动的兜底：body overflow-x:hidden 让 Naive 的 header 跟随机制仍生效 */
 .table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
-.table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; }
-.table-wrap :deep(.n-data-table-base-table-body) { border-radius: 0 0 var(--radius-md) var(--radius-md); overflow: hidden; }
+.table-wrap :deep(.n-data-table-base-table) { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; flex-shrink: 0; }
+.table-wrap :deep(.n-data-table-base-table-body) {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto !important; /* 关键：body 自身是滚动容器 */
+}
 .table-wrap :deep(.n-data-table-base-table-body > .n-scrollbar),
 .table-wrap :deep(.n-data-table-base-table-body .n-scrollbar-container) {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
