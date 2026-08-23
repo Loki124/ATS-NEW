@@ -1,5 +1,5 @@
 <template>
-  <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220">
+  <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220" style="height: 100%">
     <!-- 左侧子菜单 -->
     <n-layout-sider
       :width="220"
@@ -553,6 +553,7 @@ watch(
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
   background: transparent;
 }
 /* 内部滚动容器：承载各设置页，极光在其下层固定不动 */
