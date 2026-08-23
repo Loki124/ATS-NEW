@@ -1306,6 +1306,9 @@ onMounted(async () => {
 .table-wrap :deep(.n-data-table) {
   flex: 1;
   min-height: 0;
+  /* ★ 与外层 glass-panel 圆角一致，避免表格直角与面板圆角重叠 */
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 .validate-result {
   flex: 1;
@@ -1330,6 +1333,7 @@ onMounted(async () => {
 .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
 .kpi-card {
   position: relative;
+  z-index: 1; /* 浮在 glass-panel 顶部高光之上，避免边界被压白/压暗 */
   background: var(--glass-bg-card);
   backdrop-filter: blur(var(--glass-blur-card));
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
@@ -1341,14 +1345,16 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  box-shadow: none; /* 基础态无投影，避免厚重边界感 */
   transition: all var(--duration-base) var(--ease-out);
 }
 .kpi-card:hover {
-  box-shadow: 0 0 0 1px var(--brand-a22), 0 14px 34px var(--brand-a12);
+  /* 柔化投影：尺寸/透明度减半，保留发光环 */
+  box-shadow: 0 0 0 1px var(--brand-a22), 0 8px 24px var(--brand-a12);
   transform: translateY(-2px);
 }
-.kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14); }
-.kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14); }
+.kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 8px 24px rgba(239, 68, 68, .14); }
+.kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 8px 24px rgba(245, 158, 11, .14); }
 .kpi-label { font-size: var(--text-meta); color: var(--ink-soft); }
 .kpi-value { font-size: 26px; font-weight: 700; color: var(--ink); }
 .kpi-card.danger .kpi-value { color: var(--c-error); }
