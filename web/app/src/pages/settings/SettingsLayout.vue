@@ -564,10 +564,10 @@ watch(
   overflow: auto;
   padding: 20px;
 }
-/* 设置子页根容器（.page-container / .cc-page 等）的 padding 已由本容器统一提供，
-   避免与全局 .page-container 的 24px 叠加成双重间距 */
-.settings-scroll :deep(.page-container),
-.settings-scroll :deep(.cc-page) {
+/* 设置子页根容器（.page-container 等）的 padding 已由本容器统一提供，
+   避免与全局 .page-container 的 24px 叠加成双重间距。
+   .cc-page 自行保留 16px 内边距，不在这里清零。 */
+.settings-scroll :deep(.page-container) {
   padding: 0;
   min-height: 100%;
 }

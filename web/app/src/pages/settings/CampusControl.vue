@@ -1157,6 +1157,7 @@ onMounted(async () => {
   border-radius: 16px;
   background: var(--aurora-base);
   overflow: hidden;
+  padding: 16px;
 }
 .cc-aurora { position: absolute; inset: 0; pointer-events: none; }
 .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }
