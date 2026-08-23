@@ -537,16 +537,28 @@ body.dark .n-data-table .n-data-table-th {
   flex-direction: column;
   gap: var(--space-2);
   transition: all var(--duration-base) var(--ease-out);
+  /* 新拟态融合实验(B): 玻璃底 + 极淡双向柔和阴影，卡片呈"按压浮起"而非漂浮 */
+  box-shadow: 6px 6px 14px color-mix(in srgb, var(--brand) 10%, transparent),
+              -6px -6px 14px rgba(255, 255, 255, .55);
 }
 .kpi-card:hover {
-  box-shadow: 0 0 0 1px var(--brand-a22), 0 14px 34px var(--brand-a12);
+  box-shadow: 0 0 0 1px var(--brand-a22), 0 14px 34px var(--brand-a12),
+              8px 8px 18px color-mix(in srgb, var(--brand) 16%, transparent),
+              -8px -8px 18px rgba(255, 255, 255, .65);
   transform: translateY(-2px);
+}
+body.dark .kpi-card {
+  box-shadow: 6px 6px 14px rgba(0, 0, 0, .35), -6px -6px 14px rgba(255, 255, 255, .05);
+}
+body.dark .kpi-card:hover {
+  box-shadow: 0 0 0 1px var(--brand-a22), 0 14px 34px var(--brand-a12),
+              8px 8px 18px rgba(0, 0, 0, .42), -8px -8px 18px rgba(255, 255, 255, .07);
 }
 .kpi-label { font-size: var(--text-meta); color: var(--ink-soft); }
 .kpi-value { font-size: 26px; font-weight: 700; color: var(--ink); }
 .kpi-card.danger .kpi-value { color: var(--c-error); }
 .kpi-card.warn .kpi-value { color: var(--c-warning); }
-.kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14); }
-.kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14); }
+.kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
+.kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 @media (max-width: 1024px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .kpi-row { grid-template-columns: 1fr; } }
