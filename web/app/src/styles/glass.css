@@ -599,3 +599,27 @@ body.dark .kpi-card:hover {
   min-height: 100%;
   box-sizing: border-box;
 }
+
+/* =============================================================
+ * ★ 2026-08-23 阶段 E · 暗色模式巡检兜底
+ * -------------------------------------------------------------
+ * 与设计哲学保持一致：不写 !important，所有颜色走 CSS 变量。
+ * 主要针对 Naive UI 原生组件的暗色态补充（themeOverrides 之外仍有覆盖不到的子组件）。
+ * ============================================================= */
+
+/* n-tabs 在暗色下的 tabbar 底部线 */
+body.dark .n-tabs .n-tabs-nav::after {
+  background: var(--glass-border);
+}
+
+/* n-checkbox / n-radio 暗色文字色 */
+body.dark .n-checkbox__label,
+body.dark .n-radio__label {
+  color: var(--ink);
+}
+
+/* n-tag 暗色语义色微调（success/warning/error/info 在深玻璃上对比度补强） */
+body.dark .n-tag.n-tag--success-type { color: var(--c-success); background: var(--c-success-soft); }
+body.dark .n-tag.n-tag--warning-type { color: var(--c-warning); background: var(--c-warning-soft); }
+body.dark .n-tag.n-tag--error-type   { color: var(--c-error);   background: var(--c-error-soft); }
+body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(--c-info-soft); }
