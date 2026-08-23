@@ -1,17 +1,24 @@
 <template>
-  <div class="config-container">
-    <div class="page-header">
+  <div class="dc-page">
+    <!-- 渐变光斑背景（与 cc-page 同源） -->
+    <div class="dc-aurora" aria-hidden="true">
+      <span class="blob blob-a"></span>
+      <span class="blob blob-b"></span>
+      <span class="blob blob-c"></span>
+    </div>
+
+    <div class="dc-header">
       <div>
-        <h1 class="page-title">招聘需求设置</h1>
-        <p class="page-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
+        <h1 class="dc-title gradient-title">招聘需求设置</h1>
+        <p class="dc-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
       </div>
       <n-space>
         <n-button @click="handleReset">重置</n-button>
-        <n-button type="primary" :loading="saving" @click="handleSave">保存配置</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存配置</n-button>
       </n-space>
     </div>
 
-    <div class="config-content">
+    <div class="glass-panel config-content">
       <n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
         <n-card title="功能设置" class="config-card">
@@ -426,38 +433,62 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.config-container {
-  padding: 24px;
+/* ★ 镜像 cc-page 三件套（结构同源 / token 同源），让 DemandConfig 视觉对齐 CampusControl */
+.dc-page {
+  position: relative;
   min-height: 100%;
-  background: #f0f2f5;
-}
-
-.page-header {
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 16px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
+.dc-aurora { position: absolute; inset: 0; pointer-events: none; }
+.dc-aurora .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }
+.dc-aurora .blob-a { width: 520px; height: 520px; top: -220px; left: -140px; background: radial-gradient(circle, rgba(99,102,241,0.28), transparent 65%); }
+.dc-aurora .blob-b { width: 460px; height: 460px; top: -80px; right: -160px; background: radial-gradient(circle, rgba(236,72,153,0.18), transparent 65%); }
+.dc-aurora .blob-c { width: 420px; height: 420px; bottom: -180px; left: 40%; background: radial-gradient(circle, rgba(34,197,94,0.14), transparent 65%); }
+
+.dc-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.dc-title {
   margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.dc-subtitle {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: var(--text-small);
 }
 
 .config-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* 玻璃化由全局 .glass-panel 提供（v2 阶段 3 收口） */
 }
 
 .config-card {
-  border-radius: 8px;
-}
-
-.config-card :deep(.n-card-header) {
-  background: #fafafa;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius-md);
 }
 
 .config-card :deep(.n-card-header__main) {
