@@ -321,7 +321,7 @@
           accept=".xlsx,.xlsm"
           :max="1"
           :custom-request="handleImportUpload"
-          :file-list="importDrawer.fileList"
+          v-model:file-list="importDrawer.fileList"
           @remove="onImportFileRemove"
         >
           <n-button>选择 Excel 文件</n-button>
@@ -870,10 +870,11 @@ function handleImportUpload({ file, onFinish, onError }: any) {
         loadRules()
         loadRatio()
         loadPlan()
+        onFinish()
       } else {
         message.error(`导入失败：${res.data.errors.length} 处错误`)
+        onError()
       }
-      onFinish()
     })
     .catch((e) => {
       message.error(extractApiError(e, '导入失败'))
