@@ -1154,7 +1154,6 @@ onMounted(async () => {
 .cc-page {
   position: relative;
   min-height: 100%;
-  padding: 20px;
   border-radius: 16px;
   background: var(--aurora-base);
   overflow: hidden;

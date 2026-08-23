@@ -143,7 +143,8 @@
 
       <!-- 内容区（v2：透明背景让极光底透出） -->
       <n-layout-content class="layout-content">
-        <div class="content-wrapper p-6">
+        <!-- 滚动容器：页面根容器（.page-container / .cc-page 等）自管内边距，此处不再额外 padding -->
+        <div class="content-wrapper">
           <router-view />
         </div>
       </n-layout-content>
@@ -646,6 +647,7 @@ function handleUserMenu(key: string) {
   flex: 1;
   min-height: 0;
   overflow: auto; /* 关键: 内容超出时这个容器内部滚, header 不滚 */
+  padding: 0; /* 内边距下放到页面根容器（.page-container / .cc-page 等）自管 */
 }
 
 /* === T6.2 移动端响应式 === */

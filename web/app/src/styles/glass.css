@@ -582,3 +582,20 @@ body.dark .kpi-card:hover {
 .settings-page-shell { display: block; }
 .settings-page-header,
 .settings-page-body { display: block; }
+
+/* === 页面根容器内边距（v2 重构：原由 Layout.content-wrapper 的 p-6 统一提供，
+   现下放给页面根容器自管，让内容区直接由页面根元素承接，减少嵌套层） === */
+/* 直接挂在 Layout 下的列表/详情页（DemandList / OfferList / Screening 等）：
+   此处 24px 等价原 content-wrapper 的 p-6，视觉无变化。 */
+.page-container {
+  padding: 24px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+/* 校招管控等独立页面根容器：作为内容最外层，自带内边距（左侧与导航栏间距由此保证）。
+   注：在 SettingsLayout 的 settings-scroll 内时，会因外层已留 20px 间距，
+   故在 SettingsLayout 作用域内清零（见 settings.scss / SettingsLayout.vue）。 */
+.cc-page {
+  min-height: 100%;
+  box-sizing: border-box;
+}
