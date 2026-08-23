@@ -42,6 +42,7 @@
         :loading="listLoading"
         :row-key="(r: any) => r.code"
         :pagination="false"
+        :scroll-x="1200"
       >
         <template #empty>
           <n-empty description="暂无字典" />
