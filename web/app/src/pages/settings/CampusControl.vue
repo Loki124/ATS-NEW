@@ -1234,7 +1234,6 @@ onMounted(async () => {
   min-height: 100%;
   height: 100%;
   border-radius: 16px;
-  background: var(--aurora-base);
   overflow: hidden;
   padding: 16px;
   display: flex;
