@@ -5,18 +5,14 @@
   </div>
 
   <n-layout has-sider class="app-layout">
-    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 移动端 ≤768 隐藏） [T6.2] -->
+    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 展开） [T6.2] -->
     <n-layout-sider
       v-if="menuLayout === 'side' && !isMobile"
-      :width="240"
-      :collapsed-width="64"
-      show-trigger
-      collapse-mode="width"
-      :collapsed="collapsed"
+      :width="siderWidth"
       :native-scrollbar="false"
       class="glass-sidebar app-sider"
-      @collapse="collapsed = true"
-      @expand="collapsed = false"
+      @mouseenter="hoverExpanded = true"
+      @mouseleave="hoverExpanded = false"
     >
       <div class="logo-container">
         <div class="logo">
@@ -25,22 +21,40 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
             </svg>
           </div>
-          <span v-if="!collapsed" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
+          <span v-if="effectiveExpanded" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
         </div>
       </div>
 
       <n-menu
-        :collapsed="collapsed"
+        :collapsed="!effectiveExpanded"
         :collapsed-width="64"
         :collapsed-icon-size="22"
         :options="menuOptions"
         :value="selectedKey"
         :expanded-keys="expandedKeys"
         :theme-overrides="menuThemeOverrides"
-        class="glass-sidebar"
+        class="glass-sidebar sider-menu"
         @update:value="handleMenuClick"
         @update:expanded-keys="onExpandedKeysChange"
       />
+
+      <!-- 底部 footer: 「设置」永久贴底(mt:auto 推到最底, hover 展开状态才显示文字) -->
+      <div
+        class="sider-footer"
+        :class="{ 'sider-footer--collapsed': !effectiveExpanded, 'sider-footer--active': isOnSettingsRoute }"
+        role="button"
+        tabindex="0"
+        aria-label="打开设置"
+        @click="router.push('/settings/account')"
+        @keydown.enter="router.push('/settings/account')"
+      >
+        <div class="sider-footer-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </div>
+        <span v-if="effectiveExpanded" class="sider-footer-label">设置</span>
+      </div>
     </n-layout-sider>
 
     <!-- 移动端侧栏抽屉 [T6.2] -->
@@ -183,7 +197,7 @@ import {
   SearchOutline,
   ShareSocialOutline,
   PersonOutline,
-  SettingsOutline,
+  // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
@@ -198,7 +212,13 @@ const userStore = useUserStore()
 useShortcuts()
 const message = useMessage()
 
-const collapsed = ref(false)
+const collapsed = ref(true)
+const hoverExpanded = ref(false)
+// T11.x 主侧栏 hover-expand: 鼠标悬浮临时展开, 离开立即折叠
+const effectiveExpanded = computed(() => !collapsed.value || hoverExpanded.value)
+const siderWidth = computed(() => (effectiveExpanded.value ? 240 : 64))
+// 「设置」footer 路由高亮: 位于 /settings/* 任意路径时点亮底色
+const isOnSettingsRoute = computed(() => route.path.startsWith('/settings'))
 
 // === 移动端响应式（≤768 折叠为 n-drawer）[T6.2]
 // v2 bugfix P1-C：用 <= 768 包含边界值（严格 < 在 768 viewport 下仍判为桌面）
@@ -314,9 +334,10 @@ const headerStyle = computed(() => {
   if (isMobile.value) {
     return { left: '0px', width: '100vw' }
   }
+  const w = siderWidth.value
   return {
-    left: collapsed.value ? '64px' : '240px',
-    width: collapsed.value ? 'calc(100vw - 64px)' : 'calc(100vw - 240px)',
+    left: `${w}px`,
+    width: `calc(100vw - ${w}px)`,
   }
 })
 
@@ -359,7 +380,7 @@ const menuOptions = [
   },
   { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
   { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
-  { key: '/settings/account', label: '设置', icon: renderIcon(SettingsOutline) },
+  // 设置已迁到 sider footer 永久贴底（hover 展开时显示文字）
 ]
 
 const userMenuOptions = computed(() => {
@@ -701,5 +722,67 @@ function handleUserMenu(key: string) {
 }
 .mobile-sidebar-drawer :deep(.n-drawer-body-content-wrapper) {
   padding: 0;
+}
+
+/* === T11 主侧栏 footer（设置固定贴底）===
+   让 n-menu flex:1 占满剩余高度, footer mt:auto 推到最底 */
+/* 强制 sider 内部竖向排列（n-layout-sider 默认横向）*/
+.app-sider.glass-sidebar {
+  display: flex !important;
+  flex-direction: column !important;
+}
+.sider-menu {
+  flex: 1;
+  min-height: 0;
+  /* n-menu 内部自带滚动, 折叠展开切换不抖动 */
+}
+.sider-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-hairline);
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+.sider-footer:hover,
+.sider-footer:focus-visible {
+  background: var(--brand-tint);
+  color: var(--brand);
+}
+.sider-footer:active {
+  background: var(--brand-soft);
+}
+.sider-footer-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: currentColor;
+}
+.sider-footer-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+.sider-footer--collapsed {
+  justify-content: center;
+  padding: 12px 8px;
+}
+.sider-footer--collapsed .sider-footer-label {
+  display: none;
+}
+/* 折叠态激活态(选中设置路由时高亮) */
+.sider-footer--active {
+  color: var(--brand);
+  background: var(--brand-soft);
 }
 </style>

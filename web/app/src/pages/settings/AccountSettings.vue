@@ -288,6 +288,9 @@ async function handleChangePassword() {
   min-height: 0;
   padding: 0;
   overflow-y: auto;
+  /* [T11] 同步限制 X 方向: 子元素 n-checkbox 白空间 nowrap 会撑宽父容器,
+     设置 scroll-y 后默认 overflow-x 会被浏览器隐式 enable → 出现底部横向滚动条 */
+  overflow-x: hidden;
 }
 .page-header {
   flex-shrink: 0;
@@ -322,5 +325,20 @@ async function handleChangePassword() {
 }
 .notification-grid {
   padding: 12px 0 4px;
+  /* [T11] 浏览器通知 4 列网格: 长 label "候选人接受拒绝Offer通知" 默认 nowrap 会撑宽 n-gi,
+     进而让 .n-grid 在 >= viewport 时隐式撑出横向滚动条; 允许换行让列宽自适应 */
+}
+.notification-grid :deep(.n-checkbox .n-checkbox__label) {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+}
+/* 防御: 兜底阻断 X 溢出, 即使 grid 列宽计算异常也不出现横向滚动条 */
+.notification-grid :deep(.n-grid) {
+  overflow-x: hidden;
+  min-width: 0;
+}
+.notification-grid :deep(.n-grid .n-grid-item) {
+  min-width: 0;
 }
 </style>
