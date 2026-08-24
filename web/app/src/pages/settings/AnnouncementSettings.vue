@@ -569,7 +569,7 @@ onMounted(() => {
   display: flex;
   height: 100%;
   min-height: 0;
-  background: #f5f7fa;
+  background: transparent;
 }
 
 /* 左侧边栏 */
@@ -577,7 +577,7 @@ onMounted(() => {
   width: 220px;
   flex-shrink: 0;
   background: var(--glass-bg-card);
-  border-right: 1px solid #f0f0f0;
+  border-right: 1px solid var(--glass-border);
   padding: 20px 0;
 }
 
@@ -585,7 +585,7 @@ onMounted(() => {
   padding: 0 20px 16px;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .policy-tree {
@@ -601,19 +601,19 @@ onMounted(() => {
   margin: 0 8px;
   border-radius: 6px;
   cursor: pointer;
-  color: #4b5563;
+  color: var(--ink-soft);
   font-size: 14px;
   transition: background 0.15s, color 0.15s;
 }
 
 .policy-tree__node:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--brand-a12);
+  color: var(--ink);
 }
 
 .policy-tree__node.active {
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--brand-a22);
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -631,15 +631,15 @@ onMounted(() => {
 
 .policy-tree__count {
   font-size: 12px;
-  color: #9ca3af;
-  background: #f3f4f6;
+  color: var(--ink-faint);
+  background: var(--brand-a12);
   padding: 1px 6px;
   border-radius: 10px;
 }
 
 .policy-tree__node.active .policy-tree__count {
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--brand-a22);
+  color: var(--brand);
 }
 
 /* 右侧主内容 */
@@ -664,13 +664,13 @@ onMounted(() => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .policy-admin__desc {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--ink-soft);
 }
 
 .policy-admin__config {
@@ -681,12 +681,12 @@ onMounted(() => {
   padding: 12px 16px;
   background: var(--glass-bg-card);
   border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--glass-border);
 }
 
 .policy-admin__config-text {
   font-size: 14px;
-  color: #374151;
+  color: var(--ink);
 }
 
 .policy-admin__filter {
@@ -714,18 +714,18 @@ onMounted(() => {
 
 .policy-table th {
   text-align: left;
-  color: #9ca3af;
+  color: var(--ink-faint);
   font-weight: 500;
   padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--glass-border);
   white-space: nowrap;
-  background: #fafafa;
+  background: var(--glass-bg-card);
 }
 
 .policy-table td {
   padding: 14px 12px;
-  border-bottom: 1px solid #f5f5f5;
-  color: #4b5563;
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--ink-soft);
   vertical-align: middle;
 }
 
@@ -734,7 +734,7 @@ onMounted(() => {
 }
 
 .policy-table__row:hover {
-  background: #f8fafc;
+  background: var(--brand-a12);
 }
 
 .policy-table__row:last-child td {
@@ -780,7 +780,7 @@ onMounted(() => {
 
 .policy-place__none {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--ink-faint);
 }
 
 .policy-doc-cell {
@@ -793,7 +793,7 @@ onMounted(() => {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  background: #eff6ff;
+  background: var(--brand-a22);
   color: #3b82f6;
   display: flex;
   align-items: center;
@@ -810,7 +810,7 @@ onMounted(() => {
 }
 
 .policy-doc-title {
-  color: #1f2937;
+  color: var(--ink);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -821,7 +821,7 @@ onMounted(() => {
   flex-shrink: 0;
   font-size: 11px;
   color: #ef4444;
-  background: #fef2f2;
+  background: var(--c-error-soft);
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -842,7 +842,7 @@ onMounted(() => {
 .drawer-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .attach-block {
@@ -856,7 +856,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: #f9fafb;
+  background: var(--glass-bg-input);
   border-radius: 6px;
 }
 
@@ -871,14 +871,14 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: #374151;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .attach-name em {
-  color: #9ca3af;
+  color: var(--ink-faint);
   font-style: normal;
   margin-left: 6px;
 }
@@ -886,7 +886,7 @@ onMounted(() => {
 .attach-hint {
   margin: 0;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--ink-faint);
 }
 
 /* 推送弹窗 */
@@ -898,7 +898,7 @@ onMounted(() => {
 
 .push-desc {
   margin: 0;
-  color: #6b7280;
+  color: var(--ink-soft);
   font-size: 14px;
 }
 
