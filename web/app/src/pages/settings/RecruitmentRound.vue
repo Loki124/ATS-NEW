@@ -1,5 +1,7 @@
 <template>
   <div class="page-container interview-round">
+
+    <div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">面试轮次管理</h1>
@@ -26,7 +28,9 @@
       :row-key="(r) => r.id"
     />
 
-    <n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px">
+    
+    </div><!-- /.page-body -->
+<n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px">
       <n-form :model="form" label-placement="top">
         <n-form-item label="轮次名称" required>
           <n-input v-model:value="form.name" placeholder="如：初试/复试/终试" />
@@ -48,6 +52,7 @@
         </n-space>
       </template>
     </n-modal>
+
   </div>
 </template>
 
@@ -165,6 +170,55 @@ onMounted(() => loadList())
 </script>
 
 <style scoped>
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
 .interview-round {
   padding: 20px 24px;
 }

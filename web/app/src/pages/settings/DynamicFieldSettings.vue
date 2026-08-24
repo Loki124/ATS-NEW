@@ -1,5 +1,7 @@
 <template>
   <div class="page-container dynamic-field-settings">
+
+    <div class="page-body">
     <div class="page-header">
       <h1 class="page-title">动态字段定义</h1>
       <p class="page-subtitle">G42 - 元数据驱动的字段配置, 支持字段类型/选项/排序</p>
@@ -36,7 +38,9 @@
     </n-card>
 
     <!-- 新建/编辑 Modal -->
-    <n-modal
+    
+    </div><!-- /.page-body -->
+<n-modal
       v-model:show="modalVisible"
       preset="card"
       :title="editing ? '编辑字段' : '新建字段'"
@@ -90,6 +94,7 @@
         </n-space>
       </template>
     </n-modal>
+
   </div>
 </template>
 
@@ -294,6 +299,55 @@ onMounted(() => { reload(); });
 </script>
 
 <style scoped>
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
 .dynamic-field-settings { display: flex; flex-direction: column; gap: 12px; }
 /* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css 渐变规格） */
 .filter-row { margin-bottom: 12px; }
