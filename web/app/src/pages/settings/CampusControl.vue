@@ -1364,7 +1364,8 @@ onMounted(async () => {
 }
 .gradient-btn:hover { box-shadow: 0 6px 20px var(--glow-brand); transform: translateY(-1px); }
 
-.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
+/* P3 整改：scoped repeat(5,1fr) 覆盖删除，复用全局 .kpi-row auto-fit 自适应 */
+.kpi-row { display: grid; gap: var(--space-3); margin-bottom: var(--space-4); }
 .kpi-card {
   position: relative;
   z-index: 1;

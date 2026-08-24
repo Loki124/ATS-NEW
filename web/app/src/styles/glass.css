@@ -522,8 +522,9 @@ body.dark .n-data-table .n-data-table-th {
 
 /* === .kpi-row / .kpi-card（参照 CampusControl KPI 区）=== */
 .kpi-row {
+  /* P3 整改：auto-fit + minmax 自适应，替换硬 4 列 + 1024/480 媒体查询 */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
@@ -562,8 +563,7 @@ body.dark .kpi-card:hover {
 .kpi-card.warn .kpi-value { color: var(--c-warning); }
 .kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 .kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
-@media (max-width: 1024px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .kpi-row { grid-template-columns: 1fr; } }
+/* P3 整改：原 1024/480 媒体查询删除，KPI 改用 auto-fit 自适应，无需手动断点 */
 
 /* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
 /* 右侧 .settings-scroll 滚动时，子页标题块用 sticky 吸顶在容器顶部，
@@ -776,3 +776,18 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
 }
 .settings-scroll .kpi-card.danger:hover { background: rgba(239, 68, 68, .12); }
 .settings-scroll .kpi-card.warn:hover { background: rgba(245, 158, 11, .12); }
+
+/* === P3 整改：宽表 sm- 横向滚动（替换 overflow-x:hidden !important 永久裁切）=== */
+@media (max-width: 767px) {
+  .table-wrap .n-data-table-base-table-body > .n-scrollbar,
+  .table-wrap .n-data-table-base-table-body .n-scrollbar-container,
+  .settings-scroll .n-data-table-base-table-body > .n-scrollbar,
+  .settings-scroll .n-data-table-base-table-body .n-scrollbar-container {
+    overflow-x: auto !important;
+  }
+  /* 宽表（如 CampusControl mergedColumns）在 sm- 设最小宽，让横滚自然出现而非裁切 */
+  .table-wrap .n-data-table,
+  .settings-scroll .n-data-table {
+    min-width: 960px;
+  }
+}
