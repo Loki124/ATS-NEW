@@ -96,6 +96,9 @@ api_v1_patterns = [
 
     # 数据中心
     path('analytics/', include('apps.analytics.urls')),
+    # 2026-08-24: G35 数据中心 KPI + 订阅 — FE api/data.ts 调 /data/kpi, /data/subscriptions
+    #   (KpiViewSet / DataSubscriptionViewSet 此前已实现但漏挂路由, 导致 404)
+    path('data/', include('apps.analytics.urls_data')),
     # 2026-06-17: G35 数据看板 KPI — FE api/data.ts:48 调 /data/kpi
     # 2026-06-17: G35 数据订阅 — FE api/data.ts:57 调 /data/subscriptions
 

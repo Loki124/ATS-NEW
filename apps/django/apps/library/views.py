@@ -16,6 +16,24 @@ class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [V2Permission]
     pagination_class = None  # FE 不分页, 简单 list 即可
 
+    def list(self, request, *args, **kwargs):
+        """FE library.ts 期望 {success, data:[...]} 信封 (非 DRF 裸数组), 否则 rows 变 undefined 崩溃.
+
+        同时承接 FE 传入的过滤参数: keyword(名称/代码), educationLevel, schoolType.
+        """
+        qs = self.get_queryset()
+        keyword = request.query_params.get('keyword')
+        if keyword:
+            qs = qs.filter(name__icontains=keyword) | qs.filter(code__icontains=keyword)
+        edu = request.query_params.get('educationLevel')
+        if edu:
+            qs = qs.filter(education_level=edu)
+        stype = request.query_params.get('schoolType')
+        if stype:
+            qs = qs.filter(school_type=stype)
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
     @action(detail=False, methods=['get'])
     def provinces(self, request):
         """返所有不重复省份"""
@@ -30,6 +48,21 @@ class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
     pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        """FE library.ts 期望 {success, data:[...]} 信封; 承接 keyword/industry/scale 过滤."""
+        qs = self.get_queryset()
+        keyword = request.query_params.get('keyword')
+        if keyword:
+            qs = qs.filter(name__icontains=keyword) | qs.filter(code__icontains=keyword)
+        industry = request.query_params.get('industry')
+        if industry:
+            qs = qs.filter(industry=industry)
+        scale = request.query_params.get('scale')
+        if scale:
+            qs = qs.filter(scale=scale)
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
 
     @action(detail=False, methods=['get'])
     def industries(self, request):

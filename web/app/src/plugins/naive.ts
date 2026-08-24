@@ -63,7 +63,7 @@ export const naivePlugin = create({
     NButton, NCard, NInput, NInputNumber, NSelect,
     NCheckbox, NCheckboxGroup, NRadio, NRadioGroup, NSwitch,
     NForm, NFormItem, NFormItemRow,
-    NDataTable, NTag, NSpace, NDivider, NEmpty, NSpin,
+    NDataTable, NPageHeader, NTag, NSpace, NDivider, NEmpty, NSpin,
     NAvatar, NBadge, NText,
     NH1, NH2, NH3, NH4, NH5, NP, NIcon,
     NLayout, NLayoutHeader, NLayoutSider, NLayoutContent,
