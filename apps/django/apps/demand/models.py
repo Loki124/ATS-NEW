@@ -159,3 +159,24 @@ class DemandApproval(FullAuditModel):
         verbose_name = '需求审批'
         verbose_name_plural = verbose_name
         ordering = ['demand', 'level']
+
+
+class DemandSetting(FullAuditModel):
+    """招聘需求全局配置（单体 JSON 存储）—— FE DemandConfig.vue 调用
+
+    key 固定 'demand'，config 为自由 JSON dict，与前端 formData 同构
+    （demandMode / grabModeEnabled / profileFieldRules / salaryUnit ...）。
+    camel-case 解析器会把入参 key snake 化、渲染器再 camel 化回来，
+    整体 round-trip 安全（form 仅扁平 string/bool/list 字段，无嵌套 dict）。
+    """
+
+    key = models.CharField(max_length=64, unique=True, default='demand', verbose_name='配置键')
+    config = models.JSONField(default=dict, blank=True, verbose_name='配置内容')
+
+    class Meta:
+        db_table = 'demand_settings'
+        verbose_name = '招聘需求配置'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return f'DemandSetting({self.key})'

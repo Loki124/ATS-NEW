@@ -12,6 +12,7 @@ from drf_spectacular.views import (
 )
 
 from apps.application.views import ApplicationViewSet
+from apps.demand.views import DemandConfigView
 
 api_v1_patterns = [
     # 全局统一搜索 (Plan P): 必须排在 urls_stubs 的 search stub 之前以优先命中
@@ -60,6 +61,9 @@ api_v1_patterns = [
     #   (挂 applications/ 之下会与 /api/v1/applications/{id}/grab/ 语义混淆).
     path('grab-pool/', include('apps.application.urls_grab_pool')),
     path('demands/', include('apps.demand.urls')),
+    # 2026-08-24: 招聘需求设置全局配置端点 (FE DemandConfig.vue)
+    #   GET/POST/PUT /api/v1/system/config/demand  → DemandConfigView
+    path('system/config/demand', DemandConfigView.as_view()),
     path('announcements/', include('apps.announcement.urls')),
     path('positions/', include('apps.position.urls')),
     path('offers/', include('apps.offer.urls')),

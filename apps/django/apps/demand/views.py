@@ -4,6 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.common.exceptions import NotFound, ValidationError
 from apps.common.mixins import AuditMixin
@@ -11,7 +12,7 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.process.models import RecruitmentProcess
 
-from .models import Demand, DemandApproval
+from .models import Demand, DemandApproval, DemandSetting
 from .serializers import (
     DemandApprovalSerializer,
     DemandCreateSerializer,
@@ -187,3 +188,37 @@ class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         )
         serializer = DemandApprovalSerializer(approval)
         return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+
+class DemandConfigView(APIView):
+    """招聘需求设置全局配置端点 —— FE DemandConfig.vue 调用
+
+    GET  /api/v1/system/config/demand  → {success:True, data:<config dict>}
+    POST /api/v1/system/config/demand  → 保存整份 form，回显 {success:True, data}
+    PUT  /api/v1/system/config/demand  → 同 POST
+
+    说明：config 以 JSONField 自由 dict 存储，与前端 formData 同构。
+    camel-case 解析器入参 snake 化、渲染器出参 camel 化，round-trip 安全。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _get_or_create():
+        obj, _ = DemandSetting.objects.get_or_create(key='demand')
+        return obj
+
+    def get(self, request):
+        obj = self._get_or_create()
+        return Response({'success': True, 'data': obj.config or {}})
+
+    def post(self, request):
+        obj = self._get_or_create()
+        obj.config = request.data
+        if request.user and request.user.is_authenticated:
+            obj.updated_by = request.user
+        obj.save()
+        return Response({'success': True, 'data': obj.config})
+
+    def put(self, request):
+        return self.post(request)
