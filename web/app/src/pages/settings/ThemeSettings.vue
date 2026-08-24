@@ -6,8 +6,8 @@
       <p class="page-subtitle">个性化品牌色与显示模式 · 改一处即全站联动</p>
     </div>
 
-    <!-- 玻璃面板：主容器（DESIGN.md §4） -->
-    <div class="glass-panel theme-panel">
+    <!-- 玻璃面板：内容区（滚动职责下放到这里，避免与外层 .settings-scroll 冲突） -->
+    <div class="glass-panel page-body">
       <!-- === 品牌色取色器 === -->
       <section class="theme-section">
         <div class="section-header">
@@ -267,17 +267,26 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--space-4);
   height: 100%;
+  min-height: 0;
+}
+
+/* 标题在 flex 列里不缩（与 AccountSettings 范式一致） */
+.theme-settings .page-header {
+  flex-shrink: 0;
 }
 
 /* 删除 scoped .page-header/.page-subtitle 覆盖（规范：复用全局 glass.css） */
 
-/* === 玻璃主容器 === */
-.theme-panel {
+/* === 玻璃内容区（滚动职责下放，参考 AccountSettings 范式） === */
+.page-body {
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .theme-section {
