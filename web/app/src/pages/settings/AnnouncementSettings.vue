@@ -569,7 +569,7 @@ onMounted(() => {
   display: flex;
   height: 100%;
   min-height: 0;
-  background: #f5f7fa;
+  background: var(--surface);
 }
 
 /* 左侧边栏 */
@@ -607,7 +607,7 @@ onMounted(() => {
 }
 
 .policy-tree__node:hover {
-  background: #f3f4f6;
+  background: var(--g1);
   color: #1f2937;
 }
 
@@ -632,7 +632,7 @@ onMounted(() => {
 .policy-tree__count {
   font-size: 12px;
   color: #9ca3af;
-  background: #f3f4f6;
+  background: var(--g1);
   padding: 1px 6px;
   border-radius: 10px;
 }
@@ -719,7 +719,7 @@ onMounted(() => {
   padding: 10px 12px;
   border-bottom: 1px solid #f0f0f0;
   white-space: nowrap;
-  background: #fafafa;
+  background: var(--g1);
 }
 
 .policy-table td {
@@ -734,7 +734,7 @@ onMounted(() => {
 }
 
 .policy-table__row:hover {
-  background: #f8fafc;
+  background: var(--brand-tint);
 }
 
 .policy-table__row:last-child td {
@@ -856,7 +856,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: #f9fafb;
+  background: var(--g1);
   border-radius: 6px;
 }
 

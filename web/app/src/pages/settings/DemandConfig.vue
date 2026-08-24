@@ -444,7 +444,7 @@ onMounted(() => {
 }
 
 .config-card :deep(.n-card-header) {
-  background: #fafafa;
+  background: var(--g1);
   border-radius: 8px 8px 0 0;
 }
 
@@ -503,7 +503,7 @@ onMounted(() => {
 .rules-tip {
   margin-top: 8px;
   padding: 12px;
-  background: #f5f5f5;
+  background: var(--g1);
   border-radius: 6px;
   font-size: 12px;
   color: #666;

@@ -251,7 +251,7 @@ onMounted(() => {
 /* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css 渐变规格） */
 .kpi-card {
   text-align: center;
-  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+  background: linear-gradient(135deg, var(--brand-tint) 0%, var(--brand-soft) 100%);
 }
 .kpi-value {
   font-size: 28px;
