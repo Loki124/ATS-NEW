@@ -594,12 +594,24 @@ function handleUserMenu(key: string) {
 /* === 菜单项：彻底关掉所有 transition === */
 /* Naive UI 默认在 .n-menu-item-content / icon / arrow 上有 300ms background-color + color 渐变
    这导致点击切换时新旧 item 的 active 态会"叠在一起"约 300ms（视觉上的闪烁）
-   用 !important 强压，避免被 Naive UI 的 cssr 覆盖 */
+   用 !important 强压，避免被 Naive UI 的 cssr 覆盖
+   ⚠️ 22:09 兵哥反馈"展开时文字和图标的动效去掉"：
+   - n-menu 自身 transition: background-color 0.3s（背景色过渡）
+   - 子菜单展开/折叠的 Vue Transition（slide-down + fade）
+   - collapsed 切换时 label fade
+   全部 * 子选择器覆盖（不影响 .sider-footer 的 hover 色彩过渡） */
+:deep(.n-menu),
+:deep(.n-menu *),
 :deep(.n-menu-item-content),
 :deep(.n-menu-item-content::before),
 :deep(.n-menu-item-content .n-menu-item-content-header),
 :deep(.n-menu-item-content .n-icon),
-:deep(.n-menu-item-content-arrow) {
+:deep(.n-menu-item-content-arrow),
+:deep(.n-submenu),
+:deep(.n-submenu *),
+:deep(.n-submenu-children),
+:deep(.v-enter-active),
+:deep(.v-leave-active) {
   transition: none !important;
   animation: none !important;
 }
@@ -661,7 +673,8 @@ function handleUserMenu(key: string) {
   max-width: 240px !important;
   height: 100dvh !important;
   z-index: 1000;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  /* ⚠️ 22:09 兵哥反馈"去掉边框"：浮层不要 box-shadow 投影（视觉边界）和 border-right（白色实线） */
+  box-shadow: none !important;
   -webkit-backdrop-filter: blur(var(--glass-blur-panel));
   backdrop-filter: blur(var(--glass-blur-panel));
 }
@@ -673,6 +686,9 @@ function handleUserMenu(key: string) {
    仍走全局 .glass-sidebar，不动）。*/
 .app-sider.glass-sidebar {
   background: transparent !important;
+  /* ⚠️ 22:09 兵哥反馈"去掉边框"：全局 .glass-sidebar 自带 border-right:1px solid rgba(255,255,255,.7)，
+     浮层右边显示一条白线，与极光底视觉冲突，去掉 */
+  border-right: none !important;
 }
 /* 透明侧栏不再画顶部白罩高光（无需模拟玻璃反光） */
 /* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充)
