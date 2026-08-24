@@ -7,7 +7,7 @@
   <!-- P4 整改：跳转链接（a11y WCAG 2.4.1） -->
   <a class="skip-link" href="#main">跳到主内容</a>
 
-  <n-layout has-sider class="app-layout">
+  <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top' }">
     <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
     <!--
       2026-08-24 21:31 兵哥反馈：默认充满全高 + hover 展开不压缩主页面
@@ -585,6 +585,34 @@ function handleUserMenu(key: string) {
   /* 只占 header 中间区域，子项超出可滚动 */
   overflow: hidden;
 }
+/* ⚠️ 22:20 兵哥反馈"其他按钮被压缩"：
+   - Naive UI n-menu horizontal mode 默认 .n-menu-item-content 是 display:grid
+   - 实测 gridTemplateColumns: "32px 23.3281px 0px" —— 第二列 label 硬限到 23.33px（auto 1fr auto 计算）
+   - 中文字符（"工作台"~42px）被截断显示"工."（实测 header_w=23）
+   - 即使 !important 覆盖 grid-template-columns，Vue 响应式仍会重设（实测 inline 32px 100px 0px 都失效）
+   - 改用 flex 布局完全绕过 Naive UI grid 模板 —— .n-menu-item-content 由 grid 改 flex
+   - icon + header 按内容撑开，菜单项按内容自然展开
+   - 缩小 padding/gap 让 8 项菜单总和适应 viewport 1440（避免挤压右侧搜索框/用户区） */
+.top-menu :deep(.n-menu-item-content) {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px !important;
+  height: 100% !important;
+}
+.top-menu :deep(.n-menu-item-content__icon) {
+  flex-shrink: 0;
+}
+.top-menu :deep(.n-menu-item-content-header) {
+  white-space: nowrap !important;
+}
+/* ⚠️ 22:20 兵哥反馈"设置按钮不可见/其他按钮被压缩"：
+   - top 模式下菜单项按内容撑开后总宽超 viewport，挤压右侧搜索框+通知+用户头像
+   - 缩小搜索框宽度 w-72(288) → w-48(192)，省 96px 让出空间给菜单项
+   - 配合上面的菜单项 padding 缩窄，整 header 总宽 1440 内能容纳 */
+.layout-header__search-trigger .search-box {
+  width: 12rem !important; /* w-48 = 12rem = 192px，从 w-72 (288px) 缩到 192px */
+}
 :deep(.top-menu .n-menu-item-content) {
   transition: none !important;
 }
@@ -649,10 +677,19 @@ function handleUserMenu(key: string) {
   overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }
 /* 改 Naive UI 直接子级 scroll-container 为 grid: 第 1 列 64px 给 sider, 第 2 列 1fr 给 main
-   > 直接子级限定：避免 main-area 内部嵌套的 scroll-container 被误改（该走默认 flex column） */
-.app-layout > :deep(.n-layout-scroll-container) {
+   > 直接子级限定：避免 main-area 内部嵌套的 scroll-container 被误改（该走默认 flex column）
+   ⚠️ 22:20 兵哥反馈 top 横排布局 4 个问题：
+   - top 模式下没有 sider（v-if 不渲染），但 grid 模板仍分配 64px 给第 1 列
+   - main-area 占第 2 列 x=64 → 主页面左侧 64px 空白 + settings-sider 错位 + 顶部菜单被挤压
+   - top 模式必须取消 grid，单列布局让 main-area 占满全宽 */
+.app-layout:not(.app-layout--top) > :deep(.n-layout-scroll-container) {
   display: grid !important;
   grid-template-columns: 64px calc(100vw - 64px) !important;
+  width: 100% !important;
+}
+/* top 模式单列布局（无 sider，main-area 占满全宽，避免左侧 64px 空白） */
+.app-layout.app-layout--top > :deep(.n-layout-scroll-container) {
+  display: block !important;
   width: 100% !important;
 }
 /* 侧边栏: 2026-08-24 21:31 兵哥反馈改范式 —— 默认充满全高 + hover 浮层不压缩主页面
