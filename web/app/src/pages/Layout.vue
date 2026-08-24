@@ -626,14 +626,18 @@ function handleUserMenu(key: string) {
 /* === 整个 app 限定在 viewport 内, body 不滚 ===
    2026-08-24 21:31 改范式: 用 :deep 改 Naive UI 内部 flex 容器为 grid（n-layout has-sider 时
    内部 .n-layout-scroll-container 设了 display:flex + flex-direction:row + width:100%，
-   我们的 sider + main 实际是这个 flex 容器的子项，必须改它才能锁列） */
+   我们的 sider + main 实际是这个 flex 容器的子项，必须改它才能锁列）
+   ⚠️ 21:31 修：选择器必须用 > 限定到 .app-layout 的**直接子级**，否则会污染 main-area
+   内部嵌套的 .n-layout-scroll-container（让内部也变成 64px+1376px 两列布局，导致
+   breadcrumb-wrap 占第 1 列 64px 把 layout-content 挤到第 2 列右侧，dashboard 内容被
+   压成 64px 窄列——兵哥 21:43 截图"页面被压缩"即此因） */
 .app-layout {
   height: 100dvh; /* P5 整改：100vh -> 100dvh，移动端地址栏不裁切 */
   overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }
-/* 改 Naive UI 内部 scroll-container 为 grid: 第 1 列 64px 给 sider, 第 2 列 1fr 给 main
-   这样即使 sider hover 切 fixed 脱流，main-area 仍固定占第 2 列不收缩 */
-.app-layout :deep(.n-layout-scroll-container) {
+/* 改 Naive UI 直接子级 scroll-container 为 grid: 第 1 列 64px 给 sider, 第 2 列 1fr 给 main
+   > 直接子级限定：避免 main-area 内部嵌套的 scroll-container 被误改（该走默认 flex column） */
+.app-layout > :deep(.n-layout-scroll-container) {
   display: grid !important;
   grid-template-columns: 64px calc(100vw - 64px) !important;
   width: 100% !important;
