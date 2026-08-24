@@ -329,13 +329,51 @@ body.dark .glass-card {
  * 配合 .glass-card 作为浮起内容（modal preset="card" 时已自带 padding）。
  */
 .n-modal-mask {
-  background: rgba(15, 23, 42, .28) !important;
+  /* ⚠️ 22:35 兵哥反馈"降低遮罩层不透明度，确保弹窗内容清晰可见"：
+     - 浅色 .28 → .18（让背景更通透，弹窗内容不被遮罩遮挡）
+     - 暗色 .45 → .25（同理降低，让暗背景下弹窗更清晰） */
+  background: rgba(15, 23, 42, .18) !important;
   backdrop-filter: blur(var(--glass-blur-overlay));
   -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
 }
 body.dark .n-modal-mask {
-  background: rgba(0, 0, 0, .45) !important;
+  background: rgba(0, 0, 0, .25) !important;
 }
+
+/* === n-dropdown 玻璃态（22:35 统一交互规范）===
+ * Naive UI n-dropdown 默认透明背景，背后页面内容会穿透
+ * 用玻璃态 token 让 dropdown 卡片更不透明，内部文字清晰可见 */
+.n-dropdown-menu,
+.n-dropdown-option {
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
+}
+
+/* === 全局滚动条悬浮显示（22:35 统一交互规范）===
+ * 默认隐藏 + hover/scroll/active 时显示
+ * 半透明细条，不占用布局空间，不影响视觉宽度
+ * 适用 Naive UI n-scrollbar-rail + 原生 ::-webkit-scrollbar */
+.n-scrollbar-rail {
+  opacity: 0 !important;
+  transition: opacity 0.2s var(--ease-out);
+}
+.n-scrollbar-container:hover ~ .n-scrollbar-rail,
+.n-scrollbar-container:focus-within ~ .n-scrollbar-rail,
+.n-scrollbar-rail:hover,
+.n-scrollbar-rail:focus-visible {
+  opacity: 1 !important;
+}
+/* 原生 webkit 滚动条：细条 + 半透明 + hover 加深 */
+::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.25); /* brand 色 + 25% 透明 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.5); }
+::-webkit-scrollbar-track { background: transparent; }
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.25) transparent; }
 
 /* === Data Table 玻璃化（DESIGN.md §4 Data Table）===
  * 表头半透明白，行 hairline 分隔，hover 行品牌浅底，去斑马纹。

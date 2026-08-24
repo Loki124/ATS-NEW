@@ -763,8 +763,12 @@ function handleUserMenu(key: string) {
 }
 /* 玻璃 header 顶部圆角与侧栏对齐：左侧贴合侧栏 0 圆角，右侧保留 */
 .glass-header {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  /* ⚠️ 22:35 兵哥反馈"顶部导航栏移除右侧圆角边框样式，保持边缘直角设计"：
+     - 之前 border-top-left-radius: 0 + border-bottom-left-radius: 0（让 header 左下角与 sider 对齐）
+     - 右侧仍是 20px 圆角（来自 .glass-panel 全局）
+     - 现在 header 整宽横跨 viewport（1440px），不需要任何圆角（边缘直角）
+     - 4 角都设 0，与整体页面直角风格一致 */
+  border-radius: 0 !important;
 }
 
 /* === 主内容区: 撑开剩余, 内容溢出时内部滚 === */

@@ -235,8 +235,12 @@ watch(() => route.path, () => {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 16px 12px 20px;
+  /* ⚠️ 22:35 兵哥反馈"设置主标题作为固定头部展示，仅让标题下方列表支持滚动"：
+     - position: sticky + top: 0 已实现（实测滚 367px 后 y 仍 64），但背景半透明
+       rgba(255,255,255,.55) 让用户视觉上感觉'跟着滚'
+     - 改用 var(--glass-bg-elevated) (.72) 更不透明，明确'固定头部'的视觉边界 */
   border-bottom: 1px solid var(--border-hairline);
-  background: var(--glass-bg-panel);
+  background: var(--glass-bg-elevated);
   backdrop-filter: blur(var(--glass-blur-panel));
   -webkit-backdrop-filter: blur(var(--glass-blur-panel));
 }
