@@ -1,8 +1,8 @@
 <template>
-  <div class="interview-round">
+  <div class="page-container interview-round">
     <div class="page-header">
       <div>
-        <h2 class="page-title">面试轮次管理</h2>
+        <h1 class="page-title">面试轮次管理</h1>
         <p class="page-subtitle">配置面试轮次、形式与面试官指派规则</p>
       </div>
       <n-space>
@@ -168,12 +168,7 @@ onMounted(() => loadList())
 .interview-round {
   padding: 20px 24px;
 }
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
+/* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
 .page-header h2 {
   margin: 0;
   font-size: 18px;

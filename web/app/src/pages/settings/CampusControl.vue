@@ -1,16 +1,9 @@
 <template>
-  <div class="cc-page">
-    <!-- 渐变光斑背景 -->
-    <div class="cc-aurora" aria-hidden="true">
-      <span class="blob blob-a"></span>
-      <span class="blob blob-b"></span>
-      <span class="blob blob-c"></span>
-    </div>
-
-    <div class="cc-header">
+  <div class="page-container">
+    <div class="page-header">
       <div>
-        <h1 class="cc-title">校招管控</h1>
-        <p class="cc-subtitle">人员比例管控 · 每条规则独立适用范围（全局 / 部门·职务·职级）· 指标库 + 规则增删改</p>
+        <h1 class="page-title">校招管控</h1>
+        <p class="page-subtitle">人员比例管控 · 每条规则独立适用范围（全局 / 部门·职务·职级）· 指标库 + 规则增删改</p>
       </div>
     </div>
 
@@ -1229,50 +1222,27 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.cc-page {
-  position: relative;
-  min-height: 100%;
-  height: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  padding: 16px;
+/* 仅保留「布局链」相关规则，视觉（玻璃/极光/标题渐变/KPI/表格/弹窗）统一复用全局 glass.css
+   —— 单一设计系统，校招管控不再持有私有视觉定义。 */
+
+/* 极光由 SettingsLayout 外壳统一注入（.settings-aurora），本页不再自绘 */
+
+/* 多 tab 看板需要整页纵向撑满：页面根作为 flex 列，.glass-panel 才能 flex:1 填满剩余高度 */
+.page-container {
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  min-height: 100%;
+  /* 不强制 height:100%，避免 settings-scroll 不可滚动时内容被截断；
+     玻璃面板在可用空间内撑满，内容超过时内部滚动链生效 */
 }
-.cc-aurora { position: absolute; inset: 0; pointer-events: none; }
-.blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }
-.blob-a { width: 520px; height: 520px; top: -220px; left: -140px; background: radial-gradient(circle, rgba(99,102,241,0.28), transparent 65%); }
-.blob-b { width: 460px; height: 460px; top: -80px; right: -160px; background: radial-gradient(circle, rgba(236,72,153,0.18), transparent 65%); }
-.blob-c { width: 420px; height: 420px; bottom: -180px; left: 40%; background: radial-gradient(circle, rgba(34,197,94,0.14), transparent 65%); }
 
-.cc-header { position: relative; z-index: 1; margin-bottom: 16px; padding-top: 0; padding-bottom: 0; flex-shrink: 0; }
-.cc-title {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 55%, var(--brand-grad-b) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.cc-subtitle { margin: 6px 0 0; color: var(--ink-soft); font-size: var(--text-small); }
-
+/* .glass-panel 已是全局玻璃工具类；此处补充「作为页面内容根时撑满高度」的布局行为 */
 .glass-panel {
-  position: relative;
-  z-index: 1;
-  background: var(--glass-bg-card);
-  backdrop-filter: blur(var(--glass-blur-card));
-  -webkit-backdrop-filter: blur(var(--glass-blur-card));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-4) var(--space-4);
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  padding: var(--space-4);
 }
 .cc-tabs {
   display: flex;
@@ -1295,55 +1265,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 }
-.table-wrap {
-  flex: 1;
-  min-height: 180px;
-  /* ★ 外层只做布局容器，自身不滚动（避免双重滚动容器）；
-     真实滚动由 .n-data-table-base-table-body 承担 */
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--radius-md);
-}
-.table-wrap :deep(.n-data-table) {
-  flex: 1;
-  min-height: 0;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-/* 表格内部层级圆角统一 + n-scrollbar-container 承担真滚动：
-   - base-table flex column；header flex-shrink:0 固定高度
-   - body 只做布局（flex:1, min-height:0, overflow:hidden），不自己滚
-   - 真滚动在 .n-scrollbar-container：flex:1 + overflow-y:auto 保证它撑满 body 剩余空间
-     wheel 事件从 <td> 冒泡上来 → 直接被它接住 → 滚它自己
-   - 横向：container overflow-x:hidden 让 Naive 的 header 同步跟随机制仍生效 */
-.table-wrap :deep(.n-data-table-wrapper) { border-radius: var(--radius-md); overflow: hidden; }
-.table-wrap :deep(.n-data-table-base-table) { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.table-wrap :deep(.n-data-table-base-table-header) { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; flex-shrink: 0; }
-.table-wrap :deep(.n-data-table-base-table-body) {
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* 只做布局，不再自己滚 */
-}
-.table-wrap :deep(.n-data-table-base-table-body > .n-scrollbar),
-.table-wrap :deep(.n-data-table-base-table-body .n-scrollbar-container) {
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  overflow-x: hidden !important;
-  overflow-y: auto !important; /* 关键：n-scrollbar-container 自己滚 */
-  flex: 1;
-  min-height: 0; /* flex 子项撑开父容器剩余空间 */
-}
-.table-wrap :deep(.n-data-table-table) { background: transparent !important; border-radius: 0; }
-.table-wrap :deep(.n-data-table-thead) { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
-.table-wrap :deep(.n-data-table-th:first-child) { border-top-left-radius: var(--radius-md); }
-.table-wrap :deep(.n-data-table-th:last-child) { border-top-right-radius: var(--radius-md); }
-/* 末行首末单元格左下/右下圆角（防止表格底部转角直角） */
-.table-wrap :deep(.n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:first-child) { border-bottom-left-radius: var(--radius-md); }
-.table-wrap :deep(.n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:last-child) { border-bottom-right-radius: var(--radius-md); }
+/* 表格滚动由全局 .table-wrap（glass.css 阶段 F）统一处理，本页不再持有重复定义 */
 .validate-result {
   flex: 1;
   min-height: 0;
@@ -1352,49 +1274,6 @@ onMounted(async () => {
   flex-direction: column;
   margin-top: var(--space-4);
 }
-
-.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.spacer { flex: 1; }
-
-.gradient-btn {
-  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
-  border: none;
-  box-shadow: 0 4px 14px var(--glow-brand);
-  transition: all var(--duration-base) var(--ease-out);
-}
-.gradient-btn:hover { box-shadow: 0 6px 20px var(--glow-brand); transform: translateY(-1px); }
-
-/* P3 整改：scoped repeat(5,1fr) 覆盖删除，复用全局 .kpi-row auto-fit 自适应 */
-.kpi-row { display: grid; gap: var(--space-3); margin-bottom: var(--space-4); }
-.kpi-card {
-  position: relative;
-  z-index: 1;
-  background: var(--glass-bg-card);
-  backdrop-filter: blur(var(--glass-blur-card));
-  -webkit-backdrop-filter: blur(var(--glass-blur-card));
-  /* 去掉边框与投影，让 KPI 卡片完全融入玻璃面板，消除边界感 */
-  border: none;
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  box-shadow: none;
-  transition: all var(--duration-base) var(--ease-out);
-}
-.kpi-card:hover {
-  /* 无投影：仅通过背景微亮 + 轻微上移提供反馈，保持无边际感 */
-  background: var(--brand-a12);
-  transform: translateY(-2px);
-}
-.kpi-card.danger:hover { background: rgba(239, 68, 68, .12); }
-.kpi-card.warn:hover { background: rgba(245, 158, 11, .12); }
-.kpi-label { font-size: var(--text-meta); color: var(--ink-soft); }
-.kpi-value { font-size: 26px; font-weight: 700; color: var(--ink); }
-.kpi-card.danger .kpi-value { color: var(--c-error); }
-.kpi-card.warn .kpi-value { color: var(--c-warning); }
 
 .block-hint { color: var(--c-error); font-size: var(--text-small); margin: var(--space-2) 0 0; }
 
@@ -1522,29 +1401,6 @@ onMounted(async () => {
   margin-bottom: 4px;
 }
 
-/* 校招管控：弹窗统一页面居中 + 高度自适应屏幕（超出 90vh 内部滚动） */
-.import-modal :deep(.n-card),
-.dim-modal :deep(.n-card),
-.rule-modal :deep(.n-card) {
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-.import-modal :deep(.n-card__content),
-.dim-modal :deep(.n-card__content),
-.rule-modal :deep(.n-card__content) {
-  overflow-y: auto;
-  max-height: calc(90vh - 110px);
-}
-.import-modal :deep(.n-card-header__main),
-.dim-modal :deep(.n-card-header__main),
-.rule-modal :deep(.n-card-header__main) {
-  font-size: 16px;
-  font-weight: 600;
-}
-.import-modal .import-hint {
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-  line-height: 1.6;
-}
+/* 弹窗居中 + 内部滚动 + 去边框由全局 .n-modal .n-card（glass.css 阶段 F）统一处理，
+   本页仅保留 .batch-modal 的密集表单紧凑间距微调。 */
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="theme-settings">
+  <div class="page-container theme-settings">
     <!-- 页面标题（DESIGN.md §3 渐变标题） -->
     <div class="page-header">
       <h1 class="gradient-title page-title">主题外观</h1>
@@ -269,15 +269,7 @@ onUnmounted(() => {
   height: 100%;
 }
 
-.page-header {
-  flex-shrink: 0;
-}
-/* P5 整改：删除 scoped .page-title 字号覆盖（review 2.6），复用全局 .page-title 26px 渐变规格 */
-.page-subtitle {
-  font-size: var(--text-body);
-  color: var(--ink-soft);
-  margin: var(--space-2) 0 0;
-}
+/* 删除 scoped .page-header/.page-subtitle 覆盖（规范：复用全局 glass.css） */
 
 /* === 玻璃主容器 === */
 .theme-panel {

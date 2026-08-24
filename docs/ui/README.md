@@ -9,6 +9,7 @@
 | `UI_DESIGN_SPEC.md` | 统一设计规范 v2.1：颜色 / 排版 / 间距 / 圆角 / 阴影 / 组件 / 响应式 / 可访问性 / Do-Don't / 令牌对照表。**前端 UI 的宪法**。 | ① 必读 |
 | `UI_REMEDIATION_PLAN.md` | 整改技术实施方案：按 P0→P6 推进落地，文件:行号 + 可照抄代码块 + 验收点。 | ② 整改排期 |
 | `UI_COMPLIANCE_REPORT.md` | 规范符合性审查报告：🔴 关键 / 🟡 重要 / 🔵 建议 三级问题清单（整改方案的源头）。 | ③ 立项参考 |
+| `SETTINGS_PAGE_STRUCTURE.md` | **设置页统一页面结构规范 v1.0**：Shell/根/标题/KPI/工具条/表格/弹窗/多 tab 看板/自检清单。所有 `pages/settings/**` 下页面（含 permission 子模块）必读。 | ① 设置页改前必读 |
 
 ## 强制约束（强制项，请大声读出来）
 

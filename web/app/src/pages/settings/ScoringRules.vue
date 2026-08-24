@@ -19,8 +19,5 @@ import { StarOutline } from '@vicons/ionicons5'
 </script>
 
 <style scoped>
-/* .page-container 的 padding 由 SettingsLayout 统一注入 */
-.page-container { /* 故意留空 */ }
-.page-header { margin-bottom: 24px; }
-.page-title { font-size: 24px; font-weight: 600; margin: 0; }
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css 渐变规格与通栏分隔线） */
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="data-dashboard">
+  <div class="page-container data-dashboard">
     <div class="page-header">
       <h1 class="page-title">数据中心</h1>
       <p class="page-subtitle">G35 - 招聘业务 KPI 看板 + 通用数据导出 + 数据订阅</p>
@@ -248,19 +248,7 @@ onMounted(() => {
   gap: 12px;
   height: 100%;
 }
-.page-header {
-  flex-shrink: 0;
-}
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-}
-.page-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #6b7280;
-}
+/* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css 渐变规格） */
 .kpi-card {
   text-align: center;
   background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);

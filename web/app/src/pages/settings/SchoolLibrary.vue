@@ -1,5 +1,5 @@
 <template>
-  <div class="school-library">
+  <div class="page-container school-library">
     <div class="page-header">
       <h1 class="page-title">院校库</h1>
       <p class="page-subtitle">G41 - 院校信息库 (985/211/重点本科)</p>
@@ -158,9 +158,7 @@ onMounted(() => { reload(); });
 </script>
 
 <style scoped>
-.school-library { display: flex; flex-direction: column; gap: 12px; height: 100%; }
-.page-header { padding: 0 0 4px 0; }
-.page-title { font-size: 22px; font-weight: 600; margin: 0; }
-.page-subtitle { color: #888; margin: 4px 0 0 0; font-size: 13px; }
+.school-library { display: flex; flex-direction: column; gap: 12px; }
+/* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css） */
 .filter-row { margin-bottom: 12px; }
 </style>

@@ -1,5 +1,11 @@
 <template>
-  <div class="permission-management">
+  <div class="page-container mou-management">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">MOU 与权限容器</h1>
+        <p class="page-subtitle">维护公司内外部协议（Memorandum of Understanding）及配套的权限容器</p>
+      </div>
+    </div>
     <div class="kpi-row">
       <div class="kpi-card"><span class="kpi-label">MOU 总数</span><span class="kpi-value">{{ mous.length }}</span></div>
       <div class="kpi-card"><span class="kpi-label">权限容器</span><span class="kpi-value">{{ containers.length }}</span></div>
@@ -1395,14 +1401,7 @@ onMounted(() => {
 .permission-management {
   padding: 24px;
 }
-.page-header {
-  margin-bottom: 24px;
-}
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-}
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 .tab-label {
   display: inline-flex;
   align-items: center;

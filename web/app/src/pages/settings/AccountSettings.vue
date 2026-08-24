@@ -292,15 +292,8 @@ async function handleChangePassword() {
      设置 scroll-y 后默认 overflow-x 会被浏览器隐式 enable → 出现底部横向滚动条 */
   overflow-x: hidden;
 }
-.page-header {
-  flex-shrink: 0;
-  margin-bottom: 16px;
-}
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-}
+
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css 渐变规格） */
 
 .settings-section {
   margin-bottom: 16px;

@@ -1,5 +1,5 @@
 <template>
-  <div class="config-container">
+  <div class="page-container config-container">
     <div class="page-header">
       <div>
         <h1 class="page-title">招聘需求设置</h1>
@@ -432,18 +432,7 @@ onMounted(() => {
   background: #f0f2f5;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-}
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 
 .config-content {
   display: flex;

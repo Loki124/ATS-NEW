@@ -1,5 +1,5 @@
 <template>
-  <div class="company-library">
+  <div class="page-container company-library">
     <div class="page-header">
       <h1 class="page-title">公司库</h1>
       <p class="page-subtitle">G41 - 公司信息库 (央企/民企/外企)</p>
@@ -154,9 +154,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.company-library { display: flex; flex-direction: column; gap: 12px; height: 100%; }
-.page-header { padding: 0 0 4px 0; }
-.page-title { font-size: 22px; font-weight: 600; margin: 0; }
-.page-subtitle { color: #888; margin: 4px 0 0 0; font-size: 13px; }
+.company-library { display: flex; flex-direction: column; gap: 12px; }
+/* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css） */
 .filter-row { margin-bottom: 12px; }
 </style>

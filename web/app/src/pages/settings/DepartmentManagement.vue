@@ -589,18 +589,7 @@ onMounted(() => {
   /* 故意留空 */
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 
 .page-header-actions {
   display: flex;

@@ -1,6 +1,12 @@
 <template>
-  <div class="permission-management">
-    <n-card title="权限管理" class="mb-4">
+  <div class="page-container permission-management">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">权限管理</h1>
+        <p class="page-subtitle">资源注册、权限模板、角色克隆、用户授权（V2 4-tab 主壳）</p>
+      </div>
+    </div>
+    <n-card :bordered="false" class="glass-panel permission-shell">
       <n-tabs v-model:value="activeTab" type="line" animated>
         <n-tab-pane name="resources" tab="资源管理">
           <ResourcesTab />
@@ -48,7 +54,10 @@ const activeTab = ref('resources')
 
 <style scoped>
 .permission-management {
-  width: 100%;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+/* 玻璃面板作为内容根时撑满高度（规范：仿 CampusControl 范式 .glass-panel flex 撑满） */
+.permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-4); }
 </style>

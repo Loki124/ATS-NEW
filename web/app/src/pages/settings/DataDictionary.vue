@@ -14,7 +14,7 @@
         <div class="kpi-card"><span class="kpi-label">字典类型</span><span class="kpi-value">{{ types.length }}</span></div>
       </div>
 
-      <n-card :bordered="false" class="toolbar">
+      <div class="toolbar">
         <n-space align="center" :wrap="false">
           <n-input
             v-model:value="searchText"
@@ -34,7 +34,7 @@
             @update:value="loadList"
           />
         </n-space>
-      </n-card>
+      </div>
 
       <n-data-table
         :columns="listColumns"
@@ -878,9 +878,10 @@ onUnmounted(() => {
   overflow-y: auto !important;
   gap: 0 !important;
 }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 600; margin: 0; }
-.page-subtitle { color: #888; margin: 6px 0 0; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+/* margin-bottom 与负 margin（让底部 border 通栏）由全局 .settings-scroll .page-header 统一处理；
+   本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
+/* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
 .code-pill, .num-pill { font-size: 12px; color: #666; background: #f2f3f5; padding: 2px 8px; border-radius: 4px; }
 .toolbar { margin-bottom: 16px; }
 .section { margin-bottom: 16px; }

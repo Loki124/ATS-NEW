@@ -1,5 +1,5 @@
 <template>
-  <div class="process-stage-rules">
+  <div class="page-container process-stage-rules">
     <div class="page-header">
       <div>
         <n-space align="center">
@@ -506,11 +506,7 @@ onMounted(async () => {
 .process-stage-rules {
   padding: 20px 24px;
 }
-.page-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-}
+/* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
 .page-header h2 {
   margin: 0;
   font-size: 18px;

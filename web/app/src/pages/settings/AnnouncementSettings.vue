@@ -1,5 +1,5 @@
 <template>
-  <div class="policy-admin">
+  <div class="page-container policy-admin">
     <!-- 左侧分类树 -->
     <aside class="policy-admin__side">
       <div class="policy-admin__side-header">政策制度</div>

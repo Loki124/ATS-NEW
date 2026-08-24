@@ -1,6 +1,11 @@
 <template>
-  <div class="field-acl">
-    <n-page-header title="字段级访问控制" subtitle="G43 - 配置角色对字段的 VIEW / MASK / HIDE 权限" />
+  <div class="page-container field-acl">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">字段级访问控制</h1>
+        <p class="page-subtitle">G43 - 配置角色对字段的 VIEW / MASK / HIDE 权限</p>
+      </div>
+    </div>
 
     <div class="kpi-row">
       <div class="kpi-card"><span class="kpi-label">权限规则</span><span class="kpi-value">{{ rules.length }}</span></div>
