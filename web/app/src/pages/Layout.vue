@@ -764,9 +764,32 @@ function handleUserMenu(key: string) {
   display: flex !important;
   flex-direction: column !important;
 }
-.sider-menu {
-  min-height: 0;
-  /* 内容驱动: 不强制 flex:1 占满，让整个侧栏自然紧凑 */
+/* ⚠️ 21:58 兵哥反馈 footer 不在最底：
+   - .sider-footer 在 Naive UI 的 .n-scrollbar-content 内部
+   - .n-scrollbar-content 的高度由 Naive UI JS 算为内容自然高度（实测 512px = logo 65 + menu 390 + footer 57）
+   - 不是父级 .n-scrollbar-container 的 800px → footer 后面没有"剩余空间"可推
+   - 即使 .n-scrollbar-content 是 flex column + .sider-menu flex:1，容器高度就是内容高度，撑不开
+   - 修复：用 position:absolute 把 footer 直接钉到 .app-sider 底部，绕开 n-scrollbar 的高度约束 */
+.app-sider {
+  position: relative !important; /* 给 absolute footer 提供定位基准 */
+}
+/* ⚠️ 21:58 兵哥反馈"去掉背景色"：
+   - n-menu 自带 .glass-sidebar 全局规则（background: rgba(255,255,255,.55) + blur）
+   - 这导致 hover 浮层时整个侧栏呈现半透明白底+紫色极光透出（视觉上是深紫色块）
+   - 改 transparent：让极光直接透出（暗色区域），侧栏视觉上是"无背景"
+   - 只覆盖 .sider-menu 自身，settings-sider 全局 .glass-sidebar 不动 */
+.app-sider :deep(.sider-menu.glass-sidebar) {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* footer 绝对定位到 .app-sider 最底，绕开 n-scrollbar 高度约束 */
+.app-sider :deep(.sider-footer) {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2 !important; /* 在 menu 之上（如果内容超出，footer 浮在底部） */
 }
 .sider-footer {
   margin-top: auto;
