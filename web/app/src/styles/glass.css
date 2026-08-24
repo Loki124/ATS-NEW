@@ -567,7 +567,7 @@ body.dark .kpi-card:hover {
 
 /* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
 /* 右侧 .settings-scroll 滚动时，子页标题块用 sticky 吸顶在容器顶部，
-   避免标题随长表格一起滚走。背景用玻璃材质 + 不透明兜底，覆盖从后面滚过的内容。 */
+   避免标题随长表格一起滚走。背景用玻璃材质，覆盖从后面滚过的内容。 */
 .settings-scroll .page-header,
 .settings-scroll .cc-header,
 .settings-scroll .n-page-header,
@@ -575,12 +575,7 @@ body.dark .kpi-card:hover {
   position: sticky;
   top: 0;
   z-index: 10;
-  /* P0 修复 2026-08-24：原 background: transparent 导致后面内容（选项/文字）穿透显示。
-     改 --surface 不透明兜底 + -webkit-backdrop-filter 玻璃模糊，确保标题清晰、滚动不重叠。 */
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  backdrop-filter: blur(12px) saturate(180%);
-  background-clip: padding-box;
+  background: transparent;
   border-bottom: 1px solid var(--glass-border);
   margin: 0 -20px 16px -20px;   /* 抵消 .settings-scroll 的 20px padding */
   padding: 20px 20px 4px 20px;  /* 上 padding 补回被 margin 抵消的顶部空间 */
