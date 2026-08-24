@@ -546,7 +546,8 @@ function handleUserMenu(key: string) {
 /* === Logo 容器（玻璃侧栏顶部） === */
 .logo-container {
   padding: 16px;
-  border-bottom: 1px solid var(--border-hairline);
+  /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 logo 容器底部横线（var(--border-hairline)） */
+  border-bottom: none !important;
 }
 .logo {
   display: flex;
@@ -793,9 +794,13 @@ function handleUserMenu(key: string) {
    - n-menu 自带 .glass-sidebar 全局规则（background: rgba(255,255,255,.55) + blur）
    - 这导致 hover 浮层时整个侧栏呈现半透明白底+紫色极光透出（视觉上是深紫色块）
    - 改 transparent：让极光直接透出（暗色区域），侧栏视觉上是"无背景"
-   - 只覆盖 .sider-menu 自身，settings-sider 全局 .glass-sidebar 不动 */
+   - 只覆盖 .sider-menu 自身，settings-sider 全局 .glass-sidebar 不动
+   ⚠️ 22:14 兵哥反馈"边线还在"：全局 .glass-sidebar 仍带 border-right:1px solid rgba(255,255,255,.7)
+   → 浮层右边缘那条白线其实是 .sider-menu 的 border-right（不是 .app-sider 自身），
+   → 必须再加 border-right: none 才能彻底去掉 */
 .app-sider :deep(.sider-menu.glass-sidebar) {
   background: transparent !important;
+  border-right: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
@@ -813,7 +818,8 @@ function handleUserMenu(key: string) {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-top: 1px solid var(--border-hairline);
+  /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 footer 顶部横线（var(--border-hairline)） */
+  border-top: none !important;
   color: var(--ink-soft);
   cursor: pointer;
   user-select: none;
