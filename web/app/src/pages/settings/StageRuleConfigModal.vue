@@ -773,7 +773,7 @@ async function handleSubmit() {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #2080f0, #5fa8ff);
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -832,7 +832,7 @@ async function handleSubmit() {
   top: 12px;
   bottom: 12px;
   width: 4px;
-  background: #2080f0;
+  background: var(--brand);
   border-radius: 0 2px 2px 0;
 }
 .section-card__title {
@@ -851,7 +851,7 @@ async function handleSubmit() {
   display: inline-block;
   width: 3px;
   height: 14px;
-  background: #2080f0;
+  background: var(--brand);
   border-radius: 2px;
 }
 .section-card__hint {
@@ -860,7 +860,7 @@ async function handleSubmit() {
   line-height: 1.6;
   margin: -4px 0 12px 0;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: var(--g1);
   border-radius: 4px;
   border-left: 2px solid #d9d9d9;
 }

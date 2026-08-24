@@ -1,6 +1,14 @@
 <template>
-  <div class="permission-management">
-    <n-card title="权限管理" class="mb-4">
+  <div class="page-container permission-management">
+
+    <div class="page-body">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">权限管理</h1>
+        <p class="page-subtitle">资源注册、权限模板、角色克隆、用户授权（V2 4-tab 主壳）</p>
+      </div>
+    </div>
+    <n-card :bordered="false" class="glass-panel permission-shell">
       <n-tabs v-model:value="activeTab" type="line" animated>
         <n-tab-pane name="resources" tab="资源管理">
           <ResourcesTab />
@@ -16,6 +24,8 @@
         </n-tab-pane>
       </n-tabs>
     </n-card>
+    </div><!-- /.page-body -->
+
   </div>
 </template>
 
@@ -47,8 +57,60 @@ const activeTab = ref('resources')
 </script>
 
 <style scoped>
-.permission-management {
-  width: 100%;
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-container {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  min-height: 0;
+  padding: 0;
 }
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+.permission-management {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* 玻璃面板作为内容根时撑满高度（规范：仿 CampusControl 范式 .glass-panel flex 撑满） */
+.permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-4); }
 </style>

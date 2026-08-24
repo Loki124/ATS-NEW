@@ -1700,7 +1700,7 @@ function conditionItemLabel(item: any): string {
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #2080f0 0%, #5fa8ff 100%);
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
   color: #fff;
   display: flex;
   align-items: center;
@@ -1783,7 +1783,7 @@ function conditionItemLabel(item: any): string {
 .section__title-bar {
   width: 3px;
   height: 14px;
-  background: linear-gradient(180deg, #2080f0 0%, #5fa8ff 100%);
+  background: linear-gradient(180deg, var(--brand), var(--brand-grad-a));
   border-radius: 2px;
 }
 .section__body {
@@ -1867,7 +1867,7 @@ function conditionItemLabel(item: any): string {
   border-color: #ffb3b3;
 }
 .scope-card--neutral {
-  background: #fafafa;
+  background: var(--g1);
   border-color: #e8e8ec;
 }
 .scope-card__head {
@@ -1959,7 +1959,7 @@ function conditionItemLabel(item: any): string {
   top: 14px;
   bottom: 14px;
   width: 2px;
-  background: linear-gradient(180deg, #e0e0e6 0%, #e8e8ec 100%);
+  background: var(--g6);
   border-radius: 1px;
 }
 
@@ -2084,7 +2084,7 @@ function conditionItemLabel(item: any): string {
 .cond-empty {
   font-size: 12px;
   color: #999;
-  background: #f5f5f5;
+  background: var(--g1);
   padding: 6px 10px;
   border-radius: 4px;
   font-style: italic;
@@ -2096,7 +2096,7 @@ function conditionItemLabel(item: any): string {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  background: #f7f9fc;
+  background: var(--g1);
   border: 1px solid #e8eef7;
   border-radius: 4px;
   padding: 6px 10px;

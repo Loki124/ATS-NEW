@@ -50,7 +50,7 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
     primaryColorHover:   brandHoverHex.value,
     primaryColorPressed: brandPressedHex.value,
     primaryColorSuppl:   brandHex.value,
-    // === 语义色（与 tokens.css 的 --c-* 默认值同步）===
+    // === 语义色（与 tokens.css §4 语义色同步，改令牌需同步此处 hex 字面量：Naive parseColor 不解析 var()）===
     successColor: '#16A34A',
     warningColor: '#F59E0B',
     errorColor:   '#EF4444',

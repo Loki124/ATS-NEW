@@ -235,8 +235,12 @@ watch(() => route.path, () => {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 16px 12px 20px;
+  /* ⚠️ 22:35 兵哥反馈"设置主标题作为固定头部展示，仅让标题下方列表支持滚动"：
+     - position: sticky + top: 0 已实现（实测滚 367px 后 y 仍 64），但背景半透明
+       rgba(255,255,255,.55) 让用户视觉上感觉'跟着滚'
+     - 改用 var(--glass-bg-elevated) (.72) 更不透明，明确'固定头部'的视觉边界 */
   border-bottom: 1px solid var(--border-hairline);
-  background: var(--glass-bg-panel);
+  background: var(--glass-bg-elevated);
   backdrop-filter: blur(var(--glass-blur-panel));
   -webkit-backdrop-filter: blur(var(--glass-blur-panel));
 }
@@ -264,7 +268,16 @@ watch(() => route.path, () => {
 .settings-scroll {
   position: relative; z-index: 1;
   flex: 1; min-height: 0; height: 100%;
-  overflow: auto; padding: 20px;
+  /* ⚠️ 22:50 兵哥反馈"页面整体滚动 + 标题区滚动"双重滚动：
+     - 原 overflow: auto 让 .settings-scroll 自身成滚动容器
+     - 与各页 .page-body (overflow-y: auto) 同时存在 → 内容超长时双重滚动
+     - 桌面端改为 overflow: hidden，由各页 .page-body 内部滚（单一滚动职责）
+     - 移动端（≤ 767px）保留 overflow: auto（移动端布局单列，更适合整体滚） */
+  overflow: hidden;
+  padding: 20px;
+}
+@media (max-width: 767px) {
+  .settings-scroll { overflow: auto; }
 }
 .settings-scroll :deep(.page-container) { padding: 0; min-height: 100%; }
 

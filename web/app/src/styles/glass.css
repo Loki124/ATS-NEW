@@ -206,7 +206,9 @@ body.dark .glass-card {
   transform: translateY(0);
 }
 .btn-primary:disabled {
-  opacity: .5;
+  /* P2 整改：弃用 opacity:.5（白字 0.5 透明叠品牌渐变对比不足），改用灰底 + 达标字色 */
+  background: var(--g2);
+  color: var(--ink-faint);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -327,13 +329,51 @@ body.dark .glass-card {
  * 配合 .glass-card 作为浮起内容（modal preset="card" 时已自带 padding）。
  */
 .n-modal-mask {
-  background: rgba(15, 23, 42, .28) !important;
+  /* ⚠️ 22:35 兵哥反馈"降低遮罩层不透明度，确保弹窗内容清晰可见"：
+     - 浅色 .28 → .18（让背景更通透，弹窗内容不被遮罩遮挡）
+     - 暗色 .45 → .25（同理降低，让暗背景下弹窗更清晰） */
+  background: rgba(15, 23, 42, .18) !important;
   backdrop-filter: blur(var(--glass-blur-overlay));
   -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
 }
 body.dark .n-modal-mask {
-  background: rgba(0, 0, 0, .45) !important;
+  background: rgba(0, 0, 0, .25) !important;
 }
+
+/* === n-dropdown 玻璃态（22:35 统一交互规范）===
+ * Naive UI n-dropdown 默认透明背景，背后页面内容会穿透
+ * 用玻璃态 token 让 dropdown 卡片更不透明，内部文字清晰可见 */
+.n-dropdown-menu,
+.n-dropdown-option {
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
+}
+
+/* === 全局滚动条悬浮显示（22:35 统一交互规范）===
+ * 默认隐藏 + hover/scroll/active 时显示
+ * 半透明细条，不占用布局空间，不影响视觉宽度
+ * 适用 Naive UI n-scrollbar-rail + 原生 ::-webkit-scrollbar */
+.n-scrollbar-rail {
+  opacity: 0 !important;
+  transition: opacity 0.2s var(--ease-out);
+}
+.n-scrollbar-container:hover ~ .n-scrollbar-rail,
+.n-scrollbar-container:focus-within ~ .n-scrollbar-rail,
+.n-scrollbar-rail:hover,
+.n-scrollbar-rail:focus-visible {
+  opacity: 1 !important;
+}
+/* 原生 webkit 滚动条：细条 + 半透明 + hover 加深 */
+::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.25); /* brand 色 + 25% 透明 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.5); }
+::-webkit-scrollbar-track { background: transparent; }
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.25) transparent; }
 
 /* === Data Table 玻璃化（DESIGN.md §4 Data Table）===
  * 表头半透明白，行 hairline 分隔，hover 行品牌浅底，去斑马纹。
@@ -459,7 +499,15 @@ body.dark .n-data-table .n-data-table-th {
 /* === .page-header / .page-title（全局覆盖，参照 .cc-header / .cc-title）===
  * 用 !important 覆盖各页 scoped 中遗留的 .page-title 普通墨色/24px 规则，
  * 统一成校招管控同款渐变大标题（26px / 700）。 */
-.page-header { margin-bottom: 20px; }
+/* ⚠️ 22:50 兵哥反馈"标题区域出现滚动条"：
+   - 加 overflow: hidden 强制 page-header 自身不滚
+   - 加 flex-shrink: 0 配合 page-body flex:1 确保标题不被压缩
+   - 全局覆盖 scoped 页面 .page-header 残留 */
+.page-header {
+  margin-bottom: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
 .page-title {
   margin: 0;
   font-size: 26px !important;
@@ -520,8 +568,9 @@ body.dark .n-data-table .n-data-table-th {
 
 /* === .kpi-row / .kpi-card（参照 CampusControl KPI 区）=== */
 .kpi-row {
+  /* P3 整改：auto-fit + minmax 自适应，替换硬 4 列 + 1024/480 媒体查询 */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
@@ -560,12 +609,11 @@ body.dark .kpi-card:hover {
 .kpi-card.warn .kpi-value { color: var(--c-warning); }
 .kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 .kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
-@media (max-width: 1024px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .kpi-row { grid-template-columns: 1fr; } }
+/* P3 整改：原 1024/480 媒体查询删除，KPI 改用 auto-fit 自适应，无需手动断点 */
 
 /* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
-/* 右侧 .settings-scroll 滚动时，子页标题块用 sticky 吸顶在容器顶部，
-   避免标题随长表格一起滚走。背景用玻璃材质，覆盖从后面滚过的内容。 */
+/* 兵哥 18:27 反馈：标题区不要色块感，去掉背景 + 左右 margin，让极光直接透出。
+   保留 sticky + 底部分隔线 —— 标题区小高度（~80px），极光透出时仍有空间辨识。 */
 .settings-scroll .page-header,
 .settings-scroll .cc-header,
 .settings-scroll .n-page-header,
@@ -573,10 +621,11 @@ body.dark .kpi-card:hover {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: transparent;
+  /* 无背景色 —— 极光直接透出 */
   border-bottom: 1px solid var(--glass-border);
-  margin: 0 -20px 16px -20px;   /* 抵消 .settings-scroll 的 20px padding */
-  padding: 20px 20px 4px 20px;  /* 上 padding 补回被 margin 抵消的顶部空间 */
+  /* 去掉左右 margin/padding —— 标题贴边 */
+  margin: 0 0 16px 0;
+  padding: 16px 0 4px 0;
 }
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
 .settings-page-shell { display: block; }
@@ -623,3 +672,190 @@ body.dark .n-tag.n-tag--success-type { color: var(--c-success); background: var(
 body.dark .n-tag.n-tag--warning-type { color: var(--c-warning); background: var(--c-warning-soft); }
 body.dark .n-tag.n-tag--error-type   { color: var(--c-error);   background: var(--c-error-soft); }
 body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(--c-info-soft); }
+
+/* =============================================================
+ * ★ 2026-08-24 阶段 F · 校招管控范本全局化（单一事实来源）
+ * -------------------------------------------------------------
+ * 把 CampusControl.vue 里 scoped 的「表格滚动/玻璃修复」「弹窗
+ * 居中 + 内部滚动」「.drawer-footer」「modal 主按钮渐变」「KPI 无边框」
+ * 抽成全局工具类，让 /settings 下所有页面（含 permission 子模块）
+ * 直接复用同一套视觉语言，无需逐页复制。
+ * 作用域：
+ *   - 表格：.settings-scroll（SettingsLayout 的统一内容容器）
+ *          + .table-wrap（显式包裹时提供 flex 填充链）
+ *   - 弹窗：.n-modal（teleport 到 body，无法用祖先作用域，故全局）
+ * 去掉 :deep（全局样式无 scoped 上下文），直接用后代选择器。
+ * 范本来源：web/app/src/pages/settings/CampusControl.vue
+ * ============================================================= */
+
+/* === .table-wrap（全局化，原 CampusControl scoped）===
+ * 外层只做布局容器，自身不滚动（避免双重滚动容器）；
+ * 真实滚动由 .n-scrollbar-container 承担。
+ * min-height:0 让矮表不被强制撑高（CampusControl 内因 .glass-panel
+ * flex:1 仍会填高，故其内部 scoped 版 min-height:180px 继续生效）。 */
+.table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+}
+.table-wrap .n-data-table {
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.table-wrap .n-data-table-wrapper { border-radius: var(--radius-md); overflow: hidden; }
+.table-wrap .n-data-table-base-table { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.table-wrap .n-data-table-base-table-header { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; flex-shrink: 0; }
+.table-wrap .n-data-table-base-table-body {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.table-wrap .n-data-table-base-table-body > .n-scrollbar,
+.table-wrap .n-data-table-base-table-body .n-scrollbar-container {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  flex: 1;
+  min-height: 0;
+}
+.table-wrap .n-data-table-table { background: transparent !important; border-radius: 0; }
+.table-wrap .n-data-table-thead { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
+.table-wrap .n-data-table-th:first-child { border-top-left-radius: var(--radius-md); }
+.table-wrap .n-data-table-th:last-child { border-top-right-radius: var(--radius-md); }
+.table-wrap .n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:first-child { border-bottom-left-radius: var(--radius-md); }
+.table-wrap .n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:last-child { border-bottom-right-radius: var(--radius-md); }
+
+/* === 设置页表格玻璃化 + 滚动修复（.settings-scroll 作用域，无需 .table-wrap 包裹也生效）===
+ * 让所有设置页表格与校招管控保持同一套玻璃表头/圆角/滚动，
+ * 仅做视觉与滚动一致性（flex 填充仅在页面根为 flex 列时生效）。 */
+.settings-scroll .n-data-table {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.settings-scroll .n-data-table-wrapper { border-radius: var(--radius-md); overflow: hidden; }
+.settings-scroll .n-data-table-base-table { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.settings-scroll .n-data-table-base-table-header { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; overflow: hidden; flex-shrink: 0; }
+.settings-scroll .n-data-table-base-table-body {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-scroll .n-data-table-base-table-body > .n-scrollbar,
+.settings-scroll .n-data-table-base-table-body .n-scrollbar-container {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  flex: 1;
+  min-height: 0;
+}
+.settings-scroll .n-data-table-table { background: transparent !important; border-radius: 0; }
+.settings-scroll .n-data-table-thead { border-radius: var(--radius-md) var(--radius-md) 0 0; overflow: hidden; }
+.settings-scroll .n-data-table-th:first-child { border-top-left-radius: var(--radius-md); }
+.settings-scroll .n-data-table-th:last-child { border-top-right-radius: var(--radius-md); }
+.settings-scroll .n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:first-child { border-bottom-left-radius: var(--radius-md); }
+.settings-scroll .n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:last-child { border-bottom-right-radius: var(--radius-md); }
+
+/* === 弹窗统一：页面居中 + 高度自适应屏幕（超出 90vh 内部滚动）===
+ * 范本：CampusControl .rule-modal / .import-modal / .dim-modal
+ * 同时兜底 范本的 :bordered=false（去全局 .n-card 边框）+ :segmented
+ * （header/footer 发丝分隔线近似），让所有设置页弹窗与校招管控同款。
+ * 弹窗 teleport 到 body，无法用祖先作用域，故全局生效（单设计系统收益）。 */
+.n-modal .n-card {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border: none !important;            /* 等同于 :bordered="false" */
+}
+.n-modal .n-card__header {
+  border-bottom: 1px solid var(--border-hairline);   /* 近似 :segmented 分隔 */
+  padding-bottom: 14px;
+}
+.n-modal .n-card__footer {
+  border-top: 1px solid var(--border-hairline);      /* 近似 :segmented 分隔 */
+  padding-top: 14px;
+}
+.n-modal .n-card__content {
+  overflow-y: auto;
+  max-height: calc(90vh - 110px);
+}
+.n-modal .n-card-header__main {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* === 弹窗主按钮渐变（teleport 到 body，全局兜底，与 .gradient-btn 同源）=== */
+.n-modal .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
+  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px var(--glow-brand) !important;
+  transition: all var(--duration-base) var(--ease-out);
+}
+.n-modal .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color):hover {
+  box-shadow: 0 6px 20px var(--glow-brand) !important;
+  transform: translateY(-1px);
+}
+
+/* === .drawer-footer（范本：校招管控弹窗底部操作区，右对齐）=== */
+.drawer-footer { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+/* === 设置页 KPI 无边框变体（与校招管控 .kpi-card 同源：玻璃底 + 无边框 + hover 品牌浅底）=== */
+.settings-scroll .kpi-card {
+  border: none;
+  box-shadow: none;
+}
+.settings-scroll .kpi-card:hover {
+  box-shadow: none;
+  background: var(--brand-a12);
+  transform: translateY(-2px);
+}
+.settings-scroll .kpi-card.danger:hover { background: rgba(239, 68, 68, .12); }
+.settings-scroll .kpi-card.warn:hover { background: rgba(245, 158, 11, .12); }
+
+/* === P3 整改：宽表 sm- 横向滚动（替换 overflow-x:hidden !important 永久裁切）=== */
+@media (max-width: 767px) {
+  .table-wrap .n-data-table-base-table-body > .n-scrollbar,
+  .table-wrap .n-data-table-base-table-body .n-scrollbar-container,
+  .settings-scroll .n-data-table-base-table-body > .n-scrollbar,
+  .settings-scroll .n-data-table-base-table-body .n-scrollbar-container {
+    overflow-x: auto !important;
+  }
+  /* 宽表（如 CampusControl mergedColumns）在 sm- 设最小宽，让横滚自然出现而非裁切 */
+  .table-wrap .n-data-table,
+  .settings-scroll .n-data-table {
+    min-width: 960px;
+  }
+}
+
+/* === P4 整改：a11y 地标 + 焦点环 === */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: var(--z-toast);
+  background: var(--surface);
+  color: var(--brand);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.skip-link:focus {
+  left: 8px;
+}
+
+/* 全局焦点可见环（覆盖 ThemeSettings.vue:46 等原生 button 缺焦点样式问题） */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

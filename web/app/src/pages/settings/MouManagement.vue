@@ -1,5 +1,13 @@
 <template>
-  <div class="permission-management">
+  <div class="page-container mou-management">
+
+    <div class="page-body">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">MOU 与权限容器</h1>
+        <p class="page-subtitle">维护公司内外部协议（Memorandum of Understanding）及配套的权限容器</p>
+      </div>
+    </div>
     <div class="kpi-row">
       <div class="kpi-card"><span class="kpi-label">MOU 总数</span><span class="kpi-value">{{ mous.length }}</span></div>
       <div class="kpi-card"><span class="kpi-label">权限容器</span><span class="kpi-value">{{ containers.length }}</span></div>
@@ -215,7 +223,18 @@
     </n-tabs>
 
     <!-- MOU 表单弹窗 -->
-    <n-modal
+    
+
+    <!-- Container 表单弹窗 -->
+    
+
+    <!-- 自动化规则表单弹窗 -->
+    
+
+    <!-- 互斥组表单弹窗 -->
+    
+    </div><!-- /.page-body -->
+<n-modal
       v-model:show="mouModalVisible"
       preset="card"
       :title="editingMou ? '编辑MOU' : '新建MOU'"
@@ -327,9 +346,7 @@
         </div>
       </template>
     </n-modal>
-
-    <!-- Container 表单弹窗 -->
-    <n-modal
+<n-modal
       v-model:show="containerModalVisible"
       preset="card"
       :title="editingContainer ? '编辑容器' : '新建容器'"
@@ -377,9 +394,7 @@
         </div>
       </template>
     </n-modal>
-
-    <!-- 自动化规则表单弹窗 -->
-    <n-modal
+<n-modal
       v-model:show="ruleModalVisible"
       preset="card"
       :title="editingRule ? '编辑规则' : '新建自动化规则'"
@@ -423,9 +438,7 @@
         </div>
       </template>
     </n-modal>
-
-    <!-- 互斥组表单弹窗 -->
-    <n-modal
+<n-modal
       v-model:show="mutexModalVisible"
       preset="card"
       :title="editingMutex ? '编辑互斥组' : '新建互斥组'"
@@ -460,6 +473,7 @@
         </div>
       </template>
     </n-modal>
+
   </div>
 </template>
 
@@ -1392,17 +1406,59 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
 .permission-management {
   padding: 24px;
 }
-.page-header {
-  margin-bottom: 24px;
-}
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-}
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 .tab-label {
   display: inline-flex;
   align-items: center;

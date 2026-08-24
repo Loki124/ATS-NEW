@@ -140,7 +140,8 @@ LOCAL_APPS = [
     'apps.dynamic_field',   # G42 动态字段定义 — admin 自定义 Candidate/Position 等资源字段
     'apps.announcement',
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护
-]  # Phase 2 T02 (寇豆码): 删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app
+    'apps.external_sync',  # G40 Mock 占位端点 (无 model, 仅 APIView). 还原 T02 删除: 前端 CompanySettings 显式 Mock 页仍真实调用, 不能 404
+]  # Phase 2 T02 (寇豆码): 原删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app; data 已重建为 analytics(/data/), external_sync 重建为 mock 端点(/external-sync/)
                           #   上游 grep 0 调用方, 无 model 无迁移. 详见 §T02.
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

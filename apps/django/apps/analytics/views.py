@@ -10,7 +10,9 @@ from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 
 from .models import ExportTask, ReportSnapshot
+from .models_data import DataSubscription
 from .serializers import (
+    DataSubscriptionSerializer,
     ExportTaskCreateSerializer,
     ExportTaskSerializer,
     ReportSnapshotSerializer,
@@ -144,4 +146,38 @@ class KpiViewSet(viewsets.ViewSet):
                 'generatedAt':       timezone.now().isoformat(),
             },
         })
+
+
+# ============================================================
+# 数据订阅 (G35 数据中心)  ← 2026-06-17 FE api/data.ts 调 /api/v1/data/subscriptions
+# 列表/创建返 {success, data} 信封; 停用走软删 (is_active=False) 而非硬删.
+# ============================================================
+class DataSubscriptionViewSet(viewsets.ModelViewSet):
+    """数据订阅 ViewSet — 数据看板「数据订阅」表格的增删查."""
+
+    queryset = DataSubscription.objects.filter(is_active=True)
+    serializer_class = DataSubscriptionSerializer
+    permission_classes = [V2Permission]
+    pagination_class = StandardResultsSetPagination
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        serializer.save(
+            user_id=str(getattr(user, 'id', '') or ''),
+            user_name=getattr(user, 'username', '') or '',
+        )
+
+    def create(self, request, *args, **kwargs):
+        """FE createSubscription 取 r.data.data, 故用 {success, data} 信封包裹 (与 list 一致)."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        """软删: 置 is_active=False (FE 文案 '订阅已停用'), 保留订阅历史."""
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save(update_fields=['is_active'])
+        return Response({'success': True, 'data': None})
 

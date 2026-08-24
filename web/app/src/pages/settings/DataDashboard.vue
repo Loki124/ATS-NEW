@@ -1,5 +1,7 @@
 <template>
-  <div class="data-dashboard">
+  <div class="page-container data-dashboard">
+
+    <div class="page-body">
     <div class="page-header">
       <h1 class="page-title">数据中心</h1>
       <p class="page-subtitle">G35 - 招聘业务 KPI 看板 + 通用数据导出 + 数据订阅</p>
@@ -57,7 +59,9 @@
     </n-card>
 
     <!-- 新建订阅弹窗 -->
-    <n-modal v-model:show="showAddSub" preset="card" title="新建数据订阅" style="width: 540px">
+    
+    </div><!-- /.page-body -->
+<n-modal v-model:show="showAddSub" preset="card" title="新建数据订阅" style="width: 540px">
       <n-form :model="subForm" label-placement="left" label-width="100">
         <n-form-item label="资源">
           <n-select v-model:value="subForm.resource" :options="RESOURCE_OPTIONS" placeholder="选择资源" />
@@ -85,6 +89,7 @@
         </n-space>
       </template>
     </n-modal>
+
   </div>
 </template>
 
@@ -242,28 +247,65 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
 .data-dashboard {
   display: flex;
   flex-direction: column;
   gap: 12px;
   height: 100%;
 }
-.page-header {
-  flex-shrink: 0;
-}
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-}
-.page-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #6b7280;
-}
+/* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css 渐变规格） */
 .kpi-card {
   text-align: center;
-  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+  background: linear-gradient(135deg, var(--brand-tint) 0%, var(--brand-soft) 100%);
 }
 .kpi-value {
   font-size: 28px;

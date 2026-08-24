@@ -1,5 +1,7 @@
 <template>
   <div class="page-container">
+
+    <div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">部门管理</h1>
@@ -45,7 +47,9 @@
     </n-card>
 
     <!-- 部门编辑弹窗 -->
-    <n-modal
+    
+    </div><!-- /.page-body -->
+<n-modal
       v-model:show="deptModalVisible"
       preset="card"
       :title="editingDept ? '编辑部门' : '新建部门'"
@@ -167,6 +171,7 @@
         </div>
       </template>
     </n-modal>
+
   </div>
 </template>
 
@@ -584,23 +589,57 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* .page-container 的 padding 由 SettingsLayout 统一注入,本页面不再写 */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
 .page-container {
-  /* 故意留空 */
-}
-
-.page-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
 }
 
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
+   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
+   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
+   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+.page-header {
+  flex-shrink: 0;
 }
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+
+/* .page-container 的 padding 由 SettingsLayout 统一注入,本页面不再写 */
+/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 
 .page-header-actions {
   display: flex;

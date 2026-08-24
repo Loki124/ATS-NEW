@@ -1,5 +1,5 @@
 <template>
-  <div class="policy-admin">
+  <div class="page-container policy-admin">
     <!-- 左侧分类树 -->
     <aside class="policy-admin__side">
       <div class="policy-admin__side-header">政策制度</div>
@@ -569,8 +569,7 @@ onMounted(() => {
   display: flex;
   height: 100%;
   min-height: 0;
-  background: transparent;
-}
+  background: var(--surface);}
 
 /* 左侧边栏 */
 .policy-admin__side {
@@ -607,9 +606,8 @@ onMounted(() => {
 }
 
 .policy-tree__node:hover {
-  background: var(--brand-a12);
-  color: var(--ink);
-}
+  background: var(--g1);
+  color: #1f2937;}
 
 .policy-tree__node.active {
   background: var(--brand-a22);
@@ -631,9 +629,8 @@ onMounted(() => {
 
 .policy-tree__count {
   font-size: 12px;
-  color: var(--ink-faint);
-  background: var(--brand-a12);
-  padding: 1px 6px;
+  color: #9ca3af;
+  background: var(--g1);  padding: 1px 6px;
   border-radius: 10px;
 }
 
@@ -719,8 +716,7 @@ onMounted(() => {
   padding: 10px 12px;
   border-bottom: 1px solid var(--glass-border);
   white-space: nowrap;
-  background: var(--glass-bg-card);
-}
+  background: var(--g1);}
 
 .policy-table td {
   padding: 14px 12px;
@@ -734,8 +730,7 @@ onMounted(() => {
 }
 
 .policy-table__row:hover {
-  background: var(--brand-a12);
-}
+  background: var(--brand-tint);}
 
 .policy-table__row:last-child td {
   border-bottom: none;
@@ -856,8 +851,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: var(--glass-bg-input);
-  border-radius: 6px;
+  background: var(--g1);  border-radius: 6px;
 }
 
 .attach-row__icon {

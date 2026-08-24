@@ -1,13 +1,13 @@
 <template>
-  <div class="theme-settings">
+  <div class="page-container theme-settings">
     <!-- 页面标题（DESIGN.md §3 渐变标题） -->
     <div class="page-header">
       <h1 class="gradient-title page-title">主题外观</h1>
       <p class="page-subtitle">个性化品牌色与显示模式 · 改一处即全站联动</p>
     </div>
 
-    <!-- 玻璃面板：主容器（DESIGN.md §4） -->
-    <div class="glass-panel theme-panel">
+    <!-- 玻璃面板：内容区（滚动职责下放到这里，避免与外层 .settings-scroll 冲突） -->
+    <div class="glass-panel page-body">
       <!-- === 品牌色取色器 === -->
       <section class="theme-section">
         <div class="section-header">
@@ -267,30 +267,26 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--space-4);
   height: 100%;
+  min-height: 0;
 }
 
-.page-header {
+/* 标题在 flex 列里不缩（与 AccountSettings 范式一致） */
+.theme-settings .page-header {
   flex-shrink: 0;
 }
-.page-title {
-  font-size: var(--text-h1);
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.25;
-}
-.page-subtitle {
-  font-size: var(--text-body);
-  color: var(--ink-soft);
-  margin: var(--space-2) 0 0;
-}
 
-/* === 玻璃主容器 === */
-.theme-panel {
+/* 删除 scoped .page-header/.page-subtitle 覆盖（规范：复用全局 glass.css） */
+
+/* === 玻璃内容区（滚动职责下放，参考 AccountSettings 范式） === */
+.page-body {
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .theme-section {

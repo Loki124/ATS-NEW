@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { NModal, NButton } from 'naive-ui'
+import { NModal, NButton, useDialog } from 'naive-ui'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import Stepper from './addCandidate/Stepper.vue'
 import Step1Single from './addCandidate/Step1Single.vue'
@@ -16,6 +16,28 @@ const emit = defineEmits<{ (e: 'update:show', v: boolean): void; (e: 'created'):
 
 const store = useAddCandidateStore()
 const fileInput = ref<HTMLInputElement | null>(null)
+const dialog = useDialog()
+
+// P1 整改：移除原生 confirm()，统一用 useDialog().warning()
+function tryClose() {
+  if (store.isDirty) {
+    dialog.warning({
+      title: '有未保存的修改',
+      content: '确认关闭？未保存的修改将丢失。',
+      positiveText: '确认关闭',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        store.closeStream()
+        store.reset()
+        emit('update:show', false)
+      },
+    })
+    return
+  }
+  store.closeStream()
+  store.reset()
+  emit('update:show', false)
+}
 
 const showModal = computed({
   get: () => props.show,
@@ -23,7 +45,8 @@ const showModal = computed({
     if (!v) {
       // 用户尝试关闭 (X / mask / esc) -> 走 dirty 检查
       if (store.isDirty) {
-        if (!confirm('有未保存的修改，确认关闭？')) return
+        tryClose()
+        return
       }
       store.closeStream()
       store.reset()
@@ -34,7 +57,8 @@ const showModal = computed({
 
 function closeModal() {
   if (store.isDirty) {
-    if (!confirm('有未保存的修改，确认关闭？')) return
+    tryClose()
+    return
   }
   store.closeStream()
   store.reset()
@@ -100,7 +124,7 @@ function nextStep() {
       </div>
     </template>
 
-    <div style="display:flex;flex-direction:column;height:80vh;max-height:700px;">
+    <div style="display:flex;flex-direction:column;height:min(80vh,700px);"> <!-- P5 整改：height:80vh -> min(80vh,700px)，避免极长弹窗撑爆屏 -->
       <input
         ref="fileInput"
         type="file"

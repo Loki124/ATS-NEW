@@ -12,6 +12,7 @@ from drf_spectacular.views import (
 )
 
 from apps.application.views import ApplicationViewSet
+from apps.demand.views import DemandConfigView
 
 api_v1_patterns = [
     # 全局统一搜索 (Plan P): 必须排在 urls_stubs 的 search stub 之前以优先命中
@@ -60,6 +61,9 @@ api_v1_patterns = [
     #   (挂 applications/ 之下会与 /api/v1/applications/{id}/grab/ 语义混淆).
     path('grab-pool/', include('apps.application.urls_grab_pool')),
     path('demands/', include('apps.demand.urls')),
+    # 2026-08-24: 招聘需求设置全局配置端点 (FE DemandConfig.vue)
+    #   GET/POST/PUT /api/v1/system/config/demand  → DemandConfigView
+    path('system/config/demand', DemandConfigView.as_view()),
     path('announcements/', include('apps.announcement.urls')),
     path('positions/', include('apps.position.urls')),
     path('offers/', include('apps.offer.urls')),
@@ -92,6 +96,9 @@ api_v1_patterns = [
 
     # 数据中心
     path('analytics/', include('apps.analytics.urls')),
+    # 2026-08-24: G35 数据中心 KPI + 订阅 — FE api/data.ts 调 /data/kpi, /data/subscriptions
+    #   (KpiViewSet / DataSubscriptionViewSet 此前已实现但漏挂路由, 导致 404)
+    path('data/', include('apps.analytics.urls_data')),
     # 2026-06-17: G35 数据看板 KPI — FE api/data.ts:48 调 /data/kpi
     # 2026-06-17: G35 数据订阅 — FE api/data.ts:57 调 /data/subscriptions
 
@@ -108,7 +115,10 @@ api_v1_patterns = [
     # 2026-08-20: 校招管控（人员比例管控系统）— 规则 / 人员 / 看板 / 规划 / 校验
     path('campus/', include('apps.campus_control.urls')),
 
-    # Phase 2 T02 (寇豆码): 删 'external-sync'/'data' 两个 0-model 空壳 URL 挂载.
+    # Phase 2 T02 (寇豆码): 原删 'external-sync'/'data' 空壳 URL 挂载; 二者 FE 仍真实调用, 已重建:
+    #   data  -> analytics/urls_data.py (/data/kpi, /data/subscriptions)
+    #   external-sync -> apps.external_sync (G40 Mock 占位端点, 无 model)
+    path('external-sync/', include('apps.external_sync.urls')),
     #   scraped_resume / duplicate_check 是真实功能, 保留 (FE 真实调用)!
     #   scraped-resumes: T02.5 落地最小 model, G30 完整功能由 T06
     #   duplicate-check: 7 处前端调用, T02.4 保留

@@ -1,14 +1,6 @@
 <template>
-  <div class="dc-page">
-    <!-- 渐变光斑背景（与 cc-page 同源） -->
-    <div class="dc-aurora" aria-hidden="true">
-      <span class="blob blob-a"></span>
-      <span class="blob blob-b"></span>
-      <span class="blob blob-c"></span>
-    </div>
-
-    <div class="dc-header">
-      <div>
+  <div class="page-container config-container">
+    <div class="page-header">      <div>
         <h1 class="dc-title gradient-title">招聘需求设置</h1>
         <p class="dc-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
       </div>
@@ -18,8 +10,7 @@
       </n-space>
     </div>
 
-    <div class="glass-panel config-content">
-      <n-form :model="formData" label-placement="left" :label-width="180">
+    <div class="config-content page-body">      <n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
         <n-card title="功能设置" class="config-card">
           <n-form-item label="需求使用模式">
@@ -433,48 +424,33 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ★ 镜像 cc-page 三件套（结构同源 / token 同源），让 DemandConfig 视觉对齐 CampusControl */
-.dc-page {
-  position: relative;
-  min-height: 100%;
-  height: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  padding: 16px;
+.config-container {
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
 }
 
-.dc-aurora { position: absolute; inset: 0; pointer-events: none; }
-.dc-aurora .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }
-.dc-aurora .blob-a { width: 520px; height: 520px; top: -220px; left: -140px; background: radial-gradient(circle, rgba(99,102,241,0.28), transparent 65%); }
-.dc-aurora .blob-b { width: 460px; height: 460px; top: -80px; right: -160px; background: radial-gradient(circle, rgba(236,72,153,0.18), transparent 65%); }
-.dc-aurora .blob-c { width: 420px; height: 420px; bottom: -180px; left: 40%; background: radial-gradient(circle, rgba(34,197,94,0.14), transparent 65%); }
-
-.dc-header {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+/* 2026-08-24 兵哥反馈：拆成「标题区 + 内容区」，滚动职责下放到 .page-body
+   - 标题区固定不动（flex-shrink: 0）→ 配置类页面保存/重置按钮始终可触达
+   - 内容区自己滚（flex: 1, min-height: 0, overflow-y: auto）→ 与 AccountSettings/ThemeSettings 同范式
+   - 避免原 .config-container min-height:100% 触发整页内嵌滚动条 + sticky header 被卡片内容穿透 */
+.page-header {
   flex-shrink: 0;
 }
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* [T11] 同步限制 X 方向: 子元素 n-checkbox/n-radio 白空间 nowrap 会撑宽父容器 */
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;}
 
-.dc-title {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.dc-subtitle {
-  margin: 6px 0 0;
-  color: var(--ink-soft);
-  font-size: var(--text-small);
-}
-
+/* 兼容旧类名（如果模板残留 .config-content 不带 .page-body 时仍生效） */
 .config-content {
   position: relative;
   z-index: 1;
@@ -488,8 +464,12 @@ onMounted(() => {
 }
 
 .config-card {
-  border-radius: var(--radius-md);
+  border-radius: 8px;
 }
+
+.config-card :deep(.n-card-header) {
+  background: var(--g1);
+  border-radius: 8px 8px 0 0;}
 
 .config-card :deep(.n-card-header__main) {
   font-weight: 600;
@@ -546,7 +526,7 @@ onMounted(() => {
 .rules-tip {
   margin-top: 8px;
   padding: 12px;
-  background: #f5f5f5;
+  background: var(--g1);
   border-radius: 6px;
   font-size: 12px;
   color: #666;

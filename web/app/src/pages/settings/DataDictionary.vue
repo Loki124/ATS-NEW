@@ -14,7 +14,7 @@
         <div class="kpi-card"><span class="kpi-label">字典类型</span><span class="kpi-value">{{ types.length }}</span></div>
       </div>
 
-      <n-card :bordered="false" class="toolbar">
+      <div class="toolbar">
         <n-space align="center" :wrap="false">
           <n-input
             v-model:value="searchText"
@@ -34,7 +34,7 @@
             @update:value="loadList"
           />
         </n-space>
-      </n-card>
+      </div>
 
       <n-data-table
         :columns="listColumns"
@@ -879,10 +879,11 @@ onUnmounted(() => {
   overflow-y: auto !important;
   gap: 0 !important;
 }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 600; margin: 0; }
-.page-subtitle { color: #888; margin: 6px 0 0; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.code-pill, .num-pill { font-size: 12px; color: #666; background: #f2f3f5; padding: 2px 8px; border-radius: 4px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+/* margin-bottom 与负 margin（让底部 border 通栏）由全局 .settings-scroll .page-header 统一处理；
+   本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
+/* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
+.code-pill, .num-pill { font-size: 12px; color: #666; background: var(--g1); padding: 2px 8px; border-radius: 4px; }
 .toolbar { margin-bottom: 16px; }
 .section { margin-bottom: 16px; }
 .edit-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -897,8 +898,8 @@ onUnmounted(() => {
 .el-table { border: 1px solid #eee; border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
 .el-row { display: flex; align-items: center; border-bottom: 1px solid #f2f3f5; min-height: 48px; }
 .el-row:last-child { border-bottom: none; }
-.el-head { background: #fafafa; font-weight: 600; font-size: 13px; color: #555; white-space: nowrap; }
-.el-row.editing { background: #fafcff; }
+.el-head { background: var(--g1); font-weight: 600; font-size: 13px; color: #555; white-space: nowrap; }
+.el-row.editing { background: var(--brand-tint); }
 .el-row.isnew { background: #fffbe6; }
 .el-row.isnew.editing { background: #fff7cc; }
 .el-cell { display: flex; align-items: center; min-height: 48px; padding: 0 12px; font-size: 13px; box-sizing: border-box; }

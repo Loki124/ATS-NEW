@@ -4,19 +4,24 @@
     <div class="aurora-spot"></div>
   </div>
 
-  <n-layout has-sider class="app-layout">
-    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 移动端 ≤768 隐藏） [T6.2] -->
+  <!-- P4 整改：跳转链接（a11y WCAG 2.4.1） -->
+  <a class="skip-link" href="#main">跳到主内容</a>
+
+  <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top' }">
+    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
+    <!--
+      2026-08-24 21:31 兵哥反馈：默认充满全高 + hover 展开不压缩主页面
+      - :width 固定传 64（物理折叠态），CSS 类 .app-sider--floating 在 hover 时强制 width:240 + position:fixed
+      - 这样 flex 容器始终按 64px 偏移算 main-area，hover 展开变浮层不占 flex 流 → main-area 不收缩
+      - n-menu :collapsed=!effectiveExpanded 控制内部菜单项图标/文字显示
+    -->
     <n-layout-sider
       v-if="menuLayout === 'side' && !isMobile"
-      :width="240"
-      :collapsed-width="64"
-      show-trigger
-      collapse-mode="width"
-      :collapsed="collapsed"
+      :width="64"
       :native-scrollbar="false"
-      class="glass-sidebar app-sider"
-      @collapse="collapsed = true"
-      @expand="collapsed = false"
+      :class="['glass-sidebar', 'app-sider', { 'app-sider--floating': effectiveExpanded }]"
+      @mouseenter="hoverExpanded = true"
+      @mouseleave="hoverExpanded = false"
     >
       <div class="logo-container">
         <div class="logo">
@@ -25,22 +30,40 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
             </svg>
           </div>
-          <span v-if="!collapsed" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
+          <span v-if="effectiveExpanded" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
         </div>
       </div>
 
       <n-menu
-        :collapsed="collapsed"
+        :collapsed="!effectiveExpanded"
         :collapsed-width="64"
         :collapsed-icon-size="22"
         :options="menuOptions"
         :value="selectedKey"
         :expanded-keys="expandedKeys"
         :theme-overrides="menuThemeOverrides"
-        class="glass-sidebar"
+        class="glass-sidebar sider-menu"
         @update:value="handleMenuClick"
         @update:expanded-keys="onExpandedKeysChange"
       />
+
+      <!-- 底部 footer: 「设置」永久贴底(mt:auto 推到最底, hover 展开状态才显示文字) -->
+      <div
+        class="sider-footer"
+        :class="{ 'sider-footer--collapsed': !effectiveExpanded, 'sider-footer--active': isOnSettingsRoute }"
+        role="button"
+        tabindex="0"
+        aria-label="打开设置"
+        @click="router.push('/settings/account')"
+        @keydown.enter="router.push('/settings/account')"
+      >
+        <div class="sider-footer-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </div>
+        <span v-if="effectiveExpanded" class="sider-footer-label">设置</span>
+      </div>
     </n-layout-sider>
 
     <!-- 移动端侧栏抽屉 [T6.2] -->
@@ -99,7 +122,7 @@
           <n-button v-if="menuLayout === 'side'" text class="layout-header__search-trigger shrink-0" aria-label="全局搜索" @click="onSearchClick">
             <div class="search-box glass-input flex items-center gap-2 w-80 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-ink-faint text-left">搜索候选人、职位、需求...</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">搜索...</span>
               <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
@@ -111,7 +134,7 @@
           <n-button v-if="menuLayout === 'top'" text class="layout-header__search-trigger" aria-label="全局搜索" @click="onSearchClick">
             <div class="search-box glass-input flex items-center gap-2 w-72 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-ink-faint text-left">搜索候选人、职位、需求...</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">搜索...</span>
               <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
@@ -143,10 +166,10 @@
 
       <!-- 内容区（v2：透明背景让极光底透出） -->
       <n-layout-content class="layout-content">
-        <!-- 滚动容器：页面根容器（.page-container / .cc-page 等）自管内边距，此处不再额外 padding -->
-        <div class="content-wrapper">
+        <!-- P4 整改：<main> 地标 + id=main 与 skip-link 联动（a11y WCAG 1.3.1） -->
+        <main id="main" class="content-wrapper">
           <router-view />
-        </div>
+        </main>
       </n-layout-content>
 
       <!-- ⌘K 全局搜索 Modal -->
@@ -183,7 +206,7 @@ import {
   SearchOutline,
   ShareSocialOutline,
   PersonOutline,
-  SettingsOutline,
+  // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
@@ -198,7 +221,12 @@ const userStore = useUserStore()
 useShortcuts()
 const message = useMessage()
 
-const collapsed = ref(false)
+const collapsed = ref(true)
+const hoverExpanded = ref(false)
+// T11.x 主侧栏 hover-expand: 鼠标悬浮临时展开, 离开立即折叠
+const effectiveExpanded = computed(() => !collapsed.value || hoverExpanded.value)
+// 「设置」footer 路由高亮: 位于 /settings/* 任意路径时点亮底色
+const isOnSettingsRoute = computed(() => route.path.startsWith('/settings'))
 
 // === 移动端响应式（≤768 折叠为 n-drawer）[T6.2]
 // v2 bugfix P1-C：用 <= 768 包含边界值（严格 < 在 768 viewport 下仍判为桌面）
@@ -306,7 +334,9 @@ const menuLayout = computed<'side' | 'top'>(() =>
   userStore.uiSettings?.menuLayout === 'top' ? 'top' : 'side',
 )
 
-// header 固定定位后宽度需跟随侧边栏展开/折叠及移动端状态
+// header 固定定位后宽度需跟随布局模式（2026-08-24 21:31 改范式后 sider 不再影响 header：
+// - hover 展开走 position: fixed 浮层，不占 flex 流，header 不再变化
+// - 始终按默认折叠态 64px 偏移计算 header 位置）
 const headerStyle = computed(() => {
   if (menuLayout.value === 'top') {
     return { left: '0px', width: '100vw' }
@@ -314,9 +344,10 @@ const headerStyle = computed(() => {
   if (isMobile.value) {
     return { left: '0px', width: '100vw' }
   }
+  // side 模式（桌面）: sider 折叠态 64px 偏移，hover 展开走浮层不占位
   return {
-    left: collapsed.value ? '64px' : '240px',
-    width: collapsed.value ? 'calc(100vw - 64px)' : 'calc(100vw - 240px)',
+    left: '64px',
+    width: 'calc(100vw - 64px)',
   }
 })
 
@@ -359,13 +390,18 @@ const menuOptions = [
   },
   { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
   { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
-  { key: '/settings/account', label: '设置', icon: renderIcon(SettingsOutline) },
+  // 设置已迁到 sider footer 永久贴底（hover 展开时显示文字）
 ]
 
 const userMenuOptions = computed(() => {
   const current = menuLayout.value
   return [
     { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
+    /* ⚠️ 22:45 统一范式 + 设置按钮可见性修复：
+       - top 模式没有 sider（v-if 不渲染），原 .sider-footer（设置按钮）在 main-area 里位置错乱
+       - 把设置入口集成到 dropdown menu（与个人中心/账号设置等菜单项统一范式）
+       - 路由跳转 /settings/account（设置主页），保留账号设置（个人中心）独立入口 */
+    { key: '/settings/account', label: '设置', icon: renderIcon(CogOutline) },
     { key: 'settings', label: '账号设置', icon: renderIcon(CogOutline) },
     { type: 'divider', key: 'd1' },
     {
@@ -457,6 +493,9 @@ function goToNotifications() {
 
 function handleUserMenu(key: string) {
   if (key === 'settings') router.push('/settings/account')
+  /* ⚠️ 22:45 统一范式：dropdown 加的「设置」入口，路由跳转 settings 主页
+     （与「账号设置」区分：账号设置 = 个人偏好；设置 = 完整设置模块入口） */
+  if (typeof key === 'string' && key.startsWith('/settings')) router.push(key)
   if (key === 'menu-side' || key === 'menu-top') {
     const layout = key === 'menu-side' ? 'side' : 'top'
     if (layout === menuLayout.value) return
@@ -515,7 +554,8 @@ function handleUserMenu(key: string) {
 /* === Logo 容器（玻璃侧栏顶部） === */
 .logo-container {
   padding: 16px;
-  border-bottom: 1px solid var(--border-hairline);
+  /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 logo 容器底部横线（var(--border-hairline)） */
+  border-bottom: none !important;
 }
 .logo {
   display: flex;
@@ -553,6 +593,34 @@ function handleUserMenu(key: string) {
   /* 只占 header 中间区域，子项超出可滚动 */
   overflow: hidden;
 }
+/* ⚠️ 22:20 兵哥反馈"其他按钮被压缩"：
+   - Naive UI n-menu horizontal mode 默认 .n-menu-item-content 是 display:grid
+   - 实测 gridTemplateColumns: "32px 23.3281px 0px" —— 第二列 label 硬限到 23.33px（auto 1fr auto 计算）
+   - 中文字符（"工作台"~42px）被截断显示"工."（实测 header_w=23）
+   - 即使 !important 覆盖 grid-template-columns，Vue 响应式仍会重设（实测 inline 32px 100px 0px 都失效）
+   - 改用 flex 布局完全绕过 Naive UI grid 模板 —— .n-menu-item-content 由 grid 改 flex
+   - icon + header 按内容撑开，菜单项按内容自然展开
+   - 缩小 padding/gap 让 8 项菜单总和适应 viewport 1440（避免挤压右侧搜索框/用户区） */
+.top-menu :deep(.n-menu-item-content) {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px !important;
+  height: 100% !important;
+}
+.top-menu :deep(.n-menu-item-content__icon) {
+  flex-shrink: 0;
+}
+.top-menu :deep(.n-menu-item-content-header) {
+  white-space: nowrap !important;
+}
+/* ⚠️ 22:20 兵哥反馈"设置按钮不可见/其他按钮被压缩"：
+   - top 模式下菜单项按内容撑开后总宽超 viewport，挤压右侧搜索框+通知+用户头像
+   - 缩小搜索框宽度 w-72(288) → w-48(192)，省 96px 让出空间给菜单项
+   - 配合上面的菜单项 padding 缩窄，整 header 总宽 1440 内能容纳 */
+.layout-header__search-trigger .search-box {
+  width: 12rem !important; /* w-48 = 12rem = 192px，从 w-72 (288px) 缩到 192px */
+}
 :deep(.top-menu .n-menu-item-content) {
   transition: none !important;
 }
@@ -563,12 +631,24 @@ function handleUserMenu(key: string) {
 /* === 菜单项：彻底关掉所有 transition === */
 /* Naive UI 默认在 .n-menu-item-content / icon / arrow 上有 300ms background-color + color 渐变
    这导致点击切换时新旧 item 的 active 态会"叠在一起"约 300ms（视觉上的闪烁）
-   用 !important 强压，避免被 Naive UI 的 cssr 覆盖 */
+   用 !important 强压，避免被 Naive UI 的 cssr 覆盖
+   ⚠️ 22:09 兵哥反馈"展开时文字和图标的动效去掉"：
+   - n-menu 自身 transition: background-color 0.3s（背景色过渡）
+   - 子菜单展开/折叠的 Vue Transition（slide-down + fade）
+   - collapsed 切换时 label fade
+   全部 * 子选择器覆盖（不影响 .sider-footer 的 hover 色彩过渡） */
+:deep(.n-menu),
+:deep(.n-menu *),
 :deep(.n-menu-item-content),
 :deep(.n-menu-item-content::before),
 :deep(.n-menu-item-content .n-menu-item-content-header),
 :deep(.n-menu-item-content .n-icon),
-:deep(.n-menu-item-content-arrow) {
+:deep(.n-menu-item-content-arrow),
+:deep(.n-submenu),
+:deep(.n-submenu *),
+:deep(.n-submenu-children),
+:deep(.v-enter-active),
+:deep(.v-leave-active) {
   transition: none !important;
   animation: none !important;
 }
@@ -592,32 +672,94 @@ function handleUserMenu(key: string) {
   font-weight: 600;
 }
 
-/* === 整个 app 限定在 viewport 内, body 不滚 === */
+/* === 整个 app 限定在 viewport 内, body 不滚 ===
+   2026-08-24 21:31 改范式: 用 :deep 改 Naive UI 内部 flex 容器为 grid（n-layout has-sider 时
+   内部 .n-layout-scroll-container 设了 display:flex + flex-direction:row + width:100%，
+   我们的 sider + main 实际是这个 flex 容器的子项，必须改它才能锁列）
+   ⚠️ 21:31 修：选择器必须用 > 限定到 .app-layout 的**直接子级**，否则会污染 main-area
+   内部嵌套的 .n-layout-scroll-container（让内部也变成 64px+1376px 两列布局，导致
+   breadcrumb-wrap 占第 1 列 64px 把 layout-content 挤到第 2 列右侧，dashboard 内容被
+   压成 64px 窄列——兵哥 21:43 截图"页面被压缩"即此因） */
 .app-layout {
-  height: 100vh;
-  display: flex;
+  height: 100dvh; /* P5 整改：100vh -> 100dvh，移动端地址栏不裁切 */
   overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }
-/* 侧边栏: 固定高度, 不随内容滚动 */
-.app-sider {
-  height: 100vh;
-  flex-shrink: 0;
+/* 改 Naive UI 直接子级 scroll-container 为 grid: 第 1 列 64px 给 sider, 第 2 列 1fr 给 main
+   > 直接子级限定：避免 main-area 内部嵌套的 scroll-container 被误改（该走默认 flex column）
+   ⚠️ 22:20 兵哥反馈 top 横排布局 4 个问题：
+   - top 模式下没有 sider（v-if 不渲染），但 grid 模板仍分配 64px 给第 1 列
+   - main-area 占第 2 列 x=64 → 主页面左侧 64px 空白 + settings-sider 错位 + 顶部菜单被挤压
+   - top 模式必须取消 grid，单列布局让 main-area 占满全宽 */
+.app-layout:not(.app-layout--top) > :deep(.n-layout-scroll-container) {
+  display: grid !important;
+  grid-template-columns: 64px calc(100vw - 64px) !important;
+  width: 100% !important;
 }
-/* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充) */
+/* top 模式单列布局（无 sider，main-area 占满全宽，避免左侧 64px 空白） */
+.app-layout.app-layout--top > :deep(.n-layout-scroll-container) {
+  display: block !important;
+  width: 100% !important;
+}
+/* 侧边栏: 2026-08-24 21:31 兵哥反馈改范式 —— 默认充满全高 + hover 浮层不压缩主页面
+   - 默认（折叠）: height: 100dvh !important 充满全视口（替换原 height: auto 内容驱动）
+   - hover 展开（.app-sider--floating）: position: fixed 脱离 grid 流，浮层显示 240px 宽（box-shadow 投影），
+     main-area 仍占 grid 第 2 列固定 1376px 宽不变 */
+.app-sider {
+  height: 100dvh !important;
+  flex-shrink: 0;
+  overflow: visible !important; /* 让 n-menu hover 展开文字不被 sider 容器裁剪 */
+  transition: none !important; /* 关闭 width 过渡, hover 瞬切避免视觉抖动 */
+}
+.app-sider.app-sider--floating {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  /* n-layout-sider inline style 写 max-width: 64px 限制 width 上限，必须一起覆盖 */
+  width: 240px !important;
+  max-width: 240px !important;
+  height: 100dvh !important;
+  z-index: 1000;
+  /* ⚠️ 22:09 兵哥反馈"去掉边框"：浮层不要 box-shadow 投影（视觉边界）和 border-right（白色实线） */
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
+}
+/* === v2 主侧栏：去掉背景色（兵哥反馈"背景色太突兀"）
+   -------------------------------------------------------------
+   改为透明，让 .app-aurora 极光底直接透出；保留 backdrop-filter
+   让背后极光产生轻微模糊（与右半区视觉同源）。border-right 仍走
+   全局 .glass-sidebar 的细线作为侧栏与主区的分隔（settings-sider
+   仍走全局 .glass-sidebar，不动）。*/
+.app-sider.glass-sidebar {
+  background: transparent !important;
+  /* ⚠️ 22:09 兵哥反馈"去掉边框"：全局 .glass-sidebar 自带 border-right:1px solid rgba(255,255,255,.7)，
+     浮层右边显示一条白线，与极光底视觉冲突，去掉 */
+  border-right: none !important;
+}
+/* 透明侧栏不再画顶部白罩高光（无需模拟玻璃反光） */
+/* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充)
+   2026-08-24 21:31 改范式后: 用 grid grid-template-columns 锁死 main-area 始终占第 2 列 1376px 宽，
+   即使 sider hover 浮层展开也不变 —— 浮层叠在内容上方不占位 */
 .layout-breadcrumb-wrap {
   padding: 0 var(--space-6);
   background: transparent;
 }
 .main-area {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+  /* grid 子项: 显式 grid-column: 2 强制占第 2 列（避免 sider 切 fixed 后 grid 重排让 main 跳到第 1 列） */
+  grid-column: 2;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
   height: 100%;
   /* header 固定定位脱离文档流，主内容区顶部留出 header 高度 */
   padding-top: 64px;
   overflow: hidden;
+}
+/* 兜底：n-layout-scroll-container 不存在时（无 sider 模式），直接靠 .app-layout 兜住 */
+.app-layout:not(:has(.n-layout-scroll-container)) {
+  display: grid;
+  grid-template-columns: 64px calc(100vw - 64px);
 }
 
 /* === 头部固定不滚动（v2 玻璃 header） === */
@@ -629,8 +771,12 @@ function handleUserMenu(key: string) {
 }
 /* 玻璃 header 顶部圆角与侧栏对齐：左侧贴合侧栏 0 圆角，右侧保留 */
 .glass-header {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  /* ⚠️ 22:35 兵哥反馈"顶部导航栏移除右侧圆角边框样式，保持边缘直角设计"：
+     - 之前 border-top-left-radius: 0 + border-bottom-left-radius: 0（让 header 左下角与 sider 对齐）
+     - 右侧仍是 20px 圆角（来自 .glass-panel 全局）
+     - 现在 header 整宽横跨 viewport（1440px），不需要任何圆角（边缘直角）
+     - 4 角都设 0，与整体页面直角风格一致 */
+  border-radius: 0 !important;
 }
 
 /* === 主内容区: 撑开剩余, 内容溢出时内部滚 === */
@@ -675,5 +821,94 @@ function handleUserMenu(key: string) {
 }
 .mobile-sidebar-drawer :deep(.n-drawer-body-content-wrapper) {
   padding: 0;
+}
+
+/* === T11 主侧栏 footer（设置固定贴底）===
+   让 n-menu flex:1 占满剩余高度, footer mt:auto 推到最底 */
+/* 强制 sider 内部竖向排列（n-layout-sider 默认横向）*/
+.app-sider.glass-sidebar {
+  display: flex !important;
+  flex-direction: column !important;
+}
+/* ⚠️ 21:58 兵哥反馈 footer 不在最底：
+   - .sider-footer 在 Naive UI 的 .n-scrollbar-content 内部
+   - .n-scrollbar-content 的高度由 Naive UI JS 算为内容自然高度（实测 512px = logo 65 + menu 390 + footer 57）
+   - 不是父级 .n-scrollbar-container 的 800px → footer 后面没有"剩余空间"可推
+   - 即使 .n-scrollbar-content 是 flex column + .sider-menu flex:1，容器高度就是内容高度，撑不开
+   - 修复：用 position:absolute 把 footer 直接钉到 .app-sider 底部，绕开 n-scrollbar 的高度约束 */
+.app-sider {
+  position: relative !important; /* 给 absolute footer 提供定位基准 */
+}
+/* ⚠️ 21:58 兵哥反馈"去掉背景色"：
+   - n-menu 自带 .glass-sidebar 全局规则（background: rgba(255,255,255,.55) + blur）
+   - 这导致 hover 浮层时整个侧栏呈现半透明白底+紫色极光透出（视觉上是深紫色块）
+   - 改 transparent：让极光直接透出（暗色区域），侧栏视觉上是"无背景"
+   - 只覆盖 .sider-menu 自身，settings-sider 全局 .glass-sidebar 不动
+   ⚠️ 22:14 兵哥反馈"边线还在"：全局 .glass-sidebar 仍带 border-right:1px solid rgba(255,255,255,.7)
+   → 浮层右边缘那条白线其实是 .sider-menu 的 border-right（不是 .app-sider 自身），
+   → 必须再加 border-right: none 才能彻底去掉 */
+.app-sider :deep(.sider-menu.glass-sidebar) {
+  background: transparent !important;
+  border-right: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* footer 绝对定位到 .app-sider 最底，绕开 n-scrollbar 高度约束 */
+.app-sider :deep(.sider-footer) {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2 !important; /* 在 menu 之上（如果内容超出，footer 浮在底部） */
+}
+.sider-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 footer 顶部横线（var(--border-hairline)） */
+  border-top: none !important;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+.sider-footer:hover,
+.sider-footer:focus-visible {
+  background: var(--brand-tint);
+  color: var(--brand);
+}
+.sider-footer:active {
+  background: var(--brand-soft);
+}
+.sider-footer-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: currentColor;
+}
+.sider-footer-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+.sider-footer--collapsed {
+  justify-content: center;
+  padding: 12px 8px;
+}
+.sider-footer--collapsed .sider-footer-label {
+  display: none;
+}
+/* 折叠态激活态(选中设置路由时高亮) */
+.sider-footer--active {
+  color: var(--brand);
+  background: var(--brand-soft);
 }
 </style>
