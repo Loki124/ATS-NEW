@@ -206,7 +206,9 @@ body.dark .glass-card {
   transform: translateY(0);
 }
 .btn-primary:disabled {
-  opacity: .5;
+  /* P2 整改：弃用 opacity:.5（白字 0.5 透明叠品牌渐变对比不足），改用灰底 + 达标字色 */
+  background: var(--g2);
+  color: var(--ink-faint);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
