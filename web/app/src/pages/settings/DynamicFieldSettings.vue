@@ -95,7 +95,7 @@
 
 <script setup lang="ts">
 import { ref, computed, h, onMounted, reactive, watch } from 'vue';
-import { NTag, NButton, NSpace, NSwitch, NInputNumber, NIcon, useMessage } from 'naive-ui';
+import { NTag, NButton, NSpace, NSwitch, NInputNumber, NIcon, useMessage, useDialog } from 'naive-ui';
 import { AddOutline, TrashOutline, CreateOutline, ConstructOutline } from '@vicons/ionicons5';
 import {
   listFields, upsertField, deleteField, extractApiError,
@@ -104,6 +104,7 @@ import {
 } from '@/api/dynamic-field';
 
 const message = useMessage();
+const dialog = useDialog();
 const currentResource = ref<string>('Candidate');
 const rows = ref<FieldDefinition[]>([]);
 const loading = ref(false);
@@ -267,14 +268,22 @@ async function save() {
 }
 
 async function confirmDelete(row: FieldDefinition) {
-  if (!confirm(`确认删除字段 "${row.label}" 吗?`)) return;
-  try {
-    await deleteField(currentResource.value, row.id);
-    message.success('删除成功');
-    await reload();
-  } catch (e: any) {
-    message.error('删除失败: ' + extractApiError(e));
-  }
+  // P1 整改：移除原生 confirm()，改用 useDialog().warning
+  dialog.warning({
+    title: '删除字段',
+    content: `确认删除字段 "${row.label}"?`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteField(currentResource.value, row.id);
+        message.success('删除成功');
+        await reload();
+      } catch (e: any) {
+        message.error('删除失败: ' + extractApiError(e));
+      }
+    },
+  });
 }
 
 watch(needsOptions, (v) => {
