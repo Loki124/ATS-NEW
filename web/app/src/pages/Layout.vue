@@ -8,12 +8,18 @@
   <a class="skip-link" href="#main">跳到主内容</a>
 
   <n-layout has-sider class="app-layout">
-    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 展开） [T6.2] -->
+    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
+    <!--
+      2026-08-24 21:31 兵哥反馈：默认充满全高 + hover 展开不压缩主页面
+      - :width 固定传 64（物理折叠态），CSS 类 .app-sider--floating 在 hover 时强制 width:240 + position:fixed
+      - 这样 flex 容器始终按 64px 偏移算 main-area，hover 展开变浮层不占 flex 流 → main-area 不收缩
+      - n-menu :collapsed=!effectiveExpanded 控制内部菜单项图标/文字显示
+    -->
     <n-layout-sider
       v-if="menuLayout === 'side' && !isMobile"
-      :width="siderWidth"
+      :width="64"
       :native-scrollbar="false"
-      class="glass-sidebar app-sider"
+      :class="['glass-sidebar', 'app-sider', { 'app-sider--floating': effectiveExpanded }]"
       @mouseenter="hoverExpanded = true"
       @mouseleave="hoverExpanded = false"
     >
@@ -219,7 +225,6 @@ const collapsed = ref(true)
 const hoverExpanded = ref(false)
 // T11.x 主侧栏 hover-expand: 鼠标悬浮临时展开, 离开立即折叠
 const effectiveExpanded = computed(() => !collapsed.value || hoverExpanded.value)
-const siderWidth = computed(() => (effectiveExpanded.value ? 240 : 64))
 // 「设置」footer 路由高亮: 位于 /settings/* 任意路径时点亮底色
 const isOnSettingsRoute = computed(() => route.path.startsWith('/settings'))
 
@@ -329,7 +334,9 @@ const menuLayout = computed<'side' | 'top'>(() =>
   userStore.uiSettings?.menuLayout === 'top' ? 'top' : 'side',
 )
 
-// header 固定定位后宽度需跟随侧边栏展开/折叠及移动端状态
+// header 固定定位后宽度需跟随布局模式（2026-08-24 21:31 改范式后 sider 不再影响 header：
+// - hover 展开走 position: fixed 浮层，不占 flex 流，header 不再变化
+// - 始终按默认折叠态 64px 偏移计算 header 位置）
 const headerStyle = computed(() => {
   if (menuLayout.value === 'top') {
     return { left: '0px', width: '100vw' }
@@ -337,10 +344,10 @@ const headerStyle = computed(() => {
   if (isMobile.value) {
     return { left: '0px', width: '100vw' }
   }
-  const w = siderWidth.value
+  // side 模式（桌面）: sider 折叠态 64px 偏移，hover 展开走浮层不占位
   return {
-    left: `${w}px`,
-    width: `calc(100vw - ${w}px)`,
+    left: '64px',
+    width: 'calc(100vw - 64px)',
   }
 })
 
@@ -616,19 +623,43 @@ function handleUserMenu(key: string) {
   font-weight: 600;
 }
 
-/* === 整个 app 限定在 viewport 内, body 不滚 === */
+/* === 整个 app 限定在 viewport 内, body 不滚 ===
+   2026-08-24 21:31 改范式: 用 :deep 改 Naive UI 内部 flex 容器为 grid（n-layout has-sider 时
+   内部 .n-layout-scroll-container 设了 display:flex + flex-direction:row + width:100%，
+   我们的 sider + main 实际是这个 flex 容器的子项，必须改它才能锁列） */
 .app-layout {
   height: 100dvh; /* P5 整改：100vh -> 100dvh，移动端地址栏不裁切 */
-  display: flex;
   overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }
-/* 侧边栏: 高度由内容决定（"高度自适应页面高度" = 内容驱动，
-   align-self:flex-start 阻止被拉伸到 .app-layout 的高度）；
-   height:auto !important 覆盖 n-layout-sider 自带的 height:100% */
+/* 改 Naive UI 内部 scroll-container 为 grid: 第 1 列 64px 给 sider, 第 2 列 1fr 给 main
+   这样即使 sider hover 切 fixed 脱流，main-area 仍固定占第 2 列不收缩 */
+.app-layout :deep(.n-layout-scroll-container) {
+  display: grid !important;
+  grid-template-columns: 64px calc(100vw - 64px) !important;
+  width: 100% !important;
+}
+/* 侧边栏: 2026-08-24 21:31 兵哥反馈改范式 —— 默认充满全高 + hover 浮层不压缩主页面
+   - 默认（折叠）: height: 100dvh !important 充满全视口（替换原 height: auto 内容驱动）
+   - hover 展开（.app-sider--floating）: position: fixed 脱离 grid 流，浮层显示 240px 宽（box-shadow 投影），
+     main-area 仍占 grid 第 2 列固定 1376px 宽不变 */
 .app-sider {
-  height: auto !important;
-  align-self: flex-start;
+  height: 100dvh !important;
   flex-shrink: 0;
+  overflow: visible !important; /* 让 n-menu hover 展开文字不被 sider 容器裁剪 */
+  transition: none !important; /* 关闭 width 过渡, hover 瞬切避免视觉抖动 */
+}
+.app-sider.app-sider--floating {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  /* n-layout-sider inline style 写 max-width: 64px 限制 width 上限，必须一起覆盖 */
+  width: 240px !important;
+  max-width: 240px !important;
+  height: 100dvh !important;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
 }
 /* === v2 主侧栏：去掉背景色（兵哥反馈"背景色太突兀"）
    -------------------------------------------------------------
@@ -640,21 +671,29 @@ function handleUserMenu(key: string) {
   background: transparent !important;
 }
 /* 透明侧栏不再画顶部白罩高光（无需模拟玻璃反光） */
-/* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充) */
+/* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充)
+   2026-08-24 21:31 改范式后: 用 grid grid-template-columns 锁死 main-area 始终占第 2 列 1376px 宽，
+   即使 sider hover 浮层展开也不变 —— 浮层叠在内容上方不占位 */
 .layout-breadcrumb-wrap {
   padding: 0 var(--space-6);
   background: transparent;
 }
 .main-area {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+  /* grid 子项: 显式 grid-column: 2 强制占第 2 列（避免 sider 切 fixed 后 grid 重排让 main 跳到第 1 列） */
+  grid-column: 2;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
   height: 100%;
   /* header 固定定位脱离文档流，主内容区顶部留出 header 高度 */
   padding-top: 64px;
   overflow: hidden;
+}
+/* 兜底：n-layout-scroll-container 不存在时（无 sider 模式），直接靠 .app-layout 兜住 */
+.app-layout:not(:has(.n-layout-scroll-container)) {
+  display: grid;
+  grid-template-columns: 64px calc(100vw - 64px);
 }
 
 /* === 头部固定不滚动（v2 玻璃 header） === */
