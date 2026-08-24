@@ -429,7 +429,6 @@ onMounted(() => {
 .config-container {
   padding: 24px;
   min-height: 100%;
-  background: #f0f2f5;
 }
 
 /* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
