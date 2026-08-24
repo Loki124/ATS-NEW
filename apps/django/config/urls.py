@@ -115,7 +115,10 @@ api_v1_patterns = [
     # 2026-08-20: 校招管控（人员比例管控系统）— 规则 / 人员 / 看板 / 规划 / 校验
     path('campus/', include('apps.campus_control.urls')),
 
-    # Phase 2 T02 (寇豆码): 删 'external-sync'/'data' 两个 0-model 空壳 URL 挂载.
+    # Phase 2 T02 (寇豆码): 原删 'external-sync'/'data' 空壳 URL 挂载; 二者 FE 仍真实调用, 已重建:
+    #   data  -> analytics/urls_data.py (/data/kpi, /data/subscriptions)
+    #   external-sync -> apps.external_sync (G40 Mock 占位端点, 无 model)
+    path('external-sync/', include('apps.external_sync.urls')),
     #   scraped_resume / duplicate_check 是真实功能, 保留 (FE 真实调用)!
     #   scraped-resumes: T02.5 落地最小 model, G30 完整功能由 T06
     #   duplicate-check: 7 处前端调用, T02.4 保留
