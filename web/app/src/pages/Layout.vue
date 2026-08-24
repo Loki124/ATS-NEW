@@ -619,37 +619,24 @@ function handleUserMenu(key: string) {
   display: flex;
   overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }
-/* 侧边栏: 固定高度, 不随内容滚动 */
+/* 侧边栏: 高度由内容决定（"高度自适应页面高度" = 内容驱动，
+   align-self:flex-start 阻止被拉伸到 .app-layout 的高度）；
+   height:auto !important 覆盖 n-layout-sider 自带的 height:100% */
 .app-sider {
-  height: 100vh;
+  height: auto !important;
+  align-self: flex-start;
   flex-shrink: 0;
 }
-/* === v2 主侧栏专属玻璃底（修复 #254 最左侧白色突兀）
+/* === v2 主侧栏：去掉背景色（兵哥反馈"背景色太突兀"）
    -------------------------------------------------------------
-   根因：.app-aurora 的三个光斑定位偏右上/左下/中上，最左侧 240px
-   区域内光斑几乎不沾，背面没有色彩可让 backdrop-filter 模糊，
-   套上 .glass-sidebar (rgba .55 white) 后看上去就是一坨突兀白。
-   给主侧栏自补一个轻量品牌色顶底均匀淡紫渐变 + 极低透明度白罩，
-   让它与右半区极光底视觉同源（settings-sider 不动，仍走全局
-   .glass-sidebar）。避免「顶部深紫→底部白」的断层，所以用单色
-   渐变而非头尾对比。 */
+   改为透明，让 .app-aurora 极光底直接透出；保留 backdrop-filter
+   让背后极光产生轻微模糊（与右半区视觉同源）。border-right 仍走
+   全局 .glass-sidebar 的细线作为侧栏与主区的分隔（settings-sider
+   仍走全局 .glass-sidebar，不动）。*/
 .app-sider.glass-sidebar {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--brand) 7%, transparent) 0%,
-      color-mix(in srgb, var(--brand-grad-a) 7%, transparent) 50%,
-      color-mix(in srgb, var(--brand) 6%, transparent) 100%) !important;
+  background: transparent !important;
 }
-/* 液态玻璃顶部高光（与 .glass-panel::before 同源） */
-.app-sider.glass-sidebar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 38%);
-  z-index: 0;
-}
+/* 透明侧栏不再画顶部白罩高光（无需模拟玻璃反光） */
 /* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充) */
 .layout-breadcrumb-wrap {
   padding: 0 var(--space-6);
@@ -732,9 +719,8 @@ function handleUserMenu(key: string) {
   flex-direction: column !important;
 }
 .sider-menu {
-  flex: 1;
   min-height: 0;
-  /* n-menu 内部自带滚动, 折叠展开切换不抖动 */
+  /* 内容驱动: 不强制 flex:1 占满，让整个侧栏自然紧凑 */
 }
 .sider-footer {
   margin-top: auto;
