@@ -122,7 +122,7 @@
           <n-button v-if="menuLayout === 'side'" text class="layout-header__search-trigger shrink-0" aria-label="全局搜索" @click="onSearchClick">
             <div class="search-box glass-input flex items-center gap-2 w-80 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-ink-faint text-left">搜索候选人、职位、需求...</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">搜索...</span>
               <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
@@ -134,7 +134,7 @@
           <n-button v-if="menuLayout === 'top'" text class="layout-header__search-trigger" aria-label="全局搜索" @click="onSearchClick">
             <div class="search-box glass-input flex items-center gap-2 w-72 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-ink-faint text-left">搜索候选人、职位、需求...</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">搜索...</span>
               <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
@@ -397,6 +397,11 @@ const userMenuOptions = computed(() => {
   const current = menuLayout.value
   return [
     { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
+    /* ⚠️ 22:45 统一范式 + 设置按钮可见性修复：
+       - top 模式没有 sider（v-if 不渲染），原 .sider-footer（设置按钮）在 main-area 里位置错乱
+       - 把设置入口集成到 dropdown menu（与个人中心/账号设置等菜单项统一范式）
+       - 路由跳转 /settings/account（设置主页），保留账号设置（个人中心）独立入口 */
+    { key: '/settings/account', label: '设置', icon: renderIcon(CogOutline) },
     { key: 'settings', label: '账号设置', icon: renderIcon(CogOutline) },
     { type: 'divider', key: 'd1' },
     {
@@ -488,6 +493,9 @@ function goToNotifications() {
 
 function handleUserMenu(key: string) {
   if (key === 'settings') router.push('/settings/account')
+  /* ⚠️ 22:45 统一范式：dropdown 加的「设置」入口，路由跳转 settings 主页
+     （与「账号设置」区分：账号设置 = 个人偏好；设置 = 完整设置模块入口） */
+  if (typeof key === 'string' && key.startsWith('/settings')) router.push(key)
   if (key === 'menu-side' || key === 'menu-top') {
     const layout = key === 'menu-side' ? 'side' : 'top'
     if (layout === menuLayout.value) return
