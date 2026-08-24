@@ -11,7 +11,7 @@
       </n-space>
     </div>
 
-    <div class="config-content">
+    <div class="config-content page-body">
       <n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
         <n-card title="功能设置" class="config-card">
@@ -427,12 +427,33 @@ onMounted(() => {
 
 <style scoped>
 .config-container {
-  padding: 24px;
-  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
 }
 
-/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
+/* 2026-08-24 兵哥反馈：拆成「标题区 + 内容区」，滚动职责下放到 .page-body
+   - 标题区固定不动（flex-shrink: 0）→ 配置类页面保存/重置按钮始终可触达
+   - 内容区自己滚（flex: 1, min-height: 0, overflow-y: auto）→ 与 AccountSettings/ThemeSettings 同范式
+   - 避免原 .config-container min-height:100% 触发整页内嵌滚动条 + sticky header 被卡片内容穿透 */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* [T11] 同步限制 X 方向: 子元素 n-checkbox/n-radio 白空间 nowrap 会撑宽父容器 */
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
 
+/* 兼容旧类名（如果模板残留 .config-content 不带 .page-body 时仍生效） */
 .config-content {
   display: flex;
   flex-direction: column;
