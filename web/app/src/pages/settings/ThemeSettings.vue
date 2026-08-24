@@ -272,12 +272,7 @@ onUnmounted(() => {
 .page-header {
   flex-shrink: 0;
 }
-.page-title {
-  font-size: var(--text-h1);
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.25;
-}
+/* P5 整改：删除 scoped .page-title 字号覆盖（review 2.6），复用全局 .page-title 26px 渐变规格 */
 .page-subtitle {
   font-size: var(--text-body);
   color: var(--ink-soft);

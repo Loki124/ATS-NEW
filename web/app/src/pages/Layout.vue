@@ -618,7 +618,7 @@ function handleUserMenu(key: string) {
 
 /* === 整个 app 限定在 viewport 内, body 不滚 === */
 .app-layout {
-  height: 100vh;
+  height: 100dvh; /* P5 整改：100vh -> 100dvh，移动端地址栏不裁切 */
   display: flex;
   overflow: hidden; /* 禁止 app 整体滚动, 滚动只发生在 .content-wrapper */
 }

@@ -475,7 +475,7 @@ function onSelectPos(pos: string) {
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 .pfill.bl { background: var(--b); }
 .pfill.ye { background: #F59E0B; }
-.pfill.pu { background: #8B5CF6; }
+.pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 #8B5CF6 -> 令牌 */
 .pfill.gr { background: var(--s); }
 .replace-banner {
   padding: 10px 14px;
