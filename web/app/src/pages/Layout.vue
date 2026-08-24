@@ -603,6 +603,32 @@ function handleUserMenu(key: string) {
   height: 100vh;
   flex-shrink: 0;
 }
+/* === v2 主侧栏专属玻璃底（修复 #254 最左侧白色突兀）
+   -------------------------------------------------------------
+   根因：.app-aurora 的三个光斑定位偏右上/左下/中上，最左侧 240px
+   区域内光斑几乎不沾，背面没有色彩可让 backdrop-filter 模糊，
+   套上 .glass-sidebar (rgba .55 white) 后看上去就是一坨突兀白。
+   给主侧栏自补一个轻量品牌色顶底均匀淡紫渐变 + 极低透明度白罩，
+   让它与右半区极光底视觉同源（settings-sider 不动，仍走全局
+   .glass-sidebar）。避免「顶部深紫→底部白」的断层，所以用单色
+   渐变而非头尾对比。 */
+.app-sider.glass-sidebar {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--brand) 7%, transparent) 0%,
+      color-mix(in srgb, var(--brand-grad-a) 7%, transparent) 50%,
+      color-mix(in srgb, var(--brand) 6%, transparent) 100%) !important;
+}
+/* 液态玻璃顶部高光（与 .glass-panel::before 同源） */
+.app-sider.glass-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 38%);
+  z-index: 0;
+}
 /* 主体区域: 占满剩余宽度, 纵向 flex (header 固定 + content 填充) */
 .layout-breadcrumb-wrap {
   padding: 0 var(--space-6);
