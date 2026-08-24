@@ -499,7 +499,15 @@ body.dark .n-data-table .n-data-table-th {
 /* === .page-header / .page-title（全局覆盖，参照 .cc-header / .cc-title）===
  * 用 !important 覆盖各页 scoped 中遗留的 .page-title 普通墨色/24px 规则，
  * 统一成校招管控同款渐变大标题（26px / 700）。 */
-.page-header { margin-bottom: 20px; }
+/* ⚠️ 22:50 兵哥反馈"标题区域出现滚动条"：
+   - 加 overflow: hidden 强制 page-header 自身不滚
+   - 加 flex-shrink: 0 配合 page-body flex:1 确保标题不被压缩
+   - 全局覆盖 scoped 页面 .page-header 残留 */
+.page-header {
+  margin-bottom: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
 .page-title {
   margin: 0;
   font-size: 26px !important;

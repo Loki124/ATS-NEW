@@ -268,7 +268,16 @@ watch(() => route.path, () => {
 .settings-scroll {
   position: relative; z-index: 1;
   flex: 1; min-height: 0; height: 100%;
-  overflow: auto; padding: 20px;
+  /* ⚠️ 22:50 兵哥反馈"页面整体滚动 + 标题区滚动"双重滚动：
+     - 原 overflow: auto 让 .settings-scroll 自身成滚动容器
+     - 与各页 .page-body (overflow-y: auto) 同时存在 → 内容超长时双重滚动
+     - 桌面端改为 overflow: hidden，由各页 .page-body 内部滚（单一滚动职责）
+     - 移动端（≤ 767px）保留 overflow: auto（移动端布局单列，更适合整体滚） */
+  overflow: hidden;
+  padding: 20px;
+}
+@media (max-width: 767px) {
+  .settings-scroll { overflow: auto; }
 }
 .settings-scroll :deep(.page-container) { padding: 0; min-height: 100%; }
 
