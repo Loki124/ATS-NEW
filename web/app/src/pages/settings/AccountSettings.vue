@@ -5,8 +5,10 @@
       <p class="page-subtitle">管理个人资料、登录密码与通知偏好</p>
     </div>
 
-    <!-- 个人设置 -->
-    <n-card class="settings-section" :bordered="false">
+    <!-- 个人设置 / 浏览器通知 / 通知选项 三块内容统一进 .page-body 滚动区 -->
+    <div class="page-body">
+      <!-- 个人设置 -->
+      <n-card class="settings-section" :bordered="false">
       <template #header>
         <div class="section-title">
           <span>个人设置</span>
@@ -110,6 +112,7 @@
       </n-form>
 
     </n-card>
+    </div><!-- /.page-body -->
 
     <!-- 更改密码弹窗 -->
     <n-modal
@@ -287,10 +290,26 @@ async function handleChangePassword() {
   height: 100%;
   min-height: 0;
   padding: 0;
+}
+
+/* 2026-08-24 兵哥 19:59 反馈：拆成「标题区 + 内容区」，滚动职责下放到 .page-body
+   - 标题区固定不动（flex-shrink: 0）
+   - 内容区自己滚（flex: 1, min-height: 0, overflow-y: auto）
+   - 避免原 .page-container overflow-y: auto 触发整页内嵌滚动条 + 与外层 .settings-scroll 双滚冲突 */
+.page-header {
+  flex-shrink: 0;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  /* [T11] 同步限制 X 方向: 子元素 n-checkbox 白空间 nowrap 会撑宽父容器,
-     设置 scroll-y 后默认 overflow-x 会被浏览器隐式 enable → 出现底部横向滚动条 */
+  /* [T11] 同步限制 X 方向: 子元素 n-checkbox 白空间 nowrap 会撑宽父容器 */
   overflow-x: hidden;
+  /* 内容卡片间留点呼吸间距 */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
 }
 
 /* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css 渐变规格） */
