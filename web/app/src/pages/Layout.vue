@@ -4,6 +4,9 @@
     <div class="aurora-spot"></div>
   </div>
 
+  <!-- P4 整改：跳转链接（a11y WCAG 2.4.1） -->
+  <a class="skip-link" href="#main">跳到主内容</a>
+
   <n-layout has-sider class="app-layout">
     <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 展开） [T6.2] -->
     <n-layout-sider
@@ -157,10 +160,10 @@
 
       <!-- 内容区（v2：透明背景让极光底透出） -->
       <n-layout-content class="layout-content">
-        <!-- 滚动容器：页面根容器（.page-container / .cc-page 等）自管内边距，此处不再额外 padding -->
-        <div class="content-wrapper">
+        <!-- P4 整改：<main> 地标 + id=main 与 skip-link 联动（a11y WCAG 1.3.1） -->
+        <main id="main" class="content-wrapper">
           <router-view />
-        </div>
+        </main>
       </n-layout-content>
 
       <!-- ⌘K 全局搜索 Modal -->

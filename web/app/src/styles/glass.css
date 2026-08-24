@@ -791,3 +791,24 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
     min-width: 960px;
   }
 }
+
+/* === P4 整改：a11y 地标 + 焦点环 === */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: var(--z-toast);
+  background: var(--surface);
+  color: var(--brand);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.skip-link:focus {
+  left: 8px;
+}
+
+/* 全局焦点可见环（覆盖 ThemeSettings.vue:46 等原生 button 缺焦点样式问题） */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

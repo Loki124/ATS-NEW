@@ -251,3 +251,17 @@ body.dark {
 .workbench-card--stagger-4 { animation-delay: 0.16s; }
 .workbench-card--stagger-5 { animation-delay: 0.20s; }
 .workbench-card--stagger-6 { animation-delay: 0.24s; }
+
+/* === P4 整改：prefers-reduced-motion 动效降级（a11y WCAG 2.3.3） === */
+@media (prefers-reduced-motion: reduce) {
+  .workbench-card,
+  .btn-primary,
+  .btn-secondary,
+  .kpi-card,
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
