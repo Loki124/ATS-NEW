@@ -351,7 +351,7 @@ onMounted(() => loadProcess())
 .feature-chip {
   font-size: 11px;
   color: #666;
-  background: #f5f5f5;
+  background: var(--g1);
   padding: 2px 6px;
   border-radius: 3px;
 }
