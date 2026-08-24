@@ -566,11 +566,8 @@ body.dark .kpi-card:hover {
 /* P3 整改：原 1024/480 媒体查询删除，KPI 改用 auto-fit 自适应，无需手动断点 */
 
 /* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
-/* 右侧 .settings-scroll 滚动时，子页标题块用 sticky 吸顶在容器顶部，
-   避免标题随长表格一起滚走。
-   背景必须用规范玻璃 token (--glass-bg-panel)，不能用 var(--surface) 不透明白——
-   后者会盖死极光、破坏液态玻璃视觉语言（兵哥 18:14 反馈纠正）。
-   backdrop-filter 模糊让极光透出，半透明 rgba 兜底阻止内容穿透，二者协同。 */
+/* 兵哥 18:27 反馈：标题区不要色块感，去掉背景 + 左右 margin，让极光直接透出。
+   保留 sticky + 底部分隔线 —— 标题区小高度（~80px），极光透出时仍有空间辨识。 */
 .settings-scroll .page-header,
 .settings-scroll .cc-header,
 .settings-scroll .n-page-header,
@@ -578,15 +575,11 @@ body.dark .kpi-card:hover {
   position: sticky;
   top: 0;
   z-index: 10;
-  /* 规范玻璃材质（与 .glass-panel 同源，DESIGN.md §2.5）：
-     浅色 rgba(255,255,255,.55) / 暗色 rgba(30,41,59,.55)，
-     透出极光 + 阻止后面表格/选项穿透。 */
-  background: var(--glass-bg-panel);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  backdrop-filter: blur(12px) saturate(180%);
+  /* 无背景色 —— 极光直接透出 */
   border-bottom: 1px solid var(--glass-border);
-  margin: 0 -20px 16px -20px;   /* 抵消 .settings-scroll 的 20px padding */
-  padding: 20px 20px 4px 20px;  /* 上 padding 补回被 margin 抵消的顶部空间 */
+  /* 去掉左右 margin/padding —— 标题贴边 */
+  margin: 0 0 16px 0;
+  padding: 16px 0 4px 0;
 }
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
 .settings-page-shell { display: block; }
