@@ -279,6 +279,23 @@ export const batchConfigRules = (payload: BatchConfigPayload) =>
     .post('/campus/rules/with-targets/', payload)
     .then((r) => r.data as { success: boolean; data: { saved: number; totalTarget: number; year: number } })
 
+/** 维度规则集编辑面：单条指标项（占比 0~1）。 */
+export interface DimRuleSetItem {
+  indicator: string
+  target: number // 0~1
+  strength: Strength
+}
+
+/**
+ * 维度规则集保存（PUT /dimensions/{id}/rules/）。
+ * 原子替换该 (适用范围, 维度, 年度) 下全部规则；后端硬校验占比之和=100%；
+ * 保留既有年度/月度人数目标（仅更新 target/strength）。对应「维度规则集编辑面」保存动作。
+ */
+export const saveDimensionRuleSet = (
+  dimensionId: string,
+  payload: { bu: string; position: string; level: string; year: number; rules: DimRuleSetItem[] },
+) => api.put(`/campus/dimensions/${dimensionId}/rules/`, payload).then((r) => r.data as { success: boolean; data: { saved: number } })
+
 /* ============================ 规则导入 / 导出 ============================ */
 /** 导出全部规则为 xlsx（浏览器直接下载）。 */
 export const exportRules = () =>
@@ -359,6 +376,7 @@ export default {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, createRule, updateRule, deleteRule, batchSaveRules, batchConfigRules,
+  saveDimensionRuleSet,
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules,

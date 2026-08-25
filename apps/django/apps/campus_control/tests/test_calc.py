@@ -412,3 +412,134 @@ class TestBatchConfigWithTargets:
         # annual_target = round(200 × 0.7) = 140 / round(200 × 0.3) = 60
         annuals = sorted(r['annualTarget'] for r in dim_rules)
         assert annuals == [60, 140]
+
+
+class TestDimensionSetRules:
+    """PUT /api/v1/campus/dimensions/{id}/rules/ 端点（维度规则集编辑面保存路径）。
+
+    契约：
+    - 原子替换该 (适用范围, 维度, 年度) 下全部规则
+    - 占比加和须 == 100%，否则 400（与 /rules/batch/ 同源硬校验）
+    - indicator 必须属于该维度，否则 400
+    - 重复 indicator 提交 → 400
+    - **保留既有的年度/月度人数目标**（仅更新 target/strength）
+    """
+
+    def _setup_scheme(self, api_client, bu='', position='', level='', year=2026):
+        s = api_client.post('/api/v1/campus/dimensions/', {'name': '维度SR'}, format='json')
+        assert s.status_code == 201, s.json()
+        dim_id = s.json()['id']
+        i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
+        i2 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json').json()
+        return dim_id, i1['id'], i2['id'], bu, position, level, year
+
+    def test_set_rules_100_ok(self, api_client):
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        assert resp.json()['data']['saved'] == 2
+
+    def test_set_rules_below_100_blocked(self, api_client):
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [{'indicator': i1, 'target': 0.6, 'strength': '硬约束'}],
+        }, format='json')
+        assert resp.status_code == 400
+        assert '100%' in resp.json().get('detail', '')
+
+    def test_set_rules_above_100_blocked(self, api_client):
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.5, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        assert '100%' in resp.json().get('detail', '')
+
+    def test_set_rules_duplicate_indicator_blocked(self, api_client):
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i1, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+
+    def test_set_rules_indicator_not_in_dim_blocked(self, api_client):
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        s2 = api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度SR'}, format='json').json()
+        i_other = api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json').json()
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.5, 'strength': '硬约束'},
+                {'indicator': i_other['id'], 'target': 0.5, 'strength': '硬约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        assert '不属于' in resp.json().get('detail', '')
+
+    def test_set_rules_preserves_headcount(self, api_client):
+        """重平衡占比时，既有年度/月度人数目标应被继承而非清空。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        # 先创建带人数目标的旧规则（仅 i1，target=0.6 ≤100% 合法）
+        old = api_client.post('/api/v1/campus/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'dimension': dim_id,
+            'indicator': i1, 'target': 0.6, 'strength': '硬约束',
+            'annual_target': 140, 'monthly_targets': [10] * 12,
+        }, format='json')
+        assert old.status_code == 201, old.json()
+
+        # 维度规则集编辑面重平衡：i1 0.6→0.55，i2 新增 0.45（和=100%）
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.55, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.45, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 2  # 原子替换
+        i1_rule = next(r for r in dim_rules if r['indicator'] == i1)
+        # 人数目标应继承旧值
+        assert i1_rule['annualTarget'] == 140
+        assert i1_rule['monthlyTargets'] == [10] * 12
+        # 新指标无旧目标 → 0
+        i2_rule = next(r for r in dim_rules if r['indicator'] == i2)
+        assert i2_rule['annualTarget'] == 0
+
+    def test_set_rules_atomic_delete_omitted(self, api_client):
+        """未出现在 rules 中的指标即视为删除（原子替换语义）。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        # 仅保留 i1（和=100% 需另一指标，故这里用单指标 1.0 表示「只保留 i1」）
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [{'indicator': i1, 'target': 1.0, 'strength': '硬约束'}],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 1
+        assert dim_rules[0]['indicator'] == i1

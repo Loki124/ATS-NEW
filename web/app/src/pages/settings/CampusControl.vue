@@ -155,84 +155,116 @@
       </n-tabs>
     </div>
 
-    <!-- ===================== 规则详情弹窗（新增/编辑，页面居中） ===================== -->
+    <!-- ===================== 维度规则集编辑面（占比之和须=100%） ===================== -->
     <n-modal
-      v-model:show="ruleDrawer.show"
+      v-model:show="dimEditor.show"
       preset="card"
-      :title="ruleDrawer.editingId ? '编辑规则' : '新增规则'"
-      :style="{ width: '620px', maxWidth: '94vw' }"
+      title="维度规则集（占比之和须 = 100%）"
+      :style="{ width: '720px', maxWidth: '94vw' }"
       :bordered="false"
       :segmented="{ content: true, footer: true }"
-      class="rule-modal"
+      class="dim-ruleset-modal"
     >
-      <n-form label-placement="top">
+      <div class="dim-ctx">
         <div class="form-section">
-          <div class="form-section-title"><span class="dot" />基本信息</div>
-          <n-form-item label="维度" required>
-            <n-select v-model:value="ruleDrawer.dimensionId" :options="dimensionOptions" placeholder="选择维度" @update:value="onRuleDimChange" />
-          </n-form-item>
-          <n-form-item label="指标（来自指标库）" required>
-            <n-select v-model:value="ruleDrawer.indicatorId" :options="ruleIndicatorOptions" placeholder="先选维度，再从指标库选择" />
-          </n-form-item>
+          <div class="form-section-title"><span class="dot" />维度</div>
+          <n-select
+            v-model:value="dimEditor.dimensionId"
+            :options="dimensionOptions"
+            placeholder="选择维度"
+            :disabled="dimEditor.lockContext"
+            @update:value="onDimEditorDimChange"
+          />
         </div>
-
         <div class="form-section">
-          <div class="form-section-title">
-            <span class="dot" />适用范围
-            <span class="form-section-hint">（每个指标独立设定）</span>
-          </div>
+          <div class="form-section-title"><span class="dot" />适用范围</div>
           <div class="scope-row">
             <div class="scope-field">
               <span class="scope-label">适用范围</span>
-              <n-switch v-model:value="ruleDrawer.isGlobal" size="small" @update:value="onRuleScopeToggle">
+              <n-switch v-model:value="dimEditor.isGlobal" size="small" :disabled="dimEditor.lockContext">
                 <template #checked>全局</template>
                 <template #unchecked>指定</template>
               </n-switch>
             </div>
-            <template v-if="!ruleDrawer.isGlobal">
+            <template v-if="!dimEditor.isGlobal">
               <div class="scope-field">
                 <span class="scope-label">部门</span>
-                <n-select v-model:value="ruleDrawer.bu" :options="deptOptions" placeholder="部门" />
+                <n-select v-model:value="dimEditor.bu" :options="deptOptions" placeholder="部门" :disabled="dimEditor.lockContext" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职务</span>
-                <n-select v-model:value="ruleDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
+                <n-select v-model:value="dimEditor.position" :options="positionOptions" placeholder="职务(不限)" clearable :disabled="dimEditor.lockContext" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职级</span>
-                <n-select v-model:value="ruleDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
+                <n-select v-model:value="dimEditor.level" :options="levelOptions" placeholder="职级(不限)" clearable :disabled="dimEditor.lockContext" />
               </div>
             </template>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title"><span class="dot" />管控占比（占比上限）</div>
-          <n-grid :cols="2" :x-gap="16">
-            <n-gi><n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
-            <n-gi><n-form-item label="控制强度"><n-select v-model:value="ruleDrawer.strength" :options="strengthOptions" /></n-form-item></n-gi>
-          </n-grid>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title"><span class="dot" />管控人数（年度 + 12 月）</div>
-          <n-grid :cols="2" :x-gap="16" class="form-row-2">
-            <n-gi><n-form-item label="规划年度"><n-input-number v-model:value="ruleDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
-            <n-gi><n-form-item label="年度目标人数"><n-input-number v-model:value="ruleDrawer.annualTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
-          </n-grid>
-          <div class="monthly-block-label">12 个月目标（单位：人）</div>
-          <div class="monthly-grid monthly-grid--rule">
-            <div v-for="(_, i) in 12" :key="i" class="month-cell">
-              <span class="month-label">{{ ALL_MONTHS[i] }}</span>
-              <n-input-number v-model:value="ruleDrawer.monthly[i]" :min="0" :show-button="false" size="small" />
+            <div class="scope-field">
+              <span class="scope-label">年度</span>
+              <n-input-number v-model:value="dimEditor.year" :min="2020" :max="2100" :disabled="dimEditor.lockContext" style="width: 110px" />
             </div>
           </div>
         </div>
-      </n-form>
+      </div>
+
+      <div v-if="!dimEditor.dimensionId" class="empty-tip">请先选择维度</div>
+      <div v-else-if="dimEditor.rows.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
+      <div v-else class="dim-rows">
+        <div class="dim-row" :class="{ 'row-deleted': row.pendingDelete, 'row-disabled': dimEditor.mode === 'view' }" v-for="row in dimEditor.rows" :key="row.indicatorId">
+          <div class="dim-row-head">
+            <span class="dim-ind-name">{{ row.indicatorName }}</span>
+            <n-tag v-if="row.pendingDelete" type="error" :bordered="false" size="small" round>待删</n-tag>
+            <n-tag v-else-if="row.targetPct == null" type="default" :bordered="false" size="small" round>未设目标</n-tag>
+            <n-tag v-else type="success" :bordered="false" size="small" round>已设目标</n-tag>
+            <div class="dim-row-ctrl" v-if="dimEditor.mode === 'edit'">
+              <n-input-number
+                :value="row.targetPct || 0"
+                :min="0" :max="100" :step="0.5" size="small" style="width: 120px"
+                @update:value="(v: number | null) => setDimRowTarget(row.indicatorId, v)"
+              />
+              <span class="pct-suffix">%</span>
+              <n-select
+                :value="row.strength" :options="strengthOptions" size="small" style="width: 110px"
+                @update:value="(v: string) => setDimRowStrength(row.indicatorId, v as Strength)"
+              />
+              <n-button text :type="row.pendingDelete ? 'primary' : 'error'" size="tiny" @click="toggleDimRowDelete(row.indicatorId)">
+                {{ row.pendingDelete ? '恢复' : '删除' }}
+              </n-button>
+            </div>
+            <div class="dim-row-view" v-else>
+              <span class="view-pct">{{ row.targetPct == null ? '—' : row.targetPct.toFixed(1) + '%' }}</span>
+              <span class="view-strength">{{ row.strength }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="dimEditor.mode === 'edit'" class="sum-callout" :class="{ ok: dimEditorSumOk, warn: !dimEditorSumOk }">
+          <div class="sum-left">
+            <span class="sum-label">占比之和</span>
+            <span class="sum-value">{{ dimEditorSumPct.toFixed(1) }}%</span>
+          </div>
+          <div class="sum-right">
+            <n-tag v-if="dimEditorSumOk" type="success" :bordered="false" size="small" round>✓ = 100%</n-tag>
+            <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 需 = 100%</n-tag>
+            <span v-if="!dimEditorSumOk" class="sum-diff">差 {{ (100 - dimEditorSumPct).toFixed(1) }}%</span>
+          </div>
+        </div>
+
+        <n-alert v-if="dimEditor.mode === 'edit' && dimEditorHasPendingDelete" type="warning" :show-icon="true" class="dim-del-alert">
+          已标记删除 {{ dimEditorPendingDeleteCount }} 个指标，剩余指标占比之和须重平衡至 100% 后方可保存。
+        </n-alert>
+      </div>
+
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="ruleDrawer.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="loading.saveRule" @click="saveRule">保存</n-button>
+          <n-button @click="closeDimEditor">取消</n-button>
+          <template v-if="dimEditor.mode === 'view'">
+            <n-button type="primary" class="gradient-btn" @click="enterDimEdit">编辑</n-button>
+          </template>
+          <template v-else>
+            <n-button type="primary" class="gradient-btn" :loading="loading.saveDimRuleSet" :disabled="!dimEditorSumOk" @click="saveDimRuleSet">保存</n-button>
+          </template>
         </div>
       </template>
     </n-modal>
@@ -506,14 +538,14 @@ import { extractApiError } from '../../api/dynamic-field'
 import {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
-  listRules, createRule, updateRule, deleteRule, batchConfigRules,
+  listRules, batchConfigRules, saveDimensionRuleSet,
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules, triggerDownload,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
-  type ValidationResult, type Strength, type RuleInput, type BatchConfigPayload,
+  type ValidationResult, type Strength, type DimRuleSetItem, type BatchConfigPayload,
   type RuleImportResult,
 } from '../../api/campusControl'
 
@@ -548,7 +580,7 @@ const scopeText = (bu: string, position: string, level: string) => {
 /* ============================ 全局状态 ============================ */
 const activeTab = ref('ratio')
 const loading = reactive({
-  ratio: false, plan: false, rules: false, saveRule: false, batchConfig: false,
+  ratio: false, plan: false, rules: false, saveDimRuleSet: false, batchConfig: false,
   dimensions: false, indicators: false, persons: false, validate: false,
   import: false,
 })
@@ -754,8 +786,8 @@ const ruleColumns: DataTableColumns<ControlRule> = [
   {
     title: '操作', key: 'actions', width: 120, fixed: 'right',
     render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openRuleDrawer(r) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeRule(r) }, { default: () => '删除' }),
+      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openDimensionEditor(r) }, { default: () => '编辑' }),
+      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => openDimensionEditor(r, { preDelete: r.indicator }) }, { default: () => '删除' }),
     ]),
   },
 ]
@@ -820,84 +852,140 @@ const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
   { title: '人数状态', key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
 ]
 
-/* ============================ 规则详情抽屉 ============================ */
-const ruleDrawer = reactive({
+/* ============================ 维度规则集编辑面（占比之和须=100%） ============================ */
+interface DimEditorRow {
+  indicatorId: string
+  indicatorName: string
+  targetPct: number | null // null = 未设目标
+  strength: Strength
+  hasExisting: boolean
+  pendingDelete: boolean
+}
+
+const dimEditor = reactive({
   show: false,
-  editingId: '' as string | null,
+  mode: 'view' as 'view' | 'edit',
+  lockContext: false, // 从已有规则打开时锁定 适用范围/维度/年度
   dimensionId: '' as string | null,
-  indicatorId: '' as string | null,
   isGlobal: true,
   bu: '', position: '', level: '',
-  targetPct: 50, year: 2026, annualTarget: 0, monthly: Array(12).fill(0),
-  strength: '硬约束' as Strength,
+  year: 2026,
+  rows: [] as DimEditorRow[],
 })
 
-const ruleIndicatorOptions = computed(() => {
-  if (!ruleDrawer.dimensionId) return []
-  return indicators.value
-    .filter((i) => i.dimension === ruleDrawer.dimensionId)
-    .map((i) => ({ label: i.name, value: i.id }))
-})
+const dimEditorIndicators = computed(() =>
+  indicators.value.filter((i) => i.dimension === dimEditor.dimensionId),
+)
+// 仅统计未标记删除行的占比之和
+const dimEditorSumPct = computed(() =>
+  dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : (r.targetPct || 0)), 0),
+)
+const dimEditorSumOk = computed(() => Math.abs(dimEditorSumPct.value - 100) < 0.05)
+const dimEditorHasPendingDelete = computed(() => dimEditor.rows.some((r) => r.pendingDelete))
+const dimEditorPendingDeleteCount = computed(() => dimEditor.rows.filter((r) => r.pendingDelete).length)
 
-function openRuleDrawer(rule?: ControlRule) {
-  ruleDrawer.editingId = rule?.id ?? null
-  ruleDrawer.dimensionId = rule?.dimension ?? null
-  ruleDrawer.indicatorId = rule?.indicator ?? null
-  ruleDrawer.isGlobal = !(rule?.bu || rule?.position || rule?.level)
-  ruleDrawer.bu = rule?.bu ?? ''
-  ruleDrawer.position = rule?.position ?? ''
-  ruleDrawer.level = rule?.level ?? ''
-  ruleDrawer.targetPct = rule ? Math.round(rule.target * 1000) / 10 : 50
-  ruleDrawer.year = rule?.year ?? 2026
-  ruleDrawer.annualTarget = rule ? Number(rule.annualTarget) || 0 : 0
-  ruleDrawer.monthly = rule
-    ? Array.from({ length: 12 }, (_, i) => Number(rule.monthlyTargets?.[i]) || 0)
-    : Array(12).fill(0)
-  ruleDrawer.strength = rule?.strength ?? '硬约束'
-  ruleDrawer.show = true
-}
-
-function onRuleDimChange() {
-  ruleDrawer.indicatorId = null
-}
-function onRuleScopeToggle(v: boolean) {
-  if (!v && !ruleDrawer.bu) ruleDrawer.bu = DEPTS[0]
-}
-
-async function saveRule() {
-  if (!ruleDrawer.dimensionId) { message.warning('请选择维度'); return }
-  if (!ruleDrawer.indicatorId) { message.warning('请从指标库中选择指标'); return }
-  const payload: RuleInput = {
-    bu: ruleDrawer.isGlobal ? '' : ruleDrawer.bu,
-    position: ruleDrawer.isGlobal ? '' : ruleDrawer.position,
-    level: ruleDrawer.isGlobal ? '' : ruleDrawer.level,
-    dimension: ruleDrawer.dimensionId,
-    indicator: ruleDrawer.indicatorId,
-    year: ruleDrawer.year,
-    target: ruleDrawer.targetPct / 100,
-    strength: ruleDrawer.strength,
-    annualTarget: Math.round(ruleDrawer.annualTarget) || 0,
-    monthlyTargets: ruleDrawer.monthly.map((v) => Math.round(v) || 0),
-  }
-  loading.saveRule = true
-  try {
-    if (ruleDrawer.editingId) await updateRule(ruleDrawer.editingId, payload)
-    else await createRule(payload)
-    message.success('保存成功')
-    ruleDrawer.show = false
-    await Promise.all([loadRules(), loadRatio(), loadPlan()])
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
-  finally { loading.saveRule = false }
-}
-
-function removeRule(r: ControlRule) {
-  dialog.warning({
-    title: '删除规则', content: `确认删除「${r.dimensionName} · ${r.indicatorName}（${scopeText(r.bu, r.position, r.level)}）」？`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await deleteRule(r.id); message.success('删除成功'); await Promise.all([loadRules(), loadRatio(), loadPlan()]) }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
+function _buildDimRows() {
+  const bu = dimEditor.isGlobal ? '' : dimEditor.bu
+  const position = dimEditor.isGlobal ? '' : dimEditor.position
+  const level = dimEditor.isGlobal ? '' : dimEditor.level
+  const existing = rules.value.filter(
+    (r) =>
+      r.dimension === dimEditor.dimensionId &&
+      (r.bu || '') === bu && (r.position || '') === position && (r.level || '') === level &&
+      r.year === dimEditor.year,
+  )
+  dimEditor.rows = dimEditorIndicators.value.map((ind) => {
+    const er = existing.find((r) => r.indicator === ind.id)
+    return {
+      indicatorId: ind.id,
+      indicatorName: ind.name,
+      targetPct: er ? Math.round(er.target * 1000) / 10 : null,
+      strength: er ? (er.strength as Strength) : '硬约束',
+      hasExisting: !!er,
+      pendingDelete: false,
+    }
   })
+}
+
+/**
+ * 打开维度规则集编辑面。
+ * - rule 给定：以该规则的 (适用范围, 维度, 年度) 为上下文，锁定上下文，展示该维度全部指标。
+ * - opts.preDelete：打开即进入编辑态并标记某指标「待删」，强制用户重平衡至 100%。
+ * 这样点任一指标/删除单条，都进入「维度级」编辑，保证占比之和=100% 的约束。
+ */
+function openDimensionEditor(rule?: ControlRule, opts?: { preDelete?: string }) {
+  if (rule) {
+    dimEditor.dimensionId = rule.dimension
+    dimEditor.isGlobal = !(rule.bu || rule.position || rule.level)
+    dimEditor.bu = rule.bu || ''
+    dimEditor.position = rule.position || ''
+    dimEditor.level = rule.level || ''
+    dimEditor.year = rule.year
+    dimEditor.lockContext = true
+  } else {
+    dimEditor.dimensionId = null
+    dimEditor.isGlobal = true
+    dimEditor.bu = ''; dimEditor.position = ''; dimEditor.level = ''
+    dimEditor.year = 2026
+    dimEditor.lockContext = false
+  }
+  dimEditor.mode = opts?.preDelete ? 'edit' : 'view'
+  dimEditor.show = true
+  if (dimEditor.dimensionId) _buildDimRows()
+  if (opts?.preDelete) {
+    const row = dimEditor.rows.find((r) => r.indicatorId === opts.preDelete)
+    if (row) row.pendingDelete = true
+  }
+}
+
+function onDimEditorDimChange() {
+  dimEditor.rows = []
+  if (dimEditor.dimensionId) _buildDimRows()
+}
+
+function enterDimEdit() { dimEditor.mode = 'edit' }
+function closeDimEditor() {
+  dimEditor.show = false
+  dimEditor.mode = 'view'
+}
+function setDimRowTarget(id: string, v: number | null) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (r) r.targetPct = v == null ? null : v
+}
+function setDimRowStrength(id: string, v: string) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (r) r.strength = v as Strength
+}
+function toggleDimRowDelete(id: string) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (r) r.pendingDelete = !r.pendingDelete
+}
+
+async function saveDimRuleSet() {
+  if (!dimEditor.dimensionId) { message.warning('请选择维度'); return }
+  const rulesPayload: DimRuleSetItem[] = dimEditor.rows
+    .filter((r) => !r.pendingDelete && r.targetPct != null)
+    .map((r) => ({ indicator: r.indicatorId, target: (r.targetPct || 0) / 100, strength: r.strength }))
+  if (rulesPayload.length === 0) { message.warning('请至少保留一个指标并设置占比'); return }
+  if (!dimEditorSumOk.value) { message.warning(`占比之和须 = 100%，当前 ${dimEditorSumPct.value.toFixed(1)}%`); return }
+  loading.saveDimRuleSet = true
+  try {
+    const res = await saveDimensionRuleSet(dimEditor.dimensionId, {
+      bu: dimEditor.isGlobal ? '' : dimEditor.bu,
+      position: dimEditor.isGlobal ? '' : dimEditor.position,
+      level: dimEditor.isGlobal ? '' : dimEditor.level,
+      year: dimEditor.year,
+      rules: rulesPayload,
+    })
+    message.success(`已保存维度规则集（${res.data.saved} 条）`)
+    dimEditor.show = false
+    dimEditor.mode = 'view'
+    await Promise.all([loadRules(), loadRatio(), loadPlan()])
+  } catch (e) {
+    message.error(extractApiError(e, '保存失败'))
+  } finally {
+    loading.saveDimRuleSet = false
+  }
 }
 
 /* ============================ 规则导入 / 导出 ============================ */
@@ -1545,26 +1633,54 @@ onMounted(async () => {
 /* form-row-2 间距微调 */
 .form-row-2 { margin-bottom: 4px; }
 
+/* ===================== 维度规则集编辑面 ===================== */
+.dim-ctx { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.dim-ctx .form-section { margin-bottom: 10px; }
+.dim-ctx .form-section:last-child { margin-bottom: 0; }
+.dim-rows { display: flex; flex-direction: column; gap: 8px; }
+.dim-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-card);
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+.dim-row.row-deleted { opacity: 0.62; border-style: dashed; border-color: var(--c-error); }
+.dim-row.row-disabled { background: transparent; }
+.dim-row-head { display: flex; align-items: center; gap: 10px; width: 100%; }
+.dim-ind-name { font-weight: 600; color: var(--ink); min-width: 88px; }
+.dim-row-ctrl { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.dim-row-view { display: flex; align-items: center; gap: 10px; margin-left: auto; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pct-suffix { font-size: 12px; color: var(--ink-soft); }
+.dim-del-alert { margin-top: 12px; }
+
 /* ===================== 弹窗级微调 ===================== */
 .batch-modal :deep(.n-card__content),
-.rule-modal :deep(.n-card__content) {
+.rule-modal :deep(.n-card__content),
+.dim-ruleset-modal :deep(.n-card__content) {
   padding: 16px 20px 14px !important;
 }
 .batch-modal :deep(.n-card__footer),
-.rule-modal :deep(.n-card__footer) {
+.rule-modal :deep(.n-card__footer),
+.dim-ruleset-modal :deep(.n-card__footer) {
   padding: 10px 20px 14px !important;
 }
 .batch-modal :deep(.n-card-header__main),
-.rule-modal :deep(.n-card-header__main) {
+.rule-modal :deep(.n-card-header__main),
+.dim-ruleset-modal :deep(.n-card-header__main) {
   font-size: 16px;
   font-weight: 600;
 }
 .batch-modal :deep(.n-form-item),
-.rule-modal :deep(.n-form-item) {
+.rule-modal :deep(.n-form-item),
+.dim-ruleset-modal :deep(.n-form-item) {
   margin-bottom: 10px;
 }
 .batch-modal :deep(.n-form-item-label),
-.rule-modal :deep(.n-form-item-label) {
+.rule-modal :deep(.n-form-item-label),
+.dim-ruleset-modal :deep(.n-form-item-label) {
   font-size: 12px;
   padding-bottom: 4px !important;
 }

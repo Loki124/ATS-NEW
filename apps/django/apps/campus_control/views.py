@@ -151,6 +151,90 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
+    @action(detail=True, methods=['put'], url_path='rules')
+    def set_rules(self, request, pk=None):
+        """原子替换某 (bu, position, level, dimension, year) 下的全部规则。
+
+        与 /rules/batch/ 同源逻辑：硬校验「目标占比加和 == 100%」，不等于 100% 直接 400；
+        通过则事务内删除旧规则并重建。区别：本端点**保留既有的年度/月度人数目标**
+        （从原规则继承），仅更新 target/strength，避免维度规则集编辑面在调整占比时
+        误清空人数目标。
+
+        入参: { bu, position, level, year, rules: [{indicator, target, strength}] }
+          - 未出现在 rules 中的指标即视为删除（原子替换语义）。
+          - target 为 0~1 小数；strength ∈ STRENGTH。
+        """
+        dimension = self.get_object()
+        bu = request.data.get('bu', '') or ''
+        position = request.data.get('position', '') or ''
+        level = request.data.get('level', '') or ''
+        year_in = request.data.get('year')
+        rules_in = request.data.get('rules')
+
+        try:
+            year = int(year_in)
+        except (TypeError, ValueError):
+            return Response({'success': False, 'detail': 'year 必填且为整数'}, status=400)
+        if not isinstance(rules_in, list):
+            return Response({'success': False, 'detail': 'rules 须为数组'}, status=400)
+
+        total = Decimal('0')
+        prepared = []
+        seen = set()
+        existing_by_ind = {
+            r.indicator_id: r
+            for r in ControlRule.objects.filter(
+                bu=bu, position=position, level=level, dimension=dimension, year=year
+            )
+        }
+        for r in rules_in:
+            if not isinstance(r, dict):
+                return Response({'success': False, 'detail': 'rules 项须为对象'}, status=400)
+            indicator_id = r.get('indicator')
+            if indicator_id in seen:
+                return Response({'success': False, 'detail': f'指标 {indicator_id} 重复提交'}, status=400)
+            seen.add(indicator_id)
+            indicator = ControlIndicator.objects.filter(pk=indicator_id, dimension_id=dimension.id).first()
+            if not indicator:
+                return Response({'success': False, 'detail': f'指标 {indicator_id} 不属于该维度'}, status=400)
+            target = _to_decimal(r.get('target'))
+            strength = r.get('strength', '硬约束')
+            if target is None:
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比必填且为数值'}, status=400)
+            if not (Decimal('0') <= target <= Decimal('1')):
+                return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比须满足 0<=目标<=1'}, status=400)
+            if strength not in STRENGTH:
+                return Response({'success': False, 'detail': f'控制强度非法：{strength}'}, status=400)
+            total += target
+            prepared.append((indicator, target, strength))
+
+        if abs(total - Decimal('1')) > Decimal('0.0001'):
+            pct = (total * 100).quantize(Decimal('0.01'))
+            return Response({
+                'success': False,
+                'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
+            }, status=400)
+
+        with transaction.atomic():
+            ControlRule.objects.filter(
+                bu=bu, position=position, level=level, dimension=dimension, year=year
+            ).delete()
+            for indicator, target, strength in prepared:
+                old = existing_by_ind.get(indicator.id)
+                old_monthly = (
+                    list(old.monthly_targets)
+                    if old and isinstance(old.monthly_targets, (list, tuple))
+                    else [0] * 12
+                )
+                ControlRule.objects.create(
+                    bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
+                    year=year, target=target, strength=strength,
+                    annual_target=old.annual_target if old else 0,
+                    monthly_targets=old_monthly,
+                    created_by=request.user, updated_by=request.user,
+                )
+        return Response({'success': True, 'data': {'saved': len(prepared)}})
+
 
 class ControlIndicatorViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlIndicator.objects.all()
