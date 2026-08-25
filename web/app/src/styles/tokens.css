@@ -58,7 +58,7 @@
   /* ===== §3. 玻璃表面（系统核心） ===== */
   --glass-bg-panel:    rgba(255, 255, 255, .55); /* 玻璃面板底 */
   --glass-bg-card:     rgba(255, 255, 255, .62); /* 玻璃卡片底 */
-  --glass-bg-elevated: rgba(255, 255, 255, .72); /* 玻璃浮起底（modal/drawer） */
+  --glass-bg-elevated: rgba(255, 255, 255, .88); /* 玻璃浮起底（modal/drawer）— 2026-08-25 .72→.88 防页面内容穿透 */
   --glass-bg-input:    rgba(255, 255, 255, .45); /* 玻璃输入底 */
   --glass-border:        rgba(255, 255, 255, .70); /* 玻璃描边 */
   --glass-border-strong: rgba(255, 255, 255, .90); /* 强描边 */
@@ -168,7 +168,7 @@ body.dark {
   /* 玻璃转深玻璃（拉丝深玻璃在暗色极光上表现最佳） */
   --glass-bg-panel:    rgba(30, 41, 59, .55);
   --glass-bg-card:     rgba(30, 41, 59, .62);
-  --glass-bg-elevated: rgba(30, 41, 59, .72);
+  --glass-bg-elevated: rgba(30, 41, 59, .88); /* 暗色同步 .72→.88 */
   --glass-bg-input:    rgba(30, 41, 59, .45);
   --glass-border:        rgba(255, 255, 255, .14);
   --glass-border-strong: rgba(255, 255, 255, .22);

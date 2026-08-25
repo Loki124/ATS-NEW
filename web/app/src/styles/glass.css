@@ -350,6 +350,40 @@ body.dark .n-modal-mask {
   backdrop-filter: blur(var(--glass-blur-panel));
 }
 
+/* === n-select 下拉菜单玻璃态（弹窗内维度/部门/职务等下拉，展开后选项背景不透明）===
+ * Naive UI n-select 的 .n-base-select-menu 默认透明，背后内容（弹窗/页面）透出会遮挡选项文字
+ * 与 n-dropdown 同理，用 elevated token 实底化，确保选项清晰可读 */
+.n-base-select-menu {
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
+}
+
+/* Naive popover 主题与 body.dark CSS 主题脱耦，需手动覆写高亮层
+ * 关键：Naive 的 option 高亮是绝对定位的 ::before 伪元素（inset 4px 圆角层），
+ * hover/pending 时 Naive 给 ::before 设 var(--n-option-color-pending)（暗色下解析为浅蓝白），
+ * 直接给 .n-base-select-option 自身 background 没碰到那层，必须覆写 ::before。 */
+.n-base-select-option {
+  color: var(--ink) !important;
+}
+.n-base-select-option::before {
+  background-color: transparent !important;
+}
+.n-base-select-option:hover::before,
+.n-base-select-option.n-base-select-option--pending::before {
+  background-color: color-mix(in srgb, var(--brand) 22%, transparent) !important;
+}
+.n-base-select-option.n-base-select-option--selected::before,
+.n-base-select-option.n-base-select-option--checked::before {
+  background-color: color-mix(in srgb, var(--brand) 34%, transparent) !important;
+}
+.n-base-select-option.n-base-select-option--selected.n-base-select-option--pending::before {
+  background-color: color-mix(in srgb, var(--brand) 44%, transparent) !important;
+}
+.n-base-select-option__content {
+  color: inherit !important;
+}
+
 /* === 滚动条统一颜色 Token（液态玻璃 v2 · 单源）===
  * 单一来源：所有滚动条（Naive n-scrollbar 内置 rail / 原生 webkit thumb / Firefox scrollbar-color）
  * 都用这一个 brand 紫系列，统一全项目视觉。
