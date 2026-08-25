@@ -160,7 +160,7 @@
       v-model:show="dimEditor.show"
       preset="card"
       title="维度规则集（占比之和须 = 100%）"
-      :style="{ width: '720px', maxWidth: '94vw' }"
+      :style="{ width: '820px', maxWidth: '94vw' }"
       :bordered="false"
       :segmented="{ content: true, footer: true }"
       class="dim-ruleset-modal"
@@ -181,7 +181,7 @@
           <div class="scope-row">
             <div class="scope-field">
               <span class="scope-label">适用范围</span>
-              <n-switch v-model:value="dimEditor.isGlobal" size="small" :disabled="dimEditor.lockContext">
+              <n-switch v-model:value="dimEditor.isGlobal" size="small" :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange">
                 <template #checked>全局</template>
                 <template #unchecked>指定</template>
               </n-switch>
@@ -189,20 +189,20 @@
             <template v-if="!dimEditor.isGlobal">
               <div class="scope-field">
                 <span class="scope-label">部门</span>
-                <n-select v-model:value="dimEditor.bu" :options="deptOptions" placeholder="部门" :disabled="dimEditor.lockContext" />
+                <n-select v-model:value="dimEditor.bu" :options="deptOptions" placeholder="部门" :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职务</span>
-                <n-select v-model:value="dimEditor.position" :options="positionOptions" placeholder="职务(不限)" clearable :disabled="dimEditor.lockContext" />
+                <n-select v-model:value="dimEditor.position" :options="positionOptions" placeholder="职务(不限)" clearable :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职级</span>
-                <n-select v-model:value="dimEditor.level" :options="levelOptions" placeholder="职级(不限)" clearable :disabled="dimEditor.lockContext" />
+                <n-select v-model:value="dimEditor.level" :options="levelOptions" placeholder="职级(不限)" clearable :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange" />
               </div>
             </template>
             <div class="scope-field">
               <span class="scope-label">年度</span>
-              <n-input-number v-model:value="dimEditor.year" :min="2020" :max="2100" :disabled="dimEditor.lockContext" style="width: 110px" />
+              <n-input-number v-model:value="dimEditor.year" :min="2020" :max="2100" :disabled="dimEditor.lockContext" style="width: 110px" @update:value="onDimEditorCtxChange" />
             </div>
           </div>
         </div>
@@ -211,23 +211,45 @@
       <div v-if="!dimEditor.dimensionId" class="empty-tip">请先选择维度</div>
       <div v-else-if="dimEditor.rows.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
       <div v-else class="dim-rows">
+        <div class="dim-summary" v-if="dimEditor.mode === 'edit'">
+          <span class="sum-label">本维度年度管控人数（未删除行汇总）</span>
+          <span class="sum-value">{{ dimEditorTotalTarget }} 人</span>
+          <span class="sum-hint">用于本维度「指标与占比」行内的年度人数快速参考</span>
+        </div>
+
         <div class="dim-row" :class="{ 'row-deleted': row.pendingDelete, 'row-disabled': dimEditor.mode === 'view' }" v-for="row in dimEditor.rows" :key="row.indicatorId">
+          <!-- 行 1：指标 + 徽标 + 占比% + 控制强度 + 年度人数 + 删除/恢复 -->
           <div class="dim-row-head">
-            <span class="dim-ind-name">{{ row.indicatorName }}</span>
-            <n-tag v-if="row.pendingDelete" type="error" :bordered="false" size="small" round>待删</n-tag>
-            <n-tag v-else-if="row.targetPct == null" type="default" :bordered="false" size="small" round>未设目标</n-tag>
-            <n-tag v-else type="success" :bordered="false" size="small" round>已设目标</n-tag>
+            <div class="dim-row-id">
+              <span class="dim-ind-name">{{ row.indicatorName }}</span>
+              <n-tag v-if="row.pendingDelete" type="error" :bordered="false" size="small" round>待删</n-tag>
+              <n-tag v-else-if="row.targetPct == null" type="default" :bordered="false" size="small" round>未设目标</n-tag>
+              <n-tag v-else type="success" :bordered="false" size="small" round>已设目标</n-tag>
+            </div>
             <div class="dim-row-ctrl" v-if="dimEditor.mode === 'edit'">
-              <n-input-number
-                :value="row.targetPct || 0"
-                :min="0" :max="100" :step="0.5" size="small" style="width: 120px"
-                @update:value="(v: number | null) => setDimRowTarget(row.indicatorId, v)"
-              />
-              <span class="pct-suffix">%</span>
-              <n-select
-                :value="row.strength" :options="strengthOptions" size="small" style="width: 110px"
-                @update:value="(v: string) => setDimRowStrength(row.indicatorId, v as Strength)"
-              />
+              <div class="ctrl-group">
+                <span class="ctrl-label">占比 %</span>
+                <n-input-number
+                  :value="row.targetPct || 0"
+                  :min="0" :max="100" :step="0.5" size="small" style="width: 110px"
+                  @update:value="(v: number | null) => setDimRowTarget(row.indicatorId, v)"
+                />
+              </div>
+              <div class="ctrl-group">
+                <span class="ctrl-label">控制强度</span>
+                <n-select
+                  :value="row.strength" :options="strengthOptions" size="small" style="width: 110px"
+                  @update:value="(v: string) => setDimRowStrength(row.indicatorId, v as Strength)"
+                />
+              </div>
+              <div class="ctrl-group">
+                <span class="ctrl-label">年度（人）</span>
+                <n-input-number
+                  :value="row.annualTarget"
+                  :min="0" size="small" style="width: 110px"
+                  @update:value="(v: number | null) => setDimRowAnnual(row.indicatorId, v)"
+                />
+              </div>
               <n-button text :type="row.pendingDelete ? 'primary' : 'error'" size="tiny" @click="toggleDimRowDelete(row.indicatorId)">
                 {{ row.pendingDelete ? '恢复' : '删除' }}
               </n-button>
@@ -235,6 +257,48 @@
             <div class="dim-row-view" v-else>
               <span class="view-pct">{{ row.targetPct == null ? '—' : row.targetPct.toFixed(1) + '%' }}</span>
               <span class="view-strength">{{ row.strength }}</span>
+              <span class="view-annual">年度 <strong>{{ row.annualTarget }}</strong> 人</span>
+            </div>
+          </div>
+
+          <!-- 行 2：12 个月度目标（编辑态展开；删除待删也仍展示，便于用户看清数据避免误删） -->
+          <div class="dim-row-monthly" v-if="dimEditor.mode === 'edit'">
+            <div class="monthly-head">
+              <span class="ctrl-label">12 个月度目标（单位：人）</span>
+              <n-button text type="primary" size="tiny" @click="redistributeDimMonthly(row.indicatorId)">均分年度目标</n-button>
+            </div>
+            <div class="monthly-grid">
+              <div v-for="(_, i) in 12" :key="i" class="month-cell">
+                <span class="month-label">{{ ALL_MONTHS[i] }}</span>
+                <n-input-number
+                  :value="row.monthlyTargets[i] || 0"
+                  :min="0" :show-button="false" size="small"
+                  @update:value="(v: number | null) => setDimRowMonthly(row.indicatorId, i, v)"
+                />
+              </div>
+            </div>
+            <div class="monthly-foot">
+              <span class="allocated">已分配 <strong>{{ dimRowMonthlySum(row) }}</strong> 人</span>
+              <n-tag v-if="dimRowMonthlyOk(row)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
+              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ row.annualTarget }} 人</n-tag>
+            </div>
+          </div>
+
+          <!-- 查看态下也展示月度数据（只读），便于跨维度规则集观察 -->
+          <div class="dim-row-monthly dim-row-monthly--readonly" v-else>
+            <div class="monthly-head">
+              <span class="ctrl-label">12 个月度目标（单位：人）</span>
+            </div>
+            <div class="monthly-grid">
+              <div v-for="(_, i) in 12" :key="i" class="month-cell">
+                <span class="month-label">{{ ALL_MONTHS[i] }}</span>
+                <span class="month-val">{{ row.monthlyTargets[i] || 0 }}</span>
+              </div>
+            </div>
+            <div class="monthly-foot">
+              <span class="allocated">已分配 <strong>{{ dimRowMonthlySum(row) }}</strong> 人</span>
+              <n-tag v-if="dimRowMonthlyOk(row)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
+              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ row.annualTarget }} 人</n-tag>
             </div>
           </div>
         </div>
@@ -860,6 +924,10 @@ interface DimEditorRow {
   strength: Strength
   hasExisting: boolean
   pendingDelete: boolean
+  /** 年度管控人数（0 也可编辑）。新增时若无历史，从旧规则继承；编辑时由用户输入。 */
+  annualTarget: number
+  /** 12 个月度管控人数（长度固定 12 的非负整数数组）。 */
+  monthlyTargets: number[]
 }
 
 const dimEditor = reactive({
@@ -883,6 +951,22 @@ const dimEditorSumPct = computed(() =>
 const dimEditorSumOk = computed(() => Math.abs(dimEditorSumPct.value - 100) < 0.05)
 const dimEditorHasPendingDelete = computed(() => dimEditor.rows.some((r) => r.pendingDelete))
 const dimEditorPendingDeleteCount = computed(() => dimEditor.rows.filter((r) => r.pendingDelete).length)
+const dimEditorTotalTarget = computed(() =>
+  // 维度级「管控人数」= 未删除行 annualTarget 加和（仅供顶部展示）
+  dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : (r.annualTarget || 0)), 0),
+)
+
+/** 把任意 monthly 数组规范成长度 12 的非负整数数组（不足补 0、过长截断、非数置 0）。 */
+function normalizeMonthly(raw: any): number[] {
+  const out = Array(12).fill(0)
+  if (Array.isArray(raw)) {
+    for (let i = 0; i < 12 && i < raw.length; i++) {
+      const v = Number(raw[i])
+      out[i] = Number.isFinite(v) && v >= 0 ? Math.round(v) : 0
+    }
+  }
+  return out
+}
 
 function _buildDimRows() {
   const bu = dimEditor.isGlobal ? '' : dimEditor.bu
@@ -903,6 +987,11 @@ function _buildDimRows() {
       strength: er ? (er.strength as Strength) : '硬约束',
       hasExisting: !!er,
       pendingDelete: false,
+      // 从历史规则带出 annual+monthly（用户反馈："新增时选完维度没有带出对应指标的分月目标数据"）
+      annualTarget: er ? Math.round(Number(er.annualTarget) || 0) : 0,
+      monthlyTargets: er
+        ? normalizeMonthly(er.monthlyTargets)
+        : Array(12).fill(0),
     }
   })
 }
@@ -942,6 +1031,10 @@ function onDimEditorDimChange() {
   dimEditor.rows = []
   if (dimEditor.dimensionId) _buildDimRows()
 }
+/** 上下文切换（适用范围 / 年度）也要重建行：从历史规则派生对应 (适用范围,维度,年度) 的 monthly/annual。 */
+function onDimEditorCtxChange() {
+  if (dimEditor.dimensionId) _buildDimRows()
+}
 
 function enterDimEdit() { dimEditor.mode = 'edit' }
 function closeDimEditor() {
@@ -956,18 +1049,61 @@ function setDimRowStrength(id: string, v: string) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
   if (r) r.strength = v as Strength
 }
+function setDimRowAnnual(id: string, v: number | null) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (!r) return
+  const annual = v == null ? 0 : Math.max(0, Math.round(v))
+  r.annualTarget = annual
+}
+function setDimRowMonthly(id: string, idx: number, v: number | null) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (!r) return
+  const arr = [...r.monthlyTargets]
+  arr[idx] = v == null ? 0 : Math.max(0, Math.round(v))
+  r.monthlyTargets = arr
+}
+/** 把月度按「年度/12」整除，余数从 1 月开始各 +1。 */
+function redistributeDimMonthly(id: string) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (!r) return
+  const annual = Math.max(0, Math.round(r.annualTarget || 0))
+  const base = Math.floor(annual / 12)
+  const rem = annual - base * 12
+  r.monthlyTargets = Array.from({ length: 12 }, (_, i) => base + (i < rem ? 1 : 0))
+}
 function toggleDimRowDelete(id: string) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
   if (r) r.pendingDelete = !r.pendingDelete
 }
 
+/** 单行 monthly 加和（按当前数据实时派生）。 */
+function dimRowMonthlySum(r: DimEditorRow) {
+  return r.monthlyTargets.reduce((a, b) => a + (b || 0), 0)
+}
+/** 单行 monthly 是否等于年度目标。 */
+function dimRowMonthlyOk(r: DimEditorRow) {
+  return dimRowMonthlySum(r) === Math.round(r.annualTarget || 0)
+}
+
 async function saveDimRuleSet() {
   if (!dimEditor.dimensionId) { message.warning('请选择维度'); return }
-  const rulesPayload: DimRuleSetItem[] = dimEditor.rows
-    .filter((r) => !r.pendingDelete && r.targetPct != null)
-    .map((r) => ({ indicator: r.indicatorId, target: (r.targetPct || 0) / 100, strength: r.strength }))
-  if (rulesPayload.length === 0) { message.warning('请至少保留一个指标并设置占比'); return }
+  const validRows = dimEditor.rows.filter((r) => !r.pendingDelete && r.targetPct != null)
+  if (validRows.length === 0) { message.warning('请至少保留一个指标并设置占比'); return }
   if (!dimEditorSumOk.value) { message.warning(`占比之和须 = 100%，当前 ${dimEditorSumPct.value.toFixed(1)}%`); return }
+  // 月度校验
+  const badMonths = validRows.filter((r) => !dimRowMonthlyOk(r))
+  if (badMonths.length) {
+    message.warning(`指标「${badMonths.map((r) => r.indicatorName).join('、')}」的 12 月之和 ≠ 年度人数`)
+    return
+  }
+  const rulesPayload: DimRuleSetItem[] = validRows.map((r) => ({
+    indicator: r.indicatorId,
+    target: (r.targetPct || 0) / 100,
+    strength: r.strength,
+    // 年度/月度都已规范化；显式传给后端，覆盖"从旧规则继承"路径
+    annualTarget: Math.round(r.annualTarget || 0),
+    monthlyTargets: r.monthlyTargets.slice(),
+  }))
   loading.saveDimRuleSet = true
   try {
     const res = await saveDimensionRuleSet(dimEditor.dimensionId, {
@@ -1637,11 +1773,23 @@ onMounted(async () => {
 .dim-ctx { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .dim-ctx .form-section { margin-bottom: 10px; }
 .dim-ctx .form-section:last-child { margin-bottom: 0; }
-.dim-rows { display: flex; flex-direction: column; gap: 8px; }
+.dim-rows { display: flex; flex-direction: column; gap: 10px; }
+.dim-summary {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-card);
+  font-size: 13px; color: var(--ink-soft);
+}
+.dim-summary .sum-label { color: var(--ink-faint); }
+.dim-summary .sum-value { font-size: 18px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dim-summary .sum-hint { font-size: 12px; color: var(--ink-faint); }
 .dim-row {
   display: flex;
-  align-items: center;
-  padding: 8px 12px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   background: var(--glass-bg-card);
@@ -1649,12 +1797,34 @@ onMounted(async () => {
 }
 .dim-row.row-deleted { opacity: 0.62; border-style: dashed; border-color: var(--c-error); }
 .dim-row.row-disabled { background: transparent; }
-.dim-row-head { display: flex; align-items: center; gap: 10px; width: 100%; }
+.dim-row-head { display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap; }
+.dim-row-id { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 160px; }
 .dim-ind-name { font-weight: 600; color: var(--ink); min-width: 88px; }
-.dim-row-ctrl { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.dim-row-ctrl { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
 .dim-row-view { display: flex; align-items: center; gap: 10px; margin-left: auto; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.dim-row-view .view-annual strong { font-weight: 700; color: var(--ink); }
 .pct-suffix { font-size: 12px; color: var(--ink-soft); }
 .dim-del-alert { margin-top: 12px; }
+.dim-row-monthly {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.03);
+}
+.dim-row-monthly--readonly {
+  background: transparent;
+  opacity: 0.85;
+}
+.dim-row-monthly .monthly-head,
+.dim-row-monthly .monthly-foot { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+.dim-row-monthly .monthly-head { color: var(--ink-soft); justify-content: space-between; }
+.dim-row-monthly .monthly-foot .allocated { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.month-val {
+  display: inline-block; min-height: 28px; padding: 0 8px;
+  line-height: 28px; font-variant-numeric: tabular-nums; font-size: 13px;
+  background: var(--ink-faint); color: var(--ink); border-radius: 6px;
+}
 
 /* ===================== 弹窗级微调 ===================== */
 .batch-modal :deep(.n-card__content),

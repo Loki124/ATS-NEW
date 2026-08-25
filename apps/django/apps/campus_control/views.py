@@ -156,13 +156,19 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         """原子替换某 (bu, position, level, dimension, year) 下的全部规则。
 
         与 /rules/batch/ 同源逻辑：硬校验「目标占比加和 == 100%」，不等于 100% 直接 400；
-        通过则事务内删除旧规则并重建。区别：本端点**保留既有的年度/月度人数目标**
-        （从原规则继承），仅更新 target/strength，避免维度规则集编辑面在调整占比时
-        误清空人数目标。
+        通过则事务内删除旧规则并重建。
 
-        入参: { bu, position, level, year, rules: [{indicator, target, strength}] }
+        入参: {
+          bu, position, level, year,
+          rules: [{indicator, target, strength, annualTarget?, monthlyTargets?}],
+        }
           - 未出现在 rules 中的指标即视为删除（原子替换语义）。
           - target 为 0~1 小数；strength ∈ STRENGTH。
+          - 年度人数 annualTarget 与 12 个月度 monthlyTargets **成对可选**：
+            · 两者都未传 → 从旧规则继承（调整占比不丢人数目标）。
+            · 两者都传 → 用前端传入的，并校验 monthlyTargets 是长度 12 的非负整数数组，
+                       且 monthly_targets 之和 = annualTarget（任一不满足 400）。
+            · 仅传其中一个 → 400（避免数据不一致）。
         """
         dimension = self.get_object()
         bu = request.data.get('bu', '') or ''
@@ -205,8 +211,67 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比须满足 0<=目标<=1'}, status=400)
             if strength not in STRENGTH:
                 return Response({'success': False, 'detail': f'控制强度非法：{strength}'}, status=400)
+
+            # 年度/月度目标解析（成对可选）
+            # 注意：djangorestframework-camel-case parser 已把前端 camelCase 转换为 snake_case，
+            # 后端需用 snake_case 读取（annual_target / monthly_targets）。
+            annual_in = r.get('annual_target', None)
+            monthly_in = r.get('monthly_targets', None)
+            if (annual_in is None) != (monthly_in is None):
+                return Response({
+                    'success': False,
+                    'detail': f'指标 {indicator.name} 的 annual_target 与 monthly_targets 必须同时传入或不传',
+                }, status=400)
+            if annual_in is None:
+                # 从旧规则继承
+                old = existing_by_ind.get(indicator.id)
+                annual_target = int(old.annual_target) if old else 0
+                if old and isinstance(old.monthly_targets, (list, tuple)):
+                    monthly_targets = [int(v) for v in old.monthly_targets]
+                else:
+                    monthly_targets = [0] * 12
+            else:
+                # 前端传入，做严格校验
+                try:
+                    annual_target = int(annual_in)
+                except (TypeError, ValueError):
+                    return Response({
+                        'success': False,
+                        'detail': f'指标 {indicator.name} 的 annual_target 须为整数',
+                    }, status=400)
+                if annual_target < 0:
+                    return Response({
+                        'success': False,
+                        'detail': f'指标 {indicator.name} 的 annual_target 不能为负数',
+                    }, status=400)
+                if not isinstance(monthly_in, list) or len(monthly_in) != 12:
+                    return Response({
+                        'success': False,
+                        'detail': f'指标 {indicator.name} 的 monthly_targets 须为长度 12 的数组',
+                    }, status=400)
+                try:
+                    monthly_targets = [int(v) for v in monthly_in]
+                except (TypeError, ValueError):
+                    return Response({
+                        'success': False,
+                        'detail': f'指标 {indicator.name} 的 monthly_targets 每项须为整数',
+                    }, status=400)
+                if any(v < 0 for v in monthly_targets):
+                    return Response({
+                        'success': False,
+                        'detail': f'指标 {indicator.name} 的 monthly_targets 不能为负数',
+                    }, status=400)
+                if sum(monthly_targets) != annual_target:
+                    return Response({
+                        'success': False,
+                        'detail': (
+                            f'指标 {indicator.name} 的 12 个月度之和({sum(monthly_targets)})'
+                            f'须等于 annual_target({annual_target})'
+                        ),
+                    }, status=400)
+
             total += target
-            prepared.append((indicator, target, strength))
+            prepared.append((indicator, target, strength, annual_target, monthly_targets))
 
         if abs(total - Decimal('1')) > Decimal('0.0001'):
             pct = (total * 100).quantize(Decimal('0.01'))
@@ -219,18 +284,11 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             ControlRule.objects.filter(
                 bu=bu, position=position, level=level, dimension=dimension, year=year
             ).delete()
-            for indicator, target, strength in prepared:
-                old = existing_by_ind.get(indicator.id)
-                old_monthly = (
-                    list(old.monthly_targets)
-                    if old and isinstance(old.monthly_targets, (list, tuple))
-                    else [0] * 12
-                )
+            for indicator, target, strength, annual_target, monthly_targets in prepared:
                 ControlRule.objects.create(
                     bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
                     year=year, target=target, strength=strength,
-                    annual_target=old.annual_target if old else 0,
-                    monthly_targets=old_monthly,
+                    annual_target=annual_target, monthly_targets=monthly_targets,
                     created_by=request.user, updated_by=request.user,
                 )
         return Response({'success': True, 'data': {'saved': len(prepared)}})

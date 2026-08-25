@@ -279,11 +279,19 @@ export const batchConfigRules = (payload: BatchConfigPayload) =>
     .post('/campus/rules/with-targets/', payload)
     .then((r) => r.data as { success: boolean; data: { saved: number; totalTarget: number; year: number } })
 
-/** 维度规则集编辑面：单条指标项（占比 0~1）。 */
+/** 维度规则集编辑面：单条指标项。
+ *  - target/strength：必填（占比管控上限 + 控制强度）
+ *  - annualTarget/monthlyTargets：成对可选；都不传时由后端从旧规则继承以避免误清人数目标
+ *    （与 set_rules 端点契约对齐）。
+ */
 export interface DimRuleSetItem {
   indicator: string
   target: number // 0~1
   strength: Strength
+  /** 年度管控人数（整数 ≥ 0）。与 monthlyTargets 同传或同不传。 */
+  annualTarget?: number
+  /** 12 个月度管控人数，长度 12 的非负整数数组且 sum = annualTarget。 */
+  monthlyTargets?: number[]
 }
 
 /**

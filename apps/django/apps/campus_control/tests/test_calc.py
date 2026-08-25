@@ -543,3 +543,69 @@ class TestDimensionSetRules:
         dim_rules = [r for r in rules if r['dimension'] == dim_id]
         assert len(dim_rules) == 1
         assert dim_rules[0]['indicator'] == i1
+
+    def test_set_rules_accepts_explicit_annual_and_monthly(self, api_client):
+        """前端明确传入 annualTarget+monthlyTargets 时，后端应写入前端传值（而非继承旧值）。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        # 创建仅 i1（target 1.0）带旧 annual=140, monthly=[10]*12
+        api_client.post('/api/v1/campus/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'dimension': dim_id,
+            'indicator': i1, 'target': 1.0, 'strength': '硬约束',
+            'annual_target': 140, 'monthly_targets': [10] * 12,
+        }, format='json')
+        # 维度规则集：覆盖 i1（annual=24, monthly 加和=24），并加 i2（annual=0）
+        new_monthly = [0, 1, 1, 2, 2, 2, 3, 3, 3, 3, 2, 2]  # sum = 24
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束',
+                 'annualTarget': 24, 'monthlyTargets': new_monthly},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束',
+                 'annualTarget': 16, 'monthlyTargets': [1, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1]},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        i1_rule = next(r for r in dim_rules if r['indicator'] == i1)
+        # 用前端传入的值覆盖（旧值 140/10*12 不应生效）
+        assert i1_rule['annualTarget'] == 24
+        assert i1_rule['monthlyTargets'] == new_monthly
+        i2_rule = next(r for r in dim_rules if r['indicator'] == i2)
+        assert i2_rule['annualTarget'] == 16
+
+    def test_set_rules_missing_annual_only_blocked(self, api_client):
+        """只传 annualTarget 不传 monthlyTargets（成对缺失之一）→ 400。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束', 'annualTarget': 24},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束', 'annualTarget': 16,
+                 'monthlyTargets': [1] * 12},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        detail = resp.json().get('detail', '')
+        # DRF camel-case renderer 把后端 snake_case 响应转回 camelCase，最终在前端看到 annualTarget
+        assert 'annual_target' in detail and 'monthly_targets' in detail
+        # 双向都得命中（camelCase 渲染反转）
+        assert 'annualTarget' in detail or 'annual_target' in detail
+        assert 'monthlyTargets' in detail or 'monthly_targets' in detail
+
+    def test_set_rules_monthly_sum_mismatch_blocked(self, api_client):
+        """前端传的 monthly_targets 之和 != annualTarget → 400。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束',
+                 'annualTarget': 24, 'monthlyTargets': [1] * 12},  # sum=12, !=24
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束',
+                 'annualTarget': 16, 'monthlyTargets': [1, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1]},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        detail = resp.json().get('detail', '')
+        assert '12 个月度之和' in detail and '24' in detail
