@@ -83,7 +83,7 @@ const emit = defineEmits<{
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--color-border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
   font-size: var(--text-body);
 }
 
@@ -92,7 +92,7 @@ const emit = defineEmits<{
 }
 
 .matter-list__row--urgent .matter-list__title-text {
-  color: var(--color-accent);
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -104,26 +104,26 @@ const emit = defineEmits<{
 }
 
 .matter-list__icon {
-  color: var(--color-accent);
+  color: var(--brand);
   flex-shrink: 0;
 }
 
 .matter-list__title-text {
-  color: var(--color-ink);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .matter-list__cell--meta {
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .matter-list__cell--time {
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
   font-size: var(--text-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

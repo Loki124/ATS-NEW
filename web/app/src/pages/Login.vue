@@ -232,7 +232,10 @@ const handleLogin = async (values: { username: string; password: string }) => {
       if (rememberMe.value) {
         localStorage.setItem('rememberMe', 'true')
       }
-      message.success('登录成功！')
+      // 2026-08-25：登录成功 toast 加半透明绿色底色（Naive 默认 toast 在暗色页面上没背景，看不清）
+      message.success('登录成功！', {
+        containerStyle: 'background: rgba(22, 163, 74, 0.18); border: 1px solid rgba(22, 163, 74, 0.35); backdrop-filter: blur(8px); color: #16a34a;',
+      })
       // 用 nextTick 避免 message toast 在路由切换时被销毁
       await nextTick()
       // 用 replace 而非 push：登录后用替换语义，避免返回按钮回到 /login

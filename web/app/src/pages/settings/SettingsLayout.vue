@@ -1,13 +1,14 @@
 <template>
   <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220" style="height: 100%">
-    <!-- 左侧子菜单：n-menu 取代自写 menu-group（阶段 D 决策 2 配套） -->
-    <n-layout-sider
-      :width="220"
-      :collapsed-width="64"
-      :collapsed="collapsed"
-      collapse-mode="width"
-      :native-scrollbar="false"
+    <!-- 左侧子菜单：n-menu 取代自写 menu-group（阶段 D 决策 2 配套）
+         ⚠️ 不再用 n-layout-sider：它会自动把 header + menu 一起包进内部 .n-layout-scroll-container，
+         导致 Naive 的 scrollbar 竖向跨整个容器、覆盖在 header 上方（用户反馈"滚动条覆盖header"）。
+         改为自定义 .settings-sider（flex column），header 固定、menu 单独 overflow-y:auto，
+         scrollbar 只出现在菜单区，不接触 header。 -->
+    <div
       class="settings-sider glass-sidebar"
+      :class="{ collapsed }"
+      :style="`width: ${collapsed ? 64 : 220}px; flex-shrink: 0;`"
     >
       <div class="sider-header" :class="{ collapsed: collapsed }">
         <h2 v-if="!collapsed" class="sider-title gradient-title">设置</h2>
@@ -22,19 +23,21 @@
         </button>
       </div>
 
-      <n-menu
-        :collapsed="collapsed"
-        :collapsed-width="64"
-        :collapsed-icon-size="22"
-        :options="subMenuOptions"
-        :value="activeKey"
-        :expanded-keys="expandedKeys"
-        :theme-overrides="settingsMenuThemeOverrides"
-        class="settings-menu"
-        @update:value="handleMenuClick"
-        @update:expanded-keys="onExpandedKeysChange"
-      />
-    </n-layout-sider>
+      <div class="settings-sider-menu">
+        <n-menu
+          :collapsed="collapsed"
+          :collapsed-width="64"
+          :collapsed-icon-size="22"
+          :options="subMenuOptions"
+          :value="activeKey"
+          :expanded-keys="expandedKeys"
+          :theme-overrides="settingsMenuThemeOverrides"
+          class="settings-menu"
+          @update:value="handleMenuClick"
+          @update:expanded-keys="onExpandedKeysChange"
+        />
+      </div>
+    </div>
 
     <!-- 右侧内容 -->
     <n-layout-content class="settings-content">
@@ -54,7 +57,7 @@
 // ★ v1.1 补全 imports（文档 §8.2 P0-3）
 import { ref, computed, watch, nextTick, h, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NIcon, NLayout, NLayoutSider, NLayoutContent, NMenu } from 'naive-ui'
+import { NIcon, NLayout, NLayoutContent, NMenu } from 'naive-ui'
 import {
   ChevronForwardOutline, ChevronBackOutline,
   PersonCircleOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
@@ -231,10 +234,68 @@ watch(() => route.path, () => {
 /* 阶段 D 保留旧 CSS 兜底（下一轮删）—— 玻璃激活态覆盖：利用 settings-sider 已有 class="glass-sidebar"（glass.css 全局接管）*/
 .settings-layout { height: 100%; background: transparent; overflow: hidden; }
 .settings-layout { height: 100% !important; }
+
+/* ⚠️ 自定义 .settings-sider（取代 n-layout-sider）：
+   - flex column 让 header / menu 上下分区
+   - position:relative 给之后可能的 footer absolute 定位预留
+   - border-right 视觉边界（与右内容分隔），圆角顶部对齐 panel */
+.settings-sider {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;        /* 关键：sider 自身不滚，滚动职责下放到 .settings-sider-menu */
+  position: relative;
+  border-right: 1px solid var(--border-hairline);
+  transition: width var(--duration-base) var(--ease-out);
+}
+/* 滚动区：占据 header 之外剩余高度，scrollbar 只在这里出现 */
+.settings-sider-menu {
+  flex: 1;
+  min-height: 0;            /* flex 子项 min-height 默认 auto 会撑爆，必须 0 */
+  overflow-y: auto;         /* 原生滚动，glass.css 全局 ::-webkit-scrollbar 已美化 */
+  overflow-x: hidden;
+  /* iOS 弹性滚动 + 桌面端丝滑 */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+
+  /* === 该元素自身的 scrollbar 显隐规则（兵哥反馈 global ::- 不够稳）===
+     - 默认 thumb 完全透明（看不到滚动条，但仍在 DOM 里可滚）
+     - 自身被 hover 时，thumb 呈 brand 紫（与项目其它滚条统一）
+     - 直接选择器（.settings-sider-menu:hover::-webkit-scrollbar-thumb）可靠，
+       不依赖 parent :hover 传递（webkit 不支持 parent:hover → 伪元素传递）
+     - 颜色统一用 glass.css 的 --scrollbar-color-* 系列 token，单源 */
+  scrollbar-color: transparent transparent;             /* Firefox 默认透明 */
+  scrollbar-width: thin;
+  transition: scrollbar-color 0.2s var(--ease-out);
+}
+.settings-sider-menu::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+  background: transparent;
+}
+.settings-sider-menu::-webkit-scrollbar-thumb {
+  background: transparent;                              /* webkit 默认透明 */
+  border-radius: 3px;
+  transition: background 0.2s var(--ease-out);
+}
+.settings-sider-menu:hover {
+  scrollbar-color: var(--scrollbar-color-hover) transparent;   /* Firefox 显色（统一 token） */
+}
+.settings-sider-menu:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color-hover);           /* webkit 显色（统一 token） */
+}
+.settings-sider-menu:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-color-drag);            /* 自身 thumb hover 更深 */
+}
+/* 折叠态：菜单区也要保持 64px 内不溢出 */
+.settings-sider.collapsed .settings-sider-menu { overflow-y: auto; }
+
 .sider-header {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 16px 12px 20px;
+  flex-shrink: 0;            /* header 不让位，永远在顶部 */
   /* ⚠️ 22:35 兵哥反馈"设置主标题作为固定头部展示，仅让标题下方列表支持滚动"：
      - position: sticky + top: 0 已实现（实测滚 367px 后 y 仍 64），但背景半透明
        rgba(255,255,255,.55) 让用户视觉上感觉'跟着滚'

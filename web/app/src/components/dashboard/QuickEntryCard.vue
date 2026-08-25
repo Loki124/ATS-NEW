@@ -56,25 +56,25 @@ function onClick() {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
-  border: 1px solid var(--color-border-hairline);
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
+  background: var(--surface);
   cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
 }
 
 .quick-entry:hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  border-color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .quick-entry__icon {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--brand-soft);
+  color: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,14 +90,14 @@ function onClick() {
 }
 
 .quick-entry__label {
-  color: var(--color-ink);
+  color: var(--ink);
   font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.3;
 }
 
 .quick-entry__sub {
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
   font-size: var(--text-meta);
   line-height: 1.3;
   white-space: nowrap;
@@ -106,7 +106,7 @@ function onClick() {
 }
 
 .quick-entry__count {
-  color: var(--color-accent);
+  color: var(--brand);
   font-size: var(--text-h3);
   font-weight: 500;
   font-variant-numeric: tabular-nums;

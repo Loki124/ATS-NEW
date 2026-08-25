@@ -61,17 +61,17 @@ function onClick() {
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
-  border: 1px solid var(--color-border-hairline);
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
+  background: var(--surface);
   cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
 }
 
 .job-card:hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  border-color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .job-card__head {
@@ -90,7 +90,7 @@ function onClick() {
   margin: 0;
   font-size: var(--text-body);
   font-weight: 500;
-  color: var(--color-ink);
+  color: var(--ink);
   line-height: 1.4;
   flex: 1;
   white-space: nowrap;
@@ -99,7 +99,7 @@ function onClick() {
 }
 
 .job-card__urgent {
-  background: var(--color-accent);
+  background: var(--brand);
   color: white;
   font-size: 10px;
   font-weight: 500;
@@ -111,7 +111,7 @@ function onClick() {
 .job-card__meta {
   display: flex;
   gap: var(--space-3);
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
   font-size: var(--text-meta);
 }
 
@@ -125,7 +125,7 @@ function onClick() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
   font-size: var(--text-meta);
 }
 
@@ -140,7 +140,7 @@ function onClick() {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--color-accent);
+  color: var(--brand);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }

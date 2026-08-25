@@ -8,22 +8,8 @@
   --primary-bg: var(--brand-soft);
 }
 
-/* === v2 滚动条（暗色 token 化） === */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--ink-faint);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-soft);
-}
-body.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, .18);
-}
-body.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, .28);
-}
+/* 滚动条统一定义已迁移至 styles/glass.css（单源：--scrollbar-color-* token + 6px 粗细）。
+   本文件不再重复定义，避免 8px/灰条在加载顺序上覆盖全局 6px/品牌紫。 */
 
 html, body, #app {
   height: 100%;

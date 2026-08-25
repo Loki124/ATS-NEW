@@ -27,21 +27,5 @@ html, body, #root {
   font-weight: 500;
 }
 
-/* 滚动条样式 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--glass-bg-input);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--ink-faint);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-soft);
-}
+/* 滚动条统一定义已迁移至 styles/glass.css（单源：--scrollbar-color-* token + 6px 粗细）。
+   本文件滚动条块已从入口移除，此处留空避免重复定义。 */

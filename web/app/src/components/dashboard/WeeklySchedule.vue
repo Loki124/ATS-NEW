@@ -234,7 +234,7 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .weekly-schedule__range {
-  color: var(--color-ink);
+  color: var(--ink);
   font-size: var(--text-body);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -245,7 +245,7 @@ function onItemClick(item: ScheduleItem) {
 .weekly-schedule__segmented {
   display: inline-flex;
   align-items: center;
-  background: var(--color-surface-sunk);
+  background: var(--glass-bg-panel);
   border-radius: var(--radius-sm);
   padding: 2px;
   gap: 2px;
@@ -257,7 +257,7 @@ function onItemClick(item: ScheduleItem) {
   border: 0;
   padding: 4px 12px;
   font-size: var(--text-meta);
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -265,12 +265,12 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .weekly-schedule__segment:hover {
-  color: var(--color-ink);
+  color: var(--ink);
 }
 
 .weekly-schedule__segment--active {
-  background: var(--color-surface-raised);
-  color: var(--color-accent);
+  background: var(--surface);
+  color: var(--brand);
   font-weight: 500;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -284,9 +284,9 @@ function onItemClick(item: ScheduleItem) {
 .weekly-schedule__col {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--color-border-hairline);
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
+  background: var(--surface);
   min-height: 140px;
   overflow: hidden;
   cursor: pointer;
@@ -294,8 +294,8 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .weekly-schedule__col--today {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  border-color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .weekly-schedule__col-header {
@@ -303,13 +303,13 @@ function onItemClick(item: ScheduleItem) {
   align-items: center;
   justify-content: space-between;
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border-hairline);
-  color: var(--color-ink-soft);
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--ink-soft);
   font-size: var(--text-meta);
 }
 
 .weekly-schedule__col--today .weekly-schedule__col-header {
-  color: var(--color-accent);
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -335,24 +335,24 @@ function onItemClick(item: ScheduleItem) {
   gap: 2px;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-sunk);
+  background: var(--glass-bg-panel);
   font-size: var(--text-meta);
   line-height: 1.3;
   cursor: default;
 }
 
 .weekly-schedule__slot:hover {
-  background: var(--color-accent-soft);
+  background: var(--brand-soft);
 }
 
 .weekly-schedule__time {
-  color: var(--color-accent);
+  color: var(--brand);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .weekly-schedule__name {
-  color: var(--color-ink);
+  color: var(--ink);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -360,7 +360,7 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .weekly-schedule__empty {
-  color: var(--color-ink-faint);
+  color: var(--ink-faint);
   font-size: var(--text-meta);
   text-align: center;
   padding: var(--space-2) 0;
@@ -382,7 +382,7 @@ function onItemClick(item: ScheduleItem) {
 .month-grid__header span {
   text-align: center;
   font-size: 12px;
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
   padding: 4px 0;
 }
 
@@ -394,18 +394,18 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .month-grid__cell {
-  border: 1px solid var(--color-border-hairline);
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
   padding: 4px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface-raised);
+  background: var(--surface);
   transition: background 0.15s;
 }
 
 .month-grid__cell:hover {
-  background: var(--color-accent-soft);
+  background: var(--brand-soft);
 }
 
 .month-grid__cell--other {
@@ -413,14 +413,14 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .month-grid__cell--today {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
+  background: var(--brand-soft);
+  border-color: var(--brand);
 }
 
 .month-grid__date {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-ink);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -435,13 +435,13 @@ function onItemClick(item: ScheduleItem) {
 .month-grid__dot {
   width: 6px;
   height: 6px;
-  background: var(--color-accent);
+  background: var(--brand);
   border-radius: 50%;
   display: inline-block;
 }
 
 .month-grid__more {
   font-size: 10px;
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
 }
 </style>

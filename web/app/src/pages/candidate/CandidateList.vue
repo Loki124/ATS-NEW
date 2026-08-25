@@ -814,8 +814,15 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   overflow-x: auto;
   padding-bottom: 4px;
 }
-.pipeline-stats::-webkit-scrollbar { height: 4px; }
-.pipeline-stats::-webkit-scrollbar-thumb { background: var(--border-hairline); border-radius: 2px; }
+.pipeline-stats::-webkit-scrollbar { height: 5px; }
+/* 统一滚条色（与全项目一致）：scoped 用 var(--scrollbar-color-default) 走 glass.css 单源 token */
+.pipeline-stats::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color-default);
+  border-radius: 2px;
+}
+.pipeline-stats::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-color-hover);
+}
 .pipeline-stat-item {
   flex: 0 0 auto;
   min-width: 84px;

@@ -70,19 +70,19 @@ const formattedDate = computed(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--color-surface-sunk);
+  background: var(--glass-bg-panel);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .schedule-drawer__item:hover {
-  background: var(--color-accent-soft);
+  background: var(--brand-soft);
 }
 
 .schedule-drawer__time {
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--brand);
   min-width: 50px;
   font-variant-numeric: tabular-nums;
 }
@@ -93,11 +93,11 @@ const formattedDate = computed(() => {
 
 .schedule-drawer__name {
   font-weight: 500;
-  color: var(--color-ink);
+  color: var(--ink);
 }
 
 .schedule-drawer__position {
   font-size: 12px;
-  color: var(--color-ink-soft);
+  color: var(--ink-soft);
 }
 </style>

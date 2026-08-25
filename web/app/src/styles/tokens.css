@@ -147,24 +147,6 @@
   --duration-fast: 160ms;
   --duration-base: 240ms;
   --duration-slow: 320ms;
-
-  /* ===== §13. @deprecated 别名（保留至 v3 移除） =====
-   * 旧 studied-DNA OKLCH token 映射到 v2 HEX 变量。
-   * 目的：T1.x 改完 token 不让 Dashboard 立即崩；
-   *       T3.1 迁移 Dashboard 时统一替换为新名；
-   *       v3.0 彻底删除此节。
-   */
-  --color-paper: #EEF1FB;          /* @deprecated → 用 var(--aurora-base) 或 var(--ink) */
-  --color-ink: var(--ink);                /* @deprecated → 用 var(--ink) */
-  --color-ink-soft: var(--ink-soft);      /* @deprecated → 用 var(--ink-soft) */
-  --color-ink-faint: var(--ink-faint);    /* @deprecated → 用 var(--ink-faint) */
-  --color-accent: var(--brand);           /* @deprecated → 用 var(--brand) */
-  --color-accent-soft: var(--brand-soft); /* @deprecated → 用 var(--brand-soft) */
-  --color-surface-raised: var(--surface); /* @deprecated → 用 var(--surface) */
-  --color-surface-sunk: var(--glass-bg-panel); /* @deprecated → 用 var(--glass-bg-panel) */
-  --color-border-hairline: var(--border-hairline); /* @deprecated → 用 var(--border-hairline) */
-  --accent-hex: var(--brand);                  /* @deprecated → 用 var(--brand) */
-  --accent-soft-hex: var(--brand-soft);        /* @deprecated → 用 var(--brand-soft) */
 }
 
 /* ===== §14. 暗色模式（body.dark 切换；组件 CSS 不变） ===== */
@@ -218,11 +200,6 @@ body.dark {
   --brand-a32: rgba(99, 102, 241, .45);
   --brand-a22: rgba(99, 102, 241, .32);
   --brand-a12: rgba(99, 102, 241, .18);
-
-  /* 旧别名（暗色下也要保证 Dashboard 不崩） */
-  --color-paper: #0B1020;
-  --accent-hex: var(--brand);
-  --accent-soft-hex: var(--brand-soft);
 }
 
 /* ===== §15. 跟随系统（prefers-color-scheme）=====

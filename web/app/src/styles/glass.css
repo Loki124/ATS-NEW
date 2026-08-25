@@ -350,30 +350,80 @@ body.dark .n-modal-mask {
   backdrop-filter: blur(var(--glass-blur-panel));
 }
 
-/* === 全局滚动条悬浮显示（22:35 统一交互规范）===
- * 默认隐藏 + hover/scroll/active 时显示
- * 半透明细条，不占用布局空间，不影响视觉宽度
- * 适用 Naive UI n-scrollbar-rail + 原生 ::-webkit-scrollbar */
-.n-scrollbar-rail {
+/* === 滚动条统一颜色 Token（液态玻璃 v2 · 单源）===
+ * 单一来源：所有滚动条（Naive n-scrollbar 内置 rail / 原生 webkit thumb / Firefox scrollbar-color）
+ * 都用这一个 brand 紫系列，统一全项目视觉。
+ * 三档：default（半透，淡蓝紫）/ hover（加深）/ drag（最浓），全部 brand 紫 #6366F1 系列 */
+:root {
+  --scrollbar-color-default: rgba(99, 102, 241, 0.12);   /* 默认半透，更通透（兵哥 2026-08-25：透明度再调高） */
+  --scrollbar-color-hover:   rgba(99, 102, 241, 0.32);   /* hover/聚焦 加深 */
+  --scrollbar-color-drag:    rgba(99, 102, 241, 0.5);    /* 拖拽/激活 最浓 */
+}
+body.dark {
+  --scrollbar-color-default: rgba(165, 170, 255, 0.15);  /* 暗色提亮，更通透 */
+  --scrollbar-color-hover:   rgba(165, 170, 255, 0.35);
+  --scrollbar-color-drag:    rgba(165, 170, 255, 0.55);
+}
+
+/* === 全局滚动条"默认隐藏、悬浮展示"统一规则（22:35 规范 + 校招管控宽表横滚修复）===
+ * 默认隐藏 + hover/scroll/active 时显示；显示时统一用 brand 紫系列。
+ * 适用 Naive UI n-scrollbar-rail（横纵双轴）+ 原生 ::-webkit-scrollbar（横纵双轴） */
+.n-scrollbar-rail,
+.n-scrollbar-rail--horizontal,
+.n-scrollbar-rail--vertical {
   opacity: 0 !important;
   transition: opacity 0.2s var(--ease-out);
 }
+/* 父级 hover 时显示（rail 在 n-scrollbar 内部，rail 通常跟在 n-scrollbar-container 后） */
 .n-scrollbar-container:hover ~ .n-scrollbar-rail,
 .n-scrollbar-container:focus-within ~ .n-scrollbar-rail,
 .n-scrollbar-rail:hover,
-.n-scrollbar-rail:focus-visible {
+.n-scrollbar-rail:focus-visible,
+.n-scrollbar:hover .n-scrollbar-rail,
+.n-scrollbar:has(.n-scrollbar-container:hover) .n-scrollbar-rail,
+.n-scrollbar:has(.n-scrollbar-container:focus-within) .n-scrollbar-rail {
   opacity: 1 !important;
 }
-/* 原生 webkit 滚动条：细条 + 半透明 + hover 加深 */
-::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.25); /* brand 色 + 25% 透明 */
-  border-radius: 3px;
+
+/* === 关键：覆盖 Naive n-scrollbar 内置颜色 ===
+ * Naive JS 会在 .n-scrollbar 元素上 inline 注入 `--n-scrollbar-color: rgba(0,0,0,.25)` 等暗灰默认值，
+ * 优先级高于 :root 变量（inline > CSS）。需要用 !important 在 .n-scrollbar 层级重新赋值。
+ * 这是统一滚条色的唯一可靠手段（themeOverrides.Scrollbar 在 GlobalThemeOverrides 中未被识别）。 */
+.n-scrollbar {
+  --n-scrollbar-color:        var(--scrollbar-color-hover) !important;
+  --n-scrollbar-color-hover:  var(--scrollbar-color-drag)    !important;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.5); }
+/* 强制 Naive rail 宽度 5px（与全局 webkit ::-webkit-scrollbar 宽度一致）；
+   Naive 默认 rail 宽度 5px 会让 Naive 滚动条比自定义 webkit 滚动条细 1px。 */
+.n-scrollbar-rail--vertical   { width:  5px !important; }
+.n-scrollbar-rail--horizontal { height: 5px !important; }
+.n-scrollbar-rail--vertical   > .n-scrollbar-rail__scrollbar { width:  100% !important; }
+.n-scrollbar-rail--horizontal > .n-scrollbar-rail__scrollbar { height: 100% !important; }
+
+/* === 原生 webkit 滚动条：默认完全透明，hover 父级时才显色（统一 brand 紫） ===
+ * 通过 thumb 透明 + track 透明，让轨道只在父级 hover 时可视；
+ * 这与 Naive 的 rail 默认隐藏语义一致，跨浏览器统一体感。 */
+::-webkit-scrollbar { width: 5px; height: 5px; background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.2s var(--ease-out);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-color-drag); }
 ::-webkit-scrollbar-track { background: transparent; }
 /* Firefox */
-* { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.25) transparent; }
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+/* 父级 hover 时让 thumb 出现色（覆盖到页面内任意嵌套层，全用统一 token） */
+*:hover > ::-webkit-scrollbar-thumb,
+*:hover ::-webkit-scrollbar-thumb,
+.n-scrollbar-container:hover ::-webkit-scrollbar-thumb,
+.n-scrollbar-container:focus-within ::-webkit-scrollbar-thumb,
+.n-scrollbar:hover ::-webkit-scrollbar-thumb,
+.n-scrollbar:has(.n-scrollbar-container:hover) ::-webkit-scrollbar-thumb,
+.n-scrollbar:has(.n-scrollbar-container:focus-within) ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-color-hover);
+  scrollbar-color: var(--scrollbar-color-hover) transparent;
+}
 
 /* === Data Table 玻璃化（DESIGN.md §4 Data Table）===
  * 表头半透明白，行 hairline 分隔，hover 行品牌浅底，去斑马纹。
@@ -722,8 +772,9 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
 .table-wrap .n-data-table-base-table-body > .n-scrollbar,
 .table-wrap .n-data-table-base-table-body .n-scrollbar-container {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
+  /* ⚠️ 以前用 overflow-x: hidden !important → 强制裁掉多列宽表（如校招管控 16 列），
+     列内容被截、横向无法滚；改为 overflow: auto 同时允 x/y 滚动，自然触发 n-scrollbar 双轴轨道。 */
+  overflow: auto !important;
   flex: 1;
   min-height: 0;
 }
@@ -755,8 +806,8 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
 .settings-scroll .n-data-table-base-table-body > .n-scrollbar,
 .settings-scroll .n-data-table-base-table-body .n-scrollbar-container {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
+  /* ⚠️ 同步桌面 .table-wrap 修复：解除 overflow-x: hidden 硬截，启用双轴滚动 */
+  overflow: auto !important;
   flex: 1;
   min-height: 0;
 }
