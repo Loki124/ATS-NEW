@@ -273,11 +273,20 @@ watch(() => route.path, () => {
   width: 5px;
   height: 5px;
   background: transparent;
+  /* 关键：scrollbar 自身不接收点击。
+     真实 Chromium classic scrollbar 的 rail(5px) 紧贴 n-menu 子菜单箭头，
+     点击箭头时若略微偏移到 rail，浏览器触发 "jump to here" 滚动
+     → 菜单内容移动几像素 → 鼠标按下/抬起落到不同元素 → n-menu click 被吞，
+     表现为"折叠/展开要点好几次"。
+     headless Chromium 无此 hit-test 行为，所以自动化不重现、但用户每次都遇到。
+     thumb 单独恢复 pointer-events: auto 以保留拖动。 */
+  pointer-events: none;
 }
 .settings-sider-menu::-webkit-scrollbar-thumb {
   background: transparent;                              /* webkit 默认透明 */
   border-radius: 3px;
   transition: background 0.2s var(--ease-out);
+  pointer-events: auto;          /* thumb 仍可拖动（hover 显色后） */
 }
 .settings-sider-menu:hover {
   scrollbar-color: var(--scrollbar-color-hover) transparent;   /* Firefox 显色（统一 token） */
