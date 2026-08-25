@@ -846,3 +846,166 @@ class TestDimensionSetRules:
         assert any(r['bu'] == 'Z部门' for r in dim_rules)
         assert any(r['bu'] == '能电BG' for r in dim_rules)
         assert not any(r['bu'] == '校招BU' for r in dim_rules)
+
+
+class TestImportScopeMutex:
+    """导入入口（batch / with-targets / import_xlsx→_import_group）的「全局/指定范围」互斥校验。
+
+    与 set_rules 一致采用非对称策略：
+      - 导入【指定范围】→ 删除该 (dimension, year) 下全局规则（其他指定范围保留）
+      - 导入【全局】→ 若已存在其他指定范围规则则【拦截 400】，避免静默清空
+    （拦截/自动删除的最终取舍待产品次日确认，此处锁定当前行为，便于回归。）
+    """
+
+    def _setup_scheme(self, api_client, year=2026):
+        s = api_client.post('/api/v1/campus/dimensions/', {'name': '维度IMP'}, format='json')
+        assert s.status_code == 201, s.json()
+        dim_id = s.json()['id']
+        i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
+        i2 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json').json()
+        return dim_id, i1['id'], i2['id'], year
+
+    def _seed_global(self, api_client, dim_id, i1, i2, year=2026):
+        resp = api_client.post('/api/v1/campus/rules/batch/', {
+            'bu': '', 'position': '', 'level': '', 'dimension': dim_id, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+
+    def _seed_specific(self, api_client, dim_id, i1, i2, bu='能电BG', year=2026):
+        resp = api_client.post('/api/v1/campus/rules/batch/', {
+            'bu': bu, 'position': '', 'level': '', 'dimension': dim_id, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+
+    def _dim_rules(self, api_client, dim_id):
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        return [r for r in rules if r['dimension'] == dim_id]
+
+    # ---------- batch ----------
+    def test_batch_specific_deletes_global(self, api_client):
+        """batch 导入指定范围 → 删除该维度年度下全局规则（互斥非对称）。"""
+        dim_id, i1, i2, year = self._setup_scheme(api_client)
+        self._seed_global(api_client, dim_id, i1, i2, year)
+        resp = api_client.post('/api/v1/campus/rules/batch/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'dimension': dim_id, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.3, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        dim_rules = self._dim_rules(api_client, dim_id)
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+        assert any(float(r['target']) == 0.7 for r in dim_rules)
+
+    def test_batch_global_blocked_when_specific_exists(self, api_client):
+        """batch 导入全局，但已存在指定范围 → 拦截 400（不静默清空）。"""
+        dim_id, i1, i2, year = self._setup_scheme(api_client)
+        self._seed_specific(api_client, dim_id, i1, i2, bu='能电BG', year=year)
+        resp = api_client.post('/api/v1/campus/rules/batch/', {
+            'bu': '', 'position': '', 'level': '', 'dimension': dim_id, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400, f"got {resp.status_code}: {resp.content!r}"
+        # 能电BG 仍保留
+        dim_rules = self._dim_rules(api_client, dim_id)
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+
+    # ---------- with-targets ----------
+    def test_with_targets_specific_deletes_global(self, api_client):
+        """with-targets 导入指定范围 → 删除全局规则。"""
+        dim_id, i1, i2, year = self._setup_scheme(api_client)
+        self._seed_global(api_client, dim_id, i1, i2, year)
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'dimension': dim_id, 'year': year,
+            'totalTarget': 100,
+            'rules': [
+                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.3, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        dim_rules = self._dim_rules(api_client, dim_id)
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+
+    def test_with_targets_global_blocked_when_specific_exists(self, api_client):
+        """with-targets 导入全局，但已存在指定范围 → 拦截 400。"""
+        dim_id, i1, i2, year = self._setup_scheme(api_client)
+        self._seed_specific(api_client, dim_id, i1, i2, bu='能电BG', year=year)
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '', 'position': '', 'level': '', 'dimension': dim_id, 'year': year,
+            'totalTarget': 100,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400, f"got {resp.status_code}: {resp.content!r}"
+        dim_rules = self._dim_rules(api_client, dim_id)
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+
+    # ---------- import_xlsx → _import_group（此前完全无互斥校验） ----------
+    def _seed_via_set_rules(self, api_client, dim_id, i1, i2, bu='', year=2026):
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+
+    def test_import_group_specific_deletes_global(self, api_client, hr_user):
+        """_import_group 导入指定范围 → 删除全局规则（修复静默混合漏洞）。"""
+        dim_id, i1, i2, year = self._setup_scheme(api_client)
+        self._seed_via_set_rules(api_client, dim_id, i1, i2, bu='', year=year)  # 全局
+        from ..views import ControlRuleViewSet
+        group = {
+            'bu': '能电BG', 'position': '', 'level': '',
+            'dimension': '维度IMP', 'year': year,
+            'total_target': 100,
+            'rules': [
+                {'indicator': 'A', 'target': 0.7, 'strength': '硬约束', 'monthly_targets': [1] * 12},
+                {'indicator': 'B', 'target': 0.3, 'strength': '软约束', 'monthly_targets': [1] * 12},
+            ],
+        }
+        ok, msg, n = ControlRuleViewSet()._import_group(group, hr_user)
+        assert ok is True, msg
+        assert n == 2
+        dim_rules = self._dim_rules(api_client, dim_id)
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+
+    def test_import_group_global_blocked_when_specific_exists(self, api_client, hr_user):
+        """_import_group 导入全局，但已存在指定范围 → 拦截（返回 False + 冲突文案）。"""
+        dim_id, i1, i2, year = self._setup_scheme(api_client)
+        self._seed_via_set_rules(api_client, dim_id, i1, i2, bu='能电BG', year=year)  # 指定范围
+        from ..views import ControlRuleViewSet
+        group = {
+            'bu': '', 'position': '', 'level': '',
+            'dimension': '维度IMP', 'year': year,
+            'total_target': 100,
+            'rules': [
+                {'indicator': 'A', 'target': 0.6, 'strength': '硬约束', 'monthly_targets': [1] * 12},
+                {'indicator': 'B', 'target': 0.4, 'strength': '软约束', 'monthly_targets': [1] * 12},
+            ],
+        }
+        ok, msg, n = ControlRuleViewSet()._import_group(group, hr_user)
+        assert ok is False, f"应被拦截，但返回 ok={ok}, msg={msg!r}"
+        assert '指定范围' in msg
+        # 能电BG 仍保留，未被静默清空
+        dim_rules = self._dim_rules(api_client, dim_id)
+        assert all(r['bu'] == '能电BG' for r in dim_rules)

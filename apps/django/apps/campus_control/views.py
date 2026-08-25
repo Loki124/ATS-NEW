@@ -31,7 +31,7 @@ from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 
-from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums, check_scope_mutex
+from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
 from .constants import STRENGTH
 from .io_xlsx import (
     build_export_workbook, build_template_workbook, parse_import_workbook,
@@ -44,6 +44,39 @@ from .serializers import (
     ControlDimensionSerializer, ControlIndicatorSerializer,
     ControlRuleSerializer, PersonSerializer, _to_decimal,
 )
+
+
+def _scope_mutex_guard(dimension, year, bu, position, level, exclude_scope=None):
+    """「全局 / 指定范围」非对称互斥守卫（set_rules 与所有导入入口共用）。
+
+    同一 (dimension, year) 下不可同时持有「全局」与「指定范围」规则集（否则 calc 重复计数）。
+    非对称策略（按产品澄清「只删全局、其他指定范围不动」）：
+      - 保存/导入【指定范围】→ 删除该维度年度下的【全局】规则，其余指定范围保留；
+      - 保存/导入【全局】→ 若存在其他指定范围规则则【拦截 400】，避免静默清空。
+
+    入参 exclude_scope: (bu, position, level, year) 元组，重定位时排除原 scope。
+    返回 None 表示放行（已执行必要的删除）；返回 Response 表示拦截。
+    """
+    if bu or position or level:
+        # 指定范围：删除全局规则（其他指定范围保留）
+        ControlRule.objects.filter(
+            dimension=dimension, year=year,
+            bu='', position='', level='',
+        ).delete()
+        return None
+    # 全局：若存在其他指定范围规则则拦截
+    specified_qs = ControlRule.objects.filter(
+        dimension=dimension, year=year,
+    ).exclude(bu='', position='', level='')
+    if exclude_scope is not None:
+        ebu, epos, elev, eyear = exclude_scope
+        specified_qs = specified_qs.exclude(bu=ebu, position=epos, level=elev, year=eyear)
+    if specified_qs.exists():
+        return Response(
+            {'success': False, 'detail': '该维度年度下已存在其他指定范围规则集，保存全局会清空这些指定范围，请先删除指定范围或改用指定范围保存。'},
+            status=400,
+        )
+    return None
 
 
 def _jsonify(obj):
@@ -297,31 +330,13 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 return Response({'success': False, 'detail': 'original.year 须为整数'}, status=400)
             relocate = (obu != bu or opos != position or olev != level or oyear != year)
 
-        # ---- 「全局 / 指定范围」互斥 ----
-        # 同一 (dimension, year) 下不可同时存在全局与指定范围（否则 calc 重复计数）。
-        # 保存「指定范围」→ 删除该维度年度下的【全局】规则（其他指定范围保留，用户确认无需调整）。
-        # 保存「全局」→ 若存在「非本次重定位来源」的指定范围规则，则【拦截】，
-        #   避免静默清空用户的指定范围配置（其他指定范围无需调整）。
-        # 重定位到全局时，原始 scope 规则集会在事务内被删，故排除它后再判冲突。
-        if bu or position or level:
-            # 保存指定范围：删除全局规则
-            ControlRule.objects.filter(
-                dimension=dimension, year=year,
-                bu='', position='', level='',
-            ).delete()
-        else:
-            specified_qs = ControlRule.objects.filter(
-                dimension=dimension, year=year,
-            ).exclude(bu='', position='', level='')
-            if relocate:
-                specified_qs = specified_qs.exclude(
-                    bu=obu, position=opos, level=olev, year=oyear
-                )
-            if specified_qs.exists():
-                return Response(
-                    {'success': False, 'detail': '该维度年度下已存在其他指定范围规则集，保存全局会清空这些指定范围，请先删除指定范围或改用指定范围保存。'},
-                    status=400,
-                )
+        # ---- 「全局 / 指定范围」互斥（非对称，守卫统一处理） ----
+        _block = _scope_mutex_guard(
+            dimension, year, bu, position, level,
+            exclude_scope=(obu, opos, olev, oyear) if relocate else None,
+        )
+        if isinstance(_block, Response):
+            return _block
 
         with transaction.atomic():
             if relocate:
@@ -483,13 +498,10 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
 
-        # ---- 「全局 / 指定范围」互斥：同一 (dimension, year) 不可两种 scope 并存 ----
-        _mutex_ok, _mutex_detail = check_scope_mutex(
-            ControlRule.objects.filter(dimension=dimension, year=year),
-            incoming_scope=(bu, position, level),
-        )
-        if not _mutex_ok:
-            return Response({'success': False, 'detail': _mutex_detail}, status=400)
+        # ---- 「全局 / 指定范围」互斥（非对称，与 set_rules 一致） ----
+        _block = _scope_mutex_guard(dimension, year, bu, position, level)
+        if isinstance(_block, Response):
+            return _block
 
         with transaction.atomic():
             ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
@@ -576,13 +588,10 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'detail': f'该维度下所有指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
 
-        # ---- 「全局 / 指定范围」互斥：同一 (dimension, year) 不可两种 scope 并存 ----
-        _mutex_ok, _mutex_detail = check_scope_mutex(
-            ControlRule.objects.filter(dimension=dimension, year=year),
-            incoming_scope=(bu, position, level),
-        )
-        if not _mutex_ok:
-            return Response({'success': False, 'detail': _mutex_detail}, status=400)
+        # ---- 「全局 / 指定范围」互斥（非对称，与 set_rules 一致） ----
+        _block = _scope_mutex_guard(dimension, year, bu, position, level)
+        if isinstance(_block, Response):
+            return _block
 
         with transaction.atomic():
             # 删除该 (适用范围, 维度, 年度) 旧规则
@@ -744,6 +753,11 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if abs(total - Decimal('1')) > Decimal('0.0001'):
             pct = (total * 100).quantize(Decimal('0.01'))
             return False, f'组[{dimension_name}]：目标占比之和须=100%，当前 {pct}%', 0
+
+        # ---- 「全局 / 指定范围」互斥（非对称，与 set_rules 一致） ----
+        _block = _scope_mutex_guard(dimension, year, bu, position, level)
+        if isinstance(_block, Response):
+            return False, _block.data.get('detail', '适用范围互斥冲突'), 0
 
         with transaction.atomic():
             ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
