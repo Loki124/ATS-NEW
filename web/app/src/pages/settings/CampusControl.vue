@@ -53,6 +53,7 @@
             <div class="spacer"></div>
             <n-button @click="onExportRules">导出规则</n-button>
             <n-button @click="importDrawer.show = true">导入规则</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
             <n-button type="primary" class="gradient-btn" @click="openBatchDrawer()">+ 批量配置规则 + 目标</n-button>
           </div>
           <div class="table-wrap">
@@ -356,7 +357,7 @@
           <div class="scope-row">
             <div class="scope-field">
               <span class="scope-label">适用范围</span>
-              <n-switch v-model:value="batchDrawer.isGlobal" size="small">
+              <n-switch v-model:value="batchDrawer.isGlobal" size="small" @update:value="onBatchCtxChange">
                 <template #checked>全局</template>
                 <template #unchecked>指定</template>
               </n-switch>
@@ -364,15 +365,15 @@
             <template v-if="!batchDrawer.isGlobal">
               <div class="scope-field">
                 <span class="scope-label">部门</span>
-                <n-select v-model:value="batchDrawer.bu" :options="deptOptions" placeholder="部门" />
+                <n-select v-model:value="batchDrawer.bu" :options="deptOptions" placeholder="部门" @update:value="onBatchCtxChange" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职务</span>
-                <n-select v-model:value="batchDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
+                <n-select v-model:value="batchDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable @update:value="onBatchCtxChange" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职级</span>
-                <n-select v-model:value="batchDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
+                <n-select v-model:value="batchDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable @update:value="onBatchCtxChange" />
               </div>
             </template>
           </div>
@@ -381,7 +382,7 @@
         <div class="form-section">
           <div class="form-section-title"><span class="dot" />总人数 → 各指标人数</div>
           <n-grid :cols="2" :x-gap="16">
-            <n-gi><n-form-item label="年度" :show-feedback="false"><n-input-number v-model:value="batchDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
+            <n-gi><n-form-item label="年度" :show-feedback="false"><n-input-number v-model:value="batchDrawer.year" :min="2020" :max="2100" style="width: 100%" @update:value="onBatchCtxChange" /></n-form-item></n-gi>
             <n-gi><n-form-item label="年度总人数（管控人数）" :show-feedback="false"><n-input-number v-model:value="batchDrawer.totalTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
           </n-grid>
         </div>
@@ -1210,6 +1211,7 @@ interface BatchRow {
   targetPct: number
   strength: Strength
   monthly: number[] // 12 个月度目标
+  annual?: number // 预填时锁定原始年度人数，用于「✓ 等于年度目标」徽标；未预填行由 totalTarget×占比 推算
 }
 const batchDrawer = reactive({
   show: false,
@@ -1259,8 +1261,57 @@ function openBatchDrawer() {
 }
 
 function onBatchDimChange() {
-  batchDrawer.indicatorIds = []
-  batchDrawer.rows = {}
+  // 选维度后自动带出该 (适用范围, 维度, 年度) 已有规则数据（用户反馈：新增时选完维度应带出已有规则）
+  prefillBatchFromRules()
+}
+
+/** 切换适用范围 / 年度时，按当前上下文重新带出已有规则。 */
+function onBatchCtxChange() {
+  prefillBatchFromRules()
+}
+
+/**
+ * 从内存 rules.value 派生当前 (bu, position, level, dimension, year) 上下文下的已有规则，
+ * 预填到批量抽屉：勾选对应指标、填充占比%/强度/12月分月，并锁定 annual 与总人数。
+ * 若该上下文下无历史规则，则保持空白让用户从零配置。
+ */
+function prefillBatchFromRules() {
+  const dim = batchDrawer.dimensionId
+  if (!dim) {
+    batchDrawer.indicatorIds = []
+    batchDrawer.rows = {}
+    return
+  }
+  const bu = batchDrawer.isGlobal ? '' : batchDrawer.bu
+  const position = batchDrawer.isGlobal ? '' : batchDrawer.position
+  const level = batchDrawer.isGlobal ? '' : batchDrawer.level
+  const year = batchDrawer.year
+  const existing = rules.value.filter(
+    (r) =>
+      r.dimension === dim &&
+      (r.bu || '') === bu && (r.position || '') === position && (r.level || '') === level &&
+      r.year === year,
+  )
+  if (existing.length === 0) {
+    batchDrawer.indicatorIds = []
+    batchDrawer.rows = {}
+    return
+  }
+  const total = existing.reduce((s, r) => s + Math.round(Number(r.annualTarget) || 0), 0)
+  const ids: string[] = []
+  const rows: Record<string, BatchRow> = {}
+  for (const er of existing) {
+    ids.push(er.indicator)
+    rows[er.indicator] = {
+      targetPct: Math.round(er.target * 1000) / 10,
+      strength: (er.strength as Strength) || '硬约束',
+      monthly: normalizeMonthly(er.monthlyTargets),
+      annual: Math.round(Number(er.annualTarget) || 0),
+    }
+  }
+  batchDrawer.totalTarget = total
+  batchDrawer.indicatorIds = ids
+  batchDrawer.rows = rows
 }
 
 function distributeMonthly(annual: number): number[] {
@@ -1302,7 +1353,8 @@ function redistributeBatchMonthly(id: string) {
 function batchIndicatorAnnual(indId: string) {
   const r = batchDrawer.rows[indId]
   if (!r) return 0
-  return Math.round(batchDrawer.totalTarget * (r.targetPct / 100))
+  // 预填行用锁定的原始 annual；新勾选行由 totalTarget×占比 推算
+  return r.annual ?? Math.round(batchDrawer.totalTarget * (r.targetPct / 100))
 }
 
 async function saveBatchConfig() {
