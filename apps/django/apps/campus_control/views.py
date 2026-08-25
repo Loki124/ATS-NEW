@@ -31,7 +31,7 @@ from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 
-from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
+from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums, check_scope_mutex
 from .constants import STRENGTH
 from .io_xlsx import (
     build_export_workbook, build_template_workbook, parse_import_workbook,
@@ -297,12 +297,17 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 return Response({'success': False, 'detail': 'original.year 须为整数'}, status=400)
             relocate = (obu != bu or opos != position or olev != level or oyear != year)
 
-        if relocate:
-            if ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).exists():
-                return Response({
-                    'success': False,
-                    'detail': '目标适用范围已存在规则集，无法重定位（避免覆盖）。请先删除目标适用范围规则集或更换其他适用范围。',
-                }, status=400)
+        # ---- 「全局 / 指定范围」互斥：同一 (dimension, year) 不可两种 scope 并存 ----
+        # 重定位（original 告知原 scope，同事务被删）天然受此约束：迁移后若产生「全局+指定」混合即拦截。
+        # 旧「目标 scope 已存在规则集」冲突拦截已并入此单一约束（relocate 到已存在 scope = 迁移后混合）。
+        # 豁免当前 scope（本条请求将整体重建）+ 重定位原 scope（同事务将被删）。
+        _mutex_ok, _mutex_detail = check_scope_mutex(
+            ControlRule.objects.filter(dimension=dimension, year=year),
+            incoming_scope=(bu, position, level),
+            incoming_original=(obu, opos, olev) if relocate else None,
+        )
+        if not _mutex_ok:
+            return Response({'success': False, 'detail': _mutex_detail}, status=400)
 
         with transaction.atomic():
             if relocate:
@@ -464,6 +469,14 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
 
+        # ---- 「全局 / 指定范围」互斥：同一 (dimension, year) 不可两种 scope 并存 ----
+        _mutex_ok, _mutex_detail = check_scope_mutex(
+            ControlRule.objects.filter(dimension=dimension, year=year),
+            incoming_scope=(bu, position, level),
+        )
+        if not _mutex_ok:
+            return Response({'success': False, 'detail': _mutex_detail}, status=400)
+
         with transaction.atomic():
             ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
             for indicator, target, strength in prepared:
@@ -548,6 +561,14 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'success': False,
                 'detail': f'该维度下所有指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
+
+        # ---- 「全局 / 指定范围」互斥：同一 (dimension, year) 不可两种 scope 并存 ----
+        _mutex_ok, _mutex_detail = check_scope_mutex(
+            ControlRule.objects.filter(dimension=dimension, year=year),
+            incoming_scope=(bu, position, level),
+        )
+        if not _mutex_ok:
+            return Response({'success': False, 'detail': _mutex_detail}, status=400)
 
         with transaction.atomic():
             # 删除该 (适用范围, 维度, 年度) 旧规则

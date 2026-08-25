@@ -48,6 +48,15 @@
 
         <!-- ===================== 规则配置 ===================== -->
         <n-tab-pane name="rules" tab="规则配置">
+          <n-alert
+            v-if="mixedScopeGroups.size > 0"
+            type="warning"
+            :show-icon="true"
+            class="scope-mutex-banner"
+          >
+            检测到 <b>{{ mixedScopeGroups.size }}</b> 个「维度 × 年度」组合同时存在「全局」与「指定范围」规则集，会导致人员<b>重复计入</b>。
+            请手动删除其中一种适用范围下的规则集（编辑后保存即重定位/删除；或删除该维度下对应规则）。新写入已被后端强制互斥拦截。
+          </n-alert>
           <div class="toolbar">
             <n-select v-model:value="ruleDimFilter" :options="ruleDimOptions" placeholder="全部维度" clearable style="width: 180px" />
             <div class="spacer"></div>
@@ -529,7 +538,7 @@
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import {
   NTag, NButton, NSwitch, NCheckbox, NDivider, NSpace,
-  NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker,
+  NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker, NTooltip,
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
@@ -681,6 +690,25 @@ const ruleSumMap = computed(() => {
   return m
 })
 
+// 同一 (dimension, year) 下若同时含「全局」与「指定范围」规则集 → 重复计入风险（⚠️ 徽标）。
+// 后端已对新写入做互斥拦截，此徽标仅用于提示存量（legacy）混合数据，需用户手动清理。
+const mixedScopeGroups = computed<Set<string>>(() => {
+  const scopesByGroup = new Map<string, Set<string>>()
+  for (const r of rules.value) {
+    const gk = [r.dimension, r.year].join('|')
+    const sk = (r.bu || r.position || r.level) ? 'specific' : 'global'
+    if (!scopesByGroup.has(gk)) scopesByGroup.set(gk, new Set())
+    scopesByGroup.get(gk)!.add(sk)
+  }
+  const mixed = new Set<string>()
+  for (const [gk, s] of scopesByGroup) {
+    if (s.has('global') && s.has('specific')) mixed.add(gk)
+  }
+  return mixed
+})
+const isScopeMutexViolation = (r: ControlRule) =>
+  mixedScopeGroups.value.has([r.dimension, r.year].join('|'))
+
 /* ============================ 指标管理 ============================ */
 const indicatorDimFilter = ref<string | null>(null)
 const indicatorDimOptions = computed(() => [
@@ -765,8 +793,21 @@ const ruleColumns: DataTableColumns<ControlRule> = [
   { title: '维度', key: 'dimensionName', width: 110 },
   { title: '指标', key: 'indicatorName', width: 100 },
   {
-    title: '适用范围', key: 'bu', width: 170,
-    render: (r) => h(NTag, { type: r.bu || r.position || r.level ? 'info' : 'success', bordered: false, size: 'small' }, { default: () => scopeText(r.bu, r.position, r.level) }),
+    title: '适用范围', key: 'bu', width: 210,
+    render: (r) => {
+      const children = [
+        h(NTag, { type: r.bu || r.position || r.level ? 'info' : 'success', bordered: false, size: 'small' }, { default: () => scopeText(r.bu, r.position, r.level) }),
+      ]
+      if (isScopeMutexViolation(r)) {
+        children.push(
+          h(NTooltip, { placement: 'top' }, {
+            trigger: () => h('span', { class: 'scope-mutex-badge' }, '⚠️'),
+            default: () => '该维度同时存在「全局」与「指定范围」规则集，会导致重复计入。请手动删除其中一种适用范围下的规则集。',
+          }),
+        )
+      }
+      return h('div', { style: 'display:flex; align-items:center; gap:6px;' }, children)
+    },
   },
   { title: '目标占比', key: 'target', width: 90, render: (r) => pct(r.target) },
   { title: '规划年度', key: 'year', width: 80 },
@@ -1428,6 +1469,17 @@ onMounted(async () => {
 <style scoped>
 /* 仅保留「布局链」相关规则，视觉（玻璃/极光/标题渐变/KPI/表格/弹窗）统一复用全局 glass.css
    —— 单一设计系统，校招管控不再持有私有视觉定义。 */
+
+/* 「全局 + 指定范围」混合规则集 → 重复计入风险徽标 */
+.scope-mutex-badge {
+  cursor: help;
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+}
+.scope-mutex-banner {
+  margin-bottom: 12px;
+}
 
 /* 极光由 SettingsLayout 外壳统一注入（.settings-aurora），本页不再自绘 */
 

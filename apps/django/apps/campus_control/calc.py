@@ -41,6 +41,38 @@ def _scope_key(x: dict) -> tuple:
     )
 
 
+def check_scope_mutex(rules_qs, incoming_scope, incoming_original=None):
+    """同一 (dimension, year) 下的「全局 / 指定范围」互斥校验。
+
+    rules_qs: 该 (dimension, year) 下现存 ControlRule 的 queryset。
+    incoming_scope: 本次请求要写入的 scope 三元组 (bu, position, level)。
+    incoming_original: 重定位场景下原 scope 三元组，同事务内将被删，豁免检查。
+
+    返回 (ok, detail)：
+      - ok=True   通过互斥
+      - ok=False  违反「同一维度不可既有全局又有指定」，detail 为报错文案
+    """
+    existing_scopes = set(
+        (b or '', p or '', l or '')
+        for b, p, l in rules_qs.values_list('bu', 'position', 'level').distinct()
+    )
+    # 计算「保存后」该 (dimension, year) 将存在的 scope 集合：
+    #   现存 - 重定位原 scope（同事务被删） + 本次写入的 incoming_scope
+    # 仅当保存后同时含「全局」与「指定范围」才判为违反。
+    post_scopes = existing_scopes.copy()
+    if incoming_original is not None:
+        post_scopes.discard(incoming_original)
+    post_scopes.add(incoming_scope)
+    has_global = ('', '', '') in post_scopes
+    has_specific = any(s != ('', '', '') for s in post_scopes)
+    if has_global and has_specific:
+        return False, (
+            '同一维度下不允许同时存在「全局」与「指定范围」规则集（会导致重复计入）。'
+            '请先删除其中一种适用范围下的规则集。'
+        )
+    return True, ''
+
+
 def _indicator_filter(dimension: str, indicator: str) -> dict:
     """维度 + 指标 -> 人员过滤条件。"""
     if dimension == '院校标签':
