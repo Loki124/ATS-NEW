@@ -65,6 +65,8 @@ export interface DictionaryDetail extends DictionaryType {
 export interface DictionaryTypeQuery {
   q?: string;
   type?: 'system' | 'custom' | 'all';
+  /** 启用状态筛选：true=启用 / false=停用 / undefined=全部。 */
+  isEnabled?: boolean;
 }
 
 /** naive-ui n-select 用的 option。 */
@@ -130,6 +132,9 @@ export async function listDictionaryTypes(
   const query: Record<string, any> = { page_size: 200 };
   if (params.q) query.q = params.q;
   if (params.type && params.type !== 'all') query.type = params.type;
+  if (params.isEnabled !== undefined && params.isEnabled !== null) {
+    query.is_enabled = params.isEnabled ? 'true' : 'false';
+  }
   const resp = await api.get('/dictionary-types/', { params: query });
   const body = resp.data;
   if (Array.isArray(body)) return body;

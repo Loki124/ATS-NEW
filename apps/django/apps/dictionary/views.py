@@ -103,6 +103,10 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
             qs = qs.filter(is_system=True)
         elif dtype == 'custom':
             qs = qs.filter(is_system=False)
+        # 启用状态筛选：is_enabled=true|false；缺省/all 不过滤
+        enabled = params.get('is_enabled')
+        if enabled in ('true', 'false'):
+            qs = qs.filter(is_enabled=(enabled == 'true'))
         return qs
 
     @action(detail=True, methods=['post'], url_path='submit')

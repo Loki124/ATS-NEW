@@ -7,7 +7,6 @@
           <h1 class="page-title">数据字典</h1>
           <p class="page-subtitle">管理系统枚举与配置项（树形结构 · 草稿暂存 · 系统/自定义差异化）</p>
         </div>
-        <n-button type="primary" @click="openCreateType">新增字典</n-button>
       </div>
 
       <div class="toolbar">
@@ -29,7 +28,14 @@
             style="width: 160px"
             @update:value="loadList"
           />
+          <n-select
+            v-model:value="statusFilter"
+            :options="statusOptions"
+            style="width: 140px"
+            @update:value="loadList"
+          />
         </n-space>
+        <n-button type="primary" @click="openCreateType">新增字典</n-button>
       </div>
 
       <n-data-table
@@ -351,6 +357,12 @@ const typeOptions = [
   { label: '系统预置', value: 'system' },
   { label: '自定义', value: 'custom' },
 ]
+const statusFilter = ref<'all' | 'enabled' | 'disabled'>('all')
+const statusOptions = [
+  { label: '全部', value: 'all' },
+  { label: '启用', value: 'enabled' },
+  { label: '停用', value: 'disabled' },
+]
 
 const currentType = ref<DictionaryType | null>(null)
 const headDraft = reactive({ name: '', englishName: '', isEnabled: true, description: '' })
@@ -447,6 +459,12 @@ async function loadList() {
     types.value = await listDictionaryTypes({
       q: searchText.value || undefined,
       type: typeFilter.value,
+      isEnabled:
+        statusFilter.value === 'enabled'
+          ? true
+          : statusFilter.value === 'disabled'
+            ? false
+            : undefined,
     })
   } catch (e: any) {
     message.error('加载失败')
@@ -881,7 +899,7 @@ onUnmounted(() => {
    本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
 /* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
 .code-pill, .num-pill { font-size: 12px; color: #666; background: var(--g1); padding: 2px 8px; border-radius: 4px; }
-.toolbar { margin-bottom: 16px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .section { margin-bottom: 16px; }
 .edit-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .back-btn { align-self: baseline; margin-top: 6px; }

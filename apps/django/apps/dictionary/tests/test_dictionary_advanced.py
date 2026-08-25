@@ -263,3 +263,19 @@ def test_list_filter_system(auth_client, stage_type, custom_type):
     codes = [t['code'] for t in resp.json()['data']]
     assert custom_type in codes
     assert 'recruitment_stage_type' not in codes
+
+
+def test_list_filter_is_enabled(auth_client, stage_type, custom_type):
+    """启用状态筛选: is_enabled=true 仅返回启用项; =false 仅返回停用项。"""
+    # recruitment_stage_type 默认启用; custom_type 先停用
+    auth_client.patch(f'{TYPE_LIST}{custom_type}/', {'is_enabled': False}, format='json')
+
+    resp = auth_client.get(TYPE_LIST, {'is_enabled': 'true', 'page_size': 200})
+    codes = [t['code'] for t in resp.json()['data']]
+    assert 'recruitment_stage_type' in codes
+    assert custom_type not in codes
+
+    resp = auth_client.get(TYPE_LIST, {'is_enabled': 'false', 'page_size': 200})
+    codes = [t['code'] for t in resp.json()['data']]
+    assert custom_type in codes
+    assert 'recruitment_stage_type' not in codes
