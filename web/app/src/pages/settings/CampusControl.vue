@@ -244,7 +244,7 @@
       <div v-else-if="dimEditor.rows.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
       <div v-else class="dim-rows">
         <div class="dim-row" :class="{ 'row-deleted': row.pendingDelete, 'row-disabled': dimEditor.mode === 'view' }" v-for="row in dimEditor.rows" :key="row.indicatorId">
-          <!-- 行 1：指标 + 状态徽标 + 占比% + 控制强度 + 年度展示 + 删除/恢复 -->
+          <!-- 行 1：指标 + 状态徽标 + 占比% + 控制强度 + 年度（编辑/只读统一） + 删除/恢复 -->
           <div class="dim-row-head">
             <div class="dim-row-id">
               <span class="dim-ind-name">{{ row.indicatorName }}</span>
@@ -254,36 +254,40 @@
             </div>
             <div class="dim-row-ctrl" v-if="dimEditor.mode === 'edit'">
               <div class="ctrl-group">
-                <span class="ctrl-label">占比 %</span>
+                <span class="ctrl-label">占比%</span>
                 <n-input-number
                   :value="row.targetPct || 0"
-                  :min="0" :max="100" :step="0.5" size="small" style="width: 110px"
+                  :min="0" :max="100" :step="0.5" size="small" style="width: 92px"
                   @update:value="(v: number | null) => setDimRowTarget(row.indicatorId, v)"
                 />
               </div>
               <div class="ctrl-group">
-                <span class="ctrl-label">控制强度</span>
+                <span class="ctrl-label">强度</span>
                 <n-select
-                  :value="row.strength" :options="strengthOptions" size="small" style="width: 110px"
+                  :value="row.strength" :options="strengthOptions" size="small" style="width: 100px"
                   @update:value="(v: string) => setDimRowStrength(row.indicatorId, v as Strength)"
                 />
               </div>
               <div class="ctrl-group ctrl-group--annual">
-                <span class="ctrl-label">年度（人）</span>
-                <span class="annual-display">{{ Math.round(row.annualTarget || 0) }}</span>
-                <n-tag v-if="row.manuallyEditedAnnual" :bordered="false" size="tiny" type="info" class="manual-tag">手动调整</n-tag>
-                <n-button
-                  v-if="row.manuallyEditedAnnual"
-                  text type="primary" size="tiny"
-                  class="reset-btn"
-                  @click="resetAnnualToAuto(row.indicatorId)"
-                >↻ 重算</n-button>
+                <span class="ctrl-label">年度</span>
                 <n-input-number
-                  v-if="!row.manuallyEditedAnnual"
                   :value="row.annualTarget"
-                  :min="0" size="small" style="width: 100px"
+                  :min="0" size="small" style="width: 96px"
                   @update:value="(v: number | null) => setDimRowAnnual(row.indicatorId, v)"
                 />
+                <span class="annual-unit">人</span>
+                <!-- 手动调整 toggle：auto ↔ manual；auto 时点 = 「·锁定」进入手动，manual 时点 = 「↻ 重算」回到按占比自动值 -->
+                <n-button
+                  size="tiny"
+                  :type="row.manuallyEditedAnnual ? 'primary' : 'default'"
+                  :ghost="!row.manuallyEditedAnnual"
+                  class="annual-toggle-btn"
+                  :class="{ 'annual-toggle-btn--locked': row.manuallyEditedAnnual }"
+                  :title="row.manuallyEditedAnnual ? '点击重算为按占比自动值' : '点击锁定当前值为手动调整（脱离 totalTarget 联动）'"
+                  @click="toggleAnnualMode(row.indicatorId)"
+                >
+                  {{ row.manuallyEditedAnnual ? '↻ 重算' : '·锁定' }}
+                </n-button>
               </div>
               <n-button text :type="row.pendingDelete ? 'primary' : 'error'" size="tiny" @click="toggleDimRowDelete(row.indicatorId)">
                 {{ row.pendingDelete ? '恢复' : '删除' }}
@@ -293,7 +297,7 @@
               <span class="view-pct">{{ row.targetPct == null ? '—' : row.targetPct.toFixed(1) + '%' }}</span>
               <span class="view-strength">{{ row.strength }}</span>
               <span class="view-annual">年度 <strong>{{ Math.round(row.annualTarget || 0) }}</strong> 人</span>
-              <n-tag v-if="row.manuallyEditedAnnual" :bordered="false" size="tiny" type="info" round class="manual-tag view-manual">手动调整</n-tag>
+              <n-tag v-if="row.manuallyEditedAnnual" :bordered="false" size="tiny" type="info" round class="view-manual">手动调整</n-tag>
             </div>
           </div>
 
@@ -301,7 +305,12 @@
           <div class="dim-row-monthly" v-if="dimEditor.mode === 'edit'">
             <div class="monthly-head">
               <span class="ctrl-label">12 个月度目标（单位：人）</span>
-              <n-button text type="primary" size="tiny" @click="redistributeDimMonthly(row.indicatorId)">均分年度目标</n-button>
+              <n-button
+                size="tiny" ghost type="primary"
+                class="monthly-redist-btn"
+                title="12 月按「年度 ÷ 12」整除，余数从 1 月开始各 +1"
+                @click="redistributeDimMonthly(row.indicatorId)"
+              >均分年度目标</n-button>
             </div>
             <div class="monthly-grid">
               <div v-for="(_, i) in 12" :key="i" class="month-cell">
@@ -907,30 +916,27 @@ function _redistributeAnnualByPct(total: number) {
   const locked = active.filter((r) => r.manuallyEditedAnnual)
   const fluid = active.filter((r) => !r.manuallyEditedAnnual)
   const lockedSum = locked.reduce((s, r) => s + Math.round(r.annualTarget || 0), 0)
+  // fluid 行要把总人数里「扣掉已锁」的部分吃满，因此 fluidTotal 的单位值是 fluidTotal/fluidSumPct
+  // 而非 totalTarget/100 —— 这就是「60% locked → 40% fluid → 重算 60% → 应得 1039 (== 60%×1731-40%×1731)」
+  // 而不是「60%×fluidTotal」= 60%×1039 = 623（v2.7 之前的 bug）。
   const fluidTotal = Math.max(0, target - lockedSum)
   const fluidSumPct = fluid.reduce((s, r) => s + (r.targetPct || 0), 0)
-  if (fluidSumPct <= 0) {
-    // 没有可自动分的占比，把未删但无占比的行留着原值
-    return
-  }
-  // 各 fluid 行精确分配量
+  if (fluidSumPct <= 0) return
+  // 各 fluid 行精确分配量：每个 unit% 占比 fluidTotal/fluidSumPct 的「购买力」
   const floats = fluid.map((r) => ({
     row: r,
-    exact: (r.targetPct || 0) / 100 * fluidTotal,
-    floor: Math.floor(((r.targetPct || 0) / 100) * fluidTotal),
+    exact: ((r.targetPct || 0) / fluidSumPct) * fluidTotal,
+    floor: Math.floor(((r.targetPct || 0) / fluidSumPct) * fluidTotal),
     frac: 0,
   }))
   for (const f of floats) f.frac = f.exact - f.floor
-  let allocated = floats.reduce((s, f) => s + f.floor, 0)
-  let need = fluidTotal - allocated
-  // 按小数部分从大到小补 1，最多 need 个
   floats.sort((a, b) => b.frac - a.frac)
-  for (let i = 0; i < floats.length && need > 0; i++) {
-    floats[i].row.annualTarget = floats[i].floor + 1
-    need--
-  }
-  for (let i = need; i < floats.length; i++) {
-    floats[i].row.annualTarget = floats[i].floor
+  const totalFloors = floats.reduce((s, f) => s + f.floor, 0)
+  // 用「补足到 fluidTotal」的整差量做最大余数分配（largest-remainder / Hamilton 法），
+  // 严格保证 fluidSum = fluidTotal；不再用两段循环（旧实现 second loop 会从 i=0 覆盖 +1）。
+  const needAdd = Math.max(0, Math.round(fluidTotal - totalFloors))
+  for (let i = 0; i < floats.length; i++) {
+    floats[i].row.annualTarget = i < needAdd ? floats[i].floor + 1 : floats[i].floor
   }
 }
 
@@ -1039,12 +1045,17 @@ function setDimEditorTotalTarget(v: number | null) {
   dimEditor.totalTarget = target
   _redistributeAnnualByPct(target)
 }
-/** 行尾「↻ 重算」：把该行强制回到「总人数 × 占比」推算值，脱离手动锁定。 */
-function resetAnnualToAuto(id: string) {
+/** 行内 toggle：auto ↔ manual。auto 时点 = "锁定到手动"（脱离 totalTarget 联动），manual 时点 = "↻ 重算"（回到按总人数×占比 推算）。 */
+function toggleAnnualMode(id: string) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
   if (!r) return
-  r.manuallyEditedAnnual = false
-  _redistributeAnnualByPct(dimEditor.totalTarget)
+  if (r.manuallyEditedAnnual) {
+    r.manuallyEditedAnnual = false
+    _redistributeAnnualByPct(dimEditor.totalTarget)
+  } else {
+    // 锁定当前值（即便它跟"理论自动值"一致，也明确标手动，避免 top-total 改动时被覆盖）
+    r.manuallyEditedAnnual = true
+  }
 }
 function setDimRowMonthly(id: string, idx: number, v: number | null) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
@@ -1615,24 +1626,58 @@ onMounted(async () => {
 .total-target-sep { color: var(--ink-faint); }
 .total-target-tag { margin-left: auto; }
 
-/* 行内「年度（人）」控件：手动调整/未调整两态 */
+/* 行内控件：默认 column（label 上、控件下），年度 row 改为水平排列 */
+.ctrl-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
 .ctrl-group--annual {
   flex-direction: row;
   align-items: center;
   gap: 6px;
+  flex-wrap: nowrap;
 }
-.annual-display {
-  display: inline-block;
-  min-width: 60px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--ink);
-  padding: 0 4px;
+.annual-unit {
+  font-size: 12px;
+  color: var(--ink-soft);
+  padding-right: 2px;
 }
-.manual-tag { font-size: 11px; }
-.reset-btn { padding: 0 6px; }
+.annual-toggle-btn {
+  font-size: 12px !important;
+  padding: 0 12px !important;
+  height: 28px !important;
+  border-radius: var(--radius-sm, 6px) !important;
+  white-space: nowrap !important;
+  min-width: 78px !important;
+  flex-shrink: 0 !important;
+}
+/* Locked 态（auto 模式，可锁定）：ghost 风格，仅边框 + brand 文字 */
+.annual-toggle-btn:not(.annual-toggle-btn--locked) {
+  background: transparent !important;
+  border: 1px solid var(--border-hairline) !important;
+  color: var(--ink-soft) !important;
+}
+.annual-toggle-btn:not(.annual-toggle-btn--locked):hover {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+  background: color-mix(in srgb, var(--brand) 8%, transparent) !important;
+}
+/* Locked 态（manual 模式，可解锁）：实心 brand 紫 + 白字，让"已被手动调整"在视觉上突出 */
+.annual-toggle-btn--locked {
+  border: 1px solid var(--brand) !important;
+}
+.annual-toggle-btn--locked:hover {
+  filter: brightness(1.05);
+}
+/* 「均分年度目标」按钮（monthly 区） */
+.monthly-redist-btn {
+  font-size: 12px !important;
+  padding: 0 10px !important;
+  height: 26px !important;
+  border-radius: var(--radius-sm, 6px) !important;
+}
 .view-manual { margin-left: 4px; }
 
 /* 占比/人数 加和 callout 双指标 */
