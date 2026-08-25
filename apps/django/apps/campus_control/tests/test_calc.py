@@ -146,19 +146,44 @@ class TestPrdAssertions:
         assert c985['onjob'] == _cnt(self.persons, school='985')
         assert c985['annualTarget'] == 40
 
-    def test_simulate_no_ratio_block(self):
-        # v2.6：录入校验只看人数，占比不再参与 verdict。
-        # 同样 draft（能电BG/211/男/工学）历史上会因性别 男 占比 硬约束 被阻断，
-        # 现在即便规则是硬约束、占比超限，也只可能在人数缺口时给 WARN，不会 BLOCK。
-        draft = {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
-        v = simulate(draft, self.rules, self.persons, 2026, month='8月')
-        assert v['verdict'] != VERDICT_BLOCK, v
+    def test_simulate_block_when_any_met(self):
+        # v2.7：任意规则「本月实际 >= 本月目标」→ 阻断（配额已满，不可再加）。
+        # SAMPLE 中 985 人员 status='已入职'（v2.5 旧名，不在 _COUNTED_STATUSES），
+        # 不计入；唯有 tmp（status='在途待入职', school=985）计入 → actual=1。
+        # 自定义 985 规则 monthly=[1]*12 → actual=1 >= target=1 → MET → 阻断。
+        # 占比不再参与 verdict；checks 不含 ratio/ratioStatus/strength。
+        custom_rules = [{
+            'bu': '', 'position': '', 'level': '',
+            'dimension': '院校标签', 'indicator': '985',
+            'year': 2026, 'annual_target': 12,
+            'monthly_targets': [1] * 12,
+        }]
+        draft = {'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月'}
+        v = simulate(draft, custom_rules, self.persons, 2026, month='8月')
+        assert v['verdict'] == VERDICT_BLOCK, v
+        r985 = v['checks'][0]
+        assert r985['dimension'] == '院校标签' and r985['indicator'] == '985', r985
+        assert r985['countStatus'] == '本月达标' and r985['monthActual'] == 1 and r985['monthTarget'] == 1, r985
         # checks 不再含 ratio / ratioStatus / strength
         for c in v['checks']:
             assert 'ratio' not in c
             assert 'ratioStatus' not in c
             assert 'strength' not in c
             assert {'dimension', 'indicator', 'monthActual', 'monthTarget', 'countStatus'} <= set(c.keys())
+
+    def test_simulate_warn_when_all_gap(self):
+        # v2.7：所有命中规则的「本月实际 < 本月目标」→ 警告（未达配额，但允许提交）。
+        # 自定义 1 条 985 全局规则、月度目标 50（远高于 SAMPLE 实际 12），必然 GAP。
+        custom_rules = [{
+            'bu': '', 'position': '', 'level': '',
+            'dimension': '院校标签', 'indicator': '985',
+            'year': 2026, 'annual_target': 600,
+            'monthly_targets': [50] * 12,
+        }]
+        draft = {'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月'}
+        v = simulate(draft, custom_rules, self.persons, 2026, month='8月')
+        assert v['verdict'] == VERDICT_WARN, v
+        assert all(c['countStatus'] == '缺口未达成' for c in v['checks']), v
 
 
 # ============================ 100% 加和硬校验 ============================
@@ -227,9 +252,10 @@ class TestApiEndpoints:
         assert resp.status_code == 200, resp.json()
         assert resp.json()['data']['rows']
 
-    def test_validate_endpoint_no_ratio_block(self, api_client):
-        # v2.6：录入校验 API 不再因占比硬约束阻断提交。
-        # 同样输入历史上返回 ❌ 阻断提交（VERDICT_BLOCK），现在至多 WARN（人数缺口）否则 PASS。
+    def test_validate_endpoint_headcount_only(self, api_client):
+        # v2.7：录入校验 API 仅按人数判定（不按占比）。
+        # 本 scheme 规则未设月度人数目标（monthly_targets 默认全 0），
+        # 命中规则均为「未设目标」→ 不阻断、不警告 → 通过。
         self._build_minimal_scheme(api_client)
         resp = api_client.post(
             '/api/v1/campus/rules/validate/?year=2026',
@@ -238,7 +264,7 @@ class TestApiEndpoints:
         )
         assert resp.status_code == 200, resp.json()
         data = resp.json()['data']
-        assert data['verdict'] != VERDICT_BLOCK, data
+        assert data['verdict'] == VERDICT_PASS, data
         # checks 不再含 ratio / ratioStatus / strength
         for c in data['checks']:
             assert 'ratio' not in c

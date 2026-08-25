@@ -286,9 +286,13 @@ def simulate(draft, rules, persons, year, month=None):
         rmap[(_scope_key(r), r['indicator'], r.get('year'))] = r.get('monthly_targets') or [0] * 12
     idx = month_to_index(tmp_month)
 
-    # v2.6 录入校验只看「人数」（本月实际 vs 本月目标），缺口 → 警告，否则通过。
-    # 占比不再参与校验：占比只在「规则配置」中用于把年度规划人数按占比拆到各月（plan 计算），
-    # 不用于「是否可以录入」判定。详见兵哥 v2.6 决策。
+    # v2.7 录入校验只看「人数」，且以「配额是否已满」作为阻断条件：
+    #   - 任意规则「本月实际 >= 本月目标」→ 阻断（配额已满，不可再加）
+    #   - 否则若有规则「本月实际 < 本月目标」→ 警告（未达配额，但允许提交）
+    #   - 否则 → 通过
+    # 占比不再参与校验（兵哥决策：占比仅用于规则配置时把规划人数按占比拆到各月）。
+    # month_target == 0（未设目标）的规则不参与 verdict 判定，countStatus 显示为「未设目标」。
+    block = False
     warn = False
     checks = []
     sim = persons + [tmp]
@@ -306,7 +310,14 @@ def simulate(draft, rules, persons, year, month=None):
             )
         else:
             month_actual = 0
-        cstatus = count_status(month_actual, month_target)
+        if month_target > 0:
+            cstatus = count_status(month_actual, month_target)
+            if cstatus == COUNT_MET:
+                block = True
+            elif cstatus == COUNT_GAP:
+                warn = True
+        else:
+            cstatus = COUNT_UNSET
         checks.append({
             'dimension': r['dimension'],
             'indicator': r['indicator'],
@@ -317,10 +328,8 @@ def simulate(draft, rules, persons, year, month=None):
             'monthTarget': month_target,
             'countStatus': cstatus,
         })
-        if cstatus == COUNT_GAP and month_target > 0:
-            warn = True
 
-    verdict = VERDICT_WARN if warn else VERDICT_PASS
+    verdict = VERDICT_BLOCK if block else (VERDICT_WARN if warn else VERDICT_PASS)
     return {'verdict': verdict, 'checks': checks}
 
 
