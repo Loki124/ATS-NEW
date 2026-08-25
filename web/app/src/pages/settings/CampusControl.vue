@@ -166,46 +166,68 @@
       class="rule-modal"
     >
       <n-form label-placement="top">
-        <n-form-item label="维度" required>
-          <n-select v-model:value="ruleDrawer.dimensionId" :options="dimensionOptions" placeholder="选择维度" @update:value="onRuleDimChange" />
-        </n-form-item>
-        <n-form-item label="指标（来自指标库）" required>
-          <n-select v-model:value="ruleDrawer.indicatorId" :options="ruleIndicatorOptions" placeholder="先选维度，再从指标库选择" />
-        </n-form-item>
-        <n-divider>适用范围（每个指标独立设定）</n-divider>
-        <n-form-item label="适用范围">
-          <n-switch v-model:value="ruleDrawer.isGlobal" @update:value="onRuleScopeToggle">
-            <template #checked>全局</template>
-            <template #unchecked>指定</template>
-          </n-switch>
-        </n-form-item>
-        <n-form-item v-if="!ruleDrawer.isGlobal" label="部门">
-          <n-select v-model:value="ruleDrawer.bu" :options="deptOptions" placeholder="部门" />
-        </n-form-item>
-        <n-form-item v-if="!ruleDrawer.isGlobal" label="职务">
-          <n-select v-model:value="ruleDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
-        </n-form-item>
-        <n-form-item v-if="!ruleDrawer.isGlobal" label="职级">
-          <n-select v-model:value="ruleDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
-        </n-form-item>
-        <n-divider>管控占比（占比上限）</n-divider>
-        <n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item>
-        <n-form-item label="控制强度">
-          <n-select v-model:value="ruleDrawer.strength" :options="strengthOptions" />
-        </n-form-item>
-        <n-divider>管控人数（年度 + 12 月）</n-divider>
-        <n-grid :cols="2" :x-gap="12">
-          <n-gi><n-form-item label="规划年度"><n-input-number v-model:value="ruleDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="年度目标人数"><n-input-number v-model:value="ruleDrawer.annualTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
-        </n-grid>
-        <n-divider>12 个月目标（单位：人）</n-divider>
-        <n-grid :cols="4" :x-gap="8" :y-gap="8">
-          <n-gi v-for="(_, i) in 12" :key="i">
-            <n-form-item :label="ALL_MONTHS[i]" label-placement="top">
-              <n-input-number v-model:value="ruleDrawer.monthly[i]" :min="0" style="width: 100%" />
-            </n-form-item>
-          </n-gi>
-        </n-grid>
+        <div class="form-section">
+          <div class="form-section-title"><span class="dot" />基本信息</div>
+          <n-form-item label="维度" required>
+            <n-select v-model:value="ruleDrawer.dimensionId" :options="dimensionOptions" placeholder="选择维度" @update:value="onRuleDimChange" />
+          </n-form-item>
+          <n-form-item label="指标（来自指标库）" required>
+            <n-select v-model:value="ruleDrawer.indicatorId" :options="ruleIndicatorOptions" placeholder="先选维度，再从指标库选择" />
+          </n-form-item>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">
+            <span class="dot" />适用范围
+            <span class="form-section-hint">（每个指标独立设定）</span>
+          </div>
+          <div class="scope-row">
+            <div class="scope-field">
+              <span class="scope-label">适用范围</span>
+              <n-switch v-model:value="ruleDrawer.isGlobal" size="small" @update:value="onRuleScopeToggle">
+                <template #checked>全局</template>
+                <template #unchecked>指定</template>
+              </n-switch>
+            </div>
+            <template v-if="!ruleDrawer.isGlobal">
+              <div class="scope-field">
+                <span class="scope-label">部门</span>
+                <n-select v-model:value="ruleDrawer.bu" :options="deptOptions" placeholder="部门" />
+              </div>
+              <div class="scope-field">
+                <span class="scope-label">职务</span>
+                <n-select v-model:value="ruleDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
+              </div>
+              <div class="scope-field">
+                <span class="scope-label">职级</span>
+                <n-select v-model:value="ruleDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title"><span class="dot" />管控占比（占比上限）</div>
+          <n-grid :cols="2" :x-gap="16">
+            <n-gi><n-form-item label="目标占比 %"><n-input-number v-model:value="ruleDrawer.targetPct" :min="0" :max="100" :step="0.5" style="width: 100%" /></n-form-item></n-gi>
+            <n-gi><n-form-item label="控制强度"><n-select v-model:value="ruleDrawer.strength" :options="strengthOptions" /></n-form-item></n-gi>
+          </n-grid>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title"><span class="dot" />管控人数（年度 + 12 月）</div>
+          <n-grid :cols="2" :x-gap="16" class="form-row-2">
+            <n-gi><n-form-item label="规划年度"><n-input-number v-model:value="ruleDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
+            <n-gi><n-form-item label="年度目标人数"><n-input-number v-model:value="ruleDrawer.annualTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
+          </n-grid>
+          <div class="monthly-block-label">12 个月目标（单位：人）</div>
+          <div class="monthly-grid monthly-grid--rule">
+            <div v-for="(_, i) in 12" :key="i" class="month-cell">
+              <span class="month-label">{{ ALL_MONTHS[i] }}</span>
+              <n-input-number v-model:value="ruleDrawer.monthly[i]" :min="0" :show-button="false" size="small" />
+            </div>
+          </div>
+        </div>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
@@ -229,78 +251,101 @@
         <n-form-item label="维度" required :show-feedback="false">
           <n-select v-model:value="batchDrawer.dimensionId" :options="dimensionOptions" placeholder="先选维度" @update:value="onBatchDimChange" />
         </n-form-item>
-        <n-divider style="margin: 10px 0;">适用范围（每个指标的适用范围独立配置）</n-divider>
-        <n-grid :cols="4" :x-gap="12">
-          <n-gi>
-            <n-form-item label="适用范围" :show-feedback="false">
-              <n-switch v-model:value="batchDrawer.isGlobal">
+
+        <div class="form-section">
+          <div class="form-section-title">
+            <span class="dot" />适用范围
+            <span class="form-section-hint">（每个指标的适用范围独立配置）</span>
+          </div>
+          <div class="scope-row">
+            <div class="scope-field">
+              <span class="scope-label">适用范围</span>
+              <n-switch v-model:value="batchDrawer.isGlobal" size="small">
                 <template #checked>全局</template>
                 <template #unchecked>指定</template>
               </n-switch>
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item v-if="!batchDrawer.isGlobal" label="部门" :show-feedback="false">
-              <n-select v-model:value="batchDrawer.bu" :options="deptOptions" placeholder="部门" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item v-if="!batchDrawer.isGlobal" label="职务" :show-feedback="false">
-              <n-select v-model:value="batchDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item v-if="!batchDrawer.isGlobal" label="职级" :show-feedback="false">
-              <n-select v-model:value="batchDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
-            </n-form-item>
-          </n-gi>
-        </n-grid>
-        <n-divider style="margin: 10px 0;">总人数 → 各指标人数</n-divider>
-        <n-grid :cols="2" :x-gap="12">
-          <n-gi><n-form-item label="年度" :show-feedback="false"><n-input-number v-model:value="batchDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="年度总人数（管控人数）" :show-feedback="false"><n-input-number v-model:value="batchDrawer.totalTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
-        </n-grid>
-        <n-divider style="margin: 10px 0;">指标与占比（占比之和 = 100%）</n-divider>
-        <div v-if="!batchDrawer.dimensionId" style="color: var(--ink-faint); padding: 8px 0; font-size: 13px;">请先选择维度</div>
-        <div v-else-if="batchIndicators.length === 0" style="color: var(--ink-faint); padding: 8px 0; font-size: 13px;">该维度下暂无指标，请先到「指标管理」新增</div>
-        <div v-else>
-          <div v-for="ind in batchIndicators" :key="ind.id" class="batch-row" :class="{ expanded: batchDrawer.indicatorIds.includes(ind.id) }">
-            <div class="batch-row-header">
-              <n-checkbox :checked="batchDrawer.indicatorIds.includes(ind.id)" @update:checked="(v: boolean) => onBatchIndicatorToggle(ind, v)">
-                <span style="font-weight: 500; font-size: 13px;">{{ ind.name }}</span>
-              </n-checkbox>
-              <span v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-row-controls">
-                <span class="batch-row-label">占比%</span>
-                <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 78px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
-                <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 90px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
-                <span class="batch-row-annual">年度 {{ batchIndicatorAnnual(ind.id) }} 人</span>
-              </span>
             </div>
-            <div v-if="batchDrawer.indicatorIds.includes(ind.id)" class="batch-monthly-panel">
-              <div class="batch-monthly-header">
-                <span class="batch-row-label">12 个月度目标（单位：人）</span>
-                <n-button text type="primary" size="tiny" @click="redistributeBatchMonthly(ind.id)">均分年度目标</n-button>
+            <template v-if="!batchDrawer.isGlobal">
+              <div class="scope-field">
+                <span class="scope-label">部门</span>
+                <n-select v-model:value="batchDrawer.bu" :options="deptOptions" placeholder="部门" />
               </div>
-              <n-grid :cols="6" :x-gap="6" :y-gap="4">
-                <n-gi v-for="(_, i) in 12" :key="i">
-                  <n-form-item :label="ALL_MONTHS[i]" label-placement="top" :show-feedback="false" :label-style="{ fontSize: '11px', paddingBottom: '2px' }">
-                    <n-input-number :value="batchDrawer.rows[ind.id]?.monthly?.[i] || 0" :min="0" size="small" style="width: 100%" @update:value="(v: number | null) => setBatchMonthly(ind.id, i, v)" />
-                  </n-form-item>
-                </n-gi>
-              </n-grid>
-              <div class="batch-monthly-sum">
-                已分配：{{ (batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) }} 人
-                <n-tag v-if="(batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) === batchIndicatorAnnual(ind.id)" type="success" size="small" :bordered="false">✓ 等于年度目标</n-tag>
-                <n-tag v-else type="warning" size="small" :bordered="false">⚠ 不等于年度目标 {{ batchIndicatorAnnual(ind.id) }} 人</n-tag>
+              <div class="scope-field">
+                <span class="scope-label">职务</span>
+                <n-select v-model:value="batchDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable />
               </div>
-            </div>
+              <div class="scope-field">
+                <span class="scope-label">职级</span>
+                <n-select v-model:value="batchDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable />
+              </div>
+            </template>
           </div>
-          <div class="batch-sum">
-            <span class="batch-row-label">占比之和：</span>
-            <n-tag :type="batchSumOk ? 'success' : 'warning'" :bordered="false" size="small">
-              {{ batchSumPct.toFixed(1) }}% {{ batchSumOk ? '✓ = 100%' : '⚠ 需 = 100%' }}
-            </n-tag>
-            <span v-if="!batchSumOk" class="batch-row-label">（差 {{ (100 - batchSumPct).toFixed(1) }}%）</span>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title"><span class="dot" />总人数 → 各指标人数</div>
+          <n-grid :cols="2" :x-gap="16">
+            <n-gi><n-form-item label="年度" :show-feedback="false"><n-input-number v-model:value="batchDrawer.year" :min="2020" :max="2100" style="width: 100%" /></n-form-item></n-gi>
+            <n-gi><n-form-item label="年度总人数（管控人数）" :show-feedback="false"><n-input-number v-model:value="batchDrawer.totalTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
+          </n-grid>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">
+            <span class="dot" />指标与占比
+            <span class="form-section-hint">（占比之和 = 100%）</span>
+          </div>
+
+          <div v-if="!batchDrawer.dimensionId" class="empty-tip">请先选择维度</div>
+          <div v-else-if="batchIndicators.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
+          <div v-else class="indicator-list">
+            <div v-for="ind in batchIndicators" :key="ind.id" class="indicator-card" :class="{ active: batchDrawer.indicatorIds.includes(ind.id) }">
+              <div class="indicator-head">
+                <n-checkbox :checked="batchDrawer.indicatorIds.includes(ind.id)" @update:checked="(v: boolean) => onBatchIndicatorToggle(ind, v)">
+                  <span class="indicator-name">{{ ind.name }}</span>
+                </n-checkbox>
+                <div v-if="batchDrawer.indicatorIds.includes(ind.id)" class="indicator-controls">
+                  <div class="ctrl-group">
+                    <span class="ctrl-label">占比 %</span>
+                    <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 100px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
+                  </div>
+                  <div class="ctrl-group">
+                    <span class="ctrl-label">控制强度</span>
+                    <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 120px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
+                  </div>
+                  <div class="indicator-annual">年度 <strong>{{ batchIndicatorAnnual(ind.id) }}</strong> 人</div>
+                </div>
+              </div>
+              <div v-if="batchDrawer.indicatorIds.includes(ind.id)" class="indicator-monthly">
+                <div class="monthly-head">
+                  <span class="ctrl-label">12 个月度目标（单位：人）</span>
+                  <n-button text type="primary" size="tiny" @click="redistributeBatchMonthly(ind.id)">均分年度目标</n-button>
+                </div>
+                <div class="monthly-grid">
+                  <div v-for="(_, i) in 12" :key="i" class="month-cell">
+                    <span class="month-label">{{ ALL_MONTHS[i] }}</span>
+                    <n-input-number :value="batchDrawer.rows[ind.id]?.monthly?.[i] || 0" :min="0" :show-button="false" size="small" @update:value="(v: number | null) => setBatchMonthly(ind.id, i, v)" />
+                  </div>
+                </div>
+                <div class="monthly-foot">
+                  <span class="allocated">已分配 <strong>{{ (batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) }}</strong> 人</span>
+                  <n-tag v-if="(batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) === batchIndicatorAnnual(ind.id)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
+                  <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ batchIndicatorAnnual(ind.id) }} 人</n-tag>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="batchDrawer.indicatorIds.length > 0" class="sum-callout" :class="{ ok: batchSumOk, warn: !batchSumOk }">
+              <div class="sum-left">
+                <span class="sum-label">占比之和</span>
+                <span class="sum-value">{{ batchSumPct.toFixed(1) }}%</span>
+              </div>
+              <div class="sum-right">
+                <n-tag v-if="batchSumOk" type="success" :bordered="false" size="small" round>✓ = 100%</n-tag>
+                <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 需 = 100%</n-tag>
+                <span v-if="!batchSumOk" class="sum-diff">差 {{ (100 - batchSumPct).toFixed(1) }}%</span>
+              </div>
+            </div>
           </div>
         </div>
       </n-form>
@@ -1279,101 +1324,256 @@ onMounted(async () => {
 
 .drawer-footer { display: flex; justify-content: flex-end; gap: var(--space-3); }
 
-.batch-row {
+/* ===================== 统一分区卡片（规则详情 / 批量配置 共享） ===================== */
+.form-section {
+  position: relative;
+  background: var(--glass-bg-input);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 12px 14px 14px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease;
+}
+.form-section:last-child { margin-bottom: 0; }
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 2px 0 10px;
+  letter-spacing: 0.2px;
+}
+.form-section-title .dot {
+  width: 3px;
+  height: 12px;
+  background: var(--brand);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.form-section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-faint);
+  margin-left: 2px;
+}
+
+/* 适用范围：flex 行；开关 + 字段并排 */
+.scope-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.scope-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
-  border-bottom: 1px dashed var(--border-hairline);
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 140px;
 }
-.batch-row-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-}
-.batch-row-controls { flex: 1; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.batch-row-label { color: var(--ink-soft); font-size: var(--text-meta); }
-.batch-row-annual {
-  margin-left: auto;
-  color: var(--brand);
-  font-size: var(--text-meta);
-  font-weight: 600;
-  min-width: 88px;
-  text-align: right;
-}
-.batch-monthly-panel {
-  width: 100%;
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  background: var(--glass-bg-input);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--brand-a12);
-}
-.batch-monthly-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.batch-monthly-sum {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+.scope-label {
   font-size: 12px;
-  color: var(--ink);
+  color: var(--ink-soft);
+  line-height: 1;
 }
-.batch-sum {
+
+/* 12 个月网格（批量=6 列，规则=4 列） */
+.monthly-block-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 12px 0 6px;
+}
+.monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px 6px;
+}
+.monthly-grid--rule {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.month-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+.month-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+  text-align: center;
+}
+.month-cell .n-input-number { width: 100%; }
+
+/* 指标卡片（仅批量弹窗） */
+.indicator-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.indicator-card {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.indicator-card.active {
+  border-color: var(--brand-a32);
+  background: var(--brand-tint);
+}
+.indicator-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 0 0;
-  margin-top: 10px;
-  border-top: 1px solid var(--border-hairline);
+  flex-wrap: wrap;
 }
-
-/* 批量配置弹窗：居中 + 紧凑 */
-.batch-modal :deep(.n-card__content) {
-  padding: 16px 20px 12px !important;
-}
-.batch-modal :deep(.n-card__footer) {
-  padding: 10px 20px 14px !important;
-}
-.batch-modal :deep(.n-card-header__main) {
-  font-size: 16px;
+.indicator-name {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--ink);
 }
-.batch-modal :deep(.n-form-item) {
-  margin-bottom: 8px;
+.indicator-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
-.batch-modal :deep(.n-form-item-label) {
+.ctrl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ctrl-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.indicator-annual {
   font-size: 12px;
-  padding-bottom: 4px !important;
+  color: var(--brand);
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: 4px;
+  padding-bottom: 2px;
 }
-.batch-modal :deep(.n-divider__title) {
+.indicator-annual strong {
+  font-weight: 700;
+  font-size: 13px;
+}
+.indicator-monthly {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-hairline);
+}
+.monthly-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.monthly-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.allocated strong { font-weight: 700; }
+
+/* 占比之和 callout */
+.sum-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.sum-callout.ok {
+  background: rgba(82, 196, 26, 0.08);
+  border: 1px solid rgba(82, 196, 26, 0.25);
+}
+.sum-callout.warn {
+  background: rgba(250, 140, 22, 0.08);
+  border: 1px solid rgba(250, 140, 22, 0.25);
+}
+.sum-left {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.sum-label {
   font-size: 12px;
   color: var(--ink-soft);
 }
-.batch-modal :deep(.n-checkbox__label) {
-  font-size: 13px;
+.sum-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
-.batch-modal .batch-row {
-  padding: 8px 0;
+.sum-right {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
-.batch-modal .batch-monthly-panel {
-  padding: 8px 10px;
+.sum-diff {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
-.batch-modal .batch-monthly-header {
-  margin-bottom: 6px;
+
+.empty-tip {
+  color: var(--ink-faint);
+  padding: 12px 4px;
+  font-size: 13px;
+  text-align: center;
 }
-.batch-modal .batch-monthly-sum {
-  margin-top: 6px;
+
+/* form-row-2 间距微调 */
+.form-row-2 { margin-bottom: 4px; }
+
+/* ===================== 弹窗级微调 ===================== */
+.batch-modal :deep(.n-card__content),
+.rule-modal :deep(.n-card__content) {
+  padding: 16px 20px 14px !important;
 }
-.batch-modal :deep(.n-input-number--small) {
+.batch-modal :deep(.n-card__footer),
+.rule-modal :deep(.n-card__footer) {
+  padding: 10px 20px 14px !important;
+}
+.batch-modal :deep(.n-card-header__main),
+.rule-modal :deep(.n-card-header__main) {
+  font-size: 16px;
+  font-weight: 600;
+}
+.batch-modal :deep(.n-form-item),
+.rule-modal :deep(.n-form-item) {
+  margin-bottom: 10px;
+}
+.batch-modal :deep(.n-form-item-label),
+.rule-modal :deep(.n-form-item-label) {
+  font-size: 12px;
+  padding-bottom: 4px !important;
+}
+.batch-modal :deep(.n-input-number--small),
+.rule-modal :deep(.n-input-number--small) {
   --n-height: 28px !important;
 }
-.batch-modal :deep(.n-select--small) {
+.batch-modal :deep(.n-select--small),
+.rule-modal :deep(.n-select--small) {
   --n-height: 28px !important;
 }
 
