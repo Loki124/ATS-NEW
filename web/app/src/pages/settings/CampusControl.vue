@@ -272,24 +272,26 @@
               </div>
               <div class="ctrl-group ctrl-group--annual">
                 <span class="ctrl-label">年度</span>
-                <n-input-number
-                  :value="row.annualTarget"
-                  :min="0" size="small" style="width: 96px"
-                  @update:value="(v: number | null) => setDimRowAnnual(row.indicatorId, v)"
-                />
-                <span class="annual-unit">人</span>
-                <!-- 手动调整 toggle：auto ↔ manual；auto 时点 = 「·锁定」进入手动，manual 时点 = 「↻ 重算」回到按占比自动值 -->
-                <n-button
-                  size="tiny"
-                  :type="row.manuallyEditedAnnual ? 'primary' : 'default'"
-                  :ghost="!row.manuallyEditedAnnual"
-                  class="annual-toggle-btn"
-                  :class="{ 'annual-toggle-btn--locked': row.manuallyEditedAnnual }"
-                  :title="row.manuallyEditedAnnual ? '点击重算为按占比自动值' : '点击锁定当前值为手动调整（脱离 totalTarget 联动）'"
-                  @click="toggleAnnualMode(row.indicatorId)"
-                >
-                  {{ row.manuallyEditedAnnual ? '↻ 重算' : '·锁定' }}
-                </n-button>
+                <div class="annual-ctrl-row">
+                  <n-input-number
+                    :value="row.annualTarget"
+                    :min="0" size="small" style="width: 96px"
+                    @update:value="(v: number | null) => setDimRowAnnual(row.indicatorId, v)"
+                  />
+                  <span class="annual-unit">人</span>
+                  <!-- 手动调整 toggle：auto ↔ manual；auto 时点 = 「·锁定」进入手动，manual 时点 = 「↻ 重算」回到按占比自动值 -->
+                  <n-button
+                    size="tiny"
+                    :type="row.manuallyEditedAnnual ? 'primary' : 'default'"
+                    :ghost="!row.manuallyEditedAnnual"
+                    class="annual-toggle-btn"
+                    :class="{ 'annual-toggle-btn--locked': row.manuallyEditedAnnual }"
+                    :title="row.manuallyEditedAnnual ? '点击重算为按占比自动值' : '点击锁定当前值为手动调整（脱离 totalTarget 联动）'"
+                    @click="toggleAnnualMode(row.indicatorId)"
+                  >
+                    {{ row.manuallyEditedAnnual ? '↻ 重算' : '·锁定' }}
+                  </n-button>
+                </div>
               </div>
               <n-button text :type="row.pendingDelete ? 'primary' : 'error'" size="tiny" @click="toggleDimRowDelete(row.indicatorId)">
                 {{ row.pendingDelete ? '恢复' : '删除' }}
@@ -1692,7 +1694,7 @@ onMounted(async () => {
 .total-target-sep { color: var(--ink-faint); }
 .total-target-tag { margin-left: auto; }
 
-/* 行内控件：默认 column（label 上、控件下），年度 row 改为水平排列 */
+/* 行内控件：统一上下结构（label 上、控件下），与「占比%」「强度」一致 */
 .ctrl-group {
   display: flex;
   flex-direction: column;
@@ -1700,10 +1702,13 @@ onMounted(async () => {
   gap: 4px;
 }
 .ctrl-group--annual {
-  flex-direction: row;
+  /* 继承 .ctrl-group 的 column 布局：标签在上，输入框+单位+toggle 在下 */
+  /* 与「占比%」「强度」保持一致的上下结构 */
+}
+.annual-ctrl-row {
+  display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;
 }
 .annual-unit {
   font-size: 12px;
