@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container" :class="{ 'edit-mode': !!currentType }">
     <!-- ===================== 列表模式 ===================== -->
     <template v-if="mode === 'list'">
       <div class="page-header">
@@ -58,32 +58,37 @@
         <n-button text size="small" class="back-btn" @click="backToList">
           <span style="font-size: 16px">←</span> 返回
         </n-button>
-        <div class="title-block">
-          <h1 class="page-title">编辑字典：{{ headDraft.name || currentType.name }}</h1>
-          <p class="page-subtitle">
-            <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
-              {{ currentType.isSystem ? '系统预置' : '自定义' }}
-            </n-tag>
-            <span class="code-pill">{{ currentType.code }}</span>
-            <span class="num-pill">编号 {{ currentType.dictNumber }}</span>
-          </p>
-        </div>
+        <h1 class="page-title">编辑字典：{{ headDraft.name || currentType.name }}</h1>
+        <span class="meta-pills">
+          <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
+            {{ currentType.isSystem ? '系统预置' : '自定义' }}
+          </n-tag>
+          <span class="code-pill">{{ currentType.code }}</span>
+          <span class="num-pill">编号 {{ currentType.dictNumber }}</span>
+        </span>
       </div>
 
-      <!-- 顶部提示条 -->
-      <n-alert type="warning" :show-icon="false" class="section">
-        <ul class="dict-hints">
-          <li>支持元素分级（推荐不超过 {{ MAX_TREE_LEVEL }} 级）。</li>
-          <li>元素描述支持 hover 提示。</li>
-          <li>编辑时仅支持删除新添加的元素，原有元素不支持删除。</li>
-          <li>停用及删除仅支持操作没有下级的元素。</li>
-          <li>配置项修改后，需提交后才会生效。</li>
-        </ul>
-      </n-alert>
+      <!-- 顶部提示条（单行压缩 + 详情气泡） -->
+      <div class="hint-bar section">
+        <n-icon :component="InformationCircleOutline" class="hint-bar-icon" />
+        <span class="hint-bar-text">编辑提示：分级管理 · 描述 hover 提示 · 仅删新增 · 停用/删需无下级 · 提交生效</span>
+        <n-popover trigger="click" placement="bottom-start" :show-arrow="false">
+          <template #trigger>
+            <n-button text size="tiny" class="hint-bar-more">详情 ›</n-button>
+          </template>
+          <ul class="hint-pop-list">
+            <li>支持元素分级（推荐不超过 {{ MAX_TREE_LEVEL }} 级）。</li>
+            <li>元素描述支持 hover 提示。</li>
+            <li>编辑时仅支持删除新添加的元素，原有元素不支持删除。</li>
+            <li>停用及删除仅支持操作没有下级的元素。</li>
+            <li>配置项修改后，需提交后才会生效。</li>
+          </ul>
+        </n-popover>
+      </div>
 
-      <n-card title="字典信息" :bordered="false" class="section">
-        <n-form label-placement="top" :model="headDraft">
-          <n-grid :cols="4" :x-gap="24" :y-gap="4">
+      <n-card title="字典信息" :bordered="false" class="section section--info">
+        <n-form label-placement="left" :label-width="84" :model="headDraft">
+          <n-grid :cols="4" :x-gap="24" :y-gap="8">
             <n-gi>
               <n-form-item label="字典名称" path="name">
                 <n-input v-model:value="headDraft.name" placeholder="请输入" />
@@ -111,7 +116,7 @@
                   v-model:value="headDraft.description"
                   type="textarea"
                   placeholder="请输入"
-                  :autosize="{ minRows: 2, maxRows: 4 }"
+                  :autosize="{ minRows: 1, maxRows: 2 }"
                 />
               </n-form-item>
             </n-gi>
@@ -119,12 +124,12 @@
         </n-form>
       </n-card>
 
-      <n-card title="字典元素" :bordered="false" class="section">
+      <n-card title="字典元素" :bordered="false" class="section section--elements">
         <template #header-extra>
           <n-button size="small" @click="addRootItem">+ 新增元素</n-button>
         </template>
 
-        <div style="overflow-x: auto;">
+        <div class="el-table-scroll">
           <div class="el-table">
           <div class="el-row el-head">
             <div class="el-cell" style="flex: 1.4">元素名称</div>
@@ -336,7 +341,7 @@ import {
   type DictionaryItem,
 } from '../../api/dictionary'
 import { extractApiError } from '../../api/dynamic-field'
-import { SearchOutline } from '@vicons/ionicons5'
+import { SearchOutline, InformationCircleOutline } from '@vicons/ionicons5'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -894,6 +899,18 @@ onUnmounted(() => {
   overflow-y: auto !important;
   gap: 0 !important;
 }
+/* 编辑模式：把头部 + 字典信息 + 字典元素 串成纵向 flex，元素卡片吃满剩余空间。
+   关键：必须锁定 page-container 高度（不能 min-height:100%），
+   否则 flex:1 在外层滚动容器里没有"剩余空间"可吃，元素卡片仍按内容高度生长，外层页面滚动代替内部滚动。 */
+.page-container.edit-mode {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.page-container.edit-mode .section:last-of-type { margin-bottom: 0; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 /* margin-bottom 与负 margin（让底部 border 通栏）由全局 .settings-scroll .page-header 统一处理；
    本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
@@ -901,16 +918,68 @@ onUnmounted(() => {
 .code-pill, .num-pill { font-size: 12px; color: #666; background: var(--g1); padding: 2px 8px; border-radius: 4px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .section { margin-bottom: 16px; }
-.edit-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.back-btn { align-self: baseline; margin-top: 6px; }
-.title-block { display: flex; flex-direction: column; gap: 4px; }
+.section--info :deep(.n-card__content) { padding: 12px 16px !important; }
+/* 元素卡片：用 absolute 定位把 .el-table-scroll 钉死在 n-card-body 内，
+   避免依赖 Naive UI 内部的 flex 链（多层 :deep 嵌套不可靠） */
+.section--elements {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 480px !important;
+  max-height: calc(100vh - 360px) !important;
+}
+.section--elements :deep(.n-card) {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+}
+.section--elements :deep(.n-card-body),
+.section--elements :deep(.n-card__content) {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  padding: 12px 16px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+/* 单行对齐：返回按钮 / 标题 / meta 标签 同行，meta 标签靠右 */
+.edit-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.edit-header .page-title { margin: 0; flex: 1; min-width: 0; }
+.edit-header .meta-pills { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.back-btn { flex-shrink: 0; }
+
+/* 压缩提示条：单行 + 气泡详情 */
+.hint-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: rgba(250, 173, 20, 0.08);
+  border: 1px solid rgba(250, 173, 20, 0.22);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.hint-bar-icon { color: #faad14; font-size: 14px; flex-shrink: 0; }
+.hint-bar-text { color: var(--ink-soft); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hint-bar-more { color: var(--brand); padding: 0 4px; }
+.hint-pop-list { margin: 0; padding-left: 18px; font-size: 13px; max-width: 360px; }
+.hint-pop-list li { margin-bottom: 4px; line-height: 1.6; }
 
 .hint { color: #aaa; font-size: 12px; margin-left: 8px; }
-.dict-hints { margin: 0; padding-left: 18px; font-size: 13px; }
-.dict-hints li { margin-bottom: 2px; }
 
-/* 元素树形表格 */
+/* 元素树形表格
+   用 absolute 定位填满 n-card-body 的内容区，overflow:auto 在内容溢出时触发滚动 */
+.el-table-scroll {
+  position: absolute !important;
+  inset: 12px 16px !important;
+  overflow: auto !important;
+  border-radius: 8px;
+}
 .el-table { border: 1px solid #eee; border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
+.el-table-scroll .el-table { border: none; border-radius: 0; min-width: 720px; }
+.el-head { position: sticky; top: 0; z-index: 1; }
 .el-row { display: flex; align-items: center; border-bottom: 1px solid #f2f3f5; min-height: 48px; }
 .el-row:last-child { border-bottom: none; }
 .el-head { background: var(--g1); font-weight: 600; font-size: 13px; color: #555; white-space: nowrap; }
