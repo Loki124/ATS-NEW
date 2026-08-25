@@ -286,15 +286,15 @@ def simulate(draft, rules, persons, year, month=None):
         rmap[(_scope_key(r), r['indicator'], r.get('year'))] = r.get('monthly_targets') or [0] * 12
     idx = month_to_index(tmp_month)
 
-    block = False
+    # v2.6 录入校验只看「人数」（本月实际 vs 本月目标），缺口 → 警告，否则通过。
+    # 占比不再参与校验：占比只在「规则配置」中用于把年度规划人数按占比拆到各月（plan 计算），
+    # 不用于「是否可以录入」判定。详见兵哥 v2.6 决策。
     warn = False
     checks = []
     sim = persons + [tmp]
     for r in rules:
         if not _draft_hits_rule(draft, r):
             continue
-        ratio = ratio_of(r, sim)
-        rstatus = ratio_status(ratio, r)
         mt = rmap.get((_scope_key(r), r['indicator'], r.get('year')))
         month_target = int(mt[idx - 1]) if mt and 1 <= idx <= 12 else 0
         if 1 <= idx <= 12:
@@ -313,27 +313,14 @@ def simulate(draft, rules, persons, year, month=None):
             'bu': r.get('bu') or '',
             'position': r.get('position') or '',
             'level': r.get('level') or '',
-            'strength': r['strength'],
-            'ratio': _round3(ratio),
-            'ratioStatus': rstatus,
             'monthActual': month_actual,
             'monthTarget': month_target,
             'countStatus': cstatus,
         })
-        if rstatus != RATIO_NORMAL:
-            if r['strength'] == '硬约束':
-                block = True
-            else:
-                warn = True
         if cstatus == COUNT_GAP and month_target > 0:
             warn = True
 
-    if block:
-        verdict = VERDICT_BLOCK
-    elif warn:
-        verdict = VERDICT_WARN
-    else:
-        verdict = VERDICT_PASS
+    verdict = VERDICT_WARN if warn else VERDICT_PASS
     return {'verdict': verdict, 'checks': checks}
 
 

@@ -146,13 +146,19 @@ class TestPrdAssertions:
         assert c985['onjob'] == _cnt(self.persons, school='985')
         assert c985['annualTarget'] == 40
 
-    def test_simulate_block(self):
+    def test_simulate_no_ratio_block(self):
+        # v2.6：录入校验只看人数，占比不再参与 verdict。
+        # 同样 draft（能电BG/211/男/工学）历史上会因性别 男 占比 硬约束 被阻断，
+        # 现在即便规则是硬约束、占比超限，也只可能在人数缺口时给 WARN，不会 BLOCK。
         draft = {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
         v = simulate(draft, self.rules, self.persons, 2026, month='8月')
-        assert v['verdict'] == VERDICT_BLOCK
-        c = next(ch for ch in v['checks'] if ch['dimension'] == '性别' and ch['indicator'] == '男' and ch['bu'] == '能电BG')
-        assert c['ratioStatus'] == RATIO_ABOVE
-        assert c['strength'] == '硬约束'
+        assert v['verdict'] != VERDICT_BLOCK, v
+        # checks 不再含 ratio / ratioStatus / strength
+        for c in v['checks']:
+            assert 'ratio' not in c
+            assert 'ratioStatus' not in c
+            assert 'strength' not in c
+            assert {'dimension', 'indicator', 'monthActual', 'monthTarget', 'countStatus'} <= set(c.keys())
 
 
 # ============================ 100% 加和硬校验 ============================
@@ -221,7 +227,9 @@ class TestApiEndpoints:
         assert resp.status_code == 200, resp.json()
         assert resp.json()['data']['rows']
 
-    def test_validate_endpoint_block(self, api_client):
+    def test_validate_endpoint_no_ratio_block(self, api_client):
+        # v2.6：录入校验 API 不再因占比硬约束阻断提交。
+        # 同样输入历史上返回 ❌ 阻断提交（VERDICT_BLOCK），现在至多 WARN（人数缺口）否则 PASS。
         self._build_minimal_scheme(api_client)
         resp = api_client.post(
             '/api/v1/campus/rules/validate/?year=2026',
@@ -229,7 +237,13 @@ class TestApiEndpoints:
             format='json',
         )
         assert resp.status_code == 200, resp.json()
-        assert resp.json()['data']['verdict'] == VERDICT_BLOCK
+        data = resp.json()['data']
+        assert data['verdict'] != VERDICT_BLOCK, data
+        # checks 不再含 ratio / ratioStatus / strength
+        for c in data['checks']:
+            assert 'ratio' not in c
+            assert 'ratioStatus' not in c
+            assert 'strength' not in c
 
     def test_rule_100_block_via_api(self, api_client):
         d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()

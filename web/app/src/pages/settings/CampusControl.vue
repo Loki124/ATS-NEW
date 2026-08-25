@@ -765,14 +765,14 @@ const personColumns: DataTableColumns<Person> = [
   },
 ]
 
+// v2.6 录入校验只看人数。占比/占比状态/强度三列移除（占比仅用于规则配置时计算实际人数，
+// 不参与「是否可以录入」判定；strength 只对占比硬/软约束有意义，人数校验无此概念）。
+// 实时看板（mergedColumns）仍使用 strengthType/ratioStatusType/pct，此处不删工具函数。
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
-  { title: '适用范围', key: 'bu', width: 150, render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: '维度', key: 'dimension', width: 100 }, { title: '指标', key: 'indicator', width: 90 },
-  { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
-  { title: '占比', key: 'ratio', width: 80, render: (r) => pct(r.ratio) },
-  { title: '占比状态', key: 'ratioStatus', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.ratioStatus), bordered: false, size: 'small' }, { default: () => r.ratioStatus }) },
-  { title: '本月实际', key: 'monthActual', width: 90 }, { title: '本月目标', key: 'monthTarget', width: 90 },
-  { title: '人数状态', key: 'countStatus', width: 100, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
+  { title: '适用范围', key: 'bu', width: 180, render: (r) => scopeText(r.bu, r.position, r.level) },
+  { title: '维度', key: 'dimension', width: 100 }, { title: '指标', key: 'indicator', width: 100 },
+  { title: '本月实际', key: 'monthActual', width: 100 }, { title: '本月目标', key: 'monthTarget', width: 100 },
+  { title: '人数状态', key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
 ]
 
 /* ============================ 规则详情抽屉 ============================ */
