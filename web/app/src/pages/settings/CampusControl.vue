@@ -1099,6 +1099,29 @@ function formatScopeLabel(s: { bu: string; position: string; level: string; year
   const parts = [s.bu, s.position, s.level].filter(Boolean).join(' · ')
   return `${parts} / ${s.year} 年`
 }
+/**
+ * 当前 (dimension, year) 下，与「当前生效 scope 类型相反」的既有规则集（用于保存前预警）。
+ *  - 当前为指定范围 → 取全局规则（bu/position/level 全空）
+ *  - 当前为全局 → 取所有指定范围规则
+ * 重定位场景下排除 original scope（其规则保存时会被删除，不算冲突）。
+ */
+function _oppositeScopeRules(): ControlRule[] {
+  const dim = dimEditor.dimensionId
+  const year = dimEditor.year
+  if (!dim) return []
+  const c = _currentEffectiveScope()
+  const curIsGlobal = !c.bu && !c.position && !c.level
+  const o = dimEditor.originalScope
+  return rules.value.filter((r) => {
+    if (r.dimension !== dim || r.year !== year) return false
+    const rIsGlobal = !r.bu && !r.position && !r.level
+    if (rIsGlobal !== curIsGlobal) {
+      if (o && o.bu === r.bu && o.position === r.position && o.level === r.level && o.year === r.year) return false
+      return true
+    }
+    return false
+  })
+}
 
 function enterDimEdit() { dimEditor.mode = 'edit' }
 function closeDimEditor() {
@@ -1227,11 +1250,38 @@ async function saveDimRuleSet() {
       loading.saveDimRuleSet = false
     }
   }
+  const c = _currentEffectiveScope()
+  const curIsGlobal = !c.bu && !c.position && !c.level
+  const opposite = _oppositeScopeRules()
+  // 保存全局但存在其他指定范围 → 后端会拦截，这里提前告知，避免误以为能保存
+  if (curIsGlobal && opposite.length > 0) {
+    dialog.error({
+      title: '无法保存为全局规则',
+      content: '该维度年度下已存在指定范围规则集，保存全局会清空这些指定范围，操作被拦截。请先删除指定范围规则，或改用指定范围保存。',
+      positiveText: '我知道了',
+    })
+    return
+  }
   if (relocate) {
+    const clearGlobalNote =
+      !curIsGlobal && opposite.length > 0
+        ? '\n注意：保存指定范围会同时清除该维度年度下的全局规则。'
+        : ''
     dialog.warning({
       title: '重定位适用范围',
-      content: `将把该维度规则集从「${formatScopeLabel(dimEditor.originalScope)}」迁移到「${formatScopeLabel(_currentEffectiveScope())}」。\n原「${formatScopeLabel(dimEditor.originalScope)}」下的规则将被删除，是否继续？`,
+      content: `将把该维度规则集从「${formatScopeLabel(dimEditor.originalScope)}」迁移到「${formatScopeLabel(_currentEffectiveScope())}」。\n原「${formatScopeLabel(dimEditor.originalScope)}」下的规则将被删除。${clearGlobalNote}`,
       positiveText: '迁移',
+      negativeText: '取消',
+      onPositiveClick: doSave,
+    })
+    return
+  }
+  // 非重定位的普通保存：若会触发跨 scope 清理（指定范围→清全局），显式确认
+  if (!curIsGlobal && opposite.length > 0) {
+    dialog.warning({
+      title: '跨适用范围保存确认',
+      content: '保存指定范围将同时清除该维度年度下的全局规则，是否继续？',
+      positiveText: '继续保存',
       negativeText: '取消',
       onPositiveClick: doSave,
     })

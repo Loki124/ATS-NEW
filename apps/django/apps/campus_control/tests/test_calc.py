@@ -639,8 +639,11 @@ class TestDimensionSetRules:
         assert len(dim_rules) == 2
         assert all(r['bu'] == '能电BG' for r in dim_rules)
 
-    def test_set_rules_scope_mutex_global_then_specific_blocked(self, api_client):
-        """同一维度已存在全局规则集，再建指定范围规则集 → 400 拦截（防重复计入）。"""
+    def test_set_rules_specific_deletes_global(self, api_client):
+        """保存指定范围规则集时，删除该 (dimension, year) 下的全局规则（互斥从拦截改为替换）。
+
+        同一 (dimension, year) 下不可同时存在全局与指定范围。保存指定范围时自动清理全局规则。
+        """
         dim_id, i1, i2, _, _, _, year = self._setup_scheme(api_client)
         # 全局 scope 建规则集
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
@@ -651,19 +654,29 @@ class TestDimensionSetRules:
             ],
         }, format='json')
         assert resp.status_code == 200, resp.content
-        # 再建能电BG 指定范围 → 应被互斥拦截
+        # 保存 能电BG 指定范围 → 全局规则应被自动删除
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
             'bu': '能电BG', 'position': '', 'level': '', 'year': year,
             'rules': [
-                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.3, 'strength': '软约束'},
             ],
         }, format='json')
-        assert resp.status_code == 400, f"got {resp.status_code}: {resp.content!r}"
-        assert '全局' in resp.json().get('detail', '') and '指定范围' in resp.json().get('detail', '')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        # 全局已删、能电BG 重建（2 条，新占比）
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+        # rules 列表接口的 target 序列化为字符串（如 '0.7000'），断言需转 float
+        assert any(float(r['target']) == 0.7 for r in dim_rules), f"targets: {[r['target'] for r in dim_rules]}"
 
-    def test_set_rules_scope_mutex_specific_then_global_blocked(self, api_client):
-        """同一维度已存在指定范围规则集，再建全局规则集 → 400 拦截。"""
+    def test_set_rules_global_blocked_when_specific_exists(self, api_client):
+        """保存全局规则集时，若已存在指定范围规则，则拦截（避免静默清空用户指定范围配置）。
+
+        同一 (dimension, year) 下不可同时存在全局与指定范围。保存全局不会自动删除指定范围，
+        而是返回 400，由用户显式删除指定范围后再保存全局（其他指定范围无需调整）。
+        """
         dim_id, i1, i2, _, _, _, year = self._setup_scheme(api_client)
         # 能电BG 指定范围建规则集
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
@@ -674,7 +687,7 @@ class TestDimensionSetRules:
             ],
         }, format='json')
         assert resp.status_code == 200, resp.content
-        # 再建全局 → 应被互斥拦截
+        # 保存全局 → 应被拦截（能电BG 仍存在，不会被静默删除）
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
             'bu': '', 'position': '', 'level': '', 'year': year,
             'rules': [
@@ -683,7 +696,86 @@ class TestDimensionSetRules:
             ],
         }, format='json')
         assert resp.status_code == 400, f"got {resp.status_code}: {resp.content!r}"
-        assert '全局' in resp.json().get('detail', '') and '指定范围' in resp.json().get('detail', '')
+        # 能电BG 仍保留
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+
+    def test_set_rules_relocate_specific_to_global_allowed(self, api_client):
+        """重定位「指定范围 → 全局」时，原始指定范围被同事务删除，故允许（不判冲突）。
+
+        用户把能电BG 规则集改存为全局：原能电BG 消失、全局重建；不应被「全局被拦截」逻辑挡住。
+        """
+        dim_id, i1, i2, _, _, _, year = self._setup_scheme(api_client)
+        # 能电BG 指定范围建规则集
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        # 重定位到全局（original 告知后端删原能电BG）→ 应允许
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '', 'position': '', 'level': '', 'year': year,
+            'original': {'bu': '能电BG', 'position': '', 'level': '', 'year': year},
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        # 能电BG 已删，全局重建（2 条）
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '' for r in dim_rules)
+
+    def test_set_rules_specific_keeps_other_specific(self, api_client):
+        """保存指定范围时，其他指定范围不调整（用户确认：无需删除其他指定范围）。
+
+        多个指定范围可以共存于同一 (dimension, year)，互斥仅约束「全局 vs 指定范围」。
+        """
+        dim_id, i1, i2, _, _, _, year = self._setup_scheme(api_client)
+        # 能电BG
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        # 校招BU（与能电BG 共存）
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '校招BU', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.5, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.5, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        # 更新 能电BG（占比改为 0.7/0.3）→ 校招BU 应保持不变
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.3, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        # 能电BG 2 条（新占比）+ 校招BU 2 条（原占比）= 4 条
+        assert len(dim_rules) == 4
+        ndg_rules = [r for r in dim_rules if r['bu'] == '能电BG']
+        assert len(ndg_rules) == 2
+        assert any(float(r['target']) == 0.7 for r in ndg_rules)
+        xz_rules = [r for r in dim_rules if r['bu'] == '校招BU']
+        assert len(xz_rules) == 2
+        assert any(float(r['target']) == 0.5 for r in xz_rules)
 
     def test_set_rules_scope_mutex_relocate_global_to_specific_allowed(self, api_client):
         """重定位全局→指定范围（中间无其他 scope 规则集）→ 允许（原全局同事务被删，豁免检查）。"""

@@ -297,17 +297,31 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 return Response({'success': False, 'detail': 'original.year 须为整数'}, status=400)
             relocate = (obu != bu or opos != position or olev != level or oyear != year)
 
-        # ---- 「全局 / 指定范围」互斥：同一 (dimension, year) 不可两种 scope 并存 ----
-        # 重定位（original 告知原 scope，同事务被删）天然受此约束：迁移后若产生「全局+指定」混合即拦截。
-        # 旧「目标 scope 已存在规则集」冲突拦截已并入此单一约束（relocate 到已存在 scope = 迁移后混合）。
-        # 豁免当前 scope（本条请求将整体重建）+ 重定位原 scope（同事务将被删）。
-        _mutex_ok, _mutex_detail = check_scope_mutex(
-            ControlRule.objects.filter(dimension=dimension, year=year),
-            incoming_scope=(bu, position, level),
-            incoming_original=(obu, opos, olev) if relocate else None,
-        )
-        if not _mutex_ok:
-            return Response({'success': False, 'detail': _mutex_detail}, status=400)
+        # ---- 「全局 / 指定范围」互斥 ----
+        # 同一 (dimension, year) 下不可同时存在全局与指定范围（否则 calc 重复计数）。
+        # 保存「指定范围」→ 删除该维度年度下的【全局】规则（其他指定范围保留，用户确认无需调整）。
+        # 保存「全局」→ 若存在「非本次重定位来源」的指定范围规则，则【拦截】，
+        #   避免静默清空用户的指定范围配置（其他指定范围无需调整）。
+        # 重定位到全局时，原始 scope 规则集会在事务内被删，故排除它后再判冲突。
+        if bu or position or level:
+            # 保存指定范围：删除全局规则
+            ControlRule.objects.filter(
+                dimension=dimension, year=year,
+                bu='', position='', level='',
+            ).delete()
+        else:
+            specified_qs = ControlRule.objects.filter(
+                dimension=dimension, year=year,
+            ).exclude(bu='', position='', level='')
+            if relocate:
+                specified_qs = specified_qs.exclude(
+                    bu=obu, position=opos, level=olev, year=oyear
+                )
+            if specified_qs.exists():
+                return Response(
+                    {'success': False, 'detail': '该维度年度下已存在其他指定范围规则集，保存全局会清空这些指定范围，请先删除指定范围或改用指定范围保存。'},
+                    status=400,
+                )
 
         with transaction.atomic():
             if relocate:
