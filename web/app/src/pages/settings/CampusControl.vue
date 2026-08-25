@@ -185,7 +185,6 @@
             <n-switch
               v-model:value="dimEditor.isGlobal"
               size="small"
-              :disabled="dimEditor.lockContext"
               class="scope-title-switch"
               @update:value="onDimEditorCtxChange"
             >
@@ -197,21 +196,24 @@
             <template v-if="!dimEditor.isGlobal">
               <div class="scope-field">
                 <span class="scope-label">部门</span>
-                <n-select v-model:value="dimEditor.bu" :options="deptOptions" placeholder="部门" :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange" />
+                <n-select v-model:value="dimEditor.bu" :options="deptOptions" placeholder="部门" @update:value="onDimEditorCtxChange" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职务</span>
-                <n-select v-model:value="dimEditor.position" :options="positionOptions" placeholder="职务(不限)" clearable :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange" />
+                <n-select v-model:value="dimEditor.position" :options="positionOptions" placeholder="职务(不限)" clearable @update:value="onDimEditorCtxChange" />
               </div>
               <div class="scope-field">
                 <span class="scope-label">职级</span>
-                <n-select v-model:value="dimEditor.level" :options="levelOptions" placeholder="职级(不限)" clearable :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange" />
+                <n-select v-model:value="dimEditor.level" :options="levelOptions" placeholder="职级(不限)" clearable @update:value="onDimEditorCtxChange" />
               </div>
             </template>
             <div class="scope-field">
               <span class="scope-label">年度</span>
               <n-input-number v-model:value="dimEditor.year" :min="2020" :max="2100" :disabled="dimEditor.lockContext" style="width: 110px" @update:value="onDimEditorCtxChange" />
             </div>
+            <n-alert v-if="dimEditor.scopeDirty" type="warning" :show-icon="true" class="scope-relocate-hint">
+              适用范围已修改，保存时将把该维度规则集从「{{ formatScopeLabel(dimEditor.originalScope) }}」<b>重定位</b>到「{{ formatScopeLabel(_currentEffectiveScope()) }}」，原适用范围下的规则将被删除。
+            </n-alert>
           </div>
         </div>
 
@@ -865,11 +867,16 @@ interface DimEditorRow {
 const dimEditor = reactive({
   show: false,
   mode: 'view' as 'view' | 'edit',
-  lockContext: false, // 从已有规则打开时锁定 适用范围/维度/年度
+  // 从已有规则打开时锁定「维度/年度」（规则集身份），适用范围保持可改以支持「重定位」
+  lockContext: false,
   dimensionId: '' as string | null,
   isGlobal: true,
   bu: '', position: '', level: '',
   year: 2026,
+  /** 编辑态打开时的适用范围快照，作为「重定位」参照；改了适用范围即触发迁移。 */
+  originalScope: null as { bu: string; position: string; level: string; year: number } | null,
+  /** 编辑态下适用范围是否相对 originalScope 变化（决定是否走重定位路径）。 */
+  scopeDirty: false,
   /** 维度级「年度管控人数」。所有未删除指标行的 annualTarget 默认由 该值 × 占比 推导；手调过的行除外。 */
   totalTarget: 0,
   rows: [] as DimEditorRow[],
@@ -988,13 +995,17 @@ function openDimensionEditor(rule?: ControlRule, opts?: { preDelete?: string }) 
     dimEditor.position = rule.position || ''
     dimEditor.level = rule.level || ''
     dimEditor.year = rule.year
-    dimEditor.lockContext = true
+    dimEditor.lockContext = true // 维度/年度锁定（身份），适用范围保持可改
+    dimEditor.originalScope = { bu: rule.bu || '', position: rule.position || '', level: rule.level || '', year: rule.year }
+    dimEditor.scopeDirty = false
   } else {
     dimEditor.dimensionId = null
     dimEditor.isGlobal = true
     dimEditor.bu = ''; dimEditor.position = ''; dimEditor.level = ''
     dimEditor.year = 2026
     dimEditor.lockContext = false
+    dimEditor.originalScope = null
+    dimEditor.scopeDirty = false
   }
   dimEditor.mode = opts?.preDelete ? 'edit' : 'view'
   dimEditor.show = true
@@ -1009,9 +1020,41 @@ function onDimEditorDimChange() {
   dimEditor.rows = []
   if (dimEditor.dimensionId) _buildDimRows()
 }
-/** 上下文切换（适用范围 / 年度）也要重建行：从历史规则派生对应 (适用范围,维度,年度) 的 monthly/annual。 */
+/**
+ * 上下文切换处理：
+ * - 新建态（!lockContext）：适用范围/年度变化 → 重建行，从历史规则派生对应 (适用范围,维度,年度) 的 monthly/annual。
+ * - 编辑态（lockContext）：维度/年度已锁定，仅适用范围可改；改适用范围**不重建行**（避免丢失正在编辑的指标/占比/人数），
+ *   仅标记 scopeDirty，保存时按「重定位」语义删除原 scope 规则集、在新 scope 重建。
+ */
 function onDimEditorCtxChange() {
-  if (dimEditor.dimensionId) _buildDimRows()
+  if (!dimEditor.lockContext) {
+    if (dimEditor.dimensionId) _buildDimRows()
+    return
+  }
+  dimEditor.scopeDirty = _isScopeDirty()
+}
+/** 编辑态下取「当前生效适用范围」（全局时 bu/position/level 归空）。 */
+function _currentEffectiveScope() {
+  return {
+    bu: dimEditor.isGlobal ? '' : dimEditor.bu,
+    position: dimEditor.isGlobal ? '' : dimEditor.position,
+    level: dimEditor.isGlobal ? '' : dimEditor.level,
+    year: dimEditor.year,
+  }
+}
+/** 当前生效适用范围是否与原打开时不同（决定是否触发重定位）。 */
+function _isScopeDirty(): boolean {
+  const o = dimEditor.originalScope
+  if (!o) return false
+  const c = _currentEffectiveScope()
+  return o.bu !== c.bu || o.position !== c.position || o.level !== c.level || o.year !== c.year
+}
+/** 适用范围展示文案：全局 →「全局 / YYYY 年」；指定 →「部门 · 职务 · 职级 / YYYY 年」。 */
+function formatScopeLabel(s: { bu: string; position: string; level: string; year: number } | null): string {
+  if (!s) return '—'
+  if (!s.bu && !s.position && !s.level) return `全局 / ${s.year} 年`
+  const parts = [s.bu, s.position, s.level].filter(Boolean).join(' · ')
+  return `${parts} / ${s.year} 年`
 }
 
 function enterDimEdit() { dimEditor.mode = 'edit' }
@@ -1118,24 +1161,40 @@ async function saveDimRuleSet() {
     annualTarget: Math.round(r.annualTarget || 0),
     monthlyTargets: r.monthlyTargets.slice(),
   }))
-  loading.saveDimRuleSet = true
-  try {
-    const res = await saveDimensionRuleSet(dimEditor.dimensionId, {
-      bu: dimEditor.isGlobal ? '' : dimEditor.bu,
-      position: dimEditor.isGlobal ? '' : dimEditor.position,
-      level: dimEditor.isGlobal ? '' : dimEditor.level,
-      year: dimEditor.year,
-      rules: rulesPayload,
-    })
-    message.success(`已保存维度规则集（${res.data.saved} 条）`)
-    dimEditor.show = false
-    dimEditor.mode = 'view'
-    await Promise.all([loadRules(), loadRatio(), loadPlan()])
-  } catch (e) {
-    message.error(extractApiError(e, '保存失败'))
-  } finally {
-    loading.saveDimRuleSet = false
+  // 编辑态且适用范围已改 → 走「重定位」：删除原 scope 规则集 + 在新 scope 重建。需二次确认。
+  const relocate = !!dimEditor.lockContext && !!dimEditor.scopeDirty
+  const doSave = async () => {
+    loading.saveDimRuleSet = true
+    try {
+      const res = await saveDimensionRuleSet(dimEditor.dimensionId!, {
+        bu: dimEditor.isGlobal ? '' : dimEditor.bu,
+        position: dimEditor.isGlobal ? '' : dimEditor.position,
+        level: dimEditor.isGlobal ? '' : dimEditor.level,
+        year: dimEditor.year,
+        rules: rulesPayload,
+        ...(relocate && dimEditor.originalScope ? { original: dimEditor.originalScope } : {}),
+      })
+      message.success(`已保存维度规则集（${res.data.saved} 条）`)
+      dimEditor.show = false
+      dimEditor.mode = 'view'
+      await Promise.all([loadRules(), loadRatio(), loadPlan()])
+    } catch (e) {
+      message.error(extractApiError(e, '保存失败'))
+    } finally {
+      loading.saveDimRuleSet = false
+    }
   }
+  if (relocate) {
+    dialog.warning({
+      title: '重定位适用范围',
+      content: `将把该维度规则集从「${formatScopeLabel(dimEditor.originalScope)}」迁移到「${formatScopeLabel(_currentEffectiveScope())}」。\n原「${formatScopeLabel(dimEditor.originalScope)}」下的规则将被删除，是否继续？`,
+      positiveText: '迁移',
+      negativeText: '取消',
+      onPositiveClick: doSave,
+    })
+    return
+  }
+  await doSave()
 }
 
 /* ============================ 规则导入 / 导出 ============================ */
@@ -1603,6 +1662,13 @@ onMounted(async () => {
 }
 .form-section-title--scope .dot { flex-shrink: 0; }
 .scope-title-switch { margin-left: auto; }
+/* 编辑态改了适用范围 → 重定位提示横幅 */
+.scope-relocate-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.scope-relocate-hint :deep(.n-alert__content) { font-size: 12px; }
 
 /* 维度年度管控人数 section */
 .total-target-row {

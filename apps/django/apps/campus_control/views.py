@@ -280,7 +280,36 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
 
+        # ---- 「重定位」支持：编辑态下适用范围被改 ----
+        # original 为编辑打开时的原适用范围快照；若与当前 scope 不同，则删除原 scope 规则集、在新 scope 重建。
+        # 目标 scope 已存在规则集 → 冲突拦截（避免覆盖）。
+        relocate = False
+        obu = opos = olev = ''
+        oyear = year
+        original_in = request.data.get('original')
+        if isinstance(original_in, dict):
+            obu = original_in.get('bu', '') or ''
+            opos = original_in.get('position', '') or ''
+            olev = original_in.get('level', '') or ''
+            try:
+                oyear = int(original_in.get('year', year))
+            except (TypeError, ValueError):
+                return Response({'success': False, 'detail': 'original.year 须为整数'}, status=400)
+            relocate = (obu != bu or opos != position or olev != level or oyear != year)
+
+        if relocate:
+            if ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).exists():
+                return Response({
+                    'success': False,
+                    'detail': '目标适用范围已存在规则集，无法重定位（避免覆盖）。请先删除目标适用范围规则集或更换其他适用范围。',
+                }, status=400)
+
         with transaction.atomic():
+            if relocate:
+                # 重定位：先删原 scope 规则集（同事务原子，失败整体回滚）
+                ControlRule.objects.filter(
+                    bu=obu, position=opos, level=olev, dimension=dimension, year=oyear
+                ).delete()
             ControlRule.objects.filter(
                 bu=bu, position=position, level=level, dimension=dimension, year=year
             ).delete()

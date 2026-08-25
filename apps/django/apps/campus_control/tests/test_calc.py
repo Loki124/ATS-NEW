@@ -609,3 +609,67 @@ class TestDimensionSetRules:
         assert resp.status_code == 400
         detail = resp.json().get('detail', '')
         assert '12 个月度之和' in detail and '24' in detail
+
+    def test_set_rules_relocate_moves_to_new_scope(self, api_client):
+        """编辑态改适用范围（重定位）：原 scope 规则集被删，新 scope 重建，无孤儿。"""
+        dim_id, i1, i2, _, _, _, year = self._setup_scheme(api_client)  # A = 全局
+        # 先在全局 scope 建规则集
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        # 重定位到 bu='能电BG'（原 scope 通过 original 告知后端）
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'year': year,
+            'original': {'bu': '', 'position': '', 'level': '', 'year': year},
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        assert resp.json()['data']['saved'] == 2
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        # 全局 scope 应被清空（孤儿删除），能电BG 应有 2 条
+        assert len(dim_rules) == 2
+        assert all(r['bu'] == '能电BG' for r in dim_rules)
+
+    def test_set_rules_relocate_conflict_blocked(self, api_client):
+        """重定位目标 scope 已存在规则集 → 400 拦截（避免覆盖），原 scope 不动。"""
+        dim_id, i1, i2, _, _, _, year = self._setup_scheme(api_client)
+        # 全局 scope 建规则集
+        api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        # 能电BG scope 也已存在规则集
+        api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        # 试图从全局重定位到能电BG（已存在）→ 拦截
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '能电BG', 'position': '', 'level': '', 'year': year,
+            'original': {'bu': '', 'position': '', 'level': '', 'year': year},
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 400
+        assert '已存在' in resp.json().get('detail', '')
+        # 原全局 scope 与能电BG scope 规则均应仍在（未被删）
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 4

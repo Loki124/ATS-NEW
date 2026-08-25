@@ -301,7 +301,11 @@ export interface DimRuleSetItem {
  */
 export const saveDimensionRuleSet = (
   dimensionId: string,
-  payload: { bu: string; position: string; level: string; year: number; rules: DimRuleSetItem[] },
+  payload: {
+    bu: string; position: string; level: string; year: number; rules: DimRuleSetItem[];
+    /** 编辑态「重定位」时传入原适用范围，后端据此删除旧 scope 规则集。未提供则按普通原子替换处理。 */
+    original?: { bu: string; position: string; level: string; year: number };
+  },
 ) => api.put(`/campus/dimensions/${dimensionId}/rules/`, payload).then((r) => r.data as { success: boolean; data: { saved: number } })
 
 /* ============================ 规则导入 / 导出 ============================ */
