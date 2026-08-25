@@ -54,7 +54,6 @@
             <n-button @click="onExportRules">导出规则</n-button>
             <n-button @click="importDrawer.show = true">导入规则</n-button>
             <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
-            <n-button type="primary" class="gradient-btn" @click="openBatchDrawer()">+ 批量配置规则 + 目标</n-button>
           </div>
           <div class="table-wrap">
             <n-data-table
@@ -168,7 +167,9 @@
     >
       <div class="dim-ctx">
         <div class="form-section">
-          <div class="form-section-title"><span class="dot" />维度</div>
+          <div class="form-section-title">
+            <span class="dot" />维度
+          </div>
           <n-select
             v-model:value="dimEditor.dimensionId"
             :options="dimensionOptions"
@@ -177,16 +178,22 @@
             @update:value="onDimEditorDimChange"
           />
         </div>
+
         <div class="form-section">
-          <div class="form-section-title"><span class="dot" />适用范围</div>
+          <div class="form-section-title form-section-title--scope">
+            <span class="dot" />适用范围
+            <n-switch
+              v-model:value="dimEditor.isGlobal"
+              size="small"
+              :disabled="dimEditor.lockContext"
+              class="scope-title-switch"
+              @update:value="onDimEditorCtxChange"
+            >
+              <template #checked>全局</template>
+              <template #unchecked>指定</template>
+            </n-switch>
+          </div>
           <div class="scope-row">
-            <div class="scope-field">
-              <span class="scope-label">适用范围</span>
-              <n-switch v-model:value="dimEditor.isGlobal" size="small" :disabled="dimEditor.lockContext" @update:value="onDimEditorCtxChange">
-                <template #checked>全局</template>
-                <template #unchecked>指定</template>
-              </n-switch>
-            </div>
             <template v-if="!dimEditor.isGlobal">
               <div class="scope-field">
                 <span class="scope-label">部门</span>
@@ -207,19 +214,37 @@
             </div>
           </div>
         </div>
+
+        <div class="form-section" v-if="dimEditor.dimensionId">
+          <div class="form-section-title">
+            <span class="dot" />维度年度管控人数
+            <span class="form-section-hint">（各指标人数加和须 = 此值）</span>
+          </div>
+          <div class="total-target-row">
+            <n-input-number
+              :value="dimEditor.totalTarget"
+              :min="0" :step="1" size="small" style="width: 180px"
+              :disabled="dimEditor.mode === 'view'"
+              @update:value="(v: number | null) => setDimEditorTotalTarget(v)"
+            />
+            <span class="total-target-suffix">人</span>
+            <span class="total-target-hint">修改此值将按指标占比自动重算各指标年度（手动调整过的除外）；需保证「人数加和 = 维度年度目标」。</span>
+          </div>
+          <div class="total-target-summary" v-if="dimEditor.mode === 'edit'">
+            <span>当前人数加和：<strong>{{ dimEditorActiveAnnualSum }}</strong> 人</span>
+            <span class="total-target-sep">·</span>
+            <span>维度目标：<strong>{{ Math.round(dimEditor.totalTarget || 0) }}</strong> 人</span>
+            <n-tag v-if="dimEditorTotalOk" type="success" :bordered="false" size="small" round class="total-target-tag">✓ 相等</n-tag>
+            <n-tag v-else type="warning" :bordered="false" size="small" round class="total-target-tag">⚠ 差 {{ Math.round(dimEditor.totalTarget || 0) - dimEditorActiveAnnualSum }} 人</n-tag>
+          </div>
+        </div>
       </div>
 
       <div v-if="!dimEditor.dimensionId" class="empty-tip">请先选择维度</div>
       <div v-else-if="dimEditor.rows.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
       <div v-else class="dim-rows">
-        <div class="dim-summary" v-if="dimEditor.mode === 'edit'">
-          <span class="sum-label">本维度年度管控人数（未删除行汇总）</span>
-          <span class="sum-value">{{ dimEditorTotalTarget }} 人</span>
-          <span class="sum-hint">用于本维度「指标与占比」行内的年度人数快速参考</span>
-        </div>
-
         <div class="dim-row" :class="{ 'row-deleted': row.pendingDelete, 'row-disabled': dimEditor.mode === 'view' }" v-for="row in dimEditor.rows" :key="row.indicatorId">
-          <!-- 行 1：指标 + 徽标 + 占比% + 控制强度 + 年度人数 + 删除/恢复 -->
+          <!-- 行 1：指标 + 状态徽标 + 占比% + 控制强度 + 年度展示 + 删除/恢复 -->
           <div class="dim-row-head">
             <div class="dim-row-id">
               <span class="dim-ind-name">{{ row.indicatorName }}</span>
@@ -243,11 +268,20 @@
                   @update:value="(v: string) => setDimRowStrength(row.indicatorId, v as Strength)"
                 />
               </div>
-              <div class="ctrl-group">
+              <div class="ctrl-group ctrl-group--annual">
                 <span class="ctrl-label">年度（人）</span>
+                <span class="annual-display">{{ Math.round(row.annualTarget || 0) }}</span>
+                <n-tag v-if="row.manuallyEditedAnnual" :bordered="false" size="tiny" type="info" class="manual-tag">手动调整</n-tag>
+                <n-button
+                  v-if="row.manuallyEditedAnnual"
+                  text type="primary" size="tiny"
+                  class="reset-btn"
+                  @click="resetAnnualToAuto(row.indicatorId)"
+                >↻ 重算</n-button>
                 <n-input-number
+                  v-if="!row.manuallyEditedAnnual"
                   :value="row.annualTarget"
-                  :min="0" size="small" style="width: 110px"
+                  :min="0" size="small" style="width: 100px"
                   @update:value="(v: number | null) => setDimRowAnnual(row.indicatorId, v)"
                 />
               </div>
@@ -258,7 +292,8 @@
             <div class="dim-row-view" v-else>
               <span class="view-pct">{{ row.targetPct == null ? '—' : row.targetPct.toFixed(1) + '%' }}</span>
               <span class="view-strength">{{ row.strength }}</span>
-              <span class="view-annual">年度 <strong>{{ row.annualTarget }}</strong> 人</span>
+              <span class="view-annual">年度 <strong>{{ Math.round(row.annualTarget || 0) }}</strong> 人</span>
+              <n-tag v-if="row.manuallyEditedAnnual" :bordered="false" size="tiny" type="info" round class="manual-tag view-manual">手动调整</n-tag>
             </div>
           </div>
 
@@ -281,7 +316,7 @@
             <div class="monthly-foot">
               <span class="allocated">已分配 <strong>{{ dimRowMonthlySum(row) }}</strong> 人</span>
               <n-tag v-if="dimRowMonthlyOk(row)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
-              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ row.annualTarget }} 人</n-tag>
+              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ Math.round(row.annualTarget || 0) }} 人</n-tag>
             </div>
           </div>
 
@@ -299,20 +334,25 @@
             <div class="monthly-foot">
               <span class="allocated">已分配 <strong>{{ dimRowMonthlySum(row) }}</strong> 人</span>
               <n-tag v-if="dimRowMonthlyOk(row)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
-              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ row.annualTarget }} 人</n-tag>
+              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ Math.round(row.annualTarget || 0) }} 人</n-tag>
             </div>
           </div>
         </div>
 
-        <div v-if="dimEditor.mode === 'edit'" class="sum-callout" :class="{ ok: dimEditorSumOk, warn: !dimEditorSumOk }">
+        <div v-if="dimEditor.mode === 'edit'" class="sum-callout" :class="{ ok: dimEditorSumOk && dimEditorTotalOk, warn: !dimEditorSumOk || !dimEditorTotalOk }">
           <div class="sum-left">
             <span class="sum-label">占比之和</span>
             <span class="sum-value">{{ dimEditorSumPct.toFixed(1) }}%</span>
+            <span class="sum-sep">·</span>
+            <span class="sum-label">人数加和</span>
+            <span class="sum-value">{{ dimEditorActiveAnnualSum }} / {{ Math.round(dimEditor.totalTarget || 0) }} 人</span>
           </div>
           <div class="sum-right">
-            <n-tag v-if="dimEditorSumOk" type="success" :bordered="false" size="small" round>✓ = 100%</n-tag>
-            <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 需 = 100%</n-tag>
-            <span v-if="!dimEditorSumOk" class="sum-diff">差 {{ (100 - dimEditorSumPct).toFixed(1) }}%</span>
+            <n-tag v-if="dimEditorSumOk && dimEditorTotalOk" type="success" :bordered="false" size="small" round>✓ = 100% · 人数对齐</n-tag>
+            <template v-else>
+              <n-tag v-if="!dimEditorSumOk" type="warning" :bordered="false" size="small" round>⚠ 占比 ≠ 100%</n-tag>
+              <n-tag v-if="!dimEditorTotalOk" type="warning" :bordered="false" size="small" round>⚠ 人数加和不齐</n-tag>
+            </template>
           </div>
         </div>
 
@@ -328,128 +368,8 @@
             <n-button type="primary" class="gradient-btn" @click="enterDimEdit">编辑</n-button>
           </template>
           <template v-else>
-            <n-button type="primary" class="gradient-btn" :loading="loading.saveDimRuleSet" :disabled="!dimEditorSumOk" @click="saveDimRuleSet">保存</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="loading.saveDimRuleSet" :disabled="!dimEditorSumOk || !dimEditorTotalOk" @click="saveDimRuleSet">保存</n-button>
           </template>
-        </div>
-      </template>
-    </n-modal>
-
-    <!-- ===================== 批量配置规则 + 人数目标弹窗 ===================== -->
-    <n-modal
-      v-model:show="batchDrawer.show"
-      preset="card"
-      title="批量配置规则 + 人数目标"
-      :style="{ width: '760px', maxWidth: '92vw' }"
-      :bordered="false"
-      :segmented="{ content: true, footer: true }"
-      class="batch-modal"
-    >
-      <n-form label-placement="top" size="small">
-        <n-form-item label="维度" required :show-feedback="false">
-          <n-select v-model:value="batchDrawer.dimensionId" :options="dimensionOptions" placeholder="先选维度" @update:value="onBatchDimChange" />
-        </n-form-item>
-
-        <div class="form-section">
-          <div class="form-section-title">
-            <span class="dot" />适用范围
-            <span class="form-section-hint">（每个指标的适用范围独立配置）</span>
-          </div>
-          <div class="scope-row">
-            <div class="scope-field">
-              <span class="scope-label">适用范围</span>
-              <n-switch v-model:value="batchDrawer.isGlobal" size="small" @update:value="onBatchCtxChange">
-                <template #checked>全局</template>
-                <template #unchecked>指定</template>
-              </n-switch>
-            </div>
-            <template v-if="!batchDrawer.isGlobal">
-              <div class="scope-field">
-                <span class="scope-label">部门</span>
-                <n-select v-model:value="batchDrawer.bu" :options="deptOptions" placeholder="部门" @update:value="onBatchCtxChange" />
-              </div>
-              <div class="scope-field">
-                <span class="scope-label">职务</span>
-                <n-select v-model:value="batchDrawer.position" :options="positionOptions" placeholder="职务(不限)" clearable @update:value="onBatchCtxChange" />
-              </div>
-              <div class="scope-field">
-                <span class="scope-label">职级</span>
-                <n-select v-model:value="batchDrawer.level" :options="levelOptions" placeholder="职级(不限)" clearable @update:value="onBatchCtxChange" />
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title"><span class="dot" />总人数 → 各指标人数</div>
-          <n-grid :cols="2" :x-gap="16">
-            <n-gi><n-form-item label="年度" :show-feedback="false"><n-input-number v-model:value="batchDrawer.year" :min="2020" :max="2100" style="width: 100%" @update:value="onBatchCtxChange" /></n-form-item></n-gi>
-            <n-gi><n-form-item label="年度总人数（管控人数）" :show-feedback="false"><n-input-number v-model:value="batchDrawer.totalTarget" :min="0" style="width: 100%" /></n-form-item></n-gi>
-          </n-grid>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">
-            <span class="dot" />指标与占比
-            <span class="form-section-hint">（占比之和 = 100%）</span>
-          </div>
-
-          <div v-if="!batchDrawer.dimensionId" class="empty-tip">请先选择维度</div>
-          <div v-else-if="batchIndicators.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
-          <div v-else class="indicator-list">
-            <div v-for="ind in batchIndicators" :key="ind.id" class="indicator-card" :class="{ active: batchDrawer.indicatorIds.includes(ind.id) }">
-              <div class="indicator-head">
-                <n-checkbox :checked="batchDrawer.indicatorIds.includes(ind.id)" @update:checked="(v: boolean) => onBatchIndicatorToggle(ind, v)">
-                  <span class="indicator-name">{{ ind.name }}</span>
-                </n-checkbox>
-                <div v-if="batchDrawer.indicatorIds.includes(ind.id)" class="indicator-controls">
-                  <div class="ctrl-group">
-                    <span class="ctrl-label">占比 %</span>
-                    <n-input-number :value="batchDrawer.rows[ind.id]?.targetPct || 0" :min="0" :max="100" :step="0.5" size="small" style="width: 100px" @update:value="(v: number | null) => setBatchRow(ind.id, 'targetPct', v || 0)" />
-                  </div>
-                  <div class="ctrl-group">
-                    <span class="ctrl-label">控制强度</span>
-                    <n-select :value="batchDrawer.rows[ind.id]?.strength || '硬约束'" :options="strengthOptions" size="small" style="width: 120px" @update:value="(v: string) => setBatchRow(ind.id, 'strength', v as Strength)" />
-                  </div>
-                  <div class="indicator-annual">年度 <strong>{{ batchIndicatorAnnual(ind.id) }}</strong> 人</div>
-                </div>
-              </div>
-              <div v-if="batchDrawer.indicatorIds.includes(ind.id)" class="indicator-monthly">
-                <div class="monthly-head">
-                  <span class="ctrl-label">12 个月度目标（单位：人）</span>
-                  <n-button text type="primary" size="tiny" @click="redistributeBatchMonthly(ind.id)">均分年度目标</n-button>
-                </div>
-                <div class="monthly-grid">
-                  <div v-for="(_, i) in 12" :key="i" class="month-cell">
-                    <span class="month-label">{{ ALL_MONTHS[i] }}</span>
-                    <n-input-number :value="batchDrawer.rows[ind.id]?.monthly?.[i] || 0" :min="0" :show-button="false" size="small" @update:value="(v: number | null) => setBatchMonthly(ind.id, i, v)" />
-                  </div>
-                </div>
-                <div class="monthly-foot">
-                  <span class="allocated">已分配 <strong>{{ (batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) }}</strong> 人</span>
-                  <n-tag v-if="(batchDrawer.rows[ind.id]?.monthly || []).reduce((a, b) => a + (b || 0), 0) === batchIndicatorAnnual(ind.id)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
-                  <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ batchIndicatorAnnual(ind.id) }} 人</n-tag>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="batchDrawer.indicatorIds.length > 0" class="sum-callout" :class="{ ok: batchSumOk, warn: !batchSumOk }">
-              <div class="sum-left">
-                <span class="sum-label">占比之和</span>
-                <span class="sum-value">{{ batchSumPct.toFixed(1) }}%</span>
-              </div>
-              <div class="sum-right">
-                <n-tag v-if="batchSumOk" type="success" :bordered="false" size="small" round>✓ = 100%</n-tag>
-                <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 需 = 100%</n-tag>
-                <span v-if="!batchSumOk" class="sum-diff">差 {{ (100 - batchSumPct).toFixed(1) }}%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </n-form>
-      <template #footer>
-        <div class="drawer-footer">
-          <n-button size="small" @click="batchDrawer.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" size="small" :loading="loading.batchConfig" :disabled="!batchSumOk || !batchMonthlyOk || batchDrawer.indicatorIds.length === 0" @click="saveBatchConfig">保存</n-button>
         </div>
       </template>
     </n-modal>
@@ -603,14 +523,14 @@ import { extractApiError } from '../../api/dynamic-field'
 import {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
-  listRules, batchConfigRules, saveDimensionRuleSet,
+  listRules, saveDimensionRuleSet,
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules, triggerDownload,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
-  type ValidationResult, type Strength, type DimRuleSetItem, type BatchConfigPayload,
+  type ValidationResult, type Strength, type DimRuleSetItem,
   type RuleImportResult,
 } from '../../api/campusControl'
 
@@ -645,7 +565,7 @@ const scopeText = (bu: string, position: string, level: string) => {
 /* ============================ 全局状态 ============================ */
 const activeTab = ref('ratio')
 const loading = reactive({
-  ratio: false, plan: false, rules: false, saveDimRuleSet: false, batchConfig: false,
+  ratio: false, plan: false, rules: false, saveDimRuleSet: false,
   dimensions: false, indicators: false, persons: false, validate: false,
   import: false,
 })
@@ -925,8 +845,10 @@ interface DimEditorRow {
   strength: Strength
   hasExisting: boolean
   pendingDelete: boolean
-  /** 年度管控人数（0 也可编辑）。新增时若无历史，从旧规则继承；编辑时由用户输入。 */
+  /** 年度管控人数（0 也可编辑）。默认由「维度年度管控人数 × 占比」推导；用户手动改过即脱离联动。 */
   annualTarget: number
+  /** 是否被用户手动调整过年度人数。手动调整后，本行的 annualTarget 不再随 top-level totalTarget 自动重算（点行尾「↻ 重算」可解除锁定）。 */
+  manuallyEditedAnnual: boolean
   /** 12 个月度管控人数（长度固定 12 的非负整数数组）。 */
   monthlyTargets: number[]
 }
@@ -939,6 +861,8 @@ const dimEditor = reactive({
   isGlobal: true,
   bu: '', position: '', level: '',
   year: 2026,
+  /** 维度级「年度管控人数」。所有未删除指标行的 annualTarget 默认由 该值 × 占比 推导；手调过的行除外。 */
+  totalTarget: 0,
   rows: [] as DimEditorRow[],
 })
 
@@ -952,10 +876,12 @@ const dimEditorSumPct = computed(() =>
 const dimEditorSumOk = computed(() => Math.abs(dimEditorSumPct.value - 100) < 0.05)
 const dimEditorHasPendingDelete = computed(() => dimEditor.rows.some((r) => r.pendingDelete))
 const dimEditorPendingDeleteCount = computed(() => dimEditor.rows.filter((r) => r.pendingDelete).length)
-const dimEditorTotalTarget = computed(() =>
-  // 维度级「管控人数」= 未删除行 annualTarget 加和（仅供顶部展示）
-  dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : (r.annualTarget || 0)), 0),
+// 仅统计未删除行的年度人数加和（与 totalTarget 比较以判断「人数加和 = 维度年度目标」）。
+const dimEditorActiveAnnualSum = computed(() =>
+  dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : Math.round(r.annualTarget || 0)), 0),
 )
+// 人数加和 = totalTarget（口径：用户截图需求）。差 0 等同整数加和精确相等；不做四舍五入容差。
+const dimEditorTotalOk = computed(() => dimEditorActiveAnnualSum.value === Math.round(dimEditor.totalTarget || 0))
 
 /** 把任意 monthly 数组规范成长度 12 的非负整数数组（不足补 0、过长截断、非数置 0）。 */
 function normalizeMonthly(raw: any): number[] {
@@ -969,6 +895,45 @@ function normalizeMonthly(raw: any): number[] {
   return out
 }
 
+/**
+ * 在 dimEditor.totalTarget 变化时，对「未手动调整且未删除」的行按 targetPct 比例重算 annualTarget。
+ * 用最大余数法（largest-remainder / Hamilton）保证加和 = totalTarget 严格相等，
+ * 余数部分按比例小数位从大到小分配。
+ */
+function _redistributeAnnualByPct(total: number) {
+  const target = Math.max(0, Math.round(total || 0))
+  // 参与分配的行：未删 & 有占比
+  const active = dimEditor.rows.filter((r) => !r.pendingDelete && r.targetPct != null)
+  const locked = active.filter((r) => r.manuallyEditedAnnual)
+  const fluid = active.filter((r) => !r.manuallyEditedAnnual)
+  const lockedSum = locked.reduce((s, r) => s + Math.round(r.annualTarget || 0), 0)
+  const fluidTotal = Math.max(0, target - lockedSum)
+  const fluidSumPct = fluid.reduce((s, r) => s + (r.targetPct || 0), 0)
+  if (fluidSumPct <= 0) {
+    // 没有可自动分的占比，把未删但无占比的行留着原值
+    return
+  }
+  // 各 fluid 行精确分配量
+  const floats = fluid.map((r) => ({
+    row: r,
+    exact: (r.targetPct || 0) / 100 * fluidTotal,
+    floor: Math.floor(((r.targetPct || 0) / 100) * fluidTotal),
+    frac: 0,
+  }))
+  for (const f of floats) f.frac = f.exact - f.floor
+  let allocated = floats.reduce((s, f) => s + f.floor, 0)
+  let need = fluidTotal - allocated
+  // 按小数部分从大到小补 1，最多 need 个
+  floats.sort((a, b) => b.frac - a.frac)
+  for (let i = 0; i < floats.length && need > 0; i++) {
+    floats[i].row.annualTarget = floats[i].floor + 1
+    need--
+  }
+  for (let i = need; i < floats.length; i++) {
+    floats[i].row.annualTarget = floats[i].floor
+  }
+}
+
 function _buildDimRows() {
   const bu = dimEditor.isGlobal ? '' : dimEditor.bu
   const position = dimEditor.isGlobal ? '' : dimEditor.position
@@ -979,8 +944,10 @@ function _buildDimRows() {
       (r.bu || '') === bu && (r.position || '') === position && (r.level || '') === level &&
       r.year === dimEditor.year,
   )
+  // 先收集历史 annual；所有行（含新行）首次进入时按业务规则：**历史 annual 是「用户录入的事实」**，标记为手动调整（避免后续 top-total 重分配把它改掉）
   dimEditor.rows = dimEditorIndicators.value.map((ind) => {
     const er = existing.find((r) => r.indicator === ind.id)
+    const historical = er ? Math.round(Number(er.annualTarget) || 0) : 0
     return {
       indicatorId: ind.id,
       indicatorName: ind.name,
@@ -988,13 +955,17 @@ function _buildDimRows() {
       strength: er ? (er.strength as Strength) : '硬约束',
       hasExisting: !!er,
       pendingDelete: false,
-      // 从历史规则带出 annual+monthly（用户反馈："新增时选完维度没有带出对应指标的分月目标数据"）
-      annualTarget: er ? Math.round(Number(er.annualTarget) || 0) : 0,
+      annualTarget: historical,
+      // 历史 annual 视为「用户录入过」—— 不要被 top-total 自动覆盖
+      manuallyEditedAnnual: !!er,
       monthlyTargets: er
         ? normalizeMonthly(er.monthlyTargets)
         : Array(12).fill(0),
     }
   })
+  // 维度年度管控人数 = Σ(未删行 annualTarget)，历史有值即按历史求和；无历史置 0 让用户首次输入。
+  const existingTotal = existing.reduce((s, r) => s + Math.round(Number(r.annualTarget) || 0), 0)
+  dimEditor.totalTarget = existing.length > 0 ? existingTotal : 0
 }
 
 /**
@@ -1044,7 +1015,10 @@ function closeDimEditor() {
 }
 function setDimRowTarget(id: string, v: number | null) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (r) r.targetPct = v == null ? null : v
+  if (r) {
+    r.targetPct = v == null ? null : v
+    // 不联动改 annual：让占比 / 年度各自独立，方便用户「指标下的年度支持单独调整」
+  }
 }
 function setDimRowStrength(id: string, v: string) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
@@ -1053,8 +1027,24 @@ function setDimRowStrength(id: string, v: string) {
 function setDimRowAnnual(id: string, v: number | null) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
   if (!r) return
-  const annual = v == null ? 0 : Math.max(0, Math.round(v))
-  r.annualTarget = annual
+  r.annualTarget = v == null ? 0 : Math.max(0, Math.round(v))
+  r.manuallyEditedAnnual = true // 标记脱离联动，下次 totalTarget 变化不再重算该行
+}
+/**
+ * 用户在顶部改了「维度年度管控人数」→ 对「未手动调整 / 未删除」的行按 targetPct 比例重算（最大余数法），
+ * 已手动调整的行保留原值。最后用「fluid 重算后」的 Σ 同步 totalTarget，确保总数与分项之和自洽。
+ */
+function setDimEditorTotalTarget(v: number | null) {
+  const target = v == null ? 0 : Math.max(0, Math.round(v))
+  dimEditor.totalTarget = target
+  _redistributeAnnualByPct(target)
+}
+/** 行尾「↻ 重算」：把该行强制回到「总人数 × 占比」推算值，脱离手动锁定。 */
+function resetAnnualToAuto(id: string) {
+  const r = dimEditor.rows.find((x) => x.indicatorId === id)
+  if (!r) return
+  r.manuallyEditedAnnual = false
+  _redistributeAnnualByPct(dimEditor.totalTarget)
 }
 function setDimRowMonthly(id: string, idx: number, v: number | null) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
@@ -1074,7 +1064,12 @@ function redistributeDimMonthly(id: string) {
 }
 function toggleDimRowDelete(id: string) {
   const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (r) r.pendingDelete = !r.pendingDelete
+  if (r) {
+    r.pendingDelete = !r.pendingDelete
+    // 删除/恢复态变化不重算总数 —— 用户在顶部 totalTarget 里看到的是「当前未删行」的真实加和，
+    // 由 dimEditorActiveAnnualSum 提供；如果想保持 Σ = totalTarget 校验，需要在切回未删后补上重算。
+    // 这里不自动重算：让用户主动调整比静默改写好理解。
+  }
 }
 
 /** 单行 monthly 加和（按当前数据实时派生）。 */
@@ -1091,7 +1086,14 @@ async function saveDimRuleSet() {
   const validRows = dimEditor.rows.filter((r) => !r.pendingDelete && r.targetPct != null)
   if (validRows.length === 0) { message.warning('请至少保留一个指标并设置占比'); return }
   if (!dimEditorSumOk.value) { message.warning(`占比之和须 = 100%，当前 ${dimEditorSumPct.value.toFixed(1)}%`); return }
-  // 月度校验
+  // 人数加和 = 维度年度总人数（用户口径）
+  if (!dimEditorTotalOk.value) {
+    message.warning(
+      `各指标年度人数加和（${dimEditorActiveAnnualSum.value}）须等于「维度年度管控人数」（${Math.round(dimEditor.totalTarget || 0)}），请调整各指标年度或顶部总人数后重试`,
+    )
+    return
+  }
+  // 月度校验：单行 12 月加和 = 该行年度人数
   const badMonths = validRows.filter((r) => !dimRowMonthlyOk(r))
   if (badMonths.length) {
     message.warning(`指标「${badMonths.map((r) => r.indicatorName).join('、')}」的 12 月之和 ≠ 年度人数`)
@@ -1204,197 +1206,6 @@ function downloadImportErrorExcel() {
 function onImportFileRemove() {
   importDrawer.fileList = []
   importDrawer.result = null
-}
-
-/* ============================ 批量配置规则 + 人数目标 ============================ */
-interface BatchRow {
-  targetPct: number
-  strength: Strength
-  monthly: number[] // 12 个月度目标
-  annual?: number // 预填时锁定原始年度人数，用于「✓ 等于年度目标」徽标；未预填行由 totalTarget×占比 推算
-}
-const batchDrawer = reactive({
-  show: false,
-  dimensionId: '' as string | null,
-  indicatorIds: [] as string[],
-  isGlobal: true,
-  bu: '', position: '', level: '',
-  year: 2026,
-  totalTarget: 0,
-  rows: {} as Record<string, BatchRow>,
-})
-
-const batchIndicators = computed(() => {
-  if (!batchDrawer.dimensionId) return []
-  return indicators.value.filter((i) => i.dimension === batchDrawer.dimensionId)
-})
-
-const batchSumPct = computed(() => {
-  let s = 0
-  for (const id of batchDrawer.indicatorIds) {
-    const r = batchDrawer.rows[id]
-    if (r) s += r.targetPct || 0
-  }
-  return s
-})
-const batchSumOk = computed(() => Math.abs(batchSumPct.value - 100) < 0.05)
-const batchMonthlyOk = computed(() => {
-  for (const id of batchDrawer.indicatorIds) {
-    const r = batchDrawer.rows[id]
-    if (!r) return false
-    const annual = batchIndicatorAnnual(id)
-    const sum = (r.monthly || []).reduce((a, b) => a + (b || 0), 0)
-    if (sum !== annual) return false
-  }
-  return true
-})
-
-function openBatchDrawer() {
-  batchDrawer.dimensionId = null
-  batchDrawer.indicatorIds = []
-  batchDrawer.isGlobal = true
-  batchDrawer.bu = ''; batchDrawer.position = ''; batchDrawer.level = ''
-  batchDrawer.year = 2026
-  batchDrawer.totalTarget = 0
-  batchDrawer.rows = {}
-  batchDrawer.show = true
-}
-
-function onBatchDimChange() {
-  // 选维度后自动带出该 (适用范围, 维度, 年度) 已有规则数据（用户反馈：新增时选完维度应带出已有规则）
-  prefillBatchFromRules()
-}
-
-/** 切换适用范围 / 年度时，按当前上下文重新带出已有规则。 */
-function onBatchCtxChange() {
-  prefillBatchFromRules()
-}
-
-/**
- * 从内存 rules.value 派生当前 (bu, position, level, dimension, year) 上下文下的已有规则，
- * 预填到批量抽屉：勾选对应指标、填充占比%/强度/12月分月，并锁定 annual 与总人数。
- * 若该上下文下无历史规则，则保持空白让用户从零配置。
- */
-function prefillBatchFromRules() {
-  const dim = batchDrawer.dimensionId
-  if (!dim) {
-    batchDrawer.indicatorIds = []
-    batchDrawer.rows = {}
-    return
-  }
-  const bu = batchDrawer.isGlobal ? '' : batchDrawer.bu
-  const position = batchDrawer.isGlobal ? '' : batchDrawer.position
-  const level = batchDrawer.isGlobal ? '' : batchDrawer.level
-  const year = batchDrawer.year
-  const existing = rules.value.filter(
-    (r) =>
-      r.dimension === dim &&
-      (r.bu || '') === bu && (r.position || '') === position && (r.level || '') === level &&
-      r.year === year,
-  )
-  if (existing.length === 0) {
-    batchDrawer.indicatorIds = []
-    batchDrawer.rows = {}
-    return
-  }
-  const total = existing.reduce((s, r) => s + Math.round(Number(r.annualTarget) || 0), 0)
-  const ids: string[] = []
-  const rows: Record<string, BatchRow> = {}
-  for (const er of existing) {
-    ids.push(er.indicator)
-    rows[er.indicator] = {
-      targetPct: Math.round(er.target * 1000) / 10,
-      strength: (er.strength as Strength) || '硬约束',
-      monthly: normalizeMonthly(er.monthlyTargets),
-      annual: Math.round(Number(er.annualTarget) || 0),
-    }
-  }
-  batchDrawer.totalTarget = total
-  batchDrawer.indicatorIds = ids
-  batchDrawer.rows = rows
-}
-
-function distributeMonthly(annual: number): number[] {
-  const base = Math.floor(annual / 12)
-  const rem = annual - base * 12
-  return Array.from({ length: 12 }, (_, i) => base + (i < rem ? 1 : 0))
-}
-
-function onBatchIndicatorToggle(ind: ControlIndicator, checked: boolean) {
-  if (checked) {
-    batchDrawer.indicatorIds = [...batchDrawer.indicatorIds, ind.id]
-    // 首个勾选时均分剩余比例（提示用户）
-    const curCount = batchDrawer.indicatorIds.length
-    const equal = curCount > 0 ? Math.round((100 / curCount) * 10) / 10 : 0
-    const annual = Math.round((batchDrawer.totalTarget || 0) * (equal / 100))
-    batchDrawer.rows = { ...batchDrawer.rows, [ind.id]: { targetPct: equal, strength: '硬约束', monthly: distributeMonthly(annual) } }
-  } else {
-    batchDrawer.indicatorIds = batchDrawer.indicatorIds.filter((id) => id !== ind.id)
-    const nr: Record<string, BatchRow> = {}
-    for (const id of batchDrawer.indicatorIds) nr[id] = batchDrawer.rows[id]
-    batchDrawer.rows = nr
-  }
-}
-
-function setBatchRow(id: string, key: keyof BatchRow, val: any) {
-  batchDrawer.rows = { ...batchDrawer.rows, [id]: { ...batchDrawer.rows[id], [key]: val } }
-}
-function setBatchMonthly(id: string, idx: number, val: number | null) {
-  const monthly = [...(batchDrawer.rows[id]?.monthly || Array(12).fill(0))]
-  monthly[idx] = Math.max(0, Math.round(val || 0))
-  setBatchRow(id, 'monthly', monthly)
-}
-function redistributeBatchMonthly(id: string) {
-  const r = batchDrawer.rows[id]
-  if (!r) return
-  setBatchRow(id, 'monthly', distributeMonthly(batchIndicatorAnnual(id)))
-}
-
-function batchIndicatorAnnual(indId: string) {
-  const r = batchDrawer.rows[indId]
-  if (!r) return 0
-  // 预填行用锁定的原始 annual；新勾选行由 totalTarget×占比 推算
-  return r.annual ?? Math.round(batchDrawer.totalTarget * (r.targetPct / 100))
-}
-
-async function saveBatchConfig() {
-  if (!batchDrawer.dimensionId) { message.warning('请选择维度'); return }
-  if (batchDrawer.indicatorIds.length === 0) { message.warning('请至少勾选一个指标'); return }
-  if (!batchSumOk.value) {
-    message.warning(`占比之和须=100%，当前 ${batchSumPct.value.toFixed(1)}%`); return
-  }
-  if (!batchMonthlyOk.value) {
-    message.warning('存在指标的 12 个月度目标之和不等于年度目标，请检查或点击「均分年度目标」'); return
-  }
-
-  const payload: BatchConfigPayload = {
-    bu: batchDrawer.isGlobal ? '' : batchDrawer.bu,
-    position: batchDrawer.isGlobal ? '' : batchDrawer.position,
-    level: batchDrawer.isGlobal ? '' : batchDrawer.level,
-    dimension: batchDrawer.dimensionId,
-    year: batchDrawer.year,
-    totalTarget: batchDrawer.totalTarget,
-    rules: batchDrawer.indicatorIds.map((id) => {
-      const r = batchDrawer.rows[id]
-      return {
-        indicator: id,
-        target: r.targetPct / 100,
-        strength: r.strength,
-        monthlyTargets: (r.monthly || []).map((v) => Math.round(v) || 0),
-      }
-    }),
-  }
-  loading.batchConfig = true
-  try {
-    const res = await batchConfigRules(payload)
-    message.success(`已保存 ${res.data.saved} 条规则 + ${res.data.saved} 项目标（总人数 ${res.data.totalTarget}）`)
-    batchDrawer.show = false
-    await Promise.all([loadRules(), loadRatio(), loadPlan()])
-  } catch (e) {
-    message.error(extractApiError(e, '保存失败'))
-  } finally {
-    loading.batchConfig = false
-  }
 }
 
 /* ============================ 维度管理 ============================ */
@@ -1685,71 +1496,6 @@ onMounted(async () => {
 }
 .month-cell .n-input-number { width: 100%; }
 
-/* 指标卡片（仅批量弹窗） */
-.indicator-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.indicator-card {
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-.indicator-card.active {
-  border-color: var(--brand-a32);
-  background: var(--brand-tint);
-}
-.indicator-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.indicator-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.indicator-controls {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  flex: 1;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.ctrl-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.ctrl-label {
-  font-size: 11px;
-  color: var(--ink-soft);
-  line-height: 1.2;
-  white-space: nowrap;
-}
-.indicator-annual {
-  font-size: 12px;
-  color: var(--brand);
-  font-weight: 500;
-  white-space: nowrap;
-  margin-left: 4px;
-  padding-bottom: 2px;
-}
-.indicator-annual strong {
-  font-weight: 700;
-  font-size: 13px;
-}
-.indicator-monthly {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border-hairline);
-}
 .monthly-head {
   display: flex;
   justify-content: space-between;
@@ -1837,6 +1583,63 @@ onMounted(async () => {
 .dim-summary .sum-label { color: var(--ink-faint); }
 .dim-summary .sum-value { font-size: 18px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .dim-summary .sum-hint { font-size: 12px; color: var(--ink-faint); }
+
+/* 适用范围 form-section 标题行右移 switch */
+.form-section-title--scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-section-title--scope .dot { flex-shrink: 0; }
+.scope-title-switch { margin-left: auto; }
+
+/* 维度年度管控人数 section */
+.total-target-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.total-target-suffix { font-size: 13px; color: var(--ink); }
+.total-target-hint { font-size: 12px; color: var(--ink-faint); }
+.total-target-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.total-target-summary strong { color: var(--ink); font-weight: 700; }
+.total-target-sep { color: var(--ink-faint); }
+.total-target-tag { margin-left: auto; }
+
+/* 行内「年度（人）」控件：手动调整/未调整两态 */
+.ctrl-group--annual {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.annual-display {
+  display: inline-block;
+  min-width: 60px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  padding: 0 4px;
+}
+.manual-tag { font-size: 11px; }
+.reset-btn { padding: 0 6px; }
+.view-manual { margin-left: 4px; }
+
+/* 占比/人数 加和 callout 双指标 */
+.sum-callout .sum-sep {
+  margin: 0 6px;
+  color: var(--ink-faint);
+}
 .dim-row {
   display: flex;
   flex-direction: column;
@@ -1879,38 +1682,31 @@ onMounted(async () => {
 }
 
 /* ===================== 弹窗级微调 ===================== */
-.batch-modal :deep(.n-card__content),
 .rule-modal :deep(.n-card__content),
 .dim-ruleset-modal :deep(.n-card__content) {
   padding: 16px 20px 14px !important;
 }
-.batch-modal :deep(.n-card__footer),
 .rule-modal :deep(.n-card__footer),
 .dim-ruleset-modal :deep(.n-card__footer) {
   padding: 10px 20px 14px !important;
 }
-.batch-modal :deep(.n-card-header__main),
 .rule-modal :deep(.n-card-header__main),
 .dim-ruleset-modal :deep(.n-card-header__main) {
   font-size: 16px;
   font-weight: 600;
 }
-.batch-modal :deep(.n-form-item),
 .rule-modal :deep(.n-form-item),
 .dim-ruleset-modal :deep(.n-form-item) {
   margin-bottom: 10px;
 }
-.batch-modal :deep(.n-form-item-label),
 .rule-modal :deep(.n-form-item-label),
 .dim-ruleset-modal :deep(.n-form-item-label) {
   font-size: 12px;
   padding-bottom: 4px !important;
 }
-.batch-modal :deep(.n-input-number--small),
 .rule-modal :deep(.n-input-number--small) {
   --n-height: 28px !important;
 }
-.batch-modal :deep(.n-select--small),
 .rule-modal :deep(.n-select--small) {
   --n-height: 28px !important;
 }
