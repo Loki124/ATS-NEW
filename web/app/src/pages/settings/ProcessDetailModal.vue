@@ -686,7 +686,7 @@
       style="margin-bottom: 12px"
     >
       <template #prefix>
-        <n-icon :component="InformationCircleOutline" />
+        <n-icon :component="SearchOutline" />
       </template>
     </n-input>
 
@@ -783,6 +783,7 @@ import {
   BriefcaseOutline,
   PersonCircleOutline,
   AddOutline,
+  SearchOutline,
 } from '@vicons/ionicons5'
 import {
   getProcess,

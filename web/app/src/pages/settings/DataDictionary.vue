@@ -10,10 +10,6 @@
         <n-button type="primary" @click="openCreateType">新增字典</n-button>
       </div>
 
-      <div class="kpi-row">
-        <div class="kpi-card"><span class="kpi-label">字典类型</span><span class="kpi-value">{{ types.length }}</span></div>
-      </div>
-
       <div class="toolbar">
         <n-space align="center" :wrap="false">
           <n-input
@@ -24,7 +20,7 @@
             @update:value="onSearchInput"
           >
             <template #prefix>
-              <span>🔍</span>
+              <n-icon :component="SearchOutline" />
             </template>
           </n-input>
           <n-select
@@ -334,6 +330,7 @@ import {
   type DictionaryItem,
 } from '../../api/dictionary'
 import { extractApiError } from '../../api/dynamic-field'
+import { SearchOutline } from '@vicons/ionicons5'
 
 const message = useMessage()
 const dialog = useDialog()

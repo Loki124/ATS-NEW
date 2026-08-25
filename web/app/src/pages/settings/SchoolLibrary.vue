@@ -23,7 +23,9 @@
           clearable
           style="width: 240px"
           @keyup.enter="reload"
-        />
+        >
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
         <n-select
           v-model:value="filters.educationLevel"
           :options="EDUCATION_LEVEL_OPTIONS"
@@ -61,7 +63,7 @@
 <script setup lang="ts">
 import { ref, h, onMounted, reactive } from 'vue';
 import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
-import { SchoolOutline, OpenOutline } from '@vicons/ionicons5';
+import { SchoolOutline, OpenOutline, SearchOutline } from '@vicons/ionicons5';
 import { searchSchools, getSchool, type School } from '@/api/library';
 
 const message = useMessage();

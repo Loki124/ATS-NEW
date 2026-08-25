@@ -165,7 +165,9 @@
         <n-card title="角色列表 (RBAC)">
           <template #header-extra>
             <n-space>
-              <n-input v-model:value="rbacFilter" placeholder="搜索角色..." clearable style="width: 200px" />
+              <n-input v-model:value="rbacFilter" placeholder="搜索角色..." clearable style="width: 200px">
+                <template #prefix><n-icon :component="SearchOutline" /></template>
+              </n-input>
               <n-button @click="loadRbacRoles">
                 <template #icon><n-icon :component="RefreshOutline" /></template>
                 刷新
@@ -497,6 +499,7 @@ import {
   TimeOutline,
   AlertCircleOutline,
   RefreshOutline,
+  SearchOutline,
 } from '@vicons/ionicons5'
 
 const message = useMessage()

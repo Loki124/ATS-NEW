@@ -23,7 +23,9 @@
           clearable
           style="width: 240px"
           @keyup.enter="reload"
-        />
+        >
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
         <n-select
           v-model:value="filters.industry"
           :options="industryOptions"
@@ -61,7 +63,7 @@
 <script setup lang="ts">
 import { ref, h, onMounted, reactive } from 'vue';
 import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
-import { BusinessOutline, OpenOutline, StarOutline, Star } from '@vicons/ionicons5';
+import { BusinessOutline, OpenOutline, StarOutline, Star, SearchOutline } from '@vicons/ionicons5';
 import { searchCompanies, getCompany, listCompanyIndustries, type Company } from '@/api/library';
 
 const message = useMessage();

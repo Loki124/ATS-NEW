@@ -8,7 +8,9 @@
         <p class="page-subtitle">定义招聘流程及其阶段编排</p>
       </div>
       <n-space>
-        <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px" />
+        <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px">
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
         <n-button type="primary" @click="openCreateProcess">
           <template #icon><n-icon :component="AddOutline" /></template>
           新建流程
@@ -45,7 +47,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import { useMessage, NButton, NTag, NIcon, NDataTable } from 'naive-ui'
-import { AddOutline } from '@vicons/ionicons5'
+import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { listProcesses } from '../../api/recruitment-process'
 import ProcessDetailModal from './ProcessDetailModal.vue'
 

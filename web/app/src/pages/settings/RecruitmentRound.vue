@@ -8,7 +8,9 @@
         <p class="page-subtitle">配置面试轮次、形式与面试官指派规则</p>
       </div>
       <n-space>
-        <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px" />
+        <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px">
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
         <n-button type="primary" @click="showModal = true">
           <template #icon><n-icon :component="AddOutline" /></template>
           新增轮次
@@ -59,7 +61,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
-import { AddOutline, PowerOutline } from '@vicons/ionicons5'
+import { AddOutline, PowerOutline, SearchOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
 
 const message = useMessage()

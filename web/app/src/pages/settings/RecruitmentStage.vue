@@ -8,7 +8,9 @@
         <p class="page-subtitle">定义可跨流程复用的招聘阶段库</p>
       </div>
       <n-space>
-        <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px" />
+        <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px">
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
         <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
         <n-button type="primary" @click="showCreateModal = true">
           <template #icon><n-icon :component="AddOutline" /></template>
@@ -71,7 +73,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip } from 'naive-ui'
-import { AddOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
 // 2026-08-17 PR #69: 阶段类型改从后端数据字典 (apps/dictionary) 读取, single source of truth.
 //   旧 api/dict.ts 是占位 stub (永远返回 []), 现在接真端点 /api/v1/dictionary-items/?type_code=recruitment_stage_type.

@@ -83,9 +83,9 @@ class TestPureCalc:
 
     def test_denom_rule_is_scope_count(self):
         persons = [
-            {'bu': '能电BG', 'sex': '男', 'counted': True},
-            {'bu': '能电BG', 'sex': '女', 'counted': True},
-            {'bu': '三到BG', 'sex': '男', 'counted': True},
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职'},
+            {'bu': '能电BG', 'sex': '女', 'counted': True, 'status': '在职'},
+            {'bu': '三到BG', 'sex': '男', 'counted': True, 'status': '在职'},
         ]
         rule_bu = {'bu': '能电BG', 'position': '', 'level': '', 'dimension': '性别', 'indicator': '男'}
         assert denom_rule(rule_bu, persons) == 2
@@ -148,9 +148,9 @@ class TestPrdAssertions:
 
     def test_simulate_block_when_any_met(self):
         # v2.7：任意规则「本月实际 >= 本月目标」→ 阻断（配额已满，不可再加）。
-        # SAMPLE 中 985 人员 status='已入职'（v2.5 旧名，不在 _COUNTED_STATUSES），
-        # 不计入；唯有 tmp（status='在途待入职', school=985）计入 → actual=1。
-        # 自定义 985 规则 monthly=[1]*12 → actual=1 >= target=1 → MET → 阻断。
+        # SAMPLE 中 985 人员 status='在职'（在 _COUNTED_STATUSES），计入核算；
+        # 加上 tmp（status='在途待入职', school=985）一并计入 → actual = SAMPLE_985 + 1。
+        # 自定义 985 规则 monthly=[1]*12 → actual(=SAMPLE_985+1) >= target=1 → MET → 阻断。
         # 占比不再参与 verdict；checks 不含 ratio/ratioStatus/strength。
         custom_rules = [{
             'bu': '', 'position': '', 'level': '',
@@ -163,7 +163,7 @@ class TestPrdAssertions:
         assert v['verdict'] == VERDICT_BLOCK, v
         r985 = v['checks'][0]
         assert r985['dimension'] == '院校标签' and r985['indicator'] == '985', r985
-        assert r985['countStatus'] == '本月达标' and r985['monthActual'] == 1 and r985['monthTarget'] == 1, r985
+        assert r985['countStatus'] == '本月达标' and r985['monthActual'] == _cnt(self.persons, school='985') + 1 and r985['monthTarget'] == 1, r985
         # checks 不再含 ratio / ratioStatus / strength
         for c in v['checks']:
             assert 'ratio' not in c
@@ -173,7 +173,7 @@ class TestPrdAssertions:
 
     def test_simulate_warn_when_all_gap(self):
         # v2.7：所有命中规则的「本月实际 < 本月目标」→ 警告（未达配额，但允许提交）。
-        # 自定义 1 条 985 全局规则、月度目标 50（远高于 SAMPLE 实际 12），必然 GAP。
+        # 自定义 1 条 985 全局规则、月度目标 50（远高于 SAMPLE 实际人数），必然 GAP。
         custom_rules = [{
             'bu': '', 'position': '', 'level': '',
             'dimension': '院校标签', 'indicator': '985',
@@ -234,7 +234,7 @@ class TestApiEndpoints:
         ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
         api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}, format='json')
         api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.4, 'strength': '软约束'}, format='json')
-        api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '已入职', 'counted': True}, format='json')
+        api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在职', 'counted': True}, format='json')
 
     def test_ratio_endpoint(self, api_client):
         self._build_minimal_scheme(api_client)

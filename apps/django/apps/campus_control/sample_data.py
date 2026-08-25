@@ -15,7 +15,7 @@ def _monthly_from_annual(annual: int) -> list:
     return [base + 1 if i < rem else base for i in range(12)]
 
 
-# §9.0 样例人员（31 人，[bu, school, sex, major]，统一 month=8月 / 已入职 / counted）
+# §9.0 样例人员（31 人，[bu, school, sex, major]，统一 month=8月 / 在职 / counted）
 _SAMPLE = [
     ["能电BG", "985", "男", "工学"], ["能电BG", "985", "男", "其他"], ["能电BG", "985", "男", "其他"], ["能电BG", "985", "男", "其他"],
     ["能电BG", "211", "男", "工学"], ["能电BG", "211", "男", "工学"], ["能电BG", "211", "男", "其他"], ["能电BG", "211", "男", "其他"], ["能电BG", "211", "男", "其他"],
@@ -36,7 +36,7 @@ for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
         'sex': _sex,
         'major': _major,
         'month': '8月',
-        'status': '已入职',
+        'status': '在职',
         'counted': True,
         'position': '',
         'level': '',

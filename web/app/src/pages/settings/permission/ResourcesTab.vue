@@ -7,7 +7,9 @@
         clearable
         style="max-width: 280px"
         @keyup.enter="load"
-      />
+      >
+        <template #prefix><n-icon :component="SearchOutline" /></template>
+      </n-input>
       <n-select
         v-model:value="moduleFilter"
         :options="moduleOptions"
@@ -80,6 +82,7 @@ import {
   type PermissionResource,
   type ResourceType,
 } from '@/api/permission-resource'
+import { SearchOutline } from '@vicons/ionicons5'
 
 const message = useMessage()
 const loading = ref(false)
