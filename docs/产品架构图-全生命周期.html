@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATS 产品架构图 · 招聘全生命周期</title>
+<style>
+  :root{
+    --brand:#6366F1; --brand-d:#4F46E5;
+    --s1:#6366F1; --s2:#0EA5E9; --s3:#14B8A6; --s4:#F59E0B; --s5:#EC4899; --s6:#8B5CF6;
+    --ink:#1E293B; --ink-soft:#475569; --ink-faint:#94A3B8;
+    --bg:#F8FAFC; --card:#FFFFFF; --line:#E2E8F0;
+    --radius:14px; --shadow:0 1px 3px rgba(15,23,42,.08),0 8px 24px rgba(15,23,42,.06);
+    --portal:#EFF6FF; --back:#F5F3FF; --data:#ECFDF5; --third:#FFF7ED;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+    background:linear-gradient(180deg,#EEF2FF 0%,var(--bg) 220px);color:var(--ink);line-height:1.55;padding:32px 20px 60px}
+  .wrap{max-width:1240px;margin:0 auto}
+  header.hd{text-align:center;margin-bottom:28px}
+  header.hd .tag{display:inline-block;font-size:12px;font-weight:600;color:var(--brand-d);
+    background:#E0E7FF;padding:4px 12px;border-radius:999px;letter-spacing:.5px}
+  header.hd h1{font-size:28px;margin:12px 0 6px;font-weight:800;letter-spacing:-.5px}
+  header.hd p{color:var(--ink-soft);font-size:14px}
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px;font-size:12px;color:var(--ink-soft)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+  /* layer stack */
+  .layer{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin:14px 0;overflow:hidden;border:1px solid var(--line)}
+  .layer-head{display:flex;align-items:center;gap:12px;padding:14px 20px;font-weight:700;font-size:15px}
+  .layer-head .num{width:26px;height:26px;border-radius:8px;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+  .layer-head .sub{font-weight:500;font-size:12px;color:var(--ink-faint);margin-left:auto}
+  .layer-body{padding:18px 20px 22px}
+  .layer.l-portal{background:var(--portal)} .layer.l-back{background:var(--back)}
+  .layer.l-data{background:var(--data)} .layer.l-third{background:var(--third)}
+
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .chip{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .chip b{display:block;font-size:12px;color:var(--ink);margin-bottom:2px;font-weight:700}
+  .chip span{color:var(--ink-soft);font-size:11px}
+  .stage-col{border-radius:12px;padding:10px;background:#fff;border-top:4px solid var(--c);box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .stage-col h4{font-size:12.5px;font-weight:800;color:var(--c);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .stage-col .mod{background:#F8FAFC;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:11px;
+    margin-bottom:5px;color:var(--ink-soft);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .stage-col .mod b{color:var(--ink);font-weight:700;font-family:inherit}
+  .platform-strip{margin-top:12px;background:#fff;border:1px dashed #C7D2FE;border-radius:12px;padding:12px 14px}
+  .platform-strip .pt{font-size:11px;color:var(--brand-d);font-weight:700;margin-bottom:8px;letter-spacing:.3px}
+  .pchips{display:flex;flex-wrap:wrap;gap:8px}
+  .pchip{background:#EEF2FF;border:1px solid #C7D2FE;border-radius:999px;padding:5px 12px;font-size:11.5px;color:var(--brand-d);font-weight:600}
+
+  .conn{display:flex;align-items:center;gap:10px;justify-content:center;color:var(--ink-faint);font-size:12px;padding:2px 0}
+  .conn .bar{flex:1;height:1px;background:linear-gradient(90deg,transparent,#CBD5E1,transparent)}
+  .conn b{color:var(--ink-soft);background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-weight:600;white-space:nowrap}
+
+  /* pipeline */
+  .pipe{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px}
+  .pnode{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;position:relative}
+  .pnode .dot{width:30px;height:30px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:800;font-size:13px}
+  .pnode h5{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .pnode small{font-size:10.5px;color:var(--ink-faint)}
+  .pnode::after{content:"▶";position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:10px;z-index:2}
+  .pnode:last-child::after{display:none}
+
+  /* stage detail tabs */
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 16px}
+  .tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-size:12.5px;cursor:pointer;
+    font-weight:600;color:var(--ink-soft);transition:.15s}
+  .tab:hover{border-color:var(--brand)}
+  .tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .panel{display:none;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+  .panel.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .panel .phead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .panel .phead .b{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+  .panel .phead h3{font-size:17px}
+  .panel .goal{background:#F8FAFC;border-left:3px solid var(--c);padding:8px 12px;border-radius:0 8px 8px 0;font-size:13px;color:var(--ink-soft);margin-bottom:16px}
+  .cols{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+  .blk h4{font-size:13px;color:var(--c);font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .mchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .mchip{background:#F8FAFC;border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11.5px;color:var(--ink-soft);font-family:ui-monospace,Menlo,monospace}
+  .mchip b{color:var(--ink);font-family:inherit;font-weight:700}
+  .roles{display:flex;flex-wrap:wrap;gap:6px}
+  .role{background:#fff;border:1px solid var(--c,#ccc);color:var(--c,#333);border-radius:999px;padding:4px 11px;font-size:11.5px;font-weight:600}
+  .flow{list-style:none;counter-reset:f}
+  .flow li{counter-increment:f;position:relative;padding:7px 0 7px 30px;font-size:12.5px;color:var(--ink-soft);border-bottom:1px dashed var(--line)}
+  .flow li:last-child{border-bottom:0}
+  .flow li::before{content:counter(f);position:absolute;left:0;top:7px;width:20px;height:20px;border-radius:50%;
+    background:var(--c);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .sm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+  .sm b{font-size:11px;color:var(--ink-faint);font-weight:600;margin-right:2px}
+  .smb{background:var(--c);color:#fff;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600}
+  .smb.alt{background:#fff;color:var(--c);border:1px solid var(--c)}
+  @media(max-width:900px){.grid4,.grid6,.pipe,.cols{grid-template-columns:1fr 1fr}.pipe .pnode::after{display:none}.grid6{grid-template-columns:1fr 1fr 1fr}}
+  footer{text-align:center;color:var(--ink-faint);font-size:12px;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hd">
+    <span class="tag">ATS-NEW · 招聘全生命周期架构</span>
+    <h1>招聘管理系统产品架构图</h1>
+    <p>前端门户 · 后端服务 · 数据中台 · 第三方集成 —— 覆盖需求分析 → 入职跟进 6 大阶段</p>
+    <div class="legend">
+      <span><i style="background:var(--s1)"></i>需求分析</span>
+      <span><i style="background:var(--s2)"></i>职位发布</span>
+      <span><i style="background:var(--s3)"></i>简历筛选</span>
+      <span><i style="background:var(--s4)"></i>面试安排</span>
+      <span><i style="background:var(--s5)"></i>录用管理</span>
+      <span><i style="background:var(--s6)"></i>入职跟进</span>
+    </div>
+  </header>
+
+  <!-- ============ LAYER 1: 前端门户 ============ -->
+  <section class="layer l-portal">
+    <div class="layer-head"><span class="num">1</span>前端门户层 · Frontend Portal<span class="sub">多端统一体验</span></div>
+    <div class="layer-body">
+      <div class="grid4">
+        <div class="chip"><b>候选人门户</b><span>投递 / 进度查询 / 简历完善</span></div>
+        <div class="chip"><b>HR 招聘工作台</b><span>需求·职位·筛选·面试·Offer 一体化</span></div>
+        <div class="chip"><b>管理后台</b><span>流程配置 / 权限 / 数据字典 / 报表</span></div>
+        <div class="chip"><b>移动端 / 小程序</b><span>面试官评价 / 待办 / 内推</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="conn"><span class="bar"></span><b>统一 API 网关 · core 鉴权 · field_acl 字段级鉴权</b><span class="bar"></span></div>
+
+  <!-- ============ LAYER 2: 后端服务 ============ -->
+  <section class="layer l-back">
+    <div class="layer-head"><span class="num">2</span>后端服务层 · Backend Services<span class="sub">按生命周期阶段分组的业务微服务</span></div>
+    <div class="layer-body">
+      <div class="grid6">
+        <div class="stage-col" style="--c:var(--s1)">
+          <h4>① 需求分析</h4>
+          <div class="mod"><b>demand</b> 招聘需求</div>
+          <div class="mod"><b>process</b> 流程引擎</div>
+          <div class="mod"><b>analytics</b> 编制分析</div>
+          <div class="mod"><b>dictionary</b> 职级字典</div>
+          <div class="mod"><b>entry_condition</b> 录用条件</div>
+        </div>
+        <div class="stage-col" style="--c:var(--s2)">
+          <h4>② 职位发布</h4>
+          <div class="mod"><b>position</b> 职位管理</div>
+          <div class="mod"><b>channel</b> 发布渠道</div>
+          <div class="mod"><b>referral</b> 内推</div>
+          <div class="mod"><b>campus_control</b> 校招管控</div>
+          <div class="mod"><b>announcement</b> 招聘公告</div>
+        </div>
+        <div class="stage-col" style="--c:var(--s3)">
+          <h4>③ 简历筛选</h4>
+          <div class="mod"><b>scraped_resume</b> 爬取</div>
+          <div class="mod"><b>resume_flow</b> 解析流转</div>
+          <div class="mod"><b>candidate</b> 候选人主档</div>
+          <div class="mod"><b>duplicate_check</b> 查重</div>
+          <div class="mod"><b>screening</b> 智能初筛</div>
+          <div class="mod"><b>talent_pool</b> 人才库</div>
+        </div>
+        <div class="stage-col" style="--c:var(--s4)">
+          <h4>④ 面试安排</h4>
+          <div class="mod"><b>interview</b> 面试管理</div>
+          <div class="mod"><b>invitation</b> 面试邀请</div>
+          <div class="mod"><b>automation</b> 自动编排</div>
+          <div class="mod"><b>time_limit</b> 时限SLA</div>
+        </div>
+        <div class="stage-col" style="--c:var(--s5)">
+          <h4>⑤ 录用管理</h4>
+          <div class="mod"><b>offer</b> 录用管理</div>
+          <div class="mod"><b>mou</b> 意向/审批</div>
+          <div class="mod"><b>audit</b> 合规审计</div>
+        </div>
+        <div class="stage-col" style="--c:var(--s6)">
+          <h4>⑥ 入职跟进</h4>
+          <div class="mod"><b>onboarding</b> 入职跟进</div>
+          <div class="mod"><b>application</b> 入职手续</div>
+          <div class="mod"><b>gdpr</b> 隐私合规</div>
+        </div>
+      </div>
+      <div class="platform-strip">
+        <div class="pt">平台级服务（横切全部 6 阶段）</div>
+        <div class="pchips">
+          <span class="pchip">core 认证/权限</span>
+          <span class="pchip">field_acl 字段级ACL</span>
+          <span class="pchip">audit 审计留痕</span>
+          <span class="pchip">notification 消息中心</span>
+          <span class="pchip">automation 自动化RPA</span>
+          <span class="pchip">analytics BI分析</span>
+          <span class="pchip">process 流程引擎</span>
+          <span class="pchip">dictionary 主数据</span>
+          <span class="pchip">integration 集成网关</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="conn"><span class="bar"></span><b>主数据读写 · 画像计算 · 分析集市订阅</b><span class="bar"></span></div>
+
+  <!-- ============ LAYER 3: 数据中台 ============ -->
+  <section class="layer l-data">
+    <div class="layer-head"><span class="num">3</span>数据中台层 · Data Middle Platform<span class="sub">人才资产沉淀与智能</span></div>
+    <div class="layer-body">
+      <div class="grid4">
+        <div class="chip"><b>人才主数据</b><span>candidate + talent_pool 聚合，全周期单一档案</span></div>
+        <div class="chip"><b>简历与画像</b><span>resume_flow + dynamic_field 结构化与评测</span></div>
+        <div class="chip"><b>招聘分析集市</b><span>analytics 漏斗 / 周期 / 渠道质量</span></div>
+        <div class="chip"><b>标签与画像引擎</b><span>人才分层、主动召回、编制预测</span></div>
+      </div>
+      <div class="grid4" style="margin-top:12px">
+        <div class="chip" style="grid-column:span 4"><b>数据治理 / 主数据管理（MDM）</b><span>去重合并策略、字段标准、隐私分级（gdpr 联动）</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="conn"><span class="bar"></span><b>双向集成 · OAuth / Webhook / 事件总线</b><span class="bar"></span></div>
+
+  <!-- ============ LAYER 4: 第三方集成 ============ -->
+  <section class="layer l-third">
+    <div class="layer-head"><span class="num">4</span>第三方集成层 · Third-party Integrations<span class="sub">生态连接</span></div>
+    <div class="layer-body">
+      <div class="grid4">
+        <div class="chip"><b>招聘渠道</b><span>猎聘 / BOSS / 智联 / LinkedIn / 校招平台（channel+integration）</span></div>
+        <div class="chip"><b>日历系统</b><span>钉钉 / 企业微信 / Outlook（invitation 对接）</span></div>
+        <div class="chip"><b>视频面试</b><span>腾讯会议 / 飞书 / 牛客（interview 对接）</span></div>
+        <div class="chip"><b>背景调查</b><span>第三方背调机构（offer 阶段触发）</span></div>
+        <div class="chip"><b>电子签名</b><span>e签宝 / 法大大（Offer 与合同签署）</span></div>
+        <div class="chip"><b>消息通道</b><span>短信 / 邮件 / IM（notification 驱动）</span></div>
+        <div class="chip"><b>HRIS / OA</b><span>入转调离 / 组织架构 / 账号（onboarding 对接）</span></div>
+        <div class="chip"><b>薪酬对接</b><span>薪资方案回写薪酬系统（offer 联动）</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 全生命周期流程 ============ -->
+  <section class="layer" style="margin-top:22px">
+    <div class="layer-head"><span class="num" style="background:var(--s3)">↻</span>全生命周期流程 · 阶段移交与人才库回流<span class="sub">每阶段产出移交物进入下一阶段</span></div>
+    <div class="layer-body">
+      <div class="pipe">
+        <div class="pnode"><div class="dot" style="background:var(--s1)">1</div><h5>需求分析</h5><small>demand→生效</small></div>
+        <div class="pnode"><div class="dot" style="background:var(--s2)">2</div><h5>职位发布</h5><small>多渠道发布</small></div>
+        <div class="pnode"><div class="dot" style="background:var(--s3)">3</div><h5>简历筛选</h5><small>入库/初筛</small></div>
+        <div class="pnode"><div class="dot" style="background:var(--s4)">4</div><h5>面试安排</h5><small>编排/评价</small></div>
+        <div class="pnode"><div class="dot" style="background:var(--s5)">5</div><h5>录用管理</h5><small>Offer/签约</small></div>
+        <div class="pnode"><div class="dot" style="background:var(--s6)">6</div><h5>入职跟进</h5><small>转正闭环</small></div>
+      </div>
+      <p style="text-align:center;font-size:12px;color:var(--ink-faint);margin-top:12px">↺ 人才库（talent_pool）双向回流：淘汰/未入围简历沉淀，后续主动召回至阶段 ③</p>
+    </div>
+  </section>
+
+  <!-- ============ 分阶段详情 ============ -->
+  <section class="layer" style="margin-top:22px">
+    <div class="layer-head"><span class="num" style="background:var(--s5)">▤</span>分阶段详情 · 核心模块 / 用户角色 / 业务流程 / 状态机</div>
+    <div class="layer-body">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-t="0">① 需求分析</button>
+        <button class="tab" data-t="1">② 职位发布</button>
+        <button class="tab" data-t="2">③ 简历筛选</button>
+        <button class="tab" data-t="3">④ 面试安排</button>
+        <button class="tab" data-t="4">⑤ 录用管理</button>
+        <button class="tab" data-t="5">⑥ 入职跟进</button>
+      </div>
+
+      <!-- 1 -->
+      <div class="panel active" style="--c:var(--s1)">
+        <div class="phead"><div class="b" style="background:var(--s1)">1</div><h3>需求分析</h3></div>
+        <div class="goal">把业务用人诉求转化为可发布、可追踪的招聘需求，完成编制校验与审批。</div>
+        <div class="cols">
+          <div>
+            <div class="blk"><h4>● 核心功能模块</h4><div class="mchips">
+              <span class="mchip"><b>demand</b> 需求管理</span><span class="mchip"><b>process</b> 审批流</span>
+              <span class="mchip"><b>analytics</b> 编制分析</span><span class="mchip"><b>dictionary</b> 职级字典</span>
+              <span class="mchip"><b>entry_condition</b> 录用条件</span></div></div>
+            <div class="blk"><h4>● 用户角色</h4><div class="roles">
+              <span class="role" style="--c:var(--s1)">HRBP</span><span class="role" style="--c:var(--s1)">用人经理</span>
+              <span class="role" style="--c:var(--s1)">招聘负责人</span><span class="role" style="--c:var(--s1)">编制管理员</span></div></div>
+          </div>
+          <div>
+            <div class="blk"><h4>● 业务流程</h4><ul class="flow">
+              <li>HRBP/用人经理提报需求（岗位/职级/编制）</li>
+              <li>analytics 校验部门编制余量，超编转特批</li>
+              <li>process 按级别路由审批流</li>
+              <li>审批通过→需求生效，触发职位创建</li>
+              <li>需求看板追踪在招/招满/关闭</li></ul></div>
+            <div class="blk"><h4>● 状态机</h4><div class="sm">
+              <b>需求：</b><span class="smb">草稿</span><span class="smb alt">待审批</span><span class="smb alt">审批中</span><span class="smb">已生效</span><span class="smb alt">已驳回</span><span class="smb alt">已关闭</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="panel" style="--c:var(--s2)">
+        <div class="phead"><div class="b" style="background:var(--s2)">2</div><h3>职位发布</h3></div>
+        <div class="goal">将已生效需求转化为多渠道职位，接入内推与校招专项管控。</div>
+        <div class="cols">
+          <div>
+            <div class="blk"><h4>● 核心功能模块</h4><div class="mchips">
+              <span class="mchip"><b>position</b> 职位管理</span><span class="mchip"><b>channel</b> 渠道</span>
+              <span class="mchip"><b>referral</b> 内推</span><span class="mchip"><b>campus_control</b> 校招</span>
+              <span class="mchip"><b>announcement</b> 公告</span><span class="mchip"><b>integration</b> 对接</span></div></div>
+            <div class="blk"><h4>● 用户角色</h4><div class="roles">
+              <span class="role" style="--c:var(--s2)">招聘专员</span><span class="role" style="--c:var(--s2)">用人经理</span>
+              <span class="role" style="--c:var(--s2)">内推员工</span><span class="role" style="--c:var(--s2)">候选人</span></div></div>
+          </div>
+          <div>
+            <div class="blk"><h4>● 业务流程</h4><ul class="flow">
+              <li>需求生效→position 生成职位草稿并套 JD 模板</li>
+              <li>选择渠道，integration 批量发布</li>
+              <li>开启 referral 内推，生成内推码</li>
+              <li>校招岗位走 campus_control 专项批次</li>
+              <li>各渠道投递经 integration 回流至简历池</li></ul></div>
+            <div class="blk"><h4>● 状态机</h4><div class="sm">
+              <b>职位：</b><span class="smb">草稿</span><span class="smb alt">待发布</span><span class="smb alt">发布中</span><span class="smb">已发布</span><span class="smb alt">已下架</span><span class="smb alt">招满</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="panel" style="--c:var(--s3)">
+        <div class="phead"><div class="b" style="background:var(--s3)">3</div><h3>简历筛选</h3></div>
+        <div class="goal">汇聚全渠道简历，解析入库、查重去噪、初筛评级，并沉淀人才库。</div>
+        <div class="cols">
+          <div>
+            <div class="blk"><h4>● 核心功能模块</h4><div class="mchips">
+              <span class="mchip"><b>scraped_resume</b> 爬取</span><span class="mchip"><b>resume_flow</b> 解析</span>
+              <span class="mchip"><b>candidate</b> 主档</span><span class="mchip"><b>duplicate_check</b> 查重</span>
+              <span class="mchip"><b>screening</b> 初筛</span><span class="mchip"><b>talent_pool</b> 人才库</span>
+              <span class="mchip"><b>dynamic_field</b> 评测</span></div></div>
+            <div class="blk"><h4>● 用户角色</h4><div class="roles">
+              <span class="role" style="--c:var(--s3)">招聘专员</span><span class="role" style="--c:var(--s3)">用人经理</span>
+              <span class="role" style="--c:var(--s3)">AI初筛</span><span class="role" style="--c:var(--s3)">候选人</span></div></div>
+          </div>
+          <div>
+            <div class="blk"><h4>● 业务流程</h4><ul class="flow">
+              <li>多渠道+爬取→resume_flow 统一汇聚</li>
+              <li>解析为结构化档案写入 candidate</li>
+              <li>duplicate_check 合并跨渠道重复</li>
+              <li>screening 规则/AI 初筛给评分</li>
+              <li>优质未入围沉淀 talent_pool 待召回</li>
+              <li>通过初筛进入面试池</li></ul></div>
+            <div class="blk"><h4>● 状态机</h4><div class="sm">
+              <b>简历：</b><span class="smb">待解析</span><span class="smb alt">已入库</span><span class="smb alt">初筛中</span><span class="smb">推荐</span><span class="smb alt">待定</span><span class="smb alt">淘汰</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="panel" style="--c:var(--s4)">
+        <div class="phead"><div class="b" style="background:var(--s4)">4</div><h3>面试安排</h3></div>
+        <div class="goal">高效编排面试轮次，协同面试官与候选人时间，自动化回收评价。</div>
+        <div class="cols">
+          <div>
+            <div class="blk"><h4>● 核心功能模块</h4><div class="mchips">
+              <span class="mchip"><b>interview</b> 面试管理</span><span class="mchip"><b>invitation</b> 邀请</span>
+              <span class="mchip"><b>automation</b> 编排</span><span class="mchip"><b>time_limit</b> SLA</span>
+              <span class="mchip"><b>integration</b> 日历/视频</span></div></div>
+            <div class="blk"><h4>● 用户角色</h4><div class="roles">
+              <span class="role" style="--c:var(--s4)">招聘协调员</span><span class="role" style="--c:var(--s4)">面试官</span>
+              <span class="role" style="--c:var(--s4)">候选人</span></div></div>
+          </div>
+          <div>
+            <div class="blk"><h4>● 业务流程</h4><ul class="flow">
+              <li>interview 创建轮次与面试官名单</li>
+              <li>invitation 双向邀约，automation 协调时间</li>
+              <li>integration 写日历+生成视频链接</li>
+              <li>面试后回收 structured 评价表</li>
+              <li>time_limit 监控评价时效超时升级</li>
+              <li>汇总评价→晋级/淘汰/待定</li></ul></div>
+            <div class="blk"><h4>● 状态机</h4><div class="sm">
+              <b>面试：</b><span class="smb">待安排</span><span class="smb alt">已邀约</span><span class="smb alt">已确认</span><span class="smb">已完成</span><span class="smb alt">改期</span><span class="smb">已评价</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="panel" style="--c:var(--s5)">
+        <div class="phead"><div class="b" style="background:var(--s5)">5</div><h3>录用管理</h3></div>
+        <div class="goal">把通过终面的候选人转化为正式录用，完成审批、发放、确认与背调签约。</div>
+        <div class="cols">
+          <div>
+            <div class="blk"><h4>● 核心功能模块</h4><div class="mchips">
+              <span class="mchip"><b>offer</b> 录用管理</span><span class="mchip"><b>mou</b> 意向/审批</span>
+              <span class="mchip"><b>audit</b> 合规</span><span class="mchip"><b>notification</b> 通知</span>
+              <span class="mchip"><b>integration</b> 背调/签</span></div></div>
+            <div class="blk"><h4>● 用户角色</h4><div class="roles">
+              <span class="role" style="--c:var(--s5)">招聘负责人</span><span class="role" style="--c:var(--s5)">用人经理</span>
+              <span class="role" style="--c:var(--s5)">HR</span><span class="role" style="--c:var(--s5)">法务</span>
+              <span class="role" style="--c:var(--s5)">候选人</span><span class="role" style="--c:var(--s5)">背调机构</span></div></div>
+          </div>
+          <div>
+            <div class="blk"><h4>● 业务流程</h4><ul class="flow">
+              <li>终面通过→offer 生成薪酬方案</li>
+              <li>mou+process 薪酬与编制审批</li>
+              <li>notification 发放 Offer 待确认</li>
+              <li>确认后 integration 触发背调+电子签</li>
+              <li>audit 全程留痕，录用生效移交入职</li></ul></div>
+            <div class="blk"><h4>● 状态机</h4><div class="sm">
+              <b>Offer：</b><span class="smb">待生成</span><span class="smb alt">审批中</span><span class="smb alt">待发放</span><span class="smb">已发放</span><span class="smb alt">待确认</span><span class="smb">已确认</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="panel" style="--c:var(--s6)">
+        <div class="phead"><div class="b" style="background:var(--s6)">6</div><h3>入职跟进</h3></div>
+        <div class="goal">完成从「已确认 Offer」到「顺利转正」的闭环，沉淀新员工与组织数据。</div>
+        <div class="cols">
+          <div>
+            <div class="blk"><h4>● 核心功能模块</h4><div class="mchips">
+              <span class="mchip"><b>onboarding</b> 入职跟进</span><span class="mchip"><b>application</b> 手续</span>
+              <span class="mchip"><b>gdpr</b> 隐私</span><span class="mchip"><b>notification</b> 通知</span>
+              <span class="mchip"><b>integration</b> HRIS/OA</span></div></div>
+            <div class="blk"><h4>● 用户角色</h4><div class="roles">
+              <span class="role" style="--c:var(--s6)">HR</span><span class="role" style="--c:var(--s6)">IT</span>
+              <span class="role" style="--c:var(--s6)">部门导师</span><span class="role" style="--c:var(--s6)">新人</span></div></div>
+          </div>
+          <div>
+            <div class="blk"><h4>● 业务流程</h4><ul class="flow">
+              <li>onboarding 自动生成入职计划与清单</li>
+              <li>application 收集信息+签合同，gdpr 授权</li>
+              <li>integration 同步 HRIS/OA 开通账号</li>
+              <li>导师带教+培训，跟踪任务完成度</li>
+              <li>试用期节点预警推送转正待办</li>
+              <li>转正→人才主数据回写，闭环结束</li></ul></div>
+            <div class="blk"><h4>● 状态机</h4><div class="sm">
+              <b>入职：</b><span class="smb">待入职</span><span class="smb alt">入职中</span><span class="smb alt">试用期</span><span class="smb">已转正</span><span class="smb alt">未通过</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>ATS-NEW 产品架构图 · 全生命周期 6 阶段 · 33 业务模块 + 9 平台/状态机 · 与《产品全生命周期规划》文档配套</footer>
+</div>
+
+<script>
+  const tabs=document.querySelectorAll('#tabs .tab');
+  const panels=document.querySelectorAll('.panel');
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.remove('active'));
+    panels.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    panels[+t.dataset.t].classList.add('active');
+  }));
+</script>
+</body>
+</html>
