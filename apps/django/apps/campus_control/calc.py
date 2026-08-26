@@ -4,7 +4,13 @@ v2.1 关键变更：
 - 适用范围（bu/position/level，全空=全局）直接挂在 rule / headcount 上，不再有独立「方案」。
 - 比例分母统一 = 该规则适用范围内的计入人数。
 - 100% 加和校验按 (bu, position, level, dimension) 分组。
+
+v2.8 关键变更（G1 真删人数规划）：
+- 移除 compute_count / kpi（人数规划看板与 plan 端点），占比看板仅保留 compute_ratio。
+- count_status / _accounting_month 保留供 simulate 录入校验使用。
+- 新增 _largest_remainder_allocate（最大余数法），供后端按维度总人数精确分配 annual_target。
 """
+import math
 from decimal import Decimal
 
 from .constants import (
@@ -30,6 +36,29 @@ def _dec(x):
 
 def _round3(d: Decimal) -> Decimal:
     return d.quantize(Decimal('0.001'))
+
+
+def _largest_remainder_allocate(total: int, weights: list) -> list:
+    """按权重(weights，和须≈1)把整数 total 分配为若干整数，保证加和严格 = total。
+
+    最大余数法（Hamilton / 最大余数法）：先各取下限 floor，余下整数按小数位降序逐一 +1。
+    返回与 weights 同序的整数列表。weights 之和应为 1（100% 校验已保证），浮点毛刺仅影响排序不参与加和。
+    """
+    n = len(weights)
+    if n == 0:
+        return []
+    total = int(total)
+    if total <= 0:
+        return [0] * n
+    w = [Decimal(str(x)) for x in weights]
+    exact = [total * x for x in w]
+    floors = [math.floor(e) for e in exact]
+    remainder = total - sum(floors)
+    order = sorted(range(n), key=lambda i: (exact[i] - floors[i]), reverse=True)
+    alloc = floors[:]
+    for i in range(remainder):
+        alloc[order[i % n]] += 1
+    return alloc
 
 
 def _scope_key(x: dict) -> tuple:
@@ -176,86 +205,6 @@ def compute_ratio(persons, rules):
     return {'total': total, 'rows': rows}
 
 
-def compute_count(persons, rules, year, month):
-    """人数规划（目标承载于规则上，按年度过滤）。返回 CountRow[]。
-
-    v2.5 核心术语对齐：
-    - 在职：status='在职'（按 actual_entry_date 计入月份）
-    - 在途Offer：status='在途Offer'（按 expected_entry_date 计入月份）
-    - 在途待入职：status='在途待入职'（按 expected_entry_date 计入月份）
-    - 计入核算：counted=true 且状态 ∈ _COUNTED_STATUSES
-    """
-    rows = []
-    idx = month_to_index(month)
-    for r in rules:
-        if r.get('year') != year:
-            continue
-        dim = r['dimension']
-        ind = r['indicator']
-        in_scope = persons_for_rule(persons, r)
-        filt = _indicator_filter(dim, ind)
-
-        onjob = count(in_scope, {**filt, 'status': '在职'})
-        pending_offer = count(in_scope, {**filt, 'status': '在途Offer'})
-        pending_entry = count(in_scope, {**filt, 'status': '在途待入职'})
-
-        annual_target = int(r.get('annual_target', 0) or 0)
-        annual_gap = max(annual_target - onjob - pending_offer - pending_entry, 0)
-
-        monthly = r.get('monthly_targets') or [0] * 12
-        month_target = int(monthly[idx - 1]) if 1 <= idx <= 12 else 0
-
-        # 本月实际：按对应日期月份匹配当前选中月
-        if 1 <= idx <= 12:
-            month_actual = sum(
-                1 for p in in_scope
-                if all(p.get(k) == v for k, v in filt.items()) and _accounting_month(p) == month
-            )
-        else:
-            month_actual = 0
-        gap = max(month_target - month_actual, 0)
-
-        rows.append({
-            'dimension': dim,
-            'indicator': ind,
-            'bu': r.get('bu') or '',
-            'position': r.get('position') or '',
-            'level': r.get('level') or '',
-            'strength': r.get('strength', ''),
-            'onjob': onjob,
-            'pendingOffer': pending_offer,
-            'pendingEntry': pending_entry,
-            'annualTarget': annual_target,
-            'annualGap': annual_gap,
-            'monthTarget': month_target,
-            'monthActual': month_actual,
-            'gap': gap,
-            'status': count_status(month_actual, month_target),
-        })
-    return rows
-
-
-def kpi(persons, rules, year, month):
-    ratio_res = compute_ratio(persons, rules)
-    count_res = compute_count(persons, rules, year, month)
-    warn_count = 0
-    hard_violation = 0
-    for row in ratio_res['rows']:
-        if row['status'] != RATIO_NORMAL:
-            if row['strength'] == '硬约束':
-                hard_violation += 1
-            else:
-                warn_count += 1
-    month_gap = sum(r['gap'] for r in count_res)
-    return {
-        'total': ratio_res['total'],
-        'ruleCount': len(rules),
-        'warnCount': warn_count,
-        'hardViolationCount': hard_violation,
-        'monthGap': month_gap,
-    }
-
-
 def _draft_hits_rule(draft, rule) -> bool:
     """录入草稿是否命中某规则（适用范围匹配 且 指标匹配）。"""
     if not rule_matches(draft, rule):
@@ -294,6 +243,8 @@ def simulate(draft, rules, persons, year, month=None):
     checks = []
     sim = persons + [tmp]
     for r in rules:
+        if r.get('year') != year:
+            continue
         if not _draft_hits_rule(draft, r):
             continue
         mt = rmap.get((_scope_key(r), r['indicator'], r.get('year')))

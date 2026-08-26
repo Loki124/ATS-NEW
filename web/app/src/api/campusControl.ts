@@ -142,38 +142,6 @@ export interface RatioResult {
   sumChecks: SumCheck[]
 }
 
-export interface PlanRow {
-  dimension: string
-  indicator: string
-  bu: string
-  position: string
-  level: string
-  strength: Strength
-  onjob: number
-  pendingOffer: number
-  pendingEntry: number
-  annualTarget: number
-  annualGap: number
-  monthTarget: number
-  monthActual: number
-  gap: number
-  status: '本月达标' | '缺口未达成' | '未设目标'
-}
-
-export interface Kpi {
-  total: number
-  ruleCount: number
-  warnCount: number
-  hardViolationCount: number
-  monthGap: number
-}
-
-export interface PlanResult {
-  rows: PlanRow[]
-  kpi: Kpi
-  year: number
-}
-
 export interface ValidationCheck {
   dimension: string
   indicator: string
@@ -303,6 +271,8 @@ export const saveDimensionRuleSet = (
   dimensionId: string,
   payload: {
     bu: string; position: string; level: string; year: number; rules: DimRuleSetItem[];
+    /** 维度年度管控人数（各指标 annualTarget 加和须 == 此值，后端硬拦校验）。 */
+    totalTarget: number;
     /** 编辑态「重定位」时传入原适用范围，后端据此删除旧 scope 规则集。未提供则按普通原子替换处理。 */
     original?: { bu: string; position: string; level: string; year: number };
   },
@@ -405,10 +375,6 @@ export const importIndicators = (
 export const getRatio = () =>
   api.get('/campus/rules/ratio/').then((r) => r.data.data as RatioResult)
 
-/* ============================ 人数规划（全量，目标数据来自规则） ============================ */
-export const getPlan = (year: number, month: string) =>
-  api.get('/campus/rules/plan/', { params: { year, month } }).then((r) => r.data.data as PlanResult)
-
 /* ============================ 录入校验 ============================ */
 export const validateDraft = (
   year: number,
@@ -439,7 +405,7 @@ export default {
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, createRule, updateRule, deleteRule, batchSaveRules, batchConfigRules,
   saveDimensionRuleSet,
-  getRatio, getPlan, validateDraft,
+  getRatio, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules,
   exportIndicators, downloadIndicatorTemplate, importIndicators,

@@ -14,24 +14,17 @@
           <n-alert v-if="hasBadSum" type="warning" :show-icon="true" style="margin-bottom: 14px">
             存在目标占比未加和到 100% 的维度（见下方「加和」状态），请前往「规则配置」补全。
           </n-alert>
-          <div class="toolbar">
-            <n-input-number v-model:value="selectedYear" :min="2020" :max="2100" style="width: 130px" @update:value="loadPlan" />
-            <n-select v-model:value="planMonth" :options="monthOptions" style="width: 140px" @update:value="loadPlan" />
-            <div class="spacer"></div>
-            <n-text depth="3" style="font-size: 12px">看板下方「人数达成」信息随年份 / 月份联动</n-text>
-          </div>
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
             <div class="kpi-card"><span class="kpi-label">管控规则数</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
             <div class="kpi-card danger"><span class="kpi-label">硬约束超标</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
             <div class="kpi-card warn"><span class="kpi-label">软/仅提示超标</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
-            <div class="kpi-card"><span class="kpi-label">本月总缺口</span><span class="kpi-value">{{ planData.kpi.monthGap }}</span></div>
           </div>
           <div class="table-wrap">
             <n-data-table
-              :columns="mergedColumns"
-              :data="mergedRows"
-              :loading="loading.ratio || loading.plan"
+              :columns="ratioColumns"
+              :data="ratioData.rows"
+              :loading="loading.ratio"
               :row-key="(r: any) => [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')"
               :pagination="false"
               flex-height
@@ -41,8 +34,8 @@
           </div>
 
           <n-alert type="info" :show-icon="true" style="margin-top: 16px; flex-shrink: 0">
-            本看板已合并「实时看板」与「人数规划」：上半部分展示各指标的<strong>占比管控</strong>（实际/分母、占比、目标、占比状态），
-            下半部分展示<strong>人数达成</strong>（在职、年度目标/缺口、本月目标/实际/缺口）——目标数据（年度 / 12 个月）直接来源于「规则配置」。
+            实时看板按「每条规则独立适用范围」展示各指标的<strong>占比管控</strong>（实际/分母、占比、目标、占比状态）。
+            各指标的<strong>年度 / 月度管控人数</strong>在「规则配置」→编辑维度规则集中维护，目标数据直接承载于规则上。
           </n-alert>
         </n-tab-pane>
 
@@ -606,13 +599,13 @@ import {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, saveDimensionRuleSet,
-  getRatio, getPlan, validateDraft,
+  getRatio, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules, triggerDownload,
   exportIndicators, downloadIndicatorTemplate, importIndicators,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule,
-  type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
+  type Person, type RatioRow, type RatioResult,
   type ValidationResult, type Strength, type DimRuleSetItem,
   type RuleImportResult, type IndicatorImportResult,
 } from '../../api/campusControl'
@@ -657,9 +650,6 @@ const indicators = ref<ControlIndicator[]>([])
 const rules = ref<ControlRule[]>([])
 const persons = ref<Person[]>([])
 
-const selectedYear = ref(2026)
-const planMonth = ref('8月')
-
 const dimensionOptions = computed(() => dimensions.value.map((d) => ({ label: d.name, value: d.id })))
 
 /* ============================ 实时看板 ============================ */
@@ -672,62 +662,6 @@ const ratioKpi = computed(() => {
   }
 })
 const hasBadSum = computed(() => ratioData.value.sumChecks.some((s) => !s.ok))
-
-/* ============================ 人数规划 ============================ */
-const planData = ref<PlanResult>({
-  rows: [],
-  kpi: { total: 0, ruleCount: 0, warnCount: 0, hardViolationCount: 0, monthGap: 0 },
-  year: 2026,
-})
-
-/* ============================ 实时看板 + 人数规划 合并行 ============================ */
-// 以实时看板（ratio）为主，左连接人数规划（plan）；plan 缺失的指标，人数达成字段留空。
-const mergedRows = computed(() => {
-  const planMap = new Map<string, PlanRow>()
-  for (const p of planData.value.rows) {
-    planMap.set([p.bu, p.position, p.level, p.dimension, p.indicator].join('|'), p)
-  }
-  const out: any[] = []
-  for (const r of ratioData.value.rows) {
-    const key = [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')
-    const p = planMap.get(key)
-    out.push({
-      bu: r.bu, position: r.position, level: r.level, dimension: r.dimension, indicator: r.indicator,
-      actual: r.actual, denom: r.denom, ratio: r.ratio, target: r.target,
-      ratioStatus: r.status, strength: r.strength,
-      onjob: p?.onjob ?? null,
-      pendingOffer: p?.pendingOffer ?? null,
-      pendingEntry: p?.pendingEntry ?? null,
-      annualTarget: p?.annualTarget ?? null,
-      annualGap: p?.annualGap ?? null,
-      monthTarget: p?.monthTarget ?? null,
-      monthActual: p?.monthActual ?? null,
-      gap: p?.gap ?? null,
-      countStatus: p?.status ?? null,
-    })
-  }
-  // 把 plan 中有、ratio 中无的行（占比未算到但有人数目标）也补进来
-  const ratioKeys = new Set(out.map((o) => [o.bu, o.position, o.level, o.dimension, o.indicator].join('|')))
-  for (const p of planData.value.rows) {
-    const key = [p.bu, p.position, p.level, p.dimension, p.indicator].join('|')
-    if (ratioKeys.has(key)) continue
-    out.push({
-      bu: p.bu, position: p.position, level: p.level, dimension: p.dimension, indicator: p.indicator,
-      actual: null, denom: null, ratio: null, target: null,
-      ratioStatus: null, strength: p.strength ?? null,
-      onjob: p.onjob ?? null,
-      pendingOffer: p.pendingOffer ?? null,
-      pendingEntry: p.pendingEntry ?? null,
-      annualTarget: p.annualTarget ?? null,
-      annualGap: p.annualGap ?? null,
-      monthTarget: p.monthTarget ?? null,
-      monthActual: p.monthActual ?? null,
-      gap: p.gap ?? null,
-      countStatus: p.status ?? null,
-    })
-  }
-  return out
-})
 
 /* ============================ 规则配置 ============================ */
 const currentMonthIdx = computed(() => new Date().getMonth()) // 0=1月
@@ -812,42 +746,24 @@ async function loadRatio() {
   catch (e) { message.error(extractApiError(e, '加载看板失败')) }
   finally { loading.ratio = false }
 }
-async function loadPlan() {
-  loading.plan = true
-  try { planData.value = await getPlan(selectedYear.value, planMonth.value) }
-  catch (e) { message.error(extractApiError(e, '加载规划失败')) }
-  finally { loading.plan = false }
-}
-
 function onTabChange(name: string) {
-  if (name === 'ratio') { loadRatio(); loadPlan() }
+  if (name === 'ratio') { loadRatio() }
   else if (name === 'rules') loadRules()
   else if (name === 'persons') loadPersons()
   else if (name === 'indicators') loadIndicators()
 }
 
 /* ============================ 列定义 ============================ */
-// 实时看板（实时看板 + 人数规划 合并）
-const mergedColumns: DataTableColumns<any> = [
+// 实时看板：占比管控（每条规则独立适用范围）
+const ratioColumns: DataTableColumns<any> = [
   { title: '适用范围', key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) },
   { title: '维度', key: 'dimension', width: 90, fixed: 'left' },
   { title: '指标', key: 'indicator', width: 80, fixed: 'left' },
-  // —— 占比管控（来自实时看板）—— //
   { title: '实际/分母', key: 'actual', width: 100, render: (r) => `${r.actual ?? '-'} / ${r.denom ?? '-'}` },
   { title: '占比', key: 'ratio', width: 76, render: (r) => r.ratio == null ? h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => '—' }) : h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => pct(r.ratio) }) },
   { title: '目标', key: 'target', width: 68, render: (r) => r.target == null ? '—' : pct(r.target) },
-  { title: '占比状态', key: 'ratioStatus', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.ratioStatus || '正常'), bordered: false, size: 'small' }, { default: () => r.ratioStatus || '—' }) },
+  { title: '占比状态', key: 'status', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.status || '正常'), bordered: false, size: 'small' }, { default: () => r.status || '—' }) },
   { title: '强度', key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
-  // —— 人数达成（来自人数规划）—— //
-  { title: '在职', key: 'onjob', width: 66 },
-  { title: '在途 Offer', key: 'pendingOffer', width: 88 },
-  { title: '在途待入职', key: 'pendingEntry', width: 90 },
-  { title: '年度目标', key: 'annualTarget', width: 86 },
-  { title: '年度缺口', key: 'annualGap', width: 86, render: (r) => r.annualTarget == null ? '—' : r.annualGap },
-  { title: '本月目标', key: 'monthTarget', width: 86 },
-  { title: '本月实际', key: 'monthActual', width: 86 },
-  { title: '缺口', key: 'gap', width: 66, render: (r) => r.monthTarget == null ? '—' : r.gap },
-  { title: '人数状态', key: 'countStatus', width: 100, render: (r) => r.countStatus ? h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
 ]
 
 const ruleColumns: DataTableColumns<ControlRule> = [
@@ -944,7 +860,7 @@ const personColumns: DataTableColumns<Person> = [
 
 // v2.6 录入校验只看人数。占比/占比状态/强度三列移除（占比仅用于规则配置时计算实际人数，
 // 不参与「是否可以录入」判定；strength 只对占比硬/软约束有意义，人数校验无此概念）。
-// 实时看板（mergedColumns）仍使用 strengthType/ratioStatusType/pct，此处不删工具函数。
+// 实时看板（ratioColumns）仍使用 strengthType/ratioStatusType/pct，此处不删工具函数。
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
   { title: '适用范围', key: 'bu', width: 180, render: (r) => scopeText(r.bu, r.position, r.level) },
   { title: '维度', key: 'dimension', width: 100 }, { title: '指标', key: 'indicator', width: 100 },
@@ -1002,6 +918,10 @@ const dimEditorActiveAnnualSum = computed(() =>
 )
 // 人数加和 = totalTarget（口径：用户截图需求）。差 0 等同整数加和精确相等；不做四舍五入容差。
 const dimEditorTotalOk = computed(() => dimEditorActiveAnnualSum.value === Math.round(dimEditor.totalTarget || 0))
+// G5：所有指标行都标记删除 → 视为「清空该维度规则集」（提交空 rules，走后端清空分支，跳过占比/人数校验）
+const dimEditorAllPendingDelete = computed(
+  () => dimEditor.rows.length > 0 && dimEditor.rows.every((r) => r.pendingDelete),
+)
 
 /** 把任意 monthly 数组规范成长度 12 的非负整数数组（不足补 0、过长截断、非数置 0）。 */
 function normalizeMonthly(raw: any): number[] {
@@ -1264,6 +1184,77 @@ function dimRowMonthlyOk(r: DimEditorRow) {
 
 async function saveDimRuleSet() {
   if (!dimEditor.dimensionId) { message.warning('请选择维度'); return }
+  // G5：全部指标标记删除 → 清空该维度规则集（跳过占比/人数校验，二次确认后提交空 rules）
+  if (dimEditorAllPendingDelete.value) {
+    const relocate = !!dimEditor.lockContext && !!dimEditor.scopeDirty
+    const doClear = async () => {
+      loading.saveDimRuleSet = true
+      try {
+        const res = await saveDimensionRuleSet(dimEditor.dimensionId!, {
+          bu: dimEditor.isGlobal ? '' : dimEditor.bu,
+          position: dimEditor.isGlobal ? '' : dimEditor.position,
+          level: dimEditor.isGlobal ? '' : dimEditor.level,
+          year: dimEditor.year,
+          totalTarget: 0,
+          rules: [],
+          ...(relocate && dimEditor.originalScope ? { original: dimEditor.originalScope } : {}),
+        })
+        message.success(`已清空维度规则集（${res.data.saved} 条）`)
+        dimEditor.show = false
+        dimEditor.mode = 'view'
+        await Promise.all([loadRules(), loadRatio()])
+      } catch (e) {
+        message.error(extractApiError(e, '清空失败'))
+      } finally {
+        loading.saveDimRuleSet = false
+      }
+    }
+    const c = _currentEffectiveScope()
+    const curIsGlobal = !c.bu && !c.position && !c.level
+    const opposite = _oppositeScopeRules()
+    // 清空全局但存在其他指定范围 → 后端会拦截，提前告知
+    if (curIsGlobal && opposite.length > 0) {
+      dialog.error({
+        title: '无法清空为全局规则',
+        content: '该维度年度下已存在指定范围规则集，清空全局会同时清除这些指定范围，操作被拦截。请先删除指定范围规则，或改用指定范围清空。',
+        positiveText: '我知道了',
+      })
+      return
+    }
+    if (relocate) {
+      const clearGlobalNote =
+        !curIsGlobal && opposite.length > 0
+          ? '\n注意：清空指定范围会同时清除该维度年度下的全局规则。'
+          : ''
+      dialog.warning({
+        title: '清空并迁移适用范围',
+        content: `将清空该维度规则集，并从「${formatScopeLabel(dimEditor.originalScope)}」迁移到「${formatScopeLabel(_currentEffectiveScope())}」。\n原「${formatScopeLabel(dimEditor.originalScope)}」下的规则将被删除。${clearGlobalNote}`,
+        positiveText: '清空',
+        negativeText: '取消',
+        onPositiveClick: doClear,
+      })
+      return
+    }
+    // 非重定位的普通清空：若会触发跨 scope 清理（指定范围→清全局），显式确认
+    if (!curIsGlobal && opposite.length > 0) {
+      dialog.warning({
+        title: '跨适用范围清空确认',
+        content: '清空指定范围将同时清除该维度年度下的全局规则，是否继续？',
+        positiveText: '继续清空',
+        negativeText: '取消',
+        onPositiveClick: doClear,
+      })
+      return
+    }
+    dialog.warning({
+      title: '清空该维度规则集',
+      content: '所有指标都已标记删除，保存将清空该维度下当前适用范围的全部规则，是否继续？',
+      positiveText: '清空',
+      negativeText: '取消',
+      onPositiveClick: doClear,
+    })
+    return
+  }
   const validRows = dimEditor.rows.filter((r) => !r.pendingDelete && r.targetPct != null)
   if (validRows.length === 0) { message.warning('请至少保留一个指标并设置占比'); return }
   if (!dimEditorSumOk.value) { message.warning(`占比之和须 = 100%，当前 ${dimEditorSumPct.value.toFixed(1)}%`); return }
@@ -1298,13 +1289,14 @@ async function saveDimRuleSet() {
         position: dimEditor.isGlobal ? '' : dimEditor.position,
         level: dimEditor.isGlobal ? '' : dimEditor.level,
         year: dimEditor.year,
+        totalTarget: dimEditorActiveAnnualSum.value,
         rules: rulesPayload,
         ...(relocate && dimEditor.originalScope ? { original: dimEditor.originalScope } : {}),
       })
       message.success(`已保存维度规则集（${res.data.saved} 条）`)
       dimEditor.show = false
       dimEditor.mode = 'view'
-      await Promise.all([loadRules(), loadRatio(), loadPlan()])
+      await Promise.all([loadRules(), loadRatio()])
     } catch (e) {
       message.error(extractApiError(e, '保存失败'))
     } finally {
@@ -1467,7 +1459,6 @@ function handleImportUpload({ file, onFinish, onError }: any) {
         message.success(`导入成功：${res.data.groups} 组 / ${res.data.savedRules} 条规则`)
         loadRules()
         loadRatio()
-        loadPlan()
         onFinish()
       } else {
         message.error(`导入失败：${res.data.errors.length} 处错误`)
@@ -1577,11 +1568,12 @@ const draft = reactive({
   school: '985', sex: '男', major: '工学', month: '8月', status: '在职',
 })
 const validation = ref<ValidationResult | null>(null)
+const validateYear = ref(new Date().getFullYear())
 async function runValidate() {
   validation.value = null
   loading.validate = true
   try {
-    validation.value = await validateDraft(selectedYear.value, {
+    validation.value = await validateDraft(validateYear.value, {
       bu: draft.bu, position: draft.position, level: draft.level,
       school: draft.school, sex: draft.sex, major: draft.major, month: draft.month,
     })
@@ -1601,7 +1593,7 @@ async function confirmEntry() {
     })
     message.success('已录入人员')
     validation.value = null
-    await Promise.all([loadPersons(), loadRatio(), loadPlan()])
+    await Promise.all([loadPersons(), loadRatio()])
   } catch (e) { message.error(extractApiError(e, '录入失败')) }
 }
 
@@ -1653,7 +1645,7 @@ function removePerson(p: Person) {
 
 onMounted(async () => {
   await Promise.all([loadDimensions(), loadIndicators(), loadPersons()])
-  await Promise.all([loadRatio(), loadPlan(), loadRules()])
+  await Promise.all([loadRatio(), loadRules()])
 })
 </script>
 

@@ -3,15 +3,17 @@
 用法：
     python manage.py verify_prd
 
-用 §9.0 样例人员 + 默认规则（含人数目标）跑 compute_ratio + compute_count + simulate，
+用 §9.0 样例人员 + 默认规则（含人数目标）跑 compute_ratio + simulate，
 断言 v2.4 关键结论：同(适用范围,年度)同维度目标占比加和=100%、性别男比例（部门口径）、录入校验阻断。
+
+注：人数规划看板（compute_count / plan 端点）已在 v2.8 真删，本命令不再覆盖人数规划断言。
 """
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 
 from apps.campus_control.calc import (
-    compute_ratio, compute_count, simulate, check_dimension_sums, _scope_key,
+    compute_ratio, simulate, check_dimension_sums, _scope_key,
 )
 from apps.campus_control.constants import VERDICT_BLOCK, RATIO_ABOVE
 from apps.campus_control.sample_data import (
@@ -32,12 +34,6 @@ def _cnt(persons, bu=None, sex=None, school=None, major=None):
             continue
         n += 1
     return n
-
-
-def _monthly_annual(annual, idx1):
-    base = annual // 12
-    rem = annual % 12
-    return base + 1 if (idx1 - 1) < rem else base
 
 
 class Command(BaseCommand):
@@ -71,20 +67,11 @@ class Command(BaseCommand):
         assert all(s['ok'] for s in ne_sum), f'能电BG存在未加和到100%的维度：{ne_sum}'
         self.stdout.write(self.style.SUCCESS('✅ 各(适用范围,年度)各维度目标占比加和均 = 100%'))
 
-        # ---------- §9.2 人数规划断言（指标层，目标承载于规则） ----------
-        cnt_rows = compute_count(persons, rules, 2026, '8月')
-        hc = {(_scope_key(c), c['dimension'], c['indicator']): c for c in cnt_rows}
-        c985 = hc[(('', '', ''), '院校标签', '985')]
-        assert c985['onjob'] == _cnt(persons, school='985'), c985
-        assert c985['annualTarget'] == 40, c985
-        mt = _monthly_annual(40, 8)
-        assert c985['monthTarget'] == mt, (c985['monthTarget'], mt)
-
         # ---------- §9.3 录入校验断言 ----------
         draft = {'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月'}
         v = simulate(draft, rules, persons, 2026, month='8月')
         assert v['verdict'] == VERDICT_BLOCK, v
 
         self.stdout.write(self.style.SUCCESS(
-            '✅ PRD §9 v2.4 断言通过：比例 / 100%加和 / 人数规划 / 录入校验(阻断)'
+            '✅ PRD §9 v2.4 断言通过：比例 / 100%加和 / 录入校验(阻断)'
         ))

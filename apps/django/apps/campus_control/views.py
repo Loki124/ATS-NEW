@@ -11,7 +11,6 @@
   POST   /rules/                   新建规则（单条仅拦溢出）
   PUT/DELETE /rules/{id}/
   GET    /rules/ratio/?bu=&position=&level=       实时看板（适用范围过滤）
-  GET    /rules/plan/?bu=&position=&level=&year=&month=   人数规划
   POST   /rules/validate/?year=    录入校验（draft 含 bu/position/level）
   POST   /rules/batch/             批量保存某适用范围+维度的全部规则（100% 硬校验）
   GET    /headcounts/?bu=&position=&level=&year=  人数目标列表
@@ -37,7 +36,7 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
 from apps.audit.models import AuditLog
 
-from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
+from .calc import compute_ratio, simulate, check_dimension_sums, _largest_remainder_allocate
 from .constants import STRENGTH
 from .io_indicator import (
     build_indicator_export_workbook, build_indicator_export_csv,
@@ -101,9 +100,9 @@ def _jsonify(obj):
     return obj
 
 
-def _normalize_monthly_targets(raw, total_target, target, indicator_name):
-    """校验并返回 12 个月度目标数组。"""
-    annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+def _normalize_monthly_targets(raw, annual, indicator_name):
+    """校验并返回 12 个月度目标数组。annual 为该指标年度管控人数（由调用方分配好，含最大余数法结果）。"""
+    annual = int(annual)
     if raw is None:
         # 未传则均分年度目标
         base = annual // 12
@@ -209,6 +208,21 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
+    def _log_rule_audit(self, action, detail, entity_id=None):
+        """规则类写操作审计（清空/保存维度规则集等）。审计失败不阻断主流程。"""
+        try:
+            AuditLog.objects.create(
+                user=self.request.user,
+                action=action,
+                entity='ControlRule',
+                entity_id=entity_id,
+                new_value=detail[:1000],
+                ip=self.request.META.get('REMOTE_ADDR') or '',
+                user_agent=(self.request.META.get('HTTP_USER_AGENT') or '')[:500],
+            )
+        except Exception:  # noqa: BLE001 - 审计失败不应阻断主流程
+            pass
+
     @action(detail=True, methods=['put'], url_path='rules')
     def set_rules(self, request, pk=None):
         """原子替换某 (bu, position, level, dimension, year) 下的全部规则。
@@ -218,8 +232,10 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
         入参: {
           bu, position, level, year,
+          totalTarget?,  // 维度年度管控人数：各指标 annualTarget 加和须 == 此值，否则 400（人数加和硬拦）
           rules: [{indicator, target, strength, annualTarget?, monthlyTargets?}],
         }
+          - rules 为空数组 [] → 显式清空该 (适用范围, 维度, 年度) 规则集（跳过 100% 校验与互斥守卫，写审计）。
           - 未出现在 rules 中的指标即视为删除（原子替换语义）。
           - target 为 0~1 小数；strength ∈ STRENGTH。
           - 年度人数 annualTarget 与 12 个月度 monthlyTargets **成对可选**：
@@ -227,6 +243,7 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             · 两者都传 → 用前端传入的，并校验 monthlyTargets 是长度 12 的非负整数数组，
                        且 monthly_targets 之和 = annualTarget（任一不满足 400）。
             · 仅传其中一个 → 400（避免数据不一致）。
+          - 若传入 totalTarget，则 Σ(各规则 annualTarget) 须 == totalTarget，否则 400（人数加和硬拦）。
         """
         dimension = self.get_object()
         bu = request.data.get('bu', '') or ''
@@ -234,6 +251,7 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         level = request.data.get('level', '') or ''
         year_in = request.data.get('year')
         rules_in = request.data.get('rules')
+        total_target_in = request.data.get('total_target')
 
         try:
             year = int(year_in)
@@ -241,6 +259,32 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             return Response({'success': False, 'detail': 'year 必填且为整数'}, status=400)
         if not isinstance(rules_in, list):
             return Response({'success': False, 'detail': 'rules 须为数组'}, status=400)
+
+        # ---- G5 清空分支：空 rules 数组 = 显式清空该 (适用范围, 维度, 年度) 规则集 ----
+        if rules_in == []:
+            original_in = request.data.get('original')
+            obu = opos = olev = ''
+            oyear = year
+            if isinstance(original_in, dict):
+                obu = original_in.get('bu', '') or ''
+                opos = original_in.get('position', '') or ''
+                olev = original_in.get('level', '') or ''
+                try:
+                    oyear = int(original_in.get('year', year))
+                except (TypeError, ValueError):
+                    return Response({'success': False, 'detail': 'original.year 须为整数'}, status=400)
+            if (obu or opos or olev) and (obu != bu or opos != position or olev != level or oyear != year):
+                ControlRule.objects.filter(
+                    bu=obu, position=opos, level=olev, dimension=dimension, year=oyear
+                ).delete()
+            deleted = ControlRule.objects.filter(
+                bu=bu, position=position, level=level, dimension=dimension, year=year
+            ).delete()
+            self._log_rule_audit(
+                'DELETE',
+                f'清空维度「{dimension.name}」{year}年 适用范围[{bu}/{position}/{level}] 规则集（{deleted[0]} 条）',
+            )
+            return Response({'success': True, 'data': {'saved': 0, 'cleared': True}})
 
         total = Decimal('0')
         prepared = []
@@ -337,6 +381,25 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'success': False,
                 'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
+
+        # ---- G7-② 年度人数加和硬拦 ----
+        # 前端传入 totalTarget 时，Σ(各规则 annual_target) 必须 == totalTarget，否则 400（不允许加和不一致的脏数据入库）。
+        if total_target_in is not None:
+            try:
+                total_target_val = int(total_target_in)
+            except (TypeError, ValueError):
+                return Response({'success': False, 'detail': 'totalTarget 须为非负整数'}, status=400)
+            if total_target_val < 0:
+                return Response({'success': False, 'detail': 'totalTarget 不能为负数'}, status=400)
+            annual_sum = sum(p[3] for p in prepared)
+            if annual_sum != total_target_val:
+                return Response({
+                    'success': False,
+                    'detail': (
+                        f'各指标年度管控人数加和({annual_sum})'
+                        f'须等于「维度年度管控人数」({total_target_val})'
+                    ),
+                }, status=400)
 
         # ---- 「重定位」支持：编辑态下适用范围被改 ----
         # original 为编辑打开时的原适用范围快照；若与当前 scope 不同，则删除原 scope 规则集、在新 scope 重建。
@@ -620,24 +683,6 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             },
         })
 
-    @action(detail=False, methods=['get'], url_path='plan')
-    def plan(self, request):
-        """人数规划：展示全部规则的人数目标（每条按自身适用范围独立计算）。"""
-        year = request.query_params.get('year')
-        month = request.query_params.get('month')
-        if not month:
-            return Response({'success': False, 'detail': '缺少 month 参数'}, status=400)
-        rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
-        dim_map = _build_person_dim_map()
-        persons = [_person_to_dict(p, dim_map) for p in Person.objects.all()]
-        year = int(year) if year else 2026
-        rows = compute_count(persons, rules, year, month)
-        k = kpi(persons, rules, year, month)
-        return Response({
-            'success': True,
-            'data': {'rows': _jsonify(rows), 'kpi': _jsonify(k), 'year': year},
-        })
-
     @action(detail=False, methods=['post'], url_path='validate')
     def validate(self, request):
         draft = request.data or {}
@@ -729,7 +774,7 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         行为（v2.4）：取消上下限；人数目标直接承载于规则上。
           - 校验 100% 加和 + 0<=target<=1 + indicator∈dimension
           - 事务内: 删除该(适用范围, 维度, 年度)旧规则 → 创建新规则
-          - 每条规则 annual_target=round(totalTarget×target)
+          - 每条规则 annual_target 由「最大余数法」按 totalTarget×target 精确分配（保证 Σannual == totalTarget，杜绝 round 加和漂移）
           - monthly_targets 优先取前端传入；未传则按年度目标均分 12 个月
           - 校验 monthly_targets 为长度 12 的非负整数数组且加和=annual_target
         """
@@ -760,7 +805,8 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             return Response({'success': False, 'detail': 'rules 不能为空'}, status=400)
 
         total = Decimal('0')
-        prepared = []
+        prepared = []   # (indicator, target, strength, raw_monthly)
+        weights = []    # 各指标占比（和须=1），用于最大余数法分配 annual_target
         seen = set()
         for r in rules_in:
             if not isinstance(r, dict):
@@ -780,13 +826,9 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 目标占比须满足 0<=目标<=1'}, status=400)
             if strength not in STRENGTH:
                 return Response({'success': False, 'detail': f'指标 {indicator.name} 控制强度非法'}, status=400)
-            # monthly_targets 校验
-            raw_monthly = r.get('monthly_targets')
-            monthly = _normalize_monthly_targets(raw_monthly, total_target, target, indicator.name)
-            if isinstance(monthly, Response):
-                return monthly
             total += target
-            prepared.append((indicator, target, strength, monthly))
+            prepared.append((indicator, target, strength, r.get('monthly_targets')))
+            weights.append(float(target))
 
         if abs(total - Decimal('1')) > Decimal('0.0001'):
             pct = (total * 100).quantize(Decimal('0.01'))
@@ -794,6 +836,17 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
                 'success': False,
                 'detail': f'该维度下所有指标目标占比之和须为 100%，当前为 {pct}%',
             }, status=400)
+
+        # 最大余数法：把维度总人数精确分配为各指标 annual_target，保证 Σannual == total_target
+        annuals = _largest_remainder_allocate(total_target, weights)
+
+        # 逐指标校验/归一化月度目标（annual 已分配好）
+        monthly_by_idx = []
+        for i, (indicator, target, strength, raw_monthly) in enumerate(prepared):
+            monthly = _normalize_monthly_targets(raw_monthly, annuals[i], indicator.name)
+            if isinstance(monthly, Response):
+                return monthly
+            monthly_by_idx.append(monthly)
 
         # ---- 「全局 / 指定范围」互斥（非对称，与 set_rules 一致） ----
         _block = _scope_mutex_guard(dimension, year, bu, position, level)
@@ -803,12 +856,11 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         with transaction.atomic():
             # 删除该 (适用范围, 维度, 年度) 旧规则
             ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
-            for indicator, target, strength, monthly in prepared:
-                annual = int((Decimal(str(total_target)) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+            for i, (indicator, target, strength, _raw) in enumerate(prepared):
                 ControlRule.objects.create(
                     bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
                     year=year, target=target, strength=strength,
-                    annual_target=annual, monthly_targets=monthly,
+                    annual_target=annuals[i], monthly_targets=monthly_by_idx[i],
                     created_by=request.user, updated_by=request.user,
                 )
         return Response({

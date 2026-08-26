@@ -2,11 +2,13 @@
 
 覆盖：
   - 纯函数：count / rule_matches / persons_for_rule / count_rule / denom_rule /
-    ratio_of / ratio_status / count_status / compute_ratio / compute_count / kpi /
-    simulate / check_dimension_sums（适用范围由规则自带，人数目标承载于规则）
+    ratio_of / ratio_status / count_status / compute_ratio /
+    simulate / check_dimension_sums / _largest_remainder_allocate
+    （适用范围由规则自带，人数目标承载于规则；人数规划看板 compute_count/kpi 已在 v2.8 真删）
   - §9 断言（基于 §9.0 样例数据）
   - 100% 加和硬校验（序列化器 + API 双路径，按(适用范围, 年度)分组）
-  - API 端点（dimensions/indicators/rules+ratio/plan/validate/batch/with-targets/persons）
+  - API 端点（dimensions/indicators/rules+ratio/validate/batch/with-targets/persons；
+    plan 端点已真删 → 404 断言）
 """
 import pytest
 from decimal import Decimal
@@ -15,7 +17,7 @@ from ..sample_data import SAMPLE_PERSONS, build_rules
 from ..calc import (
     count, rule_matches, persons_for_rule, count_rule, denom_rule,
     ratio_of, ratio_status, count_status,
-    compute_ratio, compute_count, kpi, simulate, check_dimension_sums, _scope_key,
+    compute_ratio, simulate, check_dimension_sums, _largest_remainder_allocate, _scope_key,
 )
 from ..constants import (
     RATIO_NORMAL, RATIO_ABOVE, COUNT_MET, COUNT_GAP,
@@ -139,13 +141,6 @@ class TestPrdAssertions:
         ne = check_dimension_sums(self.rules, ('能电BG', '', ''), 2026)
         assert all(s['ok'] for s in ne), ne
 
-    def test_count_plan(self):
-        rows = compute_count(self.persons, self.rules, 2026, '8月')
-        hc = {(_scope_key(c), c['dimension'], c['indicator']): c for c in rows}
-        c985 = hc[(('', '', ''), '院校标签', '985')]
-        assert c985['onjob'] == _cnt(self.persons, school='985')
-        assert c985['annualTarget'] == 40
-
     def test_simulate_block_when_any_met(self):
         # v2.7：任意规则「本月实际 >= 本月目标」→ 阻断（配额已满，不可再加）。
         # SAMPLE 中 985 人员 status='在职'（在 _COUNTED_STATUSES），计入核算；
@@ -246,11 +241,11 @@ class TestApiEndpoints:
         assert male['status'] == '高于上限'
         assert all(s['ok'] for s in data['sumChecks'])
 
-    def test_plan_endpoint(self, api_client):
+    def test_plan_endpoint_gone(self, api_client):
+        """v2.8 真删：plan 端点已移除，任何请求应 404。"""
         self._build_minimal_scheme(api_client)
         resp = api_client.get('/api/v1/campus/rules/plan/?bu=能电BG&year=2026&month=8月')
-        assert resp.status_code == 200, resp.json()
-        assert resp.json()['data']['rows']
+        assert resp.status_code == 404, resp.content
 
     def test_validate_endpoint_headcount_only(self, api_client):
         # v2.7：录入校验 API 仅按人数判定（不按占比）。
@@ -354,7 +349,7 @@ class TestBatchConfigWithTargets:
         targets = sorted(float(r['target']) for r in dim_rules)
         assert abs(targets[0] - 0.4) < 0.001 and abs(targets[1] - 0.6) < 0.001
 
-        # annual_target = round(100 × 0.6) = 60 / round(100 × 0.4) = 40
+        # 最大余数法：totalTarget=100，权重 [0.6,0.4] → exact=[60,40]，无余数 → annual = [60,40]
         annuals = sorted(r['annualTarget'] for r in dim_rules)
         assert annuals == [40, 60]
 
@@ -412,6 +407,50 @@ class TestBatchConfigWithTargets:
         # annual_target = round(200 × 0.7) = 140 / round(200 × 0.3) = 60
         annuals = sorted(r['annualTarget'] for r in dim_rules)
         assert annuals == [60, 140]
+
+    def test_with_targets_largest_remainder_allocation(self, api_client):
+        """最大余数法：维度总人数按占比精确分配，Σannual_target == totalTarget（无加和漂移）。
+
+        用 3 指标 + totalTarget=10 + 占比 [0.34, 0.33, 0.33]（和=100%）制造真实余数：
+          exact = [3.4, 3.3, 3.3] → floors=[3,3,3] → remainder=1 → 最大余数项(0.4) +1 → [4,3,3]（和=10）。
+        """
+        dim_id, i1, i2 = self._setup_scheme(api_client)
+        i3 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'C'}, format='json').json()['id']
+        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '', 'position': '', 'level': '',
+            'dimension': dim_id, 'year': 2026, 'totalTarget': 10,
+            'rules': [
+                {'indicator': i1, 'target': 0.34, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.33, 'strength': '软约束'},
+                {'indicator': i3, 'target': 0.33, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        assert resp.json()['data']['saved'] == 3
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        annuals = sorted(r['annualTarget'] for r in dim_rules)
+        # 最大余数法不变量：加和严格 == totalTarget
+        assert sum(annuals) == 10, annuals
+        # 余数分配结果：[4, 3, 3]（i1 占比 0.34 余数 0.4 最大，得 +1）
+        assert annuals == [3, 3, 4], annuals
+
+    def test_with_targets_total_target_allocation_sum_invariant(self, api_client):
+        """不变量回归：任意 totalTarget 下 Σannual_target 恒等于 totalTarget（杜绝 round 漂移）。"""
+        dim_id, i1, i2 = self._setup_scheme(api_client)
+        for total in (7, 13, 99, 1000):
+            resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+                'bu': '', 'position': '', 'level': '',
+                'dimension': dim_id, 'year': 2026, 'totalTarget': total,
+                'rules': [
+                    {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                    {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+                ],
+            }, format='json')
+            assert resp.status_code == 200, f"total={total}: {resp.content!r}"
+            rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+            dim_rules = [r for r in rules if r['dimension'] == dim_id]
+            assert sum(r['annualTarget'] for r in dim_rules) == total, f"total={total}: {dim_rules}"
 
 
 class TestDimensionSetRules:
@@ -846,6 +885,83 @@ class TestDimensionSetRules:
         assert any(r['bu'] == 'Z部门' for r in dim_rules)
         assert any(r['bu'] == '能电BG' for r in dim_rules)
         assert not any(r['bu'] == '校招BU' for r in dim_rules)
+
+    def test_set_rules_empty_array_clears(self, api_client):
+        """G5 方案 A：rules 为空数组 = 显式清空该 (适用范围, 维度, 年度) 规则集。
+
+        清空分支跳过 100% 校验与互斥守卫，直接删除当前 scope 规则并写审计，返回 cleared=True/saved=0。
+        """
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        # 先建立一套规则
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束'},
+            ],
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        # 清空
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        body = resp.json()['data']
+        assert body['saved'] == 0
+        assert body.get('cleared') is True
+        # 该 scope 下规则应被清空
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert len(dim_rules) == 0, dim_rules
+
+    def test_set_rules_empty_array_clear_skips_100_check(self, api_client):
+        """清空分支即使「占比加和不满足 100%」也不应被拦截（直接删，无需校验）。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'rules': [],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        assert resp.json()['data'].get('cleared') is True
+
+    def test_set_rules_annual_sum_must_equal_total_target_blocked(self, api_client):
+        """G7-② 硬拦：Σ(各规则 annualTarget) ≠ totalTarget → 400（不允许加和不一致的脏数据入库）。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'totalTarget': 100,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束',
+                 'annualTarget': 24, 'monthlyTargets': [2] * 12},  # 月度之和=24=annual ✓
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束',
+                 'annualTarget': 16, 'monthlyTargets': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5]},  # 和=16=annual ✓
+            ],
+        }, format='json')
+        # 100% 校验已通过（0.6+0.4），但 Σannual=40 ≠ 100 → 硬拦
+        assert resp.status_code == 400, f"got {resp.status_code}: {resp.content!r}"
+        detail = resp.json().get('detail', '')
+        assert '维度年度管控人数' in detail
+        assert '40' in detail and '100' in detail
+
+    def test_set_rules_annual_sum_equals_total_target_ok(self, api_client):
+        """G7-② 正向：Σ(各规则 annualTarget) == totalTarget → 成功落库。"""
+        dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
+        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': bu, 'position': pos, 'level': lvl, 'year': year,
+            'totalTarget': 100,
+            'rules': [
+                {'indicator': i1, 'target': 0.6, 'strength': '硬约束',
+                 'annualTarget': 60, 'monthlyTargets': [5] * 12},  # 和=60=annual ✓
+                {'indicator': i2, 'target': 0.4, 'strength': '软约束',
+                 'annualTarget': 40, 'monthlyTargets': [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0]},  # 和=40=annual ✓
+            ],
+        }, format='json')
+        assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+        assert resp.json()['data']['saved'] == 2
+        rules = api_client.get('/api/v1/campus/rules/', {'params': {'page_size': 200}}).json()['data']
+        dim_rules = [r for r in rules if r['dimension'] == dim_id]
+        assert sum(r['annualTarget'] for r in dim_rules) == 100, dim_rules
 
 
 class TestImportScopeMutex:
