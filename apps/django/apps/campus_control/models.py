@@ -165,3 +165,28 @@ class Person(FullAuditModel, UUIDModel):
 
     def __str__(self):
         return f'{self.code}·{self.name}'
+
+
+class PersonDimensionValue(FullAuditModel, UUIDModel):
+    """人员动态维度取值（如 身份证籍贯=江苏）。
+
+    与写死的 school/sex/major 三个 legacy 维度解耦：任何在「维度管理」中新增的维度，
+    其人员取值都落到本表，计算引擎通过 __dim__<维度名> 读取，无需改代码。
+    """
+
+    person = models.ForeignKey(
+        Person, on_delete=models.CASCADE, related_name='dimension_values', verbose_name='人员'
+    )
+    dimension = models.ForeignKey(
+        ControlDimension, on_delete=models.CASCADE, related_name='person_values', verbose_name='维度'
+    )
+    value = models.CharField(max_length=64, verbose_name='取值')
+
+    class Meta:
+        verbose_name = '人员维度取值'
+        verbose_name_plural = '人员维度取值'
+        unique_together = [('person', 'dimension')]
+        ordering = ['person', 'dimension']
+
+    def __str__(self):
+        return f'{self.person.code}·{self.dimension.name}={self.value}'

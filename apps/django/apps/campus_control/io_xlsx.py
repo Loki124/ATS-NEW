@@ -20,7 +20,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-from .constants import STRENGTH, DEPTS, POSITIONS, LEVELS, DIMS, ALL_MONTHS
+from .constants import STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS
+from .models import ControlDimension, ControlIndicator
 
 # 列头（模板首行）
 HEADERS = [
@@ -160,6 +161,13 @@ def parse_import_workbook(file_obj):
     wb = load_workbook(file_obj, data_only=True)
     ws = wb.active
 
+    # 维度/指标动态校验：一次性拉取启用集（避免每行 N+1）
+    valid_dims = set(ControlDimension.objects.filter(is_active=True).values_list('name', flat=True))
+    valid_ind = {
+        (ind.dimension.name, ind.name)
+        for ind in ControlIndicator.objects.filter(is_active=True).select_related('dimension')
+    }
+
     # 找到表头行：含「维度」「指标」的那一行
     header_row = None
     for ridx in range(1, min(ws.max_row, 30) + 1):
@@ -199,10 +207,12 @@ def parse_import_workbook(file_obj):
 
         if not dimension:
             _row_err('维度为空'); continue
-        if dimension not in DIMS:
-            _row_err(f'维度「{dimension}」非法（须为 {",".join(DIMS)}）'); continue
+        if dimension not in valid_dims:
+            _row_err(f'维度「{dimension}」非法（须为系统已启用的维度）'); continue
         if not indicator:
             _row_err('指标为空'); continue
+        if (dimension, indicator) not in valid_ind:
+            _row_err(f'指标「{indicator}」非法（维度「{dimension}」下无此启用指标）'); continue
         if bu and bu not in DEPTS:
             _row_err(f'部门「{bu}」非法'); continue
         if position and position not in POSITIONS:

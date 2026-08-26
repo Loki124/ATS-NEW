@@ -41,15 +41,18 @@ def _scope_key(x: dict) -> tuple:
     )
 
 
+# legacy 三维度在 Person 上有写死字段；其余（如 身份证籍贯）走动态维度存储 __dim__<维度名>。
+_LEGACY_DIM_FIELDS = {'院校标签': 'school', '专业标签': 'major', '性别': 'sex'}
+
+
+def _dim_field(dimension: str) -> str:
+    """返回某维度在人员 dict 上的取值键：legacy 走原字段，动态维度走 __dim__<维度名>。"""
+    return _LEGACY_DIM_FIELDS.get(dimension, f'__dim__{dimension}')
+
+
 def _indicator_filter(dimension: str, indicator: str) -> dict:
     """维度 + 指标 -> 人员过滤条件。"""
-    if dimension == '院校标签':
-        return {'school': indicator}
-    if dimension == '专业标签':
-        return {'major': indicator}
-    if dimension == '性别':
-        return {'sex': indicator}
-    return {}
+    return {_dim_field(dimension): indicator}
 
 
 def rule_matches(p: dict, rule: dict) -> bool:
@@ -258,13 +261,7 @@ def _draft_hits_rule(draft, rule) -> bool:
     if not rule_matches(draft, rule):
         return False
     d = rule['dimension']
-    if d == '院校标签':
-        return rule['indicator'] == draft.get('school')
-    if d == '专业标签':
-        return rule['indicator'] == draft.get('major')
-    if d == '性别':
-        return rule['indicator'] == draft.get('sex')
-    return False
+    return rule['indicator'] == draft.get(_dim_field(d))
 
 
 def simulate(draft, rules, persons, year, month=None):

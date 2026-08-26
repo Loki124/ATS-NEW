@@ -155,8 +155,17 @@ def _rule_to_dict(r):
     }
 
 
-def _person_to_dict(p):
-    return {
+def _build_person_dim_map():
+    """预加载人员动态维度取值：{person_id: {维度名: 取值}}。"""
+    from .models import PersonDimensionValue
+    m = {}
+    for pv in PersonDimensionValue.objects.select_related('dimension'):
+        m.setdefault(pv.person_id, {})[pv.dimension.name] = pv.value
+    return m
+
+
+def _person_to_dict(p, dim_map=None):
+    d = {
         'bu': p.bu,
         'school': p.school,
         'sex': p.sex,
@@ -169,6 +178,10 @@ def _person_to_dict(p):
         'position': p.position or '',
         'level': p.level or '',
     }
+    # 动态维度（非 legacy）取值注入为 __dim__<维度名>，供 calc 通用过滤
+    for dim_name, val in (dim_map or {}).get(p.id, {}).items():
+        d[f'__dim__{dim_name}'] = val
+    return d
 
 
 class CampusCRUDMixin:
@@ -585,7 +598,8 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     def ratio(self, request):
         """实时看板：展示全部规则（每条按自身适用范围独立计算）+ 各(适用范围,年度)的 100% 加和。"""
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
-        persons = [_person_to_dict(p) for p in Person.objects.all()]
+        dim_map = _build_person_dim_map()
+        persons = [_person_to_dict(p, dim_map) for p in Person.objects.all()]
         result = compute_ratio(persons, rules)
         sums = []
         seen = set()
@@ -614,7 +628,8 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if not month:
             return Response({'success': False, 'detail': '缺少 month 参数'}, status=400)
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
-        persons = [_person_to_dict(p) for p in Person.objects.all()]
+        dim_map = _build_person_dim_map()
+        persons = [_person_to_dict(p, dim_map) for p in Person.objects.all()]
         year = int(year) if year else 2026
         rows = compute_count(persons, rules, year, month)
         k = kpi(persons, rules, year, month)
@@ -631,7 +646,8 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if missing:
             return Response({'success': False, 'detail': f'缺少字段：{",".join(missing)}'}, status=400)
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
-        persons = [_person_to_dict(p) for p in Person.objects.all()]
+        dim_map = _build_person_dim_map()
+        persons = [_person_to_dict(p, dim_map) for p in Person.objects.all()]
         year = request.query_params.get('year')
         year = int(year) if year else 2026
         result = simulate(draft, rules, persons, year, month=draft.get('month'))
@@ -922,9 +938,9 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             if indicator_name in seen:
                 return False, f'组[{dimension_name}]：指标「{indicator_name}」重复', 0
             seen.add(indicator_name)
-            indicator = ControlIndicator.objects.filter(name=indicator_name, dimension=dimension).first()
+            indicator = ControlIndicator.objects.filter(name=indicator_name, dimension=dimension, is_active=True).first()
             if not indicator:
-                return False, f'组[{dimension_name}]：指标「{indicator_name}」不属于该维度', 0
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」不属于该维度或未启用', 0
             target = _to_decimal(r.get('target'))
             if target is None:
                 return False, f'组[{dimension_name}]：指标「{indicator_name}」目标占比非法', 0
