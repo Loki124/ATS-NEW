@@ -351,6 +351,56 @@ export function triggerDownload(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url)
 }
 
+/* ============================ 指标导入 / 导出 ============================ */
+export interface IndicatorImportResult {
+  success: boolean
+  data: {
+    created: number
+    updated: number
+    skipped: number
+    failed: number
+    errors: string[]
+    errorFile?: string | null
+  }
+}
+
+/** 导出全部指标为 xlsx / csv（含完整字段：维度、指标名称、是否启用）。 */
+export const exportIndicators = (format: 'xlsx' | 'csv' = 'xlsx') =>
+  api
+    .get('/campus/indicators/export/', {
+      params: { file_format: format },
+      responseType: 'blob',
+    })
+    .then((r) => triggerDownload(r.data, `campus_indicators_export.${format}`))
+
+/** 下载指标导入模板 xlsx / csv。 */
+export const downloadIndicatorTemplate = (format: 'xlsx' | 'csv' = 'xlsx') =>
+  api
+    .get('/campus/indicators/template/', {
+      params: { file_format: format },
+      responseType: 'blob',
+    })
+    .then((r) => triggerDownload(r.data, `campus_indicators_template.${format}`))
+
+/**
+ * 批量导入指标文件（xlsx / csv），mode=skip|update|error 控制重复项处理。
+ * 业务校验错误（400）由后端显式返回，validateStatus 让 4xx 进入 then 分支便于展示明细。
+ */
+export const importIndicators = (
+  file: File,
+  mode: 'skip' | 'update' | 'error' = 'skip',
+): Promise<IndicatorImportResult> => {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('mode', mode)
+  return api
+    .post('/campus/indicators/import/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      validateStatus: (status) => status < 500,
+    })
+    .then((r) => r.data as IndicatorImportResult)
+}
+
 /* ============================ 实时看板（全量，每条按自身适用范围） ============================ */
 export const getRatio = () =>
   api.get('/campus/rules/ratio/').then((r) => r.data.data as RatioResult)
@@ -392,4 +442,5 @@ export default {
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules,
+  exportIndicators, downloadIndicatorTemplate, importIndicators,
 }

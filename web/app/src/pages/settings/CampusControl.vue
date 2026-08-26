@@ -86,6 +86,11 @@
             <n-select v-model:value="indicatorDimFilter" :options="indicatorDimOptions" placeholder="全部维度" clearable style="width: 180px" />
             <n-button @click="openDimDrawer()">管理维度</n-button>
             <div class="spacer"></div>
+            <n-dropdown :options="indicatorExportOptions" @select="onExportIndicatorsSelect">
+              <n-button>导出指标</n-button>
+            </n-dropdown>
+            <n-button @click="onDownloadIndicatorTemplate">下载模板</n-button>
+            <n-button @click="indicatorImportDrawer.show = true">导入指标</n-button>
             <n-button type="primary" class="gradient-btn" @click="openIndicatorModal()">+ 新增指标</n-button>
           </div>
           <div class="table-wrap">
@@ -449,6 +454,61 @@
       </template>
     </n-modal>
 
+    <!-- ===================== 导入指标弹窗（页面居中） ===================== -->
+    <n-modal
+      v-model:show="indicatorImportDrawer.show"
+      preset="card"
+      title="导入指标（Excel / CSV）"
+      :style="{ width: '600px', maxWidth: '94vw' }"
+      :bordered="false"
+      :segmented="{ content: true, footer: true }"
+      class="import-modal"
+    >
+      <n-space vertical :size="14">
+        <n-radio-group v-model:value="indicatorImportDrawer.mode" name="indicator-import-mode">
+          <n-space>
+            <n-radio value="skip">跳过已存在</n-radio>
+            <n-radio value="update">更新已存在</n-radio>
+            <n-radio value="error">遇重复即报错</n-radio>
+          </n-space>
+        </n-radio-group>
+        <n-upload
+          accept=".xlsx,.xlsm,.csv"
+          :max="1"
+          :custom-request="handleIndicatorImportUpload"
+          v-model:file-list="indicatorImportDrawer.fileList"
+          @remove="onIndicatorImportFileRemove"
+        >
+          <n-button>选择 Excel / CSV 文件</n-button>
+        </n-upload>
+        <n-space align="center" :wrap="false">
+          <n-button size="small" quaternary type="primary" @click="onDownloadIndicatorTemplate">下载模板</n-button>
+          <span class="import-hint" style="margin: 0">
+            每行一条指标，列：维度 / 指标名称 / 是否启用（是/否）。指标名称同维度下不可重复。
+          </span>
+        </n-space>
+        <div v-if="indicatorImportDrawer.result" class="import-result">
+          <n-alert v-if="indicatorImportDrawer.result.success" type="success" :show-icon="true">
+            导入成功：新建 {{ indicatorImportDrawer.result.data.created }} / 更新 {{ indicatorImportDrawer.result.data.updated }} / 跳过 {{ indicatorImportDrawer.result.data.skipped }} 条。
+          </n-alert>
+          <n-alert v-else type="error" :show-icon="true">
+            导入失败（已跳过 {{ indicatorImportDrawer.result.data.skipped }} / 已新建 {{ indicatorImportDrawer.result.data.created }}），请下载错误明细 Excel 修正后重传。
+          </n-alert>
+          <div v-if="indicatorImportDrawer.result && indicatorImportDrawer.result.data.errors.length" class="import-error-actions">
+            <n-button v-if="indicatorImportDrawer.result.data.errorFile" size="small" type="error" @click="downloadIndicatorImportErrorExcel">下载错误明细（Excel）</n-button>
+          </div>
+          <ul v-if="indicatorImportDrawer.result && indicatorImportDrawer.result.data.errors.length" class="import-errors">
+            <li v-for="(e, i) in indicatorImportDrawer.result.data.errors" :key="i">{{ e }}</li>
+          </ul>
+        </div>
+      </n-space>
+      <template #footer>
+        <div class="drawer-footer">
+          <n-button @click="indicatorImportDrawer.show = false">关闭</n-button>
+        </div>
+      </template>
+    </n-modal>
+
     <!-- ===================== 维度管理弹窗（页面居中） ===================== -->
     <n-modal
       v-model:show="dimDrawer.show"
@@ -549,11 +609,12 @@ import {
   getRatio, getPlan, validateDraft,
   listPersons, upsertPerson, deletePerson,
   exportRules, downloadRuleTemplate, importRules, triggerDownload,
+  exportIndicators, downloadIndicatorTemplate, importIndicators,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
   type ControlDimension, type ControlIndicator, type ControlRule,
   type Person, type RatioRow, type RatioResult, type PlanRow, type PlanResult,
   type ValidationResult, type Strength, type DimRuleSetItem,
-  type RuleImportResult,
+  type RuleImportResult, type IndicatorImportResult,
 } from '../../api/campusControl'
 
 const message = useMessage()
@@ -1296,6 +1357,86 @@ const importDrawer = reactive({
   fileList: [] as any[],
   result: null as RuleImportResult | null,
 })
+
+/* ============================ 指标导入 / 导出 ============================ */
+const indicatorExportOptions = [
+  { label: 'Excel (.xlsx)', key: 'xlsx' },
+  { label: 'CSV (.csv)', key: 'csv' },
+]
+const indicatorImportDrawer = reactive({
+  show: false,
+  mode: 'skip' as 'skip' | 'update' | 'error',
+  fileList: [] as any[],
+  result: null as IndicatorImportResult | null,
+})
+
+function onExportIndicatorsSelect(key: 'xlsx' | 'csv') {
+  onExportIndicators(key)
+}
+async function onExportIndicators(format: 'xlsx' | 'csv' = 'xlsx') {
+  try {
+    await exportIndicators(format)
+    message.success(`已导出指标（${format}）`)
+  } catch (e) {
+    message.error(extractApiError(e, '导出失败'))
+  }
+}
+async function onDownloadIndicatorTemplate() {
+  // 导入弹窗内与工具栏的「下载模板」共用；默认 xlsx
+  try {
+    await downloadIndicatorTemplate('xlsx')
+    message.success('已下载指标导入模板')
+  } catch (e) {
+    message.error(extractApiError(e, '下载模板失败'))
+  }
+}
+function handleIndicatorImportUpload({ file, onFinish, onError }: any) {
+  indicatorImportDrawer.result = null
+  const raw = file.file as File
+  if (!raw) { onError(); return }
+  loading.import = true
+  importIndicators(raw, indicatorImportDrawer.mode)
+    .then((res) => {
+      indicatorImportDrawer.result = res
+      if (res.success) {
+        message.success(`导入成功：新建 ${res.data.created} / 更新 ${res.data.updated} / 跳过 ${res.data.skipped}`)
+        loadIndicators()
+        onFinish()
+      } else {
+        message.error(`导入失败：${res.data.errors.length} 处错误`)
+        onError()
+      }
+    })
+    .catch((e) => {
+      const errRes = e?.response?.data
+      if (errRes?.data?.errors) {
+        indicatorImportDrawer.result = errRes
+      } else {
+        message.error(extractApiError(e, '导入失败'))
+      }
+      onError()
+    })
+    .finally(() => { loading.import = false })
+}
+function downloadIndicatorImportErrorExcel() {
+  const b64 = indicatorImportDrawer.result?.data?.errorFile
+  if (!b64) return
+  try {
+    const bin = atob(b64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    const blob = new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    triggerDownload(blob, `campus_indicators_import_errors_${Date.now()}.xlsx`)
+  } catch (e) {
+    message.error('错误明细 Excel 解析失败')
+  }
+}
+function onIndicatorImportFileRemove() {
+  indicatorImportDrawer.fileList = []
+  indicatorImportDrawer.result = null
+}
 
 async function onExportRules() {
   try {

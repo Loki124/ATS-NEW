@@ -20,9 +20,13 @@
   GET    /persons/                 人员主数据
   POST/PUT/DELETE /persons/{id}/
 """
+import base64
+import json
 from decimal import Decimal, ROUND_HALF_UP
+from io import BytesIO
 
 from django.db import IntegrityError, transaction
+from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -30,9 +34,17 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions import IsHROrAbove
+from apps.audit.models import AuditLog
 
 from .calc import compute_ratio, compute_count, kpi, simulate, check_dimension_sums
 from .constants import STRENGTH
+from .io_indicator import (
+    build_indicator_export_workbook, build_indicator_export_csv,
+    build_indicator_template_workbook, build_indicator_template_csv,
+    build_indicator_error_report_workbook, build_indicator_error_report_csv,
+    parse_indicator_file, _parse_bool,
+)
 from .io_xlsx import (
     build_export_workbook, build_template_workbook, parse_import_workbook,
     build_error_report_workbook,
@@ -369,6 +381,185 @@ class ControlIndicatorViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if dim:
             qs = qs.filter(dimension_id=dim)
         return qs
+
+    # ---- 权限：导入/导出/模板 需 HR 及以上；其余沿用已认证 ----
+    def get_permissions(self):
+        if self.action in ('export_indicators', 'template_indicators', 'import_indicators'):
+            return [IsHROrAbove()]
+        return [IsAuthenticated()]
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_indicators(self, request):
+        """导出全部指标为 xlsx / csv（含完整字段：维度、指标名称、是否启用）。"""
+        fmt = (request.query_params.get('file_format') or 'xlsx').lower()
+        rows = [
+            {'dimension_name': i.dimension.name, 'name': i.name, 'is_active': i.is_active}
+            for i in ControlIndicator.objects.select_related('dimension').all().order_by('dimension__name', 'name')
+        ]
+        if fmt == 'csv':
+            content = build_indicator_export_csv(rows)
+            resp = HttpResponse(content, content_type='text/csv; charset=utf-8-sig')
+            resp['Content-Disposition'] = 'attachment; filename="campus_indicators_export.csv"'
+        else:
+            wb = build_indicator_export_workbook(rows)
+            buf = BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            resp = HttpResponse(
+                buf.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+            resp['Content-Disposition'] = 'attachment; filename="campus_indicators_export.xlsx"'
+        self._log_indicator_audit('EXPORT', f'导出指标 {len(rows)} 条（{fmt}）')
+        return resp
+
+    @action(detail=False, methods=['get'], url_path='template')
+    def template_indicators(self, request):
+        """下载指标导入模板（xlsx / csv，含表头 + 示例 + 填写说明）。"""
+        fmt = (request.query_params.get('file_format') or 'xlsx').lower()
+        if fmt == 'csv':
+            content = build_indicator_template_csv()
+            resp = HttpResponse(content, content_type='text/csv; charset=utf-8-sig')
+            resp['Content-Disposition'] = 'attachment; filename="campus_indicators_template.csv"'
+        else:
+            wb = build_indicator_template_workbook()
+            buf = BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            resp = HttpResponse(
+                buf.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+            resp['Content-Disposition'] = 'attachment; filename="campus_indicators_template.xlsx"'
+        self._log_indicator_audit('EXPORT', f'下载指标导入模板（{fmt}）')
+        return resp
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_indicators(self, request):
+        """批量导入指标：数据校验 + 重复项处理（mode=skip|update|error）。
+
+        校验：维度须存在；指标名称非空且 ≤32；是否启用须可解析；文件内同 (维度,指标名称) 不可重复。
+        与库内重复按 mode 处理：skip=跳过 / update=更新 is_active / error=整批拒绝（原子回滚）。
+        任一硬校验错误 → 整体 400 并附错误报告（xlsx，base64）。
+        """
+        f = request.FILES.get('file')
+        if not f:
+            return Response({'success': False, 'detail': '缺少 file 文件字段'}, status=400)
+        mode = (request.data.get('mode') or request.query_params.get('mode') or 'skip').strip().lower()
+        if mode not in ('skip', 'update', 'error'):
+            return Response({'success': False, 'detail': 'mode 仅支持 skip / update / error'}, status=400)
+
+        rows, parse_errors, original_rows, errors_by_line = parse_indicator_file(f)
+
+        if parse_errors:
+            return Response(
+                {'success': False, 'data': self._indicator_error_payload(parse_errors, {}, [], f.name)},
+                status=400,
+            )
+        if not rows:
+            return Response(
+                {'success': False, 'data': self._indicator_error_payload(['文件中未解析到任何有效指标行'], {}, [], f.name)},
+                status=400,
+            )
+
+        # 预构建维度映射，避免逐行查库
+        dim_map = {d.name: d for d in ControlDimension.objects.all()}
+
+        seen_in_file = {}
+        for rec in rows:
+            line = rec['line']
+            dim_name = rec['dimension_name']
+            name = rec['name']
+            dimension = dim_map.get(dim_name)
+            if dimension is None:
+                errors_by_line[line] = f'维度「{dim_name}」不存在'
+                continue
+            if not name:
+                errors_by_line[line] = '指标名称为空'
+                continue
+            if len(name) > 32:
+                errors_by_line[line] = f'指标名称过长（须 ≤32，当前 {len(name)}）'
+                continue
+            is_active = _parse_bool(rec['is_active_raw'])
+            if is_active is None:
+                errors_by_line[line] = f'是否启用非法：{rec["is_active_raw"]!r}（填写 是/否/true/false/1/0）'
+                continue
+            key = (dimension.id, name)
+            if key in seen_in_file:
+                errors_by_line[line] = f'与第 {seen_in_file[key]} 行重复（同维度同指标名称）'
+                continue
+            seen_in_file[key] = line
+            existing = ControlIndicator.objects.filter(dimension=dimension, name=name).first()
+            if existing and mode == 'error':
+                errors_by_line[line] = f'指标「{dim_name}/{name}」已存在，mode=error 拒绝导入'
+
+        if errors_by_line:
+            return Response(
+                {'success': False, 'data': self._indicator_error_payload([], errors_by_line, original_rows, f.name)},
+                status=400,
+            )
+
+        # 第二遍：写库（此阶段已无硬错误）
+        created = updated = skipped = 0
+        with transaction.atomic():
+            for rec in rows:
+                dimension = dim_map[rec['dimension_name']]
+                name = rec['name']
+                is_active = _parse_bool(rec['is_active_raw'])
+                existing = ControlIndicator.objects.filter(dimension=dimension, name=name).first()
+                if existing:
+                    if mode == 'skip':
+                        skipped += 1
+                        continue
+                    existing.is_active = is_active
+                    existing.updated_by = request.user
+                    existing.save(update_fields=['is_active', 'updated_by'])
+                    updated += 1
+                    continue
+                ControlIndicator.objects.create(
+                    dimension=dimension, name=name, is_active=is_active,
+                    created_by=request.user, updated_by=request.user,
+                )
+                created += 1
+
+        action = 'CREATE' if created else ('UPDATE' if updated else 'READ')
+        detail = f'导入指标完成：新建 {created} / 更新 {updated} / 跳过 {skipped}（mode={mode}）'
+        self._log_indicator_audit(action, detail)
+        return Response({
+            'success': True,
+            'data': {'created': created, 'updated': updated, 'skipped': skipped, 'failed': 0, 'errors': []},
+        })
+
+    def _indicator_error_payload(self, parse_errors, errors_by_line, original_rows, filename=''):
+        """构造失败响应 data：融合错误文本 + xlsx 错误报告（base64）。"""
+        errs = list(parse_errors) + [f'第 {ln} 行：{msg}' for ln, msg in sorted(errors_by_line.items())]
+        payload = {
+            'created': 0, 'updated': 0, 'skipped': 0, 'failed': len(errs),
+            'errors': errs, 'error_file': None,
+        }
+        if original_rows:
+            try:
+                buf = BytesIO()
+                wb = build_indicator_error_report_workbook(original_rows, errors_by_line)
+                wb.save(buf)
+                payload['error_file'] = base64.b64encode(buf.getvalue()).decode('ascii')
+            except Exception:  # noqa: BLE001 - 报告生成失败不影响主错误返回
+                payload['error_file'] = None
+        return payload
+
+    def _log_indicator_audit(self, action, detail, entity_id=None):
+        try:
+            AuditLog.objects.create(
+                user=self.request.user,
+                action=action,
+                entity='ControlIndicator',
+                entity_id=entity_id,
+                new_value=detail[:1000],
+                ip=self.request.META.get('REMOTE_ADDR') or '',
+                user_agent=(self.request.META.get('HTTP_USER_AGENT') or '')[:500],
+            )
+        except Exception:  # noqa: BLE001 - 审计失败不应阻断主流程
+            pass
 
 
 class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
