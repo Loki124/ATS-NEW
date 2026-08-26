@@ -376,8 +376,11 @@
           </div>
         </div>
 
-        <n-alert v-if="dimEditor.mode === 'edit' && dimEditorHasPendingDelete" type="warning" :show-icon="true" class="dim-del-alert">
+        <n-alert v-if="dimEditor.mode === 'edit' && dimEditorHasPendingDelete && !dimEditorAllPendingDelete" type="warning" :show-icon="true" class="dim-del-alert">
           已标记删除 {{ dimEditorPendingDeleteCount }} 个指标，剩余指标占比之和须重平衡至 100% 后方可保存。
+        </n-alert>
+        <n-alert v-if="dimEditor.mode === 'edit' && dimEditorAllPendingDelete" type="warning" :show-icon="true" class="dim-del-alert">
+          已标记删除全部指标，保存后将清空该适用范围下的规则集。
         </n-alert>
       </div>
 
@@ -909,7 +912,7 @@ const dimEditorIndicators = computed(() =>
 const dimEditorSumPct = computed(() =>
   dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : (r.targetPct || 0)), 0),
 )
-const dimEditorSumOk = computed(() => Math.abs(dimEditorSumPct.value - 100) < 0.05)
+const dimEditorSumOk = computed(() => dimEditorAllPendingDelete.value || Math.abs(dimEditorSumPct.value - 100) < 0.05)
 const dimEditorHasPendingDelete = computed(() => dimEditor.rows.some((r) => r.pendingDelete))
 const dimEditorPendingDeleteCount = computed(() => dimEditor.rows.filter((r) => r.pendingDelete).length)
 // 仅统计未删除行的年度人数加和（与 totalTarget 比较以判断「人数加和 = 维度年度目标」）。
@@ -917,7 +920,7 @@ const dimEditorActiveAnnualSum = computed(() =>
   dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : Math.round(r.annualTarget || 0)), 0),
 )
 // 人数加和 = totalTarget（口径：用户截图需求）。差 0 等同整数加和精确相等；不做四舍五入容差。
-const dimEditorTotalOk = computed(() => dimEditorActiveAnnualSum.value === Math.round(dimEditor.totalTarget || 0))
+const dimEditorTotalOk = computed(() => dimEditorAllPendingDelete.value || dimEditorActiveAnnualSum.value === Math.round(dimEditor.totalTarget || 0))
 // G5：所有指标行都标记删除 → 视为「清空该维度规则集」（提交空 rules，走后端清空分支，跳过占比/人数校验）
 const dimEditorAllPendingDelete = computed(
   () => dimEditor.rows.length > 0 && dimEditor.rows.every((r) => r.pendingDelete),
