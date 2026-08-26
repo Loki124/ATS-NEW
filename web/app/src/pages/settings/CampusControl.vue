@@ -39,7 +39,7 @@
           </n-alert>
         </n-tab-pane>
 
-        <!-- ===================== 规则配置 ===================== -->
+        <!-- ===================== 规则配置（维度列表 master → 维度详情 detail） ===================== -->
         <n-tab-pane name="rules" tab="规则配置">
           <n-alert
             v-if="mixedScopeGroups.size > 0"
@@ -50,24 +50,77 @@
             检测到 <b>{{ mixedScopeGroups.size }}</b> 个「维度 × 年度」组合同时存在「全局」与「指定范围」规则集，会导致人员<b>重复计入</b>。
             请手动删除其中一种适用范围下的规则集（编辑后保存即重定位/删除；或删除该维度下对应规则）。新写入已被后端强制互斥拦截。
           </n-alert>
+
+          <!-- 工具栏：master / detail 双态 -->
           <div class="toolbar">
-            <n-select v-model:value="ruleDimFilter" :options="ruleDimOptions" placeholder="全部维度" clearable style="width: 180px" />
-            <div class="spacer"></div>
-            <n-button @click="onExportRules">导出规则</n-button>
-            <n-button @click="importDrawer.show = true">导入规则</n-button>
-            <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
+            <template v-if="!selectedDimensionId">
+              <n-button @click="onExportRules">导出规则</n-button>
+              <n-button @click="importDrawer.show = true">导入规则</n-button>
+              <div class="spacer"></div>
+              <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
+            </template>
+            <template v-else>
+              <n-button quaternary @click="selectedDimensionId = null">← 返回维度列表</n-button>
+              <span style="font-weight: 600; font-size: 15px">{{ selectedDimensionName }}</span>
+              <div class="spacer"></div>
+              <n-select
+                v-if="detailScopeOptions.length"
+                v-model:value="detailScopeKey"
+                :options="detailScopeOptions"
+                style="width: 220px"
+                placeholder="适用范围"
+              />
+              <n-select
+                v-if="detailYearOptions.length"
+                v-model:value="detailYear"
+                :options="detailYearOptions"
+                style="width: 110px"
+              />
+              <div class="spacer"></div>
+              <n-button @click="openDetailEditor">编辑规则集</n-button>
+              <n-button type="error" quaternary @click="openDetailClear">清空规则集</n-button>
+            </template>
           </div>
-          <div class="table-wrap">
+
+          <!-- master：维度列表 -->
+          <div class="table-wrap" v-if="!selectedDimensionId">
             <n-data-table
-              :columns="ruleColumns"
-              :data="filteredRules"
+              :columns="dimensionRuleColumns"
+              :data="dimensionRuleSummary"
               :loading="loading.rules"
-              :row-key="(r: any) => r.id"
+              :row-key="(d: any) => d.id"
               :pagination="false"
               flex-height
             >
               <template #empty>
-                <n-empty description="暂无规则，点击右上角「新增规则」从指标库中选择指标并设定适用范围" />
+                <n-empty description="暂无维度，请先到「指标管理」新增维度" />
+              </template>
+            </n-data-table>
+          </div>
+
+          <!-- detail：选中维度的指标矩阵（年度/月度目标） -->
+          <div class="table-wrap" v-else>
+            <n-alert
+              v-if="!detailSumOk"
+              type="warning"
+              :show-icon="true"
+              class="dim-del-alert"
+              style="margin-bottom: 10px"
+            >
+              当前「{{ selectedDimensionName }} · {{ (detailScopeOptions.find((o: any) => o.value === detailScopeKey) || {}).label || '全局' }} · {{ detailYear }}」下各指标目标占比之和未达 100%，请编辑规则集补全。
+            </n-alert>
+            <n-data-table
+              :columns="detailMatrixColumns"
+              :data="detailMatrix"
+              :loading="loading.rules"
+              :row-key="(r: any) => r.indicatorId"
+              :pagination="false"
+              :expandable="(row: any) => row.configured"
+              :render-expand="renderDetailExpand"
+              flex-height
+            >
+              <template #empty>
+                <n-empty description="该维度下暂无指标，请先到「指标管理」新增" />
               </template>
             </n-data-table>
           </div>
@@ -668,25 +721,6 @@ const hasBadSum = computed(() => ratioData.value.sumChecks.some((s) => !s.ok))
 
 /* ============================ 规则配置 ============================ */
 const currentMonthIdx = computed(() => new Date().getMonth()) // 0=1月
-const ruleDimFilter = ref<string | null>(null)
-const ruleDimOptions = computed(() => [
-  { label: '全部维度', value: '' },
-  ...dimensions.value.map((d) => ({ label: d.name, value: d.id })),
-])
-const filteredRules = computed(() => {
-  if (!ruleDimFilter.value) return rules.value
-  return rules.value.filter((r) => r.dimension === ruleDimFilter.value)
-})
-
-// 每条规则所属 (适用范围, 维度) 组的加和
-const ruleSumMap = computed(() => {
-  const m = new Map<string, number>()
-  for (const r of rules.value) {
-    const k = [r.bu, r.position, r.level, r.dimension].join('|')
-    m.set(k, (m.get(k) || 0) + r.target)
-  }
-  return m
-})
 
 // 同一 (dimension, year) 下若同时含「全局」与「指定范围」规则集 → 重复计入风险（⚠️ 徽标）。
 // 后端已对新写入做互斥拦截，此徽标仅用于提示存量（legacy）混合数据，需用户手动清理。
@@ -704,8 +738,139 @@ const mixedScopeGroups = computed<Set<string>>(() => {
   }
   return mixed
 })
-const isScopeMutexViolation = (r: ControlRule) =>
-  mixedScopeGroups.value.has([r.dimension, r.year].join('|'))
+
+/* ============================ 规则配置：维度列表(master) + 维度详情(detail) ============================ */
+const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+
+// master/detail 导航状态
+const selectedDimensionId = ref<string | null>(null)
+const detailScopeKey = ref<string>('||')
+const detailYear = ref<number>(new Date().getFullYear())
+
+function scopeKeyOf(bu: string, position: string, level: string) {
+  return [bu || '', position || '', level || ''].join('|')
+}
+function keyToScope(key: string) {
+  const [bu = '', position = '', level = ''] = key.split('|')
+  return { bu, position, level }
+}
+const selectedDimensionName = computed(
+  () => dimensions.value.find((d) => d.id === selectedDimensionId.value)?.name || '',
+)
+
+// master：每维度一行，聚合「指标数 / 规则集数 / 加和状态 / 范围冲突」
+const dimensionRuleSummary = computed(() =>
+  dimensions.value.map((d) => {
+    const dRules = rules.value.filter((r) => r.dimension === d.id)
+    const groups = new Map<string, number>()
+    for (const r of dRules) {
+      const k = scopeKeyOf(r.bu, r.position, r.level) + '#' + r.year
+      groups.set(k, (groups.get(k) || 0) + r.target)
+    }
+    let badSum = false
+    for (const s of groups.values()) if (Math.abs(s - 1) >= 0.0005) badSum = true
+    const hasMutex = [...mixedScopeGroups.value].some((gk) => gk.startsWith(d.id + '|'))
+    const indicatorCount = indicators.value.filter((i) => i.dimension === d.id).length
+    return {
+      id: d.id,
+      name: d.name,
+      code: d.code,
+      indicatorCount,
+      ruleSetCount: groups.size,
+      sumOk: !badSum && dRules.length > 0,
+      mutex: hasMutex,
+    }
+  }),
+)
+
+// detail：选中维度后，按 (适用范围, 年度) 筛选，展示该维度下所有指标的年度/月度目标
+const detailScopeOptions = computed(() => {
+  if (!selectedDimensionId.value) return []
+  const seen = new Set<string>()
+  const opts: { label: string; value: string }[] = []
+  for (const r of rules.value) {
+    if (r.dimension !== selectedDimensionId.value) continue
+    const k = scopeKeyOf(r.bu, r.position, r.level)
+    if (!seen.has(k)) {
+      seen.add(k)
+      opts.push({ label: scopeText(r.bu, r.position, r.level), value: k })
+    }
+  }
+  return opts
+})
+const detailYearOptions = computed(() => {
+  if (!selectedDimensionId.value) return []
+  const seen = new Set<number>()
+  const opts: { label: string; value: number }[] = []
+  for (const r of rules.value) {
+    if (r.dimension !== selectedDimensionId.value) continue
+    if (!seen.has(r.year)) {
+      seen.add(r.year)
+      opts.push({ label: String(r.year), value: r.year })
+    }
+  }
+  return opts.sort((a, b) => a.value - b.value)
+})
+const detailMatrix = computed(() => {
+  if (!selectedDimensionId.value) return []
+  const scope = keyToScope(detailScopeKey.value)
+  const matched = rules.value.filter(
+    (r) =>
+      r.dimension === selectedDimensionId.value &&
+      (r.bu || '') === scope.bu && (r.position || '') === scope.position && (r.level || '') === scope.level &&
+      r.year === detailYear.value,
+  )
+  const byInd = new Map(matched.map((r) => [r.indicator, r]))
+  return indicators.value
+    .filter((i) => i.dimension === selectedDimensionId.value)
+    .map((i) => {
+      const r = byInd.get(i.id)
+      return {
+        indicatorId: i.id,
+        indicatorName: i.name,
+        configured: !!r,
+        targetPct: r ? Math.round(r.target * 1000) / 10 : null,
+        annualTarget: r ? Math.round(r.annualTarget) : null,
+        monthlyTargets: r ? normalizeMonthly(r.monthlyTargets) : Array(12).fill(0),
+      }
+    })
+})
+const detailSumOk = computed(() => {
+  const s = detailMatrix.value.filter((r) => r.configured).reduce((a, r) => a + (r.targetPct || 0), 0)
+  return Math.abs(s - 100) < 0.05
+})
+
+function selectDimension(id: string) {
+  selectedDimensionId.value = id
+  const scopes = detailScopeOptions.value
+  const years = detailYearOptions.value
+  detailScopeKey.value = scopes.length ? scopes[0].value : scopeKeyOf('', '', '')
+  detailYear.value = years.length ? years[0].value : new Date().getFullYear()
+}
+
+// 复用 dimEditor 打开「选中维度 + 选中适用范围 + 选中年度」的规则集（不依赖单条规则推断）
+function openDetailEditor() {
+  if (!selectedDimensionId.value) return
+  const scope = keyToScope(detailScopeKey.value)
+  dimEditor.dimensionId = selectedDimensionId.value
+  dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
+  dimEditor.bu = scope.bu
+  dimEditor.position = scope.position
+  dimEditor.level = scope.level
+  dimEditor.year = detailYear.value
+  dimEditor.lockContext = true
+  dimEditor.originalScope = { bu: scope.bu, position: scope.position, level: scope.level, year: detailYear.value }
+  dimEditor.scopeDirty = false
+  dimEditor.mode = 'view'
+  dimEditor.show = true
+  _buildDimRows()
+}
+// G5 清空入口：打开即把所有指标行标记为「待删」，保存即走后端清空分支
+function openDetailClear() {
+  openDetailEditor()
+  for (const row of dimEditor.rows) row.pendingDelete = true
+  dimEditor.mode = 'edit'
+}
 
 /* ============================ 指标管理 ============================ */
 const indicatorDimFilter = ref<string | null>(null)
@@ -769,47 +934,61 @@ const ratioColumns: DataTableColumns<any> = [
   { title: '强度', key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
 ]
 
-const ruleColumns: DataTableColumns<ControlRule> = [
-  { title: '维度', key: 'dimensionName', width: 110 },
-  { title: '指标', key: 'indicatorName', width: 100 },
+const dimensionRuleColumns: DataTableColumns<any> = [
   {
-    title: '适用范围', key: 'bu', width: 210,
-    render: (r) => {
-      const children = [
-        h(NTag, { type: r.bu || r.position || r.level ? 'info' : 'success', bordered: false, size: 'small' }, { default: () => scopeText(r.bu, r.position, r.level) }),
-      ]
-      if (isScopeMutexViolation(r)) {
-        children.push(
-          h(NTooltip, { placement: 'top' }, {
-            trigger: () => h('span', { class: 'scope-mutex-badge' }, '⚠️'),
-            default: () => '该维度同时存在「全局」与「指定范围」规则集，会导致重复计入。请手动删除其中一种适用范围下的规则集。',
-          }),
-        )
-      }
-      return h('div', { style: 'display:flex; align-items:center; gap:6px;' }, children)
-    },
-  },
-  { title: '目标占比', key: 'target', width: 90, render: (r) => pct(r.target) },
-  { title: '规划年度', key: 'year', width: 80 },
-  { title: '年度目标', key: 'annualTarget', width: 80 },
-  { title: '本月目标', key: 'monthTarget', width: 80, render: (r: any) => (r.monthlyTargets || [])[currentMonthIdx.value] ?? 0 },
-  { title: '强度', key: 'strength', width: 90, render: (r) => h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) },
-  {
-    title: '加和', key: 'sum', width: 90,
-    render: (r) => {
-      const s = (ruleSumMap.value.get([r.bu, r.position, r.level, r.dimension].join('|')) || 0) * 100
-      const ok = Math.abs(s - 100) < 0.05
-      return h(NTag, { type: ok ? 'success' : 'warning', bordered: false, size: 'small' }, { default: () => `${s.toFixed(1)}%${ok ? ' ✓' : ' ⚠'}` })
-    },
-  },
-  {
-    title: '操作', key: 'actions', width: 120, fixed: 'right',
-    render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openDimensionEditor(r) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => openDimensionEditor(r, { preDelete: r.indicator }) }, { default: () => '删除' }),
+    title: '维度名称', key: 'name',
+    render: (d: any) => h('div', { style: 'display:flex; align-items:center; gap:8px;' }, [
+      h('span', { style: 'font-weight:600;' }, d.name),
+      d.code ? h(NTag, { size: 'small', bordered: false, type: 'default' }, { default: () => d.code }) : null,
     ]),
   },
+  { title: '指标数', key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) },
+  { title: '规则集(适用范围×年度)', key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) },
+  {
+    title: '加和状态', key: 'sumOk', width: 140,
+    render: (d: any) => {
+      if (d.mutex) return h(NTag, { type: 'error', bordered: false, size: 'small' }, { default: () => '⚠ 范围冲突' })
+      if (!d.sumOk) return h(NTag, { type: 'warning', bordered: false, size: 'small' }, { default: () => '⚠ 未达100%' })
+      return h(NTag, { type: 'success', bordered: false, size: 'small' }, { default: () => '✓ 100%' })
+    },
+  },
+  {
+    title: '操作', key: 'actions', width: 110, fixed: 'right',
+    render: (d: any) => h(NButton, { size: 'small', type: 'primary', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => '查看详情' }),
+  },
 ]
+
+const detailMatrixColumns: DataTableColumns<any> = [
+  {
+    title: '指标', key: 'indicatorName',
+    render: (r: any) => h('div', { style: 'display:flex; align-items:center; gap:8px;' }, [
+      h('span', {}, r.indicatorName),
+      !r.configured ? h(NTag, { size: 'small', type: 'warning', bordered: false }, { default: () => '未配置' }) : null,
+    ]),
+  },
+  {
+    title: '目标占比', key: 'targetPct', width: 110,
+    render: (r: any) => (r.configured ? h('span', {}, `${r.targetPct}%`) : h('span', { class: 'muted' }, '—')),
+  },
+  {
+    title: '年度目标(人)', key: 'annualTarget', width: 120,
+    render: (r: any) => (r.configured ? h('span', {}, String(r.annualTarget)) : h('span', { class: 'muted' }, '—')),
+  },
+  {
+    title: '月度目标(人)', key: 'monthly', width: 210,
+    render: (r: any) => (r.configured
+      ? h('span', { class: 'muted' }, `${r.monthlyTargets[currentMonthIdx.value]}（${currentMonthIdx.value + 1}月）· 展开看12月`)
+      : h('span', { class: 'muted' }, '—')),
+  },
+]
+function renderDetailExpand(row: any) {
+  return h('div', { style: 'display:grid; grid-template-columns:repeat(6,1fr); gap:8px; padding:4px 0;' },
+    MONTH_LABELS.map((m, i) => h('div', { style: 'display:flex; flex-direction:column; align-items:center; padding:6px; background:rgba(99,102,241,0.06); border-radius:6px;' }, [
+      h('span', { style: 'font-size:12px; color:var(--n-text-color-3,#999);' }, m),
+      h('span', { style: 'font-weight:600;' }, String(row.monthlyTargets[i] || 0)),
+    ])),
+  )
+}
 
 const indicatorColumns: DataTableColumns<ControlIndicator> = [
   { title: '维度', key: 'dimensionName', width: 160 },
