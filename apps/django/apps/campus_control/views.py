@@ -950,14 +950,20 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         """
         f = request.FILES.get('file')
         if not f:
-            return Response({'success': False, 'detail': '缺少 file 文件字段'}, status=400)
+            return Response(
+                {'success': False, 'data': {'groups': 0, 'saved_rules': 0, 'errors': ['缺少 file 文件字段'], 'error_file': None}},
+                status=400)
         if not f.name.lower().endswith(('.xlsx', '.xlsm')):
-            return Response({'success': False, 'detail': '仅支持 .xlsx 文件'}, status=400)
+            return Response(
+                {'success': False, 'data': {'groups': 0, 'saved_rules': 0, 'errors': ['仅支持 .xlsx 文件'], 'error_file': None}},
+                status=400)
 
         try:
             groups, parse_errors, original_rows, errors_by_line = parse_import_workbook(f)
         except Exception as e:  # noqa: BLE001 - 解析异常统一返回
-            return Response({'success': False, 'detail': f'文件解析失败：{e}'}, status=400)
+            return Response(
+                {'success': False, 'data': {'groups': 0, 'saved_rules': 0, 'errors': [f'文件解析失败：{e}'], 'error_file': None}},
+                status=400)
 
         def _error_payload(extra_errors):
             """构造失败响应：除 errors 文本列表外，附融合后的错误报告 xlsx（base64）。"""

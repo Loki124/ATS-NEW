@@ -335,6 +335,11 @@ body.dark .glass-card {
   background: rgba(15, 23, 42, .18) !important;
   backdrop-filter: blur(var(--glass-blur-overlay));
   -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
+  /* 弹窗居中加固：显式保证 n-modal 内容在遮罩内水平+垂直居中，
+     防御 Naive 主题/版本差异导致 dialog 偏上或不居中（兵哥 8/27 验收项）。 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 body.dark .n-modal-mask {
   background: rgba(0, 0, 0, .25) !important;
@@ -700,6 +705,28 @@ body.dark .kpi-card:hover {
 .kpi-card.warn .kpi-value { color: var(--c-warning); }
 .kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 .kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
+
+/* === KPI 强调变体 .kpi-card--accent（仅 CSS 变量，遵循 KPI 令牌铁律；修复 DataDashboard 硬编码 hex 偏差）=== */
+/* 居中列布局 —— 密集看板卡（如 6 列网格）用；禁止任何硬编码 hex，渐变随 --brand 主题切换 */
+.kpi-card.kpi-card--accent {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(135deg, var(--brand-tint) 0%, var(--brand-soft) 100%);
+  border-color: var(--brand-a22);
+}
+.kpi-card.kpi-card--accent .kpi-value { color: var(--ink); }
+.kpi-card.kpi-card--accent .kpi-label { color: var(--ink-soft); }
+.kpi-card.kpi-card--accent:hover {
+  box-shadow: 0 0 0 1px var(--brand-a22), 0 14px 34px var(--brand-a12),
+              8px 8px 18px color-mix(in srgb, var(--brand) 16%, transparent),
+              -8px -8px 18px rgba(255, 255, 255, .65);
+  transform: translateY(-2px);
+}
+body.dark .kpi-card.kpi-card--accent {
+  box-shadow: 0 0 0 1px var(--brand-a22), 8px 8px 18px rgba(0, 0, 0, .35), -8px -8px 18px rgba(255, 255, 255, .05);
+}
 /* P3 整改：原 1024/480 媒体查询删除，KPI 改用 auto-fit 自适应，无需手动断点 */
 
 /* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */

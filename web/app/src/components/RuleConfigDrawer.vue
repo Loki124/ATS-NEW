@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, h } from 'vue'
 import {
-  NDrawer, NDrawerContent, NForm, NFormItem, NInput, NInputNumber, NSelect,
+  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect,
   NButton, NTag, NSpace, NGrid, NGi, NDivider, NAlert, useMessage,
 } from 'naive-ui'
 import {
@@ -172,13 +172,16 @@ async function save() {
 </script>
 
 <template>
-  <n-drawer
+  <n-modal
     :show="show"
-    :width="520"
-    placement="right"
+    preset="card"
+    :title="rule ? `规则 ${rule.code || ''}` : '新增规则'"
+    :style="{ width: '560px', maxWidth: '94vw' }"
+    :bordered="false"
+    :segmented="{ content: true, footer: true }"
+    class="rule-config-modal"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
-    <n-drawer-content :title="rule ? `规则 ${rule.code || ''}` : '新增规则'" :native-scrollbar="false">
       <n-space vertical :size="18">
         <!-- 模块一：规则信息 -->
         <section>
@@ -295,8 +298,7 @@ async function save() {
           <n-button v-if="!editing" @click="close">关闭</n-button>
         </n-space>
       </template>
-    </n-drawer-content>
-  </n-drawer>
+  </n-modal>
 </template>
 
 <style scoped>

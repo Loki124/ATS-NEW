@@ -1749,7 +1749,7 @@ function openPersonModal(p?: Person) {
   personModal.show = true
 }
 async function savePerson() {
-  if (!personModal.code.trim() || !personModal.name.trim()) { message.warning('请填写编码与姓名'); return }
+  if (!personModal.code.trim() || !personModal.name.trim()) { message.warning('请先填写人员编码与姓名'); return }
   try {
     await upsertPerson({
       id: personModal.editingId ?? undefined,
