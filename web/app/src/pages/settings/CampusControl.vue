@@ -39,7 +39,7 @@
           </n-alert>
         </n-tab-pane>
 
-        <!-- ===================== 规则配置（维度列表 master → 维度详情 detail） ===================== -->
+        <!-- ===================== 规则配置（扁平列表：每条规则一行） ===================== -->
         <n-tab-pane name="rules" tab="规则配置">
           <n-alert
             v-if="mixedScopeGroups.size > 0"
@@ -47,61 +47,38 @@
             :show-icon="true"
             class="scope-mutex-banner"
           >
-            检测到 <b>{{ mixedScopeGroups.size }}</b> 个「维度 × 年度」组合同时存在「全局」与「指定范围」规则集，会导致人员<b>重复计入</b>。
-            请手动删除其中一种适用范围下的规则集（编辑后保存即重定位/删除；或删除该维度下对应规则）。新写入已被后端强制互斥拦截。
+            检测到 <b>{{ mixedScopeGroups.size }}</b> 个「维度 × 年度」组合同时存在「全局」与「指定范围」规则，会导致人员<b>重复计入</b>。请调整适用范围（编辑规则或删除其一）。
           </n-alert>
 
-          <!-- 工具栏：master 常驻 -->
           <div class="toolbar">
             <n-button @click="onExportRules">导出规则</n-button>
             <n-button @click="importDrawer.show = true">导入规则</n-button>
             <div class="spacer"></div>
-            <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openRuleDrawer(null)">+ 新增规则</n-button>
           </div>
 
-          <!-- master：维度列表（常驻；归属年度/年度目标在维度层级编辑，指标详情走弹窗） -->
           <div class="table-wrap">
             <n-data-table
-              :columns="dimensionRuleColumns"
-              :data="dimensionRuleSummary"
+              :columns="ruleColumns"
+              :data="rules"
               :loading="loading.rules"
-              :row-key="(d: any) => d.id"
+              :row-key="(r: any) => r.id"
               :pagination="false"
               flex-height
+              :row-props="ruleRowProps"
             >
               <template #empty>
-                <n-empty description="暂无维度，请先到「指标管理」新增维度" />
+                <n-empty description="暂无规则，点击右上角「新增规则」" />
               </template>
             </n-data-table>
           </div>
 
-          <!-- 已并入 dimEditor 弹窗（双模：view 查看 + edit 编辑）；旧「指标详情」弹窗删除 -->
-
-          <!-- 维度层级编辑弹窗：归属年度 + 年度目标（不再埋在指标规则集里） -->
-          <n-modal
-            v-model:show="dimensionEditModal"
-            preset="card"
-            :title="`编辑维度 · ${dimEditName}`"
-            style="width: 460px"
-            :bordered="false"
-            :auto-focus="false"
-          >
-            <div class="dim-edit-form">
-              <div class="scope-field">
-                <span class="scope-label">归属年度</span>
-                <n-input-number v-model:value="dimEditYear" :min="2020" :max="2100" style="width: 150px" />
-              </div>
-              <div class="scope-field">
-                <span class="scope-label">年度目标(人)</span>
-                <n-input-number v-model:value="dimEditAnnual" :min="0" :step="1" style="width: 150px" />
-              </div>
-              <p class="total-target-hint">将应用到该维度下所有适用范围（按当前各范围占比分配年度目标），并同步更新各指标年度/月度人数。</p>
-            </div>
-            <template #footer>
-              <n-button @click="dimensionEditModal = false">取消</n-button>
-              <n-button type="primary" :loading="dimEditSaving" @click="saveDimensionAnnualEdit">保存</n-button>
-            </template>
-          </n-modal>
+          <RuleConfigDrawer
+            v-model:show="ruleDrawer.show"
+            :rule="ruleDrawer.rule"
+            :mode="ruleDrawer.mode"
+            @saved="onRuleSaved"
+          />
         </n-tab-pane>
 
         <!-- ===================== 指标管理（维度 + 指标库） ===================== -->
@@ -193,287 +170,6 @@
       </n-tabs>
     </div>
 
-    <!-- ===================== 维度规则集编辑面（占比之和须=100%） ===================== -->
-    <n-modal
-      v-model:show="dimEditor.show"
-      preset="card"
-      title="维度规则集（占比之和须 = 100%）"
-      :style="{ width: '820px', maxWidth: '94vw' }"
-      :bordered="false"
-      :segmented="{ content: true, footer: true }"
-      class="dim-ruleset-modal"
-    >
-      <!-- view 模式（从 master 列表「查看指标」进入）：上下文切换 + 详情矩阵（融合旧指标详情弹窗） -->
-      <div v-if="dimEditor.mode === 'view' && detailDimensionId" class="dim-view-section">
-        <div class="toolbar" style="margin-bottom: 10px">
-          <n-select
-            v-if="detailScopeOptions.length"
-            v-model:value="detailScopeKey"
-            :options="detailScopeOptions"
-            style="width: 220px"
-            placeholder="适用范围"
-          />
-          <n-select
-            v-if="detailYearOptions.length"
-            v-model:value="detailYear"
-            :options="detailYearOptions"
-            style="width: 110px"
-          />
-          <div class="spacer"></div>
-          <n-button type="error" quaternary @click="openDetailClear">清空规则集</n-button>
-        </div>
-        <n-alert
-          v-if="!detailSumOk"
-          type="warning"
-          :show-icon="true"
-          class="dim-del-alert"
-          style="margin-bottom: 10px"
-        >
-          当前「{{ detailDimensionName }} · {{ (detailScopeOptions.find((o: any) => o.value === detailScopeKey) || {}).label || '全局' }} · {{ detailYear }}」下各指标目标占比之和未达 100%，请点底部「编辑」补全。
-        </n-alert>
-        <n-data-table
-          :columns="detailMatrixColumns"
-          :data="detailMatrix"
-          :loading="loading.rules"
-          :row-key="(r: any) => r.indicatorId"
-          :pagination="false"
-          :expandable="(row: any) => row.configured"
-          :render-expand="renderDetailExpand"
-          flex-height
-          style="max-height: 52vh"
-        >
-          <template #empty>
-            <n-empty description="该维度下暂无指标，请先到「指标管理」新增" />
-          </template>
-        </n-data-table>
-      </div>
-
-      <!-- edit 模式（点底部「编辑」进入）：原 form-section + 维度年度管控人数 + 指标行 -->
-      <div v-else class="dim-ctx">
-        <div class="form-section">
-          <div class="form-section-title">
-            <span class="dot" />维度
-          </div>
-          <n-select
-            v-model:value="dimEditor.dimensionId"
-            :options="dimensionOptions"
-            placeholder="选择维度"
-            :disabled="dimEditor.lockContext"
-            @update:value="onDimEditorDimChange"
-          />
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title form-section-title--scope">
-            <span class="dot" />适用范围
-            <n-switch
-              v-model:value="dimEditor.isGlobal"
-              size="small"
-              class="scope-title-switch"
-              @update:value="onDimEditorCtxChange"
-            >
-              <template #checked>全局</template>
-              <template #unchecked>指定</template>
-            </n-switch>
-          </div>
-          <div class="scope-row">
-            <template v-if="!dimEditor.isGlobal">
-              <div class="scope-field">
-                <span class="scope-label">部门</span>
-                <n-select v-model:value="dimEditor.bu" :options="deptOptions" placeholder="部门" @update:value="onDimEditorCtxChange" />
-              </div>
-              <div class="scope-field">
-                <span class="scope-label">职务</span>
-                <n-select v-model:value="dimEditor.position" :options="positionOptions" placeholder="职务(不限)" clearable @update:value="onDimEditorCtxChange" />
-              </div>
-              <div class="scope-field">
-                <span class="scope-label">职级</span>
-                <n-select v-model:value="dimEditor.level" :options="levelOptions" placeholder="职级(不限)" clearable @update:value="onDimEditorCtxChange" />
-              </div>
-            </template>
-            <div class="scope-field">
-              <span class="scope-label">年度</span>
-              <n-input-number v-model:value="dimEditor.year" :min="2020" :max="2100" :disabled="dimEditor.lockContext" style="width: 110px" @update:value="onDimEditorCtxChange" />
-            </div>
-            <n-alert v-if="dimEditor.scopeDirty" type="warning" :show-icon="true" class="scope-relocate-hint">
-              适用范围已修改，保存时将把该维度规则集从「{{ formatScopeLabel(dimEditor.originalScope) }}」<b>重定位</b>到「{{ formatScopeLabel(_currentEffectiveScope()) }}」，原适用范围下的规则将被删除。
-            </n-alert>
-          </div>
-        </div>
-
-        <div class="form-section" v-if="dimEditor.dimensionId">
-          <div class="form-section-title">
-            <span class="dot" />维度年度管控人数
-            <span class="form-section-hint">（各指标人数加和须 = 此值）</span>
-          </div>
-          <div class="total-target-row">
-            <n-input-number
-              :value="dimEditor.totalTarget"
-              :min="0" :step="1" size="small" style="width: 180px"
-              :disabled="dimEditor.lockContext"
-              @update:value="(v: number | null) => setDimEditorTotalTarget(v)"
-            />
-            <span class="total-target-suffix">人</span>
-            <span v-if="dimEditor.lockContext" class="total-target-hint">维度年度管控人数属「维度层级」属性，请在列表「编辑维度」中修改；此处为只读。</span>
-            <span v-else class="total-target-hint">修改此值将按指标占比自动重算各指标年度（手动调整过的除外）；需保证「人数加和 = 维度年度目标」。</span>
-          </div>
-          <div class="total-target-summary" v-if="dimEditor.mode === 'edit'">
-            <span>当前人数加和：<strong>{{ dimEditorActiveAnnualSum }}</strong> 人</span>
-            <span class="total-target-sep">·</span>
-            <span>维度目标：<strong>{{ Math.round(dimEditor.totalTarget || 0) }}</strong> 人</span>
-            <n-tag v-if="dimEditorTotalOk" type="success" :bordered="false" size="small" round class="total-target-tag">✓ 相等</n-tag>
-            <n-tag v-else type="warning" :bordered="false" size="small" round class="total-target-tag">⚠ 差 {{ Math.round(dimEditor.totalTarget || 0) - dimEditorActiveAnnualSum }} 人</n-tag>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="!dimEditor.dimensionId" class="empty-tip">请先选择维度</div>
-      <div v-else-if="dimEditor.rows.length === 0" class="empty-tip">该维度下暂无指标，请先到「指标管理」新增</div>
-      <div v-else class="dim-rows">
-        <div class="dim-row" :class="{ 'row-deleted': row.pendingDelete, 'row-disabled': dimEditor.mode === 'view' }" v-for="row in dimEditor.rows" :key="row.indicatorId">
-          <!-- 行 1：指标 + 状态徽标 + 占比% + 控制强度 + 年度（编辑/只读统一） + 删除/恢复 -->
-          <div class="dim-row-head">
-            <div class="dim-row-id">
-              <span class="dim-ind-name">{{ row.indicatorName }}</span>
-              <n-tag v-if="row.pendingDelete" type="error" :bordered="false" size="small" round>待删</n-tag>
-              <n-tag v-else-if="row.targetPct == null" type="default" :bordered="false" size="small" round>未设目标</n-tag>
-              <n-tag v-else type="success" :bordered="false" size="small" round>已设目标</n-tag>
-            </div>
-            <div class="dim-row-ctrl" v-if="dimEditor.mode === 'edit'">
-              <div class="ctrl-group">
-                <span class="ctrl-label">占比%</span>
-                <n-input-number
-                  :value="row.targetPct || 0"
-                  :min="0" :max="100" :step="0.5" size="small" style="width: 92px"
-                  @update:value="(v: number | null) => setDimRowTarget(row.indicatorId, v)"
-                />
-              </div>
-              <div class="ctrl-group">
-                <span class="ctrl-label">强度</span>
-                <n-select
-                  :value="row.strength" :options="strengthOptions" size="small" style="width: 100px"
-                  @update:value="(v: string) => setDimRowStrength(row.indicatorId, v as Strength)"
-                />
-              </div>
-              <div class="ctrl-group ctrl-group--annual">
-                <span class="ctrl-label">年度</span>
-                <div class="annual-ctrl-row">
-                  <n-input-number
-                    :value="row.annualTarget"
-                    :min="0" size="small" style="width: 96px"
-                    @update:value="(v: number | null) => setDimRowAnnual(row.indicatorId, v)"
-                  />
-                  <span class="annual-unit">人</span>
-                  <!-- 手动调整 toggle：auto ↔ manual；auto 时点 = 「·锁定」进入手动，manual 时点 = 「↻ 重算」回到按占比自动值 -->
-                  <n-button
-                    size="tiny"
-                    :type="row.manuallyEditedAnnual ? 'primary' : 'default'"
-                    :ghost="!row.manuallyEditedAnnual"
-                    class="annual-toggle-btn"
-                    :class="{ 'annual-toggle-btn--locked': row.manuallyEditedAnnual }"
-                    :title="row.manuallyEditedAnnual ? '点击重算为按占比自动值' : '点击锁定当前值为手动调整（脱离 totalTarget 联动）'"
-                    @click="toggleAnnualMode(row.indicatorId)"
-                  >
-                    {{ row.manuallyEditedAnnual ? '↻ 重算' : '·锁定' }}
-                  </n-button>
-                </div>
-              </div>
-              <n-button text :type="row.pendingDelete ? 'primary' : 'error'" size="tiny" @click="toggleDimRowDelete(row.indicatorId)">
-                {{ row.pendingDelete ? '恢复' : '删除' }}
-              </n-button>
-            </div>
-            <div class="dim-row-view" v-else>
-              <span class="view-pct">{{ row.targetPct == null ? '—' : row.targetPct.toFixed(1) + '%' }}</span>
-              <span class="view-strength">{{ row.strength }}</span>
-              <span class="view-annual">年度 <strong>{{ Math.round(row.annualTarget || 0) }}</strong> 人</span>
-              <n-tag v-if="row.manuallyEditedAnnual" :bordered="false" size="tiny" type="info" round class="view-manual">手动调整</n-tag>
-            </div>
-          </div>
-
-          <!-- 行 2：12 个月度目标（编辑态展开；删除待删也仍展示，便于用户看清数据避免误删） -->
-          <div class="dim-row-monthly" v-if="dimEditor.mode === 'edit'">
-            <div class="monthly-head">
-              <span class="ctrl-label">12 个月度目标（单位：人）</span>
-              <n-button
-                size="tiny" ghost type="primary"
-                class="monthly-redist-btn"
-                title="12 月按「年度 ÷ 12」整除，余数从 1 月开始各 +1"
-                @click="redistributeDimMonthly(row.indicatorId)"
-              >均分年度目标</n-button>
-            </div>
-            <div class="monthly-grid">
-              <div v-for="(_, i) in 12" :key="i" class="month-cell">
-                <span class="month-label">{{ ALL_MONTHS[i] }}</span>
-                <n-input-number
-                  :value="row.monthlyTargets[i] || 0"
-                  :min="0" :show-button="false" size="small"
-                  @update:value="(v: number | null) => setDimRowMonthly(row.indicatorId, i, v)"
-                />
-              </div>
-            </div>
-            <div class="monthly-foot">
-              <span class="allocated">已分配 <strong>{{ dimRowMonthlySum(row) }}</strong> 人</span>
-              <n-tag v-if="dimRowMonthlyOk(row)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
-              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ Math.round(row.annualTarget || 0) }} 人</n-tag>
-            </div>
-          </div>
-
-          <!-- 查看态下也展示月度数据（只读），便于跨维度规则集观察 -->
-          <div class="dim-row-monthly dim-row-monthly--readonly" v-else>
-            <div class="monthly-head">
-              <span class="ctrl-label">12 个月度目标（单位：人）</span>
-            </div>
-            <div class="monthly-grid">
-              <div v-for="(_, i) in 12" :key="i" class="month-cell">
-                <span class="month-label">{{ ALL_MONTHS[i] }}</span>
-                <span class="month-val">{{ row.monthlyTargets[i] || 0 }}</span>
-              </div>
-            </div>
-            <div class="monthly-foot">
-              <span class="allocated">已分配 <strong>{{ dimRowMonthlySum(row) }}</strong> 人</span>
-              <n-tag v-if="dimRowMonthlyOk(row)" type="success" :bordered="false" size="small" round>✓ 等于年度目标</n-tag>
-              <n-tag v-else type="warning" :bordered="false" size="small" round>⚠ 不等于年度目标 {{ Math.round(row.annualTarget || 0) }} 人</n-tag>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="dimEditor.mode === 'edit'" class="sum-callout" :class="{ ok: dimEditorSumOk && dimEditorTotalOk, warn: !dimEditorSumOk || !dimEditorTotalOk }">
-          <div class="sum-left">
-            <span class="sum-label">占比之和</span>
-            <span class="sum-value">{{ dimEditorSumPct.toFixed(1) }}%</span>
-            <span class="sum-sep">·</span>
-            <span class="sum-label">人数加和</span>
-            <span class="sum-value">{{ dimEditorActiveAnnualSum }} / {{ Math.round(dimEditor.totalTarget || 0) }} 人</span>
-          </div>
-          <div class="sum-right">
-            <n-tag v-if="dimEditorSumOk && dimEditorTotalOk" type="success" :bordered="false" size="small" round>✓ = 100% · 人数对齐</n-tag>
-            <template v-else>
-              <n-tag v-if="!dimEditorSumOk" type="warning" :bordered="false" size="small" round>⚠ 占比 ≠ 100%</n-tag>
-              <n-tag v-if="!dimEditorTotalOk" type="warning" :bordered="false" size="small" round>⚠ 人数加和不齐</n-tag>
-            </template>
-          </div>
-        </div>
-
-        <n-alert v-if="dimEditor.mode === 'edit' && dimEditorHasPendingDelete && !dimEditorAllPendingDelete" type="warning" :show-icon="true" class="dim-del-alert">
-          已标记删除 {{ dimEditorPendingDeleteCount }} 个指标，剩余指标占比之和须重平衡至 100% 后方可保存。
-        </n-alert>
-        <n-alert v-if="dimEditor.mode === 'edit' && dimEditorAllPendingDelete" type="warning" :show-icon="true" class="dim-del-alert">
-          已标记删除全部指标，保存后将清空该适用范围下的规则集。
-        </n-alert>
-      </div>
-
-      <template #footer>
-        <div class="drawer-footer">
-          <n-button @click="closeDimEditor">取消</n-button>
-          <template v-if="dimEditor.mode === 'view'">
-            <n-button type="primary" class="gradient-btn" @click="enterDimEdit">编辑</n-button>
-          </template>
-          <template v-else>
-            <n-button type="primary" class="gradient-btn" :loading="loading.saveDimRuleSet" :disabled="!dimEditorSumOk || !dimEditorTotalOk" @click="saveDimRuleSet">保存</n-button>
-          </template>
-        </div>
-      </template>
-    </n-modal>
 
     <!-- ===================== 导入规则弹窗（页面居中） ===================== -->
     <n-modal
@@ -690,6 +386,8 @@ import {
   type ValidationResult, type Strength, type DimRuleSetItem,
   type RuleImportResult, type IndicatorImportResult,
 } from '../../api/campusControl'
+import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
+import { useRuleActions } from '../../composables/useRuleActions'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -1069,6 +767,66 @@ async function loadRules() {
   catch (e) { message.error(extractApiError(e, '加载规则失败')) }
   finally { loading.rules = false }
 }
+
+/* ============================ 规则配置：扁平列表 ============================ */
+const ruleActions = useRuleActions(() => loadRules())
+
+const ruleDrawer = reactive({
+  show: false,
+  rule: null as ControlRule | null,
+  mode: 'view' as 'view' | 'create' | 'edit',
+})
+function openRuleDrawer(rule: ControlRule | null, mode: 'view' | 'create' | 'edit' = 'view') {
+  ruleDrawer.rule = rule
+  ruleDrawer.mode = rule ? mode : 'create'
+  ruleDrawer.show = true
+}
+function onRuleSaved() {
+  loadRules()
+}
+
+const ruleRowProps = (row: any) => ({
+  style: 'cursor:pointer',
+  onClick: () => openRuleDrawer(row, 'view'),
+})
+
+const ruleColumns: DataTableColumns<any> = [
+  {
+    title: '规则编号', key: 'code', width: 110, fixed: 'left',
+    render: (r: any) =>
+      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'view') } }, { default: () => r.code || '—' }),
+  },
+  { title: '维度', key: 'dimensionName', width: 100, render: (r: any) => r.dimensionName || r.dimension },
+  { title: '指标', key: 'indicatorName', width: 110, render: (r: any) => r.indicatorName || r.indicator },
+  { title: '适用范围', key: 'scope', width: 200, render: (r: any) => scopeText(r.bu, r.position, r.level) },
+  { title: '生效年度', key: 'year', width: 90, render: (r: any) => String(r.year) },
+  {
+    title: '年度目标(人)', key: 'annualTarget', width: 110,
+    render: (r: any) => (r.annualTarget ? String(Math.round(r.annualTarget)) : h('span', { class: 'muted' }, '—')),
+  },
+  {
+    title: '控制强度', key: 'strength', width: 120,
+    render: (r: any) => (r.strength
+      ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength })
+      : h('span', { class: 'muted' }, '—')),
+  },
+  {
+    title: '启用状态', key: 'isActive', width: 100,
+    render: (r: any) => h(NTag, { type: r.isActive ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.isActive ? '启用' : '停用') }),
+  },
+  {
+    title: '操作', key: 'op', width: 210, fixed: 'right',
+    render: (r: any) =>
+      h(NSpace, { size: 4 }, {
+        default: () => [
+          h(NButton, { size: 'small', tertiary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.copy(r) } }, { default: () => '复制' }),
+          h(NButton, { size: 'small', tertiary: true, type: r.isActive ? 'warning' : 'success', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.toggle(r, !r.isActive) } }, { default: () => (r.isActive ? '停用' : '启用') }),
+          h(NButton, { size: 'small', tertiary: true, type: 'error', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.remove(r) } }, { default: () => '删除' }),
+        ],
+      }),
+  },
+]
+
 async function loadPersons() {
   loading.persons = true
   try { persons.value = await listPersons() }

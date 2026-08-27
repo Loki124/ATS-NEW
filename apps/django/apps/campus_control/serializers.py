@@ -98,13 +98,13 @@ class ControlRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = ControlRule
         fields = [
-            'id', 'bu', 'position', 'level', 'dimension', 'dimension_name',
+            'id', 'code', 'is_active', 'bu', 'position', 'level', 'dimension', 'dimension_name',
             'indicator', 'indicator_name', 'year', 'target', 'strength',
             'annual_target', 'monthly_targets',
             'created_by_name', 'created_at', 'updated_by_name', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'dimension_name', 'indicator_name',
+            'id', 'code', 'dimension_name', 'indicator_name',
             'created_by_name', 'created_at', 'updated_by_name', 'updated_at',
         ]
 
@@ -182,17 +182,21 @@ class ControlRuleSerializer(serializers.ModelSerializer):
                     norm[i] = 0
         attrs['monthly_targets'] = norm
 
-        # 唯一 (bu, position, level, dimension, indicator, year)，排除自身
+        # 唯一含状态：仅校验启用(is_active=True)规则，允许「启用原规则 + 未启用副本」共存
         qs = ControlRule.objects.filter(
-            bu=bu, position=position, level=level, dimension=dimension, indicator=indicator, year=year
+            bu=bu, position=position, level=level, dimension=dimension,
+            indicator=indicator, year=year, is_active=True,
         )
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise DRFValidationError({'indicator': ['该适用范围-维度-指标-年度组合已存在，请直接编辑']})
+            raise DRFValidationError({'indicator': ['该适用范围-维度-指标-年度组合已存在启用规则，请直接编辑或停用原规则']})
 
-        # 单条编辑仅拦「超 100%」（防溢出）；恰好 ==100% 由批量端点强制
-        existing = ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year)
+        # 单条编辑仅拦「超 100%」（防溢出）；恰好 ==100% 由批量端点强制。
+        # 占比加和仅统计启用(is_active=True)规则，副本不计入。
+        existing = ControlRule.objects.filter(
+            bu=bu, position=position, level=level, dimension=dimension, year=year, is_active=True,
+        )
         if self.instance is not None:
             existing = existing.exclude(pk=self.instance.pk)
         s = sum((r.target for r in existing), Decimal('0')) + target

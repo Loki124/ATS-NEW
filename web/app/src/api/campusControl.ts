@@ -78,6 +78,8 @@ export interface ControlIndicator {
 /** 管控规则：自带适用范围、占比 target（管控上限）、以及该指标在该适用范围下的管控人数。 */
 export interface ControlRule {
   id: string
+  code: string // 规则编号（G + 4 位，自动补号）
+  isActive: boolean // 是否启用
   bu: string
   position: string
   level: string
@@ -217,6 +219,14 @@ export const createRule = (payload: RuleInput) =>
 export const updateRule = (id: string, payload: Partial<RuleInput>) =>
   api.put(`/campus/rules/${id}/`, payload).then((r) => ruleToNum(r.data))
 export const deleteRule = (id: string) => api.delete(`/campus/rules/${id}/`).then((r) => r.data)
+
+/** 复制规则：克隆出一条「未启用」副本（后端校验唯一键含 is_active，已存在未启用副本则 409）。 */
+export const copyRule = (id: string) =>
+  api.post(`/campus/rules/${id}/copy/`, {}).then((r) => ruleToNum(r.data))
+
+/** 启用 / 停用规则（后端 toggle 端点：冲突启用返回 409，缺参返回 400）。 */
+export const toggleRule = (id: string, isActive: boolean) =>
+  api.post(`/campus/rules/${id}/toggle/`, { is_active: isActive }).then((r) => ruleToNum(r.data))
 
 export interface RuleDraft {
   indicator: string
@@ -403,7 +413,7 @@ export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`)
 export default {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
-  listRules, createRule, updateRule, deleteRule, batchSaveRules, batchConfigRules,
+  listRules, createRule, updateRule, deleteRule, copyRule, toggleRule, batchSaveRules, batchConfigRules,
   saveDimensionRuleSet,
   getRatio, validateDraft,
   listPersons, upsertPerson, deletePerson,

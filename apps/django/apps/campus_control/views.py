@@ -55,6 +55,7 @@ from .serializers import (
     ControlDimensionSerializer, ControlIndicatorSerializer,
     ControlRuleSerializer, PersonSerializer, _to_decimal,
 )
+from . import services
 
 
 def _scope_mutex_guard(dimension, year, bu, position, level, exclude_scope=None):
@@ -697,6 +698,43 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         year = int(year) if year else 2026
         result = simulate(draft, rules, persons, year, month=draft.get('month'))
         return Response({'success': True, 'data': _jsonify(result)})
+
+    @action(detail=True, methods=['post'], url_path='copy')
+    def copy_rule_action(self, request, pk=None):
+        """复制规则为「未启用副本」（is_active=False，自动补新 code）。
+
+        返回 200 + 副本；若源已 is_active=False 再复制导致两条未启用同键 → 409「该组合已存在未启用副本」。
+        """
+        rule = self.get_object()
+        try:
+            clone = services.copy_rule(rule)
+        except IntegrityError:
+            return Response(
+                {'success': False, 'detail': '该组合已存在未启用副本'},
+                status=409,
+            )
+        return Response({'success': True, 'data': ControlRuleSerializer(clone).data})
+
+    @action(detail=True, methods=['post'], url_path='toggle')
+    def toggle_rule_action(self, request, pk=None):
+        """启用/停用规则。body: { is_active: bool }。
+
+        停用(False)：直接置 is_active=False。
+        启用(True)：先跑统一校验（services.validate_rule_unique）——唯一含状态 + 占比≤100%。
+          冲突 → 409「该组合已存在启用规则，请改键或停用原规则」
+          占比超 → 400「该适用范围下此维度指标目标占比之和不得超过 100%」
+        """
+        rule = self.get_object()
+        raw = request.data.get('is_active')
+        is_active = raw in (True, 'true', 'True', 1, '1')
+        try:
+            updated = services.toggle_rule(rule, is_active)
+        except services.ControlRuleViolation as e:
+            return Response(
+                {'success': False, 'detail': e.message},
+                status=e.status_code,
+            )
+        return Response({'success': True, 'data': ControlRuleSerializer(updated).data})
 
     @action(detail=False, methods=['post'], url_path='batch')
     def batch(self, request):

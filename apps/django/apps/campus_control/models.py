@@ -13,7 +13,7 @@ Person 的 position（职务）/ level（职级）用于命中指定范围。
 
 所有模型继承 FullAuditModel（审计）+ UUIDModel（nanoid 主键）；删除采用硬删。
 """
-from django.db import models
+from django.db import models, transaction
 
 from apps.common.models import FullAuditModel, UUIDModel
 from .constants import (
@@ -67,10 +67,21 @@ class ControlRule(FullAuditModel, UUIDModel):
     """管控规则 + 人数目标（单一事实来源）。
 
     适用范围：bu / position / level 均空 = 全局；否则按部门/职务/职级过滤。
-    同一 (bu, position, level, dimension, year) 下所有 indicator 的 target 之和必须 == 1.0（100%），
+    同一 (bu, position, level, dimension, indicator, year) 下所有 indicator 的 target 之和必须 == 1.0（100%），
     由批量保存端点硬校验（见 views.batch / views.with_targets）。
     人数目标（年度 + 12 个月）直接承载于规则上（指标层），取消独立 ControlHeadcount 表。
+
+    唯一键含 is_active：允许「启用原规则 + 未启用副本」共存；副本(未启用)启用时若与某条
+    is_active=True 同键规则冲突 → 副本启用接口拦截（见 services.validate_rule_unique）。
+    code 为规则编号（G+4 位），由 save() 在事务内自动补号，保证唯一。
     """
+
+    # 规则编号（G+4 位，如 G0001）；写入时由 save() 自动补号，避免撞 unique 约束 500。
+    code = models.CharField(
+        max_length=8, unique=True, blank=True, default='', verbose_name='规则编号'
+    )
+    # 是否启用：停用后 Offer 钩子实时查询 is_active=True，天然即时失效。
+    is_active = models.BooleanField(default=True, verbose_name='启用')
 
     # 适用范围（全空 = 全局）
     bu = models.CharField(
@@ -108,8 +119,34 @@ class ControlRule(FullAuditModel, UUIDModel):
     class Meta:
         verbose_name = '管控规则'
         verbose_name_plural = '管控规则'
-        unique_together = [('bu', 'position', 'level', 'dimension', 'indicator', 'year')]
+        # 唯一键含 is_active：启用原规则 + 未启用副本可共存；副本启用冲突由服务层拦截。
+        unique_together = [('bu', 'position', 'level', 'dimension', 'indicator', 'year', 'is_active')]
         ordering = ['bu', 'position', 'level', 'dimension', 'indicator', 'year']
+
+    def save(self, *args, **kwargs):
+        """自动补号：未设 code 时，事务内锁定末行取最大序号 +1，写入 G+4 位编号。
+
+        覆盖写端点（set_rules/batch/with_targets/import 四处 create 均不传 code）也自动拿到唯一 code，
+        避免撞 unique=True 约束导致 500。
+        """
+        if not self.code:
+            with transaction.atomic():
+                last = (
+                    ControlRule.objects.select_for_update()
+                    .order_by('-code')
+                    .first()
+                )
+                seq = 0
+                if last and last.code and last.code.startswith('G'):
+                    try:
+                        seq = int(last.code[1:5])
+                    except (ValueError, IndexError):
+                        seq = 0
+                seq += 1
+                self.code = f'G{seq:04d}'
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
     def __str__(self):
         scope = self.bu or '全局'

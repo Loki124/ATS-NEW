@@ -3,6 +3,7 @@ from django.db import models
 from django_fsm import FSMField, FSMModelMixin, transition
 from apps.common.models import FullAuditModel
 from apps.common.encryption import EncryptedCharField
+from apps.campus_control.constants import SCHOOLS, MAJORS
 from nanoid import generate as nanoid_generate
 
 
@@ -47,6 +48,16 @@ class Candidate(FSMModelMixin, FullAuditModel):
         verbose_name='邮箱 hash (sha256, 用于查重/匿名查询)',
     )
     gender = models.CharField(max_length=8, blank=True, verbose_name='性别')
+    # 院校标签 / 专业标签：用于全维度 Offer 钩子命中（决策①：性别 + 院校标签 + 专业标签）。
+    # 默认空串；取值须对齐 campus_control.constants.SCHOOLS / MAJORS。
+    school_tag = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(s, s) for s in SCHOOLS], verbose_name='院校标签',
+    )
+    major_tag = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(m, m) for m in MAJORS], verbose_name='专业标签',
+    )
     age = models.IntegerField(null=True, blank=True, verbose_name='年龄')
     birth_date = models.DateField(null=True, blank=True, verbose_name='出生日期')
     # id_card_no 改用 EncryptedCharField (DB 存密文, 不影响业务代码)

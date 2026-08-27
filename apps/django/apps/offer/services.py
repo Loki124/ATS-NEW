@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 from django.db import transaction
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.common.exceptions import NotFound
 from apps.core.models import User
@@ -44,6 +46,37 @@ class OfferService:
             position = Position.objects.get(id=data.position_id, deleted_at__isnull=True)
         except (Application.DoesNotExist, Candidate.DoesNotExist, Position.DoesNotExist) as e:
             raise NotFound(str(e))
+
+        # ── T03：Offer 钩子（人员比例管控）──
+        # 硬约束命中 → 抛 DRFValidationError(400)，事务自动回滚，Offer 不落库；
+        # 软约束/仅提示命中 → 仅 logger.warning 放行（前端提示为 P1 后续）。
+        # start_date 是 ISO 字符串，解析失败则传 None（跳过月度判定）。
+        start_date_obj = None
+        if data.start_date:
+            try:
+                start_date_obj = datetime.strptime(data.start_date, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                start_date_obj = None
+        from apps.campus_control.services import (
+            validate_offer_against_rules, ControlRuleViolation,
+        )
+        try:
+            hook_result = validate_offer_against_rules(
+                candidate=candidate,
+                position=position,
+                level=data.level,
+                position_title=data.position_title,
+                start_date=start_date_obj,
+            )
+            for w in hook_result.get('warnings', []):
+                logger.warning(
+                    'Offer 软约束提示(candidate=%s): 规则 %s %s·%s %s 当前 %s/%s 人',
+                    data.candidate_id, w.get('code'), w.get('dimension'), w.get('indicator'),
+                    w.get('scope'), w.get('annualActual'), w.get('annualTarget'),
+                )
+        except ControlRuleViolation as e:
+            # 硬约束阻断：事务回滚，向上抛 400（detail 含命中规则明细）
+            raise DRFValidationError({'detail': e.message})
 
         code = f'OFR{timezone.now().strftime("%Y%m%d")}{nanoid_generate(size=4).upper()}'
         offer = Offer.objects.create(
