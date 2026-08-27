@@ -1,5 +1,5 @@
 <template>
-  <n-layout class="settings-layout" has-sider :sider-width="64" style="height: 100%">
+  <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220" style="height: 100%">
     <!-- 左侧子菜单：n-menu 取代自写 menu-group（阶段 D 决策 2 配套）
          ⚠️ 不再用 n-layout-sider：它会自动把 header + menu 一起包进内部 .n-layout-scroll-container，
          导致 Naive 的 scrollbar 竖向跨整个容器、覆盖在 header 上方（用户反馈"滚动条覆盖header"）。
@@ -7,18 +7,25 @@
          scrollbar 只出现在菜单区，不接触 header。 -->
     <div
       class="settings-sider glass-sidebar"
-      :class="{ 'settings-sider--floating': effectiveExpanded }"
-      @mouseenter="hoverExpanded = true"
-      @mouseleave="hoverExpanded = false"
+      :class="{ collapsed }"
+      :style="`width: ${collapsed ? 64 : 220}px; flex-shrink: 0;`"
     >
-      <div class="sider-header" :class="{ collapsed: !effectiveExpanded }">
-        <h2 v-if="effectiveExpanded" class="sider-title gradient-title">设置</h2>
-        <n-icon v-else class="sider-logo" :component="SettingsOutline" />
+      <div class="sider-header" :class="{ collapsed: collapsed }">
+        <h2 v-if="!collapsed" class="sider-title gradient-title">设置</h2>
+        <button
+          class="collapse-btn"
+          :class="{ collapsed: collapsed }"
+          type="button"
+          aria-label="折叠设置菜单"
+          @click="collapsed = !collapsed"
+        >
+          <n-icon :component="collapsed ? ChevronForwardOutline : ChevronBackOutline" />
+        </button>
       </div>
 
       <div class="settings-sider-menu">
         <n-menu
-          :collapsed="!effectiveExpanded"
+          :collapsed="collapsed"
           :collapsed-width="64"
           :collapsed-icon-size="22"
           :options="subMenuOptions"
@@ -52,7 +59,7 @@ import { ref, computed, watch, nextTick, h, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NIcon, NLayout, NLayoutContent, NMenu } from 'naive-ui'
 import {
-  SettingsOutline,
+  ChevronForwardOutline, ChevronBackOutline,
   PersonCircleOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
   ClipboardOutline, StarOutline, SchoolOutline, GitNetworkOutline, GitBranchOutline,
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
@@ -64,12 +71,8 @@ import {
 const router = useRouter()
 const route = useRoute()
 
-// 设置侧边栏：默认折叠 64px 常驻，hover 浮层展开（仿顶层 Layout.vue 范式）
-// - collapsed 作为永久基础态固定 true（sider 始终占 grid 第 1 列 64px）
-// - hoverExpanded 由 mouseenter/leave 驱动，effectiveExpanded 控制浮层展开
-const collapsed = ref(true)
-const hoverExpanded = ref(false)
-const effectiveExpanded = computed(() => hoverExpanded.value)
+// 设置侧边栏折叠状态
+const collapsed = ref(false)
 
 // ★ v1.1 修复：subMenuOptions 用 Naive UI 官方 MenuOption 类型
 //   group 项：type: 'group' + 必填 children
@@ -229,40 +232,22 @@ watch(() => route.path, () => {
 
 <style scoped>
 /* 阶段 D 保留旧 CSS 兜底（下一轮删）—— 玻璃激活态覆盖：利用 settings-sider 已有 class="glass-sidebar"（glass.css 全局接管）*/
-/* 仿顶层 Layout.vue 范式：grid 两列 64px + 1fr，浮层 sider 脱离后仍保留第 1 列 64px 占位 */
-.settings-layout { height: 100% !important; background: transparent; overflow: hidden; display: grid !important; grid-template-columns: 64px 1fr !important; grid-template-rows: 100% !important; }
+.settings-layout { height: 100%; background: transparent; overflow: hidden; }
+.settings-layout { height: 100% !important; }
 
 /* ⚠️ 自定义 .settings-sider（取代 n-layout-sider）：
    - flex column 让 header / menu 上下分区
    - position:relative 给之后可能的 footer absolute 定位预留
    - border-right 视觉边界（与右内容分隔），圆角顶部对齐 panel */
 .settings-sider {
-  grid-column: 1;
-  grid-row: 1;
   display: flex;
   flex-direction: column;
-  width: 64px !important;          /* 始终占 grid 第 1 列 64px（基础折叠态常驻） */
   height: 100%;
   min-height: 0;
-  overflow: visible !important;    /* 浮层展开时菜单文字不被 sider 容器裁剪 */
+  overflow: hidden;        /* 关键：sider 自身不滚，滚动职责下放到 .settings-sider-menu */
   position: relative;
   border-right: 1px solid var(--border-hairline);
-  transition: none !important;     /* 关闭 width 过渡，hover 瞬切避免抖动 */
-}
-/* hover 浮层展开：脱离 grid 流、叠在内容上方，不挤压 content（content 仍占第 2 列） */
-.settings-sider.settings-sider--floating {
-  position: fixed !important;
-  left: 0 !important;
-  top: 0 !important;
-  width: 220px !important;
-  max-width: 220px !important;
-  height: 100dvh !important;
-  z-index: 1000;
-  background: var(--glass-bg-elevated);
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-  backdrop-filter: blur(var(--glass-blur-panel));
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.20);   /* 浮层投影，与右侧内容区分（非品牌色中性阴影） */
-  border-right: 1px solid var(--border-hairline);
+  transition: width var(--duration-base) var(--ease-out);
 }
 /* 滚动区：占据 header 之外剩余高度，scrollbar 只在这里出现 */
 .settings-sider-menu {
@@ -312,6 +297,9 @@ watch(() => route.path, () => {
 .settings-sider-menu:hover::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-color-drag);            /* 自身 thumb hover 更深 */
 }
+/* 折叠态：菜单区也要保持 64px 内不溢出 */
+.settings-sider.collapsed .settings-sider-menu { overflow-y: auto; }
+
 .sider-header {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
@@ -328,12 +316,19 @@ watch(() => route.path, () => {
 }
 .sider-header.collapsed { justify-content: center; padding: 16px 8px 12px; }
 .sider-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
-.sider-logo { font-size: 22px; color: var(--ink-soft); margin: 0 auto; display: block; }
+.collapse-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: var(--radius-md);
+  background: transparent; border: 1px solid transparent;
+  color: var(--ink-soft); cursor: pointer; font-size: 16px;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.collapse-btn:hover { background: var(--brand-tint); color: var(--brand); border-color: var(--glass-border); }
+.collapse-btn.collapsed { width: 32px; height: 32px; }
 
 /* 右侧内容区 */
 .settings-content {
-  grid-column: 2;
-  grid-row: 1;
   position: relative; padding: 0;
   overflow: hidden;
   display: flex; flex-direction: column;
@@ -365,20 +360,20 @@ watch(() => route.path, () => {
    现象：折叠 64px 时 group label "基本信息/过程管理/招聘提速/内容管理" 被 CSS 强竖排成「基/本/信/息」单字一行
    根因：MenuOptionGroup.mjs 第 47-53 行无条件渲染 group title；cssr.mjs 第 102 行只把 .n-menu-item-content-header 设 opacity:0
    方案：display:none 强制藏 group title + children label，children 之间用 hairline 隔开，icon 居中 === */
-.settings-sider :deep(.settings-menu.n-menu--collapsed .n-menu-item-group-title),
-.settings-sider :deep(.settings-menu.n-menu--collapsed .n-menu-item-content-header),
-.settings-sider :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__arrow) {
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group-title),
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content-header),
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__arrow) {
   display: none !important;
 }
-.settings-sider :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__icon) {
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__icon) {
   margin: 0 auto !important;
 }
-.settings-sider :deep(.settings-menu.n-menu--collapsed .n-menu-item-group + .n-menu-item-group) {
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group + .n-menu-item-group) {
   border-top: 1px solid var(--border-hairline);
   margin-top: 8px;
   padding-top: 8px;
 }
-.settings-sider :deep(.settings-menu.n-menu--collapsed .n-menu-item) {
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item) {
   margin-top: 4px !important;
 }
 

@@ -7,7 +7,7 @@
   <!-- P4 整改：跳转链接（a11y WCAG 2.4.1） -->
   <a class="skip-link" href="#main">跳到主内容</a>
 
-  <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top', 'app-layout--settings': isOnSettingsRoute }">
+  <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top' }">
     <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
     <!--
       2026-08-24 21:31 兵哥反馈：默认充满全高 + hover 展开不压缩主页面
@@ -16,7 +16,7 @@
       - n-menu :collapsed=!effectiveExpanded 控制内部菜单项图标/文字显示
     -->
     <n-layout-sider
-      v-if="menuLayout === 'side' && !isMobile && !isOnSettingsRoute"
+      v-if="menuLayout === 'side' && !isMobile"
       :width="64"
       :native-scrollbar="false"
       :class="['glass-sidebar', 'app-sider', { 'app-sider--floating': effectiveExpanded }]"
@@ -68,7 +68,7 @@
 
     <!-- 移动端侧栏抽屉 [T6.2] -->
     <n-drawer
-      v-if="menuLayout === 'side' && !isOnSettingsRoute"
+      v-if="menuLayout === 'side'"
       v-model:show="mobileMenuOpen"
       :width="280"
       placement="left"
@@ -139,10 +139,6 @@
             </div>
           </n-button>
 
-          <!-- 设置入口：仅非设置路由下显示（设置页内已被 SettingsLayout 接管，header 不再重复入口） -->
-          <n-button v-if="!isOnSettingsRoute" text aria-label="打开设置" class="header-settings-btn" @click="router.push('/settings/account')">
-            <n-icon :component="CogOutline" :size="20" />
-          </n-button>
           <n-badge :value="5" :max="99">
             <n-button text aria-label="通知" @click="goToNotifications">
               <n-icon :component="NotificationsOutline" :size="20" />
@@ -694,7 +690,7 @@ function handleUserMenu(key: string) {
    - top 模式下没有 sider（v-if 不渲染），但 grid 模板仍分配 64px 给第 1 列
    - main-area 占第 2 列 x=64 → 主页面左侧 64px 空白 + settings-sider 错位 + 顶部菜单被挤压
    - top 模式必须取消 grid，单列布局让 main-area 占满全宽 */
-.app-layout:not(.app-layout--top):not(.app-layout--settings) > :deep(.n-layout-scroll-container) {
+.app-layout:not(.app-layout--top) > :deep(.n-layout-scroll-container) {
   display: grid !important;
   grid-template-columns: 64px calc(100vw - 64px) !important;
   width: 100% !important;
@@ -702,12 +698,6 @@ function handleUserMenu(key: string) {
 /* top 模式单列布局（无 sider，main-area 占满全宽，避免左侧 64px 空白） */
 .app-layout.app-layout--top > :deep(.n-layout-scroll-container) {
   display: block !important;
-  width: 100% !important;
-}
-/* settings 路由单列布局（主 sider 隐藏，main-area 铺满，SettingsLayout 内部自管 64px 二级 sider） */
-.app-layout.app-layout--settings > :deep(.n-layout-scroll-container) {
-  display: grid !important;
-  grid-template-columns: 1fr !important;
   width: 100% !important;
 }
 /* 侧边栏: 2026-08-24 21:31 兵哥反馈改范式 —— 默认充满全高 + hover 浮层不压缩主页面
@@ -766,8 +756,6 @@ function handleUserMenu(key: string) {
   padding-top: 64px;
   overflow: hidden;
 }
-/* settings 路由：主 sider 隐藏，main-area 占 grid 第 1 列铺满全宽（grid 单列 1fr） */
-.app-layout.app-layout--settings .main-area { grid-column: 1; }
 /* 兜底：n-layout-scroll-container 不存在时（无 sider 模式），直接靠 .app-layout 兜住 */
 .app-layout:not(:has(.n-layout-scroll-container)) {
   display: grid;
@@ -830,15 +818,6 @@ function handleUserMenu(key: string) {
 }
 .hamburger-btn:hover {
   background: var(--brand-soft);
-}
-/* header 右侧「设置」图标按钮（仅非设置路由下显示，设置页内由 SettingsLayout 接管） */
-.header-settings-btn {
-  color: var(--ink-soft);
-  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
-}
-.header-settings-btn:hover {
-  color: var(--brand);
-  background: var(--brand-tint);
 }
 .mobile-sidebar-drawer :deep(.n-drawer-body-content-wrapper) {
   padding: 0;
