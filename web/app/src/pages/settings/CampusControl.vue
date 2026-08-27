@@ -51,18 +51,40 @@
             请手动删除其中一种适用范围下的规则集（编辑后保存即重定位/删除；或删除该维度下对应规则）。新写入已被后端强制互斥拦截。
           </n-alert>
 
-          <!-- 工具栏：master / detail 双态 -->
+          <!-- 工具栏：master 常驻 -->
           <div class="toolbar">
-            <template v-if="!selectedDimensionId">
-              <n-button @click="onExportRules">导出规则</n-button>
-              <n-button @click="importDrawer.show = true">导入规则</n-button>
-              <div class="spacer"></div>
-              <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
-            </template>
-            <template v-else>
-              <n-button quaternary @click="selectedDimensionId = null">← 返回维度列表</n-button>
-              <span style="font-weight: 600; font-size: 15px">{{ selectedDimensionName }}</span>
-              <div class="spacer"></div>
+            <n-button @click="onExportRules">导出规则</n-button>
+            <n-button @click="importDrawer.show = true">导入规则</n-button>
+            <div class="spacer"></div>
+            <n-button type="primary" class="gradient-btn" @click="openDimensionEditor()">+ 新增规则</n-button>
+          </div>
+
+          <!-- master：维度列表（常驻；归属年度/年度目标在维度层级编辑，指标详情走弹窗） -->
+          <div class="table-wrap">
+            <n-data-table
+              :columns="dimensionRuleColumns"
+              :data="dimensionRuleSummary"
+              :loading="loading.rules"
+              :row-key="(d: any) => d.id"
+              :pagination="false"
+              flex-height
+            >
+              <template #empty>
+                <n-empty description="暂无维度，请先到「指标管理」新增维度" />
+              </template>
+            </n-data-table>
+          </div>
+
+          <!-- 指标详情弹窗：选中维度的指标矩阵（年度/月度目标） -->
+          <n-modal
+            v-model:show="indicatorDetailModal"
+            preset="card"
+            title="指标详情"
+            style="width: 780px"
+            :bordered="false"
+            :auto-focus="false"
+          >
+            <div class="toolbar" style="margin-bottom: 10px">
               <n-select
                 v-if="detailScopeOptions.length"
                 v-model:value="detailScopeKey"
@@ -79,27 +101,7 @@
               <div class="spacer"></div>
               <n-button @click="openDetailEditor">编辑规则集</n-button>
               <n-button type="error" quaternary @click="openDetailClear">清空规则集</n-button>
-            </template>
-          </div>
-
-          <!-- master：维度列表 -->
-          <div class="table-wrap" v-if="!selectedDimensionId">
-            <n-data-table
-              :columns="dimensionRuleColumns"
-              :data="dimensionRuleSummary"
-              :loading="loading.rules"
-              :row-key="(d: any) => d.id"
-              :pagination="false"
-              flex-height
-            >
-              <template #empty>
-                <n-empty description="暂无维度，请先到「指标管理」新增维度" />
-              </template>
-            </n-data-table>
-          </div>
-
-          <!-- detail：选中维度的指标矩阵（年度/月度目标） -->
-          <div class="table-wrap" v-else>
+            </div>
             <n-alert
               v-if="!detailSumOk"
               type="warning"
@@ -107,7 +109,7 @@
               class="dim-del-alert"
               style="margin-bottom: 10px"
             >
-              当前「{{ selectedDimensionName }} · {{ (detailScopeOptions.find((o: any) => o.value === detailScopeKey) || {}).label || '全局' }} · {{ detailYear }}」下各指标目标占比之和未达 100%，请编辑规则集补全。
+              当前「{{ detailDimensionName }} · {{ (detailScopeOptions.find((o: any) => o.value === detailScopeKey) || {}).label || '全局' }} · {{ detailYear }}」下各指标目标占比之和未达 100%，请编辑规则集补全。
             </n-alert>
             <n-data-table
               :columns="detailMatrixColumns"
@@ -118,12 +120,39 @@
               :expandable="(row: any) => row.configured"
               :render-expand="renderDetailExpand"
               flex-height
+              style="max-height: 52vh"
             >
               <template #empty>
                 <n-empty description="该维度下暂无指标，请先到「指标管理」新增" />
               </template>
             </n-data-table>
-          </div>
+          </n-modal>
+
+          <!-- 维度层级编辑弹窗：归属年度 + 年度目标（不再埋在指标规则集里） -->
+          <n-modal
+            v-model:show="dimensionEditModal"
+            preset="card"
+            :title="`编辑维度 · ${dimEditName}`"
+            style="width: 460px"
+            :bordered="false"
+            :auto-focus="false"
+          >
+            <div class="dim-edit-form">
+              <div class="scope-field">
+                <span class="scope-label">归属年度</span>
+                <n-input-number v-model:value="dimEditYear" :min="2020" :max="2100" style="width: 150px" />
+              </div>
+              <div class="scope-field">
+                <span class="scope-label">年度目标(人)</span>
+                <n-input-number v-model:value="dimEditAnnual" :min="0" :step="1" style="width: 150px" />
+              </div>
+              <p class="total-target-hint">将应用到该维度下所有适用范围（按当前各范围占比分配年度目标），并同步更新各指标年度/月度人数。</p>
+            </div>
+            <template #footer>
+              <n-button @click="dimensionEditModal = false">取消</n-button>
+              <n-button type="primary" :loading="dimEditSaving" @click="saveDimensionAnnualEdit">保存</n-button>
+            </template>
+          </n-modal>
         </n-tab-pane>
 
         <!-- ===================== 指标管理（维度 + 指标库） ===================== -->
@@ -286,11 +315,12 @@
             <n-input-number
               :value="dimEditor.totalTarget"
               :min="0" :step="1" size="small" style="width: 180px"
-              :disabled="dimEditor.mode === 'view'"
+              :disabled="dimEditor.lockContext"
               @update:value="(v: number | null) => setDimEditorTotalTarget(v)"
             />
             <span class="total-target-suffix">人</span>
-            <span class="total-target-hint">修改此值将按指标占比自动重算各指标年度（手动调整过的除外）；需保证「人数加和 = 维度年度目标」。</span>
+            <span v-if="dimEditor.lockContext" class="total-target-hint">维度年度管控人数属「维度层级」属性，请在列表「编辑维度」中修改；此处为只读。</span>
+            <span v-else class="total-target-hint">修改此值将按指标占比自动重算各指标年度（手动调整过的除外）；需保证「人数加和 = 维度年度目标」。</span>
           </div>
           <div class="total-target-summary" v-if="dimEditor.mode === 'edit'">
             <span>当前人数加和：<strong>{{ dimEditorActiveAnnualSum }}</strong> 人</span>
@@ -742,8 +772,15 @@ const mixedScopeGroups = computed<Set<string>>(() => {
 /* ============================ 规则配置：维度列表(master) + 维度详情(detail) ============================ */
 const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 
-// master/detail 导航状态
-const selectedDimensionId = ref<string | null>(null)
+// master/detail 导航状态（detail 改为弹窗，不再整页切换）
+const detailDimensionId = ref<string | null>(null)
+const indicatorDetailModal = ref(false)
+const dimensionEditModal = ref(false)
+const dimEditSaving = ref(false)
+const dimEditId = ref<string | null>(null)
+const dimEditName = ref('')
+const dimEditYear = ref<number>(new Date().getFullYear())
+const dimEditAnnual = ref<number>(0)
 const detailScopeKey = ref<string>('||')
 const detailYear = ref<number>(new Date().getFullYear())
 
@@ -754,8 +791,8 @@ function keyToScope(key: string) {
   const [bu = '', position = '', level = ''] = key.split('|')
   return { bu, position, level }
 }
-const selectedDimensionName = computed(
-  () => dimensions.value.find((d) => d.id === selectedDimensionId.value)?.name || '',
+const detailDimensionName = computed(
+  () => dimensions.value.find((d) => d.id === detailDimensionId.value)?.name || '',
 )
 
 // master：每维度一行，聚合「指标数 / 规则集数 / 加和状态 / 范围冲突」
@@ -794,11 +831,11 @@ const dimensionRuleSummary = computed(() =>
 
 // detail：选中维度后，按 (适用范围, 年度) 筛选，展示该维度下所有指标的年度/月度目标
 const detailScopeOptions = computed(() => {
-  if (!selectedDimensionId.value) return []
+  if (!detailDimensionId.value) return []
   const seen = new Set<string>()
   const opts: { label: string; value: string }[] = []
   for (const r of rules.value) {
-    if (r.dimension !== selectedDimensionId.value) continue
+    if (r.dimension !== detailDimensionId.value) continue
     const k = scopeKeyOf(r.bu, r.position, r.level)
     if (!seen.has(k)) {
       seen.add(k)
@@ -808,11 +845,11 @@ const detailScopeOptions = computed(() => {
   return opts
 })
 const detailYearOptions = computed(() => {
-  if (!selectedDimensionId.value) return []
+  if (!detailDimensionId.value) return []
   const seen = new Set<number>()
   const opts: { label: string; value: number }[] = []
   for (const r of rules.value) {
-    if (r.dimension !== selectedDimensionId.value) continue
+    if (r.dimension !== detailDimensionId.value) continue
     if (!seen.has(r.year)) {
       seen.add(r.year)
       opts.push({ label: String(r.year), value: r.year })
@@ -821,17 +858,17 @@ const detailYearOptions = computed(() => {
   return opts.sort((a, b) => a.value - b.value)
 })
 const detailMatrix = computed(() => {
-  if (!selectedDimensionId.value) return []
+  if (!detailDimensionId.value) return []
   const scope = keyToScope(detailScopeKey.value)
   const matched = rules.value.filter(
     (r) =>
-      r.dimension === selectedDimensionId.value &&
+      r.dimension === detailDimensionId.value &&
       (r.bu || '') === scope.bu && (r.position || '') === scope.position && (r.level || '') === scope.level &&
       r.year === detailYear.value,
   )
   const byInd = new Map(matched.map((r) => [r.indicator, r]))
   return indicators.value
-    .filter((i) => i.dimension === selectedDimensionId.value)
+    .filter((i) => i.dimension === detailDimensionId.value)
     .map((i) => {
       const r = byInd.get(i.id)
       return {
@@ -850,7 +887,8 @@ const detailSumOk = computed(() => {
 })
 
 function selectDimension(id: string) {
-  selectedDimensionId.value = id
+  detailDimensionId.value = id
+  indicatorDetailModal.value = true
   const scopes = detailScopeOptions.value
   const years = detailYearOptions.value
   detailScopeKey.value = scopes.length ? scopes[0].value : scopeKeyOf('', '', '')
@@ -859,9 +897,9 @@ function selectDimension(id: string) {
 
 // 复用 dimEditor 打开「选中维度 + 选中适用范围 + 选中年度」的规则集（不依赖单条规则推断）
 function openDetailEditor() {
-  if (!selectedDimensionId.value) return
+  if (!detailDimensionId.value) return
   const scope = keyToScope(detailScopeKey.value)
-  dimEditor.dimensionId = selectedDimensionId.value
+  dimEditor.dimensionId = detailDimensionId.value
   dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
   dimEditor.bu = scope.bu
   dimEditor.position = scope.position
@@ -879,6 +917,107 @@ function openDetailClear() {
   openDetailEditor()
   for (const row of dimEditor.rows) row.pendingDelete = true
   dimEditor.mode = 'edit'
+}
+
+// 维度层级编辑入口：打开弹窗，预填该维度的「归属年度 + 年度目标」（从 master 聚合行取）
+function openDimensionEdit(d: any) {
+  dimEditId.value = d.id
+  dimEditName.value = d.name
+  // 取该维度规则中的主年度（多年份取最大）与主年度对应年度目标之和
+  const dRules = rules.value.filter((r) => r.dimension === d.id)
+  const years = Array.from(new Set(dRules.map((r) => Number(r.year)))).sort((a, b) => a - b)
+  const primaryYear = years.length ? years[years.length - 1] : new Date().getFullYear()
+  const annual = dRules
+    .filter((r) => Number(r.year) === primaryYear)
+    .reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
+  dimEditYear.value = primaryYear
+  dimEditAnnual.value = annual
+  dimensionEditModal.value = true
+}
+
+// 最大余数法：把整数 total 按权重(和≈1)精确分配为若干整数，保证加和严格 == total
+function _largestRemainder(total: number, weights: number[]): number[] {
+  const n = weights.length
+  if (n === 0) return []
+  total = Math.max(0, Math.round(total))
+  if (total <= 0) return new Array(n).fill(0)
+  const wsum = weights.reduce((a, b) => a + b, 0) || 1
+  const norm = weights.map((w) => w / wsum)
+  const exact = norm.map((w) => total * w)
+  const floors = exact.map(Math.floor)
+  let remainder = total - floors.reduce((a, b) => a + b, 0)
+  const order = exact.map((_, i) => i).sort((a, b) => (exact[b] - floors[b]) - (exact[a] - floors[a]))
+  const alloc = floors.slice()
+  for (let i = 0; i < remainder; i++) alloc[order[i % n]] += 1
+  return alloc
+}
+
+// 按比例缩放 12 月数组使其和 == newAnnual（余数用最大余数法分摊）
+function _scaleMonthly(oldMonthly: number[], newAnnual: number): number[] {
+  const sum = oldMonthly.reduce((a, b) => a + b, 0)
+  if (sum <= 0) {
+    const base = Math.floor(newAnnual / 12)
+    const rem = newAnnual - base * 12
+    return Array.from({ length: 12 }, (_, i) => base + (i < rem ? 1 : 0))
+  }
+  return _largestRemainder(newAnnual, oldMonthly.map((m) => m / sum))
+}
+
+// 维度层级保存：把「归属年度 + 年度目标」扇出到该维度下所有适用范围（按各范围当前占比分配），逐 scope 调 set_rules
+async function saveDimensionAnnualEdit() {
+  if (!dimEditId.value) return
+  const dimId = dimEditId.value
+  const newYear = dimEditYear.value
+  const newAnnual = Math.max(0, Math.round(dimEditAnnual.value || 0))
+  const dRules = rules.value.filter((r) => r.dimension === dimId)
+  if (dRules.length === 0) {
+    message.warning('该维度下暂无规则，无法设置年度目标')
+    return
+  }
+  // 按适用范围分组
+  const scopeMap = new Map<string, any[]>()
+  for (const r of dRules) {
+    const k = scopeKeyOf(r.bu, r.position, r.level)
+    if (!scopeMap.has(k)) scopeMap.set(k, [])
+    scopeMap.get(k)!.push(r)
+  }
+  const scopes = [...scopeMap.entries()]
+  const n = scopes.length
+  const currentTotal = dRules.reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
+  const scopeWeights = scopes.map(([, rs]) => {
+    const sa = rs.reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
+    return currentTotal > 0 ? sa / currentTotal : 1 / n
+  })
+  const scopeAnnuals = _largestRemainder(newAnnual, scopeWeights)
+  dimEditSaving.value = true
+  try {
+    for (let i = 0; i < scopes.length; i++) {
+      const [key, rs] = scopes[i]
+      const scope = keyToScope(key)
+      const scopeNewAnnual = scopeAnnuals[i]
+      const curScopeAnnual = rs.reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
+      const indWeights = rs.map((r) => (curScopeAnnual > 0 ? (Number(r.annualTarget) || 0) / curScopeAnnual : 1 / rs.length))
+      const indAnnuals = _largestRemainder(scopeNewAnnual, indWeights)
+      const items: DimRuleSetItem[] = rs.map((r, j) => ({
+        indicator: r.indicator,
+        target: r.target,
+        strength: r.strength,
+        annualTarget: indAnnuals[j],
+        monthlyTargets: _scaleMonthly(normalizeMonthly(r.monthlyTargets), indAnnuals[j]),
+      }))
+      await saveDimensionRuleSet(dimId, {
+        bu: scope.bu, position: scope.position, level: scope.level,
+        year: newYear, rules: items, totalTarget: scopeNewAnnual,
+      })
+    }
+    message.success('维度年度目标已更新')
+    dimensionEditModal.value = false
+    await loadRules()
+  } catch (e) {
+    message.error(extractApiError(e, '保存失败'))
+  } finally {
+    dimEditSaving.value = false
+  }
 }
 
 /* ============================ 指标管理 ============================ */
@@ -964,8 +1103,11 @@ const dimensionRuleColumns: DataTableColumns<any> = [
     },
   },
   {
-    title: '操作', key: 'actions', width: 110, fixed: 'right',
-    render: (d: any) => h(NButton, { size: 'small', type: 'primary', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => '查看详情' }),
+    title: '操作', key: 'actions', width: 170, fixed: 'right',
+    render: (d: any) => h('div', { style: 'display:flex; gap:8px;' }, [
+      h(NButton, { size: 'small', type: 'primary', quaternary: true, onClick: () => openDimensionEdit(d) }, { default: () => '编辑维度' }),
+      h(NButton, { size: 'small', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => '查看指标' }),
+    ]),
   },
 ]
 
@@ -2099,6 +2241,25 @@ onMounted(async () => {
   line-height: 1.5;
 }
 .scope-relocate-hint :deep(.n-alert__content) { font-size: 12px; }
+
+/* 维度层级编辑弹窗 */
+.dim-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0;
+}
+.dim-edit-form .scope-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dim-edit-form .scope-label {
+  width: 92px;
+  font-size: 13px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
 
 /* 维度年度管控人数 section */
 .total-target-row {
