@@ -39,7 +39,6 @@ const blank = () => ({
   dimension: '',
   indicator: '',
   year: new Date().getFullYear(),
-  targetPct: 0,
   strength: '软约束' as Strength,
   annualTarget: 0,
   monthlyTargets: Array(12).fill(0) as number[],
@@ -75,7 +74,6 @@ function syncFormFromRule(r: ControlRule | null) {
       dimension: r.dimension,
       indicator: r.indicator,
       year: r.year,
-      targetPct: Math.round((r.target || 0) * 1000) / 10,
       strength: r.strength,
       annualTarget: Math.round(r.annualTarget || 0),
       monthlyTargets: Array.isArray(r.monthlyTargets) && r.monthlyTargets.length === 12
@@ -132,7 +130,6 @@ function validate(): string | null {
   if (!form.dimension) return '请选择维度'
   if (!form.indicator) return '请选择指标'
   if (!form.year) return '请填写生效年度'
-  if (form.targetPct < 0 || form.targetPct > 100) return '占比目标须在 0~100% 之间'
   if (form.annualTarget < 0) return '年度目标不能为负'
   return null
 }
@@ -144,6 +141,8 @@ async function save() {
     return
   }
   saving.value = true
+  // 扁平规则模型下每条 = 独占 (适用范围, 维度, 年度, 指标) 组合，不存在多指标按占比分配；
+  // 占比仅作"看板·月度任务拆解完成度"参考（产品设计 §4.4），无 UI 填写价值，故 payload 恒为 1.0。
   const payload = {
     bu: form.bu,
     position: form.position,
@@ -151,7 +150,7 @@ async function save() {
     dimension: form.dimension,
     indicator: form.indicator,
     year: form.year,
-    target: form.targetPct / 100,
+    target: 1.0,
     strength: form.strength,
     annualTarget: Math.round(form.annualTarget),
     monthlyTargets: form.monthlyTargets.map((v) => Math.round(v || 0)),
@@ -243,18 +242,9 @@ async function save() {
         <section>
           <div class="rc-section-title"><span class="dot" />管控目标</div>
           <n-form :disabled="!editing" label-placement="top">
-            <n-grid :cols="2" :x-gap="12">
-              <n-gi>
-                <n-form-item label="占比目标(%)">
-                  <n-input-number v-model:value="form.targetPct" :min="0" :max="100" :step="0.5" />
-                </n-form-item>
-              </n-gi>
-              <n-gi>
-                <n-form-item label="年度目标(人)">
-                  <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
-                </n-form-item>
-              </n-gi>
-            </n-grid>
+            <n-form-item label="年度目标(人)">
+              <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
+            </n-form-item>
             <n-form-item label="月度目标(人)">
               <div class="rc-monthly">
                 <div v-for="(m, i) in form.monthlyTargets" :key="i" class="rc-monthly-item">
@@ -264,6 +254,9 @@ async function save() {
                 <n-button v-if="editing" size="tiny" tertiary @click="evenFillMonthly">按年度均分</n-button>
               </div>
             </n-form-item>
+            <n-alert type="default" :show-icon="false" style="margin-top: 4px">
+              每条规则=独立 (适用范围·维度·指标·年度) 组合，无多指标占比；占比仅在看板作为「月度任务拆解完成度」参考（产品设计 §4.4）。
+            </n-alert>
           </n-form>
         </section>
 
