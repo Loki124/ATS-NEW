@@ -355,4 +355,26 @@ watch(() => route.path, () => {
    仅保留 n-menu wrapper 微调（settings-menu 是 n-menu 的 class 容器）=== */
 .settings-menu { padding: 8px 0 16px; }
 .settings-menu.collapsed { padding: 8px 0; }
+
+/* === 折叠态 CSS 补丁：Naive UI 自身 .menu-item-group-title 在 :collapsed=true 下未做隐藏 ===
+   现象：折叠 64px 时 group label "基本信息/过程管理/招聘提速/内容管理" 被 CSS 强竖排成「基/本/信/息」单字一行
+   根因：MenuOptionGroup.mjs 第 47-53 行无条件渲染 group title；cssr.mjs 第 102 行只把 .n-menu-item-content-header 设 opacity:0
+   方案：display:none 强制藏 group title + children label，children 之间用 hairline 隔开，icon 居中 === */
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group-title),
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content-header),
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__arrow) {
+  display: none !important;
+}
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__icon) {
+  margin: 0 auto !important;
+}
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group + .n-menu-item-group) {
+  border-top: 1px solid var(--border-hairline);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item) {
+  margin-top: 4px !important;
+}
+
 </style>
