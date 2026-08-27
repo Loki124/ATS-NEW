@@ -75,58 +75,7 @@
             </n-data-table>
           </div>
 
-          <!-- 指标详情弹窗：选中维度的指标矩阵（年度/月度目标） -->
-          <n-modal
-            v-model:show="indicatorDetailModal"
-            preset="card"
-            title="指标详情"
-            style="width: 780px"
-            :bordered="false"
-            :auto-focus="false"
-          >
-            <div class="toolbar" style="margin-bottom: 10px">
-              <n-select
-                v-if="detailScopeOptions.length"
-                v-model:value="detailScopeKey"
-                :options="detailScopeOptions"
-                style="width: 220px"
-                placeholder="适用范围"
-              />
-              <n-select
-                v-if="detailYearOptions.length"
-                v-model:value="detailYear"
-                :options="detailYearOptions"
-                style="width: 110px"
-              />
-              <div class="spacer"></div>
-              <n-button @click="openDetailEditor">编辑规则集</n-button>
-              <n-button type="error" quaternary @click="openDetailClear">清空规则集</n-button>
-            </div>
-            <n-alert
-              v-if="!detailSumOk"
-              type="warning"
-              :show-icon="true"
-              class="dim-del-alert"
-              style="margin-bottom: 10px"
-            >
-              当前「{{ detailDimensionName }} · {{ (detailScopeOptions.find((o: any) => o.value === detailScopeKey) || {}).label || '全局' }} · {{ detailYear }}」下各指标目标占比之和未达 100%，请编辑规则集补全。
-            </n-alert>
-            <n-data-table
-              :columns="detailMatrixColumns"
-              :data="detailMatrix"
-              :loading="loading.rules"
-              :row-key="(r: any) => r.indicatorId"
-              :pagination="false"
-              :expandable="(row: any) => row.configured"
-              :render-expand="renderDetailExpand"
-              flex-height
-              style="max-height: 52vh"
-            >
-              <template #empty>
-                <n-empty description="该维度下暂无指标，请先到「指标管理」新增" />
-              </template>
-            </n-data-table>
-          </n-modal>
+          <!-- 已并入 dimEditor 弹窗（双模：view 查看 + edit 编辑）；旧「指标详情」弹窗删除 -->
 
           <!-- 维度层级编辑弹窗：归属年度 + 年度目标（不再埋在指标规则集里） -->
           <n-modal
@@ -254,7 +203,53 @@
       :segmented="{ content: true, footer: true }"
       class="dim-ruleset-modal"
     >
-      <div class="dim-ctx">
+      <!-- view 模式（从 master 列表「查看指标」进入）：上下文切换 + 详情矩阵（融合旧指标详情弹窗） -->
+      <div v-if="dimEditor.mode === 'view' && detailDimensionId" class="dim-view-section">
+        <div class="toolbar" style="margin-bottom: 10px">
+          <n-select
+            v-if="detailScopeOptions.length"
+            v-model:value="detailScopeKey"
+            :options="detailScopeOptions"
+            style="width: 220px"
+            placeholder="适用范围"
+          />
+          <n-select
+            v-if="detailYearOptions.length"
+            v-model:value="detailYear"
+            :options="detailYearOptions"
+            style="width: 110px"
+          />
+          <div class="spacer"></div>
+          <n-button type="error" quaternary @click="openDetailClear">清空规则集</n-button>
+        </div>
+        <n-alert
+          v-if="!detailSumOk"
+          type="warning"
+          :show-icon="true"
+          class="dim-del-alert"
+          style="margin-bottom: 10px"
+        >
+          当前「{{ detailDimensionName }} · {{ (detailScopeOptions.find((o: any) => o.value === detailScopeKey) || {}).label || '全局' }} · {{ detailYear }}」下各指标目标占比之和未达 100%，请点底部「编辑」补全。
+        </n-alert>
+        <n-data-table
+          :columns="detailMatrixColumns"
+          :data="detailMatrix"
+          :loading="loading.rules"
+          :row-key="(r: any) => r.indicatorId"
+          :pagination="false"
+          :expandable="(row: any) => row.configured"
+          :render-expand="renderDetailExpand"
+          flex-height
+          style="max-height: 52vh"
+        >
+          <template #empty>
+            <n-empty description="该维度下暂无指标，请先到「指标管理」新增" />
+          </template>
+        </n-data-table>
+      </div>
+
+      <!-- edit 模式（点底部「编辑」进入）：原 form-section + 维度年度管控人数 + 指标行 -->
+      <div v-else class="dim-ctx">
         <div class="form-section">
           <div class="form-section-title">
             <span class="dot" />维度
@@ -674,7 +669,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, h, onMounted } from 'vue'
+import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NTag, NButton, NSwitch, NCheckbox, NDivider, NSpace,
   NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker, NTooltip,
@@ -774,7 +769,6 @@ const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8
 
 // master/detail 导航状态（detail 改为弹窗，不再整页切换）
 const detailDimensionId = ref<string | null>(null)
-const indicatorDetailModal = ref(false)
 const dimensionEditModal = ref(false)
 const dimEditSaving = ref(false)
 const dimEditId = ref<string | null>(null)
@@ -888,11 +882,36 @@ const detailSumOk = computed(() => {
 
 function selectDimension(id: string) {
   detailDimensionId.value = id
-  indicatorDetailModal.value = true
   const scopes = detailScopeOptions.value
   const years = detailYearOptions.value
-  detailScopeKey.value = scopes.length ? scopes[0].value : scopeKeyOf('', '', '')
-  detailYear.value = years.length ? years[0].value : new Date().getFullYear()
+  const sk = scopes.length ? scopes[0].value : scopeKeyOf('', '', '')
+  const yr = years.length ? years[0].value : new Date().getFullYear()
+  detailScopeKey.value = sk
+  detailYear.value = yr
+  // 直接打开 dimEditor 弹窗的 view 模式（融合旧指标详情弹窗）
+  openDetailView(id, sk, yr)
+}
+
+/**
+ * 从 master 列表打开 dimEditor 弹窗的 view 模式（融合旧 indicatorDetailModal）。
+ * - view 模式下 lockContext 解除，主体渲染 detailMatrix；顶部 (scope, year) 切换器即时刷新。
+ * - 点底部「编辑」进入 edit 模式（lockContext=true），上下文锁定。
+ */
+function openDetailView(dimensionId: string, scopeKey: string, year: number) {
+  const scope = keyToScope(scopeKey)
+  dimEditor.dimensionId = dimensionId
+  dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
+  dimEditor.bu = scope.bu
+  dimEditor.position = scope.position
+  dimEditor.level = scope.level
+  dimEditor.year = year
+  // view 模式不锁上下文——允许顶部 (scope, year) 切换器即时切换查看
+  dimEditor.lockContext = false
+  dimEditor.originalScope = { bu: scope.bu, position: scope.position, level: scope.level, year }
+  dimEditor.scopeDirty = false
+  dimEditor.mode = 'view'
+  dimEditor.show = true
+  _buildDimRows()
 }
 
 // 复用 dimEditor 打开「选中维度 + 选中适用范围 + 选中年度」的规则集（不依赖单条规则推断）
@@ -1339,6 +1358,25 @@ function _buildDimRows() {
   const existingTotal = existing.reduce((s, r) => s + Math.round(Number(r.annualTarget) || 0), 0)
   dimEditor.totalTarget = existing.length > 0 ? existingTotal : 0
 }
+
+/**
+ * view 模式下 (适用范围, 年度) 切换 → 同步到 dimEditor 上下文（点底部「编辑」时带入）。
+ * 仅在 view 模式触发；edit 模式下 dimEditor 上下文由 lockContext 锁住，不联动。
+ */
+watch(
+  [() => detailScopeKey.value, () => detailYear.value],
+  () => {
+    if (!dimEditor.show || dimEditor.mode !== 'view') return
+    const scope = keyToScope(detailScopeKey.value)
+    dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
+    dimEditor.bu = scope.bu
+    dimEditor.position = scope.position
+    dimEditor.level = scope.level
+    dimEditor.year = detailYear.value
+    dimEditor.originalScope = { bu: scope.bu, position: scope.position, level: scope.level, year: detailYear.value }
+    _buildDimRows()
+  },
+)
 
 /**
  * 打开维度规则集编辑面。
