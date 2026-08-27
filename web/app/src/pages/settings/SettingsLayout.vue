@@ -365,6 +365,15 @@ watch(() => route.path, () => {
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__arrow) {
   display: none !important;
 }
+/* 折叠态：让 item content 整体居中（Naive UI 用 grid 三列 22px|41px|0px 把 icon 钉在第 1 列偏左，改单列 + items 居中） */
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content) {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+  align-items: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__icon) {
   margin: 0 auto !important;
 }
