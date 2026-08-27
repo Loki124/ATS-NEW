@@ -763,10 +763,17 @@ const dimensionRuleSummary = computed(() =>
   dimensions.value.map((d) => {
     const dRules = rules.value.filter((r) => r.dimension === d.id)
     const groups = new Map<string, number>()
+    const yearsSet = new Set<number>()
     for (const r of dRules) {
       const k = scopeKeyOf(r.bu, r.position, r.level) + '#' + r.year
       groups.set(k, (groups.get(k) || 0) + r.target)
+      yearsSet.add(Number(r.year))
     }
+    // 「归属年度」：单一年度直接显示；多年份按升序并列（如 "2025 / 2026"），避免隐藏信息。
+    const years = Array.from(yearsSet).sort((a, b) => a - b)
+    const yearLabels = years.length === 0 ? '—' : years.map(String).join(' / ')
+    // 「年度目标(人)」：该维度所有规则的 annualTarget 之和（与详情页「维度年度管控人数」一致口径）。
+    const annualTotal = dRules.reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
     let badSum = false
     for (const s of groups.values()) if (Math.abs(s - 1) >= 0.0005) badSum = true
     const hasMutex = [...mixedScopeGroups.value].some((gk) => gk.startsWith(d.id + '|'))
@@ -776,6 +783,8 @@ const dimensionRuleSummary = computed(() =>
       name: d.name,
       code: d.code,
       indicatorCount,
+      yearLabels,
+      annualTotal,
       ruleSetCount: groups.size,
       sumOk: !badSum && dRules.length > 0,
       mutex: hasMutex,
@@ -942,6 +951,8 @@ const dimensionRuleColumns: DataTableColumns<any> = [
       d.code ? h(NTag, { size: 'small', bordered: false, type: 'default' }, { default: () => d.code }) : null,
     ]),
   },
+  { title: '归属年度', key: 'yearLabels', width: 110, render: (d: any) => h('span', { class: 'muted' }, d.yearLabels) },
+  { title: '年度目标(人)', key: 'annualTotal', width: 130, render: (d: any) => (d.annualTotal > 0 ? h('span', {}, String(d.annualTotal)) : h('span', { class: 'muted' }, '—')) },
   { title: '指标数', key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) },
   { title: '规则集(适用范围×年度)', key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) },
   {
