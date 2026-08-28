@@ -65,13 +65,13 @@
   /* ===== §3. 玻璃表面（系统核心） ===== */
   --glass-bg-panel:    rgba(255, 255, 255, .55); /* 玻璃面板底 */
   --glass-bg-card:     rgba(255, 255, 255, .62); /* 玻璃卡片底 */
-  --glass-bg-elevated: rgba(255, 255, 255, .88); /* 玻璃浮起底（modal/drawer）— 2026-08-25 .72→.88 防页面内容穿透 */
+  --glass-bg-elevated: rgba(255, 255, 255, .96); /* 玻璃浮起底（modal/drawer/dropdown/popover）— 2026-08-28 .88→.96 根治候选/招聘阶段配置等内容穿透. 必须配 backdrop-filter: blur(28px) */
   --glass-bg-input:    rgba(255, 255, 255, .45); /* 玻璃输入底 */
   --glass-border:        rgba(255, 255, 255, .70); /* 玻璃描边 */
   --glass-border-strong: rgba(255, 255, 255, .90); /* 强描边 */
 
   /* backdrop-filter 模糊半径（必带 -webkit- 前缀） */
-  --glass-blur-panel:   24px;
+  --glass-blur-panel:   28px; /* 2026-08-28 24→28 增强毛玻璃遮罩 */
   --glass-blur-card:    16px;
   --glass-blur-input:   10px;
   --glass-blur-overlay:  6px; /* modal 遮罩 */
@@ -175,7 +175,8 @@ body.dark {
   /* 玻璃转深玻璃（拉丝深玻璃在暗色极光上表现最佳） */
   --glass-bg-panel:    rgba(30, 41, 59, .55);
   --glass-bg-card:     rgba(30, 41, 59, .62);
-  --glass-bg-elevated: rgba(30, 41, 59, .88); /* 暗色同步 .72→.88 */
+  --glass-bg-elevated: rgba(15, 23, 42, .94); /* 2026-08-28 dark 改色基 #1E293B(slate-800)→#0F172A(slate-900) + .88→.94. 既不溶背景也保证 hover 透出 */
+  --glass-bg-card:     rgba(15, 23, 42, .78);
   --glass-bg-input:    rgba(30, 41, 59, .45);
   --glass-border:        rgba(255, 255, 255, .14);
   --glass-border-strong: rgba(255, 255, 255, .22);

@@ -13,8 +13,8 @@
 
 | 层 | 主要类名 | 管辖内容 | 关联规范 |
 |----|---------|---------|---------|
-| **外层容器** | `.n-popover`（dropdown 复用 popover 渲染） | 浮起容器 + 阴影 + 圆角 | §1.1 |
-| **内层菜单** | `.n-dropdown-menu` / `.n-base-select-menu` | 滚动容器 + 背景 + box-shadow | §1.2 |
+| **外层容器** | `.v-binder-follower-content`（**Naive UI 浮层真实根，2026-08-28 修正**）/ `.n-popover`（fallback） | 浮起容器 + 阴影 + 圆角 + 玻璃模糊 | §1.1 |
+| **内层菜单** | `.n-dropdown-menu` / `.n-base-select-menu` | 滚动容器 + 透出父层背景 | §1.2 |
 | **项目行** | `.n-dropdown-option` / `.n-base-select-option` / `.n-dropdown-divider` / `.n-base-select-option__content` | 单行 + hover 高亮 + 文本 + 分割线 | §1.3 |
 
 > ⚠️ **Naive 内部别名**：`n-dropdown-option-body`、`n-dropdown-option-body::before`（绝对定位的高亮层）、`n-dropdown-option-prefix/label/suffix`、`n-dropdown-group-header`（仅 `type:'group'` 时存在）。
@@ -23,15 +23,25 @@
 
 ## 2. 视觉五件套
 
-### 2.1 外层容器（`.n-popover`）
+### 2.1 外层容器（`.v-binder-follower-content` 主 / `.n-popover` fallback）
+
+> **2026-08-28 修订**：经 Playwright `getComputedStyle` 实测，Naive UI 1.x dropdown / select / date-picker / tooltip / popover 所有浮层**真实根**是 vueuc-popper 库的 `.v-binder-follower-content`，**根本不存在 `.n-popover` wrapper**（dropdown 走 vueuc-popper 不用 popover theme 包装）。原 `087f215` 在 `.n-popover` 上加玻璃底实际从未命中，导致浮层 100% 透明穿透。
+>
+> 实测堆栈：`body > .v-binder-follower-container > .v-binder-follower-content(transform=translate) > .n-dropdown-menu.n-popover-shared > .n-dropdown-option`。
+>
+> **2026-08-28 三件套（alpha / blur / saturate,缺一不可）**：
+> 1. `background: var(--glass-bg-elevated)` —— light `.96` / dark `.94`，基本不透（dark 同时改色基 slate-800 → slate-900 解决「dark 溶背景」）
+> 2. `backdrop-filter: blur(28px) saturate(180%)` —— 双前缀（`-webkit-` + 标准）必备，macOS/Safari 需 `-webkit-`
+> 3. `isolation: isolate` + `overflow: hidden` —— 防止 Naive 浮层 transform 父级切断 backdrop-filter 视口快照；overflow 让 12px border-radius 干净裁切
 
 | 属性 | 规范值 | Token | 备注 |
 |------|--------|-------|------|
 | 圆角 | 12px | `--radius-lg` | **与 `.glass-panel` / `.glass-card` 一致**，dropdown 不应单独定义 |
-| 背景 | 半透明 + 玻璃模糊 | `--glass-bg-elevated` + `blur(var(--glass-blur-panel))` | 沿用既有 §5.6 弹窗规范 |
+| 背景 | light .96 / dark .94 + 玻璃模糊 | `--glass-bg-elevated` + `blur(28px) saturate(180%)` | light .88→.96, dark #1E293B→#0F172A + .88→.94 (2026-08-28) |
 | 边框 | 1px 玻璃描边 | `--glass-border` | 浅色 0.7 白，暗色 0.14 白 |
 | 阴影 | 浮起四级 | `--shadow-elevated` | 与 modal 同源 |
 | z-index | 1000 | `--z-dropdown` | 已在 §2.7 定义 |
+| isolation | isolate | （CSS 关键字） | **2026-08-28 必备** —— Naive 浮层 transform 父级会切断 backdrop-filter |
 
 ### 2.2 内层菜单（`.n-dropdown-menu` / `.n-base-select-menu`）
 
@@ -178,6 +188,7 @@ Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-bo
 |------|------|------|
 | 「外圆内方」 | 弹层外框 12px 圆角，内行无圆角无高亮 = 直角感 | hover 高亮必须圆形 `--radius-sm` |
 | `hover 高亮几乎看不出` | L3 `::before` 背景用 `--brand-tint` (6% brand) → light 下 alpha 太低无法识别 | dropdown 专改 `--option-hover` (14%)，三档梯度见 §2.3 |
+| `dropdown / select 浮层穿透页面内容`（用户 2026-08-28 报「透明度还是很高」） | Naive UI 浮层真实根是 **`.v-binder-follower-content`**（不是 `.n-popover`），`--glass-bg-elevated` 只是基础 token 抬到 .88/.88 仍会看到底部强对比元素（如紫按钮「新增阶段」）穿透 | (1) 改选择器到 `.v-binder-follower-content`； (2) alpha 升到 light .96 / dark .94；(3) blur 24→28px + saturate(180%)；(4) 加 `isolation: isolate` 防 transform 切断 backdrop-filter；(5) dark 改色基 `#1E293B → #0F172A` 防溶背景 |
 | 中间无 icon 项被"矩形包围"错觉 | 选项混有/无 icon，无 icon 项视觉缩窄像嵌独立容器 | **统一补 icon prefix** 或统一用同字号 left padding 让锚点对齐 |
 | Naive 默认 divider 灰在暗色仍浅灰 | 暗色下弹层里 divider 像一条白线刺眼 | 覆写 `--n-divider-color → var(--border-hairline)` |
 | 高亮层 border-radius 与外框错位 | 高亮是大圆角 + 内嵌到小圆角容器 = 视觉空隙 | 外大内小（12 / 6）+ inset 6px |

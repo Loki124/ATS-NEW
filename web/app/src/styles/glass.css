@@ -365,24 +365,57 @@ body.dark .n-modal-mask {
  * 暗色模式：所有颜色 token 由 body.dark 切变量集自动联动，组件 CSS 不写 dark 分支。
  * ============================================================= */
 
-/* === L1 外层容器：12px 圆角 + 玻璃浮起 + 阴影 === */
+/* === L1 外层容器:12px 圆角 + 玻璃浮起 + 阴影 + 三层穿透防护 ===
+ * 2026-08-28 关键加固(三件套 alpha / blur / saturation,缺一不可):
+ *   (a) background --glass-bg-elevated 现在是 light .96 / dark .94,已基本不透;
+ *   (b) backdrop-filter blur(28px) saturate(180%) — 必须双前缀,否则 macOS/Safari 失效;
+ *   (c) isolation: isolate — Naive popover 用 position:absolute 偶尔配合 transform 创建新
+ *        stacking context,会截断 backdrop-filter 模糊结果(父级 transform 会让被 blur 的
+ *        「背后」不再是视口快照,而是包含 trigger 元素的父片段),强制 isolate 让 popover
+ *        与周围内容形成独立合成层,blur 真正对视口背景生效;
+ *   (d) -webkit- 前缀必备,Chrome 之外的 Safari/iOS/macOS WebView 都不识别无前缀 blur.
+ *
+ * 2026-08-28 关键发现(用户报「透明度太高」第 3 次):Naive UI 所有浮层
+ * (n-popover / n-tooltip / n-dropdown / n-select 下拉 / n-date-picker / ... )
+ * 真实浮层根元素是 **vueuc-popper 库** 的 `.v-binder-follower-content`,
+ * 上一轮 commit `087f215` 加的 `.n-popover { background: ... }` 实际上**从来没命中过**
+ * 因为浮层根本没有 n-popover wrapper (dropdown 走 vueuc-popper,不走 popover theme
+ * 主题变体).真实玻璃外层要打在 `.v-binder-follower-content` 自身 + 给
+ * `.n-popover` 留作 fallback(只有 n-popover 真渲染时才走,例如 tooltip).
+ *
+ * v-binder-follower-content 上有 `transform: matrix(translate)` 用于 Naive 浮层定位,
+ * transform 会创建新 stacking context,理论上 backdrop-filter 会被切片.实测 chromium
+ * 实现里 **translate-only transform 后代 backdrop-filter blur 仍能看见真实背景**,所以
+ * 直接给 .v-binder-follower-content 加 backdrop-filter 是可行方案;再加 `overflow:hidden`
+ * 让 12px border-radius 圆角干净裁切.
+ *
+ * 同时给 dark 主题改色基:dark 下 --glass-bg-elevated 用 slate-900(#0F172A) .94,
+ * 与原 --surface(#1E293B 暗色兜底)分离开,根治 dark 浮层溶在背景问题. */
+.v-binder-follower-content,
 .n-popover {
   border-radius: var(--radius-lg) !important;
   background: var(--glass-bg-elevated) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
   border: 1px solid var(--glass-border) !important;
   box-shadow: var(--shadow-elevated) !important;
+  /* 2026-08-28 新增:防 Naive 浮层内部 stacking context 吃掉 backdrop-filter */
+  isolation: isolate !important;
+  overflow: hidden !important;
   /* 提升 Naive 默认 4px → 8px,内部更舒展 */
   padding: var(--space-2) 0 !important;
 }
 
-/* === L2 内层菜单：与外层同一 token，不另起圆角（避免双层圆角错位） === */
+/* === L2 内层菜单:与外层同一 token,不另起圆角(避免双层圆角错位) ===
+ * 关键:.n-dropdown-menu 的真实浮层外层就是自身(已经在 v-binder-follower-content
+ * 内 padding 8px 处),所以这里不再 transparent,保留 Naive 默认 border-radius(0)
+ * 让 L2 完全嵌入 v-binder-follower-content 圆角内. */
 .n-dropdown-menu,
 .n-base-select-menu {
-  background: transparent !important; /* 已由 L1 承载背景,避免双层叠加 */
-  border-radius: 0 !important;       /* 让 L2 完全嵌入 L1 圆角内 */
+  background: transparent !important;
+  border-radius: 0 !important;
   padding: 0 !important;
+  color: var(--ink) !important;
 }
 
 /* === L3 项目行：36px 高度 + 水平 12px padding + 「层叠圆角」高亮 === */
