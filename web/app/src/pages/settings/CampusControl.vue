@@ -467,22 +467,27 @@ const persons = ref<Person[]>([])
  *  - prefix 显示「共 N 条」（Naive UI Pagination 的 RenderPrefix 入参为 { itemCount, page, pageSize, pageCount, startIndex, endIndex }，不是 total）
  * 看板/录入校验结果 不分页（语义不同：按维/规则集聚合，单次结果通常 < 50 行）
  */
+// T143 修复 n-data-table 内置分页器切换 pageSize 不生效：
+// Naive UI 把「含 pageSize 的 reactive pagination」当受控（controlledPageSizeRef = pagination.pageSize），
+// 内置分页器的 onUpdate:pageSize 不会回写外部对象，导致 pageSize 永远卡在初始值。
+// 修法：移除 reactive 里的 pageSize 让 Naive UI 用内部 uncontrolledPageSizeRef 管理；
+//       defaultPageSize 仅作为 uncontrolled 初始值（不受控，可被分页器正常更新）。
 const rulePagination = reactive({
-  pageSize: 20,
+  defaultPageSize: 20,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   showQuickJumper: true,
   prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
 })
 const indicatorPagination = reactive({
-  pageSize: 20,
+  defaultPageSize: 20,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   showQuickJumper: true,
   prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
 })
 const personPagination = reactive({
-  pageSize: 20,
+  defaultPageSize: 20,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   showQuickJumper: true,
