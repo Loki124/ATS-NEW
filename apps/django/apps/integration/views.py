@@ -1,8 +1,13 @@
 """Integration Views (DRF) - PRD v4 §14.4"""
+import logging
+import time
+
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
@@ -13,6 +18,9 @@ from .serializers import (
     IntegrationConfigSerializer,
     IntegrationSyncLogSerializer,
 )
+from .services import bg_callback_envelope, verify_background_check_callback
+
+logger = logging.getLogger(__name__)
 
 
 class IntegrationConfigViewSet(AuditMixin, viewsets.ModelViewSet):
@@ -79,3 +87,79 @@ class IntegrationSyncLogViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         return qs.select_related('config')
+
+
+class BackgroundCheckCallbackView(APIView):
+    """背调供应商异步回调入向端点（规范 §5.2 验签 + §5.3 幂等）
+
+    供应商在订单状态变更时主动 POST 此端点。请求体携带 sign 验签,
+    端点面向供应商、靠签名保护, 不加 IsSuperAdmin 鉴权。
+    path: /api/v1/background-check/callback/
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        t0 = time.time()
+        payload = request.data if isinstance(request.data, dict) else {}
+        app_id = request.headers.get('X-App-Id', '') or ''
+
+        # 1. 验签 + 重放防护（异常按内部错误审计）
+        try:
+            ok, code, message, config = verify_background_check_callback(payload, app_id)
+        except Exception as e:  # noqa: BLE001 - 验签过程异常统一按内部错误返回
+            logger.exception('background_check callback verify failed')
+            self._audit_failed(None, payload, 50001, f'内部异常: {e}', time.time() - t0)
+            return Response(
+                bg_callback_envelope(50001, '内部异常'), status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # 2. 验签失败 / 重放 / appId 无效 → 审计 + 401 信封
+        if not ok:
+            self._audit_failed(config, payload, code, message, time.time() - t0)
+            return Response(bg_callback_envelope(code, message), status=status.HTTP_401_UNAUTHORIZED)
+
+        # 3. 幂等（§5.3）: 幂等键 (number, status, completionTime)
+        #    注意: IntegrationSyncLog.status 存的是审计结果(SUCCESS/FAILED), 订单状态在 request_data 里,
+        #    故按 external_ref=number 取出候选后比对回Body中的订单 status / completionTime。
+        number = str(payload.get('number', ''))
+        status_val = payload.get('status')
+        completion_time = payload.get('completionTime')
+        existing = IntegrationSyncLog.objects.filter(
+            config=config, sync_type='CALLBACK', external_ref=number,
+        ).only('request_data')
+        for e in existing:
+            rd = e.request_data or {}
+            if rd.get('status') == status_val and rd.get('completionTime') == completion_time:
+                return Response(
+                    bg_callback_envelope(0, 'success', data={'number': number, 'status': status_val}),
+                    status=status.HTTP_200_OK,
+                )
+
+        # 4. 首次到达: 落审计 SUCCESS
+        duration_ms = int((time.time() - t0) * 1000)
+        IntegrationSyncLog.objects.create(
+            config=config, sync_type='CALLBACK', direction='IN',
+            endpoint='/api/v1/background-check/callback', method='POST',
+            status='SUCCESS', request_data=payload, external_ref=number, duration_ms=duration_ms,
+        )
+        return Response(
+            bg_callback_envelope(0, 'success', data={'number': number, 'status': status_val}),
+            status=status.HTTP_200_OK,
+        )
+
+    @staticmethod
+    def _audit_failed(config, payload, code, message, duration_s):
+        """验签失败审计。config 为非空 FK, appId 未匹配到配置时(config=None)无法落审计, 直接跳过。"""
+        if config is None:
+            return
+        try:
+            IntegrationSyncLog.objects.create(
+                config=config, sync_type='CALLBACK', direction='IN',
+                endpoint='/api/v1/background-check/callback', method='POST',
+                status='FAILED', error_message=f'[{code}] {message}',
+                request_data=payload, external_ref=str(payload.get('number') or ''),
+                duration_ms=int(duration_s * 1000),
+            )
+        except Exception:  # noqa: BLE001 - 审计写入失败不影响主流程响应
+            logger.exception('callback FAILED audit log write failed')

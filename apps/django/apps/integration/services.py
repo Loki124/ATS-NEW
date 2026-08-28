@@ -419,6 +419,75 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
         return {'success': False, 'error': str(e)}
 
 
+def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, int, str, Optional[IntegrationConfig]]:
+    """校验背调供应商异步回调（规范 §5.2 验签 + 重放防护）。
+
+    参数:
+        payload: 供应商回调请求体（已解析 dict）
+        app_id: 请求头 X-App-Id（供应商 appId）
+    返回:
+        (ok, code, message, config)
+        - ok=True 时 config 为命中的 IntegrationConfig
+        - ok=False 时按 §4.2 返回业务码 40101(无效appId)/40102(签名失败)/40103(重放)/40001(缺参)
+    """
+    # 1. 必填字段校验（§2.2.5 必需 + §5.2 签名公式依赖 timestamp）
+    #    注意: §2.2.5 字段表未列 timestamp, 但 §5.2 签名公式依赖它, 故强制要求, 缺失即拒。
+    number = payload.get('number')
+    status_val = payload.get('status')
+    ts = payload.get('timestamp')
+    sign = payload.get('sign')
+    if not number or status_val is None or ts is None or not sign:
+        return False, 40001, '缺少必填字段(number/status/timestamp/sign)', None
+
+    # 2. 按 X-App-Id 定位已启用的背调供应商配置
+    matched: Optional[IntegrationConfig] = None
+    for c in IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True):
+        cfg_app_id = (c.config or {}).get('AppId') or (c.config or {}).get('appId')
+        if cfg_app_id and cfg_app_id == app_id:
+            matched = c
+            break
+    if matched is None:
+        return False, 40101, 'appId 无效或未匹配到供应商', None
+
+    # 3. 解密 appKey（与出向签名同源：api_key 或 apiKey）
+    secret = _bg_secret(matched)
+    app_key = secret.get('api_key') or secret.get('apiKey') or ''
+    if not app_key:
+        return False, 40102, '供应商未配置 appKey(签名失败)', matched
+
+    # 4. 重放防护: ±5 分钟（§5.2）
+    try:
+        ts_int = int(ts)
+    except (TypeError, ValueError):
+        return False, 40001, 'timestamp 非法', matched
+    now_ms = int(time.time() * 1000)
+    if abs(now_ms - ts_int) > 5 * 60 * 1000:
+        return False, 40103, '时间戳超时(疑似重放)', matched
+
+    # 5. 重算签名并比对（§5.2 待签串: number=&status=&timestamp=）
+    sign_str = "number=" + str(number) + "&status=" + str(status_val) + "&timestamp=" + str(ts_int)
+    expect = hmac.new(app_key.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expect, str(sign).lower()):
+        return False, 40102, '签名校验失败', matched
+
+    return True, 0, 'success', matched
+
+
+def bg_callback_envelope(code: int, message: str, data: Optional[dict] = None, request_id: Optional[str] = None) -> dict:
+    """统一回调响应信封（规范 §3.2）。
+
+    - 成功: code=0, HTTP 200
+    - 失败: code≠0, HTTP 401（见视图层）, 但信封结构一致
+    """
+    return {
+        'code': code,
+        'message': message,
+        'data': data or {},
+        'requestId': request_id or str(uuid.uuid4()),
+        'timestamp': int(time.time() * 1000),
+    }
+
+
 # ============================================================
 # 招聘门户
 # ============================================================

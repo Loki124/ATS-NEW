@@ -60,9 +60,20 @@ class IntegrationSyncLog(TimestampedModel):
     method = models.CharField(max_length=16, blank=True, default='', verbose_name='请求方法')
     direction = models.CharField(max_length=8, blank=True, default='', verbose_name='方向', help_text='OUT 出向 / IN 入向')
     duration_ms = models.IntegerField(null=True, blank=True, verbose_name='耗时(ms)')
+    # 2026-08-28 寇豆码: 回调入向新增字段
+    # request_data 存完整回调体（便于审计/排障）；external_ref 存供应商单号（number）便于幂等与展示
+    request_data = models.JSONField(null=True, blank=True, verbose_name='原始请求体', help_text='回调等入向请求的原始负载，便于审计与排障')
+    external_ref = models.CharField(max_length=128, blank=True, default='', db_index=True, verbose_name='外部单号', help_text='供应商订单号/回执号(number)，便于幂等与展示')
 
     class Meta:
         db_table = 'integration_sync_logs'
         verbose_name = '集成同步日志'
         verbose_name_plural = verbose_name
         ordering = ['-created_at']
+        indexes = [
+            # 回调幂等查询 (config, sync_type, external_ref, status) 加速
+            models.Index(
+                fields=['config', 'sync_type', 'external_ref', 'status'],
+                name='idx_synclog_cb_idem',
+            ),
+        ]

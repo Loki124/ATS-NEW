@@ -60,6 +60,10 @@
         />
       </n-space>
       <div class="spacer"></div>
+      <n-button quaternary @click="openGlobalAudit">
+        <template #icon><n-icon :component="BarChartOutline" /></template>
+        全局审计
+      </n-button>
       <n-button quaternary @click="showDoc = true">
         <template #icon><n-icon :component="BookOutline" /></template>
         接口说明
@@ -257,6 +261,60 @@
       </n-drawer-content>
     </n-drawer>
 
+    <!-- ===================== 全局审计日志抽屉（跨所有供应商聚合） ===================== -->
+    <n-drawer v-model:show="showGlobalAudit" :width="800" placement="right">
+      <n-drawer-content title="全局审计日志 · 跨供应商聚合" :native-scrollbar="false">
+        <div class="audit-summary">
+          <div class="audit-stat">
+            <span class="kpi-label">总记录</span>
+            <span class="kpi-value">{{ filteredGlobalAudit.length }}</span>
+          </div>
+          <div class="audit-stat">
+            <span class="kpi-label">成功</span>
+            <span class="kpi-value kpi-value--ok">{{ globalAuditSummary.ok }}</span>
+          </div>
+          <div class="audit-stat">
+            <span class="kpi-label">失败</span>
+            <span class="kpi-value kpi-value--warn">{{ globalAuditSummary.fail }}</span>
+          </div>
+          <div class="audit-stat">
+            <span class="kpi-label">平均耗时</span>
+            <span class="kpi-value">{{ globalAuditSummary.avg }}ms</span>
+          </div>
+        </div>
+        <div class="toolbar" style="margin-bottom: 12px">
+          <n-select
+            v-model:value="globalSupplier"
+            :options="globalSupplierOptions"
+            placeholder="按供应商筛选"
+            style="width: 240px"
+          />
+          <n-select
+            v-model:value="globalDirection"
+            :options="globalDirectionOptions"
+            style="width: 150px"
+          />
+          <div class="spacer"></div>
+          <n-button quaternary @click="openGlobalAudit">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
+            刷新
+          </n-button>
+        </div>
+        <n-data-table
+          :columns="globalAuditColumns"
+          :data="filteredGlobalAudit"
+          :pagination="false"
+          size="small"
+          :loading="globalLoading"
+          :scroll-x="980"
+        >
+          <template #empty>
+            <n-empty description="暂无审计记录" />
+          </template>
+        </n-data-table>
+      </n-drawer-content>
+    </n-drawer>
+
     <!-- ===================== 接口说明文档抽屉 ===================== -->
     <n-drawer v-model:show="showDoc" :width="760" placement="right">
       <n-drawer-content title="背调供应商接口说明（统一规范 v1.0.1）" :native-scrollbar="false">
@@ -335,6 +393,7 @@ import {
   TrashOutline,
   TimeOutline,
   BookOutline,
+  BarChartOutline,
 } from '@vicons/ionicons5'
 import {
   listIntegrations,
@@ -566,6 +625,93 @@ const auditColumns: DataTableColumns<AuditRow> = [
   { title: '说明', key: 'detail', minWidth: 160, ellipsis: { tooltip: true } },
 ]
 
+// ===================== 全局审计日志（跨所有供应商聚合） =====================
+interface GlobalAuditRow {
+  id: string
+  configId: string
+  time: string
+  supplier: string // config.name / config.provider
+  direction: 'IN' | 'OUT' | ''
+  endpoint: string
+  method: string
+  syncType: string
+  status: string
+  durationMs: number | null
+  error: string
+}
+function logToGlobal(l: any): GlobalAuditRow {
+  const name = l.configName || ''
+  const provider = l.configProvider || ''
+  const supplier = [name, provider].filter(Boolean).join(' / ') || '—'
+  return {
+    id: l.id,
+    configId: l.config || '',
+    time: l.createdAt ? fmt(l.createdAt) : '—',
+    supplier,
+    direction: (l.direction || '') as 'IN' | 'OUT' | '',
+    endpoint: l.endpoint || '—',
+    method: (l.method || 'POST') as string,
+    syncType: l.syncType || '',
+    status: l.status || '',
+    durationMs: l.durationMs ?? null,
+    error: l.errorMessage || '',
+  }
+}
+const globalAuditColumns: DataTableColumns<GlobalAuditRow> = [
+  { title: '时间', key: 'time', width: 150 },
+  {
+    title: '供应商',
+    key: 'supplier',
+    width: 170,
+    render: (r: GlobalAuditRow) => h('span', { style: { fontWeight: '600' } }, r.supplier),
+  },
+  {
+    title: '方向',
+    key: 'direction',
+    width: 72,
+    render: (r: GlobalAuditRow) =>
+      h(NTag, { size: 'small', type: r.direction === 'IN' ? 'warning' : 'default', bordered: false }, { default: () => (r.direction === 'IN' ? 'IN' : 'OUT') }),
+  },
+  {
+    title: '接口路径',
+    key: 'endpoint',
+    minWidth: 220,
+    render: (r: GlobalAuditRow) =>
+      h('span', { style: { fontFamily: 'monospace', fontSize: '12px' } }, [h('b', r.method + ' '), r.endpoint]),
+  },
+  {
+    title: '同步类型',
+    key: 'syncType',
+    width: 130,
+    render: (r: GlobalAuditRow) =>
+      h(NTag, { size: 'small', type: 'default', bordered: false }, { default: () => r.syncType }),
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 80,
+    render: (r: GlobalAuditRow) =>
+      h(NTag, { size: 'small', type: r.status === 'SUCCESS' ? 'success' : 'error' }, { default: () => (r.status === 'SUCCESS' ? '成功' : '失败') }),
+  },
+  {
+    title: '耗时',
+    key: 'durationMs',
+    width: 80,
+    render: (r: GlobalAuditRow) =>
+      h('span', { style: { fontSize: '12px', color: 'var(--ink-soft)' } }, (r.durationMs ?? 0) + 'ms'),
+  },
+  {
+    title: '错误信息',
+    key: 'error',
+    minWidth: 180,
+    ellipsis: { tooltip: true },
+    render: (r: GlobalAuditRow) =>
+      r.error
+        ? h('span', { style: { color: 'var(--c-error)', fontSize: '12px' } }, r.error)
+        : h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, '—'),
+  },
+]
+
 // ===================== KPI 计算 =====================
 const enabledCount = computed(() => suppliers.value.filter((s) => s.enabled).length)
 const sandboxCount = computed(() => suppliers.value.filter((s) => s.env === 'sandbox').length)
@@ -699,6 +845,54 @@ async function openAudit(row: Supplier) {
     message.error('加载审计日志失败：' + (e?.message || '网络错误'))
   } finally {
     auditLoading.value = false
+  }
+}
+
+// 全局审计抽屉（跨所有供应商聚合，调用 listSyncLogs({}) 取全部）
+const showGlobalAudit = ref(false)
+const globalAuditRows = ref<GlobalAuditRow[]>([])
+const globalLoading = ref(false)
+const GLOBAL_ALL = '__all__'
+const globalSupplier = ref<string>(GLOBAL_ALL)
+const globalDirection = ref<'all' | 'IN' | 'OUT'>('all')
+const globalSupplierOptions = computed(() => [
+  { label: '全部供应商', value: GLOBAL_ALL },
+  ...suppliers.value.map((s) => ({
+    label: s.provider ? `${s.name} (${s.provider})` : s.name,
+    value: s.id,
+  })),
+])
+const globalDirectionOptions = [
+  { label: '全部方向', value: 'all' },
+  { label: '入向 IN', value: 'IN' },
+  { label: '出向 OUT', value: 'OUT' },
+]
+const filteredGlobalAudit = computed(() =>
+  globalAuditRows.value.filter((r) => {
+    if (globalSupplier.value !== GLOBAL_ALL && r.configId !== globalSupplier.value) return false
+    if (globalDirection.value !== 'all' && r.direction !== globalDirection.value) return false
+    return true
+  }),
+)
+const globalAuditSummary = computed(() => {
+  const rows = filteredGlobalAudit.value
+  const total = rows.length
+  const ok = rows.filter((r) => r.status === 'SUCCESS').length
+  const avg = total ? Math.round(rows.reduce((s, r) => s + (r.durationMs ?? 0), 0) / total) : 0
+  return { total, ok, fail: total - ok, avg }
+})
+async function openGlobalAudit() {
+  globalAuditRows.value = []
+  globalLoading.value = true
+  showGlobalAudit.value = true
+  try {
+    const res = await listSyncLogs({ page_size: 500 })
+    const list = (res.results ?? res.data ?? []) as any[]
+    globalAuditRows.value = list.map(logToGlobal)
+  } catch (e: any) {
+    message.error('加载全局审计日志失败：' + (e?.message || '网络错误'))
+  } finally {
+    globalLoading.value = false
   }
 }
 

@@ -31,6 +31,7 @@ export interface SyncLogItem {
   id: string
   config: string
   configName: string
+  configProvider: string
   syncType: string
   status: string
   totalCount: number

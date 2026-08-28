@@ -46,13 +46,16 @@ class IntegrationConfigSerializer(serializers.ModelSerializer):
 
 class IntegrationSyncLogSerializer(serializers.ModelSerializer):
     config_name = serializers.CharField(source='config.name', read_only=True, default='')
+    # 2026-08-28 寇豆码: 全局审计视图需要供应商 provider；config 已 select_related
+    config_provider = serializers.CharField(source='config.provider', read_only=True, default='')
 
     class Meta:
         model = IntegrationSyncLog
         fields = [
-            'id', 'config', 'config_name',
+            'id', 'config', 'config_name', 'config_provider',
             'sync_type', 'status',
             'total_count', 'success_count', 'failed_count',
+            'endpoint', 'method', 'direction', 'duration_ms',
             'error_message', 'created_at',
         ]
         read_only_fields = fields  # 仅由 services 写入
