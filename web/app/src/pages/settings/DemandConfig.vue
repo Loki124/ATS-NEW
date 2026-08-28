@@ -448,7 +448,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;}
+}
 
 /* 兼容旧类名（如果模板残留 .config-content 不带 .page-body 时仍生效） */
 .config-content {

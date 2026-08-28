@@ -611,7 +611,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 
@@ -634,7 +633,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 

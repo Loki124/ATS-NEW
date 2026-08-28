@@ -321,7 +321,6 @@ onMounted(() => { reload(); });
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 
@@ -344,7 +343,6 @@ onMounted(() => { reload(); });
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 

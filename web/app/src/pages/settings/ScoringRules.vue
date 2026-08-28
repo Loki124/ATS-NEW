@@ -45,7 +45,6 @@ import { StarOutline } from '@vicons/ionicons5'
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 
@@ -68,7 +67,6 @@ import { StarOutline } from '@vicons/ionicons5'
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 

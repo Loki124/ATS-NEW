@@ -310,7 +310,6 @@ onMounted(() => loadProcess())
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 
@@ -333,7 +332,6 @@ onMounted(() => loadProcess())
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 

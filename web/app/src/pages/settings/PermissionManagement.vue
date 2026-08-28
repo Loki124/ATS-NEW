@@ -79,7 +79,6 @@ const activeTab = ref('resources')
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 
@@ -102,7 +101,6 @@ const activeTab = ref('resources')
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 
