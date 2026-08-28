@@ -178,6 +178,7 @@ async function save() {
     :style="{ width: '560px', maxWidth: '94vw' }"
     :bordered="false"
     :segmented="{ content: true, footer: true }"
+    :content-scrollable="true"
     class="rule-config-modal"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
@@ -312,13 +313,16 @@ async function save() {
 .rc-monthly {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+  gap: 8px 6px;
+  align-items: flex-end;
 }
 .rc-monthly-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* 一行 4 个：12 月目标分 3 行展示，配合 modal 宽度 560px */
+  flex: 1 1 calc((100% - 18px) / 4);
+  min-width: 96px;
 }
 .rc-monthly-label {
   font-size: 11px;
@@ -328,23 +332,12 @@ async function save() {
 
 <!-- NModal preset=card 由 teleport 渲染到 body，scoped data-v 不可达。
      Naive 把 class 合并到 .n-card 根（class="n-card ... rule-config-modal"）。
-     约束内容区高度 + 内部滚动，避免 12 月目标表单撑爆视口
-     （Playwright 复验证：12 月 + 规则信息 + 管控强度 ≈ 1595px > 典型 900px 视口）。
+     max-height 限制 modal 总高度 + contentScrollable 让 Naive 内置 NScrollbar
+     接管 content 内部滚动，避免 12 月目标表单撑爆视口。
+     （Playwright 复验证：12 月 + 规则信息 + 管控强度 ≈ 1595px > 典型 900vh）
      第二个 <style> 不带 scoped，对全局生效，专门命中 teleport 出来的 modal 根。 -->
 <style>
 .n-card.rule-config-modal {
   max-height: min(90vh, 1000px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.n-card.rule-config-modal .n-card__content {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-}
-.n-card.rule-config-modal .n-card-header,
-.n-card.rule-config-modal .n-card__footer {
-  flex: 0 0 auto;
 }
 </style>

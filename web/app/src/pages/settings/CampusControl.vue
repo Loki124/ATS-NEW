@@ -51,16 +51,50 @@
           </n-alert>
 
           <div class="toolbar">
+            <n-input
+              v-model:value="ruleFilterKeyword"
+              placeholder="搜索 规则编号/维度/指标/部门"
+              clearable
+              class="rule-filter-search"
+            />
+            <n-select
+              v-model:value="ruleFilterStatus"
+              :options="ruleStatusOptions"
+              placeholder="状态"
+              class="rule-filter-select"
+            />
+            <n-select
+              v-model:value="ruleFilterDimension"
+              :options="dimensionOptions"
+              placeholder="全部维度"
+              clearable
+              class="rule-filter-select"
+            />
+            <n-select
+              v-model:value="ruleFilterIndicator"
+              :options="ruleIndicatorOptions"
+              placeholder="全部指标"
+              clearable
+              filterable
+              class="rule-filter-select"
+            />
+            <n-select
+              v-model:value="ruleFilterScope"
+              :options="ruleScopeOptions"
+              placeholder="全部范围"
+              clearable
+              class="rule-filter-select"
+            />
+            <div class="spacer"></div>
             <n-button @click="onExportRules">导出规则</n-button>
             <n-button @click="importDrawer.show = true">导入规则</n-button>
-            <div class="spacer"></div>
             <n-button type="primary" class="gradient-btn" @click="openRuleDrawer(null)">+ 新增规则</n-button>
           </div>
 
           <div class="table-wrap">
             <n-data-table
               :columns="ruleColumns"
-              :data="rules"
+              :data="filteredRules"
               :loading="loading.rules"
               :row-key="(r: any) => r.id"
               :pagination="false"
@@ -68,7 +102,7 @@
               :row-props="ruleRowProps"
             >
               <template #empty>
-                <n-empty description="暂无规则，点击右上角「新增规则」" />
+                <n-empty :description="rules.length === 0 ? '暂无规则，点击右上角「新增规则」' : '当前筛选下无规则'" />
               </template>
             </n-data-table>
           </div>
@@ -431,6 +465,57 @@ const persons = ref<Person[]>([])
 
 const dimensionOptions = computed(() => dimensions.value.map((d) => ({ label: d.name, value: d.id })))
 
+/* ============================ 规则筛选（左侧工具条） ============================
+ * 5 维过滤：关键词（编号/维度/指标/部门）+ 状态 + 维度 + 指标 + 适用范围
+ * 适用范围用部门区分（产品设计：职务/职级多留作详情，不下放到筛选）
+ */
+const ruleFilterKeyword = ref('')
+const ruleFilterStatus = ref<'all' | 'active' | 'inactive'>('all')
+const ruleFilterDimension = ref<string | null>(null)
+const ruleFilterIndicator = ref<string | null>(null)
+const ruleFilterScope = ref<string>('') // ''=全部; '<GLOBAL>':全局; 'bu':部门
+const ruleStatusOptions = [
+  { label: '全部状态', value: 'all' as const },
+  { label: '启用', value: 'active' as const },
+  { label: '停用', value: 'inactive' as const },
+]
+const ruleIndicatorOptions = computed(() =>
+  indicators.value
+    .filter((i) => !ruleFilterDimension.value || i.dimension === ruleFilterDimension.value)
+    .map((i) => ({ label: i.name, value: i.id })),
+)
+const ruleScopeOptions = computed(() => {
+  const buses = Array.from(new Set(rules.value.map((r) => r.bu).filter(Boolean)))
+  return [
+    { label: '全部范围', value: '' },
+    { label: '全局', value: '<GLOBAL>' },
+    ...buses.map((b) => ({ label: b, value: b })),
+  ]
+})
+const filteredRules = computed(() => {
+  const kw = ruleFilterKeyword.value.trim().toLowerCase()
+  return rules.value.filter((r) => {
+    if (ruleFilterStatus.value === 'active' && !r.isActive) return false
+    if (ruleFilterStatus.value === 'inactive' && r.isActive) return false
+    if (ruleFilterDimension.value && r.dimension !== ruleFilterDimension.value) return false
+    if (ruleFilterIndicator.value && r.indicator !== ruleFilterIndicator.value) return false
+    if (ruleFilterScope.value === '<GLOBAL>' && r.bu) return false
+    if (ruleFilterScope.value && ruleFilterScope.value !== '<GLOBAL>' && r.bu !== ruleFilterScope.value) return false
+    if (kw) {
+      const hay = [r.code, r.dimensionName || r.dimension, r.indicatorName || r.indicator, r.bu, r.position, r.level]
+        .filter(Boolean).join('|').toLowerCase()
+      if (!hay.includes(kw)) return false
+    }
+    return true
+  })
+})
+// 维度切换时清掉不兼容的指标筛选（避免筛出空集）
+watch(ruleFilterDimension, () => {
+  if (ruleFilterIndicator.value && !ruleIndicatorOptions.value.some((o) => o.value === ruleFilterIndicator.value)) {
+    ruleFilterIndicator.value = null
+  }
+})
+
 /* ============================ 实时看板 ============================ */
 const ratioData = ref<RatioResult>({ total: 0, rows: [], sumChecks: [] })
 const ratioKpi = computed(() => {
@@ -748,23 +833,26 @@ const filteredIndicators = computed(() => {
   return indicators.value.filter((i) => i.dimension === indicatorDimFilter.value)
 })
 
-/* ============================ 加载 ============================ */
-async function loadDimensions() {
+/* ============================ 加载 ============================
+ * silent=true 用于入口批量加载，避免 Promise.all 并行失败时连弹 N 条 toast
+ * （单个异常仍由调用方聚合展示一条）。
+ */
+async function loadDimensions(silent = false) {
   loading.dimensions = true
   try { dimensions.value = await listDimensions() }
-  catch (e) { message.error(extractApiError(e, '加载维度失败')) }
+  catch (e) { if (!silent) message.error(extractApiError(e, '加载维度失败')); throw e }
   finally { loading.dimensions = false }
 }
-async function loadIndicators() {
+async function loadIndicators(silent = false) {
   loading.indicators = true
   try { indicators.value = await listIndicators() }
-  catch (e) { message.error(extractApiError(e, '加载指标失败')) }
+  catch (e) { if (!silent) message.error(extractApiError(e, '加载指标失败')); throw e }
   finally { loading.indicators = false }
 }
-async function loadRules() {
+async function loadRules(silent = false) {
   loading.rules = true
   try { rules.value = await listRules() }
-  catch (e) { message.error(extractApiError(e, '加载规则失败')) }
+  catch (e) { if (!silent) message.error(extractApiError(e, '加载规则失败')); throw e }
   finally { loading.rules = false }
 }
 
@@ -827,16 +915,10 @@ const ruleColumns: DataTableColumns<any> = [
   },
 ]
 
-async function loadPersons() {
-  loading.persons = true
-  try { persons.value = await listPersons() }
-  catch (e) { message.error(extractApiError(e, '加载人员失败')) }
-  finally { loading.persons = false }
-}
-async function loadRatio() {
+async function loadRatio(silent = false) {
   loading.ratio = true
   try { ratioData.value = await getRatio() }
-  catch (e) { message.error(extractApiError(e, '加载看板失败')) }
+  catch (e) { if (!silent) message.error(extractApiError(e, '加载看板失败')); throw e }
   finally { loading.ratio = false }
 }
 function onTabChange(name: string) {
@@ -1774,9 +1856,30 @@ function removePerson(p: Person) {
   })
 }
 
+async function loadPersons(silent = false) {
+  loading.persons = true
+  try { persons.value = await listPersons() }
+  catch (e) { if (!silent) message.error(extractApiError(e, '加载人员失败')); throw e }
+  finally { loading.persons = false }
+}
+
 onMounted(async () => {
-  await Promise.all([loadDimensions(), loadIndicators(), loadPersons()])
-  await Promise.all([loadRatio(), loadRules()])
+  // 入口批量加载：silent 抑制各调用内部 toast，由下方 allSettled 聚合成单条
+  const results = await Promise.allSettled([
+    loadDimensions(true),
+    loadIndicators(true),
+    loadPersons(true),
+    loadRatio(true),
+    loadRules(true),
+  ])
+  const failures = results
+    .map((r, i) => ({ r, label: ['维度', '指标', '人员', '看板', '规则'][i] }))
+    .filter((x) => x.r.status === 'rejected')
+  if (failures.length === 1) {
+    message.error(`加载${failures[0].label}失败：${(failures[0].r as PromiseRejectedResult).reason?.response?.data?.message || (failures[0].r as PromiseRejectedResult).reason?.message || '请稍后重试'}`)
+  } else if (failures.length > 1) {
+    message.error(`加载失败（${failures.length}/5）：${failures.map((x) => x.label).join('、')}。请稍后重试。`)
+  }
 })
 </script>
 
@@ -1793,6 +1896,16 @@ onMounted(async () => {
 }
 .scope-mutex-banner {
   margin-bottom: 12px;
+}
+
+/* 规则配置工具条：搜索稍宽 + 4 个筛选下拉等宽，避免 1440px 视口被挤换行 */
+.rule-filter-search {
+  width: 200px;
+  flex-shrink: 0;
+}
+.rule-filter-select {
+  width: 130px;
+  flex-shrink: 0;
 }
 
 /* 极光由 SettingsLayout 外壳统一注入（.settings-aurora），本页不再自绘 */
