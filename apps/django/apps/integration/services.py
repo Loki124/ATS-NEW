@@ -12,9 +12,13 @@
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 import smtplib
+import time
+import uuid
 from dataclasses import dataclass
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -289,28 +293,127 @@ def push_candidate_to_moka(candidate_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ============================================================
-# 背调
+# 背调（统一规范 v1.0.1：HMAC-SHA256 双向签名 + 调用审计）
 # ============================================================
-def request_background_check(candidate_id: str, items: List[str]) -> Dict[str, Any]:
-    """发起背调"""
+def _bg_sign(app_id: str, app_key: str, params: dict) -> tuple[str, str]:
+    """规范 §1.4.3 签名：待签串 = 排序业务参数(key=value&) + '&timestamp=' + ts。"""
+    ts = str(int(time.time() * 1000))
+    biz = {k: v for k, v in (params or {}).items() if v is not None and v != ''}
+    raw = '&'.join(f'{k}={v}' for k, v in sorted(biz.items()))
+    sign_str = f'{raw}&timestamp={ts}' if raw else f'timestamp={ts}'
+    sign = hmac.new(app_key.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256).hexdigest()
+    return ts, sign
+
+
+def _bg_headers(app_id: str, app_key: str, params: dict) -> dict:
+    ts, sign = _bg_sign(app_id, app_key, params)
+    return {
+        'X-App-Id': app_id,
+        'X-Timestamp': ts,
+        'X-App-Sign': sign,
+        'Content-Type': 'application/json',
+    }
+
+
+def _bg_secret(config: IntegrationConfig) -> dict:
+    secret_raw = config.encrypted_secret or ''
+    if not secret_raw:
+        return {}
     try:
-        config = IntegrationConfig.objects.filter(
-            type=IntegrationType.BACKGROUND_CHECK, is_active=True,
-        ).first()
+        return json.loads(decrypt_secret(secret_raw))
+    except Exception:
+        logger.warning('IntegrationConfig %s: decrypt secret failed', config.id)
+        return {}
+
+
+def test_background_check_connection(config: IntegrationConfig) -> Dict[str, Any]:
+    """测试连接：按规范 HMAC 向供应商发真实签名请求（套餐查询），校验连通性与凭证。"""
+    try:
+        cfg = config.config or {}
+        secret = _bg_secret(config)
+        app_id = cfg.get('AppId', cfg.get('appId', ''))
+        app_key = secret.get('api_key') or secret.get('appKey') or ''
+        if not app_id or not app_key:
+            return {'success': False, 'message': '缺少 appId / appKey 配置'}
+        env = cfg.get('env', 'sandbox')
+        base_url = cfg.get('productionBaseUrl') if env == 'production' else cfg.get('sandboxBaseUrl')
+        if not base_url:
+            return {'success': False, 'message': '未配置 BaseURL'}
+        path = cfg.get('productsPath') or '/api/v1/background-check/products'
+        url = f'{base_url.rstrip("/")}{path}'
+        headers = _bg_headers(app_id, app_key, {})
+        t0 = time.time()
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            duration_ms = int((time.time() - t0) * 1000)
+            detail = ''
+            try:
+                resp = r.json()
+                detail = f"code={resp.get('code')}, message={resp.get('message')}"
+                ok = r.status_code == 200 and resp.get('code') in (0, '0', None)
+            except Exception:
+                ok = r.status_code == 200
+                detail = r.text[:200]
+            IntegrationSyncLog.objects.create(
+                config=config, sync_type='TEST_CONNECTION',
+                status='SUCCESS' if ok else 'FAILED',
+                endpoint=path, method='GET', direction='OUT', duration_ms=duration_ms,
+                error_message='' if ok else f'HTTP {r.status_code}: {detail}',
+            )
+            return {'success': ok, 'message': '连接成功' if ok else f'连接失败: HTTP {r.status_code} {detail}', 'duration_ms': duration_ms}
+        except requests.RequestException as e:
+            duration_ms = int((time.time() - t0) * 1000)
+            IntegrationSyncLog.objects.create(
+                config=config, sync_type='TEST_CONNECTION', status='FAILED',
+                endpoint=path, method='GET', direction='OUT', duration_ms=duration_ms,
+                error_message=str(e),
+            )
+            return {'success': False, 'message': f'连接异常: {e}'}
+    except Exception as e:
+        logger.exception('test_background_check_connection failed')
+        return {'success': False, 'message': f'测试失败: {e}'}
+
+
+def request_background_check(candidate_id: str, items: List[str], config_id: str = None) -> Dict[str, Any]:
+    """发起背调（统一规范 v1.0.1：HMAC 签名 + 调用审计）。"""
+    try:
+        qs = IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True)
+        if config_id:
+            qs = IntegrationConfig.objects.filter(id=config_id, type=IntegrationType.BACKGROUND_CHECK)
+        config = qs.first()
         if not config:
             return {'success': False, 'error': 'Background check not configured'}
         cfg = config.config or {}
-        base_url = cfg.get('base_url')
-        api_key = cfg.get('api_key')
-        r = requests.post(
-            f'{base_url}/checks',
-            json={'candidate_id': candidate_id, 'items': items},
-            headers={'Authorization': f'Bearer {api_key}'},
-            timeout=10,
+        secret = _bg_secret(config)
+        app_id = cfg.get('AppId', cfg.get('appId', ''))
+        app_key = secret.get('api_key') or secret.get('appKey') or ''
+        env = cfg.get('env', 'sandbox')
+        base_url = cfg.get('productionBaseUrl') if env == 'production' else cfg.get('sandboxBaseUrl')
+        path = cfg.get('createPath') or '/api/v1/background-check/orders'
+        url = f'{base_url.rstrip("/")}{path}'
+        params = {
+            'requestId': str(uuid.uuid4()),
+            'candidateId': candidate_id,
+            'items': items,
+        }
+        headers = _bg_headers(app_id, app_key, params)
+        t0 = time.time()
+        r = requests.post(url, json=params, headers=headers, timeout=10)
+        duration_ms = int((time.time() - t0) * 1000)
+        try:
+            resp = r.json()
+        except Exception:
+            resp = {}
+        ok = r.status_code in (200, 201)
+        IntegrationSyncLog.objects.create(
+            config=config, sync_type='CREATE_ORDER',
+            status='SUCCESS' if ok else 'FAILED',
+            endpoint=path, method='POST', direction='OUT', duration_ms=duration_ms,
+            error_message='' if ok else f'HTTP {r.status_code}: {r.text[:200]}',
         )
-        if r.status_code in (200, 201):
-            return {'success': True, 'data': r.json()}
-        return {'success': False, 'error': f'HTTP {r.status_code}'}
+        if ok:
+            return {'success': True, 'data': resp}
+        return {'success': False, 'error': f'HTTP {r.status_code}: {resp.get("message", "")}'}
     except Exception as e:
         logger.exception('Background check request failed: %s', e)
         return {'success': False, 'error': str(e)}

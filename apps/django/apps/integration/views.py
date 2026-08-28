@@ -34,6 +34,7 @@ class IntegrationConfigViewSet(AuditMixin, viewsets.ModelViewSet):
         try:
             from .services import (
                 send_email, send_sms, send_wecom_message, sync_candidate_from_moka,
+                test_background_check_connection,
             )
             if instance.type == 'EMAIL':
                 ok = send_email(
@@ -47,6 +48,9 @@ class IntegrationConfigViewSet(AuditMixin, viewsets.ModelViewSet):
                 ok = send_wecom_message(user_id='', content='测试消息')
             elif instance.type == 'MOKA':
                 result = sync_candidate_from_moka(moka_id='test')
+                ok = result.get('success', False)
+            elif instance.type == 'BACKGROUND_CHECK':
+                result = test_background_check_connection(instance)
                 ok = result.get('success', False)
             else:
                 ok = False

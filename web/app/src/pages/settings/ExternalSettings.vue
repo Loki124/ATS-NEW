@@ -102,6 +102,9 @@
             <n-form-item label="供应商名称" path="name">
               <n-input v-model:value="form.name" placeholder="如 全景背调 / 信达核验" />
             </n-form-item>
+            <n-form-item label="供应商代码" path="provider">
+              <n-input v-model:value="form.provider" placeholder="如 quanjing / xinda（区分多家供应商）" />
+            </n-form-item>
             <n-form-item label="接入类型" path="category">
               <n-select v-model:value="form.category" :options="categoryOptions" placeholder="选择接入类型" />
             </n-form-item>
@@ -131,7 +134,7 @@
                 v-model:value="form.appKey"
                 type="password"
                 show-password-on="click"
-                placeholder="签名密钥（仅本地 mock，生产环境由密钥中心托管）"
+                placeholder="签名密钥（写入时加密存储，留空则不修改）"
               />
             </n-form-item>
             <n-form-item label="当前环境">
@@ -244,6 +247,7 @@
           :data="auditRows"
           :pagination="false"
           size="small"
+          :loading="auditLoading"
           :scroll-x="560"
         >
           <template #empty>
@@ -256,7 +260,7 @@
     <!-- ===================== 接口说明文档抽屉 ===================== -->
     <n-drawer v-model:show="showDoc" :width="760" placement="right">
       <n-drawer-content title="背调供应商接口说明（统一规范 v1.0.1）" :native-scrollbar="false">
-        <p class="doc-p">所有背调供应商统一接入，遵循《统一背调供应商接口标准规范》。以下为接入所需的核心接口与约定（演示数据，接后端后由接口文档服务托管）。</p>
+        <p class="doc-p">所有背调供应商统一接入，遵循《统一背调供应商接口标准规范》。以下为接入所需的核心接口与约定。</p>
 
         <h4 class="doc-h">认证与签名</h4>
         <p class="doc-p">HMAC-SHA256 双向签名。公共请求头：<code>X-App-Id</code> / <code>X-Timestamp</code> / <code>X-App-Sign</code>。</p>
@@ -332,6 +336,14 @@ import {
   TimeOutline,
   BookOutline,
 } from '@vicons/ionicons5'
+import {
+  listIntegrations,
+  createIntegration,
+  updateIntegration,
+  deleteIntegration,
+  testIntegration,
+  listSyncLogs,
+} from '@/api/integration'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -395,6 +407,7 @@ interface Supplier {
   id: string
   name: string
   category: string
+  provider: string
   appId: string
   appKey: string
   sandboxBaseUrl: string
@@ -415,79 +428,93 @@ interface Supplier {
   remark: string
 }
 
-// 本地 mock 状态（演示统一配置支撑多家不同供应商）
-const suppliers = ref<Supplier[]>([
-  {
-    id: 'sp-quanjing',
-    name: '全景背调',
-    category: 'background_check',
-    appId: 'qj_bc_8f21',
-    appKey: 'sk_live_2a9c1e77b3',
-    sandboxBaseUrl: 'https://sandbox.quanjing-bc.com',
-    productionBaseUrl: 'https://open.quanjing-bc.com',
-    callbackUrl: 'https://ats.example.com/api/v1/background-check/callback',
-    createPath: '/api/v1/background-check/orders',
-    cancelPath: '/api/v1/background-check/orders/{number}/cancel',
-    productsPath: '/api/v1/background-check/products',
-    enabled: true,
-    env: 'production',
-    authWays: ['online', 'face', 'sms'],
-    fields: ['candidateName', 'phone', 'idCard', 'educationFiles', 'resumeFiles', 'remark'],
-    callbackEnabled: true,
-    productsQueryEnabled: true,
-    lastSync: '2026-08-25 11:20:14',
-    syncStatus: 'normal',
-    remark: '主力供应商，覆盖身份/学历/司法',
-  },
-  {
-    id: 'sp-xinda',
-    name: '信达核验',
-    category: 'background_check',
-    appId: 'xd_bc_3d77',
-    appKey: 'sk_test_7b4e0c21a9',
-    sandboxBaseUrl: 'https://stage.xinda-verify.cn',
-    productionBaseUrl: 'https://api.xinda-verify.cn',
-    callbackUrl: 'https://ats.example.com/api/v1/background-check/callback',
-    createPath: '/api/v1/background-check/orders',
-    cancelPath: '/api/v1/background-check/orders/{number}/cancel',
-    productsPath: '/api/v1/background-check/products',
-    enabled: true,
-    env: 'sandbox',
-    authWays: ['online', 'offline'],
-    fields: ['candidateName', 'phone', 'email', 'idCard', 'authFiles', 'skillFiles'],
-    callbackEnabled: true,
-    productsQueryEnabled: false,
-    lastSync: '2026-08-24 18:05:41',
-    syncStatus: 'normal',
-    remark: '备用供应商，仅沙箱验证中',
-  },
-  {
-    id: 'sp-andun',
-    name: '安盾调查',
-    category: 'background_check',
-    appId: 'ad_bc_5c10',
-    appKey: 'sk_live_9f33aa88d2',
-    sandboxBaseUrl: 'https://sandbox.andun-inv.com',
-    productionBaseUrl: 'https://gw.andun-inv.com',
-    callbackUrl: 'https://ats.example.com/api/v1/background-check/callback',
-    createPath: '/api/v1/background-check/orders',
-    cancelPath: '/api/v1/background-check/orders/{number}/cancel',
-    productsPath: '/api/v1/background-check/products',
-    enabled: false,
-    env: 'production',
-    authWays: ['face', 'sms'],
-    fields: ['candidateName', 'idCard', 'contact', 'job'],
-    callbackEnabled: false,
-    productsQueryEnabled: true,
-    lastSync: '2026-08-20 09:12:03',
-    syncStatus: 'error',
-    remark: '回调异常，已停用待排查',
-  },
-])
-
+// 真实数据：从 /api/v1/integrations/ 加载（type=BACKGROUND_CHECK 可多家）
+const suppliers = ref<Supplier[]>([])
 const loading = ref(false)
 
-// ===================== 审计日志（mock） =====================
+// ===================== 字段映射 =====================
+function fmt(iso: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+function apiToSupplier(r: any): Supplier {
+  const c = r.config || {}
+  return {
+    id: r.id,
+    name: r.name,
+    category: r.type,
+    provider: r.provider || '',
+    appId: c.appId || '',
+    appKey: '', // 密钥不回显，编辑时留空表示不修改
+    sandboxBaseUrl: c.sandboxBaseUrl || '',
+    productionBaseUrl: c.productionBaseUrl || '',
+    callbackUrl: c.callbackUrl || 'https://ats.example.com/api/v1/background-check/callback',
+    createPath: c.createPath || DEFAULT_PATHS.createPath,
+    cancelPath: c.cancelPath || DEFAULT_PATHS.cancelPath,
+    productsPath: c.productsPath || DEFAULT_PATHS.productsPath,
+    enabled: r.isActive,
+    env: (c.env as EnvKey) || 'sandbox',
+    authWays: c.authWays || [],
+    fields: c.fields || [],
+    callbackEnabled: c.callbackEnabled ?? true,
+    productsQueryEnabled: c.productsQueryEnabled ?? true,
+    lastSync: r.lastSyncAt ? fmt(r.lastSyncAt) : '—',
+    syncStatus: 'normal',
+    remark: c.remark || '',
+  }
+}
+
+function supplierToPayload(s: Supplier) {
+  const payload: Record<string, any> = {
+    type: s.category,
+    provider: s.provider,
+    name: s.name,
+    is_active: s.enabled,
+    config: {
+      appId: s.appId,
+      sandboxBaseUrl: s.sandboxBaseUrl,
+      productionBaseUrl: s.productionBaseUrl,
+      callbackUrl: s.callbackUrl,
+      createPath: s.createPath,
+      cancelPath: s.cancelPath,
+      productsPath: s.productsPath,
+      env: s.env,
+      authWays: s.authWays,
+      fields: s.fields,
+      callbackEnabled: s.callbackEnabled,
+      productsQueryEnabled: s.productsQueryEnabled,
+      remark: s.remark,
+    },
+  }
+  // 仅当填写了 App Key 才随请求发送（后端加密存 encrypted_secret）；留空则保留原值
+  if (s.appKey) payload.secret = { api_key: s.appKey }
+  return payload
+}
+
+async function loadSuppliers() {
+  loading.value = true
+  try {
+    const res = await listIntegrations({ type: 'BACKGROUND_CHECK', page_size: 200 })
+    const list = (res.results ?? res.data ?? []) as any[]
+    suppliers.value = list.map(apiToSupplier)
+    // 标记同步异常：聚合最近 FAILED 的调用日志对应的供应商
+    const failRes = await listSyncLogs({ status: 'FAILED', page_size: 500 })
+    const failIds = new Set(((failRes.results ?? failRes.data ?? []) as any[]).map((l) => l.config))
+    suppliers.value.forEach((s) => {
+      if (failIds.has(s.id)) s.syncStatus = 'error'
+    })
+  } catch (e: any) {
+    message.error('加载供应商失败：' + (e?.message || '网络错误'))
+  } finally {
+    loading.value = false
+  }
+}
+
+// ===================== 审计日志（真实调用日志） =====================
 interface AuditRow {
   id: string
   time: string
@@ -498,17 +525,17 @@ interface AuditRow {
   latency: number
   detail: string
 }
-// 本地 mock：演示「接口调用情况」审计；接后端后替换为真实调用日志接口
-function mockAudit(s: Supplier): AuditRow[] {
-  const fail = s.syncStatus === 'error'
-  return [
-    { id: 'a1', time: '2026-08-25 11:20:14', method: 'POST', path: s.createPath, direction: 'out', status: 'success', latency: 318, detail: '创建订单 number=qj_' + s.appId },
-    { id: 'a2', time: '2026-08-25 11:20:15', method: 'GET', path: s.productsPath, direction: 'out', status: 'success', latency: 176, detail: '套餐查询 返回 6 个套餐' },
-    { id: 'a3', time: '2026-08-25 14:02:33', method: 'POST', path: '/api/v1/background-check/callback', direction: 'in', status: fail ? 'fail' : 'success', latency: 92, detail: fail ? '签名校验失败：sign mismatch' : '回调接收 status=1 已完成' },
-    { id: 'a4', time: '2026-08-24 18:05:41', method: 'POST', path: s.cancelPath, direction: 'out', status: 'success', latency: 254, detail: '取消订单 number=qj_' + s.appId },
-    { id: 'a5', time: '2026-08-24 10:11:08', method: 'POST', path: s.createPath, direction: 'out', status: 'success', latency: 301, detail: '创建订单 number=qj_' + s.appId + '_02' },
-    { id: 'a6', time: '2026-08-23 16:40:22', method: 'POST', path: '/api/v1/background-check/callback', direction: 'in', status: 'success', latency: 88, detail: '回调接收 status=3 背调中' },
-  ]
+function logToAudit(l: any): AuditRow {
+  return {
+    id: l.id,
+    time: l.createdAt ? fmt(l.createdAt) : '—',
+    method: (l.method || 'POST') as 'POST' | 'GET',
+    path: l.endpoint || '—',
+    direction: l.direction === 'IN' ? 'in' : 'out',
+    status: l.status === 'SUCCESS' ? 'success' : 'fail',
+    latency: l.durationMs ?? 0,
+    detail: l.errorMessage || l.syncType || '',
+  }
 }
 const auditColumns: DataTableColumns<AuditRow> = [
   { title: '时间', key: 'time', width: 150 },
@@ -650,6 +677,7 @@ const testing = ref(false)
 const showAudit = ref(false)
 const auditSupplierName = ref('')
 const auditRows = ref<AuditRow[]>([])
+const auditLoading = ref(false)
 const auditSummary = computed(() => {
   const rows = auditRows.value
   const total = rows.length
@@ -658,10 +686,20 @@ const auditSummary = computed(() => {
   const avg = total ? Math.round(rows.reduce((s, r) => s + r.latency, 0) / total) : 0
   return { total, ok, fail, avg }
 })
-function openAudit(row: Supplier) {
+async function openAudit(row: Supplier) {
   auditSupplierName.value = row.name
-  auditRows.value = mockAudit(row)
+  auditRows.value = []
+  auditLoading.value = true
   showAudit.value = true
+  try {
+    const res = await listSyncLogs({ config: row.id, page_size: 200 })
+    const list = (res.results ?? res.data ?? []) as any[]
+    auditRows.value = list.map(logToAudit)
+  } catch (e: any) {
+    message.error('加载审计日志失败：' + (e?.message || '网络错误'))
+  } finally {
+    auditLoading.value = false
+  }
 }
 
 // 接口说明抽屉
@@ -689,6 +727,7 @@ const form = reactive<Supplier>({
   id: '',
   name: '',
   category: 'background_check',
+  provider: '',
   appId: '',
   appKey: '',
   sandboxBaseUrl: '',
@@ -711,7 +750,7 @@ const form = reactive<Supplier>({
 const rules: FormRules = {
   name: { required: true, message: '请输入供应商名称', trigger: ['input', 'blur'] },
   appId: { required: true, message: '请输入 App Id', trigger: ['input', 'blur'] },
-  appKey: { required: true, message: '请输入 App Key', trigger: ['input', 'blur'] },
+  provider: { required: true, message: '请输入供应商代码', trigger: ['input', 'blur'] },
 }
 
 function resetForm() {
@@ -719,6 +758,7 @@ function resetForm() {
     id: '',
     name: '',
     category: 'background_check',
+    provider: '',
     appId: '',
     appKey: '',
     sandboxBaseUrl: '',
@@ -766,21 +806,18 @@ async function submit() {
   }
   saving.value = true
   try {
-    const snapshot = JSON.parse(JSON.stringify(form)) as Supplier
+    const payload = supplierToPayload(form as Supplier)
     if (editingId.value) {
-      const idx = suppliers.value.findIndex((s) => s.id === editingId.value)
-      if (idx >= 0) suppliers.value[idx] = { ...snapshot, id: editingId.value }
+      await updateIntegration(editingId.value, payload)
       message.success('保存成功')
     } else {
-      snapshot.id = 'sp-' + Date.now().toString(36)
-      snapshot.lastSync = '—'
-      snapshot.syncStatus = 'normal'
-      suppliers.value.push(snapshot)
+      await createIntegration(payload)
       message.success('接入成功')
     }
     showModal.value = false
+    await loadSuppliers()
   } catch (e: any) {
-    message.error('保存失败，请重试')
+    message.error('保存失败：' + (e?.response?.data?.message || e?.message || '请重试'))
   } finally {
     saving.value = false
   }
@@ -792,35 +829,59 @@ function confirmDelete(row: Supplier) {
     content: `确认删除「${row.name}」(${row.appId}) 的接入配置？此操作不可恢复。`,
     positiveText: '删除',
     negativeText: '取消',
-    onPositiveClick: () => {
-      suppliers.value = suppliers.value.filter((s) => s.id !== row.id)
-      message.success('已删除')
+    onPositiveClick: async () => {
+      try {
+        await deleteIntegration(row.id)
+        message.success('已删除')
+        await loadSuppliers()
+      } catch (e: any) {
+        message.error('删除失败：' + (e?.response?.data?.message || e?.message || ''))
+      }
     },
   })
 }
 
-function testConnection() {
-  if (!form.appId || !form.appKey) {
-    message.warning('请先填写 App Id 与 App Key')
+async function testConnection() {
+  if (!editingId.value) {
+    message.warning('请先保存配置后再测试连接')
+    return
+  }
+  if (!form.appId) {
+    message.warning('请先填写 App Id')
     activeTab.value = 'cred'
     return
   }
   testing.value = true
-  const env = form.env === 'production' ? '生产' : '沙箱'
-  setTimeout(() => {
+  try {
+    const res = await testIntegration(editingId.value)
+    const ok = res?.data?.ok ?? res?.success
+    const msg = res?.data?.message || ''
+    if (ok) message.success('连接成功' + (msg ? `（${msg}）` : ''))
+    else message.error('连接失败' + (msg ? `：${msg}` : ''))
+    await loadSuppliers()
+  } catch (e: any) {
+    message.error('测试失败：' + (e?.response?.data?.message || e?.message || '网络错误'))
+  } finally {
     testing.value = false
-    message.success(`连接成功（${env}环境）`)
-  }, 900)
+  }
 }
 
-function testOne(row: Supplier) {
+async function testOne(row: Supplier) {
   const env = row.env === 'production' ? '生产' : '沙箱'
-  message.loading(`正在测试「${row.name}」(${env})...`, { duration: 900 })
-  setTimeout(() => message.success(`「${row.name}」连接正常`), 950)
+  message.loading(`正在测试「${row.name}」(${env})...`, { duration: 800 })
+  try {
+    const res = await testIntegration(row.id)
+    const ok = res?.data?.ok ?? res?.success
+    if (ok) message.success(`「${row.name}」连接正常`)
+    else message.error(`「${row.name}」连接失败`)
+    await loadSuppliers()
+  } catch (e: any) {
+    message.error(`「${row.name}」测试失败：${e?.response?.data?.message || e?.message || ''}`)
+  }
 }
 
 onMounted(() => {
-  loading.value = false
+  loadSuppliers()
 })
 </script>
 

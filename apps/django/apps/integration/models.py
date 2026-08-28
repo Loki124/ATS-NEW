@@ -24,7 +24,8 @@ class IntegrationConfig(TimestampedModel):
     config JSON 保留为非敏感配置 (URL / 签名名 / 模板号 等).
     """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
-    type = models.CharField(max_length=32, choices=IntegrationType.choices, unique=True, verbose_name='类型')
+    type = models.CharField(max_length=32, choices=IntegrationType.choices, verbose_name='类型')
+    provider = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name='供应商代码', help_text='背调场景下区分多家供应商，如 quanjing/xinda/andun')
     name = models.CharField(max_length=100, verbose_name='名称')
     config = models.JSONField(default=dict, verbose_name='非敏感配置', help_text='API URL, 签名名, 模板号 等')
     encrypted_secret = models.TextField(blank=True, verbose_name='加密凭据 (Fernet)', help_text='JSON: {"corp_secret":"...", "access_key_secret":"..."} 加密后')
@@ -55,6 +56,10 @@ class IntegrationSyncLog(TimestampedModel):
     success_count = models.IntegerField(default=0, verbose_name='成功数')
     failed_count = models.IntegerField(default=0, verbose_name='失败数')
     error_message = models.TextField(blank=True, verbose_name='错误信息')
+    endpoint = models.CharField(max_length=255, blank=True, default='', verbose_name='接口路径')
+    method = models.CharField(max_length=16, blank=True, default='', verbose_name='请求方法')
+    direction = models.CharField(max_length=8, blank=True, default='', verbose_name='方向', help_text='OUT 出向 / IN 入向')
+    duration_ms = models.IntegerField(null=True, blank=True, verbose_name='耗时(ms)')
 
     class Meta:
         db_table = 'integration_sync_logs'
