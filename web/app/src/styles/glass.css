@@ -406,6 +406,38 @@ body.dark .n-modal-mask {
   padding: var(--space-2) 0 !important;
 }
 
+/* === P5 修复:vueuc-popper 关闭后 wrapper 残留渲为「白带/多一块」(2026-08-28 兵哥再报)===
+ *
+ * 根因二次复盘:
+ *   vueuc-popper 用 v-show 而不是 v-if 控制浮层显隐,关闭后:
+ *     (a) n-dropdown submenu: Vue 卸载子节点 → wrapper 内只剩注释 `<!---->`(2×18px,占位用)
+ *     (b) n-select dropdown: 子 n-base-select-menu 保留但 `style="display: none"`(Vue 保组件实例用于下次快速打开)
+ *   无论哪种,wrapper 自身仍 `display:block; visibility:visible; opacity:1; transform:translate(...)`,
+ *   我们加的 box-shadow + 12px 圆角 + 玻璃背景就把它渲成可见色块(约 50×66px 模糊阴影区),
+ *   视觉上像「菜单关闭后留下一条白色带/多出一块」。
+ *
+ * 修法:CSS `:has()` 反向检测 wrapper「无可视子节点」→ 整体隐藏:
+ *   `:has(> *:not(#comment):not([style*="display: none"]))` 命中"wrapper 内至少一个可视
+ *   子元素"(不是 comment 且未 display:none)。
+ *   `:not(:has(...))` 反向条件 = "wrapper 内无任何可视子元素" → 触发隐藏。
+ *
+ * 该条同时覆盖两种生命周期:
+ *   ✅ n-dropdown 卸载场景: 内无 DIV(或只有 #comment)
+ *   ✅ n-select v-show 场景: 内只有 display:none 的 .n-base-select-menu
+ *   ✅ n-popover / n-tooltip / n-cascader 等所有 vueuc-popper 浮层(同模式)
+ *
+ * 兼容性:Chromium 105+ (2022-08) / Safari 15.4+ (2022-03) / iOS WebView Chromium ≥100。
+ *   2026 年的目标浏览器(Chrome / WebView / iOS Safari)全支持。 :has() 不支持的浏览器
+ *   会保留上轮「76ed264」的 box-shadow 残留 — 即用户在老浏览器看到的旧 bug,不算恶化。
+ *
+ * 与上一轮 76ed264 的关系:
+ *   76ed264 解决了 "浮层打开时透明 → 加 box-shadow + backdrop-filter 让它可见"
+ *   P5 (本轮) 解决了 "浮层关闭后 box-shadow 仍在原位 → 色块残留"
+ *   二者不冲突,叠加生效。*/
+.v-binder-follower-content:not(:has(> *:not(#comment):not([style*="display: none"]))) {
+  display: none !important;
+}
+
 /* === L2 内层菜单:与外层同一 token,不另起圆角(避免双层圆角错位) ===
  * 关键:.n-dropdown-menu 的真实浮层外层就是自身(已经在 v-binder-follower-content
  * 内 padding 8px 处),所以这里不再 transparent,保留 Naive 默认 border-radius(0)
