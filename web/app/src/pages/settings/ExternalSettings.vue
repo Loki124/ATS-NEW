@@ -490,11 +490,11 @@ const fieldOptions = [
   { label: '备注', value: 'remark' },
 ]
 const categoryOptions = [
-  { label: '背调供应商', value: 'background_check' },
-  { label: 'HRIS', value: 'hris' },
-  { label: 'OA', value: 'oa' },
-  { label: '其他', value: 'other' },
+  { label: '背调供应商', value: 'BACKGROUND_CHECK' },
+  { label: 'HRIS', value: 'MOKA' },
+  { label: 'OA', value: 'WECOM' },
 ]
+
 const envOptions = [
   { label: '沙箱环境', value: 'sandbox' },
   { label: '生产环境', value: 'production' },
@@ -1160,7 +1160,7 @@ const formRef = ref<any>(null)
 const form = reactive<Supplier>({
   id: '',
   name: '',
-  category: 'background_check',
+  category: 'BACKGROUND_CHECK',
   provider: '',
   appId: '',
   appKey: '',
@@ -1191,7 +1191,7 @@ function resetForm() {
   Object.assign(form, {
     id: '',
     name: '',
-    category: 'background_check',
+    category: 'BACKGROUND_CHECK',
     provider: '',
     appId: '',
     appKey: '',
@@ -1251,7 +1251,14 @@ async function submit() {
     showModal.value = false
     await loadSuppliers()
   } catch (e: any) {
-    message.error('保存失败：' + (e?.response?.data?.message || e?.message || '请重试'))
+    const resp = e?.response?.data
+    let detail = resp?.message || resp?.detail || ''
+    if (!detail && typeof resp === 'object' && resp !== null) {
+      detail = Object.entries(resp)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' / ') : v}`)
+        .join('；')
+    }
+    message.error('保存失败：' + (detail || e?.message || '请重试'))
   } finally {
     saving.value = false
   }
