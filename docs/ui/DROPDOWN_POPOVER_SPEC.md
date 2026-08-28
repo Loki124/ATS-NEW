@@ -49,8 +49,9 @@
 | 高度 | 36px（medium 默认） | `--n-option-height-medium` | 与 button/input 高度对齐 |
 | 水平 padding | 12px | `--space-3` | Naive 默认 12 ✓，**禁止个别组件覆写** |
 | 文字色 | `--ink` / hover `--ink` / active `--brand` | — | 不变色，只换底色 |
-| 高亮（hover/pending） | `--brand-tint` + 内 inset 6px + 圆角 6px | `--space-1` + `--radius-sm` | 见下方 §3 |
-| 高亮（active 选中） | `--brand-soft` + 同上 inset | `--brand-soft` | 与 active 行视觉一致 |
+| 高亮（hover/pending） | brand 14% alpha + 内 inset 6px + 圆角 6px | `--option-hover` + `--space-1` + `--radius-sm` | 见下方 §3 |
+| 高亮（active 选中） | brand 18% alpha + 同上 inset | color-mix(... 18%, transparent) | 比 hover 再深一档，强调选中 |
+| 高亮（选中 + hover） | brand 22% alpha | color-mix(... 22%, transparent) | 三态中最深，仅活跃用户停留时触发 |
 | 禁用态 | `--ink-faint` + `cursor:not-allowed` | `--n-option-opacity-disabled` | Naive 内置 `opacityDisabled` |
 | prefix 图标列宽 | s/m/l/h = 32/32/36/36 px | Naive `--n-option-icon-prefix-width` | 与 icon 同行对齐 |
 
@@ -122,16 +123,16 @@
 
 ### 4.1 自动覆盖（无需组件改 dark 分支）
 
-Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-border` / `--border-hairline` / `--brand-tint` / `--brand-soft`。这些 token 在 `body.dark` 已自动切换：
+Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-border` / `--border-hairline` / `--option-hover` / `--brand-tint` / `--brand-soft`。这些 token 在 `body.dark` 已自动切换：
 
 | Token | 浅色 | 暗色 | 行为 |
 |-------|------|------|------|
 | `--glass-bg-elevated` | `rgba(255,255,255,.72)` | `rgba(30,41,59,.72)` | 浅色白玻璃 → 暗色深玻璃 |
 | `--glass-border` | `.7` 白 | `.14` 白 | 浅色亮边 → 暗色淡边 |
 | `--border-hairline` | `rgba(15,23,42,.08)` | `rgba(255,255,255,.08)` | 浅色微黑 → 暗色微白 |
-| `--brand-tint` | `6%` brand | `14%` brand（自适应提升可视度） | 暗色下加深 |
-| `--brand-soft` | `12%` brand | `18%` brand | 暗色下加深 |
-| `--ink` | `#0F172A` | `#E8ECF6` | 浅色墨 → 暗色亮 |
+| `--brand-tint` | `6%` brand | 懒求值跟随 `--brand` | 表格行/按钮 focus 等微高亮沿用此值 |
+| `--brand-soft` | `12%` brand | 懒求值跟随 `--brand` | 卡片描边/区域背景等沿用 |
+| `--option-hover` | `14%` brand（color-mix 自动派生） | 懒求值跟随 `--brand` | **dropdown 专**，三档梯度清晰可视 |
 
 ### 4.2 显式覆盖（避免 Naive 默认色在暗色下冲突）
 
@@ -176,6 +177,7 @@ Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-bo
 | 陷阱 | 现象 | 修法 |
 |------|------|------|
 | 「外圆内方」 | 弹层外框 12px 圆角，内行无圆角无高亮 = 直角感 | hover 高亮必须圆形 `--radius-sm` |
+| `hover 高亮几乎看不出` | L3 `::before` 背景用 `--brand-tint` (6% brand) → light 下 alpha 太低无法识别 | dropdown 专改 `--option-hover` (14%)，三档梯度见 §2.3 |
 | 中间无 icon 项被"矩形包围"错觉 | 选项混有/无 icon，无 icon 项视觉缩窄像嵌独立容器 | **统一补 icon prefix** 或统一用同字号 left padding 让锚点对齐 |
 | Naive 默认 divider 灰在暗色仍浅灰 | 暗色下弹层里 divider 像一条白线刺眼 | 覆写 `--n-divider-color → var(--border-hairline)` |
 | 高亮层 border-radius 与外框错位 | 高亮是大圆角 + 内嵌到小圆角容器 = 视觉空隙 | 外大内小（12 / 6）+ inset 6px |

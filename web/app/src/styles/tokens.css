@@ -35,6 +35,13 @@
   --brand-soft:   color-mix(in srgb, var(--brand) 12%, transparent);
   --brand-tint:   color-mix(in srgb, var(--brand)  6%, transparent); /* hover 行极浅底 */
 
+  /* 下拉/菜单行专用 hover/selected 底色：light 14% brand, 暗色懒求值跟随
+   * 起源：2026-08-28 用户报「下拉弹窗里怎么会有圆角和直角混用」→ 上一轮 commit
+   * `087f215` 把 L3 行 hover 用 --brand-tint (6%), light 主题下几乎看不见。
+   * 表格行/按钮 focus 等微高亮仍沿用 --brand-tint (极浅底设计意图), 此 token
+   * 专给 dropdown/menu 行 — 单源 + 场景专属, 避免动 --brand-tint 全项目连锁。*/
+  --option-hover: color-mix(in srgb, var(--brand) 14%, transparent);
+
   /* 渐变端（默认类比色；白标场景可整体覆盖为品牌近似色） */
   --brand-grad-a: #A855F7; /* 紫 — 标题/按钮渐变中段 */
   --brand-grad-b: #EC4899; /* 粉 — 标题渐变末段（仅装饰） */

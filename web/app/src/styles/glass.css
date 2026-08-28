@@ -405,18 +405,20 @@ body.dark .n-modal-mask {
 .n-dropdown-option--pending .n-dropdown-option-body::before,
 .n-base-select-option:hover::before,
 .n-base-select-option--pending::before {
-  background-color: var(--brand-tint) !important;
+  background-color: var(--option-hover) !important;
 }
 .n-dropdown-option--selected .n-dropdown-option-body::before,
 .n-dropdown-option--active .n-dropdown-option-body::before,
 .n-base-select-option--selected::before,
 .n-base-select-option--checked::before {
-  background-color: var(--brand-soft) !important;
+  /* selected 比 hover 深一档（18% brand），保留三档梯度:
+   * default 透底 → hover 14% → selected 18% → selected+hover 22%（见下） */
+  background-color: color-mix(in srgb, var(--brand) 18%, transparent) !important;
 }
-/* 选中 + hover 复合态更深一档（与底下 Naive 原方案保持兼容作为 fallback,优先级低于上面 --selected 规则） */
+/* 选中 + hover 复合态最深一档（22% brand） */
 .n-dropdown-option--selected.n-dropdown-option--pending .n-dropdown-option-body::before,
 .n-base-select-option--selected.n-base-select-option--pending::before {
-  background-color: color-mix(in srgb, var(--brand) 18%, transparent) !important;
+  background-color: color-mix(in srgb, var(--brand) 22%, transparent) !important;
 }
 
 /* === L3 项目 prefix / suffix / label：颜色用 ink/ink-soft,选中态变 brand === */
