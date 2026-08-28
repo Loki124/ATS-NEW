@@ -97,7 +97,7 @@
               :data="filteredRules"
               :loading="loading.rules"
               :row-key="(r: any) => r.id"
-              :pagination="false"
+              :pagination="rulePagination"
               flex-height
               :row-props="ruleRowProps"
             >
@@ -134,7 +134,7 @@
               :data="filteredIndicators"
               :loading="loading.indicators"
               :row-key="(r: any) => r.id"
-              :pagination="false"
+              :pagination="indicatorPagination"
               flex-height
             >
               <template #empty><n-empty description="暂无指标，请先新增维度，再在维度下新增指标" /></template>
@@ -194,7 +194,7 @@
               :data="persons"
               :loading="loading.persons"
               :row-key="(r: any) => r.id"
-              :pagination="false"
+              :pagination="personPagination"
               flex-height
             >
               <template #empty><n-empty description="暂无人员" /></template>
@@ -462,6 +462,35 @@ const dimensions = ref<ControlDimension[]>([])
 const indicators = ref<ControlIndicator[]>([])
 const rules = ref<ControlRule[]>([])
 const persons = ref<Person[]>([])
+
+/* ============================ 表格分页（列表页） ============================
+ * 三个列表页（规则配置/指标管理/人员数据）启用 n-data-table 内置分页：
+ *  - 默认 20 条/页，可切换 10/20/50/100
+ *  - showQuickJumper 支持输入页码跳页
+ *  - prefix 显示「共 N 条」（Naive UI Pagination 的 RenderPrefix 入参为 { itemCount, page, pageSize, pageCount, startIndex, endIndex }，不是 total）
+ * 看板/录入校验结果 不分页（语义不同：按维/规则集聚合，单次结果通常 < 50 行）
+ */
+const rulePagination = reactive({
+  pageSize: 20,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50, 100],
+  showQuickJumper: true,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
+})
+const indicatorPagination = reactive({
+  pageSize: 20,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50, 100],
+  showQuickJumper: true,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
+})
+const personPagination = reactive({
+  pageSize: 20,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50, 100],
+  showQuickJumper: true,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
+})
 
 const dimensionOptions = computed(() => dimensions.value.map((d) => ({ label: d.name, value: d.id })))
 
