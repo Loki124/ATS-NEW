@@ -42,6 +42,19 @@ function getClient(): AxiosInstance {
   return client
 }
 
+// 2026-08-27: 后端 CamelCaseJSONRenderer 会把 DRF 响应的 snake_case 键统一转成 camelCase,
+// 但本模块的类型声明 / store / 组件均按 snake_case 读取返回值. 在此边界统一归一化,
+// 避免运行时 result.job_ids 之类为 undefined 而导致 .map() 崩溃.
+function snakizeKeys<T = any>(obj: any): T {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj as T
+  const out: Record<string, any> = {}
+  for (const key of Object.keys(obj)) {
+    const snaked = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+    out[snaked] = obj[key]
+  }
+  return out as T
+}
+
 // ============ Types ============
 export type JobStatus = 'processing' | 'done' | 'failed'
 export type JobPhase = 'uploading' | 'parsing' | 'checking' | null
@@ -125,14 +138,14 @@ export async function uploadAndParse(files: File[]): Promise<{ job_ids: string[]
   const resp = await client.post('/upload-and-parse/', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return resp.data
+  return snakizeKeys(resp.data)
 }
 
 /** GET /parse-status/{job_id}/  — 轮询解析状态 */
 export async function getParseStatus(job_id: string): Promise<ParseStatus> {
   const client = getClient()
   const resp = await client.get(`/parse-status/${job_id}/`)
-  return resp.data
+  return snakizeKeys(resp.data)
 }
 
 /** POST /duplicate-check/  — 用户改字段后重查重 */
@@ -144,7 +157,7 @@ export async function postDuplicateCheck(params: {
 }): Promise<DuplicateInfo> {
   const client = getClient()
   const resp = await client.post('/duplicate-check/', params)
-  return resp.data
+  return snakizeKeys(resp.data)
 }
 
 /** POST /replace-file/{draft_id}/  — 替换附件并重新解析 */
@@ -155,7 +168,7 @@ export async function replaceFile(draft_id: string, file: File): Promise<{ job_i
   const resp = await client.post(`/replace-file/${draft_id}/`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return resp.data
+  return snakizeKeys(resp.data)
 }
 
 /** POST /bulk-create/  — Step 2 提交（创建候选 + 关联） */
@@ -165,14 +178,14 @@ export async function bulkCreate(params: {
 }): Promise<BulkCreateResult> {
   const client = getClient()
   const resp = await client.post('/bulk-create/', params)
-  return resp.data
+  return snakizeKeys(resp.data)
 }
 
 /** POST /scoring/start/  — async 模式显式启动评分 */
 export async function startScoring(params: { candidate_ids: string[]; task_id: string }): Promise<{ stream_url: string }> {
   const client = getClient()
   const resp = await client.post('/scoring/start/', params)
-  return resp.data
+  return snakizeKeys(resp.data)
 }
 
 /** GET /scoring/stream/{task_id}/  — SSE 流（返回 EventSource） */
