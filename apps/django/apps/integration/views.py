@@ -13,12 +13,19 @@ from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsSuperAdmin
 
-from .models import IntegrationConfig, IntegrationSyncLog
+from .models import IntegrationConfig, IntegrationSyncLog, BackgroundCheckOrder
 from .serializers import (
     IntegrationConfigSerializer,
     IntegrationSyncLogSerializer,
+    BackgroundCheckOrderSerializer,
+    BackgroundCheckOrderDetailSerializer,
 )
-from .services import bg_callback_envelope, verify_background_check_callback
+from .services import (
+    bg_callback_envelope,
+    verify_background_check_callback,
+    apply_callback_to_order,
+    cancel_background_check_order,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -138,11 +145,17 @@ class BackgroundCheckCallbackView(APIView):
 
         # 4. 首次到达: 落审计 SUCCESS
         duration_ms = int((time.time() - t0) * 1000)
-        IntegrationSyncLog.objects.create(
+        log = IntegrationSyncLog.objects.create(
             config=config, sync_type='CALLBACK', direction='IN',
             endpoint='/api/v1/background-check/callback', method='POST',
             status='SUCCESS', request_data=payload, external_ref=number, duration_ms=duration_ms,
         )
+        # 5. 驱动订单状态机（规范 §5.3 幂等 + 状态机转移；noop 时不重复落事件）
+        try:
+            order, _event, action = apply_callback_to_order(payload, config, sync_log=log)
+            logger.info('background_check callback applied: order=%s action=%s', order.order_number, action)
+        except Exception:
+            logger.exception('apply_callback_to_order failed (number=%s)', number)
         return Response(
             bg_callback_envelope(0, 'success', data={'number': number, 'status': status_val}),
             status=status.HTTP_200_OK,
@@ -163,3 +176,51 @@ class BackgroundCheckCallbackView(APIView):
             )
         except Exception:  # noqa: BLE001 - 审计写入失败不影响主流程响应
             logger.exception('callback FAILED audit log write failed')
+
+
+class BackgroundCheckOrderViewSet(viewsets.ModelViewSet):
+    """背调订单状态机视图（仅超管可读 + 取消）。
+
+    - 列表/详情：展示订单当前状态、风险、报告、状态机转移历史(events)
+    - cancel 动作：平台发起取消（置 status=6，写 CANCEL 事件 + 出向供应商取消接口）
+    """
+    queryset = BackgroundCheckOrder.objects.all()
+    permission_classes = [IsSuperAdmin]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['config', 'status']
+    ordering_fields = ['created_at', 'status', 'completion_time']
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return BackgroundCheckOrderDetailSerializer
+        return BackgroundCheckOrderSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.select_related('config')
+
+    @action(detail=True, methods=['post'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        """平台发起取消（状态机置 6 已取消）"""
+        order = self.get_object()
+        if order.status == 6:  # BGOrderStatus.CANCELLED
+            # 已取消，幂等返回
+            return Response({
+                'success': True,
+                'message': '订单已处于已取消状态',
+                'data': BackgroundCheckOrderSerializer(order).data,
+            })
+        result = cancel_background_check_order(order)
+        if not result.get('success'):
+            return Response({
+                'success': False,
+                'message': result.get('message', '取消失败'),
+            }, status=status.HTTP_400_BAD_REQUEST)
+        order.refresh_from_db()
+        return Response({
+            'success': True,
+            'message': '已取消',
+            'data': BackgroundCheckOrderSerializer(order).data,
+        })

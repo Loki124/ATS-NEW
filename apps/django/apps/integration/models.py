@@ -77,3 +77,133 @@ class IntegrationSyncLog(TimestampedModel):
                 name='idx_synclog_cb_idem',
             ),
         ]
+
+
+class BGOrderStatus(models.IntegerChoices):
+    """背调订单状态机枚举（统一规范 §2.3，沿用现行 8 态 + 0 已受理）"""
+    ACCEPTED = 0, '已受理/已下单'
+    COMPLETED = 1, '已完成'
+    PENDING_AUTH = 2, '待授权'
+    IN_PROGRESS = 3, '背调中'
+    AUTH_EXPIRED = 4, '授权过期'
+    PENDING_PAYMENT = 5, '待支付'
+    CANCELLED = 6, '已取消'
+    STAGE_REPORT = 7, '阶段报告'
+    AUTH_REVOKED = 8, '授权撤销'
+
+    @classmethod
+    def label_of(cls, value):
+        try:
+            return cls(value).label
+        except ValueError:
+            return ''
+
+
+class BGRiskLevel(models.IntegerChoices):
+    """背调风险等级（统一规范 §2.3）"""
+    LOW = 1, '低风险'
+    MID = 2, '中风险'
+    HIGH = 3, '高风险'
+    NONE = 4, '无风险'
+    UNRATED = 9, '未评级'
+
+    @classmethod
+    def label_of(cls, value):
+        try:
+            return cls(value).label
+        except ValueError:
+            return ''
+
+
+# 状态机合法转移表（供应商为权威来源，非合法转移仍落库但标记 is_legal_transition=False 供监控）
+ALLOWED_ORDER_TRANSITIONS = {
+    BGOrderStatus.ACCEPTED: {2, 3, 5, 6, 7, 8},
+    BGOrderStatus.PENDING_AUTH: {3, 4, 8},
+    BGOrderStatus.IN_PROGRESS: {1, 6, 7, 8},
+    BGOrderStatus.PENDING_PAYMENT: {3, 6},
+    BGOrderStatus.STAGE_REPORT: {1, 3, 6, 8},
+    BGOrderStatus.COMPLETED: {6},
+    BGOrderStatus.AUTH_EXPIRED: set(),
+    BGOrderStatus.CANCELLED: set(),
+    BGOrderStatus.AUTH_REVOKED: set(),
+}
+
+
+class BackgroundCheckOrder(TimestampedModel):
+    """背调订单（状态机主体）。
+
+    唯一键 (config, order_number)：order_number 为平台生成的背调订单全链路主键（规范 §2.2.3）。
+    当前 status 由供应商回调驱动（apply_callback_to_order）；转移历史见 BackgroundCheckOrderEvent。
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    config = models.ForeignKey(
+        IntegrationConfig, on_delete=models.CASCADE,
+        related_name='bg_orders', verbose_name='供应商配置',
+    )
+    order_number = models.CharField(max_length=64, verbose_name='订单号(number)', help_text='平台生成，全链路主键')
+    candidate_id = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name='候选人ID')
+    candidate_name = models.CharField(max_length=64, blank=True, default='', verbose_name='候选人姓名')
+    status = models.IntegerField(
+        choices=BGOrderStatus.choices, default=BGOrderStatus.ACCEPTED, db_index=True, verbose_name='订单状态',
+    )
+    status_name = models.CharField(max_length=32, blank=True, default='', verbose_name='状态名称')
+    risk_level = models.IntegerField(null=True, blank=True, verbose_name='风险等级', help_text='1低/2中/3高/4无/9未评级')
+    report_url = models.CharField(max_length=512, blank=True, default='', verbose_name='报告地址')
+    completion_time = models.DateTimeField(null=True, blank=True, verbose_name='完成时间')
+    latest_payload = models.JSONField(null=True, blank=True, verbose_name='最近一次回调/响应原始体')
+
+    class Meta:
+        db_table = 'background_check_orders'
+        verbose_name = '背调订单'
+        verbose_name_plural = verbose_name
+        unique_together = [('config', 'order_number')]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'BGOrder[{self.order_number}] {self.get_status_display()}'
+
+    @property
+    def status_label(self):
+        return BGOrderStatus.label_of(self.status)
+
+    @property
+    def risk_label(self):
+        return BGRiskLevel.label_of(self.risk_level) if self.risk_level is not None else ''
+
+
+class BackgroundCheckOrderEvent(TimestampedModel):
+    """背调订单状态机转移历史（append-only）。
+
+    每次状态变更（创建/回调/取消）记一条，记录 from→to、是否合法转移、来源、原始 payload，
+    并关联触发它的同步审计日志 IntegrationSyncLog。这是订单状态机的审计核心。
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    order = models.ForeignKey(
+        BackgroundCheckOrder, on_delete=models.CASCADE,
+        related_name='events', verbose_name='订单',
+    )
+    config = models.ForeignKey(
+        IntegrationConfig, on_delete=models.CASCADE,
+        related_name='bg_order_events', verbose_name='供应商配置',
+    )
+    from_status = models.IntegerField(null=True, blank=True, verbose_name='原状态')
+    to_status = models.IntegerField(verbose_name='新状态')
+    risk_level = models.IntegerField(null=True, blank=True, verbose_name='风险等级')
+    report_url = models.CharField(max_length=512, blank=True, default='', verbose_name='报告地址')
+    completion_time = models.DateTimeField(null=True, blank=True, verbose_name='完成时间')
+    source = models.CharField(max_length=16, verbose_name='来源', help_text='CREATE/CALLBACK/CANCEL')
+    is_legal_transition = models.BooleanField(default=True, verbose_name='是否合法转移')
+    raw_payload = models.JSONField(null=True, blank=True, verbose_name='原始负载')
+    sync_log = models.ForeignKey(
+        IntegrationSyncLog, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='bg_order_events', verbose_name='关联同步日志',
+    )
+
+    class Meta:
+        db_table = 'background_check_order_events'
+        verbose_name = '背调订单事件'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'BGEvt[{self.order_id}] {self.from_status}->{self.to_status} ({self.source})'

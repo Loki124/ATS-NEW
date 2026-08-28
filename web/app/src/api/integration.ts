@@ -69,4 +69,52 @@ export async function listSyncLogs(params?: Record<string, any>) {
   return data
 }
 
+export interface BackgroundCheckOrderEventItem {
+  id: string
+  order: string
+  orderNumber: string
+  fromStatus: number | null
+  toStatus: number
+  fromStatusDisplay: string
+  toStatusDisplay: string
+  riskLevel: number | null
+  reportUrl: string
+  completionTime: string | null
+  source: string
+  isLegalTransition: boolean
+  rawPayload: Record<string, any> | null
+  createdAt: string
+}
+
+export interface BackgroundCheckOrderItem {
+  id: string
+  config: string
+  configName: string
+  configProvider: string
+  orderNumber: string
+  candidateId: string
+  candidateName: string
+  status: number
+  statusDisplay: string
+  statusName: string
+  riskLevel: number | null
+  riskLevelDisplay: string
+  reportUrl: string
+  completionTime: string | null
+  latestPayload: Record<string, any> | null
+  createdAt: string
+  updatedAt: string
+  events?: BackgroundCheckOrderEventItem[]
+}
+
+export async function listBackgroundCheckOrders(params?: Record<string, any>) {
+  const { data } = await api.get('/background-check/orders/', { params })
+  return data
+}
+
+export async function cancelBackgroundCheckOrder(id: string) {
+  const { data } = await api.post(`/background-check/orders/${id}/cancel/`)
+  return data
+}
+
 export default api

@@ -64,6 +64,10 @@
         <template #icon><n-icon :component="BarChartOutline" /></template>
         全局审计
       </n-button>
+      <n-button quaternary @click="openOrders">
+        <template #icon><n-icon :component="ReceiptOutline" /></template>
+        背调订单
+      </n-button>
       <n-button quaternary @click="showDoc = true">
         <template #icon><n-icon :component="BookOutline" /></template>
         接口说明
@@ -315,6 +319,61 @@
       </n-drawer-content>
     </n-drawer>
 
+    <!-- ===================== 背调订单状态机抽屉（跨所有供应商聚合） ===================== -->
+    <n-drawer v-model:show="showOrders" :width="880" placement="right">
+      <n-drawer-content title="背调订单 · 状态机" :native-scrollbar="false">
+        <div class="audit-summary">
+          <div class="audit-stat">
+            <span class="kpi-label">订单总数</span>
+            <span class="kpi-value">{{ orderRows.length }}</span>
+          </div>
+          <div class="audit-stat">
+            <span class="kpi-label">已完成</span>
+            <span class="kpi-value kpi-value--ok">{{ orderSummary.completed }}</span>
+          </div>
+          <div class="audit-stat">
+            <span class="kpi-label">进行中</span>
+            <span class="kpi-value kpi-value--warn">{{ orderSummary.inProgress }}</span>
+          </div>
+          <div class="audit-stat">
+            <span class="kpi-label">已取消/撤销</span>
+            <span class="kpi-value">{{ orderSummary.closed }}</span>
+          </div>
+        </div>
+        <div class="toolbar" style="margin-bottom: 12px">
+          <n-select
+            v-model:value="orderSupplier"
+            :options="orderSupplierOptions"
+            placeholder="按供应商筛选"
+            style="width: 240px"
+          />
+          <n-select
+            v-model:value="orderStatusFilter"
+            :options="orderStatusOptions"
+            placeholder="按状态筛选"
+            style="width: 180px"
+          />
+          <div class="spacer"></div>
+          <n-button quaternary @click="openOrders">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
+            刷新
+          </n-button>
+        </div>
+        <n-data-table
+          :columns="orderColumns"
+          :data="filteredOrders"
+          :pagination="false"
+          size="small"
+          :loading="orderLoading"
+          :scroll-x="1040"
+        >
+          <template #empty>
+            <n-empty description="暂无背调订单" />
+          </template>
+        </n-data-table>
+      </n-drawer-content>
+    </n-drawer>
+
     <!-- ===================== 接口说明文档抽屉 ===================== -->
     <n-drawer v-model:show="showDoc" :width="760" placement="right">
       <n-drawer-content title="背调供应商接口说明（统一规范 v1.0.1）" :native-scrollbar="false">
@@ -394,6 +453,7 @@ import {
   TimeOutline,
   BookOutline,
   BarChartOutline,
+  ReceiptOutline,
 } from '@vicons/ionicons5'
 import {
   listIntegrations,
@@ -402,6 +462,8 @@ import {
   deleteIntegration,
   testIntegration,
   listSyncLogs,
+  listBackgroundCheckOrders,
+  cancelBackgroundCheckOrder,
 } from '@/api/integration'
 
 const message = useMessage()
@@ -894,6 +956,184 @@ async function openGlobalAudit() {
   } finally {
     globalLoading.value = false
   }
+}
+
+// ===================== 背调订单状态机抽屉（跨所有供应商聚合） =====================
+interface OrderEventRow {
+  id: string
+  fromStatus: number | null
+  toStatus: number
+  fromStatusDisplay: string
+  toStatusDisplay: string
+  riskLevel: number | null
+  source: string
+  isLegalTransition: boolean
+  completionTime: string | null
+  createdAt: string
+}
+interface OrderRow {
+  id: string
+  configId: string
+  configName: string
+  configProvider: string
+  orderNumber: string
+  candidateName: string
+  candidateId: string
+  status: number
+  statusDisplay: string
+  riskLevel: number | null
+  riskLevelDisplay: string
+  reportUrl: string
+  completionTime: string | null
+  createdAt: string
+  events?: OrderEventRow[]
+}
+const BG_STATUS_OPTIONS = [
+  { label: '0 已受理', value: 0 },
+  { label: '1 已完成', value: 1 },
+  { label: '2 待授权', value: 2 },
+  { label: '3 背调中', value: 3 },
+  { label: '4 授权过期', value: 4 },
+  { label: '5 待支付', value: 5 },
+  { label: '6 已取消', value: 6 },
+  { label: '7 阶段报告', value: 7 },
+  { label: '8 授权撤销', value: 8 },
+]
+const BG_STATUS_TYPE: Record<number, 'default' | 'info' | 'success' | 'warning' | 'error' | 'primary'> = {
+  0: 'info', 1: 'success', 2: 'warning', 3: 'info', 4: 'warning', 5: 'warning', 6: 'default', 7: 'info', 8: 'error',
+}
+function bgStatusType(s: number) {
+  return BG_STATUS_TYPE[s] ?? 'default'
+}
+
+const showOrders = ref(false)
+const orderRows = ref<OrderRow[]>([])
+const orderLoading = ref(false)
+const ORDER_ALL = '__all__'
+const orderSupplier = ref<string>(ORDER_ALL)
+const orderStatusFilter = ref<number | string>('all')
+const orderSupplierOptions = computed(() => [
+  { label: '全部供应商', value: ORDER_ALL },
+  ...suppliers.value.map((s) => ({ label: s.provider ? `${s.name} (${s.provider})` : s.name, value: s.id })),
+])
+const orderStatusOptions = [{ label: '全部状态', value: 'all' }, ...BG_STATUS_OPTIONS]
+const filteredOrders = computed(() =>
+  orderRows.value.filter((r) => {
+    if (orderSupplier.value !== ORDER_ALL && r.configId !== orderSupplier.value) return false
+    if (orderStatusFilter.value !== 'all' && r.status !== orderStatusFilter.value) return false
+    return true
+  }),
+)
+const orderSummary = computed(() => {
+  const rows = orderRows.value
+  return {
+    completed: rows.filter((r) => r.status === 1).length,
+    inProgress: rows.filter((r) => [2, 3, 5, 7].includes(r.status)).length,
+    closed: rows.filter((r) => [6, 8].includes(r.status)).length,
+  }
+})
+function renderOrderEvents(r: OrderRow) {
+  if (!r.events || !r.events.length) {
+    return h('span', { style: { color: 'var(--ink-soft)' } }, '无转移记录')
+  }
+  return h(
+    'div',
+    { style: { padding: '8px 6px', fontFamily: 'monospace', fontSize: '12px' } },
+    r.events.map((ev) =>
+      h(
+        'div',
+        {
+          style: {
+            padding: '3px 0',
+            color: ev.isLegalTransition ? 'var(--ink-soft)' : 'var(--error, #d03050)',
+          },
+        },
+        `${fmt(ev.createdAt)} · ${ev.source} · ${ev.fromStatusDisplay || '∅'} → ${ev.toStatusDisplay}${ev.isLegalTransition ? '' : ' ⚠非法转移'}${ev.riskLevel ? ' · 风险' + ev.riskLevel : ''}`,
+      ),
+    ),
+  )
+}
+const orderColumns: DataTableColumns<OrderRow> = [
+  {
+    type: 'expand',
+    title: '转移',
+    width: 56,
+    renderExpand: (r: OrderRow) => renderOrderEvents(r),
+  },
+  { title: '订单号', key: 'orderNumber', width: 150, render: (r: OrderRow) => h('span', { style: { fontWeight: '600', fontFamily: 'monospace', fontSize: '12px' } }, r.orderNumber) },
+  { title: '供应商', key: 'supplier', width: 170, render: (r: OrderRow) => h('span', [r.configName, r.configProvider ? h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, ' (' + r.configProvider + ')') : null]) },
+  { title: '候选人', key: 'candidate', width: 140, render: (r: OrderRow) => h('span', [r.candidateName || '—', r.candidateId ? h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, ' #' + r.candidateId) : null]) },
+  { title: '状态', key: 'status', width: 100, render: (r: OrderRow) => h(NTag, { size: 'small', type: bgStatusType(r.status), bordered: false }, { default: () => r.statusDisplay || String(r.status) }) },
+  { title: '风险', key: 'risk', width: 84, render: (r: OrderRow) => h('span', r.riskLevelDisplay || '—') },
+  { title: '报告', key: 'report', width: 88, render: (r: OrderRow) => r.reportUrl ? h('a', { href: r.reportUrl, target: '_blank', style: { color: 'var(--brand)' } }, '查看') : h('span', { style: { color: 'var(--ink-soft)' } }, '—') },
+  { title: '完成时间', key: 'completionTime', width: 140, render: (r: OrderRow) => h('span', { style: { fontSize: '12px', color: 'var(--ink-soft)' } }, r.completionTime ? fmt(r.completionTime) : '—') },
+  {
+    title: '操作', key: 'op', width: 90, fixed: 'right',
+    render: (r: OrderRow) => {
+      const closed = r.status === 6 || r.status === 8
+      return h(NButton, { size: 'small', quaternary: true, disabled: closed, onClick: () => cancelOrder(r) }, { default: () => '取消' })
+    },
+  },
+]
+
+async function openOrders() {
+  orderRows.value = []
+  orderLoading.value = true
+  showOrders.value = true
+  try {
+    const res = await listBackgroundCheckOrders({ page_size: 500 })
+    const list = (res.results ?? res.data ?? []) as any[]
+    orderRows.value = list.map(orderToRow)
+  } catch (e: any) {
+    message.error('加载背调订单失败：' + (e?.message || '网络错误'))
+  } finally {
+    orderLoading.value = false
+  }
+}
+function orderToRow(o: any): OrderRow {
+  return {
+    id: o.id,
+    configId: o.config || '',
+    configName: o.configName || '',
+    configProvider: o.configProvider || '',
+    orderNumber: o.orderNumber || '',
+    candidateName: o.candidateName || '',
+    candidateId: o.candidateId || '',
+    status: o.status,
+    statusDisplay: o.statusDisplay || '',
+    riskLevel: o.riskLevel ?? null,
+    riskLevelDisplay: o.riskLevelDisplay || '',
+    reportUrl: o.reportUrl || '',
+    completionTime: o.completionTime || null,
+    createdAt: o.createdAt || '',
+    events: (o.events || []).map((ev: any) => ({
+      id: ev.id, fromStatus: ev.fromStatus, toStatus: ev.toStatus,
+      fromStatusDisplay: ev.fromStatusDisplay || '', toStatusDisplay: ev.toStatusDisplay || '',
+      riskLevel: ev.riskLevel ?? null, source: ev.source || '', isLegalTransition: ev.isLegalTransition,
+      completionTime: ev.completionTime || null, createdAt: ev.createdAt || '',
+    })),
+  }
+}
+async function cancelOrder(r: OrderRow) {
+  dialog.warning({
+    title: '取消背调订单',
+    content: `确认取消订单 ${r.orderNumber}？将置为「已取消」并通知供应商。`,
+    positiveText: '取消订单',
+    negativeText: '再想想',
+    onPositiveClick: async () => {
+      try {
+        const res = await cancelBackgroundCheckOrder(r.id)
+        if (res.success) {
+          message.success('已取消')
+          await openOrders()
+        } else {
+          message.error(res.message || '取消失败')
+        }
+      } catch (e: any) {
+        message.error('取消失败：' + (e?.message || '网络错误'))
+      }
+    },
+  })
 }
 
 // 接口说明抽屉

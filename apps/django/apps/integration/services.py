@@ -20,6 +20,7 @@ import smtplib
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime as dt_datetime, timezone as dt_timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
@@ -29,7 +30,16 @@ from django.utils import timezone
 
 from apps.common.exceptions import NotFound
 from .crypto import SENSITIVE_KEYS, decrypt_secret_dict
-from .models import IntegrationConfig, IntegrationSyncLog, IntegrationType
+from .models import (
+    IntegrationConfig,
+    IntegrationSyncLog,
+    IntegrationType,
+    BackgroundCheckOrder,
+    BackgroundCheckOrderEvent,
+    BGOrderStatus,
+    BGRiskLevel,
+    ALLOWED_ORDER_TRANSITIONS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -412,11 +422,189 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
             error_message='' if ok else f'HTTP {r.status_code}: {r.text[:200]}',
         )
         if ok:
+            # 出向成功：落初始订单（状态机起点 status=0 已受理），关联候选人
+            order_number = (resp.get('data') or {}).get('number')
+            if order_number:
+                try:
+                    create_background_check_order(
+                        config=config, candidate_id=str(candidate_id),
+                        items=items, order_number=str(order_number), request_payload=params,
+                    )
+                except Exception:
+                    logger.exception('create_background_check_order failed (number=%s)', order_number)
             return {'success': True, 'data': resp}
         return {'success': False, 'error': f'HTTP {r.status_code}: {resp.get("message", "")}'}
     except Exception as e:
         logger.exception('Background check request failed: %s', e)
         return {'success': False, 'error': str(e)}
+
+
+def _ms_to_datetime(ms) -> Optional[dt_datetime]:
+    """Unix 毫秒时间戳 -> 时区感知 datetime（UTC），非法值返回 None。"""
+    if ms is None:
+        return None
+    try:
+        return dt_datetime.fromtimestamp(int(ms) / 1000, tz=dt_timezone.utc)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def create_background_check_order(config: IntegrationConfig, candidate_id: str, items: List[str],
+                                  order_number: str, candidate_name: str = '',
+                                  request_payload: Optional[dict] = None) -> BackgroundCheckOrder:
+    """落初始背调订单（状态机起点 status=0 已受理）。
+
+    幂等：同一 (config, order_number) 已存在则直接返回，不重复写 CREATE 事件。
+    返回 BackgroundCheckOrder。
+    """
+    order, created = BackgroundCheckOrder.objects.get_or_create(
+        config=config, order_number=str(order_number),
+        defaults={
+            'candidate_id': str(candidate_id or ''),
+            'candidate_name': candidate_name or '',
+            'status': BGOrderStatus.ACCEPTED,
+            'status_name': BGOrderStatus.ACCEPTED.label,
+            'latest_payload': request_payload,
+        },
+    )
+    if created:
+        BackgroundCheckOrderEvent.objects.create(
+            order=order, config=config, from_status=None, to_status=BGOrderStatus.ACCEPTED,
+            source='CREATE', is_legal_transition=True, raw_payload=request_payload,
+        )
+    return order
+
+
+def apply_callback_to_order(payload: dict, config: IntegrationConfig,
+                            sync_log: Optional[IntegrationSyncLog] = None
+                            ) -> tuple[BackgroundCheckOrder, Optional[BackgroundCheckOrderEvent], str]:
+    """回调驱动订单状态机（规范 §5.3 幂等 + 状态机转移）。
+
+    参数:
+        payload: 已验签的回调体（number/status/statusName/riskLevel/reportUrl/completionTime）
+        config: 命中的 IntegrationConfig
+        sync_log: 关联的 IntegrationSyncLog（审计 SUCCESS 那条），可为空
+    返回:
+        (order, event, action) —— action ∈ {'created','updated','noop'}
+        - created: 首次按 callback 状态建单（懒建，创建订单接口未先落库的场景）
+        - updated: 状态发生变更，已写转移事件
+        - noop: 状态与完成时间/风险一致，幂等不重复处理
+    """
+    number = str(payload.get('number', ''))
+    status_val = payload.get('status')
+    status_name = payload.get('statusName') or BGOrderStatus.label_of(status_val) or ''
+    risk_level = payload.get('riskLevel')
+    report_url = payload.get('reportUrl') or ''
+    completion_time = _ms_to_datetime(payload.get('completionTime'))
+
+    order, created = BackgroundCheckOrder.objects.get_or_create(
+        config=config, order_number=number,
+        defaults={
+            'status': status_val, 'status_name': status_name,
+            'risk_level': risk_level, 'report_url': report_url,
+            'completion_time': completion_time, 'latest_payload': payload,
+        },
+    )
+    if created:
+        ev = BackgroundCheckOrderEvent.objects.create(
+            order=order, config=config, from_status=None, to_status=status_val,
+            risk_level=risk_level, report_url=report_url, completion_time=completion_time,
+            source='CALLBACK', is_legal_transition=True, raw_payload=payload, sync_log=sync_log,
+        )
+        return order, ev, 'created'
+
+    # 已存在：状态 + 完成时间 + 风险一致 → 幂等 noop（审计已记录 SUCCESS，不重复落事件）
+    if (order.status == status_val
+            and order.completion_time == completion_time
+            and order.risk_level == risk_level):
+        return order, None, 'noop'
+
+    from_status = order.status
+    is_legal = status_val in ALLOWED_ORDER_TRANSITIONS.get(from_status, set())
+    if not is_legal:
+        logger.warning('BG order %s 非合法转移 %s->%s（供应商权威，仍落库）',
+                       number, from_status, status_val)
+    ev = BackgroundCheckOrderEvent.objects.create(
+        order=order, config=config, from_status=from_status, to_status=status_val,
+        risk_level=risk_level, report_url=report_url, completion_time=completion_time,
+        source='CALLBACK', is_legal_transition=is_legal, raw_payload=payload, sync_log=sync_log,
+    )
+    order.status = status_val
+    order.status_name = status_name
+    if risk_level is not None:
+        order.risk_level = risk_level
+    order.report_url = report_url
+    if completion_time is not None:
+        order.completion_time = completion_time
+    order.latest_payload = payload
+    order.save(update_fields=['status', 'status_name', 'risk_level',
+                              'report_url', 'completion_time', 'latest_payload', 'updated_at'])
+    return order, ev, 'updated'
+
+
+def cancel_background_check_order(order: BackgroundCheckOrder,
+                                  config: Optional[IntegrationConfig] = None) -> Dict[str, Any]:
+    """平台发起取消（状态机置 6 已取消）。
+
+    先按规范向供应商取消接口发签名出向（best-effort），再在平台侧置为已取消。
+    平台发起的取消具有权威性，无论出向成败均落 CANCEL 事件。
+    """
+    config = config or order.config
+    result: Dict[str, Any] = {'success': True, 'message': '已取消'}
+    try:
+        cfg = config.config or {}
+        secret = _bg_secret(config)
+        app_id = cfg.get('AppId', cfg.get('appId', ''))
+        app_key = secret.get('api_key') or secret.get('apiKey') or ''
+        env = cfg.get('env', 'sandbox')
+        base_url = cfg.get('productionBaseUrl') if env == 'production' else cfg.get('sandboxBaseUrl')
+        path = cfg.get('cancelPath') or '/api/v1/background-check/cancel'
+        if base_url and app_key:
+            url = f'{base_url.rstrip("/")}{path}'
+            params = {'number': order.order_number}
+            headers = _bg_headers(app_id, app_key, params)
+            t0 = time.time()
+            try:
+                r = requests.post(url, json=params, headers=headers, timeout=10)
+                duration_ms = int((time.time() - t0) * 1000)
+                try:
+                    resp = r.json()
+                except Exception:
+                    resp = {}
+                ok = r.status_code in (200, 201) and resp.get('code') in (0, '0', None)
+                IntegrationSyncLog.objects.create(
+                    config=config, sync_type='CANCEL_ORDER',
+                    status='SUCCESS' if ok else 'FAILED',
+                    endpoint=path, method='POST', direction='OUT', duration_ms=duration_ms,
+                    error_message='' if ok else f'HTTP {r.status_code}: {r.text[:200]}',
+                )
+                if not ok:
+                    result = {'success': False,
+                              'message': f'供应商取消失败: HTTP {r.status_code} {resp.get("message", "")}'}
+            except requests.RequestException as e:
+                IntegrationSyncLog.objects.create(
+                    config=config, sync_type='CANCEL_ORDER', status='FAILED',
+                    endpoint=path, method='POST', direction='OUT',
+                    duration_ms=int((time.time() - t0) * 1000), error_message=str(e),
+                )
+                result = {'success': False, 'message': f'供应商取消异常: {e}'}
+
+        # 平台侧置为已取消
+        from_status = order.status
+        if from_status != BGOrderStatus.CANCELLED:
+            is_legal = BGOrderStatus.CANCELLED in ALLOWED_ORDER_TRANSITIONS.get(from_status, set())
+            BackgroundCheckOrderEvent.objects.create(
+                order=order, config=config, from_status=from_status,
+                to_status=BGOrderStatus.CANCELLED, source='CANCEL',
+                is_legal_transition=is_legal, raw_payload={'number': order.order_number},
+            )
+            order.status = BGOrderStatus.CANCELLED
+            order.status_name = BGOrderStatus.CANCELLED.label
+            order.save(update_fields=['status', 'status_name', 'updated_at'])
+    except Exception as e:
+        logger.exception('cancel_background_check_order failed')
+        result = {'success': False, 'message': f'取消异常: {e}'}
+    return result
 
 
 def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, int, str, Optional[IntegrationConfig]]:

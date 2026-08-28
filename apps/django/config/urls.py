@@ -14,7 +14,7 @@ from drf_spectacular.views import (
 from apps.application.views import ApplicationViewSet
 from apps.demand.views import DemandConfigView
 # 2026-08-28 寇豆码: 背调供应商异步回调入向端点（§5.2 验签，供应商签名保护，不鉴权）
-from apps.integration.views import BackgroundCheckCallbackView
+from apps.integration.views import BackgroundCheckCallbackView, BackgroundCheckOrderViewSet
 
 api_v1_patterns = [
     # 全局统一搜索 (Plan P): 必须排在 urls_stubs 的 search stub 之前以优先命中
@@ -113,6 +113,9 @@ api_v1_patterns = [
     #   前缀 background-check/ 不与 integrations router 冲突；不加 IsSuperAdmin，靠签名保护。
     path('background-check/callback', BackgroundCheckCallbackView.as_view(), name='bg-callback'),
     path('background-check/callback/', BackgroundCheckCallbackView.as_view()),
+    # 2026-08-28 寇豆码: 背调订单状态机视图（超管可读 + 取消）。与 callback 同前缀但路径无冲突。
+    path('background-check/orders/', BackgroundCheckOrderViewSet.as_view({'get': 'list'}), name='bg-orders-list'),
+    path('background-check/orders/<str:pk>/', BackgroundCheckOrderViewSet.as_view({'get': 'retrieve', 'post': 'cancel'}), name='bg-orders-detail'),
     # 2026-08-17 PR #69: 数据字典 (apps.dictionary) — 阶段类型等枚举 single source of truth.
     #   router 注册 dictionary-items / dictionary-types, 挂在 api_v1 根下 →
     #   /api/v1/dictionary-items/?type_code=recruitment_stage_type
