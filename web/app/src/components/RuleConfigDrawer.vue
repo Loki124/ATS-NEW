@@ -325,3 +325,26 @@ async function save() {
   color: var(--ink-soft, #6b7280);
 }
 </style>
+
+<!-- NModal preset=card 由 teleport 渲染到 body，scoped data-v 不可达。
+     Naive 把 class 合并到 .n-card 根（class="n-card ... rule-config-modal"）。
+     约束内容区高度 + 内部滚动，避免 12 月目标表单撑爆视口
+     （Playwright 复验证：12 月 + 规则信息 + 管控强度 ≈ 1595px > 典型 900px 视口）。
+     第二个 <style> 不带 scoped，对全局生效，专门命中 teleport 出来的 modal 根。 -->
+<style>
+.n-card.rule-config-modal {
+  max-height: min(90vh, 1000px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.n-card.rule-config-modal .n-card__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.n-card.rule-config-modal .n-card-header,
+.n-card.rule-config-modal .n-card__footer {
+  flex: 0 0 auto;
+}
+</style>
