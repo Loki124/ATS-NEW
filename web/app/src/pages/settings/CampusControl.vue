@@ -451,7 +451,7 @@ const scopeText = (bu: string, position: string, level: string) => {
 /* ============================ 全局状态 ============================ */
 const activeTab = ref('ratio')
 const loading = reactive({
-  ratio: false, plan: false, rules: false, saveDimRuleSet: false,
+  ratio: false, plan: false, rules: false,
   dimensions: false, indicators: false, persons: false, validate: false,
   import: false,
 })
@@ -680,15 +680,10 @@ const detailMatrix = computed(() => {
         indicatorId: i.id,
         indicatorName: i.name,
         configured: !!r,
-        targetPct: r ? Math.round(r.target * 1000) / 10 : null,
         annualTarget: r ? Math.round(r.annualTarget) : null,
         monthlyTargets: r ? normalizeMonthly(r.monthlyTargets) : Array(12).fill(0),
       }
     })
-})
-const detailSumOk = computed(() => {
-  const s = detailMatrix.value.filter((r) => r.configured).reduce((a, r) => a + (r.targetPct || 0), 0)
-  return Math.abs(s - 100) < 0.05
 })
 
 function selectDimension(id: string) {
@@ -699,70 +694,6 @@ function selectDimension(id: string) {
   const yr = years.length ? years[0].value : new Date().getFullYear()
   detailScopeKey.value = sk
   detailYear.value = yr
-  // 直接打开 dimEditor 弹窗的 view 模式（融合旧指标详情弹窗）
-  openDetailView(id, sk, yr)
-}
-
-/**
- * 从 master 列表打开 dimEditor 弹窗的 view 模式（融合旧 indicatorDetailModal）。
- * - view 模式下 lockContext 解除，主体渲染 detailMatrix；顶部 (scope, year) 切换器即时刷新。
- * - 点底部「编辑」进入 edit 模式（lockContext=true），上下文锁定。
- */
-function openDetailView(dimensionId: string, scopeKey: string, year: number) {
-  const scope = keyToScope(scopeKey)
-  dimEditor.dimensionId = dimensionId
-  dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
-  dimEditor.bu = scope.bu
-  dimEditor.position = scope.position
-  dimEditor.level = scope.level
-  dimEditor.year = year
-  // view 模式不锁上下文——允许顶部 (scope, year) 切换器即时切换查看
-  dimEditor.lockContext = false
-  dimEditor.originalScope = { bu: scope.bu, position: scope.position, level: scope.level, year }
-  dimEditor.scopeDirty = false
-  dimEditor.mode = 'view'
-  dimEditor.show = true
-  _buildDimRows()
-}
-
-// 复用 dimEditor 打开「选中维度 + 选中适用范围 + 选中年度」的规则集（不依赖单条规则推断）
-function openDetailEditor() {
-  if (!detailDimensionId.value) return
-  const scope = keyToScope(detailScopeKey.value)
-  dimEditor.dimensionId = detailDimensionId.value
-  dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
-  dimEditor.bu = scope.bu
-  dimEditor.position = scope.position
-  dimEditor.level = scope.level
-  dimEditor.year = detailYear.value
-  dimEditor.lockContext = true
-  dimEditor.originalScope = { bu: scope.bu, position: scope.position, level: scope.level, year: detailYear.value }
-  dimEditor.scopeDirty = false
-  dimEditor.mode = 'view'
-  dimEditor.show = true
-  _buildDimRows()
-}
-// G5 清空入口：打开即把所有指标行标记为「待删」，保存即走后端清空分支
-function openDetailClear() {
-  openDetailEditor()
-  for (const row of dimEditor.rows) row.pendingDelete = true
-  dimEditor.mode = 'edit'
-}
-
-// 维度层级编辑入口：打开弹窗，预填该维度的「归属年度 + 年度目标」（从 master 聚合行取）
-function openDimensionEdit(d: any) {
-  dimEditId.value = d.id
-  dimEditName.value = d.name
-  // 取该维度规则中的主年度（多年份取最大）与主年度对应年度目标之和
-  const dRules = rules.value.filter((r) => r.dimension === d.id)
-  const years = Array.from(new Set(dRules.map((r) => Number(r.year)))).sort((a, b) => a - b)
-  const primaryYear = years.length ? years[years.length - 1] : new Date().getFullYear()
-  const annual = dRules
-    .filter((r) => Number(r.year) === primaryYear)
-    .reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
-  dimEditYear.value = primaryYear
-  dimEditAnnual.value = annual
-  dimensionEditModal.value = true
 }
 
 // 最大余数法：把整数 total 按权重(和≈1)精确分配为若干整数，保证加和严格 == total
@@ -791,6 +722,17 @@ function _scaleMonthly(oldMonthly: number[], newAnnual: number): number[] {
     return Array.from({ length: 12 }, (_, i) => base + (i < rem ? 1 : 0))
   }
   return _largestRemainder(newAnnual, oldMonthly.map((m) => m / sum))
+}
+
+function normalizeMonthly(raw: any): number[] {
+  const out = Array(12).fill(0)
+  if (Array.isArray(raw)) {
+    for (let i = 0; i < 12 && i < raw.length; i++) {
+      const v = Number(raw[i])
+      out[i] = Number.isFinite(v) && v >= 0 ? Math.round(v) : 0
+    }
+  }
+  return out
 }
 
 // 维度层级保存：把「归属年度 + 年度目标」扇出到该维度下所有适用范围（按各范围当前占比分配），逐 scope 调 set_rules
@@ -985,7 +927,6 @@ const dimensionRuleColumns: DataTableColumns<any> = [
   {
     title: '操作', key: 'actions', width: 170, fixed: 'right',
     render: (d: any) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', type: 'primary', quaternary: true, onClick: () => openDimensionEdit(d) }, { default: () => '编辑维度' }),
       h(NButton, { size: 'small', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => '查看指标' }),
     ]),
   },
@@ -998,10 +939,6 @@ const detailMatrixColumns: DataTableColumns<any> = [
       h('span', {}, r.indicatorName),
       !r.configured ? h(NTag, { size: 'small', type: 'warning', bordered: false }, { default: () => '未配置' }) : null,
     ]),
-  },
-  {
-    title: '目标占比', key: 'targetPct', width: 110,
-    render: (r: any) => (r.configured ? h('span', {}, `${r.targetPct}%`) : h('span', { class: 'muted' }, '—')),
   },
   {
     title: '年度目标(人)', key: 'annualTarget', width: 120,
@@ -1082,500 +1019,6 @@ const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
   { title: '本月实际', key: 'monthActual', width: 100 }, { title: '本月目标', key: 'monthTarget', width: 100 },
   { title: '人数状态', key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
 ]
-
-/* ============================ 维度规则集编辑面（占比之和须=100%） ============================ */
-interface DimEditorRow {
-  indicatorId: string
-  indicatorName: string
-  targetPct: number | null // null = 未设目标
-  strength: Strength
-  hasExisting: boolean
-  pendingDelete: boolean
-  /** 年度管控人数（0 也可编辑）。默认由「维度年度管控人数 × 占比」推导；用户手动改过即脱离联动。 */
-  annualTarget: number
-  /** 是否被用户手动调整过年度人数。手动调整后，本行的 annualTarget 不再随 top-level totalTarget 自动重算（点行尾「↻ 重算」可解除锁定）。 */
-  manuallyEditedAnnual: boolean
-  /** 12 个月度管控人数（长度固定 12 的非负整数数组）。 */
-  monthlyTargets: number[]
-}
-
-const dimEditor = reactive({
-  show: false,
-  mode: 'view' as 'view' | 'edit',
-  // 从已有规则打开时锁定「维度/年度」（规则集身份），适用范围保持可改以支持「重定位」
-  lockContext: false,
-  dimensionId: '' as string | null,
-  isGlobal: true,
-  bu: '', position: '', level: '',
-  year: 2026,
-  /** 编辑态打开时的适用范围快照，作为「重定位」参照；改了适用范围即触发迁移。 */
-  originalScope: null as { bu: string; position: string; level: string; year: number } | null,
-  /** 编辑态下适用范围是否相对 originalScope 变化（决定是否走重定位路径）。 */
-  scopeDirty: false,
-  /** 维度级「年度管控人数」。所有未删除指标行的 annualTarget 默认由 该值 × 占比 推导；手调过的行除外。 */
-  totalTarget: 0,
-  rows: [] as DimEditorRow[],
-})
-
-const dimEditorIndicators = computed(() =>
-  indicators.value.filter((i) => i.dimension === dimEditor.dimensionId),
-)
-// 仅统计未标记删除行的占比之和
-const dimEditorSumPct = computed(() =>
-  dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : (r.targetPct || 0)), 0),
-)
-const dimEditorSumOk = computed(() => dimEditorAllPendingDelete.value || Math.abs(dimEditorSumPct.value - 100) < 0.05)
-const dimEditorHasPendingDelete = computed(() => dimEditor.rows.some((r) => r.pendingDelete))
-const dimEditorPendingDeleteCount = computed(() => dimEditor.rows.filter((r) => r.pendingDelete).length)
-// 仅统计未删除行的年度人数加和（与 totalTarget 比较以判断「人数加和 = 维度年度目标」）。
-const dimEditorActiveAnnualSum = computed(() =>
-  dimEditor.rows.reduce((s, r) => s + (r.pendingDelete ? 0 : Math.round(r.annualTarget || 0)), 0),
-)
-// 人数加和 = totalTarget（口径：用户截图需求）。差 0 等同整数加和精确相等；不做四舍五入容差。
-const dimEditorTotalOk = computed(() => dimEditorAllPendingDelete.value || dimEditorActiveAnnualSum.value === Math.round(dimEditor.totalTarget || 0))
-// G5：所有指标行都标记删除 → 视为「清空该维度规则集」（提交空 rules，走后端清空分支，跳过占比/人数校验）
-const dimEditorAllPendingDelete = computed(
-  () => dimEditor.rows.length > 0 && dimEditor.rows.every((r) => r.pendingDelete),
-)
-
-/** 把任意 monthly 数组规范成长度 12 的非负整数数组（不足补 0、过长截断、非数置 0）。 */
-function normalizeMonthly(raw: any): number[] {
-  const out = Array(12).fill(0)
-  if (Array.isArray(raw)) {
-    for (let i = 0; i < 12 && i < raw.length; i++) {
-      const v = Number(raw[i])
-      out[i] = Number.isFinite(v) && v >= 0 ? Math.round(v) : 0
-    }
-  }
-  return out
-}
-
-/**
- * 在 dimEditor.totalTarget 变化时，对「未手动调整且未删除」的行按 targetPct 比例重算 annualTarget。
- * 用最大余数法（largest-remainder / Hamilton）保证加和 = totalTarget 严格相等，
- * 余数部分按比例小数位从大到小分配。
- */
-function _redistributeAnnualByPct(total: number) {
-  const target = Math.max(0, Math.round(total || 0))
-  // 参与分配的行：未删 & 有占比
-  const active = dimEditor.rows.filter((r) => !r.pendingDelete && r.targetPct != null)
-  const locked = active.filter((r) => r.manuallyEditedAnnual)
-  const fluid = active.filter((r) => !r.manuallyEditedAnnual)
-  const lockedSum = locked.reduce((s, r) => s + Math.round(r.annualTarget || 0), 0)
-  // fluid 行要把总人数里「扣掉已锁」的部分吃满，因此 fluidTotal 的单位值是 fluidTotal/fluidSumPct
-  // 而非 totalTarget/100 —— 这就是「60% locked → 40% fluid → 重算 60% → 应得 1039 (== 60%×1731-40%×1731)」
-  // 而不是「60%×fluidTotal」= 60%×1039 = 623（v2.7 之前的 bug）。
-  const fluidTotal = Math.max(0, target - lockedSum)
-  const fluidSumPct = fluid.reduce((s, r) => s + (r.targetPct || 0), 0)
-  if (fluidSumPct <= 0) return
-  // 各 fluid 行精确分配量：每个 unit% 占比 fluidTotal/fluidSumPct 的「购买力」
-  const floats = fluid.map((r) => ({
-    row: r,
-    exact: ((r.targetPct || 0) / fluidSumPct) * fluidTotal,
-    floor: Math.floor(((r.targetPct || 0) / fluidSumPct) * fluidTotal),
-    frac: 0,
-  }))
-  for (const f of floats) f.frac = f.exact - f.floor
-  floats.sort((a, b) => b.frac - a.frac)
-  const totalFloors = floats.reduce((s, f) => s + f.floor, 0)
-  // 用「补足到 fluidTotal」的整差量做最大余数分配（largest-remainder / Hamilton 法），
-  // 严格保证 fluidSum = fluidTotal；不再用两段循环（旧实现 second loop 会从 i=0 覆盖 +1）。
-  const needAdd = Math.max(0, Math.round(fluidTotal - totalFloors))
-  for (let i = 0; i < floats.length; i++) {
-    floats[i].row.annualTarget = i < needAdd ? floats[i].floor + 1 : floats[i].floor
-  }
-}
-
-function _buildDimRows() {
-  const bu = dimEditor.isGlobal ? '' : dimEditor.bu
-  const position = dimEditor.isGlobal ? '' : dimEditor.position
-  const level = dimEditor.isGlobal ? '' : dimEditor.level
-  const existing = rules.value.filter(
-    (r) =>
-      r.dimension === dimEditor.dimensionId &&
-      (r.bu || '') === bu && (r.position || '') === position && (r.level || '') === level &&
-      r.year === dimEditor.year,
-  )
-  // 先收集历史 annual；所有行（含新行）首次进入时按业务规则：**历史 annual 是「用户录入的事实」**，标记为手动调整（避免后续 top-total 重分配把它改掉）
-  dimEditor.rows = dimEditorIndicators.value.map((ind) => {
-    const er = existing.find((r) => r.indicator === ind.id)
-    const historical = er ? Math.round(Number(er.annualTarget) || 0) : 0
-    return {
-      indicatorId: ind.id,
-      indicatorName: ind.name,
-      targetPct: er ? Math.round(er.target * 1000) / 10 : null,
-      strength: er ? (er.strength as Strength) : '硬约束',
-      hasExisting: !!er,
-      pendingDelete: false,
-      annualTarget: historical,
-      // 历史 annual 视为「用户录入过」—— 不要被 top-total 自动覆盖
-      manuallyEditedAnnual: !!er,
-      monthlyTargets: er
-        ? normalizeMonthly(er.monthlyTargets)
-        : Array(12).fill(0),
-    }
-  })
-  // 维度年度管控人数 = Σ(未删行 annualTarget)，历史有值即按历史求和；无历史置 0 让用户首次输入。
-  const existingTotal = existing.reduce((s, r) => s + Math.round(Number(r.annualTarget) || 0), 0)
-  dimEditor.totalTarget = existing.length > 0 ? existingTotal : 0
-}
-
-/**
- * view 模式下 (适用范围, 年度) 切换 → 同步到 dimEditor 上下文（点底部「编辑」时带入）。
- * 仅在 view 模式触发；edit 模式下 dimEditor 上下文由 lockContext 锁住，不联动。
- */
-watch(
-  [() => detailScopeKey.value, () => detailYear.value],
-  () => {
-    if (!dimEditor.show || dimEditor.mode !== 'view') return
-    const scope = keyToScope(detailScopeKey.value)
-    dimEditor.isGlobal = !(scope.bu || scope.position || scope.level)
-    dimEditor.bu = scope.bu
-    dimEditor.position = scope.position
-    dimEditor.level = scope.level
-    dimEditor.year = detailYear.value
-    dimEditor.originalScope = { bu: scope.bu, position: scope.position, level: scope.level, year: detailYear.value }
-    _buildDimRows()
-  },
-)
-
-/**
- * 打开维度规则集编辑面。
- * - rule 给定：以该规则的 (适用范围, 维度, 年度) 为上下文，锁定上下文，展示该维度全部指标。
- * - opts.preDelete：打开即进入编辑态并标记某指标「待删」，强制用户重平衡至 100%。
- * 这样点任一指标/删除单条，都进入「维度级」编辑，保证占比之和=100% 的约束。
- */
-function openDimensionEditor(rule?: ControlRule, opts?: { preDelete?: string }) {
-  if (rule) {
-    dimEditor.dimensionId = rule.dimension
-    dimEditor.isGlobal = !(rule.bu || rule.position || rule.level)
-    dimEditor.bu = rule.bu || ''
-    dimEditor.position = rule.position || ''
-    dimEditor.level = rule.level || ''
-    dimEditor.year = rule.year
-    dimEditor.lockContext = true // 维度/年度锁定（身份），适用范围保持可改
-    dimEditor.originalScope = { bu: rule.bu || '', position: rule.position || '', level: rule.level || '', year: rule.year }
-    dimEditor.scopeDirty = false
-  } else {
-    dimEditor.dimensionId = null
-    dimEditor.isGlobal = true
-    dimEditor.bu = ''; dimEditor.position = ''; dimEditor.level = ''
-    dimEditor.year = 2026
-    dimEditor.lockContext = false
-    dimEditor.originalScope = null
-    dimEditor.scopeDirty = false
-  }
-  dimEditor.mode = opts?.preDelete ? 'edit' : 'view'
-  dimEditor.show = true
-  if (dimEditor.dimensionId) _buildDimRows()
-  if (opts?.preDelete) {
-    const row = dimEditor.rows.find((r) => r.indicatorId === opts.preDelete)
-    if (row) row.pendingDelete = true
-  }
-}
-
-function onDimEditorDimChange() {
-  dimEditor.rows = []
-  if (dimEditor.dimensionId) _buildDimRows()
-}
-/**
- * 上下文切换处理：
- * - 新建态（!lockContext）：适用范围/年度变化 → 重建行，从历史规则派生对应 (适用范围,维度,年度) 的 monthly/annual。
- * - 编辑态（lockContext）：维度/年度已锁定，仅适用范围可改；改适用范围**不重建行**（避免丢失正在编辑的指标/占比/人数），
- *   仅标记 scopeDirty，保存时按「重定位」语义删除原 scope 规则集、在新 scope 重建。
- */
-function onDimEditorCtxChange() {
-  if (!dimEditor.lockContext) {
-    if (dimEditor.dimensionId) _buildDimRows()
-    return
-  }
-  dimEditor.scopeDirty = _isScopeDirty()
-}
-/** 编辑态下取「当前生效适用范围」（全局时 bu/position/level 归空）。 */
-function _currentEffectiveScope() {
-  return {
-    bu: dimEditor.isGlobal ? '' : dimEditor.bu,
-    position: dimEditor.isGlobal ? '' : dimEditor.position,
-    level: dimEditor.isGlobal ? '' : dimEditor.level,
-    year: dimEditor.year,
-  }
-}
-/** 当前生效适用范围是否与原打开时不同（决定是否触发重定位）。 */
-function _isScopeDirty(): boolean {
-  const o = dimEditor.originalScope
-  if (!o) return false
-  const c = _currentEffectiveScope()
-  return o.bu !== c.bu || o.position !== c.position || o.level !== c.level || o.year !== c.year
-}
-/** 适用范围展示文案：全局 →「全局 / YYYY 年」；指定 →「部门 · 职务 · 职级 / YYYY 年」。 */
-function formatScopeLabel(s: { bu: string; position: string; level: string; year: number } | null): string {
-  if (!s) return '—'
-  if (!s.bu && !s.position && !s.level) return `全局 / ${s.year} 年`
-  const parts = [s.bu, s.position, s.level].filter(Boolean).join(' · ')
-  return `${parts} / ${s.year} 年`
-}
-/**
- * 当前 (dimension, year) 下，与「当前生效 scope 类型相反」的既有规则集（用于保存前预警）。
- *  - 当前为指定范围 → 取全局规则（bu/position/level 全空）
- *  - 当前为全局 → 取所有指定范围规则
- * 重定位场景下排除 original scope（其规则保存时会被删除，不算冲突）。
- */
-function _oppositeScopeRules(): ControlRule[] {
-  const dim = dimEditor.dimensionId
-  const year = dimEditor.year
-  if (!dim) return []
-  const c = _currentEffectiveScope()
-  const curIsGlobal = !c.bu && !c.position && !c.level
-  const o = dimEditor.originalScope
-  return rules.value.filter((r) => {
-    if (r.dimension !== dim || r.year !== year) return false
-    const rIsGlobal = !r.bu && !r.position && !r.level
-    if (rIsGlobal !== curIsGlobal) {
-      if (o && o.bu === r.bu && o.position === r.position && o.level === r.level && o.year === r.year) return false
-      return true
-    }
-    return false
-  })
-}
-
-function enterDimEdit() { dimEditor.mode = 'edit' }
-function closeDimEditor() {
-  dimEditor.show = false
-  dimEditor.mode = 'view'
-}
-function setDimRowTarget(id: string, v: number | null) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (r) {
-    r.targetPct = v == null ? null : v
-    // 不联动改 annual：让占比 / 年度各自独立，方便用户「指标下的年度支持单独调整」
-  }
-}
-function setDimRowStrength(id: string, v: string) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (r) r.strength = v as Strength
-}
-function setDimRowAnnual(id: string, v: number | null) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (!r) return
-  r.annualTarget = v == null ? 0 : Math.max(0, Math.round(v))
-  r.manuallyEditedAnnual = true // 标记脱离联动，下次 totalTarget 变化不再重算该行
-}
-/**
- * 用户在顶部改了「维度年度管控人数」→ 对「未手动调整 / 未删除」的行按 targetPct 比例重算（最大余数法），
- * 已手动调整的行保留原值。最后用「fluid 重算后」的 Σ 同步 totalTarget，确保总数与分项之和自洽。
- */
-function setDimEditorTotalTarget(v: number | null) {
-  const target = v == null ? 0 : Math.max(0, Math.round(v))
-  dimEditor.totalTarget = target
-  _redistributeAnnualByPct(target)
-}
-/** 行内 toggle：auto ↔ manual。auto 时点 = "锁定到手动"（脱离 totalTarget 联动），manual 时点 = "↻ 重算"（回到按总人数×占比 推算）。 */
-function toggleAnnualMode(id: string) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (!r) return
-  if (r.manuallyEditedAnnual) {
-    r.manuallyEditedAnnual = false
-    _redistributeAnnualByPct(dimEditor.totalTarget)
-  } else {
-    // 锁定当前值（即便它跟"理论自动值"一致，也明确标手动，避免 top-total 改动时被覆盖）
-    r.manuallyEditedAnnual = true
-  }
-}
-function setDimRowMonthly(id: string, idx: number, v: number | null) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (!r) return
-  const arr = [...r.monthlyTargets]
-  arr[idx] = v == null ? 0 : Math.max(0, Math.round(v))
-  r.monthlyTargets = arr
-}
-/** 把月度按「年度/12」整除，余数从 1 月开始各 +1。 */
-function redistributeDimMonthly(id: string) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (!r) return
-  const annual = Math.max(0, Math.round(r.annualTarget || 0))
-  const base = Math.floor(annual / 12)
-  const rem = annual - base * 12
-  r.monthlyTargets = Array.from({ length: 12 }, (_, i) => base + (i < rem ? 1 : 0))
-}
-function toggleDimRowDelete(id: string) {
-  const r = dimEditor.rows.find((x) => x.indicatorId === id)
-  if (r) {
-    r.pendingDelete = !r.pendingDelete
-    // 删除/恢复态变化不重算总数 —— 用户在顶部 totalTarget 里看到的是「当前未删行」的真实加和，
-    // 由 dimEditorActiveAnnualSum 提供；如果想保持 Σ = totalTarget 校验，需要在切回未删后补上重算。
-    // 这里不自动重算：让用户主动调整比静默改写好理解。
-  }
-}
-
-/** 单行 monthly 加和（按当前数据实时派生）。 */
-function dimRowMonthlySum(r: DimEditorRow) {
-  return r.monthlyTargets.reduce((a, b) => a + (b || 0), 0)
-}
-/** 单行 monthly 是否等于年度目标。 */
-function dimRowMonthlyOk(r: DimEditorRow) {
-  return dimRowMonthlySum(r) === Math.round(r.annualTarget || 0)
-}
-
-async function saveDimRuleSet() {
-  if (!dimEditor.dimensionId) { message.warning('请选择维度'); return }
-  // G5：全部指标标记删除 → 清空该维度规则集（跳过占比/人数校验，二次确认后提交空 rules）
-  if (dimEditorAllPendingDelete.value) {
-    const relocate = !!dimEditor.lockContext && !!dimEditor.scopeDirty
-    const doClear = async () => {
-      loading.saveDimRuleSet = true
-      try {
-        const res = await saveDimensionRuleSet(dimEditor.dimensionId!, {
-          bu: dimEditor.isGlobal ? '' : dimEditor.bu,
-          position: dimEditor.isGlobal ? '' : dimEditor.position,
-          level: dimEditor.isGlobal ? '' : dimEditor.level,
-          year: dimEditor.year,
-          totalTarget: 0,
-          rules: [],
-          ...(relocate && dimEditor.originalScope ? { original: dimEditor.originalScope } : {}),
-        })
-        message.success(`已清空维度规则集（${res.data.saved} 条）`)
-        dimEditor.show = false
-        dimEditor.mode = 'view'
-        await Promise.all([loadRules(), loadRatio()])
-      } catch (e) {
-        message.error(extractApiError(e, '清空失败'))
-      } finally {
-        loading.saveDimRuleSet = false
-      }
-    }
-    const c = _currentEffectiveScope()
-    const curIsGlobal = !c.bu && !c.position && !c.level
-    const opposite = _oppositeScopeRules()
-    // 清空全局但存在其他指定范围 → 后端会拦截，提前告知
-    if (curIsGlobal && opposite.length > 0) {
-      dialog.error({
-        title: '无法清空为全局规则',
-        content: '该维度年度下已存在指定范围规则集，清空全局会同时清除这些指定范围，操作被拦截。请先删除指定范围规则，或改用指定范围清空。',
-        positiveText: '我知道了',
-      })
-      return
-    }
-    if (relocate) {
-      const clearGlobalNote =
-        !curIsGlobal && opposite.length > 0
-          ? '\n注意：清空指定范围会同时清除该维度年度下的全局规则。'
-          : ''
-      dialog.warning({
-        title: '清空并迁移适用范围',
-        content: `将清空该维度规则集，并从「${formatScopeLabel(dimEditor.originalScope)}」迁移到「${formatScopeLabel(_currentEffectiveScope())}」。\n原「${formatScopeLabel(dimEditor.originalScope)}」下的规则将被删除。${clearGlobalNote}`,
-        positiveText: '清空',
-        negativeText: '取消',
-        onPositiveClick: doClear,
-      })
-      return
-    }
-    // 非重定位的普通清空：若会触发跨 scope 清理（指定范围→清全局），显式确认
-    if (!curIsGlobal && opposite.length > 0) {
-      dialog.warning({
-        title: '跨适用范围清空确认',
-        content: '清空指定范围将同时清除该维度年度下的全局规则，是否继续？',
-        positiveText: '继续清空',
-        negativeText: '取消',
-        onPositiveClick: doClear,
-      })
-      return
-    }
-    dialog.warning({
-      title: '清空该维度规则集',
-      content: '所有指标都已标记删除，保存将清空该维度下当前适用范围的全部规则，是否继续？',
-      positiveText: '清空',
-      negativeText: '取消',
-      onPositiveClick: doClear,
-    })
-    return
-  }
-  const validRows = dimEditor.rows.filter((r) => !r.pendingDelete && r.targetPct != null)
-  if (validRows.length === 0) { message.warning('请至少保留一个指标并设置占比'); return }
-  if (!dimEditorSumOk.value) { message.warning(`占比之和须 = 100%，当前 ${dimEditorSumPct.value.toFixed(1)}%`); return }
-  // 人数加和 = 维度年度总人数（用户口径）
-  if (!dimEditorTotalOk.value) {
-    message.warning(
-      `各指标年度人数加和（${dimEditorActiveAnnualSum.value}）须等于「维度年度管控人数」（${Math.round(dimEditor.totalTarget || 0)}），请调整各指标年度或顶部总人数后重试`,
-    )
-    return
-  }
-  // 月度校验：单行 12 月加和 = 该行年度人数
-  const badMonths = validRows.filter((r) => !dimRowMonthlyOk(r))
-  if (badMonths.length) {
-    message.warning(`指标「${badMonths.map((r) => r.indicatorName).join('、')}」的 12 月之和 ≠ 年度人数`)
-    return
-  }
-  const rulesPayload: DimRuleSetItem[] = validRows.map((r) => ({
-    indicator: r.indicatorId,
-    target: (r.targetPct || 0) / 100,
-    strength: r.strength,
-    // 年度/月度都已规范化；显式传给后端，覆盖"从旧规则继承"路径
-    annualTarget: Math.round(r.annualTarget || 0),
-    monthlyTargets: r.monthlyTargets.slice(),
-  }))
-  // 编辑态且适用范围已改 → 走「重定位」：删除原 scope 规则集 + 在新 scope 重建。需二次确认。
-  const relocate = !!dimEditor.lockContext && !!dimEditor.scopeDirty
-  const doSave = async () => {
-    loading.saveDimRuleSet = true
-    try {
-      const res = await saveDimensionRuleSet(dimEditor.dimensionId!, {
-        bu: dimEditor.isGlobal ? '' : dimEditor.bu,
-        position: dimEditor.isGlobal ? '' : dimEditor.position,
-        level: dimEditor.isGlobal ? '' : dimEditor.level,
-        year: dimEditor.year,
-        totalTarget: dimEditorActiveAnnualSum.value,
-        rules: rulesPayload,
-        ...(relocate && dimEditor.originalScope ? { original: dimEditor.originalScope } : {}),
-      })
-      message.success(`已保存维度规则集（${res.data.saved} 条）`)
-      dimEditor.show = false
-      dimEditor.mode = 'view'
-      await Promise.all([loadRules(), loadRatio()])
-    } catch (e) {
-      message.error(extractApiError(e, '保存失败'))
-    } finally {
-      loading.saveDimRuleSet = false
-    }
-  }
-  const c = _currentEffectiveScope()
-  const curIsGlobal = !c.bu && !c.position && !c.level
-  const opposite = _oppositeScopeRules()
-  // 保存全局但存在其他指定范围 → 后端会拦截，这里提前告知，避免误以为能保存
-  if (curIsGlobal && opposite.length > 0) {
-    dialog.error({
-      title: '无法保存为全局规则',
-      content: '该维度年度下已存在指定范围规则集，保存全局会清空这些指定范围，操作被拦截。请先删除指定范围规则，或改用指定范围保存。',
-      positiveText: '我知道了',
-    })
-    return
-  }
-  if (relocate) {
-    const clearGlobalNote =
-      !curIsGlobal && opposite.length > 0
-        ? '\n注意：保存指定范围会同时清除该维度年度下的全局规则。'
-        : ''
-    dialog.warning({
-      title: '重定位适用范围',
-      content: `将把该维度规则集从「${formatScopeLabel(dimEditor.originalScope)}」迁移到「${formatScopeLabel(_currentEffectiveScope())}」。\n原「${formatScopeLabel(dimEditor.originalScope)}」下的规则将被删除。${clearGlobalNote}`,
-      positiveText: '迁移',
-      negativeText: '取消',
-      onPositiveClick: doSave,
-    })
-    return
-  }
-  // 非重定位的普通保存：若会触发跨 scope 清理（指定范围→清全局），显式确认
-  if (!curIsGlobal && opposite.length > 0) {
-    dialog.warning({
-      title: '跨适用范围保存确认',
-      content: '保存指定范围将同时清除该维度年度下的全局规则，是否继续？',
-      positiveText: '继续保存',
-      negativeText: '取消',
-      onPositiveClick: doSave,
-    })
-    return
-  }
-  await doSave()
-}
 
 /* ============================ 规则导入 / 导出 ============================ */
 const importDrawer = reactive({
@@ -2140,21 +1583,6 @@ onMounted(async () => {
 .form-row-2 { margin-bottom: 4px; }
 
 /* ===================== 维度规则集编辑面 ===================== */
-.dim-ctx { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-.dim-ctx .form-section { margin-bottom: 10px; }
-.dim-ctx .form-section:last-child { margin-bottom: 0; }
-.dim-rows { display: flex; flex-direction: column; gap: 10px; }
-.dim-summary {
-  display: flex; align-items: baseline; gap: 12px;
-  padding: 8px 12px;
-  border: 1px dashed var(--border-hairline);
-  border-radius: var(--radius-md);
-  background: var(--glass-bg-card);
-  font-size: 13px; color: var(--ink-soft);
-}
-.dim-summary .sum-label { color: var(--ink-faint); }
-.dim-summary .sum-value { font-size: 18px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-.dim-summary .sum-hint { font-size: 12px; color: var(--ink-faint); }
 
 /* 适用范围 form-section 标题行右移 switch */
 .form-section-title--scope {
@@ -2214,107 +1642,7 @@ onMounted(async () => {
 .total-target-tag { margin-left: auto; }
 
 /* 行内控件：统一上下结构（label 上、控件下），与「占比%」「强度」一致 */
-.ctrl-group {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-.ctrl-group--annual {
-  /* 继承 .ctrl-group 的 column 布局：标签在上，输入框+单位+toggle 在下 */
-  /* 与「占比%」「强度」保持一致的上下结构 */
-}
-.annual-ctrl-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.annual-unit {
-  font-size: 12px;
-  color: var(--ink-soft);
-  padding-right: 2px;
-}
-.annual-toggle-btn {
-  font-size: 12px !important;
-  padding: 0 12px !important;
-  height: 28px !important;
-  border-radius: var(--radius-sm, 6px) !important;
-  white-space: nowrap !important;
-  min-width: 78px !important;
-  flex-shrink: 0 !important;
-}
-/* Locked 态（auto 模式，可锁定）：ghost 风格，仅边框 + brand 文字 */
-.annual-toggle-btn:not(.annual-toggle-btn--locked) {
-  background: transparent !important;
-  border: 1px solid var(--border-hairline) !important;
-  color: var(--ink-soft) !important;
-}
-.annual-toggle-btn:not(.annual-toggle-btn--locked):hover {
-  border-color: var(--brand) !important;
-  color: var(--brand) !important;
-  background: color-mix(in srgb, var(--brand) 8%, transparent) !important;
-}
-/* Locked 态（manual 模式，可解锁）：实心 brand 紫 + 白字，让"已被手动调整"在视觉上突出 */
-.annual-toggle-btn--locked {
-  border: 1px solid var(--brand) !important;
-}
-.annual-toggle-btn--locked:hover {
-  filter: brightness(1.05);
-}
-/* 「均分年度目标」按钮（monthly 区） */
-.monthly-redist-btn {
-  font-size: 12px !important;
-  padding: 0 10px !important;
-  height: 26px !important;
-  border-radius: var(--radius-sm, 6px) !important;
-}
-.view-manual { margin-left: 4px; }
 
-/* 占比/人数 加和 callout 双指标 */
-.sum-callout .sum-sep {
-  margin: 0 6px;
-  color: var(--ink-faint);
-}
-.dim-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  background: var(--glass-bg-card);
-  transition: opacity 0.15s ease, border-color 0.15s ease;
-}
-.dim-row.row-deleted { opacity: 0.62; border-style: dashed; border-color: var(--c-error); }
-.dim-row.row-disabled { background: transparent; }
-.dim-row-head { display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap; }
-.dim-row-id { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 160px; }
-.dim-ind-name { font-weight: 600; color: var(--ink); min-width: 88px; }
-.dim-row-ctrl { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
-.dim-row-view { display: flex; align-items: center; gap: 10px; margin-left: auto; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
-.dim-row-view .view-annual strong { font-weight: 700; color: var(--ink); }
-.pct-suffix { font-size: 12px; color: var(--ink-soft); }
-.dim-del-alert { margin-top: 12px; }
-.dim-row-monthly {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 10px 12px;
-  border: 1px dashed var(--border-hairline);
-  border-radius: var(--radius-md);
-  background: rgba(99, 102, 241, 0.03);
-}
-.dim-row-monthly--readonly {
-  background: transparent;
-  opacity: 0.85;
-}
-.dim-row-monthly .monthly-head,
-.dim-row-monthly .monthly-foot { display: flex; align-items: center; gap: 12px; font-size: 12px; }
-.dim-row-monthly .monthly-head { color: var(--ink-soft); justify-content: space-between; }
-.dim-row-monthly .monthly-foot .allocated { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.month-val {
-  display: inline-block; min-height: 28px; padding: 0 8px;
-  line-height: 28px; font-variant-numeric: tabular-nums; font-size: 13px;
-  background: var(--ink-faint); color: var(--ink); border-radius: 6px;
-}
 
 /* ===================== 弹窗级微调 ===================== */
 .rule-modal :deep(.n-card__content),
