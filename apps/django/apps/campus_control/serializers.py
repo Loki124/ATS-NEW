@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.validators import UniqueTogetherValidator
 
 from .constants import DEPTS, SCHOOLS, MAJORS, SEXES, STRENGTH, STATUS, POSITIONS, LEVELS
 from .models import (
@@ -121,6 +122,30 @@ class ControlRuleSerializer(serializers.ModelSerializer):
     def get_updated_by_name(self, obj):
         u = getattr(obj, 'updated_by', None)
         return u.full_name if u else ''
+
+    # （说明）DRF ModelSerializer 会从 model.Meta.unique_together 自动注入
+    # UniqueTogetherValidator，默认 message 是「字段 X, Y, Z 必须能构成唯一集合。」，
+    # 对用户不友好。我们在这里覆盖 get_validators，把所有 UniqueTogetherValidator
+    # 替换为业务友好 message，并避免与默认的重复校验（DRF 不会去重）。
+    _UNIQUE_TOGETHER_FRIENDLY_MESSAGE = (
+        '该组合（适用范围 / 维度 / 指标 / 生效年度 / 启用状态）已存在同名规则副本；'
+        '请先在「规则列表」中停用或删除同名副本后再新建，'
+        '或调整「适用范围 / 维度 / 指标 / 生效年度」任意一项后再试。'
+    )
+
+    def get_validators(self):
+        validators_ = super().get_validators()
+        rewritten = []
+        for v in validators_:
+            if isinstance(v, UniqueTogetherValidator):
+                rewritten.append(UniqueTogetherValidator(
+                    queryset=v.queryset,
+                    fields=v.fields,
+                    message=self._UNIQUE_TOGETHER_FRIENDLY_MESSAGE,
+                ))
+            else:
+                rewritten.append(v)
+        return rewritten
 
     def validate(self, attrs):
         _validate_scope_fields(attrs)

@@ -89,12 +89,44 @@ export const validateValue = (resource: string, id: string, value: any) =>
  * 后端 `custom_exception_handler` 对 DRF 校验错误统一返回
  * `{ success, code, message: '请求处理失败', errors: { fieldKey: ['...'] } }`,
  * 只读 `message` 会永远显示泛化文案, 因此优先展开 `errors` 里的字段级提示。
+ *
+ * 2026-08-28 兜底: DRF ModelSerializer 自动注入的 UniqueTogetherValidator 默认文案
+ * 是「字段 X, Y, Z 必须能构成唯一集合。」, 对用户不友好。即便后端已通过
+ * ControlRuleSerializer.get_validators 替换为业务文案, 这里再做一道模式归一:
+ * 万一后端再加新表 unique_together 漏改文案, 前端也能屏蔽抽象错误, 转友好提示。
  */
+const UNIQUE_TOGETHER_ABSTRACT_PATTERN = /必须能构成唯一集合|make a unique set/i
+const UNIQUE_TOGETHER_FRIENDLY = (
+  '已存在同名记录（重复键）。请先停用或删除同名的旧记录后再新建，'
+  + '或调整其中任意一个关键字段（适用范围 / 维度 / 指标 / 生效年度 / 启用状态）以避免冲突。'
+)
+
+function _walk(node: unknown, visit: (v: unknown) => void): void {
+  if (node == null) return
+  if (typeof node === 'string') { visit(node); return }
+  if (Array.isArray(node)) { node.forEach((it) => _walk(it, visit)); return }
+  if (typeof node === 'object') {
+    Object.values(node as Record<string, unknown>).forEach((v) => _walk(v, visit))
+  }
+}
+
+function _flattenStrings(node: unknown): string {
+  const out: string[] = []
+  _walk(node, (v) => out.push(String(v)))
+  return out.join(' ')
+}
+
 export function extractApiError(e: any, fallback = '请求失败'): string {
   const data = e?.response?.data;
   const errors = data?.errors;
 
   if (errors) {
+    // 优先吞掉「必须能构成唯一集合」这类抽象 DRF 模板, 转业务友好文案。
+    // 深度遍历 errors 任何层级的字符串字段, 命中即整体替换, 避免误过嵌套报文。
+    if (UNIQUE_TOGETHER_ABSTRACT_PATTERN.test(_flattenStrings(errors))) {
+      return UNIQUE_TOGETHER_FRIENDLY
+    }
+
     if (typeof errors === 'string') return errors;
     const flattened = Object.values(errors)
       .flatMap((v) => (Array.isArray(v) ? v : [v]))

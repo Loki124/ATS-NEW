@@ -116,6 +116,50 @@ def test_copy_of_inactive_raises_integrity(sex_dim):
         copy_rule(src)
 
 
+# ---- T02-补充：DRF UniqueTogetherValidator 文案已改写为业务友好 ----
+def test_unique_together_validator_friendly_message(sex_dim):
+    """DRF ModelSerializer 会从 model.Meta.unique_together 自动注入
+    UniqueTogetherValidator，默认 message 是「字段 X...必须能构成唯一集合。」，
+    对用户不友好。我们已通过 ControlRuleSerializer.get_validators 把它替换为
+    业务友好文案。本测试固定这条契约：未来若回归到默认文案会被 CI 拦截。
+    """
+    from ..serializers import ControlRuleSerializer
+
+    ind = ControlIndicator.objects.get(dimension=sex_dim, name='男')
+
+    # 1. 先用 is_active=False 创建一条同名副本（DB 层 unique_together 7 字段
+    #    含 is_active，故完全相同 7 键的 is_active=False INSERT 会被 DB 拦；
+    #    DRF validator 在 INSERT 前先用 is_valid() 拦下）。
+    ControlRule.objects.create(
+        dimension=sex_dim, indicator=ind, year=2026,
+        bu='能电BG', position='', level='',
+        target=Decimal('1.0'), strength='硬约束',
+        annual_target=0, monthly_targets=[0] * 12,
+        is_active=False,
+    )
+
+    # 2. 用户用完全相同的 7 字段再 POST（is_active=False）→ DRF validator
+    #    应该立刻拒绝，errors 字典里出现业务友好文案，不再含抽象「必须能构成唯一集合」。
+    s = ControlRuleSerializer(data={
+        'bu': '能电BG', 'position': '', 'level': '',
+        'dimension': sex_dim.id, 'indicator': ind.id,
+        'year': 2026, 'target': 1.0, 'strength': '硬约束',
+        'is_active': False,
+        'annual_target': 0, 'monthly_targets': [0] * 12,
+    })
+    assert not s.is_valid(), f'期望 is_valid=False（撞唯一键），实得 errors={s.errors}'
+    flat = ' '.join(
+        item if isinstance(item, str) else ' '.join(map(str, item))
+        for v in s.errors.values() for item in (v if isinstance(v, list) else [v])
+    )
+    assert '必须能构成唯一集合' not in flat, (
+        f'regression: DRF UniqueTogetherValidator 仍吐默认文案，flat={flat!r}'
+    )
+    assert '同名规则副本' in flat, (
+        f'覆盖后的业务文案未生效（应含「同名规则副本」），flat={flat!r}'
+    )
+
+
 def test_toggle_enable_conflict_409(sex_dim):
     _mk_rule(sex_dim, '男', bu='能电BG', is_active=True)
     inactive = copy_rule(ControlRule.objects.get(bu='能电BG', indicator__name='男', is_active=True))
