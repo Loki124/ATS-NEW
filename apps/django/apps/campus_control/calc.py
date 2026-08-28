@@ -11,6 +11,7 @@ v2.8 关键变更（G1 真删人数规划）：
 - 新增 _largest_remainder_allocate（最大余数法），供后端按维度总人数精确分配 annual_target。
 """
 import math
+from datetime import date as _date
 from decimal import Decimal
 
 from .constants import (
@@ -183,18 +184,59 @@ def count_status(actual, target):
     return COUNT_GAP
 
 
+def _count_achievement(persons, rule, month_label=None):
+    """年度/本月 达成(在职) / 在途(在途Offer·在途待入职) / 实际(计入核算且指标命中) 人数。
+
+    month_label 指定时仅统计核算月份==该月的人员（本月口径）；否则统计全年（年度口径）。
+    """
+    in_scope = persons_for_rule(persons, rule)  # 适用范围命中 + counted + 状态在核算集
+    ind_filter = _indicator_filter(rule['dimension'], rule['indicator'])
+    achieved = in_progress = actual = 0
+    for p in in_scope:
+        if not all(p.get(k) == v for k, v in ind_filter.items()):
+            continue
+        if month_label is not None and _accounting_month(p) != month_label:
+            continue
+        actual += 1
+        st = p.get('status')
+        if st == '在职':
+            achieved += 1
+        elif st in ('在途Offer', '在途待入职'):
+            in_progress += 1
+    return achieved, in_progress, actual
+
+
 def compute_ratio(persons, rules):
-    """实时看板比例。返回 {total, rows}。total = 全部计入核算人数。"""
+    """实时看板：占比视角(兼容既有测试) + 人数达成视角(年度/本月 × 达成/在途/达成率)。"""
     total = len([p for p in persons if p.get('counted') and p.get('status') in _COUNTED_STATUSES])
+    cur_month = f'{_date.today().month}月'
+    cur_idx = _date.today().month - 1
     rows = []
     for r in rules:
         ratio = ratio_of(r, persons)
+        ann_ach, ann_ip, _ = _count_achievement(persons, r)
+        mon_ach, mon_ip, _ = _count_achievement(persons, r, cur_month)
+        annual_target = int(r.get('annual_target') or 0)
+        mt = r.get('monthly_targets') or [0] * 12
+        month_target = int(mt[cur_idx]) if isinstance(mt, (list, tuple)) and len(mt) >= 12 else 0
+        annual_rate = (_round3(_dec(ann_ach) / _dec(annual_target))) if annual_target > 0 else None
+        month_rate = (_round3(_dec(mon_ach) / _dec(month_target))) if month_target > 0 else None
         rows.append({
             'dimension': r['dimension'],
             'indicator': r['indicator'],
             'bu': r.get('bu') or '',
             'position': r.get('position') or '',
             'level': r.get('level') or '',
+            # —— 新增：人数达成视角 ——
+            'annualTarget': annual_target,
+            'annualAchieved': ann_ach,
+            'annualInProgress': ann_ip,
+            'annualRate': annual_rate,
+            'monthTarget': month_target,
+            'monthAchieved': mon_ach,
+            'monthInProgress': mon_ip,
+            'monthRate': month_rate,
+            # —— 保留：占比视角（既有测试断言依赖，勿删） ——
             'actual': count_rule(r, persons),
             'denom': denom_rule(r, persons),
             'ratio': _round3(ratio),

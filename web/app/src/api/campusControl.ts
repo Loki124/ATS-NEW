@@ -121,12 +121,22 @@ export interface RatioRow {
   bu: string
   position: string
   level: string
+  // —— 保留：占比视角（既有断言依赖） ——
   actual: number
   denom: number
   ratio: number
   target: number
   status: '正常' | '高于上限'
   strength: Strength
+  // —— 新增：人数达成视角 ——
+  annualTarget: number
+  annualAchieved: number
+  annualInProgress: number
+  annualRate: number | null
+  monthTarget: number
+  monthAchieved: number
+  monthInProgress: number
+  monthRate: number | null
 }
 
 export interface RatioResult {

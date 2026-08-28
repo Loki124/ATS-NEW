@@ -2,7 +2,7 @@
 import { ref, reactive, computed, watch, h } from 'vue'
 import {
   NModal, NForm, NFormItem, NInput, NInputNumber, NSelect,
-  NButton, NTag, NSpace, NGrid, NGi, NDivider, NAlert, useMessage,
+  NButton, NTag, NSpace, NGrid, NGi, NAlert, useMessage,
 } from 'naive-ui'
 import {
   STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS,
@@ -203,10 +203,10 @@ async function save() {
     class="rule-config-modal"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
-      <n-space vertical :size="14">
+      <n-space vertical :size="18">
         <!-- 模块一：规则信息 -->
         <section>
-          <div class="rc-section-title"><span class="dot" />规则信息</div>
+          <div class="rc-section-title">规则信息</div>
           <n-form :disabled="!editing" label-placement="top">
             <!-- T130：第 1 行 3 列 — 维度 / 指标 / 生效年度 -->
             <n-grid :cols="3" :x-gap="12">
@@ -260,11 +260,9 @@ async function save() {
           </n-form>
         </section>
 
-        <n-divider />
-
         <!-- 模块二：管控目标 -->
         <section>
-          <div class="rc-section-title"><span class="dot" />管控目标</div>
+          <div class="rc-section-title">管控目标</div>
           <n-form :disabled="!editing" label-placement="top">
             <n-form-item label="年度目标(人)">
               <n-space align="center" :wrap="false">
@@ -296,11 +294,9 @@ async function save() {
           </n-form>
         </section>
 
-        <n-divider />
-
         <!-- 模块三：管控强度 -->
         <section>
-          <div class="rc-section-title"><span class="dot" />管控强度</div>
+          <div class="rc-section-title">管控强度</div>
           <n-form :disabled="!editing" label-placement="top">
             <n-form-item>
               <n-select v-model:value="form.strength" :options="strengthOptions" />
@@ -331,16 +327,11 @@ async function save() {
 .rc-section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
   font-weight: 600;
   margin-bottom: 12px;
+  padding-left: 10px;
+  border-left: 3px solid var(--primary, #6366f1);
   color: var(--ink, #1f2937);
-}
-.rc-section-title .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--primary, #6366f1);
 }
 .rc-monthly {
   display: flex;

@@ -14,8 +14,8 @@
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
             <div class="kpi-card"><span class="kpi-label">管控规则数</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
-            <div class="kpi-card danger"><span class="kpi-label">硬约束超标</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
-            <div class="kpi-card warn"><span class="kpi-label">软/仅提示超标</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
+            <div class="kpi-card danger"><span class="kpi-label">硬约束年度未达标</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
+            <div class="kpi-card warn"><span class="kpi-label">软约束年度未达标</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
           </div>
           <div class="table-wrap">
             <n-data-table
@@ -31,8 +31,8 @@
           </div>
 
           <n-alert type="info" :show-icon="true" style="margin-top: 16px; flex-shrink: 0">
-            实时看板按「每条规则独立适用范围」展示各指标的<strong>占比管控</strong>（实际/分母、占比、目标、占比状态）。
-            各指标的<strong>年度 / 月度管控人数</strong>在「规则配置」→编辑维度规则集中维护，目标数据直接承载于规则上。
+            实时看板按「每条规则独立适用范围」展示各指标的<strong>人数达成管控</strong>（年度 / 本月 的目标、达成、达成率与在途）。
+            目标数据直接承载于规则上，在「规则配置」→编辑维度规则集中维护。
           </n-alert>
         </n-tab-pane>
 
@@ -551,9 +551,10 @@ watch(ruleFilterDimension, () => {
 const ratioData = ref<RatioResult>({ total: 0, rows: [] })
 const ratioKpi = computed(() => {
   const rows = ratioData.value.rows
+  const annualGap = (r: any) => (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) < (r.annualTarget || 0)
   return {
-    hard: rows.filter((r) => r.status !== '正常' && r.strength === '硬约束').length,
-    soft: rows.filter((r) => r.status !== '正常' && r.strength !== '硬约束').length,
+    hard: rows.filter((r) => r.strength === '硬约束' && annualGap(r)).length,
+    soft: rows.filter((r) => r.strength !== '硬约束' && annualGap(r)).length,
   }
 })
 
@@ -953,15 +954,19 @@ function onTabChange(name: string) {
 }
 
 /* ============================ 列定义 ============================ */
-// 实时看板：占比管控（每条规则独立适用范围）
+// 实时看板：人数达成管控视角（年度 / 本月 的目标、达成、达成率与在途）
 const ratioColumns: DataTableColumns<any> = [
   { title: '适用范围', key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) },
   { title: '维度', key: 'dimension', width: 90, fixed: 'left' },
   { title: '指标', key: 'indicator', width: 80, fixed: 'left' },
-  { title: '实际/分母', key: 'actual', width: 100, render: (r) => `${r.actual ?? '-'} / ${r.denom ?? '-'}` },
-  { title: '占比', key: 'ratio', width: 76, render: (r) => r.ratio == null ? h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => '—' }) : h(NTag, { type: 'default', bordered: false, size: 'small' }, { default: () => pct(r.ratio) }) },
-  { title: '目标', key: 'target', width: 68, render: (r) => r.target == null ? '—' : pct(r.target) },
-  { title: '占比状态', key: 'status', width: 100, render: (r) => h(NTag, { type: ratioStatusType(r.status || '正常'), bordered: false, size: 'small' }, { default: () => r.status || '—' }) },
+  { title: '年度目标', key: 'annualTarget', width: 90, render: (r) => String(r.annualTarget ?? 0) },
+  { title: '年度达成', key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) },
+  { title: '年度达成率', key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` },
+  { title: '年度在途', key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) },
+  { title: '本月目标', key: 'monthTarget', width: 90, render: (r) => String(r.monthTarget ?? 0) },
+  { title: '本月达成', key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) },
+  { title: '本月达成率', key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` },
+  { title: '本月在途', key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) },
   { title: '强度', key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
 ]
 
