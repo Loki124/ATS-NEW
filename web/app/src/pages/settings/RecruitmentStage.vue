@@ -7,16 +7,6 @@
         <h1 class="page-title">招聘阶段配置</h1>
         <p class="page-subtitle">定义可跨流程复用的招聘阶段库</p>
       </div>
-      <n-space>
-        <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px">
-          <template #prefix><n-icon :component="SearchOutline" /></template>
-        </n-input>
-        <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
-        <n-button type="primary" @click="showCreateModal = true">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          新增阶段
-        </n-button>
-      </n-space>
     </div>
 
     <div class="kpi-row">
@@ -27,6 +17,19 @@
       阶段是<strong>全局模板</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
     </n-alert>
 
+    <div class="toolbar">
+      <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px">
+        <template #prefix><n-icon :component="SearchOutline" /></template>
+      </n-input>
+      <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
+      <div class="spacer"></div>
+      <n-button type="primary" class="gradient-btn" @click="showCreateModal = true">
+        <template #icon><n-icon :component="AddOutline" /></template>
+        新增阶段
+      </n-button>
+    </div>
+
+    <div class="table-wrap">
     <n-data-table
       :columns="columns"
       :data="filteredStages"
@@ -34,11 +37,12 @@
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
     />
+    </div>
 
     <!-- 新增/编辑阶段弹窗 -->
     
     </div><!-- /.page-body -->
-<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 560px">
+<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 560px" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
         <n-form-item label="阶段名称" required>
           <n-input v-model:value="form.name" placeholder="如：HRBP筛选" />
@@ -60,10 +64,10 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <n-space justify="end">
+        <div class="drawer-footer">
           <n-button @click="showCreateModal = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存</n-button>
-        </n-space>
+        </div>
       </template>
     </n-modal>
 
@@ -334,10 +338,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* 模型 B：固定标题 + 内部滚动三件套（与 AccountSettings/DemandConfig 同款） */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -359,37 +360,7 @@ onMounted(async () => {
   padding-top: 8px;
 }
 
-
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-.page-header {
-  flex-shrink: 0;
-}
-.page-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-
 .recruitment-stage {
   padding: 20px 24px;
-}
-/* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
-.page-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
 }
 </style>

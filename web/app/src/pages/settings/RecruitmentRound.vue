@@ -7,21 +7,24 @@
         <h1 class="page-title">面试轮次管理</h1>
         <p class="page-subtitle">配置面试轮次、形式与面试官指派规则</p>
       </div>
-      <n-space>
-        <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px">
-          <template #prefix><n-icon :component="SearchOutline" /></template>
-        </n-input>
-        <n-button type="primary" @click="showModal = true">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          新增轮次
-        </n-button>
-      </n-space>
     </div>
 
     <div class="kpi-row">
       <div class="kpi-card"><span class="kpi-label">轮次总数</span><span class="kpi-value">{{ rounds.length }}</span></div>
     </div>
 
+    <div class="toolbar">
+      <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px">
+        <template #prefix><n-icon :component="SearchOutline" /></template>
+      </n-input>
+      <div class="spacer"></div>
+      <n-button type="primary" class="gradient-btn" @click="showModal = true">
+        <template #icon><n-icon :component="AddOutline" /></template>
+        新增轮次
+      </n-button>
+    </div>
+
+    <div class="table-wrap">
     <n-data-table
       :columns="columns"
       :data="rounds"
@@ -29,10 +32,11 @@
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
     />
+    </div>
 
     
     </div><!-- /.page-body -->
-<n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px">
+<n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
         <n-form-item label="轮次名称" required>
           <n-input v-model:value="form.name" placeholder="如：初试/复试/终试" />
@@ -48,10 +52,10 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <n-space justify="end">
+        <div class="drawer-footer">
           <n-button @click="showModal = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存</n-button>
-        </n-space>
+        </div>
       </template>
     </n-modal>
 
@@ -172,10 +176,7 @@ onMounted(() => loadList())
 </script>
 
 <style scoped>
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* 模型 B：固定标题 + 内部滚动三件套（与 AccountSettings/DemandConfig 同款） */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -197,37 +198,7 @@ onMounted(() => loadList())
   padding-top: 8px;
 }
 
-
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-.page-header {
-  flex-shrink: 0;
-}
-.page-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-
 .interview-round {
   padding: 20px 24px;
-}
-/* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
-.page-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
 }
 </style>

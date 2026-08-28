@@ -7,21 +7,24 @@
         <h1 class="page-title">招聘流程管理</h1>
         <p class="page-subtitle">定义招聘流程及其阶段编排</p>
       </div>
-      <n-space>
-        <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px">
-          <template #prefix><n-icon :component="SearchOutline" /></template>
-        </n-input>
-        <n-button type="primary" @click="openCreateProcess">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          新建流程
-        </n-button>
-      </n-space>
     </div>
 
     <div class="kpi-row">
       <div class="kpi-card"><span class="kpi-label">流程总数</span><span class="kpi-value">{{ processes.length }}</span></div>
     </div>
 
+    <div class="toolbar">
+      <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px">
+        <template #prefix><n-icon :component="SearchOutline" /></template>
+      </n-input>
+      <div class="spacer"></div>
+      <n-button type="primary" class="gradient-btn" @click="openCreateProcess">
+        <template #icon><n-icon :component="AddOutline" /></template>
+        新建流程
+      </n-button>
+    </div>
+
+    <div class="table-wrap">
     <n-data-table
       :columns="columns"
       :data="processes"
@@ -29,6 +32,7 @@
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
     />
+    </div>
 
     <!-- 流程详情 modal (view + edit 双模态, 统一入口) -->
     <ProcessDetailModal
@@ -149,10 +153,7 @@ onMounted(() => loadList())
 </script>
 
 <style scoped>
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* 模型 B：固定标题 + 内部滚动三件套（与 AccountSettings/DemandConfig 同款） */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -174,46 +175,7 @@ onMounted(() => loadList())
   padding-top: 8px;
 }
 
-
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-.page-header {
-  flex-shrink: 0;
-}
-.page-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-
 .recruitment-process {
   padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-/* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
-.page-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-.recruitment-process :deep(.n-data-table) {
-  flex: 1;
-}
-.recruitment-process :deep(.n-data-table-wrapper) {
-  min-height: 200px;
 }
 </style>

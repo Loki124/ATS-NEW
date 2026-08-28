@@ -22,6 +22,7 @@
     :mask-closable="true"
     :title="isCreateMode ? '新建流程' : '编辑流程'"
     :bordered="false"
+    :segmented="{ content: true, footer: true }"
     @update:show="handleUpdateShow"
   >
     <n-spin :show="loading">
