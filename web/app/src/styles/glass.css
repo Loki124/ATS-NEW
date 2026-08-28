@@ -345,48 +345,106 @@ body.dark .n-modal-mask {
   background: rgba(0, 0, 0, .25) !important;
 }
 
-/* === n-dropdown 玻璃态（22:35 统一交互规范）===
- * Naive UI n-dropdown 默认透明背景，背后页面内容会穿透
- * 用玻璃态 token 让 dropdown 卡片更不透明，内部文字清晰可见 */
+/* =============================================================
+ * 下拉弹窗统一规范（DESIGN.md §5.8 · 2026-08-28 立项）
+ * -------------------------------------------------------------
+ * 终结"外框圆角 + 项目直角"混用问题。三层穿透覆写 + 「层叠圆角」高亮。
+ *
+ * Naive UI BEM 三层结构（dropdown 复用 popover 渲染,peers: Popover）：
+ *   L1 外层容器 .n-popover（popover 主题 peer）
+ *   L2 内层菜单 .n-dropdown-menu / .n-base-select-menu
+ *   L3 项目行   .n-dropdown-option / .n-base-select-option / .n-dropdown-divider
+ *         高亮层  ::before（绝对定位的圆角高亮,inset 默认 4px 错误)
+ *
+ * 关键 token（单源 tokens.css）：
+ *   --radius-lg        = 12px  外框圆角
+ *   --radius-sm        = 6px   内部高亮圆角
+ *   --space-1/2/3      = 4/8/12  高亮 inset / 垂直 padding / 行水平 padding
+ *   --glass-bg-elevated / --glass-border / --shadow-elevated / --border-hairline
+ *
+ * 暗色模式：所有颜色 token 由 body.dark 切变量集自动联动，组件 CSS 不写 dark 分支。
+ * ============================================================= */
+
+/* === L1 外层容器：12px 圆角 + 玻璃浮起 + 阴影 === */
+.n-popover {
+  border-radius: var(--radius-lg) !important;
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  /* 提升 Naive 默认 4px → 8px,内部更舒展 */
+  padding: var(--space-2) 0 !important;
+}
+
+/* === L2 内层菜单：与外层同一 token，不另起圆角（避免双层圆角错位） === */
 .n-dropdown-menu,
-.n-dropdown-option {
-  background: var(--glass-bg-elevated) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-  backdrop-filter: blur(var(--glass-blur-panel));
-}
-
-/* === n-select 下拉菜单玻璃态（弹窗内维度/部门/职务等下拉，展开后选项背景不透明）===
- * Naive UI n-select 的 .n-base-select-menu 默认透明，背后内容（弹窗/页面）透出会遮挡选项文字
- * 与 n-dropdown 同理，用 elevated token 实底化，确保选项清晰可读 */
 .n-base-select-menu {
-  background: var(--glass-bg-elevated) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-  backdrop-filter: blur(var(--glass-blur-panel));
+  background: transparent !important; /* 已由 L1 承载背景,避免双层叠加 */
+  border-radius: 0 !important;       /* 让 L2 完全嵌入 L1 圆角内 */
+  padding: 0 !important;
 }
 
-/* Naive popover 主题与 body.dark CSS 主题脱耦，需手动覆写高亮层
- * 关键：Naive 的 option 高亮是绝对定位的 ::before 伪元素（inset 4px 圆角层），
- * hover/pending 时 Naive 给 ::before 设 var(--n-option-color-pending)（暗色下解析为浅蓝白），
- * 直接给 .n-base-select-option 自身 background 没碰到那层，必须覆写 ::before。 */
+/* === L3 项目行：36px 高度 + 水平 12px padding + 「层叠圆角」高亮 === */
+.n-dropdown-option,
 .n-base-select-option {
+  padding: 0 var(--space-3) !important;
   color: var(--ink) !important;
+  transition: background-color .15s var(--ease-out);
 }
+
+/* 高亮层 ::before:inset 6px + 6px 圆角 = 与外层 12px 形成「层叠圆角」（macOS 列表风） */
+.n-dropdown-option-body::before,
 .n-base-select-option::before {
+  inset: 0 var(--space-1) !important;
+  border-radius: var(--radius-sm) !important;
   background-color: transparent !important;
+  transition: background-color .15s var(--ease-out);
 }
+.n-dropdown-option:hover .n-dropdown-option-body::before,
+.n-dropdown-option--pending .n-dropdown-option-body::before,
 .n-base-select-option:hover::before,
-.n-base-select-option.n-base-select-option--pending::before {
-  background-color: color-mix(in srgb, var(--brand) 22%, transparent) !important;
+.n-base-select-option--pending::before {
+  background-color: var(--brand-tint) !important;
 }
-.n-base-select-option.n-base-select-option--selected::before,
-.n-base-select-option.n-base-select-option--checked::before {
-  background-color: color-mix(in srgb, var(--brand) 34%, transparent) !important;
+.n-dropdown-option--selected .n-dropdown-option-body::before,
+.n-dropdown-option--active .n-dropdown-option-body::before,
+.n-base-select-option--selected::before,
+.n-base-select-option--checked::before {
+  background-color: var(--brand-soft) !important;
 }
-.n-base-select-option.n-base-select-option--selected.n-base-select-option--pending::before {
-  background-color: color-mix(in srgb, var(--brand) 44%, transparent) !important;
+/* 选中 + hover 复合态更深一档（与底下 Naive 原方案保持兼容作为 fallback,优先级低于上面 --selected 规则） */
+.n-dropdown-option--selected.n-dropdown-option--pending .n-dropdown-option-body::before,
+.n-base-select-option--selected.n-base-select-option--pending::before {
+  background-color: color-mix(in srgb, var(--brand) 18%, transparent) !important;
 }
+
+/* === L3 项目 prefix / suffix / label：颜色用 ink/ink-soft,选中态变 brand === */
+.n-dropdown-option-body__prefix,
+.n-dropdown-option-body__suffix,
+.n-base-select-option__prefix,
+.n-base-select-option__suffix {
+  color: var(--ink-soft) !important;
+  transition: color .15s var(--ease-out);
+}
+.n-dropdown-option--selected .n-dropdown-option-body__prefix,
+.n-dropdown-option--active .n-dropdown-option-body__prefix,
+.n-base-select-option--selected .n-base-select-option__prefix {
+  color: var(--brand) !important;
+}
+.n-dropdown-option__content,
 .n-base-select-option__content {
   color: inherit !important;
+}
+
+/* === L3 divider:颜色锁 --border-hairline,覆写 Naive 默认 --n-divider-color === */
+/* 关键:Naive 默认 divider 用 --n-divider-color(浅灰 .09),暗色下仍浅灰刺眼,
+   改用 --border-hairline 后,暗色下自动转白低透(.08)统一联动,根治暗色脱节。 */
+.n-dropdown-divider {
+  background-color: var(--border-hairline) !important;
+  height: 1px !important;
+  margin: var(--space-2) var(--space-2) !important; /* 上下 8、水平缩进 8 与行 padding 对齐 */
+  border: 0 !important;
 }
 
 /* === 滚动条统一颜色 Token（液态玻璃 v2 · 单源）===

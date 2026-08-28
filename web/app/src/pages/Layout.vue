@@ -206,6 +206,8 @@ import {
   SearchOutline,
   ShareSocialOutline,
   PersonOutline,
+  MenuOutline,
+  SwapVerticalOutline,
   // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
@@ -407,10 +409,12 @@ const userMenuOptions = computed(() => {
     {
       key: 'menu-side',
       label: (current === 'side' ? '✓ ' : '') + '菜单：左侧竖排',
+      icon: renderIcon(MenuOutline),
     },
     {
       key: 'menu-top',
       label: (current === 'top' ? '✓ ' : '') + '菜单：顶部横排',
+      icon: renderIcon(SwapVerticalOutline),
     },
     { type: 'divider', key: 'd2' },
     { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline) },

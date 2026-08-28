@@ -1,7 +1,7 @@
-# ATS-NEW 统一设计规范（Unified Design Spec · v2.1）
+# ATS-NEW 统一设计规范（Unified Design Spec · v2.2）
 
 > 本文是 ATS-NEW 前端**唯一权威设计规范**，与 `tokens.css` / `glass.css` / `glass-modal.css` 一一对应。任何新增/修改 UI 必须以本规范 + 令牌为准，**禁止硬编码颜色、模糊值、圆角、阴影、字号**。
-> 版本：v2.1（2026-08-24 审查后修订，新增中性灰阶梯 §2.3 以修复 `--g1…--g7` 未定义缺陷）
+> 版本：v2.2（2026-08-28 新增 §5.8 下拉弹窗规范，根治"圆角+直角混用"）
 
 ---
 
@@ -140,6 +140,33 @@ onboarding 流程曾引用 `--g1…--g7` 但全仓未定义，导致边框/底�
 - 页头吸顶：`.page-header` `position:sticky; top:0`（设置页已全局化）。
 - **语义地标（修订 2.4）：内容区包 `<main id="main">`；加 skip-link。**
 
+### 5.8 下拉弹窗（Dropdowns / Selects / Popovers · **新增 v2.2**）
+
+> **2026-08-28 兵哥反馈"下拉弹窗圆角和直角混用"立项。** 详细规范见 [`docs/ui/DROPDOWN_POPOVER_SPEC.md`](./DROPDOWN_POPOVER_SPEC.md)；本节为指针 + 关键规则摘要。
+
+**适用对象**：`n-dropdown` / `n-select` / `n-cascader` / `n-tree-select` / `n-date-picker` / `n-color-picker` / `n-time-picker` / `n-popover`（click 触发型）。
+
+**三层结构**（必须穿透覆写，**不能只改外层**）：
+
+| 层 | 类名 | 关键规则 |
+|----|------|---------|
+| 外层容器 | `.n-popover` | 圆角 = `--radius-lg`（12）；背景 = `--glass-bg-elevated` + `blur(--glass-blur-panel)`；边框 = `--glass-border`；阴影 = `--shadow-elevated`；z-index = `--z-dropdown` |
+| 内层菜单 | `.n-dropdown-menu` / `.n-base-select-menu` | 圆角同外层（不留独立圆角）；padding = `var(--space-2)` 垂直 |
+| 项目行 | `.n-dropdown-option` / `.n-base-select-option` | 高度 36px（中等）；水平 padding = `var(--space-3)`（12px）；hover 高亮 = `var(--brand-tint)` + inset `0 var(--space-1)`（6px）+ `border-radius: var(--radius-sm)` |
+| 分割线 | `.n-dropdown-divider` | 颜色 **`var(--border-hairline)`**（覆写 Naive 默认 `--n-divider-color`，避免暗色下仍浅灰）；上下间距 = `var(--space-2)`；水平缩进 = `var(--space-2)` |
+
+**「层叠圆角」原则**：外框圆角 12 / 内部高亮圆角 6 / 高亮 inset 6px —— 视觉上像 macOS 列表高亮（外大内小），是消除"圆角+直角混用"的唯一可靠手段。
+
+**暗色模式**：所有 token 在 `body.dark` 自动切换（`--glass-bg-elevated` / `--border-hairline` / `--brand-tint` / `--brand-soft` / `--ink`）；divider 的 `--border-hairline` 是跨明暗统一的唯一可靠锚点。
+
+**禁止**：
+- ❌ 任何组件硬编码圆角（必须 `--radius-lg` / `--radius-sm`）
+- ❌ divider 用 Naive 默认 `--n-divider-color`
+- ❌ 对 popover 单独再设 `border-radius` 与外框不联动
+- ❌ 高亮层用 100% 通铺圆角（视觉上"吞掉"外框）
+
+**已知陷阱**（详见 [DROPDOWN_POPOVER_SPEC §6](./DROPDOWN_POPOVER_SPEC.md#6-已知视觉陷阱已踩坑)）：中间无 icon 项的"被矩形包围"错觉 —— 修法是给所有选项统一补 icon prefix，或统一用 `var(--space-3)` 让 padding 锚对齐。
+
 ---
 
 ## 6. 响应式（Responsive）
@@ -193,5 +220,6 @@ onboarding 流程曾引用 `--g1…--g7` 但全仓未定义，导致边框/底�
 | §2 色彩 / §3 排版 / §4 间距圆角阴影 | `web/app/src/styles/tokens.css` |
 | §5.2–5.7 组件原子类 | `web/app/src/styles/glass.css` + `glass-modal.css` |
 | §5.6 弹窗玻璃 / §2.5 | `web/app/src/styles/glass-modal.css` |
+| §5.8 下拉弹窗（dropdown / select / popover） | `web/app/src/styles/glass.css` §下拉弹窗规范 + [`docs/ui/DROPDOWN_POPOVER_SPEC.md`](./DROPDOWN_POPOVER_SPEC.md) |
 | §7 主题换肤 / 暗色 | `web/app/src/stores/theme.ts` + `App.vue` `themeOverrides` |
 | §2.1 Naive 组件色 | `App.vue` `themeOverrides.common` |
