@@ -390,20 +390,20 @@ body.dark .n-modal-mask {
  * 让 12px border-radius 圆角干净裁切.
  *
  * 同时给 dark 主题改色基:dark 下 --glass-bg-elevated 用 slate-900(#0F172A) .94,
- * 与原 --surface(#1E293B 暗色兜底)分离开,根治 dark 浮层溶在背景问题. */
+ * 与原 --surface(#1E293B 暗色兜底)分离开,根治 dark 浮层溶在背景问题.
+ *
+ * 2026-08-28 P6 修订(兵哥报「两层结构」):
+ *   移除 wrapper 上的 background / backdrop-filter / border / box-shadow / isolation /
+ *   overflow / padding。wrapper 只做 vueuc transform 锚点,所有视觉交给内层 .n-dropdown-menu
+ *   / .n-base-select-menu。这样:
+ *     (1) 视觉上没有 wrapper + inner 双层感
+ *     (2) 关闭后 wrapper 即使在 DOM 中也无视觉残留(L2 v-show=false / 卸载 → 整个视觉一并消失)
+ *     (3) 兼容性更好: 不依赖 :has(), 老浏览器也修复「两层结构」 + 「关闭残留」 */
 .v-binder-follower-content,
 .n-popover {
-  border-radius: var(--radius-lg) !important;
-  background: var(--glass-bg-elevated) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
-  backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--shadow-elevated) !important;
-  /* 2026-08-28 新增:防 Naive 浮层内部 stacking context 吃掉 backdrop-filter */
-  isolation: isolate !important;
-  overflow: hidden !important;
-  /* 提升 Naive 默认 4px → 8px,内部更舒展 */
-  padding: var(--space-2) 0 !important;
+  /* wrapper 只保留 border-radius(让 L2 box-shadow 在 wrapper 边界内裁切时不溢出),
+     其他视觉样式全部下移到 L2 menu。wrapper 不参与任何背景/阴影渲染。 */
+  border-radius: var(--radius-lg);
 }
 
 /* === P5 修复:vueuc-popper 关闭后 wrapper 残留渲为「白带/多一块」(2026-08-28 兵哥再报)===
@@ -438,15 +438,21 @@ body.dark .n-modal-mask {
   display: none !important;
 }
 
-/* === L2 内层菜单:与外层同一 token,不另起圆角(避免双层圆角错位) ===
- * 关键:.n-dropdown-menu 的真实浮层外层就是自身(已经在 v-binder-follower-content
- * 内 padding 8px 处),所以这里不再 transparent,保留 Naive 默认 border-radius(0)
- * 让 L2 完全嵌入 v-binder-follower-content 圆角内. */
+/* === L2 内层菜单: 唯一视觉层(吸收上一轮 wrapper 上的全部视觉样式) ===
+ * 关键: .n-dropdown-menu / .n-base-select-menu 真实尺寸由 Naive UI 控制(126×160 / 160×170),
+ * 我们加 box-shadow + bg + border + radius + padding 后,L2 撑出唯一浮层视觉。
+ * wrapper 自身无视觉 → 关闭时 L2 v-show=false / 卸载 → 整个视觉消失,无残留。*/
 .n-dropdown-menu,
 .n-base-select-menu {
-  background: transparent !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+  padding: var(--space-2) 0 !important;
   color: var(--ink) !important;
 }
 
