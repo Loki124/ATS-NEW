@@ -1,11 +1,10 @@
 """校招管控 — 规则导入/导出 与「当前产品设计」一致性校验（conformance）。
 
 对照 docs/campus_control/校招管控_产品功能与交互设计.md §4.3 / §4.3.3 / §4.3.4：
-  - 规则 = (部门, 职务, 职级, 维度, 规划年度) 六字段唯一组合（扁平模型）。
-  - 同一 (适用范围, 维度, 年度) 下，所有指标「目标占比(%)」之和须 = 100%。
+  - 规则 = (部门, 职务, 职级, 维度, 指标, 规划年度) 七字段唯一组合（v2.9 扁平模型，每条规则独立）。
   - 12 个月目标之和须 = 年度目标人数。
   - 「全局 / 指定范围」非对称互斥：导入全局被已有指定范围拦截(400)；导入指定范围删除全局并放行。
-  - 模板/导出/导入共用同一套列结构（闭环一致）。
+  - 模板/导出/导入共用同一套列结构（闭环一致；v2.9 删除「目标占比(%)」列）。
   - 响应信封：data.{groups,savedRules,errors,errorFile}（camelCase，前端据此渲染）。
 
 覆盖端点（/api/v1/campus/rules/）：
@@ -70,11 +69,12 @@ def _upload(content, name='rules.xlsx'):
     return SimpleUploadedFile(name, content, content_type='application/octet-stream')
 
 
-# 一条合法规则行：院校标签/985 全局 2026 占比100% 年度120 12月各10
+# 一条合法规则行：院校标签/985 全局 2026 年度120 12月各10
+# v2.9：删 pct 参数（target 恒 1.0）；列结构：维度/指标/部门/职务/职级/规划年度/控制强度/年度目标/12月
 def _valid_row(indicator='985', bu='', position='', level='', year=2026,
-               pct=100, annual=120, monthly=None, strength='硬约束'):
+               annual=120, monthly=None, strength='硬约束'):
     mt = monthly if monthly is not None else [10] * 12
-    return [f'院校标签', indicator, bu, position, level, year, pct, strength, annual, *mt]
+    return [f'院校标签', indicator, bu, position, level, year, strength, annual, *mt]
 
 
 # ============================ 模板 ============================
@@ -87,9 +87,11 @@ class TestRuleTemplate:
         header = [c.value for c in ws[1] if c.value is not None]
         # 模板表头在「说明区」之后，找到含「维度」「指标」的行
         for row in ws.iter_rows(values_only=True):
-            vals = [str(v).strip() for v in row[:9] if v is not None]
+            vals = [str(v).strip() for v in row[:8] if v is not None]  # v2.9: HEADERS 减为 8 列
             if '维度' in vals and '指标' in vals:
-                assert vals[:9] == HEADERS[:9], (vals[:9], HEADERS[:9])
+                assert vals[:8] == HEADERS[:8], (vals[:8], HEADERS[:8])
+                # v2.9 删占比列：表头不再含「目标占比」
+                assert '目标占比' not in vals
                 return
         pytest.fail('模板中未找到含「维度」「指标」的表头行')
 
@@ -111,12 +113,13 @@ class TestRuleExport:
         wb = load_workbook(io.BytesIO(resp.content))
         ws = wb.active
         header = [c.value for c in ws[1]]
-        assert header[:9] == HEADERS[:9], (header[:9], HEADERS[:9])
+        # v2.9：导出表头与模板 HEADERS 对齐（删占比列）
+        assert header[:8] == HEADERS[:8], (header[:8], HEADERS[:8])
         # 导出的数据行可被再次导入（闭环一致）
         first = [c.value for c in ws[2]]
         assert first[1] == '985'
-        # 占比列应为百分数（如 100）
-        assert float(first[6]) == 100
+        # v2.9：删占比列，第 7 列（原占比）= 年度目标人数
+        assert int(first[7]) == 120
 
 
 # ============================ 合法导入 ============================
@@ -138,14 +141,19 @@ class TestRuleImportValid:
         rule = ControlRule.objects.get(indicator__name='985')
         # 月度之和 = 年度目标
         assert sum(rule.monthly_targets) == rule.annual_target == 120
-        # 年度目标 = round(total_target * target) = 120 * 1.0
-        assert rule.annual_target == 120
+        # v2.9 扁平模型：target 恒 1.0（不再按占比 * totalTarget 计算 annual）
+        assert rule.target == 1.0
 
-    def test_import_two_indicators_100pct(self, admin_client, setup_dims):
+    def test_import_two_distinct_indicators_in_flat_model(self, admin_client, setup_dims):
+        """v2.9 扁平模型：同一 (适用范围, 维度, 年度) 下不同指标允许共存，每条独立。
+
+        院校标签·985 和院校标签·211 是两条独立规则（不同 indicator），
+        即使同 (bu, position, level, dimension, year)，导入应成功 savedRules=2。
+        """
         rows = [
             HEADERS,
-            _valid_row(indicator='985', pct=60, annual=60, monthly=[5] * 12),
-            _valid_row(indicator='211', pct=40, annual=40, monthly=[3, 4, 3, 4, 3, 4, 3, 4, 3, 3, 3, 3]),
+            _valid_row(indicator='985', annual=60, monthly=[5] * 12),
+            _valid_row(indicator='211', annual=40, monthly=[3, 4, 3, 4, 3, 4, 3, 4, 3, 3, 3, 3]),
         ]
         content = _rule_xlsx_bytes(rows)
         resp = admin_client.post(
@@ -155,27 +163,15 @@ class TestRuleImportValid:
         assert resp.status_code == 200, resp.content
         assert resp.json()['data'].get('savedRules') == 2
         assert ControlRule.objects.count() == 2
+        # 两条 target 都为 1.0（扁平模型）
+        assert all(float(r.target) == 1.0 for r in ControlRule.objects.all())
 
 
 # ============================ 校验拦截（不符合产品设计 → 400） ============================
 class TestRuleImportValidation:
-    def test_import_ratio_sum_not_100(self, admin_client, setup_dims):
-        rows = [
-            HEADERS,
-            _valid_row(indicator='985', pct=60, annual=60, monthly=[5] * 12),
-            _valid_row(indicator='211', pct=30, annual=30, monthly=[3] * 10 + [0, 0]),
-        ]
-        content = _rule_xlsx_bytes(rows)
-        resp = admin_client.post(
-            f'{RULE_PATH}/import/',
-            {'file': _upload(content)}, format='multipart',
-        )
-        assert resp.status_code == 400, resp.content
-        errors = resp.json()['data']['errors']
-        assert any('100%' in e or '占比' in e for e in errors), errors
-
     def test_import_monthly_sum_mismatch(self, admin_client, setup_dims):
-        # 年度120，但 12 月之和=100 ≠ 120
+        """12 个月目标之和 ≠ 年度目标 → 友好错误提示。"""
+        # 年度120，但 12 月之和=96 ≠ 120
         rows = [HEADERS, _valid_row(annual=120, monthly=[8] * 12)]
         content = _rule_xlsx_bytes(rows)
         resp = admin_client.post(
@@ -184,13 +180,15 @@ class TestRuleImportValidation:
         )
         assert resp.status_code == 400, resp.content
         errors = resp.json()['data']['errors']
-        assert any('月度' in e or '12' in e for e in errors), errors
+        # v2.9 友好提示：包含「12 个月目标之和」「年度目标」关键词
+        assert any('12 个月目标之和' in e and '年度目标' in e for e in errors), errors
 
     def test_import_duplicate_indicator_in_group(self, admin_client, setup_dims):
+        """v2.9 扁平模型：同 (适用范围, 维度, 年度, 指标) 重复 → 拦截。"""
         rows = [
             HEADERS,
-            _valid_row(indicator='985', pct=50, annual=60, monthly=[5] * 12),
-            _valid_row(indicator='985', pct=50, annual=60, monthly=[5] * 12),  # 同指标重复
+            _valid_row(indicator='985', annual=60, monthly=[5] * 12),
+            _valid_row(indicator='985', annual=60, monthly=[5] * 12),  # 同 (适用范围,维度,年度,指标) 重复
         ]
         content = _rule_xlsx_bytes(rows)
         resp = admin_client.post(
@@ -198,7 +196,9 @@ class TestRuleImportValidation:
             {'file': _upload(content)}, format='multipart',
         )
         assert resp.status_code == 400, resp.content
-        assert any('重复' in e for e in resp.json()['data']['errors'])
+        # v2.9 友好提示：包含「重复」关键词 + 范围描述
+        assert any('重复' in e and ('适用范围' in e or '维度' in e or '年度' in e) for e in resp.json()['data']['errors']), \
+            resp.json()['data']['errors']
 
     def test_import_unknown_dimension(self, admin_client, setup_dims):
         rows = [HEADERS, _valid_row()]

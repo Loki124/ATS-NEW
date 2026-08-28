@@ -10,10 +10,10 @@
     <!-- KPI 卡片 -->
     <n-grid class="stats-row" :cols="6" :x-gap="12" :y-gap="12" responsive="screen">
       <n-grid-item v-for="card in kpiCards" :key="card.key">
-        <n-card class="kpi-card" :bordered="false" embedded>
+        <div class="kpi-card kpi-card--accent">
           <div class="kpi-value">{{ card.value }}</div>
           <div class="kpi-label">{{ card.label }}</div>
-        </n-card>
+        </div>
       </n-grid-item>
     </n-grid>
 
@@ -302,20 +302,5 @@ onMounted(() => {
   gap: 12px;
   height: 100%;
 }
-/* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css 渐变规格） */
-.kpi-card {
-  text-align: center;
-  background: linear-gradient(135deg, var(--brand-tint) 0%, var(--brand-soft) 100%);
-}
-.kpi-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #4f46e5;
-  line-height: 1.2;
-}
-.kpi-label {
-  font-size: 13px;
-  color: #6b7280;
-  margin-top: 4px;
-}
+/* KPI 卡改用全局 .kpi-card.kpi-card--accent（glass.css）：渐变 + 居中均走 CSS 变量，无硬编码 hex */
 </style>

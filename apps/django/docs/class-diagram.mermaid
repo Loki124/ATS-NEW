@@ -1,0 +1,73 @@
+classDiagram
+    %% ===== 现有模型（含本次变更） =====
+    class ControlRule {
+        +UUID id
+        +str bu
+        +str position
+        +str level
+        +FK dimension
+        +FK indicator
+        +int year
+        +Decimal target
+        +str strength
+        +int annual_target
+        +list monthly_targets
+        +str code   %% 新增: "G"+4位流水, unique
+        +bool is_active   %% 新增: 默认 True
+        +unique_together(bu,position,level,dimension,indicator,year,is_active)   %% 含 is_active
+    }
+    class Candidate {
+        +UUID id
+        +str gender
+        +str school_tag   %% 新增: choices=SCHOOLS, 默认 ''
+        +str major_tag   %% 新增: choices=MAJORS, 默认 ''
+        +JSON extra
+    }
+    class Offer {
+        +str id
+        +FK candidate
+        +FK position
+        +str level
+        +str position_title
+        +date start_date
+        +FSM state
+    }
+    class Position {
+        +FK department
+        +str title
+    }
+    class ControlDimension {
+        +FK id
+        +str name
+    }
+    class ControlIndicator {
+        +FK id
+        +str name
+        +FK dimension
+    }
+
+    %% ===== 服务层 =====
+    class CampusControlService {
+        +copy_rule(rule) Rule
+        +toggle_rule(rule, is_active) Rule
+        +validate_offer_against_rules(offer) Violation|None
+        +count_matched_heads(scope, dim, ind, year, month) int
+    }
+    class ControlRuleSerializer {
+        +validate(attrs) attrs
+    }
+    class ControlRuleViewSet {
+        +action copy(req, pk)
+        +action toggle(req, pk)
+    }
+
+    %% ===== 关系 =====
+    ControlRule "1" --> "1" ControlDimension : dimension
+    ControlRule "1" --> "1" ControlIndicator : indicator
+    Offer "1" --> "1" Candidate : candidate
+    Offer "1" --> "1" Position : position
+    ControlRuleViewSet ..> CampusControlService : 调用 copy/toggle
+    CampusControlService ..> ControlRule : 读写
+    CampusControlService ..> Offer : 校验入参
+    CampusControlService ..> Candidate : 取 gender/school_tag/major_tag
+    ControlRuleSerializer ..> ControlRule : 唯一+占比校验(is_active=True 过滤)

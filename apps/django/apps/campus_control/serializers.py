@@ -132,20 +132,21 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         if indicator is None and self.instance:
             indicator = self.instance.indicator
         if not (dimension and indicator):
-            raise DRFValidationError({'dimension': ['维度 / 指标 均必填']})
+            raise DRFValidationError({'dimension': ['请先选择「维度」与「指标」后再保存']})
         if indicator.dimension_id != dimension.id:
-            raise DRFValidationError({'indicator': ['指标不属于所选维度']})
+            raise DRFValidationError({'indicator': [f'所选指标「{indicator.name}」不属于已选维度「{dimension.name}」，请重新选择']})
 
+        # v2.9 扁平模型：target 写库恒为 1.0，前端永远传 1.0；保留 0~1 范围校验仅为向后兼容
         target = _to_decimal(attrs.get('target'))
         if target is None:
-            raise DRFValidationError({'target': ['目标占比必填且为数值']})
+            raise DRFValidationError({'target': ['目标占比必填且为数值（0~1，如 1 表示 100%）']})
         if not (Decimal('0') <= target <= Decimal('1')):
-            raise DRFValidationError({'target': ['目标占比须满足 0 <= 目标 <= 1']})
+            raise DRFValidationError({'target': ['目标占比须在 0~1 之间（前端默认 1 表示该指标占 100%）']})
         strength = attrs.get('strength')
         if strength is None and self.instance:
             strength = self.instance.strength
         if strength not in STRENGTH:
-            raise DRFValidationError({'strength': ['控制强度非法']})
+            raise DRFValidationError({'strength': [f'控制强度「{strength}」非法（须为 硬约束 / 软约束）']})
 
         bu = attrs.get('bu') or ''
         position = attrs.get('position') or ''
@@ -158,7 +159,7 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         try:
             year = int(year)
         except (TypeError, ValueError):
-            raise DRFValidationError({'year': ['规划年度须为整数']})
+            raise DRFValidationError({'year': ['规划年度须为 4 位整数（如 2026）']})
         attrs['year'] = year
 
         # 人数目标归一
@@ -168,7 +169,7 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         try:
             attrs['annual_target'] = max(int(at or 0), 0)
         except (TypeError, ValueError):
-            raise DRFValidationError({'annualTarget': ['年度目标须为整数']})
+            raise DRFValidationError({'annualTarget': ['年度目标人数须为非负整数']})
         mt = attrs.get('monthly_targets')
         if mt is None and self.instance:
             mt = self.instance.monthly_targets
@@ -182,6 +183,16 @@ class ControlRuleSerializer(serializers.ModelSerializer):
                     norm[i] = 0
         attrs['monthly_targets'] = norm
 
+        # v2.9 校验：12 个月目标之和 须等于 年度目标人数
+        monthly_sum = sum(norm)
+        if monthly_sum != attrs['annual_target']:
+            raise DRFValidationError({
+                'monthlyTargets': [
+                    f'12 个月目标之和（{monthly_sum}）与年度目标人数（{attrs["annual_target"]}）不一致；'
+                    f'请调整 1月..12月 列使加和 = 年度目标，或点击「按年度均分」自动分配'
+                ]
+            })
+
         # 唯一含状态：仅校验启用(is_active=True)规则，允许「启用原规则 + 未启用副本」共存
         qs = ControlRule.objects.filter(
             bu=bu, position=position, level=level, dimension=dimension,
@@ -190,21 +201,15 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise DRFValidationError({'indicator': ['该适用范围-维度-指标-年度组合已存在启用规则，请直接编辑或停用原规则']})
-
-        # 单条编辑仅拦「超 100%」（防溢出）；恰好 ==100% 由批量端点强制。
-        # 占比加和仅统计启用(is_active=True)规则，副本不计入。
-        existing = ControlRule.objects.filter(
-            bu=bu, position=position, level=level, dimension=dimension, year=year, is_active=True,
-        )
-        if self.instance is not None:
-            existing = existing.exclude(pk=self.instance.pk)
-        s = sum((r.target for r in existing), Decimal('0')) + target
-        if s > Decimal('1') + Decimal('0.0001'):
-            pct = (s * 100).quantize(Decimal('0.01'))
             raise DRFValidationError({
-                'target': [f'该适用范围下此维度指标目标占比之和不得超过 100%，当前为 {pct}%']
+                'indicator': [
+                    f'已存在适用范围「{bu or "全局"} · {position or "职务不限"} · {level or "职级不限"}」、'
+                    f'维度「{dimension.name}」、指标「{indicator.name}」、年度「{year}」的启用规则；'
+                    f'请直接编辑原规则，或先在列表中停用该规则后再新建'
+                ]
             })
+
+        # v2.9：删除「占比加和不得超过 100%」校验（扁平模型下 target 恒为 1.0，每条规则独占组合）
 
         attrs['target'] = target
         return attrs

@@ -1,36 +1,36 @@
 # ATS-NEW 暗色模式修复 · 技术实施文档
 
-> **v1.1（2026-08-23 18:55）**—— critique-reviewer 评审后修订：补 P0 1-4 + P1 1/3/4 + P2-1。
-> **v1.0（2026-08-23 18:37）**—— Diana 首版交付：5 层根因 + 4 阶段实施 + 可照抄代码块。
-> 触发：用户报障截图「暗色模式的样式乱七八糟」（校招管控 + 设置侧栏）
-> 范围：`web/app/src/**` 全栈，不动后端
-> 关系链：上游 `UI_DIAGNOSIS_V3.md`（V3 增量 #2/#3/#5 都属此问题）；设计规范 `web/app/DESIGN.md` §2 Dark Mode Token Set
+> **v1.1（2026-08-23 18:55）**—— critique-reviewer 评审后修订：补 P0 1-4 + P1 1/3/4 + P2-1。  
+> **v1.0（2026-08-23 18:37）**—— Diana 首版交付：5 层根因 + 4 阶段实施 + 可照抄代码块。  
+> 触发：用户报障截图「暗色模式的样式乱七八糟」（校招管控 + 设置侧栏）  
+> 范围：`web/app/src/**` 全栈，不动后端  
+> 关系链：上游 `UI_DIAGNOSIS_V3.md`（V3 增量 #2/#3/#5 都属此问题）；设计规范 `web/app/DESIGN.md` §2 Dark Mode Token Set  
 > **当前版本统一为 5 阶段（A/B/C/D/E）**——详见 §十一、§十三 修订记录
 
 ---
 
 ## 0. PM 决策采纳（v3 拍板 → 写入手册）
 
-| 编号 | 决策 | 采纳方案 | 落地位置 |
-|---|---|---|---|
-| **决策 1** | T9.1 验收条款 | **保留 1 行 `:deep(.page-container)`**（解 `settings-scroll 20px + page-container 24px` 双重 padding 塌缩），删除视觉类 `:deep(.n-card / .page-title / .filter-row / .n-button--primary-type)` | `SettingsLayout.vue:576` 保留；删除原 T9.1 的"删全部 :deep"验收条款 |
-| **决策 2** | T9.2 SettingsLayout 自写 menu-group 改造 | **A 方案**：SettingsLayout.vue 改用 `n-menu :options="menuOptions"`（与 Layout.vue 一致），删自写 DOM | `SettingsLayout.vue` 重构（本文档 §八 阶段 D 含完整模板） |
+| 编号       | 决策                                   | 采纳方案                                                                                                                                                                           | 落地位置                                                  |
+| -------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| **决策 1** | T9.1 验收条款                            | **保留 1 行 `:deep(.page-container)`**（解 `settings-scroll 20px + page-container 24px` 双重 padding 塌缩），删除视觉类 `:deep(.n-card / .page-title / .filter-row / .n-button--primary-type)` | `SettingsLayout.vue:576` 保留；删除原 T9.1 的"删全部 :deep"验收条款 |
+| **决策 2** | T9.2 SettingsLayout 自写 menu-group 改造 | **A 方案**：SettingsLayout.vue 改用 `n-menu :options="menuOptions"`（与 Layout.vue 一致），删自写 DOM                                                                                        | `SettingsLayout.vue` 重构（本文档 §八 阶段 D 含完整模板）            |
 
 ---
 
 ## 一、截图硬证据（用户报障 → 根因映射）
 
-| 截图所见 | 根因层级 | 严重度 |
-|---|---|---|
-| **白卡漂浮**：校招管控 `.glass-panel` 内的表格（实时看板）仍是浅色背景 | **根因 1（核心 95%）**：Naive UI darkTheme 未挂 → 原生 `n-data-table` 浅色默认背景 | P0 |
-| **底部"本看板已合并" `n-alert`** 蓝色背景 vs 深色环境对比突兀 | 根因 1：`n-alert` 走 light theme | P1 |
-| **顶部 tabs** "实时看板/规则配置…" 视觉单薄，浅色模式配色 | 根因 1：`n-tabs-nav` 走 light theme | P1 |
-| **顶部年份/月份 `n-input-number / n-select`** 浅色背景 | 根因 1：原生表单组件走 light theme | P1 |
-| **5 张 KPI 卡片 "4" 红 / "1" 橙** 颜色过饱和，与玻璃质感冲突 | 根因 2：`.kpi-card.danger / .warn` 颜色走 hex，应走暗色透色 token | P2 |
-| **侧栏"个人信息管理/公司信息管理…"** 字色对比度低 | 根因 3：SettingsLayout 自写菜单 `.menu-item` 字色 `var(--ink-soft)` 暗色下应更亮，但 `--ink-soft: #AEB8CC` 对 `rgba(30,41,59,.55)` 仅 4:1 边缘 | P1 |
-| **侧栏"招聘提速/其他"分组标题** 看不清 | 根因 3：`.group-title` `var(--ink-faint) = #7C879B` 对深玻璃 3:1 **不达标** | P1 |
-| **"校招管控" 标题渐变偏淡** | 根因 4：`.gradient-title` 不分暗色态，背景深时品牌透明渐变视觉对比偏弱 | P2 |
-| **`CampusControl.vue:1404` `.batch-monthly-sum { color: #374151 }` / `:1412` `border-top: 1px solid #eef2f7`** 自写硬编码暗色下失明 | 根因 5：业务页自写 hex 没收口 | P2 |
+| 截图所见                                                                                                                      | 根因层级                                                                                                                      | 严重度 |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --- |
+| **白卡漂浮**：校招管控 `.glass-panel` 内的表格（实时看板）仍是浅色背景                                                                             | **根因 1（核心 95%）**：Naive UI darkTheme 未挂 → 原生 `n-data-table` 浅色默认背景                                                         | P0  |
+| **底部"本看板已合并" `n-alert`** 蓝色背景 vs 深色环境对比突兀                                                                                 | 根因 1：`n-alert` 走 light theme                                                                                              | P1  |
+| **顶部 tabs** "实时看板/规则配置…" 视觉单薄，浅色模式配色                                                                                      | 根因 1：`n-tabs-nav` 走 light theme                                                                                           | P1  |
+| **顶部年份/月份 `n-input-number / n-select`** 浅色背景                                                                              | 根因 1：原生表单组件走 light theme                                                                                                  | P1  |
+| **5 张 KPI 卡片 "4" 红 / "1" 橙** 颜色过饱和，与玻璃质感冲突                                                                                | 根因 2：`.kpi-card.danger / .warn` 颜色走 hex，应走暗色透色 token                                                                      | P2  |
+| **侧栏"个人信息管理/公司信息管理…"** 字色对比度低                                                                                             | 根因 3：SettingsLayout 自写菜单 `.menu-item` 字色 `var(--ink-soft)` 暗色下应更亮，但 `--ink-soft: #AEB8CC` 对 `rgba(30,41,59,.55)` 仅 4:1 边缘 | P1  |
+| **侧栏"招聘提速/其他"分组标题** 看不清                                                                                                   | 根因 3：`.group-title` `var(--ink-faint) = #7C879B` 对深玻璃 3:1 **不达标**                                                         | P1  |
+| **"校招管控" 标题渐变偏淡**                                                                                                         | 根因 4：`.gradient-title` 不分暗色态，背景深时品牌透明渐变视觉对比偏弱                                                                             | P2  |
+| **`CampusControl.vue:1404` `.batch-monthly-sum { color: #374151 }` / `:1412` `border-top: 1px solid #eef2f7`** 自写硬编码暗色下失明 | 根因 5：业务页自写 hex 没收口                                                                                                        | P2  |
 
 ---
 
@@ -82,6 +82,7 @@
 ```
 
 > **命名一致**：本表与 §四/六/七/八/十一 全部统一为 A/B/C/D/E；改动前 checklist:
+>
 > - §三：C = CampusControl hex；D = n-menu；E = 巡检兜底
 > - §四：B = App.vue darkTheme 主修复（前置 A = theme.ts isDark）
 > - §六：C = CampusControl（与 §三 同）—— 待 §六 标题修正
@@ -91,7 +92,7 @@
 
 ## 四、阶段 B（核心修复）· Naive UI darkTheme 挂载
 
-> **前置依赖 — 必读**：本阶段主代码使用 `const { isDark } = storeToRefs(themeStore)`。
+> **前置依赖 — 必读**：本阶段主代码使用 `const { isDark } = storeToRefs(themeStore)`。  
 > **当前 `stores/theme.ts` return 表内没有 `isDark`**（实测 line 203-215），直接套用会导致 §4.3 主代码 `isDark.value ? darkTheme : undefined` 永远走 `undefined` 分支 = Naive darkTheme 不挂 = **95% 修复目标不达成**。
 >
 > **请先执行 §4.4「`stores/theme.ts` 暴露 isDark」前置补丁**（10 分钟，单文件），再回到 §4.3 主代码。
@@ -99,6 +100,7 @@
 ### 4.1 改动原理
 
 Naive UI 的 dark theme 是一套完整调色板。`n-config-provider` 必须传两个 prop：
+
 - `:theme` 触发原生组件深色渲染
 - `:theme-overrides` 在当前 theme 上叠加品牌色/圆角/字色
 
@@ -106,15 +108,15 @@ Naive UI 的 dark theme 是一套完整调色板。`n-config-provider` 必须传
 
 ### 4.2 文件改动清单
 
-| 文件 | 行号 | 动作 |
-|---|---|---|
-| `src/App.vue` | 全文重写 | 引入 `darkTheme` from 'naive-ui'；computed 切 `theme: darkTheme \| undefined`；原 `themeOverrides` 拆分覆盖到 dark/light 共同使用 |
-| `src/stores/theme.ts` | L203 return 表 | **前置：暴露 `isDark` 派生 ref**（详见 §4.4） |
+| 文件                    | 行号            | 动作                                                                                                                 |
+| --------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `src/App.vue`         | 全文重写          | 引入 `darkTheme` from 'naive-ui'；computed 切 `theme: darkTheme \| undefined`；原 `themeOverrides` 拆分覆盖到 dark/light 共同使用 |
+| `src/stores/theme.ts` | L203 return 表 | **前置：暴露 `isDark` 派生 ref**（详见 §4.4）                                                                                 |
 
 ### 4.3 完整代码块（**可直接照抄**）
 
 ```vue
-<!-- web/app/src/App.vue -->
+
 <template>
   <n-config-provider
     :theme="isDark ? darkTheme : undefined"
@@ -218,6 +220,7 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
 ### 4.4 前置：stores/theme.ts 暴露 isDark（P0 阻塞级 bug · 必做）
 
 **问题诊断**（实测 `stores/theme.ts:203-215`）：
+
 ```ts
 // 现有 return 表 —— 注意：没有 isDark
 return {
@@ -226,17 +229,17 @@ return {
 }
 ```
 
-`applyModeToDom(m)` L128 通过 `body.classList.toggle('dark', dark)` 把暗色态表达在 DOM class 上，
-但 store 不持有对应的响应式状态。文档 §4.3 主代码用 `const { isDark } = storeToRefs(themeStore)` 解构
+`applyModeToDom(m)` L128 通过 `body.classList.toggle('dark', dark)` 把暗色态表达在 DOM class 上，  
+但 store 不持有对应的响应式状态。文档 §4.3 主代码用 `const { isDark } = storeToRefs(themeStore)` 解构  
 到 `undefined`，导致 `isDark.value ? darkTheme : undefined` 永远走 `false` 分支。
 
 #### 文件改动清单
 
-| 文件 | 行号 | 动作 |
-|---|---|---|
-| `src/stores/theme.ts` | L1-2 import 区 | 加 `import { ref, computed, watch, onScopeDispose }`（如有缺） |
-| 同上 | L109-L140 派生区 | 新增 `isDark` ref + auto 模式响应系统切换逻辑 |
-| 同上 | L203-L215 return 表 | 把 `isDark` 加入返回 |
+| 文件                    | 行号                 | 动作                                                       |
+| --------------------- | ------------------ | -------------------------------------------------------- |
+| `src/stores/theme.ts` | L1-2 import 区      | 加 `import { ref, computed, watch, onScopeDispose }`（如有缺） |
+| 同上                    | L109-L140 派生区      | 新增 `isDark` ref + auto 模式响应系统切换逻辑                        |
+| 同上                    | L203-L215 return 表 | 把 `isDark` 加入返回                                          |
 
 #### 完整代码块（**可直接照抄**）
 
@@ -339,24 +342,24 @@ __ats.theme.setMode('light')  # 应去掉 .dark + isDark === false
 
 ### 5.1 文件改动清单
 
-| 文件 | 行号 | 现状 | 改为 |
-|---|---|---|---|
-| `pages/settings/CampusControl.vue` | 271-272 | `style="color: #94a3b8"` | `style="color: var(--ink-faint)"` |
-| `pages/settings/CampusControl.vue` | 1404 | `.batch-monthly-sum { color: #374151 }` | `color: var(--ink)` |
-| `pages/settings/CampusControl.vue` | 1412 | `border-top: 1px solid #eef2f7` | `border-top: 1px solid var(--border-hairline)` |
+| 文件                                 | 行号      | 现状                                      | 改为                                             |
+| ---------------------------------- | ------- | --------------------------------------- | ---------------------------------------------- |
+| `pages/settings/CampusControl.vue` | 271-272 | `style="color: #94a3b8"`                | `style="color: var(--ink-faint)"`              |
+| `pages/settings/CampusControl.vue` | 1404    | `.batch-monthly-sum { color: #374151 }` | `color: var(--ink)`                            |
+| `pages/settings/CampusControl.vue` | 1412    | `border-top: 1px solid #eef2f7`         | `border-top: 1px solid var(--border-hairline)` |
 
 ### 5.2 完整代码块（**可直接照抄**）
 
 ```vue
-<!-- web/app/src/pages/settings/CampusControl.vue -->
-<!-- L271-272 改为：-->
+
+
 <div v-if="!batchDrawer.dimensionId" style="color: var(--ink-faint); padding: 8px 0; font-size: 13px;">请先选择维度</div>
 <div v-else-if="batchIndicators.length === 0" style="color: var(--ink-faint); padding: 8px 0; font-size: 13px;">该维度下暂无指标，请先到「指标管理」新增</div>
 ```
 
 ```vue
-<!-- web/app/src/pages/settings/CampusControl.vue -->
-<!-- L1404 改为：-->
+
+
 .batch-monthly-sum {
   color: var(--ink);   /* 原 #374151，浅色等同；暗色自动转 #E8ECF6 */
   ...
@@ -364,8 +367,8 @@ __ats.theme.setMode('light')  # 应去掉 .dark + isDark === false
 ```
 
 ```vue
-<!-- web/app/src/pages/settings/CampusControl.vue -->
-<!-- L1412 改为：-->
+
+
 .batch-sum {
   border-top: 1px solid var(--border-hairline);  /* 原 #eef2f7 */
   ...
@@ -383,12 +386,13 @@ grep -nE '#374151|#eef2f7|#94a3b8|#94A3B8' src/pages/settings/CampusControl.vue
 
 ## 七、阶段 E · 巡检兜底（5 列表页 + Settings 子页 · 含暗色对比度微调）
 
-> **命名修正**：原文档此节标题误标为"阶段 D 巡检兜底"，按 A/B/C/D/E 重排后应为"阶段 E"。
+> **命名修正**：原文档此节标题误标为"阶段 D 巡检兜底"，按 A/B/C/D/E 重排后应为"阶段 E"。  
 > （"阶段 D"已分配给"§八 决策 2 配套 · SettingsLayout 改 n-menu"。）
 
 ### 7.1 巡检内容
 
 跑 Playwright 自动截图 5 列表页 + Settings 8 个子页 × light/dark × 4 视口，重点看：
+
 - `n-data-table` 表体背景是否随暗色切换
 - `n-tabs-nav` 在暗色下是否完整可见
 - `n-alert` 暗色下是否有合适对比度
@@ -429,8 +433,8 @@ body.dark .n-tag.n-tag--error-type   { color: var(--c-error);   background: var(
 body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(--c-info-soft); }
 ```
 
-> **重要修正**（v1.1 评审反馈 P1-3）：原 §7.3 用 `body.dark .n-alert { background: ... !important }` 走强覆盖，
-> 与 DESIGN.md §7 Do's "任何样式都走 token + themeOverrides" 的"单一来源"哲学冲突。
+> **重要修正**（v1.1 评审反馈 P1-3）：原 §7.3 用 `body.dark .n-alert { background: ... !important }` 走强覆盖，  
+> 与 DESIGN.md §7 Do's "任何样式都走 token + themeOverrides" 的"单一来源"哲学冲突。  
 > **正确做法**：把 n-alert 暗色背景塞进 §4.3 App.vue 的 themeOverrides：
 >
 > ```ts
@@ -444,6 +448,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
 > ```
 >
 > 同时追加 §4.3 themeOverrides 关键缺失字段（v1.1 评审 P2-1）：
+>
 > ```ts
 > actionColor:        isDark.value ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
 > tabColor:           isDark.value ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.7)',
@@ -459,6 +464,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
 ### 8.1 重构理由
 
 SettingsLayout.vue 当前自写 130 行 `.menu-group / .menu-item / .menu-item-parent / .sub-menu-item` DOM + 4 个 toggle 函数（`isGroupExpanded / isItemExpanded / toggleGroup / toggleItem`）。
+
 - 维护成本 ≈ Layout.vue 的 n-menu 实现 × 2
 - 体验断层：展开/折叠动画 vs Layout 自动展开父菜单
 - 移动端兼容差异
@@ -468,15 +474,16 @@ Layout.vue L399-432 已示范 n-menu 处理二级 + 三级嵌套。
 ### 8.2 完整重构代码（**可直接照抄**，与 Layout.vue 风格一致）
 
 > **v1.1 修订**（评审判 P0-3 / P0-4 / P1-1）：
+>
 > 1. **补 imports**：`h` from 'vue'、`NIcon` from 'naive-ui'、全部 icons（不再依赖全局）
 > 2. **列全 5 个分组**（基本信息/过程管理/招聘提速/内容管理/其他），每组 children 完整迁移
 > 3. **expandCurrent 改累 ancestor**：3 嵌套菜单（如 `/settings/company-mgmt → /settings/company`）需展开中间层 + 最外层 group
 
 ```vue
-<!-- web/app/src/pages/settings/SettingsLayout.vue -->
+
 <template>
   <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220" style="height: 100%">
-    <!-- 左侧子菜单：n-menu 取代自写 menu-group -->
+    
     <n-layout-sider
       :width="220"
       :collapsed-width="64"
@@ -512,7 +519,7 @@ Layout.vue L399-432 已示范 n-menu 处理二级 + 三级嵌套。
       />
     </n-layout-sider>
 
-    <!-- 右侧内容（不变） -->
+    
     <n-layout-content class="settings-content">
       <div class="settings-aurora" aria-hidden="true">
         <span class="blob blob-a"></span>
@@ -723,7 +730,7 @@ watch(() => route.path, () => {
 
 ### 8.3 删除项
 
-- 删除 4 个 toggle 函数（`isGroupExpanded / isItemExpanded / toggleGroup / toggleItem`）—— 但**不删除模板 `<div class="sider-header">`**等 30 行布局骨架
+- 删除 4 个 toggle 函数（`isGroupExpanded / isItemExpanded / toggleGroup / toggleItem`）—— 但**不删除模板 `<div class="sider-header">`**&#x7B49; 30 行布局骨架
 - 删除 `flatMenuItems` / `findLeafContext` 折叠态辅助
 - 删除模板中 `<div class="menu-group">` 等 130 行 menu DOM
 - 删除 `<style scoped>` 中 `.menu-group / .group-header / .group-body / .menu-item / .sub-menu / .has-children` 等所有规则（仅保留 `.settings-layout / .sider-header / .collapse-btn`）
@@ -852,19 +859,19 @@ grep -E "type: 'group'" src/pages/settings/SettingsLayout.vue | wc -l
 
 ### 10.1 阶段 A 风险
 
-| 风险 | 概率 | 缓解 |
-|---|---|---|
-| Naive darkTheme 引入导致某些自定义组件样式破相 | 中 | 单文件 commit + 视觉回归；如有问题在 overrides 中再加规约 |
-| `bodyColor: 'transparent'` 导致 Naive 内部 Modal mask 透明 | 低 | Modal mask 走 `--glass-bg-overlay` 覆写，glass-modal.css 已落 |
-| `tableColor: 'transparent'` 让 `.n-data-table-wrapper` 容器没背景 | 中 | glass.css L341-358 `.glass-table` 已接管，ListView 页表格都不裸 `<n-data-table>` 而包 `.glass-panel` |
+| 风险                                                          | 概率 | 缓解                                                                                       |
+| ----------------------------------------------------------- | -- | ---------------------------------------------------------------------------------------- |
+| Naive darkTheme 引入导致某些自定义组件样式破相                             | 中  | 单文件 commit + 视觉回归；如有问题在 overrides 中再加规约                                                  |
+| `bodyColor: 'transparent'` 导致 Naive 内部 Modal mask 透明        | 低  | Modal mask 走 `--glass-bg-overlay` 覆写，glass-modal.css 已落                                  |
+| `tableColor: 'transparent'` 让 `.n-data-table-wrapper` 容器没背景 | 中  | glass.css L341-358 `.glass-table` 已接管，ListView 页表格都不裸 `<n-data-table>` 而包 `.glass-panel` |
 
 ### 10.2 阶段 B/C/D 风险
 
-| 风险 | 概率 | 缓解 |
-|---|---|---|
-| CampusControl hex 替换破坏现有视觉 | 低 | 颜色完全等同（#374151 ≈ var(--ink) in light），无肉眼差异 |
-| SettingsLayout 重构回归 | **中（高风险反向删）** | **严格执行用户 memory「首轮仅 DOM 替换不删 CSS」，第 2 轮再删**；先 commit 一个"仅 DOM 替换"再做"删自写 CSS" |
-| 巡检遗漏暗色 Naive 组件 | 中 | 阶段 D 用 Playwright 自动截图覆盖 |
+| 风险                         | 概率            | 缓解                                                                           |
+| -------------------------- | ------------- | ---------------------------------------------------------------------------- |
+| CampusControl hex 替换破坏现有视觉 | 低             | 颜色完全等同（#374151 ≈ var(--ink) in light），无肉眼差异                                  |
+| SettingsLayout 重构回归        | **中（高风险反向删）** | **严格执行用户 memory「首轮仅 DOM 替换不删 CSS」，第 2 轮再删**；先 commit 一个"仅 DOM 替换"再做"删自写 CSS" |
+| 巡检遗漏暗色 Naive 组件            | 中             | 阶段 D 用 Playwright 自动截图覆盖                                                     |
 
 ### 10.3 回滚策略
 
@@ -884,31 +891,26 @@ git revert <commit-D>  # 仅 glass.css 兜底
 
 ### 10.4 commit 规约（v1.1 阶段重命名后）
 
-```
-fix(dark-mode, A): stores/theme.ts 暴露 isDark（前置 10 分钟）
-fix(dark-mode, B): App.vue 挂 Naive darkTheme + themeOverrides 双形态
-fix(dark-mode, C): CampusControl 3 处 #hex → token
-refactor(dark-mode, D): SettingsLayout.vue 自写 DOM → n-menu（v1.1 imports + 5 分组全 + expandCurrentTo）
-feat(dark-mode, E): SettingsLayout 暗色对比度 + glass.css 巡检兜底
-```
+检查一下实施文档中的内容在项目中是否已经全部完成了
 
 ---
 
 ## 十一、工作量与排期
 
-| 阶段 | 工作量 | 优先级 | 依赖 |
-|---|---|---|---|
-| **A**（前置）stores/theme.ts 暴露 `isDark` | 0.05d | **P0 阻塞** | — |
-| **B**（核心修复）挂 Naive darkTheme + themeOverrides 双形态 | 0.3d | **P0 关键** | A |
-| **C** CampusControl 3 处 #hex → token | 0.3d | P0 | — |
-| **D** SettingsLayout 改 n-menu（T9.2 决策 2） | 0.4d | P1 | A |
-| **E** SettingsLayout 自写菜单暗色对比度 + 巡检兜底 | 1.5d | P2 | A、D |
-| **总计** | **2.55d** | | |
+| 阶段                                                | 工作量       | 优先级       | 依赖  |
+| ------------------------------------------------- | --------- | --------- | --- |
+| **A**（前置）stores/theme.ts 暴露 `isDark`              | 0.05d     | **P0 阻塞** | —   |
+| **B**（核心修复）挂 Naive darkTheme + themeOverrides 双形态 | 0.3d      | **P0 关键** | A   |
+| **C** CampusControl 3 处 #hex → token              | 0.3d      | P0        | —   |
+| **D** SettingsLayout 改 n-menu（T9.2 决策 2）          | 0.4d      | P1        | A   |
+| **E** SettingsLayout 自写菜单暗色对比度 + 巡检兜底             | 1.5d      | P2        | A、D |
+| **总计**                                            | **2.55d** |           |     |
 
-**建议排期**：A → B（必须串行）→ C（并行）→ D → E。
+**建议排期**：A → B（必须串行）→ C（并行）→ D → E。  
 **先做 A+B**（核心修复 + 前置，立竿见影），其他按优先级推进。
 
 > **v1.1 阶段命名修正**：原文档阶段命名不一致：
+>
 > - 原 §三「修复策略」4 阶段 + §十一 5 阶段，编排上混淆"D = 巡检兜底 vs D = n-menu"
 > - 修正后统一 A/B/C/D/E：A = theme.ts 前置；B = App.vue darkTheme 主修复；C = CampusControl；D = n-menu；E = 巡检兜底
 > - §六 标题"CampusControl"原误标"SettingsLayout 自写菜单"——已修正
@@ -933,31 +935,31 @@ feat(dark-mode, E): SettingsLayout 暗色对比度 + glass.css 巡检兜底
 
 ### v1.1 · 2026-08-23（critique-reviewer 评审后修订）
 
-| 维度 | 修订点 | 评审依据 |
-|---|---|---|
-| **§三 策略** | 4 阶段 → 5 阶段，新增「A 前置 stores/theme.ts」 | P0-1 阻塞 |
-| **§三 / §十一 命名** | D/D/E 重新分配：A=theme.ts / B=App.vue / C=CampusControl / D=n-menu / E=巡检 | P1-4 命名冲突 |
-| **§四 4.4 新增** | `stores/theme.ts` 暴露 `isDark` 完整补丁（10 分钟） | **P0-1 阻塞级**：实测 `theme.ts:203-215` return 表无 `isDark` → `storeToRefs` 取 undefined → 主代码全走 light theme |
-| **§六 标题修正** | 原"SettingsLayout 自写菜单"→"CampusControl 自写 hex → token"（与 §十一 C 一致）| P1-4 命名 |
-| **§七 标题修正** | "阶段 D"→"阶段 E"（巡检兜底是 E）| P1-4 命名 |
-| **§七 7.3 !important** | 原 `body.dark .n-alert { background: ... !important }` 改为走 §4.3 themeOverrides.Alert 字典 | P1-3 哲学一致 |
-| **§七 7.3 新增 P2-1** | themeOverrides 补充 `actionColor / tabColor / closeColorHover` 字段 | P2-1 Naive UI 暗色字段完整化 |
-| **§八 标题修正** | "八、决策 2 配套实施"→"阶段 D 决策 2 配套" | P1-4 命名 |
-| **§八 8.2 imports 全补** | `h from 'vue'` + `NIcon from 'naive-ui'` + 全部 22 个 icons | **P0-3 TS 编译报错** |
-| **§八 8.2 subMenuOptions 列全 5 分组** | 完整迁移基本信息/过程管理/招聘提速/内容管理/其他 + 嵌套 children | **P0-4 工程师自行迁移失败风险** |
-| **§八 8.2 expandCurrentTo 重写** | 原 walk 只一层 → 新版 `findPathToKey` 累计 ancestor 链 | **P1-1 3 级嵌套菜单不展开** |
-| **§九 9.3 验收补** | 增加 "n-menu import 已加" + "3 嵌套菜单自动展开" 视觉验证 | P0-3 + P1-1 闭环 |
+| 维度                                | 修订点                                                                                    | 评审依据                                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **§三 策略**                         | 4 阶段 → 5 阶段，新增「A 前置 stores/theme.ts」                                                   | P0-1 阻塞                                                                                               |
+| **§三 / §十一 命名**                   | D/D/E 重新分配：A=theme.ts / B=App.vue / C=CampusControl / D=n-menu / E=巡检                  | P1-4 命名冲突                                                                                             |
+| **§四 4.4 新增**                     | `stores/theme.ts` 暴露 `isDark` 完整补丁（10 分钟）                                              | **P0-1 阻塞级**：实测 `theme.ts:203-215` return 表无 `isDark` → `storeToRefs` 取 undefined → 主代码全走 light theme |
+| **§六 标题修正**                       | 原"SettingsLayout 自写菜单"→"CampusControl 自写 hex → token"（与 §十一 C 一致）                      | P1-4 命名                                                                                               |
+| **§七 标题修正**                       | "阶段 D"→"阶段 E"（巡检兜底是 E）                                                                 | P1-4 命名                                                                                               |
+| **§七 7.3 !important**             | 原 `body.dark .n-alert { background: ... !important }` 改为走 §4.3 themeOverrides.Alert 字典 | P1-3 哲学一致                                                                                             |
+| **§七 7.3 新增 P2-1**                | themeOverrides 补充 `actionColor / tabColor / closeColorHover` 字段                        | P2-1 Naive UI 暗色字段完整化                                                                                 |
+| **§八 标题修正**                       | "八、决策 2 配套实施"→"阶段 D 决策 2 配套"                                                           | P1-4 命名                                                                                               |
+| **§八 8.2 imports 全补**             | `h from 'vue'` + `NIcon from 'naive-ui'` + 全部 22 个 icons                               | **P0-3 TS 编译报错**                                                                                      |
+| **§八 8.2 subMenuOptions 列全 5 分组** | 完整迁移基本信息/过程管理/招聘提速/内容管理/其他 + 嵌套 children                                               | **P0-4 工程师自行迁移失败风险**                                                                                  |
+| **§八 8.2 expandCurrentTo 重写**     | 原 walk 只一层 → 新版 `findPathToKey` 累计 ancestor 链                                          | **P1-1 3 级嵌套菜单不展开**                                                                                   |
+| **§九 9.3 验收补**                    | 增加 "n-menu import 已加" + "3 嵌套菜单自动展开" 视觉验证                                              | P0-3 + P1-1 闭环                                                                                        |
 
 ### v1.0 · 2026-08-23 18:37（首版）
 
 Diana 交付初版：5 层根因 + 4 阶段实施 + 可照抄代码块。
 
-> **评审团队**：`design-engine-ui-review` / critique-reviewer（3.8/5 分）
+> **评审团队**：`design-engine-ui-review` / critique-reviewer（3.8/5 分）  
 > **修订者**：Hua（主理人，机械代码修补不消耗 agent 配额）
 
 ---
 
-**报告位置**：`docs/UI_DARK_MODE_TECHNICAL_PLAN.md`
-**关系链**：V3 诊断（增量 #2/#3/#5）→ 本实施文档 → 阶段 A/B/C/D/E
-**当前版本**：v1.1（评审后修订）
+**报告位置**：`docs/UI_DARK_MODE_TECHNICAL_PLAN.md`  
+**关系链**：V3 诊断（增量 #2/#3/#5）→ 本实施文档 → 阶段 A/B/C/D/E  
+**当前版本**：v1.1（评审后修订）  
 **生成时间**：2026-08-23 18:37 GMT+8（v1.0）/ 18:55 GMT+8（v1.1）

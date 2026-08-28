@@ -376,12 +376,7 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             total += target
             prepared.append((indicator, target, strength, annual_target, monthly_targets))
 
-        if abs(total - Decimal('1')) > Decimal('0.0001'):
-            pct = (total * 100).quantize(Decimal('0.01'))
-            return Response({
-                'success': False,
-                'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
-            }, status=400)
+        # v2.9：删除「占比加和须=100%」校验（扁平模型下每条规则 target=1.0）
 
         # ---- G7-② 年度人数加和硬拦 ----
         # 前端传入 totalTarget 时，Σ(各规则 annual_target) 必须 == totalTarget，否则 400（不允许加和不一致的脏数据入库）。
@@ -781,12 +776,7 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             prepared.append((indicator, target, strength))
             seen.add(indicator_id)
 
-        if abs(total - Decimal('1')) > Decimal('0.0001'):
-            pct = (total * 100).quantize(Decimal('0.01'))
-            return Response({
-                'success': False,
-                'detail': f'该适用范围下此维度指标目标占比之和须为 100%，当前为 {pct}%',
-            }, status=400)
+        # v2.9：删除「占比加和须=100%」校验（扁平模型下每条规则 target=1.0，无需加和约束）
 
         # ---- 「全局 / 指定范围」互斥（非对称，与 set_rules 一致） ----
         _block = _scope_mutex_guard(dimension, year, bu, position, level)
@@ -868,12 +858,7 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
             prepared.append((indicator, target, strength, r.get('monthly_targets')))
             weights.append(float(target))
 
-        if abs(total - Decimal('1')) > Decimal('0.0001'):
-            pct = (total * 100).quantize(Decimal('0.01'))
-            return Response({
-                'success': False,
-                'detail': f'该维度下所有指标目标占比之和须为 100%，当前为 {pct}%',
-            }, status=400)
+        # v2.9：删除「占比加和须=100%」校验（扁平模型下每条规则 target=1.0）
 
         # 最大余数法：把维度总人数精确分配为各指标 annual_target，保证 Σannual == total_target
         annuals = _largest_remainder_allocate(total_target, weights)
@@ -1014,7 +999,10 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         })
 
     def _import_group(self, g, user):
-        """导入单个 (适用范围, 维度, 年度) 组，事务原子替换。返回 (ok, msg, saved_count)。"""
+        """导入单个 (适用范围, 维度, 年度) 组，事务原子替换。v2.9 扁平模型：每组 1 条规则。
+
+        返回 (ok, msg, saved_count)。
+        """
         bu = g.get('bu', '') or ''
         position = g.get('position', '') or ''
         level = g.get('level', '') or ''
@@ -1024,38 +1012,28 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
         dimension = ControlDimension.objects.filter(name=dimension_name).first()
         if not dimension:
-            return False, f'组[{dimension_name}]：维度不存在', 0
+            return False, f'组[{dimension_name}]：维度不存在（请检查导入文件中的维度名是否与系统启用维度一致）', 0
 
-        total = Decimal('0')
         prepared = []
         seen = set()
         for r in rules_in:
             indicator_name = r.get('indicator')
             if indicator_name in seen:
-                return False, f'组[{dimension_name}]：指标「{indicator_name}」重复', 0
+                return False, f'组[{dimension_name}]：指标「{indicator_name}」在同一适用范围+维度+年度下重复', 0
             seen.add(indicator_name)
             indicator = ControlIndicator.objects.filter(name=indicator_name, dimension=dimension, is_active=True).first()
             if not indicator:
                 return False, f'组[{dimension_name}]：指标「{indicator_name}」不属于该维度或未启用', 0
-            target = _to_decimal(r.get('target'))
-            if target is None:
-                return False, f'组[{dimension_name}]：指标「{indicator_name}」目标占比非法', 0
-            if not (Decimal('0') <= target <= Decimal('1')):
-                return False, f'组[{dimension_name}]：指标「{indicator_name}」目标占比须 0~1', 0
+            # v2.9 扁平模型：target 恒 1.0，不再校验占比范围
             strength = r.get('strength', '硬约束')
             if strength not in STRENGTH:
-                return False, f'组[{dimension_name}]：控制强度非法：{strength}', 0
+                return False, f'组[{dimension_name}]：控制强度「{strength}」非法（须为 硬约束/软约束）', 0
             monthly = r.get('monthly_targets') or [0] * 12
             if len(monthly) != 12:
                 return False, f'组[{dimension_name}]：指标「{indicator_name}」月度目标须为长度 12', 0
             if any(v < 0 for v in monthly):
                 return False, f'组[{dimension_name}]：指标「{indicator_name}」月度目标不能为负', 0
-            total += target
-            prepared.append((indicator, target, strength, monthly))
-
-        if abs(total - Decimal('1')) > Decimal('0.0001'):
-            pct = (total * 100).quantize(Decimal('0.01'))
-            return False, f'组[{dimension_name}]：目标占比之和须=100%，当前 {pct}%', 0
+            prepared.append((indicator, strength, monthly))
 
         # ---- 「全局 / 指定范围」互斥（非对称，与 set_rules 一致） ----
         _block = _scope_mutex_guard(dimension, year, bu, position, level)
@@ -1064,11 +1042,12 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
         with transaction.atomic():
             ControlRule.objects.filter(bu=bu, position=position, level=level, dimension=dimension, year=year).delete()
-            for indicator, target, strength, monthly in prepared:
-                annual = int((Decimal(str(g.get('total_target', 0))) * target).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+            for indicator, strength, monthly in prepared:
+                # v2.9：扁平模型 annual = 行级年度目标（不再按占比 * totalTarget 拆分）
+                annual = int(rules_in[0].get('annual_target', 0) or 0)
                 ControlRule.objects.create(
                     bu=bu, position=position, level=level, dimension=dimension, indicator=indicator,
-                    year=year, target=target, strength=strength,
+                    year=year, target=Decimal('1.0'), strength=strength,
                     annual_target=annual, monthly_targets=monthly,
                     created_by=user, updated_by=user,
                 )

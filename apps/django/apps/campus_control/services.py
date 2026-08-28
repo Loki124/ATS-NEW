@@ -2,7 +2,8 @@
 
 设计约束（用户拍板 3 项修订）：
   ① Candidate 扩展 school_tag / major_tag，Offer 钩子实现「性别 + 院校标签 + 专业标签」全维度命中。
-  ② 去掉 handling_method；仅 strength（控制强度）单字段驱动：硬约束→阻断；软约束/仅提示→放行+提示。
+  ② 去掉 handling_method；仅 strength（控制强度）单字段驱动：硬约束→阻断；软约束→放行+提示
+    （v2.9：原「仅提示」枚举已合并至「软约束」，二者后端处理完全一致）。
   ③ unique_together 含 is_active：启用原规则 + 未启用副本可共存；副本启用冲突由 validate_rule_unique 拦截。
 
 口径铁律：计数 MUST REUSE calc.py 的 _COUNTED_STATUSES / rule_matches / _indicator_filter /
@@ -140,7 +141,7 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
 
     返回：{'blocks': [...], 'warnings': [...]}
       命中硬约束 → 抛 ControlRuleViolation(blocks=..., warnings=...)，由调用方转 400/409 回滚。
-      仅软约束/仅提示命中 → 返回 dict（warnings 非空），调用方 logger.warning 放行。
+      仅软约束命中 → 返回 dict（warnings 非空），调用方 logger.warning 放行。
     """
     _person_to_dict, _build_person_dim_map, _rule_to_dict = _views_helpers()
 
@@ -243,7 +244,7 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
         if rule.strength == '硬约束':
             blocks.append(entry)
         else:
-            # 软约束 / 仅提示：放行，仅提示
+            # 软约束：放行，仅提示（v2.9：原「仅提示」枚举已合并至此，后端处理一致）
             warnings.append(entry)
 
     if blocks:

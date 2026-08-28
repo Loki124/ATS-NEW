@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    participant U as 运营(前端)
+    participant V as ControlRuleViewSet
+    participant S as CampusControlService
+    participant M as ControlRule(Model)
+    participant DB as DB
+
+    %% ---- 复制 ----
+    U->>V: POST /rules/{id}/copy
+    V->>S: copy_rule(rule)
+    S->>DB: 事务内 select_for_update 取 max(code 序号)+1
+    S->>M: 克隆(is_active=False, 新 code, 其余字段复制)
+    M-->>V: 副本 Rule
+    V-->>U: 200 副本(未启用)
+
+    %% ---- 启用/停用 ----
+    U->>V: PATCH /rules/{id}/toggle {is_active:true}
+    V->>S: toggle_rule(rule, true)
+    S->>S: 统一校验(唯一性 is_active=True + 占比≤100%)
+    alt 与某 is_active=True 同键冲突
+        S-->>V: 抛 ControlRuleViolation("该组合已存在启用规则，请改键或停用原规则")
+        V-->>U: 409 中文 message
+    else 通过
+        S->>M: is_active=True 保存
+        V-->>U: 200
+    end
+
+    %% ---- Offer 创建钩子 ----
+    participant O as OfferService
+    participant C as Candidate
+    U->>O: create_offer(data)
+    O->>S: validate_offer_against_rules(offer)
+    S->>DB: ControlRule.objects.filter(is_active=True)
+    S->>C: 取 gender/school_tag/major_tag
+    S->>S: 键映射 + 全部键 AND 相等 → 命中规则集
+    S->>S: count_matched_heads(在途+已入职+本条Offer)
+    alt 命中且预测超年度/月度
+        alt strength=硬约束
+            S-->>O: 抛 ControlRuleViolation(命中规则编号+超标明细)
+            O-->>U: 400/409 阻断
+        else 软约束/仅提示
+            S-->>O: 返回 warning(仅提示, 放行)
+            O-->>U: 201 创建成功 + 预警
+        end
+    else 未超/未命中
+        S-->>O: None(放行)
+        O-->>U: 201
+    end

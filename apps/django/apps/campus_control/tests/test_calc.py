@@ -205,18 +205,31 @@ class TestSum100Validation:
         assert ser2.is_valid(), ser2.errors  # 0.6 + 0.4 = 100% OK
 
     def test_per_rule_overflow_blocked(self, hr_user):
+        """v2.9 扁平模型：已删除「占比加和不得超过 100%」校验，每条规则 target 可独立设置。
+
+        此处保留测试结构，但语义反转：传 target=0.5 + 已有 target=0.6 都应通过
+        （扁平模型下 target 恒为 1.0，前端不再传其他值；后端仅校验 0~1 范围）。
+        """
         dim, i_m, i_f = self._mk_dim_ind(hr_user)
         ControlRule.objects.create(
             bu='能电BG', dimension=dim, indicator=i_m,
-            target=Decimal('0.6'), strength='硬约束',
+            target=Decimal('1.0'), strength='硬约束',
             created_by=hr_user, updated_by=hr_user,
         )
         ser = ControlRuleSerializer(data={
             'bu': '能电BG', 'dimension': dim.id, 'indicator': i_f.id,
-            'target': 0.5, 'strength': '软约束',
+            'target': 1.0, 'strength': '软约束',
         })
-        assert not ser.is_valid()
-        assert any('100%' in str(v) for vals in ser.errors.values() for v in (vals if isinstance(vals, list) else [vals]))
+        assert ser.is_valid(), ser.errors
+        # 越界值（>1 或 <0）仍被拦截
+        ser_bad = ControlRuleSerializer(data={
+            'bu': '综合BG', 'dimension': dim.id, 'indicator': i_f.id,
+            'target': 1.5, 'strength': '软约束',
+        })
+        assert not ser_bad.is_valid()
+        assert any('0~1' in str(v) or '目标占比' in str(v)
+                   for vals in ser_bad.errors.values()
+                   for v in (vals if isinstance(vals, list) else [vals]))
 
 
 # ============================ API 端点 ============================
@@ -267,14 +280,21 @@ class TestApiEndpoints:
             assert 'strength' not in c
 
     def test_rule_100_block_via_api(self, api_client):
+        """v2.9 扁平模型：单条规则 target=1.0 创建 OK；不再校验「同组占比加和」。
+
+        语义反转：扁平模型下「男」「女」是两条独立规则，target 各自 = 1.0 都通过。
+        """
         d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
         dim_id = d['id']
         im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
         ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
-        r1 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}, format='json')
+        r1 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 1.0, 'strength': '硬约束'}, format='json')
         assert r1.status_code == 201, r1.json()
-        r2 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.5, 'strength': '软约束'}, format='json')
-        assert r2.status_code == 400, r2.json()
+        r2 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 1.0, 'strength': '软约束'}, format='json')
+        assert r2.status_code == 201, r2.json()
+        # 但同 (bu, dimension, indicator, year) 已存在 → 重复拦截
+        r3 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 1.0, 'strength': '硬约束'}, format='json')
+        assert r3.status_code == 400, r3.json()
 
     def test_batch_100_ok(self, api_client):
         d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
@@ -291,15 +311,25 @@ class TestApiEndpoints:
         assert resp.json()['data']['saved'] == 2
 
     def test_batch_not_100_blocked(self, api_client):
+        """v2.9 扁平模型：set_rules/batch 不再校验「占比加和=100%」，单条规则 target 可独立设置。
+
+        传 target=0.6 应成功（扁平模型下 target 通常 = 1.0，但任意 0~1 都允许）。
+        """
         d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
         im = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json').json()
         api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json').json()
         resp = api_client.post('/api/v1/campus/rules/batch/', {
             'bu': '能电BG', 'dimension': d['id'],
-            'rules': [{'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}],
+            'rules': [{'indicator': im['id'], 'target': 1.0, 'strength': '硬约束'}],
         }, format='json')
-        assert resp.status_code == 400, resp.json()
-        assert '100%' in resp.json()['detail']
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()['data']['saved'] == 1
+        # 越界 target（>1）应被拦截
+        resp_bad = api_client.post('/api/v1/campus/rules/batch/', {
+            'bu': '三到BG', 'dimension': d['id'],
+            'rules': [{'indicator': im['id'], 'target': 1.5, 'strength': '硬约束'}],
+        }, format='json')
+        assert resp_bad.status_code == 400, resp_bad.json()
 
     def test_requires_auth(self):
         from rest_framework.test import APIClient
@@ -354,18 +384,30 @@ class TestBatchConfigWithTargets:
         assert annuals == [40, 60]
 
     def test_with_targets_not_100_blocked(self, api_client):
-        """占比加和 ≠ 100% → 400。"""
+        """v2.9 扁平模型：with-targets 不再校验「占比加和=100%」，target 越界（>1）才被拦截。
+
+        传 target 1.0 + 1.0 = 200%（旧模型应拦截）→ 现扁平模型通过；target=1.5 越界 → 400。
+        """
         dim_id, i1, i2 = self._setup_scheme(api_client)
-        resp = api_client.post('/api/v1/campus/rules/with-targets/', {
+        # 200% 在扁平模型下合法（每条规则独立 target）
+        resp_ok = api_client.post('/api/v1/campus/rules/with-targets/', {
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 50,
             'rules': [
-                {'indicator': i1, 'target': 0.6, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.5, 'strength': '软约束'},
+                {'indicator': i1, 'target': 1.0, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 1.0, 'strength': '软约束'},
             ],
         }, format='json')
-        assert resp.status_code == 400
-        assert '100%' in resp.json().get('detail', '')
+        assert resp_ok.status_code == 200, resp_ok.json()
+        # target 越界 → 400
+        resp_bad = api_client.post('/api/v1/campus/rules/with-targets/', {
+            'bu': '能电BG', 'position': '', 'level': '',
+            'dimension': dim_id, 'year': 2026, 'totalTarget': 50,
+            'rules': [
+                {'indicator': i1, 'target': 1.5, 'strength': '硬约束'},
+            ],
+        }, format='json')
+        assert resp_bad.status_code == 400, resp_bad.json()
 
     def test_with_targets_indicator_not_in_dim_blocked(self, api_client):
         """indicator 不属于 dimension → 400。"""
@@ -485,25 +527,38 @@ class TestDimensionSetRules:
         assert resp.json()['data']['saved'] == 2
 
     def test_set_rules_below_100_blocked(self, api_client):
+        """v2.9 扁平模型：set_rules 不再校验「占比加和=100%」，单条规则 target 可独立设置。
+
+        原语义「<100% 应被拦截」反转：扁平模型下 target=0.6 创建 OK（每条独占组合）。
+        """
         dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
             'bu': bu, 'position': pos, 'level': lvl, 'year': year,
-            'rules': [{'indicator': i1, 'target': 0.6, 'strength': '硬约束'}],
+            'rules': [{'indicator': i1, 'target': 1.0, 'strength': '硬约束'}],
         }, format='json')
-        assert resp.status_code == 400
-        assert '100%' in resp.json().get('detail', '')
+        assert resp.status_code == 200, resp.json()
+        assert resp.json()['data']['saved'] == 1
 
     def test_set_rules_above_100_blocked(self, api_client):
+        """v2.9 扁平模型：target 越界（>1）才被拦截；200% 在扁平模型下合法（每条独立）。"""
         dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
-        resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+        # 200% 扁平模型 OK
+        resp_ok = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
             'bu': bu, 'position': pos, 'level': lvl, 'year': year,
             'rules': [
-                {'indicator': i1, 'target': 0.7, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.5, 'strength': '软约束'},
+                {'indicator': i1, 'target': 1.0, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 1.0, 'strength': '软约束'},
             ],
         }, format='json')
-        assert resp.status_code == 400
-        assert '100%' in resp.json().get('detail', '')
+        assert resp_ok.status_code == 200, resp_ok.json()
+        # target 越界 → 400
+        resp_bad = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
+            'bu': '综合BG', 'position': pos, 'level': lvl, 'year': year,
+            'rules': [
+                {'indicator': i1, 'target': 1.5, 'strength': '硬约束'},
+            ],
+        }, format='json')
+        assert resp_bad.status_code == 400, resp_bad.json()
 
     def test_set_rules_duplicate_indicator_blocked(self, api_client):
         dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
@@ -531,22 +586,24 @@ class TestDimensionSetRules:
         assert '不属于' in resp.json().get('detail', '')
 
     def test_set_rules_preserves_headcount(self, api_client):
-        """重平衡占比时，既有年度/月度人数目标应被继承而非清空。"""
+        """重平衡规则集时，既有年度/月度人数目标应被继承而非清空（v2.9 扁平模型：target=1.0）。"""
         dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
-        # 先创建带人数目标的旧规则（仅 i1，target=0.6 ≤100% 合法）
+        # 月度加和 = 140（11*12 + 8 = 140；前 8 月=12，后 4 月=11）
+        monthly_140 = [12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11]
+        # 先创建带人数目标的旧规则（仅 i1，target=1.0 扁平模型合法）
         old = api_client.post('/api/v1/campus/rules/', {
             'bu': bu, 'position': pos, 'level': lvl, 'dimension': dim_id,
-            'indicator': i1, 'target': 0.6, 'strength': '硬约束',
-            'annual_target': 140, 'monthly_targets': [10] * 12,
+            'indicator': i1, 'target': 1.0, 'strength': '硬约束',
+            'annual_target': 140, 'monthly_targets': monthly_140,
         }, format='json')
         assert old.status_code == 201, old.json()
 
-        # 维度规则集编辑面重平衡：i1 0.6→0.55，i2 新增 0.45（和=100%）
+        # 维度规则集编辑面重平衡：i1 target=1.0 保留，i2 新增 target=1.0
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
             'bu': bu, 'position': pos, 'level': lvl, 'year': year,
             'rules': [
-                {'indicator': i1, 'target': 0.55, 'strength': '硬约束'},
-                {'indicator': i2, 'target': 0.45, 'strength': '软约束'},
+                {'indicator': i1, 'target': 1.0, 'strength': '硬约束'},
+                {'indicator': i2, 'target': 1.0, 'strength': '软约束'},
             ],
         }, format='json')
         assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
@@ -557,7 +614,7 @@ class TestDimensionSetRules:
         i1_rule = next(r for r in dim_rules if r['indicator'] == i1)
         # 人数目标应继承旧值
         assert i1_rule['annualTarget'] == 140
-        assert i1_rule['monthlyTargets'] == [10] * 12
+        assert i1_rule['monthlyTargets'] == monthly_140
         # 新指标无旧目标 → 0
         i2_rule = next(r for r in dim_rules if r['indicator'] == i2)
         assert i2_rule['annualTarget'] == 0

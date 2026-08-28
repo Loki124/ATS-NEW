@@ -2,6 +2,10 @@
 
 模板与导入共用同一套列结构，保证「下载模板 → 填数据 → 导入」闭环一致。
 
+v2.9 扁平模型：每条规则 = 独占 (适用范围·维度·指标·年度) 组合，无多指标占比分配。
+  - target 写库恒为 1.0（管控占比 100%），模板不再列「目标占比」列；
+  - 控制强度仅「硬约束 / 软约束」（软约束 = 原「软约束 / 仅提示」合并，后端处理一致）。
+
 列顺序（行 = 一条规则）：
   0 维度          (dimension name)
   1 指标          (indicator name)
@@ -9,10 +13,9 @@
   3 职务          (position；空 = 不限)
   4 职级          (level；空 = 不限)
   5 规划年度      (year int)
-  6 目标占比(%)    (0~100，写库时 ÷100)
-  7 控制强度       (硬约束/软约束/仅提示)
-  8 年度目标人数    (int)
-  9..20 1月..12月目标 (int)
+  6 控制强度       (硬约束/软约束)
+  7 年度目标人数    (int)
+  8..19 1月..12月目标 (int)
 """
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
@@ -23,14 +26,16 @@ from openpyxl.utils import get_column_letter
 from .constants import STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS
 from .models import ControlDimension, ControlIndicator
 
-# 列头（模板首行）
+# 列头（模板首行；v2.9 扁平模型：删「目标占比(%)」列，target 写库恒为 1.0）
 HEADERS = [
     '维度', '指标', '部门', '职务', '职级', '规划年度',
-    '目标占比(%)', '控制强度', '年度目标人数',
+    '控制强度', '年度目标人数',
     *ALL_MONTHS,  # 1月..12月
 ]
 N_MONTH_COLS = 12
-MONTH_START_COL = 9  # 第 9 列(下标)起为 1月
+MONTH_START_COL = 8  # 第 8 列(下标)起为 1月
+# 扁平模型下 target 写库恒为 1.0；模板不再要求用户填写占比列
+FLAT_TARGET = 1.0
 
 # 样式
 HEADER_FILL = PatternFill('solid', fgColor='6366F1')
@@ -52,7 +57,10 @@ def _to_int(v, default=0):
 
 
 def _to_decimal_target(pct):
-    """百分比字符串/数字 → Decimal(0~1)；非法返回 None。"""
+    """百分比字符串/数字 → Decimal(0~1)；非法返回 None。
+
+    v2.9 扁平模型：模板不再含「目标占比」列；保留此函数仅为向后兼容旧模板/旧导出文件。
+    """
     if pct is None or pct == '':
         return None
     try:
@@ -78,6 +86,7 @@ def build_export_workbook(rules):
     for r in rules:
         mt = r.get('monthly_targets') or [0] * 12
         mt = [(mt[i] if i < len(mt) else 0) for i in range(12)]
+        # v2.9：删「目标占比」导出列（target 恒 1.0 无意义）
         row = [
             r.get('dimension', ''),
             r.get('indicator', ''),
@@ -85,15 +94,14 @@ def build_export_workbook(rules):
             r.get('position', '') or '',
             r.get('level', '') or '',
             r.get('year', ''),
-            round(float(r.get('target', 0)) * 100, 2),
             r.get('strength', ''),
             r.get('annual_target', 0),
             *mt,
         ]
         ws.append(row)
 
-    # 列宽
-    widths = [10, 10, 10, 10, 8, 10, 12, 10, 12] + [7] * N_MONTH_COLS
+    # 列宽（v2.9：删除占比列宽；总列 = 8 + 12 = 20）
+    widths = [10, 10, 10, 10, 8, 10, 10, 12] + [7] * N_MONTH_COLS
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = 'A2'
@@ -101,21 +109,20 @@ def build_export_workbook(rules):
 
 
 def build_template_workbook():
-    """返回带表头 + 示例行 + 填写说明的模板 Workbook。"""
+    """返回带表头 + 示例行 + 填写说明的模板 Workbook（v2.9 扁平模型）。"""
     wb = Workbook()
     ws = wb.active
     ws.title = '管控规则模板'
 
-    # 1) 说明区
+    # 1) 说明区（v2.9 扁平模型：每条规则独占组合，无需占比加和）
     notes = [
         '填写说明：',
-        '1. 每行一条规则；同一「部门+职务+职级+维度+规划年度」下的所有指标，目标占比(%)之和须 = 100。',
+        '1. 每行一条规则；每条规则 = 独立的「部门+职务+职级+维度+指标+规划年度」组合，无需拆分占比。',
         '2. 维度须为系统已有维度（院校标签/专业标签/性别）；指标须属于该维度（如 985、男、工学）。',
         '3. 部门留空 = 全局；职务/职级留空 = 不限。部门须在枚举内，职务/职级可选。',
-        '4. 控制强度：硬约束 / 软约束 / 仅提示。',
-        '5. 目标占比(%) 填 0~100 的数值（如 60 表示 60%）。',
-        '6. 年度目标人数 与 12 个月目标 均填整数；12 个月目标之和须 = 年度目标人数。',
-        '7. 请勿修改表头行与下方示例行以外的表结构；导入时仅读取「管控规则模板」以外的数据行。',
+        '4. 控制强度：硬约束 / 软约束（软约束命中仅提示、放行）。',
+        '5. 年度目标人数 与 12 个月目标 均填整数；12 个月目标之和须 = 年度目标人数。',
+        '6. 请勿修改表头行与下方示例行以外的表结构；导入时仅读取「管控规则模板」以外的数据行。',
     ]
     for i, line in enumerate(notes, start=1):
         cell = ws.cell(row=i, column=1, value=line)
@@ -132,14 +139,14 @@ def build_template_workbook():
         cell.alignment = Alignment(horizontal='center', vertical='center')
         cell.border = BORDER
 
-    # 示例行（院校标签·985，全局，2026）
-    example = ['院校标签', '985', '', '', '', 2026, 60, '硬约束', 100] + [8, 8, 8, 8, 9, 9, 8, 8, 9, 9, 8, 8]
+    # 示例行（院校标签·985，全局，2026，硬约束，年100）— v2.9 删占比列
+    example = ['院校标签', '985', '', '', '', 2026, '硬约束', 100] + [8, 8, 8, 8, 9, 9, 8, 8, 9, 9, 8, 8]
     for c, v in enumerate(example, start=1):
         cell = ws.cell(row=header_row + 1, column=c, value=v)
         cell.fill = SAMPLE_FILL
         cell.border = BORDER
 
-    widths = [10, 10, 10, 10, 8, 10, 12, 10, 12] + [7] * N_MONTH_COLS
+    widths = [10, 10, 10, 10, 8, 10, 10, 12] + [7] * N_MONTH_COLS
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = ws.cell(row=header_row + 1, column=1).coordinate
@@ -168,10 +175,10 @@ def parse_import_workbook(file_obj):
         for ind in ControlIndicator.objects.filter(is_active=True).select_related('dimension')
     }
 
-    # 找到表头行：含「维度」「指标」的那一行
+    # 找到表头行：含「维度」「指标」的那一行（v2.9 表头列减少，列范围 1..8）
     header_row = None
     for ridx in range(1, min(ws.max_row, 30) + 1):
-        row_vals = [str(ws.cell(row=ridx, column=c).value or '').strip() for c in range(1, 10)]
+        row_vals = [str(ws.cell(row=ridx, column=c).value or '').strip() for c in range(1, 9)]
         if '维度' in row_vals and '指标' in row_vals:
             header_row = ridx
             break
@@ -184,8 +191,8 @@ def parse_import_workbook(file_obj):
     errors_by_line = {}  # line_no -> 错误原因
     for ridx in range(header_row + 1, ws.max_row + 1):
         vals = [ws.cell(row=ridx, column=c).value for c in range(1, len(HEADERS) + 1)]
-        if all(v is None or v == '' for v in vals[:9]):
-            continue  # 空行
+        if all(v is None or v == '' for v in vals[:8]):
+            continue  # 空行（v2.9：HEADERS 减为 8 个基础列）
         line_no = ridx
         # 保留原始数据行（含表头列数）
         original_rows.append((line_no, vals[:len(HEADERS)]))
@@ -195,9 +202,8 @@ def parse_import_workbook(file_obj):
         position = str(vals[3] or '').strip()
         level = str(vals[4] or '').strip()
         year_raw = vals[5]
-        target_raw = vals[6]
-        strength = str(vals[7] or '').strip()
-        annual = _to_int(vals[8], 0)
+        strength = str(vals[6] or '').strip()  # v2.9：原占比列改为控制强度
+        annual = _to_int(vals[7], 0)  # v2.9：年度目标人数下标 7（原 8）
         monthly = [_to_int(vals[MONTH_START_COL + i], 0) for i in range(N_MONTH_COLS)]
 
         # 行级基础校验：同时记录到 errors（带行号前缀，给用户看）与 errors_by_line（用于按行融合 Excel）
@@ -208,30 +214,31 @@ def parse_import_workbook(file_obj):
         if not dimension:
             _row_err('维度为空'); continue
         if dimension not in valid_dims:
-            _row_err(f'维度「{dimension}」非法（须为系统已启用的维度）'); continue
+            _row_err(f'维度「{dimension}」非法（须为系统已启用的维度：{", ".join(sorted(valid_dims))}）'); continue
         if not indicator:
             _row_err('指标为空'); continue
         if (dimension, indicator) not in valid_ind:
-            _row_err(f'指标「{indicator}」非法（维度「{dimension}」下无此启用指标）'); continue
+            _row_err(f'指标「{indicator}」非法（维度「{dimension}」下未启用该指标）'); continue
         if bu and bu not in DEPTS:
-            _row_err(f'部门「{bu}」非法'); continue
+            _row_err(f'部门「{bu}」非法（须为 {", ".join(DEPTS)} 或留空=全局）'); continue
         if position and position not in POSITIONS:
-            _row_err(f'职务「{position}」非法'); continue
+            _row_err(f'职务「{position}」非法（须为 {", ".join(POSITIONS)} 或留空=不限）'); continue
         if level and level not in LEVELS:
-            _row_err(f'职级「{level}」非法'); continue
+            _row_err(f'职级「{level}」非法（须为 {", ".join(LEVELS)} 或留空=不限）'); continue
         try:
             year = int(year_raw)
         except (TypeError, ValueError):
-            _row_err(f'规划年度「{year_raw}」须为整数'); continue
-        target = _to_decimal_target(target_raw)
-        if target is None:
-            _row_err(f'目标占比「{target_raw}」须为 0~100 的数值'); continue
-        if not (Decimal('0') <= target <= Decimal('1')):
-            _row_err('目标占比须 0~100'); continue
+            _row_err(f'规划年度「{year_raw}」须为整数（如 2026）'); continue
         if strength and strength not in STRENGTH:
-            _row_err(f'控制强度「{strength}」非法（须为 {",".join(STRENGTH)}）'); continue
-        if sum(monthly) != annual:
-            _row_err(f'（{dimension}·{indicator}）12个月目标之和({sum(monthly)})≠年度目标({annual})'); continue
+            _row_err(f'控制强度「{strength}」非法（须为 {", ".join(STRENGTH)}）'); continue
+        if annual < 0:
+            _row_err(f'年度目标人数「{annual}」不能为负'); continue
+        monthly_sum = sum(monthly)
+        if monthly_sum != annual:
+            _row_err(
+                f'12 个月目标之和（{monthly_sum}）≠ 年度目标人数（{annual}）；'
+                f'请调整 1月..12月 列使加和 = 年度目标'
+            ); continue
 
         scope_key = (bu, position, level, dimension, year)
         g = groups.setdefault(scope_key, {
@@ -240,27 +247,17 @@ def parse_import_workbook(file_obj):
             'total_target': 0, 'rules': [],
             'first_line': line_no,  # 组内首行行号（用于组级错误映射）
         })
-        # totalTarget = 该组年度目标之和（用于后端 annual=round(totalTarget*target)）
+        # totalTarget = 该组年度目标之和（保留字段，扁平模型下每组只有 1 条规则）
         g['total_target'] += annual
         g['rules'].append({
             'indicator': indicator,
-            'target': float(target),
+            'target': FLAT_TARGET,  # v2.9：扁平模型 target 恒为 1.0
             'strength': strength or '硬约束',
             'monthly_targets': monthly,
             'annual_target': annual,
         })
 
-    # 组级 100% 校验：错误同时写入 errors，并把行级映射补写到组内每一行（含首行）
-    for key, g in groups.items():
-        s = sum(Decimal(str(r['target'])) for r in g['rules'])
-        if abs(s - Decimal('1')) > Decimal('0.0001'):
-            pct = (s * 100).quantize(Decimal('0.01'))
-            bu, position, level, dimension, year = key
-            scope = scope_text(bu, position, level)
-            msg = f'组[{scope}·{dimension}·{year}]：目标占比之和须=100%，当前 {pct}%'
-            errors.append(msg)
-            # 映射到组内首行（融合 Excel 时该行会标红+显示组错误）
-            errors_by_line[g.get('first_line')] = errors_by_line.get(g.get('first_line'), '') + ('；' if errors_by_line.get(g.get('first_line')) else '') + msg
+    # v2.9：删除「目标占比之和=100%」组级校验（每条规则独占组合，无多指标占比分配）
 
     group_list = [g for g in groups.values()]
     return group_list, errors, original_rows, errors_by_line
@@ -305,7 +302,7 @@ def build_error_report_workbook(original_rows, errors_by_line):
                 ws.cell(row=excel_row, column=c).fill = ERROR_FILL
             ws.cell(row=excel_row, column=len(headers)).font = ERROR_FONT
 
-    widths = [10, 10, 10, 10, 8, 10, 12, 10, 12] + [7] * N_MONTH_COLS + [50]
+    widths = [10, 10, 10, 10, 8, 10, 10, 12] + [7] * N_MONTH_COLS + [50]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = 'A2'
