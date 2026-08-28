@@ -199,10 +199,10 @@ async function save() {
     :style="{ width: '760px', maxWidth: '94vw' }"
     :bordered="false"
     :segmented="{ content: true, footer: true }"
-    :content-scrollable="true"
     class="rule-config-modal"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
+      <div class="rule-config-modal__scroll">
       <n-space vertical :size="18">
         <!-- 模块一：规则信息 -->
         <section>
@@ -311,6 +311,7 @@ async function save() {
           </n-form>
         </section>
       </n-space>
+      </div>
 
       <template #footer>
         <n-space justify="end">
@@ -355,12 +356,20 @@ async function save() {
 
 <!-- NModal preset=card 由 teleport 渲染到 body，scoped data-v 不可达。
      Naive 把 class 合并到 .n-card 根（class="n-card ... rule-config-modal"）。
-     max-height 限制 modal 总高度 + contentScrollable 让 Naive 内置 NScrollbar
-     接管 content 内部滚动，避免 12 月目标表单撑爆视口。
-     （Playwright 复验证：12 月 + 规则信息 + 管控强度 ≈ 1595px > 典型 900vh）
+     滚动方案：不使用 content-scrollable（会经 Naive 内部 NScrollbar 触发
+     "Non-function value encountered for default slot" Vue 警告，且无法从模板侧消除），
+     改为在默认插槽内放一个原生滚动容器 .rule-config-modal__scroll 接管内部滚动。
+     原生 div 走 element 渲染路径、不经 normalizeVNodeSlots，因此无该告警；
+     同时也避免 n-card flex 链失效的老坑（e80b392）。
      第二个 <style> 不带 scoped，对全局生效，专门命中 teleport 出来的 modal 根。 -->
 <style>
 .n-card.rule-config-modal {
   max-height: min(90vh, 1000px);
+}
+.rule-config-modal__scroll {
+  max-height: calc(min(90vh, 1000px) - 156px);
+  overflow-y: auto;
+  /* 复用 glass.css 全局滚动条 token（::-webkit-scrollbar 单源），保持一致观感 */
+  padding-right: 4px;
 }
 </style>
