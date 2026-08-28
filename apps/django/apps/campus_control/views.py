@@ -36,7 +36,7 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
 from apps.audit.models import AuditLog
 
-from .calc import compute_ratio, simulate, check_dimension_sums, _largest_remainder_allocate
+from .calc import compute_ratio, simulate, _largest_remainder_allocate
 from .constants import STRENGTH
 from .io_indicator import (
     build_indicator_export_workbook, build_indicator_export_csv,
@@ -655,27 +655,16 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='ratio')
     def ratio(self, request):
-        """实时看板：展示全部规则（每条按自身适用范围独立计算）+ 各(适用范围,年度)的 100% 加和。"""
+        """实时看板：展示全部规则（每条按自身适用范围独立计算）。"""
         rules = [_rule_to_dict(r) for r in ControlRule.objects.all()]
         dim_map = _build_person_dim_map()
         persons = [_person_to_dict(p, dim_map) for p in Person.objects.all()]
         result = compute_ratio(persons, rules)
-        sums = []
-        seen = set()
-        for r in rules:
-            sk = (r['bu'], r['position'], r['level'])
-            yk = (sk, r.get('year'))
-            if yk in seen:
-                continue
-            seen.add(yk)
-            for s in check_dimension_sums(rules, sk, r.get('year')):
-                sums.append({'bu': sk[0], 'position': sk[1], 'level': sk[2], 'year': r.get('year'), **s})
         return Response({
             'success': True,
             'data': {
                 'total': result['total'],
                 'rows': _jsonify(result['rows']),
-                'sumChecks': _jsonify(sums),
             },
         })
 

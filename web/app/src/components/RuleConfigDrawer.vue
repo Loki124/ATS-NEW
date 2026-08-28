@@ -203,7 +203,7 @@ async function save() {
     class="rule-config-modal"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
-      <n-space vertical :size="18">
+      <n-space vertical :size="14">
         <!-- 模块一：规则信息 -->
         <section>
           <div class="rc-section-title"><span class="dot" />规则信息</div>
@@ -257,15 +257,6 @@ async function save() {
               </n-gi>
             </n-grid>
 
-            <!-- 规则编号（只读，保存后自动生成 G + 4 位） -->
-            <n-form-item label="规则编号">
-              <n-input :value="form.code" readonly placeholder="保存后自动生成（G + 4 位）" />
-            </n-form-item>
-
-            <!-- 适用范围汇总（详情模式） -->
-            <n-alert v-if="!editing" type="info" :show-icon="true">
-              适用范围：<strong>{{ scopeText(form.bu, form.position, form.level) }}</strong>
-            </n-alert>
           </n-form>
         </section>
 
@@ -276,7 +267,10 @@ async function save() {
           <div class="rc-section-title"><span class="dot" />管控目标</div>
           <n-form :disabled="!editing" label-placement="top">
             <n-form-item label="年度目标(人)">
-              <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
+              <n-space align="center" :wrap="false">
+                <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
+                <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">按年度均分</n-button>
+              </n-space>
             </n-form-item>
             <n-form-item label="月度目标(人)">
               <div class="rc-monthly">
@@ -284,7 +278,6 @@ async function save() {
                   <span class="rc-monthly-label">{{ ALL_MONTHS[i] }}</span>
                   <n-input-number v-model:value="form.monthlyTargets[i]" :min="0" :step="1" size="small" />
                 </div>
-                <n-button v-if="editing" size="tiny" tertiary @click="evenFillMonthly">按年度均分</n-button>
               </div>
             </n-form-item>
 
@@ -300,11 +293,6 @@ async function save() {
               请调整 1月..12月 列使加和 = 年度目标，或点击「按年度均分」自动分配。
             </n-alert>
 
-            <!-- T132：使用说明 — 简短一行描述（替换原冗长 alert） -->
-            <n-alert type="default" :show-icon="false" style="margin-top: 4px">
-              <template #header>使用说明</template>
-              管控目标 = 年度目标人数 + 1月..12月 度目标；月度加和 须等于 年度目标（每年每指标强制约束）。
-            </n-alert>
           </n-form>
         </section>
 
@@ -324,11 +312,6 @@ async function save() {
                 style="margin-left: 10px"
               >{{ form.strength }}</n-tag>
             </n-form-item>
-            <!-- T132：使用说明 — v2.9 合并"仅提示"至"软约束"后只剩两档 -->
-            <n-alert type="default" :show-icon="false" style="margin-top: 4px">
-              <template #header>使用说明</template>
-              硬约束：命中即阻断 Offer 录入；软约束：放行并提示。
-            </n-alert>
           </n-form>
         </section>
       </n-space>

@@ -11,9 +11,6 @@
       <n-tabs v-model:value="activeTab" type="line" class="cc-tabs" @update:value="onTabChange">
         <!-- ===================== 实时看板（含人数规划） ===================== -->
         <n-tab-pane name="ratio" tab="实时看板">
-          <n-alert v-if="hasBadSum" type="warning" :show-icon="true" style="margin-bottom: 14px">
-            存在目标占比未加和到 100% 的维度（见下方「加和」状态），请前往「规则配置」补全。
-          </n-alert>
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
             <div class="kpi-card"><span class="kpi-label">管控规则数</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
@@ -441,7 +438,7 @@ const levelOptions = opt(LEVELS)
 /* ============================ 工具 ============================ */
 const pct = (r: number, d = 1) => `${(r * 100).toFixed(d)}%`
 const ratioStatusType = (s: string) => (s === '正常' ? 'success' : s === '高于上限' ? 'error' : 'warning')
-const countStatusType = (s: string) => (s === '本月达标' ? 'success' : s === '缺口未达成' ? 'warning' : 'default')
+const countStatusType = (s: string) => (s === '本月达标' ? 'error' : s === '缺口未达成' ? 'warning' : 'default')
 const strengthType = (s: string) => (s === '硬约束' ? 'error' : s === '软约束' ? 'warning' : 'default')
 const verdictType = (v: string) => (v.startsWith('❌') ? 'error' : v.startsWith('⚠️') ? 'warning' : 'success')
 
@@ -546,7 +543,7 @@ watch(ruleFilterDimension, () => {
 })
 
 /* ============================ 实时看板 ============================ */
-const ratioData = ref<RatioResult>({ total: 0, rows: [], sumChecks: [] })
+const ratioData = ref<RatioResult>({ total: 0, rows: [] })
 const ratioKpi = computed(() => {
   const rows = ratioData.value.rows
   return {
@@ -554,7 +551,6 @@ const ratioKpi = computed(() => {
     soft: rows.filter((r) => r.status !== '正常' && r.strength !== '硬约束').length,
   }
 })
-const hasBadSum = computed(() => ratioData.value.sumChecks.some((s) => !s.ok))
 
 /* ============================ 规则配置 ============================ */
 const currentMonthIdx = computed(() => new Date().getMonth()) // 0=1月
@@ -617,8 +613,6 @@ const dimensionRuleSummary = computed(() =>
     const yearLabels = years.length === 0 ? '—' : years.map(String).join(' / ')
     // 「年度目标(人)」：该维度所有规则的 annualTarget 之和（与详情页「维度年度管控人数」一致口径）。
     const annualTotal = dRules.reduce((s, r) => s + (Number(r.annualTarget) || 0), 0)
-    let badSum = false
-    for (const s of groups.values()) if (Math.abs(s - 1) >= 0.0005) badSum = true
     const hasMutex = [...mixedScopeGroups.value].some((gk) => gk.startsWith(d.id + '|'))
     const indicatorCount = indicators.value.filter((i) => i.dimension === d.id).length
     return {
@@ -629,7 +623,6 @@ const dimensionRuleSummary = computed(() =>
       yearLabels,
       annualTotal,
       ruleSetCount: groups.size,
-      sumOk: !badSum && dRules.length > 0,
       mutex: hasMutex,
     }
   }),
@@ -928,15 +921,12 @@ const ruleColumns: DataTableColumns<any> = [
       : h('span', { class: 'muted' }, '—')),
   },
   {
-    title: '启用状态', key: 'isActive', width: 100,
-    render: (r: any) => h(NTag, { type: r.isActive ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.isActive ? '启用' : '停用') }),
-  },
-  {
-    title: '操作', key: 'op', width: 210, fixed: 'right',
+    title: '操作', key: 'op', width: 260, fixed: 'right',
     render: (r: any) =>
       h(NSpace, { size: 4 }, {
         default: () => [
           h(NButton, { size: 'small', tertiary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.copy(r) } }, { default: () => '复制' }),
+          h(NButton, { size: 'small', tertiary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'edit') } }, { default: () => '编辑' }),
           h(NButton, { size: 'small', tertiary: true, type: r.isActive ? 'warning' : 'success', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.toggle(r, !r.isActive) } }, { default: () => (r.isActive ? '停用' : '启用') }),
           h(NButton, { size: 'small', tertiary: true, type: 'error', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.remove(r) } }, { default: () => '删除' }),
         ],
@@ -982,14 +972,6 @@ const dimensionRuleColumns: DataTableColumns<any> = [
   { title: '年度目标(人)', key: 'annualTotal', width: 130, render: (d: any) => (d.annualTotal > 0 ? h('span', {}, String(d.annualTotal)) : h('span', { class: 'muted' }, '—')) },
   { title: '指标数', key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) },
   { title: '规则集(适用范围×年度)', key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) },
-  {
-    title: '加和状态', key: 'sumOk', width: 140,
-    render: (d: any) => {
-      if (d.mutex) return h(NTag, { type: 'error', bordered: false, size: 'small' }, { default: () => '⚠ 范围冲突' })
-      if (!d.sumOk) return h(NTag, { type: 'warning', bordered: false, size: 'small' }, { default: () => '⚠ 未达100%' })
-      return h(NTag, { type: 'success', bordered: false, size: 'small' }, { default: () => '✓ 100%' })
-    },
-  },
   {
     title: '操作', key: 'actions', width: 170, fixed: 'right',
     render: (d: any) => h('div', { style: 'display:flex; gap:8px;' }, [

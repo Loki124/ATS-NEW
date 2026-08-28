@@ -129,19 +129,9 @@ export interface RatioRow {
   strength: Strength
 }
 
-export interface SumCheck {
-  dimension: string
-  bu: string
-  position: string
-  level: string
-  sum: number
-  ok: boolean
-}
-
 export interface RatioResult {
   total: number
   rows: RatioRow[]
-  sumChecks: SumCheck[]
 }
 
 export interface ValidationCheck {

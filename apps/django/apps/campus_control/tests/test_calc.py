@@ -252,7 +252,8 @@ class TestApiEndpoints:
         male = next(r for r in data['rows'] if r['dimension'] == '性别' and r['indicator'] == '男')
         assert abs(male['ratio'] - 1.0) < 1e-3  # 仅 1 名男性
         assert male['status'] == '高于上限'
-        assert all(s['ok'] for s in data['sumChecks'])
+        # v2.9 扁平模型：ratio 端点不再返回 sumChecks（每条规则 target 恒 1.0，无「占比之和=100%」语义）。
+        assert 'sumChecks' not in data
 
     def test_plan_endpoint_gone(self, api_client):
         """v2.8 真删：plan 端点已移除，任何请求应 404。"""
