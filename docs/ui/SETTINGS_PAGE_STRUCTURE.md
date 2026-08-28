@@ -54,7 +54,8 @@ scoped 仅需：
 .page-container { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .page-header { flex-shrink: 0; }
 .page-body  { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-             display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
+             display: flex; flex-direction: column; gap: 16px; }
+/* 顶部留白由外层 .settings-scroll 的 padding:20px 统一提供，.page-body 不再单独加 padding-top */
 ```
 
 > 模型 B 下 `.page-header` 是 `flex-shrink:0` 固定（非 sticky），但因为 `.page-body` 自己滚，标题视觉上始终可见，效果等同吸顶。

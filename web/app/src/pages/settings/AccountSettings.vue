@@ -309,7 +309,6 @@ async function handleChangePassword() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-top: 8px;
 }
 
 /* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css 渐变规格） */
