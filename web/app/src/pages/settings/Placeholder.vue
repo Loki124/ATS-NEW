@@ -32,7 +32,7 @@ const route = useRoute()
 const META_MAP: Record<string, any> = {
   '/settings/onboarding': { icon: '👋', title: '入职设置', description: '员工入职流程配置（部门 / 资料模板 / 流程节点 / 自动通知规则）', eta: '2026-Q4', issue: 'ATS-142', owner: '花无缺', pr: '#438' },
   '/settings/approval':   { icon: '📋', title: '审批设置', description: '审批流配置（审批人 / 节点 / 通知规则）', eta: '2026-Q4', issue: 'ATS-143', owner: '花无缺', pr: '#439' },
-  '/settings/external':   { icon: '🔌', title: '对外接口', description: '第三方系统对接配置（HRIS / OA / 背调）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
+  '/settings/external':   { icon: '🔗', title: '生态对接', description: '生态对接配置（背调 / HRIS / OA）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
   '/settings/public':     { icon: '🌐', title: '公共设置', description: '公开页面配置（招聘门户 / 自定义字段）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
   '/report':              { icon: '📊', title: '数据中心', description: '招聘数据报表与分析（漏斗 / 转化 / 周期 / 来源）', eta: '规划中', issue: 'ATS-201', owner: '—', pr: '—' },
 }
