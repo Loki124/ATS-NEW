@@ -60,6 +60,13 @@ scoped 仅需：
 
 > 模型 B 下 `.page-header` 是 `flex-shrink:0` 固定（非 sticky），但因为 `.page-body` 自己滚，标题视觉上始终可见，效果等同吸顶。
 
+### ⚠️ 强制校验项（红线）
+
+- **`.page-body` 禁止声明 `padding` / `padding-top`**。顶部留白统一由外层 `.settings-scroll` 的 `padding: 20px` 提供（见 §2.1）。在 `.page-body` 上加 `padding-top` 会与 `.settings-scroll` 叠出多余顶部间隙，且与该规范唯一的模型 A 参考页（校招管控）顶部间距不一致。
+- 反例：`padding-top: 8px`（commit `12c6ece` 引入，已在 `50c5341` + `7ec00af` 清除，涉及 RecruitmentStage/Process/Round、AccountSettings、DemandConfig、CompanyLibrary、SchoolLibrary、ProcessStageEditor、DataDashboard、CompanySettings、PermissionManagement、FieldAclSettings、DepartmentManagement、MouManagement、DynamicFieldSettings、ProcessStageRules、ScoringRules、UserManagement）。
+- 若某页确实需要在 header 与首块内容间加间距：在 `.page-header` 之下第一块内容（如 `.toolbar` / `.glass-panel`）上加 `margin-top`，**不要**动 `.page-body` 的 `padding`。
+- 自检：新增/修改设置页时，`grep -Pzo '\.page-body[\s\S]*?padding' <file>` 应无命中（`.page-body` 块内不得含任何 `padding` 声明）。
+
 DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-container{display:block !important; padding-bottom:120px}` —— 这是模型 A 的特例（block 流 + 自身 overflow），仍复用全局 `.page-container` 类名而非私有类，合规。
 
 ## 3. 标题区：.page-header > .page-title + .page-subtitle
