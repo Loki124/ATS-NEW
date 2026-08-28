@@ -225,7 +225,7 @@
         <n-space align="center" :wrap="false">
           <n-button size="small" quaternary type="primary" @click="onDownloadTemplate">下载模板</n-button>
           <span class="import-hint" style="margin: 0">
-            每行一条规则，同一「部门+职务+职级+维度+规划年度」下目标占比之和须 = 100%，且 12 个月目标之和须等于年度目标人数。
+            每行一条规则 = 独立的「部门+职务+职级+维度+指标+规划年度」组合，无需拆分占比；12 个月目标之和须等于年度目标人数。
           </span>
         </n-space>
         <div v-if="importDrawer.result" class="import-result">

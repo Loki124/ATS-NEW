@@ -251,7 +251,7 @@ export interface BatchConfigPayload {
   rules: RuleDraft[]
 }
 
-/** 批量配置规则 + 人数目标：先按维度设定总人数，再选多个指标占比加和=100%；每指标 annual=round(totalTarget×target)。 */
+/** 批量配置规则 + 人数目标（v2.9 扁平模型）：每条规则独占「适用范围·维度·指标·年度」组合，target 恒为 1.0，不再校验占比之和=100%。 */
 export const batchConfigRules = (payload: BatchConfigPayload) =>
   api
     .post('/campus/rules/with-targets/', payload)
@@ -274,7 +274,7 @@ export interface DimRuleSetItem {
 
 /**
  * 维度规则集保存（PUT /dimensions/{id}/rules/）。
- * 原子替换该 (适用范围, 维度, 年度) 下全部规则；后端硬校验占比之和=100%；
+ * 原子替换该 (适用范围, 维度, 年度) 下全部规则（v2.9 扁平模型：每条规则 target 恒为 1.0，不再校验占比之和=100%）；
  * 保留既有年度/月度人数目标（仅更新 target/strength）。对应「维度规则集编辑面」保存动作。
  */
 export const saveDimensionRuleSet = (
