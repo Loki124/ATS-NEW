@@ -152,6 +152,31 @@ jobs:
         working-directory: web/app
         run: npm run lint:ci
 
+  brand-tokens:
+    # R-214：品牌色令牌 MUST 由 brand-tokens.mjs 生成并纳入 CI 门禁。
+    # 任一失败（彩度过低 / 对比度不达标 / 已提交文件过期）直接阻断合并。
+    name: Brand Tokens Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/app/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: web/app
+        run: npm ci
+
+      - name: Generate + gate brand tokens
+        working-directory: web/app
+        env:
+          BRAND_COLOR: ${{ vars.BRAND_COLOR }}
+        run: node brand-tokens.mjs --brand "${BRAND_COLOR:-#6366F1}" --ci --out src/styles/brand-tokens.css
+
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest

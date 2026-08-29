@@ -3,7 +3,7 @@
  * -------------------------------------------------------------
  * 单一事实来源：DESIGN.md §2 + 本文件。
  * 任何组件禁止再硬编码品牌色 / 模糊值 / 圆角。
- * 改品牌色：仅改 --brand 一处（hover/pressed/dark 经 color-mix 自动派生）。
+ * 改品牌色：仅改 brand-tokens.mjs 的 --brand 输入并重新生成（禁止手写，AGENTS.md R-214）。
  * 切暗色：给 <body> 加 .dark 类即可，组件 CSS 不变。
  * -------------------------------------------------------------
  * 变更日志：
@@ -22,30 +22,12 @@
  *     --color-paper/ink/accent/border + --accent-hex/--accent-soft-hex
  * ============================================================= */
 
+/* 品牌色系统已外移至 brand-tokens.css（由 brand-tokens.mjs 生成，AGENTS.md R-214）。
+ * 换品牌色：仅改 brand-tokens.mjs 的 --brand 输入后 `npm run tokens` 重新生成并提交，
+ * 禁止在任意位置手写品牌色令牌。 */
+@import './brand-tokens.css';
+
 :root {
-  /* ===== §1. 品牌（单一输入） ===== */
-  /* ★ 唯一必填输入：改 --brand 即全站换肤
-   *   （按钮渐变 / 激活态 / 链接 / 玻璃辉光 / 极光主光斑联动）。
-   *   hover/pressed/dark 经 color-mix 自动派生，无需手维护。
-   *   腾讯 CI 备选：--brand: #0052D9。 */
-  --brand: #6366F1;
-  --brand-hover:  color-mix(in srgb, var(--brand) 80%, #fff);
-  --brand-pressed: color-mix(in srgb, var(--brand) 82%, #000);
-  --brand-dark:   color-mix(in srgb, var(--brand) 66%, #000);
-  --brand-soft:   color-mix(in srgb, var(--brand) 12%, transparent);
-  --brand-tint:   color-mix(in srgb, var(--brand)  6%, transparent); /* hover 行极浅底 */
-
-  /* 下拉/菜单行专用 hover/selected 底色：light 14% brand, 暗色懒求值跟随
-   * 起源：2026-08-28 用户报「下拉弹窗里怎么会有圆角和直角混用」→ 上一轮 commit
-   * `087f215` 把 L3 行 hover 用 --brand-tint (6%), light 主题下几乎看不见。
-   * 表格行/按钮 focus 等微高亮仍沿用 --brand-tint (极浅底设计意图), 此 token
-   * 专给 dropdown/menu 行 — 单源 + 场景专属, 避免动 --brand-tint 全项目连锁。*/
-  --option-hover: color-mix(in srgb, var(--brand) 14%, transparent);
-
-  /* 渐变端（默认类比色；白标场景可整体覆盖为品牌近似色） */
-  --brand-grad-a: #A855F7; /* 紫 — 标题/按钮渐变中段 */
-  --brand-grad-b: #EC4899; /* 粉 — 标题渐变末段（仅装饰） */
-
   /* ===== §2. 墨色 / 中性 ===== */
   --ink:        #0F172A; /* 标题、重要正文 */
   --ink-soft:   #475569; /* 次要正文、标签 */
@@ -86,13 +68,9 @@
   --c-info:         #3B82F6;
   --c-info-soft:    rgba(59, 130, 246, .12);
 
-  /* ===== §4.1 品牌透色（--brand 的硬编码 hex 透色抽 token，
-   * 跑不掉是因为 color-mix 不能嵌在 rgba 内显式控透明度，只能
-   * 由 rgb 通道直接出 rgba；暗色下走 color-mix 重算保持品牌一致） ===== */
-  --brand-rgb:      99, 102, 241;  /* 与 --brand 默认 #6366F1 的 RGB 三元 */
-  --brand-a32:      rgba(99, 102, 241, .32); /* 主按钮辉光（= --glow-brand） */
-  --brand-a22:      rgba(99, 102, 241, .22); /* 卡片 hover 描边 */
-  --brand-a12:      rgba(99, 102, 241, .12); /* 卡片 hover 阴影 */
+  /* §4.1 品牌透色（--brand-rgb / --brand-a32 / --brand-a22 / --brand-a12）已随品牌系统
+   * 迁入 brand-tokens.css，由 color-mix(in oklch, var(--brand-600) N%, transparent) 生成；
+   * 暗色重配比见该文件 body.dark。 */
 
   /* ===== §5. 阴影 ===== */
   --shadow-xs:      0 1px 2px rgba(15, 23, 42, .06);
@@ -204,10 +182,7 @@ body.dark {
   --shadow-2xl:     0 28px 72px rgba(0, 0, 0, .50);
   --glow-brand:     rgba(99, 102, 241, .45);
 
-  /* 品牌透色加深（暗色玻璃里悬浮的品牌辉光需要更亮） */
-  --brand-a32: rgba(99, 102, 241, .45);
-  --brand-a22: rgba(99, 102, 241, .32);
-  --brand-a12: rgba(99, 102, 241, .18);
+  /* 品牌透色加深见 brand-tokens.css body.dark（--brand-a32/a22/a12 已重配比）。 */
 }
 
 /* ===== §15. 跟随系统（prefers-color-scheme）=====

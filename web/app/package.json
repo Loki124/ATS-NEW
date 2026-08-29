@@ -13,6 +13,8 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "lint:ci": "eslint . --max-warnings=0",
+    "tokens": "node brand-tokens.mjs --brand \"${BRAND_COLOR:-#6366F1}\" --ci",
+    "tokens:report": "node brand-tokens.mjs --brand \"${BRAND_COLOR:-#6366F1}\" --report",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "e2e:ui": "playwright test --ui"
@@ -36,6 +38,7 @@
     "@unocss/reset": "^66.7.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.11",
+    "culori": "^4.0.2",
     "eslint": "^9.39.4",
     "eslint-plugin-vue": "^9.33.0",
     "globals": "^15.15.0",
