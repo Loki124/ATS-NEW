@@ -107,7 +107,7 @@
                         v-if="row.updatedByName"
                         round
                         :size="22"
-                        :style="{ background: '#3b82f6', color: '#fff' }"
+                        :style="{ background: 'var(--c-info)', color: 'var(--g1)' }"
                       >
                         {{ initials(row.updatedByName) }}
                       </n-avatar>
@@ -815,7 +815,7 @@ onMounted(() => {
 .policy-doc-pinned {
   flex-shrink: 0;
   font-size: 11px;
-  color: #ef4444;
+  color: var(--c-error);
   background: var(--c-error-soft);
   padding: 1px 6px;
   border-radius: 4px;
@@ -855,7 +855,7 @@ onMounted(() => {
 }
 
 .attach-row__icon {
-  color: #3b82f6;
+  color: var(--c-info);
   display: flex;
   align-items: center;
   justify-content: center;

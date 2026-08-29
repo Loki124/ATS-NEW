@@ -279,7 +279,6 @@ onUnmounted(() => {
 
 /* === 玻璃内容区（滚动职责下放，参考 AccountSettings 范式） === */
 .page-body {
-  padding: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);

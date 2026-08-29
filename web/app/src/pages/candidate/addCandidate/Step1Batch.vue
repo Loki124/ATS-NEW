@@ -184,7 +184,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   justify-content: center;
 }
 .card-item .c-header .c-chk.checked { background: var(--p); border-color: var(--p); }
-.card-item .c-header .c-chk.checked::after { content: '✓'; color: #fff; font-size: 10px; }
+.card-item .c-header .c-chk.checked::after { content: '✓'; color: var(--g1); font-size: 10px; }
 .card-item .c-header .c-avatar {
   width: 36px;
   height: 36px;
@@ -243,7 +243,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   border: 1px solid #FDE68A;
   border-radius: 8px;
   padding: 10px 14px;
-  background: #FFFDF5;
+  background: var(--g1);
   margin: 8px 0;
   font-size: 11px;
 }
@@ -319,7 +319,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: #EFF6FF;
+  background: var(--g1);
   border: 1px solid #BFDBFE;
   border-radius: 8px;
   font-size: 10px;
@@ -450,7 +450,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 .pfill.bl { background: var(--b); }
-.pfill.ye { background: #F59E0B; }
+.pfill.ye { background: var(--c-warning); }
 .pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 #8B5CF6 -> 令牌 */
 .pfill.gr { background: var(--s); }
 /* v2 bugfix P0-C: 业务按钮白底 → 玻璃（同一文件中其他业务卡片一起清理） */

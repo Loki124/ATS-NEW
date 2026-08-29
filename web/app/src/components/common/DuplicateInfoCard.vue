@@ -35,7 +35,7 @@ defineProps<{ info: Partial<DuplicateInfo>; status: 'processing' | 'clean' | 'un
   border: 1px solid #FDE68A;
   border-radius: 8px;
   padding: 10px 14px;
-  background: #FFFDF5;
+  background: var(--g1);
   font-size: 11px;
 }
 .dup-row { display: flex; justify-content: space-between; margin-bottom: 5px; }

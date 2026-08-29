@@ -311,7 +311,7 @@
               </n-radio-group>
               <div
                 v-if="mouFormState.scopes.data.scope === 'CUSTOM'"
-                style="margin-top: 12px; padding-left: 16px; border-left: 2px solid #eee;"
+                style="margin-top: 12px; padding-left: 16px; border-left: 2px solid var(--g2);"
               >
                 <n-form-item label="选定的部门 IDs (逗号分隔)" :show-feedback="false" style="margin-bottom: 8px;">
                   <n-input

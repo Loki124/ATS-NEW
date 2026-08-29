@@ -979,10 +979,10 @@ onUnmounted(() => {
   overflow: auto !important;
   border-radius: 8px;
 }
-.el-table { border: 1px solid #eee; border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
+.el-table { border: 1px solid var(--g2); border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
 .el-table-scroll .el-table { border: none; border-radius: 0; min-width: 720px; }
 .el-head { position: sticky; top: 0; z-index: 1; }
-.el-row { display: flex; align-items: center; border-bottom: 1px solid #f2f3f5; min-height: 48px; }
+.el-row { display: flex; align-items: center; border-bottom: 1px solid var(--g1); min-height: 48px; }
 .el-row:last-child { border-bottom: none; }
 .el-head { background: var(--g1); font-weight: 600; font-size: 13px; color: #555; white-space: nowrap; }
 .el-row.editing { background: var(--brand-tint); }
@@ -1020,7 +1020,7 @@ onUnmounted(() => {
 .submit-bar {
   position: sticky; bottom: 16px; left: 0; right: 0;
   display: flex; justify-content: space-between; align-items: center;
-  background: var(--glass-bg-card); border: 1px solid #f0f0f0; border-radius: 12px;
+  background: var(--glass-bg-card); border: 1px solid var(--g1); border-radius: 12px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   padding: 12px 24px; margin: 24px 0 0;
   z-index: 10;

@@ -872,7 +872,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .add-button, .batch-notify-btn, .send-btn-primary {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
   border: 1px solid rgba(255, 255, 255, .35);
-  /* 不再覆盖 color — 走全局主按钮字色 #fff */
+  /* 不再覆盖 color — 走全局主按钮字色 var(--g1) */
 }
 
 /* 候选人列表 */
@@ -1070,7 +1070,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 }
 .candidate-avatar-sm {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
-  /* 不再覆盖 color — 走全局主按钮字色 #fff */
+  /* 不再覆盖 color — 走全局主按钮字色 var(--g1) */
   font-weight: 600;
 }
 .modal-content { display: flex; gap: 24px; margin-top: 24px; }
@@ -1102,7 +1102,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .method-name { font-weight: 500; }
 .right-content { flex: 1; min-width: 0; }
 .info-callout {
-  background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 6px;
+  background: var(--g1); border: 1px solid #91d5ff; border-radius: 6px;
   padding: var(--space-3); font-size: var(--text-body); color: var(--c-info); margin-bottom: var(--space-4);
 }
 .editor-section { background: var(--glass-bg-input); border-radius: 8px; padding: 16px; margin-bottom: 16px; }

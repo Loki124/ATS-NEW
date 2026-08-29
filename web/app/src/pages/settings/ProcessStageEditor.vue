@@ -395,7 +395,7 @@ onMounted(() => loadProcess())
   gap: 4px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px dashed #eee;
+  border-top: 1px dashed var(--g2);
 }
 .feature-chip {
   font-size: 11px;

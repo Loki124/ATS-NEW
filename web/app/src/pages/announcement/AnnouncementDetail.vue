@@ -38,7 +38,7 @@
             <n-avatar
               v-if="announcement.createdByName"
               class="ann-detail-avatar"
-              :style="{ background: '#3b82f6', color: '#fff' }"
+              :style="{ background: 'var(--c-info)', color: 'var(--g1)' }"
               round
               :size="28"
             >
@@ -218,7 +218,7 @@ onMounted(loadDetail)
 <style scoped>
 .ann-detail-page {
   min-height: 100%;
-  background: #f5f7fa;
+  background: var(--g1);
   padding: 24px;
 }
 
@@ -268,7 +268,7 @@ onMounted(loadDetail)
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 24px;
-  color: #6b7280;
+  color: var(--g5);
   font-size: 14px;
 }
 
@@ -290,7 +290,7 @@ onMounted(loadDetail)
 }
 
 .ann-detail-time {
-  color: #6b7280;
+  color: var(--g5);
 }
 
 .ann-detail-body {
@@ -321,7 +321,7 @@ onMounted(loadDetail)
 
 /* 附件 */
 .ann-detail-attachments {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--g1);
   padding-top: 24px;
 }
 
@@ -343,16 +343,16 @@ onMounted(loadDetail)
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--g1);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--g1);
   text-decoration: none;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .ann-attach-item:hover {
-  background: #f5f5f5;
-  border-color: #d9d9d9;
+  background: var(--g1);
+  border-color: var(--g6);
 }
 
 .ann-attach-icon {
@@ -363,13 +363,13 @@ onMounted(loadDetail)
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--g1);
 }
 
-.ann-attach-icon.default { background: #3b82f6; }
-.ann-attach-icon.pdf { background: #ef4444; }
+.ann-attach-icon.default { background: var(--c-info); }
+.ann-attach-icon.pdf { background: var(--c-error); }
 .ann-attach-icon.word { background: #2563eb; }
-.ann-attach-icon.excel { background: #16a34a; }
+.ann-attach-icon.excel { background: var(--c-success); }
 .ann-attach-icon.ppt { background: #d97706; }
 .ann-attach-icon.image { background: #8b5cf6; }
 
@@ -408,8 +408,8 @@ onMounted(loadDetail)
 }
 
 .ann-attach-item:hover .ann-attach-action {
-  color: #3b82f6;
-  background: #eff6ff;
+  color: var(--c-info);
+  background: var(--g1);
 }
 
 .back-btn {

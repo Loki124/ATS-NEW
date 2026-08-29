@@ -1,0 +1,13 @@
+{
+  "plugins": ["./stylelint-plugin-strict-color.cjs"],
+  "overrides": [
+    {
+      "files": ["**/*.vue"],
+      "customSyntax": "postcss-html"
+    }
+  ],
+  "rules": {
+    "strict-color/strict-color-value": true
+  },
+  "ignoreFiles": ["**/dist/**", "**/node_modules/**", "**/brand-tokens.css"]
+}

@@ -99,7 +99,7 @@ function onDragEnd() {
   opacity: 0.4;
 }
 .draggable-item.drag-over {
-  background: #e6f7ff;
+  background: var(--g1);
   box-shadow: 0 0 0 2px #1890ff inset;
 }
 </style>

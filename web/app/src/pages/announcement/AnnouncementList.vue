@@ -93,7 +93,7 @@
                     <div class="ann-kb__editor">
                       <n-avatar
                         v-if="item.updatedByName"
-                        :style="{ background: '#3b82f6', color: '#fff' }"
+                        :style="{ background: 'var(--c-info)', color: 'var(--g1)' }"
                         round
                         :size="22"
                       >
@@ -244,7 +244,7 @@ onMounted(() => {
 .ann-kb {
   display: flex;
   min-height: 100%;
-  background: #f5f7fa;
+  background: var(--g1);
 }
 
 /* 左侧边栏 */
@@ -252,7 +252,7 @@ onMounted(() => {
   width: 220px;
   flex-shrink: 0;
   background: var(--glass-bg-card);
-  border-right: 1px solid #f0f0f0;
+  border-right: 1px solid var(--g1);
   padding: 20px 0;
 }
 
@@ -268,14 +268,14 @@ onMounted(() => {
 
 .ann-kb__back {
   margin-left: -4px;
-  color: #6b7280;
+  color: var(--g5);
   padding: 4px;
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
 .ann-kb__back:hover {
   color: #2563eb;
-  background: #eff6ff;
+  background: var(--g1);
 }
 
 .ann-kb__tree {
@@ -291,18 +291,18 @@ onMounted(() => {
   margin: 0 8px;
   border-radius: 6px;
   cursor: pointer;
-  color: #4b5563;
+  color: var(--ink-soft);
   font-size: 14px;
   transition: background 0.15s, color 0.15s;
 }
 
 .ann-kb__tree-node:hover {
-  background: #f3f4f6;
+  background: var(--g1);
   color: #1f2937;
 }
 
 .ann-kb__tree-node.active {
-  background: #eff6ff;
+  background: var(--g1);
   color: #2563eb;
   font-weight: 500;
 }
@@ -322,13 +322,13 @@ onMounted(() => {
 .ann-kb__tree-count {
   font-size: 12px;
   color: #9ca3af;
-  background: #f3f4f6;
+  background: var(--g1);
   padding: 1px 6px;
   border-radius: 10px;
 }
 
 .ann-kb__tree-node.active .ann-kb__tree-count {
-  background: #dbeafe;
+  background: var(--g2);
   color: #2563eb;
 }
 
@@ -374,9 +374,9 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--g1);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--g1);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
@@ -391,8 +391,8 @@ onMounted(() => {
   width: 42px;
   height: 42px;
   border-radius: 8px;
-  background: #eff6ff;
-  color: #3b82f6;
+  background: var(--g1);
+  color: var(--c-info);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,14 +437,14 @@ onMounted(() => {
   color: #9ca3af;
   font-weight: 500;
   padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--g1);
   white-space: nowrap;
 }
 
 .ann-kb__table td {
   padding: 14px 12px;
-  border-bottom: 1px solid #f5f5f5;
-  color: #4b5563;
+  border-bottom: 1px solid var(--g1);
+  color: var(--ink-soft);
   vertical-align: middle;
 }
 
@@ -454,7 +454,7 @@ onMounted(() => {
 }
 
 .ann-kb__row:hover {
-  background: #f8fafc;
+  background: var(--g1);
 }
 
 .ann-kb__row:last-child td {
@@ -488,8 +488,8 @@ onMounted(() => {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  background: #eff6ff;
-  color: #3b82f6;
+  background: var(--g1);
+  color: var(--c-info);
   display: flex;
   align-items: center;
   justify-content: center;

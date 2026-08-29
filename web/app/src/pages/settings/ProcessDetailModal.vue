@@ -201,7 +201,7 @@
               class="stage-card__dot"
               :style="{
                 background: stageTypeColor(link.stage?.stageType),
-                boxShadow: `0 0 0 4px #fff, 0 0 0 6px ${stageTypeColor(link.stage?.stageType)}26`,
+                boxShadow: `0 0 0 4px var(--g1), 0 0 0 6px ${stageTypeColor(link.stage?.stageType)}26`,
               }"
             >
               <span class="stage-card__dot-num">{{ idx + 1 }}</span>
@@ -519,7 +519,7 @@
                 class="stage-card__dot"
                 :style="{
                   background: stageTypeColor(stage.stageType),
-                  boxShadow: `0 0 0 4px #fff, 0 0 0 6px ${stageTypeColor(stage.stageType)}26`,
+                  boxShadow: `0 0 0 4px var(--g1), 0 0 0 6px ${stageTypeColor(stage.stageType)}26`,
                 }"
               >
                 <span class="stage-card__dot-num">{{ idx + 1 }}</span>
@@ -1696,14 +1696,14 @@ function conditionItemLabel(item: any): string {
   margin: -20px -20px 20px -20px;
   padding: 20px 24px;
   background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色渐变 → tokens */
-  border-bottom: 1px solid #e8e8ec;
+  border-bottom: 1px solid var(--g2);
 }
 .hero__icon {
   width: 44px;
   height: 44px;
   border-radius: 10px;
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
-  color: #fff;
+  color: var(--g1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1751,7 +1751,7 @@ function conditionItemLabel(item: any): string {
   gap: 4px;
   padding: 6px 12px;
   background: var(--glass-bg-card);
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--g2);
   border-radius: 4px;
   color: #2080f0;
   font-size: 13px;
@@ -1790,7 +1790,7 @@ function conditionItemLabel(item: any): string {
 }
 .section__body {
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
-  border: 1px solid #f0f0f3;
+  border: 1px solid var(--g1);
   border-radius: 6px;
   padding: 0 14px;
 }
@@ -1802,7 +1802,7 @@ function conditionItemLabel(item: any): string {
   gap: 12px;
   min-height: 36px;
   padding: 6px 0;
-  border-bottom: 1px dashed #ebeef5;
+  border-bottom: 1px dashed var(--g1);
   font-size: 13px;
 }
 .field-row:last-child,
@@ -1847,7 +1847,7 @@ function conditionItemLabel(item: any): string {
 
 /* ===== 适用范围分组卡片 ===== */
 .scope-card {
-  border: 1px solid #e0e0e6;
+  border: 1px solid var(--g2);
   border-radius: 6px;
   padding: 10px 12px;
   background: var(--glass-bg-card);
@@ -1861,11 +1861,11 @@ function conditionItemLabel(item: any): string {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 .scope-card--include {
-  background: #f0f7ff;
+  background: var(--g1);
   border-color: #91caff;
 }
 .scope-card--exclude {
-  background: #fff1f0;
+  background: var(--g1);
   border-color: #ffb3b3;
 }
 .scope-card--neutral {
@@ -1969,7 +1969,7 @@ function conditionItemLabel(item: any): string {
 .stage-card {
   position: relative;
   background: var(--glass-bg-card);
-  border: 1px solid #e8e8ec;
+  border: 1px solid var(--g2);
   border-radius: 8px;
   padding: 14px 16px 14px 16px;
   margin-bottom: 10px;
@@ -1980,13 +1980,13 @@ function conditionItemLabel(item: any): string {
 }
 .stage-card:hover {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  border-color: #d0d4dc;
+  border-color: var(--g6);
 }
 /* 阶段类型左侧色条 (保留 v1 优势) */
 .stage-card--screen     { border-left: 3px solid #2080f0; }
 .stage-card--invitation { border-left: 3px solid #f0a020; }
 .stage-card--interview  { border-left: 3px solid #722ed1; }
-.stage-card--offer      { border-left: 3px solid #18a058; }
+.stage-card--offer      { border-left: 3px solid var(--c-success); }
 .stage-card--onboarding { border-left: 3px solid #0090ba; }
 
 /* 序号圆点 (timeline) */
@@ -2000,7 +2000,7 @@ function conditionItemLabel(item: any): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--g1);
   font-weight: 600;
   font-size: 13px;
   z-index: 1;
@@ -2017,7 +2017,7 @@ function conditionItemLabel(item: any): string {
   flex-wrap: wrap;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px dashed #f0f0f3;
+  border-bottom: 1px dashed var(--g1);
 }
 .stage-card__name {
   font-size: 15px;
@@ -2099,7 +2099,7 @@ function conditionItemLabel(item: any): string {
   flex-direction: column;
   gap: 3px;
   background: var(--g1);
-  border: 1px solid #e8eef7;
+  border: 1px solid var(--g1);
   border-radius: 4px;
   padding: 6px 10px;
 }
@@ -2112,7 +2112,7 @@ function conditionItemLabel(item: any): string {
 }
 .cond-item__index {
   font-size: 11px;
-  background: #e6f0ff;
+  background: var(--g1);
   color: #2080f0;
   padding: 1px 6px;
   border-radius: 3px;
@@ -2217,7 +2217,7 @@ function conditionItemLabel(item: any): string {
   gap: 8px;
   justify-content: flex-end;
   padding-top: 8px;
-  border-top: 1px dashed #f0f0f3;
+  border-top: 1px dashed var(--g1);
   margin-top: 4px;
 }
 
@@ -2237,7 +2237,7 @@ function conditionItemLabel(item: any): string {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid #e6e8eb;
+  border: 1px solid var(--g2);
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
@@ -2247,7 +2247,7 @@ function conditionItemLabel(item: any): string {
   border-color: #91caff;
 }
 .picker-item--start {
-  background-color: #f6ffed;
+  background-color: var(--g1);
   border-color: #b7eb8f;
 }
 .picker-item--start:hover {

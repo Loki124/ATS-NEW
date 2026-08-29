@@ -262,14 +262,14 @@ onBeforeUnmount(() => {
 <style scoped>
 .rich-editor {
   width: 100%;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--g2);
   border-radius: 6px;
   overflow: hidden;
   background: var(--glass-bg-card);
 }
 
 .rich-editor--fullscreen {
-  border-color: #e5e7eb;
+  border-color: var(--g2);
 }
 
 .rich-editor__bar {
@@ -277,8 +277,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 2px 6px 2px 0;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fafafa;
+  border-bottom: 1px solid var(--g2);
+  background: var(--g1);
 }
 
 .rich-editor__toolbar {

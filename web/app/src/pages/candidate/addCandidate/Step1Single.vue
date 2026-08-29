@@ -200,7 +200,7 @@ function onSelectPos(pos: string) {
   padding: 6px 10px;
   border: 1px solid var(--g3);
   border-radius: 6px;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   color: var(--g7);
   font-size: 12px;
   cursor: pointer;
@@ -318,7 +318,7 @@ function onSelectPos(pos: string) {
   border: 1px solid #FDE68A;
   border-radius: 8px;
   padding: 10px 14px;
-  background: #FFFDF5;
+  background: var(--g1);
   margin: 8px 0;
   font-size: 11px;
 }
@@ -337,7 +337,7 @@ function onSelectPos(pos: string) {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: #EFF6FF;
+  background: var(--g1);
   border: 1px solid #BFDBFE;
   border-radius: 8px;
   font-size: 10px;
@@ -362,7 +362,7 @@ function onSelectPos(pos: string) {
   font-size: 10px;
   cursor: pointer;
   transition: 0.15s;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   color: var(--g7);
 }
 .occ-btn:hover { border-color: var(--p); background: var(--pl); }
@@ -446,7 +446,7 @@ function onSelectPos(pos: string) {
   border-radius: 8px;
   cursor: pointer;
   font-size: 10px;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   transition: 0.15s;
 }
 .apply-pos-item:hover { border-color: var(--p); }
@@ -474,7 +474,7 @@ function onSelectPos(pos: string) {
 }
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 .pfill.bl { background: var(--b); }
-.pfill.ye { background: #F59E0B; }
+.pfill.ye { background: var(--c-warning); }
 .pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 #8B5CF6 -> 令牌 */
 .pfill.gr { background: var(--s); }
 .replace-banner {

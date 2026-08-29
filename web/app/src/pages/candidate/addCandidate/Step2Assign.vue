@@ -119,7 +119,7 @@ const isMulti = () => store.resumes.length > 1
   padding: 10px 14px;
   border: 1px solid var(--g3);
   border-radius: 8px;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
 }
 .step2-card .s2-avatar {
   width: 32px;
@@ -179,7 +179,7 @@ const isMulti = () => store.resumes.length > 1
   border-radius: 12px;
   cursor: pointer;
   transition: 0.15s;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   display: flex;
   align-items: center;
   gap: 10px;
@@ -194,7 +194,7 @@ const isMulti = () => store.resumes.length > 1
 .pos-selector {
   margin-top: 8px;
   padding: 10px 12px;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   border: 1px solid var(--g3);
   border-radius: 12px;
 }
@@ -207,7 +207,7 @@ const isMulti = () => store.resumes.length > 1
   cursor: pointer;
   font-size: 11px;
   transition: 0.15s;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
 }
 .pos-item:hover { border-color: var(--p); }
 .pos-item.sel {
@@ -224,7 +224,7 @@ const isMulti = () => store.resumes.length > 1
   padding: 8px 10px;
   border: 1px solid var(--g3);
   border-radius: 8px;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   font-size: 11px;
 }
 .per-dir-item .pdi-name { font-weight: 500; min-width: 50px; font-size: 11px; }
@@ -287,7 +287,7 @@ const isMulti = () => store.resumes.length > 1
   border-radius: 8px;
   cursor: pointer;
   transition: 0.15s;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   font-size: 11px;
 }
 .sc-opt:hover { border-color: var(--p); }
@@ -300,7 +300,7 @@ const isMulti = () => store.resumes.length > 1
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
+  background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   flex-shrink: 0;
 }
 .btn {

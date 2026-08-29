@@ -763,7 +763,7 @@ async function handleSubmit() {
   background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色硬编码渐变 → tokens */
   margin: -20px -20px 20px -20px;
   padding: 20px 24px;
-  border-bottom: 1px solid #f0f0f3;
+  border-bottom: 1px solid var(--g1);
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -777,7 +777,7 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--g1);
   flex-shrink: 0;
   box-shadow: 0 2px 6px rgba(32, 128, 240, 0.18);
 }
@@ -819,7 +819,7 @@ async function handleSubmit() {
 /* ==================== Section Card ==================== */
 .section-card {
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
-  border: 1px solid #f0f0f3;
+  border: 1px solid var(--g1);
   border-radius: 8px;
   padding: 16px 20px;
   margin-bottom: 16px;
@@ -841,7 +841,7 @@ async function handleSubmit() {
   color: #1f1f1f;
   margin: 0 0 12px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--g2);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -862,7 +862,7 @@ async function handleSubmit() {
   padding: 8px 12px;
   background: var(--g1);
   border-radius: 4px;
-  border-left: 2px solid #d9d9d9;
+  border-left: 2px solid var(--g6);
 }
 .section-card__actions {
   margin-top: 12px;
@@ -878,13 +878,13 @@ async function handleSubmit() {
   align-items: center;
   min-height: 36px;
   padding: 4px 0;
-  border-bottom: 1px dashed #ececec;
+  border-bottom: 1px dashed var(--g2);
 }
 .field-row:last-child {
   border-bottom: none;
 }
 .field-row--error {
-  background: #fff1f0;
+  background: var(--g1);
   margin: 0 -8px;
   padding: 4px 8px;
   border-radius: 4px;
@@ -950,7 +950,7 @@ async function handleSubmit() {
   position: sticky;
   bottom: 0;
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
-  border-top: 1px solid #f0f0f3;
+  border-top: 1px solid var(--g1);
   padding: 12px 20px;
   margin: 16px -20px -20px -20px;
   display: flex;
