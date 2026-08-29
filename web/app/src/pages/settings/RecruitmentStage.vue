@@ -1,7 +1,6 @@
 <template>
   <div class="page-container recruitment-stage">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">招聘阶段配置</h1>
@@ -38,8 +37,7 @@
     </div>
 
     <!-- 新增/编辑阶段弹窗 -->
-    
-    </div><!-- /.page-body -->
+</div><!-- /.page-body -->
 <n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 560px" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
         <n-form-item label="阶段名称" required>
@@ -68,8 +66,7 @@
         </div>
       </template>
     </n-modal>
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

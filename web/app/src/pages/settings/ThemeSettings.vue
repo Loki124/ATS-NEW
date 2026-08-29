@@ -129,7 +129,7 @@
           <template #icon><n-icon :component="RefreshOutline" /></template>
           恢复默认
         </n-button>
-        <n-button class="btn-primary" @click="onSave" :disabled="!isDirty">
+        <n-button class="btn-primary" :disabled="!isDirty" @click="onSave">
           <template #icon><n-icon :component="CheckmarkOutline" /></template>
           保存
         </n-button>

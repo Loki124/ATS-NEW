@@ -1,7 +1,6 @@
 <template>
   <div class="page-container process-stage-editor">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <n-space align="center">
@@ -110,8 +109,7 @@
       </template>
     </n-modal>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

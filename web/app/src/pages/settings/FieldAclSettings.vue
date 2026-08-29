@@ -1,7 +1,6 @@
 <template>
   <div class="page-container field-acl">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">字段级访问控制</h1>
@@ -39,8 +38,7 @@
       />
     </n-card>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

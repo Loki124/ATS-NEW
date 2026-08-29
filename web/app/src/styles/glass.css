@@ -525,9 +525,9 @@ body.dark .n-modal-mask {
  * 都用这一个 brand 紫系列，统一全项目视觉。
  * 三档：default（半透，淡蓝紫）/ hover（加深）/ drag（最浓），全部 brand 紫 #6366F1 系列 */
 :root {
-  --scrollbar-color-default: rgba(99, 102, 241, 0.12);   /* 默认半透，更通透（兵哥 2026-08-25：透明度再调高） */
-  --scrollbar-color-hover:   rgba(99, 102, 241, 0.32);   /* hover/聚焦 加深 */
-  --scrollbar-color-drag:    rgba(99, 102, 241, 0.5);    /* 拖拽/激活 最浓 */
+  --scrollbar-color-default: var(--brand-a12);            /* 默认半透，更通透（兵哥 2026-08-25：透明度再调高） */
+  --scrollbar-color-hover:   var(--brand-a32);           /* hover/聚焦 加深 */
+  --scrollbar-color-drag:    color-mix(in srgb, var(--brand) 50%, transparent); /* 拖拽/激活 最浓 */
 }
 body.dark {
   --scrollbar-color-default: rgba(165, 170, 255, 0.15);  /* 暗色提亮，更通透 */

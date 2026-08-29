@@ -1,7 +1,6 @@
 <template>
   <div class="page-container interview-round">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">面试轮次管理</h1>
@@ -31,9 +30,7 @@
       :row-height="TABLE_ROW_HEIGHT"
     />
     </div>
-
-    
-    </div><!-- /.page-body -->
+</div><!-- /.page-body -->
 <n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
         <n-form-item label="轮次名称" required>
@@ -56,8 +53,7 @@
         </div>
       </template>
     </n-modal>
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

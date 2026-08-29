@@ -229,7 +229,9 @@
                     :disabled="node.depth >= MAX_TREE_LEVEL - 1"
                     :title="node.depth >= MAX_TREE_LEVEL - 1 ? `已达推荐最大层级（${MAX_TREE_LEVEL} 级），不可再加下级` : ''"
                     @click="addChild(node.row)"
-                  >加下级</n-button>
+                  >
+加下级
+</n-button>
                   <n-button
                     v-if="!node.row.isNew"
                     size="tiny"

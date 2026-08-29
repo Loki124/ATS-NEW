@@ -1,7 +1,6 @@
 <template>
   <div class="page-container recruitment-process">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">招聘流程管理</h1>
@@ -42,8 +41,7 @@
       @copied="onProcessCopied"
     />
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

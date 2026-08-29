@@ -214,10 +214,10 @@
     >
       <n-space vertical :size="14">
         <n-upload
+          v-model:file-list="importDrawer.fileList"
           accept=".xlsx,.xlsm"
           :max="1"
           :custom-request="handleImportUpload"
-          v-model:file-list="importDrawer.fileList"
           @remove="onImportFileRemove"
         >
           <n-button>选择 Excel 文件</n-button>
@@ -274,10 +274,10 @@
           </n-space>
         </n-radio-group>
         <n-upload
+          v-model:file-list="indicatorImportDrawer.fileList"
           accept=".xlsx,.xlsm,.csv"
           :max="1"
           :custom-request="handleIndicatorImportUpload"
-          v-model:file-list="indicatorImportDrawer.fileList"
           @remove="onIndicatorImportFileRemove"
         >
           <n-button>选择 Excel / CSV 文件</n-button>
@@ -953,7 +953,7 @@ const detailMatrixColumns: DataTableColumns<any> = [
 ]
 function renderDetailExpand(row: any) {
   return h('div', { style: 'display:grid; grid-template-columns:repeat(6,1fr); gap:8px; padding:4px 0;' },
-    MONTH_LABELS.map((m, i) => h('div', { style: 'display:flex; flex-direction:column; align-items:center; padding:6px; background:rgba(99,102,241,0.06); border-radius:6px;' }, [
+    MONTH_LABELS.map((m, i) => h('div', { style: 'display:flex; flex-direction:column; align-items:center; padding:6px; background:var(--brand-tint); border-radius:6px;' }, [
       h('span', { style: 'font-size:12px; color:var(--n-text-color-3,#999);' }, m),
       h('span', { style: 'font-weight:600;' }, String(row.monthlyTargets[i] || 0)),
     ])),

@@ -53,6 +53,7 @@
             <n-tag size="small" type="info" round>{{ announcement.audienceDisplay }}</n-tag>
           </div>
 
+          <!-- eslint-disable-next-line vue/no-v-html -- 公告正文经 sanitizeHtml 消毒后渲染，安全 -->
           <div class="ann-detail-body" v-html="sanitizeHtml(announcement.body)"></div>
 
           <!-- 附件 -->

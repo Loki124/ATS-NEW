@@ -1,7 +1,6 @@
 <template>
   <div class="page-container">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">部门管理</h1>
@@ -47,8 +46,7 @@
     </n-card>
 
     <!-- 部门编辑弹窗 -->
-    
-    </div><!-- /.page-body -->
+</div><!-- /.page-body -->
 <n-modal
       v-model:show="deptModalVisible"
       preset="card"
@@ -171,8 +169,7 @@
         </div>
       </template>
     </n-modal>
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

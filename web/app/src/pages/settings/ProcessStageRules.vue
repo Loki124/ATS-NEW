@@ -1,7 +1,6 @@
 <template>
   <div class="page-container process-stage-rules">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <n-space align="center">
@@ -203,8 +202,7 @@
       </n-tab-pane>
     </n-tabs>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

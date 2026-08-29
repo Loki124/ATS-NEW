@@ -55,8 +55,7 @@
           </n-gi>
         </n-grid>
       </n-form>
-
-    </n-card>
+</n-card>
 
     <!-- 浏览器通知 -->
     <n-card class="settings-section" :bordered="false">
@@ -84,8 +83,7 @@
           </n-grid>
         </n-checkbox-group>
       </n-collapse-transition>
-
-    </n-card>
+</n-card>
 
     <!-- 自定义默认选项设置 -->
     <n-card class="settings-section" :bordered="false">
@@ -110,8 +108,7 @@
           />
         </n-form-item>
       </n-form>
-
-    </n-card>
+</n-card>
     </div><!-- /.page-body -->
 
     <!-- 更改密码弹窗 -->

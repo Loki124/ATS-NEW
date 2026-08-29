@@ -1,7 +1,6 @@
 <template>
   <div class="page-container school-library">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <h1 class="page-title">院校库</h1>
       <p class="page-subtitle">G41 - 院校信息库 (985/211/重点本科)</p>
@@ -56,8 +55,7 @@
       />
     </n-card>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

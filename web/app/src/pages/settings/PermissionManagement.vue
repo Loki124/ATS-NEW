@@ -1,7 +1,6 @@
 <template>
   <div class="page-container permission-management">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">权限管理</h1>
@@ -25,8 +24,7 @@
       </n-tabs>
     </n-card>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

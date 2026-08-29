@@ -1,7 +1,6 @@
 <template>
   <div class="page-container">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <h1 class="page-title">公司设置</h1>
       <p class="page-subtitle">维护公司基础信息、品牌素材与系统同步配置</p>
@@ -38,8 +37,7 @@
       </n-space>
     </n-card>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

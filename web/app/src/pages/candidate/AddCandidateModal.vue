@@ -124,7 +124,8 @@ function nextStep() {
       </div>
     </template>
 
-    <div style="display:flex;flex-direction:column;height:min(80vh,700px);"> <!-- P5 整改：height:80vh -> min(80vh,700px)，避免极长弹窗撑爆屏 -->
+    <div style="display:flex;flex-direction:column;height:min(80vh,700px);">
+<!-- P5 整改：height:80vh -> min(80vh,700px)，避免极长弹窗撑爆屏 -->
       <input
         ref="fileInput"
         type="file"

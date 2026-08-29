@@ -1,7 +1,6 @@
 <template>
   <div class="page-container">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <h1 class="page-title">评分规则</h1>
       <p class="page-subtitle">定义候选人评分维度与权重，支撑面试评价标准化</p>
@@ -14,8 +13,7 @@
       </n-empty>
     </n-card>
     </div><!-- /.page-body -->
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

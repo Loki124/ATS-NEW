@@ -1,6 +1,7 @@
 <template>
   <div class="page-container config-container">
-    <div class="page-header">      <div>
+    <div class="page-header">
+<div>
         <h1 class="dc-title gradient-title">招聘需求设置</h1>
         <p class="dc-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
       </div>
@@ -10,7 +11,8 @@
       </n-space>
     </div>
 
-    <div class="config-content page-body">      <n-form :model="formData" label-placement="left" :label-width="180">
+    <div class="config-content page-body">
+<n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
         <n-card title="功能设置" class="config-card">
           <n-form-item label="需求使用模式">

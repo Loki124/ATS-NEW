@@ -79,11 +79,11 @@
   --shadow-panel:   0 12px 40px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255, 255, 255, .6);
   --shadow-elevated:0 16px 48px rgba(15, 23, 42, .12), inset 0 1px 0 rgba(255, 255, 255, .7);
   --shadow-2xl:     0 28px 72px rgba(15, 23, 42, .16);
-  --glow-brand:     rgba(99, 102, 241, .32); /* 主按钮辉光基色 */
+  --glow-brand:     var(--brand-a32); /* 主按钮辉光基色（路由到 brand-tokens 透色，R-214） */
 
   /* ===== §6. 极光背景（替换原 #f9fafb / #FBCE5B） ===== */
   --aurora-base: linear-gradient(180deg, #EEF1FB 0%, #E7ECFB 100%);
-  --aurora-1:    radial-gradient(circle, rgba(99, 102, 241, .30), transparent 65%); /* 靛 */
+  --aurora-1:    radial-gradient(circle, color-mix(in srgb, var(--brand) 30%, transparent), transparent 65%); /* 靛（路由到品牌，R-214） */
   --aurora-2:    radial-gradient(circle, rgba(168, 85, 247, .20), transparent 65%); /* 紫 */
   --aurora-3:    radial-gradient(circle, rgba(34, 211, 238, .16), transparent 65%); /* 青 */
 
@@ -163,7 +163,7 @@ body.dark {
 
   /* 极光转深空 */
   --aurora-base: linear-gradient(180deg, #0B1020 0%, #111936 100%);
-  --aurora-1:    radial-gradient(circle, rgba(99, 102, 241, .40), transparent 65%);
+  --aurora-1:    radial-gradient(circle, color-mix(in srgb, var(--brand) 40%, transparent), transparent 65%); /* 暗色极光（路由到品牌，R-214） */
   --aurora-2:    radial-gradient(circle, rgba(168, 85, 247, .30), transparent 65%);
   --aurora-3:    radial-gradient(circle, rgba(34, 211, 238, .22), transparent 65%);
 
@@ -180,7 +180,7 @@ body.dark {
   --shadow-panel:   0 12px 40px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .08);
   --shadow-elevated:0 16px 48px rgba(0, 0, 0, .40), inset 0 1px 0 rgba(255, 255, 255, .10);
   --shadow-2xl:     0 28px 72px rgba(0, 0, 0, .50);
-  --glow-brand:     rgba(99, 102, 241, .45);
+  --glow-brand:     var(--brand-a32); /* 暗色下 brand-tokens body.dark 已将 --brand-a32 重定义为 .45 */
 
   /* 品牌透色加深见 brand-tokens.css body.dark（--brand-a32/a22/a12 已重配比）。 */
 }

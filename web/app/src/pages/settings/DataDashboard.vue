@@ -1,7 +1,6 @@
 <template>
   <div class="page-container data-dashboard">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <h1 class="page-title">数据中心</h1>
       <p class="page-subtitle">G35 - 招聘业务 KPI 看板 + 通用数据导出 + 数据订阅</p>
@@ -59,8 +58,7 @@
     </n-card>
 
     <!-- 新建订阅弹窗 -->
-    
-    </div><!-- /.page-body -->
+</div><!-- /.page-body -->
 <n-modal v-model:show="showAddSub" preset="card" title="新建数据订阅" style="width: 540px">
       <n-form :model="subForm" label-placement="left" label-width="100">
         <n-form-item label="资源">
@@ -89,8 +87,7 @@
         </n-space>
       </template>
     </n-modal>
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

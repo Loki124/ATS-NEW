@@ -1,7 +1,6 @@
 <template>
   <div class="page-container dynamic-field-settings">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <h1 class="page-title">动态字段定义</h1>
       <p class="page-subtitle">G42 - 元数据驱动的字段配置, 支持字段类型/选项/排序</p>
@@ -38,8 +37,7 @@
     </n-card>
 
     <!-- 新建/编辑 Modal -->
-    
-    </div><!-- /.page-body -->
+</div><!-- /.page-body -->
 <n-modal
       v-model:show="modalVisible"
       preset="card"
@@ -94,8 +92,7 @@
         </n-space>
       </template>
     </n-modal>
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">

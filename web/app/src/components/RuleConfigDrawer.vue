@@ -256,8 +256,7 @@ async function save() {
                 </n-form-item>
               </n-gi>
             </n-grid>
-
-          </n-form>
+</n-form>
         </section>
 
         <!-- 模块二：管控目标 -->
@@ -290,8 +289,7 @@ async function save() {
               当前月度加和 <strong>{{ monthlySum }}</strong> 人，与「年度目标人数」{{ form.annualTarget }} 人不一致；
               请调整 1月..12月 列使加和 = 年度目标，或点击「按年度均分」自动分配。
             </n-alert>
-
-          </n-form>
+</n-form>
         </section>
 
         <!-- 模块三：管控强度 -->
@@ -306,7 +304,9 @@ async function save() {
                 :bordered="false"
                 size="small"
                 style="margin-left: 10px"
-              >{{ form.strength }}</n-tag>
+              >
+{{ form.strength }}
+</n-tag>
             </n-form-item>
           </n-form>
         </section>

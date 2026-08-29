@@ -1,7 +1,6 @@
 <template>
   <div class="page-container mou-management">
-
-    <div class="page-body">
+<div class="page-body">
     <div class="page-header">
       <div>
         <h1 class="page-title">MOU 与权限容器</h1>
@@ -234,8 +233,7 @@
     
 
     <!-- 互斥组表单弹窗 -->
-    
-    </div><!-- /.page-body -->
+</div><!-- /.page-body -->
 <n-modal
       v-model:show="mouModalVisible"
       preset="card"
@@ -475,8 +473,7 @@
         </div>
       </template>
     </n-modal>
-
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">
