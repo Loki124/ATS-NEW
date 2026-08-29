@@ -1539,12 +1539,12 @@ onMounted(async () => {
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 .sum-callout.ok {
-  background: rgba(82, 196, 26, 0.08);
-  border: 1px solid rgba(82, 196, 26, 0.25);
+  background: var(--c-success-soft);
+  border: 1px solid var(--c-success-soft);
 }
 .sum-callout.warn {
-  background: rgba(250, 140, 22, 0.08);
-  border: 1px solid rgba(250, 140, 22, 0.25);
+  background: var(--c-warning-soft);
+  border: 1px solid var(--c-warning-soft);
 }
 .sum-left {
   display: flex;

@@ -273,11 +273,11 @@ onMounted(() => {
 
 .node-time {
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
 }
 
 .node-pending {
-  color: #1890ff;
+  color: var(--c-info);
   font-style: italic;
 }
 </style>

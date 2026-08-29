@@ -387,8 +387,8 @@ onBeforeUnmount(() => {
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }
 .stat-card { text-align: center; }
-.stat-label { font-size: 12px; color: #8c8c8c; }
+.stat-label { font-size: 12px; color: var(--n-440); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
-.claim-pool { margin-bottom: 16px; border-left: 4px solid #fa8c16; }
+.claim-pool { margin-bottom: 16px; border-left: 4px solid var(--c-warning); }
 .filter-row { margin-bottom: 12px; }
 </style>

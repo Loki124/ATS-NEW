@@ -23,7 +23,7 @@ defineProps<{ info: Partial<DuplicateInfo>; status: 'processing' | 'clean' | 'un
     </div>
     <div class="dup-row">
       <span class="dup-label">当前状态</span>
-      <span class="dup-value" :style="{ color: status === 'occupied' ? '#991B1B' : '#92400E' }">
+      <span class="dup-value" :style="{ color: status === 'occupied' ? 'var(--c-error-deep)' : 'var(--c-warning-deep)' }">
         {{ info.cur_status }}
       </span>
     </div>
@@ -32,7 +32,7 @@ defineProps<{ info: Partial<DuplicateInfo>; status: 'processing' | 'clean' | 'un
 
 <style scoped>
 .dup-card {
-  border: 1px solid #FDE68A;
+  border: 1px solid var(--c-warning-bg);
   border-radius: 8px;
   padding: 10px 14px;
   background: var(--g1);

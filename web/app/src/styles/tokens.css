@@ -68,6 +68,32 @@
   --c-info:         #3B82F6;
   --c-info-soft:    rgba(59, 130, 246, .12);
 
+  /* §4.2 语义 deep/bg 变体（状态文字深色调 / 浅色背景底，值=现状字面量零漂移） */
+  --c-success-deep: #065F46;  --c-success-bg: #A7F3D0;
+  --c-warning-deep: #92400E;  --c-warning-bg: #FDE68A;
+  --c-error-deep:   #991B1B;  --c-error-bg:   #FECACA;
+  --c-info-deep:    #1E40AF;  --c-info-bg:    #BFDBFE;
+
+  /* §4.3 中性灰阶（补全 X-05 灰字面量归宿；命名 n-<步长>，值=现状零漂移） */
+  --n-100:#f2f3f5; --n-150:#ebeef5; --n-160:#e8eef7; --n-170:#e8e8ec; --n-180:#e6e8eb;
+  --n-200:#e0e0e0; --n-220:#dcdfe6; --n-250:#d0d4dc; --n-300:#bbb;   --n-350:#aaa;
+  --n-380:#9ca3af; --n-400:#999;   --n-440:#8c8c8c; --n-450:#888;   --n-500:#666;
+  --n-580:#595959; --n-600:#555;  --n-650:#444;  --n-700:#374151; --n-800:#1f2937; --n-850:#1f1f1f;
+
+  /* §4.4 强调色（第三方库预设色归宿） */
+  --c-purple:#722ed1; --c-cyan:#0090ba;
+  --c-orange:#e65100; --c-lime:#73d13d;
+
+  /* §4.5 overlay 令牌（替代裸 rgba 遮罩/玻璃，X-05） */
+  --overlay-scrim-weak:   rgba(0, 0, 0, .04);
+  --overlay-scrim:        rgba(0, 0, 0, .08);
+  --overlay-scrim-mid:    rgba(0, 0, 0, .25);
+  --overlay-scrim-strong: rgba(0, 0, 0, .45);
+  --overlay-glass-weak:   rgba(255, 255, 255, .06);
+  --overlay-glass:        rgba(255, 255, 255, .08);
+  --overlay-glass-mid:    rgba(255, 255, 255, .35);
+  --overlay-glass-strong: rgba(255, 255, 255, .55);
+
   /* §4.1 品牌透色（--brand-rgb / --brand-a32 / --brand-a22 / --brand-a12）已随品牌系统
    * 迁入 brand-tokens.css，由 color-mix(in oklch, var(--brand-600) N%, transparent) 生成；
    * 暗色重配比见该文件 body.dark。 */
@@ -172,6 +198,12 @@ body.dark {
   --c-warning-soft: rgba(245, 158, 11, .24);
   --c-error-soft:   rgba(239, 68, 68, .22);
   --c-info-soft:    rgba(59, 130, 246, .22);
+
+  /* 语义 deep/bg 暗色重排（深字转亮、浅底转半透明，保证暗底可读） */
+  --c-success-deep: #6EE7B7;  --c-success-bg: rgba(22, 163, 74, .22);
+  --c-warning-deep: #FCD34D;  --c-warning-bg: rgba(245, 158, 11, .24);
+  --c-error-deep:   #FCA5A5;  --c-error-bg:   rgba(239, 68, 68, .22);
+  --c-info-deep:    #93C5FD;  --c-info-bg:    rgba(59, 130, 246, .22);
 
   /* 阴影转纯黑低透 */
   --shadow-xs:      0 1px 2px rgba(0, 0, 0, .20);

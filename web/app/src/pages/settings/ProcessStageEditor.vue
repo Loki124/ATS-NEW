@@ -352,7 +352,7 @@ onMounted(() => loadProcess())
   transition: all var(--duration-base) var(--ease-out);
 }
 .stage-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--overlay-scrim-weak);
 }
 .stage-row {
   display: flex;
@@ -366,7 +366,7 @@ onMounted(() => loadProcess())
 }
 .stage-code {
   font-family: monospace;
-  color: #666;
+  color: var(--n-500);
   font-size: 13px;
 }
 .stage-name {
@@ -375,14 +375,14 @@ onMounted(() => loadProcess())
 }
 .sys-tag {
   font-size: 11px;
-  color: #fa8c16;
+  color: var(--c-warning);
   background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
   padding: 1px 6px;
   border-radius: 3px;
 }
 .stage-limit {
   font-size: 12px;
-  color: #888;
+  color: var(--n-450);
 }
 .stage-actions {
   display: flex;
@@ -399,7 +399,7 @@ onMounted(() => loadProcess())
 }
 .feature-chip {
   font-size: 11px;
-  color: #666;
+  color: var(--n-500);
   background: var(--g1);
   padding: 2px 6px;
   border-radius: 3px;

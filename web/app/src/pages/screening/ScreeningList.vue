@@ -150,13 +150,13 @@ onMounted(loadList)
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">活跃</div>
-        <div class="stat-value" style="color: #52c41a;">{{ stats.active }}</div>
+        <div class="stat-value" style="color: var(--c-success);">{{ stats.active }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">已选择</div>
-        <div class="stat-value" style="color: #fa8c16;">{{ stats.selected }}</div>
+        <div class="stat-value" style="color: var(--c-warning);">{{ stats.selected }}</div>
       </n-card>
 </n-gi>
     </n-grid>
@@ -193,7 +193,7 @@ onMounted(loadList)
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }
 .stat-card { text-align: center; }
-.stat-label { font-size: 12px; color: #8c8c8c; }
+.stat-label { font-size: 12px; color: var(--n-440); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
 .filter-row { margin-bottom: 12px; }
 </style>

@@ -54,7 +54,7 @@
         </n-form-item>
         <n-form-item label="状态">
           <n-switch v-model:value="statusSwitch" />
-          <span style="margin-left: 8px; color: #888">{{ statusSwitch ? '启用' : '禁用' }}</span>
+          <span style="margin-left: 8px; color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
         </n-form-item>
       </n-form>
       <template #footer>

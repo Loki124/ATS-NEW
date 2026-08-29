@@ -92,13 +92,13 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   white-space: nowrap;
 }
 .st-pill .st-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.st-pill.processing { background: var(--bl); color: #1E40AF; }
+.st-pill.processing { background: var(--bl); color: var(--c-info-deep); }
 .st-pill.processing .st-dot { background: var(--b); animation: pulse2 1s infinite; }
-.st-pill.clean { background: var(--sl); color: #065F46; }
+.st-pill.clean { background: var(--sl); color: var(--c-success-deep); }
 .st-pill.clean .st-dot { background: var(--s); }
-.st-pill.unocc { background: var(--wl); color: #92400E; }
+.st-pill.unocc { background: var(--wl); color: var(--c-warning-deep); }
 .st-pill.unocc .st-dot { background: var(--w); }
-.st-pill.occupied { background: var(--dl); color: #991B1B; }
+.st-pill.occupied { background: var(--dl); color: var(--c-error-deep); }
 .st-pill.occupied .st-dot { background: var(--d); }
 @keyframes pulse2 { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .legend { display: flex; gap: 12px; font-size: 10px; color: var(--g5); flex-wrap: wrap; }
@@ -116,7 +116,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   background: var(--pl);
   border-radius: 8px;
   font-size: 11px;
-  color: #3730A3;
+  color: var(--c-info-deep);
 }
 .bulk-count { font-weight: 600; }
 .upload-zone {
@@ -132,7 +132,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .upload-zone.dragover {
   border-color: var(--p);
   background: var(--pl);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0 0 3px var(--overlay-scrim-mid);
 }
 .upload-zone .up-icon { font-size: 36px; margin-bottom: 8px; transition: 0.2s; }
 .upload-zone.dragover .up-icon { transform: scale(1.1); }
@@ -160,7 +160,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   transition: 0.15s;
 }
 .card-item:hover { border-color: var(--p); }
-.card-item.selected { border-color: var(--p); box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.15); }
+.card-item.selected { border-color: var(--p); box-shadow: 0 0 0 1px var(--overlay-scrim-mid); }
 .card-item.occ { border-left: 3px solid var(--d); }
 .card-item.dir-set { border-left: 3px solid var(--s); }
 .card-item.unocc { border-left: 3px solid var(--w); }
@@ -235,12 +235,12 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   line-height: 1.5;
 }
 .cb .cb-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-.cb.clean { background: var(--sl); color: #065F46; border: 1px solid #A7F3D0; }
-.cb.unocc { background: var(--wl); color: #92400E; border: 1px solid #FDE68A; }
-.cb.occupied { background: var(--dl); color: #991B1B; border: 1px solid #FECACA; }
-.cb.processing { background: var(--bl); color: #1E40AF; border: 1px solid #BFDBFE; }
+.cb.clean { background: var(--sl); color: var(--c-success-deep); border: 1px solid var(--c-success-bg); }
+.cb.unocc { background: var(--wl); color: var(--c-warning-deep); border: 1px solid var(--c-warning-bg); }
+.cb.occupied { background: var(--dl); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
+.cb.processing { background: var(--bl); color: var(--c-info-deep); border: 1px solid var(--c-info-bg); }
 .dup-card {
-  border: 1px solid #FDE68A;
+  border: 1px solid var(--c-warning-bg);
   border-radius: 8px;
   padding: 10px 14px;
   background: var(--g1);
@@ -252,10 +252,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .dup-card .dup-value { font-weight: 500; }
 .dup-card .dup-note {
   font-size: 10px;
-  color: #92400E;
+  color: var(--c-warning-deep);
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px dashed #FDE68A;
+  border-top: 1px dashed var(--c-warning-bg);
 }
 .fst {
   font-size: 10px;
@@ -281,7 +281,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .fg input:focus,
 .fg select:focus,
-.fg textarea:focus { border-color: var(--p); box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.08); }
+.fg textarea:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
 .fg textarea { resize: vertical; min-height: 50px; }
 .seg-item {
   border: 1px solid var(--g3);
@@ -320,16 +320,16 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   gap: 8px;
   padding: 6px 10px;
   background: var(--g1);
-  border: 1px solid #BFDBFE;
+  border: 1px solid var(--c-info-bg);
   border-radius: 8px;
   font-size: 10px;
-  color: #1E40AF;
+  color: var(--c-info-deep);
   margin: 8px 0;
 }
 .recheck-bar .spin2 {
   width: 12px;
   height: 12px;
-  border: 2px solid #BFDBFE;
+  border: 2px solid var(--c-info-bg);
   border-top-color: var(--p);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -349,19 +349,19 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   color: var(--g7);
 }
 .occ-btn:hover { border-color: var(--p); background: var(--pl); }
-.occ-btn.primary { background: var(--p); color: #fff; border-color: var(--p); }
+.occ-btn.primary { background: var(--p); color: var(--n-100); border-color: var(--p); }
 .occ-btn.primary:hover { background: var(--ph); }
 /* v2 bugfix P0-C: .occ-btn.warn 白底 → 玻璃 */
-.occ-btn.warn { background: var(--glass-bg-card); color: #991B1B; border-color: var(--d); }
+.occ-btn.warn { background: var(--glass-bg-card); color: var(--c-error-deep); border-color: var(--d); }
 .occ-btn.warn:hover { background: var(--dl); }
 .apply-pos {
   margin-top: 8px;
   padding: 10px 12px;
   background: var(--bl);
-  border: 1px solid #BFDBFE;
+  border: 1px solid var(--c-info-bg);
   border-radius: 8px;
 }
-.apply-pos-title { font-size: 11px; font-weight: 600; color: #1E40AF; margin-bottom: 6px; }
+.apply-pos-title { font-size: 11px; font-weight: 600; color: var(--c-info-deep); margin-bottom: 6px; }
 .apply-pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
 /* v2 bugfix P0-C: 职位 chip 白底 → 玻璃 */
 .apply-pos-item {
@@ -383,10 +383,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .apply-pos-done {
   padding: 6px 10px;
   background: var(--sl);
-  border: 1px solid #A7F3D0;
+  border: 1px solid var(--c-success-bg);
   border-radius: 8px;
   font-size: 11px;
-  color: #065F46;
+  color: var(--c-success-deep);
   margin-top: 8px;
 }
 .score-panel {
@@ -417,8 +417,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   display: inline-block;
   margin-top: 2px;
 }
-.score-pass-tag.pass { background: var(--sl); color: #065F46; }
-.score-pass-tag.fail { background: var(--dl); color: #991B1B; }
+.score-pass-tag.pass { background: var(--sl); color: var(--c-success-deep); }
+.score-pass-tag.fail { background: var(--dl); color: var(--c-error-deep); }
 .sc-dim { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; }
 .sc-dim-name { width: 70px; color: var(--g6); flex-shrink: 0; }
 .sc-dim-bar {
@@ -451,7 +451,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 .pfill.bl { background: var(--b); }
 .pfill.ye { background: var(--c-warning); }
-.pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 #8B5CF6 -> 令牌 */
+.pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 var(--brand) -> 令牌 */
 .pfill.gr { background: var(--s); }
 /* v2 bugfix P0-C: 业务按钮白底 → 玻璃（同一文件中其他业务卡片一起清理） */
 .replace-file-btn {
@@ -472,10 +472,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .replace-banner {
   padding: 10px 14px;
   background: linear-gradient(90deg, var(--bl) 0%, #DBEAFE 100%);
-  border: 1px solid #BFDBFE;
+  border: 1px solid var(--c-info-bg);
   border-radius: 8px;
   font-size: 12px;
-  color: #1E40AF;
+  color: var(--c-info-deep);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -484,16 +484,16 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .replace-banner .rb-icon { font-size: 16px; flex-shrink: 0; }
 .replace-banner .rb-text { flex: 1; }
 .replace-banner .rb-text strong { display: block; margin-bottom: 2px; }
-.replace-banner .rb-meta { font-size: 11px; color: #1E40AF; opacity: 0.85; }
+.replace-banner .rb-meta { font-size: 11px; color: var(--c-info-deep); opacity: 0.85; }
 .nbar {
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 10px;
   margin-top: 8px;
 }
-.nbar.info { background: var(--bl); border: 1px solid #BFDBFE; color: #1E40AF; }
-.nbar.warn { background: var(--wl); border: 1px solid #FDE68A; color: #92400E; }
-.nbar.error { background: var(--dl); border: 1px solid #FECACA; color: #991B1B; }
+.nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
+.nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
+.nbar.error { background: var(--dl); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
 .btn {
   padding: 7px 14px;
   border-radius: 8px;

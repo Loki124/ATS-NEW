@@ -779,7 +779,7 @@ async function handleSubmit() {
   justify-content: center;
   color: var(--g1);
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(32, 128, 240, 0.18);
+  box-shadow: 0 2px 6px var(--c-info-soft);
 }
 .hero__main {
   flex: 1;
@@ -788,12 +788,12 @@ async function handleSubmit() {
 .hero__title {
   font-size: 18px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--n-850);
   line-height: 1.4;
 }
 .hero__subtitle {
   font-size: 13px;
-  color: #8c8c8c;
+  color: var(--n-440);
   margin-top: 4px;
   line-height: 1.5;
 }
@@ -804,7 +804,7 @@ async function handleSubmit() {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #8c8c8c;
+  color: var(--n-440);
   font-size: 18px;
   padding: 4px;
   line-height: 1;
@@ -812,8 +812,8 @@ async function handleSubmit() {
   transition: background 0.15s, color 0.15s;
 }
 .hero__close:hover {
-  background: rgba(0, 0, 0, 0.04);
-  color: #1f1f1f;
+  background: var(--overlay-scrim-weak);
+  color: var(--n-850);
 }
 
 /* ==================== Section Card ==================== */
@@ -838,7 +838,7 @@ async function handleSubmit() {
 .section-card__title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--n-850);
   margin: 0 0 12px 0;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--g2);
@@ -856,7 +856,7 @@ async function handleSubmit() {
 }
 .section-card__hint {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--n-440);
   line-height: 1.6;
   margin: -4px 0 12px 0;
   padding: 8px 12px;
@@ -894,13 +894,13 @@ async function handleSubmit() {
   text-align: right;
   padding-right: 16px;
   font-size: 13px;
-  color: #595959;
+  color: var(--n-580);
   font-weight: 500;
   line-height: 1.5;
 }
 .field-label--required::after {
   content: ' *';
-  color: #ff4d4f;
+  color: var(--c-error);
 }
 .field-value {
   flex: 1;
@@ -911,12 +911,12 @@ async function handleSubmit() {
 }
 .field-hint {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--n-440);
   line-height: 1.5;
 }
 .field-error-hint {
   font-size: 12px;
-  color: #ff4d4f;
+  color: var(--c-error);
   line-height: 1.5;
 }
 

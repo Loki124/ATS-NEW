@@ -92,7 +92,7 @@
             <p style="font-size: 16px; font-weight: 500">
               点击或拖拽上传简历文件
             </p>
-            <p style="color: #999">
+            <p style="color: var(--n-400)">
               支持 PDF、Word、Excel、图片格式，单个文件不超过10MB
             </p>
           </n-upload-dragger>
@@ -461,7 +461,7 @@ const resetForm = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #000;
+  color: var(--n-850);
   font-size: 16px;
 }
 
@@ -496,7 +496,7 @@ const resetForm = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #000;
+  color: var(--n-850);
 }
 
 .file-info {
@@ -509,7 +509,7 @@ const resetForm = () => {
 
 .file-size {
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
 }
 
 .info-confirm {
@@ -523,7 +523,7 @@ const resetForm = () => {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #333;
+  color: var(--n-650);
 }
 
 .info-item {
@@ -532,7 +532,7 @@ const resetForm = () => {
 }
 
 .info-label {
-  color: #999;
+  color: var(--n-400);
   font-size: 12px;
 }
 
@@ -544,7 +544,7 @@ const resetForm = () => {
   background: var(--c-warning-soft); /* v2.8 T2.8.1: 浅黄背景 → var(--c-warning-soft) */
   padding: 16px;
   border-radius: 8px;
-  border: 1px solid #ffe58f;
+  border: 1px solid var(--c-warning-bg);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -554,7 +554,7 @@ const resetForm = () => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: #faad14;
+  background: var(--c-warning);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -567,7 +567,7 @@ const resetForm = () => {
 
 .uploaded-name {
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
 }
 
 .tip-box {

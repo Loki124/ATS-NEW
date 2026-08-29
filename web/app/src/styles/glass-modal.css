@@ -88,12 +88,12 @@ body.dark .n-modal::before {
  * 注：glass.css 没定义 n-drawer-mask，这里补全
  */
 .n-drawer-mask {
-  background: rgba(15, 23, 42, .28) !important;
+  background: var(--overlay-scrim-mid) !important;
   backdrop-filter: blur(var(--glass-blur-overlay));
   -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
 }
 body.dark .n-drawer-mask {
-  background: rgba(0, 0, 0, .45) !important;
+  background: var(--overlay-scrim-strong) !important;
 }
 
 /* === Drawer 容器：让面板可正常铺满，pointer 事件仅在面板本体生效

@@ -23,17 +23,36 @@ const SHORTHAND_PROPS = new Set([
 ]);
 
 const VAR_RE = /var\([^)]*\)/g;
-const GRAD_RE = /(?:linear|radial|conic)-gradient\([^)]*\)/g;
-const MIX_RE = /color-mix\([^)]*\)/g;
 const NEUTRAL_KW = /(?:transparent|currentcolor|inherit|initial|unset|none|#fff|#ffffff|#000|#000000|white|black)/i;
 const COLOR_LIT = /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/i;
 
+// 删除 keyword(...) 平衡括号段（正确处理 gradient/color-mix 内含 rgba/var 的嵌套括号）
+function stripBalanced(value, keyword) {
+  const kw = keyword + '(';
+  let out = '';
+  let i = 0;
+  while (i < value.length) {
+    const idx = value.indexOf(kw, i);
+    if (idx === -1) { out += value.slice(i); break; }
+    out += value.slice(i, idx);
+    let depth = 0;
+    let j = idx + kw.length - 1; // 指向 '('
+    for (; j < value.length; j++) {
+      if (value[j] === '(') depth++;
+      else if (value[j] === ')') { depth--; if (depth === 0) { j++; break; } }
+    }
+    i = j;
+  }
+  return out;
+}
+
 function hasHardcodedColor(value) {
-  let v = String(value)
-    .replace(VAR_RE, '')
-    .replace(GRAD_RE, '')
-    .replace(MIX_RE, '')
-    .replace(NEUTRAL_KW, '');
+  let v = String(value);
+  v = stripBalanced(v, 'linear-gradient');
+  v = stripBalanced(v, 'radial-gradient');
+  v = stripBalanced(v, 'conic-gradient');
+  v = stripBalanced(v, 'color-mix');
+  v = v.replace(VAR_RE, '').replace(NEUTRAL_KW, '');
   return COLOR_LIT.test(v);
 }
 

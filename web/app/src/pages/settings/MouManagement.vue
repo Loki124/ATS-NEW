@@ -262,7 +262,7 @@
                 <n-button size="tiny" @click="selectAllScopes('menu')">全选</n-button>
                 <n-button size="tiny" @click="deselectAllScopes('menu')">全不选</n-button>
                 <n-button size="tiny" @click="invertScopes('menu')">反选</n-button>
-                <span style="color: #999; font-size: 12px; line-height: 24px;">
+                <span style="color: var(--n-400); font-size: 12px; line-height: 24px;">
                   已选 {{ mouFormState.scopes.menu.length }} / {{ menuPermissions.length }}
                 </span>
               </div>
@@ -276,14 +276,14 @@
                   />
                 </n-space>
               </n-checkbox-group>
-              <div v-if="!menuPermissions.length" style="color: #999; font-size: 12px;">暂无可选菜单权限</div>
+              <div v-if="!menuPermissions.length" style="color: var(--n-400); font-size: 12px;">暂无可选菜单权限</div>
             </n-tab-pane>
             <n-tab-pane name="function" tab="功能权限">
               <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <n-button size="tiny" @click="selectAllScopes('function')">全选</n-button>
                 <n-button size="tiny" @click="deselectAllScopes('function')">全不选</n-button>
                 <n-button size="tiny" @click="invertScopes('function')">反选</n-button>
-                <span style="color: #999; font-size: 12px; line-height: 24px;">
+                <span style="color: var(--n-400); font-size: 12px; line-height: 24px;">
                   已选 {{ mouFormState.scopes.function.length }} / {{ functionPermissions.length }}
                 </span>
               </div>
@@ -297,7 +297,7 @@
                   />
                 </n-space>
               </n-checkbox-group>
-              <div v-if="!functionPermissions.length" style="color: #999; font-size: 12px;">暂无可选功能权限</div>
+              <div v-if="!functionPermissions.length" style="color: var(--n-400); font-size: 12px;">暂无可选功能权限</div>
             </n-tab-pane>
             <n-tab-pane name="data" tab="数据权限">
               <n-radio-group v-model:value="mouFormState.scopes.data.scope">

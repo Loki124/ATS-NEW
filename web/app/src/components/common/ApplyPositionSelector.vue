@@ -28,10 +28,10 @@ function select(pos: string) {
   margin-top: 8px;
   padding: 10px 12px;
   background: var(--bl);
-  border: 1px solid #BFDBFE;
+  border: 1px solid var(--c-info-bg);
   border-radius: 8px;
 }
-.apply-pos-title { font-size: 11px; font-weight: 600; color: #1E40AF; margin-bottom: 6px; }
+.apply-pos-title { font-size: 11px; font-weight: 600; color: var(--c-info-deep); margin-bottom: 6px; }
 .apply-pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .apply-pos-item {
   padding: 4px 10px;

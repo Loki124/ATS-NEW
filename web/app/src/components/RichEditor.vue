@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
 
 .rich-editor__body :deep(.w-e-text-placeholder) {
   font-style: normal;
-  color: #9ca3af;
+  color: var(--n-380);
   top: 10px;
 }
 
@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
 .rich-editor__body :deep([data-slate-editor]) {
   font-size: 14px;
   line-height: 1.7;
-  color: #374151;
+  color: var(--n-700);
 }
 
 .rich-editor__body :deep([data-slate-editor] ul) {
@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
 }
 
 .rich-editor__body :deep([data-slate-editor] a) {
-  color: #2563eb;
+  color: var(--c-info);
   text-decoration: underline;
 }
 

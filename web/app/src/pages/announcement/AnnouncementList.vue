@@ -263,7 +263,7 @@ onMounted(() => {
   padding: 0 20px 16px;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--n-800);
 }
 
 .ann-kb__back {
@@ -274,7 +274,7 @@ onMounted(() => {
   transition: color 0.15s, background 0.15s;
 }
 .ann-kb__back:hover {
-  color: #2563eb;
+  color: var(--c-info);
   background: var(--g1);
 }
 
@@ -298,12 +298,12 @@ onMounted(() => {
 
 .ann-kb__tree-node:hover {
   background: var(--g1);
-  color: #1f2937;
+  color: var(--n-800);
 }
 
 .ann-kb__tree-node.active {
   background: var(--g1);
-  color: #2563eb;
+  color: var(--c-info);
   font-weight: 500;
 }
 
@@ -321,7 +321,7 @@ onMounted(() => {
 
 .ann-kb__tree-count {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--n-380);
   background: var(--g1);
   padding: 1px 6px;
   border-radius: 10px;
@@ -329,7 +329,7 @@ onMounted(() => {
 
 .ann-kb__tree-node.active .ann-kb__tree-count {
   background: var(--g2);
-  color: #2563eb;
+  color: var(--c-info);
 }
 
 /* 右侧主内容 */
@@ -346,7 +346,7 @@ onMounted(() => {
   background: var(--glass-bg-card);
   border-radius: 12px;
   padding: 20px 24px;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 8px var(--overlay-scrim-weak);
 }
 
 /* 相邻 section 之间增加垂直间距（最近浏览 / 最近更新） */
@@ -357,7 +357,7 @@ onMounted(() => {
 .ann-kb__section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--n-800);
   margin-bottom: 16px;
 }
 
@@ -383,8 +383,8 @@ onMounted(() => {
 
 .ann-kb__recent-card:hover {
   background: var(--glass-bg-card);
-  border-color: #bfdbfe;
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.08);
+  border-color: var(--c-info-bg);
+  box-shadow: 0 2px 10px var(--c-info-soft);
 }
 
 .ann-kb__recent-icon {
@@ -408,7 +408,7 @@ onMounted(() => {
 }
 
 .ann-kb__recent-title {
-  color: #1f2937;
+  color: var(--n-800);
   font-size: 14px;
   font-weight: 500;
   overflow: hidden;
@@ -417,7 +417,7 @@ onMounted(() => {
 }
 
 .ann-kb__recent-meta {
-  color: #9ca3af;
+  color: var(--n-380);
   font-size: 12px;
 }
 
@@ -434,7 +434,7 @@ onMounted(() => {
 
 .ann-kb__table th {
   text-align: left;
-  color: #9ca3af;
+  color: var(--n-380);
   font-weight: 500;
   padding: 10px 12px;
   border-bottom: 1px solid var(--g1);
@@ -505,7 +505,7 @@ onMounted(() => {
 }
 
 .ann-kb__doc-title {
-  color: #1f2937;
+  color: var(--n-800);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;

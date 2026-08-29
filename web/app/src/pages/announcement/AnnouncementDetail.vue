@@ -251,14 +251,14 @@ onMounted(loadDetail)
   background: var(--glass-bg-card);
   border-radius: 12px;
   padding: 32px 40px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px var(--overlay-scrim-weak);
 }
 
 .ann-detail-title {
   margin: 0 0 16px;
   font-size: 24px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--n-800);
   line-height: 1.4;
 }
 
@@ -281,7 +281,7 @@ onMounted(loadDetail)
 }
 
 .ann-detail-author {
-  color: #374151;
+  color: var(--n-700);
   font-weight: 500;
 }
 
@@ -294,7 +294,7 @@ onMounted(loadDetail)
 }
 
 .ann-detail-body {
-  color: #374151;
+  color: var(--n-700);
   font-size: 15px;
   line-height: 1.8;
   margin-bottom: 32px;
@@ -315,7 +315,7 @@ onMounted(loadDetail)
 }
 
 .ann-detail-body :deep(a) {
-  color: #2563eb;
+  color: var(--c-info);
   text-decoration: underline;
 }
 
@@ -328,7 +328,7 @@ onMounted(loadDetail)
 .ann-detail-attachments__title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--n-800);
   margin-bottom: 12px;
 }
 
@@ -368,10 +368,10 @@ onMounted(loadDetail)
 
 .ann-attach-icon.default { background: var(--c-info); }
 .ann-attach-icon.pdf { background: var(--c-error); }
-.ann-attach-icon.word { background: #2563eb; }
+.ann-attach-icon.word { background: var(--c-info); }
 .ann-attach-icon.excel { background: var(--c-success); }
-.ann-attach-icon.ppt { background: #d97706; }
-.ann-attach-icon.image { background: #8b5cf6; }
+.ann-attach-icon.ppt { background: var(--c-warning); }
+.ann-attach-icon.image { background: var(--brand); }
 
 .ann-attach-info {
   flex: 1;
@@ -382,7 +382,7 @@ onMounted(loadDetail)
 }
 
 .ann-attach-name {
-  color: #1f2937;
+  color: var(--n-800);
   font-size: 14px;
   font-weight: 500;
   overflow: hidden;
@@ -391,12 +391,12 @@ onMounted(loadDetail)
 }
 
 .ann-attach-size {
-  color: #9ca3af;
+  color: var(--n-380);
   font-size: 12px;
 }
 
 .ann-attach-action {
-  color: #9ca3af;
+  color: var(--n-380);
   flex-shrink: 0;
   display: flex;
   align-items: center;

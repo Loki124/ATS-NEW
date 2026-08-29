@@ -607,7 +607,7 @@ onMounted(() => {
 
 .policy-tree__node:hover {
   background: var(--g1);
-  color: #1f2937;}
+  color: var(--n-800);}
 
 .policy-tree__node.active {
   background: var(--brand-a22);
@@ -629,7 +629,7 @@ onMounted(() => {
 
 .policy-tree__count {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--n-380);
   background: var(--g1);  padding: 1px 6px;
   border-radius: 10px;
 }
@@ -789,7 +789,7 @@ onMounted(() => {
   height: 32px;
   border-radius: 6px;
   background: var(--brand-a22);
-  color: #3b82f6;
+  color: var(--c-info);
   display: flex;
   align-items: center;
   justify-content: center;

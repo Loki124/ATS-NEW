@@ -917,7 +917,7 @@ onUnmounted(() => {
 /* margin-bottom 与负 margin（让底部 border 通栏）由全局 .settings-scroll .page-header 统一处理；
    本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
 /* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
-.code-pill, .num-pill { font-size: 12px; color: #666; background: var(--g1); padding: 2px 8px; border-radius: 4px; }
+.code-pill, .num-pill { font-size: 12px; color: var(--n-500); background: var(--g1); padding: 2px 8px; border-radius: 4px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .section { margin-bottom: 16px; }
 .section--info :deep(.n-card__content) { padding: 12px 16px !important; }
@@ -957,19 +957,19 @@ onUnmounted(() => {
 .hint-bar {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 12px;
-  background: rgba(250, 173, 20, 0.08);
-  border: 1px solid rgba(250, 173, 20, 0.22);
+  background: var(--c-warning-soft);
+  border: 1px solid var(--c-warning-soft);
   border-radius: 8px;
   font-size: 13px;
   color: var(--ink);
 }
-.hint-bar-icon { color: #faad14; font-size: 14px; flex-shrink: 0; }
+.hint-bar-icon { color: var(--c-warning); font-size: 14px; flex-shrink: 0; }
 .hint-bar-text { color: var(--ink-soft); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hint-bar-more { color: var(--brand); padding: 0 4px; }
 .hint-pop-list { margin: 0; padding-left: 18px; font-size: 13px; max-width: 360px; }
 .hint-pop-list li { margin-bottom: 4px; line-height: 1.6; }
 
-.hint { color: #aaa; font-size: 12px; margin-left: 8px; }
+.hint { color: var(--n-350); font-size: 12px; margin-left: 8px; }
 
 /* 元素树形表格
    用 absolute 定位填满 n-card-body 的内容区，overflow:auto 在内容溢出时触发滚动 */
@@ -984,44 +984,44 @@ onUnmounted(() => {
 .el-head { position: sticky; top: 0; z-index: 1; }
 .el-row { display: flex; align-items: center; border-bottom: 1px solid var(--g1); min-height: 48px; }
 .el-row:last-child { border-bottom: none; }
-.el-head { background: var(--g1); font-weight: 600; font-size: 13px; color: #555; white-space: nowrap; }
+.el-head { background: var(--g1); font-weight: 600; font-size: 13px; color: var(--n-600); white-space: nowrap; }
 .el-row.editing { background: var(--brand-tint); }
-.el-row.isnew { background: #fffbe6; }
-.el-row.isnew.editing { background: #fff7cc; }
+.el-row.isnew { background: var(--n-100); }
+.el-row.isnew.editing { background: var(--n-180); }
 .el-cell { display: flex; align-items: center; min-height: 48px; padding: 0 12px; font-size: 13px; box-sizing: border-box; }
 /* 每个单元格只包一个 .cell-inner，由它统一承载内容；避免多个 inline 元素在 flex 容器里因基线/字高不同而错位 */
 .el-cell-content { display: flex; align-items: center; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
 .cell-inner { display: inline-flex; align-items: center; gap: 4px; min-height: 20px; line-height: 1; }
 /* 树形引导符绝对定位在左侧 padding 沟里，不再把名称文字继续往右顶 */
 .tree-guide { position: absolute; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; overflow: hidden; }
-.tree-guide-char { font-size: 12px; line-height: 1; color: #bbb; transform: translateY(-1px); }
+.tree-guide-char { font-size: 12px; line-height: 1; color: var(--n-300); transform: translateY(-1px); }
 .name-inner { gap: 2px; }
 /* 名称列作为引导符的绝对定位参照 */
 .el-name-cell { position: relative; }
 .cell-inner .n-input, .cell-inner .n-input-number { display: flex; }
-.el-cell .code-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #333; font-size: 13px; }
+.el-cell .code-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: var(--n-650); font-size: 13px; }
 .el-cell .n-input, .el-cell .n-input-number { min-width: 80px; width: 100%; }
-.strikethrough { text-decoration: line-through; color: #aaa; }
-.desc-cell { color: #666; }
-.el-empty { padding: 32px; text-align: center; color: #aaa; font-size: 13px; }
+.strikethrough { text-decoration: line-through; color: var(--n-350); }
+.desc-cell { color: var(--n-500); }
+.el-empty { padding: 32px; text-align: center; color: var(--n-350); font-size: 13px; }
 /* 操作列不换行、按钮紧凑 */
 .el-cell .n-space { flex-wrap: nowrap; }
 .el-cell .n-button { white-space: nowrap; }
 
 .draft-hint {
   display: flex; align-items: center; gap: 8px; flex: 1;
-  color: #fa8c16; font-size: 13px; font-weight: 500;
+  color: var(--c-warning); font-size: 13px; font-weight: 500;
   white-space: nowrap;
   transition: opacity 0.2s ease;
 }
 .draft-hint.hint-hidden { opacity: 0; pointer-events: none; }
-.draft-icon { color: #fa8c16; }
+.draft-icon { color: var(--c-warning); }
 
 .submit-bar {
   position: sticky; bottom: 16px; left: 0; right: 0;
   display: flex; justify-content: space-between; align-items: center;
   background: var(--glass-bg-card); border: 1px solid var(--g1); border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 24px var(--overlay-scrim-weak);
   padding: 12px 24px; margin: 24px 0 0;
   z-index: 10;
   gap: 16px;

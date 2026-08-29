@@ -493,18 +493,18 @@ onMounted(() => {
 
 .input-tip {
   margin-left: 8px;
-  color: #999;
+  color: var(--n-400);
 }
 
 .input-tip-tip {
   margin-left: 8px;
-  color: #999;
+  color: var(--n-400);
   font-size: 12px;
 }
 
 .switch-tip {
   margin-left: 12px;
-  color: #999;
+  color: var(--n-400);
   font-size: 12px;
 }
 
@@ -514,7 +514,7 @@ onMounted(() => {
   gap: 2px;
   margin-top: 4px;
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
 }
 
 .profile-rules-editor {
@@ -531,7 +531,7 @@ onMounted(() => {
   background: var(--g1);
   border-radius: 6px;
   font-size: 12px;
-  color: #666;
+  color: var(--n-500);
 }
 
 .rules-tip p {

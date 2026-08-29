@@ -347,7 +347,7 @@ export default {
 }
 .tree-item {
   padding: 8px 0;
-  border-left: 2px solid #e0e0e0;
+  border-left: 2px solid var(--n-200);
   padding-left: 12px;
   margin-left: 4px;
 }

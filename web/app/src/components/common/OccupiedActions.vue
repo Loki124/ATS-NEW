@@ -30,6 +30,6 @@ const emit = defineEmits<{
 .occ-btn:hover { border-color: var(--p); background: var(--pl); }
 .occ-btn.primary { background: var(--p); color: #fff; border-color: var(--p); }
 .occ-btn.primary:hover { background: var(--ph); }
-.occ-btn.warn { color: #991B1B; border-color: var(--d); }
+.occ-btn.warn { color: var(--c-error-deep); border-color: var(--d); }
 .occ-btn.warn:hover { background: var(--dl); }
 </style>

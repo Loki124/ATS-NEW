@@ -186,8 +186,8 @@ body.dark .glass-card {
   justify-content: center;
   gap: var(--space-2);
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, .35);
+  color: var(--n-100);
+  border: 1px solid var(--overlay-glass-mid);
   border-radius: var(--radius-md);
   padding: 10px 18px;
   font-weight: 600;
@@ -271,7 +271,7 @@ body.dark .glass-card {
   justify-content: center;
   gap: var(--space-2);
   background: var(--c-error-soft);
-  border: 1px solid rgba(239, 68, 68, .3);
+  border: 1px solid var(--c-error-soft);
   color: var(--c-error);
   border-radius: var(--radius-md);
   padding: 10px 18px;
@@ -282,7 +282,7 @@ body.dark .glass-card {
 }
 .btn-danger:hover {
   background: var(--c-error);
-  color: #fff;
+  color: var(--n-100);
 }
 
 /* === .gradient-title（DESIGN.md §3 渐变标题）===
@@ -332,7 +332,7 @@ body.dark .glass-card {
   /* ⚠️ 22:35 兵哥反馈"降低遮罩层不透明度，确保弹窗内容清晰可见"：
      - 浅色 .28 → .18（让背景更通透，弹窗内容不被遮罩遮挡）
      - 暗色 .45 → .25（同理降低，让暗背景下弹窗更清晰） */
-  background: rgba(15, 23, 42, .18) !important;
+  background: var(--overlay-scrim-mid) !important;
   backdrop-filter: blur(var(--glass-blur-overlay));
   -webkit-backdrop-filter: blur(var(--glass-blur-overlay));
   /* 弹窗居中加固：显式保证 n-modal 内容在遮罩内水平+垂直居中，
@@ -342,7 +342,7 @@ body.dark .glass-card {
   justify-content: center !important;
 }
 body.dark .n-modal-mask {
-  background: rgba(0, 0, 0, .25) !important;
+  background: var(--overlay-scrim-mid) !important;
 }
 
 /* =============================================================
@@ -389,8 +389,8 @@ body.dark .n-modal-mask {
  * 直接给 .v-binder-follower-content 加 backdrop-filter 是可行方案;再加 `overflow:hidden`
  * 让 12px border-radius 圆角干净裁切.
  *
- * 同时给 dark 主题改色基:dark 下 --glass-bg-elevated 用 slate-900(#0F172A) .94,
- * 与原 --surface(#1E293B 暗色兜底)分离开,根治 dark 浮层溶在背景问题.
+ * 同时给 dark 主题改色基:dark 下 --glass-bg-elevated 用 slate-900(var(--n-850)) .94,
+ * 与原 --surface(var(--n-800) 暗色兜底)分离开,根治 dark 浮层溶在背景问题.
  *
  * 2026-08-28 P6 修订(兵哥报「两层结构」):
  *   移除 wrapper 上的 background / backdrop-filter / border / box-shadow / isolation /
@@ -523,16 +523,16 @@ body.dark .n-modal-mask {
 /* === 滚动条统一颜色 Token（液态玻璃 v2 · 单源）===
  * 单一来源：所有滚动条（Naive n-scrollbar 内置 rail / 原生 webkit thumb / Firefox scrollbar-color）
  * 都用这一个 brand 紫系列，统一全项目视觉。
- * 三档：default（半透，淡蓝紫）/ hover（加深）/ drag（最浓），全部 brand 紫 #6366F1 系列 */
+ * 三档：default（半透，淡蓝紫）/ hover（加深）/ drag（最浓），全部 brand 紫 var(--brand) 系列 */
 :root {
   --scrollbar-color-default: var(--brand-a12);            /* 默认半透，更通透（兵哥 2026-08-25：透明度再调高） */
   --scrollbar-color-hover:   var(--brand-a32);           /* hover/聚焦 加深 */
   --scrollbar-color-drag:    color-mix(in srgb, var(--brand) 50%, transparent); /* 拖拽/激活 最浓 */
 }
 body.dark {
-  --scrollbar-color-default: rgba(165, 170, 255, 0.15);  /* 暗色提亮，更通透 */
-  --scrollbar-color-hover:   rgba(165, 170, 255, 0.35);
-  --scrollbar-color-drag:    rgba(165, 170, 255, 0.55);
+  --scrollbar-color-default: var(--overlay-glass-mid);  /* 暗色提亮，更通透 */
+  --scrollbar-color-hover:   var(--overlay-glass-mid);
+  --scrollbar-color-drag:    var(--overlay-glass-mid);
 }
 
 /* === 全局滚动条"默认隐藏、悬浮展示"统一规则（22:35 规范 + 校招管控宽表横滚修复）===
@@ -556,7 +556,7 @@ body.dark {
 }
 
 /* === 关键：覆盖 Naive n-scrollbar 内置颜色 ===
- * Naive JS 会在 .n-scrollbar 元素上 inline 注入 `--n-scrollbar-color: rgba(0,0,0,.25)` 等暗灰默认值，
+ * Naive JS 会在 .n-scrollbar 元素上 inline 注入 `--n-scrollbar-color: var(--overlay-scrim-mid)` 等暗灰默认值，
  * 优先级高于 :root 变量（inline > CSS）。需要用 !important 在 .n-scrollbar 层级重新赋值。
  * 这是统一滚条色的唯一可靠手段（themeOverrides.Scrollbar 在 GlobalThemeOverrides 中未被识别）。 */
 .n-scrollbar {
@@ -599,7 +599,7 @@ body.dark {
  * 表头半透明白，行 hairline 分隔，hover 行品牌浅底，去斑马纹。
  */
 .glass-table .n-data-table-th {
-  background: rgba(255, 255, 255, .5) !important;
+  background: var(--overlay-glass-mid) !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-hairline);
@@ -614,19 +614,19 @@ body.dark {
   background: var(--brand-tint) !important;
 }
 body.dark .glass-table .n-data-table-th {
-  background: rgba(30, 41, 59, .5) !important;
+  background: var(--overlay-scrim-mid) !important;
 }
 
 /* === T7.2 v2 表头玻璃化（追加，非新建） === */
 .n-data-table .n-data-table-th {
-  background: rgba(255, 255, 255, .5);
+  background: var(--overlay-glass-mid);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   font-weight: 600;
   color: var(--ink-soft);
 }
 body.dark .n-data-table .n-data-table-th {
-  background: rgba(255, 255, 255, .06);
+  background: var(--overlay-glass-weak);
   color: var(--ink);
 }
 
@@ -751,7 +751,7 @@ body.dark .n-data-table .n-data-table-th {
 .gradient-btn {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
   border: none !important;
-  color: #fff !important;
+  color: var(--n-100) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -767,7 +767,7 @@ body.dark .n-data-table .n-data-table-th {
 .settings-scroll .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
   border: none !important;
-  color: #fff !important;
+  color: var(--n-100) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -824,7 +824,7 @@ body.dark .n-data-table .n-data-table-th {
   transform: translateY(-2px);
 }
 body.dark .kpi-card {
-  box-shadow: 6px 6px 14px rgba(0, 0, 0, .35), -6px -6px 14px rgba(255, 255, 255, .05);
+  box-shadow: 6px 6px 14px var(--overlay-scrim-strong), -6px -6px 14px var(--overlay-glass-weak);
 }
 body.dark .kpi-card:hover {
   box-shadow: 0 0 0 1px var(--brand-a22), 0 14px 34px var(--brand-a12),
@@ -1049,7 +1049,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
 .n-modal .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
   border: none !important;
-  color: #fff !important;
+  color: var(--n-100) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -1071,8 +1071,8 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
   background: var(--brand-a12);
   transform: translateY(-2px);
 }
-.settings-scroll .kpi-card.danger:hover { background: rgba(239, 68, 68, .12); }
-.settings-scroll .kpi-card.warn:hover { background: rgba(245, 158, 11, .12); }
+.settings-scroll .kpi-card.danger:hover { background: var(--c-error-soft); }
+.settings-scroll .kpi-card.warn:hover { background: var(--c-warning-soft); }
 
 /* === P3 整改：宽表 sm- 横向滚动（替换 overflow-x:hidden !important 永久裁切）=== */
 @media (max-width: 767px) {

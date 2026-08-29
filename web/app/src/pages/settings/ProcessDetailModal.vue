@@ -1708,7 +1708,7 @@ function conditionItemLabel(item: any): string {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(32, 128, 240, 0.25);
+  box-shadow: 0 4px 12px var(--c-info-soft);
 }
 .hero__main {
   flex: 1;
@@ -1724,7 +1724,7 @@ function conditionItemLabel(item: any): string {
 .hero__title {
   font-size: 18px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--n-850);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1734,7 +1734,7 @@ function conditionItemLabel(item: any): string {
   flex-wrap: wrap;
   gap: 12px;
   font-size: 12px;
-  color: #888;
+  color: var(--n-450);
 }
 .hero__meta-item {
   display: inline-flex;
@@ -1743,7 +1743,7 @@ function conditionItemLabel(item: any): string {
 }
 .hero__meta-item :deep(.n-icon) {
   font-size: 13px;
-  color: #aaa;
+  color: var(--n-350);
 }
 .hero__edit-btn {
   display: flex;
@@ -1753,14 +1753,14 @@ function conditionItemLabel(item: any): string {
   background: var(--glass-bg-card);
   border: 1px solid var(--g2);
   border-radius: 4px;
-  color: #2080f0;
+  color: var(--c-info);
   font-size: 13px;
   cursor: pointer;
   transition: border-color 0.15s;
   flex-shrink: 0;
 }
 .hero__edit-btn:hover {
-  border-color: #2080f0;
+  border-color: var(--c-info);
   background: var(--c-info-soft); /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 }
 
@@ -1777,7 +1777,7 @@ function conditionItemLabel(item: any): string {
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #444;
+  color: var(--n-650);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1814,13 +1814,13 @@ function conditionItemLabel(item: any): string {
   padding: 8px 0;
 }
 .field-label {
-  color: #888;
+  color: var(--n-450);
   min-width: 88px;
   font-weight: 500;
   flex-shrink: 0;
 }
 .field-value {
-  color: #333;
+  color: var(--n-650);
   flex: 1;
   word-break: break-word;
 }
@@ -1831,17 +1831,17 @@ function conditionItemLabel(item: any): string {
   align-items: center;
 }
 .muted-text {
-  color: #aaa;
+  color: var(--n-350);
   font-size: 12px;
 }
 .rule-text strong {
-  color: #1f1f1f;
+  color: var(--n-850);
   font-weight: 600;
 }
 .rule-timing,
 .rule-scope {
   margin-left: 6px;
-  color: #888;
+  color: var(--n-450);
   font-size: 12px;
 }
 
@@ -1858,19 +1858,19 @@ function conditionItemLabel(item: any): string {
   transition: all var(--duration-fast) var(--ease-out);
 }
 .scope-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px var(--overlay-scrim-weak);
 }
 .scope-card--include {
   background: var(--g1);
-  border-color: #91caff;
+  border-color: var(--c-info-bg);
 }
 .scope-card--exclude {
   background: var(--g1);
-  border-color: #ffb3b3;
+  border-color: var(--c-error-bg);
 }
 .scope-card--neutral {
   background: var(--g1);
-  border-color: #e8e8ec;
+  border-color: var(--n-170);
 }
 .scope-card__head {
   display: flex;
@@ -1878,14 +1878,14 @@ function conditionItemLabel(item: any): string {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--n-850);
 }
 .scope-card__head :deep(.n-icon) {
   font-size: 14px;
-  color: #2080f0;
+  color: var(--c-info);
 }
 .scope-card--exclude .scope-card__head :deep(.n-icon) {
-  color: #f5222d;
+  color: var(--c-error);
 }
 .scope-card__name {
   flex: 1;
@@ -1897,7 +1897,7 @@ function conditionItemLabel(item: any): string {
   font-size: 11px;
 }
 .scope-card__count {
-  color: #999;
+  color: var(--n-400);
 }
 .scope-card__values {
   display: flex;
@@ -1909,24 +1909,24 @@ function conditionItemLabel(item: any): string {
 .scope-card__value {
   font-size: 11px;
   padding: 1px 6px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--overlay-glass-strong);
+  border: 1px solid var(--overlay-scrim-weak);
   border-radius: 3px;
-  color: #555;
+  color: var(--n-600);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .scope-card--include .scope-card__value {
-  background: rgba(32, 128, 240, 0.08);
-  border-color: rgba(32, 128, 240, 0.2);
-  color: #2080f0;
+  background: var(--c-info-soft);
+  border-color: var(--c-info-soft);
+  color: var(--c-info);
 }
 .scope-card--exclude .scope-card__value {
-  background: rgba(245, 34, 45, 0.08);
-  border-color: rgba(245, 34, 45, 0.2);
-  color: #cf1322;
+  background: var(--c-error-soft);
+  border-color: var(--c-error-soft);
+  color: var(--c-error);
 }
 .scope-card__value--more {
   background: transparent;
@@ -1934,7 +1934,7 @@ function conditionItemLabel(item: any): string {
 }
 .scope-card__empty {
   font-size: 11px;
-  color: #aaa;
+  color: var(--n-350);
   font-style: italic;
 }
 
@@ -1944,7 +1944,7 @@ function conditionItemLabel(item: any): string {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #999;
+  color: var(--n-400);
   padding: 32px 0;
 }
 
@@ -1979,15 +1979,15 @@ function conditionItemLabel(item: any): string {
   margin-bottom: 0;
 }
 .stage-card:hover {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px var(--overlay-scrim-weak);
   border-color: var(--g6);
 }
 /* 阶段类型左侧色条 (保留 v1 优势) */
-.stage-card--screen     { border-left: 3px solid #2080f0; }
-.stage-card--invitation { border-left: 3px solid #f0a020; }
-.stage-card--interview  { border-left: 3px solid #722ed1; }
+.stage-card--screen     { border-left: 3px solid var(--c-info); }
+.stage-card--invitation { border-left: 3px solid var(--c-warning); }
+.stage-card--interview  { border-left: 3px solid var(--c-purple); }
 .stage-card--offer      { border-left: 3px solid var(--c-success); }
-.stage-card--onboarding { border-left: 3px solid #0090ba; }
+.stage-card--onboarding { border-left: 3px solid var(--c-cyan); }
 
 /* 序号圆点 (timeline) */
 .stage-card__dot {
@@ -2022,7 +2022,7 @@ function conditionItemLabel(item: any): string {
 .stage-card__name {
   font-size: 15px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--n-850);
   margin-right: 4px;
 }
 .stage-card__system-badge {
@@ -2042,7 +2042,7 @@ function conditionItemLabel(item: any): string {
   height: 18px;
   border-radius: 50%;
   background: var(--glass-bg-card);
-  color: #bbb;
+  color: var(--n-300);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2054,8 +2054,8 @@ function conditionItemLabel(item: any): string {
   display: inline-flex;
   align-items: center;
   background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
-  border: 1px solid #fbce5b;
-  color: #d48806;
+  border: 1px solid var(--c-warning-bg);
+  color: var(--c-warning);
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 3px;
@@ -2077,15 +2077,15 @@ function conditionItemLabel(item: any): string {
   font-size: 12px;
 }
 .cond-group__type {
-  color: #888;
+  color: var(--n-450);
 }
 .cond-group__count {
-  color: #999;
+  color: var(--n-400);
   font-size: 11px;
 }
 .cond-empty {
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
   background: var(--g1);
   padding: 6px 10px;
   border-radius: 4px;
@@ -2113,7 +2113,7 @@ function conditionItemLabel(item: any): string {
 .cond-item__index {
   font-size: 11px;
   background: var(--g1);
-  color: #2080f0;
+  color: var(--c-info);
   padding: 1px 6px;
   border-radius: 3px;
   flex-shrink: 0;
@@ -2127,17 +2127,17 @@ function conditionItemLabel(item: any): string {
   flex-shrink: 0;
 }
 .cond-item__relation--and {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--n-100);
+  color: var(--c-success);
 }
 .cond-item__relation--or {
-  background: #fff3e0;
-  color: #e65100;
+  background: var(--n-100);
+  color: var(--c-orange);
 }
 .cond-item__expr {
   font-family: 'SF Mono', Consolas, Menlo, monospace;
   font-size: 12px;
-  color: #333;
+  color: var(--n-650);
   flex: 1;
   word-break: break-all;
 }
@@ -2186,7 +2186,7 @@ function conditionItemLabel(item: any): string {
 .hero__title-input :deep(.n-input__input-el) {
   font-size: 18px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--n-850);
   padding: 4px 8px;
 }
 
@@ -2205,12 +2205,12 @@ function conditionItemLabel(item: any): string {
   width: 100%;
 }
 .scope-card__select :deep(.n-base-selection) {
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--overlay-glass-strong);
 }
 
 .stage-card--selected {
-  box-shadow: 0 0 0 2px rgba(32, 128, 240, 0.25);
-  border-color: #2080f0;
+  box-shadow: 0 0 0 2px var(--c-info-soft);
+  border-color: var(--c-info);
 }
 .stage-card__row-actions {
   display: flex;
@@ -2244,30 +2244,30 @@ function conditionItemLabel(item: any): string {
 }
 .picker-item:hover {
   background-color: var(--c-info-soft); /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-  border-color: #91caff;
+  border-color: var(--c-info-bg);
 }
 .picker-item--start {
   background-color: var(--g1);
-  border-color: #b7eb8f;
+  border-color: var(--n-300);
 }
 .picker-item--start:hover {
-  background-color: #d9f7be;
-  border-color: #73d13d;
+  background-color: var(--n-200);
+  border-color: var(--c-lime);
 }
 .picker-item--end {
   background-color: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
-  border-color: #ffd591;
+  border-color: var(--c-warning-bg);
 }
 .picker-item--end:hover {
-  background-color: #ffe7ba;
-  border-color: #ffa940;
+  background-color: var(--c-error-bg);
+  border-color: var(--c-warning);
 }
 .picker-item__dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 1), 0 0 0 4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 0 3px var(--overlay-glass-strong), 0 0 0 4px var(--overlay-scrim-weak);
 }
 .picker-item__main {
   flex: 1;
@@ -2276,17 +2276,17 @@ function conditionItemLabel(item: any): string {
 .picker-item__name {
   font-size: 14px;
   font-weight: 500;
-  color: #1f1f1f;
+  color: var(--n-850);
   line-height: 1.4;
 }
 .picker-item__code {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--n-440);
   margin-top: 2px;
 }
 .picker-item__hint {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--n-440);
   flex-shrink: 0;
 }
 </style>

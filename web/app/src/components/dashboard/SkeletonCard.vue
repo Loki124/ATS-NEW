@@ -53,8 +53,8 @@ withDefaults(defineProps<{
   border-radius: 4px;
   background: linear-gradient(90deg,
     rgba(0, 0, 0, 0.04) 0%,
-    rgba(0, 0, 0, 0.08) 50%,
-    rgba(0, 0, 0, 0.04) 100%);
+    var(--overlay-scrim-weak) 50%,
+    var(--overlay-scrim-weak) 100%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s infinite;
 }

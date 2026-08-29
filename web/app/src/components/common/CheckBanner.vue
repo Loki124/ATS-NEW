@@ -28,8 +28,8 @@ const config = {
   line-height: 1.5;
 }
 .cb-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-.cb.clean { background: var(--sl); color: #065F46; border: 1px solid #A7F3D0; }
-.cb.unocc { background: var(--wl); color: #92400E; border: 1px solid #FDE68A; }
-.cb.occupied { background: var(--dl); color: #991B1B; border: 1px solid #FECACA; }
-.cb.processing { background: var(--bl); color: #1E40AF; border: 1px solid #BFDBFE; }
+.cb.clean { background: var(--sl); color: var(--c-success-deep); border: 1px solid var(--c-success-bg); }
+.cb.unocc { background: var(--wl); color: var(--c-warning-deep); border: 1px solid var(--c-warning-bg); }
+.cb.occupied { background: var(--dl); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
+.cb.processing { background: var(--bl); color: var(--c-info-deep); border: 1px solid var(--c-info-bg); }
 </style>

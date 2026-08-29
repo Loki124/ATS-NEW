@@ -80,7 +80,7 @@
         style="width: 100%; min-height: 480px; border: 0; background: var(--glass-bg-card);"
         title="Offer 预览"
       />
-      <p v-else style="color: #999; text-align: center;">(无内容)</p>
+      <p v-else style="color: var(--n-400); text-align: center;">(无内容)</p>
     </n-modal>
 
     <!-- 状态转移 Modal -->
@@ -326,7 +326,7 @@ onMounted(() => {
 .page-title { font-size: 24px; font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: 16px; }
 .stat-card { text-align: center; }
-/* v2 bugfix P0-B: #8c8c8c → var(--ink-faint) */
+/* v2 bugfix P0-B: var(--n-440) → var(--ink-faint) */
 .stat-label { font-size: 12px; color: var(--ink-faint); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
 .filter-row { margin-bottom: 12px; }

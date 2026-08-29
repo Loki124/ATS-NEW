@@ -834,7 +834,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-out);
 }
-.pipeline-stat-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.pipeline-stat-item:hover { box-shadow: 0 2px 8px var(--overlay-scrim-weak); }
 .pipeline-stat-item.active {
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
   border-color: var(--brand);
@@ -858,7 +858,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .filter-card,
 .action-filter-card,
 .list-card {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 4px var(--overlay-scrim-weak);
 }
 .action-filter-bar {
   display: flex;
@@ -871,7 +871,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 /* 按钮品牌色 · v2: 移除 !important · 字色由 App.vue themeOverrides 统一 */
 .add-button, .batch-notify-btn, .send-btn-primary {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
-  border: 1px solid rgba(255, 255, 255, .35);
+  border: 1px solid var(--overlay-glass-mid);
   /* 不再覆盖 color — 走全局主按钮字色 var(--g1) */
 }
 
@@ -892,7 +892,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   transition: box-shadow 0.2s, border-color 0.2s;
 }
 .candidate-row:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px var(--overlay-scrim-weak);
   border-color: var(--border-hairline);
 }
 .row-checkbox {
@@ -1010,7 +1010,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .stage-status { color: var(--ink-soft); font-size: 12px; }
 .stage-status.pass { color: var(--c-success); }
 .stage-status.reject { color: var(--c-error); }
-/* v2 bugfix P0-B: #bfbfbf → var(--ink-faint) */
+/* v2 bugfix P0-B: var(--n-300) → var(--ink-faint) */
 .stage-status.placeholder { color: var(--ink-faint); }
 .stage-foot {
   display: flex;
@@ -1061,9 +1061,9 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
 .modal-title { font-size: 18px; font-weight: 600; }
 .close-btn {
-  background: none; border: none; font-size: 18px; cursor: pointer; color: #999;
+  background: none; border: none; font-size: 18px; cursor: pointer; color: var(--n-400);
 }
-.close-btn:hover { color: #333; }
+.close-btn:hover { color: var(--n-650); }
 .candidate-summary {
   display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px;
   background: var(--glass-bg-input); border-radius: 8px;
@@ -1085,7 +1085,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 }
 .step-content { padding-left: 32px; }
 .content-group { margin-bottom: 16px; }
-.content-group-title { font-size: 12px; color: #999; margin-bottom: 8px; }
+.content-group-title { font-size: 12px; color: var(--n-400); margin-bottom: 8px; }
 .content-item {
   display: flex; align-items: center; gap: 8px; padding: 8px;
   border-radius: 6px; cursor: pointer; transition: background 0.3s;
@@ -1102,7 +1102,7 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .method-name { font-weight: 500; }
 .right-content { flex: 1; min-width: 0; }
 .info-callout {
-  background: var(--g1); border: 1px solid #91d5ff; border-radius: 6px;
+  background: var(--g1); border: 1px solid var(--c-info-bg); border-radius: 6px;
   padding: var(--space-3); font-size: var(--text-body); color: var(--c-info); margin-bottom: var(--space-4);
 }
 .editor-section { background: var(--glass-bg-input); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
@@ -1110,14 +1110,14 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .editor-icon { font-size: 18px; color: var(--brand); }
 .editor-title { font-weight: 600; margin: 0; }
 .editor-field { margin-bottom: 12px; }
-.field-label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+.field-label { display: block; font-size: 13px; color: var(--n-500); margin-bottom: 6px; }
 .sms-counter { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.counter-text { font-size: 12px; color: #999; }
+.counter-text { font-size: 12px; color: var(--n-400); }
 .modal-footer {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-hairline);
 }
-.recipient-info { font-size: 14px; color: #666; }
+.recipient-info { font-size: 14px; color: var(--n-500); }
 .footer-buttons { display: flex; gap: 8px; }
 
 /* === v2 响应式补丁 === */

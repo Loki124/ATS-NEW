@@ -56,8 +56,8 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   border-radius: 8px;
   font-size: 12px;
 }
-.ar-route.pass { background: var(--sl); border: 1px solid #A7F3D0; }
-.ar-route.fail { background: var(--wl); border: 1px solid #FDE68A; }
+.ar-route.pass { background: var(--sl); border: 1px solid var(--c-success-bg); }
+.ar-route.fail { background: var(--wl); border: 1px solid var(--c-warning-bg); }
 .ar-route-icon { font-size: 18px; flex-shrink: 0; }
 .nbar {
   padding: 8px 12px;
@@ -65,7 +65,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   font-size: 10px;
   margin-top: 8px;
 }
-.nbar.info { background: var(--bl); border: 1px solid #BFDBFE; color: #1E40AF; }
+.nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .btn {
   padding: 7px 14px;
   border-radius: 8px;
@@ -78,7 +78,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   gap: 4px;
   transition: 0.15s;
 }
-.bp { background: var(--p); color: #fff; }
+.bp { background: var(--p); color: var(--n-100); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 

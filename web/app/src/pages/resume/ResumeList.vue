@@ -589,7 +589,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
-  color: #666;
+  color: var(--n-500);
   font-size: 13px;
 }
 
@@ -605,7 +605,7 @@ onMounted(() => {
   background: var(--glass-bg-input);
   border-radius: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--n-500);
 }
 
 .sub-status-tags {
@@ -622,7 +622,7 @@ onMounted(() => {
 
 .create-time {
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
 }
 
 .pagination {
@@ -640,6 +640,6 @@ onMounted(() => {
 
 .log-time {
   font-size: 12px;
-  color: #999;
+  color: var(--n-400);
 }
 </style>
