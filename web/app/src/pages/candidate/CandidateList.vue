@@ -1088,13 +1088,13 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 .content-group-title { font-size: 12px; color: var(--n-400); margin-bottom: 8px; }
 .content-item {
   display: flex; align-items: center; gap: 8px; padding: 8px;
-  border-radius: 6px; cursor: pointer; transition: background 0.3s;
+  border-radius: 6px; cursor: pointer; transition: background 0.15s var(--ease-out);
 }
 .content-item:hover { background: var(--brand-tint); }
 .content-item.selected { background: var(--brand-soft); }
 .method-item {
   display: flex; align-items: center; gap: 8px; padding: 12px;
-  border-radius: 8px; cursor: pointer; transition: background 0.3s; margin-bottom: 8px;
+  border-radius: 8px; cursor: pointer; transition: background 0.15s var(--ease-out); margin-bottom: 8px;
 }
 .method-item:hover { background: var(--glass-bg-input); }
 .method-item.selected { background: var(--brand-tint); border: 1px solid var(--brand); }
