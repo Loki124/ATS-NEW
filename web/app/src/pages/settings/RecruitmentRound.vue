@@ -9,10 +9,6 @@
       </div>
     </div>
 
-    <div class="kpi-row">
-      <div class="kpi-card"><span class="kpi-label">轮次总数</span><span class="kpi-value">{{ rounds.length }}</span></div>
-    </div>
-
     <div class="toolbar">
       <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px">
         <template #prefix><n-icon :component="SearchOutline" /></template>
@@ -31,6 +27,8 @@
       :loading="loading"
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
+      :max-height="tableMaxHeight"
+      :row-height="TABLE_ROW_HEIGHT"
     />
     </div>
 
@@ -63,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, h } from 'vue'
+import { ref, reactive, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
 import { AddOutline, PowerOutline, SearchOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
@@ -75,6 +73,13 @@ const loading = ref(false)
 const saving = ref(false)
 const showModal = ref(false)
 const editing = ref<any>(null)
+// 2026-08-29 UX 整改：表头固定 + 行高统一
+const TABLE_ROW_HEIGHT = 56
+const tableMaxHeight = computed(() => {
+  if (typeof window === 'undefined') return 560
+  // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
+  return Math.max(320, window.innerHeight - 232)
+})
 const form = reactive({
   name: '',
   description: '',
@@ -199,5 +204,10 @@ onMounted(() => loadList())
 
 .interview-round {
   padding: 20px 24px;
+}
+
+/* 2026-08-29 UX 整改：行高统一 + 标签列中线对齐；X-05 严禁硬编码颜色 */
+.interview-round :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
+  vertical-align: middle;
 }
 </style>

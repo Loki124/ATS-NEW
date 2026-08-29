@@ -9,10 +9,6 @@
       </div>
     </div>
 
-    <div class="kpi-row">
-      <div class="kpi-card"><span class="kpi-label">流程总数</span><span class="kpi-value">{{ processes.length }}</span></div>
-    </div>
-
     <div class="toolbar">
       <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px">
         <template #prefix><n-icon :component="SearchOutline" /></template>
@@ -31,6 +27,8 @@
       :loading="loading"
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
+      :max-height="tableMaxHeight"
+      :row-height="TABLE_ROW_HEIGHT"
     />
     </div>
 
@@ -49,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue'
+import { ref, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NIcon, NDataTable } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { listProcesses } from '../../api/recruitment-process'
@@ -59,14 +57,23 @@ const message = useMessage()
 const keyword = ref('')
 const processes = ref<any[]>([])
 const loading = ref(false)
+// 2026-08-29 UX 整改：表头固定 + 行高统一。表格高度 = 视窗高 - 上方累计(标题/工具条/分页)。
+const TABLE_ROW_HEIGHT = 56
+const tableMaxHeight = computed(() => {
+  if (typeof window === 'undefined') return 560
+  // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
+  return Math.max(320, window.innerHeight - 232)
+})
 
 const columns = [
   { title: '流程编号', key: 'code', width: 100 },
-  { title: '流程名称', key: 'name', width: 200 },
+  { title: '流程名称', key: 'name', width: 200, ellipsis: true, ellipsisProps: { tooltip: true } },
   {
     title: '适用部门',
     key: 'applicableDepartments',
     width: 140,
+    ellipsis: true,
+    ellipsisProps: { tooltip: true },
     render: (r: any) => formatDepts(r.applicableDepartments),
   },
   {
@@ -81,8 +88,8 @@ const columns = [
     width: 90,
     render: (row: any) => h(NTag, { type: row.status === 'ACTIVE' ? 'success' : 'default' }, { default: () => row.status === 'ACTIVE' ? '启用' : '停用' }),
   },
-  { title: '最后修改人', key: 'updater', width: 120, render: (r: any) => r.updater?.realName || '-' },
-  { title: '最后修改时间', key: 'updatedAt', width: 170, render: (r: any) => formatDate(r.updatedAt) },
+  { title: '最后修改人', key: 'updater', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updater?.realName || '-' },
+  { title: '最后修改时间', key: 'updatedAt', width: 170, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => formatDate(r.updatedAt) },
   {
     title: '操作',
     key: 'action',
@@ -176,5 +183,10 @@ onMounted(() => loadList())
 
 .recruitment-process {
   padding: 20px 24px;
+}
+
+/* 2026-08-29 UX 整改：行高统一 + 标签列中线对齐；X-05 严禁硬编码颜色 */
+.recruitment-process :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
+  vertical-align: middle;
 }
 </style>

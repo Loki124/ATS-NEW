@@ -9,10 +9,6 @@
       </div>
     </div>
 
-    <div class="kpi-row">
-      <div class="kpi-card"><span class="kpi-label">阶段总数</span><span class="kpi-value">{{ stages.length }}</span></div>
-    </div>
-
     <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
       阶段是<strong>全局模板</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
     </n-alert>
@@ -36,6 +32,8 @@
       :loading="loading"
       :pagination="{ pageSize: 20 }"
       :row-key="(r) => r.id"
+      :max-height="tableMaxHeight"
+      :row-height="TABLE_ROW_HEIGHT"
     />
     </div>
 
@@ -91,6 +89,13 @@ const loading = ref(false)
 const saving = ref(false)
 const showCreateModal = ref(false)
 const editing = ref<any>(null)
+// 2026-08-29 UX 整改：表头固定 + 行高统一 — 视窗高 - 上方累计(标题/工具条/信息条/分页)≈ 560，按 1 屏可见行数倒推
+const TABLE_ROW_HEIGHT = 56
+const tableMaxHeight = computed(() => {
+  if (typeof window === 'undefined') return 560
+  // 预留分页器 64 + page-header 80 + toolbar 56 + alert 60 + page-body gap 48 ≈ 308，余下给表
+  return Math.max(320, window.innerHeight - 308)
+})
 const form = reactive({
   name: '',
   // 2026-06-17: 默认值跟 stageTypeOptions 第一个同步 (BE 是 SCREEN, 旧 FILTER 写错导致 400)
@@ -191,17 +196,31 @@ const columns = [
     width: 90,
     render: (row: any) => h(NTag, { type: row.status === 'ENABLED' ? 'success' : 'default', size: 'small' }, { default: () => row.status === 'ENABLED' ? '启用' : '停用' }),
   },
-  { title: '功能项', key: 'features', render: (row: any) => {
+  { title: '功能项', key: 'features', width: 280,
+    ellipsis: true,
+    ellipsisProps: { tooltip: true },
+    render: (row: any) => {
     const feats = row.features ?? row.defaultFeatures
     if (!Array.isArray(feats) || feats.length === 0) return '-'
-    const items = feats.map((code: string) => {
+    const MAX_VISIBLE = 3
+    const visible = feats.slice(0, MAX_VISIBLE)
+    const overflow = feats.length - visible.length
+    const tags = visible.map((code: string) => {
       const label = featureLabelMap[code] || code
       return h(NTooltip, { key: code }, {
         trigger: () => h(NTag, { size: 'small', type: 'default' }, { default: () => label }),
         default: () => code,
       })
     })
-    return h(NSpace, { size: 'small', wrap: true }, () => items)
+    if (overflow > 0) {
+      const restLabels = feats.slice(MAX_VISIBLE).map((c: string) => featureLabelMap[c] || c).join('、')
+      tags.push(h(NTooltip, { key: 'overflow' }, {
+        trigger: () => h(NTag, { size: 'small', type: 'default' }, { default: () => `+${overflow}` }),
+        default: () => restLabels,
+      }))
+    }
+    // wrap:false 强制单行；列 ellipsis:true 接管截断 + tooltip 显示完整 feature code 列表
+    return h(NSpace, { size: 'small', wrap: false }, () => tags)
   }},
   {
     title: '操作',
@@ -361,5 +380,10 @@ onMounted(async () => {
 
 .recruitment-stage {
   padding: 20px 24px;
+}
+
+/* 2026-08-29 UX 整改：禁首行多 tag wrap 后视觉偏移、行内 vertical-align 中线对齐；X-05 严禁硬编码颜色 */
+.recruitment-stage :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
+  vertical-align: middle;
 }
 </style>
