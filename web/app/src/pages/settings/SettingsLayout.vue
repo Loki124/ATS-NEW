@@ -349,7 +349,9 @@ watch(() => route.path, () => {
 @media (max-width: 767px) {
   .settings-scroll { overflow: auto; }
 }
-.settings-scroll :deep(.page-container) { padding: 0; min-height: 100%; }
+/* 2026-08-30 五改：清零规则加 !important，使其恒胜各页 scoped 根 class 的 padding（特异性平局时 scoped 后加载会胜出，导致 .settings-scroll(20px) + 页面根(12px) 叠加成 32px）。
+   仅作用于 .settings-scroll 内的 .page-container，不影响 9 个业务页（CandidateList 等）的 .page-container 全局 padding。 */
+.settings-scroll :deep(.page-container) { padding: 0 !important; min-height: 100%; }
 
 /* === 阶段 D 第 2 轮：旧自写 menu CSS 已删除（DOM 已被 n-menu 取代）
    仅保留 n-menu wrapper 微调（settings-menu 是 n-menu 的 class 容器）=== */

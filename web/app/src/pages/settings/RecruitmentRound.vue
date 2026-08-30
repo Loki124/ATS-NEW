@@ -28,6 +28,7 @@
       :row-key="(r) => r.id"
       :max-height="tableMaxHeight"
       :row-height="TABLE_ROW_HEIGHT"
+      :theme-overrides="tableThemeOverrides"
     />
     </div>
 </div><!-- /.page-body -->
@@ -70,7 +71,16 @@ const saving = ref(false)
 const showModal = ref(false)
 const editing = ref<any>(null)
 // 2026-08-29 UX 整改：表头固定 + 行高统一
-const TABLE_ROW_HEIGHT = 56
+// 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
+const TABLE_ROW_HEIGHT = 44
+// 2026-08-30 UX 三改：Naive 默认 tdPaddingMedium='12px' 应用到**所有边**（非仅垂直），被 26px tag 撑成 50px 行。
+//   走官方 theme-overrides 把 td/th padding 收到 6px；同时 scoped CSS 补 !important 兜底（HMR 偶发失效场景）
+const tableThemeOverrides = {
+  DataTable: {
+    tdPaddingMedium: '6px',
+    thPaddingMedium: '6px',
+  },
+}
 const tableMaxHeight = computed(() => {
   if (typeof window === 'undefined') return 560
   // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
@@ -187,6 +197,9 @@ onMounted(() => loadList())
 }
 .page-header {
   flex-shrink: 0;
+  /* 2026-08-30 UX 四改：显式重置 padding/margin，防 n-layout 内容 padding 注入把 header 撑到 80px */
+  padding: 0;
+  margin: 0 0 8px 0;
 }
 .page-body {
   flex: 1;
@@ -195,15 +208,20 @@ onMounted(() => loadList())
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  /* 2026-08-30 UX 四改：gap 16px→12px，缓解 11 层嵌套 + 多 padding 叠加的视觉膨胀 */
+  gap: var(--space-3);
 }
 
 .interview-round {
-  padding: 20px var(--space-6);
+  /* 2026-08-30 UX 五改：容器外边距交还 SettingsLayout 统一管控（.settings-scroll 20px + 清零规则 !important），
+     本处不再设 padding，避免与 .settings-scroll 叠加成 32px（见 SETTINGS_LAYOUT_DIAGNOSIS.md §2） */
 }
 
 /* 2026-08-29 UX 整改：行高统一 + 标签列中线对齐；X-05 严禁硬编码颜色 */
+/* 2026-08-30 UX 三改：补 padding:6px 12px !important 把行内垂直空白从 Naive 默认 ~10px 收到 6px，让 row-height=44 真正生效。
+   theme-overrides 是首选，此处 !important 兜底防 HMR/特异性竞态 */
 .interview-round :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
+  padding: 6px 12px !important;
 }
 </style>
