@@ -18,7 +18,7 @@
   <n-modal
     :show="show"
     preset="card"
-    style="width: 760px; max-width: 95vw"
+    style="width: 880px; max-width: 95vw; max-height: 90vh"
     :mask-closable="true"
     :title="isCreateMode ? '新建流程' : '编辑流程'"
     :bordered="false"
@@ -410,16 +410,12 @@
             <span>基础信息</span>
           </div>
           <div class="section__body">
-            <div class="field-row">
-              <span class="field-label">流程名称</span>
-              <n-input v-model:value="editForm.name" placeholder="如：技术部社招流程" class="field-input" />
-            </div>
             <div class="field-row field-row--block">
               <span class="field-label">流程说明</span>
               <n-input
                 v-model:value="editForm.description"
                 type="textarea"
-                :rows="2"
+                :rows="3"
                 placeholder="可选"
                 class="field-input field-input--block"
               />
@@ -427,13 +423,9 @@
             <div class="field-row">
               <span class="field-label">适用范围组合</span>
               <n-radio-group v-model:value="editForm.applicableMode" size="small">
-                <n-radio value="ALL">全部满足 (AND)</n-radio>
-                <n-radio value="ANY">任一满足 (OR)</n-radio>
+                <n-radio value="ALL">全部满足</n-radio>
+                <n-radio value="ANY">任一满足</n-radio>
               </n-radio-group>
-            </div>
-            <div class="field-row">
-              <span class="field-label">是否启用</span>
-              <n-tag size="small">{{ data.status === 'ACTIVE' ? '启用中' : '已停用' }} (不可改)</n-tag>
             </div>
             <div class="field-row">
               <span class="field-label">校验简历评分</span>
@@ -458,7 +450,7 @@
             <span class="section__title-bar" />
             <span>适用范围</span>
           </div>
-          <n-grid :cols="4" :x-gap="10" :y-gap="10" responsive="screen" :item-responsive="true">
+          <n-grid :cols="2" :x-gap="12" :y-gap="12" responsive="screen" :item-responsive="true">
             <n-grid-item
               v-for="ind in editForm.applicableIndicators"
               :key="ind.key"
@@ -1798,10 +1790,10 @@ function conditionItemLabel(item: any): string {
 /* ===== 字段行 (label: value 横排) ===== */
 .field-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;          /* baseline 一致: 顶部对齐, 避免 radio/tag/switch 高度不一 */
   gap: var(--space-3);
   min-height: 36px;
-  padding: 6px 0;
+  padding: 10px 0;
   border-bottom: 1px dashed var(--g1);
   font-size: var(--fs-13);
 }
@@ -1810,14 +1802,14 @@ function conditionItemLabel(item: any): string {
   border-bottom: none;
 }
 .field-row--block {
-  align-items: flex-start;
-  padding: var(--space-2) 0;
+  padding: var(--space-2) 0;        /* v3: align-items 已统一为 flex-start, 不再独立覆写 */
 }
 .field-label {
   color: var(--n-450);
   min-width: 88px;
   font-weight: 500;
   flex-shrink: 0;
+  padding-top: 6px;                 /* v3: 文本与控件视觉中心对齐 */
 }
 .field-value {
   color: var(--n-650);
@@ -1892,12 +1884,20 @@ function conditionItemLabel(item: any): string {
 }
 .scope-card__mode {
   display: flex;
-  align-items: center;
+  align-items: flex-start;          /* v3: 顶部对齐, 避免 radio 与 count 基线错位 */
+  flex-wrap: wrap;
   gap: 6px;
   font-size: 11px;
 }
+.scope-card__mode :deep(.n-radio-group) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .scope-card__count {
   color: var(--n-400);
+  flex-shrink: 0;                   /* v3: 防止「不限」被挤换行 */
+  white-space: nowrap;
+  margin-left: auto;
 }
 .scope-card__values {
   display: flex;
