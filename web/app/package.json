@@ -26,6 +26,7 @@
     "@wangeditor/editor-for-vue": "^5.1.12",
     "axios": "^1.6.0",
     "dayjs": "^1.11.0",
+    "lucide-vue-next": "^1.0.0",
     "naive-ui": "^2.44.1",
     "pinia": "^2.1.0",
     "vue": "^3.4.0",

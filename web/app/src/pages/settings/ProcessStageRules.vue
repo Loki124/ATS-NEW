@@ -194,7 +194,12 @@
             </n-space>
 
             <n-alert v-if="testResult" :type="testResult.passed ? 'success' : 'error'" :show-icon="false" style="margin-top: 12px">
-              <strong>结果：{{ testResult.passed ? '✅ 通过' : '❌ 不通过' }}</strong>
+              <strong style="display:inline-flex;align-items:center;gap:6px;">
+                <NIcon :size="16" :color="testResult.passed ? 'var(--c-success-deep)' : 'var(--c-error-deep)'">
+                  <component :is="testResult.passed ? CheckCircle2 : XCircle" />
+                </NIcon>
+                结果：{{ testResult.passed ? '通过' : '不通过' }}
+              </strong>
               <div v-if="testResult.prompt" style="margin-top: 6px; white-space: pre-wrap">{{ testResult.prompt }}</div>
             </n-alert>
           </n-form>
@@ -209,6 +214,7 @@
 import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NSpace, NButton, NSelect, NInputNumber, NRadio, NRadioGroup, NInput, NForm, NFormItem, NTabs, NTabPane, NSpin, NDivider, NAlert, NTag, NIcon } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
+import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions, type ConditionItem } from '../../api/recruitment-process'
 import { listAutoArchiveRules, upsertAutoArchiveRule } from '../../api/recruitment-process'

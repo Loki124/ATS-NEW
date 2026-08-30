@@ -263,7 +263,7 @@
       <!-- 底部固定提交栏 -->
       <div class="submit-bar">
         <div class="draft-hint" :class="{ 'hint-hidden': !hasUnsavedChanges }">
-          <span class="draft-icon">⚠️</span>
+          <span class="draft-icon"><NIcon :size="15" style="vertical-align:-2px"><AlertTriangle /></NIcon></span>
           <span>有未保存的草稿，离开将丢失。</span>
         </div>
         <n-space class="submit-actions" justify="end" :size="12" align="center">
@@ -328,9 +328,11 @@ import {
   NGrid,
   NGi,
   NAlert,
+  NIcon,
   type FormRules,
   type DataTableColumns,
 } from 'naive-ui'
+import { AlertTriangle } from 'lucide-vue-next'
 import {
   listDictionaryTypes,
   getDictionaryDetail,

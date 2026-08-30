@@ -97,8 +97,8 @@
             aria-label="打开菜单"
             @click="mobileMenuOpen = true"
           >
-☰
-</button>
+            <NIcon :size="20"><Menu /></NIcon>
+          </button>
           <!-- 顶部横排：Logo -->
           <div v-if="menuLayout === 'top'" class="top-logo flex items-center gap-2 shrink-0">
             <div class="logo-icon">
@@ -212,6 +212,7 @@ import {
   SwapVerticalOutline,
   // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
+import { Menu, Check } from 'lucide-vue-next'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
 import { useShortcuts } from '../composables/useShortcuts'
@@ -410,12 +411,18 @@ const userMenuOptions = computed(() => {
     { type: 'divider', key: 'd1' },
     {
       key: 'menu-side',
-      label: (current === 'side' ? '✓ ' : '') + '菜单：左侧竖排',
+      label: () => h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+        current === 'side' ? h(NIcon, { size: 14 }, { default: () => h(Check) }) : h('span', { style: 'display:inline-block;width:14px' }),
+        '菜单：左侧竖排',
+      ]),
       icon: renderIcon(MenuOutline),
     },
     {
       key: 'menu-top',
-      label: (current === 'top' ? '✓ ' : '') + '菜单：顶部横排',
+      label: () => h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+        current === 'top' ? h(NIcon, { size: 14 }, { default: () => h(Check) }) : h('span', { style: 'display:inline-block;width:14px' }),
+        '菜单：顶部横排',
+      ]),
       icon: renderIcon(SwapVerticalOutline),
     },
     { type: 'divider', key: 'd2' },

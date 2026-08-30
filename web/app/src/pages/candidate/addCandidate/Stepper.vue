@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { NIcon } from 'naive-ui'
+import { Check } from 'lucide-vue-next'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 
 const store = useAddCandidateStore()
@@ -14,12 +16,12 @@ const stepClass = computed(() => (s: 1 | 2) => {
 <template>
   <div class="stepper">
     <div class="step-item">
-      <div :class="['sdot', stepClass(1)]">{{ store.step > 1 ? '✓' : '1' }}</div>
+      <div :class="['sdot', stepClass(1)]"><NIcon v-if="store.step > 1" :size="16"><Check /></NIcon><template v-else>1</template></div>
       <span :class="['slabel', stepClass(1) ? stepClass(1) : '']">上传解析 & 查重</span>
     </div>
     <div :class="['sline', store.step > 1 ? 'ok' : '']"></div>
     <div class="step-item">
-      <div :class="['sdot', stepClass(2)]">{{ store.step >= 2 ? (store.step > 2 ? '✓' : '2') : '2' }}</div>
+      <div :class="['sdot', stepClass(2)]"><NIcon v-if="store.step > 2" :size="16"><Check /></NIcon><template v-else>2</template></div>
       <span class="slabel">选择去向 & 提交</span>
     </div>
   </div>

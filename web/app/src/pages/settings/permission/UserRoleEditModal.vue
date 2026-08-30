@@ -54,8 +54,8 @@
           </n-space>
         </n-radio-group>
       </n-form-item>
-      <n-text v-if="dataScope === 'ALL'" type="warning" depth="3" style="display: block; margin: -8px 0 12px 100px">
-        ⚠️ 全公司数据范围会绕过 L1-L4 scope 过滤, 请谨慎授权
+      <n-text v-if="dataScope === 'ALL'" type="warning" depth="3" style="display: flex; align-items: center; gap: 4px; margin: -8px 0 12px 100px">
+        <NIcon :size="14"><AlertTriangle /></NIcon> 全公司数据范围会绕过 L1-L4 scope 过滤, 请谨慎授权
       </n-text>
 
       <n-form-item label="生效日期">
@@ -96,8 +96,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import {
   NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NButton, NSpace,
-  NRadioGroup, NRadio, NText, useMessage,
+  NRadioGroup, NRadio, NText, NIcon, useMessage,
 } from 'naive-ui'
+import { AlertTriangle } from 'lucide-vue-next'
 import { createUserRole, updateUserRole, suggestScope, type UserRoleV2 } from '@/api/user-role-v2'
 import { listRoles, type RoleV2, type DataScopeType } from '@/api/role-v2'
 import { listManagementUnits, type ManagementUnit } from '@/api/management-unit'

@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { NIcon } from 'naive-ui'
+import { Inbox, Folder, Target } from 'lucide-vue-next'
 import type { Direction } from '@/api/addCandidate'
 
 const props = defineProps<{ modelValue: '' | Direction; hasOccupied: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: Direction): void }>()
 
-const options: Array<{ value: Direction; icon: string; label: string; hint: string }> = [
-  { value: 'pending', icon: '📥', label: '待分配', hint: '无需评分，直接进入' },
-  { value: 'talent', icon: '📁', label: '人才库', hint: '无需评分，直接进入' },
-  { value: 'position', icon: '🎯', label: '职位', hint: '需人岗匹配评分' },
+const options: Array<{ value: Direction; icon: any; label: string; hint: string }> = [
+  { value: 'pending', icon: Inbox, label: '待分配', hint: '无需评分，直接进入' },
+  { value: 'talent', icon: Folder, label: '人才库', hint: '无需评分，直接进入' },
+  { value: 'position', icon: Target, label: '职位', hint: '需人岗匹配评分' },
 ]
 
 function select(opt: Direction) {
@@ -24,7 +26,7 @@ function select(opt: Direction) {
       :class="['dopt', { sel: modelValue === opt.value, off: hasOccupied && opt.value !== 'pending' }]"
       @click="select(opt.value)"
     >
-      <div class="dicon">{{ opt.icon }}</div>
+      <div class="dicon"><NIcon :size="20"><component :is="opt.icon" /></NIcon></div>
       <div class="dinfo">
         <div class="dlabel">{{ opt.label }}</div>
         <div class="dhint">{{ opt.hint }}</div>

@@ -1,18 +1,20 @@
 <script setup lang="ts">
+import { NIcon } from 'naive-ui'
+import { CheckCircle2, Info, AlertTriangle, Loader2 } from 'lucide-vue-next'
 export type Status = 'processing' | 'clean' | 'unocc' | 'occupied'
 defineProps<{ status: Status }>()
 
 const config = {
-  clean: { icon: '✅', text: '系统中未发现重复简历，该候选人可正常入库。' },
-  unocc: { icon: 'ℹ️', text: '系统中已有同名简历，但未被任何流程占用。提交时系统会合并新旧简历信息。' },
-  occupied: { icon: '⚠️', text: '该候选人在系统中已被占用。当前被其他流程锁定，请选择处理方式。' },
-  processing: { icon: '⏳', text: '简历正在处理中，请稍候...' },
+  clean: { icon: CheckCircle2, text: '系统中未发现重复简历，该候选人可正常入库。' },
+  unocc: { icon: Info, text: '系统中已有同名简历，但未被任何流程占用。提交时系统会合并新旧简历信息。' },
+  occupied: { icon: AlertTriangle, text: '该候选人在系统中已被占用。当前被其他流程锁定，请选择处理方式。' },
+  processing: { icon: Loader2, text: '简历正在处理中，请稍候...' },
 }
 </script>
 
 <template>
   <div :class="['cb', $props.status]">
-    <span class="cb-icon">{{ config[$props.status]?.icon }}</span>
+    <span class="cb-icon"><NIcon :size="16"><component :is="config[$props.status]?.icon" /></NIcon></span>
     <div>{{ config[$props.status]?.text }}</div>
   </div>
 </template>

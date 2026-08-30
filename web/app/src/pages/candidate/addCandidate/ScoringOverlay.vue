@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { NIcon } from 'naive-ui'
+import { CheckCircle2 } from 'lucide-vue-next'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 
 const store = useAddCandidateStore()
@@ -9,7 +11,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   <div class="scoring-overlay">
     <div style="text-align:center;margin-bottom:20px;">
       <div v-if="!store.allScoringDone" class="spin-big"></div>
-      <div v-else style="font-size: var(--fs-36);margin-bottom: var(--space-2);">✅</div>
+      <div v-else style="font-size: var(--fs-36);margin-bottom: var(--space-2);color:var(--c-success-deep);"><NIcon :size="36"><CheckCircle2 /></NIcon></div>
       <h3 style="font-size: var(--fs-15);margin-bottom: var(--space-1);">{{ store.allScoringDone ? '处理完成！' : '正在处理...' }}</h3>
       <p style="font-size: var(--fs-12);color:var(--g5);">正在进行数据校验及人岗匹配评分</p>
     </div>

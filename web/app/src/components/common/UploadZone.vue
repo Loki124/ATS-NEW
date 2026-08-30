@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { NIcon } from 'naive-ui'
+import { Upload, FileText, FolderOpen } from 'lucide-vue-next'
 const emit = defineEmits<{ (e: 'upload', files: File[]): void }>()
 
 function handleClick() {
@@ -30,12 +32,12 @@ function handleDrop(e: DragEvent) {
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
-    <div class="up-icon">📁</div>
+    <div class="up-icon"><NIcon :size="28"><Upload /></NIcon></div>
     <div class="up-text">点击上传或拖拽简历文件到此处</div>
     <div class="up-hint">支持 PDF / Word / TXT，单文件不超过 10MB，支持批量上传</div>
     <div class="up-quick">
-      <span @click.stop="emit('upload', [])">📄 选择文件</span>
-      <span @click.stop="emit('upload', [])">📂 从人才库导入</span>
+      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px"><FileText /></NIcon>选择文件</span>
+      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px"><FolderOpen /></NIcon>从人才库导入</span>
     </div>
   </div>
 </template>
