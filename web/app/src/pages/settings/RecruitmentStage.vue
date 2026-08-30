@@ -18,7 +18,7 @@
       </n-input>
       <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
       <div class="spacer"></div>
-      <n-button type="primary" class="gradient-btn" @click="showCreateModal = true">
+      <n-button type="primary" class="gradient-btn" @click="handleCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
         新增阶段
       </n-button>
@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, h } from 'vue'
+import { ref, reactive, onMounted, computed, watch, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip } from 'naive-ui'
 import { AddOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
@@ -173,14 +173,19 @@ Object.values(featureOptions).forEach((opts) => {
   opts.forEach((opt) => { featureLabelMap[opt.value] = opt.label })
 })
 
-const columns = [
+const columns = computed(() => [
   { title: '阶段编号', key: 'code', width: 100 },
   { title: '阶段名称', key: 'name', width: 160 },
   {
     title: '类型',
     key: 'stageType',
     width: 100,
-    render: (row: any) => h(NTag, { type: 'info', size: 'small' }, { default: () => row.stageType }),
+    // 2026-08-30 UX 六改: row.stageType 是存储的英文 code (SCREEN/INVITATION/INTERVIEW/OFFER),
+    //   列表展示必须走 stageTypeOptions (来自 BE 字典 / fallback) 做 label 映射, 否则业务侧全看到英文.
+    render: (row: any) => {
+      const opt = stageTypeOptions.value.find((o) => o.value === row.stageType)
+      return h(NTag, { type: 'info', size: 'small' }, { default: () => opt?.label ?? row.stageType })
+    },
   },
   {
     title: '系统预置',
@@ -243,7 +248,7 @@ const columns = [
       }),
     ]),
   },
-]
+])
 
 const filteredStages = computed(() => {
   let list = stages.value
@@ -345,6 +350,12 @@ async function handleToggleStatus(row: any) {
 }
 
 onMounted(async () => {
+  // 2026-08-30 UX 六改: 弹窗关闭时统一清理 editing 残留, 防止下一次点「新增阶段」按钮打开弹窗时
+  //   editing 还指向旧的 row (来自上一次编辑), 导致 form.stageType 沿用旧值、:disabled="!!editing" 锁死下拉、
+  //   视觉上像「类型只能选筛选项」. 之前 Bug 链: 编辑 → 关闭 → 新增 → 表单沿用旧值 + 下拉 disabled.
+  watch(showCreateModal, (show) => {
+    if (!show) editing.value = null
+  })
   // 2026-08-17 PR #69: 阶段类型从后端数据字典拿 (single source of truth).
   //   listStageTypeOptions() 返回 [{label:展示名, value:stage_type存储值}], 拿不到就 fallback, 不阻塞页面.
   try {
