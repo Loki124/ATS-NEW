@@ -111,7 +111,7 @@
                 size="small"
                 :type="data.applicableMode === 'ALL' ? 'success' : 'warning'"
               >
-                {{ data.applicableMode === 'ALL' ? '全部满足 (AND)' : '任一满足 (OR)' }}
+                {{ data.applicableMode === 'ALL' ? '全部满足' : '任一满足' }}
               </n-tag>
             </span>
           </div>
@@ -128,7 +128,7 @@
           <span class="section__title-bar" />
           <span>适用范围</span>
         </div>
-        <n-grid :cols="4" :x-gap="10" :y-gap="10" responsive="screen" :item-responsive="true">
+        <n-grid :cols="2" :x-gap="12" :y-gap="12" responsive="screen" :item-responsive="true">
           <n-grid-item
             v-for="key in (['department', 'level', 'position', 'user'] as const)"
             :key="key"
