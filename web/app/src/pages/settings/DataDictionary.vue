@@ -159,6 +159,16 @@
                 <span class="cell-inner name-inner">
                   <template v-if="node.row.editing">
                     <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
+                    <!-- v3: 行首 ×icon 撤销, 与底部 sticky 「取消」按钮视觉分离, 避免坐标重叠 -->
+                    <n-button
+                      size="tiny"
+                      text
+                      title="撤销此行编辑"
+                      class="row-cancel-icon"
+                      @click="cancelRow(node.row)"
+                    >
+                      <template #icon><n-icon :component="CloseOutline" /></template>
+                    </n-button>
                   </template>
                   <template v-else>
                     <span :class="{ strikethrough: !node.row.isActive }">{{ node.row.value }}</span>
@@ -218,8 +228,8 @@
             <div class="el-cell" style="flex: 2.2">
               <n-space :size="4" align="center">
                 <template v-if="node.row.editing">
+                  <!-- v3: 行内「取消」已挪到行首 ×icon, 此处只保留「保存」 -->
                   <n-button size="tiny" type="primary" @click="saveRow(node.row)">保存</n-button>
-                  <n-button size="tiny" @click="cancelRow(node.row)">取消</n-button>
                 </template>
                 <template v-else>
                   <n-button size="tiny" @click="startEdit(node.row)">编辑</n-button>
@@ -345,7 +355,7 @@ import {
   type DictionaryItem,
 } from '../../api/dictionary'
 import { extractApiError } from '../../api/dynamic-field'
-import { SearchOutline, InformationCircleOutline } from '@vicons/ionicons5'
+import { SearchOutline, InformationCircleOutline, CloseOutline } from '@vicons/ionicons5'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -980,6 +990,7 @@ onUnmounted(() => {
   inset: 12px 16px !important;
   overflow: auto !important;
   border-radius: 8px;
+  padding-bottom: 80px;            /* v3: 给 sticky submit-bar 留位置, 避免最底一行被遮 */
 }
 .el-table { border: 1px solid var(--g2); border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
 .el-table-scroll .el-table { border: none; border-radius: 0; min-width: 720px; }
@@ -1010,6 +1021,11 @@ onUnmounted(() => {
 .el-cell .n-space { flex-wrap: nowrap; }
 .el-cell .n-button { white-space: nowrap; }
 
+/* v3: 行内撤销 ×icon 按钮(行首) - 紧凑、红色、hover 才显高饱和度 */
+.row-cancel-icon { color: var(--c-error); padding: 0 4px !important; transition: opacity var(--dur-fast); }
+.row-cancel-icon:hover { color: var(--c-error); opacity: .75; }
+.row-cancel-icon :deep(.n-icon) { font-size: 14px; }
+
 .draft-hint {
   display: flex; align-items: center; gap: var(--space-2); flex: 1;
   color: var(--c-warning); font-size: var(--fs-13); font-weight: 500;
@@ -1027,6 +1043,8 @@ onUnmounted(() => {
   padding: var(--space-3) var(--space-6); margin: var(--space-6) 0 0;
   z-index: 10;
   gap: var(--space-4);
+  backdrop-filter: blur(10px);              /* v3: 滚动时柔和模糊, 防止穿透 */
+  -webkit-backdrop-filter: blur(10px);      /* Safari 前缀 */
 }
 .submit-actions { margin-left: auto; flex-shrink: 0; }
 </style>
