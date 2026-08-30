@@ -17,7 +17,7 @@ from decimal import Decimal
 from .constants import (
     RATIO_NORMAL, RATIO_BELOW, RATIO_ABOVE,
     COUNT_MET, COUNT_GAP, COUNT_UNSET,
-    VERDICT_BLOCK, VERDICT_WARN, VERDICT_PASS,
+    VERDICT_BLOCK, VERDICT_WARN, VERDICT_PASS, VERDICT_LEVEL,
     month_to_index,
 )
 
@@ -320,7 +320,7 @@ def simulate(draft, rules, persons, year, month=None):
         })
 
     verdict = VERDICT_BLOCK if block else (VERDICT_WARN if warn else VERDICT_PASS)
-    return {'verdict': verdict, 'checks': checks}
+    return {'verdict': verdict, 'verdict_level': VERDICT_LEVEL[verdict], 'checks': checks}
 
 
 # ============================ 100% 加和校验（按适用范围分组） ============================

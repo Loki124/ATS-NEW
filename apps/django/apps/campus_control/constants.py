@@ -62,6 +62,7 @@ GROUP_CHOICES = {
 VERDICT_BLOCK = "❌ 阻断提交"
 VERDICT_WARN = "⚠️ 允许提交但需关注"
 VERDICT_PASS = "✅ 通过"
+VERDICT_LEVEL = {VERDICT_BLOCK: "block", VERDICT_WARN: "warn", VERDICT_PASS: "pass"}
 
 # 比例状态
 RATIO_NORMAL = "正常"

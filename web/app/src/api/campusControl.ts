@@ -160,6 +160,7 @@ export interface ValidationCheck {
 
 export interface ValidationResult {
   verdict: '❌ 阻断提交' | '⚠️ 允许提交但需关注' | '✅ 通过'
+  verdictLevel: 'block' | 'warn' | 'pass'
   checks: ValidationCheck[]
 }
 

@@ -159,10 +159,13 @@
           </div>
 
           <div v-if="validation" class="validate-result">
-            <n-tag :type="verdictType(validation.verdict)" size="large" :bordered="false" style="flex-shrink: 0">
-              {{ validation.verdict }}
+            <n-tag :type="verdictType(validation)" size="large" :bordered="false" style="flex-shrink: 0">
+              <template #icon>
+                <n-icon :component="VERDICT_ICON[validation.verdictLevel]" aria-hidden="true" />
+              </template>
+              {{ VERDICT_LABEL[validation.verdictLevel] }}
             </n-tag>
-            <p v-if="validation.verdict === '❌ 阻断提交'" class="block-hint" style="flex-shrink: 0">
+            <p v-if="validation.verdictLevel === 'block'" class="block-hint" style="flex-shrink: 0">
               命中硬约束超标，系统已阻断提交。请调整候选人标签或目标配置后再试。
             </p>
             <div class="table-wrap" style="margin-top: 12px">
@@ -399,7 +402,7 @@
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NTag, NButton, NSwitch, NCheckbox, NDivider, NSpace,
-  NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker, NTooltip,
+  NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker, NTooltip, NIcon,
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
@@ -417,6 +420,7 @@ import {
   type ValidationResult, type Strength, type DimRuleSetItem,
   type RuleImportResult, type IndicatorImportResult,
 } from '../../api/campusControl'
+import { XCircle, AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
 
@@ -440,7 +444,9 @@ const pct = (r: number, d = 1) => `${(r * 100).toFixed(d)}%`
 const ratioStatusType = (s: string) => (s === '正常' ? 'success' : s === '高于上限' ? 'error' : 'warning')
 const countStatusType = (s: string) => (s === '本月达标' ? 'error' : s === '缺口未达成' ? 'warning' : 'default')
 const strengthType = (s: string) => (s === '硬约束' ? 'error' : s === '软约束' ? 'warning' : 'default')
-const verdictType = (v: string) => (v.startsWith('❌') ? 'error' : v.startsWith('⚠️') ? 'warning' : 'success')
+const VERDICT_ICON: Record<string, any> = { block: XCircle, warn: AlertTriangle, pass: CheckCircle2 }
+const VERDICT_LABEL: Record<string, string> = { block: '阻断提交', warn: '允许提交但需关注', pass: '通过' }
+const verdictType = (v: ValidationResult) => (v.verdictLevel === 'block' ? 'error' : v.verdictLevel === 'warn' ? 'warning' : 'success')
 
 const scopeText = (bu: string, position: string, level: string) => {
   if (!bu && !position && !level) return '全局'
@@ -1258,7 +1264,7 @@ async function runValidate() {
   finally { loading.validate = false }
 }
 const canConfirmEntry = computed(
-  () => !!draft.code.trim() && !!draft.name.trim() && validation.value != null && validation.value.verdict !== '❌ 阻断提交',
+  () => !!draft.code.trim() && !!draft.name.trim() && validation.value != null && validation.value.verdictLevel !== 'block',
 )
 async function confirmEntry() {
   if (!draft.code.trim() || !draft.name.trim()) { message.warning('请先填写人员编码与姓名'); return }
