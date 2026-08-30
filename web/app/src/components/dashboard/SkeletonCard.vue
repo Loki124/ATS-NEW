@@ -31,8 +31,8 @@ withDefaults(defineProps<{
 .skeleton-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--space-3);
+  padding: var(--space-4);
   background: var(--card-color, #fff);
   border-radius: 8px;
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
@@ -41,12 +41,12 @@ withDefaults(defineProps<{
 .skeleton-card__header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .skeleton-card__body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .skeleton-bar {
   height: 12px;

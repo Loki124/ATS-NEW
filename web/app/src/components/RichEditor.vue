@@ -275,7 +275,7 @@ onBeforeUnmount(() => {
 .rich-editor__bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 2px 6px 2px 0;
   border-bottom: 1px solid var(--g2);
   background: var(--g1);
@@ -308,20 +308,20 @@ onBeforeUnmount(() => {
  * 导致编辑器里“列表/标题/链接”所见非所得, 这里在编辑区内重新补回。
  */
 .rich-editor__body :deep([data-slate-editor]) {
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1.7;
   color: var(--n-700);
 }
 
 .rich-editor__body :deep([data-slate-editor] ul) {
   list-style: disc;
-  padding-left: 24px;
+  padding-left: var(--space-6);
   margin: 6px 0;
 }
 
 .rich-editor__body :deep([data-slate-editor] ol) {
   list-style: decimal;
-  padding-left: 24px;
+  padding-left: var(--space-6);
   margin: 6px 0;
 }
 
@@ -335,15 +335,15 @@ onBeforeUnmount(() => {
 }
 
 .rich-editor__body :deep([data-slate-editor] h1) {
-  font-size: 24px;
+  font-size: var(--fs-24);
   font-weight: 600;
-  margin: 12px 0 8px;
+  margin: var(--space-3) 0 var(--space-2);
 }
 
 .rich-editor__body :deep([data-slate-editor] h2) {
-  font-size: 20px;
+  font-size: var(--fs-20);
   font-weight: 600;
-  margin: 12px 0 8px;
+  margin: var(--space-3) 0 var(--space-2);
 }
 
 .rich-editor__body :deep([data-slate-editor] h3) {
@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
 
 .rich-editor__body :deep([data-slate-editor] h4),
 .rich-editor__body :deep([data-slate-editor] h5) {
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 600;
   margin: 10px 0 6px;
 }

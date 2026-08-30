@@ -333,7 +333,7 @@ onBeforeUnmount(() => {
 /* === 顶部品牌区 === */
 .login-brand {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
 }
 .brand-logo {
   width: 80px;
@@ -491,7 +491,7 @@ onBeforeUnmount(() => {
  */
 @media (max-width: 600px) {
   .login-page {
-    padding: 24px 16px;
+    padding: var(--space-6) var(--space-4);
   }
   .login-container {
     max-width: none; /* 关键：去掉 480px 上限，让卡片占满宽度 */
@@ -509,7 +509,7 @@ onBeforeUnmount(() => {
     gap: var(--space-2);
   }
   .feature-item {
-    padding: 4px 10px;
+    padding: var(--space-1) 10px;
     font-size: 11px;
   }
 }

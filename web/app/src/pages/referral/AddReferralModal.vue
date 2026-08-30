@@ -214,8 +214,8 @@ watch(visible, (v) => {
 .modal-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
+  gap: var(--space-2);
+  font-size: var(--fs-18);
   font-weight: 600;
 }
 .title-icon {
@@ -227,7 +227,7 @@ watch(visible, (v) => {
   align-items: center;
   justify-content: center;
   color: #000;
-  font-size: 16px;
+  font-size: var(--fs-16);
 }
 .col-span-2 { grid-column: span 2; }
 </style>

@@ -101,7 +101,7 @@ function onClick() {
 .job-card__urgent {
   background: var(--brand);
   color: white;
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 500;
   padding: 1px var(--space-1);
   border-radius: var(--radius-sm);

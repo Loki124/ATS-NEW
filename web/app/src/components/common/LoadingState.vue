@@ -36,5 +36,5 @@ defineProps<{
 .loading-text { color: var(--ink-soft); font-size: var(--text-body); }
 .loading-section { padding: var(--space-4); }
 .loading-btn { display: inline-flex; align-items: center; }
-.ml-2 { margin-left: 8px; }
+.ml-2 { margin-left: var(--space-2); }
 </style>

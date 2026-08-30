@@ -581,8 +581,8 @@ onMounted(() => {
 }
 
 .policy-admin__side-header {
-  padding: 0 20px 16px;
-  font-size: 16px;
+  padding: 0 20px var(--space-4);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
 }
@@ -595,13 +595,13 @@ onMounted(() => {
 .policy-tree__node {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 20px;
-  margin: 0 8px;
+  margin: 0 var(--space-2);
   border-radius: 6px;
   cursor: pointer;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: var(--fs-14);
   transition: background 0.15s, color 0.15s;
 }
 
@@ -628,7 +628,7 @@ onMounted(() => {
 }
 
 .policy-tree__count {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-380);
   background: var(--g1);  padding: 1px 6px;
   border-radius: 10px;
@@ -643,10 +643,10 @@ onMounted(() => {
 .policy-admin__main {
   flex: 1;
   min-width: 0;
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   overflow: auto;
 }
 
@@ -654,19 +654,19 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .policy-admin__title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   color: var(--ink);
 }
 
 .policy-admin__desc {
-  margin: 4px 0 0;
-  font-size: 13px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-13);
   color: var(--ink-soft);
 }
 
@@ -674,22 +674,22 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--glass-bg-card);
   border-radius: 8px;
   border: 1px solid var(--glass-border);
 }
 
 .policy-admin__config-text {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--ink);
 }
 
 .policy-admin__filter {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .policy-table-card {
@@ -706,20 +706,20 @@ onMounted(() => {
 .policy-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .policy-table th {
   text-align: left;
   color: var(--ink-faint);
   font-weight: 500;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   border-bottom: 1px solid var(--glass-border);
   white-space: nowrap;
   background: var(--g1);}
 
 .policy-table td {
-  padding: 14px 12px;
+  padding: 14px var(--space-3);
   border-bottom: 1px solid var(--border-hairline);
   color: var(--ink-soft);
   vertical-align: middle;
@@ -774,7 +774,7 @@ onMounted(() => {
 }
 
 .policy-place__none {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
@@ -801,7 +801,7 @@ onMounted(() => {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .policy-doc-title {
@@ -824,7 +824,7 @@ onMounted(() => {
 .policy-editor {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .policy-actions {
@@ -835,7 +835,7 @@ onMounted(() => {
 
 /* 抽屉内样式 */
 .drawer-title {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
 }
@@ -843,14 +843,14 @@ onMounted(() => {
 .attach-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .attach-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: var(--space-2);
+  padding: var(--space-2) 10px;
   background: var(--g1);  border-radius: 6px;
 }
 
@@ -864,7 +864,7 @@ onMounted(() => {
 .attach-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -879,7 +879,7 @@ onMounted(() => {
 
 .attach-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
@@ -887,13 +887,13 @@ onMounted(() => {
 .push-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .push-desc {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 @media (max-width: 900px) {
@@ -901,7 +901,7 @@ onMounted(() => {
     display: none;
   }
   .policy-admin__main {
-    padding: 16px;
+    padding: var(--space-4);
   }
 }
 </style>

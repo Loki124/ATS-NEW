@@ -303,7 +303,7 @@ watch(() => route.path, () => {
 .sider-header {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 16px 12px 20px;
+  padding: var(--space-4) var(--space-4) var(--space-3) 20px;
   flex-shrink: 0;            /* header 不让位，永远在顶部 */
   /* ⚠️ 22:35 兵哥反馈"设置主标题作为固定头部展示，仅让标题下方列表支持滚动"：
      - position: sticky + top: 0 已实现（实测滚 367px 后 y 仍 64），但背景半透明
@@ -314,14 +314,14 @@ watch(() => route.path, () => {
   backdrop-filter: blur(var(--glass-blur-panel));
   -webkit-backdrop-filter: blur(var(--glass-blur-panel));
 }
-.sider-header.collapsed { justify-content: center; padding: 16px 8px 12px; }
-.sider-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
+.sider-header.collapsed { justify-content: center; padding: var(--space-4) var(--space-2) var(--space-3); }
+.sider-title { margin: 0; font-size: var(--fs-16); font-weight: 600; color: var(--ink); }
 .collapse-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px;
   border-radius: var(--radius-md);
   background: transparent; border: 1px solid transparent;
-  color: var(--ink-soft); cursor: pointer; font-size: 16px;
+  color: var(--ink-soft); cursor: pointer; font-size: var(--fs-16);
   transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .collapse-btn:hover { background: var(--brand-tint); color: var(--brand); border-color: var(--glass-border); }
@@ -353,8 +353,8 @@ watch(() => route.path, () => {
 
 /* === 阶段 D 第 2 轮：旧自写 menu CSS 已删除（DOM 已被 n-menu 取代）
    仅保留 n-menu wrapper 微调（settings-menu 是 n-menu 的 class 容器）=== */
-.settings-menu { padding: 8px 0 16px; }
-.settings-menu.collapsed { padding: 8px 0; }
+.settings-menu { padding: var(--space-2) 0 var(--space-4); }
+.settings-menu.collapsed { padding: var(--space-2) 0; }
 
 /* === 折叠态 CSS 补丁：Naive UI 自身 .menu-item-group-title 在 :collapsed=true 下未做隐藏 ===
    现象：折叠 64px 时 group label "基本信息/过程管理/招聘提速/内容管理" 被 CSS 强竖排成「基/本/信/息」单字一行
@@ -379,11 +379,11 @@ watch(() => route.path, () => {
 }
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group + .n-menu-item-group) {
   border-top: 1px solid var(--border-hairline);
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
 }
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item) {
-  margin-top: 4px !important;
+  margin-top: var(--space-1) !important;
 }
 
 </style>

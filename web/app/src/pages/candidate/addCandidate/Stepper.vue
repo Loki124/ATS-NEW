@@ -30,7 +30,7 @@ const stepClass = computed(() => (s: 1 | 2) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 20px;
+  padding: var(--space-3) 20px;
   border-bottom: 1px solid var(--g3);
   flex-shrink: 0;
   gap: 0;
@@ -73,8 +73,8 @@ const stepClass = computed(() => (s: 1 | 2) => {
 .sline.on { background: linear-gradient(to right, var(--s), var(--p)); }
 
 @media (max-width: 768px) {
-  .stepper { padding: 10px 12px; }
+  .stepper { padding: 10px var(--space-3); }
   .sline { width: 32px; }
-  .slabel { font-size: 10px; margin-left: 4px; }
+  .slabel { font-size: var(--fs-10); margin-left: var(--space-1); }
 }
 </style>

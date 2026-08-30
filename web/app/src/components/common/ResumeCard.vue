@@ -122,7 +122,7 @@ function progressColor(p: string | null) {
 .c-chk.checked::after {
   content: '✓';
   color: #fff;
-  font-size: 10px;
+  font-size: var(--fs-10);
 }
 
 .c-avatar {

@@ -25,8 +25,8 @@ function select(pos: string) {
 
 <style scoped>
 .apply-pos {
-  margin-top: 8px;
-  padding: 10px 12px;
+  margin-top: var(--space-2);
+  padding: 10px var(--space-3);
   background: var(--bl);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
@@ -34,11 +34,11 @@ function select(pos: string) {
 .apply-pos-title { font-size: 11px; font-weight: 600; color: var(--c-info-deep); margin-bottom: 6px; }
 .apply-pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .apply-pos-item {
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border: 1px solid var(--g3);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--fs-10);
   background: var(--glass-bg-card);
   transition: 0.15s;
 }

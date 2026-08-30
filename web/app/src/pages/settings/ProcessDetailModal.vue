@@ -500,7 +500,7 @@
             <span>阶段流程</span>
             <n-tag size="small">{{ editForm.stages.length }} 个</n-tag>
           </div>
-          <n-alert type="info" :show-icon="false" style="margin-bottom: 12px; font-size: 12px">
+          <n-alert type="info" :show-icon="false" style="margin-bottom: var(--space-3); font-size: 12px">
             起止阶段不可删除. 中间业务阶段可单独配置或删除. 点阶段行的空白处选中, 选中后可插入/删除.
           </n-alert>
           <div class="stage-timeline">
@@ -1692,9 +1692,9 @@ function conditionItemLabel(item: any): string {
 .hero {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   margin: -20px -20px 20px -20px;
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
   background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色渐变 → tokens */
   border-bottom: 1px solid var(--g2);
 }
@@ -1717,12 +1717,12 @@ function conditionItemLabel(item: any): string {
 .hero__title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .hero__title {
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   color: var(--n-850);
   overflow: hidden;
@@ -1732,29 +1732,29 @@ function conditionItemLabel(item: any): string {
 .hero__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12px;
+  gap: var(--space-3);
+  font-size: var(--fs-12);
   color: var(--n-450);
 }
 .hero__meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .hero__meta-item :deep(.n-icon) {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--n-350);
 }
 .hero__edit-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
+  gap: var(--space-1);
+  padding: 6px var(--space-3);
   background: var(--glass-bg-card);
   border: 1px solid var(--g2);
   border-radius: 4px;
   color: var(--c-info);
-  font-size: 13px;
+  font-size: var(--fs-13);
   cursor: pointer;
   transition: border-color 0.15s;
   flex-shrink: 0;
@@ -1774,8 +1774,8 @@ function conditionItemLabel(item: any): string {
 .section__title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--space-2);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--n-650);
   margin-bottom: 10px;
@@ -1799,11 +1799,11 @@ function conditionItemLabel(item: any): string {
 .field-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 36px;
   padding: 6px 0;
   border-bottom: 1px dashed var(--g1);
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 .field-row:last-child,
 .field-row--last {
@@ -1811,7 +1811,7 @@ function conditionItemLabel(item: any): string {
 }
 .field-row--block {
   align-items: flex-start;
-  padding: 8px 0;
+  padding: var(--space-2) 0;
 }
 .field-label {
   color: var(--n-450);
@@ -1832,7 +1832,7 @@ function conditionItemLabel(item: any): string {
 }
 .muted-text {
   color: var(--n-350);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 .rule-text strong {
   color: var(--n-850);
@@ -1842,14 +1842,14 @@ function conditionItemLabel(item: any): string {
 .rule-scope {
   margin-left: 6px;
   color: var(--n-450);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 /* ===== 适用范围分组卡片 ===== */
 .scope-card {
   border: 1px solid var(--g2);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   background: var(--glass-bg-card);
   display: flex;
   flex-direction: column;
@@ -1876,12 +1876,12 @@ function conditionItemLabel(item: any): string {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--n-850);
 }
 .scope-card__head :deep(.n-icon) {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--c-info);
 }
 .scope-card--exclude .scope-card__head :deep(.n-icon) {
@@ -1902,7 +1902,7 @@ function conditionItemLabel(item: any): string {
 .scope-card__values {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
   flex: 1;
   align-items: flex-start;
 }
@@ -1943,15 +1943,15 @@ function conditionItemLabel(item: any): string {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--n-400);
-  padding: 32px 0;
+  padding: var(--space-8) 0;
 }
 
 /* ===== 时间轴 ===== */
 .stage-timeline {
   position: relative;
-  padding-left: 32px;
+  padding-left: var(--space-8);
 }
 /* 时间轴贯穿线 */
 .stage-timeline::before {
@@ -1971,7 +1971,7 @@ function conditionItemLabel(item: any): string {
   background: var(--glass-bg-card);
   border: 1px solid var(--g2);
   border-radius: 8px;
-  padding: 14px 16px 14px 16px;
+  padding: 14px var(--space-4) 14px var(--space-4);
   margin-bottom: 10px;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -2002,7 +2002,7 @@ function conditionItemLabel(item: any): string {
   justify-content: center;
   color: var(--g1);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-13);
   z-index: 1;
 }
 .stage-card__dot-num {
@@ -2013,17 +2013,17 @@ function conditionItemLabel(item: any): string {
 .stage-card__header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
   border-bottom: 1px dashed var(--g1);
 }
 .stage-card__name {
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 600;
   color: var(--n-850);
-  margin-right: 4px;
+  margin-right: var(--space-1);
 }
 .stage-card__system-badge {
   margin-left: 2px;
@@ -2056,8 +2056,8 @@ function conditionItemLabel(item: any): string {
   background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
   border: 1px solid var(--c-warning-bg);
   color: var(--c-warning);
-  font-size: 12px;
-  padding: 2px 8px;
+  font-size: var(--fs-12);
+  padding: 2px var(--space-2);
   border-radius: 3px;
   line-height: 1.5;
   white-space: nowrap;
@@ -2073,8 +2073,8 @@ function conditionItemLabel(item: any): string {
 .cond-group__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: var(--space-2);
+  font-size: var(--fs-12);
 }
 .cond-group__type {
   color: var(--n-450);
@@ -2084,7 +2084,7 @@ function conditionItemLabel(item: any): string {
   font-size: 11px;
 }
 .cond-empty {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-400);
   background: var(--g1);
   padding: 6px 10px;
@@ -2092,7 +2092,7 @@ function conditionItemLabel(item: any): string {
   font-style: italic;
 }
 .cond-empty--inline {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .cond-list {
   display: flex;
@@ -2106,8 +2106,8 @@ function conditionItemLabel(item: any): string {
 .cond-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: var(--space-2);
+  font-size: var(--fs-12);
   line-height: 1.6;
 }
 .cond-item__index {
@@ -2120,7 +2120,7 @@ function conditionItemLabel(item: any): string {
   font-weight: 500;
 }
 .cond-item__relation {
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 3px;
@@ -2136,7 +2136,7 @@ function conditionItemLabel(item: any): string {
 }
 .cond-item__expr {
   font-family: 'SF Mono', Consolas, Menlo, monospace;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-650);
   flex: 1;
   word-break: break-all;
@@ -2145,11 +2145,11 @@ function conditionItemLabel(item: any): string {
 /* ===== 响应式 ===== */
 @media (max-width: 600px) {
   .hero {
-    margin: -16px -16px 16px -16px;
-    padding: 16px;
+    margin: -16px -16px var(--space-4) -16px;
+    padding: var(--space-4);
   }
   .hero__title {
-    font-size: 16px;
+    font-size: var(--fs-16);
   }
   .field-row {
     flex-wrap: wrap;
@@ -2158,7 +2158,7 @@ function conditionItemLabel(item: any): string {
     min-width: 76px;
   }
   .stage-card {
-    padding: 12px 14px;
+    padding: var(--space-3) 14px;
   }
   .stage-timeline {
     padding-left: 28px;
@@ -2167,7 +2167,7 @@ function conditionItemLabel(item: any): string {
     left: -28px;
     width: 24px;
     height: 24px;
-    font-size: 12px;
+    font-size: var(--fs-12);
   }
   .stage-timeline::before {
     left: 12px;
@@ -2177,17 +2177,17 @@ function conditionItemLabel(item: any): string {
 /* ===== EDIT MODE styles ===== */
 .hero__actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 .hero__title-input {
   width: 100%;
 }
 .hero__title-input :deep(.n-input__input-el) {
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   color: var(--n-850);
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
 }
 
 .field-input {
@@ -2195,7 +2195,7 @@ function conditionItemLabel(item: any): string {
 }
 .field-input :deep(.n-input__input-el),
 .field-input :deep(.n-input__textarea-el) {
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 .field-input--block :deep(.n-input) {
   width: 100%;
@@ -2214,16 +2214,16 @@ function conditionItemLabel(item: any): string {
 }
 .stage-card__row-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
-  padding-top: 8px;
+  padding-top: var(--space-2);
   border-top: 1px dashed var(--g1);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 /* ===== Stage Picker ===== */
 .picker-empty {
-  padding: 24px 0;
+  padding: var(--space-6) 0;
 }
 .picker-list {
   display: flex;
@@ -2235,8 +2235,8 @@ function conditionItemLabel(item: any): string {
 .picker-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
   border: 1px solid var(--g2);
   border-radius: 6px;
   cursor: pointer;
@@ -2274,18 +2274,18 @@ function conditionItemLabel(item: any): string {
   min-width: 0;
 }
 .picker-item__name {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   color: var(--n-850);
   line-height: 1.4;
 }
 .picker-item__code {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-440);
   margin-top: 2px;
 }
 .picker-item__hint {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-440);
   flex-shrink: 0;
 }

@@ -54,7 +54,7 @@ function onClick(stat: StatItem) {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 8px 24px;
+  padding: var(--space-2) var(--space-6);
   cursor: default;
   transition: background var(--duration-fast) var(--ease-out);
   position: relative;
@@ -75,12 +75,12 @@ function onClick(stat: StatItem) {
   background: var(--border-hairline);
 }
 .stat-bar__label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .stat-bar__value {
-  font-size: 24px;
+  font-size: var(--fs-24);
   font-weight: 600;
   color: var(--ink);
   line-height: 1;
@@ -98,8 +98,8 @@ function onClick(stat: StatItem) {
  *   ≤480px:  折叠为单列
  */
 @media (max-width: 1280px) {
-  .stat-bar__item { padding: 8px 16px; }
-  .stat-bar__value { font-size: 20px; }
+  .stat-bar__item { padding: var(--space-2) var(--space-4); }
+  .stat-bar__value { font-size: var(--fs-20); }
 }
 @media (max-width: 768px) {
   .stat-bar {

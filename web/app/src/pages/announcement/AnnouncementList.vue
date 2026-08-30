@@ -259,9 +259,9 @@ onMounted(() => {
 .ann-kb__side-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 20px 16px;
-  font-size: 16px;
+  gap: var(--space-1);
+  padding: 0 20px var(--space-4);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--n-800);
 }
@@ -269,7 +269,7 @@ onMounted(() => {
 .ann-kb__back {
   margin-left: -4px;
   color: var(--g5);
-  padding: 4px;
+  padding: var(--space-1);
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
@@ -286,13 +286,13 @@ onMounted(() => {
 .ann-kb__tree-node {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 20px;
-  margin: 0 8px;
+  margin: 0 var(--space-2);
   border-radius: 6px;
   cursor: pointer;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: var(--fs-14);
   transition: background 0.15s, color 0.15s;
 }
 
@@ -320,7 +320,7 @@ onMounted(() => {
 }
 
 .ann-kb__tree-count {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-380);
   background: var(--g1);
   padding: 1px 6px;
@@ -336,35 +336,35 @@ onMounted(() => {
 .ann-kb__main {
   flex: 1;
   min-width: 0;
-  padding: 24px 32px;
+  padding: var(--space-6) var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
 .ann-kb__section {
   background: var(--glass-bg-card);
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
   box-shadow: 0 1px 8px var(--overlay-scrim-weak);
 }
 
 /* 相邻 section 之间增加垂直间距（最近浏览 / 最近更新） */
 .ann-kb__section + .ann-kb__section {
-  margin-top: 24px;
+  margin-top: var(--space-6);
 }
 
 .ann-kb__section-title {
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 600;
   color: var(--n-800);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 /* 最近浏览卡片 */
 .ann-kb__recent {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   flex-wrap: wrap;
 }
 
@@ -372,8 +372,8 @@ onMounted(() => {
   width: 240px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
   border: 1px solid var(--g1);
   border-radius: 8px;
   background: var(--g1);
@@ -404,12 +404,12 @@ onMounted(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .ann-kb__recent-title {
   color: var(--n-800);
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -418,7 +418,7 @@ onMounted(() => {
 
 .ann-kb__recent-meta {
   color: var(--n-380);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 /* 表格 */
@@ -429,20 +429,20 @@ onMounted(() => {
 .ann-kb__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .ann-kb__table th {
   text-align: left;
   color: var(--n-380);
   font-weight: 500;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   border-bottom: 1px solid var(--g1);
   white-space: nowrap;
 }
 
 .ann-kb__table td {
-  padding: 14px 12px;
+  padding: 14px var(--space-3);
   border-bottom: 1px solid var(--g1);
   color: var(--ink-soft);
   vertical-align: middle;
@@ -513,14 +513,14 @@ onMounted(() => {
 }
 
 .ann-kb__doc-attach {
-  font-size: 12px;
+  font-size: var(--fs-12);
   flex-shrink: 0;
 }
 
 .ann-kb__editor {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 @media (max-width: 900px) {
@@ -528,7 +528,7 @@ onMounted(() => {
     display: none;
   }
   .ann-kb__main {
-    padding: 16px;
+    padding: var(--space-4);
   }
   .ann-kb__recent-card {
     width: 100%;

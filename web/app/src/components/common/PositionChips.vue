@@ -27,7 +27,7 @@ function toggle(pos: string) {
 <style scoped>
 .pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .pos-item {
-  padding: 6px 12px;
+  padding: 6px var(--space-3);
   border: 1px solid var(--g3);
   border-radius: 8px;
   cursor: pointer;

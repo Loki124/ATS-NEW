@@ -76,7 +76,7 @@ const activeTab = ref('resources')
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -98,14 +98,14 @@ const activeTab = ref('resources')
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
 .permission-management {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 /* 玻璃面板作为内容根时撑满高度（规范：仿 CampusControl 范式 .glass-panel flex 撑满） */
 .permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-4); }

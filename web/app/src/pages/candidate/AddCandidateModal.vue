@@ -118,8 +118,8 @@ function nextStep() {
 <template>
   <n-modal v-model:show="showModal" preset="card" style="width: 960px;" :bordered="false" :mask-closable="false" data-testid="add-candidate-modal">
     <template #header>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:18px;font-weight:700;">创建候选人</span>
+      <div style="display:flex;align-items:center;gap: var(--space-2);">
+        <span style="font-size: var(--fs-18);font-weight:700;">创建候选人</span>
         <span style="font-size:11px;color:var(--g5);">V2</span>
       </div>
     </template>

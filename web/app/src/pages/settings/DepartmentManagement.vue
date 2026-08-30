@@ -163,7 +163,7 @@
       </n-form>
 
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="closeDeptModal">取消</n-button>
           <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">确定</n-button>
         </div>
@@ -607,7 +607,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -629,7 +629,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -638,6 +638,6 @@ onMounted(() => {
 
 .page-header-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 </style>

@@ -102,7 +102,7 @@
       </n-form>
 
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="closeUserModal">取消</n-button>
           <n-button type="primary" class="gradient-btn" @click="handleUserSubmit">确定</n-button>
         </div>
@@ -797,7 +797,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 </style>

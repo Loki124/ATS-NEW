@@ -755,19 +755,19 @@ async function handleSubmit() {
 .rule-config-flat {
   max-height: 70vh;
   overflow-y: auto;
-  padding: 4px 4px 4px 4px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-1);
 }
 
 /* ==================== HERO HEADER ==================== */
 .hero {
   background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色硬编码渐变 → tokens */
   margin: -20px -20px 20px -20px;
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
   border-bottom: 1px solid var(--g1);
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .hero__icon {
   width: 40px;
@@ -786,15 +786,15 @@ async function handleSubmit() {
   min-width: 0;
 }
 .hero__title {
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   color: var(--n-850);
   line-height: 1.4;
 }
 .hero__subtitle {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--n-440);
-  margin-top: 4px;
+  margin-top: var(--space-1);
   line-height: 1.5;
 }
 .hero__close {
@@ -805,8 +805,8 @@ async function handleSubmit() {
   border: none;
   cursor: pointer;
   color: var(--n-440);
-  font-size: 18px;
-  padding: 4px;
+  font-size: var(--fs-18);
+  padding: var(--space-1);
   line-height: 1;
   border-radius: 4px;
   transition: background 0.15s, color 0.15s;
@@ -821,8 +821,8 @@ async function handleSubmit() {
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
   border: 1px solid var(--g1);
   border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
+  padding: var(--space-4) 20px;
+  margin-bottom: var(--space-4);
   position: relative;
 }
 .section-card::before {
@@ -836,15 +836,15 @@ async function handleSubmit() {
   border-radius: 0 2px 2px 0;
 }
 .section-card__title {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--n-850);
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
+  margin: 0 0 var(--space-3) 0;
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--g2);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .section-card__title::before {
   content: '';
@@ -855,20 +855,20 @@ async function handleSubmit() {
   border-radius: 2px;
 }
 .section-card__hint {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-440);
   line-height: 1.6;
-  margin: -4px 0 12px 0;
-  padding: 8px 12px;
+  margin: -4px 0 var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
   background: var(--g1);
   border-radius: 4px;
   border-left: 2px solid var(--g6);
 }
 .section-card__actions {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -877,7 +877,7 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   min-height: 36px;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
   border-bottom: 1px dashed var(--g2);
 }
 .field-row:last-child {
@@ -886,14 +886,14 @@ async function handleSubmit() {
 .field-row--error {
   background: var(--g1);
   margin: 0 -8px;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border-radius: 4px;
 }
 .field-label {
   flex: 0 0 110px;
   text-align: right;
-  padding-right: 16px;
-  font-size: 13px;
+  padding-right: var(--space-4);
+  font-size: var(--fs-13);
   color: var(--n-580);
   font-weight: 500;
   line-height: 1.5;
@@ -907,39 +907,39 @@ async function handleSubmit() {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .field-hint {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-440);
   line-height: 1.5;
 }
 .field-error-hint {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--c-error);
   line-height: 1.5;
 }
 
 /* ==================== Data Table ==================== */
 .rule-table {
-  margin: 4px 0 0 0;
+  margin: var(--space-1) 0 0 0;
 }
 .rule-table :deep(.n-data-table-th) {
   background: var(--glass-bg-input);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink);
 }
 .rule-table :deep(.n-data-table-td) {
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink);
 }
 .rule-table :deep(.n-data-table-th__title) {
   font-weight: 600;
 }
 .rule-table :deep(.n-data-table-td) {
-  font-size: 12px !important;
+  font-size: var(--fs-12) !important;
 }
 .rule-table :deep(.n-data-table-td--ellipsis) {
   padding: 6px 10px !important;
@@ -951,20 +951,20 @@ async function handleSubmit() {
   bottom: 0;
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
   border-top: 1px solid var(--g1);
-  padding: 12px 20px;
-  margin: 16px -20px -20px -20px;
+  padding: var(--space-3) 20px;
+  margin: var(--space-4) -20px -20px -20px;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   z-index: 10;
 }
 
 /* ==================== Form 内嵌控件：禁用默认的 label 灰底 ==================== */
 .field-value :deep(.n-checkbox) {
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 .field-value :deep(.n-radio) {
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 .field-value :deep(.n-base-selection),
 .field-value :deep(.n-input) {
@@ -974,32 +974,32 @@ async function handleSubmit() {
 /* ==================== 响应式 (≤600px) ==================== */
 @media (max-width: 600px) {
   .hero {
-    padding: 16px;
-    margin: -16px -16px 12px -16px;
+    padding: var(--space-4);
+    margin: -16px -16px var(--space-3) -16px;
   }
   .hero__icon {
     width: 36px;
     height: 36px;
   }
   .hero__title {
-    font-size: 16px;
+    font-size: var(--fs-16);
   }
   .field-row {
     flex-direction: column;
     align-items: flex-start;
-    padding: 8px 0;
+    padding: var(--space-2) 0;
   }
   .field-label {
     flex: none;
     text-align: left;
-    padding: 0 0 4px 0;
+    padding: 0 0 var(--space-1) 0;
     width: 100%;
   }
   .field-value {
     width: 100%;
   }
   .section-card {
-    padding: 12px 14px;
+    padding: var(--space-3) 14px;
   }
   .section-card__actions {
     flex-direction: column;

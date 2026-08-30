@@ -529,7 +529,7 @@ function handleUserMenu(key: string) {
 /* === 顶栏返回按钮 === */
 .layout-header__back {
   color: var(--ink-soft);
-  padding: 4px;
+  padding: var(--space-1);
   border-radius: 6px;
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
@@ -551,7 +551,7 @@ function handleUserMenu(key: string) {
 
 /* === ⌘K 全局搜索 Modal === */
 :deep(.global-search-modal .n-card) {
-  padding: 16px 20px;
+  padding: var(--space-4) 20px;
 }
 :deep(.global-search-modal .n-card__content) {
   padding: 0;
@@ -559,14 +559,14 @@ function handleUserMenu(key: string) {
 
 /* === Logo 容器（玻璃侧栏顶部） === */
 .logo-container {
-  padding: 16px;
+  padding: var(--space-4);
   /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 logo 容器底部横线（var(--border-hairline)） */
   border-bottom: none !important;
 }
 .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   height: 32px;
 }
 .logo-icon {
@@ -610,8 +610,8 @@ function handleUserMenu(key: string) {
 .top-menu :deep(.n-menu-item-content) {
   display: flex !important;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px !important;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) !important;
   height: 100% !important;
 }
 .top-menu :deep(.n-menu-item-content__icon) {
@@ -759,7 +759,7 @@ function handleUserMenu(key: string) {
   min-height: 0;
   height: 100%;
   /* header 固定定位脱离文档流，主内容区顶部留出 header 高度 */
-  padding-top: 64px;
+  padding-top: var(--space-16);
   overflow: hidden;
 }
 /* 兜底：n-layout-scroll-container 不存在时（无 sider 模式），直接靠 .app-layout 兜住 */
@@ -815,7 +815,7 @@ function handleUserMenu(key: string) {
   backdrop-filter: blur(var(--glass-blur-input));
   -webkit-backdrop-filter: blur(var(--glass-blur-input));
   cursor: pointer;
-  font-size: 18px;
+  font-size: var(--fs-18);
   color: var(--ink);
   display: inline-flex;
   align-items: center;
@@ -871,8 +871,8 @@ function handleUserMenu(key: string) {
   margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 footer 顶部横线（var(--border-hairline)） */
   border-top: none !important;
   color: var(--ink-soft);
@@ -900,14 +900,14 @@ function handleUserMenu(key: string) {
   color: currentColor;
 }
 .sider-footer-label {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
 }
 .sider-footer--collapsed {
   justify-content: center;
-  padding: 12px 8px;
+  padding: var(--space-3) var(--space-2);
 }
 .sider-footer--collapsed .sider-footer-label {
   display: none;

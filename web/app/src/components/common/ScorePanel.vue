@@ -67,7 +67,7 @@ function dimColor(s: number) {
   color: var(--ink-soft);
 }
 .score-pass-tag {
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   font-size: var(--text-meta);
   font-weight: 600;

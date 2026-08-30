@@ -1332,24 +1332,24 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
 }
 /* .page-title / .page-subtitle 复用全局 glass.css 渐变规格，禁止私有覆盖 */
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 /* KPI 卡片复用全局 .kpi-card；仅强调数字用变量化色阶，不硬编码 hex 破坏暗色 */
 .kpi-value--ok { color: var(--c-success); }
 .kpi-value--info { color: var(--c-info); }
 .kpi-value--warn { color: var(--c-error); }
 /* 弹窗 tabs 布局：保持暗色下透明导航，视觉走全局 */
-.bc-tabs :deep(.n-tabs-nav) { background: transparent; margin-bottom: 8px; }
+.bc-tabs :deep(.n-tabs-nav) { background: transparent; margin-bottom: var(--space-2); }
 /* 接入凭证 tab 内「接口路径」分组小标题，复用变量不硬编码 */
 .sub-title {
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink-soft);
   margin: 6px 0 10px;
@@ -1357,30 +1357,30 @@ onMounted(() => {
   border-left: 3px solid var(--brand);
 }
 /* 审计抽屉统计条（复用全局玻璃令牌，暗色安全） */
-.audit-summary { display: flex; gap: 12px; margin-bottom: 16px; }
+.audit-summary { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); }
 .audit-stat {
   flex: 1;
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
-.audit-stat .kpi-label { font-size: 12px; }
-.audit-stat .kpi-value { font-size: 20px; font-weight: 700; }
+.audit-stat .kpi-label { font-size: var(--fs-12); }
+.audit-stat .kpi-value { font-size: var(--fs-20); font-weight: 700; }
 /* 接口说明文档抽屉（变量化，暗色安全） */
-.doc-p { color: var(--ink-soft); font-size: 13px; line-height: 1.7; margin: 4px 0 8px; }
+.doc-p { color: var(--ink-soft); font-size: var(--fs-13); line-height: 1.7; margin: var(--space-1) 0 var(--space-2); }
 .doc-p code, .doc-code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.doc-p code { background: var(--g1); padding: 1px 6px; border-radius: 4px; font-size: 12px; color: var(--brand); }
-.doc-h { font-size: 14px; font-weight: 600; color: var(--ink); margin: 16px 0 8px; }
+.doc-p code { background: var(--g1); padding: 1px 6px; border-radius: 4px; font-size: var(--fs-12); color: var(--brand); }
+.doc-h { font-size: var(--fs-14); font-weight: 600; color: var(--ink); margin: var(--space-4) 0 var(--space-2); }
 .doc-code {
   background: var(--g1);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 12px;
-  font-size: 12px;
+  padding: var(--space-3);
+  font-size: var(--fs-12);
   color: var(--ink);
   overflow-x: auto;
 }

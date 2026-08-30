@@ -307,7 +307,7 @@ onMounted(() => loadProcess())
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -329,17 +329,17 @@ onMounted(() => loadProcess())
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
 .process-stage-editor {
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
 }
 /* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
 .page-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
 }
 .empty-state {
@@ -347,7 +347,7 @@ onMounted(() => loadProcess())
   text-align: center;
 }
 .stage-card {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   cursor: move;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -362,16 +362,16 @@ onMounted(() => loadProcess())
 .stage-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .stage-code {
   font-family: monospace;
   color: var(--n-500);
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 .stage-name {
   font-weight: 500;
-  font-size: 15px;
+  font-size: var(--fs-15);
 }
 .sys-tag {
   font-size: 11px;
@@ -381,20 +381,20 @@ onMounted(() => loadProcess())
   border-radius: 3px;
 }
 .stage-limit {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-450);
 }
 .stage-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .stage-features {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-  padding-top: 8px;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
   border-top: 1px dashed var(--g2);
 }
 .feature-chip {

@@ -219,7 +219,7 @@ onMounted(loadDetail)
 .ann-detail-page {
   min-height: 100%;
   background: var(--g1);
-  padding: 24px;
+  padding: var(--space-6);
 }
 
 .ann-detail-spin {
@@ -232,14 +232,14 @@ onMounted(loadDetail)
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 80px 0;
 }
 
 .ann-detail-layout {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .ann-detail-topbar {
@@ -250,13 +250,13 @@ onMounted(loadDetail)
 .ann-detail-card {
   background: var(--glass-bg-card);
   border-radius: 12px;
-  padding: 32px 40px;
+  padding: var(--space-8) 40px;
   box-shadow: 0 2px 12px var(--overlay-scrim-weak);
 }
 
 .ann-detail-title {
-  margin: 0 0 16px;
-  font-size: 24px;
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-24);
   font-weight: 600;
   color: var(--n-800);
   line-height: 1.4;
@@ -267,16 +267,16 @@ onMounted(loadDetail)
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
   color: var(--g5);
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .ann-detail-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 500;
 }
 
@@ -295,19 +295,19 @@ onMounted(loadDetail)
 
 .ann-detail-body {
   color: var(--n-700);
-  font-size: 15px;
+  font-size: var(--fs-15);
   line-height: 1.8;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
 }
 
 .ann-detail-body :deep(p) {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
 }
 
 .ann-detail-body :deep(ul),
 .ann-detail-body :deep(ol) {
-  margin: 12px 0;
-  padding-left: 24px;
+  margin: var(--space-3) 0;
+  padding-left: var(--space-6);
 }
 
 .ann-detail-body :deep(li) {
@@ -322,14 +322,14 @@ onMounted(loadDetail)
 /* 附件 */
 .ann-detail-attachments {
   border-top: 1px solid var(--g1);
-  padding-top: 24px;
+  padding-top: var(--space-6);
 }
 
 .ann-detail-attachments__title {
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 600;
   color: var(--n-800);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .ann-detail-attachments__list {
@@ -341,8 +341,8 @@ onMounted(loadDetail)
 .ann-attach-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--g1);
   border-radius: 8px;
   background: var(--g1);
@@ -383,7 +383,7 @@ onMounted(loadDetail)
 
 .ann-attach-name {
   color: var(--n-800);
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -392,7 +392,7 @@ onMounted(loadDetail)
 
 .ann-attach-size {
   color: var(--n-380);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .ann-attach-action {
@@ -413,6 +413,6 @@ onMounted(loadDetail)
 }
 
 .back-btn {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 </style>

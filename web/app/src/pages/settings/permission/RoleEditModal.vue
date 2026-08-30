@@ -24,7 +24,7 @@
       </n-form-item>
       <n-form-item label="状态">
         <n-switch v-model:value="statusSwitch" />
-        <span style="margin-left: 8px; color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
+        <span style="margin-left: var(--space-2); color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
       </n-form-item>
 
       <n-divider title-placement="left">资源授权</n-divider>
@@ -200,6 +200,6 @@ async function onSubmit() {
 
 <style scoped>
 .resource-group {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 </style>

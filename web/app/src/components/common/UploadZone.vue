@@ -44,7 +44,7 @@ function handleDrop(e: DragEvent) {
 .upload-zone {
   border: 2px dashed var(--g4);
   border-radius: 12px;
-  padding: 32px 20px;
+  padding: var(--space-8) 20px;
   text-align: center;
   cursor: pointer;
   transition: 0.15s;
@@ -52,14 +52,14 @@ function handleDrop(e: DragEvent) {
 }
 .upload-zone:hover, .upload-zone.dragover { border-color: var(--p); background: var(--pl); }
 .upload-zone.dragover { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
-.up-icon { font-size: 36px; margin-bottom: 8px; transition: 0.2s; }
+.up-icon { font-size: var(--fs-36); margin-bottom: var(--space-2); transition: 0.2s; }
 .upload-zone.dragover .up-icon { transform: scale(1.1); }
-.up-text { font-size: 13px; font-weight: 500; color: var(--g7); }
-.up-hint { font-size: 11px; color: var(--g5); margin-top: 4px; }
-.up-quick { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.up-text { font-size: var(--fs-13); font-weight: 500; color: var(--g7); }
+.up-hint { font-size: 11px; color: var(--g5); margin-top: var(--space-1); }
+.up-quick { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-3); }
 .up-quick span {
   font-size: 11px;
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   background: var(--glass-bg-card);
   border: 1px solid var(--g3);
   border-radius: 20px;

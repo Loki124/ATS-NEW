@@ -121,7 +121,7 @@ body.dark .glass-card {
   background: var(--glass-bg-input);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
-  padding: 9px 12px;
+  padding: 9px var(--space-3);
   color: var(--ink);
   backdrop-filter: blur(var(--glass-blur-input));
   -webkit-backdrop-filter: blur(var(--glass-blur-input));
@@ -780,7 +780,7 @@ body.dark .n-data-table .n-data-table-th {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
@@ -873,8 +873,8 @@ body.dark .kpi-card.kpi-card--accent {
   /* 无背景色 —— 极光直接透出 */
   border-bottom: 1px solid var(--glass-border);
   /* 去掉左右 margin/padding —— 标题贴边 */
-  margin: 0 0 16px 0;
-  padding: 16px 0 4px 0;
+  margin: 0 0 var(--space-4) 0;
+  padding: var(--space-4) 0 var(--space-1) 0;
 }
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
 .settings-page-shell { display: block; }
@@ -886,7 +886,7 @@ body.dark .kpi-card.kpi-card--accent {
 /* 直接挂在 Layout 下的列表/详情页（DemandList / OfferList / Screening 等）：
    此处 24px 等价原 content-wrapper 的 p-6，视觉无变化。 */
 .page-container {
-  padding: 24px;
+  padding: var(--space-6);
   min-height: 100%;
   box-sizing: border-box;
 }
@@ -1041,7 +1041,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
   max-height: calc(90vh - 110px);
 }
 .n-modal .n-card-header__main {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
 }
 
@@ -1097,7 +1097,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
   z-index: var(--z-toast);
   background: var(--surface);
   color: var(--brand);
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
 }
 .skip-link:focus {

@@ -16,12 +16,12 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.occ-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.occ-actions { display: flex; gap: 6px; margin-top: var(--space-2); flex-wrap: wrap; }
 .occ-btn {
-  padding: 5px 12px;
+  padding: 5px var(--space-3);
   border: 1px solid var(--g3);
   border-radius: 8px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   cursor: pointer;
   background: var(--glass-bg-card);
   color: var(--g7);

@@ -141,5 +141,5 @@ onMounted(reload);
 
 <style scoped>
 .scraped-resume-list { width: 100%; }
-.mt-4 { margin-top: 16px; }
+.mt-4 { margin-top: var(--space-4); }
 </style>

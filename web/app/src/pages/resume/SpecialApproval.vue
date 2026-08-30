@@ -268,11 +268,11 @@ onMounted(() => {
 
 <style scoped>
 .special-approval-container {
-  padding: 24px;
+  padding: var(--space-6);
 }
 
 .node-time {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-400);
 }
 

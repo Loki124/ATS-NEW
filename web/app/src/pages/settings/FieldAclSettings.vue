@@ -168,7 +168,7 @@ onMounted(reload);
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -190,7 +190,7 @@ onMounted(reload);
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -198,6 +198,6 @@ onMounted(reload);
   width: 100%;
 }
 .mt-4 {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 </style>

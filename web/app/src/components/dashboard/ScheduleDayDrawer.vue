@@ -62,14 +62,14 @@ const formattedDate = computed(() => {
 .schedule-drawer__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .schedule-drawer__item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   background: var(--glass-bg-panel);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -97,7 +97,7 @@ const formattedDate = computed(() => {
 }
 
 .schedule-drawer__position {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
 }
 </style>

@@ -422,7 +422,7 @@
       </n-form>
 
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="modalVisible = false">取消</n-button>
           <n-button type="primary" :loading="submitting" @click="handleSave">确定</n-button>
         </div>
@@ -705,7 +705,7 @@ onMounted(() => {
 
 <style scoped>
 .demand-container {
-  padding: 24px;
+  padding: var(--space-6);
   min-height: 100%;
   background: transparent; /* 让 --aurora-base 透出 */
   animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
@@ -715,11 +715,11 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: var(--fs-24);
   font-weight: 600;
   margin: 0;
 }
@@ -727,7 +727,7 @@ onMounted(() => {
 .demand-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .demand-card {
@@ -737,7 +737,7 @@ onMounted(() => {
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 16px 20px;
+  padding: var(--space-4) 20px;
   transition: all var(--duration-base) var(--ease-out);
   border: 2px solid transparent;
 }
@@ -764,7 +764,7 @@ onMounted(() => {
 .card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-bottom: 6px;
 }
 
@@ -772,7 +772,7 @@ onMounted(() => {
 .demand-code {
   color: var(--c-info);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .status-tag {
@@ -780,7 +780,7 @@ onMounted(() => {
 }
 
 .demand-name {
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 500;
   color: var(--ink);
   margin-bottom: 6px;
@@ -789,13 +789,13 @@ onMounted(() => {
 .demand-meta {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 
 .meta-item .label {
@@ -822,13 +822,13 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   color: var(--ink);
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
@@ -837,13 +837,13 @@ onMounted(() => {
   width: 1px;
   height: 32px;
   background: var(--border-hairline);
-  margin: 0 16px;
+  margin: 0 var(--space-4);
 }
 
 .card-right {
   display: flex;
-  gap: 8px;
-  margin-left: 24px;
+  gap: var(--space-2);
+  margin-left: var(--space-6);
 }
 
 .loading-spinner {
@@ -865,24 +865,24 @@ onMounted(() => {
 }
 
 .detail-tabs :deep(.n-tabs-nav) {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .detail-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-hairline);
 }
 
 .section-title {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink);
 }
@@ -890,22 +890,22 @@ onMounted(() => {
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px 24px;
+  gap: var(--space-3) var(--space-6);
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .info-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
 .info-value {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--ink);
 }
 
@@ -918,33 +918,33 @@ onMounted(() => {
 .desc-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .desc-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .desc-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
 /* v2 bugfix P0-C: #fafafa → var(--glass-bg-input) 让极光底透出 */
 .desc-value {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--ink);
   line-height: 1.6;
   background: var(--glass-bg-input);
-  padding: 12px;
+  padding: var(--space-3);
   border-radius: 4px;
 }
 
 .progress-stats {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .progress-stat {
@@ -952,43 +952,43 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px;
+  padding: var(--space-4);
   background: var(--glass-bg-input);
   border-radius: 8px;
 }
 
 .stat-num {
-  font-size: 24px;
+  font-size: var(--fs-24);
   font-weight: 600;
   color: var(--ink);
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 /* 职位画像样式 */
 .profile-section {
-  padding-bottom: 24px;
+  padding-bottom: var(--space-6);
 }
 
 .profile-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 20px;
 }
 
 .profile-title {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
 }
 
 .profile-subtitle {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
@@ -1002,18 +1002,18 @@ onMounted(() => {
 .profile-block {
   background: var(--glass-bg-input);
   border-radius: 8px;
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .block-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .block-title {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink);
 }
@@ -1021,27 +1021,27 @@ onMounted(() => {
 .block-items {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .profile-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .item-icon {
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .item-label {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink-faint);
   min-width: 70px;
 }
 
 .item-value {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink);
   font-weight: 500;
 }
@@ -1049,18 +1049,18 @@ onMounted(() => {
 .skills-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .no-data {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink-faint);
 }
 
 .salary-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .salary-range {
@@ -1070,52 +1070,52 @@ onMounted(() => {
 
 /* v2 bugfix P0-B: #1890ff → var(--c-info) */
 .salary-num {
-  font-size: 20px;
+  font-size: var(--fs-20);
   font-weight: 600;
   color: var(--c-info);
 }
 
 .salary-separator {
-  font-size: 16px;
+  font-size: var(--fs-16);
   color: var(--ink-faint);
-  margin: 0 4px;
+  margin: 0 var(--space-1);
 }
 
 .salary-unit {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink-faint);
 }
 
 .bonus-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .bonus-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--space-2);
+  font-size: var(--fs-13);
   color: var(--ink-soft);
 }
 
 .bonus-icon {
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .location-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .location-icon {
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 
 .location-text {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink);
 }
 

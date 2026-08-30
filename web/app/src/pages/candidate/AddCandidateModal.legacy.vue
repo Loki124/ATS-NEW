@@ -17,7 +17,7 @@
 
     <n-steps
       :current="currentStep + 1"
-      style="margin-bottom: 24px; padding: 0 20px"
+      style="margin-bottom: var(--space-6); padding: 0 20px"
     >
       <n-step v-for="(step, i) in steps" :key="i" :title="step.title" />
     </n-steps>
@@ -89,7 +89,7 @@
             <div class="upload-drag-icon">
               <n-icon :component="FileTrayFullOutline" :size="48" color="var(--brand)" />
             </div>
-            <p style="font-size: 16px; font-weight: 500">
+            <p style="font-size: var(--fs-16); font-weight: 500">
               点击或拖拽上传简历文件
             </p>
             <p style="color: var(--n-400)">
@@ -193,7 +193,7 @@
       :mask-closable="false"
       title="检测到重复候选人"
     >
-      <div style="margin-bottom: 12px; color: var(--c-warning);">
+      <div style="margin-bottom: var(--space-3); color: var(--c-warning);">
         系统检测到 {{ duplicates.length }} 个相似的候选人, 请确认是否继续创建。
       </div>
       <n-data-table
@@ -448,8 +448,8 @@ const resetForm = () => {
 .modal-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
+  gap: var(--space-2);
+  font-size: var(--fs-18);
   font-weight: 600;
 }
 
@@ -462,7 +462,7 @@ const resetForm = () => {
   align-items: center;
   justify-content: center;
   color: var(--n-850);
-  font-size: 16px;
+  font-size: var(--fs-16);
 }
 
 .modal-content {
@@ -472,12 +472,12 @@ const resetForm = () => {
 .upload-drag-icon {
   display: flex;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .file-preview {
-  margin-top: 24px;
-  padding: 16px;
+  margin-top: var(--space-6);
+  padding: var(--space-4);
   background: var(--glass-bg-input);
   border-radius: 8px;
 }
@@ -485,7 +485,7 @@ const resetForm = () => {
 .file-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .file-icon {
@@ -508,21 +508,21 @@ const resetForm = () => {
 }
 
 .file-size {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-400);
 }
 
 .info-confirm {
   background: var(--c-info-soft); /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-  padding: 24px;
+  padding: var(--space-6);
   border-radius: 12px;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .confirm-title {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   color: var(--n-650);
 }
 
@@ -533,7 +533,7 @@ const resetForm = () => {
 
 .info-label {
   color: var(--n-400);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .info-value {
@@ -542,12 +542,12 @@ const resetForm = () => {
 
 .resume-uploaded {
   background: var(--c-warning-soft); /* v2.8 T2.8.1: 浅黄背景 → var(--c-warning-soft) */
-  padding: 16px;
+  padding: var(--space-4);
   border-radius: 8px;
   border: 1px solid var(--c-warning-bg);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .uploaded-icon {
@@ -566,13 +566,13 @@ const resetForm = () => {
 }
 
 .uploaded-name {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-400);
 }
 
 .tip-box {
-  margin-top: 24px;
-  padding: 16px;
+  margin-top: var(--space-6);
+  padding: var(--space-4);
   background: var(--glass-bg-input);
   border-radius: 8px;
   color: var(--brand);

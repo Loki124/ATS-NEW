@@ -23,7 +23,7 @@ const cfg = config[props.status] || { label: '未知', tone: 'success' as const 
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   font-size: var(--text-meta);

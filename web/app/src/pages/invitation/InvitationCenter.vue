@@ -382,13 +382,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.page-container { padding: 24px; }
-.page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-.page-title { font-size: 24px; font-weight: 600; margin: 0; }
-.stats-row { margin-bottom: 16px; }
+.page-container { padding: var(--space-6); }
+.page-header { margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: var(--fs-24); font-weight: 600; margin: 0; }
+.stats-row { margin-bottom: var(--space-4); }
 .stat-card { text-align: center; }
-.stat-label { font-size: 12px; color: var(--n-440); }
-.stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
-.claim-pool { margin-bottom: 16px; border-left: 4px solid var(--c-warning); }
-.filter-row { margin-bottom: 12px; }
+.stat-label { font-size: var(--fs-12); color: var(--n-440); }
+.stat-value { font-size: 22px; font-weight: 600; margin-top: var(--space-1); }
+.claim-pool { margin-bottom: var(--space-4); border-left: 4px solid var(--c-warning); }
+.filter-row { margin-bottom: var(--space-3); }
 </style>

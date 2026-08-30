@@ -258,11 +258,11 @@
         <n-form-item label="权限范围">
           <n-tabs v-model:value="scopeTab" type="segment" size="small">
             <n-tab-pane name="menu" tab="菜单权限">
-              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-2);">
                 <n-button size="tiny" @click="selectAllScopes('menu')">全选</n-button>
                 <n-button size="tiny" @click="deselectAllScopes('menu')">全不选</n-button>
                 <n-button size="tiny" @click="invertScopes('menu')">反选</n-button>
-                <span style="color: var(--n-400); font-size: 12px; line-height: 24px;">
+                <span style="color: var(--n-400); font-size: var(--fs-12); line-height: 24px;">
                   已选 {{ mouFormState.scopes.menu.length }} / {{ menuPermissions.length }}
                 </span>
               </div>
@@ -276,14 +276,14 @@
                   />
                 </n-space>
               </n-checkbox-group>
-              <div v-if="!menuPermissions.length" style="color: var(--n-400); font-size: 12px;">暂无可选菜单权限</div>
+              <div v-if="!menuPermissions.length" style="color: var(--n-400); font-size: var(--fs-12);">暂无可选菜单权限</div>
             </n-tab-pane>
             <n-tab-pane name="function" tab="功能权限">
-              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-2);">
                 <n-button size="tiny" @click="selectAllScopes('function')">全选</n-button>
                 <n-button size="tiny" @click="deselectAllScopes('function')">全不选</n-button>
                 <n-button size="tiny" @click="invertScopes('function')">反选</n-button>
-                <span style="color: var(--n-400); font-size: 12px; line-height: 24px;">
+                <span style="color: var(--n-400); font-size: var(--fs-12); line-height: 24px;">
                   已选 {{ mouFormState.scopes.function.length }} / {{ functionPermissions.length }}
                 </span>
               </div>
@@ -297,7 +297,7 @@
                   />
                 </n-space>
               </n-checkbox-group>
-              <div v-if="!functionPermissions.length" style="color: var(--n-400); font-size: 12px;">暂无可选功能权限</div>
+              <div v-if="!functionPermissions.length" style="color: var(--n-400); font-size: var(--fs-12);">暂无可选功能权限</div>
             </n-tab-pane>
             <n-tab-pane name="data" tab="数据权限">
               <n-radio-group v-model:value="mouFormState.scopes.data.scope">
@@ -311,9 +311,9 @@
               </n-radio-group>
               <div
                 v-if="mouFormState.scopes.data.scope === 'CUSTOM'"
-                style="margin-top: 12px; padding-left: 16px; border-left: 2px solid var(--g2);"
+                style="margin-top: var(--space-3); padding-left: var(--space-4); border-left: 2px solid var(--g2);"
               >
-                <n-form-item label="选定的部门 IDs (逗号分隔)" :show-feedback="false" style="margin-bottom: 8px;">
+                <n-form-item label="选定的部门 IDs (逗号分隔)" :show-feedback="false" style="margin-bottom: var(--space-2);">
                   <n-input
                     v-model:value="customDeptIdsText"
                     placeholder="例如：dept-1,dept-2"
@@ -340,7 +340,7 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="mouModalVisible = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" @click="handleSaveMou">确定</n-button>
         </div>
@@ -388,7 +388,7 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="containerModalVisible = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" @click="handleSaveContainer">确定</n-button>
         </div>
@@ -432,7 +432,7 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="ruleModalVisible = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" @click="handleSaveRule">确定</n-button>
         </div>
@@ -467,7 +467,7 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="mutexModalVisible = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" @click="handleSaveMutex">确定</n-button>
         </div>
@@ -1427,7 +1427,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -1449,12 +1449,12 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
 .permission-management {
-  padding: 24px;
+  padding: var(--space-6);
 }
 /* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 .tab-label {

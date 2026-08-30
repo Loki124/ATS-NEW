@@ -526,7 +526,7 @@ onMounted(async () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -548,17 +548,17 @@ onMounted(async () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
 .process-stage-rules {
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
 }
 /* 删除 scoped .page-header margin-bottom 覆盖（规范：复用全局 glass.css 通栏分隔线规则） */
 .page-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
 }
 </style>

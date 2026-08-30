@@ -25,14 +25,14 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
       <div v-if="store.selectedIds.length > 0" class="bulk-bar">
         已选 <span class="bulk-count">{{ store.selectedIds.length }}</span> 份简历
-        <button class="btn bs" style="font-size:10px;padding:3px 8px;">批量设为待分配</button>
-        <button class="btn bs" style="font-size:10px;padding:3px 8px;" @click="store.selectedIds = []">取消选择</button>
+        <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);">批量设为待分配</button>
+        <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);" @click="store.selectedIds = []">取消选择</button>
       </div>
 
-      <div v-if="isAllDone()" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px;text-align:left;" @click="emit('upload', [])">
-        <span style="font-size:18px;">📎</span>
+      <div v-if="isAllDone()" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap: var(--space-2);font-size:11px;text-align:left;" @click="emit('upload', [])">
+        <span style="font-size: var(--fs-18);">📎</span>
         <span style="flex:1;color:var(--g6);">拖拽或<span style="color:var(--p);font-weight:500;">点击</span>追加更多简历</span>
-        <span style="font-size:10px;color:var(--g5);">PDF / Word / TXT</span>
+        <span style="font-size: var(--fs-10);color:var(--g5);">PDF / Word / TXT</span>
       </div>
 
       <div class="card-list">
@@ -65,24 +65,24 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .left-panel {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: var(--space-4) 20px;
   border-right: 1px solid var(--g3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .right-panel {
   width: 340px;
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: var(--space-4) 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.status-summary { display: flex; gap: 8px; flex-wrap: wrap; }
+.status-summary { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .st-pill {
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 500;
@@ -101,8 +101,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .st-pill.occupied { background: var(--dl); color: var(--c-error-deep); }
 .st-pill.occupied .st-dot { background: var(--d); }
 @keyframes pulse2 { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.legend { display: flex; gap: 12px; font-size: 10px; color: var(--g5); flex-wrap: wrap; }
-.legend span { display: flex; align-items: center; gap: 4px; }
+.legend { display: flex; gap: var(--space-3); font-size: var(--fs-10); color: var(--g5); flex-wrap: wrap; }
+.legend span { display: flex; align-items: center; gap: var(--space-1); }
 .legend .ld { width: 6px; height: 6px; border-radius: 50%; }
 .legend .ld.lg { background: var(--s); }
 .legend .ld.ly { background: var(--w); }
@@ -112,7 +112,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   background: var(--pl);
   border-radius: 8px;
   font-size: 11px;
@@ -122,7 +122,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .upload-zone {
   border: 2px dashed var(--g4);
   border-radius: 12px;
-  padding: 32px 20px;
+  padding: var(--space-8) 20px;
   text-align: center;
   cursor: pointer;
   transition: 0.15s;
@@ -134,15 +134,15 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   background: var(--pl);
   box-shadow: 0 0 0 3px var(--overlay-scrim-mid);
 }
-.upload-zone .up-icon { font-size: 36px; margin-bottom: 8px; transition: 0.2s; }
+.upload-zone .up-icon { font-size: var(--fs-36); margin-bottom: var(--space-2); transition: 0.2s; }
 .upload-zone.dragover .up-icon { transform: scale(1.1); }
-.upload-zone .up-text { font-size: 13px; font-weight: 500; color: var(--g7); }
-.upload-zone .up-hint { font-size: 11px; color: var(--g5); margin-top: 4px; }
-.upload-zone .up-quick { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.upload-zone .up-text { font-size: var(--fs-13); font-weight: 500; color: var(--g7); }
+.upload-zone .up-hint { font-size: 11px; color: var(--g5); margin-top: var(--space-1); }
+.upload-zone .up-quick { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-3); }
 /* v2 bugfix P0-C: 业务页白底透出极光 */
 .upload-zone .up-quick span {
   font-size: 11px;
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   background: var(--glass-bg-card);
   border: 1px solid var(--g3);
   border-radius: 20px;
@@ -150,7 +150,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   cursor: pointer;
 }
 .upload-zone .up-quick span:hover { border-color: var(--p); color: var(--p); }
-.card-list { display: flex; flex-direction: column; gap: 8px; }
+.card-list { display: flex; flex-direction: column; gap: var(--space-2); }
 /* v2 bugfix P0-C: 业务卡片白底 → 玻璃 */
 .card-item {
   border: 1px solid var(--g3);
@@ -169,7 +169,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: var(--space-3) 14px;
   cursor: pointer;
 }
 .card-item .c-header .c-chk {
@@ -184,7 +184,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   justify-content: center;
 }
 .card-item .c-header .c-chk.checked { background: var(--p); border-color: var(--p); }
-.card-item .c-header .c-chk.checked::after { content: '✓'; color: var(--g1); font-size: 10px; }
+.card-item .c-header .c-chk.checked::after { content: '✓'; color: var(--g1); font-size: var(--fs-10); }
 .card-item .c-header .c-avatar {
   width: 36px;
   height: 36px;
@@ -193,7 +193,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--g5);
   flex-shrink: 0;
   font-weight: 600;
@@ -201,12 +201,12 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .card-item .c-header .c-info { flex: 1; min-width: 0; }
 .card-item .c-header .c-name {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-13);
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.card-item .c-header .c-file { font-size: 10px; color: var(--g5); font-weight: 400; }
+.card-item .c-header .c-file { font-size: var(--fs-10); color: var(--g5); font-weight: 400; }
 .card-item .c-header .c-basic {
   font-size: 11px;
   color: var(--g6);
@@ -216,7 +216,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   margin-top: 2px;
 }
 .card-item .c-header .c-expand {
-  font-size: 16px;
+  font-size: var(--fs-16);
   color: var(--g5);
   transition: 0.2s;
   flex-shrink: 0;
@@ -225,16 +225,16 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .card-item .c-body { display: none; padding: 0 14px 14px; border-top: 1px solid var(--g3); }
 .card-item.expanded .c-body { display: block; }
 .cb {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
   font-size: 11px;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
   line-height: 1.5;
 }
-.cb .cb-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.cb .cb-icon { font-size: var(--fs-16); flex-shrink: 0; margin-top: 1px; }
 .cb.clean { background: var(--sl); color: var(--c-success-deep); border: 1px solid var(--c-success-bg); }
 .cb.unocc { background: var(--wl); color: var(--c-warning-deep); border: 1px solid var(--c-warning-bg); }
 .cb.occupied { background: var(--dl); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
@@ -244,21 +244,21 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   border-radius: 8px;
   padding: 10px 14px;
   background: var(--g1);
-  margin: 8px 0;
+  margin: var(--space-2) 0;
   font-size: 11px;
 }
 .dup-card .dup-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
 .dup-card .dup-label { color: var(--g5); }
 .dup-card .dup-value { font-weight: 500; }
 .dup-card .dup-note {
-  font-size: 10px;
+  font-size: var(--fs-10);
   color: var(--c-warning-deep);
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px dashed var(--c-warning-bg);
 }
 .fst {
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 600;
   color: var(--g6);
   text-transform: uppercase;
@@ -266,13 +266,13 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   margin-top: 10px;
   margin-bottom: 6px;
 }
-.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: var(--space-2); }
 .fg { display: flex; flex-direction: column; gap: 3px; }
-.fg label { font-size: 10px; font-weight: 500; color: var(--g6); }
+.fg label { font-size: var(--fs-10); font-weight: 500; color: var(--g6); }
 .fg input,
 .fg select,
 .fg textarea {
-  padding: 6px 8px;
+  padding: 6px var(--space-2);
   border: 1px solid var(--g4);
   border-radius: 5px;
   font-size: 11px;
@@ -286,7 +286,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .seg-item {
   border: 1px solid var(--g3);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   background: var(--g1);
   margin-top: 6px;
 }
@@ -308,23 +308,23 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   border-radius: 50%;
   background: var(--pl);
   color: var(--p);
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 700;
 }
 .seg-readonly { font-size: 11px; color: var(--g7); line-height: 1.6; }
-.seg-line { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg-line { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .seg-readonly .seg-line span { color: var(--g6); }
 .recheck-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 6px 10px;
   background: var(--g1);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   color: var(--c-info-deep);
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 .recheck-bar .spin2 {
   width: 12px;
@@ -336,13 +336,13 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.occ-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.occ-actions { display: flex; gap: 6px; margin-top: var(--space-2); flex-wrap: wrap; }
 /* v2 bugfix P0-C: 业务按钮白底 → 玻璃 */
 .occ-btn {
-  padding: 5px 12px;
+  padding: 5px var(--space-3);
   border: 1px solid var(--g3);
   border-radius: 8px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   cursor: pointer;
   transition: 0.15s;
   background: var(--glass-bg-card);
@@ -355,8 +355,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .occ-btn.warn { background: var(--glass-bg-card); color: var(--c-error-deep); border-color: var(--d); }
 .occ-btn.warn:hover { background: var(--dl); }
 .apply-pos {
-  margin-top: 8px;
-  padding: 10px 12px;
+  margin-top: var(--space-2);
+  padding: 10px var(--space-3);
   background: var(--bl);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
@@ -365,11 +365,11 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .apply-pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
 /* v2 bugfix P0-C: 职位 chip 白底 → 玻璃 */
 .apply-pos-item {
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border: 1px solid var(--g3);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--fs-10);
   background: var(--glass-bg-card);
   transition: 0.15s;
 }
@@ -387,39 +387,39 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   border-radius: 8px;
   font-size: 11px;
   color: var(--c-success-deep);
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .score-panel {
   border: 1px solid var(--g3);
   border-radius: 8px;
-  padding: 12px;
+  padding: var(--space-3);
   background: var(--g1);
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .score-panel-title {
   font-size: 11px;
   font-weight: 600;
   color: var(--g7);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.score-overall-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.score-overall-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 10px; }
 .score-big { font-size: 28px; font-weight: 700; line-height: 1; }
 .score-big.pass { color: var(--s); }
 .score-big.fail { color: var(--d); }
 .score-pass-tag {
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: 20px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 600;
   display: inline-block;
   margin-top: 2px;
 }
 .score-pass-tag.pass { background: var(--sl); color: var(--c-success-deep); }
 .score-pass-tag.fail { background: var(--dl); color: var(--c-error-deep); }
-.sc-dim { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; }
+.sc-dim { display: flex; align-items: center; gap: var(--space-2); margin-top: 6px; font-size: 11px; }
 .sc-dim-name { width: 70px; color: var(--g6); flex-shrink: 0; }
 .sc-dim-bar {
   flex: 1;
@@ -433,10 +433,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 2px 7px;
   border-radius: 20px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -446,7 +446,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   background: var(--g3);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 .pfill.bl { background: var(--b); }
@@ -455,7 +455,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .pfill.gr { background: var(--s); }
 /* v2 bugfix P0-C: 业务按钮白底 → 玻璃（同一文件中其他业务卡片一起清理） */
 .replace-file-btn {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--g3);
   border-radius: 6px;
   background: var(--glass-bg-card);
@@ -464,7 +464,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   transition: 0.15s;
 }
 .replace-file-btn:hover { border-color: var(--p); color: var(--p); background: var(--pl); }
@@ -474,22 +474,22 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   background: linear-gradient(90deg, var(--bl) 0%, #DBEAFE 100%);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--c-info-deep);
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
-.replace-banner .rb-icon { font-size: 16px; flex-shrink: 0; }
+.replace-banner .rb-icon { font-size: var(--fs-16); flex-shrink: 0; }
 .replace-banner .rb-text { flex: 1; }
 .replace-banner .rb-text strong { display: block; margin-bottom: 2px; }
 .replace-banner .rb-meta { font-size: 11px; color: var(--c-info-deep); opacity: 0.85; }
 .nbar {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
-  font-size: 10px;
-  margin-top: 8px;
+  font-size: var(--fs-10);
+  margin-top: var(--space-2);
 }
 .nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
@@ -503,18 +503,18 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   border: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   transition: 0.15s;
 }
 /* v2 bugfix P0-C: .bs 业务按钮白底 → 玻璃 */
 .bs { background: var(--glass-bg-card); color: var(--g7); border: 1px solid var(--g4); }
 .bs:hover { background: var(--g2); }
-.rp-section { margin-bottom: 4px; }
+.rp-section { margin-bottom: var(--space-1); }
 .rp-title {
   font-size: 11px;
   font-weight: 600;
   color: var(--g7);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -523,7 +523,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
 @media (max-width: 768px) {
   .left-panel,
-  .right-panel { width: 100%; border-right: none; border-top: 1px solid var(--g3); padding: 12px 14px; }
+  .right-panel { width: 100%; border-right: none; border-top: 1px solid var(--g3); padding: var(--space-3) 14px; }
   .frow { grid-template-columns: 1fr; }
 }
 </style>

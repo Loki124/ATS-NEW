@@ -84,7 +84,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="interview-feedback-form" style="max-width: 900px; margin: 0 auto; padding: 16px;">
+  <div class="interview-feedback-form" style="max-width: 900px; margin: 0 auto; padding: var(--space-4);">
     <n-card title="面试反馈" :bordered="false">
       <!-- G19: 历史评价预览面板 -->
       <n-spin :show="historyLoading">
@@ -93,12 +93,12 @@ onMounted(() => {
           type="info"
           :show-icon="false"
           title="历史评价预览 (G19 自动预填)"
-          style="margin-bottom: 16px;"
+          style="margin-bottom: var(--space-4);"
         >
-          <div style="white-space: pre-wrap; font-family: monospace; font-size: 13px;">
+          <div style="white-space: pre-wrap; font-family: monospace; font-size: var(--fs-13);">
             {{ history?.previousFeedback }}
           </div>
-          <n-divider style="margin: 12px 0;" />
+          <n-divider style="margin: var(--space-3) 0;" />
           <n-space>
             <n-tag :type="history!.passCount > 0 ? 'success' : 'default'">
               通过 {{ history!.passCount }} 次
@@ -108,7 +108,7 @@ onMounted(() => {
             </n-tag>
             <n-tag>共 {{ history!.total }} 次</n-tag>
           </n-space>
-          <div style="margin-top: 12px;">
+          <div style="margin-top: var(--space-3);">
             <n-checkbox v-model:checked="viewedPrevious">
               我已阅读历史评价
             </n-checkbox>

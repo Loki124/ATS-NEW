@@ -305,34 +305,34 @@ async function handleChangePassword() {
   /* 内容卡片间留点呼吸间距 */
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 /* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css 渐变规格） */
 
 .settings-section {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 .section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: var(--space-2);
+  font-size: var(--fs-16);
   font-weight: 600;
 }
 .section-tag {
   font-weight: 500;
 }
 .section-desc {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 .profile-form {
   max-width: 720px;
 }
 .notification-grid {
-  padding: 12px 0 4px;
+  padding: var(--space-3) 0 var(--space-1);
   /* [T11] 浏览器通知 4 列网格: 长 label "候选人接受拒绝Offer通知" 默认 nowrap 会撑宽 n-gi,
      进而让 .n-grid 在 >= viewport 时隐式撑出横向滚动条; 允许换行让列宽自适应 */
 }

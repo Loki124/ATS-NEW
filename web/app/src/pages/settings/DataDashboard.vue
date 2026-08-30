@@ -265,7 +265,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -287,14 +287,14 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
 .data-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   height: 100%;
 }
 /* KPI 卡改用全局 .kpi-card.kpi-card--accent（glass.css）：渐变 + 居中均走 CSS 变量，无硬编码 hex */

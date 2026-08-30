@@ -19,15 +19,15 @@ const config = {
 
 <style scoped>
 .cb {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
   font-size: 11px;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
   line-height: 1.5;
 }
-.cb-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.cb-icon { font-size: var(--fs-16); flex-shrink: 0; margin-top: 1px; }
 .cb.clean { background: var(--sl); color: var(--c-success-deep); border: 1px solid var(--c-success-bg); }
 .cb.unocc { background: var(--wl); color: var(--c-warning-deep); border: 1px solid var(--c-warning-bg); }
 .cb.occupied { background: var(--dl); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }

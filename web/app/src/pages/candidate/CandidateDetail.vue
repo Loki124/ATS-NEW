@@ -221,41 +221,41 @@
               <n-timeline-item>
                 <div>
                   <n-tag type="info" :bordered="false">发送面试通知</n-tag>
-                  <n-text :depth="3" style="font-size: 12px; margin-left: 8px">2026-04-27 10:30</n-text>
+                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-27 10:30</n-text>
                   <div style="margin-top: 4px"><n-text :depth="3">操作人：张强</n-text></div>
-                  <div style="margin-top: 4px; color: var(--ink-soft)">发送给张三关于4月25日联合面试的通知</div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">发送给张三关于4月25日联合面试的通知</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
                   <n-tag type="success" :bordered="false">完成面试</n-tag>
-                  <n-text :depth="3" style="font-size: 12px; margin-left: 8px">2026-04-25 14:00</n-text>
+                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-25 14:00</n-text>
                   <div style="margin-top: 4px"><n-text :depth="3">操作人：系统</n-text></div>
-                  <div style="margin-top: 4px; color: var(--ink-soft)">联合面试已完成</div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">联合面试已完成</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
                   <n-tag type="info" :bordered="false">安排面试</n-tag>
-                  <n-text :depth="3" style="font-size: 12px; margin-left: 8px">2026-04-23 16:00</n-text>
+                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-23 16:00</n-text>
                   <div style="margin-top: 4px"><n-text :depth="3">操作人：张强</n-text></div>
-                  <div style="margin-top: 4px; color: var(--ink-soft)">安排联合面试时间：4月25日14:00</div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">安排联合面试时间：4月25日14:00</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
                   <n-tag type="success" :bordered="false">筛选通过</n-tag>
-                  <n-text :depth="3" style="font-size: 12px; margin-left: 8px">2026-04-22 11:00</n-text>
+                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-22 11:00</n-text>
                   <div style="margin-top: 4px"><n-text :depth="3">操作人：王芳</n-text></div>
-                  <div style="margin-top: 4px; color: var(--ink-soft)">用人经理筛选结果：通过</div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">用人经理筛选结果：通过</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
                   <n-tag type="info" :bordered="false">添加候选人</n-tag>
-                  <n-text :depth="3" style="font-size: 12px; margin-left: 8px">2026-04-20 09:00</n-text>
+                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-20 09:00</n-text>
                   <div style="margin-top: 4px"><n-text :depth="3">操作人：张强</n-text></div>
-                  <div style="margin-top: 4px; color: var(--ink-soft)">从Boss直聘导入候选人信息</div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">从Boss直聘导入候选人信息</div>
                 </div>
               </n-timeline-item>
             </n-timeline>
@@ -620,81 +620,81 @@ const handleSendNotification = () => {
 </script>
 
 <style scoped>
-.candidate-detail-page { padding: 24px; background: var(--c-info-soft); min-height: 100vh; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+.candidate-detail-page { padding: var(--space-6); background: var(--c-info-soft); min-height: 100vh; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.page-header { margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; }
 .back-btn { border: none; background: transparent; }
 .send-btn { background: var(--brand); border-color: var(--brand); border-radius: 8px; font-weight: 600; }
-.info-card { margin-bottom: 24px; border-radius: 24px; border: none; box-shadow: 0 8px 32px var(--overlay-scrim-weak); }
+.info-card { margin-bottom: var(--space-6); border-radius: 24px; border: none; box-shadow: 0 8px 32px var(--overlay-scrim-weak); }
 .candidate-avatar { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: 32px; font-weight: 700; } /* v2.9: 越界硬编码渐变 var(--c-purple)/var(--c-info-deep) → brand 渐变 + 移除 !important */
 .candidate-header { display: flex; justify-content: space-between; align-items: flex-start; }
 .contact-info { color: var(--ink-soft); }
-.position-tag { border-radius: 9999px; padding: 4px 12px; background: var(--brand-soft); color: var(--brand); }
-.channel-tag { border-radius: 9999px; padding: 4px 12px; background: var(--brand-soft); color: var(--brand); }
-.candidate-meta { text-align: right; color: var(--ink-soft); font-size: 12px; }
+.position-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand); }
+.channel-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand); }
+.candidate-meta { text-align: right; color: var(--ink-soft); font-size: var(--fs-12); }
 .tabs-card { border-radius: 24px; border: none; box-shadow: 0 8px 32px var(--overlay-scrim-weak); }
-.info-section { padding: 16px; }
-.info-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-hairline); }
-.info-label { width: 100px; color: var(--ink-soft); font-size: 14px; }
+.info-section { padding: var(--space-4); }
+.info-row { display: flex; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
+.info-label { width: 100px; color: var(--ink-soft); font-size: var(--fs-14); }
 .info-value { font-weight: 600; color: var(--ink); }
-.process-section, .interview-table { background: var(--c-info-soft); border-radius: 12px; padding: 16px; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.interview-header { font-weight: 600; color: var(--ink-soft); padding: 12px 0; border-bottom: 1px solid var(--border-hairline); }
-.interview-row { padding: 12px 0; border-bottom: 1px solid var(--border-hairline); }
-.resume-section { padding: 24px; }
-.resume-content { display: flex; flex-direction: column; gap: 24px; }
+.process-section, .interview-table { background: var(--c-info-soft); border-radius: 12px; padding: var(--space-4); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.interview-header { font-weight: 600; color: var(--ink-soft); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
+.interview-row { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
+.resume-section { padding: var(--space-6); }
+.resume-content { display: flex; flex-direction: column; gap: var(--space-6); }
 .resume-toolbar { display: flex; justify-content: flex-start; }
-.resume-preview { background: var(--c-info-soft); border-radius: 12px; padding: 24px; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.resume-info { display: flex; flex-direction: column; gap: 12px; }
+.resume-preview { background: var(--c-info-soft); border-radius: 12px; padding: var(--space-6); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.resume-info { display: flex; flex-direction: column; gap: var(--space-3); }
 .resume-field { display: flex; align-items: center; }
-.resume-field .field-label { width: 100px; color: var(--ink-soft); font-size: 14px; }
-.resume-field .field-value { color: var(--ink); font-weight: 500; font-size: 14px; }
-.upload-tip { margin-top: 16px; color: var(--ink-faint); font-size: 12px; }
+.resume-field .field-label { width: 100px; color: var(--ink-soft); font-size: var(--fs-14); }
+.resume-field .field-value { color: var(--ink); font-weight: 500; font-size: var(--fs-14); }
+.upload-tip { margin-top: var(--space-4); color: var(--ink-faint); font-size: var(--fs-12); }
 .download-btn { background: var(--brand); border-color: var(--brand); border-radius: 8px; }
 .empty-state { padding: 40px; }
-.history-section { padding: 16px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--overlay-glass-mid); }
-.modal-title { font-size: 20px; font-weight: 700; color: var(--ink); }
+.history-section { padding: var(--space-4); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--overlay-glass-mid); }
+.modal-title { font-size: var(--fs-20); font-weight: 700; color: var(--ink); }
 .close-btn { width: 32px; height: 32px; border: none; background: transparent; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); transition: all var(--duration-base) var(--ease-out); }
 .close-btn:hover { background: var(--overlay-glass-mid); color: var(--ink); }
-.candidate-summary { display: flex; align-items: center; gap: 16px; background: var(--brand-soft); border-radius: 8px; padding: 12px; margin-top: 16px; }
-.candidate-avatar-sm { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: 20px; font-weight: 600; } /* v2.9: 越界硬编码渐变 → brand 渐变 + 移除 !important */
+.candidate-summary { display: flex; align-items: center; gap: var(--space-4); background: var(--brand-soft); border-radius: 8px; padding: var(--space-3); margin-top: var(--space-4); }
+.candidate-avatar-sm { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: var(--fs-20); font-weight: 600; } /* v2.9: 越界硬编码渐变 → brand 渐变 + 移除 !important */
 .candidate-info { flex: 1; }
-.candidate-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.candidate-name { font-size: 16px; font-weight: 600; color: var(--ink); }
-.position-tag-sm { background: var(--brand-soft); color: var(--brand-dark); border-radius: 9999px; font-size: 12px; padding: 2px 8px; }
-.experience-tag { background: var(--border-hairline); color: var(--ink-soft); border-radius: 9999px; font-size: 12px; padding: 2px 8px; }
-.candidate-contact-row { display: flex; gap: 16px; font-size: 14px; color: var(--ink-soft); }
-.candidate-contact-row span { display: flex; align-items: center; gap: 4px; }
+.candidate-name-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
+.candidate-name { font-size: var(--fs-16); font-weight: 600; color: var(--ink); }
+.position-tag-sm { background: var(--brand-soft); color: var(--brand-dark); border-radius: 9999px; font-size: var(--fs-12); padding: 2px var(--space-2); }
+.experience-tag { background: var(--border-hairline); color: var(--ink-soft); border-radius: 9999px; font-size: var(--fs-12); padding: 2px var(--space-2); }
+.candidate-contact-row { display: flex; gap: var(--space-4); font-size: var(--fs-14); color: var(--ink-soft); }
+.candidate-contact-row span { display: flex; align-items: center; gap: var(--space-1); }
 .modal-content { display: flex; min-height: 400px; }
-.left-sidebar { width: 340px; background: var(--c-info-soft); border-right: 1px solid var(--overlay-glass-mid); padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 32px; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.step-section { display: flex; flex-direction: column; gap: 16px; }
-.step-title { font-size: 16px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; margin: 0; }
-.step-number { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
-.step-content { display: flex; flex-direction: column; gap: 16px; }
-.content-group { display: flex; flex-direction: column; gap: 8px; }
-.content-group-title { font-size: 14px; font-weight: 600; color: var(--ink); padding-left: 4px; }
-.content-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); font-size: 14px; color: var(--ink); } /* v2.8 T2.8.2: #c1c6d5/var(--g1)/#161c23 → var(--border-hairline)/var(--glass-bg-card)/var(--ink) */
+.left-sidebar { width: 340px; background: var(--c-info-soft); border-right: 1px solid var(--overlay-glass-mid); padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-8); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.step-section { display: flex; flex-direction: column; gap: var(--space-4); }
+.step-title { font-size: var(--fs-16); font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+.step-number { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; font-size: var(--fs-12); font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.step-content { display: flex; flex-direction: column; gap: var(--space-4); }
+.content-group { display: flex; flex-direction: column; gap: var(--space-2); }
+.content-group-title { font-size: var(--fs-14); font-weight: 600; color: var(--ink); padding-left: var(--space-1); }
+.content-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); font-size: var(--fs-14); color: var(--ink); } /* v2.8 T2.8.2: #c1c6d5/var(--g1)/#161c23 → var(--border-hairline)/var(--glass-bg-card)/var(--ink) */
 .content-item:hover { border-color: var(--brand); background: var(--brand-soft); }
 .content-item.selected { border-color: var(--brand); background: var(--brand-a12); }
-.method-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); } /* v2.8 T2.8.2: var(--g6)/var(--g1) → var(--border-hairline)/var(--glass-bg-card) */
+.method-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); } /* v2.8 T2.8.2: var(--g6)/var(--g1) → var(--border-hairline)/var(--glass-bg-card) */
 .method-item:hover { border-color: var(--brand); background: var(--brand-soft); }
 .method-item.selected { border-color: var(--brand); background: var(--brand-a12); }
-.method-icon { font-size: 20px; color: var(--brand); }
-.method-name { font-size: 14px; font-weight: 600; color: var(--ink); }
-.right-content { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: var(--glass-bg-card); } /* v2.8 T2.8.2: var(--g1) → var(--glass-bg-card) */
+.method-icon { font-size: var(--fs-20); color: var(--brand); }
+.method-name { font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
+.right-content { flex: 1; padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-6); background: var(--glass-bg-card); } /* v2.8 T2.8.2: var(--g1) → var(--glass-bg-card) */
 /* v2 bugfix P0-A: 金色硬编码 var(--c-warning-bg)/var(--c-warning-deep)/RGBA(255,214,102,0.1) → 改用 --c-warning 系列 token */
-.info-callout { display: flex; align-items: flex-start; gap: 8px; padding: 12px; background: var(--c-warning-soft); border: 1px solid var(--c-warning); border-radius: 8px; font-size: 14px; color: var(--ink); }
-.editor-section { display: flex; flex-direction: column; gap: 12px; }
-.editor-header { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--overlay-glass-mid); }
-.editor-icon { font-size: 24px; color: var(--brand); }
-.editor-title { font-size: 16px; font-weight: 600; color: var(--ink); margin: 0; }
+.info-callout { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); background: var(--c-warning-soft); border: 1px solid var(--c-warning); border-radius: 8px; font-size: var(--fs-14); color: var(--ink); }
+.editor-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.editor-header { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--overlay-glass-mid); }
+.editor-icon { font-size: var(--fs-24); color: var(--brand); }
+.editor-title { font-size: var(--fs-16); font-weight: 600; color: var(--ink); margin: 0; }
 .editor-field { display: flex; flex-direction: column; gap: 6px; }
-.field-label { font-size: 12px; font-weight: 500; color: var(--ink-soft); }
+.field-label { font-size: var(--fs-12); font-weight: 500; color: var(--ink-soft); }
 .sms-counter { display: flex; justify-content: space-between; align-items: center; }
-.counter-text { font-size: 12px; color: var(--ink-faint); }
+.counter-text { font-size: var(--fs-12); color: var(--ink-faint); }
 .email-subject-input, .email-content-input, .sms-content-input { background: var(--overlay-glass-mid); border: 1px solid var(--overlay-glass-mid); border-radius: 6px; }
-.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--overlay-glass-mid); background: var(--c-info-soft); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.recipient-info { font-size: 12px; color: var(--ink-soft); }
-.footer-buttons { display: flex; gap: 16px; align-items: center; }
+.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-6); border-top: 1px solid var(--overlay-glass-mid); background: var(--c-info-soft); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.recipient-info { font-size: var(--fs-12); color: var(--ink-soft); }
+.footer-buttons { display: flex; gap: var(--space-4); align-items: center; }
 /* v2 bugfix P0-A: 删 !important 金色硬编码（var(--c-warning-bg)/var(--c-warning-bg)/var(--n-850)），n-button type="primary" 已全局接管（App.vue themeOverrides 渐变按钮） */
 .send-btn-primary {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));

@@ -544,24 +544,24 @@ onMounted(() => {
 
 <style scoped>
 .resume-list-container {
-  padding: 24px;
+  padding: var(--space-6);
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .sub-filters {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .resume-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .resume-card {
@@ -572,74 +572,74 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .resume-name {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
 }
 
 .resume-card-body {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .info-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
   color: var(--n-500);
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 
 .locker-info {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .locker-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
   background: var(--glass-bg-input);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-500);
 }
 
 .sub-status-tags {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .resume-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
+  padding-top: var(--space-3);
   border-top: 1px solid var(--border-hairline);
 }
 
 .create-time {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-400);
 }
 
 .pagination {
-  margin-top: 24px;
+  margin-top: var(--space-6);
   text-align: right;
 }
 
 .locker-section {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .locker-section h4 {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .log-time {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-400);
 }
 </style>

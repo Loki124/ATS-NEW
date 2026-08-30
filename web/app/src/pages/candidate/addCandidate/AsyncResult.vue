@@ -21,7 +21,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
       </div>
     </div>
     <div class="nbar info" style="width:100%;text-align:center;">⏰ 评分完成后将通过消息通知您，请留意系统消息。</div>
-    <button class="btn bp" data-testid="close-async" style="margin-top:24px;padding:10px 28px;font-size:13px;" @click="emit('close')">关闭</button>
+    <button class="btn bp" data-testid="close-async" style="margin-top: var(--space-6);padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">关闭</button>
   </div>
 </template>
 
@@ -37,33 +37,33 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   justify-content: center;
   flex: 1;
 }
-.ar-icon { font-size: 48px; margin-bottom: 16px; }
-.async-result h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-.ar-sub { font-size: 13px; color: var(--g6); margin-bottom: 24px; }
+.ar-icon { font-size: 48px; margin-bottom: var(--space-4); }
+.async-result h3 { font-size: var(--fs-18); font-weight: 700; margin-bottom: var(--space-2); }
+.ar-sub { font-size: var(--fs-13); color: var(--g6); margin-bottom: var(--space-6); }
 .ar-routes {
   display: flex;
   flex-direction: column;
   gap: 10px;
   text-align: left;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
   width: 100%;
 }
 .ar-route {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 .ar-route.pass { background: var(--sl); border: 1px solid var(--c-success-bg); }
 .ar-route.fail { background: var(--wl); border: 1px solid var(--c-warning-bg); }
-.ar-route-icon { font-size: 18px; flex-shrink: 0; }
+.ar-route-icon { font-size: var(--fs-18); flex-shrink: 0; }
 .nbar {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
-  font-size: 10px;
-  margin-top: 8px;
+  font-size: var(--fs-10);
+  margin-top: var(--space-2);
 }
 .nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .btn {
@@ -75,7 +75,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   border: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   transition: 0.15s;
 }
 .bp { background: var(--p); color: var(--n-100); }
@@ -83,7 +83,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 
 @media (max-width: 768px) {
-  .async-result { padding: 24px 16px; }
-  .ar-route { font-size: 11px; padding: 10px 12px; }
+  .async-result { padding: var(--space-6) var(--space-4); }
+  .ar-route { font-size: 11px; padding: 10px var(--space-3); }
 }
 </style>

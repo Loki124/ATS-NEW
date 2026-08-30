@@ -17,7 +17,7 @@ const isMulti = () => store.resumes.length > 1
       <span v-for="r in store.resumes" :key="r.id" :class="['st-pill', r.status]"><span class="st-dot"></span>{{ r.parsed?.name || r.file_name }}</span>
     </div>
 
-    <div class="nbar info" style="margin-top:8px;">
+    <div class="nbar info" style="margin-top: var(--space-2);">
       {{ store.applyMode === 'per' ? '逐条设置模式：为每份简历单独选择去向。' : '统一设置模式：右侧面板设置的去向将应用到所有简历。' }}
     </div>
   </div>
@@ -79,24 +79,24 @@ const isMulti = () => store.resumes.length > 1
 .left-panel {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: var(--space-4) 20px;
   border-right: 1px solid var(--g3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .right-panel {
   width: 340px;
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: var(--space-4) 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.status-summary { display: flex; gap: 8px; flex-wrap: wrap; }
+.status-summary { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .st-pill {
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border-radius: 20px;
   font-size: 11px;
   display: flex;
@@ -111,7 +111,7 @@ const isMulti = () => store.resumes.length > 1
 .st-pill.unocc .st-dot { background: var(--w); }
 .st-pill.occupied { background: var(--dl); color: var(--c-error-deep); }
 .st-pill.occupied .st-dot { background: var(--d); }
-.card-list { display: flex; flex-direction: column; gap: 8px; }
+.card-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .step2-card {
   display: flex;
   align-items: center;
@@ -129,7 +129,7 @@ const isMulti = () => store.resumes.length > 1
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--g5);
   font-weight: 600;
   flex-shrink: 0;
@@ -137,7 +137,7 @@ const isMulti = () => store.resumes.length > 1
 .step2-card .s2-info { flex: 1; min-width: 0; }
 .step2-card .s2-name {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-13);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -146,27 +146,27 @@ const isMulti = () => store.resumes.length > 1
   font-size: 11px;
   color: var(--g6);
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-top: 2px;
 }
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 2px 7px;
   border-radius: 20px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 500;
   white-space: nowrap;
 }
 .td { width: 5px; height: 5px; border-radius: 50%; }
-.apply-mode { display: flex; gap: 4px; margin-bottom: 8px; }
+.apply-mode { display: flex; gap: var(--space-1); margin-bottom: var(--space-2); }
 .apply-mode span {
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border: 1px solid var(--g3);
   border-radius: 20px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   cursor: pointer;
   transition: 0.15s;
 }
@@ -187,13 +187,13 @@ const isMulti = () => store.resumes.length > 1
 .dopt:hover:not(.off) { border-color: var(--p); }
 .dopt.sel { border-color: var(--p); background: var(--pl); }
 .dopt.off { opacity: 0.4; cursor: not-allowed; background: var(--g1); }
-.dopt .dicon { font-size: 20px; flex-shrink: 0; }
+.dopt .dicon { font-size: var(--fs-20); flex-shrink: 0; }
 .dopt .dinfo { flex: 1; }
-.dopt .dlabel { font-weight: 600; font-size: 12px; }
-.dopt .dhint { font-size: 10px; color: var(--g5); }
+.dopt .dlabel { font-weight: 600; font-size: var(--fs-12); }
+.dopt .dhint { font-size: var(--fs-10); color: var(--g5); }
 .pos-selector {
-  margin-top: 8px;
-  padding: 10px 12px;
+  margin-top: var(--space-2);
+  padding: 10px var(--space-3);
   background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   border: 1px solid var(--g3);
   border-radius: 12px;
@@ -201,7 +201,7 @@ const isMulti = () => store.resumes.length > 1
 .pos-selector .ps-title { font-size: 11px; font-weight: 600; color: var(--g7); margin-bottom: 6px; }
 .pos-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .pos-item {
-  padding: 6px 12px;
+  padding: 6px var(--space-3);
   border: 1px solid var(--g3);
   border-radius: 8px;
   cursor: pointer;
@@ -220,49 +220,49 @@ const isMulti = () => store.resumes.length > 1
 .per-dir-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: var(--space-2);
+  padding: var(--space-2) 10px;
   border: 1px solid var(--g3);
   border-radius: 8px;
   background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   font-size: 11px;
 }
 .per-dir-item .pdi-name { font-weight: 500; min-width: 50px; font-size: 11px; }
-.per-dir-item .pdi-status { flex: 1; display: flex; align-items: center; gap: 4px; font-size: 10px; }
+.per-dir-item .pdi-status { flex: 1; display: flex; align-items: center; gap: var(--space-1); font-size: var(--fs-10); }
 .per-dir-item select {
-  padding: 4px 6px;
+  padding: var(--space-1) 6px;
   border: 1px solid var(--g3);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--fs-10);
   max-width: 80px;
 }
-.rp-section { margin-bottom: 4px; }
+.rp-section { margin-bottom: var(--space-1); }
 .rp-title {
   font-size: 11px;
   font-weight: 600;
   color: var(--g7);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 .rp-title::after { content: ''; flex: 1; height: 1px; background: var(--g3); }
 .nbar {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
-  font-size: 10px;
-  margin-top: 8px;
+  font-size: var(--fs-10);
+  margin-top: var(--space-2);
 }
 .nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
 .nbar.error { background: var(--dl); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
 .frow3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .fg { display: flex; flex-direction: column; gap: 3px; }
-.fg label { font-size: 10px; font-weight: 500; color: var(--g6); }
+.fg label { font-size: var(--fs-10); font-weight: 500; color: var(--g6); }
 .fg input,
 .fg select,
 .fg textarea {
-  padding: 6px 8px;
+  padding: 6px var(--space-2);
   border: 1px solid var(--g4);
   border-radius: 5px;
   font-size: 11px;
@@ -273,8 +273,8 @@ const isMulti = () => store.resumes.length > 1
 .fg select:focus,
 .fg textarea:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
 .submit-choices {
-  margin-top: 4px;
-  padding: 12px 14px;
+  margin-top: var(--space-1);
+  padding: var(--space-3) 14px;
   background: var(--g1);
   border-radius: 12px;
   border: 1px solid var(--g3);
@@ -282,7 +282,7 @@ const isMulti = () => store.resumes.length > 1
 .sc-title { font-weight: 600; font-size: 11px; margin-bottom: 6px; color: var(--g7); }
 .sc-opts { display: flex; flex-direction: column; gap: 6px; }
 .sc-opt {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--g3);
   border-radius: 8px;
   cursor: pointer;
@@ -312,7 +312,7 @@ const isMulti = () => store.resumes.length > 1
   border: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   transition: 0.15s;
 }
 .bp { background: var(--p); color: var(--n-100); }
@@ -326,8 +326,8 @@ const isMulti = () => store.resumes.length > 1
 
 @media (max-width: 768px) {
   .left-panel,
-  .right-panel { width: 100%; border-right: none; border-top: 1px solid var(--g3); padding: 12px 14px; }
+  .right-panel { width: 100%; border-right: none; border-top: 1px solid var(--g3); padding: var(--space-3) 14px; }
   .frow3 { grid-template-columns: 1fr; }
-  .mf { padding: 12px 14px; }
+  .mf { padding: var(--space-3) 14px; }
 }
 </style>

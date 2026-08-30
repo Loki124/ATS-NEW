@@ -242,14 +242,14 @@ function rowProps(row: any) {
 </template>
 
 <style scoped>
-.page-container { padding: 24px; animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
-.page-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-.page-title { font-size: 24px; font-weight: 600; margin: 0; }
-.stats-row { margin-bottom: 16px; }
+.page-container { padding: var(--space-6); animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
+.page-header { margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: var(--fs-24); font-weight: 600; margin: 0; }
+.stats-row { margin-bottom: var(--space-4); }
 .stat-card { text-align: center; }
-.stat-label { font-size: 12px; color: var(--ink-faint); }
-.stat-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
-.filter-row { margin-bottom: 12px; }
+.stat-label { font-size: var(--fs-12); color: var(--ink-faint); }
+.stat-value { font-size: 22px; font-weight: 600; margin-top: var(--space-1); }
+.filter-row { margin-bottom: var(--space-3); }
 
 /* === v2 响应式补丁 === */
 @media (max-width: 1280px) {

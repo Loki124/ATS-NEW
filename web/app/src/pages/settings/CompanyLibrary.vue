@@ -179,7 +179,7 @@ onMounted(async () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -201,11 +201,11 @@ onMounted(async () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
-.company-library { display: flex; flex-direction: column; gap: 12px; }
+.company-library { display: flex; flex-direction: column; gap: var(--space-3); }
 /* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css） */
-.filter-row { margin-bottom: 12px; }
+.filter-row { margin-bottom: var(--space-3); }
 </style>

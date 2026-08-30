@@ -49,8 +49,8 @@ function select(opt: Direction) {
 .dopt:hover:not(.off) { border-color: var(--p); }
 .dopt.sel { border-color: var(--p); background: var(--pl); }
 .dopt.off { opacity: 0.4; cursor: not-allowed; background: var(--g1); }
-.dicon { font-size: 20px; flex-shrink: 0; }
+.dicon { font-size: var(--fs-20); flex-shrink: 0; }
 .dinfo { flex: 1; }
-.dlabel { font-weight: 600; font-size: 12px; }
-.dhint { font-size: 10px; color: var(--g5); }
+.dlabel { font-weight: 600; font-size: var(--fs-12); }
+.dhint { font-size: var(--fs-10); color: var(--g5); }
 </style>

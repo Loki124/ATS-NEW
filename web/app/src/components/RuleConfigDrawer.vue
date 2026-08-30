@@ -329,7 +329,7 @@ async function save() {
   display: flex;
   align-items: center;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   padding-left: 10px;
   border-left: 3px solid var(--primary, #6366f1);
   color: var(--ink, #1f2937);
@@ -337,7 +337,7 @@ async function save() {
 .rc-monthly {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 6px;
+  gap: var(--space-2) 6px;
   align-items: flex-end;
 }
 .rc-monthly-item {
@@ -370,6 +370,6 @@ async function save() {
   max-height: calc(min(90vh, 1000px) - 156px);
   overflow-y: auto;
   /* 复用 glass.css 全局滚动条 token（::-webkit-scrollbar 单源），保持一致观感 */
-  padding-right: 4px;
+  padding-right: var(--space-1);
 }
 </style>

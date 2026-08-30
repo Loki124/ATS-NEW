@@ -9,7 +9,7 @@
 <template>
   <div class="condition-tree-editor">
     <!-- Plan K #4: 表达式模板预览 (如 (1 and 2) or (3 and 4)) -->
-    <n-alert v-if="expressionPreview" type="info" :show-icon="false" style="margin-bottom: 8px; font-family: monospace;">
+    <n-alert v-if="expressionPreview" type="info" :show-icon="false" style="margin-bottom: var(--space-2); font-family: monospace;">
       <template #header>表达式模板</template>
       {{ expressionPreview }}
     </n-alert>
@@ -346,36 +346,36 @@ export default {
   width: 100%;
 }
 .tree-item {
-  padding: 8px 0;
+  padding: var(--space-2) 0;
   border-left: 2px solid var(--n-200);
-  padding-left: 12px;
-  margin-left: 4px;
+  padding-left: var(--space-3);
+  margin-left: var(--space-1);
 }
 .node-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .ref-stage-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
   margin-left: 108px;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 .children {
-  margin-left: 24px;
-  margin-top: 4px;
+  margin-left: var(--space-6);
+  margin-top: var(--space-1);
 }
 .add-child-row {
   margin-left: 108px;
   margin-top: 2px;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .add-root-row {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 </style>

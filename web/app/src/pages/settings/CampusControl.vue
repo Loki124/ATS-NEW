@@ -30,7 +30,7 @@
             </n-data-table>
           </div>
 
-          <n-alert type="info" :show-icon="true" style="margin-top: 16px; flex-shrink: 0">
+          <n-alert type="info" :show-icon="true" style="margin-top: var(--space-4); flex-shrink: 0">
             实时看板按「每条规则独立适用范围」展示各指标的<strong>人数达成管控</strong>（年度 / 本月 的目标、达成、达成率与在途）。
             目标数据直接承载于规则上，在「规则配置」→编辑维度规则集中维护。
           </n-alert>
@@ -1354,12 +1354,12 @@ onMounted(async () => {
 /* 「全局 + 指定范围」混合规则集 → 重复计入风险徽标 */
 .scope-mutex-badge {
   cursor: help;
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1;
   user-select: none;
 }
 .scope-mutex-banner {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 /* 规则配置工具条：搜索稍宽 + 4 个筛选下拉等宽，避免 1440px 视口被挤换行 */
@@ -1432,8 +1432,8 @@ onMounted(async () => {
   background: var(--glass-bg-input);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
-  padding: 12px 14px 14px;
-  margin-bottom: 12px;
+  padding: var(--space-3) 14px 14px;
+  margin-bottom: var(--space-3);
   transition: border-color 0.2s ease;
 }
 .form-section:last-child { margin-bottom: 0; }
@@ -1441,7 +1441,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink);
   margin: 2px 0 10px;
@@ -1455,7 +1455,7 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 .form-section-hint {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 400;
   color: var(--ink-faint);
   margin-left: 2px;
@@ -1471,21 +1471,21 @@ onMounted(async () => {
 .scope-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1 1 140px;
 }
 .scope-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
   line-height: 1;
 }
 
 /* 12 个月网格（批量=6 列，规则=4 列） */
 .monthly-block-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
-  margin: 12px 0 6px;
+  margin: var(--space-3) 0 6px;
 }
 .monthly-grid {
   display: grid;
@@ -1494,7 +1494,7 @@ onMounted(async () => {
 }
 .monthly-grid--rule {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--space-2);
 }
 .month-cell {
   display: flex;
@@ -1520,9 +1520,9 @@ onMounted(async () => {
 .monthly-foot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--fs-12);
   color: var(--ink);
 }
 .allocated strong { font-weight: 700; }
@@ -1532,8 +1532,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
   padding: 10px 14px;
   border-radius: var(--radius-md);
   transition: background 0.2s ease, border-color 0.2s ease;
@@ -1549,14 +1549,14 @@ onMounted(async () => {
 .sum-left {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .sum-label {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
 }
 .sum-value {
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 700;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -1564,23 +1564,23 @@ onMounted(async () => {
 .sum-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .sum-diff {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }
 
 .empty-tip {
   color: var(--ink-faint);
-  padding: 12px 4px;
-  font-size: 13px;
+  padding: var(--space-3) var(--space-1);
+  font-size: var(--fs-13);
   text-align: center;
 }
 
 /* form-row-2 间距微调 */
-.form-row-2 { margin-bottom: 4px; }
+.form-row-2 { margin-bottom: var(--space-1); }
 
 /* ===================== 维度规则集编辑面 ===================== */
 
@@ -1588,33 +1588,33 @@ onMounted(async () => {
 .form-section-title--scope {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .form-section-title--scope .dot { flex-shrink: 0; }
 .scope-title-switch { margin-left: auto; }
 /* 编辑态改了适用范围 → 重定位提示横幅 */
 .scope-relocate-hint {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: var(--space-2);
+  font-size: var(--fs-12);
   line-height: 1.5;
 }
-.scope-relocate-hint :deep(.n-alert__content) { font-size: 12px; }
+.scope-relocate-hint :deep(.n-alert__content) { font-size: var(--fs-12); }
 
 /* 维度层级编辑弹窗 */
 .dim-edit-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 .dim-edit-form .scope-field {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .dim-edit-form .scope-label {
   width: 92px;
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--ink);
   flex-shrink: 0;
 }
@@ -1623,17 +1623,17 @@ onMounted(async () => {
 .total-target-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
-.total-target-suffix { font-size: 13px; color: var(--ink); }
-.total-target-hint { font-size: 12px; color: var(--ink-faint); }
+.total-target-suffix { font-size: var(--fs-13); color: var(--ink); }
+.total-target-hint { font-size: var(--fs-12); color: var(--ink-faint); }
 .total-target-summary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--fs-12);
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -1647,7 +1647,7 @@ onMounted(async () => {
 /* ===================== 弹窗级微调 ===================== */
 .rule-modal :deep(.n-card__content),
 .dim-ruleset-modal :deep(.n-card__content) {
-  padding: 16px 20px 14px !important;
+  padding: var(--space-4) 20px 14px !important;
 }
 .rule-modal :deep(.n-card__footer),
 .dim-ruleset-modal :deep(.n-card__footer) {
@@ -1655,7 +1655,7 @@ onMounted(async () => {
 }
 .rule-modal :deep(.n-card-header__main),
 .dim-ruleset-modal :deep(.n-card-header__main) {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
 }
 .rule-modal :deep(.n-form-item),
@@ -1664,8 +1664,8 @@ onMounted(async () => {
 }
 .rule-modal :deep(.n-form-item-label),
 .dim-ruleset-modal :deep(.n-form-item-label) {
-  font-size: 12px;
-  padding-bottom: 4px !important;
+  font-size: var(--fs-12);
+  padding-bottom: var(--space-1) !important;
 }
 .rule-modal :deep(.n-input-number--small) {
   --n-height: 28px !important;
@@ -1675,27 +1675,27 @@ onMounted(async () => {
 }
 
 .import-hint {
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   font-size: var(--text-small);
   color: var(--ink-soft);
   line-height: 1.6;
 }
-.import-result { margin-top: 16px; }
+.import-result { margin-top: var(--space-4); }
 .import-error-actions {
-  margin: 8px 0;
+  margin: var(--space-2) 0;
   display: flex;
   justify-content: flex-end;
 }
 .import-errors {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   padding-left: 18px;
   max-height: 240px;
   overflow: auto;
 }
 .import-errors li {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--c-error);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 /* 弹窗居中 + 内部滚动 + 去边框由全局 .n-modal .n-card（glass.css 阶段 F）统一处理，

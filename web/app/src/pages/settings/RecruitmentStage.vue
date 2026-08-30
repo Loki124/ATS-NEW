@@ -372,11 +372,11 @@ onMounted(async () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .recruitment-stage {
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
 }
 
 /* 2026-08-29 UX 整改：禁首行多 tag wrap 后视觉偏移、行内 vertical-align 中线对齐；X-05 严禁硬编码颜色 */

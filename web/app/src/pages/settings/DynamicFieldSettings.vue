@@ -317,7 +317,7 @@ onMounted(() => { reload(); });
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
@@ -339,11 +339,11 @@ onMounted(() => { reload(); });
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 
-.dynamic-field-settings { display: flex; flex-direction: column; gap: 12px; }
+.dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
 /* 删除 scoped .page-header/.page-title/.page-subtitle 覆盖（规范：复用全局 glass.css 渐变规格） */
-.filter-row { margin-bottom: 12px; }
+.filter-row { margin-bottom: var(--space-3); }
 </style>

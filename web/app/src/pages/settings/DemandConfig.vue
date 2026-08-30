@@ -449,7 +449,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 /* 兼容旧类名（如果模板残留 .config-content 不带 .page-body 时仍生效） */
@@ -458,7 +458,7 @@ onMounted(() => {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -478,7 +478,7 @@ onMounted(() => {
 }
 
 .config-card :deep(.n-form-item) {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .config-card :deep(.n-form-item:last-child) {
@@ -488,32 +488,32 @@ onMounted(() => {
 .form-field-wrap {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .input-tip {
-  margin-left: 8px;
+  margin-left: var(--space-2);
   color: var(--n-400);
 }
 
 .input-tip-tip {
-  margin-left: 8px;
+  margin-left: var(--space-2);
   color: var(--n-400);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .switch-tip {
-  margin-left: 12px;
+  margin-left: var(--space-3);
   color: var(--n-400);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .field-note {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: var(--space-1);
+  font-size: var(--fs-12);
   color: var(--n-400);
 }
 
@@ -526,16 +526,16 @@ onMounted(() => {
 }
 
 .rules-tip {
-  margin-top: 8px;
-  padding: 12px;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
   background: var(--g1);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--n-500);
 }
 
 .rules-tip p {
-  margin: 0 0 4px 0;
+  margin: 0 0 var(--space-1) 0;
   line-height: 1.6;
 }
 </style>

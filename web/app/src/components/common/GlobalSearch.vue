@@ -135,9 +135,9 @@ function onSelect(value: string) {
   max-width: 360px;
 }
 .global-search__group-header {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 600;
   color: var(--ink-2);
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 </style>

@@ -576,7 +576,7 @@ function onMatterAction(_matter: MatterItem) {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px;
+  padding: 10px var(--space-2);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
@@ -608,7 +608,7 @@ function onMatterAction(_matter: MatterItem) {
 
 .announcement-item__title {
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   line-height: 1.4;
   overflow: hidden;
@@ -618,7 +618,7 @@ function onMatterAction(_matter: MatterItem) {
 
 .announcement-item__date {
   color: var(--ink-faint);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .announcement-item__arrow {
@@ -653,7 +653,7 @@ function onMatterAction(_matter: MatterItem) {
   border-radius: var(--radius-pill);
   background: var(--c-info-soft);
   color: var(--c-info);
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }

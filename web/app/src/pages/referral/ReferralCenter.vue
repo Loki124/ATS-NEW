@@ -1,6 +1,6 @@
 <template>
   <div class="referral-page">
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
       <h1 class="page-title">内推中心</h1>
       <n-button type="primary" @click="addModalVisible = true">
         <template #icon><n-icon :component="PersonAddOutline" /></template>
@@ -399,14 +399,14 @@ onMounted(() => loadCode())
 .code-display {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 24px;
+  gap: var(--space-3);
+  padding: var(--space-6);
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
   border-radius: 8px;
   color: white;
 }
 .code-text {
-  font-size: 36px;
+  font-size: var(--fs-36);
   font-weight: 700;
   letter-spacing: 4px;
   font-family: 'SF Mono', Menlo, monospace;
@@ -414,6 +414,6 @@ onMounted(() => loadCode())
 .stat-card .stat-value {
   font-size: 32px;
   font-weight: 600;
-  margin: 12px 0;
+  margin: var(--space-3) 0;
 }
 </style>

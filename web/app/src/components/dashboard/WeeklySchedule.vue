@@ -255,7 +255,7 @@ function onItemClick(item: ScheduleItem) {
   appearance: none;
   background: transparent;
   border: 0;
-  padding: 4px 12px;
+  padding: var(--space-1) var(--space-3);
   font-size: var(--text-meta);
   color: var(--ink-soft);
   border-radius: var(--radius-sm);
@@ -370,33 +370,33 @@ function onItemClick(item: ScheduleItem) {
 .month-grid {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .month-grid__header {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .month-grid__header span {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 
 .month-grid__body {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-auto-rows: 90px;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .month-grid__cell {
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
-  padding: 4px;
+  padding: var(--space-1);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -418,7 +418,7 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .month-grid__date {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -428,7 +428,7 @@ function onItemClick(item: ScheduleItem) {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   align-items: center;
 }
 
@@ -441,7 +441,7 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .month-grid__more {
-  font-size: 10px;
+  font-size: var(--fs-10);
   color: var(--ink-soft);
 }
 </style>
