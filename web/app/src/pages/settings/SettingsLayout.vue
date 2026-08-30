@@ -1,5 +1,7 @@
 <template>
-  <n-layout class="settings-layout" has-sider :sider-width="collapsed ? 64 : 220" style="height: 100%">
+  <!-- 2026-08-30 六改：原 n-layout(has-sider) 冗余层已删（App 主布局 n-layout-content 已包裹本组件，has-sider 在此无实际作用，sider 已是自定义 .settings-sider div）。
+       改用普通 div 净减 2 层嵌套（n-layout + Naive 自动注入的 n-layout-scroll-container）。flex 布局改由 CSS .settings-layout{display:flex} 接管。 -->
+  <div class="settings-layout">
     <!-- 左侧子菜单：n-menu 取代自写 menu-group（阶段 D 决策 2 配套）
          ⚠️ 不再用 n-layout-sider：它会自动把 header + menu 一起包进内部 .n-layout-scroll-container，
          导致 Naive 的 scrollbar 竖向跨整个容器、覆盖在 header 上方（用户反馈"滚动条覆盖header"）。
@@ -39,8 +41,8 @@
       </div>
     </div>
 
-    <!-- 右侧内容 -->
-    <n-layout-content class="settings-content">
+    <!-- 右侧内容（原 n-layout-content 已降级为 div，flex:1 由 CSS 接管） -->
+    <div class="settings-content">
       <div class="settings-aurora" aria-hidden="true">
         <span class="blob blob-a"></span>
         <span class="blob blob-b"></span>
@@ -49,15 +51,15 @@
       <div class="settings-scroll">
         <router-view />
       </div>
-    </n-layout-content>
-  </n-layout>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 // ★ v1.1 补全 imports（文档 §8.2 P0-3）
 import { ref, computed, watch, nextTick, h, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NIcon, NLayout, NLayoutContent, NMenu } from 'naive-ui'
+import { NIcon, NMenu } from 'naive-ui'
 import {
   ChevronForwardOutline, ChevronBackOutline,
   PersonCircleOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
@@ -232,7 +234,7 @@ watch(() => route.path, () => {
 
 <style scoped>
 /* 阶段 D 保留旧 CSS 兜底（下一轮删）—— 玻璃激活态覆盖：利用 settings-sider 已有 class="glass-sidebar"（glass.css 全局接管）*/
-.settings-layout { height: 100%; background: transparent; overflow: hidden; }
+.settings-layout { display: flex; height: 100%; background: transparent; overflow: hidden; }
 .settings-layout { height: 100% !important; }
 
 /* ⚠️ 自定义 .settings-sider（取代 n-layout-sider）：
@@ -332,6 +334,7 @@ watch(() => route.path, () => {
   position: relative; padding: 0;
   overflow: hidden;
   display: flex; flex-direction: column;
+  flex: 1;
   min-height: 0; height: 100%;
   background: transparent;
 }
