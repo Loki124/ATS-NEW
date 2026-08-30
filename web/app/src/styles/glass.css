@@ -730,7 +730,9 @@ body.dark .n-data-table .n-data-table-th {
 }
 .page-title {
   margin: 0;
-  font-size: 26px !important;
+  /* 2026-08-30 七改：26px→22px，压缩 page-header 高度（原 ~80px 主要因 26px!important 标题行高 1.25=32.5px）。
+     仅下调字号，渐变/字重/行高不变。影响全项目 36 文件页面标题，属视觉回归项（[R] 待真实浏览器验证）。 */
+  font-size: 22px !important;
   font-weight: 700 !important;
   line-height: 1.25;
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 55%, var(--brand-grad-b) 100%);
