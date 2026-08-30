@@ -55,7 +55,7 @@
         </n-radio-group>
       </n-form-item>
       <n-text v-if="dataScope === 'ALL'" type="warning" depth="3" style="display: flex; align-items: center; gap: 4px; margin: -8px 0 12px 100px">
-        <NIcon :size="14"><AlertTriangle /></NIcon> 全公司数据范围会绕过 L1-L4 scope 过滤, 请谨慎授权
+        <NIcon :size="14" aria-hidden="true"><AlertTriangle /></NIcon> 全公司数据范围会绕过 L1-L4 scope 过滤, 请谨慎授权
       </n-text>
 
       <n-form-item label="生效日期">

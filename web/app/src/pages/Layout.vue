@@ -97,7 +97,7 @@
             aria-label="打开菜单"
             @click="mobileMenuOpen = true"
           >
-            <NIcon :size="20"><Menu /></NIcon>
+            <NIcon :size="20" aria-hidden="true"><Menu /></NIcon>
           </button>
           <!-- 顶部横排：Logo -->
           <div v-if="menuLayout === 'top'" class="top-logo flex items-center gap-2 shrink-0">

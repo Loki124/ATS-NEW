@@ -14,7 +14,7 @@ const config = {
 
 <template>
   <div :class="['cb', $props.status]">
-    <span class="cb-icon"><NIcon :size="16"><component :is="config[$props.status]?.icon" /></NIcon></span>
+    <span class="cb-icon"><NIcon :size="16" aria-hidden="true"><component :is="config[$props.status]?.icon" /></NIcon></span>
     <div>{{ config[$props.status]?.text }}</div>
   </div>
 </template>

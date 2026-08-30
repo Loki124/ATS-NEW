@@ -53,7 +53,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
   <div class="right-panel">
     <div v-if="occupiedCount() > 0" class="rp-section">
-      <div class="rp-title"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px;color:var(--c-warning-deep)"><AlertTriangle /></NIcon>需处理项</div>
+      <div class="rp-title"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px;color:var(--c-warning-deep)" aria-hidden="true"><AlertTriangle /></NIcon>需处理项</div>
       <div class="nbar error"><strong>有 {{ occupiedCount() }} 份简历已被占用，需要先处理。</strong><br>请展开对应简历卡片，选择处理方式后再进入下一步。</div>
     </div>
     <div class="rp-section">

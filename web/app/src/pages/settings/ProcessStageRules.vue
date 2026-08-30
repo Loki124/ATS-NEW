@@ -195,7 +195,7 @@
 
             <n-alert v-if="testResult" :type="testResult.passed ? 'success' : 'error'" :show-icon="false" style="margin-top: 12px">
               <strong style="display:inline-flex;align-items:center;gap:6px;">
-                <NIcon :size="16" :color="testResult.passed ? 'var(--c-success-deep)' : 'var(--c-error-deep)'">
+                <NIcon :size="16" :color="testResult.passed ? 'var(--c-success-deep)' : 'var(--c-error-deep)'" aria-hidden="true">
                   <component :is="testResult.passed ? CheckCircle2 : XCircle" />
                 </NIcon>
                 结果：{{ testResult.passed ? '通过' : '不通过' }}

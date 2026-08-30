@@ -43,7 +43,7 @@ const isMulti = () => store.resumes.length > 1
       <div class="pos-selector"><PositionChips :positions="positions" :model-value="store.posAll ? [store.posAll] : []" @update:model-value="(v) => store.setPosAll(v[0] || '')" /></div>
     </div>
 
-    <div v-if="hasOccupied()" class="nbar warn"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px"><AlertTriangle /></NIcon>有 {{ store.resumes.filter(r => r.status === 'occupied').length }} 份简历已被占用，仅可选择"待分配"。</div>
+    <div v-if="hasOccupied()" class="nbar warn"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><AlertTriangle /></NIcon>有 {{ store.resumes.filter(r => r.status === 'occupied').length }} 份简历已被占用，仅可选择"待分配"。</div>
 
     <div class="rp-section">
       <div class="rp-title">应聘信息</div>

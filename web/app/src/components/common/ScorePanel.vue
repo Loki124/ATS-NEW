@@ -17,7 +17,7 @@ function dimColor(s: number) {
 
 <template>
   <div class="score-panel glass-card">
-    <div class="score-panel-title"><NIcon :size="16" style="vertical-align:-2px;margin-right:4px;color:var(--brand)"><Target /></NIcon>模拟评分结果</div>
+    <div class="score-panel-title"><NIcon :size="16" style="vertical-align:-2px;margin-right:4px;color:var(--brand)" aria-hidden="true"><Target /></NIcon>模拟评分结果</div>
     <div class="score-overall-row">
       <div :class="['score-big', score.passed ? 'pass' : 'fail']">{{ score.score }}</div>
       <div>

@@ -26,7 +26,7 @@ function select(opt: Direction) {
       :class="['dopt', { sel: modelValue === opt.value, off: hasOccupied && opt.value !== 'pending' }]"
       @click="select(opt.value)"
     >
-      <div class="dicon"><NIcon :size="20"><component :is="opt.icon" /></NIcon></div>
+      <div class="dicon"><NIcon :size="20" aria-hidden="true"><component :is="opt.icon" /></NIcon></div>
       <div class="dinfo">
         <div class="dlabel">{{ opt.label }}</div>
         <div class="dhint">{{ opt.hint }}</div>
