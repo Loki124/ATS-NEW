@@ -531,6 +531,17 @@ Agent 行为：生成或改动品牌色后 MUST 执行 --ci，MUST 依据退出�
 | X-15 | 语义色由品牌色推导，或靠旋转色相消解冲突 | 明度分离 + 图标（R-211） |
 | X-16 | 深色模式直接反转色阶 | 重排 L / 降低 C（R-212） |
 
+### X-01 品牌渐变例外（Liquid Glass v2 设计语言）
+
+X-01 的「紫蓝渐变 + 发光阴影的 CTA」针对的是廉价 glow-button 反模式（渐变填充与发光阴影叠加）。本项目有意采用 **Liquid Glass v2** 设计语言，其品牌渐变主按钮属于**已批准的设计表达**，豁免 X-01，但须满足以下全部约束，否则仍视为缺陷：
+
+1. **渐变来源合法**：`background` 渐变 MUST 由 `brand-tokens.mjs`（R-214）生成并引用 `--brand` / `--brand-grad-a` 等令牌，MUST NOT 手写色值或自挑色板。
+2. **对比度门禁**：前景色 MUST 通过 `brand-tokens.mjs --ci` 退出码 0 验证（≥4.5:1），MUST NOT 凭肉眼判定。
+3. **hover 形态**：MUST 使用 `translateY(-1px)` 反馈，**禁止**对 CTA 施加发光 `box-shadow`（glow）。
+4. **阴影范围**：`box-shadow` 仅允许用于玻璃浮层（`.glass-panel` / 弹窗 / 下拉 / Toast 的 `--shadow-card` / `--shadow-panel`）；静态卡片与 CTA 自身 MUST NOT 带发光阴影（同时受 X-03 约束）。
+
+> 判定口诀：品牌渐变**填充**合法（须令牌化 + 对比度达标）；**发光阴影**非法（X-01/X-03 双禁）。二者不能叠加。
+
 ## 6. 自动化验证
 
 MUST NOT 依赖手写 grep 做验证。 正则子串匹配会系统性漏报，制造虚假的安全感：
