@@ -624,14 +624,14 @@ const handleSendNotification = () => {
 .page-header { margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; }
 .back-btn { border: none; background: transparent; }
 .send-btn { background: var(--brand); border-color: var(--brand); border-radius: 8px; font-weight: 600; }
-.info-card { margin-bottom: var(--space-6); border-radius: 24px; border: none; box-shadow: 0 8px 32px var(--overlay-scrim-weak); }
+.info-card { margin-bottom: var(--space-6); border-radius: 24px; border: 1px solid var(--border-hairline); box-shadow: none; }
 .candidate-avatar { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: 32px; font-weight: 700; } /* v2.9: 越界硬编码渐变 var(--c-purple)/var(--c-info-deep) → brand 渐变 + 移除 !important */
 .candidate-header { display: flex; justify-content: space-between; align-items: flex-start; }
 .contact-info { color: var(--ink-soft); }
 .position-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand); }
 .channel-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand); }
 .candidate-meta { text-align: right; color: var(--ink-soft); font-size: var(--fs-12); }
-.tabs-card { border-radius: 24px; border: none; box-shadow: 0 8px 32px var(--overlay-scrim-weak); }
+.tabs-card { border-radius: 24px; border: 1px solid var(--border-hairline); box-shadow: none; }
 .info-section { padding: var(--space-4); }
 .info-row { display: flex; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
 .info-label { width: 100px; color: var(--ink-soft); font-size: var(--fs-14); }
@@ -701,7 +701,6 @@ const handleSendNotification = () => {
   border-color: var(--overlay-glass-mid);
 }
 .send-btn-primary:hover {
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--brand) 45%, transparent);
   transform: translateY(-1px);
 }
 </style>
