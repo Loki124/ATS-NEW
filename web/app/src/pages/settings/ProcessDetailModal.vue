@@ -720,8 +720,9 @@
   <n-modal
     v-model:show="showStagePicker"
     preset="card"
+    class="stage-picker-modal"
     title="选择要添加的阶段"
-    style="width: 600px; max-width: 95vw"
+    style="width: 600px; max-width: 95vw; max-height: 90vh"
   >
     <n-input
       v-model:value="stagePickerKeyword"
@@ -2453,6 +2454,18 @@ function rulesExpr(rules: any[]): string {
   flex-direction: column;
 }
 :global(.process-detail-modal .n-card__content) {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 2026-08-30 同款修复：阶段选择 Picker 弹窗（嵌套于 ProcessDetailModal）
+   原本无 max-height，候选阶段多时 card 整体溢出视口、footer 不可达。补 flex 列 + 90vh 上限，
+   content 接管滚动。 */
+:global(.stage-picker-modal) {
+  display: flex;
+  flex-direction: column;
+}
+:global(.stage-picker-modal .n-card__content) {
   flex: 1 1 0%;
   min-height: 0;
   overflow-y: auto;

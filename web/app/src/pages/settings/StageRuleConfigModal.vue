@@ -15,7 +15,7 @@
     class="stage-rule-config-modal"
     preset="card"
     :title="undefined"
-    style="width: 760px; max-width: 95vw"
+    style="width: 760px; max-width: 95vw; max-height: 90vh"
     :mask-closable="true"
     :on-mask-click="() => emit('update:show', false)"
     @update:show="(v) => emit('update:show', v)"
@@ -753,8 +753,6 @@ async function handleSubmit() {
 <style scoped>
 /* ==================== Modal 容器 ==================== */
 .rule-config-flat {
-  max-height: 70vh;
-  overflow-y: auto;
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-1);
 }
 
@@ -1015,5 +1013,17 @@ async function handleSubmit() {
    the header outside the parent's data-v boundary. */
 .stage-rule-config-modal .n-card-header {
   display: none; /* v2.9: 移除 !important；.stage-rule-config-modal .n-card-header 特异性(0,2,0) 已压 Naive 默认 header */
+}
+/* 2026-08-30 滚动修复：preset=card 的 .n-card 经 teleport 挂到 body，scoped :deep 命中不到。
+   与 ProcessDetailModal 同款方案：card 走 flex 列 + 90vh 上限，content 用 flex:1 + min-height:0
+   拿到剩余高度并滚动；hero 在 content 内随内容一起滚动，footer 由 Naive 默认 flex-shrink:0 钉底。 */
+.stage-rule-config-modal {
+  display: flex;
+  flex-direction: column;
+}
+.stage-rule-config-modal .n-card__content {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
 }
 </style>
