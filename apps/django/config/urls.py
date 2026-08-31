@@ -139,6 +139,8 @@ api_v1_patterns = [
 
     # 公共
     path('field-acl/', include('apps.field_acl.urls')),
+    # 2026-08-31: Phase 1 统一规则引擎只读 API（适配器读路径，零改动 legacy 写路径）
+    path('rule-engine/', include('apps.rule_engine.urls')),
 ]
 
 # 2026-08-03 兵哥: admin token 从 env 读, 避免在 git 历史里漏.
