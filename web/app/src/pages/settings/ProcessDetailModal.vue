@@ -26,7 +26,8 @@
     :segmented="{ content: true, footer: true }"
     @update:show="handleUpdateShow"
   >
-    <n-spin :show="loading">
+    <n-scrollbar style="max-height: calc(90vh - 140px)">
+      <n-spin :show="loading">
       <template v-if="mode === 'view'">
       <!-- ====== HERO HEADER ====== -->
       <div v-if="data || links.length" class="hero">
@@ -669,6 +670,7 @@
         </div>
       </template>
     </n-spin>
+    </n-scrollbar>
 
     <template #footer>
       <n-space justify="end">
@@ -804,7 +806,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
 import {
-  NSpace, NTag, NSpin, NModal, NButton, NIcon,
+  NSpace, NTag, NSpin, NModal, NButton, NIcon, NScrollbar,
   NGrid, NGridItem, NInput, NRadio, NRadioGroup, NSelect, NSwitch,
   NAlert, NInputNumber, NPopconfirm, NText, NEmpty, useMessage,
 } from 'naive-ui'
@@ -2449,14 +2451,24 @@ function rulesExpr(rules: any[]): string {
    NCard 上 → .process-detail-modal 即 .n-card 本身，其后代 .n-card__content 可被全局
    选择器命中。强制 card 走 flex 列，content 用 flex:1 + min-height:0 拿到剩余高度并
    overflow-y:auto（外层 NScrollbar 因内容已贴合 90vh 而无溢出，无需额外处理）。 */
-:global(.process-detail-modal) {
-  display: flex;
-  flex-direction: column;
+:global(.n-card.process-detail-modal) {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 90vh !important;
+  overflow: hidden !important;
 }
-:global(.process-detail-modal .n-card__content) {
-  flex: 1 1 0%;
-  min-height: 0;
-  overflow-y: auto;
+:global(.n-card.process-detail-modal .n-card-header) {
+  flex-shrink: 0 !important;
+}
+:global(.n-card.process-detail-modal .n-card__content) {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+:global(.n-card.process-detail-modal .n-card__footer) {
+  flex-shrink: 0 !important;
 }
 /* 2026-08-30 同款修复：阶段选择 Picker 弹窗（嵌套于 ProcessDetailModal）
    原本无 max-height，候选阶段多时 card 整体溢出视口、footer 不可达。补 flex 列 + 90vh 上限，
