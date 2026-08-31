@@ -23,10 +23,10 @@ def gen_id():
 # 阶段类型常量
 # ============================================================
 class StageType(models.TextChoices):
-    SCREEN = 'SCREEN', '筛选型'
-    INVITATION = 'INVITATION', '邀约型'
-    INTERVIEW = 'INTERVIEW', '面试型'
-    OFFER = 'OFFER', 'Offer型'
+    SCREEN = 'SCREEN', '筛选'
+    INVITATION = 'INVITATION', '邀约'
+    INTERVIEW = 'INTERVIEW', '面试'
+    OFFER = 'OFFER', 'Offer'
 
 
 class StageStatus(models.TextChoices):

@@ -1,7 +1,7 @@
 """顺序邀约服务（PRD v4 §11.4 SEQUENTIAL 处理规则）
 
 业务场景：
-- 阶段为 INVITATION（邀约型）+ processing_rule = SEQUENTIAL
+- 阶段为 INVITATION（邀约）+ processing_rule = SEQUENTIAL
 - 默认处理人有多个，按 processor_order 顺序处理
 - 当前处理人完成（通过/拒绝）后，自动切换到下一位
 - 全部处理人都拒绝 → 进入软拒或下阶段处理
