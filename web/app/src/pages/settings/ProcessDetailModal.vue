@@ -1796,7 +1796,7 @@ function rulesExpr(rules: any[]): string {
 .hero__title {
   font-size: var(--fs-18);
   font-weight: 600;
-  color: var(--n-850);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1806,7 +1806,7 @@ function rulesExpr(rules: any[]): string {
   flex-wrap: wrap;
   gap: var(--space-3);
   font-size: var(--fs-12);
-  color: var(--n-450);
+  color: var(--ink-faint);
 }
 .hero__meta-item {
   display: inline-flex;
@@ -1815,7 +1815,7 @@ function rulesExpr(rules: any[]): string {
 }
 .hero__meta-item :deep(.n-icon) {
   font-size: var(--fs-13);
-  color: var(--n-350);
+  color: var(--ink-faint);
 }
 .hero__edit-btn {
   display: flex;
@@ -1849,7 +1849,7 @@ function rulesExpr(rules: any[]): string {
   gap: var(--space-2);
   font-size: var(--fs-13);
   font-weight: 600;
-  color: var(--n-650);
+  color: var(--ink-soft);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1885,14 +1885,14 @@ function rulesExpr(rules: any[]): string {
   padding: var(--space-2) 0;        /* v3: align-items 已统一为 flex-start, 不再独立覆写 */
 }
 .field-label {
-  color: var(--n-450);
+  color: var(--ink-faint);
   min-width: 88px;
   font-weight: 500;
   flex-shrink: 0;
   padding-top: 6px;                 /* v3: 文本与控件视觉中心对齐 */
 }
 .field-value {
-  color: var(--n-650);
+  color: var(--ink-soft);
   flex: 1;
   word-break: break-word;
 }
@@ -1903,17 +1903,17 @@ function rulesExpr(rules: any[]): string {
   align-items: center;
 }
 .muted-text {
-  color: var(--n-350);
+  color: var(--ink-faint);
   font-size: var(--fs-12);
 }
 .rule-text strong {
-  color: var(--n-850);
+  color: var(--ink);
   font-weight: 600;
 }
 .rule-timing,
 .rule-scope {
   margin-left: 6px;
-  color: var(--n-450);
+  color: var(--ink-faint);
   font-size: var(--fs-12);
 }
 
@@ -1942,7 +1942,7 @@ function rulesExpr(rules: any[]): string {
 }
 .scope-card--neutral {
   background: var(--glass-bg-card);
-  border-color: var(--n-170);
+  border-color: var(--g2);
 }
 .scope-card__head {
   display: flex;
@@ -1950,7 +1950,7 @@ function rulesExpr(rules: any[]): string {
   gap: 6px;
   font-size: var(--fs-13);
   font-weight: 600;
-  color: var(--n-850);
+  color: var(--ink);
 }
 .scope-card__head :deep(.n-icon) {
   font-size: var(--fs-14);
@@ -1974,7 +1974,7 @@ function rulesExpr(rules: any[]): string {
   min-width: 0;
 }
 .scope-card__count {
-  color: var(--n-400);
+  color: var(--ink-faint);
   flex-shrink: 0;                   /* v3: 防止「不限」被挤换行 */
   white-space: nowrap;
   margin-left: auto;
@@ -1989,10 +1989,10 @@ function rulesExpr(rules: any[]): string {
 .scope-card__value {
   font-size: 11px;
   padding: 1px 6px;
-  background: var(--overlay-glass-strong);
-  border: 1px solid var(--overlay-scrim-weak);
+  background: var(--glass-bg-sub, var(--g1));
+  border: 1px solid var(--g3);
   border-radius: 3px;
-  color: var(--n-600);
+  color: var(--ink-soft);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2014,7 +2014,7 @@ function rulesExpr(rules: any[]): string {
 }
 .scope-card__empty {
   font-size: 11px;
-  color: var(--n-350);
+  color: var(--ink-faint);
   font-style: italic;
 }
 
@@ -2024,7 +2024,7 @@ function rulesExpr(rules: any[]): string {
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  color: var(--n-400);
+  color: var(--ink-faint);
   padding: var(--space-8) 0;
 }
 
@@ -2049,18 +2049,21 @@ function rulesExpr(rules: any[]): string {
 .stage-card {
   position: relative;
   background: var(--glass-bg-card);
-  border: 1px solid var(--g2);
-  border-radius: 8px;
-  padding: 14px var(--space-4) 14px var(--space-4);
-  margin-bottom: 10px;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  transition: box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .stage-card:last-child {
   margin-bottom: 0;
 }
 .stage-card:hover {
-  box-shadow: 0 2px 10px var(--overlay-scrim-weak);
-  border-color: var(--g6);
+  box-shadow: var(--shadow-panel);
+  border-color: var(--glass-border-strong);
 }
 /* v4 落地：去除阶段类型彩色左边线，类型区分交由序号圆点(品牌色) + 中性 tag 承载 */
 
@@ -2092,12 +2095,12 @@ function rulesExpr(rules: any[]): string {
   flex-wrap: wrap;
   margin-bottom: var(--space-2);
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--g2);
+  border-bottom: 1px solid var(--glass-border);
 }
 .stage-card__name {
   font-size: var(--fs-15);
   font-weight: 600;
-  color: var(--n-850);
+  color: var(--ink);
   margin-right: var(--space-1);
 }
 .stage-card__system-badge {
@@ -2117,7 +2120,9 @@ function rulesExpr(rules: any[]): string {
   height: 18px;
   border-radius: 50%;
   background: var(--glass-bg-card);
-  color: var(--n-300);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  color: var(--ink-faint);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2130,7 +2135,7 @@ function rulesExpr(rules: any[]): string {
   align-items: center;
   background: var(--glass-bg-sub, var(--g1));
   border: 1px solid var(--g2);
-  color: var(--n-450);
+  color: var(--ink-faint);
   font-size: var(--fs-12);
   padding: 2px var(--space-2);
   border-radius: 3px;
@@ -2157,13 +2162,13 @@ function rulesExpr(rules: any[]): string {
   border-top: 1px solid var(--g2);
 }
 .auto-k {
-  color: var(--n-450);
+  color: var(--ink-faint);
   font-size: var(--fs-12);
   white-space: nowrap;
 }
 .auto-v {
   font-size: var(--fs-12);
-  color: var(--n-650);
+  color: var(--ink-soft);
 }
 .auto-act {
   background: none;
@@ -2182,7 +2187,7 @@ function rulesExpr(rules: any[]): string {
   border: 1px solid var(--g2);
   border-radius: 4px;
   font-size: var(--fs-12);
-  color: var(--n-450);
+  color: var(--ink-faint);
   line-height: 1.6;
 }
 
@@ -2216,7 +2221,7 @@ function rulesExpr(rules: any[]): string {
 .cond-card__title {
   font-size: var(--fs-13);
   font-weight: 600;
-  color: var(--n-850);
+  color: var(--ink);
 }
 .cond-expr {
   font-size: 11px;
@@ -2230,7 +2235,7 @@ function rulesExpr(rules: any[]): string {
 }
 .cond-count {
   font-size: var(--fs-12);
-  color: var(--n-400);
+  color: var(--ink-faint);
 }
 
 /* 规则（内层折叠）：标题行 = 条件级表达式 */
@@ -2249,7 +2254,7 @@ function rulesExpr(rules: any[]): string {
   border-radius: 6px;
   padding: 1px 8px;
 }
-.rule__match { font-size: var(--fs-12); color: var(--n-450); }
+.rule__match { font-size: var(--fs-12); color: var(--ink-faint); }
 .rule__rule {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -2276,19 +2281,19 @@ function rulesExpr(rules: any[]): string {
   min-width: 0;
 }
 .cond-item__idx {
-  color: var(--n-400);
+  color: var(--ink-faint);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 .cond-item__expr {
-  color: var(--n-650);
+  color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
 
 /* 进入条件空态（保留） */
 .cond-empty {
   font-size: var(--fs-12);
-  color: var(--n-400);
+  color: var(--ink-faint);
   background: var(--g1);
   padding: 6px 10px;
   border-radius: 4px;
@@ -2339,7 +2344,7 @@ function rulesExpr(rules: any[]): string {
 .hero__title-input :deep(.n-input__input-el) {
   font-size: var(--fs-18);
   font-weight: 600;
-  color: var(--n-850);
+  color: var(--ink);
   padding: var(--space-1) var(--space-2);
 }
 
@@ -2358,7 +2363,7 @@ function rulesExpr(rules: any[]): string {
   width: 100%;
 }
 .scope-card__select :deep(.n-base-selection) {
-  background: var(--overlay-glass-strong);
+  background: var(--glass-bg-input);
 }
 
 .stage-card--selected {
@@ -2401,10 +2406,10 @@ function rulesExpr(rules: any[]): string {
 }
 .picker-item--start {
   background-color: var(--g1);
-  border-color: var(--n-300);
+  border-color: var(--g2);
 }
 .picker-item--start:hover {
-  background-color: var(--n-200);
+  background-color: var(--g2);
   border-color: var(--c-lime);
 }
 .picker-item--end {
@@ -2429,17 +2434,17 @@ function rulesExpr(rules: any[]): string {
 .picker-item__name {
   font-size: var(--fs-14);
   font-weight: 500;
-  color: var(--n-850);
+  color: var(--ink);
   line-height: 1.4;
 }
 .picker-item__code {
   font-size: var(--fs-12);
-  color: var(--n-440);
+  color: var(--ink-faint);
   margin-top: 2px;
 }
 .picker-item__hint {
   font-size: var(--fs-12);
-  color: var(--n-440);
+  color: var(--ink-faint);
   flex-shrink: 0;
 }
 
@@ -2545,7 +2550,7 @@ function rulesExpr(rules: any[]): string {
   border: 1px solid var(--g2);
   border-radius: 6px;
   font-size: var(--fs-12);
-  color: var(--n-450);
+  color: var(--ink-faint);
   line-height: 1.55;
 }
 .stage-card__summary-row {
@@ -2554,17 +2559,17 @@ function rulesExpr(rules: any[]): string {
   gap: 6px;
 }
 .stage-card__summary-k {
-  color: var(--n-400);
+  color: var(--ink-faint);
   flex-shrink: 0;
   min-width: 64px;
 }
 .stage-card__summary-v {
-  color: var(--n-650);
+  color: var(--ink-soft);
   flex: 1;
   word-break: break-word;
 }
 .stage-card__summary-empty {
-  color: var(--n-350);
+  color: var(--ink-faint);
   font-style: italic;
 }
 </style>
