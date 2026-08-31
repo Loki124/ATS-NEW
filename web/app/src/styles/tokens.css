@@ -220,6 +220,28 @@ body.dark {
   --glow-brand:     var(--brand-a32); /* 暗色下 brand-tokens body.dark 已将 --brand-a32 重定义为 .45 */
 
   /* 品牌透色加深见 brand-tokens.css body.dark（--brand-a32/a22/a12 已重配比）。 */
+
+  /* ===== §17. --n-* 中性灰阶梯 · 暗色重映射（2026-08-31 全仓回归）
+   * :root §4.3 的 --n-* 在 light 模式覆盖「极浅填充/中级灰文字/极深标题」三段；
+   * body.dark 之前只重映射 --ink*，导致全仓 ~28 处使用 --n-* 的文字在暗底发黑不可读。
+   * 此处按语义等级逐档重映射：n-100~n-220(浅填充)→ 深填充；n-250~n-300(浅边框)→
+   * 中深灰；n-350~n-600(中级灰文字)→ 暗底中亮文字；n-650~n-850(深文字)→ 亮文字。
+   * 高数值(n-800/850)直接路由到 --ink，n-650/700 路由到 --ink-soft，保持语义单一来源。 */
+  --n-100:#1E293B; --n-150:#1A2333; --n-160:#1A2333; --n-170:#1A2438; --n-180:#1A2438;
+  --n-200:#16202F; --n-220:#1A2438; --n-250:#334155; --n-300:#334155; --n-350:#94A3B8;
+  --n-380:#94A3B8; --n-400:#94A3B8; --n-440:#94A3B8; --n-450:#94A3B8; --n-500:#94A3B8;
+  --n-580:#CBD5E1; --n-600:#CBD5E1; --n-650:var(--ink-soft); --n-700:var(--ink-soft);
+  --n-800:var(--ink); --n-850:var(--ink);
+
+  /* ===== §18. overlay 玻璃 · 暗色适配（2026-08-31 全仓回归）
+   * glass.css / CandidateList / CandidateDetail 多处使用 --overlay-glass-mid
+   * (light: rgba(255,255,255,.35) 浅色白底高光) 作为「暗色模式则不可见白细线/白底」。
+   * 暗色下用同色相的白玻璃降透明度，形成「暗底上极淡亮色高光」。 */
+  --overlay-glass-mid: rgba(255, 255, 255, .10);
+
+  /* --overlay-scrim-weak/mid：暗色下黑色阴影/聚焦光晕需加深（light .04→dark .10；light .25→dark .40） */
+  --overlay-scrim-weak: rgba(0, 0, 0, .10);
+  --overlay-scrim-mid:  rgba(0, 0, 0, .40);
 }
 
 /* ===== §15. 跟随系统（prefers-color-scheme）=====
