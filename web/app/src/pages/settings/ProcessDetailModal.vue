@@ -658,7 +658,7 @@
             v-if="!editForm.stages.length || !editForm.stages[editForm.stages.length - 1]?.isEnd"
             style="margin-top: 12px"
             size="small"
-            dashed
+            type="primary"
             block
             @click="addStageAt(editForm.stages.length, 'following')"
           >
@@ -1775,7 +1775,7 @@ function rulesExpr(rules: any[]): string {
   height: 44px;
   border-radius: 10px;
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
-  color: var(--g1);
+  color: var(--on-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1862,7 +1862,7 @@ function rulesExpr(rules: any[]): string {
 }
 .section__body {
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
-  border: 1px solid var(--g1);
+  border: 1px solid var(--g2);
   border-radius: 6px;
   padding: 0 14px;
 }
@@ -1874,7 +1874,7 @@ function rulesExpr(rules: any[]): string {
   gap: var(--space-3);
   min-height: 36px;
   padding: 10px 0;
-  border-bottom: 1px dashed var(--g1);
+  border-bottom: 1px solid var(--g2);
   font-size: var(--fs-13);
 }
 .field-row:last-child,
@@ -1933,15 +1933,15 @@ function rulesExpr(rules: any[]): string {
   box-shadow: 0 2px 8px var(--overlay-scrim-weak);
 }
 .scope-card--include {
-  background: var(--g1);
+  background: var(--glass-bg-card);
   border-color: var(--c-info-bg);
 }
 .scope-card--exclude {
-  background: var(--g1);
+  background: var(--glass-bg-card);
   border-color: var(--c-error-bg);
 }
 .scope-card--neutral {
-  background: var(--g1);
+  background: var(--glass-bg-card);
   border-color: var(--n-170);
 }
 .scope-card__head {
@@ -2010,7 +2010,7 @@ function rulesExpr(rules: any[]): string {
 }
 .scope-card__value--more {
   background: transparent;
-  border-style: dashed;
+  border-style: solid;
 }
 .scope-card__empty {
   font-size: 11px;
@@ -2075,7 +2075,7 @@ function rulesExpr(rules: any[]): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--g1);
+  color: var(--brand);
   font-weight: 600;
   font-size: var(--fs-13);
   z-index: 1;
@@ -2092,7 +2092,7 @@ function rulesExpr(rules: any[]): string {
   flex-wrap: wrap;
   margin-bottom: var(--space-2);
   padding-bottom: var(--space-2);
-  border-bottom: 1px dashed var(--g1);
+  border-bottom: 1px solid var(--g2);
 }
 .stage-card__name {
   font-size: var(--fs-15);
@@ -2154,7 +2154,7 @@ function rulesExpr(rules: any[]): string {
   padding: 4px 0;
 }
 .auto-row + .auto-row {
-  border-top: 1px dashed var(--g1);
+  border-top: 1px solid var(--g2);
 }
 .auto-k {
   color: var(--n-450);
@@ -2370,7 +2370,7 @@ function rulesExpr(rules: any[]): string {
   gap: var(--space-2);
   justify-content: flex-end;
   padding-top: var(--space-2);
-  border-top: 1px dashed var(--g1);
+  border-top: 1px solid var(--g2);
   margin-top: var(--space-1);
 }
 

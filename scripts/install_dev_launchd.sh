@@ -131,8 +131,9 @@ PLIST_EOF
 NODE_BIN="$(ls -d "$HOME/.workbuddy/binaries/node/versions"/*/bin 2>/dev/null | head -1)"
 [[ -z "$NODE_BIN" ]] && NODE_BIN="/usr/local/bin"
 
-sed -i '' "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE"
-sed -i '' "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
+# 注意：-i 扩展名必须与 -i 紧贴（"-i''"），部分 sed 实现（toybox）在 "-i ''" 空格形式下会把脚本误判为文件名
+sed -i'' "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE"
+sed -i'' "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
 
 plutil -lint "$FE" "$BE"
 
