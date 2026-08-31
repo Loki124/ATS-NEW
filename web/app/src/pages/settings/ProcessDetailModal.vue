@@ -562,6 +562,40 @@
                 />
               </div>
 
+              <!-- 配置摘要: 展示已配置项, 让编辑态也能一眼看到当前值 -->
+              <div v-if="stage._rule || stage._condition" class="stage-card__summary">
+                <template v-if="stage._rule">
+                  <div v-if="stage._rule.defaultHandlerType" class="stage-card__summary-row">
+                    <span class="stage-card__summary-k">默认处理人</span>
+                    <span class="stage-card__summary-v">
+                      {{ HANDLER_TYPE_LABEL[stage._rule.defaultHandlerType] || stage._rule.defaultHandlerType }}
+                    </span>
+                  </div>
+                  <div v-if="stage._rule.autoAdvanceType && stage._rule.autoAdvanceType !== 'NONE'" class="stage-card__summary-row">
+                    <span class="stage-card__summary-k">自动流转</span>
+                    <span class="stage-card__summary-v">
+                      {{ AUTO_ADVANCE_LABEL[stage._rule.autoAdvanceType] || stage._rule.autoAdvanceType }}
+                    </span>
+                  </div>
+                  <div v-if="stage._rule.autoSkipNPlusTwo" class="stage-card__summary-row">
+                    <span class="stage-card__summary-k">自动跳过</span>
+                    <span class="stage-card__summary-v">N+2 推荐免筛选</span>
+                  </div>
+                  <div v-if="stage._rule.timeLimit" class="stage-card__summary-row">
+                    <span class="stage-card__summary-k">超时归档</span>
+                    <span class="stage-card__summary-v">{{ stage._rule.timeLimit }} 天</span>
+                  </div>
+                </template>
+                <template v-if="stage._condition">
+                  <div class="stage-card__summary-row">
+                    <span class="stage-card__summary-k">进入条件</span>
+                    <span class="stage-card__summary-v">
+                      {{ stage._condition.matchType === 'ALL' ? '全部满足' : '任一满足' }} · {{ stage._condition.items?.length || 0 }} 项
+                    </span>
+                  </div>
+                </template>
+              </div>
+
               <!-- 字段行: 规则 / 条件 -->
               <div class="stage-card__fields">
                 <div class="field-row">
@@ -2403,5 +2437,55 @@ function rulesExpr(rules: any[]): string {
   font-size: var(--fs-12);
   color: var(--n-440);
   flex-shrink: 0;
+}
+
+/* ===== 弹窗滚动修复 =====
+   n-modal preset="card" 在长内容场景下, n-card body 拿不到明确高度
+   导致 content 溢出但不出现滚动条. 强制 n-card/n-card-wrapper 走 flex 链,
+   n-card__content 用 flex:1 + min-height:0 拿到剩余高度并 overflow-y:auto */
+:deep(.n-modal .n-card-wrapper),
+:deep(.n-modal .n-card) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.n-modal .n-card__content) {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 编辑模式字段摘要: 让阶段卡片在编辑态也展示已配置项概览,
+   避免用户进编辑后只看到两个空按钮(阶段规则/进入条件)不知改了什么 */
+.stage-card__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--glass-bg-sub, var(--g1));
+  border: 1px solid var(--g2);
+  border-radius: 6px;
+  font-size: var(--fs-12);
+  color: var(--n-450);
+  line-height: 1.55;
+}
+.stage-card__summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.stage-card__summary-k {
+  color: var(--n-400);
+  flex-shrink: 0;
+  min-width: 64px;
+}
+.stage-card__summary-v {
+  color: var(--n-650);
+  flex: 1;
+  word-break: break-word;
+}
+.stage-card__summary-empty {
+  color: var(--n-350);
+  font-style: italic;
 }
 </style>
