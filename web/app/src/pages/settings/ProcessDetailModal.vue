@@ -200,8 +200,9 @@
             <div
               class="stage-card__dot"
               :style="{
-                background: stageTypeColor(link.stage?.stageType),
-                boxShadow: `0 0 0 4px var(--g1), 0 0 0 6px ${stageTypeColor(link.stage?.stageType)}26`,
+                background: 'var(--brand)',
+                color: '#fff',
+                boxShadow: `0 0 0 4px var(--g1), 0 0 0 6px color-mix(in srgb, var(--brand) 22%, transparent)`,
               }"
             >
               <span class="stage-card__dot-num">{{ idx + 1 }}</span>
@@ -212,7 +213,7 @@
               <span class="stage-card__name">
                 {{ link.stage?.name || link.customName || '未命名' }}
               </span>
-              <n-tag size="small" :type="stageTypeTagType(link.stage?.stageType)">
+              <n-tag size="small" type="default">
                 <template #icon>
                   <n-icon :component="stageTypeIcon(link.stage?.stageType)" />
                 </template>
@@ -236,23 +237,6 @@
 
             <!-- 阶段字段行 (label: value) -->
             <div class="stage-card__fields">
-              <!-- 自动化流转 -->
-              <div class="field-row">
-                <span class="field-label">自动化流转</span>
-                <span class="field-value">
-                  <template v-if="link.stageRule && link.stageRule.autoAdvanceType && link.stageRule.autoAdvanceType !== 'NONE'">
-                    <span class="rule-text">
-                      <strong>{{ AUTO_ADVANCE_LABEL[link.stageRule.autoAdvanceType] || link.stageRule.autoAdvanceType }}</strong>
-                      <span v-if="link.stageRule.autoAdvanceTiming === 'IMMEDIATE'" class="rule-timing">立即执行</span>
-                      <span v-else-if="link.stageRule.autoAdvanceTiming === 'DELAYED' && link.stageRule.autoAdvanceDays" class="rule-timing">
-                        延迟 {{ link.stageRule.autoAdvanceDays }} 天
-                      </span>
-                    </span>
-                  </template>
-                  <span v-else class="muted-text">无</span>
-                </span>
-              </div>
-
               <!-- 默认处理人 -->
               <div class="field-row">
                 <span class="field-label">默认处理人</span>
@@ -272,31 +256,7 @@
                 </span>
               </div>
 
-              <!-- 阶段限时 -->
-              <div class="field-row">
-                <span class="field-label">阶段限时</span>
-                <span class="field-value">
-                  <template v-if="link.stageRule?.timeLimit">
-                    <span class="rule-text">
-                      {{ link.stageRule.timeLimit }} 天
-                      <span class="rule-scope">({{ link.stageRule.timeLimitScope === 'NEW_ONLY' ? '仅新申请' : '全部申请' }})</span>
-                    </span>
-                  </template>
-                  <span v-else class="muted-text">未设置</span>
-                </span>
-              </div>
-
-              <!-- 关联面试轮次 -->
-              <div v-if="link.stageRule && Array.isArray(link.stageRule.interviewRoundIds) && link.stageRule.interviewRoundIds.length" class="field-row">
-                <span class="field-label">关联轮次</span>
-                <span class="field-value">
-                  <n-tag v-for="rid in link.stageRule.interviewRoundIds" :key="rid" size="small" type="primary">
-                    {{ rid }}
-                  </n-tag>
-                </span>
-              </div>
-
-              <!-- 包含功能 (橙色描边 tag) -->
+              <!-- 包含功能 -->
               <div class="field-row field-row--block">
                 <span class="field-label">包含功能</span>
                 <span class="field-value field-value--wrap">
@@ -313,52 +273,107 @@
                 </span>
               </div>
 
-              <!-- 进入条件 -->
+              <!-- 自动化（聚合：流转 / 跳过 / 超时归档） -->
+              <div class="field-row field-row--block">
+                <span class="field-label">自动化</span>
+                <span class="field-value field-value--wrap">
+                  <div class="auto-block">
+                    <!-- 流转 -->
+                    <div class="auto-row">
+                      <span class="auto-k">流转</span>
+                      <span class="auto-v" v-if="link.stageRule && link.stageRule.autoAdvanceType && link.stageRule.autoAdvanceType !== 'NONE'">
+                        {{ AUTO_ADVANCE_LABEL[link.stageRule.autoAdvanceType] || link.stageRule.autoAdvanceType }}
+                        <template v-if="link.stageRule.autoAdvanceTiming === 'IMMEDIATE'"> · 立即执行</template>
+                        <template v-else-if="link.stageRule.autoAdvanceTiming === 'DELAYED' && link.stageRule.autoAdvanceDays"> · 延迟 {{ link.stageRule.autoAdvanceDays }} 天</template>
+                      </span>
+                      <span class="auto-v muted-text" v-else>未开启</span>
+                    </div>
+                    <!-- 跳过 -->
+                    <div class="auto-row">
+                      <span class="auto-k">跳过</span>
+                      <span class="auto-v" v-if="link.stageRule?.autoSkipNPlusTwo">已开启</span>
+                      <span class="auto-v muted-text" v-else>未开启</span>
+                      <button class="auto-act" type="button" @click="toggleCond('skip-' + link.id)">查看规则 ›</button>
+                    </div>
+                    <div class="auto-detail" v-if="condOpen('skip-' + link.id)">
+                      <template v-if="link.stageRule?.autoSkipNPlusTwo">N+2 推荐免筛选：经上级推荐的候选人可跳过本阶段，直接进入下一阶段。</template>
+                      <template v-else>本阶段未启用自动跳过。</template>
+                    </div>
+                    <!-- 超时归档 -->
+                    <div class="auto-row">
+                      <span class="auto-k">超时归档</span>
+                      <span class="auto-v" v-if="link.stageRule?.timeLimit">
+                        {{ link.stageRule.timeLimit }} 天<template v-if="link.stageRule.timeLimitScope === 'NEW_ONLY'"> · 仅新申请</template><template v-else> · 全部申请</template>
+                      </span>
+                      <span class="auto-v muted-text" v-else>未开启</span>
+                      <button class="auto-act" type="button" @click="toggleCond('archive-' + link.id)">查看规则 ›</button>
+                    </div>
+                    <div class="auto-detail" v-if="condOpen('archive-' + link.id)">
+                      <template v-if="link.stageRule?.timeLimit">超时 {{ link.stageRule.timeLimit }} 天未处理 → 自动归档至「人才库 / 归档池」；归档前发送站内信提醒处理人。</template>
+                      <template v-else>本阶段未启用超时归档。</template>
+                    </div>
+                  </div>
+                </span>
+              </div>
+
+              <!-- 进入条件（两级折叠：单规则直接渲染 / 多规则外层包裹） -->
               <div class="field-row field-row--block field-row--last">
                 <span class="field-label">进入条件</span>
                 <span class="field-value field-value--wrap">
                   <div v-if="!link.entryCondition" class="cond-empty">
                     未配置进入条件 (任何候选人都可进入此阶段)
                   </div>
-                  <div v-else class="cond-group">
-                    <div class="cond-group__head">
-                      <n-tag
-                        size="small"
-                        :type="link.entryCondition.matchType === 'ALL' ? 'success' : 'warning'"
-                        round
-                      >
-                        {{ link.entryCondition.matchType === 'ALL' ? '全部满足' : '任一满足' }}
-                      </n-tag>
-                      <span v-if="link.entryCondition.conditionType" class="cond-group__type">
-                        {{ CONDITION_TYPE_LABEL[link.entryCondition.conditionType] || link.entryCondition.conditionType }}
-                      </span>
-                      <span v-if="link.entryCondition.items?.length" class="cond-group__count">
-                        共 {{ link.entryCondition.items.length }} 条
-                      </span>
-                    </div>
-                    <div v-if="!link.entryCondition.items?.length" class="cond-empty cond-empty--inline">
-                      已启用匹配模式但未配置具体条件项
-                    </div>
-                    <div v-else class="cond-list">
-                      <div
-                        v-for="(item, i) in link.entryCondition.items"
-                        :key="i"
-                        class="cond-item"
-                      >
-                        <span class="cond-item__index">条件 {{ i + 1 }}</span>
-                        <span
-                          v-if="i > 0 && item.relationToParent"
-                          class="cond-item__relation"
-                          :class="`cond-item__relation--${String(item.relationToParent).toLowerCase()}`"
+                  <template v-else>
+                    <!-- 多规则：外层折叠 = 规则级表达式 -->
+                    <div v-if="entryRules(link).length > 1" class="cond-card collapsible" :class="{ 'is-open': condOpen('cond-' + link.id) }">
+                      <div class="collapsible__head" @click="toggleCond('cond-' + link.id)">
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+                        <span class="cond-card__title">进入条件</span>
+                        <span class="cond-expr">{{ rulesExpr(entryRules(link)) }}</span>
+                        <span class="cond-count">· {{ entryRules(link).length }} 条规则</span>
+                      </div>
+                      <div class="collapsible__body">
+                        <div
+                          v-for="(rule, ri) in entryRules(link)"
+                          :key="ri"
+                          class="rule collapsible"
+                          :class="{ 'is-open': condOpen('rule-' + link.id + '-' + ri) }"
                         >
-                          {{ item.relationToParent }}
-                        </span>
-                        <span class="cond-item__expr">
-                          {{ conditionItemLabel(item) }}
-                        </span>
+                          <div class="collapsible__head rule__head" @click="toggleCond('rule-' + link.id + '-' + ri)">
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+                            <span class="rule__badge">规则 {{ ri + 1 }}</span>
+                            <span class="rule__match">{{ rule.matchType === 'ALL' ? '全部满足' : '任一满足' }}</span>
+                            <span class="rule__rule">{{ condExpr(rule.items) }}</span>
+                          </div>
+                          <div class="collapsible__body rule__body">
+                            <div class="cond-grid">
+                              <div class="cond-item" v-for="(item, i) in rule.items" :key="i">
+                                <span class="cond-item__idx">{{ i + 1 }}</span>
+                                <span class="cond-item__expr">{{ conditionItemLabel(item) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    <!-- 单规则：直接渲染规则级（条件级表达式） -->
+                    <div v-else class="rule collapsible" :class="{ 'is-open': condOpen('rule-' + link.id + '-0') }">
+                      <div class="collapsible__head rule__head" @click="toggleCond('rule-' + link.id + '-0')">
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+                        <span class="rule__badge">进入条件</span>
+                        <span class="rule__match">{{ link.entryCondition.matchType === 'ALL' ? '全部满足' : '任一满足' }}</span>
+                        <span class="rule__rule">{{ condExpr(link.entryCondition.items) }}</span>
+                      </div>
+                      <div class="collapsible__body rule__body">
+                        <div class="cond-grid">
+                          <div class="cond-item" v-for="(item, i) in link.entryCondition.items" :key="i">
+                            <span class="cond-item__idx">{{ i + 1 }}</span>
+                            <span class="cond-item__expr">{{ conditionItemLabel(item) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
                 </span>
               </div>
             </div>
@@ -510,8 +525,9 @@
               <div
                 class="stage-card__dot"
                 :style="{
-                  background: stageTypeColor(stage.stageType),
-                  boxShadow: `0 0 0 4px var(--g1), 0 0 0 6px ${stageTypeColor(stage.stageType)}26`,
+                  background: 'var(--brand)',
+                  color: '#fff',
+                  boxShadow: `0 0 0 4px var(--g1), 0 0 0 6px color-mix(in srgb, var(--brand) 22%, transparent)`,
                 }"
               >
                 <span class="stage-card__dot-num">{{ idx + 1 }}</span>
@@ -519,7 +535,7 @@
 
               <!-- 阶段 header: 类型 tag + 名称 input + 起止 + 限时 -->
               <div class="stage-card__header">
-                <n-tag size="small" :type="stageTypeTagType(stage.stageType)">
+                <n-tag size="small" type="default">
                   <template #icon>
                     <n-icon :component="stageTypeIcon(stage.stageType)" />
                   </template>
@@ -750,7 +766,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
 import {
   NSpace, NTag, NSpin, NModal, NButton, NIcon,
   NGrid, NGridItem, NInput, NRadio, NRadioGroup, NSelect, NSwitch,
@@ -1677,6 +1693,32 @@ function conditionItemLabel(item: any): string {
   }
   return `${field} ${opLabel} ${valueLabel}`
 }
+
+// ===== v4 落地：折叠状态 + 进入条件归一化（单规则现状，多规则未来可期） =====
+const condCollapsed = reactive<Record<string, boolean>>({})
+function toggleCond(key: string) {
+  condCollapsed[key] = !condCollapsed[key]
+}
+function condOpen(key: string, def = true): boolean {
+  return key in condCollapsed ? condCollapsed[key] : def
+}
+// 将 link.entryCondition（单条 legacy JSON）归一为 rules[]，后端多规则时直接展开
+function entryRules(link: any): any[] {
+  const ec = link?.entryCondition
+  if (!ec || !Array.isArray(ec.items) || ec.items.length === 0) return []
+  return [ec]
+}
+// 条件级表达式：基于 items[].relationToParent，首条无连接符
+function condExpr(items: any[]): string {
+  if (!items?.length) return ''
+  return items
+    .map((it: any, i: number) => (i === 0 ? `${i + 1}` : `${it.relationToParent === 'OR' ? 'OR' : 'AND'} ${i + 1}`))
+    .join(' ')
+}
+// 规则级表达式：规则1 OR 规则2 ...
+function rulesExpr(rules: any[]): string {
+  return rules.map((_: any, i: number) => `规则${i + 1}`).join(' OR ')
+}
 </script>
 
 <style scoped>
@@ -1982,12 +2024,7 @@ function conditionItemLabel(item: any): string {
   box-shadow: 0 2px 10px var(--overlay-scrim-weak);
   border-color: var(--g6);
 }
-/* 阶段类型左侧色条 (保留 v1 优势) */
-.stage-card--screen     { border-left: 3px solid var(--c-info); }
-.stage-card--invitation { border-left: 3px solid var(--c-warning); }
-.stage-card--interview  { border-left: 3px solid var(--c-purple); }
-.stage-card--offer      { border-left: 3px solid var(--c-success); }
-.stage-card--onboarding { border-left: 3px solid var(--c-cyan); }
+/* v4 落地：去除阶段类型彩色左边线，类型区分交由序号圆点(品牌色) + 中性 tag 承载 */
 
 /* 序号圆点 (timeline) */
 .stage-card__dot {
@@ -2053,9 +2090,9 @@ function conditionItemLabel(item: any): string {
 .feature-tag {
   display: inline-flex;
   align-items: center;
-  background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
-  border: 1px solid var(--c-warning-bg);
-  color: var(--c-warning);
+  background: var(--glass-bg-sub, var(--g1));
+  border: 1px solid var(--g2);
+  color: var(--n-450);
   font-size: var(--fs-12);
   padding: 2px var(--space-2);
   border-radius: 3px;
@@ -2063,26 +2100,154 @@ function conditionItemLabel(item: any): string {
   white-space: nowrap;
 }
 
-/* ===== 进入条件 ===== */
-.cond-group {
+/* ===== 自动化聚合块（流转 / 跳过 / 超时归档） ===== */
+.auto-block {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  background: var(--glass-bg-sub, var(--g1));
+  border: 1px solid var(--g2);
+  border-radius: 8px;
+  padding: 8px 12px;
 }
-.cond-group__head {
+.auto-row {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: 4px 0;
+}
+.auto-row + .auto-row {
+  border-top: 1px dashed var(--g1);
+}
+.auto-k {
+  color: var(--n-450);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+.auto-v {
+  font-size: var(--fs-12);
+  color: var(--n-650);
+}
+.auto-act {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--fs-12);
+  color: var(--brand);
+  font-weight: 500;
+}
+.auto-act:hover { text-decoration: underline; }
+.auto-detail {
+  margin: 4px 0 6px;
+  padding: 6px 10px;
+  background: var(--glass-bg-input, var(--g1));
+  border: 1px solid var(--g2);
+  border-radius: 4px;
+  font-size: var(--fs-12);
+  color: var(--n-450);
+  line-height: 1.6;
+}
+
+/* ===== 折叠组件（进入条件两级） ===== */
+.collapsible__head {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-12);
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
 }
-.cond-group__type {
-  color: var(--n-450);
+.chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--brand);
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.cond-group__count {
-  color: var(--n-400);
+.is-open > .collapsible__head .chevron { transform: rotate(90deg); }
+.collapsible__body { display: none; }
+.is-open > .collapsible__body { display: block; }
+
+/* 进入条件（外层折叠）：标题行 = 规则级表达式 */
+.cond-card {
+  width: 100%;
+  background: var(--glass-bg-sub, var(--g1));
+  border: 1px solid var(--g2);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.cond-card__title {
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--n-850);
+}
+.cond-expr {
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  border-radius: 6px;
+  padding: 1px 8px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
+.cond-count {
+  font-size: var(--fs-12);
+  color: var(--n-400);
+}
+
+/* 规则（内层折叠）：标题行 = 条件级表达式 */
+.rule {
+  margin-top: 6px;
+  background: var(--glass-bg-card);
+  border: 1px solid var(--g2);
+  border-radius: 6px;
+}
+.rule__head { padding: 6px 10px; }
+.rule__badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  border-radius: 6px;
+  padding: 1px 8px;
+}
+.rule__match { font-size: var(--fs-12); color: var(--n-450); }
+.rule__rule {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  border-radius: 6px;
+  padding: 1px 8px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.rule__body { padding: 0 10px 10px; }
+
+/* 单个条件：一行两列 */
+.cond-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+}
+.cond-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--fs-12);
+  min-width: 0;
+}
+.cond-item__idx {
+  color: var(--n-400);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.cond-item__expr {
+  color: var(--n-650);
+  overflow-wrap: anywhere;
+}
+
+/* 进入条件空态（保留） */
 .cond-empty {
   font-size: var(--fs-12);
   color: var(--n-400);
@@ -2090,56 +2255,6 @@ function conditionItemLabel(item: any): string {
   padding: 6px 10px;
   border-radius: 4px;
   font-style: italic;
-}
-.cond-empty--inline {
-  margin-top: var(--space-1);
-}
-.cond-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  background: var(--g1);
-  border: 1px solid var(--g1);
-  border-radius: 4px;
-  padding: 6px 10px;
-}
-.cond-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-12);
-  line-height: 1.6;
-}
-.cond-item__index {
-  font-size: 11px;
-  background: var(--g1);
-  color: var(--c-info);
-  padding: 1px 6px;
-  border-radius: 3px;
-  flex-shrink: 0;
-  font-weight: 500;
-}
-.cond-item__relation {
-  font-size: var(--fs-10);
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-.cond-item__relation--and {
-  background: var(--n-100);
-  color: var(--c-success);
-}
-.cond-item__relation--or {
-  background: var(--n-100);
-  color: var(--c-orange);
-}
-.cond-item__expr {
-  font-family: 'SF Mono', Consolas, Menlo, monospace;
-  font-size: var(--fs-12);
-  color: var(--n-650);
-  flex: 1;
-  word-break: break-all;
 }
 
 /* ===== 响应式 ===== */
