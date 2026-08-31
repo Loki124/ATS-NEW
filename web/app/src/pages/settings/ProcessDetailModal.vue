@@ -26,6 +26,7 @@
     :segmented="{ content: true, footer: true }"
     @update:show="handleUpdateShow"
   >
+      <n-scrollbar style="height: 100%">
       <n-spin :show="loading">
       <template v-if="mode === 'view'">
       <!-- ====== HERO HEADER ====== -->
@@ -669,6 +670,7 @@
         </div>
       </template>
     </n-spin>
+    </n-scrollbar>
 
     <template #footer>
       <n-space justify="end">
