@@ -36,8 +36,8 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
 from apps.audit.models import AuditLog
 
-from .calc import compute_ratio, simulate, _largest_remainder_allocate
-from .constants import STRENGTH
+from .calc import compute_ratio, simulate, _largest_remainder_allocate, _COUNTED_STATUSES
+from .constants import STRENGTH, STATUS
 from .io_indicator import (
     build_indicator_export_workbook, build_indicator_export_csv,
     build_indicator_template_workbook, build_indicator_template_csv,
@@ -1044,9 +1044,29 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 
 
 class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
-    """人员主数据 CRUD（全局主数据，一行一人；counted 控制是否计入核算）。"""
+    """人员主数据 CRUD（全局主数据，一行一人；counted 控制是否计入核算）。
+
+    get_queryset 仅对 list 生效：
+      - ?staffed=1   → 仅返回占编人员（status ∈ _COUNTED_STATUSES = 在职/在途Offer/在途待入职，排除候选池）
+      - ?status=X    → 按精确状态过滤（X 须为 STATUS 合法值）
+      - 其余（无参） → 返回全部人员
+    retrieve/update/delete 不套用状态过滤，保证候选池人员按 id 仍可查可改。
+    （实时看板/录入校验仍走 Person.objects.all() 自行按 _COUNTED_STATUSES 计数，不受影响。）
+    """
 
     queryset = Person.objects.all()
     serializer_class = PersonSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = Person.objects.all()
+        if self.action != 'list':
+            return qs
+        status = self.request.query_params.get('status')
+        staffed = self.request.query_params.get('staffed')
+        if status in STATUS:
+            qs = qs.filter(status=status)
+        elif staffed in ('1', 'true', 'True'):
+            qs = qs.filter(status__in=_COUNTED_STATUSES)
+        return qs

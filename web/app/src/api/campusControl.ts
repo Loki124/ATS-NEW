@@ -396,8 +396,12 @@ export const validateDraft = (
     .then((r) => r.data.data as ValidationResult)
 
 /* ============================ 人员主数据 ============================ */
-export const listPersons = () =>
-  api.get('/campus/persons/', { params: { page_size: 200 } }).then((r) => listData<Person>(r))
+export const listPersons = (params?: { staffed?: boolean; status?: string }) => {
+  const q: Record<string, unknown> = { page_size: 200 }
+  if (params?.staffed) q.staffed = '1'
+  if (params?.status) q.status = params.status
+  return api.get('/campus/persons/', { params: q }).then((r) => listData<Person>(r))
+}
 export const upsertPerson = (p: Partial<Person> & { code: string; name: string; bu: string; school: string; sex: string; major: string; month: string; status: string }) => {
   const payload = {
     code: p.code, name: p.name, bu: p.bu, school: p.school, sex: p.sex, major: p.major,

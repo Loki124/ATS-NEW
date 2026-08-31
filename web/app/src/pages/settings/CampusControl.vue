@@ -185,6 +185,11 @@
         <!-- ===================== 人员数据 ===================== -->
         <n-tab-pane name="persons" tab="人员数据">
           <div class="toolbar">
+            <n-select
+              v-model:value="personFilterStatus"
+              :options="personStatusOptions"
+              class="rule-filter-select"
+            />
             <div class="spacer"></div>
             <n-button type="primary" class="gradient-btn" @click="openPersonModal()">+ 新增人员</n-button>
           </div>
@@ -465,6 +470,18 @@ const dimensions = ref<ControlDimension[]>([])
 const indicators = ref<ControlIndicator[]>([])
 const rules = ref<ControlRule[]>([])
 const persons = ref<Person[]>([])
+
+// 人员数据：状态筛选（默认「占编」= 在职+在途Offer+在途待入职，排除候选池）。
+// 与后端 _COUNTED_STATUSES 口径对齐；切回「全部」即不带参。
+const personFilterStatus = ref<'all' | 'staffed' | '在职' | '在途Offer' | '在途待入职' | '候选池'>('staffed')
+const personStatusOptions = [
+  { label: '占编（在职+在途）', value: 'staffed' as const },
+  { label: '全部人员', value: 'all' as const },
+  { label: '在职', value: '在职' as const },
+  { label: '在途Offer', value: '在途Offer' as const },
+  { label: '在途待入职', value: '在途待入职' as const },
+  { label: '候选池', value: '候选池' as const },
+]
 
 /* ============================ 表格分页（列表页） ============================
  * 三个列表页（规则配置/指标管理/人员数据）启用 n-data-table 内置分页：
@@ -1328,10 +1345,17 @@ function removePerson(p: Person) {
 
 async function loadPersons(silent = false) {
   loading.persons = true
-  try { persons.value = await listPersons() }
+  try {
+    const params: { staffed?: boolean; status?: string } = {}
+    if (personFilterStatus.value === 'staffed') params.staffed = true
+    else if (personFilterStatus.value !== 'all') params.status = personFilterStatus.value
+    persons.value = await listPersons(params)
+  }
   catch (e) { if (!silent) message.error(extractApiError(e, '加载人员失败')); throw e }
   finally { loading.persons = false }
 }
+// 切换状态筛选即时重载（分页计数由后端按过滤结果返回，保持准确）
+watch(personFilterStatus, () => loadPersons())
 
 onMounted(async () => {
   // 入口批量加载：silent 抑制各调用内部 toast，由下方 allSettled 聚合成单条
