@@ -19,13 +19,16 @@ from typing import Any, Dict, Optional
 from .models import (
     Action,
     Condition,
+    ConditionLogic,
     ConditionType,
     EvaluateResult,
+    Priority,
     Rule,
     RuleCategory,
     RuleExecutionLog,
     RuleStatus,
     UnifiedActionType,
+    UnifiedTriggerType,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +36,12 @@ logger = logging.getLogger(__name__)
 # automation.AutomationRule 在统一表中的来源标记（与 adapters.py 保持一致）
 AUTOMATION_SOURCE_APP = 'automation'
 AUTOMATION_LEGACY_MODEL = 'automation.AutomationRule'
+
+# entry_condition / time_limit 在统一表中的来源标记（Phase 3，2026-08-31）
+ENTRY_CONDITION_SOURCE_APP = 'entry_condition'
+ENTRY_CONDITION_LEGACY_MODEL = 'entry_condition.EntryConditionRule'
+TIME_LIMIT_SOURCE_APP = 'time_limit'
+TIME_LIMIT_LEGACY_MODEL = 'time_limit.TimeLimitRule'
 
 
 def _to_bool(value: Any) -> bool:
@@ -160,3 +169,220 @@ def sync_automation_log_to_unified(log: Any) -> Optional[RuleExecutionLog]:
         error_message=(log.error_message or None),
         execution_ms=log.execution_ms,
     )
+
+
+# ===========================================================================
+# Phase 3（2026-08-31）：entry_condition / time_limit 双写镜像
+# 设计依据：docs/rule-engine/UNIFIED_RULE_ENGINE_DESIGN.md §3.3 / §3.4 / §6 Phase 3
+# - entry_condition：隐式「进入阶段时评估」→ trigger STAGE_ENTERED；
+#   命中任一规则即放行（Action ALLOW），否则拦截 + reject_message（由 legacy wrapper 翻译）。
+# - time_limit：隐式「阶段停留超时 / 进入时计算锁定」→ trigger STAGE_DWELL_TIMEOUT；
+#   conditions 默认 AND；Action LOCK（lock_duration / extension_per_person / effective_scope）。
+# 幂等 / 软删传播 / best-effort 语义与 sync_automation_rule_to_unified 完全一致。
+# ===========================================================================
+
+def sync_entry_condition_rule_to_unified(rule: Any) -> Rule:
+    """幂等地把一条 EntryConditionRule 镜像成统一 Rule（含 conditions / actions 重建）。
+
+    Args:
+        rule: entry_condition.models.EntryConditionRule 实例（已软删或未软删均可）。
+
+    Returns:
+        对应的统一 Rule 实例。
+
+    映射要点：
+    - trigger_type = STAGE_ENTERED；category = TCA。
+    - condition_expression 直接搬运 rule.expression（引用 ConditionItem.item_seq）；
+      condition_logic 兜底为 rule.match_type（ALL/ANY），与 legacy 求值语义一致。
+    - 每条 ConditionItem → Condition（seq=item_seq，condition_type/field/operator/value
+      原样搬运，仅搬运未软删的项）。
+    - Action：固定 1 条 ALLOW（命中即放行）；reject_message 冗余存入 params_json 与
+      config_json，供 legacy 委托 wrapper 在「未命中」时翻译为 REJECT 提示。
+    - priority_rank = rule.rule_seq，保证多规则按 link 内顺序进入引擎排序。
+    - 软删传播：rule.deleted_at 非空 → 统一侧也 soft_delete()。
+    """
+    # 懒导入 legacy 状态枚举，避免模块级循环依赖
+    from apps.entry_condition.models import EntryConditionRuleStatus
+
+    is_enabled = (rule.status == EntryConditionRuleStatus.ENABLED)
+    condition_logic = (
+        rule.match_type if rule.match_type in ('ALL', 'ANY') else ConditionLogic.ALL
+    )
+
+    unified, _created = Rule.objects.update_or_create(
+        source_app=ENTRY_CONDITION_SOURCE_APP,
+        legacy_id=rule.id,
+        defaults=dict(
+            name=rule.rule_name,
+            category=RuleCategory.TCA,
+            legacy_model=ENTRY_CONDITION_LEGACY_MODEL,
+            trigger_type=UnifiedTriggerType.STAGE_ENTERED,
+            trigger_timing=None,
+            trigger_delay_hours=None,
+            scope_json={
+                'link_id': str(rule.link_id),
+                'process_id': rule.process_id,
+            },
+            priority=Priority.P1,
+            priority_rank=rule.rule_seq,
+            status=RuleStatus.ENABLED if is_enabled else RuleStatus.DISABLED,
+            enabled=is_enabled,
+            failure_rate_threshold=0.5,
+            condition_expression=rule.expression or '',
+            condition_logic=condition_logic,
+            config_json={
+                'link_id': str(rule.link_id),
+                'process_id': rule.process_id,
+                'workflow_version': rule.workflow_version,
+                'rule_seq': rule.rule_seq,
+                'reject_message': rule.reject_message,
+                'match_type': rule.match_type,
+            },
+            created_by=rule.created_by,
+            updated_by=rule.updated_by,
+        ),
+    )
+
+    # 条件项：仅搬运未软删的项，删后重建（seq = item_seq，与 expression 引用一致）
+    unified.conditions.all().delete()
+    for item in rule.items.filter(deleted_at__isnull=True).order_by('item_seq'):
+        Condition.objects.create(
+            rule=unified,
+            seq=item.item_seq,
+            condition_type=item.condition_type,
+            field=item.field,
+            operator=item.operator,
+            value=item.value,
+            stage_name=item.stage_name or None,
+            stage_statuses=item.stage_statuses,
+            auto_filter_inactive_users=item.auto_filter_inactive_users,
+        )
+
+    # 动作项：固定 1 条 ALLOW；reject_message 冗余存入 params_json
+    unified.actions.all().delete()
+    Action.objects.create(
+        rule=unified,
+        seq=1,
+        action_type=UnifiedActionType.ALLOW,
+        params_json={'reject_message': rule.reject_message},
+        enabled=True,
+    )
+
+    # 软删传播
+    if rule.deleted_at and unified.deleted_at is None:
+        unified.soft_delete()
+
+    return unified
+
+
+def sync_entry_condition_log_to_unified(log: Any) -> Optional[RuleExecutionLog]:
+    """best-effort 把一条 EntryConditionLog 镜像成统一 RuleExecutionLog。
+
+    单向追加镜像（日志不幂等去重）；evaluate_result 映射：passed→ALLOWED，
+    否则→REJECTED（统一枚举见 EvaluateResult）。统一侧 rule 字段允许为 None。
+    """
+    unified_rule: Optional[Rule] = Rule.objects.filter(
+        source_app=ENTRY_CONDITION_SOURCE_APP,
+        legacy_id=log.rule_id,
+    ).first()
+
+    evaluate_result = (
+        EvaluateResult.ALLOWED if getattr(log, 'passed', False) else EvaluateResult.REJECTED
+    )
+    action_taken = 'allowed' if getattr(log, 'passed', False) else (
+        f'rejected: {log.reject_message}'[:200]
+    )
+
+    return RuleExecutionLog.objects.create(
+        rule=unified_rule,
+        rule_category=RuleCategory.TCA,
+        trigger_type=UnifiedTriggerType.STAGE_ENTERED,
+        candidate_id=log.candidate_id,
+        stage_id=log.stage_id,
+        link_id=log.link_id,
+        evaluate_result=evaluate_result,
+        action_taken=action_taken,
+        execution_ms=None,
+    )
+
+
+def sync_time_limit_rule_to_unified(rule: Any) -> Rule:
+    """幂等地把一条 TimeLimitRule 镜像成统一 Rule（含 conditions / actions 重建）。
+
+    Args:
+        rule: time_limit.models.TimeLimitRule 实例（已软删或未软删均可）。
+
+    Returns:
+        对应的统一 Rule 实例。
+
+    映射要点：
+    - trigger_type = STAGE_DWELL_TIMEOUT；category = TCA。
+    - conditions 为内联 JSON 数组（默认 AND）→ Condition 列表（seq=idx+1，
+      condition_type=CUSTOM）。
+    - Action：固定 1 条 LOCK，params_json 搬运 lock_duration / extension_per_person /
+      effective_scope；引擎 LOCK 执行器据此写入 Application.stage_deadline。
+    - priority_rank = rule.priority（time_limit 的 int 优先级），priority 取默认 P1。
+    - 软删传播：rule.deleted_at 非空 → 统一侧也 soft_delete()。
+    """
+    unified, _created = Rule.objects.update_or_create(
+        source_app=TIME_LIMIT_SOURCE_APP,
+        legacy_id=rule.id,
+        defaults=dict(
+            name=rule.rule_name,
+            category=RuleCategory.TCA,
+            legacy_model=TIME_LIMIT_LEGACY_MODEL,
+            trigger_type=UnifiedTriggerType.STAGE_DWELL_TIMEOUT,
+            trigger_timing=None,
+            trigger_delay_hours=None,
+            scope_json={
+                'link_id': str(rule.link_id),
+                'process_id': rule.process_id,
+            },
+            priority=Priority.P1,
+            priority_rank=rule.priority,
+            status=RuleStatus.ENABLED if _to_bool(rule.enabled) else RuleStatus.DISABLED,
+            enabled=_to_bool(rule.enabled),
+            failure_rate_threshold=0.5,
+            condition_expression='',
+            condition_logic=ConditionLogic.ALL,
+            config_json={
+                'link_id': str(rule.link_id),
+                'process_id': rule.process_id,
+                'workflow_version': rule.workflow_version,
+            },
+            created_by=rule.created_by,
+            updated_by=rule.updated_by,
+        ),
+    )
+
+    # 条件项：内联 JSON 数组，删后重建（seq = idx+1）
+    unified.conditions.all().delete()
+    for idx, cond in enumerate(rule.conditions or []):
+        Condition.objects.create(
+            rule=unified,
+            seq=idx + 1,
+            condition_type=ConditionType.CUSTOM,
+            field=cond.get('field', ''),
+            operator=cond.get('operator', 'EQ'),
+            value=cond.get('value'),
+        )
+
+    # 动作项：固定 1 条 LOCK
+    unified.actions.all().delete()
+    Action.objects.create(
+        rule=unified,
+        seq=1,
+        action_type=UnifiedActionType.LOCK,
+        params_json={
+            'lock_duration': rule.lock_duration,
+            'extension_per_person': rule.extension_per_person,
+            'effective_scope': rule.effective_scope,
+        },
+        enabled=True,
+    )
+
+    # 软删传播
+    if rule.deleted_at and unified.deleted_at is None:
+        unified.soft_delete()
+
+    return unified

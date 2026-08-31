@@ -68,6 +68,18 @@ def calc_time_limit(
         但对上述存量数据（``process_id=''``）同样会全量落空，属于把一个 fail-silent
         换成另一个 fail-silent。link 已唯一确定版本行，无需二次确认。
     """
+    from django.conf import settings
+    # Phase 3（2026-08-31）委托开关：RULE_ENGINE_DISPATCH=True 时改走统一规则引擎派发，
+    # 复用统一 ConditionEvaluator / ScopeMatcher / LOCK 执行器；结果翻译回 TimeLimitCalcResult。
+    # 默认 False → 维持原 time_limit 引擎路径，现网行为零变化；任何异常均回退 legacy 求值。
+    if getattr(settings, 'RULE_ENGINE_DISPATCH', False):
+        try:
+            unified = _calc_via_unified_engine(link, candidate, interviewer_count, process_version)
+            if unified is not None:
+                return unified
+        except Exception:
+            logger.exception('RULE_ENGINE dispatch failed for time_limit; fallback to legacy')
+
     from .models import TimeLimitRule
 
     rules = TimeLimitRule.objects.filter(
@@ -118,6 +130,72 @@ def calc_time_limit(
         total_lock_days=0,
         effective_scope='NEW_ONLY',
         matched=False,
+    )
+
+
+def _calc_via_unified_engine(link, candidate, interviewer_count, process_version):
+    """委托到统一规则引擎计算阶段限时（RULE_ENGINE_DISPATCH=True 时）。
+
+    把 (link, candidate, interviewer_count) 翻译为统一引擎的 EvaluationContext，过滤
+    source_app='time_limit' 的镜像规则，复用已注册的 LOCK 执行器完成「命中即计算 deadline」
+    （LOCK 执行器在 context 无 application_id 时不落库，与 legacy calc_time_limit 仅计算
+    不写入的语义一致；实际 stage_deadline 写入仍由调用方按返回结果完成）。
+
+    Returns:
+        TimeLimitCalcResult；若该 link 无任何镜像规则（双写尚未覆盖）返回 None，由调用方
+        回退到 legacy 求值。
+    """
+    from apps.rule_engine.integrations.time_limit_executors import (
+        register_time_limit_executors,
+    )
+    from apps.rule_engine.models import Rule, UnifiedTriggerType
+    from apps.rule_engine.services import EvaluationContext, RuleEngine
+
+    register_time_limit_executors()
+
+    extra = {
+        'CANDIDATE_LEVEL': getattr(candidate, 'level', None),
+        'CANDIDATE_SOURCE': getattr(candidate, 'source', None),
+        'GENDER': getattr(candidate, 'gender', None),
+        'HIGHEST_EDU': getattr(candidate, 'highest_education', None),
+        'WORK_YEARS': getattr(candidate, 'work_years', None),
+        'interviewer_count': interviewer_count,
+    }
+    ctx = EvaluationContext(
+        trigger_type=UnifiedTriggerType.STAGE_DWELL_TIMEOUT,
+        candidate_id=candidate.id,
+        stage_id=link.stage_id,
+        link_id=link.id,
+        process_id=link.process_id,
+        extra=extra,
+    )
+
+    results = RuleEngine().dispatch(ctx, source_app='time_limit')
+    if not results:
+        return None  # 无镜像规则 → 回退 legacy
+
+    matched_result = next((r for r in results if r.matched), None)
+    if matched_result is None:
+        return TimeLimitCalcResult(
+            rule_id=None, rule_name='default',
+            base_lock_days=0, extension_days=0, extra_interviewer_days=0,
+            total_lock_days=0, effective_scope='NEW_ONLY', matched=False,
+        )
+
+    unified_rule = Rule.objects.filter(id=matched_result.rule_id).first()
+    legacy_id = unified_rule.legacy_id if unified_rule else matched_result.rule_id
+    action = matched_result.action_results[0] if matched_result.action_results else None
+    data = action.data if action else {}
+    total = data.get('total_lock_days', 0)
+    return TimeLimitCalcResult(
+        rule_id=legacy_id,
+        rule_name=unified_rule.name if unified_rule else '',
+        base_lock_days=total,
+        extension_days=0,
+        extra_interviewer_days=0,
+        total_lock_days=total,
+        effective_scope=data.get('effective_scope', 'NEW_ONLY'),
+        matched=True,
     )
 
 

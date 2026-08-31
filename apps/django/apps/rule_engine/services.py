@@ -288,7 +288,10 @@ class ScopeMatcher:
     """
 
     # 标量维度（相等匹配）
-    _SCALAR_DIMS = ('bu', 'position', 'level', 'process')
+    # 注：link_id 为 Phase 3 新增（entry_condition / time_limit 镜像规则的 scope 用其
+    # 限定到具体阶段链接）。automation 等既有 scope_json 不含 link_id，故对现存规则
+    # 无行为影响（expected=None 时跳过）。
+    _SCALAR_DIMS = ('bu', 'position', 'level', 'process', 'link_id')
     # 列表维度（context 值命中集合即可）
     _LIST_DIMS = ('positions', 'priority', 'stages', 'referral_type', 'departments')
 
@@ -321,6 +324,9 @@ class ScopeMatcher:
 
     @classmethod
     def _resolve_dim(cls, dim: str, context: EvaluationContext):
+        # 已知 id 维度直接取 EvaluationContext 顶层属性（而非塞进 extra）
+        if dim in ('candidate_id', 'application_id', 'stage_id', 'link_id'):
+            return getattr(context, dim, None)
         if dim == 'process':
             return context.process_id
         return context.extra.get(dim)

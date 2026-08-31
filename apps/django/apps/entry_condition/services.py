@@ -78,6 +78,21 @@ class EntryConditionEvaluator:
 
     def evaluate(self, save_log: bool = True) -> StageEntryResult:
         """执行评估"""
+        from django.conf import settings
+        # Phase 3（2026-08-31）委托开关：RULE_ENGINE_DISPATCH=True 时改走统一规则引擎
+        # 派发（复用统一 ConditionEvaluator / ScopeMatcher / 动作执行器），结果翻译回
+        # legacy 形态；默认 False → 维持原 entry_condition 引擎路径，现网行为零变化。
+        # 任何异常均回退到 legacy 求值，确保委托路径出现故障也不影响现网。
+        if getattr(settings, 'RULE_ENGINE_DISPATCH', False):
+            try:
+                unified_result = self._run_via_unified_engine(save_log)
+                if unified_result is not None:
+                    return unified_result
+            except Exception:
+                logger.exception(
+                    'RULE_ENGINE dispatch failed for entry_condition; fallback to legacy'
+                )
+
         rules = self.link.entry_condition_rules.filter(
             status=EntryConditionRuleStatus.ENABLED, deleted_at__isnull=True,
         ).order_by('rule_seq')
@@ -123,6 +138,96 @@ class EntryConditionEvaluator:
             self._save_log(result)
 
         return result
+
+    def _run_via_unified_engine(self, save_log: bool) -> Optional[StageEntryResult]:
+        """委托到统一规则引擎执行（RULE_ENGINE_DISPATCH=True 时）。
+
+        把 entry_condition 的 (link, candidate, context) 翻译为统一引擎的 EvaluationContext，
+        过滤 source_app='entry_condition' 的镜像规则（ScopeMatcher 已按 link_id 过滤），
+        复用已注册的 ALLOW 执行器完成「命中即放行」标记，再把统一 ExecutionResult 翻译回
+        legacy 的 StageEntryResult 形态。
+
+        Returns:
+            StageEntryResult；若该 link 无任何镜像规则（双写尚未覆盖）返回 None，
+            由调用方回退到 legacy 求值，避免「静默放行」。
+        """
+        from apps.rule_engine.integrations.entry_condition_executors import (
+            register_entry_condition_executors,
+        )
+        from apps.rule_engine.models import Rule
+        from apps.rule_engine.services import EvaluationContext, RuleEngine
+
+        register_entry_condition_executors()
+
+        # 1) 把 legacy 条件涉及的字段实际值塞进 context.extra，供统一 ConditionEvaluator
+        #    求值（统一引擎不内置 entry_condition 的领域字段解析，复用本 evaluator 的解析）。
+        extra = self._build_dispatch_extra()
+        extra['candidate_id'] = self.candidate.id
+
+        ctx = EvaluationContext(
+            trigger_type='STAGE_ENTERED',
+            candidate_id=self.candidate.id,
+            stage_id=self.link.stage_id,
+            link_id=self.link.id,
+            process_id=self.link.process_id,
+            extra=extra,
+        )
+
+        # 2) 仅派发 entry_condition 家族的镜像规则
+        results = RuleEngine().dispatch(ctx, source_app='entry_condition')
+        if not results:
+            # 无镜像规则：回退 legacy（避免双写覆盖缺口被静默放过）
+            return None
+
+        # 3) 翻译：任一规则命中 → 放行（取最小 rule_seq 作为 matched_rule_seq）；
+        #    未命中 → 拦截，reject_message 取末条未命中规则的提示。
+        matched_rule_seq: Optional[int] = None
+        reject_message = ''
+        for r in results:
+            unified_rule = Rule.objects.filter(id=r.rule_id).first()
+            if unified_rule is None:
+                continue
+            rule_seq = unified_rule.config_json.get('rule_seq')
+            if r.matched:
+                if matched_rule_seq is None:
+                    matched_rule_seq = rule_seq
+            else:
+                reject_message = unified_rule.config_json.get('reject_message') or reject_message
+
+        overall_passed = matched_rule_seq is not None
+
+        result = StageEntryResult(
+            link_id=self.link.id,
+            stage_id=self.link.stage_id,
+            stage_name=self.link.stage.name,
+            overall_passed=overall_passed,
+            matched_rule_seq=matched_rule_seq,
+            reject_message=reject_message,
+            rule_results=[],  # dispatch 路径不重建逐条 item 明细（已写入统一执行日志）
+        )
+
+        if save_log:
+            self._save_log(result)
+        return result
+
+    def _build_dispatch_extra(self) -> Dict[str, Any]:
+        """收集本 link 下所有启用规则涉及字段的实际值，填入 dispatch context.extra。
+
+        复用本 evaluator 已有的领域字段解析（_get_actual_value），保证与 legacy 求值
+        语义一致。同名跨规则字段以末次解析为准（阶段状态类字段若存在同名冲突，属已知
+        边界，统一引擎侧仅按 field 名取单值）。
+        """
+        extra: Dict[str, Any] = {}
+        rules = self.link.entry_condition_rules.filter(
+            status=EntryConditionRuleStatus.ENABLED, deleted_at__isnull=True,
+        )
+        for rule in rules:
+            for item in rule.items.filter(deleted_at__isnull=True).order_by('item_seq'):
+                try:
+                    extra[item.field] = self._get_actual_value(item)
+                except Exception:  # noqa: BLE001 — 单条解析失败不应阻断整次派发
+                    continue
+        return extra
 
     def _evaluate_rule(self, rule: EntryConditionRule) -> RuleEvaluationResult:
         """评估单条规则"""
