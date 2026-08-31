@@ -126,6 +126,17 @@ class Rule(FullAuditModel, UUIDModel):
         max_length=64, blank=True, default='',
         verbose_name='来源 app', help_text='automation/entry_condition/time_limit/campus_control/mou/field_acl/process',
     )
+    # Phase 2（2026-08-31）：双写迁移链路。legacy_id/legacy_model 标记该统一规则由哪条
+    # legacy 记录镜像而来，bridge.sync_automation_rule_to_unified 以 (source_app, legacy_id)
+    # 做幂等 upsert。仅新增字段，不动现有字段与现网调用方。
+    legacy_id = models.CharField(
+        max_length=64, blank=True, default='', db_index=True,
+        verbose_name='来源记录 ID', help_text='legacy 表主键，如 automation.AutomationRule.id',
+    )
+    legacy_model = models.CharField(
+        max_length=128, blank=True, default='',
+        verbose_name='来源模型', help_text='legacy app.Model 路径，如 automation.AutomationRule',
+    )
     trigger_type = models.CharField(
         max_length=32, choices=UnifiedTriggerType.choices, verbose_name='触发类型',
     )
@@ -168,6 +179,9 @@ class Rule(FullAuditModel, UUIDModel):
         verbose_name = '统一规则'
         verbose_name_plural = '统一规则'
         ordering = ['priority', 'priority_rank']
+        indexes = [
+            models.Index(fields=['source_app', 'legacy_id'], name='rule_src_legacy'),
+        ]
 
     def __str__(self):
         return f'{self.name}({self.category})'

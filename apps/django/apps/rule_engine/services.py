@@ -56,6 +56,8 @@ class EvaluationContext:
     link_id: Optional[str] = None
     process_id: Optional[str] = None
     extra: Dict[str, Any] = field(default_factory=dict)
+    # Phase 2：委托派发时透传触发人（User 实例），供业务执行器（如自动推进）复用。
+    actor: Optional[Any] = None
 
 
 @dataclass
@@ -337,9 +339,16 @@ class RuleEngine:
     # 优先级排序权重（P0 > P1 > P2）
     _PRIORITY_WEIGHT = {'P0': 0, 'P1': 1, 'P2': 2}
 
-    def dispatch(self, context: EvaluationContext) -> List[ExecutionResult]:
-        """根据上下文派发匹配的规则并执行动作。"""
-        rules = self._load_candidate_rules(context)
+    def dispatch(self, context: EvaluationContext,
+                 source_app: Optional[str] = None) -> List[ExecutionResult]:
+        """根据上下文派发匹配的规则并执行动作。
+
+        Args:
+            context: 派发上下文。
+            source_app: 可选家族过滤（如 'automation'）。委托派发时仅执行该家族的镜像
+                规则，避免误伤其他家族；缺省 None 不过滤（Phase 0 单测兼容）。
+        """
+        rules = self._load_candidate_rules(context, source_app)
         results: List[ExecutionResult] = []
 
         for rule in rules:
@@ -409,7 +418,8 @@ class RuleEngine:
 
     # --- 内部辅助 ---
 
-    def _load_candidate_rules(self, context: EvaluationContext) -> List[Rule]:
+    def _load_candidate_rules(self, context: EvaluationContext,
+                              source_app: Optional[str] = None) -> List[Rule]:
         """① 加载 trigger_type 匹配 / 启用 / 未软删 的规则；② 按优先级排序。"""
         qs = Rule.objects.filter(
             trigger_type=context.trigger_type,
@@ -417,6 +427,8 @@ class RuleEngine:
             status=RuleStatus.ENABLED,
             deleted_at__isnull=True,
         )
+        if source_app:
+            qs = qs.filter(source_app=source_app)
         rules = list(qs)
         rules.sort(key=lambda r: (self._PRIORITY_WEIGHT.get(r.priority, 99), r.priority_rank))
         return rules

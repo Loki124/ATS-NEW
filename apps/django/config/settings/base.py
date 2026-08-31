@@ -276,6 +276,14 @@ AUTH_USER_MODEL = 'core.User'
 # Default deny-by-default shadow toggle. Keep False in production.
 ATSSEC_DRY_RUN = False
 
+# === 统一规则引擎 双写 / 委托开关（Phase 2，2026-08-31，设计文档 §3.2 / §6 Phase 2）===
+# 双写（默认开）：automation 记录保存/软删时，best-effort 镜像到 rule_engine 统一表。
+#   仅新增镜像、不改现网行为；异常仅记日志。灰度期保持开启以积累镜像数据。
+RULE_ENGINE_DOUBLE_WRITE = env.bool('RULE_ENGINE_DOUBLE_WRITE', default=True)
+# 委托（默认关）：automation 执行改走统一引擎 RuleEngine。开启前现网行为不变；
+#   仅在双写稳定、executor 经测试验证后，按流程逐个 trigger 打开。
+RULE_ENGINE_DISPATCH = env.bool('RULE_ENGINE_DISPATCH', default=False)
+
 # === DRF 配置 ===
 REST_FRAMEWORK = {
     # 2026-06-16: 移除 SessionAuthentication，只保留 JWT

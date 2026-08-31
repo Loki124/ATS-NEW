@@ -151,7 +151,19 @@ class AutomationEngine:
             return result
 
     def run(self) -> List[ExecutionResult]:
-        """执行入口：评估所有规则 + 执行动作"""
+        """执行入口：评估所有规则 + 执行动作。
+
+        Phase 2（2026-08-31）委托开关：
+        - RULE_ENGINE_DISPATCH=True 时，改走统一规则引擎（RuleEngine）派发，复用其
+          scope 匹配 / 熔断 / 条件求值 / 执行日志能力；结果翻译回 automation 形态，
+          保证调用方（tasks / API）无感。
+        - 默认 False：维持原 automation 引擎路径，现网行为零变化。
+        """
+        from django.conf import settings
+
+        if getattr(settings, 'RULE_ENGINE_DISPATCH', False):
+            return self._run_via_unified_engine()
+
         rules = self.find_candidate_rules()
         results: List[ExecutionResult] = []
 
@@ -180,6 +192,70 @@ class AutomationEngine:
             results.append(exec_result)
 
         return results
+
+    def _run_via_unified_engine(self) -> List[ExecutionResult]:
+        """委托到统一规则引擎执行（RULE_ENGINE_DISPATCH=True 时）。
+
+        把 automation 的 TriggerContext 翻译为统一引擎的 EvaluationContext，过滤
+        source_app='automation' 的镜像规则，复用已注册的 automation 执行器完成真实业务
+        动作，再把统一 ExecutionResult 翻译回 automation 的 ExecutionResult 形态。
+        """
+        from apps.rule_engine.integrations.automation_executors import (
+            register_automation_executors,
+        )
+        from apps.rule_engine.models import Rule
+        from apps.rule_engine.services import EvaluationContext, RuleEngine
+
+        register_automation_executors()
+
+        # 1) TriggerContext.extra 里 automation 用单数键（position_id / demand_priority /
+        #    referral_type），统一 ScopeMatcher 用列表维度（positions / priority /
+        #    referral_type）；这里补齐，保证 scope 语义一致。
+        extra = dict(self.context.extra or {})
+        if 'position_id' in extra:
+            extra.setdefault('positions', [extra['position_id']])
+        if 'demand_priority' in extra:
+            extra.setdefault('priority', [extra['demand_priority']])
+        if 'referral_type' in extra:
+            extra.setdefault('referral_type', [extra['referral_type']])
+
+        ctx = EvaluationContext(
+            trigger_type=self.context.trigger_type,
+            candidate_id=self.context.candidate_id,
+            application_id=self.context.application_id,
+            stage_id=self.context.stage_id,
+            process_id=extra.get('process_id'),
+            extra=extra,
+            actor=self.actor,
+        )
+
+        # 2) 仅派发 automation 家族的镜像规则
+        unified_results = RuleEngine().dispatch(ctx, source_app='automation')
+
+        # 3) 翻译回 automation 形态（rule_id 还原为 legacy AutomationRule.id）
+        out: List[ExecutionResult] = []
+        for ur in unified_results:
+            unified_rule = Rule.objects.filter(id=ur.rule_id).first()
+            legacy_id = unified_rule.legacy_id if unified_rule else ur.rule_id
+            rule_name = unified_rule.name if unified_rule else ''
+            action_taken = ';'.join(
+                f"{a.action_type}:{'ok' if a.success else 'fail'}"
+                for a in ur.action_results
+            )
+            error_message = next(
+                (a.message for a in ur.action_results if not a.success), ''
+            )
+            out.append(ExecutionResult(
+                rule_id=legacy_id,
+                rule_name=rule_name,
+                matched=ur.matched,
+                action_taken=action_taken,
+                skip_reason='',
+                error_message=error_message,
+                execution_ms=0,
+                log_id=ur.log_id,
+            ))
+        return out
 
     # ----------------------------------------------------------
     # 内部方法
