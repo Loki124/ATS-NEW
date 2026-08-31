@@ -2443,14 +2443,21 @@ function rulesExpr(rules: any[]): string {
   flex-shrink: 0;
 }
 
-/* ===== 弹窗滚动修复（v2：非 scoped，命中 teleport 后的真实 DOM）=====
+/* ===== 弹窗滚动修复（v4：非 scoped，命中 teleport 后的真实 DOM）=====
    n-modal 经 VLazyTeleport 渲染到 <body>，scoped :deep 因缺少 data-v 祖先而失效
    （项目 P0 已知坑：scoped :deep 与 teleport 冲突）。改用 :global 直接命中 teleported
    的 .n-card。
    经 Naive 源码确认（modal/src/BodyWrapper.mjs）：<n-modal> 的 class 经 this.$attrs 落到
-   NCard 上 → .process-detail-modal 即 .n-card 本身，其后代 .n-card__content 可被全局
-   选择器命中。强制 card 走 flex 列，content 用 flex:1 + min-height:0 拿到剩余高度并
-   overflow-y:auto !important 压过 Naive 内部 .n-card__content{overflow:hidden}，由 content 单一滚动容器接管，footer 固定不溢出。 */
+   NCard 上 → .process-detail-modal 即 .n-card 本身；其后代 .n-card-content（注意：单下划线
+   block 类，非 .n-card__content）可被全局选择器命中。
+   v2 用 overflow-y:auto 让 .n-card-content 原生滚动 → 原生滚动条位置偏、风格不统一。
+   v3 试让模板内 <n-scrollbar>（flex:1）接管 → 失败：Naive .n-scrollbar 根/容器均为
+   height:100%（见 _internal/scrollbar/src/styles/index.cssr.mjs），链式百分比高度在 flex
+   父项下无法解析（Chrome 限制），容器始终取内容自然高、误判无溢出、禁用自定义轨道（已实测
+   containerScrollH==containerClientH==1333、railDisabled=true）。
+   v4（终）：.n-card-content 作为唯一原生滚动容器（overflow-y:auto），细滚动条 + 品牌中性色
+   令牌，贴合内容区右缘、与玻璃卡片协调；模板内 <n-scrollbar> 退化为透传（height:auto、
+   overflow:visible）避免双滚动条。footer 固定不溢出。 */
 :global(.n-card.process-detail-modal) {
   display: flex !important;
   flex-direction: column !important;
@@ -2470,12 +2477,32 @@ function rulesExpr(rules: any[]): string {
 :global(.n-card.process-detail-modal .n-card-header) {
   flex-shrink: 0 !important;
 }
-:global(.n-card.process-detail-modal .n-card__content) {
+:global(.n-card.process-detail-modal .n-card-content) {
   flex: 1 1 0% !important;
   min-height: 0 !important;
   max-height: 100% !important;
+  /* 唯一原生滚动容器：滚动条贴合内容区右缘（容器右侧 / 与内容对齐），
+     细样式 + 品牌中性色令牌，与玻璃卡片协调一致。 */
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+:global(.n-card.process-detail-modal .n-card-content::-webkit-scrollbar) {
+  width: 8px;
+}
+:global(.n-card.process-detail-modal .n-card-content::-webkit-scrollbar-thumb) {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+:global(.n-card.process-detail-modal .n-card-content::-webkit-scrollbar-track) {
+  background: transparent;
+}
+/* 模板内 <n-scrollbar> 退化为透传容器：高度随内容、不抢滚动，
+   避免与 .n-card-content 原生滚动形成双滚动条。 */
+:global(.n-card.process-detail-modal .n-card-content .n-scrollbar) {
+  height: auto !important;
+  overflow: visible !important;
 }
 :global(.n-card.process-detail-modal .n-card__footer) {
   flex-shrink: 0 !important;
@@ -2487,10 +2514,24 @@ function rulesExpr(rules: any[]): string {
   display: flex;
   flex-direction: column;
 }
-:global(.stage-picker-modal .n-card__content) {
+:global(.stage-picker-modal .n-card-content) {
   flex: 1 1 0%;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* 细滚动条，贴合卡片玻璃风格（非硬编码，全 token） */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+:global(.stage-picker-modal .n-card-content::-webkit-scrollbar) {
+  width: 8px;
+}
+:global(.stage-picker-modal .n-card-content::-webkit-scrollbar-thumb) {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+:global(.stage-picker-modal .n-card-content::-webkit-scrollbar-track) {
+  background: transparent;
 }
 
 /* 编辑模式字段摘要: 让阶段卡片在编辑态也展示已配置项概览,
