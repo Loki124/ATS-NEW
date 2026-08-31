@@ -18,6 +18,7 @@
   <n-modal
     :show="show"
     preset="card"
+    class="process-detail-modal"
     style="width: 880px; max-width: 95vw; max-height: 90vh"
     :mask-closable="true"
     :title="isCreateMode ? '新建流程' : '编辑流程'"
@@ -2439,17 +2440,19 @@ function rulesExpr(rules: any[]): string {
   flex-shrink: 0;
 }
 
-/* ===== 弹窗滚动修复 =====
-   n-modal preset="card" 在长内容场景下, n-card body 拿不到明确高度
-   导致 content 溢出但不出现滚动条. 强制 n-card/n-card-wrapper 走 flex 链,
-   n-card__content 用 flex:1 + min-height:0 拿到剩余高度并 overflow-y:auto */
-:deep(.n-modal .n-card-wrapper),
-:deep(.n-modal .n-card) {
-  height: 100%;
+/* ===== 弹窗滚动修复（v2：非 scoped，命中 teleport 后的真实 DOM）=====
+   n-modal 经 VLazyTeleport 渲染到 <body>，scoped :deep 因缺少 data-v 祖先而失效
+   （项目 P0 已知坑：scoped :deep 与 teleport 冲突）。改用 :global 直接命中 teleported
+   的 .n-card。
+   经 Naive 源码确认（modal/src/BodyWrapper.mjs）：<n-modal> 的 class 经 this.$attrs 落到
+   NCard 上 → .process-detail-modal 即 .n-card 本身，其后代 .n-card__content 可被全局
+   选择器命中。强制 card 走 flex 列，content 用 flex:1 + min-height:0 拿到剩余高度并
+   overflow-y:auto（外层 NScrollbar 因内容已贴合 90vh 而无溢出，无需额外处理）。 */
+:global(.process-detail-modal) {
   display: flex;
   flex-direction: column;
 }
-:deep(.n-modal .n-card__content) {
+:global(.process-detail-modal .n-card__content) {
   flex: 1 1 0%;
   min-height: 0;
   overflow-y: auto;
