@@ -2454,6 +2454,16 @@ function rulesExpr(rules: any[]): string {
   flex-direction: column !important;
   max-height: 90vh !important;
   overflow: hidden !important;
+  /* 玻璃浮起底（modal/drawer/dropdown/popover）：压过 glass.css 全局
+     .n-card.n-card 强制的 --glass-bg-card + blur(16px)，改用 tokens.css
+     §3 指定的 --glass-bg-elevated + --glass-blur-panel(28px)，符合
+     "根治候选/招聘阶段配置等内容穿透"的设计意图。零硬编码，全 token。 */
+  background: var(--glass-bg-elevated) !important;
+  backdrop-filter: blur(var(--glass-blur-panel)) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(140%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-elevated) !important;
 }
 :global(.n-card.process-detail-modal .n-card-header) {
   flex-shrink: 0 !important;
