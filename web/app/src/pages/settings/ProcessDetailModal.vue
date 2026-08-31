@@ -26,7 +26,6 @@
     :segmented="{ content: true, footer: true }"
     @update:show="handleUpdateShow"
   >
-    <n-scrollbar style="max-height: calc(90vh - 140px)">
       <n-spin :show="loading">
       <template v-if="mode === 'view'">
       <!-- ====== HERO HEADER ====== -->
@@ -670,7 +669,6 @@
         </div>
       </template>
     </n-spin>
-    </n-scrollbar>
 
     <template #footer>
       <n-space justify="end">
@@ -2450,7 +2448,7 @@ function rulesExpr(rules: any[]): string {
    经 Naive 源码确认（modal/src/BodyWrapper.mjs）：<n-modal> 的 class 经 this.$attrs 落到
    NCard 上 → .process-detail-modal 即 .n-card 本身，其后代 .n-card__content 可被全局
    选择器命中。强制 card 走 flex 列，content 用 flex:1 + min-height:0 拿到剩余高度并
-   overflow-y:auto（外层 NScrollbar 因内容已贴合 90vh 而无溢出，无需额外处理）。 */
+   overflow-y:auto !important 压过 Naive 内部 .n-card__content{overflow:hidden}，由 content 单一滚动容器接管，footer 固定不溢出。 */
 :global(.n-card.process-detail-modal) {
   display: flex !important;
   flex-direction: column !important;
