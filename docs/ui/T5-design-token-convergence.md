@@ -106,3 +106,23 @@ web/app/src/pages/settings/DataDashboard.vue
 
 - **全量 X-05 hex 审计**：本次仅覆盖 Ant 调色板 + 语义/品牌硬编码。rgba 阴影、渐变、`#ffffff` 等中性字面量需更大范围审计（建议 `stylelint` 配 `color-no-hex` 规则做 CI 门禁，兜底 X-05）。
 - 执行 §1.3 P2–P3 收敛；P1 真单源（`type="error"`）待视觉评审后决定是否替换。
+
+---
+
+## 5. T5.1 残留 + Django 遗留项 收口（2026-09-01）
+
+用户指令「把残留项和遗留项先做掉，再确认推进」。两项均已完成、验证、独立提交。
+
+### 5.1 前端 T5.1 P2/P3（commit 25f609b，4 文件，eslint 0 error）
+- **P2** Step1Single/Step1Batch `.replace-banner` 渐变：`var(--bl) → #DBEAFE` 改为 `var(--c-info-bg) → var(--c-info-soft)`。
+  - 关键发现：`--bl` / `--b` / `--s` / `--p` / `--d` / `--dl` 在源码中**从未定义**（仅出现在编译产物 dist/ 与 vendor），原渐变实际渲染为 `transparent → #DBEAFE`，属「假绿」。本修复同时消除未定义令牌与硬编码蓝。
+- **P3** RuleConfigDrawer：`--primary → --brand`、`--ink/--ink-soft` 去硬编码兜底；ExternalSettings：`--error → --c-error`。
+
+### 5.2 Django 遗留 bugfix（commit f549721，+420/−10）
+- 真实 bugfix：`ready()` 进程级钩子在 migrate 前查业务表 → 全新 SQLite 库 `migrate` 崩 `OperationalError: no such table: permission_templates`。
+- bootstrap.py 三道闸门（跳过初始化命令 / DB 不可达 / 表未建），仅「表存在但数据缺失」raise `ImproperlyConfigured`；apps.py 仅记录跳过原因不阻断启动。
+- 新增 test_bootstrap_startup.py 原稿有 4 处测试缺陷（REQUIRED_TABLES 未定义 / e2e 路径错一级 / test.py 默认关闭守卫致 ready() 短路 / SQLite 事务内 DROP 表 FK 报错），已全部修复。
+- 验证：pytest 8 例全绿，含端到端 `test_migrate_on_brand_new_sqlite_db_exits_zero`（全新库 migrate 退出码 0，无 no such table）。
+
+### 5.3 待用户决策的遗留发现（超出本次残留范围）
+- `--bl`/`--b`/`--s`/`--p`/`--d`/`--dl` 等「幽灵令牌」跨 6 个文件大量使用（ApplyPositionSelector / CheckBanner / Step1*/Step2Assign / AsyncResult 的 `.pfill.*`、`.nbar.*`、`.cb.*`），源码未定义 → 运行时解析为初始值（透明/无背景）。属「假绿」类缺陷，需专项收敛。建议单独立项，勿与本次 P2/P3 混改。
