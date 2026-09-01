@@ -1,6 +1,6 @@
 """Integration Models (PRD v4 §14.4 外部系统集成)"""
 from django.db import models
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
 
 
@@ -17,7 +17,7 @@ class IntegrationType(models.TextChoices):
     PORTAL = 'PORTAL', '招聘门户'
 
 
-class IntegrationConfig(TimestampedModel):
+class IntegrationConfig(TimestampedModel, SoftDeleteModel):
     """外部系统集成配置
 
     Fix 6: 新增 encrypted_secret 字段, 用 Fernet 加密敏感凭据.
@@ -43,7 +43,10 @@ class IntegrationConfig(TimestampedModel):
         return f'[{self.type}] {self.name}'
 
 
-class IntegrationSyncLog(TimestampedModel):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class IntegrationSyncLog(TimestampedModel, SoftDeleteModel):
     """集成同步日志"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     config = models.ForeignKey(
@@ -79,6 +82,9 @@ class IntegrationSyncLog(TimestampedModel):
         ]
 
 
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
 class BGOrderStatus(models.IntegerChoices):
     """背调订单状态机枚举（统一规范 §2.3，沿用现行 8 态 + 0 已受理）"""
     ACCEPTED = 0, '已受理/已下单'
@@ -129,7 +135,7 @@ ALLOWED_ORDER_TRANSITIONS = {
 }
 
 
-class BackgroundCheckOrder(TimestampedModel):
+class BackgroundCheckOrder(TimestampedModel, SoftDeleteModel):
     """背调订单（状态机主体）。
 
     唯一键 (config, order_number)：order_number 为平台生成的背调订单全链路主键（规范 §2.2.3）。
@@ -171,7 +177,10 @@ class BackgroundCheckOrder(TimestampedModel):
         return BGRiskLevel.label_of(self.risk_level) if self.risk_level is not None else ''
 
 
-class BackgroundCheckOrderEvent(TimestampedModel):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class BackgroundCheckOrderEvent(TimestampedModel, SoftDeleteModel):
     """背调订单状态机转移历史（append-only）。
 
     每次状态变更（创建/回调/取消）记一条，记录 from→to、是否合法转移、来源、原始 payload，
@@ -207,3 +216,7 @@ class BackgroundCheckOrderEvent(TimestampedModel):
 
     def __str__(self):
         return f'BGEvt[{self.order_id}] {self.from_status}->{self.to_status} ({self.source})'
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

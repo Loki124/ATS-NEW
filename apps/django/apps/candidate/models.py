@@ -1,7 +1,7 @@
 """Candidate Models (PRD v4 §14.3)"""
 from django.db import models
 from django_fsm import FSMField, FSMModelMixin, transition
-from apps.common.models import FullAuditModel
+from apps.common.models import FullAuditModel, SoftDeleteModel, SoftDeleteManager
 from apps.common.encryption import EncryptedCharField
 from apps.campus_control.constants import SCHOOLS, MAJORS
 from nanoid import generate as nanoid_generate
@@ -282,7 +282,7 @@ class Candidate(FSMModelMixin, FullAuditModel):
         pass
 
 
-class CandidateTag(models.Model):
+class CandidateTag(SoftDeleteModel):
     """候选人标签字典"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     name = models.CharField(max_length=50, unique=True, verbose_name='标签名')
@@ -295,6 +295,9 @@ class CandidateTag(models.Model):
         verbose_name_plural = verbose_name
 
 
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
 class CandidateHistory(FullAuditModel):
     """候选人操作历史 - 自动审计"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)

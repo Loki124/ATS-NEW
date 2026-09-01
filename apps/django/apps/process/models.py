@@ -11,7 +11,7 @@ from django.db import models
 from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django_fsm import FSMField, transition
-from apps.common.models import TimestampedModel, SoftDeleteModel, FullAuditModel
+from apps.common.models import TimestampedModel, SoftDeleteModel, FullAuditModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
 
 
@@ -465,7 +465,7 @@ class ProcessTemplate(FullAuditModel):
 # ============================================================
 # Phase 2 T06: CandidateScreen + CandidateRecommendation
 # ============================================================
-class CandidateScreen(models.Model):
+class CandidateScreen(SoftDeleteModel):
     """批量筛选记录 — 审计+查询
 
     POST /api/v1/processes/{id}/batch-screen/ 写入。
@@ -517,7 +517,10 @@ class CandidateScreen(models.Model):
         return f'CandidateScreen[{self.candidate_id}] {decision}'
 
 
-class CandidateRecommendation(models.Model):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class CandidateRecommendation(SoftDeleteModel):
     """候选人推荐记录 — 审计+查询
 
     POST /api/v1/processes/{id}/batch-recommend/ 写入。
@@ -551,3 +554,7 @@ class CandidateRecommendation(models.Model):
 
     def __str__(self):
         return f'CandidateRecommendation[{self.candidate_id}] by {self.recommender_id}'
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

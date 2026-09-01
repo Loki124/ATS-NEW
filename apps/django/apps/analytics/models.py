@@ -3,7 +3,7 @@
 数据中心 - 报表快照
 """
 from django.db import models
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
 
 
@@ -18,7 +18,7 @@ class ReportType(models.TextChoices):
     CUSTOM = 'CUSTOM', '自定义'
 
 
-class ReportSnapshot(TimestampedModel):
+class ReportSnapshot(TimestampedModel, SoftDeleteModel):
     """报表快照 - 定期生成"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     name = models.CharField(max_length=200, verbose_name='报表名')
@@ -39,7 +39,10 @@ class ReportSnapshot(TimestampedModel):
         ordering = ['-generated_at']
 
 
-class ExportTask(TimestampedModel):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class ExportTask(TimestampedModel, SoftDeleteModel):
     """数据导出任务"""
     class Status(models.TextChoices):
         PENDING = 'PENDING', '待执行'
@@ -78,3 +81,7 @@ class ExportTask(TimestampedModel):
         indexes = [
             models.Index(fields=['status', 'created_at']),
         ]
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

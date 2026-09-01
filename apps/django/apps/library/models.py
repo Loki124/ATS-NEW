@@ -3,9 +3,10 @@
 # School 字段: id, name, code, location, province, city, education_level, school_type, school_category, status
 # Company 字段: id, name, code, industry, scale, is_benchmark, description, status
 from django.db import models
+from apps.common.models import SoftDeleteModel, SoftDeleteManager
 
 
-class School(models.Model):
+class School(SoftDeleteModel):
     id = models.CharField(max_length=32, primary_key=True)
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50, unique=True)
@@ -25,7 +26,10 @@ class School(models.Model):
         return self.name
 
 
-class Company(models.Model):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class Company(SoftDeleteModel):
     id = models.CharField(max_length=32, primary_key=True)
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50, unique=True)
@@ -41,3 +45,7 @@ class Company(models.Model):
 
     def __str__(self):
         return self.name
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
