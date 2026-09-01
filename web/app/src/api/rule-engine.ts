@@ -5,6 +5,10 @@
  *           GET /api/v1/rule-engine/triggers/
  *           GET /api/v1/rule-engine/operators/
  *
+ * ⚠️ 路径约定: axios 实例 baseURL 已是 config.api.baseUrl = '/api/v1',
+ *    调用路径必须从 '/rule-engine/...' 起算, 不能重复 '/api/v1' 前缀
+ *    (否则最终请求是 '/api/v1/api/v1/rule-engine/rules/' → Django 404)。
+ *
  * 严格只读: 聚合视图 (Phase 1+), 源数据由各业务模块 (automation / mou / campus_control / ...)
  *           在源表维护, 本端点仅做 DB 读 + 映射。
  *
@@ -80,16 +84,16 @@ export interface ListRulesParams {
 }
 
 export async function listRules(params: ListRulesParams = {}): Promise<UnifiedRuleListResponse> {
-  const res = await api.get('/api/v1/rule-engine/rules/', { params })
+  const res = await api.get('/rule-engine/rules/', { params })
   return res.data
 }
 
 export async function listTriggers(): Promise<TriggerOption[]> {
-  const res = await api.get('/api/v1/rule-engine/triggers/')
+  const res = await api.get('/rule-engine/triggers/')
   return Array.isArray(res.data) ? res.data : (res.data?.data || [])
 }
 
 export async function listOperators(): Promise<OperatorOption[]> {
-  const res = await api.get('/api/v1/rule-engine/operators/')
+  const res = await api.get('/rule-engine/operators/')
   return Array.isArray(res.data) ? res.data : (res.data?.data || [])
 }
