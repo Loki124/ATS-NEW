@@ -331,8 +331,8 @@ async function save() {
   font-weight: 600;
   margin-bottom: var(--space-3);
   padding-left: 10px;
-  border-left: 3px solid var(--primary, #6366f1);
-  color: var(--ink, #1f2937);
+  border-left: 3px solid var(--brand);
+  color: var(--ink);
 }
 .rc-monthly {
   display: flex;
@@ -350,7 +350,7 @@ async function save() {
 }
 .rc-monthly-label {
   font-size: 11px;
-  color: var(--ink-soft, #6b7280);
+  color: var(--ink-soft);
 }
 </style>
 

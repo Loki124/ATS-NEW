@@ -473,7 +473,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .replace-file-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .replace-banner {
   padding: 10px 14px;
-  background: linear-gradient(90deg, var(--bl) 0%, #DBEAFE 100%);
+  background: linear-gradient(90deg, var(--c-info-bg) 0%, var(--c-info-soft) 100%); /* P2: var(--bl) 未定义 + #DBEAFE 硬编码 → 统一语义令牌 */
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
   font-size: var(--fs-12);
