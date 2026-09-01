@@ -352,7 +352,7 @@ onMounted(() => loadProcess())
   transition: all var(--duration-base) var(--ease-out);
 }
 .stage-card:hover {
-  box-shadow: 0 2px 8px var(--overlay-scrim-weak);
+  box-shadow: var(--shadow-sm);
 }
 .stage-row {
   display: flex;
@@ -395,7 +395,7 @@ onMounted(() => loadProcess())
   gap: var(--space-1);
   margin-top: var(--space-2);
   padding-top: var(--space-2);
-  border-top: 1px dashed var(--g2);
+  border-top: 1px dashed var(--glass-border);
 }
 .feature-chip {
   font-size: 11px;
