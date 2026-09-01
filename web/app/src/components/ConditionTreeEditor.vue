@@ -77,7 +77,7 @@
           style="width: 120px"
         />
 
-        <n-button size="small" color="#ff4d4f" text-color="#fff" :disabled="!canRemove" @click="removeItem(item)">
+        <n-button size="small" color="#EF4444" text-color="#fff" :disabled="!canRemove" @click="removeItem(item)">
           删除
         </n-button>
       </div>

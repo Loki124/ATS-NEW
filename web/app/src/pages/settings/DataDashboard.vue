@@ -233,7 +233,7 @@ const subColumns = [
     key: 'action',
     width: 90,
     render: (row: DataSubscription) =>
-      h(NButton, { size: 'small', color: '#ff4d4f', textColor: '#fff', onClick: () => handleDeleteSub(row) }, () => '停用'),
+      h(NButton, { size: 'small', color: '#EF4444', textColor: '#fff', onClick: () => handleDeleteSub(row) }, () => '停用'),
   },
 ];
 
