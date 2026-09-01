@@ -184,83 +184,79 @@
 
         <!-- ===================== 人员数据 ===================== -->
         <n-tab-pane name="persons" tab="人员数据">
-          <div class="toolbar toolbar--two-rows">
-            <!-- 第一行：8 个精确筛（部门/职务/职级/性别/院校/专业/年度/月份） -->
+          <div class="toolbar toolbar--filters">
+            <!-- 搜索框最左：模糊匹配候选人编号/姓名 -->
+            <n-input
+              v-model:value="personFilterSearch"
+              placeholder="搜索编号/姓名"
+              clearable
+              class="rule-filter-search"
+              @keyup.enter="loadPersons()"
+            />
+            <!-- 状态筛：搜索框右侧第一个（仅 全部/在职/在途Offer/在途待入职） -->
+            <n-select
+              v-model:value="personFilterStatus"
+              :options="personStatusOptions"
+              class="rule-filter-select"
+            />
+            <!-- 8 个精确筛：依次部门/职务/职级/性别/院校/专业/年度/月份 -->
             <n-select
               v-model:value="personFilterBu"
               :options="deptOptions"
-              placeholder="部门（全部）"
+              placeholder="部门"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterPosition"
               :options="positionOptions"
-              placeholder="职务（全部）"
+              placeholder="职务"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterLevel"
               :options="levelOptions"
-              placeholder="职级（全部）"
+              placeholder="职级"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterSex"
               :options="sexOptions"
-              placeholder="性别（全部）"
+              placeholder="性别"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterSchool"
               :options="schoolOptions"
-              placeholder="院校（全部）"
+              placeholder="院校"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterMajor"
               :options="majorOptions"
-              placeholder="专业（全部）"
+              placeholder="专业"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterYear"
               :options="yearOptions"
-              placeholder="年度（全部）"
+              placeholder="年度"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterMonth"
               :options="monthOptions"
-              placeholder="月份（全部）"
+              placeholder="月份"
               clearable
               class="rule-filter-select"
             />
             <div class="spacer"></div>
-            <n-select
-              v-model:value="personFilterStatus"
-              :options="personStatusOptions"
-              class="rule-filter-select"
-            />
-          </div>
-          <!-- 第二行：模糊搜索框 + 候选池已隐藏（候选池不占编） -->
-          <div class="toolbar" style="padding-top: 0">
-            <n-input
-              v-model:value="personFilterSearch"
-              placeholder="搜索候选人编号或姓名（icontains）"
-              clearable
-              class="rule-filter-search"
-              @keyup.enter="loadPersons()"
-            />
-            <span class="muted" style="font-size: var(--text-xs); padding-left: var(--space-2)">
-              共 {{ persons.length }} 条 · 候选池不占编已隐藏
-            </span>
           </div>
           <div class="table-wrap">
             <n-data-table
@@ -540,13 +536,11 @@ const indicators = ref<ControlIndicator[]>([])
 const rules = ref<ControlRule[]>([])
 const persons = ref<Person[]>([])
 
-// 人员数据：状态筛选（默认「占编」= 在职+在途Offer+在途待入职，排除候选池）。
-// 与后端 _COUNTED_STATUSES 口径对齐；切回「全部」即不带参。
-// 「候选池」状态已按产品决策从列表筛选项移除（候选池不占编）。
-const personFilterStatus = ref<'all' | 'staffed' | '在职' | '在途Offer' | '在途待入职'>('staffed')
+// 人员数据：状态筛选（仅 4 项：全部/在职/在途Offer/在途待入职）。
+// 「候选池」「占编」已从列表筛选项移除（候选池不占编，默认展示全部人员）。
+const personFilterStatus = ref<'all' | '在职' | '在途Offer' | '在途待入职'>('all')
 const personStatusOptions = [
-  { label: '占编（在职+在途）', value: 'staffed' as const },
-  { label: '全部人员', value: 'all' as const },
+  { label: '全部', value: 'all' as const },
   { label: '在职', value: '在职' as const },
   { label: '在途Offer', value: '在途Offer' as const },
   { label: '在途待入职', value: '在途待入职' as const },
@@ -1442,8 +1436,7 @@ async function loadPersons(silent = false) {
       school?: string; sex?: string; major?: string
       month?: string; year?: number; search?: string
     } = {}
-    if (personFilterStatus.value === 'staffed') params.staffed = true
-    else if (personFilterStatus.value !== 'all') params.status = personFilterStatus.value
+    if (personFilterStatus.value !== 'all') params.status = personFilterStatus.value
     if (personFilterBu.value) params.bu = personFilterBu.value
     if (personFilterPosition.value) params.position = personFilterPosition.value
     if (personFilterLevel.value) params.level = personFilterLevel.value
@@ -1509,13 +1502,19 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-/* 人员数据工具条：8 筛 + 1 状态筛 11 项，超过 1440px 一行宽度 → 用两行布局 */
-.toolbar--two-rows {
+/* 人员数据工具条：搜索框 + 状态筛 + 8 筛 单行排列（搜索框最左、状态筛紧随其后、spacer 推到最右）。
+   窄视口下 flex-wrap 兜底自动换行，避免横向溢出（AGENTS.md R-103 320px 无横向溢出）。 */
+.toolbar--filters {
   flex-wrap: wrap;
   row-gap: var(--space-2);
+  align-items: center;
 }
-.toolbar--two-rows .rule-filter-select {
-  width: 132px;
+.toolbar--filters .rule-filter-select {
+  width: 116px;
+}
+.toolbar--filters .rule-filter-search {
+  width: 282px;
+  flex-shrink: 0;
 }
 
 /* 极光由 SettingsLayout 外壳统一注入（.settings-aurora），本页不再自绘 */
