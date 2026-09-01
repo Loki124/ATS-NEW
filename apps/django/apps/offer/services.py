@@ -18,6 +18,24 @@ from .models import Offer, OfferState
 logger = logging.getLogger(__name__)
 
 
+def _mirror_campus_validation(candidate_id, blocks=None, warnings=None):
+    """best-effort 把 campus Offer 校验事件镜像进统一 RuleExecutionLog。
+
+    Phase 4（2026-09-01，设计文档 §3.5 / §6）：仅追加可观测日志，异常吞掉，绝不影响
+    Offer 主流程。经 RULE_ENGINE_DOUBLE_WRITE 开关控制（默认开）。
+    """
+    from django.conf import settings
+    if not getattr(settings, 'RULE_ENGINE_DOUBLE_WRITE', False):
+        return
+    try:
+        from apps.rule_engine.bridge import mirror_campus_offer_validation
+        mirror_campus_offer_validation(
+            candidate_id, blocks=blocks, warnings=warnings,
+        )
+    except Exception:  # noqa: BLE001 — 镜像失败不影响现网
+        logger.exception('RULE_ENGINE campus validation mirror failed')
+
+
 @dataclass
 class OfferCreateData:
     application_id: str
@@ -68,6 +86,10 @@ class OfferService:
                 position_title=data.position_title,
                 start_date=start_date_obj,
             )
+            # Phase 4：best-effort 把软约束提示镜像进统一执行日志（纯可观测，不影响主流程）
+            _mirror_campus_validation(
+                data.candidate_id, warnings=hook_result.get('warnings'),
+            )
             for w in hook_result.get('warnings', []):
                 logger.warning(
                     'Offer 软约束提示(candidate=%s): 规则 %s %s·%s %s 当前 %s/%s 人',
@@ -76,6 +98,11 @@ class OfferService:
                 )
         except ControlRuleViolation as e:
             # 硬约束阻断：事务回滚，向上抛 400（detail 含命中规则明细）
+            # Phase 4：best-effort 镜像阻断事件（注：位于同一事务内，回滚时该日志不落库，
+            # 属已知边界；阻断本身已通过 400 返回前端，无需依赖日志追溯）。
+            _mirror_campus_validation(
+                data.candidate_id, blocks=e.blocks, warnings=e.warnings,
+            )
             raise DRFValidationError({'detail': e.message})
 
         code = f'OFR{timezone.now().strftime("%Y%m%d")}{nanoid_generate(size=4).upper()}'
