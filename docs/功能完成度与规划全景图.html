@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATS-NEW 功能完成度与未来规划全景图</title>
+<style>
+  :root{
+    --done:#10B981; --stub:#F59E0B; --ph:#64748B; --plan:#8B5CF6;
+    --s1:#6366F1; --s2:#0EA5E9; --s3:#14B8A6; --s4:#F59E0B; --s5:#EC4899; --s6:#8B5CF6;
+    --ink:#1E293B; --soft:#475569; --faint:#94A3B8; --line:#E2E8F0; --card:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    background:linear-gradient(180deg,#EEF2FF,#F8FAFC 240px);color:var(--ink);line-height:1.5;padding:28px 18px 50px}
+  .wrap{max-width:1400px;margin:0 auto}
+  h1{font-size:25px;font-weight:800;letter-spacing:-.4px;text-align:center}
+  .sub{text-align:center;color:var(--soft);font-size:13px;margin:6px 0 18px}
+  .sub code{background:#EEF2FF;color:#4F46E5;padding:1px 6px;border-radius:4px;font-size:12px}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .kpi b{display:block;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+  .kpi span{font-size:11.5px;color:var(--soft)}
+
+  /* legend */
+  .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:var(--soft)}
+  .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+
+  /* main grid: 6 stages x status */
+  .stages{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:start}
+  .stage{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .stage-h{padding:9px 10px;color:#fff;font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px}
+  .stage-h .n{background:rgba(255,255,255,.28);width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .sec{padding:8px 10px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border-bottom:0}
+  .sec-t{font-size:10px;font-weight:700;letter-spacing:.4px;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+  .item{font-size:10.5px;padding:3px 7px;border-radius:6px;margin-bottom:4px;line-height:1.4;word-break:break-word}
+  .item:last-child{margin-bottom:0}
+  .i-done{background:#ECFDF5;color:#047857;border-left:2px solid var(--done)}
+  .i-stub{background:#FFFBEB;color:#92400E;border-left:2px solid var(--stub)}
+  .i-ph{background:#F1F5F9;color:#475569;border-left:2px solid var(--ph)}
+  .i-plan{background:#F5F3FF;color:#5B21B6;border-left:2px dashed var(--plan)}
+  .item code{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;opacity:.8}
+  .tag{display:inline-block;font-size:9px;padding:0 4px;border-radius:3px;background:rgba(0,0,0,.07);margin-left:3px;font-weight:700}
+
+  /* roadmap */
+  .road{margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .road h2{font-size:16px;margin-bottom:4px}
+  .road .rs{font-size:12px;color:var(--soft);margin-bottom:14px}
+  .timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .tl{border-radius:12px;padding:12px;border-top:3px solid var(--c);background:#FAFBFC}
+  .tl h3{font-size:12.5px;color:var(--c);font-weight:800;margin-bottom:8px}
+  .tl .it{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:11px;margin-bottom:6px;color:var(--soft)}
+  .tl .it b{display:block;color:var(--ink);font-size:11.5px;margin-bottom:2px}
+  .tl .it .meta{font-size:9.5px;color:var(--faint);font-family:ui-monospace,Menlo,monospace}
+
+  footer{margin-top:20px;font-size:11px;color:var(--faint);text-align:center;line-height:1.7}
+  footer b{color:var(--soft)}
+  @media(max-width:1100px){.stages{grid-template-columns:repeat(3,1fr)}.kpis{grid-template-columns:repeat(3,1fr)}.timeline{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:700px){.stages{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:repeat(2,1fr)}.timeline{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ATS-NEW 功能完成度与未来规划全景图</h1>
+  <p class="sub">基于当前代码库静态扫描 · 覆盖招聘全生命周期 6 阶段 · 数据源 <code>config/urls.py</code> <code>urls_stubs.py</code> <code>router/index.ts</code> <code>Placeholder.vue</code></p>
+
+  <div class="kpis">
+    <div class="kpi"><b style="color:var(--done)">33</b><span>已落地后端模块</span></div>
+    <div class="kpi"><b style="color:var(--stub)">22</b><span>stub 未实现端点</span></div>
+    <div class="kpi"><b style="color:var(--ph)">9</b><span>占位页面路由</span></div>
+    <div class="kpi"><b style="color:var(--done)">6/6</b><span>生命周期阶段主干贯通</span></div>
+    <div class="kpi"><b style="color:var(--plan)">14</b><span>未来规划项</span></div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--done)"></i>已落地（真实实现）</span>
+    <span><i style="background:var(--stub)"></i>未完成 · Stub / 假实现 / 缺口</span>
+    <span><i style="background:var(--ph)"></i>占位页（🚧 开发中）</span>
+    <span><i style="background:var(--plan)"></i>未来规划（未开工）</span>
+  </div>
+
+  <div class="stages">
+
+    <!-- 1 需求分析 -->
+    <div class="stage">
+      <div class="stage-h" style="background:var(--s1)"><span class="n">1</span>需求分析</div>
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>demand</code> 需求管理 + 设置页</div>
+        <div class="item i-done"><code>process</code> 流程/阶段/规则引擎</div>
+        <div class="item i-done"><code>entry_condition</code> 录用条件</div>
+        <div class="item i-done"><code>position</code> 职位列表页</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--stub)">▲ 未完成</div>
+        <div class="item i-stub">需求类型 <code>demandType</code> 字段待恢复<span class="tag">TODO</span></div>
+        <div class="item i-stub"><code>recruitment-rounds/*</code> 招聘轮次<span class="tag">stub</span></div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 规划</div>
+        <div class="item i-plan">编制预测 / HC 人力规划</div>
+      </div>
+    </div>
+
+    <!-- 2 职位发布 -->
+    <div class="stage">
+      <div class="stage-h" style="background:var(--s2)"><span class="n">2</span>职位发布</div>
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>position</code> 职位（主路由已挂）</div>
+        <div class="item i-done"><code>channel</code> 渠道管理</div>
+        <div class="item i-done"><code>referral</code> 内推</div>
+        <div class="item i-done"><code>campus_control</code> 校招管控</div>
+        <div class="item i-done"><code>announcement</code> 公告制度</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--stub)">▲ 未完成</div>
+        <div class="item i-stub">公告推送 API 未接入<span class="tag">TODO</span></div>
+        <div class="item i-stub"><code>bulk-create</code> 批量建职位<span class="tag">stub</span></div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 规划</div>
+        <div class="item i-plan">招聘门户 / 雇主品牌页</div>
+        <div class="item i-plan"><code>/settings/public</code> 公共设置<span class="tag">待规划</span></div>
+      </div>
+    </div>
+
+    <!-- 3 简历筛选 -->
+    <div class="stage">
+      <div class="stage-h" style="background:var(--s3)"><span class="n">3</span>简历筛选</div>
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>resume_flow</code> 简历解析流转</div>
+        <div class="item i-done"><code>scraped_resume</code> 渠道爬取（真实功能）</div>
+        <div class="item i-done"><code>candidate</code> 主档 + 批量录入</div>
+        <div class="item i-done"><code>duplicate_check</code> 查重（真实功能）</div>
+        <div class="item i-done"><code>talent_pool</code> 人才库</div>
+        <div class="item i-done"><code>dynamic_field</code> 动态字段</div>
+        <div class="item i-done"><code>search</code> 全局搜索（已真实现）</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--stub)">▲ 未完成（stub 重灾区）</div>
+        <div class="item i-stub"><code>upload-and-parse</code> 简历上传解析<span class="tag">stub</span></div>
+        <div class="item i-stub"><code>scoring/start</code> 评分启动<span class="tag">stub</span></div>
+        <div class="item i-stub"><code>evaluate</code> 评估<span class="tag">stub</span></div>
+        <div class="item i-stub"><code>candidates/batch/*</code> 5 项批量操作<span class="tag">stub</span></div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 规划</div>
+        <div class="item i-plan">AI 智能初筛 / 简历打分</div>
+      </div>
+    </div>
+
+    <!-- 4 面试安排 -->
+    <div class="stage">
+      <div class="stage-h" style="background:var(--s4)"><span class="n">4</span>面试安排</div>
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>interview</code> 面试（4 个组件：列表/评价/汇总/反馈）</div>
+        <div class="item i-done"><code>invitation</code> 邀请中心</div>
+        <div class="item i-done"><code>time_limit</code> 时限 SLA</div>
+        <div class="item i-done"><code>automation</code> 自动化规则</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--stub)">▲ 未完成</div>
+        <div class="item i-stub">顺序邀约初始处理人规则待定<span class="tag">产品确认</span></div>
+        <div class="item i-stub">时限链条优先级待复核<span class="tag">产品确认</span></div>
+        <div class="item i-stub">会议室资源未配置<span class="tag">占位</span></div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 规划</div>
+        <div class="item i-plan">日历系统对接（钉钉/企微）</div>
+        <div class="item i-plan">视频面试对接</div>
+      </div>
+    </div>
+
+    <!-- 5 录用管理 -->
+    <div class="stage">
+      <div class="stage-h" style="background:var(--s5)"><span class="n">5</span>录用管理</div>
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>offer</code> 录用列表 + 背调面板</div>
+        <div class="item i-done"><code>mou</code> 意向 / 审批（V2 权限）</div>
+        <div class="item i-done"><code>integration</code> 背调生态 + 回调端点</div>
+        <div class="item i-done"><code>audit</code> 合规审计</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--stub)">▲ 未完成</div>
+        <div class="item i-stub"><code>offer-templates</code> Offer 模板<span class="tag">stub</span></div>
+        <div class="item i-stub">模板渲染 <code>render-from-offer</code><span class="tag">stub</span></div>
+        <div class="item i-stub">审批设置页仍为占位<span class="tag">ATS-143</span></div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 规划</div>
+        <div class="item i-plan">电子签集成（e签宝/法大大）</div>
+      </div>
+    </div>
+
+    <!-- 6 入职跟进 -->
+    <div class="stage">
+      <div class="stage-h" style="background:var(--s6)"><span class="n">6</span>入职跟进</div>
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>onboarding</code> 入职列表页</div>
+        <div class="item i-done"><code>application</code> 投递/入职手续</div>
+        <div class="item i-done"><code>gdpr</code> 隐私合规</div>
+        <div class="item i-done"><code>notification</code> 消息中心</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--ph)">▲ 未完成（最薄弱）</div>
+        <div class="item i-ph">入职设置页 = 占位<span class="tag">ATS-142</span></div>
+        <div class="item i-ph">流程/资料模板/自动通知均未配置</div>
+        <div class="item i-ph">HRBP 列表逻辑未实现<span class="tag">TODO</span></div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 规划</div>
+        <div class="item i-plan">HRIS / OA 同步</div>
+        <div class="item i-plan">试用期转正闭环</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 横切平台层 -->
+  <div class="stage" style="margin-top:12px">
+    <div class="stage-h" style="background:linear-gradient(90deg,#334155,#475569)"><span class="n">⌘</span>横切平台 / 生态（贯穿全周期）</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
+      <div class="sec"><div class="sec-t" style="color:var(--done)">● 已落地</div>
+        <div class="item i-done"><code>core</code> 认证/用户/部门/角色 · <code>field_acl</code> 字段级权限 · <code>search</code> 全局搜索</div>
+        <div class="item i-done"><code>dictionary</code> 数据字典 · <code>library</code> 院校公司库 · <code>analytics</code> KPI/订阅</div>
+        <div class="item i-done">背调生态接入页 <code>ExternalSettings.vue</code> + 供应商回调验签</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--stub)">▲ 未完成（缺口）</div>
+        <div class="item i-stub"><b>数据导出未实现</b>：前端 <code>data.ts:51</code> 调 <code>/data/export/&#123;resource&#125;/</code>，后端无此路由 → 404</div>
+        <div class="item i-stub"><code>external_sync</code> 法人公司同步为 Mock，待企业 API 授权</div>
+        <div class="item i-stub">自助注册 / 改密码返 501 未实现</div>
+        <div class="item i-stub"><code>permissions/*</code> 4 个权限端点仍 stub</div>
+      </div>
+      <div class="sec"><div class="sec-t" style="color:var(--plan)">◇ 未来规划</div>
+        <div class="item i-plan">数据中台：人才画像 / 标签引擎</div>
+        <div class="item i-plan">数据中心报表 <code>/report</code>（ATS-201）</div>
+        <div class="item i-plan">用户组管理 · 公司地址/品牌/简历邮箱</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 路线图 -->
+  <div class="road">
+    <h2>未来规划路线图</h2>
+    <p class="rs">优先级按「阻塞业务闭环 → 消除假实现 → 体验增强 → 数据智能」排序；ETA 取自 <code>Placeholder.vue</code> 内建元数据</p>
+    <div class="timeline">
+      <div class="tl" style="--c:#EF4444">
+        <h3>近期 · 补闭环</h3>
+        <div class="it"><b>入职设置（ATS-142）</b>入职流程/资料模板/自动通知<div class="meta">ETA 2026-Q4 · 花无缺 · PR #438</div></div>
+        <div class="it"><b>审批设置（ATS-143）</b>审批人/节点/通知规则<div class="meta">ETA 2026-Q4 · 花无缺 · PR #439</div></div>
+        <div class="it"><b>数据导出端点</b>补齐 <code>/data/export/</code> 同步导出<div class="meta">当前 404 · 前端已调用</div></div>
+      </div>
+      <div class="tl" style="--c:#F59E0B">
+        <h3>中期 · 消除假实现</h3>
+        <div class="it"><b>22 个 stub 端点转正</b>批量操作/评分/模板/权限<div class="meta">urls_stubs.py · 37 处调用点</div></div>
+        <div class="it"><b>简历上传解析</b><code>upload-and-parse</code> + 评分引擎<div class="meta">当前返 stub jobId</div></div>
+        <div class="it"><b>4 处产品确认 TODO</b>顺序邀约/demandType/HRBP/时限链</div>
+      </div>
+      <div class="tl" style="--c:#8B5CF6">
+        <h3>规划中 · 数据智能</h3>
+        <div class="it"><b>数据中心报表（ATS-201）</b>漏斗/转化/周期/来源<div class="meta">/report 占位 · ETA 规划中</div></div>
+        <div class="it"><b>AI 智能初筛</b>简历评分与人才匹配</div>
+        <div class="it"><b>人才画像 / 主动召回</b>数据中台标签引擎</div>
+      </div>
+      <div class="tl" style="--c:#64748B">
+        <h3>待规划 · 组织与生态</h3>
+        <div class="it"><b>公共设置 / 招聘门户</b>雇主品牌对外展示<div class="meta">/settings/public · 待规划</div></div>
+        <div class="it"><b>组织基础数据</b>公司地址/会议室/简历邮箱/品牌/用户组<div class="meta">5 个占位路由</div></div>
+        <div class="it"><b>外部生态同步</b>HRIS/OA、摩卡 People、电子签<div class="meta">external_sync 现为 Mock</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <b>图例口径</b>：已落地 = 主路由已挂载且存在真实 models/views 与前端页面；Stub = <code>apps/referral/urls_stubs.py</code> 兜底端点了（返 501 或 假成功）；占位 = 路由指向 <code>Placeholder.vue</code>。<br>
+    <b>注意</b>：stub 中「只读列表类」返空数组不会误导用户，但「写入类」会返假 id 假装成功，生产环境应优先清理写入类 stub。<br>
+    扫描基准：2026-08-30 · 33 个后端 app · 6/6 生命周期阶段主干已贯通，缺口集中在 stub 端点与设置类占位页。
+  </footer>
+</div>
+</body>
+</html>

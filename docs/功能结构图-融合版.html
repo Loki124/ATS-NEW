@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATS-NEW 功能结构图 · 角色×分层全员对齐矩阵</title>
+<style>
+  :root{
+    --done:#10B981; --stub:#F59E0B; --ph:#64748B; --plan:#8B5CF6; --miss:#EF4444;
+    --ink:#1E293B; --soft:#475569; --faint:#94A3B8; --line:#E2E8F0; --card:#fff;
+    --l1:#0EA5E9; --l2:#6366F1; --l3:#8B5CF6; --l4:#EC4899; --l5:#14B8A6; --l6:#64748B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    background:linear-gradient(180deg,#EEF2FF,#F8FAFC 220px);color:var(--ink);line-height:1.45;padding:24px 14px 50px}
+  .wrap{max-width:1340px;margin:0 auto}
+  h1{font-size:24px;font-weight:800;text-align:center;letter-spacing:-.4px}
+  .sub{text-align:center;color:var(--soft);font-size:12.5px;margin:5px 0 16px}
+
+  /* 画图说明三段 */
+  .brief{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+  .b{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;box-shadow:0 1px 3px rgba(15,23,42,.05);border-top:3px solid var(--brand,#6366F1)}
+  .b .t{font-size:11.5px;font-weight:800;color:var(--brand,#6366F1);margin-bottom:4px}
+  .b .c{font-size:12px;color:var(--soft);line-height:1.55}
+
+  /* 主矩阵 */
+  .mx{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(15,23,42,.06);margin-bottom:14px}
+  .mxg{display:grid;grid-template-columns:108px repeat(6,1fr)}
+  .mxg > *{padding:8px 9px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);font-size:11px}
+  .mxg > *:last-child{border-right:0}
+  .hd{background:#1E293B;color:#fff;font-weight:700;font-size:12px;text-align:center;padding:10px 6px;border-bottom:2px solid #0F172A}
+  .hd.r{background:#334155}
+  .hd .ico{font-size:14px;display:block;margin-bottom:1px}
+  .hd small{display:block;font-size:9px;opacity:.7;font-weight:500;margin-top:1px}
+  .lbl{background:#F1F5F9;font-weight:800;color:var(--ink);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;border-bottom-color:var(--lc)}
+  .lbl small{font-size:9.5px;font-weight:500;color:var(--soft);letter-spacing:.3px}
+  .cell{background:#fff;vertical-align:top;align-content:flex-start;display:flex;flex-direction:column;gap:4px;min-height:80px}
+  .cell.alt{background:#FAFBFC}
+  .cell.empty{background:#FAFAFB;align-items:center;justify-content:center;color:var(--faint);font-size:10px;font-style:italic}
+  .m{display:flex;align-items:center;gap:5px;background:#F8FAFC;border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:10.5px;color:var(--soft)}
+  .m .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .m.done{border-left:2px solid var(--done)}.m.done .dot{background:var(--done)}
+  .m.stub{border-left:2px solid var(--stub);background:#FFFBEB}.m.stub .dot{background:var(--stub)}
+  .m.ph{border-left:2px solid var(--ph);background:#F1F5F9}.m.ph .dot{background:var(--ph)}
+  .m.miss{border-left:2px solid var(--miss);background:#FEF2F2;color:#B91C1C}.m.miss .dot{background:var(--miss)}
+  .m.plan{border-left:2px dashed var(--plan);background:#F5F3FF;color:#5B21B6}.m.plan .dot{background:var(--plan)}
+  .m code{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;opacity:.7}
+
+  /* 全员共享基础设施 */
+  .shared{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 16px;box-shadow:0 1px 3px rgba(15,23,42,.05);margin-bottom:14px}
+  .shared h3{font-size:13px;color:var(--l6);font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .shared h3 small{font-weight:500;color:var(--soft);font-size:11px}
+  .techs{display:flex;flex-wrap:wrap;gap:8px}
+  .tech{display:flex;align-items:center;gap:6px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:6px 11px;font-size:11.5px;color:var(--ink);font-weight:600}
+  .tech .dot{width:8px;height:8px;border-radius:50%;background:var(--done)}
+
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;font-size:11.5px;color:var(--soft)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px;border:1px solid}
+
+  footer{margin-top:18px;font-size:11px;color:var(--faint);text-align:center;line-height:1.7}
+  @media(max-width:1100px){.mxg{grid-template-columns:90px repeat(6,1fr)}.brief{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ATS-NEW 功能结构图 · 角色×分层全员对齐矩阵</h1>
+  <p class="sub">横向=6 类用户角色 · 纵向=6 个架构分层 · 交叉点=该角色在该分层用到的功能模块 · 基于 2026-08-30 代码静态扫描</p>
+
+  <div class="brief">
+    <div class="b" style="--brand:#6366F1"><div class="t">主要作用</div><div class="c">梳理功能模块与层级逻辑，支撑<b>版本规划、权限管理与模块分工</b>。让整个团队（不只产品）在一张图上对齐"这功能归谁管、在哪一层、和哪些模块相邻"。</div></div>
+    <div class="b" style="--brand:#0EA5E9"><div class="t">使用场景</div><div class="c">①<b>初期做需求池分类</b>：把零散需求归到对应分层/角色网格<br>②<b>中后期明确迭代目标</b>和模块拆分：用网格找出当前缺口与重叠<br>③<b>向非产品同事说明"产品功能范围"</b>：研发、HR、运维一眼看懂各自位置</div></div>
+    <div class="b" style="--brand:#14B8A6"><div class="t">拆解维度</div><div class="c">一级模块=<b>架构分层</b>（展示/领域/网关/管理/服务Pass/基础设施）<br>二级功能=<b>该角色在此分层用到的子模块</b><br>三级功能=<b>控件级子功能</b>（如消息设置→私信→删除/置顶）</div></div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#ECFDF5;border-color:var(--done)"></i>已落地</span>
+    <span><i style="background:#FFFBEB;border-color:var(--stub)"></i>Stub 假实现</span>
+    <span><i style="background:#F1F5F9;border-color:var(--ph)"></i>占位页</span>
+    <span><i style="background:#FEF2F2;border-color:var(--miss)"></i>缺失 / 501 / 404</span>
+    <span><i style="background:#F5F3FF;border-color:var(--plan)"></i>规划</span>
+  </div>
+
+  <div class="mx">
+    <div class="mxg">
+
+      <!-- 表头：6 角色 -->
+      <div class="hd" style="background:#0F172A;border-bottom:2px solid #0F172A"><span class="ico">⌘</span>分层 \ 角色</div>
+      <div class="hd"><span class="ico">🧑‍💻</span>开发人员<small>研发</small></div>
+      <div class="hd"><span class="ico">🙋</span>下游用户<small>候选人</small></div>
+      <div class="hd"><span class="ico">🔌</span>上游渠道<small>猎聘/BOSS等</small></div>
+      <div class="hd"><span class="ico">💰</span>财务人员<small>HRBP/编制</small></div>
+      <div class="hd"><span class="ico">📢</span>运营人员<small>招聘团队</small></div>
+      <div class="hd r"><span class="ico">🛠</span>运维人员<small>IT/管理员</small></div>
+
+      <!-- 展示层 -->
+      <div class="lbl" style="--lc:var(--l1);background:var(--l1);color:#fff"><b>展示层</b><small>页面 / UI</small></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>HR 工作台 <code>Dashboard</code></div><div class="m done"><span class="dot"></span>候选人 / 面试 / Offer / 入职列表</div><div class="m done"><span class="dot"></span>面试官评价组件 <code>InterviewEval*</code></div><div class="m plan"><span class="dot"></span>移动端 v2</div></div>
+      <div class="cell alt"><div class="m ph"><span class="dot"></span>招聘门户 🚧</div><div class="m done"><span class="dot"></span>投递页 <code>application</code></div><div class="m done"><span class="dot"></span>进度查询 / 面试确认</div><div class="m done"><span class="dot"></span>Offer 确认 / 入职资料</div><div class="m done"><span class="dot"></span>内推入口 <code>referral</code></div></div>
+      <div class="cell empty">— 不直接展示 —</div>
+      <div class="cell"><div class="m done"><span class="dot"></span>HR 工作台 + 需求配置</div><div class="m done"><span class="dot"></span>编制看板 <code>analytics</code></div><div class="m ph"><span class="dot"></span>审批设置 🚧 ATS-143</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>全生命周期所有列表页</div><div class="m done"><span class="dot"></span>数据看板 KPI <code>data.ts</code></div><div class="m miss"><span class="dot"></span>通用数据导出 404</div><div class="m ph"><span class="dot"></span>数据中心报表 🚧 ATS-201</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>管理后台 settings/*</div><div class="m done"><span class="dot"></span>主题外观（液态玻璃 v2）</div></div>
+
+      <!-- 领域层 -->
+      <div class="lbl" style="--lc:var(--l2);background:var(--l2);color:#fff"><b>领域层</b><small>业务功能</small></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>33 个后端模块</div><div class="m done"><span class="dot"></span>全生命周期 6 阶段</div><div class="m done"><span class="dot"></span>候选人 / 简历 / 面试 / Offer / 入职</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span><b>候选人</b> <code>candidate</code> <code>application</code></div><div class="m done"><span class="dot"></span><b>面试</b> <code>interview</code> <code>invitation</code></div><div class="m done"><span class="dot"></span><b>录用</b> <code>offer</code></div><div class="m done"><span class="dot"></span><b>入职</b> <code>onboarding</code></div><div class="m done"><span class="dot"></span>隐私授权 <code>gdpr</code></div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>渠道爬取 <code>scraped_resume</code></div><div class="m done"><span class="dot"></span>渠道管理 <code>channel</code></div><div class="m done"><span class="dot"></span>背调回调 <code>integration</code></div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>需求 <code>demand</code> <code>entry_condition</code></div><div class="m done"><span class="dot"></span>编制分析 <code>analytics</code></div><div class="m done"><span class="dot"></span>流程审批 <code>process</code></div><div class="m done"><span class="dot"></span>意向审批 <code>mou</code></div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>需求 / 职位 / 渠道 / 校招</div><div class="m done"><span class="dot"></span>简历 / 候选人 / 查重 / 人才库</div><div class="m done"><span class="dot"></span>面试 / 邀请 / 时限 / 自动化</div><div class="m done"><span class="dot"></span>Offer / 录用 / 入职</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>用户/部门/角色 <code>core</code></div><div class="m done"><span class="dot"></span>权限模型 <code>mou</code> <code>field_acl</code></div><div class="m done"><span class="dot"></span>数据字典 <code>dictionary</code> <code>library</code></div><div class="m done"><span class="dot"></span>审计 <code>audit</code> 集成 <code>integration</code></div></div>
+
+      <!-- 网关层 -->
+      <div class="lbl" style="--lc:var(--l3);background:var(--l3);color:#fff"><b>网关层</b><small>鉴权 / 准入</small></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>统一 API 网关</div><div class="m done"><span class="dot"></span>JWT 鉴权 <code>core</code></div><div class="m done"><span class="dot"></span>字段级 ACL <code>field_acl</code></div><div class="m plan"><span class="dot"></span>限流 / 灰度</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>候选人 JWT</div><div class="m done"><span class="dot"></span>投递免注册（HR 代建）</div><div class="m miss"><span class="dot"></span>自助注册 501</div><div class="m miss"><span class="dot"></span>改密 501</div><div class="m plan"><span class="dot"></span>候选人自助账号</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>渠道 API 对接</div><div class="m done"><span class="dot"></span>HMAC 验签（背调）</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>RBAC 角色权限</div><div class="m done"><span class="dot"></span>字段级 ACL</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>JWT / 字段级 ACL</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>JWT + API 网关</div><div class="m done"><span class="dot"></span>Admin 路径 Token 保护</div><div class="m done"><span class="dot"></span>CSRF 条件豁免</div></div>
+
+      <!-- 管理层 -->
+      <div class="lbl" style="--lc:var(--l4);background:var(--l4);color:#fff"><b>管理层</b><small>配置中心</small></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>路由 / 迁移 / 测试</div><div class="m done"><span class="dot"></span>Settings 代码组织</div></div>
+      <div class="cell alt"><div class="m ph"><span class="dot"></span>公共设置 🚧 /settings/public</div><div class="m ph"><span class="dot"></span>简历邮箱 🚧</div><div class="m ph"><span class="dot"></span>雇主品牌 🚧</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>渠道配置 <code>channel</code></div><div class="m done"><span class="dot"></span>回调验签密钥</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>数据字典 / 职级</div><div class="m ph"><span class="dot"></span>审批设置 🚧 ATS-143</div><div class="m ph"><span class="dot"></span>用户组 🚧</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>招聘需求配置</div><div class="m done"><span class="dot"></span>评分规则 / 校招管控</div><div class="m done"><span class="dot"></span>背调生态接入</div><div class="m stub"><span class="dot"></span>公告推送 API 缺失</div></div>
+      <div class="cell alt"><div class="m ph"><span class="dot"></span>入职设置 🚧 ATS-142</div><div class="m done"><span class="dot"></span>用户/角色/权限/字段ACL</div><div class="m done"><span class="dot"></span>院校公司库</div><div class="m stub"><span class="dot"></span>external_sync Mock</div></div>
+
+      <!-- 服务层 Pass -->
+      <div class="lbl" style="--lc:var(--l5);background:var(--l5);color:#fff"><b>服务层</b><small>Pass · 平台能力</small></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>Celery 异步任务</div><div class="m done"><span class="dot"></span>Channels WebSocket</div><div class="m plan"><span class="dot"></span>事件总线</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>邮件 / 短信 / IM 通知</div><div class="m done"><span class="dot"></span>进度主动推送</div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>异步爬取任务</div><div class="m done"><span class="dot"></span>渠道去重</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>审计 <code>audit</code></div><div class="m done"><span class="dot"></span>通知 <code>notification</code></div></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>消息中心 / 自动化</div><div class="m done"><span class="dot"></span>时限 SLA / 时序编排</div><div class="m done"><span class="dot"></span>分析订阅</div></div>
+      <div class="cell alt"><div class="m done"><span class="dot"></span>审计 / 通知 / 集成</div><div class="m plan"><span class="dot"></span>监控告警 / ELK</div><div class="m plan"><span class="dot"></span>备份 / 灾备</div></div>
+
+      <!-- 基础设施层 -->
+      <div class="lbl" style="--lc:var(--l6);background:var(--l6);color:#fff"><b>基础设施</b><small>Pass · Ops</small></div>
+      <div class="cell"><div class="m done"><span class="dot"></span>开发数据库 / Redis</div><div class="m done"><span class="dot"></span>Docker Compose 本地</div></div>
+      <div class="cell alt empty">—</div>
+      <div class="cell empty">—</div>
+      <div class="cell alt empty">—</div>
+      <div class="cell empty">—</div>
+      <div class="cell"><div class="m done"><span class="dot"></span>MySQL 8.0</div><div class="m done"><span class="dot"></span>Redis 7 / Celery</div><div class="m done"><span class="dot"></span>Channels / Nginx</div><div class="m done"><span class="dot"></span>Docker Compose</div><div class="m plan"><span class="dot"></span>监控告警 / Sentry</div></div>
+
+    </div>
+  </div>
+
+  <!-- 全员共享基础设施 -->
+  <div class="shared">
+    <h3>🛠 全员共享基础设施 <small>（开发/运维共同维护，所有角色间接受益）</small></h3>
+    <div class="techs">
+      <span class="tech"><span class="dot"></span>MySQL 8.0 <small style="color:var(--faint);font-weight:500;margin-left:4px">主库</small></span>
+      <span class="tech"><span class="dot"></span>Redis 7 <small style="color:var(--faint);font-weight:500;margin-left:4px">缓存 / 队列</small></span>
+      <span class="tech"><span class="dot"></span>Celery <small style="color:var(--faint);font-weight:500;margin-left:4px">异步任务</small></span>
+      <span class="tech"><span class="dot"></span>Channels <small style="color:var(--faint);font-weight:500;margin-left:4px">WebSocket</small></span>
+      <span class="tech"><span class="dot"></span>Nginx <small style="color:var(--faint);font-weight:500;margin-left:4px">反向代理</small></span>
+      <span class="tech"><span class="dot"></span>Docker Compose <small style="color:var(--faint);font-weight:500;margin-left:4px">本地编排</small></span>
+      <span class="tech"><span class="dot"></span>Vue3 + Naive UI <small style="color:var(--faint);font-weight:500;margin-left:4px">前端</small></span>
+      <span class="tech" style="border-color:#FCA5A5"><span class="dot" style="background:var(--miss)"></span>监控 / ELK <small style="color:var(--faint);font-weight:500;margin-left:4px">规划</small></span>
+    </div>
+  </div>
+
+  <footer>
+    <b>图例口径</b>：已落地 = 主路由已挂载且有真实 models/views/前端页面；Stub = <code>urls_stubs.py</code> 兜底（返 501 或假成功）；占位 = 路由指向 <code>Placeholder.vue</code>；缺失 = 前端已调用但后端无实现；规划 = 已知但未开工。<br>
+    <b>读图指引</b>：横向扫一行 = 同一分层下 6 个角色的视野对照；纵向扫一列 = 同一角色在系统各层的存在；空白格 = 该角色在此分层无直接功能（≠ 缺位，可能是设计上就该无）。<br>
+    扫描基准 2026-08-30 · 33 个后端 app · 22 个 stub 端点 · 9 个占位页 · 4 处产品确认 TODO。
+  </footer>
+</div>
+</body>
+</html>

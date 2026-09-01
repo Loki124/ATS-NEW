@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="VA9h6Gn7wukj6DjZgH3dxX">
+<head data-page-node-id="4ZD27DgRCnKdaOo1ScFp8q">
+<meta charset="UTF-8" data-page-node-id="KrPaq0PflpC1VmkEY4kqy0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="EBaf90CmbTWHlV8ysJCbLy" />
+<title>流程管理弹窗 · 效果图预览</title>
+<style>
+  /* ===== 设计令牌（取自 tokens.css，light / dark 双轨） ===== */
+  :root {
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-6: 24px; --space-8: 32px;
+    --fs-10: 10px; --fs-11: 11px; --fs-12: 12px; --fs-13: 13px;
+    --fs-14: 14px; --fs-15: 15px; --fs-18: 18px;
+
+    --brand: #6366F1; --brand-grad-a: #8B5CF6;
+    --g1: #F1F5F9; --g2: #E2E8F0; --g6: #CBD5E1;
+    --n-100: #F1F5F9; --n-170: #E2E8F0; --n-300: #CBD5E1;
+    --n-350: #9CA3AF; --n-400: #94A3B8; --n-450: #64748B;
+    --n-600: #475569; --n-650: #334155; --n-850: #0F172A;
+
+    --glass-bg-card: rgba(255,255,255,.62);
+    --glass-bg-input: rgba(255,255,255,.45);
+    --overlay-scrim-weak: rgba(15,23,42,.08);
+    --overlay-glass-strong: rgba(255,255,255,.7);
+
+    --c-success: #16A34A;  --c-success-soft: rgba(22,163,74,.12);  --c-success-bg: #A7F3D0;
+    --c-warning: #F59E0B;  --c-warning-soft: rgba(245,158,11,.14); --c-warning-bg: #FDE68A;
+    --c-error:   #EF4444;  --c-error-soft:   rgba(239,68,68,.12);  --c-error-bg:   #FECACA;
+    --c-info:    #3B82F6;  --c-info-soft:    rgba(59,130,246,.12); --c-info-bg:    #BFDBFE;
+    --c-purple:  #722ed1;  --c-cyan: #0090ba; --c-orange: #F97316;
+
+    --duration-fast: 120ms; --ease-out: cubic-bezier(0,0,.2,1);
+  }
+  [data-theme="dark"] {
+    --g1: #0B1220; --g2: #1E293B; --g6: #334155;
+    --n-100: #1E293B; --n-170: #334155; --n-300: #475569;
+    --n-350: #64748B; --n-400: #64748B; --n-450: #94A3B8;
+    --n-600: #94A3B8; --n-650: #CBD5E1; --n-850: #F8FAFC;
+
+    --glass-bg-card: rgba(30,41,59,.62);
+    --glass-bg-input: rgba(30,41,59,.45);
+    --overlay-scrim-weak: rgba(0,0,0,.30);
+    --overlay-glass-strong: rgba(30,41,59,.80);
+
+    --c-success-soft: rgba(22,163,74,.22);  --c-success-bg: rgba(22,163,74,.22);
+    --c-warning-soft: rgba(245,158,11,.24); --c-warning-bg: rgba(245,158,11,.24);
+    --c-error-soft:   rgba(239,68,68,.22);  --c-error-bg:   rgba(239,68,68,.22);
+    --c-info-soft:    rgba(59,130,246,.22); --c-info-bg:    rgba(59,130,246,.22);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    color: var(--n-850);
+    background:
+      radial-gradient(1100px 600px at 12% -8%, rgba(99,102,241,.16), transparent 60%),
+      radial-gradient(900px 520px at 92% 8%, rgba(59,130,246,.14), transparent 55%),
+      radial-gradient(800px 600px at 70% 110%, rgba(139,92,246,.12), transparent 60%),
+      #EEF2F9;
+    min-height: 100vh;
+    transition: background .25s ease;
+  }
+  [data-theme="dark"] body {
+    background:
+      radial-gradient(1100px 600px at 12% -8%, rgba(99,102,241,.22), transparent 60%),
+      radial-gradient(900px 520px at 92% 8%, rgba(59,130,246,.18), transparent 55%),
+      radial-gradient(800px 600px at 70% 110%, rgba(139,92,246,.16), transparent 60%),
+      #0B1220;
+  }
+
+  /* ===== 顶部工具条 ===== */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding: 12px 20px;
+    background: var(--glass-bg-card);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--g2);
+  }
+  .topbar h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .3px; }
+  .topbar .sub { font-size: 12px; color: var(--n-450); margin-top: 2px; }
+  .topbar .right { display: flex; gap: 8px; align-items: center; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--g2); background: var(--glass-bg-input); color: var(--n-650);
+    user-select: none;
+  }
+  .legend { font-size: 11.5px; color: var(--n-450); }
+  .legend b { color: var(--c-info); }
+
+  .stage-wrap { padding: 28px 16px 80px; display: flex; flex-direction: column; gap: 40px; align-items: center; }
+
+  /* ===== 弹窗外壳 ===== */
+  .modal-shell {
+    width: 880px; max-width: 95vw;
+    max-height: 90vh; display: flex; flex-direction: column;
+    background: var(--glass-bg-card);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid var(--g2);
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(15,23,42,.18), 0 2px 8px var(--overlay-scrim-weak);
+    overflow: hidden;
+  }
+  [data-theme="dark"] .modal-shell { box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+  .modal-title-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--g2);
+    font-size: 14px; font-weight: 600;
+  }
+  .modal-title-bar .mode-pill {
+    font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px;
+    background: var(--c-info-soft); color: var(--c-info);
+  }
+  .modal-body { padding: 0; overflow-y: auto; }
+
+  .mock-label {
+    width: 880px; max-width: 95vw;
+    font-size: 12px; color: var(--n-450);
+    display: flex; align-items: center; gap: 8px; margin-bottom: -22px;
+  }
+  .mock-label .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c-info); }
+
+  /* ===== HERO ===== */
+  .hero {
+    display: flex; align-items: center; gap: var(--space-4);
+    margin: 0; padding: 20px var(--space-6);
+    background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%);
+    border-bottom: 1px solid var(--g2);
+  }
+  .hero__icon {
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px var(--c-info-soft);
+  }
+  .hero__main { flex: 1; min-width: 0; }
+  .hero__title-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1); }
+  .hero__title { font-size: var(--fs-18); font-weight: 600; color: var(--n-850); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hero__meta { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: var(--fs-12); color: var(--n-450); }
+  .hero__meta-item { display: inline-flex; align-items: center; gap: var(--space-1); }
+  .hero__edit-btn {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    padding: 6px var(--space-3); background: var(--glass-bg-card);
+    border: 1px solid var(--g2); border-radius: 6px; color: var(--c-info);
+    font-size: var(--fs-13); cursor: pointer; flex-shrink: 0;
+  }
+  .hero__actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+  .hero__title-input {
+    width: 100%; font-size: var(--fs-18); font-weight: 600; color: var(--n-850);
+    border: 1px solid var(--g2); border-radius: 8px; padding: 6px 10px;
+    background: var(--glass-bg-card); outline: none;
+  }
+  .hero__title-input:focus { border-color: var(--c-info); }
+
+  /* ===== Section ===== */
+  .section { margin: 20px; }
+  .section:last-child { margin-bottom: 20px; }
+  .section__title {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--fs-13); font-weight: 600; color: var(--n-650);
+    margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .section__title-bar { width: 3px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, var(--brand), var(--brand-grad-a)); }
+  .section__body {
+    background: var(--glass-bg-input); border: 1px solid var(--g1);
+    border-radius: 6px; padding: 0 14px;
+  }
+
+  /* ===== 字段行 ===== */
+  .field-row {
+    display: flex; align-items: flex-start; gap: var(--space-3);
+    min-height: 36px; padding: 10px 0; border-bottom: 1px dashed var(--g1);
+    font-size: var(--fs-13);
+  }
+  .field-row:last-child, .field-row--last { border-bottom: none; }
+  .field-label { color: var(--n-450); min-width: 88px; font-weight: 500; flex-shrink: 0; padding-top: 6px; }
+  .field-value { color: var(--n-650); flex: 1; word-break: break-word; }
+  .field-value--wrap { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .muted-text { color: var(--n-350); font-size: var(--fs-12); }
+  .rule-text strong { color: var(--n-850); font-weight: 600; }
+  .rule-timing, .rule-scope { margin-left: 6px; color: var(--n-450); font-size: var(--fs-12); }
+
+  /* ===== 通用 tag（模拟 n-tag） ===== */
+  .ntag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; line-height: 1; padding: 4px 8px; border-radius: 4px;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .ntag.round { border-radius: 999px; }
+  .ntag.success { background: var(--c-success-soft); color: var(--c-success); border-color: var(--c-success-soft); }
+  .ntag.warning { background: var(--c-warning-soft); color: var(--c-warning); border-color: var(--c-warning-soft); }
+  .ntag.error   { background: var(--c-error-soft);   color: var(--c-error);   border-color: var(--c-error-soft); }
+  .ntag.info    { background: var(--c-info-soft);    color: var(--c-info);    border-color: var(--c-info-soft); }
+  .ntag.primary { background: rgba(99,102,241,.12);   color: var(--brand);     border-color: rgba(99,102,241,.16); }
+  .ntag.default { background: var(--g1); color: var(--n-450); border-color: var(--g2); }
+  .ntag.purple  { background: rgba(114,46,209,.14);   color: var(--c-purple);  border-color: rgba(114,46,209,.18); }
+
+  /* ===== 适用范围卡片 ===== */
+  .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .scope-card {
+    border: 1px solid var(--g2); border-radius: 6px; padding: 10px var(--space-3);
+    background: var(--glass-bg-card); display: flex; flex-direction: column; gap: 6px;
+    min-height: 92px;
+  }
+  .scope-card.include { background: var(--g1); border-color: var(--c-info-bg); }
+  .scope-card.exclude { background: var(--g1); border-color: var(--c-error-bg); }
+  .scope-card.neutral { background: var(--g1); border-color: var(--n-170); }
+  .scope-card__head { display: flex; align-items: center; gap: 6px; font-size: var(--fs-13); font-weight: 600; color: var(--n-850); }
+  .scope-card__head .ic { color: var(--c-info); display: inline-flex; }
+  .scope-card.exclude .scope-card__head .ic { color: var(--c-error); }
+  .scope-card__name { flex: 1; }
+  .scope-card__mode { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+  .scope-card__count { color: var(--n-400); flex-shrink: 0; white-space: nowrap; margin-left: auto; }
+  .scope-card__values { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; align-items: flex-start; }
+  .scope-card__value {
+    font-size: 11px; padding: 1px 6px; background: var(--overlay-glass-strong);
+    border: 1px solid var(--overlay-scrim-weak); border-radius: 3px; color: var(--n-600);
+  }
+  .scope-card.include .scope-card__value { background: var(--c-info-soft); border-color: var(--c-info-soft); color: var(--c-info); }
+  .scope-card.exclude .scope-card__value { background: var(--c-error-soft); border-color: var(--c-error-soft); color: var(--c-error); }
+  .scope-card__empty { font-size: 11px; color: var(--n-350); font-style: italic; }
+  .scope-select {
+    width: 100%; font-size: 12px; padding: 4px 8px; border-radius: 5px;
+    border: 1px solid var(--g2); background: var(--overlay-glass-strong); color: var(--n-450);
+  }
+
+  /* radio 组（模拟 n-radio-group） */
+  .radio-group { display: inline-flex; gap: 14px; align-items: center; font-size: 12px; color: var(--n-650); }
+  .radio-group .opt { display: inline-flex; align-items: center; gap: 5px; cursor: default; }
+  .radio-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--n-300); position: relative; }
+  .radio-dot.on { border-color: var(--c-info); }
+  .radio-dot.on::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: var(--c-info); }
+
+  /* switch（模拟 n-switch） */
+  .switch { width: 38px; height: 22px; border-radius: 999px; background: var(--c-success); position: relative; transition: background .15s; }
+  .switch::after { content: ''; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch.off { background: var(--n-300); }
+  .switch.off::after { right: auto; left: 2px; }
+
+  /* 输入框（模拟 n-input / textarea / input-number） */
+  .inp, .txt {
+    width: 100%; font-size: 13px; color: var(--n-650);
+    border: 1px solid var(--g2); border-radius: 6px; padding: 6px 10px;
+    background: var(--glass-bg-card); outline: none; resize: vertical;
+  }
+  .inp:focus, .txt:focus { border-color: var(--c-info); }
+  .inp.sm { padding: 3px 8px; font-size: 12px; }
+  .inp.num { width: 100px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+    font-size: 13px; padding: 6px 14px; border-radius: 7px; border: 1px solid var(--g2);
+    background: var(--glass-bg-card); color: var(--n-650);
+  }
+  .btn.primary { background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)); color: #fff; border: none; }
+  .btn.link { background: none; border: none; color: var(--c-info); padding: 0; }
+  .btn.dashed { border-style: dashed; width: 100%; justify-content: center; color: var(--c-info); }
+  .btn.danger-text { background: var(--c-error); color: #fff; border: none; padding: 4px 10px; font-size: 12px; }
+  .btn.xs { padding: 3px 8px; font-size: 12px; }
+  .btn.icon { padding: 4px 6px; }
+
+  /* ===== 时间轴 / 阶段卡片 ===== */
+  .stage-timeline { position: relative; padding-left: var(--space-8); }
+  .stage-timeline::before {
+    content: ''; position: absolute; left: 14px; top: 14px; bottom: 14px; width: 2px;
+    background: var(--g6); border-radius: 1px;
+  }
+  .stage-card {
+    position: relative; background: var(--glass-bg-card); border: 1px solid var(--g2);
+    border-radius: 8px; padding: 14px var(--space-4); margin-bottom: 10px;
+  }
+  .stage-card--screen     { border-left: 3px solid var(--c-info); }
+  .stage-card--invitation { border-left: 3px solid var(--c-warning); }
+  .stage-card--interview  { border-left: 3px solid var(--c-purple); }
+  .stage-card--offer      { border-left: 3px solid var(--c-success); }
+  .stage-card--onboarding { border-left: 3px solid var(--c-cyan); }
+  .stage-card__dot {
+    position: absolute; left: -32px; top: 14px; width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 13px;
+    background: var(--c-info); box-shadow: 0 0 0 4px var(--g1), 0 0 0 6px rgba(59,130,246,.15);
+  }
+  .stage-card__arrow {
+    position: absolute; left: -23px; bottom: -14px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--glass-bg-card); color: var(--n-300); display: flex; align-items: center; justify-content: center; z-index: 2;
+  }
+  .stage-card__header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px dashed var(--g1); }
+  .stage-card__name { font-size: var(--fs-15); font-weight: 600; color: var(--n-850); margin-right: var(--space-1); }
+  .stage-card__row-actions { display: flex; gap: var(--space-2); justify-content: flex-end; padding-top: var(--space-2); border-top: 1px dashed var(--g1); margin-top: var(--space-1); flex-wrap: wrap; }
+  .stage-card__fields { display: flex; flex-direction: column; }
+
+  .feature-tag {
+    display: inline-flex; align-items: center; background: var(--c-warning-soft);
+    border: 1px solid var(--c-warning-bg); color: var(--c-warning);
+    font-size: var(--fs-12); padding: 2px var(--space-2); border-radius: 3px; white-space: nowrap;
+  }
+  .cond-group { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .cond-group__head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-12); }
+  .cond-group__type { color: var(--n-450); }
+  .cond-group__count { color: var(--n-400); font-size: 11px; }
+  .cond-empty { font-size: var(--fs-12); color: var(--n-400); background: var(--g1); padding: 6px 10px; border-radius: 4px; font-style: italic; }
+  .cond-list { display: flex; flex-direction: column; gap: 3px; background: var(--g1); border: 1px solid var(--g1); border-radius: 4px; padding: 6px 10px; }
+  .cond-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-12); line-height: 1.6; }
+  .cond-item__index { font-size: 11px; background: var(--g1); color: var(--c-info); padding: 1px 6px; border-radius: 3px; flex-shrink: 0; font-weight: 500; }
+  .cond-item__relation { font-size: var(--fs-10); font-weight: 600; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; background: var(--n-100); color: var(--c-success); }
+  .cond-item__relation.or { color: var(--c-orange); }
+  .cond-item__expr { font-family: 'SF Mono', Consolas, Menlo, monospace; font-size: var(--fs-12); color: var(--n-650); flex: 1; word-break: break-all; }
+
+  .alert {
+    background: var(--c-info-soft); border: 1px solid var(--c-info-bg); color: var(--n-650);
+    border-radius: 6px; padding: 8px 12px; font-size: 12px; margin-bottom: var(--space-3); line-height: 1.5;
+  }
+
+  /* ===== footer ===== */
+  .modal-footer { display: flex; justify-content: flex-end; gap: var(--space-2); padding: 14px 18px; border-top: 1px solid var(--g2); background: var(--glass-bg-card); }
+
+  .note { width: 880px; max-width: 95vw; font-size: 11.5px; color: var(--n-450); line-height: 1.7; }
+  .note code { background: var(--g1); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body data-page-node-id="yCD2lODCRUthJvu4wu8qtg">
+  <div class="topbar" data-page-node-id="XS0X4huQzT6MZV9rxxlVdN">
+    <div data-page-node-id="rT4WIRXvaEaBYtwRJAeXGS">
+      <h1 data-page-node-id="iimSK3pc5RG9TU7enShUGW">流程管理弹窗 · 效果图预览</h1>
+      <div class="sub" data-page-node-id="dZ2bZ6gyyyMgCQK1AdR1v6">静态高保真 mockup · 基于已提交修复 <b style="color:var(--c-info)" data-page-node-id="aijNbw3qilpaBhPbTsGjx3">fff22b7</b> + <b style="color:var(--c-info)" data-page-node-id="lGDx75i8YHdYFaVSGcFHDS">f0c4409</b> · 仅预览，未改动源码</div>
+    </div>
+    <div class="right" data-page-node-id="1HvKYsEcIQWXFEFN1yetiW">
+      <span class="legend" data-page-node-id="rAqc55Ag1Fyk9O5Hdmfkal">蓝色点 = 阶段卡片 · <b data-page-node-id="bnPNfqNcYQBq9DzIgahYDq">请提供确认</b></span>
+      <div class="theme-toggle" id="themeToggle" data-page-node-id="tHtHHnNj3B6SxgX0C1CCKx">🌗 切换亮/暗</div>
+    </div>
+  </div>
+
+  <div class="stage-wrap" data-page-node-id="oESqDHWbezemWJNQK6IA00">
+
+    <!-- ============ 查看模式 ============ -->
+    <div class="mock-label" data-page-node-id="MrpXTY7VvN0gKGGvtup5OD"><span class="dot" data-page-node-id="AIuEgSnP77QpeHjbuIBXGN"></span> 形态 A · 查看流程（mode = view）</div>
+    <div class="modal-shell" data-page-node-id="AX7AuIOe0ImVDUFhbT9iAj">
+      <div class="modal-title-bar" data-page-node-id="8GQk6ysZpf4EUaimDOXnWy">
+        <span data-page-node-id="8VDfpMzsaLFomRX8NHqllM">流程详情</span>
+        <span class="mode-pill" data-page-node-id="9FeKN0oxlzKxeeQm5h2mQK">只读</span>
+      </div>
+      <div class="modal-body" data-page-node-id="31tmkEVNtR6kyB3qplGTnM">
+        <!-- HERO -->
+        <div class="hero" data-page-node-id="2jehdgHGuvvgTqlWwDSTgF">
+          <div class="hero__icon" data-page-node-id="wPTMHIkgQD2HQxPHmcDPx1">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" data-page-node-id="hstI4ZijWYEhplogfmnNWL"><circle cx="6" cy="6" r="2.5" data-page-node-id="vOFGikdFCfMLHM0KGhOKrf"/><circle cx="18" cy="6" r="2.5" data-page-node-id="JgZe79UlE1nq4mYpjGyzGE"/><circle cx="12" cy="18" r="2.5" data-page-node-id="8RAQGMEefZaUTYHaA3bLYW"/><path d="M8 7l3.5 9M16 7l-3.5 9" data-page-node-id="pAaGxp9FOUMjJbuxvqIh8U"/></svg>
+          </div>
+          <div class="hero__main" data-page-node-id="XXm2rRyL9vhoD7LCZNIGCi">
+            <div class="hero__title-row" data-page-node-id="bGepDUn7B8YBqGuytZLDkE">
+              <span class="hero__title" data-page-node-id="eQgvAeruK0ZBAxJ1Zv4MBJ">技术中心社招流程</span>
+              <span class="ntag success round" data-page-node-id="O8gYhr1D2WY4IRaAQ2ABhG">启用中</span>
+            </div>
+            <div class="hero__meta" data-page-node-id="L2PzDHVJF0rPv7vG9DMOaj">
+              <span class="hero__meta-item" data-page-node-id="HAR2vqNUxlNaJ7YDUlSp57">▦ 5 个阶段</span>
+              <span class="hero__meta-item" data-page-node-id="VuGsG5btxpt6rqDhXSYV29"># 编号 TECH-RCL-2026</span>
+              <span class="hero__meta-item" data-page-node-id="2Q4vLHBvBZFGR14NeJV4KC">🕑 创建于 2026-03-12</span>
+              <span class="hero__meta-item" data-page-node-id="0GdTJcezsHVjhDq4uTPELR">🕑 更新于 2026-08-20</span>
+            </div>
+          </div>
+          <button class="hero__edit-btn" data-page-node-id="MJkvMTGw0bBgx11v6UhF50">✎ 编辑</button>
+        </div>
+
+        <!-- 基础信息 -->
+        <div class="section" data-page-node-id="YGcETsJ6OA2G022NneBmE2">
+          <div class="section__title" data-page-node-id="5RGb8FB9H2C6RhDwxisSSs"><span class="section__title-bar" data-page-node-id="Prl7flUzx5LNhs31NHRCms"></span><span data-page-node-id="sz7vFmRrokweVdHIRAisnX">基础信息</span></div>
+          <div class="section__body" data-page-node-id="BkOCLt0Hvv8wVQCtcAHOFf">
+            <div class="field-row" data-page-node-id="XSUnCAQpO697R4zwXUedIJ"><span class="field-label" data-page-node-id="gTV2LK5J8gv4L3ambKRjAG">流程说明</span><span class="field-value" data-page-node-id="LmMUla7Ze1C7FF2SD511zM">面向技术中心社会招聘候选人的标准化招聘流程，覆盖初评到入职全链路。</span></div>
+            <div class="field-row" data-page-node-id="s5MsNAollph8rA7EKKRGrK"><span class="field-label" data-page-node-id="By5hRN8qCfM0mF3UzmiARU">校验简历评分</span><span class="field-value" data-page-node-id="soYcj07ORrw99pp2yCBWlL"><span class="ntag success" data-page-node-id="CbsWqyNJOnGUzoqrRll3Lz">是</span></span></div>
+            <div class="field-row" data-page-node-id="yD4es3f982HY0yHJk02KRy"><span class="field-label" data-page-node-id="9bcDtBHKRMPCc577JyUIQu">适用范围组合</span><span class="field-value" data-page-node-id="EMG3c0HlTCiHa4jpa3KuHA"><span class="ntag success" data-page-node-id="rvMjBT9ENIwS20CxEfnkqO">全部满足</span></span></div>
+            <div class="field-row field-row--last" data-page-node-id="gWpk1JBSDgJwrQyXtm2eSl"><span class="field-label" data-page-node-id="PY3ZDSA8qIpU32buAtatmV">流转异常提示</span><span class="field-value" data-page-node-id="jnPE9VHHVumtxnDcTa1MEn">您的简历暂未满足该职位的进入条件，可尝试投递其他在招职位。</span></div>
+          </div>
+        </div>
+
+        <!-- 适用范围 -->
+        <div class="section" data-page-node-id="LaXH5oeeVmFVCIG7ZPpV9r">
+          <div class="section__title" data-page-node-id="fODnTLkV7p48G1w6DrGliP"><span class="section__title-bar" data-page-node-id="I5E7KDUtaRUzbSH729k392"></span><span data-page-node-id="PpJryrJOYCfSrGVlpdHR6y">适用范围</span></div>
+          <div class="scope-grid" data-page-node-id="jOMdIhM9rRgmRSdxXSAABx">
+            <div class="scope-card include" data-page-node-id="plHbTOW8DFXu2wEP2ONced">
+              <div class="scope-card__head" data-page-node-id="YZ3PwTPDxnq7qgSUBZcFT5"><span class="ic" data-page-node-id="5xc6HUVCaUOr6BaBiKAkjE">▣</span><span class="scope-card__name" data-page-node-id="JmubrEcYCcXgBUobabJ7a3">部门</span></div>
+              <div class="scope-card__mode" data-page-node-id="ZVDCkP1VlyYpYCnk1PcClO"><span class="ntag info" data-page-node-id="XSlIYfYTKziuim0NBF7CWX">包含</span><span class="scope-card__count" data-page-node-id="Xr08pQptS552AdQWiGymuh">1 项</span></div>
+              <div class="scope-card__values" data-page-node-id="S2tZKBJdqfPeuqzWE86j72"><span class="scope-card__value" data-page-node-id="q5SKmEwDDNRDdjFzFks7Xv">技术中心</span></div>
+            </div>
+            <div class="scope-card include" data-page-node-id="LSYIuW3xzPAWUoCaUgFAcD">
+              <div class="scope-card__head" data-page-node-id="siQdLcyc8SFQZdG4dLhfcR"><span class="ic" data-page-node-id="9BFnij6YlSRo1US348Vr8M">▤</span><span class="scope-card__name" data-page-node-id="dVCFrjAqAEClrF9QI0zPpy">职级</span></div>
+              <div class="scope-card__mode" data-page-node-id="hjoiTlJGngHO6HGZ6GfE0X"><span class="ntag info" data-page-node-id="gwNMsQknnzMkPTqalY45T2">包含</span><span class="scope-card__count" data-page-node-id="bmCNwj8D78oHpIWMk0tNmx">2 项</span></div>
+              <div class="scope-card__values" data-page-node-id="2AeW37bjH3U8mZ82hsbXfc"><span class="scope-card__value" data-page-node-id="srw6LKaEaT5pNpRzVUbmZA">P6</span><span class="scope-card__value" data-page-node-id="jWjnZP6c9t28SvHAlr3jpI">P7</span></div>
+            </div>
+            <div class="scope-card include" data-page-node-id="3mrH8LNYwWDgokP8GLmiGy">
+              <div class="scope-card__head" data-page-node-id="sB2P4PqYvbEZWaLGQO4Vyw"><span class="ic" data-page-node-id="NByejF3KdODmRMGZLS4nEq">◧</span><span class="scope-card__name" data-page-node-id="d7ksEyNZsfHjE15qWYauFk">岗位</span></div>
+              <div class="scope-card__mode" data-page-node-id="hVZGcWzZgvPuzOPVQEdMIm"><span class="ntag info" data-page-node-id="L9MGs7MaGUAkiijZ7lag1L">包含</span><span class="scope-card__count" data-page-node-id="SbvLCnwFv0mH2EUgONcNac">2 项</span></div>
+              <div class="scope-card__values" data-page-node-id="mocQn2bDAU0VabmhlhmmLx"><span class="scope-card__value" data-page-node-id="ZRnVGplbM4NNnhfglBsNbj">后端工程师</span><span class="scope-card__value" data-page-node-id="SRdblkjnvE4NySEZGjedhr">前端工程师</span></div>
+            </div>
+            <div class="scope-card neutral" data-page-node-id="slhRt41m9p4u1mk8DCFOuq">
+              <div class="scope-card__head" data-page-node-id="JwVIpeypkhsRdCdhML6FdG"><span class="ic" data-page-node-id="gScbu0wuAXgUqEQ09AHHRl">☻</span><span class="scope-card__name" data-page-node-id="QivifVKFFUjKzz7tlchw48">人员</span></div>
+              <div class="scope-card__mode" data-page-node-id="mxwB6DuWROfqlekqCFWydk"><span class="ntag info" data-page-node-id="4Cg7r9YBlPIzBRcHor4myy">包含</span><span class="scope-card__count" data-page-node-id="6XQTU5iC7lQdzKXUiOZWpz">不限</span></div>
+              <div class="scope-card__values" data-page-node-id="GLukCB2FgIeFyqStEJ6SDA"><span class="scope-card__empty" data-page-node-id="49QihkuC8tT1xjNiNyKqyK">所有 人员 都适用</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 阶段流程 -->
+        <div class="section" data-page-node-id="d5RGhQyOCrACF0yonm9mT8">
+          <div class="section__title" data-page-node-id="EJB1RctDCDK3LY9W7QYTXj"><span class="section__title-bar" data-page-node-id="635FvHLRALKdiVrcTIUgQc"></span><span data-page-node-id="DKTVNiBP4DGfCBYp3pH9mZ">阶段流程</span><span class="ntag info round" data-page-node-id="j5BGgJsQjNGljKoeTvz20G">5</span></div>
+          <div class="stage-timeline" data-page-node-id="AfxJqzjkNyNy5UuJAJBFL6">
+            <!-- 1 初评 -->
+            <div class="stage-card stage-card--screen" data-page-node-id="JG3rCmSrTttCMUPfcNLl0h">
+              <div class="stage-card__dot" style="background:var(--c-info)" data-page-node-id="AKurFI8FQgzR383XmfkWON">1</div>
+              <div class="stage-card__header" data-page-node-id="lArZ99rDuRa9HgX0lVvxlb">
+                <span class="stage-card__name" data-page-node-id="xcXfRhYOdtcBB4LZdgJZuo">初评</span>
+                <span class="ntag info" data-page-node-id="rKpzhhJdceIjb3pGHIDDOE">筛选</span>
+                <span class="ntag info round" data-page-node-id="QgwWuDarLPTyz8AoXFfcJ3">系统内置</span>
+                <span class="ntag success round" data-page-node-id="OTRtGOlCSECXv7sUjDZFXC">起始</span>
+              </div>
+              <div class="stage-card__fields" data-page-node-id="5RXMBNmYGrVMvy27VSOTqN">
+                <div class="field-row" data-page-node-id="2B2kDwALUm5q9q6Z8nKW71"><span class="field-label" data-page-node-id="nMWLBzvD8wnFcrnFVZH4XF">自动化流转</span><span class="field-value" data-page-node-id="LdVckvUHyxWsCpKiJk4s0E"><span class="muted-text" data-page-node-id="NOnCvALrOKN6hD5rgoiVIj">无</span></span></div>
+                <div class="field-row" data-page-node-id="lQtCDoRWoOupjpwWe5TCON"><span class="field-label" data-page-node-id="YPfTpfXISrg7DZnfyeY2l1">默认处理人</span><span class="field-value" data-page-node-id="kja85mpgYFomOUd4IFnUCb"><span class="muted-text" data-page-node-id="A1ucCKD3glbFa08W8YbSfT">未配置</span></span></div>
+                <div class="field-row" data-page-node-id="fnHCtqVLw4DaHQGx0HmMHX"><span class="field-label" data-page-node-id="1BCIaEjITX59imLFxQBawA">阶段限时</span><span class="field-value" data-page-node-id="Szx2oc8j1G04BhilAD3z8h"><span class="muted-text" data-page-node-id="Ifvz9NcnFRw45uHQzdSZIP">未设置</span></span></div>
+                <div class="field-row field-row--block" data-page-node-id="Cj4jQoYj3dCpAD6neyS8JY"><span class="field-label" data-page-node-id="ZzKq3DtD82DGkD5yXxTUaT">包含功能</span><span class="field-value field-value--wrap" data-page-node-id="g0x923awIA3zDYH9i9SHT0"><span class="feature-tag" data-page-node-id="luSpGcajfrDbSd8XBzZzMR">简历解析</span><span class="feature-tag" data-page-node-id="v3ITXWdURq7E7yu5qyZpJC">评分筛选</span></span></div>
+                <div class="field-row field-row--block field-row--last" data-page-node-id="BKsGxvWabNDBDADN1LS5KF"><span class="field-label" data-page-node-id="ddCXDsVjCkXvQj1VHbWsia">进入条件</span><span class="field-value field-value--wrap" data-page-node-id="aBSaNtZuBwOoWNohcfn0aI"><div class="cond-empty" data-page-node-id="H7qDiVFoZO6Dnd9o7pHdTL">未配置进入条件 (任何候选人都可进入此阶段)</div></span></div>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="A10zGNagOir7yIF1BJYRzG">↓</div>
+            </div>
+            <!-- 2 在线笔试 -->
+            <div class="stage-card stage-card--invitation" data-page-node-id="ZBoNyHQQQtFsGYi4CGOs2K">
+              <div class="stage-card__dot" style="background:var(--c-warning)" data-page-node-id="51BXRTS4qFNDQ9i0gPDcGe">2</div>
+              <div class="stage-card__header" data-page-node-id="qwMSf3Dco4zXO8acaEE7fb">
+                <span class="stage-card__name" data-page-node-id="dsr783A6wFSoROoot4Pd1n">在线笔试</span>
+                <span class="ntag warning" data-page-node-id="8fc0LQJXRFtJG3hanoo3Iw">邀约</span>
+              </div>
+              <div class="stage-card__fields" data-page-node-id="FZFklbFLMPws2Y7DVkz62o">
+                <div class="field-row" data-page-node-id="DQeWlWqvxMuKEUupCgSeEB"><span class="field-label" data-page-node-id="tuH4WF5HnWhMFZNEoVJQQU">自动化流转</span><span class="field-value" data-page-node-id="yikw9zM3Bxor9spOKiARpR"><span class="rule-text" data-page-node-id="xItZW23WldgCYAQkhzCWA5"><strong data-page-node-id="g5qlS0W3jwrd7aC0EL1vkk">进入即邀约</strong><span class="rule-timing" data-page-node-id="6Pg2T9pwiVJt23kwmIEJvu">立即执行</span></span></span></div>
+                <div class="field-row" data-page-node-id="HdpY2JGF9BwZwMoXZAp61O"><span class="field-label" data-page-node-id="hhonwGYQiRRARdadQzkhPP">默认处理人</span><span class="field-value" data-page-node-id="0MJw5XcdmElgtndo98dCnN"><span class="rule-text" data-page-node-id="KTcCz5aKOcELomqeqJoUGS"><strong data-page-node-id="QB5djb23NNZJzeW3pqQadZ">HRBP</strong><span data-page-node-id="qMjCe9XFavTRSYult5kVu6">· 字段: 招聘接口人</span></span></span></div>
+                <div class="field-row" data-page-node-id="dS68ODBsEUb9LcaNkbwDGi"><span class="field-label" data-page-node-id="Jx4DuUvyrfRjOUbAY0NpWR">阶段限时</span><span class="field-value" data-page-node-id="2frLXSuFIncqNQ7kA9wQeP"><span class="rule-text" data-page-node-id="l9ae8XtxnqR49kAmf4iD2i">7 天<span class="rule-scope" data-page-node-id="CPQ9TjssbOlvjvLlWKAKmd">(全部申请)</span></span></span></div>
+                <div class="field-row" data-page-node-id="AfGHu2HoJmviK5BWfgWlAC"><span class="field-label" data-page-node-id="7hONDU6bMQ9O7VrFG0tM0y">关联轮次</span><span class="field-value" data-page-node-id="l0JJbevxgM691k0JP83VhM"><span class="ntag primary" data-page-node-id="DYJ02GaCRjNt6Jj9ytto1A">R1</span></span></div>
+                <div class="field-row field-row--block" data-page-node-id="eg7YtOgrZTOJAqByRenyCR"><span class="field-label" data-page-node-id="d39oL4qlUV2SAZOyW9AXmV">包含功能</span><span class="field-value field-value--wrap" data-page-node-id="xpdZL1xNcHmJfEDuumxuAW"><span class="feature-tag" data-page-node-id="Ui03VdMiuyEKNOfskqjRGb">在线笔试</span></span></div>
+                <div class="field-row field-row--block field-row--last" data-page-node-id="GLqLLn1BIOrBDyB2qCkI9H"><span class="field-label" data-page-node-id="ww7XFjferlwkkTXFKhH7V2">进入条件</span><span class="field-value field-value--wrap" data-page-node-id="dzjSHmlSvbAR71DY5fNqey"><div class="cond-group" data-page-node-id="gYUGRuTsFV57cxSpFHuHW4"><div class="cond-group__head" data-page-node-id="qCVOwlJKSeLe3OLymgOyH0"><span class="ntag success round" data-page-node-id="NwhYFFFH7o0Z4WN9bVoIr4">全部满足</span><span class="cond-group__type" data-page-node-id="BWtbKU2OtojKmOmmrHDQhd">评分条件</span><span class="cond-group__count" data-page-node-id="vBljK2pF1lHYnt8l0BcQqR">共 2 条</span></div><div class="cond-list" data-page-node-id="bgQbL0Hzid3o0t2Ff0GGlq"><div class="cond-item" data-page-node-id="ZGoSCFEmZTWAiONtuqI4hX"><span class="cond-item__index" data-page-node-id="j6sj9l2MKTum4zWdPk7wpm">条件 1</span><span class="cond-item__expr" data-page-node-id="u3yUpriNrbQlYAHrCpt0sE">resumeScore &gt;= 60</span></div><div class="cond-item" data-page-node-id="GVCnXOwYL5y2JuKAZi6j3m"><span class="cond-item__index" data-page-node-id="EUaKXJrjk5lARmC1E3Sv6e">条件 2</span><span class="cond-item__relation" data-page-node-id="Wzfs6kZsdBFgnDmRcVmUHr">AND</span><span class="cond-item__expr" data-page-node-id="Ul6sdNRJvNnCL0AOhIFJwq">writtenPass == true</span></div></div></div></span></div>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="rZhM2Y1VvYNKk8vgsvbrNH">↓</div>
+            </div>
+            <!-- 3 技术面试 -->
+            <div class="stage-card stage-card--interview" data-page-node-id="zlSTnDkrinFlsuscCCRbfn">
+              <div class="stage-card__dot" style="background:var(--c-purple)" data-page-node-id="UvlJH32b4afKQMnaHCOxSV">3</div>
+              <div class="stage-card__header" data-page-node-id="nr05StNOx7gxlO7D9n9Cev">
+                <span class="stage-card__name" data-page-node-id="hO674GiL0nl2hCvD17xXLN">技术面试</span>
+                <span class="ntag purple" data-page-node-id="tGap0poS3lije7g8w5jQtd">面试</span>
+              </div>
+              <div class="stage-card__fields" data-page-node-id="3jqqZACSqMiKyMEtHkOqgB">
+                <div class="field-row" data-page-node-id="GZKMcpIJJlv3BlRnfBOdEV"><span class="field-label" data-page-node-id="IbMuc0pd8IRONkNBAKEUlz">自动化流转</span><span class="field-value" data-page-node-id="6ZRyAtqfBiJVX5SSqL9iAR"><span class="rule-text" data-page-node-id="YoaMrARhvBkWGsKKXOguDM"><strong data-page-node-id="V5xLUdEAZ6GL6TnYWSAlJ4">面试通过</strong><span class="rule-timing" data-page-node-id="75AuiUM8SfSZGK53AtBsRb">延迟 3 天</span></span></span></div>
+                <div class="field-row" data-page-node-id="FAEnERw7ECc63fo3wRcs3H"><span class="field-label" data-page-node-id="40jP8YLsO32XL8zNZtM2qn">默认处理人</span><span class="field-value" data-page-node-id="62HgfRI2UUcA7ZFRR08PDK"><span class="rule-text" data-page-node-id="HOSHPmmJXqM02OkSUzTHat"><strong data-page-node-id="J0Xo8jeSB7n03ZB3pTNZhn">用人经理</strong></span></span></div>
+                <div class="field-row" data-page-node-id="Uo5NPnnnSwJs69CuRLGhHT"><span class="field-label" data-page-node-id="Wwufnka6OJl96vk6fdNuvg">阶段限时</span><span class="field-value" data-page-node-id="9BEIAr6C785wNMXLB2gsXx"><span class="rule-text" data-page-node-id="hDQlYKdO8WsZ23uPK0yEJL">14 天<span class="rule-scope" data-page-node-id="eHthUJ1JF3vKvrtDb2mA7a">(全部申请)</span></span></span></div>
+                <div class="field-row" data-page-node-id="ouDX3myQkx8NPZA5FB5WUz"><span class="field-label" data-page-node-id="GuadHyQ5ADWs7FXfA7uPOD">关联轮次</span><span class="field-value" data-page-node-id="x7DD8IEezOF9g9leVrX73p"><span class="ntag primary" data-page-node-id="7wn0RZ5u5Fcw2dWa8UqqcB">R2</span></span></div>
+                <div class="field-row field-row--block" data-page-node-id="bRPfHuvqAOOt6KokvKZGOw"><span class="field-label" data-page-node-id="N2rkw8mScS5ggeFmQcARb9">包含功能</span><span class="field-value field-value--wrap" data-page-node-id="RZrG59Bk2YyyEqFeg6D87F"><span class="feature-tag" data-page-node-id="QRniSNQp14tDerbsPnf3GD">面试官评价</span></span></div>
+                <div class="field-row field-row--block field-row--last" data-page-node-id="G8vSaDg6oPtqHO7ZjGNeVC"><span class="field-label" data-page-node-id="4layfNTz2q8vHHIAEXk1FJ">进入条件</span><span class="field-value field-value--wrap" data-page-node-id="ZoSWovEgkQyzf7N8F1b0DJ"><div class="cond-group" data-page-node-id="OifAO1VJxBHRSokJdLsbGH"><div class="cond-group__head" data-page-node-id="LdLdmsGj8oJ9x69QMbhklo"><span class="ntag warning round" data-page-node-id="By3mpx4HOemqfc39XyHsNM">任一满足</span><span class="cond-group__count" data-page-node-id="i7fVSA29A5WqoC9sz7NyBM">共 1 条</span></div><div class="cond-list" data-page-node-id="uJc8KrKC5nk41c2CwGeZNX"><div class="cond-item" data-page-node-id="KpIAUND641V2NePOP8igvT"><span class="cond-item__index" data-page-node-id="xqxsUwOVMaLc6BnIzIx2IH">条件 1</span><span class="cond-item__relation or" data-page-node-id="0UIHAcRJtqCCGh0dkKSQ7X">OR</span><span class="cond-item__expr" data-page-node-id="i3mtYgC4IHHsGzp0UN0hwj">interviewScore &gt;= 80</span></div></div></div></span></div>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="iPHyinRvlxhoS1BfyPb1v6">↓</div>
+            </div>
+            <!-- 4 Offer -->
+            <div class="stage-card stage-card--offer" data-page-node-id="sfEuoFQxSAAycrB0HYj0gQ">
+              <div class="stage-card__dot" style="background:var(--c-success)" data-page-node-id="tgK5dVlf6SHCHV6MvtVtGO">4</div>
+              <div class="stage-card__header" data-page-node-id="OwhEaeVclJFoYb5BjaM9jY">
+                <span class="stage-card__name" data-page-node-id="mwO4INn61y40V2o3IkV7Lw">Offer 审批</span>
+                <span class="ntag success" data-page-node-id="L2lqz1yhP1ntXsahVxafc0">Offer</span>
+              </div>
+              <div class="stage-card__fields" data-page-node-id="r2DlkWeLGb4XH8NRZRqczf">
+                <div class="field-row" data-page-node-id="lxpSTxWMH2gLZ2GJ1LsZX1"><span class="field-label" data-page-node-id="BHmLiiGJ5h3bCHhms1SVhC">自动化流转</span><span class="field-value" data-page-node-id="9NcK0yEldYLsthdzuup5ZT"><span class="muted-text" data-page-node-id="Fyes54a2HfX8a0FgvSwa1U">无</span></span></div>
+                <div class="field-row" data-page-node-id="UoCzBNGiVXVYVhEfk7ODw6"><span class="field-label" data-page-node-id="ChoU35UzIaFHtBJE2nMLaE">默认处理人</span><span class="field-value" data-page-node-id="tW8hiv5CixyZ2eV5DJ90qL"><span class="rule-text" data-page-node-id="mWMAMZnBcE5EH4rlkbNcno"><strong data-page-node-id="PdBDvlAHlC4lHSmTdQpNhK">招聘经理</strong></span></span></div>
+                <div class="field-row" data-page-node-id="BifrsHyF75KAYmc5uZnYRB"><span class="field-label" data-page-node-id="D3eQesqfTAuh0aEd3ChiUr">阶段限时</span><span class="field-value" data-page-node-id="KHPlyt4hC9uDAF0TFjg7os"><span class="rule-text" data-page-node-id="73WYRojEF7RB8GU3X7yFYh">5 天<span class="rule-scope" data-page-node-id="L204R85bliWZakQaE91OCx">(仅新申请)</span></span></span></div>
+                <div class="field-row field-row--block" data-page-node-id="X9ibs3oNRaEgLynVpFvwm2"><span class="field-label" data-page-node-id="Hn56wq29rwHZ91MgJI1TAS">包含功能</span><span class="field-value field-value--wrap" data-page-node-id="BnqVyph09ABiAJ6rT9GuBo"><span class="feature-tag" data-page-node-id="77zON7oTD1Fnbo42xRmmg4">Offer 生成</span></span></div>
+                <div class="field-row field-row--block field-row--last" data-page-node-id="RmJxqGGxtQKYRuPFaKZN6H"><span class="field-label" data-page-node-id="daBviYIVj3LuyC7SRUswcj">进入条件</span><span class="field-value field-value--wrap" data-page-node-id="J5XdIpyHYA1WuSXfDQytKC"><div class="cond-group" data-page-node-id="miYg3m16BzlzeD6YwUclM3"><div class="cond-group__head" data-page-node-id="D7HhPAiFtORp2HwpxDZr75"><span class="ntag success round" data-page-node-id="1zWyDhf257IbTKZyIP7Vb7">全部满足</span><span class="cond-group__count" data-page-node-id="5eYf80s1yCD7LZuzpwT2Hx">共 1 条</span></div><div class="cond-list" data-page-node-id="MEYmElh4kMTQZxNctS1WPU"><div class="cond-item" data-page-node-id="5y4wvzANn7INh85sutAwCr"><span class="cond-item__index" data-page-node-id="x5Ctbx2LOknzIXamNr9Fui">条件 1</span><span class="cond-item__expr" data-page-node-id="gXfE2EwfO2sVg6iiAmeSW4">approveResult == 'PASS'</span></div></div></div></span></div>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="Hey8BPwiG1f5GOUhHfgWXw">↓</div>
+            </div>
+            <!-- 5 入职 -->
+            <div class="stage-card stage-card--onboarding" data-page-node-id="ukRfNdfSw7qFWsZKsWo4DD">
+              <div class="stage-card__dot" style="background:var(--c-cyan)" data-page-node-id="RmVhg3M1j24tp0Tgp7qubC">5</div>
+              <div class="stage-card__header" data-page-node-id="wV4g43tSGMDYHF5rK9kAo1">
+                <span class="stage-card__name" data-page-node-id="41yevetnvQG1cMfiMY6lL6">入职办理</span>
+                <span class="ntag info" data-page-node-id="Ri9iiu2EwODa8mZ9Me8kpy">入职</span>
+                <span class="ntag warning round" data-page-node-id="KqDQpW79ZEZOXHFwS8Ed8B">结束</span>
+              </div>
+              <div class="stage-card__fields" data-page-node-id="upcGGjmC8q4nUVGqqWj7Ja">
+                <div class="field-row" data-page-node-id="I13SBubcxXoscg45dLmBnn"><span class="field-label" data-page-node-id="DLZHPtUE9AI6IBMtXPOVsg">自动化流转</span><span class="field-value" data-page-node-id="S0lisqv4crrY8aGv7MKCh7"><span class="muted-text" data-page-node-id="qjxU2Q42da4UDmwHYDsykP">无</span></span></div>
+                <div class="field-row" data-page-node-id="YnsqFAFCzkjgUXYtpFDDpF"><span class="field-label" data-page-node-id="eEHeYcWY70wXsAqiHIEkAN">默认处理人</span><span class="field-value" data-page-node-id="McpRpjD6XalyZTZmBO0HBH"><span class="rule-text" data-page-node-id="hDEof41L1rHqf7BDrIPGSG"><strong data-page-node-id="2Uhks3emdWKDgP9k2FwZel">HRSSC</strong></span></span></div>
+                <div class="field-row" data-page-node-id="KsXm8yz00MQHpco2RY329M"><span class="field-label" data-page-node-id="2TO0GN6pZoUmEo9WmfPFNo">阶段限时</span><span class="field-value" data-page-node-id="BGcuwCAHWrpVbSdhZ3IAdC"><span class="muted-text" data-page-node-id="yBvnm6cW46hdsU90OFW8xm">未设置</span></span></div>
+                <div class="field-row field-row--block" data-page-node-id="dmxh3ME500l4AIx9EPqR8i"><span class="field-label" data-page-node-id="7aPM3noFo7dDS81iHULg9h">包含功能</span><span class="field-value field-value--wrap" data-page-node-id="3VDBD7pWi87IHWXsdiBmJ8"><span class="feature-tag" data-page-node-id="bmxQhzE6Dzcc6ndVvcxA8o">电子合同</span><span class="feature-tag" data-page-node-id="ZoYM6tJdpn5DR38s11Exq3">信息采集</span></span></div>
+                <div class="field-row field-row--block field-row--last" data-page-node-id="NEVVn3hXsRWuSqjnuro224"><span class="field-label" data-page-node-id="sEDY7L2AFNTVhdMsfmVrZv">进入条件</span><span class="field-value field-value--wrap" data-page-node-id="eg8SMP0u7Vf1xvXvHOxfOc"><div class="cond-empty" data-page-node-id="1AYl9yDFMAu8VBY9rkErOU">未配置进入条件 (任何候选人都可进入此阶段)</div></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" data-page-node-id="zmlhmtsjQR2JxHm16mST2c">
+        <button class="btn" data-page-node-id="EhUrGJYKQQU91X7t07tGxx">关闭</button>
+        <button class="btn" data-page-node-id="69QaXAZxjdYV1WYm1Bp1sr">⧉ 复制此流程</button>
+      </div>
+    </div>
+
+    <!-- ============ 编辑 / 新建模式 ============ -->
+    <div class="mock-label" style="margin-top:8px" data-page-node-id="onyJ7fgg1t2Eg10gNLTyLk"><span class="dot" style="background:var(--c-warning)" data-page-node-id="ZPmTPQWe15BbPeeZVcPZGF"></span> 形态 B · 编辑 / 新建流程（mode = edit / create）</div>
+    <div class="modal-shell" data-page-node-id="DGiIQR5IeTVsAvxDzyHPdF">
+      <div class="modal-title-bar" data-page-node-id="IcpV4AcUT7DUxdbv6uNc9H">
+        <span data-page-node-id="nHxPMCf0kf7fUiD8HDGuUK">编辑流程</span>
+        <span class="mode-pill" style="background:var(--c-warning-soft);color:var(--c-warning)" data-page-node-id="hp4zR58iuI60d3feZSSfZP">可编辑</span>
+      </div>
+      <div class="modal-body" data-page-node-id="Ewofd8gabKTZhZBNzZqSYC">
+        <!-- HERO -->
+        <div class="hero" data-page-node-id="WMobMUh3qD3oxIx4Gnzkx2">
+          <div class="hero__icon" data-page-node-id="qBiYqTatda1FiqREmoFeLx">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" data-page-node-id="yr3ixTytFAydRFpgnFJdbg"><circle cx="6" cy="6" r="2.5" data-page-node-id="jBk2QIgmJRgEVhZSDkinZE"/><circle cx="18" cy="6" r="2.5" data-page-node-id="q4W9jTQlERTsEQfBuR6w53"/><circle cx="12" cy="18" r="2.5" data-page-node-id="S1XQa0BISiUMCTXwtbRoFd"/><path d="M8 7l3.5 9M16 7l-3.5 9" data-page-node-id="DP2sXKZvzW0PHiTbOkzSvT"/></svg>
+          </div>
+          <div class="hero__main" data-page-node-id="zfrN5iRchQDTQ9KZCNwjUJ">
+            <input class="hero__title-input" value="技术中心社招流程" data-page-node-id="gGPBTubPPRzpC9AGS0FBO6" />
+            <div class="hero__meta" data-page-node-id="ashlHphp7YJ0AWENjVeLkQ">
+              <span class="hero__meta-item" data-page-node-id="kQdoYly2xNnFM7NGnVUAII">▦ 5 个阶段</span>
+              <span class="hero__meta-item" data-page-node-id="KTRKoUI4JLaNP3d5b5f434"># 编号 TECH-RCL-2026 (不可改)</span>
+            </div>
+          </div>
+          <div class="hero__actions" data-page-node-id="i8MCClcGRNDMlbZXIF6I7C">
+            <button class="btn" data-page-node-id="v4EFD9UQBL7iNZDrh98k5C">取消</button>
+            <button class="btn primary" data-page-node-id="TaVN1hIEw1044yf2Z6CYKU">保存</button>
+          </div>
+        </div>
+
+        <!-- 基础信息 -->
+        <div class="section" data-page-node-id="jRoCJeI70zO2l83194cgCI">
+          <div class="section__title" data-page-node-id="eGxbHdAPAPeyfFJKQoFvHU"><span class="section__title-bar" data-page-node-id="fNIfVXlqLE6O4qEzjKwsVA"></span><span data-page-node-id="T9PpUzEW46xBpw1uwWWLIX">基础信息</span></div>
+          <div class="section__body" data-page-node-id="i61qsKAQM2wWA7hxJyNGDh">
+            <div class="field-row field-row--block" data-page-node-id="xR8AXGnqxElENd2HOhHjb4">
+              <span class="field-label" data-page-node-id="qOEpaP4aFZwmtC08TashqZ">流程说明</span>
+              <textarea class="txt" rows="3" style="flex:1">面向技术中心社会招聘候选人的标准化招聘流程，覆盖初评到入职全链路。</textarea>
+            </div>
+            <div class="field-row" data-page-node-id="cnBhds6jh6f9e5burRL7TP">
+              <span class="field-label" data-page-node-id="vlRpImLCbMq0SM1ODGBIrt">适用范围组合</span>
+              <span class="field-value" data-page-node-id="oeGQfz2mK0LEVcwFbYobxV">
+                <span class="radio-group" data-page-node-id="8amXoSBenTBkRoTtksJMaC">
+                  <span class="opt" data-page-node-id="egu3lCnLqoqJNWrjm6Annu"><span class="radio-dot on" data-page-node-id="wHCSRXyJlWCP3Ho1qnVN2S"></span>全部满足</span>
+                  <span class="opt" data-page-node-id="HJ20C6iWDFkDvzmsFWXig6"><span class="radio-dot" data-page-node-id="AAdTG0ndxHHrgzbAVJW63m"></span>任一满足</span>
+                </span>
+              </span>
+            </div>
+            <div class="field-row" data-page-node-id="BG2bR0HsjrJJFvgKqnZZhq">
+              <span class="field-label" data-page-node-id="AwJpqsoCcFXgeu8OCwATjJ">校验简历评分</span>
+              <span class="field-value" data-page-node-id="oRTOs6wHGWPaADJtfC38S0"><span class="switch" data-page-node-id="7H76YQu7E6OqfzBk2qdE62"></span></span>
+            </div>
+            <div class="field-row field-row--block field-row--last" data-page-node-id="aOTNpKJzIprPs25cfiUUdS">
+              <span class="field-label" data-page-node-id="G8Vg47MOVD78iwua8hbm55">流转异常提示</span>
+              <textarea class="txt" rows="3" style="flex:1">您的简历暂未满足该职位的进入条件，可尝试投递其他在招职位。</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 适用范围 -->
+        <div class="section" data-page-node-id="QGwLu3JOSzC7ZdBVFP9xY8">
+          <div class="section__title" data-page-node-id="PFYc9YHcif4qUZ6RlLgFjz"><span class="section__title-bar" data-page-node-id="3jeXfI9VLmFEYuyh9kSGRj"></span><span data-page-node-id="kVaAnD9mzD8ba0NrIzisPU">适用范围</span></div>
+          <div class="scope-grid" data-page-node-id="J0Gt0SLTyXpAnjhKN1zOKR">
+            <div class="scope-card include" data-page-node-id="7RAM3DXapDest7BlME6QfU">
+              <div class="scope-card__head" data-page-node-id="ZXiEfrTIecLFFpMCQgml8K"><span class="ic" data-page-node-id="aQdjrdG8lbXEhO8lfS5LMV">▣</span><span class="scope-card__name" data-page-node-id="RFmqY33EwIfi86g3NO9YPK">部门</span></div>
+              <div class="scope-card__mode" data-page-node-id="EeUiidDlQrOgoBD4Um5mEC">
+                <span class="radio-group" data-page-node-id="T2Tm9cizEzF2r1UvNfTHhI"><span class="opt" data-page-node-id="GdvwDrx968tf0dnHliseyp"><span class="radio-dot on" data-page-node-id="oRGGhuNu2K0z6Vgjpw8OSJ"></span>包含</span><span class="opt" data-page-node-id="jSbh6hrKCQYbcJOb1YxQJy"><span class="radio-dot" data-page-node-id="yQQOBzaF2cs1xq1wjbQRvc"></span>不包含</span></span>
+                <span class="scope-card__count" data-page-node-id="bIAidYR4V2EQ80yj01m2F9">1 项</span>
+              </div>
+              <div class="scope-card__values" data-page-node-id="4wZa5yEAVRRFYFItL7kdao"><select class="scope-select" multiple data-page-node-id="InLpvnGHJNZFrkJiQfKbkl"><option selected data-page-node-id="AGvaOQ0BQbdV7KGHFRa8IG">技术中心</option></select></div>
+            </div>
+            <div class="scope-card include" data-page-node-id="PijFxtGt1WFanGpB0LKbqY">
+              <div class="scope-card__head" data-page-node-id="mdTKXOhtunGQHoG5CzYZkJ"><span class="ic" data-page-node-id="4iBAdHJvHU7cmScB3GXZU9">▤</span><span class="scope-card__name" data-page-node-id="h9SpgH4FQUBqdc0MKBZloH">职级</span></div>
+              <div class="scope-card__mode" data-page-node-id="1dUTs204eI5SKtJfzeWGWH">
+                <span class="radio-group" data-page-node-id="z7gZAEbR0oCEiM6wgFGYW2"><span class="opt" data-page-node-id="kuHmDkbjM2ORE9sM08cH8O"><span class="radio-dot on" data-page-node-id="9lfNbjhdfi7ePwjg6YQiE1"></span>包含</span><span class="opt" data-page-node-id="o5P73QQwRfPCOablYet5pj"><span class="radio-dot" data-page-node-id="VWaDsI1208nygj7FX6NSTK"></span>不包含</span></span>
+                <span class="scope-card__count" data-page-node-id="fm9W6PjrOzgOvNdwZaIwlx">2 项</span>
+              </div>
+              <div class="scope-card__values" data-page-node-id="aPQbFRRdqHzilFwEF2Df9y"><select class="scope-select" multiple data-page-node-id="nxfZYY4JIuhgT5EyGShC3b"><option selected data-page-node-id="coBUg5QBGO0YC0Ujqifr7N">P6</option><option selected data-page-node-id="KAsEmhDbaFpzercv1Opgmv">P7</option></select></div>
+            </div>
+            <div class="scope-card include" data-page-node-id="t4TrRCgRJnQTAVFnjTcUD0">
+              <div class="scope-card__head" data-page-node-id="W8u1JAMGbrvkd6sXAoB9Ke"><span class="ic" data-page-node-id="eTxpOrOs4y7qI55BJDL8gh">◧</span><span class="scope-card__name" data-page-node-id="pmh10QFUHm96iHKhdYL1Gz">岗位</span></div>
+              <div class="scope-card__mode" data-page-node-id="mMZ9Kw7WFCerWaMIm9p7l8">
+                <span class="radio-group" data-page-node-id="aIyoH1IUSjWb7JFv8c5ctb"><span class="opt" data-page-node-id="PsI1Sb2LG3kpuQF0jIyG1C"><span class="radio-dot on" data-page-node-id="LTZWRmu57cyO9KBNbTVRWW"></span>包含</span><span class="opt" data-page-node-id="lAVz9vjvLdCMZvroH40yBp"><span class="radio-dot" data-page-node-id="lcAaR9xHBoOUyr0QVoCRYv"></span>不包含</span></span>
+                <span class="scope-card__count" data-page-node-id="EB0cXtkPYyFger2r6AZ4MW">2 项</span>
+              </div>
+              <div class="scope-card__values" data-page-node-id="ePeyVfTqsLJqgEdERxIX0c"><select class="scope-select" multiple data-page-node-id="KnvQCPFs1ui7O2JNjgJ5jo"><option selected data-page-node-id="HL6O4YFv9lBqJ6YFcHTZcv">后端工程师</option><option selected data-page-node-id="F1PQwR39g8HY2uju3GMn55">前端工程师</option></select></div>
+            </div>
+            <div class="scope-card neutral" data-page-node-id="yyElwBlc3V1Axm0DJ247kX">
+              <div class="scope-card__head" data-page-node-id="B8becDE2eo4LuAKvwT4Afn"><span class="ic" data-page-node-id="GLKuMLSBXK1aeZ5IBhtD8g">☻</span><span class="scope-card__name" data-page-node-id="OnpLlGEiNw9vXkmdTLfAyj">人员</span></div>
+              <div class="scope-card__mode" data-page-node-id="Z5JHaPOdEmiCxMCCHzYwUs">
+                <span class="radio-group" data-page-node-id="GfKlf1XkLZvtp5WFPxh9v0"><span class="opt" data-page-node-id="PEvJDPsDcxzE8Dm0mMx4BI"><span class="radio-dot on" data-page-node-id="TiILuCGhUIvGJ617pYwgvV"></span>包含</span><span class="opt" data-page-node-id="cOuGys6l5ywMN7QrhV6Uek"><span class="radio-dot" data-page-node-id="FXKQIAYAhz5su8VqVhdo5n"></span>不包含</span></span>
+                <span class="scope-card__count" data-page-node-id="7Apf6EFiAAFERmSZcNzvkB">不限</span>
+              </div>
+              <div class="scope-card__values" data-page-node-id="d3bq44wBLs7WVV00Gcyh6K"><select class="scope-select" data-page-node-id="OOYyRIBauxKWPPD4tNaA72"><option data-page-node-id="KdaPHI5GSgx9KAzEsYfbhU">留空 = 不约束</option></select></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 阶段流程 -->
+        <div class="section" data-page-node-id="BHu6nQzxlummkEMOFOePA1">
+          <div class="section__title" data-page-node-id="KP327B2FMRmFktKG4ie58q"><span class="section__title-bar" data-page-node-id="UBGcJU0bURoqMwBfixgXX4"></span><span data-page-node-id="rcIjOjyOZFLYyDuRFCoOaX">阶段流程</span><span class="ntag info" data-page-node-id="TtTuFirCNq964PyDjMk1M4">5 个</span></div>
+          <div class="alert" data-page-node-id="KRi6We1XcqsfcEN9BgbX34">起止阶段不可删除。中间业务阶段可单独配置或删除。点阶段行的空白处选中，选中后可插入/删除。</div>
+          <div class="stage-timeline" data-page-node-id="UUnQxF0S5Yi3hpeVwATzYS">
+            <!-- 1 -->
+            <div class="stage-card stage-card--screen" data-page-node-id="lM3Jw36CrXHeUtqag15V5W">
+              <div class="stage-card__dot" style="background:var(--c-info)" data-page-node-id="5nYBz9rNVx4MhFhBRA8HOr">1</div>
+              <div class="stage-card__header" data-page-node-id="pPnUVw7d3O1zx0k1aKHVVu">
+                <span class="ntag info" data-page-node-id="GESC7cyVoBKZNZrrQwpOfO">筛选</span>
+                <span class="stage-card__name" style="flex:1;min-width:0" data-page-node-id="WEFuNaeDlZxbWPCoCkbGPR">初评</span>
+                <span class="ntag success round" data-page-node-id="m9dNufJ0bbSJUBbsZnSnBj">起始</span>
+                <input class="inp num sm" value="0" title="限时(h)" data-page-node-id="RhXSgXSGO9uJmOynmCRqZz" />
+              </div>
+              <div class="stage-card__fields" data-page-node-id="QcF6dFVWkg5h7ErSTP78iJ">
+                <div class="field-row" data-page-node-id="MBdQgvAFtPlEZ0epg7danL"><span class="field-label" data-page-node-id="rIJSkEDBsirYHlEs1c66eA">阶段规则</span><span class="field-value" data-page-node-id="QxVpKSIT1f4zuo42A8uO1z"><button class="btn link" data-page-node-id="gTHXbOEbUakfTknda9ZbdA">未配置 (点配置)</button></span></div>
+                <div class="field-row field-row--last" data-page-node-id="nx0ZYCFCBCcHHZLjTurtUB"><span class="field-label" data-page-node-id="44H4pSy28uBlHOJGxCtzVW">进入条件</span><span class="field-value" data-page-node-id="vdSUqxOinX5rUtEr2DwHg4"><button class="btn link" data-page-node-id="sJC8uyU8LamJQwMGAf6U5q">未配置 (点配置)</button></span></div>
+              </div>
+              <div class="stage-card__row-actions" data-page-node-id="9k8m2bh01LJ6eGlDoKaE6P"><span class="ntag default" data-page-node-id="7pAg14WABePzwYBHytY9td">起始不可删</span></div>
+              <div class="stage-card__arrow" data-page-node-id="hQTDijLl1WCqZrewsdaJCJ">↓</div>
+            </div>
+            <!-- 2 -->
+            <div class="stage-card stage-card--invitation" data-page-node-id="mJOffaFBnV4LwR8Iidhbq1">
+              <div class="stage-card__dot" style="background:var(--c-warning)" data-page-node-id="fv6T2prTj9vFpXe9Zup70v">2</div>
+              <div class="stage-card__header" data-page-node-id="EPVfWtTj0t7FsUkW4b6hTH">
+                <span class="ntag warning" data-page-node-id="czlgSkOsc6FHLv2Wy2MhdH">邀约</span>
+                <input class="inp sm" value="在线笔试" style="flex:1;min-width:0" data-page-node-id="6WeDYioJvYW3GInZ95nHgs" />
+                <input class="inp num sm" value="7" title="限时(h)" data-page-node-id="xgwI1WFMskInjUkjVSRPxF" />
+              </div>
+              <div class="stage-card__fields" data-page-node-id="zp7tru8KtQSHz6RDY87KXH">
+                <div class="field-row" data-page-node-id="4EpGqWRzOSFSDfHWUCZOpX"><span class="field-label" data-page-node-id="fFjzk4w2zsZaR0TTBPiDoV">阶段规则</span><span class="field-value" data-page-node-id="lOpsQPpv0GzPkZ7mMudvFZ"><button class="btn link" data-page-node-id="aOSLoPepCDHcctc87ePHA6">已配置 (点编辑)</button></span></div>
+                <div class="field-row field-row--last" data-page-node-id="1EDNDRDsy6PnGivMlUoant"><span class="field-label" data-page-node-id="gkZML0s6fRujbyebDhG0si">进入条件</span><span class="field-value" data-page-node-id="FAei41KkXnpG6JmJ94iFc7"><button class="btn link" data-page-node-id="9A6mXy8nxmS0aoQ1J2v9rA">已配置 (点编辑)</button></span></div>
+              </div>
+              <div class="stage-card__row-actions" data-page-node-id="NIjPckDV0OM6huCPeiUYiF">
+                <button class="btn xs" data-page-node-id="dUCU8hqZrrgSc6G4K8f64G">＋ 添加前序阶段</button>
+                <button class="btn danger-text" data-page-node-id="MWVJpP2ECk96UloB0Bx8FN">删除当前阶段</button>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="L5nrOwzVp0daE0dkH42svz">↓</div>
+            </div>
+            <!-- 3 -->
+            <div class="stage-card stage-card--interview" data-page-node-id="c6sEjXnU48XNVTMNODqonQ">
+              <div class="stage-card__dot" style="background:var(--c-purple)" data-page-node-id="QoPB3YBfQRH0FDYerhKjCd">3</div>
+              <div class="stage-card__header" data-page-node-id="d4cABXYdrpXIPaqM5UgSfi">
+                <span class="ntag purple" data-page-node-id="yywfq55275YzPmnd56icsA">面试</span>
+                <input class="inp sm" value="技术面试" style="flex:1;min-width:0" data-page-node-id="VY0OiZ4GJBqVXQveRRU3tC" />
+                <input class="inp num sm" value="14" title="限时(h)" data-page-node-id="QzNz4FD4pY0C1xfAgB33RM" />
+              </div>
+              <div class="stage-card__fields" data-page-node-id="C8BckFW2NjKobItR3Kq3Om">
+                <div class="field-row" data-page-node-id="hqTZESCq1cHgiHb37LAowI"><span class="field-label" data-page-node-id="q3vyluXlJXlHVahCziTte8">阶段规则</span><span class="field-value" data-page-node-id="6ZpYiyXuCCutMK1bSnH3GT"><button class="btn link" data-page-node-id="OkVZG3EKVx3w3g4KoeBnQg">已配置 (点编辑)</button></span></div>
+                <div class="field-row field-row--last" data-page-node-id="qvwxdhcAZ3TeYndPSRo95P"><span class="field-label" data-page-node-id="EUgDIstOd3rk0JhvtGpFmr">进入条件</span><span class="field-value" data-page-node-id="7ihEjGSsCp0SqUNKbgWiKt"><button class="btn link" data-page-node-id="loSA9tWFCWvWuZL5XZKQLH">已配置 (点编辑)</button></span></div>
+              </div>
+              <div class="stage-card__row-actions" data-page-node-id="GQh0O6u9CtQmRy5mTHqQEt">
+                <button class="btn xs" data-page-node-id="J7GEO0FF2pP8UiRMsAgpv9">＋ 添加前序阶段</button>
+                <button class="btn danger-text" data-page-node-id="n1WjBdBoLPKimKIGIcoh6u">删除当前阶段</button>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="7DqBjsmzBKsvkInrGnvP6C">↓</div>
+            </div>
+            <!-- 4 -->
+            <div class="stage-card stage-card--offer" data-page-node-id="t77gNiNR1jPKpuQNMG2HE8">
+              <div class="stage-card__dot" style="background:var(--c-success)" data-page-node-id="L79ntWiXH2wbsB1qLHFnho">4</div>
+              <div class="stage-card__header" data-page-node-id="zvTQ6tKpqrj7XDk8i6yz5T">
+                <span class="ntag success" data-page-node-id="50BzOQkCkuh81oc3WgTGRA">Offer</span>
+                <input class="inp sm" value="Offer 审批" style="flex:1;min-width:0" data-page-node-id="I25xjA4qO4fkVXXDOqhY1f" />
+                <input class="inp num sm" value="5" title="限时(h)" data-page-node-id="xW3oOrTSZiaJ8XRWFpgqQO" />
+              </div>
+              <div class="stage-card__fields" data-page-node-id="g6Xxq4GMu9BXmCVe9PWngG">
+                <div class="field-row" data-page-node-id="NW9YFTZojB6MKNGeQ2giRh"><span class="field-label" data-page-node-id="b33QLxrP8MlkqDGTTauBoC">阶段规则</span><span class="field-value" data-page-node-id="FCLV0hJ1bRWdGB4mRa7DH3"><button class="btn link" data-page-node-id="BHpDYlUdPTecyYJZEhLdst">已配置 (点编辑)</button></span></div>
+                <div class="field-row field-row--last" data-page-node-id="wSfupjLDwmZ0wdmNl6yheB"><span class="field-label" data-page-node-id="uZgA83NPc3bii5xqmgkgqg">进入条件</span><span class="field-value" data-page-node-id="kBaEjaJnyH9OULvm737GiE"><button class="btn link" data-page-node-id="TdG4xEMzRZstcjUAAFAm4Q">已配置 (点编辑)</button></span></div>
+              </div>
+              <div class="stage-card__row-actions" data-page-node-id="bjs5G8zzBixZa126g8bR6f">
+                <button class="btn xs" data-page-node-id="4veqHsVMelbLHfh9BT37Ad">＋ 添加前序阶段</button>
+                <button class="btn danger-text" data-page-node-id="z9K82CoskOTlPBALwH7hUP">删除当前阶段</button>
+              </div>
+              <div class="stage-card__arrow" data-page-node-id="HDAyGCfycGAx58wtpgdAnI">↓</div>
+            </div>
+            <!-- 5 -->
+            <div class="stage-card stage-card--onboarding" data-page-node-id="QfvbiJMLyQvEFn0sglUVph">
+              <div class="stage-card__dot" style="background:var(--c-cyan)" data-page-node-id="0a7mxiQHFEN6Mz9Rx1aYT0">5</div>
+              <div class="stage-card__header" data-page-node-id="iRscid0zacN9SFdGvkQ3RX">
+                <span class="ntag info" data-page-node-id="SdheTCU7NM05jJm8OzpaSj">入职</span>
+                <input class="inp sm" value="入职办理" style="flex:1;min-width:0" data-page-node-id="REDOAKTctEHB7481uaZmUw" />
+                <span class="ntag warning round" data-page-node-id="zRNaBHDULeEjVVvOeZ4eSO">结束</span>
+                <input class="inp num sm" value="0" title="限时(h)" data-page-node-id="AbQVbMG3R4DPytVZTAlcho" />
+              </div>
+              <div class="stage-card__fields" data-page-node-id="GI418uLOelpHOihFpROe5G">
+                <div class="field-row" data-page-node-id="EauKfjzrfjmdGTRiaNR9KE"><span class="field-label" data-page-node-id="RqnBWjbqkmgS0kjXZCHDUY">阶段规则</span><span class="field-value" data-page-node-id="4hVA0UNcXBoiDxs65KbZ3a"><button class="btn link" data-page-node-id="PdjNSYyNCgONoHTduXHGWt">未配置 (点配置)</button></span></div>
+                <div class="field-row field-row--last" data-page-node-id="muQgDtg8GRoofWTrSqAFrW"><span class="field-label" data-page-node-id="SDBMsy0iNrWEu0HFf2Eb5I">进入条件</span><span class="field-value" data-page-node-id="1cIbE2sDpKHOYgyZB4ivDe"><button class="btn link" data-page-node-id="gfrkdJyhAqIbGdBsMj6r83">未配置 (点配置)</button></span></div>
+              </div>
+              <div class="stage-card__row-actions" data-page-node-id="KibPm4ZkG85BsFi2IMn6uL"><span class="ntag default" data-page-node-id="QMWXHVU41gEGWoCXMOC5wl">结束不可删</span></div>
+            </div>
+          </div>
+          <button class="btn dashed" style="margin-top:12px" data-page-node-id="BIxfc0JfODPazMV66shbfw">＋ 追加到末尾</button>
+        </div>
+      </div>
+      <div class="modal-footer" data-page-node-id="OkNE06wlleNgfMoKN9nqJi">
+        <button class="btn" data-page-node-id="YEwi5ADUc4sy76tpYzUFx9">关闭</button>
+      </div>
+    </div>
+
+    <div class="note" data-page-node-id="3vmACbDC2Q0p4LBSRzWkvA">
+      ⚠️ 本页为静态效果图，用于确认「流程管理弹窗」的视觉与布局。已按已提交修复 <code data-page-node-id="k7wureX4WcRj3D3RFeQQMj">fff22b7</code>（edit/create 8 phase）+ <code data-page-node-id="NyFizAsALFVRyKcyT3cU7F">f0c4409</code>（view 模式 2 处收口）还原：
+      ① view/edit 两模式文案一致（适用范围组合纯中文、无 <code data-page-node-id="wdem4FRBwHs0Qcg39ZoOey">(AND)/(OR)</code>）；
+      ② 适用范围 2×2 卡片、<code data-page-node-id="eoZ4iaRruzkqM5Mh2tzdSJ">不限</code> 不再换行；
+      ③ 字段行 baseline 顶部对齐、label 与控件齐平；
+      ④ 弹窗宽 880px、<code data-page-node-id="oVR88XDnOqg0JlHrVwDwbJ">max-height: 90vh</code> 不截 footer。
+      确认后我再决定是否基于该视觉做进一步调整（源码仍未改动）。
+    </div>
+  </div>
+
+  <script>
+    const t = document.getElementById('themeToggle');
+    t.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme');
+      document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATS-NEW 功能结构图 · 四角色视图</title>
+<style>
+  :root{
+    --done:#10B981; --stub:#F59E0B; --ph:#64748B; --plan:#8B5CF6; --miss:#EF4444;
+    --ink:#1E293B; --soft:#475569; --faint:#94A3B8; --line:#E2E8F0; --card:#fff;
+    --l1:#0EA5E9; --l2:#6366F1; --l3:#8B5CF6; --l4:#EC4899; --l5:#14B8A6; --l6:#64748B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    background:linear-gradient(180deg,#EEF2FF,#F8FAFC 200px);color:var(--ink);line-height:1.5;padding:24px 16px 50px}
+  .wrap{max-width:1360px;margin:0 auto}
+  h1{font-size:24px;font-weight:800;text-align:center;letter-spacing:-.4px}
+  .sub{text-align:center;color:var(--soft);font-size:12.5px;margin:5px 0 16px}
+
+  /* role tabs */
+  .rtabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+  .rtab{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 16px;cursor:pointer;
+    font-size:13px;font-weight:700;color:var(--soft);transition:.15s;display:flex;align-items:center;gap:7px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+  .rtab:hover{border-color:var(--c);color:var(--c)}
+  .rtab.active{background:var(--c);color:#fff;border-color:var(--c);box-shadow:0 3px 10px rgba(15,23,42,.13)}
+  .rtab .ico{font-size:15px}
+
+  .view{display:none}
+  .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* view header */
+  .vh{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(15,23,42,.06);border-left:5px solid var(--c)}
+  .vh h2{font-size:18px;display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .vh .who{font-size:12.5px;color:var(--soft);margin-bottom:12px}
+  .vh .who b{color:var(--c)}
+  .brief{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+  .bcell{background:#F8FAFC;border-radius:9px;padding:9px 11px;border-top:2px solid var(--c)}
+  .bcell .bt{font-size:11px;font-weight:800;color:var(--c);margin-bottom:3px}
+  .bcell .bc{font-size:11.5px;color:var(--soft);line-height:1.5}
+
+  /* matrix */
+  .mx{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(15,23,42,.06);margin-bottom:12px}
+  .mxrow{display:grid;grid-template-columns:132px 1fr;border-bottom:1px solid var(--line)}
+  .mxrow:last-child{border-bottom:0}
+  .mxl{background:var(--lc);color:#fff;font-weight:800;font-size:12.5px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:12px 8px;text-align:center;gap:2px}
+  .mxl small{font-size:9.5px;font-weight:500;opacity:.85;letter-spacing:.3px}
+  .mxr{padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;background:#fff}
+  .m{font-size:11px;padding:5px 9px;border-radius:7px;border:1px solid;line-height:1.35;max-width:100%}
+  .m b{font-weight:700}
+  .m .s{font-size:9px;font-weight:700;margin-left:4px;opacity:.85}
+  .m.done{background:#ECFDF5;border-color:#A7F3D0;color:#047857}
+  .m.stub{background:#FFFBEB;border-color:#FDE68A;color:#92400E}
+  .m.ph{background:#F1F5F9;border-color:#CBD5E1;color:#475569}
+  .m.plan{background:#F5F3FF;border-color:#DDD6FE;color:#5B21B6;border-style:dashed}
+  .m.miss{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+  .m code{font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.75}
+
+  /* bottom panels */
+  .btm{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pnl{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .pnl h3{font-size:13px;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .pnl.warn h3{color:var(--stub)} .pnl.fut h3{color:var(--plan)}
+  .li{font-size:11.5px;padding:6px 9px;border-radius:7px;margin-bottom:5px;color:var(--soft);background:#FFFBEB;border-left:2px solid var(--stub)}
+  .li.f{background:#F5F3FF;border-left:2px solid var(--plan)}
+  .li b{color:var(--ink);font-weight:700}
+  .li .meta{font-size:9.5px;color:var(--faint);font-family:ui-monospace,Menlo,monospace;display:block;margin-top:1px}
+
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;font-size:11.5px;color:var(--soft)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+  .pbar{display:flex;justify-content:center;margin-bottom:12px}
+  .pbtn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;color:var(--soft);font-weight:600}
+  .pbtn:hover{border-color:var(--c);color:var(--c)}
+
+  footer{margin-top:22px;font-size:11px;color:var(--faint);text-align:center;line-height:1.7}
+  @media print{
+    body{background:#fff;padding:0}
+    .rtabs,.pbar{display:none}
+    .view{display:none!important} .view.active{display:block!important}
+  }
+  @media(max-width:900px){.mxrow{grid-template-columns:100px 1fr}.brief{grid-template-columns:1fr}.btm{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ATS-NEW 功能结构图 · 四角色视图</h1>
+  <p class="sub">架构分层 × 功能模块 × 完成度状态 · 基于代码静态扫描 · 每角色一张完整视图</p>
+
+  <div class="rtabs" id="rtabs">
+    <button class="rtab active" data-v="0" style="--c:#6366F1"><span class="ico">👔</span>HR / 招聘团队</button>
+    <button class="rtab" data-v="1" style="--c:#F59E0B"><span class="ico">🎯</span>用人经理 / 面试官</button>
+    <button class="rtab" data-v="2" style="--c:#14B8A6"><span class="ico">🙋</span>候选人（外部）</button>
+    <button class="rtab" data-v="3" style="--c:#64748B"><span class="ico">⚙️</span>系统管理员 / IT</button>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#A7F3D0;border:1px solid #10B981"></i>已落地</span>
+    <span><i style="background:#FDE68A;border:1px solid #F59E0B"></i>Stub 假实现</span>
+    <span><i style="background:#CBD5E1;border:1px solid #64748B"></i>占位页</span>
+    <span><i style="background:#FECACA;border:1px solid #EF4444"></i>缺失 / 501 / 404</span>
+    <span><i style="background:#DDD6FE;border:1px dashed #8B5CF6"></i>未来规划</span>
+  </div>
+
+  <!-- ========== VIEW 1: HR ========== -->
+  <section class="view active" style="--c:#6366F1" id="v0">
+    <div class="vh">
+      <h2><span>👔</span>HR / 招聘团队 功能结构图</h2>
+      <div class="who">面向 <b>招聘专员 · 招聘负责人 · HRBP</b> —— 系统最核心的操作角色，覆盖需求→入职全链路</div>
+      <div class="brief">
+        <div class="bcell"><div class="bt">主要作用</div><div class="bc">梳理 HR 日常操作涉及的全生命周期功能模块，明确当前可用能力与缺口，支撑版本迭代排期与新人培训材料编写。</div></div>
+        <div class="bcell"><div class="bt">使用场景</div><div class="bc">新员工培训说明"系统能做什么" · 版本规划时识别 HR 高频功能仍是 stub · 向 HR 负责人汇报系统成熟度与风险。</div></div>
+        <div class="bcell"><div class="bt">拆解维度</div><div class="bc">一级 = 架构分层（展示/领域/网关/管理/服务/基础设施）→ 二级 = 功能模块 → 三级 = 完成度状态。</div></div>
+      </div>
+    </div>
+
+    <div class="mx">
+      <div class="mxrow"><div class="mxl" style="--lc:var(--l1);background:var(--l1)">展示层<small>工作台 / 页面</small></div>
+        <div class="mxr">
+          <span class="m done">HR 招聘工作台 <code>Dashboard</code></span>
+          <span class="m done">招聘需求列表 <code>DemandList</code></span>
+          <span class="m done">职位列表 <code>PositionList</code></span>
+          <span class="m done">候选人列表 <code>CandidateList</code></span>
+          <span class="m done">简历爬取列表</span>
+          <span class="m done">面试列表 <code>InterviewList</code></span>
+          <span class="m done">Offer 列表 + 背调面板</span>
+          <span class="m done">入职列表 <code>OnboardingList</code></span>
+          <span class="m done">数据看板 KPI</span>
+          <span class="m ph">数据中心报表 <code>/report</code> <span class="s">占位 ATS-201</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="--lc:var(--l2);background:var(--l2)">领域层<small>业务功能模块</small></div>
+        <div class="mxr">
+          <span class="m done"><b>需求分析</b> <code>demand</code> <code>process</code> <code>entry_condition</code></span>
+          <span class="m done"><b>职位发布</b> <code>position</code> <code>channel</code> <code>referral</code></span>
+          <span class="m done"><b>校招管控</b> <code>campus_control</code></span>
+          <span class="m done"><b>简历汇聚</b> <code>scraped_resume</code> <code>resume_flow</code></span>
+          <span class="m done"><b>候选人主档</b> <code>candidate</code> <code>add_candidate</code></span>
+          <span class="m done"><b>查重</b> <code>duplicate_check</code></span>
+          <span class="m done"><b>人才库</b> <code>talent_pool</code></span>
+          <span class="m done"><b>动态字段</b> <code>dynamic_field</code></span>
+          <span class="m done"><b>面试</b> <code>interview</code> <code>invitation</code></span>
+          <span class="m done"><b>录用</b> <code>offer</code> <code>mou</code></span>
+          <span class="m done"><b>入职</b> <code>onboarding</code> <code>application</code></span>
+          <span class="m done"><b>全局搜索</b> <code>search</code></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="--lc:var(--l3);background:var(--l3)">网关层<small>鉴权 / 准入</small></div>
+        <div class="mxr">
+          <span class="m done">JWT 认证 <code>core</code></span>
+          <span class="m done">字段级权限 <code>field_acl</code></span>
+          <span class="m done">统一 API 网关</span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="--lc:var(--l4);background:var(--l4)">管理层<small>配置中心</small></div>
+        <div class="mxr">
+          <span class="m done">招聘需求设置 <code>demand-config</code></span>
+          <span class="m done">数据字典</span>
+          <span class="m done">校招管控配置</span>
+          <span class="m done">评分规则</span>
+          <span class="m done">背调生态接入 <code>ExternalSettings</code></span>
+          <span class="m stub">公告制度推送 <span class="s">API 未接入</span></span>
+          <span class="m ph">公司 / 品牌配置 <span class="s">占位</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="--lc:var(--l5);background:var(--l5)">服务层<small>平台能力</small></div>
+        <div class="mxr">
+          <span class="m done">消息中心 <code>notification</code></span>
+          <span class="m done">自动化规则 <code>automation</code></span>
+          <span class="m done">时效 SLA <code>time_limit</code></span>
+          <span class="m done">合规审计 <code>audit</code></span>
+          <span class="m done">分析订阅 <code>analytics</code></span>
+          <span class="m miss">通用数据导出 <code>/data/export</code> <span class="s">404 未实现</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="--lc:var(--l6);background:var(--l6)">基础设施<small>Pass</small></div>
+        <div class="mxr">
+          <span class="m done">MySQL 8.0</span><span class="m done">Redis 7</span>
+          <span class="m done">Celery 异步（简历解析 / 通知）</span>
+          <span class="m done">Channels 实时推送</span><span class="m done">Nginx</span>
+        </div></div>
+    </div>
+
+    <div class="btm">
+      <div class="pnl warn"><h3>⚠️ 该角色待解决（按影响排序）</h3>
+        <div class="li"><b>候选人批量操作 5 项全为 stub</b>推荐 / 归档 / 分派 / 导出 / 筛选<span class="meta">urls_stubs.py · candidates/batch/*</span></div>
+        <div class="li"><b>简历上传解析未实现</b><span class="meta">upload-and-parse 返 stub jobId</span></div>
+        <div class="li"><b>评分引擎未启动</b><span class="meta">scoring/start · evaluate 均 stub</span></div>
+        <div class="li"><b>通用数据导出 404</b>前端 data.ts:51 已调用，后端无路由<span class="meta">analytics/urls_data.py 缺失</span></div>
+        <div class="li"><b>Offer 模板与渲染 stub</b><span class="meta">offer-templates / render-from-offer</span></div>
+        <div class="li"><b>数据中心报表占位</b><span class="meta">/report · ATS-201 · 规划中</span></div>
+      </div>
+      <div class="pnl fut"><h3>🔮 该角色未来规划</h3>
+        <div class="li f"><b>AI 智能初筛</b>简历自动评分与人岗匹配</div>
+        <div class="li f"><b>人才画像与主动召回</b>人才库标签化运营</div>
+        <div class="li f"><b>简历邮箱自动分派</b>按业务线路由<span class="meta">依赖"接收简历邮箱"配置项</span></div>
+        <div class="li f"><b>编制预测 / HC 规划</b>需求阶段人力测算</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== VIEW 2: 用人经理/面试官 ========== -->
+  <section class="view" style="--c:#F59E0B" id="v1">
+    <div class="vh">
+      <h2><span>🎯</span>用人经理 / 面试官 功能结构图</h2>
+      <div class="who">面向 <b>用人部门负责人 · 面试官</b> —— 业务侧参与者，只在"提需求 / 复筛 / 面试 / 决策"四个节点介入</div>
+      <div class="brief">
+        <div class="bcell"><div class="bt">主要作用</div><div class="bc">明确业务侧在招聘流程中的参与节点与系统支撑，减少线下沟通与 HR 催办，提升评价回收率。</div></div>
+        <div class="bcell"><div class="bt">使用场景</div><div class="bc">向用人部门宣讲"你们要在系统里做什么" · 面试评价回收率提升专项 · 审批流配置需求澄清。</div></div>
+        <div class="bcell"><div class="bt">拆解维度</div><div class="bc">一级 = 架构分层 → 二级 = 功能模块 → 三级 = 完成度状态。仅保留业务侧可感知的模块。</div></div>
+      </div>
+    </div>
+
+    <div class="mx">
+      <div class="mxrow"><div class="mxl" style="background:var(--l1)">展示层<small>操作入口</small></div>
+        <div class="mxr">
+          <span class="m done">待办中心</span>
+          <span class="m done">候选人 360 档案</span>
+          <span class="m done">面试评价弹窗 <code>InterviewEvaluationModal</code></span>
+          <span class="m done">面试反馈表单 <code>InterviewFeedbackForm</code></span>
+          <span class="m done">评价汇总卡 <code>InterviewEvalSummaryCard</code></span>
+          <span class="m done">移动端面试评价</span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l2)">领域层<small>参与节点</small></div>
+        <div class="mxr">
+          <span class="m done"><b>需求提报</b> <code>demand</code></span>
+          <span class="m done"><b>录用条件定义</b> <code>entry_condition</code></span>
+          <span class="m done"><b>简历复筛</b> <code>candidate</code> 筛选视图</span>
+          <span class="m done"><b>面试评价</b> <code>interview</code></span>
+          <span class="m done"><b>面试邀约</b> <code>invitation</code></span>
+          <span class="m done"><b>录用决策</b> <code>offer</code> 审批</span>
+          <span class="m done"><b>流程流转</b> <code>application</code> <code>process</code></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l3)">网关层<small>鉴权 / 准入</small></div>
+        <div class="mxr">
+          <span class="m done">SSO / JWT 登录</span>
+          <span class="m done">角色权限（HRBP / HR / 面试官 / 管理员）</span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l4)">管理层<small>流程配置</small></div>
+        <div class="mxr">
+          <span class="m ph">审批设置 <span class="s">占位 ATS-143 · ETA 2026-Q4</span></span>
+          <span class="m stub">招聘轮次配置 <span class="s">recruitment-rounds stub</span></span>
+          <span class="m stub">阶段规则 / 自动归档 <span class="s">stage-rules stub</span></span>
+          <span class="m ph">会议室资源 <span class="s">占位 · 待规划</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l5)">服务层<small>催办 / 提醒</small></div>
+        <div class="mxr">
+          <span class="m done">评价时效 SLA <code>time_limit</code></span>
+          <span class="m done">评价催办通知</span>
+          <span class="m done">自动化编排 <code>automation</code></span>
+          <span class="m stub">顺序邀约初始处理人 <span class="s">规则待产品确认</span></span>
+          <span class="m stub">时限链条优先级 <span class="s">待产品复核</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l6)">基础设施<small>Pass</small></div>
+        <div class="mxr"><span class="m done">复用 HR 工作台同一套后端与数据库</span><span class="m done">Channels 实时通知推送</span></div></div>
+    </div>
+
+    <div class="btm">
+      <div class="pnl warn"><h3>⚠️ 该角色待解决</h3>
+        <div class="li"><b>审批设置页仍是占位</b>审批人 / 节点 / 通知规则全部配不了<span class="meta">ATS-143 · ETA 2026-Q4 · 花无缺 · PR #439</span></div>
+        <div class="li"><b>面试评价 evaluate 为 stub</b><span class="meta">recruitment-rules/candidates/&lt;id&gt;/evaluate</span></div>
+        <div class="li"><b>顺序邀约初始处理人规则未定</b><span class="meta">application/services/__init__.py:431 · 需产品拍板</span></div>
+        <div class="li"><b>时限链条优先级待复核</b><span class="meta">time_limit/tasks.py:125 · 需产品确认</span></div>
+        <div class="li"><b>会议室资源未配置</b>无法在系统内预定面试场地<span class="meta">/settings/company/meeting-rooms 占位</span></div>
+      </div>
+      <div class="pnl fut"><h3>🔮 该角色未来规划</h3>
+        <div class="li f"><b>日历系统对接</b>钉钉 / 企业微信 / Outlook 自动写入面试日程</div>
+        <div class="li f"><b>视频面试对接</b>腾讯会议 / 飞书 一键生成会议链接</div>
+        <div class="li f"><b>评价质量分析</b>面试官评分分布与校准提示</div>
+        <div class="li f"><b>移动端待办闭环</b>手机上完成评价与录用决策</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== VIEW 3: 候选人 ========== -->
+  <section class="view" style="--c:#14B8A6" id="v2">
+    <div class="vh">
+      <h2><span>🙋</span>候选人（外部用户）功能结构图</h2>
+      <div class="who">面向 <b>投递者 · 面试者 · 拟录用者</b> —— 唯一的企业外部角色，触点最轻但体验缺口最大</div>
+      <div class="brief">
+        <div class="bcell"><div class="bt">主要作用</div><div class="bc">梳理候选人从触达 → 投递 → 面试 → Offer → 入职的完整对外触点，识别候选人体验断点与自建门户缺口。</div></div>
+        <div class="bcell"><div class="bt">使用场景</div><div class="bc">候选人体验优化专项 · 招聘门户立项论证 · 向业务方说明"候选人当前能看到什么、还缺什么"。</div></div>
+        <div class="bcell"><div class="bt">拆解维度</div><div class="bc">一级 = 架构分层 → 二级 = 功能模块 → 三级 = 完成度状态。仅保留候选人可感知触点。</div></div>
+      </div>
+    </div>
+
+    <div class="mx">
+      <div class="mxrow"><div class="mxl" style="background:var(--l1)">展示层<small>对外触点</small></div>
+        <div class="mxr">
+          <span class="m ph">招聘门户 / 职位浏览 <span class="s">占位 · 待规划</span></span>
+          <span class="m done">投递页 <code>application</code></span>
+          <span class="m done">进度查询</span>
+          <span class="m done">面试确认 <code>InvitationCenter</code></span>
+          <span class="m done">Offer 确认</span>
+          <span class="m done">入职资料填写</span>
+          <span class="m done">内推入口 <code>referral</code></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l2)">领域层<small>参与环节</small></div>
+        <div class="mxr">
+          <span class="m done"><b>简历投递</b> <code>application</code></span>
+          <span class="m done"><b>简历档案</b> <code>candidate</code></span>
+          <span class="m done"><b>面试邀约</b> <code>invitation</code></span>
+          <span class="m done"><b>录用确认</b> <code>offer</code></span>
+          <span class="m done"><b>入职办理</b> <code>onboarding</code></span>
+          <span class="m done"><b>隐私授权</b> <code>gdpr</code></span>
+          <span class="m plan"><b>视频面试</b> <span class="s">规划中</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l3)">网关层<small>自助准入</small></div>
+        <div class="mxr">
+          <span class="m miss">自助注册 <span class="s">501 未实现</span></span>
+          <span class="m miss">修改密码 <span class="s">501 未实现</span></span>
+          <span class="m done">投递免注册（HR 代建档案）</span>
+          <span class="m plan">候选人自助账号体系 <span class="s">规划中</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l4)">管理层<small>门户配置</small></div>
+        <div class="mxr">
+          <span class="m ph">公共设置（门户 / 自定义字段） <span class="s">占位 · 待规划</span></span>
+          <span class="m ph">接收简历邮箱配置 <span class="s">占位 · 待规划</span></span>
+          <span class="m ph">雇主品牌信息管理 <span class="s">占位 · 待规划</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l5)">服务层<small>通知触达</small></div>
+        <div class="mxr">
+          <span class="m done">邮件 / 短信通知 <code>notification</code></span>
+          <span class="m done">面试邀约与改期推送</span>
+          <span class="m done">Offer 发放与催确认</span>
+          <span class="m plan">进度订阅与主动推送 <span class="s">规划中</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l6)">基础设施<small>Pass</small></div>
+        <div class="mxr"><span class="m done">复用企业侧同一后端与数据库</span><span class="m plan">门户独立部署 / CDN <span class="s">随门户立项</span></span></div></div>
+    </div>
+
+    <div class="btm">
+      <div class="pnl warn"><h3>⚠️ 该角色待解决（体验断点）</h3>
+        <div class="li"><b>自助注册返回 501</b>候选人无法自助开户，只能由 HR 代建<span class="meta">urls_stubs.py auth/register</span></div>
+        <div class="li"><b>修改密码返回 501</b>无自助找回 / 修改通道<span class="meta">urls_stubs.py auth/change-password</span></div>
+        <div class="li"><b>招聘门户尚未建立</b>无对外职位浏览与投递入口<span class="meta">/settings/public 占位 · 待规划</span></div>
+        <div class="li"><b>接收简历邮箱未配置</b>无法按业务线自动归集投递<span class="meta">/settings/company/resume-mailbox 占位</span></div>
+        <div class="li"><b>雇主品牌信息未维护</b>无 Logo / 雇主文案对外展示<span class="meta">/settings/company/brand 占位</span></div>
+      </div>
+      <div class="pnl fut"><h3>🔮 该角色未来规划</h3>
+        <div class="li f"><b>招聘门户 / 雇主品牌站</b>对外职位浏览 + 一键投递（建议单独立项）</div>
+        <div class="li f"><b>视频面试接入</b>候选人无需安装额外软件</div>
+        <div class="li f"><b>候选人自助服务</b>改密 / 资料更新 / 进度订阅</div>
+        <div class="li f"><b>电子签集成</b>Offer 与合同线上签署</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== VIEW 4: 管理员/IT ========== -->
+  <section class="view" style="--c:#64748B" id="v3">
+    <div class="vh">
+      <h2><span>⚙️</span>系统管理员 / IT 功能结构图</h2>
+      <div class="who">面向 <b>系统管理员 · IT 运维</b> —— 负责配置、权限、集成与稳定运行，待建配置项最集中的角色</div>
+      <div class="brief">
+        <div class="bcell"><div class="bt">主要作用</div><div class="bc">梳理系统配置、权限管控、第三方集成与基础设施全景，明确待建配置项、集成边界与运维责任。</div></div>
+        <div class="bcell"><div class="bt">使用场景</div><div class="bc">系统上线配置清单 · 权限模型评审 · 第三方集成排期 · 运维交接与应急预案。</div></div>
+        <div class="bcell"><div class="bt">拆解维度</div><div class="bc">一级 = 架构分层 → 二级 = 功能模块 → 三级 = 完成度状态。9 个占位页中大部分归属本角色。</div></div>
+      </div>
+    </div>
+
+    <div class="mx">
+      <div class="mxrow"><div class="mxl" style="background:var(--l1)">展示层<small>管理后台</small></div>
+        <div class="mxr">
+          <span class="m done">部门管理</span><span class="m done">用户管理</span>
+          <span class="m done">角色权限 V2 <code>PermissionManagement</code></span>
+          <span class="m done">字段级 ACL 配置</span>
+          <span class="m done">数据字典</span><span class="m done">院校公司库 <code>library</code></span>
+          <span class="m done">招聘需求配置</span><span class="m done">校招管控配置</span>
+          <span class="m done">评分规则</span><span class="m done">主题外观（液态玻璃 v2）</span>
+          <span class="m done">背调生态接入</span><span class="m done">公告制度</span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l2)">领域层<small>权限与合规</small></div>
+        <div class="mxr">
+          <span class="m done"><b>用户 / 部门 / 角色</b> <code>core</code></span>
+          <span class="m done"><b>字段级权限</b> <code>field_acl</code></span>
+          <span class="m done"><b>权限审批</b> <code>mou</code></span>
+          <span class="m done"><b>数据字典</b> <code>dictionary</code></span>
+          <span class="m done"><b>合规审计</b> <code>audit</code></span>
+          <span class="m done"><b>隐私合规</b> <code>gdpr</code></span>
+          <span class="m done"><b>第三方集成</b> <code>integration</code> 含背调回调验签</span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l3)">网关层<small>安全 / 准入</small></div>
+        <div class="mxr">
+          <span class="m done">JWT 认证</span><span class="m done">字段级 ACL 拦截</span>
+          <span class="m done">统一 API 网关</span><span class="m done">操作审计日志</span>
+          <span class="m done">Admin 路径 Token 保护</span>
+          <span class="m miss">自助注册 / 改密 <span class="s">501 未开放</span></span>
+          <span class="m plan">接口限流 / 灰度发布 <span class="s">规划中</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l4)">管理层<small>待建配置（重灾区）</small></div>
+        <div class="mxr">
+          <span class="m ph">入职设置 <span class="s">ATS-142 · 2026-Q4</span></span>
+          <span class="m ph">审批设置 <span class="s">ATS-143 · 2026-Q4</span></span>
+          <span class="m ph">公共设置 <span class="s">待规划</span></span>
+          <span class="m ph">用户组管理 <span class="s">待规划</span></span>
+          <span class="m ph">公司地址 <span class="s">待规划</span></span>
+          <span class="m ph">公司会议室 <span class="s">待规划</span></span>
+          <span class="m ph">接收简历邮箱 <span class="s">待规划</span></span>
+          <span class="m ph">品牌信息管理 <span class="s">待规划</span></span>
+          <span class="m ph">数据中心报表 <span class="s">ATS-201 · 规划中</span></span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l5)">服务层<small>集成与运维</small></div>
+        <div class="mxr">
+          <span class="m done">审计日志 <code>audit</code></span>
+          <span class="m done">消息中心 <code>notification</code></span>
+          <span class="m done">集成网关 <code>integration</code></span>
+          <span class="m stub">法人公司同步 <code>external_sync</code> <span class="s">Mock · 待 API 授权</span></span>
+          <span class="m stub">4 个权限端点 <span class="s">permissions/* stub</span></span>
+          <span class="m miss">通用数据导出 <span class="s">404 未实现</span></span>
+          <span class="m plan">监控告警 / 日志聚合（ELK · Sentry）</span>
+        </div></div>
+      <div class="mxrow"><div class="mxl" style="background:var(--l6)">基础设施<small>Pass</small></div>
+        <div class="mxr">
+          <span class="m done">MySQL 8.0</span><span class="m done">Redis 7</span>
+          <span class="m done">Celery Worker</span><span class="m done">Channels（WebSocket）</span>
+          <span class="m done">Nginx</span><span class="m done">Docker Compose</span>
+          <span class="m done">Django Admin（隐藏路径）</span>
+          <span class="m plan">备份策略 / 灾备演练</span>
+        </div></div>
+    </div>
+
+    <div class="btm">
+      <div class="pnl warn"><h3>⚠️ 该角色待解决（9 个占位页 + 4 个 stub）</h3>
+        <div class="li"><b>9 个配置页仍是占位</b>入职 / 审批 / 公共 / 用户组 / 公司地址 / 会议室 / 简历邮箱 / 品牌 / 报表<span class="meta">router/index.ts 指向 Placeholder.vue</span></div>
+        <div class="li"><b>4 个权限端点 stub</b>roles / user-info / users/&lt;id&gt;/roles / permissions-list<span class="meta">urls_stubs.py permissions/*</span></div>
+        <div class="li"><b>法人公司同步为 Mock</b>摩卡 People / 邮箱真实同步待企业 API 授权<span class="meta">apps/external_sync · 0-model</span></div>
+        <div class="li"><b>通用数据导出 404</b>需补 <code>/data/export/&#123;resource&#125;/</code> 同步导出<span class="meta">前端已调用，后端无路由</span></div>
+        <div class="li"><b>自助注册 / 改密 501</b>是否对外开放需产品决策<span class="meta">涉及账号体系与合规</span></div>
+      </div>
+      <div class="pnl fut"><h3>🔮 该角色未来规划</h3>
+        <div class="li f"><b>HRIS / OA 同步</b>入转调离与组织架构打通</div>
+        <div class="li f"><b>摩卡 People 真实同步</b>待企业 API 授权后替换 Mock</div>
+        <div class="li f"><b>电子签集成</b>e签宝 / 法大大</div>
+        <div class="li f"><b>可观测性建设</b>日志聚合 + 告警 + 备份演练</div>
+        <div class="li f"><b>接口限流与灰度</b>保障多租户稳定性</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="pbar"><button class="pbtn" onclick="window.print()">🖨 打印 / 导出当前角色视图</button></div>
+
+  <footer>
+    <b>图例口径</b>：已落地 = 主路由已挂载且有真实 models/views 与前端页面；Stub = <code>urls_stubs.py</code> 兜底（返 501 或假成功）；占位 = 路由指向 <code>Placeholder.vue</code>；缺失 = 前端已调用但后端无实现。<br>
+    扫描基准 2026-08-30 · 33 个后端 app · 22 个 stub 端点 · 9 个占位页 · 4 处产品确认 TODO。切换顶部角色标签查看不同视图，打印仅输出当前视图。
+  </footer>
+</div>
+
+<script>
+  const tabs=document.querySelectorAll('#rtabs .rtab');
+  const views=document.querySelectorAll('.view');
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.remove('active'));
+    views.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    views[+t.dataset.v].classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }));
+</script>
+</body>
+</html>

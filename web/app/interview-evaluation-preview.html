@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>面试评价弹窗 · 设计预览（Liquid Glass v2）</title>
+  <link rel="stylesheet" href="src/styles/tokens.css" />
+  <link rel="stylesheet" href="src/styles/glass.css" />
+  <style>
+    body {
+      margin: 0; min-height: 100vh; font-family: var(--font-sans);
+      background: var(--aurora-base);
+      background-image: var(--aurora-base), var(--aurora-1), var(--aurora-2), var(--aurora-3);
+      background-repeat: no-repeat; background-attachment: fixed;
+      display: grid; place-items: center; padding: 40px;
+      color: var(--ink);
+    }
+    /* 复用组件同名样式（与 InterviewEvaluationModal.vue 保持一致） */
+    .ats-eval__layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 720px){ .ats-eval__layout { grid-template-columns: 1fr; } }
+    .ats-rail { position: sticky; top: 0; padding: 16px; text-align: center; }
+    .ats-avatar { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 9999px; display: grid; place-items: center; font-size: 26px; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)); box-shadow: 0 6px 18px var(--brand-a22); }
+    .ats-name { font-size: 18px; font-weight: 700; color: var(--ink); }
+    .ats-sub { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+    .ats-gauge { position: relative; width: 140px; height: 140px; margin: 8px auto; }
+    .ats-gauge__svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ats-gauge__track { fill: none; stroke: var(--g1); stroke-width: 10; }
+    .ats-gauge__fill { fill: none; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 326.7; transition: stroke-dashoffset .32s cubic-bezier(.16,1,.3,1), stroke .24s; }
+    .ats-gauge__center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+    .ats-gauge__num { font-size: 32px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .ats-gauge__cap { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+    .ats-rec { margin-top: 12px; display: grid; gap: 8px; justify-items: center; }
+    .ats-rec__label { font-size: 12px; color: var(--ink-faint); }
+    .ats-rec__chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .ats-chip { border: 1px solid var(--border-hairline); background: var(--glass-bg-input); color: var(--ink-soft); border-radius: 9999px; padding: 5px 14px; font-size: 13px; cursor: pointer; transition: all .16s; }
+    .ats-chip.is-active.is-success { background: var(--c-success-soft); color: var(--c-success); border-color: var(--c-success); }
+    .ats-chip.is-active.is-info { background: var(--c-info-soft); color: var(--c-info); border-color: var(--c-info); }
+    .ats-chip.is-active.is-warning { background: var(--c-warning-soft); color: var(--c-warning); border-color: var(--c-warning); }
+    .ats-chip.is-active.is-error { background: var(--c-error-soft); color: var(--c-error); border-color: var(--c-error); }
+    .ats-chip:hover { border-color: var(--brand); color: var(--brand); }
+    .ats-meta { list-style: none; margin: 16px 0 0; padding: 0; text-align: left; display: grid; gap: 8px; }
+    .ats-meta li { display: flex; justify-content: space-between; font-size: 13px; }
+    .ats-meta span { color: var(--ink-faint); }
+    .ats-meta b { color: var(--ink); font-weight: 600; }
+    .ats-group { margin-bottom: 16px; }
+    .ats-group__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .ats-group__bar { width: 4px; height: 18px; border-radius: 9999px; background: linear-gradient(var(--brand), var(--brand-grad-a)); }
+    .ats-group__title { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .ats-group__hint { font-size: 12px; color: var(--ink-faint); margin-top: 1px; }
+    .ats-dim { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--border-hairline); }
+    .ats-dim:last-child { border-bottom: none; }
+    .ats-dim__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .ats-dim__name { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .ats-dim__desc { font-size: 12px; color: var(--ink-faint); }
+    .ats-dim__rating { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .ats-dot { width: 10px; height: 10px; border-radius: 9999px; background: var(--g2); }
+    .ats-dim__score { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; margin-left: 4px; min-width: 34px; text-align: right; }
+    .ats-dim__score i { font-style: normal; font-size: 12px; color: var(--ink-faint); font-weight: 400; }
+    .ats-seg { display: flex; gap: 6px; }
+    .ats-seg__btn { width: 34px; height: 34px; border-radius: 16px; border: 1px solid var(--border-hairline); background: var(--glass-bg-input); color: var(--ink-soft); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .16s; }
+    .ats-seg__btn:hover { border-color: var(--brand); transform: translateY(-1px); }
+    .ats-seg__btn.is-on { color: #fff; box-shadow: 0 4px 12px var(--brand-a22); }
+    .ats-comment { margin-top: 16px; }
+    .ats-comment__label { font-size: 12px; color: var(--ink-faint); margin-bottom: 6px; font-weight: 600; }
+    .ats-comment__text { margin: 0; padding: 12px; border-radius: 16px; background: var(--glass-bg-input); border: 1px solid var(--border-hairline); font-size: 13px; line-height: 1.7; color: var(--ink-soft); }
+    .ats-foot { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+    .btn { border: 1px solid var(--border-hairline); background: var(--glass-bg-input); color: var(--ink); border-radius: 12px; padding: 9px 18px; font-size: 14px; cursor: pointer; transition: all .16s; }
+    .btn:hover { border-color: var(--brand); }
+    .btn--primary { background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)); border: none; color: #fff; box-shadow: 0 4px 14px var(--glow-brand); }
+    .btn--primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--glow-brand); }
+    .tag { display: inline-block; padding: 4px 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; }
+    .tag-success { background: var(--c-success-soft); color: var(--c-success); }
+    .tag-info { background: var(--c-info-soft); color: var(--c-info); }
+    .tag-warning { background: var(--c-warning-soft); color: var(--c-warning); }
+    .tag-error { background: var(--c-error-soft); color: var(--c-error); }
+    .modal-wrap { width: 880px; max-width: 94vw; background: var(--glass-bg-elevated); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid var(--glass-border); border-radius: 20px; box-shadow: var(--shadow-elevated); padding: 20px 22px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-hairline); padding-bottom: 14px; margin-bottom: 16px; }
+    .modal-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+    .hidden { display: none !important; }
+    .tip { position: fixed; top: 16px; left: 16px; font-size: 12px; color: var(--ink-faint); background: var(--glass-bg-card); padding: 6px 12px; border-radius: 9999px; border: 1px solid var(--glass-border); }
+  </style>
+</head>
+<body>
+  <div class="tip">设计预览 · 点击「编辑评价」切换查看 / 填写态（数据均为演示）</div>
+  <div class="modal-wrap">
+    <div class="modal-head">
+      <h2 id="modalTitle">面试评价</h2>
+      <span class="tag tag-success">通过</span>
+    </div>
+
+    <div id="viewState" class="ats-eval__layout">
+      <aside class="ats-rail glass-card">
+        <div class="ats-avatar">杨</div>
+        <div class="ats-name">杨前</div>
+        <div class="ats-sub">前端开发工程师</div>
+        <div class="ats-gauge">
+          <svg viewBox="0 0 120 120" class="ats-gauge__svg">
+            <circle cx="60" cy="60" r="52" class="ats-gauge__track" />
+            <circle cx="60" cy="60" r="52" class="ats-gauge__fill" id="gaugeView" stroke="var(--c-warning)" stroke-dashoffset="130.7" />
+          </svg>
+          <div class="ats-gauge__center">
+            <div class="ats-gauge__num" style="color:var(--c-warning)">3.0</div>
+            <div class="ats-gauge__cap">综合评分</div>
+          </div>
+        </div>
+        <div class="ats-rec">
+          <span class="ats-rec__label">最终推荐</span>
+          <span class="tag tag-success">通过</span>
+        </div>
+        <ul class="ats-meta">
+          <li><span>轮次</span><b>一面</b></li>
+          <li><span>部门</span><b>微信事业群</b></li>
+          <li><span>时间</span><b>2026-08-28 14:00</b></li>
+          <li><span>面试官</span><b>张工</b></li>
+        </ul>
+      </aside>
+
+      <section class="ats-detail">
+        <div class="ats-group">
+          <div class="ats-group__head"><span class="ats-group__bar"></span><div><div class="ats-group__title">四唯契合性</div><div class="ats-group__hint">岗位胜任力底层结构</div></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">劳动者</span><span class="ats-dim__desc">专业能力与成长潜力</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot"></span><span class="ats-dim__score" style="color:var(--c-success)">4<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">劳动工具</span><span class="ats-dim__desc">技术栈熟练度</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot"></span><span class="ats-dim__score" style="color:var(--c-success)">4<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">劳动资料</span><span class="ats-dim__desc">知识资产沉淀</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dim__score" style="color:var(--c-success)">5<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">劳动对象</span><span class="ats-dim__desc">业务理解深度</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-warning)"></span><span class="ats-dot" style="background:var(--c-warning)"></span><span class="ats-dot" style="background:var(--c-warning)"></span><span class="ats-dot"></span><span class="ats-dot"></span><span class="ats-dim__score" style="color:var(--c-warning)">3<i>/5</i></span></div></div>
+        </div>
+        <div class="ats-group">
+          <div class="ats-group__head"><span class="ats-group__bar"></span><div><div class="ats-group__title">五力价值观</div><div class="ats-group__hint">腾讯价值观行为锚定</div></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">尊重事实</span><span class="ats-dim__desc">基于数据理性决策</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dim__score" style="color:var(--c-success)">5<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">自我批判</span><span class="ats-dim__desc">复盘与持续改进</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot"></span><span class="ats-dim__score" style="color:var(--c-success)">4<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">积极主动</span><span class="ats-dim__desc">owner 意识</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot"></span><span class="ats-dim__score" style="color:var(--c-success)">4<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">认真负责</span><span class="ats-dim__desc">结果交付靠谱度</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dot" style="background:var(--c-success)"></span><span class="ats-dim__score" style="color:var(--c-success)">5<i>/5</i></span></div></div>
+          <div class="ats-dim"><div class="ats-dim__info"><span class="ats-dim__name">艰苦奋斗</span><span class="ats-dim__desc">攻坚韧性</span></div><div class="ats-dim__rating"><span class="ats-dot" style="background:var(--c-warning)"></span><span class="ats-dot" style="background:var(--c-warning)"></span><span class="ats-dot" style="background:var(--c-warning)"></span><span class="ats-dot"></span><span class="ats-dot"></span><span class="ats-dim__score" style="color:var(--c-warning)">3<i>/5</i></span></div></div>
+        </div>
+        <div class="ats-comment"><div class="ats-comment__label">评语</div><p class="ats-comment__text">候选人技术基础扎实，React/Vue 双栈均有生产经验；沟通表达清晰，自我复盘意识强。业务理解（劳动对象）偏弱，建议二面重点考察。</p></div>
+      </section>
+    </div>
+
+    <div id="editState" class="ats-eval__layout hidden">
+      <aside class="ats-rail glass-card">
+        <div class="ats-avatar">杨</div>
+        <div class="ats-name">杨前</div>
+        <div class="ats-sub">前端开发工程师 · 一面</div>
+        <div class="ats-gauge">
+          <svg viewBox="0 0 120 120" class="ats-gauge__svg">
+            <circle cx="60" cy="60" r="52" class="ats-gauge__track" />
+            <circle cx="60" cy="60" r="52" class="ats-gauge__fill" id="gaugeEdit" stroke="var(--c-warning)" stroke-dashoffset="130.7" />
+          </svg>
+          <div class="ats-gauge__center">
+            <div class="ats-gauge__num" style="color:var(--c-warning)" id="avgNum">3.0</div>
+            <div class="ats-gauge__cap">实时均分</div>
+          </div>
+        </div>
+        <div class="ats-rec">
+          <span class="ats-rec__label">最终推荐</span>
+          <div class="ats-rec__chips">
+            <button class="ats-chip is-success is-active" data-rec="PASS">通过</button>
+            <button class="ats-chip is-info" data-rec="MANAGER">经理</button>
+            <button class="ats-chip is-warning" data-rec="DISCUSS">面议</button>
+            <button class="ats-chip is-error" data-rec="FAIL">不通过</button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="ats-detail">
+        <div class="ats-group">
+          <div class="ats-group__head"><span class="ats-group__bar"></span><div><div class="ats-group__title">四唯契合性</div><div class="ats-group__hint">岗位胜任力底层结构</div></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="4"><div class="ats-dim__info"><span class="ats-dim__name">劳动者</span><span class="ats-dim__desc">专业能力与成长潜力</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="4"><div class="ats-dim__info"><span class="ats-dim__name">劳动工具</span><span class="ats-dim__desc">技术栈熟练度</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="5"><div class="ats-dim__info"><span class="ats-dim__name">劳动资料</span><span class="ats-dim__desc">知识资产沉淀</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="3"><div class="ats-dim__info"><span class="ats-dim__name">劳动对象</span><span class="ats-dim__desc">业务理解深度</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn is-on" style="background:var(--c-warning);border-color:var(--c-warning)">3</button><button class="ats-seg__btn">4</button><button class="ats-seg__btn">5</button></div></div>
+        </div>
+        <div class="ats-group">
+          <div class="ats-group__head"><span class="ats-group__bar"></span><div><div class="ats-group__title">五力价值观</div><div class="ats-group__hint">腾讯价值观行为锚定</div></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="5"><div class="ats-dim__info"><span class="ats-dim__name">尊重事实</span><span class="ats-dim__desc">基于数据理性决策</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="4"><div class="ats-dim__info"><span class="ats-dim__name">自我批判</span><span class="ats-dim__desc">复盘与持续改进</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="4"><div class="ats-dim__info"><span class="ats-dim__name">积极主动</span><span class="ats-dim__desc">owner 意识</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="5"><div class="ats-dim__info"><span class="ats-dim__name">认真负责</span><span class="ats-dim__desc">结果交付靠谱度</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn">3</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">4</button><button class="ats-seg__btn is-on" style="background:var(--c-success);border-color:var(--c-success)">5</button></div></div>
+          <div class="ats-dim ats-dim--edit" data-score="3"><div class="ats-dim__info"><span class="ats-dim__name">艰苦奋斗</span><span class="ats-dim__desc">攻坚韧性</span></div><div class="ats-seg"><button class="ats-seg__btn">1</button><button class="ats-seg__btn">2</button><button class="ats-seg__btn is-on" style="background:var(--c-warning);border-color:var(--c-warning)">3</button><button class="ats-seg__btn">4</button><button class="ats-seg__btn">5</button></div></div>
+        </div>
+        <div class="ats-comment ats-comment--edit"><div class="ats-comment__label">评语</div><textarea class="ats-comment__text" style="width:100%;border:none;outline:none;resize:vertical;font-family:inherit;" rows="4">候选人技术基础扎实，React/Vue 双栈均有生产经验；沟通表达清晰，自我复盘意识强。业务理解（劳动对象）偏弱，建议二面重点考察。</textarea></div>
+      </section>
+    </div>
+
+    <div class="ats-foot">
+      <button class="btn hidden" id="btnCancel">取消</button>
+      <button class="btn" id="btnToggle">编辑评价</button>
+      <button class="btn btn--primary hidden" id="btnSubmit">提交评价</button>
+    </div>
+  </div>
+
+  <script>
+    // 切换 查看 / 编辑 态
+    const viewState = document.getElementById('viewState');
+    const editState = document.getElementById('editState');
+    const btnToggle = document.getElementById('btnToggle');
+    const btnCancel = document.getElementById('btnCancel');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const modalTitle = document.getElementById('modalTitle');
+
+    function toEdit() {
+      viewState.classList.add('hidden');
+      editState.classList.remove('hidden');
+      btnToggle.classList.add('hidden');
+      btnCancel.classList.remove('hidden');
+      btnSubmit.classList.remove('hidden');
+      modalTitle.textContent = '填写面试评价';
+    }
+    function toView() {
+      editState.classList.add('hidden');
+      viewState.classList.remove('hidden');
+      btnCancel.classList.add('hidden');
+      btnSubmit.classList.add('hidden');
+      btnToggle.classList.remove('hidden');
+      modalTitle.textContent = '面试评价';
+    }
+    btnToggle.addEventListener('click', toEdit);
+    btnCancel.addEventListener('click', toView);
+    btnSubmit.addEventListener('click', () => { alert('评价已提交（设计态·未落库）'); toView(); });
+
+    // 推荐结论 chips
+    document.querySelectorAll('.ats-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.ats-chip').forEach(c => c.classList.remove('is-active'));
+        chip.classList.add('is-active');
+      });
+    });
+
+    // 1-5 分段评分
+    document.querySelectorAll('.ats-dim--edit').forEach(row => {
+      const seg = row.querySelector('.ats-seg');
+      const btns = seg.querySelectorAll('.ats-seg__btn');
+      const colorFor = s => s >= 4 ? 'var(--c-success)' : (s >= 3 ? 'var(--c-warning)' : 'var(--c-error)');
+      seg.addEventListener('click', e => {
+        const btn = e.target.closest('.ats-seg__btn');
+        if (!btn) return;
+        const n = parseInt(btn.textContent, 10);
+        const cur = parseInt(row.dataset.score, 10);
+        const val = cur === n ? 0 : n;
+        row.dataset.score = val;
+        btns.forEach((b, i) => {
+          const on = i < val;
+          b.classList.toggle('is-on', on);
+          b.style.background = on ? colorFor(val) : '';
+          b.style.borderColor = on ? colorFor(val) : '';
+        });
+        updateAvg();
+      });
+    });
+
+    function updateAvg() {
+      const rows = [...document.querySelectorAll('.ats-dim--edit')];
+      const scores = rows.map(r => parseInt(r.dataset.score, 10) || 0);
+      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const rounded = Math.round(avg * 10) / 10;
+      const color = avg >= 4 ? 'var(--c-success)' : (avg >= 3 ? 'var(--c-warning)' : 'var(--c-error)');
+      const C = 326.7, off = C * (1 - avg / 5);
+      const fill = document.getElementById('gaugeEdit');
+      fill.setAttribute('stroke', color);
+      fill.setAttribute('stroke-dashoffset', off.toFixed(1));
+      const num = document.getElementById('avgNum');
+      num.textContent = rounded.toFixed(1);
+      num.style.color = color;
+    }
+    updateAvg();
+  </script>
+</body>
+</html>
