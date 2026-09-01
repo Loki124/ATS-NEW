@@ -52,7 +52,7 @@ function handleDrop(e: DragEvent) {
   transition: 0.15s;
   background: var(--g1);
 }
-.upload-zone:hover, .upload-zone.dragover { border-color: var(--p); background: var(--pl); }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--brand); background: var(--brand-a12); }
 .upload-zone.dragover { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
 .up-icon { font-size: var(--fs-36); margin-bottom: var(--space-2); transition: 0.2s; }
 .upload-zone.dragover .up-icon { transform: scale(1.1); }
@@ -68,5 +68,5 @@ function handleDrop(e: DragEvent) {
   color: var(--g6);
   cursor: pointer;
 }
-.up-quick span:hover { border-color: var(--p); color: var(--p); }
+.up-quick span:hover { border-color: var(--brand); color: var(--brand); }
 </style>

@@ -27,7 +27,7 @@ function select(pos: string) {
 .apply-pos {
   margin-top: var(--space-2);
   padding: 10px var(--space-3);
-  background: var(--bl);
+  background: var(--c-info-soft);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
 }
@@ -42,6 +42,6 @@ function select(pos: string) {
   background: var(--glass-bg-card);
   transition: 0.15s;
 }
-.apply-pos-item:hover { border-color: var(--p); }
-.apply-pos-item.sel { border-color: var(--p); background: var(--pl); color: var(--p); font-weight: 500; }
+.apply-pos-item:hover { border-color: var(--brand); }
+.apply-pos-item.sel { border-color: var(--brand); background: var(--brand-a12); color: var(--brand); font-weight: 500; }
 </style>

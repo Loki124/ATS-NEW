@@ -40,8 +40,8 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
     <div v-if="store.allScoringDone" style="text-align:center;margin-top: var(--space-6);">
       <div style="font-size: var(--fs-13);color:var(--g7);margin-bottom: var(--space-3);">
-        <span style="color:var(--s);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} 人通过</span> ·
-        <span style="color:var(--d);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result && !s?.result?.passed).length }} 人未通过</span>
+        <span style="color:var(--c-success);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} 人通过</span> ·
+        <span style="color:var(--c-error-deep);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result && !s?.result?.passed).length }} 人未通过</span>
       </div>
       <button class="btn bp" data-testid="close-scoring" style="padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">关闭</button>
     </div>
@@ -63,7 +63,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   width: 40px;
   height: 40px;
   border: 3px solid var(--g3);
-  border-top-color: var(--p);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto var(--space-4);
@@ -90,12 +90,12 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   border-radius: 50%;
   flex-shrink: 0;
 }
-.sub-pi .spd.ok { background: var(--s); }
-.sub-pi .spd.fail { background: var(--d); }
+.sub-pi .spd.ok { background: var(--c-success); }
+.sub-pi .spd.fail { background: var(--c-error-deep); }
 .sub-pi .spd.wait { background: var(--g4); }
 .sub-pi .spd.spin {
   border: 2px solid var(--g4);
-  border-top-color: var(--p);
+  border-top-color: var(--brand);
   animation: spin 0.8s linear infinite;
   background: transparent;
 }
@@ -115,10 +115,10 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   overflow: hidden;
   transition: 0.15s;
 }
-.scoring-card:hover { border-color: var(--p); }
-.scoring-card.passed { border-left: 3px solid var(--s); }
-.scoring-card.failed { border-left: 3px solid var(--d); }
-.scoring-card.scoring { border-left: 3px solid var(--b); }
+.scoring-card:hover { border-color: var(--brand); }
+.scoring-card.passed { border-left: 3px solid var(--c-success); }
+.scoring-card.failed { border-left: 3px solid var(--c-error-deep); }
+.scoring-card.scoring { border-left: 3px solid var(--c-info); }
 .scoring-card.waiting { border-left: 3px solid var(--g4); }
 .sc-card-header {
   display: flex;
@@ -144,8 +144,8 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 .sc-name { font-weight: 600; font-size: var(--fs-13); }
 .sc-status { font-size: 11px; color: var(--g5); }
 .sc-score { font-size: var(--fs-20); font-weight: 700; flex-shrink: 0; }
-.sc-score.pass { color: var(--s); }
-.sc-score.fail { color: var(--d); }
+.sc-score.pass { color: var(--c-success); }
+.sc-score.fail { color: var(--c-error-deep); }
 .sc-detail {
   padding: 0 14px var(--space-3);
   border-top: 1px solid var(--g3);
@@ -164,7 +164,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   gap: var(--space-1);
   transition: 0.15s;
 }
-.bp { background: var(--p); color: #fff; }
+.bp { background: var(--brand); color: #fff; }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 @keyframes spin { to { transform: rotate(360deg); } }

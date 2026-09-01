@@ -108,11 +108,11 @@ const isMulti = () => store.resumes.length > 1
 }
 .st-pill .st-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .st-pill.clean { background: var(--sl); color: var(--c-success-deep); }
-.st-pill.clean .st-dot { background: var(--s); }
+.st-pill.clean .st-dot { background: var(--c-success); }
 .st-pill.unocc { background: var(--wl); color: var(--c-warning-deep); }
 .st-pill.unocc .st-dot { background: var(--w); }
-.st-pill.occupied { background: var(--dl); color: var(--c-error-deep); }
-.st-pill.occupied .st-dot { background: var(--d); }
+.st-pill.occupied { background: var(--c-error-bg); color: var(--c-error-deep); }
+.st-pill.occupied .st-dot { background: var(--c-error-deep); }
 .card-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .step2-card {
   display: flex;
@@ -172,8 +172,8 @@ const isMulti = () => store.resumes.length > 1
   cursor: pointer;
   transition: 0.15s;
 }
-.apply-mode span:hover { border-color: var(--p); }
-.apply-mode span.active { background: var(--p); color: var(--n-100); border-color: var(--p); }
+.apply-mode span:hover { border-color: var(--brand); }
+.apply-mode span.active { background: var(--brand); color: var(--n-100); border-color: var(--brand); }
 .dir-opts { display: flex; flex-direction: column; gap: 6px; }
 .dopt {
   padding: 10px 14px;
@@ -186,8 +186,8 @@ const isMulti = () => store.resumes.length > 1
   align-items: center;
   gap: 10px;
 }
-.dopt:hover:not(.off) { border-color: var(--p); }
-.dopt.sel { border-color: var(--p); background: var(--pl); }
+.dopt:hover:not(.off) { border-color: var(--brand); }
+.dopt.sel { border-color: var(--brand); background: var(--brand-a12); }
 .dopt.off { opacity: 0.4; cursor: not-allowed; background: var(--g1); }
 .dopt .dicon { font-size: var(--fs-20); flex-shrink: 0; }
 .dopt .dinfo { flex: 1; }
@@ -211,11 +211,11 @@ const isMulti = () => store.resumes.length > 1
   transition: 0.15s;
   background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
 }
-.pos-item:hover { border-color: var(--p); }
+.pos-item:hover { border-color: var(--brand); }
 .pos-item.sel {
-  border-color: var(--p);
-  background: var(--pl);
-  color: var(--p);
+  border-color: var(--brand);
+  background: var(--brand-a12);
+  color: var(--brand);
   font-weight: 500;
 }
 .per-dir-list { display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; }
@@ -255,9 +255,9 @@ const isMulti = () => store.resumes.length > 1
   font-size: var(--fs-10);
   margin-top: var(--space-2);
 }
-.nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
+.nbar.info { background: var(--c-info-soft); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
-.nbar.error { background: var(--dl); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
+.nbar.error { background: var(--c-error-bg); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
 .frow3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .fg { display: flex; flex-direction: column; gap: 3px; }
 .fg label { font-size: var(--fs-10); font-weight: 500; color: var(--g6); }
@@ -273,7 +273,7 @@ const isMulti = () => store.resumes.length > 1
 }
 .fg input:focus,
 .fg select:focus,
-.fg textarea:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
+.fg textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
 .submit-choices {
   margin-top: var(--space-1);
   padding: var(--space-3) 14px;
@@ -292,8 +292,8 @@ const isMulti = () => store.resumes.length > 1
   background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   font-size: 11px;
 }
-.sc-opt:hover { border-color: var(--p); }
-.sc-opt.sel { border-color: var(--p); background: var(--pl); }
+.sc-opt:hover { border-color: var(--brand); }
+.sc-opt.sel { border-color: var(--brand); background: var(--brand-a12); }
 .sclabel { font-weight: 600; font-size: 11px; }
 .schint { font-size: 9px; color: var(--g5); margin-top: 1px; }
 .mf {
@@ -317,7 +317,7 @@ const isMulti = () => store.resumes.length > 1
   gap: var(--space-1);
   transition: 0.15s;
 }
-.bp { background: var(--p); color: var(--n-100); }
+.bp { background: var(--brand); color: var(--n-100); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 .bs { background: var(--surface); color: var(--g7); border: 1px solid var(--g4); } /* v2.8 T2.8.1: var(--n-100) → var(--surface) */

@@ -35,6 +35,6 @@ function toggle(pos: string) {
   background: var(--glass-bg-card);
   transition: 0.15s;
 }
-.pos-item:hover { border-color: var(--p); }
-.pos-item.sel { border-color: var(--p); background: var(--pl); color: var(--p); font-weight: 500; }
+.pos-item:hover { border-color: var(--brand); }
+.pos-item.sel { border-color: var(--brand); background: var(--brand-a12); color: var(--brand); font-weight: 500; }
 </style>

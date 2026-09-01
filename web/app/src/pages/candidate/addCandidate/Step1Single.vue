@@ -172,12 +172,12 @@ function onSelectPos(pos: string) {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--pl);
+  background: var(--brand-a12);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: var(--fs-20);
-  color: var(--p);
+  color: var(--brand);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -209,7 +209,7 @@ function onSelectPos(pos: string) {
   gap: var(--space-1);
   transition: 0.15s;
 }
-.replace-file-btn:hover { border-color: var(--p); color: var(--p); background: var(--pl); }
+.replace-file-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-a12); }
 .replace-file-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .detail-section { display: flex; flex-direction: column; gap: var(--space-1); }
 .detail-section-title {
@@ -246,7 +246,7 @@ function onSelectPos(pos: string) {
 }
 .fg input:focus,
 .fg select:focus,
-.fg textarea:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
+.fg textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
 .fg textarea { resize: vertical; min-height: 50px; }
 .fst {
   font-size: var(--fs-10);
@@ -280,8 +280,8 @@ function onSelectPos(pos: string) {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--pl);
-  color: var(--p);
+  background: var(--brand-a12);
+  color: var(--brand);
   font-size: var(--fs-10);
   font-weight: 700;
 }
@@ -312,8 +312,8 @@ function onSelectPos(pos: string) {
 .cb .cb-icon { font-size: var(--fs-16); flex-shrink: 0; margin-top: 1px; }
 .cb.clean { background: var(--sl); color: var(--c-success-deep); border: 1px solid var(--c-success-bg); }
 .cb.unocc { background: var(--wl); color: var(--c-warning-deep); border: 1px solid var(--c-warning-bg); }
-.cb.occupied { background: var(--dl); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
-.cb.processing { background: var(--bl); color: var(--c-info-deep); border: 1px solid var(--c-info-bg); }
+.cb.occupied { background: var(--c-error-bg); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
+.cb.processing { background: var(--c-info-soft); color: var(--c-info-deep); border: 1px solid var(--c-info-bg); }
 .dup-card {
   border: 1px solid var(--c-warning-bg);
   border-radius: 8px;
@@ -348,7 +348,7 @@ function onSelectPos(pos: string) {
   width: 12px;
   height: 12px;
   border: 2px solid var(--c-info-bg);
-  border-top-color: var(--p);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -365,11 +365,11 @@ function onSelectPos(pos: string) {
   background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   color: var(--g7);
 }
-.occ-btn:hover { border-color: var(--p); background: var(--pl); }
-.occ-btn.primary { background: var(--p); color: var(--n-100); border-color: var(--p); }
+.occ-btn:hover { border-color: var(--brand); background: var(--brand-a12); }
+.occ-btn.primary { background: var(--brand); color: var(--n-100); border-color: var(--brand); }
 .occ-btn.primary:hover { background: var(--ph); }
-.occ-btn.warn { background: var(--c-warning-soft); color: var(--c-error-deep); border-color: var(--d); } /* v2.8 T2.8.1: var(--n-100) → var(--c-warning-soft) */
-.occ-btn.warn:hover { background: var(--dl); }
+.occ-btn.warn { background: var(--c-warning-soft); color: var(--c-error-deep); border-color: var(--c-error-deep); } /* v2.8 T2.8.1: var(--n-100) → var(--c-warning-soft) */
+.occ-btn.warn:hover { background: var(--c-error-bg); }
 .score-panel {
   border: 1px solid var(--g3);
   border-radius: 8px;
@@ -388,8 +388,8 @@ function onSelectPos(pos: string) {
 }
 .score-overall-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 10px; }
 .score-big { font-size: 28px; font-weight: 700; line-height: 1; }
-.score-big.pass { color: var(--s); }
-.score-big.fail { color: var(--d); }
+.score-big.pass { color: var(--c-success); }
+.score-big.fail { color: var(--c-error-deep); }
 .score-pass-tag {
   padding: 2px var(--space-2);
   border-radius: 20px;
@@ -399,7 +399,7 @@ function onSelectPos(pos: string) {
   margin-top: 2px;
 }
 .score-pass-tag.pass { background: var(--sl); color: var(--c-success-deep); }
-.score-pass-tag.fail { background: var(--dl); color: var(--c-error-deep); }
+.score-pass-tag.fail { background: var(--c-error-bg); color: var(--c-error-deep); }
 .sc-dim { display: flex; align-items: center; gap: var(--space-2); margin-top: 6px; font-size: 11px; }
 .sc-dim-name { width: 70px; color: var(--g6); flex-shrink: 0; }
 .sc-dim-bar {
@@ -428,13 +428,13 @@ function onSelectPos(pos: string) {
   font-size: var(--fs-10);
   margin-top: var(--space-2);
 }
-.nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
+.nbar.info { background: var(--c-info-soft); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
-.nbar.error { background: var(--dl); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
+.nbar.error { background: var(--c-error-bg); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
 .apply-pos {
   margin-top: var(--space-2);
   padding: 10px var(--space-3);
-  background: var(--bl);
+  background: var(--c-info-soft);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
 }
@@ -449,11 +449,11 @@ function onSelectPos(pos: string) {
   background: var(--glass-bg-card); /* v2.8 T2.8.1: var(--g1) → var(--glass-bg-card) */
   transition: 0.15s;
 }
-.apply-pos-item:hover { border-color: var(--p); }
+.apply-pos-item:hover { border-color: var(--brand); }
 .apply-pos-item.sel {
-  border-color: var(--p);
-  background: var(--pl);
-  color: var(--p);
+  border-color: var(--brand);
+  background: var(--brand-a12);
+  color: var(--brand);
   font-weight: 500;
 }
 .apply-pos-done {
@@ -473,13 +473,13 @@ function onSelectPos(pos: string) {
   margin-top: var(--space-1);
 }
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
-.pfill.bl { background: var(--b); }
+.pfill.bl { background: var(--c-info); }
 .pfill.ye { background: var(--c-warning); }
 .pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 var(--brand) -> 令牌 */
-.pfill.gr { background: var(--s); }
+.pfill.gr { background: var(--c-success); }
 .replace-banner {
   padding: 10px 14px;
-  background: linear-gradient(90deg, var(--c-info-bg) 0%, var(--c-info-soft) 100%); /* P2: var(--bl) 未定义 + #DBEAFE 硬编码 → 统一语义令牌 */
+  background: linear-gradient(90deg, var(--c-info-bg) 0%, var(--c-info-soft) 100%); /* P2: var(--c-info-soft) 未定义 + #DBEAFE 硬编码 → 统一语义令牌 */
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
   font-size: var(--fs-12);

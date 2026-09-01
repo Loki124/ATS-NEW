@@ -67,7 +67,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   font-size: var(--fs-10);
   margin-top: var(--space-2);
 }
-.nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
+.nbar.info { background: var(--c-info-soft); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .btn {
   padding: 7px 14px;
   border-radius: 8px;
@@ -80,7 +80,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   gap: var(--space-1);
   transition: 0.15s;
 }
-.bp { background: var(--p); color: var(--n-100); }
+.bp { background: var(--brand); color: var(--n-100); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 

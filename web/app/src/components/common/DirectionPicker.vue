@@ -48,8 +48,8 @@ function select(opt: Direction) {
   align-items: center;
   gap: 10px;
 }
-.dopt:hover:not(.off) { border-color: var(--p); }
-.dopt.sel { border-color: var(--p); background: var(--pl); }
+.dopt:hover:not(.off) { border-color: var(--brand); }
+.dopt.sel { border-color: var(--brand); background: var(--brand-a12); }
 .dopt.off { opacity: 0.4; cursor: not-allowed; background: var(--g1); }
 .dicon { font-size: var(--fs-20); flex-shrink: 0; }
 .dinfo { flex: 1; }
