@@ -200,11 +200,11 @@ const rewardsPagination = computed(() => ({
 const summaryCards = computed(() => {
   if (!summary.value) return []
   return [
-    { label: '有效推荐', value: summary.value.recommendValidCount, icon: PersonOutline, color: '#1890ff' },
-    { label: '已入职', value: summary.value.onboardedCount, icon: CheckmarkCircleOutline, color: '#52c41a' },
-    { label: '过试用期', value: summary.value.probationPassedCount, icon: StarOutline, color: '#722ed1' },
-    { label: '待确认奖励', value: summary.value.rewardToConfirmTotal, icon: GiftOutline, color: '#fa8c16' },
-    { label: '已确认奖励', value: summary.value.rewardConfirmedTotal, icon: TrendingUpOutline, color: '#13c2c2' },
+    { label: '有效推荐', value: summary.value.recommendValidCount, icon: PersonOutline, color: 'var(--c-info)' },
+    { label: '已入职', value: summary.value.onboardedCount, icon: CheckmarkCircleOutline, color: 'var(--c-success)' },
+    { label: '过试用期', value: summary.value.probationPassedCount, icon: StarOutline, color: 'var(--c-purple)' },
+    { label: '待确认奖励', value: summary.value.rewardToConfirmTotal, icon: GiftOutline, color: 'var(--c-warning)' },
+    { label: '已确认奖励', value: summary.value.rewardConfirmedTotal, icon: TrendingUpOutline, color: 'var(--c-cyan)' },
     { label: '已发放奖励', value: summary.value.rewardIssuedTotal, icon: CashOutline, color: 'var(--brand)' },
   ]
 })

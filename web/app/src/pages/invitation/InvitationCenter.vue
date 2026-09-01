@@ -141,10 +141,10 @@ const statusStats = computed(() => {
 
 function statusColor(s: string): string {
   const map: Record<string, string> = {
-    PENDING_CLAIM: '#fa8c16', PENDING_INVITE: '#1890ff', INVITING: '#722ed1',
-    SUCCESS: '#52c41a', FAILED: '#f5222d', INTERVENED: '#fa8c16',
+    PENDING_CLAIM: 'var(--c-warning)', PENDING_INVITE: 'var(--c-info)', INVITING: 'var(--c-purple)',
+    SUCCESS: 'var(--c-success)', FAILED: 'var(--c-error)', INTERVENED: 'var(--c-warning)',
   }
-  return map[s] || '#8c8c8c'
+  return map[s] || 'var(--n-400)'
 }
 
 function formatCountdown(timeoutAt?: string): string {

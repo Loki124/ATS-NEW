@@ -100,6 +100,6 @@ function onDragEnd() {
 }
 .draggable-item.drag-over {
   background: var(--g1);
-  box-shadow: 0 0 0 2px #1890ff inset;
+  box-shadow: 0 0 0 2px var(--c-info) inset;
 }
 </style>
