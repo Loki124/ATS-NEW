@@ -8,7 +8,7 @@ HMAC 双签公式、appId/appKey 解析、成功判定、路径解析等重复�
 - D3  字段回退：``_resolve_app_id`` / ``_resolve_app_key`` 集中处理 camel/snake 回退。
 - D4  状态映射：``to_canonical_status`` / ``from_canonical_status``（默认 identity）。
 - D5  双签公式：``sign_request``(出向 §1.4.3) / ``verify_callback_signature``(入向 §5.2)。
-- D6  路径解析：``_endpoint`` + 具名端点常量（由具体 adapter 提供默认值）。
+- D6  路径解析：具名端点常量（由具体 adapter 提供默认值）。
 - D2  成功判定：``_is_success`` 统一的业务码判定（create 路径仍按 HTTP 200/201）。
 
 具名端点（create/cancel/products/order-detail/health）的默认值由具体 adapter 提供，
@@ -194,24 +194,31 @@ class BaseBackgroundCheckSupplier(ABC):
             return False
         return resp.get('code') in success_codes
 
-    # ---------------------------------------------------------- 路径解析（D6）
-    @staticmethod
-    def _endpoint(cfg: Optional[dict], key: str, default: str) -> str:
-        """按 config 键取路径，缺失回退 default。"""
-        if not cfg:
-            return default
-        return cfg.get(key) or default
-
     # ---------------------------------------------------------- 双签公式（D5）
     def sign_request(self, params: dict) -> dict:
         """§1.4.3 出向签名 → 返回含签名的请求头。
 
         待签串 = 排序业务参数(key=value&连接) + "&timestamp=" + 毫秒时间戳；
         null / 空字符串字段不参与签名；HMAC-SHA256 十六进制小写。
+
+        复合 / 非字符串值按 JSON 紧凑编码（``separators=(',', ':')``、
+        ``ensure_ascii=False``），与请求体 JSON 逻辑一致（§1.4.3「业务参数指
+        请求体 JSON 的业务字段」），避免 list/dict 等复合值出现 repr / wire 双轨。
+        字符串原样；bool → ``true``/``false``；int/float → JSON 字面量。
         """
         ts = str(int(time.time() * 1000))
         biz = {k: v for k, v in (params or {}).items() if v is not None and v != ''}
-        raw = '&'.join(f'{k}={v}' for k, v in sorted(biz.items()))
+
+        def _encode_value(v):
+            if isinstance(v, str):
+                return v
+            if isinstance(v, bool):
+                return 'true' if v else 'false'
+            if isinstance(v, (int, float)):
+                return json.dumps(v)
+            return json.dumps(v, separators=(',', ':'), ensure_ascii=False)
+
+        raw = '&'.join(f'{k}={_encode_value(v)}' for k, v in sorted(biz.items()))
         sign_str = f'{raw}&timestamp={ts}' if raw else f'timestamp={ts}'
         sign = hmac.new(
             self._app_key.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256,

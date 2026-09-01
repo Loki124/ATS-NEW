@@ -109,7 +109,12 @@ class HmacBackgroundCheckSupplier(BaseBackgroundCheckSupplier):
         return self._post_json(self.CREATE_PATH, params, success_by_http=True)
 
     def cancel_order(self, order_number: str) -> BackgroundCheckResult:
-        """取消订单（按业务 code 判定成功）。"""
+        """取消订单。
+
+        按统一响应信封判定成功（§3.2 / §4.2）：HTTP 200 且业务 code ∈ (0, '0', None)。
+        与 ``create_order`` 不同，取消不接受 201 —— 规范仅定义 200 承载业务结果，
+        故失败态（如 409 订单已取消）必须显式暴露而非被 HTTP 码掩盖。
+        """
         params = {'number': order_number}
         return self._post_json(self.CANCEL_PATH, params, success_by_http=False)
 
