@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .views import (
     MouAgreementViewSet, MouContainerViewSet,
-    MutualExclusionGroupViewSet, AutomationRuleViewSet,
+    MutualExclusionGroupViewSet, MouRuleViewSet,
 )
 
 
@@ -34,7 +34,7 @@ router = DefaultRouter()
 router.register(r'mou', MouAgreementViewSetWithScopes, basename='mou')
 router.register(r'containers', MouContainerViewSet, basename='mou-container')
 router.register(r'mutual-exclusion-groups', MutualExclusionGroupViewSet, basename='mou-mutex')
-router.register(r'automation-rules', AutomationRuleViewSet, basename='mou-automation')
+router.register(r'automation-rules', MouRuleViewSet, basename='mou-automation')
 
 
 @api_view(['GET'])

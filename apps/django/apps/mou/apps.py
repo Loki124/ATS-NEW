@@ -6,3 +6,6 @@ class MouConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.mou'
     verbose_name = 'MOU 业务 (大客户协议)'
+
+    def ready(self):
+        from . import signals  # noqa

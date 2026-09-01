@@ -5,10 +5,10 @@ from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import MOUVIEWSetPermission  # noqa: F401
-from .models import MouAgreement, MouContainer, MutualExclusionGroup, AutomationRule
+from .models import MouAgreement, MouContainer, MutualExclusionGroup, MouRule
 from .serializers import (
     MouAgreementSerializer, MouContainerSerializer,
-    MutualExclusionGroupSerializer, AutomationRuleSerializer,
+    MutualExclusionGroupSerializer, MouRuleSerializer,
 )
 
 
@@ -104,10 +104,10 @@ class MutualExclusionGroupViewSet(viewsets.ModelViewSet):
         return self.update(request, *args, **kwargs)
 
 
-class AutomationRuleViewSet(viewsets.ModelViewSet):
+class MouRuleViewSet(viewsets.ModelViewSet):
     """自动化规则 CRUD - 仅 HRBP+ (Fix 1)"""
-    queryset = AutomationRule.objects.all().order_by('-created_at')
-    serializer_class = AutomationRuleSerializer
+    queryset = MouRule.objects.all().order_by('-created_at')
+    serializer_class = MouRuleSerializer
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
 

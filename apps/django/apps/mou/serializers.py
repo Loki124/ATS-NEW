@@ -2,7 +2,7 @@
 import re
 import uuid
 from rest_framework import serializers
-from .models import MouAgreement, MouContainer, MutualExclusionGroup, AutomationRule
+from .models import MouAgreement, MouContainer, MutualExclusionGroup, MouRule
 
 
 def _camel_to_snake(name):
@@ -157,11 +157,11 @@ class MutualExclusionGroupSerializer(_CamelCaseSerializerMixin, serializers.Mode
         return super().create(validated_data)
 
 
-class AutomationRuleSerializer(_CamelCaseSerializerMixin, serializers.ModelSerializer):
+class MouRuleSerializer(_CamelCaseSerializerMixin, serializers.ModelSerializer):
     id = serializers.CharField(required=False, allow_blank=True, read_only=True)
 
     class Meta:
-        model = AutomationRule
+        model = MouRule
         fields = ['id', 'name', 'trigger_event', 'conditions', 'actions', 'is_active', 'created_at', 'updated_at']
 
     def create(self, validated_data):

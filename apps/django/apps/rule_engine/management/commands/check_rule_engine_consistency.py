@@ -1,11 +1,14 @@
-"""检查 automation / entry_condition / time_limit 规则与统一规则引擎镜像的一致性（Phase 3）。
+"""检查 automation / entry_condition / time_limit / campus_control / mou 规则与统一规则引擎镜像的一致性（Phase 4）。
 
 用途：
 - 灰度期验证双写（RULE_ENGINE_DOUBLE_WRITE）是否把所有 legacy 规则正确镜像；
 - 发现「缺失镜像 / 字段漂移 / 应软删未软删」三类不一致。
 
-Phase 3（2026-08-31）扩展：在原有 automation 校验基础上，新增 entry_condition /
-time_limit 两个 source_app 的同类比对与 --fix 重同步（见设计文档 §3.3 / §3.4 / §6）。
+Phase 3（2026-08-31）扩展：新增 entry_condition / time_limit 两个 source_app。
+Phase 4（2026-09-01）扩展：新增 campus_control（CONSTRAINT / OFFER_SUBMITTED）与
+mou（TCA / BUSINESS_EVENT / SET_PERMISSION）两个 source_app 的同类比对与 --fix 重同步
+（见设计文档 §3.5 / §3.6 / §6）。campus/mou 用硬删 + is_active，无统一软删行，故
+deleted_qs 为空；其硬删行的统一镜像由各自 signals.post_delete 软删。
 
 用法：
     python manage.py check_rule_engine_consistency
@@ -18,19 +21,25 @@ from django.core.management.base import BaseCommand
 from apps.rule_engine.bridge import (
     AUTOMATION_LEGACY_MODEL,
     AUTOMATION_SOURCE_APP,
+    CAMPUS_CONTROL_LEGACY_MODEL,
+    CAMPUS_CONTROL_SOURCE_APP,
     ENTRY_CONDITION_LEGACY_MODEL,
     ENTRY_CONDITION_SOURCE_APP,
+    MOU_LEGACY_MODEL,
+    MOU_SOURCE_APP,
     TIME_LIMIT_LEGACY_MODEL,
     TIME_LIMIT_SOURCE_APP,
     sync_automation_rule_to_unified,
+    sync_control_rule_to_unified,
     sync_entry_condition_rule_to_unified,
+    sync_mou_rule_to_unified,
     sync_time_limit_rule_to_unified,
 )
 from apps.rule_engine.models import Rule
 
 
 class Command(BaseCommand):
-    help = '校验 automation / entry_condition / time_limit 规则与统一规则引擎镜像的一致性'
+    help = '校验 automation / entry_condition / time_limit / campus_control / mou 规则与统一规则引擎镜像的一致性'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -72,6 +81,30 @@ class Command(BaseCommand):
             deleted_qs=TimeLimitRule.objects.filter(deleted_at__isnull=False),
             diff_fn=self._diff_time_limit,
             sync_fn=sync_time_limit_rule_to_unified,
+        )
+
+        # ---- campus_control（Phase 4）----
+        # campus ControlRule 用硬删 + is_active（无统一软删语义），故 active_qs 取全部
+        # 现存行；deleted_qs 为空（不存在软删行）。硬删行的统一镜像由 signals.post_delete
+        # 软删，孤儿由本命令的 active_qs 比对自然覆盖（无对应 legacy 行即不再新增）。
+        from apps.campus_control.models import ControlRule
+        self._check_source_app(
+            CAMPUS_CONTROL_SOURCE_APP,
+            active_qs=ControlRule.objects.all(),
+            deleted_qs=ControlRule.objects.none(),
+            diff_fn=self._diff_campus_control,
+            sync_fn=sync_control_rule_to_unified,
+        )
+
+        # ---- mou（Phase 4）----
+        # MouRule 无独立软删（硬删 + is_active），同 campus 处理：active_qs 取全部现存行。
+        from apps.mou.models import MouRule
+        self._check_source_app(
+            MOU_SOURCE_APP,
+            active_qs=MouRule.objects.all(),
+            deleted_qs=MouRule.objects.none(),
+            diff_fn=self._diff_mou,
+            sync_fn=sync_mou_rule_to_unified,
         )
 
         # 输出
@@ -216,4 +249,48 @@ class Command(BaseCommand):
             drift.append(
                 f'condition_count: {unified.conditions.count()} '
                 f'!= {len(legacy.conditions or [])}')
+
+    @staticmethod
+    def _diff_campus_control(legacy, unified) -> list:
+        drift = []
+        if unified.name != (legacy.code or str(legacy.id)):
+            drift.append(f'name: {unified.name!r} != {legacy.code!r}')
+        legacy_enabled = bool(getattr(legacy, 'is_active', True))
+        if unified.enabled != legacy_enabled:
+            drift.append(f'enabled: {unified.enabled} != {legacy_enabled}')
+        if unified.trigger_type != 'OFFER_SUBMITTED':
+            drift.append(f'trigger_type: {unified.trigger_type} != OFFER_SUBMITTED')
+        ua = unified.actions.first()
+        expected_action = (
+            'BLOCK_HARD' if getattr(legacy, 'strength', '') == '硬约束' else 'BLOCK_SOFT'
+        )
+        if ua and ua.action_type != expected_action:
+            drift.append(f'action_type: {ua.action_type} != {expected_action}')
+        # config 关键字段
+        cfg = unified.config_json or {}
+        legacy_target = float(getattr(legacy, 'target', 0) or 0)
+        if cfg.get('target') != legacy_target:
+            drift.append(f'target: {cfg.get("target")} != {legacy_target}')
+        if cfg.get('strength') != getattr(legacy, 'strength', None):
+            drift.append(f'strength: {cfg.get("strength")} != {getattr(legacy, "strength", None)}')
+        return drift
+
+    @staticmethod
+    def _diff_mou(legacy, unified) -> list:
+        drift = []
+        if unified.name != getattr(legacy, 'name', ''):
+            drift.append(f'name: {unified.name!r} != {getattr(legacy, "name", "")!r}')
+        legacy_enabled = bool(getattr(legacy, 'is_active', True))
+        if unified.enabled != legacy_enabled:
+            drift.append(f'enabled: {unified.enabled} != {legacy_enabled}')
+        if unified.trigger_type != 'BUSINESS_EVENT':
+            drift.append(f'trigger_type: {unified.trigger_type} != BUSINESS_EVENT')
+        ua = unified.actions.first()
+        if ua and ua.action_type != 'SET_PERMISSION':
+            drift.append(f'action_type: {ua.action_type} != SET_PERMISSION')
+        cfg = unified.config_json or {}
+        if cfg.get('event') != getattr(legacy, 'trigger_event', None):
+            drift.append(
+                f'event: {cfg.get("event")!r} != {getattr(legacy, "trigger_event", None)!r}')
+        return drift
         return drift

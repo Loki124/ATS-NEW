@@ -230,6 +230,7 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
 
         entry = {
             'code': rule.code,
+            'rule_id': rule.id,
             'dimension': dim_name,
             'indicator': ind_name,
             'scope': _scope_text(rule),

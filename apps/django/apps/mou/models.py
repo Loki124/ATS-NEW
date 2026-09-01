@@ -63,8 +63,14 @@ class MutualExclusionGroup(models.Model):
         verbose_name = '互斥组'
 
 
-class AutomationRule(models.Model):
-    """MOU 自动化规则 (自动审批/自动推进)"""
+class MouRule(models.Model):
+    """MOU 自动化规则 (自动审批/自动推进)。
+
+    Phase 4（2026-09-01）重命名自 ``AutomationRule``，消除与 ``automation.AutomationRule``
+    的命名冲突（设计文档 §1.2 / §3.6）。仅改 Python 类名，``db_table`` 保持
+    ``mou_automation_rules`` 不变，历史数据零迁移抖动。
+    """
+
     id = models.CharField(max_length=32, primary_key=True)
     name = models.CharField(max_length=100)
     trigger_event = models.CharField(max_length=50, help_text='如 stage-entered/candidate-added')

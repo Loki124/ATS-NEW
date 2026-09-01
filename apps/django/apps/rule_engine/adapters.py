@@ -10,7 +10,7 @@
   - automation / time_limit 另有 enabled 布尔
   - entry_condition 用 status(ENABLED/DISABLED)
 - campus_control（ControlRule）：硬删 + is_active 布尔
-- mou（AutomationRule）：无软删 + is_active 布尔
+- mou（MouRule）：无软删 + is_active 布尔
 - field_acl（FieldACL）：无软删/启用字段 → 全量呈现（enabled=True）
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ from apps.automation.models import AutomationRule
 from apps.campus_control.models import ControlRule
 from apps.entry_condition.models import EntryConditionRule
 from apps.field_acl.models import FieldACL
-from apps.mou.models import AutomationRule as MouAutomationRule
+from apps.mou.models import MouRule
 from apps.time_limit.models import TimeLimitRule
 
 from .models import (
@@ -289,12 +289,12 @@ class ConstraintAdapter:
 
 
 class MouAdapter:
-    """mou.AutomationRule → category=TCA, trigger=BUSINESS_EVENT。
+    """mou.MouRule → category=TCA, trigger=BUSINESS_EVENT。
 
     原始 trigger_event 存 config_json.event；conditions/actions 为 JSON dict 时整体进 config_json。
     """
 
-    legacy_model = 'apps.mou.AutomationRule'
+    legacy_model = 'apps.mou.MouRule'
 
     def to_unified(self, legacy) -> UnifiedRuleDTO:
         enabled = _as_bool(getattr(legacy, 'is_active', True))
@@ -400,7 +400,7 @@ def aggregate_rules(filters: Optional[Dict[str, Any]] = None) -> List[UnifiedRul
         dtos.append(TimeLimitAdapter().to_unified(legacy))
     for legacy in ControlRule.objects.filter(is_active=True):
         dtos.append(ConstraintAdapter().to_unified(legacy))
-    for legacy in MouAutomationRule.objects.filter(is_active=True):
+    for legacy in MouRule.objects.filter(is_active=True):
         dtos.append(MouAdapter().to_unified(legacy))
     for legacy in FieldACL.objects.all():
         dtos.append(PolicyAdapter().to_unified(legacy))

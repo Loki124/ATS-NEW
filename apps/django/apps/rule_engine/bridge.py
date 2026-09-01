@@ -43,9 +43,23 @@ ENTRY_CONDITION_LEGACY_MODEL = 'entry_condition.EntryConditionRule'
 TIME_LIMIT_SOURCE_APP = 'time_limit'
 TIME_LIMIT_LEGACY_MODEL = 'time_limit.TimeLimitRule'
 
+# campus_control / mou 在统一表中的来源标记（Phase 4，2026-09-01）
+CAMPUS_CONTROL_SOURCE_APP = 'campus_control'
+CAMPUS_CONTROL_LEGACY_MODEL = 'campus_control.ControlRule'
+MOU_SOURCE_APP = 'mou'
+MOU_LEGACY_MODEL = 'mou.MouRule'
+
 
 def _to_bool(value: Any) -> bool:
     return bool(value)
+
+
+def _norm_decimal(value: Any) -> Any:
+    """Decimal → float，便于写入 JSONField（与 adapters.ConstraintAdapter 一致）。"""
+    import decimal
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+    return value
 
 
 def _build_action_params(rule: Any) -> Dict[str, Any]:
@@ -386,3 +400,218 @@ def sync_time_limit_rule_to_unified(rule: Any) -> Rule:
         unified.soft_delete()
 
     return unified
+
+
+# ===========================================================================
+# Phase 4（2026-09-01）：campus_control / mou 双写镜像
+# 设计依据：docs/rule-engine/UNIFIED_RULE_ENGINE_DESIGN.md §3.5 / §3.6 / §6 Phase 4
+# - campus_control：CONSTRAINT 家族，保留领域模型 + ConstraintAdapter；统一侧以
+#   Rule(category=CONSTRAINT, trigger=OFFER_SUBMITTED) 呈现；校验仍委派 campus calc，
+#   占比数学不塞入 TCA 表（D3）。action 按 strength 映射 BLOCK_HARD / BLOCK_SOFT。
+# - mou：原生 TCA 家族，trigger=BUSINESS_EVENT，action=SET_PERMISSION；conditions/actions
+#   为 JSON dict 时整体进 config_json（与 MouAdapter 读路径一致）。
+# 幂等 / best-effort 语义与前述完全一致。campus_control 用硬删 + is_active，无软删；
+# 软删传播由 signals.post_delete 统一处理（见各 app signals.py）。
+# ===========================================================================
+
+def sync_control_rule_to_unified(rule: Any) -> Rule:
+    """幂等地把一条 ControlRule 镜像成统一 Rule（CONSTRAINT 家族）。
+
+    Args:
+        rule: campus_control.models.ControlRule 实例（硬删 + is_active；deleted_at 恒空）。
+
+    Returns:
+        对应的统一 Rule 实例。
+
+    映射要点：
+    - category = CONSTRAINT；trigger_type = OFFER_SUBMITTED。
+    - scope_json 标准结构：bu / position / level（与 ConstraintAdapter 一致）。
+    - 无结构化条件（占比数学在 campus calc），故 conditions 留空；action 1 条按
+      strength 映射 BLOCK_HARD（硬约束）/ BLOCK_SOFT（软约束），params_json 携带
+      strength + target 等冗余字段供执行器/日志使用。
+    - enabled 反映 is_active；status 同步。软删传播在 post_delete 信号中处理。
+    """
+    is_enabled = _to_bool(getattr(rule, 'is_active', True))
+    strength = getattr(rule, 'strength', '')
+    action_type = (
+        UnifiedActionType.BLOCK_HARD if strength == '硬约束' else UnifiedActionType.BLOCK_SOFT
+    )
+    dimension = getattr(rule, 'dimension', None)
+    indicator = getattr(rule, 'indicator', None)
+
+    unified, _created = Rule.objects.update_or_create(
+        source_app=CAMPUS_CONTROL_SOURCE_APP,
+        legacy_id=rule.id,
+        defaults=dict(
+            name=rule.code or str(rule.id),
+            category=RuleCategory.CONSTRAINT,
+            legacy_model=CAMPUS_CONTROL_LEGACY_MODEL,
+            trigger_type=UnifiedTriggerType.OFFER_SUBMITTED,
+            trigger_timing=None,
+            trigger_delay_hours=None,
+            scope_json={
+                'bu': getattr(rule, 'bu', '') or None,
+                'position': getattr(rule, 'position', '') or None,
+                'level': getattr(rule, 'level', '') or None,
+            },
+            priority=Priority.P1,
+            priority_rank=0,
+            status=RuleStatus.ENABLED if is_enabled else RuleStatus.DISABLED,
+            enabled=is_enabled,
+            failure_rate_threshold=0.5,
+            condition_expression='',
+            condition_logic=ConditionLogic.ALL,
+            config_json={
+                'target': _norm_decimal(getattr(rule, 'target', None)),
+                'strength': strength,
+                'dimension': getattr(dimension, 'name', None) if dimension else None,
+                'indicator': getattr(indicator, 'name', None) if indicator else None,
+                'year': getattr(rule, 'year', None),
+                'annual_target': getattr(rule, 'annual_target', 0),
+            },
+            created_by=rule.created_by,
+            updated_by=rule.updated_by,
+        ),
+    )
+
+    # 条件项：CONSTRAINT 无结构化条件，留空（占比数学在 campus calc）
+    unified.conditions.all().delete()
+
+    # 动作项：1 条 BLOCK_HARD / BLOCK_SOFT
+    unified.actions.all().delete()
+    Action.objects.create(
+        rule=unified,
+        seq=1,
+        action_type=action_type,
+        params_json={
+            'strength': strength,
+            'target': _norm_decimal(getattr(rule, 'target', None)),
+            'annual_target': getattr(rule, 'annual_target', 0),
+        },
+        enabled=True,
+    )
+
+    return unified
+
+
+def sync_mou_rule_to_unified(rule: Any) -> Rule:
+    """幂等地把一条 MouRule 镜像成统一 Rule（TCA 家族，BUSINESS_EVENT）。
+
+    Args:
+        rule: mou.models.MouRule 实例（无软删 + is_active；硬删由 signals 处理）。
+
+    Returns:
+        对应的统一 Rule 实例。
+
+    映射要点：
+    - category = TCA；trigger_type = BUSINESS_EVENT；原始 trigger_event 进 config_json.event。
+    - conditions 若为 list[dict] → 重建 Condition 列表（seq=idx+1，CUSTOM）；否则留空。
+    - 动作固定 1 条 SET_PERMISSION，params_json 搬运原始 actions（JSON dict/list），
+      供 MouActionExecutor 自行解析（与 MouAdapter 读路径一致）。
+    """
+    is_enabled = _to_bool(getattr(rule, 'is_active', True))
+    conditions = getattr(rule, 'conditions', {}) or {}
+    actions = getattr(rule, 'actions', {}) or {}
+
+    unified, _created = Rule.objects.update_or_create(
+        source_app=MOU_SOURCE_APP,
+        legacy_id=rule.id,
+        defaults=dict(
+            name=getattr(rule, 'name', ''),
+            category=RuleCategory.TCA,
+            legacy_model=MOU_LEGACY_MODEL,
+            trigger_type=UnifiedTriggerType.BUSINESS_EVENT,
+            trigger_timing=None,
+            trigger_delay_hours=None,
+            scope_json={},
+            priority=Priority.P1,
+            priority_rank=0,
+            status=RuleStatus.ENABLED if is_enabled else RuleStatus.DISABLED,
+            enabled=is_enabled,
+            failure_rate_threshold=0.5,
+            condition_expression='',
+            condition_logic=ConditionLogic.ALL,
+            config_json={
+                'event': getattr(rule, 'trigger_event', None),
+                'conditions': conditions if not isinstance(conditions, list) else None,
+                'actions': actions if not isinstance(actions, list) else None,
+            },
+            created_by=None,
+            updated_by=None,
+        ),
+    )
+
+    # 条件项：仅当 conditions 为 list 时重建（seq=idx+1）
+    unified.conditions.all().delete()
+    if isinstance(conditions, list):
+        for idx, cond in enumerate(conditions):
+            if isinstance(cond, dict):
+                Condition.objects.create(
+                    rule=unified,
+                    seq=idx + 1,
+                    condition_type=ConditionType.CUSTOM,
+                    field=cond.get('field', ''),
+                    operator=cond.get('operator', 'EQ'),
+                    value=cond.get('value'),
+                )
+
+    # 动作项：固定 1 条 SET_PERMISSION（承载原始 actions 供执行器解析）
+    unified.actions.all().delete()
+    Action.objects.create(
+        rule=unified,
+        seq=1,
+        action_type=UnifiedActionType.SET_PERMISSION,
+        params_json={'actions': actions},
+        enabled=True,
+    )
+
+    return unified
+
+
+def mirror_campus_offer_validation(
+    candidate_id: Optional[str],
+    blocks: Optional[list] = None,
+    warnings: Optional[list] = None,
+) -> int:
+    """best-effort 把一次 campus Offer 校验事件镜像进统一 RuleExecutionLog。
+
+    每条命中（block / warning）记一行，FK 反查对应统一 Rule（campus_control 镜像）。
+    纯追加可观测日志，异常吞掉，绝不影响 Offer 钩子主流程。返回写入条数。
+
+    Args:
+        candidate_id: 候选人定位。
+        blocks / warnings: campus validate_offer_against_rules 返回的命中明细列表，
+            每项含 'rule_id'（ControlRule.id）/ 'strength' / 'code' 等。
+    """
+    written = 0
+    for entry in (blocks or []) + (warnings or []):
+        try:
+            rule_id = entry.get('rule_id')
+            unified_rule = (
+                Rule.objects.filter(
+                    source_app=CAMPUS_CONTROL_SOURCE_APP, legacy_id=rule_id,
+                ).first()
+                if rule_id else None
+            )
+            is_block = (entry.get('strength') == '硬约束')
+            RuleExecutionLog.objects.create(
+                rule=unified_rule,
+                rule_category=RuleCategory.CONSTRAINT,
+                trigger_type=UnifiedTriggerType.OFFER_SUBMITTED,
+                candidate_id=candidate_id,
+                evaluate_result=(
+                    EvaluateResult.BLOCKED if is_block else EvaluateResult.REJECTED
+                ),
+                action_taken=(
+                    f"{'blocked' if is_block else 'warned'}: "
+                    f"{entry.get('code', '')} {entry.get('dimension', '')}·{entry.get('indicator', '')}"
+                )[:200],
+                action_type=(
+                    UnifiedActionType.BLOCK_HARD if is_block else UnifiedActionType.BLOCK_SOFT
+                ),
+                skip_reason=None,
+            )
+            written += 1
+        except Exception:  # noqa: BLE001 — 镜像失败不影响现网
+            continue
+    return written
