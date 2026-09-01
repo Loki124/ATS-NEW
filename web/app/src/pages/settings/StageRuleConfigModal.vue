@@ -16,222 +16,241 @@
     preset="card"
     :title="undefined"
     style="width: 760px; max-width: 95vw; max-height: 90vh"
-    :mask-closable="true"
-    :on-mask-click="() => emit('update:show', false)"
+    :mask-closable="!saving"
+    :on-mask-click="onRequestClose"
     @update:show="(v) => emit('update:show', v)"
+    @after-leave="resetTransient"
   >
     <n-spin :show="loading">
-      <!-- HERO HEADER -->
-      <div class="hero">
-        <div class="hero__icon">
-          <n-icon :component="SettingsOutline" size="22" />
-        </div>
-        <div class="hero__main">
-          <div class="hero__title">阶段规则配置</div>
-          <div class="hero__subtitle">
-            为阶段「{{ stage?.name || '未命名' }}」配置规则
+      <div class="rule-config-body">
+        <!-- HERO HEADER -->
+        <div class="hero">
+          <div class="hero__icon">
+            <n-icon :component="SettingsOutline" size="22" />
           </div>
-        </div>
-        <button
-          class="hero__close"
-          type="button"
-          aria-label="关闭"
-          @click="emit('update:show', false)"
-        >
-          <n-icon :component="CloseOutline" size="20" />
-        </button>
-      </div>
-
-      <div class="rule-config-flat">
-        <!-- Section 1: 自动处理规则 (总开关) -->
-        <div class="section-card">
-          <div class="section-card__title">自动处理规则</div>
-          <div class="section-card__hint">
-            流程自动化的总开关 (启用 = 满足下阶段进入条件时自动流转到下个阶段)
+          <div class="hero__main">
+            <div class="hero__title">阶段规则配置</div>
+            <div class="hero__subtitle">
+              为阶段「{{ stage?.name || '未命名' }}」配置规则
+            </div>
           </div>
-          <div class="field-row">
-            <span class="field-label">启用自动处理</span>
-            <span class="field-value">
-              <n-checkbox v-model:checked="form.autoAdvanceEnabled">满足下阶段进入条件时, 自动流转到下阶段</n-checkbox>
-            </span>
-          </div>
-          <div class="field-row">
-            <span class="field-label">兜选机制 (N+2 推荐)</span>
-            <span class="field-value">
-              <n-checkbox v-model:checked="form.grabModeEnabled">N+2 推荐兜选</n-checkbox>
-            </span>
-          </div>
-          <div class="field-row field-row--last">
-            <span class="field-label">引用前序双 A 的一致意见</span>
-            <span class="field-value">
-              <n-checkbox v-model:checked="form.inheritPriorConsensus">继承前序流程双 A 的一致意见</n-checkbox>
-            </span>
-          </div>
+          <button
+            class="hero__close"
+            type="button"
+            aria-label="关闭"
+            :disabled="saving"
+            @click="onRequestClose"
+          >
+            <n-icon :component="CloseOutline" size="20" />
+          </button>
         </div>
 
-        <!-- Section 2: 自动化流转条件 -->
-        <div class="section-card">
-          <div class="section-card__title">自动化流转条件</div>
-          <div class="section-card__hint">当前阶段的自动化填充规则</div>
-          <div class="field-row">
-            <span class="field-label">自动化流转条件</span>
-            <span class="field-value">
-              <n-select v-model:value="form.autoAdvanceType" :options="autoAdvanceOptions" size="small" />
-            </span>
-          </div>
-          <div v-if="form.autoAdvanceType !== 'NONE'" class="field-row">
-            <span class="field-label">执行时机</span>
-            <span class="field-value">
-              <n-radio-group v-model:value="form.autoAdvanceTiming">
-                <n-space>
-                  <n-radio value="NONE">不执行</n-radio>
-                  <n-radio value="IMMEDIATE">立即执行</n-radio>
-                  <n-radio value="DELAYED">延迟</n-radio>
-                </n-space>
-              </n-radio-group>
-            </span>
-          </div>
-          <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="field-row field-row--last">
-            <span class="field-label">延迟天数 (1-15 工作日)</span>
-            <span class="field-value">
-              <n-input-number v-model:value="form.autoAdvanceDays" :min="1" :max="15" size="small" />
-            </span>
-          </div>
-        </div>
+        <!-- 分区锚点导航：配置项较多时快速定位（sticky 吸顶，随内容区滚动） -->
+        <nav class="section-nav" aria-label="配置项分区">
+          <button
+            v-for="s in visibleSections"
+            :key="s.key"
+            type="button"
+            class="section-nav__item"
+            :class="{ 'section-nav__item--active': activeSection === s.key }"
+            @click="scrollToSection(s.key)"
+          >
+            {{ s.label }}
+          </button>
+        </nav>
 
-        <!-- Section 3: 默认处理人 -->
-        <div class="section-card">
-          <div class="section-card__title">默认处理人</div>
-          <div class="section-card__hint">进入本阶段时自动为默认处理人添加待办任务</div>
-          <n-data-table
-            :columns="handlerColumns"
-            :data="form.handlerRules"
-            :row-key="(r: any) => r._key"
-            size="small"
-            :pagination="false"
-            class="rule-table"
-          />
-          <div class="section-card__actions">
-            <n-button size="small" type="primary" dashed @click="addHandlerRule">
-              + 添加处理人规则
-            </n-button>
+        <div class="rule-config-flat">
+          <!-- Section 1: 自动处理规则 (总开关) -->
+          <div class="section-card" data-section="auto">
+            <div class="section-card__title">自动处理规则</div>
+            <div class="section-card__hint">
+              流程自动化的总开关 (启用 = 满足下阶段进入条件时自动流转到下个阶段)
+            </div>
+            <div class="field-row">
+              <span class="field-label">启用自动处理</span>
+              <span class="field-value">
+                <n-checkbox v-model:checked="form.autoAdvanceEnabled">满足下阶段进入条件时, 自动流转到下阶段</n-checkbox>
+              </span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">兜选机制 (N+2 推荐)</span>
+              <span class="field-value">
+                <n-checkbox v-model:checked="form.grabModeEnabled">N+2 推荐兜选</n-checkbox>
+              </span>
+            </div>
+            <div class="field-row field-row--last">
+              <span class="field-label">引用前序双 A 的一致意见</span>
+              <span class="field-value">
+                <n-checkbox v-model:checked="form.inheritPriorConsensus">继承前序流程双 A 的一致意见</n-checkbox>
+              </span>
+            </div>
           </div>
-        </div>
 
-        <!-- Section 4: 阶段限时 -->
-        <div class="section-card">
-          <div class="section-card__title">阶段限时</div>
-          <div class="section-card__hint">
-            限制阶段总时长, 超时自动归档候选人到公共人库, 选择对全部候选人生效时, 会在原有剩余时间上增加锁定时间
+          <!-- Section 2: 自动化流转条件 -->
+          <div class="section-card" data-section="flow">
+            <div class="section-card__title">自动化流转条件</div>
+            <div class="section-card__hint">当前阶段的自动化填充规则</div>
+            <div class="field-row">
+              <span class="field-label">自动化流转条件</span>
+              <span class="field-value">
+                <n-select v-model:value="form.autoAdvanceType" :options="autoAdvanceOptions" size="small" />
+              </span>
+            </div>
+            <div v-if="form.autoAdvanceType !== 'NONE'" class="field-row">
+              <span class="field-label">执行时机</span>
+              <span class="field-value">
+                <n-radio-group v-model:value="form.autoAdvanceTiming">
+                  <n-space>
+                    <n-radio value="NONE">不执行</n-radio>
+                    <n-radio value="IMMEDIATE">立即执行</n-radio>
+                    <n-radio value="DELAYED">延迟</n-radio>
+                  </n-space>
+                </n-radio-group>
+              </span>
+            </div>
+            <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="field-row field-row--last">
+              <span class="field-label">延迟天数 (1-15 工作日)</span>
+              <span class="field-value">
+                <n-input-number v-model:value="form.autoAdvanceDays" :min="1" :max="15" size="small" />
+              </span>
+            </div>
           </div>
-          <div class="field-row">
-            <span class="field-label">是否开启</span>
-            <span class="field-value">
-              <n-switch v-model:value="form.timeLimitEnabled" />
-            </span>
-          </div>
-          <template v-if="form.timeLimitEnabled">
+
+          <!-- Section 3: 默认处理人 -->
+          <div class="section-card" data-section="handler">
+            <div class="section-card__title">默认处理人</div>
+            <div class="section-card__hint">进入本阶段时自动为默认处理人添加待办任务</div>
             <n-data-table
-              :columns="timeLimitColumns"
-              :data="form.timeLimitRules"
+              :columns="handlerColumns"
+              :data="form.handlerRules"
               :row-key="(r: any) => r._key"
               size="small"
               :pagination="false"
               class="rule-table"
             />
             <div class="section-card__actions">
-              <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
-                + 添加规则
+              <n-button size="small" type="primary" dashed @click="addHandlerRule">
+                + 添加处理人规则
               </n-button>
-              <n-divider vertical />
-              <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
-              <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
-              <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
-              <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
             </div>
-          </template>
-        </div>
+          </div>
 
-        <!-- Section 5: 面试轮次 + 形式 (仅 INTERVIEW/INVITATION 阶段) -->
-        <div v-if="isInterviewType" class="section-card">
-          <div class="section-card__title">面试轮次 + 形式</div>
-          <div class="field-row">
-            <span class="field-label">面试轮次 (可多选)</span>
-            <span class="field-value">
-              <n-checkbox-group v-model:value="form.interviewRounds">
-                <n-space>
-                  <n-checkbox
-                    v-for="opt in interviewRoundOptions"
-                    :key="opt.value"
-                    :value="opt.value"
-                  >{{ opt.label }}</n-checkbox>
-                </n-space>
-              </n-checkbox-group>
-            </span>
-          </div>
-          <div class="field-row field-row--last">
-            <span class="field-label">面试形式 (可多选)</span>
-            <span class="field-value">
-              <n-checkbox-group v-model:value="form.interviewForms">
-                <n-space>
-                  <n-checkbox
-                    v-for="opt in interviewFormOptions"
-                    :key="opt.value"
-                    :value="opt.value"
-                  >{{ opt.label }}</n-checkbox>
-                </n-space>
-              </n-checkbox-group>
-            </span>
-          </div>
-        </div>
-
-        <!-- Section 6: 进入条件 -->
-        <div class="section-card">
-          <div class="section-card__title">进入条件</div>
-          <div class="section-card__hint">
-            候选人进入此阶段需满足的判定条件 (Stage Rule 的 EntryCondition) — 对配置后进入阶段的简历立即生效
-          </div>
-          <div class="field-row">
-            <span class="field-label">判定方式</span>
-            <span class="field-value">
-              <n-radio-group v-model:value="condForm.matchType">
-                <n-space>
-                  <n-radio value="ALL">全部满足 (AND)</n-radio>
-                  <n-radio value="ANY">任意满足 (OR)</n-radio>
-                </n-space>
-              </n-radio-group>
-            </span>
-          </div>
-          <div
-            class="field-row"
-            :class="exprValidation && !exprValidation.valid ? 'field-row--error' : ''"
-          >
-            <span class="field-label">条件表达式 (可选)</span>
-            <span class="field-value">
-              <n-input
-                v-model:value="condForm.expression"
-                placeholder="如: (1 AND 2) OR (3 AND 4)"
-                :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+          <!-- Section 4: 阶段限时 -->
+          <div class="section-card" data-section="timelimit">
+            <div class="section-card__title">阶段限时</div>
+            <div class="section-card__hint">
+              限制阶段总时长, 超时自动归档候选人到公共人库, 选择对全部候选人生效时, 会在原有剩余时间上增加锁定时间
+            </div>
+            <div class="field-row">
+              <span class="field-label">是否开启</span>
+              <span class="field-value">
+                <n-switch v-model:value="form.timeLimitEnabled" />
+              </span>
+            </div>
+            <template v-if="form.timeLimitEnabled">
+              <n-data-table
+                :columns="timeLimitColumns"
+                :data="form.timeLimitRules"
+                :row-key="(r: any) => r._key"
                 size="small"
-                @blur="onExprBlur"
+                :pagination="false"
+                class="rule-table"
               />
-              <div v-if="exprValidation && !exprValidation.valid" class="field-error-hint">
-                {{ exprValidation.error }}
+              <div class="section-card__actions">
+                <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
+                  + 添加规则
+                </n-button>
+                <n-divider vertical />
+                <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
+                <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
+                <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
+                <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
               </div>
-              <div v-else class="field-hint">留空则用上面条件树自动生成</div>
-            </span>
+            </template>
           </div>
-          <div class="field-row field-row--last">
-            <span class="field-label field-label--required">未满足条件时提示内容</span>
-            <span class="field-value">
-              <n-input
-                v-model:value="condForm.prompt"
-                type="textarea"
-                :rows="3"
-                placeholder="如: 请先完成 HRBP 评估"
-                size="small"
-              />
-            </span>
+
+          <!-- Section 5: 面试轮次 + 形式 (仅 INTERVIEW/INVITATION 阶段) -->
+          <div v-if="isInterviewType" class="section-card" data-section="interview">
+            <div class="section-card__title">面试轮次 + 形式</div>
+            <div class="field-row">
+              <span class="field-label">面试轮次 (可多选)</span>
+              <span class="field-value">
+                <n-checkbox-group v-model:value="form.interviewRounds">
+                  <n-space>
+                    <n-checkbox
+                      v-for="opt in interviewRoundOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >{{ opt.label }}</n-checkbox>
+                  </n-space>
+                </n-checkbox-group>
+              </span>
+            </div>
+            <div class="field-row field-row--last">
+              <span class="field-label">面试形式 (可多选)</span>
+              <span class="field-value">
+                <n-checkbox-group v-model:value="form.interviewForms">
+                  <n-space>
+                    <n-checkbox
+                      v-for="opt in interviewFormOptions"
+                      :key="opt.value"
+                      :value="opt.value"
+                    >{{ opt.label }}</n-checkbox>
+                  </n-space>
+                </n-checkbox-group>
+              </span>
+            </div>
+          </div>
+
+          <!-- Section 6: 进入条件 -->
+          <div class="section-card" data-section="condition">
+            <div class="section-card__title">进入条件</div>
+            <div class="section-card__hint">
+              候选人进入此阶段需满足的判定条件 (Stage Rule 的 EntryCondition) — 对配置后进入阶段的简历立即生效
+            </div>
+            <div class="field-row">
+              <span class="field-label">判定方式</span>
+              <span class="field-value">
+                <n-radio-group v-model:value="condForm.matchType">
+                  <n-space>
+                    <n-radio value="ALL">全部满足 (AND)</n-radio>
+                    <n-radio value="ANY">任意满足 (OR)</n-radio>
+                  </n-space>
+                </n-radio-group>
+              </span>
+            </div>
+            <div
+              class="field-row"
+              :class="exprValidation && !exprValidation.valid ? 'field-row--error' : ''"
+            >
+              <span class="field-label">条件表达式 (可选)</span>
+              <span class="field-value">
+                <n-input
+                  v-model:value="condForm.expression"
+                  placeholder="如: (1 AND 2) OR (3 AND 4)"
+                  :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+                  size="small"
+                  @blur="onExprBlur"
+                />
+                <div v-if="exprValidation && !exprValidation.valid" class="field-error-hint">
+                  {{ exprValidation.error }}
+                </div>
+                <div v-else class="field-hint">留空则用上面条件树自动生成</div>
+              </span>
+            </div>
+            <div class="field-row field-row--last">
+              <span class="field-label">未满足条件时提示内容</span>
+              <span class="field-value">
+                <n-input
+                  v-model:value="condForm.prompt"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="如: 请先完成 HRBP 评估"
+                  size="small"
+                />
+                <div class="field-hint">选填。填写后会在候选人未满足进入条件时展示该提示。</div>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -239,8 +258,16 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button @click="emit('update:show', false)">取消</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSubmit">保存</n-button>
+        <n-button :disabled="saving" @click="onRequestClose">取消</n-button>
+        <n-button
+          type="primary"
+          class="gradient-btn"
+          :loading="saving"
+          :disabled="saving || hasExprError"
+          @click="handleSubmit"
+        >
+          保存
+        </n-button>
       </div>
     </template>
   </n-modal>
@@ -283,11 +310,42 @@ const emit = defineEmits<{
 const message = useMessage()
 const loading = ref(false)
 const saving = ref(false)
-const activeTab = ref<'auto' | 'handler' | 'timelimit' | 'interview' | 'condition'>(props.initialTab || 'auto')
+
+/**
+ * 分区锚点导航（与模板 data-section 一一对应）
+ * 2026-08-31: 原 activeTab 只在 handleSubmit 里做分支判定，但本弹窗是**扁平表单**，
+ *   没有 tab 切换 UI → activeTab 恒为 'auto' → 进入条件分支永不触发（见 handleSubmit 注释）。
+ *   这里把 initialTab 重新解释为「初始定位到哪个分区」，prop 契约不变。
+ */
+const SECTIONS = [
+  { key: 'auto', label: '自动处理' },
+  { key: 'flow', label: '流转条件' },
+  { key: 'handler', label: '默认处理人' },
+  { key: 'timelimit', label: '阶段限时' },
+  { key: 'interview', label: '面试配置' },
+  { key: 'condition', label: '进入条件' },
+] as const
+type SectionKey = typeof SECTIONS[number]['key']
+const activeSection = ref<SectionKey>((props.initialTab as SectionKey) || 'auto')
 
 const isInterviewType = computed(() => {
   return props.stage?.stageType === 'INTERVIEW' || props.stage?.stageType === 'INVITATION'
 })
+
+const visibleSections = computed(() =>
+  SECTIONS.filter((s) => s.key !== 'interview' || isInterviewType.value),
+)
+
+/** 弹窗内容被 teleport 到 <body>，scoped 拿不到，只能按 modal class 定位唯一滚动容器 */
+function getScrollHost(): HTMLElement | null {
+  return document.querySelector('.stage-rule-config-modal .n-card-content')
+}
+
+function scrollToSection(key: SectionKey) {
+  activeSection.value = key
+  const el = getScrollHost()?.querySelector<HTMLElement>(`[data-section="${key}"]`)
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 // 表单 state
 const form = reactive({
@@ -348,6 +406,22 @@ function onExprBlur() {
   if (!r.valid) {
     message.warning(`表达式校验失败: ${r.error}`)
   }
+}
+
+/** 表达式非法 → 禁用提交，避免把错误配置写库（此前只在 blur 提示，提交路径无校验） */
+const hasExprError = computed(() => !!exprValidation.value && !exprValidation.value.valid)
+
+/** 统一关闭入口：保存中禁止关闭，避免提交到一半被关掉留下半截状态 */
+function onRequestClose() {
+  if (saving.value) return
+  emit('update:show', false)
+}
+
+/** 关闭动画结束后复位瞬时状态；DOM 此时可能已被移除，取不到容器是正常情况 */
+function resetTransient() {
+  saving.value = false
+  activeSection.value = 'auto'
+  getScrollHost()?.scrollTo({ top: 0 })
 }
 
 const autoAdvanceOptions = [
@@ -671,13 +745,13 @@ async function handleSubmit() {
     message.error('缺少 linkId')
     return
   }
-  if (activeTab.value === 'condition' && !condForm.prompt.trim()) {
-    message.error('未满足条件时提示内容必填')
+  // 表达式非法 → 阻断提交（此前只在 blur 提示，提交路径无校验，错误配置会被写库）
+  if (hasExprError.value) {
+    message.error(`条件表达式校验失败: ${exprValidation.value?.error}`)
     return
   }
   saving.value = true
   try {
-    if (activeTab.value === 'auto' || activeTab.value === 'handler' || activeTab.value === 'timelimit' || activeTab.value === 'interview') {
       // 聚合: 默认处理人多行 → flat fields
       const handlerFields: string[] = []
       const handlerUserIds: string[] = []
@@ -731,7 +805,14 @@ async function handleSubmit() {
         interviewFormat: form.interviewForms.join(','),
       })
     }
-    if (activeTab.value === 'condition') {
+    // 2026-08-31 修复：原逻辑用 activeTab === 'condition' 分支判定，但本弹窗是扁平表单、没有
+    //   tab 切换 UI → activeTab 恒为 'auto' → 进入条件**从未被保存**，用户配置的进入条件全丢。
+    //   改为「只要用户实际填写了任一字段就提交」，全空则不创建空记录（避免脏数据）。
+    const hasConditionInput =
+      condForm.prompt.trim() !== '' ||
+      condForm.expression.trim() !== '' ||
+      (condForm.items?.length || 0) > 0
+    if (hasConditionInput) {
       await upsertEntryCondition(props.linkId, {
         matchType: condForm.matchType,
         conditionType: condForm.conditionType,
@@ -752,8 +833,16 @@ async function handleSubmit() {
 
 <style scoped>
 /* ==================== Modal 容器 ==================== */
+/* 内容外层：n-spin 的加载态会临时清空表单，给最小高度避免面板塌成一条缝 */
+.rule-config-body {
+  min-height: 280px;
+}
+/* 统一间距：用 gap 替代各 section 的 margin-bottom，行距更一致；padding 交给 scroll 容器 */
 .rule-config-flat {
-  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0;
 }
 
 /* ==================== HERO HEADER ==================== */
@@ -820,7 +909,8 @@ async function handleSubmit() {
   border: 1px solid var(--g1);
   border-radius: 8px;
   padding: var(--space-4) 20px;
-  margin-bottom: var(--space-4);
+  margin-bottom: 0;            /* 间距统一交给 .rule-config-flat 的 gap */
+  scroll-margin-top: 52px;     /* 锚点导航 sticky 吸顶时不遮挡分区标题 */
   position: relative;
 }
 .section-card::before {
@@ -943,10 +1033,49 @@ async function handleSubmit() {
   padding: 6px 10px !important;
 }
 
-/* ==================== Footer ==================== */
-.modal-footer {
+/* ==================== 分区锚点导航（sticky 吸顶） ==================== */
+/* 配置项较多时（6 个分区）提供快速定位；用负边距吃掉内容区左右 padding 让底纹铺满，
+   sticky 钉在内容滚动容器顶部，随内容滚动始终可见。 */
+.section-nav {
   position: sticky;
-  bottom: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 -20px var(--space-4) -20px;
+  padding: var(--space-2) 20px;
+  background: var(--glass-bg-card);
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border-bottom: 1px solid var(--g2);
+}
+.section-nav__item {
+  appearance: none;
+  border: 1px solid var(--g2);
+  background: var(--glass-bg-input);
+  color: var(--n-580);
+  font-size: var(--fs-12);
+  line-height: 1;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+}
+.section-nav__item:hover {
+  border-color: var(--glass-border-strong);
+  color: var(--ink);
+}
+.section-nav__item--active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--n-100);
+}
+
+/* ==================== Footer ==================== */
+/* footer 在 #footer 插槽 → 渲染为 .n-card__footer，是 .n-card 的 flex 兄弟节点，
+   永远在滚动容器之外、天然钉在底部，无需 sticky。 */
+.modal-footer {
   background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
   border-top: 1px solid var(--g1);
   padding: var(--space-3) 20px;
@@ -969,7 +1098,25 @@ async function handleSubmit() {
   width: 100%;
 }
 
-/* ==================== 响应式 (≤600px) ==================== */
+/* ==================== 响应式 ==================== */
+/* 中屏：标签列收窄，避免大屏 110px 在 768px 左右显得空旷 */
+@media (max-width: 900px) {
+  .field-label {
+    flex-basis: 96px;
+  }
+}
+@media (max-width: 767px) {
+  /* 窄屏：锚点导航横向滚动，避免换行挤占内容高度 */
+  .section-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .section-nav__item {
+    flex: 0 0 auto;
+  }
+}
 @media (max-width: 600px) {
   .hero {
     padding: var(--space-4);
@@ -1016,14 +1163,18 @@ async function handleSubmit() {
 }
 /* 2026-08-30 滚动修复：preset=card 的 .n-card 经 teleport 挂到 body，scoped :deep 命中不到。
    与 ProcessDetailModal 同款方案：card 走 flex 列 + 90vh 上限，content 用 flex:1 + min-height:0
-   拿到剩余高度并滚动；hero 在 content 内随内容一起滚动，footer 由 Naive 默认 flex-shrink:0 钉底。 */
+   拿到剩余高度并滚动；hero 在 content 内随内容一起滚动，footer 由 Naive 默认 flex-shrink:0 钉底。
+   ⚠️ 类名铁律：Card 内容区是 .n-card-content（单横线 block 类，见 glass.css「弹窗统一」段注释），
+   不是 .n-card__content —— 旧写法选择器永不匹配导致整段修复无效。 */
 .stage-rule-config-modal {
   display: flex;
   flex-direction: column;
+  /* 全局 .n-modal .n-card 已统一兜底，这里仅补齐类级强化（不重复定义可删，保留以显式表达意图） */
 }
-.stage-rule-config-modal .n-card__content {
-  flex: 1 1 0%;
+.stage-rule-config-modal .n-card-content {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 </style>
