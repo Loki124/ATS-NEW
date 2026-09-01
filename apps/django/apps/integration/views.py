@@ -25,6 +25,8 @@ from .services import (
     verify_background_check_callback,
     apply_callback_to_order,
     cancel_background_check_order,
+    query_background_check_order,
+    fetch_background_check_report,
 )
 
 logger = logging.getLogger(__name__)
@@ -224,3 +226,27 @@ class BackgroundCheckOrderViewSet(viewsets.ModelViewSet):
             'message': '已取消',
             'data': BackgroundCheckOrderSerializer(order).data,
         })
+
+    @action(detail=True, methods=['get'], url_path='query')
+    def query(self, request, pk=None):
+        """轮询供应商订单最新状态（§6.4 兜底；T6 新增接口，仅超管）。"""
+        order = self.get_object()
+        result = query_background_check_order(order.order_number, order.config_id)
+        if not result.get('success'):
+            return Response({
+                'success': False,
+                'message': result.get('error') or result.get('message', '查询失败'),
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'data': result.get('data')})
+
+    @action(detail=True, methods=['get'], url_path='report')
+    def report(self, request, pk=None):
+        """拉取背调报告（T6 新增接口，仅超管）。"""
+        order = self.get_object()
+        result = fetch_background_check_report(order)
+        if not result.get('success'):
+            return Response({
+                'success': False,
+                'message': result.get('error') or result.get('message', '拉取失败'),
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'data': result.get('data')})

@@ -116,6 +116,9 @@ api_v1_patterns = [
     # 2026-08-28 寇豆码: 背调订单状态机视图（超管可读 + 取消）。与 callback 同前缀但路径无冲突。
     path('background-check/orders/', BackgroundCheckOrderViewSet.as_view({'get': 'list'}), name='bg-orders-list'),
     path('background-check/orders/<str:pk>/', BackgroundCheckOrderViewSet.as_view({'get': 'retrieve', 'post': 'cancel'}), name='bg-orders-detail'),
+    # T6 新增接口: 轮询订单最新状态 / 拉取报告（与 cancel 同前缀，detail 子路由）
+    path('background-check/orders/<str:pk>/query/', BackgroundCheckOrderViewSet.as_view({'get': 'query'}), name='bg-orders-query'),
+    path('background-check/orders/<str:pk>/report/', BackgroundCheckOrderViewSet.as_view({'get': 'report'}), name='bg-orders-report'),
     # 2026-08-17 PR #69: 数据字典 (apps.dictionary) — 阶段类型等枚举 single source of truth.
     #   router 注册 dictionary-items / dictionary-types, 挂在 api_v1 根下 →
     #   /api/v1/dictionary-items/?type_code=recruitment_stage_type
