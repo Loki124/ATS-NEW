@@ -29,7 +29,7 @@ _SAMPLE = [
 SAMPLE_PERSONS = []
 for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
     SAMPLE_PERSONS.append({
-        'code': f'P{_i:03d}',
+        'code': f'C{_i:08d}',
         'name': f'员工{_i}',
         'bu': _bu,
         'school': _school,

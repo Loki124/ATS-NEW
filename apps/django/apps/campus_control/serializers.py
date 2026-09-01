@@ -261,7 +261,7 @@ class PersonSerializer(serializers.ModelSerializer):
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise serializers.ValidationError('人员编码已存在')
+            raise serializers.ValidationError('候选人编号已存在')
         return value
 
     def validate_bu(self, value):

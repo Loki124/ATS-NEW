@@ -159,7 +159,7 @@ class Person(FullAuditModel, UUIDModel):
     position（职务）/ level（职级）用于命中指定适用范围。
     """
 
-    code = models.CharField(max_length=32, unique=True, verbose_name='人员编码')
+    code = models.CharField(max_length=32, unique=True, verbose_name='候选人编号')
     name = models.CharField(max_length=64, verbose_name='姓名')
     bu = models.CharField(
         max_length=16, choices=[(d, d) for d in DEPTS], verbose_name='部门'
@@ -202,6 +202,31 @@ class Person(FullAuditModel, UUIDModel):
 
     def __str__(self):
         return f'{self.code}·{self.name}'
+
+    def save(self, *args, **kwargs):
+        """自动补号：未设 code 时，事务内锁定末行取最大序号 +1，写入 C+8 位候选人编号。
+
+        录入/编辑人员未传 code 时也自动拿到唯一 C 编号，避免撞 unique=True 约束导致 500。
+        """
+        if not self.code:
+            with transaction.atomic():
+                last = (
+                    Person.objects.select_for_update()
+                    .filter(code__startswith='C')
+                    .order_by('-code')
+                    .first()
+                )
+                seq = 0
+                if last and last.code and last.code.startswith('C'):
+                    try:
+                        seq = int(last.code[1:9])
+                    except (ValueError, IndexError):
+                        seq = 0
+                seq += 1
+                self.code = f'C{seq:08d}'
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
 
 class PersonDimensionValue(FullAuditModel, UUIDModel):

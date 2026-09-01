@@ -5,6 +5,9 @@
   - 仅补齐现有 31 条全为「在职」之外的状态、职务、职级、月份空缺
   - 测试完用 `seed_persons --clean` 不提供（无 reset 开关），需手动清数据时按 code 列表 DELETE
 
+候选人编号规则：C + 8 位流水号（C00000001..）。本文件 25 条演示数据承接 seed_campus
+的 31 条（C00000001..C00000031）之后，从 C00000032 起，保证全量编号连续且唯一。
+
 执行：`python manage.py seed_persons`
 """
 from datetime import date
@@ -16,41 +19,42 @@ from apps.campus_control.constants import DEPTS, SCHOOLS, MAJORS, SEXES
 
 # 4 BU × 2 性别 × 2 职务 × 2 职级 × {在职 1 + 在途Offer 1 + 在途待入职 1} = 96 行
 # 实际只取代表性 30 条覆盖：3 状态 × 4 BU × 2 性别 × 1~2 岗位 = 30 条
-# 构造：每行 code 全局唯一，expected/actual 日期按状态填不同年度
+# 构造：每行 code 全局唯一（C+8 流水号，承接 seed_campus 的 C00000001..C00000031），
+# expected/actual 日期按状态填不同年度
 SEED = [
     # ===== 在途Offer（10 条）=====
     # expected_entry_date 全部 2026-08-XX（用于筛 year=2026 命中）
-    {'code': 'P100', 'name': '员工100', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '技术研发', 'level': 'L1', 'expected': '2026-08-15', 'actual': None},
-    {'code': 'P101', 'name': '员工101', 'bu': '能电BG', 'school': '211', 'sex': '女', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '产品', 'level': 'L2', 'expected': '2026-08-20', 'actual': None},
-    {'code': 'P102', 'name': '员工102', 'bu': '三到BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '技术研发', 'level': 'L1', 'expected': '2026-08-15', 'actual': None},
-    {'code': 'P103', 'name': '员工103', 'bu': '三到BG', 'school': '211', 'sex': '女', 'major': '其他', 'month': '9月', 'status': '在途Offer', 'position': '设计', 'level': 'L2', 'expected': '2026-09-01', 'actual': None},
-    {'code': 'P104', 'name': '员工104', 'bu': '综合BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '9月', 'status': '在途Offer', 'position': '产品', 'level': 'L3', 'expected': '2026-09-15', 'actual': None},
-    {'code': 'P105', 'name': '员工105', 'bu': '综合BG', 'school': '双一流', 'sex': '女', 'major': '其他', 'month': '8月', 'status': '在途Offer', 'position': '职能', 'level': 'L2', 'expected': '2026-08-30', 'actual': None},
-    {'code': 'P106', 'name': '员工106', 'bu': '醒电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '运营', 'level': 'L1', 'expected': '2026-08-15', 'actual': None},
-    {'code': 'P107', 'name': '员工107', 'bu': '醒电BG', 'school': '985', 'sex': '女', 'major': '工学', 'month': '10月', 'status': '在途Offer', 'position': '设计', 'level': 'L2', 'expected': '2026-10-01', 'actual': None},
+    {'code': 'C00000032', 'name': '员工100', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '技术研发', 'level': 'L1', 'expected': '2026-08-15', 'actual': None},
+    {'code': 'C00000033', 'name': '员工101', 'bu': '能电BG', 'school': '211', 'sex': '女', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '产品', 'level': 'L2', 'expected': '2026-08-20', 'actual': None},
+    {'code': 'C00000034', 'name': '员工102', 'bu': '三到BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '技术研发', 'level': 'L1', 'expected': '2026-08-15', 'actual': None},
+    {'code': 'C00000035', 'name': '员工103', 'bu': '三到BG', 'school': '211', 'sex': '女', 'major': '其他', 'month': '9月', 'status': '在途Offer', 'position': '设计', 'level': 'L2', 'expected': '2026-09-01', 'actual': None},
+    {'code': 'C00000036', 'name': '员工104', 'bu': '综合BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '9月', 'status': '在途Offer', 'position': '产品', 'level': 'L3', 'expected': '2026-09-15', 'actual': None},
+    {'code': 'C00000037', 'name': '员工105', 'bu': '综合BG', 'school': '双一流', 'sex': '女', 'major': '其他', 'month': '8月', 'status': '在途Offer', 'position': '职能', 'level': 'L2', 'expected': '2026-08-30', 'actual': None},
+    {'code': 'C00000038', 'name': '员工106', 'bu': '醒电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途Offer', 'position': '运营', 'level': 'L1', 'expected': '2026-08-15', 'actual': None},
+    {'code': 'C00000039', 'name': '员工107', 'bu': '醒电BG', 'school': '985', 'sex': '女', 'major': '工学', 'month': '10月', 'status': '在途Offer', 'position': '设计', 'level': 'L2', 'expected': '2026-10-01', 'actual': None},
     # 用于筛 year=2025 命中（去年入职的）
-    {'code': 'P108', 'name': '员工108', 'bu': '能电BG', 'school': '其他', 'sex': '男', 'major': '其他', 'month': '8月', 'status': '在途Offer', 'position': '销售', 'level': 'L1', 'expected': '2025-08-15', 'actual': None},
-    {'code': 'P109', 'name': '员工109', 'bu': '三到BG', 'school': '双一流', 'sex': '女', 'major': '工学', 'month': '9月', 'status': '在途Offer', 'position': '产品', 'level': 'L3', 'expected': '2025-09-01', 'actual': None},
+    {'code': 'C00000040', 'name': '员工108', 'bu': '能电BG', 'school': '其他', 'sex': '男', 'major': '其他', 'month': '8月', 'status': '在途Offer', 'position': '销售', 'level': 'L1', 'expected': '2025-08-15', 'actual': None},
+    {'code': 'C00000041', 'name': '员工109', 'bu': '三到BG', 'school': '双一流', 'sex': '女', 'major': '工学', 'month': '9月', 'status': '在途Offer', 'position': '产品', 'level': 'L3', 'expected': '2025-09-01', 'actual': None},
 
     # ===== 在途待入职（10 条）=====
     # expected_entry_date + actual_entry_date 都为未来日期（候选人在 2026 内待入职）
-    {'code': 'P200', 'name': '员工200', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '技术研发', 'level': 'L2', 'expected': '2026-08-25', 'actual': None},
-    {'code': 'P201', 'name': '员工201', 'bu': '能电BG', 'school': '211', 'sex': '女', 'major': '其他', 'month': '9月', 'status': '在途待入职', 'position': '设计', 'level': 'L1', 'expected': '2026-09-05', 'actual': None},
-    {'code': 'P202', 'name': '员工202', 'bu': '三到BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '技术研发', 'level': 'L2', 'expected': '2026-08-25', 'actual': None},
-    {'code': 'P203', 'name': '员工203', 'bu': '三到BG', 'school': '其他', 'sex': '女', 'major': '其他', 'month': '10月', 'status': '在途待入职', 'position': '运营', 'level': 'L3', 'expected': '2026-10-15', 'actual': None},
-    {'code': 'P204', 'name': '员工204', 'bu': '综合BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '产品', 'level': 'L2', 'expected': '2026-08-30', 'actual': None},
-    {'code': 'P205', 'name': '员工205', 'bu': '综合BG', 'school': '双一流', 'sex': '女', 'major': '工学', 'month': '9月', 'status': '在途待入职', 'position': '职能', 'level': 'L1', 'expected': '2026-09-10', 'actual': None},
-    {'code': 'P206', 'name': '员工206', 'bu': '醒电BG', 'school': '211', 'sex': '男', 'major': '其他', 'month': '8月', 'status': '在途待入职', 'position': '销售', 'level': 'L2', 'expected': '2026-08-25', 'actual': None},
-    {'code': 'P207', 'name': '员工207', 'bu': '醒电BG', 'school': '985', 'sex': '女', 'major': '工学', 'month': '10月', 'status': '在途待入职', 'position': '设计', 'level': 'L3', 'expected': '2026-10-20', 'actual': None},
-    {'code': 'P208', 'name': '员工208', 'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '技术研发', 'level': 'L3', 'expected': '2025-08-30', 'actual': None},
-    {'code': 'P209', 'name': '员工209', 'bu': '三到BG', 'school': '双一流', 'sex': '女', 'major': '其他', 'month': '9月', 'status': '在途待入职', 'position': '产品', 'level': 'L2', 'expected': '2025-09-15', 'actual': None},
+    {'code': 'C00000042', 'name': '员工200', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '技术研发', 'level': 'L2', 'expected': '2026-08-25', 'actual': None},
+    {'code': 'C00000043', 'name': '员工201', 'bu': '能电BG', 'school': '211', 'sex': '女', 'major': '其他', 'month': '9月', 'status': '在途待入职', 'position': '设计', 'level': 'L1', 'expected': '2026-09-05', 'actual': None},
+    {'code': 'C00000044', 'name': '员工202', 'bu': '三到BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '技术研发', 'level': 'L2', 'expected': '2026-08-25', 'actual': None},
+    {'code': 'C00000045', 'name': '员工203', 'bu': '三到BG', 'school': '其他', 'sex': '女', 'major': '其他', 'month': '10月', 'status': '在途待入职', 'position': '运营', 'level': 'L3', 'expected': '2026-10-15', 'actual': None},
+    {'code': 'C00000046', 'name': '员工204', 'bu': '综合BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '产品', 'level': 'L2', 'expected': '2026-08-30', 'actual': None},
+    {'code': 'C00000047', 'name': '员工205', 'bu': '综合BG', 'school': '双一流', 'sex': '女', 'major': '工学', 'month': '9月', 'status': '在途待入职', 'position': '职能', 'level': 'L1', 'expected': '2026-09-10', 'actual': None},
+    {'code': 'C00000048', 'name': '员工206', 'bu': '醒电BG', 'school': '211', 'sex': '男', 'major': '其他', 'month': '8月', 'status': '在途待入职', 'position': '销售', 'level': 'L2', 'expected': '2026-08-25', 'actual': None},
+    {'code': 'C00000049', 'name': '员工207', 'bu': '醒电BG', 'school': '985', 'sex': '女', 'major': '工学', 'month': '10月', 'status': '在途待入职', 'position': '设计', 'level': 'L3', 'expected': '2026-10-20', 'actual': None},
+    {'code': 'C00000050', 'name': '员工208', 'bu': '能电BG', 'school': '211', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在途待入职', 'position': '技术研发', 'level': 'L3', 'expected': '2025-08-30', 'actual': None},
+    {'code': 'C00000051', 'name': '员工209', 'bu': '三到BG', 'school': '双一流', 'sex': '女', 'major': '其他', 'month': '9月', 'status': '在途待入职', 'position': '产品', 'level': 'L2', 'expected': '2025-09-15', 'actual': None},
 
     # ===== 在职 5 条（覆盖已有 31 条在职中缺失的岗位/职级/月份组合）=====
-    {'code': 'P300', 'name': '员工300', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '9月', 'status': '在职', 'position': '技术研发', 'level': 'L4', 'expected': '2026-09-01', 'actual': '2026-09-01'},
-    {'code': 'P301', 'name': '员工301', 'bu': '能电BG', 'school': '其他', 'sex': '女', 'major': '其他', 'month': '10月', 'status': '在职', 'position': '职能', 'level': 'L2', 'expected': '2026-10-01', 'actual': '2026-10-01'},
-    {'code': 'P302', 'name': '员工302', 'bu': '三到BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在职', 'position': '产品', 'level': 'L3', 'expected': '2026-08-15', 'actual': '2026-08-15'},
-    {'code': 'P303', 'name': '员工303', 'bu': '综合BG', 'school': '211', 'sex': '女', 'major': '工学', 'month': '9月', 'status': '在职', 'position': '设计', 'level': 'L1', 'expected': '2026-09-10', 'actual': '2026-09-10'},
-    {'code': 'P304', 'name': '员工304', 'bu': '醒电BG', 'school': '双一流', 'sex': '男', 'major': '其他', 'month': '8月', 'status': '在职', 'position': '运营', 'level': 'L2', 'expected': '2026-08-20', 'actual': '2026-08-20'},
+    {'code': 'C00000052', 'name': '员工300', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '9月', 'status': '在职', 'position': '技术研发', 'level': 'L4', 'expected': '2026-09-01', 'actual': '2026-09-01'},
+    {'code': 'C00000053', 'name': '员工301', 'bu': '能电BG', 'school': '其他', 'sex': '女', 'major': '其他', 'month': '10月', 'status': '在职', 'position': '职能', 'level': 'L2', 'expected': '2026-10-01', 'actual': '2026-10-01'},
+    {'code': 'C00000054', 'name': '员工302', 'bu': '三到BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在职', 'position': '产品', 'level': 'L3', 'expected': '2026-08-15', 'actual': '2026-08-15'},
+    {'code': 'C00000055', 'name': '员工303', 'bu': '综合BG', 'school': '211', 'sex': '女', 'major': '工学', 'month': '9月', 'status': '在职', 'position': '设计', 'level': 'L1', 'expected': '2026-09-10', 'actual': '2026-09-10'},
+    {'code': 'C00000056', 'name': '员工304', 'bu': '醒电BG', 'school': '双一流', 'sex': '男', 'major': '其他', 'month': '8月', 'status': '在职', 'position': '运营', 'level': 'L2', 'expected': '2026-08-20', 'actual': '2026-08-20'},
 ]
 
 

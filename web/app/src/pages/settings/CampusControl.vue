@@ -142,7 +142,7 @@
         <!-- ===================== 录入校验 ===================== -->
         <n-tab-pane name="validate" tab="录入校验">
           <n-grid :cols="4" :x-gap="16" :y-gap="12" item-responsive responsive="screen">
-            <n-gi span="4 m:1"><n-form-item label="人员编码" label-placement="top"><n-input v-model:value="draft.code" placeholder="如 P032" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item label="候选人编号" label-placement="top"><n-input v-model:value="draft.code" placeholder="如 C00000001" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="姓名" label-placement="top"><n-input v-model:value="draft.name" placeholder="如 员工32" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="部门" label-placement="top"><n-select v-model:value="draft.bu" :options="deptOptions" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item label="职务" label-placement="top"><n-select v-model:value="draft.position" :options="positionOptions" clearable placeholder="不限" /></n-form-item></n-gi>
@@ -188,7 +188,7 @@
             <!-- 搜索框最左：模糊匹配候选人编号/姓名 -->
             <n-input
               v-model:value="personFilterSearch"
-              placeholder="搜索编号/姓名"
+              placeholder="搜索候选人编号/姓名"
               clearable
               class="rule-filter-search"
               @keyup.enter="loadPersons()"
@@ -443,7 +443,7 @@
     <n-modal v-model:show="personModal.show" title="编辑人员" preset="card" style="width: 560px">
       <n-form label-placement="top">
         <n-grid :cols="2" :x-gap="16">
-          <n-gi><n-form-item label="人员编码"><n-input v-model:value="personModal.code" placeholder="如 P032" /></n-form-item></n-gi>
+          <n-gi><n-form-item label="候选人编号"><n-input v-model:value="personModal.code" placeholder="如 C00000001" /></n-form-item></n-gi>
           <n-gi><n-form-item label="姓名"><n-input v-model:value="personModal.name" placeholder="如 员工32" /></n-form-item></n-gi>
           <n-gi><n-form-item label="部门"><n-select v-model:value="personModal.bu" :options="deptOptions" /></n-form-item></n-gi>
           <n-gi><n-form-item label="院校标签"><n-select v-model:value="personModal.school" :options="schoolOptions" /></n-form-item></n-gi>
@@ -1102,7 +1102,7 @@ const dimColumns: DataTableColumns<ControlDimension> = [
 ]
 
 const personColumns: DataTableColumns<Person> = [
-  { title: '编码', key: 'code' }, { title: '姓名', key: 'name' }, { title: '部门', key: 'bu' },
+  { title: '候选人编号', key: 'code' }, { title: '姓名', key: 'name' }, { title: '部门', key: 'bu' },
   { title: '院校', key: 'school' }, { title: '性别', key: 'sex' }, { title: '专业', key: 'major' },
   { title: '月份', key: 'month' }, { title: '职务', key: 'position', render: (r) => r.position || '—' },
   { title: '职级', key: 'level', render: (r) => r.level || '—' },
@@ -1368,7 +1368,7 @@ const canConfirmEntry = computed(
   () => !!draft.code.trim() && !!draft.name.trim() && validation.value != null && validation.value.verdictLevel !== 'block',
 )
 async function confirmEntry() {
-  if (!draft.code.trim() || !draft.name.trim()) { message.warning('请先填写人员编码与姓名'); return }
+  if (!draft.code.trim() || !draft.name.trim()) { message.warning('请先填写候选人编号与姓名'); return }
   try {
     await upsertPerson({
       code: draft.code.trim(), name: draft.name.trim(), bu: draft.bu,
@@ -1402,7 +1402,7 @@ function openPersonModal(p?: Person) {
   personModal.show = true
 }
 async function savePerson() {
-  if (!personModal.code.trim() || !personModal.name.trim()) { message.warning('请先填写人员编码与姓名'); return }
+  if (!personModal.code.trim() || !personModal.name.trim()) { message.warning('请先填写候选人编号与姓名'); return }
   try {
     await upsertPerson({
       id: personModal.editingId ?? undefined,
