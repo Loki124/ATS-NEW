@@ -396,10 +396,32 @@ export const validateDraft = (
     .then((r) => r.data.data as ValidationResult)
 
 /* ============================ 人员主数据 ============================ */
-export const listPersons = (params?: { staffed?: boolean; status?: string }) => {
+export interface ListPersonsParams {
+  staffed?: boolean
+  status?: string
+  bu?: string
+  position?: string
+  level?: string
+  school?: string
+  sex?: string
+  major?: string
+  month?: string
+  year?: number
+  search?: string
+}
+export const listPersons = (params?: ListPersonsParams) => {
   const q: Record<string, unknown> = { page_size: 200 }
   if (params?.staffed) q.staffed = '1'
   if (params?.status) q.status = params.status
+  if (params?.bu) q.bu = params.bu
+  if (params?.position) q.position = params.position
+  if (params?.level) q.level = params.level
+  if (params?.school) q.school = params.school
+  if (params?.sex) q.sex = params.sex
+  if (params?.major) q.major = params.major
+  if (params?.month) q.month = params.month
+  if (params?.year) q.year = params.year
+  if (params?.search) q.search = params.search
   return api.get('/campus/persons/', { params: q }).then((r) => listData<Person>(r))
 }
 export const upsertPerson = (p: Partial<Person> & { code: string; name: string; bu: string; school: string; sex: string; major: string; month: string; status: string }) => {

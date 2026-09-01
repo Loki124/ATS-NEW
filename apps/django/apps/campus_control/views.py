@@ -1046,12 +1046,17 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
 class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     """人员主数据 CRUD（全局主数据，一行一人；counted 控制是否计入核算）。
 
-    get_queryset 仅对 list 生效：
-      - ?staffed=1   → 仅返回占编人员（status ∈ _COUNTED_STATUSES = 在职/在途Offer/在途待入职，排除候选池）
-      - ?status=X    → 按精确状态过滤（X 须为 STATUS 合法值）
-      - 其余（无参） → 返回全部人员
-    retrieve/update/delete 不套用状态过滤，保证候选池人员按 id 仍可查可改。
-    （实时看板/录入校验仍走 Person.objects.all() 自行按 _COUNTED_STATUSES 计数，不受影响。）
+    get_queryset 仅对 list 生效（retrieve/update/delete 不套过滤，保证按 id 仍可查可改）：
+      - ?staffed=1                  → 仅返回占编人员（status ∈ _COUNTED_STATUSES）
+      - ?status=X                   → 按精确状态过滤（X 须为 STATUS 合法值）
+      - ?bu=&position=&level=       → 适用范围 3 项精确过滤（可选）
+      - ?school=&sex=&major=        → 维度 3 项精确过滤（可选）
+      - ?month=X                    → 招聘月份精确过滤（X ∈ ALL_MONTHS，如 "8月"）
+      - ?year=YYYY                  → 入职年度过滤：按 expected_entry_date 或 actual_entry_date 的年份
+                                       （两者都为空的人员不出现在年度筛中；等价 EXTRACT(YEAR FROM...) OR 逻辑）
+      - ?search=keyword             → 模糊搜索：code__icontains OR name__icontains
+      - 其余（无参）                 → 返回全部人员
+    实时看板/录入校验仍走 Person.objects.all() 自行按 _COUNTED_STATUSES 计数，不受影响。
     """
 
     queryset = Person.objects.all()
@@ -1059,14 +1064,52 @@ class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
+    # 整数精确筛的合法集合（防止用户传 ?year=abc 触发 FieldError）
+    _SAFE_INT_FILTERS = {'year'}
+
     def get_queryset(self):
         qs = Person.objects.all()
         if self.action != 'list':
             return qs
-        status = self.request.query_params.get('status')
-        staffed = self.request.query_params.get('staffed')
+        params = self.request.query_params
+
+        # 状态过滤（与 staffed 二选一）
+        status = params.get('status')
+        staffed = params.get('staffed')
         if status in STATUS:
             qs = qs.filter(status=status)
         elif staffed in ('1', 'true', 'True'):
             qs = qs.filter(status__in=_COUNTED_STATUSES)
+
+        # 适用范围 3 项（bu / position / level）+ 维度 3 项（school / sex / major）
+        for f in ('bu', 'position', 'level', 'school', 'sex', 'major'):
+            v = params.get(f)
+            if v:
+                qs = qs.filter(**{f: v})
+
+        # 月份精确匹配
+        month = params.get('month')
+        if month:
+            qs = qs.filter(month=month)
+
+        # 年度过滤：按 expected_entry_date 或 actual_entry_date 的年份（两者任一命中即计入）
+        year_raw = params.get('year')
+        if year_raw:
+            try:
+                year_int = int(year_raw)
+            except (TypeError, ValueError):
+                year_int = None
+            if year_int:
+                from django.db.models import Q
+                qs = qs.filter(
+                    Q(expected_entry_date__year=year_int)
+                    | Q(actual_entry_date__year=year_int)
+                )
+
+        # 模糊搜索：code 或 name 任一命中
+        search = (params.get('search') or '').strip()
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(Q(code__icontains=search) | Q(name__icontains=search))
+
         return qs
