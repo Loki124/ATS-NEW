@@ -170,6 +170,19 @@
   --duration-fast: 160ms;
   --duration-base: 240ms;
   --duration-slow: 320ms;
+
+  /* ===== §13. @deprecated 别名（2026-09 治理：6 个未定义幽灵令牌 → 映射到 v2 语义令牌）=====
+   * 历史：曾有 `var(--ph/--sl/--wl/--w/--success/--warning)` 在 .vue 组件里被引用，但 :root
+   * 未定义，导致 KPI 卡 / 状态 pill / 按钮 hover 等视觉静默失效（无报错，肉眼可见错误）。
+   * 治理原则：不创造新的视觉规范，沿用既有 §4 语义令牌；别名指向同一来源以让暗色覆盖
+   * (body.dark §14 的 --c-success-soft / --c-warning-soft) 自动生效。
+   * 后续：在 T6 治理窗口内逐步把这些别名重写为 c- 前缀规范名，从源头消除别名层。 */
+  --success: var(--c-success);          /* @deprecated → use --c-success */
+  --warning: var(--c-warning);          /* @deprecated → use --c-warning */
+  --w:       var(--c-warning);          /* @deprecated 简写 → use --c-warning */
+  --sl:      var(--c-success-soft);     /* @deprecated success-light 背景 → use --c-success-soft */
+  --wl:      var(--c-warning-soft);     /* @deprecated warning-light 背景 → use --c-warning-soft */
+  --ph:      var(--brand-hover);        /* @deprecated primary-hover → use --brand-hover */
 }
 
 /* ===== §14. 暗色模式（body.dark 切换；组件 CSS 不变） ===== */
