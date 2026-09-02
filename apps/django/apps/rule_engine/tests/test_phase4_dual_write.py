@@ -16,11 +16,14 @@ import pytest
 from django.core.management import call_command
 
 from apps.campus_control.models import ControlDimension, ControlIndicator, ControlRule
+from apps.automation.models import AutomationRule
 from apps.mou.models import MouRule
 from apps.rule_engine.bridge import (
+    AUTOMATION_SOURCE_APP,
     CAMPUS_CONTROL_SOURCE_APP,
     MOU_SOURCE_APP,
     mirror_campus_offer_validation,
+    sync_automation_rule_to_unified,
     sync_control_rule_to_unified,
     sync_mou_rule_to_unified,
 )
@@ -305,3 +308,83 @@ def test_mou_rename_preserves_db_table():
             "SELECT COUNT(*) FROM mou_automation_rules WHERE id = %s", [rule.id]
         )
         assert cur.fetchone()[0] == 1
+
+
+# ---------------------------------------------------------------------------
+# sync_automation_rule_to_unified — condition_json 兼容性
+# ---------------------------------------------------------------------------
+def _mk_automation_rule(condition_json):
+    """建 AutomationRule 不走完整 signals → 直接 ORM.create 避免拉太多外键。"""
+    import uuid as _uuid
+    from apps.process.models import RecruitmentProcess, RecruitmentStage
+    rid = _uuid.uuid4().hex[:12]
+    # process / stage 是 FK NOT NULL，用最小集合 placeholder 行
+    proc = RecruitmentProcess.objects.create(
+        id=f'rp_{rid}', code=f'TEST_{rid}', name='tproc',
+        applicable_scope={}, is_template=False, status='ENABLED',
+    )
+    stage = RecruitmentStage.objects.create(
+        id=f'st_{rid}', code=f'T{rid}', name='tstg',
+        stage_type='SCREEN', status='ENABLED',
+    )
+    return AutomationRule.objects.create(
+        id=f'ar_{rid}',
+        name=f'测试规则_{rid}',
+        process=proc,
+        stage=stage,
+        trigger_type='STAGE_ENTERED',
+        trigger_timing='IMMEDIATE',
+        action_type='AUTO_ADVANCE',
+        priority='P1',
+        enabled=True,
+        condition_json=condition_json,
+    )
+
+
+def test_sync_automation_rule_string_condition_goes_to_meta():
+    """[P0 回归] condition_json=['stage.state == PROCESSING']（load_process_templates
+    包成的 list[str]）必须不再抛 AttributeError；expression 整体塞到 meta_json。
+
+    历史 bug: bridge.sync_automation_rule_to_unified 把每条 cond 当 dict 处理
+    (cond.get('field',''))，遇到 str → 'str' object has no attribute 'get'。
+    """
+    rule = _mk_automation_rule(['stage.state == PROCESSING'])
+    unified = sync_automation_rule_to_unified(rule)
+
+    assert unified.source_app == AUTOMATION_SOURCE_APP
+    assert unified.legacy_id == rule.id
+    cond = unified.conditions.first()
+    assert cond is not None
+    assert cond.seq == 1
+    assert cond.field == ''  # expression 串场景: field 留空
+    assert cond.operator == 'EQ'  # 默认
+    assert cond.meta_json.get('expression') == 'stage.state == PROCESSING'
+    assert cond.meta_json.get('legacy_format') == 'string'
+
+
+def test_sync_automation_rule_dict_condition_still_works():
+    """[回归] dict 形态仍走原路径(field/operator/value 三元组)"""
+    rule = _mk_automation_rule([{'field': 'evaluation.score', 'operator': 'GTE', 'value': 60}])
+    unified = sync_automation_rule_to_unified(rule)
+
+    cond = unified.conditions.first()
+    assert cond is not None
+    assert cond.field == 'evaluation.score'
+    assert cond.operator == 'GTE'
+    assert cond.value == 60
+    assert cond.meta_json == {}
+
+
+def test_sync_automation_rule_mixed_conditions_skips_invalid_gracefully():
+    """[防御] 混合 list 里出现非 dict/str 元素（如 None/int）— 跳过并 warning，不抛"""
+    rule = _mk_automation_rule([
+        {'field': 'x', 'operator': 'EQ', 'value': 1},
+        None,            # idx=1 → 跳过
+        42,              # idx=2 → 跳过
+        'pure_expression',  # idx=3 → seq=4
+    ])
+    unified = sync_automation_rule_to_unified(rule)
+    assert unified.conditions.count() == 2  # dict (seq=1) + str (seq=4)
+    seq_to_meta = {c.seq: c.meta_json for c in unified.conditions.all()}
+    assert 1 in seq_to_meta and 4 in seq_to_meta, f'expected seq 1+4, got {list(seq_to_meta)}'
+    assert seq_to_meta[4].get('expression') == 'pure_expression'

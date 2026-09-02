@@ -51,7 +51,7 @@
                     @positive-click="removeLink(element)"
                   >
                     <template #trigger>
-                      <n-button size="small" color="#ff4d4f" text-color="#fff">移除</n-button>
+                      <n-button size="small" color="#EF4444" text-color="#fff">移除</n-button>
                     </template>
                     从此流程中移除「{{ element.stage.name }}」？
                   </n-popconfirm>

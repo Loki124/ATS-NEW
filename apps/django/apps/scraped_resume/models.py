@@ -23,9 +23,10 @@
 将由 T06 (G30 任务) 落地, 这里留 stub 文档指引.
 """
 from django.db import models
+from apps.common.models import SoftDeleteModel, SoftDeleteManager
 
 
-class ScrapedResume(models.Model):
+class ScrapedResume(SoftDeleteModel):
     """一条抓回的简历原始记录。
 
     生命周期 (T06 落地):
@@ -94,3 +95,7 @@ class ScrapedResume(models.Model):
 
     def __str__(self) -> str:
         return f'ScrapedResume<{self.id} {self.source_platform} {self.source_url[:60]}>'
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

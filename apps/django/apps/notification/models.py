@@ -1,6 +1,6 @@
 """Notification Models (PRD v4 §14.10)"""
 from django.db import models
-from apps.common.models import SoftDeleteModel, TimestampedModel
+from apps.common.models import SoftDeleteModel, TimestampedModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
 
 
@@ -15,7 +15,7 @@ class NotificationChannel(models.TextChoices):
     WECOM = 'WECOM', '企微'
 
 
-class NotificationTemplate(TimestampedModel):
+class NotificationTemplate(TimestampedModel, SoftDeleteModel):
     """通知模板"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     code = models.CharField(max_length=100, unique=True, verbose_name='模板编码',
@@ -44,6 +44,9 @@ class NotificationTemplate(TimestampedModel):
         return f'[{self.code}] {self.name}'
 
 
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
 class NotificationLog(TimestampedModel, SoftDeleteModel):
     """通知发送日志
 

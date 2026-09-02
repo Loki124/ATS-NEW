@@ -67,7 +67,7 @@ import {
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
   CloudUploadOutline, ServerOutline, SearchOutline, AnalyticsOutline,
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
-  ShieldCheckmarkOutline, PeopleCircleOutline,
+  ShieldCheckmarkOutline, PeopleCircleOutline, OptionsOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -159,6 +159,7 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/data-dashboard', label: '数据中心', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
       { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
       { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
+      { key: '/settings/rule-engine', label: '统一规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
     ],
   },
 ]

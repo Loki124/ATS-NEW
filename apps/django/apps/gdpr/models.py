@@ -7,7 +7,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
 
 
@@ -49,7 +49,7 @@ class GDPRRequestStatus(models.TextChoices):
     LOCKED = 'LOCKED', '已锁定'  # 2026-08-03: attempts 超阈值锁定
 
 
-class GDPRRequest(TimestampedModel):
+class GDPRRequest(TimestampedModel, SoftDeleteModel):
     """GDPR 请求"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     candidate = models.ForeignKey(
@@ -112,3 +112,7 @@ class GDPRRequest(TimestampedModel):
 
     def __str__(self):
         return f'GDPRRequest({self.id}, {self.request_type}, {self.status})'
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

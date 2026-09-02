@@ -638,7 +638,7 @@
                   @positive-click="removeStage(idx)"
                 >
                   <template #trigger>
-                    <n-button color="#ff4d4f" text-color="#fff" size="small">删除当前阶段</n-button>
+                    <n-button color="#EF4444" text-color="#fff" size="small">删除当前阶段</n-button>
                   </template>
                   确定删除阶段「{{ stage.name }}」？
                 </n-popconfirm>
@@ -940,11 +940,11 @@ const stageLibrary = ref<{ id: string; code: string; name: string; stageType: st
 
 // ===== 元数据映射 =====
 const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: 'info' | 'warning' | 'success' | 'primary' | 'default'; icon: any }> = {
-  SCREEN:     { label: '筛选',  color: '#2080f0', tagType: 'info',    icon: FilterOutline },
-  INVITATION: { label: '邀约',  color: '#f0a020', tagType: 'warning', icon: MailOutline },
-  INTERVIEW:  { label: '面试',  color: '#722ed1', tagType: 'primary', icon: VideocamOutline },
-  OFFER:      { label: 'Offer', color: '#18a058', tagType: 'success', icon: DocumentTextOutline },
-  ONBOARDING: { label: '入职',  color: '#0090ba', tagType: 'info',    icon: CheckmarkCircleOutline },
+  SCREEN:     { label: '筛选',  color: 'var(--c-info)',    tagType: 'info',    icon: FilterOutline },
+  INVITATION: { label: '邀约',  color: 'var(--c-warning)', tagType: 'warning', icon: MailOutline },
+  INTERVIEW:  { label: '面试',  color: 'var(--c-purple)',  tagType: 'primary', icon: VideocamOutline },
+  OFFER:      { label: 'Offer', color: 'var(--c-success)', tagType: 'success', icon: DocumentTextOutline },
+  ONBOARDING: { label: '入职',  color: 'var(--c-cyan)',    tagType: 'info',    icon: CheckmarkCircleOutline },
 }
 
 const SCOPE_INDICATOR_LABEL: Record<string, string> = {
@@ -1701,7 +1701,7 @@ function stageTypeLabel(t?: string): string {
 }
 
 function stageTypeColor(t?: string): string {
-  return STAGE_TYPE_META[t || '']?.color || '#666'
+  return STAGE_TYPE_META[t || '']?.color || 'var(--n-400)'
 }
 
 function stageTypeTagType(t?: string): 'info' | 'warning' | 'success' | 'primary' | 'default' {

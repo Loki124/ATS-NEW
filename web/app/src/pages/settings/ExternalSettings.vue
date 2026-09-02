@@ -1045,7 +1045,7 @@ function renderOrderEvents(r: OrderRow) {
         {
           style: {
             padding: '3px 0',
-            color: ev.isLegalTransition ? 'var(--ink-soft)' : 'var(--error, #d03050)',
+            color: ev.isLegalTransition ? 'var(--ink-soft)' : 'var(--c-error)',
           },
         },
         `${fmt(ev.createdAt)} · ${ev.source} · ${ev.fromStatusDisplay || '∅'} → ${ev.toStatusDisplay}${ev.isLegalTransition ? '' : ' ⚠非法转移'}${ev.riskLevel ? ' · 风险' + ev.riskLevel : ''}`,

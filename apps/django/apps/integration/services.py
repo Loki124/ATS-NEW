@@ -41,6 +41,15 @@ from .models import (
     ALLOWED_ORDER_TRANSITIONS,
 )
 
+# T6: 背调供应商统一适配器（HMAC 双签 / 状态机 / query+report 接口）
+from .suppliers.factory import get_supplier
+from .suppliers.base import (
+    BaseBackgroundCheckSupplier,
+    CreateOrderRequest,
+    verify_callback_signature,
+    replay_allowed,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -304,88 +313,41 @@ def push_candidate_to_moka(candidate_data: Dict[str, Any]) -> Dict[str, Any]:
 
 # ============================================================
 # 背调（统一规范 v1.0.1：HMAC-SHA256 双向签名 + 调用审计）
+# T6: HMAC 双签 / 路径 / appId-appKey 解析已收敛到 suppliers 包；
+#     本模块仅保留平台侧职责（验签入口 / 状态机 / 审计日志 / 对外 dict）。
 # ============================================================
-def _bg_sign(app_id: str, app_key: str, params: dict) -> tuple[str, str]:
-    """规范 §1.4.3 签名：待签串 = 排序业务参数(key=value&) + '&timestamp=' + ts。"""
-    ts = str(int(time.time() * 1000))
-    biz = {k: v for k, v in (params or {}).items() if v is not None and v != ''}
-    raw = '&'.join(f'{k}={v}' for k, v in sorted(biz.items()))
-    sign_str = f'{raw}&timestamp={ts}' if raw else f'timestamp={ts}'
-    sign = hmac.new(app_key.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256).hexdigest()
-    return ts, sign
-
-
-def _bg_headers(app_id: str, app_key: str, params: dict) -> dict:
-    ts, sign = _bg_sign(app_id, app_key, params)
-    return {
-        'X-App-Id': app_id,
-        'X-Timestamp': ts,
-        'X-App-Sign': sign,
-        'Content-Type': 'application/json',
-    }
-
-
-def _bg_secret(config: IntegrationConfig) -> dict:
-    secret_raw = config.encrypted_secret or ''
-    if not secret_raw:
-        return {}
-    try:
-        return json.loads(decrypt_secret(secret_raw))
-    except Exception:
-        logger.warning('IntegrationConfig %s: decrypt secret failed', config.id)
-        return {}
 
 
 def test_background_check_connection(config: IntegrationConfig) -> Dict[str, Any]:
-    """测试连接：按规范 HMAC 向供应商发真实签名请求（套餐查询），校验连通性与凭证。"""
+    """测试连接：T6 委托供应商适配器做套餐查询（带 HMAC 签名），校验连通性与凭证。
+
+    审计 IntegrationSyncLog(sync_type=TEST_CONNECTION) 仍由本函数落库，保持对外行为一致。
+    """
     try:
-        cfg = config.config or {}
-        secret = _bg_secret(config)
-        app_id = cfg.get('AppId', cfg.get('appId', ''))
-        app_key = secret.get('api_key') or secret.get('appKey') or ''
-        if not app_id or not app_key:
+        supplier = get_supplier(config)
+        if not supplier._app_id or not supplier._app_key:
             return {'success': False, 'message': '缺少 appId / appKey 配置'}
-        env = cfg.get('env', 'sandbox')
-        base_url = cfg.get('productionBaseUrl') if env == 'production' else cfg.get('sandboxBaseUrl')
-        if not base_url:
+        if not supplier._base_url:
             return {'success': False, 'message': '未配置 BaseURL'}
-        path = cfg.get('productsPath') or '/api/v1/background-check/products'
-        url = f'{base_url.rstrip("/")}{path}'
-        headers = _bg_headers(app_id, app_key, {})
-        t0 = time.time()
-        try:
-            r = requests.get(url, headers=headers, timeout=10)
-            duration_ms = int((time.time() - t0) * 1000)
-            detail = ''
-            try:
-                resp = r.json()
-                detail = f"code={resp.get('code')}, message={resp.get('message')}"
-                ok = r.status_code == 200 and resp.get('code') in (0, '0', None)
-            except Exception:
-                ok = r.status_code == 200
-                detail = r.text[:200]
-            IntegrationSyncLog.objects.create(
-                config=config, sync_type='TEST_CONNECTION',
-                status='SUCCESS' if ok else 'FAILED',
-                endpoint=path, method='GET', direction='OUT', duration_ms=duration_ms,
-                error_message='' if ok else f'HTTP {r.status_code}: {detail}',
-            )
-            return {'success': ok, 'message': '连接成功' if ok else f'连接失败: HTTP {r.status_code} {detail}', 'duration_ms': duration_ms}
-        except requests.RequestException as e:
-            duration_ms = int((time.time() - t0) * 1000)
-            IntegrationSyncLog.objects.create(
-                config=config, sync_type='TEST_CONNECTION', status='FAILED',
-                endpoint=path, method='GET', direction='OUT', duration_ms=duration_ms,
-                error_message=str(e),
-            )
-            return {'success': False, 'message': f'连接异常: {e}'}
+        res = supplier.query_products()  # BackgroundCheckResult
+        IntegrationSyncLog.objects.create(
+            config=config, sync_type='TEST_CONNECTION',
+            status='SUCCESS' if res.success else 'FAILED',
+            endpoint=supplier.PRODUCTS_PATH, method='GET', direction='OUT',
+            duration_ms=res.duration_ms,
+            error_message='' if res.success else (res.message or '')[:200],
+        )
+        return {
+            'success': res.success,
+            'message': '连接成功' if res.success else f'连接失败: {res.message}',
+            'duration_ms': res.duration_ms,
+        }
     except Exception as e:
         logger.exception('test_background_check_connection failed')
         return {'success': False, 'message': f'测试失败: {e}'}
 
-
 def request_background_check(candidate_id: str, items: List[str], config_id: str = None) -> Dict[str, Any]:
-    """发起背调（统一规范 v1.0.1：HMAC 签名 + 调用审计）。"""
+    """发起背调（T6 委托供应商适配器；保持对外 dict 形状与落库行为）。"""
     try:
         qs = IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True)
         if config_id:
@@ -393,51 +355,33 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
         config = qs.first()
         if not config:
             return {'success': False, 'error': 'Background check not configured'}
-        cfg = config.config or {}
-        secret = _bg_secret(config)
-        app_id = cfg.get('AppId', cfg.get('appId', ''))
-        app_key = secret.get('api_key') or secret.get('appKey') or ''
-        env = cfg.get('env', 'sandbox')
-        base_url = cfg.get('productionBaseUrl') if env == 'production' else cfg.get('sandboxBaseUrl')
-        path = cfg.get('createPath') or '/api/v1/background-check/orders'
-        url = f'{base_url.rstrip("/")}{path}'
-        params = {
-            'requestId': str(uuid.uuid4()),
-            'candidateId': candidate_id,
-            'items': items,
-        }
-        headers = _bg_headers(app_id, app_key, params)
-        t0 = time.time()
-        r = requests.post(url, json=params, headers=headers, timeout=10)
-        duration_ms = int((time.time() - t0) * 1000)
-        try:
-            resp = r.json()
-        except Exception:
-            resp = {}
-        ok = r.status_code in (200, 201)
+        supplier = get_supplier(config)
+        req = CreateOrderRequest(candidate_id=str(candidate_id), items=list(items or []))
+        res = supplier.create_order(req)
         IntegrationSyncLog.objects.create(
             config=config, sync_type='CREATE_ORDER',
-            status='SUCCESS' if ok else 'FAILED',
-            endpoint=path, method='POST', direction='OUT', duration_ms=duration_ms,
-            error_message='' if ok else f'HTTP {r.status_code}: {r.text[:200]}',
+            status='SUCCESS' if res.success else 'FAILED',
+            endpoint=supplier.CREATE_PATH, method='POST', direction='OUT',
+            duration_ms=res.duration_ms,
+            error_message='' if res.success else (res.message or '')[:200],
         )
-        if ok:
-            # 出向成功：落初始订单（状态机起点 status=0 已受理），关联候选人
-            order_number = (resp.get('data') or {}).get('number')
+        if res.success:
+            inner = (res.data or {}).get('data') or {}
+            order_number = inner.get('number')
             if order_number:
                 try:
                     create_background_check_order(
                         config=config, candidate_id=str(candidate_id),
-                        items=items, order_number=str(order_number), request_payload=params,
+                        items=list(items or []), order_number=str(order_number),
+                        request_payload=inner,
                     )
                 except Exception:
                     logger.exception('create_background_check_order failed (number=%s)', order_number)
-            return {'success': True, 'data': resp}
-        return {'success': False, 'error': f'HTTP {r.status_code}: {resp.get("message", "")}'}
+            return {'success': True, 'data': res.data}
+        return {'success': False, 'error': res.message}
     except Exception as e:
         logger.exception('Background check request failed: %s', e)
         return {'success': False, 'error': str(e)}
-
 
 def _ms_to_datetime(ms) -> Optional[dt_datetime]:
     """Unix 毫秒时间戳 -> 时区感知 datetime（UTC），非法值返回 None。"""
@@ -546,48 +490,25 @@ def cancel_background_check_order(order: BackgroundCheckOrder,
                                   config: Optional[IntegrationConfig] = None) -> Dict[str, Any]:
     """平台发起取消（状态机置 6 已取消）。
 
-    先按规范向供应商取消接口发签名出向（best-effort），再在平台侧置为已取消。
+    T6: 先委托供应商适配器做签名出向（best-effort），再在平台侧置为已取消。
     平台发起的取消具有权威性，无论出向成败均落 CANCEL 事件。
     """
     config = config or order.config
     result: Dict[str, Any] = {'success': True, 'message': '已取消'}
     try:
-        cfg = config.config or {}
-        secret = _bg_secret(config)
-        app_id = cfg.get('AppId', cfg.get('appId', ''))
-        app_key = secret.get('api_key') or secret.get('apiKey') or ''
-        env = cfg.get('env', 'sandbox')
-        base_url = cfg.get('productionBaseUrl') if env == 'production' else cfg.get('sandboxBaseUrl')
-        path = cfg.get('cancelPath') or '/api/v1/background-check/cancel'
-        if base_url and app_key:
-            url = f'{base_url.rstrip("/")}{path}'
-            params = {'number': order.order_number}
-            headers = _bg_headers(app_id, app_key, params)
-            t0 = time.time()
-            try:
-                r = requests.post(url, json=params, headers=headers, timeout=10)
-                duration_ms = int((time.time() - t0) * 1000)
-                try:
-                    resp = r.json()
-                except Exception:
-                    resp = {}
-                ok = r.status_code in (200, 201) and resp.get('code') in (0, '0', None)
-                IntegrationSyncLog.objects.create(
-                    config=config, sync_type='CANCEL_ORDER',
-                    status='SUCCESS' if ok else 'FAILED',
-                    endpoint=path, method='POST', direction='OUT', duration_ms=duration_ms,
-                    error_message='' if ok else f'HTTP {r.status_code}: {r.text[:200]}',
-                )
-                if not ok:
-                    result = {'success': False,
-                              'message': f'供应商取消失败: HTTP {r.status_code} {resp.get("message", "")}'}
-            except requests.RequestException as e:
-                IntegrationSyncLog.objects.create(
-                    config=config, sync_type='CANCEL_ORDER', status='FAILED',
-                    endpoint=path, method='POST', direction='OUT',
-                    duration_ms=int((time.time() - t0) * 1000), error_message=str(e),
-                )
-                result = {'success': False, 'message': f'供应商取消异常: {e}'}
+        supplier = get_supplier(config)
+        if supplier._base_url and supplier._app_key:
+            res = supplier.cancel_order(order.order_number)
+            IntegrationSyncLog.objects.create(
+                config=config, sync_type='CANCEL_ORDER',
+                status='SUCCESS' if res.success else 'FAILED',
+                endpoint=supplier.CANCEL_PATH, method='POST', direction='OUT',
+                duration_ms=res.duration_ms,
+                error_message='' if res.success else (res.message or '')[:200],
+            )
+            if not res.success:
+                result = {'success': False,
+                          'message': f'供应商取消失败: {res.message}'}
 
         # 平台侧置为已取消
         from_status = order.status
@@ -606,20 +527,13 @@ def cancel_background_check_order(order: BackgroundCheckOrder,
         result = {'success': False, 'message': f'取消异常: {e}'}
     return result
 
-
 def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, int, str, Optional[IntegrationConfig]]:
     """校验背调供应商异步回调（规范 §5.2 验签 + 重放防护）。
 
-    参数:
-        payload: 供应商回调请求体（已解析 dict）
-        app_id: 请求头 X-App-Id（供应商 appId）
-    返回:
-        (ok, code, message, config)
-        - ok=True 时 config 为命中的 IntegrationConfig
-        - ok=False 时按 §4.2 返回业务码 40101(无效appId)/40102(签名失败)/40103(重放)/40001(缺参)
+    参数 / 返回 同原实现；签名公式与重放窗口判定已收敛到 suppliers.base
+    （verify_callback_signature / replay_allowed），本函数保留 appId 定位与编排。
     """
     # 1. 必填字段校验（§2.2.5 必需 + §5.2 签名公式依赖 timestamp）
-    #    注意: §2.2.5 字段表未列 timestamp, 但 §5.2 签名公式依赖它, 故强制要求, 缺失即拒。
     number = payload.get('number')
     status_val = payload.get('status')
     ts = payload.get('timestamp')
@@ -638,8 +552,9 @@ def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, 
         return False, 40101, 'appId 无效或未匹配到供应商', None
 
     # 3. 解密 appKey（与出向签名同源：api_key 或 apiKey）
-    secret = _bg_secret(matched)
-    app_key = secret.get('api_key') or secret.get('apiKey') or ''
+    app_key = BaseBackgroundCheckSupplier._resolve_app_key(
+        BaseBackgroundCheckSupplier._load_secret(matched)
+    )
     if not app_key:
         return False, 40102, '供应商未配置 appKey(签名失败)', matched
 
@@ -648,18 +563,73 @@ def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, 
         ts_int = int(ts)
     except (TypeError, ValueError):
         return False, 40001, 'timestamp 非法', matched
-    now_ms = int(time.time() * 1000)
-    if abs(now_ms - ts_int) > 5 * 60 * 1000:
+    if not replay_allowed(ts_int):
         return False, 40103, '时间戳超时(疑似重放)', matched
 
     # 5. 重算签名并比对（§5.2 待签串: number=&status=&timestamp=）
-    sign_str = "number=" + str(number) + "&status=" + str(status_val) + "&timestamp=" + str(ts_int)
-    expect = hmac.new(app_key.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expect, str(sign).lower()):
+    if not verify_callback_signature(payload, app_key):
         return False, 40102, '签名校验失败', matched
 
     return True, 0, 'success', matched
 
+
+def query_background_check_order(order_number: str, config_id: str = None) -> Dict[str, Any]:
+    """主动轮询供应商订单最新状态（§6.4 兜底；T6 新增接口）。
+
+    委托供应商适配器 query_order（GET 订单详情），落审计日志后返回统一 dict。
+    """
+    try:
+        qs = IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True)
+        if config_id:
+            qs = IntegrationConfig.objects.filter(id=config_id, type=IntegrationType.BACKGROUND_CHECK)
+        config = qs.first()
+        if not config:
+            return {'success': False, 'error': 'Background check not configured'}
+        supplier = get_supplier(config)
+        res = supplier.query_order(order_number)
+        IntegrationSyncLog.objects.create(
+            config=config, sync_type='QUERY_ORDER',
+            status='SUCCESS' if res.success else 'FAILED',
+            endpoint=supplier.ORDER_DETAIL_PATH.format(number=order_number),
+            method='GET', direction='OUT', duration_ms=res.duration_ms,
+            error_message='' if res.success else (res.message or '')[:200],
+        )
+        return {
+            'success': res.success,
+            'message': res.message,
+            'data': res.data,
+            'duration_ms': res.duration_ms,
+        }
+    except Exception as e:
+        logger.exception('query_background_check_order failed')
+        return {'success': False, 'error': str(e)}
+
+
+def fetch_background_check_report(order: 'BackgroundCheckOrder') -> Dict[str, Any]:
+    """拉取背调报告（T6 新增接口）。
+
+    委托供应商适配器 fetch_report（GET order.report_url），落审计日志后返回统一 dict。
+    """
+    try:
+        config = order.config
+        supplier = get_supplier(config)
+        res = supplier.fetch_report(order)
+        IntegrationSyncLog.objects.create(
+            config=config, sync_type='FETCH_REPORT',
+            status='SUCCESS' if res.success else 'FAILED',
+            endpoint=order.report_url or '', method='GET', direction='OUT',
+            duration_ms=res.duration_ms,
+            error_message='' if res.success else (res.message or '')[:200],
+        )
+        return {
+            'success': res.success,
+            'message': res.message,
+            'data': res.data,
+            'duration_ms': res.duration_ms,
+        }
+    except Exception as e:
+        logger.exception('fetch_background_check_report failed')
+        return {'success': False, 'error': str(e)}
 
 def bg_callback_envelope(code: int, message: str, data: Optional[dict] = None, request_id: Optional[str] = None) -> dict:
     """统一回调响应信封（规范 §3.2）。

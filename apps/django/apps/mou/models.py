@@ -1,9 +1,10 @@
 """mou models - 2026-07-01 stub for permissions-v2/* (G36 任务待补真业务)"""
 from django.db import models
+from apps.common.models import SoftDeleteModel, SoftDeleteManager
 from apps.core.models import User, Department
 
 
-class MouAgreement(models.Model):
+class MouAgreement(SoftDeleteModel):
     """MOU 协议"""
     id = models.CharField(max_length=32, primary_key=True)
     code = models.CharField(max_length=50, unique=True, help_text='MOU 编码, 如 MOU-2026-001')
@@ -30,7 +31,10 @@ class MouAgreement(models.Model):
         return f'{self.code} - {self.company_name}'
 
 
-class MouContainer(models.Model):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class MouContainer(SoftDeleteModel):
     """MOU 容器 (招聘需求 + 配额)"""
     id = models.CharField(max_length=32, primary_key=True)
     mou = models.ForeignKey(MouAgreement, on_delete=models.CASCADE, related_name='containers')
@@ -50,7 +54,10 @@ class MouContainer(models.Model):
         verbose_name = 'MOU 配额容器'
 
 
-class MutualExclusionGroup(models.Model):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class MutualExclusionGroup(SoftDeleteModel):
     """互斥组 (同一候选人不能同时在某些流程)"""
     id = models.CharField(max_length=32, primary_key=True)
     name = models.CharField(max_length=100)
@@ -63,7 +70,10 @@ class MutualExclusionGroup(models.Model):
         verbose_name = '互斥组'
 
 
-class MouRule(models.Model):
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+class MouRule(SoftDeleteModel):
     """MOU 自动化规则 (自动审批/自动推进)。
 
     Phase 4（2026-09-01）重命名自 ``AutomationRule``，消除与 ``automation.AutomationRule``
@@ -83,3 +93,7 @@ class MouRule(models.Model):
     class Meta:
         db_table = 'mou_automation_rules'
         verbose_name = 'MOU 自动化规则'
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

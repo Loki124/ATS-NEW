@@ -52,8 +52,8 @@ const stepClass = computed(() => (s: 1 | 2) => {
   background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
   color: var(--g5);
 }
-.sdot.on { border-color: var(--p); background: var(--p); color: #fff; }
-.sdot.ok { border-color: var(--s); background: var(--s); color: #fff; }
+.sdot.on { border-color: var(--brand); background: var(--brand); color: #fff; }
+.sdot.ok { border-color: var(--c-success); background: var(--c-success); color: #fff; }
 .sdot.warn { border-color: var(--w); background: var(--w); color: #fff; }
 .slabel {
   font-size: 11px;
@@ -61,8 +61,8 @@ const stepClass = computed(() => (s: 1 | 2) => {
   font-weight: 500;
   margin-left: 6px;
 }
-.sdot.on + .slabel { color: var(--p); }
-.sdot.ok + .slabel { color: var(--s); }
+.sdot.on + .slabel { color: var(--brand); }
+.sdot.ok + .slabel { color: var(--c-success); }
 .sdot.warn + .slabel { color: var(--w); }
 .sline {
   width: 56px;
@@ -71,8 +71,8 @@ const stepClass = computed(() => (s: 1 | 2) => {
   margin: 0 6px;
   transition: 0.2s;
 }
-.sline.ok { background: var(--s); }
-.sline.on { background: linear-gradient(to right, var(--s), var(--p)); }
+.sline.ok { background: var(--c-success); }
+.sline.on { background: linear-gradient(to right, var(--c-success), var(--brand)); }
 
 @media (max-width: 768px) {
   .stepper { padding: 10px var(--space-3); }

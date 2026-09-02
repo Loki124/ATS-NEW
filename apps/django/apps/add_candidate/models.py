@@ -7,9 +7,10 @@
 - apps.position.models.Position
 """
 from django.db import models
+from apps.common.models import SoftDeleteModel, SoftDeleteManager
 
 
-class ParseJob(models.Model):
+class ParseJob(SoftDeleteModel):
     """简历解析任务（上传后由 Celery 处理）"""
     STATUS_CHOICES = [
         ('processing', '处理中'),
@@ -42,3 +43,7 @@ class ParseJob(models.Model):
     class Meta:
         db_table = 'add_candidate_parsejob'
         ordering = ['-created_at']
+
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

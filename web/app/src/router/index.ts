@@ -161,6 +161,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'HRBP', 'HR'] } },
           // ===== G44 V2 主题外观 (液态玻璃 v2) — 全员可见 =====
           { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
+          // ===== 统一规则引擎 (Phase 4 后端) — 聚合只读视图 =====
+          { path: 'rule-engine', name: 'RuleEngine', component: () => import(/* webpackChunkName: "settings-rule-engine" */ '../pages/settings/RuleEngine.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
         ],
       },
       {

@@ -8,6 +8,7 @@
 - status + current_node_id 两字段加 service guard，不引入 FSM 库
 """
 from django.db import models
+from apps.common.models import SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
 
 
@@ -15,7 +16,7 @@ def gen_id():
     return nanoid_generate(size=21)
 
 
-class ApprovalFlow(models.Model):
+class ApprovalFlow(SoftDeleteModel):
     """审批流
 
     前端契约 (SpecialApproval.vue:162-184):
@@ -70,8 +71,11 @@ class ApprovalFlow(models.Model):
     def __str__(self):
         return f'ApprovalFlow[{self.id}] candidate={self.candidate_id} status={self.status}'
 
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
 
-class ApprovalFlowHistory(models.Model):
+
+class ApprovalFlowHistory(SoftDeleteModel):
     """审批流操作历史 — 自动审计"""
     ACTION_CHOICES = [
         ('CREATED', '创建'),
@@ -113,3 +117,6 @@ class ApprovalFlowHistory(models.Model):
 
     def __str__(self):
         return f'ApprovalFlowHistory[{self.action}] flow={self.flow_id}'
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

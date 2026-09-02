@@ -16,6 +16,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
+logger = logging.getLogger(__name__)
+
 from .models import (
     Action,
     Condition,
@@ -125,15 +127,37 @@ def sync_automation_rule_to_unified(rule: Any) -> Rule:
     )
 
     # 2) 条件项：删后重建（seq = index + 1，condition_type 统一为 CUSTOM）
+    # 兼容两种 V1 condition_json 形态：
+    #   - dict: {field, operator, value}  —— entry_condition/原 V1 三元组
+    #   - str:   "stage.state == PROCESSING"  —— load_process_templates.py:225 把
+    #           condition 字符串包成 [str]；bridge 不解析表达式语义（避免歧义），
+    #           整体塞到 meta_json.expression 留待 evaluator 自定义解释。
     unified.conditions.all().delete()
     for idx, cond in enumerate(rule.condition_json or []):
+        if isinstance(cond, dict):
+            field = cond.get('field', '') or ''
+            operator = cond.get('operator', 'EQ') or 'EQ'
+            value = cond.get('value')
+            meta: dict = {}
+        elif isinstance(cond, str):
+            field = ''
+            operator = 'EQ'
+            value = None
+            meta = {'expression': cond, 'legacy_format': 'string'}
+        else:
+            logger.warning(
+                'sync_automation_rule_to_unified: 跳过非 dict/str 条件 '
+                '(idx=%d, type=%s, value=%r)', idx, type(cond).__name__, cond,
+            )
+            continue
         Condition.objects.create(
             rule=unified,
             seq=idx + 1,
             condition_type=ConditionType.CUSTOM,
-            field=cond.get('field', ''),
-            operator=cond.get('operator', 'EQ'),
-            value=cond.get('value'),
+            field=field,
+            operator=operator,
+            value=value,
+            meta_json=meta,
         )
 
     # 3) 动作项：删后重建 1 条（action_type 直接同值映射）

@@ -33,7 +33,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
       <div v-if="isAllDone()" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap: var(--space-2);font-size:11px;text-align:left;" @click="emit('upload', [])">
         <span style="font-size: var(--fs-18);">📎</span>
-        <span style="flex:1;color:var(--g6);">拖拽或<span style="color:var(--p);font-weight:500;">点击</span>追加更多简历</span>
+        <span style="flex:1;color:var(--g6);">拖拽或<span style="color:var(--brand);font-weight:500;">点击</span>追加更多简历</span>
         <span style="font-size: var(--fs-10);color:var(--g5);">PDF / Word / TXT</span>
       </div>
 
@@ -94,28 +94,28 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   white-space: nowrap;
 }
 .st-pill .st-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.st-pill.processing { background: var(--bl); color: var(--c-info-deep); }
-.st-pill.processing .st-dot { background: var(--b); animation: pulse2 1s infinite; }
+.st-pill.processing { background: var(--c-info-soft); color: var(--c-info-deep); }
+.st-pill.processing .st-dot { background: var(--c-info); animation: pulse2 1s infinite; }
 .st-pill.clean { background: var(--sl); color: var(--c-success-deep); }
-.st-pill.clean .st-dot { background: var(--s); }
+.st-pill.clean .st-dot { background: var(--c-success); }
 .st-pill.unocc { background: var(--wl); color: var(--c-warning-deep); }
 .st-pill.unocc .st-dot { background: var(--w); }
-.st-pill.occupied { background: var(--dl); color: var(--c-error-deep); }
-.st-pill.occupied .st-dot { background: var(--d); }
+.st-pill.occupied { background: var(--c-error-bg); color: var(--c-error-deep); }
+.st-pill.occupied .st-dot { background: var(--c-error-deep); }
 @keyframes pulse2 { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .legend { display: flex; gap: var(--space-3); font-size: var(--fs-10); color: var(--g5); flex-wrap: wrap; }
 .legend span { display: flex; align-items: center; gap: var(--space-1); }
 .legend .ld { width: 6px; height: 6px; border-radius: 50%; }
-.legend .ld.lg { background: var(--s); }
+.legend .ld.lg { background: var(--c-success); }
 .legend .ld.ly { background: var(--w); }
-.legend .ld.lr { background: var(--d); }
-.legend .ld.lb { background: var(--b); }
+.legend .ld.lr { background: var(--c-error-deep); }
+.legend .ld.lb { background: var(--c-info); }
 .bulk-bar {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: var(--space-2) var(--space-3);
-  background: var(--pl);
+  background: var(--brand-a12);
   border-radius: 8px;
   font-size: 11px;
   color: var(--c-info-deep);
@@ -130,10 +130,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   transition: 0.15s;
   background: var(--g1);
 }
-.upload-zone:hover { border-color: var(--p); background: var(--pl); }
+.upload-zone:hover { border-color: var(--brand); background: var(--brand-a12); }
 .upload-zone.dragover {
-  border-color: var(--p);
-  background: var(--pl);
+  border-color: var(--brand);
+  background: var(--brand-a12);
   box-shadow: 0 0 0 3px var(--overlay-scrim-mid);
 }
 .upload-zone .up-icon { font-size: var(--fs-36); margin-bottom: var(--space-2); transition: 0.2s; }
@@ -151,7 +151,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   color: var(--g6);
   cursor: pointer;
 }
-.upload-zone .up-quick span:hover { border-color: var(--p); color: var(--p); }
+.upload-zone .up-quick span:hover { border-color: var(--brand); color: var(--brand); }
 .card-list { display: flex; flex-direction: column; gap: var(--space-2); }
 /* v2 bugfix P0-C: 业务卡片白底 → 玻璃 */
 .card-item {
@@ -161,12 +161,12 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   overflow: hidden;
   transition: 0.15s;
 }
-.card-item:hover { border-color: var(--p); }
-.card-item.selected { border-color: var(--p); box-shadow: 0 0 0 1px var(--overlay-scrim-mid); }
-.card-item.occ { border-left: 3px solid var(--d); }
-.card-item.dir-set { border-left: 3px solid var(--s); }
+.card-item:hover { border-color: var(--brand); }
+.card-item.selected { border-color: var(--brand); box-shadow: 0 0 0 1px var(--overlay-scrim-mid); }
+.card-item.occ { border-left: 3px solid var(--c-error-deep); }
+.card-item.dir-set { border-left: 3px solid var(--c-success); }
 .card-item.unocc { border-left: 3px solid var(--w); }
-.card-item.clean { border-left: 3px solid var(--s); }
+.card-item.clean { border-left: 3px solid var(--c-success); }
 .card-item .c-header {
   display: flex;
   align-items: center;
@@ -185,7 +185,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   align-items: center;
   justify-content: center;
 }
-.card-item .c-header .c-chk.checked { background: var(--p); border-color: var(--p); }
+.card-item .c-header .c-chk.checked { background: var(--brand); border-color: var(--brand); }
 .card-item .c-header .c-chk.checked::after { content: '✓'; color: var(--g1); font-size: var(--fs-10); }
 .card-item .c-header .c-avatar {
   width: 36px;
@@ -239,8 +239,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 .cb .cb-icon { font-size: var(--fs-16); flex-shrink: 0; margin-top: 1px; }
 .cb.clean { background: var(--sl); color: var(--c-success-deep); border: 1px solid var(--c-success-bg); }
 .cb.unocc { background: var(--wl); color: var(--c-warning-deep); border: 1px solid var(--c-warning-bg); }
-.cb.occupied { background: var(--dl); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
-.cb.processing { background: var(--bl); color: var(--c-info-deep); border: 1px solid var(--c-info-bg); }
+.cb.occupied { background: var(--c-error-bg); color: var(--c-error-deep); border: 1px solid var(--c-error-bg); }
+.cb.processing { background: var(--c-info-soft); color: var(--c-info-deep); border: 1px solid var(--c-info-bg); }
 .dup-card {
   border: 1px solid var(--c-warning-bg);
   border-radius: 8px;
@@ -283,7 +283,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .fg input:focus,
 .fg select:focus,
-.fg textarea:focus { border-color: var(--p); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
+.fg textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--overlay-scrim-mid); }
 .fg textarea { resize: vertical; min-height: 50px; }
 .seg-item {
   border: 1px solid var(--g3);
@@ -308,8 +308,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--pl);
-  color: var(--p);
+  background: var(--brand-a12);
+  color: var(--brand);
   font-size: var(--fs-10);
   font-weight: 700;
 }
@@ -332,7 +332,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   width: 12px;
   height: 12px;
   border: 2px solid var(--c-info-bg);
-  border-top-color: var(--p);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -350,16 +350,16 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   background: var(--glass-bg-card);
   color: var(--g7);
 }
-.occ-btn:hover { border-color: var(--p); background: var(--pl); }
-.occ-btn.primary { background: var(--p); color: var(--n-100); border-color: var(--p); }
+.occ-btn:hover { border-color: var(--brand); background: var(--brand-a12); }
+.occ-btn.primary { background: var(--brand); color: var(--n-100); border-color: var(--brand); }
 .occ-btn.primary:hover { background: var(--ph); }
 /* v2 bugfix P0-C: .occ-btn.warn 白底 → 玻璃 */
-.occ-btn.warn { background: var(--glass-bg-card); color: var(--c-error-deep); border-color: var(--d); }
-.occ-btn.warn:hover { background: var(--dl); }
+.occ-btn.warn { background: var(--glass-bg-card); color: var(--c-error-deep); border-color: var(--c-error-deep); }
+.occ-btn.warn:hover { background: var(--c-error-bg); }
 .apply-pos {
   margin-top: var(--space-2);
   padding: 10px var(--space-3);
-  background: var(--bl);
+  background: var(--c-info-soft);
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
 }
@@ -375,11 +375,11 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   background: var(--glass-bg-card);
   transition: 0.15s;
 }
-.apply-pos-item:hover { border-color: var(--p); }
+.apply-pos-item:hover { border-color: var(--brand); }
 .apply-pos-item.sel {
-  border-color: var(--p);
-  background: var(--pl);
-  color: var(--p);
+  border-color: var(--brand);
+  background: var(--brand-a12);
+  color: var(--brand);
   font-weight: 500;
 }
 .apply-pos-done {
@@ -409,8 +409,8 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .score-overall-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 10px; }
 .score-big { font-size: 28px; font-weight: 700; line-height: 1; }
-.score-big.pass { color: var(--s); }
-.score-big.fail { color: var(--d); }
+.score-big.pass { color: var(--c-success); }
+.score-big.fail { color: var(--c-error-deep); }
 .score-pass-tag {
   padding: 2px var(--space-2);
   border-radius: 20px;
@@ -420,7 +420,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   margin-top: 2px;
 }
 .score-pass-tag.pass { background: var(--sl); color: var(--c-success-deep); }
-.score-pass-tag.fail { background: var(--dl); color: var(--c-error-deep); }
+.score-pass-tag.fail { background: var(--c-error-bg); color: var(--c-error-deep); }
 .sc-dim { display: flex; align-items: center; gap: var(--space-2); margin-top: 6px; font-size: 11px; }
 .sc-dim-name { width: 70px; color: var(--g6); flex-shrink: 0; }
 .sc-dim-bar {
@@ -451,10 +451,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   margin-top: var(--space-1);
 }
 .pbar .pfill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
-.pfill.bl { background: var(--b); }
+.pfill.bl { background: var(--c-info); }
 .pfill.ye { background: var(--c-warning); }
 .pfill.pu { background: var(--brand-grad-a); } /* P5 整改：第 3 品牌紫 var(--brand) -> 令牌 */
-.pfill.gr { background: var(--s); }
+.pfill.gr { background: var(--c-success); }
 /* v2 bugfix P0-C: 业务按钮白底 → 玻璃（同一文件中其他业务卡片一起清理） */
 .replace-file-btn {
   padding: var(--space-1) var(--space-2);
@@ -469,11 +469,11 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   gap: var(--space-1);
   transition: 0.15s;
 }
-.replace-file-btn:hover { border-color: var(--p); color: var(--p); background: var(--pl); }
+.replace-file-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-a12); }
 .replace-file-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .replace-banner {
   padding: 10px 14px;
-  background: linear-gradient(90deg, var(--bl) 0%, #DBEAFE 100%);
+  background: linear-gradient(90deg, var(--c-info-bg) 0%, var(--c-info-soft) 100%); /* T5 P2 已落地：info 渐变端点走 §4 语义令牌（--c-info-bg / --c-info-soft），暗色自动跟 §14 覆盖 */
   border: 1px solid var(--c-info-bg);
   border-radius: 8px;
   font-size: var(--fs-12);
@@ -493,9 +493,9 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
   font-size: var(--fs-10);
   margin-top: var(--space-2);
 }
-.nbar.info { background: var(--bl); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
+.nbar.info { background: var(--c-info-soft); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
 .nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
-.nbar.error { background: var(--dl); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
+.nbar.error { background: var(--c-error-bg); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
 .btn {
   padding: 7px 14px;
   border-radius: 8px;
