@@ -114,6 +114,8 @@ export interface StageRule {
   autoAdvanceType: 'NONE' | 'MEET_NEXT' | 'IGNORE_NEXT' | 'MEET_NEXT_OR_N2' | 'N1_ALL_PASS';
   autoAdvanceTiming: 'NONE' | 'IMMEDIATE' | 'DELAYED';
   autoAdvanceDays?: number;
+  // 2026-09-02: 计划中字段 (BE 暂未落地，UI 显示恒为「未开启」——保持类型可选避免 UI 报错)
+  autoSkipNPlusTwo?: boolean;
   defaultHandlerType: 'FROM_DEMAND' | 'FROM_POSITION' | 'CUSTOM';
   defaultHandlerFields?: string[];
   defaultHandlerUserIds?: string[];

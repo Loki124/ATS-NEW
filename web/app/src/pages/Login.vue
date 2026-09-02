@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, onBeforeUnmount } from 'vue'
+import { ref, reactive, nextTick, onBeforeUnmount, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
 import { PersonOutline, LockClosedOutline } from '@vicons/ionicons5'
@@ -233,8 +233,11 @@ const handleLogin = async (values: { username: string; password: string }) => {
         localStorage.setItem('rememberMe', 'true')
       }
       // 2026-08-25：登录成功 toast 加半透明绿色底色（Naive 默认 toast 在暗色页面上没背景，看不清）
+      // 注：message API 的 MessageOptions 不含 containerStyle（仅 MessageProvider 才有），故改用 render 自渲染保留下暗色可读性
       message.success('登录成功！', {
-        containerStyle: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); color: var(--c-success);',
+        render: () => h('div', {
+          style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success); padding: 8px 14px; border-radius: 6px;',
+        }, '登录成功！'),
       })
       // 用 nextTick 避免 message toast 在路由切换时被销毁
       await nextTick()

@@ -33,7 +33,6 @@
       :row-key="(r) => r.id"
       :max-height="tableMaxHeight"
       :row-height="TABLE_ROW_HEIGHT"
-      :theme-overrides="tableThemeOverrides"
     />
     </div>
 
@@ -90,14 +89,6 @@ const editing = ref<any>(null)
 // 2026-08-29 UX 整改：表头固定 + 行高统一 — 视窗高 - 上方累计(标题/工具条/信息条/分页)≈ 560，按 1 屏可见行数倒推
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
 const TABLE_ROW_HEIGHT = 44
-// 2026-08-30 UX 三改：Naive 默认 tdPaddingMedium='12px' 应用到**所有边**（非仅垂直），被 26px tag 撑成 50px 行。
-//   走官方 theme-overrides 把 td/th padding 收到 6px；同时 scoped CSS 补 !important 兜底（HMR 偶发失效场景）
-const tableThemeOverrides = {
-  DataTable: {
-    tdPaddingMedium: '6px',
-    thPaddingMedium: '6px',
-  },
-}
 const tableMaxHeight = computed(() => {
   if (typeof window === 'undefined') return 560
   // 预留分页器 64 + page-header 80 + toolbar 56 + alert 60 + page-body gap 48 ≈ 308，余下给表

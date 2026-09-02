@@ -180,8 +180,10 @@ const settingsMenuThemeOverrides = {
 }
 
 // ★ v1.1 修复：expandCurrent 改为累计 ancestor 链（3 嵌套必须展开中间层 + 最外层 group）
+//   2026-09-02：MenuOption.key 是 Key|undefined，未定义项直接跳过（保持返回类型严格）
 function findPathToKey(items: MenuItem[], target: string, currentPath: Array<string | number> = []): Array<string | number> | null {
   for (const item of items) {
+    if (item.key === undefined) continue
     const newPath = [...currentPath, item.key]
     if (item.key === target) return newPath
     if (item.children?.length) {

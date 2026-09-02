@@ -28,7 +28,6 @@
       :row-key="(r) => r.id"
       :max-height="tableMaxHeight"
       :row-height="TABLE_ROW_HEIGHT"
-      :theme-overrides="tableThemeOverrides"
     />
     </div>
 
@@ -59,14 +58,6 @@ const loading = ref(false)
 // 2026-08-29 UX 整改：表头固定 + 行高统一。表格高度 = 视窗高 - 上方累计(标题/工具条/分页)。
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
 const TABLE_ROW_HEIGHT = 44
-// 2026-08-30 UX 三改：Naive 默认 tdPaddingMedium='12px' 应用到**所有边**（非仅垂直），被 26px tag 撑成 50px 行。
-//   走官方 theme-overrides 把 td/th padding 收到 6px；同时 scoped CSS 补 !important 兜底（HMR 偶发失效场景）
-const tableThemeOverrides = {
-  DataTable: {
-    tdPaddingMedium: '6px',
-    thPaddingMedium: '6px',
-  },
-}
 const tableMaxHeight = computed(() => {
   if (typeof window === 'undefined') return 560
   // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
@@ -200,7 +191,8 @@ onMounted(() => loadList())
 
 /* 2026-08-29 UX 整改：行高统一 + 标签列中线对齐；X-05 严禁硬编码颜色 */
 /* 2026-08-30 UX 三改：补 padding:6px 12px !important 把行内垂直空白从 Naive 默认 ~10px 收到 6px，让 row-height=44 真正生效。
-   theme-overrides 是首选，此处 !important 兜底防 HMR/特异性竞态 */
+   Naive UI 当前版本 themeOverrides 类型不含 tdPaddingMedium/thPaddingMedium（cssr vars 存在但未暴露给类型），
+   全靠此 scoped CSS 兜底。 */
 .recruitment-process :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
   padding: 6px 12px !important;
