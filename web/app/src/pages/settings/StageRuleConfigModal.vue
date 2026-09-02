@@ -804,7 +804,6 @@ async function handleSubmit() {
         //   把所选形式 join 成 "VIDEO,ONSITE" 形式入字符串字段. BE 没有 JSON 字段对应.
         interviewFormat: form.interviewForms.join(','),
       })
-    }
     // 2026-08-31 修复：原逻辑用 activeTab === 'condition' 分支判定，但本弹窗是扁平表单、没有
     //   tab 切换 UI → activeTab 恒为 'auto' → 进入条件**从未被保存**，用户配置的进入条件全丢。
     //   改为「只要用户实际填写了任一字段就提交」，全空则不创建空记录（避免脏数据）。
