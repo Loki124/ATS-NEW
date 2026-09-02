@@ -29,7 +29,7 @@ _SAMPLE = [
 SAMPLE_PERSONS = []
 for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
     SAMPLE_PERSONS.append({
-        'code': f'C{_i:08d}',
+        # 'code' 不再硬编码 —— 由 Person.save() 自动补号 C+8 流水号（连续且唯一）。
         'name': f'员工{_i}',
         'bu': _bu,
         'school': _school,
