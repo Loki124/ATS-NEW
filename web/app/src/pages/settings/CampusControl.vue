@@ -1108,13 +1108,6 @@ const personColumns: DataTableColumns<Person> = [
   { title: '职级', key: 'level', render: (r) => r.level || '—' },
   { title: '状态', key: 'status' },
   { title: '计入核算', key: 'counted', render: (r) => h(NTag, { type: r.counted ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.counted ? '是' : '否') }) },
-  {
-    title: '操作', key: 'actions', width: 120, fixed: 'right',
-    render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openPersonModal(r) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removePerson(r) }, { default: () => '删除' }),
-    ]),
-  },
 ]
 
 // v2.6 录入校验只看人数。占比/占比状态/强度三列移除（占比仅用于规则配置时计算实际人数，
