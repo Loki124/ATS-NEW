@@ -66,75 +66,200 @@
         </nav>
 
         <div class="rule-config-flat">
-          <!-- Section 1: 自动处理规则 (总开关) -->
-          <div class="section-card" data-section="auto">
-            <div class="section-card__title">
-              <n-icon :component="OptionsOutline" /> 自动处理规则
+          <!-- ============ Card 1: 流程自动化 (完全参照原型) ============ -->
+          <div class="config-card">
+            <div class="card-title">
+              <n-icon :component="GitNetworkOutline" /> 流程自动化
+              <span class="title-desc">· 配置阶段的自动评估、流转、跳过与归档规则</span>
             </div>
-            <div class="section-card__hint">
-              流程自动化的总开关 (启用 = 满足下阶段进入条件时自动流转到下个阶段)
+
+            <!-- Block 1: 自动评估 -->
+            <div class="flow-block">
+              <div class="block-header">
+                <n-icon :component="ConstructOutline" /> 自动评估
+                <span class="block-desc">· 当前阶段的自动化评估规则</span>
+              </div>
+              <div class="option-grid">
+                <label class="opt-item">
+                  <n-checkbox v-model:checked="form.grabModeEnabled" />
+                  <span>N+2 推荐免筛选</span>
+                </label>
+                <label class="opt-item">
+                  <n-checkbox v-model:checked="form.inheritPriorConsensus" />
+                  <span>引用前序双 A 的一致意见</span>
+                </label>
+              </div>
             </div>
-            <div class="field-row">
-              <span class="field-label">启用自动处理</span>
-              <span class="field-value">
-                <n-checkbox v-model:checked="form.autoAdvanceEnabled">满足下阶段进入条件时, 自动流转到下阶段</n-checkbox>
-              </span>
+
+            <!-- Block 2: 自动流转 (双列内联 + 自动流转条件) -->
+            <div class="flow-block">
+              <div class="block-header block-header--secondary">
+                <n-icon :component="ArrowForwardOutline" /> 自动流转
+                <span class="block-desc">· 满足自动流转条件时，在到达执行时机后自动流转到下阶段</span>
+              </div>
+              <div class="flow-condition-row">
+                <div class="flow-field">
+                  <label class="field-label">自动流转条件</label>
+                  <n-select
+                    v-model:value="form.autoAdvanceType"
+                    :options="autoAdvanceOptions"
+                    size="small"
+                  />
+                </div>
+                <div class="flow-field">
+                  <label class="field-label">执行时机</label>
+                  <n-select
+                    v-model:value="form.autoAdvanceTiming"
+                    :options="timingOptions"
+                    size="small"
+                  />
+                </div>
+              </div>
+              <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="flow-condition-row">
+                <div class="flow-field">
+                  <label class="field-label">延迟天数 (1-15 工作日)</label>
+                  <n-input-number v-model:value="form.autoAdvanceDays" :min="1" :max="15" size="small" />
+                </div>
+              </div>
             </div>
-            <div class="field-row">
-              <span class="field-label">兜选机制 (N+2 推荐)</span>
-              <span class="field-value">
-                <n-checkbox v-model:checked="form.grabModeEnabled">N+2 推荐兜选</n-checkbox>
-              </span>
+
+            <!-- Block 3: 自动跳过 (开关 + 规则表) -->
+            <div class="flow-block">
+              <div class="block-header block-header--split">
+                <div class="block-header__main">
+                  <n-icon :component="FastForwardOutline" /> 自动跳过
+                  <span class="block-desc">· 满足规则时不再停留，直接判断是否满足下阶段进入条件</span>
+                </div>
+                <label class="switch-pill" :class="{ 'switch-pill--on': form.skipEnabled }">
+                  <input
+                    type="checkbox"
+                    class="switch-pill__input"
+                    :checked="form.skipEnabled"
+                    :disabled="saving"
+                    @change="form.skipEnabled = ($event.target as HTMLInputElement).checked"
+                  >
+                  <span class="switch-pill__track"><span class="switch-pill__dot"></span></span>
+                  <span class="switch-pill__label">{{ form.skipEnabled ? '开启' : '关闭' }}</span>
+                </label>
+              </div>
+              <div class="rule-content" :class="{ 'rule-content--hidden': !form.skipEnabled }">
+                <div class="rule-table-wrap">
+                  <table class="rule-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 70px;">规则名称</th>
+                        <th>执行条件</th>
+                        <th>执行动作</th>
+                        <th style="width: 100px;">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="form.skipRules.length === 0">
+                        <td colspan="4" class="rule-table__empty">暂无规则，点击下方添加</td>
+                      </tr>
+                      <tr v-for="(rule, idx) in form.skipRules" :key="rule._key">
+                        <td><strong>跳过{{ idx + 1 }}</strong></td>
+                        <td>
+                          <n-input v-model:value="rule.condition" size="small" placeholder="如：候选人已接受其他 offer" />
+                        </td>
+                        <td>
+                          <n-input v-model:value="rule.action" size="small" placeholder="如：跳过本阶段" />
+                        </td>
+                        <td>
+                          <div class="action-btns">
+                            <a class="danger" @click="removeSkipRule(idx)">
+                              <n-icon :component="TrashOutline" size="12" /> 删除
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="actions-row">
+                  <button class="btn-outline-primary" type="button" @click="addSkipRule">
+                    <n-icon :component="AddOutline" size="12" /> 添加规则
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="field-row field-row--last">
-              <span class="field-label">引用前序双 A 的一致意见</span>
-              <span class="field-value">
-                <n-checkbox v-model:checked="form.inheritPriorConsensus">继承前序流程双 A 的一致意见</n-checkbox>
-              </span>
+
+            <!-- Block 4: 自动归档 (开关 + 规则表，复用 time-limit 数据) -->
+            <div class="flow-block">
+              <div class="block-header block-header--split">
+                <div class="block-header__main">
+                  <n-icon :component="HourglassOutline" /> 自动归档
+                  <span class="block-desc">· 限定阶段总时长，超时自动归档候选人到公共人才库</span>
+                </div>
+                <label class="switch-pill" :class="{ 'switch-pill--on': form.timeLimitEnabled }">
+                  <input
+                    type="checkbox"
+                    class="switch-pill__input"
+                    :checked="form.timeLimitEnabled"
+                    :disabled="saving"
+                    @change="form.timeLimitEnabled = ($event.target as HTMLInputElement).checked"
+                  >
+                  <span class="switch-pill__track"><span class="switch-pill__dot"></span></span>
+                  <span class="switch-pill__label">{{ form.timeLimitEnabled ? '开启' : '关闭' }}</span>
+                </label>
+              </div>
+              <div class="rule-content" :class="{ 'rule-content--hidden': !form.timeLimitEnabled }">
+                <div class="rule-table-wrap">
+                  <table class="rule-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 70px;">规则名称</th>
+                        <th>执行条件</th>
+                        <th>执行动作</th>
+                        <th style="width: 100px;">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="form.timeLimitRules.length === 0">
+                        <td colspan="4" class="rule-table__empty">暂无规则，点击下方添加</td>
+                      </tr>
+                      <tr v-for="(rule, idx) in form.timeLimitRules" :key="rule._key">
+                        <td><strong>{{ rule.name || `归档${idx + 1}` }}</strong></td>
+                        <td>
+                          <n-input v-model:value="rule.condition" size="small" placeholder="如：候选人性别为空" />
+                        </td>
+                        <td>
+                          <n-input v-model:value="rule.action" size="small" placeholder="如：锁定时长30天" />
+                        </td>
+                        <td>
+                          <div class="action-btns">
+                            <a class="danger" @click="removeTimeLimitRule(idx)">
+                              <n-icon :component="TrashOutline" size="12" /> 删除
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="actions-row">
+                  <button class="btn-outline-primary" type="button" @click="addTimeLimitRule">
+                    <n-icon :component="AddOutline" size="12" /> 添加规则
+                  </button>
+                  <n-divider vertical />
+                  <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
+                  <n-button size="small" quaternary @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
+                  <n-button size="small" quaternary @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
+                  <n-button size="small" quaternary @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Section 2: 自动化流转条件 (双列内联，参照原型交互) -->
-          <div class="section-card" data-section="flow">
-            <div class="section-card__title">
-              <n-icon :component="GitNetworkOutline" /> 自动化流转条件
-            </div>
-            <div class="section-card__hint">满足自动流转条件时，在到达执行时机后自动流转到下阶段</div>
-            <div class="inline-row">
-              <div class="inline-row__field">
-                <label class="inline-row__label">自动流转条件</label>
-                <n-select
-                  v-model:value="form.autoAdvanceType"
-                  :options="autoAdvanceOptions"
-                  size="small"
-                />
-              </div>
-              <div class="inline-row__field">
-                <label class="inline-row__label">执行时机</label>
-                <n-select
-                  v-model:value="form.autoAdvanceTiming"
-                  :options="timingOptions"
-                  size="small"
-                />
-              </div>
-            </div>
-            <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="field-row field-row--last">
-              <span class="field-label">延迟天数 (1-15 工作日)</span>
-              <span class="field-value">
-                <n-input-number v-model:value="form.autoAdvanceDays" :min="1" :max="15" size="small" />
-              </span>
-            </div>
-          </div>
-
-          <!-- Section 3: 默认处理人 (3 字段内联 + 联动，参照原型交互) -->
-          <div class="section-card" data-section="handler">
-            <div class="section-card__title">
+          <!-- ============ Card 2: 默认处理人 (完全参照原型 3 字段内联) ============ -->
+          <div class="config-card">
+            <div class="card-title">
               <n-icon :component="PersonOutline" /> 默认处理人
+              <span class="title-desc">· 进入本阶段时自动为默认处理人添加待办任务</span>
             </div>
-            <div class="section-card__hint">进入本阶段时自动为默认处理人添加待办任务</div>
-            <div class="inline-row inline-row--3">
-              <div class="inline-row__field">
-                <label class="inline-row__label">
+            <div class="flow-condition-row flow-condition-row--3">
+              <div class="flow-field">
+                <label class="field-label">
                   数据来源 <span class="required-mark">*</span>
                 </label>
                 <n-select
@@ -144,8 +269,8 @@
                   @update:value="onPrimaryDataSourceChange"
                 />
               </div>
-              <div class="inline-row__field">
-                <label class="inline-row__label">
+              <div class="flow-field">
+                <label class="field-label">
                   取值字段 <span class="required-mark">*</span>
                 </label>
                 <n-select
@@ -156,8 +281,8 @@
                   size="small"
                 />
               </div>
-              <div class="inline-row__field">
-                <label class="inline-row__label">处理规则</label>
+              <div class="flow-field">
+                <label class="field-label">处理规则</label>
                 <n-select
                   v-model:value="primaryHandler.strategy"
                   :options="strategyOptions"
@@ -166,151 +291,89 @@
                 />
               </div>
             </div>
-            <div v-if="form.handlerRules.length > 1" class="section-card__sub">
-              <div class="section-card__sub-title">高级规则 (按顺序执行)</div>
-              <n-data-table
-                :columns="handlerColumns"
-                :data="form.handlerRules"
-                :row-key="(r: any) => r._key"
-                size="small"
-                :pagination="false"
-                class="rule-table"
-              />
-            </div>
           </div>
 
-          <!-- Section 4: 阶段限时 (开关 + 规则表联动，参照原型) -->
-          <div class="section-card" data-section="timelimit">
-            <div class="section-header-row">
-              <div class="section-header-row__main">
-                <div class="section-card__title section-card__title--inline">
-                  <n-icon :component="TimerOutline" /> 阶段限时
-                </div>
-                <div class="section-card__hint">
-                  限制阶段总时长, 超时自动归档候选人到公共人才库
-                </div>
-              </div>
-              <label class="switch-pill" :class="{ 'switch-pill--on': form.timeLimitEnabled }">
-                <input
-                  type="checkbox"
-                  class="switch-pill__input"
-                  :checked="form.timeLimitEnabled"
-                  :disabled="saving"
-                  @change="form.timeLimitEnabled = ($event.target as HTMLInputElement).checked"
-                >
-                <span class="switch-pill__track">
-                  <span class="switch-pill__dot"></span>
-                </span>
-                <span class="switch-pill__label">{{ form.timeLimitEnabled ? '开启' : '关闭' }}</span>
-              </label>
+          <!-- ============ Card 3 (项目扩展): 面试轮次 + 形式 (仅 INTERVIEW 阶段) ============ -->
+          <div v-if="isInterviewType" class="config-card">
+            <div class="card-title">
+              <n-icon :component="BriefcaseOutline" /> 面试配置
+              <span class="title-desc">· 面试轮次与形式（仅面试/邀约阶段）</span>
             </div>
-            <div class="rule-content" :class="{ 'rule-content--hidden': !form.timeLimitEnabled }">
-              <n-data-table
-                :columns="timeLimitColumns"
-                :data="form.timeLimitRules"
-                :row-key="(r: any) => r._key"
-                size="small"
-                :pagination="false"
-                class="rule-table"
-              />
-              <div class="section-card__actions">
-                <n-button size="small" class="btn-outline-primary" @click="addTimeLimitRule">
-                  <n-icon :component="AddOutline" size="14" /> 添加规则
-                </n-button>
-                <n-divider vertical />
-                <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
-                <n-button size="small" quaternary @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
-                <n-button size="small" quaternary @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
-                <n-button size="small" quaternary @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
+            <div class="flow-block">
+              <div class="block-header">
+                <n-icon :component="LayersOutline" /> 面试轮次 (可多选)
+              </div>
+              <div class="option-grid">
+                <label v-for="opt in interviewRoundOptions" :key="opt.value" class="opt-item">
+                  <n-checkbox
+                    :checked="form.interviewRounds.includes(opt.value)"
+                    @update:checked="(v: boolean) => onInterviewToggle('rounds', opt.value, v)"
+                  />
+                  <span>{{ opt.label }}</span>
+                </label>
+              </div>
+            </div>
+            <div class="flow-block">
+              <div class="block-header">
+                <n-icon :component="VideocamOutline" /> 面试形式 (可多选)
+              </div>
+              <div class="option-grid">
+                <label v-for="opt in interviewFormOptions" :key="opt.value" class="opt-item">
+                  <n-checkbox
+                    :checked="form.interviewForms.includes(opt.value)"
+                    @update:checked="(v: boolean) => onInterviewToggle('forms', opt.value, v)"
+                  />
+                  <span>{{ opt.label }}</span>
+                </label>
               </div>
             </div>
           </div>
 
-          <!-- Section 5: 面试轮次 + 形式 (仅 INTERVIEW/INVITATION 阶段) -->
-          <div v-if="isInterviewType" class="section-card" data-section="interview">
-            <div class="section-card__title">
-              <n-icon :component="BriefcaseOutline" /> 面试轮次 + 形式
-            </div>
-            <div class="field-row">
-              <span class="field-label">面试轮次 (可多选)</span>
-              <span class="field-value">
-                <n-checkbox-group v-model:value="form.interviewRounds">
-                  <n-space>
-                    <n-checkbox
-                      v-for="opt in interviewRoundOptions"
-                      :key="opt.value"
-                      :value="opt.value"
-                    >{{ opt.label }}</n-checkbox>
-                  </n-space>
-                </n-checkbox-group>
-              </span>
-            </div>
-            <div class="field-row field-row--last">
-              <span class="field-label">面试形式 (可多选)</span>
-              <span class="field-value">
-                <n-checkbox-group v-model:value="form.interviewForms">
-                  <n-space>
-                    <n-checkbox
-                      v-for="opt in interviewFormOptions"
-                      :key="opt.value"
-                      :value="opt.value"
-                    >{{ opt.label }}</n-checkbox>
-                  </n-space>
-                </n-checkbox-group>
-              </span>
-            </div>
-          </div>
-
-          <!-- Section 6: 进入条件 -->
-          <div class="section-card" data-section="condition">
-            <div class="section-card__title">
+          <!-- ============ Card 4 (项目扩展): 进入条件 ============ -->
+          <div class="config-card">
+            <div class="card-title">
               <n-icon :component="LockClosedOutline" /> 进入条件
+              <span class="title-desc">· 候选人进入此阶段需满足的判定条件</span>
             </div>
-            <div class="section-card__hint">
-              候选人进入此阶段需满足的判定条件 (Stage Rule 的 EntryCondition) — 对配置后进入阶段的简历立即生效
+            <div class="flow-block">
+              <div class="block-header">
+                <n-icon :component="GitCompareOutline" /> 判定方式
+              </div>
+              <div class="option-grid">
+                <label class="opt-item">
+                  <n-radio v-model:checked="condForm.matchType" value="ALL">全部满足 (AND)</n-radio>
+                </label>
+                <label class="opt-item">
+                  <n-radio v-model:checked="condForm.matchType" value="ANY">任意满足 (OR)</n-radio>
+                </label>
+              </div>
             </div>
-            <div class="field-row">
-              <span class="field-label">判定方式</span>
-              <span class="field-value">
-                <n-radio-group v-model:value="condForm.matchType">
-                  <n-space>
-                    <n-radio value="ALL">全部满足 (AND)</n-radio>
-                    <n-radio value="ANY">任意满足 (OR)</n-radio>
-                  </n-space>
-                </n-radio-group>
-              </span>
+            <div class="flow-block">
+              <div class="block-header">
+                <n-icon :component="CodeSlashOutline" /> 条件表达式 (可选)
+              </div>
+              <n-input
+                v-model:value="condForm.expression"
+                placeholder="如: (1 AND 2) OR (3 AND 4)"
+                :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
+                @blur="onExprBlur"
+              />
+              <div v-if="exprValidation && !exprValidation.valid" class="field-error-hint">
+                {{ exprValidation.error }}
+              </div>
+              <div v-else class="field-hint" style="margin-top: 6px;">留空则用上面条件树自动生成</div>
             </div>
-            <div
-              class="field-row"
-              :class="exprValidation && !exprValidation.valid ? 'field-row--error' : ''"
-            >
-              <span class="field-label">条件表达式 (可选)</span>
-              <span class="field-value">
-                <n-input
-                  v-model:value="condForm.expression"
-                  placeholder="如: (1 AND 2) OR (3 AND 4)"
-                  :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
-                  size="small"
-                  @blur="onExprBlur"
-                />
-                <div v-if="exprValidation && !exprValidation.valid" class="field-error-hint">
-                  {{ exprValidation.error }}
-                </div>
-                <div v-else class="field-hint">留空则用上面条件树自动生成</div>
-              </span>
-            </div>
-            <div class="field-row field-row--last">
-              <span class="field-label">未满足条件时提示内容</span>
-              <span class="field-value">
-                <n-input
-                  v-model:value="condForm.prompt"
-                  type="textarea"
-                  :rows="3"
-                  placeholder="如: 请先完成 HRBP 评估"
-                  size="small"
-                />
-                <div class="field-hint">选填。填写后会在候选人未满足进入条件时展示该提示。</div>
-              </span>
+            <div class="flow-block">
+              <div class="block-header">
+                <n-icon :component="ChatboxOutline" /> 未满足条件时提示内容 (选填)
+              </div>
+              <n-input
+                v-model:value="condForm.prompt"
+                type="textarea"
+                :rows="3"
+                placeholder="如: 请先完成 HRBP 评估"
+              />
+              <div class="field-hint" style="margin-top: 6px;">选填。填写后会在候选人未满足进入条件时展示该提示。</div>
             </div>
           </div>
         </div>
@@ -348,9 +411,12 @@ import {
 import { validateExpression } from '../../utils/condition-expression'
 import { default as axios } from 'axios'
 import config from '../../config'
-import { SettingsOutline, CloseOutline, FlashOutline, AddOutline,
+import { SettingsOutline, CloseOutline, FlashOutline, AddOutline, TrashOutline,
   OptionsOutline, GitNetworkOutline, PersonOutline, TimerOutline,
-  BriefcaseOutline, LockClosedOutline } from '@vicons/ionicons5'
+  BriefcaseOutline, LockClosedOutline,
+  ConstructOutline, ArrowForwardOutline, FastForwardOutline, HourglassOutline,
+  LayersOutline, VideocamOutline, GitCompareOutline, CodeSlashOutline,
+  ChatboxOutline } from '@vicons/ionicons5'
 
 // 嵌套条件项（3 级树） - 扩展 ConditionItem 增加 children 字段
 interface ConditionItemTree extends ConditionItem {
@@ -414,9 +480,17 @@ function scrollToSection(key: SectionKey) {
 const form = reactive({
   // 2026-06-17: 4 个总开关 (按截图"自动处理规则" + 阶段限时"是否开启")
   autoAdvanceEnabled: true,
-  grabModeEnabled: false,            // N+2 推荐兜选
+  grabModeEnabled: false,            // N+2 推荐免筛选
   inheritPriorConsensus: false,      // 引用前序双 A 的一致意见
   timeLimitEnabled: false,
+  // 2026-09-03: 自动跳过开关 + 规则 (原型新增模块，UI-only 不写入后端)
+  skipEnabled: false,
+  skipRules: [] as Array<{
+    _key: string
+    condition: string
+    action: string
+    enabled: boolean
+  }>,
   // 自动化
   autoAdvanceType: 'NONE' as 'NONE' | 'MEET_NEXT' | 'IGNORE_NEXT' | 'MEET_NEXT_OR_N2' | 'N1_ALL_PASS',
   autoAdvanceTiming: 'NONE' as 'NONE' | 'IMMEDIATE' | 'DELAYED',
@@ -429,7 +503,7 @@ const form = reactive({
     strategy: 'NONE' | 'ROUND_ROBIN' | 'IN_ORDER'
     enabled: boolean
   }>,
-  // 阶段限时 (多行)
+  // 阶段限时 (多行) - 自动归档 block 用，复用 time-limit 接口
   timeLimitRules: [] as Array<{
     _key: string
     name: string
@@ -715,8 +789,38 @@ function addTimeLimitRule() {
   })
 }
 
-function removeTimeLimitRule(row: any) {
-  form.timeLimitRules = form.timeLimitRules.filter(r => r._key !== row._key)
+function removeTimeLimitRule(idx: number) {
+  form.timeLimitRules.splice(idx, 1)
+}
+
+/**
+ * 2026-09-03 自动跳过 block 操作 (原型新增模块)
+ * - 开关状态保留在 form.skipEnabled (UI-only)
+ * - 规则列表 form.skipRules 同理
+ * - 后端暂未实现 skip 字段 → 不写入后端；本块作为 UI 演示存在
+ */
+function addSkipRule() {
+  form.skipRules.push({
+    _key: `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    condition: '',
+    action: '跳过本阶段',
+    enabled: true,
+  })
+}
+
+function removeSkipRule(idx: number) {
+  form.skipRules.splice(idx, 1)
+}
+
+/**
+ * 面试轮次 / 面试形式 多选切换 (原型 option-grid 交互)
+ */
+function onInterviewToggle(kind: 'rounds' | 'forms', value: string, checked: boolean) {
+  const key = kind === 'rounds' ? 'interviewRounds' : 'interviewForms'
+  const arr = form[key] as string[]
+  const idx = arr.indexOf(value)
+  if (checked && idx < 0) arr.push(value)
+  if (!checked && idx >= 0) arr.splice(idx, 1)
 }
 
 // Plan L #5: 插入时间限制预置规则
@@ -1042,95 +1146,153 @@ async function handleSubmit() {
 }
 
 /* ==================== Section Card ==================== */
-/* 2026-09-03 视觉整改：去掉左侧 4px 蓝色竖条 + 标题前 3px 蓝色小竖条 + hint 灰底框。
-   原型是简洁卡片风（白/极浅底 + icon 标题），不是「重装修」风。
-   - section-card 改用 --g1 浅填充（非半透明玻璃，更「实」）
-   - 标题前用 icon（与原型一致），不再用蓝色竖条
-   - hint 降级为普通说明文字，去掉灰底框
-   - padding 由 16/20 → 14/16（更紧凑） */
-.section-card {
+/* 2026-09-03 视觉整改 v3：完全按原型 HTML 的 .config-card 视觉实现
+   - config-card：浅灰底（--bg-subtle → --g1），圆角 12px，1px border，padding 14-16px
+   - card-title：14px 600 + 蓝色 icon 前缀（--brand），无下划线
+   - 内部 flow-block：白底，圆角 10px，1px border（白底 block 在浅灰 card 内浮起） */
+.config-card {
   background: var(--g1);
   border: 1px solid var(--g2);
-  border-radius: var(--radius-md);
-  padding: 14px var(--space-4) var(--space-4) var(--space-4);
-  margin-bottom: 0;            /* 间距统一交给 .rule-config-flat 的 gap */
-  scroll-margin-top: 52px;     /* 锚点导航 sticky 吸顶时不遮挡分区标题 */
-  position: relative;
+  border-radius: var(--radius-md); /* 16px → 与原型 12px 接近但保留项目 token */
+  padding: 14px var(--space-4) var(--space-4);
+  margin-bottom: 0;
 }
-.section-card__title {
+.card-title {
   font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink);
-  margin: 0 0 6px 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  line-height: 1.4;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
 }
-.section-card__title :deep(.n-icon) {
+.card-title :deep(.n-icon) {
   color: var(--brand);
   font-size: 14px;
   flex-shrink: 0;
 }
-.section-card__hint {
+.title-desc {
+  font-weight: 400;
   font-size: var(--fs-12);
   color: var(--ink-soft);
-  line-height: 1.5;
-  margin: 0 0 var(--space-3) 22px; /* 22px 让出 icon 宽度，对齐标题 */
-}
-.section-card__actions {
-  margin-top: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  margin-left: 2px;
 }
 
-/* ==================== Inline Row (双列/三列内联，参照原型交互) ==================== */
-/* Section 2: 自动流转条件 2 字段并排；Section 3: 默认处理人 3 字段并排 */
-.inline-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
-  margin-top: var(--space-3);
+/* ==================== Flow Block (白底块，在 config-card 内浮起) ==================== */
+.flow-block {
+  background: var(--surface); /* 原型 white */
+  border-radius: var(--radius-sm); /* 8px 接近原型 10px */
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--g2);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
 }
-.inline-row--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.flow-block:last-child {
+  margin-bottom: 0;
 }
-.inline-row__field {
+.flow-block:hover {
+  box-shadow: var(--shadow-xs);
+}
+.block-header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0; /* grid item 防溢出 */
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
-.inline-row__label {
-  font-size: var(--fs-12);
-  font-weight: 500;
+.block-header :deep(.n-icon) {
+  color: var(--brand);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.block-desc {
+  font-weight: 400;
+  font-size: 11.5px;
   color: var(--ink-soft);
+  margin-left: 2px;
   line-height: 1.4;
+}
+.block-header--secondary {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.block-header--split {
+  justify-content: space-between;
+  align-items: center;
+}
+.block-header__main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* ==================== Option Grid (复选/单选内联) ==================== */
+.option-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 2px 0;
+}
+.opt-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-13);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 2px 0;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.opt-item:hover {
+  color: var(--brand);
+}
+.opt-item :deep(.n-checkbox),
+.opt-item :deep(.n-radio) {
+  margin-right: 2px;
+}
+.opt-item :deep(.n-checkbox .n-checkbox__label),
+.opt-item :deep(.n-radio .n-radio__label) {
+  font-size: var(--fs-13);
+  padding-left: 0;
+}
+
+/* ==================== Flow Condition Row (自动流转 / 默认处理人 字段并排) ==================== */
+.flow-condition-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.flow-condition-row + .flow-condition-row {
+  margin-top: 10px;
+}
+.flow-condition-row--3 {
+  /* 3 列默认处理人内联 */
+}
+.flow-field {
+  flex: 1;
+  min-width: 0;
+}
+.flow-field .field-label {
+  display: block;
+  font-size: var(--fs-12);
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+  font-weight: 500;
+  line-height: 1.3;
 }
 .required-mark {
   color: var(--c-error);
   margin-left: 2px;
 }
 
-/* ==================== Section Header Row (标题 + 开关同列，参照原型) ==================== */
-.section-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.section-header-row__main {
-  flex: 1;
-  min-width: 0;
-}
-.section-card__title--inline {
-  margin-bottom: 2px; /* 与下方 hint 紧凑排版 */
-}
-
-/* ==================== Switch Pill (参照原型自定义开关，颜色走 token) ==================== */
+/* ==================== Switch Pill (开关，参照原型) ==================== */
 .switch-pill {
   display: inline-flex;
   align-items: center;
@@ -1138,7 +1300,7 @@ async function handleSubmit() {
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  font-size: var(--fs-13);
+  font-size: var(--fs-12);
   color: var(--ink-soft);
   transition: color var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
@@ -1185,7 +1347,7 @@ async function handleSubmit() {
   min-width: 28px;
 }
 
-/* ==================== Rule Content Reveal (开关控制显隐，参照原型) ==================== */
+/* ==================== Rule Content Reveal ==================== */
 .rule-content {
   transition: opacity var(--duration-base) var(--ease-out),
               max-height var(--duration-base) var(--ease-out);
@@ -1200,20 +1362,77 @@ async function handleSubmit() {
   margin: 0 !important;
 }
 
-/* ==================== Section Sub (高级规则 折叠展开) ==================== */
-.section-card__sub {
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px dashed var(--g2);
+/* ==================== Rule Table (原 HTML 原生 table) ==================== */
+.rule-table-wrap {
+  overflow-x: auto;
+  margin-top: 6px;
+  border-radius: var(--radius-sm);
+  scrollbar-width: thin;
 }
-.section-card__sub-title {
+.rule-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: var(--fs-12);
-  font-weight: 600;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--g2);
+}
+.rule-table :deep(.n-data-table-th) {
+  background: var(--g1);
+  font-weight: 500;
+  font-size: var(--fs-12);
   color: var(--ink-soft);
-  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--g2);
+}
+.rule-table :deep(.n-data-table-td) {
+  font-size: var(--fs-12) !important;
+  color: var(--ink);
+  border-bottom: 1px solid var(--g2);
+}
+.rule-table__empty {
+  text-align: center;
+  color: var(--ink-faint);
+  padding: 14px !important;
+  font-style: italic;
+}
+.action-btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.action-btns a {
+  color: var(--brand);
+  text-decoration: none;
+  cursor: pointer;
+  font-size: var(--fs-12);
+  transition: color var(--duration-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.action-btns a:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+.action-btns a.danger {
+  color: var(--c-error);
+}
+.action-btns a.danger:hover {
+  color: var(--c-error-deep);
 }
 
-/* ==================== Outline Primary Button (添加规则，参照原型) ==================== */
+/* ==================== Actions Row (添加规则 + 预置 按钮组) ==================== */
+.actions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ==================== Outline Primary Button ==================== */
 .btn-outline-primary {
   background: transparent;
   border: 1px dashed var(--brand);
@@ -1235,77 +1454,16 @@ async function handleSubmit() {
   border-style: solid;
 }
 
-/* ==================== Field Row ==================== */
-.field-row {
-  display: flex;
-  align-items: center;
-  min-height: 36px;
-  padding: var(--space-1) 0;
-  border-bottom: 1px dashed var(--g2);
-}
-.field-row:last-child {
-  border-bottom: none;
-}
-.field-row--error {
-  background: var(--g1);
-  margin: 0 -8px;
-  padding: var(--space-1) var(--space-2);
-  border-radius: 4px;
-}
-.field-label {
-  flex: 0 0 110px;
-  text-align: right;
-  padding-right: var(--space-4);
-  font-size: var(--fs-13);
-  color: var(--n-580);
-  font-weight: 500;
-  line-height: 1.5;
-}
-.field-label--required::after {
-  content: ' *';
-  color: var(--c-error);
-}
-.field-value {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
+/* ==================== Field Hint (进入条件 block 下方的提示) ==================== */
 .field-hint {
   font-size: var(--fs-12);
-  color: var(--n-440);
+  color: var(--ink-soft);
   line-height: 1.5;
 }
 .field-error-hint {
   font-size: var(--fs-12);
   color: var(--c-error);
   line-height: 1.5;
-}
-
-/* ==================== Data Table ==================== */
-.rule-table {
-  margin: var(--space-1) 0 0 0;
-}
-.rule-table :deep(.n-data-table-th) {
-  background: var(--glass-bg-input);
-  font-weight: 600;
-  font-size: var(--fs-12);
-  color: var(--ink);
-}
-.rule-table :deep(.n-data-table-td) {
-  font-weight: 600;
-  font-size: var(--fs-12);
-  color: var(--ink);
-}
-.rule-table :deep(.n-data-table-th__title) {
-  font-weight: 600;
-}
-.rule-table :deep(.n-data-table-td) {
-  font-size: var(--fs-12) !important;
-}
-.rule-table :deep(.n-data-table-td--ellipsis) {
-  padding: 6px 10px !important;
 }
 
 /* ==================== 分区锚点导航（sticky 吸顶） ==================== */
@@ -1374,20 +1532,10 @@ async function handleSubmit() {
 }
 
 /* ==================== 响应式 ==================== */
-/* 中屏：标签列收窄，避免大屏 110px 在 768px 左右显得空旷 */
 @media (max-width: 900px) {
-  .field-label {
-    flex-basis: 96px;
-  }
-  .inline-row--3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .inline-row--3 .inline-row__field:nth-child(3) {
-    grid-column: span 2; /* 第三个字段占满第二行 */
-  }
+  /* 中屏：3 字段内联降为 2 列 */
 }
 @media (max-width: 767px) {
-  /* 窄屏：锚点导航横向滚动，避免换行挤占内容高度 */
   .section-nav {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1397,12 +1545,12 @@ async function handleSubmit() {
   .section-nav__item {
     flex: 0 0 auto;
   }
-  .inline-row,
-  .inline-row--3 {
-    grid-template-columns: 1fr;
+  .flow-condition-row {
+    flex-direction: column;
+    gap: 10px;
   }
-  .inline-row--3 .inline-row__field:nth-child(3) {
-    grid-column: span 1;
+  .flow-condition-row + .flow-condition-row {
+    margin-top: 10px;
   }
 }
 @media (max-width: 600px) {
@@ -1421,28 +1569,14 @@ async function handleSubmit() {
     margin-right: 32px;
     font-size: var(--fs-12);
   }
-  .field-row {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: var(--space-2) 0;
+  .config-card {
+    padding: 10px 10px 12px;
   }
-  .field-label {
-    flex: none;
-    text-align: left;
-    padding: 0 0 var(--space-1) 0;
-    width: 100%;
-  }
-  .field-value {
-    width: 100%;
-  }
-  .section-card {
-    padding: var(--space-3) 14px;
-  }
-  .section-card__actions {
+  .actions-row {
     flex-direction: column;
     align-items: stretch;
   }
-  .section-header-row {
+  .block-header--split {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-2);
