@@ -52,9 +52,33 @@ action_registry.register(_TestExecutor())
 
 @pytest.fixture(autouse=True)
 def _reset_calls():
+    # T10 (2026-09-03 fix): Phase 2+ 生产 executor（AutoAdvance / AllowExecutor / ...）
+    # 在 apps.ready() 里注册到 action_registry，模块级 _TestExecutor() 注册被追加到末尾。
+    # dispatch 按注册顺序找第一个 supports=True 的 executor 执行 → _TestExecutor 永远轮不到，
+    # CALLS 一直是 []。
+    # 修法：每个 test setUp 把 _TestExecutor 实例移到 _executors[0]，让 production executor
+    # 落到后面。teardown 时若 _TestExecutor 不在头部再移回去（兼容外部 test 顺序）。
+    executors = action_registry._executors
+    test_executor_indices = [i for i, e in enumerate(executors) if isinstance(e, _TestExecutor)]
+    moved_from = None
+    if test_executor_indices:
+        i = test_executor_indices[0]
+        if i != 0:
+            moved_from = executors.pop(i)
+            executors.insert(0, moved_from)
+    else:
+        # 未注册（个别场景 conftest 清理过），补注册到头部
+        action_registry.register(_TestExecutor())
+        executors.insert(0, executors.pop(-1))
     CALLS.clear()
     yield
     CALLS.clear()
+    # teardown: 还原位置（若之前是头部就不要动）
+    if moved_from is not None and executors and isinstance(executors[0], _TestExecutor):
+        e = executors.pop(0)
+        # 放到原索引（若原索引已变则放末尾）
+        target = i if i < len(executors) else len(executors)
+        executors.insert(target, e)
 
 
 # ---------------------------------------------------------------------------

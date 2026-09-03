@@ -249,6 +249,7 @@ class Command(BaseCommand):
             drift.append(
                 f'condition_count: {unified.conditions.count()} '
                 f'!= {len(legacy.conditions or [])}')
+        return drift
 
     @staticmethod
     def _diff_campus_control(legacy, unified) -> list:
