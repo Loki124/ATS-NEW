@@ -127,10 +127,7 @@ export const EVALUATION_REC_FROM_BACKEND: Record<string, EvalFinalResult> = {
   STRONGLY_NOT_RECOMMEND: 'FAIL',
 }
 
-/** scores JSON 里元数据 key（带 __ 前缀避免与真实五能分数 key 冲突） */
-export const EVAL_META_KEY = '__meta'
-
-/** 评价 meta 载荷（塞进 scores[EVAL_META_KEY] JSON 序列化） */
+/** 评价 meta 载荷（v2 commit 2fxxxx：走 metaJson 字段，不再塞 scores） */
 export interface EvaluationMeta {
   compliances: Record<string, { compliance: 'PASS' | 'PARTIAL' | 'FAIL' | null; reason: string }>
   suggestedLevel: string
@@ -139,12 +136,16 @@ export interface EvaluationMeta {
   finalResult: EvalFinalResult
 }
 
-/** 把 meta 塞进 scores JSON（不影响真实分数 key） */
+/** scores JSON 里旧版元数据 key（v1 commit af10812 临时方案：__ 前缀避免污染真实分数）
+ *  v2 已迁出到 metaJson 字段，仅作读取兼容（历史数据兜底） */
+export const EVAL_META_KEY = '__meta'
+
+/** 把 meta 塞进 scores JSON（**v2 已废弃**，仅作写入兼容回退，新数据请走 metaJson 字段） */
 export function packEvalScores(values: Record<string, number>, meta: EvaluationMeta): Record<string, any> {
   return { ...values, [EVAL_META_KEY]: JSON.stringify(meta) }
 }
 
-/** 从 scores JSON 还原 meta（缺失或解析失败返回 null） */
+/** 从 scores JSON 还原 meta（缺失或解析失败返回 null）—— 历史数据兼容 */
 export function unpackEvalMeta(scores: Record<string, any> | null | undefined): EvaluationMeta | null {
   if (!scores) return null
   const raw = scores[EVAL_META_KEY]
@@ -173,6 +174,8 @@ export interface InterviewEvaluationApi {
   /** 后端枚举 5 档：STRONGLY_RECOMMEND / RECOMMEND / NEUTRAL / NOT_RECOMMEND / STRONGLY_NOT_RECOMMEND */
   recommendation: string
   comment: string
+  /** v2 (commit 2fxxxx)：评价 meta 独立字段（4 维符合性 + 建议职级/薪资 + 3 档 finalResult） */
+  metaJson?: EvaluationMeta | null
   submittedAt: string
 }
 
@@ -191,8 +194,8 @@ export async function getEvaluation(id: string): Promise<InterviewEvaluationApi>
 }
 
 /** 创建评价 — 必须附带 interviewer（当前用户 id），后端 serializer 未 auto-fill
- *  v2：meta 字段（compliances/suggestedLevel/suggestedSalary/finalResult）通过
- *      packEvalScores() 序列化进 scores[EVAL_META_KEY]，避免后端 model migration */
+ *  v2 (commit 2fxxxx)：meta 字段直接走 metaJson 字段，不再塞 scores['__meta']
+ *      兼容旧客户端：旧数据读时 fallback 到 scores['__meta'] */
 export async function createEvaluation(payload: {
   interview: string
   interviewer: string
@@ -201,6 +204,8 @@ export async function createEvaluation(payload: {
   /** 已转为后端 5 档字符串 */
   recommendation: string
   comment: string
+  /** v2：评价 meta（独立字段，避免污染 scores 真实分数 key） */
+  metaJson?: EvaluationMeta
 }): Promise<InterviewEvaluationApi> {
   const { data } = await api.post('/interviews/evaluations/', payload)
   return (data?.data ?? data) as InterviewEvaluationApi

@@ -90,6 +90,13 @@ class InterviewEvaluation(FullAuditModel):
 
     comment = models.TextField(verbose_name='评语', help_text='限 1000 字')
 
+    # v2 (2026-09-03)：评价 meta 数据（4 维符合性 + 文字依据 + 建议职级/薪资 + 3 档 finalResult）
+    # 独立 JSON 字段，避免污染 scores 真实分数 key（兼容旧版 scores['__meta'] 字符串数据）
+    meta_json = models.JSONField(
+        default=dict, blank=True, verbose_name='评价 meta',
+        help_text='{"compliances": {...}, "suggestedLevel": "...", "suggestedSalary": "...", "finalResult": "PASS|FAIL|PENDING"}',
+    )
+
     submitted_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='提交时间')
 
     class Meta:

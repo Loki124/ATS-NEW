@@ -45,16 +45,10 @@ function fromBackendRec(v: string | undefined | null): EvalFinalResult {
 }
 
 /** 把 InterviewEvaluationApi 转成 modal 期望的 v2 Evaluation 结构
- *  v2 字段：compliances（4 维 3 档 + 文字依据） / values（5 能 1-5）
- *         suggestedLevel / suggestedSalary / finalResult（3 档 radio）
- *  meta 通过 scores['__meta'] JSON 字符串持久化（无后端 migration） */
+ *  v2 (commit 2fxxxx)：meta 优先读 metaJson 字段（新数据），fallback 到 scores['__meta'] 兼容历史数据 */
 function toEvaluation(eva: InterviewEvaluationApi, row: Interview): Evaluation {
-  // 1. 从 scores['__meta'] 还原 meta（兜底：meta 缺失时给空对象）
-  const metaStr = (eva.scores as any)?.['__meta']
-  let meta: any = {}
-  if (typeof metaStr === 'string') {
-    try { meta = JSON.parse(metaStr) } catch { meta = {} }
-  }
+  // 1. meta 优先从 metaJson 字段读（新数据），fallback scores['__meta']（v1 历史）
+  const meta: any = eva.metaJson ?? unpackEvalMeta(eva.scores as any) ?? {}
 
   // 2. compliances：从 meta.compliances 还原（缺失字段给空 ComplianceItem）
   const compliances: Record<string, { compliance: 'PASS' | 'PARTIAL' | 'FAIL' | null; reason: string }> = {}
@@ -206,13 +200,8 @@ async function handleEvalSubmit(payload: SubmitPayload) {
     message.error('当前用户未登录，无法提交评价')
     return
   }
-  // 1. 把 meta（4 维符合性 + 建议职级/薪资/finalResult）打包进 scores['__meta']
-  const scores = packEvalScores(payload.values, {
-    compliances: payload.compliances,
-    suggestedLevel: payload.suggestedLevel,
-    suggestedSalary: payload.suggestedSalary,
-    finalResult: payload.finalResult,
-  })
+  // 1. scores 纯净：只放五能真实分数，meta 走 metaJson 独立字段（v2 commit 2fxxxx）
+  const scores = { ...payload.values }
   // 2. overallScore 取五能均分（兼容后端 model 的 overall_score 字段）
   const scoreArr = Object.values(payload.values).filter(v => v > 0)
   const overallScore = scoreArr.length
@@ -226,6 +215,12 @@ async function handleEvalSubmit(payload: SubmitPayload) {
       overallScore,
       recommendation: EVALUATION_REC_TO_BACKEND[payload.finalResult] ?? 'NEUTRAL',
       comment: payload.comment,
+      metaJson: {
+        compliances: payload.compliances,
+        suggestedLevel: payload.suggestedLevel,
+        suggestedSalary: payload.suggestedSalary,
+        finalResult: payload.finalResult,
+      },
     })
     message.success('评价已提交')
     evalModalShow.value = false

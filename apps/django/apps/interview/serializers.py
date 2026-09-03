@@ -47,6 +47,7 @@ class InterviewEvaluationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'interview', 'interviewer', 'interviewer_name',
             'scores', 'overall_score', 'recommendation', 'comment',
+            'meta_json',
             'submitted_at',
         ]
         read_only_fields = ['id', 'submitted_at']
