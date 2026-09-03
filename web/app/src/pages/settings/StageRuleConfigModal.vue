@@ -1013,14 +1013,20 @@ async function handleSubmit() {
 }
 
 /* ==================== HERO HEADER ==================== */
-/* 2026-09-03: hero 用 sticky 钉在 .n-card-content 滚动容器顶部，
-   长内容滚动时标题+阶段名+即时生效tip 始终可见。负 margin 仍生效（让 hero 顶到 card 左/右边缘），
-   但 bottom margin 仍保留 20px 作为 hero 与第一张 config-card 的视觉间距。 */
+/* 2026-09-03 v2 视觉修复：
+   - sticky 钉 .n-card-content 顶部，长内容滚动时标题始终可见
+   - 背景从低透明度渐变 (.45/.12) 改为高透明玻璃 (.96 + backdrop-filter blur)，避免滚动内容穿透
+   - 加 border-top 圆角匹配 .n-card 圆角 (var(--radius-lg)=20px)，
+     避免负 margin 扩展到 card 边缘时被 card 的 border-radius + overflow:hidden 裁出空白 */
 .hero {
-  background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%);
-  margin: -20px -20px 20px -20px;
+  background: var(--glass-bg-elevated);  /* rgba(255,255,255,.96) 实色兜底 */
+  backdrop-filter: blur(var(--glass-blur-card));
+  -webkit-backdrop-filter: blur(var(--glass-blur-card));
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  margin: -20px -20px var(--space-3) -20px;
   padding: 20px var(--space-6);
-  border-bottom: 1px solid var(--g1);
+  border-bottom: 1px solid var(--border-hairline);
   position: sticky;
   top: 0;
   z-index: 10;
