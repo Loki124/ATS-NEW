@@ -13,13 +13,12 @@ export function useUndo() {
 
   function undoable(text: string, onUndo: () => void | Promise<void>, duration = 8000) {
     // Naive UI MessageOptions 无 action 字段，使用官方支持的 render 自定义内容
-    let inst: ReturnType<typeof message.success> | undefined
     const doUndo = () => {
       Promise.resolve(onUndo())
-        .then(() => inst?.destroy())
+        .then(() => inst.destroy())
         .catch(() => message.error('撤销失败，请手动恢复'))
     }
-    inst = message.success('', {
+    const inst = message.success('', {
       duration,
       keepAliveOnHover: true,
       render: () =>
