@@ -1013,12 +1013,17 @@ async function handleSubmit() {
 }
 
 /* ==================== HERO HEADER ==================== */
+/* 2026-09-03: hero 用 sticky 钉在 .n-card-content 滚动容器顶部，
+   长内容滚动时标题+阶段名+即时生效tip 始终可见。负 margin 仍生效（让 hero 顶到 card 左/右边缘），
+   但 bottom margin 仍保留 20px 作为 hero 与第一张 config-card 的视觉间距。 */
 .hero {
-  background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%); /* v2.8 T2.8.3: 浅色硬编码渐变 → tokens */
+  background: linear-gradient(135deg, var(--glass-bg-input) 0%, var(--c-info-soft) 100%);
   margin: -20px -20px 20px -20px;
   padding: 20px var(--space-6);
   border-bottom: 1px solid var(--g1);
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
@@ -1419,16 +1424,15 @@ async function handleSubmit() {
 
 /* ==================== Footer ==================== */
 /* footer 在 #footer 插槽 → 渲染为 .n-card__footer，是 .n-card 的 flex 兄弟节点，
-   永远在滚动容器之外、天然钉在底部，无需 sticky。 */
+   永远在滚动容器之外、天然钉在底部，无需 sticky。
+   2026-09-03 修复 footer下方空白：删掉旧的负 margin (-20px) + inner padding-bottom
+   （两者是旧版"footer 在主 body 内"时设计的，新版 #footer 槽位不需要）；
+   玻璃底色由全局 .n-modal .n-card__footer 控制，这里只管布局。 */
 .modal-footer {
-  background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
-  border-top: 1px solid var(--g1);
-  padding: var(--space-3) 20px;
-  margin: var(--space-4) -20px -20px -20px;
+  padding: var(--space-3) 0;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-  z-index: 10;
 }
 
 /* ==================== Form 内嵌控件：禁用默认的 label 灰底 ==================== */

@@ -1048,6 +1048,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
   flex-shrink: 0;
   border-top: 1px solid var(--border-hairline);      /* 近似 :segmented 分隔 */
   padding-top: 14px;
+  padding-bottom: 0;                                /* 2026-09-03 修复 footer 下方空白：Naive 默认 padding-bottom: 16px 与 #footer 槽位 inner padding 叠加产生 8px 残留；归零让 inner 自己控间距 */
 }
 .n-modal .n-card-content {
   flex: 1 1 auto;
