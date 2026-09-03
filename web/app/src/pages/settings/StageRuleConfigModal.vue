@@ -29,11 +29,17 @@
             <n-icon :component="SettingsOutline" size="22" />
           </div>
           <div class="hero__main">
-            <div class="hero__title">阶段规则配置</div>
+            <div class="hero__title">
+              <span>配置阶段规则</span>
+              <span class="hero__stage-chip">—— {{ stage?.name || '未命名' }}</span>
+            </div>
             <div class="hero__subtitle">
-              为阶段「{{ stage?.name || '未命名' }}」配置规则
+              为本阶段配置自动化、默认处理人、限时与进入条件
             </div>
           </div>
+          <span class="hero__tip" aria-label="即时生效">
+            <n-icon :component="FlashOutline" size="12" /> 即时生效
+          </span>
           <button
             class="hero__close"
             type="button"
@@ -86,27 +92,27 @@
             </div>
           </div>
 
-          <!-- Section 2: 自动化流转条件 -->
+          <!-- Section 2: 自动化流转条件 (双列内联，参照原型交互) -->
           <div class="section-card" data-section="flow">
             <div class="section-card__title">自动化流转条件</div>
-            <div class="section-card__hint">当前阶段的自动化填充规则</div>
-            <div class="field-row">
-              <span class="field-label">自动化流转条件</span>
-              <span class="field-value">
-                <n-select v-model:value="form.autoAdvanceType" :options="autoAdvanceOptions" size="small" />
-              </span>
-            </div>
-            <div v-if="form.autoAdvanceType !== 'NONE'" class="field-row">
-              <span class="field-label">执行时机</span>
-              <span class="field-value">
-                <n-radio-group v-model:value="form.autoAdvanceTiming">
-                  <n-space>
-                    <n-radio value="NONE">不执行</n-radio>
-                    <n-radio value="IMMEDIATE">立即执行</n-radio>
-                    <n-radio value="DELAYED">延迟</n-radio>
-                  </n-space>
-                </n-radio-group>
-              </span>
+            <div class="section-card__hint">满足自动流转条件时，在到达执行时机后自动流转到下阶段</div>
+            <div class="inline-row">
+              <div class="inline-row__field">
+                <label class="inline-row__label">自动流转条件</label>
+                <n-select
+                  v-model:value="form.autoAdvanceType"
+                  :options="autoAdvanceOptions"
+                  size="small"
+                />
+              </div>
+              <div class="inline-row__field">
+                <label class="inline-row__label">执行时机</label>
+                <n-select
+                  v-model:value="form.autoAdvanceTiming"
+                  :options="timingOptions"
+                  size="small"
+                />
+              </div>
             </div>
             <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="field-row field-row--last">
               <span class="field-label">延迟天数 (1-15 工作日)</span>
@@ -116,38 +122,81 @@
             </div>
           </div>
 
-          <!-- Section 3: 默认处理人 -->
+          <!-- Section 3: 默认处理人 (3 字段内联 + 联动，参照原型交互) -->
           <div class="section-card" data-section="handler">
             <div class="section-card__title">默认处理人</div>
             <div class="section-card__hint">进入本阶段时自动为默认处理人添加待办任务</div>
-            <n-data-table
-              :columns="handlerColumns"
-              :data="form.handlerRules"
-              :row-key="(r: any) => r._key"
-              size="small"
-              :pagination="false"
-              class="rule-table"
-            />
-            <div class="section-card__actions">
-              <n-button size="small" type="primary" dashed @click="addHandlerRule">
-                + 添加处理人规则
-              </n-button>
+            <div class="inline-row inline-row--3">
+              <div class="inline-row__field">
+                <label class="inline-row__label">
+                  数据来源 <span class="required-mark">*</span>
+                </label>
+                <n-select
+                  v-model:value="primaryHandler.dataSource"
+                  :options="dataSourceOptions"
+                  size="small"
+                  @update:value="onPrimaryDataSourceChange"
+                />
+              </div>
+              <div class="inline-row__field">
+                <label class="inline-row__label">
+                  取值字段 <span class="required-mark">*</span>
+                </label>
+                <n-select
+                  v-model:value="primaryHandler.field"
+                  :options="fieldOptionsBySource[primaryHandler.dataSource] || []"
+                  :disabled="primaryHandler.dataSource === 'NONE'"
+                  placeholder="无需选择"
+                  size="small"
+                />
+              </div>
+              <div class="inline-row__field">
+                <label class="inline-row__label">处理规则</label>
+                <n-select
+                  v-model:value="primaryHandler.strategy"
+                  :options="strategyOptions"
+                  :disabled="primaryHandler.dataSource === 'NONE'"
+                  size="small"
+                />
+              </div>
+            </div>
+            <div v-if="form.handlerRules.length > 1" class="section-card__sub">
+              <div class="section-card__sub-title">高级规则 (按顺序执行)</div>
+              <n-data-table
+                :columns="handlerColumns"
+                :data="form.handlerRules"
+                :row-key="(r: any) => r._key"
+                size="small"
+                :pagination="false"
+                class="rule-table"
+              />
             </div>
           </div>
 
-          <!-- Section 4: 阶段限时 -->
+          <!-- Section 4: 阶段限时 (开关 + 规则表联动，参照原型) -->
           <div class="section-card" data-section="timelimit">
-            <div class="section-card__title">阶段限时</div>
-            <div class="section-card__hint">
-              限制阶段总时长, 超时自动归档候选人到公共人库, 选择对全部候选人生效时, 会在原有剩余时间上增加锁定时间
+            <div class="section-header-row">
+              <div class="section-header-row__main">
+                <div class="section-card__title section-card__title--inline">阶段限时</div>
+                <div class="section-card__hint">
+                  限制阶段总时长, 超时自动归档候选人到公共人才库
+                </div>
+              </div>
+              <label class="switch-pill" :class="{ 'switch-pill--on': form.timeLimitEnabled }">
+                <input
+                  type="checkbox"
+                  class="switch-pill__input"
+                  :checked="form.timeLimitEnabled"
+                  :disabled="saving"
+                  @change="form.timeLimitEnabled = ($event.target as HTMLInputElement).checked"
+                >
+                <span class="switch-pill__track">
+                  <span class="switch-pill__dot"></span>
+                </span>
+                <span class="switch-pill__label">{{ form.timeLimitEnabled ? '开启' : '关闭' }}</span>
+              </label>
             </div>
-            <div class="field-row">
-              <span class="field-label">是否开启</span>
-              <span class="field-value">
-                <n-switch v-model:value="form.timeLimitEnabled" />
-              </span>
-            </div>
-            <template v-if="form.timeLimitEnabled">
+            <div class="rule-content" :class="{ 'rule-content--hidden': !form.timeLimitEnabled }">
               <n-data-table
                 :columns="timeLimitColumns"
                 :data="form.timeLimitRules"
@@ -157,16 +206,16 @@
                 class="rule-table"
               />
               <div class="section-card__actions">
-                <n-button size="small" type="primary" dashed @click="addTimeLimitRule">
-                  + 添加规则
+                <n-button size="small" class="btn-outline-primary" @click="addTimeLimitRule">
+                  <n-icon :component="AddOutline" size="14" /> 添加规则
                 </n-button>
                 <n-divider vertical />
                 <n-text depth="3" style="font-size: 12px">插入预置:</n-text>
-                <n-button size="small" @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
-                <n-button size="small" @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
-                <n-button size="small" @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
+                <n-button size="small" quaternary @click="insertPreset('PRESIDENT')">总裁级 (90 天)</n-button>
+                <n-button size="small" quaternary @click="insertPreset('DIRECTOR')">总监级 (60 天)</n-button>
+                <n-button size="small" quaternary @click="insertPreset('OTHER')">其他级别 (30 天)</n-button>
               </div>
-            </template>
+            </div>
           </div>
 
           <!-- Section 5: 面试轮次 + 形式 (仅 INTERVIEW/INVITATION 阶段) -->
@@ -287,7 +336,7 @@ import {
 import { validateExpression } from '../../utils/condition-expression'
 import { default as axios } from 'axios'
 import config from '../../config'
-import { SettingsOutline, CloseOutline } from '@vicons/ionicons5'
+import { SettingsOutline, CloseOutline, FlashOutline, AddOutline } from '@vicons/ionicons5'
 
 // 嵌套条件项（3 级树） - 扩展 ConditionItem 增加 children 字段
 interface ConditionItemTree extends ConditionItem {
@@ -426,17 +475,52 @@ function resetTransient() {
 
 const autoAdvanceOptions = [
   { label: '不自动流转', value: 'NONE' },
-  { label: '满足下阶段进入条件时', value: 'MEET_NEXT' },
+  { label: '满足下阶段进入条件时 (推荐)', value: 'MEET_NEXT' },
   { label: '无视下阶段进入条件', value: 'IGNORE_NEXT' },
   { label: '满足下阶段条件或 N+2 推荐', value: 'MEET_NEXT_OR_N2' },
   { label: 'N+1 全部通过', value: 'N1_ALL_PASS' },
 ]
 
+/**
+ * 执行时机改为下拉单选（参照原型交互），值复用 NONE/IMMEDIATE/DELAYED，
+ * DELAYED 模式下额外由 autoAdvanceDays 控制天数。
+ */
+const timingOptions = [
+  { label: '立即执行 (默认)', value: 'IMMEDIATE' },
+  { label: '不执行', value: 'NONE' },
+  { label: '延迟 N 个工作日执行', value: 'DELAYED' },
+]
+
 const dataSourceOptions = [
   { label: '需求中', value: 'FROM_DEMAND' },
   { label: '职位中', value: 'FROM_POSITION' },
-  { label: '默认处理人', value: 'CUSTOM' },
+  { label: '指定人员', value: 'CUSTOM' },
+  { label: '无默认处理人', value: 'NONE' },
 ]
+
+/**
+ * 默认处理人 · 三字段内联（参照原型）
+ *  - 第一行作为「主配置」直接绑到本 state；
+ *  - 提交时若 form.handlerRules 为空，把这一行同步写回 handlerRules[0] 落库。
+ *  - 这样既保留原多行表数据结构（向后兼容已存在的 StageRule 数据），又给用户最简单的单行交互。
+ */
+const primaryHandler = reactive<{
+  dataSource: 'FROM_DEMAND' | 'FROM_POSITION' | 'CUSTOM' | 'NONE'
+  field: string
+  strategy: 'NONE' | 'ROUND_ROBIN' | 'IN_ORDER'
+}>({
+  dataSource: 'FROM_DEMAND',
+  field: '',
+  strategy: 'NONE',
+})
+
+function onPrimaryDataSourceChange(v: typeof primaryHandler.dataSource) {
+  // 数据来源变更 → 取值字段与处理规则必须重置（原型交互铁律）
+  primaryHandler.field = ''
+  if (v === 'NONE') {
+    primaryHandler.strategy = 'NONE'
+  }
+}
 
 const fieldOptionsBySource: Record<string, any[]> = {
   FROM_DEMAND: [
@@ -752,6 +836,21 @@ async function handleSubmit() {
   }
   saving.value = true
   try {
+      // 同步默认处理人 · 主配置（参照原型交互）→ form.handlerRules[0]
+      // 当且仅当用户没有手动添加「高级规则」时，主配置就是唯一规则；
+      // 已添加多条时，主配置作为隐藏的第一条继续生效（向后兼容既有 StageRule）。
+      const primaryAsRule = {
+        _key: form.handlerRules[0]?._key || 'primary',
+        dataSource: primaryHandler.dataSource === 'NONE' ? 'CUSTOM' : primaryHandler.dataSource,
+        field: primaryHandler.field || '',
+        strategy: primaryHandler.strategy,
+        enabled: primaryHandler.dataSource !== 'NONE',
+      }
+      if (form.handlerRules.length === 0) {
+        form.handlerRules = [primaryAsRule]
+      } else {
+        form.handlerRules[0] = primaryAsRule
+      }
       // 聚合: 默认处理人多行 → flat fields
       const handlerFields: string[] = []
       const handlerUserIds: string[] = []
@@ -876,12 +975,38 @@ async function handleSubmit() {
   font-weight: 600;
   color: var(--n-850);
   line-height: 1.4;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.hero__stage-chip {
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--n-580);
+  letter-spacing: 0;
 }
 .hero__subtitle {
   font-size: var(--fs-13);
   color: var(--n-440);
   margin-top: var(--space-1);
   line-height: 1.5;
+}
+/* 即时生效小标识（参照原型）；颜色走 --brand token，无硬编码 */
+.hero__tip {
+  align-self: center;
+  font-size: var(--fs-12);
+  color: var(--brand);
+  background: var(--brand-a12);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-right: 36px; /* 让出 close 按钮位置 */
 }
 .hero__close {
   position: absolute;
@@ -957,6 +1082,155 @@ async function handleSubmit() {
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+}
+
+/* ==================== Inline Row (双列/三列内联，参照原型交互) ==================== */
+/* Section 2: 自动流转条件 2 字段并排；Section 3: 默认处理人 3 字段并排 */
+.inline-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.inline-row--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.inline-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0; /* grid item 防溢出 */
+}
+.inline-row__label {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.required-mark {
+  color: var(--c-error);
+  margin-left: 2px;
+}
+
+/* ==================== Section Header Row (标题 + 开关同列，参照原型) ==================== */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.section-header-row__main {
+  flex: 1;
+  min-width: 0;
+}
+.section-card__title--inline {
+  margin-bottom: 2px; /* 与下方 hint 紧凑排版 */
+}
+
+/* ==================== Switch Pill (参照原型自定义开关，颜色走 token) ==================== */
+.switch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-size: var(--fs-13);
+  color: var(--ink-soft);
+  transition: color var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+.switch-pill--on {
+  color: var(--brand);
+}
+.switch-pill__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.switch-pill__track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: var(--g6);
+  border-radius: var(--radius-pill);
+  transition: background var(--duration-base) var(--ease-out);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.switch-pill__dot {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--surface);
+  border-radius: 50%;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.switch-pill--on .switch-pill__track {
+  background: var(--brand);
+}
+.switch-pill--on .switch-pill__dot {
+  transform: translateX(18px);
+}
+.switch-pill__label {
+  font-weight: 500;
+  min-width: 28px;
+}
+
+/* ==================== Rule Content Reveal (开关控制显隐，参照原型) ==================== */
+.rule-content {
+  transition: opacity var(--duration-base) var(--ease-out),
+              max-height var(--duration-base) var(--ease-out);
+  overflow: hidden;
+  max-height: 2000px;
+  opacity: 1;
+}
+.rule-content--hidden {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  margin: 0 !important;
+}
+
+/* ==================== Section Sub (高级规则 折叠展开) ==================== */
+.section-card__sub {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--g2);
+}
+.section-card__sub-title {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: var(--space-2);
+}
+
+/* ==================== Outline Primary Button (添加规则，参照原型) ==================== */
+.btn-outline-primary {
+  background: transparent;
+  border: 1px dashed var(--brand);
+  color: var(--brand);
+  padding: 0 14px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.btn-outline-primary:hover {
+  background: var(--brand-a12);
+  border-style: solid;
 }
 
 /* ==================== Field Row ==================== */
@@ -1103,6 +1377,12 @@ async function handleSubmit() {
   .field-label {
     flex-basis: 96px;
   }
+  .inline-row--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .inline-row--3 .inline-row__field:nth-child(3) {
+    grid-column: span 2; /* 第三个字段占满第二行 */
+  }
 }
 @media (max-width: 767px) {
   /* 窄屏：锚点导航横向滚动，避免换行挤占内容高度 */
@@ -1114,6 +1394,13 @@ async function handleSubmit() {
   .section-nav::-webkit-scrollbar { display: none; }
   .section-nav__item {
     flex: 0 0 auto;
+  }
+  .inline-row,
+  .inline-row--3 {
+    grid-template-columns: 1fr;
+  }
+  .inline-row--3 .inline-row__field:nth-child(3) {
+    grid-column: span 1;
   }
 }
 @media (max-width: 600px) {
@@ -1127,6 +1414,10 @@ async function handleSubmit() {
   }
   .hero__title {
     font-size: var(--fs-16);
+  }
+  .hero__tip {
+    margin-right: 32px;
+    font-size: var(--fs-12);
   }
   .field-row {
     flex-direction: column;
@@ -1148,6 +1439,11 @@ async function handleSubmit() {
   .section-card__actions {
     flex-direction: column;
     align-items: stretch;
+  }
+  .section-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
   }
 }
 </style>
