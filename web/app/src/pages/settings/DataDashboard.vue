@@ -59,7 +59,7 @@
 
     <!-- 新建订阅弹窗 -->
 </div><!-- /.page-body -->
-<n-modal v-model:show="showAddSub" preset="card" title="新建数据订阅" style="width: 540px">
+<n-modal v-model:show="showAddSub" preset="card" title="新建数据订阅" style="width: 540px; max-width: 90vw">
       <n-form :model="subForm" label-placement="left" label-width="100">
         <n-form-item label="资源">
           <n-select v-model:value="subForm.resource" :options="RESOURCE_OPTIONS" placeholder="选择资源" />
@@ -233,7 +233,7 @@ const subColumns = [
     key: 'action',
     width: 90,
     render: (row: DataSubscription) =>
-      h(NButton, { size: 'small', color: '#EF4444', textColor: '#fff', onClick: () => handleDeleteSub(row) }, () => '停用'),
+      h(NButton, { size: 'small', type: 'error', onClick: () => handleDeleteSub(row) }, () => '停用'),
   },
 ];
 

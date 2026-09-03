@@ -30,7 +30,7 @@
       v-model:show="modalVisible"
       preset="card"
       :title="selectedPosition ? '编辑职位' : '创建职位'"
-      style="width: 800px"
+      style="width: 800px; max-width: 90vw"
     >
       <n-divider title-placement="left">基本信息</n-divider>
       <n-form ref="formRef" :model="formState" label-placement="top">
@@ -92,7 +92,7 @@
       v-model:show="detailVisible"
       preset="card"
       title="职位详情"
-      style="width: 700px"
+      style="width: 700px; max-width: 90vw"
     >
       <template v-if="selectedPosition">
         <div class="grid grid-cols-2 gap-4">

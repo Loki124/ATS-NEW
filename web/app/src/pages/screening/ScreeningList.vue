@@ -9,10 +9,12 @@ import { ref, h, onMounted, computed } from 'vue'
 import { NTag, NSpace, NButton, NIcon, useMessage, NDataTable, NCard, NSelect, useDialog } from 'naive-ui'
 import { RefreshOutline, CheckmarkDoneOutline, DownloadOutline } from '@vicons/ionicons5'
 import { listCandidates, batchScreen, batchExport, type Candidate } from '../../api/candidate'
+import StateView from '../../components/common/StateView.vue'
 
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
+const error = ref<string | null>(null)
 const candidates = ref<Candidate[]>([])
 const selectedIds = ref<string[]>([])
 const filterStatus = ref<string | null>(null)
@@ -174,7 +176,9 @@ onMounted(loadList)
         <n-button @click="loadList">查询</n-button>
       </n-space>
 
+      <StateView v-if="error" state="error" :error-description="error" :on-retry="loadList" />
       <n-data-table
+        v-else
         v-model:checked-row-keys="selectedIds"
         :columns="columns"
         :data="candidates"

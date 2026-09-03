@@ -47,7 +47,7 @@
     </n-card>
 
     <!-- 模板选择 Modal -->
-    <n-modal v-model:show="templateModal.show" preset="dialog" title="生成 Offer 模板" style="width: 520px">
+    <n-modal v-model:show="templateModal.show" preset="dialog" title="生成 Offer 模板" style="width: 520px; max-width: 90vw">
       <n-form :model="templateModal.form" label-placement="left" :label-width="80">
         <n-form-item label="选择模板" path="templateKey">
           <n-select
@@ -72,7 +72,7 @@
     </n-modal>
 
     <!-- 模板预览 — Fix 3 XSS: 用 sandbox iframe 渲染后端 HTML, 禁用脚本执行 -->
-    <n-modal v-model:show="previewModal.show" preset="card" title="Offer 预览" style="width: 800px">
+    <n-modal v-model:show="previewModal.show" preset="card" title="Offer 预览" style="width: 800px; max-width: 90vw">
       <iframe
         v-if="previewModal.html"
         :srcdoc="previewModal.html"
@@ -84,7 +84,7 @@
     </n-modal>
 
     <!-- 状态转移 Modal -->
-    <n-modal v-model:show="transitionModal.show" preset="dialog" :title="transitionModal.title" style="width: 480px">
+    <n-modal v-model:show="transitionModal.show" preset="dialog" :title="transitionModal.title" style="width: 480px; max-width: 90vw">
       <n-form :model="transitionModal.form" label-placement="left" :label-width="80">
         <n-form-item label="目标状态">
           <n-tag :type="OFFER_STATUS_COLOR[transitionModal.form.to]">

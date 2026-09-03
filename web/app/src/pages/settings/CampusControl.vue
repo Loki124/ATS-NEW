@@ -412,7 +412,7 @@
     </n-modal>
 
     <!-- ===================== 维度表单弹窗 ===================== -->
-    <n-modal v-model:show="dimModal.show" :title="dimModal.editingId ? '编辑维度' : '新增维度'" preset="card" style="width: 420px">
+    <n-modal v-model:show="dimModal.show" :title="dimModal.editingId ? '编辑维度' : '新增维度'" preset="card" style="width: 420px; max-width: 90vw">
       <n-form label-placement="top">
         <n-form-item label="维度名称" required><n-input v-model:value="dimModal.name" placeholder="如 学历 / 院校标签 / 专业标签" /></n-form-item>
         <n-form-item label="编码"><n-input v-model:value="dimModal.code" placeholder="可选，如 education" /></n-form-item>
@@ -426,7 +426,7 @@
     </n-modal>
 
     <!-- ===================== 指标表单弹窗 ===================== -->
-    <n-modal v-model:show="indicatorModal.show" :title="indicatorModal.editingId ? '编辑指标' : '新增指标'" preset="card" style="width: 420px">
+    <n-modal v-model:show="indicatorModal.show" :title="indicatorModal.editingId ? '编辑指标' : '新增指标'" preset="card" style="width: 420px; max-width: 90vw">
       <n-form label-placement="top">
         <n-form-item label="所属维度" required><n-select v-model:value="indicatorModal.dimensionId" :options="dimensionOptions" :disabled="!!indicatorModal.editingId" /></n-form-item>
         <n-form-item label="指标名称" required><n-input v-model:value="indicatorModal.name" placeholder="如 985 / 男 / 工学" /></n-form-item>
@@ -440,7 +440,7 @@
     </n-modal>
 
     <!-- ===================== 人员表单弹窗（仅编辑态，列表「+ 新增人员」按钮已按产品决策移除） ===================== -->
-    <n-modal v-model:show="personModal.show" title="编辑人员" preset="card" style="width: 560px">
+    <n-modal v-model:show="personModal.show" title="编辑人员" preset="card" style="width: 560px; max-width: 90vw">
       <n-form label-placement="top">
         <n-grid :cols="2" :x-gap="16">
           <n-gi><n-form-item label="候选人编号"><n-input v-model:value="personModal.code" placeholder="如 C00000001" /></n-form-item></n-gi>

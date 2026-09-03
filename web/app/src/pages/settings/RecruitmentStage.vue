@@ -38,7 +38,7 @@
 
     <!-- 新增/编辑阶段弹窗 -->
 </div><!-- /.page-body -->
-<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 560px" :bordered="false" :segmented="{ content: true, footer: true }">
+<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 560px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
         <n-form-item label="阶段名称" required>
           <n-input v-model:value="form.name" placeholder="如：HRBP筛选" />

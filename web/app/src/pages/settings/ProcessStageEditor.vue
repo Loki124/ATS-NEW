@@ -51,7 +51,7 @@
                     @positive-click="removeLink(element)"
                   >
                     <template #trigger>
-                      <n-button size="small" color="#EF4444" text-color="#fff">移除</n-button>
+                      <n-button size="small" type="error">移除</n-button>
                     </template>
                     从此流程中移除「{{ element.stage.name }}」？
                   </n-popconfirm>
@@ -72,7 +72,7 @@
       v-model:show="showAddModal"
       preset="card"
       title="从全局阶段库选择"
-      style="width: 720px"
+      style="width: 720px; max-width: 90vw"
       :transform-origin="undefined"
     >
       <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
@@ -93,7 +93,7 @@
       v-model:show="showLimitModal"
       preset="card"
       title="设置阶段时长限制"
-      style="width: 400px"
+      style="width: 400px; max-width: 90vw"
       :transform-origin="undefined"
     >
       <n-form :model="limitForm" label-placement="top">

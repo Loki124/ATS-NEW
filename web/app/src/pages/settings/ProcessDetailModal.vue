@@ -638,7 +638,7 @@
                   @positive-click="removeStage(idx)"
                 >
                   <template #trigger>
-                    <n-button color="#EF4444" text-color="#fff" size="small">删除当前阶段</n-button>
+                    <n-button type="error" size="small">删除当前阶段</n-button>
                   </template>
                   确定删除阶段「{{ stage.name }}」？
                 </n-popconfirm>
@@ -707,7 +707,7 @@
     v-model:show="showConflict"
     preset="card"
     title="修改冲突"
-    style="width: 480px"
+    style="width: 480px; max-width: 90vw"
   >
     <p>此流程在您编辑期间被其他用户修改。</p>
     <p v-if="conflictInfo?.updatedBy">最后修改人: {{ conflictInfo.updatedBy }}</p>
@@ -810,6 +810,7 @@ import {
   NGrid, NGridItem, NInput, NRadio, NRadioGroup, NSelect, NSwitch,
   NAlert, NInputNumber, NPopconfirm, NText, NEmpty, useMessage,
 } from 'naive-ui'
+import { useUndo } from '../../composables/useUndo'
 import {
   GitNetworkOutline,
   ServerOutline,
@@ -868,6 +869,7 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const { undoable } = useUndo()
 const loading = ref(false)
 const copying = ref(false)
 const saving = ref(false)
@@ -1439,11 +1441,16 @@ function _normalizeStartEnd(stages: EditStage[]) {
 
 function removeStage(idx: number) {
   if (!editForm.value) return
+  const removed = editForm.value.stages[idx]
   editForm.value.stages.splice(idx, 1)
   if (selectedStageIdx.value === idx) selectedStageIdx.value = null
   else if (selectedStageIdx.value !== null && selectedStageIdx.value > idx) {
     selectedStageIdx.value -= 1
   }
+  // R-106：编辑态移除阶段属本地可逆操作 → 直接执行 + Toast 撤销（真实重新插入）
+  undoable(`已移除阶段「${removed?.name ?? ''}」`, () => {
+    editForm.value?.stages.splice(idx, 0, removed)
+  })
 }
 
 function removeSelectedStage() {

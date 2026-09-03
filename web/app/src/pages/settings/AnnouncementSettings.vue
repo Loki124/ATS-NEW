@@ -128,7 +128,7 @@
                     <div class="policy-actions">
                       <n-button tertiary type="primary" size="small" @click="openPush(row)">推送</n-button>
                       <n-button tertiary type="primary" size="small" @click="openEdit(row)">编辑</n-button>
-                      <n-button color="#EF4444" text-color="#fff" size="small" @click="remove(row)">删除</n-button>
+                      <n-button type="error" size="small" @click="remove(row)">删除</n-button>
                     </div>
                   </td>
                 </tr>
@@ -199,14 +199,14 @@
                   <n-icon :component="DocumentTextOutline" :size="16" />
                 </div>
                 <span class="attach-name">{{ att.originalName }} <em>{{ formatSize(att.fileSize) }}</em></span>
-                <n-button size="tiny" color="#EF4444" text-color="#fff" @click="removeExistingAttachment(att)">移除</n-button>
+                <n-button size="tiny" type="error" @click="removeExistingAttachment(att)">移除</n-button>
               </div>
               <div v-for="(f, i) in pendingFiles" :key="`new-${i}`" class="attach-row">
                 <div class="attach-row__icon">
                   <n-icon :component="DocumentTextOutline" :size="16" />
                 </div>
                 <span class="attach-name">{{ f.name }} <em>{{ formatSize(f.size) }}</em></span>
-                <n-button size="tiny" color="#EF4444" text-color="#fff" @click="pendingFiles.splice(i, 1)">移除</n-button>
+                <n-button size="tiny" type="error" @click="undoRemovePendingFile(i, f)">移除</n-button>
               </div>
               <n-upload :show-file-list="false" multiple @before-upload="onBeforeUpload">
                 <n-button size="small" tertiary>
@@ -293,9 +293,12 @@ import {
   type AnnouncementCategory,
   type AnnouncementAudience,
 } from '../../api/announcement'
+import { useUndo } from '../../composables/useUndo'
+import { useDraft } from '../../composables/useDraft'
 
 const message = useMessage()
 const dialog = useDialog()
+const { undoable } = useUndo()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -377,6 +380,10 @@ const defaultForm = () => ({
   publishedAt: Date.now(),
 })
 const form = reactive(defaultForm())
+const { restore: restoreDraft, clear: clearDraft } = useDraft(form, {
+  key: 'announcement-edit',
+  isEmpty: (v) => !v.title && !v.body,
+})
 const pendingFiles = ref<File[]>([])
 const removedAttachmentIds = ref<string[]>([])
 const currentAttachments = ref<AnnouncementAttachment[]>([])
@@ -394,10 +401,18 @@ const rules = {
 
 function openCreate() {
   editingId.value = null
-  Object.assign(form, defaultForm())
+  const hadDraft = restoreDraft()
+  if (!hadDraft) Object.assign(form, defaultForm())
   pendingFiles.value = []
   removedAttachmentIds.value = []
   currentAttachments.value = []
+  drawerVisible.value = true
+  if (hadDraft) {
+    message.info('已恢复上次未提交的草稿', {
+      duration: 5000,
+      action: { label: '清空', onClick: clearDraft },
+    })
+  }
   drawerVisible.value = true
 }
 
@@ -503,7 +518,7 @@ async function toggleActive(row: Announcement, value: boolean) {
 function remove(row: Announcement) {
   dialog.warning({
     title: '删除文档',
-    content: `确定删除「${row.title}」？删除后将从列表移除。`,
+    content: `删除「${row.title}」？删除后将从列表移除。`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {

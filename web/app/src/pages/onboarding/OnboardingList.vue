@@ -11,9 +11,11 @@ import {
   recommendPositionsForCandidate,
   type RecommendedPosition,
 } from '../../api/recommendation'
+import StateView from '../../components/common/StateView.vue'
 
 const message = useMessage()
 const loading = ref(false)
+const error = ref<string | null>(null)
 const dataSource = ref<Onboarding[]>([])
 const filterStatus = ref<string | null>(null)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })

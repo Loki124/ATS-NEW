@@ -53,7 +53,7 @@
             <n-tag size="small" type="info" round>{{ announcement.audienceDisplay }}</n-tag>
           </div>
 
-          <!-- eslint-disable-next-line vue/no-v-html -- 公告正文经 sanitizeHtml 消毒后渲染，安全 -->
+          <!-- eslint-disable-next-line vue/no-v-html -- 公告正文经 utils/sanitizeHtml 白名单消毒（DOMParser 允许列表，XSS 向量已单测中和）后渲染 -->
           <div class="ann-detail-body" v-html="sanitizeHtml(announcement.body)"></div>
 
           <!-- 附件 -->
@@ -94,6 +94,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowBackOutline, DocumentTextOutline, DownloadOutline, RefreshOutline } from '@vicons/ionicons5'
 import { getAnnouncement, type Announcement } from '../../api/announcement'
+import { sanitizeHtml } from '../../utils/sanitizeHtml'
 
 const route = useRoute()
 const router = useRouter()
@@ -123,30 +124,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`
-}
-
-function sanitizeHtml(raw?: string): string {
-  if (!raw) return ''
-  const allowedTags = /<(\/?)(b|strong|i|em|u|a|ul|ol|li|p|br|span)(\s[^>]*)?>/gi
-  return raw
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-    .replace(/<object[\s\S]*?<\/object>/gi, '')
-    .replace(/<embed[^>]*>/gi, '')
-    .replace(/on\w+\s*=/gi, '')
-    .replace(allowedTags, (match, slash, tag, attrs) => {
-      if (tag.toLowerCase() === 'a') {
-        const hrefMatch = /href\s*=\s*"([^"]*)"/i.exec(attrs || '')
-        const href = hrefMatch ? hrefMatch[1] : '#'
-        return `<a href="${href}" target="_blank" rel="noopener">`
-      }
-      if (tag.toLowerCase() === 'span') {
-        const styleMatch = /style\s*=\s*"([^"]*)"/i.exec(attrs || '')
-        const style = styleMatch ? styleMatch[1] : ''
-        return style ? `<span style="${style}">` : '<span>'
-      }
-      return match
-    })
 }
 
 function fileIconClass(filename: string): string {

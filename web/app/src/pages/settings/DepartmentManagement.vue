@@ -165,7 +165,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="closeDeptModal">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">确定</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">保存部门</n-button>
         </div>
       </template>
     </n-modal>

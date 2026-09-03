@@ -39,7 +39,7 @@
     </n-modal>
 
     <!-- 抓取结果预览 -->
-    <n-modal v-model:show="showResultModal" preset="card" title="抓取结果" style="width: 700px">
+    <n-modal v-model:show="showResultModal" preset="card" title="抓取结果" style="width: 700px; max-width: 90vw">
       <p>共抓取 <strong>{{ scrapedResult?.resumes?.length || 0 }}</strong> 条简历</p>
       <n-data-table
         :columns="resultColumns"

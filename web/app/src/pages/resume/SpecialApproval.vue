@@ -24,7 +24,7 @@
       v-model:show="detailVisible"
       preset="card"
       title="审批详情"
-      style="width: 600px"
+      style="width: 600px; max-width: 90vw"
     >
       <template v-if="currentFlow">
         <n-descriptions :column="2" bordered>

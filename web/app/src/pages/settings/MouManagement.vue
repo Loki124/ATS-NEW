@@ -342,7 +342,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="mouModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleSaveMou">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveMou">保存 Mou</n-button>
         </div>
       </template>
     </n-modal>
@@ -390,7 +390,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="containerModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleSaveContainer">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveContainer">保存容器</n-button>
         </div>
       </template>
     </n-modal>
@@ -434,7 +434,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="ruleModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleSaveRule">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveRule">保存规则</n-button>
         </div>
       </template>
     </n-modal>
@@ -469,7 +469,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="mutexModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleSaveMutex">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleSaveMutex">保存互斥规则</n-button>
         </div>
       </template>
     </n-modal>

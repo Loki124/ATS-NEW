@@ -70,7 +70,7 @@
     </n-card>
 
     <!-- 标记结果 Modal -->
-    <n-modal v-model:show="resultModal.show" preset="dialog" :title="resultModal.title" style="width: 480px">
+    <n-modal v-model:show="resultModal.show" preset="dialog" :title="resultModal.title" style="width: 480px; max-width: 90vw">
       <n-form ref="resultFormRef" :model="resultModal.form" label-placement="left" :label-width="80">
         <n-form-item label="结果">
           <n-tag :type="resultModal.form.success ? 'success' : 'error'">
@@ -90,7 +90,7 @@
     </n-modal>
 
     <!-- 干预/终止 Modal -->
-    <n-modal v-model:show="actionModal.show" preset="dialog" :title="actionModal.title" style="width: 480px">
+    <n-modal v-model:show="actionModal.show" preset="dialog" :title="actionModal.title" style="width: 480px; max-width: 90vw">
       <n-form :model="actionModal.form" label-placement="left" :label-width="80">
         <n-form-item label="原因">
           <n-input v-model:value="actionModal.form.reason" type="textarea" :rows="3" :placeholder="actionModal.placeholder" />

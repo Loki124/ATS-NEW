@@ -424,7 +424,7 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="modalVisible = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="handleSave">确定</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleSave">保存需求</n-button>
         </div>
       </template>
     </n-modal>

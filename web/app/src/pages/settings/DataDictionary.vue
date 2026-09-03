@@ -279,7 +279,7 @@
         <n-space class="submit-actions" justify="end" :size="12" align="center">
           <n-button size="large" :disabled="submitting" @click="backToList">取消</n-button>
           <n-button size="large" type="primary" :loading="submitting" :disabled="!hasUnsavedChanges" @click="submitDraft">
-            提交
+            保存配置
           </n-button>
         </n-space>
       </div>
@@ -290,7 +290,7 @@
       v-model:show="showCreateModal"
       title="新增字典"
       preset="card"
-      style="width: 480px"
+      style="width: 480px; max-width: 90vw"
       :mask-closable="false"
     >
       <n-form ref="createFormRef" :model="createForm" :rules="createRules" label-placement="top">

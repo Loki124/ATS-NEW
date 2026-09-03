@@ -116,7 +116,7 @@
       v-model:show="showPasswordModal"
       preset="card"
       title="更改密码"
-      style="width: 480px"
+      style="width: 480px; max-width: 90vw"
       :mask-closable="false"
     >
       <n-form label-placement="left" :label-width="100" :model="passwordForm">
@@ -133,7 +133,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showPasswordModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleChangePassword">确定</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleChangePassword">保存密码</n-button>
         </n-space>
       </template>
     </n-modal>

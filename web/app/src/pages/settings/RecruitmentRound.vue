@@ -31,7 +31,7 @@
     />
     </div>
 </div><!-- /.page-body -->
-<n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px" :bordered="false" :segmented="{ content: true, footer: true }">
+<n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
         <n-form-item label="轮次名称" required>
           <n-input v-model:value="form.name" placeholder="如：初试/复试/终试" />
