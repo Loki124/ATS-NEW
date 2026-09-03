@@ -318,6 +318,11 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
     ),
     'EXCEPTION_HANDLER': 'apps.common.exceptions.custom_exception_handler',
+    # 2026-09-03: 关掉 DRF 默认 URL format 协商拦截 (默认 'format' query param)
+    # 原因: G35 数据导出 /api/v1/data/export/<resource>/?format=csv 走 csv 流式 (text/csv)
+    #   DRF default renderers 只有 JSONRenderer, 收到 ?format=csv 直接 404 "未找到"
+    #   关掉后 view 自己读 query_params.get('format') 走流式响应.
+    'URL_FORMAT_OVERRIDE': None,
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
