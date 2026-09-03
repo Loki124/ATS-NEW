@@ -51,20 +51,6 @@
           </button>
         </div>
 
-        <!-- 分区锚点导航：配置项较多时快速定位（sticky 吸顶，随内容区滚动） -->
-        <nav class="section-nav" aria-label="配置项分区">
-          <button
-            v-for="s in visibleSections"
-            :key="s.key"
-            type="button"
-            class="section-nav__item"
-            :class="{ 'section-nav__item--active': activeSection === s.key }"
-            @click="scrollToSection(s.key)"
-          >
-            {{ s.label }}
-          </button>
-        </nav>
-
         <div class="rule-config-flat">
           <!-- ============ Card 1: 流程自动化 (完全参照原型) ============ -->
           <div class="config-card">
@@ -438,41 +424,9 @@ const message = useMessage()
 const loading = ref(false)
 const saving = ref(false)
 
-/**
- * 分区锚点导航（与模板 data-section 一一对应）
- * 2026-08-31: 原 activeTab 只在 handleSubmit 里做分支判定，但本弹窗是**扁平表单**，
- *   没有 tab 切换 UI → activeTab 恒为 'auto' → 进入条件分支永不触发（见 handleSubmit 注释）。
- *   这里把 initialTab 重新解释为「初始定位到哪个分区」，prop 契约不变。
- */
-const SECTIONS = [
-  { key: 'auto', label: '自动处理' },
-  { key: 'flow', label: '流转条件' },
-  { key: 'handler', label: '默认处理人' },
-  { key: 'timelimit', label: '阶段限时' },
-  { key: 'interview', label: '面试配置' },
-  { key: 'condition', label: '进入条件' },
-] as const
-type SectionKey = typeof SECTIONS[number]['key']
-const activeSection = ref<SectionKey>((props.initialTab as SectionKey) || 'auto')
-
 const isInterviewType = computed(() => {
   return props.stage?.stageType === 'INTERVIEW' || props.stage?.stageType === 'INVITATION'
 })
-
-const visibleSections = computed(() =>
-  SECTIONS.filter((s) => s.key !== 'interview' || isInterviewType.value),
-)
-
-/** 弹窗内容被 teleport 到 <body>，scoped 拿不到，只能按 modal class 定位唯一滚动容器 */
-function getScrollHost(): HTMLElement | null {
-  return document.querySelector('.stage-rule-config-modal .n-card-content')
-}
-
-function scrollToSection(key: SectionKey) {
-  activeSection.value = key
-  const el = getScrollHost()?.querySelector<HTMLElement>(`[data-section="${key}"]`)
-  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 // 表单 state
 const form = reactive({
@@ -555,8 +509,7 @@ function onRequestClose() {
 /** 关闭动画结束后复位瞬时状态；DOM 此时可能已被移除，取不到容器是正常情况 */
 function resetTransient() {
   saving.value = false
-  activeSection.value = 'auto'
-  getScrollHost()?.scrollTo({ top: 0 })
+  document.querySelector('.stage-rule-config-modal .n-card-content')?.scrollTo({ top: 0 })
 }
 
 const autoAdvanceOptions = [
@@ -1464,45 +1417,6 @@ async function handleSubmit() {
   line-height: 1.5;
 }
 
-/* ==================== 分区锚点导航（sticky 吸顶） ==================== */
-/* 配置项较多时（6 个分区）提供快速定位；用负边距吃掉内容区左右 padding 让底纹铺满，
-   sticky 钉在内容滚动容器顶部，随内容滚动始终可见。 */
-.section-nav {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0 -20px var(--space-4) -20px;
-  padding: var(--space-2) 20px;
-  background: var(--glass-bg-card);
-  backdrop-filter: blur(var(--glass-blur-card));
-  -webkit-backdrop-filter: blur(var(--glass-blur-card));
-  border-bottom: 1px solid var(--g2);
-}
-.section-nav__item {
-  appearance: none;
-  border: 1px solid var(--g2);
-  background: var(--glass-bg-input);
-  color: var(--n-580);
-  font-size: var(--fs-12);
-  line-height: 1;
-  padding: 6px 12px;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
-}
-.section-nav__item:hover {
-  border-color: var(--glass-border-strong);
-  color: var(--ink);
-}
-.section-nav__item--active {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--n-100);
-}
-
 /* ==================== Footer ==================== */
 /* footer 在 #footer 插槽 → 渲染为 .n-card__footer，是 .n-card 的 flex 兄弟节点，
    永远在滚动容器之外、天然钉在底部，无需 sticky。 */
@@ -1534,15 +1448,6 @@ async function handleSubmit() {
   /* 中屏：3 字段内联降为 2 列 */
 }
 @media (max-width: 767px) {
-  .section-nav {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .section-nav::-webkit-scrollbar { display: none; }
-  .section-nav__item {
-    flex: 0 0 auto;
-  }
   .flow-condition-row {
     flex-direction: column;
     gap: 10px;
