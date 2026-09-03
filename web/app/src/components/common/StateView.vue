@@ -13,7 +13,7 @@
       :description="emptyText"
       size="large"
     >
-      <template #extra v-if="$slots.emptyExtra">
+      <template v-if="$slots.emptyExtra" #extra>
         <slot name="emptyExtra" />
       </template>
     </n-empty>
@@ -24,7 +24,7 @@
       :title="errorTitle"
       :description="errorDescription || '加载失败，请稍后重试'"
     >
-      <template #footer v-if="onRetry">
+      <template v-if="onRetry" #footer>
         <n-button type="primary" @click="onRetry">重新加载</n-button>
       </template>
     </n-result>
@@ -35,7 +35,7 @@
       title="部分内容加载失败"
       :description="partialDescription || '其余内容正常显示，可仅重试失败的部分'"
     >
-      <template #footer v-if="onRetry">
+      <template v-if="onRetry" #footer>
         <n-button type="primary" @click="onRetry">重试失败项</n-button>
       </template>
     </n-result>
@@ -53,7 +53,7 @@
       title="网络已断开"
       :description="offlineText || '已为你保留本地内容，恢复网络后可继续'"
     >
-      <template #footer v-if="onRetry">
+      <template v-if="onRetry" #footer>
         <n-button type="primary" @click="onRetry">重试</n-button>
       </template>
     </n-result>

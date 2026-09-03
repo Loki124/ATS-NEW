@@ -7,7 +7,7 @@ import {
   INTERVIEW_STATUS_LABEL, FEEDBACK_STATUS_LABEL, FEEDBACK_STATUS_COLOR,
   listEvaluations, createEvaluation,
   EVALUATION_REC_TO_BACKEND, EVALUATION_REC_FROM_BACKEND,
-  packEvalScores, stripEvalMeta,
+  packEvalScores, stripEvalMeta, unpackEvalMeta,
   type Interview, type InterviewEvaluationApi,
   type EvalFinalResult,
 } from '../../api/interview'

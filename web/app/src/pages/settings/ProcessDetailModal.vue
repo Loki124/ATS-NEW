@@ -283,34 +283,34 @@
                     <!-- 流转 -->
                     <div class="auto-row">
                       <span class="auto-k">流转</span>
-                      <span class="auto-v" v-if="link.stageRule && link.stageRule.autoAdvanceType && link.stageRule.autoAdvanceType !== 'NONE'">
+                      <span v-if="link.stageRule && link.stageRule.autoAdvanceType && link.stageRule.autoAdvanceType !== 'NONE'" class="auto-v">
                         {{ AUTO_ADVANCE_LABEL[link.stageRule.autoAdvanceType] || link.stageRule.autoAdvanceType }}
                         <template v-if="link.stageRule.autoAdvanceTiming === 'IMMEDIATE'"> · 立即执行</template>
                         <template v-else-if="link.stageRule.autoAdvanceTiming === 'DELAYED' && link.stageRule.autoAdvanceDays"> · 延迟 {{ link.stageRule.autoAdvanceDays }} 天</template>
                       </span>
-                      <span class="auto-v muted-text" v-else>未开启</span>
+                      <span v-else class="auto-v muted-text">未开启</span>
                     </div>
                     <!-- 跳过 -->
                     <div class="auto-row">
                       <span class="auto-k">跳过</span>
-                      <span class="auto-v" v-if="link.stageRule?.autoSkipNPlusTwo">已开启</span>
-                      <span class="auto-v muted-text" v-else>未开启</span>
+                      <span v-if="link.stageRule?.autoSkipNPlusTwo" class="auto-v">已开启</span>
+                      <span v-else class="auto-v muted-text">未开启</span>
                       <button class="auto-act" type="button" @click="toggleCond('skip-' + link.id)">查看规则 ›</button>
                     </div>
-                    <div class="auto-detail" v-if="condOpen('skip-' + link.id)">
+                    <div v-if="condOpen('skip-' + link.id)" class="auto-detail">
                       <template v-if="link.stageRule?.autoSkipNPlusTwo">N+2 推荐免筛选：经上级推荐的候选人可跳过本阶段，直接进入下一阶段。</template>
                       <template v-else>本阶段未启用自动跳过。</template>
                     </div>
                     <!-- 超时归档 -->
                     <div class="auto-row">
                       <span class="auto-k">超时归档</span>
-                      <span class="auto-v" v-if="link.stageRule?.timeLimit">
+                      <span v-if="link.stageRule?.timeLimit" class="auto-v">
                         {{ link.stageRule.timeLimit }} 天<template v-if="link.stageRule.timeLimitScope === 'NEW_ONLY'"> · 仅新申请</template><template v-else> · 全部申请</template>
                       </span>
-                      <span class="auto-v muted-text" v-else>未开启</span>
+                      <span v-else class="auto-v muted-text">未开启</span>
                       <button class="auto-act" type="button" @click="toggleCond('archive-' + link.id)">查看规则 ›</button>
                     </div>
-                    <div class="auto-detail" v-if="condOpen('archive-' + link.id)">
+                    <div v-if="condOpen('archive-' + link.id)" class="auto-detail">
                       <template v-if="link.stageRule?.timeLimit">超时 {{ link.stageRule.timeLimit }} 天未处理 → 自动归档至「人才库 / 归档池」；归档前发送站内信提醒处理人。</template>
                       <template v-else>本阶段未启用超时归档。</template>
                     </div>
@@ -329,7 +329,7 @@
                     <!-- 多规则：外层折叠 = 规则级表达式 -->
                     <div v-if="entryRules(link).length > 1" class="cond-card collapsible" :class="{ 'is-open': condOpen('cond-' + link.id) }">
                       <div class="collapsible__head" @click="toggleCond('cond-' + link.id)">
-                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6" /></svg>
                         <span class="cond-card__title">进入条件</span>
                         <span class="cond-expr">{{ rulesExpr(entryRules(link)) }}</span>
                         <span class="cond-count">· {{ entryRules(link).length }} 条规则</span>
@@ -342,14 +342,14 @@
                           :class="{ 'is-open': condOpen('rule-' + link.id + '-' + ri) }"
                         >
                           <div class="collapsible__head rule__head" @click="toggleCond('rule-' + link.id + '-' + ri)">
-                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6" /></svg>
                             <span class="rule__badge">规则 {{ ri + 1 }}</span>
                             <span class="rule__match">{{ rule.matchType === 'ALL' ? '全部满足' : '任一满足' }}</span>
                             <span class="rule__rule">{{ condExpr(rule.items) }}</span>
                           </div>
                           <div class="collapsible__body rule__body">
                             <div class="cond-grid">
-                              <div class="cond-item" v-for="(item, i) in rule.items" :key="i">
+                              <div v-for="(item, i) in rule.items" :key="i" class="cond-item">
                                 <span class="cond-item__idx">{{ i + 1 }}</span>
                                 <span class="cond-item__expr">{{ conditionItemLabel(item) }}</span>
                               </div>
@@ -361,14 +361,14 @@
                     <!-- 单规则：直接渲染规则级（条件级表达式） -->
                     <div v-else class="rule collapsible" :class="{ 'is-open': condOpen('rule-' + link.id + '-0') }">
                       <div class="collapsible__head rule__head" @click="toggleCond('rule-' + link.id + '-0')">
-                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6" /></svg>
                         <span class="rule__badge">进入条件</span>
                         <span class="rule__match">{{ link.entryCondition.matchType === 'ALL' ? '全部满足' : '任一满足' }}</span>
                         <span class="rule__rule">{{ condExpr(link.entryCondition.items) }}</span>
                       </div>
                       <div class="collapsible__body rule__body">
                         <div class="cond-grid">
-                          <div class="cond-item" v-for="(item, i) in link.entryCondition.items" :key="i">
+                          <div v-for="(item, i) in link.entryCondition.items" :key="i" class="cond-item">
                             <span class="cond-item__idx">{{ i + 1 }}</span>
                             <span class="cond-item__expr">{{ conditionItemLabel(item) }}</span>
                           </div>

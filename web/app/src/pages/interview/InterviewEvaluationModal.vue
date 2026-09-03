@@ -312,7 +312,9 @@ const avgValueScore = computed(() => {
                     ]"
                     :disabled="!editing"
                     @click="setCompliance(dim.key, opt.value)"
-                  >{{ opt.label }}</button>
+                  >
+{{ opt.label }}
+</button>
                 </div>
               </div>
               <n-input
@@ -355,7 +357,9 @@ const avgValueScore = computed(() => {
                   :class="{ 'is-active': (values[val.key] ?? 0) >= n }"
                   :disabled="!editing"
                   @click="setValue(val.key, (values[val.key] ?? 0) === n ? 0 : n)"
-                >{{ n }}</button>
+                >
+{{ n }}
+</button>
               </div>
             </div>
           </div>
@@ -418,7 +422,9 @@ const avgValueScore = computed(() => {
             :disabled="!canSubmit"
             class="ats-submit"
             @click="handleSubmit"
-          >提交评价</n-button>
+          >
+提交评价
+</n-button>
           <n-button v-else type="default" size="large" class="ats-submit" @click="close">关闭</n-button>
         </div>
       </div>
