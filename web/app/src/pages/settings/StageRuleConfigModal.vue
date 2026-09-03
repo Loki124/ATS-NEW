@@ -68,7 +68,9 @@
         <div class="rule-config-flat">
           <!-- Section 1: 自动处理规则 (总开关) -->
           <div class="section-card" data-section="auto">
-            <div class="section-card__title">自动处理规则</div>
+            <div class="section-card__title">
+              <n-icon :component="OptionsOutline" /> 自动处理规则
+            </div>
             <div class="section-card__hint">
               流程自动化的总开关 (启用 = 满足下阶段进入条件时自动流转到下个阶段)
             </div>
@@ -94,7 +96,9 @@
 
           <!-- Section 2: 自动化流转条件 (双列内联，参照原型交互) -->
           <div class="section-card" data-section="flow">
-            <div class="section-card__title">自动化流转条件</div>
+            <div class="section-card__title">
+              <n-icon :component="GitNetworkOutline" /> 自动化流转条件
+            </div>
             <div class="section-card__hint">满足自动流转条件时，在到达执行时机后自动流转到下阶段</div>
             <div class="inline-row">
               <div class="inline-row__field">
@@ -124,7 +128,9 @@
 
           <!-- Section 3: 默认处理人 (3 字段内联 + 联动，参照原型交互) -->
           <div class="section-card" data-section="handler">
-            <div class="section-card__title">默认处理人</div>
+            <div class="section-card__title">
+              <n-icon :component="PersonOutline" /> 默认处理人
+            </div>
             <div class="section-card__hint">进入本阶段时自动为默认处理人添加待办任务</div>
             <div class="inline-row inline-row--3">
               <div class="inline-row__field">
@@ -177,7 +183,9 @@
           <div class="section-card" data-section="timelimit">
             <div class="section-header-row">
               <div class="section-header-row__main">
-                <div class="section-card__title section-card__title--inline">阶段限时</div>
+                <div class="section-card__title section-card__title--inline">
+                  <n-icon :component="TimerOutline" /> 阶段限时
+                </div>
                 <div class="section-card__hint">
                   限制阶段总时长, 超时自动归档候选人到公共人才库
                 </div>
@@ -220,7 +228,9 @@
 
           <!-- Section 5: 面试轮次 + 形式 (仅 INTERVIEW/INVITATION 阶段) -->
           <div v-if="isInterviewType" class="section-card" data-section="interview">
-            <div class="section-card__title">面试轮次 + 形式</div>
+            <div class="section-card__title">
+              <n-icon :component="BriefcaseOutline" /> 面试轮次 + 形式
+            </div>
             <div class="field-row">
               <span class="field-label">面试轮次 (可多选)</span>
               <span class="field-value">
@@ -253,7 +263,9 @@
 
           <!-- Section 6: 进入条件 -->
           <div class="section-card" data-section="condition">
-            <div class="section-card__title">进入条件</div>
+            <div class="section-card__title">
+              <n-icon :component="LockClosedOutline" /> 进入条件
+            </div>
             <div class="section-card__hint">
               候选人进入此阶段需满足的判定条件 (Stage Rule 的 EntryCondition) — 对配置后进入阶段的简历立即生效
             </div>
@@ -336,7 +348,9 @@ import {
 import { validateExpression } from '../../utils/condition-expression'
 import { default as axios } from 'axios'
 import config from '../../config'
-import { SettingsOutline, CloseOutline, FlashOutline, AddOutline } from '@vicons/ionicons5'
+import { SettingsOutline, CloseOutline, FlashOutline, AddOutline,
+  OptionsOutline, GitNetworkOutline, PersonOutline, TimerOutline,
+  BriefcaseOutline, LockClosedOutline } from '@vicons/ionicons5'
 
 // 嵌套条件项（3 级树） - 扩展 ConditionItem 增加 children 字段
 interface ConditionItemTree extends ConditionItem {
@@ -1028,53 +1042,41 @@ async function handleSubmit() {
 }
 
 /* ==================== Section Card ==================== */
+/* 2026-09-03 视觉整改：去掉左侧 4px 蓝色竖条 + 标题前 3px 蓝色小竖条 + hint 灰底框。
+   原型是简洁卡片风（白/极浅底 + icon 标题），不是「重装修」风。
+   - section-card 改用 --g1 浅填充（非半透明玻璃，更「实」）
+   - 标题前用 icon（与原型一致），不再用蓝色竖条
+   - hint 降级为普通说明文字，去掉灰底框
+   - padding 由 16/20 → 14/16（更紧凑） */
 .section-card {
-  background: var(--glass-bg-input); /* v2.8 T2.8.3: 浅灰 → var(--glass-bg-input) */
-  border: 1px solid var(--g1);
-  border-radius: 8px;
-  padding: var(--space-4) 20px;
+  background: var(--g1);
+  border: 1px solid var(--g2);
+  border-radius: var(--radius-md);
+  padding: 14px var(--space-4) var(--space-4) var(--space-4);
   margin-bottom: 0;            /* 间距统一交给 .rule-config-flat 的 gap */
   scroll-margin-top: 52px;     /* 锚点导航 sticky 吸顶时不遮挡分区标题 */
   position: relative;
 }
-.section-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 4px;
-  background: var(--brand);
-  border-radius: 0 2px 2px 0;
-}
 .section-card__title {
   font-size: var(--fs-14);
   font-weight: 600;
-  color: var(--n-850);
-  margin: 0 0 var(--space-3) 0;
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--g2);
+  color: var(--ink);
+  margin: 0 0 6px 0;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
+  line-height: 1.4;
 }
-.section-card__title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 14px;
-  background: var(--brand);
-  border-radius: 2px;
+.section-card__title :deep(.n-icon) {
+  color: var(--brand);
+  font-size: 14px;
+  flex-shrink: 0;
 }
 .section-card__hint {
   font-size: var(--fs-12);
-  color: var(--n-440);
-  line-height: 1.6;
-  margin: -4px 0 var(--space-3) 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--g1);
-  border-radius: 4px;
-  border-left: 2px solid var(--g6);
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0 0 var(--space-3) 22px; /* 22px 让出 icon 宽度，对齐标题 */
 }
 .section-card__actions {
   margin-top: var(--space-3);
