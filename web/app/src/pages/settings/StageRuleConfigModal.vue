@@ -127,7 +127,7 @@
             <div class="flow-block">
               <div class="block-header block-header--split">
                 <div class="block-header__main">
-                  <n-icon :component="FastForwardOutline" /> 自动跳过
+                  <n-icon :component="PlaySkipForwardOutline" /> 自动跳过
                   <span class="block-desc">· 满足规则时不再停留，直接判断是否满足下阶段进入条件</span>
                 </div>
                 <label class="switch-pill" :class="{ 'switch-pill--on': form.skipEnabled }">
@@ -414,7 +414,7 @@ import config from '../../config'
 import { SettingsOutline, CloseOutline, FlashOutline, AddOutline, TrashOutline,
   OptionsOutline, GitNetworkOutline, PersonOutline, TimerOutline,
   BriefcaseOutline, LockClosedOutline,
-  ConstructOutline, ArrowForwardOutline, FastForwardOutline, HourglassOutline,
+  ConstructOutline, ArrowForwardOutline, PlaySkipForwardOutline, HourglassOutline,
   LayersOutline, VideocamOutline, GitCompareOutline, CodeSlashOutline,
   ChatboxOutline } from '@vicons/ionicons5'
 
