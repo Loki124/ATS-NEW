@@ -339,14 +339,12 @@
               <div class="block-header">
                 <n-icon :component="GitCompareOutline" /> 判定方式
               </div>
-              <div class="option-grid">
-                <label class="opt-item">
-                  <n-radio v-model:checked="condForm.matchType" value="ALL">全部满足 (AND)</n-radio>
-                </label>
-                <label class="opt-item">
-                  <n-radio v-model:checked="condForm.matchType" value="ANY">任意满足 (OR)</n-radio>
-                </label>
-              </div>
+              <n-radio-group v-model:value="condForm.matchType" name="matchType">
+                <n-space>
+                  <n-radio value="ALL">全部满足 (AND)</n-radio>
+                  <n-radio value="ANY">任意满足 (OR)</n-radio>
+                </n-space>
+              </n-radio-group>
             </div>
             <div class="flow-block">
               <div class="block-header">
