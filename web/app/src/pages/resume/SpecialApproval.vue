@@ -67,7 +67,7 @@
       v-model:show="approveVisible"
       preset="dialog"
       title="审批操作"
-      positive-text="确定"
+      positive-text="提交审批"
       negative-text="取消"
       :loading="submitting"
       @positive-click="handleSubmitApproval"

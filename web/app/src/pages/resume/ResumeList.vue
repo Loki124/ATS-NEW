@@ -219,7 +219,7 @@
       v-model:show="assignVisible"
       preset="dialog"
       title="分配简历"
-      positive-text="确定"
+      positive-text="分配简历"
       negative-text="取消"
       :loading="assignLoading"
       @positive-click="handleAssignConfirm"

@@ -6,7 +6,7 @@
         <span class="err-tag">PAGE NOT FOUND</span>
       </div>
       <div class="err-right">
-        <h2 class="err-title">您访问的页面不存在</h2>
+        <h2 class="err-title">你访问的页面不存在</h2>
         <p class="err-desc">页面可能已被移除、链接拼写错误，或临时无法访问。请检查 URL 或使用下方按钮回到主流程。</p>
         <div class="err-actions">
           <button class="btn btn-primary" @click="$router.replace('/dashboard')">返回工作台</button>

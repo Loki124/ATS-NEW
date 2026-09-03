@@ -6,7 +6,7 @@
         <span class="err-tag">ACCESS DENIED</span>
       </div>
       <div class="err-right">
-        <h2 class="err-title">您没有访问该页面的权限</h2>
+        <h2 class="err-title">你没有访问该页面的权限</h2>
         <p class="err-desc">该页面仅限特定角色（如 SUPER_ADMIN / HRBP）访问。如需权限，请联系系统管理员。</p>
         <div class="err-actions">
           <button class="btn btn-primary" @click="$router.replace('/dashboard')">返回工作台</button>
