@@ -95,6 +95,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   show: false,
   mode: 'edit',
+  evaluation: undefined,
 })
 
 const emit = defineEmits<{

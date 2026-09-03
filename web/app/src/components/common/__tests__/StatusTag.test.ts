@@ -4,10 +4,10 @@ import StatusTag, { type Status } from '../StatusTag.vue'
 
 describe('StatusTag', () => {
   const cases: Array<[Status, string, string]> = [
-    ['clean', '无重复', 'g'],
-    ['unocc', '未占用', 'y'],
-    ['occupied', '已占用', 'r'],
-    ['processing', '处理中', 'b'],
+    ['clean', '无重复', 'success'],
+    ['unocc', '未占用', 'warning'],
+    ['occupied', '已占用', 'error'],
+    ['processing', '处理中', 'info'],
   ]
   it.each(cases)('renders %s status with label %s and color %s', (status, label, color) => {
     const wrapper = mount(StatusTag, { props: { status } })

@@ -57,6 +57,7 @@ export default [
       'node_modules/**',
       '**/*.min.js',
       'public/**',
+      '*.cjs',
     ],
   },
 ];
