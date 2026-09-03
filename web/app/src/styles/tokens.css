@@ -74,6 +74,16 @@
   --c-error-deep:   #991B1B;  --c-error-bg:   #FECACA;
   --c-info-deep:    #1E40AF;  --c-info-bg:    #BFDBFE;
 
+  /* §4.4 品牌暖色（FBCE5B — studied-DNA 时代品牌金，2026-09-03 面试评价表单设计稿采用）
+   *   不在 --brand（indigo #6366F1）OKLCH 派生链中，是 brand 系统外的独立 accent。
+   *   用途：banner 底色 / section accent bar / 激活态 / 提交按钮
+   *   暗色覆盖见 §14 body.dark 段。
+   *   【P0】禁组件硬编码 #FBCE5B / rgba(251,206,91,...) 一律走 token
+   */
+  --brand-warm:      #FBCE5B;
+  --brand-warm-soft: rgba(251, 206, 91, .15);
+  --brand-warm-deep: #B45309;  /* 深色文字（对浅底 4.5:1 达 AA） */
+
   /* §4.3 中性灰阶（补全 X-05 灰字面量归宿；命名 n-<步长>，值=与 --g* / --ink* 同值
    *   实现全档 light 模式像素级一致；dark 模式覆盖见 §17 body.dark）
    *   - 浅填充 n-100~n-220: #F1F5F9 (== --g1)
@@ -223,6 +233,11 @@ body.dark {
   --c-warning-soft: rgba(245, 158, 11, .24);
   --c-error-soft:   rgba(239, 68, 68, .22);
   --c-info-soft:    rgba(59, 130, 246, .22);
+
+  /* 品牌暖色暗色重排（FBCE5B 提亮以保证暗底可读；语义：banner/激活态） */
+  --brand-warm:      #FCD34D;  /* 浅色 #FBCE5B → 暗底提亮 amber-300 */
+  --brand-warm-soft: rgba(252, 211, 77, .18);
+  --brand-warm-deep: #FCD34D;  /* 深色模式文字直接用亮 amber-300，省 deep-bg 区分 */
 
   /* 语义 deep/bg 暗色重排（深字转亮、浅底转半透明，保证暗底可读） */
   --c-success-deep: #6EE7B7;  --c-success-bg: rgba(22, 163, 74, .22);

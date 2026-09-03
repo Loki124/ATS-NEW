@@ -7,10 +7,13 @@ import {
   INTERVIEW_STATUS_LABEL, FEEDBACK_STATUS_LABEL, FEEDBACK_STATUS_COLOR,
   listEvaluations, createEvaluation,
   EVALUATION_REC_TO_BACKEND, EVALUATION_REC_FROM_BACKEND,
+  packEvalScores, stripEvalMeta,
   type Interview, type InterviewEvaluationApi,
+  type EvalFinalResult,
 } from '../../api/interview'
 import InterviewEvaluationModal, {
-  type Evaluation, type RecValue,
+  FOUR_DIMS, FIVE_VALUES,
+  type Evaluation, type SubmitPayload,
 } from './InterviewEvaluationModal.vue'
 import { useUserStore } from '../../stores/user'
 
@@ -35,44 +38,53 @@ const stats = computed(() => {
   return counts
 })
 
-/** 把后端 5 档字符串反向映射回 4 档（带 fallback 防御） */
-function fromBackendRec(v: string | undefined | null): RecValue {
+/** 把后端 5 档字符串反向映射回 3 档（带 fallback 防御） */
+function fromBackendRec(v: string | undefined | null): EvalFinalResult {
   const mapped = EVALUATION_REC_FROM_BACKEND[v as string]
-  return (mapped ?? 'DISCUSS') as RecValue
+  return (mapped ?? 'PENDING') as EvalFinalResult
 }
 
-/** 把 InterviewEvaluationApi 转成 modal 期望的 Evaluation 结构 */
+/** 把 InterviewEvaluationApi 转成 modal 期望的 v2 Evaluation 结构
+ *  v2 字段：compliances（4 维 3 档 + 文字依据） / values（5 能 1-5）
+ *         suggestedLevel / suggestedSalary / finalResult（3 档 radio）
+ *  meta 通过 scores['__meta'] JSON 字符串持久化（无后端 migration） */
 function toEvaluation(eva: InterviewEvaluationApi, row: Interview): Evaluation {
-  // scores 可能是任意 key（如 laodongzhe / 劳动者），按 dim 顺序展示
-  const flatScores = eva.scores || {}
-  const entries = Object.entries(flatScores)
-  const dimItems = entries.map(([key, score], idx) => ({
-    key,
-    name: key,
-    desc: '',
-    score: Number(score) || 0,
-  }))
-  // demo fallback：空 scores → 给一组 0 占位（真实业务里应该从 evaluation 自带 dim 模板生成）
-  if (dimItems.length === 0) {
-    dimItems.push({ key: 'overall', name: '综合', desc: '未填写维度', score: 0 })
+  // 1. 从 scores['__meta'] 还原 meta（兜底：meta 缺失时给空对象）
+  const metaStr = (eva.scores as any)?.['__meta']
+  let meta: any = {}
+  if (typeof metaStr === 'string') {
+    try { meta = JSON.parse(metaStr) } catch { meta = {} }
   }
+
+  // 2. compliances：从 meta.compliances 还原（缺失字段给空 ComplianceItem）
+  const compliances: Record<string, { compliance: 'PASS' | 'PARTIAL' | 'FAIL' | null; reason: string }> = {}
+  for (const dim of FOUR_DIMS) {
+    const c = meta.compliances?.[dim.key]
+    compliances[dim.key] = {
+      compliance: c?.compliance ?? null,
+      reason: c?.reason ?? '',
+    }
+  }
+
+  // 3. values：真实五能分数（剥离 __meta key）
+  const values = stripEvalMeta(eva.scores as any) ?? {}
+
+  // 4. finalResult：优先 meta.finalResult（提交时冗余存的），否则从 recommendation 兜底
+  const finalResult: EvalFinalResult = (meta.finalResult as EvalFinalResult)
+    ?? fromBackendRec(eva.recommendation)
+
   return {
     candidate: {
       name: row.roundName || '—',
       position: row.interviewType || '—',
-      department: '—',
-      round: row.roundName || '一面',
-      date: row.interviewDate?.slice(0, 16) || '—',
-      interviewer: row.interviewerNames || '—',
+      level: '—', // Interview model 无 level 字段，留 placeholder（接 candidate detail 后再补）
+      interviewDate: row.interviewDate?.slice(0, 10) || '—',
     },
-    overallScore: eva.overallScore != null ? Number(eva.overallScore) : 0,
-    groups: [{
-      key: 'evaluation',
-      title: '面试评价',
-      hint: '',
-      items: dimItems,
-    }],
-    recommendation: fromBackendRec(eva.recommendation),
+    compliances,
+    values,
+    suggestedLevel: meta.suggestedLevel || '经理',
+    suggestedSalary: meta.suggestedSalary || '',
+    finalResult,
     comment: eva.comment || '',
   }
 }
@@ -182,13 +194,10 @@ function openEditEval(row: Interview) {
 }
 const pendingInterview = ref<Interview | null>(null)
 
-/** 提交评价 —— 把 modal emit 的 4 档 payload 翻译成后端 5 档 */
-async function handleEvalSubmit(payload: {
-  scores: Record<string, number>
-  overallScore: number
-  recommendation: RecValue
-  comment: string
-}) {
+/** 提交评价 —— 把 modal emit 的 v2 payload 翻译成后端 5 档
+ *  v2：finalResult(PASS/FAIL/PENDING) → 后端 RECOMMEND/NOT_RECOMMEND/NEUTRAL
+ *      meta(compliances/suggestedLevel/suggestedSalary/finalResult) 塞进 scores['__meta'] */
+async function handleEvalSubmit(payload: SubmitPayload) {
   if (!pendingInterview.value) {
     message.error('未选中面试，无法提交')
     return
@@ -197,13 +206,25 @@ async function handleEvalSubmit(payload: {
     message.error('当前用户未登录，无法提交评价')
     return
   }
+  // 1. 把 meta（4 维符合性 + 建议职级/薪资/finalResult）打包进 scores['__meta']
+  const scores = packEvalScores(payload.values, {
+    compliances: payload.compliances,
+    suggestedLevel: payload.suggestedLevel,
+    suggestedSalary: payload.suggestedSalary,
+    finalResult: payload.finalResult,
+  })
+  // 2. overallScore 取五能均分（兼容后端 model 的 overall_score 字段）
+  const scoreArr = Object.values(payload.values).filter(v => v > 0)
+  const overallScore = scoreArr.length
+    ? Math.round((scoreArr.reduce((a, b) => a + b, 0) / scoreArr.length) * 10) / 10
+    : 0
   try {
     await createEvaluation({
       interview: pendingInterview.value.id,
       interviewer: String(userStore.user.id),
-      scores: payload.scores,
-      overallScore: payload.overallScore,
-      recommendation: EVALUATION_REC_TO_BACKEND[payload.recommendation] ?? 'NEUTRAL',
+      scores,
+      overallScore,
+      recommendation: EVALUATION_REC_TO_BACKEND[payload.finalResult] ?? 'NEUTRAL',
       comment: payload.comment,
     })
     message.success('评价已提交')
