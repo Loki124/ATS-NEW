@@ -14,13 +14,14 @@ import { ref, watch, onBeforeUnmount, type Reactive } from 'vue'
  *   const form = reactive({ title: '', body: '' })
  *   const { restored, restore, clear } = useDraft(form, { key: 'announcement-edit' })
  *   // 打开表单时：
- *   if (restore()) message.info('已恢复上次填写的内容', { action: { label: '清空', onClick: clear } })
+ *   // 草稿恢复提示：Naive UI MessageOptions 无 action 字段，须用 render 字段渲染「清空」按钮
+ *   if (restore()) message.info('', { render: () => h(NButton, { onClick: clear }, { default: () => '清空' }) })
  *   // 提交成功后：clear()
  */
 export const SENSITIVE_KEY =
   /password|passwd|pwd|cvv|cvc|card|cardnumber|idcard|id_card|passport|ssn|otp|smscode|sms_code|captcha|token|apikey|api_key|secret|securityanswer|currentpassword|newpassword|confirmpassword/i
 
-export interface UseDraftOptions {
+export interface UseDraftOptions<T> {
   /** 草稿唯一键，建议带业务语义，如 'announcement-edit' */
   key: string
   /** 存活时长(ms)，默认 24h */
@@ -37,7 +38,7 @@ export interface UseDraftOptions {
 
 export function useDraft<T extends Record<string, unknown>>(
   form: T | Reactive<T>,
-  options: UseDraftOptions,
+  options: UseDraftOptions<T>,
 ) {
   const { key, ttl = 24 * 60 * 60 * 1000, debounce = 800 } = options
   const storageKey = `draft:${key}`

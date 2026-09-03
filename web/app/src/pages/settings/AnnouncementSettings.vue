@@ -408,9 +408,27 @@ function openCreate() {
   currentAttachments.value = []
   drawerVisible.value = true
   if (hadDraft) {
-    message.info('已恢复上次未提交的草稿', {
+    // Naive UI MessageOptions 无 action 字段，使用官方支持的 render 自定义内容
+    let inst: ReturnType<typeof message.info> | undefined
+    const doClear = () => {
+      clearDraft()
+      inst?.destroy()
+    }
+    inst = message.info('', {
       duration: 5000,
-      action: { label: '清空', onClick: clearDraft },
+      render: () =>
+        h(
+          'div',
+          { style: 'display:flex;align-items:center;gap:8px;' },
+          [
+            h('span', { style: 'flex:1;' }, '已恢复上次未提交的草稿'),
+            h(
+              NButton,
+              { size: 'small', text: true, type: 'primary', onClick: doClear },
+              { default: () => '清空' },
+            ),
+          ],
+        ),
     })
   }
   drawerVisible.value = true
@@ -462,6 +480,16 @@ function onBeforeUpload(data: { file: { file?: File } }): boolean {
 function removeExistingAttachment(att: AnnouncementAttachment) {
   currentAttachments.value = currentAttachments.value.filter((a) => a.id !== att.id)
   if (editingId.value) removedAttachmentIds.value.push(att.id)
+}
+
+// 中等破坏性操作（R-106）：直接移除待上传附件 + Toast 撤销（5-8s 内可恢复）
+function undoRemovePendingFile(i: number, f: File) {
+  if (i < 0 || i >= pendingFiles.value.length) return
+  pendingFiles.value.splice(i, 1)
+  undoable(`已移除附件「${f.name}」`, () => {
+    const idx = Math.min(i, pendingFiles.value.length)
+    pendingFiles.value.splice(idx, 0, f)
+  })
 }
 
 async function save() {

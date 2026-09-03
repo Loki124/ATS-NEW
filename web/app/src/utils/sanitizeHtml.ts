@@ -92,12 +92,11 @@ function walk(node: Node): void {
 
 export function sanitizeHtml(raw?: string | null): string {
   if (!raw) return ''
-  let doc: Document
-  try {
-    doc = new DOMParser().parseFromString(`<body>${raw}</body>`, 'text/html')
-  } catch {
-    return ''
-  }
-  walk(doc.body)
-  return doc.body.innerHTML
+  // 用 div + innerHTML 解析片段（DOMPurify 同款做法），规避 DOMParser 在部分环境
+  // 把内容塞进嵌套 <body> 导致 doc.body.innerHTML 取到空外壳的问题。
+  // 注意：innerHTML 赋值不会执行 <script>，且危险标签会被下方 walk 整段移除。
+  const container = document.createElement('div')
+  container.innerHTML = raw
+  walk(container)
+  return container.innerHTML
 }
