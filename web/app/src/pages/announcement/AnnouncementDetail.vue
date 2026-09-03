@@ -53,8 +53,8 @@
             <n-tag size="small" type="info" round>{{ announcement.audienceDisplay }}</n-tag>
           </div>
 
-          <!-- eslint-disable-next-line vue/no-v-html -- 公告正文经 utils/sanitizeHtml 白名单消毒（DOMParser 允许列表，XSS 向量已单测中和）后渲染 -->
-          <div class="ann-detail-body" v-html="sanitizeHtml(announcement.body)"></div>
+          <!-- 公告正文：sanitizeHtml 已白名单消毒（utils/sanitizeHtml.ts 8 个 XSS 向量测试覆盖），通过 <SafeHtml> 组件封装 v-html 让 lint 闸门自动 catch 其他页面新增的 v-html -->
+          <SafeHtml class="ann-detail-body" :html="announcement.body" />
 
           <!-- 附件 -->
           <div v-if="announcement.attachments?.length" class="ann-detail-attachments">
@@ -94,7 +94,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowBackOutline, DocumentTextOutline, DownloadOutline, RefreshOutline } from '@vicons/ionicons5'
 import { getAnnouncement, type Announcement } from '../../api/announcement'
-import { sanitizeHtml } from '../../utils/sanitizeHtml'
+import SafeHtml from '../../components/SafeHtml.vue'
 
 const route = useRoute()
 const router = useRouter()
