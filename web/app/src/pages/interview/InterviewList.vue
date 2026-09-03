@@ -3,16 +3,28 @@ import { ref, h, onMounted, computed } from 'vue'
 import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import {
-  listInterviews, submitFeedback, cancelInterview,
+  listInterviews, cancelInterview,
   INTERVIEW_STATUS_LABEL, FEEDBACK_STATUS_LABEL, FEEDBACK_STATUS_COLOR,
-  type Interview,
+  listEvaluations, createEvaluation,
+  EVALUATION_REC_TO_BACKEND, EVALUATION_REC_FROM_BACKEND,
+  type Interview, type InterviewEvaluationApi,
 } from '../../api/interview'
+import InterviewEvaluationModal, {
+  type Evaluation, type RecValue,
+} from './InterviewEvaluationModal.vue'
+import { useUserStore } from '../../stores/user'
 
 const message = useMessage()
+const userStore = useUserStore()
 const loading = ref(false)
 const dataSource = ref<Interview[]>([])
 const filterFeedback = ref<string | null>(null)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })
+
+// 评价弹窗状态
+const evalModalShow = ref(false)
+const evalMode = ref<'view' | 'edit'>('view')
+const currentEval = ref<Evaluation | undefined>(undefined)
 
 const stats = computed(() => {
   const counts = { PENDING: 0, COMPLETED: 0 }
@@ -22,6 +34,48 @@ const stats = computed(() => {
   }
   return counts
 })
+
+/** 把后端 5 档字符串反向映射回 4 档（带 fallback 防御） */
+function fromBackendRec(v: string | undefined | null): RecValue {
+  const mapped = EVALUATION_REC_FROM_BACKEND[v as string]
+  return (mapped ?? 'DISCUSS') as RecValue
+}
+
+/** 把 InterviewEvaluationApi 转成 modal 期望的 Evaluation 结构 */
+function toEvaluation(eva: InterviewEvaluationApi, row: Interview): Evaluation {
+  // scores 可能是任意 key（如 laodongzhe / 劳动者），按 dim 顺序展示
+  const flatScores = eva.scores || {}
+  const entries = Object.entries(flatScores)
+  const dimItems = entries.map(([key, score], idx) => ({
+    key,
+    name: key,
+    desc: '',
+    score: Number(score) || 0,
+  }))
+  // demo fallback：空 scores → 给一组 0 占位（真实业务里应该从 evaluation 自带 dim 模板生成）
+  if (dimItems.length === 0) {
+    dimItems.push({ key: 'overall', name: '综合', desc: '未填写维度', score: 0 })
+  }
+  return {
+    candidate: {
+      name: row.roundName || '—',
+      position: row.interviewType || '—',
+      department: '—',
+      round: row.roundName || '一面',
+      date: row.interviewDate?.slice(0, 16) || '—',
+      interviewer: row.interviewerNames || '—',
+    },
+    overallScore: eva.overallScore != null ? Number(eva.overallScore) : 0,
+    groups: [{
+      key: 'evaluation',
+      title: '面试评价',
+      hint: '',
+      items: dimItems,
+    }],
+    recommendation: fromBackendRec(eva.recommendation),
+    comment: eva.comment || '',
+  }
+}
 
 const columns = computed(() => [
   { title: '轮次', key: 'roundName', width: 100, render: (row: Interview) => row.roundName || '—' },
@@ -39,18 +93,25 @@ const columns = computed(() => [
     render: (row: Interview) => h(NTag, { type: FEEDBACK_STATUS_COLOR[row.feedbackStatus], size: 'small' }, { default: () => FEEDBACK_STATUS_LABEL[row.feedbackStatus] || row.feedbackStatus }),
   },
   {
-    title: '操作', key: 'actions', width: 140, fixed: 'right' as const,
+    title: '操作', key: 'actions', width: 200, fixed: 'right' as const,
     render: (row: Interview) => {
-      // v2: 主按钮（反馈·通过 / 取消） + 下拉其他
+      // v2 (Phase 1 接入): 评价入口替换原 quick 反馈按钮
+      // - 已反馈 → "查看评价"（view 态）
+      // - 待反馈且未取消 → "填写评价"（edit 态）
+      // - 非取消/未完成 → "取消面试"（次级操作）
       const items: Array<{ label: string; key: string; danger?: boolean; onClick: () => void }> = []
       let primary: { label: string; type: 'primary' | 'error' | 'default'; onClick: () => void } | null = null
-      if (row.feedbackStatus === 'PENDING' && row.interviewStatus !== 'CANCELLED') {
-        primary = { label: '反馈·通过', type: 'primary', onClick: () => quickFeedback(row, 'PASS') }
-        items.push({ label: '反馈·未通过', key: 'fail', danger: true, onClick: () => quickFeedback(row, 'FAIL') })
+
+      if (row.interviewStatus !== 'CANCELLED') {
+        if (row.feedbackStatus === 'COMPLETED') {
+          primary = { label: '查看评价', type: 'primary', onClick: () => openViewEval(row) }
+        } else {
+          primary = { label: '填写评价', type: 'primary', onClick: () => openEditEval(row) }
+        }
       }
       if (row.interviewStatus !== 'CANCELLED' && row.interviewStatus !== 'COMPLETED') {
         if (!primary) primary = { label: '取消', type: 'error', onClick: () => handleCancel(row) }
-        else items.push({ label: '取消', key: 'cancel', danger: true, onClick: () => handleCancel(row) })
+        else items.push({ label: '取消面试', key: 'cancel', danger: true, onClick: () => handleCancel(row) })
       }
       if (!primary) return '—'
       return h(NSpace, { size: 4 }, {
@@ -93,13 +154,64 @@ async function loadList() {
   }
 }
 
-async function quickFeedback(row: Interview, result: 'PASS' | 'FAIL') {
+/** 打开查看评价（取首条 -submitted_at 排序） */
+async function openViewEval(row: Interview) {
   try {
-    await submitFeedback(row.id, { result, reason: result === 'PASS' ? '面试通过' : '面试未通过' })
-    message.success(`已记录反馈: ${result}`)
+    const list = await listEvaluations({ interview: row.id, pageSize: 1 })
+    if (!list.length) {
+      message.warning('该面试暂无评价记录')
+      return
+    }
+    currentEval.value = toEvaluation(list[0], row)
+    evalMode.value = 'view'
+    evalModalShow.value = true
+  } catch (e: any) {
+    message.error(`加载评价失败: ${e.message}`)
+  }
+}
+
+/** 打开填写评价（edit 态，无预填——前端 demo 用真实提交覆盖） */
+function openEditEval(row: Interview) {
+  // 不传 evaluation，modal 走内置 DEMO；提交时用真实 interview id 覆盖
+  currentEval.value = undefined
+  // 但 modal 需要知道当前 interview id —— 用 candidate.interviewer 占位传给 modal 没用
+  // 因此这里把当前 interviewId 挂到 row 上，submit 时取
+  pendingInterview.value = row
+  evalMode.value = 'edit'
+  evalModalShow.value = true
+}
+const pendingInterview = ref<Interview | null>(null)
+
+/** 提交评价 —— 把 modal emit 的 4 档 payload 翻译成后端 5 档 */
+async function handleEvalSubmit(payload: {
+  scores: Record<string, number>
+  overallScore: number
+  recommendation: RecValue
+  comment: string
+}) {
+  if (!pendingInterview.value) {
+    message.error('未选中面试，无法提交')
+    return
+  }
+  if (!userStore.user?.id) {
+    message.error('当前用户未登录，无法提交评价')
+    return
+  }
+  try {
+    await createEvaluation({
+      interview: pendingInterview.value.id,
+      interviewer: String(userStore.user.id),
+      scores: payload.scores,
+      overallScore: payload.overallScore,
+      recommendation: EVALUATION_REC_TO_BACKEND[payload.recommendation] ?? 'NEUTRAL',
+      comment: payload.comment,
+    })
+    message.success('评价已提交')
+    evalModalShow.value = false
+    pendingInterview.value = null
     loadList()
   } catch (e: any) {
-    message.error(`反馈失败: ${e.message}`)
+    message.error(`提交失败: ${e.response?.data?.message || e.message}`)
   }
 }
 
@@ -136,6 +248,14 @@ function rowProps(row: any) {
 </script>
 
 <template>
+  <!-- 面试评价弹窗（v2 Phase 1 接入） -->
+  <InterviewEvaluationModal
+    v-model:show="evalModalShow"
+    :mode="evalMode"
+    :evaluation="currentEval"
+    @submit="handleEvalSubmit"
+  />
+
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">面试管理</h1>
