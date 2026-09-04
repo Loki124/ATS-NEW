@@ -1,0 +1,157 @@
+%% v2.10 增量 — 校招管控类图
+%% 文档：apps/django/docs/rule_config_design_v2_10_rollover.md §4
+
+classDiagram
+    direction LR
+
+    class ControlRule {
+        +UUID id
+        +str code
+        +bool is_active
+        +str bu
+        +str position
+        +str level
+        +FK dimension
+        +FK indicator
+        +int year
+        +Decimal target
+        +str strength
+        +int annual_target
+        +JSON monthly_targets  «length=12»
+        +bool rollover_enabled «v2.10 新增, default=False»
+        +save() 自动补号 code
+    }
+
+    class Person {
+        +UUID id
+        +str code
+        +str name
+        +str bu
+        +str school
+        +str sex
+        +str major
+        +str month
+        +str status
+        +date expected_entry_date
+        +date actual_entry_date
+        +str position
+        +str level
+        +bool counted
+    }
+
+    class Offer {
+        +UUID id
+        +str code
+        +FK application
+        +FK candidate
+        +FK position
+        +decimal salary
+        +date start_date
+        +date expire_date
+        +str level
+        +str position_title
+        +OfferState state
+    }
+
+    class Onboarding {
+        +UUID id
+        +FK offer
+        +FK candidate
+        +FK position
+        +date start_date
+        +JSON todo_list
+        +JSON todo_completed
+        +OnboardingState state
+    }
+
+    class ControlRuleViolation {
+        +str message
+        +int status_code «400/409»
+        +list~dict~ blocks
+        +list~dict~ warnings
+        +__init__(message, status_code, blocks, warnings)
+    }
+
+    class campus_control_services {
+        +validate_offer_against_rules(*, candidate, position, level, position_title, start_date) dict
+        «v2.10 内部按 rule.rollover_enabled 分支:
+          False → monthTarget（v2.4 行为）
+          True → monthTarget + rollover
+          （不分裂 _v2_10 后缀；Q-A10 拍板）»
+        +copy_rule(rule) ControlRule
+        +validate_rule_unique(rule) void
+        +toggle_rule(rule, is_active) ControlRule
+    }
+
+    class campus_control_calc {
+        +compute_ratio(persons, rules) dict
+        «v2.10 rows[i] 新增 4 字段:
+          monthRollBase/monthRollActual/monthRollover/monthAvailableTarget»
+        +compute_rollover_target(rule_dict, persons, today=None) tuple~int,4~
+        «v2.10 新增纯函数; 复用 _COUNTED_STATUSES/_accounting_month/rule_matches/_indicator_filter»
+        +simulate(draft, rules, persons, year, month) dict
+        +rule_matches(person, rule) bool
+        +_accounting_month(person) str
+        +_COUNTED_STATUSES set «= {在职, 在途Offer, 在途待入职}»
+        +_indicator_filter(dimension, indicator) dict
+    }
+
+    class ControlRuleSerializer {
+        +list fields «含 'rollover_enabled'»
+        +get_dimension_name(obj) str
+        +get_indicator_name(obj) str
+        +validate(attrs) attrs
+        «v2.10 字段透传；无特殊校验（BooleanField 默认）»
+    }
+
+    class OfferService {
+        +create_offer(data: OfferCreateData) Offer
+        «既有调用 validate_offer_against_rules; v2.10 自动获新逻辑（主理人附加）»
+        +submit_approval(offer_id, actor) Offer
+        «v2.10 新增调 validate_offer_against_rules»
+        +send_to_candidate(offer_id, actor) Offer
+        «v2.10 新增调 validate_offer_against_rules»
+    }
+
+    class OnboardingService {
+        +create_onboarding(data: OnboardingCreateData) Onboarding
+        «v2.10 新增调 validate_offer_against_rules»
+        +mark_completed(onboarding_id, actor) Onboarding
+        «v2.10 新增调 validate_offer_against_rules»
+    }
+
+    class ControlRule_FE {
+        +bool rolloverEnabled «camelCase, v2.10 新增»
+        «前端 TS 类型; 其他字段沿用 v2.4»
+    }
+
+    class RatioRow_FE {
+        +int monthTarget «沿用 v2.4»
+        +int monthRollBase «v2.10; rolloverEnabled=True 时有值»
+        +int monthRollActual «v2.10; rolloverEnabled=True 时有值»
+        +int monthRollover «v2.10; False 时 0»
+        +int monthAvailableTarget «v2.10; False 时 = monthTarget»
+    }
+
+    ControlRule "1" --> "1" ControlDimension : FK
+    ControlRule "1" --> "1" ControlIndicator : FK
+    Person "1" --> "*" PersonDimensionValue : 动态维度
+    Offer "1" --> "1" Person : 派生自 candidate+position
+    Onboarding "1" --> "1" Offer : 派生
+
+    campus_control_services ..> ControlRule : SELECT/校验
+    campus_control_services ..> Person : SELECT/计数
+    campus_control_services ..> ControlRuleViolation : 抛
+
+    campus_control_calc ..> campus_control_services : 被调用
+    campus_control_calc ..> ControlRule : 输入
+    campus_control_calc ..> Person : 输入
+
+    OfferService ..> campus_control_services : 5 节点共用
+    OnboardingService ..> campus_control_services : 5 节点共用
+    OfferService ..> Offer : CRUD
+    OnboardingService ..> Onboarding : CRUD
+
+    ControlRuleSerializer ..> ControlRule : 序列化
+    ControlRule_FE ..> ControlRuleSerializer : JSON 反序列化（camelCase）
+    RatioRow_FE ..> campus_control_calc : compute_ratio 输出
