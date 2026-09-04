@@ -121,7 +121,7 @@ class TestComputeRolloverTarget:
       - Q-A5 跨年防御（rule.year != today.year → (0,0,0,0)）
       - Q-A4 curMonth 越界（today.month ∉ [1,12] → (0,0,0,0)）
       - B8 无过去月份（curMonth=1 → rollBase=0）
-      - Q3-A 浮动基数 = Σ monthly_targets[0..curMonth-2]
+      - Q3-A 浮动基数 = Σ monthly_targets[0..curMonth-2]（即前 N-1 月；curMonth=9 → 1..8 月 = 78）
       - Q4-A / Q5-A rollActual = 仅「在职」且 actual_entry_date ∈ [本年 1/1, curMonth-1 月末]
       - Q6-B 负数裁 0（rollBase < rollActual → rollover=0）
     """
@@ -173,17 +173,17 @@ class TestComputeRolloverTarget:
         assert result == (0, 0, 0, 0), f'B8 边界应返 (0,0,0,0)，实得 {result}'
 
     def test_roll_base_equals_sum_of_past_months(self):
-        """Q3-A：curMonth=9 → rollBase = Σ monthly_targets[0..6]（即 1..7月）。"""
+        """Q3-A：curMonth=9 → rollBase = Σ monthly_targets[0..7]（即 1..8月）。"""
         from datetime import date
         monthly = [10, 12, 8, 15, 6, 11, 9, 7, 5, 4, 3, 2]
         rule = self._rule(rollover_enabled=True, monthly_targets=monthly)
         # 无在职人员 → rollActual=0, rollover = rollBase - 0
-        # Σ[0..6] = 10+12+8+15+6+11+9 = 71
+        # Σ[0..7] = 10+12+8+15+6+11+9+7 = 78
         result = compute_rollover_target(rule, [], today=date(2026, 9, 1))
-        assert result[0] == 71, f'rollBase 应为 71，实得 {result[0]}'
+        assert result[0] == 78, f'rollBase 应为 78，实得 {result[0]}'
         assert result[1] == 0, f'rollActual 应为 0，实得 {result[1]}'
-        assert result[2] == 71, f'rollover 应为 71，实得 {result[2]}'
-        assert result[3] == 71, f'monthRollover 应为 71（开启），实得 {result[3]}'
+        assert result[2] == 78, f'rollover 应为 78，实得 {result[2]}'
+        assert result[3] == 78, f'monthRollover 应为 78（开启），实得 {result[3]}'
 
     def test_roll_actual_only_counts_in_service_with_past_actual_entry(self):
         """Q4-A / Q5-A：仅「在职」且 actual_entry_date ∈ [本年 1/1, curMonth-1 月末]。

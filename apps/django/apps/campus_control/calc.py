@@ -317,7 +317,7 @@ def compute_rollover_target(rule_dict: dict, persons: list, today: _date | None 
     """v2.10 本月浮动目标（roll-over）纯函数。
 
     口径（Q-A10 拍板 — 单一函数内部按 rule.rollover_enabled 切换月目标）：
-      - rollBase   = Σ monthly_targets[0..curMonth-2]（已过去月份额定目标合计；B8 边界 curMonth=1 → 0）
+      - rollBase   = Σ monthly_targets[0..curMonth-2]（即前 N-1 月；已过去月份额定目标合计；B8 边界 curMonth=1 → 0）
       - rollActual = 「在职」且 actual_entry_date ∈ [本年 1/1, curMonth-1 月末] 且
                      命中规则适用范围与指标的人员数（Q4-A / Q5-A）
       - rollover   = max(0, rollBase - rollActual)（Q6-B 负数裁 0）
@@ -353,19 +353,20 @@ def compute_rollover_target(rule_dict: dict, persons: list, today: _date | None 
 
     # rollBase = 已过去月份额定目标合计
     # 口径：curMonth=N → Σ monthly_targets[0..N-2]（即前 N-1 月；B8 边界 curMonth=1 → 0）
-    # 设计文档 §7.6（`range(curMonth - 2)`） + QA 测试用例 Q3-A 锁定：curMonth=9 → Σ[0..6] = 7 月 = 71。
-    # slice 端点 = `cur_month - 2`，外层用 `cur_month >= 3` 守卫避免 `monthly[:-1]`（cur_month=1 时返 11 月）。
+    # 设计文档 §7.6（`range(curMonth - 1)`）+ Q3-A「截止当前月份以前的本年度目标值」字面语义
+    # 锁定：curMonth=9 → Σ[0..7] = 1..8 月 = 78。
+    # slice 端点 = `cur_month - 1`，外层用 `cur_month >= 2` 守卫避免 `monthly[:-1]`（cur_month=1 时返 11 月）。
     monthly = rule_dict.get('monthly_targets') or [0] * 12
-    if cur_month >= 3:
-        # 等价于 `sum(monthly[i] for i in range(cur_month - 2))`
-        # cur_month=3 → 1 月；cur_month=9 → 1..7 月（QA 测试断言 71）
-        roll_base = sum(monthly[:cur_month - 2])
+    if cur_month >= 2:
+        # 等价于 `sum(monthly[i] for i in range(cur_month - 1))`
+        # cur_month=2 → 1 月；cur_month=9 → 1..8 月（QA 测试断言 78）
+        roll_base = sum(monthly[:cur_month - 1])
     else:
-        # B8 边界 + cur_month=2 退化：均无「前 N-1 月」（slice 为空），统一返 0
+        # B8 边界：cur_month=1 退化，无「前 N-1 月」（slice 为空），统一返 0
         roll_base = 0
 
-    # 口径对齐：rollBase slice `[:cur_month - 2]` 与 _in_past_months 闭区间 [本年 1/1, 上月末] 在
-    # 「已过去月份」维度对齐；cur_month ∈ {1, 2} 时 rollBase 由守卫回 0。
+    # 口径对齐：rollBase slice `[:cur_month - 1]` 与 _in_past_months 闭区间 [本年 1/1, 上月末] 在
+    # 「已过去月份」维度对齐（1 月为 0 个月，2 月起累加）；cur_month=1 时 rollBase 由守卫回 0。
 
     # rollActual = 在职 + 命中规则（范围 + 指标）+ actual_entry_date ∈ [本年 1/1, curMonth-1 月末]
     dim_name = rule_dict.get('dimension', '')

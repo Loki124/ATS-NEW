@@ -177,7 +177,7 @@ sequenceDiagram
         alt rule.rollover_enabled == True
           VLD->>CALC: compute_rollover_target(rule_dict, persons, today)
           CALC->>CALC: 入口防御 rule.year != today.year → 返 (0,0,0,0)（Q-A5）
-          CALC->>CALC: rollBase = Σ monthly_targets[0..curMonth-2]（Q3-A）
+          CALC->>CALC: rollBase = Σ monthly_targets[0..curMonth-2]（即前 N-1 月；Q3-A 字面「截止当前月份以前的本年度目标值」）
           CALC->>CALC: rollActual = Σ Person WHERE status='在职'<br/>AND actual_entry_date ∈ [本年 1/1, curMonth-1 月末]<br/>AND rule_matches(Person, rule)<br/>AND indicator 命中<br/>AND counted=True（Q4-A/Q5-A；复用 calc.py）
           CALC->>CALC: rollover = max(0, rollBase − rollActual)（Q6-B 负数裁 0）
           CALC->>CALC: monthRollover = rollover
@@ -438,7 +438,7 @@ classDiagram
 3. `calc.py` 新增纯函数 `compute_rollover_target(rule_dict, persons, today=None) -> tuple[int, int, int, int]`：
    - 入口防御：`if not (1 <= today.month <= 12): return (0, 0, 0, 0)`（Q-A4 边界）
    - 入口防御：`if rule_dict.get('year') != today.year: return (0, 0, 0, 0)`（Q-A5 跨年）
-   - `rollBase = sum(rule_dict['monthly_targets'][i] for i in range(curMonth - 2))`（Q3-A）
+   - `rollBase = sum(rule_dict['monthly_targets'][i] for i in range(curMonth - 1))`（Q3-A 字面「截止当前月份以前的本年度目标值」；curMonth=9 → 1..8 月；curMonth=1 → `range(0)` = 空 = 0（B8））
    - `rollActual = sum(1 for p in persons if p.get('counted') and p.get('status') == '在职' and _accounting_month_in_range(p, today) and rule_matches(p, rule_dict) and all(p.get(k) == v for k, v in _indicator_filter(rule_dict['dimension'], rule_dict['indicator']).items()))`（Q4-A/Q5-A；复用 calc.py 谓词）
    - `_accounting_month_in_range(p, today)`：返回 `True` iff `p['actual_entry_date'] ∈ [本年 1/1, today.month-1 月末]`（与 Q4-A 严格对齐；不复用 `_accounting_month`，因为后者返回月份标签不直接做日期范围判断）
    - `rollover = max(0, rollBase - rollActual)`（Q6-B）
@@ -602,7 +602,7 @@ classDiagram
    - `test_rollover_disabled_returns_zeros`（Q-A10 零回归：False 时 4 元组 = (0,0,0,0)）
    - `test_cross_year_rule_returns_zeros`（Q-A5：rule.year=2025, today.year=2026 → (0,0,0,0)）
    - `test_cur_month_1_returns_zeros`（B8：无过去月份）
-   - `test_roll_base_equals_sum_of_past_months`（Q3-A：curMonth=9 → Σ monthly_targets[0..6]）
+   - `test_roll_base_equals_sum_of_past_months`（Q3-A：curMonth=9 → Σ monthly_targets[0..7] = 78）
    - `test_roll_actual_only_counts_in_service_with_past_actual_entry`（Q4-A/Q5-A：仅在职 + actual_entry_date ∈ 过去月份；模拟 SAMPLE_PERSONS 验证）
    - `test_rollover_negative_clipped_to_zero`（Q6-B：B5 边界，rollBase < rollActual → rollover=0）
    - `test_cur_month_out_of_range_returns_zeros`（Q-A4：today.month=13 → (0,0,0,0)）
@@ -700,7 +700,7 @@ classDiagram
 6. **精度与零防御**
    - 浮点容差 `RATIO_TOL = Decimal('0.0001')`（与 v2.4 一致，calc.py:29）。
    - `compute_rollover_target` 入口必须 `if not (1 <= today.month <= 12): return (0, 0, 0, 0)`（Q-A4）；`if rule.year != today.year: return (0,0,0,0)`（Q-A5）。
-   - `rollBase` 计算：`Σ monthly_targets[i] for i in range(curMonth - 2)`；curMonth=1 → `range(-1)` → `sum([])` = 0（B8）。
+   - `rollBase` 计算：`Σ monthly_targets[i] for i in range(curMonth - 1)`（Q3-A 字面「截止当前月份以前的本年度目标值」）；curMonth=1 → `range(0)` → `sum([])` = 0（B8）；curMonth=9 → `range(8)` = 索引 [0..7] = 1..8 月 = 78。
 
 7. **API 契约兼容**
    - `ControlRuleSerializer` 仅追加 `rollover_enabled` 字段，不删 / 不重命名既有字段；未传时按 default `False` 处理。
