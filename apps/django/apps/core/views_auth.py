@@ -1,4 +1,6 @@
 """Auth 视图 - 登录/登出/刷新"""
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
@@ -9,6 +11,8 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Permission as AuthPermission
 from .models import Permission
+
+logger = logging.getLogger(__name__)
 # T01.2 (2026-08-04 寇豆码): 显式声明 IsAuthenticated, 覆盖全局 deny-by-default.
 from .permissions import IsAuthenticated
 
@@ -96,7 +100,8 @@ def logout_view(request):
             token = RefreshToken(refresh_token)
             token.blacklist()
         return Response({'success': True})
-    except Exception:
+    except Exception as e:
+        logger.warning('JWT 登出失败 user=%s err=%s', getattr(request.user, 'id', 'anon'), e, exc_info=True)
         return Response(
             {'success': False, 'message': '登出失败'},
             status=status.HTTP_400_BAD_REQUEST,

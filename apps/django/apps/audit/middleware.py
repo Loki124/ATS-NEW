@@ -81,7 +81,7 @@ def _maybe_enable_kill_switch(count: int) -> None:
                 count, KILL_SWITCH_TTL,
             )
         except Exception:  # noqa: BLE001
-            pass
+            logger.exception('AuditMiddleware 熔断 cache 写入失败 count=%d ttl=%d', count, KILL_SWITCH_TTL)
 
 
 def reset_audit_kill_switch() -> bool:

@@ -13,6 +13,7 @@ Phase 0 边界（硬约束）：
 """
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -22,6 +23,8 @@ from apps.process.services.expression_service import (
     extract_ids,
     validate_expression,
 )
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     Condition,
@@ -378,6 +381,7 @@ class RuleEngine:
             try:
                 matched, detail = ConditionEvaluator().evaluate(rule, context)
             except Exception as exc:  # 求值异常 → 记 ERROR 日志，跳过该规则
+                logger.warning('规则求值失败 rule=%s err=%s', rule.id, exc, exc_info=True)
                 log = self._save_log(
                     rule, context,
                     evaluate_result=EvaluateResult.ERROR,

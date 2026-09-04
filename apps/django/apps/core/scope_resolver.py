@@ -1,8 +1,12 @@
 """4 层 scope 堆栈解析器 (L1 user级 > L2 role级 > L3 tenant级 > L4 SELF兜底)."""
+import logging
+
 from django.db.utils import OperationalError, ProgrammingError
 
 from .models_permission_v2 import UserRoleV2, RoleV2, TenantConfig
 from .models import Department
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_scope(user, resource_code: str = None) -> dict:
@@ -44,13 +48,14 @@ def resolve_scope(user, resource_code: str = None) -> dict:
             try:
                 units = ur.management_unit_ids
             except Exception:
+                logger.warning('V2 user_roles.management_unit_ids 缺失 user_role_id=%s', getattr(ur, 'id', '?'))
                 units = None
             if units:
                 explicit_units.extend(units or [])
             try:
                 role_codes.append(ur.role_code)
             except Exception:
-                pass
+                logger.warning('UserRole.role_code 缺失 user_role_id=%s', getattr(ur, 'id', '?'))
     except (OperationalError, ProgrammingError):
         # V2 schema 未应用 → user_roles 表缺 V2 列. 跳到 L3.
         pass

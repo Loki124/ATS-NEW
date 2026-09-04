@@ -225,7 +225,8 @@ class EntryConditionEvaluator:
             for item in rule.items.filter(deleted_at__isnull=True).order_by('item_seq'):
                 try:
                     extra[item.field] = self._get_actual_value(item)
-                except Exception:  # noqa: BLE001 — 单条解析失败不应阻断整次派发
+                except Exception as e:  # noqa: BLE001 — 单条解析失败不应阻断整次派发
+                    logger.warning('进入条件单条解析失败 item_seq=%s field=%s err=%s', item.item_seq, item.field, e, exc_info=True)
                     continue
         return extra
 

@@ -19,6 +19,10 @@ from __future__ import annotations
 
 import logging
 
+logger = logging.getLogger(__name__)
+
+import logging
+
 from django.db import transaction
 from django.db.models import Q
 from rest_framework import status, viewsets
@@ -350,12 +354,13 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         serializer = CandidateImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         results = []
-        for item in serializer.validated_data['candidates']:
+        for idx, item in enumerate(serializer.validated_data['candidates']):
             try:
                 data = item.to_data()
                 c = CandidateService.create_candidate(data, actor=request.user)
                 results.append({'success': True, 'id': c.id, 'name': c.name})
             except Exception as e:
+                logger.warning('批量创建候选人单条失败 idx=%s err=%s', idx, e, exc_info=True)
                 results.append({'success': False, 'error': str(e), 'data': item.validated_data})
         return Response({'results': results, 'total': len(results)})
 
