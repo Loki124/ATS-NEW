@@ -158,10 +158,15 @@ class TestComputeRolloverTarget:
         assert result == (0, 0, 0, 0), f'跨年防御失败，实得 {result}'
 
     def test_cur_month_out_of_range_returns_zeros(self):
-        """Q-A4 越界：today.month=13 → (0,0,0,0)。"""
-        from datetime import date
+        """Q-A4 越界：today.month=13 → (0,0,0,0)。
+
+        Python 标准 `date` 构造时 month=13 直接抛 ValueError，所以用 SimpleNamespace mock date
+        跳过构造时校验，只触发函数内的 `1 <= cur_month <= 12` 防御分支。
+        """
+        from types import SimpleNamespace
         rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)
-        result = compute_rollover_target(rule, [], today=date(2026, 13, 1))
+        fake_today = SimpleNamespace(year=2026, month=13, day=1)
+        result = compute_rollover_target(rule, [], today=fake_today)
         assert result == (0, 0, 0, 0), f'curMonth 越界防御失败，实得 {result}'
 
     def test_cur_month_1_returns_zeros(self):
@@ -220,15 +225,15 @@ class TestComputeRolloverTarget:
              'month': '4月'},
         ]
         result = compute_rollover_target(rule, persons, today=date(2026, 9, 15))
-        # rollBase = Σ[10]*7 = 70
-        assert result[0] == 70, f'rollBase 应为 70，实得 {result[0]}'
+        # rollBase = Σ[10]*8 = 80（B 选项：curMonth=9 → 1..8 月共 8 个月）
+        assert result[0] == 80, f'rollBase 应为 80，实得 {result[0]}'
         assert result[1] == 1, f'rollActual 应为 1（仅第 1 条命中），实得 {result[1]}'
-        assert result[2] == 69, f'rollover 应为 70-1=69，实得 {result[2]}'
+        assert result[2] == 79, f'rollover 应为 80-1=79，实得 {result[2]}'
 
     def test_rollover_negative_clipped_to_zero(self):
         """Q6-B：B5 边界 — rollBase < rollActual → rollover=0（负数裁 0）。"""
         from datetime import date
-        rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)  # rollBase=70
+        rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)  # rollBase=80（B 选项：8 个月 × 10）
         persons = [
             # 远超 rollBase 的人数
             *[{
@@ -238,9 +243,9 @@ class TestComputeRolloverTarget:
             } for _ in range(100)],
         ]
         result = compute_rollover_target(rule, persons, today=date(2026, 9, 15))
-        assert result[0] == 70, f'rollBase 应为 70，实得 {result[0]}'
+        assert result[0] == 80, f'rollBase 应为 80，实得 {result[0]}'
         assert result[1] == 100, f'rollActual 应为 100，实得 {result[1]}'
-        # 70 - 100 = -30 → 裁为 0
+        # 80 - 100 = -20 → 裁为 0
         assert result[2] == 0, f'rollover 负数应裁 0，实得 {result[2]}'
         assert result[3] == 0, f'monthRollover 应为 0，实得 {result[3]}'
 
