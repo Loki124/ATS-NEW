@@ -1,68 +1,122 @@
-# 概述：ATS-NEW 前端 UI/UX 审计 + 全量执行（2026-09-03）
+# 概述：ATS-NEW 治理批次 #1（2026-09-04 上午）
 
 ## 本轮做了什么
-按 `AGENTS.md` v2.0.0 完成 **P0-A（安全/阻断）+ P0-B（交互/状态机）+ P1（令牌/微文案）** 全部项。
-所有改动基于磁盘静态证据（file:line），纯低风险：新工具/组件/组合式文件 + 组件内安全改写 + 微文案措辞。
-用户授权「完成之后统一提交」，已一次性 `git commit`（见文末 commit 信息）。
 
-## P0-A（前次已完成，本轮纳入统一提交）
-- **R-107 XSS**：新增 `web/app/src/utils/sanitizeHtml.ts`（DOMParser 白名单）+ `sanitizeHtml.test.ts`（9 用例），替代 `AnnouncementDetail.vue` 黑名单正则。
-- **R-103 320px 无横向溢出**：全量 grep 21 处固定宽（13 `<n-modal>` + 8 容器）全部追加 `max-width: 90vw`，二次 grep 复核 100%。
-- **R-108 长列表**：查清主流列表已分页、ScrapedResumeList 服务端封顶 50；`CandidateList.vue:99` 遍历 mockData 为潜在债务，暂缓（不伪造虚拟滚动）。
+按 `docs/PROJECT_FULL_REVIEW_2026-09-04.md` P0 行动清单推进**两项治理**：
 
-## P0-B（本轮新增）
-### R-104 / R-111 数据视图状态机 ✅
-- 新增 `web/app/src/components/common/StateView.vue`：统一状态机（loading/empty/error/partial/no-permission/offline/limit），覆盖 AGENTS.md R-104 异步四态 + R-111 数据视图状态机（含最高频遗漏项 partial 就地重试）。
-- 接线 **2 个代表性视图**（真实 error 态 + retry）：
-  - `screening/ScreeningList.vue`：新增 `error` ref，load 失败渲染 `<StateView state="error" :on-retry="loadList">`，成功/空态仍由 `n-data-table` 自带处理。
-  - `onboarding/OnboardingList.vue`：同上。
+| 任务 | 类型 | 范围 | 状态 |
+|---|---|---|---|
+| **P0#1** urls_stubs.py 74 条 stub 端点分类 | 索引化 | 37 端点分 4 类 + 文件头治理规约 | ✅ PASS |
+| **P0#2** campus_control/views.py 1115 行拆分 | 拆分 + 制度化 | 拆 6 个巨型方法到 services + CONTRIBUTING.md 准入线 | ✅ PASS |
 
-### R-105 草稿自动保存 ✅
-- 新增 `web/app/src/composables/useDraft.ts`：localStorage 草稿 + TTL 24h + 防抖；敏感字段（密码/令牌/证件号等）命中即**整体禁用**草稿；`isEmpty` 守卫避免空白表单误落盘/误报恢复；提交成功后调用方 `clear()`。
-- 接线 `settings/AnnouncementSettings.vue` 编辑抽屉表单（`announcement-edit` key，`isEmpty: v => !v.title && !v.body`）：`openCreate` 恢复草稿并提示「已恢复上次未提交的草稿」+「清空」出口；`save` 成功后 `clearDraft()`。
+**两次治理共同的工程纪律**：
+- 严格不改运行时行为（HTTP 状态码/错误体/审计写入 1:1 保留）
+- 不引入新依赖（无 pip 包、无 lint 工具）
+- 团队 SOP 路径：建团队 → 工程师 → QA 独立 grep 复核
+- 未 commit / push（待用户环境 CI 跑通后统一提交）
 
-### R-106 破坏性操作可撤销 ✅（仅接**真实可逆**路径，杜绝假撤销）
-- 新增 `web/app/src/composables/useUndo.ts`：`undoable(text, onUndo, 8000ms)` Toast 撤销，注释明确禁止 no-op（假撤销=验证剧场）。
-- 接线 **3 个本地可逆** handler（删除/移除仅作用于本地内存，撤销=真实重新插入）：
-  - `AnnouncementSettings.vue:undoRemovePendingFile`：移除「待上传附件」（文件对象仍在作用域）。
-  - `AnnouncementSettings.vue:removeExistingAttachment`：移除「已存在附件」（撤销=重新加入 + 取消待删标记）。
-  - `ProcessDetailModal.vue:removeStage`：编辑态移除阶段（撤销=重新插入数组）。
-- **服务端级删除保持确认弹窗、不伪造撤销**：`AnnouncementSettings.remove`（删除公告）、`DataDashboard.handleDeleteSub`（停用订阅）本就走 `dialog.confirm` 且文案描述后果，符合要求，未强行接 undo（无恢复接口 = 假撤销）。
+---
 
-### R-101 / R-102 交互状态
-- Naive UI `n-button` 原生提供 default/hover/active/focus-visible/disabled/loading 六态（R-101 由组件体系满足，非逐组件补丁）。
-- R-102 图标按钮命中区扩展属逐组件改造，**[R] 需运行时实测**，标记待办（见下）。
+## P0#1 — urls_stubs.py 74 条分类索引
 
-## P1（本轮新增）
-### R-001 硬编码色 → 令牌 ✅
-- 全量 grep `color="#EF4444" text-color="#fff"` 共 **7 处危险按钮**（6 文件）：`AnnouncementSettings.vue`×3、`DataDashboard.vue`×1（render 内 `textColor`）、`ConditionTreeEditor.vue`×1、`ProcessStageEditor.vue`×1、`ProcessDetailModal.vue`×1。
-- 全部改为 `type="error"`（语义危险色，浅/暗色自动适配，顺带满足 R-211 语义色不依赖品牌色）。
-- **合法保留**（未动）：`tokens.css:66 --c-error:#EF4444`（设计令牌单源，正是 R-001 要的）、`App.vue:56 errorColor` 主题覆盖、`ThemeSettings.vue:210` 调色板数据数组。
-- 二次 grep 复核：全仓零残留 `color="#EF4444" text-color="#fff"`；其余 `#EF4444` 仅上述 3 处合法引用。
+**交付物**：
+- 新增 `apps/django/apps/referral/STUB_CLASSIFICATION.md`（179 行）
+- 改 `apps/django/apps/referral/urls_stubs.py` 文件头（697 → 716 行，+19 行）
 
-### R-204 微文案 ✅（安全子集）
-- 主操作按钮「确定/提交」→「动词+宾语」：`AnnouncementSettings`(保存)、`DepartmentManagement`(保存部门)、`UserManagement`(保存用户)、`DemandList`(保存需求)、`AccountSettings`(保存密码)、`MouManagement`×4(保存 Mou/容器/规则/互斥规则)、`DataDictionary`(保存配置)。
-- 确认弹窗文案去「确定」疑问式：`AnnouncementSettings` 推送弹窗 positive-text「确定」→「推送」、删除 dialog content「确定删除」→「删除」；`ProcessDetailModal` 删阶段 popconfirm「确定删除阶段」→「删除阶段…此操作不可撤销」。
+**4 类划分**：
+| 类别 | 端点数 | path 数 | 处置 |
+|---|---:|---:|---|
+| A 安全敏感已 501 | 3 | 6 | 永久保留（auth/register、change-password、login alias） |
+| B 前端不再调用的孤儿 stub | 16 | 32 | 后续批次清理 |
+| C 前端在用且已可承接 | 15 | 30 | 后续批次迁移到对应 app 真 view |
+| D 前端在用但暂未落地 | 3 | 6 | 待对应模块补实现（bulk-create / upload-and-parse / scoring-start） |
 
-### R-203 / R-109
-- R-203 错误三段式：项目既有 `n-result`/`message` 已满足（人话+数据/恢复动作），本轮无新增违规点。
-- R-109 对比度 **[R] 需运行时实测**：标记待办（见下）。
+**验收 100% 达标**：path=74、def=41、git diff 仅文件头、ast.parse OK、运行时 401/501 行为不变。
 
-## 验证状态（遵守 AGENTS.md §0.2，禁止验证剧场）
-- **[S] 静态已验证**：全量 grep 证据 + 新文件存在性 + 接线引用解析（import/const/调用三处均 grep 命中，无悬空引用）。
-- **[R] 运行时未验证（沙箱限制）**：本沙箱 `node_modules` 残缺 + 网络被 `CODEBUDDY_BROKER_DENY` 拦截，无法跑 `vitest` / `vite build` / `stylelint`。需在**用户环境** CI 跑通：`sanitizeHtml.test.ts`、`vue-tsc --noEmit`、浏览器 320/768/1200px + 对比度实测。
+**团队**：software-stub-classify（寇豆码 + 严过关），两轮迭代（首轮抓出 §8 含执行清单违反约束 + T0X 编号与 PHASE2_DESIGN 错位 2 项 FAIL，次轮 PASS）。
 
-## 统一提交
-- 已 `git add` 全部 UI/UX 改动（15 个 P0-A .vue 修改 + P0-B/P1 修改）+ 新文件（StateView.vue / useUndo.ts / useDraft.ts / sanitizeHtml.ts / sanitizeHtml.test.ts）+ 诊断报告（UIUX-DIAGNOSIS-2026-09-03.md / overview.md / docs/ui-audit/）。
-- commit hash 见对话末尾汇报。
+---
 
-## 遗留待办（需用户环境 / 运行时）
-1. **R-102** 图标按钮命中区扩展（逐个 `::after` 扩至 ≥44px）——运行时实测。
-2. **R-109** 对比度 WCAG AA 浏览器实测（常规文本 ≥4.5:1）。
-3. **R-204 收尾**：`SpecialApproval.vue:70` / `ResumeList.vue:222` 等 dialog `positive-text="确定"` 上下文复核；错误页 `您`→`你`（HR 非政务/金融场景）。均低风险文本，建议人工过一遍。
-4. **R-108 债务**：`CandidateList.vue:99` 接真实候选人 API 时补虚拟滚动。
+## P0#2 — campus_control/views.py 1115 行拆分（B 方案）
 
-## 交付物
-- 诊断：`UIUX-DIAGNOSIS-2026-09-03.md`、`docs/ui-audit/`
-- 新基础设施：`components/common/StateView.vue`、`composables/useUndo.ts`、`composables/useDraft.ts`
-- 安全工具：`utils/sanitizeHtml.ts` + `utils/__tests__/sanitizeHtml.test.ts`
+**交付物**：
+- 改 `apps/django/apps/campus_control/views.py`（**1115 → 489 行，-56%**）
+- 改 `apps/django/apps/campus_control/services.py`（261 → 1032 行）
+- 新增 `apps/django/apps/campus_control/CONTRIBUTING.md`（46 行准入线）
+
+**拆分映射**（6 个业务方法 + 5 个 helper + 1 个 audit 类下沉）：
+
+| 原方法 | 原行数 | 新 service 函数 | View 端转发 |
+|---|---:|---|---|
+| `ControlDimensionViewSet.set_rules` | **221** | `set_rules_for_dimension(user, dimension, payload, request=None)` | 5 行 |
+| `ControlIndicatorViewSet.import_indicators` | **94** | `import_indicators(user, file_obj, mode, filename='', request=None)` | 4 行 |
+| `ControlRuleViewSet.with_targets` | 96 | `replace_rules_with_targets(...)` | 4 行 |
+| `ControlRuleViewSet.import_xlsx` | 70 | `import_rules_from_xlsx(...)` | 4 行 |
+| `ControlRuleViewSet.batch` | 60 | `batch_replace_rules(...)` | 4 行 |
+| `ControlRuleViewSet._import_group` | 54 | `import_rule_group(group, user)` | 2 行（薄壳） |
+| 5 个 helper（_scope_mutex_guard / _normalize_monthly_targets / _log_*_audit / _indicator_error_payload）| 14-37 | 签名不变下沉 | view 端按需调 |
+| **新增** ServiceResult 类 | — | 统一 (payload, status_code) 配对 | view 端统一 Response |
+
+**CONTRIBUTING.md 准入线**（46 行）：
+- views.py ≤ 500 行
+- 单方法 ≤ 50 行
+- 命名约定：业务方法 → `xxx_for_<entity>(user, ..., request=None)`
+- **不引入 lint 工具**，靠 PR Review + PR 模板 checkbox 自检
+
+**验收**：
+- 4 项不变性：views.py 489 / services.py 1032 / git diff 仅 3 文件 / ast.parse OK
+- @action 13 端点 1:1 保留（url_path/detail/methods 完全一致）
+- 错误消息字符串 1:1 保留（"缺少 dimension 参数"、"维度不存在"、"rules 不能为空" 等）
+- **pytest 缺口**：QA 因沙箱 `.venv` 缺 django/DRF/pytest/openpyxl 无法启动 101 个测试；工程师报告"101 passed"未被本轮独立动态验证，**commit/push 前需在用户环境重跑**
+
+**团队**：software-campus-views-split（寇豆码 + 严过关），一轮 PASS（QA 仅一 PASS，无 FAIL 修复循环）。
+
+---
+
+## 两次治理的对比与经验
+
+| 维度 | P0#1 stub 索引 | P0#2 views 拆分 |
+|---|---|---|
+| 范围 | 仅分类（不动行为） | 业务搬迁（行为不变） |
+| 测试影响 | 0（无业务改动） | pytest 101 个用例需重跑 |
+| QA 抓到 FAIL | 2 项（§8 执行清单 / T0X 编号错位） | 0 项（一轮 PASS） |
+| 工程师轮次 | 2 轮 | 1 轮 |
+| 团队存档 | software-stub-classify | software-campus-views-split |
+
+**关键经验**（两次治理都体现）：
+1. **QA 应"独立 grep 不信工程师自检"**——P0#1 第二轮抓到 2 项工程师自检漏报
+2. **pytest 等运行时测试必须真跑**——P0#2 因沙箱无 venv 缺口被诚实标注，未冒称"已通过"
+3. **拆巨型方法需要新增 ServiceResult 模式**——统一 (payload, status_code) 配对，让 view 端只做薄壳转发
+4. **准入线靠 PR Review 而非 lint 工具**——避免 CI 改造风险，但要求 review 严守
+
+---
+
+## 变更未 commit / push（待用户环境 CI 跑通后统一提交）
+
+工作区当前改动（按本批次顺序）：
+```
+M apps/django/apps/referral/urls_stubs.py                    # P0#1
+?? apps/django/apps/referral/STUB_CLASSIFICATION.md         # P0#1
+M apps/django/apps/campus_control/views.py                  # P0#2
+M apps/django/apps/campus_control/services.py               # P0#2
+?? apps/django/apps/campus_control/CONTRIBUTING.md          # P0#2
+```
+
+## 遗留待办（接 P0 行动清单）
+
+1. **用户环境 commit 前必跑**：
+   - `pytest apps/django/apps/campus_control/tests/ -q`（验证 P0#2 pytest 101 用例不崩）
+   - `pytest apps/django/apps/django/tests/ -q`（确认全局 384+ pytest 不退化）
+   - `npm test`（前端 132 vitest）
+2. **P0#3**（`except Exception` 154 处分类治理）—— 仍未动，下次优先级
+3. **P0#4**（rule_engine 模块补 requirements / PROJECT_PLAN 文档）—— 仍未动，下次优先级
+4. **P2#11**（空壳 app 清理 + 路由别名收敛 T03/T05 打包）—— 未动
+5. **B/C 类 stub 清理**（PHASE2_DESIGN T03 一部分）—— STUB_CLASSIFICATION.md 索引已就绪
+6. **预存历史 T 编号清理**（urls_stubs.py L59 / L183）—— 主理人裁定本批次不动
+
+## 团队工作流（SOP 路径）
+
+- P0#1：TeamCreate software-stub-classify → engineer → qa（FAIL ×2 → PASS）→ TeamDelete
+- P0#2：TeamCreate software-campus-views-split → engineer → qa（一轮 PASS）→ TeamDelete
+- 全部工程师与 QA 都已 graceful shutdown
+- teams/ 目录已清理
