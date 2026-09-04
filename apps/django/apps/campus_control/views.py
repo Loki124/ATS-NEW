@@ -152,6 +152,8 @@ def _rule_to_dict(r):
         'strength': r.strength,
         'annual_target': r.annual_target,
         'monthly_targets': list(r.monthly_targets) if isinstance(r.monthly_targets, (list, tuple)) else [0] * 12,
+        # v2.10：浮动目标开关（默认 False；compute_rollover_target 入口防御已确保跨年=0）
+        'rollover_enabled': getattr(r, 'rollover_enabled', False),
     }
 
 

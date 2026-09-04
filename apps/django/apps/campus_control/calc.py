@@ -11,6 +11,7 @@ v2.8 关键变更（G1 真删人数规划）：
 - 新增 _largest_remainder_allocate（最大余数法），供后端按维度总人数精确分配 annual_target。
 """
 import math
+from calendar import monthrange
 from datetime import date as _date
 from decimal import Decimal
 
@@ -207,7 +208,13 @@ def _count_achievement(persons, rule, month_label=None):
 
 
 def compute_ratio(persons, rules):
-    """实时看板：占比视角(兼容既有测试) + 人数达成视角(年度/本月 × 达成/在途/达成率)。"""
+    """实时看板：占比视角(兼容既有测试) + 人数达成视角(年度/本月 × 达成/在途/达成率)。
+
+    v2.10 增量（PRD §3.5 / 设计文档 §1）：
+      - 每行新增 4 字段：monthRollBase / monthRollActual / monthRollover / monthAvailableTarget
+      - rollover_enabled=False 时 4 字段全为 0、monthAvailableTarget == monthTarget（v2.4 看板零回归）
+      - rollover_enabled=True 时按 compute_rollover_target 取值
+    """
     total = len([p for p in persons if p.get('counted') and p.get('status') in _COUNTED_STATUSES])
     cur_month = f'{_date.today().month}月'
     cur_idx = _date.today().month - 1
@@ -221,6 +228,15 @@ def compute_ratio(persons, rules):
         month_target = int(mt[cur_idx]) if isinstance(mt, (list, tuple)) and len(mt) >= 12 else 0
         annual_rate = (_round3(_dec(ann_ach) / _dec(annual_target))) if annual_target > 0 else None
         month_rate = (_round3(_dec(mon_ach) / _dec(month_target))) if month_target > 0 else None
+
+        # v2.10：本月浮动 4 字段（按 rollover_enabled 分支；False 时 monthAvailableTarget == monthTarget）
+        if r.get('rollover_enabled'):
+            roll_base, roll_actual, _rollover, month_rollover = compute_rollover_target(r, persons)
+            month_available_target = month_target + month_rollover
+        else:
+            roll_base = roll_actual = month_rollover = 0
+            month_available_target = month_target
+
         rows.append({
             'dimension': r['dimension'],
             'indicator': r['indicator'],
@@ -236,6 +252,11 @@ def compute_ratio(persons, rules):
             'monthAchieved': mon_ach,
             'monthInProgress': mon_ip,
             'monthRate': month_rate,
+            # —— v2.10：本月浮动 4 字段 ——
+            'monthRollBase': roll_base,
+            'monthRollActual': roll_actual,
+            'monthRollover': month_rollover,
+            'monthAvailableTarget': month_available_target,
             # —— 保留：占比视角（既有测试断言依赖，勿删） ——
             'actual': count_rule(r, persons),
             'denom': denom_rule(r, persons),

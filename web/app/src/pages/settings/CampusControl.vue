@@ -1012,7 +1012,18 @@ const ratioColumns: DataTableColumns<any> = [
   { title: '年度达成', key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) },
   { title: '年度达成率', key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` },
   { title: '年度在途', key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) },
-  { title: '本月目标', key: 'monthTarget', width: 90, render: (r) => String(r.monthTarget ?? 0) },
+  { title: '本月额定目标', key: 'monthTarget', width: 110, render: (r) => String(r.monthTarget ?? 0) },
+  // v2.10：新增本月浮动目标列（PR §3.2.2 / 设计文档 §7 T03；rolloverEnabled=False 时恒为 0）
+  { title: '本月浮动目标', key: 'monthRollover', width: 110, render: (r) => String(r.monthRollover ?? 0) },
+  // v2.10：新增本月可用目标列（= 本月额定 + 本月浮动；达标 success tag）
+  {
+    title: '本月可用目标', key: 'monthAvailableTarget', width: 120,
+    render: (r) => h(NTag, {
+      type: (r.monthAvailableTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthAvailableTarget || 0) ? 'success' : 'default',
+      bordered: false,
+      size: 'small',
+    }, { default: () => String(r.monthAvailableTarget ?? 0) }),
+  },
   { title: '本月达成', key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) },
   { title: '本月达成率', key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` },
   { title: '本月在途', key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) },

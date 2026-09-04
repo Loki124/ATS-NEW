@@ -152,6 +152,35 @@ class OfferService:
     @transaction.atomic
     def send_to_candidate(offer_id: str, actor: User) -> Offer:
         offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
+
+        # ── v2.10 T03：Offer 钩子（人员比例管控 — 节点 3）──
+        # 与 create_offer / submit_approval 同入口（Q-A10 单一函数）。
+        from apps.campus_control.services import (
+            validate_offer_against_rules, ControlRuleViolation,
+        )
+        try:
+            hook_result = validate_offer_against_rules(
+                candidate=offer.candidate,
+                position=offer.position,
+                level=offer.level or '',
+                position_title=offer.position_title or '',
+                start_date=offer.start_date,
+            )
+            _mirror_campus_validation(
+                offer.candidate_id, warnings=hook_result.get('warnings'),
+            )
+            for w in hook_result.get('warnings', []):
+                logger.warning(
+                    'Offer.send_to_candidate 软约束提示(offer=%s): 规则 %s %s·%s %s 当前 %s/%s 人',
+                    offer.id, w.get('code'), w.get('dimension'), w.get('indicator'),
+                    w.get('scope'), w.get('annualActual'), w.get('annualTarget'),
+                )
+        except ControlRuleViolation as e:
+            _mirror_campus_validation(
+                offer.candidate_id, blocks=e.blocks, warnings=e.warnings,
+            )
+            raise DRFValidationError({'detail': e.message})
+
         offer.send()
         offer.save()
         # 触发通知 (2026-07-02: 用模块级便捷函数, 之前 kwargs 错配 → 100% 静默失败)

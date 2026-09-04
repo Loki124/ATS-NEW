@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, h } from 'vue'
 import {
-  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect,
-  NButton, NTag, NSpace, NGrid, NGi, NAlert, useMessage,
+  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch,
+  NButton, NTag, NSpace, NGrid, NGi, NAlert, NText, useMessage,
 } from 'naive-ui'
 import {
   STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS,

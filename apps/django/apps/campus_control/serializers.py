@@ -102,6 +102,7 @@ class ControlRuleSerializer(serializers.ModelSerializer):
             'id', 'code', 'is_active', 'bu', 'position', 'level', 'dimension', 'dimension_name',
             'indicator', 'indicator_name', 'year', 'target', 'strength',
             'annual_target', 'monthly_targets',
+            'rollover_enabled',  # v2.10：月度浮动目标开关（默认 False；DRF camelCase 渲染 → rolloverEnabled）
             'created_by_name', 'created_at', 'updated_by_name', 'updated_at',
         ]
         read_only_fields = [

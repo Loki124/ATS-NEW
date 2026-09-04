@@ -133,6 +133,13 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
     计数严格复用 calc.py（_COUNTED_STATUSES / rule_matches / _indicator_filter /
     _accounting_month / count_rule），口径与 ratio 看板一致。
 
+    v2.10 增量（Q-A10 拍板 — 单一函数内部按 rule.rollover_enabled 切换月目标）：
+      - rollover_enabled=False（默认；v2.4 行为）：按 monthTarget 判定（零回归）。
+      - rollover_enabled=True：按 monthTarget + monthRollover 判定；开启时 entry 字典
+        透传 5 个浮动字段（rollBase / rollActual / rollover / monthRollover /
+        monthAvailableTarget）便于未来 P1-8 阻断文案增强（本期仅透传，不消费）。
+      - 关闭时 entry 不含上述 5 字段（保持 v2.4 既有 entry schema 不漂移）。
+
     参数：
       candidate: Candidate 实例（读 gender / school_tag / major_tag）
       position: Position 实例（读 department.name 作为 bu；风险 3：须与 DEPTS 取值对齐）
@@ -208,6 +215,9 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
 
         month_target = 0
         month_count = 0
+        # v2.10：本月浮动相关字段（关闭时全为 0；entry 不含这些字段以保 v2.4 schema 兼容）
+        roll_base = roll_actual = rollover = month_rollover = 0
+        month_available_target = 0
         if isinstance(start_date, date):
             mt = rule_dict.get('monthly_targets') or [0] * 12
             idx = start_date.month
@@ -221,9 +231,21 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
                 and _accounting_month(p) == month_label
                 and all(p.get(k) == v for k, v in _indicator_filter(dim_name, ind_name).items())
             )
+            # v2.10（Q-A10 拍板 — 单一函数内分支）：按 rollover_enabled 切换月可用目标口径
+            if getattr(rule, 'rollover_enabled', False):
+                roll_base, roll_actual, rollover, month_rollover = compute_rollover_target(
+                    rule_dict, persons, today=start_date,
+                )
+                # month_available_target = monthTarget + rollover（开启时）
+                month_available_target = (
+                    int(mt[idx - 1]) + month_rollover if 1 <= idx <= 12 else int(mt[idx - 1])
+                )
+            else:
+                # v2.4 行为（零回归）：按 monthTarget 判定
+                month_available_target = month_target
 
         annual_break = rule.annual_target > 0 and annual_count >= rule.annual_target
-        month_break = month_target > 0 and month_count >= month_target
+        month_break = month_available_target > 0 and month_count >= month_available_target
 
         if not (annual_break or month_break):
             continue
@@ -241,6 +263,13 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
             'monthActual': month_count,
             'strength': rule.strength,
         }
+        # v2.10：开启浮动才透传 5 字段；关闭时 entry 不变（v2.4 schema 零漂移）
+        if getattr(rule, 'rollover_enabled', False):
+            entry['rollBase'] = roll_base
+            entry['rollActual'] = roll_actual
+            entry['rollover'] = rollover
+            entry['monthRollover'] = month_rollover
+            entry['monthAvailableTarget'] = month_available_target
 
         if rule.strength == '硬约束':
             blocks.append(entry)
@@ -249,10 +278,20 @@ def validate_offer_against_rules(*, candidate, position, level, position_title, 
             warnings.append(entry)
 
     if blocks:
+        def _month_line(b):
+            """v2.10：开启浮动时显示「额定 + 浮动 = 可用」；关闭时回退到 v2.4「额定目标」口径。"""
+            target = b.get('monthTarget') or 0
+            if 'monthAvailableTarget' in b and b.get('monthAvailableTarget'):
+                target = b['monthAvailableTarget']
+                roll = b.get('monthRollover') or 0
+                base = b.get('monthTarget') or 0
+                return f"、{b['monthActual']}/{target} 人（月度：额定 {base} + 浮动 {roll} = 可用 {target}）"
+            return f"、{b['monthActual']}/{target} 人（月度）" if target else ""
+
         lines = [
             f"规则 {b['code']}（{b['dimension']}·{b['indicator']}，{b['scope']}，{b['year']}）："
             f"当前 {b['annualActual']}/{b['annualTarget']} 人（年度）"
-            + (f"、{b['monthActual']}/{b['monthTarget']} 人（月度）" if b['monthTarget'] else "")
+            + _month_line(b)
             for b in blocks
         ]
         msg = '硬约束规则命中，禁止提交：\n' + '\n'.join(lines)

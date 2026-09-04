@@ -92,6 +92,7 @@ export interface ControlRule {
   strength: Strength
   annualTarget: number // 年度管控人数
   monthlyTargets: number[] // 12 个月度管控人数
+  rolloverEnabled: boolean // v2.10：是否启用本月浮动目标（roll-over）
   createdByName?: string
   createdAt?: string
   updatedByName?: string
@@ -137,6 +138,11 @@ export interface RatioRow {
   monthAchieved: number
   monthInProgress: number
   monthRate: number | null
+  // —— v2.10：本月浮动 4 字段（rolloverEnabled=False 时 monthRollover=0、monthAvailableTarget==monthTarget）——
+  monthRollBase?: number
+  monthRollActual?: number
+  monthRollover: number
+  monthAvailableTarget: number
 }
 
 export interface RatioResult {

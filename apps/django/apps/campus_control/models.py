@@ -115,6 +115,12 @@ class ControlRule(FullAuditModel, UUIDModel):
     annual_target = models.IntegerField(default=0, verbose_name='年度目标人数')
     # 长度 12，下标 0=1月 .. 11=12月
     monthly_targets = models.JSONField(default=_default_monthly, verbose_name='12个月目标')
+    # v2.10：月度浮动目标（Roll-over）开关
+    # 开启时：本月可用目标 = 本月额定目标 + 浮动目标（已过去月份目标合计 − 已过去月份入职且在职，负数裁 0）
+    # 关闭时（默认）：与 v2.4 行为完全一致（仅按本月额定目标判定）；存量行默认 False 保证零回归。
+    rollover_enabled = models.BooleanField(
+        default=False, verbose_name='启用本月浮动目标',
+    )
 
     class Meta:
         verbose_name = '管控规则'
