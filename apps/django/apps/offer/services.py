@@ -127,6 +127,47 @@ class OfferService:
     def submit_approval(offer_id: str, actor: User) -> Offer:
         # 2026-07-02: 加 select_for_update 锁, 防并发双审
         offer = Offer.objects.select_for_update().get(id=offer_id, deleted_at__isnull=True)
+
+        # ── v2.10 T03：Offer 钩子（人员比例管控 — 节点 2 / submit_approval）──
+        # 与 create_offer / send_to_candidate 同入口（Q-A10 单一函数）。
+        # 钩子必须在 select_for_update 之后、状态机 + save 之前调用：
+        #   硬约束命中 → 抛 DRFValidationError(400) → 事务回滚 → offer 状态不变。
+        #   软约束命中 → logger.warning 放行。
+        from apps.campus_control.services import (
+            validate_offer_against_rules, ControlRuleViolation,
+        )
+        # 解析 offer.start_date：可能是 ISO 字符串或 date 对象；解析失败则传 None（跳过月度判定）
+        start_date_obj = None
+        if offer.start_date:
+            try:
+                start_date_obj = datetime.strptime(str(offer.start_date)[:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                start_date_obj = None
+        try:
+            hook_result = validate_offer_against_rules(
+                candidate=offer.candidate,
+                position=offer.position,
+                level=offer.level or '',
+                position_title=offer.position_title or '',
+                start_date=start_date_obj,
+            )
+            # Phase 4：best-effort 把软约束提示镜像进统一执行日志（纯可观测，不影响主流程）
+            _mirror_campus_validation(
+                offer.candidate_id, warnings=hook_result.get('warnings'),
+            )
+            for w in hook_result.get('warnings', []):
+                logger.warning(
+                    'Offer.submit_approval 软约束提示(offer=%s): 规则 %s %s·%s %s 当前 %s/%s 人',
+                    offer.id, w.get('code'), w.get('dimension'), w.get('indicator'),
+                    w.get('scope'), w.get('annualActual'), w.get('annualTarget'),
+                )
+        except ControlRuleViolation as e:
+            # 硬约束阻断：事务回滚，向上抛 400（detail 含命中规则明细）
+            _mirror_campus_validation(
+                offer.candidate_id, blocks=e.blocks, warnings=e.warnings,
+            )
+            raise DRFValidationError({'detail': e.message})
+
         offer.submit_approval()
         offer.save()
         return offer

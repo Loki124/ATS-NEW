@@ -268,6 +268,123 @@ def compute_ratio(persons, rules):
     return {'total': total, 'rows': rows}
 
 
+def _in_past_months(actual_iso_str, today: _date) -> bool:
+    """实际入职日期是否落在「本年 1/1 至 today 月份的上一个月末」闭区间内（v2.10 浮动判定辅助）。
+
+    Q4-A：用于「已过去月份」的精确边界判断。
+      - 解析 ISO 字符串（'YYYY-MM-DD'）→ date
+      - 越界（解析失败 / 去年 / 未来月）→ False
+      - 范围：[today.year-01-01, last_day_of_(today.month - 1)]
+      - 1 月时 today.month-1=0 → 不存在上月，自然返 False（B8 边界）
+
+    Parameters
+    ----------
+    actual_iso_str : str | None
+        人员的「实际入职日期」（ISO 字符串，可能为 None）
+    today : datetime.date
+        当前日期（决定本年 + 已过去月份范围）
+
+    Returns
+    -------
+    bool
+        True 表示该人员入职月份属于「已过去月份」（计入 rollActual）
+    """
+    if not actual_iso_str:
+        return False
+    try:
+        s = str(actual_iso_str)
+        parts = s.split('-')
+        if len(parts) < 3:
+            return False
+        d = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except (ValueError, TypeError, IndexError):
+        return False
+    # 仅「本年」才纳入（去年 / 未来年一律 False）
+    if d.year != today.year:
+        return False
+    # 1 月时无「上月」→ 任何 1 月人员都不算过去（保留 1 月入职人员被本月吸收）
+    if today.month <= 1:
+        return False
+    # 上月末日期 = monthrange(year, today.month-1)[1]（monthrange 返回 [1, 当月天数]）
+    prev_month = today.month - 1
+    _, last_day_prev = monthrange(today.year, prev_month)
+    last_day_date = _date(today.year, prev_month, last_day_prev)
+    # 闭区间：[本年-01-01, 上月末]
+    return _date(today.year, 1, 1) <= d <= last_day_date
+
+
+def compute_rollover_target(rule_dict: dict, persons: list, today: _date | None = None) -> tuple:
+    """v2.10 本月浮动目标（roll-over）纯函数。
+
+    口径（Q-A10 拍板 — 单一函数内部按 rule.rollover_enabled 切换月目标）：
+      - rollBase   = Σ monthly_targets[0..curMonth-2]（已过去月份额定目标合计；B8 边界 curMonth=1 → 0）
+      - rollActual = 「在职」且 actual_entry_date ∈ [本年 1/1, curMonth-1 月末] 且
+                     命中规则适用范围与指标的人员数（Q4-A / Q5-A）
+      - rollover   = max(0, rollBase - rollActual)（Q6-B 负数裁 0）
+      - monthRollover = rollover（透传，关闭时恒 0，零回归）
+
+    入口防御（顺序）：
+      1. today 默认 → date.today()
+      2. cur_month 越界（∉ [1,12]）→ (0,0,0,0)（Q-A4）
+      3. rule.year != today.year → (0,0,0,0)（Q-A5 跨年）
+      4. rollover_enabled=False → (0,0,0,0)（Q-A10 零回归 + 短路优化）
+
+    计数 MUST REUSE calc.py 的 _COUNTED_STATUSES / rule_matches / _indicator_filter，
+    禁止另写谓词，避免与 ratio 看板漂移（设计文档 §7.4 计数口径铁律）。
+
+    Returns
+    -------
+    tuple[int, int, int, int]
+        (rollBase, rollActual, rollover, monthRollover)
+    """
+    # 1) today 默认
+    if today is None:
+        today = _date.today()
+    # 2) curMonth 越界防御（Q-A4）
+    cur_month = today.month
+    if not (1 <= cur_month <= 12):
+        return (0, 0, 0, 0)
+    # 3) 跨年防御（Q-A5）
+    if int(rule_dict.get('year', 0) or 0) != today.year:
+        return (0, 0, 0, 0)
+    # 4) 关闭 → 零回归 + 短路（Q-A10）
+    if not rule_dict.get('rollover_enabled'):
+        return (0, 0, 0, 0)
+
+    # rollBase = 已过去月份额定目标合计
+    # 口径：curMonth=N → Σ monthly_targets[0..N-2]（即前 N-1 月；B8 边界 curMonth=1 → 0）
+    # 设计文档 §7.6（`range(curMonth - 2)`） + QA 测试用例 Q3-A 锁定：curMonth=9 → Σ[0..6] = 7 月 = 71。
+    # slice 端点 = `cur_month - 2`，外层用 `cur_month >= 3` 守卫避免 `monthly[:-1]`（cur_month=1 时返 11 月）。
+    monthly = rule_dict.get('monthly_targets') or [0] * 12
+    if cur_month >= 3:
+        # 等价于 `sum(monthly[i] for i in range(cur_month - 2))`
+        # cur_month=3 → 1 月；cur_month=9 → 1..7 月（QA 测试断言 71）
+        roll_base = sum(monthly[:cur_month - 2])
+    else:
+        # B8 边界 + cur_month=2 退化：均无「前 N-1 月」（slice 为空），统一返 0
+        roll_base = 0
+
+    # 口径对齐：rollBase slice `[:cur_month - 2]` 与 _in_past_months 闭区间 [本年 1/1, 上月末] 在
+    # 「已过去月份」维度对齐；cur_month ∈ {1, 2} 时 rollBase 由守卫回 0。
+
+    # rollActual = 在职 + 命中规则（范围 + 指标）+ actual_entry_date ∈ [本年 1/1, curMonth-1 月末]
+    dim_name = rule_dict.get('dimension', '')
+    ind_name = rule_dict.get('indicator', '')
+    ind_filter = _indicator_filter(dim_name, ind_name) if dim_name and ind_name else {}
+    roll_actual = sum(
+        1 for p in persons
+        if p.get('counted')
+        and p.get('status') == '在职'
+        and rule_matches(p, rule_dict)
+        and all(p.get(k) == v for k, v in ind_filter.items())
+        and _in_past_months(p.get('actual_entry_date'), today)
+    )
+
+    # rollover = max(0, rollBase - rollActual)（Q6-B 负数裁 0）
+    rollover = max(0, roll_base - roll_actual)
+    return (roll_base, roll_actual, rollover, rollover)
+
+
 def _draft_hits_rule(draft, rule) -> bool:
     """录入草稿是否命中某规则（适用范围匹配 且 指标匹配）。"""
     if not rule_matches(draft, rule):

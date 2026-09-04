@@ -206,6 +206,8 @@ export interface RuleInput {
   strength: Strength
   annualTarget: number // 年度管控人数
   monthlyTargets: number[] // 12 个月度管控人数
+  /** v2.10：是否启用本月浮动目标（roll-over）；缺省按 False 处理（v2.4 行为零回归） */
+  rolloverEnabled?: boolean
 }
 
 const ruleToNum = (x: any): ControlRule => ({
@@ -215,6 +217,8 @@ const ruleToNum = (x: any): ControlRule => ({
   monthlyTargets: Array.isArray(x.monthlyTargets) && x.monthlyTargets.length === 12
     ? x.monthlyTargets.map((v: any) => Number(v))
     : Array(12).fill(0),
+  // v2.10：浮动目标开关；后端 BooleanField 默认 False，转 boolean 统一前端口径
+  rolloverEnabled: Boolean(x.rolloverEnabled),
 })
 
 /** 全部规则（每条自带适用范围 + 管控人数）。 */
