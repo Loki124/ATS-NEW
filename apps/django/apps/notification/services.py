@@ -242,6 +242,7 @@ class NotificationService:
                 result = NotificationService.send_notification(data)
                 results.append({'recipient_id': data.recipient_id, **result})
             except Exception as e:
+                logger.warning('单条通知发送失败 recipient=%s err=%s', data.recipient_id, e, exc_info=True)
                 results.append({
                     'recipient_id': data.recipient_id, 'sent': False, 'error': str(e),
                 })

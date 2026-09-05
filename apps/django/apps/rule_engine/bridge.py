@@ -636,6 +636,7 @@ def mirror_campus_offer_validation(
                 skip_reason=None,
             )
             written += 1
-        except Exception:  # noqa: BLE001 — 镜像失败不影响现网
+        except Exception as e:  # noqa: BLE001 — 镜像失败不影响现网
+            logger.warning('rule_engine 镜像写失败: %s', e, exc_info=True)
             continue
     return written

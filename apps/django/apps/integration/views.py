@@ -76,6 +76,7 @@ class IntegrationConfigViewSet(AuditMixin, viewsets.ModelViewSet):
                 'data': {'ok': ok, 'message': '测试完成'},
             })
         except Exception as e:
+            logger.exception('集成连通性测试失败 integration_id=%s type=%s', instance.id, instance.type)
             return Response({
                 'success': False,
                 'message': f'测试失败: {e}',

@@ -1,4 +1,6 @@
 """Referral Views (DRF) - PRD v4 §6.4"""
+import logging
+
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -6,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
+
+logger = logging.getLogger(__name__)
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.core.permissions import is_super_admin
@@ -99,7 +103,8 @@ class ReferralViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
                 detected = 'N+2'
             else:
                 detected = instance.referral_type
-        except Exception:
+        except Exception as e:
+            logger.warning('内推 detected_type 探测失败 fallback=instance.referral_type referral_id=%s err=%s', instance.id, e, exc_info=True)
             detected = instance.referral_type
         instance.detected_type = detected
         instance.save(update_fields=['detected_type', 'updated_at'])

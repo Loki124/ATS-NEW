@@ -21,6 +21,25 @@
     否则换个 URL 就能绕开撞库限流。
   - 只读类 stub (返空 list) 保持原样, 它们不会误导用户以为写入成功。
 """
+
+# === 治理规约（2026-09-04 起）==========================================
+# 74 条 path（37 个 endpoint）已在 STUB_CLASSIFICATION.md 建立索引, 分 4 类:
+#   A 类: 安全敏感已 501 (auth/register 等) — 保留, 不允许回退到 _ok()
+#   B 类: 前端不再调用 — 后续批次清理
+#   C 类: 前端在用且已可承接 — 后续批次迁移到对应 app 的真 views.py
+#   D 类: 前端在用但暂未落地 — 待 add_candidate / search 等模块补实现
+#
+# 任何新增 stub path 必须:
+#   1) 在 STUB_CLASSIFICATION.md 同步新增条目
+#   2) 安全敏感操作走 _not_implemented() 返 501 (严禁 _ok() 伪装成功)
+#   3) 非安全敏感可走 _empty_list_view() / _ok(), 但必须 _log_stub_hit()
+#
+# 任何删除/迁移 stub path 必须:
+#   1) 先在对应 app 实现真 view + 路由, 用 url 优先级或 include 覆盖 stub
+#   2) 在 STUB_CLASSIFICATION.md 标 "已迁出" + 关联 commit
+#   3) 在 PR 描述里贴 url 优先级证据
+# =====================================================================
+
 import logging
 import uuid
 from django.urls import path

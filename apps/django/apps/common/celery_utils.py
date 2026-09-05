@@ -75,7 +75,7 @@ def _clear_failure_count(task_name: str):
         for retry_count in range(1, FATAL_FAILURE_THRESHOLD + 3):
             cache.delete(f'celery:alert_sent:{task_name}:{retry_count}')
     except Exception:  # noqa: BLE001
-        pass
+        logger.warning('清理 alert cache 失败 task=%s', task_name, exc_info=True)
 
 
 def _alert_on_fatal_failure(task_name: str, exc: BaseException, retry_count: int):

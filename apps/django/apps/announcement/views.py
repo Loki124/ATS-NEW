@@ -1,4 +1,5 @@
 """制度公告视图 — 招聘专家查看 / HR 及以上维护。"""
+import logging
 import os
 from uuid import uuid4
 
@@ -24,6 +25,8 @@ from .serializers import (
     AnnouncementConfigSerializer,
     AnnouncementPushRecordSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXT = {
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
@@ -168,7 +171,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         try:
             att.file.delete(save=False)
         except Exception:
-            pass
+            logger.warning('物理文件删除失败（DB 软删仍生效）attachment=%s', att.id, exc_info=True)
         att.soft_delete()
         return Response({'success': True})
 
@@ -220,6 +223,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
                     log_ids.append(result.get('log_id'))
             except Exception:
                 # 单用户发送失败不影响整体流程，记录中不含该失败日志
+                logger.warning('公告单用户发送失败 announcement=%s user=%s', announcement.id, user.id, exc_info=True)
                 continue
 
         record.context = {'log_ids': log_ids}
@@ -280,6 +284,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
                 ))
                 notified += 1
             except Exception:
+                logger.warning('公告提醒单用户发送失败 announcement=%s recipient=%s', announcement.id, log.recipient_id, exc_info=True)
                 continue
 
         return Response({'success': True, 'data': {'notified': notified}})

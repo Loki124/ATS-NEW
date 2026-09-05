@@ -89,7 +89,8 @@ class ReferralService:
                 pass
 
             return ReferralType.SOCIAL
-        except Exception:
+        except Exception as e:
+            logger.warning('内推类型探测失败 fallback=SOCIAL err=%s', e, exc_info=True)
             return ReferralType.SOCIAL
 
     @staticmethod

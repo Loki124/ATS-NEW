@@ -15,42 +15,45 @@
     class="stage-rule-config-modal"
     preset="card"
     :title="undefined"
+    :closable="false"
     style="width: 760px; max-width: 95vw; max-height: 90vh"
     :mask-closable="!saving"
     :on-mask-click="onRequestClose"
     @update:show="(v) => emit('update:show', v)"
     @after-leave="resetTransient"
   >
+    <template #header>
+      <!-- HERO HEADER: 2026-09-05 fix 从 n-card-content 内部挪到 #header slot，
+           干掉 -20px margin hack 与 padding 36px 妥协方案 -->
+      <div class="hero">
+        <div class="hero__icon">
+          <n-icon :component="SettingsOutline" size="22" />
+        </div>
+        <div class="hero__main">
+          <div class="hero__title">
+            <span>配置阶段规则</span>
+            <span class="hero__stage-chip">—— {{ stage?.name || '未命名' }}</span>
+          </div>
+          <div class="hero__subtitle">
+            为本阶段配置自动化、默认处理人、限时与进入条件
+          </div>
+        </div>
+        <span class="hero__tip" aria-label="即时生效">
+          <n-icon :component="FlashOutline" size="12" /> 即时生效
+        </span>
+        <button
+          class="hero__close"
+          type="button"
+          aria-label="关闭"
+          :disabled="saving"
+          @click="onRequestClose"
+        >
+          <n-icon :component="CloseOutline" size="20" />
+        </button>
+      </div>
+    </template>
     <n-spin :show="loading">
       <div class="rule-config-body">
-        <!-- HERO HEADER -->
-        <div class="hero">
-          <div class="hero__icon">
-            <n-icon :component="SettingsOutline" size="22" />
-          </div>
-          <div class="hero__main">
-            <div class="hero__title">
-              <span>配置阶段规则</span>
-              <span class="hero__stage-chip">—— {{ stage?.name || '未命名' }}</span>
-            </div>
-            <div class="hero__subtitle">
-              为本阶段配置自动化、默认处理人、限时与进入条件
-            </div>
-          </div>
-          <span class="hero__tip" aria-label="即时生效">
-            <n-icon :component="FlashOutline" size="12" /> 即时生效
-          </span>
-          <button
-            class="hero__close"
-            type="button"
-            aria-label="关闭"
-            :disabled="saving"
-            @click="onRequestClose"
-          >
-            <n-icon :component="CloseOutline" size="20" />
-          </button>
-        </div>
-
         <div class="rule-config-flat">
           <!-- ============ Card 1: 流程自动化 (完全参照原型) ============ -->
           <div class="config-card">
@@ -1013,25 +1016,20 @@ async function handleSubmit() {
 }
 
 /* ==================== HERO HEADER ==================== */
-/* 2026-09-03 v2 视觉修复：
-   - sticky 钉 .n-card-content 顶部，长内容滚动时标题始终可见
-   - 背景从低透明度渐变 (.45/.12) 改为高透明玻璃 (.96 + backdrop-filter blur)，避免滚动内容穿透
-   - 加 border-top 圆角匹配 .n-card 圆角 (var(--radius-lg)=20px)，
-     避免负 margin 扩展到 card 边缘时被 card 的 border-radius + overflow:hidden 裁出空白 */
+/* 2026-09-05 v3 重构：
+   - hero 改为 <template #header> 渲染到 n-card-header 内部
+   - 干掉 -20px -20px margin hack + 36px 妥协 padding，padding 改回与 .config-card 一致的 var(--space-4)=16px
+   - n-card-header 自带圆角 + border，hero 不再重复设置 border-top-radius
+   - 干掉 sticky（n-card-header 不是滚动容器，sticky 无效；粘性需求改由 n-card-content 的 scrollbar 实现）
+   - hero__close 改 absolute → flex 子项，配合 hero__tip margin-left:auto 贴右 */
 .hero {
   background: var(--glass-bg-elevated);  /* rgba(255,255,255,.96) 实色兜底 */
   backdrop-filter: blur(var(--glass-blur-card));
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
-  border-top-left-radius: var(--radius-lg);
-  border-top-right-radius: var(--radius-lg);
-  margin: -20px -20px var(--space-3) -20px;
-  padding: 20px var(--space-6);
+  padding: 20px var(--space-4); /* 16px，与 .config-card padding 一致 */
   border-bottom: 1px solid var(--border-hairline);
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
-  align-items: flex-start;
+  align-items: center;  /* 改 flex-start 为 center，让 icon/title/close 垂直居中 */
   gap: var(--space-3);
 }
 .hero__icon {
@@ -1072,9 +1070,9 @@ async function handleSubmit() {
   margin-top: var(--space-1);
   line-height: 1.5;
 }
-/* 即时生效小标识（参照原型）；颜色走 --brand token，无硬编码 */
+/* 即时生效小标识（参照原型）；颜色走 --brand token，无硬编码
+   2026-09-05 v3: margin-right:36 改为 margin-left:auto 让 tip 紧贴 hero 主区域右侧 */
 .hero__tip {
-  align-self: center;
   font-size: var(--fs-12);
   color: var(--brand);
   background: var(--brand-a12);
@@ -1086,12 +1084,11 @@ async function handleSubmit() {
   gap: 4px;
   font-weight: 500;
   flex-shrink: 0;
-  margin-right: 36px; /* 让出 close 按钮位置 */
+  margin-left: auto; /* 2026-09-05 v3: 把 tip+close 推至 hero 右侧 */
 }
+/* 2026-09-05 v3: 改为 flex 子项，去掉 absolute 定位；
+   n-card-header 自带 padding 内边距，flex 布局自然右对齐 */
 .hero__close {
-  position: absolute;
-  top: 16px;
-  right: 20px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -1101,6 +1098,7 @@ async function handleSubmit() {
   line-height: 1;
   border-radius: 4px;
   transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
 .hero__close:hover {
   background: var(--overlay-scrim-weak);
@@ -1467,9 +1465,10 @@ async function handleSubmit() {
   }
 }
 @media (max-width: 600px) {
+  /* 2026-09-05 v3: hero 已在 #header slot 内，不再需要负 margin；
+     padding 跟随 n-card-header 自带 padding，仅微调到 space-3 让小屏更紧凑 */
   .hero {
-    padding: var(--space-4);
-    margin: -16px -16px var(--space-3) -16px;
+    padding: 16px var(--space-3);
   }
   .hero__icon {
     width: 36px;
@@ -1478,8 +1477,8 @@ async function handleSubmit() {
   .hero__title {
     font-size: var(--fs-16);
   }
+  /* margin-left:auto 在小屏仍生效，不需要改 */
   .hero__tip {
-    margin-right: 32px;
     font-size: var(--fs-12);
   }
   .config-card {
@@ -1498,22 +1497,21 @@ async function handleSubmit() {
 </style>
 
 <style>
-/* Unscoped global style: hide n-card-header rendered by preset="card"
-   to avoid duplicate close button + wasted vertical space.
-   Cannot use :deep() in scoped style because n-card teleports
-   the header outside the parent's data-v boundary. */
-.stage-rule-config-modal .n-card-header {
-  display: none; /* v2.9: 移除 !important；.stage-rule-config-modal .n-card-header 特异性(0,2,0) 已压 Naive 默认 header */
-}
+/* 2026-09-05 v3: 删掉 .n-card-header { display: none } —— 现在 hero 通过 #header slot 渲染到 n-card-header，必须让它显示。
+   旧代码注释里说"避免 duplicate close button + wasted vertical space"：
+     - duplicate close button → :closable="false" 已禁用 Naive 内置 close，无重复
+     - wasted vertical space → 标题栏本来就需要占用高度，挪到 header 后由 n-card-header 自然管理 */
+
 /* 2026-08-30 滚动修复：preset=card 的 .n-card 经 teleport 挂到 body，scoped :deep 命中不到。
    与 ProcessDetailModal 同款方案：card 走 flex 列 + 90vh 上限，content 用 flex:1 + min-height:0
-   拿到剩余高度并滚动；hero 在 content 内随内容一起滚动，footer 由 Naive 默认 flex-shrink:0 钉底。
+   拿到剩余高度并滚动；header 由 flex 自然列在 content 之上，footer 由 Naive 默认 flex-shrink:0 钉底。
    ⚠️ 类名铁律：Card 内容区是 .n-card-content（单横线 block 类，见 glass.css「弹窗统一」段注释），
-   不是 .n-card__content —— 旧写法选择器永不匹配导致整段修复无效。 */
+   不是 .n-card__content —— 旧写法选择器永不匹配导致整段修复无效。
+   2026-09-05 v3: hero 移到 #header slot 后，content 内只有 rule-config-body，
+   滚动行为不变（n-card-content 仍是唯一滚动容器，header 在它之上不滚动）。 */
 .stage-rule-config-modal {
   display: flex;
   flex-direction: column;
-  /* 全局 .n-modal .n-card 已统一兜底，这里仅补齐类级强化（不重复定义可删，保留以显式表达意图） */
 }
 .stage-rule-config-modal .n-card-content {
   flex: 1 1 auto;
