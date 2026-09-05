@@ -38,15 +38,10 @@ api_v1_patterns = [
     # 流程域
     path('stages/', include('apps.process.urls_stage')),
     path('processes/', include('apps.process.urls_process')),
-    # 2026-06-17: 旧前缀别名 (FE recruitment-process.ts 之前用 /recruitment-processes/, 之后重命名到 /processes/,
-    # 但 4 个模板页面里可能还有旧 URL 残留; 留个 alias 不影响)
-    path('recruitment-processes/', include('apps.process.urls_process')),
     path('process-stage-links/', include('apps.process.urls_link')),
-    path('recruitment-process-stage-links/', include('apps.process.urls_link')),
     # 2026-06-17: G38 — 挂载已写好但未注册的 ViewSet (FE recruitment-process.ts 直接用到)
     path('stage-rules/', include('apps.process.urls_rule')),
     path('recruitment-rules/entry-conditions/', include('apps.entry_condition.urls')),
-    path('entry-condition-rules/', include('apps.entry_condition.urls')),  # 旧前缀别名
     # 2026-06-17: G38 — 新挂 3 个 alias APIView (覆盖 FE 调用的 stageId/candidateId 路径变体)
     path('time-limit-rules/', include('apps.time_limit.urls')),
     path('automation-rules/', include('apps.automation.urls')),
