@@ -132,12 +132,12 @@ LOCAL_APPS = [
 
     'apps.mou',             # 2026-07-01 花无缺: MOU 业务 (大客户协议), 暂未挂 config/urls (stub 在 referral/urls_stubs)
     'apps.library',         # G41 院校/公司信息库
-    # Phase 2 T02 (寇豆码): scraped_resume / duplicate_check 是真实功能, 务必保留!
+    # Phase 2 T02 (寇豆码): scraped_resume 已补 model 保留; duplicate_check 已于 2026-09-05 删除
     #   - scraped_resume  已补 ScrapedResume 最小 model (G30 完整功能由 T06 落地)
-    #   - duplicate_check  7 处前端调用 (web/app/src/api/duplicate-check.ts), 无状态算法服务, 不能删
-    #   决策依据: docs/PHASE2_DESIGN_2026-08-03.md §T02 (T02.4 保留 + T02.5 补 model)
+    #   - duplicate_check  原 7 处前端调用已萎缩为 1 处死文件引用 (AddCandidateModal.legacy.vue 的
+    #     import type), G45 查重真实现已迁 apps.add_candidate/services/duplicate_check.py,
+    #     stub 返空假数据属假绿, 删除 (决策依据: docs/PHASE2_DESIGN_2026-08-03.md §T02)
     'apps.scraped_resume',
-    'apps.duplicate_check',
     'apps.dynamic_field',   # G42 动态字段定义 — admin 自定义 Candidate/Position 等资源字段
     'apps.announcement',
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护

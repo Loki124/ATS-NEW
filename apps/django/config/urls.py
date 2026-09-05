@@ -126,14 +126,13 @@ api_v1_patterns = [
     #   data  -> analytics/urls_data.py (/data/kpi, /data/subscriptions)
     #   external-sync -> apps.external_sync (G40 Mock 占位端点, 无 model)
     path('external-sync/', include('apps.external_sync.urls')),
-    #   scraped_resume / duplicate_check 是真实功能, 保留 (FE 真实调用)!
+    #   scraped_resume 是真实功能, 保留 (FE 真实调用)!
     #   scraped-resumes: T02.5 落地最小 model, G30 完整功能由 T06
-    #   duplicate-check: 7 处前端调用, T02.4 保留
+    #   duplicate-check: 已于 2026-09-05 删除 (G45 查重已迁 apps.add_candidate, stub 假绿)
     path('dynamic-fields/', include('apps.dynamic_field.urls')),
     path('resumes/approval-flows/', include('apps.resume_flow.urls')),
     path('library/', include('apps.library.urls')),
     path('scraped-resumes/', include('apps.scraped_resume.urls')),
-    path('duplicate-check/', include('apps.duplicate_check.urls')),
 
     # 公共
     path('field-acl/', include('apps.field_acl.urls')),

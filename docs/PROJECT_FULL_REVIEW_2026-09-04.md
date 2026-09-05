@@ -200,3 +200,32 @@
 
 *报告生成：2026-09-04 · 158 commits（单人 loki）· 数据全部实测*
 *对比基线：docs/PROJECT_FULL_REVIEW_2026-08-26.md*
+
+---
+
+## 8. 后续治理更新（2026-09-05）
+
+> 本节记录 09-04 复评后紧接的治理动作，更正 §1 #21 / §5 #5 的「空壳 app」误判。
+
+### 8.1 「空壳 app 5 个」状态更正
+
+| app | 09-04 复评定性 | 实测真相 | 处置 |
+|---|---|---|---|
+| `data` | 无 models.py | 目录已删（端点迁 `analytics/urls_data.py`） | ✅ 已闭环 |
+| `scraped_resume` | 0 model | 已有 1 Model（T02.5 落地） | ✅ 已闭环 |
+| `search` | 无 models.py | 315 行真搜索（跨 6 实体聚合） | 非空壳（无 model 视图型 app） |
+| `external_sync` | 无 models.py | G40 Mock 占位（前端显式 Mock 页） | 非空壳（无 model 视图型 app） |
+| `duplicate_check` | 0 model | stub（返空假数据，G45 已迁） | ✅ 已删（假绿清零） |
+
+**结论**：5 个「空壳 app」实际 **0 个是真空壳**——2 个已闭环、2 个是「无 model 视图型 app」非空壳、1 个是残留假绿 stub 已删。`search`/`external_sync` 无 model 是**设计如此**（纯查询视图 / Mock 占位），不该被「空壳 app 清理」误伤。
+
+### 8.2 路由别名收敛（§5 #6 / §6 #12）
+
+删 3 个 FE 已废弃的旧前缀别名（`config/urls.py`），保留 1 个 FE 主调用别名：
+
+| 别名 | 判定 | 依据 |
+|---|---|---|
+| `recruitment-processes/` | ✅ 删 | FE 仅注释残留（`recruitment-process.ts:7`） |
+| `recruitment-process-stage-links/` | ✅ 删 | FE 仅注释残留（同上 `:9`） |
+| `entry-condition-rules/` | ✅ 删 | FE 仅注释残留（同上 `:10`） |
+| `referral/`（单数） | ❌ 保留 | FE **主调用路径**（`referral.ts` 10+ 处用单数） |

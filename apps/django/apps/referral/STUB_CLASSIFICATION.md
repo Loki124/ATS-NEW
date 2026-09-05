@@ -94,11 +94,11 @@
 | 10 | `recruitment-rounds/<id>` | `recruitment_rounds` | `_ok()` 假 status | 是（`recruitment-process.ts:339`） | 待 `apps.recruitment_rounds` 落真 ViewSet |
 | 11 | `recruitment-rounds/<id>/status` | `recruitment_rounds_status` | `_ok()` 假 status | 是（`recruitment-process.ts:342`） | 待 `apps.recruitment_rounds` 落真 ViewSet |
 | 12 | `offer-templates` | `offer_templates` | `_empty_list()` / `_ok()` 假 id | 是（`offer.ts:112`） | 待 `apps.offer` 落真 ViewSet |
-| 13 | `duplicate-check` | `duplicate_check_list` | `_empty_list()` | 否（FE 走 `/duplicate-check/check/` 见 `duplicate-check.ts`） | 真后端已在 `apps.duplicate_check.urls:14,16`，本 stub 仅兜底 |
+| 13 | `duplicate-check` | ~~`duplicate_check_list`~~ | ~~`_empty_list()`~~ | 否（已删） | 2026-09-05 已删：duplicate_check app 假绿清零（G45 查重已迁 apps.add_candidate） |
 | 14 | `search` | `global_search` | `_ok()` 假空结果 | 是（`search.ts:82`） | 待 `apps.search` 或 `apps.core` 落真全局搜索 |
 | 15 | `evaluate` | `evaluate` | `_ok()` 假 score=0 | 否（FE 用 `/recruitment-rules/candidates/{id}/evaluate`） | 孤儿 stub；按 task 描述仍归 C 类待真后端 |
 
-> **说明 1**：C13 `duplicate-check` 当前 FE 实际调用 `/duplicate-check/check/` 与 `/duplicate-check/ocr-parse/`（见 `duplicate-check.ts:37,45`），均由 `apps.duplicate_check.urls` 接管。本 stub `duplicate_check_list` 仅留作「列表兜底」，可降为 B 类（待后续复核）。
+> **说明 1**：C13 `duplicate-check` 已于 2026-09-05 删除——duplicate_check app（stub 返空假数据，属假绿）与 legacy FE（`duplicate-check.ts` + `AddCandidateModal.legacy.vue` 死文件）一并移除；G45 查重真实现已迁 `apps.add_candidate/services/duplicate_check.py`，新 V2 路径为 `/candidates/add-candidate/duplicate-check/`（`addCandidate.ts:159`）。
 > **说明 2**：C15 `evaluate` 经 grep 未见 FE 直接调用（FE 走 `/recruitment-rules/candidates/{id}/evaluate` 见 `recruitment-process.ts:321`），按任务描述分类为 C 类。后续若仍无 FE 调用证据，可降为 B 类。
 
 ## 6. D 类 — 前端在用但暂未落地（3 端点 / 6 path）
@@ -155,7 +155,7 @@
 | 29 | `permissions/user-mous/<user_id>` | B | `permissions_user_mous` | GET `[]` / POST echo | 否 | UserMOU M2M 待 G36+ |
 | 30 | `api/talent-pool/types`（FE 误拼） | B | `talent_pool_types` | `_ok()` 静态列表 | 否（FE 用 `/talent-pool/types/`） | FE 已修，stub 留客户端缓存兜底 |
 | 31 | `resumes` | B | `resumes_alias` | `_empty_list()` | 否（FE 用 `/scraped-resumes/`） | FE 已修，stub 留客户端缓存兜底 |
-| 32 | `duplicate-check` | C | `duplicate_check_list` | `_empty_list()` | 否（FE 用 `/duplicate-check/check/`） | 真后端已在 `apps.duplicate_check.urls` |
+| 32 | `duplicate-check` | ~~C~~ 已删 | ~~`duplicate_check_list`~~ | ~~`_empty_list()`~~ | 否（已删） | 2026-09-05 假绿清零，见 §5 说明 1 |
 | 33 | `candidates/batch/recommend` | C | `candidate_batch_recommend` | `_ok()` 假 results | 是 | 待 `apps.candidate` 落 ViewSet |
 | 34 | `candidates/batch/archive` | C | `candidate_batch_archive` | `_ok()` 假 results | 是 | 待 `apps.candidate` 落 ViewSet |
 | 35 | `candidates/batch/assign` | C | `candidate_batch_assign` | `_ok()` 假 results | 是 | 待 `apps.candidate` 落 ViewSet |

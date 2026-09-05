@@ -608,13 +608,6 @@ def resumes_alias(request):
     return _empty_list()
 
 
-@_readonly_view(methods=['GET'], resource_code='recruit:candidate:list')
-def duplicate_check_list(request):
-    _log_stub_hit('duplicate_check_list', request)
-    """GET /duplicate-check/ — 拿历史 (FE 期望)"""
-    return _empty_list()
-
-
 # ============================================================
 # URL patterns
 # ============================================================
@@ -709,8 +702,4 @@ urlpatterns = [
     path('api/talent-pool/types/', talent_pool_types),
     path('resumes', resumes_alias, name='resumes-alias'),
     path('resumes/', resumes_alias),
-
-    # Duplicate-check list
-    path('duplicate-check/', duplicate_check_list, name='duplicate-check-list'),
-    path('duplicate-check', duplicate_check_list),
 ]
