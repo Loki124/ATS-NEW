@@ -117,6 +117,7 @@ import {
   type Invitation,
 } from '../../api/invitation'
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 const dialog = useDialog()
 
@@ -239,7 +240,7 @@ async function loadClaimPool() {
   try {
     const res = await getClaimPool()
     claimPool.value = res.data
-  } catch (e) { /* 静默 */ }
+  } catch (e) { message.error(extractApiError(e, '加载抢单池失败')) }
 }
 
 function handleRefresh() {

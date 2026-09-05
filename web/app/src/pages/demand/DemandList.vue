@@ -438,6 +438,7 @@ import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 
 const loading = ref(false)
@@ -603,7 +604,7 @@ const fetchDepartments = async () => {
       departments.value = res.data.data
     }
   } catch (error) {
-    console.error('获取部门失败', error)
+    message.error(extractApiError(error, '获取部门失败'))
   }
 }
 

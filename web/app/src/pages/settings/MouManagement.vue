@@ -498,6 +498,7 @@ import {
   RefreshOutline,
   SearchOutline,
 } from '@vicons/ionicons5'
+import { extractApiError } from '../../api/dynamic-field'
 
 const message = useMessage()
 
@@ -1163,7 +1164,7 @@ const handleSaveMou = async () => {
       message.error(data.error || fieldErr || data.message || '操作失败')
     }
   } catch (error) {
-    console.error(error)
+    message.error(extractApiError(error, '操作失败'))
   }
 }
 
@@ -1226,7 +1227,7 @@ const handleSaveContainer = async () => {
       message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
-    console.error(error)
+    message.error(extractApiError(error, '操作失败'))
   }
 }
 
@@ -1288,7 +1289,7 @@ const handleSaveRule = async () => {
       message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
-    console.error(error)
+    message.error(extractApiError(error, '操作失败'))
   }
 }
 
@@ -1347,7 +1348,7 @@ const handleSaveMutex = async () => {
       message.error(data.error || data.message || '操作失败')
     }
   } catch (error) {
-    console.error(error)
+    message.error(extractApiError(error, '操作失败'))
   }
 }
 

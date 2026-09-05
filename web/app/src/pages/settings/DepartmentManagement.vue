@@ -193,6 +193,7 @@ import {
 } from 'naive-ui';
 import api from '../../api/auth';
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage();
 
 interface DeptUserRef {
@@ -271,7 +272,7 @@ const loadUsers = async () => {
       users.value = (res.data.data || []).filter((u: User) => u.status === 'ACTIVE');
     }
   } catch (error) {
-    console.error('加载用户列表失败', error);
+    message.error(extractApiError(error, '加载用户列表失败'));
   }
 };
 

@@ -283,6 +283,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useMessage } from 'naive-ui'
 import { get, post } from '../../api/auth'
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 
 const saving = ref(false)
@@ -375,7 +376,7 @@ const fetchConfig = async () => {
       formData.value = { ...formData.value, ...res.data.data }
     }
   } catch (error) {
-    console.error('获取配置失败', error)
+    message.error(extractApiError(error, '获取配置失败'))
   }
 }
 
@@ -386,7 +387,7 @@ const fetchDepartments = async () => {
       departments.value = res.data.data
     }
   } catch (error) {
-    console.error('获取部门失败', error)
+    message.error(extractApiError(error, '获取部门失败'))
   }
 }
 
@@ -397,7 +398,7 @@ const fetchProcesses = async () => {
       processes.value = res.data.data
     }
   } catch (error) {
-    console.error('获取流程失败', error)
+    message.error(extractApiError(error, '获取流程失败'))
   }
 }
 

@@ -226,6 +226,7 @@ interface ConditionItemTree extends ConditionItem {
   children?: ConditionItemTree[]
 }
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()
@@ -495,7 +496,7 @@ onMounted(async () => {
     const procs = await listProcesses()
     const p = procs.find((x) => x.id === processId.value)
     if (p) processName.value = p.name
-  } catch (e) { console.warn('loadProcesses failed:', e) }
+  } catch (e) { message.error(extractApiError(e, '加载流程失败')) }
   // 加载 link 列表（找 stage 名称 + 全部 linkIds）
   try {
     const links = await listProcessLinks(processId.value)
@@ -505,7 +506,7 @@ onMounted(async () => {
       isInterviewType.value = link.stage?.stageType === 'INTERVIEW'
     }
     allLinkIds.value = links.map((l) => l.id)
-  } catch (e) { console.warn('loadProcessLinks failed:', e) }
+  } catch (e) { message.error(extractApiError(e, '加载流程链接失败')) }
   await Promise.all([loadRule(), loadCondition(), loadRounds(), loadUsers(), loadArchiveRules()])
 })
 </script>

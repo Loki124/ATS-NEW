@@ -98,6 +98,7 @@ import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 
 const loading = ref(false)
@@ -164,7 +165,7 @@ const loadFlows = async () => {
       approvalFlows.value = res.data.data
     }
   } catch (error) {
-    console.error('加载审批流程失败', error)
+    message.error(extractApiError(error, '加载审批流程失败'))
   } finally {
     loading.value = false
   }
