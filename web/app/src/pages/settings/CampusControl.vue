@@ -481,7 +481,7 @@ import {
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, saveDimensionRuleSet,
   getRatio, validateDraft,
-  listPersons, upsertPerson, deletePerson,
+  listPersons, upsertPerson, deletePerson, restoreDimension, restoreIndicator, restorePerson,
   exportRules, downloadRuleTemplate, importRules, triggerDownload,
   exportIndicators, downloadIndicatorTemplate, importIndicators,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
@@ -493,9 +493,11 @@ import {
 import { XCircle, AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
+import { useUndo } from '../../composables/useUndo'
 
 const message = useMessage()
 const dialog = useDialog()
+const { undoable } = useUndo()
 
 /* ============================ 选项 ============================ */
 const opt = (arr: readonly string[]) => arr.map((v) => ({ label: v, value: v }))
@@ -1313,18 +1315,17 @@ async function saveDim() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeDim(d: ControlDimension) {
-  const btn = reactive({ loading: false })
-  dialog.warning({
-    title: '删除维度', content: `确认删除维度「${d.name}」？该维度下的指标将一并删除。`, positiveText: '删除', negativeText: '取消',
-    positiveButtonProps: btn,
-    onPositiveClick: async () => {
-      if (btn.loading) return false
-      btn.loading = true
-      try { await deleteDimension(d.id); message.success('删除成功'); await Promise.all([loadDimensions(), loadIndicators()]) }
-      catch (e) { message.error(extractApiError(e, '删除失败')); return false }
-      finally { btn.loading = false }
-    },
-  })
+  deleteDimension(d.id)
+    .then(async () => {
+      message.success('维度已删除')
+      await Promise.all([loadDimensions(), loadIndicators()])
+      undoable(`已删除维度「${d.name}」`, async () => {
+        await restoreDimension(d.id)
+        message.success('已撤销删除')
+        await Promise.all([loadDimensions(), loadIndicators()])
+      })
+    })
+    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
 }
 
 /* ============================ 指标 CRUD ============================ */
@@ -1346,18 +1347,17 @@ async function saveIndicator() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeIndicator(ind: ControlIndicator) {
-  const btn = reactive({ loading: false })
-  dialog.warning({
-    title: '删除指标', content: `确认删除指标「${ind.name}」？`, positiveText: '删除', negativeText: '取消',
-    positiveButtonProps: btn,
-    onPositiveClick: async () => {
-      if (btn.loading) return false
-      btn.loading = true
-      try { await deleteIndicator(ind.id); message.success('删除成功'); await loadIndicators() }
-      catch (e) { message.error(extractApiError(e, '删除失败')); return false }
-      finally { btn.loading = false }
-    },
-  })
+  deleteIndicator(ind.id)
+    .then(async () => {
+      message.success('指标已删除')
+      await loadIndicators()
+      undoable(`已删除指标「${ind.name}」`, async () => {
+        await restoreIndicator(ind.id)
+        message.success('已撤销删除')
+        await loadIndicators()
+      })
+    })
+    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
 }
 
 /* ============================ 录入校验 ============================ */
@@ -1432,18 +1432,17 @@ async function savePerson() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removePerson(p: Person) {
-  const btn = reactive({ loading: false })
-  dialog.warning({
-    title: '删除人员', content: `确认删除「${p.name}（${p.code}）」？`, positiveText: '删除', negativeText: '取消',
-    positiveButtonProps: btn,
-    onPositiveClick: async () => {
-      if (btn.loading) return false
-      btn.loading = true
-      try { await deletePerson(p.id); message.success('删除成功'); await loadPersons() }
-      catch (e) { message.error(extractApiError(e, '删除失败')); return false }
-      finally { btn.loading = false }
-    },
-  })
+  deletePerson(p.id)
+    .then(async () => {
+      message.success('人员已删除')
+      await loadPersons()
+      undoable(`已删除「${p.name}（${p.code}）」`, async () => {
+        await restorePerson(p.id)
+        message.success('已撤销删除')
+        await loadPersons()
+      })
+    })
+    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
 }
 
 async function loadPersons(silent = false) {

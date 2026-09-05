@@ -182,6 +182,7 @@ export const createDimension = (payload: { name: string; code?: string; isActive
 export const updateDimension = (id: string, payload: Partial<ControlDimension>) =>
   api.put(`/campus/dimensions/${id}/`, payload).then((r) => r.data as ControlDimension)
 export const deleteDimension = (id: string) => api.delete(`/campus/dimensions/${id}/`).then((r) => r.data)
+export const restoreDimension = (id: string) => api.post(`/campus/dimensions/${id}/restore/`).then((r) => r.data)
 
 /* ============================ 指标 ============================ */
 export const listIndicators = (dimension?: string) =>
@@ -193,6 +194,7 @@ export const createIndicator = (payload: { dimension: string; name: string; isAc
 export const updateIndicator = (id: string, payload: Partial<ControlIndicator>) =>
   api.put(`/campus/indicators/${id}/`, payload).then((r) => r.data as ControlIndicator)
 export const deleteIndicator = (id: string) => api.delete(`/campus/indicators/${id}/`).then((r) => r.data)
+export const restoreIndicator = (id: string) => api.post(`/campus/indicators/${id}/restore/`).then((r) => r.data)
 
 /* ============================ 规则 ============================ */
 export interface RuleInput {
@@ -446,6 +448,7 @@ export const upsertPerson = (p: Partial<Person> & { code: string; name: string; 
   return api.post(`/campus/persons/`, payload).then((r) => r.data as Person)
 }
 export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`).then((r) => r.data)
+export const restorePerson = (id: string) => api.post(`/campus/persons/${id}/restore/`).then((r) => r.data)
 
 export default {
   listDimensions, createDimension, updateDimension, deleteDimension,
