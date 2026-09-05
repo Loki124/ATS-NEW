@@ -1313,11 +1313,16 @@ async function saveDim() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeDim(d: ControlDimension) {
+  const btn = reactive({ loading: false })
   dialog.warning({
     title: '删除维度', content: `确认删除维度「${d.name}」？该维度下的指标将一并删除。`, positiveText: '删除', negativeText: '取消',
+    positiveButtonProps: btn,
     onPositiveClick: async () => {
+      if (btn.loading) return false
+      btn.loading = true
       try { await deleteDimension(d.id); message.success('删除成功'); await Promise.all([loadDimensions(), loadIndicators()]) }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
+      catch (e) { message.error(extractApiError(e, '删除失败')); return false }
+      finally { btn.loading = false }
     },
   })
 }
@@ -1341,11 +1346,16 @@ async function saveIndicator() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeIndicator(ind: ControlIndicator) {
+  const btn = reactive({ loading: false })
   dialog.warning({
     title: '删除指标', content: `确认删除指标「${ind.name}」？`, positiveText: '删除', negativeText: '取消',
+    positiveButtonProps: btn,
     onPositiveClick: async () => {
+      if (btn.loading) return false
+      btn.loading = true
       try { await deleteIndicator(ind.id); message.success('删除成功'); await loadIndicators() }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
+      catch (e) { message.error(extractApiError(e, '删除失败')); return false }
+      finally { btn.loading = false }
     },
   })
 }
@@ -1422,11 +1432,16 @@ async function savePerson() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removePerson(p: Person) {
+  const btn = reactive({ loading: false })
   dialog.warning({
     title: '删除人员', content: `确认删除「${p.name}（${p.code}）」？`, positiveText: '删除', negativeText: '取消',
+    positiveButtonProps: btn,
     onPositiveClick: async () => {
+      if (btn.loading) return false
+      btn.loading = true
       try { await deletePerson(p.id); message.success('删除成功'); await loadPersons() }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
+      catch (e) { message.error(extractApiError(e, '删除失败')); return false }
+      finally { btn.loading = false }
     },
   })
 }

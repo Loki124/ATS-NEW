@@ -17,6 +17,7 @@ const props = defineProps<{ offerId: string }>()
 
 const message = useMessage()
 const loading = ref(false)
+const submitting = ref(false)
 const list = ref<BackgroundCheck[]>([])
 
 const showCreateModal = ref(false)
@@ -60,6 +61,7 @@ async function handleCreate() {
     message.error('请输入背调类型')
     return
   }
+  submitting.value = true
   try {
     await createBackgroundCheck(props.offerId, createForm.value)
     message.success('背调已创建')
@@ -67,6 +69,8 @@ async function handleCreate() {
     await loadList()
   } catch (e: any) {
     message.error(`创建失败: ${e?.response?.data?.message || e?.message || '未知错误'}`)
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -89,6 +93,7 @@ async function handleComplete() {
     message.error(`risks 字段 JSON 解析失败: ${e.message}`)
     return
   }
+  submitting.value = true
   try {
     await completeBackgroundCheck(props.offerId, currentBid.value, {
       level: completeForm.value.level,
@@ -99,6 +104,8 @@ async function handleComplete() {
     await loadList()
   } catch (e: any) {
     message.error(`完成失败: ${e?.response?.data?.message || e?.message || '未知错误'}`)
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -181,7 +188,7 @@ onMounted(loadList)
     </n-spin>
 
     <!-- 新建背调弹窗 -->
-    <n-modal v-model:show="showCreateModal" preset="dialog" title="新建背调" positive-text="创建" negative-text="取消" @positive-click="handleCreate">
+    <n-modal v-model:show="showCreateModal" preset="dialog" title="新建背调" positive-text="创建" negative-text="取消" :positive-button-props="{ loading: submitting }" @positive-click="handleCreate">
       <n-form label-placement="top" style="margin-top: var(--space-3);">
         <n-form-item label="背调类型" required>
           <n-input v-model:value="createForm.checkType" placeholder="如: 学历 / 工作履历 / 信用" />
@@ -196,7 +203,7 @@ onMounted(loadList)
     </n-modal>
 
     <!-- 完成背调弹窗 -->
-    <n-modal v-model:show="showCompleteModal" preset="dialog" title="完成背调 - 选择等级" positive-text="提交" negative-text="取消" @positive-click="handleComplete">
+    <n-modal v-model:show="showCompleteModal" preset="dialog" title="完成背调 - 选择等级" positive-text="提交" negative-text="取消" :positive-button-props="{ loading: submitting }" @positive-click="handleComplete">
       <n-form label-placement="top" style="margin-top: var(--space-3);">
         <n-form-item label="等级 (4 选 1)" required>
           <n-select

@@ -501,6 +501,9 @@ import {
 
 const message = useMessage()
 
+// R-101: 删除操作重入守卫（防止双击重复删除）
+const deleteLoading = reactive({ mou: false, container: false, rule: false, mutex: false })
+
 interface Mou {
   id: string
   name: string
@@ -770,6 +773,7 @@ const mouColumns = [
           h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditMou(row) }, { default: () => '编辑' }),
           h(NPopconfirm, {
             onPositiveClick: () => handleDeleteMou(row),
+            positiveButtonProps: { loading: deleteLoading.mou },
             positiveText: '确认',
             negativeText: '取消',
           }, {
@@ -808,6 +812,7 @@ const containerColumns = [
           h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditContainer(row) }, { default: () => '编辑' }),
           h(NPopconfirm, {
             onPositiveClick: () => handleDeleteContainer(row),
+            positiveButtonProps: { loading: deleteLoading.container },
             positiveText: '确认',
             negativeText: '取消',
           }, {
@@ -847,6 +852,7 @@ const ruleColumns = [
           h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditRule(row) }, { default: () => '编辑' }),
           h(NPopconfirm, {
             onPositiveClick: () => handleDeleteRule(row),
+            positiveButtonProps: { loading: deleteLoading.rule },
             positiveText: '确认',
             negativeText: '取消',
           }, {
@@ -894,6 +900,7 @@ const mutexColumns = [
           h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => handleEditMutex(row) }, { default: () => '编辑' }),
           h(NPopconfirm, {
             onPositiveClick: () => handleDeleteMutex(row),
+            positiveButtonProps: { loading: deleteLoading.mutex },
             positiveText: '确认',
             negativeText: '取消',
           }, {
@@ -1096,16 +1103,23 @@ const handleEditMou = (mou: Mou) => {
 }
 
 const handleDeleteMou = async (mou: Mou) => {
+  if (deleteLoading.mou) return false
+  deleteLoading.mou = true
   try {
     const data = (await api.delete(`/permissions-v2/mou/${mou.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadMous()
+      return true
     } else {
       message.error(data.error || data.message || '删除失败')
+      return false
     }
   } catch (error) {
     message.error('删除失败')
+    return false
+  } finally {
+    deleteLoading.mou = false
   }
 }
 
@@ -1177,16 +1191,23 @@ const handleEditContainer = (container: PermissionContainer) => {
 }
 
 const handleDeleteContainer = async (container: PermissionContainer) => {
+  if (deleteLoading.container) return false
+  deleteLoading.container = true
   try {
     const data = (await api.delete(`/permissions-v2/containers/${container.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadContainers()
+      return true
     } else {
       message.error(data.error || data.message || '删除失败')
+      return false
     }
   } catch (error) {
     message.error('删除失败')
+    return false
+  } finally {
+    deleteLoading.container = false
   }
 }
 
@@ -1232,16 +1253,23 @@ const handleEditRule = (rule: AutomationRule) => {
 }
 
 const handleDeleteRule = async (rule: AutomationRule) => {
+  if (deleteLoading.rule) return false
+  deleteLoading.rule = true
   try {
     const data = (await api.delete(`/permissions-v2/automation-rules/${rule.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadAutomationRules()
+      return true
     } else {
       message.error(data.error || data.message || '删除失败')
+      return false
     }
   } catch (error) {
     message.error('删除失败')
+    return false
+  } finally {
+    deleteLoading.rule = false
   }
 }
 
@@ -1284,16 +1312,23 @@ const handleEditMutex = (mutex: MutualExclusionGroup) => {
 }
 
 const handleDeleteMutex = async (mutex: MutualExclusionGroup) => {
+  if (deleteLoading.mutex) return false
+  deleteLoading.mutex = true
   try {
     const data = (await api.delete(`/permissions-v2/mutual-exclusion-groups/${mutex.id}/`)).data
     if (data.success) {
       message.success('删除成功')
       loadMutexGroups()
+      return true
     } else {
       message.error(data.error || data.message || '删除失败')
+      return false
     }
   } catch (error) {
     message.error('删除失败')
+    return false
+  } finally {
+    deleteLoading.mutex = false
   }
 }
 

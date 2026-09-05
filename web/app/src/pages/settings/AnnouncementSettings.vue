@@ -544,18 +544,25 @@ async function toggleActive(row: Announcement, value: boolean) {
 }
 
 function remove(row: Announcement) {
+  const btn = reactive({ loading: false })
   dialog.warning({
     title: '删除文档',
     content: `删除「${row.title}」？删除后将从列表移除。`,
     positiveText: '删除',
     negativeText: '取消',
+    positiveButtonProps: btn,
     onPositiveClick: async () => {
+      if (btn.loading) return false
+      btn.loading = true
       try {
         await deleteAnnouncement(row.id)
         message.success('已删除')
         await refresh()
       } catch (e: any) {
         message.error(e?.response?.data?.detail || '删除失败')
+        return false
+      } finally {
+        btn.loading = false
       }
     },
   })
