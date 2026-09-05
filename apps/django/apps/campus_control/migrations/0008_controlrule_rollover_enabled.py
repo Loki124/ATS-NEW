@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('campus_control', '0007_alter_controlrule_strength_choices'),
+        ('campus_control', '0008_alter_person_code'),
     ]
 
     operations = [
