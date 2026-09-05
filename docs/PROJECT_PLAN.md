@@ -129,6 +129,15 @@
 
 **P3 全部 done!** 外部资源 (RPA 平台/百度 OCR) 接入只需新建 adapter 文件, 业务已全部跑通。
 
+### 统一规则引擎 (rule_engine) ✅ 已落地 (2026-08-31 ~ 09-01) — Phase 0-4
+- ✅ **Phase 0 建模** - Rule/Condition/Action/RuleExecutionLog 四表 + 9 枚举 + 求值骨架（ConditionEvaluator/ScopeMatcher/RuleEngine）
+- ✅ **Phase 1 只读 API** - `/api/v1/rule-engine/`（rules/triggers/operators 3 端点，严格只读，无写端点）
+- ✅ **Phase 2 automation 双写** - 幂等镜像 bridge + AUTO_ADVANCE/SKIP_TO/REMIND/REJECT_TO_POOL 4 执行器
+- ✅ **Phase 3 entry_condition/time_limit 双写** - ALLOW/LOCK 执行器 + 委托开关
+- ✅ **Phase 4 campus_control/mou 双写** - BLOCK_HARD/BLOCK_SOFT/SET_PERMISSION 执行器 + `check_rule_engine_consistency` 一致性校验命令
+- ✅ **灰度开关** - `RULE_ENGINE_DOUBLE_WRITE`（默认开）/ `RULE_ENGINE_DISPATCH`（默认关，现网行为不变）
+- 📄 **设计**: `docs/rule-engine/UNIFIED_RULE_ENGINE_DESIGN.md`（三大规则族 TCA/CONSTRAINT/POLICY 收敛 6 家族）
+
 ### Tech 债清理 ✅ (2026-06-09)
 - ✅ Playwright e2e 基础 (3 spec, CI 自动跑)
 - ✅ vue-tsc 1.8 → 2.2.12 升级 (Node 24 兼容)
@@ -349,6 +358,11 @@ Offer沟通 → 背调 → 待入职 → 入职
 - 简历自动解析
 - 阶段自动流转
 - 抢单自动分配
+
+### 统一规则引擎
+- 6 家族规则（automation/entry_condition/time_limit/campus_control/mou/field_acl）收敛为统一 Rule/Condition/Action 抽象
+- 双写镜像（`RULE_ENGINE_DOUBLE_WRITE` 默认开，幂等 upsert）+ 只读聚合 API
+- 统一派发委托（`RULE_ENGINE_DISPATCH` 默认关，灰度期未激活，现网行为不变）
 
 ## 11. 技术栈对比
 

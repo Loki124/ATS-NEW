@@ -105,6 +105,7 @@ ATS (Applicant Tracking System) 招聘管理系统旨在为企业提供一套完
 - **GDPR**：数据主体请求 + 验证码 + 匿名化 + 留存清理
 - **Moka 同步**：用户字段映射 + 集成配置 Fernet 加密
 - **Stub 端点**：37 个兜底（24 落地 + 3 保留 501 + 10 删，详见 Phase 2 设计）
+- **统一规则引擎（rule_engine）**：6 家族规则收敛为统一 Rule/Condition/Action 抽象 + 只读聚合 API（详见 §2.5）
 
 ### 2.4 业务流程
 
@@ -118,6 +119,41 @@ ATS (Applicant Tracking System) 招聘管理系统旨在为企业提供一套完
 7. 综合面试
 8. Offer 沟通
 9. 背调 / 待入职 / 入职
+
+---
+
+### 2.5 统一规则引擎（rule_engine）
+
+> 设计依据：`docs/rule-engine/UNIFIED_RULE_ENGINE_DESIGN.md`（架构师 Bob，2026-08-31）
+
+**定位**：把全仓 6 个分散的规则家族收敛到统一的 `Rule / Condition / Action / RuleExecutionLog` 抽象，提供统一只读聚合视图，为后续「统一执行派发」铺路。**当前只读聚合 + 双写镜像已落地，统一派发未激活**（现网行为不变）。
+
+**三大规则族（Rule Family）**：
+
+| 规则族 | 范式 | 涵盖现有设施 | 是否走「触发→条件→动作」主链路 |
+|---|---|---|---|
+| TCA（触发-条件-动作） | 事件触发 → 条件求值 → 执行动作 | automation / entry_condition / time_limit / mou | ✅ 主战场 |
+| CONSTRAINT（约束校验） | 事件触发 → 占比/维度校验 → 放行/拦截 | campus_control（占比约束） | ⚠️ 条件为领域语义（维度/指标/占比） |
+| POLICY（访问控制） | 主体 → 资源 → 效果 | field_acl（字段权限） | ❌ 序列化层生效，仅统一管理面 + 审计 |
+
+**演进阶段（Phase 0-4，均已落地）**：
+
+| Phase | 内容 | 关键交付 |
+|---|---|---|
+| 0 | 数据模型 + 枚举 + 求值骨架 | 4 表 + 9 枚举 + ConditionEvaluator/ScopeMatcher/RuleEngine |
+| 1 | 只读聚合 API | `GET /api/v1/rule-engine/rules|triggers|operators`（严格只读） |
+| 2 | automation 双写镜像 | 幂等 bridge + AUTO_ADVANCE/SKIP_TO/REMIND/REJECT_TO_POOL 4 执行器 |
+| 3 | entry_condition/time_limit 双写 | ALLOW/LOCK 执行器 + 委托开关 |
+| 4 | campus_control/mou 双写 | BLOCK_HARD/BLOCK_SOFT/SET_PERMISSION 执行器 + 一致性校验命令 |
+
+**灰度开关**（`config/settings/base.py`）：
+
+| 开关 | 默认 | 语义 |
+|---|---|---|
+| `RULE_ENGINE_DOUBLE_WRITE` | **开** | legacy 规则写入时经 signals 幂等镜像到统一表 |
+| `RULE_ENGINE_DISPATCH` | **关** | 业务执行是否委托统一引擎派发（未激活，现网行为不变） |
+
+**数据规模**：4 张表（`rule_engine_rules/conditions/actions/execution_logs`）+ 9 枚举 + 6 家族适配器 + 13 个测试文件（7219 行）。一致性校验命令 `check_rule_engine_consistency [--fix]` 供灰度期核对镜像完整性（退出码 1 表示发现不一致，便于 CI 断言）。
 
 ---
 
