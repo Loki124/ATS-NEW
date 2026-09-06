@@ -983,7 +983,7 @@ const ruleColumns: DataTableColumns<any> = [
       type: r.rolloverEnabled ? 'success' : 'default',
       bordered: false,
       size: 'small',
-    }, { default: () => (r.rolloverEnabled ? '启用' : '未启用') }),
+    }, { default: () => (r.rolloverEnabled ? '已启用' : '未启用') }),
   },
   {
     title: '操作', key: 'op', width: 260, fixed: 'right',
