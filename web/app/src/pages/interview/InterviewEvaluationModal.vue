@@ -572,7 +572,7 @@ const avgValueScore = computed(() => {
 .ats-chip.is-active.ats-chip--pass {
   background: var(--brand-warm);
   border-color: var(--brand-warm);
-  color: #1F2937;
+  color: var(--brand-warm-deep);
   font-weight: 500;
 }
 .ats-chip.is-active.ats-chip--partial {
@@ -584,7 +584,7 @@ const avgValueScore = computed(() => {
 .ats-chip.is-active.ats-chip--fail {
   background: var(--brand-warm);
   border-color: var(--brand-warm);
-  color: #1F2937;
+  color: var(--brand-warm-deep);
   font-weight: 500;
 }
 .ats-chip:disabled { cursor: not-allowed; opacity: .85; }
@@ -616,7 +616,7 @@ const avgValueScore = computed(() => {
 .ats-dot.is-active {
   background: var(--brand-warm);
   border-color: var(--brand-warm);
-  color: #1F2937;
+  color: var(--brand-warm-deep);
   font-weight: 600;
 }
 .ats-dot:disabled { cursor: not-allowed; opacity: .85; }
