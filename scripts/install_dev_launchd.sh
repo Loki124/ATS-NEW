@@ -131,9 +131,12 @@ PLIST_EOF
 NODE_BIN="$(ls -d "$HOME/.workbuddy/binaries/node/versions"/*/bin 2>/dev/null | head -1)"
 [[ -z "$NODE_BIN" ]] && NODE_BIN="/usr/local/bin"
 
-# 注意：-i 扩展名必须与 -i 紧贴（"-i''"），部分 sed 实现（toybox）在 "-i ''" 空格形式下会把脚本误判为文件名
-sed -i'' "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE"
-sed -i'' "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
+# 注意：macOS BSD sed 的 -i 必须带扩展名（-i.bak 形式最稳）；toybox/GNU sed 也兼容。
+# 之前 "-i''" 紧贴写法在部分 macOS sed 上会把 plist 路径误判为脚本命令而报
+# "extra characters at the end of l command"，故改用 -i.bak 并随后清理 .bak。
+sed -i.bak "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE"
+sed -i.bak "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
+rm -f "$FE.bak" "$BE.bak"
 
 plutil -lint "$FE" "$BE"
 
