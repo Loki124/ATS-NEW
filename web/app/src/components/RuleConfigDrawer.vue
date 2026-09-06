@@ -2,8 +2,9 @@
 import { ref, reactive, computed, watch, h } from 'vue'
 import {
   NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch,
-  NButton, NTag, NSpace, NGrid, NGi, NAlert, NText, useMessage,
+  NButton, NTag, NSpace, NGrid, NGi, NAlert, NText, NIcon, NTooltip, useMessage,
 } from 'naive-ui'
+import { Info } from 'lucide-vue-next'
 import {
   STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS,
   listDimensions, listIndicators, createRule, updateRule,
@@ -42,7 +43,7 @@ const blank = () => ({
   strength: '硬约束' as Strength,
   annualTarget: 0,
   monthlyTargets: Array(12).fill(0) as number[],
-  // v2.10：是否启用本月浮动目标（roll-over）；与 DB 字段 rollover_enabled 对应
+  // v2.10：月度浮动目标（roll-over）；与 DB 字段 rollover_enabled 对应
   rolloverEnabled: false,
 })
 
@@ -59,7 +60,20 @@ const positionOptions = [{ label: '不限', value: '' }, ...POSITIONS.map((v) =>
 const levelOptions = [{ label: '不限', value: '' }, ...LEVELS.map((v) => ({ label: v, value: v }))]
 const strengthOptions = STRENGTH.map((v) => ({ label: v, value: v }))
 
-const strengthType = (s: string) => (s === '硬约束' ? 'error' : s === '软约束' ? 'warning' : 'default')
+/** 强度等级 → 标签样式类。
+ *  P0-1 修复：原 mapping 把"硬约束"误标为 error 红，违反 AGENTS.md R-211（语义色仅做状态）。
+ *  改用三档中性灰语义：硬约束=已锁定 / 软约束=参考性 / 指导=建议性，对比度均 ≥ 7:1（vs 白底）。*/
+const strengthClass = (s: string) => {
+  if (s === '硬约束') return 'rc-tag rc-tag--hard'
+  if (s === '软约束') return 'rc-tag rc-tag--soft'
+  return 'rc-tag rc-tag--advisory'
+}
+/** 强度等级 → 文字解释（用于 hover/aria-label）*/
+const strengthDesc = (s: string) => {
+  if (s === '硬约束') return '硬约束：违反将直接驳回，不可豁免'
+  if (s === '软约束') return '软约束：违反会告警但允许豁免审批'
+  return '指导：仅作建议，不做强制'
+}
 const scopeText = (bu: string, position: string, level: string) => {
   if (!bu && !position && !level) return '全局（不限定部门/职务/职级）'
   return [bu, position || '职务不限', level || '职级不限'].filter(Boolean).join(' · ')
@@ -269,18 +283,54 @@ async function save() {
         <section>
           <div class="rc-section-title">管控目标</div>
           <n-form :disabled="!editing" label-placement="top">
-            <n-form-item label="年度目标(人)">
-              <n-space align="center" :wrap="false">
-                <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
-                <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">按年度均分</n-button>
-              </n-space>
+            <!-- 年度目标行：两列布局（年度输入 | 月度浮动目标开关 + 提示 icon）。
+                 提示文本从行内字面量收为 n-tooltip + Lucide Info，hover 触发，避免挤压第二列。 -->
+            <n-form-item label="年度目标（人）">
+              <n-grid :cols="2" :x-gap="16" responsive="screen" class="rc-annual-row">
+                <n-gi>
+                  <n-space align="center" :wrap="false">
+                    <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
+                    <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">按年度均分</n-button>
+                  </n-space>
+                </n-gi>
+                <n-gi>
+                  <n-space
+                    align="center"
+                    :wrap="false"
+                    :size="8"
+                    :class="['rc-rollover-cell', { 'rc-rollover-cell--on': form.rolloverEnabled }]"
+                  >
+                    <span class="rc-rollover-label">月度浮动目标</span>
+                    <n-switch v-model:value="form.rolloverEnabled" :disabled="!editing" />
+                    <n-tooltip placement="left-start" :show-arrow="true">
+                      <template #trigger>
+                        <!-- P0-2：包 <button> 让键盘可达 + aria-label，
+                             用 .rc-info-btn 命中 :focus-visible 环，避免 R-109 失守 -->
+                        <button type="button" class="rc-info-btn" aria-label="什么是月度浮动目标">
+                          <n-icon :component="Info" />
+                        </button>
+                      </template>
+                      <!-- 保留完整 60 字公式定义（"本月目标 = 本月额定目标 + 浮动目标（= 已过去月份目标合计 − 已过去月份入职且在职，负数裁 0）"）。
+                           placement="left-start" + CSS max-width:360 + white-space:normal + word-break 让它自然换行，
+                           不再靠删减文案解决布局问题（兵哥 2026-09-06 拍红框：删减后用户看不懂核心公式）。-->
+                      开启后，本月目标 = 本月额定目标 + 浮动目标（= 已过去月份目标合计 − 已过去月份入职且在职，负数裁 0）
+                    </n-tooltip>
+                    <!-- P1-2：启用时给右列底部加极简状态文字（绿色 token），
+                         让"开关打开后的行为变化"对用户即时可见 -->
+                    <span v-if="form.rolloverEnabled" class="rc-rollover-state">已开启 · 滚动目标</span>
+                  </n-space>
+                </n-gi>
+              </n-grid>
             </n-form-item>
-            <n-form-item label="月度目标(人)">
-              <div class="rc-monthly">
+            <n-form-item label="月度目标（人）">
+              <!-- P0-3：当!editing 时整体降透明度 + 贴 readonly 角标，
+                   让"只读"与"空值"视觉可区分（违反 R-101 状态视觉完整）-->
+              <div :class="['rc-monthly', { 'rc-monthly--readonly': !editing }]">
                 <div v-for="(m, i) in form.monthlyTargets" :key="i" class="rc-monthly-item">
                   <span class="rc-monthly-label">{{ ALL_MONTHS[i] }}</span>
                   <n-input-number v-model:value="form.monthlyTargets[i]" :min="0" :step="1" size="small" />
                 </div>
+                <span v-if="!editing" class="rc-readonly-badge">查看中 · 不可编辑</span>
               </div>
             </n-form-item>
 
@@ -304,34 +354,29 @@ async function save() {
           <n-form :disabled="!editing" label-placement="top">
             <n-form-item>
               <n-select v-model:value="form.strength" :options="strengthOptions" />
-              <n-tag
+              <!-- P0-1：n-tag :type 三态改用 .rc-tag + 三档中性灰语义类，避免红色"硬约束"误读为 error -->
+              <span
                 v-if="!editing"
-                :type="strengthType(form.strength)"
-                :bordered="false"
-                size="small"
-                style="margin-left: 10px"
-              >
-{{ form.strength }}
-</n-tag>
+                :class="strengthClass(form.strength)"
+                role="status"
+                :aria-label="strengthDesc(form.strength)"
+                class="rc-tag-inline"
+              >{{ form.strength }}</span>
             </n-form-item>
-            <!-- v2.10：启用本月浮动目标（roll-over）开关；与设计文档 §2.2 / PRD §3.5 对齐 -->
-            <n-form-item label="启用本月浮动目标">
-              <n-switch v-model:value="form.rolloverEnabled" :disabled="!editing" />
-              <n-text depth="3" style="margin-left: 12px; font-size: var(--fs-12)">
-                开启后，本月目标 = 本月额定目标 + 浮动目标（= 已过去月份目标合计 − 已过去月份入职且在职，负数裁 0）
-              </n-text>
-            </n-form-item>
-          </n-form>
+                      </n-form>
         </section>
       </n-space>
       </div>
 
       <template #footer>
-        <n-space justify="end">
-          <n-button v-if="!editing" @click="editing = true">编辑</n-button>
-          <n-button v-else tertiary @click="close">取消</n-button>
-          <n-button v-if="editing" type="primary" :loading="saving" @click="save">保存</n-button>
-          <n-button v-if="!editing" @click="close">关闭</n-button>
+        <!-- 底部操作栏：align="center" 让按钮在 footer 高度内纵向居中；
+             真正起效的是 un-scoped .n-card.rule-config-modal .n-card__footer { display:flex; align-items:center } -->
+        <n-space align="center" justify="end" :size="12" :wrap="false">
+          <!-- P1-3：min-width:88px 让"编辑"/"关闭"两个按钮等宽，对齐感提升 -->
+          <n-button v-if="!editing" class="rc-footer-btn" @click="editing = true">编辑</n-button>
+          <n-button v-else class="rc-footer-btn" tertiary @click="close">取消</n-button>
+          <n-button v-if="editing" class="rc-footer-btn" type="primary" :loading="saving" @click="save">保存</n-button>
+          <n-button v-if="!editing" class="rc-footer-btn" @click="close">关闭</n-button>
         </n-space>
       </template>
   </n-modal>
@@ -350,20 +395,142 @@ async function save() {
 .rc-monthly {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) 6px;
+  gap: var(--space-2) var(--space-2);  /* P2-1: 行间距统一 8px token，避免 6px 魔数 */
   align-items: flex-end;
+  position: relative;
+  transition: opacity .15s ease;
 }
 .rc-monthly-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;                              /* P2-1: 2px → 4px，月标与输入框呼吸更舒展 */
+  padding: 4px 6px;                       /* P2-1: 输入容器内 padding，避免数字贴边框 */
+  border-radius: var(--radius-sm);
+  transition: background .15s ease;
   /* 一行 4 个：12 月目标分 3 行展示，配合 modal 宽度 760px */
-  flex: 1 1 calc((100% - 18px) / 4);
+  flex: 1 1 calc((100% - 24px) / 4);
   min-width: 96px;
 }
+/* P0-3: readonly 态 — 月度矩阵降透明度 + 灰色滤色，区分"不可编辑"与"空值" */
+.rc-monthly--readonly {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
 .rc-monthly-label {
-  font-size: 11px;
+  font-size: var(--fs-12);               /* P2-1: 11px → 12px，对齐 tokens.css 字号刻度 */
   color: var(--ink-soft);
+  font-weight: 500;
+}
+/* P0-3: 角标 — 浮动在月度矩阵左上，明确"查看中"语义 */
+.rc-readonly-badge {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  font-size: var(--fs-12);
+  color: var(--ink-soft);
+  background: var(--g2);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+/* ==================== 年度目标行：两列布局（年度输入 | 月度浮动目标开关 + 提示 icon） ==================== */
+/* n-grid:2 + 16px 横向间距，两端对齐 form-item 宽度 */
+.rc-annual-row {
+  width: 100%;
+}
+.rc-rollover-label {
+  font-size: var(--fs-13);
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+}
+/* 右侧 rollover 容器 + 启用态视觉反馈（P1-2）：
+   启用时底色变 brand-soft + 左 2px brand 边，状态即时可见 */
+.rc-rollover-cell {
+  transition: background .15s ease, box-shadow .15s ease;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+}
+.rc-rollover-cell--on {
+  background: var(--c-success-soft);
+  border-left-color: var(--c-success);
+}
+.rc-rollover-state {
+  font-size: var(--fs-12);
+  color: var(--c-success-deep);
+  font-weight: 500;
+  margin-left: 4px;
+}
+/* P0-2: 信息按钮 — 让 n-tooltip 触发器键盘可达 + :focus-visible 环 */
+.rc-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: help;
+  border-radius: 50%;
+  padding: 0;
+  transition: color .15s ease, background .15s ease;
+}
+.rc-info-btn:hover,
+.rc-info-btn:focus-visible {
+  color: var(--brand);
+  background: var(--g1);
+  outline: none;
+}
+.rc-info-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+/* 注：tooltip 宽度兜底写在 un-scoped <style> 块（避免 :deep 穿透到 n-card 内部
+   v-binder-follower 时被 scoped data-v 拦截）。 */
+/* P0-1: 强度等级标签 — 三档中性灰（替代原 error/warning/default 三态红黄） */
+.rc-tag,
+.rc-tag-inline {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 3px 12px;
+  border-radius: 999px;                       /* P2-2: 圆角胶囊，强化"补充说明 badge"语义 */
+  font-size: var(--fs-13);                    /* P1-4: 从 12px small tag → 13px 中字阶，对比度+层级 */
+  font-weight: 500;
+  line-height: 1.4;
+  user-select: none;
+  white-space: nowrap;
+}
+.rc-tag--hard {
+  color: var(--ink);                          /* 硬约束：深色文字 + 浅灰底 = 已锁定 */
+  background: var(--g2);
+  border: 1px solid var(--g4);
+}
+.rc-tag--soft {
+  color: var(--ink-soft);                     /* 软约束：次要文字 + 更浅底 = 参考性 */
+  background: var(--g1);
+  border: 1px solid var(--g3);
+}
+.rc-tag--advisory {
+  color: var(--ink-faint);                    /* 指导：辅助文字 + 最浅底 = 建议性 */
+  background: transparent;
+  border: 1px dashed var(--g4);
+}
+
+/* P1-3: 底栏按钮等宽 + min-width:88px */
+.rc-footer-btn {
+  min-width: 88px;
+}
+
+/* P2-3: modal 标题区文字 max-width 防挤压 close 按钮 */
+:deep(.n-card-header__main) {
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
 
@@ -382,7 +549,42 @@ async function save() {
 .rule-config-modal__scroll {
   max-height: calc(min(90vh, 1000px) - 156px);
   overflow-y: auto;
-  /* 复用 glass.css 全局滚动条 token（::-webkit-scrollbar 单源），保持一致观感 */
-  padding-right: var(--space-1);
+  /* 滚动条 gutter：用浏览器原生 scrollbar-gutter: stable 而非 padding-right 魔数。
+     旧写法 padding-right: var(--space-1) = 4px 是凭感觉加的滚动条占位，但
+     实测当前 modal scrollWidth(688) === clientWidth(688) → 无滚动条 → 这 4px 是无意义魔数；
+     即使有滚动条，macOS overlay (0px) / Windows (15-17px) 宽度不一，固定 padding 也覆盖不全。
+     scrollbar-gutter: stable 让浏览器始终预留滚动条槽位，跨平台一致 + 治本。*/
+  scrollbar-gutter: stable;
+}
+/* Tooltip 宽度兜底（un-scoped 兜底版本）：实测 v-binder-follower 被 Naive 挂到 n-card 内（而非 body），
+   :deep 在 scoped 里能命中。但万一 Naive 升级改了挂载点，这个 un-scoped 选择器兜底确保宽度受控。
+   真实场景：n-modal-container > n-card > v-binder-follower-container > v-binder-follower-content > n-popover */
+body > div.n-modal-container .n-popover {
+  max-width: 360px !important;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.5;
+}
+body > div.n-modal-container .n-popover .n-popover__content {
+  max-width: 360px;
+}
+
+/* 底部操作栏：用兵哥给的精确深选择器（命中 .n-modal-container 链路下的
+   .rule-config-modal .n-card__footer）确保覆盖 Naive 默认 footer padding。
+   display:flex + align-items:center 保持按钮纵向居中；
+   padding:24px var(--space-6) (上下 24px、左右 24px) 给按钮充分呼吸——
+   ⚠️ 千万别再用 var(--space-5)！tokens.css §8 只定义了 --space-1/2/3/4/6/8/12/16，
+   --space-5 未定义 → CSS shorthand 解析失败 → 整条规则 drop → Naive 默认 0 padding 接管。
+   实测根因（2026-09-06 getComputedStyle 硬证据：footer padding 全 0px）——
+   兵哥"上下右全贴边"截图即来自此坑。改用 --space-6（24px）+ 上下 24px 真正解套。
+   顶部 1px hairline 视觉断带，让 footer 与上方 form 段分开；justify-content: flex-end 让按钮靠右。 */
+body > div.n-modal-container > div > div > div.n-scrollbar-container > div > div.n-card.n-card--content-segmented.n-card--footer-segmented.n-modal.rule-config-modal > div.n-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: 24px var(--space-6);
+  border-top: 1px solid var(--border-hairline);
+  background: linear-gradient(180deg, transparent 0%, var(--g1) 100%);
 }
 </style>
