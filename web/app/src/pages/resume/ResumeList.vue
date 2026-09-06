@@ -256,6 +256,7 @@ import {
 } from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 
 // 状态
@@ -306,7 +307,7 @@ const loadResumes = async () => {
       total.value = res.data.pagination?.total ?? 0
     }
   } catch (error) {
-    console.error('加载简历失败', error)
+    message.error(extractApiError(error, '加载简历失败'))
   } finally {
     loading.value = false
   }
@@ -323,7 +324,7 @@ const loadPositions = async () => {
       }))
     }
   } catch (error) {
-    console.error('加载职位失败', error)
+    message.error(extractApiError(error, '加载职位失败'))
   }
 }
 
@@ -335,7 +336,7 @@ const loadFlowLogs = async (resumeId: string) => {
       flowLogs.value = res.data.data
     }
   } catch (error) {
-    console.error('加载流转日志失败', error)
+    message.error(extractApiError(error, '加载流转日志失败'))
   }
 }
 

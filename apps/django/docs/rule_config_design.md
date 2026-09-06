@@ -380,3 +380,5 @@ graph TD
 2. **预测计数口径漂移**：Offer 钩子的「在途+已入职+本条」计数须与现有 ratio 看板口径一致，否则会出现「看板未超、创建却被阻断」的矛盾。
 3. **`Position.department` 与 `DEPTS` 名称对齐**：若部门命名体系不一致，命中 `bu` 会静默失效（维度命中但范围不中），需映射层兜底。
 4. **并发 `code` 生成**：高并发下复制/新建须事务内 `select_for_update` 防重号。
+
+> v2.10 增量（rollover）：参见 `rule_config_design_v2_10_rollover.md`

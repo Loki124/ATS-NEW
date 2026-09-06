@@ -481,7 +481,7 @@ import {
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, saveDimensionRuleSet,
   getRatio, validateDraft,
-  listPersons, upsertPerson, deletePerson,
+  listPersons, upsertPerson, deletePerson, restoreDimension, restoreIndicator, restorePerson,
   exportRules, downloadRuleTemplate, importRules, triggerDownload,
   exportIndicators, downloadIndicatorTemplate, importIndicators,
   DEPTS, SCHOOLS, MAJORS, SEXES, ALL_MONTHS, STRENGTH, STATUS, POSITIONS, LEVELS,
@@ -493,9 +493,11 @@ import {
 import { XCircle, AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
+import { useUndo } from '../../composables/useUndo'
 
 const message = useMessage()
 const dialog = useDialog()
+const { undoable } = useUndo()
 
 /* ============================ 选项 ============================ */
 const opt = (arr: readonly string[]) => arr.map((v) => ({ label: v, value: v }))
@@ -976,6 +978,14 @@ const ruleColumns: DataTableColumns<any> = [
       : h('span', { class: 'muted' }, '—')),
   },
   {
+    title: '月浮动目标', key: 'rolloverEnabled', width: 110,
+    render: (r: any) => h(NTag, {
+      type: r.rolloverEnabled ? 'success' : 'default',
+      bordered: false,
+      size: 'small',
+    }, { default: () => (r.rolloverEnabled ? '已启用' : '未启用') }),
+  },
+  {
     title: '操作', key: 'op', width: 260, fixed: 'right',
     render: (r: any) =>
       h(NSpace, { size: 4 }, {
@@ -1012,7 +1022,18 @@ const ratioColumns: DataTableColumns<any> = [
   { title: '年度达成', key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) },
   { title: '年度达成率', key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` },
   { title: '年度在途', key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) },
-  { title: '本月目标', key: 'monthTarget', width: 90, render: (r) => String(r.monthTarget ?? 0) },
+  { title: '本月额定目标', key: 'monthTarget', width: 110, render: (r) => String(r.monthTarget ?? 0) },
+  // v2.10：新增本月浮动目标列（PR §3.2.2 / 设计文档 §7 T03；rolloverEnabled=False 时恒为 0）
+  { title: '本月浮动目标', key: 'monthRollover', width: 110, render: (r) => String(r.monthRollover ?? 0) },
+  // v2.10：新增本月可用目标列（= 本月额定 + 本月浮动；达标 success tag）
+  {
+    title: '本月可用目标', key: 'monthAvailableTarget', width: 120,
+    render: (r) => h(NTag, {
+      type: (r.monthAvailableTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthAvailableTarget || 0) ? 'success' : 'default',
+      bordered: false,
+      size: 'small',
+    }, { default: () => String(r.monthAvailableTarget ?? 0) }),
+  },
   { title: '本月达成', key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) },
   { title: '本月达成率', key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` },
   { title: '本月在途', key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) },
@@ -1302,13 +1323,17 @@ async function saveDim() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeDim(d: ControlDimension) {
-  dialog.warning({
-    title: '删除维度', content: `确认删除维度「${d.name}」？该维度下的指标将一并删除。`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await deleteDimension(d.id); message.success('删除成功'); await Promise.all([loadDimensions(), loadIndicators()]) }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
-  })
+  deleteDimension(d.id)
+    .then(async () => {
+      message.success('维度已删除')
+      await Promise.all([loadDimensions(), loadIndicators()])
+      undoable(`已删除维度「${d.name}」`, async () => {
+        await restoreDimension(d.id)
+        message.success('已撤销删除')
+        await Promise.all([loadDimensions(), loadIndicators()])
+      })
+    })
+    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
 }
 
 /* ============================ 指标 CRUD ============================ */
@@ -1330,13 +1355,17 @@ async function saveIndicator() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removeIndicator(ind: ControlIndicator) {
-  dialog.warning({
-    title: '删除指标', content: `确认删除指标「${ind.name}」？`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await deleteIndicator(ind.id); message.success('删除成功'); await loadIndicators() }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
-  })
+  deleteIndicator(ind.id)
+    .then(async () => {
+      message.success('指标已删除')
+      await loadIndicators()
+      undoable(`已删除指标「${ind.name}」`, async () => {
+        await restoreIndicator(ind.id)
+        message.success('已撤销删除')
+        await loadIndicators()
+      })
+    })
+    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
 }
 
 /* ============================ 录入校验 ============================ */
@@ -1411,13 +1440,17 @@ async function savePerson() {
   } catch (e) { message.error(extractApiError(e, '保存失败')) }
 }
 function removePerson(p: Person) {
-  dialog.warning({
-    title: '删除人员', content: `确认删除「${p.name}（${p.code}）」？`, positiveText: '删除', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await deletePerson(p.id); message.success('删除成功'); await loadPersons() }
-      catch (e) { message.error(extractApiError(e, '删除失败')) }
-    },
-  })
+  deletePerson(p.id)
+    .then(async () => {
+      message.success('人员已删除')
+      await loadPersons()
+      undoable(`已删除「${p.name}（${p.code}）」`, async () => {
+        await restorePerson(p.id)
+        message.success('已撤销删除')
+        await loadPersons()
+      })
+    })
+    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
 }
 
 async function loadPersons(silent = false) {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, h } from 'vue'
 import {
-  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect,
-  NButton, NTag, NSpace, NGrid, NGi, NAlert, useMessage,
+  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch,
+  NButton, NTag, NSpace, NGrid, NGi, NAlert, NText, useMessage,
 } from 'naive-ui'
 import {
   STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS,
@@ -42,6 +42,8 @@ const blank = () => ({
   strength: '硬约束' as Strength,
   annualTarget: 0,
   monthlyTargets: Array(12).fill(0) as number[],
+  // v2.10：是否启用本月浮动目标（roll-over）；与 DB 字段 rollover_enabled 对应
+  rolloverEnabled: false,
 })
 
 const form = reactive(blank())
@@ -90,6 +92,8 @@ function syncFormFromRule(r: ControlRule | null) {
       monthlyTargets: Array.isArray(r.monthlyTargets) && r.monthlyTargets.length === 12
         ? r.monthlyTargets.map((v) => Math.round(v || 0))
         : Array(12).fill(0),
+      // v2.10：浮动目标开关；缺省视为关闭（v2.4 行为零回归）
+      rolloverEnabled: Boolean(r.rolloverEnabled),
     })
   }
   Object.assign(form, b)
@@ -175,6 +179,8 @@ async function save() {
     strength: form.strength,
     annualTarget: Math.round(form.annualTarget),
     monthlyTargets: form.monthlyTargets.map((v) => Math.round(v || 0)),
+    // v2.10：浮动目标开关透传（后端 BooleanField 默认 False；缺省时按 v2.4 行为零回归）
+    rolloverEnabled: Boolean(form.rolloverEnabled),
   }
   try {
     const saved = props.rule
@@ -307,6 +313,13 @@ async function save() {
               >
 {{ form.strength }}
 </n-tag>
+            </n-form-item>
+            <!-- v2.10：启用本月浮动目标（roll-over）开关；与设计文档 §2.2 / PRD §3.5 对齐 -->
+            <n-form-item label="启用本月浮动目标">
+              <n-switch v-model:value="form.rolloverEnabled" :disabled="!editing" />
+              <n-text depth="3" style="margin-left: 12px; font-size: var(--fs-12)">
+                开启后，本月目标 = 本月额定目标 + 浮动目标（= 已过去月份目标合计 − 已过去月份入职且在职，负数裁 0）
+              </n-text>
             </n-form-item>
           </n-form>
         </section>

@@ -42,6 +42,7 @@ const listLoading = ref(false)
 
 // 跨池移动弹窗
 const moveModal = ref(false)
+const moveLoading = ref(false)
 const moveTargetPool = ref<string | null>(null)
 const moveReason = ref<string>('')
 const moveCandidate = ref<any | null>(null)
@@ -123,10 +124,12 @@ function openMoveModal(row: any) {
 }
 
 async function confirmMove() {
+  if (moveLoading.value) return
   if (!moveCandidate.value || !moveTargetPool.value) {
     message.warning('请选择目标子库')
     return
   }
+  moveLoading.value = true
   try {
     await api.post(`/talent-pool/pool/${moveTargetPool.value}/move/`, {
       candidateId: moveCandidate.value.id,
@@ -138,6 +141,8 @@ async function confirmMove() {
     loadCandidates()
   } catch (e: any) {
     message.error(`移动失败: ${e.response?.data?.message || e.message}`)
+  } finally {
+    moveLoading.value = false
   }
 }
 
@@ -203,7 +208,7 @@ function onTabChange(key: string) {
       title="移动到其他子库"
       positive-text="确认移动"
       negative-text="取消"
-      :positive-button-props="{ type: 'primary' }"
+      :positive-button-props="{ type: 'primary', loading: moveLoading }"
       @positive-click="confirmMove"
     >
       <n-space vertical>

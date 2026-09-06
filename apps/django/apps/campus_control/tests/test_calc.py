@@ -18,6 +18,7 @@ from ..calc import (
     count, rule_matches, persons_for_rule, count_rule, denom_rule,
     ratio_of, ratio_status, count_status,
     compute_ratio, simulate, check_dimension_sums, _largest_remainder_allocate, _scope_key,
+    compute_rollover_target,
 )
 from ..constants import (
     RATIO_NORMAL, RATIO_ABOVE, COUNT_MET, COUNT_GAP,
@@ -110,6 +111,165 @@ class TestPureCalc:
         assert count_status(10, 10) == COUNT_MET
         assert count_status(9, 10) == COUNT_GAP
         assert count_status(5, None) == '未设目标'
+
+
+# ============================ v2.10：本月浮动目标（roll-over）纯函数测试 ============================
+class TestComputeRolloverTarget:
+    """覆盖设计文档 §7 T01 / PRD §3.3 全部边界：
+
+      - Q-A10 零回归（rollover_enabled=False → (0,0,0,0)）
+      - Q-A5 跨年防御（rule.year != today.year → (0,0,0,0)）
+      - Q-A4 curMonth 越界（today.month ∉ [1,12] → (0,0,0,0)）
+      - B8 无过去月份（curMonth=1 → rollBase=0）
+      - Q3-A 浮动基数 = Σ monthly_targets[0..curMonth-2]（即前 N-1 月；curMonth=9 → 1..8 月 = 78）
+      - Q4-A / Q5-A rollActual = 仅「在职」且 actual_entry_date ∈ [本年 1/1, curMonth-1 月末]
+      - Q6-B 负数裁 0（rollBase < rollActual → rollover=0）
+    """
+
+    def _rule(self, **kw):
+        base = {
+            'bu': '能电BG', 'position': '', 'level': '',
+            'dimension': '性别', 'indicator': '男',
+            'year': 2026, 'target': 1.0, 'strength': '硬约束',
+            'annual_target': 0,
+            'monthly_targets': [0] * 12,
+            'rollover_enabled': False,
+        }
+        base.update(kw)
+        return base
+
+    def test_rollover_disabled_returns_zeros(self):
+        """Q-A10 零回归：rollover_enabled=False → (0,0,0,0)。"""
+        from datetime import date
+        rule = self._rule(rollover_enabled=False, monthly_targets=[10] * 12)
+        persons = [
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-03-15', 'expected_entry_date': None,
+             'month': '3月'},
+        ]
+        result = compute_rollover_target(rule, persons, today=date(2026, 9, 15))
+        assert result == (0, 0, 0, 0), f'rollover_enabled=False 应恒返 0 元组，实得 {result}'
+
+    def test_cross_year_rule_returns_zero(self):
+        """Q-A5 跨年：rule.year=2025, today.year=2026 → (0,0,0,0)。"""
+        from datetime import date
+        rule = self._rule(rollover_enabled=True, year=2025, monthly_targets=[10] * 12)
+        result = compute_rollover_target(rule, [], today=date(2026, 9, 15))
+        assert result == (0, 0, 0, 0), f'跨年防御失败，实得 {result}'
+
+    def test_cur_month_out_of_range_returns_zeros(self):
+        """Q-A4 越界：today.month=13 → (0,0,0,0)。
+
+        Python 标准 `date` 构造时 month=13 直接抛 ValueError，所以用 SimpleNamespace mock date
+        跳过构造时校验，只触发函数内的 `1 <= cur_month <= 12` 防御分支。
+        """
+        from types import SimpleNamespace
+        rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)
+        fake_today = SimpleNamespace(year=2026, month=13, day=1)
+        result = compute_rollover_target(rule, [], today=fake_today)
+        assert result == (0, 0, 0, 0), f'curMonth 越界防御失败，实得 {result}'
+
+    def test_cur_month_1_returns_zeros(self):
+        """B8：无过去月份（curMonth=1）→ rollBase=0, monthRollover=0。"""
+        from datetime import date
+        rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)
+        result = compute_rollover_target(rule, [], today=date(2026, 1, 15))
+        # 1月无过去月份 → rollBase=0, rollActual=0, rollover=0, monthRollover=0
+        assert result == (0, 0, 0, 0), f'B8 边界应返 (0,0,0,0)，实得 {result}'
+
+    def test_roll_base_equals_sum_of_past_months(self):
+        """Q3-A：curMonth=9 → rollBase = Σ monthly_targets[0..7]（即 1..8月）。"""
+        from datetime import date
+        monthly = [10, 12, 8, 15, 6, 11, 9, 7, 5, 4, 3, 2]
+        rule = self._rule(rollover_enabled=True, monthly_targets=monthly)
+        # 无在职人员 → rollActual=0, rollover = rollBase - 0
+        # Σ[0..7] = 10+12+8+15+6+11+9+7 = 78
+        result = compute_rollover_target(rule, [], today=date(2026, 9, 1))
+        assert result[0] == 78, f'rollBase 应为 78，实得 {result[0]}'
+        assert result[1] == 0, f'rollActual 应为 0，实得 {result[1]}'
+        assert result[2] == 78, f'rollover 应为 78，实得 {result[2]}'
+        assert result[3] == 78, f'monthRollover 应为 78（开启），实得 {result[3]}'
+
+    def test_roll_actual_only_counts_in_service_with_past_actual_entry(self):
+        """Q4-A / Q5-A：仅「在职」且 actual_entry_date ∈ [本年 1/1, curMonth-1 月末]。
+
+        测试场景（curMonth=9, 即 [2026-01-01, 2026-08-31]）：
+          ✓ 在职 + 2026-03-15 入职 → 计入
+          ✗ 在职 + 2026-09-01 入职（curMonth 当月）→ 不计入
+          ✗ 在职 + 2025-12-31 入职（去年）→ 不计入
+          ✗ 在途Offer + 2026-05-01（status≠在职）→ 不计入
+          ✗ 在职 + 2026-06-01 但 bu='三到BG'（rule bu=能电BG，rule_matches 失败）→ 不计入
+          ✗ 在职 + 2026-04-01 但 sex='女'（indicator 命中失败）→ 不计入
+        期望 rollActual = 1。
+        """
+        from datetime import date
+        rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)
+        persons = [
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-03-15', 'expected_entry_date': None,
+             'month': '3月'},
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-09-01', 'expected_entry_date': None,
+             'month': '9月'},
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2025-12-31', 'expected_entry_date': None,
+             'month': '12月'},
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在途Offer',
+             'actual_entry_date': None, 'expected_entry_date': '2026-05-01',
+             'month': '5月'},
+            {'bu': '三到BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-06-01', 'expected_entry_date': None,
+             'month': '6月'},
+            {'bu': '能电BG', 'sex': '女', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-04-01', 'expected_entry_date': None,
+             'month': '4月'},
+        ]
+        result = compute_rollover_target(rule, persons, today=date(2026, 9, 15))
+        # rollBase = Σ[10]*8 = 80（B 选项：curMonth=9 → 1..8 月共 8 个月）
+        assert result[0] == 80, f'rollBase 应为 80，实得 {result[0]}'
+        assert result[1] == 1, f'rollActual 应为 1（仅第 1 条命中），实得 {result[1]}'
+        assert result[2] == 79, f'rollover 应为 80-1=79，实得 {result[2]}'
+
+    def test_rollover_negative_clipped_to_zero(self):
+        """Q6-B：B5 边界 — rollBase < rollActual → rollover=0（负数裁 0）。"""
+        from datetime import date
+        rule = self._rule(rollover_enabled=True, monthly_targets=[10] * 12)  # rollBase=80（B 选项：8 个月 × 10）
+        persons = [
+            # 远超 rollBase 的人数
+            *[{
+                'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
+                'actual_entry_date': '2026-03-15', 'expected_entry_date': None,
+                'month': '3月',
+            } for _ in range(100)],
+        ]
+        result = compute_rollover_target(rule, persons, today=date(2026, 9, 15))
+        assert result[0] == 80, f'rollBase 应为 80，实得 {result[0]}'
+        assert result[1] == 100, f'rollActual 应为 100，实得 {result[1]}'
+        # 80 - 100 = -20 → 裁为 0
+        assert result[2] == 0, f'rollover 负数应裁 0，实得 {result[2]}'
+        assert result[3] == 0, f'monthRollover 应为 0，实得 {result[3]}'
+
+    def test_roll_actual_skips_unscoped_or_indicator_miss(self):
+        """复用 calc.py 谓词的边界：rule_matches 与 _indicator_filter 必须真正生效。"""
+        from datetime import date
+        rule = self._rule(
+            rollover_enabled=True, bu='能电BG',
+            monthly_targets=[12] * 12,
+        )
+        # 三条人员：bu/sex 全部不命中 / 部分不命中
+        persons = [
+            {'bu': '三到BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-05-01', 'expected_entry_date': None,
+             'month': '5月'},
+            {'bu': '能电BG', 'sex': '女', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-05-01', 'expected_entry_date': None,
+             'month': '5月'},
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
+             'actual_entry_date': '2026-05-01', 'expected_entry_date': None,
+             'month': '5月'},  # 唯一命中
+        ]
+        result = compute_rollover_target(rule, persons, today=date(2026, 9, 15))
+        assert result[1] == 1, f'rollActual 应为 1（仅第 3 条命中），实得 {result[1]}'
 
 
 # ============================ §9 断言（适用范围自带，人数目标在规则上） ============================
@@ -254,6 +414,10 @@ class TestApiEndpoints:
         assert male['status'] == '高于上限'
         # v2.9 扁平模型：ratio 端点不再返回 sumChecks（每条规则 target 恒 1.0，无「占比之和=100%」语义）。
         assert 'sumChecks' not in data
+        # v2.10：默认 rollover_enabled=False → monthRollover=0 且 monthAvailableTarget==monthTarget（v2.4 看板零回归）
+        assert male['monthRollover'] == 0
+        assert male['monthAvailableTarget'] == male['monthTarget']
+        assert 'monthRollBase' in male and 'monthRollActual' in male
 
     def test_plan_endpoint_gone(self, api_client):
         """v2.8 真删：plan 端点已移除，任何请求应 404。"""

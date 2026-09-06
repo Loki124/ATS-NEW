@@ -26,6 +26,7 @@ from apps.campus_control.services import (
     ControlRuleViolation, copy_rule, toggle_rule, validate_offer_against_rules,
     validate_rule_unique,
 )
+from apps.campus_control.calc import compute_rollover_target
 
 # 模块级 transaction=True：本文件测试大量使用 save() 内 select_for_update 自动补号，
 # 在 SQLite :memory: + db fixture 的 savepoint 模式下会逃逸回滚导致数据跨测试残留。

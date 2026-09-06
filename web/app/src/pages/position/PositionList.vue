@@ -148,6 +148,7 @@ interface Position {
   description: string;
 }
 
+import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
 
 const activeTab = ref('all');
@@ -345,7 +346,7 @@ const handleSave = async () => {
     }
     modalVisible.value = false;
   } catch (error) {
-    console.error('验证失败:', error);
+    message.error(extractApiError(error, '表单验证失败'));
   }
 };
 

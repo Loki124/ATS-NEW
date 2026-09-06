@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional
 
 from django.db import transaction
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.common.exceptions import NotFound
 from apps.core.models import User
@@ -38,6 +40,38 @@ class OnboardingService:
             position = Position.objects.get(id=data.position_id, deleted_at__isnull=True)
         except (Offer.DoesNotExist, Candidate.DoesNotExist, Position.DoesNotExist) as e:
             raise NotFound(str(e))
+
+        # ── v2.10 T03：Onboarding 钩子（人员比例管控 — 节点 4 / create_onboarding）──
+        # 与 mark_completed 同入口（Q-A10 单一函数）。
+        # 钩子必须在 Onboarding.objects.create() 之前：硬约束命中 → 抛 DRFValidationError
+        # → 事务回滚 → Onboarding 不落库（与 offer/services.py 一致语义）。
+        # 入参从 offer 派生（offer.level / offer.position_title / offer.start_date）。
+        from apps.campus_control.services import (
+            validate_offer_against_rules, ControlRuleViolation,
+        )
+        start_date_obj = None
+        if data.start_date:
+            try:
+                start_date_obj = datetime.strptime(str(data.start_date)[:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                start_date_obj = None
+        try:
+            hook_result = validate_offer_against_rules(
+                candidate=candidate,
+                position=position,
+                level=offer.level or '',
+                position_title=offer.position_title or '',
+                start_date=start_date_obj,
+            )
+            for w in hook_result.get('warnings', []):
+                logger.warning(
+                    'Onboarding.create_onboarding 软约束提示(offer=%s): 规则 %s %s·%s %s 当前 %s/%s 人',
+                    offer.id, w.get('code'), w.get('dimension'), w.get('indicator'),
+                    w.get('scope'), w.get('annualActual'), w.get('annualTarget'),
+                )
+        except ControlRuleViolation as e:
+            # 硬约束阻断：事务回滚，向上抛 400（detail 含命中规则明细）
+            raise DRFValidationError({'detail': e.message})
 
         # 默认入职待办清单
         default_todo = data.todo_list or [
@@ -80,6 +114,36 @@ class OnboardingService:
     @transaction.atomic
     def mark_completed(onboarding_id: str, actor: User) -> Onboarding:
         ob = Onboarding.objects.select_for_update().get(id=onboarding_id, deleted_at__isnull=True)
+
+        # ── v2.10 T03：Onboarding 钩子（人员比例管控 — 节点 5）──
+        # 入参从 offer 派生（offer.level / offer.position_title / offer.start_date）。
+        from apps.campus_control.services import (
+            validate_offer_against_rules, ControlRuleViolation,
+        )
+        offer = ob.offer
+        start_date_obj = None
+        if offer and offer.start_date:
+            try:
+                start_date_obj = datetime.strptime(str(offer.start_date)[:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                start_date_obj = None
+        try:
+            hook_result = validate_offer_against_rules(
+                candidate=ob.candidate,
+                position=ob.position,
+                level=offer.level if offer else '',
+                position_title=offer.position_title if offer else '',
+                start_date=start_date_obj,
+            )
+            for w in hook_result.get('warnings', []):
+                logger.warning(
+                    'Onboarding.mark_completed 软约束提示(onboarding=%s): 规则 %s %s·%s %s 当前 %s/%s 人',
+                    ob.id, w.get('code'), w.get('dimension'), w.get('indicator'),
+                    w.get('scope'), w.get('annualActual'), w.get('annualTarget'),
+                )
+        except ControlRuleViolation as e:
+            raise DRFValidationError({'detail': e.message})
+
         ob.complete()
         ob.save()
         return ob

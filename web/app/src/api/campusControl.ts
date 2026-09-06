@@ -92,6 +92,7 @@ export interface ControlRule {
   strength: Strength
   annualTarget: number // 年度管控人数
   monthlyTargets: number[] // 12 个月度管控人数
+  rolloverEnabled: boolean // v2.10：是否启用本月浮动目标（roll-over）
   createdByName?: string
   createdAt?: string
   updatedByName?: string
@@ -137,6 +138,11 @@ export interface RatioRow {
   monthAchieved: number
   monthInProgress: number
   monthRate: number | null
+  // —— v2.10：本月浮动 4 字段（rolloverEnabled=False 时 monthRollover=0、monthAvailableTarget==monthTarget）——
+  monthRollBase?: number
+  monthRollActual?: number
+  monthRollover: number
+  monthAvailableTarget: number
 }
 
 export interface RatioResult {
@@ -176,6 +182,7 @@ export const createDimension = (payload: { name: string; code?: string; isActive
 export const updateDimension = (id: string, payload: Partial<ControlDimension>) =>
   api.put(`/campus/dimensions/${id}/`, payload).then((r) => r.data as ControlDimension)
 export const deleteDimension = (id: string) => api.delete(`/campus/dimensions/${id}/`).then((r) => r.data)
+export const restoreDimension = (id: string) => api.post(`/campus/dimensions/${id}/restore/`).then((r) => r.data)
 
 /* ============================ 指标 ============================ */
 export const listIndicators = (dimension?: string) =>
@@ -187,6 +194,7 @@ export const createIndicator = (payload: { dimension: string; name: string; isAc
 export const updateIndicator = (id: string, payload: Partial<ControlIndicator>) =>
   api.put(`/campus/indicators/${id}/`, payload).then((r) => r.data as ControlIndicator)
 export const deleteIndicator = (id: string) => api.delete(`/campus/indicators/${id}/`).then((r) => r.data)
+export const restoreIndicator = (id: string) => api.post(`/campus/indicators/${id}/restore/`).then((r) => r.data)
 
 /* ============================ 规则 ============================ */
 export interface RuleInput {
@@ -200,6 +208,8 @@ export interface RuleInput {
   strength: Strength
   annualTarget: number // 年度管控人数
   monthlyTargets: number[] // 12 个月度管控人数
+  /** v2.10：是否启用本月浮动目标（roll-over）；缺省按 False 处理（v2.4 行为零回归） */
+  rolloverEnabled?: boolean
 }
 
 const ruleToNum = (x: any): ControlRule => ({
@@ -209,6 +219,8 @@ const ruleToNum = (x: any): ControlRule => ({
   monthlyTargets: Array.isArray(x.monthlyTargets) && x.monthlyTargets.length === 12
     ? x.monthlyTargets.map((v: any) => Number(v))
     : Array(12).fill(0),
+  // v2.10：浮动目标开关；后端 BooleanField 默认 False，转 boolean 统一前端口径
+  rolloverEnabled: Boolean(x.rolloverEnabled),
 })
 
 /** 全部规则（每条自带适用范围 + 管控人数）。 */
@@ -436,6 +448,7 @@ export const upsertPerson = (p: Partial<Person> & { code: string; name: string; 
   return api.post(`/campus/persons/`, payload).then((r) => r.data as Person)
 }
 export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`).then((r) => r.data)
+export const restorePerson = (id: string) => api.post(`/campus/persons/${id}/restore/`).then((r) => r.data)
 
 export default {
   listDimensions, createDimension, updateDimension, deleteDimension,

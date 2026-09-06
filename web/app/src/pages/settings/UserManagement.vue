@@ -170,6 +170,7 @@ import {
   NIcon,
   useMessage,
 } from 'naive-ui';
+import { extractApiError } from '../../api/dynamic-field';
 
 const message = useMessage();
 
@@ -315,7 +316,7 @@ const loadMous = async () => {
       mous.value = data.data;
     }
   } catch (error) {
-    console.error('加载MOU列表失败', error);
+    message.error(extractApiError(error, '加载MOU列表失败'));
   }
 };
 
@@ -327,7 +328,7 @@ const loadRoles = async () => {
       roles.value = data.data;
     }
   } catch (error) {
-    console.error('加载角色列表失败', error);
+    message.error(extractApiError(error, '加载角色列表失败'));
   }
 };
 
@@ -339,7 +340,7 @@ const loadUserMous = async (userId: string) => {
       userMous.value = data.data.map((um: any) => um.mouId);
     }
   } catch (error) {
-    console.error('加载用户MOU失败', error);
+    message.error(extractApiError(error, '加载用户MOU失败'));
   }
 };
 
@@ -351,7 +352,7 @@ const loadUserRoles = async (userId: string) => {
       userRoles.value = data.data.map((ur: any) => ur.roleId);
     }
   } catch (error) {
-    console.error('加载用户角色失败', error);
+    message.error(extractApiError(error, '加载用户角色失败'));
   }
 };
 

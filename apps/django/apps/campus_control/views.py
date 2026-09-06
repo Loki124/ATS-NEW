@@ -79,6 +79,8 @@ def _rule_to_dict(r):
         'strength': r.strength,
         'annual_target': r.annual_target,
         'monthly_targets': list(r.monthly_targets) if isinstance(r.monthly_targets, (list, tuple)) else [0] * 12,
+        # v2.10：浮动目标开关（默认 False；compute_rollover_target 入口防御已确保跨年=0）
+        'rollover_enabled': getattr(r, 'rollover_enabled', False),
     }
 
 
@@ -112,7 +114,7 @@ def _person_to_dict(p, dim_map=None):
 
 
 class CampusCRUDMixin:
-    """写操作统一兜底：带入当前用户；硬删（instance.delete）。"""
+    """写操作统一兜底：带入当前用户；软删（instance.soft_delete，复用 FullAuditModel.deleted_at）。"""
 
     def perform_create(self, serializer):
         try:
@@ -127,7 +129,7 @@ class CampusCRUDMixin:
             raise DRFValidationError({'detail': f'数据库约束冲突：{e}'})
 
     def perform_destroy(self, instance):
-        instance.delete()
+        instance.soft_delete()
 
 
 class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
@@ -135,6 +137,16 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     serializer_class = ControlDimensionSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        return ControlDimension.objects.filter(deleted_at__isnull=True)
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        """R-106 撤销：恢复已软删维度。"""
+        instance = self.queryset.model.objects.get(pk=pk)
+        instance.restore()
+        return Response({'success': True, 'id': str(instance.id)})
 
     @action(detail=True, methods=['put'], url_path='rules')
     def set_rules(self, request, pk=None):
@@ -172,7 +184,7 @@ class ControlIndicatorViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        qs = ControlIndicator.objects.all()
+        qs = ControlIndicator.objects.filter(deleted_at__isnull=True)
         dim = self.request.query_params.get('dimension')
         if dim:
             qs = qs.filter(dimension_id=dim)
@@ -183,6 +195,13 @@ class ControlIndicatorViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if self.action in ('export_indicators', 'template_indicators', 'import_indicators'):
             return [IsHROrAbove()]
         return [IsAuthenticated()]
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        """R-106 撤销：恢复已软删指标。"""
+        instance = self.queryset.model.objects.get(pk=pk)
+        instance.restore()
+        return Response({'success': True, 'id': str(instance.id)})
 
     @action(detail=False, methods=['get'], url_path='export')
     def export_indicators(self, request):
@@ -258,7 +277,7 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        qs = ControlRule.objects.all()
+        qs = ControlRule.objects.filter(deleted_at__isnull=True)
         bu = self.request.query_params.get('bu')
         position = self.request.query_params.get('position')
         level = self.request.query_params.get('level')
@@ -269,6 +288,13 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         if level is not None:
             qs = qs.filter(level=level)
         return qs
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        """R-106 撤销：恢复已软删规则。"""
+        instance = self.queryset.model.objects.get(pk=pk)
+        instance.restore()
+        return Response({'success': True, 'id': str(instance.id)})
 
     @action(detail=False, methods=['get'], url_path='ratio')
     def ratio(self, request):
@@ -438,6 +464,13 @@ class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        """R-106 撤销：恢复已软删人员。"""
+        instance = self.queryset.model.objects.get(pk=pk)
+        instance.restore()
+        return Response({'success': True, 'id': str(instance.id)})
+
     # 整数精确筛的合法集合（防止用户传 ?year=abc 触发 FieldError）
     _SAFE_INT_FILTERS = {'year'}
 
@@ -445,6 +478,7 @@ class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         qs = Person.objects.all()
         if self.action != 'list':
             return qs
+        qs = qs.filter(deleted_at__isnull=True)  # 列表隐藏软删（retrieve/restore 仍可按 id 取）
         params = self.request.query_params
 
         # 状态过滤（与 staffed 二选一）
