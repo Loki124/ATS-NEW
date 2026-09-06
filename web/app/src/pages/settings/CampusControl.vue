@@ -978,6 +978,14 @@ const ruleColumns: DataTableColumns<any> = [
       : h('span', { class: 'muted' }, '—')),
   },
   {
+    title: '月浮动目标', key: 'rolloverEnabled', width: 110,
+    render: (r: any) => h(NTag, {
+      type: r.rolloverEnabled ? 'success' : 'default',
+      bordered: false,
+      size: 'small',
+    }, { default: () => (r.rolloverEnabled ? '启用' : '未启用') }),
+  },
+  {
     title: '操作', key: 'op', width: 260, fixed: 'right',
     render: (r: any) =>
       h(NSpace, { size: 4 }, {
