@@ -339,8 +339,11 @@
               <div class="block-header">
                 <n-icon :component="CodeSlashOutline" /> 条件表达式 (可选)
               </div>
+              <!-- v4: 改 textarea rows=2，避免单行 input "扁塌" + 留 2 行写注释样例 -->
               <n-input
                 v-model:value="condForm.expression"
+                type="textarea"
+                :rows="2"
                 placeholder="如: (1 AND 2) OR (3 AND 4)"
                 :status="exprValidation && !exprValidation.valid ? 'error' : undefined"
                 @blur="onExprBlur"
@@ -1109,7 +1112,14 @@ async function handleSubmit() {
 /* 2026-09-03 视觉整改 v3：完全按原型 HTML 的 .config-card 视觉实现
    - config-card：浅灰底（--bg-subtle → --g1），圆角 12px，1px border，padding 14-16px
    - card-title：14px 600 + 蓝色 icon 前缀（--brand），无下划线
-   - 内部 flow-block：白底，圆角 10px，1px border（白底 block 在浅灰 card 内浮起） */
+   - 内部 flow-block：白底，圆角 10px，1px border（白底 block 在浅灰 card 内浮起）
+
+   2026-09-06 v4 视觉断点强化：
+   - 块 padding 14px → 16px（与 .config-card padding 一致，消除"内缩"假象）
+   - 块间 margin-bottom 10 → 12px，加强呼吸感
+   - 块边 1px border + hover 改 box-shadow ring → ring 立体，背景反差更明显
+   - 静默态加微 box-shadow（0 1px 2px rgba）让"白底块在灰底上立起来"
+   - card-title 与首块间距 12 → 14px */
 .config-card {
   background: var(--g1);
   border: 1px solid var(--g2);
@@ -1124,7 +1134,7 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 14px; /* v4: 12→14，强化与首块断点 */
   letter-spacing: -0.01em;
 }
 .card-title :deep(.n-icon) {
@@ -1143,16 +1153,17 @@ async function handleSubmit() {
 .flow-block {
   background: var(--surface); /* 原型 white */
   border-radius: var(--radius-sm); /* 8px 接近原型 10px */
-  padding: 10px 14px;
-  margin-bottom: 10px;
-  border: 1px solid var(--g2);
+  padding: 12px var(--space-4); /* v4: 10px 14px → 12px 16px，与 .config-card padding 对齐消除"内缩" */
+  margin-bottom: 12px; /* v4: 10→12，强化块间呼吸感 */
+  /* v4: 边改 box-shadow ring，比 1px border 立体 + 不占盒模型 + hover 切换平滑 */
+  box-shadow: 0 0 0 1px var(--g2), 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 .flow-block:last-child {
   margin-bottom: 0;
 }
 .flow-block:hover {
-  box-shadow: var(--shadow-xs);
+  box-shadow: 0 0 0 1px var(--g3, var(--g2)), 0 4px 12px rgba(15, 23, 42, 0.08); /* v4: 悬停时 ring 颜色加深 + 阴影加大 */
 }
 .block-header {
   display: flex;
@@ -1193,11 +1204,12 @@ async function handleSubmit() {
 }
 
 /* ==================== Option Grid (复选/单选内联) ==================== */
+/* v4: padding 2px 0 → 4px 0，让"判定方式" / 复选行不贴 block 边 */
 .option-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  padding: 2px 0;
+  gap: 8px var(--space-4); /* v4: 行内 4→8，与 block 呼吸感一致 */
+  padding: 4px 0;
 }
 .opt-item {
   display: flex;
@@ -1224,13 +1236,15 @@ async function handleSubmit() {
 }
 
 /* ==================== Flow Condition Row (自动流转 / 默认处理人 字段并排) ==================== */
+/* v4: align-items flex-start → flex-end，让 select/input 底部与 label 基线对齐，
+   避免 label 行高(1.3)突出感。gap 12 → 16(space-4) 与 card padding 一致。 */
 .flow-condition-row {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  gap: var(--space-4);
+  align-items: flex-end;
 }
 .flow-condition-row + .flow-condition-row {
-  margin-top: 10px;
+  margin-top: 12px; /* v4: 10→12，与块间呼吸一致 */
 }
 .flow-condition-row--3 {
   /* 3 列默认处理人内联 */
