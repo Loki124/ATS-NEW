@@ -1,29 +1,23 @@
 <template>
   <section class="config-card">
     <div class="card-title">
-      <n-icon :component="FilterOutline" />
-      进入条件
-      <span class="title-desc">· 配置候选人进入本阶段需满足的条件</span>
-    </div>
-
-    <div class="block-header block-header--split">
-      <div class="block-header__main">
-        <n-icon :component="ListOutline" />
-        <span class="block-desc">· 满足全部规则方可进入本阶段</span>
-      </div>
-      <ModuleSwitch :model-value="moduleOn" @update:model-value="emit('update:moduleOn', $event)" />
-    </div>
-
-    <div class="rule-content" :class="{ 'rule-content--hidden': !moduleOn }">
-      <div class="actions-row">
+      <span class="title-left">
+        <n-icon :component="LogInOutline" />
+        进入条件
+        <span class="title-desc">· 候选人在进入当前阶段时，将会受到配置的条件进行校验</span>
+      </span>
+      <span class="title-actions">
         <button class="btn-outline-primary" type="button" @click="emit('add')">
           <n-icon :component="AddOutline" /> 添加规则
         </button>
         <button class="btn-text-primary" type="button" @click="emit('configure')">
           <n-icon :component="CreateOutline" /> 规则配置
         </button>
-      </div>
+        <ModuleSwitch :model-value="moduleOn" @update:model-value="emit('update:moduleOn', $event)" />
+      </span>
+    </div>
 
+    <div class="rule-content" :class="{ 'rule-content--hidden': !moduleOn }">
       <RuleTable :columns="columns" :rows="rules">
         <template #actions="{ row }">
           <div class="action-btns">
@@ -39,7 +33,7 @@
 
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { FilterOutline, ListOutline, AddOutline, CreateOutline } from '@vicons/ionicons5'
+import { LogInOutline, AddOutline, CreateOutline } from '@vicons/ionicons5'
 import ModuleSwitch from '../components/ModuleSwitch.vue'
 import RuleTable from '../components/RuleTable.vue'
 import type { EntryConditionRule } from '../types'
@@ -66,13 +60,30 @@ const columns = [
 </script>
 
 <style scoped>
-.actions-row {
-  display: flex;
+/* ===== card-title 双层布局（HTML 原型 .title-left + .title-actions） ===== */
+.card-title {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.title-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.title-actions {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-top: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
+.title-actions .btn-outline-primary,
+.title-actions .btn-text-primary {
+  margin: 0;
+}
+
 .btn-outline-primary {
   background: transparent;
   border: 1px dashed var(--brand);

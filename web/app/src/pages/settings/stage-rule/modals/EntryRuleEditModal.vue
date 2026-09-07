@@ -3,7 +3,7 @@
     :show="visible"
     preset="card"
     class="entry-rule-edit-modal"
-    :title="isNew ? '新建进入条件规则' : '编辑进入条件规则'"
+    :title="isNew ? '添加规则 —— 进入条件' : '编辑规则 —— 进入条件'"
     :closable="false"
     style="width: 720px; max-width: 95vw; max-height: 90vh"
     :mask-closable="!saving"
