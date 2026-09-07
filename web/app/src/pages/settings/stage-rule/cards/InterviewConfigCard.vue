@@ -6,7 +6,7 @@
   <section class="config-card">
     <div class="card-title">
       <span class="title-left">
-        <n-icon :component="VideocamOutline" />
+        <n-icon :component="ClipboardOutline" />
         面试配置
         <span class="title-desc">· 面试轮次、形式配置</span>
       </span>
@@ -50,7 +50,7 @@
 
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { VideocamOutline, LayersOutline, PhonePortraitOutline } from '@vicons/ionicons5'
+import { ClipboardOutline, LayersOutline, PhonePortraitOutline } from '@vicons/ionicons5'
 import { INTERVIEW_ROUND_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
 

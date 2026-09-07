@@ -9,7 +9,7 @@
     <!-- Block 1: 自动评估 -->
     <div class="flow-block">
       <div class="block-header">
-        <n-icon :component="ConstructOutline" /> 自动评估
+        <n-icon :component="SparklesOutline" /> 自动评估
         <span class="block-desc">· 当前阶段的自动化评估规则</span>
       </div>
       <div class="option-grid">
@@ -76,7 +76,7 @@
           <template #actions="{ row }">
             <div class="action-btns">
               <a @click="emit('edit-skip', row)">编辑</a>
-              <a class="danger" @click="emit('remove-skip', row)">删除</a>
+              <a class="danger" @click="emit('remove-skip', row)">停用</a>
             </div>
           </template>
         </RuleTable>
@@ -87,8 +87,8 @@
     <div class="flow-block">
       <div class="block-header block-header--split">
         <div class="block-header__main">
-          <n-icon :component="ArchiveOutline" /> 自动归档
-          <span class="block-desc">· 满足规则时自动归档候选人</span>
+          <n-icon :component="HourglassOutline" /> 自动归档
+          <span class="block-desc">· 限定阶段总时长，超时自动归档候选人到公共人才库</span>
         </div>
         <ModuleSwitch :model-value="form.archiveEnabled" @update:model-value="emit('update:archiveEnabled', $event)" />
       </div>
@@ -97,16 +97,21 @@
           <button class="btn-outline-primary" type="button" @click="emit('add-archive')">
             <n-icon :component="AddOutline" /> 添加规则
           </button>
-          <button class="btn-text-primary" type="button" @click="emit('show-stopped')">
+          <button class="btn-outline" type="button" @click="emit('show-stopped')">
             <n-icon :component="EyeOffOutline" /> 查看已停用规则
           </button>
         </div>
         <RuleTable :columns="archiveColumns" :rows="archiveRules">
-          <template #cell-action="{ row }">锁定 {{ row.lock_days || 0 }} 天</template>
+          <template #cell-action="{ row }">
+            <div class="archive-action">
+              <div>锁定 {{ row.lock_days || 0 }} 天；加时 {{ row.extend_days || 0 }} 天/人；</div>
+              <div>{{ row.effective_scope === 'NEW_ONLY' ? '新进入候选人' : '全部候选人' }}</div>
+            </div>
+          </template>
           <template #actions="{ row }">
             <div class="action-btns">
               <a @click="emit('edit-archive', row)">编辑</a>
-              <a class="danger" @click="emit('remove-archive', row)">删除</a>
+              <a class="danger" @click="emit('remove-archive', row)">停用</a>
             </div>
           </template>
         </RuleTable>
@@ -118,8 +123,8 @@
 <script setup lang="ts">
 import { NIcon, NSelect, NInputNumber } from 'naive-ui'
 import {
-  GitNetworkOutline, ConstructOutline, ArrowForwardOutline, PlaySkipForwardOutline,
-  ArchiveOutline, AddOutline, EyeOffOutline, CloseOutline,
+  GitNetworkOutline, SparklesOutline, ArrowForwardOutline, PlaySkipForwardOutline,
+  HourglassOutline, AddOutline, EyeOffOutline, CloseOutline,
 } from '@vicons/ionicons5'
 import ModuleSwitch from '../components/ModuleSwitch.vue'
 import RuleTable from '../components/RuleTable.vue'
@@ -217,7 +222,8 @@ function actionLabel(a: SkipRule['action']) {
   flex-wrap: wrap;
   margin-top: 8px;
 }
-.btn-outline-primary {
+.btn-outline-primary,
+.btn-outline {
   background: transparent;
   border: 1px dashed var(--brand);
   color: var(--brand);
@@ -233,9 +239,20 @@ function actionLabel(a: SkipRule['action']) {
   white-space: nowrap;
   font-weight: 500;
 }
-.btn-outline-primary:hover {
+.btn-outline-primary:hover,
+.btn-outline:hover {
   background: var(--brand-a12);
   border-style: solid;
+}
+
+/* 自动归档执行动作（HTML 原型 .rule-table .action-btns 同款多行结构） */
+.archive-action {
+  white-space: nowrap;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.archive-action div + div {
+  color: var(--ink-soft);
 }
 .btn-text-primary {
   background: transparent;

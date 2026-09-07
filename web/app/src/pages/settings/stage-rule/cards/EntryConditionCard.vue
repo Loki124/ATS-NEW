@@ -1,3 +1,8 @@
+<!--
+  进入条件 Card 1（HTML 原型 2 列表格 + 行内条件组展开式预览）
+  原型列：执行条件（条件组展开）/ 未满足提示
+  原型无"操作"列——编辑通过 Card 1 标题 row 的"规则配置"按钮进二级弹窗。
+-->
 <template>
   <section class="config-card">
     <div class="card-title">
@@ -10,7 +15,7 @@
         <button class="btn-outline-primary" type="button" @click="emit('add')">
           <n-icon :component="AddOutline" /> 添加规则
         </button>
-        <button class="btn-text-primary" type="button" @click="emit('configure')">
+        <button class="btn-outline-primary" type="button" @click="emit('configure')">
           <n-icon :component="CreateOutline" /> 规则配置
         </button>
         <ModuleSwitch :model-value="moduleOn" @update:model-value="emit('update:moduleOn', $event)" />
@@ -18,15 +23,52 @@
     </div>
 
     <div class="rule-content" :class="{ 'rule-content--hidden': !moduleOn }">
-      <RuleTable :columns="columns" :rows="rules">
-        <template #actions="{ row }">
-          <div class="action-btns">
-            <a @click="emit('edit', row)">编辑</a>
-            <a @click="emit('toggle', row)">{{ row.status === 'ENABLED' ? '停用' : '启用' }}</a>
-            <a class="danger" @click="emit('remove', row)">删除</a>
-          </div>
-        </template>
-      </RuleTable>
+      <div class="rule-table-wrap">
+        <table class="rule-table">
+          <thead>
+            <tr>
+              <th>执行条件</th>
+              <th style="width: 200px;">未满足提示</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="rules.length === 0">
+              <td colspan="2" class="rule-table__empty">暂无规则</td>
+            </tr>
+            <tr v-for="rule in rules" v-else :key="rule.id || rule.rule_name">
+              <td>
+                <div class="rule-condition">
+                  <template v-if="rule.groups && rule.groups.length">
+                    <div v-for="(g, gi) in rule.groups" :key="gi" class="rule-condition__group">
+                      <template v-if="rule.groups.length > 1">
+                        <div class="rule-condition__group-label">条件组 {{ gi + 1 }}</div>
+                      </template>
+                      <div v-for="(c, ci) in g.conditions" :key="ci" class="rule-condition__line">
+                        条件{{ gi + 1 }}.{{ ci + 1 }}：{{ formatCondition(c) }}
+                      </div>
+                      <div v-if="g.innerExpression" class="rule-condition__line">
+                        组内表达式：{{ g.innerExpression }}
+                      </div>
+                    </div>
+                    <div class="rule-condition__line rule-condition__line--total">
+                      表达式：{{ rule.expression || '—' }}
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-for="(it, idx) in rule.items" :key="idx" class="rule-condition__line">
+                      条件{{ idx + 1 }}：{{ formatCondition(it) }}
+                    </div>
+                    <div class="rule-condition__line rule-condition__line--total">
+                      表达式：{{ rule.expression || '—' }}
+                    </div>
+                  </template>
+                </div>
+              </td>
+              <td>{{ rule.reject_message || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </template>
@@ -35,8 +77,8 @@
 import { NIcon } from 'naive-ui'
 import { LogInOutline, AddOutline, CreateOutline } from '@vicons/ionicons5'
 import ModuleSwitch from '../components/ModuleSwitch.vue'
-import RuleTable from '../components/RuleTable.vue'
-import type { EntryConditionRule } from '../types'
+import type { EntryConditionRule, ConditionItem } from '../types'
+import { AR_OPERATOR_LABELS, AR_SOURCE_LABELS } from '../constants'
 
 defineProps<{
   rules: EntryConditionRule[]
@@ -47,16 +89,17 @@ const emit = defineEmits<{
   (e: 'update:moduleOn', v: boolean): void
   (e: 'add'): void
   (e: 'configure'): void
-  (e: 'edit', rule: EntryConditionRule): void
-  (e: 'toggle', rule: EntryConditionRule): void
-  (e: 'remove', rule: EntryConditionRule): void
 }>()
 
-const columns = [
-  { key: 'rule_name', title: '规则名', width: '22%' },
-  { key: 'expression', title: '执行条件', width: '28%' },
-  { key: 'reject_message', title: '未满足提示', width: '30%' },
-]
+function formatCondition(it: ConditionItem): string {
+  const sourceLabel = AR_SOURCE_LABELS[it.condition_type] || it.condition_type
+  const opLabel = AR_OPERATOR_LABELS[it.operator] || it.operator
+  if (it.operator === 'IS_EMPTY' || it.operator === 'IS_NOT_EMPTY') {
+    return `${sourceLabel} ${it.field} ${opLabel}`
+  }
+  const valueText = Array.isArray(it.value) ? it.value.join('、') : String(it.value ?? '')
+  return `${sourceLabel} ${it.field} ${opLabel} ${valueText}`
+}
 </script>
 
 <style scoped>
@@ -79,8 +122,7 @@ const columns = [
   flex-shrink: 0;
   margin-left: auto;
 }
-.title-actions .btn-outline-primary,
-.title-actions .btn-text-primary {
+.title-actions .btn-outline-primary {
   margin: 0;
 }
 
@@ -104,42 +146,63 @@ const columns = [
   background: var(--brand-a12);
   border-style: solid;
 }
-.btn-text-primary {
-  background: transparent;
-  border: none;
-  color: var(--brand);
+
+/* ===== Rule Table (HTML 原型 .rule-table) ===== */
+.rule-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  scrollbar-width: thin;
+}
+.rule-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: var(--fs-12);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--g2);
+}
+.rule-table th {
+  background: var(--g1);
+  padding: 8px 12px;
+  text-align: left;
   font-weight: 500;
-  padding: 0 var(--space-1);
-}
-.btn-text-primary:hover {
-  color: var(--brand-hover);
-}
-.action-btns {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.action-btns a {
-  color: var(--brand);
-  text-decoration: none;
-  cursor: pointer;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--g2);
+  white-space: nowrap;
   font-size: var(--fs-12);
-  transition: color var(--duration-fast) var(--ease-out);
 }
-.action-btns a:hover {
-  color: var(--brand-hover);
-  text-decoration: underline;
+.rule-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-hairline);
+  vertical-align: middle;
+  line-height: 1.4;
 }
-.action-btns a.danger {
-  color: var(--c-error);
+.rule-table tr:last-child td { border-bottom: none; }
+.rule-table__empty {
+  text-align: center;
+  color: var(--ink-faint);
+  padding: 14px !important;
+  font-style: italic;
 }
-.action-btns a.danger:hover {
-  color: var(--c-error-deep);
+
+/* 行内条件组展开式预览 */
+.rule-condition__line {
+  line-height: 1.6;
+}
+.rule-condition__group + .rule-condition__group {
+  margin-top: 6px;
+}
+.rule-condition__group-label {
+  color: var(--ink-soft);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+.rule-condition__line--total {
+  color: var(--ink-soft);
+  font-weight: 500;
+  margin-top: 2px;
 }
 
 /* 模块关闭时规则表显隐（max-height 过渡，不丢数据） */
