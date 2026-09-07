@@ -1,34 +1,31 @@
+<!--
+  面试配置 Card 3（HTML 原型 .option-grid + 原生 input[type="checkbox"] + label）
+  原型控件：14x14 checkbox + accent-color: var(--brand) + 13px 字号 + 5px gap
+-->
 <template>
   <section class="config-card">
     <div class="card-title">
-      <n-icon :component="VideocamOutline" />
-      面试配置
-      <span class="title-desc">· 配置本阶段的面试轮次与面试形式</span>
+      <span class="title-left">
+        <n-icon :component="VideocamOutline" />
+        面试配置
+        <span class="title-desc">· 面试轮次、形式配置</span>
+      </span>
     </div>
 
     <!-- 面试轮次 -->
     <div class="flow-block">
       <div class="block-header">
         <n-icon :component="LayersOutline" /> 面试轮次
-        <span class="block-desc">· 可多选</span>
       </div>
       <div class="option-grid">
-        <button
-          v-for="opt in roundOptions"
-          :key="opt.value"
-          type="button"
-          class="tag-chip"
-          :class="{ 'tag-chip--on': isOn(form.interviewRoundIds, opt.value) }"
-          @click="toggle(form.interviewRoundIds, opt.value)"
-        >
-          {{ opt.label }}
-          <n-icon v-if="isOn(form.interviewRoundIds, opt.value)" class="tag-chip__x" :component="CloseOutline" @click.stop="toggle(form.interviewRoundIds, opt.value)" />
-        </button>
-      </div>
-      <div v-if="roundOverflow > 0" class="tag-overflow">
-        <button type="button" class="tag-more" @click="roundExpanded = !roundExpanded">
-          +{{ roundOverflow }} 项{{ roundExpanded ? ' 收起' : '' }}
-        </button>
+        <label v-for="opt in roundOptions" :key="opt.value" class="opt-item">
+          <input
+            type="checkbox"
+            :checked="isOn(form.interviewRoundIds, opt.value)"
+            @change="toggle(form.interviewRoundIds, opt.value, ($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ opt.label }}</span>
+        </label>
       </div>
     </div>
 
@@ -36,112 +33,80 @@
     <div class="flow-block">
       <div class="block-header">
         <n-icon :component="PhonePortraitOutline" /> 面试形式
-        <span class="block-desc">· 可多选</span>
       </div>
       <div class="option-grid">
-        <button
-          v-for="opt in formatOptions"
-          :key="opt.value"
-          type="button"
-          class="tag-chip"
-          :class="{ 'tag-chip--on': isOn(form.interviewFormat, opt.value) }"
-          @click="toggle(form.interviewFormat, opt.value)"
-        >
-          {{ opt.label }}
-          <n-icon v-if="isOn(form.interviewFormat, opt.value)" class="tag-chip__x" :component="CloseOutline" @click.stop="toggle(form.interviewFormat, opt.value)" />
-        </button>
-      </div>
-      <div v-if="formatOverflow > 0" class="tag-overflow">
-        <button type="button" class="tag-more" @click="formatExpanded = !formatExpanded">
-          +{{ formatOverflow }} 项{{ formatExpanded ? ' 收起' : '' }}
-        </button>
+        <label v-for="opt in formatOptions" :key="opt.value" class="opt-item">
+          <input
+            type="checkbox"
+            :checked="isOn(form.interviewFormat, opt.value)"
+            @change="toggle(form.interviewFormat, opt.value, ($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ opt.label }}</span>
+        </label>
       </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import { NIcon } from 'naive-ui'
-import { VideocamOutline, LayersOutline, PhonePortraitOutline, CloseOutline } from '@vicons/ionicons5'
+import { VideocamOutline, LayersOutline, PhonePortraitOutline } from '@vicons/ionicons5'
 import { INTERVIEW_ROUND_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
 
 const props = defineProps<{ form: StageRuleFormState }>()
-
 const roundOptions = INTERVIEW_ROUND_OPTIONS
 const formatOptions = INTERVIEW_FORMAT_OPTIONS
-
-const roundExpanded = ref(false)
-const formatExpanded = ref(false)
-/** 可视上限（超出折叠为 +N）；原型用 getBoundingClientRect 实测，这里以计数上限等价实现 */
-const VISIBLE_CAP = 5
 
 function isOn(list: string[], v: string) {
   return list.includes(v)
 }
-function toggle(list: string[], v: string) {
+function toggle(list: string[], v: string, checked: boolean) {
   const i = list.indexOf(v)
-  if (i >= 0) list.splice(i, 1)
-  else list.push(v)
+  if (checked && i < 0) list.push(v)
+  if (!checked && i >= 0) list.splice(i, 1)
 }
-
-const roundOverflow = computed(() =>
-  props.form.interviewRoundIds.length > VISIBLE_CAP && !roundExpanded.value ? props.form.interviewRoundIds.length - VISIBLE_CAP : 0,
-)
-const formatOverflow = computed(() =>
-  props.form.interviewFormat.length > VISIBLE_CAP && !formatExpanded.value ? props.form.interviewFormat.length - VISIBLE_CAP : 0,
-)
 </script>
 
 <style scoped>
+/* ===== card-title 双层布局（HTML 原型 .title-left + .title-actions） ===== */
+.card-title {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.title-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* ===== option-grid（HTML 原型 .option-grid） ===== */
 .option-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px var(--space-2);
-  padding: 4px 0;
+  gap: 2px var(--space-3);
+  padding: 2px 0;
 }
-.tag-chip {
+.opt-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: var(--fs-13);
-  color: var(--ink-soft);
-  background: var(--g1);
-  border: 1px solid var(--g2);
-  border-radius: var(--radius-pill);
-  padding: var(--space-1) var(--space-3);
+  color: var(--ink);
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  line-height: 1.4;
+  white-space: nowrap;
+  padding: 2px 0;
+  transition: color var(--duration-fast) var(--ease-out);
 }
-.tag-chip:hover {
-  border-color: var(--brand);
-  color: var(--brand);
-}
-.tag-chip--on {
-  background: var(--brand-a12);
-  color: var(--brand);
-  border-color: var(--brand);
-  font-weight: 500;
-}
-.tag-chip__x {
-  font-size: 12px;
-}
-.tag-overflow {
-  margin-top: 6px;
-}
-.tag-more {
-  background: transparent;
-  border: none;
-  color: var(--brand);
-  font-size: var(--fs-12);
+.opt-item:hover { color: var(--brand); }
+.opt-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--brand);
   cursor: pointer;
-  font-weight: 500;
-  padding: 0;
-}
-.tag-more:hover {
-  color: var(--brand-hover);
-  text-decoration: underline;
+  flex-shrink: 0;
+  margin: 0;
 }
 </style>

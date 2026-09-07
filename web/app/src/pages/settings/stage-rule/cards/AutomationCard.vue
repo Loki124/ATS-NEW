@@ -14,11 +14,19 @@
       </div>
       <div class="option-grid">
         <label class="opt-item">
-          <n-checkbox :checked="form.autoEvalN2" @update:checked="(v: boolean) => (form.autoEvalN2 = v)" />
+          <input
+            type="checkbox"
+            :checked="form.autoEvalN2"
+            @change="form.autoEvalN2 = ($event.target as HTMLInputElement).checked"
+          />
           <span>N+2 推荐免筛选</span>
         </label>
         <label class="opt-item">
-          <n-checkbox :checked="form.autoEvalPrevAa" @update:checked="(v: boolean) => (form.autoEvalPrevAa = v)" />
+          <input
+            type="checkbox"
+            :checked="form.autoEvalPrevAa"
+            @change="form.autoEvalPrevAa = ($event.target as HTMLInputElement).checked"
+          />
           <span>引用前序双 A 的一致意见</span>
         </label>
       </div>
@@ -108,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { NIcon, NSelect, NCheckbox, NInputNumber } from 'naive-ui'
+import { NIcon, NSelect, NInputNumber } from 'naive-ui'
 import {
   GitNetworkOutline, ConstructOutline, ArrowForwardOutline, PlaySkipForwardOutline,
   ArchiveOutline, AddOutline, EyeOffOutline, CloseOutline,
@@ -190,6 +198,17 @@ function actionLabel(a: SkipRule['action']) {
   color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
+  padding: 2px 0;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.opt-item:hover { color: var(--brand); }
+.opt-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--brand);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin: 0;
 }
 .actions-row {
   display: flex;
