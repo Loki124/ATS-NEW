@@ -426,6 +426,18 @@ class StageRule(FullAuditModel):
         default=list, blank=True, verbose_name='关联面试轮次 id 列表',
     )
 
+    # 2026-09-07: 阶段配置规则组件 — 自动跳过 / 自动归档规则 (FE 写入 JSON list of rule dicts)
+    skip_rules = models.JSONField(
+        default=list, blank=True, verbose_name='自动跳过规则列表',
+        help_text='FE 写入 skip_rules schema: '
+                  '[{id,name,enabled,scope,expression,items[],action}]',
+    )
+    archive_rules = models.JSONField(
+        default=list, blank=True, verbose_name='自动归档规则列表',
+        help_text='FE 写入 archive_rules schema: '
+                  '[{id,name,enabled,scope,expression,items[],lock_days,extend_days,effective_scope}]',
+    )
+
     class Meta:
         db_table = 'stage_rules'
         verbose_name = '阶段规则'

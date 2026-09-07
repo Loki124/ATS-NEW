@@ -584,6 +584,101 @@ class ExpressionValidationView(APIView):
         })
 
 
+class EntryConditionFieldCatalogView(APIView):
+    """进入条件字段目录 — 返回 source→condition_type→field→operator→value 字典树
+
+    数据来源：apps/entry_condition/services.py:284-360 (_get_actual_value) 实际解析的字段
+    （**非 demo**）：
+    - STAGE_STATUS：来自 RecruitmentStage 表（value_source=STAGE_LIST，动态取已启用阶段名）
+    - CANDIDATE：来自 Candidate 模型硬编码字段映射（AGE/GENDER/HIGHEST_EDU/WORK_YEARS/CITY）
+    - DEMAND：来自 Position/Demand 硬编码字段映射（用人经理/上级/BU总裁/VP/职级/部门）
+    运算符直接对齐 apps/entry_condition/models.py:33 ConditionOperator 文案。
+    """
+    permission_classes = [HasProcessPermission]
+
+    def get(self, request):
+        from apps.entry_condition.models import ConditionOperator
+
+        common_operators = [
+            ConditionOperator.EQ.value, ConditionOperator.NEQ.value,
+            ConditionOperator.GT.value, ConditionOperator.GTE.value,
+            ConditionOperator.LT.value, ConditionOperator.LTE.value,
+            ConditionOperator.BETWEEN.value,
+            ConditionOperator.IN.value, ConditionOperator.NOT_IN.value,
+            ConditionOperator.IS_EMPTY.value, ConditionOperator.IS_NOT_EMPTY.value,
+        ]
+
+        sources = [
+            {
+                'key': 'DEMAND', 'label': '需求中', 'condition_type': 'DEMAND',
+                'fields': [
+                    {'key': 'HIRING_MANAGER', 'label': '用人经理',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
+                    {'key': 'HIRING_MANAGER_SUPER', 'label': '用人经理上级',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
+                    {'key': 'BU_PRESIDENT', 'label': 'BU 总裁',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
+                    {'key': 'SOLID_VP', 'label': '实线 VP',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
+                    {'key': 'DOTTED_VP', 'label': '虚线 VP',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
+                    {'key': 'DEMAND_LEVEL', 'label': '需求职级',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'DICT:demand_level'},
+                    {'key': 'DEPARTMENT', 'label': '部门',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'DICT:department'},
+                ],
+            },
+            {
+                'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
+                'fields': [
+                    {'key': 'AGE', 'label': '年龄',
+                     'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ'],
+                     'value_source': 'NUMBER'},
+                    {'key': 'GENDER', 'label': '性别',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'DICT:gender'},
+                    {'key': 'HIGHEST_EDU', 'label': '最高学历',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'DICT:highest_education'},
+                    {'key': 'WORK_YEARS', 'label': '工作年限',
+                     'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN'],
+                     'value_source': 'NUMBER'},
+                    {'key': 'CURRENT_CITY', 'label': '当前城市',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'DICT:city'},
+                    {'key': 'EXPECTED_CITY', 'label': '期望城市',
+                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                     'value_source': 'DICT:city'},
+                ],
+            },
+            {
+                'key': 'STAGE_STATUS', 'label': '阶段状态', 'condition_type': 'STAGE_STATUS',
+                'fields': [
+                    {
+                        'key': 'STAGE_NAME', 'label': '关联阶段名',
+                        'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY'],
+                        'value_source': 'STAGE_LIST',
+                        'value_hint': '候选人从前序阶段的评估结果',
+                    }
+                ],
+            },
+        ]
+        return Response({
+            'success': True,
+            'data': {
+                'sources': sources,
+                'common_operators': common_operators,
+            },
+        })
+
+
 # ============================================================
 # 应用流程模板
 # ============================================================

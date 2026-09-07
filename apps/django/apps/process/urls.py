@@ -12,6 +12,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    EntryConditionFieldCatalogView,
     ExpressionValidationView,
     ProcessApplyTemplateView,
     ProcessStageLinkViewSet,
@@ -87,6 +88,8 @@ template_urlpatterns = [
 # ============================================================
 expression_urlpatterns = [
     path('validate', ExpressionValidationView.as_view(), name='expression-validate'),
+    # 2026-09-07: 进入条件字段目录 (FE 阶段配置规则组件用) → /api/v1/expressions/fields
+    path('fields', EntryConditionFieldCatalogView.as_view(), name='entry-condition-fields'),
 ]
 
 

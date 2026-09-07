@@ -191,6 +191,8 @@ class StageRuleSerializer(serializers.ModelSerializer):
             'default_handler_type', 'default_handler_fields', 'default_handler_user_ids',
             'time_limit', 'time_limit_scope',
             'interview_round_ids',
+            # 2026-09-07: 自动跳过 / 自动归档规则
+            'skip_rules', 'archive_rules',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'current_processor_index', 'created_at', 'updated_at']
