@@ -23,21 +23,20 @@
     @after-leave="resetTransient"
   >
     <template #header>
-      <!-- HERO HEADER: 2026-09-05 fix 从 n-card-content 内部挪到 #header slot，
-           干掉 -20px margin hack 与 padding 36px 妥协方案 -->
+      <!-- 2026-09-07 层级瘦身 — 完全对齐 HTML 原型：
+           - 单层 .hero 直接挂到 .n-card-header（去掉 .hero__main 冗余包裹）
+           - 4 个直接子项：.hero__icon / .hero__title(+ .hero__object 内联) / .hero__tip / .hero__close
+           - 外层 .n-card-header 的 padding/border/background 已在下方全局规则里归零，
+             由 .hero 自身 padding:16px 独占视觉单层（见截图红框问题的根因）
+           - 颜色/图标仍走 Liquid Glass v2 token（--brand / Ionicons），未引入原型裸值 -->
       <div class="hero">
         <div class="hero__icon">
-          <n-icon :component="SettingsOutline" size="22" />
+          <n-icon :component="SettingsOutline" size="20" />
         </div>
-        <div class="hero__main">
-          <div class="hero__title">
-            <span>配置阶段规则</span>
-            <span class="hero__stage-chip">—— {{ stage?.name || '未命名' }}</span>
-          </div>
-          <div class="hero__subtitle">
-            为本阶段配置自动化、默认处理人、限时与进入条件
-          </div>
-        </div>
+        <h2 class="hero__title">
+          配置阶段规则
+          <small class="hero__object">—— {{ stage?.name || '未命名' }}</small>
+        </h2>
         <span class="hero__tip" aria-label="即时生效">
           <n-icon :component="FlashOutline" size="12" /> 即时生效
         </span>
@@ -371,6 +370,11 @@
     </n-spin>
 
     <template #footer>
+      <!-- 2026-09-07 footer 严格对齐 HTML 原型：
+           - 按钮顺序固定「取消(次要) → 保存(主)」，DOM 顺序即视觉顺序
+           - 容器 .modal-footer = flex + justify-content:flex-end + gap:8px
+           - .n-card__footer 外层 padding/border 由下方全局规则归零，让 .modal-footer 独占底部留白
+           - 颜色：取消走默认 n-button 灰底、保存走 brand 渐变（已有 .gradient-btn） -->
       <div class="modal-footer">
         <n-button :disabled="saving" @click="onRequestClose">取消</n-button>
         <n-button
@@ -1019,93 +1023,86 @@ async function handleSubmit() {
 }
 
 /* ==================== HERO HEADER ==================== */
-/* 2026-09-05 v3 重构：
-   - hero 改为 <template #header> 渲染到 n-card-header 内部
-   - 干掉 -20px -20px margin hack + 36px 妥协 padding，padding 改回与 .config-card 一致的 var(--space-4)=16px
-   - n-card-header 自带圆角 + border，hero 不再重复设置 border-top-radius
-   - 干掉 sticky（n-card-header 不是滚动容器，sticky 无效；粘性需求改由 n-card-content 的 scrollbar 实现）
-   - hero__close 改 absolute → flex 子项，配合 hero__tip margin-left:auto 贴右 */
+/* 2026-09-07 层级瘦身 — 完全对齐 HTML 原型单层结构：
+   - .hero 直接挂到 .n-card-header（去掉 .hero__main 冗余包裹；n-card-header 的
+     padding/border/background 在下方全局规则里归零，由 .hero 独占视觉单层）
+   - 4 个直接子项水平排列：icon | title(+object) | tip | …space… | close
+   - align-items:center 让 icon/title/tip/close 垂直居中对齐
+   - .hero__object 是 .hero__title 内的 <small>，阶段名以「—— 」内联到标题后
+   - 颜色/图标仍走 Liquid Glass v2 token（--brand / Ionicons），未引入原型裸值 */
 .hero {
   background: var(--glass-bg-elevated);  /* rgba(255,255,255,.96) 实色兜底 */
   backdrop-filter: blur(var(--glass-blur-card));
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
-  padding: 20px var(--space-4); /* 16px，与 .config-card padding 一致 */
+  padding: var(--space-4); /* 16px 四周统一，与 .config-card 横向 padding 一致 */
   border-bottom: 1px solid var(--border-hairline);
   display: flex;
-  align-items: center;  /* 改 flex-start 为 center，让 icon/title/close 垂直居中 */
+  align-items: center;  /* 扁平单行：各元素垂直居中 */
   gap: var(--space-3);
 }
 .hero__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--g1);
   flex-shrink: 0;
-  box-shadow: 0 2px 6px var(--c-info-soft);
+  box-shadow: var(--shadow-xs);  /* 中性灰阴影：与 brand 渐变底拉开，才有浮起感 */
 }
-.hero__main {
-  flex: 1;
-  min-width: 0;
-}
+/* 标题 + 阶段名（含破折号）作为一整组：宽度靠内容自然撑开，关闭按钮独立靠右 */
 .hero__title {
-  font-size: var(--fs-18);
+  margin: 0;  /* h2 默认 margin 会破坏 hero 垂直节奏 */
+  font-size: var(--fs-16); /* 对齐原型 h2 16px */
   font-weight: 600;
-  color: var(--n-850);
+  color: var(--ink);
   line-height: 1.4;
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
-.hero__stage-chip {
-  font-size: var(--fs-13);
-  font-weight: 500;
-  color: var(--n-580);
-  letter-spacing: 0;
+/* 配置对象（阶段名）：内联到标题后，破折号「—— 」作解释/注释符；
+   权重低于标题(600)，字号/色弱于标题，沿用原型 small 处理 */
+.hero__object {
+  font-weight: 400;
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+  margin-left: 2px;
 }
-.hero__subtitle {
-  font-size: var(--fs-13);
-  color: var(--n-440);
-  margin-top: var(--space-1);
-  line-height: 1.5;
-}
-/* 即时生效小标识（参照原型）；颜色走 --brand token，无硬编码
-   2026-09-05 v3: margin-right:36 改为 margin-left:auto 让 tip 紧贴 hero 主区域右侧 */
+/* 把 .hero__title 撑开推走关闭按钮：flex:1 + min-width:0 让标题/tip 一组居左，
+   关闭按钮独立靠右侧对齐。 */
+.hero__title { flex: 1 1 auto; min-width: 0; }
 .hero__tip {
   font-size: var(--fs-12);
   color: var(--brand);
   background: var(--brand-a12);
-  padding: 3px 10px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-weight: 500;
   flex-shrink: 0;
-  margin-left: auto; /* 2026-09-05 v3: 把 tip+close 推至 hero 右侧 */
 }
-/* 2026-09-05 v3: 改为 flex 子项，去掉 absolute 定位；
-   n-card-header 自带 padding 内边距，flex 布局自然右对齐 */
 .hero__close {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--n-440);
+  color: var(--ink-faint);
   font-size: var(--fs-18);
   padding: var(--space-1);
   line-height: 1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
 }
 .hero__close:hover {
   background: var(--overlay-scrim-weak);
-  color: var(--n-850);
+  color: var(--ink);
 }
 
 /* ==================== Section Card ==================== */
@@ -1450,7 +1447,11 @@ async function handleSubmit() {
   padding: var(--space-3) 0;
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-2);
+  gap: var(--space-2); /* 8px 按钮间距，与原型一致 */
+}
+/* .modal-footer 内按钮的 min-width：取消/保存对齐视觉尺寸，避免「取消」过窄 */
+.modal-footer :deep(.n-button) {
+  min-width: 88px;
 }
 
 /* ==================== Form 内嵌控件：禁用默认的 label 灰底 ==================== */
@@ -1480,9 +1481,9 @@ async function handleSubmit() {
 }
 @media (max-width: 600px) {
   /* 2026-09-05 v3: hero 已在 #header slot 内，不再需要负 margin；
-     padding 跟随 n-card-header 自带 padding，仅微调到 space-3 让小屏更紧凑 */
+     2026-09-06 v4: 桌面 padding 统一 var(--space-4)，小屏横向收紧到 var(--space-3) */
   .hero {
-    padding: 16px var(--space-3);
+    padding: var(--space-4) var(--space-3);
   }
   .hero__icon {
     width: 36px;
@@ -1491,7 +1492,6 @@ async function handleSubmit() {
   .hero__title {
     font-size: var(--fs-16);
   }
-  /* margin-left:auto 在小屏仍生效，不需要改 */
   .hero__tip {
     font-size: var(--fs-12);
   }
@@ -1532,5 +1532,20 @@ async function handleSubmit() {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* 2026-09-07 弹窗 header / footer 单层视觉（修复截图红框的「嵌套 + 多 padding + 多 border」问题）：
+   Naive UI n-card-header / n-card__footer 自带 background-color / border / padding，
+   与我们 .hero / .modal-footer 的自身样式叠加，造成「外灰底 + 内白底 + 双 padding + 双 border」视觉乱层。
+   这里只针对本弹窗归零外层样式，让 hero / modal-footer 独占单层视觉。 */
+.stage-rule-config-modal .n-card-header,
+.stage-rule-config-modal .n-card__footer {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+.stage-rule-config-modal .n-card-header {
+  /* 让 .hero 作为直接 flex 子项，去掉外层垂直居中等干扰 */
+  display: block !important;
 }
 </style>
