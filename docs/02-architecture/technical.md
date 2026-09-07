@@ -11,13 +11,13 @@
 
 | 维度 | 数值 | 验证方式 |
 |---|---|---|
-| Django apps | **30** | `settings/base.py:98-135` 计数 |
+| Django apps | **35** | `settings/base.py:98-135` 计数 |
 | 业务表 | **59** (`db_table=`) + V2 9 表 + 备份 4 表 | grep `db_table =` |
-| API 路由 | **148 条** + 49 router | `config/urls.py` 计数 |
-| 状态机 | **7 FSMField / 43 @transition** | `django-fsm==3.0.1` |
+| API 路由 | **105 条 path()** + 52 router.register | `config/urls.py` 计数 |
+| 状态机 | **7 FSMField / 50 @transition** | `django-fsm==3.0.1` |
 | 后端测试 | **518 passed / 0 failed**（2026-08-11 基线；本次又新增字典 22 + 公告 18 等，详见 CHANGELOG） | `pytest` 全量 |
 | 前端测试 | **132 vitest passed** | `npm test` |
-| Migrations | **45 个**（24 app, 26 目录） | `find apps/django -name migrations` |
+| Migrations | **105 个文件 / 33 目录** | `find apps/django -name migrations` |
 | 健康检查 | `/health/` | `config/urls.py:125` |
 | 端口 | 前端 5212 / 后端 8000 (`gunicorn`) | `ops/docker-compose.yml` |
 
@@ -46,7 +46,7 @@ graph TB
   end
 
   subgraph Data["数据层"]
-    MY[("MySQL 8<br/>78 张表")]
+    MY[("MySQL 8<br/>70 张表")]
     SQ[("SQLite<br/>dev/test")]
     RD[("Redis 7<br/>cache + broker + layer")]
   end
@@ -142,7 +142,7 @@ ATS-NEW/
 │   │   ├── duplicate_check/    # 简历查重 (0 model stub)
 │   │   └── data/               # 数据中心 (0 model stub)
 │   ├── config/                 # base.py / dev.py / prod.py / test.py
-│   ├── migrations/             # 45 个 migration
+│   ├── migrations/             # 105 个 migration 文件（33 目录）
 │   ├── tests/                  # 60 pytest + 11 QA blackbox
 │   ├── scripts/                # 内部运维
 │   ├── seeds/                  # 初始数据
@@ -178,7 +178,7 @@ ATS-NEW/
 
 ---
 
-## 5. 关键模块（30 apps, 5 分层）
+## 5. 关键模块（35 apps, 5 分层）
 
 | 分层 | apps | 备注 |
 |---|---|---|
@@ -276,21 +276,21 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 
 | 文档 | 用途 |
 |---|---|
-| [README.md](./README.md) | 项目入口 |
-| [RUNBOOK.md](./RUNBOOK.md) | 跑通指南 + 紧急回滚 |
-| [requirements.md](./requirements.md) | 业务需求 + Phase 2 待办 |
-| [docs/ARCHITECTURE_REVIEW_2026-08-03.md](./docs/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
-| [docs/PHASE2_DESIGN_2026-08-03.md](./docs/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 模块图 |
-| [docs/CHANGELOG.md](./docs/CHANGELOG.md) | 变更历史 |
-| [docs/MIGRATION.md](./docs/MIGRATION.md) | 旧栈迁移日志 |
-| [docs/SETUP.md](./docs/SETUP.md) | 详细环境搭建 |
-| [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | 常见问题 |
-| [docs/PERFORMANCE.md](./docs/PERFORMANCE.md) | 性能基线 |
-| [docs/PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) | 路线图 |
-| [docs/DOCUMENTATION_AUDIT_2026-08-04.md](./docs/DOCUMENTATION_AUDIT_2026-08-04.md) | 文档审计 |
-| [docs/QA_T011_VERIFY_2026-08-04.md](./docs/QA_T011_VERIFY_2026-08-04.md) | T01.1 QA 验证 |
-| [docs/QA_BUG7_VERIFY_2026-08-04.md](./docs/QA_BUG7_VERIFY_2026-08-04.md) | BUG-7 QA 验证 |
+| [README.md](../../README.md) | 项目入口 |
+| [RUNBOOK.md](../06-runbook/RUNBOOK.md) | 跑通指南 + 紧急回滚 |
+| [requirements.md](../03-product/requirements.md) | 业务需求 + Phase 2 待办 |
+| [docs/ARCHITECTURE_REVIEW_2026-08-03.md](./ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
+| [docs/PHASE2_DESIGN_2026-08-03.md](../09-archive/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 |
+| [docs/ARCHITECTURE.md](./ARCHITECTURE.md) | 模块图 |
+| [docs/CHANGELOG.md](../06-runbook/CHANGELOG.md) | 变更历史 |
+| [docs/MIGRATION.md](../06-runbook/MIGRATION.md) | 旧栈迁移日志 |
+| [docs/SETUP.md](../06-runbook/SETUP.md) | 详细环境搭建 |
+| [docs/TROUBLESHOOTING.md](../06-runbook/TROUBLESHOOTING.md) | 常见问题 |
+| [docs/PERFORMANCE.md](../06-runbook/PERFORMANCE.md) | 性能基线 |
+| [docs/PROJECT_PLAN.md](../03-product/PROJECT_PLAN.md) | 路线图 |
+| [docs/DOCUMENTATION_AUDIT_2026-08-04.md](../07-audit/DOCUMENTATION_AUDIT_2026-08-04.md) | 文档审计 |
+| [docs/QA_T011_VERIFY_2026-08-04.md](../07-audit/QA_T011_VERIFY_2026-08-04.md) | T01.1 QA 验证 |
+| [docs/QA_BUG7_VERIFY_2026-08-04.md](../07-audit/QA_BUG7_VERIFY_2026-08-04.md) | BUG-7 QA 验证 |
 
 ---
 

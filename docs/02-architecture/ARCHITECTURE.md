@@ -1,10 +1,10 @@
 # ARCHITECTURE — 系统架构
 
-> **最后更新**: 2026-08-17 — Django 6.0 + DRF 3.15, 29 apps / 60+ 端点 / 9 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest；详见 CHANGELOG）
+> **最后更新**: 2026-08-17 — Django 6.0 + DRF 3.17.1, 35 apps / 60+ 端点 / 7 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest；详见 CHANGELOG）
 >
 > 旧 Node.js/Express 架构已废弃 (2026-06 切到 Django, 详见 `MIGRATION.md`).
 >
-> ⚠️ 注意：本文档「数据流示例 / 关键技术决策 / 部署架构 / 安全模型」等节仍保留 2026-06 之前的 Node.js/Express/Prisma 描述，与上方 Django 架构不一致，正在专项清理中（当前权威栈见 [`../technical.md`](../technical.md)）。
+> ⚠️ 注意：本文档「数据流示例 / 关键技术决策 / 部署架构 / 安全模型」等节仍保留 2026-06 之前的 Node.js/Express/Prisma 描述，与上方 Django 架构不一致，正在专项清理中（当前权威栈见 [`../technical.md`](./technical.md)）。
 
 ## 总览
 

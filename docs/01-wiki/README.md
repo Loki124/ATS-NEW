@@ -36,13 +36,13 @@ API 文档：`http://localhost:8000/api/docs/`（Swagger UI）
 | 文档 | 用途 |
 |---|---|
 | [../../README.md](../../README.md) | 项目入口、快速启动 |
-| [../../technical.md](../../technical.md) | 技术架构说明 |
-| [../../RUNBOOK.md](../../RUNBOOK.md) | 跑通指南 + 紧急回滚 |
-| [../../docs/ARCHITECTURE_REVIEW_2026-08-03.md](../ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计报告 |
+| [../../technical.md](../02-architecture/technical.md) | 技术架构说明 |
+| [../../RUNBOOK.md](../06-runbook/RUNBOOK.md) | 跑通指南 + 紧急回滚 |
+| [../../docs/ARCHITECTURE_REVIEW_2026-08-03.md](../02-architecture/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计报告 |
 
 ## 项目状态速览
 
-- **后端**：35 个 Django app / 78+ 张表 / 7 个 FSM 状态机 / 148+ 条 API 路由
+- **后端**：35 个 Django app / 70 张表 / 7 个 FSM 状态机 / 105 个 path() + 52 个 router.register（API 路由）
 - **前端**：31 个 API 客户端模块 / 14+ 业务域页面 / 5 个 Pinia store
 - **异步**：Celery 8 队列 + Beat 定时任务 + Channels WebSocket
 - **测试**：pytest（后端）/ vitest（前端）/ Playwright（E2E）

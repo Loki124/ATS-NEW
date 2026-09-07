@@ -14,7 +14,7 @@
 - Frontend: Vue 3 + TypeScript + Composition API + Naive UI + UnoCSS
 - 测试: vitest + @vue/test-utils + happy-dom
 
-**Spec:** [docs/superpowers/specs/2026-06-22-add-candidate-v2-design.md](../specs/202s/2026-06-22-add-candidate-v2-design.md) §3.1
+**Spec:** [docs/superpowers/specs/2026-06-22-add-candidate-v2-design.md](../specs/2026-06-22-add-candidate-v2-design.md) §3.1
 **依赖 Phase 3:** Pinia store + API 客户端已就绪
 
 ---

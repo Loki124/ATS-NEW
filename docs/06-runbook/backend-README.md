@@ -575,7 +575,7 @@ LOG_LEVEL=WARNING
 本项目是从 **Node.js/Express/Prisma + Vue 3** 升级到 **Python/Django + DRF** 的版本。
 完整的字段映射、API 转换、数据迁移脚本请参考：
 
-📖 **[MIGRATION.md](../MIGRATION.md)** （项目根目录）
+📖 **[MIGRATION.md](./MIGRATION.md)** （项目根目录）
 
 关键差异：
 

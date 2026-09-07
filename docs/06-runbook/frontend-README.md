@@ -211,4 +211,4 @@ Vite 5 + TypeScript。`npm run build` 会先 `vue-tsc` 类型检查再 `vite bui
 - 5 处样式不统一：emoji 当图标、page-title inline style、6/34 页面 20px font-size
 - 部分页面用了 raw fetch（已修 4/5）
 
-详见 [PROJECT_PLAN.md](../PROJECT_PLAN.md) 和 [CHANGELOG.md](../CHANGELOG.md)。
+详见 [PROJECT_PLAN.md](../03-product/PROJECT_PLAN.md) 和 [CHANGELOG.md](./CHANGELOG.md)。

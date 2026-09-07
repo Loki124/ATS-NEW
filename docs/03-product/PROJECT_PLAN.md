@@ -1,8 +1,8 @@
 # ATS招聘管理系统 - 项目实施计划
 
-> **最后更新**: 2026-08-17 — 实际技术栈与当前实现对齐（本次新增 6 大功能，详见 [CHANGELOG.md](CHANGELOG.md) 2026-08-17 条目）
+> **最后更新**: 2026-08-17 — 实际技术栈与当前实现对齐（本次新增 6 大功能，详见 [CHANGELOG.md](../06-runbook/CHANGELOG.md) 2026-08-17 条目）
 > **重要**: 本文档是**历史规划记录** (2025/10 → 2026/04), 不是当前架构。
-> 当前真实状态见 [README.md](../README.md) + [ARCHITECTURE.md](ARCHITECTURE.md) + [CHANGELOG.md](CHANGELOG.md) + [COMPLIANCE_AUDIT_2026-08-03.md](COMPLIANCE_AUDIT_2026-08-03.md)。
+> 当前真实状态见 [README.md](../README.md) + [ARCHITECTURE.md](../02-architecture/ARCHITECTURE.md) + [CHANGELOG.md](../06-runbook/CHANGELOG.md) + [COMPLIANCE_AUDIT_2026-08-03.md](../07-audit/COMPLIANCE_AUDIT_2026-08-03.md)。
 >
 > **当前实际技术栈** (2026-08-03):
 > - 后端: Django 6.0.6 + DRF 3.15 + Celery 5.4 + Channels 4.1 (不是 Django 4.2+)
@@ -10,7 +10,7 @@
 > - 数据库: MySQL 8 (生产) / SQLite 3 (dev + test)
 > - Python: 3.14 (不是 3.10+)
 > - 目录: `apps/django/` + `web/app/` (不是 `backend/` + `frontend/`)
-> - 29 个 app / 60+ 端点 / 78 张表 / 9 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest，详见 CHANGELOG）
+> - 35 个 app / 60+ 端点 / 70 张表 / 7 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest，详见 CHANGELOG）
 
 ---
 
