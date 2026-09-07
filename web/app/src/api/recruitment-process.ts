@@ -285,19 +285,6 @@ export const upsertStageRule = async (linkId: string, payload: Partial<StageRule
 // FE StageRule 接口没有 link 字段, 但 BE StageRuleSerializer 要求 (OneToOne FK).
 // 调用方需显式传 linkId (从 ProcessStageLink.id 拿). 新建规则时 link 可为全新空 link,
 // 但通常先 addProcessLink 拿到 linkId, 再 upsertStageRule.
-export const upsertEntryCondition = (
-  linkId: string,
-  payload: {
-    matchType: 'ALL' | 'ANY';
-    conditionType: 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED';
-    prompt?: string;
-    items: ConditionItem[];
-  },
-) =>
-  api.patch<{ success: boolean; data: ProcessStageLink }>(`/process-stage-links/${linkId}/`, {
-    entry_condition: payload,
-  }).then((r) => unwrap(r) as ProcessStageLink);
-
 export const evaluateEntryCondition = (stageId: string, context: { candidate: any; stageStatuses?: any }) =>
   api.post<{ success: boolean; data: { passed: boolean; failedItems: any[]; prompt: string | null } }>(`/recruitment-rules/entry-conditions/${stageId}/evaluate`, context).then((r) => r.data.data);
 
@@ -307,13 +294,6 @@ export const evaluateEntryCondition = (stageId: string, context: { candidate: an
 export const listStageRules = (params: { linkId: string }) =>
   api.get<{ success: boolean; data: StageRule[] }>('/stage-rules/', { params: { link: params.linkId } })
     .then((r) => unwrap(r) as StageRule[])
-
-// 进入条件存在 ProcessStageLink.entry_condition (从 entry_rule_expression 解码).
-// 真实来源 = GET /process-stage-links/{id}/, 不是 stub.
-export const listEntryConditions = async (params: { linkId: string }): Promise<EntryCondition[]> => {
-  const link = await getProcessLink(params.linkId) as any
-  return link?.entryCondition ? [link.entryCondition] : []
-}
 
 // 候选人上下文评估 (G10 + G1.5) - 替代 raw fetch
 export const evaluateCandidateForStage = (candidateId: string, entryConditionId: string, applicationId?: string) =>
@@ -348,11 +328,133 @@ export const listAutoArchiveRules = (params: { processId?: string } = {}) =>
 export const upsertAutoArchiveRule = (rule: Partial<AutoArchiveRule>) =>
   api.post<{ success: boolean; data: AutoArchiveRule }>('/recruitment-rules/auto-archive-rules', rule).then((r) => r.data.data)
 
+/* ============================================================================
+ * 阶段配置规则 — 进入条件规则（EntryConditionRuleViewSet）
+ * 2026-09-07: 切换至新 viewset，根治旧 PATCH entry_condition 丢数据 bug（R6）。
+ * 旧 upsertEntryCondition / listEntryConditions 已标记 @deprecated（见下方）。
+ * ========================================================================== */
+export const listEntryConditionRules = (params: { linkId: string }) =>
+  api
+    .get<{ success: boolean; data: any[] }>('/entry-condition-rules/', { params: { link: params.linkId } })
+    .then((r) => unwrap(r) as any[])
+
+export const createEntryConditionRule = (payload: Record<string, any>) =>
+  api.post<{ success: boolean; data: any }>('/entry-condition-rules/', payload).then((r) => unwrap(r) as any)
+
+export const updateEntryConditionRule = (id: string, payload: Record<string, any>) =>
+  api.put<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/`, payload).then((r) => unwrap(r) as any)
+
+export const deleteEntryConditionRule = (id: string) =>
+  api.delete<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/`).then((r) => unwrap(r) as any)
+
+export const toggleEntryConditionRule = (id: string) =>
+  api.post<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/toggle/`).then((r) => unwrap(r) as any)
+
+export const reorderEntryConditionRules = (ruleOrders: { id: string; rule_seq: number }[]) =>
+  api.post<{ success: boolean; data: any }>('/entry-condition-rules/reorder/', { rules: ruleOrders }).then((r) => unwrap(r) as any)
+
+export const evaluateEntryConditionRule = (payload: Record<string, any>) =>
+  api.post<{ success: boolean; data: any }>('/entry-condition-rules/evaluate/', payload).then((r) => unwrap(r) as any)
+
+/* 字段字典：后端 GET /api/v1/expressions/fields 实现中，前端先 mock 兜底。
+ * 后端就绪后移除 mock 分支即可（字段名已对齐后端真实解析映射）。 */
+export const listEntryConditionFields = async (): Promise<any> => {
+  try {
+    return await api.get<{ success: boolean; data: any }>('/expressions/fields').then((r) => unwrap(r) as any)
+  } catch {
+    // 临时 mock 兜底（见 stage-rule/constants.ts AR_FIELD_CATALOG）
+    return AR_FIELD_CATALOG_FALLBACK
+  }
+}
+
+export const validateExpressionApi = (expression: string, maxId: number) =>
+  api
+    .post<{ success: boolean; data: { valid: boolean; error?: string } }>('/expressions/validate', {
+      expression,
+      max_id: maxId,
+    })
+    .then((r) => r.data.data)
+
+/* 临时 mock 字段字典（与 stage-rule/constants.ts 同源，避免循环依赖直接内联最小结构） */
+const AR_FIELD_CATALOG_FALLBACK = {
+  sources: [
+    {
+      source: 'DEMAND',
+      label: '需求中',
+      fields: [
+        { field: 'DEMAND_LEVEL', label: '需求职级', operators: ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY'] },
+        { field: 'HIRING_MANAGER', label: '用人经理', operators: ['EQ', 'NEQ', 'IN'], auto_filter_inactive_users: true },
+        { field: 'DEPARTMENT', label: '需求部门', operators: ['EQ', 'IN', 'NOT_IN'] },
+      ],
+    },
+    {
+      source: 'CANDIDATE',
+      label: '候选人中',
+      fields: [
+        { field: 'AGE', label: '年龄', operators: ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'] },
+        { field: 'GENDER', label: '性别', operators: ['EQ', 'NEQ', 'IN'] },
+        { field: 'HIGHEST_EDU', label: '最高学历', operators: ['EQ', 'NEQ', 'IN', 'NOT_IN'] },
+        { field: 'WORK_YEARS', label: '工作年限', operators: ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'] },
+        { field: 'CURRENT_CITY', label: '当前城市', operators: ['EQ', 'IN', 'NOT_IN'] },
+        { field: 'EXPECTED_CITY', label: '期望城市', operators: ['EQ', 'IN', 'NOT_IN'] },
+      ],
+    },
+    {
+      source: 'STAGE_STATUS',
+      label: '阶段状态',
+      fields: [
+        { field: 'stage_name', label: '阶段名称', operators: ['EQ', 'NEQ', 'IN'] },
+        { field: 'stage_statuses', label: '阶段状态', operators: ['IN', 'NOT_IN'], is_array: true },
+      ],
+    },
+  ],
+  operators: {
+    EQ: '等于', NEQ: '不等于', GT: '大于', GTE: '大于等于', LT: '小于', LTE: '小于等于',
+    BETWEEN: '区间', IN: '属于', NOT_IN: '不属于', IS_EMPTY: '为空', IS_NOT_EMPTY: '不为空',
+  },
+}
+
+/* ============================================================================
+ * @deprecated 旧进入条件 API（走 PATCH /process-stage-links/{id}/ entry_condition JSON）
+ *   已被 EntryConditionRuleViewSet 全套替代，待旧数据迁移完成后删除（spec commit 9）。
+ *   保留仅为旧引用兼容，新代码请勿调用。
+ * ========================================================================== */
+/* eslint-disable */
+/**
+ * @deprecated 2026-09-07 起废弃：进入条件已切到 EntryConditionRuleViewSet。
+ * 用 listEntryConditionRules / createEntryConditionRule / updateEntryConditionRule / deleteEntryConditionRule 代替。
+ */
+export const upsertEntryCondition = (
+  linkId: string,
+  payload: {
+    matchType: 'ALL' | 'ANY'
+    conditionType: 'STAGE_STATUS' | 'CANDIDATE' | 'MIXED'
+    prompt?: string
+    items: ConditionItem[]
+  },
+) =>
+  api.patch<{ success: boolean; data: ProcessStageLink }>(`/process-stage-links/${linkId}/`, {
+    entry_condition: payload,
+  }).then((r) => unwrap(r) as ProcessStageLink)
+
+/**
+ * @deprecated 2026-09-07 起废弃：改用 listEntryConditionRules（走 viewset）。
+ */
+export const listEntryConditions = async (params: { linkId: string }): Promise<EntryCondition[]> => {
+  const link = (await getProcessLink(params.linkId)) as any
+  return link?.entryCondition ? [link.entryCondition] : []
+}
+/* eslint-enable */
+
 export default {
   listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus,
   listStages, createStage, updateStage, deleteStage, disableStage, enableStage,
   listProcessLinks, addProcessLink, updateProcessLink, deleteProcessLink, reorderProcessLinks,
-  upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listStageRules, listEntryConditions,
+  upsertStageRule, evaluateEntryCondition, listStageRules,
   evaluateCandidateForStage, checkApplicationStageTransition,
   listRounds, createRound, updateRound, updateRoundStatus,
+  // 2026-09-07 新增：进入条件规则 viewset 全套
+  listEntryConditionRules, createEntryConditionRule, updateEntryConditionRule, deleteEntryConditionRule,
+  toggleEntryConditionRule, reorderEntryConditionRules, evaluateEntryConditionRule,
+  listEntryConditionFields, validateExpressionApi,
 };

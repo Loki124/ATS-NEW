@@ -1,0 +1,116 @@
+/**
+ * 阶段配置规则 — 类型定义
+ * 严格对齐后端 schema（EntryConditionRuleViewSet / StageRule skip_rules·archive_rules JSONField）。
+ * 颜色 / 视觉一律走 design token，本文件不含任何样式。
+ */
+
+/** 数据源枚举（condition_type）。v1 仅渲染后端返回的 3 种，缺口（POSITION/RESUME）不出现。 */
+export type SourceKey = 'STAGE_STATUS' | 'CANDIDATE' | 'DEMAND'
+
+/** 运算符枚举（与后端 services.py 解析映射一致） */
+export type OperatorKey =
+  | 'EQ'
+  | 'NEQ'
+  | 'GT'
+  | 'GTE'
+  | 'LT'
+  | 'LTE'
+  | 'BETWEEN'
+  | 'IN'
+  | 'NOT_IN'
+  | 'IS_EMPTY'
+  | 'IS_NOT_EMPTY'
+
+/** 自动跳过执行动作 */
+export type SkipAction = 'SKIP' | 'APPROVE' | 'REJECT'
+
+/** 单条条件项（1 个 EntryConditionRule = 1 expression + N ConditionItem，扁平无嵌套组） */
+export interface ConditionItem {
+  id?: string
+  item_seq: number
+  condition_type: SourceKey
+  field: string
+  stage_name?: string | null
+  stage_statuses?: string[]
+  operator: OperatorKey
+  value?: any
+  auto_filter_inactive_users?: boolean
+}
+
+/** 进入条件规则（= 原型 1 个条件组） */
+export interface EntryConditionRule {
+  id?: string
+  rule_name: string
+  rule_seq: number
+  status: 'ENABLED' | 'DISABLED'
+  expression: string
+  reject_message: string
+  items: ConditionItem[]
+}
+
+/** 自动跳过规则（存于 StageRule.skip_rules JSON 数组） */
+export interface SkipRule {
+  id: string
+  name: string
+  enabled: boolean
+  scope: 'NEW_ONLY' | 'ALL'
+  expression: string
+  items: ConditionItem[]
+  action: SkipAction
+}
+
+/** 自动归档规则（存于 StageRule.archive_rules JSON 数组） */
+export interface ArchiveRule {
+  id: string
+  name: string
+  enabled: boolean
+  scope: 'NEW_ONLY' | 'ALL'
+  expression: string
+  items: ConditionItem[]
+  lock_days: number
+  extend_days: number
+  effective_scope: 'ALL' | 'NEW_ONLY'
+}
+
+/** 字段字典：单个字段定义 */
+export interface FieldDef {
+  field: string
+  label: string
+  operators: OperatorKey[]
+  is_array?: boolean
+  auto_filter_inactive_users?: boolean
+  /** mock 字典选项（后端就绪后由 /expressions/fields 返回，前端仅渲染） */
+  options?: { label: string; value: string }[]
+}
+
+/** 字段字典：单个 source 定义 */
+export interface SourceDef {
+  source: SourceKey
+  label: string
+  fields: FieldDef[]
+}
+
+/** 字段字典整体结构（对齐 spec §1 约定契约） */
+export interface FieldCatalog {
+  sources: SourceDef[]
+  operators: Record<OperatorKey, string>
+}
+
+/** 主表单聚合 state（StageRule 主链路 + entry/skip/archive 三类规则） */
+export interface StageRuleFormState {
+  // Card 2 默认处理人
+  defaultHandlerType: 'FROM_DEMAND' | 'FROM_POSITION' | 'CUSTOM'
+  defaultHandlerFields: string[]
+  defaultHandlerUserIds: string[]
+  // Card 3 面试配置
+  interviewRoundIds: string[]
+  interviewFormat: string[]
+  // Card 4 流程自动化
+  autoEvalN2: boolean
+  autoEvalPrevAa: boolean
+  autoAdvanceType: 'NONE' | 'MEET_NEXT' | 'IGNORE_NEXT' | 'MEET_NEXT_OR_N2' | 'N1_ALL_PASS'
+  autoAdvanceTiming: 'NONE' | 'IMMEDIATE' | 'DELAYED'
+  autoAdvanceDays: number | null
+  skipEnabled: boolean
+  archiveEnabled: boolean
+}
