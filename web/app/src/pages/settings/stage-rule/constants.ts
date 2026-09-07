@@ -187,6 +187,9 @@ export const HANDLER_RULE_OPTIONS = [
 /** 条件组上限（原型约束） */
 export const AR_MAX_CONDITIONS = 10
 
+/** 条件组数上限（原型约束，最多 10 组） */
+export const AR_MAX_GROUPS = 10
+
 /** 规则名长度上限 */
 export const AR_RULE_NAME_MAX = 30
 

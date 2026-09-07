@@ -37,14 +37,29 @@ export interface ConditionItem {
   auto_filter_inactive_users?: boolean
 }
 
-/** 进入条件规则（= 原型 1 个条件组） */
+/** 单个条件组（HTML 原型 UI 嵌套结构；后端无对应 schema，本地 state 模拟） */
+export interface ConditionGroup {
+  /** 组内条件项序列 1..N */
+  conditions: ConditionItem[]
+  /** 组内表达式（如 "1 and 2"），可空 */
+  innerExpression: string
+  /** 组内未满足提示，可空 */
+  innerPrompt: string
+}
+
+/** 进入条件规则（= 原型 1 个条件组）。本地 draft 仍用 groups 嵌套结构，落库时拍平 */
 export interface EntryConditionRule {
   id?: string
   rule_name: string
   rule_seq: number
   status: 'ENABLED' | 'DISABLED'
+  /** 整条规则的"条件组表达式"（如 "(1) and (2)"），落库写入 expression */
   expression: string
+  /** 整条规则的"整体未满足提示"（textarea，最多 500 字），落库写入 reject_message */
   reject_message: string
+  /** 嵌套条件组（编辑态用）；加载/落库时与 items / expression / reject_message 双向转换 */
+  groups?: ConditionGroup[]
+  /** 拍平后的条件项（落库/加载用） */
   items: ConditionItem[]
 }
 
