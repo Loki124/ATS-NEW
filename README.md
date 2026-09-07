@@ -2,11 +2,13 @@
 
 > **Applicant Tracking System** — Django 6.0 + DRF 3.17 + Vue 3 monorepo
 >
-> **状态** (2026-08-04 @ HEAD `010e4d4`): CI 384 passed / 0 failed · 30 apps · 78 表 · 7 状态机
+> **状态** (2026-08-04 @ HEAD `010e4d4`): CI 384 passed / 0 failed · 35 apps · 70 表 · 7 状态机
 >
 > **当前阶段**: Phase 0+1 收口完成（R1-R11 + BUG-1~7 全部修复），Phase 2 T01.1 已落地（V2 权限物理 schema 真实建表），余下 T01.2+ 进行中
 
-Django + Vue 3 monorepo, 部署详见 [RUNBOOK.md](./RUNBOOK.md), 架构详见 [technical.md](./technical.md), 需求详见 [requirements.md](./requirements.md).
+Django + Vue 3 monorepo, 部署详见 [RUNBOOK.md](./docs/06-runbook/RUNBOOK.md), 架构详见 [technical.md](./docs/02-architecture/technical.md), 需求详见 [requirements.md](./docs/03-product/requirements.md).
+
+> 📚 **文档中心**：项目全部 **156 份**文档已统一汇总至 [`docs/README.md`](./docs/README.md)，按 9 大主题分类（代码知识库 / 架构 / 产品 / UI / 校招 / 运维 / 审计 / 任务 / 归档），并含文档质量审计结论。**找文档请从该入口进入。**（2026-09-07 汇总，此前文档分散在 18 处）
 
 ---
 
@@ -94,22 +96,22 @@ npm test          # 132 vitest
 
 | 文档 | 用途 |
 |---|---|
-| [technical.md](./technical.md) | 技术架构 + 30 apps + 78 表 + 19 已修风险 |
-| [RUNBOOK.md](./RUNBOOK.md) | 跑通指南 + 紧急回滚按场景 |
-| [requirements.md](./requirements.md) | 业务需求 + Phase 2 待办 |
-| [docs/ARCHITECTURE_REVIEW_2026-08-03.md](./docs/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
-| [docs/PHASE2_DESIGN_2026-08-03.md](./docs/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 (T01-T07) |
-| [docs/PHASE2_PRECHECK_2026-08-03.md](./docs/PHASE2_PRECHECK_2026-08-03.md) | Phase 2 预检盘点 |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 模块图 |
-| [docs/CHANGELOG.md](./docs/CHANGELOG.md) | 变更历史 |
-| [docs/MIGRATION.md](./docs/MIGRATION.md) | 旧栈迁移日志 |
-| [docs/SETUP.md](./docs/SETUP.md) | 详细环境搭建 |
-| [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | 常见问题 |
-| [docs/PERFORMANCE.md](./docs/PERFORMANCE.md) | 性能基线 |
-| [docs/PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) | 路线图 |
-| [docs/DOCUMENTATION_AUDIT_2026-08-04.md](./docs/DOCUMENTATION_AUDIT_2026-08-04.md) | 2026-08-04 文档审计 |
-| [docs/QA_T011_VERIFY_2026-08-04.md](./docs/QA_T011_VERIFY_2026-08-04.md) | T01.1 QA 验证 |
-| [docs/QA_BUG7_VERIFY_2026-08-04.md](./docs/QA_BUG7_VERIFY_2026-08-04.md) | BUG-7 QA 验证 |
+| [technical.md](./docs/02-architecture/technical.md) | 技术架构 + 35 apps + 70 表 + 19 已修风险 |
+| [RUNBOOK.md](./docs/06-runbook/RUNBOOK.md) | 跑通指南 + 紧急回滚按场景 |
+| [requirements.md](./docs/03-product/requirements.md) | 业务需求 + Phase 2 待办 |
+| [docs/ARCHITECTURE_REVIEW_2026-08-03.md](./docs/02-architecture/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
+| [docs/PHASE2_DESIGN_2026-08-03.md](./docs/09-archive/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 (T01-T07) |
+| [docs/PHASE2_PRECHECK_2026-08-03.md](./docs/09-archive/PHASE2_PRECHECK_2026-08-03.md) | Phase 2 预检盘点 |
+| [docs/ARCHITECTURE.md](./docs/02-architecture/ARCHITECTURE.md) | 模块图 |
+| [docs/CHANGELOG.md](./docs/06-runbook/CHANGELOG.md) | 变更历史 |
+| [docs/MIGRATION.md](./docs/06-runbook/MIGRATION.md) | 旧栈迁移日志 |
+| [docs/SETUP.md](./docs/06-runbook/SETUP.md) | 详细环境搭建 |
+| [docs/TROUBLESHOOTING.md](./docs/06-runbook/TROUBLESHOOTING.md) | 常见问题 |
+| [docs/PERFORMANCE.md](./docs/06-runbook/PERFORMANCE.md) | 性能基线 |
+| [docs/PROJECT_PLAN.md](./docs/03-product/PROJECT_PLAN.md) | 路线图 |
+| [docs/DOCUMENTATION_AUDIT_2026-08-04.md](./docs/07-audit/DOCUMENTATION_AUDIT_2026-08-04.md) | 2026-08-04 文档审计 |
+| [docs/QA_T011_VERIFY_2026-08-04.md](./docs/07-audit/QA_T011_VERIFY_2026-08-04.md) | T01.1 QA 验证 |
+| [docs/QA_BUG7_VERIFY_2026-08-04.md](./docs/07-audit/QA_BUG7_VERIFY_2026-08-04.md) | BUG-7 QA 验证 |
 
 ---
 
