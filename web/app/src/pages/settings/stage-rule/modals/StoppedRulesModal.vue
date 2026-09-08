@@ -11,7 +11,7 @@
     @update:show="(v: boolean) => !v && onRequestClose()"
   >
     <div class="sr-body">
-      <p class="field-hint">以下为已停用的自动归档规则，重新启用后将恢复生效。</p>
+      <p class="field-hint">以下为已停用的自动跳过 / 自动归档规则，重新启用后将恢复生效。</p>
       <RuleTable :columns="columns" :rows="rules">
         <template #actions="{ row }">
           <div class="action-btns">
@@ -33,24 +33,31 @@
 import { ref } from 'vue'
 import { NModal, NButton } from 'naive-ui'
 import RuleTable from '../components/RuleTable.vue'
-import type { ArchiveRule } from '../types'
+
+export interface StoppedItem {
+  id: string
+  name: string
+  expression: string
+  kindLabel: string
+  rule: any
+}
 
 const emit = defineEmits<{
-  (e: 'reenable', rule: ArchiveRule): void
+  (e: 'reenable', item: StoppedItem): void
   (e: 'close'): void
 }>()
 
 const visible = ref(false)
 const saving = ref(false)
-const rules = ref<ArchiveRule[]>([])
+const rules = ref<StoppedItem[]>([])
 
 const columns = [
-  { key: 'name', title: '规则名', width: '34%' },
-  { key: 'expression', title: '执行条件', width: '40%' },
-  { key: 'effective_scope', title: '生效方式', width: '16%' },
+  { key: 'name', title: '规则名', width: '24%' },
+  { key: 'kindLabel', title: '类型', width: '16%' },
+  { key: 'expression', title: '执行条件', width: '44%' },
 ]
 
-function open(list: ArchiveRule[]) {
+function open(list: StoppedItem[]) {
   rules.value = list
   visible.value = true
 }

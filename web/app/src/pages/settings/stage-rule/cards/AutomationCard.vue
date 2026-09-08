@@ -71,7 +71,7 @@
             <n-icon :component="AddOutline" /> 添加规则
           </button>
         </div>
-        <RuleTable :columns="skipColumns" :rows="skipRules">
+        <RuleTable :columns="skipColumns" :rows="skipRules.filter((r: SkipRule) => r.enabled)">
           <template #cell-action="{ row }">{{ actionLabel(row.action) }}</template>
           <template #actions="{ row }">
             <div class="action-btns">
@@ -101,7 +101,7 @@
             <n-icon :component="EyeOffOutline" /> 查看已停用规则
           </button>
         </div>
-        <RuleTable :columns="archiveColumns" :rows="archiveRules">
+        <RuleTable :columns="archiveColumns" :rows="archiveRules.filter((r: ArchiveRule) => r.enabled)">
           <template #cell-action="{ row }">
             <div class="archive-action">
               <div>锁定 {{ row.lock_days || 0 }} 天；加时 {{ row.extend_days || 0 }} 天/人；</div>

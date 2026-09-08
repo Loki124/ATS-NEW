@@ -13,7 +13,7 @@
       </span>
       <span class="title-actions">
         <button class="btn-outline-primary" type="button" @click="emit('configure')">
-          <n-icon :component="CreateOutline" /> 规则配置
+          <n-icon :component="CreateOutline" /> {{ rules.length ? '编辑规则' : '规则配置' }}
         </button>
         <ModuleSwitch :model-value="moduleOn" @update:model-value="emit('update:moduleOn', $event)" />
       </span>

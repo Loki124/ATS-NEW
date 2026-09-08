@@ -41,7 +41,7 @@
             :rules="entryRules"
             :module-on="entryEnabled"
             @update:module-on="(v: boolean) => (entryEnabled = v)"
-            @configure="entryModal.open()"
+            @configure="onEntryConfigure"
             @edit="(r: EntryConditionRule) => entryModal.open(r)"
             @toggle="toggleEntry"
             @remove="removeEntry"
@@ -77,7 +77,7 @@
     <EntryRuleEditModal ref="entryModal" :catalog="activeCatalog" @save="onEntrySave" @close="onSubClose" />
     <SkipRuleEditModal ref="skipModal" :catalog="activeCatalog" @save="onSkipSave" @close="onSubClose" />
     <ArchiveRuleEditModal ref="archiveModal" :catalog="activeCatalog" @save="onArchiveSave" @close="onSubClose" />
-    <StoppedRulesModal ref="stoppedModal" @reenable="onArchiveReenable" @close="onSubClose" />
+    <StoppedRulesModal ref="stoppedModal" @reenable="onReenable" @close="onSubClose" />
   </n-modal>
 </template>
 
@@ -170,7 +170,9 @@ function onSkipSave(rule: SkipRule) {
   form.skipEnabled = true
 }
 function removeSkip(rule: SkipRule) {
-  skipRules.value = skipRules.value.filter((x) => x.id !== rule.id)
+  // P0-2：停用 = 软禁用，移出主表、仅出现在「已停用规则」弹窗（不删除）
+  const r = skipRules.value.find((x) => x.id === rule.id)
+  if (r) r.enabled = false
 }
 
 // ===== 自动归档规则 =====
@@ -181,15 +183,28 @@ function onArchiveSave(rule: ArchiveRule) {
   form.archiveEnabled = true
 }
 function removeArchive(rule: ArchiveRule) {
-  archiveRules.value = archiveRules.value.filter((x) => x.id !== rule.id)
+  // P0-2：停用 = 软禁用，移出主表、仅出现在「已停用规则」弹窗（不删除）
+  const r = archiveRules.value.find((x) => x.id === rule.id)
+  if (r) r.enabled = false
 }
 function showStopped() {
-  stoppedModal.value?.open(archiveRules.value.filter((r) => !r.enabled))
+  // P0-2：同时收纳「自动跳过 / 自动归档」中被停用的规则
+  const disabled = [
+    ...skipRules.value.filter((r) => !r.enabled).map((r) => ({ rule: r, kindLabel: '自动跳过' })),
+    ...archiveRules.value.filter((r) => !r.enabled).map((r) => ({ rule: r, kindLabel: '自动归档' })),
+  ]
+  stoppedModal.value?.open(disabled)
 }
-function onArchiveReenable(rule: ArchiveRule) {
-  const r = archiveRules.value.find((x) => x.id === rule.id)
-  if (r) r.enabled = true
+function onReenable(payload: { rule: SkipRule | ArchiveRule }) {
+  // P0-2：重新启用停用规则（跳过 / 归档通用）
+  payload.rule.enabled = true
   message.success('已重新启用')
+}
+
+// ===== 进入条件规则（P0-4：仅允许一条，规则配置直接打开已存在的那条）=====
+function onEntryConfigure() {
+  const existing = entryRules.value.find((r) => r.id) || entryRules.value[0]
+  entryModal.value?.open(existing)
 }
 
 function onSubClose() {
