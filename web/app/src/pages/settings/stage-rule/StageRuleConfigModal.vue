@@ -235,6 +235,95 @@ async function handleSubmit() {
 .stage-rule-config-modal .n-card__content {
   padding: 0;
 }
+
+/* ===== 卡片公共样式（必须非 scoped）=====
+ * Card1-4 是子组件，Vue scoped 只命中子组件根节点，内部 .card-title / .flow-block /
+ * .block-header 拿不到父 scope id → 父 scoped 样式对它们全部落空（P0-1 根因）。
+ * 故这些「子卡片内部」的样式统一放在此全局块，用 .stage-rule-config-modal 前缀收口。 */
+.stage-rule-config-modal .config-card {
+  background: var(--g1);
+  border: 1px solid var(--border-hairline);
+  border-radius: 12px;  /* 原型 config-card radius 12 */
+  padding: 14px 16px 16px;  /* 原型 14 16 16 */
+}
+.stage-rule-config-modal .card-title {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 12px;  /* 原型 12px */
+  letter-spacing: -0.01em;
+}
+.stage-rule-config-modal .card-title .n-icon {
+  color: var(--brand);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.stage-rule-config-modal .card-title .title-actions {
+  gap: var(--space-3);
+}
+.stage-rule-config-modal .title-desc {
+  font-weight: 400;
+  font-size: 11.5px;  /* 原型辅助说明 11.5px */
+  color: var(--ink-faint);  /* 原型 #86909c 接近 --ink-faint #64748B */
+  margin-left: 2px;
+}
+
+/* ===== Flow Block ===== */
+.stage-rule-config-modal .flow-block {
+  background: var(--surface);
+  border-radius: 10px;  /* 原型 flow-block radius 10 */
+  padding: 10px 14px;  /* 原型 10 14 */
+  margin-bottom: 12px;
+  box-shadow: 0 0 0 1px var(--border-hairline), 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+.stage-rule-config-modal .flow-block:last-child {
+  margin-bottom: 0;
+}
+.stage-rule-config-modal .flow-block:hover {
+  box-shadow: 0 0 0 1px var(--border-hairline), 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+.stage-rule-config-modal .block-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.stage-rule-config-modal .block-header .n-icon {
+  color: var(--brand);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.stage-rule-config-modal .block-desc {
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-left: 2px;
+  line-height: 1.4;
+}
+.stage-rule-config-modal .block-header--secondary {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.stage-rule-config-modal .block-header--split {
+  justify-content: space-between;
+  align-items: center;
+}
+.stage-rule-config-modal .block-header__main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
 </style>
 
 <style scoped>
@@ -323,94 +412,15 @@ async function handleSubmit() {
   color: var(--ink);
 }
 
-/* ===== Section Card ===== */
+/* ===== Section Card 容器（主壳自身元素，scoped 可命中）=====
+ * 注意：.config-card / .card-title / .flow-block / .block-header 等「子卡片内部」样式
+ * 已迁移到本文件顶部的非 scoped 块（P0-1 修复），此处不再重复定义。 */
 .rule-config-flat {
   display: flex;
   flex-direction: column;
   gap: 12px;  /* 原型卡片间距 12px */
   padding: 14px 20px;  /* 原型主体 padding 16 20 */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
-}
-.config-card {
-  background: var(--g1);
-  border: 1px solid var(--border);
-  border-radius: 12px;  /* 原型 config-card radius 12 */
-  padding: 14px 16px 16px;  /* 原型 14 16 16 */
-}
-.card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 14px;
-  letter-spacing: -0.01em;
-}
-.card-title :deep(.n-icon) {
-  color: var(--brand);
-  font-size: 14px;
-  flex-shrink: 0;
-}
-/* Card 标题 row 右侧 actions 内部间距（原型按钮与开关之间有呼吸） */
-.card-title .title-actions {
-  gap: var(--space-3);
-}
-.title-desc {
-  font-weight: 400;
-  font-size: 11.5px;  /* 原型辅助说明 11.5px */
-  color: var(--ink-faint);  /* 原型 #86909c 接近 --ink-faint #64748B */
-  margin-left: 2px;
-}
-
-/* ===== Flow Block ===== */
-.flow-block {
-  background: var(--surface);
-  border-radius: 10px;  /* 原型 flow-block radius 10 */
-  padding: 10px 14px;  /* 原型 10 14 */
-  margin-bottom: 12px;
-  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: box-shadow var(--duration-fast) var(--ease-out);
-}
-.flow-block:last-child {
-  margin-bottom: 0;
-}
-.block-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--fs-13);
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.block-header :deep(.n-icon) {
-  color: var(--brand);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.block-desc {
-  font-weight: 400;
-  font-size: 11.5px;
-  color: var(--ink-soft);
-  margin-left: 2px;
-  line-height: 1.4;
-}
-.block-header--secondary {
-  font-size: 13.5px;
-  font-weight: 650;
-}
-.block-header--split {
-  justify-content: space-between;
-  align-items: center;
-}
-.block-header__main {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  flex: 1;
 }
 
 /* ===== Footer ===== */

@@ -223,10 +223,10 @@ function actionLabel(a: SkipRule['action']) {
   flex-wrap: wrap;
   margin-top: 8px;
 }
-.btn-outline-primary,
-.btn-outline {
-  background: transparent;
-  border: 1px dashed var(--brand);
+/* 原型 .btn-outline.primary：实线品牌描边 + 白底，hover 实心品牌底 + 白字 */
+.btn-outline-primary {
+  background: var(--surface);
+  border: 1px solid var(--brand);
   color: var(--brand);
   padding: 0 14px;
   height: 30px;
@@ -240,10 +240,34 @@ function actionLabel(a: SkipRule['action']) {
   white-space: nowrap;
   font-weight: 500;
 }
-.btn-outline-primary:hover,
+.btn-outline-primary:hover {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 原型 .btn-outline：灰虚线次要按钮，与主按钮在颜色上明确区分 */
+.btn-outline {
+  background: transparent;
+  border: 1px dashed var(--g6);
+  color: var(--ink-soft);
+  padding: 0 14px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+}
 .btn-outline:hover {
   background: var(--brand-a12);
-  border-style: solid;
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 /* 自动归档执行动作（HTML 原型 .rule-table .action-btns 同款多行结构） */

@@ -222,9 +222,10 @@ function onSave() {
   font-size: var(--fs-12);
   margin: 4px 0 0;
 }
+/* 原型 .btn-outline.primary：实线品牌描边 + 白底，hover 实心品牌底 + 白字 */
 .btn-outline-primary {
-  background: transparent;
-  border: 1px dashed var(--brand);
+  background: var(--surface);
+  border: 1px solid var(--brand);
   color: var(--brand);
   padding: 0 14px;
   height: 30px;
@@ -242,8 +243,10 @@ function onSave() {
   cursor: not-allowed;
 }
 .btn-outline-primary:hover:not(:disabled) {
-  background: var(--brand-a12);
-  border-style: solid;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+  box-shadow: var(--shadow-sm);
 }
 .modal-footer {
   padding: var(--space-3) 0;

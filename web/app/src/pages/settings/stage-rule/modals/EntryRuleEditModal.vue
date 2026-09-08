@@ -274,7 +274,7 @@ function onSave() {
   background: var(--ink);
   color: var(--g6);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-elev);
+  box-shadow: var(--shadow-elevated);  /* 原 var(--shadow-elev) 未定义，阴影被丢弃 */
   padding: 11px 13px;
   z-index: 30;
   font-size: var(--fs-12);

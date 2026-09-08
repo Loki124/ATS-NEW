@@ -123,9 +123,10 @@ function formatCondition(it: ConditionItem): string {
   margin: 0;
 }
 
+/* 原型 .btn-outline.primary：实线品牌描边 + 白底，hover 实心品牌底 + 白字 */
 .btn-outline-primary {
-  background: transparent;
-  border: 1px dashed var(--brand);
+  background: var(--surface);
+  border: 1px solid var(--brand);
   color: var(--brand);
   padding: 0 14px;
   height: 30px;
@@ -140,8 +141,10 @@ function formatCondition(it: ConditionItem): string {
   font-weight: 500;
 }
 .btn-outline-primary:hover {
-  background: var(--brand-a12);
-  border-style: solid;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ===== Rule Table (HTML 原型 .rule-table) ===== */
@@ -167,14 +170,14 @@ function formatCondition(it: ConditionItem): string {
   font-weight: 500;
   font-size: 12px;  /* 原型表头 12px */
   color: var(--ink-soft);  /* 原型 #4e5a66 */
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--g2);  /* 原型 #e5e6eb（原 var(--border) 未定义，边框被丢弃） */
   white-space: nowrap;
 }
 .rule-table td {
   padding: 8px 12px;
   font-size: 12.5px;  /* 原型表格内容 12.5px */
   color: var(--ink);
-  border-bottom: 1px solid var(--border-light);  /* 原型浅边框 #eaebef */
+  border-bottom: 1px solid var(--border-hairline);  /* 原型浅边框 #eaebef */
   vertical-align: middle;
   line-height: 1.4;
 }

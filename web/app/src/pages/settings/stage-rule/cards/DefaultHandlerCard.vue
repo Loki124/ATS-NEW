@@ -6,46 +6,44 @@
       <span class="title-desc">· 进入本阶段时自动为默认处理人添加待办任务</span>
     </div>
 
-    <div class="flow-block">
-      <div class="flow-condition-row flow-condition-row--3">
-        <div class="flow-field">
-          <label class="field-label">
-            数据来源 <span class="required-mark">*</span>
-          </label>
-          <n-select
-            size="small"
-            :value="form.defaultHandlerType"
-            :options="sourceOptions"
-            @update:value="onSource"
-          />
-        </div>
-        <div class="flow-field">
-          <label class="field-label">
-            取值字段 <span class="required-mark">*</span>
-          </label>
-          <n-select
-            size="small"
-            :value="fieldValue"
-            :options="fieldOptions"
-            :disabled="isFieldDisabled"
-            placeholder="选择字段"
-            @update:value="onField"
-          />
-        </div>
-        <div class="flow-field">
-          <label class="field-label">处理规则</label>
-          <n-select
-            size="small"
-            :value="ruleValue"
-            :options="ruleOptions"
-            :disabled="isRuleDisabled"
-            placeholder="指定处理人"
-            filterable
-            @update:value="onRule"
-          />
-        </div>
+    <!-- 原型 Card 2：三个下拉直接放在 config-card 内，无 flow-block 白块包裹 -->
+    <div class="flow-condition-row flow-condition-row--3">
+      <div class="flow-field">
+        <label class="field-label">
+          数据来源 <span class="required-mark">*</span>
+        </label>
+        <n-select
+          size="small"
+          :value="form.defaultHandlerType"
+          :options="sourceOptions"
+          @update:value="onSource"
+        />
       </div>
-      <p class="field-hint">数据来源切换会重置取值字段；「指定人」来源需在选择处理规则处指定具体用户。</p>
+      <div class="flow-field">
+        <label class="field-label">
+          取值字段 <span class="required-mark">*</span>
+        </label>
+        <n-select
+          size="small"
+          :value="fieldValue"
+          :options="fieldOptions"
+          :disabled="isFieldDisabled"
+          placeholder="选择字段"
+          @update:value="onField"
+        />
+      </div>
+      <div class="flow-field">
+        <label class="field-label">处理规则</label>
+        <n-select
+          size="small"
+          :value="ruleValue"
+          :options="ruleOptions"
+          :disabled="isRuleDisabled"
+          placeholder="指定处理人"
+          filterable
+          @update:value="onRule"
+        />
+      </div>
     </div>
   </section>
 </template>
@@ -124,12 +122,6 @@ function onRule(v: string | null) {
   margin-bottom: 4px;
   font-weight: 500;
   line-height: 1.3;
-}
-.field-hint {
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
-  line-height: 1.5;
-  margin: 8px 0 0;
 }
 .required-mark {
   color: var(--c-error);
