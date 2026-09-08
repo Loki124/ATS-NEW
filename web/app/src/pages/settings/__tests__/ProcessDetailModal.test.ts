@@ -148,20 +148,9 @@ describe('ProcessDetailModal.vue', () => {
     expect(document.querySelectorAll('.stage-card__system-badge')).toHaveLength(2)
   })
 
-  // --- 旧契约 3 (替换为 enterEdit) ---
-  it('emits enterEdit when click [编辑]', async () => {
-    wrapper = factory({ show: true, processId: 'p1' })
-    await flushPromises()
-    await nextTick()
-    const btn = document.querySelector('[data-testid="btn-enter-edit"]') as HTMLElement
-    expect(btn).toBeTruthy()
-    btn.click()
-    await flushPromises()
-    const inner = wrapper.findComponent(ProcessDetailModal)
-    expect(inner.emitted('enterEdit')).toBeTruthy()
-  })
+  // --- 契约 3 (统一后不再有 view→edit 切换; enterEdit 已移除) 见下方契约 4 ---
 
-  // --- 新契约 4 ---
+  // --- 契约 4 ---
   it('enterEdit switches mode to edit and populates editForm', async () => {
     wrapper = factory({ show: true, processId: 'p1', defaultMode: 'edit' })
     await flushPromises()
