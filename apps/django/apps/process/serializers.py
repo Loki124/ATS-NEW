@@ -348,7 +348,7 @@ class RecruitmentProcessListSerializer(serializers.ModelSerializer):
             'id', 'code', 'name', 'current_version',
             'is_template', 'template_code',
             'is_enabled', 'validate_resume_score',
-            'status', 'description',
+            'status', 'applicable_scope', 'description',
             'stage_count', 'reference_count',
             'created_at', 'updated_at',
             'created_by', 'updated_by',

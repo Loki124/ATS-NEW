@@ -49,12 +49,27 @@ import { ref, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NIcon, NDataTable, NPopconfirm, NSpace } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { listProcesses, deleteProcess } from '../../api/recruitment-process'
+import api from '../../api/auth'
 import ProcessDetailModal from './ProcessDetailModal.vue'
 
 const message = useMessage()
 const keyword = ref('')
 const processes = ref<any[]>([])
 const loading = ref(false)
+// 2026-09-08: 适用部门列需从结构化 applicable_scope 提取部门 ID 并映射成名称，
+// 先拉一次部门选项建 id->name 映射（与 ProcessDetailModal.loadScopeOptions 同源）。
+const deptMap = ref<Record<string, string>>({})
+async function loadDepartments() {
+  try {
+    const res = await api.get('/departments/')
+    const list = Array.isArray(res) ? res : (res?.data?.data ?? res?.data ?? [])
+    const map: Record<string, string> = {}
+    for (const d of list) map[String(d.id)] = d.name
+    deptMap.value = map
+  } catch {
+    // 部门解析失败不阻塞列表，列回退显示 ID
+  }
+}
 // 2026-08-29 UX 整改：表头固定 + 行高统一。表格高度 = 视窗高 - 上方累计(标题/工具条/分页)。
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
 const TABLE_ROW_HEIGHT = 44
@@ -69,11 +84,11 @@ const columns = [
   { title: '流程名称', key: 'name', width: 200, ellipsis: true, ellipsisProps: { tooltip: true } },
   {
     title: '适用部门',
-    key: 'applicableDepartments',
-    width: 140,
+    key: 'applicableScope',
+    width: 150,
     ellipsis: true,
     ellipsisProps: { tooltip: true },
-    render: (r: any) => formatDepts(r.applicableDepartments),
+    render: (r: any) => formatScopeDepts(r.applicableScope),
   },
   {
     title: '阶段数',
@@ -85,7 +100,10 @@ const columns = [
     title: '状态',
     key: 'status',
     width: 90,
-    render: (row: any) => h(NTag, { type: row.status === 'ACTIVE' ? 'success' : 'default' }, { default: () => row.status === 'ACTIVE' ? '启用' : '停用' }),
+    render: (row: any) => {
+      const enabled = row.status === 'ENABLED'
+      return h(NTag, { type: enabled ? 'success' : 'default' }, { default: () => enabled ? '启用' : '已归档' })
+    },
   },
   { title: '最后修改人', key: 'updatedBy', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' },
   { title: '最后修改时间', key: 'updatedAt', width: 170, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => formatDate(r.updatedAt) },
@@ -136,6 +154,21 @@ function formatDepts(d: any): string {
     return `${d.slice(0, 2).join(', ')} +${d.length - 2}`
   }
   return '全部'
+}
+
+/** 从结构化 applicable_scope 提取部门条件，映射成名称；无部门条件 = 全部。
+ *  兼容新格式 scope.indicators 与旧格式 scope.items（与 ProcessDetailModal.findIndicator 一致）。 */
+function formatScopeDepts(scope: any): string {
+  if (!scope) return '全部'
+  const list = scope.indicators || scope.items
+  if (!Array.isArray(list)) return '全部'
+  const deptIds = list
+    .filter((it: any) => it && it.key === 'department' && it.mode === 'include' && Array.isArray(it.values))
+    .flatMap((it: any) => it.values)
+  if (deptIds.length === 0) return '全部'
+  const names = deptIds.map((id: any) => deptMap.value[String(id)] || String(id))
+  if (names.length <= 2) return names.join('、')
+  return `${names.slice(0, 2).join('、')} 等${names.length}个部门`
 }
 
 async function loadList() {
@@ -196,7 +229,7 @@ async function handleDelete(row: any) {
   }
 }
 
-onMounted(() => loadList())
+onMounted(async () => { await loadDepartments(); loadList() })
 </script>
 
 <style scoped>
