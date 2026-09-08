@@ -19,16 +19,26 @@
         - create / retrieve / update 与 list 一样统一返回 ``{"data": ...}`` 信封,
           与前端 ``.then(r => r.data.data)`` 的消费方式对齐。
 """
+import csv
+import io
+import json
+
 from django.db import IntegrityError, transaction
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import DynamicField
-from .serializers import DUPLICATE_FIELD_KEY_MESSAGE, DynamicFieldSerializer
+from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule
+from .serializers import (
+    DUPLICATE_FIELD_KEY_MESSAGE,
+    DynamicFieldSerializer,
+    FieldModuleSerializer,
+    FieldGroupSerializer,
+    FieldLinkageRuleSerializer,
+)
 
 
 class DynamicFieldViewSet(viewsets.ModelViewSet):
@@ -83,8 +93,19 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
     # --- 读 ------------------------------------------------------------------
 
     def list(self, request, *args, **kwargs) -> Response:
-        """GET /dynamic-fields/<resource>/fields/ — 按 order_index 升序返回全量。"""
+        """GET /dynamic-fields/<resource>/fields/ — 按 order_index 升序返回全量。
+
+        支持可选筛选(留空 = 全部):
+          - ``module_id`` / ``moduleId``: 按模块筛选
+          - ``group_id``  / ``groupId`` : 按分组筛选
+        """
         queryset = self.get_queryset().filter(resource=self.get_resource()).order_by('order_index')
+        module_id = request.query_params.get('module_id') or request.query_params.get('moduleId')
+        group_id = request.query_params.get('group_id') or request.query_params.get('groupId')
+        if module_id:
+            queryset = queryset.filter(module_id=module_id)
+        if group_id:
+            queryset = queryset.filter(group_id=group_id)
         serializer = self.get_serializer(queryset, many=True)
         return Response({'data': serializer.data})
 
@@ -189,6 +210,158 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             self.get_queryset().filter(id=field_id, resource=resource).update(order_index=index)
         return Response({'success': True})
 
+    # --- 导入 / 导出 -----------------------------------------------------------
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export(self, request, resource=None) -> HttpResponse:
+        """GET /dynamic-fields/<resource>/fields/export/?format=json|csv
+
+        导出当前筛选结果(同样支持 module_id/group_id)。JSON 含完整结构
+        (选项/校验/模块分组 code); CSV 便于 Excel 批量编辑。
+        """
+        queryset = self.get_queryset().filter(resource=self.get_resource()).order_by('order_index')
+        module_id = request.query_params.get('module_id') or request.query_params.get('moduleId')
+        group_id = request.query_params.get('group_id') or request.query_params.get('groupId')
+        if module_id:
+            queryset = queryset.filter(module_id=module_id)
+        if group_id:
+            queryset = queryset.filter(group_id=group_id)
+
+        fmt = (request.query_params.get('format') or 'json').lower()
+        records = []
+        for f in queryset:
+            records.append({
+                'field_key': f.field_key,
+                'label': f.label,
+                'field_type': f.field_type,
+                'is_required': f.is_required,
+                'is_visible': f.is_visible,
+                'placeholder': f.placeholder,
+                'help_text': f.help_text,
+                'default_value': f.default_value,
+                'order_index': f.order_index,
+                'group_name': f.group_name,
+                'module_code': f.module.code if f.module else '',
+                'group_code': f.group.code if f.group else '',
+                'options': json.dumps(f.options, ensure_ascii=False),
+                'validation': json.dumps(f.validation, ensure_ascii=False),
+            })
+
+        if fmt == 'csv':
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=list(records[0].keys()) if records else [
+                'field_key', 'label', 'field_type', 'is_required', 'is_visible',
+                'placeholder', 'help_text', 'default_value', 'order_index',
+                'group_name', 'module_code', 'group_code', 'options', 'validation',
+            ])
+            writer.writeheader()
+            writer.writerows(records)
+            resp = HttpResponse(buf.getvalue(), content_type='text/csv; charset=utf-8')
+            resp['Content-Disposition'] = 'attachment; filename="dynamic_fields.csv"'
+            return resp
+
+        resp = HttpResponse(
+            json.dumps({'data': records}, ensure_ascii=False, indent=2),
+            content_type='application/json; charset=utf-8',
+        )
+        resp['Content-Disposition'] = 'attachment; filename="dynamic_fields.json"'
+        return resp
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_fields(self, request, resource=None) -> Response:
+        """POST /dynamic-fields/<resource>/fields/import/
+
+        Body: ``{ format: 'json'|'csv', content: <array|string> }``
+        按 (resource, field_key) 幂等 upsert; 支持 ``module_code`` / ``group_code`` 反查配置。
+        """
+        resource = self.get_resource()
+        fmt = (request.data.get('format') or 'json').lower()
+        raw = request.data.get('content')
+        if raw is None:
+            raw = request.data.get('data')
+        if raw is None or raw == '':
+            return Response({'success': False, 'message': '缺少导入内容'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if fmt == 'csv':
+                records = self._parse_csv(str(raw))
+            else:
+                records = raw if isinstance(raw, list) else json.loads(raw)
+        except Exception as exc:  # noqa: BLE001
+            return Response({'success': False, 'message': f'内容解析失败: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        created = updated = errors = 0
+        for rec in records:
+            rec = dict(rec)
+            field_key = (rec.get('field_key') or '').strip()
+            if not field_key:
+                errors += 1
+                continue
+            module_id = rec.pop('module_id', None)
+            group_id = rec.pop('group_id', None)
+            module_code = rec.pop('module_code', None)
+            group_code = rec.pop('group_code', None)
+            if not module_id and module_code:
+                m = FieldModule.objects.filter(resource=resource, code=module_code, deleted_at__isnull=True).first()
+                module_id = m.id if m else None
+            if not group_id and group_code and module_id:
+                g = FieldGroup.objects.filter(module_id=module_id, code=group_code, deleted_at__isnull=True).first()
+                group_id = g.id if g else None
+            rec['module_id'] = module_id
+            rec['group_id'] = group_id
+
+            opts = rec.get('options')
+            if isinstance(opts, str):
+                try:
+                    rec['options'] = json.loads(opts)
+                except Exception:  # noqa: BLE001
+                    rec['options'] = []
+            elif opts is None:
+                rec['options'] = []
+
+            existing = DynamicField.objects.filter(resource=resource, field_key=field_key, deleted_at__isnull=True).first()
+            try:
+                if existing:
+                    for k, v in rec.items():
+                        if k in ('id', 'resource'):
+                            continue
+                        setattr(existing, k, v)
+                    existing.save()
+                    updated += 1
+                else:
+                    rec['resource'] = resource
+                    rec.pop('id', None)
+                    DynamicField.objects.create(**rec)
+                    created += 1
+            except Exception:  # noqa: BLE001
+                errors += 1
+
+        return Response({'success': True, 'created': created, 'updated': updated, 'errors': errors})
+
+    @staticmethod
+    def _parse_csv(text: str) -> list:
+        """把 CSV 文本解析为字段字典列表, 并对布尔/整数做轻量规整。"""
+        reader = csv.DictReader(io.StringIO(text))
+        rows = []
+        for row in reader:
+            clean = {k: (v if v != '' else None) for k, v in row.items() if k}
+            if clean.get('is_required') is not None:
+                clean['is_required'] = str(clean['is_required']).strip().lower() in ('1', 'true', 'yes', '是')
+            if clean.get('is_visible') is not None:
+                clean['is_visible'] = str(clean['is_visible']).strip().lower() in ('1', 'true', 'yes', '是')
+            if clean.get('order_index') is not None:
+                try:
+                    clean['order_index'] = int(clean['order_index'])
+                except (TypeError, ValueError):
+                    clean['order_index'] = 0
+            for json_field in ('options', 'validation'):
+                if clean.get(json_field):
+                    try:
+                        clean[json_field] = json.loads(clean[json_field])
+                    except Exception:  # noqa: BLE001
+                        clean[json_field] = []
+            rows.append(clean)
+        return rows
+
     # --- 内部工具 -------------------------------------------------------------
 
     @staticmethod
@@ -197,3 +370,91 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         return drf_serializers.ValidationError({
             'field_key': [DUPLICATE_FIELD_KEY_MESSAGE.format(resource=resource, field_key=field_key)]
         })
+
+
+class _DataEnvelopeMixin:
+    """统一信封: 所有响应包裹为 ``{'data': ...}``, 与 DynamicFieldViewSet 保持一致。
+
+    默认的 ``ModelViewSet`` 直接返回序列化数据(无 ``data`` 包裹), 前端
+    ``dynamic-field.ts`` 统一按 ``r.data.data`` 消费, 故此处统一包裹。
+    """
+
+    def list(self, request, *args, **kwargs):
+        return Response({'data': self.get_serializer(self.get_queryset(), many=True).data})
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response({'data': self.get_serializer(self.get_object()).data})
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'data': serializer.data})
+
+
+class FieldModuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
+    """字段模块(父级) CRUD — 按 resource 过滤。"""
+
+    serializer_class = FieldModuleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_resource(self) -> str:
+        return str(self.kwargs.get('resource') or '')
+
+    def get_queryset(self):
+        resource = self.get_resource()
+        qs = FieldModule.objects.filter(deleted_at__isnull=True)
+        if resource:
+            qs = qs.filter(resource=resource)
+        return qs.order_by('order_index')
+
+    def perform_create(self, serializer):
+        serializer.save(resource=self.get_resource())
+
+
+class FieldGroupViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
+    """字段分组(子级) CRUD — 按 module_id (query) 过滤, 隶属某个模块。"""
+
+    serializer_class = FieldGroupSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_resource(self) -> str:
+        return str(self.kwargs.get('resource') or '')
+
+    def get_queryset(self):
+        resource = self.get_resource()
+        module_id = self.request.query_params.get('module_id') or self.request.query_params.get('moduleId')
+        qs = FieldGroup.objects.filter(deleted_at__isnull=True, module__deleted_at__isnull=True)
+        if resource:
+            qs = qs.filter(module__resource=resource)
+        if module_id:
+            qs = qs.filter(module_id=module_id)
+        return qs.order_by('order_index')
+
+
+class FieldLinkageRuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
+    """同模块字段联动规则 CRUD — 按 module_id (query) 过滤。"""
+
+    serializer_class = FieldLinkageRuleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_resource(self) -> str:
+        return str(self.kwargs.get('resource') or '')
+
+    def get_queryset(self):
+        resource = self.get_resource()
+        module_id = self.request.query_params.get('module_id') or self.request.query_params.get('moduleId')
+        qs = FieldLinkageRule.objects.filter(deleted_at__isnull=True, module__deleted_at__isnull=True)
+        if resource:
+            qs = qs.filter(module__resource=resource)
+        if module_id:
+            qs = qs.filter(module_id=module_id)
+        return qs.order_by('order_index')

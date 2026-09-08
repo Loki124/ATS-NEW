@@ -8,13 +8,84 @@
     抛 ``IntegrityError (1062, Duplicate entry ...)`` → DRF 不认识 → HTTP 500。
 
     这里手写 ``validate()`` 把唯一性检查补回校验层, 冲突时返回 400 友好错误。
+
+2026-09-08 增强 — 模块/分组/联动规则配置化:
+    新增 ``FieldModuleSerializer`` / ``FieldGroupSerializer`` /
+    ``FieldLinkageRuleSerializer``; ``DynamicFieldSerializer`` 读时嵌套返回
+    ``module`` / ``group``, 写时通过 ``module_id`` / ``group_id`` 指定归属。
 """
 from rest_framework import serializers
 
-from .models import DynamicField
+from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule
 
 #: (resource, field_key) 冲突时返回给前端的友好提示
 DUPLICATE_FIELD_KEY_MESSAGE = '资源 {resource} 下已存在字段 Key "{field_key}", 请更换 Key 或直接编辑已有字段。'
+
+
+class FieldModuleSerializer(serializers.ModelSerializer):
+    """字段模块(父级) 序列化器。
+
+    ``resource`` 由 URL 决定 (见 ``FieldModuleViewSet.perform_create``), 因此只读。
+    """
+
+    class Meta:
+        model = FieldModule
+        fields = '__all__'
+        read_only_fields = ['id', 'resource', 'created_at', 'updated_at']
+
+
+class FieldGroupSerializer(serializers.ModelSerializer):
+    """字段分组(子级, 隶属模块) 序列化器。
+
+    读: 嵌套返回所属 ``module``; 写: 通过 ``module_id`` 指定隶属模块。
+    """
+
+    module = FieldModuleSerializer(read_only=True)
+    module_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+
+    class Meta:
+        model = FieldGroup
+        fields = [
+            'id', 'module', 'module_id', 'code', 'name', 'order_index',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'module']
+
+    def create(self, validated_data: dict):
+        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data: dict):
+        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        return super().update(instance, validated_data)
+
+
+class FieldLinkageRuleSerializer(serializers.ModelSerializer):
+    """同模块字段联动规则 序列化器。
+
+    读: 嵌套返回所属 ``module``; 写: 通过 ``module_id`` 指定隶属模块。
+    """
+
+    module = FieldModuleSerializer(read_only=True)
+    module_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+
+    class Meta:
+        model = FieldLinkageRule
+        fields = [
+            'id', 'module', 'module_id', 'name', 'trigger_field_key',
+            'condition_op', 'condition_value', 'action_type',
+            'target_field_keys', 'action_config', 'order_index',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'module']
+
+    def create(self, validated_data: dict):
+        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data: dict):
+        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        return super().update(instance, validated_data)
 
 
 class DynamicFieldSerializer(serializers.ModelSerializer):
@@ -22,12 +93,47 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
 
     ``resource`` 由 URL 决定 (见 ``DynamicFieldViewSet.perform_create``), 因此是只读的;
     校验阶段通过 ``context['resource']`` 拿到它来做唯一性预检。
+
+    2026-09-08 增强:
+      - 读: 嵌套返回 ``module`` / ``group`` 配置对象。
+      - 写: 通过 ``module_id`` / ``group_id`` 指定归属(可配置下拉);
+            若指定 group, 自动同步 ``group_name``(兼容旧列表列)。
     """
+
+    module = FieldModuleSerializer(read_only=True)
+    group = FieldGroupSerializer(read_only=True)
+    module_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    group_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = DynamicField
-        fields = '__all__'
-        read_only_fields = ['id', 'resource', 'created_at', 'updated_at']
+        fields = [
+            'id', 'resource', 'field_key', 'label', 'field_type', 'is_required',
+            'is_visible', 'placeholder', 'help_text', 'default_value', 'validation',
+            'order_index', 'group_name', 'status', 'options', 'module', 'group',
+            'module_id', 'group_id',
+        ]
+        read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
+
+    def _apply_module_group(self, validated_data: dict) -> dict:
+        module_id = validated_data.pop('module_id', None) or None
+        group_id = validated_data.pop('group_id', None) or None
+        validated_data['module_id'] = module_id
+        validated_data['group_id'] = group_id
+        # 同步 group_name (兼容旧列表列显示)
+        if group_id:
+            grp = FieldGroup.objects.filter(id=group_id, deleted_at__isnull=True).first()
+            if grp:
+                validated_data['group_name'] = grp.name
+        return validated_data
+
+    def create(self, validated_data: dict):
+        validated_data = self._apply_module_group(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data: dict):
+        validated_data = self._apply_module_group(validated_data)
+        return super().update(instance, validated_data)
 
     def _resolve_resource(self) -> str:
         """解析当前请求作用的 resource。
@@ -52,17 +158,7 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
         return ''
 
     def validate_field_key(self, value: str) -> str:
-        """去空白 + 非空校验。
-
-        Args:
-            value: 客户端提交的 field_key。
-
-        Returns:
-            str: 规整后的 field_key。
-
-        Raises:
-            serializers.ValidationError: field_key 为空或全空白。
-        """
+        """去空白 + 非空校验。"""
         field_key = (value or '').strip()
         if not field_key:
             raise serializers.ValidationError('字段 Key 不能为空。')
@@ -73,15 +169,6 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
 
         - create: 检查该 resource 下是否已有同名 field_key 的**存活**记录。
         - update: 同上, 但排除自身 (改其它字段而不改 Key 时不能误报)。
-
-        Args:
-            attrs: DRF 逐字段校验后的数据。
-
-        Returns:
-            dict: 原样返回 attrs。
-
-        Raises:
-            serializers.ValidationError: 该 resource 下 field_key 已存在。
         """
         resource = self._resolve_resource()
         field_key = attrs.get('field_key') or getattr(self.instance, 'field_key', '')

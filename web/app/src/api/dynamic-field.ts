@@ -15,7 +15,12 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
-export type FieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN';
+export type FieldType =
+  | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
+  | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL';
+
+export type LinkageActionType = 'SHOW' | 'HIDE' | 'REQUIRE' | 'CASCADE_OPTIONS';
+export type LinkageConditionOp = 'EQ' | 'NE' | 'IN';
 
 export interface FieldOption {
   id?: string;
@@ -23,6 +28,47 @@ export interface FieldOption {
   label: string;
   orderIndex?: number;
   isActive?: boolean;
+}
+
+export interface FieldModule {
+  id: string;
+  resource: string;
+  code: string;
+  name: string;
+  description?: string;
+  orderIndex: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FieldGroup {
+  id: string;
+  moduleId: string;
+  code: string;
+  name: string;
+  orderIndex: number;
+  isActive: boolean;
+  module?: FieldModule;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FieldLinkageRule {
+  id: string;
+  moduleId: string;
+  name: string;
+  triggerFieldKey: string;
+  conditionOp: LinkageConditionOp;
+  conditionValue: unknown[];
+  actionType: LinkageActionType;
+  targetFieldKeys: string[];
+  actionConfig?: Record<string, unknown>;
+  orderIndex: number;
+  isActive: boolean;
+  module?: FieldModule;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface FieldDefinition {
@@ -39,14 +85,18 @@ export interface FieldDefinition {
   validation?: string | null;
   orderIndex: number;
   groupName?: string | null;
+  moduleId?: string | null;
+  groupId?: string | null;
+  module?: FieldModule | null;
+  group?: FieldGroup | null;
   status?: string;
   options?: FieldOption[];
   createdAt?: string;
   updatedAt?: string;
 }
 
-export const listFields = (resource: string) =>
-  api.get(`/dynamic-fields/${resource}/fields/`).then((r) => r.data.data);
+export const listFields = (resource: string, params: Record<string, unknown> = {}) =>
+  api.get(`/dynamic-fields/${resource}/fields/`, { params }).then((r) => r.data.data);
 
 /** detail 端点统一按 id (nanoid) 寻址, 与后端 `get_object()` 契约一致 */
 export const getField = (resource: string, id: string) =>
@@ -144,7 +194,104 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '下拉单选', value: 'SELECT' },
   { label: '下拉多选', value: 'MULTISELECT' },
   { label: '布尔', value: 'BOOLEAN' },
+  { label: '附件', value: 'ATTACHMENT' },
+  { label: '身份证', value: 'ID_CARD' },
+  { label: '银行卡', value: 'BANK_CARD' },
+  { label: '手机号', value: 'PHONE' },
+  { label: '邮箱', value: 'EMAIL' },
 ];
+
+export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
+  TEXT: '文本', NUMBER: '数字', DATE: '日期',
+  SELECT: '下拉单选', MULTISELECT: '下拉多选', BOOLEAN: '布尔',
+  ATTACHMENT: '附件', ID_CARD: '身份证', BANK_CARD: '银行卡',
+  PHONE: '手机号', EMAIL: '邮箱',
+};
+
+export const LINKAGE_ACTION_OPTIONS: { label: string; value: LinkageActionType }[] = [
+  { label: '显示', value: 'SHOW' },
+  { label: '隐藏', value: 'HIDE' },
+  { label: '设必填', value: 'REQUIRE' },
+  { label: '级联选项', value: 'CASCADE_OPTIONS' },
+];
+
+export const LINKAGE_OP_OPTIONS: { label: string; value: LinkageConditionOp }[] = [
+  { label: '等于', value: 'EQ' },
+  { label: '不等于', value: 'NE' },
+  { label: '属于', value: 'IN' },
+];
+
+// --- 模块配置 (FieldModule, 父级) ---
+export const listModules = (resource: string) =>
+  api.get(`/dynamic-fields/${resource}/modules/`).then((r) => r.data.data as FieldModule[]);
+
+export const upsertModule = (resource: string, body: Partial<FieldModule>) =>
+  (body.id
+    ? api.put(`/dynamic-fields/${resource}/modules/${body.id}/`, body)
+    : api.post(`/dynamic-fields/${resource}/modules/`, body)
+  ).then((r) => r.data.data as FieldModule);
+
+export const deleteModule = (resource: string, id: string) =>
+  api.delete(`/dynamic-fields/${resource}/modules/${id}/`).then((r) => r.data);
+
+// --- 分组配置 (FieldGroup, 子级) ---
+export const listGroups = (resource: string, moduleId?: string) =>
+  api.get(`/dynamic-fields/${resource}/groups/`, { params: moduleId ? { module_id: moduleId } : {} })
+    .then((r) => r.data.data as FieldGroup[]);
+
+export const upsertGroup = (resource: string, body: Partial<FieldGroup>) =>
+  (body.id
+    ? api.put(`/dynamic-fields/${resource}/groups/${body.id}/`, body)
+    : api.post(`/dynamic-fields/${resource}/groups/`, body)
+  ).then((r) => r.data.data as FieldGroup);
+
+export const deleteGroup = (resource: string, id: string) =>
+  api.delete(`/dynamic-fields/${resource}/groups/${id}/`).then((r) => r.data);
+
+// --- 联动规则 (FieldLinkageRule, 同模块) ---
+export const listLinkageRules = (resource: string, moduleId?: string) =>
+  api.get(`/dynamic-fields/${resource}/linkage-rules/`, { params: moduleId ? { module_id: moduleId } : {} })
+    .then((r) => r.data.data as FieldLinkageRule[]);
+
+export const upsertLinkageRule = (resource: string, body: Partial<FieldLinkageRule>) =>
+  (body.id
+    ? api.put(`/dynamic-fields/${resource}/linkage-rules/${body.id}/`, body)
+    : api.post(`/dynamic-fields/${resource}/linkage-rules/`, body)
+  ).then((r) => r.data.data as FieldLinkageRule);
+
+export const deleteLinkageRule = (resource: string, id: string) =>
+  api.delete(`/dynamic-fields/${resource}/linkage-rules/${id}/`).then((r) => r.data);
+
+// --- 字段导入 / 导出 ---
+export const exportFieldsUrl = (resource: string, format: 'json' | 'csv', moduleId?: string, groupId?: string) => {
+  const params = new URLSearchParams({ format });
+  if (moduleId) params.set('module_id', moduleId);
+  if (groupId) params.set('group_id', groupId);
+  return `${config.api.baseUrl}/dynamic-fields/${resource}/fields/export/?${params.toString()}`;
+};
+
+/** 触发浏览器下载导出文件 (后端返回带 Content-Disposition 的文件流) */
+export async function downloadExport(
+  resource: string, format: 'json' | 'csv', moduleId?: string, groupId?: string,
+): Promise<void> {
+  const url = exportFieldsUrl(resource, format, moduleId, groupId);
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+  const resp = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!resp.ok) throw new Error(`导出失败: HTTP ${resp.status}`);
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `dynamic_fields.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+export const importFields = (
+  resource: string, format: 'json' | 'csv', content: string,
+) => api.post(`/dynamic-fields/${resource}/fields/import/`, { format, content })
+  .then((r) => r.data as { success: boolean; created: number; updated: number; errors: number });
 
 export const RESOURCE_OPTIONS: { label: string; value: string }[] = [
   { label: '候选人 Candidate', value: 'Candidate' },
