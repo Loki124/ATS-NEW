@@ -69,7 +69,7 @@
     <template #footer>
       <div class="modal-footer">
         <n-button size="small" :disabled="saving" @click="onRequestClose">取消</n-button>
-        <n-button size="small" type="primary" :loading="saving" :disabled="loading" @click="handleSubmit">确定</n-button>
+        <n-button size="small" type="primary" :loading="saving" :disabled="loading" @click="handleSubmit">保存</n-button>
       </div>
     </template>
 

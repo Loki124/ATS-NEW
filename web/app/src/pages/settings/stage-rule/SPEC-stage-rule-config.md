@@ -214,7 +214,7 @@ interface ArchiveRuleDTO {
 
 | 文件 | 职责 | 类型 | 行数 |
 |---|---|---|---|
-| `stage-rule/StageRuleConfigModal.vue` | 主壳：header / 4 卡片容器 / footer（取消+确定）/ 数据加载编排 / 关闭守卫 / teleport 二级弹窗挂载 | 主（保留） | ~400 |
+| `stage-rule/StageRuleConfigModal.vue` | 主壳：header / 4 卡片容器 / footer（取消+保存）/ 数据加载编排 / 关闭守卫 / teleport 二级弹窗挂载 | 主（保留） | ~400 |
 | `stage-rule/cards/EntryConditionCard.vue` | Card1：规则表格(执行条件/未满足提示) + "规则配置"按钮 + 模块开关 + 走 §2 API | 新增 | ~250 |
 | `stage-rule/cards/DefaultHandlerCard.vue` | Card2：3 select（数据来源/取值字段/处理规则）→ `defaultHandlerType`/`defaultHandlerFields`/`defaultHandlerUserIds` | 新增 | ~120 |
 | `stage-rule/cards/InterviewConfigCard.vue` | Card3：2 option-grid（面试轮次/面试形式）→ `interviewRoundIds`/`interviewFormat` | 新增 | ~120 |
@@ -245,7 +245,7 @@ interface ArchiveRuleDTO {
 3. **【P0】自动跳过/归档后端模型缺失**：`StageRule` 无对应子表，必须后端 migration（§4 的 JSON 字段方案）。**本组件无法独立闭环，需后端排期**。
 4. **【P1】表达式校验器移植**：需核对 `src/utils/condition-expression` 现有 `validateExpression` 是否覆盖原型 6 规则（括号配对 / `and`·`or` 连接 / 编号 1-N / 大括号禁嵌套 / 运算符合法性 / 空表达式）。若不足，以 `POST /api/v1/expressions/validate` 为权威兜底。→ 见 §7 commit 7。
 5. **【P1】二级/三级弹窗样式作用域**：`n-modal` teleport 到 `body`，`scoped` 样式不穿透。→ 用 `:deep()` 或非 scoped + 仅用 CSS 变量（`--brand`/`--brand-a12` 等），禁止硬编码色值；弹窗 `z-index` 需高于主 modal（原型 1100）。
-6. **【P2】数据加载失败空状态**：§1 字段 catalog / §2 规则列表 API 失败时，卡片需 empty / error state + 重试，禁用"确定"保存。
+6. **【P2】数据加载失败空状态**：§1 字段 catalog / §2 规则列表 API 失败时，卡片需 empty / error state + 重试，禁用「保存」按钮（失败时）。
 7. **【P2】保存期间关闭守卫**：保存（PUT/POST）进行中禁用关闭按钮 + `beforeClose` 确认（有未保存草稿时提示）。
 8. **【P2】条件组→规则语义偏差**：`reject_message` ↔ 原型 `innerPrompt`/`overallPrompt`、`expression` ↔ `innerExpression` 必须一致；组合语义需与后端 `services.py` 对齐（AND/OR 解析）。
 9. **【P3】字段字典 API 选型未定导致阻塞**：若后端 §1 接口排期晚于前端，可临时用 §1 JSON 结构做 mock，但**交付时务必替换为真实接口**，禁止固化为常量文件。
