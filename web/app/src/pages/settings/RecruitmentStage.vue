@@ -38,31 +38,60 @@
 
     <!-- 新增/编辑阶段弹窗 -->
 </div><!-- /.page-body -->
-<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 560px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }">
+<!-- P1-4: 弹窗 560→600px 给 4 字段 + 4 checkbox + textarea + 双按钮更舒展的横向空间 -->
+<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 600px; max-width: 92vw" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
-        <n-form-item label="阶段名称" required>
+        <!-- P1-3: 错误就近显示（R-209），不再只走全局 toast -->
+        <n-form-item
+          label="阶段名称"
+          required
+          :validation-status="nameError ? 'error' : undefined"
+          :feedback="nameError"
+        >
           <n-input v-model:value="form.name" placeholder="如：HRBP筛选" />
         </n-form-item>
+        <!-- P0-2: 编辑锁死时给文字解释（R-101/R-109 键盘可达 + 不被颜色唯一表达） -->
         <n-form-item label="阶段类型" required>
-          <n-select v-model:value="form.stageType" :options="stageTypeOptions" :disabled="!!editing" />
+          <n-tooltip :disabled="!editing" placement="top-start">
+            <template #trigger>
+              <div class="stage-type-wrap">
+                <n-select v-model:value="form.stageType" :options="stageTypeOptions" :disabled="!!editing" />
+              </div>
+            </template>
+            阶段类型已绑定现有流程，编辑时不可修改；如需变更请在流程中重新编排阶段。
+          </n-tooltip>
         </n-form-item>
+        <!-- P1-1: stageType 为空时 checkbox 区空态提示（R-104 空态） -->
         <n-form-item label="功能项（可多选）">
           <n-checkbox-group v-model:value="form.features">
-            <n-space>
-              <n-checkbox v-for="opt in featureOptions[form.stageType] || []" :key="opt.value" :value="opt.value">
+            <n-space v-if="(featureOptions[form.stageType] || []).length" class="feature-checks">
+              <n-checkbox v-for="opt in featureOptions[form.stageType]" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
               </n-checkbox>
             </n-space>
+            <n-empty v-else size="small" description="请先选择阶段类型" style="padding: 12px 0" />
           </n-checkbox-group>
         </n-form-item>
+        <!-- P0-3: textarea 约束（R-110）resize:none + max-height + overflow-wrap + 字数上限 -->
         <n-form-item label="阶段说明">
-          <n-input v-model:value="form.description" type="textarea" :rows="2" />
+          <n-input
+            v-model:value="form.description"
+            type="textarea"
+            :rows="3"
+            :max-length="500"
+            show-count
+            :resizable="false"
+            placeholder="例如：对简历进行初步评估，是候选人进入流程的第一道关卡"
+          />
         </n-form-item>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存</n-button>
+          <!-- P1-2: 微文案（R-204）动词+宾语；编辑态「放弃修改」明确后果 -->
+          <n-button @click="showCreateModal = false">{{ editing ? '放弃修改' : '取消' }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">
+            {{ editing ? '保存修改' : '保存阶段' }}
+          </n-button>
         </div>
       </template>
     </n-modal>
@@ -71,7 +100,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch, h } from 'vue'
-import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip } from 'naive-ui'
+import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty } from 'naive-ui'
+import { useFormDraft } from '../../composables/useFormDraft'
 import { AddOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
 // 2026-08-17 PR #69: 阶段类型改从后端数据字典 (apps/dictionary) 读取, single source of truth.
@@ -79,6 +109,7 @@ import { listStages, createStage, updateStage, deleteStage, disableStage, enable
 import { listStageTypeOptions } from '../../api/dictionary'
 
 const message = useMessage()
+
 const keyword = ref('')
 const filterType = ref<string | null>(null)
 const stages = ref<any[]>([])
@@ -105,6 +136,10 @@ const form = reactive({
   features: [] as string[],
   description: '',
 })
+
+// P0-1: 草稿自动保存（R-105）。新建模式启用，编辑模式禁用（避免草稿覆盖真实 row 数据）。
+// 必须放在 form / editing 声明之后（避免 TDZ 引用错误）。
+const draft = useFormDraft('recruitment-stage', form, { enabled: () => !editing.value })
 
 type StageType = 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER'
 
@@ -262,10 +297,27 @@ async function loadList() {
   }
 }
 
+// P1-3: 校验就近显示（R-209）—— 错误在 form-item 下红字反馈，而非仅全局 toast
+const nameError = computed<string | null>(() => {
+  const v = form.name.trim()
+  if (!v) return '请输入阶段名称'
+  if (v.length > 30) return '阶段名称不超过 30 字'
+  return null
+})
+const stageTypeError = computed<string | null>(() => {
+  if (!form.stageType) return '请选择阶段类型'
+  return null
+})
+
 function handleCreate() {
   editing.value = null
   Object.assign(form, { name: '', stageType: stageTypeOptions.value[0]?.value || 'SCREEN', features: [], description: '' })
   showCreateModal.value = true
+  // P0-1: 新建模式启用草稿。先重置再探测，避免把旧草稿灌进刚清空的表单前丢失提示时机。
+  if (draft.probe()) {
+    draft.restore()
+    message.info('已恢复上次填写的内容', { action: { label: '清空', onClick: draft.clear } })
+  }
 }
 
 function handleEdit(row: any) {
@@ -277,11 +329,13 @@ function handleEdit(row: any) {
     description: row.description || '',
   })
   showCreateModal.value = true
+  // 编辑模式不启用草稿（draft.enabled=false），无需探测/恢复
 }
 
 async function handleSave() {
-  if (!form.name.trim()) {
-    message.error('阶段名称必填')
+  // P1-3: 提交前先跑就近校验（R-209）。有任何错误则不提交，错误已在字段下红字显示。
+  if (nameError.value || stageTypeError.value) {
+    message.error(nameError.value || stageTypeError.value || '请检查表单')
     return
   }
   saving.value = true
@@ -294,6 +348,8 @@ async function handleSave() {
       message.success('已新增（全局模板，可被任意流程引用）')
     }
     showCreateModal.value = false
+    // P0-1: 提交成功后立即清除草稿（R-105: 提交成功后 MUST 立即清除）
+    draft.clear()
     loadList()
   } catch (e: any) {
     message.error(e?.response?.data?.message || '保存失败')
@@ -402,5 +458,22 @@ onMounted(async () => {
 .recruitment-stage :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
   padding: 6px 12px !important;
+}
+
+/* === 2026-09-08 弹窗修复（P0-3 / P1-4）=== */
+/* P0-3: textarea 不得撑破布局（R-110）—— 禁用拖拽 + 限高 + 长文字换行 */
+.recruitment-stage :deep(.n-input .n-input__textarea-el) {
+  resize: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-height: 160px;
+}
+/* P1-4: 功能项 checkbox 容器窄屏换行容错（< 480px 下 4 项不再溢出） */
+.stage-type-wrap {
+  width: 100%;
+}
+.feature-checks {
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
 }
 </style>
