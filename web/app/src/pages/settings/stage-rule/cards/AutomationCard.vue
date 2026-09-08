@@ -1,7 +1,7 @@
 <template>
   <section class="config-card">
     <div class="card-title">
-      <n-icon :component="GitNetworkOutline" />
+      <n-icon :component="PulseOutline" />
       流程自动化
       <span class="title-desc">· 配置阶段的自动评估、流转、跳过与归档规则</span>
     </div>
@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { NIcon, NSelect, NInputNumber } from 'naive-ui'
 import {
-  GitNetworkOutline, SparklesOutline, ArrowForwardOutline, PlaySkipForwardOutline,
+  PulseOutline, SparklesOutline, ArrowForwardOutline, PlaySkipForwardOutline,
   HourglassOutline, AddOutline, EyeOffOutline, CloseOutline,
 } from '@vicons/ionicons5'
 import ModuleSwitch from '../components/ModuleSwitch.vue'
@@ -152,15 +152,16 @@ const emit = defineEmits<{
 const advanceOptions = AUTO_ADVANCE_OPTIONS
 const timingOptions = AUTO_ADVANCE_TIMING_OPTIONS
 
+/** 列宽对齐 HTML 原型（规则名称 70 / 执行条件 220 / 执行动作 120 / 操作 140） */
 const skipColumns = [
-  { key: 'name', title: '规则名', width: '28%' },
-  { key: 'expression', title: '执行条件', width: '32%' },
-  { key: 'action', title: '执行动作', width: '20%' },
+  { key: 'name', title: '规则名称', width: '70px' },
+  { key: 'expression', title: '执行条件', width: '220px' },
+  { key: 'action', title: '执行动作', width: '120px' },
 ]
 const archiveColumns = [
-  { key: 'name', title: '规则名', width: '28%' },
-  { key: 'expression', title: '执行条件', width: '32%' },
-  { key: 'action', title: '执行动作', width: '20%' },
+  { key: 'name', title: '规则名称', width: '70px' },
+  { key: 'expression', title: '执行条件', width: '220px' },
+  { key: 'action', title: '执行动作', width: '150px' },
 ]
 
 function actionLabel(a: SkipRule['action']) {

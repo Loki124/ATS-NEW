@@ -3,13 +3,15 @@
     <div class="card-title">
       <n-icon :component="PersonOutline" />
       默认处理人
-      <span class="title-desc">· 配置阶段默认的简历处理人</span>
+      <span class="title-desc">· 进入本阶段时自动为默认处理人添加待办任务</span>
     </div>
 
     <div class="flow-block">
       <div class="flow-condition-row flow-condition-row--3">
         <div class="flow-field">
-          <label class="field-label">数据来源</label>
+          <label class="field-label">
+            数据来源 <span class="required-mark">*</span>
+          </label>
           <n-select
             size="small"
             :value="form.defaultHandlerType"
@@ -18,7 +20,9 @@
           />
         </div>
         <div class="flow-field">
-          <label class="field-label">取值字段</label>
+          <label class="field-label">
+            取值字段 <span class="required-mark">*</span>
+          </label>
           <n-select
             size="small"
             :value="fieldValue"
@@ -110,5 +114,9 @@ function onRule(v: string | null) {
   color: var(--ink-soft);
   line-height: 1.5;
   margin: 8px 0 0;
+}
+.required-mark {
+  color: var(--c-error);
+  margin-left: 2px;
 }
 </style>

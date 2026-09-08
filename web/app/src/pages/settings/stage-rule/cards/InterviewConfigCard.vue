@@ -12,37 +12,36 @@
       </span>
     </div>
 
-    <!-- 面试轮次 -->
-    <div class="flow-block">
-      <div class="block-header">
-        <n-icon :component="LayersOutline" /> 面试轮次
+    <!-- 面试轮次 + 面试形式 横排（HTML 原型 .flow-condition-row 双列并排） -->
+    <div class="flow-condition-row">
+      <!-- 面试轮次 -->
+      <div class="flow-field">
+        <label class="field-label">面试轮次</label>
+        <div class="option-grid">
+          <label v-for="opt in roundOptions" :key="opt.value" class="opt-item">
+            <input
+              type="checkbox"
+              :checked="isOn(form.interviewRoundIds, opt.value)"
+              @change="toggle(form.interviewRoundIds, opt.value, ($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ opt.label }}</span>
+          </label>
+        </div>
       </div>
-      <div class="option-grid">
-        <label v-for="opt in roundOptions" :key="opt.value" class="opt-item">
-          <input
-            type="checkbox"
-            :checked="isOn(form.interviewRoundIds, opt.value)"
-            @change="toggle(form.interviewRoundIds, opt.value, ($event.target as HTMLInputElement).checked)"
-          />
-          <span>{{ opt.label }}</span>
-        </label>
-      </div>
-    </div>
 
-    <!-- 面试形式 -->
-    <div class="flow-block">
-      <div class="block-header">
-        <n-icon :component="PhonePortraitOutline" /> 面试形式
-      </div>
-      <div class="option-grid">
-        <label v-for="opt in formatOptions" :key="opt.value" class="opt-item">
-          <input
-            type="checkbox"
-            :checked="isOn(form.interviewFormat, opt.value)"
-            @change="toggle(form.interviewFormat, opt.value, ($event.target as HTMLInputElement).checked)"
-          />
-          <span>{{ opt.label }}</span>
-        </label>
+      <!-- 面试形式 -->
+      <div class="flow-field">
+        <label class="field-label">面试形式</label>
+        <div class="option-grid">
+          <label v-for="opt in formatOptions" :key="opt.value" class="opt-item">
+            <input
+              type="checkbox"
+              :checked="isOn(form.interviewFormat, opt.value)"
+              @change="toggle(form.interviewFormat, opt.value, ($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ opt.label }}</span>
+          </label>
+        </div>
       </div>
     </div>
   </section>
@@ -50,7 +49,7 @@
 
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { ClipboardOutline, LayersOutline, PhonePortraitOutline } from '@vicons/ionicons5'
+import { ClipboardOutline } from '@vicons/ionicons5'
 import { INTERVIEW_ROUND_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
 
@@ -83,10 +82,26 @@ function toggle(list: string[], v: string, checked: boolean) {
 }
 
 /* ===== option-grid（HTML 原型 .option-grid） ===== */
+.flow-condition-row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+.flow-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.field-label {
+  display: block;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
 .option-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px var(--space-3);
+  gap: var(--space-2) var(--space-4);
   padding: 2px 0;
 }
 .opt-item {
@@ -97,7 +112,7 @@ function toggle(list: string[], v: string, checked: boolean) {
   color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
-  padding: 2px 0;
+  padding: 1px 0;
   transition: color var(--duration-fast) var(--ease-out);
 }
 .opt-item:hover { color: var(--brand); }

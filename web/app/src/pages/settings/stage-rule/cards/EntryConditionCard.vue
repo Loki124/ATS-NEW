@@ -12,9 +12,6 @@
         <span class="title-desc">· 候选人在进入当前阶段时，将会受到配置的条件进行校验</span>
       </span>
       <span class="title-actions">
-        <button class="btn-outline-primary" type="button" @click="emit('add')">
-          <n-icon :component="AddOutline" /> 添加规则
-        </button>
         <button class="btn-outline-primary" type="button" @click="emit('configure')">
           <n-icon :component="CreateOutline" /> 规则配置
         </button>
@@ -75,7 +72,7 @@
 
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { LogInOutline, AddOutline, CreateOutline } from '@vicons/ionicons5'
+import { LogInOutline, CreateOutline } from '@vicons/ionicons5'
 import ModuleSwitch from '../components/ModuleSwitch.vue'
 import type { EntryConditionRule, ConditionItem } from '../types'
 import { AR_OPERATOR_LABELS, AR_SOURCE_LABELS } from '../constants'

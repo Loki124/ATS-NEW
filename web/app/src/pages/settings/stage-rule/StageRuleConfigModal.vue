@@ -41,7 +41,6 @@
             :rules="entryRules"
             :module-on="entryEnabled"
             @update:module-on="(v: boolean) => (entryEnabled = v)"
-            @add="entryModal.open()"
             @configure="entryModal.open()"
             @edit="(r: EntryConditionRule) => entryModal.open(r)"
             @toggle="toggleEntry"
@@ -217,14 +216,21 @@ async function handleSubmit() {
 
 <!-- 全局覆盖（n-modal 渲染到 body，scoped 不穿透，故非 scoped） -->
 <style>
+/* 容器浮起：HTML 原型 box-shadow 0 20px 60px rgba(0,0,0,0.18) → --shadow-2xl */
+.stage-rule-config-modal .n-card {
+  box-shadow: var(--shadow-2xl);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
 .stage-rule-config-modal .n-card-header {
   padding: 0;
   border-bottom: none;
 }
+/* footer：原型 border-top 1px + bg #fafbfc（→ --g1） */
 .stage-rule-config-modal .n-card__footer {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border-hairline);
-  background: var(--glass-bg-elevated);
+  background: var(--g1);
 }
 .stage-rule-config-modal .n-card__content {
   padding: 0;
@@ -338,6 +344,10 @@ async function handleSubmit() {
   color: var(--brand);
   font-size: 14px;
   flex-shrink: 0;
+}
+/* Card 标题 row 右侧 actions 内部间距（原型按钮与开关之间有呼吸） */
+.card-title .title-actions {
+  gap: var(--space-3);
 }
 .title-desc {
   font-weight: 400;

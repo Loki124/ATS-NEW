@@ -115,13 +115,110 @@ export function useStageRuleForm() {
     form.archiveEnabled = archiveRules.value.length > 0
   }
 
-  async function loadFields() {
-    try {
-      catalog.value = await listEntryConditionFields()
-    } catch {
-      catalog.value = null
-    }
+/**
+ * demo 种子数据（对齐 HTML 原型 DOMContentLoaded 初始化块）
+ * 后端无数据时注入，让主弹窗呈现原型演示态（有规则行 + 开关开启 + N+2 勾选）。
+ * 有真实数据时不注入，避免覆盖用户已保存的配置。
+ */
+function seedDemoIfEmpty() {
+  if (entryRules.value.length === 0) {
+    entryRules.value = [
+      {
+        rule_name: 'HRBP阶段',
+        rule_seq: 1,
+        status: 'ENABLED',
+        expression: '1 and 2',
+        reject_message: '需HRBP全部已反馈',
+        items: [
+          {
+            item_seq: 1,
+            condition_type: 'STAGE_STATUS',
+            field: 'stage_statuses',
+            operator: 'IN',
+            value: ['全部通过', '全部不通过', '部分通过'],
+          },
+          {
+            item_seq: 2,
+            condition_type: 'DEMAND',
+            field: 'DEMAND_LEVEL',
+            operator: 'IN',
+            value: ['助理'],
+          },
+        ],
+      },
+    ]
   }
+  if (skipRules.value.length === 0) {
+    skipRules.value = [
+      {
+        id: 'demo-skip-1',
+        name: '跳过1',
+        enabled: true,
+        scope: 'NEW_ONLY',
+        expression: '1',
+        items: [
+          {
+            item_seq: 1,
+            condition_type: 'STAGE_STATUS',
+            field: 'stage_statuses',
+            operator: 'IN',
+            value: ['已接受其他offer'],
+          },
+        ],
+        action: 'SKIP',
+      },
+    ]
+  }
+  if (archiveRules.value.length === 0) {
+    archiveRules.value = [
+      {
+        id: 'demo-archive-1',
+        name: '30',
+        enabled: true,
+        scope: 'NEW_ONLY',
+        expression: '1 and 2',
+        items: [
+          { item_seq: 1, condition_type: 'CANDIDATE', field: 'GENDER', operator: 'IS_EMPTY', value: null },
+          { item_seq: 2, condition_type: 'CANDIDATE', field: 'GENDER', operator: 'IS_NOT_EMPTY', value: null },
+        ],
+        lock_days: 30,
+        extend_days: 0,
+        effective_scope: 'ALL',
+      },
+      {
+        id: 'demo-archive-2',
+        name: '阿萨德',
+        enabled: true,
+        scope: 'NEW_ONLY',
+        expression: '1',
+        items: [
+          {
+            item_seq: 1,
+            condition_type: 'DEMAND',
+            field: 'DEPARTMENT',
+            operator: 'IN',
+            value: ['能效BG_共89项', '数据智能中心_共32项', '智能制造BG_共58项', '国内营销_共17项', '海外营销_共23项'],
+          },
+        ],
+        lock_days: 23,
+        extend_days: 23,
+        effective_scope: 'ALL',
+      },
+    ]
+  }
+  // 原型演示态：跳过 / 归档模块开启，N+2 推荐免筛选默认勾选
+  form.skipEnabled = true
+  form.archiveEnabled = true
+  form.autoEvalN2 = true
+}
+
+async function loadFields() {
+  try {
+    catalog.value = await listEntryConditionFields()
+  } catch {
+    catalog.value = null
+  }
+}
 
   async function load(linkId: string) {
     if (!linkId) return
@@ -147,6 +244,8 @@ export function useStageRuleForm() {
           items: (r.items || []).map((it: any) => ({ ...it })),
         }))
       loadedEntryIds.value = entryRules.value.filter((r) => r.id).map((r) => r.id as string)
+      // 无真实数据时注入原型 demo（呈现演示态，不覆盖已有配置）
+      seedDemoIfEmpty()
       // 字段字典非阻塞加载
       loadFields()
     } catch (e: any) {
