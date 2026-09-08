@@ -1,6 +1,6 @@
 <template>
   <section class="config-card">
-    <div class="card-title">
+    <div class="card-title card-title--left">
       <n-icon :component="PersonOutline" />
       默认处理人
       <span class="title-desc">· 进入本阶段时自动为默认处理人添加待办任务</span>
@@ -109,7 +109,7 @@ function onRule(v: string | null) {
 
 <style scoped>
 .flow-condition-row--3 {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .flow-condition-row--3 .flow-field {
   flex: 1 1 180px;

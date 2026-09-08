@@ -277,6 +277,10 @@ async function handleSubmit() {
   font-size: 14px;
   flex-shrink: 0;
 }
+/* 默认处理人 / 流程自动化 模块标题行内容靠左（无右侧操作，覆盖全局 space-between） */
+.stage-rule-config-modal .card-title.card-title--left {
+  justify-content: flex-start;
+}
 .stage-rule-config-modal .card-title .title-actions {
   gap: var(--space-3);
 }

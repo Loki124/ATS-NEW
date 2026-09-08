@@ -5,7 +5,7 @@
  */
 import { reactive, ref, computed } from 'vue'
 import type { EntryConditionRule, ConditionItem, ConditionGroup } from '../types'
-import { AR_MAX_CONDITIONS, AR_MAX_GROUPS, AR_RULE_NAME_MAX } from '../constants'
+import { AR_MAX_CONDITIONS, AR_MAX_GROUPS } from '../constants'
 import { useExpressionValidator } from './useExpressionValidator'
 
 function emptyItem(seq: number): ConditionItem {
@@ -188,7 +188,6 @@ function inflateFromRule(rule: EntryConditionRule): { groups: ConditionGroup[]; 
 /** 落库：把嵌套 groups 编译为后端认识的 flat items + 单一 expression（全局 item 编号） */
 function flattenToRule(args: {
   id?: string
-  rule_name: string
   rule_seq: number
   status: 'ENABLED' | 'DISABLED'
   groups: ConditionGroup[]
@@ -221,7 +220,7 @@ function flattenToRule(args: {
     : compiled.join(' AND ')
   return {
     id: args.id,
-    rule_name: args.rule_name,
+    rule_name: '进入条件规则',
     rule_seq: args.rule_seq,
     status: args.status,
     expression,
@@ -235,14 +234,12 @@ export function useEntryRuleEditor() {
   const isNew = ref(false)
   const draft = reactive<{
     id?: string
-    rule_name: string
     rule_seq: number
     status: 'ENABLED' | 'DISABLED'
     groups: ConditionGroup[]
     groupExpression: string
     overallPrompt: string
   }>({
-    rule_name: '',
     rule_seq: 0,
     status: 'ENABLED',
     groups: [emptyGroup()],
@@ -266,12 +263,6 @@ export function useEntryRuleEditor() {
   }
 
   const groupError = computed(() => clientValidate(draft.groupExpression, draft.groups.length))
-  const nameError = computed(() => {
-    const n = draft.rule_name.trim()
-    if (!n) return '规则名不能为空'
-    if (n.length > AR_RULE_NAME_MAX) return `规则名不能超过 ${AR_RULE_NAME_MAX} 字`
-    return ''
-  })
 
   function itemError(it: ConditionItem): string {
     if (!it.field) return '字段不能为空'
@@ -296,8 +287,7 @@ export function useEntryRuleEditor() {
   }
 
   const hasError = computed(
-    () => !!nameError.value
-      || (!groupError.value.empty && !groupError.value.valid)
+    () => (!groupError.value.empty && !groupError.value.valid)
       || draft.groups.some((g) => groupHasError(g))
       || !draft.overallPrompt.trim()
   )
@@ -307,7 +297,6 @@ export function useEntryRuleEditor() {
     isNew.value = !rule
     if (rule) {
       draft.id = rule.id
-      draft.rule_name = rule.rule_name
       draft.rule_seq = rule.rule_seq
       draft.status = rule.status
       const inflated = inflateFromRule(rule)
@@ -316,7 +305,6 @@ export function useEntryRuleEditor() {
       draft.overallPrompt = inflated.overallPrompt
     } else {
       draft.id = undefined
-      draft.rule_name = ''
       draft.rule_seq = 0
       draft.status = 'ENABLED'
       draft.groups = [emptyGroup()]
@@ -353,7 +341,6 @@ export function useEntryRuleEditor() {
   function commit(): EntryConditionRule {
     return flattenToRule({
       id: draft.id,
-      rule_name: draft.rule_name,
       rule_seq: draft.rule_seq,
       status: draft.status,
       groups: draft.groups.map((g) => ({
@@ -376,7 +363,6 @@ export function useEntryRuleEditor() {
     canAddItemInGroup,
     canRemoveItemInGroup,
     groupError,
-    nameError,
     itemError,
     innerExprError,
     hasError,

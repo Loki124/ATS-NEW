@@ -1,6 +1,6 @@
 <template>
   <section class="config-card">
-    <div class="card-title">
+    <div class="card-title card-title--left">
       <n-icon :component="PulseOutline" />
       流程自动化
       <span class="title-desc">· 配置阶段的自动评估、流转、跳过与归档规则</span>

@@ -17,20 +17,6 @@
     @update:show="(v: boolean) => !v && onRequestClose()"
   >
     <div class="er-body">
-      <!-- 规则名 -->
-      <div class="er-field">
-        <label class="field-label">规则名 <span class="required-mark">*</span></label>
-        <n-input
-          v-model:value="draft.rule_name"
-          size="small"
-          placeholder="请输入"
-          :maxlength="AR_RULE_NAME_MAX"
-          show-count
-          :class="{ 'input-error': !!nameError }"
-        />
-        <p v-if="nameError" class="error-msg">{{ nameError }}</p>
-      </div>
-
       <!-- 条件组容器 -->
       <div class="er-field">
         <label class="field-label">
@@ -167,7 +153,6 @@
           show-count
           :autosize="{ minRows: 2, maxRows: 4 }"
         />
-        <p class="field-hint">最多 500 字</p>
       </div>
     </div>
 
@@ -188,7 +173,7 @@ import {
 } from '@vicons/ionicons5'
 import ConditionPicker from '../components/ConditionPicker.vue'
 import { useEntryRuleEditor } from '../composables/useEntryRuleEditor'
-import { AR_MAX_GROUPS, AR_RULE_NAME_MAX } from '../constants'
+import { AR_MAX_GROUPS } from '../constants'
 import type { ConditionItem, EntryConditionRule, FieldCatalog, ConditionGroup } from '../types'
 
 const props = defineProps<{ catalog: FieldCatalog | null }>()
@@ -199,7 +184,7 @@ const emit = defineEmits<{
 
 const {
   visible, isNew, draft,
-  groupError, nameError, itemError, innerExprError, hasError,
+  groupError, itemError, innerExprError, hasError,
   canAddGroup, canRemoveGroup, canRemoveItemInGroup,
   open, close, addGroup, removeGroup, addItem, removeItem,
   commit,
