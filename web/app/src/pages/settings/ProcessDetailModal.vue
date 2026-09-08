@@ -24,7 +24,7 @@
     class="process-detail-modal"
     style="width: 880px; max-width: 95vw; max-height: 90vh"
     :mask-closable="true"
-    :title="isCreateMode ? '新建流程' : '编辑流程'"
+    :title="modalTitle"
     :bordered="false"
     :segmented="{ content: true, footer: true }"
     @update:show="handleUpdateShow"
@@ -39,69 +39,26 @@
           </n-empty>
         </div>
         <div v-else-if="editForm" class="dp-wrap">
-          <!-- ====== 顶部概览条 (统一 edit/display, V8 sticky topbar) ====== -->
-          <div class="dp-topbar">
-            <div class="dp-topbar-inner">
-              <div class="dp-logo">
-                <n-icon :component="GitNetworkOutline" size="20" />
-              </div>
-              <div class="dp-title-block">
-                <div class="dp-title">
-                  <span>{{ editForm.name || data.name || (isCreateMode ? '新建流程' : '流程详情') }}</span>
-                  <n-tag
-                    v-if="(data.status as any) === 'ACTIVE' || (data.status as any) === 'ENABLED'"
-                    type="success" size="small" round
-                  >启用中</n-tag>
-                  <n-tag v-else-if="data.status" type="default" size="small" round>
-                    {{ data.status === 'INACTIVE' ? '已停用' : data.status }}
-                  </n-tag>
-                </div>
-                <div class="dp-meta">
-                  <span><n-icon :component="LayersOutline" /> {{ editForm.stages.length }} 个阶段</span>
-                  <span v-if="data.code"><n-icon :component="ServerOutline" /> 编号 {{ data.code }} (不可改)</span>
-                </div>
-              </div>
-              <nav class="dp-tabs" aria-label="页面导航">
-                <button type="button" class="dp-tab" @click="scrollToSection('sec-basic')">基础信息</button>
-                <button type="button" class="dp-tab" @click="scrollToSection('sec-scope')">适用范围</button>
-                <button type="button" class="dp-tab" @click="scrollToSection('sec-stages')">流程阶段</button>
-              </nav>
-              <div class="dp-actions">
-                <n-button @click="cancelEdit">取消</n-button>
-                <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">
-                  {{ isCreateMode ? '创建' : '保存' }}
-                </n-button>
-              </div>
-            </div>
-          </div>
-
           <!-- ====== 基础信息 ====== -->
           <section class="dp-section" id="sec-basic">
             <div class="dp-section-title"><h3>基础信息</h3></div>
             <div class="dp-card">
               <div class="dp-form-grid">
-                <div class="dp-field span-full">
+                <div class="dp-field">
                   <label class="dp-flabel">流程名称</label>
                   <n-input v-model:value="editForm.name" placeholder="流程名称" />
-                </div>
-                <div class="dp-field">
-                  <span class="dp-flabel">适用范围组合</span>
-                  <n-radio-group v-model:value="editForm.applicableMode" size="small">
-                    <n-radio value="ALL">全部满足</n-radio>
-                    <n-radio value="ANY">任一满足</n-radio>
-                  </n-radio-group>
                 </div>
                 <div class="dp-field">
                   <span class="dp-flabel">校验简历评分</span>
                   <n-switch v-model:value="editForm.validateResumeScore" />
                 </div>
+                <div class="dp-field">
+                  <span class="dp-flabel">是否启用</span>
+                  <n-switch :value="editForm.status === 'ACTIVE'" @update:value="(v) => (editForm.status = v ? 'ACTIVE' : 'INACTIVE')" />
+                </div>
                 <div class="dp-field span-full">
                   <label class="dp-flabel">流程说明</label>
                   <n-input v-model:value="editForm.description" type="textarea" :rows="3" placeholder="可选" />
-                </div>
-                <div class="dp-field span-full">
-                  <label class="dp-flabel">流转异常提示</label>
-                  <n-input v-model:value="editForm.failPrompt" type="textarea" :rows="3" placeholder="候选人不满足进入条件时的展示文本 (可选)" />
                 </div>
               </div>
             </div>
@@ -112,35 +69,69 @@
             <div class="dp-section-title">
               <h3>适用范围</h3><span class="hint">基于条件规则判断适用范围</span>
             </div>
-            <div v-if="editForm.applicableIndicators.length" class="scope-card-list">
-              <n-grid :cols="2" :x-gap="12" :y-gap="12" responsive="screen" :item-responsive="true">
-                <n-grid-item v-for="ind in editForm.applicableIndicators" :key="ind.key">
-                  <div class="scope-card" :class="getScopeEditCardClass(ind)">
-                    <div class="scope-card__head">
-                      <n-icon :component="SCOPE_KEY_ICONS[ind.key]" />
-                      <span class="scope-card__name">{{ SCOPE_INDICATOR_META[ind.key].label }}</span>
-                    </div>
-                    <div class="scope-card__mode">
-                      <n-radio-group v-model:value="ind.mode" size="small">
-                        <n-radio value="include">包含</n-radio>
-                        <n-radio value="exclude">不包含</n-radio>
-                      </n-radio-group>
-                      <span v-if="ind.values.length" class="scope-card__count">{{ ind.values.length }} 项</span>
-                      <span v-else class="scope-card__count">不限</span>
-                    </div>
-                    <div class="scope-card__values">
-                      <n-select
-                        v-model:value="ind.values"
-                        multiple filterable clearable
-                        placeholder="留空 = 不约束"
-                        :options="scopeOptionsFor(ind.key)"
-                        :loading="!scopeOptionsLoaded"
-                        class="scope-card__select"
-                      />
-                    </div>
-                  </div>
-                </n-grid-item>
-              </n-grid>
+            <!-- A: 适用范围 row 列表 (每行: 编号 / 字段 / 包含-不包含 / 值多选 / 删除) -->
+            <div class="scope-row-list">
+              <div
+                v-for="(ind, idx) in editForm.applicableIndicators"
+                :key="ind.key"
+                class="scope-row"
+                :class="getScopeEditCardClass(ind)"
+              >
+                <span class="scope-row__no">{{ idx + 1 }}</span>
+                <div class="scope-row__field">
+                  <n-icon :component="SCOPE_KEY_ICONS[ind.key]" />
+                  <span>{{ SCOPE_INDICATOR_META[ind.key].label }}</span>
+                </div>
+                <n-select
+                  class="scope-row__mode"
+                  :value="ind.mode"
+                  :options="MODE_OPTIONS"
+                  size="small"
+                  @update:value="(v) => (ind.mode = v as 'include' | 'exclude')"
+                />
+                <div class="scope-row__values">
+                  <n-select
+                    v-model:value="ind.values"
+                    multiple filterable clearable
+                    :placeholder="ind.values.length ? '' : '留空 = 不约束'"
+                    :options="scopeOptionsFor(ind.key)"
+                    :loading="!scopeOptionsLoaded"
+                  />
+                  <span v-if="ind.values.length" class="scope-row__count">
+                    {{ ind.values.length > 1 ? `+${ind.values.length - 1}` : '' }}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  class="scope-row__remove"
+                  :aria-label="`删除条件 ${idx + 1}`"
+                  @click="removeScopeRow(idx)"
+                >删除</button>
+              </div>
+
+              <button
+                type="button"
+                class="scope-row__add"
+                :disabled="!availableScopeKeys.length"
+                @click="addScopeRow"
+              >
+                <n-icon :component="AddOutline" size="14" />
+                <span>添加条件</span>
+              </button>
+            </div>
+
+            <!-- 条件表达式: 简单展示 "1 or 2" (后续若后端需要可上链) -->
+            <div class="scope-expr">
+              <span class="scope-expr__label">
+                条件表达式
+                <n-tooltip trigger="hover" placement="top">
+                  <template #trigger>
+                    <n-icon :component="HelpCircleOutline" size="12" />
+                  </template>
+                  <span>基于"包含"条件的索引用 or 连接, 排除行以 NOT 包裹</span>
+                </n-tooltip>
+              </span>
+              <n-input :value="scopeConditionExpr" readonly size="small" />
             </div>
           </section>
 
@@ -149,9 +140,6 @@
             <div class="dp-section-title">
               <h3>流程阶段</h3><span class="warn">第一个和最后一个阶段为系统内置固定阶段，不可取消或调整位置</span>
             </div>
-            <n-alert type="info" :show-icon="false" style="margin-bottom: var(--space-3); font-size: 12px">
-              起止阶段不可删除. 中间业务阶段可单独配置或删除. 点「配置阶段规则」编辑阶段规则与进入条件.
-            </n-alert>
             <div class="stage-list">
               <div
                 v-for="(stage, idx) in editForm.stages"
@@ -260,7 +248,7 @@
                       <template v-if="stage._rule?.defaultHandlerType">
                         <span class="handler-tag">{{ HANDLER_TYPE_LABEL[stage._rule.defaultHandlerType] || stage._rule.defaultHandlerType }}</span>
                         <span v-for="(f, fi) in (stage._rule.defaultHandlerFields || [])" :key="'f' + fi" class="handler-tag">{{ f }}</span>
-                        <span v-for="(u, ui) in (stage._rule.defaultHandlerUserIds || [])" :key="'u' + ui" class="handler-tag">{{ u }}</span>
+                        <span v-for="(u, ui) in (stage._rule.defaultHandlerUserIds || [])" :key="'u' + ui" class="handler-tag">{{ resolveHandlerUserName(u) }}</span>
                       </template>
                       <span v-else class="handler-none">无默认处理人</span>
                     </div>
@@ -281,8 +269,7 @@
     </n-scrollbar>
 
     <template #footer>
-      <n-space justify="end">
-        <n-button @click="handleClose">关闭</n-button>
+      <div class="dp-modal-footer">
         <n-button
           v-if="!isCreateMode"
           type="default"
@@ -293,7 +280,13 @@
           <template #icon><n-icon :component="CopyOutline" /></template>
           复制此流程
         </n-button>
-      </n-space>
+        <n-space justify="end">
+          <n-button @click="cancelEdit">取消</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">
+            {{ isCreateMode ? '创建' : '保存' }}
+          </n-button>
+        </n-space>
+      </div>
     </template>
   </n-modal>
 
@@ -435,6 +428,7 @@ import {
   SearchOutline,
   OptionsOutline,
   ExtensionPuzzleOutline,
+  HelpCircleOutline,
 } from '@vicons/ionicons5'
 import EntryConditionCard from './EntryConditionCard.vue'
 import {
@@ -442,6 +436,7 @@ import {
   listProcessLinks,
   copyProcess,
   updateProcess,
+  updateProcessStatus,
   createProcess,
   listStages,
   addProcessLink,
@@ -452,6 +447,7 @@ import {
   type ProcessStageLink,
   type StageRule,
   type EntryCondition,
+  listEntryConditionRules,
 } from '../../api/recruitment-process'
 import StageRuleConfigModal from './StageRuleConfigModal.vue'
 // D1: 适用范围选项真实数据源 (departments / positions / users)
@@ -525,6 +521,7 @@ interface EditForm {
   validateResumeScore: boolean
   failPrompt: string
   applicableMode: 'ALL' | 'ANY'
+  status: 'ACTIVE' | 'INACTIVE'
   applicableIndicators: ScopeIndicator[]
   stages: EditStage[]
 }
@@ -567,6 +564,18 @@ const SCOPE_INDICATOR_LABEL: Record<string, string> = {
   position: '岗位',
   user: '用户',
 }
+
+// B: 弹窗标题 (编辑流程-「流程名称(流程编号)」-「阶段数量」)
+const modalTitle = computed(() => {
+  const name = editForm.value?.name || data.value?.name || (isCreateMode.value ? '未命名' : '')
+  const code = data.value?.code
+  const stageCount = editForm.value?.stages?.length ?? 0
+  if (isCreateMode.value) {
+    return '新建流程' + (name ? `-「${name}」-「${stageCount} 个阶段」` : '')
+  }
+  const nameTag = `${name}${code ? `(${code})` : ''}`
+  return `编辑流程-「${nameTag}」-「${stageCount} 个阶段」`
+})
 
 const SCOPE_KEY_ICONS: Record<string, any> = {
   department: BusinessOutline,
@@ -724,6 +733,7 @@ function buildEmptyEditForm(): EditForm {
     validateResumeScore: false,
     failPrompt: '',
     applicableMode: 'ALL',
+    status: 'ACTIVE',
     applicableIndicators: indicators,
     stages,
   }
@@ -767,6 +777,7 @@ function buildEditForm(): EditForm {
     validateResumeScore: d.validateResumeScore ?? true,
     failPrompt: d.failPrompt || '',
     applicableMode: (d.applicableMode as 'ALL' | 'ANY') || 'ALL',
+    status: (d.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE',
     applicableIndicators: indicators,
     stages,
   }
@@ -942,6 +953,33 @@ async function onRuleSaved() {
     }
     editForm.value.stages[idx]._rule = updated.stageRule || undefined
     editForm.value.stages[idx]._condition = updated.entryCondition || undefined
+    // E: 同步拉取新的 EntryConditionRule (StageRuleConfigModal 写入的是这个新模型,
+    //   与 link.entryCondition 是两个独立存储位置), 把第一/最新 enabled rule 的
+    //   items 映射到 legacy entryCondition shape (matchType + items[]) 让卡内能展示.
+    try {
+      const ecList = await listEntryConditionRules({ linkId }).catch(() => [] as any[])
+      const ec = Array.isArray(ecList) && ecList.length
+        ? (ecList.find((r: any) => r.status === 'ENABLED') || ecList[0])
+        : null
+      if (ec && Array.isArray(ec.items) && ec.items.length) {
+        editForm.value.stages[idx]._condition = {
+          matchType: 'ALL',
+          conditionType: 'CANDIDATE',
+          items: ec.items.map((it: any) => ({
+            item_seq: it.item_seq,
+            condition_type: it.condition_type,
+            field: it.field,
+            stage_name: it.stage_name,
+            stage_statuses: it.stage_statuses,
+            operator: it.operator,
+            value: it.value,
+            auto_filter_inactive_users: it.auto_filter_inactive_users,
+          })),
+        }
+      }
+    } catch {
+      /* 静默: 卡内已配置规则不阻塞保存反馈 */
+    }
     message.success('阶段配置已保存')
   } catch (e: any) {
     message.success('阶段配置已保存 (但本地状态刷新失败，请重新打开查看)')
@@ -1149,6 +1187,10 @@ async function handleSave() {
         message.error('创建失败: 未返回流程 ID')
         return
       }
+      // 新建默认 ACTIVE; createProcess payload 不含 status, 停用需走专用状态接口落库
+      if (form.status === 'INACTIVE') {
+        try { await updateProcessStatus(currentProcessId, 'INACTIVE') } catch { /* 非阻断 */ }
+      }
     } else {
       // ===== 更新流程路径 =====
       await updateProcess(props.processId, {
@@ -1157,6 +1199,7 @@ async function handleSave() {
         validateResumeScore: form.validateResumeScore,
         failPrompt: form.failPrompt,
         applicableMode: form.applicableMode,
+        status: form.status,
         applicableScope: applicableScope as any,
       })
 
@@ -1214,6 +1257,8 @@ async function handleSave() {
     exitEditMode()
     message.success(isCreateMode.value ? '已创建' : '已保存')
     emit('saved', currentProcessId)
+    // 显式通知父组件关闭弹窗, 避免 editForm=null + show=true 导致 body 折叠成"小条"
+    emit('update:show', false)
   } catch (e: any) {
     // 409 conflict path
     if (e?.response?.status === 409) {
@@ -1326,6 +1371,57 @@ function scopeOptionsFor(key: ScopeKey): { label: string; value: string }[] {
     case 'level': return [] // 职级暂无独立接口
     default: return []
   }
+}
+
+
+// ===== 适用范围 row 列表交互 (S1) =====
+const MODE_OPTIONS = [
+  { label: '包含', value: 'include' },
+  { label: '不包含', value: 'exclude' },
+]
+
+const ALL_SCOPE_KEYS: ScopeKey[] = ['department', 'level', 'position', 'user']
+const availableScopeKeys = computed<ScopeKey[]>(() => {
+  const used = new Set((editForm.value?.applicableIndicators || []).map((i) => i.key))
+  return ALL_SCOPE_KEYS.filter((k) => !used.has(k))
+})
+
+function addScopeRow() {
+  if (!editForm.value) return
+  const next = availableScopeKeys.value[0]
+  if (!next) return
+  editForm.value.applicableIndicators.push({
+    key: next,
+    mode: 'include',
+    values: [],
+    options: scopeOptionsFor(next),
+    loading: false,
+  })
+}
+
+function removeScopeRow(idx: number) {
+  if (!editForm.value) return
+  editForm.value.applicableIndicators.splice(idx, 1)
+}
+
+const scopeConditionExpr = computed(() => {
+  const inds = (editForm.value?.applicableIndicators) || []
+  const includes: string[] = []
+  const excludes: string[] = []
+  inds.forEach((ind, idx) => {
+    const ref = String(idx + 1)
+    if (ind.mode === 'exclude') excludes.push(ref)
+    else includes.push(ref)
+  })
+  const parts: string[] = []
+  if (includes.length) parts.push(includes.join(' OR '))
+  for (const e of excludes) parts.push(`NOT ${e}`)
+  return parts.length ? parts.join(' AND ') : ''
+})
+
+function resolveHandlerUserName(id: string): string {
+  const opt = userOptions.value.find((o) => o.value === String(id))
+  return opt?.label || String(id)
 }
 
 // ===== Edit-mode scope card class (driven by indicator.mode + values) =====
@@ -1455,10 +1551,11 @@ function scrollToSection(id: string) {
   color: var(--brand);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);
 }
-.dp-actions {
+.dp-modal-footer {
   display: flex;
-  gap: var(--space-2);
-  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 /* ===== 分区标题 (紫色竖条, V8 dp-section-title) ===== */
@@ -1506,6 +1603,7 @@ function scrollToSection(id: string) {
 .dp-field {
   display: flex;
   flex-direction: column;
+  align-items: flex-start; /* C: 校验简历评分/是否启用 左对齐 */
   gap: 7px;
   min-width: 0;
 }
@@ -1516,58 +1614,104 @@ function scrollToSection(id: string) {
   font-weight: 500;
 }
 
-/* ===== 适用范围编辑器 ===== */
-.scope-card-list { width: 100%; }
-.scope-card {
-  border: 1px solid var(--g2);
-  border-radius: var(--radius-md);
-  padding: 12px var(--space-3);
-  background: var(--glass-bg-card);
+/* ===== 适用范围编辑器 (S1: row-list 交互) ===== */
+.scope-row-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 92px;
-  transition: all var(--duration-fast) var(--ease-out);
+  gap: var(--space-2);
+  width: 100%;
 }
-.scope-card:hover { box-shadow: 0 2px 8px var(--overlay-scrim-weak); }
-.scope-card--include { border-color: var(--c-info-bg); }
-.scope-card--exclude { border-color: var(--c-error-bg); }
-.scope-card--neutral { border-color: var(--g2); }
-.scope-card__head {
+.scope-row {
+  display: grid;
+  grid-template-columns: 28px 130px 110px 1fr 56px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-3);
+  border: 1px solid var(--g2);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-card);
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.scope-row.scope-card--include { border-color: var(--c-info-bg); }
+.scope-row.scope-card--exclude { border-color: var(--c-error-bg); }
+.scope-row.scope-card--neutral { border-color: var(--g2); }
+.scope-row:hover { box-shadow: 0 2px 8px var(--overlay-scrim-weak); }
+.scope-row__no {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.scope-row__field {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink);
+  min-width: 0;
 }
-.scope-card__head :deep(.n-icon) {
-  font-size: var(--fs-14);
-  color: var(--brand);
-}
-.scope-card--exclude .scope-card__head :deep(.n-icon) { color: var(--c-error); }
-.scope-card__name { flex: 1; }
-.scope-card__mode {
+.scope-row__field :deep(.n-icon) { font-size: var(--fs-15); color: var(--brand); }
+.scope-row.scope-card--exclude .scope-row__field :deep(.n-icon) { color: var(--c-error); }
+.scope-row__mode { min-width: 0; }
+.scope-row__values {
   display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  font-size: 11px;
+  min-width: 0;
 }
-.scope-card__mode :deep(.n-radio-group) { flex: 1 1 auto; min-width: 0; }
-.scope-card__count {
-  color: var(--n-400);
+.scope-row__values :deep(.n-select) { flex: 1 1 auto; min-width: 0; }
+.scope-row__count {
   flex-shrink: 0;
+  font-size: var(--fs-12);
+  color: var(--ink-soft);
   white-space: nowrap;
-  margin-left: auto;
 }
-.scope-card__values {
+.scope-row__remove {
+  border: none;
+  background: transparent;
+  color: var(--c-error);
+  font-size: var(--fs-13);
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: center;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.scope-row__remove:hover { color: var(--c-error-strong); text-decoration: underline; }
+.scope-row__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 6px 12px;
+  border: 1px dashed var(--g3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--brand);
+  font-size: var(--fs-13);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.scope-row__add:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }
+.scope-row__add:disabled { opacity: 0.45; cursor: not-allowed; }
+.scope-row__add :deep(.n-icon) { font-size: var(--fs-14); }
+
+/* 条件表达式展示 */
+.scope-expr {
+  margin-top: var(--space-2);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  flex: 1;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
 }
+.scope-expr__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-12);
+  color: var(--ink-soft);
+}
+.scope-expr :deep(.n-input) { max-width: 480px; }
 
 /* ===== 阶段列表 (V8 stage-list) ===== */
 .stage-list { display: flex; flex-direction: column; gap: var(--space-3); }

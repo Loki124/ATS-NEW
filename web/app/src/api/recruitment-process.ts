@@ -348,8 +348,8 @@ export const deleteEntryConditionRule = (id: string) =>
 export const toggleEntryConditionRule = (id: string) =>
   api.post<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/toggle/`).then((r) => unwrap(r) as any)
 
-export const reorderEntryConditionRules = (ruleOrders: { id: string; rule_seq: number }[]) =>
-  api.post<{ success: boolean; data: any }>('/entry-condition-rules/reorder/', { rules: ruleOrders }).then((r) => unwrap(r) as any)
+export const reorderEntryConditionRules = (ruleOrders: { rule_id: string; rule_seq: number }[]) =>
+  api.post<{ success: boolean; data: any }>('/entry-condition-rules/reorder/', { rule_orders: ruleOrders }).then((r) => unwrap(r) as any)
 
 export const evaluateEntryConditionRule = (payload: Record<string, any>) =>
   api.post<{ success: boolean; data: any }>('/entry-condition-rules/evaluate/', payload).then((r) => unwrap(r) as any)

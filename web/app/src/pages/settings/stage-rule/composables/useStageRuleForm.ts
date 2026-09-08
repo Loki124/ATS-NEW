@@ -63,6 +63,34 @@ function serializeEntry(r: EntryConditionRule) {
   }
 }
 
+/** 规范化后端枚举值，兼容历史/遗留数据（避免 round-trip 时因非法 choices 触发 400）。
+ * 仅在值非法时映射/兜底，合法值原样透传；合法化后下次保存即固化，不再需要兜底。 */
+const VALID_STATUS = ['ENABLED', 'DISABLED']
+const VALID_CONDITION_TYPE = ['STAGE_STATUS', 'CANDIDATE', 'DEMAND']
+const VALID_OPERATOR = ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY']
+const STATUS_LEGACY: Record<string, string> = { ACTIVE: 'ENABLED', INACTIVE: 'DISABLED', ON: 'ENABLED', OFF: 'DISABLED' }
+const CONDITION_TYPE_LEGACY: Record<string, string> = { STAGE: 'STAGE_STATUS', PERSON: 'CANDIDATE', REQUIREMENT: 'DEMAND' }
+const OPERATOR_LEGACY: Record<string, string> = {
+  EQUALS: 'EQ', EQUAL: 'EQ', '=': 'EQ', '==': 'EQ',
+  NOT_EQUALS: 'NEQ', NOT_EQUAL: 'NEQ', '<>': 'NEQ', '!=': 'NEQ',
+  GREATER_THAN: 'GT', '>': 'GT', GT: 'GT',
+  GREATER_THAN_OR_EQUAL: 'GTE', '>=': 'GTE',
+  LESS_THAN: 'LT', '<': 'LT',
+  LESS_THAN_OR_EQUAL: 'LTE', '<=': 'LTE',
+}
+function normStatus(v: any): 'ENABLED' | 'DISABLED' {
+  if (VALID_STATUS.includes(v)) return v
+  return (STATUS_LEGACY[String(v ?? '').toUpperCase()] as 'ENABLED' | 'DISABLED') || 'ENABLED'
+}
+function normConditionType(v: any): SourceKey {
+  if (VALID_CONDITION_TYPE.includes(v)) return v
+  return (CONDITION_TYPE_LEGACY[String(v ?? '').toUpperCase()] as SourceKey) || 'DEMAND'
+}
+function normOperator(v: any): OperatorKey {
+  if (VALID_OPERATOR.includes(v)) return v
+  return (OPERATOR_LEGACY[String(v ?? '').toUpperCase()] as OperatorKey) || 'EQ'
+}
+
 export function useStageRuleForm() {
   const form = reactive<StageRuleFormState>(defaultForm())
   const entryRules = ref<EntryConditionRule[]>([])
@@ -141,10 +169,15 @@ async function loadFields() {
           id: r.id,
           rule_name: r.rule_name || '',
           rule_seq: r.rule_seq || 0,
-          status: r.status || 'ENABLED',
+          // 规范化遗留枚举（status / condition_type / operator），避免 round-trip 400
+          status: normStatus(r.status),
           expression: r.expression || '',
           reject_message: r.reject_message || '',
-          items: (r.items || []).map((it: any) => ({ ...it })),
+          items: (r.items || []).map((it: any) => ({
+            ...it,
+            condition_type: normConditionType(it.condition_type),
+            operator: normOperator(it.operator),
+          })),
         }))
       loadedEntryIds.value = entryRules.value.filter((r) => r.id).map((r) => r.id as string)
       // 字段字典非阻塞加载（P0-1：不再注入 demo 脏数据，空配置即真实空配置）
@@ -194,7 +227,7 @@ async function loadFields() {
         await deleteEntryConditionRule(id).catch(() => {})
       }
       // 重排（seq 已按索引；reorder 兜底，失败不阻断）
-      const ordered = entryRules.value.filter((r) => r.id).map((r, i) => ({ id: r.id as string, rule_seq: i + 1 }))
+      const ordered = entryRules.value.filter((r) => r.id).map((r, i) => ({ rule_id: r.id as string, rule_seq: i + 1 }))
       if (ordered.length) await reorderEntryConditionRules(ordered).catch(() => {})
       loadedEntryIds.value = entryRules.value.filter((r) => r.id).map((r) => r.id as string)
       return true
