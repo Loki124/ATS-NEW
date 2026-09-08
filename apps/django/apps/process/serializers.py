@@ -15,6 +15,8 @@ from rest_framework import serializers
 from django.db import transaction
 
 from .models import (
+    InterviewRound,
+    InterviewRoundStatus,
     ProcessStageLink,
     ProcessTemplate,
     ProcessingRule,
@@ -401,6 +403,54 @@ class RecruitmentProcessDetailSerializer(RecruitmentProcessSerializer):
 
     class Meta(RecruitmentProcessSerializer.Meta):
         fields = RecruitmentProcessSerializer.Meta.fields + ['stage_links']
+
+
+# ============================================================
+# 面试轮次（InterviewRound）
+# ============================================================
+class InterviewRoundSerializer(serializers.ModelSerializer):
+    """面试轮次 - 列表/详情/更新"""
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = InterviewRound
+        fields = [
+            'id', 'code', 'name', 'description',
+            'evaluation_form_name', 'is_universal', 'status', 'status_display',
+            'created_at', 'updated_at', 'created_by', 'updated_by',
+        ]
+        read_only_fields = [
+            'id', 'code', 'created_at', 'updated_at', 'created_by', 'updated_by',
+        ]
+
+    def validate_name(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('轮次名称必填')
+        return value.strip()
+
+    def validate_status(self, value):
+        if value not in {InterviewRoundStatus.ACTIVE, InterviewRoundStatus.INACTIVE}:
+            raise serializers.ValidationError(f'无效状态: {value}')
+        return value
+
+
+class InterviewRoundCreateSerializer(InterviewRoundSerializer):
+    """创建面试轮次：自动生成 R+三位流水号"""
+
+    class Meta(InterviewRoundSerializer.Meta):
+        read_only_fields = ['id', 'code', 'created_at', 'updated_at', 'created_by', 'updated_by']
+
+    def create(self, validated_data):
+        if not validated_data.get('code'):
+            last = (
+                InterviewRound.objects.filter(code__regex=r'^R\d+$')
+                .order_by('-code')
+                .values_list('code', flat=True)
+                .first()
+            )
+            next_num = (int(last[1:]) + 1) if last and last[1:].isdigit() else 1
+            validated_data['code'] = f'R{next_num:03d}'
+        return super().create(validated_data)
 
 
 # ============================================================

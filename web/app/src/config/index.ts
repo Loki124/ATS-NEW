@@ -18,7 +18,13 @@ export const config = {
   // 后端配置 - Django
   backend: {
     port: 8000,
-    url: 'http://localhost:8000',
+    // 多 worktree 预览: 允许用 VITE_BACKEND_URL 覆盖代理目标端口,
+    // 使每个 worktree 的前端能指向自己的后端服务 (scripts/devstack.sh 依赖此机制)。
+    // 兼容 Node 端(process.env, vite.config.ts 读取代理目标) 与浏览器端(import.meta.env)。
+    url:
+      (typeof process !== 'undefined' && process.env?.VITE_BACKEND_URL) ||
+      (import.meta as any).env?.VITE_BACKEND_URL ||
+      'http://localhost:8000',
     apiPrefix: '/api/v1',
   },
 

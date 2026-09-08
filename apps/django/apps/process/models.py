@@ -448,6 +448,40 @@ class StageRule(FullAuditModel):
 
 
 # ============================================================
+# 面试轮次库
+# ============================================================
+class InterviewRoundStatus(models.TextChoices):
+    ACTIVE = 'ACTIVE', '启用'
+    INACTIVE = 'INACTIVE', '停用'
+
+
+class InterviewRound(FullAuditModel):
+    """面试轮次库（全局共享）
+
+    用于阶段规则关联的面试轮次主数据，字段对齐 FE RecruitmentRound.vue.
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    code = models.CharField(max_length=20, unique=True, verbose_name='轮次编号', help_text='R+三位流水号')
+    name = models.CharField(max_length=50, verbose_name='轮次名称')
+    evaluation_form_name = models.CharField(max_length=100, blank=True, verbose_name='面试评价表')
+    is_universal = models.BooleanField(default=False, db_index=True, verbose_name='通用评价表')
+    status = models.CharField(
+        max_length=16, choices=InterviewRoundStatus.choices,
+        default=InterviewRoundStatus.ACTIVE, db_index=True, verbose_name='状态',
+    )
+    description = models.TextField(blank=True, verbose_name='备注')
+
+    class Meta:
+        db_table = 'interview_rounds'
+        verbose_name = '面试轮次'
+        verbose_name_plural = verbose_name
+        ordering = ['code']
+
+    def __str__(self):
+        return f'{self.code} {self.name}'
+
+
+# ============================================================
 # 流程模板（V4.0 预置 4 套）
 # ============================================================
 class ProcessTemplate(FullAuditModel):
