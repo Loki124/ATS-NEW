@@ -107,12 +107,36 @@ export interface FieldDefinition {
   updatedAt?: string;
 }
 
+/** 后端 read 只返回嵌套 module/group, 但前端大量地方按平铺 moduleId/groupId 过滤/回填。
+ * 在 API 层统一展开, 避免每个消费方重复处理嵌套对象。
+ */
+function normalizeField(f: FieldDefinition): FieldDefinition {
+  if (!f) return f;
+  return {
+    ...f,
+    moduleId: f.moduleId ?? f.module?.id ?? null,
+    groupId: f.groupId ?? f.group?.id ?? null,
+  };
+}
+
+function normalizeGroup(g: FieldGroup): FieldGroup {
+  if (!g) return g;
+  return { ...g, moduleId: g.moduleId ?? g.module?.id ?? '' };
+}
+
+function normalizeLinkageRule(r: FieldLinkageRule): FieldLinkageRule {
+  if (!r) return r;
+  return { ...r, moduleId: r.moduleId ?? r.module?.id ?? '' };
+}
+
 export const listFields = (resource: string, params: Record<string, unknown> = {}) =>
-  api.get(`/dynamic-fields/${resource}/fields/`, { params }).then((r) => r.data.data);
+  api.get(`/dynamic-fields/${resource}/fields/`, { params })
+    .then((r) => (r.data.data as FieldDefinition[]).map(normalizeField));
 
 /** detail 端点统一按 id (nanoid) 寻址, 与后端 `get_object()` 契约一致 */
 export const getField = (resource: string, id: string) =>
-  api.get(`/dynamic-fields/${resource}/fields/${id}/`).then((r) => r.data.data);
+  api.get(`/dynamic-fields/${resource}/fields/${id}/`)
+    .then((r) => normalizeField(r.data.data as FieldDefinition));
 
 /**
  * 新建 / 编辑字段定义。
@@ -127,7 +151,7 @@ export const upsertField = (resource: string, body: Partial<FieldDefinition>) =>
   (body.id
     ? api.put(`/dynamic-fields/${resource}/fields/${body.id}/`, body)
     : api.post(`/dynamic-fields/${resource}/fields/`, body)
-  ).then((r) => r.data.data);
+  ).then((r) => normalizeField(r.data.data as FieldDefinition));
 
 export const deleteField = (resource: string, id: string) =>
   api.delete(`/dynamic-fields/${resource}/fields/${id}/`).then((r) => r.data);
@@ -262,13 +286,13 @@ export const deleteModule = (resource: string, id: string) =>
 // --- 分组配置 (FieldGroup, 子级) ---
 export const listGroups = (resource: string, moduleId?: string) =>
   api.get(`/dynamic-fields/${resource}/groups/`, { params: moduleId ? { module_id: moduleId } : {} })
-    .then((r) => r.data.data as FieldGroup[]);
+    .then((r) => (r.data.data as FieldGroup[]).map(normalizeGroup));
 
 export const upsertGroup = (resource: string, body: Partial<FieldGroup>) =>
   (body.id
     ? api.put(`/dynamic-fields/${resource}/groups/${body.id}/`, body)
     : api.post(`/dynamic-fields/${resource}/groups/`, body)
-  ).then((r) => r.data.data as FieldGroup);
+  ).then((r) => normalizeGroup(r.data.data as FieldGroup));
 
 export const deleteGroup = (resource: string, id: string) =>
   api.delete(`/dynamic-fields/${resource}/groups/${id}/`).then((r) => r.data);
@@ -276,13 +300,13 @@ export const deleteGroup = (resource: string, id: string) =>
 // --- 联动规则 (FieldLinkageRule, 同模块) ---
 export const listLinkageRules = (resource: string, moduleId?: string) =>
   api.get(`/dynamic-fields/${resource}/linkage-rules/`, { params: moduleId ? { module_id: moduleId } : {} })
-    .then((r) => r.data.data as FieldLinkageRule[]);
+    .then((r) => (r.data.data as FieldLinkageRule[]).map(normalizeLinkageRule));
 
 export const upsertLinkageRule = (resource: string, body: Partial<FieldLinkageRule>) =>
   (body.id
     ? api.put(`/dynamic-fields/${resource}/linkage-rules/${body.id}/`, body)
     : api.post(`/dynamic-fields/${resource}/linkage-rules/`, body)
-  ).then((r) => r.data.data as FieldLinkageRule);
+  ).then((r) => normalizeLinkageRule(r.data.data as FieldLinkageRule));
 
 export const deleteLinkageRule = (resource: string, id: string) =>
   api.delete(`/dynamic-fields/${resource}/linkage-rules/${id}/`).then((r) => r.data);
@@ -317,11 +341,5 @@ export const importFields = (
   resource: string, format: 'json' | 'csv', content: string,
 ) => api.post(`/dynamic-fields/${resource}/fields/import/`, { format, content })
   .then((r) => r.data as { success: boolean; created: number; updated: number; errors: number });
-
-export const RESOURCE_OPTIONS: { label: string; value: string }[] = [
-  { label: '候选人 Candidate', value: 'Candidate' },
-  { label: '需求 Demand', value: 'Demand' },
-  { label: '职位 Position', value: 'Position' },
-];
 
 export default api;
