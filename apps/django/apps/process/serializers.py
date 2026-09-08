@@ -14,6 +14,8 @@ from __future__ import annotations
 from rest_framework import serializers
 from django.db import transaction
 
+from apps.core.serializers import UserMinimalSerializer
+
 from .models import (
     InterviewRound,
     InterviewRoundStatus,
@@ -330,9 +332,15 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
 # 招聘流程（RecruitmentProcess）
 # ============================================================
 class RecruitmentProcessListSerializer(serializers.ModelSerializer):
-    """招聘流程 - 列表"""
+    """招聘流程 - 列表
+
+    2026-09-08: 新增 created_by / updated_by 嵌套 UserMinimalSerializer
+    让 FE 列表「创建人/最后修改人」列可显示真实姓名（之前一直显示 "-"）
+    """
     stage_count = serializers.SerializerMethodField()
     reference_count = serializers.IntegerField(read_only=True)
+    created_by = UserMinimalSerializer(read_only=True)
+    updated_by = UserMinimalSerializer(read_only=True)
 
     class Meta:
         model = RecruitmentProcess
@@ -343,6 +351,7 @@ class RecruitmentProcessListSerializer(serializers.ModelSerializer):
             'status', 'description',
             'stage_count', 'reference_count',
             'created_at', 'updated_at',
+            'created_by', 'updated_by',
         ]
 
     def get_stage_count(self, obj):

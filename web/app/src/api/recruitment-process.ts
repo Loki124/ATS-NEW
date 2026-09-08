@@ -49,9 +49,13 @@ export interface RecruitmentProcess {
   createdAt: string;
   updatedAt: string;
   _count?: { links: number; stageRules: number };
-  updater?: { id: string; realName?: string; username: string };
-  // 2026-07-02: BE getProcess 返回的元信息 (创建人/修改人)
+  // 2026-09-08: drf-camel-case 把后端 updated_by/created_by 翻译成驼峰
+  // (后端 RecruitmentProcessListSerializer 已嵌套 UserMinimalSerializer，realName 由 first_name+last_name 派生)
+  createdBy?: { id: string; realName?: string; username: string };
+  updatedBy?: { id: string; realName?: string; username: string };
+  // 兼容旧类型（getProcess 详情接口使用 RecruitmentProcessDetailSerializer，输出 created_by/updated_by 驼峰后同字段名）
   creator?: { id: string; realName?: string; username: string };
+  updater?: { id: string; realName?: string; username: string };
   links?: ProcessStageLink[];
 }
 

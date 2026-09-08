@@ -46,9 +46,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h, computed } from 'vue'
-import { useMessage, NButton, NTag, NIcon, NDataTable } from 'naive-ui'
+import { useMessage, NButton, NTag, NIcon, NDataTable, NPopconfirm, NSpace } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
-import { listProcesses } from '../../api/recruitment-process'
+import { listProcesses, deleteProcess } from '../../api/recruitment-process'
 import ProcessDetailModal from './ProcessDetailModal.vue'
 
 const message = useMessage()
@@ -87,19 +87,39 @@ const columns = [
     width: 90,
     render: (row: any) => h(NTag, { type: row.status === 'ACTIVE' ? 'success' : 'default' }, { default: () => row.status === 'ACTIVE' ? '启用' : '停用' }),
   },
-  { title: '最后修改人', key: 'updater', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updater?.realName || '-' },
+  { title: '最后修改人', key: 'updatedBy', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' },
   { title: '最后修改时间', key: 'updatedAt', width: 170, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => formatDate(r.updatedAt) },
   {
     title: '操作',
     key: 'action',
-    width: 100,
+    width: 160,
     fixed: 'right' as const,
-    render: (row: any) => h(NButton, {
-      size: 'small',
-      type: 'primary',
-      text: true,
-      onClick: () => openProcessModal(row),
-    }, { default: () => '编辑' }),
+    render: (row: any) => h(NSpace, { size: 'small' }, () => [
+      h(NButton, {
+        size: 'small',
+        type: 'primary',
+        text: true,
+        onClick: () => openProcessModal(row),
+      }, { default: () => '编辑' }),
+      // 2026-09-08: 流程增加删除入口。is_template=True 的流程不可删（属预置模板），
+      // 被需求引用的不可删（后端 PermissionDenied 兜底，FE 用 referenceCount 提前禁用）。
+      h(NPopconfirm, {
+        onPositiveClick: () => handleDelete(row),
+        disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
+      }, {
+        trigger: () => h(NButton, {
+          size: 'small',
+          type: 'error',
+          text: true,
+          disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
+        }, { default: () => '删除' }),
+        default: () => row.isTemplate
+          ? '预置模板不可删除'
+          : (row.referenceCount ?? 0) > 0
+            ? `被 ${row.referenceCount} 个需求引用，请先在需求中解绑`
+            : '确定要删除此流程吗？删除后不可恢复',
+      }),
+    ]),
   },
 ]
 
@@ -153,6 +173,27 @@ function onProcessSaved() {
 // 详情 modal 中的 "复制此流程" 按钮 -> modal 已自动关 + 已 toast, list 重新拉即可
 function onProcessCopied(_newProcessId: string) {
   loadList()
+}
+
+// 2026-09-08: 删除流程。后端 perform_destroy 走 is_process_referenced 校验 + soft_delete。
+// 422（被引用）/ 4xx 的错误信息直接 toast 给用户。
+async function handleDelete(row: any) {
+  if (row.isTemplate) {
+    message.warning('预置模板不可删除')
+    return
+  }
+  if ((row.referenceCount ?? 0) > 0) {
+    message.warning(`被 ${row.referenceCount} 个需求引用，请先在需求中解绑`)
+    return
+  }
+  try {
+    await deleteProcess(row.id)
+    message.success(`流程「${row.name}」已删除`)
+    loadList()
+  } catch (e: any) {
+    const errBody = e?.response?.data
+    message.error(errBody?.message || errBody?.detail || '删除失败')
+  }
 }
 
 onMounted(() => loadList())
