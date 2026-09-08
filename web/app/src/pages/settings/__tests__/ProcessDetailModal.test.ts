@@ -32,7 +32,6 @@ vi.mock('../../../api/recruitment-process', () => ({
   updateProcessStatus: vi.fn(),
   upsertStageRule: vi.fn(),
   upsertEntryCondition: vi.fn(),
-  evaluateEntryCondition: vi.fn(),
   listStageRules: vi.fn(),
   listEntryConditions: vi.fn(),
   evaluateCandidateForStage: vi.fn(),

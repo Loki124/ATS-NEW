@@ -285,8 +285,6 @@ export const upsertStageRule = async (linkId: string, payload: Partial<StageRule
 // FE StageRule 接口没有 link 字段, 但 BE StageRuleSerializer 要求 (OneToOne FK).
 // 调用方需显式传 linkId (从 ProcessStageLink.id 拿). 新建规则时 link 可为全新空 link,
 // 但通常先 addProcessLink 拿到 linkId, 再 upsertStageRule.
-export const evaluateEntryCondition = (stageId: string, context: { candidate: any; stageStatuses?: any }) =>
-  api.post<{ success: boolean; data: { passed: boolean; failedItems: any[]; prompt: string | null } }>(`/recruitment-rules/entry-conditions/${stageId}/evaluate`, context).then((r) => r.data.data);
 
 // 列表查询 (G38 #7 阶段规则 / #5 进入条件)
 // 2026-07-08: 改用真实 endpoint /stage-rules/?link=X (跟 upsertStageRule 一致).
@@ -419,7 +417,6 @@ const AR_FIELD_CATALOG_FALLBACK = {
  *   已被 EntryConditionRuleViewSet 全套替代，待旧数据迁移完成后删除（spec commit 9）。
  *   保留仅为旧引用兼容，新代码请勿调用。
  * ========================================================================== */
-/* eslint-disable */
 /**
  * @deprecated 2026-09-07 起废弃：进入条件已切到 EntryConditionRuleViewSet。
  * 用 listEntryConditionRules / createEntryConditionRule / updateEntryConditionRule / deleteEntryConditionRule 代替。
@@ -444,13 +441,12 @@ export const listEntryConditions = async (params: { linkId: string }): Promise<E
   const link = (await getProcessLink(params.linkId)) as any
   return link?.entryCondition ? [link.entryCondition] : []
 }
-/* eslint-enable */
 
 export default {
   listProcesses, getProcess, createProcess, updateProcess, deleteProcess, copyProcess, updateProcessStatus,
   listStages, createStage, updateStage, deleteStage, disableStage, enableStage,
   listProcessLinks, addProcessLink, updateProcessLink, deleteProcessLink, reorderProcessLinks,
-  upsertStageRule, evaluateEntryCondition, listStageRules,
+  upsertStageRule, listStageRules,
   evaluateCandidateForStage, checkApplicationStageTransition,
   listRounds, createRound, updateRound, updateRoundStatus,
   // 2026-09-07 新增：进入条件规则 viewset 全套

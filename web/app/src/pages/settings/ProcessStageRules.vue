@@ -188,20 +188,9 @@
               :all-link-ids="allLinkIds"
             />
 
-            <n-space justify="space-between" style="margin-top: 16px">
-              <n-button :loading="testing" @click="testCondition">测试条件</n-button>
+            <n-space justify="end" style="margin-top: 16px">
               <n-button type="primary" :loading="condSaving" @click="saveCondition">保存条件</n-button>
             </n-space>
-
-            <n-alert v-if="testResult" :type="testResult.passed ? 'success' : 'error'" :show-icon="false" style="margin-top: 12px">
-              <strong style="display:inline-flex;align-items:center;gap:6px;">
-                <NIcon :size="16" :color="testResult.passed ? 'var(--c-success-deep)' : 'var(--c-error-deep)'" aria-hidden="true">
-                  <component :is="testResult.passed ? CheckCircle2 : XCircle" />
-                </NIcon>
-                结果：{{ testResult.passed ? '通过' : '不通过' }}
-              </strong>
-              <div v-if="testResult.prompt" style="margin-top: 6px; white-space: pre-wrap">{{ testResult.prompt }}</div>
-            </n-alert>
           </n-form>
         </n-spin>
       </n-tab-pane>
@@ -214,9 +203,8 @@
 import { ref, reactive, onMounted, computed, h } from 'vue'
 import { useMessage, NSpace, NButton, NSelect, NInputNumber, NRadio, NRadioGroup, NInput, NForm, NFormItem, NTabs, NTabPane, NSpin, NDivider, NAlert, NTag, NIcon } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
-import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
-import { listProcessLinks, upsertStageRule, upsertEntryCondition, evaluateEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions, type ConditionItem } from '../../api/recruitment-process'
+import { listProcessLinks, upsertStageRule, upsertEntryCondition, listRounds, listProcesses, listStageRules, listEntryConditions, type ConditionItem } from '../../api/recruitment-process'
 import { listAutoArchiveRules, upsertAutoArchiveRule } from '../../api/recruitment-process'
 import { listUsers } from '../../api/users'
 import ConditionTreeEditor from '../../components/ConditionTreeEditor.vue'
@@ -361,9 +349,6 @@ const conditionTypeOptions = [
   { label: '仅候选人', value: 'CANDIDATE' },
 ]
 
-const testing = ref(false)
-const testResult = ref<any>(null)
-
 async function loadCondition() {
   condLoading.value = true
   try {
@@ -401,20 +386,6 @@ async function saveCondition() {
   }
 }
 
-async function testCondition() {
-  testing.value = true
-  testResult.value = null
-  try {
-    testResult.value = await evaluateEntryCondition(linkId.value, {
-      candidate: { age: 30, highestEducation: '博士', gender: '男' },
-      stageStatuses: {},
-    })
-  } catch (e: any) {
-    message.error(e?.response?.data?.message || '测试失败')
-  } finally {
-    testing.value = false
-  }
-}
 
 const rootItems = computed(() => condForm.items.filter((it) => !it.parentId))
 

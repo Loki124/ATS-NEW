@@ -106,7 +106,7 @@
 | 删除 | `DELETE /api/v1/entry-condition-rules/{ruleId}/` | `deleteEntryCondition(ruleId)` |
 | 启停 | `POST /api/v1/entry-condition-rules/{ruleId}/toggle/` | `toggleEntryCondition(ruleId)` |
 | 重排 | `POST /api/v1/entry-condition-rules/reorder/` | `reorderEntryConditions([{id,rule_seq}])` |
-| 评估 | `POST /api/v1/entry-condition-rules/{ruleId}/evaluate/` | `evaluateEntryCondition(ruleId, sample)` |
+| 评估 | `POST /api/v1/entry-condition-rules/evaluate/`（`detail=False`，收 `candidate_id`+`link_id?`+`demand_id?`）| `evaluateEntryConditionRule({ candidate_id, link_id?, demand_id? })` |
 | 日志 | `GET /api/v1/entry-condition-rules/{ruleId}/logs/` | `getEntryConditionLogs(ruleId)` |
 
 > 兼容性见 §6.2：旧 `entry_condition` JSON 需迁移脚本转为 `EntryConditionRule` 行；切换期间前端保留双读兼容层（优先读 viewset，回退读旧字段），迁移完成后删除兼容层（见 §7 commit 9）。
