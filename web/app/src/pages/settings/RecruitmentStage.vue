@@ -17,6 +17,7 @@
         <template #prefix><n-icon :component="SearchOutline" /></template>
       </n-input>
       <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
+      <n-select v-model:value="filterStatus" :options="statusFilterOptions" style="width: 120px" />
       <div class="spacer"></div>
       <n-button type="primary" class="gradient-btn" @click="handleCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
@@ -112,6 +113,13 @@ const message = useMessage()
 
 const keyword = ref('')
 const filterType = ref<string | null>(null)
+// 2026-09-08: 列表增加状态筛选，默认选中「启用」（兵哥要求）。
+const filterStatus = ref<'ENABLED' | 'DISABLED' | null>('ENABLED')
+const statusFilterOptions = [
+  { label: '启用', value: 'ENABLED' },
+  { label: '停用', value: 'DISABLED' },
+  { label: '全部', value: null },
+]
 const stages = ref<any[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -158,46 +166,70 @@ const typeFilterOptions = stageTypeOptions
 
 // 2026-06-17: FILTER 改 SCREEN (跟 form.stageType 默认值 + BE StageType 枚举对齐).
 //   之前 filterOptions 的 key 是 FILTER (FE 旧值), BE 用 SCREEN → featureOptions['SCREEN'] 返 undefined → 0 checkbox.
+// 功能项 code -> 中文名称（单一事实来源，对齐后端 recruitment_stages.default_features 实际取值）。
+// 后端 code 集合见 apps/django/apps/core/management/commands/init_demo_data.py：
+//   AUTO_MATCH / BULK_IMPORT / CANDIDATE_INFO / CANDIDATE_RESPONSE / CODE_EDITOR / EVALUATION_FORM /
+//   INTERVIEW / INTERVIEWER / INTERVIEW_SCHEDULE / JOINT_INTERVIEW / MULTI_ROUND / OFFER /
+//   OFFER_APPROVAL / OFFER_GENERATION / PHONE_CALL / RESUME_REVIEW / SCORING / TMPL_INTERVIEWER / VIDEO_RECORD
+// 旧版 featureOptions 用的是 INVITE_FILTER/ARRANGE_INTERVIEW 等前端臆造 code，与后端不匹配，
+// 导致列表「功能项」列回退显示英文 code（兵哥 2026-09-08 反馈）。中文名在此统一维护，弹窗选项与列表共用。
+const FEATURE_LABELS: Record<string, string> = {
+  RESUME_REVIEW: '简历评估',
+  AUTO_MATCH: '自动匹配',
+  BULK_IMPORT: '批量导入',
+  CANDIDATE_INFO: '候选人信息',
+  CANDIDATE_RESPONSE: '候选人回复',
+  CODE_EDITOR: '代码编辑器',
+  EVALUATION_FORM: '评估表单',
+  INTERVIEW: '面试',
+  INTERVIEWER: '面试官',
+  TMPL_INTERVIEWER: '模板面试官',
+  INTERVIEW_SCHEDULE: '面试安排',
+  JOINT_INTERVIEW: '联合面试',
+  MULTI_ROUND: '多轮面试',
+  OFFER: 'Offer',
+  OFFER_APPROVAL: 'Offer 审批',
+  OFFER_GENERATION: 'Offer 生成',
+  PHONE_CALL: '电话沟通',
+  SCORING: '评分',
+  VIDEO_RECORD: '视频录制',
+}
+
+// 弹窗按阶段类型分组的可选功能项（value 用后端真实 code，label 用中文）。
 const featureOptions: Record<string, any[]> = {
   SCREEN: [
-    { label: '邀请筛选', value: 'INVITE_FILTER' },
-    { label: '邀请更新信息', value: 'INVITE_UPDATE_INFO' },
-    { label: '转移阶段', value: 'TRANSFER_STAGE' },
-    { label: '归档', value: 'ARCHIVE' },
+    { label: FEATURE_LABELS.RESUME_REVIEW, value: 'RESUME_REVIEW' },
+    { label: FEATURE_LABELS.AUTO_MATCH, value: 'AUTO_MATCH' },
+    { label: FEATURE_LABELS.BULK_IMPORT, value: 'BULK_IMPORT' },
+    { label: FEATURE_LABELS.CANDIDATE_INFO, value: 'CANDIDATE_INFO' },
   ],
   INVITATION: [
-    { label: '安排面试', value: 'ARRANGE_INTERVIEW' },
-    { label: '邀请更新信息', value: 'INVITE_UPDATE_INFO' },
-    { label: '转移阶段', value: 'TRANSFER_STAGE' },
-    { label: '归档', value: 'ARCHIVE' },
+    { label: FEATURE_LABELS.PHONE_CALL, value: 'PHONE_CALL' },
+    { label: FEATURE_LABELS.CANDIDATE_INFO, value: 'CANDIDATE_INFO' },
+    { label: FEATURE_LABELS.CANDIDATE_RESPONSE, value: 'CANDIDATE_RESPONSE' },
+    { label: FEATURE_LABELS.INTERVIEW_SCHEDULE, value: 'INTERVIEW_SCHEDULE' },
   ],
   INTERVIEW: [
-    { label: '安排面试', value: 'ARRANGE_INTERVIEW' },
-    { label: '邀请面试', value: 'INVITE_INTERVIEW' },
-    { label: '邀请更新信息', value: 'INVITE_UPDATE_INFO' },
-    { label: '转移阶段', value: 'TRANSFER_STAGE' },
-    { label: '归档', value: 'ARCHIVE' },
+    { label: FEATURE_LABELS.INTERVIEW_SCHEDULE, value: 'INTERVIEW_SCHEDULE' },
+    { label: FEATURE_LABELS.EVALUATION_FORM, value: 'EVALUATION_FORM' },
+    { label: FEATURE_LABELS.VIDEO_RECORD, value: 'VIDEO_RECORD' },
+    { label: FEATURE_LABELS.MULTI_ROUND, value: 'MULTI_ROUND' },
+    { label: FEATURE_LABELS.CODE_EDITOR, value: 'CODE_EDITOR' },
+    { label: FEATURE_LABELS.JOINT_INTERVIEW, value: 'JOINT_INTERVIEW' },
+    { label: FEATURE_LABELS.SCORING, value: 'SCORING' },
   ],
   OFFER: [
-    { label: '发送 Offer', value: 'SEND_OFFER' },
-    { label: '发起背调', value: 'START_BACKGROUND_CHECK' },
-    { label: '邀请更新信息', value: 'INVITE_UPDATE_INFO' },
-    { label: '转移阶段', value: 'TRANSFER_STAGE' },
-    { label: '归档', value: 'ARCHIVE' },
+    { label: FEATURE_LABELS.OFFER_GENERATION, value: 'OFFER_GENERATION' },
+    { label: FEATURE_LABELS.OFFER_APPROVAL, value: 'OFFER_APPROVAL' },
+    { label: FEATURE_LABELS.CANDIDATE_RESPONSE, value: 'CANDIDATE_RESPONSE' },
   ],
   ONBOARDING: [
-    { label: '发起入职', value: 'START_ONBOARDING' },
-    { label: '邀请更新信息', value: 'INVITE_UPDATE_INFO' },
-    { label: '转移阶段', value: 'TRANSFER_STAGE' },
-    { label: '归档', value: 'ARCHIVE' },
+    { label: FEATURE_LABELS.CANDIDATE_INFO, value: 'CANDIDATE_INFO' },
   ],
 }
 
-// 功能项 code -> 中文 label 映射，从 featureOptions 推导（单一来源，避免重复维护）。
-const featureLabelMap: Record<string, string> = {}
-Object.values(featureOptions).forEach((opts) => {
-  opts.forEach((opt) => { featureLabelMap[opt.value] = opt.label })
-})
+// 功能项 code -> 中文 label 映射，从 FEATURE_LABELS 推导（单一来源，列表展示与弹窗共用）。
+const featureLabelMap: Record<string, string> = { ...FEATURE_LABELS }
 
 const columns = computed(() => [
   { title: '阶段编号', key: 'code', width: 100 },
@@ -214,10 +246,12 @@ const columns = computed(() => [
     },
   },
   {
-    title: '系统预置',
-    key: 'isBuiltin',
-    width: 90,
-    render: (row: any) => (row.isBuiltin ?? row.isSystem) ? h(NTag, { type: 'warning', size: 'small' }, { default: () => '系统' }) : '-',
+    title: '阶段来源',
+    key: 'source',
+    width: 100,
+    render: (row: any) => (row.isBuiltin ?? row.isSystem)
+      ? h(NTag, { type: 'warning', size: 'small' }, { default: () => '系统预置' })
+      : h(NTag, { type: 'default', size: 'small' }, { default: () => '自定义' }),
   },
   {
     title: '使用',
@@ -278,6 +312,8 @@ const columns = computed(() => [
 
 const filteredStages = computed(() => {
   let list = stages.value
+  // 2026-09-08: 状态筛选（默认启用在前，filterStatus 为 null 时不过滤 = 全部）
+  if (filterStatus.value) list = list.filter((s) => s.status === filterStatus.value)
   if (filterType.value) list = list.filter((s) => s.stageType === filterType.value)
   if (keyword.value) {
     const k = keyword.value.toLowerCase()
@@ -313,11 +349,8 @@ function handleCreate() {
   editing.value = null
   Object.assign(form, { name: '', stageType: stageTypeOptions.value[0]?.value || 'SCREEN', features: [], description: '' })
   showCreateModal.value = true
-  // P0-1: 新建模式启用草稿。先重置再探测，避免把旧草稿灌进刚清空的表单前丢失提示时机。
-  if (draft.probe()) {
-    draft.restore()
-    message.info('已恢复上次填写的内容', { action: { label: '清空', onClick: draft.clear } })
-  }
+  // P0-1: 草稿静默恢复（兵哥 2026-09-08 反馈：去掉恢复提示 toast，仅静默回填草稿内容，不干扰用户）。
+  if (draft.probe()) draft.restore()
 }
 
 function handleEdit(row: any) {
