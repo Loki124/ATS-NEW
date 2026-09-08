@@ -41,7 +41,10 @@ api_v1_patterns = [
     path('process-stage-links/', include('apps.process.urls_link')),
     # 2026-06-17: G38 — 挂载已写好但未注册的 ViewSet (FE recruitment-process.ts 直接用到)
     path('stage-rules/', include('apps.process.urls_rule')),
-    path('recruitment-rules/entry-conditions/', include('apps.entry_condition.urls')),
+    # 2026-09-08: 对齐 SPEC-stage-rule-config.md + FE recruitment-process.ts 已进入条件规则统一前缀
+    #   /api/v1/entry-condition-rules/（原 recruitment-rules/entry-conditions/ 为迁移前旧路径，FE 早已切到新前缀，
+    #   BE 挂载未同步导致 create/list/toggle/reorder/evaluate 全 404）
+    path('entry-condition-rules/', include('apps.entry_condition.urls')),
     # 2026-06-17: G38 — 新挂 3 个 alias APIView (覆盖 FE 调用的 stageId/candidateId 路径变体)
     path('time-limit-rules/', include('apps.time_limit.urls')),
     path('automation-rules/', include('apps.automation.urls')),
