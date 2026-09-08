@@ -6,12 +6,6 @@
         <p class="page-subtitle">G42 - 元数据驱动的字段配置：字段 / 模块 / 分组 / 联动规则</p>
       </div>
 
-      <!-- 共享资源选择 -->
-      <n-space class="resource-row" :wrap="true">
-        <n-select v-model:value="currentResource" :options="RESOURCE_OPTIONS" style="width: 240px" @update:value="onResourceChange" />
-        <n-tag :bordered="false" type="info">当前资源：{{ currentResource }}</n-tag>
-      </n-space>
-
       <n-tabs v-model:value="activeTab" type="line" class="df-tabs">
         <!-- ============ 字段定义 ============ -->
         <n-tab-pane name="fields" tab="字段定义">
@@ -428,7 +422,7 @@ import {
 import { AddOutline, TrashOutline, CreateOutline } from '@vicons/ionicons5';
 import {
   listFields, upsertField, deleteField, extractApiError,
-  FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL, RESOURCE_OPTIONS,
+  FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
   listModules, upsertModule, deleteModule,
   listGroups, upsertGroup, deleteGroup,
   listLinkageRules, upsertLinkageRule, deleteLinkageRule,
@@ -945,12 +939,6 @@ async function loadAux() {
   } catch { /* 辅助数据加载失败不阻塞主表 */ }
 }
 
-function onResourceChange() {
-  filterModule.value = ''; filterGroup.value = '';
-  groupFilterModule.value = ''; linkageFilterModule.value = '';
-  loadAux(); reloadFields(); reloadModules(); reloadGroups(); reloadLinkage();
-}
-
 onMounted(() => { loadAux(); reloadFields(); reloadModules(); reloadGroups(); reloadLinkage(); });
 </script>
 
@@ -963,7 +951,6 @@ onMounted(() => { loadAux(); reloadFields(); reloadModules(); reloadGroups(); re
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   display: flex; flex-direction: column; gap: var(--space-4);
 }
-.resource-row { margin-bottom: var(--space-2); }
 .filter-row { margin-bottom: var(--space-3); }
 .dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
 .df-tabs { margin-top: var(--space-2); }
