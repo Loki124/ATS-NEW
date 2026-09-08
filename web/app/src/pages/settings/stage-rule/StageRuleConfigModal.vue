@@ -291,6 +291,25 @@ async function handleSubmit() {
   margin-left: 2px;
 }
 
+/* ===== Flow Condition Row（P0-1 收口：基类非 scoped）=====
+ * DefaultHandlerCard / AutomationCard / InterviewConfigCard 都用 .flow-condition-row。
+ * AutomationCard / InterviewConfigCard 在各自 scoped 里定义了 display:flex；
+ * DefaultHandlerCard 只定义了 .flow-condition-row--3（flex-wrap + .flow-field），
+ * 漏了基类 → 父级非 flex 容器 → 三下拉纵向堆叠（用户截图实证）。
+ * 基类统一收口到全局块，确保三卡片都拿到 flex 行布局。
+ *
+ * 关键：此处只设 display + gap，**不设 align-items**。
+ * AutomationCard 要 flex-end（表单行基线），InterviewConfigCard 要 flex-start
+ * （面试轮次 + 形式顶对齐）；全局 .flow-condition-row 与各卡片 scoped .flow-condition-row
+ * 选择器特异度都是 (0,2,0)，source-order 决胜。在全局块里写 align-items 会按打包顺序
+ * 静默覆盖 InterviewConfigCard 的 flex-start（特异度陷阱，与 P0-1 同根）。
+ * 故 align-items 留给各卡片 scoped 自管；DefaultHandlerCard 的 .flow-condition-row--3
+ * 也补上 align-items: flex-end。 */
+.stage-rule-config-modal .flow-condition-row {
+  display: flex;
+  gap: var(--space-4);
+}
+
 /* ===== Flow Block ===== */
 .stage-rule-config-modal .flow-block {
   background: var(--surface);

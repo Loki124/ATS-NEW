@@ -110,6 +110,7 @@ function onRule(v: string | null) {
 <style scoped>
 .flow-condition-row--3 {
   flex-wrap: nowrap;
+  align-items: flex-end;  /* 三下拉基线对齐：label 在上，select 底对齐 */
 }
 .flow-condition-row--3 .flow-field {
   flex: 1 1 180px;
