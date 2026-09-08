@@ -114,7 +114,7 @@ export interface FieldCatalog {
 /** 主表单聚合 state（StageRule 主链路 + entry/skip/archive 三类规则） */
 export interface StageRuleFormState {
   // Card 2 默认处理人
-  defaultHandlerType: 'FROM_DEMAND' | 'FROM_POSITION' | 'CUSTOM'
+  defaultHandlerType: 'FROM_DEMAND' | 'FROM_POSITION' | 'CUSTOM' | 'NONE'
   defaultHandlerFields: string[]
   defaultHandlerUserIds: string[]
   // Card 3 面试配置

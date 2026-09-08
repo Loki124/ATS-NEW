@@ -27,7 +27,7 @@
             size="small"
             :value="fieldValue"
             :options="fieldOptions"
-            :disabled="form.defaultHandlerType === 'CUSTOM'"
+            :disabled="isFieldDisabled"
             placeholder="选择字段"
             @update:value="onField"
           />
@@ -38,7 +38,7 @@
             size="small"
             :value="ruleValue"
             :options="ruleOptions"
-            :disabled="form.defaultHandlerType !== 'CUSTOM'"
+            :disabled="isRuleDisabled"
             placeholder="指定处理人"
             filterable
             @update:value="onRule"
@@ -62,23 +62,39 @@ const props = defineProps<{ form: StageRuleFormState }>()
 const sourceOptions = HANDLER_SOURCE_OPTIONS
 const ruleOptions = HANDLER_RULE_OPTIONS
 
-/** 数据来源 → 取值字段 mock 选项（后端就绪后由字典接口替换） */
+// === 按 HTML 原型 + 设计文档 §3.2.3 联动映射 ===
 const FIELD_BY_SOURCE: Record<string, { label: string; value: string }[]> = {
   FROM_DEMAND: [
-    { label: '需求职级', value: 'DEMAND_LEVEL' },
-    { label: '需求部门', value: 'DEPARTMENT' },
+    { label: 'HRBP', value: 'HRBP' },
     { label: '用人经理', value: 'HIRING_MANAGER' },
+    { label: '用人经理上级', value: 'HIRING_MANAGER_SUPER' },
+    { label: '总裁', value: 'PRESIDENT' },
+    { label: 'VP', value: 'VP' },
   ],
   FROM_POSITION: [
-    { label: '职位职级', value: 'POSITION_LEVEL' },
-    { label: '职位序列', value: 'POSITION_SERIES' },
+    { label: 'HRBP', value: 'HRBP' },
+    { label: '用人经理', value: 'HIRING_MANAGER' },
+    { label: '用人经理上级', value: 'HIRING_MANAGER_SUPER' },
+    { label: '总裁', value: 'PRESIDENT' },
+    { label: 'VP', value: 'VP' },
   ],
-  CUSTOM: [],
+  CUSTOM: [
+    { label: '刘星星', value: 'liu_xingxing' },
+    { label: '张三', value: 'zhang_san' },
+    { label: '李四', value: 'li_si' },
+    { label: '王五', value: 'wang_wu' },
+    { label: '赵六', value: 'zhao_liu' },
+  ],
+  NONE: [],
 }
 
+/** 数据来源 → 取值字段（CUSTOM 走用户列表，其他走字段；NONE 禁用） */
 const fieldOptions = computed(() => FIELD_BY_SOURCE[props.form.defaultHandlerType] || [])
 const fieldValue = computed(() => props.form.defaultHandlerFields[0] || null)
 const ruleValue = computed(() => props.form.defaultHandlerUserIds[0] || null)
+/** 文档 §3.2.3：NONE 禁用「取值字段」+「处理规则」 */
+const isFieldDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
+const isRuleDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
 
 function onSource(v: StageRuleFormState['defaultHandlerType']) {
   props.form.defaultHandlerType = v

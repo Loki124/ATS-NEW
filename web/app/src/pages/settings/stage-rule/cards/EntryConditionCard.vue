@@ -24,8 +24,8 @@
         <table class="rule-table">
           <thead>
             <tr>
-              <th>执行条件</th>
-              <th style="width: 200px;">未满足提示</th>
+              <th style="min-width: 300px;">执行条件</th>
+              <th style="width: 160px;">未满足提示</th>
             </tr>
           </thead>
           <tbody>
@@ -161,18 +161,20 @@ function formatCondition(it: ConditionItem): string {
   border: 1px solid var(--g2);
 }
 .rule-table th {
-  background: var(--g1);
+  background: var(--g1);  /* 原型表头 #f4f5f7 → --g1 #F1F5F9 接近 */
   padding: 8px 12px;
   text-align: left;
   font-weight: 500;
-  color: var(--ink-soft);
-  border-bottom: 1px solid var(--g2);
+  font-size: 12px;  /* 原型表头 12px */
+  color: var(--ink-soft);  /* 原型 #4e5a66 */
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
-  font-size: var(--fs-12);
 }
 .rule-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-hairline);
+  font-size: 12.5px;  /* 原型表格内容 12.5px */
+  color: var(--ink);
+  border-bottom: 1px solid var(--border-light);  /* 原型浅边框 #eaebef */
   vertical-align: middle;
   line-height: 1.4;
 }

@@ -324,14 +324,21 @@ async function handleSubmit() {
 }
 
 /* ===== Section Card ===== */
+.rule-config-flat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;  /* 原型卡片间距 12px */
+  padding: 14px 20px;  /* 原型主体 padding 16 20 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
 .config-card {
   background: var(--g1);
-  border: 1px solid var(--g2);
-  border-radius: var(--radius-md);
-  padding: 14px var(--space-4) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 12px;  /* 原型 config-card radius 12 */
+  padding: 14px 16px 16px;  /* 原型 14 16 16 */
 }
 .card-title {
-  font-size: var(--fs-14);
+  font-size: 14px;
   font-weight: 600;
   color: var(--ink);
   display: flex;
@@ -351,18 +358,18 @@ async function handleSubmit() {
 }
 .title-desc {
   font-weight: 400;
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
+  font-size: 11.5px;  /* 原型辅助说明 11.5px */
+  color: var(--ink-faint);  /* 原型 #86909c 接近 --ink-faint #64748B */
   margin-left: 2px;
 }
 
 /* ===== Flow Block ===== */
 .flow-block {
   background: var(--surface);
-  border-radius: var(--radius-sm);
-  padding: 12px var(--space-4);
+  border-radius: 10px;  /* 原型 flow-block radius 10 */
+  padding: 10px 14px;  /* 原型 10 14 */
   margin-bottom: 12px;
-  box-shadow: 0 0 0 1px var(--g2), 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 .flow-block:last-child {

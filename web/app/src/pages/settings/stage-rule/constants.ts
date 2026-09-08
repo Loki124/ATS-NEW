@@ -170,11 +170,12 @@ export const INTERVIEW_FORMAT_OPTIONS = [
   { label: 'AI', value: 'AI' },
 ]
 
-/** Card 2 默认处理人数据来源（静态，值复用后端 defaultHandlerType 枚举） */
+/** Card 2 默认处理人数据来源（文档 §3.2.3 4 种：需求中/职位中/指定人/无默认处理人） */
 export const HANDLER_SOURCE_OPTIONS = [
   { label: '需求中', value: 'FROM_DEMAND' },
   { label: '职位中', value: 'FROM_POSITION' },
   { label: '指定人', value: 'CUSTOM' },
+  { label: '无默认处理人', value: 'NONE' },
 ]
 
 /** Card 2 处理规则（静态） */
