@@ -79,13 +79,19 @@ class EntryConditionRuleSerializer(serializers.ModelSerializer):
 
 
 class EntryConditionRuleCreateSerializer(serializers.ModelSerializer):
-    """创建规则 - 嵌套 items"""
+    """创建/更新规则 - 嵌套 items（写接口统一用 link_id，与读接口的 link_id 对齐）"""
     items = ConditionItemCreateSerializer(many=True)
+    # 写接口用 link_id（与读接口 EntryConditionRuleSerializer.link_id 对齐），映射到 link FK。
+    # required=False：创建时必填（create() 缺它会报错），更新时无需传、沿用原关联。
+    link_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProcessStageLink.objects.all(), source='link',
+        required=False, help_text='流程-阶段关联 ID（创建时必填，更新时无需传）',
+    )
 
     class Meta:
         model = EntryConditionRule
         fields = [
-            'id', 'link', 'rule_name', 'rule_seq', 'status',
+            'id', 'link_id', 'rule_name', 'rule_seq', 'status',
             'expression', 'reject_message', 'items',
         ]
         read_only_fields = ['id']
@@ -93,6 +99,9 @@ class EntryConditionRuleCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         link = attrs.get('link')
         items = attrs.get('items', [])
+        # 创建时必须指定 link；更新时沿用已有关联（instance 已存在）
+        if self.instance is None and link is None:
+            raise serializers.ValidationError({'link_id': '创建进入条件规则时必须提供 link_id'})
         if link and items:
             # 校验 item_seq 唯一
             seqs = [i['item_seq'] for i in items]
