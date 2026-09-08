@@ -61,9 +61,10 @@ class FieldGroupSerializer(serializers.ModelSerializer):
 
 
 class FieldLinkageRuleSerializer(serializers.ModelSerializer):
-    """同模块字段联动规则 序列化器。
+    """同模块字段联动规则 序列化器(多条件 + 多动作)。
 
     读: 嵌套返回所属 ``module``; 写: 通过 ``module_id`` 指定隶属模块。
+    conditions / actions 直接以 JSON 数组存取, 由前端保证结构。
     """
 
     module = FieldModuleSerializer(read_only=True)
@@ -72,9 +73,8 @@ class FieldLinkageRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = FieldLinkageRule
         fields = [
-            'id', 'module', 'module_id', 'name', 'trigger_field_key',
-            'condition_op', 'condition_value', 'action_type',
-            'target_field_keys', 'action_config', 'order_index',
+            'id', 'module', 'module_id', 'name', 'condition_mode',
+            'conditions', 'actions', 'order_index',
             'is_active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'module']

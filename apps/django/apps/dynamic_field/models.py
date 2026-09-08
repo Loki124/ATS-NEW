@@ -118,43 +118,54 @@ class FieldGroup(TimestampedModel, SoftDeleteModel):
 
 
 class FieldLinkageRule(TimestampedModel, SoftDeleteModel):
-    """同模块字段联动规则。
+    """同模块字段联动规则(多条件 + 多动作)。
 
-    action_type 决定联动行为:
-      - SHOW / HIDE: 触发字段满足条件时, 显示/隐藏目标字段
-      - REQUIRE: 触发字段满足条件时, 强制目标字段必填
-      - CASCADE_OPTIONS: 触发字段取值决定目标下拉字段的可选项(级联)
+    参考设计: 条件区域支持「满足全部/满足任一」; 一条条件 = 字段 + 操作符 + 值;
+    动作区域支持多条, 每条 = 目标字段 + 动作类型 + 值 + 是否只读。
+
+    condition_mode: 多条件之间的组合方式
+    conditions: [{field_key, op, value}]
+    actions:    [{target_field_key, action_type, value, read_only}]
     """
 
-    ACTION_SHOW = 'SHOW'
-    ACTION_HIDE = 'HIDE'
-    ACTION_REQUIRE = 'REQUIRE'
-    ACTION_CASCADE = 'CASCADE_OPTIONS'
-    ACTION_CHOICES = [
-        (ACTION_SHOW, '显示'),
-        (ACTION_HIDE, '隐藏'),
-        (ACTION_REQUIRE, '设必填'),
-        (ACTION_CASCADE, '级联选项'),
-    ]
+    class ConditionMode(models.TextChoices):
+        ALL = 'ALL', '满足以下所有条件'
+        ANY = 'ANY', '满足以下任一条件'
 
-    OP_EQ = 'EQ'
-    OP_NE = 'NE'
-    OP_IN = 'IN'
-    OP_CHOICES = [
-        (OP_EQ, '等于'),
-        (OP_NE, '不等于'),
-        (OP_IN, '属于'),
-    ]
+    class ConditionOp(models.TextChoices):
+        EQ = 'EQ', '等于'
+        NE = 'NE', '不等于'
+        IN = 'IN', '包含'
+        NOT_IN = 'NOT_IN', '不包含'
+        GT = 'GT', '大于'
+        LT = 'LT', '小于'
+        GTE = 'GTE', '大于等于'
+        LTE = 'LTE', '小于等于'
+        CONTAINS = 'CONTAINS', '包含文本'
+
+    class ActionType(models.TextChoices):
+        SHOW = 'SHOW', '显示'
+        HIDE = 'HIDE', '隐藏'
+        REQUIRE = 'REQUIRE', '设必填'
+        SET_VALUE = 'SET_VALUE', '赋值'
+        READONLY = 'READONLY', '只读'
+        CASCADE_OPTIONS = 'CASCADE_OPTIONS', '级联选项'
 
     id = models.CharField(max_length=32, primary_key=True, editable=False, help_text='唯一标识')
     module = models.ForeignKey(FieldModule, on_delete=models.CASCADE, related_name='linkage_rules')
     name = models.CharField(max_length=256, blank=True, default='', help_text='规则名称')
-    trigger_field_key = models.CharField(max_length=128, help_text='触发字段 key')
-    condition_op = models.CharField(max_length=16, choices=OP_CHOICES, default=OP_EQ)
-    condition_value = models.JSONField(default=list, blank=True, help_text='条件值(标量或数组, IN 时为数组)')
-    action_type = models.CharField(max_length=32, choices=ACTION_CHOICES, default=ACTION_SHOW)
-    target_field_keys = models.JSONField(default=list, blank=True, help_text='受影响字段 key 列表')
-    action_config = models.JSONField(default=dict, blank=True, help_text='级联选项映射等附加配置')
+    condition_mode = models.CharField(
+        max_length=16, choices=ConditionMode.choices, default=ConditionMode.ALL,
+        help_text='多条件组合方式',
+    )
+    conditions = models.JSONField(
+        default=list, blank=True,
+        help_text='条件列表 [{field_key, op, value}]',
+    )
+    actions = models.JSONField(
+        default=list, blank=True,
+        help_text='动作列表 [{target_field_key, action_type, value, read_only}]',
+    )
     order_index = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -168,4 +179,4 @@ class FieldLinkageRule(TimestampedModel, SoftDeleteModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.module.code}/{self.name or self.trigger_field_key}'
+        return f'{self.module.code}/{self.name or "未命名规则"}'

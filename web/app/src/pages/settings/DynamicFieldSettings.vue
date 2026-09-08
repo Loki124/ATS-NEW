@@ -244,11 +244,11 @@
         v-model:show="linkageModalVisible"
         preset="card"
         :title="linkageEditing ? '编辑规则' : '新建规则'"
-        style="width: 720px; max-width: 94vw;"
+        style="width: 760px; max-width: 96vw;"
       >
         <n-form :model="linkageForm" label-placement="left" label-width="100px">
-          <n-form-item label="规则名称">
-            <n-input v-model:value="linkageForm.name" placeholder="e.g. 男性显示身份证号" />
+          <n-form-item label="规则名称" required>
+            <n-input v-model:value="linkageForm.name" placeholder="e.g. 职级层级非管理" />
           </n-form-item>
           <n-form-item label="所属模块" required>
             <n-select
@@ -258,33 +258,119 @@
               @update:value="onLinkageModuleChange"
             />
           </n-form-item>
-          <n-form-item label="触发字段" required>
-            <n-select
-              v-model:value="linkageForm.triggerFieldKey"
-              :options="linkageFieldOptions"
-              placeholder="选择触发字段"
-              clearable
-            />
-          </n-form-item>
-          <n-form-item label="条件">
-            <n-space :wrap="false" style="width: 100%">
-              <n-select v-model:value="linkageForm.conditionOp" :options="LINKAGE_OP_OPTIONS" style="width: 120px" />
-              <n-input v-model:value="linkageConditionText" placeholder="值（IN 用逗号分隔）" style="flex: 1" />
+
+          <!-- 条件区域 -->
+          <n-form-item label="条件" required>
+            <n-space vertical style="width: 100%">
+              <n-radio-group v-model:value="linkageForm.conditionMode">
+                <n-radio value="ALL">满足以下所有条件</n-radio>
+                <n-radio value="ANY">满足以下任一条件</n-radio>
+              </n-radio-group>
+              <div
+                v-for="(cond, idx) in linkageForm.conditions"
+                :key="cond.__key || idx"
+                class="linkage-row"
+              >
+                <span class="linkage-index">{{ idx + 1 }}</span>
+                <n-select
+                  v-model:value="cond.fieldKey"
+                  :options="linkageFieldOptions"
+                  placeholder="字段"
+                  style="width: 160px"
+                  clearable
+                  @update:value="() => onConditionFieldChange(idx)"
+                />
+                <n-select
+                  v-model:value="cond.op"
+                  :options="LINKAGE_OP_OPTIONS"
+                  placeholder="操作符"
+                  style="width: 130px"
+                />
+                <n-select
+                  v-if="cond.op === 'IN' || cond.op === 'NOT_IN'"
+                  v-model:value="cond.value"
+                  :options="conditionValueOptions(cond.fieldKey)"
+                  placeholder="选择值(多选)"
+                  multiple
+                  tag
+                  filterable
+                  style="flex: 1"
+                />
+                <n-input
+                  v-else
+                  :value="String(cond.value ?? '')"
+                  placeholder="值"
+                  style="flex: 1"
+                  @update:value="(v: string) => { cond.value = v; }"
+                />
+                <n-button
+                  quaternary
+                  type="error"
+                  size="small"
+                  @click="removeLinkageCondition(idx)"
+                >
+                  <template #icon><n-icon :component="TrashOutline" /></template>
+                </n-button>
+              </div>
+              <n-button text type="primary" @click="addLinkageCondition">
+                <template #icon><n-icon :component="AddOutline" /></template>添加条件
+              </n-button>
             </n-space>
           </n-form-item>
-          <n-form-item label="联动动作" required>
-            <n-select v-model:value="linkageForm.actionType" :options="LINKAGE_ACTION_OPTIONS" />
-          </n-form-item>
-          <n-form-item label="目标字段" required>
-            <n-select
-              v-model:value="linkageForm.targetFieldKeys"
-              :options="linkageFieldOptions"
-              placeholder="选择受影响字段"
-              multiple
-            />
-          </n-form-item>
-          <n-form-item v-if="linkageForm.actionType === 'CASCADE_OPTIONS'" label="级联配置">
-            <n-input v-model:value="linkageConfigText" type="textarea" placeholder="JSON, 例如 {&quot;值A&quot;:[{&quot;value&quot;:&quot;x&quot;,&quot;label&quot;:&quot;X&quot;}]}" />
+
+          <!-- 动作区域 -->
+          <n-form-item label="执行动作" required>
+            <n-space vertical style="width: 100%">
+              <div
+                v-for="(act, idx) in linkageForm.actions"
+                :key="act.__key || idx"
+                class="linkage-row"
+              >
+                <span class="linkage-index">{{ idx + 1 }}</span>
+                <n-select
+                  v-model:value="act.targetFieldKey"
+                  :options="linkageFieldOptions"
+                  placeholder="目标字段"
+                  style="width: 160px"
+                  clearable
+                />
+                <n-select
+                  v-model:value="act.actionType"
+                  :options="LINKAGE_ACTION_OPTIONS"
+                  placeholder="动作"
+                  style="width: 130px"
+                />
+                <n-select
+                  v-if="act.actionType === 'SET_VALUE' || act.actionType === 'CASCADE_OPTIONS'"
+                  v-model:value="act.value"
+                  :options="actionValueOptions(act.targetFieldKey)"
+                  placeholder="值"
+                  tag
+                  filterable
+                  clearable
+                  style="flex: 1"
+                />
+                <n-input
+                  v-else-if="act.actionType === 'READONLY'"
+                  value="-"
+                  disabled
+                  style="flex: 1"
+                />
+                <div v-else style="flex: 1"></div>
+                <n-checkbox v-model:checked="act.readOnly">只读</n-checkbox>
+                <n-button
+                  quaternary
+                  type="error"
+                  size="small"
+                  @click="removeLinkageAction(idx)"
+                >
+                  <template #icon><n-icon :component="TrashOutline" /></template>
+                </n-button>
+              </div>
+              <n-button text type="primary" @click="addLinkageAction">
+                <template #icon><n-icon :component="AddOutline" /></template>添加动作
+              </n-button>
+            </n-space>
           </n-form-item>
         </n-form>
         <template #action>
@@ -337,7 +423,7 @@ import { ref, computed, h, onMounted, reactive, watch } from 'vue';
 import {
   NTag, NButton, NSpace, NSwitch, NInputNumber, NIcon, NSelect, NDataTable,
   NModal, NForm, NFormItem, NInput, NDynamicInput, NTabs, NTabPane, NDropdown,
-  NRadioGroup, NRadio, NAlert, NText, useMessage, useDialog,
+  NRadioGroup, NRadio, NCheckbox, NAlert, NText, useMessage, useDialog,
 } from 'naive-ui';
 import { AddOutline, TrashOutline, CreateOutline } from '@vicons/ionicons5';
 import {
@@ -347,8 +433,10 @@ import {
   listGroups, upsertGroup, deleteGroup,
   listLinkageRules, upsertLinkageRule, deleteLinkageRule,
   downloadExport, importFields,
-  LINKAGE_ACTION_OPTIONS, LINKAGE_OP_OPTIONS,
+  LINKAGE_ACTION_OPTIONS, LINKAGE_OP_OPTIONS, LINKAGE_CONDITION_MODE_OPTIONS,
   type FieldDefinition, type FieldType, type FieldModule, type FieldGroup, type FieldLinkageRule,
+  type LinkageCondition, type LinkageAction, type LinkageConditionMode,
+  type LinkageConditionOp, type LinkageActionType,
 } from '@/api/dynamic-field';
 
 const message = useMessage();
@@ -659,38 +747,43 @@ const linkageModalVisible = ref(false);
 const linkageEditing = ref<FieldLinkageRule | null>(null);
 const linkageFilterModule = ref<string>('');
 const linkageFields = ref<FieldDefinition[]>([]);
-const linkageConditionText = ref<string>('');
-const linkageConfigText = ref<string>('');
 const linkageForm = reactive<{
-  id?: string; moduleId: string | null; name: string; triggerFieldKey: string;
-  conditionOp: 'EQ' | 'NE' | 'IN'; conditionValue: unknown[];
-  actionType: 'SHOW' | 'HIDE' | 'REQUIRE' | 'CASCADE_OPTIONS';
-  targetFieldKeys: string[]; actionConfig: Record<string, unknown>;
+  id?: string;
+  moduleId: string | null;
+  name: string;
+  conditionMode: LinkageConditionMode;
+  conditions: (LinkageCondition & { __key?: string })[];
+  actions: (LinkageAction & { __key?: string })[];
 }>({
-  moduleId: null, name: '', triggerFieldKey: '',
-  conditionOp: 'EQ', conditionValue: [], actionType: 'SHOW', targetFieldKeys: [], actionConfig: {},
+  moduleId: null, name: '', conditionMode: 'ALL', conditions: [], actions: [],
 });
 
 const linkageFieldOptions = computed(() => linkageFields.value.map((f) => ({ label: `${f.label} (${f.fieldKey})`, value: f.fieldKey })));
 
+function linkageFieldLabel(fieldKey: string) {
+  const f = linkageFields.value.find((it) => it.fieldKey === fieldKey);
+  return f ? f.label : fieldKey;
+}
+
 function linkageConditionSummary(row: FieldLinkageRule): string {
-  const op = LINKAGE_OP_OPTIONS.find((o) => o.value === row.conditionOp)?.label || row.conditionOp;
-  const val = Array.isArray(row.conditionValue) ? row.conditionValue.join(', ') : String(row.conditionValue ?? '');
-  return `${op} ${val}`;
+  const modeLabel = row.conditionMode === 'ANY' ? '满足以下任一条件时' : '满足以下所有条件时';
+  const conds = (row.conditions || []).map((c) => {
+    const op = LINKAGE_OP_OPTIONS.find((o) => o.value === c.op)?.label || c.op;
+    const val = Array.isArray(c.value) ? c.value.join('、') : String(c.value ?? '');
+    return `当 ${linkageFieldLabel(c.fieldKey)} ${op} ${val}`;
+  }).join('，且 ') || '无条件';
+  const acts = (row.actions || []).map((a) => {
+    const act = LINKAGE_ACTION_OPTIONS.find((o) => o.value === a.actionType)?.label || a.actionType;
+    const suffix = a.readOnly ? '(只读)' : '';
+    const val = a.value ? ` ${a.value}` : '';
+    return `${linkageFieldLabel(a.targetFieldKey)} ${act}${val}${suffix}`;
+  }).join('，');
+  return `${modeLabel}：${conds}，则 ${acts}`;
 }
 
 const linkageColumns = computed(() => [
-  { title: '名称', key: 'name', width: 160, render: (row: FieldLinkageRule) => row.name || '-' },
-  { title: '触发字段', key: 'triggerFieldKey', width: 160, render: (row: FieldLinkageRule) => row.triggerFieldKey },
-  { title: '条件', key: 'condition', width: 140, render: (row: FieldLinkageRule) => linkageConditionSummary(row) },
-  {
-    title: '动作', key: 'actionType', width: 90,
-    render: (row: FieldLinkageRule) => {
-      const label = LINKAGE_ACTION_OPTIONS.find((o) => o.value === row.actionType)?.label || row.actionType;
-      return h(NTag, { size: 'small' }, () => label);
-    },
-  },
-  { title: '目标字段', key: 'target', width: 200, render: (row: FieldLinkageRule) => (row.targetFieldKeys || []).join(', ') || '-' },
+  { title: '规则名称', key: 'name', width: 160, render: (row: FieldLinkageRule) => row.name || '-' },
+  { title: '条件和执行动作', key: 'summary', render: (row: FieldLinkageRule) => linkageConditionSummary(row) },
   {
     title: '状态', key: 'isActive', width: 90,
     render: (row: FieldLinkageRule) => row.isActive ? h(NTag, { type: 'success', size: 'small' }, () => '启用') : h(NTag, { size: 'small' }, () => '停用'),
@@ -706,6 +799,35 @@ const linkageColumns = computed(() => [
       }),
   },
 ]);
+
+function conditionValueOptions(fieldKey: string) {
+  const f = linkageFields.value.find((it) => it.fieldKey === fieldKey);
+  return (f?.options || []).map((o) => ({ label: o.label, value: o.value }));
+}
+
+function actionValueOptions(fieldKey: string) {
+  const f = linkageFields.value.find((it) => it.fieldKey === fieldKey);
+  return (f?.options || []).map((o) => ({ label: o.label, value: o.value }));
+}
+
+function newCondition(): LinkageCondition & { __key?: string } {
+  return { fieldKey: '', op: 'IN', value: [], __key: Math.random().toString(36).slice(2) };
+}
+
+function newAction(): LinkageAction & { __key?: string } {
+  return { targetFieldKey: '', actionType: 'SET_VALUE', value: '', readOnly: false, __key: Math.random().toString(36).slice(2) };
+}
+
+function addLinkageCondition() { linkageForm.conditions.push(newCondition()); }
+function removeLinkageCondition(idx: number) { linkageForm.conditions.splice(idx, 1); }
+function addLinkageAction() { linkageForm.actions.push(newAction()); }
+function removeLinkageAction(idx: number) { linkageForm.actions.splice(idx, 1); }
+
+function onConditionFieldChange(idx: number) {
+  const cond = linkageForm.conditions[idx];
+  if (!cond) return;
+  cond.value = cond.op === 'IN' || cond.op === 'NOT_IN' ? [] : '';
+}
 
 async function reloadLinkage() {
   linkageLoading.value = true;
@@ -723,45 +845,43 @@ async function loadLinkageFields(moduleId: string) {
 function openLinkageCreate() {
   linkageEditing.value = null;
   Object.assign(linkageForm, {
-    id: undefined, moduleId: linkageFilterModule.value || null, name: '', triggerFieldKey: '',
-    conditionOp: 'EQ', conditionValue: [], actionType: 'SHOW', targetFieldKeys: [], actionConfig: {},
+    id: undefined, moduleId: linkageFilterModule.value || null, name: '',
+    conditionMode: 'ALL', conditions: [newCondition()], actions: [newAction()],
   });
-  linkageConditionText.value = ''; linkageConfigText.value = '';
   linkageModalVisible.value = true;
   if (linkageForm.moduleId) loadLinkageFields(linkageForm.moduleId);
 }
 function openLinkageEdit(row: FieldLinkageRule) {
   linkageEditing.value = row;
   Object.assign(linkageForm, {
-    id: row.id, moduleId: row.moduleId, name: row.name, triggerFieldKey: row.triggerFieldKey,
-    conditionOp: row.conditionOp, conditionValue: row.conditionValue || [], actionType: row.actionType,
-    targetFieldKeys: row.targetFieldKeys || [], actionConfig: row.actionConfig || {},
+    id: row.id, moduleId: row.moduleId, name: row.name,
+    conditionMode: row.conditionMode || 'ALL',
+    conditions: (row.conditions || []).map((c) => ({ ...c, __key: Math.random().toString(36).slice(2) })),
+    actions: (row.actions || []).map((a) => ({ ...a, __key: Math.random().toString(36).slice(2) })),
   });
-  linkageConditionText.value = Array.isArray(row.conditionValue) ? row.conditionValue.join(', ') : String(row.conditionValue ?? '');
-  linkageConfigText.value = row.actionConfig ? JSON.stringify(row.actionConfig, null, 2) : '';
   linkageModalVisible.value = true;
   loadLinkageFields(row.moduleId);
 }
 function onLinkageModuleChange() { loadLinkageFields(linkageForm.moduleId || ''); }
 
 async function saveLinkage() {
-  if (!linkageForm.moduleId || !linkageForm.triggerFieldKey || !linkageForm.targetFieldKeys.length) {
-    message.error('模块、触发字段与目标字段必填'); return;
+  if (!linkageForm.moduleId) { message.error('请选择所属模块'); return; }
+  if (!linkageForm.name.trim()) { message.error('规则名称必填'); return; }
+  if (!linkageForm.conditions.length || linkageForm.conditions.some((c) => !c.fieldKey)) {
+    message.error('请填写完整的条件'); return;
+  }
+  if (!linkageForm.actions.length || linkageForm.actions.some((a) => !a.targetFieldKey)) {
+    message.error('请填写完整的执行动作'); return;
   }
   saving.value = true;
   try {
-    const conditionValue = linkageForm.conditionOp === 'IN'
-      ? linkageConditionText.value.split(',').map((s) => s.trim()).filter(Boolean)
-      : [linkageConditionText.value.trim()];
-    let actionConfig = linkageForm.actionConfig;
-    if (linkageForm.actionType === 'CASCADE_OPTIONS' && linkageConfigText.value.trim()) {
-      try { actionConfig = JSON.parse(linkageConfigText.value); }
-      catch { message.error('级联配置不是合法 JSON'); saving.value = false; return; }
-    }
     const payload: any = {
-      moduleId: linkageForm.moduleId, name: linkageForm.name, triggerFieldKey: linkageForm.triggerFieldKey,
-      conditionOp: linkageForm.conditionOp, conditionValue, actionType: linkageForm.actionType,
-      targetFieldKeys: linkageForm.targetFieldKeys, actionConfig, id: linkageEditing.value?.id,
+      moduleId: linkageForm.moduleId,
+      name: linkageForm.name.trim(),
+      conditionMode: linkageForm.conditionMode,
+      conditions: linkageForm.conditions.map(({ __key, ...c }) => c),
+      actions: linkageForm.actions.map(({ __key, ...a }) => a),
+      id: linkageEditing.value?.id,
     };
     await upsertLinkageRule(currentResource.value, payload);
     linkageModalVisible.value = false;
@@ -772,7 +892,7 @@ async function saveLinkage() {
 }
 function confirmDeleteLinkage(row: FieldLinkageRule) {
   dialog.warning({
-    title: '删除规则', content: `确认删除规则「${row.name || row.triggerFieldKey}」?`,
+    title: '删除规则', content: `确认删除规则「${row.name || '未命名'}」?`,
     positiveText: '删除', negativeText: '取消',
     onPositiveClick: async () => {
       try { await deleteLinkageRule(currentResource.value, row.id); message.success('删除成功'); await reloadLinkage(); }
@@ -847,4 +967,14 @@ onMounted(() => { loadAux(); reloadFields(); reloadModules(); reloadGroups(); re
 .filter-row { margin-bottom: var(--space-3); }
 .dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
 .df-tabs { margin-top: var(--space-2); }
+.linkage-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border);
+}
+.linkage-row:last-child { border-bottom: none; }
+.linkage-index {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--color-bg-subtle); color: var(--color-text-secondary);
+  font-size: 12px; display: flex; align-items: center; justify-content: center;
+}
 </style>

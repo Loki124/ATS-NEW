@@ -19,8 +19,23 @@ export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL';
 
-export type LinkageActionType = 'SHOW' | 'HIDE' | 'REQUIRE' | 'CASCADE_OPTIONS';
-export type LinkageConditionOp = 'EQ' | 'NE' | 'IN';
+export type LinkageConditionMode = 'ALL' | 'ANY';
+export type LinkageConditionOp = 'EQ' | 'NE' | 'IN' | 'NOT_IN' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'CONTAINS';
+export type LinkageActionType = 'SHOW' | 'HIDE' | 'REQUIRE' | 'SET_VALUE' | 'READONLY' | 'CASCADE_OPTIONS';
+
+export interface LinkageCondition {
+  fieldKey: string;
+  op: LinkageConditionOp;
+  value: string | string[];
+  valueLabel?: string | string[];
+}
+
+export interface LinkageAction {
+  targetFieldKey: string;
+  actionType: LinkageActionType;
+  value?: string;
+  readOnly?: boolean;
+}
 
 export interface FieldOption {
   id?: string;
@@ -58,12 +73,9 @@ export interface FieldLinkageRule {
   id: string;
   moduleId: string;
   name: string;
-  triggerFieldKey: string;
-  conditionOp: LinkageConditionOp;
-  conditionValue: unknown[];
-  actionType: LinkageActionType;
-  targetFieldKeys: string[];
-  actionConfig?: Record<string, unknown>;
+  conditionMode: LinkageConditionMode;
+  conditions: LinkageCondition[];
+  actions: LinkageAction[];
   orderIndex: number;
   isActive: boolean;
   module?: FieldModule;
@@ -208,17 +220,30 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   PHONE: '手机号', EMAIL: '邮箱',
 };
 
-export const LINKAGE_ACTION_OPTIONS: { label: string; value: LinkageActionType }[] = [
-  { label: '显示', value: 'SHOW' },
-  { label: '隐藏', value: 'HIDE' },
-  { label: '设必填', value: 'REQUIRE' },
-  { label: '级联选项', value: 'CASCADE_OPTIONS' },
+export const LINKAGE_CONDITION_MODE_OPTIONS: { label: string; value: LinkageConditionMode }[] = [
+  { label: '满足以下所有条件', value: 'ALL' },
+  { label: '满足以下任一条件', value: 'ANY' },
 ];
 
 export const LINKAGE_OP_OPTIONS: { label: string; value: LinkageConditionOp }[] = [
   { label: '等于', value: 'EQ' },
   { label: '不等于', value: 'NE' },
-  { label: '属于', value: 'IN' },
+  { label: '包含', value: 'IN' },
+  { label: '不包含', value: 'NOT_IN' },
+  { label: '大于', value: 'GT' },
+  { label: '小于', value: 'LT' },
+  { label: '大于等于', value: 'GTE' },
+  { label: '小于等于', value: 'LTE' },
+  { label: '包含文本', value: 'CONTAINS' },
+];
+
+export const LINKAGE_ACTION_OPTIONS: { label: string; value: LinkageActionType }[] = [
+  { label: '显示', value: 'SHOW' },
+  { label: '隐藏', value: 'HIDE' },
+  { label: '设必填', value: 'REQUIRE' },
+  { label: '赋值', value: 'SET_VALUE' },
+  { label: '只读', value: 'READONLY' },
+  { label: '级联选项', value: 'CASCADE_OPTIONS' },
 ];
 
 // --- 模块配置 (FieldModule, 父级) ---
