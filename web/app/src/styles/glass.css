@@ -406,6 +406,24 @@ body.dark .n-modal-mask {
   border-radius: var(--radius-lg);
 }
 
+/* === popconfirm 浮层玻璃视觉（2026-09-08 补充）===
+ * dropdown/select 有独立 L2 menu（.n-dropdown-menu / .n-base-select-menu）承载玻璃视觉；
+ * 但 popconfirm 没有独立 menu，其可见盒子就是 .n-popover 自身（内层 .n-popconfirm__panel
+ * 默认透明，popover 的 padding 也落在外层）。上一版误把视觉打到内层 .n-popover__content
+ * （content-class 透传层），与外层 .n-popover 的 padding + 圆角叠加成「卡片套卡片」。
+ * 正确做法：给 .n-popover.n-popconfirm（外层单盒子，padding/圆角本就在这层）补玻璃视觉，
+ * 与 dropdown/select 同一套 token，暗/亮主题随 body 自适应。
+ * 同时根治 App.vue popoverColor: transparent（暗色）导致的「popconfirm 整块透明、文字叠表格」。 */
+.n-popover.n-popconfirm {
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  isolation: isolate !important;
+  color: var(--ink) !important;
+}
+
 /* === P5 修复:vueuc-popper 关闭后 wrapper 残留渲为「白带/多一块」(2026-08-28 兵哥再报)===
  *
  * 根因二次复盘:
