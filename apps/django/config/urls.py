@@ -22,6 +22,9 @@ api_v1_patterns = [
     path('search/', include('apps.search.urls')),
     # 认证
     path('auth/', include('apps.core.urls_auth')),
+    # 2026-09-08: 面试轮次真实端点，必须挂在 urls_stubs 之前覆盖 stub
+    #   urls_round 内部已包含 recruitment-rounds 前缀
+    path('', include('apps.process.urls_round')),
     # 2026-07-01 花无缺: 把 urls_stubs 挂到 core.urls 之前, 避免 core/permissions router 抢
     #   /permissions/{roles,functions,menus,user-info,permissions/list} 这些 stub path
     #   (之前 line 60, 被 core 的 router.register(r'permissions', ...) 抢先吃掉)

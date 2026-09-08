@@ -36,6 +36,7 @@ from apps.core.permissions_v2 import V2Permission
 from .models import (
     CandidateRecommendation,
     CandidateScreen,
+    InterviewRound,
     ProcessStageLink,
     ProcessTemplate,
     RecruitmentProcess,
@@ -46,6 +47,8 @@ from .models import (
 from .serializers import (
     ExpressionValidationRequestSerializer,
     ExpressionValidationResponseSerializer,
+    InterviewRoundCreateSerializer,
+    InterviewRoundSerializer,
     ProcessStageLinkSerializer,
     ProcessTemplateApplySerializer,
     ProcessTemplateSerializer,
@@ -537,6 +540,64 @@ class StageRuleViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
         return qs.select_related('link', 'link__stage', 'link__process')
+
+
+# ============================================================
+# 面试轮次（InterviewRound）
+# ============================================================
+class InterviewRoundViewSet(AuditMixin, viewsets.ModelViewSet):
+    """面试轮次库 ViewSet
+
+    list:       列表（支持 keyword 搜索）
+    create:     创建（自动生成 R+三位编号）
+    update:     更新
+    destroy:    软删除
+    status:     切换启用/停用状态
+    """
+    queryset = InterviewRound.objects.all()
+    permission_classes = [HasProcessPermission]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['status', 'is_universal']
+    search_fields = ['code', 'name', 'description']
+    ordering_fields = ['code', 'created_at', 'updated_at']
+    ordering = ['code']
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return InterviewRoundCreateSerializer
+        return InterviewRoundSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qs = qs.filter(deleted_at__isnull=True)
+        keyword = self.request.query_params.get('keyword')
+        if keyword:
+            qs = qs.filter(
+                Q(name__icontains=keyword)
+                | Q(code__icontains=keyword)
+                | Q(description__icontains=keyword)
+            )
+        return qs
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+    @extend_schema(
+        summary='切换面试轮次状态',
+        request={'type': 'object', 'properties': {'status': {'type': 'string', 'enum': ['ACTIVE', 'INACTIVE']}}},
+        responses={200: InterviewRoundSerializer},
+    )
+    @action(detail=True, methods=['put'], url_path='status')
+    def status(self, request, pk=None):
+        instance = self.get_object()
+        new_status = request.data.get('status')
+        if new_status not in {'ACTIVE', 'INACTIVE'}:
+            raise ValidationError({'status': '状态必须是 ACTIVE 或 INACTIVE'})
+        instance.status = new_status
+        instance.save(update_fields=['status', 'updated_at'])
+        serializer = self.get_serializer(instance)
+        return Response({'success': True, 'data': serializer.data})
 
 
 # ============================================================
