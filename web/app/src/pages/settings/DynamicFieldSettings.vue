@@ -135,12 +135,6 @@
           <n-form-item label="帮助文本">
             <n-input v-model:value="fieldForm.helpText" placeholder="helpText" />
           </n-form-item>
-          <n-form-item label="排序">
-            <n-input-number v-model:value="fieldForm.orderIndex" :min="0" />
-          </n-form-item>
-          <n-form-item label="必填">
-            <n-switch v-model:value="fieldForm.isRequired" />
-          </n-form-item>
           <n-form-item label="显示">
             <n-switch v-model:value="fieldForm.isVisible" />
           </n-form-item>
