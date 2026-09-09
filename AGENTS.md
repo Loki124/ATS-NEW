@@ -324,6 +324,27 @@ MUST 验证：超长文本（20+ 字姓名）/ 超短（1 字）/ 纯 emoji / 0 
 MUST 通过字号 / 字重 / 颜色 / 间距建立层级。
 标题行高 MUST 为 1.2–1.3，正文行高 MUST 为 1.5–1.7。全站字体 MUST NOT 超过 2 种。
 
+### R-215 [P1][S/R] 数据列表页面滚动规范
+
+数据列表类页面（表格 + 筛选 + 工具栏布局）MUST 采用「区域滚动」而非「整页滚动」：
+
+- 页面容器 MUST NOT 出现整体滚动条（`overflow: hidden`），标题 / Tabs / 筛选工具栏 MUST 固定（`flex-shrink: 0`）。
+- 滚动 MUST 只发生在数据表格区域内部：表格 MUST 具备确定高度边界（Naive UI 用 `flex-height` + 父级 `flex: 1; min-height: 0`），表头在滚动时保持可见。
+- 分页器 MUST 固定在表格底部，MUST NOT 随数据滚动。
+- 弹窗 / 抽屉内表单同样适用此原则：仅内容区滚动，标题与操作栏固定。
+
+```css
+/* ✅ 正确: 三段式 flex 布局, 只有表格滚动 */
+.page-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.filter-row { flex-shrink: 0; }
+.data-table { flex: 1; min-height: 0; }  /* Naive UI 加 flex-height 属性 */
+
+/* ❌ 违规: page-body 整体 overflow-y: auto, 标题/筛选随内容滚走 */
+.page-body { overflow-y: auto; }
+```
+
+滚动正确性需渲染后确认（表头固定、滚动条仅出现在表格区域），标注 [R] 项不得静态打勾。
+
 ## 4. 品牌色系统（Brand Color）
 
 品牌色是唯一必须由外部输入的令牌，其余颜色由它推导或与之解耦。
