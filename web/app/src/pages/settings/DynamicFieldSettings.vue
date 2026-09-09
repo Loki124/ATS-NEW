@@ -102,9 +102,6 @@
         style="width: 680px; max-width: 92vw;"
       >
         <n-form :model="fieldForm" label-placement="left" label-width="100px">
-          <n-form-item label="字段 Key" required>
-            <n-input v-model:value="fieldForm.fieldKey" placeholder="e.g. idCardNo" :disabled="!!fieldEditing" />
-          </n-form-item>
           <n-form-item label="字段名称" required>
             <n-input v-model:value="fieldForm.label" placeholder="e.g. 身份证号" />
           </n-form-item>
@@ -160,6 +157,13 @@
               />
               <n-text v-if="!fieldForm.options.length" depth="3" class="list-preview-hint">先填写上方选项以预览排列效果</n-text>
             </div>
+          </n-form-item>
+          <!-- Key 由系统自动生成, 新建时对用户隐藏; 编辑时以只读小字披露, 供开发对接查阅 -->
+          <n-form-item v-if="fieldEditing" label="字段 Key">
+            <n-text depth="3" class="field-key-readonly">
+              <code>{{ fieldForm.fieldKey }}</code>
+              <span class="field-key-hint">系统生成，供开发对接使用，不可修改</span>
+            </n-text>
           </n-form-item>
         </n-form>
         <template #action>
@@ -559,9 +563,23 @@ async function reloadFields() {
   }
 }
 
+/**
+ * 自动生成字段 Key（`f_` + 8 位小写字母数字短码）。
+ *
+ * Key 是程序标识（数据存取列名 / 联动规则引用 / 导入导出匹配主键），
+ * 但配置字段的管理员不需要理解它，因此新建时隐藏输入框、由系统生成；
+ * 编辑时以只读小字披露，供开发对接查阅。
+ */
+function generateFieldKey(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let out = '';
+  for (let i = 0; i < 8; i += 1) out += chars[Math.floor(Math.random() * chars.length)];
+  return `f_${out}`;
+}
+
 function resetFieldForm() {
   Object.assign(fieldForm, {
-    id: undefined, fieldKey: '', label: '', fieldType: 'TEXT',
+    id: undefined, fieldKey: generateFieldKey(), label: '', fieldType: 'TEXT',
     moduleId: null, groupId: null,
     isRequired: false, isVisible: true, placeholder: '', helpText: '',
     orderIndex: rows.value.length, options: [],
@@ -586,11 +604,13 @@ function openFieldEdit(row: FieldDefinition) {
 function onFieldModuleChange() { fieldForm.groupId = null; }
 
 async function saveField() {
-  if (!fieldForm.fieldKey || !fieldForm.label) { message.error('Key 和字段名称必填'); return; }
+  if (!fieldForm.label.trim()) { message.error('请填写字段名称'); return; }
   saving.value = true;
   try {
     const payload: any = {
-      fieldKey: fieldForm.fieldKey, label: fieldForm.label, fieldType: fieldForm.fieldType,
+      // Key 由系统自动生成; 此处兜底防御 (极端情况下 fieldForm 被外部置空)
+      fieldKey: fieldForm.fieldKey || generateFieldKey(),
+      label: fieldForm.label, fieldType: fieldForm.fieldType,
       isRequired: fieldForm.isRequired, isVisible: fieldForm.isVisible,
       placeholder: fieldForm.placeholder, helpText: fieldForm.helpText,
       orderIndex: fieldForm.orderIndex,
@@ -1063,6 +1083,16 @@ onMounted(() => { loadAux(); reloadFields(); reloadModules(); reloadGroups(); re
 .filter-row { margin-bottom: var(--space-3); }
 .dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
 .df-tabs { margin-top: var(--space-2); }
+.field-key-readonly {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  font-size: var(--text-xs, 12px);
+}
+.field-key-readonly code {
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--color-bg-subtle); color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.field-key-hint { color: var(--color-text-tertiary); }
 .linkage-row {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border);
