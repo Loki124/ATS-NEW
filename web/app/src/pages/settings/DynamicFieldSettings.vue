@@ -1,11 +1,11 @@
 <template>
   <div class="page-container dynamic-field-settings">
-    <div class="page-body">
-      <div class="page-header">
-        <h1 class="page-title">动态字段定义</h1>
-        <p class="page-subtitle">G42 - 元数据驱动的字段配置：字段 / 模块 / 分组 / 联动规则</p>
-      </div>
+    <div class="page-header">
+      <h1 class="page-title">动态字段定义</h1>
+      <p class="page-subtitle">G42 - 元数据驱动的字段配置：字段 / 模块 / 分组 / 联动规则</p>
+    </div>
 
+    <div class="page-body">
       <n-tabs v-model:value="activeTab" type="line" class="df-tabs">
         <!-- ============ 字段定义 ============ -->
         <n-tab-pane name="fields" tab="字段定义">
@@ -26,7 +26,7 @@
             :columns="fieldColumns"
             :data="rows"
             :loading="loading"
-            :pagination="{ pageSize: 15 }"
+            :pagination="fieldPagination"
             :row-key="(row: any) => row.id"
             size="small"
             striped
@@ -45,7 +45,7 @@
             :columns="moduleColumns"
             :data="moduleRows"
             :loading="moduleLoading"
-            :pagination="{ pageSize: 15 }"
+            :pagination="modulePagination"
             :row-key="(row: any) => row.id"
             size="small"
             striped
@@ -65,7 +65,7 @@
             :columns="groupColumns"
             :data="groupRows"
             :loading="groupLoading"
-            :pagination="{ pageSize: 15 }"
+            :pagination="groupPagination"
             :row-key="(row: any) => row.id"
             size="small"
             striped
@@ -85,15 +85,16 @@
             :columns="linkageColumns"
             :data="linkageRows"
             :loading="linkageLoading"
-            :pagination="{ pageSize: 15 }"
+            :pagination="linkagePagination"
             :row-key="(row: any) => row.id"
             size="small"
             striped
           />
         </n-tab-pane>
       </n-tabs>
+    </div>
 
-      <!-- ============ 字段 新建/编辑 Modal ============ -->
+    <!-- ============ 字段 新建/编辑 Modal ============ -->
       <n-modal
         v-model:show="fieldModalVisible"
         preset="card"
@@ -430,7 +431,6 @@
           </n-space>
         </template>
       </n-modal>
-    </div>
   </div>
 </template>
 
@@ -472,6 +472,20 @@ const loading = ref(false);
 const saving = ref(false);
 const fieldModalVisible = ref(false);
 const fieldEditing = ref<FieldDefinition | null>(null);
+const fieldPage = ref(1);
+const fieldPageSize = ref(15);
+const fieldPagination = computed(() => ({
+  page: fieldPage.value,
+  pageSize: fieldPageSize.value,
+  pageCount: Math.max(1, Math.ceil(rows.value.length / fieldPageSize.value)),
+  itemCount: rows.value.length,
+  pageSizes: [10, 15, 20, 50],
+  showSizePicker: true,
+  showQuickJumper: true,
+  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  onChange: (p: number) => { fieldPage.value = p; },
+  onUpdatePageSize: (s: number) => { fieldPageSize.value = s; fieldPage.value = 1; },
+}));
 // 列表型字段实时预览的选中值（单选为标量, 多选为数组）；初始为单选用空串, 类型切到 LIST_MULTI 时由 watch 同步为 []
 const fieldPreviewValue = ref<string | string[]>('');
 const filterModule = ref<string>('');
@@ -510,7 +524,7 @@ watch(
 const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || fieldForm.fieldType === 'LIST_MULTI');
 
 const fieldColumns = computed(() => [
-  { title: '顺序', key: 'orderIndex', width: 70, render: (row: FieldDefinition) => row.orderIndex },
+  { title: '顺序', key: 'orderIndex', width: 70, sorter: 'default', render: (row: FieldDefinition) => row.orderIndex },
   { title: '字段名称', key: 'label', width: 160, render: (row: FieldDefinition) => row.label },
   { title: 'Key', key: 'fieldKey', width: 160, render: (row: FieldDefinition) => row.fieldKey },
   {
@@ -521,7 +535,9 @@ const fieldColumns = computed(() => [
   { title: '分组', key: 'group', width: 110, render: (row: FieldDefinition) => row.group?.name || row.groupName || '-' },
   {
     title: '必填', key: 'isRequired', width: 70,
-    render: (row: FieldDefinition) => row.isRequired ? h(NTag, { type: 'error', size: 'small' }, () => '是') : '-',
+    render: (row: FieldDefinition) => row.isRequired
+      ? h(NTag, { type: 'error', size: 'small' }, () => '是')
+      : h(NTag, { size: 'small' }, () => '否'),
   },
   {
     title: '选项数', key: 'optionCount', width: 80,
@@ -548,6 +564,7 @@ async function reloadFields() {
     if (filterModule.value) params.module_id = filterModule.value;
     if (filterGroup.value) params.group_id = filterGroup.value;
     rows.value = await listFields(currentResource.value, params);
+    fieldPage.value = 1;
   } catch (e: any) {
     message.error('加载字段失败: ' + extractApiError(e));
   } finally {
@@ -626,6 +643,20 @@ const moduleRows = ref<FieldModule[]>([]);
 const moduleLoading = ref(false);
 const moduleModalVisible = ref(false);
 const moduleEditing = ref<FieldModule | null>(null);
+const modulePage = ref(1);
+const modulePageSize = ref(15);
+const modulePagination = computed(() => ({
+  page: modulePage.value,
+  pageSize: modulePageSize.value,
+  pageCount: Math.max(1, Math.ceil(moduleRows.value.length / modulePageSize.value)),
+  itemCount: moduleRows.value.length,
+  pageSizes: [10, 15, 20, 50],
+  showSizePicker: true,
+  showQuickJumper: true,
+  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  onChange: (p: number) => { modulePage.value = p; },
+  onUpdatePageSize: (s: number) => { modulePageSize.value = s; modulePage.value = 1; },
+}));
 const moduleForm = reactive<{
   id?: string; code: string; name: string; description: string; orderIndex: number; isActive: boolean;
 }>({ code: '', name: '', description: '', orderIndex: 0, isActive: true });
@@ -653,7 +684,7 @@ const moduleColumns = computed(() => [
 
 async function reloadModules() {
   moduleLoading.value = true;
-  try { moduleRows.value = await listModules(currentResource.value); }
+  try { moduleRows.value = await listModules(currentResource.value); modulePage.value = 1; }
   catch (e: any) { message.error('加载模块失败: ' + extractApiError(e)); }
   finally { moduleLoading.value = false; }
 }
@@ -696,6 +727,20 @@ const groupRows = ref<FieldGroup[]>([]);
 const groupLoading = ref(false);
 const groupModalVisible = ref(false);
 const groupEditing = ref<FieldGroup | null>(null);
+const groupPage = ref(1);
+const groupPageSize = ref(15);
+const groupPagination = computed(() => ({
+  page: groupPage.value,
+  pageSize: groupPageSize.value,
+  pageCount: Math.max(1, Math.ceil(groupRows.value.length / groupPageSize.value)),
+  itemCount: groupRows.value.length,
+  pageSizes: [10, 15, 20, 50],
+  showSizePicker: true,
+  showQuickJumper: true,
+  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  onChange: (p: number) => { groupPage.value = p; },
+  onUpdatePageSize: (s: number) => { groupPageSize.value = s; groupPage.value = 1; },
+}));
 const groupFilterModule = ref<string>('');
 const groupForm = reactive<{
   id?: string; moduleId: string | null; code: string; name: string; orderIndex: number; isActive: boolean;
@@ -729,7 +774,7 @@ const groupColumns = computed(() => [
 
 async function reloadGroups() {
   groupLoading.value = true;
-  try { groupRows.value = await listGroups(currentResource.value, groupFilterModule.value || undefined); }
+  try { groupRows.value = await listGroups(currentResource.value, groupFilterModule.value || undefined); groupPage.value = 1; }
   catch (e: any) { message.error('加载分组失败: ' + extractApiError(e)); }
   finally { groupLoading.value = false; }
 }
@@ -772,6 +817,20 @@ const linkageRows = ref<FieldLinkageRule[]>([]);
 const linkageLoading = ref(false);
 const linkageModalVisible = ref(false);
 const linkageEditing = ref<FieldLinkageRule | null>(null);
+const linkagePage = ref(1);
+const linkagePageSize = ref(15);
+const linkagePagination = computed(() => ({
+  page: linkagePage.value,
+  pageSize: linkagePageSize.value,
+  pageCount: Math.max(1, Math.ceil(linkageRows.value.length / linkagePageSize.value)),
+  itemCount: linkageRows.value.length,
+  pageSizes: [10, 15, 20, 50],
+  showSizePicker: true,
+  showQuickJumper: true,
+  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  onChange: (p: number) => { linkagePage.value = p; },
+  onUpdatePageSize: (s: number) => { linkagePageSize.value = s; linkagePage.value = 1; },
+}));
 const linkageFilterModule = ref<string>('');
 const linkageFields = ref<FieldDefinition[]>([]);
 const linkageForm = reactive<{
@@ -858,7 +917,7 @@ function onConditionFieldChange(idx: number) {
 
 async function reloadLinkage() {
   linkageLoading.value = true;
-  try { linkageRows.value = await listLinkageRules(currentResource.value, linkageFilterModule.value || undefined); }
+  try { linkageRows.value = await listLinkageRules(currentResource.value, linkageFilterModule.value || undefined); linkagePage.value = 1; }
   catch (e: any) { message.error('加载规则失败: ' + extractApiError(e)); }
   finally { linkageLoading.value = false; }
 }
