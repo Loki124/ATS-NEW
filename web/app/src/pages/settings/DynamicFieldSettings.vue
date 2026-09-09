@@ -30,6 +30,7 @@
             :row-key="(row: any) => row.id"
             size="small"
             striped
+            flex-height
           />
         </n-tab-pane>
 
@@ -49,6 +50,7 @@
             :row-key="(row: any) => row.id"
             size="small"
             striped
+            flex-height
           />
         </n-tab-pane>
 
@@ -69,6 +71,7 @@
             :row-key="(row: any) => row.id"
             size="small"
             striped
+            flex-height
           />
         </n-tab-pane>
 
@@ -89,6 +92,7 @@
             :row-key="(row: any) => row.id"
             size="small"
             striped
+            flex-height
           />
         </n-tab-pane>
       </n-tabs>
@@ -1076,13 +1080,28 @@ onMounted(() => { loadAux(); reloadFields(); reloadModules(); reloadGroups(); re
   display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0;
 }
 .page-header { flex-shrink: 0; }
+/* 页面级不滚动: 标题/Tabs/筛选固定, 仅数据表格区域内部滚动 (n-data-table flex-height) */
 .page-body {
-  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  display: flex; flex-direction: column; gap: var(--space-4);
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
-.filter-row { margin-bottom: var(--space-3); }
+.filter-row { flex-shrink: 0; margin-bottom: var(--space-3); }
 .dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
-.df-tabs { margin-top: var(--space-2); }
+.df-tabs {
+  margin-top: var(--space-2);
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.df-tabs :deep(.n-tabs-nav) { flex-shrink: 0; }
+.df-tabs :deep(.n-tabs-content) { flex: 1; min-height: 0; }
+.df-tabs :deep(.n-tab-pane) {
+  height: 100%;
+  display: flex; flex-direction: column;
+}
+.df-tabs :deep(.n-tab-pane > .n-data-table) {
+  flex: 1; min-height: 0;
+}
 .field-key-readonly {
   display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
   font-size: var(--text-xs, 12px);
