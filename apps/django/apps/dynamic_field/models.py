@@ -20,9 +20,15 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         BANK_CARD = 'BANK_CARD', '银行卡'
         PHONE = 'PHONE', '手机号'
         EMAIL = 'EMAIL', '邮箱'
+        # 2026-09-09 新增列表型(非下拉, 选项以列表渲染, 容器宽度自适应横/纵)
+        LIST_SINGLE = 'LIST_SINGLE', '列表单选'
+        LIST_MULTI = 'LIST_MULTI', '列表多选'
 
-    # 需要选项配置(下拉)的字段类型
-    OPTION_TYPES = [FieldType.SELECT, FieldType.MULTISELECT]
+    # 需要选项配置(下拉/列表)的字段类型
+    OPTION_TYPES = [
+        FieldType.SELECT, FieldType.MULTISELECT,
+        FieldType.LIST_SINGLE, FieldType.LIST_MULTI,
+    ]
 
     id = models.CharField(
         max_length=32, primary_key=True, editable=False, help_text='唯一标识'

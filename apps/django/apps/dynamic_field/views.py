@@ -337,6 +337,55 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
 
         return Response({'success': True, 'created': created, 'updated': updated, 'errors': errors})
 
+    @action(detail=False, methods=['get'], url_path='template')
+    def template(self, request, resource=None) -> HttpResponse:
+        """GET /dynamic-fields/<resource>/fields/template/?format=json|csv
+
+        返回与 ``import_fields`` 解析器完全对齐的导入模板: CSV 含表头 + 1 行示例,
+        JSON 为示例记录数组 ``[{...}]`` (导入端接受裸数组或 ``{'data': [...]}`` 之外的裸数组)。
+        模板字段顺序与 ``export`` 一致, 保证「导出 → 改 → 导入」与「模板 → 填 → 导入」闭环。
+        """
+        resource = self.get_resource()
+        fmt = (request.query_params.get('format') or 'json').lower()
+        # 示例行: 覆盖 SELECT(含 options JSON) 与专用类型, 直观展示 module_code/group_code 反查用法
+        example = {
+            'field_key': 'work_city',
+            'label': '工作城市',
+            'field_type': 'SELECT',
+            'is_required': True,
+            'is_visible': True,
+            'placeholder': '请选择城市',
+            'help_text': '',
+            'default_value': '',
+            'order_index': 1,
+            'group_name': '',
+            'module_code': 'basic',
+            'group_code': 'contact',
+            'options': '[{"value":"bj","label":"北京"},{"value":"sh","label":"上海"}]',
+            'validation': '',
+        }
+        fieldnames = [
+            'field_key', 'label', 'field_type', 'is_required', 'is_visible',
+            'placeholder', 'help_text', 'default_value', 'order_index',
+            'group_name', 'module_code', 'group_code', 'options', 'validation',
+        ]
+
+        if fmt == 'csv':
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow(example)
+            resp = HttpResponse(buf.getvalue(), content_type='text/csv; charset=utf-8')
+            resp['Content-Disposition'] = 'attachment; filename="dynamic_fields_template.csv"'
+            return resp
+
+        resp = HttpResponse(
+            json.dumps([example], ensure_ascii=False, indent=2),
+            content_type='application/json; charset=utf-8',
+        )
+        resp['Content-Disposition'] = 'attachment; filename="dynamic_fields_template.json"'
+        return resp
+
     @staticmethod
     def _parse_csv(text: str) -> list:
         """把 CSV 文本解析为字段字典列表, 并对布尔/整数做轻量规整。"""

@@ -17,6 +17,11 @@ urlpatterns = [
         name='dynamicfield-export',
     ),
     path(
+        '<str:resource>/fields/template/',
+        DynamicFieldViewSet.as_view({'get': 'template'}),
+        name='dynamicfield-template',
+    ),
+    path(
         '<str:resource>/fields/import/',
         DynamicFieldViewSet.as_view({'post': 'import_fields'}),
         name='dynamicfield-import',

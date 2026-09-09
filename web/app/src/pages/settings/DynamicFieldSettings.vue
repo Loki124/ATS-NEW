@@ -155,6 +155,17 @@
               </template>
             </n-dynamic-input>
           </n-form-item>
+          <n-form-item v-if="isListType" label="预览" class="list-preview-item">
+            <div class="list-preview-wrap">
+              <FieldListOptions
+                v-model="fieldPreviewValue"
+                :options="fieldForm.options"
+                :multiple="fieldForm.fieldType === 'LIST_MULTI'"
+                :disabled="!fieldForm.options.length"
+              />
+              <n-text v-if="!fieldForm.options.length" depth="3" class="list-preview-hint">先填写上方选项以预览排列效果</n-text>
+            </div>
+          </n-form-item>
         </n-form>
         <template #action>
           <n-space justify="end">
@@ -380,23 +391,34 @@
         v-model:show="importModalVisible"
         preset="card"
         title="导入字段"
-        style="width: 640px; max-width: 92vw;"
+        style="width: 680px; max-width: 94vw;"
       >
         <n-space vertical :size="12">
           <n-alert type="info" :show-icon="true">
             支持 JSON 数组或 CSV 文本。CSV 需包含表头：
             <code>field_key,label,field_type,module_code,group_code,is_required,...</code>
+            可先下载模板对照填写。
           </n-alert>
-          <n-form-item label="格式" label-placement="left" :show-feedback="false">
+          <n-space :wrap="false" :size="12" align="center">
             <n-radio-group v-model:value="importFormat">
               <n-radio value="json">JSON</n-radio>
               <n-radio value="csv">CSV</n-radio>
             </n-radio-group>
-          </n-form-item>
+            <n-button size="small" secondary @click="downloadTemplateFile">下载导入模板</n-button>
+            <n-button size="small" secondary @click="fileInput?.click()">选择文件</n-button>
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".json,.csv,application/json,text/csv"
+              style="display: none"
+              @change="onFilePicked"
+            />
+            <n-text v-if="selectedFileName" depth="3">已选：{{ selectedFileName }}</n-text>
+          </n-space>
           <n-input
             v-model:value="importContent"
             type="textarea"
-            placeholder="粘贴 JSON 数组或 CSV 文本"
+            placeholder="粘贴 JSON 数组或 CSV 文本，或点击「选择文件」从本地读取"
             :autosize="{ minRows: 8, maxRows: 16 }"
           />
           <n-text v-if="importResult" depth="3">导入结果：新增 {{ importResult.created }} · 更新 {{ importResult.updated }} · 失败 {{ importResult.errors }}</n-text>
@@ -420,13 +442,14 @@ import {
   NRadioGroup, NRadio, NCheckbox, NAlert, NText, useMessage, useDialog,
 } from 'naive-ui';
 import { AddOutline, TrashOutline, CreateOutline } from '@vicons/ionicons5';
+import FieldListOptions from '@/components/FieldListOptions.vue';
 import {
   listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
   listModules, upsertModule, deleteModule,
   listGroups, upsertGroup, deleteGroup,
   listLinkageRules, upsertLinkageRule, deleteLinkageRule,
-  downloadExport, importFields,
+  downloadExport, importFields, downloadTemplate,
   LINKAGE_ACTION_OPTIONS, LINKAGE_OP_OPTIONS, LINKAGE_CONDITION_MODE_OPTIONS,
   type FieldDefinition, type FieldType, type FieldModule, type FieldGroup, type FieldLinkageRule,
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
@@ -449,6 +472,8 @@ const loading = ref(false);
 const saving = ref(false);
 const fieldModalVisible = ref(false);
 const fieldEditing = ref<FieldDefinition | null>(null);
+// 列表型字段实时预览的选中值（单选为标量, 多选为数组）
+const fieldPreviewValue = ref<string | string[]>(fieldForm.fieldType === 'LIST_MULTI' ? [] : '');
 const filterModule = ref<string>('');
 const filterGroup = ref<string>('');
 
@@ -464,7 +489,7 @@ const fieldForm = reactive<{
   orderIndex: 0, options: [],
 });
 
-const fieldNeedsOptions = computed(() => fieldForm.fieldType === 'SELECT' || fieldForm.fieldType === 'MULTISELECT');
+const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
 const fieldGroupOptions = computed(() => {
   const base = fieldForm.moduleId ? groups.value.filter((g) => g.moduleId === fieldForm.moduleId) : groups.value;
   return base.map((g) => ({ label: g.name, value: g.id }));
@@ -474,7 +499,15 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   TEXT: 'default', NUMBER: 'info', DATE: 'success',
   SELECT: 'warning', MULTISELECT: 'warning', BOOLEAN: 'default',
   ATTACHMENT: 'info', ID_CARD: 'error', BANK_CARD: 'error', PHONE: 'error', EMAIL: 'error',
+  LIST_SINGLE: 'warning', LIST_MULTI: 'warning',
 };
+
+// 列表型字段预览：切换单选/多选时同步预览值形状
+watch(
+  () => fieldForm.fieldType,
+  (t) => { fieldPreviewValue.value = t === 'LIST_MULTI' ? [] : ''; },
+);
+const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || fieldForm.fieldType === 'LIST_MULTI');
 
 const fieldColumns = computed(() => [
   { title: '顺序', key: 'orderIndex', width: 70, render: (row: FieldDefinition) => row.orderIndex },
@@ -911,9 +944,39 @@ const importFormat = ref<'json' | 'csv'>('json');
 const importContent = ref('');
 const importing = ref(false);
 const importResult = ref<{ success: boolean; created: number; updated: number; errors: number } | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const selectedFileName = ref('');
+
+async function downloadTemplateFile() {
+  try {
+    await downloadTemplate(currentResource.value, importFormat.value);
+    message.success('模板已开始下载');
+  } catch (e: any) {
+    message.error('模板下载失败: ' + extractApiError(e));
+  }
+}
+
+async function onFilePicked(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  // 按扩展名自动识别格式
+  const ext = file.name.toLowerCase().split('.').pop();
+  if (ext === 'csv') importFormat.value = 'csv';
+  else if (ext === 'json') importFormat.value = 'json';
+  try {
+    importContent.value = await file.text();
+    selectedFileName.value = file.name;
+    message.success(`已读取文件：${file.name}（${importContent.value.length} 字符）`);
+  } catch (err: any) {
+    message.error('文件读取失败: ' + (err?.message || err));
+  } finally {
+    input.value = ''; // 允许重复选择同一文件
+  }
+}
 
 async function runImport() {
-  if (!importContent.value.trim()) { message.error('请粘贴导入内容'); return; }
+  if (!importContent.value.trim()) { message.error('请粘贴导入内容或选择文件'); return; }
   importing.value = true;
   importResult.value = null;
   try {

@@ -17,7 +17,8 @@ api.interceptors.request.use((cfg) => {
 
 export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
-  | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL';
+  | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
+  | 'LIST_SINGLE' | 'LIST_MULTI';
 
 export type LinkageConditionMode = 'ALL' | 'ANY';
 export type LinkageConditionOp = 'EQ' | 'NE' | 'IN' | 'NOT_IN' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'CONTAINS';
@@ -235,6 +236,8 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '银行卡', value: 'BANK_CARD' },
   { label: '手机号', value: 'PHONE' },
   { label: '邮箱', value: 'EMAIL' },
+  { label: '列表单选', value: 'LIST_SINGLE' },
+  { label: '列表多选', value: 'LIST_MULTI' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -242,6 +245,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   SELECT: '下拉单选', MULTISELECT: '下拉多选', BOOLEAN: '布尔',
   ATTACHMENT: '附件', ID_CARD: '身份证', BANK_CARD: '银行卡',
   PHONE: '手机号', EMAIL: '邮箱',
+  LIST_SINGLE: '列表单选', LIST_MULTI: '列表多选',
 };
 
 export const LINKAGE_CONDITION_MODE_OPTIONS: { label: string; value: LinkageConditionMode }[] = [
@@ -341,5 +345,27 @@ export const importFields = (
   resource: string, format: 'json' | 'csv', content: string,
 ) => api.post(`/dynamic-fields/${resource}/fields/import/`, { format, content })
   .then((r) => r.data as { success: boolean; created: number; updated: number; errors: number });
+
+/** 导入模板下载地址 (后端 template 动作返回带 Content-Disposition 的文件流) */
+export const templateUrl = (resource: string, format: 'json' | 'csv') => {
+  const params = new URLSearchParams({ format });
+  return `${config.api.baseUrl}/dynamic-fields/${resource}/fields/template/?${params.toString()}`;
+};
+
+/** 触发浏览器下载导入模板 */
+export async function downloadTemplate(resource: string, format: 'json' | 'csv'): Promise<void> {
+  const url = templateUrl(resource, format);
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+  const resp = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!resp.ok) throw new Error(`模板下载失败: HTTP ${resp.status}`);
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `dynamic_fields_template.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
 
 export default api;
