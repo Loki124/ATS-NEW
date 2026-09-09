@@ -398,9 +398,9 @@
       >
         <n-space vertical :size="12">
           <n-alert type="info" :show-icon="true">
-            支持 JSON 数组或 CSV 文本。CSV 需包含表头：
-            <code>field_key,label,field_type,module_code,group_code,is_required,...</code>
-            可先下载模板对照填写。
+            支持 JSON 数组或 CSV 文本。CSV 表头：
+            <code>字段名称、字段类型、是否必填、是否显示、占位提示、帮助文本、默认值、排序、分组名称、归属模块编码、字段分组编码、选项、校验规则</code>
+            <div class="import-key-hint">字段标识（Key）由系统自动生成，无需填写；更新已有字段时保持「字段名称」一致即可。可先下载模板对照填写。</div>
           </n-alert>
           <n-space :wrap="false" :size="12" align="center">
             <n-radio-group v-model:value="importFormat">
@@ -1112,6 +1112,7 @@ onMounted(() => { loadAux(); reloadFields(); reloadModules(); reloadGroups(); re
   font-variant-numeric: tabular-nums;
 }
 .field-key-hint { color: var(--color-text-tertiary); }
+.import-key-hint { margin-top: var(--space-1); }
 .linkage-row {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border);
