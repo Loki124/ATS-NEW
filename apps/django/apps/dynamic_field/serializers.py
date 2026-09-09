@@ -116,6 +116,13 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
 
     def _apply_module_group(self, validated_data: dict) -> dict:
+        """应用模块/分组归属, 并同步 ``group_name`` 冗余列。
+
+        2026-09-09 修复: 原来只在 ``group_id`` 非空时写 ``group_name``,
+        把字段的分组清空后冗余列仍留旧值, 列表回退显示
+        ``row.group?.name || row.groupName`` 会展示已移除的分组名。
+        现改为: 分组清空时同步清空 ``group_name``, 保持两者一致。
+        """
         module_id = validated_data.pop('module_id', None) or None
         group_id = validated_data.pop('group_id', None) or None
         validated_data['module_id'] = module_id
@@ -125,6 +132,11 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             grp = FieldGroup.objects.filter(id=group_id, deleted_at__isnull=True).first()
             if grp:
                 validated_data['group_name'] = grp.name
+            else:
+                validated_data['group_name'] = ''
+        else:
+            # 分组被清空 → 冗余列一并清空, 避免残留旧分组名
+            validated_data['group_name'] = ''
         return validated_data
 
     def create(self, validated_data: dict):

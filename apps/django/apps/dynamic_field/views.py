@@ -274,8 +274,39 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             raise self._duplicate_error(resource, field_key) from exc
 
     def perform_destroy(self, instance: DynamicField) -> None:
-        """DELETE → 软删 (保留历史数据)。"""
+        """DELETE → 软删 (保留历史数据), 并清理联动规则里的悬空引用。
+
+        2026-09-09 增强: 联动规则的 ``conditions[].field_key`` /
+        ``actions[].target_field_key`` 是裸 JSON, 无外键约束, 字段删除后
+        会留下指向已删字段的悬空引用(规则仍生效但永远匹配不到)。
+        这里在软删字段时, 把同 resource 下引用该 field_key 的条件/动作条目摘掉,
+        并同步清理已清空的条件/动作数组。
+        """
+        field_key = instance.field_key
+        resource = instance.resource
+
         instance.soft_delete()
+
+        rules = FieldLinkageRule.objects.filter(
+            module__resource=resource,
+            deleted_at__isnull=True,
+        )
+        for rule in rules:
+            conditions = rule.conditions or []
+            actions = rule.actions or []
+            new_conditions = [
+                c for c in conditions
+                if not (isinstance(c, dict) and c.get('field_key') == field_key)
+            ]
+            new_actions = [
+                a for a in actions
+                if not (isinstance(a, dict) and a.get('target_field_key') == field_key)
+            ]
+            if len(new_conditions) == len(conditions) and len(new_actions) == len(actions):
+                continue
+            rule.conditions = new_conditions
+            rule.actions = new_actions
+            rule.save(update_fields=['conditions', 'actions', 'updated_at'])
 
     # --- 自定义动作 -----------------------------------------------------------
 
