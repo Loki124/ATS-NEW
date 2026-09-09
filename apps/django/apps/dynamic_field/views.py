@@ -22,6 +22,8 @@
 import csv
 import io
 import json
+import secrets
+import string
 
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
@@ -408,7 +410,10 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         for rec in records:
             rec = self._coerce_record(self._normalize_record(dict(rec)))
             field_key = (rec.get('field_key') or '').strip()
-            if not field_key:
+            label = (rec.get('label') or '').strip()
+            # Key 已改为系统自动生成, 不再要求用户填写; 导入以「字段名称」为匹配依据。
+            # 只有既无 Key 也无字段名称的行才算失败。
+            if not field_key and not label:
                 errors += 1
                 continue
             module_id = rec.pop('module_id', None)
@@ -433,11 +438,23 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             elif opts is None:
                 rec['options'] = []
 
-            existing = DynamicField.objects.filter(resource=resource, field_key=field_key, deleted_at__isnull=True).first()
+            # 匹配优先级: 显式 field_key (导出回传/高级场景) > 字段名称 (默认)。
+            existing = None
+            if field_key:
+                existing = DynamicField.objects.filter(
+                    resource=resource, field_key=field_key, deleted_at__isnull=True,
+                ).first()
+            if existing is None and label:
+                existing = DynamicField.objects.filter(
+                    resource=resource, label=label, deleted_at__isnull=True,
+                ).first()
             try:
                 if existing:
                     for k, v in rec.items():
                         if k in ('id', 'resource'):
+                            continue
+                        # 导入模板不再含 field_key 列 → 空值不得覆盖已有 Key
+                        if k == 'field_key' and not v:
                             continue
                         setattr(existing, k, v)
                     existing.save()
@@ -445,6 +462,8 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 else:
                     rec['resource'] = resource
                     rec.pop('id', None)
+                    # 未指定 Key → 系统自动生成, 与前端 generateFieldKey 保持一致
+                    rec['field_key'] = field_key or self._generate_field_key(resource)
                     DynamicField.objects.create(**rec)
                     created += 1
             except Exception:  # noqa: BLE001
@@ -484,18 +503,19 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
 
         instructions = [
             '本模板用于批量导入动态字段定义。每行一个字段, 首行为列头, 请勿修改列头与列顺序。',
+            '字段标识(Key) 由系统自动生成, 无需填写; 更新已有字段时保持「字段名称」一致即可。',
             '是否必填 / 是否显示 填「是」或「否」。',
             '选项(options) 为 JSON 数组字符串, 例: [{"value":"bj","label":"北京"},{"value":"sh","label":"上海"}]; 无选项字段留空。',
             '归属模块编码 / 字段分组编码 须从下方枚举中选择已存在的 code, 导入时按其反查模块与分组; 留空表示不归属。',
         ]
 
         # 中文表头 + 示例(中文值)
+        # 注意: 模板不再包含「字段标识」列 —— Key 由系统自动生成, 用户只需填字段名称
         headers = [
-            '字段标识', '字段名称', '字段类型', '是否必填', '是否显示', '占位提示', '帮助文本',
+            '字段名称', '字段类型', '是否必填', '是否显示', '占位提示', '帮助文本',
             '默认值', '排序', '分组名称', '归属模块编码', '字段分组编码', '选项', '校验规则',
         ]
         example = {
-            '字段标识': 'work_city',
             '字段名称': '工作城市',
             '字段类型': 'SELECT',
             '是否必填': '是',
@@ -545,6 +565,21 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         return resp
 
     @staticmethod
+    def _generate_field_key(resource: str) -> str:
+        """生成字段 Key（`f_` + 8 位小写字母数字）。
+
+        Key 是程序标识（数据存取列名 / 联动引用 / 导出匹配键），但按新规范
+        不需要用户填写，由系统与前端 ``generateFieldKey()`` 按同一形态生成。
+        极低概率撞号时重试，保证同一 resource 下唯一。
+        """
+        alphabet = string.ascii_lowercase + string.digits
+        for _attempt in range(5):
+            candidate = 'f_' + ''.join(secrets.choice(alphabet) for _i in range(8))
+            if not DynamicField.objects.filter(resource=resource, field_key=candidate).exists():
+                return candidate
+        return 'f_' + ''.join(secrets.choice(alphabet) for _i in range(12))
+
+    @staticmethod
     def _parse_csv(text: str) -> list:
         """把 CSV 文本解析为字段字典列表。
 
@@ -568,7 +603,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             rec = {}
             for canon, i in idx_of.items():
                 rec[canon] = r[i].strip() if i < len(r) else ''
-            if not rec.get('field_key'):
+            # Key 由系统自动生成, 不再因缺 Key 丢弃整行;
+            # 只有既无 Key 又无字段名称的空行才跳过。
+            if not rec.get('field_key') and not rec.get('label'):
                 continue
             if rec.get('is_required') is not None:
                 rec['is_required'] = str(rec['is_required']).strip().lower() in ('1', 'true', 'yes', '是')
