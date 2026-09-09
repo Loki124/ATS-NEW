@@ -47,6 +47,87 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
     serializer_class = DynamicFieldSerializer
     permission_classes = [IsAuthenticated]
 
+    # 导入模板/导入解析用的中英文字段名映射: 模板用中文表头, 解析端统一归一到模型字段名
+    FIELD_HEADER_ALIASES = {
+        # 英文(导出 / 历史兼容)
+        'field_key': 'field_key', 'label': 'label', 'field_type': 'field_type',
+        'is_required': 'is_required', 'is_visible': 'is_visible',
+        'placeholder': 'placeholder', 'help_text': 'help_text',
+        'default_value': 'default_value', 'order_index': 'order_index',
+        'group_name': 'group_name', 'module_code': 'module_code',
+        'group_code': 'group_code', 'options': 'options', 'validation': 'validation',
+        # 中文(模板表头与枚举)
+        '字段key': 'field_key', '字段标识': 'field_key', '字段_key': 'field_key',
+        '字段名称': 'label', '名称': 'label',
+        '字段类型': 'field_type', '类型': 'field_type',
+        '是否必填': 'is_required', '必填': 'is_required',
+        '是否显示': 'is_visible', '显示': 'is_visible',
+        '占位提示': 'placeholder', '提示': 'placeholder',
+        '帮助文本': 'help_text', '帮助': 'help_text',
+        '默认值': 'default_value',
+        '排序': 'order_index',
+        '分组名称': 'group_name',
+        '归属模块编码': 'module_code', '模块编码': 'module_code',
+        '字段分组编码': 'group_code', '分组编码': 'group_code',
+        '选项': 'options', '校验规则': 'validation', '校验': 'validation',
+    }
+
+    @staticmethod
+    def _norm_header(raw):
+        if not raw:
+            return None
+        key = raw.strip()
+        return DynamicFieldViewSet.FIELD_HEADER_ALIASES.get(key) or \
+            DynamicFieldViewSet.FIELD_HEADER_ALIASES.get(key.lower())
+
+    @staticmethod
+    def _normalize_record(rec: dict) -> dict:
+        """把一条记录的中英文字段名统一归一到模型字段名。"""
+        out = {}
+        for k, v in rec.items():
+            if not k:
+                continue
+            canon = DynamicFieldViewSet._norm_header(k)
+            if canon:
+                out[canon] = v
+        return out
+
+    @staticmethod
+    def _coerce_bool(value) -> bool:
+        """把中英文真假值规整为 Python bool: 是/true/1/yes/on → True; 否/false/0/no/off → False。"""
+        if isinstance(value, bool):
+            return value
+        s = str(value).strip().lower()
+        if s in ('1', 'true', 'yes', 'on', '是'):
+            return True
+        if s in ('0', 'false', 'no', 'off', '否', ''):
+            return False
+        return bool(value)
+
+    @staticmethod
+    def _coerce_record(rec: dict) -> dict:
+        """对布尔 / 整数 / JSON 字段做轻量规整, 供 CSV 与 JSON 两条导入路径共用。
+
+        解决模板用中文「是/否」表达布尔值时, 直接 ``create`` 触发
+        ``ValidationError('“是”的值应该为True或False')`` 的问题。
+        """
+        for flag in ('is_required', 'is_visible'):
+            if flag in rec and rec[flag] is not None and rec[flag] != '':
+                rec[flag] = DynamicFieldViewSet._coerce_bool(rec[flag])
+        if 'order_index' in rec and rec.get('order_index') not in (None, ''):
+            try:
+                rec['order_index'] = int(rec['order_index'])
+            except (TypeError, ValueError):
+                rec['order_index'] = 0
+        for json_field in ('options', 'validation'):
+            v = rec.get(json_field)
+            if isinstance(v, str) and v.strip():
+                try:
+                    rec[json_field] = json.loads(v)
+                except Exception:  # noqa: BLE001
+                    rec[json_field] = []
+        return rec
+
     # --- 基础 ---------------------------------------------------------------
 
     def get_queryset(self):
@@ -285,13 +366,16 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             if fmt == 'csv':
                 records = self._parse_csv(str(raw))
             else:
+                if isinstance(raw, dict):
+                    # 支持中文模板信封: 取 示例字段 / data / fields 中的数组
+                    raw = raw.get('示例字段') or raw.get('data') or raw.get('fields') or []
                 records = raw if isinstance(raw, list) else json.loads(raw)
         except Exception as exc:  # noqa: BLE001
             return Response({'success': False, 'message': f'内容解析失败: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
 
         created = updated = errors = 0
         for rec in records:
-            rec = dict(rec)
+            rec = self._coerce_record(self._normalize_record(dict(rec)))
             field_key = (rec.get('field_key') or '').strip()
             if not field_key:
                 errors += 1
@@ -341,46 +425,89 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
     def template(self, request, resource=None) -> HttpResponse:
         """GET /dynamic-fields/<resource>/fields/template/?format=json|csv
 
-        返回与 ``import_fields`` 解析器完全对齐的导入模板: CSV 含表头 + 1 行示例,
-        JSON 为示例记录数组 ``[{...}]`` (导入端接受裸数组或 ``{'data': [...]}`` 之外的裸数组)。
-        模板字段顺序与 ``export`` 一致, 保证「导出 → 改 → 导入」与「模板 → 填 → 导入」闭环。
+        返回**中文**导入模板:
+          - 导入说明(CSV 注释行 / JSON ``导入说明`` 字段)
+          - 字段类型 / 归属模块编码 / 字段分组编码 的枚举项(字段类型来自模型 choices,
+            模块/分组取自当前资源已配置项)
+          - 一行中文表头 + 一行示例
+        模板表头与导入解析器双向对齐(解析端支持中英文表头 + 跳过 ``#`` 注释行),
+        保证「模板 → 填 → 导入」与「导出(英文) → 改 → 导入」均可闭环。
         """
         resource = self.get_resource()
         fmt = (request.query_params.get('format') or 'json').lower()
-        # 示例行: 覆盖 SELECT(含 options JSON) 与专用类型, 直观展示 module_code/group_code 反查用法
-        example = {
-            'field_key': 'work_city',
-            'label': '工作城市',
-            'field_type': 'SELECT',
-            'is_required': True,
-            'is_visible': True,
-            'placeholder': '请选择城市',
-            'help_text': '',
-            'default_value': '',
-            'order_index': 1,
-            'group_name': '',
-            'module_code': 'basic',
-            'group_code': 'contact',
-            'options': '[{"value":"bj","label":"北京"},{"value":"sh","label":"上海"}]',
-            'validation': '',
-        }
-        fieldnames = [
-            'field_key', 'label', 'field_type', 'is_required', 'is_visible',
-            'placeholder', 'help_text', 'default_value', 'order_index',
-            'group_name', 'module_code', 'group_code', 'options', 'validation',
+
+        # 字段类型枚举(与模型 choices 同步)
+        type_enum = [f'{v}({label})' for v, label in DynamicField.FieldType.choices]
+        # 归属模块 / 字段分组枚举(取当前资源已配置项)
+        module_enum = [
+            f'{m.code}｜{m.name}' for m in
+            FieldModule.objects.filter(resource=resource, deleted_at__isnull=True).order_by('order_index')
+        ]
+        group_enum = [
+            f'{g.module.code}＞{g.code}｜{g.name}' for g in
+            FieldGroup.objects.filter(
+                module__resource=resource, deleted_at__isnull=True,
+                module__deleted_at__isnull=True,
+            ).select_related('module').order_by('module__order_index', 'order_index')
         ]
 
+        instructions = [
+            '本模板用于批量导入动态字段定义。每行一个字段, 首行为列头, 请勿修改列头与列顺序。',
+            '是否必填 / 是否显示 填「是」或「否」。',
+            '选项(options) 为 JSON 数组字符串, 例: [{"value":"bj","label":"北京"},{"value":"sh","label":"上海"}]; 无选项字段留空。',
+            '归属模块编码 / 字段分组编码 须从下方枚举中选择已存在的 code, 导入时按其反查模块与分组; 留空表示不归属。',
+        ]
+
+        # 中文表头 + 示例(中文值)
+        headers = [
+            '字段标识', '字段名称', '字段类型', '是否必填', '是否显示', '占位提示', '帮助文本',
+            '默认值', '排序', '分组名称', '归属模块编码', '字段分组编码', '选项', '校验规则',
+        ]
+        example = {
+            '字段标识': 'work_city',
+            '字段名称': '工作城市',
+            '字段类型': 'SELECT',
+            '是否必填': '是',
+            '是否显示': '是',
+            '占位提示': '请选择城市',
+            '帮助文本': '',
+            '默认值': '',
+            '排序': 1,
+            '分组名称': '',
+            # 示例值与上方「归属模块编码枚举 / 字段分组编码枚举」一致, 导入时可直接反查
+            '归属模块编码': 'candidate',
+            '字段分组编码': 'basic',
+            '选项': '[{"value":"bj","label":"北京"},{"value":"sh","label":"上海"}]',
+            '校验规则': '',
+        }
+
         if fmt == 'csv':
+            comment_lines = [f'# 导入说明：{ins}' for ins in instructions]
+            comment_lines.append('# 字段类型枚举：' + ' '.join(type_enum))
+            comment_lines.append(
+                '# 归属模块编码枚举：' + ('；'.join(module_enum) if module_enum else '（当前资源暂无模块, 请先在模块配置页创建）')
+            )
+            comment_lines.append(
+                '# 字段分组编码枚举：' + ('；'.join(group_enum) if group_enum else '（当前资源暂无分组, 请先在分组配置页创建）')
+            )
             buf = io.StringIO()
-            writer = csv.DictWriter(buf, fieldnames=fieldnames)
+            buf.write('\n'.join(comment_lines) + '\n')
+            writer = csv.DictWriter(buf, fieldnames=headers)
             writer.writeheader()
             writer.writerow(example)
             resp = HttpResponse(buf.getvalue(), content_type='text/csv; charset=utf-8')
             resp['Content-Disposition'] = 'attachment; filename="dynamic_fields_template.csv"'
             return resp
 
+        payload = {
+            '导入说明': instructions,
+            '字段类型枚举': type_enum,
+            '归属模块编码枚举': module_enum,
+            '字段分组编码枚举': group_enum,
+            '示例字段': [example],
+        }
         resp = HttpResponse(
-            json.dumps([example], ensure_ascii=False, indent=2),
+            json.dumps(payload, ensure_ascii=False, indent=2),
             content_type='application/json; charset=utf-8',
         )
         resp['Content-Disposition'] = 'attachment; filename="dynamic_fields_template.json"'
@@ -388,27 +515,46 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def _parse_csv(text: str) -> list:
-        """把 CSV 文本解析为字段字典列表, 并对布尔/整数做轻量规整。"""
-        reader = csv.DictReader(io.StringIO(text))
+        """把 CSV 文本解析为字段字典列表。
+
+        - 跳过首列为 ``#`` 的注释行(模板里的 导入说明 / 枚举项) 与空行
+        - 列头支持中英文(经 ``_norm_header`` 归一到模型字段名)
+        - 对布尔 / 整数 / JSON 做轻量规整
+        """
+        reader = csv.reader(io.StringIO(text))
+        raw_rows = [r for r in reader if r and any(c.strip() for c in r)]
+        data_rows = [r for r in raw_rows if not r[0].strip().startswith('#')]
+        if not data_rows:
+            return []
+        header = data_rows[0]
+        idx_of = {}
+        for i, h in enumerate(header):
+            canon = DynamicFieldViewSet._norm_header(h)
+            if canon and canon not in idx_of:
+                idx_of[canon] = i
         rows = []
-        for row in reader:
-            clean = {k: (v if v != '' else None) for k, v in row.items() if k}
-            if clean.get('is_required') is not None:
-                clean['is_required'] = str(clean['is_required']).strip().lower() in ('1', 'true', 'yes', '是')
-            if clean.get('is_visible') is not None:
-                clean['is_visible'] = str(clean['is_visible']).strip().lower() in ('1', 'true', 'yes', '是')
-            if clean.get('order_index') is not None:
+        for r in data_rows[1:]:
+            rec = {}
+            for canon, i in idx_of.items():
+                rec[canon] = r[i].strip() if i < len(r) else ''
+            if not rec.get('field_key'):
+                continue
+            if rec.get('is_required') is not None:
+                rec['is_required'] = str(rec['is_required']).strip().lower() in ('1', 'true', 'yes', '是')
+            if rec.get('is_visible') is not None:
+                rec['is_visible'] = str(rec['is_visible']).strip().lower() in ('1', 'true', 'yes', '是')
+            if rec.get('order_index') is not None:
                 try:
-                    clean['order_index'] = int(clean['order_index'])
+                    rec['order_index'] = int(rec['order_index'])
                 except (TypeError, ValueError):
-                    clean['order_index'] = 0
+                    rec['order_index'] = 0
             for json_field in ('options', 'validation'):
-                if clean.get(json_field):
+                if rec.get(json_field):
                     try:
-                        clean[json_field] = json.loads(clean[json_field])
+                        rec[json_field] = json.loads(rec[json_field])
                     except Exception:  # noqa: BLE001
-                        clean[json_field] = []
-            rows.append(clean)
+                        rec[json_field] = []
+            rows.append(rec)
         return rows
 
     # --- 内部工具 -------------------------------------------------------------

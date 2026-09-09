@@ -64,16 +64,14 @@ function isSelected(value: string) {
 </template>
 
 <style scoped>
-/* container-type 使内部 @container 查询基于「本组件宽度」而非视口宽度 */
 .field-list-options {
-  container-type: inline-size;
   width: 100%;
 }
 .flo-list {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2, 8px);
-  align-items: stretch;
+  align-items: center;
 }
 .flo-item {
   display: inline-flex;
@@ -86,8 +84,12 @@ function isSelected(value: string) {
   color: var(--text-color-base, #111827);
   font-size: var(--text-sm, 14px);
   line-height: 1.4;
+  white-space: nowrap;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  /* 保证每个选项至少有个舒适宽度，且在极窄容器里仍能占满一行 */
+  min-width: 80px;
+  flex: 0 1 auto;
 }
 .flo-item:hover:not(:disabled) {
   border-color: var(--primary-color, #2080f0);
@@ -95,20 +97,22 @@ function isSelected(value: string) {
 .flo-item.is-selected {
   border-color: var(--primary-color, #2080f0);
   background: color-mix(in srgb, var(--primary-color, #2080f0) 10%, #ffffff);
+  box-shadow: 0 0 0 1px var(--primary-color, #2080f0) inset;
 }
 .flo-item:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 .flo-indicator {
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-color, #d1d5db);
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
+  background: #ffffff;
 }
 .flo-indicator.is-multi {
   border-radius: 4px;
@@ -121,16 +125,5 @@ function isSelected(value: string) {
 }
 .flo-indicator.is-multi .flo-dot {
   border-radius: 2px;
-}
-
-/* 容器宽度自适应: 窄容器(<=380px)切换为纵向单列, 宽容器横向换行 */
-@container (max-width: 380px) {
-  .flo-list {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .flo-item {
-    width: 100%;
-  }
 }
 </style>

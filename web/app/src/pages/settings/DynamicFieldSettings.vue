@@ -472,8 +472,8 @@ const loading = ref(false);
 const saving = ref(false);
 const fieldModalVisible = ref(false);
 const fieldEditing = ref<FieldDefinition | null>(null);
-// 列表型字段实时预览的选中值（单选为标量, 多选为数组）
-const fieldPreviewValue = ref<string | string[]>(fieldForm.fieldType === 'LIST_MULTI' ? [] : '');
+// 列表型字段实时预览的选中值（单选为标量, 多选为数组）；初始为单选用空串, 类型切到 LIST_MULTI 时由 watch 同步为 []
+const fieldPreviewValue = ref<string | string[]>('');
 const filterModule = ref<string>('');
 const filterGroup = ref<string>('');
 
