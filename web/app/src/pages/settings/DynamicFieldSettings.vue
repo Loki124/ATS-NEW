@@ -524,7 +524,6 @@ watch(
 const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || fieldForm.fieldType === 'LIST_MULTI');
 
 const fieldColumns = computed(() => [
-  { title: '顺序', key: 'orderIndex', width: 70, sorter: 'default', render: (row: FieldDefinition) => row.orderIndex },
   { title: '字段名称', key: 'label', width: 160, render: (row: FieldDefinition) => row.label },
   { title: 'Key', key: 'fieldKey', width: 160, render: (row: FieldDefinition) => row.fieldKey },
   {
@@ -533,12 +532,6 @@ const fieldColumns = computed(() => [
   },
   { title: '模块', key: 'module', width: 110, render: (row: FieldDefinition) => row.module?.name || '-' },
   { title: '分组', key: 'group', width: 110, render: (row: FieldDefinition) => row.group?.name || row.groupName || '-' },
-  {
-    title: '必填', key: 'isRequired', width: 70,
-    render: (row: FieldDefinition) => row.isRequired
-      ? h(NTag, { type: 'error', size: 'small' }, () => '是')
-      : h(NTag, { size: 'small' }, () => '否'),
-  },
   {
     title: '选项数', key: 'optionCount', width: 80,
     render: (row: FieldDefinition) => (row.options?.length ?? 0) || '-',
