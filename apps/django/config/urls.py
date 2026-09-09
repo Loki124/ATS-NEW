@@ -136,6 +136,8 @@ api_v1_patterns = [
     #   scraped-resumes: T02.5 落地最小 model, G30 完整功能由 T06
     #   duplicate-check: 已于 2026-09-05 删除 (G45 查重已迁 apps.add_candidate, stub 假绿)
     path('dynamic-fields/', include('apps.dynamic_field.urls')),
+    # 2026-09-10 寇豆码: G43 品牌信息管理 — 单例配置端点 /api/v1/brand/ (GET 读 / PUT/PATCH 改)
+    path('brand/', include('apps.brand.urls')),
     path('resumes/approval-flows/', include('apps.resume_flow.urls')),
     path('library/', include('apps.library.urls')),
     path('scraped-resumes/', include('apps.scraped_resume.urls')),

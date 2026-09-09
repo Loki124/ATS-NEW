@@ -139,6 +139,7 @@ LOCAL_APPS = [
     #     stub 返空假数据属假绿, 删除 (决策依据: docs/PHASE2_DESIGN_2026-08-03.md §T02)
     'apps.scraped_resume',
     'apps.dynamic_field',   # G42 动态字段定义 — admin 自定义 Candidate/Position 等资源字段
+    'apps.brand',           # G43 品牌信息管理 — 雇主品牌文案 / Logo / 招聘门户展示信息（单例配置）
     'apps.announcement',
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护
     'apps.external_sync',  # G40 Mock 占位端点 (无 model, 仅 APIView). 还原 T02 删除: 前端 CompanySettings 显式 Mock 页仍真实调用, 不能 404
