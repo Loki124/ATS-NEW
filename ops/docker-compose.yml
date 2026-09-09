@@ -86,6 +86,27 @@ services:
       dockerfile: Dockerfile
     container_name: ats-backend
     restart: unless-stopped
+    # ── 2026-09-09 部署铁律补强 (options A) ──
+    # 容器启动先 migrate 再起 gunicorn, 杜绝 docker 部署漏建表。
+    # 只跑 migrate, 不跑 makemigrations —— 迁移文件必须随代码 commit 进 git
+    # (漏提交迁移文件 → 任何路径都建不出新表; 见 scripts/webhook-deploy.sh 的 --noinput 约定)。
+    # migrate 失败自动重试 30 次(等 mysql 就绪), 全失败则 exit 1 触发 unless-stopped 重启。
+    # ⚠️ gunicorn 参数需与 apps/django/Dockerfile CMD 保持同步。
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        for i in $$(seq 1 30); do
+          if python manage.py migrate --noinput; then
+            echo "[migrate] OK on attempt $$i"
+            exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class sync --timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -
+          fi
+          echo "[migrate] attempt $$i failed, retrying in 3s..."
+          sleep 3
+        done
+        echo "[migrate] FAILED after 30 attempts"
+        exit 1
     expose:
       # R4: 原来是 5125, 但 Dockerfile CMD gunicorn --bind 0.0.0.0:8000, 端口对不上
       - "8000"
