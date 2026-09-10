@@ -178,10 +178,10 @@ import {
 } from 'naive-ui'
 import { CloudUploadOutline } from '@vicons/ionicons5'
 import { fetchBrandInfo, updateBrandInfo, uploadBrandLogo, type BrandInfo, type SocialLink } from '../../api/brand'
-import { useThemeStore } from '../../stores/theme'
+import { useBrandStore } from '../../stores/brand'
 
 const message = useMessage()
-const themeStore = useThemeStore()
+const brandStore = useBrandStore()
 const saving = ref(false)
 const resetting = ref(false)
 const uploading = ref(false)
@@ -238,13 +238,16 @@ const portalStyle = computed(() => ({ '--pc': primaryColorSafe.value } as Record
 
 const fetchInfo = async () => {
   try {
-    const info = await fetchBrandInfo()
+    // 若管理后台启动时已在 main.ts 拉取过，直接复用 brand store，避免重复请求
+    let info: BrandInfo
+    if (brandStore.loaded && brandStore.info) {
+      info = brandStore.info
+    } else {
+      info = await fetchBrandInfo()
+      brandStore.setInfo(info)
+    }
     formData.value = { ...emptyForm(), ...info }
     serverSnapshot.value = { ...info }
-    // 「配置的内容没有被应用」加固：加载时即把已保存品牌色应用到主题 store
-    if (isValidHex(info.primaryColor)) {
-      themeStore.setBrand(info.primaryColor)
-    }
   } catch (e: any) {
     message.error('加载品牌信息失败: ' + (e?.message || e))
   }
@@ -296,12 +299,11 @@ const handleSave = async () => {
       socialLinks: formData.value.socialLinks.filter((l) => l.url),
     }
     const info = await updateBrandInfo(payload)
+    // ★ 关键修复：「配置的内容没有被应用」——保存后同步到 brand store，
+    // 主题色 / 系统名称 / Logo / 浏览器 title + favicon 全站即时生效
+    brandStore.setInfo(info)
     formData.value = { ...emptyForm(), ...info }
     serverSnapshot.value = { ...info }
-    // ★ 关键修复：「配置的内容没有被应用」——保存时把品牌色写入主题 store，全站即时生效
-    if (isValidHex(formData.value.primaryColor)) {
-      themeStore.setBrand(formData.value.primaryColor)
-    }
     message.success('品牌信息保存成功')
   } catch (e: any) {
     message.error('保存失败: ' + (e?.response?.data?.message || e?.message || e))

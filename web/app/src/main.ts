@@ -62,8 +62,10 @@ app.use(naivePlugin)
 //           网络抖动/5xx -> 留快照, 后续 API 401 时再被 axios 拦截器登出
 import { useUserStore } from './stores/user'
 import { useThemeStore } from './stores/theme'
+import { useBrandStore } from './stores/brand'
 const _userStore = useUserStore()
 const _themeStore = useThemeStore()
+const _brandStore = useBrandStore()
 
 // v2 液态玻璃：从 localStorage 恢复主题偏好（品牌色 + 暗色模式）
 // 必须在 Vue mount 之前调用，否则初始渲染用旧值会闪烁
@@ -104,6 +106,8 @@ try {
 //         注意: 必须在 app.mount 之前 await, 否则 router guard 首次 nav 看到的还是 stale 快照
 if (_userStore.accessToken) {
   await _userStore.fetchMe()
+  // G43 品牌信息同步到管理后台：系统名称 / Logo / 浏览器 title + favicon
+  await _brandStore.init()
 }
 
 // 2026-06-14: 全局 error 兜底, 避免任意外部模块 TDZ / unhandled rejection 让整个 app 白屏

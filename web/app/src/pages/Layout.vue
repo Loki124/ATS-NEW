@@ -25,12 +25,15 @@
     >
       <div class="logo-container">
         <div class="logo">
-          <div class="logo-icon">
+          <div v-if="brandStore.logoUrl" class="logo-icon logo-icon--img">
+            <img :src="brandStore.logoUrl" alt="Logo" />
+          </div>
+          <div v-else class="logo-icon">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
             </svg>
           </div>
-          <span v-if="effectiveExpanded" class="logo-text text-white text-lg font-semibold whitespace-nowrap">ATS招聘系统</span>
+          <span v-if="effectiveExpanded" class="logo-text text-white text-lg font-semibold whitespace-nowrap">{{ brandStore.systemName }}招聘系统</span>
         </div>
       </div>
 
@@ -101,12 +104,15 @@
           </button>
           <!-- 顶部横排：Logo -->
           <div v-if="menuLayout === 'top'" class="top-logo flex items-center gap-2 shrink-0">
-            <div class="logo-icon">
+            <div v-if="brandStore.logoUrl" class="logo-icon logo-icon--img">
+              <img :src="brandStore.logoUrl" alt="Logo" />
+            </div>
+            <div v-else class="logo-icon">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.48 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </div>
-            <span class="text-base font-semibold text-ink whitespace-nowrap">ATS招聘系统</span>
+            <span class="text-base font-semibold text-ink whitespace-nowrap">{{ brandStore.systemName }}招聘系统</span>
           </div>
 
           <!-- 顶部横排：水平菜单 -->
@@ -217,10 +223,12 @@ import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useUserStore } from '../stores/user'
+import { useBrandStore } from '../stores/brand'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const brandStore = useBrandStore()
 
 // v2.7: 全局键盘快捷键（`/` 聚焦搜索 / `?` 帮助 / `G D` 跳工作台）[T8.7]
 useShortcuts()
@@ -587,6 +595,16 @@ function handleUserMenu(key: string) {
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-grad-a) 100%);
   color: #ffffff;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.logo-icon--img {
+  background: transparent;
+  padding: 2px;
+}
+.logo-icon--img img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 .logo-text {
   line-height: 1;
