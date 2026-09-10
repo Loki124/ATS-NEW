@@ -57,6 +57,9 @@
                     @before-upload="onBeforeLogoUpload"
                   >
                     <n-button size="small" type="primary" :loading="uploading" secondary>
+                      <template #icon>
+                        <n-icon><CloudUploadOutline /></n-icon>
+                      </template>
                       {{ formData.logoUrl ? '更换 Logo' : '上传 Logo' }}
                     </n-button>
                   </n-upload>
@@ -171,7 +174,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   NButton, NSpace, NCard, NForm, NFormItem, NInput, NColorPicker, NSelect, NEmpty,
-  NUpload, useMessage,
+  NUpload, NIcon, useMessage,
 } from 'naive-ui'
 import { CloudUploadOutline } from '@vicons/ionicons5'
 import { fetchBrandInfo, updateBrandInfo, uploadBrandLogo, type BrandInfo, type SocialLink } from '../../api/brand'
@@ -183,9 +186,6 @@ const saving = ref(false)
 const resetting = ref(false)
 const uploading = ref(false)
 const formRef = ref()
-
-// 让上传按钮图标可用（n-upload 默认 slot 不渲染图标，这里手动引出引用避免 tree-shake 误删）
-void CloudUploadOutline
 
 const platformOptions = [
   { label: '官网', value: 'official_site' },
@@ -241,6 +241,10 @@ const fetchInfo = async () => {
     const info = await fetchBrandInfo()
     formData.value = { ...emptyForm(), ...info }
     serverSnapshot.value = { ...info }
+    // 「配置的内容没有被应用」加固：加载时即把已保存品牌色应用到主题 store
+    if (isValidHex(info.primaryColor)) {
+      themeStore.setBrand(info.primaryColor)
+    }
   } catch (e: any) {
     message.error('加载品牌信息失败: ' + (e?.message || e))
   }
@@ -348,6 +352,21 @@ onMounted(() => {
 }
 @media (max-width: 960px) {
   .brand-grid { grid-template-columns: 1fr; }
+}
+
+/* === 入场动效（受控、系统合规、尊重 reduced-motion）=== */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.config-card {
+  animation: card-in .42s cubic-bezier(.22, .61, .36, 1) both;
+}
+.brand-col > .config-card:nth-child(1) { animation-delay: 0s; }
+.brand-col > .config-card:nth-child(2) { animation-delay: .06s; }
+.brand-col > .config-card:nth-child(3) { animation-delay: .12s; }
+@media (prefers-reduced-motion: reduce) {
+  .config-card { animation: none; }
 }
 
 .config-card :deep(.n-card-header) {
@@ -460,6 +479,7 @@ onMounted(() => {
   font-size: var(--fs-18);
   font-weight: 600;
   color: var(--pc);
+  transition: color .3s ease;
 }
 .portal-sub {
   margin: 0;
