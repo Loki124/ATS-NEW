@@ -203,17 +203,40 @@ DATABASE_URL = env('DATABASE_URL', default='sqlite:///db.sqlite3')
 
 if DATABASE_URL.startswith('mysql'):
     # MySQL 配置（生产推荐）
-    DATABASES = {
-        'default': env.db(
-            'DATABASE_URL',
-            default='mysql://ats_user:ats_password@localhost:3306/ats_db',
-        ),
-    }
-    DATABASES['default'].setdefault('OPTIONS', {})
-    DATABASES['default']['OPTIONS'].update({
-        'charset': 'utf8mb4',
-        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-    })
+    # 优先用独立环境变量拼装, 避免密码含 / 等字符导致 DATABASE_URL 解析失败
+    # (docker compose 会原样注入这些变量, 无需 URL encode)
+    mysql_host = env('MYSQL_HOST', default=None)
+    mysql_user = env('MYSQL_USER', default=None)
+    mysql_password = env('MYSQL_PASSWORD', default=None)
+    mysql_database = env('MYSQL_DATABASE', default=None)
+    if all([mysql_host, mysql_user, mysql_password is not None, mysql_database]):
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.mysql',
+                'NAME': mysql_database,
+                'USER': mysql_user,
+                'PASSWORD': mysql_password,
+                'HOST': mysql_host,
+                'PORT': env('MYSQL_PORT', default='3306'),
+                'OPTIONS': {
+                    'charset': 'utf8mb4',
+                    'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                },
+            }
+        }
+    else:
+        # 兼容本地/测试等直接使用 DATABASE_URL 的环境
+        DATABASES = {
+            'default': env.db(
+                'DATABASE_URL',
+                default='mysql://ats_user:ats_password@localhost:3306/ats_db',
+            ),
+        }
+        DATABASES['default'].setdefault('OPTIONS', {})
+        DATABASES['default']['OPTIONS'].update({
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        })
 elif DATABASE_URL.startswith('postgres'):
     DATABASES = {
         'default': env.db('DATABASE_URL'),
