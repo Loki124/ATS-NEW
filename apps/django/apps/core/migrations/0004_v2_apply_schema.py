@@ -111,7 +111,10 @@ def backup_v1_tables(apps, schema_editor):
             # V2 schema 特征列存在 → 说明该表已不是 V1, 不该被覆盖
             if _column_exists(cursor, old, 'system_code', schema_editor) and old in ('roles', 'user_roles'):
                 continue
-            cursor.execute(f'ALTER TABLE "{old}" RENAME TO "{new}"')
+            cursor.execute(
+                f'ALTER TABLE {schema_editor.quote_name(old)} '
+                f'RENAME TO {schema_editor.quote_name(new)}'
+            )
 
 
 def create_v2_schema(apps, schema_editor):
@@ -219,7 +222,7 @@ def drop_v2_tables(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         for table in ('roles', 'user_roles'):
             if _table_exists(cursor, table, schema_editor):
-                cursor.execute(f'DROP TABLE "{table}"')
+                cursor.execute(f'DROP TABLE {schema_editor.quote_name(table)}')
 
 
 def restore_v1_from_backup(apps, schema_editor):
@@ -241,7 +244,10 @@ def restore_v1_from_backup(apps, schema_editor):
             if _table_exists(cursor, original, schema_editor):
                 # 原名已被占用 (e.g. V2 表), 跳过恢复避免覆盖
                 continue
-            cursor.execute(f'ALTER TABLE "{backup}" RENAME TO "{original}"')
+            cursor.execute(
+                f'ALTER TABLE {schema_editor.quote_name(backup)} '
+                f'RENAME TO {schema_editor.quote_name(original)}'
+            )
 
 
 class Migration(migrations.Migration):
