@@ -3,7 +3,9 @@
 # UnoCSS/oxc-parser/esbuild/rollup 等含平台原生二进制; alpine/musl 下 npm 的
 # optional-dependencies bug (npm/cli#4828) 会漏装 musl 绑定, 导致
 # "Cannot find native binding" (oxc-parser) 构建失败。glibc 下默认装 gnu 变体, 稳定通过。
-FROM node:18-bookworm-slim AS builder
+# 另: 依赖引擎要求 node>=20(部分>=22, 如 nopt@10/rollup-plugin-visualizer),
+# 故必须用 node:22 (不能用 node:18, 否则 vite build 阶段 EBADENGINE 甚至运行期失败)。
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
