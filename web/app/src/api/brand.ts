@@ -50,3 +50,14 @@ export const fetchBrandInfo = (): Promise<BrandInfo> =>
 /** PUT /api/v1/brand/ — 全量更新品牌信息 */
 export const updateBrandInfo = (data: Partial<BrandInfo>): Promise<BrandInfo> =>
   api.put('/brand/', data).then((r) => r.data.data);
+
+/** POST /api/v1/brand/logo/ — 上传 Logo 图片, 返回可访问 URL 字符串 */
+export const uploadBrandLogo = (file: File): Promise<string> => {
+  const form = new FormData();
+  form.append('file', file);
+  return api
+    .post<{ data: { url: string } }>('/brand/logo/', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then((r) => r.data.data.url);
+};

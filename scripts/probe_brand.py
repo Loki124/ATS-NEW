@@ -69,10 +69,39 @@ print('\n=== 未带 token 应 401 ===')
 r5 = c.get('/api/v1/brand/')
 print('status:', r5.status_code, '(期望 401)')
 
+print('\n=== POST /api/v1/brand/logo/ (上传合法 PNG) ===')
+import io
+from PIL import Image
+buf = io.BytesIO()
+Image.new('RGB', (64, 64), (99, 102, 241)).save(buf, format='PNG')
+buf.seek(0)
+buf.name = 'logo.png'
+r6 = c.post('/api/v1/brand/logo/', data={'file': buf}, HTTP_AUTHORIZATION=f'Bearer {token}')
+print('status:', r6.status_code, '(期望 201)')
+body6 = json.loads(r6.content)
+print('returned url:', body6.get('data', {}).get('url'))
+assert r6.status_code == 201 and body6.get('data', {}).get('url'), 'Logo 上传失败'
+assert body6['data']['url'].startswith(settings.MEDIA_URL), '返回 URL 应以 MEDIA_URL 开头'
+
+print('\n=== POST /api/v1/brand/logo/ (非法类型 .txt 应 400) ===')
+bad = io.BytesIO(b'not an image')
+bad.name = 'x.txt'
+r7 = c.post('/api/v1/brand/logo/', data={'file': bad}, HTTP_AUTHORIZATION=f'Bearer {token}')
+print('status:', r7.status_code, '(期望 400)')
+
+print('\n=== POST /api/v1/brand/logo/ (无文件应 400) ===')
+r8 = c.post('/api/v1/brand/logo/', data={}, HTTP_AUTHORIZATION=f'Bearer {token}')
+print('status:', r8.status_code, '(期望 400)')
+
 print('\n=== 清理探针副作用 ===')
 from apps.brand.models import BrandInfo
 BrandInfo.objects.all().delete()
+# 清理上传的 logo 物理文件
+import shutil, os
+logo_dir = os.path.join(settings.MEDIA_ROOT, 'brand', 'logos')
+if os.path.isdir(logo_dir):
+    shutil.rmtree(logo_dir)
 if user.username == '__brand_probe__':
     user.delete()
-print('cleanup done (brand rows + probe user removed)')
+print('cleanup done (brand rows + media/brand/logos + probe user removed)')
 print('\nALL PROBES DONE')
