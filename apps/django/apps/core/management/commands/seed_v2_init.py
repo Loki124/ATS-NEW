@@ -213,9 +213,82 @@ class Command(BaseCommand):
                 defaults={'config_value': val, 'description': desc},
             )
 
+        admin_created = self.init_admin_user()
+
         total = len(RESOURCES)
         self.stdout.write(self.style.SUCCESS(
             f'Seed OK: {created_resources} created, {updated_resources} updated, '
             f'{total} total resources, {len(all_codes)} in TMPL_ADMIN, '
-            f'{len(TEMPLATES)} templates, {len(TENANT_DEFAULTS)} tenant config'
+            f'{len(TEMPLATES)} templates, {len(TENANT_DEFAULTS)} tenant config, '
+            f'admin {"created" if admin_created else "updated"}'
         ))
+
+    def init_admin_user(self):
+        """创建/更新 admin 超级管理员并绑定 SUPER_ADMIN 角色."""
+        from apps.core.models import User
+        from apps.core.models_permission_v2 import (
+            ManagementUnit, PermissionTemplate, RoleV2, UserRoleV2,
+        )
+
+        admin, created = User.objects.update_or_create(
+            username='admin',
+            defaults={
+                'email': 'admin@example.com',
+                'first_name': '系统',
+                'last_name': '管理员',
+                'is_superuser': True,
+                'is_staff': True,
+                'is_active': True,
+            },
+        )
+        admin.set_password('admin123')
+        admin.save()
+
+        # 确保 TMPL_ADMIN 模板存在（正常 seed_v2_init 已创建）
+        tmpl_admin = PermissionTemplate.objects.filter(
+            system_code=SYSTEM, template_code='TMPL_ADMIN', status=1,
+        ).first()
+        if not tmpl_admin:
+            self.stdout.write(self.style.WARNING(
+                'TMPL_ADMIN 模板不存在, 跳过 SUPER_ADMIN 角色创建'))
+            return created
+
+        # 创建/更新 SUPER_ADMIN 角色
+        RoleV2.objects.update_or_create(
+            system_code=SYSTEM, role_code='SUPER_ADMIN',
+            defaults={
+                'role_name': '超级管理员',
+                'template_code': 'TMPL_ADMIN',
+                'description': '系统所有权限',
+                'is_system': 1,
+                'status': 1,
+            },
+        )
+
+        # 创建 ROOT_MGMT 管理单元
+        root_mgmt, _ = ManagementUnit.objects.update_or_create(
+            system_code=SYSTEM, unit_name='全公司',
+            defaults={
+                'unit_type': 'org',
+                'org_scope': {'level': 'ROOT', 'name': '全公司'},
+                'include_children': 1,
+                'status': 1,
+            },
+        )
+
+        # 绑定 admin -> SUPER_ADMIN
+        UserRoleV2.objects.update_or_create(
+            user_id=admin.id, role_code='SUPER_ADMIN', system_code=SYSTEM,
+            defaults={
+                'management_unit_ids': [root_mgmt.id],
+                'granted_by_id': admin.id,
+            },
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'✓ admin 初始化完成（{"新建" if created else "已存在, 重置密码"}）'
+                ' → SUPER_ADMIN / admin123'
+            )
+        )
+        return created
