@@ -106,7 +106,7 @@ services:
       - |
         set -e
         for i in $$(seq 1 30); do
-          if python manage.py migrate --noinput && python manage.py collectstatic --noinput; then
+          if python manage.py migrate --noinput && python manage.py seed_v2_init && python manage.py collectstatic --noinput; then
             echo "[init] migrate+collectstatic OK on attempt $$i"
             exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class sync --timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -
           fi
@@ -124,6 +124,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      # 仅探测 gunicorn 端口已监听(8000); backend 启动脚本先 migrate+seed_v2_init 再起
+      # gunicorn, 故端口就绪即意味着 seed 已完成, asgi/celery 可安全依赖 service_healthy
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('127.0.0.1', 8000)); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
     networks:
       - ats-network
 
@@ -154,7 +162,7 @@ services:
       redis:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ats-network
 
@@ -174,7 +182,7 @@ services:
       redis:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ats-network
 
@@ -194,7 +202,7 @@ services:
       redis:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ats-network
 
