@@ -62,12 +62,26 @@
             阶段类型已绑定现有流程，编辑时不可修改；如需变更请在流程中重新编排阶段。
           </n-tooltip>
         </n-form-item>
-        <!-- P1-1: stageType 为空时 checkbox 区空态提示（R-104 空态） -->
-        <n-form-item label="功能项（可多选）">
-          <n-checkbox-group v-model:value="form.features">
-            <n-space v-if="(featureOptions[form.stageType] || []).length" class="feature-checks">
-              <n-checkbox v-for="opt in featureOptions[form.stageType]" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
+        <!-- 系统默认功能：只读展示（不可配置），中文名；与可选功能区分（兵哥 2026-09-08） -->
+        <n-form-item label="默认功能">
+          <n-space class="feature-checks" :wrap="false">
+            <n-tag
+              v-for="code in (editing?.defaultFeatures || editing?.default_features || [])"
+              :key="code"
+              size="small"
+              type="default"
+            >{{ featureLabelMap[code] || code }}</n-tag>
+            <n-text v-if="!(editing?.defaultFeatures || editing?.default_features || []).length" depth="3" style="font-size: 13px">
+              无（新建阶段暂无系统默认功能）
+            </n-text>
+          </n-space>
+        </n-form-item>
+        <!-- 用户可配置功能：可多选，选项来自 OPTIONAL_FEATURE_CATALOG（系统真正可配项） -->
+        <n-form-item label="可选功能（可多选）">
+          <n-checkbox-group v-model:value="form.optionalFeatures">
+            <n-space v-if="(OPTIONAL_FEATURE_CATALOG[form.stageType] || []).length" class="feature-checks">
+              <n-checkbox v-for="code in OPTIONAL_FEATURE_CATALOG[form.stageType]" :key="code" :value="code">
+                {{ featureLabelMap[code] || code }}
               </n-checkbox>
             </n-space>
             <n-empty v-else size="small" description="请先选择阶段类型" style="padding: 12px 0" />
@@ -101,7 +115,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch, h } from 'vue'
-import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty } from 'naive-ui'
+import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty, NText } from 'naive-ui'
 import { useFormDraft } from '../../composables/useFormDraft'
 import { AddOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
@@ -142,6 +156,7 @@ const form = reactive({
   //   用 type alias 不用 inline union (inline union 会被 TS 当 enum, + 1 → number, 触发 TS2362/TS2363)
   stageType: '' as StageType,
   features: [] as string[],
+  optionalFeatures: [] as string[],
   description: '',
 })
 
@@ -193,39 +208,28 @@ const FEATURE_LABELS: Record<string, string> = {
   PHONE_CALL: '电话沟通',
   SCORING: '评分',
   VIDEO_RECORD: '视频录制',
+  // —— 以下为 DB default_features 中出现的系统默认功能（兵哥 2026-09-08 要求默认项也用中文名展示）——
+  INVITE_FILTER: '邀约筛选',
+  INVITE_UPDATE_INFO: '邀约信息更新',
+  TRANSFER_STAGE: '阶段流转',
+  ARCHIVE: '归档',
+  NOTES: '备注',
+  // —— 以下为 DB optional_features 中出现的用户可配置功能 ——
+  SCORE_RANK: '评分排名',
+  DUPLICATE_CHECK: '查重',
+  AI_SCORE: 'AI 评分',
+  VOICE_RECORD: '语音记录',
+  SALARY_NEGOTIATION: '薪资协商',
+  BACKGROUND_CHECK: '背景调查',
 }
 
-// 弹窗按阶段类型分组的可选功能项（value 用后端真实 code，label 用中文）。
-const featureOptions: Record<string, any[]> = {
-  SCREEN: [
-    { label: FEATURE_LABELS.RESUME_REVIEW, value: 'RESUME_REVIEW' },
-    { label: FEATURE_LABELS.AUTO_MATCH, value: 'AUTO_MATCH' },
-    { label: FEATURE_LABELS.BULK_IMPORT, value: 'BULK_IMPORT' },
-    { label: FEATURE_LABELS.CANDIDATE_INFO, value: 'CANDIDATE_INFO' },
-  ],
-  INVITATION: [
-    { label: FEATURE_LABELS.PHONE_CALL, value: 'PHONE_CALL' },
-    { label: FEATURE_LABELS.CANDIDATE_INFO, value: 'CANDIDATE_INFO' },
-    { label: FEATURE_LABELS.CANDIDATE_RESPONSE, value: 'CANDIDATE_RESPONSE' },
-    { label: FEATURE_LABELS.INTERVIEW_SCHEDULE, value: 'INTERVIEW_SCHEDULE' },
-  ],
-  INTERVIEW: [
-    { label: FEATURE_LABELS.INTERVIEW_SCHEDULE, value: 'INTERVIEW_SCHEDULE' },
-    { label: FEATURE_LABELS.EVALUATION_FORM, value: 'EVALUATION_FORM' },
-    { label: FEATURE_LABELS.VIDEO_RECORD, value: 'VIDEO_RECORD' },
-    { label: FEATURE_LABELS.MULTI_ROUND, value: 'MULTI_ROUND' },
-    { label: FEATURE_LABELS.CODE_EDITOR, value: 'CODE_EDITOR' },
-    { label: FEATURE_LABELS.JOINT_INTERVIEW, value: 'JOINT_INTERVIEW' },
-    { label: FEATURE_LABELS.SCORING, value: 'SCORING' },
-  ],
-  OFFER: [
-    { label: FEATURE_LABELS.OFFER_GENERATION, value: 'OFFER_GENERATION' },
-    { label: FEATURE_LABELS.OFFER_APPROVAL, value: 'OFFER_APPROVAL' },
-    { label: FEATURE_LABELS.CANDIDATE_RESPONSE, value: 'CANDIDATE_RESPONSE' },
-  ],
-  ONBOARDING: [
-    { label: FEATURE_LABELS.CANDIDATE_INFO, value: 'CANDIDATE_INFO' },
-  ],
+// 各阶段类型「可选功能」全集（来自后端 seed 数据各阶段 optional_features 的并集，是用户真正可勾选的配置项）。
+// 与 default_features（系统默认功能，只读展示，不在此勾选）区分开，避免把系统项当成可配项（兵哥 2026-09-08 反馈）。
+const OPTIONAL_FEATURE_CATALOG: Record<string, string[]> = {
+  SCREEN: ['SCORE_RANK', 'DUPLICATE_CHECK', 'AI_SCORE'],
+  INVITATION: ['VOICE_RECORD'],
+  INTERVIEW: ['VIDEO_RECORD', 'MULTI_ROUND', 'JOINT_INTERVIEW'],
+  OFFER: ['SALARY_NEGOTIATION', 'BACKGROUND_CHECK'],
 }
 
 // 功能项 code -> 中文 label 映射，从 FEATURE_LABELS 推导（单一来源，列表展示与弹窗共用）。
@@ -269,30 +273,27 @@ const columns = computed(() => [
     render: (row: any) => h(NTag, { type: row.status === 'ENABLED' ? 'success' : 'default', size: 'small' }, { default: () => row.status === 'ENABLED' ? '启用' : '停用' }),
   },
   { title: '功能项', key: 'features', width: 280,
-    ellipsis: true,
-    ellipsisProps: { tooltip: true },
+    ellipsis: { tooltip: false },
     render: (row: any) => {
-    const feats = row.features ?? row.defaultFeatures
-    if (!Array.isArray(feats) || feats.length === 0) return '-'
+    // 合并「默认功能(default_features) + 可选功能(optional_features)」全部以中文名展示
+    const def = Array.isArray(row.defaultFeatures ?? row.default_features) ? (row.defaultFeatures ?? row.default_features) : (Array.isArray(row.features) ? row.features : [])
+    const opt = Array.isArray(row.optionalFeatures ?? row.optional_features) ? (row.optionalFeatures ?? row.optional_features) : []
+    const feats = [...def, ...opt]
+    if (!feats.length) return '-'
+    const labels = feats.map((code: string) => featureLabelMap[code] || code)
     const MAX_VISIBLE = 3
-    const visible = feats.slice(0, MAX_VISIBLE)
-    const overflow = feats.length - visible.length
-    const tags = visible.map((code: string) => {
-      const label = featureLabelMap[code] || code
-      return h(NTooltip, { key: code }, {
-        trigger: () => h(NTag, { size: 'small', type: 'default' }, { default: () => label }),
-        default: () => code,
-      })
-    })
+    const visible = labels.slice(0, MAX_VISIBLE)
+    const overflow = labels.length - visible.length
+    const tags = visible.map((label: string, i: number) =>
+      h(NTag, { key: `t${i}`, size: 'small', type: 'default' }, { default: () => label }))
     if (overflow > 0) {
-      const restLabels = feats.slice(MAX_VISIBLE).map((c: string) => featureLabelMap[c] || c).join('、')
-      tags.push(h(NTooltip, { key: 'overflow' }, {
-        trigger: () => h(NTag, { size: 'small', type: 'default' }, { default: () => `+${overflow}` }),
-        default: () => restLabels,
-      }))
+      tags.push(h(NTag, { key: 'overflow', size: 'small', type: 'default' }, { default: () => `+${overflow}` }))
     }
-    // wrap:false 强制单行；列 ellipsis:true 接管截断 + tooltip 显示完整 feature code 列表
-    return h(NSpace, { size: 'small', wrap: false }, () => tags)
+    // 内容较多时 hover 展示完整功能项列表（中文名）
+    return h(NTooltip, { placement: 'top', keepAliveOnHover: true }, {
+      trigger: () => h(NSpace, { size: 'small', wrap: false }, () => tags),
+      default: () => `全部功能项（${labels.length}）：${labels.join('、')}`,
+    })
   }},
   {
     title: '操作',
@@ -347,7 +348,7 @@ const stageTypeError = computed<string | null>(() => {
 
 function handleCreate() {
   editing.value = null
-  Object.assign(form, { name: '', stageType: stageTypeOptions.value[0]?.value || 'SCREEN', features: [], description: '' })
+  Object.assign(form, { name: '', stageType: stageTypeOptions.value[0]?.value || 'SCREEN', features: [], optionalFeatures: [], description: '' })
   showCreateModal.value = true
   // P0-1: 草稿静默恢复（兵哥 2026-09-08 反馈：去掉恢复提示 toast，仅静默回填草稿内容，不干扰用户）。
   if (draft.probe()) draft.restore()
@@ -358,7 +359,9 @@ function handleEdit(row: any) {
   Object.assign(form, {
     name: row.name,
     stageType: row.stageType,
-    features: Array.isArray(row.features) ? row.features : (Array.isArray(row.defaultFeatures) ? row.defaultFeatures : []),
+    // default_features 只读展示，optional_features 可配置
+    features: Array.isArray(row.features) ? row.features : (Array.isArray(row.defaultFeatures ?? row.default_features) ? (row.defaultFeatures ?? row.default_features) : []),
+    optionalFeatures: Array.isArray(row.optionalFeatures) ? row.optionalFeatures : (Array.isArray(row.optional_features) ? row.optional_features : []),
     description: row.description || '',
   })
   showCreateModal.value = true
@@ -373,11 +376,19 @@ async function handleSave() {
   }
   saving.value = true
   try {
+    // optionalFeatures → optional_features（用户可配置项）；不发送 features，避免覆盖系统默认功能 default_features（弹窗中只读展示）。
+    // stageType 后端 update 也要求必填（RecruitmentStageSerializer 中 stage_type 非 read_only），必须始终发送（编辑时取原值）。
+    const payload: Record<string, any> = {
+      name: form.name,
+      description: form.description,
+      stageType: form.stageType,
+      optionalFeatures: form.optionalFeatures,
+    }
     if (editing.value) {
-      await updateStage(editing.value.id, form)
+      await updateStage(editing.value.id, payload)
       message.success('已保存')
     } else {
-      await createStage(form)
+      await createStage(payload)
       message.success('已新增（全局模板，可被任意流程引用）')
     }
     showCreateModal.value = false
