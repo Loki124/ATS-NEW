@@ -1,185 +1,139 @@
-# ATS-New Webhook 自动部署
+# ATS-NEW Webhook 自动部署（Docker 版）
 
-`git push` → server 自动 `git pull + prisma + build + restart`，**再也不用 SSH 跑脚本**。
+`git push` → Gitee 触发 → 部署机自动 `git pull + docker compose build + up -d`，**再也不用 SSH 手动重建镜像**。
+
+> 旧版（venv + systemd + npm build）已废弃，见 `scripts/webhook-deploy.sh` 顶部说明。本文档对应 **1Panel + docker compose** 生产栈。
 
 ## 架构
 
 ```
-┌─ 你 ─────────────┐    ┌─ Cloudflare Tunnel ─────┐    ┌─ loki-server ───────────┐
-│  git push        │ →  │ webhook.ats.lokisong    │ →  │ :9876  webhook.js        │
-│                  │    │   .cloud                │    │   ↓                     │
-│                  │    │                         │    │ webhook-deploy.sh       │
-│                  │    │                         │    │   ↓                     │
-│                  │    │                         │    │ git pull + npm + prisma │
-│                  │    │                         │    │   ↓                     │
-│                  │    │                         │    │ :9908  Express (重启)    │
-└──────────────────┘    └─────────────────────────┘    └──────────────────────────┘
+┌─ 你 ───────────┐   ┌─ Cloudflare Tunnel ─────────┐   ┌─ 部署机 ─────────────────────┐
+│ git push main  │ → │ webhook.ats.example.com      │ → │ :9000  webhook_receiver.py  │
+│               │   │   (public hostname → :9000)  │   │   ↓ (校验 X-Gitee-Token)     │
+│               │   │                              │   │ ops/scripts/webhook-deploy.sh│
+│               │   │                              │   │   ↓                         │
+│               │   │                              │   │ git pull + docker compose   │
+│               │   │                              │   │   build + up -d             │
+└───────────────┘   └──────────────────────────────┘   └─────────────────────────────┘
 ```
 
-## 一次性安装（在 server 上）
+要点：接收器只监听 `127.0.0.1:9000`，经 CF Tunnel 的 public hostname 暴露到公网；Gitee 用密钥（明文 header `X-Gitee-Token`）守门，无密钥无法触发部署。
 
-### 1. 生成 secret
+## 一次性安装（在部署机上）
+
+### 1. 生成密钥
 
 ```bash
 SECRET=$(openssl rand -hex 32)
 echo "你的 secret: $SECRET"
-# 记下来，GitHub 和 gitee 都要用同一个
+# 记下来, Gitee webhook 与 systemd unit 用同一个
 ```
 
-### 2. 安装 webhook 接收器（systemd）
+### 2. 落代码 + 安装接收器（systemd）
 
 ```bash
-# 把代码 clone 下来（如果还没）
-cd /opt/ats
-[ -d ATS-New ] || git clone https://gitee.com/loki126/ATS-NEW.git ATS-New
-cd ATS-New
+# 部署机仓库根 (含 ops/ apps/ web/), 默认 /opt/data/ATS-new
+cd /opt/data/ATS-new
 git pull origin main
 
-# 装 systemd unit（先改 secret）
-sudo tee /etc/systemd/system/ats-webhook.service > /dev/null <<EOF
-[Unit]
-Description=ATS-New Webhook Receiver
-After=network.target
+# 装 systemd unit, 把 __WEBHOOK_SECRET__ 换成第 1 步生成的 secret
+sudo cp ops/scripts/ats-webhook.service /etc/systemd/system/
+sudo sed -i "s/__WEBHOOK_SECRET__/$SECRET/" /etc/systemd/system/ats-webhook.service
 
-[Service]
-Type=simple
-User=loki
-Group=loki
-WorkingDirectory=/opt/ats/ATS-New
-Environment="WEBHOOK_SECRET=替换成第1步生成的secret"
-Environment="WEBHOOK_PORT=9876"
-Environment="WEBHOOK_BRANCH=main"
-ExecStart=/usr/bin/node /opt/ats/ATS-New/scripts/webhook.js
-Restart=always
-RestartSec=5
-StandardOutput=append:/home/loki/ats-webhook.log
-StandardError=append:/home/loki/ats-webhook.log
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 启用 + 启动
 sudo systemctl daemon-reload
-sudo systemctl enable ats-webhook
-sudo systemctl start ats-webhook
+sudo systemctl enable --now ats-webhook
 sudo systemctl status ats-webhook
 
-# 验证健康检查
-curl -s http://localhost:9876/health
+# 健康检查
+curl -s http://127.0.0.1:9000/health
 # → {"status":"ok","service":"ats-webhook",...}
 ```
 
+接收器以 root 运行（部署脚本要调 `docker compose` + `git reset`）。它只监听本机 9000，公网不可直连。
+
 ### 3. CF Tunnel 加一条 public hostname
 
-在 Cloudflare Zero Trust dashboard → 你的 Tunnel → **Public Hostname** → **Add a public hostname**：
+Cloudflare Zero Trust → 你的 Tunnel → **Public Hostname → Add**：
 
 | 字段 | 值 |
 |---|---|
 | Subdomain | `webhook` |
-| Domain | `lokisong.cloud` |
-| Service | `http://localhost:9876` |
+| Domain | 你的域名（与 CF Tunnel 一致，如 `ats.example.com`）|
+| Service | `http://localhost:9000` |
 
-保存。CF 会给你新域名 `https://webhook.lokisong.cloud`。
+保存后得到 `https://webhook.ats.example.com`（把 `ats.example.com` 换成你的实际域名）。
 
-### 4. 配 GitHub Webhook
+### 4. 配 Gitee Webhook
 
-在 `https://github.com/Loki124/ATS-NEW/settings/hooks` → **Add webhook**：
-
-| 字段 | 值 |
-|---|---|
-| Payload URL | `https://webhook.lokisong.cloud/webhook` |
-| Content type | `application/json` |
-| Secret | 第 1 步的 secret |
-| SSL verification | Enable |
-| Events | **Just the push event** |
-
-点 **Add webhook**。GitHub 会发一个 ping 验证：
-- `Response: 200` ✓
-- 看 server：`tail -20 /home/loki/ats-webhook.log`
-
-### 5. 配 gitee Webhook（如果你也用 gitee）
-
-在 `https://gitee.com/loki126/ATS-NEW/manage/webhooks` → **添加 Webhook**：
+`https://gitee.com/loki126/ATS-NEW/manage/webhooks` → **添加 Webhook**：
 
 | 字段 | 值 |
 |---|---|
-| URL | `https://webhook.lokisong.cloud/webhook` |
+| URL | `https://webhook.ats.example.com/webhook` |
 | 事件 | **Push** |
-| 密钥 | 第 1 步的 secret（gitee 叫"密钥"） |
+| 密钥 | 第 1 步的 secret（Gitee 叫「密钥」）|
+
+添加后 Gitee 会发一个 **Test Hook**：看部署机 `tail -20 /var/log/ats-webhook.log` 应出现 `收到 Test Hook, 回 200 不部署`。
 
 ## 测试
 
 ```bash
-# 手动测试 webhook（带正确签名）
+# 手动用正确密钥模拟一次 push 到 main (会真正触发部署)
 SECRET='你的 secret'
-BODY='{"ref":"refs/heads/main","commits":[]}'
-SIG="sha256=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $2}')"
-curl -X POST http://localhost:9876/webhook \
+curl -X POST https://webhook.ats.example.com/webhook \
   -H "Content-Type: application/json" \
-  -H "X-GitHub-Event: push" \
-  -H "X-Hub-Signature-256: $SIG" \
-  -d "$BODY"
-# → {"ok":true,"message":"deploy triggered","deployLog":"/tmp/ats-deploy.log","pid":12345}
+  -H "X-Gitee-Token: $SECRET" \
+  -H "X-Gitee-Event: Push Hook" \
+  -d '{"ref":"refs/heads/main"}'
+# → {"ok":true,"message":"deploy triggered","deployScript":"/opt/data/ATS-new/ops/scripts/webhook-deploy.sh",...}
 
-# 看部署进度
-tail -f /tmp/ats-deploy.log
+# 看部署进度 (部署脚本自带并发锁 + 健康检查)
+tail -f /var/log/ats-deploy.log
 
-# 健康检查
-curl -s http://localhost:9876/health
+# 接收器健康
+curl -s http://127.0.0.1:9000/health
 ```
 
 ## 日常使用
 
 ```bash
-# 本地开发完
+# 本地改完
 git add .
 git commit -m "feat: xxx"
 git push origin main
 
-# → 10-30 秒后，server 自动：
-#   - git pull
-#   - npm install (后端)
-#   - prisma generate + db push
-#   - npm install + build (前端)
-#   - 重启 Express on :9908
-
-# 看部署日志
-tail -f /tmp/ats-deploy.log
+# → ~1-2 分钟后部署机自动:
+#   - git fetch + reset 到 origin/main 最新代码
+#   - docker compose build --no-cache (把新代码打进镜像, 解决"代码改了但容器没变")
+#   - docker compose up -d --force-recreate
+#   - 后端 /health/ 健康检查
 ```
 
-## 故障排查
+## 常见问题
 
-```bash
-# webhook 服务状态
-sudo systemctl status ats-webhook
-journalctl -u ats-webhook -n 50
+**Q: 推完代码容器还是旧的？**
+A: 那就是没走 webhook、或手动重启了容器但没重建镜像。webhook 部署脚本已 `docker compose build --no-cache` + `--force-recreate`，保证新代码进镜像。手动排障：`docker exec ats-celery-worker sed -n '204,213p' /app/config/settings/base.py` 看容器内代码是否最新。
 
-# 部署日志
-tail -50 /tmp/ats-deploy.log
+**Q: 部署日志在哪？**
+A: `/var/log/ats-deploy.log`（部署脚本输出）+ `/var/log/ats-webhook.log`（接收器输出）。
 
-# Express 日志
-tail -50 /home/loki/ats-backend.log
+**Q: 想手动触发一次部署（跳过 webhook）？**
+A: `sudo bash /opt/data/ATS-new/ops/scripts/webhook-deploy.sh`
 
-# 手动跑一次部署（跳过 webhook）
-bash /opt/ats/ATS-New/scripts/webhook-deploy.sh
-
-# 重启 webhook
-sudo systemctl restart ats-webhook
-```
+**Q: 接收器挂了？**
+A: `sudo systemctl restart ats-webhook`；`systemctl status ats-webhook` / `journalctl -u ats-webhook -n 50`。
 
 ## 安全注意
 
-- **secret 必须保密**：泄露了别人能随便触发你的部署
-- **9876 端口**：Cloudflare Tunnel 暴露了公网，但有 secret 守门，安全性 OK
-- **systemd 加固**：`webhook.service` 已设 `NoNewPrivileges` / `PrivateTmp` / `ProtectSystem`
-- **部署脚本是 root 跑的吗？**：不是，以 `loki` 用户跑（`User=loki`）。如果部署中需要 `sudo`，得给 `loki` 加 NOPASSWD
+- **secret 必须保密**：泄露后任何人可触发你的部署（虽然只是 pull + rebuild，不会泄露数据，但会浪费算力）。
+- **9000 端口本机监听**：公网经 CF Tunnel 反代，且有密钥校验；不要把 9000 直接暴露到 0.0.0.0 公网。
+- **root 运行**：接收器需调 docker；`ats-webhook.service` 已 `NoNewPrivileges` / `PrivateTmp` / `ReadWritePaths` 最小化加固。
 
 ## 文件清单
 
 | 文件 | 作用 |
 |---|---|
-| `scripts/webhook.js` | Node.js webhook 接收器（GitHub + gitee 签名验证） |
-| `scripts/webhook-deploy.sh` | 实际跑 git pull + prisma + build + restart |
-| `scripts/webhook.service` | systemd unit 模板 |
-| `scripts/webhook-setup.md` | 本文档 |
+| `ops/scripts/webhook_receiver.py` | Webhook 接收器（Python 标准库，零依赖，校验 `X-Gitee-Token`，触发部署） |
+| `ops/scripts/webhook-deploy.sh` | 实际部署：`git pull` + `docker compose build --no-cache` + `up -d --force-recreate` + 健康检查 |
+| `ops/scripts/ats-webhook.service` | systemd unit（运行接收器，监听 9000） |
+| `docs/06-runbook/webhook-setup.md` | 本文档 |

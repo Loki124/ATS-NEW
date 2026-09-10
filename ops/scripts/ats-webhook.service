@@ -1,0 +1,46 @@
+# ATS-NEW Webhook 接收器 (Docker 版) systemd unit
+#
+# 安装:
+#   sudo cp ops/scripts/ats-webhook.service /etc/systemd/system/
+#   # 把下方 WEBHOOK_SECRET 改成你生成的随机串
+#   sudo sed -i 's/__WEBHOOK_SECRET__/你的密钥/' /etc/systemd/system/ats-webhook.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ats-webhook
+#
+# 说明:
+#   - 必须以能调用 docker 的用户运行 (这里用 root, 因部署脚本要 docker compose + git reset)
+#   - 仅暴露 WEBHOOK_SECRET 等少数环境变量, 不暴露 docker.sock 给公网
+#   - 接收器本身只监听 127.0.0.1:9000, 由 CF Tunnel 的 public hostname 反代到公网
+
+[Unit]
+Description=ATS-NEW Webhook Receiver (Docker deploy trigger)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/data/ATS-new/ops/scripts
+Environment=PYTHONUNBUFFERED=1
+Environment=WEBHOOK_PORT=9000
+Environment=WEBHOOK_BRANCH=main
+# ↓↓↓ 改成你自己的随机密钥 (openssl rand -hex 32) ↓↓↓
+Environment=WEBHOOK_SECRET=__WEBHOOK_SECRET__
+Environment=DEPLOY_SCRIPT=/opt/data/ATS-new/ops/scripts/webhook-deploy.sh
+ExecStart=/usr/bin/python3 /opt/data/ATS-new/ops/scripts/webhook_receiver.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/ats-webhook.log
+StandardError=append:/var/log/ats-webhook.log
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# 部署脚本要写 /var/log 与执行 git/docker, 只放开必要目录
+ReadWritePaths=/var/log /opt/data/ATS-new /run/docker.sock
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
