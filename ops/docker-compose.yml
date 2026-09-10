@@ -5,11 +5,17 @@
 #   cloudflared(服务器上独立运行, 外部) → http://localhost:9908
 #     → nginx:80 → { /api/ → backend:8000(WSGI) | /ws/ → asgi:8001(daphne/WS)
 #                    | /static/ → backend:8000(whitenoise) | / → SPA }
-#   celery-worker / celery-beat: 异步任务 (与 backend 共享同一镜像)
+#   celery-worker / celery-beat: 异步任务 (与 backend 共享同一 build 上下文)
 #   mysql + redis: 数据层 (仅 docker 网络内可达, 不暴露主机端口)
 #
 # 前端在 compose 内构建 (web/app/Dockerfile, 已修复 nginx.conf 引用)。
 # 依赖本目录 ops/.env, 缺失变量 compose 直接拒绝启动。
+#
+# ⚠️ 关键: 本地构建的 4 个 Django 服务 + nginx 均【不写 image: 字段】。
+#    1Panel「创建编排」会按每个服务的 image: 做预拉取; 无 image: 则跳过预拉取,
+#    改由 `docker compose up` 在本地 build。此前写 `image: ats-backend` 导致
+#    1Panel 去公网拉不存在的镜像 → 403 Forbidden。mysql/redis 保留 image: 由镜像
+#    加速源正常拉取。
 # =============================================================================
 
 x-backend-env: &backend-env
@@ -86,12 +92,10 @@ services:
 
   backend:
     # WSGI (gunicorn) — 处理 /api/ 与静态资源
+    # 不写 image: , 由 docker compose up 本地 build (避免 1Panel 预拉取公网不存在的镜像)
     build:
       context: ../apps/django
       dockerfile: Dockerfile
-    image: ats-backend
-    # 本地 build 镜像, 禁止 1Panel 创建编排时去远端 pull 不存在的 ats-backend:latest
-    pull_policy: never
     container_name: ats-backend
     restart: unless-stopped
     # 启动先 migrate + collectstatic, 再起 gunicorn; 任一失败重试 30 次等 mysql 就绪
@@ -124,12 +128,10 @@ services:
 
   asgi:
     # ASGI (daphne) — 处理 /ws/ WebSocket (Channels)
+    # 不写 image: , 由 docker compose up 本地 build
     build:
       context: ../apps/django
       dockerfile: Dockerfile
-    image: ats-backend
-    # 本地 build 镜像, 禁止 1Panel 创建编排时去远端 pull 不存在的 ats-backend:latest
-    pull_policy: never
     container_name: ats-asgi
     restart: unless-stopped
     command:
@@ -156,12 +158,10 @@ services:
       - ats-network
 
   celery-worker:
+    # 不写 image: , 由 docker compose up 本地 build (与 backend 共享 build 上下文)
     build:
       context: ../apps/django
       dockerfile: Dockerfile
-    image: ats-backend
-    # 本地 build 镜像, 禁止 1Panel 创建编排时去远端 pull 不存在的 ats-backend:latest
-    pull_policy: never
     container_name: ats-celery-worker
     restart: unless-stopped
     command: celery -A celery_app worker -l info
@@ -178,12 +178,10 @@ services:
       - ats-network
 
   celery-beat:
+    # 不写 image: , 由 docker compose up 本地 build (与 backend 共享 build 上下文)
     build:
       context: ../apps/django
       dockerfile: Dockerfile
-    image: ats-backend
-    # 本地 build 镜像, 禁止 1Panel 创建编排时去远端 pull 不存在的 ats-backend:latest
-    pull_policy: never
     container_name: ats-celery-beat
     restart: unless-stopped
     command: celery -A celery_app beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
@@ -201,12 +199,11 @@ services:
 
   nginx:
     # 前端在 compose 内构建 (node build → nginx 服务 dist)
+    # 不写 image: , 由 docker compose up 本地 build
     build:
       context: ../web/app
       dockerfile: Dockerfile
     container_name: ats-nginx
-    # 本地 build 镜像 (node build → nginx 服务 dist), 禁止创建编排时去远端 pull
-    pull_policy: never
     ports:
       # 唯一对外主机端口; cloudflared(外部) 指向 http://localhost:9908
       - "9908:80"
