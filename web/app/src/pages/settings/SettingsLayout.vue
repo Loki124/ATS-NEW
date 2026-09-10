@@ -68,6 +68,7 @@ import {
   CloudUploadOutline, ServerOutline, SearchOutline, AnalyticsOutline,
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
   ShieldCheckmarkOutline, PeopleCircleOutline, OptionsOutline,
+  DocumentTextOutline, FileTrayFullOutline, GridOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -126,6 +127,16 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
       { key: '/settings/campus-control', label: '校招管控', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
       { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
+      {
+        key: 'g-candidate-info',
+        label: '候选人信息管理',
+        icon: () => h(NIcon, null, { default: () => h(FileTrayFullOutline) }),
+        children: [
+          { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+          { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
+          { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
+        ],
+      },
     ],
   },
   {

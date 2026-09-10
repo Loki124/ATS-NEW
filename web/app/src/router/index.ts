@@ -155,6 +155,10 @@ const routes: RouteRecordRaw[] = [
           { path: 'process-stages', name: 'ProcessStageEditor', component: () => import(/* webpackChunkName: "settings-process-stages" */ '../pages/settings/ProcessStageEditor.vue') },
           { path: 'process-rules', name: 'ProcessStageRules', component: () => import(/* webpackChunkName: "settings-process-rules" */ '../pages/settings/ProcessStageRules.vue') },
           { path: 'recruitment-round', name: 'RecruitmentRound', component: () => import(/* webpackChunkName: "settings-recruitment-round" */ '../pages/settings/RecruitmentRound.vue') },
+          // ===== 候选人信息管理 (新增：标准简历设置 / 申请表和登记表设置 / 候选人信息表) =====
+          { path: 'standard-resume', name: 'StandardResumeSettings', component: () => import(/* webpackChunkName: "settings-standard-resume" */ '../pages/settings/StandardResumeSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'application-form', name: 'ApplicationFormSettings', component: () => import(/* webpackChunkName: "settings-application-form" */ '../pages/settings/ApplicationFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'candidate-info-table', name: 'CandidateInfoTable', component: () => import(/* webpackChunkName: "settings-candidate-info-table" */ '../pages/settings/CandidateInfoTable.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // ===== G35 数据中心 =====
           { path: 'data-dashboard', name: 'DataDashboard', component: () => import(/* webpackChunkName: "settings-data-dashboard" */ '../pages/settings/DataDashboard.vue') },
           // ===== 制度公告管理 (HR 及以上维护) =====
