@@ -67,49 +67,17 @@
           </template>
           <div class="info-section">
             <n-grid :cols="2" :x-gap="24" :y-gap="16" responsive="screen">
-              <n-grid-item>
+              <n-grid-item v-for="f in displayFields" :key="f.fieldKey">
                 <div class="info-row">
-                  <div class="info-label">姓名</div>
-                  <div class="info-value">{{ candidateData.name }}</div>
+                  <div class="info-label">{{ f.label }}</div>
+                  <div class="info-value">{{ f.value }}</div>
                 </div>
               </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">性别</div><div class="info-value">男</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">年龄</div><div class="info-value">28岁</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">手机号</div><div class="info-value">{{ candidateData.phone }}</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">邮箱</div><div class="info-value">{{ candidateData.email }}</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">最高学历</div><div class="info-value">本科</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">毕业院校</div><div class="info-value">华东理工大学</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">专业</div><div class="info-value">计算机科学与技术</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">工作年限</div><div class="info-value">5年</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">当前公司</div><div class="info-value">字节跳动</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row"><div class="info-label">期望薪资</div><div class="info-value">40K</div></div>
-              </n-grid-item>
-              <n-grid-item>
-                <div class="info-row">
-                  <div class="info-label">简历来源</div>
-                  <n-tag :bordered="false" style="background: var(--brand-soft); color: var(--brand)">Boss直聘</n-tag>
-                </div>
+              <n-grid-item v-if="displayFields.length === 0 && !loading">
+                <n-empty description="标准简历设置中未启用任何显示字段" />
               </n-grid-item>
             </n-grid>
+            <n-spin v-if="loading" style="margin-top: 16px" />
           </div>
         </n-tab-pane>
 
@@ -412,59 +380,58 @@
       </template>
     </n-modal>
 
-    <!-- 编辑简历弹窗 -->
+    <!-- 编辑简历弹窗 (按标准简历配置驱动, 全部 enabled 字段可编辑) -->
     <n-modal
       v-model:show="editResumeModalVisible"
       preset="card"
       title="编辑简历"
-      :width="600"
-      style="max-width: 90vw"
-      @positive-click="handleSaveResume"
+      :width="640"
+      style="max-width: 92vw"
     >
-      <n-form :model="resumeForm" label-placement="top">
-        <n-grid :cols="2" :x-gap="16" :y-gap="0" responsive="screen">
-          <n-grid-item>
-            <n-form-item label="姓名">
-              <n-input v-model:value="resumeForm.name" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="手机号">
-              <n-input v-model:value="resumeForm.phone" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="邮箱">
-              <n-input v-model:value="resumeForm.email" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="最高学历">
-              <n-select v-model:value="resumeForm.education" :options="educationOptions" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="毕业院校">
-              <n-input v-model:value="resumeForm.school" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="工作年限">
-              <n-input-number v-model:value="resumeForm.workYears" :min="0" :max="50" style="width: 100%" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="当前公司">
-              <n-input v-model:value="resumeForm.currentCompany" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="期望薪资">
-              <n-input v-model:value="resumeForm.expectedSalary" placeholder="如: 40K" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-      </n-form>
+      <n-spin :show="savingResume">
+        <n-form label-placement="top">
+          <n-grid :cols="2" :x-gap="16" :y-gap="0" responsive="screen">
+            <n-grid-item
+              v-for="f in displayFields"
+              :key="f.fieldKey"
+              :span="controlType(f.fieldKey) === 'textarea' ? 2 : 1"
+            >
+              <n-form-item :label="f.label">
+                <n-input
+                  v-if="controlType(f.fieldKey) === 'textarea'"
+                  v-model:value="editForm[f.fieldKey]"
+                  type="textarea"
+                  :rows="2"
+                  :disabled="f.hasCol"
+                />
+                <n-input-number
+                  v-else-if="controlType(f.fieldKey) === 'number'"
+                  v-model:value="editForm[f.fieldKey]"
+                  :min="0"
+                  :disabled="f.hasCol"
+                  style="width: 100%"
+                />
+                <n-select
+                  v-else-if="controlType(f.fieldKey) === 'select'"
+                  v-model:value="editForm[f.fieldKey]"
+                  :options="selectOptionsFor(f.fieldKey)"
+                  :disabled="f.hasCol"
+                />
+                <n-input v-else v-model:value="editForm[f.fieldKey]" :disabled="f.hasCol" />
+                <n-text v-if="f.hasCol" :depth="3" style="font-size: 12px; display: block; margin-top: 2px">
+                  候选人档案字段，请在候选人档案中修改
+                </n-text>
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </n-form>
+      </n-spin>
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="savingResume" @click="editResumeModalVisible = false">取消</n-button>
+          <n-button type="primary" :loading="savingResume" @click="handleSaveResume">保存</n-button>
+        </n-space>
+      </template>
     </n-modal>
 
     <!-- 上传简历弹窗 -->
@@ -494,7 +461,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import {
@@ -512,6 +479,9 @@ import {
   CloudUploadOutline,
   DownloadOutline,
 } from '@vicons/ionicons5'
+import { getCandidate } from '../../api/candidate'
+import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
+import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
 
 const router = useRouter()
 const route = useRoute()
@@ -519,17 +489,156 @@ const message = useMessage()
 
 const activeTab = ref('info')
 
-const candidateData = {
-  id: route.params.id || '1',
-  name: '张三',
-  phone: '138****8888',
-  email: 'zhangsan@example.com',
-  position: '前端开发工程师',
-  status: 'interview',
-  hrbp: '李明',
-  hiringManager: '王芳',
-  createdAt: '2026-04-20',
+// 标准简历配置驱动的基本信息字段元数据：fieldKey -> { 中文 label, 候选真实列 }
+// 仅映射 Candidate 模型上存在的列；其余扩展字段暂无值存储（全仓无对应表/端点），显示占位符
+const FIELD_META: Record<string, { label: string; col?: keyof CandidateDetailData }> = {
+  'ID number': { label: '证件号码', col: 'id_card_no' },
+  'Mobile': { label: '手机号', col: 'phone' },
+  'About me': { label: '自我描述' },
+  'Birth Date (Age)': { label: '出生日期 (年龄)', col: 'age' },
+  'Major': { label: '专业名称' },
+  'Email': { label: '邮箱', col: 'email' },
+  'Salary': { label: '薪资' },
+  'Project description': { label: '项目描述' },
+  'Team leader': { label: '汇报对象' },
+  'Gender': { label: '性别', col: 'gender' },
+  'Current salary': { label: '现有基本工资(千元/月)' },
+  'Current department': { label: '所在部门' },
+  'Work location': { label: '工作地点' },
+  'Residence address': { label: '户籍地址' },
+  'Expected city': { label: '期望城市', col: 'expected_city' },
+  'Hobbies': { label: '兴趣爱好' },
+  'Organizational role': { label: '项目角色' },
+  'School': { label: '院校名称' },
+  'Graduation date': { label: '毕业时间' },
+  'Highest degree': { label: '最高学历', col: 'highest_education' },
+  'Award time': { label: '获奖时间' },
+  'Start date': { label: '起止日期' },
+  'Work experience': { label: '工作经验', col: 'work_years' },
+  'Reason for leaving': { label: '离职原因' },
+  'Company': { label: '公司名称' },
+  'Award name': { label: '奖项名称' },
+  'Current company': { label: '最近公司', col: 'current_company' },
+  'ID card validity period': { label: '证件有效期' },
+  'Industry': { label: '所在行业' },
+  'Political affiliation': { label: '政治面貌' },
+  'Expected industry': { label: '期望行业' },
+  'Company size': { label: '公司规模' },
+  'End date': { label: '起止日期' },
+  'Registered birthplace': { label: '籍贯' },
+  'Issuing authority': { label: '签发机关' },
+  'Responsibilities': { label: '项目职责' },
+  'Location': { label: '所在地' },
+  'No. of subordinates': { label: '下属人数' },
+  'Degree': { label: '学历' },
+  'Current title': { label: '目前职位', col: 'current_position' },
+  'WeChat': { label: '微信号' },
+  'Project name': { label: '项目名称' },
+  'Upload ID photo (portrait side)': { label: '上传身份证照片（人像面）' },
+  'Resume update time': { label: '简历更新时间' },
+  'Ethnicity': { label: '民族' },
+  'Country/Region': { label: '国家/地区' },
+  'Proficiency': { label: '掌握程度' },
+  'Onboarding time': { label: '预计入职日期' },
+  'Language': { label: '语言类型' },
+  'Rating': { label: '简历评分', col: 'resume_score' },
+  'Reading and writing': { label: '读写' },
+  'Listening and speaking': { label: '听说' },
+  'Company type': { label: '公司性质' },
+  'Name': { label: '姓名', col: 'name' },
+  'Job title': { label: '职位名称' },
+  'Upload ID photo (national emblem side)': { label: '上传身份证照片（国徽面）' },
+  'Expected salary': { label: '期望税前月薪(千元)', col: 'expected_salary' },
 }
+
+// 候选人详情真实数据形态（对齐后端 CandidateDetailSerializer 字段）
+interface CandidateDetailData {
+  id?: string
+  name?: string
+  phone?: string
+  email?: string
+  gender?: string
+  age?: number | null
+  birth_date?: string | null
+  id_card_no?: string | null
+  highest_education?: string | null
+  work_years?: number | null
+  expected_city?: string | null
+  current_company?: string | null
+  current_position?: string | null
+  expected_salary?: string | null
+  resume_score?: number | null
+  current_state?: string
+  state_display?: string
+  created_at?: string
+  [key: string]: any
+}
+
+const candidateDetail = ref<CandidateDetailData | null>(null)
+const standardResumeConfig = ref<StandardResumeConfig | null>(null)
+// 扩展简历字段值 (fieldKey -> value), 来自 CandidateResumeFieldsView; 覆盖无模型列的 40+ 字段
+const resumeFields = ref<Record<string, any>>({})
+const loading = ref(false)
+
+// 仅展示「标准简历设置」中 enabled 的字段（顺序按配置）
+// 值优先级: 候选真实模型列 (meta.col) > 扩展字段值 (resumeFields) > 占位符「—」
+const displayFields = computed(() => {
+  const cfg = standardResumeConfig.value
+  if (!cfg) return []
+  const cd = candidateDetail.value
+  const rf = resumeFields.value
+  return cfg.fields
+    .filter((f) => f.enabled)
+    .map((f) => {
+      const meta = FIELD_META[f.fieldKey] || { label: f.fieldKey }
+      let value = '—'
+      if (cd && meta.col) {
+        const raw = cd[meta.col]
+        if (raw != null && raw !== '') value = String(raw)
+      }
+      if (value === '—' && rf[f.fieldKey] != null && rf[f.fieldKey] !== '') {
+        value = String(rf[f.fieldKey])
+      }
+      return { fieldKey: f.fieldKey, label: meta.label, value, hasCol: !!meta.col }
+    })
+})
+
+// 兼容 header 模板既有的 candidateData 字段访问（改为从真实详情映射）
+const candidateData = computed(() => {
+  const c = candidateDetail.value
+  return {
+    id: route.params.id || '1',
+    name: c?.name ?? '候选人',
+    phone: c?.phone ?? '—',
+    email: c?.email ?? '—',
+    position: c?.current_position ?? '—',
+    status: c?.current_state ?? '',
+    hrbp: '—',
+    hiringManager: '—',
+    createdAt: c?.created_at ?? '',
+  }
+})
+
+onMounted(async () => {
+  const id = route.params.id
+  loading.value = true
+  try {
+    const [cfg, det, rf] = await Promise.all([
+      fetchConfig().catch(() => defaultConfig()),
+      id
+        ? getCandidate(String(id)).then((r: any) => r?.data ?? r).catch(() => null)
+        : Promise.resolve(null),
+      id
+        ? getResumeFields(String(id)).catch(() => ({}))
+        : Promise.resolve({}),
+    ])
+    standardResumeConfig.value = cfg
+    candidateDetail.value = det ?? null
+    resumeFields.value = rf || {}
+  } finally {
+    loading.value = false
+  }
+})
 
 const resumeData = ref({
   url: 'https://example.com/resume.pdf',
@@ -544,16 +653,35 @@ const resumeData = ref({
   source: 'Boss直聘',
 })
 
-const resumeForm = ref({
-  name: '张三',
-  phone: '138****8888',
-  email: 'zhangsan@example.com',
-  education: '本科',
-  school: '华东理工大学',
-  workYears: 5,
-  currentCompany: '字节跳动',
-  expectedSalary: '40K',
-})
+// ===== 编辑简历 (配置驱动) =====
+// 控件类型: 长文本 / 数字 / 下拉 / 普通文本, 由 fieldKey 推断
+const genderOptions = [
+  { label: '男', value: '男' },
+  { label: '女', value: '女' },
+  { label: '未知', value: '未知' },
+]
+const TEXTAREA_KEYS = new Set([
+  'About me', 'Project description', 'Reason for leaving', 'Responsibilities',
+  'Self evaluation', 'Reading and writing', 'Listening and speaking',
+])
+const NUMBER_KEYS = new Set([
+  'Work experience', 'No. of subordinates', 'Rating', 'Current salary', 'Award time',
+])
+function controlType(fieldKey: string): 'textarea' | 'number' | 'select' | 'text' {
+  if (TEXTAREA_KEYS.has(fieldKey)) return 'textarea'
+  if (NUMBER_KEYS.has(fieldKey)) return 'number'
+  if (fieldKey === 'Highest degree' || fieldKey === 'Degree' || fieldKey === 'Gender') return 'select'
+  return 'text'
+}
+// educationOptions 在下方定义, 此处惰性引用 (函数调用时已完成模块初始化)
+function selectOptionsFor(fieldKey: string) {
+  if (fieldKey === 'Highest degree' || fieldKey === 'Degree') return educationOptions
+  if (fieldKey === 'Gender') return genderOptions
+  return []
+}
+// 编辑态表单: fieldKey -> 当前值
+const editForm = ref<Record<string, any>>({})
+const savingResume = ref(false)
 
 const educationOptions = [
   { label: '高中', value: '高中' },
@@ -584,7 +712,20 @@ const notificationForm = ref({
 const goBack = () => router.push('/candidates')
 const openNotificationModal = () => { notificationModalVisible.value = true }
 const openUploadResumeModal = () => { uploadResumeModalVisible.value = true }
-const openEditResumeModal = () => { editResumeModalVisible.value = true }
+const openEditResumeModal = () => {
+  // 用当前展示值初始化编辑表单 ('—' 视为空; 数字字段转为 number)
+  const init: Record<string, any> = {}
+  for (const f of displayFields.value) {
+    let v: any = f.value === '—' ? '' : f.value
+    if (controlType(f.fieldKey) === 'number' && v !== '') {
+      const n = Number(v)
+      if (!Number.isNaN(n)) v = n
+    }
+    init[f.fieldKey] = v
+  }
+  editForm.value = init
+  editResumeModalVisible.value = true
+}
 
 const handleDownloadResume = () => {
   if (resumeData.value.url) message.success('开始下载简历')
@@ -601,9 +742,30 @@ const beforeUpload = ({ file }: any) => {
   return true
 }
 
-const handleSaveResume = () => {
-  message.success('简历保存成功')
-  editResumeModalVisible.value = false
+const handleSaveResume = async () => {
+  const id = route.params.id
+  if (!id) return
+  savingResume.value = true
+  try {
+    // 仅持久化扩展简历字段 (无 Candidate 模型列的 40+ 字段) 到 resume-fields 端点
+    // 模型列字段 (姓名/手机/邮箱等) 为候选人档案字段, 在弹窗中只读, 不在此修改
+    const extValues: Record<string, any> = {}
+    for (const f of displayFields.value) {
+      const meta = FIELD_META[f.fieldKey]
+      if (meta && meta.col) continue
+      extValues[f.fieldKey] = editForm.value[f.fieldKey] ?? ''
+    }
+    if (Object.keys(extValues).length) {
+      const saved = await putResumeFields(String(id), extValues)
+      resumeFields.value = { ...resumeFields.value, ...saved }
+    }
+    message.success('简历保存成功')
+    editResumeModalVisible.value = false
+  } catch (e) {
+    message.error('简历保存失败，请重试')
+  } finally {
+    savingResume.value = false
+  }
 }
 
 const handleUploadResume = () => {

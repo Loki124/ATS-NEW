@@ -138,6 +138,9 @@ api_v1_patterns = [
     path('dynamic-fields/', include('apps.dynamic_field.urls')),
     # 2026-09-10 寇豆码: G43 品牌信息管理 — 单例配置端点 /api/v1/brand/ (GET 读 / PUT/PATCH 改)
     path('brand/', include('apps.brand.urls')),
+    # 2026-09-09: 标准简历配置落库端点（FE StandardResumeSettings.vue）
+    #   GET/POST/PUT /api/v1/standard-resume/ → StandardResumeConfigView（单体 JSON 配置）
+    path('standard-resume/', include('apps.standard_resume.urls')),
     path('resumes/approval-flows/', include('apps.resume_flow.urls')),
     path('library/', include('apps.library.urls')),
     path('scraped-resumes/', include('apps.scraped_resume.urls')),

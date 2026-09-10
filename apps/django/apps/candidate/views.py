@@ -28,6 +28,8 @@ from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
@@ -35,7 +37,7 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
-from .models import Candidate, CandidateTag
+from .models import Candidate, CandidateTag, CandidateFieldValue
 from .serializers import (
     CandidateCreateSerializer,
     CandidateDetailSerializer,
@@ -481,3 +483,51 @@ class CandidateTagViewSet(viewsets.ModelViewSet):
     serializer_class = CandidateTagSerializer
     permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
+
+
+class CandidateResumeFieldsView(APIView):
+    """候选人扩展字段值 (简历) 读写端点
+
+    GET  /api/v1/candidates/<pk>/resume-fields/  -> { success, data: {fieldKey: value} }
+    PUT  /api/v1/candidates/<pk>/resume-fields/  body { values: {fieldKey: value} } -> upsert 每个 field_key
+    用于「候选人详情 - 编辑简历」: 标准简历配置中无 Candidate 模型列的扩展字段值存取。
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _check_candidate(self, pk):
+        # 候选人不存在时返回 404 (避免 FK 约束校验失败导致 500)
+        if not Candidate.objects.filter(id=pk).exists():
+            return Response(
+                {'success': False, 'message': '候选人不存在'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return None
+
+    def get(self, request, pk=None):
+        err = self._check_candidate(pk)
+        if err is not None:
+            return err
+        values = CandidateFieldValue.objects.filter(candidate_id=pk)
+        data = {v.field_key: v.value for v in values}
+        return Response({'success': True, 'data': data})
+
+    def put(self, request, pk=None):
+        err = self._check_candidate(pk)
+        if err is not None:
+            return err
+        payload = request.data or {}
+        incoming = payload.get('values')
+        if not isinstance(incoming, dict):
+            return Response(
+                {'success': False, 'message': 'values 必须为对象 {fieldKey: value}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        saved = {}
+        for fk, val in incoming.items():
+            if not fk:
+                continue
+            obj, _ = CandidateFieldValue.objects.update_or_create(
+                candidate_id=pk, field_key=fk, defaults={'value': val},
+            )
+            saved[fk] = obj.value
+        return Response({'success': True, 'data': saved})

@@ -140,6 +140,7 @@ LOCAL_APPS = [
     'apps.scraped_resume',
     'apps.dynamic_field',   # G42 动态字段定义 — admin 自定义 Candidate/Position 等资源字段
     'apps.brand',           # G43 品牌信息管理 — 雇主品牌文案 / Logo / 招聘门户展示信息（单例配置）
+    'apps.standard_resume',  # 标准简历配置（候选人标准简历字段与必填规则）落库
     'apps.announcement',
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护
     'apps.external_sync',  # G40 Mock 占位端点 (无 model, 仅 APIView). 还原 T02 删除: 前端 CompanySettings 显式 Mock 页仍真实调用, 不能 404

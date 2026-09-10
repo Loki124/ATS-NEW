@@ -2,7 +2,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import CandidateTagViewSet, CandidateViewSet
+from .views import CandidateTagViewSet, CandidateViewSet, CandidateResumeFieldsView
 
 # config/urls.py: path('candidates/', include(...))
 # 之前 r'tags' + r'' 顺序错位: GET /candidates/tags/ 走到 CandidateViewSet
@@ -28,4 +28,5 @@ candidate_tags_detail = CandidateTagViewSet.as_view({
 urlpatterns = [
     path('tags/', candidate_tags_list, name='candidate-tag-list'),
     path('tags/<str:pk>/', candidate_tags_detail, name='candidate-tag-detail'),
+    path('<str:pk>/resume-fields/', CandidateResumeFieldsView.as_view(), name='candidate-resume-fields'),
 ] + list(router.urls)

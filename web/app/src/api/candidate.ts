@@ -48,6 +48,12 @@ export async function getCandidate(id: string) {
   return data
 }
 
+// 局部更新候选人 (PATCH /candidates/<id>/, 用于编辑简历中映射到模型列的字段)
+export async function updateCandidate(id: string, payload: Record<string, any>) {
+  const { data } = await api.patch(`/candidates/${id}/`, payload)
+  return data
+}
+
 // G9 批量推荐
 export async function batchRecommend(payload: { candidateIds: string[]; positionId: string; comment?: string }) {
   const { data } = await api.post('/candidates/batch/recommend/', payload)

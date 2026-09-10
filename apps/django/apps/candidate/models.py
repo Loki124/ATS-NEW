@@ -1,7 +1,7 @@
 """Candidate Models (PRD v4 §14.3)"""
 from django.db import models
 from django_fsm import FSMField, FSMModelMixin, transition
-from apps.common.models import FullAuditModel, SoftDeleteModel, SoftDeleteManager
+from apps.common.models import TimestampedModel, FullAuditModel, SoftDeleteModel, SoftDeleteManager
 from apps.common.encryption import EncryptedCharField
 from apps.campus_control.constants import SCHOOLS, MAJORS
 from nanoid import generate as nanoid_generate
@@ -313,3 +313,28 @@ class CandidateHistory(FullAuditModel):
         verbose_name = '候选人历史'
         verbose_name_plural = verbose_name
         ordering = ['-created_at']
+
+
+class CandidateFieldValue(TimestampedModel):
+    """候选人扩展字段值存储（标准简历配置中无 Candidate 模型对应列的字段）
+
+    键: (candidate_id, field_key); field_key 取标准简历配置中的英文 fieldKey
+    (Mobile/Email/Gender/...)。值以 JSON 存, 支持文本/数字/列表等任意类型。
+    详情页「基本信息」tab 对无模型列的扩展字段从此处取值; 编辑简历功能向其写入。
+    """
+    candidate = models.ForeignKey(
+        Candidate, on_delete=models.CASCADE,
+        related_name='field_values', verbose_name='候选人',
+    )
+    field_key = models.CharField(max_length=128, verbose_name='字段 Key')
+    value = models.JSONField(null=True, blank=True, verbose_name='字段值')
+
+    class Meta:
+        db_table = 'candidate_field_values'
+        unique_together = [('candidate', 'field_key')]
+        verbose_name = '候选人字段值'
+        verbose_name_plural = verbose_name
+        ordering = ['field_key']
+
+    def __str__(self):
+        return f'CandidateFieldValue({self.candidate_id}/{self.field_key})'
