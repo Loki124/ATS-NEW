@@ -132,6 +132,10 @@ services:
       timeout: 5s
       retries: 15
       start_period: 90s
+    volumes:
+      # 用户上传文件(logo / 简历附件等)持久化, 否则容器重建即丢失
+      # 与 nginx 共享同一卷, 由 nginx alias 直出 /media/
+      - media_data:/app/media
     networks:
       - ats-network
 
@@ -220,6 +224,9 @@ services:
       - backend
       - asgi
     restart: unless-stopped
+    volumes:
+      # 与 backend 共享 media 卷, 由 nginx alias 直出 /media/ (见 nginx.conf)
+      - media_data:/app/media
     networks:
       - ats-network
 
@@ -230,3 +237,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  media_data:
