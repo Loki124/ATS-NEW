@@ -159,6 +159,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'standard-resume', name: 'StandardResumeSettings', component: () => import(/* webpackChunkName: "settings-standard-resume" */ '../pages/settings/StandardResumeSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'application-form', name: 'ApplicationFormSettings', component: () => import(/* webpackChunkName: "settings-application-form" */ '../pages/settings/ApplicationFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'candidate-info-table', name: 'CandidateInfoTable', component: () => import(/* webpackChunkName: "settings-candidate-info-table" */ '../pages/settings/CandidateInfoTable.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'duplicate-candidate', name: 'DuplicateCandidate', component: () => import(/* webpackChunkName: "settings-duplicate-candidate" */ '../pages/settings/DuplicateCandidate.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // ===== G35 数据中心 =====
           { path: 'data-dashboard', name: 'DataDashboard', component: () => import(/* webpackChunkName: "settings-data-dashboard" */ '../pages/settings/DataDashboard.vue') },
           // ===== 制度公告管理 (HR 及以上维护) =====

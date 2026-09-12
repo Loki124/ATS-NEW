@@ -68,7 +68,7 @@ import {
   CloudUploadOutline, ServerOutline, SearchOutline, AnalyticsOutline,
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
   ShieldCheckmarkOutline, PeopleCircleOutline, OptionsOutline,
-  DocumentTextOutline, FileTrayFullOutline, GridOutline,
+  DocumentTextOutline, FileTrayFullOutline, GridOutline, CopyOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -135,6 +135,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
           { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
+          { key: '/settings/duplicate-candidate', label: '重复候选人管理', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
         ],
       },
     ],
@@ -355,20 +356,38 @@ watch(() => route.path, () => {
 .settings-scroll {
   position: relative; z-index: 1;
   flex: 1; min-height: 0; height: 100%;
-  /* ⚠️ 22:50 兵哥反馈"页面整体滚动 + 标题区滚动"双重滚动：
-     - 原 overflow: auto 让 .settings-scroll 自身成滚动容器
-     - 与各页 .page-body (overflow-y: auto) 同时存在 → 内容超长时双重滚动
-     - 桌面端改为 overflow: hidden，由各页 .page-body 内部滚（单一滚动职责）
-     - 移动端（≤ 767px）保留 overflow: auto（移动端布局单列，更适合整体滚） */
+  /* ⚠️ 桌面端保持 overflow: hidden：本层只作 20px padding 包裹 + aurora 背景上下文，
+     真正的滚动视口下放到各页 .page-body（单一滚动职责，防双重滚动）。
+     若改回 overflow: auto 会与 .page-body 形成双重滚动。 */
   overflow: hidden;
   padding: 20px;
 }
 @media (max-width: 767px) {
   .settings-scroll { overflow: auto; }
 }
-/* 2026-08-30 五改：清零规则加 !important，使其恒胜各页 scoped 根 class 的 padding（特异性平局时 scoped 后加载会胜出，导致 .settings-scroll(20px) + 页面根(12px) 叠加成 32px）。
-   仅作用于 .settings-scroll 内的 .page-container，不影响 9 个业务页（CandidateList 等）的 .page-container 全局 padding。 */
-.settings-scroll :deep(.page-container) { padding: 0 !important; min-height: 100%; }
+
+/* === 滚动契约（布局层统一托管，根治「整页不可滚」常态化缺陷）===
+   2026-09-13 复盘：实测全部 34 个设置页 scoped 样式均未实现 .page-body{overflow-y:auto}，
+   而 .settings-scroll 又是 overflow:hidden，结果内容超视口即被裁切、整页冻结（兵哥反馈"做出来的页面全部不能滚动"）。
+   根因：原设计让"各页自行给 .page-body 加滚动"，但该约定从未被任何页面落地，且 .page-container
+   仅为 block+min-height:100%，无受限高度的 flex 列，即使某页加了 overflow 也形不成滚动视口。
+   修复：布局层用 :deep() 强制 .page-container 为高度受限的 flex 列，
+   .page-header(flex-shrink:0, 见 glass.css) 固定、.page-body(flex:1;overflow-y:auto) 滚动。
+   → 单文件改动修好全部设置页；后续新增页面自动继承，无需逐页重复实现，杜绝回归。 */
+.settings-scroll :deep(.page-container) {
+  padding: 0 !important;
+  min-height: 100%;
+  height: 100%;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.settings-scroll :deep(.page-body) {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  /* 滚动条外观不在此重复定义：统一走 glass.css 全局 ::-webkit-scrollbar（5px / 默认透明 / hover 显品牌色），
+     保持全项目单源，避免 6px vs 5px 不一致。 */
+}
 
 /* === 阶段 D 第 2 轮：旧自写 menu CSS 已删除（DOM 已被 n-menu 取代）
    仅保留 n-menu wrapper 微调（settings-menu 是 n-menu 的 class 容器）=== */

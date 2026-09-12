@@ -149,6 +149,14 @@ api_v1_patterns = [
     path('field-acl/', include('apps.field_acl.urls')),
     # 2026-08-31: Phase 1 统一规则引擎只读 API（适配器读路径，零改动 legacy 写路径）
     path('rule-engine/', include('apps.rule_engine.urls')),
+    # 2026-09-13: 重复候选人管理（合并规则 / 重复申请管理 / 候选人查重规则）
+    #   GET         /api/v1/duplicate-rules/catalog/
+    #   GET|PUT     /api/v1/duplicate-rules/config/
+    #   GET|POST    /api/v1/duplicate-rules/rules/
+    #   GET|PUT|DEL /api/v1/duplicate-rules/rules/<pk>/
+    #   POST        /api/v1/duplicate-rules/rules/<pk>/toggle/
+    #   POST        /api/v1/duplicate-rules/rules/reset/
+    path('duplicate-rules/', include('apps.duplicate_rule.urls')),
 ]
 
 # 2026-08-03 兵哥: admin token 从 env 读, 避免在 git 历史里漏.
