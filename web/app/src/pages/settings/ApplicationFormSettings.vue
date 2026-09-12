@@ -2,97 +2,102 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">申请表和登记表设置</h1>
+        <div class="sr-title-row">
+          <h1 class="page-title">申请表和登记表设置</h1>
+          <n-tag :bordered="false" type="primary" size="small" round>社招</n-tag>
+        </div>
         <p class="page-subtitle">
-          配置候选人投递「申请表」与入职「登记表」包含的字段与必填规则，右侧实时预览候选人填写效果。
+          配置候选人投递「申请表」与入职「登记表」包含的多套表单、字段与必填规则，右侧实时预览候选人填写效果。
           字段来源于动态字段模块的「Candidate」资源。
-        </p>
-        <p class="page-note">
-          本配置为单套设置，同时作用于申请表与登记表，字段与校验规则统一。
         </p>
       </div>
       <div class="page-header-actions">
-        <n-button quaternary size="small" :loading="loading" @click="loadFields">
-          <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新字段
-        </n-button>
-        <n-button tertiary size="small" :disabled="loading" @click="onReset">
-          <template #icon><n-icon :component="ReloadOutline" /></template>
-          重置默认
+        <n-button type="primary" size="small" :loading="creating" @click="onAddForm">
+          <template #icon><n-icon :component="AddOutline" /></template>
+          添加申请表
         </n-button>
       </div>
     </div>
 
     <div class="sr-grid">
-      <!-- 左：配置 -->
-      <section class="glass-card sr-config">
+      <!-- 左：表单列表 -->
+      <section class="glass-card sr-list">
         <header class="sr-panel-head">
-          <h2 class="sr-panel-title">表单字段</h2>
-          <span class="sr-save-hint" :class="{ saved, saving }">{{ saving ? '保存中…' : saved ? '已自动保存' : '未保存' }}</span>
+          <h2 class="sr-panel-title">表单列表</h2>
+          <span class="sr-count">{{ forms.length }} 套</span>
         </header>
 
         <n-spin :show="loading">
-          <div class="sr-config-body">
-            <n-alert
-              v-if="error"
-              type="error"
-              title="加载字段失败"
-              :bordered="false"
-              class="sr-alert"
+          <n-empty
+            v-if="!loading && !forms.length"
+            description="暂无表单，点击右上角「添加申请表」创建第一套"
+            class="sr-empty"
+          />
+          <div v-else class="sr-list-body">
+            <button
+              v-for="f in forms"
+              :key="f.id"
+              type="button"
+              class="sr-form-card"
+              :class="{ active: selectedId === f.id }"
+              @click="selectForm(f.id)"
             >
-              {{ error }}
-              <template #action>
-                <n-button size="small" tertiary @click="loadFields">重试</n-button>
-              </template>
-            </n-alert>
-
-            <n-empty
-              v-else-if="!allFields.length && !loading"
-              description="暂无可选字段，请先在「动态字段」中配置 Candidate 资源字段"
-              class="sr-empty"
-            />
-
-            <template v-else>
-              <div v-for="m in merged" :key="m.field.fieldKey" class="sr-field-row">
-                <div class="sr-field-meta">
-                  <span class="sr-field-label">{{ m.field.label }}</span>
-                  <span class="sr-type-tag">{{ fieldTypeLabel(m.field.fieldType) }}</span>
-                </div>
-                <div class="sr-field-toggles">
-                  <n-switch
-                    :value="m.enabled"
-                    size="small"
-                    @update:value="setEnabled(m.field.fieldKey, $event)"
-                  />
-                  <span class="sr-toggle-label">显示</span>
-                  <n-switch
-                    :value="m.required"
-                    size="small"
-                    :disabled="!m.enabled"
-                    @update:value="setRequired(m.field.fieldKey, $event)"
-                  />
-                  <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">必填</span>
-                </div>
+              <div class="sr-form-card-top">
+                <span class="sr-form-card-name">{{ f.name }}</span>
+                <n-tag
+                  :bordered="false"
+                  size="tiny"
+                  :type="f.formType === 'application' ? 'info' : 'default'"
+                >
+                  {{ f.formType === 'application' ? '申请表' : '登记表' }}
+                </n-tag>
               </div>
-            </template>
+              <div class="sr-form-card-meta">
+                {{ f.fields.filter((x) => x.enabled).length }} 个字段启用
+                <span v-if="f.departments.length">· {{ f.departments.length }} 个部门</span>
+              </div>
+              <div class="sr-form-card-actions" @click.stop>
+                <n-button size="tiny" tertiary @click="startEdit(f.id)">编辑</n-button>
+                <n-button
+                  size="tiny"
+                  tertiary
+                  type="error"
+                  :loading="deletingId === f.id"
+                  @click="onDelete(f)"
+                >
+                  删除
+                </n-button>
+              </div>
+            </button>
           </div>
         </n-spin>
       </section>
 
-      <!-- 右：预览 -->
+      <!-- 右：预览 / 编辑 -->
       <section class="glass-card sr-preview">
-        <header class="sr-panel-head">
-          <h2 class="sr-panel-title">申请表预览</h2>
-          <span class="sr-preview-count">{{ enabledFields.length }} 个字段</span>
-        </header>
+        <template v-if="!selected">
+          <n-empty description="从左侧选择一套表单查看预览，或新建表单" class="sr-empty" />
+        </template>
 
-        <div class="sr-preview-body">
-          <n-empty
-            v-if="!enabledFields.length"
-            description="左侧开启字段后，这里实时展示候选人填写效果"
-            class="sr-empty"
-          />
-          <div v-else class="sr-form">
+        <template v-else-if="!editing">
+          <header class="sr-panel-head">
+            <div>
+              <h2 class="sr-panel-title">{{ selected.name }}</h2>
+              <span class="sr-preview-sub">
+                {{ selected.formType === 'application' ? '申请表' : '登记表' }}
+                <span v-if="selected.departments.length">· 适用 {{ selected.departments.join('、') }}</span>
+              </span>
+            </div>
+            <n-button size="small" tertiary @click="startEdit(selected.id)">
+              <template #icon><n-icon :component="CreateOutline" /></template>
+              编辑
+            </n-button>
+          </header>
+
+          <div class="sr-preview-body">
+            <div v-if="!enabledFields.length" class="sr-preview-empty">
+              该表单尚未开启任何字段
+            </div>
             <div v-for="grp in groupedEnabled" :key="grp.name" class="sr-form-group">
               <div class="sr-form-group-title">{{ grp.name }}</div>
               <div class="sr-form-grid">
@@ -103,202 +108,412 @@
                   :class="{ 'sr-form-item--full': isFullWidth(m.field) }"
                 >
                   <label class="sr-form-label">
-                    {{ m.field.label }}
+                    {{ m.label }}
                     <span v-if="m.required" class="sr-req">*</span>
                   </label>
-
-                  <!-- BOOLEAN -->
-                  <n-switch v-if="m.field.fieldType === 'BOOLEAN'" disabled />
-                  <!-- 单选类 -->
+                  <n-switch v-if="m.fieldType === 'BOOLEAN'" disabled />
                   <n-select
-                    v-else-if="isSingleChoice(m.field.fieldType)"
+                    v-else-if="isSingleChoice(m.fieldType)"
                     disabled
-                    :options="selectOptions(m.field)"
+                    :options="selectOptions(m)"
                     placeholder="请选择"
                   />
-                  <!-- 多选类 -->
                   <n-select
-                    v-else-if="isMultiChoice(m.field.fieldType)"
+                    v-else-if="isMultiChoice(m.fieldType)"
                     multiple
                     disabled
-                    :options="selectOptions(m.field)"
+                    :options="selectOptions(m)"
                     placeholder="请选择"
                   />
-                  <!-- 附件 -->
-                  <div v-else-if="m.field.fieldType === 'ATTACHMENT'" class="sr-attachment">
+                  <div v-else-if="m.fieldType === 'ATTACHMENT'" class="sr-attachment">
                     点击上传附件
                   </div>
-                  <!-- 文本/数字/日期/证件 等 -->
                   <n-input
                     v-else
                     disabled
-                    :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
+                    :placeholder="m.placeholder || ('请输入' + m.label)"
                   />
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </template>
+
+        <!-- 编辑态 -->
+        <template v-else>
+          <header class="sr-panel-head">
+            <h2 class="sr-panel-title">{{ draft.id ? '编辑表单' : '新建表单' }}</h2>
+            <span class="sr-save-hint" :class="{ saved, saving }">
+              {{ saving ? '保存中…' : saved ? '已保存' : '未保存' }}
+            </span>
+          </header>
+
+          <n-spin :show="saving">
+            <div class="sr-edit-body">
+              <div class="sr-edit-row">
+                <label class="sr-edit-label">表单名称</label>
+                <n-input
+                  v-model:value="draft.name"
+                  placeholder="如：猎头更新简历登记表"
+                  :maxlength="128"
+                />
+              </div>
+
+              <div class="sr-edit-row">
+                <label class="sr-edit-label">表单类型</label>
+                <n-radio-group v-model:value="draft.formType">
+                  <n-radio value="registration">登记表</n-radio>
+                  <n-radio value="application">申请表</n-radio>
+                </n-radio-group>
+              </div>
+
+              <div class="sr-edit-row">
+                <label class="sr-edit-label">应用部门</label>
+                <n-select
+                  v-model:value="draft.departments"
+                  multiple
+                  filterable
+                  tag
+                  placeholder="选择或输入部门"
+                  :options="deptOptions"
+                />
+              </div>
+
+              <div class="sr-edit-row">
+                <label class="sr-edit-label">填写模式</label>
+                <n-radio-group v-model:value="draft.mode">
+                  <n-radio value="default">默认</n-radio>
+                  <n-radio value="step">分步</n-radio>
+                </n-radio-group>
+              </div>
+
+              <div class="sr-edit-fields">
+                <div class="sr-edit-fields-head">字段配置（按分组）</div>
+                <div
+                  v-for="grp in groupedAllFields"
+                  :key="grp.name"
+                  class="sr-edit-group"
+                >
+                  <div class="sr-form-group-title">{{ grp.name }}</div>
+                  <div
+                    v-for="item in grp.items"
+                    :key="item.fieldKey"
+                    class="sr-field-row"
+                  >
+                    <div class="sr-field-meta">
+                      <span class="sr-field-label">{{ item.label }}</span>
+                      <span class="sr-type-tag">{{ fieldTypeLabel(item.fieldType) }}</span>
+                    </div>
+                    <div class="sr-field-toggles">
+                      <n-switch
+                        v-model:value="item.enabled"
+                        size="small"
+                        @update:value="onFieldEnabledChange(item)"
+                      />
+                      <span class="sr-toggle-label">显示</span>
+                      <n-switch
+                        v-model:value="item.required"
+                        size="small"
+                        :disabled="!item.enabled"
+                        @update:value="onFieldRequiredChange(item)"
+                      />
+                      <span class="sr-toggle-label" :class="{ disabled: !item.enabled }">必填</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sr-edit-actions">
+                <n-button tertiary @click="cancelEdit">取消</n-button>
+                <n-button type="primary" :loading="saving" @click="saveEdit">
+                  保存表单
+                </n-button>
+              </div>
+            </div>
+          </n-spin>
+        </template>
       </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { NButton, NIcon, NSwitch, NSpin, NAlert, NEmpty, NInput, NSelect } from 'naive-ui'
-import { RefreshOutline, ReloadOutline } from '@vicons/ionicons5'
+import { ref, computed, onMounted } from 'vue'
+import {
+  NButton, NIcon, NSpin, NEmpty, NInput, NSelect, NSwitch, NTag, NRadio, NRadioGroup,
+} from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
+import { AddOutline, CreateOutline } from '@vicons/ionicons5'
 import {
   listFields,
+  FIELD_TYPE_LABEL,
   type FieldDefinition,
   type FieldType,
-  FIELD_TYPE_LABEL,
 } from '../../api/dynamic-field'
 import {
-  defaultConfig,
-  fetchConfig,
-  saveConfig,
-  resetConfig,
-  mergeFields,
-  type ApplicationFormConfig,
-  type ApplicationFormFieldConfig,
-  type MergedResumeField,
+  listRegistrationForms,
+  createRegistrationForm,
+  updateRegistrationForm,
+  deleteRegistrationForm,
+  type RegistrationForm,
+  type RegistrationFormField,
+  type RegistrationFormType,
 } from '../../api/application-form'
 
+const message = useMessage()
+const dialog = useDialog()
+
+const forms = ref<RegistrationForm[]>([])
 const allFields = ref<FieldDefinition[]>([])
 const loading = ref(false)
-const error = ref('')
+const creating = ref(false)
+const deletingId = ref<number | null>(null)
+const selectedId = ref<number | null>(null)
+const editing = ref(false)
+
+const draft = ref<RegistrationForm>(emptyDraft())
 const saved = ref(true)
 const saving = ref(false)
-const ready = ref(false) // 初始加载完成前不触发自动保存，避免把默认值写回后端
-const dirty = ref(false) // 仅用户显式编辑后才允许自动保存（避免加载即把全量字段写回后端）
-const config = ref<ApplicationFormConfig>(defaultConfig())
+
+const deptOptions = ref<{ label: string; value: string }[]>([])
+
+function emptyDraft(): RegistrationForm {
+  return {
+    id: 0,
+    name: '',
+    formType: 'registration',
+    departments: [],
+    mode: 'default',
+    fields: [],
+    orderIndex: 0,
+    isActive: true,
+  }
+}
 
 function fieldTypeLabel(t: FieldType): string {
   return FIELD_TYPE_LABEL[t] ?? t
 }
-
 function isSingleChoice(t: FieldType): boolean {
   return t === 'SELECT' || t === 'LIST_SINGLE'
 }
 function isMultiChoice(t: FieldType): boolean {
   return t === 'MULTISELECT' || t === 'LIST_MULTI'
 }
+function isFullWidth(field: FieldDefinition): boolean {
+  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT'
+}
 function selectOptions(field: FieldDefinition) {
   return (field.options || []).map((o) => ({ label: o.label, value: o.value }))
 }
 
-// 多行文本（TEXT）与附件块独占整宽一行；其余字段每行两列
-function isFullWidth(field: FieldDefinition): boolean {
-  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT'
+interface MergedField {
+  fieldKey: string
+  label: string
+  fieldType: FieldType
+  placeholder?: string
+  options: { label: string; value: string }[]
+  enabled: boolean
+  required: boolean
+  group: string
 }
 
-// 用全部动态字段给 config 补齐/裁剪条目，保证每个字段都有配置项
-function ensureCoverage() {
-  const existing = new Map(config.value.fields.map((f) => [f.fieldKey, f]))
-  config.value.fields = allFields.value.map((f) => {
-    const c = existing.get(f.fieldKey)
-    return c ?? { fieldKey: f.fieldKey, enabled: f.isVisible, required: f.isRequired }
+function mergeFormFields(form: RegistrationForm | null): MergedField[] {
+  const map = new Map((form?.fields || []).map((f) => [f.fieldKey, f]))
+  return [...allFields.value]
+    .sort((a, b) => a.orderIndex - b.orderIndex)
+    .map((field) => {
+      const c = map.get(field.fieldKey)
+      return {
+        fieldKey: field.fieldKey,
+        label: field.label,
+        fieldType: field.fieldType,
+        placeholder: field.placeholder || undefined,
+        options: field.options || [],
+        enabled: c ? c.enabled : field.isVisible,
+        required: c ? c.required : field.isRequired,
+        group: c?.group || field.groupName || '基础信息',
+      }
+    })
+}
+
+const selected = computed(
+  () => forms.value.find((f) => f.id === selectedId.value) || null,
+)
+
+const enabledFields = computed(() => {
+  if (!selected.value) return []
+  return mergeFormFields(selected.value).filter((m) => m.enabled)
+})
+
+const groupedEnabled = computed(() => {
+  const items = enabledFields.value.map((m) => ({
+    field: allFields.value.find((f) => f.fieldKey === m.fieldKey)!,
+    label: m.label,
+    fieldType: m.fieldType,
+    placeholder: m.placeholder,
+    required: m.required,
+    group: m.group,
+  }))
+  return groupBy(items)
+})
+
+const groupedAllFields = computed(() => {
+  if (!editing.value || !draft.value) return []
+  const merged = mergeFormFields(draft.value)
+  return groupBy(
+    merged.map((m) => ({
+      fieldKey: m.fieldKey,
+      label: m.label,
+      fieldType: m.fieldType,
+      enabled: m.enabled,
+      required: m.required,
+      group: m.group,
+    })),
+  )
+})
+
+function groupBy(
+  items: Array<{ group: string; [k: string]: unknown }>,
+): Array<{ name: string; items: any[] }> {
+  const groups: Record<string, any[]> = {}
+  for (const it of items) {
+    ;(groups[it.group] ||= []).push(it)
+  }
+  return Object.entries(groups).map(([name, its]) => ({ name, items: its }))
+}
+
+function selectForm(id: number) {
+  selectedId.value = id
+  editing.value = false
+}
+
+function startEdit(id: number) {
+  const f = forms.value.find((x) => x.id === id)
+  if (!f) return
+  draft.value = JSON.parse(JSON.stringify(f))
+  selectedId.value = id
+  editing.value = true
+  saved.value = true
+}
+
+function onAddForm() {
+  draft.value = emptyDraft()
+  draft.value.fields = mergeFormFields(null).map((m) => ({
+    fieldKey: m.fieldKey,
+    enabled: m.enabled,
+    required: m.required,
+    group: m.group,
+  }))
+  selectedId.value = null
+  editing.value = true
+  saved.value = true
+}
+
+function onFieldEnabledChange(item: { fieldKey: string; enabled: boolean }) {
+  if (!item.enabled) {
+    const f = draft.value.fields.find((x) => x.fieldKey === item.fieldKey)
+    if (f) f.required = false
+  }
+  saved.value = false
+}
+function onFieldRequiredChange() {
+  saved.value = false
+}
+
+function cancelEdit() {
+  editing.value = false
+  draft.value = emptyDraft()
+  if (selectedId.value) selectForm(selectedId.value)
+}
+
+async function saveEdit() {
+  if (!draft.value.name.trim()) {
+    message.warning('请填写表单名称')
+    return
+  }
+  saving.value = true
+  try {
+    const payload = {
+      name: draft.value.name.trim(),
+      formType: draft.value.formType as RegistrationFormType,
+      departments: draft.value.departments,
+      mode: draft.value.mode,
+      fields: draft.value.fields as RegistrationFormField[],
+      isActive: draft.value.isActive,
+    }
+    if (draft.value.id) {
+      const updated = await updateRegistrationForm(draft.value.id, payload)
+      const idx = forms.value.findIndex((f) => f.id === updated.id)
+      if (idx >= 0) forms.value[idx] = updated
+      else forms.value.push(updated)
+      message.success('表单已保存')
+    } else {
+      const created = await createRegistrationForm(payload)
+      forms.value.push(created)
+      selectedId.value = created.id
+      message.success('表单已创建')
+    }
+    saved.value = true
+    editing.value = false
+  } catch (e: any) {
+    message.error(`保存失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+  } finally {
+    saving.value = false
+  }
+}
+
+function onDelete(f: RegistrationForm) {
+  dialog.warning({
+    title: '删除表单',
+    content: `确定删除「${f.name}」？删除后可通过数据库恢复，操作不可在界面撤销。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      deletingId.value = f.id
+      try {
+        await deleteRegistrationForm(f.id)
+        forms.value = forms.value.filter((x) => x.id !== f.id)
+        if (selectedId.value === f.id) {
+          selectedId.value = null
+          editing.value = false
+        }
+        message.success('已删除')
+      } catch (e: any) {
+        message.error(`删除失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+      } finally {
+        deletingId.value = null
+      }
+    },
   })
 }
 
-async function loadFields() {
+async function load() {
   loading.value = true
-  error.value = ''
   try {
-    const fields = await listFields('Candidate')
-    allFields.value = fields
-    ensureCoverage()
+    const [fl, fr] = await Promise.all([
+      listFields('Candidate'),
+      listRegistrationForms(),
+    ])
+    allFields.value = fl
+    forms.value = fr
+    if (!selectedId.value && fr.length) selectForm(fr[0].id)
   } catch (e: any) {
-    error.value = e?.message || '请求动态字段失败，请检查网络或登录状态'
+    message.error(`加载失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
   } finally {
     loading.value = false
   }
 }
 
-function findEntry(key: string): ApplicationFormFieldConfig | undefined {
-  return config.value.fields.find((f) => f.fieldKey === key)
-}
-function setEnabled(key: string, v: boolean) {
-  const e = findEntry(key)
-  if (!e) return
-  e.enabled = v
-  if (!v) e.required = false // 不显示则不允许必填
-  dirty.value = true
-}
-function setRequired(key: string, v: boolean) {
-  const e = findEntry(key)
-  if (!e) return
-  e.required = v
-  dirty.value = true
-}
-
-async function onReset() {
-  const cfg = await resetConfig()
-  config.value = cfg
-  ensureCoverage()
-  dirty.value = false // reset 已通过 API 落库，避免 watch 重复写回
-}
-
-// 配置变更即自动持久化到后端
-watch(
-  config,
-  async (v) => {
-    if (!ready.value || !dirty.value) return
-    saving.value = true
-    saved.value = false
-    try {
-      await saveConfig(v)
-      saved.value = true
-    } catch {
-      saved.value = false // 保存失败保留本地修改，下次变更重试
-    } finally {
-      saving.value = false
-    }
-  },
-  { deep: true },
-)
-
-const merged = computed<MergedResumeField[]>(() => mergeFields(allFields.value, config.value))
-const enabledFields = computed(() => merged.value.filter((m) => m.enabled))
-const groupedEnabled = computed(() => {
-  const groups: Record<string, MergedResumeField[]> = {}
-  for (const m of enabledFields.value) {
-    const g = m.field.groupName || '基础信息'
-    ;(groups[g] ||= []).push(m)
-  }
-  return Object.entries(groups).map(([name, items]) => ({ name, items }))
-})
-
-onMounted(async () => {
-  await loadFields()
-  await loadConfigIntoState()
-})
-
-// 拉取后端申请表配置填入 state 并确保字段覆盖
-async function loadConfigIntoState() {
-  try {
-    const cfg = await fetchConfig()
-    config.value = cfg
-    ensureCoverage()
-  } catch {
-    // 拉取失败：保留默认配置，页面仍可编辑（变更后会写回后端）
-  } finally {
-    ready.value = true
-  }
-}
+onMounted(load)
 </script>
 
 <style scoped>
-.page-note {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-meta);
-  color: var(--c-info);
-}
+.sr-title-row { display: flex; align-items: center; gap: var(--space-2); }
+.page-subtitle { margin: var(--space-2) 0 0; max-width: 720px; }
 
 .sr-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 380px) 1fr;
+  grid-template-columns: minmax(300px, 360px) 1fr;
   gap: var(--space-4);
   align-items: start;
 }
@@ -306,33 +521,103 @@ async function loadConfigIntoState() {
   .sr-grid { grid-template-columns: 1fr; }
 }
 
-.sr-config,
-.sr-preview { padding: var(--space-4); }
+.sr-list, .sr-preview { padding: var(--space-4); }
 
 .sr-panel-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
-.sr-panel-title {
-  margin: 0;
-  font-size: var(--fs-16);
-  font-weight: 600;
-  color: var(--ink);
-}
-.sr-save-hint {
-  font-size: var(--text-meta);
-  color: var(--c-warning);
-}
+.sr-panel-title { margin: 0; font-size: var(--fs-16); font-weight: 600; color: var(--ink); }
+.sr-count, .sr-preview-sub { font-size: var(--text-meta); color: var(--ink-faint); }
+.sr-preview-sub { display: block; margin-top: 2px; }
+
+.sr-save-hint { font-size: var(--text-meta); color: var(--c-warning); }
 .sr-save-hint.saved { color: var(--c-success); }
 .sr-save-hint.saving { color: var(--c-info); }
 
-.sr-config-body { min-height: 120px; }
-
-.sr-alert { margin-bottom: var(--space-3); }
-
 .sr-empty { padding: var(--space-12) 0; }
+
+.sr-list-body { display: flex; flex-direction: column; gap: var(--space-2); }
+.sr-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg-card);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.sr-form-card:hover { border-color: var(--brand); }
+.sr-form-card.active {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  box-shadow: 0 0 0 1px var(--brand) inset;
+}
+.sr-form-card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.sr-form-card-name { font-size: var(--text-small); font-weight: 600; color: var(--ink); }
+.sr-form-card-meta { font-size: var(--text-meta); color: var(--ink-faint); }
+.sr-form-card-actions { display: flex; gap: var(--space-1); margin-top: var(--space-1); }
+
+.sr-preview-body { display: flex; flex-direction: column; gap: var(--space-4); }
+.sr-preview-empty {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: var(--text-small);
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-lg);
+}
+.sr-form-group-title {
+  font-size: var(--text-meta);
+  color: var(--ink-faint);
+  margin-bottom: var(--space-2);
+  letter-spacing: 0.02em;
+}
+.sr-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--space-4);
+  row-gap: var(--space-3);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .sr-form-grid { grid-template-columns: 1fr; }
+}
+.sr-form-item { display: flex; flex-direction: column; gap: var(--space-1); }
+.sr-form-item--full { grid-column: 1 / -1; }
+.sr-form-label { font-size: var(--text-small); color: var(--ink-soft); }
+.sr-req { color: var(--c-error); margin-left: 2px; }
+.sr-attachment {
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: var(--text-small);
+}
+
+.sr-edit-body { display: flex; flex-direction: column; gap: var(--space-4); }
+.sr-edit-row { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: var(--space-3); }
+.sr-edit-label { font-size: var(--text-small); color: var(--ink-soft); }
+.sr-edit-fields {
+  border-top: 1px solid var(--border-hairline);
+  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.sr-edit-fields-head { font-size: var(--text-meta); color: var(--ink-faint); }
+.sr-edit-group { display: flex; flex-direction: column; gap: var(--space-1); }
 
 .sr-field-row {
   display: flex;
@@ -365,35 +650,5 @@ async function loadConfigIntoState() {
 .sr-toggle-label { font-size: var(--text-meta); color: var(--ink-soft); }
 .sr-toggle-label.disabled { color: var(--ink-faint); }
 
-.sr-preview-count { font-size: var(--text-meta); color: var(--ink-faint); }
-
-.sr-form { display: flex; flex-direction: column; gap: var(--space-4); }
-.sr-form-group-title {
-  font-size: var(--text-meta);
-  color: var(--ink-faint);
-  margin-bottom: var(--space-2);
-  letter-spacing: 0.02em;
-}
-.sr-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: var(--space-4);
-  row-gap: var(--space-3);
-  align-items: start;
-}
-@media (max-width: 720px) {
-  .sr-form-grid { grid-template-columns: 1fr; }
-}
-.sr-form-item { display: flex; flex-direction: column; gap: var(--space-1); }
-.sr-form-item--full { grid-column: 1 / -1; }
-.sr-form-label { font-size: var(--text-small); color: var(--ink-soft); }
-.sr-req { color: var(--c-error); margin-left: 2px; }
-.sr-attachment {
-  border: 1px dashed var(--border-hairline);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  text-align: center;
-  color: var(--ink-faint);
-  font-size: var(--text-small);
-}
+.sr-edit-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 </style>

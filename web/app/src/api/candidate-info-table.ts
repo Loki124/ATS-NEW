@@ -1,6 +1,9 @@
 // 候选人信息表：真实数据表格 + 列显隐配置落库 + 搜索筛选 + 前端 CSV 导出
 // 数据来源：GET /api/v1/candidates/（camelCase 渲染）
 // 列配置落库端点：GET/POST/PUT /api/v1/standard-resume/candidate-info-table/（CandidateTableConfigView）
+//
+// 2026-09-12 扩展：候选人信息登记表设置（权限 / 使用范围 / 标准简历样式 / 场景联动），
+// 复用同一 key='candidate_info_table' 配置端点，结构见 CandidateInfoTableConfig。
 
 import axios from 'axios'
 import config from '../config'
@@ -125,7 +128,7 @@ export function buildCsv(
   const lines = rows.map((row) =>
     columns.map((c) => escape((row as Record<string, unknown>)[c.key])).join(','),
   )
-  return '\uFEFF' + [header, ...lines].join('\r\n')
+  return '﻿' + [header, ...lines].join('\r\n')
 }
 
 export function exportTableToCsv(
@@ -141,4 +144,61 @@ export function exportTableToCsv(
   a.download = `${filename}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/* ============ 候选人信息登记表设置（权限 / 使用范围 / 样式 / 场景联动） ============ */
+
+export type ScopeMode = 'global' | 'department'
+export type ResumeStyle = 'standard' | 'custom'
+
+export interface CandidateInfoTableScene {
+  key: string
+  label: string
+  formId: number | null
+  style: ResumeStyle
+}
+
+export interface CandidateInfoTableConfig {
+  permissionScope: ScopeMode
+  usageScope: ScopeMode
+  resumeStyle: ResumeStyle
+  scenes: CandidateInfoTableScene[]
+}
+
+// 后端无配置时的默认结构（与后端 CandidateTableConfigView 默认值对齐）
+export function defaultCandidateInfoTableConfig(): CandidateInfoTableConfig {
+  return {
+    permissionScope: 'global',
+    usageScope: 'global',
+    resumeStyle: 'standard',
+    scenes: [
+      { key: 'interview_accept', label: '接受面试时', formId: null, style: 'standard' },
+      { key: 'interview_signin', label: '面试签到时', formId: null, style: 'standard' },
+      { key: 'offer_accept', label: '接受Offer时', formId: null, style: 'standard' },
+    ],
+  }
+}
+
+function unwrap<T>(r: { data: { success: boolean; data: T } }): T {
+  return r.data.data
+}
+
+export async function getCandidateInfoTableConfig(): Promise<CandidateInfoTableConfig> {
+  const r = await api.get(CANDIDATE_TABLE_CONFIG_API)
+  const data = (r.data?.data ?? {}) as Partial<CandidateInfoTableConfig>
+  const def = defaultCandidateInfoTableConfig()
+  // 缺省场景用默认补齐，保证前端始终有完整场景列表
+  return {
+    permissionScope: data.permissionScope ?? def.permissionScope,
+    usageScope: data.usageScope ?? def.usageScope,
+    resumeStyle: data.resumeStyle ?? def.resumeStyle,
+    scenes: data.scenes?.length ? data.scenes : def.scenes,
+  }
+}
+
+export async function saveCandidateInfoTableConfig(
+  cfg: CandidateInfoTableConfig,
+): Promise<CandidateInfoTableConfig> {
+  const r = await api.put(CANDIDATE_TABLE_CONFIG_API, cfg)
+  return unwrap<CandidateInfoTableConfig>(r)
 }

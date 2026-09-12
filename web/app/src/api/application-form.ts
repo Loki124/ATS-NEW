@@ -1,11 +1,13 @@
-// 申请表和登记表配置：后端持久化 + 动态字段聚合
-// 字段数据来源：动态字段模块 resource='Candidate'
-// 配置落库端点：GET/POST/PUT /api/v1/standard-resume/application-form/（ApplicationFormConfigView）
-// 单套配置：同时作用于候选人投递「申请表」与入职「登记表」，字段与校验规则统一。
+// 申请表和登记表（多套）配置 API
+// 后端端点：
+//   GET    /api/v1/standard-resume/application-form/          → 列表
+//   POST   /api/v1/standard-resume/application-form/          → 新建
+//   PUT    /api/v1/standard-resume/application-form/<pk>/     → 更新
+//   DELETE /api/v1/standard-resume/application-form/<pk>/     → 软删除
+// 数据来源：动态字段模块 resource='Candidate'，字段配置引用其 fieldKey。
 
 import axios from 'axios'
 import config from '../config'
-import type { FieldDefinition } from './dynamic-field'
 
 const api = axios.create({
   baseURL: config.api.baseUrl,
@@ -18,73 +20,58 @@ api.interceptors.request.use((cfg) => {
   return cfg
 })
 
-export const APPLICATION_FORM_API = '/standard-resume/application-form/'
-
-export interface ApplicationFormFieldConfig {
+// 单个字段配置项（引用动态字段的 fieldKey，并带本表单内的显隐/必填/分组）
+export interface RegistrationFormField {
   fieldKey: string
-  enabled: boolean // 是否显示在申请表中
-  required: boolean // 是否必填
-}
-
-export interface ApplicationFormConfig {
-  fields: ApplicationFormFieldConfig[]
-  requiredStages: string[] // 本模块为单套配置，固定为空（无阶段维度）
-}
-
-export function defaultConfig(): ApplicationFormConfig {
-  return { fields: [], requiredStages: [] }
-}
-
-// 从后端拉取申请表配置；空/异常时回退默认结构
-export async function fetchConfig(): Promise<ApplicationFormConfig> {
-  const r = await api.get(APPLICATION_FORM_API)
-  const data = (r.data?.data ?? {}) as Partial<ApplicationFormConfig>
-  return {
-    fields: Array.isArray(data.fields) ? data.fields : [],
-    requiredStages: Array.isArray(data.requiredStages) ? data.requiredStages : [],
-  }
-}
-
-// 保存整份配置到后端，返回落库后的回显
-export async function saveConfig(cfg: ApplicationFormConfig): Promise<ApplicationFormConfig> {
-  const r = await api.put(APPLICATION_FORM_API, cfg)
-  const data = (r.data?.data ?? {}) as Partial<ApplicationFormConfig>
-  return {
-    fields: Array.isArray(data.fields) ? data.fields : [],
-    requiredStages: Array.isArray(data.requiredStages) ? data.requiredStages : [],
-  }
-}
-
-// 重置为默认配置（清空字段显隐/必填）并落库
-export async function resetConfig(): Promise<ApplicationFormConfig> {
-  return saveConfig(defaultConfig())
-}
-
-export interface MergedResumeField {
-  field: FieldDefinition
   enabled: boolean
   required: boolean
+  group?: string
 }
 
-// 把动态字段与配置合并，返回按 orderIndex 排序的完整列表（含 enabled/required 标志）
-export function mergeFields(
-  allFields: FieldDefinition[],
-  cfg: ApplicationFormConfig,
-): MergedResumeField[] {
-  const map = new Map(cfg.fields.map((f) => [f.fieldKey, f]))
-  return [...allFields]
-    .sort((a, b) => a.orderIndex - b.orderIndex)
-    .map((field) => {
-      const c = map.get(field.fieldKey)
-      return {
-        field,
-        enabled: c ? c.enabled : field.isVisible,
-        required: c ? c.required : field.isRequired,
-      }
-    })
+export type RegistrationFormType = 'application' | 'registration'
+
+// 一套申请表 / 登记表
+export interface RegistrationForm {
+  id: number
+  name: string
+  formType: RegistrationFormType
+  departments: string[]
+  mode: string
+  fields: RegistrationFormField[]
+  orderIndex: number
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
-// 仅返回启用的字段（用于预览渲染）
-export function selectEnabledFields(merged: MergedResumeField[]): MergedResumeField[] {
-  return merged.filter((m) => m.enabled)
+function unwrap<T>(r: { data: { success: boolean; data: T } }): T {
+  return r.data.data
+}
+
+// 列表（仅未软删的表单，按 orderIndex, id 排序）
+export async function listRegistrationForms(): Promise<RegistrationForm[]> {
+  const r = await api.get('/standard-resume/application-form/')
+  return unwrap<RegistrationForm[]>(r)
+}
+
+// 新建（后端补全审计时间，返回完整对象）
+export async function createRegistrationForm(
+  payload: Partial<RegistrationForm>,
+): Promise<RegistrationForm> {
+  const r = await api.post('/standard-resume/application-form/', payload)
+  return unwrap<RegistrationForm>(r)
+}
+
+// 更新（局部字段，主键走路径参数）
+export async function updateRegistrationForm(
+  id: number,
+  payload: Partial<RegistrationForm>,
+): Promise<RegistrationForm> {
+  const r = await api.put(`/standard-resume/application-form/${id}/`, payload)
+  return unwrap<RegistrationForm>(r)
+}
+
+// 软删除（仅置 deleted_at，可恢复）
+export async function deleteRegistrationForm(id: number): Promise<void> {
+  await api.delete(`/standard-resume/application-form/${id}/`)
 }

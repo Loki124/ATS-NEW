@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { FieldDefinition, FieldType, FieldOption } from '../dynamic-field'
 
 // --- 异步 API mock：拦截 axios.create 返回的实例，避免真实请求 ---
 const getMock = vi.fn()
+const postMock = vi.fn()
 const putMock = vi.fn()
+const deleteMock = vi.fn()
 vi.mock('axios', () => {
   const instance = {
     get: (...args: any[]) => getMock(...args),
+    post: (...args: any[]) => postMock(...args),
     put: (...args: any[]) => putMock(...args),
+    delete: (...args: any[]) => deleteMock(...args),
     interceptors: { request: { use: () => {} } },
   }
   return { default: { create: () => instance }, create: () => instance }
@@ -15,112 +18,71 @@ vi.mock('axios', () => {
 vi.mock('../../config', () => ({ default: { api: { baseUrl: '/api/v1' } } }))
 
 const {
-  defaultConfig,
-  fetchConfig,
-  saveConfig,
-  resetConfig,
-  mergeFields,
-  selectEnabledFields,
-  APPLICATION_FORM_API,
+  listRegistrationForms,
+  createRegistrationForm,
+  updateRegistrationForm,
+  deleteRegistrationForm,
 } = await import('../application-form')
-import type { ApplicationFormConfig } from '../application-form'
 
-function makeField(opts: {
-  fieldKey: string
-  label?: string
-  fieldType?: FieldType
-  isRequired?: boolean
-  isVisible?: boolean
-  orderIndex?: number
-  groupName?: string | null
-  options?: FieldOption[]
-}): FieldDefinition {
+function makeForm(overrides: Record<string, unknown> = {}) {
   return {
-    id: opts.fieldKey,
-    resource: 'Candidate',
-    fieldKey: opts.fieldKey,
-    label: opts.label ?? opts.fieldKey,
-    fieldType: opts.fieldType ?? 'TEXT',
-    isRequired: opts.isRequired ?? false,
-    isVisible: opts.isVisible ?? true,
-    orderIndex: opts.orderIndex ?? 0,
-    groupName: opts.groupName ?? null,
-    options: opts.options,
-  } as FieldDefinition
+    id: 1,
+    name: '猎头更新简历登记表',
+    formType: 'registration',
+    departments: ['dept_1'],
+    mode: 'default',
+    fields: [],
+    orderIndex: 0,
+    isActive: true,
+    ...overrides,
+  }
 }
 
-describe('application-form config (后端持久化)', () => {
+describe('application-form 多表单 CRUD', () => {
   beforeEach(() => {
     getMock.mockReset()
+    postMock.mockReset()
     putMock.mockReset()
+    deleteMock.mockReset()
   })
 
-  it('defaultConfig 返回空结构', () => {
-    const c = defaultConfig()
-    expect(c.fields).toEqual([])
-    expect(c.requiredStages).toEqual([])
+  it('listRegistrationForms 解析 data.data 数组', async () => {
+    const forms = [makeForm()]
+    getMock.mockResolvedValue({ data: { success: true, data: forms } })
+    const r = await listRegistrationForms()
+    expect(getMock).toHaveBeenCalledWith('/standard-resume/application-form/')
+    expect(r).toHaveLength(1)
+    expect(r[0].name).toBe('猎头更新简历登记表')
   })
 
-  it('mergeFields：缺失配置项时回退到字段默认值', () => {
-    const fields = [
-      makeField({ fieldKey: 'name', isVisible: true, isRequired: true, orderIndex: 2 }),
-      makeField({ fieldKey: 'phone', isVisible: false, isRequired: false, orderIndex: 1 }),
-    ]
-    const merged = mergeFields(fields, defaultConfig())
-    expect(merged.map((m) => m.field.fieldKey)).toEqual(['phone', 'name'])
-    expect(merged[0].enabled).toBe(false)
-    expect(merged[0].required).toBe(false)
-    expect(merged[1].enabled).toBe(true)
-    expect(merged[1].required).toBe(true)
-  })
-
-  it('mergeFields：配置项覆盖字段默认值', () => {
-    const fields = [makeField({ fieldKey: 'name', isVisible: true, isRequired: true })]
-    const cfg: ApplicationFormConfig = {
-      fields: [{ fieldKey: 'name', enabled: false, required: false }],
-      requiredStages: [],
+  it('createRegistrationForm POST 并返回完整对象', async () => {
+    const payload = {
+      name: '新表单',
+      formType: 'registration',
+      departments: [],
+      mode: 'default',
+      fields: [],
+      isActive: true,
     }
-    const merged = mergeFields(fields, cfg)
-    expect(merged[0].enabled).toBe(false)
-    expect(merged[0].required).toBe(false)
+    const created = { id: 2, ...payload, orderIndex: 0 }
+    postMock.mockResolvedValue({ data: { success: true, data: created } })
+    const r = await createRegistrationForm(payload)
+    expect(postMock).toHaveBeenCalledWith('/standard-resume/application-form/', payload)
+    expect(r.id).toBe(2)
   })
 
-  it('selectEnabledFields：仅返回 enabled', () => {
-    const fields = [makeField({ fieldKey: 'a' }), makeField({ fieldKey: 'b', isVisible: false })]
-    const merged = mergeFields(fields, defaultConfig())
-    expect(selectEnabledFields(merged).map((m) => m.field.fieldKey)).toEqual(['a'])
+  it('updateRegistrationForm PUT /:id/ 并返回更新后对象', async () => {
+    const payload = { name: '改名后的表单' }
+    const updated = makeForm({ id: 3, name: '改名后的表单' })
+    putMock.mockResolvedValue({ data: { success: true, data: updated } })
+    const r = await updateRegistrationForm(3, payload)
+    expect(putMock).toHaveBeenCalledWith('/standard-resume/application-form/3/', payload)
+    expect(r.name).toBe('改名后的表单')
   })
 
-  it('fetchConfig 解析 data.data', async () => {
-    getMock.mockResolvedValue({
-      data: { data: { fields: [{ fieldKey: 'name', enabled: true, required: true }], requiredStages: [] } },
-    })
-    const c = await fetchConfig()
-    expect(getMock).toHaveBeenCalledWith(APPLICATION_FORM_API)
-    expect(c.fields).toHaveLength(1)
-  })
-
-  it('fetchConfig 空响应回退默认结构', async () => {
-    getMock.mockResolvedValue({ data: {} })
-    const c = await fetchConfig()
-    expect(c).toEqual(defaultConfig())
-  })
-
-  it('saveConfig PUT 整份配置', async () => {
-    const cfg: ApplicationFormConfig = {
-      fields: [{ fieldKey: 'a', enabled: true, required: false }],
-      requiredStages: [],
-    }
-    putMock.mockResolvedValue({ data: { data: cfg } })
-    const r = await saveConfig(cfg)
-    expect(putMock).toHaveBeenCalledWith(APPLICATION_FORM_API, cfg)
-    expect(r).toEqual(cfg)
-  })
-
-  it('resetConfig 清空并落库默认', async () => {
-    putMock.mockResolvedValue({ data: { data: defaultConfig() } })
-    const r = await resetConfig()
-    expect(putMock).toHaveBeenCalledWith(APPLICATION_FORM_API, defaultConfig())
-    expect(r).toEqual(defaultConfig())
+  it('deleteRegistrationForm DELETE /:id/', async () => {
+    deleteMock.mockResolvedValue({ data: { success: true } })
+    await deleteRegistrationForm(4)
+    expect(deleteMock).toHaveBeenCalledWith('/standard-resume/application-form/4/')
   })
 })
