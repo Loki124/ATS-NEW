@@ -19,220 +19,227 @@
       </div>
     </div>
 
-    <div class="sr-grid">
-      <!-- 左：表单列表 -->
-      <section class="glass-card sr-list">
-        <header class="sr-panel-head">
-          <h2 class="sr-panel-title">表单列表</h2>
-          <span class="sr-count">{{ forms.length }} 套</span>
-        </header>
-
-        <n-spin :show="loading">
-          <n-empty
-            v-if="!loading && !forms.length"
-            description="暂无表单，点击右上角「添加申请表」创建第一套"
-            class="sr-empty"
-          />
-          <div v-else class="sr-list-body">
-            <button
-              v-for="f in forms"
-              :key="f.id"
-              type="button"
-              class="sr-form-card"
-              :class="{ active: selectedId === f.id }"
-              @click="selectForm(f.id)"
-            >
-              <div class="sr-form-card-top">
-                <span class="sr-form-card-name">{{ f.name }}</span>
-                <n-tag
-                  :bordered="false"
-                  size="tiny"
-                  :type="f.formType === 'application' ? 'info' : 'default'"
-                >
-                  {{ f.formType === 'application' ? '申请表' : '登记表' }}
-                </n-tag>
-              </div>
-              <div class="sr-form-card-meta">
-                {{ f.fields.filter((x) => x.enabled).length }} 个字段启用
-                <span v-if="f.departments.length">· {{ f.departments.length }} 个部门</span>
-              </div>
-              <div class="sr-form-card-actions" @click.stop>
-                <n-button size="tiny" tertiary @click="startEdit(f.id)">编辑</n-button>
-                <n-button
-                  size="tiny"
-                  tertiary
-                  type="error"
-                  :loading="deletingId === f.id"
-                  @click="onDelete(f)"
-                >
-                  删除
-                </n-button>
-              </div>
-            </button>
-          </div>
-        </n-spin>
-      </section>
-
-      <!-- 右：预览 / 编辑 -->
-      <section class="glass-card sr-preview">
-        <template v-if="!selected">
-          <n-empty description="从左侧选择一套表单查看预览，或新建表单" class="sr-empty" />
-        </template>
-
-        <template v-else-if="!editing">
+    <div class="page-body">
+      <div class="sr-grid">
+        <!-- 左：表单列表 -->
+        <section class="glass-card sr-list">
           <header class="sr-panel-head">
-            <div>
-              <h2 class="sr-panel-title">{{ selected.name }}</h2>
-              <span class="sr-preview-sub">
-                {{ selected.formType === 'application' ? '申请表' : '登记表' }}
-                <span v-if="selected.departments.length">· 适用 {{ selected.departments.join('、') }}</span>
-              </span>
-            </div>
-            <n-button size="small" tertiary @click="startEdit(selected.id)">
-              <template #icon><n-icon :component="CreateOutline" /></template>
-              编辑
-            </n-button>
+            <h2 class="sr-panel-title">表单列表</h2>
+            <span class="sr-count">{{ forms.length }} 套</span>
           </header>
 
-          <div class="sr-preview-body">
-            <div v-if="!enabledFields.length" class="sr-preview-empty">
-              该表单尚未开启任何字段
-            </div>
-            <div v-for="grp in groupedEnabled" :key="grp.name" class="sr-form-group">
-              <div class="sr-form-group-title">{{ grp.name }}</div>
-              <div class="sr-form-grid">
-                <div
-                  v-for="m in grp.items"
-                  :key="m.field.fieldKey"
-                  class="sr-form-item"
-                  :class="{ 'sr-form-item--full': isFullWidth(m.field) }"
-                >
-                  <label class="sr-form-label">
-                    {{ m.label }}
-                    <span v-if="m.required" class="sr-req">*</span>
-                  </label>
-                  <n-switch v-if="m.fieldType === 'BOOLEAN'" disabled />
-                  <n-select
-                    v-else-if="isSingleChoice(m.fieldType)"
-                    disabled
-                    :options="selectOptions(m)"
-                    placeholder="请选择"
-                  />
-                  <n-select
-                    v-else-if="isMultiChoice(m.fieldType)"
-                    multiple
-                    disabled
-                    :options="selectOptions(m)"
-                    placeholder="请选择"
-                  />
-                  <div v-else-if="m.fieldType === 'ATTACHMENT'" class="sr-attachment">
-                    点击上传附件
-                  </div>
-                  <n-input
-                    v-else
-                    disabled
-                    :placeholder="m.placeholder || ('请输入' + m.label)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <!-- 编辑态 -->
-        <template v-else>
-          <header class="sr-panel-head">
-            <h2 class="sr-panel-title">{{ draft.id ? '编辑表单' : '新建表单' }}</h2>
-            <span class="sr-save-hint" :class="{ saved, saving }">
-              {{ saving ? '保存中…' : saved ? '已保存' : '未保存' }}
-            </span>
-          </header>
-
-          <n-spin :show="saving">
-            <div class="sr-edit-body">
-              <div class="sr-edit-row">
-                <label class="sr-edit-label">表单名称</label>
-                <n-input
-                  v-model:value="draft.name"
-                  placeholder="如：猎头更新简历登记表"
-                  :maxlength="128"
-                />
-              </div>
-
-              <div class="sr-edit-row">
-                <label class="sr-edit-label">表单类型</label>
-                <n-radio-group v-model:value="draft.formType">
-                  <n-radio value="registration">登记表</n-radio>
-                  <n-radio value="application">申请表</n-radio>
-                </n-radio-group>
-              </div>
-
-              <div class="sr-edit-row">
-                <label class="sr-edit-label">应用部门</label>
-                <n-select
-                  v-model:value="draft.departments"
-                  multiple
-                  filterable
-                  tag
-                  placeholder="选择或输入部门"
-                  :options="deptOptions"
-                />
-              </div>
-
-              <div class="sr-edit-row">
-                <label class="sr-edit-label">填写模式</label>
-                <n-radio-group v-model:value="draft.mode">
-                  <n-radio value="default">默认</n-radio>
-                  <n-radio value="step">分步</n-radio>
-                </n-radio-group>
-              </div>
-
-              <div class="sr-edit-fields">
-                <div class="sr-edit-fields-head">字段配置（按分组）</div>
-                <div
-                  v-for="grp in groupedAllFields"
-                  :key="grp.name"
-                  class="sr-edit-group"
-                >
-                  <div class="sr-form-group-title">{{ grp.name }}</div>
-                  <div
-                    v-for="item in grp.items"
-                    :key="item.fieldKey"
-                    class="sr-field-row"
+          <n-spin :show="loading">
+            <n-empty
+              v-if="!loading && !forms.length"
+              description="暂无表单，点击右上角「添加申请表」创建第一套"
+              class="sr-empty"
+            />
+            <div v-else class="sr-list-body">
+              <button
+                v-for="f in forms"
+                :key="f.id"
+                type="button"
+                class="sr-form-card"
+                :class="{ active: selectedId === f.id }"
+                @click="selectForm(f.id)"
+              >
+                <div class="sr-form-card-top">
+                  <span class="sr-form-card-name">{{ f.name }}</span>
+                  <n-tag
+                    :bordered="false"
+                    size="tiny"
+                    :type="f.formType === 'application' ? 'info' : 'default'"
                   >
-                    <div class="sr-field-meta">
-                      <span class="sr-field-label">{{ item.label }}</span>
-                      <span class="sr-type-tag">{{ fieldTypeLabel(item.fieldType) }}</span>
-                    </div>
-                    <div class="sr-field-toggles">
-                      <n-switch
-                        v-model:value="item.enabled"
-                        size="small"
-                        @update:value="onFieldEnabledChange(item)"
-                      />
-                      <span class="sr-toggle-label">显示</span>
-                      <n-switch
-                        v-model:value="item.required"
-                        size="small"
-                        :disabled="!item.enabled"
-                        @update:value="onFieldRequiredChange(item)"
-                      />
-                      <span class="sr-toggle-label" :class="{ disabled: !item.enabled }">必填</span>
-                    </div>
-                  </div>
+                    {{ f.formType === 'application' ? '申请表' : '登记表' }}
+                  </n-tag>
                 </div>
-              </div>
-
-              <div class="sr-edit-actions">
-                <n-button tertiary @click="cancelEdit">取消</n-button>
-                <n-button type="primary" :loading="saving" @click="saveEdit">
-                  保存表单
-                </n-button>
-              </div>
+                <div class="sr-form-card-meta">
+                  {{ f.fields.filter((x) => x.enabled).length }} 个字段启用
+                  <span v-if="f.departments.length">· {{ f.departments.length }} 个部门</span>
+                </div>
+                <div class="sr-form-card-actions" @click.stop>
+                  <n-button size="tiny" tertiary @click="startEdit(f.id)">编辑</n-button>
+                  <n-button
+                    size="tiny"
+                    tertiary
+                    type="error"
+                    :loading="deletingId === f.id"
+                    @click="onDelete(f)"
+                  >
+                    删除
+                  </n-button>
+                </div>
+              </button>
             </div>
           </n-spin>
-        </template>
-      </section>
+        </section>
+
+        <!-- 右：预览 / 编辑 -->
+        <section class="glass-card sr-preview">
+          <div class="sr-preview-scroll">
+            <template v-if="!selected && !editing">
+              <n-empty description="从左侧选择一套表单查看预览，或新建表单" class="sr-empty" />
+            </template>
+
+            <template v-else-if="!editing">
+              <header class="sr-panel-head">
+                <div>
+                  <h2 class="sr-panel-title">{{ selected.name }}</h2>
+                  <span class="sr-preview-sub">
+                    {{ selected.formType === 'application' ? '申请表' : '登记表' }}
+                    <span v-if="selected.departments.length">· 适用 {{ selected.departments.join('、') }}</span>
+                  </span>
+                </div>
+                <n-button size="small" tertiary @click="startEdit(selected.id)">
+                  <template #icon><n-icon :component="CreateOutline" /></template>
+                  编辑
+                </n-button>
+              </header>
+
+              <div class="sr-preview-body">
+                <div v-if="!enabledFields.length" class="sr-preview-empty">
+                  该表单尚未开启任何字段
+                </div>
+                <div v-for="grp in groupedEnabled" :key="grp.name" class="sr-form-group">
+                  <div class="sr-form-group-title">{{ grp.name }}</div>
+                  <div class="sr-form-grid">
+                    <div
+                      v-for="m in grp.items"
+                      :key="m.field.fieldKey"
+                      class="sr-form-item"
+                      :class="{ 'sr-form-item--full': isFullWidth(m.field) }"
+                    >
+                      <label class="sr-form-label">
+                        {{ m.label }}
+                        <span v-if="m.required" class="sr-req">*</span>
+                      </label>
+                      <n-switch v-if="m.fieldType === 'BOOLEAN'" disabled />
+                      <n-select
+                        v-else-if="isSingleChoice(m.fieldType)"
+                        disabled
+                        :options="selectOptions(m)"
+                        placeholder="请选择"
+                      />
+                      <n-select
+                        v-else-if="isMultiChoice(m.fieldType)"
+                        multiple
+                        disabled
+                        :options="selectOptions(m)"
+                        placeholder="请选择"
+                      />
+                      <div v-else-if="m.fieldType === 'ATTACHMENT'" class="sr-attachment">
+                        点击上传附件
+                      </div>
+                      <n-input
+                        v-else
+                        disabled
+                        :placeholder="m.placeholder || ('请输入' + m.label)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <header class="sr-panel-head">
+                <h2 class="sr-panel-title">{{ draft.id ? '编辑表单' : '新建表单' }}</h2>
+                <span class="sr-save-hint" :class="{ saved, saving }">
+                  {{ saving ? '保存中…' : saved ? '已保存' : '未保存' }}
+                </span>
+              </header>
+
+              <n-spin :show="saving">
+                <div class="sr-edit-body">
+                  <div class="sr-edit-row">
+                    <label class="sr-edit-label">表单名称</label>
+                    <n-input
+                      v-model:value="draft.name"
+                      placeholder="如：猎头更新简历登记表"
+                      :maxlength="128"
+                    />
+                  </div>
+
+                  <div class="sr-edit-row">
+                    <label class="sr-edit-label">表单类型</label>
+                    <n-radio-group v-model:value="draft.formType">
+                      <n-radio value="registration">登记表</n-radio>
+                      <n-radio value="application">申请表</n-radio>
+                    </n-radio-group>
+                  </div>
+
+                  <div class="sr-edit-row">
+                    <label class="sr-edit-label">应用部门</label>
+                    <n-select
+                      v-model:value="draft.departments"
+                      multiple
+                      filterable
+                      tag
+                      placeholder="选择或输入部门"
+                      :options="deptOptions"
+                    >
+                      <template #empty>可直接输入部门名称后按回车添加</template>
+                    </n-select>
+                  </div>
+
+                  <div class="sr-edit-row">
+                    <label class="sr-edit-label">填写模式</label>
+                    <n-radio-group v-model:value="draft.mode">
+                      <n-radio value="default">默认</n-radio>
+                      <n-radio value="step">分步</n-radio>
+                    </n-radio-group>
+                  </div>
+
+                  <div class="sr-edit-fields">
+                    <div class="sr-edit-fields-head">字段配置（按分组）</div>
+                    <div
+                      v-for="grp in groupedAllFields"
+                      :key="grp.name"
+                      class="sr-edit-group"
+                    >
+                      <div class="sr-form-group-title">{{ grp.name }}</div>
+                      <div
+                        v-for="item in grp.items"
+                        :key="item.fieldKey"
+                        class="sr-field-row"
+                      >
+                        <div class="sr-field-meta">
+                          <span class="sr-field-label">{{ item.label }}</span>
+                          <span class="sr-type-tag">{{ fieldTypeLabel(item.fieldType) }}</span>
+                        </div>
+                        <div class="sr-field-toggles">
+                          <n-switch
+                            :value="item.enabled"
+                            size="small"
+                            @update:value="onFieldEnabledChange(item.fieldKey, item.group, $event)"
+                          />
+                          <span class="sr-toggle-label">显示</span>
+                          <n-switch
+                            :value="item.required"
+                            size="small"
+                            :disabled="!item.enabled"
+                            @update:value="onFieldRequiredChange(item.fieldKey, item.group, $event)"
+                          />
+                          <span class="sr-toggle-label" :class="{ disabled: !item.enabled }">必填</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </n-spin>
+            </template>
+          </div>
+
+          <template v-if="editing">
+            <div class="sr-edit-actions">
+              <n-button tertiary @click="cancelEdit">取消</n-button>
+              <n-button type="primary" :loading="saving" @click="saveEdit">
+                保存表单
+              </n-button>
+            </div>
+          </template>
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -409,14 +416,24 @@ function onAddForm() {
   saved.value = true
 }
 
-function onFieldEnabledChange(item: { fieldKey: string; enabled: boolean }) {
-  if (!item.enabled) {
-    const f = draft.value.fields.find((x) => x.fieldKey === item.fieldKey)
-    if (f) f.required = false
+function getOrCreateDraftField(fieldKey: string, group: string): RegistrationFormField {
+  let f = draft.value.fields.find((x) => x.fieldKey === fieldKey)
+  if (!f) {
+    f = { fieldKey, enabled: true, required: false, group }
+    draft.value.fields.push(f)
   }
+  return f
+}
+
+function onFieldEnabledChange(fieldKey: string, group: string, enabled: boolean) {
+  const f = getOrCreateDraftField(fieldKey, group)
+  f.enabled = enabled
+  if (!enabled) f.required = false
   saved.value = false
 }
-function onFieldRequiredChange() {
+function onFieldRequiredChange(fieldKey: string, group: string, required: boolean) {
+  const f = getOrCreateDraftField(fieldKey, group)
+  f.required = required
   saved.value = false
 }
 
@@ -508,20 +525,63 @@ onMounted(load)
 </script>
 
 <style scoped>
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-6);
+  box-sizing: border-box;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .sr-title-row { display: flex; align-items: center; gap: var(--space-2); }
 .page-subtitle { margin: var(--space-2) 0 0; max-width: 720px; }
 
 .sr-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) 1fr;
+  grid-template-columns: 1fr;
   gap: var(--space-4);
   align-items: start;
+}
+@media (min-width: 1024px) {
+  .sr-grid {
+    grid-template-columns: minmax(300px, 360px) 1fr;
+    height: 100%;
+    align-items: stretch;
+  }
 }
 @media (max-width: 1024px) {
   .sr-grid { grid-template-columns: 1fr; }
 }
 
-.sr-list, .sr-preview { padding: var(--space-4); }
+.sr-list, .sr-preview {
+  padding: var(--space-4);
+  min-height: 0;
+}
+@media (min-width: 1024px) {
+  .sr-list, .sr-preview {
+    overflow-y: auto;
+    height: 100%;
+  }
+}
+
+.sr-preview {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.sr-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
 
 .sr-panel-head {
   display: flex;
@@ -650,5 +710,13 @@ onMounted(load)
 .sr-toggle-label { font-size: var(--text-meta); color: var(--ink-soft); }
 .sr-toggle-label.disabled { color: var(--ink-faint); }
 
-.sr-edit-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.sr-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-hairline);
+  background: var(--glass-bg-card);
+}
 </style>
