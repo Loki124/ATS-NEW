@@ -20,9 +20,10 @@
       </div>
     </div>
 
-    <div class="sr-grid">
-      <!-- 左：配置 -->
-      <section class="glass-card sr-config">
+    <div class="page-body">
+      <div class="sr-grid">
+        <!-- 左：配置 -->
+        <section class="glass-card sr-config">
         <header class="sr-panel-head">
           <h2 class="sr-panel-title">简历字段</h2>
           <span class="sr-save-hint" :class="{ saved, saving }">{{ saving ? '保存中…' : saved ? '已自动保存' : '未保存' }}</span>
@@ -154,6 +155,7 @@
           </div>
         </div>
       </section>
+      </div>
     </div>
   </div>
 </template>
@@ -312,11 +314,36 @@ async function loadConfigIntoState() {
 </script>
 
 <style scoped>
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.page-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .sr-grid {
   display: grid;
   grid-template-columns: minmax(320px, 380px) 1fr;
   gap: var(--space-4);
   align-items: start;
+}
+@media (min-width: 1024px) {
+  .sr-grid {
+    height: 100%;
+    align-items: stretch;
+  }
+  .sr-config,
+  .sr-preview {
+    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
+  }
 }
 @media (max-width: 1024px) {
   .sr-grid { grid-template-columns: 1fr; }
