@@ -51,6 +51,8 @@
                 class="dc-strategy-select"
                 :options="s.options"
                 :value="s.value"
+                :consistent-menu-width="false"
+                :menu-props="{ class: 'dc-merge-menu' }"
                 @update:value="(v: string) => onStrategyChange(s.key, v)"
               />
             </div>
@@ -203,15 +205,17 @@
                 :key="item.key"
                 class="dc-check"
                 :class="{ 'dc-check--on': isSelected(item.key) }"
+                @click="toggleItem(item.key, !isSelected(item.key))"
               >
                 <n-checkbox
                   :checked="isSelected(item.key)"
                   @update:checked="(v: boolean) => toggleItem(item.key, v)"
+                  @click.stop
                 />
                 <span class="dc-check-label">{{ item.label }}</span>
                 <n-tooltip trigger="hover" placement="top">
                   <template #trigger>
-                    <n-icon :component="HelpCircleOutline" class="dc-check-hint" />
+                    <n-icon :component="HelpCircleOutline" class="dc-check-hint" @click.stop />
                   </template>
                   {{ item.hint }}
                 </n-tooltip>
@@ -656,7 +660,7 @@ onMounted(loadAll)
 }
 .dc-strategy {
   display: grid;
-  grid-template-columns: 28px 1fr 320px;
+  grid-template-columns: 28px 1fr minmax(320px, 440px);
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) 0;
@@ -749,5 +753,18 @@ onMounted(loadAll)
   .dc-strategy-select { grid-column: 1 / -1; }
   .dc-window-select { width: 100%; }
   .dc-check-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<!-- 合并策略下拉菜单被 teleport 到 body，scoped 样式无法命中，故用全局块覆盖省略号截断 -->
+<style>
+.dc-merge-menu {
+  max-width: 420px;
+}
+.dc-merge-menu .n-base-select-option__content {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.45;
 }
 </style>
