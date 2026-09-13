@@ -7,12 +7,9 @@
           配置候选人信息登记表的查看权限、使用范围、标准简历样式，以及在不同招聘场景下的登记表与样式联动。
         </p>
       </div>
-      <div class="page-header-actions">
-        <n-button tertiary size="small" :loading="saving" @click="saveConfig">保存设置</n-button>
-      </div>
     </div>
 
-    <div class="cit-stack">
+    <div class="cit-stack page-body">
       <!-- 权限 / 使用范围 -->
       <section class="glass-card cit-section">
         <h2 class="cit-section-title">登记表权限设置</h2>
