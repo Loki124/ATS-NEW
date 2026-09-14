@@ -73,9 +73,35 @@ class FieldACLViewSet(AuditMixin, viewsets.ModelViewSet):
     def audit(self, request):
         """GET /field-acl/audit - ACL 访问审计日志。
 
-        TBD (已知待办): 审计日志 infra 尚未建设 —— 目前既没有 ACL 访问审计表,
-        也没有在 FieldAclService.apply_acl 里埋点记录字段访问。为了让前端页面
-        不再 404 并能正常渲染, 这里诚实返回空数组。
-        后续接入 apply_acl 的访问记录 (写入审计表) 后, 再在此处查询并填充数据。
+        读取 FieldAclAccessLog 表 (由 FieldAclSerializerMixin 在 HTTP 序列化时
+        按 (request, entity) 去重埋点写入)。可选查询参数: entity / username。
+        返回最近 500 条 (按时间倒序)。
         """
-        return Response({'success': True, 'data': []})
+        from .models import FieldAclAccessLog
+
+        queryset = FieldAclAccessLog.objects.all()
+
+        entity = request.query_params.get('entity')
+        if entity:
+            queryset = queryset.filter(entity=entity)
+
+        username = request.query_params.get('username')
+        if username:
+            queryset = queryset.filter(username__icontains=username)
+
+        rows = [
+            {
+                'id': r.id,
+                'entity': r.entity,
+                'user_id': r.user_id,
+                'username': r.username,
+                'role_codes': r.role_codes,
+                'masked_fields': r.masked_fields,
+                'hidden_fields': r.hidden_fields,
+                'request_path': r.request_path,
+                'client_ip': r.client_ip,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in queryset.order_by('-created_at')[:500]
+        ]
+        return Response({'success': True, 'data': rows})

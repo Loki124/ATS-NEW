@@ -20,6 +20,7 @@ class TalentPoolEntryListSerializer(FieldAclSerializerMixin, serializers.ModelSe
     等于绕开了 Candidate 序列化器上的脱敏。
     """
     acl_entity = 'candidate'
+    acl_strict = True  # HTTP API 序列化器: 即便意外没拿到 request context 也 fail-closed 脱敏
 
     candidate_name = serializers.CharField(source='candidate.name', read_only=True, default='')
     candidate_phone = serializers.CharField(source='candidate.phone', read_only=True, default='')

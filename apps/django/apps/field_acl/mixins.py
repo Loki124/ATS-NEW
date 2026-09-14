@@ -17,10 +17,11 @@
 
 行为约定:
   - 只影响**输出** (to_representation), 不影响 create/update 的入参校验
-  - superuser / SUPER_ADMIN 角色不脱敏
-  - serializer 没有 request context 时 (内部服务调用、管理命令、导出任务)
-    不脱敏 —— 这些场景没有"当前用户"概念, 脱敏了反而会把脏数据写回业务流程。
-    需要脱敏的内部场景应显式传 context={'request': request}。
+  - superuser / SUPER_ADMIN 角色不脱敏 (但访问仍记审计)
+  - ``acl_strict`` 默认 True (fail-closed): 拿不到 request context 时 **宁可多脱敏
+    也不漏明文**, 防止未来 view 忘传 context 又漏一次明文 (BUG-2 / QA 严过关)。
+    内部导出/同步等确需明文输出的场景请显式设 ``acl_strict = False``
+    (或正常传 context={'request': request} —— 有 context 时走正常按角色评估)。
 """
 from __future__ import annotations
 
@@ -41,9 +42,9 @@ class FieldAclSerializerMixin:
 
     #: 对应 FieldACL.entity, 空字符串表示不启用 ACL
     acl_entity: str = ''
-    #: True 时, 拿不到 request context 也 fail-closed 脱敏 (防未来 view 忘传 context 又漏明文)。
-    #: False (默认) 保持原语义: 无 context = 内部调用, 不做脱敏 (导出/同步等场景需要明文)。
-    acl_strict: bool = False
+    #: True (默认) 时, 拿不到 request context 也 fail-closed 脱敏 (防未来 view 忘传
+    #: context 又漏明文)。内部导出/同步等确需明文输出的场景请显式设 acl_strict = False。
+    acl_strict: bool = True
 
     def to_representation(self, instance: Any) -> Dict[str, Any]:
         data = super().to_representation(instance)
@@ -53,7 +54,7 @@ class FieldAclSerializerMixin:
 
         request = self.context.get('request') if hasattr(self, 'context') else None
         if request is None:
-            # 无请求上下文: 若 acl_strict 则 fail-closed (宁可多脱敏也不泄漏),
+            # 无请求上下文: 默认 acl_strict=True 即 fail-closed (宁可多脱敏也不泄漏),
             # 防止未来有 view 实例化序列化器忘传 context 又漏一次明文 (见 BUG-2 / QA 严过关)。
             # 内部导出/同步等确需明文输出的场景请显式设 acl_strict = False (或传 context)。
             if self.acl_strict:
@@ -62,7 +63,7 @@ class FieldAclSerializerMixin:
 
         user = getattr(request, 'user', None)
         try:
-            return FieldAclService.apply_acl(entity, data, user)
+            return FieldAclService.apply_acl(entity, data, user, request=request)
         except Exception:  # noqa: BLE001 — ACL 出错绝不能让业务接口 500
             logger.exception(
                 'Field ACL 应用失败, 已降级为「全部脱敏」: entity=%s user=%s',
