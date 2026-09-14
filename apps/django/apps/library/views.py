@@ -61,7 +61,7 @@ class MajorViewSet(viewsets.ReadOnlyModelViewSet):
 class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
     """院校库 — 数据由 ``manage.py import_schools`` 导入（院校库.xlsx）。
 
-    过滤参数：keyword（名称/代码/地址）、educationLevel、schoolType、
+    过滤参数：keyword（名称/代码/地址/曾用名）、educationLevel、schoolType、
     schoolCategory（公办/民办）、province、tag（校准标签 contains）。
     """
 
@@ -76,10 +76,12 @@ class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
         qs = self.get_queryset()
         keyword = request.query_params.get('keyword')
         if keyword:
+            # 曾用名也要能被搜到：候选人简历上写的往往是更名前的校名
             qs = qs.filter(
                 Q(name__icontains=keyword)
                 | Q(code__icontains=keyword)
                 | Q(location__icontains=keyword)
+                | Q(former_names__icontains=keyword)
             )
         edu = request.query_params.get('educationLevel')
         if edu:

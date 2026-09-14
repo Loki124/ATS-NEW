@@ -16,6 +16,7 @@ class School(SoftDeleteModel):
       school_category ← institution_nature 办学性质（公办/民办）
       affiliated_to   ← affiliated_to     主管部门（省教育厅/教育部…）
       tags            ← 校准标签          '|' 分隔（双一流/985/211/双万计划…）
+      former_names    ← 曾用名            '|' 分隔（见 import_schools 的曾用名规范）
     """
 
     id = models.CharField(max_length=32, primary_key=True)
@@ -29,6 +30,7 @@ class School(SoftDeleteModel):
     school_category = models.CharField(max_length=50, blank=True, default='')
     affiliated_to = models.CharField(max_length=100, blank=True, default='', help_text='主管部门')
     tags = models.CharField(max_length=300, blank=True, default='', help_text='校准标签，| 分隔')
+    former_names = models.CharField(max_length=300, blank=True, default='', help_text='曾用名，| 分隔')
     status = models.CharField(max_length=20, default='ACTIVE')
 
     class Meta:

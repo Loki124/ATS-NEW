@@ -28,6 +28,7 @@ export interface School {
   schoolCategory?: string;
   affiliatedTo?: string;
   tags?: string; // '|' 分隔，如 985|211|双一流
+  formerNames?: string; // 曾用名，'|' 分隔
   status?: string;
 }
 

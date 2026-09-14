@@ -23,7 +23,7 @@ class SchoolSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'code', 'location', 'province', 'city',
             'education_level', 'school_type', 'school_category',
-            'affiliated_to', 'tags', 'status',
+            'affiliated_to', 'tags', 'former_names', 'status',
         ]
 
 

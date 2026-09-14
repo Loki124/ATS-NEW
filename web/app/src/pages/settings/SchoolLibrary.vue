@@ -199,7 +199,25 @@ const loading = ref(false);
 
 const columns = [
   { title: '代码', key: 'code', width: 100 },
-  { title: '院校名称', key: 'name', width: 200, render: (row: School) => h('span', { style: 'font-weight: 500' }, row.name) },
+  {
+    title: '院校名称',
+    key: 'name',
+    width: 200,
+    render: (row: School) => h('span', { style: 'font-weight: 500' }, row.name),
+  },
+  {
+    // 曾用名：更名前的校名，搜索关键词也会命中它（简历上常写旧校名）
+    title: '曾用名',
+    key: 'formerNames',
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (row: School) => {
+      const v = (row.formerNames || '').split('|').filter(Boolean).join('、');
+      return v
+        ? h('span', { style: 'color: var(--n-400, #909399)' }, v)
+        : '-';
+    },
+  },
   {
     title: '教育层次',
     key: 'educationLevel',
