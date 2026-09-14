@@ -626,6 +626,142 @@ class _DataEnvelopeMixin:
         return Response({'data': serializer.data})
 
 
+# 2026-09-15 三模块默认预设字段 (兵哥: 自行调研决定)
+# 进入需求/职位/候选人字段管理 (ensure-default) 时幂等 seed; 字段键固定,
+# 全部经现有字段 CRUD 可编辑/删除。存在性判断含软删记录 → 管理员删过的预设不会复活。
+# 设计依据: ATS 招聘业务语义 (招聘需求/职位/候选人三模块的常用补充字段)。
+DEFAULT_PRESET_FIELDS: dict[str, list[dict]] = {
+    'Demand': [  # 招聘需求
+        {'field_key': 'headcount', 'label': '招聘名额', 'label_en': 'Headcount',
+         'field_type': 'NUMBER', 'is_required': True, 'group_name': '需求基础信息',
+         'placeholder': '如 5', 'validation': {'min': 1}},
+        {'field_key': 'employment_type', 'label': '用工类型', 'label_en': 'Employment Type',
+         'field_type': 'SELECT', 'is_required': True, 'group_name': '需求基础信息',
+         'options': [
+             {'value': 'full_time', 'label': '全职'},
+             {'value': 'intern', 'label': '实习'},
+             {'value': 'part_time', 'label': '兼职'},
+             {'value': 'outsource', 'label': '外包'},
+             {'value': 'dispatch', 'label': '劳务派遣'},
+         ]},
+        {'field_key': 'priority', 'label': '优先级', 'label_en': 'Priority',
+         'field_type': 'SELECT', 'is_required': True, 'group_name': '需求基础信息',
+         'options': [
+             {'value': 'P0', 'label': 'P0-战略'},
+             {'value': 'P1', 'label': 'P1-重要'},
+             {'value': 'P2', 'label': 'P2-常规'},
+         ]},
+        {'field_key': 'expected_onboard_date', 'label': '期望到岗日期', 'label_en': 'Expected Onboard Date',
+         'field_type': 'DATE', 'is_required': False, 'group_name': '需求基础信息'},
+        {'field_key': 'salary_budget', 'label': '薪资预算(元/月)', 'label_en': 'Salary Budget',
+         'field_type': 'NUMBER', 'is_required': False, 'group_name': '需求基础信息',
+         'placeholder': '如 20000'},
+        {'field_key': 'hire_reason', 'label': '招聘理由', 'label_en': 'Hiring Reason',
+         'field_type': 'TEXT', 'is_required': False, 'group_name': '需求基础信息'},
+    ],
+    'Position': [  # 职位
+        {'field_key': 'job_level', 'label': '职级', 'label_en': 'Job Level',
+         'field_type': 'SELECT', 'is_required': False, 'group_name': '职位基础信息',
+         'options': [
+             {'value': 'junior', 'label': '初级'},
+             {'value': 'mid', 'label': '中级'},
+             {'value': 'senior', 'label': '高级'},
+             {'value': 'staff', 'label': '资深'},
+             {'value': 'expert', 'label': '专家'},
+             {'value': 'manager', 'label': '管理'},
+         ]},
+        {'field_key': 'work_city', 'label': '工作城市', 'label_en': 'Work City',
+         'field_type': 'TEXT', 'is_required': False, 'group_name': '职位基础信息',
+         'placeholder': '如 上海'},
+        {'field_key': 'remote_allowed', 'label': '是否支持远程', 'label_en': 'Remote Allowed',
+         'field_type': 'BOOLEAN', 'is_required': False, 'group_name': '职位基础信息'},
+        {'field_key': 'salary_min', 'label': '薪资下限(元/月)', 'label_en': 'Salary Min',
+         'field_type': 'NUMBER', 'is_required': False, 'group_name': '职位基础信息'},
+        {'field_key': 'salary_max', 'label': '薪资上限(元/月)', 'label_en': 'Salary Max',
+         'field_type': 'NUMBER', 'is_required': False, 'group_name': '职位基础信息'},
+        {'field_key': 'headcount_type', 'label': '编制类型', 'label_en': 'Headcount Type',
+         'field_type': 'SELECT', 'is_required': False, 'group_name': '职位基础信息',
+         'options': [
+             {'value': 'regular', 'label': '正式编制'},
+             {'value': 'outsource', 'label': '外包编制'},
+             {'value': 'intern', 'label': '实习编制'},
+         ]},
+    ],
+    'Candidate': [  # 候选人
+        {'field_key': 'current_company', 'label': '当前公司', 'label_en': 'Current Company',
+         'field_type': 'TEXT', 'is_required': False, 'group_name': '候选人补充信息',
+         'placeholder': '如 腾讯'},
+        {'field_key': 'current_title', 'label': '当前职位', 'label_en': 'Current Title',
+         'field_type': 'TEXT', 'is_required': False, 'group_name': '候选人补充信息',
+         'placeholder': '如 后端工程师'},
+        {'field_key': 'years_experience', 'label': '工作年限', 'label_en': 'Years of Experience',
+         'field_type': 'NUMBER', 'is_required': False, 'group_name': '候选人补充信息',
+         'validation': {'min': 0}},
+        {'field_key': 'highest_education', 'label': '最高学历', 'label_en': 'Highest Education',
+         'field_type': 'SELECT', 'is_required': False, 'group_name': '候选人补充信息',
+         'options': [
+             {'value': 'college', 'label': '大专'},
+             {'value': 'bachelor', 'label': '本科'},
+             {'value': 'master', 'label': '硕士'},
+             {'value': 'phd', 'label': '博士'},
+             {'value': 'other', 'label': '其他'},
+         ]},
+        {'field_key': 'expected_salary', 'label': '期望薪资(元/月)', 'label_en': 'Expected Salary',
+         'field_type': 'NUMBER', 'is_required': False, 'group_name': '候选人补充信息'},
+        {'field_key': 'source_channel', 'label': '简历来源', 'label_en': 'Source Channel',
+         'field_type': 'SELECT', 'is_required': False, 'group_name': '候选人补充信息',
+         'options': [
+             {'value': 'referral', 'label': '内部推荐'},
+             {'value': 'headhunter', 'label': '猎头推荐'},
+             {'value': 'job_board', 'label': '招聘网站'},
+             {'value': 'campus', 'label': '校园招聘'},
+             {'value': 'social', 'label': '社会招聘'},
+             {'value': 'other', 'label': '其他'},
+         ]},
+        {'field_key': 'available_date', 'label': '可到岗日期', 'label_en': 'Available Date',
+         'field_type': 'DATE', 'is_required': False, 'group_name': '候选人补充信息'},
+    ],
+}
+
+
+def _seed_preset_fields(resource: str, module: 'FieldModule') -> int:
+    """幂等 seed 三模块默认预设字段。
+
+    - 存在性判断含软删记录 (``DynamicField.objects`` 为默认管理器, 软删记录仍在),
+      故管理员删过的预设不会因再次 ensure-default 而复活。
+    - 已存在的 field_key 跳过; 仅新建缺失项 → 可安全重复调用。
+    Returns:
+        int: 本次新建的预设字段数量。
+    """
+    presets = DEFAULT_PRESET_FIELDS.get(resource, [])
+    created = 0
+    for idx, spec in enumerate(presets):
+        field_key = spec['field_key']
+        # 含软删的存在性检查: 任何 (resource, field_key) 记录都视为已处理
+        if DynamicField.objects.filter(resource=resource, field_key=field_key).exists():
+            continue
+        DynamicField.objects.create(
+            resource=resource,
+            field_key=field_key,
+            label=spec['label'],
+            label_en=spec.get('label_en', ''),
+            field_type=spec['field_type'],
+            is_required=spec.get('is_required', False),
+            is_visible=spec.get('is_visible', True),
+            placeholder=spec.get('placeholder', ''),
+            help_text=spec.get('help_text', ''),
+            default_value=spec.get('default_value', ''),
+            validation=spec.get('validation', {}),
+            order_index=spec.get('order_index', idx),
+            group_name=spec.get('group_name', ''),
+            module=module,
+            options=spec.get('options', []),
+            visibility_permission=spec.get('visibility_permission', 'ALL_VISIBLE'),
+        )
+        created += 1
+    return created
+
+
 class FieldModuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     """字段模块(父级) CRUD — 按 resource 过滤。"""
 
@@ -666,7 +802,11 @@ class FieldModuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
                 resource=resource, code=resource, name=name,
                 order_index=0, is_active=True,
             )
-        return Response({'data': FieldModuleSerializer(module).data})
+            # 2026-09-15 三模块默认预设字段: 模块首次创建时 seed (幂等, 不覆盖管理员改动)
+            seeded = _seed_preset_fields(resource, module)
+        else:
+            seeded = 0
+        return Response({'data': FieldModuleSerializer(module).data, 'seeded_fields': seeded})
 
 
 class FieldGroupViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
