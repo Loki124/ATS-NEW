@@ -93,3 +93,17 @@ class DataPermissionRule(TimestampedModel):
 
     def __str__(self):
         return f'DP[{self.dimension_type}:{self.dimension_value}] {self.level}'
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # 规则变更 → 清列级缓存 (行级不缓存, 无需处理)
+        if self.entity:
+            from .enforcement import clear_column_cache
+            clear_column_cache(self.entity)
+
+    def delete(self, *args, **kwargs):
+        entity = self.entity
+        super().delete(*args, **kwargs)
+        if entity:
+            from .enforcement import clear_column_cache
+            clear_column_cache(entity)

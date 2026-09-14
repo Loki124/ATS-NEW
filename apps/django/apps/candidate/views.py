@@ -106,7 +106,18 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         if blacklisted is not None:
             qs = qs.filter(is_blacklisted=blacklisted.lower() == 'true')
         # IDOR: 按部门 scope + 创建人 二次过滤 (Fix 1)
-        qs = self.scope_queryset(qs)
+        # 数据权限规则 (RBAC 复核 #9 补全): 若当前用户有生效的行级规则, 以其为准;
+        # 否则沿用 scope_resolver 旧引擎 (路径 A, 不破坏既有逻辑).
+        from apps.data_permission.enforcement import DataPermissionEnforcement
+        dp_q = DataPermissionEnforcement.row_filter_q(
+            self.request.user,
+            scope_field=self.scope_field,
+            creator_field=self.scope_creator_field,
+        )
+        if dp_q is not None:
+            qs = qs.filter(dp_q)
+        else:
+            qs = self.scope_queryset(qs)
         return qs.order_by('-created_at')
 
     def create(self, request, *args, **kwargs):

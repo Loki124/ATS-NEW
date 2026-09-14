@@ -32,6 +32,8 @@ from apps.common.masking import (
 from apps.core.models import User
 from apps.core.role_v2_query import user_role_codes
 
+from apps.data_permission.enforcement import DataPermissionEnforcement
+
 from .models import FieldACL, FieldPermission
 
 logger = logging.getLogger(__name__)
@@ -113,6 +115,10 @@ class FieldAclService:
             perm = FieldAclService._get_field_permission(
                 entity, field, user_roles, rules_map,
             )
+            # 叠加 DataPermissionRule 列级规则 (按 ROLE/DEPARTMENT/USER 维度), 取最严格
+            dp_perm = DataPermissionEnforcement.column_permission_for(user, entity, field)
+            if dp_perm is not None:
+                perm = DataPermissionEnforcement.most_restrictive(perm, dp_perm)
             if perm == FieldPermission.NONE:
                 # 完全不可见 - 移除字段
                 masked.pop(field, None)

@@ -73,17 +73,44 @@
   4. **列级字段权限**卡片：可编辑表格（实体/字段/权限/状态），新增行内草稿、保存、启停、删除（删除走 `n-popconfirm` 确认）。
 - 体验保障：保存/删除即时 `useMessage` 反馈；加载 `n-spin`；无整页刷新（最小干扰）；表单禁用态明确。
 
-### 2.6 Enforcement 集成（后续 task，不在本 PRD 落地范围）
-管理面已就绪，但**当前未强制生效**。落地 enforcement 的两种路径（建议二选一，不破坏现有引擎）：
-- **A（推荐，低风险）**：`scope_resolver.resolve_scope` 与 `FieldAclService.apply_acl` 增加一步——查询 `DataPermissionRule` 表，按 `dimension_type/value` 命中后合并（行级取最宽 scope 或按 priority；列级按 `(entity,field)` 取最严 permission）。保持现有 `FieldACL`/`UserRoleV2` 作为兜底。
-- **B（彻底统一，高改造）**：废弃 `FieldACL` + `scope_resolver` 的离散存储，全量迁移到 `DataPermissionRule`。成本高、回归面大，**不建议本次做**。
+### 2.6 Enforcement 集成（✅ 已落地，路径 A）
+
+管理面配置的规则现已**真实生效**，接入点为既有引擎的薄封装层，**不替换旧引擎**：
+
+- **行级**：`apps/data_permission/enforcement.py:row_filter_q` 接入 `apps/candidate/views.py` 的
+  `CandidateViewSet.get_queryset`。逻辑：若当前用户有**生效的行级规则**，以其为准（权威）；
+  否则回退 `ScopeQuerysetMixin.scope_queryset`（沿用 `scope_resolver`）。
+  - ALL 规则 → 全量可见（短路旧 scope）；
+  - SELF → `created_by = user`；
+  - DEPT / DEPT_AND_SUB / CUSTOM → 按视图的 `scope_field`（候选人=`referrer__department`）或
+    创建人 `department_id` 过滤，复用 `scope_resolver` 的部门树爬取（`_own_dept_ids` / `_dept_and_sub_ids`）。
+  - 多条规则取**并集（OR）**；维度键 = `USER:<pk>` / `DEPARTMENT:<dept_id>` / `ROLE:<role_code>`。
+- **列级**：`apps/data_permission/enforcement.py:column_permission_for` 接入
+  `apps/field_acl/services.py:FieldAclService.apply_acl`，在按 `FieldACL` 判定之外，**再叠加**
+  `DataPermissionRule` 列级规则（按 ROLE/DEPARTMENT/USER 维度匹配当前用户），取**最严格**
+  （NONE > MASK > READ）。保留 `FieldACL` 旧规则兜底。
+- **缓存失效**：`DataPermissionRule.save()/delete()` 清对应实体的列级缓存（`data_perm:col:<entity>`），
+  避免规则变更后旧结果残留。
+- **超管 bypass**：与 `FieldACL`/`scope_resolver` 既有语义一致——`is_superuser` 不经 `DataPermissionRule`
+  限制（已在测试 `test_superuser_bypass` 锁定）。
+
+> 路径 B（废弃 FieldACL + scope_resolver、全量迁到 DataPermissionRule）成本高风险大，**本次不做**。
+
+**硬证据（非 shell is_valid）**：`apps/data_permission/tests/test_enforcement.py` 6 项集成测试
+走完整 DRF 请求链路全绿——
+1. 无规则 → 回退 `scope_resolver` SELF（看不到他人创建的数据）；
+2. DEPT 行级规则（部门维度）→ 仅见本部推荐人数据、过滤他部；
+3. 规则停用（status=0）→ 回退 SELF、不可见；启用后立即可见（证明是规则在驱动）；
+4. USER 维度 NONE → 详情接口不返回该字段；
+5. USER 维度 MASK → 字段值被脱敏（≠ 原文）；
+6. 超管 → 行级+列级均不受限。
 
 ### 2.7 验收标准
 - [ ] 超管可在控制台为「某角色/部门/用户」分别配置行级范围 + 多条列级字段规则；
 - [ ] 配置即时保存，界面反馈明确，无需刷新整页；
 - [ ] 删除有二次确认；停用立即可见状态标签；
-- [ ] `manage.py check` 0 issues；前端 `build:nocheck` 通过；
-- [ ] （enforcement task 完成后）对应维度的数据行/字段实际受限。
+- [x] `manage.py check` 0 issues；前端 `build:nocheck` 通过；
+- [x] （enforcement 已生效）对应维度的数据行/字段实际受限——6 项集成测试全绿。
 
 ### 2.8 边界与风险
 - `scope_payload` 为自由 JSON，前端做 `JSON.parse` 校验，后端未做 schema 强校验（建议 enforcement task 内补）。
