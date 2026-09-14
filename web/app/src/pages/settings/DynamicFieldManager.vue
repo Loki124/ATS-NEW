@@ -40,16 +40,31 @@
             <n-button @click="importModalVisible = true">导入字段</n-button>
           </n-space>
 
-          <n-data-table
-            :columns="fieldColumns"
-            :data="rows"
-            :loading="loading"
-            :pagination="fieldPagination"
-            :row-key="(row: any) => row.id"
-            size="small"
-            striped
-            flex-height
-          />
+          <!-- 分组卡片视图：按字段分组(FieldGroup)聚合，每组独立卡片 -->
+          <div class="field-groups">
+            <div v-for="g in groupedFields" :key="g.key" class="field-group-card">
+              <div class="field-group-head">
+                <span class="fg-title">{{ g.name }}</span>
+                <n-tag :bordered="false" size="small" type="info">全局</n-tag>
+                <n-button
+                  size="small" secondary type="primary"
+                  @click="openFieldCreate(g.key === 'ungrouped' ? null : g.key)"
+                >
+                  <template #icon><n-icon :component="AddOutline" /></template>添加字段
+                </n-button>
+              </div>
+              <n-data-table
+                :columns="fieldColumns"
+                :data="g.fields"
+                :loading="loading"
+                :pagination="false"
+                :row-key="(row: any) => row.id"
+                size="small"
+                striped
+              />
+            </div>
+            <n-empty v-if="!groupedFields.length && !loading" description="暂无字段" />
+          </div>
         </n-tab-pane>
 
         <!-- ============ 模块配置（仅 overview 模式） ============ -->
@@ -127,6 +142,9 @@
           <n-form-item label="字段名称" required>
             <n-input v-model:value="fieldForm.label" placeholder="e.g. 身份证号" />
           </n-form-item>
+          <n-form-item label="字段名称(英文)">
+            <n-input v-model:value="fieldForm.labelEn" placeholder="e.g. id_card_no" />
+          </n-form-item>
           <n-form-item label="字段类型" required>
             <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" />
           </n-form-item>
@@ -155,6 +173,21 @@
           <n-form-item label="帮助文本">
             <n-input v-model:value="fieldForm.helpText" placeholder="helpText" />
           </n-form-item>
+          <!-- 确认题专属字段：确认内容 + 确认声明（中英双语） -->
+          <template v-if="isConfirmType">
+            <n-form-item label="确认内容" required>
+              <n-input v-model:value="fieldForm.confirmationContent" type="textarea" placeholder="e.g. 本人承诺所填信息真实有效" />
+            </n-form-item>
+            <n-form-item label="确认内容(英文)">
+              <n-input v-model:value="fieldForm.confirmationContentEn" type="textarea" placeholder="e.g. I certify the information is true" />
+            </n-form-item>
+            <n-form-item label="确认声明">
+              <n-input v-model:value="fieldForm.confirmationDeclaration" type="textarea" placeholder="确认声明文案" />
+            </n-form-item>
+            <n-form-item label="确认声明(英文)">
+              <n-input v-model:value="fieldForm.confirmationDeclarationEn" type="textarea" placeholder="Declaration text (EN)" />
+            </n-form-item>
+          </template>
           <n-form-item label="显示">
             <n-switch v-model:value="fieldForm.isVisible" />
           </n-form-item>
@@ -193,6 +226,31 @@
           <n-space justify="end">
             <n-button @click="fieldModalVisible = false">取消</n-button>
             <n-button type="primary" class="gradient-btn" :loading="saving" @click="saveField">保存字段</n-button>
+          </n-space>
+        </template>
+      </n-modal>
+
+      <!-- ============ 字段权限管理 Modal ============ -->
+      <n-modal
+        v-model:show="permModalVisible"
+        preset="card"
+        title="字段权限管理"
+        style="width: 520px; max-width: 92vw;"
+      >
+        <p class="perm-desc">仅当满足以下条件时，候选人详情页才完整显示该附件</p>
+        <n-radio-group v-model:value="permForm.visibilityPermission">
+          <n-space vertical :size="12">
+            <n-radio
+              v-for="opt in VISIBILITY_PERMISSION_OPTIONS"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</n-radio>
+          </n-space>
+        </n-radio-group>
+        <template #action>
+          <n-space justify="end">
+            <n-button @click="permModalVisible = false">取消</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="permSaving" @click="savePermission">确定</n-button>
           </n-space>
         </template>
       </n-modal>
@@ -467,6 +525,7 @@ import FieldListOptions from '@/components/FieldListOptions.vue';
 import {
   listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
+  VISIBILITY_PERMISSION_OPTIONS,
   listModules, upsertModule, deleteModule,
   listGroups, upsertGroup, deleteGroup,
   listLinkageRules, upsertLinkageRule, deleteLinkageRule,
@@ -475,7 +534,7 @@ import {
   LINKAGE_ACTION_OPTIONS, LINKAGE_OP_OPTIONS, LINKAGE_CONDITION_MODE_OPTIONS,
   type FieldDefinition, type FieldType, type FieldModule, type FieldGroup, type FieldLinkageRule,
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
-  type LinkageConditionOp, type LinkageActionType,
+  type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
 } from '@/api/dynamic-field';
 
 const props = withDefaults(defineProps<{
@@ -533,15 +592,21 @@ const filterModule = ref<string>('');
 const filterGroup = ref<string>('');
 
 const fieldForm = reactive<{
-  id?: string; fieldKey: string; label: string; fieldType: FieldType;
+  id?: string; fieldKey: string; label: string; labelEn: string; fieldType: FieldType;
   moduleId: string | null; groupId: string | null;
   isRequired: boolean; isVisible: boolean; placeholder: string; helpText: string;
   orderIndex: number; options: { value: string; label: string }[];
+  confirmationContent: string; confirmationContentEn: string;
+  confirmationDeclaration: string; confirmationDeclarationEn: string;
+  visibilityPermission: VisibilityPermission;
 }>({
-  fieldKey: '', label: '', fieldType: 'TEXT',
+  fieldKey: '', label: '', labelEn: '', fieldType: 'TEXT',
   moduleId: null, groupId: null,
   isRequired: false, isVisible: true, placeholder: '', helpText: '',
   orderIndex: 0, options: [],
+  confirmationContent: '', confirmationContentEn: '',
+  confirmationDeclaration: '', confirmationDeclarationEn: '',
+  visibilityPermission: 'ALL_VISIBLE',
 });
 
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
@@ -554,7 +619,7 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   TEXT: 'default', NUMBER: 'info', DATE: 'success',
   SELECT: 'warning', MULTISELECT: 'warning', BOOLEAN: 'default',
   ATTACHMENT: 'info', ID_CARD: 'error', BANK_CARD: 'error', PHONE: 'error', EMAIL: 'error',
-  LIST_SINGLE: 'warning', LIST_MULTI: 'warning',
+  LIST_SINGLE: 'warning', LIST_MULTI: 'warning', CONFIRM: 'info',
 };
 
 // 列表型字段预览：切换单选/多选时同步预览值形状
@@ -563,29 +628,55 @@ watch(
   (t) => { fieldPreviewValue.value = t === 'LIST_MULTI' ? [] : ''; },
 );
 const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || fieldForm.fieldType === 'LIST_MULTI');
+const isConfirmType = computed(() => fieldForm.fieldType === 'CONFIRM');
+
+// 字段按分组(FieldGroup)聚合为卡片；无分组的归到「未分组」
+const groupedFields = computed(() => {
+  const map = new Map<string, { key: string; name: string; fields: FieldDefinition[] }>();
+  for (const row of rows.value) {
+    const gid = row.groupId || row.group?.id || '';
+    const gname = row.group?.name || row.groupName || '未分组';
+    if (!map.has(gid)) map.set(gid, { key: gid || 'ungrouped', name: gname, fields: [] });
+    map.get(gid)!.fields.push(row);
+  }
+  return Array.from(map.values());
+});
 
 const fieldColumns = computed(() => [
-  { title: '字段名称', key: 'label', width: 160, render: (row: FieldDefinition) => row.label },
-  { title: 'Key', key: 'fieldKey', width: 160, render: (row: FieldDefinition) => row.fieldKey },
+  { title: '字段名称', key: 'label', minWidth: 140, render: (row: FieldDefinition) => row.label },
+  {
+    title: '字段名称(英文)', key: 'labelEn', minWidth: 140,
+    render: (row: FieldDefinition) => row.labelEn || '-',
+  },
   {
     title: '类型', key: 'fieldType', width: 100,
     render: (row: FieldDefinition) => h(NTag, { size: 'small', type: FIELD_TYPE_COLOR[row.fieldType] || 'default' }, () => FIELD_TYPE_LABEL[row.fieldType] || row.fieldType),
   },
-  { title: '模块', key: 'module', width: 110, render: (row: FieldDefinition) => row.module?.name || '-' },
-  { title: '分组', key: 'group', width: 110, render: (row: FieldDefinition) => row.group?.name || row.groupName || '-' },
   {
-    title: '选项数', key: 'optionCount', width: 80,
-    render: (row: FieldDefinition) => (row.options?.length ?? 0) || '-',
+    title: '可见权限', key: 'visibilityPermission', width: 130,
+    render: (row: FieldDefinition) => {
+      const v = row.visibilityPermission || 'ALL_VISIBLE';
+      const type = v === 'MANAGER_HIDDEN' ? 'warning' : 'success';
+      return h(NTag, { size: 'small', type, bordered: false }, () => VISIBILITY_PERMISSION_LABEL[v]);
+    },
   },
   {
-    title: '操作', key: 'action', width: 160, fixed: 'right' as const,
-    render: (row: FieldDefinition) =>
-      h(NSpace, { size: 4 }, {
+    title: '操作', key: 'action', width: 220, fixed: 'right' as const,
+    render: (row: FieldDefinition) => {
+      const disabled = row.status === 'inactive';
+      return h(NSpace, { size: 4 }, {
         default: () => [
+          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => '管理权限' }),
           h(NButton, { size: 'tiny', quaternary: true, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
+          h(NButton, {
+            size: 'tiny', quaternary: true,
+            type: disabled ? 'primary' : 'default',
+            onClick: () => toggleFieldStatus(row),
+          }, { default: () => (disabled ? '启用' : '停用') }),
           h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteField(row) }, { default: () => '删除', icon: () => h(TrashOutline) }),
         ],
-      }),
+      });
+    },
   },
 ]);
 
@@ -622,31 +713,41 @@ function generateFieldKey(): string {
 
 function resetFieldForm() {
   Object.assign(fieldForm, {
-    id: undefined, fieldKey: generateFieldKey(), label: '', fieldType: 'TEXT',
+    id: undefined, fieldKey: generateFieldKey(), label: '', labelEn: '', fieldType: 'TEXT',
     moduleId: null, groupId: null,
     isRequired: false, isVisible: true, placeholder: '', helpText: '',
     orderIndex: rows.value.length, options: [],
+    confirmationContent: '', confirmationContentEn: '',
+    confirmationDeclaration: '', confirmationDeclarationEn: '',
+    visibilityPermission: 'ALL_VISIBLE',
   });
 }
 
-function openFieldCreate() {
+function openFieldCreate(groupId?: string | null) {
   fieldEditing.value = null;
   resetFieldForm();
   // embedded 模式：字段归属默认模块
   if (isEmbedded.value) fieldForm.moduleId = defaultModuleId.value;
+  // 从分组卡片「添加字段」进入时，预填该分组
+  if (groupId) fieldForm.groupId = groupId;
   fieldModalVisible.value = true;
 }
 
 function openFieldEdit(row: FieldDefinition) {
   fieldEditing.value = row;
   Object.assign(fieldForm, {
-    id: row.id, fieldKey: row.fieldKey, label: row.label, fieldType: row.fieldType,
+    id: row.id, fieldKey: row.fieldKey, label: row.label, labelEn: row.labelEn || '', fieldType: row.fieldType,
     moduleId: isEmbedded.value ? (defaultModuleId.value || row.moduleId || null) : (row.moduleId || null),
     groupId: row.groupId || null,
     isRequired: row.isRequired, isVisible: row.isVisible,
     placeholder: row.placeholder || '', helpText: row.helpText || '',
     orderIndex: row.orderIndex,
     options: (row.options || []).map((o) => ({ value: o.value, label: o.label })),
+    confirmationContent: row.confirmationContent || '',
+    confirmationContentEn: row.confirmationContentEn || '',
+    confirmationDeclaration: row.confirmationDeclaration || '',
+    confirmationDeclarationEn: row.confirmationDeclarationEn || '',
+    visibilityPermission: row.visibilityPermission || 'ALL_VISIBLE',
   });
   fieldModalVisible.value = true;
 }
@@ -660,11 +761,17 @@ async function saveField() {
     const payload: any = {
       // Key 由系统自动生成; 此处兜底防御 (极端情况下 fieldForm 被外部置空)
       fieldKey: fieldForm.fieldKey || generateFieldKey(),
-      label: fieldForm.label, fieldType: fieldForm.fieldType,
+      label: fieldForm.label, labelEn: fieldForm.labelEn, fieldType: fieldForm.fieldType,
       isRequired: fieldForm.isRequired, isVisible: fieldForm.isVisible,
       placeholder: fieldForm.placeholder, helpText: fieldForm.helpText,
       orderIndex: fieldForm.orderIndex,
       moduleId: fieldForm.moduleId || null, groupId: fieldForm.groupId || null,
+      // 2026-09-14 确认题 + 英文字段名 + 可见权限
+      confirmationContent: fieldForm.confirmationContent,
+      confirmationContentEn: fieldForm.confirmationContentEn,
+      confirmationDeclaration: fieldForm.confirmationDeclaration,
+      confirmationDeclarationEn: fieldForm.confirmationDeclarationEn,
+      visibilityPermission: fieldForm.visibilityPermission,
       id: fieldEditing.value?.id,
     };
     if (!fieldNeedsOptions.value) payload.options = [];
@@ -693,6 +800,50 @@ function confirmDeleteField(row: FieldDefinition) {
       } catch (e: any) { message.error('删除失败: ' + extractApiError(e)); }
     },
   });
+}
+
+// ============ 字段权限管理弹窗 ============
+const permModalVisible = ref(false);
+const permSaving = ref(false);
+const permTarget = ref<FieldDefinition | null>(null);
+const permForm = reactive<{ visibilityPermission: VisibilityPermission }>({ visibilityPermission: 'ALL_VISIBLE' });
+
+function openPermissionModal(row: FieldDefinition) {
+  permTarget.value = row;
+  permForm.visibilityPermission = row.visibilityPermission || 'ALL_VISIBLE';
+  permModalVisible.value = true;
+}
+
+async function savePermission() {
+  if (!permTarget.value) return;
+  permSaving.value = true;
+  try {
+    const updated = await upsertField(currentResource.value, {
+      id: permTarget.value.id,
+      visibilityPermission: permForm.visibilityPermission,
+    });
+    const idx = rows.value.findIndex((r) => r.id === updated.id);
+    if (idx >= 0) rows.value[idx] = updated;
+    message.success('已更新可见权限');
+    permModalVisible.value = false;
+  } catch (e: any) {
+    message.error('更新可见权限失败: ' + extractApiError(e));
+  } finally {
+    permSaving.value = false;
+  }
+}
+
+// 停用 / 启用（可逆操作，直接执行 + 乐观更新，无需二次确认）
+async function toggleFieldStatus(row: FieldDefinition) {
+  const next = row.status === 'inactive' ? 'active' : 'inactive';
+  try {
+    const updated = await upsertField(currentResource.value, { id: row.id, status: next });
+    const idx = rows.value.findIndex((r) => r.id === updated.id);
+    if (idx >= 0) rows.value[idx] = updated;
+    message.success(next === 'inactive' ? '已停用该字段' : '已启用该字段');
+  } catch (e: any) {
+    message.error('操作失败: ' + extractApiError(e));
+  }
 }
 
 // ============ 模块配置（仅 overview 模式使用） ============
@@ -1223,4 +1374,22 @@ onMounted(async () => {
   background: var(--color-bg-subtle); color: var(--color-text-secondary);
   font-size: 12px; display: flex; align-items: center; justify-content: center;
 }
+/* 字段定义：分组卡片视图 */
+.field-groups {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  overflow-y: auto; padding-right: var(--space-2); min-height: 0;
+}
+.field-group-card {
+  border: 1px solid var(--color-border); border-radius: 8px;
+  padding: var(--space-3); background: var(--color-bg);
+}
+.field-group-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.fg-title { font-weight: 600; font-size: var(--text-base); }
+.fg-spacer { flex: 1; }
+/* 字段权限管理弹窗 */
+.perm-desc { color: var(--color-text-secondary); margin-bottom: var(--space-3); line-height: 1.5; }
+.perm-radio { padding: var(--space-1) 0; }
 </style>

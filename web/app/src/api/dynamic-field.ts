@@ -18,7 +18,7 @@ api.interceptors.request.use((cfg) => {
 export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
-  | 'LIST_SINGLE' | 'LIST_MULTI';
+  | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM';
 
 export type LinkageConditionMode = 'ALL' | 'ANY';
 export type LinkageConditionOp = 'EQ' | 'NE' | 'IN' | 'NOT_IN' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'CONTAINS';
@@ -84,11 +84,15 @@ export interface FieldLinkageRule {
   updatedAt?: string;
 }
 
+export type VisibilityPermission = 'ALL_VISIBLE' | 'MANAGER_HIDDEN';
+
 export interface FieldDefinition {
   id: string;
   resource: string;
   fieldKey: string;
   label: string;
+  /** 字段名称(英文) — 2026-09-14 拆分增强 */
+  labelEn?: string | null;
   fieldType: FieldType;
   isRequired: boolean;
   isVisible: boolean;
@@ -104,6 +108,13 @@ export interface FieldDefinition {
   group?: FieldGroup | null;
   status?: string;
   options?: FieldOption[];
+  /** 确认题专属字段 — 2026-09-14 拆分增强 */
+  confirmationContent?: string | null;
+  confirmationContentEn?: string | null;
+  confirmationDeclaration?: string | null;
+  confirmationDeclarationEn?: string | null;
+  /** 可见权限 — 2026-09-14 拆分增强 */
+  visibilityPermission?: VisibilityPermission;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -238,6 +249,7 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '邮箱', value: 'EMAIL' },
   { label: '列表单选', value: 'LIST_SINGLE' },
   { label: '列表多选', value: 'LIST_MULTI' },
+  { label: '确认题', value: 'CONFIRM' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -246,6 +258,18 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   ATTACHMENT: '附件', ID_CARD: '身份证', BANK_CARD: '银行卡',
   PHONE: '手机号', EMAIL: '邮箱',
   LIST_SINGLE: '列表单选', LIST_MULTI: '列表多选',
+  CONFIRM: '确认题',
+};
+
+/** 可见权限枚举选项（字段权限管理弹窗） */
+export const VISIBILITY_PERMISSION_OPTIONS: { label: string; value: VisibilityPermission }[] = [
+  { label: '全员可见', value: 'ALL_VISIBLE' },
+  { label: '用人经理端不可见', value: 'MANAGER_HIDDEN' },
+];
+
+export const VISIBILITY_PERMISSION_LABEL: Record<VisibilityPermission, string> = {
+  ALL_VISIBLE: '全员可见',
+  MANAGER_HIDDEN: '用人经理端不可见',
 };
 
 export const LINKAGE_CONDITION_MODE_OPTIONS: { label: string; value: LinkageConditionMode }[] = [

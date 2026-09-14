@@ -112,6 +112,10 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             'is_visible', 'placeholder', 'help_text', 'default_value', 'validation',
             'order_index', 'group_name', 'status', 'options', 'module', 'group',
             'module_id', 'group_id',
+            # 2026-09-14 增强: 英文字段名 + 确认题内容/声明 + 可见权限
+            'label_en', 'confirmation_content', 'confirmation_content_en',
+            'confirmation_declaration', 'confirmation_declaration_en',
+            'visibility_permission',
         ]
         read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
 

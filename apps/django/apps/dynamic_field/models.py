@@ -7,6 +7,11 @@ from apps.common.models import TimestampedModel, SoftDeleteModel
 class DynamicField(TimestampedModel, SoftDeleteModel):
     """动态字段定义 — 允许管理员为不同 resource (Candidate/Position等) 自定义字段"""
 
+    class VisibilityPermission(models.TextChoices):
+        """字段可见权限（图3 权限管理弹窗的两个选项）。"""
+        ALL_VISIBLE = 'ALL_VISIBLE', '全员可见'
+        MANAGER_HIDDEN = 'MANAGER_HIDDEN', '用人经理端不可见'
+
     class FieldType(models.TextChoices):
         TEXT = 'TEXT', '文本'
         NUMBER = 'NUMBER', '数字'
@@ -23,12 +28,17 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         # 2026-09-09 新增列表型(非下拉, 选项以列表渲染, 容器宽度自适应横/纵)
         LIST_SINGLE = 'LIST_SINGLE', '列表单选'
         LIST_MULTI = 'LIST_MULTI', '列表多选'
+        # 2026-09-14 动态字段拆分后新增「确认题」(带确认内容与确认声明)
+        CONFIRM = 'CONFIRM', '确认题'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [
         FieldType.SELECT, FieldType.MULTISELECT,
         FieldType.LIST_SINGLE, FieldType.LIST_MULTI,
     ]
+
+    # 确认题类型(带确认内容/确认声明)
+    CONFIRM_TYPES = [FieldType.CONFIRM]
 
     id = models.CharField(
         max_length=32, primary_key=True, editable=False, help_text='唯一标识'
@@ -56,6 +66,16 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     )
     status = models.CharField(max_length=32, default='active')
     options = models.JSONField(default=list, blank=True, help_text='选项列表 [{value, label}]')
+    # 2026-09-14 动态字段拆分增强: 英文字段名 + 确认题内容/声明 + 可见权限
+    label_en = models.CharField(max_length=256, blank=True, default='', help_text='字段名称(英文)')
+    confirmation_content = models.TextField(blank=True, default='', help_text='确认题-确认内容(中文)')
+    confirmation_content_en = models.TextField(blank=True, default='', help_text='确认题-确认内容(英文)')
+    confirmation_declaration = models.TextField(blank=True, default='', help_text='确认题-确认声明(中文)')
+    confirmation_declaration_en = models.TextField(blank=True, default='', help_text='确认题-确认声明(英文)')
+    visibility_permission = models.CharField(
+        max_length=32, choices=VisibilityPermission.choices,
+        default=VisibilityPermission.ALL_VISIBLE, help_text='可见权限(字段权限管理弹窗)',
+    )
 
     class Meta:
         db_table = 'dynamic_fields'
