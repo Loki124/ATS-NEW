@@ -148,6 +148,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: ['SUPER_ADMIN'] } },
           // ===== V2 权限管理 4-tab (T20) =====
           { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          // ===== 数据权限管理（统一行级+列级，按 角色/部门/用户 维度）=====
+          { path: 'data-permission', name: 'DataPermissionSettings', component: () => import(/* webpackChunkName: "settings-data-permission" */ '../pages/settings/DataPermissionSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           // ===== G41 院校/公司信息库 =====
           { path: 'school-library', name: 'SchoolLibrary', component: () => import(/* webpackChunkName: "settings-school" */ '../pages/settings/SchoolLibrary.vue') },
           { path: 'company-library', name: 'CompanyLibrary', component: () => import(/* webpackChunkName: "settings-company-lib" */ '../pages/settings/CompanyLibrary.vue') },

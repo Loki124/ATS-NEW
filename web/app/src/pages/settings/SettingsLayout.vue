@@ -114,6 +114,7 @@ const subMenuOptions: MenuItem[] = [
         children: [
           { key: '/settings/department', label: '组织职责管理', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
           { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+          { key: '/settings/data-permission', label: '数据权限管理', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
           { key: '/settings/user-management', label: '团队成员管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
           { key: '/settings/user-groups', label: '用户组管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],

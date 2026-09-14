@@ -147,6 +147,8 @@ api_v1_patterns = [
 
     # 公共
     path('field-acl/', include('apps.field_acl.urls')),
+    # 2026-09-15: 数据权限管理（统一行级+列级, 按 角色/部门/用户 维度）— 管理面 CRUD
+    path('data-permissions/', include('apps.data_permission.urls')),
     # 2026-08-31: Phase 1 统一规则引擎只读 API（适配器读路径，零改动 legacy 写路径）
     path('rule-engine/', include('apps.rule_engine.urls')),
     # 2026-09-13: 重复候选人管理（合并规则 / 重复申请管理 / 候选人查重规则）
