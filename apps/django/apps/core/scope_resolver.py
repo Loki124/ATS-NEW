@@ -38,7 +38,9 @@ def resolve_scope(user, resource_code: str = None) -> dict:
     if not (user and user.is_authenticated):
         return {'management_unit_ids': []}
 
-    # L1: user 级显式配置
+    # L1: user 级显式配置 + 收集 role_codes
+    # ⚠️ P0-3 (CODE_QUALITY_AUDIT P0-3): V2 查询异常必须 fail-closed 到 SELF,
+    #    不可静默 pass 后落到 L3 租户配置 (若 GLOBAL_DEFAULT_DATA_SCOPE=='ALL' 会放行全量)。
     explicit_units = []
     role_codes = []
     try:
@@ -56,9 +58,10 @@ def resolve_scope(user, resource_code: str = None) -> dict:
                 role_codes.append(ur.role_code)
             except Exception:
                 logger.warning('UserRole.role_code 缺失 user_role_id=%s', getattr(ur, 'id', '?'))
-    except (OperationalError, ProgrammingError):
-        # V2 schema 未应用 → user_roles 表缺 V2 列. 跳到 L3.
-        pass
+    except (OperationalError, ProgrammingError) as e:
+        logger.exception('[scope_resolver] L1 user_roles 查询失败, fail-closed 到 SELF: %s', e)
+        return {'management_unit_ids': []}
+
     if explicit_units:
         return {'management_unit_ids': list(set(explicit_units))}
 
@@ -84,12 +87,15 @@ def resolve_scope(user, resource_code: str = None) -> dict:
                         return {'department_ids': sub}
                     continue
                 # SELF 走 L3/L4
-        except (OperationalError, ProgrammingError):
-            pass
-        except Exception:
-            pass
+        except (OperationalError, ProgrammingError) as e:
+            logger.exception('[scope_resolver] L2 roles 查询失败, fail-closed 到 SELF: %s', e)
+            return {'management_unit_ids': []}
+        except Exception as e:
+            # 非 DB 异常 (逻辑错误等) 同样 fail-closed, 不可静默放行
+            logger.exception('[scope_resolver] L2 role scope 计算异常, fail-closed 到 SELF: %s', e)
+            return {'management_unit_ids': []}
 
-    # L3: tenant 全局
+    # L3: tenant 全局 —— 仅当 L1/L2 正常完成才可达 (异常路径已在上方 fail-closed 返回)
     cfg = TenantConfig.objects.filter(
         config_key='GLOBAL_DEFAULT_DATA_SCOPE', system_code='recruit').first()
     if cfg and cfg.config_value == 'ALL':

@@ -54,3 +54,62 @@ def test_has_perm_superuser_bypass():
     User = get_user_model()
     u = User.objects.create_user(username='su', password='x', is_superuser=True)
     assert has_perm(u, 'recruit:candidate:list') is True
+
+
+# ===== P0-3 fail-open 回归锁定 (CODE_QUALITY_AUDIT P0-3) =====
+from unittest.mock import patch
+from django.db.utils import OperationalError
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_l1_db_error_fail_closed_to_self():
+    """P0-3: L1 user_roles 查询抛 OperationalError → fail-closed SELF, 不落到 L3 的 ALL."""
+    from apps.core.scope_resolver import resolve_scope
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    u = User.objects.create_user(username='l1fail', password='x')
+    with patch(
+        'apps.core.scope_resolver.UserRoleV2.objects.filter',
+        side_effect=OperationalError('simulated L1 failure'),
+    ):
+        result = resolve_scope(u, 'recruit:candidate:list')
+    assert result == {'management_unit_ids': []}
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_l2_db_error_fail_closed_to_self():
+    """P0-3: L2 roles 查询抛 OperationalError → fail-closed SELF, 不落 L3 的 ALL."""
+    from apps.core.scope_resolver import resolve_scope
+    from apps.core.models_permission_v2 import UserRoleV2
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    u = User.objects.create_user(username='l2fail', password='x')
+    UserRoleV2.objects.create(user_id=u.pk, role_code='SOME_ROLE', system_code='recruit')
+    with patch(
+        'apps.core.scope_resolver.RoleV2.objects.filter',
+        side_effect=OperationalError('simulated L2 failure'),
+    ):
+        result = resolve_scope(u, 'recruit:candidate:list')
+    assert result == {'management_unit_ids': []}
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_l3_tenant_all_still_grants_when_no_error():
+    """回归保护: 无异常时 L3 租户 GLOBAL_DEFAULT_DATA_SCOPE='ALL' 仍正常放行 (修复未误伤 happy path)."""
+    from apps.core.scope_resolver import resolve_scope
+    from apps.core.models_permission_v2 import TenantConfig
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    u = User.objects.create_user(username='tenantall', password='x')
+    TenantConfig.objects.create(
+        config_key='GLOBAL_DEFAULT_DATA_SCOPE', system_code='recruit',
+        config_value='ALL', description='test',
+    )
+    result = resolve_scope(u, 'recruit:candidate:list')
+    assert result == {'all': True}
