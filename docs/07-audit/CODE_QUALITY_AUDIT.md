@@ -584,7 +584,7 @@ TOP 5 文件：
 |--:|--------|:----:|:----:|:----:|:------:|
 | 1 | 修复 `vue-tsc` 10 个类型错误，恢复 `npm run build` | 1.0 人日 | **解锁所有类型治理工作**；消除"引用不存在文件"的定时炸弹 | ★★★★★ | **P0** |
 | 2 | 收敛 31 份 axios 实例为单一 `src/api/http.ts` | 1.5 人日 | 恢复全局 404/500 兜底；消灭 ~62 处重复块；统一 token 出口 | ★★★★★ | **P0** |
-| 3 | `core/scope_resolver.py` 补 `logger.exception` + fail-closed 兜底 | 0.5 人日 | 消除越权链路的静默 fail-open | ★★★★★ | **P0** |
+| 3 | `core/scope_resolver.py` 补 `logger.exception` + fail-closed 兜底 | 0.5 人日 | 消除越权链路的静默 fail-open | ★★★★★ | **P0** | ✅ **已修复** (ATS-NEW `43ba391`)：4 处补 `logger.exception`，L2 失败兜底改 `return {'management_unit_ids': []}`，加 3 条 pytest 锁定 |
 | 4 | 删除 `components/dashboard/index.ts:19` 的悬空 `EmptyState` 导出 | 0.1 人日 | 完成 EmptyState 统一；消除 TS2307 | ★★★★★ | **P0** |
 | 5 | 删除 10 个死模块（1,298 行）+ `utils/*.mjs`（221 行） | 0.5 人日 | 减 1,519 行；消除 `dict.ts`/`dictionary.ts` 双套陷阱 | ★★★★☆ | P1 |
 | 6 | 统一 API 返回约定（25 `return data` : 22 `return data.data`） | 1.5 人日 | 消除调用方心智负担；为后续生成 SDK/类型打基础 | ★★★★☆ | P1 |

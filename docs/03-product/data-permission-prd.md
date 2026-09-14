@@ -17,7 +17,7 @@
 | 3 | 部门/职位隐含授权 | `core/models.py`（`Department.leader/manager_2/hrbp` FK） | 建模为数据范围授权（管理单元/角色数据范围），不靠硬编码职位判断 |
 | 4 | `IsPositionRelated` 硬编码「同部门职位」 | `core/permissions.py` | 下沉为角色数据范围或命名资源权限，业务规则移出权限类 |
 | 5 | 前端只用 `meta.roles` 白名单，未消费 `/me` 资源码 | `web/app/src/router/index.ts`、`stores/user.ts` | 新增 `v-permission` 指令 / `usePermission()` 组合式消费 `resource_code`，UI 随权限自适应（最小权限 UI） |
-| 6 | `scope_resolver` fail-open | `core/scope_resolver.py`（异常落 `ALL` 兜底） | 异常时 fail-closed 默认 `SELF`（P0，已在 `CODE_QUALITY_AUDIT.md` 标注） |
+| 6 | `scope_resolver` fail-open | `core/scope_resolver.py`（异常落 `ALL` 兜底） | ✅ **已修复** (commit `43ba391`)：L1/L2 异常补 `logger.exception` 并 fail-closed 到 SELF，不再落到 L3 的 `ALL`；新增 3 条 pytest 锁定测试（P0 闭环） |
 | 7 | `RoleV2` 无层级 | `core/models_permission_v2.py:RoleV2`（无 `parent_role_id`） | （增强项）加 `parent_role_id` + `has_perm`/`resolve_scope` 继承，支持层级 RBAC |
 | 8 | `FieldACL` 覆盖不全 + 明文 + 无审计 | `field_acl/mixins.py`、`services.py`、`views.py`（`/field-acl/audit` 返回空） | 列级权限可全局强制 / 逐端点 strict；补访问审计 |
 | 9 | **行级与列级两套互不相干机制** | `core/scope_resolver.py`（行级） + `field_acl/*`（列级） | **统一为 `DataPermissionRule` 抽象（本次新增功能的核心缺口）** |
