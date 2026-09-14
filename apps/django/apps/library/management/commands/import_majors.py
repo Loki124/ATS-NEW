@@ -19,7 +19,11 @@ from django.db import transaction
 
 from apps.library.models import Major
 
-DEFAULT_FILE = os.path.expanduser(
+# 优先读随仓库的 data/ 副本（保证生产部署可直接跑），否则回落到下载目录
+_BUNDLED = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', '院校专业库（阳光高考）-工作表1.csv'
+)
+DEFAULT_FILE = _BUNDLED if os.path.exists(_BUNDLED) else os.path.expanduser(
     '~/Downloads/院校专业库（阳光高考）-工作表1.csv'
 )
 
