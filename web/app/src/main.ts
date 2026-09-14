@@ -4,6 +4,7 @@ import axios, { type AxiosResponse, type AxiosError } from 'axios'  // 2026-06-2
 import App from './App.vue'
 import router from './router'
 import { naivePlugin } from './plugins/naive'
+import { setupPermissionDirective } from './directives/permission'
 
 // Naive UI —— 见 plugins/naive.ts (统一注册, 测试可复用)
 
@@ -49,6 +50,8 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(naivePlugin)
+// 元素级最小权限指令 v-permission (消费后端 /me 的 resource_code 列表)
+setupPermissionDirective(app)
 
 // 2026-06-15: 在 mount 之前从 localStorage 同步恢复 user
 // 否则 router.beforeEach 跑时 userStore.user 还是 null,

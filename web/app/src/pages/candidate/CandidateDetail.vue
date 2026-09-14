@@ -145,7 +145,7 @@
                     <template #icon><n-icon :component="DownloadOutline" /></template>
                     下载简历
                   </n-button>
-                  <n-button @click="openEditResumeModal">编辑简历</n-button>
+                  <n-button v-permission="'recruit:candidate:edit'" @click="openEditResumeModal">编辑简历</n-button>
                 </n-space>
               </div>
               <div class="resume-preview">

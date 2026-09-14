@@ -17,6 +17,9 @@ export interface User {
   departmentId?: string | number
   /** RBAC 角色 codes 列表 — 真值, 后端 apps/core/views_auth.py 直接 emit */
   roles?: string[]
+  /** 资源码扁平列表 (resource_code, 如 'recruit:candidate:edit') — 后端 /me 按角色模板展开.
+   *  元素级最小权限 UI (v-permission 指令 / usePermission) 的判定依据. 超管拿全部码. */
+  permissions?: string[]
   /** 按 ROLE_PRIORITY 派生的便利字段, 给路由 guard / 顶栏 UI 用. 数组为空时为 null. */
   roleType?: string | null
   /** 用户 UI 偏好（菜单布局等），跟随账号 */
@@ -151,6 +154,7 @@ export const useUserStore = defineStore('user', () => {
       }
       const d = body.data
       const roles = d.roles ?? []
+      const permissions = d.permissions ?? []
       setUser({
         id: d.id,
         username: d.username,
@@ -160,6 +164,7 @@ export const useUserStore = defineStore('user', () => {
         employeeId: d.employeeId,
         departmentId: (d.department ?? undefined) as string | number | undefined,
         roles,
+        permissions,
         roleType: deriveRoleType(roles),
         uiSettings: d.uiSettings,
       })
