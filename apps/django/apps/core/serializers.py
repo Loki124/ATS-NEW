@@ -7,7 +7,7 @@ T30.175 (V2 cutover follow-up):
 """
 import re
 from rest_framework import serializers
-from .models import User, Department, Permission
+from .models import User, Department
 from django.db import transaction
 
 from .models_permission_v2 import PermissionResource, RoleV2, UserRoleV2  # noqa: F401

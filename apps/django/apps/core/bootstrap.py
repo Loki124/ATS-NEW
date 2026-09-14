@@ -48,7 +48,7 @@ BOOTSTRAP_SKIP_COMMANDS = frozenset({
     'collectstatic', 'createcachetable', 'check', 'diffsettings',
     # ---- 数据初始化 / 运维 ----
     'seed_v2_init', 'migrate_v2_data', 'migrate_v2_drop_old',
-    'init_demo_v2', 'init_demo_data',
+    'init_demo_v2',
     'flush', 'loaddata', 'dumpdata',
     'createsuperuser', 'changepassword', 'shell', 'dbshell', 'test',
 })

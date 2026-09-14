@@ -2,16 +2,11 @@
 
 - User: 用户（扩展 Django AbstractUser）
 - Department: 部门（树形结构）
-- Permission: V1 权限表（managed=False, T01.2 计划清理）
-- RolePermission: V1 角色-权限关联（managed=False, T01.2 计划清理）
 
-2026-08-03 (寇豆码 T01.1):
-- 删除 Role (db_table='roles') V1 影子模型 — 与 RoleV2 (db_table='roles') 同表冲突
-- 删除 UserRole (db_table='user_roles') V1 影子模型 — 与 UserRoleV2 (db_table='user_roles') 同表冲突
-- Permission / RolePermission 仍被 init_demo_data.py 与 migrate_v2_data.py 引用,
-  暂保留 (managed=False) 留 T01.2 处理
-- 调用 Role/UserRole 的管理命令 (migrate_v2_data.py / init_demo_data.py)
-  会因 ImportError 而失败, 这是 T01.2 范围
+2026-08-03 (寇豆码 T01.1): 删除 Role / UserRole / RolePermission V1 影子模型（与 V2 同名表冲突）.
+2026-09-11 (T01.2): 删除 Permission V1 模型, 单一真相源 = V2 PermissionResource;
+  init_demo_data.py 死文件已删（V1 Role/RolePermission 已被 DROP 且含 admin123 弱口令）;
+  migrate_v2_data.py 保留为优雅跳过的死命令（T01.2 将改读 *_v1_backup 表重写）.
 """
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
@@ -242,35 +237,6 @@ class Department(models.Model):
             descendants.extend(child.get_descendants())
         return descendants
 
-
-class Permission(models.Model):
-    """权限 (V1 残留)
-
-    2026-08-03 T01.1 (寇豆码): 暂保留, 因 init_demo_data.py 仍 import.
-    T01.2 会改为直接用 PermissionResource (V2 资源表) + 清理 init_demo_data.
-
-    不加 managed=False (避免 migration drift): 0001 已建好 `permissions` 表,
-    字段与本 model 一致, Django 自动管理. 等 T01.2 删除此 model 时再加
-    managed=False 防止误操作.
-    """
-    id = models.CharField(max_length=32, primary_key=True)
-    code = models.CharField(max_length=100, unique=True, verbose_name='权限编码', help_text='如 stage:create')
-    name = models.CharField(max_length=100, verbose_name='权限名称')
-    module = models.CharField(max_length=50, db_index=True, verbose_name='模块')
-    description = models.TextField(blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'permissions'
-        verbose_name = '权限'
-        verbose_name_plural = verbose_name
-
-    def save(self, *args, **kwargs):
-        from nanoid import generate as nanoid_generate
-        if not self.id:
-            self.id = nanoid_generate(size=21)
-        super().save(*args, **kwargs)
 
 
 class UserPreference(models.Model):
