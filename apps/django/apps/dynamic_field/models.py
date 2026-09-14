@@ -30,6 +30,8 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         LIST_MULTI = 'LIST_MULTI', '列表多选'
         # 2026-09-14 动态字段拆分后新增「确认题」(带确认内容与确认声明)
         CONFIRM = 'CONFIRM', '确认题'
+        # 2026-09-14 新增「多行文本」(长文本输入, 渲染为多行 textarea)
+        MULTILINE_TEXT = 'MULTILINE_TEXT', '多行文本'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [

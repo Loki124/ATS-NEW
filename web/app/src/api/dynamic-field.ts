@@ -18,7 +18,7 @@ api.interceptors.request.use((cfg) => {
 export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
-  | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM';
+  | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT';
 
 export type LinkageConditionMode = 'ALL' | 'ANY';
 export type LinkageConditionOp = 'EQ' | 'NE' | 'IN' | 'NOT_IN' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'CONTAINS';
@@ -259,6 +259,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   PHONE: '手机号', EMAIL: '邮箱',
   LIST_SINGLE: '列表单选', LIST_MULTI: '列表多选',
   CONFIRM: '确认题',
+  MULTILINE_TEXT: '多行文本',
 };
 
 /** 可见权限枚举选项（字段权限管理弹窗） */

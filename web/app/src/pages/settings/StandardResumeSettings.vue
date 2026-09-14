@@ -143,6 +143,14 @@
                   <div v-else-if="m.field.fieldType === 'ATTACHMENT'" class="sr-attachment">
                     点击上传附件
                   </div>
+                  <!-- 多行文本 -->
+                  <n-input
+                    v-else-if="m.field.fieldType === 'MULTILINE_TEXT'"
+                    type="textarea"
+                    disabled
+                    :rows="3"
+                    :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
+                  />
                   <!-- 文本/数字/日期/证件 等 -->
                   <n-input
                     v-else

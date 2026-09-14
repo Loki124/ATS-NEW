@@ -131,6 +131,13 @@
                         点击上传附件
                       </div>
                       <n-input
+                        v-else-if="m.fieldType === 'MULTILINE_TEXT'"
+                        type="textarea"
+                        disabled
+                        :rows="3"
+                        :placeholder="m.placeholder || ('请输入' + m.label)"
+                      />
+                      <n-input
                         v-else
                         disabled
                         :placeholder="m.placeholder || ('请输入' + m.label)"
