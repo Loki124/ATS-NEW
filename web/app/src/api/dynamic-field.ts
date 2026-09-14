@@ -250,6 +250,7 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '列表单选', value: 'LIST_SINGLE' },
   { label: '列表多选', value: 'LIST_MULTI' },
   { label: '确认题', value: 'CONFIRM' },
+  { label: '多行文本', value: 'MULTILINE_TEXT' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
