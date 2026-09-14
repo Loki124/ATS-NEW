@@ -3,7 +3,7 @@
 <div class="page-body">
     <div class="page-header">
       <h1 class="page-title">院校库</h1>
-      <p class="page-subtitle">G41 - 院校信息库 (985/211/重点本科)</p>
+      <p class="page-subtitle">院校信息库 — 覆盖本专科院校，含双一流 / 985 / 211 / 双万计划等标签</p>
     </div>
 
     <n-tabs v-model:value="activeTab" type="line" animated class="lib-tabs">
@@ -30,18 +30,45 @@
         </n-input>
         <n-select
           v-model:value="filters.educationLevel"
-          :options="EDUCATION_LEVEL_OPTIONS"
+          :options="schoolEduOptions"
           placeholder="教育层次"
           clearable
-          style="width: 140px"
+          style="width: 120px"
           @update:value="reload"
         />
         <n-select
           v-model:value="filters.schoolType"
-          :options="SCHOOL_TYPE_OPTIONS"
+          :options="schoolTypeOptions"
           placeholder="院校类型"
           clearable
-          style="width: 140px"
+          filterable
+          style="width: 130px"
+          @update:value="reload"
+        />
+        <n-select
+          v-model:value="filters.schoolCategory"
+          :options="schoolCategoryOptions"
+          placeholder="办学性质"
+          clearable
+          style="width: 120px"
+          @update:value="reload"
+        />
+        <n-select
+          v-model:value="filters.province"
+          :options="schoolProvinceOptions"
+          placeholder="省份"
+          clearable
+          filterable
+          style="width: 130px"
+          @update:value="reload"
+        />
+        <n-select
+          v-model:value="filters.tag"
+          :options="schoolTagOptions"
+          placeholder="院校标签"
+          clearable
+          filterable
+          style="width: 150px"
           @update:value="reload"
         />
         <n-button type="primary" @click="reload">搜索</n-button>
@@ -132,7 +159,7 @@ import { ref, h, onMounted, reactive, computed } from 'vue';
 import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
 import { SchoolOutline, OpenOutline, SearchOutline } from '@vicons/ionicons5';
 import {
-  searchSchools, getSchool, type School,
+  searchSchools, getSchool, getSchoolFacets, type School, type SchoolFacets,
   searchMajors, getMajorFacets, type Major,
 } from '@/api/library';
 
@@ -141,29 +168,32 @@ const message = useMessage();
 /** 当前 Tab：院校 / 专业 */
 const activeTab = ref('schools');
 
-const EDUCATION_LEVEL_OPTIONS = [
-  { label: '本科', value: '本科' },
-  { label: '专科', value: '专科' },
-  { label: '研究生', value: '研究生' },
-];
+// 筛选项一律取自后端 facets —— 真实导入的数据里院校类型是 综合/工科/师范…
+// 原先硬编码的 985/211/本科/专科 与数据完全不符（985/211 在「标签」里，不在类型里）。
+const schoolFacets = ref<SchoolFacets>({
+  schoolTypes: [], schoolCategories: [], educationLevels: [], provinces: [], tags: [],
+});
+const toSchoolOpts = (list: string[]) => list.map((v) => ({ label: v, value: v }));
+const schoolTypeOptions = computed(() => toSchoolOpts(schoolFacets.value.schoolTypes));
+const schoolEduOptions = computed(() => toSchoolOpts(schoolFacets.value.educationLevels));
+const schoolProvinceOptions = computed(() => toSchoolOpts(schoolFacets.value.provinces));
+const schoolCategoryOptions = computed(() => toSchoolOpts(schoolFacets.value.schoolCategories));
+const schoolTagOptions = computed(() => toSchoolOpts(schoolFacets.value.tags));
 
-const SCHOOL_TYPE_OPTIONS = [
-  { label: '985', value: '985' },
-  { label: '211', value: '211' },
-  { label: '本科', value: '本科' },
-  { label: '专科', value: '专科' },
-];
-
-const SCHOOL_CATEGORY_COLORS: Record<string, 'default' | 'success' | 'warning' | 'info' | 'error'> = {
-  综合: 'default',
-  理工: 'info',
-  师范: 'success',
-  财经: 'warning',
-  政法: 'error',
-  语言: 'success',
+/** 办学性质配色（公办/民办），区别于院校类型的学科属性 */
+const NATURE_COLORS: Record<string, 'default' | 'success' | 'warning' | 'info' | 'error'> = {
+  公办: 'success',
+  民办: 'warning',
 };
 
-const filters = reactive({ keyword: '', educationLevel: null as string | null, schoolType: null as string | null });
+const filters = reactive({
+  keyword: '',
+  educationLevel: null as string | null,
+  schoolType: null as string | null,
+  schoolCategory: null as string | null,
+  province: null as string | null,
+  tag: null as string | null,
+});
 const rows = ref<School[]>([]);
 const loading = ref(false);
 
@@ -183,18 +213,43 @@ const columns = [
     render: (row: School) => row.schoolType ? h(NTag, { size: 'small', type: 'success' }, () => row.schoolType) : '-',
   },
   {
-    title: '类别',
+    title: '办学性质',
     key: 'schoolCategory',
     width: 90,
     render: (row: School) => {
       const v = row.schoolCategory || '-';
-      const color = SCHOOL_CATEGORY_COLORS[v] || 'default';
+      const color = NATURE_COLORS[v] || 'default';
       return h(NTag, { size: 'small', type: color }, () => v);
     },
   },
   { title: '省份', key: 'province', width: 90 },
   { title: '城市', key: 'city', width: 90 },
-  { title: '地址', key: 'location', ellipsis: { tooltip: true } },
+  {
+    title: '主管部门',
+    key: 'affiliatedTo',
+    width: 140,
+    render: (row: School) => row.affiliatedTo || '-',
+  },
+  {
+    title: '标签',
+    key: 'tags',
+    width: 220,
+    render: (row: School) => {
+      const list = (row.tags || '').split('|').filter(Boolean);
+      if (!list.length) return '-';
+      const chips = list.slice(0, 2).map((t) =>
+        h(NTag, { size: 'small', type: 'info' }, () => t));
+      if (list.length > 2) {
+        chips.push(h('span', { style: 'font-size: 12px; color: var(--n-400, #909399)' }, `+${list.length - 2}`));
+      }
+      // 截断内容必须可查看完整信息（title 兜底）
+      return h('div', {
+        style: 'display: flex; align-items: center; gap: 4px; flex-wrap: wrap',
+        title: list.join('、'),
+      }, chips);
+    },
+  },
+  { title: '地址', key: 'location', width: 200, ellipsis: { tooltip: true } },
   {
     title: '操作',
     key: 'action',
@@ -216,11 +271,22 @@ async function reload() {
       keyword: filters.keyword || undefined,
       educationLevel: filters.educationLevel || undefined,
       schoolType: filters.schoolType || undefined,
+      schoolCategory: filters.schoolCategory || undefined,
+      province: filters.province || undefined,
+      tag: filters.tag || undefined,
     });
   } catch (e: any) {
     message.error('加载院校失败: ' + (e?.response?.data?.message || e.message));
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadSchoolFacets() {
+  try {
+    schoolFacets.value = await getSchoolFacets();
+  } catch {
+    /* 筛选项加载失败不阻塞主流程，下拉为空即可 */
   }
 }
 
@@ -313,6 +379,7 @@ async function loadMajorFacets() {
 }
 
 onMounted(() => {
+  loadSchoolFacets();
   reload();
   loadMajorFacets();
   loadMajors();

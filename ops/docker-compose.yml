@@ -113,6 +113,7 @@ services:
             #   失败不阻断启动(码表缺失不影响系统可用), 仅告警, 可事后手动补导。
             python manage.py import_code_tables --if-empty || echo "[init] WARN 码表导入失败, 请事后手动执行 import_code_tables"
             python manage.py import_majors --if-empty || echo "[init] WARN 专业库导入失败, 请事后手动执行 import_majors"
+            python manage.py import_schools --if-empty || echo "[init] WARN 院校库导入失败, 请事后手动执行 import_schools"
             exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class sync --timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -
           fi
           echo "[init] attempt $$i failed, retrying in 3s..."

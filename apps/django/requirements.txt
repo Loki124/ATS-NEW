@@ -44,6 +44,11 @@ PyMySQL==1.2.0
 psycopg2-binary==2.9.12
 # SQLite 是 Python 内置, dev/test 用, 生产被 prod.py 的启动校验禁止
 
+# === Data Import ===
+# 库表导入命令读 xlsx: apps/library 的院校库(院校库.xlsx)用 openpyxl;
+# 专业库是 CSV, 走标准库 csv, 不需要额外依赖。
+openpyxl==3.1.5
+
 # === Crypto ===
 # apps/common/encryption.py 直接用 cryptography 的 Fernet 做 PII 字段加密。
 # R9 说明: 架构评审建议"显式加 django-cryptography", 这里**不采纳** ——

@@ -26,7 +26,17 @@ export interface School {
   educationLevel?: string;
   schoolType?: string;
   schoolCategory?: string;
+  affiliatedTo?: string;
+  tags?: string; // '|' 分隔，如 985|211|双一流
   status?: string;
+}
+
+export interface SchoolFacets {
+  schoolTypes: string[];
+  schoolCategories: string[];
+  educationLevels: string[];
+  provinces: string[];
+  tags: string[];
 }
 
 export const searchSchools = (params?: any) =>
@@ -37,6 +47,9 @@ export const getSchool = (id: string) =>
 
 export const listSchoolProvinces = () =>
   api.get('/library/schools/provinces/').then((r) => r.data.data);
+
+export const getSchoolFacets = (): Promise<SchoolFacets> =>
+  api.get('/library/schools/facets/').then((r) => r.data.data);
 
 // ===== Company =====
 export interface Company {

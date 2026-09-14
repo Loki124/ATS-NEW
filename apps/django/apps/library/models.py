@@ -8,6 +8,16 @@ from apps.common.models import SoftDeleteModel, SoftDeleteManager
 
 
 class School(SoftDeleteModel):
+    """院校库。
+
+    数据由 ``manage.py import_schools --file <xlsx>`` 导入（院校名唯一，幂等）。
+    字段口径（对应《院校库.xlsx》列）:
+      school_type     ← institution_type  院校类型（综合/工科/师范…）
+      school_category ← institution_nature 办学性质（公办/民办）
+      affiliated_to   ← affiliated_to     主管部门（省教育厅/教育部…）
+      tags            ← 校准标签          '|' 分隔（双一流/985/211/双万计划…）
+    """
+
     id = models.CharField(max_length=32, primary_key=True)
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50, unique=True)
@@ -17,16 +27,21 @@ class School(SoftDeleteModel):
     education_level = models.CharField(max_length=50, blank=True, default='')
     school_type = models.CharField(max_length=50, blank=True, default='')
     school_category = models.CharField(max_length=50, blank=True, default='')
+    affiliated_to = models.CharField(max_length=100, blank=True, default='', help_text='主管部门')
+    tags = models.CharField(max_length=300, blank=True, default='', help_text='校准标签，| 分隔')
     status = models.CharField(max_length=20, default='ACTIVE')
 
     class Meta:
         db_table = 'library_school'
         verbose_name = '院校'
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = nanoid_generate(size=21)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
-
-
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()

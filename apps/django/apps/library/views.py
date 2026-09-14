@@ -59,28 +59,43 @@ class MajorViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
-    """院校 - 2026-06-29 stub, 真实 CRUD 留给 G41 任务"""
+    """院校库 — 数据由 ``manage.py import_schools`` 导入（院校库.xlsx）。
+
+    过滤参数：keyword（名称/代码/地址）、educationLevel、schoolType、
+    schoolCategory（公办/民办）、province、tag（校准标签 contains）。
+    """
+
     queryset = School.objects.all()
     serializer_class = SchoolSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
-    pagination_class = None  # FE 不分页, 简单 list 即可
+    pagination_class = None  # FE 用 n-data-table 客户端分页
 
     def list(self, request, *args, **kwargs):
-        """FE library.ts 期望 {success, data:[...]} 信封 (非 DRF 裸数组), 否则 rows 变 undefined 崩溃.
-
-        同时承接 FE 传入的过滤参数: keyword(名称/代码), educationLevel, schoolType.
-        """
+        """FE library.ts 期望 {success, data:[...]} 信封 (非 DRF 裸数组), 否则 rows 变 undefined 崩溃."""
         qs = self.get_queryset()
         keyword = request.query_params.get('keyword')
         if keyword:
-            qs = qs.filter(name__icontains=keyword) | qs.filter(code__icontains=keyword)
+            qs = qs.filter(
+                Q(name__icontains=keyword)
+                | Q(code__icontains=keyword)
+                | Q(location__icontains=keyword)
+            )
         edu = request.query_params.get('educationLevel')
         if edu:
             qs = qs.filter(education_level=edu)
         stype = request.query_params.get('schoolType')
         if stype:
             qs = qs.filter(school_type=stype)
+        category = request.query_params.get('schoolCategory')
+        if category:
+            qs = qs.filter(school_category=category)
+        province = request.query_params.get('province')
+        if province:
+            qs = qs.filter(province=province)
+        tag = request.query_params.get('tag')
+        if tag:
+            qs = qs.filter(tags__contains=tag)
         serializer = self.get_serializer(qs, many=True)
         return Response({'success': True, 'data': serializer.data})
 
@@ -89,6 +104,30 @@ class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
         """返所有不重复省份"""
         qs = School.objects.values_list('province', flat=True).distinct()
         return Response({'success': True, 'data': [p for p in qs if p]})
+
+    @action(detail=False, methods=['get'])
+    def facets(self, request):
+        """返回院校类型 / 办学性质 / 教育层次 / 省份 / 标签 的可选值（供前端下拉筛选用）。
+
+        标签在库里是 '|' 分隔字符串，这里展开成去重后的单值列表。
+        """
+        tag_set: set[str] = set()
+        for raw in School.objects.exclude(tags='').values_list('tags', flat=True):
+            tag_set.update(t for t in raw.split('|') if t)
+        return Response({
+            'success': True,
+            'data': {
+                'schoolTypes': self._distinct('school_type'),
+                'schoolCategories': self._distinct('school_category'),
+                'educationLevels': self._distinct('education_level'),
+                'provinces': self._distinct('province'),
+                'tags': sorted(tag_set),
+            },
+        })
+
+    @staticmethod
+    def _distinct(field: str) -> list[str]:
+        return [v for v in School.objects.values_list(field, flat=True).distinct() if v]
 
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
