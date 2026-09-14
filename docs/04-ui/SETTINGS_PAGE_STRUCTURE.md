@@ -3,7 +3,7 @@
 
 版本：v1.1 · 生效日期：2026-08-24 · 修订：2026-08-27（补「模型 B 三件套」合法变体，取消 height:100% 禁止；KPI 令牌铁律 + 强调变体）
 适用范围：web/app/src/pages/settings/** 下所有页面（含 permission 子模块）
-配套文档：UI_DESIGN_SPEC.md（设计令牌）、UI_REMEDIATION_PLAN.md（整改方案）、UI_COMPLIANCE_REPORT.md（审查报告）
+配套文档：UI_DESIGN_SPEC.md（设计令牌）、UI_REMEDIATION_PLAN.md（整改方案）、UI_COMPLIANCE_SELFCHECK.md（审查报告 + 交付前自检矩阵，已合并原 REPORT）
 范本来源：本次 CampusControl.vue 与 DataDictionary.vue 对齐统一后的产物
 
 ## 0. 一句话原则

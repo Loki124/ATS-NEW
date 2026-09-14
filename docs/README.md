@@ -107,14 +107,13 @@
 | [T5-design-token-convergence.md](./04-ui/T5-design-token-convergence.md) | T5 · UI v2 设计系统收敛 — 诊断与执行报告 | 128 | 2026-09-01 |
 | [UIUX-DIAGNOSIS-2026-09-03.md](./04-ui/UIUX-DIAGNOSIS-2026-09-03.md) | ATS-NEW 前端 UI/UX 全面诊断报告 | 261 | — |
 | [UIUX_REVIEW_CAMPUS_CONTROL_2026-08-27.md](./04-ui/UIUX_REVIEW_CAMPUS_CONTROL_2026-08-27.md) | 校招管控（规则配置）UI/UX 实现效果检查报告 | 63 | 2026-08-27 |
-| [UI_COMPLIANCE_REPORT.md](./04-ui/UI_COMPLIANCE_REPORT.md) | ATS-NEW 前端 UI 规范符合性审查报告 | 137 | 2026-08-24 |
-| [UI_COMPLIANCE_SELFCHECK.md](./04-ui/UI_COMPLIANCE_SELFCHECK.md) | UI 合规整改 · 交付前自检矩阵（S/R/H） | 76 | — |
+| [UI_COMPLIANCE_SELFCHECK.md](./04-ui/UI_COMPLIANCE_SELFCHECK.md) | UI 合规：审查报告 + 交付前自检矩阵（S/R/H，已合并 REPORT） | 308 | 2026-09-10 |
 | [UI_DARK_MODE_TECHNICAL_PLAN.md](./04-ui/UI_DARK_MODE_TECHNICAL_PLAN.md) | ATS-NEW 暗色模式修复 · 技术实施文档 | 965 | 2026-08-23 |
 | [UI_DESIGN_SPEC.md](./04-ui/UI_DESIGN_SPEC.md) | ATS-NEW 统一设计规范（Unified Design Spec · v2.2） | 225 | 2026-08-28 |
 | [UI_RECONCILIATION.md](./04-ui/UI_RECONCILIATION.md) | ATS-NEW 前端 UI 改造总纲（液态玻璃 v2 + 暗色模式） | 150 | 2026-08-24 |
 | [UI_REMEDIATION_PLAN.md](./04-ui/UI_REMEDIATION_PLAN.md) | ATS-NEW UI 规范整改技术实施方案 | 202 | — |
 | [accessibility-and-gating-diagnosis.md](./04-ui/accessibility-and-gating-diagnosis.md) | ATS-NEW 前端 · 可访问性 & 工程门禁诊断 | 200 | 2026-09-03 |
-| [frontend-DESIGN.md](./04-ui/frontend-DESIGN.md) | ATS-NEW 统一 UI 设计系统（液态玻璃 / Liquid Glass） | 343 | 2026-08-21 |
+| [frontend-DESIGN.md](./04-ui/frontend-DESIGN.md) | ATS-NEW 统一 UI 设计系统（液态玻璃 / Liquid Glass）⚠️ 已废弃→UI_RECONCILIATION | 343 | 2026-08-21 |
 
 ### 🎓 05-campus-control — 校招管控专项
 
@@ -160,12 +159,12 @@
 | 文档 | 说明 | 行数 | 最新日期 |
 |---|---|---:|---|
 | [CODE_QUALITY_AUDIT.md](./07-audit/CODE_QUALITY_AUDIT.md) | ATS-NEW 代码工程质量审计报告 | 764 | 2026-08-31 |
-| [COMPLIANCE_AUDIT_2026-08-03.md](./07-audit/COMPLIANCE_AUDIT_2026-08-03.md) | 代码合规审计报告 — 2026-08-03 | 236 | 2026-08-03 |
+| [COMPLIANCE_AUDIT_2026-08-03.md](./07-audit/COMPLIANCE_AUDIT_2026-08-03.md) | 代码合规审计报告 — 2026-08-03（历史基线，runbook 仍引用） | 236 | 2026-08-03 |
 | [COVERAGE_BASELINE_2026-08-06.md](./07-audit/COVERAGE_BASELINE_2026-08-06.md) | 后端测试覆盖率基线 — 2026-08-06 | 221 | 2026-08-06 |
-| [DOCUMENTATION_AUDIT_2026-08-04.md](./07-audit/DOCUMENTATION_AUDIT_2026-08-04.md) | ATS-NEW 文档审计报告 (2026-08-04) | 209 | 2026-08-04 |
+| [DOCUMENTATION_AUDIT_2026-08-04.md](./07-audit/DOCUMENTATION_AUDIT_2026-08-04.md) | ATS-NEW 文档审计报告 (2026-08-04 · 历史基线，已被 2026-09-10 审计覆盖) | 209 | 2026-08-04 |
 | [EXCEPTION_AUDIT_2026-09-04.md](./07-audit/EXCEPTION_AUDIT_2026-09-04.md) | `except Exception` 治理清单（P0#3 · 2026-09-04） | 150 | 2026-09-04 |
 | [PRODUCT_AUDIT.md](./07-audit/PRODUCT_AUDIT.md) | ATS-NEW 产品维度全面审计报告 | 294 | 2026-08-31 |
-| [PROJECT_FULL_REVIEW_2026-08-26.md](./07-audit/PROJECT_FULL_REVIEW_2026-08-26.md) | ATS-NEW 项目全盘体检报告（2026-08-26） | 179 | 2026-08-26 |
+| [PROJECT_FULL_REVIEW_2026-08-26.md](./07-audit/PROJECT_FULL_REVIEW_2026-08-26.md) | ATS-NEW 项目全盘体检报告（2026-08-26 · 历史基线，09-04 复评对比对象） | 179 | 2026-08-26 |
 | [PROJECT_FULL_REVIEW_2026-09-04.md](./07-audit/PROJECT_FULL_REVIEW_2026-09-04.md) | ATS-NEW 项目全盘复评报告（2026-09-04 · 距上次 9 天） | 231 | 2026-09-05 |
 | [QA_BUG7_VERIFY_2026-08-04.md](./07-audit/QA_BUG7_VERIFY_2026-08-04.md) | QA BUG-7 验证报告 (2026-08-04) | 222 | 2026-08-04 |
 | [QA_T011_VERIFY_2026-08-04.md](./07-audit/QA_T011_VERIFY_2026-08-04.md) | QA T01.1 独立黑盒验证报告 | 206 | 2026-08-04 |
@@ -176,6 +175,9 @@
 | [V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md](./07-audit/V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md) | V2.10 月浮动目标（Roll-over）增量 交付总结 | 198 | 2026-09-06 |
 | [治理批次-2026-09-04-overview.md](./07-audit/治理批次-2026-09-04-overview.md) | 概述：ATS-NEW 治理批次 #1（2026-09-04 上午） | 122 | 2026-09-04 |
 | [项目复查报告-2026-09-03.md](./07-audit/项目复查报告-2026-09-03.md) | ATS-NEW 项目复查报告（2026-09-03） | 61 | 2026-09-04 |
+| [DOC_CALIBRATION_BACKEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_BACKEND_2026-09-07.md) | 后端文档校准报告（2026-09-07） | 78 | 2026-09-07 |
+| [DOC_CALIBRATION_FRONTEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_FRONTEND_2026-09-07.md) | 前端文档校准报告（2026-09-07） | 57 | 2026-09-07 |
+| [StageRuleConfigModal_验收Spec.md](./StageRuleConfigModal_验收Spec.md) | StageRuleConfigModal 验收规格（视觉/交互/滚动锁） | 308 | — |
 
 ### ✅ 08-tasks — UI 整改任务清单
 
@@ -226,39 +228,7 @@
 |---|---|---:|---|
 | [PHASE2_DESIGN_2026-08-03.md](./09-archive/PHASE2_DESIGN_2026-08-03.md) | ATS-NEW Phase 2 实施设计 + 任务分解 | 1797 | 2026-08-03 |
 | [PHASE2_PRECHECK_2026-08-03.md](./09-archive/PHASE2_PRECHECK_2026-08-03.md) | Phase 2 开工前预检盘点（429 期间人工完成） | 291 | 2026-08-03 |
-| [deploy.md](./09-archive/superpowers/deploy.md) | 部署指南 | 124 | 2026-06-02 |
-| [2026-06-02-ats-review-and-mysql-migration.md](./09-archive/superpowers/plans/2026-06-02-ats-review-and-mysql-migration.md) | ATS-New 整体复盘 + MySQL 迁移 实施计划 | 992 | 2026-06-02 |
-| [2026-06-04-referral-portal-phase1.md](./09-archive/superpowers/plans/2026-06-04-referral-portal-phase1.md) | 内推门户 Phase 1 实施计划 | 3723 | 2026-06-04 |
-| [2026-06-08-p1-master.md](./09-archive/superpowers/plans/2026-06-08-p1-master.md) | P1 全部缺口实施主计划 | 94 | 2026-06-08 |
-| [2026-06-08-p1-planA-candidate.md](./09-archive/superpowers/plans/2026-06-08-p1-planA-candidate.md) | Plan A: 候选人增强 (G44 + G11) | 611 | — |
-| [2026-06-08-p1-planB-field-acl.md](./09-archive/superpowers/plans/2026-06-08-p1-planB-field-acl.md) | Plan B: 字段级权限 + ACL 矩阵 (G8 + G43) | 959 | — |
-| [2026-06-08-p1-planC-interview-offer.md](./09-archive/superpowers/plans/2026-06-08-p1-planC-interview-offer.md) | Plan C: 面试 + Offer 增强 (G19 + G26) | 733 | 2025-03-01 |
-| [2026-06-08-p1-planD-onboarding-talent.md](./09-archive/superpowers/plans/2026-06-08-p1-planD-onboarding-talent.md) | Plan D: 待入职 + 人才库 (G31 + G32) | 579 | — |
-| [2026-06-08-p1-planE-external-integration.md](./09-archive/superpowers/plans/2026-06-08-p1-planE-external-integration.md) | Plan E: 外部集成脚手架 (G40) | 493 | — |
-| [2026-06-08-p1-planF-data-governance.md](./09-archive/superpowers/plans/2026-06-08-p1-planF-data-governance.md) | Plan F: P3 数据治理 (G41 + G42) | 676 | — |
-| [2026-06-08-p1-planG-tech-debt.md](./09-archive/superpowers/plans/2026-06-08-p1-planG-tech-debt.md) | Plan G: Tech 债 (Playwright e2e + vue-tsc 修复) | 459 | — |
-| [2026-06-09-p1-planH-quality.md](./09-archive/superpowers/plans/2026-06-09-p1-planH-quality.md) | Plan H: 代码质量 + 测试扩充 (2026-06-09) | 504 | 2026-06-09 |
-| [2026-06-09-p1-planI-p3-remaining.md](./09-archive/superpowers/plans/2026-06-09-p1-planI-p3-remaining.md) | Plan I: P3 剩余 3 项 (G30 RPA 简历 + G35 数据中心 + G45 OCR 查 | 966 | 2026-06-09 |
-| [2026-06-09-p1-planK-recruitment-process.md](./09-archive/superpowers/plans/2026-06-09-p1-planK-recruitment-process.md) | Plan K: 招聘提速-招聘流程 补全 | 133 | 2026-06-09 |
-| [2026-06-12-workbench-process-polish.md](./09-archive/superpowers/plans/2026-06-12-workbench-process-polish.md) | Workbench + Process 体验打磨 实施 Plan | 2383 | 2026-06-15 |
-| [2026-06-22-add-candidate-v2-phase1.md](./09-archive/superpowers/plans/2026-06-22-add-candidate-v2-phase1.md) | AddCandidateModal V2 - Phase 1 实施 Plan: 后端 Services | 2174 | 2026-06-22 |
-| [2026-06-22-add-candidate-v2-phase2.md](./09-archive/superpowers/plans/2026-06-22-add-candidate-v2-phase2.md) | AddCandidateModal V2 - Phase 2: 后端 API + Celery + SS | 1431 | 2026-06-22 |
-| [2026-06-22-add-candidate-v2-phase3.md](./09-archive/superpowers/plans/2026-06-22-add-candidate-v2-phase3.md) | AddCandidateModal V2 - Phase 3: 前端 API + Pinia store | 1120 | 2026-06-22 |
-| [2026-06-22-add-candidate-v2-phase4.md](./09-archive/superpowers/plans/2026-06-22-add-candidate-v2-phase4.md) | AddCandidateModal V2 - Phase 4: 前端原语组件 实施 Plan | 1189 | 2026-06-22 |
-| [2026-06-22-add-candidate-v2-phase5.md](./09-archive/superpowers/plans/2026-06-22-add-candidate-v2-phase5.md) | AddCandidateModal V2 - Phase 5: 场景组件 + 集成 + E2E + CI | 1221 | 2026-06-22 |
-| [2026-06-22-add-candidate-v2.md](./09-archive/superpowers/plans/2026-06-22-add-candidate-v2.md) | AddCandidateModal V2 实施 Plan (Master) | 250 | 2026-06-22 |
-| [2026-07-02-process-detail-edit-unify.md](./09-archive/superpowers/plans/2026-07-02-process-detail-edit-unify.md) | 招聘流程详情+编辑统一入口 实施计划 | 1346 | 2026-07-02 |
-| [2026-07-03-stage-rule-config-modal-redesign.md](./09-archive/superpowers/plans/2026-07-03-stage-rule-config-modal-redesign.md) | StageRuleConfigModal 视觉重设计 Implementation Plan | 890 | — |
-| [2026-09-02-interview-eval-integration.md](./09-archive/superpowers/plans/2026-09-02-interview-eval-integration.md) | 2026-09-02 面试评价弹窗接入 + rule_engine 三件套修复 · 方案 | 284 | 2026-09-02 |
-| [2026-06-02-ats-review-report.md](./09-archive/superpowers/review/2026-06-02-ats-review-report.md) | ATS-New 项目复盘报告 | 272 | 2026-06-02 |
-| [2026-06-02-ats-review-and-mysql-migration-design.md](./09-archive/superpowers/specs/2026-06-02-ats-review-and-mysql-migration-design.md) | ATS-New 整体复盘 + MySQL 迁移 设计稿 | 241 | 2026-06-02 |
-| [2026-06-04-referral-portal-phase1-design.md](./09-archive/superpowers/specs/2026-06-04-referral-portal-phase1-design.md) | 内推门户 Phase 1 - 数据模型 + 核心服务 设计文档 | 729 | — |
-| [2026-06-12-workbench-process-polish-design.md](./09-archive/superpowers/specs/2026-06-12-workbench-process-polish-design.md) | Workbench + Process 体验打磨 设计文档 | 644 | 2026-06-12 |
-| [2026-06-14-auto-advance-application-stage-record.md](./09-archive/superpowers/specs/2026-06-14-auto-advance-application-stage-record.md) | Todo #1: recruitment-auto-advance 接入 — 设计 | 323 | 2026-06-14 |
-| [2026-06-14-deleted-at-soft-delete-middleware.md](./09-archive/superpowers/specs/2026-06-14-deleted-at-soft-delete-middleware.md) | Todo #2: deletedAt 字段 + 软删除 Middleware Wire — 设计 | 155 | 2026-06-14 |
-| [2026-06-22-add-candidate-v2-design.md](./09-archive/superpowers/specs/2026-06-22-add-candidate-v2-design.md) | Add Candidate Modal V2 — Design Spec | 578 | 2026-06-22 |
-| [2026-07-02-process-detail-edit-unify-design.md](./09-archive/superpowers/specs/2026-07-02-process-detail-edit-unify-design.md) | 招聘流程详情 + 编辑统一入口 — 设计 Spec | 492 | 2026-07-02 |
-| [2026-07-03-stage-rule-config-modal-redesign-design.md](./09-archive/superpowers/specs/2026-07-03-stage-rule-config-modal-redesign-design.md) | StageRuleConfigModal 视觉重设计 Spec | 232 | — |
+| superpowers/（33 个 2026-06~08 规划/评审/spec） | 历史决策留痕，按目录浏览 [`09-archive/superpowers/`](./09-archive/superpowers/) | — | 2026-08 |
 
 ---
 

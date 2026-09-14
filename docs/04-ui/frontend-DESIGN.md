@@ -1,5 +1,7 @@
 # ATS-NEW 统一 UI 设计系统（液态玻璃 / Liquid Glass）
 
+> ⚠️ **本文档已废弃（2026-09-10）**：其内容已并入 [`UI_RECONCILIATION.md`](./UI_RECONCILIATION.md)（前端 UI 改造总纲）与 [`UI_DESIGN_SPEC.md`](./UI_DESIGN_SPEC.md)（统一设计规范 v2.2）。仅保留作历史参考，不再维护。
+
 > 状态：**待确认（v1.0-draft）** · 设计系统架构师 Diana · 2026-08-21
 > 适用范围：`web/app`（Vue3 + Naive UI + UnoCSS）全部页面与组件。
 > 设计参考：Apple Liquid Glass（2025）、Linear（深度与克制）、Stripe（色彩纪律）、Vercel（间距节奏）。
