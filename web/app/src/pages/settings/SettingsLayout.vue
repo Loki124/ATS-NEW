@@ -134,6 +134,7 @@ const subMenuOptions: MenuItem[] = [
         children: [
           { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
+          { key: '/settings/demand-dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
       {
@@ -145,7 +146,16 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
         ],
       },
-      { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
+      {
+        // 2026-09-14 动态字段拆分：职位信息管理作为分组，容纳占位页与「动态字段」子项
+        key: 'g-position-info',
+        label: '职位信息管理',
+        icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }),
+        children: [
+          { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
+          { key: '/settings/position-dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+        ],
+      },
       { key: '/settings/interview-management', label: '面试管理', icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },
       { key: '/settings/offer-management', label: 'Offer管理', icon: () => h(NIcon, null, { default: () => h(GiftOutline) }) },
       { key: '/settings/campus-control', label: '校招管控', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
@@ -158,6 +168,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/duplicate-candidate', label: '重复候选人管理', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
+          { key: '/settings/candidate-dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
     ],

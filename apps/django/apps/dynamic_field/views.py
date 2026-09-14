@@ -645,6 +645,29 @@ class FieldModuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(resource=self.get_resource())
 
+    @action(detail=False, methods=['post'], url_path='ensure-default')
+    def ensure_default(self, request, resource=None):
+        """确保 resource 下存在唯一默认模块 (code == resource); 不存在则自动创建。
+
+        2026-09-14 动态字段拆分 (兵哥): 把动态字段从 standalone 集合页拆到
+        需求/职位/候选人信息管理三个业务模块下, 进入模块后不再需要「模块配置」,
+        但仍需一个 FieldModule 作为分组/联动规则的 FK 归属。此动作让前端在进入
+        embedded 视图时一键保证默认模块存在, 避免分组/联动因 module 缺失而 500。
+        """
+        resource = self.get_resource()
+        name = resource
+        if isinstance(request.data, dict):
+            name = (request.data.get('name') or resource) or resource
+        module = FieldModule.objects.filter(
+            resource=resource, code=resource, deleted_at__isnull=True,
+        ).first()
+        if module is None:
+            module = FieldModule.objects.create(
+                resource=resource, code=resource, name=name,
+                order_index=0, is_active=True,
+            )
+        return Response({'data': FieldModuleSerializer(module).data})
+
 
 class FieldGroupViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     """字段分组(子级) CRUD — 按 module_id (query) 过滤, 隶属某个模块。"""

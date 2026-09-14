@@ -48,6 +48,12 @@ urlpatterns = [
         FieldModuleViewSet.as_view({'get': 'list', 'post': 'create'}),
         name='fieldmodule-list',
     ),
+    # 2026-09-14 动态字段拆分: 必须排在 <str:pk> 之前, 否则 'ensure-default' 会被 pk 路由截走
+    path(
+        '<str:resource>/modules/ensure-default/',
+        FieldModuleViewSet.as_view({'post': 'ensure_default'}),
+        name='fieldmodule-ensure-default',
+    ),
     path(
         '<str:resource>/modules/<str:pk>/',
         FieldModuleViewSet.as_view(_detail),

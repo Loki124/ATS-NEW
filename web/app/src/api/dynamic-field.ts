@@ -287,6 +287,15 @@ export const upsertModule = (resource: string, body: Partial<FieldModule>) =>
 export const deleteModule = (resource: string, id: string) =>
   api.delete(`/dynamic-fields/${resource}/modules/${id}/`).then((r) => r.data);
 
+/**
+ * 确保 resource 下存在唯一默认模块 (code == resource); 不存在则后端自动创建。
+ * 2026-09-14 动态字段拆分: embedded 视图进入时调用, 作为分组/联动规则的 FK 归属,
+ * 使用户在业务模块内无需再配置「模块」。
+ */
+export const ensureDefaultModule = (resource: string, name?: string) =>
+  api.post(`/dynamic-fields/${resource}/modules/ensure-default/`, name ? { name } : {})
+    .then((r) => r.data.data as FieldModule);
+
 // --- 分组配置 (FieldGroup, 子级) ---
 export const listGroups = (resource: string, moduleId?: string) =>
   api.get(`/dynamic-fields/${resource}/groups/`, { params: moduleId ? { module_id: moduleId } : {} })
