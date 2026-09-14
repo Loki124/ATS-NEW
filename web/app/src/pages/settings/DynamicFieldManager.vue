@@ -525,7 +525,7 @@ import FieldListOptions from '@/components/FieldListOptions.vue';
 import {
   listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
-  VISIBILITY_PERMISSION_OPTIONS,
+  VISIBILITY_PERMISSION_OPTIONS, VISIBILITY_PERMISSION_LABEL,
   listModules, upsertModule, deleteModule,
   listGroups, upsertGroup, deleteGroup,
   listLinkageRules, upsertLinkageRule, deleteLinkageRule,
