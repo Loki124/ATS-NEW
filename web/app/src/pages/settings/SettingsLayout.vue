@@ -69,6 +69,7 @@ import {
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
   ShieldCheckmarkOutline, PeopleCircleOutline, OptionsOutline,
   DocumentTextOutline, FileTrayFullOutline, GridOutline, CopyOutline,
+  BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -123,10 +124,28 @@ const subMenuOptions: MenuItem[] = [
     type: 'group',
     label: '过程管理',
     children: [
-      { key: '/settings/demand-config', label: '招聘需求设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
-      { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+      {
+        // 原「招聘需求设置」升级为「招聘需求管理」，评分规则收为其子项
+        key: '/settings/demand-config',
+        label: '招聘需求管理',
+        icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }),
+        children: [
+          { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
+        ],
+      },
+      {
+        // 新增：招聘分类信息，数据字典收为其子项
+        key: '/settings/recruit-category',
+        label: '招聘分类信息',
+        icon: () => h(NIcon, null, { default: () => h(PricetagsOutline) }),
+        children: [
+          { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+        ],
+      },
+      { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
+      { key: '/settings/interview-management', label: '面试管理', icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },
+      { key: '/settings/offer-management', label: 'Offer管理', icon: () => h(NIcon, null, { default: () => h(GiftOutline) }) },
       { key: '/settings/campus-control', label: '校招管控', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
-      { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
       {
         key: 'g-candidate-info',
         label: '候选人信息管理',

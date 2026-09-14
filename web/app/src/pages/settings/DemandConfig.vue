@@ -2,7 +2,7 @@
   <div class="page-container config-container">
     <div class="page-header">
 <div>
-        <h1 class="dc-title gradient-title">招聘需求设置</h1>
+        <h1 class="dc-title gradient-title">招聘需求管理</h1>
         <p class="dc-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
       </div>
       <n-space>
