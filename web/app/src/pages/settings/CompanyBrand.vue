@@ -274,7 +274,8 @@ const doUploadLogo = async (file: File) => {
   try {
     const url = await uploadBrandLogo(file)
     formData.value.logoUrl = url
-    message.success('Logo 上传成功')
+    // 上传仅更新表单, 需点「保存配置」才落库; 提示必须说清下一步, 避免误以为已生效
+    message.success('Logo 已上传，记得点「保存配置」生效')
   } catch (e: any) {
     message.error('Logo 上传失败: ' + (e?.response?.data?.detail || e?.message || e))
   } finally {
