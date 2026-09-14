@@ -149,8 +149,10 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     if not SECRET:
         print("[webhook] ⚠ 警告: WEBHOOK_SECRET 未设置, 所有请求将返回 500。请通过环境变量注入密钥。")
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"[webhook] 监听 0.0.0.0:{PORT}  branch={BRANCH}  script={DEPLOY_SCRIPT}")
+    # 仅监听本机 127.0.0.1: 公网经 Cloudflare Tunnel 的 public hostname 反代到 localhost:9000,
+    # cloudflared 在部署机本地连接, 无需暴露到 0.0.0.0 (避免端口直连公网, 密钥校验仅为第二道防线)。
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    print(f"[webhook] 监听 127.0.0.1:{PORT}  branch={BRANCH}  script={DEPLOY_SCRIPT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
