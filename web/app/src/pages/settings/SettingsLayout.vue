@@ -30,6 +30,7 @@
           :collapsed="collapsed"
           :collapsed-width="64"
           :collapsed-icon-size="22"
+          :indent="18"
           :options="subMenuOptions"
           :value="activeKey"
           :expanded-keys="expandedKeys"
@@ -125,11 +126,13 @@ const subMenuOptions: MenuItem[] = [
     label: '过程管理',
     children: [
       {
-        // 原「招聘需求设置」升级为「招聘需求管理」，评分规则收为其子项
-        key: '/settings/demand-config',
+        // 「招聘需求管理」纯分组（key 不带路径不可点击）：原「招聘需求设置」
+        // 页面降为子项「需求规则设置」，与评分规则并列
+        key: 'g-demand',
         label: '招聘需求管理',
         icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }),
         children: [
+          { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
         ],
       },
