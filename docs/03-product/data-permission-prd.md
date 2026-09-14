@@ -20,7 +20,7 @@
 | 6 | `scope_resolver` fail-open | `core/scope_resolver.py`（异常落 `ALL` 兜底） | ✅ **已修复** (commit `43ba391`)：L1/L2 异常补 `logger.exception` 并 fail-closed 到 SELF，不再落到 L3 的 `ALL`；新增 3 条 pytest 锁定测试（P0 闭环） |
 | 7 | `RoleV2` 无层级 | `core/models_permission_v2.py:RoleV2`（无 `parent_role_id`） | （增强项）加 `parent_role_id` + `has_perm`/`resolve_scope` 继承，支持层级 RBAC |
 | 8 | `FieldACL` 覆盖不全 + 明文 + 无审计 | `field_acl/mixins.py`、`services.py`、`views.py`（`/field-acl/audit` 返回空） | ✅ **已修复**（commit `见下`）：(1) `acl_strict` 默认 `False`(fail-open)→`True`(fail-closed)，所有使用 mixin 的 HTTP 序列化器即便拿不到 request context 也宁可多脱敏不漏明文（talent_pool 显式补 `acl_strict=True`）；(2) 新增 `FIELD_ACL_GLOBAL_ENFORCE` 开关（默认关，运维可开作纵深防御：非超管一律 MASK 默认敏感字段）；(3) 新增 `FieldAclAccessLog` 表 + `apply_acl` 按 (request, entity) 去重埋点（超管访问也记），`/field-acl/audit` 端点由空桩改为真实查询返回；新增 5 条 pytest 锁定 |
-| 9 | **行级与列级两套互不相干机制** | `core/scope_resolver.py`（行级） + `field_acl/*`（列级） | **统一为 `DataPermissionRule` 抽象（本次新增功能的核心缺口）** |
+| 9 | **行级与列级两套互不相干机制** | `core/scope_resolver.py`（行级） + `field_acl/*`（列级） | ✅ **已实现并验证**：`DataPermissionRule`（`data_permission/models.py:46`，ROW+COLUMN、ROLE/DEPARTMENT/USER 三维，已迁移 `0001_initial`）统一抽象；`enforcement.py` 的 `row_filter_q`(行)+`column_permission_for`(列) 已接入热路径（`candidate/views.py:111` 真实 `qs.filter(dp_q)`、`field_acl/services.py:130`）；管理端 ViewSet + `/api/v1/data-permissions/` + 前端 `DataPermissionSettings.vue` 配置台齐备；`test_enforcement.py` **6 集成测试 `manage.py test` 全过**（行级 DEPT 过滤/停用失效、列级 NONE 隐藏/MASK 脱敏、超管 bypass、无规则回退 scope_resolver）。边界：行级 `row_filter_q` 目前仅 `CandidateViewSet` 接线，offer/application 等列表仍走旧 `scope_resolver`（路径 A 回退，行为正确，推广为增量） |
 
 > 说明：#1–#8 为既有技术债，建议另立 refactoring task 跟踪；本 PRD 聚焦 #9 的新增功能 + 与之配套的最小化治理。
 
