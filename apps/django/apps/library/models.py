@@ -32,6 +32,11 @@ class School(SoftDeleteModel):
     tags = models.CharField(max_length=300, blank=True, default='', help_text='校准标签，| 分隔')
     former_names = models.CharField(max_length=300, blank=True, default='', help_text='曾用名，| 分隔')
     status = models.CharField(max_length=20, default='ACTIVE')
+    updated_at = models.DateTimeField(auto_now=True, help_text='最后更新时间')
+    is_customized = models.BooleanField(
+        default=False,
+        help_text='True = 人工在页面上编辑过；导入命令默认跳过这些记录，避免覆盖人工修改',
+    )
 
     class Meta:
         db_table = 'library_school'
@@ -67,6 +72,11 @@ class Major(SoftDeleteModel):
     data_year = models.CharField(max_length=10, blank=True, default='', help_text='数据年份')
     intro = models.TextField(blank=True, default='', help_text='专业介绍')
     detail_url = models.CharField(max_length=500, blank=True, default='', help_text='详情页 URL')
+    updated_at = models.DateTimeField(auto_now=True, help_text='最后更新时间')
+    is_customized = models.BooleanField(
+        default=False,
+        help_text='True = 人工在页面上编辑过；导入命令默认跳过这些记录，避免覆盖人工修改',
+    )
 
     class Meta:
         db_table = 'library_major'

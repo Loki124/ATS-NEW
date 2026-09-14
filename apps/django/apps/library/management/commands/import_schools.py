@@ -131,6 +131,10 @@ class Command(BaseCommand):
         parser.add_argument('--file', default=None, help='xlsx 路径，默认读内置 data/院校库.xlsx')
         parser.add_argument('--clear', action='store_true', help='导入前清空 School 表')
         parser.add_argument('--if-empty', action='store_true', help='表非空则跳过导入')
+        parser.add_argument(
+            '--force', action='store_true',
+            help='强制覆盖人工在页面上编辑过的记录（is_customized=True）',
+        )
 
     def handle(self, *args, **opts):
         path = opts['file'] or (DEFAULT_FILE if os.path.exists(DEFAULT_FILE) else FALLBACK_FILE)
@@ -247,6 +251,11 @@ class Command(BaseCommand):
 
         created = updated = 0
         seen_codes = set()
+        kept_custom = 0
+        # 人工在页面编辑过的记录默认跳过，避免导入把人工修改覆盖掉
+        customized = set() if opts['force'] else set(
+            School.all_objects.filter(is_customized=True).values_list('name', flat=True)
+        )
 
         def resolve_code(name: str, raw_code: str) -> str:
             """返回可用的唯一 code：空码/本轮撞码/库中已被他人占用 → 合成码。"""
@@ -268,6 +277,9 @@ class Command(BaseCommand):
                 self.stdout.write(f'  已删除被合并 / 作废的旧记录 {deleted} 条: {sorted(stale)}')
 
             for r in merged:
+                if r['name'] in customized:
+                    kept_custom += 1
+                    continue
                 r['former_names'] = join_former(
                     [n for n in r['former_names'] if n != r['name']]
                 )
@@ -277,11 +289,15 @@ class Command(BaseCommand):
                 )}
                 defaults['code'] = resolve_code(r['name'], r['code'])
                 defaults['status'] = 'ACTIVE'
+                # 被源数据覆盖后即回归「非人工维护」；人工改过的记录在上方已跳过，
+                # --force 时才会走到这里，此时清除标记符合预期。
+                defaults['is_customized'] = False
                 _, is_new = School.all_objects.update_or_create(name=r['name'], defaults=defaults)
                 created += int(is_new)
                 updated += int(not is_new)
 
         self.stdout.write(self.style.SUCCESS(
             f'导入完成: 新增 {created} / 更新 {updated} / 合并 {len(absorbed)}'
+            + (f' / 保留人工编辑 {kept_custom}' if kept_custom else '')
         ))
         self.stdout.write(self.style.SUCCESS(f'School 总数: {School.objects.count()}'))

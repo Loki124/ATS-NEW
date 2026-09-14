@@ -60,6 +60,10 @@ class Command(BaseCommand):
             '--if-empty', action='store_true',
             help='仅当 Major 表为空时才导入（容器启动脚本用，避免每次启动重写 1976 条）',
         )
+        parser.add_argument(
+            '--force', action='store_true',
+            help='强制覆盖人工在页面上编辑过的记录（is_customized=True）',
+        )
 
     def handle(self, *args, **opts):
         path = opts['file']
@@ -75,7 +79,12 @@ class Command(BaseCommand):
             self.stdout.write(f'  跳过导入（Major 已有 {Major.objects.count()} 条）')
             return
 
-        created = updated = skipped = 0
+        # 人工在页面编辑过的记录默认跳过，避免导入把人工修改覆盖掉
+        customized = set() if opts['force'] else set(
+            Major.all_objects.filter(is_customized=True).values_list('spec_id', flat=True)
+        )
+
+        created = updated = skipped = kept_custom = 0
         with open(path, encoding='utf-8-sig', newline='') as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -85,6 +94,10 @@ class Command(BaseCommand):
                 #    判定合法: 仅 ASCII 字母/数字; 说明行含中文 → isascii() 为 False。
                 if not spec_id or not (spec_id.isascii() and spec_id.isalnum()):
                     skipped += 1
+                    continue
+
+                if spec_id in customized:
+                    kept_custom += 1
                     continue
 
                 defaults = {}
@@ -97,6 +110,10 @@ class Command(BaseCommand):
                         value = value[:limit]
                     defaults[field] = value
 
+                # 被源数据覆盖后即回归「非人工维护」（人工改过的在上方已跳过，
+                # 只有 --force 会走到这里）
+                defaults['is_customized'] = False
+
                 obj, was_created = Major.all_objects.update_or_create(
                     spec_id=spec_id, defaults=defaults,
                 )
@@ -105,5 +122,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'导入完成: 新增 {created} / 更新 {updated} / 跳过 {skipped}'
+            + (f' / 保留人工编辑 {kept_custom}' if kept_custom else '')
         ))
         self.stdout.write(f'当前 Major 总数: {Major.objects.count()}')

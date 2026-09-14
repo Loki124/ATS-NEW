@@ -10,11 +10,39 @@ from .models import School, Company, Major
 from .serializers import SchoolSerializer, CompanySerializer, MajorSerializer
 
 
-class MajorViewSet(viewsets.ReadOnlyModelViewSet):
+class EnvelopeWriteMixin:
+    """写操作统一包 ``{success, data}`` 信封。
+
+    本项目所有 read 接口（list / facets 等）都手工包信封，前端 library.ts 一律读
+    ``r.data.data``。DRF 的 create/update 默认直接返回序列化结果，不包信封会让
+    前端拿到 undefined，所以写接口必须补上。
+    """
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'success': True, 'data': serializer.data})
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response({'success': True, 'data': self.get_serializer(self.get_object()).data})
+
+
+class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """专业库 — 院校库「专业」Tab。
 
     支持 keyword（专业名/代码）、discipline（门类）、category（专业类）、
     educationLevel（学历层次）过滤；facets 返回门类/专业类/学历层次可选项。
+
+    人工编辑过的记录置 ``is_customized=True``，``import_majors`` 默认跳过。
     """
 
     queryset = Major.objects.all()
@@ -57,12 +85,27 @@ class MajorViewSet(viewsets.ReadOnlyModelViewSet):
             },
         })
 
+    def perform_create(self, serializer):
+        serializer.save(is_customized=True)
 
-class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
-    """院校库 — 数据由 ``manage.py import_schools`` 导入（院校库.xlsx）。
+    def perform_update(self, serializer):
+        serializer.save(is_customized=True)
+
+    def destroy(self, request, *args, **kwargs):
+        """软删除：专业是基础数据，不做物理删除。"""
+        obj = self.get_object()
+        obj.soft_delete()
+        return Response({'success': True, 'data': {'id': obj.id}})
+
+
+class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+    """院校库 — 以只读查询为主，同时支持人工维护（新建 / 编辑 / 软删）。
 
     过滤参数：keyword（名称/代码/地址/曾用名）、educationLevel、schoolType、
     schoolCategory（公办/民办）、province、tag（校准标签 contains）。
+
+    人工在页面上编辑过的记录会置 ``is_customized=True``，``import_schools``
+    默认跳过这些记录，避免下次导入把人工修改覆盖掉（可用 --force 强制覆盖）。
     """
 
     queryset = School.objects.all()
@@ -130,6 +173,18 @@ class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
     @staticmethod
     def _distinct(field: str) -> list[str]:
         return [v for v in School.objects.values_list(field, flat=True).distinct() if v]
+
+    def perform_create(self, serializer):
+        serializer.save(is_customized=True)
+
+    def perform_update(self, serializer):
+        serializer.save(is_customized=True)
+
+    def destroy(self, request, *args, **kwargs):
+        """软删除：院校是基础数据，不做物理删除（保留历史引用）。"""
+        obj = self.get_object()
+        obj.soft_delete()
+        return Response({'success': True, 'data': {'id': obj.id}})
 
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):

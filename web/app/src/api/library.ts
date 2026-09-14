@@ -29,6 +29,8 @@ export interface School {
   affiliatedTo?: string;
   tags?: string; // '|' 分隔，如 985|211|双一流
   formerNames?: string; // 曾用名，'|' 分隔
+  updatedAt?: string;
+  isCustomized?: boolean; // 人工编辑过 → 导入不会覆盖
   status?: string;
 }
 
@@ -51,6 +53,17 @@ export const listSchoolProvinces = () =>
 
 export const getSchoolFacets = (): Promise<SchoolFacets> =>
   api.get('/library/schools/facets/').then((r) => r.data.data);
+
+// 人工维护（新建 / 编辑 / 软删）。编辑过的记录会被标记 isCustomized，
+// 导入命令默认跳过，不会被下次导入覆盖。
+export const createSchool = (data: Partial<School>) =>
+  api.post('/library/schools/', data).then((r) => r.data.data);
+
+export const updateSchool = (id: string, data: Partial<School>) =>
+  api.patch(`/library/schools/${id}/`, data).then((r) => r.data.data);
+
+export const deleteSchool = (id: string) =>
+  api.delete(`/library/schools/${id}/`).then((r) => r.data.data);
 
 // ===== Company =====
 export interface Company {
@@ -88,6 +101,8 @@ export interface Major {
   dataYear?: string;
   intro?: string;
   detailUrl?: string;
+  updatedAt?: string;
+  isCustomized?: boolean;
 }
 
 export interface MajorFacets {
@@ -101,5 +116,14 @@ export const searchMajors = (params?: any) =>
 
 export const getMajorFacets = () =>
   api.get('/library/majors/facets/').then((r) => r.data.data);
+
+export const createMajor = (data: Partial<Major>) =>
+  api.post('/library/majors/', data).then((r) => r.data.data);
+
+export const updateMajor = (id: string, data: Partial<Major>) =>
+  api.patch(`/library/majors/${id}/`, data).then((r) => r.data.data);
+
+export const deleteMajor = (id: string) =>
+  api.delete(`/library/majors/${id}/`).then((r) => r.data.data);
 
 export default api;
