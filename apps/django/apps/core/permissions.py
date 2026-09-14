@@ -112,26 +112,6 @@ class IsHROrAbove(permissions.BasePermission):
         return user_has_any_role(request.user, HR_TIER)
 
 
-class IsPositionRelated(permissions.BasePermission):
-    """基于职位角色的候选人查看权限（简化版）"""
-    message = '仅职位相关人员（用人经理/面试官/HR）可查看候选人'
-
-    def has_object_permission(self, request, view, obj):
-        if not (request.user and request.user.is_authenticated):
-            return False
-
-        # 超级管理员 / HRBP / HR：可看所有
-        if user_has_any_role(request.user, HR_TIER):
-            return True
-
-        # 用人经理 / 面试官：仅本部门职位
-        user_dept = request.user.department
-        if user_dept and hasattr(obj, 'position') and obj.position.department_id == user_dept.id:
-            return True
-
-        return False
-
-
 class HasProcessPermission(permissions.BasePermission):
     """流程配置权限 - HRBP 及以上可配置"""
     def has_permission(self, request, view):
