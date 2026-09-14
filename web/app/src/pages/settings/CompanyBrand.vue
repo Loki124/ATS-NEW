@@ -5,10 +5,6 @@
         <h1 class="page-title">品牌信息管理</h1>
         <p class="page-subtitle">维护雇主品牌文案、Logo 及招聘门户展示信息；保存后品牌色将即时应用于全站主题</p>
       </div>
-      <n-space>
-        <n-button :loading="resetting" @click="handleReset">重置</n-button>
-        <n-button type="primary" :loading="saving" @click="handleSave">保存配置</n-button>
-      </n-space>
     </div>
 
     <div class="page-body">
@@ -17,10 +13,10 @@
           <!-- 左列：基础信息 -->
           <div class="brand-col">
             <n-card title="品牌基础" class="config-card">
-              <n-form-item label="公司 / 雇主名称">
+              <n-form-item label="品牌名称">
                 <n-input
                   v-model:value="formData.companyName"
-                  placeholder="如：腾讯招聘 / 某某科技"
+                  placeholder="如：腾讯招聘 / 某某科技；留空则系统默认显示「招聘管理系统」"
                   maxlength="255"
                   show-count
                 />
@@ -94,7 +90,7 @@
                   <img v-if="formData.logoUrl" :src="formData.logoUrl" class="portal-logo" alt="Logo" />
                   <div v-else class="portal-logo portal-logo--ph">LOGO</div>
                   <div class="portal-meta">
-                    <div class="portal-name">{{ formData.companyName || '公司名称' }}</div>
+                    <div class="portal-name">{{ formData.companyName || '招聘管理系统' }}</div>
                     <div class="portal-slogan">{{ formData.brandSlogan || '品牌标语' }}</div>
                   </div>
                 </div>
@@ -132,11 +128,13 @@
               </div>
               <n-form-item label="门户主题色">
                 <div class="color-row">
+                  <!-- 空值回落默认品牌色, 避免显示透明棋盘格像「故障」 -->
                   <n-color-picker
-                    v-model:value="formData.primaryColor"
+                    :value="formData.primaryColor || DEFAULT_BRAND"
                     :show-alpha="false"
                     :modes="['hex']"
                     class="color-picker"
+                    @update:value="formData.primaryColor = $event"
                   />
                   <span class="field-hint">用于门户品牌化着色（hex，如 #6366F1）；保存后全站主题同步生效</span>
                 </div>
@@ -166,6 +164,17 @@
           </div>
         </div>
       </n-form>
+
+      <!-- 底部 sticky 操作条：长表单滚动时操作始终可见（UX 修复：原按钮悬在页头，动线断裂） -->
+      <div class="form-actions">
+        <span class="save-state" :class="{ 'is-dirty': isDirty }">
+          {{ isDirty ? '有未保存的更改' : '所有更改已保存' }}
+        </span>
+        <n-space>
+          <n-button :disabled="!isDirty || saving" @click="handleReset">重置</n-button>
+          <n-button type="primary" :loading="saving" :disabled="!isDirty && !saving" @click="handleSave">保存配置</n-button>
+        </n-space>
+      </div>
     </div>
   </div>
 </template>
@@ -183,7 +192,6 @@ import { useBrandStore } from '../../stores/brand'
 const message = useMessage()
 const brandStore = useBrandStore()
 const saving = ref(false)
-const resetting = ref(false)
 const uploading = ref(false)
 const formRef = ref()
 
@@ -216,6 +224,11 @@ const emptyForm = (): BrandInfo => ({
 
 const formData = ref<BrandInfo>(emptyForm())
 const serverSnapshot = ref<BrandInfo>(emptyForm())
+
+/** 未保存更改检测：与上次服务端快照比较（保存/重置后自动归零） */
+const isDirty = computed(
+  () => JSON.stringify(formData.value) !== JSON.stringify(serverSnapshot.value),
+)
 
 /** 合法 hex 校验，避免非法色值注入预览 / 主题 */
 function isValidHex(hex: string): boolean {
@@ -418,6 +431,10 @@ onMounted(() => {
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+/* n-upload 默认块级会把「更换 Logo / 清除」挤成两行, 强制行内排布 */
+.logo-actions :deep(.n-upload) {
+  display: inline-flex;
+}
 .logo-url-input {
   width: 100%;
 }
@@ -551,5 +568,30 @@ onMounted(() => {
   font-size: var(--fs-12);
   color: var(--n-400);
   line-height: 1.5;
+}
+
+/* === 底部 sticky 操作条（滚动时始终可见; 玻璃面板与全站设置页一致）=== */
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-elevated);
+  backdrop-filter: blur(var(--glass-blur-panel));
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+}
+.save-state {
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+}
+.save-state.is-dirty {
+  color: var(--c-warning, #f59e0b);
 }
 </style>

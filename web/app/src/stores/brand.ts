@@ -3,8 +3,8 @@ import { ref, computed } from 'vue'
 import { fetchBrandInfo, type BrandInfo } from '../api/brand'
 import { useThemeStore } from './theme'
 
-const DEFAULT_SYSTEM_NAME = 'ATS'
-const DEFAULT_TITLE = 'ATS招聘管理系统'
+// 未填写品牌名称时的系统默认名（兵哥 2026-09-14: 未填→「招聘管理系统」；已填→完全以填写为准，不再拼后缀）
+const DEFAULT_SYSTEM_NAME = '招聘管理系统'
 
 /** 校验 hex 颜色（#RGB / #RRGGBB） */
 function isValidHex(hex: string): boolean {
@@ -43,11 +43,10 @@ export const useBrandStore = defineStore('brand', () => {
     return link
   }
 
-  /** 把当前品牌信息写入 document.title + favicon */
+  /** 把当前品牌信息写入 document.title + favicon（title 完全以品牌名称为准，不拼后缀） */
   function applyToDocument() {
     if (typeof document === 'undefined') return
-    const name = systemName.value
-    document.title = name === DEFAULT_SYSTEM_NAME ? DEFAULT_TITLE : `${name}招聘管理系统`
+    document.title = systemName.value
 
     const link = getOrCreateFaviconLink()
     if (!link) return
