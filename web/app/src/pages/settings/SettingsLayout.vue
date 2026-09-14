@@ -68,7 +68,7 @@ import {
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
   CloudUploadOutline, ServerOutline, SearchOutline, AnalyticsOutline,
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
-  ShieldCheckmarkOutline, PeopleCircleOutline, OptionsOutline,
+  ShieldCheckmarkOutline, LockClosedOutline, PeopleCircleOutline, OptionsOutline,
   DocumentTextOutline, FileTrayFullOutline, GridOutline, CopyOutline,
   BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline,
 } from '@vicons/ionicons5'
