@@ -127,6 +127,18 @@ const subMenuOptions: MenuItem[] = [
     label: '过程管理',
     children: [
       {
+        key: 'g-candidate-info',
+        label: '候选人信息管理',
+        icon: () => h(NIcon, null, { default: () => h(FileTrayFullOutline) }),
+        children: [
+          { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+          { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
+          { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
+          { key: '/settings/duplicate-candidate', label: '简历查重规则', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
+          { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+        ],
+      },
+      {
         // 「招聘需求管理」纯分组（key 不带路径不可点击）：原「招聘需求设置」
         // 页面降为子项「需求规则设置」，与评分规则并列
         key: 'g-demand',
@@ -136,15 +148,6 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
           { key: '/settings/demand-dynamic-fields', label: '需求字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
-        ],
-      },
-      {
-        // 新增：招聘分类信息，数据字典收为其子项
-        key: '/settings/recruit-category',
-        label: '招聘分类信息',
-        icon: () => h(NIcon, null, { default: () => h(PricetagsOutline) }),
-        children: [
-          { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
         ],
       },
       {
@@ -161,15 +164,12 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/offer-management', label: 'Offer管理', icon: () => h(NIcon, null, { default: () => h(GiftOutline) }) },
       { key: '/settings/campus-control', label: '校招管控', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
       {
-        key: 'g-candidate-info',
-        label: '候选人信息管理',
-        icon: () => h(NIcon, null, { default: () => h(FileTrayFullOutline) }),
+        // 2026-09-14 新增：招聘分类信息，数据字典收为其子项（兵哥未列入排序清单，保留并置于末尾）
+        key: '/settings/recruit-category',
+        label: '招聘分类信息',
+        icon: () => h(NIcon, null, { default: () => h(PricetagsOutline) }),
         children: [
-          { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
-          { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
-          { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-          { key: '/settings/duplicate-candidate', label: '简历查重规则', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
-          { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
         ],
       },
     ],
