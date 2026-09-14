@@ -123,28 +123,34 @@ class TestR2MaskingAtHttpBoundary:
 
 
 # ============================================================
-# R5 / R6 — stub 不只是返 501, 还必须证明「确实没写库」
+# R5 / R6 — 注册/改密 已实现 → 验证真实行为 (真建待审用户 / 真改密), 而非 stub 501
 # ============================================================
 @pytest.mark.django_db
-class TestR5R6StubsRefuseAndDoNotWrite:
-    def test_register_501_and_no_user_created(self):
+class TestR5R6RealEndpointsNotFakeSuccess:
+    def test_register_creates_pending_user_not_fake_success(self):
         from django.contrib.auth import get_user_model
 
         User = get_user_model()
         before = User.objects.count()
         resp = APIClient().post(
-            '/api/v1/auth/register',
-            {'username': 'qa_probe_user', 'password': 'Probe@12345'},
+            '/api/v1/auth/register/',
+            {'email': 'qa_probe_user@corp.com', 'password': 'Probe@12345'},
             format='json',
         )
-        assert resp.status_code == 501, resp.status_code
-        assert resp['X-Stub'] == 'true'
-        assert resp.data['success'] is False
-        assert User.objects.count() == before
-        assert not User.objects.filter(username='qa_probe_user').exists()
+        assert resp.status_code == 201, resp.content
+        assert resp['Content-Type'].startswith('application/json'), resp['Content-Type']
+        assert resp.data['success'] is True
+        assert resp.get('X-Stub') != 'true', '不应再有 stub 头'
+        # 真建出 is_active=False 的待审用户, 而非假成功
+        user = User.objects.get(email='qa_probe_user@corp.com')
+        assert user.is_active is False
+        from apps.accounts.models import RegistrationApplication
+        assert RegistrationApplication.objects.filter(
+            email='qa_probe_user@corp.com', status='PENDING').exists()
+        assert User.objects.count() == before + 1
 
-    def test_change_password_501_and_password_unchanged(self, hr_user):
-        """核心危害验证: 旧密码必须仍然有效 —— 接口没写库, 就不许说改了."""
+    def test_change_password_actually_changes_password(self, hr_user):
+        """核心验证: 旧密码必须失效、新密码必须生效 —— 接口真写库了."""
         from django.contrib.auth import authenticate
 
         client = APIClient()
@@ -152,25 +158,29 @@ class TestR5R6StubsRefuseAndDoNotWrite:
         client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
 
         resp = client.post(
-            '/api/v1/auth/change-password',
+            '/api/v1/auth/change-password/',
             {'old_password': 'Test@1234', 'new_password': 'BrandNew@9999'},
             format='json',
         )
-        assert resp.status_code == 501, resp.status_code
-        assert resp['X-Stub'] == 'true'
-        assert resp.data['success'] is False
+        assert resp.status_code == 200, resp.content
+        assert resp.get('X-Stub') != 'true'
+        assert resp.data['success'] is True
 
         hr_user.refresh_from_db()
-        assert authenticate(username='hr_zhang', password='Test@1234') is not None, \
-            '旧密码失效了? stub 不应该动库'
-        assert authenticate(username='hr_zhang', password='BrandNew@9999') is None, \
-            '新密码竟然生效, 说明 501 与实际行为不一致'
+        assert authenticate(username='hr_zhang', password='Test@1234') is None, \
+            '旧密码仍有效? 改密未生效'
+        assert authenticate(username='hr_zhang', password='BrandNew@9999') is not None, \
+            '新密码未生效, 说明改密没写库'
 
-    def test_stub_response_is_json_not_spa_html(self):
+    def test_register_response_is_json_not_spa_html(self):
         """确认路径没被 SPA fallback 吃掉 (吃掉会返 200 text/html, 等于假成功)."""
-        resp = APIClient().post('/api/v1/auth/register', {}, format='json')
+        resp = APIClient().post(
+            '/api/v1/auth/register/',
+            {'email': 'qa_spa@corp.com', 'password': 'Probe@12345'},
+            format='json',
+        )
         assert resp['Content-Type'].startswith('application/json'), resp['Content-Type']
-        assert resp.status_code == 501
+        assert resp.status_code == 201
 
 
 # ============================================================

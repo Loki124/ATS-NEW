@@ -45,22 +45,42 @@ def test_qa4_r2_superuser_sees_plaintext():
     print("[R2-对照] OK superuser 可见明文")
 
 
-# ---------- R5/R6: 安全敏感 stub 必须 501 且带 X-Stub ----------
+# ---------- R5/R6: 注册/改密 已实现 → 护栏升级为验证真实行为 (不再是 501 stub) ----------
 @pytest.mark.django_db
-@pytest.mark.parametrize('path,payload', [
-    ('/api/v1/auth/register', {'username': 'x', 'password': 'y'}),
-    ('/api/v1/auth/change-password', {'old_password': 'a', 'new_password': 'b'}),
-])
-def test_qa4_r5r6_stub_501(path, payload):
-    # change-password 是 IsAuthenticated, 必须带身份才能走到 stub 体
+def test_qa4_register_creates_pending_user_not_fake_success():
+    """R5: 注册必须真建出 is_active=False 的待审用户, 而非假成功 (200 + 假 user)."""
+    from django.contrib.auth import get_user_model
+    from apps.accounts.models import RegistrationApplication
+    User = get_user_model()
+    assert not User.objects.filter(email='qa4_reg@corp.com').exists()
+    c = APIClient()
+    res = c.post('/api/v1/auth/register',
+                 {'email': 'qa4_reg@corp.com', 'password': 'Secret123'}, format='json')
+    print(f"\n[R5] POST /api/v1/auth/register -> {res.status_code}")
+    assert res.status_code == 201, f'期望 201, 实际 {res.status_code}: {res.content[:200]}'
+    assert res.data['success'] is True
+    assert res.headers.get('X-Stub') != 'true', '不应再有 stub 头'
+    user = User.objects.get(email='qa4_reg@corp.com')
+    assert user.is_active is False, '注册后不应直接激活 (假成功)'
+    assert RegistrationApplication.objects.filter(
+        email='qa4_reg@corp.com', status='PENDING').exists(), '应生成待审申请单'
+
+
+@pytest.mark.django_db
+def test_qa4_change_password_actually_changes_password():
+    """R6: 改密必须真改 (旧密码失效/新密码生效), 而非假成功 (200 但无写库)."""
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    u = User.objects.create_user(username='qa4_stub', password='x')
+    u = User.objects.create_user(username='qa4_cp', email='qa4_cp@corp.com', password='oldpass123')
     c = APIClient(); c.force_authenticate(user=u)
-    res = c.post(path, payload, format='json')
-    print(f"\n[R5/R6] POST {path} -> {res.status_code} X-Stub={res.headers.get('X-Stub')!r}")
-    assert res.status_code == 501, f'期望 501 拒绝, 实际 {res.status_code}: {res.content[:200]}'
-    assert res.headers.get('X-Stub') == 'true', '缺少 X-Stub: true 响应头'
+    res = c.post('/api/v1/auth/change-password/',
+                 {'old_password': 'oldpass123', 'new_password': 'newpass123'}, format='json')
+    print(f"\n[R6] POST /api/v1/auth/change-password -> {res.status_code}")
+    assert res.status_code == 200, f'期望 200, 实际 {res.status_code}: {res.content[:200]}'
+    assert res.headers.get('X-Stub') != 'true', '不应再有 stub 头'
+    u.refresh_from_db()
+    assert u.check_password('newpass123'), '改密后新密码未生效 (假成功)'
+    assert not u.check_password('oldpass123'), '旧密码仍可用 (假成功)'
 
 
 # ---------- R8: resolve_scope 必须独立返回 department_ids ----------

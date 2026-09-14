@@ -159,25 +159,40 @@ class TestR5R6StubEndpointsRefuse:
     # (re_path 排除了 api/ 开头) 吃掉, 返 200 text/html。
     API = '/api/v1'
 
-    def test_register_returns_501_not_fake_success(self):
+    def test_register_creates_pending_user_not_fake_success(self):
         client = APIClient()
         resp = client.post(
-            f'{self.API}/auth/register', {'username': 'x', 'password': 'y'}, format='json',
-        )
-        assert resp.status_code == 501, resp.status_code
-        assert resp.data['success'] is False
-        assert resp['X-Stub'] == 'true'
-
-    def test_change_password_returns_501_not_fake_success(self, auth_client):
-        resp = auth_client.post(
-            f'{self.API}/auth/change-password',
-            {'old_password': 'a', 'new_password': 'b'},
+            f'{self.API}/auth/register',
+            {'email': 'qa_new_user@corp.com', 'password': 'Secret123'},
             format='json',
         )
-        assert resp.status_code == 501, resp.status_code
-        assert resp.data['success'] is False
-        assert '没有被更改' in resp.data['message']
-        assert resp['X-Stub'] == 'true'
+        assert resp.status_code == 201, resp.content
+        assert resp.data['success'] is True
+        assert resp.get('X-Stub') != 'true'
+        # 真建出 is_active=False 的待审用户, 而非假成功
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(email='qa_new_user@corp.com')
+        assert user.is_active is False
+        from apps.accounts.models import RegistrationApplication
+        assert RegistrationApplication.objects.filter(
+            email='qa_new_user@corp.com', status='PENDING').exists()
+
+    def test_change_password_actually_changes_password(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        u = User.objects.create_user(username='qa_cp2', email='qa_cp2@corp.com', password='oldpass123')
+        client = APIClient(); client.force_authenticate(user=u)
+        resp = client.post(
+            f'{self.API}/auth/change-password/',
+            {'old_password': 'oldpass123', 'new_password': 'newpass123'},
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        assert resp.get('X-Stub') != 'true'
+        u.refresh_from_db()
+        assert u.check_password('newpass123'), '改密后新密码未生效 (假成功)'
+        assert not u.check_password('oldpass123'), '旧密码仍可用 (假成功)'
 
     def test_login_alias_has_same_throttle_as_real_login(self):
         """R6: /login 别名以前没限流, 换个 URL 就能绕开撞库保护."""

@@ -48,6 +48,27 @@ def login_view(request):
     # 支持多种登录方式
     user = None
     from .models import User
+    from django.db.models import Q
+    from apps.accounts.models import RegistrationApplication
+    # 2026-09-11: 先找账号 (不限 is_active), 对 待审核/已拒绝 给出明确提示,
+    # 避免误报"用户名或密码错误"。
+    candidate_user = User.objects.filter(deleted_at__isnull=True).filter(
+        Q(username=username) | Q(employee_id=username) | Q(email=username) | Q(phone=username),
+    ).first()
+    if candidate_user is not None and not candidate_user.is_active:
+        app = RegistrationApplication.objects.filter(user=candidate_user).first()
+        if app and app.status == 'REJECTED':
+            return Response(
+                {'success': False, 'code': 'account_rejected',
+                 'message': '您的注册申请已被拒绝，如有疑问请联系管理员'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(
+            {'success': False, 'code': 'account_pending',
+             'message': '账号正在审核中，请等待管理员审批'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     for lookup in ['username', 'employee_id', 'email', 'phone']:
         try:
             candidate = User.objects.get(**{lookup: username}, is_active=True, deleted_at__isnull=True)

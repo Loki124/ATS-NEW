@@ -47,11 +47,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from apps.core.permissions import ResourceScoped, IsAuthenticatedReadOnly
-from apps.core.views_auth import (
-    LoginRateThrottle,
-    RegisterRateThrottle,
-    ChangePasswordRateThrottle,
-)
+from apps.core.views_auth import LoginRateThrottle
 
 logger = logging.getLogger('apps.stub')
 
@@ -162,42 +158,11 @@ _empty_list_view.cls.resource_code = 'recruit:candidate:list'
 # ============================================================
 # Auth
 # ============================================================
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@throttle_classes([RegisterRateThrottle])
-def auth_register(request):
-    """POST /auth/register — 尚未实现.
-
-    R5 (2026-08-03): 原实现返 200 + {id: 'user-stub-xxxx', status: 'ACTIVE'},
-    前端据此提示"注册成功",但数据库里根本没有这个用户,下一步登录必然失败。
-    现在明确返 501,由前端展示"该功能尚未开放"。
-    """
-    return _not_implemented(
-        'auth_register',
-        request,
-        '用户自助注册功能尚未实现。请联系管理员在「用户管理」中创建账号。',
-        code=501,
-    )
-
-
-# DEPRECATED stub (T03 删): 留 IsAuthenticated 是为了让 FE 拿到 501 而不是 403.
-# 全局默认 deny-by-default 后, 这里显式声明 IsAuthenticated 放行登录用户, 由 view 体返回 501.
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@throttle_classes([ChangePasswordRateThrottle])
-def auth_change_password(request):
-    """POST /auth/change-password — 尚未实现.
-
-    R6 (2026-08-03): 原实现返 200 + {'message': '密码已更新 (stub)'},
-    但**没有任何写库动作**。用户以为密码已改、旧密码已失效,实际旧密码仍可登录 ——
-    典型的安全假成功。现在明确返 501。
-    """
-    return _not_implemented(
-        'auth_change_password',
-        request,
-        '修改密码功能尚未实现，你的密码没有被更改。请联系管理员重置密码。',
-        code=501,
-    )
+# 2026-09-11: auth_register / auth_change_password 两个 stub 已删除 ——
+#   register 由 apps/accounts/views.py:register_view (真实实现) 接管;
+#   change-password 由 apps/core/views_auth.py:change_password_view (真实实现) 接管.
+#   二者此前长期返 501 + X-Stub:true (R5/R6 安全护栏), 现功能已落地, 护栏升级为
+#   "验证真实行为" (见 tests: 注册真建 is_active=False 用户 / 改密真生效).
 
 
 # ============================================================
@@ -612,11 +577,9 @@ def resumes_alias(request):
 # URL patterns
 # ============================================================
 urlpatterns = [
-    # Auth
-    path('auth/register', auth_register, name='auth-register'),
-    path('auth/register/', auth_register),
-    path('auth/change-password', auth_change_password, name='auth-change-password'),
-    path('auth/change-password/', auth_change_password),
+    # Auth — 2026-09-11: auth/register 与 auth/change-password 已由真实实现接管
+    #   (apps/accounts/views.py register_view + apps/core/views_auth.py change_password_view),
+    #   对应 stub 路由与函数已删除, 不再返回 501 假绿.
     path('login', login_alias, name='login-alias'),
     path('login/', login_alias),
 

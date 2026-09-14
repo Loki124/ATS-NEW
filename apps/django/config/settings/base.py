@@ -147,6 +147,7 @@ LOCAL_APPS = [
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护
     'apps.external_sync',  # G40 Mock 占位端点 (无 model, 仅 APIView). 还原 T02 删除: 前端 CompanySettings 显式 Mock 页仍真实调用, 不能 404
     'apps.duplicate_rule',  # 2026-09-13: 重复候选人管理独立模块（合并规则 / 重复申请管理 / 候选人查重规则）
+    'apps.accounts',        # 2026-09-11: 自助注册 → 邮箱验证码 → 管理员审核 → 激活登录
 ]  # Phase 2 T02 (寇豆码): 原删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app; data 已重建为 analytics(/data/), external_sync 重建为 mock 端点(/external-sync/)
                           #   上游 grep 0 调用方, 无 model 无迁移. 详见 §T02.
 

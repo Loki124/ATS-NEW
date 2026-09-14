@@ -164,18 +164,24 @@ class TestAclStrictFailClosed:
 # ============================================================
 @pytest.mark.django_db
 class TestR5R6StubsOverRealHttpApi:
-    def test_register_returns_501_with_stub_header(self):
+    def test_register_creates_real_pending_user(self):
+        """注册已实现: 必须真建出 is_active=False 的待审用户, 而非 501 stub 假拒绝."""
         res = APIClient().post(
             '/api/v1/auth/register/',
-            {'username': 'qa_new_user', 'password': 'Passw0rd!2026'},
+            {'email': 'qa_new_user@corp.com', 'password': 'Passw0rd!2026'},
             format='json',
         )
-        assert res.status_code == 501, f'期望 501, 实际 {res.status_code}: {res.content[:200]}'
-        assert res.headers.get('X-Stub') == 'true', dict(res.headers)
-        assert res.json()['success'] is False
-        # 关键: 不能真建出用户来
+        assert res.status_code == 201, f'期望 201, 实际 {res.status_code}: {res.content[:200]}'
+        assert res.json()['success'] is True
+        assert res.headers.get('X-Stub') != 'true', dict(res.headers)
+        # 关键: 真建出待审用户 (不再是"拒绝但不建"的 stub)
         from django.contrib.auth import get_user_model
-        assert not get_user_model().objects.filter(username='qa_new_user').exists()
+        from apps.accounts.models import RegistrationApplication
+        User = get_user_model()
+        user = User.objects.get(email='qa_new_user@corp.com')
+        assert user.is_active is False
+        assert RegistrationApplication.objects.filter(
+            email='qa_new_user@corp.com', status='PENDING').exists()
 
     @pytest.mark.skip(reason=(
         'change-password 端点已由真实实现接管（apps/core/views_auth.py:109 change_password_view），'
