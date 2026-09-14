@@ -115,6 +115,8 @@ export interface FieldDefinition {
   confirmationDeclarationEn?: string | null;
   /** 可见权限 — 2026-09-14 拆分增强 */
   visibilityPermission?: VisibilityPermission;
+  /** 选项来源 (2026-09-15): { type:'custom'|'dictionary'|'library'|'code_table', key }；非空时选项由后端按数据源动态解析 */
+  optionsSource?: { type: string; key: string } | null;
   createdAt?: string;
   updatedAt?: string;
 }

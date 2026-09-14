@@ -110,7 +110,8 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'resource', 'field_key', 'label', 'field_type', 'is_required',
             'is_visible', 'placeholder', 'help_text', 'default_value', 'validation',
-            'order_index', 'group_name', 'status', 'options', 'module', 'group',
+            'order_index', 'group_name', 'status', 'options', 'options_source',
+            'module', 'group',
             'module_id', 'group_id',
             # 2026-09-14 增强: 英文字段名 + 确认题内容/声明 + 可见权限
             'label_en', 'confirmation_content', 'confirmation_content_en',
@@ -118,6 +119,18 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             'visibility_permission',
         ]
         read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
+
+    def to_representation(self, instance):
+        """读时若配置了 ``options_source``, 按数据源解析并回填 ``options``。
+
+        现有预览渲染器均消费 ``row.options``, 故在序列化层统一替换,
+        渲染层零改动。解析失败/未配置时 ``resolve_options_source`` 返回 None, 保留手动 options。
+        """
+        data = super().to_representation(instance)
+        resolved = DynamicField.resolve_options_source(getattr(instance, 'options_source', None))
+        if resolved is not None:
+            data['options'] = resolved
+        return data
 
     def _apply_module_group(self, validated_data: dict) -> dict:
         """应用模块/分组归属, 并同步 ``group_name`` 冗余列。

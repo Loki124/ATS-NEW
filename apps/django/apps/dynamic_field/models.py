@@ -68,6 +68,17 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     )
     status = models.CharField(max_length=32, default='active')
     options = models.JSONField(default=list, blank=True, help_text='选项列表 [{value, label}]')
+    # 2026-09-15 选项来源 (兵哥): 下拉/列表型字段除手动维护选项外, 可指定数据源动态解析
+    # 结构: {"type": "custom"|"dictionary"|"library"|"code_table", "key": "..."}
+    #   - custom / 空 => 使用本字段的 options (手动维护)
+    #   - dictionary   => key = 字典类型 code, 取该字典下 is_active 的 item (value=item.key, label=item.value)
+    #   - library      => key = major (专业库), 未来可扩展 school/company
+    #   - code_table   => 预留: 国标码表 (regions/countries/ethnicities/languages)
+    # 读时由 serializer.to_representation 按此解析并回填 options, 使现有预览渲染器零改动。
+    options_source = models.JSONField(
+        default=dict, blank=True,
+        help_text='选项来源 {type, key}; 非空时选项由对应数据源动态解析并覆盖手动 options',
+    )
     # 2026-09-14 动态字段拆分增强: 英文字段名 + 确认题内容/声明 + 可见权限
     label_en = models.CharField(max_length=256, blank=True, default='', help_text='字段名称(英文)')
     confirmation_content = models.TextField(blank=True, default='', help_text='确认题-确认内容(中文)')
@@ -91,6 +102,54 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
 
     def __str__(self):
         return f'{self.resource}/{self.field_key}'
+
+    @staticmethod
+    def resolve_options_source(options_source: dict | None) -> list | None:
+        """按 ``options_source`` 解析出选项列表; 不支持 / 未配置 / 解析失败均返回 ``None``。
+
+        返回 ``None`` 时调用方应回退到手动维护的 ``options`` 字段, 不改变既有行为。
+        支持类型:
+          - ``dictionary``: key = 字典类型 code, 取该字典 is_active 的 item
+                            (value=item.key, label=item.value, 按 sort_order/key 排序)
+          - ``library``   : key = ``major`` (专业库), 取 library_major (value=code, label=name)
+          - ``code_table``: 预留 (国标码表), 当前未接线, 返回 None
+        延迟导入 dictionary/library 模型, 避免模块加载期循环依赖。
+        """
+        if not options_source or not isinstance(options_source, dict):
+            return None
+        src_type = options_source.get('type')
+        key = options_source.get('key')
+        if not src_type or src_type == 'custom' or not key:
+            return None
+        try:
+            if src_type == 'dictionary':
+                from apps.dictionary.models import DictionaryItem
+                items = (
+                    DictionaryItem.objects
+                    .filter(
+                        type__code=key,
+                        type__deleted_at__isnull=True,
+                        deleted_at__isnull=True,
+                        is_active=True,
+                    )
+                    .select_related('type')
+                    .order_by('sort_order', 'key')
+                )
+                return [{'value': it.key, 'label': it.value} for it in items]
+            if src_type == 'library':
+                if key == 'major':
+                    from apps.library.models import Major
+                    majors = (
+                        Major.objects
+                        .filter(deleted_at__isnull=True)
+                        .order_by('name', 'code')
+                    )
+                    return [{'value': m.code, 'label': m.name} for m in majors]
+                # 未来扩展: school / company ...
+            # code_table: 预留, 暂未接线
+        except Exception:  # noqa: BLE001 — 解析失败安全降级到手动 options
+            return None
+        return None
 
 
 class FieldModule(TimestampedModel, SoftDeleteModel):

@@ -191,7 +191,32 @@
           <n-form-item label="显示">
             <n-switch v-model:value="fieldForm.isVisible" />
           </n-form-item>
-          <n-form-item v-if="fieldNeedsOptions" label="选项">
+          <n-form-item v-if="fieldNeedsOptions" label="选项来源">
+            <n-space vertical :size="8" style="width: 100%">
+              <n-select
+                :value="sourceType"
+                :options="OPTION_SOURCE_OPTIONS"
+                style="width: 280px"
+                @update:value="onOptionSourceTypeChange"
+              />
+              <n-select
+                v-if="sourceType === 'dictionary'"
+                v-model:value="fieldForm.optionsSource.key"
+                :options="dictionaryTypeOptions"
+                :loading="loadingDictTypes"
+                placeholder="选择字典类型"
+                filterable
+                style="width: 100%"
+                @update:value="onDictTypeChange"
+              />
+              <n-alert
+                v-if="sourceType === 'library'"
+                type="info"
+                :show-icon="true"
+              >保存后，选项将从「专业库 · 专业名称」动态加载（实时同步专业库数据）。</n-alert>
+            </n-space>
+          </n-form-item>
+          <n-form-item v-if="fieldNeedsOptions && showManualOptions" label="选项">
             <n-dynamic-input
               v-model:value="fieldForm.options"
               :on-create="onCreateOption"
@@ -203,7 +228,13 @@
               </template>
             </n-dynamic-input>
           </n-form-item>
-          <n-form-item v-if="isListType" label="预览" class="list-preview-item">
+          <n-form-item v-if="fieldNeedsOptions && sourceType === 'dictionary'" label="预览">
+            <n-space>
+              <n-tag v-for="o in dictionaryPreviewOptions" :key="o.value" size="small">{{ o.label }}</n-tag>
+              <n-text v-if="!dictionaryPreviewOptions.length" depth="3">请选择字典类型以预览选项</n-text>
+            </n-space>
+          </n-form-item>
+          <n-form-item v-if="isListType && showManualOptions" label="预览" class="list-preview-item">
             <div class="list-preview-wrap">
               <FieldListOptions
                 v-model="fieldPreviewValue"
@@ -536,6 +567,10 @@ import {
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
   type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
 } from '@/api/dynamic-field';
+import {
+  listDictionaryTypes, listDictionaryItems,
+  type DictionaryType,
+} from '@/api/dictionary';
 
 const props = withDefaults(defineProps<{
   /** overview: 4 Tab（含模块配置）+ 可切换 resource；embedded: 3 Tab + 锁定 resource + 后端自动建默认模块 */
@@ -596,6 +631,7 @@ const fieldForm = reactive<{
   moduleId: string | null; groupId: string | null;
   isRequired: boolean; isVisible: boolean; placeholder: string; helpText: string;
   orderIndex: number; options: { value: string; label: string }[];
+  optionsSource: { type: string; key: string };
   confirmationContent: string; confirmationContentEn: string;
   confirmationDeclaration: string; confirmationDeclarationEn: string;
   visibilityPermission: VisibilityPermission;
@@ -604,12 +640,70 @@ const fieldForm = reactive<{
   moduleId: null, groupId: null,
   isRequired: false, isVisible: true, placeholder: '', helpText: '',
   orderIndex: 0, options: [],
+  optionsSource: { type: 'custom', key: '' },
   confirmationContent: '', confirmationContentEn: '',
   confirmationDeclaration: '', confirmationDeclarationEn: '',
   visibilityPermission: 'ALL_VISIBLE',
 });
 
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
+
+// 2026-09-15 选项来源 (兵哥): 下拉/列表型字段除手动维护选项外, 可指定数据源动态解析
+const OPTION_SOURCE_OPTIONS = [
+  { label: '自定义（手动维护）', value: 'custom' },
+  { label: '数据字典', value: 'dictionary' },
+  { label: '专业库', value: 'library' },
+];
+// 当前选中的来源类型（兜底 custom）
+const sourceType = computed(() => fieldForm.optionsSource?.type || 'custom');
+// 仅自定义来源展示手动选项编辑器（A: 选了数据源则隐藏手动选项）
+const showManualOptions = computed(() => sourceType.value === 'custom');
+// 数据字典类型列表（选「数据字典」时懒加载）
+const dictionaryTypes = ref<DictionaryType[]>([]);
+const loadingDictTypes = ref(false);
+// 当前所选字典类型下的预览选项（仅编辑态预览, 真实渲染仍由后端解析）
+const dictionaryPreviewOptions = ref<{ value: string; label: string }[]>([]);
+// 字典类型下拉选项：仅展示启用中的字典类型（与后端解析器一致：type 须 is_enabled）
+const dictionaryTypeOptions = computed(() =>
+  dictionaryTypes.value
+    .filter((t) => t.isEnabled)
+    .map((t) => ({ label: `${t.name}（${t.code}）`, value: t.code })),
+);
+
+/** 切换选项来源类型：dictionary 时懒加载字典类型列表；library 时锁定 key=major；custom 时清空 key。 */
+async function onOptionSourceTypeChange(type: string) {
+  fieldForm.optionsSource.type = type;
+  fieldForm.optionsSource.key = '';
+  dictionaryPreviewOptions.value = [];
+  if (type === 'dictionary') {
+    loadingDictTypes.value = true;
+    try {
+      dictionaryTypes.value = await listDictionaryTypes({ type: 'all' });
+    } catch (e: any) {
+      message.error('加载字典类型失败: ' + extractApiError(e));
+    } finally {
+      loadingDictTypes.value = false;
+    }
+  } else if (type === 'library') {
+    // 首个落地的专业库数据源为「专业名称」（library_major）
+    fieldForm.optionsSource.key = 'major';
+  }
+}
+
+/** 选择具体字典类型后，拉取该字典项作为编辑态预览。 */
+async function onDictTypeChange(code: string) {
+  fieldForm.optionsSource.key = code;
+  dictionaryPreviewOptions.value = [];
+  if (!code) return;
+  try {
+    const items = await listDictionaryItems(code);
+    dictionaryPreviewOptions.value = items
+      .filter((it) => it.isActive)
+      .map((it) => ({ value: it.key, label: it.value }));
+  } catch (e: any) {
+    message.error('加载字典项失败: ' + extractApiError(e));
+  }
+}
 const fieldGroupOptions = computed(() => {
   const base = fieldForm.moduleId ? groups.value.filter((g) => g.moduleId === fieldForm.moduleId) : groups.value;
   return base.map((g) => ({ label: g.name, value: g.id }));
@@ -718,6 +812,7 @@ function resetFieldForm() {
     moduleId: null, groupId: null,
     isRequired: false, isVisible: true, placeholder: '', helpText: '',
     orderIndex: rows.value.length, options: [],
+    optionsSource: { type: 'custom', key: '' },
     confirmationContent: '', confirmationContentEn: '',
     confirmationDeclaration: '', confirmationDeclarationEn: '',
     visibilityPermission: 'ALL_VISIBLE',
@@ -743,7 +838,11 @@ function openFieldEdit(row: FieldDefinition) {
     isRequired: row.isRequired, isVisible: row.isVisible,
     placeholder: row.placeholder || '', helpText: row.helpText || '',
     orderIndex: row.orderIndex,
-    options: (row.options || []).map((o) => ({ value: o.value, label: o.label })),
+    // 非自定义来源: 后端 to_representation 已把 options 解析成数据源全量, 编辑态不回填手动编辑器
+    optionsSource: row.optionsSource || { type: 'custom', key: '' },
+    options: (row.optionsSource && row.optionsSource.type && row.optionsSource.type !== 'custom')
+      ? []
+      : (row.options || []).map((o) => ({ value: o.value, label: o.label })),
     confirmationContent: row.confirmationContent || '',
     confirmationContentEn: row.confirmationContentEn || '',
     confirmationDeclaration: row.confirmationDeclaration || '',
@@ -775,7 +874,15 @@ async function saveField() {
       visibilityPermission: fieldForm.visibilityPermission,
       id: fieldEditing.value?.id,
     };
-    if (!fieldNeedsOptions.value) payload.options = [];
+    // 2026-09-15 选项来源: 选项型字段若指定了数据源, 清空手动 options, 由后端按 options_source 解析
+    payload.optionsSource = fieldForm.optionsSource || { type: 'custom', key: '' };
+    if (!fieldNeedsOptions.value) {
+      payload.options = [];
+    } else if (fieldForm.optionsSource && fieldForm.optionsSource.type && fieldForm.optionsSource.type !== 'custom') {
+      payload.options = [];
+    } else {
+      payload.options = fieldForm.options;
+    }
     await upsertField(currentResource.value, payload);
     fieldModalVisible.value = false;
     message.success('保存成功');

@@ -355,7 +355,10 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 'group_name': f.group_name,
                 'module_code': f.module.code if f.module else '',
                 'group_code': f.group.code if f.group else '',
-                'options': json.dumps(f.options, ensure_ascii=False),
+                'options': json.dumps(
+                    DynamicField.resolve_options_source(f.options_source) or f.options,
+                    ensure_ascii=False,
+                ),
                 'validation': json.dumps(f.validation, ensure_ascii=False),
             })
 
