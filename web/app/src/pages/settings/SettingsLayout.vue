@@ -167,7 +167,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
           { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-          { key: '/settings/duplicate-candidate', label: '重复候选人管理', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
+          { key: '/settings/duplicate-candidate', label: '简历查重规则', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
           { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
