@@ -56,6 +56,10 @@ class Command(BaseCommand):
             help='只导入指定码表',
         )
         parser.add_argument('--clear', action='store_true', help='导入前清空对应表')
+        parser.add_argument(
+            '--if-empty', action='store_true',
+            help='仅当目标表为空时才导入（容器启动脚本用，避免每次启动重写 4.5 万条）',
+        )
 
     def handle(self, *args, **opts):
         data_dir = opts['data_dir']
@@ -69,9 +73,13 @@ class Command(BaseCommand):
         for name, fn in tasks:
             if only and name != only:
                 continue
+            model = {'regions': Region, 'countries': Country,
+                     'ethnicities': Ethnicity, 'languages': Language}[name]
             if opts['clear']:
-                {'regions': Region, 'countries': Country,
-                 'ethnicities': Ethnicity, 'languages': Language}[name].objects.all().delete()
+                model.objects.all().delete()
+            if opts['if_empty'] and model.objects.exists():
+                self.stdout.write(f'  跳过 {name}（已有 {model.objects.count()} 条）')
+                continue
             n = fn(data_dir)
             self.stdout.write(self.style.SUCCESS(f'  {name}: {n} 条'))
 

@@ -108,6 +108,11 @@ services:
         for i in $$(seq 1 30); do
           if python manage.py migrate --noinput && python manage.py seed_v2_init && python manage.py collectstatic --noinput; then
             echo "[init] migrate+collectstatic OK on attempt $$i"
+            # 2026-09-15: 码表库(G46)与专业库基础数据自动导入。
+            #   --if-empty 保证仅首次落数据, 后续重启直接跳过(不重写 4.5 万条区划)。
+            #   失败不阻断启动(码表缺失不影响系统可用), 仅告警, 可事后手动补导。
+            python manage.py import_code_tables --if-empty || echo "[init] WARN 码表导入失败, 请事后手动执行 import_code_tables"
+            python manage.py import_majors --if-empty || echo "[init] WARN 专业库导入失败, 请事后手动执行 import_majors"
             exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --worker-class sync --timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -
           fi
           echo "[init] attempt $$i failed, retrying in 3s..."

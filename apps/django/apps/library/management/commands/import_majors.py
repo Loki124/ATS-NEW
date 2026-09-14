@@ -56,6 +56,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--file', default=DEFAULT_FILE, help='CSV 文件路径')
         parser.add_argument('--clear', action='store_true', help='导入前清空 Major 表')
+        parser.add_argument(
+            '--if-empty', action='store_true',
+            help='仅当 Major 表为空时才导入（容器启动脚本用，避免每次启动重写 1976 条）',
+        )
 
     def handle(self, *args, **opts):
         path = opts['file']
@@ -66,6 +70,10 @@ class Command(BaseCommand):
         if opts['clear']:
             n, _ = Major.all_objects.all().delete()
             self.stdout.write(f'已清空 Major 表（{n} 条）')
+
+        if opts['if_empty'] and Major.objects.exists():
+            self.stdout.write(f'  跳过导入（Major 已有 {Major.objects.count()} 条）')
+            return
 
         created = updated = skipped = 0
         with open(path, encoding='utf-8-sig', newline='') as f:
