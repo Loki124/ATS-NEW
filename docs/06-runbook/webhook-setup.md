@@ -123,6 +123,16 @@ A: `sudo bash /opt/data/ATS-new/ops/scripts/webhook-deploy.sh`
 **Q: 接收器挂了？**
 A: `sudo systemctl restart ats-webhook`；`systemctl status ats-webhook` / `journalctl -u ats-webhook -n 50`。
 
+**Q: Gitee 测试 webhook 报 `SSLHandshakeException: handshake_failure`（返回 -2）？**
+A: 这是 **Gitee 的 Java webhook 客户端与 Cloudflare 边缘的 TLS 协商失败**，还没到我们的接收器，也不是密钥错（密钥错会返回 403）。先本地验证链路本身是否通：
+   ```bash
+   curl -v https://webhook.你的域名/webhook
+   ```
+   若本地能正常握手（TLS 1.3 + 证书有效，且 GET /webhook 命中接收器自定义 404 `{"error":"not found"}`），说明 DNS / CF Tunnel / 接收器都正常，问题只在 Gitee 客户端。
+   根因：Gitee 的 Java 栈不支持 Cloudflare 默认的 **TLS 1.3 / ChaCha20-POLY1305** 协商。
+   修复：Cloudflare 后台 → **SSL/TLS → Edge Certificates → TLS 1.3 关掉（OFF）**，强制 TLS 1.2 + AES-GCM（Java 客户端支持）。改完回 Gitee webhook 管理页「重发请求」，应返回 200（`null: HTTP/1.1 200 OK` 是 Gitee 的响应行前缀）。注意 Gitee webhook 出口地理浮动（CF-RAY 可能在 HKG/AMS 等不同边缘），该设置对所有边缘生效。
+   坑：本地测 curl 时 `-H` 头要写在同一行或用 `\` 续行，否则 zsh 会报 `command not found: -H`，导致只发了裸 GET（返回 404 属预期，不代表链路坏）。
+
 ## 安全注意
 
 - **secret 必须保密**：泄露后任何人可触发你的部署（虽然只是 pull + rebuild，不会泄露数据，但会浪费算力）。
