@@ -202,17 +202,29 @@ export const updateUiSettings = (uiSettings: Record<string, any>) =>
     { uiSettings },
   );
 
-export const register = (data: {
-  username: string;
-  password: string;
-  realName: string;
-  email?: string;
-  phone?: string;
-  roleType?: string;
-  departmentId?: string;
-}) => {
+export const register = (data: { email: string; password: string; fullName?: string }) => {
   return api.post('/auth/register/', data);
 };
+
+/** 校验注册邮箱验证码 - POST /api/v1/auth/verify-register-code/ */
+export const verifyRegisterCode = (email: string, code: string) =>
+  api.post('/auth/verify-register-code/', { email, code });
+
+/** 重新发送注册验证码 - POST /api/v1/auth/resend-register-code/ */
+export const resendRegisterCode = (email: string) =>
+  api.post('/auth/resend-register-code/', { email });
+
+/** 管理员：注册申请列表 - GET /api/v1/auth/registrations/ */
+export const listRegistrations = (status?: string) =>
+  api.get('/auth/registrations/', { params: status ? { status } : {} });
+
+/** 管理员：通过注册申请并激活 - POST /api/v1/auth/registrations/:id/approve/ */
+export const approveRegistration = (id: string) =>
+  api.post(`/auth/registrations/${id}/approve/`);
+
+/** 管理员：拒绝注册申请 - POST /api/v1/auth/registrations/:id/reject/ */
+export const rejectRegistration = (id: string, rejectReason: string) =>
+  api.post(`/auth/registrations/${id}/reject/`, { rejectReason });
 
 export const changePassword = (oldPassword: string, newPassword: string) => {
   return api.post('/auth/change-password/', { oldPassword, newPassword });

@@ -116,6 +116,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
           { key: '/settings/data-permission', label: '数据权限管理', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
           { key: '/settings/user-management', label: '团队成员管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+          { key: '/settings/registrations', label: '注册审核', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
           { key: '/settings/user-groups', label: '用户组管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },

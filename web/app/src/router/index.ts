@@ -125,6 +125,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
           { path: 'user-management', name: 'UserManagement', component: () => import(/* webpackChunkName: "settings-user" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: ['SUPER_ADMIN'] } },
           // 2026-07-01 花无缺: 删 /settings/permission 路由 + 删 PermissionManagement.vue (G41 重构合并到 MouManagement 角色管理 tab)
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
@@ -231,6 +232,9 @@ export function routeGuard(to: any, _from: any, next: any) {
     return next('/login')
   }
   if (to.path === '/login' && token) {
+    return next('/dashboard')
+  }
+  if (to.path === '/register' && token) {
     return next('/dashboard')
   }
 

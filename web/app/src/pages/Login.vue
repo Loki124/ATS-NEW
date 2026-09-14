@@ -136,6 +136,7 @@
 
         <div class="login-footer">
           <p>默认账号: admin / admin123</p>
+          <p class="register-hint">还没有账号？<a href="#" class="forgot-link" @click.prevent="goRegister">申请注册</a></p>
         </div>
       </div>
 
@@ -254,10 +255,18 @@ const handleLogin = async (values: { username: string; password: string }) => {
   } catch (error: any) {
     // 2026-07-02: 网络错误 / 5xx 时给用户反馈, 之前只 console.error 用户无感
     console.error('[login] error:', error?.response?.status, error?.message)
-    const msg = error?.response?.data?.message
-      || error?.message
-      || '网络错误, 请稍后重试'
-    message.error(msg)
+    const status = error?.response?.status
+    const data = error?.response?.data || {}
+    // 待审核 / 已拒绝账号：后端返回 403 + code=account_pending|account_rejected
+    // （apps/core/views_auth.py login_view）。不再误报"密码错误"，给出明确指引。
+    if (status === 403 && data.code === 'account_pending') {
+      message.warning(data.message || '您的账号正在审核中，请耐心等待管理员审批')
+    } else if (status === 403 && data.code === 'account_rejected') {
+      message.error(data.message || '您的注册申请已被拒绝，如有疑问请联系管理员')
+    } else {
+      const msg = data.message || error?.message || '网络错误, 请稍后重试'
+      message.error(msg)
+    }
   } finally {
     loading.value = false
   }
@@ -275,6 +284,8 @@ const onAccountFinish = (e?: Event) => {
 const onSmsFinish = () => {
   message.info('短信登录功能开发中')
 }
+
+const goRegister = () => router.push('/register')
 
 const sendCode = () => {
   if (!formSms.phone) {
