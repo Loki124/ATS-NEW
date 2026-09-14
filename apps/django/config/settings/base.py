@@ -133,6 +133,7 @@ LOCAL_APPS = [
 
     'apps.mou',             # 2026-07-01 花无缺: MOU 业务 (大客户协议), 暂未挂 config/urls (stub 在 referral/urls_stubs)
     'apps.library',         # G41 院校/公司信息库
+    'apps.code_table',      # G46 码表库（行政区划/国家区号/民族/语言）
     # Phase 2 T02 (寇豆码): scraped_resume 已补 model 保留; duplicate_check 已于 2026-09-05 删除
     #   - scraped_resume  已补 ScrapedResume 最小 model (G30 完整功能由 T06 落地)
     #   - duplicate_check  原 7 处前端调用已萎缩为 1 处死文件引用 (AddCandidateModal.legacy.vue 的

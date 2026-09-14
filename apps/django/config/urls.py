@@ -143,6 +143,8 @@ api_v1_patterns = [
     path('standard-resume/', include('apps.standard_resume.urls')),
     path('resumes/approval-flows/', include('apps.resume_flow.urls')),
     path('library/', include('apps.library.urls')),
+    # 2026-09-14: G46 码表库（行政区划 / 国家区号 / 民族 / 语言）
+    path('code-tables/', include('apps.code_table.urls')),
     path('scraped-resumes/', include('apps.scraped_resume.urls')),
 
     # 公共

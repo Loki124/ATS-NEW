@@ -4,8 +4,58 @@ from rest_framework.response import Response
 
 from apps.core.permissions_v2 import V2Permission
 
-from .models import School, Company
-from .serializers import SchoolSerializer, CompanySerializer
+from django.db.models import Q
+
+from .models import School, Company, Major
+from .serializers import SchoolSerializer, CompanySerializer, MajorSerializer
+
+
+class MajorViewSet(viewsets.ReadOnlyModelViewSet):
+    """专业库 — 院校库「专业」Tab。
+
+    支持 keyword（专业名/代码）、discipline（门类）、category（专业类）、
+    educationLevel（学历层次）过滤；facets 返回门类/专业类/学历层次可选项。
+    """
+
+    queryset = Major.objects.all()
+    serializer_class = MajorSerializer
+    permission_classes = [V2Permission]
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        keyword = request.query_params.get('keyword')
+        if keyword:
+            qs = qs.filter(Q(name__icontains=keyword) | Q(code__icontains=keyword))
+        discipline = request.query_params.get('discipline')
+        if discipline:
+            qs = qs.filter(discipline=discipline)
+        category = request.query_params.get('category')
+        if category:
+            qs = qs.filter(category=category)
+        edu = request.query_params.get('educationLevel')
+        if edu:
+            qs = qs.filter(education_level=edu)
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    @action(detail=False, methods=['get'])
+    def facets(self, request):
+        """返回门类 / 专业类 / 学历层次的可选值（供前端下拉筛选用）。"""
+        return Response({
+            'success': True,
+            'data': {
+                'disciplines': [
+                    d for d in Major.objects.values_list('discipline', flat=True).distinct() if d
+                ],
+                'categories': [
+                    c for c in Major.objects.values_list('category', flat=True).distinct() if c
+                ],
+                'educationLevels': [
+                    e for e in Major.objects.values_list('education_level', flat=True).distinct() if e
+                ],
+            },
+        })
 
 
 class SchoolViewSet(viewsets.ReadOnlyModelViewSet):

@@ -59,4 +59,33 @@ export const getCompany = (id: string) =>
 export const listCompanyIndustries = () =>
   api.get('/library/companies/industries/').then((r) => r.data.data);
 
+// ===== Major（专业库 — 阳光高考专业库导入）=====
+export interface Major {
+  id: string;
+  specId: string;
+  code: string;
+  name: string;
+  educationLevel?: string;
+  educationLevelCode?: string;
+  discipline?: string;
+  disciplineCode?: string;
+  category?: string;
+  categoryCode?: string;
+  dataYear?: string;
+  intro?: string;
+  detailUrl?: string;
+}
+
+export interface MajorFacets {
+  disciplines: string[];
+  categories: string[];
+  educationLevels: string[];
+}
+
+export const searchMajors = (params?: any) =>
+  api.get('/library/majors/', { params }).then((r) => r.data.data);
+
+export const getMajorFacets = () =>
+  api.get('/library/majors/facets/').then((r) => r.data.data);
+
 export default api;

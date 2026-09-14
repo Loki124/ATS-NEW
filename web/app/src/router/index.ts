@@ -137,6 +137,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'interview-management', name: 'InterviewManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '面试管理', description: '面试形式、面试评价表与面试官资源管理（规划中）' } },
           { path: 'offer-management', name: 'OfferManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: 'Offer管理', description: 'Offer 模板、审批流与薪酬结构配置（规划中）' } },
           { path: 'recruit-category', name: 'RecruitCategory', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '招聘分类信息', description: '招聘业务分类维度维护，数据字典归属于此（规划中）' } },
+          // ===== G46 码表库 =====
+          { path: 'code-tables', name: 'CodeTableLibrary', component: () => import(/* webpackChunkName: "settings-code-tables" */ '../pages/settings/CodeTableLibrary.vue'), meta: { title: '码表库', description: '行政区划 / 国家区号 / 民族 / 语言标准码表' } },
           { path: 'company', name: 'CompanySettings', component: () => import(/* webpackChunkName: "settings-company" */ '../pages/settings/CompanySettings.vue') },
           { path: 'company/address', name: 'CompanyAddress', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '公司地址', description: '维护公司办公地址、地址用途及地图坐标信息' } },
           { path: 'company/meeting-rooms', name: 'CompanyMeetingRooms', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '公司会议室', description: '配置会议室资源、容量及面试可用时段' } },

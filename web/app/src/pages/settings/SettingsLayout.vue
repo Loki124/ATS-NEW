@@ -206,6 +206,7 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
       { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
       { key: '/settings/rule-engine', label: '统一规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
+      { key: '/settings/code-tables', label: '码表库', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
     ],
   },
 ]
