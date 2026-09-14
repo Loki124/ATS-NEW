@@ -13,7 +13,7 @@
 | # | 不合规 / 脆弱点 | 硬证据位置 | 需调整内容 |
 |---|---|---|---|
 | 1 | `is_superuser` 全栈硬旁路 | `core/permissions.py`、`permissions_v2.py`、`scope_resolver.py`、`field_acl/services.py` 等多处（约 30 文件） | ✅ **已修复 (commit 见下)**：新增叶子模块中心化 `is_super_admin(user)`（`role_v2_query.py`，= `is_superuser OR SUPER_ADMIN 角色`，是超集）；移除 15 处授权旁路的散落 `if is_superuser: return True`，统一改走 `is_super_admin`；保留 `role_v2_query` 内 `is_superuser` 角色评估原语（改了会递归）。回归测试 `test_has_perm_super_admin_role_bypass` 锁定「非超管持 SUPER_ADMIN 角色也全放行」 |
-| 2 | V1 双轨残留 | `core/models.py`（`User.groups/user_permissions` M2M + V1 `Permission` 模型） | ✅ **已修复**（废弃 V1 `Permission` 模型 + 删除死文件 `init_demo_data.py`；`User.groups/user_permissions` 为 `AbstractUser` 内建机件必留；单一真相源 = V2 `PermissionResource`；commit `见下`） |
+| 2 | V1 双轨残留 | `core/models.py`（`User.groups/user_permissions` M2M + V1 `Permission` 模型） | ✅ **已修复**（commit `4d324fc`：废弃 V1 `Permission` 模型 + 删除死文件 `init_demo_data.py`；`User.groups/user_permissions` 为 `AbstractUser` 内建机件必留；单一真相源 = V2 `PermissionResource`） |
 | 3 | 部门/职位隐含授权 | `core/models.py`（`Department.leader/manager_2/hrbp` FK） | 建模为数据范围授权（管理单元/角色数据范围），不靠硬编码职位判断 |
 | 4 | `IsPositionRelated` 硬编码「同部门职位」 | `core/permissions.py` | ✅ **已修复**（dead code 删除，commit `见下`）：该类全仓无其他引用，`CandidateViewSet` 早已走 `[V2Permission]`+`ScopeQuerysetMixin`，候选人对象级访问由 V2 角色数据范围接管——即「下沉为角色数据范围」已由 V2 系统实现；删除带硬编码部门判断的死代码（18 行），消除误导 |
 | 5 | 前端只用 `meta.roles` 白名单，未消费 `/me` 资源码 | `web/app/src/router/index.ts`、`stores/user.ts` | ✅ **已修复**（commit `f7482e7`）：新增 `usePermission()` 组合式 + `v-permission` 指令（均消费 `/me` 的 `permissions` 资源码列表，含 SUPER_ADMIN 兜底），`stores/user.ts` 落盘 `permissions` 字段，`main.ts` 注册指令；候选人「编辑简历」按钮已接 `v-permission="'recruit:candidate:edit'"`（HR/HRBP/用人经理经 `TMPL_SPECIALIST` 拿到该码无回归，仅 `INTERVIEWER` 被隐藏）——UI 随真实权限自适应（最小权限 UI） |
