@@ -134,7 +134,7 @@ const subMenuOptions: MenuItem[] = [
         children: [
           { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
-          { key: '/settings/demand-dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/demand-dynamic-fields', label: '需求字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
       {
@@ -153,7 +153,7 @@ const subMenuOptions: MenuItem[] = [
         icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }),
         children: [
           { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
-          { key: '/settings/position-dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/position-dynamic-fields', label: '职位字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
       { key: '/settings/interview-management', label: '面试管理', icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },
@@ -168,7 +168,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/duplicate-candidate', label: '重复候选人管理', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
-          { key: '/settings/candidate-dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
     ],
