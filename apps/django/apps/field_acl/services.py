@@ -30,7 +30,7 @@ from apps.common.masking import (
     mask_phone,
 )
 from apps.core.models import User
-from apps.core.role_v2_query import user_role_codes
+from apps.core.role_v2_query import user_role_codes, is_super_admin
 
 from apps.data_permission.enforcement import DataPermissionEnforcement
 
@@ -102,11 +102,9 @@ class FieldAclService:
         if is_anonymous:
             user_roles: List[str] = []
         else:
-            if getattr(user, 'is_superuser', False):
-                return data  # 超管看所有
+            if is_super_admin(user):
+                return data  # 超管或 SUPER_ADMIN 角色看所有
             user_roles = user_role_codes(user)
-            if 'SUPER_ADMIN' in user_roles:
-                return data
 
         rules_map = FieldAclService.get_rules_map(entity)
 

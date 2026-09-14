@@ -26,6 +26,7 @@ from django.utils import timezone
 
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.core.models import User
+from apps.core.role_v2_query import is_super_admin
 from apps.position.models import Position
 
 # 2026-08-06 寇豆码: ApplicationState 是 models.py 的**模块级** TextChoices，
@@ -178,7 +179,7 @@ class GrabService:
             return application
         if application.grabbed_by_id and application.grabbed_by_id != user.id:
             # 仅超级管理员可强制释放
-            if not user.is_superuser:
+            if not is_super_admin(user):
                 raise StateTransitionError(
                     'Only the grabber or superuser can release the grab',
                 )

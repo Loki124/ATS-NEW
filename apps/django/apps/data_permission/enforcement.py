@@ -24,6 +24,8 @@ from .models import (
     RowScopeType,
 )
 
+from apps.core.role_v2_query import is_super_admin
+
 logger = logging.getLogger(__name__)
 
 # 列级规则缓存 TTL(秒). 规则低频配置, 但列表每行都要查.
@@ -100,8 +102,8 @@ def row_filter_q(user, scope_field: str = '', creator_field: str = 'created_by')
     """
     if not (user and getattr(user, 'is_authenticated', False)):
         return None
-    if getattr(user, 'is_superuser', False):
-        # 超管走 scope_resolver (其内部 superuser bypass), 保持既有语义
+    if is_super_admin(user):
+        # 超管/SUPER_ADMIN 角色走 scope_resolver (其内部 bypass), 保持既有语义
         return None
     rules = _active_rules(user, 'ROW')
     if not rules:

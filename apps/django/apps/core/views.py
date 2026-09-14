@@ -20,7 +20,7 @@ from .serializers_permission_v2 import (
     PermissionResourceSerializer,
 )
 from .permissions import IsAuthenticated, IsSuperAdmin, UserViewPermission
-from .role_v2_query import user_has_any_role
+from .role_v2_query import user_has_any_role, is_super_admin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.core.models_permission_v2 import (
@@ -45,7 +45,7 @@ class UserViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         user = self.request.user
         # HRBP+ 看所有在职; 其它角色仅看自己
-        if user.is_superuser or user_has_any_role(user, HRBP_TIER):
+        if is_super_admin(user) or user_has_any_role(user, HRBP_TIER):
             return qs
         return qs.filter(pk=user.pk)
 
@@ -167,7 +167,7 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser or user_has_any_role(user, HRBP_TIER):
+        if is_super_admin(user) or user_has_any_role(user, HRBP_TIER):
             return PermissionResource.objects.filter(status=1, system_code='recruit')
         # 普通用户仅看自己 V2 角色关联的 PermissionResource
         role_codes = list(UserRoleV2.objects.filter(

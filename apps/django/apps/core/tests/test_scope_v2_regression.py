@@ -56,6 +56,28 @@ def test_has_perm_superuser_bypass():
     assert has_perm(u, 'recruit:candidate:list') is True
 
 
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_has_perm_super_admin_role_bypass():
+    """#1 清理: 持有 SUPER_ADMIN 角色的非超管用户也走通同一评估路径.
+
+    is_super_admin 是 is_superuser 的超集 —— 替换绝不收窄现有超管权限,
+    仅额外让显式持有 SUPER_ADMIN 角色的用户也全放行 (与 is_superuser 等价).
+    锁定: 即便没有任何 RolePermissionV2 显式授权, SUPER_ADMIN 角色仍 has_perm=True.
+    """
+    from apps.core.permission_check import has_perm
+    from apps.core.role_v2_query import is_super_admin
+    from apps.core.models_permission_v2 import UserRoleV2
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    u = User.objects.create_user(username='sar', password='x', is_superuser=False)
+    UserRoleV2.objects.create(user_id=u.pk, role_code='SUPER_ADMIN', system_code='recruit')
+    assert is_super_admin(u) is True
+    assert has_perm(u, 'recruit:candidate:list') is True
+    assert has_perm(u, 'recruit:offer:export') is True
+
+
 # ===== P0-3 fail-open 回归锁定 (CODE_QUALITY_AUDIT P0-3) =====
 from unittest.mock import patch
 from django.db.utils import OperationalError

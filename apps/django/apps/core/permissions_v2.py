@@ -4,6 +4,7 @@ from rest_framework.permissions import BasePermission
 
 from .permission_check import has_perm
 from .scope_resolver import resolve_scope
+from .role_v2_query import is_super_admin
 from .models_permission_v2 import ManagementUnit
 
 
@@ -17,7 +18,7 @@ class V2Permission(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
-        if getattr(request.user, 'is_superuser', False):
+        if is_super_admin(request.user):
             return True
         required = getattr(view, 'permission_required', None)
         if not required:
@@ -38,7 +39,7 @@ class ScopeQuerysetMixin:
 
     def scope_queryset(self, qs, scope_field: str = ''):
         user = self.request.user
-        if getattr(user, 'is_superuser', False):
+        if is_super_admin(user):
             return qs
         scope_field = scope_field or self.scope_field
 

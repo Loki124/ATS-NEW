@@ -13,6 +13,7 @@ from django.contrib.auth import authenticate
 logger = logging.getLogger(__name__)
 # T01.2 (2026-08-04 寇豆码): 显式声明 IsAuthenticated, 覆盖全局 deny-by-default.
 from .permissions import IsAuthenticated
+from .role_v2_query import is_super_admin
 
 
 class LoginRateThrottle(AnonRateThrottle):
@@ -181,7 +182,7 @@ def me_view(request):
 
     permissions = []
     if user.is_authenticated:
-        if getattr(user, 'is_superuser', False):
+        if is_super_admin(user):
             try:
                 permissions = list(PermissionResource.objects.filter(
                     status=1, system_code='recruit',

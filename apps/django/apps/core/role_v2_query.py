@@ -25,6 +25,21 @@ HR_TIER = ('SUPER_ADMIN', 'HRBP', 'HR')
 HR_ABOVE = HR_TIER
 
 
+def is_super_admin(user) -> bool:
+    """统一判断超级管理员 (is_superuser 或 SUPER_ADMIN 角色).
+
+    #1 清理后的唯一超管判定入口: 所有散落的 `if user.is_superuser: return True`
+    都应改为调用本函数, 使超管与 SUPER_ADMIN 角色走同一评估路径。
+    is_super_admin 是 is_superuser 的超集 —— 替换绝不收窄现有超管权限,
+    仅额外让显式持有 SUPER_ADMIN 角色的用户也走通。
+    """
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    return user_has_role(user, 'SUPER_ADMIN')
+
+
 def _system_code_for_user(user) -> str:
     """V2 schema 用 system_code 隔离, recruit 是当前唯一活跃 system."""
     return SYSTEM_CODE_RECRUIT

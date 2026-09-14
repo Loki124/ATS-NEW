@@ -9,7 +9,12 @@ T01.2 (2026-08-04): 新增 IsAuthenticatedDenyByDefault + ResourceScoped fail-cl
 """
 from rest_framework import permissions
 
-from .role_v2_query import user_has_any_role, user_has_role, HRBP_TIER, HR_TIER
+from .role_v2_query import (
+    user_has_any_role,
+    is_super_admin,
+    HRBP_TIER,
+    HR_TIER,
+)
 
 
 class IsAuthenticatedDenyByDefault(permissions.BasePermission):
@@ -21,7 +26,7 @@ class IsAuthenticatedDenyByDefault(permissions.BasePermission):
         user = getattr(request, 'user', None)
         if not (user and user.is_authenticated):
             return False
-        if getattr(user, 'is_superuser', False):
+        if is_super_admin(user):
             return True
         from django.conf import settings
         if getattr(settings, 'ATSSEC_DRY_RUN', False):
@@ -43,7 +48,7 @@ class ResourceScoped(permissions.BasePermission):
         user = getattr(request, 'user', None)
         if not (user and user.is_authenticated):
             return False
-        if getattr(user, 'is_superuser', False):
+        if is_super_admin(user):
             return True
         resource_code = getattr(view, 'resource_code', None)
         if not resource_code:
@@ -88,10 +93,7 @@ class IsSuperAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
-        # Django superuser 始终通过
-        if getattr(request.user, 'is_superuser', False):
-            return True
-        return user_has_role(request.user, 'SUPER_ADMIN')
+        return is_super_admin(request.user)
 
 
 class IsHRBP(permissions.BasePermission):
@@ -140,22 +142,11 @@ class HasProcessPermission(permissions.BasePermission):
         return user_has_any_role(request.user, HRBP_TIER)
 
 
-def is_super_admin(user) -> bool:
-    """统一判断超级管理员（is_superuser 或 SUPER_ADMIN 角色）"""
-    if not (user and user.is_authenticated):
-        return False
-    if getattr(user, 'is_superuser', False):
-        return True
-    return user_has_role(user, 'SUPER_ADMIN')
-
-
-def is_hr_or_above(user) -> bool:
-    """统一判断 HR 及以上"""
-    if not (user and user.is_authenticated):
-        return False
-    if getattr(user, 'is_superuser', False):
-        return True
-    return user_has_any_role(user, HR_TIER)
+    def is_hr_or_above(user) -> bool:
+        """统一判断 HR 及以上"""
+        if not (user and user.is_authenticated):
+            return False
+        return user_has_any_role(user, HR_TIER)
 
 
 def user_department_ids(user) -> set:

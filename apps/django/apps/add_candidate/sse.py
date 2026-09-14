@@ -14,6 +14,7 @@ from django.http import StreamingHttpResponse
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsHROrAbove
+from apps.core.role_v2_query import is_super_admin
 
 _redis = None
 
@@ -92,7 +93,7 @@ class ScoringStreamView(APIView):
                 status=http_status.HTTP_404_NOT_FOUND,
             )
         owner_id = owner_id.decode() if isinstance(owner_id, bytes) else str(owner_id)
-        if owner_id != str(request.user.id) and not request.user.is_superuser:
+        if owner_id != str(request.user.id) and not is_super_admin(request.user):
             from rest_framework.response import Response
             from rest_framework import status as http_status
             return Response(

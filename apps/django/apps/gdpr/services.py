@@ -21,6 +21,7 @@ from django.utils import timezone
 from apps.candidate.models import Candidate
 from apps.common.exceptions import NotFound, PermissionDenied, ValidationError
 from apps.core.models import User
+from apps.core.role_v2_query import is_super_admin
 
 from .models import (
     GDPRRequest,
@@ -174,8 +175,8 @@ class GdprService:
     @staticmethod
     def _assert_verified(req: GDPRRequest, processor: User) -> None:
         """process 前置校验: 必须 verified + 超管"""
-        if not processor.is_superuser:
-            raise PermissionDenied('仅超管可处理 GDPR 请求')
+        if not is_super_admin(processor):
+            raise PermissionDenied('仅超管(SUPER_ADMIN 角色)可处理 GDPR 请求')
         if req.status != GDPRRequestStatus.PENDING:
             raise ValidationError(
                 f'当前状态 {req.get_status_display()} 不可处理, 需候选人先验证'
@@ -251,8 +252,8 @@ class GdprService:
         except GDPRRequest.DoesNotExist as e:
             raise NotFound(f'GDPR 请求 {request_id} 不存在') from e
 
-        if not processor.is_superuser:
-            raise PermissionDenied('仅超管可处理 GDPR 请求')
+        if not is_super_admin(processor):
+            raise PermissionDenied('仅超管(SUPER_ADMIN 角色)可处理 GDPR 请求')
         if req.status not in (GDPRRequestStatus.PENDING, GDPRRequestStatus.AWAITING_VERIFICATION):
             raise ValidationError(f'当前状态 {req.get_status_display()} 不可拒绝')
         # 拒绝不需要 verified (候选人没 verify 也可以拒, 比如信息不全)

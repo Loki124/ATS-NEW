@@ -29,6 +29,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsHROrAbove
+from apps.core.role_v2_query import is_super_admin
 
 from .models import ParseJob
 from .services.duplicate_check import DuplicateCheckService
@@ -125,7 +126,7 @@ class ParseStatusView(APIView):
             )
 
         # Only the uploader (or superuser) can see parsed PII（防跨用户泄露）
-        if job.actor_id != request.user.id and not request.user.is_superuser:
+        if job.actor_id != request.user.id and not is_super_admin(request.user):
             return Response(
                 {'detail': 'Permission denied', 'code': 'FORBIDDEN'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -204,7 +205,7 @@ class ReplaceFileView(APIView):
 
         # 2026-07-02: IDOR fix — 只允许 draft 所有者 (或超管) 替换文件
         #   之前缺校验 → HR-A 可用任意 draft_id 覆盖 HR-B 上传的简历 (PII 篡改)
-        if job.actor_id != request.user.id and not request.user.is_superuser:
+        if job.actor_id != request.user.id and not is_super_admin(request.user):
             return Response(
                 {'detail': 'Permission denied', 'code': 'FORBIDDEN'},
                 status=status.HTTP_403_FORBIDDEN,

@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from apps.common.exceptions import NotFound, PermissionDenied, StateTransitionError
 from apps.core.models import User
+from apps.core.role_v2_query import is_super_admin
 from apps.process.models import RecruitmentProcess
 
 from .models import Demand, DemandApproval, DemandState
@@ -96,7 +97,7 @@ class DemandService:
         demand = Demand.objects.filter(id=demand_id, deleted_at__isnull=True).first()
         if not demand:
             raise NotFound(f'需求 {demand_id} 不存在')
-        if demand.requested_by_id != actor.id and not actor.is_superuser:
+        if demand.requested_by_id != actor.id and not is_super_admin(actor):
             raise PermissionDenied('仅需求提出人可提交审批')
         demand.submit()
         demand.save()

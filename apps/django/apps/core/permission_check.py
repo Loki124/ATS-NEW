@@ -2,18 +2,19 @@
 from django.db.utils import OperationalError, ProgrammingError
 
 from .models_permission_v2 import RolePermissionV2, UserRoleV2
+from .role_v2_query import is_super_admin
 
 
 def has_perm(user, resource_code: str) -> bool:
     """检查 user 是否拥有某 resource_code 的权限. 多角色 UNION.
-    is_superuser 直接 True (bypass).
+    is_super_admin 直接 True (bypass).
 
     T17 schema 未应用前: user_roles 表缺 V2 列 (role_code/system_code/...), 任何
     V2-only 字段引用都会抛 OperationalError. 此处 catch 后返回 False (保守兜底,
     没有显式 V2 角色授权 → 没有权限)."""
     if not (user and user.is_authenticated):
         return False
-    if getattr(user, 'is_superuser', False):
+    if is_super_admin(user):
         return True
     try:
         role_codes = list(

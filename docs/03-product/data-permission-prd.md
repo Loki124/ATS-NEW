@@ -12,7 +12,7 @@
 
 | # | 不合规 / 脆弱点 | 硬证据位置 | 需调整内容 |
 |---|---|---|---|
-| 1 | `is_superuser` 全栈硬旁路 | `core/permissions.py`、`permissions_v2.py`、`scope_resolver.py`、`field_acl/services.py` 等多处（约 30 文件） | 超管改为持有 `SUPER_ADMIN` 角色、走同一评估路径；移除散落 `if is_superuser: return True` 短路 |
+| 1 | `is_superuser` 全栈硬旁路 | `core/permissions.py`、`permissions_v2.py`、`scope_resolver.py`、`field_acl/services.py` 等多处（约 30 文件） | ✅ **已修复 (commit 见下)**：新增叶子模块中心化 `is_super_admin(user)`（`role_v2_query.py`，= `is_superuser OR SUPER_ADMIN 角色`，是超集）；移除 15 处授权旁路的散落 `if is_superuser: return True`，统一改走 `is_super_admin`；保留 `role_v2_query` 内 `is_superuser` 角色评估原语（改了会递归）。回归测试 `test_has_perm_super_admin_role_bypass` 锁定「非超管持 SUPER_ADMIN 角色也全放行」 |
 | 2 | V1 双轨残留 | `core/models.py`（`User.groups/user_permissions` M2M + V1 `Permission` 模型） | 确认无引用后废弃 V1 `Permission` 模型 + 内建 M2M，单一真相源 = V2 |
 | 3 | 部门/职位隐含授权 | `core/models.py`（`Department.leader/manager_2/hrbp` FK） | 建模为数据范围授权（管理单元/角色数据范围），不靠硬编码职位判断 |
 | 4 | `IsPositionRelated` 硬编码「同部门职位」 | `core/permissions.py` | 下沉为角色数据范围或命名资源权限，业务规则移出权限类 |
