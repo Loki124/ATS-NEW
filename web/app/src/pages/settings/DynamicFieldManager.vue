@@ -142,7 +142,7 @@
           <n-form-item label="字段名称" required>
             <n-input v-model:value="fieldForm.label" placeholder="e.g. 身份证号" />
           </n-form-item>
-          <n-form-item label="字段名称(英文)">
+          <n-form-item label="英文名称">
             <n-input v-model:value="fieldForm.labelEn" placeholder="e.g. id_card_no" />
           </n-form-item>
           <n-form-item label="字段类型" required>
@@ -645,7 +645,7 @@ const groupedFields = computed(() => {
 const fieldColumns = computed(() => [
   { title: '字段名称', key: 'label', minWidth: 140, render: (row: FieldDefinition) => row.label },
   {
-    title: '字段名称(英文)', key: 'labelEn', minWidth: 140,
+    title: '英文名称', key: 'labelEn', minWidth: 140,
     render: (row: FieldDefinition) => row.labelEn || '-',
   },
   {

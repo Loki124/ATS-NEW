@@ -91,7 +91,7 @@ export interface FieldDefinition {
   resource: string;
   fieldKey: string;
   label: string;
-  /** 字段名称(英文) — 2026-09-14 拆分增强 */
+  /** 英文名称 — 2026-09-14 拆分增强 */
   labelEn?: string | null;
   fieldType: FieldType;
   isRequired: boolean;
