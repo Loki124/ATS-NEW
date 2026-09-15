@@ -122,9 +122,12 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         支持类型:
           - ``dictionary``: key = 字典类型 code, 取该字典 is_active 的 item
                             (value=item.key, label=item.value, 按 sort_order/key 排序)
-          - ``library``   : key = ``major`` (专业库), 取 library_major (value=code, label=name)
-          - ``code_table``: 预留 (国标码表), 当前未接线, 返回 None
-        延迟导入 dictionary/library 模型, 避免模块加载期循环依赖。
+          - ``library``   : key = ``major``(专业库) / ``school``(院校库)
+                            取 library_major (value=code, label=name)
+          - ``code_table``: key = ``country`` / ``ethnicity`` / ``language``
+                            取 G46 码表库对应表 (country: name_cn; ethnicity/language: name 或 name_cn)
+
+        延迟导入 dictionary/library/code_table 模型, 避免模块加载期循环依赖。
         """
         if not options_source or not isinstance(options_source, dict):
             return None
@@ -156,8 +159,29 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
                         .order_by('name', 'code')
                     )
                     return [{'value': m.code, 'label': m.name} for m in majors]
-                # 未来扩展: school / company ...
-            # code_table: 预留, 暂未接线
+                if key == 'school':
+                    # 2026-09-15 院校库: 2744 所一次性返回, 走 library/ 端点 keyword 服务端过滤
+                    from apps.library.models import School
+                    schools = (
+                        School.objects
+                        .filter(deleted_at__isnull=True)
+                        .order_by('name', 'code')
+                    )
+                    return [{'value': s.code, 'label': s.name} for s in schools]
+                # 公司库 (company) 走下一轮
+            if src_type == 'code_table':
+                # 2026-09-15 码表库 (G46): 民族/语言/国家, 端点已在 apps/code_table/views.py 暴露
+                if key in ('country', 'ethnicity', 'language'):
+                    from apps.code_table.models import Country, Ethnicity, Language
+                    if key == 'country':
+                        qs = Country.objects.all().order_by('name_cn')
+                        return [{'value': c.code, 'label': c.name_cn} for c in qs]
+                    if key == 'ethnicity':
+                        qs = Ethnicity.objects.all().order_by('code')
+                        return [{'value': e.code, 'label': e.name} for e in qs]
+                    if key == 'language':
+                        qs = Language.objects.all().order_by('code')
+                        return [{'value': l.code, 'label': l.name_cn} for l in qs]
         except Exception:  # noqa: BLE001 — 解析失败安全降级到手动 options
             return None
         return None
