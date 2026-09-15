@@ -139,7 +139,7 @@
                       />
                       <RegionCascader
                         v-else-if="isRegionType(m.fieldType)"
-                        :field-type="(m.fieldType as any)"
+                        :level="(m.field.regionLevel || 'DISTRICT') as RegionLevelValue"
                         :with-country="!!m.field.withCountry"
                         :value="null"
                         :disabled="true"
@@ -277,8 +277,10 @@ import {
   listFields,
   FIELD_TYPE_LABEL,
   isDateFieldType, datePickerType,
+  isRegionFieldType,
   type FieldDefinition,
   type FieldType,
+  type RegionLevelValue,
 } from '../../api/dynamic-field'
 import {
   listRegistrationForms,
@@ -330,17 +332,15 @@ function isSingleChoice(t: FieldType): boolean {
 function isMultiChoice(t: FieldType): boolean {
   return t === 'MULTISELECT' || t === 'LIST_MULTI'
 }
-// 2026-09-15 行政区划级联型(省/省市/省市区)
+// 2026-09-15 行政区划型(省/省市/省市区, 层级由 region_level 控制)
 function isRegionType(t: FieldType): boolean {
-  return t === 'REGION_PROVINCE' || t === 'REGION_PROVINCE_CITY' || t === 'REGION_PROVINCE_CITY_DISTRICT'
+  return isRegionFieldType(t)
 }
 function isFullWidth(field: FieldDefinition): boolean {
   return field.fieldType === 'TEXT'
     || field.fieldType === 'ATTACHMENT'
     || field.fieldType === 'ADDRESS'
-    || field.fieldType === 'REGION_PROVINCE'
-    || field.fieldType === 'REGION_PROVINCE_CITY'
-    || field.fieldType === 'REGION_PROVINCE_CITY_DISTRICT'
+    || field.fieldType === 'REGION'
 }
 function selectOptions(field: FieldDefinition) {
   return (field.options || []).map((o) => ({ label: o.label, value: o.value }))

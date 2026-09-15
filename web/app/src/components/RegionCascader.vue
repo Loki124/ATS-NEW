@@ -1,11 +1,12 @@
 <!--
   行政区划级联选择器 (2026-09-15 新增, 兵哥)
 
-  适用字段类型: REGION_PROVINCE / REGION_PROVINCE_CITY / REGION_PROVINCE_CITY_DISTRICT
+  适用字段类型: REGION (行政区划)
+  层级精度由 level prop 控制: PROVINCE(省) / CITY(省市) / DISTRICT(省市区)
   数据源: 后端 /api/v1/code-tables/{regions,countries}/ (G46 码表库, 只读)
 
   Props:
-    - fieldType:  'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT'
+    - level:  'PROVINCE' | 'CITY' | 'DISTRICT'  // 行政区划层级精度
     - withCountry: boolean = false  // 开启后首列下拉国家 (前置选择)
     - value:       标准化对象
                     {
@@ -52,7 +53,7 @@
       placeholder="省/直辖市"
       class="rc-col"
     />
-    <!-- 3) 市 (REGION_PROVINCE_CITY / _DISTRICT 才显示) -->
+    <!-- 3) 市 (CITY / DISTRICT 才显示) -->
     <n-select
       v-if="showCity"
       v-model:value="cityCode"
@@ -97,7 +98,7 @@ interface RegionValue {
 
 const props = withDefaults(
   defineProps<{
-    fieldType: 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
+    level: 'PROVINCE' | 'CITY' | 'DISTRICT';
     withCountry?: boolean;
     value?: RegionValue | null;
     disabled?: boolean;
@@ -109,10 +110,9 @@ const emit = defineEmits<{
   (e: 'update:value', val: RegionValue | null): void;
 }>();
 
-const showCity = computed(
-  () => props.fieldType === 'REGION_PROVINCE_CITY' || props.fieldType === 'REGION_PROVINCE_CITY_DISTRICT',
-);
-const showDistrict = computed(() => props.fieldType === 'REGION_PROVINCE_CITY_DISTRICT');
+// 层级精度 → 是否显示市 / 区 (PROVINCE 仅省; CITY 省+市; DISTRICT 省+市+区)
+const showCity = computed(() => props.level === 'CITY' || props.level === 'DISTRICT');
+const showDistrict = computed(() => props.level === 'DISTRICT');
 
 // --- 受控值: 用 code 维护, 变化时再 emit 完整对象 (含 name) ---
 const countryCode = ref<string | null>(props.value?.country?.code || null);

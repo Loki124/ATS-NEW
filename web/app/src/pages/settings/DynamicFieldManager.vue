@@ -108,8 +108,17 @@
               <n-text depth="3">{{ fieldForm.fieldType === 'DATE_RANGE' ? '范围填写时选择起止区间' : '填写时按所选精度选择日期' }}</n-text>
             </n-space>
           </n-form-item>
-          <!-- 2026-09-15 行政区划型字段：国家开关 + 实时级联预览 (数据源: G46 码表库) -->
+          <!-- 2026-09-15 行政区划型字段：层级精度 + 国家开关 + 实时级联预览 (数据源: G46 码表库) -->
           <template v-if="isRegionType">
+            <n-form-item label="层级">
+              <n-radio-group v-model:value="fieldForm.regionLevel">
+                <n-space>
+                  <n-radio-button v-for="opt in REGION_LEVEL_OPTIONS" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </n-radio-button>
+                </n-space>
+              </n-radio-group>
+            </n-form-item>
             <n-form-item label="启用国家">
               <n-space align="center" :size="8">
                 <n-switch v-model:value="fieldForm.withCountry" />
@@ -118,7 +127,7 @@
             </n-form-item>
             <n-form-item label="级联预览">
               <RegionCascader
-                :field-type="(fieldForm.fieldType as any)"
+                :level="fieldForm.regionLevel"
                 :with-country="fieldForm.withCountry"
                 :value="fieldForm.regionPreviewValue"
                 :disabled="true"
@@ -646,6 +655,7 @@ import {
   listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
   DATE_FORMAT_OPTIONS, isDateFieldType,
+  REGION_LEVEL_OPTIONS, isRegionFieldType,
   VISIBILITY_PERMISSION_OPTIONS, VISIBILITY_PERMISSION_LABEL,
   listModules, upsertModule, deleteModule,
   listGroups, upsertGroup, deleteGroup,
@@ -656,7 +666,7 @@ import {
   type FieldDefinition, type FieldType, type FieldModule, type FieldGroup, type FieldLinkageRule,
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
   type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
-  type DateFormatValue,
+  type DateFormatValue, type RegionLevelValue,
 } from '@/api/dynamic-field';
 import {
   listDictionaryTypes, listDictionaryItems,
@@ -728,6 +738,8 @@ const fieldForm = reactive<{
   confirmationDeclaration: string; confirmationDeclarationEn: string;
   visibilityPermission: VisibilityPermission;
   withCountry: boolean;
+  dateFormat: DateFormatValue;
+  regionLevel: RegionLevelValue;
   regionPreviewValue: { country?: {code: string; name: string}; province: {code: string; name: string}; city?: {code: string; name: string}; district?: {code: string; name: string}; } | null;
 }>({
   fieldKey: '', label: '', labelEn: '', fieldType: 'TEXT',
@@ -740,6 +752,7 @@ const fieldForm = reactive<{
   visibilityPermission: 'ALL_VISIBLE',
   withCountry: false,
   dateFormat: 'DAY' as DateFormatValue,
+  regionLevel: 'DISTRICT' as RegionLevelValue,
   regionPreviewValue: null,
 });
 
@@ -865,10 +878,8 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   MULTILINE_TEXT: 'default',
   // 2026-09-15 新增地址: 默认色 (与文本一致)
   ADDRESS: 'default',
-  // 行政区划级联型: success (与日期同色, 表达"地理位置")
-  REGION_PROVINCE: 'success',
-  REGION_PROVINCE_CITY: 'success',
-  REGION_PROVINCE_CITY_DISTRICT: 'success',
+  // 行政区划型: success (与日期同色, 表达"地理位置")
+  REGION: 'success',
 };
 
 // 列表型字段预览：切换单选/多选时同步预览值形状
@@ -876,10 +887,8 @@ watch(
   () => fieldForm.fieldType,
   (t) => {
     fieldPreviewValue.value = t === 'LIST_MULTI' ? [] : '';
-    // 行政区划级联型切换时重置 region 预览, 避免不同级数的缓存污染
-    if (t === 'REGION_PROVINCE' || t === 'REGION_PROVINCE_CITY' || t === 'REGION_PROVINCE_CITY_DISTRICT') {
-      fieldForm.regionPreviewValue = null;
-    } else {
+    // 行政区划型切换时重置 region 预览, 避免不同级数的缓存污染
+    if (t === 'REGION') {
       fieldForm.regionPreviewValue = null;
     }
   },
@@ -888,12 +897,8 @@ const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || field
 const isConfirmType = computed(() => fieldForm.fieldType === 'CONFIRM');
 // 2026-09-15 (兵哥) 日期型字段(单点/范围): 显示「日期格式」精度单选
 const isDateType = computed(() => isDateFieldType(fieldForm.fieldType));
-// 2026-09-15 行政区划级联型: 省/省市/省市区
-const isRegionType = computed(
-  () => fieldForm.fieldType === 'REGION_PROVINCE'
-    || fieldForm.fieldType === 'REGION_PROVINCE_CITY'
-    || fieldForm.fieldType === 'REGION_PROVINCE_CITY_DISTRICT',
-);
+// 2026-09-15 行政区划型: 省/省市/省市区 (层级精度由 region_level 控制)
+const isRegionType = computed(() => isRegionFieldType(fieldForm.fieldType));
 
 // 字段按分组(FieldGroup)聚合为卡片；无分组的归到「未分组」
 const groupedFields = computed(() => {
@@ -988,6 +993,7 @@ function resetFieldForm() {
     visibilityPermission: 'ALL_VISIBLE',
     withCountry: false,
     dateFormat: 'DAY' as DateFormatValue,
+    regionLevel: 'DISTRICT' as RegionLevelValue,
     regionPreviewValue: null,
   });
 }
@@ -1023,6 +1029,7 @@ function openFieldEdit(row: FieldDefinition) {
     visibilityPermission: row.visibilityPermission || 'ALL_VISIBLE',
     withCountry: !!row.withCountry,
     dateFormat: (row.dateFormat as DateFormatValue) || 'DAY',
+    regionLevel: (row.regionLevel as RegionLevelValue) || 'DISTRICT',
     regionPreviewValue: null,
   });
   fieldModalVisible.value = true;
@@ -1053,10 +1060,12 @@ async function saveField() {
       confirmationDeclaration: fieldForm.confirmationDeclaration,
       confirmationDeclarationEn: fieldForm.confirmationDeclarationEn,
       visibilityPermission: fieldForm.visibilityPermission,
-      // 2026-09-15 行政区划型字段开关 (默认 false; 非 REGION_* 类型上传无副作用)
+      // 2026-09-15 行政区划型字段开关 (默认 false; 非 REGION 类型上传无副作用)
       withCountry: !!fieldForm.withCountry,
       // 2026-09-15 日期格式精度 (默认 DAY; 非日期型字段上传无副作用)
       dateFormat: fieldForm.dateFormat || 'DAY',
+      // 2026-09-15 行政区划层级精度 (默认 DISTRICT; 非 REGION 类型上传无副作用)
+      regionLevel: fieldForm.regionLevel || 'DISTRICT',
       id: fieldEditing.value?.id,
     };
     // 2026-09-15 选项来源: 选项型字段若指定了数据源, 清空手动 options, 由后端按 options_source 解析

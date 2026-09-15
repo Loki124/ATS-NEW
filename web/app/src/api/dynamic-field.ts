@@ -20,13 +20,15 @@ export type FieldType =
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
   | 'ADDRESS'
-  | 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
+  | 'REGION';
 
 /** 日期格式精度 (仅 DATE / DATE_RANGE 参考; 与后端 DynamicField.DateFormat 对齐) */
 export type DateFormatValue = 'YEAR' | 'MONTH' | 'DAY';
 
-export type RegionFieldType =
-  | 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
+/** 行政区划层级精度 (仅 REGION 参考; 与后端 DynamicField.RegionLevel 对齐) */
+export type RegionLevelValue = 'PROVINCE' | 'CITY' | 'DISTRICT';
+
+export type RegionFieldType = RegionLevelValue;
 
 /** 行政区划级联型字段的值结构 (序列化入/出库为 JSON) */
 export interface RegionFieldValue {
@@ -137,6 +139,8 @@ export interface FieldDefinition {
   withCountry?: boolean;
   /** 2026-09-15 日期格式精度(年/年月/年月日, 仅 DATE/DATE_RANGE 参考; 默认 DAY) */
   dateFormat?: DateFormatValue | null;
+  /** 2026-09-15 行政区划层级精度(省/省市/省市区, 仅 REGION 参考; 默认 DISTRICT) */
+  regionLevel?: RegionLevelValue | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -277,10 +281,8 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '多行文本', value: 'MULTILINE_TEXT' },
   // 2026-09-15 新增: 地址（单行文本，预览/申请表独占整行）
   { label: '地址', value: 'ADDRESS' },
-  // 2026-09-15 新增: 行政区划级联型(数据源: G46 码表库 regions/countries, 与 with_country 配套)
-  { label: '省', value: 'REGION_PROVINCE' },
-  { label: '省市', value: 'REGION_PROVINCE_CITY' },
-  { label: '省市区', value: 'REGION_PROVINCE_CITY_DISTRICT' },
+  // 2026-09-15 新增: 行政区划型(数据源: G46 码表库 regions/countries; 层级精度由省/省市/省市区单选控制, 与 with_country 配套)
+  { label: '行政区划', value: 'REGION' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -292,9 +294,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   CONFIRM: '确认题',
   MULTILINE_TEXT: '多行文本',
   ADDRESS: '地址',
-  REGION_PROVINCE: '省',
-  REGION_PROVINCE_CITY: '省市',
-  REGION_PROVINCE_CITY_DISTRICT: '省市区',
+  REGION: '行政区划',
 };
 
 /** 日期格式精度选项 (兵哥 2026-09-15: 年 / 年月 / 年月日) */
@@ -319,6 +319,32 @@ export function datePickerType(fieldType: string, dateFormat: string | null | un
   const map: Record<DateFormatValue, string> = { YEAR: 'year', MONTH: 'month', DAY: 'date' };
   const rangeMap: Record<DateFormatValue, string> = { YEAR: 'yearrange', MONTH: 'monthrange', DAY: 'daterange' };
   return fieldType === 'DATE_RANGE' ? rangeMap[f] : map[f];
+}
+
+/** 行政区划层级精度选项 (兵哥 2026-09-15: 省 / 省市 / 省市区) */
+export const REGION_LEVEL_OPTIONS: { label: string; value: RegionLevelValue }[] = [
+  { label: '省', value: 'PROVINCE' },
+  { label: '省市', value: 'CITY' },
+  { label: '省市区', value: 'DISTRICT' },
+];
+
+export const REGION_LEVEL_LABEL: Record<RegionLevelValue, string> = {
+  PROVINCE: '省', CITY: '省市', DISTRICT: '省市区',
+};
+
+/** 是否行政区划型字段, 渲染级联选择器并受 region_level 精度控制 */
+export function isRegionFieldType(t: string): boolean {
+  return t === 'REGION';
+}
+
+/** 行政区划层级 → 是否显示市 / 区 (PROVINCE 仅省; CITY 省+市; DISTRICT 省+市+区) */
+export function regionLevelShowCity(level: string | null | undefined): boolean {
+  const l = (level || 'DISTRICT') as RegionLevelValue;
+  return l === 'CITY' || l === 'DISTRICT';
+}
+
+export function regionLevelShowDistrict(level: string | null | undefined): boolean {
+  return (level || 'DISTRICT') === 'DISTRICT';
 }
 
 /** 可见权限枚举选项（字段权限管理弹窗） */

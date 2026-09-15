@@ -37,11 +37,9 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         MULTILINE_TEXT = 'MULTILINE_TEXT', '多行文本'
         # 2026-09-15 新增「地址」(单行文本输入, 预览/申请表独占整行; 后端无专属校验)
         ADDRESS = 'ADDRESS', '地址'
-        # 2026-09-15 新增行政区划级联型(省/省市/省市区)
+        # 2026-09-15 新增「行政区划」型(省/省市/省市区, 由 region_level 控制精度)
         # 存储为 JSON: {country?: {code,name}, province: {code,name}, city?: {code,name}, district?: {code,name}}
-        REGION_PROVINCE = 'REGION_PROVINCE', '省'
-        REGION_PROVINCE_CITY = 'REGION_PROVINCE_CITY', '省市'
-        REGION_PROVINCE_CITY_DISTRICT = 'REGION_PROVINCE_CITY_DISTRICT', '省市区'
+        REGION = 'REGION', '行政区划'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [
@@ -54,6 +52,15 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
 
     # 2026-09-15 (兵哥) 日期型字段(渲染日期选择器, 受 date_format 精度控制)
     DATE_TYPES = [FieldType.DATE, FieldType.DATE_RANGE]
+
+    # 2026-09-15 (兵哥) 行政区划层级精度(省/省市/省市区, 仅 REGION 渲染时参考)
+    class RegionLevel(models.TextChoices):
+        PROVINCE = 'PROVINCE', '省'
+        CITY = 'CITY', '省市'
+        DISTRICT = 'DISTRICT', '省市区'
+
+    # 2026-09-15 (兵哥) 行政区划型字段(渲染级联选择器, 受 region_level 精度控制)
+    REGION_TYPES = [FieldType.REGION]
 
     class DateFormat(models.TextChoices):
         """日期格式精度(仅 DATE / DATE_RANGE 渲染时参考)。"""
@@ -110,12 +117,17 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     )
     # 2026-09-15 行政区划型字段专用: 是否先选国家(影响渲染层是否首列下拉国家, 与字段类型独立)
     with_country = models.BooleanField(
-        default=False, help_text='行政区划型字段是否先选国家(仅 REGION_* 渲染时参考)',
+        default=False, help_text='行政区划型字段是否先选国家(仅 REGION 渲染时参考)',
     )
     # 2026-09-15 日期型字段专用: 日期格式精度(年/年月/年月日, 仅 DATE/DATE_RANGE 渲染时参考)
     date_format = models.CharField(
         max_length=16, choices=DateFormat.choices, default=DateFormat.DAY,
         help_text='日期格式精度(仅 DATE/DATE_RANGE 渲染时参考)',
+    )
+    # 2026-09-15 行政区划型字段专用: 层级精度(省/省市/省市区, 仅 REGION 渲染时参考)
+    region_level = models.CharField(
+        max_length=16, choices=RegionLevel.choices, default=RegionLevel.DISTRICT,
+        help_text='行政区划层级精度(省/省市/省市区, 仅 REGION 渲染时参考)',
     )
 
     class Meta:
