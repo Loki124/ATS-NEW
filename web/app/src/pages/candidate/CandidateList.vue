@@ -1122,7 +1122,6 @@ watch(statusFilter, () => { selectedKeys.value = [] })
 
 /* === v2 响应式补丁 === */
 @media (max-width: 1280px) {
-  .page-container { padding: var(--space-4); }
   .page-title { font-size: var(--text-h2); }
   :deep(.n-data-table-wrapper) {
     overflow-x: auto;
@@ -1130,7 +1129,6 @@ watch(statusFilter, () => { selectedKeys.value = [] })
   }
 }
 @media (max-width: 768px) {
-  .page-container { padding: var(--space-3); }
   .page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
   .stats-row { grid-template-columns: repeat(2, 1fr) !important; } /* v2.9: 保留 !important（覆盖 Naive n-grid 内联 grid-template-columns，移除则移动端不退化为 2 列） */
 }

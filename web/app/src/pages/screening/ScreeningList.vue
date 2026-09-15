@@ -192,7 +192,6 @@ onMounted(loadList)
 </template>
 
 <style scoped>
-.page-container { padding: var(--space-6); }
 .page-header { margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between; }
 .page-title { font-size: var(--fs-24); font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: var(--space-4); }

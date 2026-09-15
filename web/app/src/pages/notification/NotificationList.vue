@@ -32,7 +32,6 @@ const columns = [
 </script>
 
 <style scoped>
-.page-container { padding: var(--space-6); }
 .page-header { margin-bottom: var(--space-6); }
 .page-title { font-size: var(--fs-24); font-weight: 600; margin: 0; }
 </style>

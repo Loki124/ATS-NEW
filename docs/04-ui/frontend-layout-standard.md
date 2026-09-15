@@ -38,7 +38,7 @@
 **规则**：
 - 直接挂在 Layout 下的页面，根容器使用 `.page-container`，由全局规则统一注入 `padding: var(--page-pad-y) var(--page-pad-x) !important`（防御性 `!important`，禁止 scoped 覆盖）。
 - 设置中心页面：安全边距由 `.settings-scroll` 的 `padding:20px` 提供，`.page-container` 被 `:deep` 清零——**这是唯一允许的清零场景**，且由布局层（非页面）控制，页面不得自行清零。
-- 移动端（≤767px）安全边距降到 16px；如页面需要，自行在媒体查询里改用 `--page-pad-*-sm`（全局 `.page-container` 的 `!important` 已锁定桌面值，移动端如需下探，页面用 `:deep` 或包裹层覆盖，但不得低于 16px）。
+- 移动端（≤767px）安全边距**自动降到 16px**：全局 `.page-container` 已用 `@media (max-width: 767px)` 统一收束，页面无需再写；页面 scoped 不得用 `:deep` 等绕过该值（不得低于 16px）。
 
 ### 1.2 容器内边距（Container / Card Padding）
 

@@ -321,7 +321,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container { padding: var(--space-6); animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
+.page-container { animation: wb-fade-up var(--duration-slow) var(--ease-out) both; }
 .page-header { margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between; }
 .page-title { font-size: var(--fs-24); font-weight: 600; margin: 0; }
 .stats-row { margin-bottom: var(--space-4); }
@@ -333,7 +333,6 @@ onMounted(() => {
 
 /* === v2 响应式补丁 === */
 @media (max-width: 1280px) {
-  .page-container { padding: var(--space-4); }
   .page-title { font-size: var(--text-h2); }
   :deep(.n-data-table-wrapper) {
     overflow-x: auto;
@@ -341,7 +340,6 @@ onMounted(() => {
   }
 }
 @media (max-width: 768px) {
-  .page-container { padding: var(--space-3); }
   .page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
   .stats-row { grid-template-columns: repeat(2, 1fr) !important; } /* v2.9: 保留 !important（覆盖 Naive n-grid 内联 grid-template-columns，移除则移动端不退化为 2 列） */
 }

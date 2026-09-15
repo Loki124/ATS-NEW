@@ -422,7 +422,7 @@ onMounted(reloadAll);
 </script>
 
 <style scoped>
-.page-container { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0; }
+.page-container { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .page-header { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
 .page-body {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;

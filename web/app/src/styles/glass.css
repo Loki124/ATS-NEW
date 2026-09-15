@@ -914,6 +914,15 @@ body.dark .kpi-card.kpi-card--accent {
   min-height: 100%;
   box-sizing: border-box;
 }
+/* 移动端（≤767px）安全边距下探到 16px（规范 §1.1）。
+   ★ CSS @media 的【条件】不能使用 var()，断点必须写字面量 767px（对齐 --breakpoint-sm=768 的“及以下”语义）；
+     但规则【内部声明】可用 var()，故此处 padding 仍走 --page-pad-*-sm 令牌。
+   !important 保留：页面 scoped 的移动端 .page-container{padding:...} 覆盖一并收归全局，杜绝散落重声明。 */
+@media (max-width: 767px) {
+  .page-container {
+    padding: var(--page-pad-y-sm) var(--page-pad-x-sm) !important;
+  }
+}
 /* 校招管控等独立页面根容器：作为内容最外层，自带内边距（左侧与导航栏间距由此保证）。
    注：在 SettingsLayout 的 settings-scroll 内时，会因外层已留 20px 间距，
    故在 SettingsLayout 作用域内清零（见 settings.scss / SettingsLayout.vue）。 */
