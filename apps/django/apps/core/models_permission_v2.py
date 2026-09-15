@@ -125,11 +125,19 @@ class RolePermissionV2(models.Model):
 
 
 class ManagementUnit(models.Model):
-    """管理单元 — 数据权限范围的载体(组织维度)"""
+    """管理单元 — 数据权限范围的载体(组织维度)
+
+    方案 A(2026-09-15) 增强:
+    - parent_id: 树形层级(集团/子公司/部门), 北森「上级管理单元」对齐
+    - personnel_scope: 人员范围动态谓词(北森图5 的「任职记录.部门=X / 职务=Y」),
+      由管理单元 UI 生成, 经 sync-data-rules 落 DataPermissionRule
+    """
     system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
     unit_name = models.CharField(max_length=64, verbose_name='管理单元名称')
     unit_type = models.CharField(max_length=20, default='org', verbose_name='单元类型')
+    parent_id = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name='上级管理单元ID')
     org_scope = models.JSONField(null=True, blank=True, verbose_name='组织范围(JSON)')
+    personnel_scope = models.JSONField(null=True, blank=True, verbose_name='人员范围条件(JSON谓词)')
     include_children = models.SmallIntegerField(default=1, verbose_name='是否包含子级(1是 0否)')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
@@ -139,6 +147,9 @@ class ManagementUnit(models.Model):
         db_table = 'management_units'
         verbose_name = '管理单元'
         verbose_name_plural = verbose_name
+        indexes = [
+            models.Index(fields=['parent_id'], name='idx_mgmt_unit_parent'),
+        ]
 
     def __str__(self):
         return self.unit_name
@@ -176,6 +187,45 @@ class UserRoleV2(models.Model):
 
     def __str__(self):
         return f'user={self.user_id} role={self.role_code}'
+
+
+class UserAppDataScope(models.Model):
+    """用户-角色-应用 的数据范围(管理单元)绑定 — 方案 A(2026-09-15)
+
+    对齐北森图12「按应用管理单元」: 同一用户对同一角色, 在不同应用/模块
+    (recruit/social/campus/referral...) 可见不同的管理单元集合。
+
+    设计取舍(方案 A 已定): 新增关联表而非把 UserRoleV2.management_unit_ids
+    升级为 {app_code: [ids]} 嵌套 JSON —— 关联表可建唯一约束 + 索引,
+    便于运行时按 (user_id, role_code, app_code) 精确查询; UserRoleV2 的旧
+    management_unit_ids 字段保留为「默认/兜底」, 不破坏 scope_resolver 既有语义。
+    """
+
+    user_id = models.BigIntegerField(db_index=True, verbose_name='用户ID')
+    role_code = models.CharField(max_length=64, verbose_name='角色编码')
+    system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
+    app_code = models.CharField(max_length=32, verbose_name='应用/模块编码')
+    management_unit_ids = models.JSONField(null=True, blank=True, verbose_name='管理单元ID列表(JSON)')
+    granted_by_id = models.BigIntegerField(null=True, blank=True, verbose_name='授权人ID')
+    granted_at = models.DateTimeField(auto_now_add=True, verbose_name='授权时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'user_app_data_scope'
+        verbose_name = '用户应用数据范围(V2)'
+        verbose_name_plural = verbose_name
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user_id', 'role_code', 'app_code'],
+                name='uk_user_role_app',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['user_id', 'app_code'], name='idx_uads_user_app'),
+        ]
+
+    def __str__(self):
+        return f'user={self.user_id} role={self.role_code} app={self.app_code}'
 
 
 class TenantConfig(models.Model):

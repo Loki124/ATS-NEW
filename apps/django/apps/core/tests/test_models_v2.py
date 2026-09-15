@@ -3,7 +3,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from apps.core.models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, TenantConfig,
+    ManagementUnit, UserRoleV2, UserAppDataScope, TenantConfig,
 )
 
 
@@ -72,3 +72,42 @@ class TestV2ModelsSmoke:
                 config_key='TEST_KEY',
                 config_value='dup',
             )
+
+    def test_management_unit_hierarchy_fields(self):
+        """方案 A M1: parent_id(树) + personnel_scope(JSON 谓词) 可写可读。"""
+        root = ManagementUnit.objects.create(unit_name='Root', unit_type='org')
+        child = ManagementUnit.objects.create(unit_name='Child', parent_id=root.id)
+        assert child.parent_id == root.id
+        root.personnel_scope = {'op': 'or', 'rules': [
+            {'dimension': 'employment', 'field': 'department', 'op': 'eq', 'value': 1, 'include_sub': True},
+        ]}
+        root.save()
+        root.refresh_from_db()
+        assert root.personnel_scope['op'] == 'or'
+        assert root.personnel_scope['rules'][0]['field'] == 'department'
+
+    def test_user_app_data_scope_unique(self):
+        """方案 A M1: (user_id, role_code, app_code) 唯一约束生效。
+
+        SQLite 上捕获 IntegrityError 会中断原子事务, 故与 test_create_resource_unique_code
+        一致 —— 在 with pytest.raises 后不再发起任何查询, 由 teardown 回滚。
+        唯一约束在 MySQL 后端已由 uk_user_role_app 强制。
+        """
+        UserAppDataScope.objects.create(
+            user_id=1, role_code='R1', app_code='recruit', management_unit_ids=[1, 2],
+        )
+        with pytest.raises(Exception):  # IntegrityError: 重复 (user,role,app)
+            UserAppDataScope.objects.create(
+                user_id=1, role_code='R1', app_code='recruit', management_unit_ids=[3],
+            )
+
+    def test_user_app_data_scope_per_app_coexists(self):
+        """方案 A M1: 不同 app_code 对同一 (user, role) 可并存。"""
+        UserAppDataScope.objects.create(
+            user_id=1, role_code='R1', app_code='recruit', management_unit_ids=[1, 2],
+        )
+        UserAppDataScope.objects.create(
+            user_id=1, role_code='R1', app_code='campus', management_unit_ids=[9],
+        )
+        assert UserAppDataScope.objects.filter(user_id=1, role_code='R1').count() == 2
+
