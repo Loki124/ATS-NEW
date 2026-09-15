@@ -155,9 +155,6 @@
               <n-input v-model:value="fieldForm.confirmationDeclarationEn" type="textarea" placeholder="Declaration text (EN)" />
             </n-form-item>
           </template>
-          <n-form-item label="显示">
-            <n-switch v-model:value="fieldForm.isVisible" />
-          </n-form-item>
           <n-form-item v-if="fieldNeedsOptions" label="选项来源">
             <n-space vertical :size="8" style="width: 100%">
               <n-select
@@ -175,20 +172,24 @@
                 :placeholder="sourceType === 'dictionary' ? '选择字典类型' : (sourceType === 'library' ? '选择院校/专业类型' : '选择码表类型')"
                 filterable
                 style="width: 100%"
-                @update:value="onDictTypeChange"
+                @update:value="onSourceKeyChange"
               />
               <!-- 数据字典专属预览（最多取前 20 条作预览, 真实渲染由后端解析） -->
               <n-alert
                 v-if="sourceType === 'dictionary' && fieldForm.optionsSource.key"
                 type="info"
                 :show-icon="true"
-              >保存后，选项将从「数据字典 · {{ fieldForm.optionsSource.key }}」动态加载（实时同步字典条目）。</n-alert>
+              >
+保存后，选项将从「数据字典 · {{ fieldForm.optionsSource.key }}」动态加载（实时同步字典条目）。
+</n-alert>
               <!-- 院校库/专业库/码表库提示 -->
               <n-alert
                 v-else-if="sourceHint"
                 type="info"
                 :show-icon="true"
-              >保存后，{{ sourceHint }}。</n-alert>
+              >
+保存后，{{ sourceHint }}。
+</n-alert>
             </n-space>
           </n-form-item>
           <n-form-item v-if="fieldNeedsOptions && showManualOptions" label="选项">
@@ -250,7 +251,9 @@
               v-for="opt in VISIBILITY_PERMISSION_OPTIONS"
               :key="opt.value"
               :value="opt.value"
-            >{{ opt.label }}</n-radio>
+            >
+{{ opt.label }}
+</n-radio>
           </n-space>
         </n-radio-group>
         <template #action>
@@ -806,10 +809,12 @@ async function onOptionSourceTypeChange(type: string) {
   }
 }
 
-/** 切换子 key（library major/school, code_table country/ethnicity/language）。清字典预览。 */
+/** 切换子 key（library major/school, code_table country/ethnicity/language, dictionary code）。统一入口 */
 function onSourceKeyChange(key: string) {
   fieldForm.optionsSource.key = key;
   dictionaryPreviewOptions.value = [];
+  // 字典才需要拉条目预览
+  if (sourceType.value === 'dictionary') onDictTypeChange(key);
 }
 
 /** 选择具体字典类型后，拉取该字典项作为编辑态预览。 */
@@ -1002,6 +1007,11 @@ function onFieldModuleChange() { fieldForm.groupId = null; }
 
 async function saveField() {
   if (!fieldForm.label.trim()) { message.error('请填写字段名称'); return; }
+  // 2026-09-15 选项来源校验: 选了非 custom 但子 key 空 → 拦截
+  if (fieldNeedsOptions.value && sourceType.value !== 'custom' && !fieldForm.optionsSource?.key) {
+    message.error('选项来源选择了「' + OPTION_SOURCE_OPTIONS.find((o) => o.value === sourceType.value)?.label + '」，请继续选择子类型');
+    return;
+  }
   saving.value = true;
   try {
     const payload: any = {
@@ -1647,18 +1657,23 @@ onMounted(async () => {
   background: var(--color-bg-subtle); color: var(--color-text-secondary);
   font-size: 12px; display: flex; align-items: center; justify-content: center;
 }
-/* 字段定义：分组卡片视图 */
+/* 字段定义：分组卡片视图（容器型卡片，padding 收归 0 避免与内嵌表格 td 叠加形成冗余留白） */
 .field-groups {
   display: flex; flex-direction: column; gap: var(--space-5);
   overflow-y: auto; min-height: 0;
+  scrollbar-width: none; /* Firefox：隐藏滚动条轨道宽度（避免 8px 占位） */
 }
+.field-groups::-webkit-scrollbar { width: 0; background: transparent; }
 .field-group-card {
+  /* 卡片作为表格容器：外框只管圆角+背景；内嵌 n-data-table 自带边框 + td padding 不需重复 padding */
   border: 1px solid var(--color-border); border-radius: var(--radius-md);
-  padding: var(--space-4); background: var(--color-bg);
+  background: var(--color-bg);
+  overflow: hidden;
 }
 .field-group-head {
   display: flex; align-items: center; gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-border); /* 头与表格用分隔线代替 margin 隔断 */
 }
 .fg-title { font-weight: 600; font-size: var(--text-base); }
 .fg-spacer { flex: 1; }
