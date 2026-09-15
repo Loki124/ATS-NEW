@@ -1615,8 +1615,8 @@ onMounted(async () => {
   display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0;
 }
 .page-header { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.res-label { color: var(--color-text-secondary); font-size: 14px; }
-/* 页面级不滚动: 标题/Tabs/筛选固定, 仅数据表格区域内部滚动 (n-data-table flex-height) */
+.res-label { color: var(--ink-soft); font-size: var(--fs-14); }
+/* 页面级不滚动: 标题/筛选固定, 仅分组卡片区内部滚动 */
 .page-body {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
@@ -1624,70 +1624,58 @@ onMounted(async () => {
 }
 .filter-row { flex-shrink: 0; margin-bottom: var(--space-3); }
 .dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
-.df-tabs {
-  flex: 1; min-height: 0;
-  display: flex; flex-direction: column;
-}
-.df-tabs :deep(.n-tabs-nav) { flex-shrink: 0; }
-.df-tabs :deep(.n-tabs-content) { flex: 1; min-height: 0; }
-.df-tabs :deep(.n-tab-pane) {
-  height: 100%;
-  display: flex; flex-direction: column;
-}
-.df-tabs :deep(.n-tab-pane > .n-data-table) {
-  flex: 1; min-height: 0;
-}
 .field-key-readonly {
   display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  font-size: var(--text-xs, 12px);
+  font-size: var(--text-meta);
 }
 .field-key-readonly code {
   padding: 2px 6px; border-radius: 4px;
-  background: var(--color-bg-subtle); color: var(--color-text-secondary);
+  background: var(--g1); color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }
-.field-key-hint { color: var(--color-text-tertiary); }
+.field-key-hint { color: var(--ink-faint); }
 .linkage-row {
   display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border);
+  padding: var(--space-2) 0; border-bottom: 1px dashed var(--border-hairline);
 }
 .linkage-row:last-child { border-bottom: none; }
 .linkage-index {
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--color-bg-subtle); color: var(--color-text-secondary);
-  font-size: 12px; display: flex; align-items: center; justify-content: center;
+  background: var(--g1); color: var(--ink-soft);
+  font-size: var(--fs-12); display: flex; align-items: center; justify-content: center;
 }
-/* 字段定义：分组卡片视图（容器型卡片，padding 收归 0 避免与内嵌表格 td 叠加形成冗余留白） */
+/* 字段定义：分组卡片视图
+ * 卡片内嵌 n-data-table（自带 td padding），卡片自身不再加 padding，避免双层留白；
+ * 模块之间的区分靠「卡片边框 + 背景 + 阴影 + 头部底色带」，不靠额外留白。 */
 .field-groups {
-  display: flex; flex-direction: column; gap: var(--space-5);
-  overflow-y: auto; min-height: 0;
-  scrollbar-width: none; /* Firefox：隐藏滚动条轨道宽度（避免 8px 占位） */
+  flex: 1 1 auto; min-height: 0;          /* 撑满 page-body 剩余高度并在此滚动（移除 Tabs 后必须补回） */
+  display: flex; flex-direction: column; gap: var(--space-4);
+  overflow-y: auto;
+  scrollbar-width: none;                  /* Firefox：隐藏滚动条轨道，避免右侧固定占位 */
 }
 .field-groups::-webkit-scrollbar { width: 0; background: transparent; }
 .field-group-card {
-  /* 卡片作为表格容器：外框只管圆角+背景；内嵌 n-data-table 自带边框 + td padding 不需重复 padding */
-  border: 1px solid var(--color-border); border-radius: var(--radius-md);
-  background: var(--color-bg);
+  flex-shrink: 0;                         /* 关键：禁止 flex 收缩。默认 shrink:1 会把卡片压扁，配合 overflow:hidden 直接裁掉表格 → 只剩头部堆叠（模块“糊在一起”的成因之一） */
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-card);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 .field-group-head {
   display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-4) var(--space-4) var(--space-3);
-  border-bottom: 1px solid var(--color-border); /* 头与表格用分隔线代替 margin 隔断 */
+  padding: var(--space-3) var(--space-4);
+  background: var(--g1);                  /* 头部底色带：分组标题与表格内容一眼可分 */
+  border-bottom: 1px solid var(--border-hairline);
 }
-.fg-title { font-weight: 600; font-size: var(--text-base); }
+.fg-title { font-weight: 600; font-size: var(--fs-16); }
 .fg-spacer { flex: 1; }
 /* 字段权限管理弹窗 */
-.perm-desc { color: var(--color-text-secondary); margin-bottom: var(--space-3); line-height: 1.5; }
+.perm-desc { color: var(--ink-soft); margin-bottom: var(--space-3); line-height: 1.5; }
 .perm-radio { padding: var(--space-1) 0; }
-/* 2026-09-15 UX：分组卡片内 n-data-table td 左右内边距（Naive 默认 12px 过窄，
-   字段名/标签/操作列视觉贴边，对齐规范 §1.2 容器内边距下限 16px） */
+/* 分组卡片 / 居中弹窗内 n-data-table td 左右内边距（Naive 默认 12px 过窄，内容视觉贴边） */
 .field-group-card :deep(.n-data-table-td),
-.field-group-card :deep(.n-data-table-th) {
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
-}
-/* 居中弹窗里同样的表格 td 留白同步（防止弹窗里再贴边） */
+.field-group-card :deep(.n-data-table-th),
 .df-center-modal :deep(.n-data-table-td),
 .df-center-modal :deep(.n-data-table-th) {
   padding-left: var(--space-4);
