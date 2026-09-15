@@ -143,6 +143,33 @@ A: `docker-compose.yml` 里有 `${XXX:?必填}` 插值变量，但生产 `ops/.e
    - 脚本已加**前置检查**（第 0 步）：build 前自动抽取 compose 里所有必填变量，缺了直接列清单，不再 build 到一半才炸。
    - 补齐方法：对照 `ops/.env.example`，把缺的变量写进 `/opt/data/ATS-new/ops/.env`。
 
+## 轮询式自动部署（不依赖 Gitee webhook，推荐作为兜底）
+
+Gitee webhook 受限于「Gitee 的 Java 客户端 ↔ Cloudflare 边缘 TLS 协商」，偶发投递失败。为保证「每次 push 必部署」，增加一条**服务端主动 pull** 的兜底链路——部署机定时 `git fetch` 对比 `origin/main`，有新增提交就自动部署，与 webhook 完全解耦。
+
+**安装（部署机执行）：**
+```bash
+sudo cp /opt/data/ATS-new/ops/scripts/ats-poll-deploy.service \
+        /opt/data/ATS-new/ops/scripts/ats-poll-deploy.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ats-poll-deploy.timer
+```
+
+**日常使用：** `git push` 后 5 分钟内自动 `git fetch` 发现新提交并部署，无需任何手动触发。
+
+**查看 / 调试：**
+```bash
+systemctl list-timers ats-poll-deploy.timer      # 下次触发时间
+sudo systemctl start ats-poll-deploy.service     # 立即手动跑一次
+tail -f /var/log/ats-poll-deploy.log             # 触发记录(只记"检测到新提交")
+tail -f /var/log/ats-deploy.log                  # 部署详情
+```
+
+**要点：**
+- `poll-deploy.sh` 无新提交时静默退出（不刷日志）；有新提交才调 `webhook-deploy.sh`。
+- 与 `ats-webhook.service` 并存互不干扰——两者最终都调 `webhook-deploy.sh`，由同一把 `flock` 锁防重叠。
+- 若部署失败（build 报错），修好代码 push 新提交即可由下轮自动重试。
+
 ## 安全注意
 
 - **secret 必须保密**：泄露后任何人可触发你的部署（虽然只是 pull + rebuild，不会泄露数据，但会浪费算力）。
@@ -156,4 +183,7 @@ A: `docker-compose.yml` 里有 `${XXX:?必填}` 插值变量，但生产 `ops/.e
 | `ops/scripts/webhook_receiver.py` | Webhook 接收器（Python 标准库，零依赖，校验 `X-Gitee-Token`，触发部署） |
 | `ops/scripts/webhook-deploy.sh` | 实际部署：`git pull` + `docker compose build --no-cache` + `up -d --force-recreate` + 健康检查 |
 | `ops/scripts/ats-webhook.service` | systemd unit（运行接收器，监听 9000） |
+| `ops/scripts/poll-deploy.sh` | 轮询部署脚本：`git fetch` + 对比 `origin/main`，有新提交才调 `webhook-deploy.sh` |
+| `ops/scripts/ats-poll-deploy.service` | systemd oneshot（跑一次 `poll-deploy.sh`） |
+| `ops/scripts/ats-poll-deploy.timer` | systemd timer（每 5 分钟触发一次 service） |
 | `docs/06-runbook/webhook-setup.md` | 本文档 |

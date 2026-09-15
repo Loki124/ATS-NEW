@@ -1,0 +1,19 @@
+# ATS-NEW 轮询式自动部署 systemd timer — 每 5 分钟触发一次 ats-poll-deploy.service
+#
+# 安装: 见 ats-poll-deploy.service 头部注释; 启用本 timer 即可:
+#   sudo systemctl enable --now ats-poll-deploy.timer
+#
+# 查看状态 / 手动触发一次:
+#   systemctl list-timers ats-poll-deploy.timer
+#   sudo systemctl start ats-poll-deploy.service    # 立即跑一次
+# 日志: /var/log/ats-poll-deploy.log (触发记录) + /var/log/ats-deploy.log (部署详情)
+
+[Unit]
+Description=ATS-NEW poll deploy timer (every 5 min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

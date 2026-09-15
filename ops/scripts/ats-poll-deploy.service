@@ -1,0 +1,36 @@
+# ATS-NEW 轮询式自动部署 systemd service (由 ats-poll-deploy.timer 每 5 分钟触发一次)
+#
+# 安装:
+#   sudo cp ops/scripts/ats-poll-deploy.service ops/scripts/ats-poll-deploy.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ats-poll-deploy.timer
+#
+# 说明:
+#   - Type=oneshot: 每次 timer 触发跑一次 poll-deploy.sh 即退出
+#   - 以 root 运行 (部署脚本要 docker compose + git reset)
+#   - 主动 git fetch 对比 origin/main, 有新提交才调 webhook-deploy.sh; 无变化静默退出
+#   - 与 Gitee webhook 接收器(ats-webhook.service)并存, 互不干扰(共享 flock 锁防重叠)
+
+[Unit]
+Description=ATS-NEW poll deploy (git fetch + deploy on new commit)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/data/ATS-new
+Environment=WEBHOOK_BRANCH=main
+ExecStart=/bin/bash /opt/data/ATS-new/ops/scripts/poll-deploy.sh
+StandardOutput=append:/var/log/ats-poll-deploy.log
+StandardError=append:/var/log/ats-poll-deploy.log
+
+# 安全加固 (与 ats-webhook.service 保持一致)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# 部署脚本要写 /var/log、读写 /opt/data/ATS-new(.git)、调 docker
+ReadWritePaths=/var/log /opt/data/ATS-new /run/docker.sock
+ProtectHome=true
