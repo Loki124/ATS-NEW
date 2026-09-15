@@ -148,6 +148,27 @@
           <n-form-item label="字段类型" required>
             <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" />
           </n-form-item>
+          <!-- 2026-09-15 行政区划型字段：国家开关 + 实时级联预览 (数据源: G46 码表库) -->
+          <template v-if="isRegionType">
+            <n-form-item label="启用国家">
+              <n-space align="center" :size="8">
+                <n-switch v-model:value="fieldForm.withCountry" />
+                <n-text depth="3">开启后填写时先选国家，再选行政区划</n-text>
+              </n-space>
+            </n-form-item>
+            <n-form-item label="级联预览">
+              <RegionCascader
+                :field-type="(fieldForm.fieldType as any)"
+                :with-country="fieldForm.withCountry"
+                :value="fieldForm.regionPreviewValue"
+                :disabled="true"
+                @update:value="(v) => (fieldForm.regionPreviewValue = v)"
+              />
+              <n-text v-if="!fieldForm.regionPreviewValue" depth="3" class="rc-hint">
+                预览为只读示例，候选人填写时实际可选
+              </n-text>
+            </n-form-item>
+          </template>
           <!-- embedded 模式：字段归属当前业务模块，隐藏模块选择，由组件强制绑定默认模块 -->
           <n-form-item v-if="!isEmbedded" label="归属模块">
             <n-select
@@ -551,8 +572,9 @@ import {
   NModal, NForm, NFormItem, NInput, NDynamicInput, NTabs, NTabPane, NDropdown,
   NRadioGroup, NRadio, NCheckbox, NAlert, NText, useMessage, useDialog,
 } from 'naive-ui';
-import { AddOutline, TrashOutline, CreateOutline } from '@vicons/ionicons5';
+import { AddOutline, TrashOutline, CreateOutline, ShieldCheckmarkOutline, BanOutline, PlayOutline } from '@vicons/ionicons5';
 import FieldListOptions from '@/components/FieldListOptions.vue';
+import RegionCascader from '@/components/RegionCascader.vue';
 import {
   listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
@@ -635,6 +657,8 @@ const fieldForm = reactive<{
   confirmationContent: string; confirmationContentEn: string;
   confirmationDeclaration: string; confirmationDeclarationEn: string;
   visibilityPermission: VisibilityPermission;
+  withCountry: boolean;
+  regionPreviewValue: { country?: {code: string; name: string}; province: {code: string; name: string}; city?: {code: string; name: string}; district?: {code: string; name: string}; } | null;
 }>({
   fieldKey: '', label: '', labelEn: '', fieldType: 'TEXT',
   moduleId: null, groupId: null,
@@ -644,6 +668,8 @@ const fieldForm = reactive<{
   confirmationContent: '', confirmationContentEn: '',
   confirmationDeclaration: '', confirmationDeclarationEn: '',
   visibilityPermission: 'ALL_VISIBLE',
+  withCountry: false,
+  regionPreviewValue: null,
 });
 
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
@@ -717,15 +743,33 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   MULTILINE_TEXT: 'default',
   // 2026-09-15 新增地址: 默认色 (与文本一致)
   ADDRESS: 'default',
+  // 行政区划级联型: success (与日期同色, 表达"地理位置")
+  REGION_PROVINCE: 'success',
+  REGION_PROVINCE_CITY: 'success',
+  REGION_PROVINCE_CITY_DISTRICT: 'success',
 };
 
 // 列表型字段预览：切换单选/多选时同步预览值形状
 watch(
   () => fieldForm.fieldType,
-  (t) => { fieldPreviewValue.value = t === 'LIST_MULTI' ? [] : ''; },
+  (t) => {
+    fieldPreviewValue.value = t === 'LIST_MULTI' ? [] : '';
+    // 行政区划级联型切换时重置 region 预览, 避免不同级数的缓存污染
+    if (t === 'REGION_PROVINCE' || t === 'REGION_PROVINCE_CITY' || t === 'REGION_PROVINCE_CITY_DISTRICT') {
+      fieldForm.regionPreviewValue = null;
+    } else {
+      fieldForm.regionPreviewValue = null;
+    }
+  },
 );
 const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || fieldForm.fieldType === 'LIST_MULTI');
 const isConfirmType = computed(() => fieldForm.fieldType === 'CONFIRM');
+// 2026-09-15 行政区划级联型: 省/省市/省市区
+const isRegionType = computed(
+  () => fieldForm.fieldType === 'REGION_PROVINCE'
+    || fieldForm.fieldType === 'REGION_PROVINCE_CITY'
+    || fieldForm.fieldType === 'REGION_PROVINCE_CITY_DISTRICT',
+);
 
 // 字段按分组(FieldGroup)聚合为卡片；无分组的归到「未分组」
 const groupedFields = computed(() => {
@@ -758,18 +802,18 @@ const fieldColumns = computed(() => [
     },
   },
   {
-    title: '操作', key: 'action', width: 260, fixed: 'right' as const,
+    title: '操作', key: 'action', width: 280, fixed: 'right' as const,
     render: (row: FieldDefinition) => {
       const disabled = row.status === 'inactive';
       return h(NSpace, { size: 4, wrap: false }, {
         default: () => [
-          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => '管理权限' }),
+          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => '管理权限', icon: () => h(ShieldCheckmarkOutline) }),
           h(NButton, { size: 'tiny', quaternary: true, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
           h(NButton, {
             size: 'tiny', quaternary: true,
             type: disabled ? 'primary' : 'default',
             onClick: () => toggleFieldStatus(row),
-          }, { default: () => (disabled ? '启用' : '停用') }),
+          }, { default: () => (disabled ? '启用' : '停用'), icon: () => disabled ? h(PlayOutline) : h(BanOutline) }),
           h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteField(row) }, { default: () => '删除', icon: () => h(TrashOutline) }),
         ],
       });
@@ -818,6 +862,8 @@ function resetFieldForm() {
     confirmationContent: '', confirmationContentEn: '',
     confirmationDeclaration: '', confirmationDeclarationEn: '',
     visibilityPermission: 'ALL_VISIBLE',
+    withCountry: false,
+    regionPreviewValue: null,
   });
 }
 
@@ -850,6 +896,8 @@ function openFieldEdit(row: FieldDefinition) {
     confirmationDeclaration: row.confirmationDeclaration || '',
     confirmationDeclarationEn: row.confirmationDeclarationEn || '',
     visibilityPermission: row.visibilityPermission || 'ALL_VISIBLE',
+    withCountry: !!row.withCountry,
+    regionPreviewValue: null,
   });
   fieldModalVisible.value = true;
 }
@@ -874,6 +922,8 @@ async function saveField() {
       confirmationDeclaration: fieldForm.confirmationDeclaration,
       confirmationDeclarationEn: fieldForm.confirmationDeclarationEn,
       visibilityPermission: fieldForm.visibilityPermission,
+      // 2026-09-15 行政区划型字段开关 (默认 false; 非 REGION_* 类型上传无副作用)
+      withCountry: !!fieldForm.withCountry,
       id: fieldEditing.value?.id,
     };
     // 2026-09-15 选项来源: 选项型字段若指定了数据源, 清空手动 options, 由后端按 options_source 解析
@@ -1451,7 +1501,6 @@ onMounted(async () => {
 .filter-row { flex-shrink: 0; margin-bottom: var(--space-3); }
 .dynamic-field-settings { display: flex; flex-direction: column; gap: var(--space-3); }
 .df-tabs {
-  margin-top: var(--space-2);
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
 }
@@ -1486,16 +1535,16 @@ onMounted(async () => {
 }
 /* 字段定义：分组卡片视图 */
 .field-groups {
-  display: flex; flex-direction: column; gap: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-5);
   overflow-y: auto; padding-right: var(--space-2); min-height: 0;
 }
 .field-group-card {
-  border: 1px solid var(--color-border); border-radius: 8px;
-  padding: var(--space-3); background: var(--color-bg);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  padding: var(--space-5); background: var(--color-bg);
 }
 .field-group-head {
   display: flex; align-items: center; gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .fg-title { font-weight: 600; font-size: var(--text-base); }
 .fg-spacer { flex: 1; }

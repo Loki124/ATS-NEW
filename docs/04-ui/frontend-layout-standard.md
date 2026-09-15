@@ -89,6 +89,35 @@
 - 区块间距：`--space-6`（24px）；卡片内：`--space-4`（16px）；表单项间距：`--space-3`（12px）；紧密元素：`--space-2`（8px）。
 - 禁止裸像素间距（如 `margin-top:20px` → `margin-top: var(--space-5)`）。
 
+### 1.8 组件级 UI 规范（按钮 / 卡片 / Tab 间距 / 圆角）
+
+**1.8.1 按钮统一性**（表格操作列 / 工具栏 / 卡片头按钮）
+- **同组按钮必须全有 icon 或全无 icon**。禁止「管理权限/编辑/停用/删除」一类 4 按钮中 2 带 icon、2 不带。
+- 优先全部带 icon（14–16px outline），用语义化命名（@vicons/ionicons5）：
+  - 管理权限 → `ShieldCheckmarkOutline` / `KeyOutline`
+  - 编辑 → `CreateOutline` / `PencilOutline`
+  - 停用 → `BanOutline` / `StopCircleOutline`；启用 → `PlayOutline` / `CheckmarkOutline`
+  - 删除 → `TrashOutline` / `TrashBinOutline`
+- size 默认 `tiny`（quaternary），列表/卡片操作列密集场景用 tiny；工具栏主操作（如「新建」「刷新」）用 `small`/`medium`。
+- 颜色语义：默认/主操作 `default` 或 `primary`；停用/启用反转为 `primary`（启用态视觉更突出）；删除 `type="error"`。
+- 表格操作列 `NSpace` 必须 `wrap:false` + 列宽足够容纳所有按钮（4 个 tiny 按钮 + icon 推荐 ≥280px）。
+
+**1.8.2 卡片内边距**（自定义分组卡片 / 容器）
+- 卡片内 padding **不得低于 16px**（`--space-4`）。
+- 信息密集型（多行表单/嵌套列表/字段分组）用 `--space-5`（20px）更舒展。
+- 卡片外间距 `gap`：`--space-4`（紧凑）/`--space-5`（舒展），禁止 8/12px 异常紧贴。
+
+**1.8.3 页面顶部留白**
+- 页面级 `page-header` 与下方的 `n-tabs`/`n-data-table`/卡片墙之间**禁止**额外声明 `margin-top`/`padding-top` 制造留白带。
+- 间距由全局契约（`.page-container` 24px + 元素自身间距）自动控制。
+- 例外：仅在 Tabs 自身无下边距时，Tabs 容器用 `margin-top: var(--space-3)`（12px）做视觉过渡；禁止用 8/16/24px 等非阶梯值。
+
+**1.8.4 圆角**（border-radius）
+- 卡片：`var(--radius-md)`（12px，项目统一，不混用 8/10/14）。
+- 小元素（tag/徽标/code）：`var(--radius-sm)`（6–8px）即可。
+- 弹窗/抽屉：跟随 Naive UI 主题默认（勿手写）。
+- **禁止**手写 `border-radius: 8px`、`border-radius: 10px` 等硬编码值。
+
 ---
 
 ## 2. 已落地的强制实现（Implementation）
