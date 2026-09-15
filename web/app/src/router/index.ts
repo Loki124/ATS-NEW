@@ -20,6 +20,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackChunkName: "forbidden" */ '../pages/errors/Forbidden.vue')
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import(/* webpackChunkName: "register" */ '../pages/Register.vue')
+  },
+  {
     path: '/',
     component: () => import(/* webpackChunkName: "layout" */ '../pages/Layout.vue'),
     meta: { requiresAuth: true },
