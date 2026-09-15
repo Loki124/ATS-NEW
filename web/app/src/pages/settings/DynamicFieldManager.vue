@@ -158,23 +158,23 @@
           <n-form-item v-if="fieldNeedsOptions" label="选项来源">
             <n-space vertical :size="8" style="width: 100%">
               <n-select
-                :value="sourceType"
+                :value="sourceValue"
                 :options="OPTION_SOURCE_OPTIONS"
                 style="width: 280px"
                 @update:value="onOptionSourceTypeChange"
               />
-              <!-- 字典/院校库/码表库 都需进一步选子 key -->
+              <!-- 仅数据字典需进一步选字典类型（动态从后端拉取），院校库/码表库已拍平为单层选项 -->
               <n-select
-                v-if="sourceType === 'dictionary' || sourceType === 'library' || sourceType === 'code_table'"
+                v-if="sourceType === 'dictionary'"
                 v-model:value="fieldForm.optionsSource.key"
                 :options="sourceKeyOptions"
-                :loading="sourceType === 'dictionary' && loadingDictTypes"
-                :placeholder="sourceType === 'dictionary' ? '选择字典类型' : (sourceType === 'library' ? '选择院校/专业类型' : '选择码表类型')"
+                :loading="loadingDictTypes"
+                placeholder="选择字典类型"
                 filterable
                 style="width: 100%"
                 @update:value="onSourceKeyChange"
               />
-              <!-- 数据字典专属预览（最多取前 20 条作预览, 真实渲染由后端解析） -->
+              <!-- 数据字典专属预览（真实渲染由后端解析） -->
               <n-alert
                 v-if="sourceType === 'dictionary' && fieldForm.optionsSource.key"
                 type="info"
@@ -729,31 +729,30 @@ const fieldForm = reactive<{
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
 
 // 2026-09-15 选项来源 (兵哥): 下拉/列表型字段除手动维护选项外, 可指定数据源动态解析
+// 拍平为单层下拉（兵哥 9-15 反馈: 院校/专业库、码表库不再做二级级联, 直接拆成独立选项）
+// 复合 value 形式 type:key, 选择即写入 fieldForm.optionsSource.{type,key}, 后端零改动兼容
 const OPTION_SOURCE_OPTIONS = [
   { label: '自定义（手动维护）', value: 'custom' },
   { label: '数据字典', value: 'dictionary' },
-  { label: '院校/专业库', value: 'library' },
-  { label: '码表库（G46）', value: 'code_table' },
-];
-// library 子 key 选项: 专业 (已有) / 院校
-const LIBRARY_KEY_OPTIONS = [
-  { label: '专业库 · 专业名称', value: 'major' },
-  { label: '院校库 · 院校名称', value: 'school' },
-];
-// code_table 子 key 选项: 国家 / 民族 / 语言
-const CODE_TABLE_KEY_OPTIONS = [
-  { label: '国家/地区', value: 'country' },
-  { label: '民族', value: 'ethnicity' },
-  { label: '语言', value: 'language' },
+  { label: '专业库', value: 'library:major' },
+  { label: '院校库', value: 'library:school' },
+  { label: '国家/地区', value: 'code_table:country' },
+  { label: '民族', value: 'code_table:ethnicity' },
+  { label: '语言类型', value: 'code_table:language' },
 ];
 // 当前选中的来源类型（兜底 custom）
 const sourceType = computed(() => fieldForm.optionsSource?.type || 'custom');
+// 下拉当前值（复合 type:key；custom/dictionary 无 key 时退化为纯 type）
+const sourceValue = computed(() => {
+  const t = fieldForm.optionsSource?.type || 'custom';
+  const k = fieldForm.optionsSource?.key || '';
+  if (t === 'custom' || t === 'dictionary' || !k) return t;
+  return `${t}:${k}`;
+});
 // 仅自定义来源展示手动选项编辑器（A: 选了数据源则隐藏手动选项）
 const showManualOptions = computed(() => sourceType.value === 'custom');
-// 当前数据源的子 key 下拉选项（library/code_table/dictionary 各自不同；custom 为空）
+// 当前数据源的子 key 下拉选项：仅数据字典为动态类型列表；院校库/码表库已拍平到主下拉
 const sourceKeyOptions = computed(() => {
-  if (sourceType.value === 'library') return LIBRARY_KEY_OPTIONS;
-  if (sourceType.value === 'code_table') return CODE_TABLE_KEY_OPTIONS;
   if (sourceType.value === 'dictionary') return dictionaryTypeOptions.value;
   return [];
 });
@@ -786,12 +785,18 @@ const sourceHint = computed(() => {
   return '';
 });
 
-/** 切换选项来源类型：dictionary 时懒加载字典类型列表；library/code_table 锁定默认 key；custom 时清空 key。 */
-async function onOptionSourceTypeChange(type: string) {
-  fieldForm.optionsSource.type = type;
-  fieldForm.optionsSource.key = '';
+/** 切换选项来源：val 为复合 value（type 或 type:key）。
+ *  custom → 清空 key；dictionary → 懒加载字典类型列表；library:/code_table: 直接拆 type+key 写入。 */
+async function onOptionSourceTypeChange(val: string) {
   dictionaryPreviewOptions.value = [];
-  if (type === 'dictionary') {
+  if (val === 'custom') {
+    fieldForm.optionsSource.type = 'custom';
+    fieldForm.optionsSource.key = '';
+    return;
+  }
+  if (val === 'dictionary') {
+    fieldForm.optionsSource.type = 'dictionary';
+    fieldForm.optionsSource.key = '';
     loadingDictTypes.value = true;
     try {
       dictionaryTypes.value = await listDictionaryTypes({ type: 'all' });
@@ -800,13 +805,12 @@ async function onOptionSourceTypeChange(type: string) {
     } finally {
       loadingDictTypes.value = false;
     }
-  } else if (type === 'library') {
-    // 默认锁定「专业库 · 专业名称」
-    fieldForm.optionsSource.key = 'major';
-  } else if (type === 'code_table') {
-    // 默认锁定「国家」
-    fieldForm.optionsSource.key = 'country';
+    return;
   }
+  // 复合 value: type:key（院校库/码表库已拍平, 选中即确定 key）
+  const [type, key] = val.split(':');
+  fieldForm.optionsSource.type = type;
+  fieldForm.optionsSource.key = key;
 }
 
 /** 切换子 key（library major/school, code_table country/ethnicity/language, dictionary code）。统一入口 */
