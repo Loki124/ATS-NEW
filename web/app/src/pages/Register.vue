@@ -176,34 +176,54 @@ const rules: FormRules = {
   code: { required: true, message: '请输入 6 位验证码', trigger: 'blur' },
 }
 
+// 从后端错误响应中提取可读的提示文案
+const extractBackendMessage = (err: any): string => {
+  const data = err?.response?.data;
+  if (!data) return err?.message || '网络错误，请稍后重试';
+  // DRF 字段级错误: { errors: { email: ['该邮箱已被注册'], password: ['...'] } }
+  if (data.errors && typeof data.errors === 'object') {
+    for (const key of Object.keys(data.errors)) {
+      const fieldErrors = data.errors[key];
+      if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
+        return String(fieldErrors[0]);
+      }
+    }
+  }
+  // 特定业务码兜底
+  if (data.code === 'EMAIL_EXISTS') return '该邮箱已被注册';
+  if (data.message) return String(data.message);
+  return err?.message || '网络错误，请稍后重试';
+};
+
 const onSubmit = (e?: Event) => {
-  e?.preventDefault()
+  e?.preventDefault();
+  // Fix: 在异步校验前即加锁，防止双击/回车+点击导致重复提交
+  if (submitting.value) return;
+  submitting.value = true;
   formRef.value?.validate(async (errors) => {
-    if (errors) return
-    submitting.value = true
+    if (errors) {
+      submitting.value = false;
+      return;
+    }
     try {
       const { data } = await register({
         email: form.email.trim().toLowerCase(),
         password: form.password,
         fullName: form.fullName.trim(),
-      })
+      });
       if (data.success) {
-        step.value = 'verify'
-        startCountdown()
-        message.success('注册申请已提交，验证码已发送至您的邮箱')
+        step.value = 'verify';
+        startCountdown();
+        message.success('注册申请已提交，验证码已发送至您的邮箱');
       } else {
-        message.error(data.message || '注册失败')
+        message.error(data.message || '注册失败');
       }
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.code === 'EMAIL_EXISTS' ? '该邮箱已被注册' :
-        err?.message || '网络错误，请稍后重试'
-      message.error(msg)
+      message.error(extractBackendMessage(err));
     } finally {
-      submitting.value = false
+      submitting.value = false;
     }
-  })
+  });
 }
 
 const onVerify = async () => {

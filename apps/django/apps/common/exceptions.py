@@ -130,11 +130,15 @@ def custom_exception_handler(exc, context):
     if response is not None:
         # P1-7: 把 DRF 异常映射到我们的 code
         code = _map_drf_to_code(exc, response.status_code)
+        # 限流异常保留 DRF 自带的等待时间提示，避免前端只能看到笼统的"请求处理失败"
+        message = '请求处理失败'
+        if code == 'throttled' and isinstance(response.data, dict):
+            message = response.data.get('detail') or message
         return Response(
             {
                 'success': False,
                 'code': code,
-                'message': '请求处理失败',
+                'message': message,
                 'errors': response.data,
             },
             status=response.status_code,

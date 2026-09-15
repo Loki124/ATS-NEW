@@ -15,6 +15,13 @@ INTERNAL_IPS = ['127.0.0.1']
 # 关闭限流
 RATELIMIT_ENABLE = False
 
+# 开发环境放宽 DRF 注册限速，避免测试时 3 次/小时被卡死
+REST_FRAMEWORK = REST_FRAMEWORK.copy()
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+    **REST_FRAMEWORK.get('DEFAULT_THROTTLE_RATES', {}),
+    'register': '30/minute',
+}
+
 # CORS 允许所有（仅开发）
 CORS_ALLOW_ALL_ORIGINS = True
 
