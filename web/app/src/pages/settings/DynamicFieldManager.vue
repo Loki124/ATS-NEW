@@ -715,6 +715,8 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   ATTACHMENT: 'info', ID_CARD: 'error', BANK_CARD: 'error', PHONE: 'error', EMAIL: 'error',
   LIST_SINGLE: 'warning', LIST_MULTI: 'warning', CONFIRM: 'info',
   MULTILINE_TEXT: 'default',
+  // 2026-09-15 新增地址: 默认色 (与文本一致)
+  ADDRESS: 'default',
 };
 
 // 列表型字段预览：切换单选/多选时同步预览值形状

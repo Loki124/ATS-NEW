@@ -18,7 +18,8 @@ api.interceptors.request.use((cfg) => {
 export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
-  | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT';
+  | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
+  | 'ADDRESS';
 
 export type LinkageConditionMode = 'ALL' | 'ANY';
 export type LinkageConditionOp = 'EQ' | 'NE' | 'IN' | 'NOT_IN' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'CONTAINS';
@@ -253,6 +254,8 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '列表多选', value: 'LIST_MULTI' },
   { label: '确认题', value: 'CONFIRM' },
   { label: '多行文本', value: 'MULTILINE_TEXT' },
+  // 2026-09-15 新增: 地址（单行文本，预览/申请表独占整行）
+  { label: '地址', value: 'ADDRESS' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -263,6 +266,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   LIST_SINGLE: '列表单选', LIST_MULTI: '列表多选',
   CONFIRM: '确认题',
   MULTILINE_TEXT: '多行文本',
+  ADDRESS: '地址',
 };
 
 /** 可见权限枚举选项（字段权限管理弹窗） */

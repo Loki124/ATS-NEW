@@ -215,7 +215,7 @@ function selectOptions(field: FieldDefinition) {
 
 // 多行文本（TEXT）与附件块独占整宽一行；其余字段每行两列
 function isFullWidth(field: FieldDefinition): boolean {
-  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT'
+  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT' || field.fieldType === 'ADDRESS'
 }
 
 // 用全部动态字段给 config 补齐/裁剪条目，保证每个字段都有配置项

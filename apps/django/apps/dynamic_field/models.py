@@ -32,6 +32,8 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         CONFIRM = 'CONFIRM', '确认题'
         # 2026-09-14 新增「多行文本」(长文本输入, 渲染为多行 textarea)
         MULTILINE_TEXT = 'MULTILINE_TEXT', '多行文本'
+        # 2026-09-15 新增「地址」(单行文本输入, 预览/申请表独占整行; 后端无专属校验)
+        ADDRESS = 'ADDRESS', '地址'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [

@@ -314,7 +314,7 @@ function isMultiChoice(t: FieldType): boolean {
   return t === 'MULTISELECT' || t === 'LIST_MULTI'
 }
 function isFullWidth(field: FieldDefinition): boolean {
-  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT'
+  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT' || field.fieldType === 'ADDRESS'
 }
 function selectOptions(field: FieldDefinition) {
   return (field.options || []).map((o) => ({ label: o.label, value: o.value }))
