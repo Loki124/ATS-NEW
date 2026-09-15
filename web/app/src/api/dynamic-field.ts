@@ -16,11 +16,14 @@ api.interceptors.request.use((cfg) => {
 });
 
 export type FieldType =
-  | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
+  | 'TEXT' | 'NUMBER' | 'DATE' | 'DATE_RANGE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
   | 'ADDRESS'
   | 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
+
+/** 日期格式精度 (仅 DATE / DATE_RANGE 参考; 与后端 DynamicField.DateFormat 对齐) */
+export type DateFormatValue = 'YEAR' | 'MONTH' | 'DAY';
 
 export type RegionFieldType =
   | 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
@@ -132,6 +135,8 @@ export interface FieldDefinition {
   optionsSource?: { type: string; key: string } | null;
   /** 2026-09-15 行政区划型字段开关: 开启后先选国家 */
   withCountry?: boolean;
+  /** 2026-09-15 日期格式精度(年/年月/年月日, 仅 DATE/DATE_RANGE 参考; 默认 DAY) */
+  dateFormat?: DateFormatValue | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -255,7 +260,9 @@ export function extractApiError(e: any, fallback = '请求失败'): string {
 export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '文本', value: 'TEXT' },
   { label: '数字', value: 'NUMBER' },
-  { label: '日期', value: 'DATE' },
+  // 2026-09-15 (兵哥) 日期拆分: DATE 改名「单点日期」+ 新增 DATE_RANGE「日期范围」(格式精度见 DATE_FORMAT_OPTIONS)
+  { label: '单点日期', value: 'DATE' },
+  { label: '日期范围', value: 'DATE_RANGE' },
   { label: '下拉单选', value: 'SELECT' },
   { label: '下拉多选', value: 'MULTISELECT' },
   { label: '布尔', value: 'BOOLEAN' },
@@ -277,7 +284,7 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
-  TEXT: '文本', NUMBER: '数字', DATE: '日期',
+  TEXT: '文本', NUMBER: '数字', DATE: '单点日期', DATE_RANGE: '日期范围',
   SELECT: '下拉单选', MULTISELECT: '下拉多选', BOOLEAN: '布尔',
   ATTACHMENT: '附件', ID_CARD: '身份证', BANK_CARD: '银行卡',
   PHONE: '手机号', EMAIL: '邮箱',
@@ -289,6 +296,30 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   REGION_PROVINCE_CITY: '省市',
   REGION_PROVINCE_CITY_DISTRICT: '省市区',
 };
+
+/** 日期格式精度选项 (兵哥 2026-09-15: 年 / 年月 / 年月日) */
+export const DATE_FORMAT_OPTIONS: { label: string; value: DateFormatValue }[] = [
+  { label: '年', value: 'YEAR' },
+  { label: '年月', value: 'MONTH' },
+  { label: '年月日', value: 'DAY' },
+];
+
+export const DATE_FORMAT_LABEL: Record<DateFormatValue, string> = {
+  YEAR: '年', MONTH: '年月', DAY: '年月日',
+};
+
+/** 是否日期型字段(单点/范围), 渲染日期选择器并受 date_format 精度控制 */
+export function isDateFieldType(t: string): boolean {
+  return t === 'DATE' || t === 'DATE_RANGE';
+}
+
+/** 日期型字段 → n-date-picker type 映射(单点: year/month/date; 范围: yearrange/monthrange/daterange) */
+export function datePickerType(fieldType: string, dateFormat: string | null | undefined): string {
+  const f = (dateFormat || 'DAY') as DateFormatValue;
+  const map: Record<DateFormatValue, string> = { YEAR: 'year', MONTH: 'month', DAY: 'date' };
+  const rangeMap: Record<DateFormatValue, string> = { YEAR: 'yearrange', MONTH: 'monthrange', DAY: 'daterange' };
+  return fieldType === 'DATE_RANGE' ? rangeMap[f] : map[f];
+}
 
 /** 可见权限枚举选项（字段权限管理弹窗） */
 export const VISIBILITY_PERMISSION_OPTIONS: { label: string; value: VisibilityPermission }[] = [

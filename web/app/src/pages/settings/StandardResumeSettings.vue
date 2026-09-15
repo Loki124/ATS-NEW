@@ -159,7 +159,14 @@
                     :value="null"
                     :disabled="true"
                   />
-                  <!-- 文本/数字/日期/证件 等 -->
+                  <!-- 日期型 (单点/范围; 精度 年/年月/年月日 → picker type 映射) -->
+                  <NDatePicker
+                    v-else-if="isDateFieldType(m.field.fieldType)"
+                    disabled
+                    :type="(datePickerType(m.field.fieldType, m.field.dateFormat) as any)"
+                    clearable
+                  />
+                  <!-- 文本/数字/证件 等 -->
                   <n-input
                     v-else
                     disabled
@@ -178,13 +185,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { NButton, NIcon, NSwitch, NSpin, NAlert, NEmpty, NInput, NSelect } from 'naive-ui'
+import { NButton, NIcon, NSwitch, NSpin, NAlert, NEmpty, NInput, NSelect, NDatePicker } from 'naive-ui'
 import { RefreshOutline, ReloadOutline } from '@vicons/ionicons5'
 import {
   listFields,
   type FieldDefinition,
   type FieldType,
   FIELD_TYPE_LABEL,
+  isDateFieldType, datePickerType,
 } from '../../api/dynamic-field'
 import {
   STANDARD_RESUME_STAGES as stages,

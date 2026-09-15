@@ -144,6 +144,13 @@
                         :value="null"
                         :disabled="true"
                       />
+                      <!-- 日期型 (单点/范围; 精度 年/年月/年月日 → picker type 映射) -->
+                      <NDatePicker
+                        v-else-if="isDateFieldType(m.fieldType)"
+                        disabled
+                        :type="(datePickerType(m.fieldType, m.field.dateFormat) as any)"
+                        clearable
+                      />
                       <n-input
                         v-else
                         disabled
@@ -262,12 +269,14 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   NButton, NIcon, NSpin, NEmpty, NInput, NSelect, NSwitch, NTag, NRadio, NRadioGroup,
+  NDatePicker,
 } from 'naive-ui'
 import { useMessage, useDialog } from 'naive-ui'
 import { AddOutline, CreateOutline } from '@vicons/ionicons5'
 import {
   listFields,
   FIELD_TYPE_LABEL,
+  isDateFieldType, datePickerType,
   type FieldDefinition,
   type FieldType,
 } from '../../api/dynamic-field'

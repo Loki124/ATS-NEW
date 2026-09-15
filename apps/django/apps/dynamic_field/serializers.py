@@ -119,6 +119,8 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             'visibility_permission',
             # 2026-09-15 行政区划型字段开关
             'with_country',
+            # 2026-09-15 日期型字段格式精度(年/年月/年月日)
+            'date_format',
         ]
         read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
 

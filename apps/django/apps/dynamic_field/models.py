@@ -15,7 +15,10 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     class FieldType(models.TextChoices):
         TEXT = 'TEXT', '文本'
         NUMBER = 'NUMBER', '数字'
-        DATE = 'DATE', '日期'
+        # 2026-09-15 (兵哥) 日期拆分: DATE 改名「单点日期」, 新增 DATE_RANGE「日期范围」
+        # DATE 值不变(存量数据零迁移); DATE_RANGE 值存 [start, end] (CandidateFieldValue.value 为 JSONField)
+        DATE = 'DATE', '单点日期'
+        DATE_RANGE = 'DATE_RANGE', '日期范围'
         SELECT = 'SELECT', '单选'
         MULTISELECT = 'MULTISELECT', '多选'
         BOOLEAN = 'BOOLEAN', '布尔'
@@ -48,6 +51,15 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
 
     # 确认题类型(带确认内容/确认声明)
     CONFIRM_TYPES = [FieldType.CONFIRM]
+
+    # 2026-09-15 (兵哥) 日期型字段(渲染日期选择器, 受 date_format 精度控制)
+    DATE_TYPES = [FieldType.DATE, FieldType.DATE_RANGE]
+
+    class DateFormat(models.TextChoices):
+        """日期格式精度(仅 DATE / DATE_RANGE 渲染时参考)。"""
+        YEAR = 'YEAR', '年'
+        MONTH = 'MONTH', '年月'
+        DAY = 'DAY', '年月日'
 
     id = models.CharField(
         max_length=32, primary_key=True, editable=False, help_text='唯一标识'
@@ -99,6 +111,11 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     # 2026-09-15 行政区划型字段专用: 是否先选国家(影响渲染层是否首列下拉国家, 与字段类型独立)
     with_country = models.BooleanField(
         default=False, help_text='行政区划型字段是否先选国家(仅 REGION_* 渲染时参考)',
+    )
+    # 2026-09-15 日期型字段专用: 日期格式精度(年/年月/年月日, 仅 DATE/DATE_RANGE 渲染时参考)
+    date_format = models.CharField(
+        max_length=16, choices=DateFormat.choices, default=DateFormat.DAY,
+        help_text='日期格式精度(仅 DATE/DATE_RANGE 渲染时参考)',
     )
 
     class Meta:

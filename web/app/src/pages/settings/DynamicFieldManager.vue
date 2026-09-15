@@ -41,7 +41,7 @@
         <n-select v-if="!isEmbedded" v-model:value="filterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadFields" />
         <n-select v-model:value="filterGroup" :options="groupFilterOptions" style="width: 200px" placeholder="按分组筛选" @update:value="reloadFields" />
         <n-button :loading="loading" @click="reloadFields">刷新</n-button>
-        <n-button type="primary" @click="openFieldCreate">
+        <n-button type="primary" @click="openFieldCreate()">
           <template #icon><n-icon :component="AddOutline" /></template>新建字段
         </n-button>
         <n-dropdown :options="exportOptions" @select="onExportSelect">
@@ -93,6 +93,20 @@
           </n-form-item>
           <n-form-item label="字段类型" required>
             <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" />
+          </n-form-item>
+          <!-- 2026-09-15 (兵哥) 日期型字段：格式精度单选(年/年月/年月日)，范围类型渲染区间选择器 -->
+          <n-form-item v-if="isDateType" label="日期格式">
+            <n-space align="center" :size="8">
+              <n-radio-group v-model:value="fieldForm.dateFormat">
+                <n-radio-button
+                  v-for="opt in DATE_FORMAT_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                  :label="opt.label"
+                />
+              </n-radio-group>
+              <n-text depth="3">{{ fieldForm.fieldType === 'DATE_RANGE' ? '范围填写时选择起止区间' : '填写时按所选精度选择日期' }}</n-text>
+            </n-space>
           </n-form-item>
           <!-- 2026-09-15 行政区划型字段：国家开关 + 实时级联预览 (数据源: G46 码表库) -->
           <template v-if="isRegionType">
@@ -631,6 +645,7 @@ import RegionCascader from '@/components/RegionCascader.vue';
 import {
   listFields, upsertField, deleteField, extractApiError,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
+  DATE_FORMAT_OPTIONS, isDateFieldType,
   VISIBILITY_PERMISSION_OPTIONS, VISIBILITY_PERMISSION_LABEL,
   listModules, upsertModule, deleteModule,
   listGroups, upsertGroup, deleteGroup,
@@ -641,6 +656,7 @@ import {
   type FieldDefinition, type FieldType, type FieldModule, type FieldGroup, type FieldLinkageRule,
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
   type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
+  type DateFormatValue,
 } from '@/api/dynamic-field';
 import {
   listDictionaryTypes, listDictionaryItems,
@@ -723,6 +739,7 @@ const fieldForm = reactive<{
   confirmationDeclaration: '', confirmationDeclarationEn: '',
   visibilityPermission: 'ALL_VISIBLE',
   withCountry: false,
+  dateFormat: 'DAY' as DateFormatValue,
   regionPreviewValue: null,
 });
 
@@ -841,7 +858,7 @@ const fieldGroupOptions = computed(() => {
 });
 
 const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
-  TEXT: 'default', NUMBER: 'info', DATE: 'success',
+  TEXT: 'default', NUMBER: 'info', DATE: 'success', DATE_RANGE: 'success',
   SELECT: 'warning', MULTISELECT: 'warning', BOOLEAN: 'default',
   ATTACHMENT: 'info', ID_CARD: 'error', BANK_CARD: 'error', PHONE: 'error', EMAIL: 'error',
   LIST_SINGLE: 'warning', LIST_MULTI: 'warning', CONFIRM: 'info',
@@ -869,6 +886,8 @@ watch(
 );
 const isListType = computed(() => fieldForm.fieldType === 'LIST_SINGLE' || fieldForm.fieldType === 'LIST_MULTI');
 const isConfirmType = computed(() => fieldForm.fieldType === 'CONFIRM');
+// 2026-09-15 (兵哥) 日期型字段(单点/范围): 显示「日期格式」精度单选
+const isDateType = computed(() => isDateFieldType(fieldForm.fieldType));
 // 2026-09-15 行政区划级联型: 省/省市/省市区
 const isRegionType = computed(
   () => fieldForm.fieldType === 'REGION_PROVINCE'
@@ -968,6 +987,7 @@ function resetFieldForm() {
     confirmationDeclaration: '', confirmationDeclarationEn: '',
     visibilityPermission: 'ALL_VISIBLE',
     withCountry: false,
+    dateFormat: 'DAY' as DateFormatValue,
     regionPreviewValue: null,
   });
 }
@@ -1002,6 +1022,7 @@ function openFieldEdit(row: FieldDefinition) {
     confirmationDeclarationEn: row.confirmationDeclarationEn || '',
     visibilityPermission: row.visibilityPermission || 'ALL_VISIBLE',
     withCountry: !!row.withCountry,
+    dateFormat: (row.dateFormat as DateFormatValue) || 'DAY',
     regionPreviewValue: null,
   });
   fieldModalVisible.value = true;
@@ -1034,6 +1055,8 @@ async function saveField() {
       visibilityPermission: fieldForm.visibilityPermission,
       // 2026-09-15 行政区划型字段开关 (默认 false; 非 REGION_* 类型上传无副作用)
       withCountry: !!fieldForm.withCountry,
+      // 2026-09-15 日期格式精度 (默认 DAY; 非日期型字段上传无副作用)
+      dateFormat: fieldForm.dateFormat || 'DAY',
       id: fieldEditing.value?.id,
     };
     // 2026-09-15 选项来源: 选项型字段若指定了数据源, 清空手动 options, 由后端按 options_source 解析
