@@ -93,6 +93,162 @@ RESOURCES = [
     ('recruit:mgmt_unit:list', '管理单元列表', 'BUTTON', 'mgmt_unit'),
     ('recruit:mgmt_unit:create', '新增管理单元', 'BUTTON', 'mgmt_unit'),
     ('recruit:mgmt_unit:edit', '编辑管理单元', 'BUTTON', 'mgmt_unit'),
+    # --- module: settings ---
+    # 个人信息管理 (config)
+    ('recruit:settings:account:menu:view', '个人信息管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:account:edit', '编辑个人信息', 'BUTTON', 'settings'),
+    # 公司信息 (config)
+    ('recruit:settings:company:menu:view', '公司信息菜单', 'MENU', 'settings'),
+    ('recruit:settings:company:edit', '编辑公司信息', 'BUTTON', 'settings'),
+    # 公司地址 (占位)
+    ('recruit:settings:company-address:menu:view', '公司地址菜单', 'MENU', 'settings'),
+    # 公司会议室 (占位)
+    ('recruit:settings:company-meeting-rooms:menu:view', '公司会议室菜单', 'MENU', 'settings'),
+    # 接收简历邮箱 (占位)
+    ('recruit:settings:company-resume-mailbox:menu:view', '接收简历邮箱菜单', 'MENU', 'settings'),
+    # 品牌信息管理 (config)
+    ('recruit:settings:company-brand:menu:view', '品牌信息管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:company-brand:edit', '编辑品牌信息', 'BUTTON', 'settings'),
+    # 组织职责管理 (management)
+    ('recruit:settings:department:menu:view', '组织职责管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:department:create', '新增组织职责', 'BUTTON', 'settings'),
+    ('recruit:settings:department:edit', '编辑组织职责', 'BUTTON', 'settings'),
+    ('recruit:settings:department:delete', '删除组织职责', 'BUTTON', 'settings'),
+    ('recruit:settings:department:export', '导出组织职责', 'BUTTON', 'settings'),
+    # 角色管理 (management)
+    ('recruit:settings:permissions:menu:view', '角色管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:permissions:create', '新增角色', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:edit', '编辑角色', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:delete', '删除角色', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:export', '导出角色', 'BUTTON', 'settings'),
+    # 数据权限管理 (management)
+    ('recruit:settings:data-permission:menu:view', '数据权限管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:data-permission:create', '新增数据权限', 'BUTTON', 'settings'),
+    ('recruit:settings:data-permission:edit', '编辑数据权限', 'BUTTON', 'settings'),
+    ('recruit:settings:data-permission:delete', '删除数据权限', 'BUTTON', 'settings'),
+    ('recruit:settings:data-permission:export', '导出数据权限', 'BUTTON', 'settings'),
+    # 团队成员管理 (management)
+    ('recruit:settings:user-management:menu:view', '团队成员管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:user-management:create', '新增团队成员', 'BUTTON', 'settings'),
+    ('recruit:settings:user-management:edit', '编辑团队成员', 'BUTTON', 'settings'),
+    ('recruit:settings:user-management:delete', '删除团队成员', 'BUTTON', 'settings'),
+    ('recruit:settings:user-management:export', '导出团队成员', 'BUTTON', 'settings'),
+    # 注册审核 (config/审核)
+    ('recruit:settings:registrations:menu:view', '注册审核菜单', 'MENU', 'settings'),
+    ('recruit:settings:registrations:approve', '审核注册', 'BUTTON', 'settings'),
+    # 用户组 (占位)
+    ('recruit:settings:user-groups:menu:view', '用户组菜单', 'MENU', 'settings'),
+    # 标准简历设置 (config)
+    ('recruit:settings:standard-resume:menu:view', '标准简历设置菜单', 'MENU', 'settings'),
+    ('recruit:settings:standard-resume:edit', '编辑标准简历', 'BUTTON', 'settings'),
+    # 申请表和登记表设置 (config)
+    ('recruit:settings:application-form:menu:view', '申请表和登记表设置菜单', 'MENU', 'settings'),
+    ('recruit:settings:application-form:edit', '编辑申请表设置', 'BUTTON', 'settings'),
+    # 候选人信息表 (config)
+    ('recruit:settings:candidate-info-table:menu:view', '候选人信息表菜单', 'MENU', 'settings'),
+    ('recruit:settings:candidate-info-table:edit', '编辑候选人信息表', 'BUTTON', 'settings'),
+    # 简历查重规则 (management)
+    ('recruit:settings:duplicate-candidate:menu:view', '简历查重规则菜单', 'MENU', 'settings'),
+    ('recruit:settings:duplicate-candidate:create', '新增查重规则', 'BUTTON', 'settings'),
+    ('recruit:settings:duplicate-candidate:edit', '编辑查重规则', 'BUTTON', 'settings'),
+    ('recruit:settings:duplicate-candidate:delete', '删除查重规则', 'BUTTON', 'settings'),
+    ('recruit:settings:duplicate-candidate:export', '导出查重规则', 'BUTTON', 'settings'),
+    # 候选人字段管理 (management)
+    ('recruit:settings:candidate-dynamic-fields:menu:view', '候选人字段管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:candidate-dynamic-fields:create', '新增候选人字段', 'BUTTON', 'settings'),
+    ('recruit:settings:candidate-dynamic-fields:edit', '编辑候选人字段', 'BUTTON', 'settings'),
+    ('recruit:settings:candidate-dynamic-fields:delete', '删除候选人字段', 'BUTTON', 'settings'),
+    ('recruit:settings:candidate-dynamic-fields:export', '导出候选人字段', 'BUTTON', 'settings'),
+    # 需求规则设置 (config)
+    ('recruit:settings:demand-config:menu:view', '需求规则设置菜单', 'MENU', 'settings'),
+    ('recruit:settings:demand-config:edit', '编辑需求规则', 'BUTTON', 'settings'),
+    # 评分规则 (占位: 页面仅 n-empty "功能开发中")
+    ('recruit:settings:scoring:menu:view', '评分规则菜单', 'MENU', 'settings'),
+    # 需求字段管理 (management)
+    ('recruit:settings:demand-dynamic-fields:menu:view', '需求字段管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:demand-dynamic-fields:create', '新增需求字段', 'BUTTON', 'settings'),
+    ('recruit:settings:demand-dynamic-fields:edit', '编辑需求字段', 'BUTTON', 'settings'),
+    ('recruit:settings:demand-dynamic-fields:delete', '删除需求字段', 'BUTTON', 'settings'),
+    ('recruit:settings:demand-dynamic-fields:export', '导出需求字段', 'BUTTON', 'settings'),
+    # 职位信息管理 (占位)
+    ('recruit:settings:position-info:menu:view', '职位信息管理菜单', 'MENU', 'settings'),
+    # 职位字段管理 (无路由, 占位)
+    ('recruit:settings:position-dynamic-fields:menu:view', '职位字段管理菜单', 'MENU', 'settings'),
+    # 面试管理 (占位)
+    ('recruit:settings:interview-management:menu:view', '面试管理菜单', 'MENU', 'settings'),
+    # Offer管理 (占位)
+    ('recruit:settings:offer-management:menu:view', 'Offer管理菜单', 'MENU', 'settings'),
+    # 校招管控 (config)
+    ('recruit:settings:campus-control:menu:view', '校招管控菜单', 'MENU', 'settings'),
+    ('recruit:settings:campus-control:edit', '编辑校招管控', 'BUTTON', 'settings'),
+    # 数据字典 (management)
+    ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
+    ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),
+    ('recruit:settings:dictionary:edit', '编辑字典项', 'BUTTON', 'settings'),
+    ('recruit:settings:dictionary:delete', '删除字典项', 'BUTTON', 'settings'),
+    ('recruit:settings:dictionary:export', '导出字典项', 'BUTTON', 'settings'),
+    # 招聘阶段配置 (config)
+    ('recruit:settings:recruitment-stage:menu:view', '招聘阶段配置菜单', 'MENU', 'settings'),
+    ('recruit:settings:recruitment-stage:edit', '编辑招聘阶段', 'BUTTON', 'settings'),
+    # 招聘流程 (config)
+    ('recruit:settings:recruitment-process:menu:view', '招聘流程菜单', 'MENU', 'settings'),
+    ('recruit:settings:recruitment-process:edit', '编辑招聘流程', 'BUTTON', 'settings'),
+    # 面试轮次 (config)
+    ('recruit:settings:recruitment-round:menu:view', '面试轮次菜单', 'MENU', 'settings'),
+    ('recruit:settings:recruitment-round:edit', '编辑面试轮次', 'BUTTON', 'settings'),
+    # 制度公告 (config)
+    ('recruit:settings:announcements:menu:view', '制度公告菜单', 'MENU', 'settings'),
+    ('recruit:settings:announcements:edit', '编辑制度公告', 'BUTTON', 'settings'),
+    # 主题外观 (config)
+    ('recruit:settings:theme:menu:view', '主题外观菜单', 'MENU', 'settings'),
+    ('recruit:settings:theme:edit', '编辑主题外观', 'BUTTON', 'settings'),
+    # 公司库 (management)
+    ('recruit:settings:company-library:menu:view', '公司库菜单', 'MENU', 'settings'),
+    ('recruit:settings:company-library:create', '新增公司', 'BUTTON', 'settings'),
+    ('recruit:settings:company-library:edit', '编辑公司', 'BUTTON', 'settings'),
+    ('recruit:settings:company-library:delete', '删除公司', 'BUTTON', 'settings'),
+    ('recruit:settings:company-library:export', '导出公司', 'BUTTON', 'settings'),
+    # 院校库 (management)
+    ('recruit:settings:school-library:menu:view', '院校库菜单', 'MENU', 'settings'),
+    ('recruit:settings:school-library:create', '新增院校', 'BUTTON', 'settings'),
+    ('recruit:settings:school-library:edit', '编辑院校', 'BUTTON', 'settings'),
+    ('recruit:settings:school-library:delete', '删除院校', 'BUTTON', 'settings'),
+    ('recruit:settings:school-library:export', '导出院校', 'BUTTON', 'settings'),
+    # 动态字段 (management)
+    ('recruit:settings:dynamic-fields:menu:view', '动态字段菜单', 'MENU', 'settings'),
+    ('recruit:settings:dynamic-fields:create', '新增字段', 'BUTTON', 'settings'),
+    ('recruit:settings:dynamic-fields:edit', '编辑字段', 'BUTTON', 'settings'),
+    ('recruit:settings:dynamic-fields:delete', '删除字段', 'BUTTON', 'settings'),
+    ('recruit:settings:dynamic-fields:export', '导出字段', 'BUTTON', 'settings'),
+    # 我找的简历 (management)
+    ('recruit:settings:scraped-resumes:menu:view', '我找的简历菜单', 'MENU', 'settings'),
+    ('recruit:settings:scraped-resumes:create', '新增简历', 'BUTTON', 'settings'),
+    ('recruit:settings:scraped-resumes:edit', '编辑简历', 'BUTTON', 'settings'),
+    ('recruit:settings:scraped-resumes:delete', '删除简历', 'BUTTON', 'settings'),
+    ('recruit:settings:scraped-resumes:export', '导出简历', 'BUTTON', 'settings'),
+    # 数据中心 (management)
+    ('recruit:settings:data-dashboard:menu:view', '数据中心菜单', 'MENU', 'settings'),
+    ('recruit:settings:data-dashboard:create', '新增数据订阅', 'BUTTON', 'settings'),
+    ('recruit:settings:data-dashboard:edit', '编辑数据订阅', 'BUTTON', 'settings'),
+    ('recruit:settings:data-dashboard:delete', '删除数据订阅', 'BUTTON', 'settings'),
+    ('recruit:settings:data-dashboard:export', '导出数据', 'BUTTON', 'settings'),
+    # 生态对接 (management)
+    ('recruit:settings:external:menu:view', '生态对接菜单', 'MENU', 'settings'),
+    ('recruit:settings:external:create', '新增生态对接', 'BUTTON', 'settings'),
+    ('recruit:settings:external:edit', '编辑生态对接', 'BUTTON', 'settings'),
+    ('recruit:settings:external:delete', '删除生态对接', 'BUTTON', 'settings'),
+    ('recruit:settings:external:export', '导出生态对接', 'BUTTON', 'settings'),
+    # 公共设置 (占位)
+    ('recruit:settings:public:menu:view', '公共设置菜单', 'MENU', 'settings'),
+    # 统一规则引擎 (config)
+    ('recruit:settings:rule-engine:menu:view', '统一规则引擎菜单', 'MENU', 'settings'),
+    ('recruit:settings:rule-engine:edit', '编辑规则引擎', 'BUTTON', 'settings'),
+    # 码表库 (management)
+    ('recruit:settings:code-tables:menu:view', '码表库菜单', 'MENU', 'settings'),
+    ('recruit:settings:code-tables:create', '新增码表', 'BUTTON', 'settings'),
+    ('recruit:settings:code-tables:edit', '编辑码表', 'BUTTON', 'settings'),
+    ('recruit:settings:code-tables:delete', '删除码表', 'BUTTON', 'settings'),
+    ('recruit:settings:code-tables:export', '导出码表', 'BUTTON', 'settings'),
 ]
 
 

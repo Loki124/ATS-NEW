@@ -758,10 +758,10 @@ const fieldColumns = computed(() => [
     },
   },
   {
-    title: '操作', key: 'action', width: 220, fixed: 'right' as const,
+    title: '操作', key: 'action', width: 260, fixed: 'right' as const,
     render: (row: FieldDefinition) => {
       const disabled = row.status === 'inactive';
-      return h(NSpace, { size: 4 }, {
+      return h(NSpace, { size: 4, wrap: false }, {
         default: () => [
           h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => '管理权限' }),
           h(NButton, { size: 'tiny', quaternary: true, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
