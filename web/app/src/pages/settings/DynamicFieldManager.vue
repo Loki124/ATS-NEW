@@ -253,6 +253,38 @@
         </template>
       </n-modal>
 
+      <!-- ============ 模块配置 页面居中大弹窗（取代原 Tab） ============ -->
+      <n-modal
+        v-if="!isEmbedded"
+        v-model:show="moduleCenterVisible"
+        preset="card"
+        title="模块配置"
+        :mask-closable="false"
+        style="width: 960px; max-width: 96vw;"
+        class="df-center-modal"
+      >
+        <n-space class="filter-row" :wrap="true">
+          <n-button :loading="moduleLoading" @click="reloadModules">刷新</n-button>
+          <n-button type="primary" @click="openModuleCreate">
+            <template #icon><n-icon :component="AddOutline" /></template>新建模块
+          </n-button>
+        </n-space>
+        <n-data-table
+          :columns="moduleColumns"
+          :data="moduleRows"
+          :loading="moduleLoading"
+          :pagination="modulePagination"
+          :row-key="(row: any) => row.id"
+          size="small"
+          striped
+        />
+        <template #action>
+          <n-space justify="end">
+            <n-button @click="moduleCenterVisible = false">关闭</n-button>
+          </n-space>
+        </template>
+      </n-modal>
+
       <!-- ============ 模块 Modal（仅 overview 模式使用） ============ -->
       <n-modal
         v-if="!isEmbedded"
@@ -282,6 +314,38 @@
           <n-space justify="end">
             <n-button @click="moduleModalVisible = false">取消</n-button>
             <n-button type="primary" class="gradient-btn" :loading="saving" @click="saveModule">保存模块</n-button>
+          </n-space>
+        </template>
+      </n-modal>
+
+      <!-- ============ 分组配置 页面居中大弹窗（取代原 Tab） ============ -->
+      <n-modal
+        v-model:show="groupCenterVisible"
+        preset="card"
+        title="分组配置"
+        :mask-closable="false"
+        style="width: 960px; max-width: 96vw;"
+        class="df-center-modal"
+      >
+        <n-space class="filter-row" :wrap="true">
+          <n-select v-if="!isEmbedded" v-model:value="groupFilterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadGroups" />
+          <n-button :loading="groupLoading" @click="reloadGroups">刷新</n-button>
+          <n-button type="primary" @click="openGroupCreate">
+            <template #icon><n-icon :component="AddOutline" /></template>新建分组
+          </n-button>
+        </n-space>
+        <n-data-table
+          :columns="groupColumns"
+          :data="groupRows"
+          :loading="groupLoading"
+          :pagination="groupPagination"
+          :row-key="(row: any) => row.id"
+          size="small"
+          striped
+        />
+        <template #action>
+          <n-space justify="end">
+            <n-button @click="groupCenterVisible = false">关闭</n-button>
           </n-space>
         </template>
       </n-modal>
@@ -320,6 +384,38 @@
           <n-space justify="end">
             <n-button @click="groupModalVisible = false">取消</n-button>
             <n-button type="primary" class="gradient-btn" :loading="saving" @click="saveGroup">保存分组</n-button>
+          </n-space>
+        </template>
+      </n-modal>
+
+      <!-- ============ 联动规则 页面居中大弹窗（取代原 Tab） ============ -->
+      <n-modal
+        v-model:show="linkageCenterVisible"
+        preset="card"
+        title="联动规则"
+        :mask-closable="false"
+        style="width: 1024px; max-width: 96vw;"
+        class="df-center-modal"
+      >
+        <n-space class="filter-row" :wrap="true">
+          <n-select v-if="!isEmbedded" v-model:value="linkageFilterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadLinkage" />
+          <n-button :loading="linkageLoading" @click="reloadLinkage">刷新</n-button>
+          <n-button type="primary" @click="openLinkageCreate">
+            <template #icon><n-icon :component="AddOutline" /></template>新建规则
+          </n-button>
+        </n-space>
+        <n-data-table
+          :columns="linkageColumns"
+          :data="linkageRows"
+          :loading="linkageLoading"
+          :pagination="linkagePagination"
+          :row-key="(row: any) => row.id"
+          size="small"
+          striped
+        />
+        <template #action>
+          <n-space justify="end">
+            <n-button @click="linkageCenterVisible = false">关闭</n-button>
           </n-space>
         </template>
       </n-modal>
@@ -957,6 +1053,7 @@ async function toggleFieldStatus(row: FieldDefinition) {
 const moduleRows = ref<FieldModule[]>([]);
 const moduleLoading = ref(false);
 const moduleModalVisible = ref(false);
+const moduleCenterVisible = ref(false);
 const moduleEditing = ref<FieldModule | null>(null);
 const modulePage = ref(1);
 const modulePageSize = ref(15);
@@ -1007,7 +1104,7 @@ async function reloadModules() {
 /** 2026-09-15 UX：顶部「模块配置」按钮 → 打开页面居中弹窗 */
 async function openModuleCenter() {
   await reloadModules();
-  moduleModalVisible.value = true;
+  moduleCenterVisible.value = true;
 }
 
 function openModuleCreate() {
@@ -1047,6 +1144,7 @@ function confirmDeleteModule(row: FieldModule) {
 const groupRows = ref<FieldGroup[]>([]);
 const groupLoading = ref(false);
 const groupModalVisible = ref(false);
+const groupCenterVisible = ref(false);
 const groupEditing = ref<FieldGroup | null>(null);
 const groupPage = ref(1);
 const groupPageSize = ref(15);
@@ -1104,6 +1202,11 @@ async function reloadGroups() {
   catch (e: any) { message.error('加载分组失败: ' + extractApiError(e)); }
   finally { groupLoading.value = false; }
 }
+/** 2026-09-15 UX：顶部「分组配置」按钮 → 打开页面居中弹窗 */
+async function openGroupCenter() {
+  await reloadGroups();
+  groupCenterVisible.value = true;
+}
 function openGroupCreate() {
   groupEditing.value = null;
   Object.assign(groupForm, {
@@ -1150,6 +1253,7 @@ function confirmDeleteGroup(row: FieldGroup) {
 const linkageRows = ref<FieldLinkageRule[]>([]);
 const linkageLoading = ref(false);
 const linkageModalVisible = ref(false);
+const linkageCenterVisible = ref(false);
 const linkageEditing = ref<FieldLinkageRule | null>(null);
 const linkagePage = ref(1);
 const linkagePageSize = ref(15);
@@ -1259,6 +1363,11 @@ async function reloadLinkage() {
   }
   catch (e: any) { message.error('加载规则失败: ' + extractApiError(e)); }
   finally { linkageLoading.value = false; }
+}
+/** 2026-09-15 UX：顶部「联动规则」按钮 → 打开页面居中弹窗 */
+async function openLinkageCenter() {
+  await reloadLinkage();
+  linkageCenterVisible.value = true;
 }
 
 async function loadLinkageFields(moduleId: string) {
@@ -1503,4 +1612,19 @@ onMounted(async () => {
 /* 字段权限管理弹窗 */
 .perm-desc { color: var(--color-text-secondary); margin-bottom: var(--space-3); line-height: 1.5; }
 .perm-radio { padding: var(--space-1) 0; }
+/* 2026-09-15 UX：分组卡片内 n-data-table td 左右内边距（Naive 默认 12px 过窄，
+   字段名/标签/操作列视觉贴边，对齐规范 §1.2 容器内边距下限 16px） */
+.field-group-card :deep(.n-data-table-td),
+.field-group-card :deep(.n-data-table-th) {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+/* 居中弹窗里同样的表格 td 留白同步（防止弹窗里再贴边） */
+.df-center-modal :deep(.n-data-table-td),
+.df-center-modal :deep(.n-data-table-th) {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+/* 居中弹窗 body 加足内部呼吸空间，避免表格贴弹窗内壁 */
+.df-center-modal :deep(.n-card__content) { padding: var(--space-5) var(--space-6) 0; }
 </style>
