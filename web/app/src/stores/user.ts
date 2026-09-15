@@ -130,6 +130,8 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    // 登出后状态已终结，标记就绪避免守卫再触发一次无意义的 hydrate
+    ready.value = true
   }
 
   /**
@@ -181,7 +183,52 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  /**
+   * 启动 hydrate 是否已完成（路由守卫门闸的状态位）。
+   *
+   * 背景（2026-09-15 实测复现的真缺陷）：
+   *   `main.ts` 里 `app.use(router)` 在 `await fetchMe()` **之前**执行，而 Vue Router 在
+   *   install 时就会触发首次导航 → 守卫在 `userStore.user` 仍为 null 时判角色 →
+   *   `userRoles = []` → 非超管 → 硬加载（F5 / 直接粘贴 URL）任何带 `meta.roles` 的页面
+   *   都会被弹到 `/forbidden`，即使 SUPER_ADMIN。
+   *   只在 localStorage 里没有 `user` 快照时暴露（首次登录前 / 清过存储 / 仅 token 的会话），
+   *   所以正常点菜单进一直没被发现。
+   */
+  const ready = ref(false)
+  /** in-flight 的 hydrate promise，用于并发去重（守卫 + main.ts 可能同时要） */
+  let _readyPromise: Promise<void> | null = null
+
+  /**
+   * 确保用户状态已就绪，可安全用于角色判定。
+   *
+   * - **幂等**：重复调用共享同一个 in-flight promise，不会重复打 `/me`
+   * - **无 token**：直接标记就绪（没有可 hydrate 的东西）
+   * - **永不 reject**：`fetchMe` 内部已吞掉 401/403/网络错误并返回 boolean
+   *
+   * 调用方：`router` 守卫（门闸兜底）+ `main.ts`（mount 前预热，与守卫共享同一 promise）
+   */
+  const ensureReady = (): Promise<void> => {
+    if (ready.value) return Promise.resolve()
+    if (_readyPromise) return _readyPromise
+    _readyPromise = (async () => {
+      try {
+        // 注意读 localStorage：守卫可能在 `setAccessToken` 之前就被调用
+        if (accessToken.value || localStorage.getItem('accessToken')) {
+          await fetchMe()
+        }
+      } catch (e) {
+        // fetchMe 已自行兜底，这里只做最后保险，避免门闸把导航卡死
+        console.warn('[user] ensureReady: hydrate 异常，按已就绪继续', e)
+      } finally {
+        ready.value = true
+      }
+    })()
+    return _readyPromise
+  }
+
   return {
+    ready,
+    ensureReady,
     user,
     accessToken,
     refreshToken,

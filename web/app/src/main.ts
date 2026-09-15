@@ -48,10 +48,13 @@ axios.interceptors.response.use(
 const app = createApp(App)
 
 app.use(createPinia())
-app.use(router)
 app.use(naivePlugin)
 // 元素级最小权限指令 v-permission (消费后端 /me 的 resource_code 列表)
 setupPermissionDirective(app)
+// ⚠️ 2026-09-15: app.use(router) 被有意下移到「store hydrate 之后」（见文件底部）。
+//   Router 在 install 时立即触发首次导航，若此时 userStore 还没 hydrate，
+//   守卫读到的 user.roles 是空数组 → 硬加载角色受限页会被误弹 /forbidden。
+//   保持在这个位置之后安装，守卫首次导航就能拿到真实角色。
 
 // 2026-06-15: 在 mount 之前从 localStorage 同步恢复 user
 // 否则 router.beforeEach 跑时 userStore.user 还是 null,
@@ -107,8 +110,11 @@ try {
 
 // Step 2: 服务端契约重调 (top-level await; Vite 5 + ESM 原生支持)
 //         注意: 必须在 app.mount 之前 await, 否则 router guard 首次 nav 看到的还是 stale 快照
+// 2026-09-15: 改用 ensureReady() —— 与路由守卫共享同一个 in-flight hydrate promise。
+//   `app.use(router)` 会在 install 时触发首次导航，守卫路径可能已经先一步发起 hydrate；
+//   用 ensureReady 而非直接 fetchMe，避免重复打 /me，也保证两者拿到同一份结果。
 if (_userStore.accessToken) {
-  await _userStore.fetchMe()
+  await _userStore.ensureReady()
   // G43 品牌信息同步到管理后台：系统名称 / Logo / 浏览器 title + favicon
   await _brandStore.init()
 }
@@ -120,5 +126,10 @@ app.config.errorHandler = (err, _instance, info) => {
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[window] unhandled promise rejection:', event.reason)
 })
+
+// 2026-09-15: 路由安装下移到 hydrate 完成之后 —— 见文件上方 app.use(naivePlugin) 处的说明。
+//   `app.use(router)` 会立刻触发首次导航（守卫读 user.roles），必须在 store 就绪后执行。
+//   守卫内还有 ensureReady() 门闸兜底，两层保证 F5 / 直达 URL 不再误判 /forbidden。
+app.use(router)
 
 app.mount('#app')

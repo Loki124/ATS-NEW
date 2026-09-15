@@ -216,7 +216,7 @@ const router = createRouter({
  * 1. requiresAuth 拦截未登录访问
  * 2. meta.roles 白名单校验；SUPER_ADMIN 始终放行
  */
-export function routeGuard(to: any, _from: any, next: any) {
+export async function routeGuard(to: any, _from: any, next: any) {
   const userStore = useUserStore()
   // 修复前: userStore.token (不存在) + localStorage.getItem('token')
   //   Pinia store 暴露的是 accessToken, 旧 key 'token' 只在 localStorage 里
@@ -241,6 +241,16 @@ export function routeGuard(to: any, _from: any, next: any) {
   }
   if (to.path === '/register' && token) {
     return next('/dashboard')
+  }
+
+  // ★ 启动门闸 (2026-09-15)：等 user 状态就绪再判角色。
+  // 根因：main.ts 里 `app.use(router)` 早于 `await fetchMe()`，而 Router 在 install 时就
+  //   触发首次导航 → 守卫在 userStore.user 仍为 null 时判角色 → userRoles = [] →
+  //   硬加载 (F5 / 直接粘 URL) 任何 meta.roles 页面都被弹 /forbidden，即使 SUPER_ADMIN。
+  // 修法：await ensureReady()（幂等，与 main.ts 共享同一个 in-flight promise，不重复打 /me）。
+  //   用 optional call 兼容单测里的 store mock。
+  if (token && typeof (userStore as any).ensureReady === 'function') {
+    await (userStore as any).ensureReady()
   }
 
   // 2. 角色校验 (new: Todo #5 - route-level RBAC)
