@@ -103,7 +103,7 @@ def cleanup_old_audit_logs(self) -> Dict:
     name='apps.audit.tasks.audit_cleanup_healthcheck',
     max_retries=0,
 )
-def audit_cleanup_healthcheck() -> Dict:
+def audit_cleanup_healthcheck(self) -> Dict:
     """清理任务健康检查 (每小时) — 监控保留期/总量是否异常
 
     触发告警的场景:
