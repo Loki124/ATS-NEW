@@ -129,4 +129,5 @@
 - [ ] 全量 `grep ".page-container { padding: 0 }"` 的页面：确认均在 `.settings-scroll` 上下文；非设置页改为复用全局 `.page-container`（删掉 scoped 清零）。
 - [ ] 长表单页面（新增院校、流程配置、规则编辑等弹窗）加 `.content-shell` 收束。
 - [ ] 统计卡以外的固定列栅格改为 `.grid-auto`。
+- [ ] **设置页把 `.glass-panel` 套在 `.page-body` 上时**（如 ThemeSettings），玻璃面板自身只管外观（背景/模糊/圆角/边框）**无内部 padding**，必须在该页 scoped `.page-body` 显式声明内边距（如 `padding: var(--space-5) var(--space-6)`），否则区块贴面板内边缘（违反 §1.2）。裸 `<div class="page-body">` 的设置页由 `.settings-scroll` 的 20px 外层 padding 兜底，无需额外声明。
 - [ ] 暗色模式抽查：边距 token 随 `body.dark` 自动联动，无硬编码色。

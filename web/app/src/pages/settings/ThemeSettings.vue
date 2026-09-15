@@ -277,7 +277,9 @@ onUnmounted(() => {
 
 /* 删除 scoped .page-header/.page-subtitle 覆盖（规范：复用全局 glass.css） */
 
-/* === 玻璃内容区（滚动职责下放，参考 AccountSettings 范式） === */
+/* === 玻璃内容区（滚动职责下放，参考 AccountSettings 范式）===
+   .glass-panel 自身无内部 padding（只管外观：背景/模糊/圆角/边框），
+   必须在此处显式声明内边距，否则品牌色/模式/预览等区块贴面板内边缘（违反规范 §1.2）。 */
 .page-body {
   display: flex;
   flex-direction: column;
@@ -286,6 +288,7 @@ onUnmounted(() => {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: var(--space-5) var(--space-6); /* 20px / 24px — 对齐 --modal-pad-* 令牌 */
 }
 
 .theme-section {
