@@ -90,14 +90,6 @@
               />
             </n-form-item>
           </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="权限模式">
-              <n-select
-                v-model:value="formState.permissionMode"
-                :options="permissionModeOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
         </n-grid>
       </n-form>
 
@@ -107,24 +99,6 @@
           <n-button type="primary" class="gradient-btn" @click="handleUserSubmit">保存用户</n-button>
         </div>
       </template>
-    </n-modal>
-
-    <!-- MOU分配弹窗 -->
-    <n-modal
-      v-model:show="userMouModalVisible"
-      preset="card"
-      title="分配MOU"
-      :style="{ width: '500px' }"
-    >
-      <p style="margin-bottom: 16px">请选择该用户所属的MOU（管理单元）：</p>
-      <n-data-table
-        :data="mous"
-        :row-key="(row: Mou) => row.id"
-        :pagination="{ pageSize: 10 }"
-        :columns="mouColumns"
-        :checked-row-keys="userMous"
-        @update:checked-row-keys="handleSaveUserMous"
-      />
     </n-modal>
 
     <!-- 角色分配弹窗 -->
@@ -173,13 +147,6 @@ import { extractApiError } from '../../api/dynamic-field';
 
 const message = useMessage();
 
-// 权限管理模式映射
-const PERMISSION_MODE_MAP: Record<string, { type: any; label: string }> = {
-  MOU: { type: 'info', label: 'MOU管理模式' },
-  CONTAINER: { type: 'success', label: '容器管理模式' },
-  MIXED: { type: 'warning', label: '混合模式' }
-};
-
 // 用户状态映射
 const STATUS_MAP: Record<string, { type: any; label: string }> = {
   ACTIVE: { type: 'success', label: '正常' },
@@ -199,16 +166,7 @@ interface User {
   wechatWorkUserId?: string;
   wechatWorkDeptId?: string;
   wechatWorkName?: string;
-  permissionMode: string;
   createdAt: string;
-}
-
-interface Mou {
-  id: string;
-  name: string;
-  code: string;
-  type: string;
-  description?: string;
 }
 
 interface Role {
@@ -223,12 +181,8 @@ const users = ref<User[]>([]);
 const loading = ref(false);
 const userModalVisible = ref(false);
 const editingUser = ref<User | null>(null);
-const mous = ref<Mou[]>([]);
-const mouModalVisible = ref(false);
 const roles = ref<Role[]>([]);
-const userMouModalVisible = ref(false);
 const selectedUserId = ref<string>('');
-const userMous = ref<string[]>([]);
 const userRoleModalVisible = ref(false);
 const userRoles = ref<string[]>([]);
 
@@ -245,12 +199,6 @@ const statusOptions = [
   { label: '锁定', value: 'LOCKED' },
 ];
 
-const permissionModeOptions = [
-  { label: 'MOU管理模式', value: 'MOU' },
-  { label: '容器管理模式', value: 'CONTAINER' },
-  { label: '混合模式', value: 'MIXED' },
-];
-
 // 表单状态
 const formState = reactive({
   username: '',
@@ -260,7 +208,6 @@ const formState = reactive({
   password: '',
   roleType: 'HR',
   status: 'ACTIVE',
-  permissionMode: 'MOU'
 });
 
 // 获取token
@@ -304,18 +251,6 @@ const loadUsers = async () => {
   }
 };
 
-// 加载MOU列表
-const loadMous = async () => {
-  try {
-    const data = await request('/api/v1/permissions/mous/');
-    if (data?.success) {
-      mous.value = data.data;
-    }
-  } catch (error) {
-    message.error(extractApiError(error, '加载MOU列表失败'));
-  }
-};
-
 // 加载角色列表
 const loadRoles = async () => {
   try {
@@ -325,18 +260,6 @@ const loadRoles = async () => {
     }
   } catch (error) {
     message.error(extractApiError(error, '加载角色列表失败'));
-  }
-};
-
-// 加载用户MOU关联
-const loadUserMous = async (userId: string) => {
-  try {
-    const data = await request(`/api/v1/permissions/user-mous/${userId}/`);
-    if (data?.success) {
-      userMous.value = data.data.map((um: any) => um.mouId);
-    }
-  } catch (error) {
-    message.error(extractApiError(error, '加载用户MOU失败'));
   }
 };
 
@@ -362,8 +285,7 @@ const openCreateModal = () => {
     phone: '',
     password: '',
     roleType: 'HR',
-    status: 'ACTIVE',
-    permissionMode: 'MOU'
+    status: 'ACTIVE'
   });
   userModalVisible.value = true;
 };
@@ -379,8 +301,7 @@ const closeUserModal = () => {
     phone: '',
     password: '',
     roleType: 'HR',
-    status: 'ACTIVE',
-    permissionMode: 'MOU'
+    status: 'ACTIVE'
   });
 };
 
@@ -448,24 +369,6 @@ const handleDeleteUser = async (userId: string) => {
   }
 };
 
-// 保存用户MOU关联
-const handleSaveUserMous = async (mouIds: string[]) => {
-  try {
-    const data = await request(`/api/v1/permissions/user-mous/${selectedUserId.value}/`, {
-      method: 'POST',
-      body: JSON.stringify({ mouIds })
-    });
-    if (data?.success) {
-      message.success('MOU分配成功');
-      userMouModalVisible.value = false;
-    } else {
-      message.error(data?.error || '分配失败');
-    }
-  } catch (error) {
-    message.error('分配失败');
-  }
-};
-
 // 保存用户角色
 const handleSaveUserRoles = async (roleIds: string[]) => {
   try {
@@ -520,13 +423,6 @@ const handleUnbindWechatWork = async (userId: string) => {
   }
 };
 
-// 打开MOU分配弹窗
-const openMouModal = async (userId: string) => {
-  selectedUserId.value = userId;
-  await loadUserMous(userId);
-  userMouModalVisible.value = true;
-};
-
 // 打开角色分配弹窗
 const openRoleModal = async (userId: string) => {
   selectedUserId.value = userId;
@@ -548,15 +444,6 @@ const columns = computed(() => [
     }
   },
   { title: '角色类型', key: 'roleType', width: 80 },
-  {
-    title: '权限模式',
-    key: 'permissionMode',
-    width: 120,
-    render: (row: User) => {
-      const item = PERMISSION_MODE_MAP[row.permissionMode];
-      return h(NTag, { type: item?.type || 'default', size: 'small' }, { default: () => item?.label || row.permissionMode });
-    }
-  },
   {
     title: '企微绑定',
     key: 'wechatWork',
@@ -605,15 +492,6 @@ const columns = computed(() => [
             text: true,
             type: 'primary',
             size: 'small',
-            onClick: () => openMouModal(row.id)
-          }, {
-            default: () => 'MOU',
-            icon: () => h(NIcon, { component: LockClosedOutline }),
-          }),
-          h(NButton, {
-            text: true,
-            type: 'primary',
-            size: 'small',
             onClick: () => openRoleModal(row.id)
           }, {
             default: () => '角色',
@@ -632,8 +510,7 @@ const columns = computed(() => [
                 phone: row.phone || '',
                 password: '',
                 roleType: row.roleType,
-                status: row.status,
-                permissionMode: row.permissionMode
+                status: row.status
               });
               userModalVisible.value = true;
             }
@@ -656,23 +533,6 @@ const columns = computed(() => [
   }
 ]);
 
-// MOU表格列
-const mouColumns = [
-  { type: 'selection' as const },
-  { title: 'MOU名称', key: 'name' },
-  { title: '编码', key: 'code' },
-  {
-    title: '类型',
-    key: 'type',
-    render: (row: Mou) => {
-      const typeMap: Record<string, string> = {
-        DEPT: '部门', PROJECT: '项目', TEAM: '团队', VIRTUAL: '虚拟'
-      };
-      return h(NTag, { size: 'small' }, { default: () => typeMap[row.type] || row.type });
-    }
-  }
-];
-
 // 角色表格列
 const roleColumns = [
   { type: 'selection' as const },
@@ -692,7 +552,6 @@ const roleColumns = [
 // 生命周期
 onMounted(() => {
   loadUsers();
-  loadMous();
   loadRoles();
 });
 </script>

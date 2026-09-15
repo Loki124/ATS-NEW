@@ -24,24 +24,32 @@
         />
       </n-form-item>
 
-      <n-form-item label="管理单元">
-        <n-select
-          v-model:value="form.managementUnitIds"
-          :options="unitOptions"
-          multiple
-          placeholder="不选 = 走角色默认数据范围 (ALL 兜底)"
-          clearable
-          filterable
-        />
-        <n-button
-          size="small"
-          type="info"
-          style="margin-left: 8px"
-          :loading="suggesting"
-          @click="onSuggestScope"
-        >
-          智能推荐
-        </n-button>
+      <n-form-item label="按应用数据范围">
+        <div style="width: 100%">
+          <n-alert type="info" :show-icon="false" style="margin-bottom: 8px">
+            按应用（招聘 / 校招 / 社招 / 内推）分别圈定管理单元；不填的应用回退到角色默认数据范围。
+            写入 <code>UserAppDataScope</code>，由 scope_resolver 按 app_code 优先读取。
+          </n-alert>
+          <div
+            v-for="app in appScopes"
+            :key="app.code"
+            style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px"
+          >
+            <span style="width: 64px; color: var(--n-400); font-size: 13px">{{ app.label }}</span>
+            <n-select
+              v-model:value="perAppScope[app.code]"
+              :options="unitOptions"
+              multiple
+              clearable
+              filterable
+              placeholder="不选 = 回退全局"
+              style="flex: 1"
+            />
+          </div>
+          <n-button size="small" type="info" :loading="suggesting" @click="onSuggestScope">
+            智能推荐（按当前应用填充）
+          </n-button>
+        </div>
       </n-form-item>
 
       <n-form-item label="数据范围 (说明)">
@@ -102,6 +110,9 @@ import { AlertTriangle } from 'lucide-vue-next'
 import { createUserRole, updateUserRole, suggestScope, type UserRoleV2 } from '@/api/user-role-v2'
 import { listRoles, type RoleV2, type DataScopeType } from '@/api/role-v2'
 import { listManagementUnits, type ManagementUnit } from '@/api/management-unit'
+import {
+  listUserAppDataScopes, upsertUserAppDataScope, deleteUserAppDataScopeById,
+} from '@/api/user-app-data-scope'
 
 const props = defineProps<{
   show: boolean
@@ -138,6 +149,18 @@ const unitOptions = computed(() =>
   units.value.map((u) => ({ label: u.unitName, value: Number(u.id) })),
 )
 
+// 方案 A(2026-09-15): 按应用范围, 每个 app 一组管理单元多选
+const APP_CODES = [
+  { code: 'recruit', label: '招聘' },
+  { code: 'campus', label: '校招' },
+  { code: 'social', label: '社招' },
+  { code: 'referral', label: '内推' },
+]
+const appScopes = APP_CODES
+const perAppScope = reactive<Record<string, number[]>>({
+  recruit: [], campus: [], social: [], referral: [],
+})
+
 watch(
   () => [props.show, props.grant] as const,
   async ([visible, grant]) => {
@@ -153,11 +176,25 @@ watch(
       form.id = grant.id
       form.userId = Number(grant.userId)
       form.roleCode = grant.roleCode
-      form.managementUnitIds = (grant.managementUnitIds ?? []).map(Number)
       form.validFrom = grant.validFrom ?? ''
       form.validTo = grant.validTo ?? ''
-      // 推断 dataScope: 有 unit → DEPT_AND_SUB, 无 unit → SELF
-      dataScope.value = form.managementUnitIds.length > 0 ? 'DEPT_AND_SUB' : 'SELF'
+      // 从 UserAppDataScope 回填各应用范围
+      for (const app of APP_CODES) perAppScope[app.code] = []
+      try {
+        const existing = await listUserAppDataScopes({ userId: form.userId, roleCode: form.roleCode })
+        for (const s of existing) {
+          if (perAppScope[s.appCode] !== undefined) {
+            perAppScope[s.appCode] = (s.managementUnitIds || []).map(Number)
+          }
+        }
+      } catch {
+        // 忽略, 保持空
+      }
+      // 全局兜底字段取 recruit 应用范围 (向后兼容无 app_code 的调用点)
+      form.managementUnitIds = perAppScope.recruit || []
+      // 推断 dataScope: 任一应用有 unit → DEPT_AND_SUB, 否则 SELF
+      const anyUnit = APP_CODES.some((a) => (perAppScope[a.code] || []).length > 0)
+      dataScope.value = anyUnit ? 'DEPT_AND_SUB' : 'SELF'
     } else {
       form.id = ''
       form.userId = null
@@ -165,6 +202,7 @@ watch(
       form.managementUnitIds = []
       form.validFrom = ''
       form.validTo = ''
+      for (const app of APP_CODES) perAppScope[app.code] = []
       dataScope.value = 'SELF'
     }
   },
@@ -179,7 +217,9 @@ async function onSuggestScope() {
   suggesting.value = true
   try {
     const result = await suggestScope(form.userId, form.roleCode)
-    form.managementUnitIds = result.suggestedUnitIds.map(Number)
+    const ids = result.suggestedUnitIds.map(Number)
+    // 推荐结果按当前应用填充到所有应用分组
+    for (const app of APP_CODES) perAppScope[app.code] = [...ids]
     message.success(
       `推荐来源: ${result.derivedFrom}\n` +
       `理由: ${result.rationale}\n` +
@@ -200,6 +240,8 @@ async function onSubmit() {
   }
   saving.value = true
   try {
+    // 1) 先落 UserRoleV2 自身 (全局兜底字段取 recruit 应用范围, 向后兼容无 app_code 调用点)
+    form.managementUnitIds = perAppScope.recruit || []
     const payload = {
       userId: form.userId,
       roleCode: form.roleCode,
@@ -209,11 +251,30 @@ async function onSubmit() {
     }
     if (props.grant) {
       await updateUserRole(form.id, payload)
-      message.success('已更新')
     } else {
       await createUserRole(payload)
-      message.success('已分配')
     }
+
+    // 2) 再按应用 upsert / 清除 UserAppDataScope (方案 A)
+    const existing = await listUserAppDataScopes({ userId: form.userId, roleCode: form.roleCode })
+    const existingByApp = new Map(existing.map((s) => [s.appCode, s]))
+    for (const app of APP_CODES) {
+      const desired = (perAppScope[app.code] || []).filter(Boolean).map(Number)
+      const row = existingByApp.get(app.code)
+      if (desired.length > 0) {
+        await upsertUserAppDataScope({
+          userId: form.userId,
+          roleCode: form.roleCode,
+          appCode: app.code,
+          systemCode: 'recruit',
+          managementUnitIds: desired,
+        })
+      } else if (row) {
+        await deleteUserAppDataScopeById(row.id)
+      }
+    }
+
+    message.success(props.grant ? '已更新' : '已分配')
     emit('saved')
     emit('update:show', false)
   } catch (e: any) {

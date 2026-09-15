@@ -160,3 +160,19 @@ class UserAppDataScope(models.Model):
 1. `ManagementUnit`（真实）vs `apps/mou/`（桩）语义混淆——先做风险 0 厘清。
 2. per-app scope 改造触及 `scope_resolver` 所有调用点（CandidateViewSet 等），回归面大。
 3. 两套数据范围配置面（ManagementUnit UI vs DataPermissionSettings）——必须合并，否则运营混乱。
+
+---
+
+## 8. 执行记录（里程碑状态）
+
+| 里程碑 | 状态 | 提交 | 关键交付 |
+|---|---|---|---|
+| M1 表结构 + migration + 种子 | ✅ 完成 | `5bc9c4e` | `ManagementUnit.parent_id`+`personnel_scope`、`UserAppDataScope` 表、`0008` 迁移 + 幂等回填、模型测试 7 passed |
+| M2 后端 API | ✅ 完成 | `df3bf46` | `ManagementUnitSerializer`(parent/personnel + 防环)、`EnvelopeWriteMixin`(补写接口 `{success,data}` 信封)、`tree`+`sync-data-rules` action、`UserAppDataScopeViewSet`+upsert、`suggest_scope` 透传 `app_code`、`scope_resolver` L1 per-app 优先；运行中服务端实测 8 项全过 + pytest 12 passed |
+| M3 前端 | ✅ 完成 | 本提交 | `MouManagement.vue` 重写为聚焦的「管理单元」页（树形层级 + 组织范围 orgScope + 人员范围 personnelScope + 按应用数据范围 UserAppDataScope + 同步到 DataPermissionRule 按钮），删除 apps/mou 桩 tab 与重复的 RBAC tab（roles/functions/menus 已在 PermissionManagement 存在）；`UserRoleEditModal` 改为按应用(recruit/campus/social/referral)分组多选写入 UserAppDataScope，全局 managementUnitIds 取 recruit 兜底；移除 `UserManagement` MOU 外观桩（权限模式字段 + MOU分配弹窗 + 假 /permissions/user-mous/ 调用）。新增 `user-app-data-scope.ts` API 客户端、`management-unit.ts` 扩展 tree/sync。eslint 0 error + `build:nocheck` 通过 + 运行中服务端 user-app-data-scopes 生命周期实测全过 |
+| M4 联调 + 测试 + 清理 | ⏳ 待开始 | — | 运行实测；`sync-data-rules` 落地的 `management_unit_ids` 接进 `enforcement.row_filter_q`(当前 `row_filter_q` 只消费 `department_ids`)；清理 `apps/mou/` 桩混淆；两套配置面合并 |
+
+**M2 关键坑（已修）**：
+- `ManagementUnitViewSet` 原 create/update/delete **未包 `{success,data}` 信封** → 前端 `r.data.data` 为 undefined（假绿陷阱），已用 `EnvelopeWriteMixin` 统一。
+- `@action` 默认 `url_path` = 方法名下划线（`sync_data_rules`），与全站 hyphen 风格 action 不一致 → 显式 `url_path='sync-data-rules'`。
+- `scope_resolver.resolve_scope` 新增 `app_code` 参数**必须置于 `resource_code` 之后**，旧 10+ 调用点（均 `resolve_scope(user)` 或 `resolve_scope(user, code)`）才无感兼容。
