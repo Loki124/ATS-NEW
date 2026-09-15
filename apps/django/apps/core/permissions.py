@@ -122,11 +122,21 @@ class HasProcessPermission(permissions.BasePermission):
         return user_has_any_role(request.user, HRBP_TIER)
 
 
-    def is_hr_or_above(user) -> bool:
-        """统一判断 HR 及以上"""
-        if not (user and user.is_authenticated):
-            return False
-        return user_has_any_role(user, HR_TIER)
+def is_hr_or_above(user) -> bool:
+    """统一判断 HR 及以上。
+
+    ⚠️ 2026-09-15 修回归：本函数曾被引进 commit 25cc482 时误缩进进
+    HasProcessPermission 类体，变成类方法；而模块级调用方（UserViewPermission /
+    ScopedQuerysetMixin / scripts/verify_audit_fixes.py）全部按模块级函数引用，
+    直接 NameError → /api/v1/users/ 500。必须是模块级函数，勿再缩进。
+
+    ⚠️ 同次重构把原来的 `if is_superuser: return True` 旁路删了但没换成
+    is_super_admin —— 会让纯超管（无 HR 角色）被 HR 判断拒掉。按该次重构
+    「is_super_admin 是 is_superuser 超集、绝不收窄超管权限」的原则改回判定。
+    """
+    if not (user and user.is_authenticated):
+        return False
+    return is_super_admin(user) or user_has_any_role(user, HR_TIER)
 
 
 def user_department_ids(user) -> set:

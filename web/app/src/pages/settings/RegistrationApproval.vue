@@ -7,11 +7,20 @@
           <p class="page-subtitle">审核自助注册申请：通过则激活账号，拒绝则保持未激活</p>
         </div>
         <div class="page-header-actions">
-          <n-segmented
+          <!-- 状态筛选：本项目的 naive-ui 2.44.1 安装包不含 NSegmented
+               （dist 包与 volar.d.ts 中均无该导出），用单选按钮组替代，交互等价 -->
+          <n-radio-group
             v-model:value="statusFilter"
-            :options="statusOptions"
+            size="small"
             @update:value="onFilterChange"
-          />
+          >
+            <n-radio-button
+              v-for="opt in statusOptions"
+              :key="opt.value"
+              :value="opt.value"
+              :label="opt.label"
+            />
+          </n-radio-group>
           <n-button :loading="loading" @click="loadList">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             刷新
@@ -107,13 +116,14 @@ const columns: DataTableColumns<RegApp> = [
     h('div', { style: 'font-weight: 600; color: var(--ink);' }, row.email),
     h('div', { style: 'font-size: 12px; color: var(--ink-faint);' }, row.username),
   ]) },
-  { title: '姓名', key: 'full_name', minWidth: 110,
-    render: (row) => row.full_name || h('span', { style: 'color: var(--ink-faint);' }, '—') },
+  // 后端 camelCase：字段名是 fullName / emailVerified，写成 full_name 会永远取不到值
+  { title: '姓名', key: 'fullName', minWidth: 110,
+    render: (row) => row.fullName || h('span', { style: 'color: var(--ink-faint);' }, '—') },
   { title: '状态', key: 'status', width: 100,
     render: (row) => h(NTag, { type: statusMeta[row.status].type, size: 'small', round: true },
       { default: () => statusMeta[row.status].text }) },
-  { title: '邮箱验证', key: 'email_verified', width: 100,
-    render: (row) => row.email_verified
+  { title: '邮箱验证', key: 'emailVerified', width: 100,
+    render: (row) => row.emailVerified
       ? h(NTag, { type: 'success', size: 'small', round: true }, { default: () => '已验证' })
       : h(NTag, { type: 'default', size: 'small', round: true }, { default: () => '未验证' }) },
   { title: '申请时间', key: 'createdAt', width: 170,
