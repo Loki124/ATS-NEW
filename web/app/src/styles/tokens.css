@@ -143,10 +143,28 @@
   --space-2:   8px;
   --space-3:  12px;
   --space-4:  16px;
+  --space-5:  20px;  /* 弹窗 header/footer 与分隔线间距、通用中等间距 */
   --space-6:  24px;
   --space-8:  32px;
   --space-12: 48px;
   --space-16: 64px;
+
+  /* ===== §8.5 布局 / 页面安全边距契约（前端标准规范 · 单一事实来源）=====
+   * 根治"新页面内容贴边"：页面安全边距 / 弹窗内边距 / 容器最大宽度 / 栅格 / 断点
+   * 一律走 token，禁止页面 scoped 用 padding:0 覆盖（scoped[data-v] 特异性高于全局）。
+   * 完整约束见 docs/frontend-layout-standard.md */
+  --page-pad-x:      var(--space-6);   /* 24px 页面水平安全边距（桌面 ≥768px） */
+  --page-pad-y:      var(--space-6);   /* 24px 页面垂直安全边距 */
+  --page-pad-x-sm:   var(--space-4);   /* 16px 移动端水平安全边距（≤767px） */
+  --page-pad-y-sm:   var(--space-4);   /* 16px 移动端垂直安全边距 */
+  --modal-pad-x:     var(--space-6);   /* 24px 弹窗内容区水平内边距 */
+  --modal-pad-y:     var(--space-5);   /* 20px 弹窗内容区垂直内边距（与 header/footer 分隔对齐） */
+  --content-max-width: 1280px;         /* 内容区最大宽度（超宽屏居中收束，防单列拉伸过宽） */
+  --col-min:         280px;            /* 自适应栅格最小列宽（repeat(auto-fit, minmax)） */
+  /* 响应式断点（与 JS 媒体查询 / UnoCSS 断点对齐） */
+  --breakpoint-sm:   768px;            /* 平板及以下 */
+  --breakpoint-md:   1024px;           /* 笔记本 */
+  --breakpoint-lg:   1280px;           /* 桌面 */
 
   /* ===== §9. 字体 ===== */
   --font-sans: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
