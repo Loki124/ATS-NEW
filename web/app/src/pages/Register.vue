@@ -78,9 +78,9 @@
         </n-form>
 
         <!-- 步骤 2：输入邮箱验证码 -->
-        <div v-else class="verify-block">
+        <div v-else-if="step === 'verify'" class="verify-block">
           <n-alert type="info" :show-icon="true" class="verify-tip">
-            验证码已发送至 <strong>{{ form.email }}</strong>，请查收邮件并填写 6 位验证码。
+            验证码已发送至 <strong>{{ form.email }}</strong>，请查收邮件并填写 6 位验证码。验证通过后，申请将提交管理员审核，审核通过即可登录。
           </n-alert>
 
           <div class="code-input-wrapper">
@@ -116,6 +116,18 @@
           </n-button>
         </div>
 
+        <!-- 步骤 3：已提交，等待审核 -->
+        <div v-else class="verify-block done-block">
+          <div class="done-icon">
+            <n-icon :component="CheckmarkCircleOutline" />
+          </div>
+          <h2 class="done-title">注册申请已提交</h2>
+          <p class="done-desc">
+            我们已收到您的注册申请，管理员审核通过后将通过邮件通知您，届时可凭本邮箱登录系统。
+          </p>
+          <n-button type="primary" block size="large" @click="goLogin">返回登录</n-button>
+        </div>
+
         <div class="login-footer">
           <p>已有账号？<a href="#" class="forgot-link" @click.prevent="goLogin">直接登录</a></p>
         </div>
@@ -134,13 +146,13 @@
 import { ref, reactive, nextTick, onBeforeUnmount, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { PersonOutline, LockClosedOutline, MailOutline } from '@vicons/ionicons5'
+import { PersonOutline, LockClosedOutline, MailOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
 import { register, verifyRegisterCode, resendRegisterCode } from '../api/auth'
 
 const router = useRouter()
 const message = useMessage()
 
-const step = ref<'form' | 'verify'>('form')
+const step = ref<'form' | 'verify' | 'done'>('form')
 const submitting = ref(false)
 const verifying = ref(false)
 const codeSent = ref(false)
@@ -204,8 +216,8 @@ const onVerify = async () => {
           style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success); padding: 8px 14px; border-radius: 6px;',
         }, '邮箱验证成功，已提交管理员审核'),
       })
-      await nextTick()
-      router.replace('/login')
+      // 落在「已提交 / 等待审核」终态，明确告知用户后续流程，而非直接弹回登录页
+      step.value = 'done'
     } else {
       message.error(data.message || '验证失败')
     }
@@ -306,6 +318,35 @@ onBeforeUnmount(() => {
 }
 .verify-tip {
   margin-bottom: var(--space-2);
+}
+.done-block {
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+.done-icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--c-success) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent);
+  color: var(--c-success);
+  font-size: 36px;
+  margin-bottom: var(--space-2);
+}
+.done-title {
+  margin: 0 0 var(--space-1);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.done-desc {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-soft);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  max-width: 320px;
 }
 .code-input-wrapper {
   display: flex;
