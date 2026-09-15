@@ -91,6 +91,10 @@ EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.Ema
 DEBUG = False
 # R3 (2026-08-03): 显式钉死,防止 base/dev 的值漏进来
 CORS_ALLOW_ALL_ORIGINS = False
+# 内部健康探针(asgi/docker healthcheck/容器间回环)用 localhost/127.0.0.1 访问,
+# 而 ops/.env 的 DJANGO_ALLOWED_HOSTS 通常只配公网域名 → 探针报 DisallowedHost 导致
+# asgi 等容器一直 unhealthy。强制追加回环地址: 只放行本机回环, 不影响公网白名单语义。
+ALLOWED_HOSTS = sorted(set(ALLOWED_HOSTS) | {'localhost', '127.0.0.1'})
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = True

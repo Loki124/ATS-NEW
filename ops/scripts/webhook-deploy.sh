@@ -30,11 +30,40 @@ mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$LOCK_FILE")" 2>/dev/null || true
 touch "$LOG_FILE" 2>/dev/null || true
 
 # ===== 并发锁 (避免 Gitee 重复事件/快速连续 push 叠加部署) =====
+# stale-lock 自愈: 写 PID + 记录锁龄; 若锁超过 LOCK_STALE_SECONDS 未释放(上一次部署
+# 进程挂死/子进程继承了 fd 9 未释放), 视为僵死锁强制接管。否则跳过本次。
+LOCK_STALE_SECONDS="${LOCK_STALE_SECONDS:-1800}"  # 默认 30 分钟, 一次完整 --no-cache 部署不会超此值
+
+_lock_age() {
+  # 锁文件 mtime 距现在的秒数 (Linux GNU stat / macOS BSD stat 双兼容)
+  local mtime
+  mtime=$(stat -c %Y "$LOCK_FILE" 2>/dev/null || stat -f %m "$LOCK_FILE" 2>/dev/null || echo "$(date +%s)")
+  echo $(( $(date +%s) - mtime ))
+}
+
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-  log "⚠ 已有部署在跑 (lock 被占), 本次跳过"
-  exit 0
+  _age=$(_lock_age)
+  if [ "$_age" -gt "$LOCK_STALE_SECONDS" ]; then
+    log "⚠ 检测到僵死锁 (已 ${_age}s > ${LOCK_STALE_SECONDS}s), 强制接管"
+    # 记录里的 PID 大概率已死/是子进程; rm 掉锁文件换新 inode 绕过旧 flock, 再抢一次
+    _holder=$(awk '{print $1}' "$LOCK_FILE" 2>/dev/null || true)
+    [ -n "$_holder" ] && kill -9 "$_holder" 2>/dev/null || true
+    rm -f "$LOCK_FILE"
+    sleep 1
+    exec 9>"$LOCK_FILE"
+    if ! flock -n 9; then
+      log "❌ 强制抢锁仍失败, 本次跳过"
+      exit 0
+    fi
+  else
+    log "⚠ 已有部署在跑 (lock 被占, 已 ${_age}s), 本次跳过"
+    exit 0
+  fi
 fi
+echo "$$" > "$LOCK_FILE"
+# 部署结束(正常/异常)都清掉 PID, 避免残留; 同时让下一个部署能正常抢锁
+trap 'rm -f "$LOCK_FILE"' EXIT
 
 log "================================================"
 log " ATS-NEW Docker 部署开始 (branch=$BRANCH)"
@@ -50,6 +79,27 @@ if [ ! -f "$OPS_DIR/docker-compose.yml" ]; then
   log "❌ $OPS_DIR/docker-compose.yml 不存在"
   exit 1
 fi
+
+# ---------- 0.5 前置检查: compose 必填变量齐备 ----------
+# 从 docker-compose.yml 抽取所有 ${VAR:?...} 必填变量, 缺一就在 build 前一次性报清,
+# 避免 build 到一半才报 "required variable X is missing" (compose 插值遇到第一个缺失就停)。
+log ""
+log "[0/4] 检查 compose 必填变量 ($OPS_DIR/.env)"
+_REQUIRED_VARS=$(grep -oE '\$\{[A-Z_][A-Z0-9_]*:?\?' "$OPS_DIR/docker-compose.yml" | sed -E 's/\$\{([A-Z_][A-Z0-9_]*):?.*/\1/' | sort -u)
+_MISSING=""
+for _v in $_REQUIRED_VARS; do
+  if env | grep -qE "^${_v}=" || grep -qE "^${_v}=" "$OPS_DIR/.env" 2>/dev/null; then
+    :
+  else
+    _MISSING="$_MISSING $_v"
+  fi
+done
+if [ -n "$_MISSING" ]; then
+  log "❌ 缺以下必填变量, 请在 $OPS_DIR/.env 补齐:$_MISSING"
+  log "   参考模板: $OPS_DIR/.env.example"
+  exit 1
+fi
+log "  ✓ 必填变量齐备 ($(echo "$_REQUIRED_VARS" | wc -w | tr -d ' ') 项)"
 
 # ---------- 1. git pull ----------
 log ""

@@ -133,6 +133,16 @@ A: 这是 **Gitee 的 Java webhook 客户端与 Cloudflare 边缘的 TLS 协商�
    修复：Cloudflare 后台 → **SSL/TLS → Edge Certificates → TLS 1.3 关掉（OFF）**，强制 TLS 1.2 + AES-GCM（Java 客户端支持）。改完回 Gitee webhook 管理页「重发请求」，应返回 200（`null: HTTP/1.1 200 OK` 是 Gitee 的响应行前缀）。注意 Gitee webhook 出口地理浮动（CF-RAY 可能在 HKG/AMS 等不同边缘），该设置对所有边缘生效。
    坑：本地测 curl 时 `-H` 头要写在同一行或用 `\` 续行，否则 zsh 会报 `command not found: -H`，导致只发了裸 GET（返回 404 属预期，不代表链路坏）。
 
+**Q: 部署一直打印「已有部署在跑 (lock 被占), 本次跳过」，线上代码就是不变？**
+A: 上一次部署进程挂死（或子进程继承了 flock 的 fd 9 没释放），把 `/var/run/ats-deploy.lock` 的锁占死了。后续所有触发都被跳过 → 「推了 Gitee 但线上不变」。
+   - 处置：`sudo lsof /var/run/ats-deploy.lock` 找持有进程 → `sudo fuser -k /var/run/ats-deploy.lock` 杀掉 → 再 `sudo bash /opt/data/ATS-new/ops/scripts/webhook-deploy.sh`。
+   - 脚本已加**僵死锁自愈**：锁龄 > `LOCK_STALE_SECONDS`（默认 1800s）自动强制接管，不再需要手动清锁。
+
+**Q: 部署报 `error while interpolating ...: required variable XXX is missing a value`？**
+A: `docker-compose.yml` 里有 `${XXX:?必填}` 插值变量，但生产 `ops/.env` 没配。compose 插值**遇到第一个缺失就停**，所以要一次性补齐。
+   - 脚本已加**前置检查**（第 0 步）：build 前自动抽取 compose 里所有必填变量，缺了直接列清单，不再 build 到一半才炸。
+   - 补齐方法：对照 `ops/.env.example`，把缺的变量写进 `/opt/data/ATS-new/ops/.env`。
+
 ## 安全注意
 
 - **secret 必须保密**：泄露后任何人可触发你的部署（虽然只是 pull + rebuild，不会泄露数据，但会浪费算力）。
