@@ -137,6 +137,13 @@
                         :rows="3"
                         :placeholder="m.placeholder || ('请输入' + m.label)"
                       />
+                      <RegionCascader
+                        v-else-if="isRegionType(m.fieldType)"
+                        :field-type="(m.fieldType as any)"
+                        :with-country="!!m.field.withCountry"
+                        :value="null"
+                        :disabled="true"
+                      />
                       <n-input
                         v-else
                         disabled
@@ -272,7 +279,8 @@ import {
   type RegistrationForm,
   type RegistrationFormField,
   type RegistrationFormType,
-} from '../../api/application-form'
+} from '../../api/application-form';
+import RegionCascader from '../../components/RegionCascader.vue';
 
 const message = useMessage()
 const dialog = useDialog()
@@ -313,8 +321,17 @@ function isSingleChoice(t: FieldType): boolean {
 function isMultiChoice(t: FieldType): boolean {
   return t === 'MULTISELECT' || t === 'LIST_MULTI'
 }
+// 2026-09-15 行政区划级联型(省/省市/省市区)
+function isRegionType(t: FieldType): boolean {
+  return t === 'REGION_PROVINCE' || t === 'REGION_PROVINCE_CITY' || t === 'REGION_PROVINCE_CITY_DISTRICT'
+}
 function isFullWidth(field: FieldDefinition): boolean {
-  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT' || field.fieldType === 'ADDRESS'
+  return field.fieldType === 'TEXT'
+    || field.fieldType === 'ATTACHMENT'
+    || field.fieldType === 'ADDRESS'
+    || field.fieldType === 'REGION_PROVINCE'
+    || field.fieldType === 'REGION_PROVINCE_CITY'
+    || field.fieldType === 'REGION_PROVINCE_CITY_DISTRICT'
 }
 function selectOptions(field: FieldDefinition) {
   return (field.options || []).map((o) => ({ label: o.label, value: o.value }))

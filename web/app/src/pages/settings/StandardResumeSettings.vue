@@ -151,6 +151,14 @@
                     :rows="3"
                     :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
                   />
+                  <!-- 行政区划级联型 (省/省市/省市区) -->
+                  <RegionCascader
+                    v-else-if="isRegionType(m.field.fieldType)"
+                    :field-type="(m.field.fieldType as any)"
+                    :with-country="!!m.field.withCountry"
+                    :value="null"
+                    :disabled="true"
+                  />
                   <!-- 文本/数字/日期/证件 等 -->
                   <n-input
                     v-else
@@ -188,7 +196,8 @@ import {
   type StandardResumeConfig,
   type StandardResumeFieldConfig,
   type MergedResumeField,
-} from '../../api/standard-resume'
+} from '../../api/standard-resume';
+import RegionCascader from '../../components/RegionCascader.vue';
 
 const allFields = ref<FieldDefinition[]>([])
 const loading = ref(false)
@@ -209,13 +218,22 @@ function isSingleChoice(t: FieldType): boolean {
 function isMultiChoice(t: FieldType): boolean {
   return t === 'MULTISELECT' || t === 'LIST_MULTI'
 }
+// 2026-09-15 行政区划级联型(省/省市/省市区)
+function isRegionType(t: FieldType): boolean {
+  return t === 'REGION_PROVINCE' || t === 'REGION_PROVINCE_CITY' || t === 'REGION_PROVINCE_CITY_DISTRICT'
+}
 function selectOptions(field: FieldDefinition) {
   return (field.options || []).map((o) => ({ label: o.label, value: o.value }))
 }
 
 // 多行文本（TEXT）与附件块独占整宽一行；其余字段每行两列
 function isFullWidth(field: FieldDefinition): boolean {
-  return field.fieldType === 'TEXT' || field.fieldType === 'ATTACHMENT' || field.fieldType === 'ADDRESS'
+  return field.fieldType === 'TEXT'
+    || field.fieldType === 'ATTACHMENT'
+    || field.fieldType === 'ADDRESS'
+    || field.fieldType === 'REGION_PROVINCE'
+    || field.fieldType === 'REGION_PROVINCE_CITY'
+    || field.fieldType === 'REGION_PROVINCE_CITY_DISTRICT'
 }
 
 // 用全部动态字段给 config 补齐/裁剪条目，保证每个字段都有配置项

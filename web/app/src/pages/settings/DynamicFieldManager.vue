@@ -11,124 +11,70 @@
             : 'G42 - 元数据驱动的字段配置：字段 / 模块 / 分组 / 联动规则' }}
         </p>
       </div>
-      <!-- overview 模式：可切换 resource 做跨模块总览；embedded 模式锁定为所在业务模块 -->
-      <n-space v-if="!isEmbedded" align="center">
-        <span class="res-label">资源</span>
-        <n-select
-          v-model:value="currentResource"
-          :options="resourceOptions"
-          style="width: 180px"
-          @update:value="onResourceChange"
-        />
+      <!-- 顶部操作区：资源切换 + 配置入口（页面无 Tab，配三个按钮触发居中弹窗） -->
+      <n-space align="center" :wrap="false">
+        <n-space v-if="!isEmbedded" align="center" :wrap="false">
+          <span class="res-label">资源</span>
+          <n-select
+            v-model:value="currentResource"
+            :options="resourceOptions"
+            style="width: 160px"
+            @update:value="onResourceChange"
+          />
+        </n-space>
+        <n-divider v-if="!isEmbedded" vertical />
+        <n-button v-if="!isEmbedded" @click="openModuleCenter">
+          <template #icon><n-icon :component="AppsOutline" /></template>模块配置
+        </n-button>
+        <n-button @click="openGroupCenter">
+          <template #icon><n-icon :component="ListOutline" /></template>分组配置
+        </n-button>
+        <n-button @click="openLinkageCenter">
+          <template #icon><n-icon :component="GitNetworkOutline" /></template>联动规则
+        </n-button>
       </n-space>
     </div>
 
     <div class="page-body">
-      <n-tabs v-model:value="activeTab" type="line" class="df-tabs">
-        <!-- ============ 字段定义 ============ -->
-        <n-tab-pane name="fields" tab="字段定义">
-          <n-space class="filter-row" :wrap="true">
-            <n-select v-if="!isEmbedded" v-model:value="filterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadFields" />
-            <n-select v-model:value="filterGroup" :options="groupFilterOptions" style="width: 200px" placeholder="按分组筛选" @update:value="reloadFields" />
-            <n-button :loading="loading" @click="reloadFields">刷新</n-button>
-            <n-button type="primary" @click="openFieldCreate">
-              <template #icon><n-icon :component="AddOutline" /></template>新建字段
-            </n-button>
-            <n-dropdown :options="exportOptions" @select="onExportSelect">
-              <n-button>导出字段</n-button>
-            </n-dropdown>
-            <n-button @click="importModalVisible = true">导入字段</n-button>
-          </n-space>
+      <!-- 页面无 Tab，「字段定义」全量铺开（分组卡片视图） -->
+      <n-space class="filter-row" :wrap="true">
+        <n-select v-if="!isEmbedded" v-model:value="filterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadFields" />
+        <n-select v-model:value="filterGroup" :options="groupFilterOptions" style="width: 200px" placeholder="按分组筛选" @update:value="reloadFields" />
+        <n-button :loading="loading" @click="reloadFields">刷新</n-button>
+        <n-button type="primary" @click="openFieldCreate">
+          <template #icon><n-icon :component="AddOutline" /></template>新建字段
+        </n-button>
+        <n-dropdown :options="exportOptions" @select="onExportSelect">
+          <n-button>导出字段</n-button>
+        </n-dropdown>
+        <n-button @click="importModalVisible = true">导入字段</n-button>
+      </n-space>
 
-          <!-- 分组卡片视图：按字段分组(FieldGroup)聚合，每组独立卡片 -->
-          <div class="field-groups">
-            <div v-for="g in groupedFields" :key="g.key" class="field-group-card">
-              <div class="field-group-head">
-                <span class="fg-title">{{ g.name }}</span>
-                <n-tag :bordered="false" size="small" type="info">全局</n-tag>
-                <n-button
-                  size="small" secondary type="primary"
-                  @click="openFieldCreate(g.key === 'ungrouped' ? null : g.key)"
-                >
-                  <template #icon><n-icon :component="AddOutline" /></template>添加字段
-                </n-button>
-              </div>
-              <n-data-table
-                :columns="fieldColumns"
-                :data="g.fields"
-                :loading="loading"
-                :pagination="false"
-                :row-key="(row: any) => row.id"
-                size="small"
-                striped
-              />
-            </div>
-            <n-empty v-if="!groupedFields.length && !loading" description="暂无字段" />
+      <!-- 分组卡片视图：按字段分组(FieldGroup)聚合，每组独立卡片 -->
+      <div class="field-groups">
+        <div v-for="g in groupedFields" :key="g.key" class="field-group-card">
+          <div class="field-group-head">
+            <span class="fg-title">{{ g.name }}</span>
+            <n-tag :bordered="false" size="small" type="info">全局</n-tag>
+            <n-button
+              size="small" secondary type="primary"
+              @click="openFieldCreate(g.key === 'ungrouped' ? null : g.key)"
+            >
+              <template #icon><n-icon :component="AddOutline" /></template>添加字段
+            </n-button>
           </div>
-        </n-tab-pane>
-
-        <!-- ============ 模块配置（仅 overview 模式） ============ -->
-        <n-tab-pane v-if="!isEmbedded" name="modules" tab="模块配置">
-          <n-space class="filter-row" :wrap="true">
-            <n-button :loading="moduleLoading" @click="reloadModules">刷新</n-button>
-            <n-button type="primary" @click="openModuleCreate">
-              <template #icon><n-icon :component="AddOutline" /></template>新建模块
-            </n-button>
-          </n-space>
           <n-data-table
-            :columns="moduleColumns"
-            :data="moduleRows"
-            :loading="moduleLoading"
-            :pagination="modulePagination"
+            :columns="fieldColumns"
+            :data="g.fields"
+            :loading="loading"
+            :pagination="false"
             :row-key="(row: any) => row.id"
             size="small"
             striped
-            flex-height
           />
-        </n-tab-pane>
-
-        <!-- ============ 分组配置 ============ -->
-        <n-tab-pane name="groups" tab="分组配置">
-          <n-space class="filter-row" :wrap="true">
-            <n-select v-if="!isEmbedded" v-model:value="groupFilterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadGroups" />
-            <n-button :loading="groupLoading" @click="reloadGroups">刷新</n-button>
-            <n-button type="primary" @click="openGroupCreate">
-              <template #icon><n-icon :component="AddOutline" /></template>新建分组
-            </n-button>
-          </n-space>
-          <n-data-table
-            :columns="groupColumns"
-            :data="groupRows"
-            :loading="groupLoading"
-            :pagination="groupPagination"
-            :row-key="(row: any) => row.id"
-            size="small"
-            striped
-            flex-height
-          />
-        </n-tab-pane>
-
-        <!-- ============ 联动规则 ============ -->
-        <n-tab-pane name="linkage" tab="联动规则">
-          <n-space class="filter-row" :wrap="true">
-            <n-select v-if="!isEmbedded" v-model:value="linkageFilterModule" :options="moduleOptions" style="width: 200px" placeholder="按模块筛选" @update:value="reloadLinkage" />
-            <n-button :loading="linkageLoading" @click="reloadLinkage">刷新</n-button>
-            <n-button type="primary" @click="openLinkageCreate">
-              <template #icon><n-icon :component="AddOutline" /></template>新建规则
-            </n-button>
-          </n-space>
-          <n-data-table
-            :columns="linkageColumns"
-            :data="linkageRows"
-            :loading="linkageLoading"
-            :pagination="linkagePagination"
-            :row-key="(row: any) => row.id"
-            size="small"
-            striped
-            flex-height
-          />
-        </n-tab-pane>
-      </n-tabs>
+        </div>
+        <n-empty v-if="!groupedFields.length && !loading" description="暂无字段" />
+      </div>
     </div>
 
     <!-- ============ 字段 新建/编辑 Modal ============ -->
@@ -572,7 +518,7 @@ import {
   NModal, NForm, NFormItem, NInput, NDynamicInput, NTabs, NTabPane, NDropdown,
   NRadioGroup, NRadio, NCheckbox, NAlert, NText, useMessage, useDialog,
 } from 'naive-ui';
-import { AddOutline, TrashOutline, CreateOutline, ShieldCheckmarkOutline, BanOutline, PlayOutline } from '@vicons/ionicons5';
+import { AddOutline, TrashOutline, CreateOutline, ShieldCheckmarkOutline, BanOutline, PlayOutline, AppsOutline, ListOutline, GitNetworkOutline } from '@vicons/ionicons5';
 import FieldListOptions from '@/components/FieldListOptions.vue';
 import RegionCascader from '@/components/RegionCascader.vue';
 import {
@@ -602,6 +548,9 @@ const props = withDefaults(defineProps<{
   /** embedded 模式下的中文展示名（如「招聘需求」「职位」「候选人」） */
   displayName?: string;
 }>(), { mode: 'overview', resource: 'Candidate', displayName: '' });
+// 2026-09-15 UX 整改：去掉 Tab，「模块配置/分组配置/联动规则」改用顶部按钮触发页面居中弹窗
+// 当前模式说明：overview = 4 入口（资源切换 + 3 配置按钮 + 字段定义）；embedded = 3 入口（仅 3 配置按钮 + 字段定义）
+
 
 const message = useMessage();
 const dialog = useDialog();
@@ -616,8 +565,6 @@ const resourceOptions = [
   { label: '招聘需求', value: 'Demand' },
   { label: '职位', value: 'Position' },
 ];
-
-const activeTab = ref<string>('fields');
 
 // 辅助数据
 const modules = ref<FieldModule[]>([]);
@@ -1057,6 +1004,12 @@ async function reloadModules() {
   finally { moduleLoading.value = false; }
 }
 
+/** 2026-09-15 UX：顶部「模块配置」按钮 → 打开页面居中弹窗 */
+async function openModuleCenter() {
+  await reloadModules();
+  moduleModalVisible.value = true;
+}
+
 function openModuleCreate() {
   moduleEditing.value = null;
   Object.assign(moduleForm, { id: undefined, code: '', name: '', description: '', orderIndex: moduleRows.value.length, isActive: true });
@@ -1465,7 +1418,6 @@ async function loadAux() {
 /** overview 模式切换资源时全量刷新 */
 async function onResourceChange() {
   defaultModuleId.value = null;
-  activeTab.value = 'fields';
   filterModule.value = '';
   groupFilterModule.value = '';
   linkageFilterModule.value = '';

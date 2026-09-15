@@ -19,7 +19,19 @@ export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
-  | 'ADDRESS';
+  | 'ADDRESS'
+  | 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
+
+export type RegionFieldType =
+  | 'REGION_PROVINCE' | 'REGION_PROVINCE_CITY' | 'REGION_PROVINCE_CITY_DISTRICT';
+
+/** 行政区划级联型字段的值结构 (序列化入/出库为 JSON) */
+export interface RegionFieldValue {
+  country?: { code: string; name: string };
+  province: { code: string; name: string };
+  city?: { code: string; name: string };
+  district?: { code: string; name: string };
+}
 
 export type LinkageConditionMode = 'ALL' | 'ANY';
 export type LinkageConditionOp = 'EQ' | 'NE' | 'IN' | 'NOT_IN' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'CONTAINS';
@@ -118,6 +130,8 @@ export interface FieldDefinition {
   visibilityPermission?: VisibilityPermission;
   /** 选项来源 (2026-09-15): { type:'custom'|'dictionary'|'library'|'code_table', key }；非空时选项由后端按数据源动态解析 */
   optionsSource?: { type: string; key: string } | null;
+  /** 2026-09-15 行政区划型字段开关: 开启后先选国家 */
+  withCountry?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -256,6 +270,10 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '多行文本', value: 'MULTILINE_TEXT' },
   // 2026-09-15 新增: 地址（单行文本，预览/申请表独占整行）
   { label: '地址', value: 'ADDRESS' },
+  // 2026-09-15 新增: 行政区划级联型(数据源: G46 码表库 regions/countries, 与 with_country 配套)
+  { label: '省', value: 'REGION_PROVINCE' },
+  { label: '省市', value: 'REGION_PROVINCE_CITY' },
+  { label: '省市区', value: 'REGION_PROVINCE_CITY_DISTRICT' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -267,6 +285,9 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   CONFIRM: '确认题',
   MULTILINE_TEXT: '多行文本',
   ADDRESS: '地址',
+  REGION_PROVINCE: '省',
+  REGION_PROVINCE_CITY: '省市',
+  REGION_PROVINCE_CITY_DISTRICT: '省市区',
 };
 
 /** 可见权限枚举选项（字段权限管理弹窗） */

@@ -34,6 +34,11 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         MULTILINE_TEXT = 'MULTILINE_TEXT', '多行文本'
         # 2026-09-15 新增「地址」(单行文本输入, 预览/申请表独占整行; 后端无专属校验)
         ADDRESS = 'ADDRESS', '地址'
+        # 2026-09-15 新增行政区划级联型(省/省市/省市区)
+        # 存储为 JSON: {country?: {code,name}, province: {code,name}, city?: {code,name}, district?: {code,name}}
+        REGION_PROVINCE = 'REGION_PROVINCE', '省'
+        REGION_PROVINCE_CITY = 'REGION_PROVINCE_CITY', '省市'
+        REGION_PROVINCE_CITY_DISTRICT = 'REGION_PROVINCE_CITY_DISTRICT', '省市区'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [
@@ -90,6 +95,10 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     visibility_permission = models.CharField(
         max_length=32, choices=VisibilityPermission.choices,
         default=VisibilityPermission.ALL_VISIBLE, help_text='可见权限(字段权限管理弹窗)',
+    )
+    # 2026-09-15 行政区划型字段专用: 是否先选国家(影响渲染层是否首列下拉国家, 与字段类型独立)
+    with_country = models.BooleanField(
+        default=False, help_text='行政区划型字段是否先选国家(仅 REGION_* 渲染时参考)',
     )
 
     class Meta:
