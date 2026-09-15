@@ -166,21 +166,29 @@
                 style="width: 280px"
                 @update:value="onOptionSourceTypeChange"
               />
+              <!-- 字典/院校库/码表库 都需进一步选子 key -->
               <n-select
-                v-if="sourceType === 'dictionary'"
+                v-if="sourceType === 'dictionary' || sourceType === 'library' || sourceType === 'code_table'"
                 v-model:value="fieldForm.optionsSource.key"
-                :options="dictionaryTypeOptions"
-                :loading="loadingDictTypes"
-                placeholder="选择字典类型"
+                :options="sourceKeyOptions"
+                :loading="sourceType === 'dictionary' && loadingDictTypes"
+                :placeholder="sourceType === 'dictionary' ? '选择字典类型' : (sourceType === 'library' ? '选择院校/专业类型' : '选择码表类型')"
                 filterable
                 style="width: 100%"
                 @update:value="onDictTypeChange"
               />
+              <!-- 数据字典专属预览（最多取前 20 条作预览, 真实渲染由后端解析） -->
               <n-alert
-                v-if="sourceType === 'library'"
+                v-if="sourceType === 'dictionary' && fieldForm.optionsSource.key"
                 type="info"
                 :show-icon="true"
-              >保存后，选项将从「专业库 · 专业名称」动态加载（实时同步专业库数据）。</n-alert>
+              >保存后，选项将从「数据字典 · {{ fieldForm.optionsSource.key }}」动态加载（实时同步字典条目）。</n-alert>
+              <!-- 院校库/专业库/码表库提示 -->
+              <n-alert
+                v-else-if="sourceHint"
+                type="info"
+                :show-icon="true"
+              >保存后，{{ sourceHint }}。</n-alert>
             </n-space>
           </n-form-item>
           <n-form-item v-if="fieldNeedsOptions && showManualOptions" label="选项">
@@ -721,12 +729,31 @@ const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE'
 const OPTION_SOURCE_OPTIONS = [
   { label: '自定义（手动维护）', value: 'custom' },
   { label: '数据字典', value: 'dictionary' },
-  { label: '专业库', value: 'library' },
+  { label: '院校/专业库', value: 'library' },
+  { label: '码表库（G46）', value: 'code_table' },
+];
+// library 子 key 选项: 专业 (已有) / 院校
+const LIBRARY_KEY_OPTIONS = [
+  { label: '专业库 · 专业名称', value: 'major' },
+  { label: '院校库 · 院校名称', value: 'school' },
+];
+// code_table 子 key 选项: 国家 / 民族 / 语言
+const CODE_TABLE_KEY_OPTIONS = [
+  { label: '国家/地区', value: 'country' },
+  { label: '民族', value: 'ethnicity' },
+  { label: '语言', value: 'language' },
 ];
 // 当前选中的来源类型（兜底 custom）
 const sourceType = computed(() => fieldForm.optionsSource?.type || 'custom');
 // 仅自定义来源展示手动选项编辑器（A: 选了数据源则隐藏手动选项）
 const showManualOptions = computed(() => sourceType.value === 'custom');
+// 当前数据源的子 key 下拉选项（library/code_table/dictionary 各自不同；custom 为空）
+const sourceKeyOptions = computed(() => {
+  if (sourceType.value === 'library') return LIBRARY_KEY_OPTIONS;
+  if (sourceType.value === 'code_table') return CODE_TABLE_KEY_OPTIONS;
+  if (sourceType.value === 'dictionary') return dictionaryTypeOptions.value;
+  return [];
+});
 // 数据字典类型列表（选「数据字典」时懒加载）
 const dictionaryTypes = ref<DictionaryType[]>([]);
 const loadingDictTypes = ref(false);
@@ -739,7 +766,24 @@ const dictionaryTypeOptions = computed(() =>
     .map((t) => ({ label: `${t.name}（${t.code}）`, value: t.code })),
 );
 
-/** 切换选项来源类型：dictionary 时懒加载字典类型列表；library 时锁定 key=major；custom 时清空 key。 */
+// 当前数据源的预览条数提示（library: 2744 + 1976 / code_table: 250+58+609）
+const sourceHint = computed(() => {
+  if (sourceType.value === 'custom') return '';
+  if (sourceType.value === 'library') {
+    if (fieldForm.optionsSource?.key === 'school') return '院校库约 2744 所院校，候选人在填写时支持 keyword 服务端搜索';
+    if (fieldForm.optionsSource?.key === 'major') return '专业库约 1976 个专业，按名称排序';
+    return '请选择子类型';
+  }
+  if (sourceType.value === 'code_table') {
+    if (fieldForm.optionsSource?.key === 'country') return '国家与地区码表，约 250 项';
+    if (fieldForm.optionsSource?.key === 'ethnicity') return '中国民族码表（GB/T 3304），58 项';
+    if (fieldForm.optionsSource?.key === 'language') return '语言类型码表（ISO 639），约 609 项';
+    return '请选择子类型';
+  }
+  return '';
+});
+
+/** 切换选项来源类型：dictionary 时懒加载字典类型列表；library/code_table 锁定默认 key；custom 时清空 key。 */
 async function onOptionSourceTypeChange(type: string) {
   fieldForm.optionsSource.type = type;
   fieldForm.optionsSource.key = '';
@@ -754,9 +798,18 @@ async function onOptionSourceTypeChange(type: string) {
       loadingDictTypes.value = false;
     }
   } else if (type === 'library') {
-    // 首个落地的专业库数据源为「专业名称」（library_major）
+    // 默认锁定「专业库 · 专业名称」
     fieldForm.optionsSource.key = 'major';
+  } else if (type === 'code_table') {
+    // 默认锁定「国家」
+    fieldForm.optionsSource.key = 'country';
   }
+}
+
+/** 切换子 key（library major/school, code_table country/ethnicity/language）。清字典预览。 */
+function onSourceKeyChange(key: string) {
+  fieldForm.optionsSource.key = key;
+  dictionaryPreviewOptions.value = [];
 }
 
 /** 选择具体字典类型后，拉取该字典项作为编辑态预览。 */
@@ -1597,11 +1650,11 @@ onMounted(async () => {
 /* 字段定义：分组卡片视图 */
 .field-groups {
   display: flex; flex-direction: column; gap: var(--space-5);
-  overflow-y: auto; padding-right: var(--space-2); min-height: 0;
+  overflow-y: auto; min-height: 0;
 }
 .field-group-card {
   border: 1px solid var(--color-border); border-radius: var(--radius-md);
-  padding: var(--space-5); background: var(--color-bg);
+  padding: var(--space-4); background: var(--color-bg);
 }
 .field-group-head {
   display: flex; align-items: center; gap: var(--space-2);
