@@ -81,7 +81,7 @@ import {
   NModal, NForm, NFormItem, NInput, NSelect, NSwitch, NButton, NSpace,
   NDivider, NText, NCheckbox, NCheckboxGroup, useMessage,
 } from 'naive-ui'
-import { updateRole, syncRolePermissions, type RoleV2, type DataScopeType } from '@/api/role-v2'
+import { createRole, updateRole, syncRolePermissions, type RoleV2, type DataScopeType } from '@/api/role-v2'
 import { listResources, type PermissionResource } from '@/api/permission-resource'
 
 const props = defineProps<{
@@ -169,25 +169,37 @@ async function onSubmit() {
     message.warning('角色编码和名称必填')
     return
   }
-  if (!form.id) {
-    message.error('缺少角色 ID, 无法保存 (请通过列表编辑入口进入)')
-    return
-  }
   saving.value = true
   try {
-    // Step 1: 保存 role 自身字段 (PUT /roles/{id}/)
-    await updateRole(form.id, {
-      roleCode: form.roleCode,
-      roleName: form.roleName,
-      defaultDataScopeType: form.defaultDataScopeType,
-      description: form.description,
-      status: form.status,
-    })
-    // Step 2: 同步资源勾选 (POST /roles/{id}/sync-resources/)
+    let roleId = form.id
+    if (!roleId) {
+      // 新建角色: 先 POST /roles/ 创建元数据, 拿到 id 后再同步资源
+      const created = await createRole({
+        roleCode: form.roleCode,
+        roleName: form.roleName,
+        defaultDataScopeType: form.defaultDataScopeType,
+        description: form.description,
+        status: form.status,
+      })
+      roleId = created.id
+      if (!roleId) {
+        throw new Error('创建角色后未返回 id')
+      }
+    } else {
+      // 编辑: 保存 role 自身字段 (PUT /roles/{id}/)
+      await updateRole(roleId, {
+        roleCode: form.roleCode,
+        roleName: form.roleName,
+        defaultDataScopeType: form.defaultDataScopeType,
+        description: form.description,
+        status: form.status,
+      })
+    }
+    // 同步资源勾选 (POST /roles/{id}/sync-resources/)
     // T29 fix: role_permission 是单独表, 必须用专用 action 写. PUT /roles/{id}/ 的
     // permissionCodes 字段是 SerializerMethodField (read-only), 会被静默丢弃.
-    await syncRolePermissions(form.id, selectedCodes.value)
-    message.success(`已保存 (${selectedCodes.value.length} 个资源授权)`)
+    await syncRolePermissions(roleId, selectedCodes.value)
+    message.success(`${form.id ? '已保存' : '已创建'} (${selectedCodes.value.length} 个资源授权)`)
     emit('saved')
     emit('update:show', false)
   } catch (e: any) {

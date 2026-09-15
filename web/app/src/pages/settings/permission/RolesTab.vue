@@ -146,9 +146,9 @@ async function load() {
 }
 
 function onCreate() {
-  // T21: 跳到 RoleEditModal 不带 role, 用空 form 让用户从 0 填
-  // 但本任务 T20 暂时只提示
-  message.warning('T21 起支持: 在编辑 modal 内可逐个勾选资源 (先选模板更好)')
+  // 打开 RoleEditModal 不带 role, 用空 form 让用户从 0 创建
+  editModal.role = null
+  editModal.show = true
 }
 
 function onCloneFromTemplate() {
