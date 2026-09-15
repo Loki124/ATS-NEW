@@ -36,6 +36,17 @@ x-backend-env: &backend-env
   MYSQL_PASSWORD: ${MYSQL_PASSWORD}
   MYSQL_DATABASE: ${MYSQL_DATABASE}
 
+  # ---- 邮件 (SMTP, 注册验证码 / 审核通知) ----
+  # 当前预设: 阿里云 DirectMail; 后续切换服务商(如 CF)仅需改 EMAIL_HOST/PORT/USER/PASSWORD/TLS
+  EMAIL_BACKEND: ${EMAIL_BACKEND:?EMAIL_BACKEND 必须设置, 如 django.core.mail.backends.smtp.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:?EMAIL_HOST 必须设置, 如 smtpdm.aliyun.com}
+  EMAIL_PORT: "${EMAIL_PORT:-587}"
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:?EMAIL_HOST_USER 必须设置 (DirectMail 发信地址 / SMTP 用户名)}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:?EMAIL_HOST_PASSWORD 必须设置 (SMTP 密码/授权码)}
+  EMAIL_USE_TLS: "${EMAIL_USE_TLS:-True}"
+  EMAIL_USE_SSL: "${EMAIL_USE_SSL:-False}"
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?DEFAULT_FROM_EMAIL 必须设置, 如 noreply@yourdomain.com}
+
 services:
   mysql:
     image: mysql:8.0

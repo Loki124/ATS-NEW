@@ -82,6 +82,12 @@ def _validate_production_config():
 _validate_production_config()
 
 
+# 邮件: 生产环境默认走真实 SMTP (不再是 dev 的 console). 具体连接参数由
+# EMAIL_HOST/PORT/USER/PASSWORD/USE_TLS(USE_SSL) 经 ops/.env 注入.
+# 切换服务商(阿里云 DirectMail / 后续 CF 等) 只需改这几个变量, 无需改代码.
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+
+
 DEBUG = False
 # R3 (2026-08-03): 显式钉死,防止 base/dev 的值漏进来
 CORS_ALLOW_ALL_ORIGINS = False
