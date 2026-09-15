@@ -271,15 +271,15 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     def sync_data_rules(self, request, pk=None):
         """POST /api/v1/management-units/{id}/sync-data-rules/
 
-        方案 A(2026-09-15): 把该管理单元的 org/personnel scope 同步为
-        DataPermissionRule(CUSTOM + management_unit_ids). 管理单元是配置面,
-        DataPermissionRule 是执行面.
+        方案 A M4(2026-09-15): 把引用该单元的全部「用户-角色-应用」分配镜像成
+        DataPermissionRule(USER 维度, 行级 CUSTOM), 接进 enforcement.row_filter_q.
 
-        有效单元集合 = 自身 + (include_children 时) 所有后代(按 parent_id BFS).
-        幂等: rule id = 'mgu_{unit.id}' (upsert).
+        有效单元集合 = 自身 + (include_children 时) 所有后代(按 parent_id BFS);
+        仅用于按钮反馈 (effectiveUnitIds). 真正的执行面规则按 USER 维度逐用户重建,
+        避免按 ROLE 建规则导致的跨用户越权.
 
-        注: enforcement.row_filter_q 当前消费 department_ids, 对 management_unit_ids
-        的消费由 M4 联调接入 —— 此处先落库镜像, 保证配置可持久化与可观测.
+        维度键 USER:<user_id> 与 enforcement._dimension_match_keys 的 USER 键一致,
+        scope_payload 同时带 management_unit_ids(溯源) 与 department_ids(由 org_scope 解析).
         """
         unit = self.get_object()
         effective = [unit.id]
@@ -292,29 +292,28 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             frontier = nxt
         effective = list(dict.fromkeys(effective))  # 去重保序
 
-        rule, _ = DataPermissionRule.objects.update_or_create(
-            id=f'mgu_{unit.id}',
-            defaults={
-                'dimension_type': DimensionType.ROLE,
-                'dimension_value': f'mgmt_unit:{unit.id}',
-                'level': 'ROW',
-                'scope_type': RowScopeType.CUSTOM,
-                'scope_payload': {'management_unit_ids': effective},
-                'priority': 50,
-                'status': 1,
-                'remark': f'管理单元[{unit.unit_name}] 同步',
-                'created_by': request.user.id,
-            },
-        )
+        # 扫描引用该单元的全部分配, 收集受影响 user_id (按用户重建规则, 防跨用户越权)
+        user_ids = set()
+        for s in UserAppDataScope.objects.filter(management_unit_ids__contains=[unit.id]):
+            user_ids.add(s.user_id)
+        for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit.id]):
+            user_ids.add(ur.user_id)
+
+        rule_ids = []
+        for uid in user_ids:
+            rule = _rebuild_user_rules(uid)
+            if rule:
+                rule_ids.append(rule.id)
+
         return Response({
             'success': True,
             'data': {
-                'rule_id': rule.id,
                 'effective_unit_ids': effective,
-                'dimension_value': rule.dimension_value,
-                'scope_payload': rule.scope_payload,
+                'rule_ids': rule_ids,
+                'rule_id': rule_ids[0] if rule_ids else None,
+                'synced_user_count': len(user_ids),
             },
-            'note': '配置面已落 DataPermissionRule 镜像; enforcement 消费 management_unit_ids 由 M4 联调接入',
+            'note': '管理单元范围已镜像为 DataPermissionRule(USER 维度, CUSTOM); enforcement.row_filter_q 现已消费 management_unit_ids',
         })
 
 
@@ -377,12 +376,88 @@ class UserRoleViewSet(viewsets.ModelViewSet):
         })
 
 
+def _collect_user_unit_ids(user_id):
+    """方案 A M4: 汇总某用户全部管理单元范围 (UserAppDataScope per-app + UserRoleV2 全局兜底)."""
+    unit_ids = set()
+    for s in UserAppDataScope.objects.filter(user_id=user_id):
+        unit_ids.update(s.management_unit_ids or [])
+    for ur in UserRoleV2.objects.filter(user_id=user_id):
+        unit_ids.update(ur.management_unit_ids or [])
+    return sorted(unit_ids)
+
+
+def _sync_user_data_rule(user_id, unit_ids):
+    """把某用户的全部管理单元范围镜像成 DataPermissionRule(USER 维度, 行级).
+
+    维度 USER:<user_id> 与 enforcement._dimension_match_keys 的 USER 键一致,
+    避免按 ROLE 建规则导致的「同角色跨用户越权」.
+
+    解析结果三种形态:
+      - 含整公司级单元 (org_scope={'level':'ROOT'}) -> ALL 规则 (可见全量);
+      - 解析出部门 id -> CUSTOM 规则, department_ids 供 row_filter_q 消费;
+      - 解析不出任何部门范围 (dict 无 dept 子键且非整公司) -> 不建 NEW 引擎规则,
+        回退 OLD 引擎 / SELF, 绝不产生无效应规则.
+    """
+    from apps.core.scope_resolver import unit_ids_to_dept_ids, ALL_UNIT_SENTINEL
+    resolved = unit_ids_to_dept_ids(unit_ids)
+    if ALL_UNIT_SENTINEL in resolved:
+        rule, _ = DataPermissionRule.objects.update_or_create(
+            id=f'uads_user_{user_id}',
+            defaults={
+                'dimension_type': DimensionType.USER,
+                'dimension_value': str(user_id),
+                'level': 'ROW',
+                'scope_type': RowScopeType.ALL,
+                'scope_payload': {'management_unit_ids': list(unit_ids)},
+                'priority': 50,
+                'status': 1,
+                'remark': f'用户应用数据范围同步(user={user_id}, 整公司)',
+                'created_by': None,
+            },
+        )
+        return rule
+    dept_ids = [d for d in resolved if d != ALL_UNIT_SENTINEL]
+    if not dept_ids:
+        # 无可用部门范围 -> 不建 NEW 引擎规则, 回退 OLD 引擎 / SELF
+        return None
+    rule, _ = DataPermissionRule.objects.update_or_create(
+        id=f'uads_user_{user_id}',
+        defaults={
+            'dimension_type': DimensionType.USER,
+            'dimension_value': str(user_id),
+            'level': 'ROW',
+            'scope_type': RowScopeType.CUSTOM,
+            'scope_payload': {
+                'management_unit_ids': list(unit_ids),
+                'department_ids': sorted(dept_ids),
+            },
+            'priority': 50,
+            'status': 1,
+            'remark': f'用户应用数据范围同步(user={user_id})',
+            'created_by': None,
+        },
+    )
+    return rule
+
+
+def _rebuild_user_rules(user_id):
+    """重建某用户的管理单元数据范围规则: 有范围则 upsert, 无范围则删除回退 OLD 引擎."""
+    unit_ids = _collect_user_unit_ids(user_id)
+    if unit_ids:
+        return _sync_user_data_rule(user_id, unit_ids)
+    DataPermissionRule.objects.filter(id=f'uads_user_{user_id}').delete()
+    return None
+
+
 class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """方案 A(2026-09-15): 用户-角色-应用 数据范围(管理单元)读写.
 
     路由 /api/v1/user-app-data-scopes/ (对齐北森图12 按应用管理单元).
     - list: 支持 ?user_id=&role_code=&app_code= 过滤.
-    - create: upsert by (user_id, role_code, app_code), 写入 management_unit_ids.
+    - create: upsert by (user_id, role_code, app_code), 写入 management_unit_ids;
+             同时把该用户的全部管理单元范围镜像成 DataPermissionRule(USER 维度),
+             接进 enforcement.row_filter_q 执行面.
+    - destroy: 删除后重建该用户规则 (无范围则清规则回退 OLD 引擎).
     """
 
     queryset = UserAppDataScope.objects.all()
@@ -426,7 +501,17 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 'granted_by_id': request.user.id,
             },
         )
+        # 方案 A M4: 同步镜像该用户全部管理单元范围到 DataPermissionRule 执行面
+        _rebuild_user_rules(user_id)
         return Response(
             {'success': True, 'data': self.get_serializer(obj).data},
             status=http_status.HTTP_201_CREATED,
         )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        uid = instance.user_id
+        self.perform_destroy(instance)
+        # 方案 A M4: 删除后重建该用户规则 (无范围则清规则, 回退 OLD 引擎)
+        _rebuild_user_rules(uid)
+        return Response({'success': True, 'data': None})

@@ -121,7 +121,17 @@ def row_filter_q(user, scope_field: str = '', creator_field: str = 'created_by')
                 q |= Q(**{target: dept_ids})
         elif r.scope_type == RowScopeType.CUSTOM:
             payload = r.scope_payload or {}
-            dept_ids = payload.get('department_ids') or []
+            # scope_payload 可能含 department_ids(直接) 或 management_unit_ids(需经 org_scope 解析).
+            # 两者可并存, 合并去重. 部门 id 统一字符串化 (与 department_id CharField 一致).
+            dept_ids = [str(d) for d in (payload.get('department_ids') or [])]
+            mu_ids = payload.get('management_unit_ids') or []
+            if mu_ids:
+                try:
+                    from apps.core.scope_resolver import unit_ids_to_dept_ids
+                    dept_ids.extend(unit_ids_to_dept_ids(mu_ids))
+                except Exception:  # noqa: BLE001
+                    logger.warning('解析 management_unit_ids 的 org_scope 失败, 跳过该部分')
+            dept_ids = list(dict.fromkeys(dept_ids))  # 去重保序
             if dept_ids:
                 target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
                 q |= Q(**{target: dept_ids})

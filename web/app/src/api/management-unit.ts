@@ -57,10 +57,12 @@ export interface ManagementUnitTreeNode {
 
 /** sync-data-rules 返回 */
 export interface SyncDataRulesResult {
-  ruleId: string;
+  ruleId: string | null;
   effectiveUnitIds: number[];
-  dimensionValue: string;
-  scopePayload: Record<string, any>;
+  ruleIds?: string[];
+  syncedUserCount?: number;
+  dimensionValue?: string;
+  scopePayload?: Record<string, any>;
 }
 
 // ===== API =====

@@ -176,3 +176,63 @@ def _dept_ids(user) -> list:
         ids.add(node.id)
         node = node.parent
     return list(ids)
+
+
+# 整公司级管理单元 (org_scope 形如 {"name":..., "level":"ROOT"}) 的标记 ——
+# 表示"可见全量数据", 由 _sync_user_data_rule 转成 ALL 规则.
+ALL_UNIT_SENTINEL = '__ALL__'
+
+# org_scope 为 dict 时, 可能内嵌部门列表的子键
+_DEPT_LIST_KEYS = ('department_ids', 'dept_ids', 'departments', 'org_ids')
+
+
+def unit_ids_to_dept_ids(unit_ids) -> list:
+    """方案 A M4(2026-09-15): 把 management_unit_ids 解析成部门 id 集合.
+
+    ManagementUnit.org_scope 实际存在两种口径 (历史 '全公司' 数据 + 方案 A 新增 UI 并存):
+      - list[str]: 部门 id 列表 (方案 A 新增 UI 的约定写法) -> 直接用作过滤 dept ids;
+      - dict: 描述型对象.
+          * 若含部门列表子键 (department_ids/dept_ids/departments/org_ids 且为 list) -> 取其列表;
+          * 若为顶层单元 (level=='ROOT'/'ALL' 或 type=='ALL') -> 视为"整公司可见",
+            返回 [ALL_UNIT_SENTINEL];
+          * 其它 dict 形状无法解析 -> 忽略 (不放行, 也不泄漏 dict key).
+      - 其它类型 (str / None / ...) -> 忽略.
+
+    关键修复(2026-09-15 运行时实测暴露): 旧写法 `dept_ids.update(u.org_scope or [])`
+    在 org_scope 为 dict 时把 dict 的 KEY 当部门 id 泄漏进过滤条件 (如 'level'/'name'),
+    导致 row_filter_q 产生错误且无害(匹配不到)的 Q. 本函数对 dict 严格按上述规则解析,
+    绝不泄漏 key.
+
+    - 空输入返回 [];
+    - ManagementUnit 查询异常 (V2 schema 未应用) 时 fail-safe 返回 [], 不静默放行;
+    - 返回字符串化 dept id (与 department_id CharField 一致).
+    """
+    if not unit_ids:
+        return []
+    try:
+        from .models_permission_v2 import ManagementUnit
+        dept_ids = set()
+        has_all = False
+        for u in ManagementUnit.objects.filter(id__in=list(unit_ids), status=1):
+            os_ = u.org_scope
+            if isinstance(os_, list):
+                dept_ids.update(str(d) for d in os_)
+            elif isinstance(os_, dict):
+                sub = None
+                for k in _DEPT_LIST_KEYS:
+                    if k in os_ and isinstance(os_[k], list):
+                        sub = os_[k]
+                        break
+                if sub is not None:
+                    dept_ids.update(str(d) for d in sub)
+                elif (str(os_.get('level', '')).upper() in ('ROOT', 'ALL')
+                      or str(os_.get('type', '')).upper() == 'ALL'):
+                    has_all = True
+                # 其它 dict 形状: 无法解析, 跳过 (不泄漏 key)
+            # 其它类型: 跳过
+        if has_all:
+            return [ALL_UNIT_SENTINEL]
+        return [str(d) for d in dept_ids]
+    except (OperationalError, ProgrammingError) as e:
+        logger.warning('[unit_ids_to_dept_ids] ManagementUnit 查询失败, fail-safe 返回空: %s', e)
+        return []

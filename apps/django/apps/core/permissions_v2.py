@@ -3,7 +3,7 @@ from django.db.utils import OperationalError, ProgrammingError
 from rest_framework.permissions import BasePermission
 
 from .permission_check import has_perm
-from .scope_resolver import resolve_scope
+from .scope_resolver import resolve_scope, unit_ids_to_dept_ids, ALL_UNIT_SENTINEL
 from .role_v2_query import is_super_admin
 from .models_permission_v2 import ManagementUnit
 
@@ -62,11 +62,13 @@ class ScopeQuerysetMixin:
             # SELF 兜底: 仅自己创建的
             return qs.filter(created_by=user)
 
-        # 把 management_unit_ids 转 dept_id 集合
+        # 把 management_unit_ids 转 dept_id 集合 (复用 type-safe 解析, 避免 dict org_scope
+        # 把 key 当部门 id 泄漏进过滤条件). 整公司级单元(ALL sentinel) -> 可见全量.
         try:
-            unit_dept_ids = set()
-            for u in ManagementUnit.objects.filter(id__in=unit_ids, status=1):
-                unit_dept_ids.update(u.org_scope or [])
+            resolved = unit_ids_to_dept_ids(unit_ids)
+            if ALL_UNIT_SENTINEL in resolved:
+                return qs
+            unit_dept_ids = set(d for d in resolved if d != ALL_UNIT_SENTINEL)
         except (OperationalError, ProgrammingError):
             # V2 schema 未应用 → ManagementUnit 表可能缺列. fallback SELF.
             return qs.filter(created_by=user)

@@ -657,8 +657,6 @@ urlpatterns = [
     # 2026-07-02: FE UserManagement.vue 分配MOU 弹窗调
     path('permissions/mous', permissions_mous_list, name='permissions-mous'),
     path('permissions/mous/', permissions_mous_list),
-    path('permissions/user-mous/<str:user_id>', permissions_user_mous, name='permissions-user-mous'),
-    path('permissions/user-mous/<str:user_id>/', permissions_user_mous),
 
     # FE URL 错拼 alias — 2026-07-01: FE 已修, 但保留短暂以防客户端缓存
     path('api/talent-pool/types', talent_pool_types, name='api-talent-pool-types'),
