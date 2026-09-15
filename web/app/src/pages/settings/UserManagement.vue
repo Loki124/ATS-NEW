@@ -159,7 +159,6 @@ import {
   LinkOutline,
   CloseOutline,
   ChatbubblesOutline,
-  CafeOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -200,9 +199,6 @@ interface User {
   wechatWorkUserId?: string;
   wechatWorkDeptId?: string;
   wechatWorkName?: string;
-  mochaUserId?: string;
-  mochaDeptId?: string;
-  mochaName?: string;
   permissionMode: string;
   createdAt: string;
 }
@@ -524,42 +520,6 @@ const handleUnbindWechatWork = async (userId: string) => {
   }
 };
 
-// 绑定摩卡
-const handleBindMocha = async (userId: string, mochaUserId: string) => {
-  try {
-    const data = await request(`/api/v1/users/${userId}/`, {
-      method: 'PUT',
-      body: JSON.stringify({ mochaUserId })
-    });
-    if (data?.success) {
-      message.success('摩卡绑定成功');
-      loadUsers();
-    } else {
-      message.error(data?.error || '绑定失败');
-    }
-  } catch (error) {
-    message.error('绑定失败');
-  }
-};
-
-// 解绑摩卡
-const handleUnbindMocha = async (userId: string) => {
-  try {
-    const data = await request(`/api/v1/users/${userId}/`, {
-      method: 'PUT',
-      body: JSON.stringify({ mochaUserId: null })
-    });
-    if (data?.success) {
-      message.success('摩卡解绑成功');
-      loadUsers();
-    } else {
-      message.error(data?.error || '解绑失败');
-    }
-  } catch (error) {
-    message.error('解绑失败');
-  }
-};
-
 // 打开MOU分配弹窗
 const openMouModal = async (userId: string) => {
   selectedUserId.value = userId;
@@ -627,43 +587,6 @@ const columns = computed(() => [
         onClick: () => {
           const input = prompt('请输入企微用户ID:');
           if (input) handleBindWechatWork(row.id, input);
-        }
-      }, {
-        default: () => '绑定',
-        icon: () => h(NIcon, { component: LinkOutline }),
-      });
-    }
-  },
-  {
-    title: '摩卡绑定',
-    key: 'mocha',
-    width: 150,
-    render: (row: User) => {
-      if (row.mochaUserId) {
-        return h(NSpace, { size: 'small' }, {
-          default: () => [
-            h(NTooltip, null, {
-              trigger: () => h(NTag, { type: 'info', size: 'small' }, {
-                default: () => row.mochaName || row.mochaUserId!.slice(0, 8),
-                icon: () => h(NIcon, { component: CafeOutline }),
-              }),
-              default: () => `ID: ${row.mochaUserId}`,
-            }),
-            h(NButton, {
-              text: true,
-              size: 'small',
-              onClick: () => handleUnbindMocha(row.id),
-            }, { default: () => h(NIcon, { component: CloseOutline }) }),
-          ],
-        });
-      }
-      return h(NButton, {
-        text: true,
-        type: 'primary',
-        size: 'small',
-        onClick: () => {
-          const input = prompt('请输入摩卡用户ID:');
-          if (input) handleBindMocha(row.id, input);
         }
       }, {
         default: () => '绑定',
