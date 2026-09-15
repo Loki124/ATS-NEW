@@ -72,6 +72,8 @@ def issue_code(email: str, full_name: str = '') -> EmailVerificationCode:
         status='ACTIVE',
     )
     _send_code_email(email, code, full_name)
+    if getattr(settings, 'DEBUG', False):
+        logger.info('[DEV] Register verification code for %s: %s', email, code)
     return rec
 
 
