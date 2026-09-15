@@ -9,8 +9,9 @@ from rest_framework import viewsets
 
 from .models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2,
+    ManagementUnit, UserRoleV2, UserAppDataScope,
 )
+from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
 from .permissions_v2 import V2Permission
 from .scope_resolver import resolve_scope
 
@@ -194,7 +195,36 @@ class RoleViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'data': self.get_serializer(role).data})
 
 
-class ManagementUnitViewSet(viewsets.ModelViewSet):
+class EnvelopeWriteMixin:
+    """写操作统一包 {success, data} 信封 (对齐本项目 V2 read 接口与前端 r.data.data 约定).
+
+    DRF 默认 create/update 直接返回序列化体, 不包信封会让前端 r.data.data 为 undefined.
+    参考 apps.library.views.EnvelopeWriteMixin, 在 core 内独立完成以避免跨 app 耦合.
+    """
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'success': True, 'data': serializer.data}, status=http_status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'success': True, 'data': serializer.data})
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response({'success': True, 'data': self.get_serializer(self.get_object()).data})
+
+    def destroy(self, request, *args, **kwargs):
+        self.perform_destroy(self.get_object())
+        return Response({'success': True, 'data': None})
+
+
+class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = ManagementUnit.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:mgmt_unit:list'
@@ -210,6 +240,82 @@ class ManagementUnitViewSet(viewsets.ModelViewSet):
         qs = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(qs, many=True)
         return Response({'success': True, 'data': serializer.data})
+
+    @action(detail=False, methods=['get'])
+    def tree(self, request):
+        """GET /api/v1/management-units/tree/ — 按 parent_id 返回嵌套树.
+
+        方案 A(2026-09-15): 前端 MouManagement 树形视图(对齐北森图1/2)直接消费.
+        """
+        units = list(self.filter_queryset(self.get_queryset()))
+        nodes = {
+            u.id: {
+                'id': u.id, 'unit_name': u.unit_name, 'unit_type': u.unit_type,
+                'parent_id': u.parent_id, 'status': u.status,
+                'org_scope': u.org_scope, 'personnel_scope': u.personnel_scope,
+                'children': [],
+            }
+            for u in units
+        }
+        roots = []
+        for node in nodes.values():
+            parent = nodes.get(node['parent_id'])
+            if parent:
+                parent['children'].append(node)
+            else:
+                roots.append(node)
+        return Response({'success': True, 'data': roots})
+
+    @action(detail=True, methods=['post'], url_path='sync-data-rules')
+    @transaction.atomic
+    def sync_data_rules(self, request, pk=None):
+        """POST /api/v1/management-units/{id}/sync-data-rules/
+
+        方案 A(2026-09-15): 把该管理单元的 org/personnel scope 同步为
+        DataPermissionRule(CUSTOM + management_unit_ids). 管理单元是配置面,
+        DataPermissionRule 是执行面.
+
+        有效单元集合 = 自身 + (include_children 时) 所有后代(按 parent_id BFS).
+        幂等: rule id = 'mgu_{unit.id}' (upsert).
+
+        注: enforcement.row_filter_q 当前消费 department_ids, 对 management_unit_ids
+        的消费由 M4 联调接入 —— 此处先落库镜像, 保证配置可持久化与可观测.
+        """
+        unit = self.get_object()
+        effective = [unit.id]
+        frontier = [unit.id]
+        while frontier:
+            children = list(ManagementUnit.objects.filter(parent_id__in=frontier, status=1))
+            nxt = [c.id for c in children if c.id not in effective]
+            for cid in nxt:
+                effective.append(cid)
+            frontier = nxt
+        effective = list(dict.fromkeys(effective))  # 去重保序
+
+        rule, _ = DataPermissionRule.objects.update_or_create(
+            id=f'mgu_{unit.id}',
+            defaults={
+                'dimension_type': DimensionType.ROLE,
+                'dimension_value': f'mgmt_unit:{unit.id}',
+                'level': 'ROW',
+                'scope_type': RowScopeType.CUSTOM,
+                'scope_payload': {'management_unit_ids': effective},
+                'priority': 50,
+                'status': 1,
+                'remark': f'管理单元[{unit.unit_name}] 同步',
+                'created_by': request.user.id,
+            },
+        )
+        return Response({
+            'success': True,
+            'data': {
+                'rule_id': rule.id,
+                'effective_unit_ids': effective,
+                'dimension_value': rule.dimension_value,
+                'scope_payload': rule.scope_payload,
+            },
+            'note': '配置面已落 DataPermissionRule 镜像; enforcement 消费 management_unit_ids 由 M4 联调接入',
+        })
 
 
 class UserRoleViewSet(viewsets.ModelViewSet):
@@ -231,9 +337,14 @@ class UserRoleViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def suggest_scope(self, request):
-        """GET /user-roles/suggest-scope/?user_id=X&role_code=Y"""
+        """GET /user-roles/suggest-scope/?user_id=X&role_code=Y[&app_code=Z]
+
+        方案 A(2026-09-15): 新增 app_code 透传, 按应用返回对应管理单元候选
+        (resolve_scope 在 app_code 命中 UserAppDataScope 时优先返回 per-app 范围).
+        """
         user_id = request.query_params.get('user_id')
         role_code = request.query_params.get('role_code')
+        app_code = request.query_params.get('app_code')
         if not (user_id and role_code):
             return Response({'success': False, 'message': 'user_id + role_code 必填'},
                             status=http_status.HTTP_400_BAD_REQUEST)
@@ -244,7 +355,7 @@ class UserRoleViewSet(viewsets.ModelViewSet):
             return Response({'success': False, 'message': 'user 不存在'},
                             status=http_status.HTTP_404_NOT_FOUND)
         try:
-            scope = resolve_scope(user)
+            scope = resolve_scope(user, app_code=app_code)
         except (OperationalError, ProgrammingError):
             scope = {}
         if scope.get('all'):
@@ -262,4 +373,60 @@ class UserRoleViewSet(viewsets.ModelViewSet):
             'suggested_unit_ids': [u['id'] for u in units],
             'derived_from': 'L4',
             'rationale': '兜底: 返回所有可用管理单元',
+            'app_code': app_code,
         })
+
+
+class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+    """方案 A(2026-09-15): 用户-角色-应用 数据范围(管理单元)读写.
+
+    路由 /api/v1/user-app-data-scopes/ (对齐北森图12 按应用管理单元).
+    - list: 支持 ?user_id=&role_code=&app_code= 过滤.
+    - create: upsert by (user_id, role_code, app_code), 写入 management_unit_ids.
+    """
+
+    queryset = UserAppDataScope.objects.all()
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:user_app_data_scope:list'
+    pagination_class = None
+
+    def get_serializer_class(self):
+        from .serializers_permission_v2 import UserAppDataScopeSerializer
+        return UserAppDataScopeSerializer
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        user_id = request.query_params.get('user_id')
+        role_code = request.query_params.get('role_code')
+        app_code = request.query_params.get('app_code')
+        if user_id is not None:
+            qs = qs.filter(user_id=user_id)
+        if role_code is not None:
+            qs = qs.filter(role_code=role_code)
+        if app_code is not None:
+            qs = qs.filter(app_code=app_code)
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        user_id = data.get('user_id')
+        role_code = data.get('role_code')
+        app_code = data.get('app_code')
+        system_code = data.get('system_code') or 'recruit'
+        if not all([user_id is not None, role_code, app_code]):
+            return Response(
+                {'success': False, 'message': 'user_id / role_code / app_code 必填'},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+        obj, _ = UserAppDataScope.objects.update_or_create(
+            user_id=user_id, role_code=role_code, app_code=app_code, system_code=system_code,
+            defaults={
+                'management_unit_ids': data.get('management_unit_ids'),
+                'granted_by_id': request.user.id,
+            },
+        )
+        return Response(
+            {'success': True, 'data': self.get_serializer(obj).data},
+            status=http_status.HTTP_201_CREATED,
+        )

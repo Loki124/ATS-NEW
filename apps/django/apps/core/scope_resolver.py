@@ -3,13 +3,13 @@ import logging
 
 from django.db.utils import OperationalError, ProgrammingError
 
-from .models_permission_v2 import UserRoleV2, RoleV2, TenantConfig
+from .models_permission_v2 import UserRoleV2, RoleV2, TenantConfig, UserAppDataScope
 from .models import Department
 
 logger = logging.getLogger(__name__)
 
 
-def resolve_scope(user, resource_code: str = None) -> dict:
+def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict:
     """返回下列三种形态之一:
 
       - {'all': True}                        全量可见
@@ -17,7 +17,8 @@ def resolve_scope(user, resource_code: str = None) -> dict:
       - {'management_unit_ids': list[int]}   按管理单元可见 (空 list = SELF 兜底)
 
     4 层堆栈 (从高到低优先级):
-      L1: user_role.management_unit_ids (非 NULL + 非空)
+      L1: user_role.management_unit_ids (非 NULL + 非空); 方案 A(2026-09-15) 起,
+          若传入 app_code 且 UserAppDataScope 有该应用的范围, 优先用 per-app 范围
       L2: role.default_data_scope_type (DB default NULL)
       L3: tenant_config 'GLOBAL_DEFAULT_DATA_SCOPE'
       L4: 硬编码兜底 'SELF'
@@ -61,6 +62,22 @@ def resolve_scope(user, resource_code: str = None) -> dict:
     except (OperationalError, ProgrammingError) as e:
         logger.exception('[scope_resolver] L1 user_roles 查询失败, fail-closed 到 SELF: %s', e)
         return {'management_unit_ids': []}
+
+    # --- 方案 A(2026-09-15): 按应用范围优先 ---
+    # app_code 命中 UserAppDataScope(per-app) 时优先返回其 management_unit_ids;
+    # 否则回退到下方全局兜底(UserRoleV2.management_unit_ids).
+    if app_code:
+        try:
+            app_units = []
+            for s in UserAppDataScope.objects.filter(
+                    user_id=user.pk, app_code=app_code, system_code='recruit'):
+                if s.management_unit_ids:
+                    app_units.extend(s.management_unit_ids or [])
+            if app_units:
+                return {'management_unit_ids': list(set(app_units))}
+        except (OperationalError, ProgrammingError):
+            # 表缺失/不可读 → 落在全局兜底
+            pass
 
     if explicit_units:
         return {'management_unit_ids': list(set(explicit_units))}

@@ -135,3 +135,56 @@ def test_l3_tenant_all_still_grants_when_no_error():
     )
     result = resolve_scope(u, 'recruit:candidate:list')
     assert result == {'all': True}
+
+
+# ===== 方案 A(2026-09-15): per-app 数据范围透传 (UserAppDataScope) =====
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_l1_per_app_scope_priority_over_global():
+    """方案 A: resolve_scope 透传 app_code 时, 命中 UserAppDataScope(per-app) 优先返回其
+    management_unit_ids; 不传 app_code 时回退 UserRoleV2 全局兜底; 传了无配置的 app_code 也回退全局.
+    """
+    from apps.core.scope_resolver import resolve_scope
+    from apps.core.models_permission_v2 import UserRoleV2, UserAppDataScope
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    u = User.objects.create_user(username='perapp', password='x', is_superuser=False)
+    # 全局兜底: UserRoleV2.management_unit_ids = [100]
+    UserRoleV2.objects.create(
+        user_id=u.pk, role_code='R_TEST', system_code='recruit', management_unit_ids=[100])
+    # per-app: campus -> [200]
+    UserAppDataScope.objects.create(
+        user_id=u.pk, role_code='R_TEST', app_code='campus',
+        system_code='recruit', management_unit_ids=[200])
+
+    # 1) app_code=campus -> per-app 优先
+    r1 = resolve_scope(u, 'recruit:candidate:list', app_code='campus')
+    assert r1 == {'management_unit_ids': [200]}, r1
+
+    # 2) 不传 app_code -> 全局兜底
+    r2 = resolve_scope(u, 'recruit:candidate:list')
+    assert r2 == {'management_unit_ids': [100]}, r2
+
+    # 3) app_code=无配置的 other -> 仍用全局兜底
+    r3 = resolve_scope(u, 'recruit:candidate:list', app_code='other')
+    assert r3 == {'management_unit_ids': [100]}, r3
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_management_unit_hierarchy_fields_roundtrip():
+    """方案 A: ManagementUnit.parent_id(树) + personnel_scope(JSON 谓词) 读写往返."""
+    from apps.core.models_permission_v2 import ManagementUnit
+
+    root = ManagementUnit.objects.create(
+        system_code='recruit', unit_name='根', unit_type='org', status=1,
+        personnel_scope={'op': 'or', 'rules': [{'dimension': 'employment', 'field': 'department', 'op': 'eq', 'value': 'D9'}]})
+    child = ManagementUnit.objects.create(
+        system_code='recruit', unit_name='子', unit_type='org', parent_id=root.id, status=1,
+        personnel_scope=None)
+    root.refresh_from_db()
+    child.refresh_from_db()
+    assert root.parent_id is None
+    assert child.parent_id == root.id
+    assert root.personnel_scope['rules'][0]['value'] == 'D9'

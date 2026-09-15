@@ -11,6 +11,7 @@ router.register(r'permissions/templates', views_permission_v2.PermissionTemplate
 router.register(r'roles', views_permission_v2.RoleViewSet, basename='v2-role')
 router.register(r'management-units', views_permission_v2.ManagementUnitViewSet, basename='v2-mgmt-unit')
 router.register(r'user-roles', views_permission_v2.UserRoleViewSet, basename='v2-user-role')
+router.register(r'user-app-data-scopes', views_permission_v2.UserAppDataScopeViewSet, basename='v2-user-app-data-scope')
 
 # 2026-07-12: ModelViewSet detail 路由 ^<res>/<pk>/$ 会抢在 ^<res>/<action>/$ 之前 match
 #   DRF @action(detail=False) 路由生成顺序晚于默认 detail pattern, 显式挂 collection action views
