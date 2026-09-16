@@ -374,6 +374,7 @@ import { listPersons } from '@/api/campusControl'
 import { useDepartmentStore, type Department } from '@/stores/department'
 
 const message = useMessage()
+const dialog = useDialog()
 const activeTab = ref('units')
 
 // ===== 管理单元树 =====
