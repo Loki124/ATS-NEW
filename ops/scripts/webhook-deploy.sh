@@ -41,21 +41,41 @@ _lock_age() {
   echo $(( $(date +%s) - mtime ))
 }
 
+# 递归杀整棵进程树: 子进程可能继承了 fd 9 上的 flock, 只杀父 PID 清不掉锁
+_kill_tree() {
+  local _pid="$1"
+  [ -z "$_pid" ] && return 0
+  local _c
+  for _c in $(pgrep -P "$_pid" 2>/dev/null); do
+    _kill_tree "$_c"
+  done
+  kill -9 "$_pid" 2>/dev/null || true
+}
+
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   _age=$(_lock_age)
   if [ "$_age" -gt "$LOCK_STALE_SECONDS" ]; then
     log "⚠ 检测到僵死锁 (已 ${_age}s > ${LOCK_STALE_SECONDS}s), 强制接管"
-    # 记录里的 PID 大概率已死/是子进程; rm 掉锁文件换新 inode 绕过旧 flock, 再抢一次
+    # 根因: 旧版只 kill 父 PID, 但持锁的 docker compose 子进程继承了 fd 9 上的 flock,
+    #        父进程死后子进程仍占着旧 inode 的锁 → 重新抢锁必败。改为递归杀整棵进程树。
     _holder=$(awk '{print $1}' "$LOCK_FILE" 2>/dev/null || true)
-    [ -n "$_holder" ] && kill -9 "$_holder" 2>/dev/null || true
+    if [ -n "$_holder" ]; then
+      log "   强制结束持锁进程树 PID=$_holder (含 docker 子进程)"
+      _kill_tree "$_holder"
+    fi
+    # 双保险: 反查所有仍持有该锁文件的进程(排除自身), 一并清理
+    for _pid in $(fuser "$LOCK_FILE" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$'); do
+      [ "$_pid" != "$$" ] && _kill_tree "$_pid"
+    done
+    sleep 2
     rm -f "$LOCK_FILE"
-    sleep 1
     exec 9>"$LOCK_FILE"
     if ! flock -n 9; then
       log "❌ 强制抢锁仍失败, 本次跳过"
       exit 0
     fi
+    log "   ✅ 已接管锁"
   else
     log "⚠ 已有部署在跑 (lock 被占, 已 ${_age}s), 本次跳过"
     exit 0
