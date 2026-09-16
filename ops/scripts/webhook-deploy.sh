@@ -52,7 +52,7 @@ _kill_tree() {
   kill -9 "$_pid" 2>/dev/null || true
 }
 
-exec 9>"$LOCK_FILE"
+exec 9>>"$LOCK_FILE"  # >> 避免截断重置 mtime; 僵死锁检测依赖 mtime 增长
 if ! flock -n 9; then
   _age=$(_lock_age)
   if [ "$_age" -gt "$LOCK_STALE_SECONDS" ]; then
@@ -70,7 +70,7 @@ if ! flock -n 9; then
     done
     sleep 2
     rm -f "$LOCK_FILE"
-    exec 9>"$LOCK_FILE"
+    exec 9>>"$LOCK_FILE"
     if ! flock -n 9; then
       log "❌ 强制抢锁仍失败, 本次跳过"
       exit 0
