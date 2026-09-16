@@ -3,7 +3,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from apps.core.models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, UserAppDataScope, TenantConfig,
+    ManagementUnit, UserRoleV2, TenantConfig,
 )
 
 
@@ -83,27 +83,27 @@ class TestV2ModelsSmoke:
         assert child.parent_id == root.id
 
     def test_user_app_data_scope_unique(self):
-        """方案 A M1: (user_id, role_code, app_code) 唯一约束生效。
+        """合并后: app_data_scopes 以 app_code 为 dict key, 同一 (user,role) 下天然唯一;
 
-        SQLite 上捕获 IntegrityError 会中断原子事务, 故与 test_create_resource_unique_code
-        一致 —— 在 with pytest.raises 后不再发起任何查询, 由 teardown 回滚。
-        唯一约束在 MySQL 后端已由 uk_user_role_app 强制。
+        upsert 同 app_code 仅替换列表, 不产生重复 key。
         """
-        UserAppDataScope.objects.create(
-            user_id=1, role_code='R1', app_code='recruit', management_unit_ids=[1, 2],
+        ur = UserRoleV2.objects.create(
+            user_id=1, role_code='R1', system_code='recruit',
+            app_data_scopes={'recruit': [1, 2]},
         )
-        with pytest.raises(Exception):  # IntegrityError: 重复 (user,role,app)
-            UserAppDataScope.objects.create(
-                user_id=1, role_code='R1', app_code='recruit', management_unit_ids=[3],
-            )
+        scopes = ur.app_data_scopes or {}
+        scopes['recruit'] = [3]  # upsert 同 key -> 替换
+        ur.app_data_scopes = scopes
+        ur.save()
+        ur.refresh_from_db()
+        assert set(ur.app_data_scopes.keys()) == {'recruit'}
+        assert ur.app_data_scopes['recruit'] == [3]
 
     def test_user_app_data_scope_per_app_coexists(self):
-        """方案 A M1: 不同 app_code 对同一 (user, role) 可并存。"""
-        UserAppDataScope.objects.create(
-            user_id=1, role_code='R1', app_code='recruit', management_unit_ids=[1, 2],
+        """合并后: 同一 (user, role) 下不同 app_code 作为 dict key 并存。"""
+        ur = UserRoleV2.objects.create(
+            user_id=1, role_code='R1', system_code='recruit',
+            app_data_scopes={'recruit': [1, 2], 'campus': [9]},
         )
-        UserAppDataScope.objects.create(
-            user_id=1, role_code='R1', app_code='campus', management_unit_ids=[9],
-        )
-        assert UserAppDataScope.objects.filter(user_id=1, role_code='R1').count() == 2
+        assert set(ur.app_data_scopes.keys()) == {'recruit', 'campus'}
 

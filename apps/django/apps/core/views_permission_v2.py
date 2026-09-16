@@ -1,4 +1,7 @@
 """V2 权限系统 ViewSets + function views."""
+import base64
+import json
+
 from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
 from rest_framework import status as http_status
@@ -10,7 +13,7 @@ from django.shortcuts import get_object_or_404
 
 from .models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, UserAppDataScope, ManagementUnitMember,
+    ManagementUnit, UserRoleV2, ManagementUnitMember,
 )
 from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
 from .permissions_v2 import V2Permission
@@ -296,8 +299,12 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
 
         # 扫描引用该单元的全部分配, 收集受影响 user_id (按用户重建规则, 防跨用户越权)
         user_ids = set()
-        for s in UserAppDataScope.objects.filter(management_unit_ids__contains=[unit.id]):
-            user_ids.add(s.user_id)
+        for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit.id]):
+            user_ids.add(ur.user_id)
+        for ur in UserRoleV2.objects.exclude(app_data_scopes__isnull=True):
+            scopes = ur.app_data_scopes or {}
+            if scopes and any(unit.id in (ids or []) for ids in scopes.values()):
+                user_ids.add(ur.user_id)
         for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit.id]):
             user_ids.add(ur.user_id)
 
@@ -400,7 +407,7 @@ class UserRoleViewSet(viewsets.ModelViewSet):
         """GET /user-roles/suggest-scope/?user_id=X&role_code=Y[&app_code=Z]
 
         方案 A(2026-09-15): 新增 app_code 透传, 按应用返回对应管理单元候选
-        (resolve_scope 在 app_code 命中 UserAppDataScope 时优先返回 per-app 范围).
+        (resolve_scope 在 app_code 命中 UserRoleV2.app_data_scopes 时优先返回 per-app 范围).
         """
         user_id = request.query_params.get('user_id')
         role_code = request.query_params.get('role_code')
@@ -438,12 +445,16 @@ class UserRoleViewSet(viewsets.ModelViewSet):
 
 
 def _collect_user_unit_ids(user_id):
-    """方案 A M4: 汇总某用户全部管理单元范围 (UserAppDataScope per-app + UserRoleV2 全局兜底)."""
+    """汇总某用户全部管理单元范围 (UserRoleV2.app_data_scopes per-app + management_unit_ids 全局兜底).
+
+    UserAppDataScope 表已合并进 UserRoleV2.app_data_scopes(JSON), 此处统一读取.
+    """
     unit_ids = set()
-    for s in UserAppDataScope.objects.filter(user_id=user_id):
-        unit_ids.update(s.management_unit_ids or [])
     for ur in UserRoleV2.objects.filter(user_id=user_id):
         unit_ids.update(ur.management_unit_ids or [])
+        scopes = ur.app_data_scopes or {}
+        for ids in scopes.values():
+            unit_ids.update(ids or [])
     return sorted(unit_ids)
 
 
@@ -509,12 +520,18 @@ def _sync_user_data_rule(user_id, unit_ids):
 
 
 def _rebuild_rules_for_unit(unit_id):
-    """管理单元成员变更后, 重建所有引用该单元的用户执行面规则."""
+    """管理单元成员变更后, 重建所有引用该单元的用户执行面规则.
+
+    UserAppDataScope 已合并进 UserRoleV2.app_data_scopes: 命中条件为
+    management_unit_ids 含 unit_id, 或任一 app_data_scopes[app] 列表含 unit_id.
+    """
     user_ids = set()
-    for s in UserAppDataScope.objects.filter(management_unit_ids__contains=[unit_id]):
-        user_ids.add(s.user_id)
     for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit_id]):
         user_ids.add(ur.user_id)
+    for ur in UserRoleV2.objects.exclude(app_data_scopes__isnull=True):
+        scopes = ur.app_data_scopes or {}
+        if scopes and any(unit_id in (ids or []) for ids in scopes.values()):
+            user_ids.add(ur.user_id)
     for uid in user_ids:
         _rebuild_user_rules(uid)
 
@@ -536,18 +553,69 @@ def _rebuild_user_rules(user_id):
     return None
 
 
-class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
-    """方案 A(2026-09-15): 用户-角色-应用 数据范围(管理单元)读写.
+def _make_app_scope_pk(user_id, role_code, app_code):
+    """为 (user_id, role_code, app_code) 生成稳定且可逆的 synthetic id (供前端 DELETE 定位)."""
+    raw = json.dumps(
+        {'u': user_id, 'r': role_code, 'a': app_code},
+        separators=(',', ':'), ensure_ascii=False,
+    ).encode('utf-8')
+    return base64.urlsafe_b64encode(raw).decode('ascii').rstrip('=')
 
-    路由 /api/v1/user-app-data-scopes/ (对齐北森图12 按应用管理单元).
-    - list: 支持 ?user_id=&role_code=&app_code= 过滤.
-    - create: upsert by (user_id, role_code, app_code), 写入 management_unit_ids;
-             同时把该用户的全部管理单元范围镜像成 DataPermissionRule(USER 维度),
-             接进 enforcement.row_filter_q 执行面.
-    - destroy: 删除后重建该用户规则 (无范围则清规则回退 OLD 引擎).
+
+def _parse_app_scope_pk(pk):
+    """解析 synthetic id -> (user_id, role_code, app_code); 失败返回 (None, None, None)."""
+    if not pk:
+        return None, None, None
+    try:
+        padded = pk + '=' * (-len(pk) % 4)
+        d = json.loads(base64.urlsafe_b64decode(padded.encode('ascii')).decode('utf-8'))
+        return d.get('u'), d.get('r'), d.get('a')
+    except Exception:
+        return None, None, None
+
+
+def _build_app_scope_rows(user_id=None, role_code=None, app_code=None):
+    """从 UserRoleV2.app_data_scopes 合成 per-app 数据范围行 (沿用旧 UserAppDataScope 字段形状)."""
+    from .serializers_permission_v2 import UserAppDataScopeSerializer
+
+    rows = []
+    qs = UserRoleV2.objects.all()
+    if user_id is not None:
+        qs = qs.filter(user_id=user_id)
+    if role_code is not None:
+        qs = qs.filter(role_code=role_code)
+    for ur in qs:
+        scopes = ur.app_data_scopes or {}
+        for ac, ids in scopes.items():
+            if app_code is not None and ac != app_code:
+                continue
+            rows.append({
+                'id': _make_app_scope_pk(ur.user_id, ur.role_code, ac),
+                'user_id': ur.user_id,
+                'role_code': ur.role_code,
+                'system_code': ur.system_code or 'recruit',
+                'app_code': ac,
+                'management_unit_ids': ids,
+                'granted_by_id': ur.granted_by_id,
+                'granted_at': ur.granted_at,
+                'updated_at': ur.updated_at,
+            })
+    return UserAppDataScopeSerializer(rows, many=True).data
+
+
+class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+    """用户-角色-应用 数据范围(管理单元)读写.
+
+    路由 /api/v1/user-app-data-scopes/ 契约保持不变(对齐北森图12 按应用管理单元):
+    - list: 支持 ?user_id=&role_code=&app_code= 过滤, 返回行形如旧 UserAppDataScope;
+    - create: upsert by (user_id, role_code, app_code), 写入 UserRoleV2.app_data_scopes[app_code];
+             同时把该用户全部管理单元范围镜像成 DataPermissionRule(USER 维度)接进执行面;
+    - destroy: 移除对应 per-app 项并重建该用户规则.
+
+    数据源已从独立 user_app_data_scope 表合并进 UserRoleV2.app_data_scopes(JSON).
     """
 
-    queryset = UserAppDataScope.objects.all()
+    queryset = UserRoleV2.objects.none()
     permission_classes = [V2Permission]
     permission_required = 'recruit:user_app_data_scope:list'
     pagination_class = None
@@ -557,18 +625,16 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         return UserAppDataScopeSerializer
 
     def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
-        user_id = request.query_params.get('user_id')
+        uid = request.query_params.get('user_id')
+        user_id = None
+        if uid not in (None, ''):
+            try:
+                user_id = int(uid)
+            except ValueError:
+                user_id = None
         role_code = request.query_params.get('role_code')
         app_code = request.query_params.get('app_code')
-        if user_id is not None:
-            qs = qs.filter(user_id=user_id)
-        if role_code is not None:
-            qs = qs.filter(role_code=role_code)
-        if app_code is not None:
-            qs = qs.filter(app_code=app_code)
-        serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return Response({'success': True, 'data': _build_app_scope_rows(user_id, role_code, app_code)})
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -581,24 +647,44 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 {'success': False, 'message': 'user_id / role_code / app_code 必填'},
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
-        obj, _ = UserAppDataScope.objects.update_or_create(
-            user_id=user_id, role_code=role_code, app_code=app_code, system_code=system_code,
-            defaults={
-                'management_unit_ids': data.get('management_unit_ids'),
-                'granted_by_id': request.user.id,
-            },
+        ur, _ = UserRoleV2.objects.get_or_create(
+            user_id=user_id, role_code=role_code, system_code=system_code,
+            defaults={'management_unit_ids': None},
         )
-        # 方案 A M4: 同步镜像该用户全部管理单元范围到 DataPermissionRule 执行面
+        scopes = ur.app_data_scopes or {}
+        scopes[app_code] = data.get('management_unit_ids')
+        ur.app_data_scopes = scopes
+        ur.save()
+        # 同步镜像该用户全部管理单元范围到 DataPermissionRule 执行面
         _rebuild_user_rules(user_id)
+        row = {
+            'id': _make_app_scope_pk(ur.user_id, ur.role_code, app_code),
+            'user_id': ur.user_id,
+            'role_code': ur.role_code,
+            'system_code': ur.system_code or 'recruit',
+            'app_code': app_code,
+            'management_unit_ids': data.get('management_unit_ids'),
+            'granted_by_id': ur.granted_by_id,
+            'granted_at': ur.granted_at,
+            'updated_at': ur.updated_at,
+        }
         return Response(
-            {'success': True, 'data': self.get_serializer(obj).data},
+            {'success': True, 'data': self.get_serializer(row).data},
             status=http_status.HTTP_201_CREATED,
         )
 
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        uid = instance.user_id
-        self.perform_destroy(instance)
-        # 方案 A M4: 删除后重建该用户规则 (无范围则清规则, 回退 OLD 引擎)
-        _rebuild_user_rules(uid)
+        user_id, role_code, app_code = _parse_app_scope_pk(kwargs.get('pk'))
+        if user_id is None:
+            return Response(
+                {'success': False, 'message': '无效的 id'},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+        ur = UserRoleV2.objects.filter(user_id=user_id, role_code=role_code).first()
+        if ur:
+            scopes = ur.app_data_scopes or {}
+            scopes.pop(app_code, None)
+            ur.app_data_scopes = scopes
+            ur.save()
+            _rebuild_user_rules(user_id)
         return Response({'success': True, 'data': None})

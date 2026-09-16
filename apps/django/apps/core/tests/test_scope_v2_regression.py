@@ -145,18 +145,15 @@ def test_l1_per_app_scope_priority_over_global():
     management_unit_ids; 不传 app_code 时回退 UserRoleV2 全局兜底; 传了无配置的 app_code 也回退全局.
     """
     from apps.core.scope_resolver import resolve_scope
-    from apps.core.models_permission_v2 import UserRoleV2, UserAppDataScope
+    from apps.core.models_permission_v2 import UserRoleV2
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
     u = User.objects.create_user(username='perapp', password='x', is_superuser=False)
-    # 全局兜底: UserRoleV2.management_unit_ids = [100]
+    # 全局兜底: UserRoleV2.management_unit_ids = [100]; per-app: campus -> [200]
     UserRoleV2.objects.create(
-        user_id=u.pk, role_code='R_TEST', system_code='recruit', management_unit_ids=[100])
-    # per-app: campus -> [200]
-    UserAppDataScope.objects.create(
-        user_id=u.pk, role_code='R_TEST', app_code='campus',
-        system_code='recruit', management_unit_ids=[200])
+        user_id=u.pk, role_code='R_TEST', system_code='recruit',
+        management_unit_ids=[100], app_data_scopes={'campus': [200]})
 
     # 1) app_code=campus -> per-app 优先
     r1 = resolve_scope(u, 'recruit:candidate:list', app_code='campus')

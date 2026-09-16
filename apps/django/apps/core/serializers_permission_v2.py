@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from .models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, UserAppDataScope, ManagementUnitMember,
+    ManagementUnit, UserRoleV2, ManagementUnitMember,
 )
 
 
@@ -130,15 +130,20 @@ class UserRoleSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class UserAppDataScopeSerializer(serializers.ModelSerializer):
-    """方案 A(2026-09-15): 用户-角色-应用 的数据范围(管理单元)绑定.
+class UserAppDataScopeSerializer(serializers.Serializer):
+    """合成序列化器: 原 UserAppDataScope 表已合并进 UserRoleV2.app_data_scopes(JSON).
 
-    对齐北森图12「按应用管理单元」: 同一用户对同一角色, 在不同应用/模块
-    (recruit/social/campus/referral...) 可见不同的管理单元集合.
+    此处仅用于保持 /api/v1/user-app-data-scopes/ 的响应契约(字段名沿用旧表),
+    序列化输入为合成的 dict(由 views_permission_v2._build_app_scope_rows 组装),
+    CamelCase 渲染层会将其转为前端消费的 camelCase 键.
     """
 
-    class Meta:
-        model = UserAppDataScope
-        fields = ['id', 'user_id', 'role_code', 'system_code', 'app_code',
-                  'management_unit_ids', 'granted_by_id', 'granted_at', 'updated_at']
-        read_only_fields = ['id', 'granted_at', 'updated_at']
+    id = serializers.CharField(read_only=True)
+    user_id = serializers.IntegerField()
+    role_code = serializers.CharField()
+    system_code = serializers.CharField(default='recruit')
+    app_code = serializers.CharField()
+    management_unit_ids = serializers.JSONField(required=False, allow_null=True)
+    granted_by_id = serializers.IntegerField(required=False, allow_null=True)
+    granted_at = serializers.DateTimeField(required=False, allow_null=True)
+    updated_at = serializers.DateTimeField(required=False, allow_null=True)

@@ -17,7 +17,7 @@ from apps.core.role_v2_query import is_super_admin
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_management_unit_scope_reaches_enforcement():
-    from apps.core.models_permission_v2 import ManagementUnit, UserAppDataScope
+    from apps.core.models_permission_v2 import ManagementUnit, UserRoleV2
     from apps.core.scope_resolver import resolve_scope, unit_ids_to_dept_ids
     from apps.core.views_permission_v2 import _rebuild_user_rules
     from apps.data_permission.models import DimensionType
@@ -35,12 +35,11 @@ def test_management_unit_scope_reaches_enforcement():
         org_scope=['D1', 'D2'],
         status=1,
     )
-    UserAppDataScope.objects.create(
+    UserRoleV2.objects.create(
         user_id=u.pk,
         role_code='R_E',
-        app_code='campus',
         system_code='recruit',
-        management_unit_ids=[unit.id],
+        app_data_scopes={'campus': [unit.id]},
         granted_by_id=1,
     )
 
@@ -71,7 +70,6 @@ def test_management_unit_scope_reaches_enforcement():
 @pytest.mark.v2_permission
 def test_rebuild_user_rules_clears_when_no_scope():
     """无范围时删除规则, 回退 OLD 引擎 (row_filter_q 返回 None)."""
-    from apps.core.models_permission_v2 import UserAppDataScope
     from apps.core.views_permission_v2 import _rebuild_user_rules
     from apps.data_permission.enforcement import row_filter_q
     from django.contrib.auth import get_user_model
@@ -95,7 +93,7 @@ def test_rebuild_user_rules_clears_when_no_scope():
 @pytest.mark.v2_permission
 def test_unit_all_company_resolves_to_all_rule():
     """整公司级单元 (org_scope={'level':'ROOT'}) -> ALL 规则 (可见全量), 非泄漏 key."""
-    from apps.core.models_permission_v2 import ManagementUnit, UserAppDataScope
+    from apps.core.models_permission_v2 import ManagementUnit, UserRoleV2
     from apps.core.scope_resolver import unit_ids_to_dept_ids, ALL_UNIT_SENTINEL
     from apps.core.views_permission_v2 import _rebuild_user_rules
     from apps.data_permission.models import DimensionType, RowScopeType
@@ -110,9 +108,9 @@ def test_unit_all_company_resolves_to_all_rule():
         unit_name='全公司测试', system_code='recruit', unit_type='org',
         org_scope={'name': '全公司测试', 'level': 'ROOT'}, status=1,
     )
-    UserAppDataScope.objects.create(
-        user_id=u.pk, role_code='R_ALL', app_code='campus',
-        system_code='recruit', management_unit_ids=[unit.id], granted_by_id=1,
+    UserRoleV2.objects.create(
+        user_id=u.pk, role_code='R_ALL', system_code='recruit',
+        app_data_scopes={'campus': [unit.id]}, granted_by_id=1,
     )
 
     # helper: ROOT dict -> ALL sentinel (绝不泄漏 name/level 当 dept id)
@@ -134,7 +132,7 @@ def test_unit_all_company_resolves_to_all_rule():
 @pytest.mark.v2_permission
 def test_unit_dict_unknown_shape_no_leak():
     """dict 但无可解析 dept 子键且非整公司 -> 不泄漏 key, 不建 NEW 引擎规则 (回退)."""
-    from apps.core.models_permission_v2 import ManagementUnit, UserAppDataScope
+    from apps.core.models_permission_v2 import ManagementUnit, UserRoleV2
     from apps.core.scope_resolver import unit_ids_to_dept_ids
     from apps.core.views_permission_v2 import _rebuild_user_rules
     from apps.data_permission.models import DataPermissionRule
@@ -148,9 +146,9 @@ def test_unit_dict_unknown_shape_no_leak():
         unit_name='怪异单元', system_code='recruit', unit_type='org',
         org_scope={'foo': 'bar', 'baz': 1, 'level': 'TEAM'}, status=1,
     )
-    UserAppDataScope.objects.create(
-        user_id=u.pk, role_code='R_W', app_code='campus',
-        system_code='recruit', management_unit_ids=[unit.id], granted_by_id=1,
+    UserRoleV2.objects.create(
+        user_id=u.pk, role_code='R_W', system_code='recruit',
+        app_data_scopes={'campus': [unit.id]}, granted_by_id=1,
     )
 
     # 不应把 foo/baz/level 当 dept id 泄漏

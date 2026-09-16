@@ -3,7 +3,7 @@ import logging
 
 from django.db.utils import OperationalError, ProgrammingError
 
-from .models_permission_v2 import UserRoleV2, RoleV2, TenantConfig, UserAppDataScope
+from .models_permission_v2 import UserRoleV2, RoleV2, TenantConfig
 from .models import Department
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict
 
     4 层堆栈 (从高到低优先级):
       L1: user_role.management_unit_ids (非 NULL + 非空); 方案 A(2026-09-15) 起,
-          若传入 app_code 且 UserAppDataScope 有该应用的范围, 优先用 per-app 范围
+          若传入 app_code 且 UserRoleV2.app_data_scopes 有该应用的范围, 优先用 per-app 范围
       L2: role.default_data_scope_type (DB default NULL)
       L3: tenant_config 'GLOBAL_DEFAULT_DATA_SCOPE'
       L4: 硬编码兜底 'SELF'
@@ -64,15 +64,17 @@ def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict
         return {'management_unit_ids': []}
 
     # --- 方案 A(2026-09-15): 按应用范围优先 ---
-    # app_code 命中 UserAppDataScope(per-app) 时优先返回其 management_unit_ids;
+    # app_code 命中 UserRoleV2.app_data_scopes(per-app) 时优先返回其 management_unit_ids;
     # 否则回退到下方全局兜底(UserRoleV2.management_unit_ids).
+    # 数据源已合并进 UserRoleV2.app_data_scopes(独立 user_app_data_scope 表已删除).
     if app_code:
         try:
             app_units = []
-            for s in UserAppDataScope.objects.filter(
-                    user_id=user.pk, app_code=app_code, system_code='recruit'):
-                if s.management_unit_ids:
-                    app_units.extend(s.management_unit_ids or [])
+            for ur in UserRoleV2.objects.filter(user_id=user.pk):
+                scopes = ur.app_data_scopes or {}
+                ids = scopes.get(app_code)
+                if ids:
+                    app_units.extend(ids or [])
             if app_units:
                 return {'management_unit_ids': list(set(app_units))}
         except (OperationalError, ProgrammingError):
