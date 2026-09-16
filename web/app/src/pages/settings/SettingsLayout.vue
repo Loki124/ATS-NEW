@@ -133,11 +133,11 @@ const subMenuOptions: MenuItem[] = [
         label: '候选人信息管理',
         icon: () => h(NIcon, null, { default: () => h(FileTrayFullOutline) }),
         children: [
+          { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
           { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
           { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/duplicate-candidate', label: '简历查重规则', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
-          { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
       {
@@ -147,9 +147,9 @@ const subMenuOptions: MenuItem[] = [
         label: '招聘需求管理',
         icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }),
         children: [
+          { key: '/settings/demand-dynamic-fields', label: '需求字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
           { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
-          { key: '/settings/demand-dynamic-fields', label: '需求字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
         ],
       },
       {
@@ -158,8 +158,8 @@ const subMenuOptions: MenuItem[] = [
         label: '职位信息管理',
         icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }),
         children: [
-          { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
           { key: '/settings/position-dynamic-fields', label: '职位字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
         ],
       },
       { key: '/settings/interview-management', label: '面试管理', icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },

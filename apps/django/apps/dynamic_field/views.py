@@ -126,6 +126,17 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                     rec[json_field] = json.loads(v)
                 except Exception:  # noqa: BLE001
                     rec[json_field] = []
+        # 2026-09-16 兼容归一化: 迁移前旧 CSV 用 REGION_PROVINCE/CITY/DISTRICT 三值,
+        # 现已合并为单类型 REGION + region_level。旧值导入时改写, 避免 choices 校验失败。
+        _OLD_REGION_MAP = {
+            'REGION_PROVINCE': 'PROVINCE',
+            'REGION_PROVINCE_CITY': 'CITY',
+            'REGION_PROVINCE_CITY_DISTRICT': 'DISTRICT',
+        }
+        _ft = rec.get('field_type')
+        if _ft in _OLD_REGION_MAP:
+            rec['field_type'] = 'REGION'
+            rec.setdefault('region_level', _OLD_REGION_MAP[_ft])
         return rec
 
     # --- 基础 ---------------------------------------------------------------

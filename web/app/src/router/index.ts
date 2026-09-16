@@ -140,6 +140,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'scoring', name: 'ScoringRules', component: () => import(/* webpackChunkName: "settings-scoring" */ '../pages/settings/ScoringRules.vue') },
           // ===== 过程管理新增模块（内容留空待建，复用 Placeholder 经 meta 定制标题）=====
           { path: 'position-info', name: 'PositionInfo', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '职位信息管理', description: '职位分类、职位模板与 JD 库维护（规划中）' } },
+          { path: 'position-dynamic-fields', name: 'PositionDynamicFields', component: () => import(/* webpackChunkName: "settings-position-dynamic-fields" */ '../pages/settings/PositionDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'interview-management', name: 'InterviewManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '面试管理', description: '面试形式、面试评价表与面试官资源管理（规划中）' } },
           { path: 'offer-management', name: 'OfferManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: 'Offer管理', description: 'Offer 模板、审批流与薪酬结构配置（规划中）' } },
           { path: 'recruit-category', name: 'RecruitCategory', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '招聘分类信息', description: '招聘业务分类维度维护，数据字典归属于此（规划中）' } },
