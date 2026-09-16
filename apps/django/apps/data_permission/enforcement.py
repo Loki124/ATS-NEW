@@ -135,7 +135,13 @@ def row_filter_q(user, scope_field: str = '', creator_field: str = 'created_by')
             if dept_ids:
                 target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
                 q |= Q(**{target: dept_ids})
-    # 若没有任何规则能解析出有效范围 (如 DEPT 规则但用户无部门) → 回退旧引擎
+            # 新增(2026-09-16): 管理单元 USER 成员真实生效 -> created_by__in=user_ids
+            user_ids = [int(u) for u in (payload.get('user_ids') or []) if str(u).isdigit()]
+            if user_ids:
+                # 注意: 必须是 created_by__in=[...] 而非 created_by=[...];
+                # Django 不会把列表值自动转成 IN, Q(created_by=[...]) 在编译期抛 TypeError.
+                q |= Q(**{f'{creator_field}__in': user_ids})
+    # 若没有任何规则能解析出有效范围 (如 DEPT 规则但用户无部门, 且无可生效 USER 成员) → 回退旧引擎
     return q if q.children else None
 
 

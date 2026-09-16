@@ -230,9 +230,53 @@ def unit_ids_to_dept_ids(unit_ids) -> list:
                     has_all = True
                 # 其它 dict 形状: 无法解析, 跳过 (不泄漏 key)
             # 其它类型: 跳过
+        # 新增(2026-09-16): 管理单元成员 DEPT 类型真实生效到部门集合 (加法, 不破坏 org_scope 解析)
+        try:
+            from .models_permission_v2 import ManagementUnitMember
+            dept_ids.update(collect_unit_member_depts(list(unit_ids)))
+        except (OperationalError, ProgrammingError):
+            logger.warning('[unit_ids_to_dept_ids] 成员 DEPT 解析失败, 跳过该部分')
         if has_all:
             return [ALL_UNIT_SENTINEL]
         return [str(d) for d in dept_ids]
     except (OperationalError, ProgrammingError) as e:
         logger.warning('[unit_ids_to_dept_ids] ManagementUnit 查询失败, fail-safe 返回空: %s', e)
         return []
+
+
+def _subtree_ids_from_dept(dept_id):
+    """返回某部门自身 + 其所有子孙部门 id (按 Department.path 前缀匹配)."""
+    if not dept_id:
+        return []
+    dept = Department.objects.filter(id=dept_id).first()
+    if not dept:
+        return []
+    ids = {dept.id}
+    if dept.path:
+        ids.update(
+            Department.objects.filter(path__startswith=dept.path)
+            .values_list('id', flat=True)
+        )
+    return list(ids)
+
+
+def collect_unit_member_depts(unit_ids):
+    """汇总若干管理单元下 DEPT 类型成员的部门 id (含子级按 include_children)."""
+    from .models_permission_v2 import ManagementUnitMember
+    out = set()
+    for m in ManagementUnitMember.objects.filter(unit_id__in=list(unit_ids), member_type='DEPT', status=1):
+        if m.include_children:
+            out.update(_subtree_ids_from_dept(m.department_id))
+        elif m.department_id:
+            out.add(m.department_id)
+    return [str(d) for d in out if d]
+
+
+def collect_unit_member_users(unit_ids):
+    """汇总若干管理单元下 USER 类型成员的用户 id (供执行面 created_by__in)."""
+    from .models_permission_v2 import ManagementUnitMember
+    out = set()
+    for m in ManagementUnitMember.objects.filter(unit_id__in=list(unit_ids), member_type='USER', status=1):
+        if m.user_id:
+            out.add(m.user_id)
+    return list(out)

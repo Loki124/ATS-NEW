@@ -18,6 +18,13 @@ V2 权限系统 7 张新表 (spec §3.2):
 """
 from django.db import models
 
+from nanoid import generate as nanoid_generate
+
+
+def gen_id():
+    """生成 nanoid 主键 (size=21), 与 data_permission.models.gen_id 口径一致."""
+    return nanoid_generate(size=21)
+
 
 class PermissionResource(models.Model):
     """资源表 — 菜单/按钮/字段/API 的统一注册(MENU | BUTTON | FIELD | API)"""
@@ -153,6 +160,45 @@ class ManagementUnit(models.Model):
 
     def __str__(self):
         return self.unit_name
+
+
+class ManagementUnitMember(models.Model):
+    """管理单元成员 — 虚拟容器的真实关系 (2026-09-16 重构).
+
+    成员类型: DEPT=实体组织架构节点(Department.id) / USER=系统用户(User.id) /
+    PERSON=HR台账人员(Person.id).
+    支持矩阵管理: 同一部门多负责人各管不同人员 / 跨单元交叉管理.
+    PERSON 本迭代仅存储展示, 执行面生效待补 Person->User 映射.
+    """
+    MEMBER_TYPE_CHOICES = [
+        ('DEPT', '组织节点'),
+        ('USER', '系统用户'),
+        ('PERSON', 'HR台账人员'),
+    ]
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id, editable=False)
+    unit = models.ForeignKey(ManagementUnit, on_delete=models.CASCADE, related_name='members', verbose_name='管理单元')
+    member_type = models.CharField(max_length=12, choices=MEMBER_TYPE_CHOICES, verbose_name='成员类型')
+    department_id = models.CharField(max_length=32, null=True, blank=True, db_index=True, verbose_name='组织节点ID')
+    user_id = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name='用户ID')
+    person_id = models.CharField(max_length=36, null=True, blank=True, db_index=True, verbose_name='HR台账人员ID')
+    include_children = models.SmallIntegerField(default=1, verbose_name='含子级(1是 0否)')
+    remark = models.CharField(max_length=128, null=True, blank=True, verbose_name='备注')
+    status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'management_unit_members'
+        verbose_name = '管理单元成员'
+        verbose_name_plural = verbose_name
+        indexes = [
+            models.Index(fields=['unit'], name='idx_mum_unit'),
+            models.Index(fields=['department_id'], name='idx_mum_dept'),
+            models.Index(fields=['user_id'], name='idx_mum_user'),
+        ]
+
+    def __str__(self):
+        return f'{self.unit_id}:{self.member_type}:{self.department_id or self.user_id or self.person_id}'
 
 
 class UserRoleV2(models.Model):

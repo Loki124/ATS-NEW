@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from .models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, UserAppDataScope,
+    ManagementUnit, UserRoleV2, UserAppDataScope, ManagementUnitMember,
 )
 
 
@@ -70,6 +70,51 @@ class ManagementUnitSerializer(serializers.ModelSerializer):
                 seen.add(cur.id)
                 cur = ManagementUnit.objects.filter(id=cur.parent_id).first() if cur.parent_id else None
         return attrs
+
+
+class ManagementUnitMemberSerializer(serializers.ModelSerializer):
+    """管理单元成员序列化器 — 含 DEPT/USER/PERSON 名称回填(便于前端展示)."""
+
+    department_name = serializers.SerializerMethodField()
+    user_name = serializers.SerializerMethodField()
+    person_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ManagementUnitMember
+        fields = ['id', 'unit', 'member_type', 'department_id', 'user_id', 'person_id',
+                  'include_children', 'remark', 'status', 'created_at', 'updated_at',
+                  'department_name', 'user_name', 'person_name']
+        extra_kwargs = {
+            'id': {'read_only': True},
+            'unit': {'read_only': True},
+            'created_at': {'read_only': True},
+            'updated_at': {'read_only': True},
+        }
+
+    def get_department_name(self, obj):
+        if obj.member_type == 'DEPT' and obj.department_id:
+            from apps.core.models import Department
+            return Department.objects.filter(id=obj.department_id).values_list('name', flat=True).first() or ''
+        return ''
+
+    def get_user_name(self, obj):
+        if obj.member_type == 'USER' and obj.user_id:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            # 注意: values_list 多字段时不能用 flat=True (会抛 TypeError);
+            # 取 (username, first_name) 元组, 优先返回 first_name.
+            u = User.objects.filter(pk=obj.user_id).values_list('username', 'first_name').first()
+            return (u[1] or u[0]) if u else ''
+        return ''
+
+    def get_person_name(self, obj):
+        if obj.member_type == 'PERSON' and obj.person_id:
+            try:
+                from apps.campus_control.models import Person
+                return Person.objects.filter(pk=obj.person_id).values_list('name', flat=True).first() or ''
+            except Exception:
+                return ''
+        return ''
 
 
 class UserRoleSerializer(serializers.ModelSerializer):

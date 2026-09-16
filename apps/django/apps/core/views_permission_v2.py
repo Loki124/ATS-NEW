@@ -6,10 +6,11 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import viewsets
+from django.shortcuts import get_object_or_404
 
 from .models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, UserAppDataScope,
+    ManagementUnit, UserRoleV2, UserAppDataScope, ManagementUnitMember,
 )
 from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
 from .permissions_v2 import V2Permission
@@ -253,6 +254,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 'id': u.id, 'unit_name': u.unit_name, 'unit_type': u.unit_type,
                 'parent_id': u.parent_id, 'status': u.status,
                 'org_scope': u.org_scope, 'personnel_scope': u.personnel_scope,
+                'member_count': ManagementUnitMember.objects.filter(unit_id=u.id, status=1).count(),
                 'children': [],
             }
             for u in units
@@ -315,6 +317,65 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             },
             'note': '管理单元范围已镜像为 DataPermissionRule(USER 维度, CUSTOM); enforcement.row_filter_q 现已消费 management_unit_ids',
         })
+
+    @action(detail=True, methods=['get', 'post'], url_path='members')
+    def members(self, request, pk=None):
+        """GET/POST /api/v1/management-units/{id}/members/
+
+        GET: 列出该单元启用的成员 (含 DEPT/USER/PERSON 名称回填);
+        POST: 新增成员, 写入前按 (unit, member_type, 引用列) 查重返回 400 (避免 MySQL 多 nullable 列唯一约束陷阱).
+        成员变更后重建所有引用该单元的用户执行面规则.
+        """
+        unit = self.get_object()
+        if request.method == 'GET':
+            qs = ManagementUnitMember.objects.filter(unit_id=unit.id, status=1)
+            from .serializers_permission_v2 import ManagementUnitMemberSerializer
+            return Response({'success': True, 'data': ManagementUnitMemberSerializer(qs, many=True).data})
+        data = request.data or {}
+        mt = data.get('member_type')
+        ref_map = {'DEPT': 'department_id', 'USER': 'user_id', 'PERSON': 'person_id'}
+        ref_col = ref_map.get(mt)
+        ref_val = data.get(ref_col) if ref_col else None
+        if not mt or ref_val in (None, ''):
+            return Response({'success': False, 'message': 'member_type 与对应引用ID必填'},
+                            status=http_status.HTTP_400_BAD_REQUEST)
+        if ManagementUnitMember.objects.filter(unit_id=unit.id, member_type=mt,
+                                                **{ref_col: ref_val}).exists():
+            return Response({'success': False, 'message': '该成员已存在于此管理单元'},
+                            status=http_status.HTTP_400_BAD_REQUEST)
+        member = ManagementUnitMember.objects.create(
+            unit_id=unit.id, member_type=mt, **{ref_col: ref_val},
+            include_children=int(data['include_children']) if data.get('include_children') is not None else 1,
+            remark=data.get('remark') or '', status=1)
+        _rebuild_rules_for_unit(unit.id)
+        from .serializers_permission_v2 import ManagementUnitMemberSerializer
+        return Response({'success': True, 'data': ManagementUnitMemberSerializer(member).data},
+                        status=http_status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['put', 'patch', 'delete'], url_path='members/(?P<member_id>[^/.]+)')
+    def member_detail(self, request, pk=None, member_id=None):
+        """PUT/PATCH/DELETE /api/v1/management-units/{id}/members/{member_id}
+
+        PUT/PATCH: 更新 include_children / remark;
+        DELETE: 软删 (status=0) 并重建执行面规则.
+        """
+        unit = self.get_object()
+        member = get_object_or_404(ManagementUnitMember, id=member_id, unit_id=unit.id)
+        if request.method == 'DELETE':
+            member.status = 0
+            member.save()
+            _rebuild_rules_for_unit(unit.id)
+            return Response({'success': True, 'data': None})
+        data = request.data or {}
+        if 'include_children' in data:
+            # 注意: 不能用 `data['include_children'] or 1`, 否则传 0(不含子级)会被误判为缺失而默认回 1
+            inc = data['include_children']
+            member.include_children = int(inc) if inc is not None else 1
+        if 'remark' in data:
+            member.remark = data['remark']
+        member.save()
+        from .serializers_permission_v2 import ManagementUnitMemberSerializer
+        return Response({'success': True, 'data': ManagementUnitMemberSerializer(member).data})
 
 
 class UserRoleViewSet(viewsets.ModelViewSet):
@@ -398,8 +459,11 @@ def _sync_user_data_rule(user_id, unit_ids):
       - 解析不出任何部门范围 (dict 无 dept 子键且非整公司) -> 不建 NEW 引擎规则,
         回退 OLD 引擎 / SELF, 绝不产生无效应规则.
     """
-    from apps.core.scope_resolver import unit_ids_to_dept_ids, ALL_UNIT_SENTINEL
+    from apps.core.scope_resolver import (
+        unit_ids_to_dept_ids, collect_unit_member_users, ALL_UNIT_SENTINEL,
+    )
     resolved = unit_ids_to_dept_ids(unit_ids)
+    user_ids = collect_unit_member_users(unit_ids)
     if ALL_UNIT_SENTINEL in resolved:
         rule, _ = DataPermissionRule.objects.update_or_create(
             id=f'uads_user_{user_id}',
@@ -408,7 +472,10 @@ def _sync_user_data_rule(user_id, unit_ids):
                 'dimension_value': str(user_id),
                 'level': 'ROW',
                 'scope_type': RowScopeType.ALL,
-                'scope_payload': {'management_unit_ids': list(unit_ids)},
+                'scope_payload': {
+                    'management_unit_ids': list(unit_ids),
+                    'user_ids': sorted(user_ids),
+                },
                 'priority': 50,
                 'status': 1,
                 'remark': f'用户应用数据范围同步(user={user_id}, 整公司)',
@@ -417,8 +484,8 @@ def _sync_user_data_rule(user_id, unit_ids):
         )
         return rule
     dept_ids = [d for d in resolved if d != ALL_UNIT_SENTINEL]
-    if not dept_ids:
-        # 无可用部门范围 -> 不建 NEW 引擎规则, 回退 OLD 引擎 / SELF
+    if not dept_ids and not user_ids:
+        # 无可用部门范围且无成员用户 -> 不建 NEW 引擎规则, 回退 OLD 引擎 / SELF
         return None
     rule, _ = DataPermissionRule.objects.update_or_create(
         id=f'uads_user_{user_id}',
@@ -430,6 +497,7 @@ def _sync_user_data_rule(user_id, unit_ids):
             'scope_payload': {
                 'management_unit_ids': list(unit_ids),
                 'department_ids': sorted(dept_ids),
+                'user_ids': sorted(user_ids),
             },
             'priority': 50,
             'status': 1,
@@ -438,6 +506,17 @@ def _sync_user_data_rule(user_id, unit_ids):
         },
     )
     return rule
+
+
+def _rebuild_rules_for_unit(unit_id):
+    """管理单元成员变更后, 重建所有引用该单元的用户执行面规则."""
+    user_ids = set()
+    for s in UserAppDataScope.objects.filter(management_unit_ids__contains=[unit_id]):
+        user_ids.add(s.user_id)
+    for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit_id]):
+        user_ids.add(ur.user_id)
+    for uid in user_ids:
+        _rebuild_user_rules(uid)
 
 
 def _rebuild_user_rules(user_id):
