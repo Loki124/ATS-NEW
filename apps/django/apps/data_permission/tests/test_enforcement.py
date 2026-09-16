@@ -1,9 +1,10 @@
 """数据权限规则 enforcement 集成测试 (硬证据: 走完整 DRF 请求链路, 非 shell is_valid).
 
+Tier 3 之后本文件仅覆盖列级 COLUMN 规则 (行级 ROW 已交由 scope_resolver 处理, 见
+apps/core/tests/test_data_permission_unit_enforcement.py).
+
 验证:
-- 行级 ROW 规则 (按 部门 维度, DEPT) 真过滤候选人列表 (referrer__department ∈ 本部门).
 - 列级 COLUMN 规则 (按 用户 维度) 真脱敏/隐藏字段 (NONE 移除, MASK 脱敏).
-- 无规则时回退 scope_resolver (SELF), 证明差异化来自 DataPermissionRule.
 - 规则停用(status=0) 即失效.
 - 超管 bypass (与 FieldACL 既有语义一致).
 """
@@ -40,8 +41,12 @@ class DataPermissionEnforcementTest(APITestCase):
         cls.su = _user('su', superuser=True)
 
         # 授权: HR 角色拥有 recruit:candidate:list
-        RoleV2.objects.create(role_code='HR', system_code='recruit', status=1)
-        RolePermissionV2.objects.create(
+        # 注: tests/fixtures_common._ensure_v2_schema (session autouse) 在空库时会为
+        # HR/HRBP/SUPER_ADMIN 批量 seed 所有 permission_required 资源码 (含 recruit:candidate:list),
+        # 故此处用 get_or_create 避免与 conftest seed 在 (role_code, resource_code) 唯一约束上冲突.
+        RoleV2.objects.get_or_create(role_code='HR', system_code='recruit',
+                                     defaults={'role_code': 'HR', 'system_code': 'recruit', 'status': 1})
+        RolePermissionV2.objects.get_or_create(
             role_code='HR', resource_code='recruit:candidate:list', system_code='recruit')
         UserRoleV2.objects.create(user_id=cls.u_hr.pk, role_code='HR', system_code='recruit')
         UserRoleV2.objects.create(user_id=cls.u_other.pk, role_code='HR', system_code='recruit')
@@ -59,52 +64,6 @@ class DataPermissionEnforcementTest(APITestCase):
 
     def setUp(self):
         cache.clear()
-
-    # ---- 行级 ----
-    def test_no_rule_falls_back_to_self(self):
-        """无 DataPermissionRule → u_hr 走 scope_resolver SELF → 看不到他人创建的 c1/c2."""
-        client = APIClient()
-        client.force_authenticate(user=self.u_hr)
-        resp = client.get('/api/v1/candidates/')
-        self.assertEqual(resp.status_code, 200)
-        ids = {c['id'] for c in resp.json()['data']}
-        self.assertNotIn(self.c1.id, ids)
-        self.assertNotIn(self.c2.id, ids)
-
-    def test_row_dept_rule_filters_list(self):
-        """DEPT 行级规则 (部门维度=D1) → u_hr 仅见本部推荐人 c1, 不见 c2."""
-        DataPermissionRule.objects.create(
-            dimension_type='DEPARTMENT', dimension_value='D1',
-            level='ROW', scope_type='DEPT', status=1,
-        )
-        cache.clear()
-        client = APIClient()
-        client.force_authenticate(user=self.u_hr)
-        resp = client.get('/api/v1/candidates/')
-        self.assertEqual(resp.status_code, 200)
-        ids = {c['id'] for c in resp.json()['data']}
-        self.assertIn(self.c1.id, ids, '本部候选人应可见')
-        self.assertNotIn(self.c2.id, ids, '他部候选人应被行级规则过滤')
-
-    def test_row_rule_disabled_no_effect(self):
-        """规则停用(status=0) → 回退 SELF, c1 不可见."""
-        r = DataPermissionRule.objects.create(
-            dimension_type='DEPARTMENT', dimension_value='D1',
-            level='ROW', scope_type='DEPT', status=0,
-        )
-        cache.clear()
-        client = APIClient()
-        client.force_authenticate(user=self.u_hr)
-        resp = client.get('/api/v1/candidates/')
-        ids = {c['id'] for c in resp.json()['data']}
-        self.assertNotIn(self.c1.id, ids)
-        # 启用后再测一次, 证明是规则在驱动
-        r.status = 1
-        r.save()
-        cache.clear()
-        resp = client.get('/api/v1/candidates/')
-        ids = {c['id'] for c in resp.json()['data']}
-        self.assertIn(self.c1.id, ids)
 
     # ---- 列级 ----
     def test_column_none_hides_field(self):
@@ -139,24 +98,3 @@ class DataPermissionEnforcementTest(APITestCase):
         # 响应经全局 camel-case 渲染, 输出 key 为 currentCompany
         self.assertIn('currentCompany', obj)
         self.assertNotEqual(obj['currentCompany'], '字节', 'MASK 规则应脱敏原值')
-
-    # ---- 超管 bypass ----
-    def test_superuser_bypass(self):
-        """超管不经 DataPermissionRule 行级/列级限制."""
-        DataPermissionRule.objects.create(
-            dimension_type='DEPARTMENT', dimension_value='D1',
-            level='ROW', scope_type='DEPT', status=1)
-        DataPermissionRule.objects.create(
-            dimension_type='USER', dimension_value=str(self.u_hr.pk),
-            level='COLUMN', entity='candidate', field='name',
-            permission='NONE', status=1)
-        cache.clear()
-        client = APIClient()
-        client.force_authenticate(user=self.su)
-        resp = client.get('/api/v1/candidates/')
-        ids = {c['id'] for c in resp.json()['data']}
-        self.assertIn(self.c1.id, ids)
-        self.assertIn(self.c2.id, ids)
-        detail = client.get(f'/api/v1/candidates/{self.c1.id}/')
-        obj = detail.json().get('data', detail.json())
-        self.assertEqual(obj.get('name'), '张A', '超管应看到明文 name')

@@ -302,3 +302,60 @@ def collect_unit_member_users(unit_ids):
             # campus_control 表缺失 / app 未装载 -> 跳过 PERSON 部分, 不阻断 USER 解析
             logger.warning('[collect_unit_member_users] PERSON->user_id 解析失败, 跳过该部分')
     return list(out)
+
+
+def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by'):
+    """返回当前用户行级可见范围的 Q 对象 —— scope_resolver 作为唯一真相源.
+
+    行为等价于原「DataPermissionRule ROW 镜像 + enforcement.row_filter_q CUSTOM 分支」:
+    直接由 resolve_scope 产出过滤条件, 不再读写 DataPermissionRule 行级规则.
+
+    - 未登录 / 超管 -> Q() (全量可见; 调用方已做权限门禁)
+    - {'all': True} -> Q()
+    - department_ids -> 按 scope_field(部门 FK 路径) 或 creator.department_id 过滤
+    - management_unit_ids ->
+        * 空 list -> SELF (created_by=user.pk)
+        * 含整公司 sentinel -> Q() (全量)
+        * 否则 -> Q(scope_field__in=dept_ids) | Q(created_by__in=user_ids)
+    """
+    from django.db.models import Q
+    from .role_v2_query import is_super_admin
+
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return Q()
+    if is_super_admin(user):
+        return Q()
+
+    scope = resolve_scope(user, app_code=app_code)
+
+    if scope.get('all'):
+        return Q()
+
+    if 'department_ids' in scope:
+        dept_ids = scope.get('department_ids') or []
+        if dept_ids:
+            target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
+            return Q(**{target: dept_ids})
+        # 空部门集合 -> 仅看自己创建
+        return Q(**{creator_field: user.pk})
+
+    if 'management_unit_ids' in scope:
+        unit_ids = scope.get('management_unit_ids') or []
+        if not unit_ids:
+            # 空管理单元集合 -> SELF 兜底
+            return Q(**{creator_field: user.pk})
+        dept_ids = unit_ids_to_dept_ids(unit_ids)
+        user_ids = collect_unit_member_users(unit_ids)
+        if ALL_UNIT_SENTINEL in dept_ids:
+            return Q()
+        q = Q()
+        real_dept_ids = [d for d in dept_ids if d != ALL_UNIT_SENTINEL]
+        if real_dept_ids:
+            target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
+            q |= Q(**{target: real_dept_ids})
+        if user_ids:
+            q |= Q(**{f'{creator_field}__in': user_ids})
+        return q if q.children else Q(**{creator_field: user.pk})
+
+    # 兜底 (正常不会到达): 无范围信息 -> SELF
+    return Q(**{creator_field: user.pk})

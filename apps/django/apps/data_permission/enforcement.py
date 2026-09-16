@@ -1,14 +1,14 @@
-"""数据权限规则 enforcement (RBAC 复核 #9 补全: 让 DataPermissionRule 真正生效).
+"""数据权限规则 enforcement (列级 ACL 唯一保留用途).
 
-集成策略 (低风险, 路径 A — 不替换旧引擎):
-- 行级: CandidateViewSet.get_queryset 在调用 scope_resolver 前先问本模块;
-        若当前用户有「生效的行级规则」, 以其为准 (权威); 否则回退 scope_resolver。
+集成策略 (Tier 3 之后):
+- 行级数据范围已完全交由 apps.core.scope_resolver 作为唯一真相源
+  (CandidateViewSet.get_queryset 直接调 scope_filter_q), DataPermissionRule 不再承载行级规则.
 - 列级: FieldAclService.apply_acl 在按 FieldACL 判定之外, 再叠加本模块的列级规则
-        (按 ROLE/DEPARTMENT/USER 维度匹配当前用户), 取最严格。
+        (按 ROLE/DEPARTMENT/USER 维度匹配当前用户), 取最严格.
 
 维度匹配: 对当前 user 计算候选键集合
   USER:<user.pk> / DEPARTMENT:<user.department_id> / ROLE:<每个 role_code>
-与 DataPermissionRule(dimension_type, dimension_value, status=1) 求交。
+与 DataPermissionRule(dimension_type, dimension_value, status=1, level='COLUMN') 求交.
 """
 from __future__ import annotations
 
@@ -16,15 +16,8 @@ import logging
 from typing import List, Optional, Tuple
 
 from django.core.cache import cache
-from django.db.models import Q
 
-from .models import (
-    DataPermissionRule,
-    DimensionType,
-    RowScopeType,
-)
-
-from apps.core.role_v2_query import is_super_admin
+from apps.data_permission.models import DataPermissionRule, DimensionType
 
 logger = logging.getLogger(__name__)
 
@@ -61,88 +54,6 @@ def _dimension_match_keys(user) -> List[Tuple[str, str]]:
     except Exception:  # noqa: BLE001
         logger.warning('计算用户角色维度键失败, 跳过 ROLE 维度')
     return keys
-
-
-def _active_rules(user, level: str) -> List[DataPermissionRule]:
-    """取当前用户生效的某层级 (ROW/COLUMN) 规则."""
-    keys = _dimension_match_keys(user)
-    if not keys:
-        return []
-    types = [k[0] for k in keys]
-    values = [k[1] for k in keys]
-    return list(
-        DataPermissionRule.objects.filter(
-            status=1, level=level,
-            dimension_type__in=types, dimension_value__in=values,
-        )
-    )
-
-
-# ---------------------------------------------------------------------------
-# 行级 enforcement
-# ---------------------------------------------------------------------------
-
-def _dept_ids_for(scope_type: str, user) -> List[str]:
-    """把行级 DEPT/DEPT_AND_SUB 解析成部门 id 集合 (复用 scope_resolver 的树爬取)."""
-    from apps.core.scope_resolver import _dept_and_sub_ids, _own_dept_ids
-    if scope_type == RowScopeType.DEPT:
-        return _own_dept_ids(user)
-    if scope_type == RowScopeType.DEPT_AND_SUB:
-        return _dept_and_sub_ids(user)
-    return []
-
-
-def row_filter_q(user, scope_field: str = '', creator_field: str = 'created_by') -> Optional[Q]:
-    """返回当前用户行级可见范围的 Q 对象; 无生效规则返回 None (调用方回退旧引擎).
-
-    - 存在 ALL 规则 → 返回空 Q() (全量可见, 短路旧 scope_resolver)
-    - SELF 规则 → Q(creator_field=user.pk)
-    - DEPT / DEPT_AND_SUB / CUSTOM → 按 scope_field(部门 FK 路径) 或 creator 的 department_id 过滤
-    - 多条规则取并集 (OR)
-    """
-    if not (user and getattr(user, 'is_authenticated', False)):
-        return None
-    if is_super_admin(user):
-        # 超管/SUPER_ADMIN 角色走 scope_resolver (其内部 bypass), 保持既有语义
-        return None
-    rules = _active_rules(user, 'ROW')
-    if not rules:
-        return None
-    if any(r.scope_type == RowScopeType.ALL for r in rules):
-        return Q()
-    q = Q()
-    for r in rules:
-        if r.scope_type == RowScopeType.SELF:
-            q |= Q(**{creator_field: user.pk})
-        elif r.scope_type in (RowScopeType.DEPT, RowScopeType.DEPT_AND_SUB):
-            dept_ids = _dept_ids_for(r.scope_type, user)
-            if dept_ids:
-                target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
-                q |= Q(**{target: dept_ids})
-        elif r.scope_type == RowScopeType.CUSTOM:
-            payload = r.scope_payload or {}
-            # scope_payload 可能含 department_ids(直接) 或 management_unit_ids(需经 org_scope 解析).
-            # 两者可并存, 合并去重. 部门 id 统一字符串化 (与 department_id CharField 一致).
-            dept_ids = [str(d) for d in (payload.get('department_ids') or [])]
-            mu_ids = payload.get('management_unit_ids') or []
-            if mu_ids:
-                try:
-                    from apps.core.scope_resolver import unit_ids_to_dept_ids
-                    dept_ids.extend(unit_ids_to_dept_ids(mu_ids))
-                except Exception:  # noqa: BLE001
-                    logger.warning('解析 management_unit_ids 的 org_scope 失败, 跳过该部分')
-            dept_ids = list(dict.fromkeys(dept_ids))  # 去重保序
-            if dept_ids:
-                target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
-                q |= Q(**{target: dept_ids})
-            # 新增(2026-09-16): 管理单元 USER 成员真实生效 -> created_by__in=user_ids
-            user_ids = [int(u) for u in (payload.get('user_ids') or []) if str(u).isdigit()]
-            if user_ids:
-                # 注意: 必须是 created_by__in=[...] 而非 created_by=[...];
-                # Django 不会把列表值自动转成 IN, Q(created_by=[...]) 在编译期抛 TypeError.
-                q |= Q(**{f'{creator_field}__in': user_ids})
-    # 若没有任何规则能解析出有效范围 (如 DEPT 规则但用户无部门, 且无可生效 USER 成员) → 回退旧引擎
-    return q if q.children else None
 
 
 # ---------------------------------------------------------------------------
@@ -192,9 +103,12 @@ def clear_column_cache(entity: Optional[str] = None) -> None:
 
 
 class DataPermissionEnforcement:
-    """统一入口 (委派到上方模块函数, 兼容 field_acl / candidate 的命名空间式调用)."""
+    """统一入口 (委派到上方模块函数, 兼容 field_acl / candidate 的命名空间式调用).
 
-    row_filter_q = staticmethod(row_filter_q)
+    注(Tier 3): 行级 row_filter_q 已移除, 行级范围改由 apps.core.scope_resolver.scope_filter_q 提供.
+    本类仅保留列级 ACL 相关入口.
+    """
+
     column_permission_for = staticmethod(column_permission_for)
     most_restrictive = staticmethod(most_restrictive)
     clear_column_cache = staticmethod(clear_column_cache)

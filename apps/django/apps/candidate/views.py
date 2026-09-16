@@ -36,6 +36,7 @@ from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.scope_resolver import scope_filter_q
 
 from .models import Candidate, CandidateTag, CandidateFieldValue
 from .serializers import (
@@ -106,18 +107,15 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         if blacklisted is not None:
             qs = qs.filter(is_blacklisted=blacklisted.lower() == 'true')
         # IDOR: 按部门 scope + 创建人 二次过滤 (Fix 1)
-        # 数据权限规则 (RBAC 复核 #9 补全): 若当前用户有生效的行级规则, 以其为准;
-        # 否则沿用 scope_resolver 旧引擎 (路径 A, 不破坏既有逻辑).
-        from apps.data_permission.enforcement import DataPermissionEnforcement
-        dp_q = DataPermissionEnforcement.row_filter_q(
+        # Tier 3: scope_resolver 现为行级数据范围唯一真相源;
+        # 直接由 resolve_scope 产出过滤 Q, 不再经 DataPermissionRule ROW 镜像.
+        sq = scope_filter_q(
             self.request.user,
+            app_code='recruit',
             scope_field=self.scope_field,
             creator_field=self.scope_creator_field,
         )
-        if dp_q is not None:
-            qs = qs.filter(dp_q)
-        else:
-            qs = self.scope_queryset(qs)
+        qs = qs.filter(sq)
         return qs.order_by('-created_at')
 
     def create(self, request, *args, **kwargs):

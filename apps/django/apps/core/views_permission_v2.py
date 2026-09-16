@@ -15,7 +15,7 @@ from .models_permission_v2 import (
     PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
     ManagementUnit, UserRoleV2, ManagementUnitMember,
 )
-from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
+# (Tier 3) DataPermissionRule 行级镜像已移除; 列级规则由 field_acl / enforcement 直接消费.
 from .permissions_v2 import V2Permission
 from .scope_resolver import resolve_scope
 
@@ -271,59 +271,8 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 roots.append(node)
         return Response({'success': True, 'data': roots})
 
-    @action(detail=True, methods=['post'], url_path='sync-data-rules')
-    @transaction.atomic
-    def sync_data_rules(self, request, pk=None):
-        """POST /api/v1/management-units/{id}/sync-data-rules/
-
-        方案 A M4(2026-09-15): 把引用该单元的全部「用户-角色-应用」分配镜像成
-        DataPermissionRule(USER 维度, 行级 CUSTOM), 接进 enforcement.row_filter_q.
-
-        有效单元集合 = 自身 + (include_children 时) 所有后代(按 parent_id BFS);
-        仅用于按钮反馈 (effectiveUnitIds). 真正的执行面规则按 USER 维度逐用户重建,
-        避免按 ROLE 建规则导致的跨用户越权.
-
-        维度键 USER:<user_id> 与 enforcement._dimension_match_keys 的 USER 键一致,
-        scope_payload 同时带 management_unit_ids(溯源) 与 department_ids(由 org_scope 解析).
-        """
-        unit = self.get_object()
-        effective = [unit.id]
-        frontier = [unit.id]
-        while frontier:
-            children = list(ManagementUnit.objects.filter(parent_id__in=frontier, status=1))
-            nxt = [c.id for c in children if c.id not in effective]
-            for cid in nxt:
-                effective.append(cid)
-            frontier = nxt
-        effective = list(dict.fromkeys(effective))  # 去重保序
-
-        # 扫描引用该单元的全部分配, 收集受影响 user_id (按用户重建规则, 防跨用户越权)
-        user_ids = set()
-        for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit.id]):
-            user_ids.add(ur.user_id)
-        for ur in UserRoleV2.objects.exclude(app_data_scopes__isnull=True):
-            scopes = ur.app_data_scopes or {}
-            if scopes and any(unit.id in (ids or []) for ids in scopes.values()):
-                user_ids.add(ur.user_id)
-        for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit.id]):
-            user_ids.add(ur.user_id)
-
-        rule_ids = []
-        for uid in user_ids:
-            rule = _rebuild_user_rules(uid)
-            if rule:
-                rule_ids.append(rule.id)
-
-        return Response({
-            'success': True,
-            'data': {
-                'effective_unit_ids': effective,
-                'rule_ids': rule_ids,
-                'rule_id': rule_ids[0] if rule_ids else None,
-                'synced_user_count': len(user_ids),
-            },
-            'note': '管理单元范围已镜像为 DataPermissionRule(USER 维度, CUSTOM); enforcement.row_filter_q 现已消费 management_unit_ids',
-        })
+    # NOTE(Tier 3): sync-data-rules 端点已移除 —— 行级范围不再镜像为 DataPermissionRule,
+    # 改由 scope_resolver (scope_filter_q) 作为唯一真相源直接计算.
 
     @action(detail=True, methods=['get', 'post'], url_path='members')
     def members(self, request, pk=None):
@@ -331,7 +280,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
 
         GET: 列出该单元启用的成员 (含 DEPT/USER/PERSON 名称回填);
         POST: 新增成员, 写入前按 (unit, member_type, 引用列) 查重返回 400 (避免 MySQL 多 nullable 列唯一约束陷阱).
-        成员变更后重建所有引用该单元的用户执行面规则.
+        成员变更后由 scope_resolver 实时按管理单元解析范围, 无需重建镜像规则.
         """
         unit = self.get_object()
         if request.method == 'GET':
@@ -354,7 +303,6 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             unit_id=unit.id, member_type=mt, **{ref_col: ref_val},
             include_children=int(data['include_children']) if data.get('include_children') is not None else 1,
             remark=data.get('remark') or '', status=1)
-        _rebuild_rules_for_unit(unit.id)
         from .serializers_permission_v2 import ManagementUnitMemberSerializer
         return Response({'success': True, 'data': ManagementUnitMemberSerializer(member).data},
                         status=http_status.HTTP_201_CREATED)
@@ -371,7 +319,6 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         if request.method == 'DELETE':
             member.status = 0
             member.save()
-            _rebuild_rules_for_unit(unit.id)
             return Response({'success': True, 'data': None})
         data = request.data or {}
         if 'include_children' in data:
@@ -444,113 +391,9 @@ class UserRoleViewSet(viewsets.ModelViewSet):
         })
 
 
-def _collect_user_unit_ids(user_id):
-    """汇总某用户全部管理单元范围 (UserRoleV2.app_data_scopes per-app + management_unit_ids 全局兜底).
-
-    UserAppDataScope 表已合并进 UserRoleV2.app_data_scopes(JSON), 此处统一读取.
-    """
-    unit_ids = set()
-    for ur in UserRoleV2.objects.filter(user_id=user_id):
-        unit_ids.update(ur.management_unit_ids or [])
-        scopes = ur.app_data_scopes or {}
-        for ids in scopes.values():
-            unit_ids.update(ids or [])
-    return sorted(unit_ids)
-
-
-def _sync_user_data_rule(user_id, unit_ids):
-    """把某用户的全部管理单元范围镜像成 DataPermissionRule(USER 维度, 行级).
-
-    维度 USER:<user_id> 与 enforcement._dimension_match_keys 的 USER 键一致,
-    避免按 ROLE 建规则导致的「同角色跨用户越权」.
-
-    解析结果三种形态:
-      - 含整公司级单元 (org_scope={'level':'ROOT'}) -> ALL 规则 (可见全量);
-      - 解析出部门 id -> CUSTOM 规则, department_ids 供 row_filter_q 消费;
-      - 解析不出任何部门范围 (dict 无 dept 子键且非整公司) -> 不建 NEW 引擎规则,
-        回退 OLD 引擎 / SELF, 绝不产生无效应规则.
-    """
-    from apps.core.scope_resolver import (
-        unit_ids_to_dept_ids, collect_unit_member_users, ALL_UNIT_SENTINEL,
-    )
-    resolved = unit_ids_to_dept_ids(unit_ids)
-    user_ids = collect_unit_member_users(unit_ids)
-    if ALL_UNIT_SENTINEL in resolved:
-        rule, _ = DataPermissionRule.objects.update_or_create(
-            id=f'uads_user_{user_id}',
-            defaults={
-                'dimension_type': DimensionType.USER,
-                'dimension_value': str(user_id),
-                'level': 'ROW',
-                'scope_type': RowScopeType.ALL,
-                'scope_payload': {
-                    'management_unit_ids': list(unit_ids),
-                    'user_ids': sorted(user_ids),
-                },
-                'priority': 50,
-                'status': 1,
-                'remark': f'用户应用数据范围同步(user={user_id}, 整公司)',
-                'created_by': None,
-            },
-        )
-        return rule
-    dept_ids = [d for d in resolved if d != ALL_UNIT_SENTINEL]
-    if not dept_ids and not user_ids:
-        # 无可用部门范围且无成员用户 -> 不建 NEW 引擎规则, 回退 OLD 引擎 / SELF
-        return None
-    rule, _ = DataPermissionRule.objects.update_or_create(
-        id=f'uads_user_{user_id}',
-        defaults={
-            'dimension_type': DimensionType.USER,
-            'dimension_value': str(user_id),
-            'level': 'ROW',
-            'scope_type': RowScopeType.CUSTOM,
-            'scope_payload': {
-                'management_unit_ids': list(unit_ids),
-                'department_ids': sorted(dept_ids),
-                'user_ids': sorted(user_ids),
-            },
-            'priority': 50,
-            'status': 1,
-            'remark': f'用户应用数据范围同步(user={user_id})',
-            'created_by': None,
-        },
-    )
-    return rule
-
-
-def _rebuild_rules_for_unit(unit_id):
-    """管理单元成员变更后, 重建所有引用该单元的用户执行面规则.
-
-    UserAppDataScope 已合并进 UserRoleV2.app_data_scopes: 命中条件为
-    management_unit_ids 含 unit_id, 或任一 app_data_scopes[app] 列表含 unit_id.
-    """
-    user_ids = set()
-    for ur in UserRoleV2.objects.filter(management_unit_ids__contains=[unit_id]):
-        user_ids.add(ur.user_id)
-    for ur in UserRoleV2.objects.exclude(app_data_scopes__isnull=True):
-        scopes = ur.app_data_scopes or {}
-        if scopes and any(unit_id in (ids or []) for ids in scopes.values()):
-            user_ids.add(ur.user_id)
-    for uid in user_ids:
-        _rebuild_user_rules(uid)
-
-
-def _rebuild_user_rules(user_id):
-    """重建某用户的管理单元数据范围规则: 有范围则 upsert, 无范围(或范围解析为空)则删除回退 OLD 引擎.
-
-    注意: _sync_user_data_rule 在「有管理单元但解析不出任何部门/成员范围」时返回 None
-    (如某单元 org_scope 为空且无其它部门成员, 仅剩的 PERSON/USER 成员被移除).
-    此时必须清掉旧规则, 否则会残留过期的 user_ids/department_ids 导致越权可见.
-    """
-    unit_ids = _collect_user_unit_ids(user_id)
-    if unit_ids:
-        rule = _sync_user_data_rule(user_id, unit_ids)
-        if rule is None:
-            DataPermissionRule.objects.filter(id=f'uads_user_{user_id}').delete()
-        return rule
-    DataPermissionRule.objects.filter(id=f'uads_user_{user_id}').delete()
-    return None
+# NOTE(Tier 3): 以下「管理单元范围 -> DataPermissionRule ROW 镜像」桥接函数已整体移除:
+#   _collect_user_unit_ids / _sync_user_data_rule / _rebuild_rules_for_unit / _rebuild_user_rules
+# 行级范围现由 apps.core.scope_resolver.scope_filter_q 直接依据 resolve_scope 计算.
 
 
 def _make_app_scope_pk(user_id, role_code, app_code):
@@ -609,8 +452,8 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     路由 /api/v1/user-app-data-scopes/ 契约保持不变(对齐北森图12 按应用管理单元):
     - list: 支持 ?user_id=&role_code=&app_code= 过滤, 返回行形如旧 UserAppDataScope;
     - create: upsert by (user_id, role_code, app_code), 写入 UserRoleV2.app_data_scopes[app_code];
-             同时把该用户全部管理单元范围镜像成 DataPermissionRule(USER 维度)接进执行面;
-    - destroy: 移除对应 per-app 项并重建该用户规则.
+             范围由 apps.core.scope_resolver 在执行面实时按管理单元解析, 不再镜像 DataPermissionRule;
+    - destroy: 移除对应 per-app 项; 范围解析随 app_data_scopes 变更实时生效.
 
     数据源已从独立 user_app_data_scope 表合并进 UserRoleV2.app_data_scopes(JSON).
     """
@@ -655,8 +498,6 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         scopes[app_code] = data.get('management_unit_ids')
         ur.app_data_scopes = scopes
         ur.save()
-        # 同步镜像该用户全部管理单元范围到 DataPermissionRule 执行面
-        _rebuild_user_rules(user_id)
         row = {
             'id': _make_app_scope_pk(ur.user_id, ur.role_code, app_code),
             'user_id': ur.user_id,
@@ -686,5 +527,4 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             scopes.pop(app_code, None)
             ur.app_data_scopes = scopes
             ur.save()
-            _rebuild_user_rules(user_id)
         return Response({'success': True, 'data': None})
