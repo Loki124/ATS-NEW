@@ -520,10 +520,18 @@ def _rebuild_rules_for_unit(unit_id):
 
 
 def _rebuild_user_rules(user_id):
-    """重建某用户的管理单元数据范围规则: 有范围则 upsert, 无范围则删除回退 OLD 引擎."""
+    """重建某用户的管理单元数据范围规则: 有范围则 upsert, 无范围(或范围解析为空)则删除回退 OLD 引擎.
+
+    注意: _sync_user_data_rule 在「有管理单元但解析不出任何部门/成员范围」时返回 None
+    (如某单元 org_scope 为空且无其它部门成员, 仅剩的 PERSON/USER 成员被移除).
+    此时必须清掉旧规则, 否则会残留过期的 user_ids/department_ids 导致越权可见.
+    """
     unit_ids = _collect_user_unit_ids(user_id)
     if unit_ids:
-        return _sync_user_data_rule(user_id, unit_ids)
+        rule = _sync_user_data_rule(user_id, unit_ids)
+        if rule is None:
+            DataPermissionRule.objects.filter(id=f'uads_user_{user_id}').delete()
+        return rule
     DataPermissionRule.objects.filter(id=f'uads_user_{user_id}').delete()
     return None
 
