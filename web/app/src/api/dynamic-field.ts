@@ -20,7 +20,29 @@ export type FieldType =
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
   | 'ADDRESS'
-  | 'REGION';
+  | 'REGION'
+  | 'COMPOSITE';
+
+/** 组合字段 (COMPOSITE) 的子字段定义 (与后端 DynamicField.sub_fields 对齐) */
+export interface SubField {
+  key: string;
+  label: string;
+  /** 子字段类型: 文本/数字/多行/附件/日期/手机号/邮箱 (后端仅允许此子集, 见 serializers.COMPOSITE allowed) */
+  type: 'TEXT' | 'NUMBER' | 'MULTILINE_TEXT' | 'ATTACHMENT' | 'DATE' | 'PHONE' | 'EMAIL';
+  required?: boolean;
+}
+
+/** 附件字段值结构: [{ id, name, url }] */
+export interface AttachmentItem {
+  id: string;
+  name: string;
+  url: string;
+  size?: number;
+  content_type?: string;
+}
+
+/** 组合字段值结构: { subKey: 子字段值 } (子字段为附件时值为 AttachmentItem[]) */
+export type CompositeFieldValue = Record<string, unknown>;
 
 /** 日期格式精度 (仅 DATE / DATE_RANGE 参考; 与后端 DynamicField.DateFormat 对齐) */
 export type DateFormatValue = 'YEAR' | 'MONTH' | 'DAY';
@@ -141,6 +163,8 @@ export interface FieldDefinition {
   dateFormat?: DateFormatValue | null;
   /** 2026-09-15 行政区划层级精度(省/省市/省市区, 仅 REGION 参考; 默认 DISTRICT) */
   regionLevel?: RegionLevelValue | null;
+  /** 2026-09-16 (兵哥): 组合字段子结构定义(仅 COMPOSITE 使用); 普通字段为 null */
+  subFields?: SubField[] | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -283,6 +307,8 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '地址', value: 'ADDRESS' },
   // 2026-09-15 新增: 行政区划型(数据源: G46 码表库 regions/countries; 层级精度由省/省市/省市区单选控制, 与 with_country 配套)
   { label: '行政区划', value: 'REGION' },
+  // 2026-09-16 (兵哥): 组合字段型 — 一个字段聚合多个子字段(可含附件), 页面呈现为组合展示卡
+  { label: '组合字段', value: 'COMPOSITE' },
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -295,6 +321,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   MULTILINE_TEXT: '多行文本',
   ADDRESS: '地址',
   REGION: '行政区划',
+  COMPOSITE: '组合字段',
 };
 
 /** 日期格式精度选项 (兵哥 2026-09-15: 年 / 年月 / 年月日) */

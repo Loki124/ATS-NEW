@@ -128,7 +128,12 @@
                         placeholder="请选择"
                       />
                       <div v-else-if="m.fieldType === 'ATTACHMENT'" class="sr-attachment">
-                        点击上传附件
+                        <!-- 2026-09-16 (兵哥): 附件字段在预览中呈现真实上传控件(禁用态) -->
+                        <AttachmentUploader :model-value="[]" :disabled="true" />
+                      </div>
+                      <div v-else-if="m.fieldType === 'COMPOSITE'" class="sr-composite">
+                        <!-- 2026-09-16 (兵哥): 组合字段在预览中呈现组合展示卡(禁用态) -->
+                        <CompositeFieldCard :field="m.field" :model-value="{}" mode="display" />
                       </div>
                       <n-input
                         v-else-if="m.fieldType === 'MULTILINE_TEXT'"
@@ -292,6 +297,8 @@ import {
   type RegistrationFormType,
 } from '../../api/application-form';
 import RegionCascader from '../../components/RegionCascader.vue';
+import AttachmentUploader from '@/components/AttachmentUploader.vue';
+import CompositeFieldCard from '@/components/CompositeFieldCard.vue';
 
 const message = useMessage()
 const dialog = useDialog()

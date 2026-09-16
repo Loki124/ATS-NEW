@@ -178,6 +178,30 @@
               <n-input v-model:value="fieldForm.confirmationDeclarationEn" type="textarea" placeholder="Declaration text (EN)" />
             </n-form-item>
           </template>
+          <!-- 2026-09-16 (兵哥) 组合字段: 子字段编辑器(可含附件子字段, 页面呈现为组合展示卡) -->
+          <template v-if="isCompositeType">
+            <n-form-item label="子字段" required>
+              <n-space vertical :size="8" style="width: 100%">
+                <n-dynamic-input
+                  v-model:value="fieldForm.subFields"
+                  :on-create="onCreateSubField"
+                  item-style="margin-bottom: 8px;"
+                >
+                  <template #default="{ value }">
+                    <div class="sub-field-row">
+                      <n-input v-model:value="value.key" placeholder="key(英文, 如 id_front)" style="width: 30%" />
+                      <n-input v-model:value="value.label" placeholder="标签(如 身份证正面)" style="width: 28%" />
+                      <n-select v-model:value="value.type" :options="SUBFIELD_TYPE_OPTIONS" style="width: 26%" />
+                      <n-switch v-model:value="value.required" title="必填" />
+                    </div>
+                  </template>
+                </n-dynamic-input>
+                <n-text depth="3" class="sub-field-hint">
+                  子字段类型支持 文本/数字/多行/附件/日期/手机号/邮箱；附件子字段在页面应用中呈现为上传控件
+                </n-text>
+              </n-space>
+            </n-form-item>
+          </template>
           <n-form-item v-if="fieldNeedsOptions" label="选项来源">
             <n-space vertical :size="8" style="width: 100%">
               <n-select
@@ -666,7 +690,7 @@ import {
   type FieldDefinition, type FieldType, type FieldModule, type FieldGroup, type FieldLinkageRule,
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
   type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
-  type DateFormatValue, type RegionLevelValue,
+  type DateFormatValue, type RegionLevelValue, type SubField,
 } from '@/api/dynamic-field';
 import {
   listDictionaryTypes, listDictionaryItems,
@@ -741,6 +765,7 @@ const fieldForm = reactive<{
   dateFormat: DateFormatValue;
   regionLevel: RegionLevelValue;
   regionPreviewValue: { country?: {code: string; name: string}; province: {code: string; name: string}; city?: {code: string; name: string}; district?: {code: string; name: string}; } | null;
+  subFields: SubField[];
 }>({
   fieldKey: '', label: '', labelEn: '', fieldType: 'TEXT',
   moduleId: null, groupId: null,
@@ -754,6 +779,7 @@ const fieldForm = reactive<{
   dateFormat: 'DAY' as DateFormatValue,
   regionLevel: 'DISTRICT' as RegionLevelValue,
   regionPreviewValue: null,
+  subFields: [],
 });
 
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
@@ -880,7 +906,28 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   ADDRESS: 'default',
   // 行政区划型: success (与日期同色, 表达"地理位置")
   REGION: 'success',
+  // 2026-09-16 (兵哥): 组合字段 — 品牌主色, 表达"聚合"
+  COMPOSITE: 'warning',
 };
+
+// 2026-09-16 (兵哥): 组合字段子字段类型选项(与后端 serializers allowed 子集对齐)
+const SUBFIELD_TYPE_OPTIONS = [
+  { label: '文本', value: 'TEXT' },
+  { label: '数字', value: 'NUMBER' },
+  { label: '多行文本', value: 'MULTILINE_TEXT' },
+  { label: '附件', value: 'ATTACHMENT' },
+  { label: '日期', value: 'DATE' },
+  { label: '手机号', value: 'PHONE' },
+  { label: '邮箱', value: 'EMAIL' },
+];
+
+// 组合字段型: 显示子字段编辑器
+const isCompositeType = computed(() => fieldForm.fieldType === 'COMPOSITE');
+
+// n-dynamic-input 新建子字段的默认结构
+function onCreateSubField(): SubField {
+  return { key: '', label: '', type: 'TEXT', required: false };
+}
 
 // 列表型字段预览：切换单选/多选时同步预览值形状
 watch(
@@ -995,6 +1042,7 @@ function resetFieldForm() {
     dateFormat: 'DAY' as DateFormatValue,
     regionLevel: 'DISTRICT' as RegionLevelValue,
     regionPreviewValue: null,
+    subFields: [],
   });
 }
 
@@ -1031,6 +1079,8 @@ function openFieldEdit(row: FieldDefinition) {
     dateFormat: (row.dateFormat as DateFormatValue) || 'DAY',
     regionLevel: (row.regionLevel as RegionLevelValue) || 'DISTRICT',
     regionPreviewValue: null,
+    // 2026-09-16 (兵哥): 组合字段子结构回填
+    subFields: row.subFields ? row.subFields.map((s) => ({ ...s })) : [],
   });
   fieldModalVisible.value = true;
 }
@@ -1066,6 +1116,8 @@ async function saveField() {
       dateFormat: fieldForm.dateFormat || 'DAY',
       // 2026-09-15 行政区划层级精度 (默认 DISTRICT; 非 REGION 类型上传无副作用)
       regionLevel: fieldForm.regionLevel || 'DISTRICT',
+      // 2026-09-16 (兵哥): 组合字段子结构; 非 COMPOSITE 类型上传空数组无副作用
+      subFields: fieldForm.fieldType === 'COMPOSITE' ? (fieldForm.subFields || []) : [],
       id: fieldEditing.value?.id,
     };
     // 2026-09-15 选项来源: 选项型字段若指定了数据源, 清空手动 options, 由后端按 options_source 解析
@@ -1719,4 +1771,9 @@ onMounted(async () => {
 }
 /* 居中弹窗 body 加足内部呼吸空间，避免表格贴弹窗内壁 */
 .df-center-modal :deep(.n-card__content) { padding: var(--space-5) var(--space-6) 0; }
+/* 2026-09-16 (兵哥): 组合字段子字段编辑器行 — 横向排布 key/label/type/必填 */
+.sub-field-row {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%;
+}
+.sub-field-hint { margin-top: 4px; line-height: 1.4; }
 </style>
