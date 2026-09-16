@@ -120,6 +120,36 @@
           />
         </n-card>
       </n-tab-pane>
+      <!-- 成员管理 -->
+      <n-tab-pane name="members" tab="成员管理">
+        <n-card :bordered="false" class="glass-panel" title="成员管理">
+          <template #header-extra>
+            <n-space>
+              <n-button :disabled="!selectedKey" @click="openAddMember('DEPT')">
+                <template #icon><n-icon :component="AddOutline" /></template>
+                添加组织节点
+              </n-button>
+              <n-button :disabled="!selectedKey" @click="openAddMember('USER')">
+                <template #icon><n-icon :component="AddOutline" /></template>
+                添加用户
+              </n-button>
+              <n-button :disabled="!selectedKey" @click="openAddMember('PERSON')">
+                <template #icon><n-icon :component="AddOutline" /></template>
+                添加HR人员
+              </n-button>
+            </n-space>
+          </template>
+          <n-empty v-if="!selectedKey" description="请先在「管理单元」页签选择一个管理单元" />
+          <n-data-table
+            v-else
+            :data="members"
+            :columns="memberColumns"
+            :row-key="(row: ManagementUnitMember) => row.id"
+            :loading="memberLoading"
+            :pagination="{ pageSize: 10 }"
+          />
+        </n-card>
+      </n-tab-pane>
     </n-tabs>
 
     <!-- 管理单元 新建/编辑 弹窗 -->
@@ -244,6 +274,78 @@
         </div>
       </template>
     </n-modal>
+    <!-- 成员 添加 弹窗 -->
+    <n-modal
+      v-model:show="memberModalVisible"
+      preset="card"
+      :title="memberFormTitle"
+      :style="{ width: '560px' }"
+      :mask-closable="false"
+    >
+      <n-form :model="memberForm" label-placement="top">
+        <n-form-item label="成员类型">
+          <n-radio-group v-model:value="memberForm.memberType">
+            <n-space>
+              <n-radio value="DEPT">组织节点</n-radio>
+              <n-radio value="USER">系统用户</n-radio>
+              <n-radio value="PERSON">HR人员</n-radio>
+            </n-space>
+          </n-radio-group>
+        </n-form-item>
+
+        <n-form-item v-if="memberForm.memberType === 'DEPT'" label="组织节点" required>
+          <n-tree-select
+            v-model:value="memberForm.departmentId"
+            :options="deptTreeOptions"
+            :default-expand-all="true"
+            clearable
+            placeholder="选择组织节点"
+            key-field="key"
+            label-field="label"
+            children-field="children"
+          />
+        </n-form-item>
+
+        <n-form-item v-else-if="memberForm.memberType === 'USER'" label="系统用户" required>
+          <n-select
+            v-model:value="memberForm.userId"
+            :options="userOptions"
+            filterable
+            clearable
+            placeholder="搜索并选择系统用户"
+          />
+        </n-form-item>
+
+        <n-form-item v-else label="HR人员" required>
+          <n-select
+            v-model:value="memberForm.personId"
+            :options="personOptions"
+            filterable
+            clearable
+            placeholder="搜索并选择 HR 台账人员"
+          />
+        </n-form-item>
+
+        <n-form-item label="含子级">
+          <n-radio-group v-model:value="memberForm.includeChildren">
+            <n-space>
+              <n-radio :value="1">是</n-radio>
+              <n-radio :value="0">否</n-radio>
+            </n-space>
+          </n-radio-group>
+        </n-form-item>
+
+        <n-form-item label="备注">
+          <n-input v-model:value="memberForm.remark" type="textarea" :rows="2" placeholder="可选" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+          <n-button @click="memberModalVisible = false">取消</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="memberSaving" @click="onSaveMember">保存</n-button>
+        </div>
+      </template>
+    </n-modal>
 </div><!-- /.page-body -->
 </div>
 </template>
@@ -252,19 +354,24 @@
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NButton, NSpace, NTag, NIcon, NEmpty, NDescriptions, NDescriptionsItem,
-  NPopconfirm, useMessage,
+  NPopconfirm, useMessage, useDialog,
 } from 'naive-ui'
 import {
   AddOutline, CreateOutline, TrashOutline, SyncOutline,
 } from '@vicons/ionicons5'
 import {
   listManagementUnits, treeManagementUnits, createManagementUnit, updateManagementUnit,
-  deleteManagementUnit, syncManagementUnitRules, type ManagementUnit, type ManagementUnitTreeNode,
+  deleteManagementUnit, syncManagementUnitRules,
+  listManagementUnitMembers, addManagementUnitMember, removeManagementUnitMember,
+  type ManagementUnit, type ManagementUnitTreeNode, type ManagementUnitMember,
 } from '@/api/management-unit'
 import {
   listUserAppDataScopes, upsertUserAppDataScope, deleteUserAppDataScopeById,
   type UserAppDataScope,
 } from '@/api/user-app-data-scope'
+import { listUsers } from '@/api/users'
+import { listPersons } from '@/api/campusControl'
+import { useDepartmentStore, type Department } from '@/stores/department'
 
 const message = useMessage()
 const activeTab = ref('units')
@@ -518,6 +625,141 @@ async function loadUnits() {
   }
 }
 
+// ===== 成员管理 =====
+const members = ref<ManagementUnitMember[]>([])
+const memberLoading = ref(false)
+const memberModalVisible = ref(false)
+const memberSaving = ref(false)
+
+const memberForm = reactive({
+  memberType: 'DEPT' as 'DEPT' | 'USER' | 'PERSON',
+  departmentId: null as string | null,
+  userId: null as string | null,
+  personId: null as string | null,
+  includeChildren: 1 as number,
+  remark: '' as string,
+})
+
+const memberTypeLabels: Record<string, string> = {
+  DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员',
+}
+const memberFormTitle = computed(() => {
+  const label = memberTypeLabels[memberForm.memberType] || '成员'
+  return `添加${label}`
+})
+
+// 复用现有接口数据（不新造后端接口）
+const deptStore = useDepartmentStore()
+const deptTreeOptions = computed(() => buildDeptTree(deptStore.departments))
+const userOptions = ref<{ label: string; value: string }[]>([])
+const personOptions = ref<{ label: string; value: string }[]>([])
+
+/** 把 flat 部门列表按 parentId 拼成 n-tree-select 需要的 {label,key,children} 树 */
+function buildDeptTree(list: Department[]): any[] {
+  const byId = new Map<string, any>()
+  list.forEach((d) => byId.set(String(d.id), { label: d.name, key: String(d.id), children: [] as any[] }))
+  const roots: any[] = []
+  list.forEach((d) => {
+    const node = byId.get(String(d.id))!
+    const pid = d.parentId ? String(d.parentId) : null
+    if (pid && byId.has(pid)) byId.get(pid)!.children.push(node)
+    else roots.push(node)
+  })
+  return roots
+}
+
+const memberColumns = [
+  { title: '成员类型', key: 'memberType', width: 110,
+    render: (row: ManagementUnitMember) => h(NTag, { size: 'small' }, { default: () => memberTypeLabels[row.memberType] || row.memberType }) },
+  { title: '名称', key: 'name',
+    render: (row: ManagementUnitMember) => {
+      const name = row.departmentName || row.userName || row.personName
+      if (name) return name
+      const rawId = row.departmentId || row.userId || row.personId
+      return rawId != null ? String(rawId) : '—'
+    } },
+  { title: '含子级', key: 'includeChildren', width: 90,
+    render: (row: ManagementUnitMember) => (row.includeChildren ? '是' : '否') },
+  { title: '备注', key: 'remark',
+    render: (row: ManagementUnitMember) => row.remark || '—' },
+  { title: '操作', key: 'action', width: 100,
+    render: (row: ManagementUnitMember) => h(NButton, { size: 'small', text: true, type: 'error', onClick: () => onRemoveMember(row) }, { default: () => '移除' }) },
+]
+
+async function loadMembers() {
+  if (!selectedKey.value) { members.value = []; return }
+  memberLoading.value = true
+  try {
+    members.value = await listManagementUnitMembers(selectedKey.value)
+  } catch (e: any) {
+    message.error('加载成员失败: ' + (e?.response?.data?.message || e?.message || e))
+  } finally {
+    memberLoading.value = false
+  }
+}
+
+async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
+  if (!selectedKey.value) return
+  Object.assign(memberForm, {
+    memberType: type, departmentId: null, userId: null, personId: null,
+    includeChildren: 1, remark: '',
+  })
+  // 加载选择器数据（复用现有接口，失败优雅降级）
+  try { if (!deptStore.departments.length) await deptStore.loadDepartments() } catch { /* 降级 */ }
+  if (!userOptions.value.length) {
+    try { userOptions.value = (await listUsers()).map((u) => ({ label: u.realName || u.username || String(u.id), value: String(u.id) })) } catch { /* 降级 */ }
+  }
+  if (!personOptions.value.length) {
+    try { personOptions.value = (await listPersons()).map((p) => ({ label: p.name || p.code, value: String(p.id) })) } catch { /* 降级 */ }
+  }
+  memberModalVisible.value = true
+}
+
+async function onSaveMember() {
+  if (!selectedKey.value) return
+  let payload: any
+  if (memberForm.memberType === 'DEPT') {
+    if (!memberForm.departmentId) { message.warning('请选择组织节点'); return }
+    payload = { memberType: 'DEPT', departmentId: memberForm.departmentId, includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
+  } else if (memberForm.memberType === 'USER') {
+    if (!memberForm.userId) { message.warning('请选择系统用户'); return }
+    payload = { memberType: 'USER', userId: Number(memberForm.userId), includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
+  } else {
+    if (!memberForm.personId) { message.warning('请选择 HR 人员'); return }
+    payload = { memberType: 'PERSON', personId: memberForm.personId, includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
+  }
+  memberSaving.value = true
+  try {
+    await addManagementUnitMember(selectedKey.value, payload)
+    message.success('已添加成员')
+    memberModalVisible.value = false
+    await loadMembers()
+  } catch (e: any) {
+    message.error('添加成员失败: ' + (e?.response?.data?.message || e?.message || e))
+  } finally {
+    memberSaving.value = false
+  }
+}
+
+function onRemoveMember(row: ManagementUnitMember) {
+  dialog.warning({
+    title: '移除成员',
+    content: `确认将「${row.departmentName || row.userName || row.personName || row.id}」从该管理单元移除？`,
+    positiveText: '确认移除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      if (!selectedKey.value) return
+      try {
+        await removeManagementUnitMember(selectedKey.value, row.id)
+        message.success('已移除')
+        members.value = members.value.filter((m) => m.id !== row.id)
+      } catch (e: any) {
+        message.error('移除失败: ' + (e?.response?.data?.message || e?.message || e))
+      }
+    },
+  })
+}
+
 // ===== 按应用数据范围 =====
 const scopes = ref<UserAppDataScope[]>([])
 const scopeLoading = ref(false)
@@ -629,6 +871,8 @@ async function onDeleteScope(row: UserAppDataScope) {
 
 watch(activeTab, (t) => { if (t === 'per-app') loadScopes() })
 watch(scopeAppFilter, () => { if (activeTab.value === 'per-app') loadScopes() })
+watch(activeTab, (t) => { if (t === 'members') loadMembers() })
+watch(selectedKey, () => { if (activeTab.value === 'members') loadMembers() })
 
 onMounted(() => {
   loadUnits()

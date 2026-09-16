@@ -110,4 +110,37 @@ export async function syncManagementUnitRules(id: string) {
   return data.data;
 }
 
+export interface ManagementUnitMember {
+  id: string;
+  unitId: string;
+  memberType: 'DEPT' | 'USER' | 'PERSON';
+  departmentId: string | null;
+  userId: number | null;
+  personId: string | null;
+  includeChildren: number;
+  remark: string | null;
+  status: number;
+  createdAt: string;
+  updatedAt: string;
+  departmentName?: string;
+  userName?: string;
+  personName?: string;
+}
+
+export function listManagementUnitMembers(unitId: string | number) {
+  return api.get<{success:boolean;data:ManagementUnitMember[]}>(`/management-units/${unitId}/members/`).then(r => r.data.data ?? []);
+}
+
+export function addManagementUnitMember(unitId: string | number, payload: Partial<ManagementUnitMember> & { memberType: 'DEPT'|'USER'|'PERSON' }) {
+  return api.post<{success:boolean;data:ManagementUnitMember}>(`/management-units/${unitId}/members/`, payload).then(r => r.data.data);
+}
+
+export function removeManagementUnitMember(unitId: string | number, memberId: string) {
+  return api.delete<{success:boolean;data:null}>(`/management-units/${unitId}/members/${memberId}/`).then(r => r.data);
+}
+
+export function updateManagementUnitMember(unitId: string | number, memberId: string, payload: { includeChildren?: number; remark?: string }) {
+  return api.put<{success:boolean;data:ManagementUnitMember}>(`/management-units/${unitId}/members/${memberId}/`, payload).then(r => r.data.data);
+}
+
 export default api;
