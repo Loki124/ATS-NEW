@@ -62,6 +62,7 @@ class UserSerializer(serializers.ModelSerializer):
             'position_title', 'level',
             'bu_president', 'solid_vp', 'dotted_vp',
             'moka_user_id',
+            'user_type',
             'is_active', 'last_login_at',
             'created_at', 'updated_at',
             # 2026-07-02: FE input 字段 (write_only, 但必须在 fields 中声明)

@@ -44,6 +44,10 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
+        # Beisen 用户分类过滤 (2026): ?user_type=INTERNAL | ?user_type=EXTERNAL
+        user_type = self.request.query_params.get('user_type')
+        if user_type in ('INTERNAL', 'EXTERNAL'):
+            qs = qs.filter(user_type=user_type)
         # HRBP+ 看所有在职; 其它角色仅看自己
         if is_super_admin(user) or user_has_any_role(user, HRBP_TIER):
             return qs

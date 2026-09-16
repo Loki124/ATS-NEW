@@ -99,6 +99,15 @@ class User(AbstractUser):
     # 摩卡同步
     moka_user_id = models.CharField(max_length=100, null=True, blank=True, db_index=True, verbose_name='摩卡用户ID')
 
+    # Beisen 用户分类 (2026): 内部员工 / 外部用户
+    user_type = models.CharField(
+        max_length=20,
+        choices=[('INTERNAL', '内部员工'), ('EXTERNAL', '外部用户')],
+        default='INTERNAL',
+        db_index=True,
+        verbose_name='用户类型',
+    )
+
     # 抢单 ROUND_ROBIN
     last_assignment_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='上次被分配时间')
 
