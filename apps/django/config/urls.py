@@ -12,6 +12,7 @@ from drf_spectacular.views import (
 )
 
 from apps.application.views import ApplicationViewSet
+from apps.common.views import MediaUploadView
 from apps.demand.views import DemandConfigView
 # 2026-08-28 寇豆码: 背调供应商异步回调入向端点（§5.2 验签，供应商签名保护，不鉴权）
 from apps.integration.views import BackgroundCheckCallbackView, BackgroundCheckOrderViewSet
@@ -148,6 +149,7 @@ api_v1_patterns = [
     path('scraped-resumes/', include('apps.scraped_resume.urls')),
 
     # 公共
+    path('media/upload/', MediaUploadView.as_view(), name='media-upload'),
     path('field-acl/', include('apps.field_acl.urls')),
     # 2026-09-15: 数据权限管理（统一行级+列级, 按 角色/部门/用户 维度）— 管理面 CRUD
     path('data-permissions/', include('apps.data_permission.urls')),

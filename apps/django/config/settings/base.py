@@ -293,6 +293,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# === 对象存储（动态字段附件 / 通用上传, 2026-09-16 兵哥）===
+# STORAGE_PROVIDER: local(默认, 落 MEDIA_ROOT) | cos(腾讯云 COS)
+# cos 后端缺失 SDK/密钥时自动回退 local, 保证 dev 可跑; prod 配齐即走对象存储。
+STORAGE_PROVIDER = env('STORAGE_PROVIDER', default='local')
+COS_SECRET_ID = env('COS_SECRET_ID', default='')
+COS_SECRET_KEY = env('COS_SECRET_KEY', default='')
+COS_BUCKET = env('COS_BUCKET', default='')
+COS_REGION = env('COS_REGION', default='')
+COS_DOMAIN = env('COS_DOMAIN', default='')  # 可选自定义域名, 留空用默认 bucket 域名
+
 # === 日志目录 ===
 LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(parents=True, exist_ok=True)

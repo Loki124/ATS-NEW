@@ -123,6 +123,8 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             'date_format',
             # 2026-09-15 行政区划型字段层级精度(省/省市/省市区)
             'region_level',
+            # 2026-09-16 (兵哥): 组合字段子结构定义(仅 COMPOSITE 使用)
+            'sub_fields',
         ]
         read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
 
@@ -200,11 +202,44 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
         return field_key
 
     def validate(self, attrs: dict) -> dict:
-        """在校验层拦截 (resource, field_key) 唯一冲突, 避免 DB 层 IntegrityError → 500。
+        """在校验层拦截:
 
-        - create: 检查该 resource 下是否已有同名 field_key 的**存活**记录。
-        - update: 同上, 但排除自身 (改其它字段而不改 Key 时不能误报)。
+        - COMPOSITE 组合字段子结构合法性(**与 resource 无关, 始终执行**);
+        - (resource, field_key) 唯一冲突, 避免 DB 层 IntegrityError → 500。
+          create: 检查该 resource 下是否已有同名 field_key 的**存活**记录;
+          update: 同上, 但排除自身 (改其它字段而不改 Key 时不能误报)。
         """
+        # 2026-09-16 (兵哥): COMPOSITE 组合字段子结构校验(独立, 不依赖 resource 解析,
+        #   否则无 context 场景下 resource 解析为空会提前 return, 漏掉本应拦截的非法子结构)
+        field_type = attrs.get('field_type') or getattr(self.instance, 'field_type', '')
+        if field_type == DynamicField.FieldType.COMPOSITE:
+            subs = attrs.get('sub_fields')
+            if not isinstance(subs, list) or not subs:
+                raise serializers.ValidationError({
+                    'sub_fields': ['组合字段至少需要 1 个子字段']
+                })
+            allowed = {
+                DynamicField.FieldType.TEXT, DynamicField.FieldType.NUMBER,
+                DynamicField.FieldType.MULTILINE_TEXT, DynamicField.FieldType.ATTACHMENT,
+                DynamicField.FieldType.DATE, DynamicField.FieldType.PHONE,
+                DynamicField.FieldType.EMAIL,
+            }
+            seen = set()
+            for i, sub in enumerate(subs):
+                if not isinstance(sub, dict):
+                    raise serializers.ValidationError({'sub_fields': [f'子字段 #{i+1} 结构非法']})
+                skey = (sub.get('key') or '').strip()
+                stype = sub.get('type')
+                if not skey:
+                    raise serializers.ValidationError({'sub_fields': [f'子字段 #{i+1} 缺少 key']})
+                if skey in seen:
+                    raise serializers.ValidationError({'sub_fields': [f'子字段 key 重复: {skey}']})
+                seen.add(skey)
+                if stype not in allowed:
+                    raise serializers.ValidationError({
+                        'sub_fields': [f'子字段 {skey} 类型 {stype} 不支持, 仅允许 {sorted(allowed)}']
+                    })
+
         resource = self._resolve_resource()
         field_key = attrs.get('field_key') or getattr(self.instance, 'field_key', '')
 

@@ -40,6 +40,10 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         # 2026-09-15 新增「行政区划」型(省/省市/省市区, 由 region_level 控制精度)
         # 存储为 JSON: {country?: {code,name}, province: {code,name}, city?: {code,name}, district?: {code,name}}
         REGION = 'REGION', '行政区划'
+        # 2026-09-16 (兵哥): 组合字段型 — 一个字段聚合多个子字段(可含 TEXT/ATTACHMENT 等),
+        # 在页面应用中以「组合展示」卡片呈现(如 证件+银行卡)。子结构由 sub_fields 定义,
+        # 值以 JSON 对象按子字段 key 存储: {subKey: value}.
+        COMPOSITE = 'COMPOSITE', '组合字段'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [
@@ -128,6 +132,13 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     region_level = models.CharField(
         max_length=16, choices=RegionLevel.choices, default=RegionLevel.DISTRICT,
         help_text='行政区划层级精度(省/省市/省市区, 仅 REGION 渲染时参考)',
+    )
+    # 2026-09-16 (兵哥): 组合字段子结构定义。
+    # 结构: [{key, label, type: 'TEXT'|'ATTACHMENT'|'NUMBER'|..., required: bool}]
+    # 仅 COMPOSITE 类型使用; 渲染层据此生成「组合展示」卡片, 值按子字段 key 存 JSON 对象。
+    sub_fields = models.JSONField(
+        default=list, blank=True,
+        help_text='组合字段子结构 [{key,label,type,required}]; 仅 COMPOSITE 类型使用',
     )
 
     class Meta:
