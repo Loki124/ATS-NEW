@@ -300,10 +300,6 @@ const filteredUsers = computed<User[]>(() => {
   return users.value.filter((u) => u.userType === expected);
 });
 
-// 数据是否携带某字段（用于内部员工工号/职务列的条件展示，不臆造字段）
-const dataHasField = (field: keyof User): boolean =>
-  users.value.some((u) => u[field] !== undefined && u[field] !== null && u[field] !== '');
-
 // 加载角色列表
 const loadRoles = async () => {
   try {
@@ -599,14 +595,11 @@ const actionsColumn = {
 const columns = computed(() => {
   const cols: any[] = [];
   if (mode.value === 'internal') {
-    // 内部员工：工号 / 姓名 / 职务（字段存在才展示，不臆造）/ 状态 / 角色 / 操作
-    if (dataHasField('employeeId')) {
-      cols.push({ title: '工号', key: 'employeeId', width: 120 });
-    }
+    // 内部员工：工号 / 姓名 / 职务 / 状态 / 角色 / 操作
+    // employeeId / positionTitle 由 UserSerializer 始终返回（空值为 null），属内部员工固有属性，内部模式常显
+    cols.push({ title: '工号', key: 'employeeId', width: 120 });
     cols.push({ title: '姓名', key: 'realName', width: 100 });
-    if (dataHasField('positionTitle')) {
-      cols.push({ title: '职务', key: 'positionTitle', width: 120 });
-    }
+    cols.push({ title: '职务', key: 'positionTitle', width: 120 });
     cols.push(statusColumn, { title: '角色', key: 'roleType', width: 90 }, actionsColumn);
   } else if (mode.value === 'external') {
     // 外部用户：姓名 / 状态 / 角色 / 类型 / 操作
