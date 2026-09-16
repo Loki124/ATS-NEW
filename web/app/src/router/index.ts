@@ -130,6 +130,10 @@ const routes: RouteRecordRaw[] = [
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
           { path: 'user-management', name: 'UserManagement', component: () => import(/* webpackChunkName: "settings-user" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          // ===== 北森风格重构：用户管理子页（内部/外部/全部用户），暂复用 UserManagement 组件 =====
+          { path: 'users/internal', name: 'UserDirectoryInternal', component: () => import(/* webpackChunkName: "settings-users-internal" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          { path: 'users/external', name: 'UserDirectoryExternal', component: () => import(/* webpackChunkName: "settings-users-external" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: ['SUPER_ADMIN'] } },
           // 2026-07-01 花无缺: 删 /settings/permission 路由 + 删 PermissionManagement.vue (G41 重构合并到 MouManagement 角色管理 tab)
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },

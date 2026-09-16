@@ -63,7 +63,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { NIcon, NMenu } from 'naive-ui'
 import {
   ChevronForwardOutline, ChevronBackOutline,
-  PersonCircleOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
+  PersonCircleOutline, PersonOutline, PersonAddOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
   ClipboardOutline, StarOutline, SchoolOutline, GitNetworkOutline, GitBranchOutline,
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
   CloudUploadOutline, ServerOutline, SearchOutline, AnalyticsOutline,
@@ -113,14 +113,33 @@ const subMenuOptions: MenuItem[] = [
         icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }),
         children: [
           { key: '/settings/department', label: '组织职责管理', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
-          { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
-          { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-          { key: '/settings/data-permission', label: '数据权限管理', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
-          { key: '/settings/user-management', label: '团队成员管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
-          { key: '/settings/registrations', label: '注册审核', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
+        ],
+      },
+      {
+        // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 注册审核 + 用户组
+        key: 'g-user',
+        label: '用户管理',
+        icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }),
+        children: [
+          { key: '/settings/users/internal', label: '内部员工', icon: () => h(NIcon, null, { default: () => h(PersonCircleOutline) }) },
+          { key: '/settings/users/external', label: '外部用户', icon: () => h(NIcon, null, { default: () => h(PersonOutline) }) },
+          { key: '/settings/users/all', label: '全部用户', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+          { key: '/settings/registrations', label: '注册审核', icon: () => h(NIcon, null, { default: () => h(PersonAddOutline) }) },
           { key: '/settings/user-groups', label: '用户组管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },
+    ],
+  },
+  {
+    // ★ 北森风格重构：新增「权限管理」顶层分组（放在「基本信息」之后），收纳角色/管理单元/数据权限/团队成员
+    key: 'g-permission',
+    type: 'group',
+    label: '权限管理',
+    children: [
+      { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+      { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
+      { key: '/settings/data-permission', label: '数据权限管理', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
+      { key: '/settings/user-management', label: '团队成员管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
     ],
   },
   {
