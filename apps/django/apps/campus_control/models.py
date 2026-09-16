@@ -200,6 +200,13 @@ class Person(FullAuditModel, UUIDModel):
         choices=[(l, l) for l in LEVELS], verbose_name='职级'
     )
     counted = models.BooleanField(default=True, verbose_name='计入核算')
+    # 2026-09-16: PERSON 执行面映射 — 把校招人员主数据关联到其登录用户。
+    # 管理单元 PERSON 成员经此字段映射成 user_id, 在执行面 row_filter_q 中以
+    # created_by__in=[user_id] 真实过滤该用户创建的候选人数据 (支持交叉管理)。
+    # 用 BigIntegerField 存 User.id, 与 ManagementUnitMember.user_id 同口径,
+    # 避免跨 app 外键带来的迁移依赖耦合。
+    user_id = models.BigIntegerField(
+        null=True, blank=True, db_index=True, verbose_name='关联用户ID')
 
     class Meta:
         verbose_name = '人员主数据'

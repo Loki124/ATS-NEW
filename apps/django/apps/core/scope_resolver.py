@@ -273,10 +273,30 @@ def collect_unit_member_depts(unit_ids):
 
 
 def collect_unit_member_users(unit_ids):
-    """汇总若干管理单元下 USER 类型成员的用户 id (供执行面 created_by__in)."""
+    """汇总若干管理单元下 USER / PERSON 类型成员的用户 id (供执行面 created_by__in).
+
+    - USER 成员: 直接取其 user_id;
+    - PERSON 成员: 经 campus_control.Person.user_id 映射成登录用户 id
+      (2026-09-16 补全 PERSON 执行面: 把校招人员主数据关联到其登录用户,
+       使该用户创建的候选人数据对其管理单元可见, 支持交叉管理).
+    """
     from .models_permission_v2 import ManagementUnitMember
     out = set()
-    for m in ManagementUnitMember.objects.filter(unit_id__in=list(unit_ids), member_type='USER', status=1):
-        if m.user_id:
-            out.add(m.user_id)
+    members = list(
+        ManagementUnitMember.objects.filter(unit_id__in=list(unit_ids), status=1)
+    )
+    user_ids = [m.user_id for m in members if m.member_type == 'USER' and m.user_id]
+    out.update(user_ids)
+    person_ids = [m.person_id for m in members if m.member_type == 'PERSON' and m.person_id]
+    if person_ids:
+        try:
+            from apps.campus_control.models import Person
+            for uid in Person.objects.filter(
+                pk__in=person_ids, user_id__isnull=False
+            ).values_list('user_id', flat=True):
+                if uid is not None:
+                    out.add(uid)
+        except (OperationalError, ProgrammingError, ImportError):
+            # campus_control 表缺失 / app 未装载 -> 跳过 PERSON 部分, 不阻断 USER 解析
+            logger.warning('[collect_unit_member_users] PERSON->user_id 解析失败, 跳过该部分')
     return list(out)
