@@ -136,15 +136,12 @@ class ManagementUnit(models.Model):
 
     方案 A(2026-09-15) 增强:
     - parent_id: 树形层级(集团/子公司/部门), 北森「上级管理单元」对齐
-    - personnel_scope: 人员范围动态谓词(北森图5 的「任职记录.部门=X / 职务=Y」),
-      由管理单元 UI 生成, 经 sync-data-rules 落 DataPermissionRule
     """
     system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
     unit_name = models.CharField(max_length=64, verbose_name='管理单元名称')
     unit_type = models.CharField(max_length=20, default='org', verbose_name='单元类型')
     parent_id = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name='上级管理单元ID')
     org_scope = models.JSONField(null=True, blank=True, verbose_name='组织范围(JSON)')
-    personnel_scope = models.JSONField(null=True, blank=True, verbose_name='人员范围条件(JSON谓词)')
     include_children = models.SmallIntegerField(default=1, verbose_name='是否包含子级(1是 0否)')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')

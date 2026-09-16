@@ -74,17 +74,13 @@ class TestV2ModelsSmoke:
             )
 
     def test_management_unit_hierarchy_fields(self):
-        """方案 A M1: parent_id(树) + personnel_scope(JSON 谓词) 可写可读。"""
+        """方案 A M1: parent_id(树) 可写可读。"""
         root = ManagementUnit.objects.create(unit_name='Root', unit_type='org')
         child = ManagementUnit.objects.create(unit_name='Child', parent_id=root.id)
         assert child.parent_id == root.id
-        root.personnel_scope = {'op': 'or', 'rules': [
-            {'dimension': 'employment', 'field': 'department', 'op': 'eq', 'value': 1, 'include_sub': True},
-        ]}
-        root.save()
         root.refresh_from_db()
-        assert root.personnel_scope['op'] == 'or'
-        assert root.personnel_scope['rules'][0]['field'] == 'department'
+        assert root.parent_id is None
+        assert child.parent_id == root.id
 
     def test_user_app_data_scope_unique(self):
         """方案 A M1: (user_id, role_code, app_code) 唯一约束生效。

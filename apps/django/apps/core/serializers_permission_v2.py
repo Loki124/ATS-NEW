@@ -43,12 +43,12 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 class ManagementUnitSerializer(serializers.ModelSerializer):
-    """方案 A(2026-09-15): 新增 parent_id(树形层级) + personnel_scope(人员范围谓词)."""
+    """方案 A(2026-09-15): 新增 parent_id(树形层级)."""
 
     class Meta:
         model = ManagementUnit
         fields = ['id', 'system_code', 'unit_name', 'unit_type', 'parent_id',
-                  'org_scope', 'personnel_scope', 'include_children', 'status',
+                  'org_scope', 'include_children', 'status',
                   'created_at', 'updated_at']
 
     def validate(self, attrs):

@@ -174,17 +174,14 @@ def test_l1_per_app_scope_priority_over_global():
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_management_unit_hierarchy_fields_roundtrip():
-    """方案 A: ManagementUnit.parent_id(树) + personnel_scope(JSON 谓词) 读写往返."""
+    """方案 A: ManagementUnit.parent_id(树) 读写往返."""
     from apps.core.models_permission_v2 import ManagementUnit
 
     root = ManagementUnit.objects.create(
-        system_code='recruit', unit_name='根', unit_type='org', status=1,
-        personnel_scope={'op': 'or', 'rules': [{'dimension': 'employment', 'field': 'department', 'op': 'eq', 'value': 'D9'}]})
+        system_code='recruit', unit_name='根', unit_type='org', status=1)
     child = ManagementUnit.objects.create(
-        system_code='recruit', unit_name='子', unit_type='org', parent_id=root.id, status=1,
-        personnel_scope=None)
+        system_code='recruit', unit_name='子', unit_type='org', parent_id=root.id, status=1)
     root.refresh_from_db()
     child.refresh_from_db()
     assert root.parent_id is None
     assert child.parent_id == root.id
-    assert root.personnel_scope['rules'][0]['value'] == 'D9'

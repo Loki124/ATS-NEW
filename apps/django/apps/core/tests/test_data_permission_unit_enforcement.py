@@ -33,7 +33,6 @@ def test_management_unit_scope_reaches_enforcement():
         system_code='recruit',
         unit_type='org',
         org_scope=['D1', 'D2'],
-        personnel_scope={},
         status=1,
     )
     UserAppDataScope.objects.create(
