@@ -1085,12 +1085,25 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
  * 同时兜底 范本的 :bordered=false（去全局 .n-card 边框）+ :segmented
  * （header/footer 发丝分隔线近似），让所有设置页弹窗与校招管控同款。
  * 弹窗 teleport 到 body，无法用祖先作用域，故全局生效（单设计系统收益）。 */
-.n-modal .n-card {
+/* ★ 选择器必须是复合 .n-card.n-modal（同元素），不能用后代 .n-modal .n-card ——
+ *   naive modal(preset="card") 把 .n-modal 类直接打在 card 元素上（card 自身
+ *   即 .n-card.n-modal，无独立 .n-modal 祖先），后代选择器永远不命中此 card；
+ *   真正裁切它的是 naive 自身 cssr 的 .n-modal{overflow:hidden}（card 带 n-modal
+ *   类→命中→hidden）。复合选择器特异性 (0,2,0) 压过 naive 的 .n-modal (0,1,0)。 */
+.n-card.n-modal {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  /* 关键：内容超出 90vh 时交给 .n-card-content 内滚，不溢出面板被裁切 */
-  overflow: hidden;
+  /* 2026-09-16 (兵哥) overflow:visible —— 弹窗内浮层裁切根治:
+   *   naive useAdjustedTo 把 select/dropdown/cascader 等浮层默认就地渲染进卡片
+   *   元素 (.n-card.n-modal, 即 modal.$el), 若 card overflow:hidden 会把菜单超出
+   *   卡片底边的选项永久裁掉 (select 菜单内部是 n-virtual-list, 内容不超 --n-height
+   *   时无溢出、无法滚动自救 → 表现为「下拉无法滚动」, 实证: 编辑字段·选项来源)。
+   *   放开裁切的依据: header/content/footer 背景全透明, card 背景+圆角绘制在 card
+   *   元素自身, 无分段背景需裁; content 内滚契约 (flex+min-height:0+overflow-y:auto)
+   *   不依赖 card 的 overflow。modal-body-wrapper 本身 overflow:visible
+   *   (naive modal cssr L35), 浮层可安全伸出卡片。 */
+  overflow: visible;
   border: none !important;            /* 等同于 :bordered="false" */
 }
 /* ⚠️ 类名铁律（Naive UI 2.44.1 实测，见 node_modules/naive-ui/es/card/src/styles/index.cssr.mjs）：
@@ -1098,7 +1111,9 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
      - cB('card-content') → .n-card-content   （单横线 block 类）
      - cE('footer')       → .n-card__footer   （双下划线 element 类）
    此前误写成 .n-card__header / .n-card__content → 选择器永不匹配 → content 既无滚动也无高度上限，
-   而 .n-modal 又带 overflow:hidden → 长内容被直接裁掉且无滚动条（全仓 preset="card" 弹窗同症状）。
+   而内容直接溢出弹窗被视口裁掉且无滚动条（全仓 preset="card" 弹窗同症状）。
+   注：card 自身现 overflow:visible（见上方 2026-09-16 注释），内容裁切完全由
+   .n-card-content 的 overflow-y:auto 承担，勿在 content 上重复依赖 card 裁切。
    另：flex item 默认 min-height:auto，不置 0 则 content 拒绝收缩、高度突破 90vh。 */
 .n-modal .n-card-header {
   flex-shrink: 0;
