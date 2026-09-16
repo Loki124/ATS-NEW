@@ -219,15 +219,23 @@ const subMenuOptions: MenuItem[] = [
     label: '其他',
     children: [
       { key: '/settings/theme', label: '主题外观', icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
-      { key: '/settings/company-library', label: '公司库', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
-      { key: '/settings/school-library', label: '院校库', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
+      {
+        // 2026-09-16 基础数据：收纳码表库 / 院校库 / 公司库三个基础数据维护入口
+        key: 'g-basic-data',
+        label: '基础数据',
+        icon: () => h(NIcon, null, { default: () => h(ServerOutline) }),
+        children: [
+          { key: '/settings/company-library', label: '公司库', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
+          { key: '/settings/school-library', label: '院校库', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
+          { key: '/settings/code-tables', label: '码表库', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+        ],
+      },
       { key: '/settings/dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
       { key: '/settings/scraped-resumes', label: '我找的简历', icon: () => h(NIcon, null, { default: () => h(SearchOutline) }) },
       { key: '/settings/data-dashboard', label: '数据中心', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
       { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
       { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
       { key: '/settings/rule-engine', label: '统一规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
-      { key: '/settings/code-tables', label: '码表库', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
     ],
   },
 ]
