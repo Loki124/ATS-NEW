@@ -94,6 +94,22 @@ RESOURCES = [
     ('recruit:mgmt_unit:create', '新增管理单元', 'BUTTON', 'mgmt_unit'),
     ('recruit:mgmt_unit:edit', '编辑管理单元', 'BUTTON', 'mgmt_unit'),
     # --- module: settings ---
+    # 用户管理 (用户集中入口: 内部员工/外部用户/全部用户; 注册审核/用户组迁入)
+    # 顶层菜单 + 三个子菜单
+    ('recruit:settings:users:menu:view', '用户管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:users:internal:menu:view', '内部员工菜单', 'MENU', 'settings'),
+    ('recruit:settings:users:external:menu:view', '外部用户菜单', 'MENU', 'settings'),
+    ('recruit:settings:users:all:menu:view', '全部用户菜单', 'MENU', 'settings'),
+    # 操作按钮 (共享粒度: 内部/外部/全部统一授权)
+    ('recruit:settings:users:list', '用户列表', 'BUTTON', 'settings'),
+    ('recruit:settings:users:create', '新增用户', 'BUTTON', 'settings'),
+    ('recruit:settings:users:edit', '编辑用户', 'BUTTON', 'settings'),
+    ('recruit:settings:users:delete', '删除用户', 'BUTTON', 'settings'),
+    ('recruit:settings:users:export', '导出用户', 'BUTTON', 'settings'),
+    # 按用户类型独立授权 (必要时做更细粒度控制)
+    ('recruit:settings:users:internal:list', '内部员工列表', 'BUTTON', 'settings'),
+    ('recruit:settings:users:external:list', '外部用户列表', 'BUTTON', 'settings'),
+    ('recruit:settings:users:all:list', '全部用户列表', 'BUTTON', 'settings'),
     # 个人信息管理 (config)
     ('recruit:settings:account:menu:view', '个人信息管理菜单', 'MENU', 'settings'),
     ('recruit:settings:account:edit', '编辑个人信息', 'BUTTON', 'settings'),
@@ -115,6 +131,8 @@ RESOURCES = [
     ('recruit:settings:department:edit', '编辑组织职责', 'BUTTON', 'settings'),
     ('recruit:settings:department:delete', '删除组织职责', 'BUTTON', 'settings'),
     ('recruit:settings:department:export', '导出组织职责', 'BUTTON', 'settings'),
+    # 权限管理 (分组顶层: 角色管理/管理单元/数据权限/团队成员管理)
+    ('recruit:settings:permission:menu:view', '权限管理菜单', 'MENU', 'settings'),
     # 角色管理 (management)
     ('recruit:settings:permissions:menu:view', '角色管理菜单', 'MENU', 'settings'),
     ('recruit:settings:permissions:create', '新增角色', 'BUTTON', 'settings'),
@@ -136,8 +154,8 @@ RESOURCES = [
     # 注册审核 (config/审核)
     ('recruit:settings:registrations:menu:view', '注册审核菜单', 'MENU', 'settings'),
     ('recruit:settings:registrations:approve', '审核注册', 'BUTTON', 'settings'),
-    # 用户组 (占位)
-    ('recruit:settings:user-groups:menu:view', '用户组菜单', 'MENU', 'settings'),
+    # 用户组 (迁移到「用户管理」下, 标记占位)
+    ('recruit:settings:user-groups:menu:view', '用户组管理菜单', 'MENU', 'settings'),
     # 标准简历设置 (config)
     ('recruit:settings:standard-resume:menu:view', '标准简历设置菜单', 'MENU', 'settings'),
     ('recruit:settings:standard-resume:edit', '编辑标准简历', 'BUTTON', 'settings'),
