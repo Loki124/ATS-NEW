@@ -49,7 +49,8 @@ class ManagementUnitSerializer(serializers.ModelSerializer):
         model = ManagementUnit
         fields = ['id', 'system_code', 'unit_name', 'unit_type', 'parent_id',
                   'code', 'description', 'display_order',
-                  'org_scope', 'include_children', 'data_range', 'status',
+                  'org_scope', 'include_children', 'data_range',
+                  'org_scopes', 'data_ranges', 'status',
                   'created_at', 'updated_at']
 
     def validate(self, attrs):
@@ -83,7 +84,7 @@ class ManagementUnitMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = ManagementUnitMember
         fields = ['id', 'unit', 'member_type', 'department_id', 'user_id', 'person_id',
-                  'include_children', 'remark', 'status', 'created_at', 'updated_at',
+                  'app_code', 'include_children', 'remark', 'status', 'created_at', 'updated_at',
                   'department_name', 'user_name', 'person_name']
         extra_kwargs = {
             'id': {'read_only': True},

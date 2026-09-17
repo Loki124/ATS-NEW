@@ -41,6 +41,8 @@ export interface ManagementUnit {
   orgScope?: Array<{ deptId: string; includeChildren: boolean }> | Record<string, any> | null;
   personnelScope?: Record<string, any> | null;
   dataRange?: Record<string, any> | null;
+  orgScopes?: Record<string, Array<{ deptId: string; includeChildren: boolean }>> | null;
+  dataRanges?: Record<string, any> | null;
   includeChildren: number;
   status: number;
   createdAt?: string;
@@ -99,7 +101,9 @@ export async function createManagementUnit(payload: Partial<ManagementUnit>) {
 }
 
 export async function updateManagementUnit(id: string, payload: Partial<ManagementUnit>) {
-  const { data } = await api.put<{ success: boolean; data: ManagementUnit }>(
+  // 使用 PATCH(部分更新): serializer 中 unit_name 为必填, PUT 会拒绝仅传部分字段的调用
+  // (如按应用保存 orgScopes/dataRanges、批量停用仅传 {status:0}), 改为 PATCH 后这些调用均生效.
+  const { data } = await api.patch<{ success: boolean; data: ManagementUnit }>(
     `/management-units/${id}/`,
     payload,
   );
@@ -125,6 +129,7 @@ export interface ManagementUnitMember {
   departmentId: string | null;
   userId: number | null;
   personId: string | null;
+  appCode?: string | null;
   includeChildren: number;
   remark: string | null;
   status: number;

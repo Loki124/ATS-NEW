@@ -262,6 +262,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 'code': u.code, 'description': u.description, 'display_order': u.display_order,
                 'org_scope': u.org_scope,
                 'data_range': u.data_range,
+                'org_scopes': u.org_scopes, 'data_ranges': u.data_ranges,
                 'member_count': ManagementUnitMember.objects.filter(unit_id=u.id, status=1).count(),
                 'children': [],
             }
@@ -294,6 +295,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             return Response({'success': True, 'data': ManagementUnitMemberSerializer(qs, many=True).data})
         data = request.data or {}
         mt = data.get('member_type')
+        app_code = data.get('app_code') or None
         ref_map = {'DEPT': 'department_id', 'USER': 'user_id', 'PERSON': 'person_id'}
         ref_col = ref_map.get(mt)
         ref_val = data.get(ref_col) if ref_col else None
@@ -301,11 +303,12 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             return Response({'success': False, 'message': 'member_type 与对应引用ID必填'},
                             status=http_status.HTTP_400_BAD_REQUEST)
         if ManagementUnitMember.objects.filter(unit_id=unit.id, member_type=mt,
+                                                app_code=app_code,
                                                 **{ref_col: ref_val}).exists():
-            return Response({'success': False, 'message': '该成员已存在于此管理单元'},
+            return Response({'success': False, 'message': '该成员已存在于此管理单元(同应用)'},
                             status=http_status.HTTP_400_BAD_REQUEST)
         member = ManagementUnitMember.objects.create(
-            unit_id=unit.id, member_type=mt, **{ref_col: ref_val},
+            unit_id=unit.id, member_type=mt, app_code=app_code, **{ref_col: ref_val},
             include_children=int(data['include_children']) if data.get('include_children') is not None else 1,
             remark=data.get('remark') or '', status=1)
         from .serializers_permission_v2 import ManagementUnitMemberSerializer

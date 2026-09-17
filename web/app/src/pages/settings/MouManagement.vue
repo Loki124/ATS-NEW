@@ -334,11 +334,17 @@
       :value="unitForm.dataRange"
       @confirm="onDataRangeConfirm"
     />
-    <!-- 详情页「设置数据范围」复用 DataRangeModal（独立绑定，保存回写单元） -->
+    <!-- 详情页「设置数据范围」复用 DataRangeModal（独立绑定，按应用回写单元） -->
     <DataRangeModal
       v-model:show="detailDataRangeVisible"
       :value="detailDataRangeValue"
       @confirm="onDetailDataRangeConfirm"
+    />
+    <!-- 详情页「配置组织范围」复用 OrgScopeTreeModal（独立绑定，按应用回写单元） -->
+    <OrgScopeTreeModal
+      v-model:show="detailOrgScopeVisible"
+      :value="detailOrgScopeValue"
+      @confirm="onDetailOrgScopeConfirm"
     />
 
     <!-- 详情抽屉（北森图2：表头元信息 + 应用 Tab + 可折叠 组织/人员范围） -->
@@ -359,11 +365,13 @@
 
         <n-tabs v-model:value="detailAppTab" type="line" class="detail-tabs">
           <n-tab-pane v-for="app in appTabs" :key="app.value" :name="app.value" :tab="app.label">
-            <n-collapse :default-expanded-names="['org', 'person']">
+            <div class="detail-app-hint">当前应用：<b>{{ app.label }}</b> —— 以下「组织范围 / 人员范围 / 数据范围」均按该应用独立配置，互不干扰</div>
+            <n-collapse :default-expanded-names="['org', 'person', 'data']">
+              <!-- 管理组织范围（按应用） -->
               <n-collapse-item title="管理组织范围" name="org">
                 <template #header-extra>
                   <n-space>
-                    <n-button size="small" @click.stop="openDetailDataRange('org')">设置数据范围</n-button>
+                    <n-button size="small" type="primary" @click.stop="openDetailOrgScope">配置组织范围</n-button>
                     <n-button size="small" @click.stop="collapseSection('org')">收起</n-button>
                   </n-space>
                 </template>
@@ -374,27 +382,39 @@
                   size="small"
                   :scroll-x="520"
                 />
+                <n-empty v-if="!detailOrgNodes.length" description="该应用下尚未配置组织范围，点击「配置组织范围」按应用设置" class="detail-empty" />
               </n-collapse-item>
+              <!-- 管理人员范围（按应用） -->
               <n-collapse-item title="管理人员范围" name="person">
                 <template #header-extra>
                   <n-space>
-                    <n-button size="small" @click.stop="openDetailDataRange('person')">设置数据范围</n-button>
+                    <n-button size="small" type="primary" @click.stop="openDetailAddMember('DEPT')">添加组织节点</n-button>
+                    <n-button size="small" @click.stop="openDetailAddMember('USER')">添加用户</n-button>
+                    <n-button size="small" @click.stop="openDetailAddMember('PERSON')">添加HR人员</n-button>
                     <n-button size="small" @click.stop="collapseSection('person')">收起</n-button>
                   </n-space>
                 </template>
                 <n-data-table
-                  :data="detailMembers"
+                  :data="detailMembersFiltered"
                   :columns="detailMemberColumns"
                   :row-key="(row: ManagementUnitMember) => row.id"
                   size="small"
                   :scroll-x="420"
                   :loading="detailMemberLoading"
                 />
+                <n-empty v-if="!detailMembersFiltered.length" :description="`「${currentAppLabel}」下暂无成员，可点击上方按钮按应用添加`" class="detail-empty" />
+              </n-collapse-item>
+              <!-- 数据范围（按应用） -->
+              <n-collapse-item title="数据范围" name="data">
+                <template #header-extra>
+                  <n-space>
+                    <n-button size="small" type="primary" @click.stop="openDetailDataRange">设置数据范围</n-button>
+                    <n-button size="small" @click.stop="collapseSection('data')">收起</n-button>
+                  </n-space>
+                </template>
+                <div class="scope-readout">{{ dataRangeLabel(currentAppDataRange) }}</div>
               </n-collapse-item>
             </n-collapse>
-            <n-alert type="warning" :show-icon="false" class="detail-note">
-              当前按应用的数据范围差异化配置将在下一阶段接入，本期组织/人员范围对所有应用 Tab 共用。
-            </n-alert>
           </n-tab-pane>
         </n-tabs>
       </n-drawer-content>
@@ -793,6 +813,8 @@ const detailUnit = ref<ManagementUnit | null>(null)
 const detailAppTab = ref('public')
 const detailDataRangeVisible = ref(false)
 const detailDataRangeValue = ref<any>(null)
+const detailOrgScopeVisible = ref(false)
+const detailOrgScopeValue = ref<OrgScopeNode[] | null>(null)
 const detailMemberLoading = ref(false)
 const detailMembers = ref<ManagementUnitMember[]>([])
 
@@ -804,9 +826,38 @@ const appTabs = [
   { label: '内推', value: 'referral' },
 ]
 
-const detailOrgNodes = computed<OrgScopeNode[]>(() =>
-  detailUnit.value ? toOrgScopeNodes(detailUnit.value.orgScope) : [],
-)
+const currentAppLabel = computed(() => {
+  const a = appTabs.find((x) => x.value === detailAppTab.value)
+  return a ? a.label : detailAppTab.value
+})
+
+/** 当前应用 Tab 的组织范围（public 回退单元级 orgScope，其余回退空） */
+const detailOrgNodes = computed<OrgScopeNode[]>(() => {
+  if (!detailUnit.value) return []
+  const app = detailAppTab.value
+  if (app === 'public') return toOrgScopeNodes(detailUnit.value.orgScope)
+  const perApp = detailUnit.value.orgScopes?.[app]
+  return perApp ? toOrgScopeNodes(perApp) : []
+})
+
+/** 当前应用 Tab 的数据范围（public 回退单元级 dataRange，其余回退空） */
+const currentAppDataRange = computed<any>(() => {
+  if (!detailUnit.value) return null
+  const app = detailAppTab.value
+  if (app === 'public') return (detailUnit.value.dataRange as any) ?? null
+  return detailUnit.value.dataRanges?.[app] ?? null
+})
+
+/** 当前应用 Tab 的成员（public = 无 appCode 的公共成员；其余 = 该 appCode 的专属成员） */
+const detailMembersFiltered = computed<ManagementUnitMember[]>(() => {
+  if (!detailUnit.value) return []
+  const app = detailAppTab.value
+  return detailMembers.value.filter((m) => {
+    const mc = m.appCode || null
+    if (app === 'public') return !mc
+    return mc === app
+  })
+})
 const detailOrgColumns = [
   { title: '组织名称', key: 'orgName', minWidth: 140, render: (row: OrgScopeNode) => deptNameById(row.deptId) },
   { title: '编码', key: 'deptId', width: 120, render: (row: OrgScopeNode) => row.deptId },
@@ -827,6 +878,11 @@ const detailMemberColumns = [
   {
     title: '组织', key: 'org', minWidth: 140,
     render: (row: ManagementUnitMember) => (row.departmentId ? deptNameById(row.departmentId) : '—'),
+  },
+  {
+    title: '操作', key: 'action', width: 90,
+    render: (row: ManagementUnitMember) =>
+      h(NButton, { size: 'small', text: true, type: 'error', onClick: () => onRemoveDetailMember(row) }, { default: () => '移除' }),
   },
 ]
 
@@ -858,21 +914,64 @@ async function loadDetailMembers(u: ManagementUnit) {
     detailMemberLoading.value = false
   }
 }
-function openDetailDataRange(_section: 'org' | 'person') {
+function openDetailDataRange() {
   if (!detailUnit.value) return
-  detailDataRangeValue.value = (detailUnit.value.dataRange as any) ?? null
+  detailDataRangeValue.value = currentAppDataRange.value
   detailDataRangeVisible.value = true
 }
 async function onDetailDataRangeConfirm(range: any) {
   if (!detailUnit.value) return
+  detailDataRangeVisible.value = false
+  const app = detailAppTab.value
   try {
-    const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRange: range ?? null })
-    detailUnit.value = { ...detailUnit.value, dataRange: (updated as any).dataRange ?? range }
+    if (app === 'public') {
+      const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRange: range ?? null })
+      detailUnit.value = { ...detailUnit.value, dataRange: (updated as any).dataRange ?? range }
+    } else {
+      const merged = { ...(detailUnit.value.dataRanges || {}), [app]: range ?? null }
+      const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRanges: merged })
+      detailUnit.value = { ...detailUnit.value, dataRanges: (updated as any).dataRanges ?? merged }
+    }
     message.success('数据范围已保存')
   } catch (e: any) {
     message.error('保存数据范围失败: ' + (e?.response?.data?.message || e?.message || e))
-  } finally {
-    detailDataRangeVisible.value = false
+  }
+}
+
+// ===== 详情抽屉：按应用配置「组织范围」 =====
+function openDetailOrgScope() {
+  if (!detailUnit.value) return
+  detailOrgScopeValue.value = detailOrgNodes.value
+  detailOrgScopeVisible.value = true
+}
+async function onDetailOrgScopeConfirm(nodes: OrgScopeNode[]) {
+  if (!detailUnit.value) return
+  detailOrgScopeVisible.value = false
+  const app = detailAppTab.value
+  const payloadNodes = nodes && nodes.length ? nodes : null
+  try {
+    if (app === 'public') {
+      const updated = await updateManagementUnit(String(detailUnit.value.id), { orgScope: payloadNodes })
+      detailUnit.value = { ...detailUnit.value, orgScope: (updated as any).orgScope ?? payloadNodes }
+    } else {
+      const merged = { ...(detailUnit.value.orgScopes || {}), [app]: payloadNodes }
+      const updated = await updateManagementUnit(String(detailUnit.value.id), { orgScopes: merged })
+      detailUnit.value = { ...detailUnit.value, orgScopes: (updated as any).orgScopes ?? merged }
+    }
+    message.success('组织范围已保存')
+  } catch (e: any) {
+    message.error('保存组织范围失败: ' + (e?.response?.data?.message || e?.message || e))
+  }
+}
+
+async function onRemoveDetailMember(row: ManagementUnitMember) {
+  if (!selectedKey.value || !detailUnit.value) return
+  try {
+    await removeManagementUnitMember(selectedKey.value, row.id)
+    message.success('已移除')
+    await loadDetailMembers(detailUnit.value)
+  } catch (e: any) {
+    message.error('移除失败: ' + (e?.response?.data?.message || e?.message || e))
   }
 }
 
@@ -913,6 +1012,8 @@ const members = ref<ManagementUnitMember[]>([])
 const memberLoading = ref(false)
 const memberModalVisible = ref(false)
 const memberSaving = ref(false)
+/** 详情抽屉内按应用添加成员时携带的 appCode（null = 公共成员） */
+const memberAppCode = ref<string | null>(null)
 
 const memberForm = reactive({
   memberType: 'DEPT' as 'DEPT' | 'USER' | 'PERSON',
@@ -997,6 +1098,12 @@ async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
   memberModalVisible.value = true
 }
 
+/** 详情抽屉内按当前应用 Tab 添加成员（带 appCode） */
+function openDetailAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
+  memberAppCode.value = detailAppTab.value === 'public' ? null : detailAppTab.value
+  openAddMember(type)
+}
+
 async function onSaveMember() {
   if (!selectedKey.value) return
   let payload: any
@@ -1010,12 +1117,15 @@ async function onSaveMember() {
     if (!memberForm.personId) { message.warning('请选择 HR 人员'); return }
     payload = { memberType: 'PERSON', personId: memberForm.personId, includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
   }
+  if (memberAppCode.value) payload.appCode = memberAppCode.value
   memberSaving.value = true
   try {
     await addManagementUnitMember(selectedKey.value, payload)
     message.success('已添加成员')
     memberModalVisible.value = false
+    memberAppCode.value = null
     await loadMembers()
+    if (detailUnit.value) await loadDetailMembers(detailUnit.value)
   } catch (e: any) {
     message.error('添加成员失败: ' + (e?.response?.data?.message || e?.message || e))
   } finally {
@@ -1233,5 +1343,16 @@ onMounted(() => {
 }
 .detail-note {
   margin-top: var(--space-3);
+}
+.detail-app-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: var(--g2, #f7f8fa);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: var(--space-2);
+}
+.detail-empty {
+  margin-top: var(--space-2);
 }
 </style>
