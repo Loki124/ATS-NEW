@@ -401,14 +401,28 @@ def compile_data_range_q(data_range, scope_field='department_id', creator_field=
     return _combine_qs(group_qs, group_op)
 
 
-def iter_unit_scopes(unit_ids):
-    """逐个管理单元产出行级可见贡献, 供 scope_filter_q 以 OR 聚合, 且 data_range 作为单元内 AND 限制.
+def _pick_app_json(per_app, public, app_code):
+    """按应用 JSON dict 优先取 app_code 切片, 否则回退 public 切片.
 
-    产出 tuple: (dept_ids:list[str], user_ids:list[int], data_range_q:Q, has_all:bool)
+    用于 data_ranges / person_data_ranges 等 {app_code: DataRange} 结构:
+    指定 app_code 且有值时优先其专属范围, 否则用 public 默认范围
+    (与 org_scopes/org_scope 的回退语义一致). 两者皆空返回 None(no-op).
+    """
+    if app_code and isinstance(per_app, dict) and per_app.get(app_code):
+        return per_app[app_code]
+    return public if public else None
+
+
+def iter_unit_scopes(unit_ids, app_code=None):
+    """逐个管理单元产出行级可见贡献, 供 scope_filter_q 以 OR 聚合, 且数据范围作为单元内 AND 限制.
+
+    产出 tuple: (dept_ids:list[str], user_ids:list[int], org_dr_q:Q, person_dr_q:Q, has_all:bool)
       - 组织范围(org_scope): _expand_org_scope(节点级 includeChildren / 历史兼容)
       - 成员 DEPT: collect_unit_member_depts(含子级)
       - 成员 USER/PERSON: collect_unit_member_users
-      - 数据范围(data_range): compile_data_range_q(北森「数据范围」, 单元内 AND 限制)
+      - 组织数据范围(data_range/data_ranges[app]): compile_data_range_q(scope_field=department_id) —— 单元内 AND 限制
+      - 人员数据范围(person_data_range/person_data_ranges[app]): compile_data_range_q(scope_field=created_by__department_id) —— 单元内 AND 限制
+    app_code 命中时优先用 per-app 切片, 否则回退 public(消除前序 per-app 未接入执行的假绿).
     """
     from django.db.models import Q
     from .models_permission_v2 import ManagementUnit
@@ -421,10 +435,14 @@ def iter_unit_scopes(unit_ids):
             logger.warning('[iter_unit_scopes] 成员 DEPT 解析失败, 跳过')
         # 成员 USER/PERSON
         user_ids = collect_unit_member_users([u.id])
-        # 数据范围(北森「数据范围」) —— 单元内 AND 限制
-        dr_q = compile_data_range_q(u.data_range) if getattr(u, 'data_range', None) else Q()
+        # 组织数据范围(北森「数据范围」) —— 按应用优先, 回退 public, 单元内 AND 限制
+        org_dr = _pick_app_json(getattr(u, 'data_ranges', None), getattr(u, 'data_range', None), app_code)
+        org_dr_q = compile_data_range_q(org_dr, scope_field='department_id', creator_field='created_by') if org_dr else Q()
+        # 人员数据范围(北森「人员数据范围」) —— 按应用优先, 回退 public, 单元内 AND 限制
+        person_dr = _pick_app_json(getattr(u, 'person_data_ranges', None), getattr(u, 'person_data_range', None), app_code)
+        person_dr_q = compile_data_range_q(person_dr, scope_field='created_by__department_id', creator_field='created_by') if person_dr else Q()
         has_all = ALL_UNIT_SENTINEL in dept_ids
-        yield ([d for d in dept_ids if d != ALL_UNIT_SENTINEL], user_ids, dr_q, has_all)
+        yield ([d for d in dept_ids if d != ALL_UNIT_SENTINEL], user_ids, org_dr_q, person_dr_q, has_all)
 
 
 def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by'):
@@ -468,7 +486,7 @@ def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_b
             # 空管理单元集合 -> SELF 兜底
             return Q(**{creator_field: user.pk})
         q = Q()
-        for dept_ids, user_ids, dr_q, has_all in iter_unit_scopes(unit_ids):
+        for dept_ids, user_ids, org_dr_q, person_dr_q, has_all in iter_unit_scopes(unit_ids, app_code):
             if has_all:
                 # 整公司单元 -> 全量可见(OR 中任意一项为全量即整体全量)
                 return Q()
@@ -480,9 +498,12 @@ def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_b
                 unit_q |= Q(**{f'{creator_field}__in': user_ids})
             if not unit_q.children:
                 unit_q |= Q(**{creator_field: user.pk})
-            # 北森「数据范围」: 作为单元内额外限制(AND); 无有效条件则为 no-op
-            if dr_q.children:
-                unit_q &= dr_q
+            # 北森「组织数据范围」: 作为单元内额外限制(AND); 无有效条件则为 no-op
+            if org_dr_q.children:
+                unit_q &= org_dr_q
+            # 北森「人员数据范围」: 作为单元内额外限制(AND); 与组织数据范围独立, 两者皆生效
+            if person_dr_q.children:
+                unit_q &= person_dr_q
             q |= unit_q
         return q if q.children else Q(**{creator_field: user.pk})
 

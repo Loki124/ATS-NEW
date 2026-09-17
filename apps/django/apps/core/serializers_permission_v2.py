@@ -50,7 +50,7 @@ class ManagementUnitSerializer(serializers.ModelSerializer):
         fields = ['id', 'system_code', 'unit_name', 'unit_type', 'parent_id',
                   'code', 'description', 'display_order',
                   'org_scope', 'include_children', 'data_range',
-                  'org_scopes', 'data_ranges', 'status',
+                  'org_scopes', 'data_ranges', 'person_data_range', 'person_data_ranges', 'status',
                   'created_at', 'updated_at']
 
     def validate(self, attrs):

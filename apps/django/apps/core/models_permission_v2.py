@@ -149,6 +149,8 @@ class ManagementUnit(models.Model):
     data_range = models.JSONField(null=True, blank=True, verbose_name='数据范围(JSON)')
     org_scopes = models.JSONField(null=True, blank=True, verbose_name='按应用组织范围(JSON){app_code: OrgScopeNode[]}')
     data_ranges = models.JSONField(null=True, blank=True, verbose_name='按应用数据范围(JSON){app_code: DataRange}')
+    person_data_range = models.JSONField(null=True, blank=True, verbose_name='人员数据范围(JSON)')
+    person_data_ranges = models.JSONField(null=True, blank=True, verbose_name='按应用人员数据范围(JSON){app_code: DataRange}')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')

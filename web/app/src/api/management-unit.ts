@@ -62,6 +62,7 @@ export interface ManagementUnitTreeNode {
   orgScope?: Record<string, any> | null;
   personnelScope?: Record<string, any> | null;
   dataRange?: Record<string, any> | null;
+  personDataRange?: Record<string, any> | null;
   children: ManagementUnitTreeNode[];
 }
 

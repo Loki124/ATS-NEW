@@ -4,7 +4,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">管理单元 (Management Unit)</h1>
-        <p class="page-subtitle">数据权限的组织范围载体 —— 树形层级 + 组织范围 + 人员范围，并可作为 DataPermissionRule 的配置面</p>
+        <p class="page-subtitle">数据权限的组织范围载体 —— 树形层级 + 组织范围 + 人员范围，可配置按应用独立的数据范围（组织数据范围 / 人员数据范围）</p>
       </div>
       <div class="kpi-row">
         <div class="kpi-card"><span class="kpi-label">管理单元总数</span><span class="kpi-value">{{ allUnits.length }}</span></div>
@@ -78,46 +78,19 @@
           />
         </n-card>
       </n-tab-pane>
-      <!-- 成员管理 -->
-      <n-tab-pane name="members" tab="成员管理">
-        <n-card :bordered="false" class="glass-panel" title="成员管理">
-          <template #header-extra>
-            <n-space>
-              <n-button :disabled="!selectedKey" @click="openAddMember('DEPT')">
-                <template #icon><n-icon :component="AddOutline" /></template>
-                添加组织节点
-              </n-button>
-              <n-button :disabled="!selectedKey" @click="openAddMember('USER')">
-                <template #icon><n-icon :component="AddOutline" /></template>
-                添加用户
-              </n-button>
-              <n-button :disabled="!selectedKey" @click="openAddMember('PERSON')">
-                <template #icon><n-icon :component="AddOutline" /></template>
-                添加HR人员
-              </n-button>
-            </n-space>
-          </template>
-          <n-empty v-if="!selectedKey" description="请先在「管理单元」页签点击名称选中一个管理单元" />
-          <n-data-table
-            v-else
-            :data="members"
-            :columns="memberColumns"
-            :row-key="(row: ManagementUnitMember) => row.id"
-            :loading="memberLoading"
-            :pagination="{ pageSize: 10 }"
-          />
-        </n-card>
-      </n-tab-pane>
     </n-tabs>
 
-    <!-- 管理单元 新建/编辑 弹窗 -->
+    <!-- 管理单元 新建/编辑/详情 融合弹窗（居中；编辑与点击名称共用） -->
     <n-modal
       v-model:show="unitModalVisible"
       preset="card"
       :title="editingUnit ? '编辑管理单元' : '新建管理单元'"
-      :style="{ width: '600px' }"
+      :style="{ width: '900px' }"
       :mask-closable="false"
     >
+      <template #header-extra>
+        <n-button size="small" :disabled="!detailUnit" @click="openViewAuth">查看授权用户</n-button>
+      </template>
       <n-form :model="unitForm" label-placement="top">
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
@@ -183,7 +156,7 @@
             <span class="scope-readout">{{ orgScopeLabel(unitForm.orgScopeNodes) }}</span>
           </div>
         </n-form-item>
-        <n-form-item label="数据范围 (dataRange)">
+        <n-form-item label="数据范围 (公共组织数据范围)">
           <div class="scope-edit">
             <n-button @click="dataRangeModalVisible = true">
               <template #icon><n-icon :component="FilterOutline" /></template>
@@ -193,6 +166,58 @@
           </div>
         </n-form-item>
       </n-form>
+
+      <n-divider title-placement="left">按应用范围配置</n-divider>
+      <template v-if="detailUnit">
+        <n-tabs v-model:value="detailAppTab" type="line" class="detail-tabs">
+          <n-tab-pane v-for="app in appTabs" :key="app.value" :name="app.value" :tab="app.label">
+            <div class="detail-app-hint">当前应用：<b>{{ app.label }}</b> —— 以下「组织范围 / 人员范围」均按该应用独立配置，互不干扰</div>
+            <n-collapse :default-expanded-names="['org', 'person']">
+              <!-- 管理组织范围（按应用） -->
+              <n-collapse-item title="管理组织范围" name="org">
+                <template #header-extra>
+                  <n-space>
+                    <n-button size="small" type="primary" @click.stop="openDetailOrgScope">配置组织范围</n-button>
+                    <n-button size="small" type="primary" @click.stop="openDetailOrgDataRange">设置组织数据范围</n-button>
+                  </n-space>
+                </template>
+                <n-data-table
+                  :data="detailOrgNodes"
+                  :columns="detailOrgColumns"
+                  :row-key="(row: OrgScopeNode) => row.deptId"
+                  size="small"
+                  :scroll-x="520"
+                />
+                <n-empty v-if="!detailOrgNodes.length" description="该应用下尚未配置组织范围，点击「配置组织范围」按应用设置" class="detail-empty" />
+                <div class="scope-readout detail-range-readout">组织数据范围：{{ dataRangeLabel(currentAppOrgDataRange) }}</div>
+              </n-collapse-item>
+              <!-- 管理人员范围（按应用） -->
+              <n-collapse-item title="管理人员范围" name="person">
+                <template #header-extra>
+                  <n-space>
+                    <n-button size="small" type="primary" @click.stop="openDetailAddMember('DEPT')">添加组织节点</n-button>
+                    <n-button size="small" @click.stop="openDetailAddMember('USER')">添加用户</n-button>
+                    <n-button size="small" @click.stop="openDetailAddMember('PERSON')">添加HR人员</n-button>
+                    <n-button size="small" type="primary" @click.stop="openDetailPersonDataRange">设置人员数据范围</n-button>
+                  </n-space>
+                </template>
+                <n-data-table
+                  :data="detailMembersFiltered"
+                  :columns="detailMemberColumns"
+                  :row-key="(row: ManagementUnitMember) => row.id"
+                  size="small"
+                  :scroll-x="420"
+                  :loading="detailMemberLoading"
+                />
+                <n-empty v-if="!detailMembersFiltered.length" :description="`「${currentAppLabel}」下暂无成员，可点击上方按钮按应用添加`" class="detail-empty" />
+                <div class="scope-readout detail-range-readout">人员数据范围：{{ dataRangeLabel(currentAppPersonDataRange) }}</div>
+              </n-collapse-item>
+            </n-collapse>
+          </n-tab-pane>
+        </n-tabs>
+      </template>
+      <n-empty v-else description="保存后可在「按应用范围配置」中设置各应用的组织/人员数据范围" />
+
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="unitModalVisible = false">取消</n-button>
@@ -249,6 +274,7 @@
         </div>
       </template>
     </n-modal>
+
     <!-- 成员 添加 弹窗 -->
     <n-modal
       v-model:show="memberModalVisible"
@@ -328,97 +354,30 @@
       :value="unitForm.orgScopeNodes"
       @confirm="onOrgScopeConfirm"
     />
-    <!-- 数据范围 配置 弹窗 (北森「数据范围」条件表达式) -->
+    <!-- 数据范围 配置 弹窗 (北森「数据范围」条件表达式 —— 公共组织数据范围) -->
     <DataRangeModal
       v-model:show="dataRangeModalVisible"
       :value="unitForm.dataRange"
       @confirm="onDataRangeConfirm"
     />
-    <!-- 详情页「设置数据范围」复用 DataRangeModal（独立绑定，按应用回写单元） -->
+    <!-- 详情「设置组织数据范围」复用 DataRangeModal（按应用回写单元） -->
     <DataRangeModal
-      v-model:show="detailDataRangeVisible"
-      :value="detailDataRangeValue"
-      @confirm="onDetailDataRangeConfirm"
+      v-model:show="detailOrgDataRangeVisible"
+      :value="detailOrgDataRangeValue"
+      @confirm="onDetailOrgDataRangeConfirm"
     />
-    <!-- 详情页「配置组织范围」复用 OrgScopeTreeModal（独立绑定，按应用回写单元） -->
+    <!-- 详情「设置人员数据范围」复用 DataRangeModal（按应用回写单元） -->
+    <DataRangeModal
+      v-model:show="detailPersonDataRangeVisible"
+      :value="detailPersonDataRangeValue"
+      @confirm="onDetailPersonDataRangeConfirm"
+    />
+    <!-- 详情「配置组织范围」复用 OrgScopeTreeModal（按应用回写单元） -->
     <OrgScopeTreeModal
       v-model:show="detailOrgScopeVisible"
       :value="detailOrgScopeValue"
       @confirm="onDetailOrgScopeConfirm"
     />
-
-    <!-- 详情抽屉（北森图2：表头元信息 + 应用 Tab + 可折叠 组织/人员范围） -->
-    <n-drawer v-model:show="detailVisible" :width="780" placement="right">
-      <n-drawer-content :title="detailUnit?.unitName || '管理单元详情'" closable>
-        <template v-if="detailUnit" #header-extra>
-          <n-space>
-            <n-button size="small" @click="openEditFromDetail">编辑基本信息</n-button>
-            <n-button size="small" @click="openViewAuth">查看授权用户</n-button>
-          </n-space>
-        </template>
-        <div v-if="detailUnit" class="detail-meta">
-          <div class="meta-item"><span class="meta-label">上级管理单元</span><span>{{ detailUnit.parentId ? (unitNameById(String(detailUnit.parentId)) || detailUnit.parentId) : '（根节点）' }}</span></div>
-          <div class="meta-item"><span class="meta-label">编码</span><span>{{ detailUnit.code || '—' }}</span></div>
-          <div class="meta-item"><span class="meta-label">显示顺序</span><span>{{ detailUnit.displayOrder ?? 0 }}</span></div>
-          <div class="meta-item meta-full"><span class="meta-label">说明</span><span>{{ detailUnit.description || '—' }}</span></div>
-        </div>
-
-        <n-tabs v-model:value="detailAppTab" type="line" class="detail-tabs">
-          <n-tab-pane v-for="app in appTabs" :key="app.value" :name="app.value" :tab="app.label">
-            <div class="detail-app-hint">当前应用：<b>{{ app.label }}</b> —— 以下「组织范围 / 人员范围 / 数据范围」均按该应用独立配置，互不干扰</div>
-            <n-collapse :default-expanded-names="['org', 'person', 'data']">
-              <!-- 管理组织范围（按应用） -->
-              <n-collapse-item title="管理组织范围" name="org">
-                <template #header-extra>
-                  <n-space>
-                    <n-button size="small" type="primary" @click.stop="openDetailOrgScope">配置组织范围</n-button>
-                    <n-button size="small" @click.stop="collapseSection('org')">收起</n-button>
-                  </n-space>
-                </template>
-                <n-data-table
-                  :data="detailOrgNodes"
-                  :columns="detailOrgColumns"
-                  :row-key="(row: OrgScopeNode) => row.deptId"
-                  size="small"
-                  :scroll-x="520"
-                />
-                <n-empty v-if="!detailOrgNodes.length" description="该应用下尚未配置组织范围，点击「配置组织范围」按应用设置" class="detail-empty" />
-              </n-collapse-item>
-              <!-- 管理人员范围（按应用） -->
-              <n-collapse-item title="管理人员范围" name="person">
-                <template #header-extra>
-                  <n-space>
-                    <n-button size="small" type="primary" @click.stop="openDetailAddMember('DEPT')">添加组织节点</n-button>
-                    <n-button size="small" @click.stop="openDetailAddMember('USER')">添加用户</n-button>
-                    <n-button size="small" @click.stop="openDetailAddMember('PERSON')">添加HR人员</n-button>
-                    <n-button size="small" @click.stop="collapseSection('person')">收起</n-button>
-                  </n-space>
-                </template>
-                <n-data-table
-                  :data="detailMembersFiltered"
-                  :columns="detailMemberColumns"
-                  :row-key="(row: ManagementUnitMember) => row.id"
-                  size="small"
-                  :scroll-x="420"
-                  :loading="detailMemberLoading"
-                />
-                <n-empty v-if="!detailMembersFiltered.length" :description="`「${currentAppLabel}」下暂无成员，可点击上方按钮按应用添加`" class="detail-empty" />
-              </n-collapse-item>
-              <!-- 数据范围（按应用） -->
-              <n-collapse-item title="数据范围" name="data">
-                <template #header-extra>
-                  <n-space>
-                    <n-button size="small" type="primary" @click.stop="openDetailDataRange">设置数据范围</n-button>
-                    <n-button size="small" @click.stop="collapseSection('data')">收起</n-button>
-                  </n-space>
-                </template>
-                <div class="scope-readout">{{ dataRangeLabel(currentAppDataRange) }}</div>
-              </n-collapse-item>
-            </n-collapse>
-          </n-tab-pane>
-        </n-tabs>
-      </n-drawer-content>
-    </n-drawer>
 
     <!-- 查看授权用户 弹窗 -->
     <n-modal
@@ -444,8 +403,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
-  NButton, NSpace, NTag, NIcon, NEmpty,
-  NPopconfirm, NDrawer, NDrawerContent, NCollapse, NCollapseItem, NAlert, useMessage, useDialog,
+  NButton, NSpace, NIcon, NEmpty,
+  NPopconfirm, NCollapse, NCollapseItem, NDivider, useMessage,
 } from 'naive-ui'
 import {
   AddOutline, CreateOutline, TrashOutline, OptionsOutline, FilterOutline,
@@ -468,14 +427,11 @@ import { listPersons } from '@/api/campusControl'
 import { useDepartmentStore, type Department } from '@/stores/department'
 
 const message = useMessage()
-const dialog = useDialog()
 const activeTab = ref('units')
 
 // ===== 管理单元列表（北森表格主视图） =====
 const allUnits = ref<ManagementUnit[]>([])
 const treeNodes = ref<ManagementUnitTreeNode[]>([])
-const selectedKey = ref<string | number | null>(null)
-const selectedNode = ref<ManagementUnit | null>(null)
 const unitLoading = ref(false)
 const checkedRowKeys = ref<string[]>([])
 const unitStatusFilter = ref<number | null>(null)
@@ -522,7 +478,7 @@ const unitTableColumns = [
   {
     title: '名称', key: 'unitName', minWidth: 200,
     render: (row: ManagementUnit) =>
-      h(NButton, { text: true, type: 'primary', onClick: () => openDetail(row) }, { default: () => row.unitName }),
+      h(NButton, { text: true, type: 'primary', onClick: () => openUnitModal(row) }, { default: () => row.unitName }),
   },
   { title: '编码', key: 'code', width: 140, render: (row: ManagementUnit) => row.code || '—' },
   { title: '说明', key: 'description', minWidth: 160, render: (row: ManagementUnit) => row.description || '—' },
@@ -532,7 +488,7 @@ const unitTableColumns = [
     render: (row: ManagementUnit) =>
       h(NSpace, { size: 'small' }, {
         default: () => [
-          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => openEditUnit(row) }, { default: () => '编辑' }),
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => openUnitModal(row) }, { default: () => '编辑' }),
           h(NPopconfirm, {
             onPositiveClick: () => onDeleteUnit(row),
             positiveText: '确认', negativeText: '取消',
@@ -687,14 +643,18 @@ function onDataRangeConfirm(range: any) {
 
 function openCreateRoot() {
   editingUnit.value = null
+  detailUnit.value = null
   Object.assign(unitForm, {
     id: '', unitName: '', code: '', unitType: 'org', parentId: null,
     displayOrder: 0, description: '', status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
   })
   unitModalVisible.value = true
 }
-function openEditUnit(n: ManagementUnit) {
+/** 编辑与点击名称共用：打开融合弹窗（基本信息 + 按应用组织/人员范围 + 数据范围） */
+function openUnitModal(n: ManagementUnit) {
   editingUnit.value = n
+  detailUnit.value = n
+  detailAppTab.value = 'public'
   Object.assign(unitForm, {
     id: String(n.id), unitName: n.unitName, code: n.code || '', unitType: n.unitType,
     parentId: n.parentId ? String(n.parentId) : null,
@@ -704,6 +664,7 @@ function openEditUnit(n: ManagementUnit) {
     dataRange: (n.dataRange as any) ?? null,
   })
   unitModalVisible.value = true
+  loadDetailMembers(n)
 }
 
 async function onSaveUnit() {
@@ -729,7 +690,9 @@ async function onSaveUnit() {
       await updateManagementUnit(unitForm.id, payload)
       message.success('已更新')
     } else {
-      await createManagementUnit(payload)
+      const created = await createManagementUnit(payload)
+      editingUnit.value = created as ManagementUnit
+      detailUnit.value = created as ManagementUnit
       message.success('已创建')
     }
     unitModalVisible.value = false
@@ -746,10 +709,6 @@ async function onDeleteUnit(row: ManagementUnit) {
     const res = await deleteManagementUnit(String(row.id))
     if (res?.success) {
       message.success('已删除')
-      if (selectedKey.value && String(selectedKey.value) === String(row.id)) {
-        selectedKey.value = null
-        selectedNode.value = null
-      }
       await loadUnits()
     } else {
       message.error(res?.message || '删除失败')
@@ -780,6 +739,7 @@ function exportDataRange() {
   const payload = rows.map((u) => ({
     id: u.id, unitName: u.unitName, code: u.code,
     orgScope: u.orgScope, dataRange: u.dataRange,
+    personDataRange: u.personDataRange ?? null,
   }))
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -807,14 +767,15 @@ async function loadUnits() {
   }
 }
 
-// ===== 详情抽屉（北森图2 结构） =====
-const detailVisible = ref(false)
+// ===== 融合弹窗：按应用组织/人员范围 + 数据范围 =====
 const detailUnit = ref<ManagementUnit | null>(null)
 const detailAppTab = ref('public')
-const detailDataRangeVisible = ref(false)
-const detailDataRangeValue = ref<any>(null)
 const detailOrgScopeVisible = ref(false)
 const detailOrgScopeValue = ref<OrgScopeNode[] | null>(null)
+const detailOrgDataRangeVisible = ref(false)
+const detailOrgDataRangeValue = ref<any>(null)
+const detailPersonDataRangeVisible = ref(false)
+const detailPersonDataRangeValue = ref<any>(null)
 const detailMemberLoading = ref(false)
 const detailMembers = ref<ManagementUnitMember[]>([])
 
@@ -840,12 +801,20 @@ const detailOrgNodes = computed<OrgScopeNode[]>(() => {
   return perApp ? toOrgScopeNodes(perApp) : []
 })
 
-/** 当前应用 Tab 的数据范围（public 回退单元级 dataRange，其余回退空） */
-const currentAppDataRange = computed<any>(() => {
+/** 当前应用 Tab 的组织数据范围（public 回退单元级 dataRange，其余回退空） */
+const currentAppOrgDataRange = computed<any>(() => {
   if (!detailUnit.value) return null
   const app = detailAppTab.value
   if (app === 'public') return (detailUnit.value.dataRange as any) ?? null
   return detailUnit.value.dataRanges?.[app] ?? null
+})
+
+/** 当前应用 Tab 的人员数据范围（public 回退单元级 personDataRange，其余回退空） */
+const currentAppPersonDataRange = computed<any>(() => {
+  if (!detailUnit.value) return null
+  const app = detailAppTab.value
+  if (app === 'public') return (detailUnit.value.personDataRange as any) ?? null
+  return detailUnit.value.personDataRanges?.[app] ?? null
 })
 
 /** 当前应用 Tab 的成员（public = 无 appCode 的公共成员；其余 = 该 appCode 的专属成员） */
@@ -873,7 +842,7 @@ const detailMemberColumns = [
   {
     title: '类型', key: 'memberType', width: 110,
     render: (row: ManagementUnitMember) =>
-      h(NTag, { size: 'small' }, { default: () => ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType }),
+      ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType,
   },
   {
     title: '组织', key: 'org', minWidth: 140,
@@ -886,24 +855,6 @@ const detailMemberColumns = [
   },
 ]
 
-function openDetail(u: ManagementUnit) {
-  detailUnit.value = u
-  detailAppTab.value = 'public'
-  detailVisible.value = true
-  // 同步选中态，保持「成员管理」Tab 可操作该单元
-  selectedKey.value = String(u.id)
-  selectedNode.value = u
-  loadDetailMembers(u)
-}
-function openEditFromDetail() {
-  if (!detailUnit.value) return
-  openEditUnit(detailUnit.value)
-  detailVisible.value = false
-}
-function collapseSection(name: 'org' | 'person') {
-  // n-collapse 无编程式收起单一面板的简单 API，这里通过提示引导用户手动收起
-  message.info(`请在上方「${name === 'org' ? '管理组织范围' : '管理人员范围'}」面板上点击收起`)
-}
 async function loadDetailMembers(u: ManagementUnit) {
   detailMemberLoading.value = true
   try {
@@ -914,14 +865,16 @@ async function loadDetailMembers(u: ManagementUnit) {
     detailMemberLoading.value = false
   }
 }
-function openDetailDataRange() {
+
+// 组织数据范围（按应用）
+function openDetailOrgDataRange() {
   if (!detailUnit.value) return
-  detailDataRangeValue.value = currentAppDataRange.value
-  detailDataRangeVisible.value = true
+  detailOrgDataRangeValue.value = currentAppOrgDataRange.value
+  detailOrgDataRangeVisible.value = true
 }
-async function onDetailDataRangeConfirm(range: any) {
+async function onDetailOrgDataRangeConfirm(range: any) {
   if (!detailUnit.value) return
-  detailDataRangeVisible.value = false
+  detailOrgDataRangeVisible.value = false
   const app = detailAppTab.value
   try {
     if (app === 'public') {
@@ -932,13 +885,38 @@ async function onDetailDataRangeConfirm(range: any) {
       const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRanges: merged })
       detailUnit.value = { ...detailUnit.value, dataRanges: (updated as any).dataRanges ?? merged }
     }
-    message.success('数据范围已保存')
+    message.success('组织数据范围已保存')
   } catch (e: any) {
-    message.error('保存数据范围失败: ' + (e?.response?.data?.message || e?.message || e))
+    message.error('保存组织数据范围失败: ' + (e?.response?.data?.message || e?.message || e))
   }
 }
 
-// ===== 详情抽屉：按应用配置「组织范围」 =====
+// 人员数据范围（按应用）
+function openDetailPersonDataRange() {
+  if (!detailUnit.value) return
+  detailPersonDataRangeValue.value = currentAppPersonDataRange.value
+  detailPersonDataRangeVisible.value = true
+}
+async function onDetailPersonDataRangeConfirm(range: any) {
+  if (!detailUnit.value) return
+  detailPersonDataRangeVisible.value = false
+  const app = detailAppTab.value
+  try {
+    if (app === 'public') {
+      const updated = await updateManagementUnit(String(detailUnit.value.id), { personDataRange: range ?? null })
+      detailUnit.value = { ...detailUnit.value, personDataRange: (updated as any).personDataRange ?? range }
+    } else {
+      const merged = { ...(detailUnit.value.personDataRanges || {}), [app]: range ?? null }
+      const updated = await updateManagementUnit(String(detailUnit.value.id), { personDataRanges: merged })
+      detailUnit.value = { ...detailUnit.value, personDataRanges: (updated as any).personDataRanges ?? merged }
+    }
+    message.success('人员数据范围已保存')
+  } catch (e: any) {
+    message.error('保存人员数据范围失败: ' + (e?.response?.data?.message || e?.message || e))
+  }
+}
+
+// 按应用配置「组织范围」
 function openDetailOrgScope() {
   if (!detailUnit.value) return
   detailOrgScopeValue.value = detailOrgNodes.value
@@ -965,9 +943,9 @@ async function onDetailOrgScopeConfirm(nodes: OrgScopeNode[]) {
 }
 
 async function onRemoveDetailMember(row: ManagementUnitMember) {
-  if (!selectedKey.value || !detailUnit.value) return
+  if (!editingUnit.value || !detailUnit.value) return
   try {
-    await removeManagementUnitMember(selectedKey.value, row.id)
+    await removeManagementUnitMember(String(editingUnit.value.id), row.id)
     message.success('已移除')
     await loadDetailMembers(detailUnit.value)
   } catch (e: any) {
@@ -987,7 +965,7 @@ const authColumns = [
   {
     title: '类型', key: 'memberType', width: 110,
     render: (row: ManagementUnitMember) =>
-      h(NTag, { size: 'small' }, { default: () => ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType }),
+      ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType,
   },
   {
     title: '组织', key: 'org', minWidth: 140,
@@ -1007,12 +985,10 @@ async function openViewAuth() {
   }
 }
 
-// ===== 成员管理 =====
-const members = ref<ManagementUnitMember[]>([])
-const memberLoading = ref(false)
+// ===== 成员管理（复用融合弹窗内的「人员范围」；添加/移除锚定 editingUnit） =====
 const memberModalVisible = ref(false)
 const memberSaving = ref(false)
-/** 详情抽屉内按应用添加成员时携带的 appCode（null = 公共成员） */
+/** 添加成员时携带的 appCode（null = 公共成员），跟随当前应用 Tab */
 const memberAppCode = ref<string | null>(null)
 
 const memberForm = reactive({
@@ -1052,38 +1028,8 @@ function buildDeptTree(list: Department[]): any[] {
   return roots
 }
 
-const memberColumns = [
-  { title: '成员类型', key: 'memberType', width: 110,
-    render: (row: ManagementUnitMember) => h(NTag, { size: 'small' }, { default: () => memberTypeLabels[row.memberType] || row.memberType }) },
-  { title: '名称', key: 'name',
-    render: (row: ManagementUnitMember) => {
-      const name = row.departmentName || row.userName || row.personName
-      if (name) return name
-      const rawId = row.departmentId || row.userId || row.personId
-      return rawId != null ? String(rawId) : '—'
-    } },
-  { title: '含子级', key: 'includeChildren', width: 90,
-    render: (row: ManagementUnitMember) => (row.includeChildren ? '是' : '否') },
-  { title: '备注', key: 'remark',
-    render: (row: ManagementUnitMember) => row.remark || '—' },
-  { title: '操作', key: 'action', width: 100,
-    render: (row: ManagementUnitMember) => h(NButton, { size: 'small', text: true, type: 'error', onClick: () => onRemoveMember(row) }, { default: () => '移除' }) },
-]
-
-async function loadMembers() {
-  if (!selectedKey.value) { members.value = []; return }
-  memberLoading.value = true
-  try {
-    members.value = await listManagementUnitMembers(selectedKey.value)
-  } catch (e: any) {
-    message.error('加载成员失败: ' + (e?.response?.data?.message || e?.message || e))
-  } finally {
-    memberLoading.value = false
-  }
-}
-
 async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
-  if (!selectedKey.value) return
+  if (!editingUnit.value) return
   Object.assign(memberForm, {
     memberType: type, departmentId: null, userId: null, personId: null,
     includeChildren: 1, remark: '',
@@ -1098,14 +1044,14 @@ async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
   memberModalVisible.value = true
 }
 
-/** 详情抽屉内按当前应用 Tab 添加成员（带 appCode） */
+/** 融合弹窗内按当前应用 Tab 添加成员（带 appCode） */
 function openDetailAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
   memberAppCode.value = detailAppTab.value === 'public' ? null : detailAppTab.value
   openAddMember(type)
 }
 
 async function onSaveMember() {
-  if (!selectedKey.value) return
+  if (!editingUnit.value) return
   let payload: any
   if (memberForm.memberType === 'DEPT') {
     if (!memberForm.departmentId) { message.warning('请选择组织节点'); return }
@@ -1120,36 +1066,16 @@ async function onSaveMember() {
   if (memberAppCode.value) payload.appCode = memberAppCode.value
   memberSaving.value = true
   try {
-    await addManagementUnitMember(selectedKey.value, payload)
+    await addManagementUnitMember(String(editingUnit.value.id), payload)
     message.success('已添加成员')
     memberModalVisible.value = false
     memberAppCode.value = null
-    await loadMembers()
     if (detailUnit.value) await loadDetailMembers(detailUnit.value)
   } catch (e: any) {
     message.error('添加成员失败: ' + (e?.response?.data?.message || e?.message || e))
   } finally {
     memberSaving.value = false
   }
-}
-
-function onRemoveMember(row: ManagementUnitMember) {
-  dialog.warning({
-    title: '移除成员',
-    content: `确认将「${row.departmentName || row.userName || row.personName || row.id}」从该管理单元移除？`,
-    positiveText: '确认移除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      if (!selectedKey.value) return
-      try {
-        await removeManagementUnitMember(selectedKey.value, row.id)
-        message.success('已移除')
-        members.value = members.value.filter((m) => m.id !== row.id)
-      } catch (e: any) {
-        message.error('移除失败: ' + (e?.response?.data?.message || e?.message || e))
-      }
-    },
-  })
 }
 
 // ===== 按应用数据范围 =====
@@ -1169,8 +1095,7 @@ const unitOptions = computed(() =>
 const scopeColumns = [
   { title: '用户ID', key: 'userId', width: 90 },
   { title: '角色编码', key: 'roleCode', width: 140 },
-  { title: '应用', key: 'appCode', width: 110,
-    render: (row: UserAppDataScope) => h(NTag, { size: 'small' }, { default: () => row.appCode }) },
+  { title: '应用', key: 'appCode', width: 110, render: (row: UserAppDataScope) => row.appCode },
   { title: '管理单元', key: 'managementUnitIds',
     render: (row: UserAppDataScope) => (row.managementUnitIds || []).map((id: number) => unitNameById(String(id)) || id).join('、') || '—' },
   {
@@ -1263,8 +1188,6 @@ async function onDeleteScope(row: UserAppDataScope) {
 
 watch(activeTab, (t) => { if (t === 'per-app') loadScopes() })
 watch(scopeAppFilter, () => { if (activeTab.value === 'per-app') loadScopes() })
-watch(activeTab, (t) => { if (t === 'members') loadMembers() })
-watch(selectedKey, () => { if (activeTab.value === 'members') loadMembers() })
 
 onMounted(() => {
   loadUnits()
@@ -1293,17 +1216,6 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--space-4);
 }
-.json-box {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-  font-size: 12px;
-  background: var(--g2, #f7f8fa);
-  padding: 8px;
-  border-radius: 6px;
-  max-height: 160px;
-  overflow: auto;
-}
 .scope-edit {
   display: flex;
   align-items: center;
@@ -1315,39 +1227,21 @@ onMounted(() => {
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
-/* 详情抽屉元信息 */
-.detail-meta {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-1);
-  border-radius: 8px;
-  background: var(--g2, #f7f8fa);
-  margin-bottom: var(--space-3);
+/* 融合弹窗内：组织/人员数据范围读出行 */
+.detail-range-readout {
+  margin-top: var(--space-2);
+  padding: 6px 10px;
+  background: var(--color-bg-subtle);
+  border-radius: 6px;
 }
-.meta-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-.meta-full {
-  grid-column: 1 / -1;
-}
-.meta-label {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
+/* 详情元信息（融合弹窗已移除抽屉，保留只读提示样式备用） */
 .detail-tabs {
   margin-top: var(--space-2);
-}
-.detail-note {
-  margin-top: var(--space-3);
 }
 .detail-app-hint {
   font-size: 12px;
   color: var(--color-text-secondary);
-  background: var(--g2, #f7f8fa);
+  background: var(--color-bg-subtle);
   border-radius: 6px;
   padding: 6px 10px;
   margin-bottom: var(--space-2);
