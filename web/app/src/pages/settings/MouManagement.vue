@@ -82,10 +82,10 @@
                   </n-tag>
                 </n-descriptions-item>
                 <n-descriptions-item label="组织范围 (orgScope)">
-                  <pre class="json-box">{{ pretty(selectedNode.orgScope) }}</pre>
+                  <span class="scope-readout">{{ orgScopeLabel(selectedNode.orgScope) }}</span>
                 </n-descriptions-item>
-                <n-descriptions-item label="人员范围 (personnelScope)">
-                  <pre class="json-box">{{ pretty(selectedNode.personnelScope) || '（未配置）' }}</pre>
+                <n-descriptions-item label="数据范围 (dataRange)">
+                  <span class="scope-readout">{{ dataRangeLabel(selectedNode.dataRange) }}</span>
                 </n-descriptions-item>
               </n-descriptions>
             </n-grid-item>
@@ -201,21 +201,23 @@
             </n-form-item>
           </n-grid-item>
         </n-grid>
-        <n-form-item label="组织范围 orgScope (JSON)">
-          <n-input
-            v-model:value="unitForm.orgScopeText"
-            type="textarea"
-            :rows="3"
-            placeholder="如：{&quot;name&quot;:&quot;华东大区&quot;,&quot;level&quot;:&quot;REGION&quot;}"
-          />
+        <n-form-item label="组织范围 (orgScope)">
+          <div class="scope-edit">
+            <n-button @click="orgScopeModalVisible = true">
+              <template #icon><n-icon :component="OptionsOutline" /></template>
+              配置组织范围
+            </n-button>
+            <span class="scope-readout">{{ orgScopeLabel(unitForm.orgScopeNodes) }}</span>
+          </div>
         </n-form-item>
-        <n-form-item label="人员范围 personnelScope (JSON)">
-          <n-input
-            v-model:value="unitForm.personnelScopeText"
-            type="textarea"
-            :rows="3"
-            placeholder="如：{&quot;op&quot;:&quot;or&quot;,&quot;rules&quot;:[{&quot;dimension&quot;:&quot;employment&quot;,&quot;field&quot;:&quot;department&quot;,&quot;op&quot;:&quot;eq&quot;,&quot;value&quot;:&quot;dept-1&quot;,&quot;includeSub&quot;:true}]}"
-          />
+        <n-form-item label="数据范围 (dataRange)">
+          <div class="scope-edit">
+            <n-button @click="dataRangeModalVisible = true">
+              <template #icon><n-icon :component="FilterOutline" /></template>
+              配置数据范围
+            </n-button>
+            <span class="scope-readout">{{ dataRangeLabel(unitForm.dataRange) }}</span>
+          </div>
         </n-form-item>
       </n-form>
       <template #footer>
@@ -346,6 +348,19 @@
         </div>
       </template>
     </n-modal>
+
+    <!-- 组织范围 配置 弹窗 (北森「组织范围」树勾选 + 节点级包含下级) -->
+    <OrgScopeTreeModal
+      v-model:show="orgScopeModalVisible"
+      :value="unitForm.orgScopeNodes"
+      @confirm="onOrgScopeConfirm"
+    />
+    <!-- 数据范围 配置 弹窗 (北森「数据范围」条件表达式) -->
+    <DataRangeModal
+      v-model:show="dataRangeModalVisible"
+      :value="unitForm.dataRange"
+      @confirm="onDataRangeConfirm"
+    />
 </div><!-- /.page-body -->
 </div>
 </template>
@@ -357,7 +372,7 @@ import {
   NPopconfirm, useMessage, useDialog,
 } from 'naive-ui'
 import {
-  AddOutline, CreateOutline, TrashOutline, SyncOutline,
+  AddOutline, CreateOutline, TrashOutline, SyncOutline, OptionsOutline, FilterOutline,
 } from '@vicons/ionicons5'
 import {
   listManagementUnits, treeManagementUnits, createManagementUnit, updateManagementUnit,
@@ -365,6 +380,8 @@ import {
   listManagementUnitMembers, addManagementUnitMember, removeManagementUnitMember,
   type ManagementUnit, type ManagementUnitTreeNode, type ManagementUnitMember,
 } from '@/api/management-unit'
+import OrgScopeTreeModal, { type OrgScopeNode } from './OrgScopeTreeModal.vue'
+import DataRangeModal from './DataRangeModal.vue'
 import {
   listUserAppDataScopes, upsertUserAppDataScope, deleteUserAppDataScopeById,
   type UserAppDataScope,
@@ -421,7 +438,7 @@ const parentOptions = computed(() => {
       if (blockId && String(n.id) === String(blockId)) continue
       flat.push({
         id: String(n.id), unitName: n.unitName, unitType: n.unitType,
-        parentId: n.parentId, orgScope: n.orgScope, personnelScope: n.personnelScope,
+        parentId: n.parentId, orgScope: n.orgScope,
         includeChildren: 1, status: n.status,
       })
       if (n.children?.length) walk(n.children)
@@ -469,14 +486,76 @@ const unitForm = reactive({
   parentId: null as string | number | null,
   status: 1 as number,
   includeChildren: 1 as number,
-  orgScopeText: '{}',
-  personnelScopeText: '',
+  orgScopeNodes: null as OrgScopeNode[] | null,
+  dataRange: null as any,
 })
 
-const pretty = (v: any) => {
-  if (v == null) return ''
-  if (typeof v === 'string') return v
-  try { return JSON.stringify(v, null, 2) } catch { return String(v) }
+const orgScopeModalVisible = ref(false)
+const dataRangeModalVisible = ref(false)
+
+function deptNameById(id: string): string {
+  return deptStore.departments.find((d: any) => String(d.id) === String(id))?.name || String(id)
+}
+
+/** 把任意 org_scope 形状(结构化列表 / 纯字符串列表 / dict 部门子键)规整为 OrgScopeNode[] 供弹窗回填 */
+function toOrgScopeNodes(v: any): OrgScopeNode[] {
+  if (!v) return []
+  if (Array.isArray(v)) {
+    const nodes: OrgScopeNode[] = []
+    for (const x of v) {
+      if (x && typeof x === 'object' && (x.deptId || x.departmentId || x.department_id)) {
+        nodes.push({
+          deptId: String(x.deptId ?? x.departmentId ?? x.department_id),
+          includeChildren: !!(x.includeChildren ?? x.include_children ?? false),
+        })
+      } else if (typeof x === 'string') {
+        nodes.push({ deptId: x, includeChildren: false })
+      }
+    }
+    return nodes
+  }
+  if (v && typeof v === 'object') {
+    for (const k of ['department_ids', 'dept_ids', 'departments', 'org_ids']) {
+      if (Array.isArray(v[k])) {
+        return v[k].map((d: any) => ({ deptId: String(d), includeChildren: false }))
+      }
+    }
+  }
+  return []
+}
+
+function orgScopeLabel(v: any): string {
+  const nodes = toOrgScopeNodes(v)
+  if (!nodes.length) return '（未配置）'
+  return nodes
+    .map((n) => `${deptNameById(n.deptId)}${n.includeChildren ? '（含下级）' : '（仅本级）'}`)
+    .join('、')
+}
+
+function dimLabel(d: string): string {
+  return ({ dept: '部门', department: '部门', 部门: '部门', position: '职务', tenure: '司龄' } as Record<string, string>)[d] || d || '维度'
+}
+
+function dataRangeLabel(v: any): string {
+  if (!v || !Array.isArray(v.groups) || !v.groups.length) return '（未配置）'
+  const parts = v.groups.map((g: any, i: number) => {
+    const conds = (g.conditions || [])
+      .map((c: any) => {
+        const name = c.dimension === 'dept' ? deptNameById(String(c.value)) : c.value
+        const op = c.operator === 'neq' ? '≠' : '='
+        return `${dimLabel(c.dimension)}${op}${name}${c.includeSub ? '(含子级)' : ''}`
+      })
+      .join(g.op === 'and' ? ' 且 ' : ' 或 ')
+    return `组${i + 1}(${conds || '空'})`
+  })
+  return parts.join(v.op === 'and' ? ' 且 ' : ' 或 ')
+}
+
+function onOrgScopeConfirm(nodes: OrgScopeNode[]) {
+  unitForm.orgScopeNodes = nodes
+}
+function onDataRangeConfirm(range: any) {
+  unitForm.dataRange = range
 }
 
 function onTreeSelect(keys: Array<string | number>) {
@@ -489,7 +568,7 @@ function onTreeSelect(keys: Array<string | number>) {
     if (node) {
       selectedNode.value = {
         id: String(node.id), unitName: node.unitName, unitType: node.unitType,
-        parentId: node.parentId, orgScope: node.orgScope, personnelScope: node.personnelScope,
+        parentId: node.parentId, orgScope: node.orgScope,
         includeChildren: 1, status: node.status,
       }
     }
@@ -510,7 +589,7 @@ function openCreateRoot() {
   editingUnit.value = null
   Object.assign(unitForm, {
     id: '', unitName: '', unitType: 'org', parentId: null,
-    status: 1, includeChildren: 1, orgScopeText: '{}', personnelScopeText: '',
+    status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
   })
   unitModalVisible.value = true
 }
@@ -519,7 +598,7 @@ function openCreateChild() {
   editingUnit.value = null
   Object.assign(unitForm, {
     id: '', unitName: '', unitType: 'org', parentId: String(selectedNode.value.id),
-    status: 1, includeChildren: 1, orgScopeText: '{}', personnelScopeText: '',
+    status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
   })
   unitModalVisible.value = true
 }
@@ -531,8 +610,8 @@ function openEditSelected() {
     id: String(n.id), unitName: n.unitName, unitType: n.unitType,
     parentId: n.parentId ? String(n.parentId) : null, status: n.status,
     includeChildren: n.includeChildren ?? 1,
-    orgScopeText: pretty(n.orgScope) || '{}',
-    personnelScopeText: pretty(n.personnelScope) || '',
+    orgScopeNodes: toOrgScopeNodes(n.orgScope),
+    dataRange: (n.dataRange as any) ?? null,
   })
   unitModalVisible.value = true
 }
@@ -540,20 +619,6 @@ function openEditSelected() {
 async function onSaveUnit() {
   if (!unitForm.unitName.trim()) {
     message.warning('单元名称必填')
-    return
-  }
-  let orgScope: any = null
-  let personnelScope: any = null
-  try {
-    if (unitForm.orgScopeText.trim()) orgScope = JSON.parse(unitForm.orgScopeText)
-  } catch {
-    message.error('组织范围不是合法 JSON')
-    return
-  }
-  try {
-    if (unitForm.personnelScopeText.trim()) personnelScope = JSON.parse(unitForm.personnelScopeText)
-  } catch {
-    message.error('人员范围不是合法 JSON')
     return
   }
   unitSaving.value = true
@@ -564,8 +629,8 @@ async function onSaveUnit() {
       parentId: unitForm.parentId ? Number(unitForm.parentId) : null,
       status: unitForm.status,
       includeChildren: unitForm.includeChildren,
-      orgScope,
-      personnelScope,
+      orgScope: unitForm.orgScopeNodes && unitForm.orgScopeNodes.length ? unitForm.orgScopeNodes : null,
+      dataRange: unitForm.dataRange ?? null,
     }
     if (editingUnit.value) {
       await updateManagementUnit(unitForm.id, payload)
@@ -877,6 +942,7 @@ watch(selectedKey, () => { if (activeTab.value === 'members') loadMembers() })
 
 onMounted(() => {
   loadUnits()
+  try { if (!deptStore.departments.length) deptStore.loadDepartments() } catch { /* 降级 */ }
 })
 </script>
 
@@ -911,5 +977,16 @@ onMounted(() => {
   border-radius: 6px;
   max-height: 160px;
   overflow: auto;
+}
+.scope-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.scope-readout {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
 }
 </style>

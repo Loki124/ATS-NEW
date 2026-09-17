@@ -35,8 +35,9 @@ export interface ManagementUnit {
   unitName: string;
   unitType: string;
   parentId?: string | number | null;
-  orgScope?: Record<string, any> | null;
+  orgScope?: Array<{ deptId: string; includeChildren: boolean }> | Record<string, any> | null;
   personnelScope?: Record<string, any> | null;
+  dataRange?: Record<string, any> | null;
   includeChildren: number;
   status: number;
   createdAt?: string;

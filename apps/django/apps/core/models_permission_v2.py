@@ -143,6 +143,7 @@ class ManagementUnit(models.Model):
     parent_id = models.BigIntegerField(null=True, blank=True, db_index=True, verbose_name='上级管理单元ID')
     org_scope = models.JSONField(null=True, blank=True, verbose_name='组织范围(JSON)')
     include_children = models.SmallIntegerField(default=1, verbose_name='是否包含子级(1是 0否)')
+    data_range = models.JSONField(null=True, blank=True, verbose_name='数据范围(JSON)')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')

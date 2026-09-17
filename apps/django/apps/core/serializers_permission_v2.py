@@ -48,7 +48,7 @@ class ManagementUnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = ManagementUnit
         fields = ['id', 'system_code', 'unit_name', 'unit_type', 'parent_id',
-                  'org_scope', 'include_children', 'status',
+                  'org_scope', 'include_children', 'data_range', 'status',
                   'created_at', 'updated_at']
 
     def validate(self, attrs):

@@ -188,26 +188,58 @@ ALL_UNIT_SENTINEL = '__ALL__'
 _DEPT_LIST_KEYS = ('department_ids', 'dept_ids', 'departments', 'org_ids')
 
 
+def _expand_org_scope(os_, unit_include_children):
+    """把 ManagementUnit.org_scope 展开为部门 id 集合(字符串化).
+
+    支持三种写法(北森「组织范围」节点级包含下级 + 历史兼容):
+      - 结构化列表 [{deptId, includeChildren}]: 每节点独立决定含不含子级;
+      - 纯字符串列表 ['D1','D2']: 向后兼容, 统一套用单元级 include_children;
+      - dict: 部门列表子键(department_ids/dept_ids/...) 或 ROOT|ALL 整公司哨兵.
+    返回集合(命中整公司时含 ALL_UNIT_SENTINEL). 任何无法解析的形状 -> 忽略(不泄漏 key).
+    """
+    out = set()
+    if isinstance(os_, list):
+        structured = [x for x in os_ if isinstance(x, dict)]
+        plain = [x for x in os_ if isinstance(x, str)]
+        for item in structured:
+            did = item.get('deptId') or item.get('departmentId') or item.get('department_id')
+            inc = bool(item.get('includeChildren', item.get('include_children', False)))
+            if did is None:
+                continue
+            if inc:
+                out.update(_subtree_ids_from_dept(str(did)))
+            else:
+                out.add(str(did))
+        if plain:
+            # 向后兼容: 纯字符串列表 = 仅本级. 旧 resolver 对 org_scope 纯列表不做子树展开,
+            # unit.include_children 仅作用于 ManagementUnitMember.DEPT, 不作用于 org_scope 纯列表.
+            for d in plain:
+                out.add(str(d))
+    elif isinstance(os_, dict):
+        sub = None
+        for k in _DEPT_LIST_KEYS:
+            if k in os_ and isinstance(os_[k], list):
+                sub = os_[k]
+                break
+        if sub is not None:
+            out.update(str(d) for d in sub)
+        elif (str(os_.get('level', '')).upper() in ('ROOT', 'ALL')
+              or str(os_.get('type', '')).upper() == 'ALL'):
+            out.add(ALL_UNIT_SENTINEL)
+        # 其它 dict 形状: 无法解析, 跳过 (不泄漏 key)
+    # 其它类型: 跳过
+    return out
+
+
 def unit_ids_to_dept_ids(unit_ids) -> list:
     """方案 A M4(2026-09-15): 把 management_unit_ids 解析成部门 id 集合.
 
-    ManagementUnit.org_scope 实际存在两种口径 (历史 '全公司' 数据 + 方案 A 新增 UI 并存):
-      - list[str]: 部门 id 列表 (方案 A 新增 UI 的约定写法) -> 直接用作过滤 dept ids;
-      - dict: 描述型对象.
-          * 若含部门列表子键 (department_ids/dept_ids/departments/org_ids 且为 list) -> 取其列表;
-          * 若为顶层单元 (level=='ROOT'/'ALL' 或 type=='ALL') -> 视为"整公司可见",
-            返回 [ALL_UNIT_SENTINEL];
-          * 其它 dict 形状无法解析 -> 忽略 (不放行, 也不泄漏 dict key).
-      - 其它类型 (str / None / ...) -> 忽略.
-
-    关键修复(2026-09-15 运行时实测暴露): 旧写法 `dept_ids.update(u.org_scope or [])`
-    在 org_scope 为 dict 时把 dict 的 KEY 当部门 id 泄漏进过滤条件 (如 'level'/'name'),
-    导致 row_filter_q 产生错误且无害(匹配不到)的 Q. 本函数对 dict 严格按上述规则解析,
-    绝不泄漏 key.
+    org_scope 解析统一交由 `_expand_org_scope`(支持节点级 includeChildren 结构化写法
+    与历史纯字符串列表 / dict 兼容). 详见 `_expand_org_scope`.
 
     - 空输入返回 [];
     - ManagementUnit 查询异常 (V2 schema 未应用) 时 fail-safe 返回 [], 不静默放行;
-    - 返回字符串化 dept id (与 department_id CharField 一致).
+    - 返回字符串化 dept id (与 department_id CharField 一致), 整公司单元返回 [ALL_UNIT_SENTINEL].
     """
     if not unit_ids:
         return []
@@ -216,22 +248,10 @@ def unit_ids_to_dept_ids(unit_ids) -> list:
         dept_ids = set()
         has_all = False
         for u in ManagementUnit.objects.filter(id__in=list(unit_ids), status=1):
-            os_ = u.org_scope
-            if isinstance(os_, list):
-                dept_ids.update(str(d) for d in os_)
-            elif isinstance(os_, dict):
-                sub = None
-                for k in _DEPT_LIST_KEYS:
-                    if k in os_ and isinstance(os_[k], list):
-                        sub = os_[k]
-                        break
-                if sub is not None:
-                    dept_ids.update(str(d) for d in sub)
-                elif (str(os_.get('level', '')).upper() in ('ROOT', 'ALL')
-                      or str(os_.get('type', '')).upper() == 'ALL'):
-                    has_all = True
-                # 其它 dict 形状: 无法解析, 跳过 (不泄漏 key)
-            # 其它类型: 跳过
+            expanded = _expand_org_scope(u.org_scope, u.include_children)
+            if ALL_UNIT_SENTINEL in expanded:
+                has_all = True
+            dept_ids.update(d for d in expanded if d != ALL_UNIT_SENTINEL)
         # 新增(2026-09-16): 管理单元成员 DEPT 类型真实生效到部门集合 (加法, 不破坏 org_scope 解析)
         try:
             from .models_permission_v2 import ManagementUnitMember
@@ -304,6 +324,109 @@ def collect_unit_member_users(unit_ids):
     return list(out)
 
 
+def _combine_qs(qs, op):
+    """合并 Q 列表: op='or'|'and'; 空列表返回 Q() (no-op)."""
+    from django.db.models import Q
+    if not qs:
+        return Q()
+    q = qs[0]
+    for nxt in qs[1:]:
+        q = (q | nxt) if op == 'or' else (q & nxt)
+    return q
+
+
+def _compile_one_data_range_condition(c, scope_field, creator_field):
+    """编译单条数据范围条件 -> Q 或 None(不支持维度 no-op).
+
+    首版支持 dimension in {dept, department, 部门}: 按部门(含子级由子树展开)等于/不等于过滤.
+    其它维度 fail-safe 返回 None(记录 warning, 不放行也不报错), 避免越权放行.
+    """
+    from django.db.models import Q
+    dimension = str(c.get('dimension') or c.get('dimensionCode') or '').lower()
+    operator = str(c.get('operator') or c.get('op') or 'eq').lower()
+    value = c.get('value')
+    include_sub = bool(c.get('includeSub', c.get('includeSub', False)))
+    if dimension in ('dept', 'department', '部门', '部门id'):
+        if value is None or value == '':
+            return None
+        target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
+        vids = [str(value)]
+        if include_sub:
+            sub = _subtree_ids_from_dept(str(value))
+            if sub:
+                vids = sub
+        if operator in ('neq', '!=', 'not_eq'):
+            return ~Q(**{target: vids})
+        return Q(**{target: vids})
+    logger.warning('[compile_data_range_q] 未支持维度 "%s", 该条件 no-op(fail-safe)', dimension)
+    return None
+
+
+def compile_data_range_q(data_range, scope_field='department_id', creator_field='created_by'):
+    """北森「数据范围」条件表达式 -> Q.
+
+    data_range 结构(首版):
+      { op: 'or'|'and',                              # 组间关系(默认 or)
+        groups: [ { op:'or'|'and',                  # 组内条件关系(默认 or)
+                    conditions: [ { dimension, field, operator, value, includeSub } ] } ] }
+    例: 两组 OR -> "1 or 2":
+        { op:'or', groups:[ {conditions:[c1]}, {conditions:[c2]} ] }
+
+    语义: 组内条件先按组 op 合并, 各组结果再按顶层 op 合并.
+    首版仅 department 维度真实生效; 其它维度 no-op(记录 warning, 不放行也不报错).
+    空/非法 -> Q() (no-op).
+    """
+    from django.db.models import Q
+    if not isinstance(data_range, dict):
+        return Q()
+    groups = data_range.get('groups') or []
+    if not groups:
+        return Q()
+    group_op = str(data_range.get('op') or 'or').lower()
+    group_qs = []
+    for g in groups:
+        conds = (g or {}).get('conditions') or []
+        cond_qs = [
+            q for q in (
+                _compile_one_data_range_condition(c, scope_field, creator_field)
+                for c in conds if isinstance(c, dict)
+            ) if q is not None
+        ]
+        if not cond_qs:
+            continue
+        gop = str((g or {}).get('op') or 'or').lower()
+        group_qs.append(_combine_qs(cond_qs, gop))
+    if not group_qs:
+        return Q()
+    return _combine_qs(group_qs, group_op)
+
+
+def iter_unit_scopes(unit_ids):
+    """逐个管理单元产出行级可见贡献, 供 scope_filter_q 以 OR 聚合, 且 data_range 作为单元内 AND 限制.
+
+    产出 tuple: (dept_ids:list[str], user_ids:list[int], data_range_q:Q, has_all:bool)
+      - 组织范围(org_scope): _expand_org_scope(节点级 includeChildren / 历史兼容)
+      - 成员 DEPT: collect_unit_member_depts(含子级)
+      - 成员 USER/PERSON: collect_unit_member_users
+      - 数据范围(data_range): compile_data_range_q(北森「数据范围」, 单元内 AND 限制)
+    """
+    from django.db.models import Q
+    from .models_permission_v2 import ManagementUnit
+    for u in ManagementUnit.objects.filter(id__in=list(unit_ids), status=1):
+        dept_ids = set(_expand_org_scope(u.org_scope, u.include_children))
+        # 成员 DEPT 子级(加法, 不破坏 org_scope 解析)
+        try:
+            dept_ids.update(collect_unit_member_depts([u.id]))
+        except (OperationalError, ProgrammingError):
+            logger.warning('[iter_unit_scopes] 成员 DEPT 解析失败, 跳过')
+        # 成员 USER/PERSON
+        user_ids = collect_unit_member_users([u.id])
+        # 数据范围(北森「数据范围」) —— 单元内 AND 限制
+        dr_q = compile_data_range_q(u.data_range) if getattr(u, 'data_range', None) else Q()
+        has_all = ALL_UNIT_SENTINEL in dept_ids
+        yield ([d for d in dept_ids if d != ALL_UNIT_SENTINEL], user_ids, dr_q, has_all)
+
+
 def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by'):
     """返回当前用户行级可见范围的 Q 对象 —— scope_resolver 作为唯一真相源.
 
@@ -344,17 +467,23 @@ def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_b
         if not unit_ids:
             # 空管理单元集合 -> SELF 兜底
             return Q(**{creator_field: user.pk})
-        dept_ids = unit_ids_to_dept_ids(unit_ids)
-        user_ids = collect_unit_member_users(unit_ids)
-        if ALL_UNIT_SENTINEL in dept_ids:
-            return Q()
         q = Q()
-        real_dept_ids = [d for d in dept_ids if d != ALL_UNIT_SENTINEL]
-        if real_dept_ids:
-            target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
-            q |= Q(**{target: real_dept_ids})
-        if user_ids:
-            q |= Q(**{f'{creator_field}__in': user_ids})
+        for dept_ids, user_ids, dr_q, has_all in iter_unit_scopes(unit_ids):
+            if has_all:
+                # 整公司单元 -> 全量可见(OR 中任意一项为全量即整体全量)
+                return Q()
+            unit_q = Q()
+            if dept_ids:
+                target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
+                unit_q |= Q(**{target: dept_ids})
+            if user_ids:
+                unit_q |= Q(**{f'{creator_field}__in': user_ids})
+            if not unit_q.children:
+                unit_q |= Q(**{creator_field: user.pk})
+            # 北森「数据范围」: 作为单元内额外限制(AND); 无有效条件则为 no-op
+            if dr_q.children:
+                unit_q &= dr_q
+            q |= unit_q
         return q if q.children else Q(**{creator_field: user.pk})
 
     # 兜底 (正常不会到达): 无范围信息 -> SELF

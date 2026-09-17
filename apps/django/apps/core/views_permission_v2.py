@@ -257,6 +257,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 'id': u.id, 'unit_name': u.unit_name, 'unit_type': u.unit_type,
                 'parent_id': u.parent_id, 'status': u.status,
                 'org_scope': u.org_scope,
+                'data_range': u.data_range,
                 'member_count': ManagementUnitMember.objects.filter(unit_id=u.id, status=1).count(),
                 'children': [],
             }
