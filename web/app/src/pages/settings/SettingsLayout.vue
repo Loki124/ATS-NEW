@@ -131,15 +131,14 @@ const subMenuOptions: MenuItem[] = [
     ],
   },
   {
-    // ★ 北森风格重构：新增「权限管理」顶层分组（放在「基本信息」之后），收纳角色/管理单元/数据权限/团队成员
+    // ★ 北森风格重构：新增「权限管理」顶层分组（放在「基本信息」之后），收纳角色/管理单元/字段权限
     key: 'g-permission',
     type: 'group',
     label: '权限管理',
     children: [
       { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
       { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-      { key: '/settings/data-permission', label: '数据权限管理', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
-      { key: '/settings/user-management', label: '团队成员管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+      { key: '/settings/data-permission', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
     ],
   },
   {

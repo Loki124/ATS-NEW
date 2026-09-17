@@ -1,4 +1,4 @@
-// 数据权限管理前端 API 客户端（统一行级 + 列级，按 角色/部门/用户 维度）
+// 字段权限前端 API 客户端（列级字段权限，按 角色/部门/用户 维度）
 // 模式与 src/api/field-acl.ts 一致: 自管 axios 实例, 不依赖不存在的 base 文件
 
 import axios from 'axios';

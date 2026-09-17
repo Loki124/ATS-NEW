@@ -6,4 +6,4 @@ class DataPermissionConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.data_permission'
     label = 'data_permission'
-    verbose_name = '数据权限管理'
+    verbose_name = '字段权限'

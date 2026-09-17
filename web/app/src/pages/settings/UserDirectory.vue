@@ -243,7 +243,7 @@ const formState = reactive({
   status: 'ACTIVE',
 });
 
-// 获取token（与 UserManagement 一致：统一走 useUserStore().accessToken）
+// 获取token（统一走 useUserStore().accessToken）
 const getToken = () => useUserStore().accessToken;
 
 // API请求封装
@@ -611,7 +611,7 @@ const columns = computed(() => {
       actionsColumn
     );
   } else {
-    // 全部用户：UserManagement 现有列 + 类型列
+    // 全部用户：现有列 + 类型列
     cols.push(
       { title: '用户名', key: 'username', width: 120 },
       { title: '姓名', key: 'realName', width: 100 },
@@ -651,7 +651,7 @@ onMounted(() => {
 
 <style scoped>
 
-/* === page-header + page-body 三件套（与 UserManagement/AccountSettings/DemandConfig 同款）
+/* === page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
    - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
    - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
    - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */

@@ -3,9 +3,9 @@
     <div class="page-body">
       <div class="page-header">
         <div>
-          <h1 class="page-title">数据权限管理</h1>
+          <h1 class="page-title">字段权限</h1>
           <p class="page-subtitle">
-            按角色 / 部门 / 用户维度，统一配置数据的<strong>行级</strong>与<strong>列级</strong>访问范围（RBAC 数据权限）
+            按角色 / 部门 / 用户维度，配置各业务实体的<strong>字段级</strong>可见性（可读 / 脱敏 / 隐藏）
           </p>
         </div>
         <n-button size="small" :loading="loading" @click="reloadAll">
@@ -27,7 +27,7 @@
             <template #trigger>
               <n-icon class="dp-hint" :component="InformationCircleOutline" />
             </template>
-            行级控制「能看到哪些数据行」，列级控制「每条数据里能看到哪些字段」。两者都按所选维度生效。
+            字段权限控制「每条数据里能看到哪些字段」（可读 / 脱敏 / 隐藏），按所选维度生效。
           </n-tooltip>
         </div>
 
@@ -53,65 +53,15 @@
             style="min-width: 280px"
             @update:value="onSubjectChange"
           />
-          <n-tag v-if="rowCount + colCount" :bordered="false" type="info">
-            当前 {{ rowCount }} 条行级 · {{ colCount }} 条列级
+          <n-tag v-if="colCount" :bordered="false" type="info">
+            当前 {{ colCount }} 条字段权限
           </n-tag>
         </div>
       </n-card>
 
-      <n-empty v-if="!dimensionValue" description="请先选择上方「配置对象」，再设置其数据权限" class="dp-empty" />
+      <n-empty v-if="!dimensionValue" description="请先选择上方「配置对象」，再设置其字段权限" class="dp-empty" />
 
       <n-spin v-else :show="loading">
-        <!-- 行级访问控制 -->
-        <n-card title="行级访问控制" class="glass-panel dp-card">
-          <template #header-extra>
-            <n-tag v-if="rowRule" :type="rowRule.status ? 'success' : 'default'" :bordered="false">
-              {{ rowRule.status ? '已启用' : '已停用' }}
-            </n-tag>
-          </template>
-
-          <div class="dp-form">
-            <div class="dp-form__item">
-              <span class="dp-form__label">数据可见范围</span>
-              <n-select
-                v-model:value="rowForm.scopeType"
-                :options="rowScopeOptions"
-                placeholder="选择行级范围"
-                style="min-width: 240px"
-              />
-            </div>
-
-            <div v-if="rowForm.scopeType === 'CUSTOM'" class="dp-form__item dp-form__item--full">
-              <span class="dp-form__label">自定义范围 (JSON)</span>
-              <n-input
-                v-model:value="customPayloadText"
-                type="textarea"
-                :rows="2"
-                placeholder='{"department_ids":["d1","d2"]} 或 {"management_unit_ids":[1,2]}'
-              />
-            </div>
-
-            <div class="dp-form__item dp-form__item--full dp-form__actions">
-              <n-button
-                type="primary"
-                :loading="saving"
-                :disabled="!rowForm.scopeType"
-                @click="saveRowRule"
-              >
-                <template #icon><n-icon :component="SaveOutline" /></template>
-                {{ rowRule ? '保存修改' : '新增行级规则' }}
-              </n-button>
-              <n-button v-if="rowRule" tertiary type="error" :disabled="saving" @click="deleteRule(rowRule.id)">
-                删除该规则
-              </n-button>
-            </div>
-          </div>
-
-          <n-alert v-if="!rowRule" type="warning" :show-icon="false" class="dp-tip">
-            尚未配置行级规则：保存后将按所选范围限制该对象可见的数据行；未配置时沿用系统默认数据范围。
-          </n-alert>
-        </n-card>
-
         <!-- 列级字段权限 -->
         <n-card title="列级字段权限" class="glass-panel dp-card">
           <template #header-extra>
@@ -121,7 +71,7 @@
             </n-button>
           </template>
 
-          <n-empty v-if="!columnRules.length && !draft" description="暂无列级规则，点击「新增字段」设置字段可见性" />
+          <n-empty v-if="!columnRules.length && !draft" description="暂无字段权限，点击「新增字段」设置字段可见性" />
 
           <n-data-table
             v-else
@@ -140,18 +90,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue';
 import {
-  NButton, NCard, NRadioGroup, NRadioButton, NSelect, NInput, NInputGroup,
-  NDataTable, NTag, NSpin, NEmpty, NDivider, NTooltip, NIcon, NAlert, useMessage,
+  NButton, NCard, NRadioGroup, NRadioButton, NSelect, NInput,
+  NDataTable, NTag, NSpin, NEmpty, NDivider, NTooltip, NIcon, useMessage,
 } from 'naive-ui';
 import {
   ReloadOutline, InformationCircleOutline, PeopleOutline, BusinessOutline, PersonOutline,
-  AddOutline, TrashOutline, SaveOutline,
+  AddOutline, TrashOutline,
 } from '@vicons/ionicons5';
 
 import {
   listRules, createRule, updateRule, deleteRule as apiDeleteRule,
   fetchOptions, listRoles, listDepartments, listUsers,
-  type DataPermissionRule, type DimensionType, type RowScopeType, type ColumnPermission, type OptionItem,
+  type DataPermissionRule, type DimensionType, type ColumnPermission, type OptionItem,
 } from '@/api/data-permission';
 
 const message = useMessage();
@@ -160,16 +110,12 @@ const dimension = ref<DimensionType>('ROLE');
 const dimensionValue = ref<string>('');
 const candidates = ref<OptionItem[]>([]);
 const options = ref<{
-  row_scopes: OptionItem[];
   column_permissions: OptionItem[];
-}>({ row_scopes: [], column_permissions: [] });
+}>({ column_permissions: [] });
 
 const rules = ref<DataPermissionRule[]>([]);
 const loading = ref(false);
 const saving = ref(false);
-
-const rowForm = ref<{ scopeType?: RowScopeType | null }>({ scopeType: null });
-const customPayloadText = ref('');
 
 // 列级草稿行（新增字段用）
 const draft = ref<{ entity: string; field: string; permission: ColumnPermission } | null>(null);
@@ -180,23 +126,17 @@ const subjectPlaceholder = computed(() => {
   return '选择用户';
 });
 
-const rowScopeOptions = computed(() => options.value.row_scopes);
 const columnPermissionOptions = computed(() => options.value.column_permissions);
 
 const rulesForSubject = computed(() =>
   rules.value.filter(r => r.dimensionType === dimension.value && r.dimensionValue === dimensionValue.value),
 );
-const rowRule = computed(() => rulesForSubject.value.find(r => r.level === 'ROW') || null);
 const columnRules = computed(() => rulesForSubject.value.filter(r => r.level === 'COLUMN'));
-const rowCount = computed(() => (rowRule.value ? 1 : 0));
 const colCount = computed(() => columnRules.value.length);
 
 const PERM_LABEL: Record<ColumnPermission, string> = { READ: '可读', MASK: '脱敏', NONE: '隐藏' };
 const PERM_TYPE: Record<ColumnPermission, 'success' | 'warning' | 'error'> = {
   READ: 'success', MASK: 'warning', NONE: 'error',
-};
-const SCOPE_LABEL: Record<string, string> = {
-  ALL: '全部数据', DEPT: '仅本部门', DEPT_AND_SUB: '本部门及下属', SELF: '仅自己创建', CUSTOM: '自定义范围',
 };
 
 const columnTableData = computed(() => {
@@ -280,25 +220,11 @@ async function reloadAll() {
   loading.value = true;
   try {
     const [opts] = await Promise.all([fetchOptions(), loadCandidates(), loadRules()]);
-    options.value = {
-      row_scopes: opts.row_scopes,
-      column_permissions: opts.column_permissions,
-    };
-    syncRowForm();
+    options.value = { column_permissions: opts.column_permissions };
   } catch (err: any) {
     message.error(`加载失败：${err?.message || err}`);
   } finally {
     loading.value = false;
-  }
-}
-
-function syncRowForm() {
-  if (rowRule.value) {
-    rowForm.value.scopeType = rowRule.value.scopeType ?? null;
-    customPayloadText.value = rowRule.value.scopePayload ? JSON.stringify(rowRule.value.scopePayload) : '';
-  } else {
-    rowForm.value.scopeType = null;
-    customPayloadText.value = '';
   }
 }
 
@@ -311,43 +237,6 @@ function onDimensionChange() {
 
 function onSubjectChange() {
   draft.value = null;
-  syncRowForm();
-}
-
-async function saveRowRule() {
-  if (!dimensionValue.value) { message.warning('请先选择配置对象'); return; }
-  if (!rowForm.value.scopeType) { message.warning('请选择数据可见范围'); return; }
-  saving.value = true;
-  try {
-    const payload: any = {
-      dimension_type: dimension.value,
-      dimension_value: dimensionValue.value,
-      level: 'ROW',
-      scope_type: rowForm.value.scopeType,
-      priority: 10,
-      status: 1,
-    };
-    if (rowForm.value.scopeType === 'CUSTOM') {
-      try {
-        payload.scope_payload = customPayloadText.value.trim() ? JSON.parse(customPayloadText.value) : null;
-      } catch {
-        message.error('自定义范围不是合法 JSON');
-        saving.value = false;
-        return;
-      }
-    } else {
-      payload.scope_payload = null;
-    }
-    if (rowRule.value) await updateRule(rowRule.value.id, payload);
-    else await createRule(payload);
-    await loadRules();
-    syncRowForm();
-    message.success(rowRule.value ? '行级规则已更新' : '行级规则已创建');
-  } catch (err: any) {
-    message.error(`保存失败：${err?.message || err}`);
-  } finally {
-    saving.value = false;
-  }
 }
 
 function addColumnDraft() {
@@ -373,7 +262,7 @@ async function saveDraftColumn() {
     });
     draft.value = null;
     await loadRules();
-    message.success('列级字段已添加');
+    message.success('字段权限已添加');
   } catch (err: any) {
     message.error(`保存失败：${err?.message || err}`);
   } finally {
@@ -399,23 +288,12 @@ async function removeRule(id: string) {
   try {
     await apiDeleteRule(id);
     await loadRules();
-    syncRowForm();
     message.success('已删除');
   } catch (err: any) {
     message.error(`删除失败：${err?.message || err}`);
   } finally {
     saving.value = false;
   }
-}
-
-// 行级删除走 popconfirm
-function deleteRule(id: string) {
-  // NPopconfirm 包裹在外面模板里调用
-  apiDeleteRule(id).then(async () => {
-    await loadRules();
-    syncRowForm();
-    message.success('已删除');
-  }).catch((err: any) => message.error(`删除失败：${err?.message || err}`));
 }
 
 onMounted(reloadAll);
@@ -437,13 +315,6 @@ onMounted(reloadAll);
 
 .dp-card { margin-bottom: 0; }
 .dp-empty { margin-top: 48px; }
-.dp-tip { margin-top: var(--space-3); }
-
-.dp-form { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; }
-.dp-form__item { display: flex; flex-direction: column; gap: 6px; }
-.dp-form__item--full { flex: 1 1 100%; }
-.dp-form__label { font-size: var(--fs-13); color: var(--ink-soft); font-weight: 500; }
-.dp-form__actions { flex-direction: row; align-items: center; gap: var(--space-3); }
 
 /* 维度 radio 图标与文字间距 */
 .dp-dimension :deep(.n-radio-button__label) { display: inline-flex; align-items: center; gap: 6px; }

@@ -131,7 +131,7 @@ RESOURCES = [
     ('recruit:settings:department:edit', '编辑组织职责', 'BUTTON', 'settings'),
     ('recruit:settings:department:delete', '删除组织职责', 'BUTTON', 'settings'),
     ('recruit:settings:department:export', '导出组织职责', 'BUTTON', 'settings'),
-    # 权限管理 (分组顶层: 角色管理/管理单元/数据权限/团队成员管理)
+    # 权限管理 (分组顶层: 角色管理/管理单元/字段权限)
     ('recruit:settings:permission:menu:view', '权限管理菜单', 'MENU', 'settings'),
     # 角色管理 (management)
     ('recruit:settings:permissions:menu:view', '角色管理菜单', 'MENU', 'settings'),
@@ -139,18 +139,12 @@ RESOURCES = [
     ('recruit:settings:permissions:edit', '编辑角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:delete', '删除角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:export', '导出角色', 'BUTTON', 'settings'),
-    # 数据权限管理 (management)
-    ('recruit:settings:data-permission:menu:view', '数据权限管理菜单', 'MENU', 'settings'),
-    ('recruit:settings:data-permission:create', '新增数据权限', 'BUTTON', 'settings'),
-    ('recruit:settings:data-permission:edit', '编辑数据权限', 'BUTTON', 'settings'),
-    ('recruit:settings:data-permission:delete', '删除数据权限', 'BUTTON', 'settings'),
-    ('recruit:settings:data-permission:export', '导出数据权限', 'BUTTON', 'settings'),
-    # 团队成员管理 (management)
-    ('recruit:settings:user-management:menu:view', '团队成员管理菜单', 'MENU', 'settings'),
-    ('recruit:settings:user-management:create', '新增团队成员', 'BUTTON', 'settings'),
-    ('recruit:settings:user-management:edit', '编辑团队成员', 'BUTTON', 'settings'),
-    ('recruit:settings:user-management:delete', '删除团队成员', 'BUTTON', 'settings'),
-    ('recruit:settings:user-management:export', '导出团队成员', 'BUTTON', 'settings'),
+    # 字段权限 (management) —— 原「数据权限管理」剥离行级后保留列级字段权限
+    ('recruit:settings:data-permission:menu:view', '字段权限菜单', 'MENU', 'settings'),
+    ('recruit:settings:data-permission:create', '新增字段权限', 'BUTTON', 'settings'),
+    ('recruit:settings:data-permission:edit', '编辑字段权限', 'BUTTON', 'settings'),
+    ('recruit:settings:data-permission:delete', '删除字段权限', 'BUTTON', 'settings'),
+    ('recruit:settings:data-permission:export', '导出字段权限', 'BUTTON', 'settings'),
     # 注册审核 (config/审核)
     ('recruit:settings:registrations:menu:view', '注册审核菜单', 'MENU', 'settings'),
     ('recruit:settings:registrations:approve', '审核注册', 'BUTTON', 'settings'),
