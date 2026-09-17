@@ -35,6 +35,9 @@ export interface ManagementUnit {
   unitName: string;
   unitType: string;
   parentId?: string | number | null;
+  code?: string | null;
+  description?: string | null;
+  displayOrder?: number;
   orgScope?: Array<{ deptId: string; includeChildren: boolean }> | Record<string, any> | null;
   personnelScope?: Record<string, any> | null;
   dataRange?: Record<string, any> | null;
@@ -51,8 +54,12 @@ export interface ManagementUnitTreeNode {
   unitType: string;
   parentId: string | number | null;
   status: number;
+  code?: string | null;
+  description?: string | null;
+  displayOrder?: number;
   orgScope?: Record<string, any> | null;
   personnelScope?: Record<string, any> | null;
+  dataRange?: Record<string, any> | null;
   children: ManagementUnitTreeNode[];
 }
 

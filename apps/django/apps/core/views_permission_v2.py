@@ -240,8 +240,11 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         return ManagementUnitSerializer
 
     def list(self, request, *args, **kwargs):
-        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
-        qs = self.filter_queryset(self.get_queryset())
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint.
+
+        北森列表序: 显示顺序(display_order)升序, 同名回退 id.
+        """
+        qs = self.filter_queryset(self.get_queryset()).order_by('display_order', 'id')
         serializer = self.get_serializer(qs, many=True)
         return Response({'success': True, 'data': serializer.data})
 
@@ -256,6 +259,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             u.id: {
                 'id': u.id, 'unit_name': u.unit_name, 'unit_type': u.unit_type,
                 'parent_id': u.parent_id, 'status': u.status,
+                'code': u.code, 'description': u.description, 'display_order': u.display_order,
                 'org_scope': u.org_scope,
                 'data_range': u.data_range,
                 'member_count': ManagementUnitMember.objects.filter(unit_id=u.id, status=1).count(),

@@ -48,6 +48,7 @@ class ManagementUnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = ManagementUnit
         fields = ['id', 'system_code', 'unit_name', 'unit_type', 'parent_id',
+                  'code', 'description', 'display_order',
                   'org_scope', 'include_children', 'data_range', 'status',
                   'created_at', 'updated_at']
 

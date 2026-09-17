@@ -12,84 +12,42 @@
     </div>
 
     <n-tabs v-model:value="activeTab" type="line">
-      <!-- 管理单元树 -->
+      <!-- 管理单元列表（北森交互：表格为主视图，树形展开在「名称」列） -->
       <n-tab-pane name="units" tab="管理单元">
         <n-card :bordered="false" class="glass-panel">
           <template #header-extra>
             <n-space>
-              <n-button @click="openCreateRoot">
+              <n-select
+                v-model:value="unitStatusFilter"
+                :options="statusFilterOptions"
+                style="width: 160px"
+                placeholder="全部状态"
+                clearable
+              />
+              <n-button type="primary" @click="openCreateRoot">
                 <template #icon><n-icon :component="AddOutline" /></template>
-                新建根单元
+                新增
               </n-button>
-              <n-button :disabled="!selectedKey" @click="openCreateChild">
-                <template #icon><n-icon :component="AddOutline" /></template>
-                在选中下新建子单元
+              <n-button :disabled="!checkedRowKeys.length" @click="batchDisable">
+                <template #icon><n-icon :component="StopOutline" /></template>
+                停用
               </n-button>
-              <n-button :disabled="!selectedKey" @click="openEditSelected">
-                <template #icon><n-icon :component="CreateOutline" /></template>
-                编辑
+              <n-button :disabled="!allUnits.length" @click="exportDataRange">
+                <template #icon><n-icon :component="DownloadOutline" /></template>
+                导出数据范围
               </n-button>
-              <n-button :disabled="!selectedKey" type="info" :loading="syncing" @click="onSyncSelected">
-                <template #icon><n-icon :component="SyncOutline" /></template>
-                同步到数据规则
-              </n-button>
-              <n-popconfirm
-                :disabled="!selectedKey"
-                positive-text="确认"
-                negative-text="取消"
-                @positive-click="onDeleteSelected"
-              >
-                <template #trigger>
-                  <n-button :disabled="!selectedKey" type="error">
-                    <template #icon><n-icon :component="TrashOutline" /></template>
-                    删除
-                  </n-button>
-                </template>
-                确认删除该管理单元？其直接子单元将自动提升为根节点。
-              </n-popconfirm>
             </n-space>
           </template>
 
-          <n-grid :cols="2" :x-gap="16" responsive="screen" item-responsive>
-            <n-grid-item>
-              <n-empty v-if="!treeData.length" description="暂无管理单元，点击「新建根单元」" />
-              <n-tree
-                v-else
-                :data="treeData"
-                :selected-keys="selectedKey ? [selectedKey] : []"
-                block-line
-                expand-on-click
-                :default-expand-all="true"
-                @update:selected-keys="onTreeSelect"
-              />
-            </n-grid-item>
-            <n-grid-item>
-              <n-empty v-if="!selectedNode" description="请选择左侧管理单元查看详情" />
-              <n-descriptions v-else title="单元详情" label-placement="top" bordered :column="1">
-                <n-descriptions-item label="名称">{{ selectedNode.unitName }}</n-descriptions-item>
-                <n-descriptions-item label="类型">{{ unitTypeLabel(selectedNode.unitType) }}</n-descriptions-item>
-                <n-descriptions-item label="上级">
-                  {{ selectedNode.parentId ? (unitNameById(String(selectedNode.parentId)) || selectedNode.parentId) : '（根节点）' }}
-                </n-descriptions-item>
-                <n-descriptions-item label="包含子级">
-                  <n-tag :type="selectedNode.includeChildren === 1 ? 'success' : 'default'" size="small">
-                    {{ selectedNode.includeChildren === 1 ? '包含下级' : '仅本级' }}
-                  </n-tag>
-                </n-descriptions-item>
-                <n-descriptions-item label="状态">
-                  <n-tag :type="selectedNode.status === 1 ? 'success' : 'default'" size="small">
-                    {{ selectedNode.status === 1 ? '启用' : '禁用' }}
-                  </n-tag>
-                </n-descriptions-item>
-                <n-descriptions-item label="组织范围 (orgScope)">
-                  <span class="scope-readout">{{ orgScopeLabel(selectedNode.orgScope) }}</span>
-                </n-descriptions-item>
-                <n-descriptions-item label="数据范围 (dataRange)">
-                  <span class="scope-readout">{{ dataRangeLabel(selectedNode.dataRange) }}</span>
-                </n-descriptions-item>
-              </n-descriptions>
-            </n-grid-item>
-          </n-grid>
+          <n-data-table
+            :data="unitTreeData"
+            :columns="unitTableColumns"
+            :row-key="(row: ManagementUnit) => String(row.id)"
+            :checked-row-keys="checkedRowKeys"
+            :scroll-x="760"
+            :loading="unitLoading"
+            @update:checked-row-keys="(keys: Array<string | number>) => (checkedRowKeys = keys.map(String))"
+          />
         </n-card>
       </n-tab-pane>
 
@@ -139,7 +97,7 @@
               </n-button>
             </n-space>
           </template>
-          <n-empty v-if="!selectedKey" description="请先在「管理单元」页签选择一个管理单元" />
+          <n-empty v-if="!selectedKey" description="请先在「管理单元」页签点击名称选中一个管理单元" />
           <n-data-table
             v-else
             :data="members"
@@ -168,8 +126,20 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
+            <n-form-item label="编码">
+              <n-input v-model:value="unitForm.code" placeholder="如：EAST-CHINA（选填）" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
             <n-form-item label="单元类型">
               <n-select v-model:value="unitForm.unitType" :options="unitTypeOptions" />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="显示顺序">
+              <n-input-number v-model:value="unitForm.displayOrder" :min="0" style="width: 100%" />
             </n-form-item>
           </n-grid-item>
         </n-grid>
@@ -183,6 +153,9 @@
             key-field="value"
             label-field="label"
           />
+        </n-form-item>
+        <n-form-item label="说明">
+          <n-input v-model:value="unitForm.description" type="textarea" :rows="2" placeholder="选填" />
         </n-form-item>
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
@@ -361,6 +334,89 @@
       :value="unitForm.dataRange"
       @confirm="onDataRangeConfirm"
     />
+    <!-- 详情页「设置数据范围」复用 DataRangeModal（独立绑定，保存回写单元） -->
+    <DataRangeModal
+      v-model:show="detailDataRangeVisible"
+      :value="detailDataRangeValue"
+      @confirm="onDetailDataRangeConfirm"
+    />
+
+    <!-- 详情抽屉（北森图2：表头元信息 + 应用 Tab + 可折叠 组织/人员范围） -->
+    <n-drawer v-model:show="detailVisible" :width="780" placement="right">
+      <n-drawer-content :title="detailUnit?.unitName || '管理单元详情'" closable>
+        <template v-if="detailUnit" #header-extra>
+          <n-space>
+            <n-button size="small" @click="openEditFromDetail">编辑基本信息</n-button>
+            <n-button size="small" @click="openViewAuth">查看授权用户</n-button>
+          </n-space>
+        </template>
+        <div v-if="detailUnit" class="detail-meta">
+          <div class="meta-item"><span class="meta-label">上级管理单元</span><span>{{ detailUnit.parentId ? (unitNameById(String(detailUnit.parentId)) || detailUnit.parentId) : '（根节点）' }}</span></div>
+          <div class="meta-item"><span class="meta-label">编码</span><span>{{ detailUnit.code || '—' }}</span></div>
+          <div class="meta-item"><span class="meta-label">显示顺序</span><span>{{ detailUnit.displayOrder ?? 0 }}</span></div>
+          <div class="meta-item meta-full"><span class="meta-label">说明</span><span>{{ detailUnit.description || '—' }}</span></div>
+        </div>
+
+        <n-tabs v-model:value="detailAppTab" type="line" class="detail-tabs">
+          <n-tab-pane v-for="app in appTabs" :key="app.value" :name="app.value" :tab="app.label">
+            <n-collapse :default-expanded-names="['org', 'person']">
+              <n-collapse-item title="管理组织范围" name="org">
+                <template #header-extra>
+                  <n-space>
+                    <n-button size="small" @click.stop="openDetailDataRange('org')">设置数据范围</n-button>
+                    <n-button size="small" @click.stop="collapseSection('org')">收起</n-button>
+                  </n-space>
+                </template>
+                <n-data-table
+                  :data="detailOrgNodes"
+                  :columns="detailOrgColumns"
+                  :row-key="(row: OrgScopeNode) => row.deptId"
+                  size="small"
+                  :scroll-x="520"
+                />
+              </n-collapse-item>
+              <n-collapse-item title="管理人员范围" name="person">
+                <template #header-extra>
+                  <n-space>
+                    <n-button size="small" @click.stop="openDetailDataRange('person')">设置数据范围</n-button>
+                    <n-button size="small" @click.stop="collapseSection('person')">收起</n-button>
+                  </n-space>
+                </template>
+                <n-data-table
+                  :data="detailMembers"
+                  :columns="detailMemberColumns"
+                  :row-key="(row: ManagementUnitMember) => row.id"
+                  size="small"
+                  :scroll-x="420"
+                  :loading="detailMemberLoading"
+                />
+              </n-collapse-item>
+            </n-collapse>
+            <n-alert type="warning" :show-icon="false" class="detail-note">
+              当前按应用的数据范围差异化配置将在下一阶段接入，本期组织/人员范围对所有应用 Tab 共用。
+            </n-alert>
+          </n-tab-pane>
+        </n-tabs>
+      </n-drawer-content>
+    </n-drawer>
+
+    <!-- 查看授权用户 弹窗 -->
+    <n-modal
+      v-model:show="viewAuthVisible"
+      preset="card"
+      title="授权用户"
+      :style="{ width: '560px' }"
+      :mask-closable="false"
+    >
+      <n-data-table
+        :data="authMembers"
+        :columns="authColumns"
+        :row-key="(row: ManagementUnitMember) => row.id"
+        size="small"
+        :loading="authLoading"
+        :pagination="{ pageSize: 10 }"
+      />
+    </n-modal>
 </div><!-- /.page-body -->
 </div>
 </template>
@@ -368,15 +424,16 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
-  NButton, NSpace, NTag, NIcon, NEmpty, NDescriptions, NDescriptionsItem,
-  NPopconfirm, useMessage, useDialog,
+  NButton, NSpace, NTag, NIcon, NEmpty,
+  NPopconfirm, NDrawer, NDrawerContent, NCollapse, NCollapseItem, NAlert, useMessage, useDialog,
 } from 'naive-ui'
 import {
-  AddOutline, CreateOutline, TrashOutline, SyncOutline, OptionsOutline, FilterOutline,
+  AddOutline, CreateOutline, TrashOutline, OptionsOutline, FilterOutline,
+  StopOutline, DownloadOutline,
 } from '@vicons/ionicons5'
 import {
   listManagementUnits, treeManagementUnits, createManagementUnit, updateManagementUnit,
-  deleteManagementUnit, syncManagementUnitRules,
+  deleteManagementUnit,
   listManagementUnitMembers, addManagementUnitMember, removeManagementUnitMember,
   type ManagementUnit, type ManagementUnitTreeNode, type ManagementUnitMember,
 } from '@/api/management-unit'
@@ -394,12 +451,20 @@ const message = useMessage()
 const dialog = useDialog()
 const activeTab = ref('units')
 
-// ===== 管理单元树 =====
+// ===== 管理单元列表（北森表格主视图） =====
 const allUnits = ref<ManagementUnit[]>([])
 const treeNodes = ref<ManagementUnitTreeNode[]>([])
 const selectedKey = ref<string | number | null>(null)
 const selectedNode = ref<ManagementUnit | null>(null)
-const syncing = ref(false)
+const unitLoading = ref(false)
+const checkedRowKeys = ref<string[]>([])
+const unitStatusFilter = ref<number | null>(null)
+
+const statusFilterOptions = [
+  { label: '全部状态', value: null as number | null },
+  { label: '启用', value: 1 },
+  { label: '禁用', value: 0 },
+]
 
 const unitTypeOptions = [
   { label: '组织', value: 'org' },
@@ -411,20 +476,55 @@ const statusOptions = [
   { label: '启用', value: 1 },
   { label: '禁用', value: 0 },
 ]
-const unitTypeLabel = (t: string) =>
-  (unitTypeOptions.find((o) => o.value === t)?.label) || t
 
-// n-tree 数据（带 children 嵌套）
-const treeData = computed(() =>
-  treeNodes.value.map((n) => mapTreeNode(n)),
+const filteredUnits = computed(() =>
+  unitStatusFilter.value == null
+    ? allUnits.value
+    : allUnits.value.filter((u) => u.status === unitStatusFilter.value),
 )
-function mapTreeNode(n: ManagementUnitTreeNode) {
-  return {
-    key: n.id as any,
-    label: `${n.unitName}${n.status === 0 ? '（禁用）' : ''}`,
-    children: (n.children || []).map(mapTreeNode),
-  }
+
+/** 扁平列表 → 树形（n-data-table 以 children 字段渲染展开箭头，第一列「名称」即树列） */
+const unitTreeData = computed(() => buildUnitTree(filteredUnits.value))
+function buildUnitTree(list: ManagementUnit[]): any[] {
+  const byId = new Map<string, any>()
+  list.forEach((u) => byId.set(String(u.id), { ...u, key: String(u.id), children: [] as any[] }))
+  const roots: any[] = []
+  list.forEach((u) => {
+    const node = byId.get(String(u.id))!
+    const pid = u.parentId != null ? String(u.parentId) : null
+    if (pid && byId.has(pid)) byId.get(pid)!.children.push(node)
+    else roots.push(node)
+  })
+  return roots
 }
+
+const unitTableColumns = [
+  {
+    title: '名称', key: 'unitName', minWidth: 200,
+    render: (row: ManagementUnit) =>
+      h(NButton, { text: true, type: 'primary', onClick: () => openDetail(row) }, { default: () => row.unitName }),
+  },
+  { title: '编码', key: 'code', width: 140, render: (row: ManagementUnit) => row.code || '—' },
+  { title: '说明', key: 'description', minWidth: 160, render: (row: ManagementUnit) => row.description || '—' },
+  { title: '显示顺序', key: 'displayOrder', width: 100, render: (row: ManagementUnit) => row.displayOrder ?? 0 },
+  {
+    title: '操作', key: 'action', width: 150,
+    render: (row: ManagementUnit) =>
+      h(NSpace, { size: 'small' }, {
+        default: () => [
+          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => openEditUnit(row) }, { default: () => '编辑' }),
+          h(NPopconfirm, {
+            onPositiveClick: () => onDeleteUnit(row),
+            positiveText: '确认', negativeText: '取消',
+          }, {
+            default: () => `确认删除「${row.unitName}」？其直接子单元将自动提升为根节点。`,
+            trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
+          }),
+        ],
+      }),
+  },
+]
+
 function unitNameById(id: string): string | undefined {
   return allUnits.value.find((u) => String(u.id) === id)?.unitName
 }
@@ -445,7 +545,6 @@ const parentOptions = computed(() => {
     }
   }
   walk(treeNodes.value)
-  // 再排除 blockId 的后代：由于已跳过 blockId 本身，其 children 仍会出现，需二次过滤
   const blocked = new Set<string>()
   if (blockId) {
     const collect = (nodes: ManagementUnitTreeNode[]) => {
@@ -460,7 +559,6 @@ const parentOptions = computed(() => {
     collect(treeNodes.value)
   }
   const allowed = flat.filter((u) => !blocked.has(String(u.id)))
-  // 构建树形 options
   const byId = new Map<string, any>()
   allowed.forEach((u) => byId.set(String(u.id), { label: u.unitName, value: String(u.id), children: [] as any[] }))
   const roots: any[] = []
@@ -482,8 +580,11 @@ const unitSaving = ref(false)
 const unitForm = reactive({
   id: '' as string,
   unitName: '',
+  code: '' as string,
   unitType: 'org',
   parentId: null as string | number | null,
+  displayOrder: 0 as number,
+  description: '' as string,
   status: 1 as number,
   includeChildren: 1 as number,
   orgScopeNodes: null as OrgScopeNode[] | null,
@@ -495,6 +596,12 @@ const dataRangeModalVisible = ref(false)
 
 function deptNameById(id: string): string {
   return deptStore.departments.find((d: any) => String(d.id) === String(id))?.name || String(id)
+}
+function parentDeptName(id?: string | null): string {
+  if (!id) return '—'
+  const d = deptStore.departments.find((x: any) => String(x.id) === String(id))
+  if (!d || !d.parentId) return '—'
+  return deptStore.departments.find((x: any) => String(x.id) === String(d.parentId))?.name || String(d.parentId)
 }
 
 /** 把任意 org_scope 形状(结构化列表 / 纯字符串列表 / dict 部门子键)规整为 OrgScopeNode[] 供弹窗回填 */
@@ -558,57 +665,20 @@ function onDataRangeConfirm(range: any) {
   unitForm.dataRange = range
 }
 
-function onTreeSelect(keys: Array<string | number>) {
-  const k = keys[0]
-  selectedKey.value = k ?? null
-  selectedNode.value = k ? (allUnits.value.find((u) => String(u.id) === String(k)) || null) : null
-  // 同步详情节点（带 children 的扁平版）也需要更新
-  if (k) {
-    const node = findNode(treeNodes.value, String(k))
-    if (node) {
-      selectedNode.value = {
-        id: String(node.id), unitName: node.unitName, unitType: node.unitType,
-        parentId: node.parentId, orgScope: node.orgScope,
-        includeChildren: 1, status: node.status,
-      }
-    }
-  }
-}
-function findNode(nodes: ManagementUnitTreeNode[], id: string): ManagementUnitTreeNode | null {
-  for (const n of nodes) {
-    if (String(n.id) === id) return n
-    if (n.children) {
-      const f = findNode(n.children, id)
-      if (f) return f
-    }
-  }
-  return null
-}
-
 function openCreateRoot() {
   editingUnit.value = null
   Object.assign(unitForm, {
-    id: '', unitName: '', unitType: 'org', parentId: null,
-    status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
+    id: '', unitName: '', code: '', unitType: 'org', parentId: null,
+    displayOrder: 0, description: '', status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
   })
   unitModalVisible.value = true
 }
-function openCreateChild() {
-  if (!selectedNode.value) return
-  editingUnit.value = null
-  Object.assign(unitForm, {
-    id: '', unitName: '', unitType: 'org', parentId: String(selectedNode.value.id),
-    status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
-  })
-  unitModalVisible.value = true
-}
-function openEditSelected() {
-  const n = selectedNode.value
-  if (!n) return
+function openEditUnit(n: ManagementUnit) {
   editingUnit.value = n
   Object.assign(unitForm, {
-    id: String(n.id), unitName: n.unitName, unitType: n.unitType,
-    parentId: n.parentId ? String(n.parentId) : null, status: n.status,
+    id: String(n.id), unitName: n.unitName, code: n.code || '', unitType: n.unitType,
+    parentId: n.parentId ? String(n.parentId) : null,
+    displayOrder: n.displayOrder ?? 0, description: n.description || '', status: n.status,
     includeChildren: n.includeChildren ?? 1,
     orgScopeNodes: toOrgScopeNodes(n.orgScope),
     dataRange: (n.dataRange as any) ?? null,
@@ -625,8 +695,11 @@ async function onSaveUnit() {
   try {
     const payload = {
       unitName: unitForm.unitName.trim(),
+      code: unitForm.code.trim() || null,
       unitType: unitForm.unitType,
       parentId: unitForm.parentId ? Number(unitForm.parentId) : null,
+      displayOrder: unitForm.displayOrder ?? 0,
+      description: unitForm.description.trim() || null,
       status: unitForm.status,
       includeChildren: unitForm.includeChildren,
       orgScope: unitForm.orgScopeNodes && unitForm.orgScopeNodes.length ? unitForm.orgScopeNodes : null,
@@ -648,27 +721,15 @@ async function onSaveUnit() {
   }
 }
 
-async function onSyncSelected() {
-  if (!selectedNode.value) return
-  syncing.value = true
+async function onDeleteUnit(row: ManagementUnit) {
   try {
-    const res = await syncManagementUnitRules(String(selectedNode.value.id))
-    message.success(`已同步到 DataPermissionRule（${res.effectiveUnitIds.length} 个单元）`, { duration: 5000 })
-  } catch (e: any) {
-    message.error('同步失败: ' + (e?.response?.data?.message || e?.message || e))
-  } finally {
-    syncing.value = false
-  }
-}
-
-async function onDeleteSelected() {
-  if (!selectedNode.value) return
-  try {
-    const res = await deleteManagementUnit(String(selectedNode.value.id))
+    const res = await deleteManagementUnit(String(row.id))
     if (res?.success) {
       message.success('已删除')
-      selectedKey.value = null
-      selectedNode.value = null
+      if (selectedKey.value && String(selectedKey.value) === String(row.id)) {
+        selectedKey.value = null
+        selectedNode.value = null
+      }
       await loadUnits()
     } else {
       message.error(res?.message || '删除失败')
@@ -678,7 +739,40 @@ async function onDeleteSelected() {
   }
 }
 
+async function batchDisable() {
+  if (!checkedRowKeys.value.length) { message.warning('请先勾选管理单元'); return }
+  try {
+    for (const id of checkedRowKeys.value) {
+      await updateManagementUnit(String(id), { status: 0 })
+    }
+    message.success(`已停用 ${checkedRowKeys.value.length} 个管理单元`)
+    checkedRowKeys.value = []
+    await loadUnits()
+  } catch (e: any) {
+    message.error('批量停用失败: ' + (e?.response?.data?.message || e?.message || e))
+  }
+}
+
+function exportDataRange() {
+  const rows = checkedRowKeys.value.length
+    ? allUnits.value.filter((u) => checkedRowKeys.value.includes(String(u.id)))
+    : allUnits.value
+  const payload = rows.map((u) => ({
+    id: u.id, unitName: u.unitName, code: u.code,
+    orgScope: u.orgScope, dataRange: u.dataRange,
+  }))
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'management-unit-data-range.json'
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success(`已导出 ${rows.length} 个管理单元的数据范围`)
+}
+
 async function loadUnits() {
+  unitLoading.value = true
   try {
     const [flat, tree] = await Promise.all([
       listManagementUnits(),
@@ -688,6 +782,129 @@ async function loadUnits() {
     treeNodes.value = tree
   } catch (e: any) {
     message.error('加载管理单元失败: ' + (e?.message || e))
+  } finally {
+    unitLoading.value = false
+  }
+}
+
+// ===== 详情抽屉（北森图2 结构） =====
+const detailVisible = ref(false)
+const detailUnit = ref<ManagementUnit | null>(null)
+const detailAppTab = ref('public')
+const detailDataRangeVisible = ref(false)
+const detailDataRangeValue = ref<any>(null)
+const detailMemberLoading = ref(false)
+const detailMembers = ref<ManagementUnitMember[]>([])
+
+const appTabs = [
+  { label: '公共', value: 'public' },
+  { label: '招聘', value: 'recruit' },
+  { label: '校招', value: 'campus' },
+  { label: '社招', value: 'social' },
+  { label: '内推', value: 'referral' },
+]
+
+const detailOrgNodes = computed<OrgScopeNode[]>(() =>
+  detailUnit.value ? toOrgScopeNodes(detailUnit.value.orgScope) : [],
+)
+const detailOrgColumns = [
+  { title: '组织名称', key: 'orgName', minWidth: 140, render: (row: OrgScopeNode) => deptNameById(row.deptId) },
+  { title: '编码', key: 'deptId', width: 120, render: (row: OrgScopeNode) => row.deptId },
+  { title: '上级组织', key: 'parent', width: 140, render: (row: OrgScopeNode) => parentDeptName(row.deptId) },
+  { title: '是否包含下级', key: 'includeChildren', width: 120,
+    render: (row: OrgScopeNode) => (row.includeChildren ? '含下级' : '仅本级') },
+]
+const detailMemberColumns = [
+  {
+    title: '姓名', key: 'name', minWidth: 120,
+    render: (row: ManagementUnitMember) => row.departmentName || row.userName || row.personName || row.departmentId || row.userId || row.personId || '—',
+  },
+  {
+    title: '类型', key: 'memberType', width: 110,
+    render: (row: ManagementUnitMember) =>
+      h(NTag, { size: 'small' }, { default: () => ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType }),
+  },
+  {
+    title: '组织', key: 'org', minWidth: 140,
+    render: (row: ManagementUnitMember) => (row.departmentId ? deptNameById(row.departmentId) : '—'),
+  },
+]
+
+function openDetail(u: ManagementUnit) {
+  detailUnit.value = u
+  detailAppTab.value = 'public'
+  detailVisible.value = true
+  // 同步选中态，保持「成员管理」Tab 可操作该单元
+  selectedKey.value = String(u.id)
+  selectedNode.value = u
+  loadDetailMembers(u)
+}
+function openEditFromDetail() {
+  if (!detailUnit.value) return
+  openEditUnit(detailUnit.value)
+  detailVisible.value = false
+}
+function collapseSection(name: 'org' | 'person') {
+  // n-collapse 无编程式收起单一面板的简单 API，这里通过提示引导用户手动收起
+  message.info(`请在上方「${name === 'org' ? '管理组织范围' : '管理人员范围'}」面板上点击收起`)
+}
+async function loadDetailMembers(u: ManagementUnit) {
+  detailMemberLoading.value = true
+  try {
+    detailMembers.value = await listManagementUnitMembers(String(u.id))
+  } catch (e: any) {
+    message.error('加载成员失败: ' + (e?.response?.data?.message || e?.message || e))
+  } finally {
+    detailMemberLoading.value = false
+  }
+}
+function openDetailDataRange(_section: 'org' | 'person') {
+  if (!detailUnit.value) return
+  detailDataRangeValue.value = (detailUnit.value.dataRange as any) ?? null
+  detailDataRangeVisible.value = true
+}
+async function onDetailDataRangeConfirm(range: any) {
+  if (!detailUnit.value) return
+  try {
+    const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRange: range ?? null })
+    detailUnit.value = { ...detailUnit.value, dataRange: (updated as any).dataRange ?? range }
+    message.success('数据范围已保存')
+  } catch (e: any) {
+    message.error('保存数据范围失败: ' + (e?.response?.data?.message || e?.message || e))
+  } finally {
+    detailDataRangeVisible.value = false
+  }
+}
+
+// ===== 查看授权用户 =====
+const viewAuthVisible = ref(false)
+const authMembers = ref<ManagementUnitMember[]>([])
+const authLoading = ref(false)
+const authColumns = [
+  {
+    title: '姓名', key: 'name', minWidth: 120,
+    render: (row: ManagementUnitMember) => row.userName || row.personName || row.departmentName || row.id,
+  },
+  {
+    title: '类型', key: 'memberType', width: 110,
+    render: (row: ManagementUnitMember) =>
+      h(NTag, { size: 'small' }, { default: () => ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType }),
+  },
+  {
+    title: '组织', key: 'org', minWidth: 140,
+    render: (row: ManagementUnitMember) => (row.departmentId ? deptNameById(row.departmentId) : '—'),
+  },
+]
+async function openViewAuth() {
+  if (!detailUnit.value) return
+  authLoading.value = true
+  viewAuthVisible.value = true
+  try {
+    authMembers.value = await listManagementUnitMembers(String(detailUnit.value.id))
+  } catch (e: any) {
+    message.error('加载授权用户失败: ' + (e?.response?.data?.message || e?.message || e))
+  } finally {
+    authLoading.value = false
   }
 }
 
@@ -770,7 +987,6 @@ async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
     memberType: type, departmentId: null, userId: null, personId: null,
     includeChildren: 1, remark: '',
   })
-  // 加载选择器数据（复用现有接口，失败优雅降级）
   try { if (!deptStore.departments.length) await deptStore.loadDepartments() } catch { /* 降级 */ }
   if (!userOptions.value.length) {
     try { userOptions.value = (await listUsers()).map((u) => ({ label: u.realName || u.username || String(u.id), value: String(u.id) })) } catch { /* 降级 */ }
@@ -972,7 +1188,7 @@ onMounted(() => {
   white-space: pre-wrap;
   word-break: break-all;
   font-size: 12px;
-  background: var(--g2, #f5f5f5);
+  background: var(--g2, #f7f8fa);
   padding: 8px;
   border-radius: 6px;
   max-height: 160px;
@@ -988,5 +1204,34 @@ onMounted(() => {
   font-size: 13px;
   color: var(--color-text-secondary);
   line-height: 1.5;
+}
+/* 详情抽屉元信息 */
+.detail-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-1);
+  border-radius: 8px;
+  background: var(--g2, #f7f8fa);
+  margin-bottom: var(--space-3);
+}
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.meta-full {
+  grid-column: 1 / -1;
+}
+.meta-label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.detail-tabs {
+  margin-top: var(--space-2);
+}
+.detail-note {
+  margin-top: var(--space-3);
 }
 </style>
