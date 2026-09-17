@@ -16,7 +16,7 @@
       <template #header-extra>
         <n-button size="small" :loading="loading" @click="reload">刷新</n-button>
       </template>
-      <n-empty v-if="!rows.length" description="暂无 ACL 规则, 请执行 seed: node prisma/seed/field-acl.seed.js" />
+      <n-empty v-if="!rows.length" description="暂无字段权限规则，请在上方角色矩阵中配置" />
       <n-data-table
         v-else
         :columns="columns"

@@ -139,12 +139,12 @@ RESOURCES = [
     ('recruit:settings:permissions:edit', '编辑角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:delete', '删除角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:export', '导出角色', 'BUTTON', 'settings'),
-    # 字段权限 (management) —— 原「数据权限管理」剥离行级后保留列级字段权限
-    ('recruit:settings:data-permission:menu:view', '字段权限菜单', 'MENU', 'settings'),
-    ('recruit:settings:data-permission:create', '新增字段权限', 'BUTTON', 'settings'),
-    ('recruit:settings:data-permission:edit', '编辑字段权限', 'BUTTON', 'settings'),
-    ('recruit:settings:data-permission:delete', '删除字段权限', 'BUTTON', 'settings'),
-    ('recruit:settings:data-permission:export', '导出字段权限', 'BUTTON', 'settings'),
+    # 字段权限 (management) —— field_acl 引擎 (序列化层真实生效的 PII 脱敏), 单一字段权限入口
+    ('recruit:settings:field-acl:menu:view', '字段权限菜单', 'MENU', 'settings'),
+    ('recruit:settings:field-acl:create', '新增字段权限', 'BUTTON', 'settings'),
+    ('recruit:settings:field-acl:edit', '编辑字段权限', 'BUTTON', 'settings'),
+    ('recruit:settings:field-acl:delete', '删除字段权限', 'BUTTON', 'settings'),
+    ('recruit:settings:field-acl:export', '导出字段权限', 'BUTTON', 'settings'),
     # 注册审核 (config/审核)
     ('recruit:settings:registrations:menu:view', '注册审核菜单', 'MENU', 'settings'),
     ('recruit:settings:registrations:approve', '审核注册', 'BUTTON', 'settings'),

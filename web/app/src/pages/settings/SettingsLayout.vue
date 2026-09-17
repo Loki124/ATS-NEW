@@ -138,7 +138,7 @@ const subMenuOptions: MenuItem[] = [
     children: [
       { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
       { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-      { key: '/settings/data-permission', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
+      { key: '/settings/field-acl', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
     ],
   },
   {
