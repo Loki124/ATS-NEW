@@ -223,11 +223,28 @@ class Department(models.Model):
         from nanoid import generate as nanoid_generate
         if not self.id:
             self.id = nanoid_generate(size=21)
+        if not self.code:
+            self.code = self._next_department_code()
         if self.parent and not self.path:
             self.path = f'{self.parent.path}/{self.name}'
         elif not self.path:
             self.path = f'/{self.name}'
         super().save(*args, **kwargs)
+
+    def _next_department_code(self):
+        """部门编号系统自动生成：D + 6 位流水号（如 D000001）。
+
+        仅统计符合 D###### 格式的编号，取当前最大序号 + 1；若无则自 1 起。
+        既有旧编号（如 HR-001 等非 D###### 格式）不参与计数，保留原值不覆盖。
+        """
+        import re
+        pattern = re.compile(r'^D(\d{6})$')
+        max_num = 0
+        for existing in Department.objects.values_list('code', flat=True):
+            m = pattern.match(existing or '')
+            if m:
+                max_num = max(max_num, int(m.group(1)))
+        return f'D{max_num + 1:06d}'
 
     def get_ancestors(self):
         """获取所有祖先部门"""

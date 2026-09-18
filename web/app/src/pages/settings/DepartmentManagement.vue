@@ -7,6 +7,11 @@
           <p class="page-subtitle">维护组织架构与部门职责，作为管控与权限的归属单元</p>
         </div>
         <div class="page-header-actions">
+          <n-radio-group v-model:value="statusFilter" size="small">
+            <n-radio-button value="ALL">全部</n-radio-button>
+            <n-radio-button value="ACTIVE">启用</n-radio-button>
+            <n-radio-button value="INACTIVE">停用</n-radio-button>
+          </n-radio-group>
           <n-input
             v-model:value="searchKeyword"
             placeholder="搜索部门名称/编号"
@@ -55,11 +60,11 @@
         <n-form :model="formState" label-placement="top">
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="部门编号" required>
+              <n-form-item label="部门编号">
                 <n-input
                   v-model:value="formState.code"
-                  placeholder="请输入部门编号（唯一）"
-                  :disabled="!!editingDept"
+                  placeholder="保存后系统自动生成（D + 6 位流水号）"
+                  :disabled="true"
                 />
               </n-form-item>
             </n-grid-item>
@@ -238,6 +243,7 @@ import {
   NInputNumber,
   NRadioGroup,
   NRadio,
+  NRadioButton,
   NDivider,
   NCard,
   NTooltip,
@@ -303,6 +309,9 @@ watch(departments, (list) => {
   expandedKeys.value = Array.from(parentIds);
 });
 
+// 启用/停用筛选变化即重新拉取
+watch(statusFilter, () => loadDepartments());
+
 // 部门层级：根据 parentId 链计算深度（顶级部门 = 第 1 级）
 const levelMap = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {};
@@ -324,6 +333,9 @@ const levelMap = computed<Record<string, number>>(() => {
 });
 const searchKeyword = ref('');
 
+// 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
+const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+
 const formState = reactive({
   code: '',
   name: '',
@@ -340,7 +352,10 @@ const formState = reactive({
 const loadDepartments = async () => {
   loading.value = true;
   try {
-    const res = await api.get('/departments/');
+    const params: Record<string, any> = { page_size: 200 };
+    if (statusFilter.value === 'ACTIVE') params.is_active = 'true';
+    else if (statusFilter.value === 'INACTIVE') params.is_active = 'false';
+    const res = await api.get('/departments/', { params });
     if (res.data?.success) {
       departments.value = res.data.data || [];
     } else {
@@ -495,8 +510,8 @@ const extractErrorMessage = (data: any): string => {
 
 // 提交表单
 const handleDeptSubmit = async () => {
-  if (!formState.name || !formState.code) {
-    message.error('请填写部门名称和部门编号');
+  if (!formState.name) {
+    message.error('请填写部门名称');
     return;
   }
   submitting.value = true;
@@ -740,5 +755,10 @@ onMounted(() => {
   display: flex;
   gap: var(--space-2);
   align-items: center;
+}
+
+/* 去掉部门树形表格左侧的展开箭头：保留层级缩进，仅隐藏展开三角 */
+:deep(.n-data-table-expand-trigger) {
+  display: none !important;
 }
 </style>

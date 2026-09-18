@@ -75,7 +75,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     """部门 CRUD - HRBP+ 可写, 其它角色只读 (Fix 1)"""
-    queryset = Department.objects.filter(is_active=True).select_related(
+    queryset = Department.objects.all().select_related(
         'parent', 'leader', 'manager_2', 'manager_3', 'hrbp'
     )
     serializer_class = DepartmentSerializer

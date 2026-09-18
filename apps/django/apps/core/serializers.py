@@ -235,7 +235,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
             'is_active', 'status', 'children_count',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'path', 'created_at', 'updated_at', 'children_count']
+        read_only_fields = ['id', 'code', 'path', 'created_at', 'updated_at', 'children_count']
 
     def get_status(self, obj):
         return 'ACTIVE' if obj.is_active else 'INACTIVE'
