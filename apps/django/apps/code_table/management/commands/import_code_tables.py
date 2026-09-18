@@ -1,18 +1,22 @@
-"""导入码表库数据（行政区划 / 国家区号 / 民族 / 语言）。
+"""导入码表库数据（行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业）。
 
 用法:
     python manage.py import_code_tables                 # 导入全部
     python manage.py import_code_tables --only regions   # 只导行政区划
+    python manage.py import_code_tables --only currencies # 只导币种（ISO 4217）
+    python manage.py import_code_tables --only industries  # 只导行业（GB/T 4754）
     python manage.py import_code_tables --clear          # 清空后重导
 
-数据来源（已随仓库落在 apps/code_table/data/，离线可跑）:
-    - 行政区划: 国家统计局《统计用区划代码》2023 版（经 sinlmao/regions_data 整理 CSV）
-                省/市/区县/镇乡 四级，不含村级
-    - 国家区号: mledoze/countries (ISO 3166-1 + IDD 国际电话区号 + 中文译名)
+数据来源（已随仓库落地，离线可跑）:
+    - 行政区划: 国家统计局《统计用区划代码》2023 版（CSV，省/市/区县/镇乡 四级）
+    - 国家区号: mledoze/countries (ISO 3166-1 + IDD 区号 + 中文译名)
     - 民族:     GB/T 3304-1991《中国各民族名称的罗马字母拼写法和代码》
     - 语言:     ISO 639（umpirsky/language-list 中英文对照）
+    - 币种:     ISO 4217（apps/code_table/data_std.py 内嵌全量元组）
+    - 行业:     GB/T 4754-2017 国民经济行业分类（data_std.py 内嵌，门类+大类）
 
-幂等: 全部使用 update_or_create，重复执行不会重复插入。
+幂等: 行政区划/国家/民族/语言用 update_or_create；币种/行业用 bulk_create(ignore_conflicts)，
+重复执行不会重复插入。
 """
 import csv
 import json
@@ -21,7 +25,8 @@ import os
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.code_table.models import Country, Ethnicity, Language, Region
+from apps.code_table.data_std import CURRENCIES, INDUSTRIES
+from apps.code_table.models import Country, Currency, Ethnicity, Industry, Language, Region
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data')
 
@@ -47,12 +52,15 @@ ETHNICITIES = [
 
 
 class Command(BaseCommand):
-    help = '导入码表库数据（行政区划 / 国家区号 / 民族 / 语言）'
+    help = '导入码表库数据（行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业）'
 
     def add_arguments(self, parser):
         parser.add_argument('--data-dir', default=DATA_DIR, help='数据文件目录')
         parser.add_argument(
-            '--only', choices=['regions', 'countries', 'ethnicities', 'languages'],
+            '--only', choices=[
+                'regions', 'countries', 'ethnicities', 'languages',
+                'currencies', 'industries',
+            ],
             help='只导入指定码表',
         )
         parser.add_argument('--clear', action='store_true', help='导入前清空对应表')
@@ -69,12 +77,17 @@ class Command(BaseCommand):
             ('countries', self.import_countries),
             ('ethnicities', self.import_ethnicities),
             ('languages', self.import_languages),
+            ('currencies', self.import_currencies),
+            ('industries', self.import_industries),
         ]
+        model_map = {
+            'regions': Region, 'countries': Country, 'ethnicities': Ethnicity,
+            'languages': Language, 'currencies': Currency, 'industries': Industry,
+        }
         for name, fn in tasks:
             if only and name != only:
                 continue
-            model = {'regions': Region, 'countries': Country,
-                     'ethnicities': Ethnicity, 'languages': Language}[name]
+            model = model_map[name]
             if opts['clear']:
                 model.objects.all().delete()
             if opts['if_empty'] and model.objects.exists():
@@ -193,4 +206,43 @@ class Command(BaseCommand):
         ]
         with transaction.atomic():
             Language.objects.bulk_create(objs, ignore_conflicts=True)
+        return len(objs)
+
+    # ---------- 币种 / 行业 ----------
+
+    def import_currencies(self, data_dir=None):
+        """导入 ISO 4217 全量币种（来自 apps/code_table/data_std.py）。"""
+        from apps.code_table.data_std import CURRENCIES
+
+        objs = [
+            Currency(
+                code=code,
+                code_numeric=(numeric or '')[:3],
+                symbol=(symbol or '')[:8],
+                name_cn=(name_cn or '')[:200],
+                name_en=(name_en or '')[:200],
+            )
+            for (code, numeric, symbol, name_cn, name_en) in CURRENCIES
+            if code
+        ]
+        with transaction.atomic():
+            Currency.objects.bulk_create(objs, ignore_conflicts=True)
+        return len(objs)
+
+    def import_industries(self, data_dir=None):
+        """导入 GB/T 4754 国民经济行业分类（门类 + 大类，来自 data_std.py）。"""
+        from apps.code_table.data_std import INDUSTRIES
+
+        objs = [
+            Industry(
+                code=code,
+                name=(name or '')[:200],
+                level=int(level) if str(level).isdigit() else 2,
+                parent_code=(parent_code or '')[:8],
+            )
+            for (code, name, level, parent_code) in INDUSTRIES
+            if code
+        ]
+        with transaction.atomic():
+            Industry.objects.bulk_create(objs, ignore_conflicts=True)
         return len(objs)

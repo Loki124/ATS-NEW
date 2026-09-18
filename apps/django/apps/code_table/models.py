@@ -6,6 +6,8 @@
 - ``Country``    国家与地区（ISO 3166-1 + 国际电话区号）
 - ``Ethnicity``  中国民族（GB/T 3304-1991，含字母码）
 - ``Language``   语言（ISO 639，中英双语名）
+- ``Currency``   币种（ISO 4217，alpha-3 + 数字代码 + 符号）
+- ``Industry``   行业（GB/T 4754 国民经济行业分类，门类/大类/中类/小类 树形）
 
 设计约定：
 - 均为**只读参考数据**，不引入软删（无业务删除语义），仅继承时间戳基类。
@@ -13,9 +15,8 @@
 - 数据由 ``manage.py import_code_tables`` 导入，支持重复执行（update_or_create）。
 """
 from django.db import models
-from nanoid import generate as nanoid_generate
 
-from apps.common.models import SoftDeleteModel, SoftDeleteManager, TimestampedModel
+from apps.common.models import TimestampedModel
 
 # 行政区划层级：1省 2地级市 3区县 4镇/乡/街道
 LEVEL_PROVINCE = 1
@@ -108,62 +109,62 @@ class Language(TimestampedModel):
         return self.name_cn
 
 
-class BusinessCode(SoftDeleteModel):
-    """业务码表（自定义枚举）。
+# 行业层级：1门类 2大类 3中类 4小类
+INDUSTRY_LEVEL_SECTION = 1   # 门类（1 位码，A~T）
+INDUSTRY_LEVEL_DIVISION = 2  # 大类（2 位码）
+INDUSTRY_LEVEL_GROUP = 3    # 中类（3 位码）
+INDUSTRY_LEVEL_CLASS = 4     # 小类（4 位码）
 
-    与上面的**标准码表**（国标/行标、只读）相对：本表承载业务侧需要自行维护的
-    枚举值——学历、职位类别、招聘渠道、离职原因、合同类型、币种、行业等。
-    用户可增改删（完整 CRUD），标准码表仍保持只读 + 重新导入更新，二者互不污染。
+INDUSTRY_LEVEL_CHOICES = (
+    (INDUSTRY_LEVEL_SECTION, '门类'),
+    (INDUSTRY_LEVEL_DIVISION, '大类'),
+    (INDUSTRY_LEVEL_GROUP, '中类'),
+    (INDUSTRY_LEVEL_CLASS, '小类'),
+)
 
-    设计约定：
-    - 软删（继承 SoftDeleteModel），枚举值可能被候选人/职位数据引用，物理删除会断引用。
-    - ``is_customized`` 与院校库/专业库同义：用户在页面自建=True；未来若从标准集同步
-      可置 False 并锁定编辑（当前全部为用户自建，恒为 True）。
-    - (category, code) 同类唯一：唯一性由序列化器在应用层校验（软删场景下不便用 DB 唯一约束，
-      否则删除后再建同 code 会撞唯一键）。查询默认过滤已软删行。
-    - 主键用 nanoid（业务枚举无固定自然主键，且 code 同类唯一但跨类可重复）。
+
+class Currency(TimestampedModel):
+    """币种（ISO 4217）。
+
+    code 为 alpha-3（如 CNY/USD/EUR）；code_numeric 为数字代码；symbol 为货币符号。
+    数据由 ``manage.py import_code_tables --only currencies`` 导入（全量 ISO 4217）。
     """
 
-    CATEGORY_CHOICES = (
-        ('EDUCATION', '学历'),
-        ('JOB_CATEGORY', '职位类别'),
-        ('RECRUIT_CHANNEL', '招聘渠道'),
-        ('OFFBOARD_REASON', '离职原因'),
-        ('CONTRACT_TYPE', '合同类型'),
-        ('CURRENCY', '币种'),
-        ('INDUSTRY', '行业'),
-    )
-
-    id = models.CharField(max_length=32, primary_key=True, editable=False)
-    category = models.CharField(
-        max_length=40, choices=CATEGORY_CHOICES, db_index=True, help_text='业务枚举类别',
-    )
-    code = models.CharField(max_length=64, db_index=True, help_text='枚举值编码（同类下唯一）')
-    name = models.CharField(max_length=200, help_text='枚举值名称')
-    description = models.TextField(blank=True, default='', help_text='说明（可选）')
-    parent_code = models.CharField(
-        max_length=64, blank=True, default='', db_index=True, help_text='上级编码（可选层级，如行业→子行业）',
-    )
-    sort_order = models.IntegerField(default=0, help_text='排序（同类别内升序）')
-    is_customized = models.BooleanField(
-        default=True,
-        help_text='True = 用户在页面自建；标准同步项可置 False 并锁定编辑',
-    )
-    updated_at = models.DateTimeField(auto_now=True, help_text='最后更新时间')
-
-    objects = SoftDeleteManager()
-    all_objects = models.Manager()
+    code = models.CharField(max_length=3, primary_key=True, help_text='ISO 4217 alpha-3，如 CNY')
+    code_numeric = models.CharField(max_length=3, blank=True, default='', help_text='ISO 4217 数字代码，如 156')
+    symbol = models.CharField(max_length=8, blank=True, default='', help_text='货币符号，如 ¥ $ €')
+    name_cn = models.CharField(max_length=200, help_text='中文名称')
+    name_en = models.CharField(max_length=200, blank=True, default='', help_text='英文名称')
 
     class Meta:
-        db_table = 'code_business'
-        verbose_name = '业务码表'
-        verbose_name_plural = '业务码表'
-        ordering = ['category', 'sort_order', 'code']
-
-    def save(self, *args, **kwargs):
-        if not self.id:
-            self.id = nanoid_generate(size=21)
-        super().save(*args, **kwargs)
+        db_table = 'code_currency'
+        ordering = ['code']
+        verbose_name = '币种'
+        verbose_name_plural = '币种'
 
     def __str__(self):
-        return f'[{self.get_category_display()}] {self.code} {self.name}'
+        return f'{self.code} {self.name_cn}'
+
+
+class Industry(TimestampedModel):
+    """行业（GB/T 4754 国民经济行业分类）。
+
+    树形：门类(1 位) → 大类(2 位) → 中类(3 位) → 小类(4 位)，parent_code 指向上级。
+    数据由 ``manage.py import_code_tables --only industries`` 导入。
+    """
+
+    code = models.CharField(max_length=8, primary_key=True, help_text='行业代码（门类1位/大类2位/中类3位/小类4位）')
+    name = models.CharField(max_length=200, help_text='行业名称')
+    level = models.SmallIntegerField(choices=INDUSTRY_LEVEL_CHOICES, db_index=True, help_text='层级 1门类/2大类/3中类/4小类')
+    parent_code = models.CharField(
+        max_length=8, blank=True, default='', db_index=True, help_text='上级行业代码（门类为空）',
+    )
+
+    class Meta:
+        db_table = 'code_industry'
+        ordering = ['code']
+        verbose_name = '行业'
+        verbose_name_plural = '行业'
+
+    def __str__(self):
+        return f'{self.code} {self.name}'
