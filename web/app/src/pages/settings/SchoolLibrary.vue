@@ -1,11 +1,11 @@
 <template>
   <div class="page-container school-library">
-<div class="page-body">
     <div class="page-header">
       <h1 class="page-title">院校库</h1>
       <p class="page-subtitle">院校信息库 — 覆盖本专科院校，含双一流 / 985 / 211 / 双万计划等标签</p>
     </div>
 
+<div class="page-body">
     <n-tabs v-model:value="activeTab" type="line" animated class="lib-tabs">
       <!-- ===== Tab 1: 院校 ===== -->
       <n-tab-pane name="schools" tab="院校">

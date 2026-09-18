@@ -1,11 +1,11 @@
 <template>
   <div class="page-container code-table-library">
-    <div class="page-body">
-      <div class="page-header">
-        <h1 class="page-title">静态数据</h1>
-        <p class="page-subtitle">国家与行业标准码表（行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业），为只读国标数据，随标准更新重导</p>
-      </div>
+    <div class="page-header">
+      <h1 class="page-title">静态数据</h1>
+      <p class="page-subtitle">国家与行业标准码表（行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业），为只读国标数据，随标准更新重导</p>
+    </div>
 
+    <div class="page-body">
       <n-tabs v-model:value="activeTab" type="line" animated>
         <!-- ===== 行政区划 ===== -->
         <n-tab-pane name="regions" tab="行政区划">

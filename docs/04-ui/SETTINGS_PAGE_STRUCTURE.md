@@ -31,7 +31,8 @@ SettingsLayout.vue
 
 > **布局模型二选一（均为合法，禁止混用同一页的两种滚动职责）**：
 > - **模型 A · 默认 block 流（标题→KPI→工具条→表格→弹窗）**：`.page-container` 不写 `height`；整页在 `.settings-scroll` 内滚动，`.page-header` 靠全局 `sticky` 吸顶。
-> - **模型 B · 固定标题 + 内部滚动三件套**：`.page-container { display:flex; flex-direction:column; height:100%; min-height:0 }`，配合 `.page-header { flex-shrink:0 }` + `.page-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden }`。标题固定不滚，内容区自己滚，与外层 `.settings-scroll` 滚动职责分离。
+>   ⚠️ **模型 A 与「标题栏无底色」不兼容**：header 写在 `.page-body` 滚动容器内，`position:sticky` 冻结时内容会从 header **背后**滚过；若不加底色即出现文字穿透重叠（2026-09-16 截图）。故「冻结标题 + 无底色 + 无穿透」三项只能选 **模型 B**。
+> - **模型 B · 固定标题 + 内部滚动三件套（团队规范强制：冻结标题 + 无底色 + 无穿透的唯一正解）**：`.page-container { display:flex; flex-direction:column; height:100%; min-height:0 }`，配合 `.page-header { flex-shrink:0 }` + `.page-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden }`。**`.page-header` 必须写在 `.page-body` 滚动容器【之外】，成为 `.page-container` 的兄弟节点**——标题在布局层冻结、内容在下方独立滚动区，永不到标题背后 → 无需任何底色即无穿透。
 >
 > ⚠️ **历史修订（2026-08-27）**：规范 v1.0 曾把「自写 height:100%」列为禁止项，但模型 B 是 2026-08-24 与 `AccountSettings`/`DemandConfig` 同期落地的成熟模式，已被 17 个设置页采用（视觉/交互均正常）。故取消该禁止，将模型 B 列为合法变体。两种模型下，`.page-header` 的底部分隔线都由全局 `.settings-scroll .page-header`（glass.css sticky 块）提供：`border-bottom: 1px solid var(--glass-border)` + `margin: 0 0 var(--space-4) 0`，无需页面处理。**header 与首块内容的间距唯一来源见下方红线「间距唯一来源」。**
 
@@ -71,7 +72,7 @@ scoped 仅需：
 
 **header 与首块内容（Tab 导航 / 工具条 / 卡片）之间的间距，只允许有一个来源，禁止 margin 与 flex gap 叠加。**
 
-- **事实结构**：全部设置页的 `.page-header` 都写在 `.page-body` **内部**（de-facto 结构，非 §2.1 模板中的兄弟结构），而 `.page-body` 普遍为 `display:flex; flex-direction:column; gap:16px`。
+- **事实结构**：多数（未迁移的）设置页的 `.page-header` 仍写在 `.page-body` **内部**（de-facto 结构，非 §2.1 模板中的兄弟结构），而 `.page-body` 普遍为 `display:flex; flex-direction:column; gap:16px`；数据列表页等已迁移到 §2.1 模型 B（header 在 `.page-body` 之外，为 `.page-container` 兄弟节点）。本全局规则仅对 de-facto 页生效（兄弟结构页走全局 margin，不受影响）。
 - **叠加成因**：全局 `.settings-scroll .page-header` 自带 `margin-bottom: var(--space-4)`（16px），与 `.page-body` 的 `gap:16px` 相加 = **32px 空带**（CodeTableLibrary 截图实锤）。
 - **根治规则（已落 glass.css，全局单点，禁止页面私有重写）**：
 
@@ -114,35 +115,20 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
 
 ⚠️ 历史债：此前多页在 scoped 里把标题写成 22/24px 纯色，违反统一规格。新增页面一律禁止，存量页按本规范逐步清退。
 
-### 3.1 吸顶 header 玻璃磨砂（禁止纯透明 sticky）
+### 3.1 标题栏无底色 + 模型 B 结构避穿透（禁止给冻结 header 加背景色）
 
-**规则（2026-09-16 兵哥截图复现「滚动穿透重叠」后新增）**：所有设置页的吸顶 header（`.page-header` / `.cc-header` / `.n-page-header` / `.policy-admin__header`，由全局 `.settings-scroll .page-header`（glass.css）统一 sticky 注入），**必须带玻璃磨砂底，禁止纯透明 sticky**。
+**规则（2026-09-18 兵哥纠正后定稿）**：所有设置页的标题栏（`.page-header` / `.cc-header` / `.n-page-header` / `.policy-admin__header`）**禁止添加任何背景色 / 玻璃磨砂底**（极光与页面背景直接透出）。冻结标题 + 无底色 + 内容不穿透，三者只能靠 **模型 B 结构**（header 写在 `.page-body` 滚动容器之外，成为 `.page-container` 兄弟节点）同时满足；**不得**用底色遮断来「解决」穿透。
 
-- **根因**：初版为「让极光直接透出」故意不给背景（纯透明 + sticky）。滚动时下方 `n-tabs` / 筛选行 / 表格内容从 header 背后穿过、与标题文字重叠，视觉错乱（静态数据页截图实锤）。
-- **修复（已落 glass.css，全局单点，禁止页面私有重写）**：
-
-  ```css
-  .settings-scroll .page-header,
-  .settings-scroll .cc-header,
-  .settings-scroll .n-page-header,
-  .settings-scroll .policy-admin__header {
-    position: sticky; top: 0; z-index: 10;
-    /* 玻璃磨砂底：极光仍半透透出，但 blur 遮断滚过的文字，杜绝穿透重叠 */
-    background: var(--glass-bg-panel);
-    -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-    backdrop-filter: blur(var(--glass-blur-panel));
-    border-bottom: 1px solid var(--glass-border);
-    margin: 0 0 var(--space-4) 0;
-    padding: var(--space-4) 0 var(--space-1) 0;
-  }
-  ```
-
-- **玻璃类铁律**：`backdrop-filter` 必须同时带 `-webkit-backdrop-filter` 前缀 + 不透明兜底（`< 1 的 rgba` 已由 `--glass-bg-panel` 提供），三者缺一则 fallback 失效，老 Safari / 部分内核仍会穿透。
+- **根因（旧反模式）**：初版为「让极光直接透出」故意不给背景（纯透明 + sticky，de-facto 结构 header 在 `.page-body` 内），滚动时下方 `n-tabs` / 筛选行 / 表格内容从 header 背后穿过、与标题文字重叠（2026-09-16 静态数据页截图实锤）。09-18 曾误用「玻璃磨砂底」做 workaround（极光半透 + blur 遮断），兵哥 09-18 纠正：**标题栏不得加底色**，该 workaround 已撤销（glass.css 恢复无底色）。正确解法是把 header 移出滚动容器（模型 B），从结构上消除穿透，而非用底色遮。
+- **强制项**：
+  - 需要「冻结标题 + 无底色」的页面，**必须**采用模型 B（§2.1）：`.page-header` 是 `.page-container` 的直接子节点、位于 `.page-body` 之前；scoped 仅需 `.page-container{flex column;height:100%}` + `.page-header{flex-shrink:0}` + `.page-body{flex:1;overflow-y:auto}`。
+  - 全局 `.settings-scroll .page-header`（glass.css）保留 `position:sticky; top:0; border-bottom; margin; padding` 仅用于兼容未迁移的 de-facto 页冻结；模型 B 页的 header 在滚动容器之外，`position:sticky` 为 no-op，冻结由 flex 布局提供。
 - **页面级红线**：
-  - scoped **禁止**写 `.page-header { background: transparent }` / 去掉 `backdrop-filter`（会重新触发穿透）；
-  - scoped **禁止**把吸顶 header 改成 `position: fixed`（fixed 脱离滚动流，与 `.settings-scroll` 外壳冲突）。
-- **自检**：滚动页面后，吸顶 header 下方内容滚过时**不得**出现文字穿透到标题区。运行时取证：吸顶态下 `getComputedStyle(header).backdropFilter` 含 `blur(...)` 且 `backgroundColor` 为半透明 rgba（非 `rgba(0, 0, 0, 0)`）；header 之下首个内容块的 `getBoundingClientRect().top` 必须 `≥` header 底边（无重叠）。
-- **反例（已根治）**：静态数据页（CodeTableLibrary）初版纯透明 sticky，滚动时 n-tabs / 筛选行穿透重叠（2026-09-16 兵哥截图反馈，glass.css 玻璃磨砂底修复）。
+  - scoped / 内联 **禁止**写 `.page-header { background / background-color / backdrop-filter / -webkit-backdrop-filter }`（任何底色或磨砂底均违规）；
+  - **禁止**把冻结 header 改成 `position: fixed`（fixed 脱离滚动流，与 `.settings-scroll` 外壳冲突）；
+  - **禁止**用「加底色遮断」替代结构修复（模型 B）来解决穿透。
+- **自检**：滚动页面后，吸顶 header **无 background**（透明 / 仅 border-bottom）；header 之下内容滚过时**不得**出现文字穿透到标题区。运行时取证：吸顶态下 `getComputedStyle(header).backgroundColor === 'rgba(0, 0, 0, 0)'`（透明）且 header 之下首个内容块 `getBoundingClientRect().top ≥ header 底边`（无重叠——因模型 B 内容在独立滚动区，根本到不了 header 背后）。
+- **反例（已撤销的 workaround）**：静态数据页（CodeTableLibrary）09-18 曾给吸顶 header 加 `background: var(--glass-bg-panel)` + `backdrop-filter: blur(...)` 玻璃磨砂底——兵哥 09-18 纠正「标题栏不应加底色」，已撤销，改用模型 B 结构（header 移出 `.page-body`）。
 
 ## 4. KPI / 工具条 / 表格（全局类直接复用）
 
@@ -264,12 +250,12 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 ## 7. 自检清单（新增/修改设置页必过）
 
 - [ ] 根元素是 `<div class="page-container">`（非私有 .cc-page/.xxx-page）
-- [ ] 布局模型二选一（同一页不混用）：模型 A（block 流 + sticky 吸顶）/ 模型 B（`.page-container{height:100%;display:flex}` + `.page-body` 内部滚动三件套）
+- [ ] 布局模型二选一（同一页不混用）：模型 A（block 流 + sticky 吸顶，注：无底色会穿透，故需冻结+无底色必选模型 B）/ 模型 B（`.page-container{height:100%;display:flex}` + `.page-header` 在 `.page-body` 之外 + `.page-body` 内部滚动三件套）
 - [ ] 页面内没有 .cc-aurora / .blob-* 极光（由外壳提供）
 - [ ] 标题用 .page-header > .page-title + .page-subtitle，scoped 无 .page-title/.page-subtitle 字号/颜色覆盖
 - [ ] 标题底部分隔线由全局 `.settings-scroll .page-header` 提供，**scoped 不得写 `.page-header{margin-bottom}`**
 - [ ] **间距唯一来源**：header 在 `.page-body` 内时，header→首块间距 = `.page-body` gap（16px）独家提供（全局 `.settings-scroll .page-body > .page-header{margin-bottom:0}` 已兜底）；scoped 不写 header margin-bottom、不给首块加与 gap 叠加的 margin
-- [ ] **吸顶 header 玻璃磨砂**：滚动后吸顶 header 下方内容不得穿透重叠；scoped 未写 `background:transparent` / 未去 `backdrop-filter` / 未改 `position:fixed`（§3.1）
+- [ ] **标题栏无底色 + 模型 B 冻结**：标题栏 scoped 未写任何 `background` / `backdrop-filter`；滚动后 header 透明、下方内容不穿透（header 为 `.page-body` 兄弟节点，模型 B）；未改 `position:fixed`（§3.1）
 - [ ] **分页统一组件**：所有 `n-data-table` 分页走 `useTablePagination`（`localPagination()` / `remotePagination()`），无 inline `{pageSize:N}`、无页面自维护远程 `computed`（§4.x）
 - [ ] 工具条是 `<div class="toolbar">`（非 `<n-card class="toolbar">`）
 - [ ] 表格包在 `<div class="table-wrap">` 内，scoped 无 .table-wrap 重复定义
@@ -312,3 +298,14 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **§3 修订**：新增 §3.1「吸顶 header 玻璃磨砂（禁止纯透明 sticky）」——玻璃类铁律（`-webkit-` 前缀 + 不透明兜底）、页面级红线（禁 `background:transparent` / 去 `backdrop-filter` / `position:fixed`）、运行时取证项。
 - **§4 修订**：新增 §4.x「表格分页统一组件（useTablePagination）」——统一来源、强制项表、`pageSize:` 字面量禁令、运行时自检 grep。
 - **§7 修订**：自检清单新增「吸顶 header 玻璃磨砂」「分页统一组件」两项检查。
+
+## 8.4 规范修订记录（2026-09-18，标题栏无底色 + 模型 B 避穿透）
+
+- **背景**：兵哥复核静态数据 / 动态数据 / 公司库 / 院校库四页，指出两条团队统一规范必须严格执行：① 标题行必须固定（吸顶/冻结），滚动时始终可见；② 顶部主标题栏**不得添加底色**（极光直接透出）。此前 09-18 为「解决」de-facto 结构滚动穿透而加的玻璃磨砂底，属错误 workaround，已撤销。
+- **根因澄清**：「冻结标题 + 无底色 + 内容不穿透」三者**只能**靠模型 B 结构同时满足——`.page-header` 写在 `.page-body` 滚动容器之外，成为 `.page-container` 兄弟节点（布局层冻结，内容在独立滚动区，永不到标题背后）。de-facto 结构（header 在 `.page-body` 内 + sticky）下，无底色必穿透，加底色只是遮断而非根治。
+- **代码（glass.css）**：撤销吸顶 header 的玻璃磨砂底（`background` / `-webkit-backdrop-filter` / `backdrop-filter` 全部移除），恢复无底色；保留 `position:sticky; top:0; border-bottom; margin; padding` 仅兼容未迁移的 de-facto 页冻结。注释更新为「无穿透依赖模型 B 结构，而非底色遮断」。
+- **模板（4 页）**：CodeTableLibrary / CompanyLibrary / SchoolLibrary 将 `.page-header` 从 `.page-body` 内移到 `.page-container` 兄弟节点（模型 B）；DynamicDataLibrary 补冻结「动态数据」标题（模型 B，此前无主标题栏）。scoped 布局逻辑（`.page-container{flex column;height:100%}` / `.page-header{flex-shrink:0}` / `.page-body{flex:1;overflow-y:auto}`）本就 model-B-ready，仅移动 DOM 层级。
+- **§2 修订**：模型选择说明补充「模型 A 与无底色不兼容，冻结+无底色必选模型 B」；间距唯一来源「事实结构」改为「多数未迁移页仍 de-facto，数据列表页已迁移模型 B」。
+- **§3.1 重写**：由「吸顶 header 玻璃磨砂（禁止纯透明 sticky）」改为「标题栏无底色 + 模型 B 结构避穿透（禁止给冻结 header 加背景色）」——撤销玻璃磨砂红线，改红线为「禁写任何 background / backdrop-filter」「禁 position:fixed」「禁用底色遮断替代结构修复」。
+- **§7 修订**：自检清单「模型二选一」「吸顶 header 玻璃磨砂」两项更新为「冻结+无底色必选模型 B」「标题栏无底色 + 模型 B 冻结」。
+- **影响**：四数据列表页即时合规（冻结+无底色+无穿透）。其余未迁移的 de-facto 页在迁移到模型 B 前，无底色下仍会有穿透（已知待办，建议后续批量迁移）。

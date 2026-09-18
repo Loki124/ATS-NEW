@@ -880,12 +880,19 @@ body.dark .kpi-card.kpi-card--accent {
 }
 /* P3 整改：原 1024/480 媒体查询删除，KPI 改用 auto-fit 自适应，无需手动断点 */
 
-/* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
-/* 兵哥 18:27 反馈：标题区不要色块感，让极光直接透出 —— 故当初去掉背景。
- * 但纯透明 sticky 导致滚动时下方 n-tabs / 筛选行 / 表格内容穿透重叠（2026-09-16 截图复现）。
- * 修复：改用玻璃磨砂底（--glass-bg-panel + --glass-blur-panel）—— 极光仍半透透出，
- * 但 blur 遮断滚过的文字，杜绝穿透重叠。暗色各自 token 覆盖（见 tokens.css §玻璃面板）。
- * 玻璃类必须 backdrop-filter + -webkit- 前缀 + 不透明兜底三者齐备，缺一即 fallback 失效。 */
+/* === 设置页 header 冻结（团队统一规范：标题行固定 + 无底色）===
+ * 规范（见 docs/04-ui/SETTINGS_PAGE_STRUCTURE.md §2 模型 B / §3.1）：
+ *   1) 标题行必须冻结（吸顶/固定），页面滚动时始终可见 —— 团队强制规范。
+ *   2) 顶部主标题栏不加底色（极光/页面背景直接透出）。
+ *   3) 冻结 + 无底色 + 不穿透 三者只能靠「模型 B」同时满足：
+ *      .page-header 必须写在 .page-body 滚动容器【之外】，成为 .page-container 的
+ *      兄弟节点（flex 列向：header 固定在上、page-body 独立滚动）。
+ *      此时标题是布局层冻结，内容在下方独立滚动区，永不到标题背后 → 无需底色即无穿透。
+ *   反模式（de-facto 旧结构）：.page-header 写在 .page-body 内 + position:sticky。
+ *      无底色时内容滚到标题背后造成文字穿透重叠（2026-09-16 截图）。
+ *      加玻璃底色是错误 workaround（兵哥 09-18 纠正：标题栏不得加底色），已撤销。
+ *      旧结构各页应迁移到模型 B；本规则保留 position:sticky 仅为兼容未迁移页的冻结，
+ *      未迁移页在迁移前会有穿透，属已知待办。 */
 .settings-scroll .page-header,
 .settings-scroll .cc-header,
 .settings-scroll .n-page-header,
@@ -893,12 +900,9 @@ body.dark .kpi-card.kpi-card--accent {
   position: sticky;
   top: 0;
   z-index: 10;
-  /* 玻璃磨砂底：极光仍透出，下方内容滚过时被遮断，杜绝文字穿透重叠 */
-  background: var(--glass-bg-panel);
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-  backdrop-filter: blur(var(--glass-blur-panel));
+  /* 无底色 —— 团队规范：标题栏不加背景色，极光/页面背景直接透出。
+     无穿透依赖模型 B 结构（header 在滚动区之外），而非底色遮断。 */
   border-bottom: 1px solid var(--glass-border);
-  /* 去掉左右 margin/padding —— 标题贴边 */
   margin: 0 0 var(--space-4) 0;
   padding: var(--space-4) 0 var(--space-1) 0;
 }

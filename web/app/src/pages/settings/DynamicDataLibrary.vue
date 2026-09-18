@@ -1,5 +1,10 @@
 <template>
   <div class="page-container dynamic-data-library">
+    <div class="page-header">
+      <h1 class="page-title">动态数据</h1>
+      <p class="page-subtitle">公司库与院校库维护（合并自原独立菜单）</p>
+    </div>
+
     <div class="page-body">
       <n-tabs v-model:value="activeTab" type="line" animated>
         <n-tab-pane name="company" tab="公司库">
@@ -29,6 +34,9 @@ const activeTab = ref<'company' | 'school'>('company');
   min-height: 0;
   padding: 0;
 }
+.page-header {
+  flex-shrink: 0;
+}
 .page-body {
   flex: 1;
   min-height: 0;
@@ -49,5 +57,11 @@ const activeTab = ref<'company' | 'school'>('company');
 .page-body :deep(.school-library > .page-body) {
   flex: none !important;
   overflow: visible !important;
+}
+/* 嵌入态：子页自带 .page-header 与 tab 标签重复，且随外层滚动会滚到冻结主标题背后造成穿透；
+   嵌入时隐藏子页 header（tab 标签已承担标题职责），杜绝穿透 */
+.page-body :deep(.company-library > .page-header),
+.page-body :deep(.school-library > .page-header) {
+  display: none;
 }
 </style>
