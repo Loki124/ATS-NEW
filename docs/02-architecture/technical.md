@@ -19,7 +19,7 @@
 | 前端测试 | **132 vitest passed** | `npm test` |
 | Migrations | **105 个文件 / 33 目录** | `find apps/django -name migrations` |
 | 健康检查 | `/health/` | `config/urls.py:125` |
-| 端口 | 前端 5212 / 后端 8000 (`gunicorn`) | `ops/docker-compose.yml` |
+| 端口 | 前端 5212 / 后端 8000 (`gunicorn`) | 部署编排见 ats-deploy-infra (`compose/docker-compose.yml`) |
 
 ---
 
@@ -162,10 +162,8 @@ ATS-NEW/
 │   ├── vite.config.ts          # target ES2022
 │   └── package.json            # build: vue-tsc && vite build
 │
-├── ops/                        # 部署
-│   ├── docker/                 # Dockerfile
-│   ├── nginx/                  # 反代配置
-│   └── docker-compose.yml      # 一次性启 mysql + redis + backend (R4 修 0720247)
+├── (部署编排已迁出)            # ops/ 整体迁移到 ats-deploy-infra 独立仓库 (2026-09-18)
+│                              #   https://gitee.com/loki126/ats-deploy-infra.git
 │
 ├── docs/                       # 14 个文档 (见 §9 索引)
 ├── scripts/                    # 运维脚本

@@ -324,7 +324,7 @@ ReferralRule (1:N) ──── RewardStrategy (1:1)
 backend (node) + MySQL (docker-compose)
 ```
 
-生产部署配置见 `docker-compose.yml` + `backend/Dockerfile` + `frontend/Dockerfile`。
+生产部署配置（docker-compose / Dockerfile / nginx.conf / webhook 接收器 / systemd unit）已迁移到独立仓库 **[ats-deploy-infra](https://gitee.com/loki126/ats-deploy-infra.git)**，本仓库只含业务代码。详见其 README。
 
 ## 安全模型
 
