@@ -109,10 +109,10 @@ const subMenuOptions: MenuItem[] = [
       },
       {
         key: 'g-org',
-        label: '组织信息管理',
+        label: '组织管理',
         icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }),
         children: [
-          { key: '/settings/department', label: '组织职责管理', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
+          { key: '/settings/department', label: '组织管理', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
         ],
       },
       {
