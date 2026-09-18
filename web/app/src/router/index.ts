@@ -158,8 +158,9 @@ const routes: RouteRecordRaw[] = [
           { path: 'external', name: 'ExternalSettings', component: () => import(/* webpackChunkName: "settings-external" */ '../pages/settings/ExternalSettings.vue') },
           { path: 'public', name: 'PublicSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: ['SUPER_ADMIN'] } },
-          // ===== V2 权限管理 4-tab (T20) =====
+          // ===== V2 权限管理 (2026-09-18 拆分: 身份管理主页面 + 资源管理独立页) =====
           { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          { path: 'permissions/resources', name: 'PermissionResources', component: () => import(/* webpackChunkName: "settings-permissions-resources" */ '../pages/settings/PermissionResources.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           // ===== G41 院校/公司信息库（合并为「动态数据」聚合页） =====
           { path: 'dynamic-data', name: 'DynamicDataLibrary', component: () => import(/* webpackChunkName: "settings-dynamic-data" */ '../pages/settings/DynamicDataLibrary.vue'), meta: { title: '动态数据', description: '公司库 / 院校库（用户可维护，随业务增长）' } },
           { path: 'school-library', name: 'SchoolLibrary', component: () => import(/* webpackChunkName: "settings-school" */ '../pages/settings/SchoolLibrary.vue') },
