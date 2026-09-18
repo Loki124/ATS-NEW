@@ -1,17 +1,47 @@
 <template>
   <div class="roles-tab">
-    <div class="filter-row">
-      <n-button type="primary" @click="load">刷新</n-button>
-      <n-button type="success" @click="onCreate">新建角色</n-button>
+    <!-- 工具条：左=搜索+筛选，右=操作（对齐校招管控-规则配置页 .toolbar 范式） -->
+    <div class="toolbar">
+      <n-input
+        v-model:value="kw"
+        placeholder="搜索 角色编码/名称"
+        clearable
+        class="rule-filter-search"
+      />
+      <n-select
+        v-model:value="statusFilter"
+        :options="statusOptions"
+        placeholder="全部状态"
+        class="rule-filter-select"
+      />
+      <n-select
+        v-model:value="systemFilter"
+        :options="systemOptions"
+        placeholder="全部来源"
+        class="rule-filter-select"
+      />
+      <div class="spacer"></div>
+      <n-button @click="load">刷新</n-button>
       <n-button type="info" @click="onCloneFromTemplate">从模板克隆</n-button>
+      <n-button type="primary" class="gradient-btn" @click="onCreate">+ 新建角色</n-button>
     </div>
 
-    <n-data-table
-      :columns="columns"
-      :data="data"
-      :loading="loading"
-      :bordered="false"
-    />
+    <!-- 表格：复用全局 .table-wrap + flex-height（仅表体内部滚动，对齐 CampusControl 规则表） -->
+    <div class="table-wrap">
+      <n-data-table
+        :columns="columns"
+        :data="filteredRows"
+        :loading="loading"
+        :bordered="false"
+        :row-key="(r: RoleV2) => r.id"
+        :pagination="rolePagination"
+        flex-height
+      >
+        <template #empty>
+          <n-empty :description="data.length === 0 ? '暂无角色，点击右上角「新建角色」' : '当前筛选下无角色'" />
+        </template>
+      </n-data-table>
+    </div>
 
     <!-- 从模板克隆 modal -->
     <n-modal
@@ -58,13 +88,17 @@
  * 后端: GET/POST/PUT/DELETE /api/v1/roles/
  *       POST /api/v1/roles/clone-from-template/
  *
- * T21 增量: "从模板克隆" modal + RoleEditModal (子组件) 在 T21 实现.
- * T20 仅留按钮 + modal 骨架 + 占位提示.
+ * 2026-09-19 一致性调整：对齐「校招管控-规则配置」页交互格式 ——
+ *   - 工具条.search + 状态/来源筛选（左），操作按钮右对齐（spacer 分隔）
+ *   - 状态列内联 NSwitch 启停（对齐 CampusControl 指标管理「启用」列写法）
+ *   - 统一分页 useTablePagination（本地分页，§4.x 强制外观：共N条/20每页/跳至）
+ *   - 表格包 .table-wrap + flex-height（仅表体内部滚动）；空状态区分「无数据/无筛选结果」
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, useMessage } from 'naive-ui'
-import { listRoles, cloneFromTemplate, deleteRole, type RoleV2 } from '@/api/role-v2'
+import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, useMessage } from 'naive-ui'
+import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
+import { localPagination } from '@/composables/useTablePagination'
 import RoleEditModal from './RoleEditModal.vue'
 
 const message = useMessage()
@@ -76,38 +110,103 @@ const templateOptions = computed(() =>
   templates.value.map((t) => ({ label: `${t.templateName} (${t.templateCode})`, value: t.templateCode })),
 )
 
+// ===== 筛选状态（对齐 CampusControl rules tab：keyboard search + 状态/维度 select）=====
+const kw = ref('')
+const statusFilter = ref<'all' | 0 | 1>('all')
+const systemFilter = ref<'all' | 0 | 1>('all')
+
+const statusOptions = [
+  { label: '全部状态', value: 'all' as const },
+  { label: '启用', value: 1 as const },
+  { label: '停用', value: 0 as const },
+]
+const systemOptions = [
+  { label: '全部来源', value: 'all' as const },
+  { label: '预置', value: 1 as const },
+  { label: '自定义', value: 0 as const },
+]
+
+const filteredRows = computed<RoleV2[]>(() => {
+  const k = kw.value.trim().toLowerCase()
+  return data.value.filter((r) => {
+    if (statusFilter.value !== 'all' && r.status !== statusFilter.value) return false
+    if (systemFilter.value !== 'all' && r.isSystem !== systemFilter.value) return false
+    if (k && !`${r.roleCode} ${r.roleName}`.toLowerCase().includes(k)) return false
+    return true
+  })
+})
+
+// 统一分页（本地分页：一次性取全量，n-data-table 前端切片，§4.x）
+const rolePagination = localPagination()
+
+const scopeTypeLabels: Record<string, string> = {
+  SELF: '仅本人',
+  DEPT: '本部门',
+  DEPT_AND_SUB: '本部门及下属',
+  ALL: '全公司',
+}
+
 const columns = [
-  { title: '角色编码', key: 'roleCode', width: 160 },
-  { title: '角色名称', key: 'roleName', width: 160 },
-  { title: '模板来源', key: 'templateCode', width: 140 },
-  { title: '默认数据范围', key: 'defaultDataScopeType', width: 140 },
+  { title: '角色编码', key: 'roleCode', width: 160, render: (r: RoleV2) => r.roleCode || '—' },
+  { title: '角色名称', key: 'roleName', width: 160, render: (r: RoleV2) => r.roleName || '—' },
+  { title: '模板来源', key: 'templateCode', width: 140, render: (r: RoleV2) => r.templateCode || '—' },
+  {
+    title: '默认数据范围',
+    key: 'defaultDataScopeType',
+    width: 140,
+    render: (r: RoleV2) => scopeTypeLabels[r.defaultDataScopeType ?? ''] ?? '—',
+  },
+  {
+    // 状态列内联 NSwitch 启停（对齐 CampusControl 指标管理「启用」列写法）
+    title: '状态',
+    key: 'status',
+    width: 90,
+    render: (r: RoleV2) =>
+      h(NSwitch, {
+        value: r.status === 1,
+        size: 'small',
+        'onUpdate:value': async (v: boolean) => {
+          const next = v ? 1 : 0
+          try {
+            await updateRole(r.id, { status: next })
+            r.status = next
+            message.success(v ? '已启用' : '已停用')
+          } catch (e: any) {
+            message.error('切换失败: ' + (e?.response?.data?.message ?? e?.message ?? e))
+          }
+        },
+      }),
+  },
+  {
+    title: '来源',
+    key: 'isSystem',
+    width: 90,
+    render: (r: RoleV2) =>
+      h(NTag, { type: r.isSystem === 1 ? 'default' : 'primary', bordered: false, size: 'small' },
+        { default: () => (r.isSystem === 1 ? '预置' : '自定义') }),
+  },
   {
     title: '权限码数',
     key: 'permissionCodes',
     width: 100,
-    render: (row: RoleV2) => row.permissionCodes?.length ?? 0,
-  },
-  {
-    title: '系统',
-    key: 'isSystem',
-    width: 80,
-    render: (row: RoleV2) => row.isSystem === 1 ? '预置' : '自定义',
+    render: (r: RoleV2) => r.permissionCodes?.length ?? 0,
   },
   {
     title: '操作',
     key: 'actions',
-    width: 200,
+    width: 150,
+    fixed: 'right',
     render(row: RoleV2) {
-      return h(NSpace, {}, () => [
+      return h(NSpace, { size: 4 }, () => [
         h(NButton, {
           size: 'small',
-          text: true,
+          tertiary: true,
           type: 'primary',
           onClick: () => onEdit(row),
         }, () => '编辑'),
         h(NButton, {
           size: 'small',
-          text: true,
+          tertiary: true,
           type: 'error',
           disabled: row.isSystem === 1,
           onClick: () => onDelete(row),
@@ -202,11 +301,11 @@ onMounted(load)
 .roles-tab {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: var(--space-3);
 }
-.filter-row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
+/* 搜索/筛选输入宽度（对齐 CampusControl rules tab 视觉密度） */
+.rule-filter-search { width: 260px; }
+.rule-filter-select { width: 150px; }
 </style>
