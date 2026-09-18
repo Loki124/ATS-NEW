@@ -45,10 +45,11 @@
         v-model:show="deptModalVisible"
         preset="card"
         :title="editingDept ? '编辑部门' : '新建部门'"
-        :style="{ width: '720px' }"
+        :style="{ width: '720px', maxHeight: '88vh' }"
         :mask-closable="false"
         :centered="true"
       >
+        <div class="dept-modal-scroll" style="max-height: calc(88vh - 132px); overflow-y: auto; padding-right: 8px">
         <n-form :model="formState" label-placement="top">
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
@@ -155,6 +156,7 @@
             </n-grid-item>
           </n-grid>
         </n-form>
+        </div>
 
         <template #footer>
           <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
@@ -346,6 +348,12 @@ const openCreateModal = () => {
   deptModalVisible.value = true;
 };
 
+// 打开「添加下级部门」弹窗：复用新建弹窗并预置上级为该部门
+const openCreateChildModal = (parent: Department) => {
+  openCreateModal();
+  if (parent) formState.parentId = parent.id;
+};
+
 // 打开编辑弹窗（查看详情与编辑合一：同一弹窗内展示并可改）
 const openEditModal = (record: Department) => {
   editingDept.value = record;
@@ -533,11 +541,24 @@ const columns = computed(() => [
   {
     title: '操作',
     key: 'actions',
-    width: 160,
+    width: 260,
     fixed: 'right' as const,
     render: (row: Department) =>
       h(NSpace, { size: 'small' }, {
         default: () => [
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              size: 'small',
+              onClick: () => openCreateChildModal(row),
+            },
+            {
+              default: () => '添加下级部门',
+              icon: () => h(NIcon, { component: AddOutline }),
+            }
+          ),
           h(
             NButton,
             {
