@@ -7,6 +7,10 @@ class ChannelConfig(AppConfig):
 
     def ready(self):
         from apps.dictionary.registry import register_dictionary_seed
-        from apps.channel.seeds import seed_application_channel_type
+        from apps.channel.seeds import (
+            seed_application_channel_type,
+            seed_resume_source_type,
+        )
 
         register_dictionary_seed(seed_application_channel_type)
+        register_dictionary_seed(seed_resume_source_type)
