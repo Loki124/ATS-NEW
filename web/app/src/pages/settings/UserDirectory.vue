@@ -3,39 +3,51 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{{ pageTitle }}</h1>
-        <p class="page-subtitle">{{ pageSubtitle }}</p>
-      </div>
-      <div class="kpi-row">
-        <div class="kpi-card"><span class="kpi-label">{{ totalLabel }}</span><span class="kpi-value">{{ filteredUsers.length }}</span></div>
-        <div class="kpi-card"><span class="kpi-label">角色数</span><span class="kpi-value">{{ roles.length }}</span></div>
-      </div>
-      <div class="page-header-actions">
-        <n-button type="primary" @click="openCreateModal">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          新建用户
-        </n-button>
+        <h1 class="page-title">用户管理</h1>
+        <p class="page-subtitle">管理全部用户账号、角色与状态（内部员工 / 外部用户以「用户类型」区分）</p>
       </div>
     </div>
 
-    <n-tabs
-      type="line"
-      :value="mode"
-      class="user-dir-tabs"
-      @update:value="onTabChange"
-    >
-      <n-tab-pane name="internal" tab="内部员工" />
-      <n-tab-pane name="external" tab="外部用户" />
-      <n-tab-pane name="all" tab="全部用户" />
-    </n-tabs>
+    <!-- 搜索 + 筛选行：左侧搜索框与筛选项，右侧「新建用户」按钮 -->
+    <div class="filter-row">
+      <div class="filter-left">
+        <n-input
+          v-model:value="searchText"
+          placeholder="搜索用户名 / 姓名"
+          clearable
+          class="filter-search"
+          @keyup.enter="() => {}"
+        >
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
+        <n-select
+          v-model:value="filterUserType"
+          :options="userTypeFilterOptions"
+          placeholder="用户类型"
+          clearable
+          class="filter-select"
+        />
+        <n-select
+          v-model:value="filterStatus"
+          :options="statusOptions"
+          placeholder="状态"
+          clearable
+          class="filter-select"
+        />
+      </div>
+      <n-button type="primary" @click="openCreateModal">
+        <template #icon><n-icon :component="AddOutline" /></template>
+        新建用户
+      </n-button>
+    </div>
 
-    <n-card>
+    <n-card :bordered="false" class="glass-panel user-dir-shell">
       <n-data-table
-        :data="filteredUsers"
+        :data="displayUsers"
         :columns="columns"
         :row-key="(row: User) => row.id"
         :loading="loading"
-        :pagination="{ pageSize: 10, showSizePicker: true, pageSizes: [10, 20, 50] }"
+        :pagination="pagination"
       />
     </n-card>
 
@@ -84,6 +96,16 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
+            <n-form-item label="用户类型">
+              <n-select
+                v-model:value="formState.userType"
+                :options="userTypeOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+        <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
+          <n-grid-item>
             <n-form-item label="角色类型">
               <n-select
                 v-model:value="formState.roleType"
@@ -91,8 +113,24 @@
               />
             </n-form-item>
           </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="状态">
+              <n-select
+                v-model:value="formState.status"
+                :options="statusOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
         </n-grid>
-        <n-grid :cols="2" :x-gap="24">
+        <n-grid v-else :cols="2" :x-gap="24">
+          <n-grid-item>
+            <n-form-item label="用户类型">
+              <n-select
+                v-model:value="formState.userType"
+                :options="userTypeOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
           <n-grid-item>
             <n-form-item label="状态">
               <n-select
@@ -134,8 +172,6 @@
 </template>
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useUserStore } from '../../stores/user';
 import {
   LockClosedOutline,
   AddOutline,
@@ -144,6 +180,7 @@ import {
   LinkOutline,
   CloseOutline,
   ChatbubblesOutline,
+  SearchOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -152,44 +189,18 @@ import {
   NTooltip,
   NPopconfirm,
   NIcon,
-  NTabs,
-  NTabPane,
   useMessage,
 } from 'naive-ui';
 import { extractApiError } from '../../api/dynamic-field';
+import { useUserStore } from '../../stores/user';
 
 const message = useMessage();
-const route = useRoute();
 
-// ===== 模式：来自路由 meta.userDirectoryMode（'internal' | 'external' | 'all'）=====
-// 2026-09-18：菜单将内部/外部/全部合并为单一「用户管理」入口（指向 users/all），
-//   页内用 n-tabs 切换三种视图，故 mode 改为本地 ref，路由仅作初始值。
-const routeMode = computed<string>(() => {
-  const metaMode = (route.meta as Record<string, unknown>).userDirectoryMode;
-  return metaMode === 'internal' || metaMode === 'external' || metaMode === 'all'
-    ? (metaMode as string)
-    : 'all';
-});
-const mode = ref<string>(routeMode.value);
-// 直接通过路由进入（如深链 /settings/users/internal）时同步本地模式
-watch(routeMode, (m) => { mode.value = m; });
-// 页签切换（内部/外部/全部）：更新本地模式并重新拉取列表
-const onTabChange = (v: string | number) => { mode.value = String(v); };
-
-// 页面标题 / 副标题 / KPI 文案随模式变化（Beisen 风格差异化目录）
-const pageTitle = computed(() =>
-  mode.value === 'internal' ? '内部员工' : mode.value === 'external' ? '外部用户' : '全部用户'
-);
-const pageSubtitle = computed(() =>
-  mode.value === 'internal'
-    ? '管理企业内部员工账号、角色与组织信息'
-    : mode.value === 'external'
-      ? '管理外部协作用户账号与权限'
-      : '管理全部用户账号、角色与状态'
-);
-const totalLabel = computed(() =>
-  mode.value === 'internal' ? '内部员工总数' : mode.value === 'external' ? '外部用户总数' : '用户总数'
-);
+// 2026-09-19 整合重构：内部员工 / 外部用户 / 全部用户 合并为单一「用户管理」页。
+//   - 去掉页内 n-tabs 与 KPI 卡片，默认展示全部用户（后端 user_type 字段区分内外）
+//   - 新增搜索框 + 用户类型 / 状态 筛选项，筛选行最右侧放「新建用户」按钮
+//   - 表单新增「用户类型」字段（INTERNAL / EXTERNAL），落库到 user_type
+//   - 列表保留并独立化为 pagination 分页器
 
 // 用户状态映射
 const STATUS_MAP: Record<string, { type: any; label: string }> = {
@@ -239,6 +250,11 @@ const selectedUserId = ref<string>('');
 const userRoleModalVisible = ref(false);
 const userRoles = ref<string[]>([]);
 
+// 搜索 / 筛选
+const searchText = ref('');
+const filterUserType = ref<string | null>(null);
+const filterStatus = ref<string | null>(null);
+
 // 下拉选项
 const roleTypeOptions = [
   { label: 'HR', value: 'HR' },
@@ -252,6 +268,25 @@ const statusOptions = [
   { label: '锁定', value: 'LOCKED' },
 ];
 
+const userTypeOptions = [
+  { label: '内部员工', value: 'INTERNAL' },
+  { label: '外部用户', value: 'EXTERNAL' },
+];
+
+const userTypeFilterOptions = [
+  { label: '全部类型', value: null as string | null },
+  { label: '内部员工', value: 'INTERNAL' },
+  { label: '外部用户', value: 'EXTERNAL' },
+];
+
+// 分页器（客户端分页：displayUsers 已是筛选后结果）
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+});
+
 // 表单状态
 const formState = reactive({
   username: '',
@@ -259,16 +294,18 @@ const formState = reactive({
   email: '',
   phone: '',
   password: '',
+  userType: 'INTERNAL',
   roleType: 'HR',
   status: 'ACTIVE',
 });
 
-// 获取token（统一走 useUserStore().accessToken）
-const getToken = () => useUserStore().accessToken;
+// token 统一走 useUserStore().accessToken
+const userStore = useUserStore();
+const tokenOf = () => userStore.accessToken;
 
 // API请求封装
 const request = async (url: string, options: RequestInit = {}) => {
-  const token = getToken();
+  const token = tokenOf();
   if (!token) {
     message.error('请先登录');
     return null;
@@ -284,18 +321,11 @@ const request = async (url: string, options: RequestInit = {}) => {
   return response.json();
 };
 
-// 服务端查询参数：internal/external 优先带 ?user_type= 过滤，all 不带
-const userTypeParam = computed(() => {
-  if (mode.value === 'internal') return '?user_type=INTERNAL';
-  if (mode.value === 'external') return '?user_type=EXTERNAL';
-  return '';
-});
-
-// 加载用户列表（服务端尽量按 user_type 过滤；客户端再兜底一次）
+// 加载用户列表（整合后拉全部用户，内部/外部由 user_type 字段区分）
 const loadUsers = async () => {
   loading.value = true;
   try {
-    const data = await request(`/api/v1/users/${userTypeParam.value}`);
+    const data = await request(`/api/v1/users/`);
     if (data?.success) {
       users.value = data.data;
     } else {
@@ -309,18 +339,23 @@ const loadUsers = async () => {
   }
 };
 
-// 页签切换（internal/external/all）时重新拉取对应用户列表
-watch(mode, () => { loadUsers(); });
+// 客户端搜索 + 筛选（全部用户已在内存，按关键词/类型/状态过滤）
+const displayUsers = computed<User[]>(() => {
+  const kw = searchText.value.trim().toLowerCase();
+  return users.value.filter((u) => {
+    if (filterUserType.value && u.userType !== filterUserType.value) return false;
+    if (filterStatus.value && u.status !== filterStatus.value) return false;
+    if (kw) {
+      const hay = `${u.username || ''} ${u.realName || ''}`.toLowerCase();
+      if (!hay.includes(kw)) return false;
+    }
+    return true;
+  });
+});
 
-// 客户端兜底过滤：保证 internal/external 正确分离（与后端是否就绪无关）
-const filteredUsers = computed<User[]>(() => {
-  if (mode.value === 'all') return users.value;
-  const expected = mode.value === 'internal' ? 'INTERNAL' : 'EXTERNAL';
-  // 仅当返回数据确实携带 userType 字段时才做客户端过滤，
-  // 否则（后端尚未返回 userType）不做过滤，保证页面可用而不是空白。
-  const hasUserType = users.value.some((u) => !!u.userType);
-  if (!hasUserType) return users.value;
-  return users.value.filter((u) => u.userType === expected);
+// 筛选变化时回到第 1 页，避免停留在越界空页
+watch([searchText, filterUserType, filterStatus], () => {
+  pagination.page = 1;
 });
 
 // 加载角色列表
@@ -356,6 +391,7 @@ const openCreateModal = () => {
     email: '',
     phone: '',
     password: '',
+    userType: 'INTERNAL',
     roleType: 'HR',
     status: 'ACTIVE'
   });
@@ -372,6 +408,7 @@ const closeUserModal = () => {
     email: '',
     phone: '',
     password: '',
+    userType: 'INTERNAL',
     roleType: 'HR',
     status: 'ACTIVE'
   });
@@ -502,7 +539,7 @@ const openRoleModal = async (userId: string) => {
   userRoleModalVisible.value = true;
 };
 
-// ===== 列定义（按模式差异化）=====
+// ===== 列定义 =====
 const statusColumn = {
   title: '状态',
   key: 'status',
@@ -514,9 +551,9 @@ const statusColumn = {
 };
 
 const userTypeColumn = {
-  title: '类型',
+  title: '用户类型',
   key: 'userType',
-  width: 80,
+  width: 100,
   render: (row: User) => {
     const item = USER_TYPE_MAP[row.userType || ''];
     return h(NTag, { type: item?.type || 'default', size: 'small' }, {
@@ -591,6 +628,7 @@ const actionsColumn = {
               email: row.email || '',
               phone: row.phone || '',
               password: '',
+              userType: row.userType || 'INTERNAL',
               roleType: row.roleType,
               status: row.status
             });
@@ -614,39 +652,16 @@ const actionsColumn = {
   }
 };
 
-// 表格列配置（按模式差异化构建）
-const columns = computed(() => {
-  const cols: any[] = [];
-  if (mode.value === 'internal') {
-    // 内部员工：工号 / 姓名 / 职务 / 状态 / 角色 / 操作
-    // employeeId / positionTitle 由 UserSerializer 始终返回（空值为 null），属内部员工固有属性，内部模式常显
-    cols.push({ title: '工号', key: 'employeeId', width: 120 });
-    cols.push({ title: '姓名', key: 'realName', width: 100 });
-    cols.push({ title: '职务', key: 'positionTitle', width: 120 });
-    cols.push(statusColumn, { title: '角色', key: 'roleType', width: 90 }, actionsColumn);
-  } else if (mode.value === 'external') {
-    // 外部用户：姓名 / 状态 / 角色 / 类型 / 操作
-    cols.push(
-      { title: '姓名', key: 'realName', width: 100 },
-      statusColumn,
-      { title: '角色', key: 'roleType', width: 90 },
-      userTypeColumn,
-      actionsColumn
-    );
-  } else {
-    // 全部用户：现有列 + 类型列
-    cols.push(
-      { title: '用户名', key: 'username', width: 120 },
-      { title: '姓名', key: 'realName', width: 100 },
-      statusColumn,
-      { title: '角色类型', key: 'roleType', width: 90 },
-      userTypeColumn,
-      wechatColumn,
-      actionsColumn
-    );
-  }
-  return cols;
-});
+// 统一列（整合后展示全部用户，用户类型字段区分内外）
+const columns = [
+  { title: '用户名', key: 'username', width: 120 },
+  { title: '姓名', key: 'realName', width: 100 },
+  userTypeColumn,
+  statusColumn,
+  { title: '角色类型', key: 'roleType', width: 90 },
+  wechatColumn,
+  actionsColumn,
+];
 
 // 角色表格列
 const roleColumns = [
@@ -697,5 +712,25 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--space-4);
 }
+
+/* 搜索 / 筛选行：左搜索+筛选，右「新建用户」按钮 */
+.filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.filter-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.filter-search { max-width: 260px; }
+.filter-select { max-width: 140px; }
+
+/* 列表卡片撑满 */
+.user-dir-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 </style>
