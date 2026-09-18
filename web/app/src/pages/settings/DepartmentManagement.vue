@@ -31,12 +31,14 @@
 
       <n-card :bordered="false">
         <n-data-table
-          :data="filteredDepartments"
+          :data="displayData"
           :columns="columns"
           :row-key="(row: Department) => row.id"
           :loading="loading"
+          :expanded-row-keys="expandedKeys"
           :pagination="{ pageSize: 20, showSizePicker: true, pageSizes: [10, 20, 50], prefix: ({ itemCount }: any) => `共 ${itemCount} 条` }"
           size="medium"
+          @update:expanded-row-keys="(k: any) => (expandedKeys = k)"
         />
       </n-card>
 
@@ -170,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, h } from 'vue';
+import { ref, reactive, onMounted, computed, watch, h } from 'vue';
 import {
   AddOutline,
   CreateOutline,
@@ -236,6 +238,17 @@ const loading = ref(false);
 const submitting = ref(false);
 const deptModalVisible = ref(false);
 const editingDept = ref<Department | null>(null);
+
+// 树形表格展开状态：default-expand-all 对异步加载的数据不生效（仅首次挂载读取），
+// 改为受控 expanded-keys，数据到达后默认展开所有含子部门的节点
+const expandedKeys = ref<string[]>([]);
+watch(departments, (list) => {
+  const parentIds = new Set<string>();
+  for (const d of list) {
+    if (d.parentId) parentIds.add(d.parentId);
+  }
+  expandedKeys.value = Array.from(parentIds);
+});
 const searchKeyword = ref('');
 
 const formState = reactive({
@@ -295,6 +308,23 @@ const filteredDepartments = computed(() => {
   return departments.value.filter(
     d => d.name.toLowerCase().includes(keyword) || d.code.toLowerCase().includes(keyword)
   );
+});
+
+// 表格展示数据：默认按 parentId 组树形（children 空时置 undefined，避免出现空展开箭头）；
+// 搜索时退化为平铺过滤列表，保证命中任意层级部门
+const displayData = computed(() => {
+  if (searchKeyword.value.trim()) return filteredDepartments.value;
+  const buildTree = (parentId: string | null): any[] => {
+    const children = departments.value
+      .filter(d => (d.parentId || null) === parentId)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    return children
+      .map(d => {
+        const kids = buildTree(d.id);
+        return kids.length ? { ...d, children: kids } : { ...d };
+      });
+  };
+  return buildTree(null);
 });
 
 // 上级部门树（排除自身及子部门）

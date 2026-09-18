@@ -197,6 +197,12 @@ class UserMinimalSerializer(serializers.ModelSerializer):
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
+    # 显式声明 parent_id（source=parent）：camel-case 包对无下划线的 'parent'
+    # 不做转换（输出仍是 'parent'，FE 读 parentId 恒空 -> 树形失效）；
+    # FE 发 parentId 经 parser 转 parent_id，只有显式声明才能写入（此前被静默忽略）。
+    parent_id = serializers.PrimaryKeyRelatedField(
+        source='parent', queryset=Department.objects.all(), required=False, allow_null=True,
+    )
     parent_name = serializers.CharField(source='parent.name', read_only=True)
     # 与 FE 字段名对齐: managerId / manager2Id / manager3Id / hrbpId
     # djangorestframework-camel-case 将 camelCase 中的数字边界也视为分词点：
@@ -221,7 +227,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = [
-            'id', 'name', 'code', 'parent', 'parent_name', 'path', 'sort_order',
+            'id', 'name', 'code', 'parent_id', 'parent_name', 'path', 'sort_order',
             'manager_id', 'manager_2_id', 'manager_3_id', 'hrbp_id',
             'is_active', 'status', 'children_count',
             'created_at', 'updated_at',
