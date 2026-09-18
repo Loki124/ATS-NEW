@@ -142,44 +142,8 @@
           <n-input v-model:value="unitForm.description" type="textarea" :rows="2" placeholder="选填" />
         </n-form-item>
         </template>
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item label="状态">
-              <n-select v-model:value="unitForm.status" :options="statusOptions" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="包含子级">
-              <n-radio-group v-model:value="unitForm.includeChildren">
-                <n-space>
-                  <n-radio :value="1">包含下级</n-radio>
-                  <n-radio :value="0">仅本级</n-radio>
-                </n-space>
-              </n-radio-group>
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-form-item label="组织范围 (orgScope)">
-          <div class="scope-edit">
-            <n-button @click="orgScopeModalVisible = true">
-              <template #icon><n-icon :component="OptionsOutline" /></template>
-              配置组织范围
-            </n-button>
-            <span class="scope-readout">{{ orgScopeLabel(unitForm.orgScopeNodes) }}</span>
-          </div>
-        </n-form-item>
-        <n-form-item label="数据范围 (公共组织数据范围)">
-          <div class="scope-edit">
-            <n-button @click="dataRangeModalVisible = true">
-              <template #icon><n-icon :component="FilterOutline" /></template>
-              配置数据范围
-            </n-button>
-            <span class="scope-readout">{{ dataRangeLabel(unitForm.dataRange) }}</span>
-          </div>
-        </n-form-item>
       </n-form>
 
-      <n-divider title-placement="left">按应用范围配置</n-divider>
       <template v-if="detailUnit">
         <n-tabs v-model:value="detailAppTab" type="line" class="detail-tabs">
           <n-tab-pane v-for="app in appTabs" :key="app.value" :name="app.value">
@@ -258,7 +222,7 @@
           </n-tab-pane>
         </n-tabs>
       </template>
-      <n-empty v-else description="保存后可在「按应用范围配置」中设置各应用的组织/人员数据范围" />
+      <n-empty v-else description="保存后可在下方应用 Tab 中按应用配置组织范围 / 人员范围 / 数据范围" />
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
@@ -437,18 +401,6 @@
       </template>
     </n-modal>
 
-    <!-- 组织范围 配置 弹窗 (北森「组织范围」树勾选 + 节点级包含下级) -->
-    <OrgScopeTreeModal
-      v-model:show="orgScopeModalVisible"
-      :value="unitForm.orgScopeNodes"
-      @confirm="onOrgScopeConfirm"
-    />
-    <!-- 数据范围 配置 弹窗 (北森「数据范围」条件表达式 —— 公共组织数据范围) -->
-    <DataRangeModal
-      v-model:show="dataRangeModalVisible"
-      :value="unitForm.dataRange"
-      @confirm="onDataRangeConfirm"
-    />
     <!-- 详情「设置组织数据范围」复用 DataRangeModal（按应用回写单元） -->
     <DataRangeModal
       v-model:show="detailOrgDataRangeVisible"
@@ -493,10 +445,10 @@
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NButton, NSpace, NIcon, NEmpty,
-  NPopconfirm, NDivider, useMessage,
+  NPopconfirm, useMessage,
 } from 'naive-ui'
 import {
-  AddOutline, CreateOutline, TrashOutline, OptionsOutline, FilterOutline,
+  AddOutline, CreateOutline, TrashOutline,
   StopOutline, DownloadOutline, ChevronUpOutline, ChevronDownOutline,
 } from '@vicons/ionicons5'
 import {
@@ -536,10 +488,6 @@ const unitTypeOptions = [
   { label: '部门', value: 'dept' },
   { label: '项目', value: 'project' },
   { label: '自定义', value: 'custom' },
-]
-const statusOptions = [
-  { label: '启用', value: 1 },
-  { label: '禁用', value: 0 },
 ]
 
 const filteredUnits = computed(() =>
@@ -665,12 +613,8 @@ const unitForm = reactive({
   description: '' as string,
   status: 1 as number,
   includeChildren: 1 as number,
-  orgScopeNodes: null as OrgScopeNode[] | null,
-  dataRange: null as any,
 })
 
-const orgScopeModalVisible = ref(false)
-const dataRangeModalVisible = ref(false)
 const basicInfoModalVisible = ref(false)
 const basicInfoSaving = ref(false)
 const basicInfoForm = reactive({
@@ -719,14 +663,6 @@ function toOrgScopeNodes(v: any): OrgScopeNode[] {
   return []
 }
 
-function orgScopeLabel(v: any): string {
-  const nodes = toOrgScopeNodes(v)
-  if (!nodes.length) return '（未配置）'
-  return nodes
-    .map((n) => `${deptNameById(n.deptId)}${n.includeChildren ? '（含下级）' : '（仅本级）'}`)
-    .join('、')
-}
-
 function dimLabel(d: string): string {
   return ({ dept: '部门', department: '部门', 部门: '部门', position: '职务', tenure: '司龄' } as Record<string, string>)[d] || d || '维度'
 }
@@ -746,19 +682,12 @@ function dataRangeLabel(v: any): string {
   return parts.join(v.op === 'and' ? ' 且 ' : ' 或 ')
 }
 
-function onOrgScopeConfirm(nodes: OrgScopeNode[]) {
-  unitForm.orgScopeNodes = nodes
-}
-function onDataRangeConfirm(range: any) {
-  unitForm.dataRange = range
-}
-
 function openCreateRoot() {
   editingUnit.value = null
   detailUnit.value = null
   Object.assign(unitForm, {
     id: '', unitName: '', code: '', unitType: 'org', parentId: null,
-    displayOrder: 0, description: '', status: 1, includeChildren: 1, orgScopeNodes: null, dataRange: null,
+    displayOrder: 0, description: '', status: 1, includeChildren: 1,
   })
   unitModalVisible.value = true
 }
@@ -772,8 +701,6 @@ function openUnitModal(n: ManagementUnit) {
     parentId: n.parentId ? String(n.parentId) : null,
     displayOrder: n.displayOrder ?? 0, description: n.description || '', status: n.status,
     includeChildren: n.includeChildren ?? 1,
-    orgScopeNodes: toOrgScopeNodes(n.orgScope),
-    dataRange: (n.dataRange as any) ?? null,
   })
   unitModalVisible.value = true
   loadDetailMembers(n)
@@ -841,8 +768,6 @@ async function onSaveUnit() {
       description: unitForm.description.trim() || null,
       status: unitForm.status,
       includeChildren: unitForm.includeChildren,
-      orgScope: unitForm.orgScopeNodes && unitForm.orgScopeNodes.length ? unitForm.orgScopeNodes : null,
-      dataRange: unitForm.dataRange ?? null,
     }
     if (editingUnit.value) {
       await updateManagementUnit(unitForm.id, payload)
