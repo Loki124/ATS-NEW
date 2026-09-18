@@ -33,7 +33,7 @@ SettingsLayout.vue
 > - **模型 A · 默认 block 流（标题→KPI→工具条→表格→弹窗）**：`.page-container` 不写 `height`；整页在 `.settings-scroll` 内滚动，`.page-header` 靠全局 `sticky` 吸顶。
 > - **模型 B · 固定标题 + 内部滚动三件套**：`.page-container { display:flex; flex-direction:column; height:100%; min-height:0 }`，配合 `.page-header { flex-shrink:0 }` + `.page-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden }`。标题固定不滚，内容区自己滚，与外层 `.settings-scroll` 滚动职责分离。
 >
-> ⚠️ **历史修订（2026-08-27）**：规范 v1.0 曾把「自写 height:100%」列为禁止项，但模型 B 是 2026-08-24 与 `AccountSettings`/`DemandConfig` 同期落地的成熟模式，已被 17 个设置页采用（视觉/交互均正常）。故取消该禁止，将模型 B 列为合法变体。**两种模型下，`.page-header` 的底部分隔线都靠全局 `margin: 0 -20px 16px -20px` 通栏**，无需页面处理。**
+> ⚠️ **历史修订（2026-08-27）**：规范 v1.0 曾把「自写 height:100%」列为禁止项，但模型 B 是 2026-08-24 与 `AccountSettings`/`DemandConfig` 同期落地的成熟模式，已被 17 个设置页采用（视觉/交互均正常）。故取消该禁止，将模型 B 列为合法变体。两种模型下，`.page-header` 的底部分隔线都由全局 `.settings-scroll .page-header`（glass.css sticky 块）提供：`border-bottom: 1px solid var(--glass-border)` + `margin: 0 0 var(--space-4) 0`，无需页面处理。**header 与首块内容的间距唯一来源见下方红线「间距唯一来源」。**
 
 ### 2.1 模型 B 三件套（固定标题 + 内部滚动）
 
@@ -66,6 +66,26 @@ scoped 仅需：
 - 反例：`padding-top: 8px`（commit `12c6ece` 引入，已在 `50c5341` + `7ec00af` 清除，涉及 RecruitmentStage/Process/Round、AccountSettings、DemandConfig、CompanyLibrary、SchoolLibrary、ProcessStageEditor、DataDashboard、CompanySettings、PermissionManagement、FieldAclSettings、DepartmentManagement、MouManagement、DynamicFieldSettings、ProcessStageRules、ScoringRules、UserManagement）。
 - 若某页确实需要在 header 与首块内容间加间距：在 `.page-header` 之下第一块内容（如 `.toolbar` / `.glass-panel`）上加 `margin-top`，**不要**动 `.page-body` 的 `padding`。
 - 自检：新增/修改设置页时，`grep -Pzo '\.page-body[\s\S]*?padding' <file>` 应无命中（`.page-body` 块内不得含任何 `padding` 声明）。
+
+### ⚠️ 红线：间距唯一来源（2026-09-18 新增，兵哥反馈「header 与内容间多余空带」）
+
+**header 与首块内容（Tab 导航 / 工具条 / 卡片）之间的间距，只允许有一个来源，禁止 margin 与 flex gap 叠加。**
+
+- **事实结构**：全部设置页的 `.page-header` 都写在 `.page-body` **内部**（de-facto 结构，非 §2.1 模板中的兄弟结构），而 `.page-body` 普遍为 `display:flex; flex-direction:column; gap:16px`。
+- **叠加成因**：全局 `.settings-scroll .page-header` 自带 `margin-bottom: var(--space-4)`（16px），与 `.page-body` 的 `gap:16px` 相加 = **32px 空带**（CodeTableLibrary 截图实锤）。
+- **根治规则（已落 glass.css，全局单点，禁止页面私有重写）**：
+
+  ```css
+  /* header 为 .page-body 直接子元素时，间距由 gap 独家提供，margin-bottom 清零 */
+  .settings-scroll .page-body > .page-header { margin-bottom: 0; }
+  ```
+
+  兄弟结构（§2.1 标准模板，header 在 `.page-body` 外）无 `.page-body` 父级，仍走全局 margin，不受影响。header 的 `sticky / border-bottom / padding` 均保留，分隔线契约不破坏。
+- **页面级红线**：
+  - `.page-header` 在 `.page-body` 内时，scoped **禁止**再写 `.page-header { margin-bottom }`（会重新叠加）；
+  - 想加大 header 与首块的间距 → 调 `.page-body` 的 `gap` 或给首块加 `margin-top`，**不要**动 header 的 margin。
+- **自检**：设置页渲染后，header 底边到首个内容块顶边的实测距离必须等于 `.page-body` 的 `row-gap`（16px），不允许多出任何一个 margin 值。运行时取证：`getComputedStyle(header).marginBottom === '0px'` 且 `getComputedStyle(pageBody).rowGap === '16px'`。
+- **反例（已根治）**：CodeTableLibrary.vue 首版 header margin-bottom 16px + gap 16px = 32px 空带（2026-09-18 兵哥截图反馈，glass.css 全局子选择器规则修复，运行时实测 `actualPixelGap=16` 通过）。
 
 DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-container{display:block !important; padding-bottom:120px}` —— 这是模型 A 的特例（block 流 + 自身 overflow），仍复用全局 `.page-container` 类名而非私有类，合规。
 
@@ -183,7 +203,8 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - [ ] 布局模型二选一（同一页不混用）：模型 A（block 流 + sticky 吸顶）/ 模型 B（`.page-container{height:100%;display:flex}` + `.page-body` 内部滚动三件套）
 - [ ] 页面内没有 .cc-aurora / .blob-* 极光（由外壳提供）
 - [ ] 标题用 .page-header > .page-title + .page-subtitle，scoped 无 .page-title/.page-subtitle 字号/颜色覆盖
-- [ ] 标题底部通栏分隔线依赖全局负 margin，**scoped 不得写 `.page-header{margin-bottom}`**
+- [ ] 标题底部分隔线由全局 `.settings-scroll .page-header` 提供，**scoped 不得写 `.page-header{margin-bottom}`**
+- [ ] **间距唯一来源**：header 在 `.page-body` 内时，header→首块间距 = `.page-body` gap（16px）独家提供（全局 `.settings-scroll .page-body > .page-header{margin-bottom:0}` 已兜底）；scoped 不写 header margin-bottom、不给首块加与 gap 叠加的 margin
 - [ ] 工具条是 `<div class="toolbar">`（非 `<n-card class="toolbar">`）
 - [ ] 表格包在 `<div class="table-wrap">` 内，scoped 无 .table-wrap 重复定义
 - [ ] 弹窗用 n-modal preset="card" + :bordered="false"，scoped 无居中/滚动重复定义
@@ -207,3 +228,11 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **§4 修订**：KPI 增加「强调变体 `.kpi-card--accent`（必须 CSS 变量）」；新增 KPI 令牌铁律——禁止私有重定义 `.kpi-*` 与硬编码 hex（暗色不跟随）。标注 `DataDashboard.vue` 当前渐变 KPI 为已知偏差，待迁移。
 - **§7 修订**：自检清单增补「模型二选一」「标题分隔线不得写 margin-bottom」「KPI 强调卡变量化」三条。
 - **影响**：修订后 17 个既存页面（三件套）与 DataDashboard 之外的页面均**即刻合规**；仅 DataDashboard 的 KPI 仍属已知偏差（代码未改，待后续迁移）。纯文档修订，零代码改动。
+
+## 8.2 规范修订记录（2026-09-18，间距唯一来源红线）
+
+- **背景**：兵哥截图反馈 CodeTableLibrary header 与 Tab 导航间 32px 空带。根因——全部设置页 header 均在 `.page-body` 内部（de-facto 结构），全局 `.settings-scroll .page-header{margin-bottom:16px}` 与 `.page-body` 的 `gap:16px` 叠加。
+- **代码（glass.css）**：新增 `.settings-scroll .page-body > .page-header { margin-bottom: 0 }`（特异性 0,3,0），header 在 page-body 内时间距由 gap 独家提供；兄弟结构不受影响。运行时硬证据：CodeTableLibrary 实测 `headerMarginBottom=0px`、`actualPixelGap=16px`、sticky/分隔线保留、console 0 错误。
+- **§2 修订**：修正历史注释中已过时的「负 margin 通栏」描述为当前 `margin: 0 0 var(--space-4) 0`。
+- **§2 红线新增**：「间距唯一来源」——header→首块间距只允许一个来源，页面 scoped 禁写 header margin-bottom（header 在 page-body 内时），加大间距走 gap 或首块 margin-top。
+- **§7 修订**：自检清单更新分隔线条目 + 新增「间距唯一来源」检查项。

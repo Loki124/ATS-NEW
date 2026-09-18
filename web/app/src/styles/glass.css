@@ -896,6 +896,18 @@ body.dark .kpi-card.kpi-card--accent {
   margin: 0 0 var(--space-4) 0;
   padding: var(--space-4) 0 var(--space-1) 0;
 }
+/* === 双重间距根治（2026-09-18 兵哥反馈「header 与内容间多余空带」）===
+ * 事实结构：全部设置页的 .page-header 都写在 .page-body 内部（de-facto 结构），
+ * 而 .page-body 普遍为 display:flex + gap:16px。
+ * 全局 .settings-scroll .page-header 的 margin-bottom:16px 与 flex gap:16px 叠加，
+ * header 与首块内容间出现 32px 空带。
+ * 规则（间距唯一来源）：header 为 .page-body 直接子元素时，间距由 gap 独家提供，
+ * margin-bottom 清零（特异性 0,3,0 压过上方 0,2,0 的 margin 声明）。
+ * 兄弟结构（规范 §2 模型 B 模板）无 .page-body 父级，仍走全局 margin，不受影响。
+ * 详见 docs/04-ui/SETTINGS_PAGE_STRUCTURE.md「间距唯一来源」。 */
+.settings-scroll .page-body > .page-header {
+  margin-bottom: 0;
+}
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
 .settings-page-shell { display: block; }
 .settings-page-header,
