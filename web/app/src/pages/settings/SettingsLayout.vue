@@ -219,14 +219,13 @@ const subMenuOptions: MenuItem[] = [
     children: [
       { key: '/settings/theme', label: '主题外观', icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
       {
-        // 2026-09-16 基础数据：收纳码表库 / 院校库 / 公司库三个基础数据维护入口
+        // 2026-09-18 基础数据：分为静态数据（标准码表，只读）/ 动态数据（公司库+院校库，可维护）
         key: 'g-basic-data',
         label: '基础数据',
         icon: () => h(NIcon, null, { default: () => h(ServerOutline) }),
         children: [
-          { key: '/settings/company-library', label: '公司库', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
-          { key: '/settings/school-library', label: '院校库', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
-          { key: '/settings/code-tables', label: '码表库', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+          { key: '/settings/code-tables', label: '静态数据', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+          { key: '/settings/dynamic-data', label: '动态数据', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },
       { key: '/settings/dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
