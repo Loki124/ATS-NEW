@@ -12,16 +12,43 @@
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from django.db.models import Q
 
 from apps.core.permissions_v2 import V2Permission
 
-from .models import Country, Ethnicity, Language, Region
+from .models import Country, Ethnicity, Language, Region, BusinessCode
 from .serializers import (
     CountrySerializer,
     EthnicitySerializer,
     LanguageSerializer,
     RegionSerializer,
+    BusinessCodeSerializer,
 )
+
+
+class EnvelopeWriteMixin:
+    """写操作统一包 ``{success, data}`` 信封（与 library.views.EnvelopeWriteMixin 同义）。
+
+    本项目所有 read 接口手工包信封，前端一律读 ``r.data.data``；DRF 默认的
+    create/update 直接返回序列化结果不包信封会导致前端拿到 undefined，故补上。
+    """
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'success': True, 'data': serializer.data}, status=201)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'success': True, 'data': serializer.data})
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response({'success': True, 'data': self.get_serializer(self.get_object()).data})
 
 
 class CodeTablePagination(PageNumberPagination):
@@ -118,3 +145,45 @@ class LanguageViewSet(_BaseCodeViewSet):
                 | queryset.filter(code__icontains=keyword)
             )
         return queryset
+
+
+class BusinessCodeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+    """业务码表（自定义枚举）—— 标准码表保持只读，本视图提供完整增改删。
+
+    - list 支持 ``?category=``（枚举类别）与 ``?keyword=``（名称/编码）过滤，返回
+      ``{success, data}`` 信封（与院校库/专业库一致，前端统一读 ``r.data.data``）。
+    - 新建/编辑经 ``perform_create/update`` 置 ``is_customized=True``（用户自建标记）。
+    - 删除走软删（保留历史引用），非物理删除。
+    """
+
+    queryset = BusinessCode.objects.all()
+    serializer_class = BusinessCodeSerializer
+    permission_classes = [V2Permission]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = BusinessCode.objects.all()
+        category = self.request.query_params.get('category')
+        if category:
+            qs = qs.filter(category=category)
+        keyword = self.request.query_params.get('keyword')
+        if keyword:
+            qs = qs.filter(Q(name__icontains=keyword) | Q(code__icontains=keyword))
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset()).order_by('category', 'sort_order', 'code')
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
+    def perform_create(self, serializer):
+        serializer.save(is_customized=True)
+
+    def perform_update(self, serializer):
+        serializer.save(is_customized=True)
+
+    def destroy(self, request, *args, **kwargs):
+        """软删除：枚举值可能被候选人/职位数据引用，物理删除会断引用。"""
+        obj = self.get_object()
+        obj.soft_delete()
+        return Response({'success': True, 'data': {'id': obj.id}})

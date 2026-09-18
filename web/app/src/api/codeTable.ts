@@ -72,4 +72,56 @@ export const fetchLanguages = (params?: {
   keyword?: string; page?: number; page_size?: number;
 }): Promise<Paged<Language>> => api.get('/code-tables/languages/', { params }).then((r) => r.data);
 
+/** 业务码表（自定义枚举）— 用户可维护的枚举值 */
+export interface BusinessCode {
+  id: string;
+  category: string;
+  code: string;
+  name: string;
+  description: string;
+  parentCode: string;
+  sortOrder: number;
+  isCustomized: boolean;
+  updatedAt: string;
+}
+
+/** 业务枚举类别（与后端 BusinessCode.CATEGORY_CHOICES 对齐） */
+export const BUSINESS_CATEGORIES = [
+  { label: '学历', value: 'EDUCATION' },
+  { label: '职位类别', value: 'JOB_CATEGORY' },
+  { label: '招聘渠道', value: 'RECRUIT_CHANNEL' },
+  { label: '离职原因', value: 'OFFBOARD_REASON' },
+  { label: '合同类型', value: 'CONTRACT_TYPE' },
+  { label: '币种', value: 'CURRENCY' },
+  { label: '行业', value: 'INDUSTRY' },
+];
+
+/** 业务码表信封（list 返回 {success, data:[...]}） */
+export interface BusinessCodeEnvelope {
+  success: boolean;
+  data: BusinessCode[];
+}
+
+export const fetchBusinessCodes = (params?: {
+  category?: string; keyword?: string;
+}): Promise<BusinessCodeEnvelope> => api.get('/code-tables/business/', { params }).then((r) => r.data);
+
+export const createBusinessCode = (payload: {
+  category: string; code: string; name: string;
+  description?: string; parent_code?: string; sort_order?: number;
+}): Promise<{ success: boolean; data: BusinessCode }> =>
+  api.post('/code-tables/business/', payload).then((r) => r.data);
+
+export const updateBusinessCode = (
+  id: string,
+  payload: Partial<{
+    category: string; code: string; name: string;
+    description?: string; parent_code?: string; sort_order?: number;
+  }>,
+): Promise<{ success: boolean; data: BusinessCode }> =>
+  api.patch(`/code-tables/business/${id}/`, payload).then((r) => r.data);
+
+export const deleteBusinessCode = (id: string): Promise<{ success: boolean; data: { id: string } }> =>
+  api.delete(`/code-tables/business/${id}/`).then((r) => r.data);
+
 export default api;

@@ -3,10 +3,13 @@
     <div class="page-body">
       <div class="page-header">
         <h1 class="page-title">码表库</h1>
-        <p class="page-subtitle">国家与行业标准码表（行政区划 / 国家区号 / 民族 / 语言），供全站表单字段统一引用</p>
+        <p class="page-subtitle">标准码表（行政区划 / 国家区号 / 民族 / 语言）为只读国标数据，随标准更新重导；业务码表为可自定义维护的枚举值</p>
       </div>
 
-      <n-tabs v-model:value="activeTab" type="line" animated>
+      <n-tabs v-model:value="topTab" type="line" animated>
+        <!-- ===== 标准码表（只读，随国家标准更新） ===== -->
+        <n-tab-pane name="standard" tab="标准码表">
+          <n-tabs v-model:value="activeTab" type="line" animated>
         <!-- ===== 行政区划 ===== -->
         <n-tab-pane name="regions" tab="行政区划">
           <n-card>
@@ -145,18 +148,88 @@
             />
           </n-card>
         </n-tab-pane>
+          </n-tabs>
+        </n-tab-pane>
+
+        <!-- ===== 业务码表（可自定义维护的枚举值） ===== -->
+        <n-tab-pane name="business" tab="业务码表">
+          <n-card>
+            <n-space class="filter-row" :wrap="true" align="center">
+              <n-select
+                v-model:value="bizCategory"
+                :options="categoryOptions"
+                placeholder="选择类别"
+                style="width: 180px"
+                @update:value="loadBusiness"
+              />
+              <n-input
+                v-model:value="bizKeyword"
+                placeholder="搜索编码 / 名称"
+                clearable
+                style="width: 220px"
+                @keyup.enter="loadBusiness"
+                @clear="loadBusiness"
+              >
+                <template #prefix><n-icon :component="SearchOutline" /></template>
+              </n-input>
+              <n-button type="primary" @click="openCreate">新增枚举值</n-button>
+            </n-space>
+
+            <n-data-table
+              :columns="bizColumns"
+              :data="bizRows"
+              :loading="bizLoading"
+              :row-key="(row: any) => row.id"
+              size="small"
+              striped
+            />
+          </n-card>
+          <n-modal
+            v-model:show="showModal"
+            preset="card"
+            :title="editingId ? '编辑枚举值' : '新增枚举值'"
+            style="width: 520px"
+            :mask-closable="false"
+          >
+            <n-form ref="formRef" :model="form" :rules="formRules" label-placement="top">
+              <n-form-item label="类别" path="category">
+                <n-select v-model:value="form.category" :options="categoryOptions" placeholder="选择类别" />
+              </n-form-item>
+              <n-form-item label="编码" path="code">
+                <n-input v-model:value="form.code" placeholder="如 BACHELOR / CAMPUS" />
+              </n-form-item>
+              <n-form-item label="名称" path="name">
+                <n-input v-model:value="form.name" placeholder="如 本科 / 校园招聘" />
+              </n-form-item>
+              <n-form-item label="说明" path="description">
+                <n-input v-model:value="form.description" type="textarea" placeholder="可选" />
+              </n-form-item>
+              <n-form-item label="排序" path="sortOrder">
+                <n-input-number v-model:value="form.sortOrder" :min="0" />
+              </n-form-item>
+            </n-form>
+            <template #footer>
+              <n-space justify="end">
+                <n-button @click="showModal = false">取消</n-button>
+                <n-button type="primary" :loading="saving" :disabled="saving" @click="saveBiz">保存</n-button>
+              </n-space>
+            </template>
+          </n-modal>
+        </n-tab-pane>
       </n-tabs>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, h, onMounted, reactive, computed } from 'vue';
-import { NTag, NButton, useMessage } from 'naive-ui';
+import { ref, h, onMounted, reactive, computed, watch } from 'vue';
+import { NTag, NButton, NPopconfirm, useMessage } from 'naive-ui';
 import { SearchOutline } from '@vicons/ionicons5';
 import {
   fetchRegions, fetchCountries, fetchEthnicities, fetchLanguages,
-  type Region, type Country, type Ethnicity, type Language,
+  fetchBusinessCodes, createBusinessCode, updateBusinessCode, deleteBusinessCode,
+  BUSINESS_CATEGORIES,
+  type Region, type Country, type Ethnicity, type Language, type BusinessCode,
 } from '@/api/codeTable';
 
 const message = useMessage();
@@ -328,6 +401,144 @@ async function loadLanguages() {
     loading.value = false;
   }
 }
+
+// ===== 业务码表（可自定义维护） =====
+const topTab = ref('standard');
+const bizCategory = ref('EDUCATION');
+const bizKeyword = ref('');
+const bizRows = ref<BusinessCode[]>([]);
+const bizLoading = ref(false);
+const showModal = ref(false);
+const editingId = ref<string | null>(null);
+const saving = ref(false);
+const formRef = ref<any>(null);
+const form = reactive({
+  category: 'EDUCATION',
+  code: '',
+  name: '',
+  description: '',
+  parentCode: '',
+  sortOrder: 0,
+});
+const formRules = {
+  category: { required: true, message: '请选择类别', trigger: 'change' },
+  code: { required: true, message: '请输入编码', trigger: 'blur' },
+  name: { required: true, message: '请输入名称', trigger: 'blur' },
+};
+
+const categoryLabel = (v: string) =>
+  BUSINESS_CATEGORIES.find((c) => c.value === v)?.label || v;
+const categoryOptions = BUSINESS_CATEGORIES.map((c) => ({ label: c.label, value: c.value }));
+
+const bizColumns = [
+  { title: '类别', key: 'category', width: 110, render: (row: BusinessCode) => categoryLabel(row.category) },
+  { title: '编码', key: 'code', width: 160 },
+  { title: '名称', key: 'name', width: 160 },
+  { title: '说明', key: 'description', width: 200, render: (row: BusinessCode) => row.description || '-' },
+  { title: '排序', key: 'sortOrder', width: 80 },
+  {
+    title: '操作', key: 'actions', width: 130,
+    render: (row: BusinessCode) =>
+      h('div', { class: 'row-actions' }, [
+        h(NButton, { size: 'small', quaternary: true, onClick: () => openEdit(row) }, () => '编辑'),
+        h(
+          NPopconfirm,
+          { positiveText: '删除', negativeText: '取消', onPositiveClick: () => removeBiz(row) },
+          {
+            trigger: () => h(NButton, { size: 'small', quaternary: true, type: 'error' }, () => '删除'),
+            default: () => `确认删除「${row.name}」？该值可能被候选人/职位数据引用，删除后仅软删除保留引用。`,
+          },
+        ),
+      ]),
+  },
+];
+
+async function loadBusiness() {
+  bizLoading.value = true;
+  try {
+    const res = await fetchBusinessCodes({
+      category: bizCategory.value,
+      keyword: bizKeyword.value || undefined,
+    });
+    bizRows.value = res.data || [];
+  } catch (e: any) {
+    message.error('加载业务码表失败: ' + (e?.response?.data?.message || e.message));
+  } finally {
+    bizLoading.value = false;
+  }
+}
+
+function openCreate() {
+  editingId.value = null;
+  form.category = bizCategory.value;
+  form.code = '';
+  form.name = '';
+  form.description = '';
+  form.parentCode = '';
+  form.sortOrder = 0;
+  showModal.value = true;
+}
+
+function openEdit(row: BusinessCode) {
+  editingId.value = row.id;
+  form.category = row.category;
+  form.code = row.code;
+  form.name = row.name;
+  form.description = row.description || '';
+  form.parentCode = row.parentCode || '';
+  form.sortOrder = row.sortOrder || 0;
+  showModal.value = true;
+}
+
+async function saveBiz() {
+  if (!formRef.value) return;
+  try {
+    await formRef.value.validate();
+  } catch {
+    return;
+  }
+  saving.value = true;
+  const payload = {
+    category: form.category,
+    code: form.code.trim(),
+    name: form.name.trim(),
+    description: form.description || undefined,
+    parent_code: form.parentCode || undefined,
+    sort_order: form.sortOrder || 0,
+  };
+  try {
+    if (editingId.value) {
+      await updateBusinessCode(editingId.value, payload);
+      message.success('已保存修改');
+    } else {
+      await createBusinessCode(payload);
+      message.success('已新增枚举值');
+    }
+    showModal.value = false;
+    await loadBusiness();
+  } catch (e: any) {
+    const errs = e?.response?.data?.errors;
+    const msg = errs ? JSON.stringify(errs) : (e?.response?.data?.message || e.message);
+    message.error('保存失败: ' + msg);
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function removeBiz(row: BusinessCode) {
+  try {
+    await deleteBusinessCode(row.id);
+    message.success(`已删除「${row.name}」`);
+    await loadBusiness();
+  } catch (e: any) {
+    message.error('删除失败: ' + (e?.response?.data?.message || e.message));
+  }
+}
+
+// 进入业务 Tab 时加载一次
+watch(topTab, (v) => {
+  if (v === 'business' && bizRows.value.length === 0) loadBusiness();
+});
 
 onMounted(() => {
   loadProvinces();
