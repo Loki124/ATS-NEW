@@ -18,106 +18,36 @@
               <n-icon :component="SearchOutline" />
             </template>
           </n-input>
-          <n-button tertiary @click="loadDepartments">
+          <n-button ghost @click="loadDepartments">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             刷新
           </n-button>
-          <n-button type="primary" class="gradient-btn" @click="openCreateModal">
+          <n-button ghost @click="openCreateModal">
             <template #icon><n-icon :component="AddOutline" /></template>
-            新建部门
+            新增部门
           </n-button>
         </div>
       </div>
 
-      <div class="org-layout">
-        <!-- 左侧：部门树 -->
-        <n-card class="org-tree-card" :bordered="false">
-          <div class="org-tree-head">
-            <span class="org-tree-title">组织架构</span>
-            <span class="org-tree-count">{{ departments.length }} 个部门</span>
-          </div>
-          <div class="org-tree-body">
-            <n-tree
-              v-if="treeOptions.length"
-              block-line
-              :data="treeOptions"
-              :expanded-keys="expandedKeys"
-              :selected-keys="selectedKeys"
-              :render-label="renderTreeNode"
-              :render-suffix="renderTreeSuffix"
-              :on-update:expanded-keys="onExpandedKeys"
-              @update:selected-keys="onTreeSelect"
-            />
-            <n-empty v-else description="暂无部门数据" />
-          </div>
-        </n-card>
+      <n-card :bordered="false">
+        <n-data-table
+          :data="filteredDepartments"
+          :columns="columns"
+          :row-key="(row: Department) => row.id"
+          :loading="loading"
+          :pagination="{ pageSize: 20, showSizePicker: true, pageSizes: [10, 20, 50], prefix: ({ itemCount }: any) => `共 ${itemCount} 条` }"
+          size="medium"
+        />
+      </n-card>
 
-        <!-- 右侧：未选中时的占位提示 -->
-        <div v-if="!drawerVisible" class="org-detail-placeholder">
-          <n-empty description="从左侧组织架构中选择部门查看详情" />
-        </div>
-      </div>
-
-      <!-- 右侧：部门详情抽屉 -->
-      <n-drawer v-model:show="drawerVisible" :width="440" placement="right">
-        <n-drawer-content :title="selectedDept?.name || '部门详情'" :native-scrollbar="false">
-          <template v-if="selectedDept">
-            <n-descriptions :column="1" label-placement="left" bordered size="small">
-              <n-descriptions-item label="部门编号">{{ selectedDept.code }}</n-descriptions-item>
-              <n-descriptions-item label="部门名称">{{ selectedDept.name }}</n-descriptions-item>
-              <n-descriptions-item label="上级部门">{{ parentName(selectedDept) }}</n-descriptions-item>
-              <n-descriptions-item label="状态">
-                <n-tag :type="selectedDept.status === 'ACTIVE' ? 'success' : 'default'" size="small">
-                  {{ selectedDept.status === 'ACTIVE' ? '启用' : '停用' }}
-                </n-tag>
-              </n-descriptions-item>
-              <n-descriptions-item label="排序值">{{ selectedDept.sortOrder ?? 0 }}</n-descriptions-item>
-            </n-descriptions>
-
-            <div class="detail-section-title">人员配置</div>
-            <n-descriptions :column="1" label-placement="left" bordered size="small">
-              <n-descriptions-item label="部门负责人">{{ getUserName(selectedDept.managerId) || '—' }}</n-descriptions-item>
-              <n-descriptions-item label="部门负责人 2">{{ getUserName(selectedDept.manager2Id) || '—' }}</n-descriptions-item>
-              <n-descriptions-item label="部门 HRBP">{{ getUserName(selectedDept.hrbpId) || '—' }}</n-descriptions-item>
-              <n-descriptions-item label="分管 VP">{{ getUserName(selectedDept.manager3Id) || '—' }}</n-descriptions-item>
-            </n-descriptions>
-          </template>
-
-          <template #footer>
-            <n-space justify="end" :size="12">
-              <n-button tertiary @click="openCreateChildModal(selectedDept)">
-                <template #icon><n-icon :component="AddOutline" /></template>
-                新增子部门
-              </n-button>
-              <n-popconfirm
-                positive-text="确认删除"
-                negative-text="取消"
-                @positive-click="() => handleDelete(selectedDept)"
-              >
-                <template #trigger>
-                  <n-button tertiary type="error">
-                    <template #icon><n-icon :component="TrashOutline" /></template>
-                    删除
-                  </n-button>
-                </template>
-                确认删除部门「{{ selectedDept?.name }}」？删除后将影响其下子部门与人员归属。
-              </n-popconfirm>
-              <n-button @click="openEditModal(selectedDept)">
-                <template #icon><n-icon :component="CreateOutline" /></template>
-                编辑
-              </n-button>
-            </n-space>
-          </template>
-        </n-drawer-content>
-      </n-drawer>
-
-      <!-- 部门编辑弹窗 -->
+      <!-- 部门详情 / 编辑 合一弹窗（居中） -->
       <n-modal
         v-model:show="deptModalVisible"
         preset="card"
         :title="editingDept ? '编辑部门' : '新建部门'"
         :style="{ width: '720px' }"
         :mask-closable="false"
+        :centered="true"
       >
         <n-form :model="formState" label-placement="top">
           <n-grid :cols="2" :x-gap="16">
@@ -229,7 +159,7 @@
 
         <template #footer>
           <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-            <n-button @click="closeDeptModal">取消</n-button>
+            <n-button text @click="closeDeptModal">取消</n-button>
             <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">保存部门</n-button>
           </div>
         </template>
@@ -239,14 +169,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, h, watch } from 'vue';
+import { ref, reactive, onMounted, computed, h } from 'vue';
 import {
   AddOutline,
   CreateOutline,
   TrashOutline,
   RefreshOutline,
+  PersonOutline,
   SearchOutline,
-  PeopleOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -254,9 +184,6 @@ import {
   NSpace,
   NIcon,
   NPopconfirm,
-  NTree,
-  NEmpty,
-  NCard,
   NInput,
   NModal,
   NForm,
@@ -269,22 +196,14 @@ import {
   NRadioGroup,
   NRadio,
   NDivider,
-  NDrawer,
-  NDrawerContent,
-  NDescriptions,
-  NDescriptionsItem,
+  NCard,
+  NTooltip,
   useMessage,
 } from 'naive-ui';
 import api from '../../api/auth';
 
 import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage();
-
-interface DeptUserRef {
-  id: string;
-  realName?: string;
-  username?: string;
-}
 
 interface Department {
   id: string;
@@ -317,11 +236,6 @@ const submitting = ref(false);
 const deptModalVisible = ref(false);
 const editingDept = ref<Department | null>(null);
 const searchKeyword = ref('');
-
-const drawerVisible = ref(false);
-const selectedDept = ref<Department | null>(null);
-
-const expandedKeys = ref<Array<string | number>>([]);
 
 const formState = reactive({
   code: '',
@@ -373,151 +287,14 @@ const userOptions = computed(() =>
   }))
 );
 
-const getUserName = (userId?: string | null) => {
-  if (!userId) return null;
-  const user = users.value.find(u => String(u.id) === String(userId));
-  return user ? user.realName || user.username : null;
-};
-
-const parentName = (dept: Department) => {
-  if (!dept.parentId) return '顶级部门';
-  const parent = departments.value.find(d => String(d.id) === String(dept.parentId));
-  return parent ? `${parent.name}（${parent.code}）` : '—';
-};
-
-// 部门树（支持按关键字过滤：命中节点或其子孙者保留）
-const treeOptions = computed(() => buildTree(departments.value, searchKeyword.value));
-
-function buildTree(list: Department[], keyword: string): any[] {
-  const kw = keyword.trim().toLowerCase();
-  const map = new Map<string, any>();
-  list.forEach(d =>
-    map.set(String(d.id), { label: d.name, key: String(d.id), dept: d, children: [] as any[] })
+// 搜索过滤后的部门
+const filteredDepartments = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase();
+  if (!keyword) return departments.value;
+  return departments.value.filter(
+    d => d.name.toLowerCase().includes(keyword) || d.code.toLowerCase().includes(keyword)
   );
-  const roots: any[] = [];
-  list.forEach(d => {
-    const node = map.get(String(d.id))!;
-    const pid = d.parentId ? String(d.parentId) : null;
-    if (pid && map.has(pid)) map.get(pid)!.children.push(node);
-    else roots.push(node);
-  });
-  if (!kw) return roots;
-  const filterNode = (node: any): any => {
-    const children = (node.children || []).map(filterNode).filter(Boolean);
-    const selfMatch =
-      node.dept.name.toLowerCase().includes(kw) || node.dept.code.toLowerCase().includes(kw);
-    if (selfMatch || children.length) return { ...node, children };
-    return null;
-  };
-  return roots.map(filterNode).filter(Boolean);
-}
-
-// 搜索时自动展开全部命中节点
-function collectKeys(nodes: any[]): string[] {
-  const out: string[] = [];
-  const walk = (ns: any[]) =>
-    ns.forEach(n => {
-      out.push(n.key);
-      if (n.children?.length) walk(n.children);
-    });
-  walk(nodes);
-  return out;
-}
-watch(searchKeyword, kw => {
-  if (kw.trim()) expandedKeys.value = collectKeys(treeOptions.value);
 });
-
-const selectedKeys = computed<string[]>(() =>
-  selectedDept.value ? [String(selectedDept.value.id)] : []
-);
-
-const onExpandedKeys = (keys: Array<string | number>) => {
-  expandedKeys.value = keys;
-};
-
-const onTreeSelect = (keys: Array<string | number>) => {
-  const id = keys[0];
-  if (!id) {
-    drawerVisible.value = false;
-    selectedDept.value = null;
-    return;
-  }
-  const dept = departments.value.find(d => String(d.id) === String(id)) || null;
-  selectedDept.value = dept;
-  drawerVisible.value = !!dept;
-};
-
-// 树节点 label（图标 + 名称 + 停用标记）
-const renderTreeNode = ({ option }: any) => {
-  return h('div', { class: 'tree-label' }, [
-    h(NIcon, { component: PeopleOutline, class: 'tree-label-icon' }),
-    h('span', { class: 'tree-label-text' }, option.label),
-    option.dept?.status === 'INACTIVE'
-      ? h(NTag, { size: 'tiny', type: 'default', bordered: false }, { default: () => '停用' })
-      : null,
-  ]);
-};
-
-// 树节点后缀操作（悬停显隐：新增子部门 / 编辑 / 删除）
-const renderTreeSuffix = ({ option }: any) => {
-  const dept = option.dept;
-  return h('span', { class: 'tree-actions' }, [
-    h(
-      NButton,
-      {
-        text: true,
-        type: 'primary',
-        size: 'tiny',
-        title: '新增子部门',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation();
-          openCreateChildModal(dept);
-        },
-      },
-      { default: () => '', icon: () => h(NIcon, { component: AddOutline }) }
-    ),
-    h(
-      NButton,
-      {
-        text: true,
-        type: 'primary',
-        size: 'tiny',
-        title: '编辑',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation();
-          openEditModal(dept);
-        },
-      },
-      { default: () => '', icon: () => h(NIcon, { component: CreateOutline }) }
-    ),
-    h(
-      NPopconfirm,
-      {
-        positiveText: '确认',
-        negativeText: '取消',
-        onPositiveClick: (e: MouseEvent) => {
-          e?.stopPropagation?.();
-          handleDelete(dept);
-        },
-      },
-      {
-        default: () => '确认删除该部门？',
-        trigger: () =>
-          h(
-            NButton,
-            {
-              text: true,
-              type: 'error',
-              size: 'tiny',
-              title: '删除',
-              onClick: (e: MouseEvent) => e.stopPropagation(),
-            },
-            { default: () => '', icon: () => h(NIcon, { component: TrashOutline }) }
-          ),
-      }
-    ),
-  ]);
-};
 
 // 上级部门树（排除自身及子部门）
 const parentTreeData = computed(() => {
@@ -558,7 +335,7 @@ const isDescendant = (id: string) => {
   return isDescendantOrSelf(id, editingDept.value.id);
 };
 
-// 打开新建弹窗（顶级）
+// 打开新建弹窗
 const openCreateModal = () => {
   editingDept.value = null;
   Object.assign(formState, {
@@ -575,13 +352,7 @@ const openCreateModal = () => {
   deptModalVisible.value = true;
 };
 
-// 打开新建子部门弹窗（预设上级）
-const openCreateChildModal = (dept: Department | null) => {
-  openCreateModal();
-  if (dept) formState.parentId = dept.id;
-};
-
-// 打开编辑弹窗
+// 打开编辑弹窗（查看详情与编辑合一：同一弹窗内展示并可改）
 const openEditModal = (record: Department) => {
   editingDept.value = record;
   Object.assign(formState, {
@@ -641,12 +412,7 @@ const handleDeptSubmit = async () => {
       if (res.status === 200 || res.data?.success === true) {
         message.success('部门更新成功');
         closeDeptModal();
-        await loadDepartments();
-        // 若抽屉打开的是被编辑部门，刷新详情
-        if (selectedDept.value && selectedDept.value.id === editingDept.value.id) {
-          selectedDept.value =
-            departments.value.find(d => d.id === selectedDept.value!.id) || selectedDept.value;
-        }
+        loadDepartments();
       } else {
         message.error(extractErrorMessage(res.data) || '更新失败');
       }
@@ -655,7 +421,7 @@ const handleDeptSubmit = async () => {
       if (res.status === 201 || res.data?.success === true) {
         message.success('部门创建成功');
         closeDeptModal();
-        await loadDepartments();
+        loadDepartments();
       } else {
         message.error(extractErrorMessage(res.data) || '创建失败');
       }
@@ -668,16 +434,11 @@ const handleDeptSubmit = async () => {
 };
 
 // 删除
-const handleDelete = async (record: Department | null) => {
-  if (!record) return;
+const handleDelete = async (record: Department) => {
   try {
     const res = await api.delete(`/departments/${record.id}/`);
     if (res.data?.success) {
       message.success('部门删除成功');
-      if (selectedDept.value && String(selectedDept.value.id) === String(record.id)) {
-        drawerVisible.value = false;
-        selectedDept.value = null;
-      }
       loadDepartments();
     } else {
       message.error(res.data?.error || res.data?.message || '删除失败');
@@ -686,6 +447,140 @@ const handleDelete = async (record: Department | null) => {
     message.error(error.response?.data?.error || error.response?.data?.message || '删除失败');
   }
 };
+
+const getUserName = (userId?: string | null) => {
+  if (!userId) return null;
+  const user = users.value.find(u => String(u.id) === String(userId));
+  return user ? user.realName || user.username : null;
+};
+
+const renderUser = (userId?: string | null) => {
+  const name = getUserName(userId);
+  if (!name) return h('span', { style: 'color: #bfbfbf' }, '—');
+  return h(NTag, { type: 'info', size: 'small' }, {
+    default: () => name,
+    icon: () => h(NIcon, { component: PersonOutline }),
+  });
+};
+
+const renderParent = (record: Department) => {
+  if (!record.parentId) {
+    return h(NTag, { type: 'warning', size: 'small' }, { default: () => '顶级' });
+  }
+  const parent = departments.value.find(d => d.id === record.parentId);
+  if (!parent) return h('span', { style: 'color: #bfbfbf' }, '—');
+  return h('span', {}, `${parent.name} (${parent.code})`);
+};
+
+const columns = computed(() => [
+  {
+    title: '部门编号',
+    key: 'code',
+    width: 140,
+  },
+  {
+    title: '部门ID',
+    key: 'id',
+    width: 220,
+    render: (row: Department) =>
+      h(NTooltip, null, {
+        trigger: () => h('span', { style: 'font-family: monospace; color: #8c8c8c; font-size: 12px' }, row.id.slice(0, 8) + '…'),
+        default: () => row.id,
+      }),
+  },
+  {
+    title: '部门名称',
+    key: 'name',
+    width: 180,
+  },
+  {
+    title: '上级部门',
+    key: 'parent',
+    width: 180,
+    render: (row: Department) => renderParent(row),
+  },
+  {
+    title: '部门负责人',
+    key: 'managerId',
+    width: 130,
+    render: (row: Department) => renderUser(row.managerId),
+  },
+  {
+    title: '部门负责人 2',
+    key: 'manager2Id',
+    width: 130,
+    render: (row: Department) => renderUser(row.manager2Id),
+  },
+  {
+    title: '部门 HRBP',
+    key: 'hrbpId',
+    width: 130,
+    render: (row: Department) => renderUser(row.hrbpId),
+  },
+  {
+    title: '分管 VP',
+    key: 'manager3Id',
+    width: 130,
+    render: (row: Department) => renderUser(row.manager3Id),
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 90,
+    render: (row: Department) => {
+      const map: Record<string, { type: any; label: string }> = {
+        ACTIVE: { type: 'success', label: '启用' },
+        INACTIVE: { type: 'default', label: '停用' },
+      };
+      const item = map[row.status] || { type: 'default', label: row.status };
+      return h(NTag, { type: item.type, size: 'small' }, { default: () => item.label });
+    },
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 160,
+    fixed: 'right' as const,
+    render: (row: Department) =>
+      h(NSpace, { size: 'small' }, {
+        default: () => [
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              size: 'small',
+              onClick: () => openEditModal(row),
+            },
+            {
+              default: () => '编辑',
+              icon: () => h(NIcon, { component: CreateOutline }),
+            }
+          ),
+          h(
+            NPopconfirm,
+            {
+              onPositiveClick: () => handleDelete(row),
+              positiveText: '确认',
+              negativeText: '取消',
+            },
+            {
+              default: () => '确认删除此部门？',
+              trigger: () =>
+                h(
+                  NButton,
+                  { text: true, type: 'error', size: 'small' },
+                  {
+                    default: () => '删除',
+                    icon: () => h(NIcon, { component: TrashOutline }),
+                  }
+                ),
+            }
+          ),
+        ],
+      }),
+  },
+]);
 
 onMounted(() => {
   loadDepartments();
@@ -719,82 +614,5 @@ onMounted(() => {
   display: flex;
   gap: var(--space-2);
   align-items: center;
-}
-
-/* 左树 + 右详情布局 */
-.org-layout {
-  display: flex;
-  gap: var(--space-4);
-  flex: 1;
-  min-height: 0;
-}
-.org-tree-card {
-  width: 360px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--glass-bg-elevated);
-}
-.org-tree-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 4px 12px;
-}
-.org-tree-title {
-  font-weight: 600;
-  color: var(--ink);
-  font-size: var(--fs-15);
-}
-.org-tree-count {
-  font-size: 12px;
-  color: var(--ink-faint);
-}
-.org-tree-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 4px;
-}
-.org-detail-placeholder {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px dashed var(--border-hairline);
-  border-radius: var(--radius-lg);
-  background: var(--glass-bg-subtle);
-}
-.detail-section-title {
-  margin: 20px 0 12px;
-  font-weight: 600;
-  color: var(--ink);
-  font-size: var(--fs-14);
-}
-
-/* 树节点 label / 悬停操作按钮（render 函数节点需经 :deep 命中） */
-.org-tree-body :deep(.tree-label) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.org-tree-body :deep(.tree-label-icon) {
-  color: var(--ink-soft);
-}
-.org-tree-body :deep(.tree-actions) {
-  display: inline-flex;
-  gap: 2px;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s var(--ease-out);
-}
-.org-tree-body :deep(.n-tree-node-content:hover .tree-actions) {
-  opacity: 1;
-  visibility: visible;
-}
-.org-tree-body :deep(.tree-actions .n-button) {
-  padding: 2px 4px;
 }
 </style>

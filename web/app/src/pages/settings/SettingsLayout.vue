@@ -107,14 +107,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/company/brand', label: '品牌信息管理', icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
         ],
       },
-      {
-        key: 'g-org',
-        label: '组织管理',
-        icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }),
-        children: [
-          { key: '/settings/department', label: '组织管理', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
-        ],
-      },
+      { key: '/settings/department', label: '组织管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
       {
         // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 注册审核 + 用户组
         key: 'g-user',
