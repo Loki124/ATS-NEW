@@ -18,6 +18,17 @@
       </div>
     </div>
 
+    <n-tabs
+      type="line"
+      :value="mode"
+      class="user-dir-tabs"
+      @update:value="onTabChange"
+    >
+      <n-tab-pane name="internal" tab="内部员工" />
+      <n-tab-pane name="external" tab="外部用户" />
+      <n-tab-pane name="all" tab="全部用户" />
+    </n-tabs>
+
     <n-card>
       <n-data-table
         :data="filteredUsers"
@@ -141,6 +152,8 @@ import {
   NTooltip,
   NPopconfirm,
   NIcon,
+  NTabs,
+  NTabPane,
   useMessage,
 } from 'naive-ui';
 import { extractApiError } from '../../api/dynamic-field';
@@ -149,12 +162,19 @@ const message = useMessage();
 const route = useRoute();
 
 // ===== 模式：来自路由 meta.userDirectoryMode（'internal' | 'external' | 'all'）=====
-const mode = computed<string>(() => {
+// 2026-09-18：菜单将内部/外部/全部合并为单一「用户管理」入口（指向 users/all），
+//   页内用 n-tabs 切换三种视图，故 mode 改为本地 ref，路由仅作初始值。
+const routeMode = computed<string>(() => {
   const metaMode = (route.meta as Record<string, unknown>).userDirectoryMode;
   return metaMode === 'internal' || metaMode === 'external' || metaMode === 'all'
     ? (metaMode as string)
     : 'all';
 });
+const mode = ref<string>(routeMode.value);
+// 直接通过路由进入（如深链 /settings/users/internal）时同步本地模式
+watch(routeMode, (m) => { mode.value = m; });
+// 页签切换（内部/外部/全部）：更新本地模式并重新拉取列表
+const onTabChange = (v: string | number) => { mode.value = String(v); };
 
 // 页面标题 / 副标题 / KPI 文案随模式变化（Beisen 风格差异化目录）
 const pageTitle = computed(() =>
@@ -288,6 +308,9 @@ const loadUsers = async () => {
     loading.value = false;
   }
 };
+
+// 页签切换（internal/external/all）时重新拉取对应用户列表
+watch(mode, () => { loadUsers(); });
 
 // 客户端兜底过滤：保证 internal/external 正确分离（与后端是否就绪无关）
 const filteredUsers = computed<User[]>(() => {

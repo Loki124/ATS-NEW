@@ -114,24 +114,22 @@ const subMenuOptions: MenuItem[] = [
         label: '用户管理',
         icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }),
         children: [
-          { key: '/settings/users/internal', label: '内部员工', icon: () => h(NIcon, null, { default: () => h(PersonCircleOutline) }) },
-          { key: '/settings/users/external', label: '外部用户', icon: () => h(NIcon, null, { default: () => h(PersonOutline) }) },
-          { key: '/settings/users/all', label: '全部用户', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+          { key: '/settings/users/all', label: '用户管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
           { key: '/settings/registrations', label: '注册审核', icon: () => h(NIcon, null, { default: () => h(PersonAddOutline) }) },
           { key: '/settings/user-groups', label: '用户组管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },
-    ],
-  },
-  {
-    // ★ 北森风格重构：新增「权限管理」顶层分组（放在「基本信息」之后），收纳角色/管理单元/字段权限
-    key: 'g-permission',
-    type: 'group',
-    label: '权限管理',
-    children: [
-      { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
-      { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-      { key: '/settings/field-acl', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
+      {
+        // 权限管理归入「基本信息」分组内（2026-09-18 调整）：收纳角色/管理单元/字段权限
+        key: 'g-permission',
+        type: 'group',
+        label: '权限管理',
+        children: [
+          { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+          { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
+          { key: '/settings/field-acl', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
+        ],
+      },
     ],
   },
   {
