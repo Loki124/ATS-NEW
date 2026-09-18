@@ -401,3 +401,14 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **验证**：另起独立 vite（5277）+ Playwright 真机——`国家区号`(本地 250 行) 默认渲染 20 行，点开 size picker 选「50」后渲染行数变为 50、trigger 显示「50 / 页」、prefix 仍「共 250 条」；ALL_PASS=true（2026-09-18）。一处修改，5 个本地表（国家区号/民族/语言/币种/行业）及 Company/School/DynamicData 内嵌表全部修复。
 - **§4.x 增补**：强制项表新增「⚠️ 本地分页非受控」红线（禁受控 `page`/`pageSize` 固定值）；自检项 ⑤ 新增「`20 / 页` 选择器实测可切换」（改 50 后实际渲染行数同步变为 50，非仅 UI 数字变化）——作为防回归硬门槛。
 - **影响**：所有走 `localPagination()` 的本地表「每页条数」选择器恢复可用。远程表（regions）本就经 `onPageSizeChange` 回写后端，不受影响。
+
+## 8.8 规范修订记录（2026-09-18，动态数据页 3-tab 拆分 + 嵌入页「只滚表格行内」）
+
+- **背景**：兵哥要求 ① 动态数据（院校/公司信息库）的数据列表也按「只滚表格行内」规则调整（对齐 CodeTableLibrary）；② 把「院校库」下的二级页签（院校 / 专业）拆分出来，成为 3 个一级 tab：院校库 / 专业库 / 公司库。经确认采用「聚合页内 3 个一级 tab」方案（保留 DynamicDataLibrary，菜单仍指向它）。
+- **代码**：
+  - 新增 `MajorLibrary.vue`（专业库）：从 `SchoolLibrary` 的「专业」二级 tab 整段抽取（kpi-row + n-card(filter + table-wrap + flex-height) + 详情抽屉 + 编辑弹窗），独立路由 `major-library`。
+  - `SchoolLibrary.vue` 删除「专业」tab 与全部 majors 相关脚本/列/状态，仅留「院校」视图（kpi-row + n-card + 详情抽屉 + 编辑弹窗），作为「院校库」tab 内容。
+  - `CompanyLibrary.vue` / `SchoolLibrary.vue` / `MajorLibrary.vue` 三者统一：`.page-body` → `.data-body`（`overflow:hidden` 填高，规避 SettingsLayout 对 `.page-body` 的 `!important` 强制）；kpi-row `flex-shrink:0` 固定；n-card 加 `.lib-card`（`flex:1;min-height:0`）并对 naive-ui `.n-card-content`（单下划线）设 flex 列；filter-row `flex-shrink:0`；`n-data-table` 包 `.table-wrap` + `flex-height`（表体内部滚动）。即每页自身即「只滚表格行内」，standalone 与嵌入态通用。
+  - `DynamicDataLibrary.vue` 改为 3 个一级 tab（院校库 / 专业库 / 公司库）分别嵌入上述三页；`.page-body` → `.data-body`，`<n-tabs>` 挂 `.data-tabs`，补 `.data-tabs :deep(.n-tabs-nav / .n-tabs-pane-wrapper / .n-tab-pane)` flex 链（tab 导航固定、pane 不滚、嵌入页 `.page-container` 撑满）；嵌入页 `.page-header` 隐藏（tab 已承担标题）。
+- **§2.2 关系**：本变更是 §2.2「仅表体内部滚动」在「聚合页嵌入子页」场景的延展——聚合页 `.data-body` 不滚、tab 固定，子页 `.data-body` 同样不滚、仅表体内部滚，双重 `.data-body` 形成嵌套填高链，无 `.page-body` 的 `!important` 干扰。
+- **影响**：动态数据页 tab 固定、仅表体内部滚动；院校库/专业库/公司库 3 个一级 tab 切换正常；专业库独立可访问（`/settings/major-library`）。路由 `major-library` 与既有 `school-library`/`company-library` 一致。

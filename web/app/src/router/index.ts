@@ -161,9 +161,10 @@ const routes: RouteRecordRaw[] = [
           // ===== V2 权限管理 (2026-09-18 拆分: 身份管理主页面 + 资源管理独立页) =====
           { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           { path: 'permissions/resources', name: 'PermissionResources', component: () => import(/* webpackChunkName: "settings-permissions-resources" */ '../pages/settings/PermissionResources.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
-          // ===== G41 院校/公司信息库（合并为「动态数据」聚合页） =====
-          { path: 'dynamic-data', name: 'DynamicDataLibrary', component: () => import(/* webpackChunkName: "settings-dynamic-data" */ '../pages/settings/DynamicDataLibrary.vue'), meta: { title: '动态数据', description: '公司库 / 院校库（用户可维护，随业务增长）' } },
+          // ===== G41 院校/公司/专业信息库（合并为「动态数据」聚合页，内部 3 个一级 tab） =====
+          { path: 'dynamic-data', name: 'DynamicDataLibrary', component: () => import(/* webpackChunkName: "settings-dynamic-data" */ '../pages/settings/DynamicDataLibrary.vue'), meta: { title: '动态数据', description: '院校库 / 专业库 / 公司库（用户可维护，随业务增长）' } },
           { path: 'school-library', name: 'SchoolLibrary', component: () => import(/* webpackChunkName: "settings-school" */ '../pages/settings/SchoolLibrary.vue') },
+          { path: 'major-library', name: 'MajorLibrary', component: () => import(/* webpackChunkName: "settings-major" */ '../pages/settings/MajorLibrary.vue') },
           { path: 'company-library', name: 'CompanyLibrary', component: () => import(/* webpackChunkName: "settings-company-lib" */ '../pages/settings/CompanyLibrary.vue') },
           // ===== G42 动态字段定义 =====
           { path: 'dynamic-fields', name: 'DynamicFieldSettings', component: () => import(/* webpackChunkName: "settings-dynamic-fields" */ '../pages/settings/DynamicFieldSettings.vue') },
