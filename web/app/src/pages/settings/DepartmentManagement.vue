@@ -70,14 +70,13 @@
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
               <n-form-item label="上级部门">
-                <n-tree-select
-                  v-model:value="formState.parentId"
-                  :options="parentTreeData"
-                  placeholder="不选则为顶级部门"
-                  clearable
-                  default-expand-all
-                  :disabled="!!editingDept && isDescendant(editingDept.id)"
-                />
+              <n-tree-select
+                v-model:value="formState.parentId"
+                :options="parentTreeData"
+                placeholder="不选则为顶级部门"
+                clearable
+                default-expand-all
+              />
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -328,11 +327,6 @@ const isDescendantOrSelf = (id: string, ancestorId: string): boolean => {
     cur = departments.value.find(d => d.id === cur!.parentId);
   }
   return false;
-};
-
-const isDescendant = (id: string) => {
-  if (!editingDept.value) return false;
-  return isDescendantOrSelf(id, editingDept.value.id);
 };
 
 // 打开新建弹窗
