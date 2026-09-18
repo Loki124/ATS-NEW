@@ -148,8 +148,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password', None) or 'Pass@1234'
+        # 2026-09-19: username 已在 fields 中, 必须从 validated_data 取出再显式传入,
+        # 否则 **validated_data 重复传入 username -> create_user() 报 multiple values
+        username = validated_data.pop('username')
         user = User.objects.create_user(
-            username=validated_data['username'],
+            username=username,
             password=password,
             **validated_data,
         )
