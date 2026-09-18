@@ -151,17 +151,36 @@ class UserSerializer(serializers.ModelSerializer):
         # 2026-09-19: username 已在 fields 中, 必须从 validated_data 取出再显式传入,
         # 否则 **validated_data 重复传入 username -> create_user() 报 multiple values
         username = validated_data.pop('username')
+        role_type = validated_data.pop('role_type', None)
+        status = validated_data.pop('status', None)
+        # 2026-09-19: 剥离 FE 写入辅助字段(非 User 模型字段), 否则 create_user 报 unexpected keyword
+        for _h in ('real_name', 'permission_mode',
+                   'wechat_work_user_id', 'wechat_work_dept_id', 'wechat_work_name',
+                   'mocha_dept_id', 'mocha_name'):
+            validated_data.pop(_h, None)
+        if status is not None:
+            validated_data['is_active'] = (status == 'ACTIVE')
         user = User.objects.create_user(
             username=username,
             password=password,
             **validated_data,
         )
-        self._apply_role_type(user, validated_data)
+        if role_type is not None:
+            self._apply_role_type(user, {'role_type': role_type})
         return user
 
     def update(self, instance, validated_data):
-        self._apply_role_type(instance, validated_data)
-        validated_data.pop('username', None)  # update 时不允许清空 username
+        role_type = validated_data.pop('role_type', None)
+        status = validated_data.pop('status', None)
+        for _h in ('real_name', 'permission_mode',
+                   'wechat_work_user_id', 'wechat_work_dept_id', 'wechat_work_name',
+                   'mocha_dept_id', 'mocha_name'):
+            validated_data.pop(_h, None)
+        if status is not None:
+            validated_data['is_active'] = (status == 'ACTIVE')
+        if role_type is not None:
+            self._apply_role_type(instance, {'role_type': role_type})
+        validated_data.pop('username', None)  # update 时不允许改 username
         return super().update(instance, validated_data)
 
 
