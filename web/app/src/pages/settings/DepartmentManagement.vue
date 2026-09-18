@@ -177,6 +177,14 @@
       <!-- 部门详情抽屉：列表隐藏的编号/ID/负责人2/分管VP 等在此完整展示 -->
       <n-drawer v-model:show="detailVisible" :width="520" placement="right" :auto-focus="false">
         <n-drawer-content title="部门详情" :native-scrollbar="false">
+          <div v-if="detailDept" style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+            <n-button type="primary" size="small" @click="handleEditFromDetail">
+              <template #icon>
+                <n-icon :component="CreateOutline" />
+              </template>
+              编辑
+            </n-button>
+          </div>
           <n-descriptions
             v-if="detailDept"
             label-placement="left"
@@ -225,7 +233,6 @@ import {
   RefreshOutline,
   PersonOutline,
   SearchOutline,
-  ChevronForwardOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -297,6 +304,14 @@ const detailDept = ref<Department | null>(null);
 const openDetail = (row: Department) => {
   detailDept.value = row;
   detailVisible.value = true;
+};
+
+// 在详情抽屉内触发编辑：关闭抽屉后打开编辑弹窗（复用已有表单逻辑）
+const handleEditFromDetail = () => {
+  const row = detailDept.value;
+  if (!row) return;
+  detailVisible.value = false;
+  openEditModal(row);
 };
 
 // 树形表格展开状态：default-expand-all 对异步加载的数据不生效（仅首次挂载读取），
@@ -616,10 +631,7 @@ const columns = computed(() => [
       h(
         NButton,
         { text: true, type: 'primary', size: 'small', onClick: () => openDetail(row) },
-        {
-          default: () => row.name,
-          icon: () => h(NIcon, { component: ChevronForwardOutline }),
-        }
+        { default: () => row.name }
       ),
   },
   {
@@ -687,19 +699,6 @@ const columns = computed(() => [
             }
           ),
           h(
-            NButton,
-            {
-              text: true,
-              type: 'primary',
-              size: 'small',
-              onClick: () => openEditModal(row),
-            },
-            {
-              default: () => '编辑',
-              icon: () => h(NIcon, { component: CreateOutline }),
-            }
-          ),
-          h(
             NPopconfirm,
             {
               onPositiveClick: () => handleDelete(row),
@@ -758,8 +757,4 @@ onMounted(() => {
   align-items: center;
 }
 
-/* 去掉部门树形表格左侧的展开箭头：保留层级缩进，仅隐藏展开三角 */
-:deep(.n-data-table-expand-trigger) {
-  display: none !important;
-}
 </style>
