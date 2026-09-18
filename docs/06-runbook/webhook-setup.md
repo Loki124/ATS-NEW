@@ -1,8 +1,13 @@
 # ATS-NEW Webhook 自动部署（Docker 版）
 
+> ⚠️ **2026-09-18 更新**：部署编排（webhook 接收器 / docker-compose / Dockerfile / systemd unit / 轮询部署）
+> 已整体迁移到独立仓库 **[ats-deploy-infra](https://gitee.com/loki126/ats-deploy-infra.git)**。
+> 本文档描述的 `ops/scripts/*` 路径已不存在；生产栈的实际部署逻辑、令牌校验（X-Gitee-Token 明文口令，非 HMAC）、
+> 构建文件注入机制，均以 ats-deploy-infra 仓库为准，详见其 README。本文件保留作历史参考。
+
 `git push` → Gitee 触发 → 部署机自动 `git pull + docker compose build + up -d`，**再也不用 SSH 手动重建镜像**。
 
-> 旧版（venv + systemd + npm build）已废弃，见 `scripts/webhook-deploy.sh` 顶部说明。本文档对应 **1Panel + docker compose** 生产栈。
+> 旧版（venv + systemd + npm build）已废弃。本文档对应 **1Panel + docker compose** 生产栈（现由 ats-deploy-infra 统一管理）。
 
 ## 架构
 

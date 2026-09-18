@@ -82,10 +82,17 @@ websockets==16.0
 daphne==4.2.2
 
 # === Production Server ===
-# R9: 移除 uvicorn[standard]==0.29.0 —— 未安装, 且 ASGI 已由 daphne 承担,
-#   Dockerfile 用 gunicorn 跑 WSGI, 没有第三个 server 的位置。
+# R9: 曾移除 uvicorn —— 当时 ASGI 由 daphne 承担, Dockerfile 跑 gunicorn WSGI。
+#   2026-09-18: 自动部署 webhook 接收器 (apps/django/webhook/ats_deploy_webhook.py)
+#   由 ats-deploy-infra 的 ats-webhook.service 以 `python -m uvicorn` 拉起,
+#   故重新加入 uvicorn + fastapi。接收器是部署编排的一部分, 仅部署机 host .venv 用到,
+#   镜像内也装但无副作用。pydantic/starlette 为 fastapi 传递依赖, 一并锁定防漂移。
 gunicorn==26.0.0
 whitenoise==6.12.0
+uvicorn==0.53.0
+fastapi==0.141.1
+pydantic==2.13.5
+starlette==1.6.0
 
 # === Third-party SaaS (V2 add-candidate) ===
 # apps/add_candidate/services/resume_parser.py 用它做简历解析

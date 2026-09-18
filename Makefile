@@ -5,7 +5,7 @@
 
 SHELL := /bin/zsh
 .DEFAULT_GOAL := help
-.PHONY: help install backend web up down logs clean status
+.PHONY: help install backend web clean status
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -28,16 +28,10 @@ web:  ## Run Vue frontend on :5212
 	cd web/app && pnpm dev
 
 # ────── Docker stack ──────
-
-up:  ## Bring up the full stack via docker-compose
-	docker compose -f ops/docker-compose.yml up -d
-	@echo "✓ Stack up. Backend :5125 (gunicorn in container)  Frontend :9908 (nginx → 80 in container)"
-
-down:  ## Stop the stack
-	docker compose -f ops/docker-compose.yml down
-
-logs:  ## Tail logs from all services
-	docker compose -f ops/docker-compose.yml logs -f
+# 部署编排 (docker-compose / Dockerfile / nginx.conf / webhook 接收器 / systemd unit)
+# 已迁移到独立仓库 ats-deploy-infra (https://gitee.com/loki126/ats-deploy-infra.git)。
+# 本仓库只含业务代码, 不再跟踪任何运维/部署文件。本地开发用上面的 backend / web;
+# 生产部署 (含 Gitee webhook 自动部署) 全部走 ats-deploy-infra, 详见其 README。
 
 # ────── Quality ──────
 
