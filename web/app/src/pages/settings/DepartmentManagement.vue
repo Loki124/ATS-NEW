@@ -309,6 +309,9 @@ watch(departments, (list) => {
   expandedKeys.value = Array.from(parentIds);
 });
 
+// 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
+const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+
 // 启用/停用筛选变化即重新拉取
 watch(statusFilter, () => loadDepartments());
 
@@ -332,9 +335,6 @@ const levelMap = computed<Record<string, number>>(() => {
   return map;
 });
 const searchKeyword = ref('');
-
-// 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
-const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
 const formState = reactive({
   code: '',
