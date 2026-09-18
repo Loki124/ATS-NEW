@@ -417,7 +417,7 @@ const closeUserModal = () => {
 // 创建用户
 const handleCreateUser = async () => {
   try {
-    const data = await request('/api/v1/auth/users', {
+    const data = await request('/api/v1/users/', {
       method: 'POST',
       body: JSON.stringify(formState)
     });
