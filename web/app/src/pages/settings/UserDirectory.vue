@@ -133,7 +133,7 @@
 </div>
 </template>
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, h } from 'vue';
+import { ref, reactive, onMounted, computed, h, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStore } from '../../stores/user';
 import {
