@@ -129,10 +129,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'onboarding', name: 'OnboardingSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
-          // ===== 北森风格重构：用户管理子页（内部/外部/全部用户），按路由 meta.userDirectoryMode 差异化渲染 =====
-          { path: 'users/internal', name: 'UserDirectoryInternal', component: () => import(/* webpackChunkName: "settings-users-internal" */ '../pages/settings/UserDirectory.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'], userDirectoryMode: 'internal' } },
-          { path: 'users/external', name: 'UserDirectoryExternal', component: () => import(/* webpackChunkName: "settings-users-external" */ '../pages/settings/UserDirectory.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'], userDirectoryMode: 'external' } },
-          { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'], userDirectoryMode: 'all' } },
+          // ===== 用户管理：内部/外部/全部已整合为单一页面（user_type 字段区分），默认展示全部用户 =====
+          { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
           { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: ['SUPER_ADMIN'] } },
           // 2026-07-01 花无缺: 删 /settings/permission 路由 + 删 PermissionManagement.vue (G41 重构合并到 MouManagement 角色管理 tab)
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
