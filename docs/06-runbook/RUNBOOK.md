@@ -249,7 +249,7 @@ git checkout <last-green-sha>  # 重建 venv, 重 migrate
 - **HTTPS**: Cloudflare Tunnel (`ats.lokisong.cloud` → `127.0.0.1:8000`)
 - **生产数据库**: MySQL 8 (强依赖, dev/test SQLite 兜底)
 - **生产缓存**: Redis 7 (Celery broker + Channels layer + 限流, 强依赖)
-- **Docker Compose**: `ops/docker-compose.yml` 已修 R4 (0720247)，含 mysql + redis + backend
+- **Docker Compose**: 部署编排（docker-compose / Dockerfile / nginx.conf / webhook 接收器 / systemd unit）已迁移到独立仓库 **[ats-deploy-infra](https://gitee.com/loki126/ats-deploy-infra.git)**，本仓库不再跟踪 `ops/`。生产栈的 R4 修复（mysql+redis+backend，0720247）现位于该仓库 `compose/docker-compose.yml`。
 
 ---
 
