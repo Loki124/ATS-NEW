@@ -84,26 +84,41 @@
     <n-modal
       v-model:show="unitModalVisible"
       preset="card"
-      :title="editingUnit ? '编辑管理单元' : '新建管理单元'"
       :style="{ width: '900px' }"
       :mask-closable="false"
     >
-      <template #header-extra>
-        <n-button size="small" :disabled="!detailUnit" @click="openViewAuth">查看授权用户</n-button>
+      <template #header>
+        <div v-if="editingUnit" class="unit-detail-header">
+          <div class="unit-title-row">
+            <h2 class="unit-name">{{ unitForm.unitName }}</h2>
+            <n-space>
+              <n-button size="small" @click="openBasicInfoEdit">编辑基本信息</n-button>
+              <n-button size="small" type="primary" @click="openViewAuth">查看授权用户</n-button>
+            </n-space>
+          </div>
+          <div class="unit-meta-row">
+            <span class="meta-item"><label>上级管理单元</label><span class="meta-value">{{ parentUnitName }}</span></span>
+            <span class="meta-item"><label>编码</label><span class="meta-value">{{ unitForm.code || '—' }}</span></span>
+            <span class="meta-item"><label>显示顺序</label><span class="meta-value">{{ unitForm.displayOrder ?? 0 }}</span></span>
+            <span class="meta-item"><label>说明</label><span class="meta-value">{{ unitForm.description || '—' }}</span></span>
+          </div>
+        </div>
+        <span v-else class="modal-title">{{ editingUnit ? '编辑管理单元' : '新建管理单元' }}</span>
       </template>
       <n-form :model="unitForm" label-placement="top">
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item label="单元名称" required>
-              <n-input v-model:value="unitForm.unitName" placeholder="如：华东大区" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="编码">
-              <n-input v-model:value="unitForm.code" placeholder="如：EAST-CHINA（选填）" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <template v-if="!editingUnit">
+          <n-grid :cols="2" :x-gap="16">
+            <n-grid-item>
+              <n-form-item label="单元名称" required>
+                <n-input v-model:value="unitForm.unitName" placeholder="如：华东大区" />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="编码">
+                <n-input v-model:value="unitForm.code" placeholder="如：EAST-CHINA（选填）" />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
             <n-form-item label="单元类型">
@@ -130,6 +145,7 @@
         <n-form-item label="说明">
           <n-input v-model:value="unitForm.description" type="textarea" :rows="2" placeholder="选填" />
         </n-form-item>
+        </template>
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
             <n-form-item label="状态">
@@ -222,6 +238,47 @@
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="unitModalVisible = false">取消</n-button>
           <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">保存</n-button>
+        </div>
+      </template>
+    </n-modal>
+
+    <!-- 编辑基本信息 弹窗 -->
+    <n-modal
+      v-model:show="basicInfoModalVisible"
+      preset="card"
+      title="编辑基本信息"
+      :style="{ width: '560px' }"
+      :mask-closable="false"
+    >
+      <n-form :model="basicInfoForm" label-placement="top">
+        <n-form-item label="名称" required>
+          <n-input v-model:value="basicInfoForm.unitName" placeholder="如：华东大区" />
+        </n-form-item>
+        <n-form-item label="编码">
+          <n-input v-model:value="basicInfoForm.code" placeholder="如：EAST-CHINA（选填）" />
+        </n-form-item>
+        <n-form-item label="上级管理单元">
+          <n-tree-select
+            v-model:value="basicInfoForm.parentId"
+            :options="parentOptions"
+            clearable
+            placeholder="不选 = 根单元"
+            :default-expand-all="true"
+            key-field="value"
+            label-field="label"
+          />
+        </n-form-item>
+        <n-form-item label="显示顺序">
+          <n-input-number v-model:value="basicInfoForm.displayOrder" :min="0" style="width: 100%" />
+        </n-form-item>
+        <n-form-item label="说明">
+          <n-input v-model:value="basicInfoForm.description" type="textarea" :rows="2" placeholder="选填" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+          <n-button @click="basicInfoModalVisible = false">取消</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="basicInfoSaving" @click="onSaveBasicInfo">保存</n-button>
         </div>
       </template>
     </n-modal>
@@ -505,6 +562,12 @@ function unitNameById(id: string): string | undefined {
   return allUnits.value.find((u) => String(u.id) === id)?.unitName
 }
 
+// 弹窗标题区的「上级管理单元」只读展示
+const parentUnitName = computed(() => {
+  if (!unitForm.parentId) return '—'
+  return allUnits.value.find((u) => String(u.id) === String(unitForm.parentId))?.unitName || String(unitForm.parentId)
+})
+
 // n-tree-select 选项（构建层级，排除正在编辑的节点及其后代以防水环）
 const parentOptions = computed(() => {
   const blockId = editingUnit.value?.id
@@ -569,6 +632,15 @@ const unitForm = reactive({
 
 const orgScopeModalVisible = ref(false)
 const dataRangeModalVisible = ref(false)
+const basicInfoModalVisible = ref(false)
+const basicInfoSaving = ref(false)
+const basicInfoForm = reactive({
+  unitName: '',
+  code: '',
+  parentId: null as string | number | null,
+  displayOrder: 0 as number,
+  description: '',
+})
 
 function deptNameById(id: string): string {
   return deptStore.departments.find((d: any) => String(d.id) === String(id))?.name || String(id)
@@ -665,6 +737,50 @@ function openUnitModal(n: ManagementUnit) {
   })
   unitModalVisible.value = true
   loadDetailMembers(n)
+}
+
+/** 打开「编辑基本信息」弹窗，回填当前单元基础字段 */
+function openBasicInfoEdit() {
+  Object.assign(basicInfoForm, {
+    unitName: unitForm.unitName,
+    code: unitForm.code,
+    parentId: unitForm.parentId,
+    displayOrder: unitForm.displayOrder,
+    description: unitForm.description,
+  })
+  basicInfoModalVisible.value = true
+}
+
+/** 保存「编辑基本信息」弹窗中的基础字段（名称/编码/上级/显示顺序/说明） */
+async function onSaveBasicInfo() {
+  if (!basicInfoForm.unitName.trim()) {
+    message.warning('单元名称必填')
+    return
+  }
+  basicInfoSaving.value = true
+  try {
+    const payload = {
+      unitName: basicInfoForm.unitName.trim(),
+      code: basicInfoForm.code.trim() || null,
+      parentId: basicInfoForm.parentId ? Number(basicInfoForm.parentId) : null,
+      displayOrder: basicInfoForm.displayOrder ?? 0,
+      description: basicInfoForm.description.trim() || null,
+    }
+    await updateManagementUnit(unitForm.id, payload)
+    message.success('已更新')
+    basicInfoModalVisible.value = false
+    Object.assign(unitForm, payload)
+    await loadUnits()
+    const updated = allUnits.value.find((u) => String(u.id) === unitForm.id)
+    if (updated) {
+      editingUnit.value = updated
+      detailUnit.value = updated
+    }
+  } catch (e: any) {
+    message.error('保存失败: ' + (e?.response?.data?.message || e?.message || e))
+  } finally {
+    basicInfoSaving.value = false
+  }
 }
 
 async function onSaveUnit() {
@@ -1248,5 +1364,48 @@ onMounted(() => {
 }
 .detail-empty {
   margin-top: var(--space-2);
+}
+/* 编辑管理单元弹窗 — 标题区只读摘要 + 操作按钮 */
+.unit-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+.unit-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.unit-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+.unit-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.meta-item label {
+  color: var(--color-text-tertiary);
+}
+.meta-value {
+  color: var(--color-text-primary);
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
 }
 </style>
