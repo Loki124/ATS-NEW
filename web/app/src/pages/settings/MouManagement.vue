@@ -589,9 +589,16 @@ const parentOptions = computed(() => {
     const collect = (nodes: ManagementUnitTreeNode[]) => {
       for (const n of nodes) {
         if (String(n.id) === String(blockId)) {
-          n.children?.forEach((c) => blocked.add(String(c.id)))
-        } else {
-          n.children?.forEach(collect)
+          // 阻断被编辑节点及其全部后代，防止形成环
+          const addDescendants = (children: ManagementUnitTreeNode[]) => {
+            for (const c of children) {
+              blocked.add(String(c.id))
+              if (c.children?.length) addDescendants(c.children)
+            }
+          }
+          if (n.children?.length) addDescendants(n.children)
+        } else if (n.children?.length) {
+          collect(n.children)
         }
       }
     }
