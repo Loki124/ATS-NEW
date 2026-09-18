@@ -167,6 +167,45 @@
           </div>
         </template>
       </n-modal>
+
+      <!-- 部门详情抽屉：列表隐藏的编号/ID/负责人2/分管VP 等在此完整展示 -->
+      <n-drawer v-model:show="detailVisible" :width="520" placement="right">
+        <n-drawer-content title="部门详情" :native-scrollbar="false">
+          <n-descriptions
+            v-if="detailDept"
+            label-placement="left"
+            bordered
+            :column="1"
+            size="medium"
+          >
+            <n-descriptions-item label="部门名称">{{ detailDept.name }}</n-descriptions-item>
+            <n-descriptions-item label="部门编号">{{ detailDept.code }}</n-descriptions-item>
+            <n-descriptions-item label="部门ID">
+              <span style="font-family: monospace; font-size: 12px; color: #8c8c8c">{{ detailDept.id }}</span>
+            </n-descriptions-item>
+            <n-descriptions-item label="上级部门">
+              <span v-if="detailDept.parentId">{{ getParentName(detailDept) }}</span>
+              <n-tag v-else type="warning" size="small">顶级</n-tag>
+            </n-descriptions-item>
+            <n-descriptions-item label="部门层级">
+              <n-tag type="info" size="small" :bordered="false">第 {{ levelMap[detailDept.id] || 1 }} 级</n-tag>
+            </n-descriptions-item>
+            <n-descriptions-item label="部门负责人">{{ getUserName(detailDept.managerId) || '—' }}</n-descriptions-item>
+            <n-descriptions-item label="部门负责人 2">{{ getUserName(detailDept.manager2Id) || '—' }}</n-descriptions-item>
+            <n-descriptions-item label="部门 HRBP">{{ getUserName(detailDept.hrbpId) || '—' }}</n-descriptions-item>
+            <n-descriptions-item label="分管 VP">{{ getUserName(detailDept.manager3Id) || '—' }}</n-descriptions-item>
+            <n-descriptions-item label="状态">
+              <n-tag :type="detailDept.status === 'INACTIVE' ? 'default' : 'success'" size="small">
+                {{ detailDept.status === 'INACTIVE' ? '停用' : '启用' }}
+              </n-tag>
+            </n-descriptions-item>
+            <n-descriptions-item label="排序值">{{ detailDept.sortOrder ?? '—' }}</n-descriptions-item>
+            <n-descriptions-item label="组织路径">{{ detailDept.path || '—' }}</n-descriptions-item>
+            <n-descriptions-item label="创建时间">{{ formatTime(detailDept.createdAt) }}</n-descriptions-item>
+            <n-descriptions-item label="更新时间">{{ formatTime(detailDept.updatedAt) }}</n-descriptions-item>
+          </n-descriptions>
+        </n-drawer-content>
+      </n-drawer>
     </div>
   </div>
 </template>
@@ -180,6 +219,7 @@ import {
   RefreshOutline,
   PersonOutline,
   SearchOutline,
+  ChevronForwardOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -201,6 +241,10 @@ import {
   NDivider,
   NCard,
   NTooltip,
+  NDrawer,
+  NDrawerContent,
+  NDescriptions,
+  NDescriptionsItem,
   useMessage,
 } from 'naive-ui';
 import api from '../../api/auth';
@@ -240,6 +284,14 @@ const submitting = ref(false);
 const deptModalVisible = ref(false);
 const editingDept = ref<Department | null>(null);
 
+// 详情抽屉（点击部门名称打开，展示完整字段：编号/ID/负责人2/分管VP 等列表隐藏项）
+const detailVisible = ref(false);
+const detailDept = ref<Department | null>(null);
+const openDetail = (row: Department) => {
+  detailDept.value = row;
+  detailVisible.value = true;
+};
+
 // 树形表格展开状态：default-expand-all 对异步加载的数据不生效（仅首次挂载读取），
 // 改为受控 expanded-keys，数据到达后默认展开所有含子部门的节点
 const expandedKeys = ref<string[]>([]);
@@ -249,6 +301,26 @@ watch(departments, (list) => {
     if (d.parentId) parentIds.add(d.parentId);
   }
   expandedKeys.value = Array.from(parentIds);
+});
+
+// 部门层级：根据 parentId 链计算深度（顶级部门 = 第 1 级）
+const levelMap = computed<Record<string, number>>(() => {
+  const map: Record<string, number> = {};
+  const byId = new Map(departments.value.map((d) => [d.id, d]));
+  for (const d of departments.value) {
+    let level = 1;
+    let cur: Department | undefined = d;
+    const seen = new Set<string>();
+    while (cur?.parentId && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      const parent = byId.get(cur.parentId);
+      if (!parent) break;
+      level++;
+      cur = parent;
+    }
+    map[d.id] = level;
+  }
+  return map;
 });
 const searchKeyword = ref('');
 
@@ -505,26 +577,34 @@ const renderParent = (record: Department) => {
   return h('span', {}, `${parent.name} (${parent.code})`);
 };
 
+// 详情抽屉用：父级名称字符串
+const getParentName = (dept: Department): string => {
+  if (!dept.parentId) return '';
+  const p = departments.value.find(d => d.id === dept.parentId);
+  return p ? `${p.name} (${p.code})` : '';
+};
+
+const formatTime = (t?: string): string => {
+  if (!t) return '—';
+  const d = new Date(t);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN', { hour12: false });
+};
+
 const columns = computed(() => [
-  {
-    title: '部门编号',
-    key: 'code',
-    width: 140,
-  },
-  {
-    title: '部门ID',
-    key: 'id',
-    width: 220,
-    render: (row: Department) =>
-      h(NTooltip, null, {
-        trigger: () => h('span', { style: 'font-family: monospace; color: #8c8c8c; font-size: 12px' }, row.id.slice(0, 8) + '…'),
-        default: () => row.id,
-      }),
-  },
   {
     title: '部门名称',
     key: 'name',
-    width: 180,
+    width: 200,
+    render: (row: Department) =>
+      h(
+        NButton,
+        { text: true, type: 'primary', size: 'small', onClick: () => openDetail(row) },
+        {
+          default: () => row.name,
+          icon: () => h(NIcon, { component: ChevronForwardOutline }),
+        }
+      ),
   },
   {
     title: '上级部门',
@@ -533,16 +613,19 @@ const columns = computed(() => [
     render: (row: Department) => renderParent(row),
   },
   {
+    title: '部门层级',
+    key: 'level',
+    width: 100,
+    render: (row: Department) => {
+      const lvl = levelMap.value[row.id] || 1;
+      return h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => `第 ${lvl} 级` });
+    },
+  },
+  {
     title: '部门负责人',
     key: 'managerId',
     width: 130,
     render: (row: Department) => renderUser(row.managerId),
-  },
-  {
-    title: '部门负责人 2',
-    key: 'manager2Id',
-    width: 130,
-    render: (row: Department) => renderUser(row.manager2Id),
   },
   {
     title: '部门 HRBP',
@@ -551,17 +634,12 @@ const columns = computed(() => [
     render: (row: Department) => renderUser(row.hrbpId),
   },
   {
-    title: '分管 VP',
-    key: 'manager3Id',
-    width: 130,
-    render: (row: Department) => renderUser(row.manager3Id),
-  },
-  {
     title: '状态',
     key: 'status',
     width: 90,
     render: (row: Department) => {
-      // 后端 status 为 write_only 不回传，须由 isActive 布尔换算，否则渲染空 label tag
+      // 后端 status 现已由 is_active 反推为 'ACTIVE'/'INACTIVE' 输出；
+      // 保留 isActive 兜底以防旧缓存
       const status = row.status || (row.isActive === false ? 'INACTIVE' : 'ACTIVE');
       const map: Record<string, { type: any; label: string }> = {
         ACTIVE: { type: 'success', label: '启用' },

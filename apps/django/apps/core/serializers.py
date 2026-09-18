@@ -221,8 +221,11 @@ class DepartmentSerializer(serializers.ModelSerializer):
     )
     children_count = serializers.SerializerMethodField()
 
-    # FE 习惯字段名：status 字符串 -> is_active
-    status = serializers.CharField(write_only=True, required=False)
+    # FE 习惯字段名：status 字符串 <-> is_active
+    # 用 SerializerMethodField 在读取时由 is_active 反推 'ACTIVE'/'INACTIVE' 输出，
+    # 写入时由 to_internal_value 从原始 data 读 status 映射到 is_active。
+    # （此前 status 为 write_only，GET 永不回传 -> 前端状态列恒空/恒启用，已修复）
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Department
@@ -234,15 +237,19 @@ class DepartmentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'path', 'created_at', 'updated_at', 'children_count']
 
+    def get_status(self, obj):
+        return 'ACTIVE' if obj.is_active else 'INACTIVE'
+
     def get_children_count(self, obj):
         return obj.children.count()
 
     def to_internal_value(self, data):
+        # SerializerMethodField 不在 super().to_internal_value 处理范围内，
+        # 故从原始 data 读取 FE 发来的 status='ACTIVE'/'INACTIVE' -> is_active
+        raw_status = data.get('status') if isinstance(data, dict) else None
         converted = super().to_internal_value(data)
-        # FE 发 status='ACTIVE'/'INACTIVE' -> is_active
-        status = converted.pop('status', None)
-        if status is not None:
-            converted['is_active'] = status == 'ACTIVE'
+        if raw_status is not None:
+            converted['is_active'] = raw_status == 'ACTIVE'
         return converted
 
 
