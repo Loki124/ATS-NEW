@@ -7,20 +7,23 @@
     :mask-closable="false"
   >
     <div class="org-scope-body">
-      <div class="org-scope-tree">
-        <n-tree
-          v-if="treeOptions.length"
-          :data="treeOptions"
-          checkable
-          block-line
-          :default-expand-all="true"
-          :checked-keys="checkedKeys"
-          :render-label="renderTreeLabel"
-          @update:checked-keys="onChecked"
-        />
-        <n-empty v-else description="暂无部门数据" />
+      <div class="org-scope-tree glass-card">
+        <div class="os-title-bar"><span>选择组织</span></div>
+        <div class="panel-content">
+          <n-tree
+            v-if="treeOptions.length"
+            :data="treeOptions"
+            checkable
+            block-line
+            :default-expand-all="true"
+            :checked-keys="checkedKeys"
+            :render-label="renderTreeLabel"
+            @update:checked-keys="onChecked"
+          />
+          <n-empty v-else description="暂无部门数据" />
+        </div>
       </div>
-      <div class="org-scope-selected">
+      <div class="org-scope-selected glass-card">
         <div class="os-title-bar">
           <span>已选组织 ({{ checkedKeys.length }})</span>
           <n-button
@@ -33,28 +36,30 @@
             清空已选
           </n-button>
         </div>
-        <n-empty v-if="!checkedKeys.length" description="在左侧勾选部门" />
-        <template v-else>
-          <div class="os-table-header">
-            <span>组织编码</span>
-            <span>组织名称</span>
-            <span>上级组织</span>
-            <span>包含下级组织</span>
-          </div>
-          <div class="os-table-body">
-            <div v-for="id in checkedKeys" :key="id" class="os-table-row">
-              <span :title="deptCode(id)">{{ deptCode(id) }}</span>
-              <span :title="deptName(id)">{{ deptName(id) }}</span>
-              <span :title="parentName(id)">{{ parentName(id) }}</span>
-              <span>
-                <n-checkbox
-                  :checked="includeMap[id]"
-                  @update:checked="(v: boolean) => onInclude(id, v)"
-                />
-              </span>
+        <div class="panel-content">
+          <n-empty v-if="!checkedKeys.length" description="在左侧勾选部门" />
+          <template v-else>
+            <div class="os-table-header">
+              <span>组织编码</span>
+              <span>组织名称</span>
+              <span>上级组织</span>
+              <span>包含下级组织</span>
             </div>
-          </div>
-        </template>
+            <div class="os-table-body">
+              <div v-for="id in checkedKeys" :key="id" class="os-table-row">
+                <span :title="deptCode(id)">{{ deptCode(id) }}</span>
+                <span :title="deptName(id)">{{ deptName(id) }}</span>
+                <span :title="parentName(id)">{{ parentName(id) }}</span>
+                <span>
+                  <n-checkbox
+                    :checked="includeMap[id]"
+                    @update:checked="(v: boolean) => onInclude(id, v)"
+                  />
+                </span>
+              </div>
+            </div>
+          </template>
+        </div>
       </div>
     </div>
     <template #footer>
@@ -209,17 +214,23 @@ watch(
 
 <style scoped>
 .org-scope-body { display: flex; gap: var(--space-4); min-height: 320px; }
-.org-scope-tree {
-  flex: 1; border: 1px solid var(--color-border); border-radius: 8px;
-  padding: var(--space-2); overflow: auto; max-height: 360px;
-}
+.org-scope-tree,
 .org-scope-selected {
-  flex: 1; border: 1px solid var(--color-border); border-radius: 8px;
-  padding: var(--space-2); overflow: auto; max-height: 360px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  max-height: 360px;
+}
+.panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .os-title-bar {
   display: flex; align-items: center; justify-content: space-between;
   font-size: 13px; color: var(--color-text-secondary); margin-bottom: var(--space-2);
+  flex-shrink: 0;
 }
 .os-table-header,
 .os-table-row {
@@ -244,19 +255,20 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tree-label-row {
+/* render-label 在 naive-ui 子树中渲染，Vue scoped 属性不会落到这些动态节点上，
+   必须用 :deep() 穿透选中 */
+:deep(.tree-label-row) {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
-.select-sibling-btn {
-  opacity: 0;
+:deep(.select-sibling-btn) {
+  display: none;
   padding: 0 4px;
   height: 18px;
   font-size: 12px;
-  transition: opacity 0.2s;
 }
-:deep(.n-tree-node:hover) .select-sibling-btn {
-  opacity: 1;
+:deep(.n-tree-node:hover .select-sibling-btn) {
+  display: inline-flex;
 }
 </style>
