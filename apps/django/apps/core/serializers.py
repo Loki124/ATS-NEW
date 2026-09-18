@@ -187,6 +187,8 @@ class UserMinimalSerializer(serializers.ModelSerializer):
                 user_id=instance.pk, system_code='recruit',
             ).values_list('role_code', flat=True).first() or 'HR'
         )
+        # 2026-09-19: 用户类型字段接入列表 (前端「用户类型」列 + 客户端筛选依赖此字段)
+        ret['userType'] = instance.user_type
         ret['permissionMode'] = 'MOU'
         ret['wechatWorkUserId'] = ''
         ret['wechatWorkDeptId'] = ''
