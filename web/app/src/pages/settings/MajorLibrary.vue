@@ -6,12 +6,6 @@
     </div>
 
     <div class="data-body">
-      <div class="kpi-row">
-        <div class="kpi-card"><span class="kpi-label">专业总数</span><span class="kpi-value">{{ rows.length }}</span></div>
-        <div class="kpi-card"><span class="kpi-label">门类数</span><span class="kpi-value">{{ facets.disciplines.length }}</span></div>
-        <div class="kpi-card"><span class="kpi-label">专业类数</span><span class="kpi-value">{{ facets.categories.length }}</span></div>
-      </div>
-
       <n-card class="lib-card">
         <template #header-extra>
           <n-button :loading="loading" @click="reload">刷新</n-button>
@@ -293,7 +287,7 @@ onMounted(() => {
 
 <style scoped>
 /* 「只滚数据列表行内」布局链（与 CodeTableLibrary / CampusControl 同款）：
-   .data-body 填高、不滚动；kpi-row 与 filter 固定；仅 .table-wrap 内 n-data-table 表体内部滚动。
+   .data-body 填高、不滚动；filter 固定；仅 .table-wrap 内 n-data-table 表体内部滚动。
    内层用 .data-body 而非 .page-body，规避 SettingsLayout 对 .page-body 的 overflow:auto!important 强制。 */
 .page-container {
   display: flex;
