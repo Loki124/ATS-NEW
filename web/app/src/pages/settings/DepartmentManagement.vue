@@ -55,6 +55,7 @@
         :style="{ width: '720px', maxHeight: '88vh' }"
         :mask-closable="false"
         :centered="true"
+        :auto-focus="false"
       >
         <div class="dept-modal-scroll" style="max-height: calc(88vh - 132px); overflow-y: auto; padding-right: 8px">
         <n-form :model="formState" label-placement="top">
@@ -174,7 +175,7 @@
       </n-modal>
 
       <!-- 部门详情抽屉：列表隐藏的编号/ID/负责人2/分管VP 等在此完整展示 -->
-      <n-drawer v-model:show="detailVisible" :width="520" placement="right">
+      <n-drawer v-model:show="detailVisible" :width="520" placement="right" :auto-focus="false">
         <n-drawer-content title="部门详情" :native-scrollbar="false">
           <n-descriptions
             v-if="detailDept"
