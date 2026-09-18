@@ -156,7 +156,7 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
 
 ### 4.x 表格分页统一组件（useTablePagination）
 
-**规则（2026-09-16 兵哥指令「表格分页统一组件」后新增）**：设置页 / 列表页所有 `n-data-table` 的分页配置，**必须**走 `web/app/src/composables/useTablePagination.ts` 工厂，禁止在页面里手写散落的 inline `{ pageSize: N }` 或各自维护的远程 `computed`。
+**规则（2026-09-16 兵哥指令「表格分页统一组件」后新增，2026-09-18 据截图规范补全外观）**：设置页 / 列表页所有 `n-data-table` 的分页配置，**必须**走 `web/app/src/composables/useTablePagination.ts` 工厂，禁止在页面里手写散落的 inline `{ pageSize: N }` 或各自维护的远程 `computed`。
 
 - **统一来源**：
 
@@ -166,27 +166,44 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
   // 本地分页（一次性取全量，n-data-table 前端切片）
   :pagination="localPagination()"            // 默认每页 TABLE_PAGE_SIZE = 20
 
-  // 远程分页（服务端分页，page / itemCount 由调用方响应式维护）
-  const pagination = remotePagination({ page: pageRef, itemCount: totalRef, pageSize: 50 });
+  // 远程分页（服务端分页，page / itemCount 由调用方响应式维护；size picker 开启后需把 page_size 透传后端）
+  const pagination = remotePagination({
+    page: pageRef, itemCount: totalRef,
+    showSizePicker: true,
+    onPageSizeChange: (s) => { pageRef.value = 1; loadData(); },  // s 已自动写回 pageSizeRef
+  });
   :pagination="pagination"
   :remote="true"
   ```
+
+- **统一外观（强制，与团队截图规范一致）**：每个分页器必须呈现
+  `共 N 条` &nbsp;|&nbsp; `< 1 2 3 >` &nbsp;|&nbsp; `[20 / 页 ▾]` &nbsp;|&nbsp; `跳至 [__]`
+  - `共 N 条`：由 composable 的 `prefix` 渲染（n-data-table / n-pagination 透传 `itemCount`）；
+  - `页码`：默认首屏，连续页码 + 前后翻页箭头；
+  - `20 / 页`：必须 `showSizePicker: true` + `pageSizes`（下拉可选项 `[10, 20, 50, 100]`）；
+  - `跳至`：必须 `showQuickJumper: true`。
+  - 上述四项均由 `localPagination()` / `remotePagination()` 统一注入，**业务页不得省略或覆盖**。
 
 - **强制项**：
 
   | | |
   |---|---|
   |默认每页条数|`TABLE_PAGE_SIZE = 20`（统一，禁止各页自定 15/30/50 等不现值）|
-  |pageSize 可选项|`TABLE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100]`（统一，由 composable 注入）|
+  |pageSize 可选项|`TABLE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100]`（统一，由 composable 注入 `pageSizes`）|
+  |每页选择器|`showSizePicker: true`（统一，禁止关掉）|
+  |跳至|`showQuickJumper: true`（统一，禁止关掉）|
+  |总条数前缀|`prefix: 共 N 条`（统一，由 composable 注入）|
   |本地分页|`localPagination()`，禁止 `{ pageSize: 30 }` 之类 inline 对象|
   |远程分页|`remotePagination({ page, itemCount, ... })`，禁止页面内自写远程 `computed`（`itemCount` 是 n-data-table 远程分页字段，**非** `total`）|
   |远程 `itemCount`|远程分页必须用 `itemCount`（n-data-table 语义），`remotePagination` 已对齐；误用 `total` 会导致分页器总条数缺失|
+  |远程 size 透传|远程分页开启 `showSizePicker` 后，必须在 `onPageSizeChange` 里把新 `page_size` 传给后端拉取（否则显示条数与后端返回不一致、itemCount 错位）|
 
 - **页面级红线**：
-  - scoped / `<script>` 内**禁止**出现 `{ pageSize: <数字> }` 字面量（grep 自检：`grep -n 'pageSize:' <file>` 仅允许出现在 `useTablePagination.ts` 内部）；
-  - **禁止**页面自维护远程分页 `computed`（如旧 `regionPagination = computed(() => ({ page, pageSize:50, itemCount, showSizePicker:false }))`）——收口为 `remotePagination()`。
-- **自检**：设置页 / 列表页分页器每页条数实测 = 20（或显式 `pageSize` 覆盖值），pageSize 下拉选项 = `[10,20,50,100]`；`grep -rn 'pageSize:' web/app/src/pages` 除 `useTablePagination.ts` 外无命中。
-- **落地范围（2026-09-16）**：CodeTableLibrary（region 远程改 `remotePagination`、5 个本地表改 `localPagination()`）、CompanyLibrary、SchoolLibrary（各 inline `{pageSize:15}` 改 `localPagination()`）。
+  - scoped / `<script>` 内**禁止**出现 `{ pageSize: <数字> }` 字面量（grep 自检：`grep -rn 'pageSize:' web/app/src/pages` 仅允许出现在 `useTablePagination.ts` 内部）；
+  - **禁止**页面自维护远程分页 `computed`（如旧 `regionPagination = computed(() => ({ page, pageSize:50, itemCount, showSizePicker:false }))`）——收口为 `remotePagination()`；
+  - **禁止**在 `n-data-table` 上写 `:pagination="{ pageSize: 20, showSizePicker: ... }"` 散落对象——必须引用 composable 返回值。
+- **自检**：设置页 / 列表页分页器实测——① 每页条数 = 20（或显式 `pageSize` 覆盖值）；② `20 / 页` 下拉选项 = `[10,20,50,100]`；③ 含「跳至」输入框；④ 左侧显示「共 N 条」；⑤ `grep -rn 'pageSize:' web/app/src/pages` 除 `useTablePagination.ts` 外无命中。
+- **落地范围（2026-09-16 初建 / 2026-09-18 外观补全）**：CodeTableLibrary（region 远程改 `remotePagination`、5 个本地表改 `localPagination()`）、CompanyLibrary、SchoolLibrary（各 inline `{pageSize:15}` 改 `localPagination()`）；2026-09-18 `useTablePagination` 增补 `showQuickJumper` / `pageSizes` / `prefix(共N条)`，region 远程 `pageSize 50→20` 且 `page_size` 透传后端。
 
 ## 5. 多 tab 看板（CampusControl 范式）
 
@@ -309,3 +326,11 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **§3.1 重写**：由「吸顶 header 玻璃磨砂（禁止纯透明 sticky）」改为「标题栏无底色 + 模型 B 结构避穿透（禁止给冻结 header 加背景色）」——撤销玻璃磨砂红线，改红线为「禁写任何 background / backdrop-filter」「禁 position:fixed」「禁用底色遮断替代结构修复」。
 - **§7 修订**：自检清单「模型二选一」「吸顶 header 玻璃磨砂」两项更新为「冻结+无底色必选模型 B」「标题栏无底色 + 模型 B 冻结」。
 - **影响**：四数据列表页即时合规（冻结+无底色+无穿透）。其余未迁移的 de-facto 页在迁移到模型 B 前，无底色下仍会有穿透（已知待办，建议后续批量迁移）。
+
+## 8.5 规范修订记录（2026-09-18，分页统一组件外观补全）
+
+- **背景**：兵哥截图指定统一分页器外观——`共 N 条` | `< 1 2 >` | `[20 / 页 ▾]` | `跳至 [__]`。此前 `useTablePagination` 仅给 `showSizePicker` + 错误 prop 名 `pageSizeOptions`，缺 `showQuickJumper` 与「共 N 条」前缀，且与截图不一致。
+- **代码（useTablePagination.ts）**：① 修正 prop 名 `pageSizeOptions` → `pageSizes`（naive-ui 正确字段）；② 统一注入 `showQuickJumper: true`；③ 新增 `prefix: 共 N 条` 渲染函数；④ 本地/远程两工厂均带上述三项。
+- **接线（CodeTableLibrary region 远程表）**：`pageSize` 由 50 统一为 20（`TABLE_PAGE_SIZE`）；`showSizePicker: true` + `onPageSizeChange` 开启每页选择器；`loadRegions` 透传 `page_size: regionPageSize.value`（否则显示条数与 `itemCount` 错位）；`@update:page="onRegionPageChange"` 已就绪，分页可控。
+- **§4.x 重写**：增「统一外观（强制）」段（含截图四要素说明）、强制项表补 `每页选择器 / 跳至 / 总条数前缀` 三项、页面级红线补「禁散落 `:pagination="{pageSize:20,...}"` 对象」、自检补 `跳至输入框 + 共N条` 两项、落地范围补 09-18 外观补全记录。
+- **影响**：CodeTableLibrary / CompanyLibrary / SchoolLibrary / DynamicDataLibrary 内嵌表全部呈现统一分页器（共N条 + 20/页 + 跳至）。其余散落 inline `pageSize` 的设置页后续按 §4.x 批量迁移。

@@ -221,7 +221,7 @@ import {
   fetchCurrencies, fetchIndustries,
   type Region, type Country, type Ethnicity, type Language, type Currency, type Industry,
 } from '@/api/codeTable';
-import { localPagination, remotePagination } from '@/composables/useTablePagination';
+import { localPagination, remotePagination, TABLE_PAGE_SIZE } from '@/composables/useTablePagination';
 
 const message = useMessage();
 const activeTab = ref('regions');
@@ -245,6 +245,7 @@ const provinces = ref<{ code: string; name: string }[]>([]);
 const cities = ref<{ code: string; name: string }[]>([]);
 const counties = ref<{ code: string; name: string }[]>([]);
 const regionPage = ref(1);
+const regionPageSize = ref(TABLE_PAGE_SIZE);
 const regionTotal = ref(0);
 
 const provinceOptions = computed(() => toOptions(provinces.value));
@@ -253,7 +254,12 @@ const countyOptions = computed(() => toOptions(counties.value));
 const regionPagination = remotePagination({
   page: regionPage,
   itemCount: regionTotal,
-  pageSize: 50,
+  showSizePicker: true,
+  onPageSizeChange: (s: number) => {
+    regionPageSize.value = s;
+    regionPage.value = 1;
+    loadRegions();
+  },
 });
 
 const regionColumns = [
@@ -275,6 +281,7 @@ async function loadRegions() {
       parentCode,
       keyword: regionKeyword.value || undefined,
       page: regionPage.value,
+      page_size: regionPageSize.value,
     });
     regionRows.value = res.data;
     regionTotal.value = res.pagination?.total ?? res.data.length;

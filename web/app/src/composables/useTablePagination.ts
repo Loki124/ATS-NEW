@@ -4,10 +4,16 @@
  * 设计意图（2026-09-16 兵哥指令「表格分页统一组件」）：
  * 此前各页散落 inline `{ pageSize: 30 }` / `{ pageSize: 15 }` / 远程 computed
  * 写法不一、每页自定页面大小，违反 UI 一致性。本 composable 提供唯一来源：
- *   - TABLE_PAGE_SIZE        统一默认每页条数
- *   - TABLE_PAGE_SIZE_OPTIONS 统一可选项
+ *   - TABLE_PAGE_SIZE        统一默认每页条数（20）
+ *   - TABLE_PAGE_SIZE_OPTIONS 统一 pageSize 可选项 [10, 20, 50, 100]
  *   - localPagination()      客户端分页（一次性取全量，n-data-table 自行切片）
  *   - remotePagination()     服务端分页（page / itemCount 由调用方响应式维护）
+ *
+ * 统一外观（与 docs/04-ui/SETTINGS_PAGE_STRUCTURE.md §4.x 截图规范一致）：
+ *   共 N 条  |  < 1 2 >  |  [20 / 页 ▾]  |  跳至 [__]
+ *   - showSizePicker: true  + pageSizes（切换每页条数）
+ *   - showQuickJumper: true（跳至第 N 页）
+ *   - prefix 渲染「共 N 条」
  *
  * ⚠️ n-data-table 远程分页用 itemCount（非 total）表达总条数 —— remotePagination 已对齐。
  * ⚠️ 禁止在业务页再手写 `{ pageSize: N }` 或远程 computed（见 docs/04-ui/SETTINGS_PAGE_STRUCTURE.md）。
@@ -20,6 +26,11 @@ export const TABLE_PAGE_SIZE = 20;
 /** 统一 pageSize 可选项 */
 export const TABLE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
+/** 分页前缀：渲染「共 N 条」（n-pagination / n-data-table 均透传 itemCount） */
+function totalPrefix(info: { itemCount?: number }): string {
+  return `共 ${info.itemCount ?? 0} 条`;
+}
+
 /**
  * 本地（客户端）分页配置。
  * 适用于一次性拉取全量、由 n-data-table 在前端切片展示的场景。
@@ -30,7 +41,9 @@ export function localPagination(pageSize: number = TABLE_PAGE_SIZE) {
     page: 1,
     pageSize,
     showSizePicker: true,
-    pageSizeOptions: TABLE_PAGE_SIZE_OPTIONS,
+    pageSizes: TABLE_PAGE_SIZE_OPTIONS,
+    showQuickJumper: true,
+    prefix: totalPrefix,
   };
 }
 
@@ -61,7 +74,9 @@ export function remotePagination(opts: {
     pageSize: pageSizeRef.value,
     itemCount: opts.itemCount.value,
     showSizePicker: enableSizePicker,
-    pageSizeOptions: TABLE_PAGE_SIZE_OPTIONS,
+    pageSizes: TABLE_PAGE_SIZE_OPTIONS,
+    showQuickJumper: true,
+    prefix: totalPrefix,
     ...(enableSizePicker && opts.onPageSizeChange
       ? {
           onUpdatePageSize: (size: number) => {
