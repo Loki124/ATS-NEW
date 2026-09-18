@@ -38,14 +38,14 @@ ROLE_META = [
 ]
 
 
-# (username, last_name, first_name, email, employee_id, phone, dept_code, is_super, is_staff)
+# (username, last_name, first_name, email, employee_id, phone, dept_name, is_super, is_staff)
 DEMO_USERS = [
-    ('hr_zhang',       '张', 'HR',    'hr.zhang@example.com', 'EMP-1001', '13800138001', 'ROOT',     False, True),
-    ('hrbp_liu',       '刘', 'HRBP',  'hrbp.liu@example.com', 'EMP-1002', '13800138002', 'TECH',     False, True),
-    ('hm_li',          '李', '经理',   'hm.li@example.com',   'EMP-2001', '13800138003', 'TECH',     False, False),
-    ('hm_wang',        '王', '经理',   'hm.wang@example.com', 'EMP-2002', '13800138004', 'PRODUCT',  False, False),
-    ('interview_zhao', '赵', '面试官', 'zhao@example.com',    'EMP-3001', '13800138005', 'TECH',     False, False),
-    ('interview_chen', '陈', '面试官', 'chen@example.com',    'EMP-3002', '13800138006', 'TECH',     False, False),
+    ('hr_zhang',       '张', 'HR',    'hr.zhang@example.com', 'EMP-1001', '13800138001', '集团总部',   False, True),
+    ('hrbp_liu',       '刘', 'HRBP',  'hrbp.liu@example.com', 'EMP-1002', '13800138002', '技术中心',   False, True),
+    ('hm_li',          '李', '经理',   'hm.li@example.com',   'EMP-2001', '13800138003', '技术中心',   False, False),
+    ('hm_wang',        '王', '经理',   'hm.wang@example.com', 'EMP-2002', '13800138004', '产品中心',   False, False),
+    ('interview_zhao', '赵', '面试官', 'zhao@example.com',    'EMP-3001', '13800138005', '技术中心',   False, False),
+    ('interview_chen', '陈', '面试官', 'chen@example.com',    'EMP-3002', '13800138006', '技术中心',   False, False),
 ]
 
 
@@ -150,20 +150,24 @@ class Command(BaseCommand):
         self.stdout.write('  - 面试官:      interview_zhao / Pass@1234  (已绑 INTERVIEWER → TMPL_INTERVIEWER)')
 
     def init_departments(self):
-        """4 个部门（树形）— V1 Department 保留给 User.department FK 用."""
+        """4 个部门（树形）— V1 Department 保留给 User.department FK 用.
+
+        按 name 定位部门 (不再按 code), 兼容部门编号已统一为 D###### 的情况;
+        新建部门由 Department.save() 自动生成 D###### 编号, 已存在部门不会被改号.
+        """
         from apps.core.models import Department
         root, _ = Department.objects.update_or_create(
-            code='ROOT',
+            name='集团总部',
             defaults={'name': '集团总部', 'sort_order': 0, 'path': '/集团总部', 'is_active': True},
         )
         children = [
-            ('TECH', '技术中心', 1),
-            ('PRODUCT', '产品中心', 2),
-            ('OPERATION', '运营中心', 3),
+            ('技术中心', 1),
+            ('产品中心', 2),
+            ('运营中心', 3),
         ]
-        for code, name, order in children:
+        for name, order in children:
             Department.objects.update_or_create(
-                code=code,
+                name=name,
                 defaults={
                     'name': name, 'sort_order': order,
                     'parent': root,
@@ -213,9 +217,9 @@ class Command(BaseCommand):
 
         default_pwd = 'Pass@1234'
         created = updated = 0
-        for (username, first, last, email, eid, phone, dept_code,
+        for (username, first, last, email, eid, phone, dept_name,
              is_super, is_staff) in DEMO_USERS:
-            dept = Department.objects.filter(code=dept_code).first()
+            dept = Department.objects.filter(name=dept_name).first()
             user, was_created = User.objects.get_or_create(
                 username=username,
                 defaults={
