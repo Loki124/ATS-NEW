@@ -221,7 +221,6 @@ class UserRoleV2(models.Model):
     system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
     management_unit_ids = models.JSONField(null=True, blank=True, verbose_name='管理单元ID列表(JSON)')
     app_data_scopes = models.JSONField(null=True, blank=True, default=dict, verbose_name='按应用的数据范围')
-    app_data_scopes = models.JSONField(null=True, blank=True, default=dict, verbose_name='按应用的数据范围')
     valid_from = models.DateField(null=True, blank=True, verbose_name='生效日期')
     valid_to = models.DateField(null=True, blank=True, verbose_name='失效日期')
     granted_by_id = models.BigIntegerField(null=True, blank=True, verbose_name='授权人ID')
