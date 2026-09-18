@@ -243,6 +243,7 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
   |跳至|`showQuickJumper: true`（统一，禁止关掉）|
   |总条数前缀|`prefix: 共 N 条`（统一，由 composable 注入）|
   |本地分页|`localPagination()`，禁止 `{ pageSize: 30 }` 之类 inline 对象|
+  |⚠️ 本地分页非受控|`localPagination()` **必须返回 `defaultPage` / `defaultPageSize`（非受控默认值）**，不得写受控 `page` / `pageSize` 固定值。受控写法下 naive-ui 把 `pageSize` 当受控 prop，「N / 页」选择器的 `update:pageSize` 无回写，选择器形同虚设（2026-09-18 实锤：`国家区号` 表选 50 无反应，改 `defaultPageSize` 后 Playwright 验证 20→50 行生效）。|
   |远程分页|`remotePagination({ page, itemCount, ... })`，禁止页面内自写远程 `computed`（`itemCount` 是 n-data-table 远程分页字段，**非** `total`）|
   |远程 `itemCount`|远程分页必须用 `itemCount`（n-data-table 语义），`remotePagination` 已对齐；误用 `total` 会导致分页器总条数缺失|
   |远程 size 透传|远程分页开启 `showSizePicker` 后，必须在 `onPageSizeChange` 里把新 `page_size` 传给后端拉取（否则显示条数与后端返回不一致、itemCount 错位）|
@@ -251,7 +252,7 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
   - scoped / `<script>` 内**禁止**出现 `{ pageSize: <数字> }` 字面量（grep 自检：`grep -rn 'pageSize:' web/app/src/pages` 仅允许出现在 `useTablePagination.ts` 内部）；
   - **禁止**页面自维护远程分页 `computed`（如旧 `regionPagination = computed(() => ({ page, pageSize:50, itemCount, showSizePicker:false }))`）——收口为 `remotePagination()`；
   - **禁止**在 `n-data-table` 上写 `:pagination="{ pageSize: 20, showSizePicker: ... }"` 散落对象——必须引用 composable 返回值。
-- **自检**：设置页 / 列表页分页器实测——① 每页条数 = 20（或显式 `pageSize` 覆盖值）；② `20 / 页` 下拉选项 = `[10,20,50,100]`；③ 含「跳至」输入框；④ 左侧显示「共 N 条」；⑤ `grep -rn 'pageSize:' web/app/src/pages` 除 `useTablePagination.ts` 外无命中。
+- **自检**：设置页 / 列表页分页器实测——① 每页条数 = 20（或显式 `pageSize` 覆盖值）；② `20 / 页` 下拉选项 = `[10,20,50,100]`；③ 含「跳至」输入框；④ 左侧显示「共 N 条」；⑤ **`20 / 页` 选择器实测可切换**（改 50 后实际渲染行数同步变为 50，非仅 UI 数字变化）；⑥ `grep -rn 'pageSize:' web/app/src/pages` 除 `useTablePagination.ts` 外无命中。
 - **落地范围（2026-09-16 初建 / 2026-09-18 外观补全）**：CodeTableLibrary（region 远程改 `remotePagination`、5 个本地表改 `localPagination()`）、CompanyLibrary、SchoolLibrary（各 inline `{pageSize:15}` 改 `localPagination()`）；2026-09-18 `useTablePagination` 增补 `showQuickJumper` / `pageSizes` / `prefix(共N条)`，region 远程 `pageSize 50→20` 且 `page_size` 透传后端。
 
 ## 5. 多 tab 看板（CampusControl 范式）
@@ -392,3 +393,11 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **验证**：另起独立 vite（端口 5277，避开 launchd 托管的 :5212 的 HMR 缓存）跑 Playwright 真机——`.data-body` 的 `overflow-y==='hidden'` 且 `scrollTop` 恒 0；滚轮滚表体后表体 `.n-scrollbar-container.scrollTop` 增大、`.page-header`/`.n-tabs-nav`/`.filter-row` 三者 `top` 恒定；ALL_PASS=true（2026-09-18）。
 - **§2.2 新增**：「数据列表页：仅表体内部滚动」条款，给出与 CampusControl 对齐的 DOM 模板 + scoped flex 链 + 红线（滚动链唯一真相、`min-height:0` 不可漏、`.table-wrap` 与 `flex-height` 必复用/必带、分页器保留）、自检（滚动时 header/tab 导航/筛选栏 `top` 恒定）。§7 自检清单补对应勾项。
 - **影响**：静态数据页标题/tab/筛选固定，仅表格行内滚动，与校招管控-规则配置页交互一致。其余多 tab 数据列表页（如需同交互）后续按 §2.2 迁移。
+
+## 8.7 规范修订记录（2026-09-18，「N / 页」每页选择器失效修复）
+
+- **背景**：兵哥截图实锤静态数据页「国家区号」表「20 / 页」选择器改了没反应。根因 = `localPagination()` 原返回受控写法 `page:1, pageSize:N` 固定值，naive-ui 把 `pageSize` 当受控 prop，「N / 页」选择器的 `update:pageSize` 无回写、`pageSize` 恒为初值，选择器形同虚设；且模板内 `localPagination()` 每次渲染新建对象，内部状态被反复打回。
+- **代码（useTablePagination.ts）**：`localPagination()` 改为非受控默认值 `defaultPage:1` / `defaultPageSize:pageSize`，naive-ui 自管页码与每页条数、本地切片自动跟随。`remotePagination()`（regions 远程表）保持受控 `page`/`pageSize` 不变（远程需回写后端）。
+- **验证**：另起独立 vite（5277）+ Playwright 真机——`国家区号`(本地 250 行) 默认渲染 20 行，点开 size picker 选「50」后渲染行数变为 50、trigger 显示「50 / 页」、prefix 仍「共 250 条」；ALL_PASS=true（2026-09-18）。一处修改，5 个本地表（国家区号/民族/语言/币种/行业）及 Company/School/DynamicData 内嵌表全部修复。
+- **§4.x 增补**：强制项表新增「⚠️ 本地分页非受控」红线（禁受控 `page`/`pageSize` 固定值）；自检项 ⑤ 新增「`20 / 页` 选择器实测可切换」（改 50 后实际渲染行数同步变为 50，非仅 UI 数字变化）——作为防回归硬门槛。
+- **影响**：所有走 `localPagination()` 的本地表「每页条数」选择器恢复可用。远程表（regions）本就经 `onPageSizeChange` 回写后端，不受影响。

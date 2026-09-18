@@ -34,12 +34,18 @@ function totalPrefix(info: { itemCount?: number }): string {
 /**
  * 本地（客户端）分页配置。
  * 适用于一次性拉取全量、由 n-data-table 在前端切片展示的场景。
- * @param pageSize 每页条数，默认 TABLE_PAGE_SIZE
+ *
+ * ⚠️ 必须用非受控写法 defaultPage / defaultPageSize（2026-09-18 修复）：
+ * 此前写受控 `page:1, pageSize:N` 固定值，naive-ui 视为受控 prop——
+ * 「N / 页」选择器 change 发出的 update:pageSize 无回写处理，prop 恒不变，
+ * 选择器形同虚设；且模板内 localPagination() 每次渲染新建对象，内部状态也会被打回。
+ * 非受控下 naive-ui 自管页码/每页条数，本地切片自动跟随。
+ * @param pageSize 每页条数（初始默认值），默认 TABLE_PAGE_SIZE
  */
 export function localPagination(pageSize: number = TABLE_PAGE_SIZE) {
   return {
-    page: 1,
-    pageSize,
+    defaultPage: 1,
+    defaultPageSize: pageSize,
     showSizePicker: true,
     pageSizes: TABLE_PAGE_SIZE_OPTIONS,
     showQuickJumper: true,
