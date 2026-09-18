@@ -61,6 +61,55 @@ scoped 仅需：
 
 > 模型 B 下 `.page-header` 是 `flex-shrink:0` 固定（非 sticky），但因为 `.page-body` 自己滚，标题视觉上始终可见，效果等同吸顶。
 
+### 2.2 数据列表页：仅表体内部滚动（tab / 筛选 / 标题全固定）
+
+适用：以「单页多 tab + 每个 tab 一个数据表」为主的交互页（如静态数据 / 校招管控-规则配置），产品要求**只滚数据列表行内**，标题行、tab 切换栏、筛选栏在滚动时全部固定不动。
+
+与 §2.1 的区别：§2.1 是「整页内容区（含 tab/筛选/表格）在 `.page-body` 内滚动」；本条款是**更严格**的变体——内层容器自身不滚动，tab 导航与筛选栏固定，仅 `n-data-table` 的表体（`flex-height`）内部滚动。范本 = `CampusControl.vue`（校招管控-规则配置页）。
+
+⚠️ **致命陷阱（实测踩中）**：`SettingsLayout.vue` 用 `.settings-scroll :deep(.page-body){flex:1 1 auto!important; min-height:0!important; overflow-y:auto!important}` 全局强制 `.page-body` 成为滚动容器。任何在 `.page-body` 上写 `overflow:hidden` 的尝试都会被这个 `!important` 覆盖，导致「只滚表格」失效、表体高度塌成 0。**因此本条款的内层容器绝不能用 `.page-body` 类名**，须改用 `.data-body`（透明、避开该 `!important`）或 `.glass-panel`（CampusControl 即此，但本页每 tab 已有 `n-card`，为避免玻璃套玻璃双重边框用透明 `.data-body`）。
+
+```html
+<div class="page-container">            <!-- flex column（SettingsLayout :deep 强制 display:flex!important; height:100%） -->
+  <div class="page-header"> ... </div>   <!-- flex-shrink:0，固定 -->
+  <div class="data-body">               <!-- flex:1; min-height:0; overflow:hidden（不滚动，避开 .page-body 的 !important） -->
+    <n-tabs class="data-tabs">           <!-- flex:1; min-height:0，撑满 data-body -->
+      <n-tab-pane>
+        <n-card class="tab-card">        <!-- flex:1; min-height:0，撑满 -->
+          <div class="filter-row"> ... </div>   <!-- flex-shrink:0，固定 -->
+          <div class="table-wrap">       <!-- 全局：flex:1; min-height:0 -->
+            <n-data-table flex-height .../>      <!-- 表体内部滚动 -->
+          </div>
+        </n-card>
+      </n-tab-pane>
+    </n-tabs>
+  </div>
+</div>
+```
+
+scoped 仅需（对齐 `CampusControl.vue`，已在 `CodeTableLibrary.vue` 真机验证 PASS）：
+
+```css
+.page-container { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.page-header { flex-shrink: 0; }
+/* 内层容器用 .data-body（非 .page-body），避开 SettingsLayout 的 overflow-y:auto!important 强制滚动 */
+.data-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.data-tabs { display: flex; flex-direction: column; flex: 1; min-height: 0; } /* 直接挂在 <n-tabs> 上 */
+.data-body :deep(.n-tabs-nav) { background: transparent; flex-shrink: 0; }
+.data-body :deep(.n-tabs-pane-wrapper) { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.data-body :deep(.n-tab-pane) { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.tab-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* ⚠️ naive-ui 该版本 n-card 内容包裹层类名是 .n-card-content（单下划线，非 .n-card__content）；
+   其默认 display:block，须改为 flex 列并 min-height:0，内部 .table-wrap(flex:1) 才能撑满卡片高度 */
+.tab-card :deep(.n-card-content) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.filter-row { flex-shrink: 0; }
+```
+
+- **滚动链唯一真相**：`.data-body`(overflow:hidden) → `.data-tabs`(flex:1) → `.n-tabs-pane-wrapper`(overflow:hidden) → `.n-tab-pane`(overflow:hidden) → `.tab-card`(flex:1) → `.n-card-content`(flex 列, min-height:0) → `.table-wrap`(flex:1;min-height:0, 全局) → `n-data-table[flex-height]`。任何一层漏写 `min-height:0` 都会让表格被内容撑高、失去内部滚动（naive-ui flex 链陷阱）。
+- **`.table-wrap` 必须复用全局类**（glass.css 阶段 F），禁止页面私有重写其 flex 链；`n-data-table` 必须带 `flex-height`，否则 `flex:1` 容器内的表高为 0 或被撑开。
+- **分页器保留**：`flex-height` + 内置/远程分页共存（CampusControl 规则表即如此）；分页 UI 仍走 `useTablePagination`（§4 强制外观）。
+- **自检**：滚动表格体时，`.page-header` / `.n-tabs-nav` / `.filter-row` 三者 `getBoundingClientRect().top` 恒定不变（不随表体滚动位移）；仅 `.n-data-table-base-table-body` 内部出现滚动条。可用 Playwright 实测：`.data-body` 的 `overflow-y==='hidden'` 且 `scrollTop` 恒为 0；wheel 滚表体后表体 `.n-scrollbar-container` 的 `scrollTop` 增大、上述三者 `top` 不变。
+
 ### ⚠️ 强制校验项（红线）
 
 - **`.page-body` 禁止声明 `padding` / `padding-top`**。顶部留白统一由外层 `.settings-scroll` 的 `padding: 20px` 提供（见 §2.1）。在 `.page-body` 上加 `padding-top` 会与 `.settings-scroll` 叠出多余顶部间隙，且与该规范唯一的模型 A 参考页（校招管控）顶部间距不一致。
@@ -276,6 +325,7 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - [ ] **分页统一组件**：所有 `n-data-table` 分页走 `useTablePagination`（`localPagination()` / `remotePagination()`），无 inline `{pageSize:N}`、无页面自维护远程 `computed`（§4.x）
 - [ ] 工具条是 `<div class="toolbar">`（非 `<n-card class="toolbar">`）
 - [ ] 表格包在 `<div class="table-wrap">` 内，scoped 无 .table-wrap 重复定义
+- [ ] **数据列表页「仅表体内部滚动」**：多 tab + 每 tab 一表的页，`.page-body` 为 `overflow:hidden` 的 flex 列（非整页滚）；`:deep(.n-tabs-nav)`/`.filter-row` 加 `flex-shrink:0` 固定；`n-data-table` 带 `flex-height`、外层 `.table-wrap`（flex:1;min-height:0）。滚动时 `.page-header`/tab 导航/筛选栏 `top` 恒定（§2.2）
 - [ ] 弹窗用 n-modal preset="card" + :bordered="false"，scoped 无居中/滚动重复定义
 - [ ] KPI 用 .kpi-row > .kpi-card；强调卡用 .kpi-card--accent（CSS 变量）；**不得私有重定义 .kpi-* 或硬编码 hex**
 - [ ] 主按钮用 gradient-btn 或 type="primary"，未私有重定义渐变
@@ -334,3 +384,11 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **接线（CodeTableLibrary region 远程表）**：`pageSize` 由 50 统一为 20（`TABLE_PAGE_SIZE`）；`showSizePicker: true` + `onPageSizeChange` 开启每页选择器；`loadRegions` 透传 `page_size: regionPageSize.value`（否则显示条数与 `itemCount` 错位）；`@update:page="onRegionPageChange"` 已就绪，分页可控。
 - **§4.x 重写**：增「统一外观（强制）」段（含截图四要素说明）、强制项表补 `每页选择器 / 跳至 / 总条数前缀` 三项、页面级红线补「禁散落 `:pagination="{pageSize:20,...}"` 对象」、自检补 `跳至输入框 + 共N条` 两项、落地范围补 09-18 外观补全记录。
 - **影响**：CodeTableLibrary / CompanyLibrary / SchoolLibrary / DynamicDataLibrary 内嵌表全部呈现统一分页器（共N条 + 20/页 + 跳至）。其余散落 inline `pageSize` 的设置页后续按 §4.x 批量迁移。
+
+## 8.6 规范修订记录（2026-09-18，数据列表页仅表体内部滚动）
+
+- **背景**：兵哥要求静态数据页（CodeTableLibrary）滚动「只滚数据列表行内」，参照校招管控-规则配置页（CampusControl）的列表交互形式。原模型 B 是「整页内容区（含 tab/筛选/表格）在 `.page-body` 内滚动」，与「表格体内部滚动」不符——tab 导航、筛选栏会随内容一起滚动走。
+- **代码（CodeTableLibrary.vue）**：① 内层容器由 `.page-body` **改名为 `.data-body`**（透明 flex 列 `overflow:hidden`）——根因是 `SettingsLayout.vue` 用 `.settings-scroll :deep(.page-body){overflow-y:auto!important}` 全局强制 `.page-body` 滚动，任何 `overflow:hidden` 尝试都被覆盖，故必须避开该类名（CampusControl 用 `.glass-panel` 同理避开）；② `<n-tabs>` 直接挂 `.data-tabs`（`flex:1;min-height:0`）撑满链；③ 新增 `.data-body :deep(.n-tabs-nav / .n-tabs-pane-wrapper / .n-tab-pane)` 链（flex:1;min-height:0;overflow:hidden；tab 导航 `flex-shrink:0` 固定），pane 自身不滚；④ 每个 tab-pane 的 `n-card` 加 `tab-card`（`flex:1;min-height:0`），并对 naive-ui 该版本真实内容层 `.n-card-content`（单下划线，非 `.n-card__content`）设 `flex:1;min-height:0;flex 列`——否则其内部 `.table-wrap` 的 `flex:1` 因 `display:block` 父级失效、表体高度塌成 0；⑤ `.filter-row` 加 `flex-shrink:0` 固定；⑥ 6 个 `n-data-table` 全部包入全局 `.table-wrap` 并加 `flex-height`（表体内部滚动）。脚本逻辑（远程/本地分页、加载）零改动。
+- **验证**：另起独立 vite（端口 5277，避开 launchd 托管的 :5212 的 HMR 缓存）跑 Playwright 真机——`.data-body` 的 `overflow-y==='hidden'` 且 `scrollTop` 恒 0；滚轮滚表体后表体 `.n-scrollbar-container.scrollTop` 增大、`.page-header`/`.n-tabs-nav`/`.filter-row` 三者 `top` 恒定；ALL_PASS=true（2026-09-18）。
+- **§2.2 新增**：「数据列表页：仅表体内部滚动」条款，给出与 CampusControl 对齐的 DOM 模板 + scoped flex 链 + 红线（滚动链唯一真相、`min-height:0` 不可漏、`.table-wrap` 与 `flex-height` 必复用/必带、分页器保留）、自检（滚动时 header/tab 导航/筛选栏 `top` 恒定）。§7 自检清单补对应勾项。
+- **影响**：静态数据页标题/tab/筛选固定，仅表格行内滚动，与校招管控-规则配置页交互一致。其余多 tab 数据列表页（如需同交互）后续按 §2.2 迁移。

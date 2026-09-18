@@ -5,11 +5,11 @@
       <p class="page-subtitle">国家与行业标准码表（行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业），为只读国标数据，随标准更新重导</p>
     </div>
 
-    <div class="page-body">
-      <n-tabs v-model:value="activeTab" type="line" animated>
+    <div class="data-body">
+      <n-tabs v-model:value="activeTab" type="line" animated class="data-tabs">
         <!-- ===== 行政区划 ===== -->
         <n-tab-pane name="regions" tab="行政区划">
-          <n-card>
+          <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-select
                 v-model:value="regionCascade.province"
@@ -51,23 +51,26 @@
               <n-button type="primary" @click="loadRegions">查询</n-button>
             </n-space>
 
-            <n-data-table
-              :columns="regionColumns"
-              :data="regionRows"
-              :loading="loading"
-              :pagination="regionPagination"
-              :remote="true"
-              :row-key="(row: any) => row.code"
-              size="small"
-              striped
-              @update:page="onRegionPageChange"
-            />
+            <div class="table-wrap">
+              <n-data-table
+                :columns="regionColumns"
+                :data="regionRows"
+                :loading="loading"
+                :pagination="regionPagination"
+                :remote="true"
+                :row-key="(row: any) => row.code"
+                size="small"
+                striped
+                flex-height
+                @update:page="onRegionPageChange"
+              />
+            </div>
           </n-card>
         </n-tab-pane>
 
         <!-- ===== 国家区号 ===== -->
         <n-tab-pane name="countries" tab="国家区号">
-          <n-card>
+          <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="countryKeyword"
@@ -80,21 +83,24 @@
               </n-input>
               <n-button type="primary" @click="loadCountries">查询</n-button>
             </n-space>
-            <n-data-table
-              :columns="countryColumns"
-              :data="countryRows"
-              :loading="loading"
-              :pagination="localPagination()"
-              :row-key="(row: any) => row.code"
-              size="small"
-              striped
-            />
+            <div class="table-wrap">
+              <n-data-table
+                :columns="countryColumns"
+                :data="countryRows"
+                :loading="loading"
+                :pagination="localPagination()"
+                :row-key="(row: any) => row.code"
+                size="small"
+                striped
+                flex-height
+              />
+            </div>
           </n-card>
         </n-tab-pane>
 
         <!-- ===== 民族 ===== -->
         <n-tab-pane name="ethnicities" tab="民族">
-          <n-card>
+          <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="ethnicKeyword"
@@ -107,21 +113,24 @@
               </n-input>
               <n-button type="primary" @click="loadEthnicities">查询</n-button>
             </n-space>
-            <n-data-table
-              :columns="ethnicColumns"
-              :data="ethnicRows"
-              :loading="loading"
-              :pagination="localPagination()"
-              :row-key="(row: any) => row.code"
-              size="small"
-              striped
-            />
+            <div class="table-wrap">
+              <n-data-table
+                :columns="ethnicColumns"
+                :data="ethnicRows"
+                :loading="loading"
+                :pagination="localPagination()"
+                :row-key="(row: any) => row.code"
+                size="small"
+                striped
+                flex-height
+              />
+            </div>
           </n-card>
         </n-tab-pane>
 
         <!-- ===== 语言 ===== -->
         <n-tab-pane name="languages" tab="语言类型">
-          <n-card>
+          <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="langKeyword"
@@ -134,21 +143,24 @@
               </n-input>
               <n-button type="primary" @click="loadLanguages">查询</n-button>
             </n-space>
-            <n-data-table
-              :columns="langColumns"
-              :data="langRows"
-              :loading="loading"
-              :pagination="localPagination()"
-              :row-key="(row: any) => row.code"
-              size="small"
-              striped
-            />
+            <div class="table-wrap">
+              <n-data-table
+                :columns="langColumns"
+                :data="langRows"
+                :loading="loading"
+                :pagination="localPagination()"
+                :row-key="(row: any) => row.code"
+                size="small"
+                striped
+                flex-height
+              />
+            </div>
           </n-card>
         </n-tab-pane>
 
         <!-- ===== 币种（ISO 4217） ===== -->
         <n-tab-pane name="currencies" tab="币种">
-          <n-card>
+          <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="currencyKeyword"
@@ -161,21 +173,24 @@
               </n-input>
               <n-button type="primary" @click="loadCurrencies">查询</n-button>
             </n-space>
-            <n-data-table
-              :columns="currencyColumns"
-              :data="currencyRows"
-              :loading="loading"
-              :pagination="localPagination()"
-              :row-key="(row: any) => row.code"
-              size="small"
-              striped
-            />
+            <div class="table-wrap">
+              <n-data-table
+                :columns="currencyColumns"
+                :data="currencyRows"
+                :loading="loading"
+                :pagination="localPagination()"
+                :row-key="(row: any) => row.code"
+                size="small"
+                striped
+                flex-height
+              />
+            </div>
           </n-card>
         </n-tab-pane>
 
         <!-- ===== 行业（GB/T 4754） ===== -->
         <n-tab-pane name="industries" tab="行业">
-          <n-card>
+          <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-select
                 v-model:value="industryLevel"
@@ -196,15 +211,18 @@
               </n-input>
               <n-button type="primary" @click="loadIndustries">查询</n-button>
             </n-space>
-            <n-data-table
-              :columns="industryColumns"
-              :data="industryRows"
-              :loading="loading"
-              :pagination="localPagination()"
-              :row-key="(row: any) => row.code"
-              size="small"
-              striped
-            />
+            <div class="table-wrap">
+              <n-data-table
+                :columns="industryColumns"
+                :data="industryRows"
+                :loading="loading"
+                :pagination="localPagination()"
+                :row-key="(row: any) => row.code"
+                size="small"
+                striped
+                flex-height
+              />
+            </div>
           </n-card>
         </n-tab-pane>
       </n-tabs>
@@ -471,6 +489,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 「只滚数据列表行内」布局链：标题固定 → .data-body 不滚动（避开 SettingsLayout 对 .page-body 的
+   overflow-y:auto!important 强制整体滚动）→ tabs/筛选栏固定 → 仅 n-data-table 表体内部滚动
+   （参照校招管控-规则配置页 CampusControl.vue）。机制与 CampusControl 一致：pane-wrapper /
+   tab-pane overflow:hidden + flex 列，表格用全局 .table-wrap(flex:1;min-height:0) + flex-height
+   撑满并内部滚动。 */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -479,14 +502,64 @@ onMounted(() => {
   padding: 0;
 }
 .page-header { flex-shrink: 0; }
-.page-body {
+/* .data-body 不再整体滚动：作为 flex 列撑满剩余高度，真实滚动交给表格体 */
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
 }
-.filter-row { margin-bottom: var(--space-3); }
+/* 对齐校招管控-规则配置页（CampusControl）的「只滚表格行内」链：
+   容器不用 .page-body（SettingsLayout 用 !important 强制其 overflow-y:auto 整体滚动），
+   改用 .data-body（透明、避开该 !important）；n-tabs 直接挂 .data-tabs 撑满高度。 */
+.data-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* tabs 填满 .data-body；导航栏固定不滚，pane 内部由表格滚动 */
+.data-body :deep(.n-tabs) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.data-body :deep(.n-tabs-nav) {
+  background: transparent;
+  flex-shrink: 0;
+}
+.data-body :deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.data-body :deep(.n-tab-pane) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* tab-pane 内 n-card 撑满高度：筛选栏固定、.table-wrap 滚动 */
+.tab-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* naive-ui 该版本 n-card 内容包裹层类名是 .n-card-content（单下划线，非 .n-card__content）；
+   其默认 display:block，须改为 flex 列并 min-height:0，内部 .table-wrap(flex:1) 才能撑满卡片高度 */
+.tab-card :deep(.n-card-content) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.filter-row { margin-bottom: var(--space-3); flex-shrink: 0; }
 </style>
