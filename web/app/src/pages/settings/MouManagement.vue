@@ -160,8 +160,6 @@
                 <n-space :size="4" align="center" :wrap="false">
                   <n-button text type="primary" @click="openDetailOrgScope">配置组织范围</n-button>
                   <span class="scope-block-divider">|</span>
-                  <n-button text type="primary" @click="openDetailOrgDataRange">设置数据范围</n-button>
-                  <span class="scope-block-divider">|</span>
                   <n-button text type="primary" :disabled="!orgCheckedKeys.length" @click="batchRemoveOrgNodes">批量删除</n-button>
                   <span class="scope-block-divider">|</span>
                   <n-button text @click="orgBlockExpanded = !orgBlockExpanded">
@@ -401,12 +399,6 @@
       </template>
     </n-modal>
 
-    <!-- 详情「设置组织数据范围」复用 DataRangeModal（按应用回写单元） -->
-    <DataRangeModal
-      v-model:show="detailOrgDataRangeVisible"
-      :value="detailOrgDataRangeValue"
-      @confirm="onDetailOrgDataRangeConfirm"
-    />
     <!-- 详情「设置人员数据范围」复用 DataRangeModal（按应用回写单元） -->
     <DataRangeModal
       v-model:show="detailPersonDataRangeVisible"
@@ -866,8 +858,6 @@ const memberAddOptions = [
 ]
 const detailOrgScopeVisible = ref(false)
 const detailOrgScopeValue = ref<OrgScopeNode[] | null>(null)
-const detailOrgDataRangeVisible = ref(false)
-const detailOrgDataRangeValue = ref<any>(null)
 const detailPersonDataRangeVisible = ref(false)
 const detailPersonDataRangeValue = ref<any>(null)
 const detailMemberLoading = ref(false)
@@ -1016,30 +1006,6 @@ async function loadDetailMembers(u: ManagementUnit) {
   }
 }
 
-// 组织数据范围（按应用）
-function openDetailOrgDataRange() {
-  if (!detailUnit.value) return
-  detailOrgDataRangeValue.value = currentAppOrgDataRange.value
-  detailOrgDataRangeVisible.value = true
-}
-async function onDetailOrgDataRangeConfirm(range: any) {
-  if (!detailUnit.value) return
-  detailOrgDataRangeVisible.value = false
-  const app = detailAppTab.value
-  try {
-    if (app === 'public') {
-      const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRange: range ?? null })
-      detailUnit.value = { ...detailUnit.value, dataRange: (updated as any).dataRange ?? range }
-    } else {
-      const merged = { ...(detailUnit.value.dataRanges || {}), [app]: range ?? null }
-      const updated = await updateManagementUnit(String(detailUnit.value.id), { dataRanges: merged })
-      detailUnit.value = { ...detailUnit.value, dataRanges: (updated as any).dataRanges ?? merged }
-    }
-    message.success('组织数据范围已保存')
-  } catch (e: any) {
-    message.error('保存组织数据范围失败: ' + (e?.response?.data?.message || e?.message || e))
-  }
-}
 
 // 人员数据范围（按应用）
 function openDetailPersonDataRange() {
