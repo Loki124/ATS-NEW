@@ -219,6 +219,7 @@ interface Department {
   manager2Id?: string | null;
   manager3Id?: string | null;
   hrbpId?: string | null;
+  isActive?: boolean;
   status: string;
   sortOrder?: number;
   createdAt?: string;
@@ -378,7 +379,7 @@ const openCreateModal = () => {
   deptModalVisible.value = true;
 };
 
-// 打开「添加下级部门」弹窗：复用新建弹窗并预置上级为该部门
+// 打开「添加下级」弹窗：复用新建弹窗并预置上级为该部门
 const openCreateChildModal = (parent: Department) => {
   openCreateModal();
   if (parent) formState.parentId = parent.id;
@@ -560,11 +561,13 @@ const columns = computed(() => [
     key: 'status',
     width: 90,
     render: (row: Department) => {
+      // 后端 status 为 write_only 不回传，须由 isActive 布尔换算，否则渲染空 label tag
+      const status = row.status || (row.isActive === false ? 'INACTIVE' : 'ACTIVE');
       const map: Record<string, { type: any; label: string }> = {
         ACTIVE: { type: 'success', label: '启用' },
         INACTIVE: { type: 'default', label: '停用' },
       };
-      const item = map[row.status] || { type: 'default', label: row.status };
+      const item = map[status] || { type: 'default', label: status };
       return h(NTag, { type: item.type, size: 'small' }, { default: () => item.label });
     },
   },
@@ -585,7 +588,7 @@ const columns = computed(() => [
               onClick: () => openCreateChildModal(row),
             },
             {
-              default: () => '添加下级部门',
+              default: () => '添加下级',
               icon: () => h(NIcon, { component: AddOutline }),
             }
           ),

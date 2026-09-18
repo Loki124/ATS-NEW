@@ -784,14 +784,14 @@ body.dark .n-data-table .n-data-table-th {
  * 让 .settings-scroll 内的实心 type=primary 按钮自动呈校招管控同款渐变，
  * 排除 text / ghost / dashed / secondary / color 等线型变体，避免破坏行内小按钮。
  * 弹窗/抽屉内按钮因 teleport 到 body 不在此作用域，保持品牌实色即可。 */
-.settings-scroll .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
+.settings-scroll .n-button.n-button--primary-type:has(> .n-button__border):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
   border: none !important;
   color: var(--n-100) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
-.settings-scroll .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color):hover {
+.settings-scroll .n-button.n-button--primary-type:has(> .n-button__border):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color):hover {
   box-shadow: 0 6px 20px var(--glow-brand) !important;
   transform: translateY(-1px);
 }
@@ -1204,14 +1204,14 @@ body:has(.n-modal-body-wrapper) .page-body {
 }
 
 /* === 弹窗主按钮渐变（teleport 到 body，全局兜底，与 .gradient-btn 同源）=== */
-.n-modal .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
+.n-modal .n-button.n-button--primary-type:has(> .n-button__border):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
   border: none !important;
   color: var(--n-100) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
-.n-modal .n-button.n-button--primary-type:not(.n-button--text):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color):hover {
+.n-modal .n-button.n-button--primary-type:has(> .n-button__border):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color):hover {
   box-shadow: 0 6px 20px var(--glow-brand) !important;
   transform: translateY(-1px);
 }
