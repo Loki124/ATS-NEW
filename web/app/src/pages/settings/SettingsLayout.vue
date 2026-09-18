@@ -120,12 +120,14 @@ const subMenuOptions: MenuItem[] = [
         ],
       },
       {
-        // 权限管理归入「基本信息」分组内（2026-09-18 调整）：收纳角色/管理单元/字段权限
+        // 权限管理归入「基本信息」分组内（2026-09-18 调整）：身份管理/资源管理/管理单元/字段权限
+        // 2026-09-18 二次调整：资源管理从身份管理页拆出为独立菜单；原 4-tab 主壳去 tab 化
         key: 'g-permission',
         type: 'group',
         label: '权限管理',
         children: [
-          { key: '/settings/permissions', label: '角色管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+          { key: '/settings/permissions', label: '身份管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+          { key: '/settings/permissions/resources', label: '资源管理', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
           { key: '/settings/field-acl', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
         ],

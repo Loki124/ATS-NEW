@@ -5,22 +5,14 @@ import { NConfigProvider, NMessageProvider } from 'naive-ui'
 import { naivePlugin } from '../../../../plugins/naive'
 import PermissionManagement from '../../PermissionManagement.vue'
 
-// API mock — resources/templates/roles/user-roles/mgmt-units 都返回数组 (子组件直接 .forEach)
-vi.mock('@/api/permission-resource', () => ({
-  listResources: vi.fn().mockResolvedValue([]),
-}))
+// API mock — roles/templates 返回数组 (子组件直接消费)
+// 2026-09-18 重构: 原 4-tab 拆解后本页只挂 RolesTab + TemplatesTab(弹窗内)
 vi.mock('@/api/permission-template', () => ({
   listTemplates: vi.fn().mockResolvedValue([]),
 }))
 vi.mock('@/api/role-v2', () => ({
   listRoles: vi.fn().mockResolvedValue([]),
   cloneFromTemplate: vi.fn(),
-}))
-vi.mock('@/api/user-role-v2', () => ({
-  listUserRoles: vi.fn().mockResolvedValue([]),
-}))
-vi.mock('@/api/management-unit', () => ({
-  listMgmtUnits: vi.fn().mockResolvedValue([]),
 }))
 
 function factory() {
@@ -43,26 +35,30 @@ function factory() {
   return w
 }
 
-describe('PermissionManagement', () => {
+describe('PermissionManagement (身份管理)', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('renders 4 tabs', async () => {
+  it('renders page title 身份管理', async () => {
     const wrapper = factory()
     await flushPromises()
-    expect(wrapper.findAll('.n-tabs-tab').length).toBe(4)
+    expect(wrapper.find('.page-title').text()).toBe('身份管理')
   })
 
-  it('default tab is resources', async () => {
-    // R10 (2026-08-03 寇豆码): 原断言是 `wrapper.vm.activeTab || 'resources'`。
-    //   wrapper 挂的是外层 Wrapper 组件, 它身上根本没有 activeTab, 所以永远走
-    //   `|| 'resources'` 分支 —— 恒真断言, 测不出任何东西, 同时 vue-tsc 报 TS2339。
-    //   改成读真实渲染结果: naive-ui 会给选中的 tab 加 .n-tabs-tab--active。
+  it('no longer renders tabs (去 tab 化)', async () => {
     const wrapper = factory()
     await flushPromises()
-    const activeTab = wrapper.find('.n-tabs-tab--active')
-    expect(activeTab.exists()).toBe(true)
-    expect(activeTab.text()).toContain('资源管理')
+    expect(wrapper.findAll('.n-tabs-tab').length).toBe(0)
+  })
+
+  it('模板管理 button opens templates modal', async () => {
+    const wrapper = factory()
+    await flushPromises()
+    const btn = wrapper.findAll('button').find((b) => b.text().includes('模板管理'))
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('.templates-modal')).toBeTruthy()
   })
 })

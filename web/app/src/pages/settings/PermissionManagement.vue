@@ -1,57 +1,58 @@
 <template>
   <div class="page-container permission-management">
-<div class="page-body">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">权限管理</h1>
-        <p class="page-subtitle">资源注册、权限模板、角色克隆、用户授权（V2 4-tab 主壳）</p>
+    <div class="page-body">
+      <div class="page-header">
+        <div class="page-header-row">
+          <div>
+            <h1 class="page-title">身份管理</h1>
+            <p class="page-subtitle">角色定义、权限分配与权限模板（资源注册已独立为「资源管理」菜单）</p>
+          </div>
+          <div class="page-header-actions">
+            <n-button @click="templatesModal.show = true">
+              <template #icon><n-icon :component="GridOutline" /></template>
+              模板管理
+            </n-button>
+          </div>
+        </div>
       </div>
+
+      <n-card :bordered="false" class="glass-panel permission-shell">
+        <RolesTab />
+      </n-card>
     </div>
-    <n-card :bordered="false" class="glass-panel permission-shell">
-      <n-tabs v-model:value="activeTab" type="line" animated>
-        <n-tab-pane name="resources" tab="资源管理">
-          <ResourcesTab />
-        </n-tab-pane>
-        <n-tab-pane name="templates" tab="模板管理">
-          <TemplatesTab />
-        </n-tab-pane>
-        <n-tab-pane name="roles" tab="角色管理">
-          <RolesTab />
-        </n-tab-pane>
-        <n-tab-pane name="user-roles" tab="用户授权">
-          <UserRolesTab />
-        </n-tab-pane>
-      </n-tabs>
-    </n-card>
-    </div><!-- /.page-body -->
-</div>
+
+    <!-- 模板管理弹窗（原独立 tab 收编为弹窗，入口在标题行右侧） -->
+    <n-modal
+      v-model:show="templatesModal.show"
+      preset="card"
+      title="权限模板"
+      class="templates-modal"
+      :style="{ width: '1100px', 'max-width': '92vw' }"
+    >
+      <TemplatesTab v-if="templatesModal.show" />
+    </n-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
 /**
- * PermissionManagement.vue — V2 权限管理 4-tab 主壳 (T20)
+ * PermissionManagement.vue — 身份管理主页面 (2026-09-18 重构)
  *
- * 4 个子 tab:
- *   - 资源管理 (ResourcesTab)  → PermissionResource (注册菜单/按钮/字段/API)
- *   - 模板管理 (TemplatesTab)  → PermissionTemplate (角色权限集合快照)
- *   - 角色管理 (RolesTab)      → RoleV2 (从模板克隆 + per-resource 勾选)
- *   - 用户授权 (UserRolesTab)  → UserRoleV2 (分配角色 + 数据范围)
- *
- * 设计:
- *   - 单页单 tab, 子组件懒加载 (避免一次性拉所有资源/模板/角色)
- *   - 路由: /settings/permissions (router/index.ts 单独挂, 与 MouManagement 并列)
- *   - 子组件不放业务逻辑, 仅展示 + 调用对应的 V2 API wrapper
- *
- * T20 状态: 4 个子组件各实现最小 NDataTable + 新建按钮 (CRUD 后续 task 完善)
+ * 原为 4-tab 主壳 (资源/模板/角色/用户授权)，本次拆解:
+ *   - 资源管理 (ResourcesTab) → 独立菜单页 PermissionResources.vue (/settings/permissions/resources)
+ *   - 模板管理 (TemplatesTab) → 收编为本页标题行「模板管理」按钮打开的弹窗
+ *   - 角色管理 (RolesTab)     → 本页主体，菜单更名「身份管理」，去 tab 化
+ *   - 用户授权 (UserRolesTab) → 移除：与「用户管理」页的分配角色弹窗重复
+ *     (两者均写 user_roles 表: 本页走 /api/v1/user-roles/，用户管理走
+ *      /api/v1/permissions/users/{id}/roles/，授权入口统一收敛到用户管理页)
  */
-import { ref } from 'vue'
-import { NCard, NTabs, NTabPane } from 'naive-ui'
-import ResourcesTab from './permission/ResourcesTab.vue'
-import TemplatesTab from './permission/TemplatesTab.vue'
+import { reactive } from 'vue'
+import { NButton, NCard, NIcon, NModal } from 'naive-ui'
+import { GridOutline } from '@vicons/ionicons5'
 import RolesTab from './permission/RolesTab.vue'
-import UserRolesTab from './permission/UserRolesTab.vue'
+import TemplatesTab from './permission/TemplatesTab.vue'
 
-const activeTab = ref('resources')
+const templatesModal = reactive({ show: false })
 </script>
 
 <style scoped>
@@ -79,28 +80,20 @@ const activeTab = ref('resources')
   gap: var(--space-4);
 }
 
-
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-.page-header {
-  flex-shrink: 0;
-}
-.page-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+/* 标题行：左标题 + 右操作（模板管理入口右对齐） */
+.page-header-row {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: var(--space-4);
 }
-
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
 
 .permission-management {
   display: flex;
