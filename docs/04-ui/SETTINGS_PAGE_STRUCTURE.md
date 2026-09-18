@@ -114,6 +114,36 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
 
 ⚠️ 历史债：此前多页在 scoped 里把标题写成 22/24px 纯色，违反统一规格。新增页面一律禁止，存量页按本规范逐步清退。
 
+### 3.1 吸顶 header 玻璃磨砂（禁止纯透明 sticky）
+
+**规则（2026-09-16 兵哥截图复现「滚动穿透重叠」后新增）**：所有设置页的吸顶 header（`.page-header` / `.cc-header` / `.n-page-header` / `.policy-admin__header`，由全局 `.settings-scroll .page-header`（glass.css）统一 sticky 注入），**必须带玻璃磨砂底，禁止纯透明 sticky**。
+
+- **根因**：初版为「让极光直接透出」故意不给背景（纯透明 + sticky）。滚动时下方 `n-tabs` / 筛选行 / 表格内容从 header 背后穿过、与标题文字重叠，视觉错乱（静态数据页截图实锤）。
+- **修复（已落 glass.css，全局单点，禁止页面私有重写）**：
+
+  ```css
+  .settings-scroll .page-header,
+  .settings-scroll .cc-header,
+  .settings-scroll .n-page-header,
+  .settings-scroll .policy-admin__header {
+    position: sticky; top: 0; z-index: 10;
+    /* 玻璃磨砂底：极光仍半透透出，但 blur 遮断滚过的文字，杜绝穿透重叠 */
+    background: var(--glass-bg-panel);
+    -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+    backdrop-filter: blur(var(--glass-blur-panel));
+    border-bottom: 1px solid var(--glass-border);
+    margin: 0 0 var(--space-4) 0;
+    padding: var(--space-4) 0 var(--space-1) 0;
+  }
+  ```
+
+- **玻璃类铁律**：`backdrop-filter` 必须同时带 `-webkit-backdrop-filter` 前缀 + 不透明兜底（`< 1 的 rgba` 已由 `--glass-bg-panel` 提供），三者缺一则 fallback 失效，老 Safari / 部分内核仍会穿透。
+- **页面级红线**：
+  - scoped **禁止**写 `.page-header { background: transparent }` / 去掉 `backdrop-filter`（会重新触发穿透）；
+  - scoped **禁止**把吸顶 header 改成 `position: fixed`（fixed 脱离滚动流，与 `.settings-scroll` 外壳冲突）。
+- **自检**：滚动页面后，吸顶 header 下方内容滚过时**不得**出现文字穿透到标题区。运行时取证：吸顶态下 `getComputedStyle(header).backdropFilter` 含 `blur(...)` 且 `backgroundColor` 为半透明 rgba（非 `rgba(0, 0, 0, 0)`）；header 之下首个内容块的 `getBoundingClientRect().top` 必须 `≥` header 底边（无重叠）。
+- **反例（已根治）**：静态数据页（CodeTableLibrary）初版纯透明 sticky，滚动时 n-tabs / 筛选行穿透重叠（2026-09-16 兵哥截图反馈，glass.css 玻璃磨砂底修复）。
+
 ## 4. KPI / 工具条 / 表格（全局类直接复用）
 
 | | | |
@@ -137,6 +167,40 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
   <n-button type="primary" class="gradient-btn" @click="add">+ 新增</n-button>
 </div>
 ```
+
+### 4.x 表格分页统一组件（useTablePagination）
+
+**规则（2026-09-16 兵哥指令「表格分页统一组件」后新增）**：设置页 / 列表页所有 `n-data-table` 的分页配置，**必须**走 `web/app/src/composables/useTablePagination.ts` 工厂，禁止在页面里手写散落的 inline `{ pageSize: N }` 或各自维护的远程 `computed`。
+
+- **统一来源**：
+
+  ```ts
+  import { localPagination, remotePagination, TABLE_PAGE_SIZE } from '@/composables/useTablePagination';
+
+  // 本地分页（一次性取全量，n-data-table 前端切片）
+  :pagination="localPagination()"            // 默认每页 TABLE_PAGE_SIZE = 20
+
+  // 远程分页（服务端分页，page / itemCount 由调用方响应式维护）
+  const pagination = remotePagination({ page: pageRef, itemCount: totalRef, pageSize: 50 });
+  :pagination="pagination"
+  :remote="true"
+  ```
+
+- **强制项**：
+
+  | | |
+  |---|---|
+  |默认每页条数|`TABLE_PAGE_SIZE = 20`（统一，禁止各页自定 15/30/50 等不现值）|
+  |pageSize 可选项|`TABLE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100]`（统一，由 composable 注入）|
+  |本地分页|`localPagination()`，禁止 `{ pageSize: 30 }` 之类 inline 对象|
+  |远程分页|`remotePagination({ page, itemCount, ... })`，禁止页面内自写远程 `computed`（`itemCount` 是 n-data-table 远程分页字段，**非** `total`）|
+  |远程 `itemCount`|远程分页必须用 `itemCount`（n-data-table 语义），`remotePagination` 已对齐；误用 `total` 会导致分页器总条数缺失|
+
+- **页面级红线**：
+  - scoped / `<script>` 内**禁止**出现 `{ pageSize: <数字> }` 字面量（grep 自检：`grep -n 'pageSize:' <file>` 仅允许出现在 `useTablePagination.ts` 内部）；
+  - **禁止**页面自维护远程分页 `computed`（如旧 `regionPagination = computed(() => ({ page, pageSize:50, itemCount, showSizePicker:false }))`）——收口为 `remotePagination()`。
+- **自检**：设置页 / 列表页分页器每页条数实测 = 20（或显式 `pageSize` 覆盖值），pageSize 下拉选项 = `[10,20,50,100]`；`grep -rn 'pageSize:' web/app/src/pages` 除 `useTablePagination.ts` 外无命中。
+- **落地范围（2026-09-16）**：CodeTableLibrary（region 远程改 `remotePagination`、5 个本地表改 `localPagination()`）、CompanyLibrary、SchoolLibrary（各 inline `{pageSize:15}` 改 `localPagination()`）。
 
 ## 5. 多 tab 看板（CampusControl 范式）
 
@@ -205,6 +269,8 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - [ ] 标题用 .page-header > .page-title + .page-subtitle，scoped 无 .page-title/.page-subtitle 字号/颜色覆盖
 - [ ] 标题底部分隔线由全局 `.settings-scroll .page-header` 提供，**scoped 不得写 `.page-header{margin-bottom}`**
 - [ ] **间距唯一来源**：header 在 `.page-body` 内时，header→首块间距 = `.page-body` gap（16px）独家提供（全局 `.settings-scroll .page-body > .page-header{margin-bottom:0}` 已兜底）；scoped 不写 header margin-bottom、不给首块加与 gap 叠加的 margin
+- [ ] **吸顶 header 玻璃磨砂**：滚动后吸顶 header 下方内容不得穿透重叠；scoped 未写 `background:transparent` / 未去 `backdrop-filter` / 未改 `position:fixed`（§3.1）
+- [ ] **分页统一组件**：所有 `n-data-table` 分页走 `useTablePagination`（`localPagination()` / `remotePagination()`），无 inline `{pageSize:N}`、无页面自维护远程 `computed`（§4.x）
 - [ ] 工具条是 `<div class="toolbar">`（非 `<n-card class="toolbar">`）
 - [ ] 表格包在 `<div class="table-wrap">` 内，scoped 无 .table-wrap 重复定义
 - [ ] 弹窗用 n-modal preset="card" + :bordered="false"，scoped 无居中/滚动重复定义
@@ -236,3 +302,13 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **§2 修订**：修正历史注释中已过时的「负 margin 通栏」描述为当前 `margin: 0 0 var(--space-4) 0`。
 - **§2 红线新增**：「间距唯一来源」——header→首块间距只允许一个来源，页面 scoped 禁写 header margin-bottom（header 在 page-body 内时），加大间距走 gap 或首块 margin-top。
 - **§7 修订**：自检清单更新分隔线条目 + 新增「间距唯一来源」检查项。
+
+## 8.3 规范修订记录（2026-09-16，吸顶玻璃磨砂 + 分页统一组件）
+
+- **背景**：兵哥截图反馈静态数据页（CodeTableLibrary）滚动时吸顶 header 纯透明，下方 `n-tabs` / 筛选行 / 表格内容穿透重叠；同时各设置页分页写法散落（`{pageSize:30}` / `{pageSize:15}` / 自维护远程 `computed`），每页自定页面大小，违反一致性。
+- **代码（glass.css）**：吸顶 header 规则由「纯透明」改为「玻璃磨砂底」——`background: var(--glass-bg-panel)` + `-webkit-backdrop-filter` + `backdrop-filter` 双写 `blur(var(--glass-blur-panel))`；极光仍半透透出，但 blur 遮断滚过的文字，杜绝穿透重叠。暗色各自 `--glass-bg-panel` token 覆盖。
+- **新增 `web/app/src/composables/useTablePagination.ts`**：导出 `TABLE_PAGE_SIZE=20` / `TABLE_PAGE_SIZE_OPTIONS=[10,20,50,100]` / `localPagination()` / `remotePagination()`（远程分页对齐 n-data-table `itemCount` 语义）。
+- **接线（3 页）**：CodeTableLibrary（region 远程 `computed` → `remotePagination({page:regionPage,itemCount:regionTotal,pageSize:50})`；5 个本地表 `{pageSize:20/30}` → `localPagination()`）、CompanyLibrary、SchoolLibrary（各 `{pageSize:15}` → `localPagination()`）。
+- **§3 修订**：新增 §3.1「吸顶 header 玻璃磨砂（禁止纯透明 sticky）」——玻璃类铁律（`-webkit-` 前缀 + 不透明兜底）、页面级红线（禁 `background:transparent` / 去 `backdrop-filter` / `position:fixed`）、运行时取证项。
+- **§4 修订**：新增 §4.x「表格分页统一组件（useTablePagination）」——统一来源、强制项表、`pageSize:` 字面量禁令、运行时自检 grep。
+- **§7 修订**：自检清单新增「吸顶 header 玻璃磨砂」「分页统一组件」两项检查。

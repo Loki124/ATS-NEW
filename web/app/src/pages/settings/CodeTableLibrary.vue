@@ -84,7 +84,7 @@
               :columns="countryColumns"
               :data="countryRows"
               :loading="loading"
-              :pagination="{ pageSize: 20 }"
+              :pagination="localPagination()"
               :row-key="(row: any) => row.code"
               size="small"
               striped
@@ -111,7 +111,7 @@
               :columns="ethnicColumns"
               :data="ethnicRows"
               :loading="loading"
-              :pagination="{ pageSize: 30 }"
+              :pagination="localPagination()"
               :row-key="(row: any) => row.code"
               size="small"
               striped
@@ -138,7 +138,7 @@
               :columns="langColumns"
               :data="langRows"
               :loading="loading"
-              :pagination="{ pageSize: 30 }"
+              :pagination="localPagination()"
               :row-key="(row: any) => row.code"
               size="small"
               striped
@@ -165,7 +165,7 @@
               :columns="currencyColumns"
               :data="currencyRows"
               :loading="loading"
-              :pagination="{ pageSize: 30 }"
+              :pagination="localPagination()"
               :row-key="(row: any) => row.code"
               size="small"
               striped
@@ -200,7 +200,7 @@
               :columns="industryColumns"
               :data="industryRows"
               :loading="loading"
-              :pagination="{ pageSize: 30 }"
+              :pagination="localPagination()"
               :row-key="(row: any) => row.code"
               size="small"
               striped
@@ -221,6 +221,7 @@ import {
   fetchCurrencies, fetchIndustries,
   type Region, type Country, type Ethnicity, type Language, type Currency, type Industry,
 } from '@/api/codeTable';
+import { localPagination, remotePagination } from '@/composables/useTablePagination';
 
 const message = useMessage();
 const activeTab = ref('regions');
@@ -249,12 +250,11 @@ const regionTotal = ref(0);
 const provinceOptions = computed(() => toOptions(provinces.value));
 const cityOptions = computed(() => toOptions(cities.value));
 const countyOptions = computed(() => toOptions(counties.value));
-const regionPagination = computed(() => ({
-  page: regionPage.value,
+const regionPagination = remotePagination({
+  page: regionPage,
+  itemCount: regionTotal,
   pageSize: 50,
-  itemCount: regionTotal.value,
-  showSizePicker: false,
-}));
+});
 
 const regionColumns = [
   { title: '区划代码', key: 'code', width: 140 },

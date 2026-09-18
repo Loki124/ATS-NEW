@@ -48,7 +48,7 @@
         :columns="columns"
         :data="rows"
         :loading="loading"
-        :pagination="{ pageSize: 15 }"
+        :pagination="localPagination()"
         :row-key="(row: any) => row.id"
         size="small"
         striped
@@ -63,6 +63,7 @@ import { ref, h, onMounted, reactive } from 'vue';
 import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
 import { BusinessOutline, OpenOutline, StarOutline, Star, SearchOutline } from '@vicons/ionicons5';
 import { searchCompanies, getCompany, listCompanyIndustries, type Company } from '@/api/library';
+import { localPagination } from '@/composables/useTablePagination';
 
 const message = useMessage();
 

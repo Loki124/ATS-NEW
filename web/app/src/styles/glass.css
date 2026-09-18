@@ -881,8 +881,11 @@ body.dark .kpi-card.kpi-card--accent {
 /* P3 整改：原 1024/480 媒体查询删除，KPI 改用 auto-fit 自适应，无需手动断点 */
 
 /* === 设置页 header 吸顶：滚动时子页标题/KPI/工具条常驻 === */
-/* 兵哥 18:27 反馈：标题区不要色块感，去掉背景 + 左右 margin，让极光直接透出。
-   保留 sticky + 底部分隔线 —— 标题区小高度（~80px），极光透出时仍有空间辨识。 */
+/* 兵哥 18:27 反馈：标题区不要色块感，让极光直接透出 —— 故当初去掉背景。
+ * 但纯透明 sticky 导致滚动时下方 n-tabs / 筛选行 / 表格内容穿透重叠（2026-09-16 截图复现）。
+ * 修复：改用玻璃磨砂底（--glass-bg-panel + --glass-blur-panel）—— 极光仍半透透出，
+ * 但 blur 遮断滚过的文字，杜绝穿透重叠。暗色各自 token 覆盖（见 tokens.css §玻璃面板）。
+ * 玻璃类必须 backdrop-filter + -webkit- 前缀 + 不透明兜底三者齐备，缺一即 fallback 失效。 */
 .settings-scroll .page-header,
 .settings-scroll .cc-header,
 .settings-scroll .n-page-header,
@@ -890,7 +893,10 @@ body.dark .kpi-card.kpi-card--accent {
   position: sticky;
   top: 0;
   z-index: 10;
-  /* 无背景色 —— 极光直接透出 */
+  /* 玻璃磨砂底：极光仍透出，下方内容滚过时被遮断，杜绝文字穿透重叠 */
+  background: var(--glass-bg-panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
+  backdrop-filter: blur(var(--glass-blur-panel));
   border-bottom: 1px solid var(--glass-border);
   /* 去掉左右 margin/padding —— 标题贴边 */
   margin: 0 0 var(--space-4) 0;

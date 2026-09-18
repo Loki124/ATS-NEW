@@ -81,7 +81,7 @@
         :columns="columns"
         :data="rows"
         :loading="loading"
-        :pagination="{ pageSize: 15 }"
+        :pagination="localPagination()"
         :row-key="(row: any) => row.id"
         :scroll-x="SCHOOL_TABLE_WIDTH"
         size="small"
@@ -241,7 +241,7 @@
             :columns="majorColumns"
             :data="majorRows"
             :loading="majorLoading"
-            :pagination="{ pageSize: 15 }"
+            :pagination="localPagination()"
             :row-key="(row: any) => row.id"
             :scroll-x="MAJOR_TABLE_WIDTH"
             size="small"
@@ -327,6 +327,7 @@ import {
   createSchool, updateSchool,
   searchMajors, getMajorFacets, type Major, updateMajor,
 } from '@/api/library';
+import { localPagination } from '@/composables/useTablePagination';
 
 const message = useMessage();
 
