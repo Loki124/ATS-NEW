@@ -811,6 +811,7 @@ body.dark .n-data-table .n-data-table-th {
    与 CampusControl 既有 scoped 副本取值一致，不冲突） */
 .rule-filter-search {
   width: 200px;
+  max-width: 200px; /* 压住 n-input 自带 width:100%，否则独占整行 */
   flex-shrink: 0;
 }
 .rule-filter-select {
