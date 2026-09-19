@@ -138,6 +138,7 @@
               </div>
               <template v-if="orgBlockExpanded">
                 <n-data-table
+                  v-if="detailOrgNodes.length"
                   v-model:checked-row-keys="orgCheckedKeys"
                   :data="detailOrgNodes"
                   :columns="detailOrgColumns"
@@ -145,9 +146,8 @@
                   size="small"
                   :scroll-x="620"
                 />
-                <n-empty v-if="!detailOrgNodes.length" description="该应用下尚未配置组织范围，点击「配置组织范围」按应用设置" class="detail-empty" />
-                <div class="scope-block-total">共{{ detailOrgNodes.length }}条</div>
-                <div class="scope-readout detail-range-readout">组织数据范围：{{ dataRangeLabel(currentAppOrgDataRange) }}</div>
+                <n-empty v-else description="该应用下尚未配置组织范围，点击「配置组织范围」按应用设置" class="detail-empty" />
+                <div v-if="detailOrgNodes.length" class="scope-block-total">共{{ detailOrgNodes.length }}条</div>
               </template>
             </div>
 
@@ -173,6 +173,7 @@
               </div>
               <template v-if="personBlockExpanded">
                 <n-data-table
+                  v-if="detailMembersFiltered.length"
                   :data="detailMembersFiltered"
                   :columns="detailMemberColumns"
                   :row-key="(row: ManagementUnitMember) => row.id"
@@ -180,8 +181,8 @@
                   :scroll-x="480"
                   :loading="detailMemberLoading"
                 />
-                <n-empty v-if="!detailMembersFiltered.length" :description="`「${currentAppLabel}」下暂无成员，点击「添加成员」按应用添加`" class="detail-empty" />
-                <div class="scope-block-total">共{{ detailMembersFiltered.length }}条</div>
+                <n-empty v-else :description="`「${currentAppLabel}」下暂无成员，点击「添加成员」按应用添加`" class="detail-empty" />
+                <div v-if="detailMembersFiltered.length" class="scope-block-total">共{{ detailMembersFiltered.length }}条</div>
                 <div class="scope-readout detail-range-readout">人员数据范围：{{ dataRangeLabel(currentAppPersonDataRange) }}</div>
               </template>
             </div>
@@ -798,14 +799,6 @@ const detailOrgNodes = computed<OrgScopeNode[]>(() => {
   if (app === 'public') return toOrgScopeNodes(detailUnit.value.orgScope)
   const perApp = detailUnit.value.orgScopes?.[app]
   return perApp ? toOrgScopeNodes(perApp) : []
-})
-
-/** 当前应用 Tab 的组织数据范围（public 回退单元级 dataRange，其余回退空） */
-const currentAppOrgDataRange = computed<any>(() => {
-  if (!detailUnit.value) return null
-  const app = detailAppTab.value
-  if (app === 'public') return (detailUnit.value.dataRange as any) ?? null
-  return detailUnit.value.dataRanges?.[app] ?? null
 })
 
 /** 当前应用 Tab 的人员数据范围（public 回退单元级 personDataRange，其余回退空） */
