@@ -397,7 +397,10 @@ def permissions_user_roles(request, user_id):
                 {'success': False, 'code': 'validation_error', 'message': 'roleIds 必须是 list'},
                 status=400,
             )
-        roles = list(RoleV2.objects.filter(id__in=role_ids, status=1))
+        # 2026-09-19 修复: 去掉 status=1 过滤 —— 种子角色 status 多为 None, 该过滤会令
+        # role_codes 恒为空 -> 覆盖式清空后不写任何行, POST 谎报 success:true 但实际上没保存。
+        # 与列表接口 permissions_roles_list 行为对齐: 仅按 id 取角色。
+        roles = list(RoleV2.objects.filter(id__in=role_ids))
         role_codes = [r.role_code for r in roles]
         with transaction.atomic():
             UserRoleV2.objects.filter(user_id=uid, system_code='recruit').delete()
@@ -414,7 +417,8 @@ def permissions_user_roles(request, user_id):
     role_codes = list(UserRoleV2.objects.filter(
         user_id=uid, system_code='recruit',
     ).values_list('role_code', flat=True).distinct())
-    roles = RoleV2.objects.filter(role_code__in=role_codes, status=1)
+    # 2026-09-19 修复: 去掉 status=1 过滤, 与列表/POST 行为对齐 (种子角色 status 多为 None)
+    roles = RoleV2.objects.filter(role_code__in=role_codes)
     data = RoleSerializer(roles, many=True).data
     return Response({'success': True, 'data': data})
 
