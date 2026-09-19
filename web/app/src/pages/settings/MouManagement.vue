@@ -8,10 +8,8 @@
       </div>
     </div>
 
-    <n-tabs v-model:value="activeTab" type="line">
-      <!-- 管理单元列表（北森交互：表格为主视图，树形展开在「名称」列） -->
-      <n-tab-pane name="units" tab="管理单元">
-        <n-card :bordered="false" class="glass-panel">
+    <!-- 管理单元列表（北森交互：表格为主视图，树形展开在「名称」列） -->
+    <n-card :bordered="false" class="glass-panel">
           <div class="toolbar">
             <n-select
               v-model:value="unitStatusFilter"
@@ -45,8 +43,6 @@
             @update:checked-row-keys="(keys: Array<string | number>) => (checkedRowKeys = keys.map(String))"
           />
         </n-card>
-      </n-tab-pane>
-    </n-tabs>
 
     <!-- 管理单元 新建/编辑/详情 融合弹窗（居中；编辑与点击名称共用） -->
     <n-modal
@@ -379,7 +375,6 @@ import { listPersons } from '@/api/campusControl'
 import { useDepartmentStore, type Department } from '@/stores/department'
 
 const message = useMessage()
-const activeTab = ref('units')
 
 // ===== 管理单元列表（北森表格主视图） =====
 const allUnits = ref<ManagementUnit[]>([])
