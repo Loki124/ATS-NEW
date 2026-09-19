@@ -711,7 +711,7 @@ const columns = [
   { title: '姓名', key: 'realName', width: 120, ellipsis: true },
   userTypeColumn,
   statusColumn,
-  { title: '角色类型', key: 'roleType', width: 90 },
+  { title: '角色类型', key: 'roleType', width: 90, ellipsis: true },
   wechatColumn,
   actionsColumn,
 ];
