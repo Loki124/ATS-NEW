@@ -46,34 +46,6 @@
           />
         </n-card>
       </n-tab-pane>
-
-      <!-- 按应用数据范围 -->
-      <n-tab-pane name="per-app" tab="按应用数据范围">
-        <n-card :bordered="false" class="glass-panel" title="按应用数据范围 (UserAppDataScope)">
-          <template #header-extra>
-            <n-space>
-              <n-select
-                v-model:value="scopeAppFilter"
-                placeholder="按应用筛选"
-                clearable
-                style="width: 160px"
-                :options="appCodeOptions"
-              />
-              <n-button type="primary" @click="openScopeCreate">
-                <template #icon><n-icon :component="AddOutline" /></template>
-                新建范围
-              </n-button>
-            </n-space>
-          </template>
-          <n-data-table
-            :data="scopes"
-            :columns="scopeColumns"
-            :row-key="(row: UserAppDataScope) => row.id"
-            :loading="scopeLoading"
-            :pagination="{ pageSize: 10 }"
-          />
-        </n-card>
-      </n-tab-pane>
     </n-tabs>
 
     <!-- 管理单元 新建/编辑/详情 融合弹窗（居中；编辑与点击名称共用） -->
@@ -277,55 +249,6 @@
       </template>
     </n-modal>
 
-    <!-- 按应用范围 新建/编辑 弹窗 -->
-    <n-modal
-      v-model:show="scopeModalVisible"
-      preset="card"
-      :title="editingScope ? '编辑应用范围' : '新建应用范围'"
-      :style="{ width: '560px' }"
-      :mask-closable="false"
-    >
-      <n-form :model="scopeForm" label-placement="top">
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item label="用户ID" required>
-              <n-input-number v-model:value="scopeForm.userId" placeholder="用户 ID" style="width: 100%" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="角色编码" required>
-              <n-input v-model:value="scopeForm.roleCode" placeholder="如：RECRUITER" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item label="应用/模块" required>
-              <n-select v-model:value="scopeForm.appCode" :options="appCodeOptions" placeholder="选择应用" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="管理单元">
-              <n-select
-                v-model:value="scopeForm.managementUnitIds"
-                :options="unitOptions"
-                multiple
-                clearable
-                filterable
-                placeholder="不选 = 回退全局范围"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-      </n-form>
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="scopeModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="scopeSaving" @click="onSaveScope">保存</n-button>
-        </div>
-      </template>
-    </n-modal>
-
     <!-- 成员 添加 弹窗 -->
     <n-modal
       v-model:show="memberModalVisible"
@@ -451,10 +374,6 @@ import {
 } from '@/api/management-unit'
 import OrgScopeTreeModal, { type OrgScopeNode } from './OrgScopeTreeModal.vue'
 import DataRangeModal from './DataRangeModal.vue'
-import {
-  listUserAppDataScopes, upsertUserAppDataScope, deleteUserAppDataScopeById,
-  type UserAppDataScope,
-} from '@/api/user-app-data-scope'
 import { listUsers } from '@/api/users'
 import { listPersons } from '@/api/campusControl'
 import { useDepartmentStore, type Department } from '@/stores/department'
@@ -529,10 +448,6 @@ const unitTableColumns = [
       }),
   },
 ]
-
-function unitNameById(id: string): string | undefined {
-  return allUnits.value.find((u) => String(u.id) === id)?.unitName
-}
 
 // 弹窗标题区的「上级管理单元」只读展示
 const parentUnitName = computed(() => {
@@ -1184,117 +1099,6 @@ async function onSaveMember() {
     memberSaving.value = false
   }
 }
-
-// ===== 按应用数据范围 =====
-const scopes = ref<UserAppDataScope[]>([])
-const scopeLoading = ref(false)
-const scopeAppFilter = ref<string | null>(null)
-const appCodeOptions = [
-  { label: '招聘 recruit', value: 'recruit' },
-  { label: '校招 campus', value: 'campus' },
-  { label: '社招 social', value: 'social' },
-  { label: '内推 referral', value: 'referral' },
-]
-const unitOptions = computed(() =>
-  allUnits.value.map((u) => ({ label: u.unitName, value: Number(u.id) })),
-)
-
-const scopeColumns = [
-  { title: '用户ID', key: 'userId', width: 90 },
-  { title: '角色编码', key: 'roleCode', width: 140 },
-  { title: '应用', key: 'appCode', width: 110, render: (row: UserAppDataScope) => row.appCode },
-  { title: '管理单元', key: 'managementUnitIds',
-    render: (row: UserAppDataScope) => (row.managementUnitIds || []).map((id: number) => unitNameById(String(id)) || id).join('、') || '—' },
-  {
-    title: '操作', key: 'action', width: 160,
-    render: (row: UserAppDataScope) => h(NSpace, { size: 'small' }, {
-      default: () => [
-        h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => openScopeEdit(row) }, { default: () => '编辑' }),
-        h(NPopconfirm, {
-          onPositiveClick: () => onDeleteScope(row),
-          positiveText: '确认', negativeText: '取消',
-        }, {
-          default: () => '确认删除该范围配置？',
-          trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
-        }),
-      ],
-    }),
-  },
-]
-
-const scopeModalVisible = ref(false)
-const editingScope = ref<UserAppDataScope | null>(null)
-const scopeSaving = ref(false)
-const scopeForm = reactive({
-  userId: null as number | null,
-  roleCode: '',
-  appCode: 'recruit',
-  managementUnitIds: [] as number[],
-})
-
-async function loadScopes() {
-  scopeLoading.value = true
-  try {
-    const params: any = {}
-    if (scopeAppFilter.value) params.appCode = scopeAppFilter.value
-    scopes.value = await listUserAppDataScopes(params)
-  } catch (e: any) {
-    message.error('加载应用范围失败: ' + (e?.message || e))
-  } finally {
-    scopeLoading.value = false
-  }
-}
-
-function openScopeCreate() {
-  editingScope.value = null
-  Object.assign(scopeForm, { userId: null, roleCode: '', appCode: 'recruit', managementUnitIds: [] })
-  scopeModalVisible.value = true
-}
-function openScopeEdit(row: UserAppDataScope) {
-  editingScope.value = row
-  Object.assign(scopeForm, {
-    userId: Number(row.userId), roleCode: row.roleCode, appCode: row.appCode,
-    managementUnitIds: (row.managementUnitIds || []).map(Number),
-  })
-  scopeModalVisible.value = true
-}
-
-async function onSaveScope() {
-  if (!scopeForm.userId || !scopeForm.roleCode.trim() || !scopeForm.appCode) {
-    message.warning('用户ID + 角色编码 + 应用 必填')
-    return
-  }
-  scopeSaving.value = true
-  try {
-    await upsertUserAppDataScope({
-      userId: scopeForm.userId,
-      roleCode: scopeForm.roleCode.trim(),
-      appCode: scopeForm.appCode,
-      systemCode: 'recruit',
-      managementUnitIds: scopeForm.managementUnitIds,
-    })
-    message.success(editingScope.value ? '已更新' : '已创建')
-    scopeModalVisible.value = false
-    await loadScopes()
-  } catch (e: any) {
-    message.error('保存失败: ' + (e?.response?.data?.message || e?.message || e))
-  } finally {
-    scopeSaving.value = false
-  }
-}
-
-async function onDeleteScope(row: UserAppDataScope) {
-  try {
-    await deleteUserAppDataScopeById(row.id)
-    message.success('已删除')
-    await loadScopes()
-  } catch (e: any) {
-    message.error('删除失败: ' + (e?.response?.data?.message || e?.message || e))
-  }
-}
-
-watch(activeTab, (t) => { if (t === 'per-app') loadScopes() })
-watch(scopeAppFilter, () => { if (activeTab.value === 'per-app') loadScopes() })
 
 onMounted(() => {
   loadUnits()
