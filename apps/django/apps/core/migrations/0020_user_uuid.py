@@ -23,12 +23,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # 1) 先以可空列落地，避免存量行 NOT NULL 约束冲突
+        # 1) 以可空列落地，且【不】给 default —— MySQL 上 AddField 带可调用 default 会被
+        #    Django 烘焙成单个字面量写进 DDL，导致存量行全部拿到同一个 uuid（dev 已踩坑）。
+        #    去掉 default 后 MySQL 仅置 NULL，再由第 2 步 RunPython 逐行赋独立 uuid。
         migrations.AddField(
             model_name='user',
             name='uuid',
             field=models.UUIDField(
-                default=uuid_lib.uuid4,
                 db_index=True,
                 editable=False,
                 null=True,
