@@ -621,7 +621,7 @@ const wechatColumn = {
   width: 150,
   render: (row: User) => {
     if (row.wechatWorkUserId) {
-      return h(NSpace, { size: 'small' }, {
+      return h(NSpace, { size: 'small', wrap: false }, {
         default: () => [
           h(NTooltip, null, {
             trigger: () => h(NTag, { type: 'success', size: 'small' }, {
@@ -658,7 +658,7 @@ const actionsColumn = {
   key: 'actions',
   width: 200,
   render: (row: User) => {
-    return h(NSpace, { size: 'small' }, {
+    return h(NSpace, { size: 'small', wrap: false }, {
       default: () => [
         h(NButton, {
           text: true,
