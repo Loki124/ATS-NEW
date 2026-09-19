@@ -40,20 +40,18 @@
       </n-button>
     </div>
 
-    <n-card :bordered="false" class="glass-panel user-dir-shell">
-      <div class="table-wrap">
-        <n-data-table
-          :data="displayUsers"
-          :columns="columns"
-          :row-key="(row: User) => row.id"
-          :loading="loading"
-          :pagination="pagination"
-          flex-height
-        >
-          <template #empty><n-empty description="暂无用户" /></template>
-        </n-data-table>
-      </div>
-    </n-card>
+    <div class="table-wrap">
+      <n-data-table
+        :data="displayUsers"
+        :columns="columns"
+        :row-key="(row: User) => row.id"
+        :loading="loading"
+        :pagination="pagination"
+        flex-height
+      >
+        <template #empty><n-empty description="暂无用户" /></template>
+      </n-data-table>
+    </div>
 
     <!-- 用户编辑弹窗 -->
     <n-modal
@@ -747,9 +745,8 @@ onMounted(() => {
 }
 
 /* 搜索 / 筛选行：复用全局 .toolbar / .rule-filter-search / .rule-filter-select / .spacer
-   （glass.css 阶段 F 全局工具类，与校招管控规则配置工具条一致） */
-
-/* 列表卡片撑满，内部 .table-wrap 承载表格滚动 */
-.user-dir-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+   （glass.css 全局工具类，与校招管控规则配置工具条一致）。
+   列表区：.table-wrap 直接作为 .page-body(flex 列) 子元素，flex:1 撑满，
+   对齐校招管控规则配置页结构（toolbar + 裸 table-wrap，不包 n-card）。 */
 
 </style>
