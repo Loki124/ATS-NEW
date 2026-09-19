@@ -2,79 +2,102 @@
   <n-modal
     v-model:show="visible"
     preset="card"
-    title="配置数据范围"
+    title="配置人员范围"
     :style="{ width: '760px' }"
     :mask-closable="false"
   >
     <div class="dr-wrap">
-      <div class="dr-group-op">
-        <span class="dr-label">组间关系</span>
-        <n-radio-group :value="model.op" @update:value="setOp">
-          <n-radio value="or">满足任一 (OR)</n-radio>
-          <n-radio value="and">同时满足 (AND)</n-radio>
-        </n-radio-group>
+      <!-- 顶部：数据范围（只读，当前仅管理人员范围） -->
+      <n-form-item label="数据范围" required label-placement="left" class="dr-scope-item">
+        <n-select
+          :value="'person'"
+          :options="[{ label: '管理人员范围', value: 'person' }]"
+          disabled
+          style="width: 100%"
+        />
+      </n-form-item>
+
+      <!-- 筛选条件 -->
+      <div class="dr-section-head">
+        <div class="dr-section-title">
+          <span class="dr-section-bar"></span>
+          <span>筛选条件设置</span>
+        </div>
+        <div class="dr-section-sub">筛选条件设置完成后，将根据条件筛选数据范围</div>
       </div>
 
-      <div v-for="(g, gi) in model.groups" :key="gi" class="dr-group">
-        <div class="dr-group-head">
-          <span class="dr-group-title">条件组 {{ gi + 1 }}</span>
-          <n-radio-group :value="g.op" size="small" @update:value="(v: string) => (g.op = v)">
-            <n-radio value="or">组内 OR</n-radio>
-            <n-radio value="and">组内 AND</n-radio>
-          </n-radio-group>
-          <n-button text type="error" size="small" @click="removeGroup(gi)">删除组</n-button>
-        </div>
-
-        <div v-for="(c, ci) in g.conditions" :key="ci" class="dr-cond">
+      <div class="dr-rows">
+        <div v-for="(row, i) in rows" :key="i" class="dr-row">
+          <span class="dr-row-index">{{ i + 1 }}.</span>
           <n-select
-            :value="c.dimension"
+            :value="row.field || 'job_record'"
+            :options="sourceOptions"
+            placeholder="来源"
+            style="width: 120px"
+            @update:value="(v: string) => (row.field = v)"
+          />
+          <n-select
+            :value="row.dimension"
             :options="dimOptions"
             placeholder="维度"
-            style="width: 110px"
-            @update:value="(v: string) => onDim(gi, ci, v)"
+            style="width: 130px"
+            @update:value="(v: string) => onDim(i, v)"
           />
           <n-select
-            v-if="c.dimension === 'dept'"
-            :value="c.value"
-            :options="deptOptions"
-            placeholder="选择部门"
-            filterable
-            clearable
-            style="width: 170px"
-            @update:value="(v: string) => (c.value = v)"
+            :value="row.operator"
+            :options="opOptions"
+            placeholder="运算符"
+            style="width: 110px"
+            @update:value="(v: string) => (row.operator = v)"
           />
+          <template v-if="row.dimension === 'dept'">
+            <n-select
+              :value="row.value"
+              :options="deptOptions"
+              placeholder="选择部门"
+              filterable
+              clearable
+              style="flex: 1; min-width: 160px"
+              @update:value="(v: string) => (row.value = v)"
+            />
+            <n-switch
+              :value="!!row.includeSub"
+              @update:value="(v: boolean) => (row.includeSub = v)"
+            >
+              <template #checked>含下级</template>
+              <template #unchecked>仅本级</template>
+            </n-switch>
+          </template>
           <n-input
             v-else
-            v-model:value="c.value"
+            v-model:value="row.value"
             placeholder="填写值"
-            style="width: 170px"
+            style="flex: 1; min-width: 160px"
           />
-          <n-select
-            :value="c.operator"
-            :options="opOptions"
-            style="width: 96px"
-            @update:value="(v: string) => (c.operator = v)"
-          />
-          <n-switch
-            v-if="c.dimension === 'dept'"
-            :value="!!c.includeSub"
-            @update:value="(v: boolean) => (c.includeSub = v)"
-          >
-            <template #checked>含子级</template>
-            <template #unchecked>仅本级</template>
-          </n-switch>
-          <n-button text type="error" size="small" @click="removeCond(gi, ci)">✕</n-button>
+          <n-button text type="error" size="small" @click="removeRow(i)">
+            <template #icon><n-icon :component="TrashOutline" /></template>
+          </n-button>
         </div>
-
-        <n-button size="small" @click="addCond(gi)">+ 添加条件</n-button>
-        <div v-if="g.conditions.length === 0" class="dr-hint">该组暂无条件（将忽略）</div>
       </div>
 
-      <n-button @click="addGroup">+ 添加条件组</n-button>
-      <div class="dr-foot-hint">
-        当前仅「部门」维度真实生效；职务 / 司龄等维度为占位（no-op，不放开数据，后续版本补齐）。
-      </div>
+      <n-button text type="primary" class="dr-add" @click="addRow">
+        <template #icon><n-icon :component="AddOutline" /></template>
+        新增
+      </n-button>
+
+      <!-- 条件表达式 -->
+      <n-form-item label="条件表达式" required label-placement="left" class="dr-expr-item">
+        <n-input
+          :value="exprText"
+          placeholder="如：1 or 2"
+          readonly
+        />
+        <template #feedback>
+          当前仅「部门」维度真实生效；其它维度为占位（no-op，不放开数据，后续版本补齐）。
+        </template>
+      </n-form-item>
     </div>
+
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
         <n-button @click="visible = false">取消</n-button>
@@ -86,23 +109,18 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { NModal, NButton, NRadio, NRadioGroup, NSelect, NInput, NSwitch } from 'naive-ui'
+import {
+  NModal, NButton, NSelect, NInput, NSwitch, NIcon, NFormItem,
+} from 'naive-ui'
+import { AddOutline, TrashOutline } from '@vicons/ionicons5'
 import { useDepartmentStore, type Department } from '@/stores/department'
 
 interface Cond {
+  field: string
   dimension: string
-  field?: string
   operator: string
   value: string
   includeSub?: boolean
-}
-interface Group {
-  op: string
-  conditions: Cond[]
-}
-interface RangeModel {
-  op: string
-  groups: Group[]
 }
 
 const props = defineProps<{ show: boolean; value: any }>()
@@ -120,42 +138,67 @@ const deptStore = useDepartmentStore()
 const deptOptions = computed(() =>
   deptStore.departments.map((d: Department) => ({ label: d.name, value: String(d.id) })),
 )
+
+const sourceOptions = [
+  { label: '任职记录', value: 'job_record' },
+  { label: '合同协议', value: 'contract' },
+  { label: '员工信息', value: 'employee' },
+]
 const dimOptions = [
   { label: '部门', value: 'dept' },
-  { label: '职务', value: 'position' },
-  { label: '司龄', value: 'tenure' },
+  { label: '工作地点', value: 'work_place' },
+  { label: '职级', value: 'job_level' },
+  { label: '人员类别', value: 'person_type' },
+  { label: '用工形式', value: 'employment_type' },
+  { label: '职等', value: 'job_grade' },
+  { label: '雇佣关系', value: 'employment_relation' },
+  { label: '职务序列', value: 'position_sequence' },
 ]
 const opOptions = [
   { label: '等于', value: 'eq' },
   { label: '不等于', value: 'neq' },
 ]
 
-const model = ref<RangeModel>({ op: 'or', groups: [] })
+const op = ref('or')
+const rows = ref<Cond[]>([])
 
-function setOp(v: string) { model.value.op = v }
-function addGroup() { model.value.groups.push({ op: 'or', conditions: [] }) }
-function removeGroup(i: number) { model.value.groups.splice(i, 1) }
-function addCond(gi: number) {
-  model.value.groups[gi].conditions.push({ dimension: 'dept', operator: 'eq', value: '', includeSub: false })
+const exprText = computed(() => {
+  if (rows.value.length === 0) return ''
+  if (rows.value.length === 1) return '1'
+  const nums = rows.value.map((_, i) => String(i + 1))
+  return nums.join(` ${op.value} `)
+})
+
+function addRow() {
+  rows.value.push({
+    field: 'job_record',
+    dimension: 'dept',
+    operator: 'eq',
+    value: '',
+    includeSub: false,
+  })
 }
-function removeCond(gi: number, ci: number) {
-  model.value.groups[gi].conditions.splice(ci, 1)
-}
-function onDim(gi: number, ci: number, v: string) {
-  const c = model.value.groups[gi].conditions[ci]
-  c.dimension = v
-  c.value = ''
-  if (v !== 'dept') delete c.includeSub
+function removeRow(i: number) { rows.value.splice(i, 1) }
+function onDim(i: number, v: string) {
+  const row = rows.value[i]
+  row.dimension = v
+  row.value = ''
+  if (v === 'dept') row.includeSub = false
+  else delete row.includeSub
 }
 
 function onConfirm() {
-  const cleaned: RangeModel = {
-    op: model.value.op,
-    groups: model.value.groups
-      .map((g) => ({ op: g.op, conditions: g.conditions.filter((c) => (c.value ?? '') !== '') }))
-      .filter((g) => g.conditions.length > 0),
-  }
-  emit('confirm', cleaned.groups.length ? cleaned : null)
+  const cleaned = rows.value.filter((r) => (r.value ?? '') !== '')
+  const payload = cleaned.length
+    ? {
+        op: op.value,
+        groups: cleaned.map((r) => ({
+          op: 'or',
+          conditions: [{ ...r }],
+        })),
+      }
+    : null
+  emit('confirm', payload)
   visible.value = false
 }
 
@@ -167,10 +210,24 @@ watch(
         try { await deptStore.loadDepartments() } catch { /* 降级 */ }
       }
       const v = props.value
+      op.value = v?.op || 'or'
       if (v && Array.isArray(v.groups) && v.groups.length) {
-        model.value = JSON.parse(JSON.stringify(v))
+        // 将 group-based 结构展平为行列表（每行 = 一个条件）
+        const flat: Cond[] = []
+        v.groups.forEach((g: any) => {
+          ;(g?.conditions || []).forEach((c: any) => {
+            flat.push({
+              field: c?.field || 'job_record',
+              dimension: c?.dimension || 'dept',
+              operator: c?.operator || 'eq',
+              value: c?.value ?? '',
+              includeSub: c?.includeSub ?? false,
+            })
+          })
+        })
+        rows.value = flat
       } else {
-        model.value = { op: 'or', groups: [] }
+        rows.value = []
       }
     }
   },
@@ -180,18 +237,35 @@ watch(
 
 <style scoped>
 .dr-wrap { display: flex; flex-direction: column; gap: var(--space-3); }
-.dr-group-op { display: flex; align-items: center; gap: var(--space-3); }
-.dr-label { font-size: 14px; color: var(--color-text-secondary); }
-.dr-group {
-  border: 1px solid var(--color-border); border-radius: 8px;
-  padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
+.dr-scope-item { margin-bottom: 0; }
+.dr-scope-item :deep(.n-form-item-label) { font-weight: 500; }
+
+.dr-section-head { display: flex; flex-direction: column; gap: 4px; }
+.dr-section-title {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: 14px; font-weight: 600; color: var(--color-text-primary);
 }
-.dr-group-head { display: flex; align-items: center; gap: var(--space-3); }
-.dr-group-title { font-size: 14px; font-weight: 600; }
-.dr-cond { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.dr-hint { font-size: 12px; color: var(--color-text-tertiary); }
-.dr-foot-hint {
+.dr-section-bar {
+  width: 4px; height: 14px; border-radius: 2px;
+  background: var(--color-primary);
+}
+.dr-section-sub {
   font-size: 12px; color: var(--color-text-tertiary);
-  background: var(--color-bg-subtle); padding: var(--space-2); border-radius: 6px;
+  padding-left: calc(4px + var(--space-2));
 }
+
+.dr-rows { display: flex; flex-direction: column; gap: var(--space-2); }
+.dr-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.dr-row-index {
+  width: 20px; text-align: right;
+  font-size: 14px; color: var(--color-text-secondary);
+}
+
+.dr-add { justify-content: flex-start; width: fit-content; }
+
+.dr-expr-item { margin-bottom: 0; }
+.dr-expr-item :deep(.n-form-item-feedback) { color: var(--color-text-tertiary); }
 </style>

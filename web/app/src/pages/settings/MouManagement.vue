@@ -160,11 +160,11 @@
                   <span>管理人员范围</span>
                 </div>
                 <n-space :size="4" align="center" :wrap="false">
-                  <n-dropdown :options="memberAddOptions" @select="(t: string) => openDetailAddMember(t as 'DEPT' | 'USER' | 'PERSON')">
+                  <n-dropdown :options="memberAddOptions" @select="(t: string) => openDetailAddMember(t as 'DEPT' | 'USER')">
                     <n-button text type="primary">添加成员</n-button>
                   </n-dropdown>
                   <span class="scope-block-divider">|</span>
-                  <n-button text type="primary" @click="openDetailPersonDataRange">设置数据范围</n-button>
+                  <n-button text type="primary" @click="openDetailPersonDataRange">配置人员范围</n-button>
                   <span class="scope-block-divider">|</span>
                   <n-button text @click="personBlockExpanded = !personBlockExpanded">
                     {{ personBlockExpanded ? '收起' : '展开' }}
@@ -799,7 +799,6 @@ const orgCheckedKeys = ref<string[]>([])
 const memberAddOptions = [
   { label: '组织节点', key: 'DEPT' },
   { label: '系统用户', key: 'USER' },
-  { label: 'HR人员', key: 'PERSON' },
 ]
 const detailOrgScopeVisible = ref(false)
 const detailOrgScopeValue = ref<OrgScopeNode[] | null>(null)
@@ -1036,7 +1035,7 @@ const memberSaving = ref(false)
 const memberAppCode = ref<string | null>(null)
 
 const memberForm = reactive({
-  memberType: 'DEPT' as 'DEPT' | 'USER' | 'PERSON',
+  memberType: 'DEPT' as 'DEPT' | 'USER',
   departmentId: null as string | null,
   userId: null as string | null,
   personId: null as string | null,
@@ -1072,7 +1071,7 @@ function buildDeptTree(list: Department[]): any[] {
   return roots
 }
 
-async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
+async function openAddMember(type: 'DEPT' | 'USER') {
   if (!editingUnit.value) return
   Object.assign(memberForm, {
     memberType: type, departmentId: null, userId: null, personId: null,
@@ -1089,7 +1088,7 @@ async function openAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
 }
 
 /** 融合弹窗内按当前应用 Tab 添加成员（带 appCode） */
-function openDetailAddMember(type: 'DEPT' | 'USER' | 'PERSON') {
+function openDetailAddMember(type: 'DEPT' | 'USER') {
   memberAppCode.value = detailAppTab.value === 'public' ? null : detailAppTab.value
   openAddMember(type)
 }
