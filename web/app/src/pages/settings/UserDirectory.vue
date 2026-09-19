@@ -8,33 +8,32 @@
       </div>
     </div>
 
-    <!-- 搜索 + 筛选行：左侧搜索框与筛选项，右侧「新建用户」按钮 -->
-    <div class="filter-row">
-      <div class="filter-left">
-        <n-input
-          v-model:value="searchText"
-          placeholder="搜索用户名 / 姓名"
-          clearable
-          class="filter-search"
-          @keyup.enter="() => {}"
-        >
-          <template #prefix><n-icon :component="SearchOutline" /></template>
-        </n-input>
-        <n-select
-          v-model:value="filterUserType"
-          :options="userTypeFilterOptions"
-          placeholder="用户类型"
-          clearable
-          class="filter-select"
-        />
-        <n-select
-          v-model:value="filterStatus"
-          :options="statusOptions"
-          placeholder="状态"
-          clearable
-          class="filter-select"
-        />
-      </div>
+    <!-- 搜索 + 筛选行：对齐校招管控规则配置工具条（搜索框 + 筛选项 + spacer 推右按钮） -->
+    <div class="toolbar">
+      <n-input
+        v-model:value="searchText"
+        placeholder="搜索用户名 / 姓名"
+        clearable
+        class="rule-filter-search"
+        @keyup.enter="() => {}"
+      >
+        <template #prefix><n-icon :component="SearchOutline" /></template>
+      </n-input>
+      <n-select
+        v-model:value="filterUserType"
+        :options="userTypeFilterOptions"
+        placeholder="用户类型"
+        clearable
+        class="rule-filter-select"
+      />
+      <n-select
+        v-model:value="filterStatus"
+        :options="statusOptions"
+        placeholder="状态"
+        clearable
+        class="rule-filter-select"
+      />
+      <div class="spacer"></div>
       <n-button type="primary" @click="openCreateModal">
         <template #icon><n-icon :component="AddOutline" /></template>
         新建用户
@@ -42,13 +41,18 @@
     </div>
 
     <n-card :bordered="false" class="glass-panel user-dir-shell">
-      <n-data-table
-        :data="displayUsers"
-        :columns="columns"
-        :row-key="(row: User) => row.id"
-        :loading="loading"
-        :pagination="pagination"
-      />
+      <div class="table-wrap">
+        <n-data-table
+          :data="displayUsers"
+          :columns="columns"
+          :row-key="(row: User) => row.id"
+          :loading="loading"
+          :pagination="pagination"
+          flex-height
+        >
+          <template #empty><n-empty description="暂无用户" /></template>
+        </n-data-table>
+      </div>
     </n-card>
 
     <!-- 用户编辑弹窗 -->
@@ -280,11 +284,14 @@ const userTypeFilterOptions = [
 ];
 
 // 分页器（客户端分页：displayUsers 已是筛选后结果）
+// 对齐校招管控规则配置：pageSize 20 + 快速跳页 + 「共 N 条」前缀
 const pagination = reactive({
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   showSizePicker: true,
   pageSizes: [10, 20, 50],
+  showQuickJumper: true,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
 });
 
 // 表单状态
@@ -303,33 +310,50 @@ const formState = reactive({
 const userStore = useUserStore();
 const tokenOf = () => userStore.accessToken;
 
-// API请求封装
+// API请求封装：统一返回 { ok, status, data }
+// 约定（与 campusControl.ts 一致）：
+//   - GET 列表 → 信封 { success, data }
+//   - 新建/更新/删除/分配 → 写接口返回裸对象或 204, HTTP 2xx 即成功（无 success 信封）
+//   - 因此 handler 一律以 res.ok 判定写操作成功, 以 res.data?.success 判定列表信封
 const request = async (url: string, options: RequestInit = {}) => {
   const token = tokenOf();
   if (!token) {
     message.error('请先登录');
-    return null;
+    return { ok: false, status: 0, data: null as any };
   }
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options.headers
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+    let data: any = null;
+    const text = await response.text();
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
     }
-  });
-  return response.json();
+    return { ok: response.ok, status: response.status, data };
+  } catch (error) {
+    return { ok: false, status: 0, data: null, error };
+  }
 };
 
 // 加载用户列表（整合后拉全部用户，内部/外部由 user_type 字段区分）
 const loadUsers = async () => {
   loading.value = true;
   try {
-    const data = await request(`/api/v1/users/`);
-    if (data?.success) {
-      users.value = data.data;
-    } else {
-      message.error(data?.message || '加载用户列表失败');
+    const res = await request(`/api/v1/users/`);
+    if (res.ok && res.data?.success) {
+      users.value = res.data.data;
+    } else if (!res.ok) {
+      message.error(res.data?.message || '加载用户列表失败');
     }
   } catch (error) {
     console.error('加载用户列表失败', error);
@@ -361,9 +385,9 @@ watch([searchText, filterUserType, filterStatus], () => {
 // 加载角色列表
 const loadRoles = async () => {
   try {
-    const data = await request('/api/v1/permissions/roles/');
-    if (data?.success) {
-      roles.value = data.data;
+    const res = await request('/api/v1/permissions/roles/');
+    if (res.ok && res.data?.success) {
+      roles.value = res.data.data;
     }
   } catch (error) {
     message.error(extractApiError(error, '加载角色列表失败'));
@@ -373,9 +397,10 @@ const loadRoles = async () => {
 // 加载用户角色
 const loadUserRoles = async (userId: string) => {
   try {
-    const data = await request(`/api/v1/permissions/users/${userId}/roles/`);
-    if (data?.success) {
-      userRoles.value = data.data.map((ur: any) => ur.roleId);
+    const res = await request(`/api/v1/permissions/users/${userId}/roles/`);
+    if (res.ok && res.data?.success) {
+      // 角色对象以 RoleV2.id 标识（与角色表格 row-key=row.id、checked-row-keys 一致）
+      userRoles.value = res.data.data.map((ur: any) => ur.id);
     }
   } catch (error) {
     message.error(extractApiError(error, '加载用户角色失败'));
@@ -417,35 +442,42 @@ const closeUserModal = () => {
 // 创建用户
 const handleCreateUser = async () => {
   try {
-    const data = await request('/api/v1/users/', {
+    const res = await request('/api/v1/users/', {
       method: 'POST',
       body: JSON.stringify(formState)
     });
-    if (data?.success) {
+    if (res.ok) {
       message.success('用户创建成功');
       closeUserModal();
       loadUsers();
     } else {
-      message.error(data?.error || '创建失败');
+      message.error(res.data?.message || '创建失败');
     }
   } catch (error) {
     message.error('创建失败');
   }
 };
 
-// 更新用户
+// 更新用户（仅提交基础字段；角色由「分配角色」弹窗管理, 不在此覆盖, 避免清空已分配角色）
 const handleUpdateUser = async () => {
   try {
-    const data = await request(`/api/v1/users/${editingUser.value?.id}/`, {
+    const payload = {
+      realName: formState.realName,
+      email: formState.email,
+      phone: formState.phone,
+      userType: formState.userType,
+      status: formState.status,
+    };
+    const res = await request(`/api/v1/users/${editingUser.value?.id}/`, {
       method: 'PUT',
-      body: JSON.stringify(formState)
+      body: JSON.stringify(payload)
     });
-    if (data?.success) {
+    if (res.ok) {
       message.success('用户更新成功');
       closeUserModal();
       loadUsers();
     } else {
-      message.error(data?.error || '更新失败');
+      message.error(res.data?.message || '更新失败');
     }
   } catch (error) {
     message.error('更新失败');
@@ -464,14 +496,14 @@ const handleUserSubmit = () => {
 // 删除用户
 const handleDeleteUser = async (userId: string) => {
   try {
-    const data = await request(`/api/v1/users/${userId}/`, {
+    const res = await request(`/api/v1/users/${userId}/`, {
       method: 'DELETE'
     });
-    if (data?.success) {
+    if (res.ok) {
       message.success('用户删除成功');
       loadUsers();
     } else {
-      message.error(data?.error || '删除失败');
+      message.error(res.data?.message || '删除失败');
     }
   } catch (error) {
     message.error('删除失败');
@@ -481,15 +513,16 @@ const handleDeleteUser = async (userId: string) => {
 // 保存用户角色
 const handleSaveUserRoles = async (roleIds: string[]) => {
   try {
-    const data = await request(`/api/v1/permissions/users/${selectedUserId.value}/roles/`, {
+    const res = await request(`/api/v1/permissions/users/${selectedUserId.value}/roles/`, {
       method: 'POST',
       body: JSON.stringify({ roleIds })
     });
-    if (data?.success) {
+    if (res.ok) {
       message.success('角色分配成功');
       userRoleModalVisible.value = false;
+      loadUsers();
     } else {
-      message.error(data?.error || '分配失败');
+      message.error(res.data?.message || '分配失败');
     }
   } catch (error) {
     message.error('分配失败');
@@ -499,15 +532,15 @@ const handleSaveUserRoles = async (roleIds: string[]) => {
 // 绑定企微
 const handleBindWechatWork = async (userId: string, wechatWorkUserId: string) => {
   try {
-    const data = await request(`/api/v1/users/${userId}/`, {
+    const res = await request(`/api/v1/users/${userId}/`, {
       method: 'PUT',
       body: JSON.stringify({ wechatWorkUserId })
     });
-    if (data?.success) {
+    if (res.ok) {
       message.success('企微绑定成功');
       loadUsers();
     } else {
-      message.error(data?.error || '绑定失败');
+      message.error(res.data?.message || '绑定失败');
     }
   } catch (error) {
     message.error('绑定失败');
@@ -517,15 +550,15 @@ const handleBindWechatWork = async (userId: string, wechatWorkUserId: string) =>
 // 解绑企微
 const handleUnbindWechatWork = async (userId: string) => {
   try {
-    const data = await request(`/api/v1/users/${userId}/`, {
+    const res = await request(`/api/v1/users/${userId}/`, {
       method: 'PUT',
       body: JSON.stringify({ wechatWorkUserId: null })
     });
-    if (data?.success) {
+    if (res.ok) {
       message.success('企微解绑成功');
       loadUsers();
     } else {
-      message.error(data?.error || '解绑失败');
+      message.error(res.data?.message || '解绑失败');
     }
   } catch (error) {
     message.error('解绑失败');
@@ -713,24 +746,10 @@ onMounted(() => {
   gap: var(--space-4);
 }
 
-/* 搜索 / 筛选行：左搜索+筛选，右「新建用户」按钮 */
-.filter-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-.filter-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-.filter-search { max-width: 260px; }
-.filter-select { max-width: 140px; }
+/* 搜索 / 筛选行：复用全局 .toolbar / .rule-filter-search / .rule-filter-select / .spacer
+   （glass.css 阶段 F 全局工具类，与校招管控规则配置工具条一致） */
 
-/* 列表卡片撑满 */
+/* 列表卡片撑满，内部 .table-wrap 承载表格滚动 */
 .user-dir-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 </style>

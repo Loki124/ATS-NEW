@@ -42,6 +42,7 @@
 
 import logging
 import uuid
+from django.db import transaction
 from django.urls import path
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -371,19 +372,49 @@ def permissions_roles_list(request):
     return Response({'success': True, 'data': data})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:user_role:list')
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:user_role:edit')
 def permissions_user_roles(request, user_id):
     _log_stub_hit('permissions_user_roles', request)
     """GET /permissions/users/{id}/roles — 用户的角色
+    POST /permissions/users/{id}/roles — 覆盖式保存用户的角色分配 (body {roleIds:[RoleV2.id]})
 
-    T30.175: V1 UserRole 表已 DROP, 改读 UserRoleV2 (role_code) + RoleV2.
+    T30.175: V1 UserRole 表已 DROP, 改读/写 UserRoleV2 (role_code) + RoleV2.
+    2026-09-19: 补 POST 真实现 — 此前 GET-only, 前端「分配角色」弹窗一直 405 失败.
     """
     from apps.core.models_permission_v2 import UserRoleV2, RoleV2
+    from apps.core.serializers import RoleSerializer
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return Response(
+            {'success': False, 'code': 'bad_request', 'message': 'user_id 非法'},
+            status=400,
+        )
+    if request.method == 'POST':
+        role_ids = request.data.get('roleIds', [])
+        if not isinstance(role_ids, list):
+            return Response(
+                {'success': False, 'code': 'validation_error', 'message': 'roleIds 必须是 list'},
+                status=400,
+            )
+        roles = list(RoleV2.objects.filter(id__in=role_ids, status=1))
+        role_codes = [r.role_code for r in roles]
+        with transaction.atomic():
+            UserRoleV2.objects.filter(user_id=uid, system_code='recruit').delete()
+            for rc in role_codes:
+                UserRoleV2.objects.get_or_create(
+                    user_id=uid,
+                    role_code=rc,
+                    system_code='recruit',
+                    defaults={'granted_by_id': getattr(request.user, 'id', None)},
+                )
+        data = RoleSerializer(roles, many=True).data
+        return Response({'success': True, 'data': data})
+    # GET
     role_codes = list(UserRoleV2.objects.filter(
-        user_id=user_id, system_code='recruit',
+        user_id=uid, system_code='recruit',
     ).values_list('role_code', flat=True).distinct())
     roles = RoleV2.objects.filter(role_code__in=role_codes, status=1)
-    from apps.core.serializers import RoleSerializer
     data = RoleSerializer(roles, many=True).data
     return Response({'success': True, 'data': data})
 

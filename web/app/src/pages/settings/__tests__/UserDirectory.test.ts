@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises, nextTick } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
 import { NConfigProvider, NMessageProvider } from 'naive-ui'
 import { naivePlugin } from '../../../plugins/naive'
 
 // 2026-09-19 整合重构测试：内部/外部/全部用户合并为单一「用户管理」页
 //   - 无 n-tabs、无 KPI 卡片
-//   - 搜索框 + 用户类型/状态 筛选项 + 右侧「新建用户」按钮
-//   - 列表带 pagination 分页器
+//   - 工具条对齐校招管控：.toolbar + .rule-filter-search + 2×.rule-filter-select + .spacer + 右对齐「新建用户」
+//   - 列表带 pagination（pageSize 20 + 共 N 条 前缀）
 //   - 表单含「用户类型」字段
+//   - 写操作以 HTTP 2xx 判定成功（request() 返回 {ok,status,data}）
 
 vi.mock('../../../stores/user', () => ({
   useUserStore: () => ({ accessToken: 'test-token' }),
@@ -50,19 +51,24 @@ function factory() {
   return w
 }
 
-import UserDirectory from '../UserDirectory.vue'
-
+// 模拟 fetch：request() 内部走 response.text() + JSON.parse，并依赖 response.ok 判定写操作
 function setupFetch() {
   global.fetch = vi.fn(async (url: string) => {
-    if (url.includes('/api/v1/users/')) {
-      return { json: async () => ({ success: true, data: MOCK_USERS }) } as any
+    let payload: any
+    if (url.includes('/api/v1/users/') && !url.includes('/roles/')) {
+      payload = { success: true, data: MOCK_USERS }
+    } else if (url.includes('/api/v1/permissions/roles/')) {
+      payload = { success: true, data: MOCK_ROLES }
+    } else if (url.includes('/permissions/users/') && url.includes('/roles/')) {
+      payload = { success: true, data: MOCK_ROLES }
+    } else {
+      payload = { success: true, data: [] }
     }
-    if (url.includes('/api/v1/permissions/roles/')) {
-      return { json: async () => ({ success: true, data: MOCK_ROLES }) } as any
-    }
-    return { json: async () => ({ success: true, data: [] }) } as any
+    return { ok: true, status: 200, text: async () => JSON.stringify(payload) } as any
   }) as any
 }
+
+import UserDirectory from '../UserDirectory.vue'
 
 describe('UserDirectory (整合后用户管理)', () => {
   let wrapper: any
@@ -103,32 +109,36 @@ describe('UserDirectory (整合后用户管理)', () => {
     expect(document.querySelector('.kpi-card')).toBeFalsy()
   })
 
-  it('filter row has search box + 2 selects + 新建用户 button at right', async () => {
+  it('toolbar has search + 2 selects + spacer + 新建用户 button at right', async () => {
     wrapper = factory()
     await flushPromises()
     await nextTick()
-    const filterRow = document.querySelector('.filter-row')
-    expect(filterRow).toBeTruthy()
-    // 搜索框（n-input 内含原生 input）
-    expect(filterRow!.querySelector('.filter-search input')).toBeTruthy()
-    // 两个筛选项 n-select
-    expect(filterRow!.querySelectorAll('.filter-select').length).toBe(2)
+    const toolbar = document.querySelector('.toolbar')
+    expect(toolbar).toBeTruthy()
+    // 搜索框（.rule-filter-search 内原生 input）
+    expect(toolbar!.querySelector('.rule-filter-search input')).toBeTruthy()
+    // 两个筛选项 .rule-filter-select
+    expect(toolbar!.querySelectorAll('.rule-filter-select').length).toBe(2)
+    // .spacer 存在，用于把按钮推到最右
+    expect(toolbar!.querySelector('.spacer')).toBeTruthy()
     // 新建用户 按钮
-    const newBtn = Array.from(filterRow!.querySelectorAll('.n-button')).find((b) =>
+    const newBtn = Array.from(toolbar!.querySelectorAll('.n-button')).find((b) =>
       (b.textContent || '').includes('新建用户')
     )
     expect(newBtn).toBeTruthy()
-    // 新建用户 按钮是 filter-row 的最后一个子元素（最右侧）
-    const children = Array.from(filterRow!.children)
+    // 新建用户 按钮是 toolbar 的最后一个子元素（最右侧）
+    const children = Array.from(toolbar!.children)
     expect(children[children.length - 1].contains(newBtn!)).toBe(true)
   })
 
-  it('renders pagination component under data table', async () => {
+  it('renders pagination with 共 N 条 prefix', async () => {
     wrapper = factory()
     await flushPromises()
     await nextTick()
     expect(document.querySelector('.n-data-table')).toBeTruthy()
-    expect(document.querySelector('.n-pagination')).toBeTruthy()
+    const pag = document.querySelector('.n-pagination')
+    expect(pag).toBeTruthy()
+    expect(pag!.textContent || '').toContain('共 12 条')
   })
 
   it('user type column distinguishes internal/external', async () => {
@@ -144,16 +154,36 @@ describe('UserDirectory (整合后用户管理)', () => {
     wrapper = factory()
     await flushPromises()
     await nextTick()
-    const input = document.querySelector('.filter-search input') as HTMLInputElement
+    const input = document.querySelector('.rule-filter-search input') as HTMLInputElement
     expect(input).toBeTruthy()
-    // 初始展示 = 第一页（pageSize 10），12 条数据 → 10 行
+    // 初始展示 = 第一页（pageSize 20），12 条数据 → 12 行
     const initialRows = document.querySelectorAll('.n-data-table-tbody .n-data-table-tr').length
-    expect(initialRows).toBe(10)
+    expect(initialRows).toBe(12)
     // 输入唯一子串 user-07 → 仅 1 行
-    await wrapper.find('.filter-search input').setValue('user-07')
+    await wrapper.find('.rule-filter-search input').setValue('user-07')
     await flushPromises()
     await nextTick()
     const filteredRows = document.querySelectorAll('.n-data-table-tbody .n-data-table-tr').length
     expect(filteredRows).toBe(1)
+  })
+
+  it('role modal opens and lists roles (loadUserRoles 以 id 映射)', async () => {
+    wrapper = factory()
+    await flushPromises()
+    await nextTick()
+    // 操作列中的「角色」按钮
+    const roleBtn = Array.from(document.querySelectorAll('.n-data-table .n-button')).find((b) =>
+      (b.textContent || '').trim() === '角色'
+    )
+    expect(roleBtn).toBeTruthy()
+    await roleBtn!.dispatchEvent(new window.Event('click', { bubbles: true }))
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
+    const modal = document.querySelector('.n-modal')
+    expect(modal).toBeTruthy()
+    // 角色表格应列出 MOCK_ROLES 的名称
+    expect(modal!.textContent || '').toContain('HR')
+    expect(modal!.textContent || '').toContain('Manager')
   })
 })
