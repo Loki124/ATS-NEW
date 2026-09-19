@@ -152,7 +152,7 @@
               </template>
             </div>
 
-            <!-- 管理人员范围（北森式区块） -->
+            <!-- 管理人员范围（北森式区块）：仅保留「配置人员范围」，去掉添加成员及成员回显列表 -->
             <div class="scope-block">
               <div class="scope-block-header">
                 <div class="scope-block-title">
@@ -160,10 +160,6 @@
                   <span>管理人员范围</span>
                 </div>
                 <n-space :size="4" align="center" :wrap="false">
-                  <n-dropdown :options="memberAddOptions" @select="(t: string) => openDetailAddMember(t as 'DEPT' | 'USER')">
-                    <n-button text type="primary">添加成员</n-button>
-                  </n-dropdown>
-                  <span class="scope-block-divider">|</span>
                   <n-button text type="primary" @click="openDetailPersonDataRange">配置人员范围</n-button>
                   <span class="scope-block-divider">|</span>
                   <n-button text @click="personBlockExpanded = !personBlockExpanded">
@@ -173,17 +169,6 @@
                 </n-space>
               </div>
               <template v-if="personBlockExpanded">
-                <n-data-table
-                  v-if="detailMembersFiltered.length"
-                  :data="detailMembersFiltered"
-                  :columns="detailMemberColumns"
-                  :row-key="(row: ManagementUnitMember) => row.id"
-                  size="small"
-                  :scroll-x="480"
-                  :loading="detailMemberLoading"
-                />
-                <n-empty v-else :description="`「${currentAppLabel}」下暂无成员，点击「添加成员」按应用添加`" class="detail-empty" />
-                <div v-if="detailMembersFiltered.length" class="scope-block-total">共{{ detailMembersFiltered.length }}条</div>
                 <div class="scope-readout detail-range-readout">人员数据范围：{{ dataRangeLabel(currentAppPersonDataRange) }}</div>
               </template>
             </div>
@@ -247,79 +232,6 @@
       </template>
     </n-modal>
 
-    <!-- 成员 添加 弹窗 -->
-    <n-modal
-      v-model:show="memberModalVisible"
-      preset="card"
-      :title="memberFormTitle"
-      :style="{ width: '560px' }"
-      :mask-closable="false"
-    >
-      <n-form :model="memberForm" label-placement="top">
-        <n-form-item label="成员类型">
-          <n-radio-group v-model:value="memberForm.memberType">
-            <n-space>
-              <n-radio value="DEPT">组织节点</n-radio>
-              <n-radio value="USER">系统用户</n-radio>
-              <n-radio value="PERSON">HR人员</n-radio>
-            </n-space>
-          </n-radio-group>
-        </n-form-item>
-
-        <n-form-item v-if="memberForm.memberType === 'DEPT'" label="组织节点" required>
-          <n-tree-select
-            v-model:value="memberForm.departmentId"
-            :options="deptTreeOptions"
-            :default-expand-all="true"
-            clearable
-            placeholder="选择组织节点"
-            key-field="key"
-            label-field="label"
-            children-field="children"
-          />
-        </n-form-item>
-
-        <n-form-item v-else-if="memberForm.memberType === 'USER'" label="系统用户" required>
-          <n-select
-            v-model:value="memberForm.userId"
-            :options="userOptions"
-            filterable
-            clearable
-            placeholder="搜索并选择系统用户"
-          />
-        </n-form-item>
-
-        <n-form-item v-else label="HR人员" required>
-          <n-select
-            v-model:value="memberForm.personId"
-            :options="personOptions"
-            filterable
-            clearable
-            placeholder="搜索并选择 HR 台账人员"
-          />
-        </n-form-item>
-
-        <n-form-item label="含子级">
-          <n-radio-group v-model:value="memberForm.includeChildren">
-            <n-space>
-              <n-radio :value="1">是</n-radio>
-              <n-radio :value="0">否</n-radio>
-            </n-space>
-          </n-radio-group>
-        </n-form-item>
-
-        <n-form-item label="备注">
-          <n-input v-model:value="memberForm.remark" type="textarea" :rows="2" placeholder="可选" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="memberModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="memberSaving" @click="onSaveMember">保存</n-button>
-        </div>
-      </template>
-    </n-modal>
-
     <!-- 详情「设置人员数据范围」复用 DataRangeModal（按应用回写单元） -->
     <DataRangeModal
       v-model:show="detailPersonDataRangeVisible"
@@ -367,13 +279,11 @@ import {
 import {
   listManagementUnits, treeManagementUnits, createManagementUnit, updateManagementUnit,
   deleteManagementUnit,
-  listManagementUnitMembers, addManagementUnitMember, removeManagementUnitMember,
+  listManagementUnitMembers,
   type ManagementUnit, type ManagementUnitTreeNode, type ManagementUnitMember,
 } from '@/api/management-unit'
 import OrgScopeTreeModal, { type OrgScopeNode } from './OrgScopeTreeModal.vue'
 import DataRangeModal from './DataRangeModal.vue'
-import { listUsers } from '@/api/users'
-import { listPersons } from '@/api/campusControl'
 import { useDepartmentStore, type Department } from '@/stores/department'
 
 const message = useMessage()
@@ -607,7 +517,6 @@ function openUnitModal(n: ManagementUnit) {
     includeChildren: n.includeChildren ?? 1,
   })
   unitModalVisible.value = true
-  loadDetailMembers(n)
 }
 
 /** 打开「编辑基本信息」弹窗，回填当前单元基础字段 */
@@ -796,16 +705,10 @@ const personBlockEnabled = computed({
   set: (v: boolean) => setEnabledFlag('personScopeEnabled', v),
 })
 const orgCheckedKeys = ref<string[]>([])
-const memberAddOptions = [
-  { label: '组织节点', key: 'DEPT' },
-  { label: '系统用户', key: 'USER' },
-]
 const detailOrgScopeVisible = ref(false)
 const detailOrgScopeValue = ref<OrgScopeNode[] | null>(null)
 const detailPersonDataRangeVisible = ref(false)
 const detailPersonDataRangeValue = ref<any>(null)
-const detailMemberLoading = ref(false)
-const detailMembers = ref<ManagementUnitMember[]>([])
 
 const appTabs = [
   { label: '公共', value: 'public' },
@@ -837,16 +740,6 @@ const currentAppPersonDataRange = computed<any>(() => {
   return detailUnit.value.personDataRanges?.[app] ?? null
 })
 
-/** 当前应用 Tab 的成员（public = 无 appCode 的公共成员；其余 = 该 appCode 的专属成员） */
-const detailMembersFiltered = computed<ManagementUnitMember[]>(() => {
-  if (!detailUnit.value) return []
-  const app = detailAppTab.value
-  return detailMembers.value.filter((m) => {
-    const mc = m.appCode || null
-    if (app === 'public') return !mc
-    return mc === app
-  })
-})
 const detailOrgColumns = [
   { type: 'selection' as const },
   { title: '组织名称', key: 'orgName', minWidth: 140, render: (row: OrgScopeNode) => deptNameById(row.deptId) },
@@ -858,23 +751,6 @@ const detailOrgColumns = [
     title: '操作', key: 'action', width: 80,
     render: (row: OrgScopeNode) =>
       h(NButton, { size: 'small', text: true, type: 'error', onClick: () => onRemoveOrgNode(row) }, { default: () => '删除' }),
-  },
-]
-const detailMemberColumns = [
-  {
-    title: '姓名', key: 'name', minWidth: 120,
-    render: (row: ManagementUnitMember) => row.departmentName || row.userName || row.personName || row.departmentId || row.userId || row.personId || '—',
-  },
-  // 成员模型暂无邮箱字段，预留列位（后端补 email 后直接展示）
-  { title: '邮箱', key: 'email', minWidth: 160, render: (row: any) => (row as any).email || '—' },
-  {
-    title: '组织', key: 'org', minWidth: 140,
-    render: (row: ManagementUnitMember) => (row.departmentId ? deptNameById(row.departmentId) : '—'),
-  },
-  {
-    title: '操作', key: 'action', width: 80,
-    render: (row: ManagementUnitMember) =>
-      h(NButton, { size: 'small', text: true, type: 'error', onClick: () => onRemoveDetailMember(row) }, { default: () => '删除' }),
   },
 ]
 
@@ -931,17 +807,6 @@ async function batchRemoveOrgNodes() {
   }
 }
 
-async function loadDetailMembers(u: ManagementUnit) {
-  detailMemberLoading.value = true
-  try {
-    detailMembers.value = await listManagementUnitMembers(String(u.id))
-  } catch (e: any) {
-    message.error('加载成员失败: ' + (e?.response?.data?.message || e?.message || e))
-  } finally {
-    detailMemberLoading.value = false
-  }
-}
-
 
 // 人员数据范围（按应用）
 function openDetailPersonDataRange() {
@@ -985,17 +850,6 @@ async function onDetailOrgScopeConfirm(nodes: OrgScopeNode[]) {
   }
 }
 
-async function onRemoveDetailMember(row: ManagementUnitMember) {
-  if (!editingUnit.value || !detailUnit.value) return
-  try {
-    await removeManagementUnitMember(String(editingUnit.value.id), row.id)
-    message.success('已移除')
-    await loadDetailMembers(detailUnit.value)
-  } catch (e: any) {
-    message.error('移除失败: ' + (e?.response?.data?.message || e?.message || e))
-  }
-}
-
 // ===== 查看授权用户 =====
 const viewAuthVisible = ref(false)
 const authMembers = ref<ManagementUnitMember[]>([])
@@ -1028,98 +882,8 @@ async function openViewAuth() {
   }
 }
 
-// ===== 成员管理（复用融合弹窗内的「人员范围」；添加/移除锚定 editingUnit） =====
-const memberModalVisible = ref(false)
-const memberSaving = ref(false)
-/** 添加成员时携带的 appCode（null = 公共成员），跟随当前应用 Tab */
-const memberAppCode = ref<string | null>(null)
-
-const memberForm = reactive({
-  memberType: 'DEPT' as 'DEPT' | 'USER',
-  departmentId: null as string | null,
-  userId: null as string | null,
-  personId: null as string | null,
-  includeChildren: 1 as number,
-  remark: '' as string,
-})
-
-const memberTypeLabels: Record<string, string> = {
-  DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员',
-}
-const memberFormTitle = computed(() => {
-  const label = memberTypeLabels[memberForm.memberType] || '成员'
-  return `添加${label}`
-})
-
-// 复用现有接口数据（不新造后端接口）
+// 复用现有接口数据（组织范围列渲染依赖部门 store；成员添加功能已移除）
 const deptStore = useDepartmentStore()
-const deptTreeOptions = computed(() => buildDeptTree(deptStore.departments))
-const userOptions = ref<{ label: string; value: string }[]>([])
-const personOptions = ref<{ label: string; value: string }[]>([])
-
-/** 把 flat 部门列表按 parentId 拼成 n-tree-select 需要的 {label,key,children} 树 */
-function buildDeptTree(list: Department[]): any[] {
-  const byId = new Map<string, any>()
-  list.forEach((d) => byId.set(String(d.id), { label: d.name, key: String(d.id), children: [] as any[] }))
-  const roots: any[] = []
-  list.forEach((d) => {
-    const node = byId.get(String(d.id))!
-    const pid = d.parentId ? String(d.parentId) : null
-    if (pid && byId.has(pid)) byId.get(pid)!.children.push(node)
-    else roots.push(node)
-  })
-  return roots
-}
-
-async function openAddMember(type: 'DEPT' | 'USER') {
-  if (!editingUnit.value) return
-  Object.assign(memberForm, {
-    memberType: type, departmentId: null, userId: null, personId: null,
-    includeChildren: 1, remark: '',
-  })
-  try { if (!deptStore.departments.length) await deptStore.loadDepartments() } catch { /* 降级 */ }
-  if (!userOptions.value.length) {
-    try { userOptions.value = (await listUsers()).map((u) => ({ label: u.realName || u.username || String(u.id), value: String(u.id) })) } catch { /* 降级 */ }
-  }
-  if (!personOptions.value.length) {
-    try { personOptions.value = (await listPersons()).map((p) => ({ label: p.name || p.code, value: String(p.id) })) } catch { /* 降级 */ }
-  }
-  memberModalVisible.value = true
-}
-
-/** 融合弹窗内按当前应用 Tab 添加成员（带 appCode） */
-function openDetailAddMember(type: 'DEPT' | 'USER') {
-  memberAppCode.value = detailAppTab.value === 'public' ? null : detailAppTab.value
-  openAddMember(type)
-}
-
-async function onSaveMember() {
-  if (!editingUnit.value) return
-  let payload: any
-  if (memberForm.memberType === 'DEPT') {
-    if (!memberForm.departmentId) { message.warning('请选择组织节点'); return }
-    payload = { memberType: 'DEPT', departmentId: memberForm.departmentId, includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
-  } else if (memberForm.memberType === 'USER') {
-    if (!memberForm.userId) { message.warning('请选择系统用户'); return }
-    payload = { memberType: 'USER', userId: Number(memberForm.userId), includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
-  } else {
-    if (!memberForm.personId) { message.warning('请选择 HR 人员'); return }
-    payload = { memberType: 'PERSON', personId: memberForm.personId, includeChildren: memberForm.includeChildren, remark: memberForm.remark || null }
-  }
-  if (memberAppCode.value) payload.appCode = memberAppCode.value
-  memberSaving.value = true
-  try {
-    await addManagementUnitMember(String(editingUnit.value.id), payload)
-    message.success('已添加成员')
-    memberModalVisible.value = false
-    memberAppCode.value = null
-    if (detailUnit.value) await loadDetailMembers(detailUnit.value)
-  } catch (e: any) {
-    message.error('添加成员失败: ' + (e?.response?.data?.message || e?.message || e))
-  } finally {
-    memberSaving.value = false
-  }
-}
 
 onMounted(() => {
   loadUnits()
