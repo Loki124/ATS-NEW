@@ -806,6 +806,18 @@ body.dark .n-data-table .n-data-table-th {
 }
 .toolbar .spacer { flex: 1; }
 
+/* 规则配置工具条筛选项宽度（全局化，原 CampusControl <style scoped> 内定义；
+   提升为全局工具类以单一令牌源，供 UserDirectory 等同构数据列表页复用。
+   与 CampusControl 既有 scoped 副本取值一致，不冲突） */
+.rule-filter-search {
+  width: 200px;
+  flex-shrink: 0;
+}
+.rule-filter-select {
+  width: 130px;
+  flex-shrink: 0;
+}
+
 /* === .kpi-row / .kpi-card（参照 CampusControl KPI 区）=== */
 .kpi-row {
   /* P3 整改：auto-fit + minmax 自适应，替换硬 4 列 + 1024/480 媒体查询 */
