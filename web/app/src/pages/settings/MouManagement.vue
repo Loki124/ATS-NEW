@@ -50,6 +50,7 @@
       preset="card"
       :style="{ width: '900px' }"
       :mask-closable="false"
+      :closable="!editingUnit"
     >
       <template #header>
         <div v-if="editingUnit" class="unit-detail-header">
@@ -193,11 +194,8 @@
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <template v-if="!editingUnit">
-            <n-button @click="unitModalVisible = false">取消</n-button>
-            <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">保存</n-button>
-          </template>
-          <n-button v-else @click="unitModalVisible = false">关闭</n-button>
+          <n-button @click="unitModalVisible = false">取消</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">保存</n-button>
         </div>
       </template>
     </n-modal>
