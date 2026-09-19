@@ -17,7 +17,7 @@ from .models_permission_v2 import (
 )
 # (Tier 3) DataPermissionRule 行级镜像已移除; 列级规则由 field_acl / enforcement 直接消费.
 from .permissions_v2 import V2Permission
-from .scope_resolver import resolve_scope
+from .scope_resolver import resolve_scope, compile_data_range_q, _pick_app_json
 
 
 class PermissionResourceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -339,6 +339,45 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         member.save()
         from .serializers_permission_v2 import ManagementUnitMemberSerializer
         return Response({'success': True, 'data': ManagementUnitMemberSerializer(member).data})
+
+    @action(detail=True, methods=['get'], url_path='resolved-persons')
+    def resolved_persons(self, request, pk=None):
+        """GET /api/v1/management-units/{id}/resolved-persons/?app_code=xx
+
+        需求 E(2026-09-18): 「配置人员范围」详情回显 —— 基于 person_data_range 的
+        部门条件解析出实际相关人员(系统用户), 而非回显规则文字.
+
+        仅按部门条件解析: 对 User.department_id 套用 compile_data_range_q(scope_field='department_id'),
+        复用 scope_resolver 单一真相源(含子级 includeSub 与组间 op 合并).
+        返回 {id, name, email, department_id, department_name}. 纯只读, 无副作用.
+        无有效部门条件(未配置或维度暂不支持)时返回空列表, 避免 fail-safe 误放行全量用户.
+        """
+        from django.contrib.auth import get_user_model
+        from django.db.models import Q
+        from .models import Department
+
+        unit = self.get_object()
+        app_code = request.query_params.get('app_code') or None
+        person_dr = _pick_app_json(
+            getattr(unit, 'person_data_ranges', None),
+            getattr(unit, 'person_data_range', None),
+            app_code,
+        )
+        if not person_dr:
+            return Response({'success': True, 'data': [], 'message': '（未配置人员范围）'})
+        q = compile_data_range_q(person_dr, scope_field='department_id', creator_field='created_by')
+        if q == Q():
+            return Response({'success': True, 'data': [], 'message': '（未配置可解析的部门条件）'})
+        User = get_user_model()
+        users = User.objects.filter(q, deleted_at__isnull=True).select_related('department').order_by('id')
+        rows = [{
+            'id': u.id,
+            'name': u.get_full_name() or u.username,
+            'email': u.email or '',
+            'department_id': u.department_id,
+            'department_name': u.department.name if u.department_id else '',
+        } for u in users]
+        return Response({'success': True, 'data': rows})
 
 
 class UserRoleViewSet(viewsets.ModelViewSet):

@@ -169,7 +169,24 @@
                 </n-space>
               </div>
               <template v-if="personBlockExpanded">
-                <div class="scope-readout detail-range-readout">人员数据范围：{{ dataRangeLabel(currentAppPersonDataRange) }}</div>
+                <div class="person-resolved">
+                  <div class="person-resolved-toolbar">
+                    <n-input v-model:value="personNameFilter" placeholder="筛选姓名" clearable size="small" style="width: 200px" />
+                    <n-input v-model:value="personEmailFilter" placeholder="筛选邮箱" clearable size="small" style="width: 240px" />
+                    <n-button text size="small" type="primary" :loading="resolvedPersonsLoading" @click="loadResolvedPersons">刷新</n-button>
+                  </div>
+                  <n-data-table
+                    v-if="filteredResolvedPersons.length"
+                    :columns="personColumns"
+                    :data="filteredResolvedPersons"
+                    size="small"
+                    :row-key="(row: ResolvedPerson) => row.id"
+                    :scroll-x="520"
+                    :max-height="320"
+                  />
+                  <n-empty v-else :description="resolvedPersonsMsg || '该人员范围下暂无匹配人员'" class="detail-empty" />
+                  <div v-if="filteredResolvedPersons.length" class="scope-block-total">共 {{ filteredResolvedPersons.length }} 人</div>
+                </div>
               </template>
             </div>
           </n-tab-pane>
@@ -279,8 +296,9 @@ import {
 import {
   listManagementUnits, treeManagementUnits, createManagementUnit, updateManagementUnit,
   deleteManagementUnit,
-  listManagementUnitMembers,
+  listManagementUnitMembers, listResolvedPersons,
   type ManagementUnit, type ManagementUnitTreeNode, type ManagementUnitMember,
+  type ResolvedPerson,
 } from '@/api/management-unit'
 import OrgScopeTreeModal, { type OrgScopeNode } from './OrgScopeTreeModal.vue'
 import DataRangeModal from './DataRangeModal.vue'
@@ -475,25 +493,6 @@ function toOrgScopeNodes(v: any): OrgScopeNode[] {
     }
   }
   return []
-}
-
-function dimLabel(d: string): string {
-  return ({ dept: '部门', department: '部门', 部门: '部门', position: '职务', tenure: '司龄' } as Record<string, string>)[d] || d || '维度'
-}
-
-function dataRangeLabel(v: any): string {
-  if (!v || !Array.isArray(v.groups) || !v.groups.length) return '（未配置）'
-  const parts = v.groups.map((g: any, i: number) => {
-    const conds = (g.conditions || [])
-      .map((c: any) => {
-        const name = c.dimension === 'dept' ? deptNameById(String(c.value)) : c.value
-        const op = c.operator === 'neq' ? '≠' : '='
-        return `${dimLabel(c.dimension)}${op}${name}${c.includeSub ? '(含子级)' : ''}`
-      })
-      .join(g.op === 'and' ? ' 且 ' : ' 或 ')
-    return `组${i + 1}(${conds || '空'})`
-  })
-  return parts.join(v.op === 'and' ? ' 且 ' : ' 或 ')
 }
 
 function openCreateRoot() {
@@ -833,6 +832,45 @@ async function onDetailPersonDataRangeConfirm(range: any) {
   }
 }
 
+// ===== 需求 E：配置人员范围 → 实际相关人员回显（姓名/邮箱/组织 + 姓名邮箱筛选）=====
+const resolvedPersons = ref<ResolvedPerson[]>([])
+const resolvedPersonsLoading = ref(false)
+const resolvedPersonsMsg = ref('')
+const personNameFilter = ref('')
+const personEmailFilter = ref('')
+const personColumns = [
+  { title: '姓名', key: 'name', minWidth: 140, ellipsis: { tooltip: true } },
+  { title: '邮箱', key: 'email', minWidth: 200, ellipsis: { tooltip: true } },
+  { title: '组织', key: 'departmentName', minWidth: 160, ellipsis: { tooltip: true } },
+]
+const filteredResolvedPersons = computed<ResolvedPerson[]>(() => {
+  const n = personNameFilter.value.trim().toLowerCase()
+  const e = personEmailFilter.value.trim().toLowerCase()
+  return resolvedPersons.value.filter((p) =>
+    (!n || (p.name || '').toLowerCase().includes(n)) &&
+    (!e || (p.email || '').toLowerCase().includes(e)),
+  )
+})
+async function loadResolvedPersons() {
+  if (!detailUnit.value) return
+  resolvedPersonsLoading.value = true
+  resolvedPersonsMsg.value = ''
+  try {
+    const res = await listResolvedPersons(String(detailUnit.value.id), detailAppTab.value)
+    resolvedPersons.value = res.data ?? []
+    if (!resolvedPersons.value.length) resolvedPersonsMsg.value = res.message || '该人员范围下暂无匹配人员'
+  } catch (err: any) {
+    message.error('加载实际人员失败: ' + (err?.response?.data?.message || err?.message || err))
+  } finally {
+    resolvedPersonsLoading.value = false
+  }
+}
+// 展开人员范围区块或切换应用 Tab 时，按当前 app 的配置拉取实际人员
+watch(
+  () => [personBlockExpanded.value, detailAppTab.value, detailUnit.value?.id],
+  ([expanded]) => { if (expanded) loadResolvedPersons() },
+)
+
 // 按应用配置「组织范围」
 function openDetailOrgScope() {
   if (!detailUnit.value) return
@@ -939,6 +977,16 @@ onMounted(() => {
   padding: 6px 10px;
   background: var(--color-bg-subtle);
   border-radius: 6px;
+}
+/* 需求 E：配置人员范围 → 实际人员表（姓名/邮箱/组织 + 筛选） */
+.person-resolved {
+  margin-top: var(--space-2);
+}
+.person-resolved-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 /* 北森式范围区块：开关 + 标题 + 右侧操作 + 可收起 */
 .scope-block {

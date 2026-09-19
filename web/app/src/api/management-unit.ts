@@ -161,4 +161,18 @@ export function updateManagementUnitMember(unitId: string | number, memberId: st
   return api.put<{success:boolean;data:ManagementUnitMember}>(`/management-units/${unitId}/members/${memberId}/`, payload).then(r => r.data.data);
 }
 
+export interface ResolvedPerson {
+  id: number | string;
+  name: string;
+  email: string;
+  departmentId: string | null;
+  departmentName: string;
+}
+
+/** 需求 E：基于 person_data_range 部门条件解析出实际相关人员(系统用户)列表，纯只读 */
+export function listResolvedPersons(unitId: string | number, appCode?: string | null) {
+  const qs = appCode ? `?app_code=${encodeURIComponent(appCode)}` : '';
+  return api.get<{success:boolean;data:ResolvedPerson[];message?:string}>(`/management-units/${unitId}/resolved-persons/${qs}`).then(r => r.data);
+}
+
 export default api;
