@@ -391,7 +391,8 @@ def permissions_user_roles(request, user_id):
             status=400,
         )
     if request.method == 'POST':
-        role_ids = request.data.get('roleIds', [])
+        # djangorestframework-camel-case 会把入参 roleIds 转成 role_ids, 两者都兼容读取
+        role_ids = request.data.get('role_ids') or request.data.get('roleIds') or []
         if not isinstance(role_ids, list):
             return Response(
                 {'success': False, 'code': 'validation_error', 'message': 'roleIds 必须是 list'},
