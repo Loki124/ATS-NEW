@@ -47,7 +47,10 @@
         :row-key="(row: User) => row.id"
         :loading="loading"
         :pagination="pagination"
+        :bordered="false"
         flex-height
+        @update:page="(p: number) => (pagination.page = p)"
+        @update:page-size="(s: number) => { pagination.pageSize = s; pagination.page = 1; }"
       >
         <template #empty><n-empty description="暂无用户" /></template>
       </n-data-table>
@@ -281,11 +284,13 @@ const userTypeFilterOptions = [
   { label: '外部用户', value: 'EXTERNAL' },
 ];
 
-// 分页器（客户端分页：displayUsers 已是筛选后结果）
+// 分页器（客户端分页：displayUsers 已是筛选后、拉全的全部用户子集）
 // 对齐校招管控规则配置：pageSize 20 + 快速跳页 + 「共 N 条」前缀
+// 受控模式必须有 itemCount 与翻页/改每页处理器，否则页码、跳页、每页数量均失效
 const pagination = reactive({
   page: 1,
   pageSize: 20,
+  itemCount: 0,
   showSizePicker: true,
   pageSizes: [10, 20, 50],
   showQuickJumper: true,
@@ -343,16 +348,27 @@ const request = async (url: string, options: RequestInit = {}) => {
   }
 };
 
-// 加载用户列表（整合后拉全部用户，内部/外部由 user_type 字段区分）
+// 加载用户列表：后端为服务端分页（默认 page_size=20、上限 200、响应带 pagination.total）。
+// 本页需要「展示全部用户」+ 客户端搜索/筛选，故循环翻页把所有用户一次性拉全，存入 users。
 const loadUsers = async () => {
   loading.value = true;
   try {
-    const res = await request(`/api/v1/users/`);
-    if (res.ok && res.data?.success) {
-      users.value = res.data.data;
-    } else if (!res.ok) {
-      message.error(res.data?.message || '加载用户列表失败');
+    const all: any[] = [];
+    let page = 1;
+    const pageSize = 200; // 后端上限，单次取最多
+    while (true) {
+      const res = await request(`/api/v1/users/?page=${page}&page_size=${pageSize}`);
+      if (!res.ok || !res.data?.success) {
+        message.error(res.data?.message || '加载用户列表失败');
+        break;
+      }
+      const pageData: any[] = res.data.data || [];
+      all.push(...pageData);
+      const total: number = res.data.pagination?.total ?? pageData.length;
+      if (pageData.length === 0 || all.length >= total) break;
+      page += 1;
     }
+    users.value = all;
   } catch (error) {
     console.error('加载用户列表失败', error);
     message.error('网络错误，请检查后端服务');
@@ -375,10 +391,16 @@ const displayUsers = computed<User[]>(() => {
   });
 });
 
-// 筛选变化时回到第 1 页，避免停留在越界空页
-watch([searchText, filterUserType, filterStatus], () => {
-  pagination.page = 1;
-});
+// 筛选结果变化时：同步真实总量（共 N 条）+ 回到第 1 页
+// 受控分页必须有 itemCount，否则「共 N 条」取不到真实总数、页码/跳页/每页数量全部失效
+watch(
+  displayUsers,
+  () => {
+    pagination.itemCount = displayUsers.value.length;
+    pagination.page = 1;
+  },
+  { immediate: true }
+);
 
 // 加载角色列表
 const loadRoles = async () => {
@@ -685,8 +707,8 @@ const actionsColumn = {
 
 // 统一列（整合后展示全部用户，用户类型字段区分内外）
 const columns = [
-  { title: '用户名', key: 'username', width: 120 },
-  { title: '姓名', key: 'realName', width: 100 },
+  { title: '用户名', key: 'username', width: 160, ellipsis: true },
+  { title: '姓名', key: 'realName', width: 120, ellipsis: true },
   userTypeColumn,
   statusColumn,
   { title: '角色类型', key: 'roleType', width: 90 },
