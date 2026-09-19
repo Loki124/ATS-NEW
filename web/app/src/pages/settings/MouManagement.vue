@@ -761,11 +761,42 @@ async function loadUnits() {
 // ===== 融合弹窗：按应用组织/人员范围 + 数据范围 =====
 const detailUnit = ref<ManagementUnit | null>(null)
 const detailAppTab = ref('public')
-// 北森式范围区块 UI 状态：生效开关（默认开，前端展示态）+ 收起/展开
-const orgBlockEnabled = ref(true)
-const personBlockEnabled = ref(true)
+// 北森式范围区块 UI 状态：生效开关（per-app 持久化，缺省启用）+ 收起/展开
 const orgBlockExpanded = ref(true)
 const personBlockExpanded = ref(true)
+
+/** 读取当前应用 Tab 的区块生效开关（缺省启用） */
+function getEnabledFlag(field: 'orgScopeEnabled' | 'personScopeEnabled'): boolean {
+  const unit = detailUnit.value as any
+  if (!unit) return true
+  const map = unit[field]
+  if (!map) return true
+  const v = map[detailAppTab.value]
+  return v === undefined ? true : !!v
+}
+/** 切换当前应用 Tab 的区块生效开关 → 立即 PATCH 持久化（按应用独立存储） */
+function setEnabledFlag(field: 'orgScopeEnabled' | 'personScopeEnabled', value: boolean) {
+  const unit = detailUnit.value as any
+  if (!unit) return
+  const merged = { ...(unit[field] || {}), [detailAppTab.value]: value }
+  updateManagementUnit(String(unit.id), { [field]: merged })
+    .then((updated: any) => {
+      detailUnit.value = { ...detailUnit.value, [field]: (updated as any)[field] ?? merged }
+      // 刷新列表行数据，保证关闭后再次打开读到最新生效开关
+      loadUnits()
+    })
+    .catch((e: any) => {
+      message.error('保存生效开关失败: ' + (e?.response?.data?.message || e?.message || e))
+    })
+}
+const orgBlockEnabled = computed({
+  get: () => getEnabledFlag('orgScopeEnabled'),
+  set: (v: boolean) => setEnabledFlag('orgScopeEnabled', v),
+})
+const personBlockEnabled = computed({
+  get: () => getEnabledFlag('personScopeEnabled'),
+  set: (v: boolean) => setEnabledFlag('personScopeEnabled', v),
+})
 const orgCheckedKeys = ref<string[]>([])
 const memberAddOptions = [
   { label: '组织节点', key: 'DEPT' },

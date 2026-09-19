@@ -151,6 +151,8 @@ class ManagementUnit(models.Model):
     data_ranges = models.JSONField(null=True, blank=True, verbose_name='按应用数据范围(JSON){app_code: DataRange}')
     person_data_range = models.JSONField(null=True, blank=True, verbose_name='人员数据范围(JSON)')
     person_data_ranges = models.JSONField(null=True, blank=True, verbose_name='按应用人员数据范围(JSON){app_code: DataRange}')
+    org_scope_enabled = models.JSONField(null=True, blank=True, verbose_name='按应用组织范围启用(JSON){app_code: bool}')
+    person_scope_enabled = models.JSONField(null=True, blank=True, verbose_name='按应用人员范围启用(JSON){app_code: bool}')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')

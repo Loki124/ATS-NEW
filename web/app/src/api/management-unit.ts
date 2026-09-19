@@ -43,6 +43,10 @@ export interface ManagementUnit {
   dataRange?: Record<string, any> | null;
   orgScopes?: Record<string, Array<{ deptId: string; includeChildren: boolean }>> | null;
   dataRanges?: Record<string, any> | null;
+  /** 按应用组织范围是否启用 {app_code: bool}, 缺省启用 */
+  orgScopeEnabled?: Record<string, boolean> | null;
+  /** 按应用人员范围是否启用 {app_code: bool}, 缺省启用 */
+  personScopeEnabled?: Record<string, boolean> | null;
   includeChildren: number;
   status: number;
   createdAt?: string;
