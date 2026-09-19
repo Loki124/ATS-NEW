@@ -11,6 +11,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
+import uuid as uuid_lib
 
 
 class UserManager(BaseUserManager):
@@ -106,6 +107,15 @@ class User(AbstractUser):
         default='INTERNAL',
         db_index=True,
         verbose_name='用户类型',
+    )
+
+    # 用户唯一标识（对外稳定 ID，区别于自增 id；新建用户自动生成，存量用户在 0018 迁移中回填）
+    uuid = models.UUIDField(
+        default=uuid_lib.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+        verbose_name='用户UUID',
     )
 
     # 抢单 ROUND_ROBIN
