@@ -192,8 +192,11 @@
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="unitModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">保存</n-button>
+          <template v-if="!editingUnit">
+            <n-button @click="unitModalVisible = false">取消</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">保存</n-button>
+          </template>
+          <n-button v-else @click="unitModalVisible = false">关闭</n-button>
         </div>
       </template>
     </n-modal>
@@ -611,11 +614,11 @@ function openUnitModal(n: ManagementUnit) {
 /** 打开「编辑基本信息」弹窗，回填当前单元基础字段 */
 function openBasicInfoEdit() {
   Object.assign(basicInfoForm, {
-    unitName: unitForm.unitName,
-    code: unitForm.code,
+    unitName: unitForm.unitName || '',
+    code: unitForm.code || '',
     parentId: unitForm.parentId,
     displayOrder: unitForm.displayOrder,
-    description: unitForm.description,
+    description: unitForm.description || '',
     status: unitForm.status,
   })
   basicInfoModalVisible.value = true
@@ -623,24 +626,26 @@ function openBasicInfoEdit() {
 
 /** 保存「编辑基本信息」弹窗中的基础字段（名称/编码/上级/显示顺序/说明） */
 async function onSaveBasicInfo() {
-  if (!basicInfoForm.unitName.trim()) {
+  if (!(basicInfoForm.unitName || '').trim()) {
     message.warning('单元名称必填')
     return
   }
   basicInfoSaving.value = true
   try {
     const payload = {
-      unitName: basicInfoForm.unitName.trim(),
-      code: basicInfoForm.code.trim() || null,
+      unitName: (basicInfoForm.unitName || '').trim(),
+      code: (basicInfoForm.code || '').trim() || null,
       parentId: basicInfoForm.parentId ? Number(basicInfoForm.parentId) : null,
       displayOrder: basicInfoForm.displayOrder ?? 0,
-      description: basicInfoForm.description.trim() || null,
+      description: (basicInfoForm.description || '').trim() || null,
       status: basicInfoForm.status,
     }
     await updateManagementUnit(unitForm.id, payload)
     message.success('已更新')
     basicInfoModalVisible.value = false
-    Object.assign(unitForm, payload)
+    // null 归一为 ''：payload 里 code/description 空值是 null，直接回填会让
+    // onSaveUnit 的 .trim() 读到 null 崩溃（Cannot read properties of null）
+    Object.assign(unitForm, { ...payload, code: payload.code || '', description: payload.description || '' })
     await loadUnits()
     const updated = allUnits.value.find((u) => String(u.id) === unitForm.id)
     if (updated) {
@@ -655,19 +660,19 @@ async function onSaveBasicInfo() {
 }
 
 async function onSaveUnit() {
-  if (!unitForm.unitName.trim()) {
+  if (!(unitForm.unitName || '').trim()) {
     message.warning('单元名称必填')
     return
   }
   unitSaving.value = true
   try {
     const payload = {
-      unitName: unitForm.unitName.trim(),
-      code: unitForm.code.trim() || null,
+      unitName: (unitForm.unitName || '').trim(),
+      code: (unitForm.code || '').trim() || null,
       unitType: unitForm.unitType,
       parentId: unitForm.parentId ? Number(unitForm.parentId) : null,
       displayOrder: unitForm.displayOrder ?? 0,
-      description: unitForm.description.trim() || null,
+      description: (unitForm.description || '').trim() || null,
       status: unitForm.status,
       includeChildren: unitForm.includeChildren,
     }
