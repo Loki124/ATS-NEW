@@ -63,6 +63,7 @@ class UserSerializer(serializers.ModelSerializer):
             'bu_president', 'solid_vp', 'dotted_vp',
             'moka_user_id',
             'user_type',
+            'uuid',
             'is_active', 'last_login_at',
             'created_at', 'updated_at',
             # 2026-07-02: FE input 字段 (write_only, 但必须在 fields 中声明)
@@ -70,7 +71,7 @@ class UserSerializer(serializers.ModelSerializer):
             'wechat_work_user_id', 'wechat_work_dept_id', 'wechat_work_name',
             'mocha_dept_id', 'mocha_name', 'status',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'last_login_at', 'full_name']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'last_login_at', 'full_name', 'uuid']
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -211,6 +212,8 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         )
         # 2026-09-19: 用户类型字段接入列表 (前端「用户类型」列 + 客户端筛选依赖此字段)
         ret['userType'] = instance.user_type
+        # 用户唯一标识（对外稳定 ID，新建自动生成、存量已回填）
+        ret['uuid'] = str(instance.uuid) if instance.uuid else ''
         ret['permissionMode'] = 'MOU'
         ret['wechatWorkUserId'] = ''
         ret['wechatWorkDeptId'] = ''
