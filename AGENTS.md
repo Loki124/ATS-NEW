@@ -11,7 +11,7 @@ globs:
   - "/tokens*.css"
 alwaysApply: false
 priority: 100
-version: 2.0.0
+version: 2.1.0
 tools:
 
 ## brand-tokens: node brand-tokens.mjs --brand  [--out ] [--report] [--json] [--ci]
@@ -98,6 +98,7 @@ R-001 [P1][S] 编写任何样式前 MUST 先具备完整令牌，MUST NOT 在组
 ### R-101 [P0][S] 交互组件必须实现完整状态
 
 每个可交互组件 MUST 实现：default / hover / active / focus-visible / loading / disabled。
+**按钮类组件（含切换/开关/危险操作）MUST 额外实现 selected 态与 danger 态。**
 异步提交类组件 MUST 在 loading 期间设置 disabled，防止重复提交。
 
 // ❌ 违规：无 loading、无 disabled，可重复提交
@@ -119,6 +120,8 @@ R-001 [P1][S] 编写任何样式前 MUST 先具备完整令牌，MUST NOT 在组
 ### R-102 [P0][R] 触控目标 ≥ 44×44px
 
 图标按钮视觉尺寸不足时 MUST 用 padding 或伪元素扩大命中区。
+
+Web 端按钮 MUST 按小(28–32px) / 中(36–40px) / 大(44–48px) 三档使用；图标按钮视觉尺寸常见 28–32px，但**命中区仍 MUST ≥ 44×44px**。
 
 .icon-btn { width: 32px; height: 32px; position: relative; }
 .icon-btn::after { content: ''; position: absolute; inset: -6px; }  /* 扩至 44px */
@@ -345,6 +348,30 @@ MUST 通过字号 / 字重 / 颜色 / 间距建立层级。
 
 滚动正确性需渲染后确认（表头固定、滚动条仅出现在表格区域），标注 [R] 项不得静态打勾。
 
+### R-216 [P0][S] 图标库风格必须一致
+
+同一视图内所有图标 MUST 来自同一图标库、同一视觉风格（线性/面性统一）、同一笔触粗细。MUST NOT 混用不同来源的图标。
+
+### R-217 [P0][S] 无文字图标必须可理解
+
+无文字图标 MUST 通过 `aria-label` / `title` / tooltip 让用户理解其含义。纯装饰图标 MUST 设 `aria-hidden="true"`。
+
+### R-218 [P0][S] 输入框必须有可见标签
+
+每个输入框 MUST 有可见 `<label>`（非仅 placeholder）。必填项 MUST 使用统一标识（如 `*`）。辅助说明 MUST 与字段通过 `aria-describedby` 关联。
+
+### R-219 [P1][S] 图标尺寸必须分级
+
+同一界面图标尺寸 MUST 控制在 ≤ 4 个固定等级内，禁止无级缩放。Web 端推荐等级：14–16px、18–20px、24px、32px+。
+
+### R-220 [P1][S] 按钮尺寸与内边距
+
+Web 端按钮 MUST 按小(28–32px) / 中(36–40px) / 大(44–48px) 三档使用。按钮左右内边距 MUST 为 12–24px。图标按钮视觉 28–32px，命中区仍 MUST ≥ 44×44px（R-102）。
+
+### R-221 [P1][S] 表单错误提示必须就近且多通道
+
+错误提示 MUST 出现在对应字段附近，MUST NOT 仅依赖颜色表达；MUST 同时提供图标 + 文字。
+
 ## 4. 品牌色系统（Brand Color）
 
 品牌色是唯一必须由外部输入的令牌，其余颜色由它推导或与之解耦。
@@ -551,6 +578,9 @@ Agent 行为：生成或改动品牌色后 MUST 执行 --ci，MUST 依据退出�
 | X-14 | 主按钮锁定 -500 阶配白字 | 自动选阶至对比度 ≥ 4.5:1（R-210） |
 | X-15 | 语义色由品牌色推导，或靠旋转色相消解冲突 | 明度分离 + 图标（R-211） |
 | X-16 | 深色模式直接反转色阶 | 重排 L / 降低 C（R-212） |
+| X-17 | 同一视图混用不同来源/风格的图标 | 统一图标库与线性/面性风格（R-216） |
+| X-18 | 无文字图标无 aria-label / title / tooltip | 提供可理解含义的替代文本（R-217） |
+| X-19 | 同一界面图标尺寸超过 4 个等级 | 控制在 14–16 / 18–20 / 24 / 32+ 四档内（R-219） |
 
 ### X-01 品牌渐变例外（Liquid Glass v2 设计语言）
 
@@ -675,7 +705,7 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 
 ### 7.2 静态项 [S] — agent MUST 自证并给依据
 
-- [S-01 P0] 交互组件含 default/hover/active/focus-visible/loading/disabled？
+- [S-01 P0] 交互组件含 default/hover/active/focus-visible/loading/disabled/selected/danger？
 - [S-02 P0] 异步提交期间 disabled + aria-busy？
 - [S-03 P0] 异步操作覆盖 加载/空/成功/失败 四个分支？
 - [S-04 P0] 表单自动保存草稿，且敏感字段已整体豁免？
@@ -702,6 +732,11 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 - [S-25 P0] 图片有 alt，装饰图标有 aria-hidden？
 - [S-26 P0] 可见 <label>（非仅 placeholder）？
 - [S-27 P0] 无 tabindex > 0，可聚焦元素未用 order/grid-area 重排？
+- [S-28 P0] 同一视图图标库/风格/粗细统一，无混用？（R-216 / X-17）
+- [S-29 P0] 无文字图标有 aria-label / title / tooltip 说明含义？（R-217 / X-18）
+- [S-30 P1] 图标尺寸控制在 ≤4 个固定等级？（R-219 / X-19）
+- [S-31 P1] 按钮按 28–32 / 36–40 / 44–48 三档使用，图标按钮命中区 ≥44×44？（R-102 / R-220）
+- [S-32 P1] 表单错误提示靠近对应字段，且图标 + 文字双通道？（R-221）
 
 ### 7.3 运行时项 [R] — agent MUST 输出"未验证"
 
