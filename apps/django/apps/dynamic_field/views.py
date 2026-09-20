@@ -76,7 +76,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
     def _norm_header(raw):
         if not raw:
             return None
-        key = raw.strip()
+        # 去 BOM：部分客户端（Excel 另存 / 某些浏览器 readAsText）会残留 \ufeff，
+        # 而 str.strip() 不去除它，会导致列名映射失败
+        key = raw.strip().lstrip('\ufeff')
         return DynamicFieldViewSet.FIELD_HEADER_ALIASES.get(key) or \
             DynamicFieldViewSet.FIELD_HEADER_ALIASES.get(key.lower())
 
@@ -382,7 +384,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             ])
             writer.writeheader()
             writer.writerows(records)
-            resp = HttpResponse(buf.getvalue(), content_type='text/csv; charset=utf-8')
+            # Excel 兼容：加 UTF-8 BOM（与 campus_control / analytics 导出的 utf-8-sig 策略对齐），
+            # 否则 Excel 按本地编码解析无 BOM 的 UTF-8 → 中文乱码
+            resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
             resp['Content-Disposition'] = 'attachment; filename="dynamic_fields.csv"'
             return resp
 
@@ -540,7 +544,8 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             writer = csv.DictWriter(buf, fieldnames=headers)
             writer.writeheader()
             writer.writerow(example)
-            resp = HttpResponse(buf.getvalue(), content_type='text/csv; charset=utf-8')
+            # 模板含中文表头, 同样需 BOM 才能在 Excel 下正确显示中文
+            resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
             resp['Content-Disposition'] = 'attachment; filename="dynamic_fields_template.csv"'
             return resp
 
@@ -566,7 +571,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         - 列头支持中英文(经 ``_norm_header`` 归一到模型字段名)
         - 对布尔 / 整数 / JSON 做轻量规整
         """
-        reader = csv.reader(io.StringIO(text))
+        # 兼容带 UTF-8 BOM 的导出/模板文件：BOM 会让首个列名变成 '\ufefffield_key'，
+        # 导致 _norm_header 映射失败 → 整列丢失 → 全部行被跳过（导入 0 条）
+        reader = csv.reader(io.StringIO(text.lstrip('\ufeff')))
         raw_rows = [r for r in reader if r and any(c.strip() for c in r)]
         data_rows = [r for r in raw_rows if not r[0].strip().startswith('#')]
         if not data_rows:
