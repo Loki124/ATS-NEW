@@ -1780,13 +1780,16 @@ function scrollToSection(id: string) {
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  /* 2026-09-20: 去 box-shadow — 阴影(0 8px 32px)在 12px 卡间缝隙内外溢叠加,
+    把缝隙染成 rgb(237) 灰带(兵哥红框); 卡片分界由 1px border 承担, 缝隙透出弹窗白底 */
+  box-shadow: none;
   padding: var(--space-4);
   transition: box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .stage-card:last-child { margin-bottom: 0; }
 .stage-card:hover {
-  box-shadow: var(--shadow-panel);
+  /* hover 同理不加投影, 避免灰带在悬停时重现; 保留边框加深作为 hover 反馈 */
+  box-shadow: none;
   border-color: var(--glass-border-strong);
 }
 
