@@ -920,16 +920,18 @@ onUnmounted(() => {
   overflow-y: auto !important;
   gap: 0 !important;
 }
-/* 编辑模式：把头部 + 字典信息 + 字典元素 串成纵向 flex，元素卡片吃满剩余空间。
-   关键：必须锁定 page-container 高度（不能 min-height:100%），
-   否则 flex:1 在外层滚动容器里没有"剩余空间"可吃，元素卡片仍按内容高度生长，外层页面滚动代替内部滚动。 */
+/* 编辑模式（v5 重写）：锁定可视高度，让本容器成为唯一滚动容器（overflow-y:auto）。
+   v4 曾用「flex 列 + overflow:hidden + 元素卡片 flex:1 内滚」架构，矮视口下连续翻车：
+   卡片 min-height:480 与 max-height:calc(100vh-360) 冲突(min>max)把卡片撑溢出，
+   内滚滚动条被 hidden 容器切到可视区外（scrollRect.bottom 896 > 容器底 700）→ 用户够不到滚动条，
+   且 616px 容器扣除头部/信息卡/提交栏后内滚区仅剩 ~80px(1.5 行)没法用。
+   v5 回归自然文档流：卡片随行数生长、本容器整体滚动，滚动条右缘全高可达，无 flex 高度陷阱。 */
 .page-container.edit-mode {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
+  display: block !important;
   height: 100% !important;
   min-height: 0 !important;
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 .page-container.edit-mode .section:last-of-type { margin-bottom: 0; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
@@ -940,26 +942,11 @@ onUnmounted(() => {
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
 .section { margin-bottom: var(--space-4); }
 .section--info :deep(.n-card__content) { padding: var(--space-3) var(--space-4) !important; }
-/* 元素卡片：卡片自身 flex 列；naive-ui 内容层类名是 .n-card-content（单下划线，项目已知坑），
-   改 flex 列让 header（标题 + 新增元素按钮）常驻在流内不被覆盖、表格滚动区填满剩余高度 */
-.section--elements {
-  flex: 1 1 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  min-height: 480px !important;
-  max-height: calc(100vh - 360px) !important;
-}
-.section--elements :deep(.n-card-header) {
-  flex-shrink: 0 !important;
-}
+/* 元素卡片：自然高度（随行数生长，由 .page-container.edit-mode 整体滚动）。
+   仅保留内容层内边距；类名用 .n-card-content（单下划线，项目已知坑）。
+   不再写任何 flex/min-height/overflow 高度锁 —— v3/v4 两轮布局假绿均源于此类锁。 */
 .section--elements :deep(.n-card-content) {
-  flex: 1 1 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  min-height: 0 !important;
   padding: var(--space-3) var(--space-4) !important;
-  overflow: hidden !important;
 }
 /* 单行对齐：返回按钮 / 标题 / meta 标签 同行，meta 标签靠右 */
 .edit-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
@@ -985,16 +972,12 @@ onUnmounted(() => {
 
 .hint { color: var(--n-350); font-size: var(--fs-12); margin-left: var(--space-2); }
 
-/* 元素树形表格
-   flex 填满 .n-card-content 剩余高度（不再用 absolute inset —— 曾因定位祖先缺失盖住卡片 header，
-   把「+ 新增元素」按钮压在表头下面点不到），overflow:auto 在内容溢出时触发滚动 */
+/* 元素树形表格：普通块级（随内容生长）。滚动职责上交 .page-container.edit-mode；
+   sticky submit-bar 的底部遮挡由 page-container 基类 padding-bottom:120px 兜底，
+   不再需要 v3 的 padding-bottom:80px 内滚留位。 */
 .el-table-scroll {
   position: relative;
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: auto;
   border-radius: 8px;
-  padding-bottom: 80px;            /* v3: 给 sticky submit-bar 留位置, 避免最底一行被遮 */
 }
 .el-table { border: 1px solid var(--g2); border-radius: 6px; overflow-x: auto; width: 100%; min-width: 720px; }
 .el-table-scroll .el-table { border: none; border-radius: 0; min-width: 720px; }
