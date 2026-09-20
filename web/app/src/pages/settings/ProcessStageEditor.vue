@@ -45,6 +45,7 @@
                 <div class="stage-actions">
                   <n-button text size="small" type="primary" @click="goRules(element)">规则</n-button>
                   <n-button text size="small" type="primary" @click="goConditions(element)">条件</n-button>
+                  <n-button text size="small" @click="editLinkCustomName(element)">改名</n-button>
                   <n-button text size="small" @click="editLinkStageLimit(element)">时长</n-button>
                   <n-popconfirm
                     v-if="!element.stage?.isStart && !element.stage?.isEnd"
@@ -108,13 +109,40 @@
         </n-space>
       </template>
     </n-modal>
+
+    <!-- 修改流程内阶段名称弹窗（customName，覆盖全局 stage 名，满足「可修改名称」） -->
+    <n-modal
+      v-model:show="showRenameModal"
+      preset="card"
+      title="修改流程内阶段名称"
+      style="width: 400px; max-width: 90vw"
+      :transform-origin="undefined"
+    >
+      <n-form :model="renameForm" label-placement="top">
+        <n-form-item label="流程内显示名（留空则用阶段原名）">
+          <n-input
+            v-model:value="renameForm.customName"
+            placeholder="例如：技术初评"
+            :maxlength="20"
+            show-count
+            clearable
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showRenameModal = false">取消</n-button>
+          <n-button type="primary" class="gradient-btn" @click="saveCustomName">保存</n-button>
+        </n-space>
+      </template>
+    </n-modal>
     </div><!-- /.page-body -->
 </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
-import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInputNumber, NForm, NFormItem, NModal, NDataTable, NAlert, NEmpty, NSpin, NCard } from 'naive-ui'
+import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NInputNumber, NForm, NFormItem, NModal, NDataTable, NAlert, NEmpty, NSpin, NCard } from 'naive-ui'
 import { AddOutline, ArrowBackOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -152,6 +180,8 @@ const loadingAddModal = ref(false)
 const availableStages = ref<any[]>([])
 const showLimitModal = ref(false)
 const limitForm = ref<{ linkId: string; stageLimit: number | null }>({ linkId: '', stageLimit: 0 })
+const showRenameModal = ref(false)
+const renameForm = ref<{ linkId: string; customName: string }>({ linkId: '', customName: '' })
 
 // 类型颜色映射
 function getTypeColor(type: string): TagType {
@@ -258,6 +288,25 @@ async function onReorder(newList: any[]) {
 function editLinkStageLimit(link: any) {
   limitForm.value = { linkId: link.id, stageLimit: link.stageLimit || 0 }
   showLimitModal.value = true
+}
+
+function editLinkCustomName(link: any) {
+  // custom_name 为空串时 display_name 属性自动回退 stage.name（模型 custom_name 非 null）
+  renameForm.value = { linkId: link.id, customName: link.customName || '' }
+  showRenameModal.value = true
+}
+
+async function saveCustomName() {
+  try {
+    await updateProcessLink(renameForm.value.linkId, {
+      customName: renameForm.value.customName.trim(),
+    })
+    message.success('已保存')
+    showRenameModal.value = false
+    loadProcess()
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || '保存失败')
+  }
 }
 
 async function saveStageLimit() {
