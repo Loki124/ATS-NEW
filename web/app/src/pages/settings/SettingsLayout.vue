@@ -178,11 +178,13 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/campus-control', label: '校招管控', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
       {
         // 2026-09-14 新增：招聘分类信息，数据字典收为其子项（兵哥未列入排序清单，保留并置于末尾）
+        // 2026-09-20 补充：原因库加入子项，作为原因标签 / 场景规则的配置入口
         key: '/settings/recruit-category',
         label: '招聘分类信息',
         icon: () => h(NIcon, null, { default: () => h(PricetagsOutline) }),
         children: [
           { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+          { key: '/settings/reason-library', label: '原因库', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
         ],
       },
     ],

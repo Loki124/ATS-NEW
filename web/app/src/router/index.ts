@@ -188,6 +188,18 @@ const routes: RouteRecordRaw[] = [
           { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
           // ===== 统一规则引擎 (Phase 4 后端) — 聚合只读视图 =====
           { path: 'rule-engine', name: 'RuleEngine', component: () => import(/* webpackChunkName: "settings-rule-engine" */ '../pages/settings/RuleEngine.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // ===== 原因库 (G47 / ATS-NEW Reason Library) — 嵌套父布局, 默认重定向到 tags =====
+          {
+            path: 'reason-library',
+            name: 'ReasonLibrary',
+            component: () => import(/* webpackChunkName: "settings-reason-library" */ '../pages/settings/reason-library/index.vue'),
+            meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'], title: '原因库', description: '维护全局原因标签池与场景规则（系统预置仅超管可改）' },
+            children: [
+              { path: '', redirect: '/settings/reason-library/tags' },
+              { path: 'tags', name: 'ReasonLibraryTags', component: () => import(/* webpackChunkName: "settings-reason-library-tags" */ '../pages/settings/reason-library/tags.vue'), meta: { title: '原因标签' } },
+              { path: 'rules', name: 'ReasonLibraryRules', component: () => import(/* webpackChunkName: "settings-reason-library-rules" */ '../pages/settings/reason-library/rules.vue'), meta: { title: '场景规则' } },
+            ],
+          },
         ],
       },
       {
