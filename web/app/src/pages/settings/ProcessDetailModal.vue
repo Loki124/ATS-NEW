@@ -69,7 +69,8 @@
             <div class="dp-section-title">
               <h3>适用范围</h3><span class="hint">基于条件规则判断适用范围</span>
             </div>
-            <!-- A: 适用范围 row 列表 (每行: 编号 / 字段 / 包含-不包含 / 值多选 / 删除) -->
+            <!-- A: 适用范围 row 列表 (每行: 编号圆点 / 范围类型 / 匹配方式 / 值多选 / 删除图标)
+                 视觉严格对齐 UI 标准示例图: 无边框行 + 浅紫编号圆点 + 行内下拉 + 右侧垃圾桶 -->
             <div class="scope-row-list">
               <div
                 v-for="(ind, idx) in editForm.applicableIndicators"
@@ -78,35 +79,34 @@
                 :class="getScopeEditCardClass(ind)"
               >
                 <span class="scope-row__no">{{ idx + 1 }}</span>
-                <div class="scope-row__field">
-                  <n-icon :component="SCOPE_KEY_ICONS[ind.key]" />
-                  <span>{{ SCOPE_INDICATOR_META[ind.key].label }}</span>
-                </div>
                 <n-select
-                  class="scope-row__mode"
-                  :value="ind.mode"
-                  :options="MODE_OPTIONS"
-                  size="small"
-                  @update:value="(v) => (ind.mode = v as 'include' | 'exclude')"
+                  class="scope-row__key"
+                  :value="ind.key"
+                  :options="keyOptionsFor(idx)"
+                  placeholder="范围类型"
+                  @update:value="(v: any) => changeScopeKey(ind, v as ScopeKey)"
                 />
-                <div class="scope-row__values">
-                  <n-select
-                    v-model:value="ind.values"
-                    multiple filterable clearable
-                    :placeholder="ind.values.length ? '' : '留空 = 不约束'"
-                    :options="scopeOptionsFor(ind.key)"
-                    :loading="!scopeOptionsLoaded"
-                  />
-                  <span v-if="ind.values.length" class="scope-row__count">
-                    {{ ind.values.length > 1 ? `+${ind.values.length - 1}` : '' }}
-                  </span>
-                </div>
+                <n-select
+                  v-model:value="ind.mode"
+                  class="scope-row__mode"
+                  :options="MODE_OPTIONS"
+                />
+                <n-select
+                  v-model:value="ind.values"
+                  class="scope-row__values"
+                  multiple filterable clearable
+                  placeholder="值（留空=不约束）"
+                  :options="scopeOptionsFor(ind.key)"
+                  :loading="!scopeOptionsLoaded"
+                />
                 <button
                   type="button"
                   class="scope-row__remove"
                   :aria-label="`删除条件 ${idx + 1}`"
                   @click="removeScopeRow(idx)"
-                >删除</button>
+                >
+                  <n-icon :component="TrashOutline" size="16" />
+                </button>
               </div>
 
               <button
@@ -120,18 +120,12 @@
               </button>
             </div>
 
-            <!-- 条件表达式: 简单展示 "1 or 2" (后续若后端需要可上链) -->
+            <!-- 条件表达式: 全宽可编辑 (行变化自动生成, 手改后以手改为准), 参照示例图 -->
             <div class="scope-expr">
-              <span class="scope-expr__label">
-                条件表达式
-                <n-tooltip trigger="hover" placement="top">
-                  <template #trigger>
-                    <n-icon :component="HelpCircleOutline" size="12" />
-                  </template>
-                  <span>基于"包含"条件的索引用 or 连接, 排除行以 NOT 包裹</span>
-                </n-tooltip>
-              </span>
-              <n-input :value="scopeConditionExpr" readonly size="small" />
+              <n-input v-model:value="scopeExprText" :placeholder="EXPR_PLACEHOLDER" />
+              <p v-if="scopeSummary" class="scope-expr__summary">
+                <span class="scope-expr__summary-label">已选范围</span>{{ scopeSummary }}
+              </p>
             </div>
           </section>
 
@@ -420,15 +414,11 @@ import {
   VideocamOutline,
   DocumentTextOutline,
   CheckmarkCircleOutline,
-  BusinessOutline,
-  MedalOutline,
-  BriefcaseOutline,
-  PersonCircleOutline,
   AddOutline,
   SearchOutline,
   OptionsOutline,
   ExtensionPuzzleOutline,
-  HelpCircleOutline,
+  TrashOutline,
 } from '@vicons/ionicons5'
 import EntryConditionCard from './EntryConditionCard.vue'
 import {
@@ -558,13 +548,6 @@ const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: '
   ONBOARDING: { label: '入职',  color: 'var(--c-cyan)',    tagType: 'info',    icon: CheckmarkCircleOutline },
 }
 
-const SCOPE_INDICATOR_LABEL: Record<string, string> = {
-  department: '部门',
-  level: '职级',
-  position: '岗位',
-  user: '用户',
-}
-
 // B: 弹窗标题 (编辑流程-「流程名称(流程编号)」-「阶段数量」)
 const modalTitle = computed(() => {
   const name = editForm.value?.name || data.value?.name || (isCreateMode.value ? '未命名' : '')
@@ -576,13 +559,6 @@ const modalTitle = computed(() => {
   const nameTag = `${name}${code ? `(${code})` : ''}`
   return `编辑流程-「${nameTag}」-「${stageCount} 个阶段」`
 })
-
-const SCOPE_KEY_ICONS: Record<string, any> = {
-  department: BusinessOutline,
-  level: MedalOutline,
-  position: BriefcaseOutline,
-  user: PersonCircleOutline,
-}
 
 const CONDITION_TYPE_LABEL: Record<string, string> = {
   STAGE_STATUS: '基于阶段状态',
@@ -617,12 +593,7 @@ const HANDLER_TYPE_LABEL: Record<string, string> = {
 }
 
 // ===== edit-mode meta =====
-const SCOPE_INDICATOR_META: Record<ScopeKey, { label: string; tagType: 'info' | 'success' | 'warning' | 'error' }> = {
-  department: { label: '需求部门', tagType: 'info' },
-  level:      { label: '职级',     tagType: 'warning' },
-  position:   { label: '岗位',     tagType: 'success' },
-  user:       { label: '用户',     tagType: 'error' },
-}
+// (范围类型的标签/下拉选项统一由 SCOPE_KEY_OPTIONS 提供, 见 MODE_OPTIONS 附近)
 
 async function load() {
   if (!props.processId) return
@@ -833,6 +804,11 @@ async function initEditFormFromSnapshot() {
   editForm.value = form
   originalSnapshot.value = { form: deepClone(form) }
   selectedStageIdx.value = null
+  // 表达式初始化: 优先取后端存储的 expression; 与自动生成不同则视为已手工编排(scopeExprTouched),
+  // 之后行变化不再自动覆盖, 尊重用户已落库的表达式。
+  const storedExpr = ((data.value.applicableScope as any)?.expression as string) || ''
+  scopeExprTouched.value = Boolean(storedExpr) && storedExpr !== scopeConditionExpr.value
+  scopeExprText.value = storedExpr || scopeConditionExpr.value
   mode.value = 'edit'
 }
 
@@ -869,6 +845,8 @@ function exitEditMode() {
   showRuleConfig.value = false
   ruleEditingStage.value = null
   ruleEditingLinkId.value = null
+  scopeExprText.value = ''
+  scopeExprTouched.value = false
   showStagePicker.value = false
   stagePickerKeyword.value = ''
   loadError.value = null
@@ -1162,8 +1140,10 @@ async function handleSave() {
   saving.value = true
   try {
     // 3a. applicableScope payload (used in both create + update)
+    //   expression: 行变化自动生成 / 用户可手改 (如 "1 and 2"), 后端 JSONField 原样存储
     const applicableScope = {
       mode: form.applicableMode,
+      expression: scopeExprText.value.trim(),
       indicators: form.applicableIndicators.map((ind: ScopeIndicator) => ({
         key: ind.key,
         mode: ind.mode,
@@ -1396,6 +1376,31 @@ const MODE_OPTIONS = [
   { label: '不包含', value: 'exclude' },
 ]
 
+// 范围类型下拉选项 (行内可切换; 已被其他行占用的类型禁选, 保证 key 全表唯一)
+const SCOPE_KEY_OPTIONS = [
+  { label: '部门', value: 'department' },
+  { label: '职级', value: 'level' },
+  { label: '岗位', value: 'position' },
+  { label: '人员', value: 'user' },
+]
+
+function keyOptionsFor(idx: number) {
+  const used = new Set(
+    (editForm.value?.applicableIndicators || [])
+      .map((ind, i) => (i === idx ? null : ind.key))
+      .filter(Boolean) as ScopeKey[],
+  )
+  return SCOPE_KEY_OPTIONS.map((o) => ({ ...o, disabled: used.has(o.value as ScopeKey) }))
+}
+
+// 切换范围类型后清空已选值 (不同类型的选项集合不同, 旧值不再有意义)
+function changeScopeKey(ind: ScopeIndicator, key: ScopeKey) {
+  if (ind.key === key) return
+  ind.key = key
+  ind.values = []
+  ind.options = scopeOptionsFor(key)
+}
+
 const ALL_SCOPE_KEYS: ScopeKey[] = ['department', 'level', 'position', 'user']
 const availableScopeKeys = computed<ScopeKey[]>(() => {
   const used = new Set((editForm.value?.applicableIndicators || []).map((i) => i.key))
@@ -1433,6 +1438,30 @@ const scopeConditionExpr = computed(() => {
   if (includes.length) parts.push(includes.join(' OR '))
   for (const e of excludes) parts.push(`NOT ${e}`)
   return parts.length ? parts.join(' AND ') : ''
+})
+
+// 表达式: 全宽可编辑输入 (参照示例图 "执行条件表达式, 如 1 and 2")。
+// 行变化时自动重新生成; 用户手改后(scopeExprTouched=true)以手改为准, 不再被自动覆盖。
+const EXPR_PLACEHOLDER = '执行条件表达式, 如 1 and 2'
+const scopeExprText = ref('')
+const scopeExprTouched = ref(false)
+watch(scopeConditionExpr, (v) => {
+  if (!scopeExprTouched.value) scopeExprText.value = v
+})
+
+// 已选范围的清晰展示: "部门 属于 A、B；岗位 不属于 C"
+const scopeSummary = computed(() => {
+  const inds = editForm.value?.applicableIndicators || []
+  const parts: string[] = []
+  for (const ind of inds) {
+    if (!ind.values?.length) continue
+    const opts = scopeOptionsFor(ind.key)
+    const labels = ind.values.map((v) => opts.find((o) => o.value === v)?.label || v)
+    const op = ind.mode === 'exclude' ? '不属于' : '属于'
+    const keyLabel = SCOPE_KEY_OPTIONS.find((o) => o.value === ind.key)?.label || ind.key
+    parts.push(`${keyLabel} ${op} ${labels.join('、')}`)
+  }
+  return parts.join('；')
 })
 
 function resolveHandlerUserName(id: string): string {
@@ -1634,76 +1663,61 @@ function scrollToSection(id: string) {
 .scope-row-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 10px;
   width: 100%;
 }
+/* 行本身无边框无底色 (对齐示例图): 视觉单元是控件自身, 行间仅留白 */
 .scope-row {
   display: grid;
-  grid-template-columns: 28px 130px 110px 1fr 56px;
+  grid-template-columns: 20px minmax(110px, 140px) minmax(92px, 112px) 1fr 28px;
   align-items: center;
-  gap: var(--space-2);
-  padding: 8px var(--space-3);
-  border: 1px solid var(--g2);
-  border-radius: var(--radius-md);
-  background: var(--glass-bg-card);
-  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  gap: 10px;
 }
-.scope-row.scope-card--include { border-color: var(--c-info-bg); }
-.scope-row.scope-card--exclude { border-color: var(--c-error-bg); }
-.scope-row.scope-card--neutral { border-color: var(--g2); }
-.scope-row:hover { box-shadow: 0 2px 8px var(--overlay-scrim-weak); }
 .scope-row__no {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-soft);
+  color: var(--brand);
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--ink-soft);
-  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-.scope-row__field {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--fs-13);
-  font-weight: 600;
-  color: var(--ink);
-  min-width: 0;
-}
-.scope-row__field :deep(.n-icon) { font-size: var(--fs-15); color: var(--brand); }
-.scope-row.scope-card--exclude .scope-row__field :deep(.n-icon) { color: var(--c-error); }
-.scope-row__mode { min-width: 0; }
-.scope-row__values {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.scope-row__values :deep(.n-select) { flex: 1 1 auto; min-width: 0; }
-.scope-row__count {
-  flex-shrink: 0;
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-.scope-row__remove {
-  border: none;
-  background: transparent;
+/* 不包含行: 编号圆点转红, 与「不包含」语义呼应 */
+.scope-row.scope-card--exclude .scope-row__no {
+  background: var(--c-error-bg);
   color: var(--c-error);
-  font-size: var(--fs-13);
-  cursor: pointer;
-  padding: 4px 0;
-  text-align: center;
-  transition: color var(--duration-fast) var(--ease-out);
 }
-.scope-row__remove:hover { color: var(--c-error-strong); text-decoration: underline; }
+.scope-row__key { min-width: 0; }
+.scope-row__mode { min-width: 0; }
+.scope-row__values { min-width: 0; }
+.scope-row__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--brand);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.scope-row__remove:hover { color: var(--c-error); background: var(--c-error-bg); }
 .scope-row__add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   align-self: flex-start;
-  margin-top: 2px;
-  padding: 6px 12px;
-  border: 1px dashed var(--g3);
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--brand-a32);
   border-radius: var(--radius-md);
-  background: transparent;
+  background: var(--brand-tint);
   color: var(--brand);
   font-size: var(--fs-13);
   cursor: pointer;
@@ -1713,21 +1727,28 @@ function scrollToSection(id: string) {
 .scope-row__add:disabled { opacity: 0.45; cursor: not-allowed; }
 .scope-row__add :deep(.n-icon) { font-size: var(--fs-14); }
 
-/* 条件表达式展示 */
+/* 条件表达式: 全宽可编辑 (参照示例图), 下挂已选范围摘要 */
 .scope-expr {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
-.scope-expr__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.scope-expr :deep(.n-input) { width: 100%; }
+.scope-expr__summary {
+  margin: 0;
   font-size: var(--fs-12);
   color: var(--ink-soft);
+  line-height: 1.6;
 }
-.scope-expr :deep(.n-input) { max-width: 480px; }
+.scope-expr__summary-label {
+  margin-right: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
 
 /* ===== 阶段列表 (V8 stage-list) ===== */
 .stage-list { display: flex; flex-direction: column; gap: var(--space-3); }
