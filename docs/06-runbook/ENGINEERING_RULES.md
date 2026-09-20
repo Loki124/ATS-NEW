@@ -29,7 +29,7 @@
 - `updateManagementUnit` 等端点仅传部分字段时，**真实服务器返 400**，但 `:memory:` 测试库掩盖（SQLite 允许更宽松的赋值）。
 - 修法：改 PATCH（partial=True），且后端改模型/字段后须真实 MySQL migrate + live curl 实测，不能只信 `:memory:` 测试。
 
-## 5. CSV 导出加 BOM 必须同时改导入端（commit `1a515bb` 实证）
+## 5. CSV 导出/导入协同（BOM + 超长单元格截断）
 
 ### 5.1 现象
 - 导出加 UTF-8 BOM（Excel 中文兼容）后，导入端首个列名变成 `'\ufefffield_key'`。
@@ -58,6 +58,56 @@ io.StringIO(text.lstrip('\ufeff'))
   - T6b（JSON 路径塞 `'\ufefffield_key'` key）→ 直接调 `_norm_header` 验证
   - T7（`_parse_csv` 带/不带 BOM 解析结果一致）→ 验证 BOM 剥离幂等
 - 详见 `docs/07-audit/BOM_CSV_BUGFIX.md`。
+
+### 5.5 同族坑 2：超长单元格撑爆 Excel（commit `8a867e6` 实证）
+
+**现象**：导出 CSV 用 Excel 打开**列位整体位移**（`field_key` 列混入中文 label、`options` 跑到第 6 列、`field_type` 对不上）。
+
+**根因**：CSV 中存在**超长单元格**，超出 **Excel 单元格硬上限 32,767 字符**：
+
+| 行 | 字段 | `options` 长度 | 倍数 |
+|---|---|---|---|
+| 5 | `Major`（专业名称） | 78,784 | 2.4× |
+| 19 | `School`（院校名称） | 126,778 | 3.9× |
+
+Excel 读到超限单元格解析崩溃 → 该行及后续列位位移。options 来自专业库/院校库**全量数据**。
+
+**定位手法（可复用）**：
+1. 让用户提供**原始导出文件**（不要只看截图）
+2. 算 md5 与本地实测对比 —— **「md5 相同」是判定「文件本身没问题」的最强证据**
+3. 逐单元格测长度并对照 Excel 32,767 上限
+
+**修法（3 处协同，`dynamic_field/views.py`）**：
+
+```python
+CSV_CELL_MAX_LEN = 2000
+CSV_TRUNCATION_MARK = '…[已截断'
+
+# ① 新增 _truncate_cell()：非字符串原样返回；>2000 截断 + 打标记
+# ② export 的 CSV 分支：safe_records 截断（JSON 分支不截断，保留完整数据）
+# ③ 导入端三处识别标记：_coerce_record（continue 透传，不 json.loads）
+#    / _parse_csv（不 pop、不 json.loads）/ import_fields（pop 掉该键跳过覆盖）
+```
+
+**🔴 关键陷阱：标记必须「存活到 `import_fields`」才可剔除**
+- `import_fields` 循环第一步先执行 `rec = self._coerce_record(...)`，而它内部**也有** `json.loads(options) except → []`，会**先于** `import_fields` 把标记打碎成 `[]`
+- 若在 `_parse_csv` 就 `pop` 掉该 key，`import_fields` 的 `elif opts is None: rec['options'] = []` 会**把空数组写回去** → **库中完整 options 被清空**
+- **教训**：改导入/导出的某一环前必须 grep 完整调用链，**中间层可能也有同款 `except → 默认值` 兜底**，会把你以为生效的守卫提前消化掉
+
+**设计约束**：截断**只作用于 CSV**，JSON 导出必须完整（大字段的正确出口）。**补充**：改 xlsx **不解决问题** —— xlsx 单元格上限同为 32,767。
+
+### 5.6 截断修复的验证要点
+
+- CSV：351,537 → **17,267 bytes**；最长单元格 **2,035**（上限 32,767）；**每行列数一致**（零错位）；BOM 保留
+- JSON：`Major` 78,784 / `School` 126,778 **完整无标记**
+- 闭环核心断言：截断 CSV 原样导入 → `updated=66, errors=0`；before/after **TOTAL DIFFS = 0**（`Major 78784→78784`）
+- 反向验证：JSON 路径塞含标记字符串 → 跳过覆盖（证明 `_coerce_record` 守卫承重）；正常 JSON → 正常覆盖
+- 阈值边界：2000 不截 / 2001 截
+- `_truncate_cell` 非字符串输入（int/bool/None/list/dict/float）→ 原样返回不炸
+
+### 5.7 测量陷阱（主理人踩过）
+
+对**已经是字符串**的 `options` 值做**二次 `json.dumps`**，会把 `"` 转义成 `\"`，长度虚增约 20%（实测把 78,784 误报为 94,594）。**直接 `len(v)`，不要对已序列化过的字符串再序列化。**
 
 ## 6. 「端到端通过 ≠ 某一行代码生效」（QA 实证）
 
