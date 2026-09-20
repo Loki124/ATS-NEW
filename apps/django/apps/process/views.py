@@ -484,6 +484,10 @@ class ProcessStageLinkViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_destroy(self, instance):
+        # 系统必含起止阶段（START_END）不可删除：仅标软删会被「删了又建」绕过，
+        # 直接业务拒绝（400）让 FE 明确收到「不可删除」语义。
+        if instance.is_mandatory:
+            raise ValidationError('系统必含阶段（起止阶段）不可删除')
         instance.soft_delete()
 
     @extend_schema(summary='重排阶段顺序')
@@ -491,6 +495,11 @@ class ProcessStageLinkViewSet(viewsets.ModelViewSet):
     def reorder(self, request):
         """批量更新 stage_links 顺序
         Body: { "process_id": "...", "order": [{"link_id": "...", "order": 1}, ...] }
+
+        起止边界强校验（BR-001 强化）：
+        - 起始阶段(初评) 必须排在最前，且其后不可出现前序阶段
+        - 结束阶段(正式录用) 必须排在最后，但其前可加前序阶段（其后不可再加）
+        - 顺序值不可重复
         """
         process_id = request.data.get('process_id')
         order_data = request.data.get('order', [])
@@ -502,14 +511,53 @@ class ProcessStageLinkViewSet(viewsets.ModelViewSet):
         except RecruitmentProcess.DoesNotExist:
             raise NotFound('流程不存在')
 
+        links = ProcessStageLink.objects.filter(process=process, deleted_at__isnull=True)
+        start_link = links.filter(stage__is_start=True).first()
+        end_link = links.filter(stage__is_end=True).first()
+
+        # 合并既有顺序与本次提交的新顺序，得到「预期最终顺序」
+        new_order_map = {}
         for item in order_data:
             link_id = item.get('link_id')
             new_order = item.get('order')
             if link_id is None or new_order is None:
                 continue
-            ProcessStageLink.objects.filter(
-                id=link_id, process=process,
-            ).update(order=new_order, updated_at=process.updated_at)
+            new_order_map[link_id] = new_order
+
+        effective = {l.id: new_order_map.get(l.id, l.order) for l in links}
+
+        # 顺序不可重复（否则排序无意义且会破坏起止边界判定）
+        if len(set(effective.values())) != len(effective):
+            raise ValidationError('阶段顺序不可重复')
+
+        min_order = min(effective.values())
+        max_order = max(effective.values())
+
+        # 起止阶段自身不可越出「最前 / 最后」锚点
+        if start_link and effective.get(start_link.id) != min_order:
+            raise ValidationError('起始阶段(初评)必须排在最前，不可被移动到其后')
+        if end_link and effective.get(end_link.id) != max_order:
+            raise ValidationError('结束阶段(正式录用)必须排在最后，不可被移动到其前')
+
+        # 其它阶段必须严格落在 (start.order, end.order) 开区间内
+        for l in links:
+            if start_link and l.id == start_link.id:
+                continue
+            if end_link and l.id == end_link.id:
+                continue
+            o = effective[l.id]
+            if start_link and o <= effective[start_link.id]:
+                raise ValidationError('起始阶段(初评)前不可添加前序阶段')
+            if end_link and o >= effective[end_link.id]:
+                raise ValidationError('结束阶段(正式录用)后不可添加后续阶段')
+
+        # 校验通过后再落库
+        for l in links:
+            new_order = effective[l.id]
+            if new_order != l.order:
+                ProcessStageLink.objects.filter(id=l.id).update(
+                    order=new_order, updated_at=process.updated_at,
+                )
 
         # 返回新顺序
         links = ProcessStageLink.objects.filter(

@@ -16,6 +16,8 @@ def seed_recruitment_stage_type():
         ('INVITATION', '邀约', 20),
         ('INTERVIEW', '面试', 30),
         ('OFFER', '录用', 40),
+        # 系统级「起止阶段」类型：绑定初评/正式录用，不可删除/修改（is_system=True）
+        ('START_END', '起止阶段', 50),
     ]
     for key, value, order in items:
         DictionaryItem.objects.update_or_create(
@@ -25,5 +27,6 @@ def seed_recruitment_stage_type():
                 'value': value,
                 'sort_order': order,
                 'is_active': True,
+                'is_system': key == 'START_END',
             },
         )

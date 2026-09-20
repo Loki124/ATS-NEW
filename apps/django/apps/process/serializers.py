@@ -253,6 +253,52 @@ def _decode_entry_condition(raw: str | None) -> dict | None:
         return {'matchType': 'ALL', 'conditionType': 'CANDIDATE', 'items': [], 'legacyExpression': raw}
 
 
+def assert_within_start_end_bounds(process, order, exclude_link_id=None):
+    """新增/移动阶段 link 时校验起止边界（BR-001 强化）。
+
+    - 起始阶段(初评) 前不可添加前序阶段 → 新 order 必须严格大于起始 link.order
+      （order <= start.order 一律拒绝：既不能插在起始阶段之前，也不能与起始阶段同序）
+    - 结束阶段(正式录用) 后不可添加后续阶段 → 新 order 必须 <= 结束 link.order
+      （order == end.order 允许：相当于「插在结束阶段的位置、把结束阶段顶下去」，
+       即新增一条结束阶段的前序阶段；order > end.order 才拒绝）
+    exclude_link_id 用于移动已有 link 自身时跳过它自己。
+    """
+    links = ProcessStageLink.objects.filter(process=process, deleted_at__isnull=True)
+    if exclude_link_id:
+        links = links.exclude(id=exclude_link_id)
+    start_link = links.filter(stage__is_start=True).first()
+    end_link = links.filter(stage__is_end=True).first()
+    if start_link and order <= start_link.order:
+        raise serializers.ValidationError({'order': '起始阶段(初评)前不可添加前序阶段'})
+    if end_link and order > end_link.order:
+        raise serializers.ValidationError({'order': '结束阶段(正式录用)后不可添加后续阶段'})
+
+
+def renormalize_process_orders(process):
+    """把某流程的 stage_links 重新归一化，保证不变量：
+    - 起始阶段(初评) 永远 order=0（最小，打头）
+    - 结束阶段(正式录用) 永远 order 最大（收尾）
+    - 其余业务阶段按当前 order 升序填充中间空位（连续 1..N-1）
+    解决「插入新阶段导致 order 撞序 / 起止被顶出边界」的问题。
+    """
+    links = list(ProcessStageLink.objects.filter(process=process, deleted_at__isnull=True).select_related('stage'))
+    start = [l for l in links if l.stage_id and l.stage.is_start]
+    end = [l for l in links if l.stage_id and l.stage.is_end]
+    others = sorted(
+        [l for l in links if not (l.stage_id and l.stage.is_start) and not (l.stage_id and l.stage.is_end)],
+        key=lambda l: l.order,
+    )
+    ordered = []
+    if start:
+        ordered += start
+    ordered += others
+    if end:
+        ordered += end
+    for i, l in enumerate(ordered):
+        if l.order != i:
+            ProcessStageLink.objects.filter(id=l.id).update(order=i)
+
+
 class ProcessStageLinkSerializer(serializers.ModelSerializer):
     """流程-阶段关联"""
     stage = RecruitmentStageSerializer(read_only=True)
@@ -268,6 +314,8 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         help_text='所属流程 ID (FE 发 processId)',
     )
     stage_rule = StageRuleSerializer(read_only=True)
+    # 流程内展示名：优先 custom_name，否则回退 stage.name（模型 property，字段名即属性名，勿加 source）
+    display_name = serializers.CharField(read_only=True)
     # 2026-07-03: 反序列化 EntryCondition (FE: {matchType, conditionType, items[]}) →
     #   JSON-encode 到 entry_rule_expression 字段.
     #   序列化时还原为结构化 dict (FE 期望的 shape).
@@ -277,7 +325,7 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         model = ProcessStageLink
         fields = [
             'id', 'process', 'process_id', 'stage', 'stage_id',
-            'order', 'is_required',
+            'order', 'is_required', 'is_mandatory', 'custom_name', 'display_name',
             'entry_rule_expression', 'entry_condition',
             'stage_rule',
             'created_at', 'updated_at',
@@ -285,10 +333,26 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         # 2026-07-03: 'process' 保留在 fields 用于 read 序列化 (response 包含 processId 字段),
         #   通过 read_only=True 屏蔽写入, 写入改用上面的 process_id (source='process').
         #   'entry_condition' 是 method field, 天然 read-only.
-        read_only_fields = ['id', 'process', 'stage', 'stage_rule', 'entry_condition', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'process', 'stage', 'stage_rule', 'entry_condition',
+                              'display_name', 'created_at', 'updated_at']
 
     def get_entry_condition(self, obj) -> dict | None:
         return _decode_entry_condition(obj.entry_rule_expression)
+
+    def create(self, validated_data):
+        """创建后归一化顺序，保证起止不变量（start 最小、end 最大）。"""
+        link = ProcessStageLink.objects.create(**validated_data)
+        renormalize_process_orders(link.process)
+        link.refresh_from_db()
+        return link
+
+    def update(self, instance, validated_data):
+        """更新后若动了 order，同样归一化顺序。"""
+        link = super().update(instance, validated_data)
+        if 'order' in validated_data:
+            renormalize_process_orders(link.process)
+            link.refresh_from_db()
+        return link
 
     def validate_order(self, value):
         if value < 0:
@@ -325,6 +389,21 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
                 attrs['entry_rule_expression'] = encoded
             except (TypeError, ValueError) as e:
                 raise serializers.ValidationError({'entry_condition': f'JSON 编码失败: {e}'})
+        # 起止边界校验（BR-001 强化）：新增/移动阶段 link 不可越出起止阶段
+        #   - process 来自 update 的 self.instance，或 create 的 attrs['process']
+        #   - order 优先用本次提交值，否则沿用实例原值（移动场景）
+        #   - exclude_link_id 跳过「正在移动的那条」自身，避免和它自己比
+        process = self.instance.process if self.instance else attrs.get('process')
+        if process is not None:
+            order = attrs.get('order')
+            if order is None and self.instance is not None:
+                order = self.instance.order
+            if order is not None:
+                assert_within_start_end_bounds(
+                    process,
+                    order,
+                    exclude_link_id=self.instance.id if self.instance else None,
+                )
         return attrs
 
 
@@ -586,22 +665,64 @@ class ProcessWithStagesCreateSerializer(serializers.Serializer):
             updated_by=actor,
         )
 
-        for link_data in stage_links_data:
-            stage_id = link_data.pop('stage_id')
-            stage_rule_data = link_data.pop('stage_rule', None)
+        # ---- 系统必含起止阶段（START_END 类型）：每个流程默认填充, 不可删 ----
+        # 取全局唯一的起始阶段(初评) / 结束阶段(正式录用) —— 由 seed 设置 is_start / is_end.
+        start_stage = RecruitmentStage.objects.filter(is_start=True, deleted_at__isnull=True).first()
+        end_stage = RecruitmentStage.objects.filter(is_end=True, deleted_at__isnull=True).first()
 
-            link = ProcessStageLink.objects.create(
-                process=process,
-                stage_id=stage_id,
-                **link_data,
-                created_by=actor,
-                updated_by=actor,
-            )
-            if stage_rule_data:
-                StageRule.objects.create(
-                    link=link,
-                    **stage_rule_data,
-                    created_by=actor,
-                    updated_by=actor,
+        # FE 可能已在 stage_links 中自带起止阶段（或都不带），统一归一化顺序为：
+        #   [起止阶段(若需)] → [FE 提供的其它阶段(保持相对序)] → [结束阶段(若需)]
+        # 这样无论 FE 是否传起止，最终流程都「初评打头、正式录用收尾、二者 is_mandatory=True」。
+        provided = sorted(stage_links_data, key=lambda v: v.get('order', 0))
+        head, middle, tail = [], [], []
+        for v in provided:
+            if start_stage and v['stage_id'] == start_stage.id:
+                head.append(v)
+            elif end_stage and v['stage_id'] == end_stage.id:
+                tail.append(v)
+            else:
+                middle.append(v)
+
+        seq = []
+        if start_stage:
+            seq.append(('START', start_stage, head[0] if head else None))
+        for v in middle:
+            seq.append(('LINK', None, v))
+        if end_stage:
+            seq.append(('END', end_stage, tail[0] if tail else None))
+
+        for i, (kind, stage_obj, provided_v) in enumerate(seq):
+            if kind == 'START':
+                # 起止阶段：即便 FE 已提供，也强制 mandatory + 固定首位（忽略 FE 自带的次要字段）
+                ProcessStageLink.objects.create(
+                    process=process, stage=stage_obj, order=i,
+                    is_required=True, is_mandatory=True,
+                    created_by=actor, updated_by=actor,
                 )
+            elif kind == 'END':
+                ProcessStageLink.objects.create(
+                    process=process, stage=stage_obj, order=i,
+                    is_required=True, is_mandatory=True,
+                    created_by=actor, updated_by=actor,
+                )
+            else:  # LINK: FE 提供的业务阶段（含可能已是起止阶段的强制项, 通过 provided_v 透出）
+                v = dict(provided_v)
+                stage_id = v.pop('stage_id')
+                stage_rule_data = v.pop('stage_rule', None)
+                is_mand = (
+                    (start_stage and stage_id == start_stage.id)
+                    or (end_stage and stage_id == end_stage.id)
+                )
+                link = ProcessStageLink.objects.create(
+                    process=process, stage_id=stage_id, order=i,
+                    is_required=v.get('is_required', True),
+                    is_mandatory=is_mand,
+                    entry_rule_expression=v.get('entry_rule_expression', ''),
+                    created_by=actor, updated_by=actor,
+                )
+                if stage_rule_data:
+                    StageRule.objects.create(
+                        link=link, **stage_rule_data,
+                        created_by=actor, updated_by=actor,
+                    )
         return process

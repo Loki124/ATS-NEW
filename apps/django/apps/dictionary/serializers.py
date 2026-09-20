@@ -93,7 +93,7 @@ class DictionaryItemFlatSerializer(serializers.ModelSerializer):
         model = DictionaryItem
         fields = [
             'id', 'parent_id', 'key', 'value',
-            'english_name', 'description', 'sort_order', 'is_active',
+            'english_name', 'description', 'sort_order', 'is_active', 'is_system',
         ]
 
 
@@ -125,10 +125,10 @@ class DictionaryItemSerializer(serializers.ModelSerializer):
         model = DictionaryItem
         fields = [
             'id', 'type', 'type_code', 'parent_id', 'key', 'value',
-            'english_name', 'description', 'sort_order', 'is_active',
+            'english_name', 'description', 'sort_order', 'is_active', 'is_system',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'type_code']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'type_code', 'is_system']
         # type 在创建时由前端传 id, 编辑时不传 (保持所属类型不变);
         # key / value 在编辑时可能缺省 (只改排序 / 启停), 故均放宽为非必填;
         # 非空校验在 validate_key / validate_value 中按需兜底.
@@ -170,7 +170,15 @@ class DictionaryItemSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs: dict) -> dict:
-        """(type, key) 唯一性校验: 含软删记录占位 (DB 约束不认 deleted_at)。"""
+        """(type, key) 唯一性校验: 含软删记录占位 (DB 约束不认 deleted_at)。
+
+        系统预置项（is_system=True，如 recruitment_stage_type 的 START_END/起止阶段）不可修改：
+        编辑接口（instance 非空）命中即拒绝，避免管理员改/停用系统起止阶段类型。
+        """
+        if self.instance is not None and getattr(self.instance, 'is_system', False):
+            raise serializers.ValidationError(
+                {'detail': ['系统预置字典项不可修改']}
+            )
         attrs = super().validate(attrs)
         instance = self.instance
         type_obj = attrs.get('type') or getattr(instance, 'type', None)

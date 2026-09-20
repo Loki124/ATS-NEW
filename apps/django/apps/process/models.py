@@ -27,6 +27,8 @@ class StageType(models.TextChoices):
     INVITATION = 'INVITATION', '邀约'
     INTERVIEW = 'INTERVIEW', '面试'
     OFFER = 'OFFER', 'Offer'
+    # 系统级「起止阶段」类型：绑定初评(起始)/正式录用(结束)，不可删除/修改
+    START_END = 'START_END', '起止阶段'
 
 
 class StageStatus(models.TextChoices):
@@ -310,6 +312,12 @@ class ProcessStageLink(FullAuditModel):
     order = models.PositiveIntegerField(default=0, db_index=True, verbose_name='顺序')
     is_required = models.BooleanField(default=True, verbose_name='是否必经')
 
+    # 系统必含关联：起止阶段（初评/正式录用）在每个流程中自动填充且不可删
+    # （BR-001 起止阶段全局唯一，流程内不可移除，但名称/规则可改）
+    is_mandatory = models.BooleanField(default=False, db_index=True, verbose_name='系统必含(不可删)')
+    # 流程内显示名（覆盖 stage.name，满足「可修改名称」需求；全局 stage 名不受影响）
+    custom_name = models.CharField(max_length=20, blank=True, default='', verbose_name='流程内显示名(覆盖)')
+
     # V4 新增：进入条件规则列表（保留为 JSON 缓存以提速）
     entry_rule_expression = models.CharField(
         max_length=500, blank=True,
@@ -326,6 +334,11 @@ class ProcessStageLink(FullAuditModel):
 
     def __str__(self):
         return f'{self.process.name} → {self.stage.name} (#{self.order})'
+
+    @property
+    def display_name(self) -> str:
+        """流程内展示名：优先 custom_name，否则回退 stage.name。"""
+        return self.custom_name or (self.stage.name if self.stage else '')
 
 
 # ============================================================

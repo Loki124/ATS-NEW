@@ -67,7 +67,7 @@ export interface RecruitmentStage {
   //   旧 FE 定义用 'FILTER' + 多了 'ONBOARDING' (BE 没有), 跟 BE 不同步, POST/PUT 走 400.
   //   改成跟 BE 一致. 前端 'src/pages/settings/RecruitmentStage.vue' 已经用 SCREEN (form.stageType 默认 'SCREEN', FALLBACK_STAGE_TYPE 第 1 个 value=SCREEN),
   //   本次对齐是 FE 落后 -> 跟上 BE.
-  stageType: 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER';
+  stageType: 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER' | 'START_END';
   // 2026-08-17: BE 用 is_builtin, 旧 FE 字段 isSystem 已废弃. reference_count 替代 _count.links.
   isBuiltin?: boolean;
   // 兼容旧代码 / 测试数据
@@ -100,6 +100,11 @@ export interface ProcessStageLink {
   //   drf-camel-case 转 'order_index', BE 收到未知字段静默丢弃, 落到 model default order=0.
   order: number;
   customName?: string;
+  // 2026-09-19: 系统必含起止阶段（START_END 类型）关联：is_mandatory=True 时不可删除,
+  //   但名称(customName)/规则可改。BE ProcessStageLinkSerializer 透出。
+  isMandatory?: boolean;
+  // 流程内展示名：优先 customName，否则回退 stage.name
+  displayName?: string;
   // 2026-07-03 BR-001: isStart/isEnd 已从 link 移到 stage 自身, 此处删除
   stageLimit?: number;
   status: 'ACTIVE' | 'INACTIVE';

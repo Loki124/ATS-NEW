@@ -79,6 +79,8 @@ class DictionaryItem(FullAuditModel, UUIDModel):
     description = models.TextField(blank=True, default='', verbose_name='描述')
     sort_order = models.IntegerField(default=0, verbose_name='排序')
     is_active = models.BooleanField(default=True, verbose_name='启用')
+    # 系统预置项（如 recruitment_stage_type 的 START_END/起止阶段）：不可修改、不可停用
+    is_system = models.BooleanField(default=False, db_index=True, verbose_name='系统预置项')
 
     class Meta:
         verbose_name = '字典项'
