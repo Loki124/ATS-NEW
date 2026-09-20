@@ -1,84 +1,127 @@
 <template>
   <div class="page-container">
-    <div class="page-body">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">组织管理</h1>
-          <p class="page-subtitle">维护组织架构与部门职责，作为管控与权限的归属单元</p>
-        </div>
-        <div class="page-header-actions">
-          <n-radio-group v-model:value="statusFilter" size="small">
-            <n-radio-button value="ALL">全部</n-radio-button>
-            <n-radio-button value="ACTIVE">启用</n-radio-button>
-            <n-radio-button value="INACTIVE">停用</n-radio-button>
-          </n-radio-group>
-          <n-input
-            v-model:value="searchKeyword"
-            placeholder="搜索部门名称/编号"
-            style="width: 240px"
-            clearable
-            @clear="searchKeyword = ''"
-          >
-            <template #prefix>
-              <n-icon :component="SearchOutline" />
-            </template>
-          </n-input>
-          <n-button ghost @click="loadDepartments">
-            <template #icon><n-icon :component="RefreshOutline" /></template>
-            刷新
-          </n-button>
-          <n-button ghost @click="openCreateModal">
-            <template #icon><n-icon :component="AddOutline" /></template>
-            新增部门
-          </n-button>
-        </div>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">组织管理</h1>
+        <p class="page-subtitle">维护组织架构与部门职责，作为管控与权限的归属单元</p>
       </div>
+      <div class="page-header-actions">
+        <n-radio-group v-model:value="statusFilter" size="small">
+          <n-radio-button value="ALL">全部</n-radio-button>
+          <n-radio-button value="ACTIVE">启用</n-radio-button>
+          <n-radio-button value="INACTIVE">停用</n-radio-button>
+        </n-radio-group>
+        <n-input
+          v-model:value="searchKeyword"
+          placeholder="搜索部门名称/编号"
+          style="width: 240px"
+          clearable
+          @clear="searchKeyword = ''"
+        >
+          <template #prefix>
+            <n-icon :component="SearchOutline" />
+          </template>
+        </n-input>
+        <div class="spacer"></div>
+        <n-button ghost @click="loadDepartments">
+          <template #icon><n-icon :component="RefreshOutline" /></template>
+          刷新
+        </n-button>
+        <n-button ghost @click="exportDepartments">
+          <template #icon><n-icon :component="DownloadOutline" /></template>
+          导出
+        </n-button>
+        <n-button ghost @click="openImportModal">
+          <template #icon><n-icon :component="CloudUploadOutline" /></template>
+          导入
+        </n-button>
+        <n-button type="primary" class="gradient-btn" @click="openCreateModal">
+          <template #icon><n-icon :component="AddOutline" /></template>
+          新增部门
+        </n-button>
+      </div>
+    </div>
 
-      <n-card :bordered="false">
-        <n-data-table
-          :data="displayData"
-          :columns="columns"
-          :row-key="(row: Department) => row.id"
-          :loading="loading"
-          :expanded-row-keys="expandedKeys"
-          :pagination="{ pageSize: 20, showSizePicker: true, pageSizes: [10, 20, 50], prefix: ({ itemCount }: any) => `共 ${itemCount} 条` }"
-          size="medium"
-          @update:expanded-row-keys="(k: any) => (expandedKeys = k)"
-        />
-      </n-card>
+    <div class="page-body">
+    <n-card :bordered="false">
+      <n-data-table
+        :data="displayData"
+        :columns="columns"
+        :row-key="(row: Department) => row.id"
+        :loading="loading"
+        :pagination="pagination"
+        size="medium"
+      />
+    </n-card>
+    </div>
 
-      <!-- 部门详情 / 编辑 合一弹窗（居中） -->
-      <n-modal
-        v-model:show="deptModalVisible"
-        preset="card"
-        :title="editingDept ? '编辑部门' : '新建部门'"
-        :style="{ width: '720px', maxHeight: '88vh' }"
-        :mask-closable="false"
-        :centered="true"
-        :auto-focus="false"
+    <!-- 部门详情 / 编辑 合一弹窗（居中） -->
+    <n-modal
+      v-model:show="deptModalVisible"
+      preset="card"
+      :title="modalTitle"
+      :style="{ width: '720px' }"
+      :mask-closable="false"
+      :centered="true"
+      :auto-focus="false"
+    >
+      <!-- 查看态：详情描述 -->
+      <n-descriptions
+        v-if="deptModalMode === 'view' && viewDept"
+        label-placement="left"
+        bordered
+        :column="1"
+        size="medium"
       >
-        <div class="dept-modal-scroll" style="max-height: calc(88vh - 132px); overflow-y: auto; padding-right: 8px">
-        <n-form :model="formState" label-placement="top">
-          <n-grid :cols="2" :x-gap="16">
-            <n-grid-item>
-              <n-form-item label="部门编号">
-                <n-input
-                  v-model:value="formState.code"
-                  placeholder="保存后系统自动生成（D + 6 位流水号）"
-                  :disabled="true"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="部门名称" required>
-                <n-input v-model:value="formState.name" placeholder="请输入部门名称" />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
+        <n-descriptions-item label="部门名称">{{ viewDept.name }}</n-descriptions-item>
+        <n-descriptions-item label="部门编号">{{ viewDept.code }}</n-descriptions-item>
+        <n-descriptions-item label="部门ID">
+          <span style="font-family: monospace; font-size: 12px; color: #8c8c8c">{{ viewDept.id }}</span>
+        </n-descriptions-item>
+        <n-descriptions-item label="上级部门">
+          <span v-if="viewDept.parentId">{{ getParentName(viewDept) }}</span>
+          <n-tag v-else type="warning" size="small">顶级</n-tag>
+        </n-descriptions-item>
+        <n-descriptions-item label="部门层级">
+          <n-tag type="info" size="small" :bordered="false">第 {{ levelMap[viewDept.id] || 1 }} 级</n-tag>
+        </n-descriptions-item>
+        <n-descriptions-item label="部门负责人">{{ getUserName(viewDept.managerId) || '—' }}</n-descriptions-item>
+        <n-descriptions-item label="部门负责人 2">{{ getUserName(viewDept.manager2Id) || '—' }}</n-descriptions-item>
+        <n-descriptions-item label="部门 HRBP">{{ getUserName(viewDept.hrbpId) || '—' }}</n-descriptions-item>
+        <n-descriptions-item label="分管 VP">{{ getUserName(viewDept.manager3Id) || '—' }}</n-descriptions-item>
+        <n-descriptions-item label="状态">
+          <n-tag :type="viewDept.status === 'INACTIVE' ? 'default' : 'success'" size="small">
+            {{ viewDept.status === 'INACTIVE' ? '停用' : '启用' }}
+          </n-tag>
+        </n-descriptions-item>
+        <n-descriptions-item label="排序值">{{ viewDept.sortOrder ?? '—' }}</n-descriptions-item>
+        <n-descriptions-item label="组织路径">{{ viewDept.path || '—' }}</n-descriptions-item>
+        <n-descriptions-item label="创建时间">{{ formatTime(viewDept.createdAt) }}</n-descriptions-item>
+        <n-descriptions-item label="更新时间">{{ formatTime(viewDept.updatedAt) }}</n-descriptions-item>
+      </n-descriptions>
 
-          <n-grid :cols="2" :x-gap="16">
-            <n-grid-item>
-              <n-form-item label="上级部门">
+      <!-- 编辑态：可编辑表单 -->
+      <n-form v-else :model="formState" label-placement="top">
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="部门编号">
+              <n-input
+                v-model:value="formState.code"
+                placeholder="保存后系统自动生成（D + 6 位流水号）"
+                :disabled="true"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="部门名称" required>
+              <n-input v-model:value="formState.name" placeholder="请输入部门名称" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="上级部门">
               <n-tree-select
                 v-model:value="formState.parentId"
                 :options="parentTreeData"
@@ -86,141 +129,163 @@
                 clearable
                 default-expand-all
               />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="排序值">
-                <n-input-number
-                  v-model:value="formState.sortOrder"
-                  :min="0"
-                  :max="9999"
-                  style="width: 100%"
-                  placeholder="数字越小越靠前"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="排序值">
+              <n-input-number
+                v-model:value="formState.sortOrder"
+                :min="0"
+                :max="9999"
+                style="width: 100%"
+                placeholder="数字越小越靠前"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-          <n-divider title-placement="left">人员配置</n-divider>
+        <n-divider title-placement="left">人员配置</n-divider>
 
-          <n-grid :cols="2" :x-gap="16">
-            <n-grid-item>
-              <n-form-item label="部门负责人">
-                <n-select
-                  v-model:value="formState.managerId"
-                  placeholder="请选择部门负责人"
-                  clearable
-                  filterable
-                  :options="userOptions"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="部门负责人 2">
-                <n-select
-                  v-model:value="formState.manager2Id"
-                  placeholder="请选择部门负责人2"
-                  clearable
-                  filterable
-                  :options="userOptions"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="部门负责人">
+              <n-select
+                v-model:value="formState.managerId"
+                placeholder="请选择部门负责人"
+                clearable
+                filterable
+                :options="userOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="部门负责人 2">
+              <n-select
+                v-model:value="formState.manager2Id"
+                placeholder="请选择部门负责人2"
+                clearable
+                filterable
+                :options="userOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-          <n-grid :cols="2" :x-gap="16">
-            <n-grid-item>
-              <n-form-item label="部门 HRBP">
-                <n-select
-                  v-model:value="formState.hrbpId"
-                  placeholder="请选择部门HRBP"
-                  clearable
-                  filterable
-                  :options="userOptions"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="分管 VP">
-                <n-select
-                  v-model:value="formState.manager3Id"
-                  placeholder="请选择分管VP"
-                  clearable
-                  filterable
-                  :options="userOptions"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="部门 HRBP">
+              <n-select
+                v-model:value="formState.hrbpId"
+                placeholder="请选择部门HRBP"
+                clearable
+                filterable
+                :options="userOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="分管 VP">
+              <n-select
+                v-model:value="formState.manager3Id"
+                placeholder="请选择分管VP"
+                clearable
+                filterable
+                :options="userOptions"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
 
-          <n-grid :cols="2" :x-gap="16">
-            <n-grid-item>
-              <n-form-item label="状态">
-                <n-radio-group v-model:value="formState.status">
-                  <n-radio value="ACTIVE">启用</n-radio>
-                  <n-radio value="INACTIVE">停用</n-radio>
-                </n-radio-group>
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-        </n-form>
-        </div>
+        <n-grid :cols="2" :x-gap="16">
+          <n-grid-item>
+            <n-form-item label="状态">
+              <n-radio-group v-model:value="formState.status">
+                <n-radio value="ACTIVE">启用</n-radio>
+                <n-radio value="INACTIVE">停用</n-radio>
+              </n-radio-group>
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+      </n-form>
 
-        <template #footer>
-          <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-            <n-button text @click="closeDeptModal">取消</n-button>
-            <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">保存部门</n-button>
-          </div>
-        </template>
-      </n-modal>
-
-      <!-- 部门详情抽屉：列表隐藏的编号/ID/负责人2/分管VP 等在此完整展示 -->
-      <n-drawer v-model:show="detailVisible" :width="520" placement="right" :auto-focus="false">
-        <n-drawer-content title="部门详情" :native-scrollbar="false">
-          <div v-if="detailDept" style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
-            <n-button type="primary" size="small" @click="handleEditFromDetail">
-              <template #icon>
-                <n-icon :component="CreateOutline" />
-              </template>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+          <!-- 查看态：关闭 + 编辑 -->
+          <template v-if="deptModalMode === 'view'">
+            <n-button text @click="closeDeptModal">关闭</n-button>
+            <n-button type="primary" class="gradient-btn" @click="startEdit(viewDept)">
+              <template #icon><n-icon :component="CreateOutline" /></template>
               编辑
             </n-button>
-          </div>
-          <n-descriptions
-            v-if="detailDept"
-            label-placement="left"
-            bordered
-            :column="1"
-            size="medium"
+          </template>
+          <!-- 编辑态：取消 + 保存 -->
+          <template v-else>
+            <n-button text @click="closeDeptModal">取消</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">保存部门</n-button>
+          </template>
+        </div>
+      </template>
+    </n-modal>
+
+    <!-- 部门导入弹窗 -->
+    <n-modal
+      v-model:show="importModalVisible"
+      preset="card"
+      title="导入部门"
+      :style="{ width: '720px' }"
+      :mask-closable="false"
+      :centered="true"
+      :auto-focus="false"
+    >
+      <n-space vertical :size="12">
+        <n-alert type="info" :show-icon="true">
+          以「部门编号」为唯一键：编号已存在则更新，不存在则新建。父部门与负责人按编号 / 姓名自动匹配；本页操作不影响现有其他数据。
+        </n-alert>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <n-upload
+            accept=".csv"
+            :default-upload="false"
+            :max="1"
+            @change="onImportFileChange"
           >
-            <n-descriptions-item label="部门名称">{{ detailDept.name }}</n-descriptions-item>
-            <n-descriptions-item label="部门编号">{{ detailDept.code }}</n-descriptions-item>
-            <n-descriptions-item label="部门ID">
-              <span style="font-family: monospace; font-size: 12px; color: #8c8c8c">{{ detailDept.id }}</span>
-            </n-descriptions-item>
-            <n-descriptions-item label="上级部门">
-              <span v-if="detailDept.parentId">{{ getParentName(detailDept) }}</span>
-              <n-tag v-else type="warning" size="small">顶级</n-tag>
-            </n-descriptions-item>
-            <n-descriptions-item label="部门层级">
-              <n-tag type="info" size="small" :bordered="false">第 {{ levelMap[detailDept.id] || 1 }} 级</n-tag>
-            </n-descriptions-item>
-            <n-descriptions-item label="部门负责人">{{ getUserName(detailDept.managerId) || '—' }}</n-descriptions-item>
-            <n-descriptions-item label="部门负责人 2">{{ getUserName(detailDept.manager2Id) || '—' }}</n-descriptions-item>
-            <n-descriptions-item label="部门 HRBP">{{ getUserName(detailDept.hrbpId) || '—' }}</n-descriptions-item>
-            <n-descriptions-item label="分管 VP">{{ getUserName(detailDept.manager3Id) || '—' }}</n-descriptions-item>
-            <n-descriptions-item label="状态">
-              <n-tag :type="detailDept.status === 'INACTIVE' ? 'default' : 'success'" size="small">
-                {{ detailDept.status === 'INACTIVE' ? '停用' : '启用' }}
-              </n-tag>
-            </n-descriptions-item>
-            <n-descriptions-item label="排序值">{{ detailDept.sortOrder ?? '—' }}</n-descriptions-item>
-            <n-descriptions-item label="组织路径">{{ detailDept.path || '—' }}</n-descriptions-item>
-            <n-descriptions-item label="创建时间">{{ formatTime(detailDept.createdAt) }}</n-descriptions-item>
-            <n-descriptions-item label="更新时间">{{ formatTime(detailDept.updatedAt) }}</n-descriptions-item>
-          </n-descriptions>
-        </n-drawer-content>
-      </n-drawer>
-    </div>
+            <n-button ghost>
+              <template #icon><n-icon :component="CloudUploadOutline" /></template>
+              选择 CSV 文件
+            </n-button>
+          </n-upload>
+          <n-button text type="primary" @click="downloadTemplate">下载模板</n-button>
+          <span v-if="importFile" style="color: var(--ink-soft); font-size: 13px;">已选择：{{ importFile }}</span>
+        </div>
+
+        <div v-if="importPreview.length" style="max-height: 320px; overflow-y: auto;">
+          <n-data-table
+            :data="importPreview"
+            :columns="importPreviewColumns"
+            :row-key="(r: any) => r._idx"
+            :pagination="false"
+            size="small"
+          />
+        </div>
+        <n-alert v-if="importWarnings.length" type="warning" :show-icon="true">
+          {{ importWarnings.length }} 条行存在负责人/上级未匹配（已置空或跳过），详见预览「说明」列。
+        </n-alert>
+      </n-space>
+
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+          <n-button text @click="closeImportModal">取消</n-button>
+          <n-button
+            type="primary"
+            class="gradient-btn"
+            :loading="importing"
+            :disabled="!importPreview.length"
+            @click="confirmImport"
+          >
+            确认导入（{{ importPreview.length }} 条）
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -233,6 +298,8 @@ import {
   RefreshOutline,
   PersonOutline,
   SearchOutline,
+  DownloadOutline,
+  UploadOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -254,16 +321,16 @@ import {
   NRadioButton,
   NDivider,
   NCard,
-  NTooltip,
-  NDrawer,
-  NDrawerContent,
   NDescriptions,
   NDescriptionsItem,
+  NUpload,
+  NAlert,
   useMessage,
 } from 'naive-ui';
 import api from '../../api/auth';
+import { extractApiError } from '../../api/dynamic-field';
+import { localPagination } from '../../composables/useTablePagination';
 
-import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage();
 
 interface Department {
@@ -281,6 +348,7 @@ interface Department {
   status: string;
   sortOrder?: number;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 interface User {
@@ -295,41 +363,74 @@ const departments = ref<Department[]>([]);
 const users = ref<User[]>([]);
 const loading = ref(false);
 const submitting = ref(false);
+const pagination = localPagination();
+
+// ===== 合一弹窗（查看 / 编辑 两态）=====
 const deptModalVisible = ref(false);
+const deptModalMode = ref<'view' | 'edit'>('view');
 const editingDept = ref<Department | null>(null);
+const viewDept = ref<Department | null>(null);
 
-// 详情抽屉（点击部门名称打开，展示完整字段：编号/ID/负责人2/分管VP 等列表隐藏项）
-const detailVisible = ref(false);
-const detailDept = ref<Department | null>(null);
-const openDetail = (row: Department) => {
-  detailDept.value = row;
-  detailVisible.value = true;
-};
-
-// 在详情抽屉内触发编辑：关闭抽屉后打开编辑弹窗（复用已有表单逻辑）
-const handleEditFromDetail = () => {
-  const row = detailDept.value;
-  if (!row) return;
-  detailVisible.value = false;
-  openEditModal(row);
-};
-
-// 树形表格展开状态：default-expand-all 对异步加载的数据不生效（仅首次挂载读取），
-// 改为受控 expanded-keys，数据到达后默认展开所有含子部门的节点
-const expandedKeys = ref<string[]>([]);
-watch(departments, (list) => {
-  const parentIds = new Set<string>();
-  for (const d of list) {
-    if (d.parentId) parentIds.add(d.parentId);
-  }
-  expandedKeys.value = Array.from(parentIds);
+const modalTitle = computed(() => {
+  if (deptModalMode.value === 'view') return '部门详情';
+  return editingDept.value ? '编辑部门' : '新建部门';
 });
 
-// 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
-const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+// 点击部门名称 → 查看态（详情）
+const openDetail = (row: Department) => {
+  viewDept.value = row;
+  editingDept.value = null;
+  deptModalMode.value = 'view';
+  deptModalVisible.value = true;
+};
 
-// 启用/停用筛选变化即重新拉取
-watch(statusFilter, () => loadDepartments());
+// 进入编辑态（新建/添加下级 或 从查看态点「编辑」）
+const startEdit = (record: Department | null) => {
+  editingDept.value = record;
+  if (record) {
+    Object.assign(formState, {
+      code: record.code,
+      name: record.name,
+      parentId: record.parentId || undefined,
+      managerId: record.managerId || undefined,
+      manager2Id: record.manager2Id || undefined,
+      manager3Id: record.manager3Id || undefined,
+      hrbpId: record.hrbpId || undefined,
+      sortOrder: record.sortOrder || 0,
+      status: record.status,
+    });
+  } else {
+    Object.assign(formState, {
+      code: '',
+      name: '',
+      parentId: undefined,
+      managerId: undefined,
+      manager2Id: undefined,
+      manager3Id: undefined,
+      hrbpId: undefined,
+      sortOrder: 0,
+      status: 'ACTIVE',
+    });
+  }
+  deptModalMode.value = 'edit';
+  deptModalVisible.value = true;
+};
+
+const closeDeptModal = () => {
+  deptModalVisible.value = false;
+  editingDept.value = null;
+  viewDept.value = null;
+  deptModalMode.value = 'view';
+};
+
+// 打开新建弹窗
+const openCreateModal = () => startEdit(null);
+
+// 打开「添加下级」弹窗：复用新建弹窗并预置上级为该部门
+const openCreateChildModal = (parent: Department) => {
+  startEdit(null);
+  if (parent) formState.parentId = parent.id;
+};
 
 // 部门层级：根据 parentId 链计算深度（顶级部门 = 第 1 级）
 const levelMap = computed<Record<string, number>>(() => {
@@ -414,22 +515,20 @@ const filteredDepartments = computed(() => {
   );
 });
 
-// 表格展示数据：默认按 parentId 组树形（children 空时置 undefined，避免出现空展开箭头）；
-// 搜索时退化为平铺过滤列表，保证命中任意层级部门
+// 表格展示数据：平铺列表（修复分页不可用）。按层级 → 排序值 排序，名称按层级缩进展示。
 const displayData = computed(() => {
-  if (searchKeyword.value.trim()) return filteredDepartments.value;
-  const buildTree = (parentId: string | null): any[] => {
-    const children = departments.value
-      .filter(d => (d.parentId || null) === parentId)
-      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-    return children
-      .map(d => {
-        const kids = buildTree(d.id);
-        return kids.length ? { ...d, children: kids } : { ...d };
-      });
-  };
-  return buildTree(null);
+  const list = filteredDepartments.value;
+  return [...list].sort((a, b) => {
+    const la = levelMap.value[a.id] || 1;
+    const lb = levelMap.value[b.id] || 1;
+    if (la !== lb) return la - lb;
+    return (a.sortOrder || 0) - (b.sortOrder || 0);
+  });
 });
+
+// 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
+const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+watch(statusFilter, () => loadDepartments());
 
 // 上级部门树（排除自身及子部门）
 const parentTreeData = computed(() => {
@@ -463,52 +562,6 @@ const isDescendantOrSelf = (id: string, ancestorId: string): boolean => {
     cur = departments.value.find(d => d.id === cur!.parentId);
   }
   return false;
-};
-
-// 打开新建弹窗
-const openCreateModal = () => {
-  editingDept.value = null;
-  Object.assign(formState, {
-    code: '',
-    name: '',
-    parentId: undefined,
-    managerId: undefined,
-    manager2Id: undefined,
-    manager3Id: undefined,
-    hrbpId: undefined,
-    sortOrder: 0,
-    status: 'ACTIVE',
-  });
-  deptModalVisible.value = true;
-};
-
-// 打开「添加下级」弹窗：复用新建弹窗并预置上级为该部门
-const openCreateChildModal = (parent: Department) => {
-  openCreateModal();
-  if (parent) formState.parentId = parent.id;
-};
-
-// 打开编辑弹窗（查看详情与编辑合一：同一弹窗内展示并可改）
-const openEditModal = (record: Department) => {
-  editingDept.value = record;
-  Object.assign(formState, {
-    code: record.code,
-    name: record.name,
-    parentId: record.parentId || undefined,
-    managerId: record.managerId || undefined,
-    manager2Id: record.manager2Id || undefined,
-    manager3Id: record.manager3Id || undefined,
-    hrbpId: record.hrbpId || undefined,
-    sortOrder: record.sortOrder || 0,
-    status: record.status,
-  });
-  deptModalVisible.value = true;
-};
-
-// 关闭弹窗
-const closeDeptModal = () => {
-  deptModalVisible.value = false;
-  editingDept.value = null;
 };
 
 // 从 envelope / DRF 错误结构中提取第一条可读错误信息
@@ -608,7 +661,7 @@ const renderParent = (record: Department) => {
   return h('span', {}, `${parent.name} (${parent.code})`);
 };
 
-// 详情抽屉用：父级名称字符串
+// 详情用：父级名称字符串
 const getParentName = (dept: Department): string => {
   if (!dept.parentId) return '';
   const p = departments.value.find(d => d.id === dept.parentId);
@@ -622,17 +675,22 @@ const formatTime = (t?: string): string => {
   return d.toLocaleString('zh-CN', { hour12: false });
 };
 
+// 名称按层级缩进（保持组织层级可读性）
+const renderName = (row: Department) => {
+  const indent = (levelMap.value[row.id] || 1) - 1;
+  return h(
+    NButton,
+    { text: true, type: 'primary', size: 'small', style: { marginLeft: `${indent * 18}px` }, onClick: () => openDetail(row) },
+    { default: () => row.name }
+  );
+};
+
 const columns = computed(() => [
   {
     title: '部门名称',
     key: 'name',
-    width: 200,
-    render: (row: Department) =>
-      h(
-        NButton,
-        { text: true, type: 'primary', size: 'small', onClick: () => openDetail(row) },
-        { default: () => row.name }
-      ),
+    width: 220,
+    render: (row: Department) => renderName(row),
   },
   {
     title: '上级部门',
@@ -662,12 +720,16 @@ const columns = computed(() => [
     render: (row: Department) => renderUser(row.hrbpId),
   },
   {
+    title: '排序值',
+    key: 'sortOrder',
+    width: 90,
+    render: (row: Department) => (row.sortOrder != null ? String(row.sortOrder) : h('span', { style: 'color:#bfbfbf' }, '—')),
+  },
+  {
     title: '状态',
     key: 'status',
     width: 90,
     render: (row: Department) => {
-      // 后端 status 现已由 is_active 反推为 'ACTIVE'/'INACTIVE' 输出；
-      // 保留 isActive 兜底以防旧缓存
       const status = row.status || (row.isActive === false ? 'INACTIVE' : 'ACTIVE');
       const map: Record<string, { type: any; label: string }> = {
         ACTIVE: { type: 'success', label: '启用' },
@@ -680,7 +742,7 @@ const columns = computed(() => [
   {
     title: '操作',
     key: 'actions',
-    width: 260,
+    width: 200,
     fixed: 'right' as const,
     render: (row: Department) =>
       h(NSpace, { size: 'small' }, {
@@ -723,6 +785,313 @@ const columns = computed(() => [
   },
 ]);
 
+/* ============================ 部门导入 / 导出 ============================ */
+
+// 导出列（与导入模板一致）
+const EXPORT_HEADERS = ['部门编号', '部门名称', '上级部门编号', '上级部门名称', '部门负责人', '部门HRBP', '状态', '排序值'];
+
+// CSV 字段转义：含逗号/引号/换行则包裹双引号并转义内部引号
+const csvEscape = (v: string): string => {
+  const s = v == null ? '' : String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+};
+
+// 触发浏览器下载
+const triggerDownload = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// 拉取全量部门（导出/导入解析用，不受状态筛选影响）
+const fetchAllDepartments = async (): Promise<Department[]> => {
+  try {
+    const res = await api.get('/departments/', { params: { page_size: 1000 } });
+    if (res.data?.success) return res.data.data || [];
+  } catch (e) {
+    message.error(extractApiError(e, '获取部门数据失败'));
+  }
+  return [];
+};
+
+// 拉取全量用户（导入解析负责人/HRBP 用）
+const fetchAllUsers = async (): Promise<User[]> => {
+  try {
+    const res = await api.get('/users/', { params: { page_size: 1000 } });
+    if (res.data?.success) return res.data.data || [];
+  } catch (e) {
+    message.error(extractApiError(e, '获取用户数据失败'));
+  }
+  return [];
+};
+
+// 导出部门为 CSV（UTF-8 BOM，Excel 友好）
+const exportDepartments = async () => {
+  const all = await fetchAllDepartments();
+  if (!all.length) {
+    message.warning('暂无可导出的部门数据');
+    return;
+  }
+  const byId = new Map(all.map(d => [d.id, d]));
+  const rows = all.map(d => {
+    const parent = d.parentId ? byId.get(d.parentId) : null;
+    return [
+      d.code,
+      d.name,
+      parent?.code || '',
+      parent?.name || '',
+      getUserName(d.managerId) || '',
+      getUserName(d.hrbpId) || '',
+      d.status === 'INACTIVE' ? '停用' : '启用',
+      d.sortOrder ?? '',
+    ];
+  });
+  const lines = [EXPORT_HEADERS.map(csvEscape).join(','), ...rows.map(r => r.map(csvEscape).join(','))];
+  const content = '﻿' + lines.join('\r\n');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+  triggerDownload(blob, `部门数据_${new Date().toISOString().slice(0, 10)}.csv`);
+  message.success(`已导出 ${all.length} 个部门`);
+};
+
+// 下载导入模板（仅表头）
+const downloadTemplate = () => {
+  const content = '﻿' + EXPORT_HEADERS.map(csvEscape).join(',');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+  triggerDownload(blob, '部门导入模板.csv');
+};
+
+// 简易 CSV 解析（支持引号包裹、字段内逗号/换行）
+const parseCsv = (text: string): string[][] => {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r') { /* ignore */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+};
+
+// 导入弹窗状态
+const importModalVisible = ref(false);
+const importFile = ref('');
+const importing = ref(false);
+const importPreview = ref<any[]>([]);
+const importWarnings = ref<string[]>([]);
+
+interface ImportRow {
+  _idx: number;
+  code: string;
+  name: string;
+  parentCode: string;
+  manager: string;
+  hrbp: string;
+  status: string;
+  sortOrder: string;
+  action: string; // 新建 / 更新
+  note: string;
+}
+
+const importPreviewColumns = [
+  { title: '部门编号', key: 'code', width: 110 },
+  { title: '部门名称', key: 'name', width: 140 },
+  { title: '上级部门编号', key: 'parentCode', width: 110 },
+  { title: '状态', key: 'status', width: 80 },
+  { title: '操作', key: 'action', width: 80,
+    render: (r: any) => h(NTag, { type: r.action === '更新' ? 'warning' : 'success', size: 'small', bordered: false }, { default: () => r.action }) },
+  { title: '说明', key: 'note', minWidth: 160,
+    render: (r: any) => r.note ? h('span', { style: 'color: var(--ink-soft); font-size: 12px' }, r.note) : h('span', { style: 'color:#bfbfbf' }, '—') },
+];
+
+const openImportModal = async () => {
+  importFile.value = '';
+  importPreview.value = [];
+  importWarnings.value = [];
+  importModalVisible.value = true;
+};
+
+const closeImportModal = () => {
+  importModalVisible.value = false;
+  importFile.value = '';
+  importPreview.value = [];
+  importWarnings.value = [];
+};
+
+// 选择 CSV → 解析为预览（仅本地，未写库）
+const onImportFileChange = async ({ file }: any) => {
+  const raw = file?.file as File | undefined;
+  if (!raw) return;
+  importFile.value = raw.name;
+  importPreview.value = [];
+  importWarnings.value = [];
+  try {
+    const text = await raw.text();
+    const parsed = parseCsv(text);
+    if (parsed.length < 2) {
+      message.warning('文件无有效数据行');
+      return;
+    }
+    const header = parsed[0].map(h => h.trim());
+    const colOf = (...keys: string[]) => {
+      for (const k of keys) {
+        const idx = header.findIndex(x => x.includes(k));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+    const iCode = colOf('部门编号', '编号');
+    const iName = colOf('部门名称', '名称');
+    const iParent = colOf('上级部门编号', '上级编号');
+    const iManager = colOf('部门负责人');
+    const iHrbp = colOf('部门HRBP', 'HRBP');
+    const iStatus = colOf('状态');
+    const iSort = colOf('排序值', '排序');
+    if (iCode < 0 || iName < 0) {
+      message.error('模板缺少「部门编号 / 部门名称」列');
+      return;
+    }
+    const all = await fetchAllDepartments();
+    const allUsers = await fetchAllUsers();
+    const codeToId = new Map(all.map(d => [d.code, d.id]));
+    const userByKey = new Map<string, string>();
+    allUsers.forEach(u => { userByKey.set(u.username, u.id); userByKey.set(u.realName, u.id); });
+    const warnings: string[] = [];
+    const preview: ImportRow[] = [];
+    parsed.slice(1).forEach((cells, i) => {
+      const code = (cells[iCode] || '').trim();
+      const name = (cells[iName] || '').trim();
+      if (!name) return; // 跳过无名称行
+      const parentCode = iParent >= 0 ? (cells[iParent] || '').trim() : '';
+      const manager = iManager >= 0 ? (cells[iManager] || '').trim() : '';
+      const hrbp = iHrbp >= 0 ? (cells[iHrbp] || '').trim() : '';
+      const statusRaw = iStatus >= 0 ? (cells[iStatus] || '').trim() : '启用';
+      const sortRaw = iSort >= 0 ? (cells[iSort] || '').trim() : '';
+      let note = '';
+      if (parentCode && !codeToId.has(parentCode) && !all.find(d => d.code === parentCode)) {
+        note += '上级编号未匹配(将置顶级);';
+      }
+      if (manager && !userByKey.has(manager)) note += '负责人未匹配(留空);';
+      if (hrbp && !userByKey.has(hrbp)) note += 'HRBP未匹配(留空);';
+      if (note) warnings.push(`第 ${i + 2} 行：${note}`);
+      const action = code && codeToId.has(code) ? '更新' : '新建';
+      preview.push({ _idx: i, code, name, parentCode, manager, hrbp, status: statusRaw, sortOrder: sortRaw, action, note: note ? note.slice(0, -1) : '' });
+    });
+    importPreview.value = preview;
+    importWarnings.value = warnings;
+    if (!preview.length) message.warning('未解析到有效部门行');
+    else message.success(`已解析 ${preview.length} 条，可确认导入`);
+  } catch (e) {
+    message.error('CSV 解析失败，请检查文件格式');
+  }
+};
+
+// 解析负责人/HRBP 姓名→用户ID；状态文本→枚举
+const resolveUser = (key: string, userByKey: Map<string, string>): string | null => {
+  if (!key) return null;
+  return userByKey.get(key) || null;
+};
+const resolveStatus = (raw: string): string => {
+  if (['停用', 'INACTIVE', '0', 'false'].includes(raw)) return 'INACTIVE';
+  return 'ACTIVE';
+};
+
+// 确认导入：按部门编号 upsert（多趟处理保证父级先于子级创建）
+const confirmImport = async () => {
+  if (!importPreview.value.length) return;
+  importing.value = true;
+  try {
+    const all = await fetchAllDepartments();
+    const allUsers = await fetchAllUsers();
+    const codeToId = new Map(all.map(d => [d.code, d.id]));
+    const userByKey = new Map<string, string>();
+    allUsers.forEach(u => { userByKey.set(u.username, u.id); userByKey.set(u.realName, u.id); });
+
+    let created = 0;
+    let updated = 0;
+    const errors: string[] = [];
+    const rows = importPreview.value.map(r => ({ ...r }));
+
+    // 最多遍历 rows.length 趟，每趟尝试未完成的行；父级创建后其编号可被子级解析
+    let progress = true;
+    let guard = rows.length + 1;
+    while (progress && guard-- > 0) {
+      progress = false;
+      for (const r of rows) {
+        if (r._done) continue;
+        let parentId: string | null = null;
+        if (r.parentCode) {
+          if (codeToId.has(r.parentCode)) parentId = codeToId.get(r.parentCode)!;
+          else { continue; } // 父级尚未就绪，本趟跳过，留待后续趟
+        }
+        const managerId = resolveUser(r.manager, userByKey);
+        const hrbpId = resolveUser(r.hrbp, userByKey);
+        const status = resolveStatus(r.status);
+        const sortOrder = parseInt(r.sortOrder, 10);
+        const payload: any = {
+          name: r.name,
+          parentId,
+          managerId,
+          manager2Id: null,
+          manager3Id: null,
+          hrbpId,
+          sortOrder: isNaN(sortOrder) ? 0 : sortOrder,
+          status,
+        };
+        try {
+          if (r.code && codeToId.has(r.code)) {
+            const id = codeToId.get(r.code)!;
+            const res = await api.put(`/departments/${id}/`, payload);
+            if (res.status === 200 || res.data?.success) { updated++; r._done = true; progress = true; }
+            else { errors.push(`${r.name}: 更新失败`); r._done = true; }
+          } else {
+            const res = await api.post('/departments/', payload);
+            if (res.status === 201 || res.data?.success) {
+              created++;
+              const newId = res.data?.data?.id || res.data?.id;
+              if (r.code && newId) codeToId.set(r.code, newId);
+              r._done = true; progress = true;
+            } else { errors.push(`${r.name}: 创建失败`); r._done = true; }
+          }
+        } catch (e: any) {
+          errors.push(`${r.name}: ${extractErrorMessage(e?.response?.data) || '请求异常'}`);
+          r._done = true;
+        }
+      }
+    }
+
+    if (errors.length) {
+      message.error(`导入完成：新建 ${created} / 更新 ${updated}，${errors.length} 条失败`);
+    } else {
+      message.success(`导入成功：新建 ${created} / 更新 ${updated}`);
+    }
+    closeImportModal();
+    loadDepartments();
+  } catch (e) {
+    message.error(extractApiError(e, '导入失败'));
+  } finally {
+    importing.value = false;
+  }
+};
+
 onMounted(() => {
   loadDepartments();
   loadUsers();
@@ -755,6 +1124,9 @@ onMounted(() => {
   display: flex;
   gap: var(--space-2);
   align-items: center;
+}
+.spacer {
+  flex: 1;
 }
 
 </style>
