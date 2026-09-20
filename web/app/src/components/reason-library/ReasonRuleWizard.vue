@@ -18,11 +18,11 @@
         </n-tag>
         <div class="wizard-meta">
           <span class="meta-label">{{ t('reasonLibrary.wizard.scenes') }}：</span>
-          <n-space :size="4" v-if="wizard.scenes.length">
+          <n-space v-if="wizard.scenes.length" :size="4">
             <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
           </n-space>
           <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
-          <n-button size="tiny" @click="openSceneEditor" style="margin-left: 8px;">
+          <n-button size="tiny" style="margin-left: 8px;" @click="openSceneEditor">
             <template #icon><n-icon :component="PencilOutline" /></template>
             {{ t('reasonLibrary.wizard.editScenes') }}
           </n-button>

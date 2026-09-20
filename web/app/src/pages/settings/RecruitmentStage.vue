@@ -70,7 +70,9 @@
               :key="code"
               size="small"
               type="default"
-            >{{ featureLabelMap[code] || code }}</n-tag>
+            >
+{{ featureLabelMap[code] || code }}
+</n-tag>
             <n-text v-if="!(editing?.defaultFeatures || editing?.default_features || []).length" depth="3" style="font-size: 13px">
               无（新建阶段暂无系统默认功能）
             </n-text>

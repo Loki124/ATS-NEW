@@ -531,7 +531,7 @@ async function onGroupDragEnd() {
       config.value.groupOrder = beforeGroupOrder
       const firstReason = failed[0]?.reason
       lastReorderError.value = `分组排序保存失败 (${failed.length}/${updates.length}), 已回滚`
-      // eslint-disable-next-line no-console
+       
       console.error('[StandardResumeSettings] group reorder failed', failed)
       message.error(lastReorderError.value + (firstReason ? `: ${extractApiError(firstReason)}` : ''))
     }
@@ -603,7 +603,7 @@ async function onFieldDragEnd(grp: FieldGroupBucket, evt: SortableEvent) {
       }
       const firstReason = failed[0]?.reason
       lastReorderError.value = `字段排序保存失败 (${failed.length}/${updates.length}), 已回滚`
-      // eslint-disable-next-line no-console
+       
       console.error('[StandardResumeSettings] field reorder failed', failed)
       message.error(lastReorderError.value + (firstReason ? `: ${extractApiError(firstReason)}` : ''))
     }

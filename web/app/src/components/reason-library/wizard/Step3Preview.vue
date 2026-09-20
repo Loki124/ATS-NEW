@@ -45,9 +45,9 @@
 
               <template v-if="g.isLeaf">
                 <div class="pv-chips">
-                  <span v-for="t in g.tags" :key="t.id" class="pv-chip">
-                    {{ t.name }}
-                    <n-icon v-if="t.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
+                  <span v-for="tag in g.tags" :key="tag.id" class="pv-chip">
+                    {{ tag.name }}
+                    <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
                   </span>
                   <span v-if="g.allowCustom" class="pv-chip">{{ t('reasonLibrary.wizard.preview.other') }}</span>
                 </div>
@@ -58,9 +58,9 @@
                   <template v-if="sub.isLeaf">
                     <div :class="['pv-cell', 'c-' + colorCycle[gi % colorCycle.length]]">{{ sub.name }}</div>
                     <div class="pv-chips">
-                      <span v-for="t in sub.tags" :key="t.id" class="pv-chip">
-                        {{ t.name }}
-                        <n-icon v-if="t.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
+                      <span v-for="tag in sub.tags" :key="tag.id" class="pv-chip">
+                        {{ tag.name }}
+                        <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
                       </span>
                       <span v-if="sub.allowCustom" class="pv-chip">{{ t('reasonLibrary.wizard.preview.other') }}</span>
                     </div>
@@ -71,9 +71,9 @@
                       <div v-for="l3 in sub.children.filter((x: any) => x.tags?.length)" :key="l3.id" class="pv-l3-group">
                         <div class="pv-l3-title">{{ l3.name }}</div>
                         <div class="pv-chips">
-                          <span v-for="t in l3.tags" :key="t.id" class="pv-chip">
-                            {{ t.name }}
-                            <n-icon v-if="t.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
+                          <span v-for="tag in l3.tags" :key="tag.id" class="pv-chip">
+                            {{ tag.name }}
+                            <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
                           </span>
                           <span v-if="l3.allowCustom" class="pv-chip">{{ t('reasonLibrary.wizard.preview.other') }}</span>
                         </div>

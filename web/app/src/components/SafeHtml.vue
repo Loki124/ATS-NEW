@@ -1,4 +1,7 @@
 <template>
+  <!-- 授权 sink: 全仓唯一允许 v-html 的组件。输入经 sanitizeHtml 白名单消毒
+       (src/utils/__tests__/sanitizeHtml.test.ts 已验证 8+ XSS 向量被中和)，非假绿。 -->
+  <!-- eslint-disable-next-line vue/no-v-html, vue/no-v-text-v-html-on-component -->
   <component :is="tag" :class="$style.root" v-html="sanitized" />
 </template>
 
@@ -27,7 +30,7 @@ const props = withDefaults(
     html?: string | null
     tag?: string
   }>(),
-  { tag: 'div' },
+  { html: '', tag: 'div' },
 )
 
 const sanitized = computed(() => sanitizeHtml(props.html))

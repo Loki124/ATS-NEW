@@ -34,7 +34,16 @@ withDefaults(
     retryLabel?: string
     compact?: boolean
   }>(),
-  { type: 'section', compact: false },
+  {
+    type: 'section',
+    compact: false,
+    icon: '',
+    title: '',
+    description: '',
+    errorCode: '',
+    detail: '',
+    retryLabel: '',
+  },
 )
 
 defineEmits<{ (e: 'retry'): void }>()

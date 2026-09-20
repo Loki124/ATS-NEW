@@ -40,7 +40,7 @@
         </div>
         <div v-else-if="editForm" class="dp-wrap">
           <!-- ====== 基础信息 ====== -->
-          <section class="dp-section" id="sec-basic">
+          <section id="sec-basic" class="dp-section">
             <div class="dp-section-title"><h3>基础信息</h3></div>
             <div class="dp-card">
               <div class="dp-form-grid">
@@ -65,7 +65,7 @@
           </section>
 
           <!-- ====== 适用范围 ====== -->
-          <section class="dp-section" id="sec-scope">
+          <section id="sec-scope" class="dp-section">
             <div class="dp-section-title">
               <h3>适用范围</h3><span class="hint">基于条件规则判断适用范围</span>
             </div>
@@ -129,7 +129,7 @@
           </section>
 
           <!-- ====== 阶段流程 ====== -->
-          <section class="dp-section" id="sec-stages">
+          <section id="sec-stages" class="dp-section">
             <div class="dp-section-title">
               <h3>流程阶段</h3><span class="warn">第一个和最后一个阶段为系统内置固定阶段，不可取消或调整位置</span>
             </div>
@@ -355,14 +355,18 @@
               type="success"
               round
               style="margin-left: 6px"
-            >起始</n-tag>
+            >
+起始
+</n-tag>
             <n-tag
               v-if="s.isEnd"
               size="tiny"
               type="warning"
               round
               style="margin-left: 6px"
-            >结束</n-tag>
+            >
+结束
+</n-tag>
           </div>
           <div class="picker-item__code">{{ s.code }} · {{ stageTypeLabel(s.stageType) }}</div>
         </div>

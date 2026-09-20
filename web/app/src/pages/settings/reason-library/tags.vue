@@ -37,7 +37,7 @@
             <template #icon><n-icon :component="RefreshOutline" /></template>
             {{ t('reasonLibrary.common.refresh') }}
           </n-button>
-          <n-button @click="openImportModal" :disabled="!isSuperAdmin">
+          <n-button :disabled="!isSuperAdmin" @click="openImportModal">
             <template #icon><n-icon :component="CloudUploadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.import') }}
           </n-button>
