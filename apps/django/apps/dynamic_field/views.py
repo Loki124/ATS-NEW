@@ -40,6 +40,14 @@ from .serializers import (
     FieldLinkageRuleSerializer,
 )
 
+# CSV 单元格内容上限：Excel 单元格硬上限 32,767 字符，超限会让 Excel 打开 CSV 时
+# 解析错位（实测 School 字段 options 126,778 字符 → 列位整体位移）。
+# 取 2000 留足余量。JSON 导出不受此限制，保留完整数据。
+CSV_CELL_MAX_LEN = 2000
+# 截断标记：导入端据此识别「该单元格已被截断」，跳过该字段，
+# 避免用不完整数据覆盖库中完整值。
+CSV_TRUNCATION_MARK = '…[已截断'
+
 
 class DynamicFieldViewSet(viewsets.ModelViewSet):
     """动态字段定义 CRUD — 按 resource 过滤, detail 端点按 id 寻址。"""
@@ -83,6 +91,22 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             DynamicFieldViewSet.FIELD_HEADER_ALIASES.get(key.lower())
 
     @staticmethod
+    def _truncate_cell(value):
+        """超长单元格截断（Excel 上限保护）。
+
+        Excel 单元格硬上限 32,767 字符，超出会让 Excel 打开 CSV 时解析错位。
+        截断并打标记；导入端识别标记后会跳过该字段，不用不完整数据覆盖库中完整值。
+        """
+        if not isinstance(value, str):
+            return value
+        if len(value) <= CSV_CELL_MAX_LEN:
+            return value
+        return (
+            value[:CSV_CELL_MAX_LEN]
+            + f'{CSV_TRUNCATION_MARK}，原长 {len(value)} 字符，完整数据请用「导出 JSON」]'
+        )
+
+    @staticmethod
     def _normalize_record(rec: dict) -> dict:
         """把一条记录的中英文字段名统一归一到模型字段名。"""
         out = {}
@@ -124,6 +148,11 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         for json_field in ('options', 'validation'):
             v = rec.get(json_field)
             if isinstance(v, str) and v.strip():
+                if CSV_TRUNCATION_MARK in v:
+                    # 截断标记：内容非合法 JSON。此处**不做** json.loads，
+                    # 原样保留标记字符串，交给 import_fields 统一剔除该键，
+                    # 使 upsert 跳过该列（保留库中完整值），避免数据丢失。
+                    continue
                 try:
                     rec[json_field] = json.loads(v)
                 except Exception:  # noqa: BLE001
@@ -376,14 +405,19 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             })
 
         if fmt == 'csv':
+            # Excel 单元格上限保护：超长值截断（JSON 导出不受此限制，保留完整数据）
+            safe_records = [
+                {k: DynamicFieldViewSet._truncate_cell(v) for k, v in rec.items()}
+                for rec in records
+            ]
             buf = io.StringIO()
-            writer = csv.DictWriter(buf, fieldnames=list(records[0].keys()) if records else [
+            writer = csv.DictWriter(buf, fieldnames=list(safe_records[0].keys()) if safe_records else [
                 'field_key', 'label', 'field_type', 'is_required', 'is_visible',
                 'placeholder', 'help_text', 'default_value', 'order_index',
                 'group_name', 'module_code', 'group_code', 'options', 'validation',
             ])
             writer.writeheader()
-            writer.writerows(records)
+            writer.writerows(safe_records)
             # Excel 兼容：加 UTF-8 BOM（与 campus_control / analytics 导出的 utf-8-sig 策略对齐），
             # 否则 Excel 按本地编码解析无 BOM 的 UTF-8 → 中文乱码
             resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
@@ -444,12 +478,21 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
 
             opts = rec.get('options')
             if isinstance(opts, str):
-                try:
-                    rec['options'] = json.loads(opts)
-                except Exception:  # noqa: BLE001
-                    rec['options'] = []
+                if CSV_TRUNCATION_MARK in opts:
+                    # 截断标记：跳过覆盖，保留库中完整 options
+                    rec.pop('options', None)
+                else:
+                    try:
+                        rec['options'] = json.loads(opts)
+                    except Exception:  # noqa: BLE001
+                        rec['options'] = []
             elif opts is None:
                 rec['options'] = []
+
+            # validation 同 options：被截断时跳过覆盖，保留库中完整值
+            val = rec.get('validation')
+            if isinstance(val, str) and CSV_TRUNCATION_MARK in val:
+                rec.pop('validation', None)
 
             existing = DynamicField.objects.filter(resource=resource, field_key=field_key, deleted_at__isnull=True).first()
             try:
@@ -601,11 +644,19 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 except (TypeError, ValueError):
                     rec['order_index'] = 0
             for json_field in ('options', 'validation'):
-                if rec.get(json_field):
-                    try:
-                        rec[json_field] = json.loads(rec[json_field])
-                    except Exception:  # noqa: BLE001
-                        rec[json_field] = []
+                raw_val = rec.get(json_field)
+                if not raw_val:
+                    continue
+                if CSV_TRUNCATION_MARK in str(raw_val):
+                    # 导出时被截断：内容非合法 JSON。此处**不做** json.loads、
+                    # 也**不** pop——原样保留标记字符串，经 _coerce_record 透传后，
+                    # 由 import_fields 统一剔除该键，使 upsert 跳过这一列
+                    # （保留库中完整值），避免用不完整数据覆盖造成数据丢失。
+                    continue
+                try:
+                    rec[json_field] = json.loads(raw_val)
+                except Exception:  # noqa: BLE001
+                    rec[json_field] = []
             rows.append(rec)
         return rows
 
