@@ -408,12 +408,34 @@ function canMoveDown(cat: RuleCategory): boolean {
   flex-shrink: 0;
 }
 .custom-ck input {
-  accent-color: var(--brand);
-  width: 14px;
-  height: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-hairline, #c4c8d4);
+  border-radius: 4px;
+  background: #fff;
   cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.custom-ck input:disabled { cursor: not-allowed; }
+.custom-ck input:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+.custom-ck input:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.custom-ck input:disabled { cursor: not-allowed; opacity: .5; }
 
 .cat-actions {
   display: flex;

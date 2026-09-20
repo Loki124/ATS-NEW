@@ -216,12 +216,34 @@ void MAX_PICK
 }
 .picker-row:hover { background: var(--brand-tint); }
 .picker-row input {
-  accent-color: var(--brand);
-  width: 15px;
-  height: 15px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-hairline, #c4c8d4);
+  border-radius: 4px;
+  background: #fff;
   cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.picker-row input:disabled { cursor: not-allowed; }
+.picker-row input:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+.picker-row input:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.picker-row input:disabled { cursor: not-allowed; opacity: .5; }
 .picker-row .name {
   flex: 1;
   font-size: var(--fs-13);

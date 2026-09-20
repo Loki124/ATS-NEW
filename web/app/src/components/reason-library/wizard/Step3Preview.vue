@@ -102,7 +102,7 @@
                   <template v-else>
                     <div :class="['pv-cell', 'c-' + colorCycle[gi % colorCycle.length]]">{{ sub.name }}</div>
                     <div>
-                      <div v-for="l3 in sub.children.filter((x: any) => x.tags?.length)" :key="l3.id" class="pv-l3-group">
+                      <div v-for="l3 in sub.children" :key="l3.id" class="pv-l3-group">
                         <div class="pv-l3-title">{{ l3.name }}</div>
                         <div class="pv-chips">
                           <span v-for="tag in l3.tags" :key="tag.id" class="pv-chip">
@@ -200,10 +200,11 @@ const previewTree = computed<PreviewNode[]>(() => {
   function walk(c: RuleCategory): PreviewNode | null {
     const children = (childMap.get(c.id) || []).sort((a, b) => a.order - b.order)
     if (children.length === 0) {
+      // 末级分类: 即使未分配标签也要展示 (否则整棵预览树塌缩 → "子分类未显示");
+      // tags 可能为空数组, 由 chip 区渲染空态 / "其他"按钮
       const tags = (c.tags || [])
         .map((t) => tagById.get(t.id))
         .filter((t): t is ReasonTag => !!t)
-      if (tags.length === 0) return null
       return { id: c.id, name: c.name, isLeaf: true, tags, allowCustom: c.allowCustom, children: [] }
     }
     const subNodes = children.map(walk).filter((n): n is PreviewNode => !!n)

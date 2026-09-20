@@ -103,6 +103,12 @@ export interface RuleCategory {
   order: number
   allowCustom: boolean
   tags: ReasonTag[]
+  /**
+   * 后端序列化仅下发 tagIds (camelCase), 不返回完整的 tags 对象。
+   * 前端需从标签池 (allTags) 按 id 重建 tags, 否则编辑已有规则时
+   * 所有已分配标签会被静默清空。见 ReasonRuleWizard.deepCloneCategories。
+   */
+  tagIds?: string[]
 }
 
 export interface SceneRule {

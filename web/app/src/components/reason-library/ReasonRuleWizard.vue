@@ -91,8 +91,9 @@
 
     <!-- 子弹窗 -->
     <SceneEditorModal
+      v-if="wizard"
       v-model:show="sceneEditorShow"
-      v-model:scenes="wizard!.scenes"
+      v-model:scenes="wizard.scenes"
       :all-scenes-usage="sceneUsage"
     />
   </n-modal>
@@ -213,7 +214,7 @@ function toWizard(rule: SceneRule): WizardPayload {
     enabled: rule.enabled,
     isSystem: rule.isSystem,
     scenes: [...(rule.scenes ?? [])],
-    categories: deepCloneCategories(rule.categories ?? []),
+    categories: deepCloneCategories(rule.categories ?? [], allTags.value),
     updatedAt: rule.updatedAt,
   }
 }
@@ -232,16 +233,29 @@ function emptyWizardPayload(): WizardPayload {
   }
 }
 
-function deepCloneCategories(cats: RuleCategory[]): RuleCategory[] {
-  return cats.map((c) => ({
-    id: c.id,
-    parentId: c.parentId,
-    name: c.name,
-    level: c.level,
-    order: c.order,
-    allowCustom: c.allowCustom,
-    tags: (c.tags ?? []).map((t) => ({ ...t })),
-  }))
+/**
+ * 深拷贝分类树 (用于向导草稿)。
+ * ⚠️ 关键: 后端序列化仅下发 tagIds (camelCase), 不返回完整 tags 对象。
+ * 必须从已加载的标签池 allTags 按 id 重建 tags, 否则编辑已有规则时
+ * 所有已分配标签会被静默清空 (→ Step2 显示"0 条"、Step3 预览整棵树塌缩)。
+ */
+function deepCloneCategories(cats: RuleCategory[], allTags: ReasonTag[]): RuleCategory[] {
+  const tagById = new Map(allTags.map((t) => [t.id, t]))
+  return cats.map((c) => {
+    const rawIds = c.tagIds && c.tagIds.length ? c.tagIds : (c.tags ?? []).map((t) => t.id)
+    const tags = rawIds
+      .map((id) => tagById.get(id))
+      .filter((t): t is ReasonTag => !!t)
+    return {
+      id: c.id,
+      parentId: c.parentId,
+      name: c.name,
+      level: c.level,
+      order: c.order,
+      allowCustom: c.allowCustom,
+      tags,
+    }
+  })
 }
 
 // ============= 切换步骤 =============
