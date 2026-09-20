@@ -74,7 +74,7 @@
             <div class="scope-row-list">
               <div
                 v-for="(ind, idx) in editForm.applicableIndicators"
-                :key="ind.key"
+                :key="ind._rid"
                 class="scope-row"
                 :class="getScopeEditCardClass(ind)"
               >
@@ -82,7 +82,7 @@
                 <n-select
                   class="scope-row__key"
                   :value="ind.key"
-                  :options="keyOptionsFor(idx)"
+                  :options="SCOPE_KEY_OPTIONS"
                   placeholder="范围类型"
                   @update:value="(v: any) => changeScopeKey(ind, v as ScopeKey)"
                 />
@@ -112,7 +112,6 @@
               <button
                 type="button"
                 class="scope-row__add"
-                :disabled="!availableScopeKeys.length"
                 @click="addScopeRow"
               >
                 <n-icon :component="AddOutline" size="14" />
@@ -483,6 +482,9 @@ const isCreateMode = computed(() => !props.processId)
 type ScopeKey = 'department' | 'level' | 'position' | 'user'
 
 interface ScopeIndicator {
+  // _rid: 稳定行 id (v-for key 用)。同类型允许多行(不限总量), key 不再唯一, 不能再用 key 当 key。
+  // 仅运行时字段: payload 只序列化 key/mode/values, 不落库。
+  _rid: number
   key: ScopeKey
   mode: 'include' | 'exclude'
   values: string[]
@@ -683,10 +685,10 @@ const dirty = computed(() => {
 // ===== build edit form from current data =====
 function buildEmptyEditForm(): EditForm {
   const indicators: ScopeIndicator[] = [
-    { key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
-    { key: 'level',      mode: 'include', values: [], options: [], loading: false },
-    { key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
-    { key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
+    { _rid: nextScopeRowId(), key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
+    { _rid: nextScopeRowId(), key: 'level',      mode: 'include', values: [], options: [], loading: false },
+    { _rid: nextScopeRowId(), key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
+    { _rid: nextScopeRowId(), key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
   ]
 
   // 创建流程时, 默认自动添加系统起止 (初评 + 正式录用)。
@@ -714,10 +716,10 @@ function buildEditForm(): EditForm {
   if (isCreateMode.value) return buildEmptyEditForm()
   const d = data.value
   const indicators: ScopeIndicator[] = [
-    { key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
-    { key: 'level',      mode: 'include', values: [], options: [], loading: false },
-    { key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
-    { key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
+    { _rid: nextScopeRowId(), key: 'department', mode: 'include', values: [], options: deptOptions.value, loading: false },
+    { _rid: nextScopeRowId(), key: 'level',      mode: 'include', values: [], options: [], loading: false },
+    { _rid: nextScopeRowId(), key: 'position',   mode: 'include', values: [], options: positionOptions.value, loading: false },
+    { _rid: nextScopeRowId(), key: 'user',       mode: 'include', values: [], options: userOptions.value, loading: false },
   ]
   for (const ind of indicators) {
     // D3: 使用统一读取器 findIndicator (兼容 indicators / items / 旧 applicableDepartments 三态),
@@ -726,6 +728,27 @@ function buildEditForm(): EditForm {
     if (found) {
       ind.mode = (found.mode as 'include' | 'exclude') || 'include'
       ind.values = found.values || []
+    }
+  }
+  // 同类型多行回显: 条件数量不限总量后, indicators 里可能存在重复 key 的行;
+  // findIndicator 只取每 key 首条, 这里把重复 key 的后续行追加回来, 避免保存→重开丢行。
+  const rawInds = data.value.applicableScope?.indicators
+  if (Array.isArray(rawInds)) {
+    const seen = new Set<string>()
+    for (const raw of rawInds as any[]) {
+      if (!raw?.key || !ALL_SCOPE_KEYS.includes(raw.key)) continue
+      if (seen.has(raw.key)) {
+        indicators.push({
+          _rid: nextScopeRowId(),
+          key: raw.key,
+          mode: (raw.mode as 'include' | 'exclude') || 'include',
+          values: raw.values || [],
+          options: scopeOptionsFor(raw.key),
+          loading: false,
+        })
+      } else {
+        seen.add(raw.key)
+      }
     }
   }
   const stages: EditStage[] = links.value.map((l: any) => ({
@@ -1376,21 +1399,19 @@ const MODE_OPTIONS = [
   { label: '不包含', value: 'exclude' },
 ]
 
-// 范围类型下拉选项 (行内可切换; 已被其他行占用的类型禁选, 保证 key 全表唯一)
+// 范围类型下拉选项 (兵哥 2026-09-20 定名: 需求部门/需求职级/需求职务/登录人)。
+// 同类型允许多行 (条件数量不限总量), 不做跨行禁选。
 const SCOPE_KEY_OPTIONS = [
-  { label: '部门', value: 'department' },
-  { label: '职级', value: 'level' },
-  { label: '岗位', value: 'position' },
-  { label: '人员', value: 'user' },
+  { label: '需求部门', value: 'department' },
+  { label: '需求职级', value: 'level' },
+  { label: '需求职务', value: 'position' },
+  { label: '登录人', value: 'user' },
 ]
 
-function keyOptionsFor(idx: number) {
-  const used = new Set(
-    (editForm.value?.applicableIndicators || [])
-      .map((ind, i) => (i === idx ? null : ind.key))
-      .filter(Boolean) as ScopeKey[],
-  )
-  return SCOPE_KEY_OPTIONS.map((o) => ({ ...o, disabled: used.has(o.value as ScopeKey) }))
+// 稳定行 id 生成器 (v-for :key 用, 同类型多行时 key 不再唯一)
+let scopeRowSeq = 0
+function nextScopeRowId() {
+  return ++scopeRowSeq
 }
 
 // 切换范围类型后清空已选值 (不同类型的选项集合不同, 旧值不再有意义)
@@ -1402,16 +1423,14 @@ function changeScopeKey(ind: ScopeIndicator, key: ScopeKey) {
 }
 
 const ALL_SCOPE_KEYS: ScopeKey[] = ['department', 'level', 'position', 'user']
-const availableScopeKeys = computed<ScopeKey[]>(() => {
-  const used = new Set((editForm.value?.applicableIndicators || []).map((i) => i.key))
-  return ALL_SCOPE_KEYS.filter((k) => !used.has(k))
-})
 
+// 新增行不限总量 (兵哥 2026-09-20)。优先给未用过的类型, 四类都用过则默认再加一行需求部门。
 function addScopeRow() {
   if (!editForm.value) return
-  const next = availableScopeKeys.value[0]
-  if (!next) return
+  const used = new Set(editForm.value.applicableIndicators.map((i) => i.key))
+  const next = ALL_SCOPE_KEYS.find((k) => !used.has(k)) || 'department'
   editForm.value.applicableIndicators.push({
+    _rid: nextScopeRowId(),
     key: next,
     mode: 'include',
     values: [],
