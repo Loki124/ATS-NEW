@@ -3,9 +3,11 @@
 # ATS-NEW dev 服务 自愈包装器（供 launchd plist 调用）
 # -----------------------------------------------------------------------------
 # 解决"进程活着但不健康"的假活问题：
-#   1. 拉起服务后探活（启动期最多 START_TIMEOUT 秒）
-#   2. 运行期每 HEALTH_INTERVAL 秒看门狗探活一次，不健康立即杀掉重启
-#   3. 连续失败达 MAX_RESTARTS 视为不可恢复 → macOS 通知用户并干净退出
+#   1. 拉起服务后探活（启动期最多 START_TIMEOUT 秒），且必须确认【自己拉的子进程】
+#      仍存活（避免被端口上的僵尸进程欺骗误判健康）
+#   2. 运行期每 HEALTH_INTERVAL 秒看门狗探活，不健康立即杀掉重启
+#   3. 启动/运行失败若发现端口被【非本子进程】的孤儿占用，主动杀掉孤儿再重启
+#   4. 连续失败达 MAX_RESTARTS 视为不可恢复 → macOS 通知（osascript）并干净退出
 #      （plist 设 KeepAlive.SuccessfulExit=false，干净退出即不再被 launchd 重启，
 #       避免无限重启刷屏；用户介入修复后重新 bootstrap 即可）
 #
@@ -39,6 +41,7 @@ case "$SERVICE" in
     ARGS=(--port 5212 --host 0.0.0.0 --strictPort)
     WD="$PROJECT_DIR/web/app"
     EXTRA_ENV=(NODE_ENV=development)
+    PORT=5212
     PATH_PREFIX="${NODE_BIN:-/usr/local/bin}:/usr/local/bin:/usr/bin:/bin"
     ;;
   be)
@@ -46,6 +49,7 @@ case "$SERVICE" in
     ARGS=("$PROJECT_DIR/apps/django/manage.py" runserver 0.0.0.0:8000)
     WD="$PROJECT_DIR/apps/django"
     EXTRA_ENV=(DJANGO_SETTINGS_MODULE=config.settings.dev PYTHONUNBUFFERED=1)
+    PORT=8000
     PATH_PREFIX="$PROJECT_DIR/apps/django/.venv/bin:/usr/local/bin:/usr/bin:/bin"
     ;;
   *)
@@ -57,10 +61,24 @@ esac
 fe_healthy() { curl --noproxy '*' -s -o /dev/null "http://localhost:5212/" 2>/dev/null; }
 be_healthy() { [[ "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/health/" 2>/dev/null)" == "200" ]]; }
 
+# 杀掉占用目标端口、但【不是本子进程】的孤儿，确保本包装器独占端口
+free_port() {
+  local holder
+  holder="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1)"
+  if [[ -n "$holder" && "$holder" != "$PID" ]]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] killing orphan pid $holder holding :$PORT" >> "$LOG_DIR/$SERVICE-wrapper.log"
+    kill -9 "$holder" 2>/dev/null || true
+    sleep 1
+  fi
+}
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] wrapper for $SERVICE starting (max_restarts=$MAX_RESTARTS)" >> "$LOG_DIR/$SERVICE-wrapper.log"
 
 restart_count=0
 while true; do
+  # 启动前先清场：杀掉占用端口的孤儿（若有），避免新进程因端口冲突启动即崩
+  free_port
+
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] launching $SERVICE (attempt $((restart_count+1)))" >> "$LOG_DIR/$SERVICE-wrapper.log"
   (
     cd "$WD" || exit 3
@@ -69,11 +87,11 @@ while true; do
   ) &
   PID=$!
 
-  # —— 启动期探活 ——
+  # —— 启动期探活：必须【子进程存活】且【端口响应】才算健康（不被僵尸欺骗）——
   healthy=0
   for ((i = 0; i < START_TIMEOUT / 2; i++)); do
-    if "$SERVICE"_healthy; then healthy=1; break; fi
-    if ! kill -0 "$PID" 2>/dev/null; then break; fi   # 进程已退出（启动即崩）
+    if kill -0 "$PID" 2>/dev/null && "$SERVICE"_healthy; then healthy=1; break; fi
+    if ! kill -0 "$PID" 2>/dev/null; then break; fi   # 子进程已退出（启动即崩）
     sleep 2
   done
 
@@ -96,7 +114,7 @@ while true; do
     kill -9 "$PID" 2>/dev/null || true
     wait "$PID" 2>/dev/null || true
     restart_count=$((restart_count + 1))
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $SERVICE failed to become healthy (restart #$restart_count)" >> "$LOG_DIR/$SERVICE-wrapper.log"
+    echo "[$(date '+%Y-%m-%d %H:%m:%S')] $SERVICE failed to become healthy (restart #$restart_count)" >> "$LOG_DIR/$SERVICE-wrapper.log"
   fi
 
   if [[ $restart_count -ge $MAX_RESTARTS ]]; then
