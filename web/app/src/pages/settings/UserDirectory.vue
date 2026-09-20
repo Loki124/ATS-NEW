@@ -60,131 +60,112 @@
     <n-modal
       v-model:show="userModalVisible"
       preset="card"
-      :title="editingUser ? '编辑用户' : '新建用户'"
+      :title="editingUser ? '编辑用户(' + formState.uuid + ')' : '新建用户'"
       :style="{ width: '600px' }"
       :mask-closable="false"
     >
       <n-form :model="formState" label-placement="top">
-        <n-grid :cols="2" :x-gap="24">
-          <n-grid-item>
-            <n-form-item label="用户名" required>
-              <n-input v-model:value="formState.username" placeholder="请输入用户名" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="工号">
-              <n-input v-model:value="formState.employeeId" placeholder="请输入工号（唯一）" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-grid :cols="2" :x-gap="24">
-          <n-grid-item>
-            <n-form-item label="邮箱">
-              <n-input v-model:value="formState.email" placeholder="请输入邮箱" />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="手机号">
-              <n-input v-model:value="formState.phone" placeholder="请输入手机号" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-grid :cols="2" :x-gap="24">
-          <n-grid-item :span="2">
-            <n-form-item label="任职部门">
-              <n-select
-                v-model:value="formState.department"
-                :options="deptOptions"
-                placeholder="请选择任职部门（组织管理中的部门）"
-                clearable
-                filterable
-                :loading="deptStore.loading"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <!-- 基础信息 -->
+        <div class="form-section">
+          <div class="form-section-title">基础信息</div>
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
+              <n-form-item label="用户名" required>
+                <n-input v-model:value="formState.username" placeholder="请输入用户名" />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="真实姓名" required>
+                <n-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
+              <n-form-item label="企业邮箱">
+                <n-input v-model:value="formState.email" placeholder="请输入企业邮箱" />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="手机号">
+                <n-input v-model:value="formState.phone" placeholder="请输入手机号" />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+          <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
+            <n-grid-item>
+              <n-form-item label="密码" required>
+                <n-input
+                  v-model:value="formState.password"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="请输入密码"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </div>
 
-        <!-- 编辑态：系统生成 UUID（只读，不可编辑） -->
-        <n-grid v-if="editingUser" :cols="2" :x-gap="24">
-          <n-grid-item :span="2">
-            <n-form-item label="UUID">
-              <n-input :value="formState.uuid" disabled placeholder="系统自动生成" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <!-- 任职信息 -->
+        <div class="form-section">
+          <div class="form-section-title">任职信息</div>
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
+              <n-form-item label="员工工号">
+                <n-input v-model:value="formState.employeeId" placeholder="请输入工号（唯一）" />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="任职部门">
+                <n-select
+                  v-model:value="formState.department"
+                  :options="deptOptions"
+                  placeholder="请选择任职部门（组织管理中的部门）"
+                  clearable
+                  filterable
+                  :loading="deptStore.loading"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </div>
 
-        <!-- 角色配置：归入编辑页（替代原列表页单独「角色」按钮 + 独立弹窗） -->
-        <n-grid :cols="2" :x-gap="24">
-          <n-grid-item :span="2">
-            <n-form-item label="角色配置">
-              <n-select
-                v-model:value="formState.roleIds"
-                :options="roleOptions"
-                multiple
-                placeholder="请选择角色（可多选）"
-                clearable
-                filterable
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-
-        <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
-          <n-grid-item>
-            <n-form-item label="密码" required>
-              <n-input
-                v-model:value="formState.password"
-                type="password"
-                show-password-on="click"
-                placeholder="请输入密码"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="用户类型">
-              <n-select
-                v-model:value="formState.userType"
-                :options="userTypeOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
-          <n-grid-item>
-            <n-form-item label="角色类型">
-              <n-select
-                v-model:value="formState.roleType"
-                :options="roleTypeOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="状态">
-              <n-select
-                v-model:value="formState.status"
-                :options="statusOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-grid v-else :cols="2" :x-gap="24">
-          <n-grid-item>
-            <n-form-item label="用户类型">
-              <n-select
-                v-model:value="formState.userType"
-                :options="userTypeOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="状态">
-              <n-select
-                v-model:value="formState.status"
-                :options="statusOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <!-- 权限信息 -->
+        <div class="form-section">
+          <div class="form-section-title">权限信息</div>
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
+              <n-form-item label="用户类型">
+                <n-select
+                  v-model:value="formState.userType"
+                  :options="userTypeOptions"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="用户状态">
+                <n-select
+                  v-model:value="formState.status"
+                  :options="statusOptions"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item :span="2">
+              <n-form-item label="角色配置">
+                <n-select
+                  v-model:value="formState.roleIds"
+                  :options="roleOptions"
+                  multiple
+                  placeholder="请选择角色（可多选）"
+                  clearable
+                  filterable
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </div>
       </n-form>
 
       <template #footer>
@@ -283,12 +264,6 @@ const filterUserType = ref<string | null>(null);
 const filterStatus = ref<string | null>(null);
 
 // 下拉选项
-const roleTypeOptions = [
-  { label: 'HR', value: 'HR' },
-  { label: 'Manager', value: 'MANAGER' },
-  { label: 'Admin', value: 'ADMIN' },
-];
-
 const statusOptions = [
   { label: '正常', value: 'ACTIVE' },
   { label: '禁用', value: 'INACTIVE' },
@@ -330,7 +305,6 @@ const formState = reactive({
   uuid: '',
   roleIds: [] as string[],
   userType: 'INTERNAL',
-  roleType: 'HR',
   status: 'ACTIVE',
   department: null as string | null,
 });
@@ -492,7 +466,6 @@ const openCreateModal = () => {
     uuid: '',
     roleIds: [],
     userType: 'INTERNAL',
-    roleType: 'HR',
     status: 'ACTIVE',
     department: null
   });
@@ -513,7 +486,6 @@ const closeUserModal = () => {
     uuid: '',
     roleIds: [],
     userType: 'INTERNAL',
-    roleType: 'HR',
     status: 'ACTIVE',
     department: null
   });
@@ -734,7 +706,6 @@ const actionsColumn = {
               uuid: row.uuid || '',
               roleIds: [],
               userType: row.userType || 'INTERNAL',
-              roleType: row.roleType,
               status: row.status,
               department: row.department ?? null
             });
@@ -822,5 +793,31 @@ onMounted(() => {
    （glass.css 全局工具类，与校招管控规则配置工具条一致）。
    列表区：.table-wrap 直接作为 .page-body(flex 列) 子元素，flex:1 撑满，
    对齐校招管控规则配置页结构（toolbar + 裸 table-wrap，不包 n-card）。 */
+
+/* 编辑弹窗：基础信息 / 任职信息 / 权限信息 三模块分组
+   - 模块标题用 3px 品牌强调条（token，随主题切换，不硬编码 hex），与 scope-block 标题层次一致
+   - 模块间距用 --space-4 节奏，模块内字段无需额外 gap（n-form-item 自带纵向间距） */
+.form-section {
+  margin-bottom: var(--space-4);
+}
+.form-section:last-child {
+  margin-bottom: 0;
+}
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-3);
+}
+.form-section-title::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--brand-600);
+}
 
 </style>
