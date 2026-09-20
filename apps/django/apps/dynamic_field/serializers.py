@@ -52,11 +52,18 @@ class FieldGroupSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'module']
 
     def create(self, validated_data: dict):
-        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        # 仅当显式传入 module_id 时才写入; 未传时不硬塞 None (交由 DB 层约束暴露真实必填问题)。
+        # 原实现无条件 pop + 置 None, 会在「未传 module_id」时绕过 DRF 校验并退化为 IntegrityError。
+        if 'module_id' in validated_data:
+            validated_data['module_id'] = validated_data.pop('module_id') or None
         return super().create(validated_data)
 
     def update(self, instance, validated_data: dict):
-        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        # PATCH 部分更新: 仅当调用方**显式传入** module_id 时才改动, 否则保持原值。
+        # 原实现无条件 pop + 置 None, 导致任何只带 order_index 的 PATCH 都会把
+        # module_id 清空 → IntegrityError(1048, "Column 'module_id' cannot be null") → HTTP 500。
+        if 'module_id' in validated_data:
+            validated_data['module_id'] = validated_data.pop('module_id') or None
         return super().update(instance, validated_data)
 
 
@@ -80,11 +87,18 @@ class FieldLinkageRuleSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'module']
 
     def create(self, validated_data: dict):
-        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        # 仅当显式传入 module_id 时才写入; 未传时不硬塞 None (交由 DB 层约束暴露真实必填问题)。
+        # 原实现无条件 pop + 置 None, 会在「未传 module_id」时绕过 DRF 校验并退化为 IntegrityError。
+        if 'module_id' in validated_data:
+            validated_data['module_id'] = validated_data.pop('module_id') or None
         return super().create(validated_data)
 
     def update(self, instance, validated_data: dict):
-        validated_data['module_id'] = validated_data.pop('module_id', None) or None
+        # PATCH 部分更新: 仅当调用方**显式传入** module_id 时才改动, 否则保持原值。
+        # 原实现无条件 pop + 置 None, 导致任何只带 order_index 的 PATCH 都会把
+        # module_id 清空 → IntegrityError(1048, "Column 'module_id' cannot be null") → HTTP 500。
+        if 'module_id' in validated_data:
+            validated_data['module_id'] = validated_data.pop('module_id') or None
         return super().update(instance, validated_data)
 
 

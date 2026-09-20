@@ -22,11 +22,14 @@ const {
   mergeFields,
   selectEnabledFields,
   groupFieldsByModule,
+  groupFieldsByGroup,
   UNGROUPED_MODULE_CODE,
+  UNGROUPED_GROUP_CODE,
   STANDARD_RESUME_STAGES,
   STANDARD_RESUME_API,
 } = await import('../standard-resume')
-import type { StandardResumeConfig, ModuleGroup, MergedResumeField } from '../standard-resume'
+import type { StandardResumeConfig, ModuleGroup, MergedResumeField, FieldGroupBucket } from '../standard-resume'
+import type { FieldGroup } from '../dynamic-field'
 
 function makeField(opts: {
   fieldKey: string
@@ -158,6 +161,98 @@ describe('standard-resume config (后端持久化)', () => {
     expect(groups.map((g) => g.key)).toEqual(['basic', UNGROUPED_MODULE_CODE])
   })
 
+  // ---- groupFieldsByGroup（2026-09-21 分组化改造）----
+  function makeGroup(code: string, orderIndex: number): FieldGroup {
+    return {
+      id: `g_${code}`,
+      moduleId: 'm1',
+      code,
+      name: code,
+      orderIndex,
+      isActive: true,
+    } as FieldGroup
+  }
+
+  function makeFieldWithGroup(
+    fieldKey: string,
+    groupCode: string | null,
+    orderIndex: number,
+  ): MergedResumeField {
+    return {
+      field: {
+        ...makeField({ fieldKey, orderIndex }),
+        group: groupCode
+          ? ({ id: `g_${groupCode}`, moduleId: 'm1', code: groupCode, name: groupCode, orderIndex: 0, isActive: true } as FieldGroup)
+          : null,
+      } as FieldDefinition,
+      enabled: true,
+      required: false,
+    }
+  }
+
+  it('groupFieldsByGroup: 按 group.code 分桶, 组内保持 orderIndex 升序', () => {
+    const merged = [
+      makeFieldWithGroup('a', 'basic', 1),
+      makeFieldWithGroup('b', 'edu', 2),
+      makeFieldWithGroup('c', 'basic', 3),
+    ]
+    const groups = groupFieldsByGroup(merged, undefined, [makeGroup('basic', 2), makeGroup('edu', 3)])
+    expect(groups.map((g: FieldGroupBucket) => g.key)).toEqual(['basic', 'edu'])
+    expect(groups[0].fields.map((m) => m.field.fieldKey)).toEqual(['a', 'c'])
+    expect(groups[1].fields.map((m) => m.field.fieldKey)).toEqual(['b'])
+  })
+
+  it('groupFieldsByGroup: 空分组 (allGroups 有但无字段) 仍出现在结果里', () => {
+    const merged = [makeFieldWithGroup('a', 'basic', 1)]
+    const groups = groupFieldsByGroup(merged, undefined, [
+      makeGroup('basic', 0),
+      makeGroup('internship', 5), // 0 字段
+    ])
+    expect(groups.map((g) => g.key)).toEqual(['basic', 'internship'])
+    const empty = groups.find((g) => g.key === 'internship')
+    expect(empty?.fields.length).toBe(0)
+    expect(empty?.group?.name).toBe('internship')
+  })
+
+  it('groupFieldsByGroup: groupOrder 有值时按其顺序, 缺省分组追加末尾', () => {
+    const merged = [
+      makeFieldWithGroup('a', 'basic', 1),
+      makeFieldWithGroup('b', 'edu', 2),
+      makeFieldWithGroup('c', 'extra', 3),
+    ]
+    const groups = groupFieldsByGroup(
+      merged,
+      ['edu', 'basic'],
+      [makeGroup('basic', 0), makeGroup('edu', 1), makeGroup('extra', 2)],
+    )
+    expect(groups.map((g) => g.key)).toEqual(['edu', 'basic', 'extra'])
+  })
+
+  it('groupFieldsByGroup: 无 groupOrder 时按 group.orderIndex 升序', () => {
+    const merged = [
+      makeFieldWithGroup('a', 'basic', 1),
+      makeFieldWithGroup('b', 'edu', 2),
+    ]
+    const groups = groupFieldsByGroup(merged, [], [makeGroup('basic', 6), makeGroup('edu', 2)])
+    expect(groups.map((g) => g.key)).toEqual(['edu', 'basic'])
+  })
+
+  it('groupFieldsByGroup: UNGROUPED_GROUP_CODE 永远置末尾', () => {
+    const merged = [
+      makeFieldWithGroup('a', null, 1), // 未分组
+      makeFieldWithGroup('b', 'basic', 2),
+    ]
+    const groups = groupFieldsByGroup(merged, [UNGROUPED_GROUP_CODE, 'basic'], [makeGroup('basic', 0)])
+    expect(groups.map((g) => g.key)).toEqual(['basic', UNGROUPED_GROUP_CODE])
+    expect(groups[1].group).toBeNull()
+  })
+
+  it('groupFieldsByGroup: groupOrder 声明但无分组的 code 被跳过', () => {
+    const merged = [makeFieldWithGroup('a', 'basic', 1)]
+    const groups = groupFieldsByGroup(merged, ['basic', 'nonexistent'], [makeGroup('basic', 0)])
+    expect(groups.map((g) => g.key)).toEqual(['basic'])
+  })
+
   // ---- 异步 API ----
   it('fetchConfig 解析 data.data 正常返回', async () => {
     getMock.mockResolvedValue({
@@ -191,11 +286,19 @@ describe('standard-resume config (后端持久化)', () => {
       fields: [{ fieldKey: 'a', enabled: true, required: false }],
       requiredStages: ['screening'],
       moduleOrder: [],
+      groupOrder: [],
     }
     putMock.mockResolvedValue({ data: { data: cfg } })
     const r = await saveConfig(cfg)
     expect(putMock).toHaveBeenCalledWith(STANDARD_RESUME_API, cfg)
     expect(r).toEqual(cfg)
+  })
+
+  it('saveConfig 归一化缺失 groupOrder 为 []', async () => {
+    const cfg = { fields: [], requiredStages: [] } as StandardResumeConfig
+    putMock.mockResolvedValue({ data: { data: cfg } })
+    const r = await saveConfig(cfg)
+    expect(r.groupOrder).toEqual([])
   })
 
   it('resetConfig 清空并落库默认配置', async () => {

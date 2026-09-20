@@ -246,6 +246,41 @@ export const updateFieldOrder = (
     .then(() => undefined);
 
 /**
+ * 单分组 order_index 写入。
+ *
+ * 2026-09-21 (寇豆码) 标准简历设置分组拖拽: 分组拖拽结束后, 前端批量调用本函数
+ * 把新顺序写回 FieldGroup.order_index (步长 10 方便后续插入)。
+ *
+ * ⚠️ 必须同时携带 ``module_id``: 后端 ``FieldGroupSerializer.update()`` 会执行
+ * ``validated_data['module_id'] = validated_data.pop('module_id', None) or None``,
+ * 对**部分更新**(PATCH 仅带 order_index)会把 module_id 置空 → 触发
+ * ``IntegrityError (Column 'module_id' cannot be null)`` → HTTP 500。
+ * 故此处回传当前归属 module_id (等值重赋值, 语义无副作用), 以在不改后端的前提下
+ * 让既有端点可用。
+ *
+ * Args:
+ *  resource: 资源类型 (Candidate / Position / ...)
+ *  groupId: 分组 id (nanoid, 与后端 detail 端点主键对齐)
+ *  orderIndex: 新顺序值
+ *  moduleId: 分组所属模块 id (可选; 传入则一并回写以规避上述 500)
+ *
+ * Returns:
+ *  Promise<void> 成功 resolve, 失败 reject (前端做并发请求时捕获单条失败)
+ */
+export const updateGroupOrder = (
+  resource: string,
+  groupId: string,
+  orderIndex: number,
+  moduleId?: string | null,
+): Promise<void> => {
+  const body: Record<string, unknown> = { order_index: orderIndex };
+  if (moduleId) body.module_id = moduleId;
+  return api
+    .patch(`/dynamic-fields/${resource}/groups/${groupId}/`, body)
+    .then(() => undefined);
+};
+
+/**
  * 单值校验。
  *
  * 注意: 后端 `apps/dynamic_field/urls.py` 目前**未挂载** `<id>/validate/` 路由,
@@ -457,9 +492,13 @@ export const ensureDefaultModule = (resource: string, name?: string) =>
     .then((r) => r.data.data as FieldModule);
 
 // --- 分组配置 (FieldGroup, 子级) ---
+// 响应信封容错: 后端正常返回 { data: [...] }, 少数场景 (空/降级) 可能直返数组。
 export const listGroups = (resource: string, moduleId?: string) =>
   api.get(`/dynamic-fields/${resource}/groups/`, { params: moduleId ? { module_id: moduleId } : {} })
-    .then((r) => (r.data.data as FieldGroup[]).map(normalizeGroup));
+    .then((r) => {
+      const raw = (r.data?.data ?? r.data ?? []) as FieldGroup[];
+      return (Array.isArray(raw) ? raw : []).map(normalizeGroup);
+    });
 
 export const upsertGroup = (resource: string, body: Partial<FieldGroup>) =>
   (body.id

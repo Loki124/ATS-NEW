@@ -5,7 +5,7 @@
         <h1 class="page-title">标准简历设置</h1>
         <p class="page-subtitle">
           配置候选人标准简历包含的字段与必填规则，右侧实时预览候选人填写效果。
-          字段来源于动态字段模块的「Candidate」资源；可拖拽模块与字段调整展示顺序。
+          字段来源于动态字段配置的「Candidate」资源；可拖拽分组与字段调整展示顺序。
         </p>
       </div>
       <div class="page-header-actions">
@@ -22,7 +22,7 @@
 
     <div class="page-body">
       <div class="sr-grid">
-        <!-- 左：配置（按模块分组 + 拖拽） -->
+        <!-- 左：配置（按分组 + 双层拖拽） -->
         <section class="glass-card sr-config">
           <header class="sr-panel-head">
             <h2 class="sr-panel-title">简历字段</h2>
@@ -53,39 +53,41 @@
               />
 
               <template v-else>
-                <!-- 模块级拖拽：vue-draggable-plus 0.6.x 用 v-for 遍历数据 + Sortable.js 操作 DOM。
-                     注意：不用 #item slot（旧版 vuedraggable 写法），vue-draggable-plus 走 default slot。 -->
+                <!-- 分组级拖拽：vue-draggable-plus 0.6.x 只识别 default slot，
+                     必须用 v-for 遍历数据（不要用旧版 vuedraggable 的 #item slot，也不传 item-key）。
+                     Candidate 仅 1 个模块，无模块层展示，直接渲染「分组层」。 -->
                 <VueDraggable
-                  v-model="moduleGroups"
-                  handle=".module-drag-handle"
+                  v-model="groupBuckets"
+                  handle=".group-drag-handle"
                   :animation="180"
                   ghost-class="sr-ghost"
-                  class="sr-modules"
-                  @end="onModuleDragEnd"
+                  class="sr-groups"
+                  @end="onGroupDragEnd"
                 >
                   <section
-                    v-for="grp in moduleGroups"
+                    v-for="grp in groupBuckets"
                     :key="grp.key"
-                    class="sr-module"
+                    class="sr-group"
                   >
-                    <header class="sr-module-head">
+                    <header class="sr-group-head">
                       <n-icon
-                        v-if="moduleGroups.length > 1"
-                        class="sr-drag-handle module-drag-handle"
+                        v-if="groupBuckets.length > 1"
+                        class="sr-drag-handle group-drag-handle"
                         :component="ReorderThreeOutline"
                         size="18"
                       />
                       <span v-else class="sr-drag-handle-placeholder" />
-                      <h3 class="sr-module-title">
-                        {{ grp.module?.name || '未分组' }}
+                      <h3 class="sr-group-title">
+                        {{ grp.group?.name || '未分组' }}
                       </h3>
-                      <n-tag size="small" :bordered="false" class="sr-module-count">
+                      <n-tag size="small" :bordered="false" class="sr-group-count">
                         {{ grp.fields.length }} 字段
                       </n-tag>
                     </header>
 
-                    <!-- 字段级拖拽：每行一个字段 -->
+                    <!-- 字段级拖拽：每行一个字段；空分组仍渲染标题栏 + 占位文案 -->
                     <VueDraggable
+                      v-if="grp.fields.length"
                       v-model="grp.fields"
                       handle=".field-drag-handle"
                       :animation="160"
@@ -126,6 +128,9 @@
                         </div>
                       </div>
                     </VueDraggable>
+                    <div v-else class="sr-group-empty">
+                      <n-empty size="small" description="暂无字段" />
+                    </div>
                   </section>
                 </VueDraggable>
 
@@ -151,7 +156,7 @@
           </n-spin>
         </section>
 
-        <!-- 右：预览（按模块分组 + 启用字段） -->
+        <!-- 右：预览（按分组 + 启用字段） -->
         <section class="glass-card sr-preview">
           <header class="sr-panel-head">
             <h2 class="sr-panel-title">标准简历预览</h2>
@@ -171,7 +176,7 @@
                 class="sr-form-group"
               >
                 <div class="sr-form-group-title">
-                  {{ grp.module?.name || '未分组' }}
+                  {{ grp.group?.name || '未分组' }}
                   <span class="sr-form-group-count">{{ grp.fields.length }}</span>
                 </div>
                 <div class="sr-form-grid">
@@ -264,9 +269,12 @@ import { VueDraggable } from 'vue-draggable-plus'
 import type { SortableEvent } from 'sortablejs'
 import {
   listFields,
+  listGroups,
   updateFieldOrder,
+  updateGroupOrder,
   extractApiError,
   type FieldDefinition,
+  type FieldGroup,
   type FieldType,
   type RegionLevelValue,
   FIELD_TYPE_LABEL,
@@ -280,12 +288,12 @@ import {
   saveConfig,
   resetConfig,
   mergeFields,
-  groupFieldsByModule,
-  UNGROUPED_MODULE_CODE,
+  groupFieldsByGroup,
+  UNGROUPED_GROUP_CODE,
   type StandardResumeConfig,
   type StandardResumeFieldConfig,
   type MergedResumeField,
-  type ModuleGroup,
+  type FieldGroupBucket,
 } from '../../api/standard-resume';
 import RegionCascader from '../../components/RegionCascader.vue';
 import AttachmentUploader from '@/components/AttachmentUploader.vue';
@@ -294,6 +302,8 @@ import CompositeFieldCard from '@/components/CompositeFieldCard.vue';
 const message = useMessage()
 
 const allFields = ref<FieldDefinition[]>([])
+// 全量分组（含空分组）：从 listGroups 拿，保证 0 字段分组也能渲染标题栏
+const allGroups = ref<FieldGroup[]>([])
 const loading = ref(false)
 const error = ref('')
 const saved = ref(true)
@@ -302,10 +312,11 @@ const ready = ref(false) // 初始加载完成前不触发自动保存，避免�
 const dirty = ref(false) // 仅用户显式编辑后才允许自动保存（避免加载即把全量字段写回后端）
 const config = ref<StandardResumeConfig>(defaultConfig())
 
-// 拖拽专用：本地可变副本；用 moduleGroups 渲染 + 拖拽，拖拽结束再回写 config
-const moduleGroups = ref<ModuleGroup[]>([])
-// 字段排序保存中（避免重复触发 + 显示进度）
+// 拖拽专用：本地可变副本；用 groupBuckets 渲染 + 拖拽，拖拽结束再回写 config / 批量 PATCH
+const groupBuckets = ref<FieldGroupBucket[]>([])
+// 排序保存中（避免重复触发 + 显示进度）
 const fieldReorderRunning = ref(false)
+const groupReorderRunning = ref(false)
 const lastReorderError = ref('')
 
 function fieldTypeLabel(t: FieldType): string {
@@ -349,6 +360,13 @@ async function loadFields() {
     const fields = await listFields('Candidate')
     allFields.value = fields
     ensureCoverage()
+    // 分组列表为「空分组占位」所需，非关键路径：失败时静默降级为
+    // 「仅按字段推断分组」(不含空分组)，不阻断字段配置。
+    try {
+      allGroups.value = await listGroups('Candidate')
+    } catch {
+      allGroups.value = []
+    }
   } catch (e: any) {
     error.value = e?.message || '请求动态字段失败，请检查网络或登录状态'
   } finally {
@@ -397,8 +415,9 @@ watch(
     try {
       await saveConfig(v)
       saved.value = true
-    } catch {
-      saved.value = false // 保存失败保留本地修改，下次变更重试
+    } catch (e: any) {
+      saved.value = false // 保留本地修改，下次变更重试
+      message.error('保存失败：' + extractApiError(e))
     } finally {
       saving.value = false
     }
@@ -409,71 +428,138 @@ watch(
 const merged = computed<MergedResumeField[]>(() => mergeFields(allFields.value, config.value))
 const enabledFields = computed(() => merged.value.filter((m) => m.enabled))
 
-// 用 moduleGroups 渲染左侧；watch merged / config.moduleOrder 同步过来。
-// 注意: moduleGroups 是本地可变副本 (拖拽会改它), 拖拽结束才把顺序回写到 config.moduleOrder。
+// 用 groupBuckets 渲染左侧；watch merged / config.groupOrder / allGroups 同步过来。
+// 注意: groupBuckets 是本地可变副本 (拖拽会改它), 拖拽结束才把顺序回写到 config.groupOrder。
 watch(
-  [merged, () => config.value.moduleOrder],
-  ([m, mo]) => {
-    const next = groupFieldsByModule(m, mo)
-    // 保留用户已编辑的 group.fields (本地拖拽态), 其它按 next 重建
-    if (moduleGroups.value.length === 0) {
-      moduleGroups.value = next
+  [merged, () => config.value.groupOrder, allGroups],
+  ([m, go, groups]) => {
+    const next = groupFieldsByGroup(m, go, groups as FieldGroup[])
+    // 保留用户已编辑的 bucket.fields (本地拖拽态), 其它按 next 重建
+    if (groupBuckets.value.length === 0) {
+      groupBuckets.value = next
       return
     }
-    // 把 next 的 key 顺序应用到现有 moduleGroups, 缺失的追加到末尾
-    const byKey = new Map(moduleGroups.value.map((g) => [g.key, g]))
-    const rebuilt: ModuleGroup[] = []
-    for (const g of next) {
-      const existing = byKey.get(g.key)
+    const byKey = new Map(groupBuckets.value.map((b) => [b.key, b]))
+    const rebuilt: FieldGroupBucket[] = []
+    for (const nb of next) {
+      const existing = byKey.get(nb.key)
       if (existing) {
-        // 字段可能变了 (新增/删除), 用 next.fields 替换
-        existing.fields = g.fields
+        // 字段可能变了 (新增/删除/拖拽), 用 next.fields 替换; 分组对象同步刷新
+        existing.fields = nb.fields
+        existing.group = nb.group
         rebuilt.push(existing)
-        byKey.delete(g.key)
+        byKey.delete(nb.key)
       } else {
-        rebuilt.push(g)
+        rebuilt.push(nb)
       }
     }
-    // 残留的 group (后端顺序里已消失的模块) 跳过 — 对应字段也没了
-    moduleGroups.value = rebuilt
+    // 残留 bucket (后端分组里已消失的) 跳过 — 对应字段也没了
+    groupBuckets.value = rebuilt
   },
   { immediate: true, deep: true },
 )
 
 // 预览侧: 按当前拖拽后的顺序 + 仅启用的字段分组, 与左侧保持一致
 const previewGroups = computed(() =>
-  moduleGroups.value
+  groupBuckets.value
     .map((g) => ({
       key: g.key,
-      module: g.module,
+      group: g.group,
       fields: g.fields.filter((f) => f.enabled),
     }))
     .filter((g) => g.fields.length > 0),
 )
 
-// 模块拖拽结束: 把新顺序回写到 config.moduleOrder, 触发自动保存。
-function onModuleDragEnd() {
-  if (moduleGroups.value.length <= 1) return
-  config.value.moduleOrder = moduleGroups.value.map((g) =>
-    g.module?.code ?? UNGROUPED_MODULE_CODE,
-  )
+/**
+ * 分组拖拽结束: 把新顺序回写到 config.groupOrder (触发配置自动保存),
+ * 同时批量 PATCH FieldGroup.order_index (步长 10), 失败回滚 + 提示。
+ * 未分组为虚拟分组, 永远置末尾, 不参与持久化。
+ */
+async function onGroupDragEnd() {
+  if (groupBuckets.value.length <= 1) return
+
+  const ordered = groupBuckets.value.filter((g) => g.key !== UNGROUPED_GROUP_CODE)
+  if (!ordered.length) return
+
+  // snapshot(必须在改动任何状态**之前**): DB 侧 orderIndex + config 侧 groupOrder
+  // 都是展示顺序的权威来源, 失败时两者都必须能回滚 (否则提示"已回滚"但顺序仍是新的)。
+  const beforeOrder = new Map(allGroups.value.map((g) => [g.id, g.orderIndex]))
+  const beforeGroupOrder = [...(config.value.groupOrder ?? [])]
+
+  // 1) 回写 config.groupOrder (仅真实分组 code; 未分组固定末尾由 groupFieldsByGroup 处理)
+  config.value.groupOrder = ordered.map((g) => g.key)
   dirty.value = true
+
+  // 2) 计算分组新 order_index, 步长 10 (10, 20, 30, ...)
+  //    同时带上 moduleId: 后端 FieldGroupSerializer.update 对部分更新会把
+  //    module_id 置空导致 500 (见 dynamic-field.ts updateGroupOrder 注释)。
+  const step = 10
+  const updates: Array<{ id: string; orderIndex: number; moduleId: string }> = []
+  ordered.forEach((g, i) => {
+    if (!g.group?.id) return
+    const moduleId = g.group.moduleId || g.group.module?.id || ''
+    updates.push({ id: g.group.id, orderIndex: (i + 1) * step, moduleId })
+  })
+  if (!updates.length) return
+
+  // 3) 乐观改 allGroups.orderIndex (snapshot 已在上方完成)
+  const byId = new Map(allGroups.value.map((g) => [g.id, g]))
+  for (const u of updates) {
+    const g = byId.get(u.id)
+    if (g) g.orderIndex = u.orderIndex
+  }
+
+  // 4) 批量 PATCH 写回后端; 部分失败回滚
+  groupReorderRunning.value = true
+  lastReorderError.value = ''
+  try {
+    const results = await Promise.allSettled(
+      updates.map((u) => updateGroupOrder('Candidate', u.id, u.orderIndex, u.moduleId)),
+    )
+    const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+    if (failed.length) {
+      // 回滚本地 orderIndex + config.groupOrder (两者都回滚, 否则顺序仍是新的)
+      for (const [id, oldOrder] of beforeOrder.entries()) {
+        const g = byId.get(id)
+        if (g) g.orderIndex = oldOrder
+      }
+      config.value.groupOrder = beforeGroupOrder
+      const firstReason = failed[0]?.reason
+      lastReorderError.value = `分组排序保存失败 (${failed.length}/${updates.length}), 已回滚`
+      // eslint-disable-next-line no-console
+      console.error('[StandardResumeSettings] group reorder failed', failed)
+      message.error(lastReorderError.value + (firstReason ? `: ${extractApiError(firstReason)}` : ''))
+    }
+  } catch (e: any) {
+    // 整批异常时整体回滚 (orderIndex + config.groupOrder)
+    for (const [id, oldOrder] of beforeOrder.entries()) {
+      const g = byId.get(id)
+      if (g) g.orderIndex = oldOrder
+    }
+    config.value.groupOrder = beforeGroupOrder
+    lastReorderError.value = e?.message || '分组排序保存异常'
+    message.error(lastReorderError.value)
+  } finally {
+    groupReorderRunning.value = false
+  }
 }
 
 // 字段拖拽结束: 把组内新字段顺序展开为全局 merged 顺序,
 // 然后批量 PATCH DynamicField.order_index (步长 10 方便再插)。
-async function onFieldDragEnd(grp: ModuleGroup, _evt: SortableEvent) {
-  // 仅当真正改动时才写后端 (Sortable 会在无变化时也触发 end, 跳过)
+async function onFieldDragEnd(grp: FieldGroupBucket, evt: SortableEvent) {
+  // Sortable 在「拖了但没换位」时也会触发 end; oldIndex===newIndex 表示无实际位移,
+  // 直接跳过, 避免无变化也把全部字段批量 PATCH 一遍。
+  if (evt.oldIndex === evt.newIndex) return
+  // 仅当真正改动时才写后端
   if (!grp.fields.length) return
 
-  // 1) 立即把新顺序应用到本地 merged 数组 (驱动预览/UI 重排)
-  // 找到该组在 moduleGroups 里的索引位置, 把组内字段按新顺序展开回 merged
-  const groupIndex = moduleGroups.value.findIndex((g) => g.key === grp.key)
+  // 1) 找到该 bucket 在 groupBuckets 里的索引位置 (校验存在性)
+  const groupIndex = groupBuckets.value.findIndex((g) => g.key === grp.key)
   if (groupIndex < 0) return
 
-  // 2) 重新组装 merged 数组: 取所有 group, 按 groupIndex 顺序, group 内按 grp.fields 新顺序
+  // 2) 重新组装 merged 数组: 取所有 bucket, 按 bucket 顺序, bucket 内按 grp.fields 新顺序
   const newMergedOrder: MergedResumeField[] = []
-  for (const g of moduleGroups.value) {
+  for (const g of groupBuckets.value) {
     for (const m of g.fields) newMergedOrder.push(m)
   }
 
@@ -494,7 +580,6 @@ async function onFieldDragEnd(grp: ModuleGroup, _evt: SortableEvent) {
     const f = byId.get(u.id)
     if (f) f.orderIndex = u.orderIndex
   }
-  // 强制触发 merged / moduleGroups 重新分组 (使用新 orderIndex)
   // 注意: allFields 是 ref, 改 .orderIndex 后, 因为 reactive proxy, watch([merged,...]) 会重跑
 
   // 5) 批量 PATCH 写回后端; 部分失败回滚
@@ -613,13 +698,13 @@ async function loadConfigIntoState() {
 .sr-alert-retry { margin-left: var(--space-3); vertical-align: middle; }
 .sr-empty { padding: var(--space-12) 0; }
 
-/* === 模块分组（玻璃卡片嵌套 + 拖拽手柄） === */
-.sr-modules {
+/* === 分组（玻璃卡片嵌套 + 双层拖拽） === */
+.sr-groups {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
-.sr-module {
+.sr-group {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -628,31 +713,39 @@ async function loadConfigIntoState() {
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
 }
-.sr-module-head {
+/* 分组是容器、字段是内容：标题栏视觉层级弱于字段行 */
+.sr-group-head {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-hairline);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--g1);
+  transition: background var(--duration-base, .2s) var(--ease-out, ease);
 }
-.sr-module-title {
+.sr-group:hover .sr-group-head { background: var(--brand-soft); }
+.sr-group-title {
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-size: var(--text-small);
+  font-size: var(--text-meta);
   font-weight: 600;
-  color: var(--ink);
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sr-module-count {
+.sr-group-count {
   flex-shrink: 0;
   background: var(--c-info-soft);
   color: var(--c-info);
 }
+.sr-group-empty {
+  padding: var(--space-3) 0;
+}
 
-/* 拖拽手柄（模块 + 字段共用样式 + 区分父级选择器） */
+/* 拖拽手柄（分组级 + 字段级共用样式 + 区分父级选择器） */
 .sr-drag-handle {
   display: inline-flex;
   align-items: center;
@@ -677,7 +770,7 @@ async function loadConfigIntoState() {
   height: 24px;
   flex-shrink: 0;
 }
-.module-drag-handle { /* 模块级: 稍大, 突出 */ }
+.group-drag-handle { /* 分组级: 稍大, 突出 */ }
 .field-drag-handle { /* 字段级: 稍小 */ }
 
 /* Sortable.js 拖拽 ghost 态 (拖动中的临时占位元素) */

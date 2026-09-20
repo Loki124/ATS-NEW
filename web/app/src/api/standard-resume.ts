@@ -4,7 +4,7 @@
 
 import axios from 'axios'
 import config from '../config'
-import type { FieldDefinition, FieldModule } from './dynamic-field'
+import type { FieldDefinition, FieldGroup, FieldModule } from './dynamic-field'
 
 const api = axios.create({
   baseURL: config.api.baseUrl,
@@ -51,16 +51,24 @@ export interface StandardResumeFieldConfig {
  *    ``DynamicField.order_index``, 由前端拖拽后批量 PATCH 写回。
  *  - 兼容旧数据: ``moduleOrder`` 缺失/为空时, 由 ``groupFieldsByModule``
  *    按 ``DynamicField.order_index`` 推断首现顺序生成, 不破坏存量页面。
+ *
+ * 2026-09-21 (寇豆码) 分组化改造:
+ *  - 新增 ``groupOrder``: **分组 code** 展示顺序数组。Candidate 资源仅 1 个模块
+ *    (无模块层展示), 故直接用扁平数组按模块内分组顺序存即可。
+ *  - ``moduleOrder`` **保留**用于向后兼容读取旧数据 (旧配置仍有该键), 但新逻辑
+ *    不再使用它; 拖拽分组时只写 ``groupOrder``。
  */
 export interface StandardResumeConfig {
   fields: StandardResumeFieldConfig[]
   requiredStages: string[] // 命中必填校验的阶段 key 列表
-  /** 模块展示顺序: FieldModule.code 数组; 未分组虚拟模块使用哨兵 '__ungrouped' */
+  /** @deprecated 模块展示顺序 (旧数据兼容读取); 现用 ``groupOrder`` 代替 */
   moduleOrder?: string[]
+  /** 分组展示顺序: FieldGroup.code 数组; 未分组虚拟分组使用哨兵 '__ungrouped' */
+  groupOrder?: string[]
 }
 
 export function defaultConfig(): StandardResumeConfig {
-  return { fields: [], requiredStages: [], moduleOrder: [] }
+  return { fields: [], requiredStages: [], moduleOrder: [], groupOrder: [] }
 }
 
 // 从后端拉取标准简历配置；空/异常时回退默认结构
@@ -87,6 +95,9 @@ function normalizeConfig(data: Partial<StandardResumeConfig>): StandardResumeCon
     requiredStages: Array.isArray(data.requiredStages) ? data.requiredStages : [],
     moduleOrder: Array.isArray(data.moduleOrder)
       ? data.moduleOrder.filter((s): s is string => typeof s === 'string')
+      : [],
+    groupOrder: Array.isArray(data.groupOrder)
+      ? data.groupOrder.filter((s): s is string => typeof s === 'string')
       : [],
   }
 }
@@ -214,4 +225,97 @@ export function groupFieldsByModule(
       fields,
     }
   })
+}
+
+/** 未分组虚拟分组的哨兵 code — field.group 为 null 的字段归到该分组 */
+export const UNGROUPED_GROUP_CODE = '__ungrouped'
+
+/** 分组分组结果: 一个 FieldGroup + 其下字段列表 (group 为 null 表示未分组) */
+export interface FieldGroupBucket {
+  /** 分组唯一 key: FieldGroup.code 或 UNGROUPED_GROUP_CODE */
+  key: string
+  /** 分组对象; 未分组时为 null */
+  group: FieldGroup | null
+  /** 该分组下的字段（已按 DynamicField.orderIndex 升序） */
+  fields: MergedResumeField[]
+}
+
+/**
+ * 把 merged 字段按 FieldGroup.code 分组, 同时按 groupOrder 控制分组排列顺序。
+ *
+ * 与 ``groupFieldsByModule`` 的差异: 传入 ``allGroups`` (后端 ``listGroups`` 全量
+ * 分组) 用于**预置空桶**, 保证「0 字段的分组」也能出现在结果里 (需求 2)。
+ *
+ * 规则:
+ *  1. 先按 ``allGroups`` 预置所有分组桶 (含空), 再把 merged 字段按
+ *     ``field.group?.code`` 投桶; ``field.group`` 为 null → ``UNGROUPED_GROUP_CODE``。
+ *  2. ``groupOrder`` 有值 → 先按它排序 (未声明但存在的分组过滤后跳过);
+ *     其余分组追加到末尾, 追加时按 ``FieldGroup.orderIndex`` 升序 (稳定)。
+ *  3. ``groupOrder`` 缺省/为空 → 全部按 ``FieldGroup.orderIndex`` 升序 (fallback)。
+ *  4. ``UNGROUPED_GROUP_CODE`` 永远置末尾。
+ *
+ * Args:
+ *  merged: 已按 DynamicField.orderIndex 升序排列的字段列表
+ *  groupOrder: 后端存的标准简历分组顺序 (分组 code 数组, 可缺省)
+ *  allGroups: resource 下全量分组 (来自 ``listGroups``), 用于补全空分组
+ *
+ * Returns:
+ *  FieldGroupBucket[]  按展示顺序排列, 字段在组内已按 orderIndex 升序
+ */
+export function groupFieldsByGroup(
+  merged: MergedResumeField[],
+  groupOrder: string[] | undefined,
+  allGroups: FieldGroup[] = [],
+): FieldGroupBucket[] {
+  // 1) 桶 + 元信息 (code -> FieldGroup), 先用全量分组预置空桶保证空分组也能渲染
+  const buckets = new Map<string, MergedResumeField[]>()
+  const groupMeta = new Map<string, FieldGroup>()
+  for (const g of allGroups) {
+    if (!g || !g.code) continue
+    if (!buckets.has(g.code)) buckets.set(g.code, [])
+    groupMeta.set(g.code, g)
+  }
+
+  // 2) 字段投桶 (merged 已按 orderIndex 升序, 组内天然有序)
+  for (const m of merged) {
+    const g = m.field.group
+    const code = g?.code || UNGROUPED_GROUP_CODE
+    const arr = buckets.get(code)
+    if (arr) arr.push(m)
+    else buckets.set(code, [m])
+    // allGroups 未覆盖到的分组 (理论上不会) 也记录元信息, 保证标题可显示
+    if (code !== UNGROUPED_GROUP_CODE && g && !groupMeta.has(code)) {
+      groupMeta.set(code, g)
+    }
+  }
+
+  // 3) 收集所有非未分组 code, 按 groupOrder 优先 + orderIndex 兜底排列
+  const ordered: string[] = []
+  const used = new Set<string>()
+  if (Array.isArray(groupOrder)) {
+    for (const code of groupOrder) {
+      if (code === UNGROUPED_GROUP_CODE) continue // 未分组固定置末尾, 忽略配置里的位置
+      if (used.has(code)) continue
+      if (!buckets.has(code)) continue // groupOrder 里声明但无分组记录 → 跳过
+      ordered.push(code)
+      used.add(code)
+    }
+  }
+  // 其余分组 (groupOrder 未命中者 + 全部空分组) 统一按 orderIndex 升序追加
+  const remaining = [...buckets.keys()].filter(
+    (code) => code !== UNGROUPED_GROUP_CODE && !used.has(code),
+  )
+  remaining.sort((a, b) => (groupMeta.get(a)?.orderIndex ?? 0) - (groupMeta.get(b)?.orderIndex ?? 0))
+  for (const code of remaining) {
+    ordered.push(code)
+    used.add(code)
+  }
+  // 4) 未分组永远最后 (仅当确实存在未分组字段时)
+  if (buckets.has(UNGROUPED_GROUP_CODE)) ordered.push(UNGROUPED_GROUP_CODE)
+
+  return ordered.map((code) => ({
+    key: code,
+    group: groupMeta.get(code) ?? null,
+    fields: buckets.get(code) || [],
+  }))
 }
