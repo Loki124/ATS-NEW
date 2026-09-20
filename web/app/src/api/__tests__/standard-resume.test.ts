@@ -21,10 +21,12 @@ const {
   resetConfig,
   mergeFields,
   selectEnabledFields,
+  groupFieldsByModule,
+  UNGROUPED_MODULE_CODE,
   STANDARD_RESUME_STAGES,
   STANDARD_RESUME_API,
 } = await import('../standard-resume')
-import type { StandardResumeConfig } from '../standard-resume'
+import type { StandardResumeConfig, ModuleGroup, MergedResumeField } from '../standard-resume'
 
 function makeField(opts: {
   fieldKey: string
@@ -98,6 +100,64 @@ describe('standard-resume config (后端持久化)', () => {
     expect(enabled.map((m) => m.field.fieldKey)).toEqual(['a'])
   })
 
+  // ---- groupFieldsByModule 4 种边界（2026-09-20 QA 补充）----
+  function makeFieldWithModule(fieldKey: string, moduleCode: string | null, orderIndex: number): MergedResumeField {
+    return {
+      field: {
+        ...makeField({ fieldKey, orderIndex }),
+        module: moduleCode
+          ? {
+              id: moduleCode,
+              resource: 'Candidate',
+              code: moduleCode,
+              name: moduleCode,
+              orderIndex: 0,
+              isActive: true,
+            }
+          : null,
+      } as FieldDefinition,
+      enabled: true,
+      required: false,
+    }
+  }
+
+  it('groupFieldsByModule: moduleOrder 缺省时按字段首现顺序', () => {
+    const merged = [
+      makeFieldWithModule('a', 'basic', 1),
+      makeFieldWithModule('b', 'edu', 2),
+      makeFieldWithModule('c', 'basic', 3),
+    ]
+    const groups = groupFieldsByModule(merged, undefined)
+    expect(groups.map((g: ModuleGroup) => g.key)).toEqual(['basic', 'edu'])
+    expect(groups[0].fields.map((m) => m.field.fieldKey)).toEqual(['a', 'c'])
+    expect(groups[1].fields.map((m) => m.field.fieldKey)).toEqual(['b'])
+  })
+
+  it('groupFieldsByModule: moduleOrder 中出现的未声明模块被跳过', () => {
+    const merged = [makeFieldWithModule('a', 'basic', 1)]
+    const groups = groupFieldsByModule(merged, ['basic', 'nonexistent'])
+    expect(groups.map((g) => g.key)).toEqual(['basic'])
+  })
+
+  it('groupFieldsByModule: 未声明的 present 模块追加到末尾', () => {
+    const merged = [
+      makeFieldWithModule('a', 'basic', 1),
+      makeFieldWithModule('b', 'edu', 2),
+      makeFieldWithModule('c', 'extra', 3),
+    ]
+    const groups = groupFieldsByModule(merged, ['basic'])
+    expect(groups.map((g) => g.key)).toEqual(['basic', 'edu', 'extra'])
+  })
+
+  it('groupFieldsByModule: UNGROUPED_MODULE_CODE 永远置末尾', () => {
+    const merged = [
+      makeFieldWithModule('a', null, 1), // 未分组
+      makeFieldWithModule('b', 'basic', 2),
+    ]
+    const groups = groupFieldsByModule(merged, [UNGROUPED_MODULE_CODE, 'basic'])
+    expect(groups.map((g) => g.key)).toEqual(['basic', UNGROUPED_MODULE_CODE])
+  })
+
   // ---- 异步 API ----
   it('fetchConfig 解析 data.data 正常返回', async () => {
     getMock.mockResolvedValue({
@@ -130,6 +190,7 @@ describe('standard-resume config (后端持久化)', () => {
     const cfg: StandardResumeConfig = {
       fields: [{ fieldKey: 'a', enabled: true, required: false }],
       requiredStages: ['screening'],
+      moduleOrder: [],
     }
     putMock.mockResolvedValue({ data: { data: cfg } })
     const r = await saveConfig(cfg)

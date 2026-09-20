@@ -223,6 +223,29 @@ export const reorderFields = (resource: string, orderedIds: string[]) =>
   api.post(`/dynamic-fields/${resource}/fields/reorder/`, { orderedIds }).then((r) => r.data);
 
 /**
+ * 单字段 order_index 写入。
+ *
+ * 2026-09-17 (寇豆码) 标准简历设置拖拽: 模块内字段拖拽后, 前端批量调用本函数
+ * 把新顺序写回 DynamicField.order_index (步长 10 方便后续插入)。
+ *
+ * Args:
+ *  resource: 资源类型 (Candidate / Position / ...)
+ *  fieldId: 字段 id (nanoid, 与后端 detail 端点主键对齐)
+ *  orderIndex: 新顺序值
+ *
+ * Returns:
+ *  Promise<void> 成功 resolve, 失败 reject (前端做并发请求时捕获单条失败)
+ */
+export const updateFieldOrder = (
+  resource: string,
+  fieldId: string,
+  orderIndex: number,
+): Promise<void> =>
+  api
+    .patch(`/dynamic-fields/${resource}/fields/${fieldId}/`, { orderIndex })
+    .then(() => undefined);
+
+/**
  * 单值校验。
  *
  * 注意: 后端 `apps/dynamic_field/urls.py` 目前**未挂载** `<id>/validate/` 路由,
