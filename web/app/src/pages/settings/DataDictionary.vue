@@ -265,7 +265,14 @@
             </div>
           </div>
 
-          <div v-if="flatTree.length === 0" class="el-empty">暂无元素，点击右上角“新增元素”</div>
+          <!-- 空态：新增按钮放进数据列表模块内突出展示（有数据后随 v-if 自动隐藏，右上角常驻小按钮兜底加同级） -->
+          <div v-if="flatTree.length === 0" class="el-empty">
+            <n-empty description="暂无元素">
+              <template #extra>
+                <n-button type="primary" size="large" round @click="addRootItem">+ 新增元素</n-button>
+              </template>
+            </n-empty>
+          </div>
           </div>
         </div>
       </n-card>
@@ -933,8 +940,8 @@ onUnmounted(() => {
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
 .section { margin-bottom: var(--space-4); }
 .section--info :deep(.n-card__content) { padding: var(--space-3) var(--space-4) !important; }
-/* 元素卡片：用 absolute 定位把 .el-table-scroll 钉死在 n-card-body 内，
-   避免依赖 Naive UI 内部的 flex 链（多层 :deep 嵌套不可靠） */
+/* 元素卡片：卡片自身 flex 列；naive-ui 内容层类名是 .n-card-content（单下划线，项目已知坑），
+   改 flex 列让 header（标题 + 新增元素按钮）常驻在流内不被覆盖、表格滚动区填满剩余高度 */
 .section--elements {
   flex: 1 1 0 !important;
   display: flex !important;
@@ -943,20 +950,15 @@ onUnmounted(() => {
   min-height: 480px !important;
   max-height: calc(100vh - 360px) !important;
 }
-.section--elements :deep(.n-card) {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  position: relative !important;
+.section--elements :deep(.n-card-header) {
+  flex-shrink: 0 !important;
 }
-.section--elements :deep(.n-card-body),
-.section--elements :deep(.n-card__content) {
+.section--elements :deep(.n-card-content) {
   flex: 1 1 0 !important;
   display: flex !important;
   flex-direction: column !important;
   min-height: 0 !important;
   padding: var(--space-3) var(--space-4) !important;
-  position: relative !important;
   overflow: hidden !important;
 }
 /* 单行对齐：返回按钮 / 标题 / meta 标签 同行，meta 标签靠右 */
@@ -984,11 +986,13 @@ onUnmounted(() => {
 .hint { color: var(--n-350); font-size: var(--fs-12); margin-left: var(--space-2); }
 
 /* 元素树形表格
-   用 absolute 定位填满 n-card-body 的内容区，overflow:auto 在内容溢出时触发滚动 */
+   flex 填满 .n-card-content 剩余高度（不再用 absolute inset —— 曾因定位祖先缺失盖住卡片 header，
+   把「+ 新增元素」按钮压在表头下面点不到），overflow:auto 在内容溢出时触发滚动 */
 .el-table-scroll {
-  position: absolute !important;
-  inset: 12px 16px !important;
-  overflow: auto !important;
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
   border-radius: 8px;
   padding-bottom: 80px;            /* v3: 给 sticky submit-bar 留位置, 避免最底一行被遮 */
 }
