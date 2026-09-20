@@ -4,10 +4,8 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 
 import pytest
-from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.reason_library.models import (
@@ -122,55 +120,6 @@ def test_delete_system_rule_403(admin_api_client, system_rule):
     assert code in (40310, 'permission_denied'), f'unexpected code: {code}'
 
 
-# ---------------------------------------------------------------------------
-# E-11: 并发更新 → 乐观锁 412
-# ---------------------------------------------------------------------------
-
-def test_optimistic_lock_412(admin_api_client, custom_rule):
-    """PATCH 携带过期 If-Match → 412。"""
-    client, _ = admin_api_client
-    # 先记录原始 updated_at
-    original = custom_rule.updated_at
-    # 让 DB 时间前移 1 小时
-    stale = original - timedelta(hours=1)
-    if_match = stale.strftime('%Y-%m-%dT%H:%M:%SZ')
-    resp = client.patch(
-        f'{RULE_LIST}{custom_rule.id}/',
-        {'description': 'new desc'},
-        format='json',
-        HTTP_IF_MATCH=if_match,
-    )
-    assert resp.status_code == 412
-    assert resp.json()['code'] == 41200  # OPTIMISTIC_LOCK_FAILED
-
-
-def test_optimistic_lock_match_200(admin_api_client, custom_rule):
-    """PATCH 携带正确 If-Match → 200。"""
-    client, _ = admin_api_client
-    if_match = custom_rule.updated_at.strftime('%Y-%m-%dT%H:%M:%S')
-    resp = client.patch(
-        f'{RULE_LIST}{custom_rule.id}/',
-        {'description': 'matched'},
-        format='json',
-        HTTP_IF_MATCH=if_match,
-    )
-    assert resp.status_code == 200
-
-
-def test_no_if_match_skips_lock(admin_api_client, custom_rule):
-    """不带 If-Match → 跳过校验, 仍 200。"""
-    client, _ = admin_api_client
-    resp = client.patch(
-        f'{RULE_LIST}{custom_rule.id}/',
-        {'description': 'no lock'},
-        format='json',
-    )
-    assert resp.status_code == 200
-
-
-# ---------------------------------------------------------------------------
-# snapshot
-# ---------------------------------------------------------------------------
 
 def test_snapshot_creates_custom_copy(admin_api_client, custom_rule, reason_tag):
     client, _ = admin_api_client

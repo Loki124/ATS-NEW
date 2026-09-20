@@ -111,7 +111,7 @@
  * 数据流:
  *   - show=true + ruleId=null → createRule() 创建空规则 → 进入 wizard (id 已生成)
  *   - show=true + ruleId=<id>  → getRule 拉详情 → 灌入 wizard
- *   - 保存 → wizardSave(id, payload, ifMatch=updatedAt)
+ *   - 保存 → wizardSave(id, payload)
  */
 import { ref, computed, watch } from 'vue'
 import {
@@ -313,14 +313,14 @@ async function onSave() {
     // 期望的 snake_case + tag_ids + parent_client_id 形态 (T-BF-02 BugFix)
     let result: SceneRule
     if (payload.id) {
-      // 编辑: 直接原子保存 (带 If-Match)
-      result = await wizardSave(payload.id, payload, payload.updatedAt)
+      // 编辑: 直接原子保存 (单人场景无乐观锁)
+      result = await wizardSave(payload.id, payload)
     } else {
       // 新建: 先建规则头, 再原子保存 (创建与保存合一)
       // 若保存失败, 回滚刚建的规则头, 避免留下『新建规则』垃圾数据
       const created = await createRule({ name: payload.name, description: payload.description })
       try {
-        result = await wizardSave(created.id, payload, created.updatedAt)
+        result = await wizardSave(created.id, payload)
       } catch (saveErr) {
         await deleteRule(created.id).catch(() => {})
         throw saveErr
@@ -329,9 +329,7 @@ async function onSave() {
     message.success(t('reasonLibrary.common.success'))
     emit('saved', result)
   } catch (e: any) {
-    if (e?.code === BIZ_CODE.OPTIMISTIC_LOCK_FAILED) {
-      message.error(t('reasonLibrary.errors.OPTIMISTIC_LOCK_FAILED'))
-    } else if (e?.code === BIZ_CODE.RULE_SCENE_CONFLICT) {
+    if (e?.code === BIZ_CODE.RULE_SCENE_CONFLICT) {
       message.error(t('reasonLibrary.errors.RULE_SCENE_CONFLICT'))
     } else if (e?.code === BIZ_CODE.CATEGORY_LEVEL_EXCEED) {
       message.error(t('reasonLibrary.errors.CATEGORY_LEVEL_EXCEED'))

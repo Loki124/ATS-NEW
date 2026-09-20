@@ -249,8 +249,6 @@ class WizardSaveSerializer(serializers.Serializer):
     scenes = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,
     )
-    # 乐观锁 (If-Match header 也带, payload 兜底)
-    expected_updated_at = serializers.DateTimeField(required=False, allow_null=True)
 
     def validate_categories(self, value: list) -> list:
         # 校验 level <= MAX_CATEGORY_LEVEL — 这里只校验前端提交的最大层数。

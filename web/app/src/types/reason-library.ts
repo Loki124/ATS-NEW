@@ -5,8 +5,7 @@
  * - 路由前缀: /api/v1/reason-library/
  * - 响应信封: { code: number, data: T | null, message: string }
  * - 字段命名: camelCase (DB snake_case 经 djangorestframework-camel-case 自动转换)
- * - 乐观锁: PATCH /rules/ 与 POST /rules/{id}/wizard/save/ 必须带 If-Match header
- *           (updatedAt 的 RFC1123 字符串), 否则 412 OPTIMISTIC_LOCK_FAILED
+ * - 并发策略: 单人维护场景, 无乐观锁 (2026-09-21 精简, 原 If-Match 已移除)
  *
  * Q&A 决策 (主理人拍板):
  * - Q1+Q2: 系统预置分类/规则仅超管可改, 其他人只读
@@ -146,8 +145,6 @@ export interface SceneRuleUpdatePayload {
   description?: string
   enabled?: boolean
   scenes?: SceneKey[]
-  /** If-Match 取自列表 updatedAt (RFC1123 字符串) */
-  ifMatch?: string
 }
 
 // ==================== Wizard 专用 ====================
@@ -166,7 +163,6 @@ export interface WizardPayload {
   isSystem: boolean
   scenes: SceneKey[]
   categories: RuleCategory[]
-  /** 仅编辑时携带 (后端 If-Match 用) */
   updatedAt?: string
 }
 
@@ -197,8 +193,6 @@ export interface WizardSavePayload {
   enabled: boolean
   scenes: SceneKey[]
   categories: WizardSaveCategory[]
-  /** 乐观锁 — 对应 payload.updatedAt (If-Match header 兜底) */
-  expected_updated_at?: string
 }
 
 // ==================== 响应信封 ====================

@@ -11,10 +11,10 @@
  *   GET    /rules/                      列表 (含 is_system/enabled/scene 过滤)
  *   POST   /rules/                      创建空规则 (头部, 三步内容走 wizard/save)
  *   GET    /rules/{id}/                 详情 (完整嵌套树)
- *   PATCH  /rules/{id}/                 头部更新 (带 If-Match)
+ *   PATCH  /rules/{id}/                 头部更新
  *   DELETE /rules/{id}/                 删除 (system 或被引用 → 40310/40910)
  *   POST   /rules/{id}/snapshot/        复制为 custom 副本 (name + "(副本)")
- *   POST   /rules/{id}/wizard/save/     三步原子保存 (带 If-Match)
+ *   POST   /rules/{id}/wizard/save/     三步原子保存
  *   POST   /rules/import/               JSON 完整草稿导入
  *   GET    /scenes/                     读场景配置 (当前哪条规则占用)
  *   PUT    /scenes/                     写场景配置 (冲突 → 409 RULE_SCENE_CONFLICT)
@@ -184,20 +184,14 @@ export function updateRule(
   id: string,
   payload: Partial<SceneRuleUpdatePayload>,
 ): Promise<SceneRule> {
-  const headers: Record<string, string> = {}
-  if (payload.ifMatch) headers['If-Match'] = payload.ifMatch
-  const { ifMatch: _ignored, ...body } = payload
-  void _ignored
   return api
-    .patch<ApiResponse<SceneRule>>(`/reason-library/rules/${id}/`, body, { headers })
+    .patch<ApiResponse<SceneRule>>(`/reason-library/rules/${id}/`, payload)
     .then((r) => unwrap<SceneRule>(r))
 }
 
-export function deleteRule(id: string, ifMatch?: string): Promise<void> {
-  const headers: Record<string, string> = {}
-  if (ifMatch) headers['If-Match'] = ifMatch
+export function deleteRule(id: string): Promise<void> {
   return api
-    .delete<ApiResponse<null>>(`/reason-library/rules/${id}/`, { headers })
+    .delete<ApiResponse<null>>(`/reason-library/rules/${id}/`)
     .then((r) => {
       unwrap<null>(r)
     })
@@ -215,7 +209,6 @@ export function snapshotRule(id: string): Promise<SceneRule> {
  *   (后端 client_id 是前端临时引用 — 新分类必填, 已存在分类沿用前端的 id)
  * - parentId → parent_client_id (映射在 client_id 分配完成后做)
  * - tags: ReasonTag[] → tag_ids: string[] (只提取 id)
- * - updatedAt → expected_updated_at
  */
 export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
   // 第一遍: 给每个分类分配 client_id (已有 id 复用, 否则生成新 UUID)
@@ -253,28 +246,18 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
     enabled: rule.enabled,
     scenes: rule.scenes,
     categories,
-    expected_updated_at: rule.updatedAt,
   }
 }
 
 /**
  * 三步原子保存 (T06 / T12):
  * - body = WizardSavePayload (经 toWizardSavePayload 转换)
- * - header If-Match = wizard.updatedAt (RFC1123 字符串)
- * - 412 OPTIMISTIC_LOCK_FAILED → UI 弹"已被他人修改,请刷新"
+ * - 单人维护场景: 不带 If-Match / 乐观锁 (2026-09-21 精简)
  */
-export function wizardSave(
-  ruleId: string,
-  payload: WizardPayload,
-  ifMatch?: string,
-): Promise<SceneRule> {
-  const headers: Record<string, string> = {}
-  if (ifMatch) headers['If-Match'] = ifMatch
+export function wizardSave(ruleId: string, payload: WizardPayload): Promise<SceneRule> {
   const body = toWizardSavePayload(payload)
   return api
-    .post<ApiResponse<SceneRule>>(`/reason-library/rules/${ruleId}/wizard/save/`, body, {
-      headers,
-    })
+    .post<ApiResponse<SceneRule>>(`/reason-library/rules/${ruleId}/wizard/save/`, body)
     .then((r) => unwrap<SceneRule>(r))
 }
 

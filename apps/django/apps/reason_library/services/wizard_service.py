@@ -1,25 +1,22 @@
 """Wizard 三步原子保存服务 (T06).
 
-事务内顺序:
-1. select_for_update() 锁 scene_rule 行 (防并发编辑)
-2. 校验 If-Match (乐观锁) → 抛 OPTIMISTIC_LOCK_FAILED (412)
-3. 校验 categories 最大深度 (level<=4) → 抛 CATEGORY_LEVEL_EXCEED (400)
-4. 校验 scenes 不与其它规则冲突 → 抛 RULE_SCENE_CONFLICT (409)
-5. diff categories (按 client_id ↔ db id), 维护 level/order
-6. diff category_assignments
-7. diff rule_scene_assignment (先删后增)
-8. 更新 scene_rule 头部
+事务内顺序 (2026-09-21 精简: 单人维护场景, 移除乐观锁/行锁):
+1. 读取 scene_rule 行
+2. 校验 categories 最大深度 (level<=4) → 抛 CATEGORY_LEVEL_EXCEED (400)
+3. 校验 scenes 不与其它规则冲突 → 抛 RULE_SCENE_CONFLICT (409)
+4. diff categories (按 client_id ↔ db id), 维护 level/order
+5. diff category_assignments
+6. diff rule_scene_assignment (先删后增)
+7. 更新 scene_rule 头部
 
 失败时回滚整事务; 抛出 BizException, 由 view 转 ApiResponse.error.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import IntegrityError, transaction
-from django.utils.dateparse import parse_datetime
 
 from ..exceptions import BizCode, BizException
 from ..models import (
@@ -42,7 +39,6 @@ class WizardService:
         self,
         rule_id: str,
         payload: Dict[str, Any],
-        if_match: Optional[str] = None,
         user: Any = None,
     ) -> SceneRule:
         """保存 rule + 完整树 + scenes。
@@ -52,40 +48,15 @@ class WizardService:
           - categories: [{id?, client_id?, parent_client_id?, name, order, allow_custom, tag_ids}]
           - scenes: [scene_name, ...]
         """
-        # 1) select_for_update() 锁行
+        # 1) 读取规则行 (单人场景: 不加行锁)
         try:
-            rule = SceneRule.objects.select_for_update().get(pk=rule_id)
+            rule = SceneRule.objects.get(pk=rule_id)
         except SceneRule.DoesNotExist:
             raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
 
-        # 2) 乐观锁
-        if if_match:
-            expected = self._parse_dt(if_match)
-            if expected is None:
-                raise BizException(
-                    BizCode.VALIDATION_FAILED,
-                    f'If-Match 格式非法: {if_match}',
-                    status_code=400,
-                )
-            # tz 统一: DB updated_at 是 aware UTC, naive 需补 tz 才能比较
-            if expected.tzinfo is None:
-                expected = expected.replace(tzinfo=timezone.utc)
-            exp_trunc = expected.replace(microsecond=0)
-            act_trunc = rule.updated_at.replace(microsecond=0)
-            if exp_trunc != act_trunc:
-                raise BizException(
-                    BizCode.OPTIMISTIC_LOCK_FAILED,
-                    f'数据已被他人修改 (expected={exp_trunc.isoformat()}, actual={act_trunc.isoformat()})',
-                    status_code=412,
-                    extra={
-                        'expected_updated_at': exp_trunc.isoformat(),
-                        'actual_updated_at': act_trunc.isoformat(),
-                    },
-                )
-
-        # 2.5) 系统规则 HR 及以上可改 (write 端兜底, 与 SystemOrAdminPermission 一致);
-        #        Item2: 取消"仅超管"限制, 但 enabled 保持强制 True (不可停用),
-        #        见下方 step 5 头部更新。
+        # 2) 系统规则 HR 及以上可改 (write 端兜底, 与 SystemOrAdminPermission 一致);
+        #    Item2: 取消"仅超管"限制, 但 enabled 保持强制 True (不可停用),
+        #    见下方 step 5 头部更新。
         if rule.is_system:
             from apps.core.permissions import is_hr_or_above, is_super_admin
             if not (user and (is_super_admin(user) or is_hr_or_above(user))):
@@ -261,16 +232,6 @@ class WizardService:
     # -----------------------------------------------------------------------
     # helpers
     # -----------------------------------------------------------------------
-    def _parse_dt(self, raw: str) -> Optional[datetime]:
-        dt = parse_datetime(raw)
-        if dt is not None:
-            return dt
-        for fmt in ('%a, %d %b %Y %H:%M:%S %Z', '%a, %d %b %Y %H:%M:%S %z'):
-            try:
-                return datetime.strptime(raw, fmt)
-            except (ValueError, TypeError):
-                continue
-        return None
 
     def _compute_levels(self, categories: List[Dict]) -> Dict[str, int]:
         """按 parent_client_id 推导 level, 同时校验无循环引用 + 无 level 超限。

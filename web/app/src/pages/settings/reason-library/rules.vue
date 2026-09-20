@@ -241,8 +241,6 @@ async function toggleEnabled(rule: SceneRuleListItem) {
       message.error(t('reasonLibrary.errors.RULE_HAS_SCENE_REFS'))
     } else if (e?.code === BIZ_CODE.SYSTEM_RULE_IMMUTABLE) {
       message.error(t('reasonLibrary.errors.SYSTEM_RULE_IMMUTABLE'))
-    } else if (e?.code === BIZ_CODE.OPTIMISTIC_LOCK_FAILED) {
-      message.error(t('reasonLibrary.errors.OPTIMISTIC_LOCK_FAILED'))
     } else {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
     }

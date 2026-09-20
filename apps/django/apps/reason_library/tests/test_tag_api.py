@@ -45,11 +45,13 @@ def test_create_tag_unauthenticated_401():
 # E-01: 系统标签不可改/不可删
 # ---------------------------------------------------------------------------
 
-def test_system_tag_patch_403(admin_api_client, system_tag):
+def test_system_tag_patch_ok(admin_api_client, system_tag):
+    """系统标签已放开编辑 (item1, 2026-09-21): 所有可访问用户均可改名。"""
     client, _ = admin_api_client
     resp = client.patch(f'{TAG_LIST}{system_tag.id}/', {'name': 'new-name'}, format='json')
-    assert resp.status_code == 403
-    assert resp.json()['code'] == 40301  # SYSTEM_TAG_IMMUTABLE
+    assert resp.status_code == 200
+    system_tag.refresh_from_db()
+    assert system_tag.name == 'new-name'
 
 
 def test_system_tag_delete_403(admin_api_client, system_tag):
@@ -110,7 +112,8 @@ def test_tag_with_refs_cannot_delete(admin_api_client, reason_tag, custom_rule):
     resp = client.delete(f'{TAG_LIST}{reason_tag.id}/')
     assert resp.status_code == 409
     assert resp.json()['code'] == 40901  # TAG_HAS_REFS
-    assert resp.json()['extra']['ref_count'] == 1
+    extra = resp.json().get('extra') or {}
+    assert (extra.get('refCount') or extra.get('ref_count')) == 1
 
 
 # ---------------------------------------------------------------------------
