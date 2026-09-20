@@ -45,6 +45,8 @@ export type TagType = 'system' | 'custom'
 
 /** 业务错误码 (与后端 exceptions.py BizCode 对齐, 见 API 文档 §4) */
 export const BIZ_CODE = {
+  // 成功（与后端 exceptions.py BizCode 对齐，成功码 = 0）
+  SUCCESS: 0,
   // Tag
   TAG_NAME_DUPLICATED: 40001,
   SYSTEM_TAG_IMMUTABLE: 40002,

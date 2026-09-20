@@ -482,7 +482,7 @@ async function saveApplication() {
   savingApp.value = true
   try {
     const updated = await updateDuplicateConfig({
-      application: { enabled: application.enabled, windowMonths: application.windowMonths },
+      application: { enabled: application.enabled, windowMonths: application.windowMonths, windowOptions: application.windowOptions },
     })
     application.enabled = updated.application.enabled
     application.windowMonths = updated.application.windowMonths

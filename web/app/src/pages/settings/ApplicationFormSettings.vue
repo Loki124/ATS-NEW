@@ -84,13 +84,13 @@
             <template v-else-if="!editing">
               <header class="sr-panel-head">
                 <div>
-                  <h2 class="sr-panel-title">{{ selected.name }}</h2>
+                  <h2 class="sr-panel-title">{{ selected?.name }}</h2>
                   <span class="sr-preview-sub">
-                    {{ selected.formType === 'application' ? '申请表' : '登记表' }}
-                    <span v-if="selected.departments.length">· 适用 {{ selected.departments.join('、') }}</span>
+                    {{ selected?.formType === 'application' ? '申请表' : '登记表' }}
+                    <span v-if="selected?.departments.length">· 适用 {{ selected?.departments.join('、') }}</span>
                   </span>
                 </div>
-                <n-button size="small" tertiary @click="startEdit(selected.id)">
+                <n-button v-if="selected" size="small" tertiary @click="startEdit(selected.id)">
                   <template #icon><n-icon :component="CreateOutline" /></template>
                   编辑
                 </n-button>

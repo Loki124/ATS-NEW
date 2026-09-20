@@ -46,7 +46,7 @@
         <n-input
           v-else
           :value="asString(modelValue[sub.key])"
-          :type="sub.type === 'EMAIL' ? 'email' : 'tel'"
+          :type="'text'"
           :disabled="mode === 'display'"
           :placeholder="mode === 'display' ? '—' : '请输入'"
           @update:value="(v) => setSub(sub.key, v)"

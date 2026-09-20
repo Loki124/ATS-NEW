@@ -42,7 +42,7 @@
             :module-on="entryEnabled"
             @update:module-on="(v: boolean) => (entryEnabled = v)"
             @configure="onEntryConfigure"
-            @edit="(r: EntryConditionRule) => entryModal.open(r)"
+            @edit="(r: EntryConditionRule) => entryModal?.open(r)"
             @toggle="toggleEntry"
             @remove="removeEntry"
           />
@@ -54,10 +54,10 @@
             :archive-rules="archiveRules"
             @update:skip-enabled="(v: boolean) => (form.skipEnabled = v)"
             @update:archive-enabled="(v: boolean) => (form.archiveEnabled = v)"
-            @add-skip="skipModal.open()"
-            @add-archive="archiveModal.open()"
-            @edit-skip="(r: SkipRule) => skipModal.open(r)"
-            @edit-archive="(r: ArchiveRule) => archiveModal.open(r)"
+            @add-skip="skipModal?.open()"
+            @add-archive="archiveModal?.open()"
+            @edit-skip="(r: SkipRule) => skipModal?.open(r)"
+            @edit-archive="(r: ArchiveRule) => archiveModal?.open(r)"
             @remove-skip="removeSkip"
             @remove-archive="removeArchive"
             @show-stopped="showStopped"
@@ -190,8 +190,8 @@ function removeArchive(rule: ArchiveRule) {
 function showStopped() {
   // P0-2：同时收纳「自动跳过 / 自动归档」中被停用的规则
   const disabled = [
-    ...skipRules.value.filter((r) => !r.enabled).map((r) => ({ rule: r, kindLabel: '自动跳过' })),
-    ...archiveRules.value.filter((r) => !r.enabled).map((r) => ({ rule: r, kindLabel: '自动归档' })),
+    ...skipRules.value.filter((r) => !r.enabled).map((r) => ({ id: r.id, name: r.name, expression: r.expression, kindLabel: '自动跳过', rule: r })),
+    ...archiveRules.value.filter((r) => !r.enabled).map((r) => ({ id: r.id, name: r.name, expression: r.expression, kindLabel: '自动归档', rule: r })),
   ]
   stoppedModal.value?.open(disabled)
 }

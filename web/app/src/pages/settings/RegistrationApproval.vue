@@ -170,7 +170,7 @@ const onFilterChange = () => loadList()
 
 // ===== 通过 =====
 const onApprove = async (row: RegApp) => {
-  if (!row.email_verified) {
+  if (!row.emailVerified) {
     message.warning('该申请尚未完成邮箱验证，请先让申请人完成验证码校验')
     return
   }

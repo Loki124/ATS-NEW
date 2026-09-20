@@ -196,8 +196,8 @@ async function loadFields() {
       await upsertStageRule(linkId, {
         autoAdvanceType: form.autoAdvanceType,
         autoAdvanceTiming: form.autoAdvanceTiming,
-        autoAdvanceDays: form.autoAdvanceTiming === 'DELAYED' ? form.autoAdvanceDays : null,
-        defaultHandlerType: form.defaultHandlerType,
+        autoAdvanceDays: form.autoAdvanceTiming === 'DELAYED' ? (form.autoAdvanceDays ?? undefined) : undefined,
+        defaultHandlerType: form.defaultHandlerType === 'NONE' ? undefined : form.defaultHandlerType,
         defaultHandlerFields: form.defaultHandlerFields,
         defaultHandlerUserIds: form.defaultHandlerUserIds,
         timeLimit: undefined,

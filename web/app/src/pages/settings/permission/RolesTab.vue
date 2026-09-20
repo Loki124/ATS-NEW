@@ -195,7 +195,7 @@ const columns = [
     title: '操作',
     key: 'actions',
     width: 150,
-    fixed: 'right',
+    fixed: 'right' as const,
     render(row: RoleV2) {
       return h(NSpace, { size: 4 }, () => [
         h(NButton, {

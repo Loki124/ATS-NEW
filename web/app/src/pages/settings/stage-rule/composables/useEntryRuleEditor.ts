@@ -6,7 +6,7 @@
 import { reactive, ref, computed } from 'vue'
 import type { EntryConditionRule, ConditionItem, ConditionGroup } from '../types'
 import { AR_MAX_CONDITIONS, AR_MAX_GROUPS } from '../constants'
-import { useExpressionValidator } from './useExpressionValidator'
+import { useExpressionValidator, type ExprCheck } from './useExpressionValidator'
 
 function emptyItem(seq: number): ConditionItem {
   return {
@@ -274,7 +274,7 @@ export function useEntryRuleEditor() {
     return ''
   }
 
-  function innerExprError(g: ConditionGroup): { empty: boolean; valid: boolean; error?: string } {
+  function innerExprError(g: ConditionGroup): ExprCheck {
     if (!g.innerExpression || !g.innerExpression.trim()) return { empty: true, valid: true }
     return clientValidate(g.innerExpression, g.conditions.length)
   }

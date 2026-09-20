@@ -136,6 +136,9 @@ export interface StageRule {
   grabThreshold?: number;
   interviewFormat?: string;
   interviewRounds?: number;
+  // 2026-09-20: BE StageRule 嵌套 skip_rules / archive_rules JSON 数组（UI 自动跳过 / 自动归档规则）
+  skip_rules?: Record<string, any>[];
+  archive_rules?: Record<string, any>[];
 }
 
 export interface EntryCondition {
@@ -218,7 +221,7 @@ export const updateProcessStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =
 export const listStages = (params?: { stageType?: string; status?: string; keyword?: string }) =>
   api.get<{ success: boolean; data: RecruitmentStage[] }>('/stages/', { params }).then((r) => r.data.data);
 
-export const createStage = (payload: { name: string; stageType: string; features?: string[]; description?: string; stageLimit?: number }) =>
+export const createStage = (payload: { name: string; stageType: string; optionalFeatures?: string[]; description?: string; stageLimit?: number }) =>
   api.post<{ success: boolean; data: RecruitmentStage }>('/stages/', payload).then((r) => r.data.data);
 
 export const updateStage = (id: string, payload: Partial<RecruitmentStage>) =>

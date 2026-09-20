@@ -34,23 +34,22 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import type { PropType } from 'vue'
-
+<script setup lang="ts" generic="T extends Record<string, any>">
 interface Column {
   key: string
   title: string
   width?: string
 }
 
-defineProps({
-  columns: { type: Array as PropType<Column[]>, required: true },
-  rows: { type: Array as PropType<Record<string, any>[]>, required: true },
-  rowKeyProp: { type: String, default: 'id' },
-})
+const props = defineProps<{
+  columns: Column[]
+  rows: T[]
+  rowKeyProp?: string
+}>()
 
-function rowKey(row: Record<string, any>, idx: number): string {
-  return row.id != null ? String(row.id) : `row-${idx}`
+function rowKey(row: T, idx: number): string {
+  const id = (row as Record<string, any>).id
+  return id != null ? String(id) : `row-${idx}`
 }
 </script>
 

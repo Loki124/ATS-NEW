@@ -384,7 +384,7 @@ const parentOptions = computed(() => {
     for (const n of nodes) {
       if (blockId && String(n.id) === String(blockId)) continue
       flat.push({
-        id: String(n.id), unitName: n.unitName, unitType: n.unitType,
+        id: String(n.id), systemCode: n.code ?? '', unitName: n.unitName, unitType: n.unitType,
         parentId: n.parentId, orgScope: n.orgScope,
         includeChildren: 1, status: n.status,
       })
@@ -769,7 +769,7 @@ async function persistOrgNodes(nodes: OrgScopeNode[]) {
     detailUnit.value = { ...detailUnit.value, orgScope: (updated as any).orgScope ?? payloadNodes }
   } else {
     const merged = { ...(detailUnit.value.orgScopes || {}), [app]: payloadNodes }
-    const updated = await updateManagementUnit(String(detailUnit.value.id), { orgScopes: merged })
+    const updated = await updateManagementUnit(String(detailUnit.value.id), { orgScopes: merged as Record<string, Array<{ deptId: string; includeChildren: boolean }>> })
     detailUnit.value = { ...detailUnit.value, orgScopes: (updated as any).orgScopes ?? merged }
   }
 }

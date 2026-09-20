@@ -54,7 +54,7 @@
                 </div>
                 <div class="dp-field">
                   <span class="dp-flabel">是否启用</span>
-                  <n-switch :value="editForm.status === 'ACTIVE'" @update:value="(v) => (editForm.status = v ? 'ACTIVE' : 'INACTIVE')" />
+                  <n-switch :value="editForm?.status === 'ACTIVE'" @update:value="(v) => (editForm && (editForm.status = v ? 'ACTIVE' : 'INACTIVE'))" />
                 </div>
                 <div class="dp-field span-full">
                   <label class="dp-flabel">流程说明</label>
@@ -641,7 +641,7 @@ async function load() {
   } catch (e: any) {
     // E1: 渲染错误态而非仅 toast (R-104 异步四态)
     loadError.value = e?.response?.data?.message || '加载流程详情失败'
-    message.error(loadError.value)
+    message.error(loadError.value || '加载流程详情失败')
   } finally {
     loading.value = false
   }
@@ -982,7 +982,7 @@ async function onRuleSaved() {
             value: it.value,
             auto_filter_inactive_users: it.auto_filter_inactive_users,
           })),
-        }
+        } as unknown as EntryCondition
       }
     } catch {
       /* 静默: 卡内已配置规则不阻塞保存反馈 */

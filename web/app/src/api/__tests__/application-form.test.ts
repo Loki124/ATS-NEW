@@ -56,7 +56,7 @@ describe('application-form 多表单 CRUD', () => {
   })
 
   it('createRegistrationForm POST 并返回完整对象', async () => {
-    const payload = {
+    const payload: Parameters<typeof createRegistrationForm>[0] = {
       name: '新表单',
       formType: 'registration',
       departments: [],

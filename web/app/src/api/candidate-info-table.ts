@@ -126,7 +126,7 @@ export function buildCsv(
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   const lines = rows.map((row) =>
-    columns.map((c) => escape((row as Record<string, unknown>)[c.key])).join(','),
+    columns.map((c) => escape((row as unknown as Record<string, unknown>)[c.key])).join(','),
   )
   return '﻿' + [header, ...lines].join('\r\n')
 }

@@ -5,12 +5,15 @@
  * Reason Library 命名空间 (T-13): reasonLibrary.{title,tabs,common,tags,rules,wizard,errors}.*
  * 调用: t('reasonLibrary.title') / t('reasonLibrary.errors.TAG_NAME_DUPLICATED')
  */
-export const t = (key: string): string => {
+export const t = (key: string, params?: Record<string, string | number>): string => {
   // 命中 reasonLibrary.* 时直接返回中文文案, 其他 key 透传 (与旧 stub 行为一致)
-  if (key.startsWith('reasonLibrary.')) {
-    return REASON_LIBRARY_ZH[key] ?? key
+  let str = key.startsWith('reasonLibrary.') ? (REASON_LIBRARY_ZH[key] ?? key) : key
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
+    }
   }
-  return key
+  return str
 }
 
 /**

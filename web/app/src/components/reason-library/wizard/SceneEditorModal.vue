@@ -35,7 +35,7 @@
           <template #trigger>
             <n-icon :component="WarningOutline" :size="14" color="var(--c-warning)" />
           </template>
-          <span>{{ t('reasonLibrary.wizard.sceneEditor.conflict') }}<br />{{ allScenesUsage[scene]?.ruleName }}</span>
+          <span>{{ t('reasonLibrary.wizard.sceneEditor.conflict') }}<br />{{ allScenesUsage?.[scene]?.ruleName }}</span>
         </n-tooltip>
       </label>
     </div>

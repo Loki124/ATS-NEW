@@ -18,7 +18,7 @@
         </n-tag>
         <div class="wizard-meta">
           <span class="meta-label">{{ t('reasonLibrary.wizard.scenes') }}：</span>
-          <n-space size="4" v-if="wizard.scenes.length">
+          <n-space :size="4" v-if="wizard.scenes.length">
             <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
           </n-space>
           <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>

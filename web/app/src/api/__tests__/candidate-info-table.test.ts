@@ -87,7 +87,7 @@ describe('candidate-info-table config (后端持久化)', () => {
 
   it('buildCsv 以 BOM 开头且转义逗号与引号', () => {
     const rows: CandidateRow[] = [
-      { name: '张三', currentCompany: '腾讯, 云', phone: '138' },
+      { id: '1', name: '张三', currentCompany: '腾讯, 云', phone: '138' },
     ]
     const csv = buildCsv(rows, [
       { key: 'name', label: '姓名' },

@@ -47,7 +47,7 @@
           label="阶段名称"
           required
           :validation-status="nameError ? 'error' : undefined"
-          :feedback="nameError"
+          :feedback="nameError ?? undefined"
         >
           <n-input v-model:value="form.name" placeholder="如：HRBP筛选" />
         </n-form-item>
@@ -128,11 +128,11 @@ const message = useMessage()
 const keyword = ref('')
 const filterType = ref<string | null>(null)
 // 2026-09-08: 列表增加状态筛选，默认选中「启用」（兵哥要求）。
-const filterStatus = ref<'ENABLED' | 'DISABLED' | null>('ENABLED')
+const filterStatus = ref<string | null>('ENABLED')
 const statusFilterOptions = [
   { label: '启用', value: 'ENABLED' },
   { label: '停用', value: 'DISABLED' },
-  { label: '全部', value: null },
+  { label: '全部', value: '' as string },
 ]
 const stages = ref<any[]>([])
 const loading = ref(false)
@@ -388,7 +388,7 @@ async function handleSave() {
   try {
     // optionalFeatures → optional_features（用户可配置项）；不发送 features，避免覆盖系统默认功能 default_features（弹窗中只读展示）。
     // stageType 后端 update 也要求必填（RecruitmentStageSerializer 中 stage_type 非 read_only），必须始终发送（编辑时取原值）。
-    const payload: Record<string, any> = {
+    const payload = {
       name: form.name,
       description: form.description,
       stageType: form.stageType,

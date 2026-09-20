@@ -43,6 +43,10 @@ export interface ManagementUnit {
   dataRange?: Record<string, any> | null;
   orgScopes?: Record<string, Array<{ deptId: string; includeChildren: boolean }>> | null;
   dataRanges?: Record<string, any> | null;
+  /** 单元级人员数据范围（public 应用回退源） */
+  personDataRange?: Record<string, any> | null;
+  /** 按应用人员数据范围 {app_code: range}, 缺省回退 unit 级 personDataRange */
+  personDataRanges?: Record<string, any> | null;
   /** 按应用组织范围是否启用 {app_code: bool}, 缺省启用 */
   orgScopeEnabled?: Record<string, boolean> | null;
   /** 按应用人员范围是否启用 {app_code: bool}, 缺省启用 */
@@ -116,7 +120,7 @@ export async function updateManagementUnit(id: string, payload: Partial<Manageme
 }
 
 export async function deleteManagementUnit(id: string) {
-  const { data } = await api.delete<{ success: boolean }>(`/management-units/${id}/`);
+  const { data } = await api.delete<{ success: boolean; message?: string }>(`/management-units/${id}/`);
   return data;
 }
 

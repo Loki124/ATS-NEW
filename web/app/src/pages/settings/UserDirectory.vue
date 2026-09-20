@@ -278,7 +278,7 @@ const userTypeOptions = [
 ];
 
 const userTypeFilterOptions = [
-  { label: '全部类型', value: null as string | null },
+  { label: '全部类型', value: '' as string },
   { label: '内部员工', value: 'INTERNAL' },
   { label: '外部用户', value: 'EXTERNAL' },
 ];

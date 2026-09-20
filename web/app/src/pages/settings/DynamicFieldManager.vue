@@ -743,7 +743,7 @@ const fieldPagination = computed(() => ({
   pageSizes: [10, 15, 20, 50],
   showSizePicker: true,
   showQuickJumper: true,
-  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  prefix: (info: { itemCount?: number }) => h('span', `共 ${info.itemCount} 条`),
   onChange: (p: number) => { fieldPage.value = p; },
   onUpdatePageSize: (s: number) => { fieldPageSize.value = s; fieldPage.value = 1; },
 }));
@@ -1216,7 +1216,7 @@ const modulePagination = computed(() => ({
   pageSizes: [10, 15, 20, 50],
   showSizePicker: true,
   showQuickJumper: true,
-  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  prefix: (info: { itemCount?: number }) => h('span', `共 ${info.itemCount} 条`),
   onChange: (p: number) => { modulePage.value = p; },
   onUpdatePageSize: (s: number) => { modulePageSize.value = s; modulePage.value = 1; },
 }));
@@ -1307,7 +1307,7 @@ const groupPagination = computed(() => ({
   pageSizes: [10, 15, 20, 50],
   showSizePicker: true,
   showQuickJumper: true,
-  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  prefix: (info: { itemCount?: number }) => h('span', `共 ${info.itemCount} 条`),
   onChange: (p: number) => { groupPage.value = p; },
   onUpdatePageSize: (s: number) => { groupPageSize.value = s; groupPage.value = 1; },
 }));
@@ -1416,7 +1416,7 @@ const linkagePagination = computed(() => ({
   pageSizes: [10, 15, 20, 50],
   showSizePicker: true,
   showQuickJumper: true,
-  prefix: (info: { itemCount: number }) => h('span', `共 ${info.itemCount} 条`),
+  prefix: (info: { itemCount?: number }) => h('span', `共 ${info.itemCount} 条`),
   onChange: (p: number) => { linkagePage.value = p; },
   onUpdatePageSize: (s: number) => { linkagePageSize.value = s; linkagePage.value = 1; },
 }));

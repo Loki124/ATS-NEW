@@ -275,7 +275,7 @@ const removeSocial = (idx: number) => {
 }
 
 /** n-upload 拦截默认上传，改为走自有 API；返回 false 阻止组件内置请求 */
-const onBeforeLogoUpload = (data: { file?: { file?: File } }): boolean => {
+const onBeforeLogoUpload = (data: { file: { file: File | null } }): boolean => {
   const f = data?.file?.file
   if (!f) return false
   void doUploadLogo(f)

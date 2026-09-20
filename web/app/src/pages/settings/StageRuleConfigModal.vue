@@ -5,8 +5,27 @@
 -->
 <script setup lang="ts">
 import StageRuleConfigModal from './stage-rule/StageRuleConfigModal.vue'
+
+const props = defineProps<{
+  show: boolean
+  stage?: any
+  linkId?: string | null
+  initialTab?: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:show', v: boolean): void
+  (e: 'saved'): void
+}>()
 </script>
 
 <template>
-  <StageRuleConfigModal v-bind="$attrs" />
+  <StageRuleConfigModal
+    :show="props.show"
+    :stage="props.stage"
+    :link-id="props.linkId ?? null"
+    :initial-tab="props.initialTab"
+    @update:show="(v: boolean) => emit('update:show', v)"
+    @saved="() => emit('saved')"
+  />
 </template>

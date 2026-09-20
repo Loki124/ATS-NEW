@@ -301,7 +301,7 @@ import {
   PersonOutline,
   SearchOutline,
   DownloadOutline,
-  UploadOutline,
+  CloudUploadOutline,
 } from '@vicons/ionicons5';
 import {
   NTag,
@@ -827,7 +827,7 @@ const columns = computed(() => [
 const EXPORT_HEADERS = ['部门编号', '部门名称', '上级部门编号', '上级部门名称', '部门负责人', '部门HRBP', '状态', '排序值'];
 
 // CSV 字段转义：含逗号/引号/换行则包裹双引号并转义内部引号
-const csvEscape = (v: string): string => {
+const csvEscape = (v: string | number): string => {
   const s = v == null ? '' : String(v);
   if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
   return s;
