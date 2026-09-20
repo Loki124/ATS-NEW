@@ -329,7 +329,10 @@ async function onSave() {
     message.success(t('reasonLibrary.common.success'))
     emit('saved', result)
   } catch (e: any) {
-    if (e?.code === BIZ_CODE.RULE_SCENE_CONFLICT) {
+    if (e?.code === BIZ_CODE.OPTIMISTIC_LOCK_FAILED) {
+      // 仅在 ENABLE_OPTIMISTIC_LOCK=true (多人协作) 时才可能抛出
+      message.error(t('reasonLibrary.errors.OPTIMISTIC_LOCK_FAILED'))
+    } else if (e?.code === BIZ_CODE.RULE_SCENE_CONFLICT) {
       message.error(t('reasonLibrary.errors.RULE_SCENE_CONFLICT'))
     } else if (e?.code === BIZ_CODE.CATEGORY_LEVEL_EXCEED) {
       message.error(t('reasonLibrary.errors.CATEGORY_LEVEL_EXCEED'))

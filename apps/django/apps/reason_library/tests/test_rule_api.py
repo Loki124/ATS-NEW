@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 
 import pytest
 from rest_framework.test import APIClient
@@ -155,3 +157,54 @@ def test_rule_detail_returns_full_tree(admin_api_client, custom_rule, reason_tag
     cat_out = data['categories'][0]
     assert cat_out['name'] == 'det-cat'
     assert reason_tag.id in (cat_out.get('tagIds') or cat_out.get('tag_ids') or [])
+
+
+# ---------------------------------------------------------------------------
+# E-11: 并发更新 → 可选乐观锁 (仅当客户端带 If-Match 时校验)
+# ---------------------------------------------------------------------------
+
+def test_optimistic_lock_412(admin_api_client, custom_rule):
+    """PATCH 携带过期 If-Match → 412 (可选乐观锁已启用时)。"""
+    client, _ = admin_api_client
+    # 先记录原始 updated_at
+    original = custom_rule.updated_at
+    # 让 DB 时间前移 1 小时
+    stale = original - timedelta(hours=1)
+    if_match = stale.strftime('%Y-%m-%dT%H:%M:%SZ')
+    resp = client.patch(
+        f'{RULE_LIST}{custom_rule.id}/',
+        {'description': 'new desc'},
+        format='json',
+        HTTP_IF_MATCH=if_match,
+    )
+    assert resp.status_code == 412
+    assert resp.json()['code'] == 41200  # OPTIMISTIC_LOCK_FAILED
+
+
+def test_optimistic_lock_match_200(admin_api_client, custom_rule):
+    """PATCH 携带正确 If-Match → 200。"""
+    client, _ = admin_api_client
+    if_match = custom_rule.updated_at.strftime('%Y-%m-%dT%H:%M:%S')
+    resp = client.patch(
+        f'{RULE_LIST}{custom_rule.id}/',
+        {'description': 'matched'},
+        format='json',
+        HTTP_IF_MATCH=if_match,
+    )
+    assert resp.status_code == 200
+
+
+def test_no_if_match_skips_lock(admin_api_client, custom_rule):
+    """不带 If-Match → 跳过校验, 仍 200。"""
+    client, _ = admin_api_client
+    resp = client.patch(
+        f'{RULE_LIST}{custom_rule.id}/',
+        {'description': 'no lock'},
+        format='json',
+    )
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# snapshot
+# ---------------------------------------------------------------------------

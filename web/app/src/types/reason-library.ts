@@ -5,7 +5,8 @@
  * - 路由前缀: /api/v1/reason-library/
  * - 响应信封: { code: number, data: T | null, message: string }
  * - 字段命名: camelCase (DB snake_case 经 djangorestframework-camel-case 自动转换)
- * - 并发策略: 单人维护场景, 无乐观锁 (2026-09-21 精简, 原 If-Match 已移除)
+ * - 并发策略: 可选乐观锁。后端仅在请求带 If-Match 时校验; 前端由
+ *           ENABLE_OPTIMISTIC_LOCK 开关控制, 单人场景默认关闭。
  *
  * Q&A 决策 (主理人拍板):
  * - Q1+Q2: 系统预置分类/规则仅超管可改, 其他人只读
@@ -145,6 +146,8 @@ export interface SceneRuleUpdatePayload {
   description?: string
   enabled?: boolean
   scenes?: SceneKey[]
+  /** 可选乐观锁: 仅 ENABLE_OPTIMISTIC_LOCK=true 时携带 (取自列表 updatedAt) */
+  ifMatch?: string
 }
 
 // ==================== Wizard 专用 ====================
@@ -193,6 +196,8 @@ export interface WizardSavePayload {
   enabled: boolean
   scenes: SceneKey[]
   categories: WizardSaveCategory[]
+  /** 可选乐观锁: 仅 ENABLE_OPTIMISTIC_LOCK=true 时携带 (对应 payload.updatedAt) */
+  expected_updated_at?: string
 }
 
 // ==================== 响应信封 ====================

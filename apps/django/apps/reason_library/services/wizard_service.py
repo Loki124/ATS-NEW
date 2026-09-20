@@ -1,8 +1,9 @@
 """Wizard 三步原子保存服务 (T06).
 
-事务内顺序 (2026-09-21 精简: 单人维护场景, 移除乐观锁/行锁):
+事务内顺序 (2026-09-21: 行锁已移除; 乐观锁改为【可选】——if_match 非空才校验):
 1. 读取 scene_rule 行
-2. 校验 categories 最大深度 (level<=4) → 抛 CATEGORY_LEVEL_EXCEED (400)
+2. 可选乐观锁: if_match 非空则比对 updated_at → 抛 OPTIMISTIC_LOCK_FAILED (412)
+3. 校验 categories 最大深度 (level<=4) → 抛 CATEGORY_LEVEL_EXCEED (400)
 3. 校验 scenes 不与其它规则冲突 → 抛 RULE_SCENE_CONFLICT (409)
 4. diff categories (按 client_id ↔ db id), 维护 level/order
 5. diff category_assignments
@@ -14,9 +15,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from django.db import IntegrityError, transaction
+from django.utils.dateparse import parse_datetime
 
 from ..exceptions import BizCode, BizException
 from ..models import (
@@ -39,6 +42,7 @@ class WizardService:
         self,
         rule_id: str,
         payload: Dict[str, Any],
+        if_match: Optional[str] = None,
         user: Any = None,
     ) -> SceneRule:
         """保存 rule + 完整树 + scenes。
@@ -53,6 +57,31 @@ class WizardService:
             rule = SceneRule.objects.get(pk=rule_id)
         except SceneRule.DoesNotExist:
             raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
+
+        # 2) 乐观锁
+        if if_match:
+            expected = self._parse_dt(if_match)
+            if expected is None:
+                raise BizException(
+                    BizCode.VALIDATION_FAILED,
+                    f'If-Match 格式非法: {if_match}',
+                    status_code=400,
+                )
+            # tz 统一: DB updated_at 是 aware UTC, naive 需补 tz 才能比较
+            if expected.tzinfo is None:
+                expected = expected.replace(tzinfo=timezone.utc)
+            exp_trunc = expected.replace(microsecond=0)
+            act_trunc = rule.updated_at.replace(microsecond=0)
+            if exp_trunc != act_trunc:
+                raise BizException(
+                    BizCode.OPTIMISTIC_LOCK_FAILED,
+                    f'数据已被他人修改 (expected={exp_trunc.isoformat()}, actual={act_trunc.isoformat()})',
+                    status_code=412,
+                    extra={
+                        'expected_updated_at': exp_trunc.isoformat(),
+                        'actual_updated_at': act_trunc.isoformat(),
+                    },
+                )
 
         # 2) 系统规则 HR 及以上可改 (write 端兜底, 与 SystemOrAdminPermission 一致);
         #    Item2: 取消"仅超管"限制, 但 enabled 保持强制 True (不可停用),
@@ -231,6 +260,17 @@ class WizardService:
 
     # -----------------------------------------------------------------------
     # helpers
+    def _parse_dt(self, raw: str) -> Optional[datetime]:
+        dt = parse_datetime(raw)
+        if dt is not None:
+            return dt
+        for fmt in ('%a, %d %b %Y %H:%M:%S %Z', '%a, %d %b %Y %H:%M:%S %z'):
+            try:
+                return datetime.strptime(raw, fmt)
+            except (ValueError, TypeError):
+                continue
+        return None
+
     # -----------------------------------------------------------------------
 
     def _compute_levels(self, categories: List[Dict]) -> Dict[str, int]:

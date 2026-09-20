@@ -10,17 +10,20 @@
 - POST   /rules/{id}/wizard/save/   三步原子保存 (见 wizard_view.py)
 - POST   /rules/import/             JSON 导入完整 draft (T09)
 
-并发策略: 单人维护场景, 不做乐观锁/行锁 (2026-09-21 精简, 原 If-Match 校验已移除)。
+并发策略: 单人维护场景默认不启用; 后端保留【可选乐观锁】——仅当请求带 If-Match
+头时才比对 updated_at (不带则直接跳过, 前端默认不发), 未来多人协作时前端开启即可。
 """
 from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 
 from django.db import IntegrityError, transaction
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
+from django.utils.dateparse import parse_datetime
 
 from ..exceptions import ApiResponse, BizCode, BizException
 from ..filters import SceneRuleFilter
@@ -42,6 +45,23 @@ from ..services.import_export_service import (
 from . import _api
 
 logger = logging.getLogger(__name__)
+
+def _parse_if_match(request: Request):
+    """解析 If-Match header → datetime 或 None。"""
+    raw = request.headers.get('If-Match') or request.META.get('HTTP_IF_MATCH')
+    if not raw:
+        return None
+    # RFC1123 / ISO 都尝试
+    dt = parse_datetime(raw)
+    if dt is not None:
+        return dt
+    # 兼容 RFC1123 ('%a, %d %b %Y %H:%M:%S %Z')
+    for fmt in ('%a, %d %b %Y %H:%M:%S %Z', '%a, %d %b %Y %H:%M:%S %z', '%Y-%m-%dT%H:%M:%S'):
+        try:
+            return datetime.strptime(raw, fmt)
+        except (ValueError, TypeError):
+            continue
+    return None
 
 
 class SceneRuleViewSet(viewsets.ModelViewSet):
@@ -112,6 +132,9 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
             data['enabled'] = True
         else:
             data = request.data
+        # 可选乐观锁: 仅当请求带 If-Match 头时校验 (单人场景前端不发 → 自动跳过)
+        self._check_optimistic_lock(request, obj)
+
         serializer = self.get_serializer(obj, data=data, partial=True)
         if not serializer.is_valid():
             raise BizException(
@@ -249,6 +272,27 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
         return ApiResponse.ok(export_rule_json(src))
 
     # ----- helpers -----
+    def _check_optimistic_lock(self, request: Request, obj: SceneRule):
+        expected = _parse_if_match(request)
+        if expected is None:
+            return  # 无 If-Match 头 → 跳过校验 (兼容未带头的客户端)
+        # tz 统一: DB updated_at 是 aware UTC, parse 后 naive 需要补 tz 才能比较
+        if expected.tzinfo is None:
+            expected = expected.replace(tzinfo=timezone.utc)
+        # 比较: 用 ISO 字符串截断到秒 (DB 精度限制)
+        expected_trunc = expected.replace(microsecond=0)
+        actual_trunc = obj.updated_at.replace(microsecond=0)
+        if expected_trunc != actual_trunc:
+            raise BizException(
+                BizCode.OPTIMISTIC_LOCK_FAILED,
+                f'数据已被他人修改, 请刷新后重试 (expected={expected_trunc.isoformat()}, actual={actual_trunc.isoformat()})',
+                status_code=412,
+                extra={
+                    'expected_updated_at': expected_trunc.isoformat(),
+                    'actual_updated_at': actual_trunc.isoformat(),
+                },
+            )
+
     def _paginated_response(self, data):
         resp = self.get_paginated_response(data)
         return ApiResponse.ok({

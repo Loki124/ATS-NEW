@@ -241,6 +241,9 @@ async function toggleEnabled(rule: SceneRuleListItem) {
       message.error(t('reasonLibrary.errors.RULE_HAS_SCENE_REFS'))
     } else if (e?.code === BIZ_CODE.SYSTEM_RULE_IMMUTABLE) {
       message.error(t('reasonLibrary.errors.SYSTEM_RULE_IMMUTABLE'))
+    } else if (e?.code === BIZ_CODE.OPTIMISTIC_LOCK_FAILED) {
+      // 仅在 ENABLE_OPTIMISTIC_LOCK=true (多人协作) 时才可能抛出
+      message.error(t('reasonLibrary.errors.OPTIMISTIC_LOCK_FAILED'))
     } else {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
     }

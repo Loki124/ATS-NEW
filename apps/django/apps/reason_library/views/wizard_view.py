@@ -42,10 +42,14 @@ class WizardSaveView(APIView):
             )
         payload = serializer.validated_data
 
+        # 可选乐观锁: 仅当客户端带 If-Match 头时才校验 (单人场景前端不发 → 后端跳过)
+        if_match = request.headers.get('If-Match') or request.META.get('HTTP_IF_MATCH')
+
         service = WizardService()
         updated_rule = service.save(
             rule_id=pk,
             payload=payload,
+            if_match=if_match,
             user=request.user,
         )
         invalidate_active_cache()

@@ -11,10 +11,10 @@
  *   GET    /rules/                      列表 (含 is_system/enabled/scene 过滤)
  *   POST   /rules/                      创建空规则 (头部, 三步内容走 wizard/save)
  *   GET    /rules/{id}/                 详情 (完整嵌套树)
- *   PATCH  /rules/{id}/                 头部更新
+ *   PATCH  /rules/{id}/                 头部更新 (可选 If-Match)
  *   DELETE /rules/{id}/                 删除 (system 或被引用 → 40310/40910)
  *   POST   /rules/{id}/snapshot/        复制为 custom 副本 (name + "(副本)")
- *   POST   /rules/{id}/wizard/save/     三步原子保存
+ *   POST   /rules/{id}/wizard/save/     三步原子保存 (可选 If-Match)
  *   POST   /rules/import/               JSON 完整草稿导入
  *   GET    /scenes/                     读场景配置 (当前哪条规则占用)
  *   PUT    /scenes/                     写场景配置 (冲突 → 409 RULE_SCENE_CONFLICT)
@@ -26,6 +26,16 @@
  * ⚠️ 路径约定 (与 rule-engine.ts 一致): baseURL 已是 config.api.baseUrl = '/api/v1',
  *    调用路径必须从 '/reason-library/...' 起算, 不能重复 '/api/v1' 前缀。
  */
+
+/**
+ * 并发保护开关 (可选乐观锁)
+ * - false (当前默认): 单人维护场景。请求不携带 If-Match / expected_updated_at,
+ *   后端收到的请求无这些字段时直接跳过校验 → 不会出现"数据已被他人修改"误报。
+ * - true: 多人协作时开启。请求携带 If-Match, 后端比对 updated_at, 冲突返回
+ *   412 OPTIMISTIC_LOCK_FAILED, UI 提示"数据已被他人修改, 请刷新后重试"。
+ * 未来启用多人: 仅需把此常量改为 true, 后端无需任何改动。
+ */
+export const ENABLE_OPTIMISTIC_LOCK = false
 
 import axios from 'axios'
 import config from '../config'
@@ -184,8 +194,11 @@ export function updateRule(
   id: string,
   payload: Partial<SceneRuleUpdatePayload>,
 ): Promise<SceneRule> {
+  const headers: Record<string, string> = {}
+  const { ifMatch, ...body } = payload
+  if (ENABLE_OPTIMISTIC_LOCK && ifMatch) headers['If-Match'] = ifMatch
   return api
-    .patch<ApiResponse<SceneRule>>(`/reason-library/rules/${id}/`, payload)
+    .patch<ApiResponse<SceneRule>>(`/reason-library/rules/${id}/`, body, { headers })
     .then((r) => unwrap<SceneRule>(r))
 }
 
@@ -252,12 +265,17 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
 /**
  * 三步原子保存 (T06 / T12):
  * - body = WizardSavePayload (经 toWizardSavePayload 转换)
- * - 单人维护场景: 不带 If-Match / 乐观锁 (2026-09-21 精简)
+ * - 并发保护: 由 ENABLE_OPTIMISTIC_LOCK 开关控制, 默认关闭 (单人场景)
  */
 export function wizardSave(ruleId: string, payload: WizardPayload): Promise<SceneRule> {
+  const headers: Record<string, string> = {}
   const body = toWizardSavePayload(payload)
+  if (ENABLE_OPTIMISTIC_LOCK && payload.updatedAt) {
+    headers['If-Match'] = payload.updatedAt
+    body.expected_updated_at = payload.updatedAt
+  }
   return api
-    .post<ApiResponse<SceneRule>>(`/reason-library/rules/${ruleId}/wizard/save/`, body)
+    .post<ApiResponse<SceneRule>>(`/reason-library/rules/${ruleId}/wizard/save/`, body, { headers })
     .then((r) => unwrap<SceneRule>(r))
 }
 

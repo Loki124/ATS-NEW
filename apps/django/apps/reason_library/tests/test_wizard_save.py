@@ -1,8 +1,10 @@
-"""Wizard 单测 (T12 part 2) — 事务回滚 + level>4 → 422 + 事务回滚。
+"""Wizard 单测 (T12 part 2) — 事务回滚 + level>4 → 422 + 并发 OPTIMISTIC_LOCK_FAILED。
 
 至少 4 条 pytest case.
 """
 from __future__ import annotations
+
+from datetime import timedelta
 
 
 import pytest
@@ -158,3 +160,41 @@ def test_wizard_import_json_creates_rule(admin_api_client, reason_tag):
     data = resp.json()['data']
     assert '导入' in data['name'] or data['name'] == 'JSON 导入测试'
     assert data['isSystem'] is False or data['is_system'] is False
+
+
+# 可选乐观锁: If-Match 不匹配 → 412, 整事务回滚
+# ---------------------------------------------------------------------------
+
+def test_wizard_save_optimistic_lock_failed(admin_api_client, custom_rule):
+    client, _ = admin_api_client
+    payload = _build_payload(name='lock-fail', categories=[], scenes=[])
+    stale = (custom_rule.updated_at - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    resp = client.post(
+        _wizard_url(custom_rule.id), payload, format='json',
+        HTTP_IF_MATCH=stale,
+    )
+    assert resp.status_code == 412
+    assert resp.json()['code'] == 41200
+    # 事务回滚: 名字未变
+    custom_rule.refresh_from_db()
+    assert custom_rule.name != 'lock-fail'
+
+
+# ---------------------------------------------------------------------------
+# 乐观锁: If-Match 匹配 → 200
+# ---------------------------------------------------------------------------
+
+def test_wizard_save_optimistic_lock_match(admin_api_client, custom_rule):
+    client, _ = admin_api_client
+    payload = _build_payload(name='lock-ok', categories=[], scenes=[])
+    if_match = custom_rule.updated_at.strftime('%Y-%m-%dT%H:%M:%S')
+    resp = client.post(
+        _wizard_url(custom_rule.id), payload, format='json',
+        HTTP_IF_MATCH=if_match,
+    )
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Scene 冲突 → 409 + 事务回滚
+# ---------------------------------------------------------------------------
