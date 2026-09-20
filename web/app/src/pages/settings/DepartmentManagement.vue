@@ -375,11 +375,25 @@ const pagination = (() => {
   };
 })();
 
-// 树形展开状态：默认折叠（仅显示顶层节点，下级默认收起）。
-// 不再自动全展开 —— 用户点击节点前的箭头可手动展开/收起子树。
+// 树形展开状态：首次加载数据后默认展开根组织（集团总部），从而显示所有一级部门；
+// 第 2 级及以下仍折叠。后续用户点击节点前的箭头可手动展开/收起子树。
 const expandedKeys = ref<string[]>([]);
 const onExpandedKeysChange = (keys: string[]) => {
   expandedKeys.value = keys;
+};
+// 集团总部（根组织，parentId 为空）的 id：用于新增部门默认上级、以及默认展开
+const rootDeptId = computed(() => {
+  const root = departments.value.find((d) => !d.parentId);
+  return root ? root.id : undefined;
+});
+// 仅首次加载数据后设默认展开根组织（显示一级部门），避免覆盖用户手动操作
+let defaultExpandApplied = false;
+const applyDefaultExpand = () => {
+  if (defaultExpandApplied) return;
+  if (rootDeptId.value) {
+    expandedKeys.value = [rootDeptId.value];
+    defaultExpandApplied = true;
+  }
 };
 
 // ===== 合一弹窗（查看 / 编辑 两态）=====
@@ -420,7 +434,7 @@ const startEdit = (record: Department | null) => {
     Object.assign(formState, {
       code: '',
       name: '',
-      parentId: undefined,
+      parentId: rootDeptId.value, // 未选上级时默认挂到集团总部（层级自动为第 1 级）
       managerId: undefined,
       manager2Id: undefined,
       manager3Id: undefined,
@@ -449,12 +463,12 @@ const openCreateChildModal = (parent: Department) => {
   if (parent) formState.parentId = parent.id;
 };
 
-// 部门层级：根据 parentId 链计算深度（顶级部门 = 第 1 级）
+// 部门层级：根据 parentId 链计算深度（集团总部等根组织 = 第 0 级，其子为第 1 级，依此类推）
 const levelMap = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {};
   const byId = new Map(departments.value.map((d) => [d.id, d]));
   for (const d of departments.value) {
-    let level = 1;
+    let level = 0;
     let cur: Department | undefined = d;
     const seen = new Set<string>();
     while (cur?.parentId && !seen.has(cur.id)) {
@@ -492,6 +506,7 @@ const loadDepartments = async () => {
     const res = await api.get('/departments/', { params });
     if (res.data?.success) {
       departments.value = res.data.data || [];
+      applyDefaultExpand();
     } else {
       message.error(res.data?.message || '加载部门列表失败');
     }
@@ -724,7 +739,7 @@ const columns = computed(() => [
     key: 'level',
     width: 100,
     render: (row: Department) => {
-      const lvl = levelMap.value[row.id] || 1;
+      const lvl = levelMap.value[row.id] ?? 0;
       return h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => `第 ${lvl} 级` });
     },
   },
