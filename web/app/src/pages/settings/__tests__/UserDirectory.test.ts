@@ -15,6 +15,15 @@ vi.mock('../../../stores/user', () => ({
   useUserStore: () => ({ accessToken: 'test-token' }),
 }))
 
+vi.mock('../../../stores/department', () => ({
+  useDepartmentStore: () => ({
+    loading: false,
+    departments: [],
+    getById: () => null,
+    loadDepartments: vi.fn(),
+  }),
+}))
+
 const MOCK_USERS = Array.from({ length: 12 }, (_, i) => ({
   id: `u-${i + 1}`,
   username: `user-${String(i + 1).padStart(2, '0')}`,
@@ -167,23 +176,25 @@ describe('UserDirectory (整合后用户管理)', () => {
     expect(filteredRows).toBe(1)
   })
 
-  it('role modal opens and lists roles (loadUserRoles 以 id 映射)', async () => {
+  // 2026-09-19 整合重构后：独立的「角色」弹窗已合并进编辑弹窗
+  // （loadUserRoles 在点击「编辑」时调用，角色配置以编辑表单字段呈现，见 UserDirectory.vue:158/745-746）。
+  // 此处验证当前真实的角色配置路径，而非已删除的旧 UX。
+  it('edit modal opens and contains role config field (loadUserRoles path)', async () => {
     wrapper = factory()
     await flushPromises()
     await nextTick()
-    // 操作列中的「角色」按钮
-    const roleBtn = Array.from(document.querySelectorAll('.n-data-table .n-button')).find((b) =>
-      (b.textContent || '').trim() === '角色'
-    )
-    expect(roleBtn).toBeTruthy()
-    await roleBtn!.dispatchEvent(new window.Event('click', { bubbles: true }))
+    // 操作列中的「编辑」按钮
+    const editBtn = Array.from(document.querySelectorAll('.n-data-table .n-button')).find((b) =>
+      (b.textContent || '').trim() === '编辑'
+    ) as HTMLButtonElement | undefined
+    expect(editBtn).toBeTruthy()
+    await editBtn!.click()
     await flushPromises()
     await nextTick()
     await flushPromises()
     const modal = document.querySelector('.n-modal')
     expect(modal).toBeTruthy()
-    // 角色表格应列出 MOCK_ROLES 的名称
-    expect(modal!.textContent || '').toContain('HR')
-    expect(modal!.textContent || '').toContain('Manager')
+    // 角色配置作为编辑表单字段呈现（loadUserRoles 已填入当前用户角色）
+    expect(modal!.textContent || '').toContain('角色配置')
   })
 })

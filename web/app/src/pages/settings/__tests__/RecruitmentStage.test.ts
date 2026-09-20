@@ -125,8 +125,11 @@ describe('RecruitmentStage 编辑阶段弹窗', () => {
     await createBtn!.click()
     await nextTick()
     // 弹窗出现，标题为「新增阶段」
-    const title = document.querySelector('.n-modal__title')
-    expect(title?.textContent).toContain('新增阶段')
+    // 注：RecruitmentStage 的 n-modal 用 preset="card"，标题落在 .n-card-header__main，
+    // 而非默认 .n-modal__title，故以弹窗整体文本断言标题内容（不依赖脆弱 class）。
+    const modal = document.querySelector('.n-modal')
+    expect(modal).toBeTruthy()
+    expect(modal!.textContent || '').toContain('新增阶段')
   })
 
   // 契约 4：微文案（P1-2 / R-204）—— 保存按钮含「保存」动词+宾语
