@@ -68,12 +68,12 @@
         <n-grid :cols="2" :x-gap="24">
           <n-grid-item>
             <n-form-item label="用户名" required>
-              <n-input v-model:value="formState.username" placeholder="请输入用户名" :disabled="!!editingUser" />
+              <n-input v-model:value="formState.username" placeholder="请输入用户名" />
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="真实姓名" required>
-              <n-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
+            <n-form-item label="工号">
+              <n-input v-model:value="formState.employeeId" placeholder="请输入工号（唯一）" />
             </n-form-item>
           </n-grid-item>
         </n-grid>
@@ -103,6 +103,32 @@
             </n-form-item>
           </n-grid-item>
         </n-grid>
+
+        <!-- 编辑态：系统生成 UUID（只读，不可编辑） -->
+        <n-grid v-if="editingUser" :cols="2" :x-gap="24">
+          <n-grid-item :span="2">
+            <n-form-item label="UUID">
+              <n-input :value="formState.uuid" disabled placeholder="系统自动生成" />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+
+        <!-- 角色配置：归入编辑页（替代原列表页单独「角色」按钮 + 独立弹窗） -->
+        <n-grid :cols="2" :x-gap="24">
+          <n-grid-item :span="2">
+            <n-form-item label="角色配置">
+              <n-select
+                v-model:value="formState.roleIds"
+                :options="roleOptions"
+                multiple
+                placeholder="请选择角色（可多选）"
+                clearable
+                filterable
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+
         <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
           <n-grid-item>
             <n-form-item label="密码" required>
@@ -168,31 +194,12 @@
         </div>
       </template>
     </n-modal>
-
-    <!-- 角色分配弹窗 -->
-    <n-modal
-      v-model:show="userRoleModalVisible"
-      preset="card"
-      title="分配角色"
-      :style="{ width: '500px' }"
-    >
-      <p style="margin-bottom: 16px">请选择该用户的角色：</p>
-      <n-data-table
-        :data="roles"
-        :row-key="(row: Role) => row.id"
-        :pagination="{ pageSize: 10 }"
-        :columns="roleColumns"
-        :checked-row-keys="userRoles"
-        @update:checked-row-keys="handleSaveUserRoles"
-      />
-    </n-modal>
     </div><!-- /.page-body -->
 </div>
 </template>
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h, watch } from 'vue';
 import {
-  LockClosedOutline,
   AddOutline,
   CreateOutline,
   TrashOutline,
@@ -248,6 +255,7 @@ interface User {
   departmentName?: string;
   employeeId?: string;
   positionTitle?: string;
+  uuid?: string;
   userType?: string;
   wechatWorkUserId?: string;
   wechatWorkDeptId?: string;
@@ -268,9 +276,6 @@ const loading = ref(false);
 const userModalVisible = ref(false);
 const editingUser = ref<User | null>(null);
 const roles = ref<Role[]>([]);
-const selectedUserId = ref<string>('');
-const userRoleModalVisible = ref(false);
-const userRoles = ref<string[]>([]);
 
 // 搜索 / 筛选
 const searchText = ref('');
@@ -321,11 +326,19 @@ const formState = reactive({
   email: '',
   phone: '',
   password: '',
+  employeeId: '',
+  uuid: '',
+  roleIds: [] as string[],
   userType: 'INTERNAL',
   roleType: 'HR',
   status: 'ACTIVE',
   department: null as string | null,
 });
+
+// 角色配置下拉选项（由 roles（RoleV2 列表）派生，value=RoleV2.id）
+const roleOptions = computed(() =>
+  roles.value.map((r) => ({ label: `${r.name}（${r.code}）`, value: r.id }))
+);
 
 // token 统一走 useUserStore().accessToken
 const userStore = useUserStore();
@@ -454,13 +467,12 @@ const loadRoles = async () => {
   }
 };
 
-// 加载用户角色
+// 加载用户角色 → 填入编辑表单的角色配置多选（RoleV2.id 列表）
 const loadUserRoles = async (userId: string) => {
   try {
     const res = await request(`/api/v1/permissions/users/${userId}/roles/`);
     if (res.ok && res.data?.success) {
-      // 角色对象以 RoleV2.id 标识（与角色表格 row-key=row.id、checked-row-keys 一致）
-      userRoles.value = res.data.data.map((ur: any) => ur.id);
+      formState.roleIds = res.data.data.map((ur: any) => ur.id);
     }
   } catch (error) {
     message.error(extractApiError(error, '加载用户角色失败'));
@@ -476,6 +488,9 @@ const openCreateModal = () => {
     email: '',
     phone: '',
     password: '',
+    employeeId: '',
+    uuid: '',
+    roleIds: [],
     userType: 'INTERNAL',
     roleType: 'HR',
     status: 'ACTIVE',
@@ -494,6 +509,9 @@ const closeUserModal = () => {
     email: '',
     phone: '',
     password: '',
+    employeeId: '',
+    uuid: '',
+    roleIds: [],
     userType: 'INTERNAL',
     roleType: 'HR',
     status: 'ACTIVE',
@@ -501,7 +519,7 @@ const closeUserModal = () => {
   });
 };
 
-// 创建用户
+// 创建用户（含工号；角色配置在创建成功后单独保存）
 const handleCreateUser = async () => {
   try {
     const res = await request('/api/v1/users/', {
@@ -509,6 +527,10 @@ const handleCreateUser = async () => {
       body: JSON.stringify(formState)
     });
     if (res.ok) {
+      const newId = res.data?.id || res.data?.data?.id;
+      if (newId && formState.roleIds.length) {
+        await saveUserRoles(String(newId), formState.roleIds);
+      }
       message.success('用户创建成功');
       closeUserModal();
       loadUsers();
@@ -520,13 +542,15 @@ const handleCreateUser = async () => {
   }
 };
 
-// 更新用户（仅提交基础字段；角色由「分配角色」弹窗管理, 不在此覆盖, 避免清空已分配角色）
+// 更新用户（放开用户名编辑 + 工号；角色配置在更新成功后单独保存）
 const handleUpdateUser = async () => {
   try {
     const payload = {
+      username: formState.username,
       realName: formState.realName,
       email: formState.email,
       phone: formState.phone,
+      employeeId: formState.employeeId || null,
       userType: formState.userType,
       status: formState.status,
       department: formState.department,
@@ -536,6 +560,7 @@ const handleUpdateUser = async () => {
       body: JSON.stringify(payload)
     });
     if (res.ok) {
+      await saveUserRoles(String(editingUser.value?.id), formState.roleIds);
       message.success('用户更新成功');
       closeUserModal();
       loadUsers();
@@ -544,6 +569,23 @@ const handleUpdateUser = async () => {
     }
   } catch (error) {
     message.error('更新失败');
+  }
+};
+
+// 保存用户角色配置（复用原「分配角色」端点：POST /api/v1/permissions/users/{id}/roles/）
+const saveUserRoles = async (userId: string, roleIds: string[]) => {
+  try {
+    const res = await request(`/api/v1/permissions/users/${userId}/roles/`, {
+      method: 'POST',
+      body: JSON.stringify({ roleIds })
+    });
+    if (res.ok) {
+      message.success('角色配置已保存');
+    } else {
+      message.error(res.data?.message || '角色保存失败');
+    }
+  } catch (error) {
+    message.error('角色保存失败');
   }
 };
 
@@ -570,25 +612,6 @@ const handleDeleteUser = async (userId: string) => {
     }
   } catch (error) {
     message.error('删除失败');
-  }
-};
-
-// 保存用户角色
-const handleSaveUserRoles = async (roleIds: string[]) => {
-  try {
-    const res = await request(`/api/v1/permissions/users/${selectedUserId.value}/roles/`, {
-      method: 'POST',
-      body: JSON.stringify({ roleIds })
-    });
-    if (res.ok) {
-      message.success('角色分配成功');
-      userRoleModalVisible.value = false;
-      loadUsers();
-    } else {
-      message.error(res.data?.message || '分配失败');
-    }
-  } catch (error) {
-    message.error('分配失败');
   }
 };
 
@@ -626,13 +649,6 @@ const handleUnbindWechatWork = async (userId: string) => {
   } catch (error) {
     message.error('解绑失败');
   }
-};
-
-// 打开角色分配弹窗
-const openRoleModal = async (userId: string) => {
-  selectedUserId.value = userId;
-  await loadUserRoles(userId);
-  userRoleModalVisible.value = true;
 };
 
 // ===== 列定义 =====
@@ -699,21 +715,11 @@ const wechatColumn = {
 const actionsColumn = {
   title: '操作',
   key: 'actions',
-  width: 200,
+  width: 160,
   render: (row: User) => {
     return h(NSpace, { size: 'small', wrap: false }, {
       default: () => [
         h(NButton, {
-          text: true,
-          type: 'primary',
-          size: 'small',
-          onClick: () => openRoleModal(row.id)
-        }, {
-          default: () => '角色',
-          icon: () => h(NIcon, { component: LockClosedOutline }),
-        }),
-        h(NButton, {
-          text: true,
           type: 'primary',
           size: 'small',
           onClick: () => {
@@ -724,14 +730,18 @@ const actionsColumn = {
               email: row.email || '',
               phone: row.phone || '',
               password: '',
+              employeeId: row.employeeId || '',
+              uuid: row.uuid || '',
+              roleIds: [],
               userType: row.userType || 'INTERNAL',
               roleType: row.roleType,
               status: row.status,
               department: row.department ?? null
             });
+            loadUserRoles(row.id);
             userModalVisible.value = true;
           }
-        }, { default: () => h(NIcon, { component: CreateOutline }) }),
+        }, { default: () => '编辑', icon: () => h(NIcon, { component: CreateOutline }) }),
         h(NPopconfirm, {
           onPositiveClick: () => handleDeleteUser(row.id),
           positiveText: '确认',
@@ -739,10 +749,9 @@ const actionsColumn = {
         }, {
           default: () => '确认删除此用户？',
           trigger: () => h(NButton, {
-            text: true,
             type: 'error',
             size: 'small',
-          }, { default: () => h(NIcon, { component: TrashOutline }) }),
+          }, { default: () => '删除', icon: () => h(NIcon, { component: TrashOutline }) }),
         }),
       ],
     });
@@ -753,6 +762,7 @@ const actionsColumn = {
 const columns = [
   { title: '用户名', key: 'username', width: 160, ellipsis: true },
   { title: '姓名', key: 'realName', width: 120, ellipsis: true },
+  { title: '工号', key: 'employeeId', width: 110, ellipsis: true, render: (row: User) => row.employeeId || '-' },
   {
     title: '任职部门',
     key: 'departmentName',
@@ -771,22 +781,6 @@ const columns = [
   { title: '角色类型', key: 'roleType', width: 90, ellipsis: true },
   wechatColumn,
   actionsColumn,
-];
-
-// 角色表格列
-const roleColumns = [
-  { type: 'selection' as const },
-  { title: '角色名称', key: 'name' },
-  { title: '编码', key: 'code' },
-  {
-    title: '类型',
-    key: 'roleType',
-    render: (row: Role) => {
-      return h(NTag, { type: row.roleType === 'SYSTEM' ? 'info' : 'success', size: 'small' }, {
-        default: () => row.roleType === 'SYSTEM' ? '系统' : '业务'
-      });
-    }
-  }
 ];
 
 // 生命周期

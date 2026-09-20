@@ -181,7 +181,9 @@ class UserSerializer(serializers.ModelSerializer):
             validated_data['is_active'] = (status == 'ACTIVE')
         if role_type is not None:
             self._apply_role_type(instance, {'role_type': role_type})
-        validated_data.pop('username', None)  # update 时不允许改 username
+        # 2026-09-20: 放开用户名编辑（用户管理页要求「用户名开放编辑」）。
+        # username 已在 fields 中且非 read_only，super().update 会直接写入；
+        # 唯一性由模型 unique=True 约束保证，重复时报 400 由 DRF 透出。
         return super().update(instance, validated_data)
 
 
