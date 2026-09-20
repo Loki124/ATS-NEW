@@ -90,11 +90,20 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
         # 阶段类型必须是系统内置枚举值 (不再依赖数据字典)
         stage_type = attrs.get('stage_type')
         if stage_type:
-            from apps.process.models import STAGE_TYPE_VALUES
+            from apps.process.models import StageType, STAGE_TYPE_VALUES
             if stage_type not in STAGE_TYPE_VALUES:
                 raise serializers.ValidationError(
                     {'stage_type': f'无效的阶段类型: {stage_type}'},
                 )
+            # 起止阶段类型仅系统预置 (初评/正式录用) 可用, 不允许新建阶段使用
+            if stage_type == StageType.START_END:
+                new_is_builtin = attrs.get('is_builtin')
+                if new_is_builtin is None and self.instance:
+                    new_is_builtin = self.instance.is_builtin
+                if not new_is_builtin:
+                    raise serializers.ValidationError(
+                        {'stage_type': '起止阶段类型仅系统预置（初评/正式录用）可用，不可用于新建阶段'},
+                    )
 
         # 预置阶段不可停用/删除
         if self.instance and self.instance.is_builtin:

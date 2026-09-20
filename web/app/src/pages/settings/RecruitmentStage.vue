@@ -56,7 +56,7 @@
           <n-tooltip :disabled="!editing" placement="top-start">
             <template #trigger>
               <div class="stage-type-wrap">
-                <n-select v-model:value="form.stageType" :options="stageTypeOptions" :disabled="!!editing" />
+                <n-select v-model:value="form.stageType" :options="stageTypeOptionsForForm" :disabled="!!editing" />
               </div>
             </template>
             阶段类型已绑定现有流程，编辑时不可修改；如需变更请在流程中重新编排阶段。
@@ -181,6 +181,13 @@ const FALLBACK_STAGE_TYPE = [
 const stageTypeOptions = ref<Array<{ label: string; value: string }>>([...FALLBACK_STAGE_TYPE])
 
 const typeFilterOptions = stageTypeOptions
+
+// 起止阶段类型仅系统预置 (初评/正式录用) 可用: 新增阶段时从下拉剔除 START_END; 编辑态保留全部 (下拉 disabled 不改值)
+const stageTypeOptionsForForm = computed<Array<{ label: string; value: string }>>(() =>
+  editing.value
+    ? stageTypeOptions.value
+    : stageTypeOptions.value.filter((o) => o.value !== 'START_END'),
+)
 
 // 2026-06-17: FILTER 改 SCREEN (跟 form.stageType 默认值 + BE StageType 枚举对齐).
 //   之前 filterOptions 的 key 是 FILTER (FE 旧值), BE 用 SCREEN → featureOptions['SCREEN'] 返 undefined → 0 checkbox.
@@ -351,7 +358,7 @@ const stageTypeError = computed<string | null>(() => {
 
 function handleCreate() {
   editing.value = null
-  Object.assign(form, { name: '', stageType: stageTypeOptions.value[0]?.value || 'SCREEN', features: [], optionalFeatures: [], description: '' })
+  Object.assign(form, { name: '', stageType: stageTypeOptionsForForm.value[0]?.value || 'SCREEN', features: [], optionalFeatures: [], description: '' })
   showCreateModal.value = true
   // P0-1: 草稿静默恢复（兵哥 2026-09-08 反馈：去掉恢复提示 toast，仅静默回填草稿内容，不干扰用户）。
   if (draft.probe()) draft.restore()
@@ -458,7 +465,7 @@ onMounted(async () => {
       stageTypeOptions.value = opts
       // form.stageType 默认用字典第 1 个, 跟 BE 同步
       if (!form.stageType || !stageTypeOptions.value.find((o) => o.value === form.stageType)) {
-        form.stageType = stageTypeOptions.value[0].value as any
+        form.stageType = stageTypeOptionsForForm.value[0].value as any
       }
     }
   } catch (e) {
