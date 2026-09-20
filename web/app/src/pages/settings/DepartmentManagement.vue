@@ -43,16 +43,18 @@
     </div>
 
     <div class="page-body">
-    <n-card :bordered="false">
+      <n-card :bordered="false">
       <n-data-table
         :data="displayData"
         :columns="columns"
         :row-key="(row: Department) => row.id"
         :loading="loading"
         :pagination="pagination"
+        :expanded-row-keys="expandedKeys"
         size="medium"
+        @update:expanded-row-keys="onExpandedKeysChange"
       />
-    </n-card>
+      </n-card>
     </div>
 
     <!-- 部门详情 / 编辑 合一弹窗（居中） -->
@@ -365,6 +367,13 @@ const loading = ref(false);
 const submitting = ref(false);
 const pagination = localPagination();
 
+// 树形展开状态：默认折叠（仅显示顶层节点，下级默认收起）。
+// 不再自动全展开 —— 用户点击节点前的箭头可手动展开/收起子树。
+const expandedKeys = ref<string[]>([]);
+const onExpandedKeysChange = (keys: string[]) => {
+  expandedKeys.value = keys;
+};
+
 // ===== 合一弹窗（查看 / 编辑 两态）=====
 const deptModalVisible = ref(false);
 const deptModalMode = ref<'view' | 'edit'>('view');
@@ -515,15 +524,20 @@ const filteredDepartments = computed(() => {
   );
 });
 
-// 表格展示数据：平铺列表（修复分页不可用）。按层级 → 排序值 排序，名称按层级缩进展示。
+// 表格展示数据：树形（children 空时置 undefined，避免出现空展开箭头）；
+// 搜索时退化为平铺过滤列表，保证命中任意层级部门
 const displayData = computed(() => {
-  const list = filteredDepartments.value;
-  return [...list].sort((a, b) => {
-    const la = levelMap.value[a.id] || 1;
-    const lb = levelMap.value[b.id] || 1;
-    if (la !== lb) return la - lb;
-    return (a.sortOrder || 0) - (b.sortOrder || 0);
-  });
+  if (searchKeyword.value.trim()) return filteredDepartments.value;
+  const buildTree = (parentId: string | null): any[] => {
+    const children = departments.value
+      .filter((d) => (d.parentId || null) === parentId)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    return children.map((d) => {
+      const kids = buildTree(d.id);
+      return kids.length ? { ...d, children: kids } : { ...d };
+    });
+  };
+  return buildTree(null);
 });
 
 // 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
@@ -675,12 +689,11 @@ const formatTime = (t?: string): string => {
   return d.toLocaleString('zh-CN', { hour12: false });
 };
 
-// 名称按层级缩进（保持组织层级可读性）
+// 名称渲染：树模式下 n-data-table 已按层级自动缩进，这里不再手动缩进（避免双缩进）
 const renderName = (row: Department) => {
-  const indent = (levelMap.value[row.id] || 1) - 1;
   return h(
     NButton,
-    { text: true, type: 'primary', size: 'small', style: { marginLeft: `${indent * 18}px` }, onClick: () => openDetail(row) },
+    { text: true, type: 'primary', size: 'small', onClick: () => openDetail(row) },
     { default: () => row.name }
   );
 };
