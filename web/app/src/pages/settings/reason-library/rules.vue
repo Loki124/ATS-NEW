@@ -413,16 +413,11 @@ onMounted(() => {
 <style scoped>
 .rl-rules-page {
   /* item7: 滚动隔离 — 整页 flex 列, 仅 .table-wrap 内数据列表滚动, 不影响 toolbar/stats */
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-}
-.rl-rules-page :deep(.page-body) {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding: 0;
 }
 .table-wrap {
   flex: 1;

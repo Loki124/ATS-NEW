@@ -66,26 +66,52 @@ function onTabChange(name: string) {
 </script>
 
 <style scoped>
-/* === 复用 settings-page 三件套 + page-body 滚动契约 === */
+/* === 复用 settings-page 三件套 + 页面滚动契约 ===
+ * 关键高度链（对齐 CampusControl 验证过的模型）:
+ *   .settings-scroll(overflow:hidden,确定高度)
+ *   └ .page-container(全局强制 display:flex!important flex列)
+ *     └ .page-body(本页强制 flex列 + overflow:hidden,滚动下沉到 .table-wrap)
+ *       ├ .page-header(flex-shrink:0 固定)
+ *       └ .rl-tabs(flex:1 撑满) → .n-tabs-pane-wrapper → .n-tab-pane(flex:1)
+ *         └ .rl-tags-page / .rl-rules-page(flex:1) → .table-wrap(flex:1 overflow:auto)
+ * 注: 全局 .settings-scroll :deep(.page-body) 是 overflow-y:auto 的【块级】容器,
+ *     会让其内的 flex:1 子项(.rl-tabs)失去 flex 父级而高度塌缩(数据表 body 高度=0)。
+ *     故此处用 .rl-page.page-container :deep(.page-body) 提特异性 + !important 覆盖为 flex列。 */
 .rl-page {
   padding: 0 var(--space-6);
 }
 .rl-page :deep(.page-header) {
   margin-bottom: var(--space-4);
 }
+/* 提特异性(0,3,0)压过全局 .settings-scroll :deep(.page-body)(0,2,0), 强制 flex 列 + 取消整页滚动 */
+.rl-page.page-container :deep(.page-body) {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;   /* 滚动职责下放 .table-wrap, 仅数据列表区滚动 */
+}
 .rl-tabs {
-  /* 让 n-tabs 占据剩余高度, 子页面 .page-body 才能正确滚动 */
+  /* n-tabs 占据剩余高度, 内部 tab-pane 才能正确撑开 */
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+.rl-tabs :deep(.n-tabs-nav) {
+  background: transparent;
+}
+.rl-tabs :deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
 }
 .rl-tabs :deep(.n-tab-pane) {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  /* 子页面自带 .page-container → 此处不重复叠加 */
   padding-top: var(--space-3);
 }
 </style>
