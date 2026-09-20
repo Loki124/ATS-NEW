@@ -486,7 +486,9 @@ class ProcessStageLinkViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         # 系统必含起止阶段（START_END）不可删除：仅标软删会被「删了又建」绕过，
         # 直接业务拒绝（400）让 FE 明确收到「不可删除」语义。
-        if instance.is_mandatory:
+        # 以 stage.is_start / is_end 为权威判据（覆盖存量数据 is_mandatory 可能为 False 的情况），
+        # 同时兼容新建流程的 is_mandatory 标记。FE 隐藏删除按钮同样依据 stage.isStart/isEnd。
+        if instance.is_mandatory or (instance.stage_id and (instance.stage.is_start or instance.stage.is_end)):
             raise ValidationError('系统必含阶段（起止阶段）不可删除')
         instance.soft_delete()
 

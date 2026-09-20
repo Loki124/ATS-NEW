@@ -1187,6 +1187,22 @@ async function handleSave() {
         message.error('创建失败: 未返回流程 ID')
         return
       }
+      // 2026-09-20: 后端 ProcessWithStagesCreateSerializer 在 createProcess 时已自动填充
+      //   系统起止阶段(START/END, is_mandatory=True); 下方 3c 循环会对「无 _linkId 的阶段」
+      //   调 addProcessLink, 若直接对起止阶段再 add 会撞 (process, stage) 唯一约束 → 500,
+      //   导致「创建流程」整条失败。故这里回填起止 link 的 _linkId, 让 3c 仅补齐业务阶段。
+      try {
+        const autoLinks = await listProcessLinks(currentProcessId)
+        if (Array.isArray(autoLinks)) {
+          for (const s of form.stages) {
+            if (s._linkId) continue
+            const m = autoLinks.find((l: any) => l.stage?.id === s.id)
+            if (m) s._linkId = m.id
+          }
+        }
+      } catch {
+        /* 非阻断：拉取失败则下方仍按业务阶段 add, 起止若撞唯一约束由后端 400 兜底 */
+      }
       // 新建默认 ACTIVE; createProcess payload 不含 status, 停用需走专用状态接口落库
       if (form.status === 'INACTIVE') {
         try { await updateProcessStatus(currentProcessId, 'INACTIVE') } catch { /* 非阻断 */ }

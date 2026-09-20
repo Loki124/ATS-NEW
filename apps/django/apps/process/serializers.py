@@ -302,16 +302,22 @@ def renormalize_process_orders(process):
 class ProcessStageLinkSerializer(serializers.ModelSerializer):
     """流程-阶段关联"""
     stage = RecruitmentStageSerializer(read_only=True)
-    stage_id = serializers.CharField(write_only=True, help_text='阶段 ID')
+    # 2026-09-20: 创建必填、更新放开。
+    #   起止阶段(START_END) 由后端 createProcess 自动填充, FE 走「先 createProcess 再 addProcessLink
+    #   补齐业务阶段」的流程, 起止 link 在创建时已存在; 后续 PUT 仅更新 stage_limit / custom_name
+    #   等字段, 不应被逼着重传 process_id / stage_id (否则 400 导致时长/改名永远失败)。
+    stage_id = serializers.CharField(write_only=True, required=False, help_text='阶段 ID (创建必填, 更新可不传)')
     # 2026-07-03: 用 PrimaryKeyRelatedField + source='process' 替代 auto-gen 的 process FK 字段,
     #   接受 'process_id' 作为入参 (FE send `processId` → drf-camel-case 转 `process_id`),
     #   写入到 model.process (FK). 之前用 'process' field 直接暴露 (read_only=False) 时 DRF
     #   要求入参 key 也叫 'process' → 400 "process: 该字段是必填项".
+    # 2026-09-20: required=False — 更新时 process 已由 instance 提供, 不必重传。
     process_id = serializers.PrimaryKeyRelatedField(
         queryset=RecruitmentProcess.objects.all(),
         source='process',
         write_only=True,
-        help_text='所属流程 ID (FE 发 processId)',
+        required=False,
+        help_text='所属流程 ID (FE 发 processId, 创建必填, 更新可不传)',
     )
     stage_rule = StageRuleSerializer(read_only=True)
     # 流程内展示名：优先 custom_name，否则回退 stage.name（模型 property，字段名即属性名，勿加 source）
@@ -347,7 +353,21 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         return link
 
     def update(self, instance, validated_data):
-        """更新后若动了 order，同样归一化顺序。"""
+        """更新后若动了 order，同样归一化顺序。
+
+        起止阶段(is_start/is_end) 的 is_mandatory 不可被取消：
+        perform_destroy 靠 is_mandatory 拦删除, 若允许 PUT 把它置 False,
+        则「系统起止不可删除」不变量会被绕过。
+        """
+        if (
+            'is_mandatory' in validated_data
+            and validated_data['is_mandatory'] is False
+            and instance.stage_id
+            and (instance.stage.is_start or instance.stage.is_end)
+        ):
+            raise serializers.ValidationError(
+                {'is_mandatory': '系统起止阶段(初评/正式录用)不可取消必含标记'},
+            )
         link = super().update(instance, validated_data)
         if 'order' in validated_data:
             renormalize_process_orders(link.process)
