@@ -157,13 +157,15 @@ import {
 import DraggableList from '../../components/DraggableList.vue'
 import type { TagType } from '../../api/offer'
 
-// 类型颜色映射 (key 对齐后端数据字典 recruitment_stage_type 的 key)
+// 类型颜色映射 (key 对齐后端 StageType 系统内置枚举)
 const STAGE_TYPE_COLOR: Record<string, string> = {
+  START_END: 'primary',
   SCREEN: 'info',
   INVITATION: 'default',
   INTERVIEW: 'success',
+  ASSESSMENT: 'info',
   OFFER: 'warning',
-  ONBOARDING: 'error',
+  OTHER: 'default',
 }
 
 const message = useMessage()

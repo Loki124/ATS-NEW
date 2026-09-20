@@ -418,6 +418,9 @@ import {
   OptionsOutline,
   ExtensionPuzzleOutline,
   TrashOutline,
+  ClipboardOutline,
+  AppsOutline,
+  FlagOutline,
 } from '@vicons/ionicons5'
 import EntryConditionCard from './EntryConditionCard.vue'
 import {
@@ -542,12 +545,15 @@ const userOptions = ref<{ label: string; value: string }[]>([])
 const stageLibrary = ref<{ id: string; code: string; name: string; stageType: string; isStart?: boolean; isEnd?: boolean; status?: string }[]>([])
 
 // ===== 元数据映射 =====
+// 阶段类型为系统内置枚举 (后端 StageType), 与后端 StageType.choices 对齐; 不再依赖数据字典.
 const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: 'info' | 'warning' | 'success' | 'primary' | 'default'; icon: any }> = {
-  SCREEN:     { label: '筛选',  color: 'var(--c-info)',    tagType: 'info',    icon: FilterOutline },
-  INVITATION: { label: '邀约',  color: 'var(--c-warning)', tagType: 'warning', icon: MailOutline },
-  INTERVIEW:  { label: '面试',  color: 'var(--c-purple)',  tagType: 'primary', icon: VideocamOutline },
-  OFFER:      { label: 'Offer', color: 'var(--c-success)', tagType: 'success', icon: DocumentTextOutline },
-  ONBOARDING: { label: '入职',  color: 'var(--c-cyan)',    tagType: 'info',    icon: CheckmarkCircleOutline },
+  START_END:  { label: '起止阶段', color: 'var(--c-primary)', tagType: 'primary', icon: FlagOutline },
+  SCREEN:     { label: '筛选型',  color: 'var(--c-info)',    tagType: 'info',    icon: FilterOutline },
+  INVITATION: { label: '邀约型',  color: 'var(--c-warning)', tagType: 'warning', icon: MailOutline },
+  INTERVIEW:  { label: '面试型',  color: 'var(--c-purple)',  tagType: 'primary', icon: VideocamOutline },
+  ASSESSMENT: { label: '测评型',  color: 'var(--c-cyan)',    tagType: 'info',    icon: ClipboardOutline },
+  OFFER:      { label: 'offer型', color: 'var(--c-success)', tagType: 'success', icon: DocumentTextOutline },
+  OTHER:      { label: '其他',    color: 'var(--c-default)', tagType: 'default', icon: AppsOutline },
 }
 
 // B: 弹窗标题 (编辑流程-「流程名称(流程编号)」-「阶段数量」)

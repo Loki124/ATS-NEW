@@ -63,11 +63,9 @@ export interface RecruitmentStage {
   id: string;
   code: string;
   name: string;
-  // 2026-06-29 花无缺: BE (apps/process/models.py:23-28) StageType = SCREEN/INVITATION/INTERVIEW/OFFER.
-  //   旧 FE 定义用 'FILTER' + 多了 'ONBOARDING' (BE 没有), 跟 BE 不同步, POST/PUT 走 400.
-  //   改成跟 BE 一致. 前端 'src/pages/settings/RecruitmentStage.vue' 已经用 SCREEN (form.stageType 默认 'SCREEN', FALLBACK_STAGE_TYPE 第 1 个 value=SCREEN),
-  //   本次对齐是 FE 落后 -> 跟上 BE.
-  stageType: 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER' | 'START_END';
+  // 阶段类型为系统内置枚举 (后端 StageType): 起止阶段/筛选型/邀约型/面试型/测评型/offer型/其他.
+  //   不再依赖数据字典. 与 BE StageType.choices 对齐.
+  stageType: 'START_END' | 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'ASSESSMENT' | 'OFFER' | 'OTHER';
   // 2026-08-17: BE 用 is_builtin, 旧 FE 字段 isSystem 已废弃. reference_count 替代 _count.links.
   isBuiltin?: boolean;
   // 兼容旧代码 / 测试数据

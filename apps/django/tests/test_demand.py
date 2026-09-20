@@ -28,7 +28,7 @@ def process_stage(db, process):
         id='stage-test-001',
         code='TEST_STAGE',
         name='测试阶段',
-        stage_type=StageType.FILTER,
+        stage_type=StageType.SCREEN,
         status=StageStatus.ENABLED,
         is_builtin=False,
     )

@@ -14,18 +14,9 @@ from apps.process.models import RecruitmentStage, StageStatus, StageType
 
 class StageStartEndTestCase(TestCase):
     def setUp(self):
-        # 初评 (起始)
-        self.initial = RecruitmentStage.objects.create(
-            code='P001', name='初评', stage_type=StageType.SCREEN,
-            status=StageStatus.ENABLED, is_builtin=True,
-            is_start=True, is_end=False,
-        )
-        # 正式录用 (结束)
-        self.offer = RecruitmentStage.objects.create(
-            code='P008', name='正式录用', stage_type=StageType.OFFER,
-            status=StageStatus.ENABLED, is_builtin=True,
-            is_start=False, is_end=True,
-        )
+        # 起止阶段已由迁移 0012 预置 (P001=初评 起始 / P099=正式录用 结束), 直接取用
+        self.initial = RecruitmentStage.objects.get(code='P001')
+        self.offer = RecruitmentStage.objects.get(code='P099')
         # 一个普通阶段
         self.normal = RecruitmentStage.objects.create(
             code='P002', name='简历评估', stage_type=StageType.SCREEN,

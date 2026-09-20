@@ -121,9 +121,11 @@ api_v1_patterns = [
     # T6 新增接口: 轮询订单最新状态 / 拉取报告（与 cancel 同前缀，detail 子路由）
     path('background-check/orders/<str:pk>/query/', BackgroundCheckOrderViewSet.as_view({'get': 'query'}), name='bg-orders-query'),
     path('background-check/orders/<str:pk>/report/', BackgroundCheckOrderViewSet.as_view({'get': 'report'}), name='bg-orders-report'),
-    # 2026-08-17 PR #69: 数据字典 (apps.dictionary) — 阶段类型等枚举 single source of truth.
+    # 2026-08-17 PR #69: 数据字典 (apps.dictionary) — 业务自定语义枚举 single source of truth.
+    #   注: 阶段类型已改为系统内置枚举 (apps.process.models.StageType), 经迁移预置起止阶段,
+    #   不再经 dictionary-items/dictionary-types 暴露 recruitment_stage_type.
     #   router 注册 dictionary-items / dictionary-types, 挂在 api_v1 根下 →
-    #   /api/v1/dictionary-items/?type_code=recruitment_stage_type
+    #   /api/v1/dictionary-items/
     #   /api/v1/dictionary-types/
     path('', include('apps.dictionary.urls')),
     # 2026-08-20: 校招管控（人员比例管控系统）— 规则 / 人员 / 看板 / 规划 / 校验

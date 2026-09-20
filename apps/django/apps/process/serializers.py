@@ -68,14 +68,11 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
                             'created_by', 'updated_by']
 
     def get_stage_type_display(self, obj: RecruitmentStage) -> str:
-        from apps.dictionary.models import DictionaryItem
-        item = DictionaryItem.objects.filter(
-            type__code='recruitment_stage_type',
-            key=obj.stage_type,
-            is_active=True,
-            deleted_at__isnull=True,
-        ).first()
-        return item.value if item else obj.stage_type
+        from apps.process.models import StageType
+        try:
+            return StageType(obj.stage_type).label
+        except ValueError:
+            return obj.stage_type
 
     def validate_name(self, value):
         """BR-001~003: 阶段名称约束"""
@@ -90,17 +87,11 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
         return getattr(self.instance, field_name, False) if self.instance else False
 
     def validate(self, attrs):
-        # 阶段类型必须从数据字典读取
+        # 阶段类型必须是系统内置枚举值 (不再依赖数据字典)
         stage_type = attrs.get('stage_type')
         if stage_type:
-            from apps.dictionary.models import DictionaryItem
-            exists = DictionaryItem.objects.filter(
-                type__code='recruitment_stage_type',
-                key=stage_type,
-                is_active=True,
-                deleted_at__isnull=True,
-            ).exists()
-            if not exists:
+            from apps.process.models import STAGE_TYPE_VALUES
+            if stage_type not in STAGE_TYPE_VALUES:
                 raise serializers.ValidationError(
                     {'stage_type': f'无效的阶段类型: {stage_type}'},
                 )

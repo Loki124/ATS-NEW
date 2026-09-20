@@ -164,16 +164,19 @@ const form = reactive({
 // 必须放在 form / editing 声明之后（避免 TDZ 引用错误）。
 const draft = useFormDraft('recruitment-stage', form, { enabled: () => !editing.value })
 
-type StageType = 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'OFFER'
+type StageType = 'START_END' | 'SCREEN' | 'INVITATION' | 'INTERVIEW' | 'ASSESSMENT' | 'OFFER' | 'OTHER'
 
-// 2026-08-17 PR #69: 阶段类型从后端数据字典 (apps/dictionary, type_code=recruitment_stage_type) 拿, single source of truth.
-//   FE 启动时 fetch 字典项, 拿不到 (网络/未登录) 才用 fallback — 同样以 BE 字典为准.
-//   fallback 的 value=stage_type 存储值 (key), label=展示名 (value), 必须跟字典项一致.
+// 阶段类型已改为系统内置枚举 (后端 StageType, 经 /api/v1/recruitment-stages/stage-types/ 暴露),
+//   不再依赖数据字典 recruitment_stage_type. 启动时 fetch 枚举, 拿不到才用 fallback (以 BE 枚举为准).
+//   fallback 的 value=存储值 (code), label=展示名, 必须跟后端 StageType.choices 一致.
 const FALLBACK_STAGE_TYPE = [
-  { label: '筛选', value: 'SCREEN' },
-  { label: '邀约', value: 'INVITATION' },
-  { label: '面试', value: 'INTERVIEW' },
-  { label: '录用', value: 'OFFER' },
+  { label: '起止阶段', value: 'START_END' },
+  { label: '筛选型', value: 'SCREEN' },
+  { label: '邀约型', value: 'INVITATION' },
+  { label: '面试型', value: 'INTERVIEW' },
+  { label: '测评型', value: 'ASSESSMENT' },
+  { label: 'offer型', value: 'OFFER' },
+  { label: '其他', value: 'OTHER' },
 ]
 const stageTypeOptions = ref<Array<{ label: string; value: string }>>([...FALLBACK_STAGE_TYPE])
 

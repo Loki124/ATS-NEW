@@ -23,12 +23,19 @@ def gen_id():
 # 阶段类型常量
 # ============================================================
 class StageType(models.TextChoices):
-    SCREEN = 'SCREEN', '筛选'
-    INVITATION = 'INVITATION', '邀约'
-    INTERVIEW = 'INTERVIEW', '面试'
-    OFFER = 'OFFER', 'Offer'
-    # 系统级「起止阶段」类型：绑定初评(起始)/正式录用(结束)，不可删除/修改
+    # 系统级「起止阶段」类型：绑定初评(起始)/正式录用(结束)，不可删除/修改。
+    # 阶段类型改为系统内置枚举 (项目级标准: 系统级默认数据走代码枚举/迁移预置, 不进数据字典)。
     START_END = 'START_END', '起止阶段'
+    SCREEN = 'SCREEN', '筛选型'
+    INVITATION = 'INVITATION', '邀约型'
+    INTERVIEW = 'INTERVIEW', '面试型'
+    ASSESSMENT = 'ASSESSMENT', '测评型'
+    OFFER = 'OFFER', 'offer型'
+    OTHER = 'OTHER', '其他'
+
+
+# 阶段类型合法值集合 (系统内置, 不依赖数据字典)
+STAGE_TYPE_VALUES = frozenset(m.value for m in StageType)
 
 
 class StageStatus(models.TextChoices):
@@ -71,7 +78,9 @@ class RecruitmentStage(FullAuditModel):
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     code = models.CharField(max_length=20, unique=True, verbose_name='阶段编号', help_text='P+三位流水号')
     name = models.CharField(max_length=20, unique=True, verbose_name='阶段名称', help_text='限 20 字，不可重复')
-    stage_type = models.CharField(max_length=20, verbose_name='阶段类型')
+    stage_type = models.CharField(
+        max_length=20, choices=StageType.choices, verbose_name='阶段类型',
+    )
     status = models.CharField(
         max_length=16, choices=StageStatus.choices,
         default=StageStatus.ENABLED, db_index=True, verbose_name='状态',
@@ -118,17 +127,9 @@ class RecruitmentStage(FullAuditModel):
 
     def clean(self):
         super().clean()
-        # 阶段类型必须从数据字典中读取且已启用
-        if self.stage_type:
-            from apps.dictionary.models import DictionaryItem
-            exists = DictionaryItem.objects.filter(
-                type__code='recruitment_stage_type',
-                key=self.stage_type,
-                is_active=True,
-                deleted_at__isnull=True,
-            ).exists()
-            if not exists:
-                raise ValidationError({'stage_type': f'无效的阶段类型: {self.stage_type}'})
+        # 阶段类型必须是系统内置枚举值 (不再依赖数据字典)
+        if self.stage_type and self.stage_type not in STAGE_TYPE_VALUES:
+            raise ValidationError({'stage_type': f'无效的阶段类型: {self.stage_type}'})
 
         # 互斥: 同一阶段不可同时为起始和结束
         if self.is_start and self.is_end:

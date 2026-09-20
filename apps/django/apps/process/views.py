@@ -185,6 +185,19 @@ class RecruitmentStageViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @extend_schema(
+        summary='阶段类型枚举 (系统内置)',
+        description='返回 7 个固定阶段类型 [{value, label}], 系统级默认数据, 不依赖数据字典',
+        responses={200: dict},
+    )
+    @action(detail=False, methods=['get'], url_path='stage-types')
+    def stage_types(self, request):
+        from apps.process.models import StageType
+        return Response([
+            {'value': value, 'label': label}
+            for value, label in StageType.choices
+        ])
+
 
 # ============================================================
 # 流程（RecruitmentProcess）

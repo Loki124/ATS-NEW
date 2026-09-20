@@ -29,7 +29,16 @@ def auth_client(db):
 
 @pytest.fixture
 def stage_type(db):
-    return DictionaryType.objects.get(code='recruitment_stage_type')
+    """自建一个系统预置字典类型, 供系统/自定义差异化测试复用。
+
+    注: 阶段类型已改为系统内置枚举, 不再经数据字典 recruitment_stage_type,
+    故此处用独立系统类型验证「系统字典不可删/不可停用」约束。
+    """
+    dt, _ = DictionaryType.objects.get_or_create(
+        code='test_system_type',
+        defaults={'name': '系统测试类型', 'is_system': True, 'is_enabled': True},
+    )
+    return dt
 
 
 @pytest.fixture
@@ -247,35 +256,35 @@ def test_type_update_full_put_requires_name_400(auth_client, custom_type):
 # ---------------------------------------------------------------------------
 
 def test_list_search_by_element_name(auth_client, stage_type):
-    # recruitment_stage_type 含元素值 "筛选"
-    resp = auth_client.get(TYPE_LIST, {'q': '筛选', 'page_size': 200})
+    # test_system_type 名称含 "系统测试"
+    resp = auth_client.get(TYPE_LIST, {'q': '系统测试', 'page_size': 200})
     codes = [t['code'] for t in resp.json()['data']]
-    assert 'recruitment_stage_type' in codes
+    assert 'test_system_type' in codes
 
 
 def test_list_filter_system(auth_client, stage_type, custom_type):
     resp = auth_client.get(TYPE_LIST, {'type': 'system', 'page_size': 200})
     codes = [t['code'] for t in resp.json()['data']]
-    assert 'recruitment_stage_type' in codes
+    assert 'test_system_type' in codes
     assert custom_type not in codes
 
     resp = auth_client.get(TYPE_LIST, {'type': 'custom', 'page_size': 200})
     codes = [t['code'] for t in resp.json()['data']]
     assert custom_type in codes
-    assert 'recruitment_stage_type' not in codes
+    assert 'test_system_type' not in codes
 
 
 def test_list_filter_is_enabled(auth_client, stage_type, custom_type):
     """启用状态筛选: is_enabled=true 仅返回启用项; =false 仅返回停用项。"""
-    # recruitment_stage_type 默认启用; custom_type 先停用
+    # test_system_type 默认启用; custom_type 先停用
     auth_client.patch(f'{TYPE_LIST}{custom_type}/', {'is_enabled': False}, format='json')
 
     resp = auth_client.get(TYPE_LIST, {'is_enabled': 'true', 'page_size': 200})
     codes = [t['code'] for t in resp.json()['data']]
-    assert 'recruitment_stage_type' in codes
+    assert 'test_system_type' in codes
     assert custom_type not in codes
 
     resp = auth_client.get(TYPE_LIST, {'is_enabled': 'false', 'page_size': 200})
     codes = [t['code'] for t in resp.json()['data']]
     assert custom_type in codes
-    assert 'recruitment_stage_type' not in codes
+    assert 'test_system_type' not in codes

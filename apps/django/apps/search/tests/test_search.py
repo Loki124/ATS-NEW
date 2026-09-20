@@ -58,8 +58,10 @@ def process(db):
 
 @pytest.fixture
 def stage(db, process):
+    # 注意: P001(初评)/P099(正式录用) 已由进程迁移 0012 预置为 built-in 起止阶段,
+    # 此处必须用非预置 code 避免与进程唯一约束冲突。
     rec = RecruitmentStage.objects.create(
-        code='P001', name='简历筛选', stage_type='SCREEN'
+        code='PTEST01', name='简历筛选', stage_type='SCREEN'
     )
     return ProcessStageLink.objects.create(process=process, stage=rec)
 

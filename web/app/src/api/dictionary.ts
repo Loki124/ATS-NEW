@@ -12,7 +12,8 @@
  * submit 端点成功/失败均返回裸体: 成功 {detail, dictNumber, code};
  *   失败 {detail:'校验失败', headErrors:{...}, itemErrors:{'0':{...}}}。
  *
- * 设计: 字典项是枚举 single source of truth; 阶段类型 code='recruitment_stage_type'。
+ * 设计: 业务自定语义枚举以数据字典为 single source of truth; 阶段类型为系统内置枚举,
+ *   经 /api/v1/recruitment-stages/stage-types/ 暴露, 不再经数据字典 recruitment_stage_type。
  */
 import axios from 'axios';
 import config from '../config';
@@ -79,9 +80,10 @@ export interface DictionaryOption {
 export const STAGE_TYPE_DICT_CODE = 'recruitment_stage_type';
 
 /**
- * --- 阶段类型枚举读取 (PR #69 single source of truth) ---
- * RecruitmentStage.vue 依赖 listStageTypeOptions(); 此处保留兼容实现,
- * 与新版树形/草稿 API 共存 (字段名互不冲突)。
+ * --- 阶段类型枚举读取 (系统内置) ---
+ * 阶段类型已改为系统内置枚举 (后端 StageType), 经 /api/v1/recruitment-stages/stage-types/
+ * 暴露, 不再依赖数据字典 recruitment_stage_type。RecruitmentStage.vue 依赖
+ * listStageTypeOptions(); 失败时组件层 FALLBACK_STAGE_TYPE 兜底。
  */
 
 /** 阶段类型读取用的扁平项 (仅取枚举所需字段)。 */
@@ -119,10 +121,28 @@ export function toOptions(items: DictionaryItemLite[]): DictionaryOption[] {
   return items.map((it) => ({ label: it.value, value: it.key, sortOrder: it.sortOrder }));
 }
 
-/** 直接拉「阶段类型」可选列表。 */
+/** 阶段类型枚举 (系统内置) — 后端 /api/v1/recruitment-stages/stage-types/。 */
+export interface StageTypeEnum {
+  value: string;
+  label: string;
+}
+
+/** 拉取阶段类型系统内置枚举 [{value, label}]。 */
+export async function listStageTypeEnums(): Promise<StageTypeEnum[]> {
+  const resp = await api.get('/recruitment-stages/stage-types/');
+  const body = resp.data;
+  const arr: any[] = Array.isArray(body)
+    ? body
+    : body && typeof body === 'object' && Array.isArray((body as any).data)
+      ? (body as any).data
+      : [];
+  return arr.map((it: any) => ({ value: it.value, label: it.label }));
+}
+
+/** 直接拉「阶段类型」可选列表 (系统内置枚举, 不再依赖数据字典)。 */
 export async function listStageTypeOptions(): Promise<DictionaryOption[]> {
-  const items = await listDictionaryItems(STAGE_TYPE_DICT_CODE);
-  return toOptions(items);
+  const enums = await listStageTypeEnums();
+  return enums.map((e) => ({ label: e.label, value: e.value }));
 }
 
 /** 取字典类型列表(支持搜索 q 与类型筛选 type)。兼容包裹或裸数组。 */
@@ -197,5 +217,6 @@ export default {
   STAGE_TYPE_DICT_CODE,
   listDictionaryItems,
   toOptions,
+  listStageTypeEnums,
   listStageTypeOptions,
 };

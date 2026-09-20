@@ -29,8 +29,20 @@ def auth_client(db):
 
 @pytest.fixture
 def stage_type(db):
-    """已通过 post_migrate 初始化的 recruitment_stage_type (含 id), 供字典项测试复用。"""
-    return DictionaryType.objects.get(code='recruitment_stage_type')
+    """自建一个自定义字典类型 (含一个种子项), 供字典项 CRUD 测试复用。
+
+    注: 阶段类型已改为系统内置枚举, 不再经数据字典 recruitment_stage_type,
+    故此处用独立自定义类型, 不依赖系统预置。
+    """
+    dt, _ = DictionaryType.objects.get_or_create(
+        code='test_crud_type',
+        defaults={'name': 'CRUD测试类型', 'is_enabled': True},
+    )
+    DictionaryItem.objects.get_or_create(
+        type=dt, key='SEED_ITEM',
+        defaults={'value': '种子项', 'sort_order': 1, 'is_active': True},
+    )
+    return dt
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +127,7 @@ def test_delete_dictionary_type_204_and_excluded(auth_client):
 
 
 # ---------------------------------------------------------------------------
-# 字典项 CRUD (复用已初始化的 recruitment_stage_type)
+# 字典项 CRUD (复用自建自定义类型 stage_type)
 # ---------------------------------------------------------------------------
 
 def test_create_dictionary_item_201(auth_client, stage_type):
@@ -134,7 +146,7 @@ def test_create_dictionary_item_201(auth_client, stage_type):
     body = resp.json()
     assert body['key'] == 'TEST_ITEM_A'
     assert body['type'] == stage_type.id
-    assert body['typeCode'] == 'recruitment_stage_type'
+    assert body['typeCode'] == 'test_crud_type'
     assert body['sortOrder'] == 100
 
 
@@ -173,7 +185,7 @@ def test_delete_history_item_rejected_400(auth_client, stage_type):
     assert '删除' in str(del_resp.json()['errors']['detail'])
 
     # 项仍存在于列表
-    list_resp = auth_client.get(ITEM_LIST, {'type_code': 'recruitment_stage_type', 'page_size': 200})
+    list_resp = auth_client.get(ITEM_LIST, {'type_code': 'test_crud_type', 'page_size': 200})
     ids = [it['id'] for it in list_resp.json()['data']]
     assert item_id in ids
 

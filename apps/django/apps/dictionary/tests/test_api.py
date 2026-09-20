@@ -1,13 +1,10 @@
-"""数据字典 API + 阶段类型校验测试 (PR #69: 阶段类型数据字典化).
+"""阶段类型校验测试 (系统内置枚举, 不再经数据字典).
 
 锁定的契约
 ==========
-1. GET /api/v1/dictionary-items/?type_code=recruitment_stage_type
-   → 200, 返回该类型下所有启用字典项, 按 sort_order 升序.
-   每条含 key / value / sortOrder / typeCode (驼峰).
-2. 阶段类型必须从数据字典读取:
-   RecruitmentStageSerializer 校验 stage_type 必须存在于字典
-   (recruitment_stage_type 下 is_active 的 key), 否则 400.
+1. GET /api/v1/stages/stage-types/
+   → 200, 返回 7 个固定阶段类型 [{value, label}], 系统级默认数据.
+2. RecruitmentStageSerializer 校验 stage_type 必须是 StageType 枚举值, 否则 400.
 """
 from __future__ import annotations
 
@@ -18,13 +15,10 @@ from rest_framework.test import APIClient
 from apps.process.models import RecruitmentStage
 from apps.process.serializers import RecruitmentStageSerializer
 
-STAGE_TYPE_URL = '/api/v1/dictionary-items/?type_code=recruitment_stage_type'
-EXPECTED = [
-    ('SCREEN', '筛选', 10),
-    ('INVITATION', '邀约', 20),
-    ('INTERVIEW', '面试', 30),
-    ('OFFER', '录用', 40),
-]
+STAGE_TYPES_URL = '/api/v1/stages/stage-types/'
+EXPECTED_VALUES = {
+    'START_END', 'SCREEN', 'INVITATION', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'OTHER',
+}
 
 pytestmark = pytest.mark.django_db
 
@@ -39,44 +33,26 @@ def auth_client(db):
     return client
 
 
-def test_dict_endpoint_requires_auth():
+def test_stage_types_endpoint_requires_auth():
     """未登录读 → 401。"""
-    resp = APIClient().get(STAGE_TYPE_URL)
+    resp = APIClient().get(STAGE_TYPES_URL)
     assert resp.status_code == 401
 
 
-def test_stage_type_dict_items(auth_client):
-    """阶段类型字典项齐全且按 sort_order 升序, 字段形态符合前端契约。"""
-    resp = auth_client.get(STAGE_TYPE_URL)
+def test_stage_types_endpoint_returns_7_enums(auth_client):
+    """阶段类型系统内置枚举齐全, 字段形态符合前端契约 [{value, label}]。"""
+    resp = auth_client.get(STAGE_TYPES_URL)
     assert resp.status_code == 200
-    body = resp.json()
-    items = body['data']
-    assert isinstance(items, list) and len(items) >= 4
-
-    keys = [it['key'] for it in items]
-    for key, _value, _sort in EXPECTED:
-        assert key in keys
-
-    # 按 sort_order 升序 (前端 listDictionaryItems 也做了排序, 这里锁后端契约)
-    orders = [it['sortOrder'] for it in items]
-    assert orders == sorted(orders)
-
-    # 前端依赖的字段形态: key / value / sortOrder / typeCode
-    first = next(it for it in items if it['key'] == 'SCREEN')
-    assert first['value'] == '筛选'
-    assert first['typeCode'] == 'recruitment_stage_type'
-    assert 'sortOrder' in first
+    data = resp.json()
+    assert isinstance(data, list) and len(data) == 7
+    values = {it['value'] for it in data}
+    assert values == EXPECTED_VALUES
+    for it in data:
+        assert 'label' in it and it['label']
 
 
-def test_filter_by_other_type_returns_only_that_type(auth_client):
-    """type_code 过滤只返回对应类型; 不存在的类型返回空列表。"""
-    resp = auth_client.get(STAGE_TYPE_URL + 'x')  # 不存在的 code
-    assert resp.status_code == 200
-    assert resp.json()['data'] == []
-
-
-def test_stage_type_must_exist_in_dict():
-    """非法阶段类型 (不在字典中) → serializer 校验失败。"""
+def test_invalid_stage_type_rejected():
+    """非法阶段类型 (不在 StageType 枚举中) → serializer 校验失败。"""
     ser = RecruitmentStageSerializer(
         data={'name': 'X阶段', 'stage_type': 'NOT_A_REAL_TYPE'}
     )
@@ -84,7 +60,7 @@ def test_stage_type_must_exist_in_dict():
     assert 'stage_type' in ser.errors
 
 
-def test_valid_stage_type_passes_dict_check():
-    """合法阶段类型 (字典中存在) → 校验通过。"""
+def test_valid_stage_type_passes():
+    """合法阶段类型 (StageType 枚举中存在) → 校验通过。"""
     ser = RecruitmentStageSerializer(data={'name': '筛选阶段', 'stage_type': 'SCREEN'})
     assert ser.is_valid(), ser.errors
