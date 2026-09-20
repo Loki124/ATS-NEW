@@ -46,7 +46,12 @@
             @toggle="toggleEntry"
             @remove="removeEntry"
           />
-          <DefaultHandlerCard :form="form" />
+          <DefaultHandlerCard
+            :form="form"
+            @update:default-handler-type="(v: any) => (form.defaultHandlerType = v)"
+            @update:default-handler-fields="(v: string[]) => (form.defaultHandlerFields = v)"
+            @update:default-handler-user-ids="(v: string[]) => (form.defaultHandlerUserIds = v)"
+          />
           <InterviewConfigCard :form="form" />
           <AutomationCard
             :form="form"
@@ -54,6 +59,11 @@
             :archive-rules="archiveRules"
             @update:skip-enabled="(v: boolean) => (form.skipEnabled = v)"
             @update:archive-enabled="(v: boolean) => (form.archiveEnabled = v)"
+            @update:auto-eval-n2="(v: boolean) => (form.autoEvalN2 = v)"
+            @update:auto-eval-prev-aa="(v: boolean) => (form.autoEvalPrevAa = v)"
+            @update:auto-advance-type="(v: any) => (form.autoAdvanceType = v)"
+            @update:auto-advance-timing="(v: any) => (form.autoAdvanceTiming = v)"
+            @update:auto-advance-days="(v: number | null) => (form.autoAdvanceDays = v)"
             @add-skip="skipModal?.open()"
             @add-archive="archiveModal?.open()"
             @edit-skip="(r: SkipRule) => skipModal?.open(r)"

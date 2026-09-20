@@ -57,6 +57,12 @@ import type { StageRuleFormState } from '../types'
 
 const props = defineProps<{ form: StageRuleFormState }>()
 
+const emit = defineEmits<{
+  (e: 'update:defaultHandlerType', v: StageRuleFormState['defaultHandlerType']): void
+  (e: 'update:defaultHandlerFields', v: string[]): void
+  (e: 'update:defaultHandlerUserIds', v: string[]): void
+}>()
+
 const sourceOptions = HANDLER_SOURCE_OPTIONS
 const ruleOptions = HANDLER_RULE_OPTIONS
 
@@ -95,15 +101,15 @@ const isFieldDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
 const isRuleDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
 
 function onSource(v: StageRuleFormState['defaultHandlerType']) {
-  props.form.defaultHandlerType = v
-  props.form.defaultHandlerFields = []
-  if (v !== 'CUSTOM') props.form.defaultHandlerUserIds = []
+  emit('update:defaultHandlerType', v)
+  emit('update:defaultHandlerFields', [])
+  if (v !== 'CUSTOM') emit('update:defaultHandlerUserIds', [])
 }
 function onField(v: string | null) {
-  props.form.defaultHandlerFields = v ? [v] : []
+  emit('update:defaultHandlerFields', v ? [v] : [])
 }
 function onRule(v: string | null) {
-  props.form.defaultHandlerUserIds = v ? [v] : []
+  emit('update:defaultHandlerUserIds', v ? [v] : [])
 }
 </script>
 

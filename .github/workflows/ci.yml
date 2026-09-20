@@ -242,11 +242,12 @@ jobs:
 
       - name: Install frontend deps + build
         working-directory: web/app
-        # 这里用 build:nocheck 是有意的: 类型检查已经在 test-frontend job 跑过,
-        # e2e 只需要产物, 不必再花一遍 vue-tsc 的时间。
+        # build:fast 仅做 vite 打包 (不做 vue-tsc): 类型安全已由同一流水线前置的
+        # test-frontend job (npm run build = vue-tsc && vite build) 保证。
+        # 原 build:nocheck 逃生口已删除, 任何生产构建都必须走带类型检查的 build。
         run: |
           npm ci
-          npm run build:nocheck
+          npm run build:fast
 
       - name: Install Playwright browsers
         working-directory: web/app

@@ -17,7 +17,7 @@
           <input
             type="checkbox"
             :checked="form.autoEvalN2"
-            @change="form.autoEvalN2 = ($event.target as HTMLInputElement).checked"
+            @change="emit('update:autoEvalN2', ($event.target as HTMLInputElement).checked)"
           />
           <span>N+2 推荐免筛选</span>
         </label>
@@ -25,7 +25,7 @@
           <input
             type="checkbox"
             :checked="form.autoEvalPrevAa"
-            @change="form.autoEvalPrevAa = ($event.target as HTMLInputElement).checked"
+            @change="emit('update:autoEvalPrevAa', ($event.target as HTMLInputElement).checked)"
           />
           <span>引用前序双 A 的一致意见</span>
         </label>
@@ -41,17 +41,17 @@
       <div class="flow-condition-row">
         <div class="flow-field">
           <label class="field-label">自动流转条件</label>
-          <n-select size="small" :value="form.autoAdvanceType" :options="advanceOptions" @update:value="(v: any) => (form.autoAdvanceType = v)" />
+          <n-select size="small" :value="form.autoAdvanceType" :options="advanceOptions" @update:value="(v: any) => emit('update:autoAdvanceType', v)" />
         </div>
         <div class="flow-field">
           <label class="field-label">执行时机</label>
-          <n-select size="small" :value="form.autoAdvanceTiming" :options="timingOptions" @update:value="(v: any) => (form.autoAdvanceTiming = v)" />
+          <n-select size="small" :value="form.autoAdvanceTiming" :options="timingOptions" @update:value="(v: any) => emit('update:autoAdvanceTiming', v)" />
         </div>
       </div>
       <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="flow-condition-row">
         <div class="flow-field">
           <label class="field-label">延迟天数 (1-20 工作日)</label>
-          <n-input-number size="small" :value="form.autoAdvanceDays" :min="1" :max="20" @update:value="(v: number | null) => (form.autoAdvanceDays = v)" />
+          <n-input-number size="small" :value="form.autoAdvanceDays" :min="1" :max="20" @update:value="(v: number | null) => emit('update:autoAdvanceDays', v)" />
         </div>
       </div>
     </div>
@@ -140,6 +140,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:skipEnabled', v: boolean): void
   (e: 'update:archiveEnabled', v: boolean): void
+  (e: 'update:autoEvalN2', v: boolean): void
+  (e: 'update:autoEvalPrevAa', v: boolean): void
+  (e: 'update:autoAdvanceType', v: StageRuleFormState['autoAdvanceType']): void
+  (e: 'update:autoAdvanceTiming', v: StageRuleFormState['autoAdvanceTiming']): void
+  (e: 'update:autoAdvanceDays', v: number | null): void
   (e: 'add-skip'): void
   (e: 'add-archive'): void
   (e: 'edit-skip', rule: SkipRule): void
