@@ -53,77 +53,80 @@
               />
 
               <template v-else>
-                <!-- 模块级拖拽：每个 module 一个 <section> -->
+                <!-- 模块级拖拽：vue-draggable-plus 0.6.x 用 v-for 遍历数据 + Sortable.js 操作 DOM。
+                     注意：不用 #item slot（旧版 vuedraggable 写法），vue-draggable-plus 走 default slot。 -->
                 <VueDraggable
                   v-model="moduleGroups"
-                  item-key="key"
                   handle=".module-drag-handle"
                   :animation="180"
                   ghost-class="sr-ghost"
                   class="sr-modules"
                   @end="onModuleDragEnd"
                 >
-                  <template #item="{ element: grp }">
-                    <section class="sr-module">
-                      <header class="sr-module-head">
+                  <section
+                    v-for="grp in moduleGroups"
+                    :key="grp.key"
+                    class="sr-module"
+                  >
+                    <header class="sr-module-head">
+                      <n-icon
+                        v-if="moduleGroups.length > 1"
+                        class="sr-drag-handle module-drag-handle"
+                        :component="ReorderThreeOutline"
+                        size="18"
+                      />
+                      <span v-else class="sr-drag-handle-placeholder" />
+                      <h3 class="sr-module-title">
+                        {{ grp.module?.name || '未分组' }}
+                      </h3>
+                      <n-tag size="small" :bordered="false" class="sr-module-count">
+                        {{ grp.fields.length }} 字段
+                      </n-tag>
+                    </header>
+
+                    <!-- 字段级拖拽：每行一个字段 -->
+                    <VueDraggable
+                      v-model="grp.fields"
+                      handle=".field-drag-handle"
+                      :animation="160"
+                      ghost-class="sr-ghost"
+                      class="sr-fields"
+                      @end="(evt: SortableEvent) => onFieldDragEnd(grp, evt)"
+                    >
+                      <div
+                        v-for="m in grp.fields"
+                        :key="m.field.id || m.field.fieldKey"
+                        class="sr-field-row"
+                      >
                         <n-icon
-                          v-if="moduleGroups.length > 1"
-                          class="sr-drag-handle module-drag-handle"
-                          :component="ReorderThreeOutline"
-                          size="18"
+                          v-if="m.field.isVisible !== false"
+                          class="sr-drag-handle field-drag-handle"
+                          :component="MenuOutline"
+                          size="16"
                         />
                         <span v-else class="sr-drag-handle-placeholder" />
-                        <h3 class="sr-module-title">
-                          {{ grp.module?.name || '未分组' }}
-                        </h3>
-                        <n-tag size="small" :bordered="false" class="sr-module-count">
-                          {{ grp.fields.length }} 字段
-                        </n-tag>
-                      </header>
-
-                      <!-- 字段级拖拽：每行一个字段 -->
-                      <VueDraggable
-                        v-model="grp.fields"
-                        :item-key="(m: MergedResumeField) => m.field.id"
-                        handle=".field-drag-handle"
-                        :animation="160"
-                        ghost-class="sr-ghost"
-                        class="sr-fields"
-                        @end="(evt: SortableEvent) => onFieldDragEnd(grp, evt)"
-                      >
-                        <template #item="{ element: m }">
-                          <div class="sr-field-row">
-                            <n-icon
-                              v-if="m.field.isVisible !== false"
-                              class="sr-drag-handle field-drag-handle"
-                              :component="MenuOutline"
-                              size="16"
-                            />
-                            <span v-else class="sr-drag-handle-placeholder" />
-                            <div class="sr-field-meta">
-                              <span class="sr-field-label">{{ m.field.label }}</span>
-                              <span class="sr-type-tag">{{ fieldTypeLabel(m.field.fieldType) }}</span>
-                            </div>
-                            <div class="sr-field-toggles">
-                              <n-switch
-                                :value="m.enabled"
-                                size="small"
-                                @update:value="setEnabled(m.field.fieldKey, $event)"
-                              />
-                              <span class="sr-toggle-label">显示</span>
-                              <n-switch
-                                :value="m.required"
-                                size="small"
-                                :disabled="!m.enabled"
-                                @update:value="setRequired(m.field.fieldKey, $event)"
-                              />
-                              <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">必填</span>
-                            </div>
-                          </div>
-                        </template>
-                      </VueDraggable>
-                    </section>
-                  </template>
+                        <div class="sr-field-meta">
+                          <span class="sr-field-label">{{ m.field.label }}</span>
+                          <span class="sr-type-tag">{{ fieldTypeLabel(m.field.fieldType) }}</span>
+                        </div>
+                        <div class="sr-field-toggles">
+                          <n-switch
+                            :value="m.enabled"
+                            size="small"
+                            @update:value="setEnabled(m.field.fieldKey, $event)"
+                          />
+                          <span class="sr-toggle-label">显示</span>
+                          <n-switch
+                            :value="m.required"
+                            size="small"
+                            :disabled="!m.enabled"
+                            @update:value="setRequired(m.field.fieldKey, $event)"
+                          />
+                          <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">必填</span>
+                        </div>
+                      </div>
+                    </VueDraggable>
+                  </section>
                 </VueDraggable>
 
                 <!-- 必填阶段规则（保持原结构） -->
