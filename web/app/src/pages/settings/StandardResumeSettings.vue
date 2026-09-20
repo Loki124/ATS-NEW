@@ -99,16 +99,21 @@
                         v-for="m in grp.fields"
                         :key="m.field.id || m.field.fieldKey"
                         class="sr-field-row"
+                        :class="{ 'sr-field-row--dimmed': m.field.isVisible === false }"
                       >
+                        <!-- 所有字段都可拖拽（含动态字段定义层隐藏的字段）；
+                             手柄不再按 isVisible 条件渲染，隐藏字段仅做视觉弱化 -->
                         <n-icon
-                          v-if="m.field.isVisible !== false"
                           class="sr-drag-handle field-drag-handle"
                           :component="MenuOutline"
                           size="16"
+                          :title="m.field.isVisible === false
+                            ? '该字段在动态字段定义层为隐藏，仍可拖拽调整顺序'
+                            : '拖拽调整顺序'"
                         />
-                        <span v-else class="sr-drag-handle-placeholder" />
                         <div class="sr-field-meta">
                           <span class="sr-field-label">{{ m.field.label }}</span>
+                          <span v-if="m.field.isVisible === false" class="sr-tag-hidden">定义层隐藏</span>
                           <span class="sr-type-tag">{{ fieldTypeLabel(m.field.fieldType) }}</span>
                         </div>
                         <div class="sr-field-toggles">
@@ -830,6 +835,26 @@ async function loadConfigIntoState() {
   color: var(--ink-soft);
 }
 .sr-toggle-label.disabled { color: var(--ink-faint); }
+
+/* 动态字段定义层隐藏的字段：整行文字弱化以示区别。
+   注意：仅弱化文字/标签，拖拽手柄与开关保持原不透明度——
+   隐藏字段同样必须可拖拽排序，手柄绝不能显得"不可用"。 */
+.sr-field-row--dimmed .sr-field-label,
+.sr-field-row--dimmed .sr-type-tag,
+.sr-field-row--dimmed .sr-toggle-label {
+  opacity: 0.55;
+}
+.sr-tag-hidden {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  font-size: var(--text-meta, 12px);
+  line-height: 18px;
+  color: var(--ink-faint);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm, 4px);
+}
 
 /* === 阶段规则 === */
 .sr-stages {
