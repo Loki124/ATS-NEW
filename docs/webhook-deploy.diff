@@ -1,0 +1,23 @@
+--- a/webhook-deploy.sh
++++ b/webhook-deploy.sh
+@@ -84,6 +84,11 @@
+   # 注意: 不要用 --accept-data-loss,会让列被静默删除
+   python manage.py migrate --noinput 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
+   log "  migrate OK"
++  # 兜底: 强制重跑业务字典种子 (含 recruitment_stage_type 的 START_END 系统项)。
++  # 与 apps/dictionary/apps.py 的 post_migrate 回调互为双保险, 防止任意原因
++  # (信号未触发 / 种子注册缺失 / 旧 Django 下 lambda 被 GC 等) 导致关键字典缺失。
++  python manage.py shell -c "from apps.dictionary.registry import run_dictionary_seeds; run_dictionary_seeds()" 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
++  log "  dictionary seed (fallback) OK"
+   python manage.py collectstatic --noinput 2>&1 | tail -3 | sed 's/^/  /' | tee -a "$LOG_FILE" >/dev/null
+   log "  collectstatic OK"
+   log "  ✓ django deps + migrate OK"
+@@ -176,7 +181,7 @@
+ # 健康检查路径 (Django 带 trailing slash, Node.js 不带)
+ HEALTH_URLS=()
+ if [ "$HAS_DJANGO" -eq 1 ]; then
+-  HEALTH_URLS=("http://localhost:$APP_PORT/api/health/")
++  HEALTH_URLS=("http://localhost:$APP_PORT/health/")
+ else
+   HEALTH_URLS=("http://localhost:$APP_PORT/api/health")
+ fi
