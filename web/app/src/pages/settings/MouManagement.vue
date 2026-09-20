@@ -117,7 +117,6 @@
         <n-tabs v-model:value="detailAppTab" type="line" class="detail-tabs">
           <n-tab-pane v-for="app in appTabs" :key="app.value" :name="app.value">
             <template #tab>{{ appTabLabel(app.value) }}</template>
-            <div class="detail-app-hint">当前应用：<b>{{ app.label }}</b> —— 以下「组织范围 / 人员范围」均按该应用独立配置，互不干扰</div>
 
             <!-- 管理组织范围（北森式区块：生效开关 + 标题 + 右侧操作 + 可收起） -->
             <div class="scope-block">
@@ -980,27 +979,28 @@ onMounted(() => {
 }
 /* 需求 E：配置人员范围 → 实际人员表（姓名/邮箱/组织 + 筛选） */
 .person-resolved {
-  margin-top: var(--space-2);
+  margin-top: 6px;
 }
 .person-resolved-toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  margin-bottom: 6px;
 }
-/* 北森式范围区块：开关 + 标题 + 右侧操作 + 可收起 */
+/* 北森式范围区块：开关 + 标题 + 右侧操作 + 可收起（紧凑版，压缩竖向冗余） */
 .scope-block {
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
+  padding: 10px 12px;              /* 原 12px 16px：收窄上下内边距，提升信息密度 */
+  margin-bottom: 10px;             /* 原 12px：区块间距收紧 */
 }
 .scope-block-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-2);
+  padding: 1px 0;                  /* scope-lock 头部锁定区：极薄上下内边距，去空不增挤 */
+  margin-bottom: 6px;              /* 原 8px：头部与内容间距收紧 */
 }
 .scope-block-title {
   display: inline-flex;
@@ -1010,29 +1010,30 @@ onMounted(() => {
   font-weight: 600;
   color: var(--color-text-primary);
 }
+/* 前导强调条：明确「范围区块」分组边界，提升视觉层次（品牌 token，不硬编码） */
+.scope-block-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--brand-600);
+}
 .scope-block-divider {
   color: var(--color-text-tertiary);
   opacity: 0.5;
 }
 .scope-block-total {
-  margin-top: var(--space-1);
+  margin-top: 4px;
   font-size: 12px;
   color: var(--color-text-tertiary);
 }
 /* 详情元信息（融合弹窗已移除抽屉，保留只读提示样式备用） */
 .detail-tabs {
-  margin-top: var(--space-2);
-}
-.detail-app-hint {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-subtle);
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: var(--space-2);
+  margin-top: 4px;                 /* 原 8px：Tab 内容区顶距收紧（说明行已移除） */
 }
 .detail-empty {
-  margin-top: var(--space-2);
+  margin-top: 4px;                 /* 原 8px */
 }
 /* 编辑管理单元弹窗 — 标题区只读摘要 + 操作按钮 */
 .unit-detail-header {
