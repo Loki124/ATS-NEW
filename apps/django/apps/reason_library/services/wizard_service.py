@@ -209,6 +209,22 @@ class WizardService:
         ).values('id', 'category_id', 'tag_id', 'order')
         existing_set = {(a['category_id'], a['tag_id']): a for a in existing_assignments_qs}
 
+        # Item4 (修订): 规则内唯一 — 同一标签在本规则内不可跨分类重复。
+        # 跨规则共享标签池是合法业务需求, 不做全局限制。
+        tag_to_cats: dict = {}
+        for cat_pk, tag_pks in target_assignments.items():
+            for tpk in tag_pks:
+                tag_to_cats.setdefault(tpk, []).append(cat_pk)
+        dup = {tpk: cats for tpk, cats in tag_to_cats.items() if len(cats) > 1}
+        if dup:
+            tpk = next(iter(dup))
+            tag = ReasonTag.objects.filter(pk=tpk).first()
+            raise BizException(
+                BizCode.TAG_ALREADY_ASSIGNED,
+                f'同一规则内标签不可跨分类重复选择 (tag={tag.name if tag else tpk})',
+                status_code=409,
+            )
+
         # 计算 diff
         new_pairs = set()
         for cat_pk, tag_pks in target_assignments.items():
@@ -230,10 +246,10 @@ class WizardService:
                 try:
                     CategoryAssignment.objects.create(category_id=cat_pk, tag_id=tpk)
                 except IntegrityError:
-                    # Item4: 同一标签全局唯一 — 已归属其它分类 (可能跨规则或同规则其它分类)
+                    # Item4: 同规则内标签唯一 (应用层校验的并发兜底)
                     raise BizException(
                         BizCode.TAG_ALREADY_ASSIGNED,
-                        f'标签已归属于其它分类, 不可跨分类重复选择 (tag={tpk})',
+                        f'同一规则内标签不可跨分类重复选择 (tag={tpk})',
                         status_code=409,
                     )
 

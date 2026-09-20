@@ -202,14 +202,10 @@ class CategoryAssignment(models.Model):
         verbose_name = '分类标签绑定'
         verbose_name_plural = '分类标签绑定'
         ordering = ['category', 'order']
-        # Item4: 同一原因标签仅允许归属于一个分类 — tag 全局唯一 (不可跨分类重复存在)。
-        # 旧约束 UNIQUE(category, tag) 仅限制同分类内不重复, 现收紧为 UNIQUE(tag)。
-        constraints = [
-            UniqueConstraint(
-                fields=['tag'],
-                name='uniq_tag',
-            ),
-        ]
+        # Item4 (2026-09-21 修订): 唯一性收窄为【规则内】— 同一规则内标签不可跨分类
+        # 重复; 跨规则共享标签池是合法业务需求 (如两条预置规则都用同一系统标签)。
+        # 规则内唯一由 wizard_service 保存时应用层校验 (写入口集中), 不设 DB 全局约束。
+        constraints = []
 
     def __str__(self) -> str:
         return f'{self.category.name} ↔ {self.tag.name}'

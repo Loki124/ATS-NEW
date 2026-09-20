@@ -198,3 +198,67 @@ def test_wizard_save_optimistic_lock_match(admin_api_client, custom_rule):
 # ---------------------------------------------------------------------------
 # Scene 冲突 → 409 + 事务回滚
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Item4 修订 (2026-09-21): 标签唯一性收窄为【规则内】
+# 跨规则共享标签池合法; 同一规则内跨分类重复 → 40902
+# ---------------------------------------------------------------------------
+
+def test_same_tag_across_rules_ok(admin_api_client, custom_rule, reason_tag):
+    """不同规则可共享同一标签 (跨规则复用标签池) → 200。"""
+    client, admin = admin_api_client
+    other_rule = SceneRule.objects.create(name='other-rule', is_system=False)
+    cat_other = RuleCategory.objects.create(rule=other_rule, name='other-cat', level=1)
+    CategoryAssignment.objects.create(category=cat_other, tag=reason_tag)
+
+    # custom_rule 里也用同一标签 → 合法
+    payload = _build_payload(
+        name='cross-rule-share',
+        categories=[
+            {
+                'clientId': 'cat-x',
+                'parentClientId': None,
+                'name': '分类 X',
+                'order': 1,
+                'allowCustom': True,
+                'tagIds': [reason_tag.id],
+            },
+        ],
+        scenes=[],
+    )
+    resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
+    assert resp.status_code == 200
+    assert CategoryAssignment.objects.filter(tag=reason_tag).count() == 2
+
+
+def test_same_tag_within_rule_conflict(admin_api_client, custom_rule, reason_tag):
+    """同一规则内标签出现在两个分类 → 40902 TAG_ALREADY_ASSIGNED。"""
+    client, _ = admin_api_client
+    payload = _build_payload(
+        name='dup-in-rule',
+        categories=[
+            {
+                'clientId': 'cat-1',
+                'parentClientId': None,
+                'name': '分类 1',
+                'order': 1,
+                'allowCustom': True,
+                'tagIds': [reason_tag.id],
+            },
+            {
+                'clientId': 'cat-2',
+                'parentClientId': None,
+                'name': '分类 2',
+                'order': 2,
+                'allowCustom': True,
+                'tagIds': [reason_tag.id],
+            },
+        ],
+        scenes=[],
+    )
+    resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
+    assert resp.status_code == 409
+    assert resp.json()['code'] == 40902  # TAG_ALREADY_ASSIGNED
+    # 事务回滚: 无 assignments 残留
+    assert CategoryAssignment.objects.filter(tag=reason_tag).count() == 0

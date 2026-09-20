@@ -184,7 +184,7 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.wizard.tagPicker.selectedCount': '已选 {count} 条',
   'reasonLibrary.wizard.tagPicker.empty': '没有匹配的标签',
   'reasonLibrary.wizard.tagPicker.maxPickWarn': '已达 5 条上限',
-  'reasonLibrary.wizard.tagPicker.assignedElsewhere': '该标签已归属其他分类, 不可跨分类重复选择',
+  'reasonLibrary.wizard.tagPicker.assignedElsewhere': '同一规则内标签不可跨分类重复选择，请先从原分类移除后再添加',
   'reasonLibrary.wizard.tagPicker.unassignAll': '全部移除',
   'reasonLibrary.wizard.assign.lockedTitle': '系统预置分类不可修改',
   'reasonLibrary.wizard.assign.lockedBadge': '系统预置',
