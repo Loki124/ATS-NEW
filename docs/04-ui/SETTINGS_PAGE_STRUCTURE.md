@@ -541,3 +541,60 @@ h(NSwitch, {
 - **新增 §9**：字段命名（§9.1）、展示顺序（§9.2）、筛选与排序（§9.3）、状态标识（§9.4，重点统一 NSwitch/n-tag 选型与颜色语义）、状态值映射、自检清单增补。
 - **代码同步**：`RolesTab.vue` 按 §9 落地（工具条/状态列/来源 tag/分页/fixed 操作列）；`PermissionManagement.vue` 修复 `.n-card-content` flex 链，解决表格 body 高度塌陷。
 - **影响**：后续新增/重构数据列表页可直接引用 §9，不再依赖口口相传；存量债（编号/编码混用、状态 3 种写法）后续按 §9 批量整改。
+
+---
+
+## 10. 滚动契约（模型 B 详解，2026-09-18 收口，commit `077c469`）
+
+### 10.1 滚动链（C 位：layout `.settings-scroll`）
+
+```
+SettingsLayout.vue (.settings-scroll)
+  └─ .page-container { display: flex; flex-direction: column; height: 100%; }
+       ├─ .page-header { /* 标题冻结，不参与滚动 */ }
+       └─ .page-body { flex: 1; min-height: 0; overflow-y: auto; }
+            └─ 页面内容
+```
+
+### 10.2 模型 B 红线（不破任何一条）
+
+1. **标题行冻结**：`.page-header` 必须出现在 `.page-body` **之外**（否则滚走）。
+2. **标题栏禁底色**：标题栏背景透明，极光透出；底部禁止阴影/分隔线（会被误读成"被滚走"）。
+3. **唯一正解**：`.page-header` 写在 `.page-container` 兄弟、`.page-body` 之外。
+4. **顶部留白来源**：`.settings-scroll` 已统一 `padding: 20px`，组件 `.page-body` **禁止再写 `padding-top`**（避免双重间距，commit `50c5341` / `7ec00af` 实证）。
+5. **强制校验项**：`grep -rn 'padding-top: 8px' web/app/src/pages/settings/`，命中 `.page-body { padding-top: 8px }` 即违规（提交前必 grep 自检）。
+
+### 10.3 「仅表体内部滚动」变体
+
+不能复用 `.page-body` 类名——那是设置页专属约定，外层页面用不同容器类：
+
+```vue
+<!-- ❌ 错：列表页用 .page-body 会继承模型 B 滚动契约 -->
+<div class="page-body">
+  <n-tabs v-model:value="tab">
+    <n-tab-pane name="list" tab="列表">
+      <div class="data-body">  <!-- 必须用 .data-body -->
+        <n-data-table :data="list" />
+      </div>
+    </n-tab-pane>
+  </n-tabs>
+</div>
+
+<!-- ✅ 对：内部滚动独立容器 -->
+<style scoped>
+.data-body { flex: 1; min-height: 0; overflow-y: auto; }
+.data-tabs { flex: 1; }
+.tab-card .n-card-content { flex: 1; min-height: 0; overflow-y: auto; }
+</style>
+```
+
+### 10.4 Playwright 验证纪律
+
+- launchd `:5212` HMR 陈旧 → 验证时**另起独立 vite `:5277`**。
+- JWT 短效（默认 1h），跑测试前重新 `curl login` 取新 token。旧 token 过期会被 auth guard 重定向 → `.n-data-table` 永不出现（`waitForSelector` 假象"组件渲染好了"）。
+- 沙箱可用 Playwright + 缓存 Chromium（CommonJS）：
+  ```js
+  import pkg from 'playwright';
+  const { chromium } = pkg;
+  const browser = await chromium.launch({ headless: true });
+  ```

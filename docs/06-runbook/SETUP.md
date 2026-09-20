@@ -226,3 +226,65 @@ A: 生产必须, dev 没起会 fallback LocMemCache。`brew services start redis
 ### Q: 前端 `npm install` 慢
 
 A: 切到国内镜像: `npm config set registry https://registry.npmmirror.com`
+
+---
+
+## §3. 三关门禁（必跑，2026-09-20 收口）
+
+每次业务代码改动后必跑以下三关，全过方可提交：
+
+### 3.1 第一关：后端健康
+```bash
+cd apps/django
+.venv/bin/python manage.py check   # 0 issues
+```
+⚠️ **仅 `check` 不够**——它不跑 migration、不连数据库。须 + migrate + 真接口实测。
+
+### 3.2 第二关：前端静态
+```bash
+cd web/app
+npm run lint:ci                      # ESLint exit 0
+npm run build:nocheck                # vite build exit 0
+```
+- **`npm run lint:ci`**：CI 模式（不输出 fix 建议，只报错）。
+- **`npm run build:nocheck`**：vue-tsc 类型检查因 OOM 经常 SIGKILL（exit 137），**项目禁用 vue-tsc**，用 vite build 兜底类型。
+- **项目无 stylelint**——所有 UI 改动视觉验证靠 Playwright，不靠 lint。
+
+### 3.3 第三关：真实 dev MySQL 接口实测
+```bash
+# 后端
+.venv/bin/python manage.py runserver 0.0.0.0:8000 &
+
+# 前端（独立端口，避开 launchd :5212 HMR 陈旧）
+nohup /Users/loki/.workbuddy/binaries/node/versions/22.22.2-3/bin/npm run dev -- --port 5277 &
+# 注：用托管 node，PATH 前置 .workbuddy/binaries/node/versions/22.22.2-3/bin
+
+# 真实接口实测（curl 不走代理，避免 vite proxy 假绿）
+curl --noproxy '*' http://localhost:8000/health/
+curl --noproxy '*' -X POST http://localhost:8000/api/v1/auth/login/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin123"}'
+
+# 前端 Browser 实测（沙箱可用 Playwright + 缓存 Chromium）
+```
+
+### 3.4 门禁失败处理 SOP
+
+| 现象 | 可能根因 | 动作 |
+|------|----------|------|
+| `check` 0 issues 但接口 500 | 缺 migration | `manage.py migrate` 后再测 |
+| `build:nocheck` exit 137 | vue-tsc OOM | 已禁用；改用 `vite build` |
+| 接口 401/403 反复 | StatReloader 重启 1-2 秒内误报 | 等 3 秒后重试 |
+| 接口 401 但 curl 200 | 同源 cookie 触发 CSRF/Session | 见 `docs/06-runbook/PROJECT_BOUNDARY.md` §3.3 + DRF 配置 |
+| UI 改动前端看不到 | launchd :5212 HMR 陈旧 / vite 跑在 worktree | 改用 :5277 独立端口；检查 vite 进程 cwd |
+
+### 3.5 沙箱环境特殊
+
+- **Playwright + 缓存 Chromium 可用**（CommonJS 写法）：
+  ```js
+  import pkg from 'playwright';
+  const { chromium } = pkg;
+  const browser = await chromium.launch({ headless: true });
+  ```
+- **不要再以"沙箱无浏览器"为由跳过真实浏览器验证**——这是已知翻车点。
+- **并行会话会替本会话 commit**（MEMORY 实证 2026-09-20）：交付前必 `git log`+`git status` 核实真实状态，勿假设"没 commit 就还没提交"。
