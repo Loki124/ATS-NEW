@@ -193,7 +193,7 @@ const routes: RouteRecordRaw[] = [
             path: 'reason-library',
             name: 'ReasonLibrary',
             component: () => import(/* webpackChunkName: "settings-reason-library" */ '../pages/settings/reason-library/index.vue'),
-            meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'], title: '原因库', description: '维护全局原因标签池与场景规则（系统预置仅超管可改）' },
+            meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'], title: '原因库', breadcrumb: false, description: '维护全局原因标签池与场景规则（系统预置仅超管可改）' },
             children: [
               { path: '', redirect: '/settings/reason-library/tags' },
               { path: 'tags', name: 'ReasonLibraryTags', component: () => import(/* webpackChunkName: "settings-reason-library-tags" */ '../pages/settings/reason-library/tags.vue'), meta: { title: '原因标签' } },

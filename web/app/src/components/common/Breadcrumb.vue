@@ -13,7 +13,7 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const crumbs = computed(() =>
   route.matched
-    .filter(r => r.meta?.title)
+    .filter(r => r.meta?.title && r.meta?.breadcrumb !== false)
     .map(r => ({ path: r.path, label: r.meta.title as string }))
 )
 </script>
