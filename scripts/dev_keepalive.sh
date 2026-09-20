@@ -57,10 +57,9 @@ run_fe() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] start vite (5212)" >> "$LOG_DIR/keepalive.log"
     PATH="$NODE_BIN:/usr/local/bin:/usr/bin:/bin" \
     NODE_ENV=development \
-    nohup "$VITE_BIN" --port 5212 --host 0.0.0.0 \
+    nohup "$VITE_BIN" --port 5212 --host 0.0.0.0 --strictPort \
       >>"$LOG_DIR/vite-stdout.log" 2>>"$LOG_DIR/vite-stderr.log" </dev/null &
     echo $! > "$FE_PID"
-    disown
     wait
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] vite exited, restart in 5s" >> "$LOG_DIR/keepalive.log"
     sleep 5
@@ -76,7 +75,6 @@ run_be() {
     nohup "$PY_BIN" "$PROJECT_DIR/apps/django/manage.py" runserver 0.0.0.0:8000 \
       >>"$LOG_DIR/django-stdout.log" 2>>"$LOG_DIR/django-stderr.log" </dev/null &
     echo $! > "$BE_PID"
-    disown
     wait
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] django exited, restart in 5s" >> "$LOG_DIR/keepalive.log"
     sleep 5
