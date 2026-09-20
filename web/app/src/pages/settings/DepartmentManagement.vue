@@ -365,7 +365,15 @@ const departments = ref<Department[]>([]);
 const users = ref<User[]>([]);
 const loading = ref(false);
 const submitting = ref(false);
-const pagination = localPagination();
+// 分页：复用统一 localPagination；树形模式下 n-data-table 的 itemCount 仅计顶层节点，
+// 故覆盖 prefix 以展示「部门总数」（含所有层级），满足「按部门数量统计」诉求。
+const pagination = (() => {
+  const base = localPagination();
+  return {
+    ...base,
+    prefix: () => `共 ${departments.value.length} 条`,
+  };
+})();
 
 // 树形展开状态：默认折叠（仅显示顶层节点，下级默认收起）。
 // 不再自动全展开 —— 用户点击节点前的箭头可手动展开/收起子树。
