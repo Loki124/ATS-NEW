@@ -2,17 +2,20 @@
 # =============================================================================
 # ATS-NEW dev 服务 launchd 开机保活 安装脚本
 # -----------------------------------------------------------------------------
-# 作用：登录 Mac 时自动拉起 vite(5212) + django(8000)，崩溃自动重启
+# 作用：登录 Mac 时自动拉起 vite(5212) + django(8000)，不依赖 WorkBuddy 会话，
+#       关窗/登出照常存活；崩溃或"活着但不健康"均自动重启；连续失败不可恢复时
+#       弹 macOS 通知并停止重启（交还人工介入）。
 # 安装：bash scripts/install_dev_launchd.sh
 # 卸载：bash scripts/install_dev_launchd.sh --uninstall
-# 日志：.run-logs/{vite,django}-{stdout,stderr}.log
+# 日志：.run-logs/{vite,django}-{stdout,stderr}.log 及 .run-logs/{fe,be}-wrapper.log
 # -----------------------------------------------------------------------------
 # 工作原理：
-#   - 写两个 plist 到 ~/Library/LaunchAgents/
-#   - launchctl bootstrap 装入 gui/<uid> 域（user session，不需 sudo）
-#   - RunAtLoad=true 加载即拉起；KeepAlive.crashed=true 崩溃自启
-#   - WorkingDirectory 设绝对路径避免 cd 漂移老问题
-#   - django 的 .env 由 django-environ 在 config/settings/base.py:50 自动加载
+#   - 写两个 plist 到 ~/Library/LaunchAgents/，由 launchd 托管（非会话任务）
+#   - plist 的 ProgramArguments 调用 scripts/dev_service_wrapper.sh <fe|be>
+#     （自愈包装器：探活 + 运行期看门狗 + 不可恢复通知，详见该脚本头注释）
+#   - RunAtLoad=true 登录即拉起；KeepAlive.Crashed=true 包装器崩了自启；
+#     KeepAlive.SuccessfulExit=false 包装器干净退出(=放弃)则不再重启
+#   - WorkingDirectory 设绝对路径；包装器内部自行设置 PATH/ENV
 # =============================================================================
 
 set -e
@@ -49,11 +52,8 @@ cat > "$FE" <<'PLIST_EOF'
   <string>com.ats.dev.fe</string>
   <key>ProgramArguments</key>
   <array>
-    <string>PROJECT_DIR_PLACEHOLDER/web/app/node_modules/.bin/vite</string>
-    <string>--port</string>
-    <string>5212</string>
-    <string>--host</string>
-    <string>0.0.0.0</string>
+    <string>PROJECT_DIR_PLACEHOLDER/scripts/dev_service_wrapper.sh</string>
+    <string>fe</string>
   </array>
   <key>WorkingDirectory</key>
   <string>PROJECT_DIR_PLACEHOLDER/web/app</string>
@@ -92,10 +92,8 @@ cat > "$BE" <<'PLIST_EOF'
   <string>com.ats.dev.be</string>
   <key>ProgramArguments</key>
   <array>
-    <string>PROJECT_DIR_PLACEHOLDER/apps/django/.venv/bin/python</string>
-    <string>PROJECT_DIR_PLACEHOLDER/apps/django/manage.py</string>
-    <string>runserver</string>
-    <string>0.0.0.0:8000</string>
+    <string>PROJECT_DIR_PLACEHOLDER/scripts/dev_service_wrapper.sh</string>
+    <string>be</string>
   </array>
   <key>WorkingDirectory</key>
   <string>PROJECT_DIR_PLACEHOLDER/apps/django</string>
@@ -139,6 +137,9 @@ sed -i.bak "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
 rm -f "$FE.bak" "$BE.bak"
 
 plutil -lint "$FE" "$BE"
+
+# 自愈包装器需可执行
+chmod +x "$SCRIPT_DIR/dev_service_wrapper.sh"
 
 for f in "$FE" "$BE"; do
   launchctl bootout "gui/$UID_NUM/$(basename "$f" .plist)" 2>/dev/null || true
