@@ -206,7 +206,7 @@ async function openAddModal() {
   showAddModal.value = true
   loadingAddModal.value = true
   try {
-    const all = await listStages({ status: 'ACTIVE' })
+    const all = await listStages({ status: 'ENABLED' })
     // 排除已被引用的 + 系统预置起止阶段 (不可重复添加)
     const usedIds = new Set(links.value.map((l) => l.stageId))
     availableStages.value = all.filter(
