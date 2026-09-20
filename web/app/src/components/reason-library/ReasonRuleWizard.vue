@@ -353,7 +353,15 @@ function onCancel() {
     content: t('reasonLibrary.common.unsaved'),
     positiveText: t('reasonLibrary.common.confirm'),
     negativeText: t('reasonLibrary.common.cancel'),
-    onPositiveClick: () => emit('update:show', false),
+    onPositiveClick: () => {
+      // 确认退出时同步重置内部状态: 不再只依赖 onShowChange(它仅在 n-modal
+      // 内部交互触发 mask/esc 时回调, 而这里 emit 后父组件更新 show 的链路
+      // 任何一环异常——如 dev HMR 半更新导致旧闭包 emit 失联——都会让向导
+      // 残留旧编辑状态。先清空内容再请求关闭, 保证『确定退出』必然生效。
+      wizard.value = null
+      step.value = 1
+      emit('update:show', false)
+    },
   })
 }
 
