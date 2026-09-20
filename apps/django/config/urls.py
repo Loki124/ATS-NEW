@@ -165,6 +165,13 @@ api_v1_patterns = [
     #   POST        /api/v1/duplicate-rules/rules/<pk>/toggle/
     #   POST        /api/v1/duplicate-rules/rules/reset/
     path('duplicate-rules/', include('apps.duplicate_rule.urls')),
+    # Phase 2 T01 (寇豆码): 原因库 — 标签池 + 场景规则
+    #   /api/v1/reason-library/tags/         标签 CRUD + CSV 导入
+    #   /api/v1/reason-library/rules/        规则 CRUD + JSON 导入导出 + snapshot
+    #   /api/v1/reason-library/scenes/       场景全局绑定
+    #   /api/v1/reason-library/active/       业务态查询
+    #   /api/v1/reason-library/rules/<pk>/wizard/save/  三步原子保存
+    path('reason-library/', include('apps.reason_library.urls')),
 ]
 
 # 2026-08-03 兵哥: admin token 从 env 读, 避免在 git 历史里漏.
