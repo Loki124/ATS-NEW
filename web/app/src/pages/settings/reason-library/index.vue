@@ -18,14 +18,18 @@
         @update:value="onTabChange"
       >
         <n-tab-pane name="tags" :tab="t('reasonLibrary.tabs.tags')">
-          <!-- tags 子路由由 router-view 渲染; 仅当命中 tags 时挂载 (router 自动) -->
+          <!-- tags 子路由由 router-view 渲染; keep-alive 缓存避免切换 Tab 重拉接口(交互卡顿) -->
           <router-view v-if="activeTab === 'tags'" v-slot="{ Component }">
-            <component :is="Component" />
+            <keep-alive>
+              <component :is="Component" />
+            </keep-alive>
           </router-view>
         </n-tab-pane>
         <n-tab-pane name="rules" :tab="t('reasonLibrary.tabs.rules')">
           <router-view v-if="activeTab === 'rules'" v-slot="{ Component }">
-            <component :is="Component" />
+            <keep-alive>
+              <component :is="Component" />
+            </keep-alive>
           </router-view>
         </n-tab-pane>
       </n-tabs>

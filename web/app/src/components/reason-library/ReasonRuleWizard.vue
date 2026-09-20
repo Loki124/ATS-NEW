@@ -6,62 +6,65 @@
     style="max-width: 920px; width: 92vw;"
     :mask-closable="false"
     :bordered="false"
+    :close-on-esc="false"
     :segmented="{ content: 'soft', footer: 'soft' }"
     @update:show="onShowChange"
   >
-    <!-- 头部信息 -->
-    <div v-if="wizard" class="wizard-head glass-card">
-      <div class="wizard-title-row">
-        <h4 class="wizard-title">{{ wizard.name || t('reasonLibrary.wizard.title') }}</h4>
-        <n-tag v-if="wizard.isSystem" size="small" type="warning" bordered>
-          {{ t('reasonLibrary.rules.col.systemBadge') }}
-        </n-tag>
-        <div class="wizard-meta">
-          <span class="meta-label">{{ t('reasonLibrary.wizard.scenes') }}：</span>
-          <n-space v-if="wizard.scenes.length" :size="4">
-            <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
-          </n-space>
-          <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
-          <n-button size="tiny" style="margin-left: 8px;" @click="openSceneEditor">
-            <template #icon><n-icon :component="PencilOutline" /></template>
-            {{ t('reasonLibrary.wizard.editScenes') }}
-          </n-button>
+    <n-spin :show="loading" :description="t('reasonLibrary.common.loading')">
+      <!-- 头部信息 -->
+      <div v-if="wizard" class="wizard-head glass-card">
+        <div class="wizard-title-row">
+          <h4 class="wizard-title">{{ wizard.name || t('reasonLibrary.wizard.title') }}</h4>
+          <n-tag v-if="wizard.isSystem" size="small" type="warning" bordered>
+            {{ t('reasonLibrary.rules.col.systemBadge') }}
+          </n-tag>
+          <div class="wizard-meta">
+            <span class="meta-label">{{ t('reasonLibrary.wizard.scenes') }}：</span>
+            <n-space v-if="wizard.scenes.length" :size="4">
+              <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
+            </n-space>
+            <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
+            <n-button size="tiny" style="margin-left: 8px;" @click="openSceneEditor">
+              <template #icon><n-icon :component="PencilOutline" /></template>
+              {{ t('reasonLibrary.wizard.editScenes') }}
+            </n-button>
+          </div>
+        </div>
+
+        <!-- 步骤指示 -->
+        <div class="wizard-steps">
+          <div
+            v-for="(s, i) in steps"
+            :key="s.key"
+            class="step"
+            :class="{ on: step === i + 1, done: step > i + 1 }"
+            @click="gotoStep(i + 1)"
+          >
+            <span class="num">{{ i + 1 }}</span>
+            <span class="label">{{ s.label }}</span>
+          </div>
         </div>
       </div>
 
-      <!-- 步骤指示 -->
-      <div class="wizard-steps">
-        <div
-          v-for="(s, i) in steps"
-          :key="s.key"
-          class="step"
-          :class="{ on: step === i + 1, done: step > i + 1 }"
-          @click="gotoStep(i + 1)"
-        >
-          <span class="num">{{ i + 1 }}</span>
-          <span class="label">{{ s.label }}</span>
-        </div>
+      <!-- Body: 三步切换 -->
+      <div v-if="wizard" class="wizard-body">
+        <Step1Categories
+          v-show="step === 1"
+          v-model:categories="wizard.categories"
+          :is-super-admin="isSuperAdmin"
+        />
+        <Step2Assignments
+          v-show="step === 2"
+          v-model:categories="wizard.categories"
+          :available-tags="allTags"
+        />
+        <Step3Preview
+          v-show="step === 3"
+          :wizard="wizard"
+          :all-tags="allTags"
+        />
       </div>
-    </div>
-
-    <!-- Body: 三步切换 -->
-    <div v-if="wizard" class="wizard-body">
-      <Step1Categories
-        v-show="step === 1"
-        v-model:categories="wizard.categories"
-        :is-super-admin="isSuperAdmin"
-      />
-      <Step2Assignments
-        v-show="step === 2"
-        v-model:categories="wizard.categories"
-        :available-tags="allTags"
-      />
-      <Step3Preview
-        v-show="step === 3"
-        :wizard="wizard"
-        :all-tags="allTags"
-      />
-    </div>
+    </n-spin>
 
     <!-- Footer -->
     <template #footer>
@@ -112,14 +115,14 @@
  */
 import { ref, computed, watch } from 'vue'
 import {
-  NModal, NButton, NSpace, NTag, NIcon, useMessage, useDialog,
+  NModal, NButton, NSpace, NTag, NIcon, useMessage, useDialog, NSpin,
 } from 'naive-ui'
 import {
   ChevronBackOutline, ChevronForwardOutline, ArrowBackOutline,
   CheckmarkOutline, PencilOutline,
 } from '@vicons/ionicons5'
 import {
-  createRule, getRule, wizardSave, extractReasonApiError, listTags,
+  createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags,
 } from '../../api/reason-library'
 import type {
   ReasonTag, RuleCategory, SceneKey, SceneRule, WizardPayload,
@@ -185,13 +188,13 @@ watch(
       // 1. 加载标签池 (后台一次性拉满)
       const tagRes = await listTags({ page: 1, pageSize: 500 })
       allTags.value = tagRes.items ?? []
-      // 2. 编辑: 拉详情; 新建: 创建空规则
+      // 2. 编辑: 拉详情; 新建: 仅在内存构造草稿, 不预建规则
+      //    (修复「打开向导又取消 → 残留『新建规则』垃圾数据」)
       if (ruleId) {
         const rule = await getRule(ruleId)
         wizard.value = toWizard(rule)
       } else {
-        const newRule = await createRule({ name: '新建规则' })
-        wizard.value = toWizard(newRule)
+        wizard.value = emptyWizardPayload()
       }
     } catch (e: any) {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
@@ -214,6 +217,20 @@ function toWizard(rule: SceneRule): WizardPayload {
     scenes: [...(rule.scenes ?? [])],
     categories: deepCloneCategories(rule.categories ?? []),
     updatedAt: rule.updatedAt,
+  }
+}
+
+/** 新建规则的内存草稿 (不落库, 保存时才真正 createRule) */
+function emptyWizardPayload(): WizardPayload {
+  return {
+    id: '',
+    name: '',
+    description: '',
+    enabled: true,
+    isSystem: false,
+    scenes: [],
+    categories: [],
+    updatedAt: undefined,
   }
 }
 
@@ -282,7 +299,21 @@ async function onSave() {
     // wizardSave 内部会自动调用 toWizardSavePayload 把 WizardPayload
     // (含 categories[*].tags + parentId) 转为后端 WizardSaveSerializer
     // 期望的 snake_case + tag_ids + parent_client_id 形态 (T-BF-02 BugFix)
-    const result = await wizardSave(payload.id, payload, payload.updatedAt)
+    let result: SceneRule
+    if (payload.id) {
+      // 编辑: 直接原子保存 (带 If-Match)
+      result = await wizardSave(payload.id, payload, payload.updatedAt)
+    } else {
+      // 新建: 先建规则头, 再原子保存 (创建与保存合一)
+      // 若保存失败, 回滚刚建的规则头, 避免留下『新建规则』垃圾数据
+      const created = await createRule({ name: payload.name, description: payload.description })
+      try {
+        result = await wizardSave(created.id, payload, created.updatedAt)
+      } catch (saveErr) {
+        await deleteRule(created.id).catch(() => {})
+        throw saveErr
+      }
+    }
     message.success(t('reasonLibrary.common.success'))
     emit('saved', result)
   } catch (e: any) {

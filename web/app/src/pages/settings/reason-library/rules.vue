@@ -21,7 +21,7 @@
             :placeholder="t('reasonLibrary.rules.filter.allStatus')"
             style="width: 140px"
             clearable
-            @update:value="loadList"
+            @update:value="onFilterChange"
           />
         </n-space>
         <n-space>
@@ -42,6 +42,19 @@
         <span>{{ t('reasonLibrary.rules.stats.enabled') }} <b>{{ enabledCount }}</b></span>
         <span>{{ t('reasonLibrary.rules.stats.system') }} <b>{{ systemCount }}</b></span>
       </div>
+
+      <!-- 加载失败: 错误态 + 重试入口 -->
+      <n-alert
+        v-if="loadError && !loading"
+        type="error"
+        :show-icon="true"
+        class="rl-error-banner"
+      >
+        <div class="rl-error-body">
+          <span>{{ loadError }}</span>
+          <n-button size="small" tertiary type="error" @click="loadList">{{ t('reasonLibrary.common.retry') }}</n-button>
+        </div>
+      </n-alert>
 
       <n-data-table
         :columns="columns"
@@ -99,7 +112,7 @@
  * - 删除: 自定义规则直接删, 系统规则 (超管) 仅二次确认
  */
 import { ref, computed, h, onMounted } from 'vue'
-import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination } from 'naive-ui'
+import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline, SettingsOutline, LockClosedOutline } from '@vicons/ionicons5'
 import { listRules, updateRule, deleteRule, extractReasonApiError } from '../../../api/reason-library'
 import type { SceneRuleListItem } from '../../../types/reason-library'
@@ -124,10 +137,15 @@ const totalCount = ref(0)
 
 const rows = ref<SceneRuleListItem[]>([])
 const loading = ref(false)
+const loadError = ref<string | null>(null)
 let searchDebounce: number | undefined
+// latest-wins 令牌: 防止快速切换筛选/搜索时旧响应覆盖新数据
+let reqToken = 0
+// 全量规则 (用于统计, 避免只统计当前分页导致的数字失真)
+const allRulesForStats = ref<SceneRuleListItem[]>([])
 
-const enabledCount = computed(() => rows.value.filter((r) => r.enabled).length)
-const systemCount = computed(() => rows.value.filter((r) => r.isSystem).length)
+const enabledCount = computed(() => allRulesForStats.value.filter((r) => r.enabled).length)
+const systemCount = computed(() => allRulesForStats.value.filter((r) => r.isSystem).length)
 
 const statusOptions = [
   { label: t('reasonLibrary.rules.filter.enabled'), value: 'on' },
@@ -136,7 +154,9 @@ const statusOptions = [
 
 // ============= 加载 =============
 async function loadList() {
+  const my = ++reqToken
   loading.value = true
+  loadError.value = null
   try {
     const params: Record<string, unknown> = {
       page: page.value,
@@ -147,13 +167,29 @@ async function loadList() {
     if (searchText.value.trim()) params.search = searchText.value.trim()
 
     const res = await listRules(params)
+    if (my !== reqToken) return // 已有更新的请求, 丢弃本次过期结果
     rows.value = res.items ?? []
     totalCount.value = res.total ?? rows.value.length
   } catch (e: any) {
-    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+    if (my !== reqToken) return
+    loadError.value = extractReasonApiError(e, t('reasonLibrary.common.failed'))
+    message.error(loadError.value)
   } finally {
-    loading.value = false
+    if (my === reqToken) loading.value = false
   }
+}
+
+// 统计基于全量(未过滤)规则, 不受当前分页/筛选影响, 数字才准确
+async function loadStats() {
+  try {
+    const res = await listRules({ page: 1, pageSize: 2000 })
+    allRulesForStats.value = res.items ?? []
+  } catch {
+    // 统计失败不阻断主列表
+  }
+}
+function refreshStats() {
+  loadStats()
 }
 
 function onSearchInput() {
@@ -162,6 +198,12 @@ function onSearchInput() {
     page.value = 1
     loadList()
   }, 300)
+}
+
+// 筛选/状态切换: 必须先回到第 1 页, 否则停在 >1 页会显示空页 (假「加载失败」)
+function onFilterChange() {
+  page.value = 1
+  loadList()
 }
 
 // ============= 操作 =============
@@ -192,6 +234,7 @@ async function toggleEnabled(rule: SceneRuleListItem) {
     await updateRule(rule.id, { enabled: !rule.enabled })
     message.success(rule.enabled ? t('reasonLibrary.rules.toggle.disable') + ' ✓' : t('reasonLibrary.rules.toggle.enable') + ' ✓')
     await loadList()
+    refreshStats()
   } catch (e: any) {
     if (e?.code === BIZ_CODE.RULE_HAS_SCENE_REFS) {
       message.error(t('reasonLibrary.errors.RULE_HAS_SCENE_REFS'))
@@ -221,6 +264,7 @@ async function onDeleteConfirm() {
     deleteShow.value = false
     deletingRule.value = null
     await loadList()
+    refreshStats()
   } catch (e: any) {
     if (e?.code === BIZ_CODE.SYSTEM_RULE_IMMUTABLE) {
       message.error(t('reasonLibrary.errors.SYSTEM_RULE_IMMUTABLE'))
@@ -235,6 +279,7 @@ async function onDeleteConfirm() {
 function onWizardSaved() {
   wizardShow.value = false
   loadList()
+  refreshStats()
 }
 
 // ============= 列 =============
@@ -360,6 +405,7 @@ const columns = computed(() => [
 
 onMounted(() => {
   loadList()
+  refreshStats()
 })
 </script>
 
@@ -390,6 +436,13 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: var(--space-3);
+}
+.rl-error-banner { margin-bottom: var(--space-3); }
+.rl-error-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 .rl-rule-name {
   display: flex;

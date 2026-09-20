@@ -38,6 +38,7 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.common.locked': '已锁定',
   'reasonLibrary.common.empty': '暂无数据',
   'reasonLibrary.common.refresh': '刷新',
+  'reasonLibrary.common.retry': '重试',
   'reasonLibrary.common.confirm': '确定',
   'reasonLibrary.common.cancel': '取消',
   'reasonLibrary.common.save': '保存',

@@ -21,7 +21,7 @@
             :placeholder="t('reasonLibrary.tags.filter.allType')"
             style="width: 140px"
             clearable
-            @update:value="loadList"
+            @update:value="onFilterChange"
           />
           <n-select
             v-model:value="statusFilter"
@@ -29,7 +29,7 @@
             :placeholder="t('reasonLibrary.tags.filter.allStatus')"
             style="width: 140px"
             clearable
-            @update:value="loadList"
+            @update:value="onFilterChange"
           />
         </n-space>
         <n-space>
@@ -64,6 +64,19 @@
         <span>{{ t('reasonLibrary.tags.stats.system') }} <b>{{ stats.system }}</b></span>
         <span>{{ t('reasonLibrary.tags.stats.custom') }} <b>{{ stats.custom }}</b></span>
       </div>
+
+      <!-- 加载失败: 错误态 + 重试入口 (修复「页面加载失败无反馈」) -->
+      <n-alert
+        v-if="loadError && !loading"
+        type="error"
+        :show-icon="true"
+        class="rl-error-banner"
+      >
+        <div class="rl-error-body">
+          <span>{{ loadError }}</span>
+          <n-button size="small" tertiary type="error" @click="loadList">{{ t('reasonLibrary.common.retry') }}</n-button>
+        </div>
+      </n-alert>
 
       <n-data-table
         :columns="columns"
@@ -121,7 +134,7 @@
  * - 自定义标签: 全功能 (新增/编辑/启停/删除)
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
-import { useMessage, NButton, NTag, NSwitch, NTooltip, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination } from 'naive-ui'
+import { useMessage, NButton, NTag, NSwitch, NTooltip, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, PencilOutline, TrashOutline, LockClosedOutline } from '@vicons/ionicons5'
 import { listTags, updateTag, deleteTag, extractReasonApiError } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
@@ -149,7 +162,12 @@ const total = ref(0)
 // ============= 数据 =============
 const rows = ref<ReasonTag[]>([])
 const loading = ref(false)
+const loadError = ref<string | null>(null)
 let searchDebounce: number | undefined
+// latest-wins 令牌: 防止快速切换筛选/搜索时旧响应覆盖新数据 (修复「数据错乱」)
+let reqToken = 0
+// 全量标签 (用于统计, 避免只统计当前分页导致的数字失真)
+const allTagsForStats = ref<ReasonTag[]>([])
 
 const stats = reactive({ total: 0, enabled: 0, system: 0, custom: 0 })
 
@@ -165,7 +183,9 @@ const statusOptions = [
 
 // ============= 加载 =============
 async function loadList() {
+  const my = ++reqToken
   loading.value = true
+  loadError.value = null
   try {
     const params: Record<string, unknown> = {
       page: page.value,
@@ -177,21 +197,38 @@ async function loadList() {
     if (searchText.value.trim()) params.search = searchText.value.trim()
 
     const res = await listTags(params)
+    if (my !== reqToken) return // 已有更新的请求, 丢弃本次过期结果
     rows.value = res.items ?? []
     total.value = res.total ?? rows.value.length
-    recomputeStats()
   } catch (e: any) {
-    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+    if (my !== reqToken) return
+    loadError.value = extractReasonApiError(e, t('reasonLibrary.common.failed'))
+    message.error(loadError.value)
   } finally {
-    loading.value = false
+    if (my === reqToken) loading.value = false
   }
 }
 
+// 统计基于全量(未过滤)标签, 不受当前分页/筛选影响, 数字才准确
+async function loadStats() {
+  try {
+    const res = await listTags({ page: 1, pageSize: 2000 })
+    allTagsForStats.value = res.items ?? []
+    recomputeStats()
+  } catch {
+    // 统计失败不阻断主列表
+  }
+}
+function refreshStats() {
+  loadStats()
+}
+
 function recomputeStats() {
-  stats.total = total.value
-  stats.enabled = rows.value.filter((r) => r.enabled).length
-  stats.system = rows.value.filter((r) => r.type === 'system').length
-  stats.custom = rows.value.filter((r) => r.type === 'custom').length
+  const all = allTagsForStats.value
+  stats.total = all.length
+  stats.enabled = all.filter((r) => r.enabled).length
+  stats.system = all.filter((r) => r.type === 'system').length
+  stats.custom = all.filter((r) => r.type === 'custom').length
 }
 
 function onSearchInput() {
@@ -200,6 +237,12 @@ function onSearchInput() {
     page.value = 1
     loadList()
   }, 300)
+}
+
+// 筛选/状态切换: 必须先回到第 1 页, 否则停在 >1 页会显示空页 (假「加载失败」)
+function onFilterChange() {
+  page.value = 1
+  loadList()
 }
 
 // ============= 操作 =============
@@ -229,6 +272,7 @@ async function toggleEnabled(tag: ReasonTag) {
     await updateTag(tag.id, { enabled: !tag.enabled })
     message.success(tag.enabled ? t('reasonLibrary.tags.toggle.disable') + ' ✓' : t('reasonLibrary.tags.toggle.enable') + ' ✓')
     await loadList()
+    refreshStats()
   } catch (e: any) {
     message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
   }
@@ -243,6 +287,7 @@ async function removeTag(tag: ReasonTag) {
     await deleteTag(tag.id)
     message.success(t('reasonLibrary.common.success'))
     await loadList()
+    refreshStats()
   } catch (e: any) {
     if (e?.code === BIZ_CODE.TAG_HAS_REFS) {
       message.error(t('reasonLibrary.errors.TAG_HAS_REFS'))
@@ -257,6 +302,7 @@ async function removeTag(tag: ReasonTag) {
 function onSaved() {
   modalShow.value = false
   loadList()
+  refreshStats()
 }
 
 // ============= 导入 =============
@@ -265,6 +311,7 @@ function openImportModal() { importShow.value = true }
 function onImported() {
   importShow.value = false
   loadList()
+  refreshStats()
 }
 
 // ============= 列定义 =============
@@ -370,6 +417,7 @@ const columns = computed(() => [
 
 onMounted(() => {
   loadList()
+  refreshStats()
 })
 </script>
 
@@ -402,5 +450,12 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: var(--space-3);
+}
+.rl-error-banner { margin-bottom: var(--space-3); }
+.rl-error-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 </style>

@@ -5,9 +5,10 @@
     :title="isEdit ? t('reasonLibrary.tags.modal.edit') : t('reasonLibrary.tags.modal.add')"
     style="max-width: 520px"
     :mask-closable="false"
+    :close-on-esc="false"
     :bordered="false"
     :segmented="{ content: 'soft', footer: 'soft' }"
-    @update:show="(v: boolean) => emit('update:show', v)"
+    @update:show="onShowChange"
   >
     <n-form
       ref="formRef"
@@ -72,7 +73,7 @@
  * - 入参 maxlength 50/100/200 与原型 + 后端字段约束对齐 (name 50 / en_name 100 / tip 200)
  */
 import { ref, reactive, computed, watch } from 'vue'
-import { useMessage, NModal, NForm, NFormItem, NInput, NButton, NSpace, type FormInst, type FormRules } from 'naive-ui'
+import { useMessage, useDialog, NModal, NForm, NFormItem, NInput, NButton, NSpace, type FormInst, type FormRules } from 'naive-ui'
 import { createTag, updateTag, extractReasonApiError } from '../../api/reason-library'
 import type { ReasonTag, ReasonTagPayload } from '../../types/reason-library'
 import { BIZ_CODE } from '../../types/reason-library'
@@ -90,6 +91,7 @@ const emit = defineEmits<{
 }>()
 
 const message = useMessage()
+const dialog = useDialog()
 const formRef = ref<FormInst | null>(null)
 const saving = ref(false)
 
@@ -110,6 +112,12 @@ const rules: FormRules = {
   tip: [{ max: 200, message: '200 字以内', trigger: 'blur' }],
 }
 
+// 脏检测快照 (保存丢失防护): 关闭时若有改动则二次确认
+const initialSnapshot = ref('')
+const dirty = computed(
+  () => JSON.stringify({ name: form.name, enName: form.enName, tip: form.tip }) !== initialSnapshot.value,
+)
+
 // show 变化 / tag 变化时同步表单
 watch(
   () => [props.show, props.tag] as const,
@@ -124,10 +132,25 @@ watch(
         form.enName = ''
         form.tip = ''
       }
+      initialSnapshot.value = JSON.stringify({ name: form.name, enName: form.enName, tip: form.tip })
     }
   },
   { immediate: true },
 )
+
+function onShowChange(v: boolean) {
+  if (!v && dirty.value && !saving.value) {
+    dialog.warning({
+      title: t('reasonLibrary.common.unsaved'),
+      content: t('reasonLibrary.common.unsaved'),
+      positiveText: t('reasonLibrary.common.confirm'),
+      negativeText: t('reasonLibrary.common.cancel'),
+      onPositiveClick: () => emit('update:show', false),
+    })
+    return
+  }
+  emit('update:show', v)
+}
 
 async function handleSubmit() {
   try {
