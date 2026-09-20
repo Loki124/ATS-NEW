@@ -116,16 +116,18 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="任职部门">
-                <n-select
-                  v-model:value="formState.department"
-                  :options="deptOptions"
-                  placeholder="请选择任职部门（组织管理中的部门）"
-                  clearable
-                  filterable
-                  :loading="deptStore.loading"
-                />
-              </n-form-item>
+            <n-form-item label="任职部门">
+              <n-tree-select
+                v-model:value="formState.department"
+                :options="deptTreeOptions"
+                :render-label="renderDeptLabel"
+                placeholder="请选择任职部门（树形层级）"
+                clearable
+                filterable
+                :loading="deptStore.loading"
+                :default-expand-all="false"
+              />
+            </n-form-item>
             </n-grid-item>
           </n-grid>
         </div>
@@ -319,25 +321,56 @@ const userStore = useUserStore();
 const tokenOf = () => userStore.accessToken;
 
 // 任职部门选择器数据源：复用组织管理部门（useDepartmentStore 共享缓存）。
-// 用扁平 n-select + 完整路径 label（如「集团总部 / 能良 / 能智BG」），
-// 规避 n-tree-select 父节点点击只展开不选中、且子节点在无头环境难命中的坑；
-// 任意部门（含父级）均可直接选中，value 即部门 id，直接落 User.department FK。
+// 改用树形 n-tree-select 展示部门层级：节点 label=完整路径（选中后输入框回显完整路径，
+// 如「总公司/技术中心/前端组」），render-label 在树内只显示部门名称 + 缩进体现层级深度；
+// 任意部门（含父级）均可直接选中，value=部门 id，直接落 User.department FK。
 const deptStore = useDepartmentStore();
-const deptOptions = computed(() => buildDeptOptions(deptStore.departments));
-function buildDeptOptions(list: any[]): { label: string; value: string }[] {
+const deptTreeOptions = computed(() => buildDeptTree(deptStore.departments));
+function buildDeptTree(list: any[]): any[] {
   const nameById = new Map<string, string>();
   list.forEach((d) => nameById.set(String(d.id), d.name));
-  return list
-    .map((d) => {
-      const path: string[] = [];
-      let cur: any = d;
-      while (cur) {
-        path.unshift(nameById.get(String(cur.id)) || String(cur.id));
-        cur = cur.parentId ? list.find((x) => String(x.id) === String(cur.parentId)) : null;
-      }
-      return { label: path.join(' / '), value: String(d.id) };
-    })
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const nodeById = new Map<string, any>();
+  list.forEach((d) => {
+    nodeById.set(String(d.id), {
+      key: String(d.id),
+      label: '', // 完整路径，选中后触发器回显
+      name: d.name,
+      children: [] as any[],
+    });
+  });
+  const roots: any[] = [];
+  list.forEach((d) => {
+    const node = nodeById.get(String(d.id));
+    // 计算完整路径（根→当前）
+    const path: string[] = [];
+    let cur: any = d;
+    while (cur) {
+      path.unshift(nameById.get(String(cur.id)) || String(cur.id));
+      cur = cur.parentId ? list.find((x) => String(x.id) === String(cur.parentId)) : null;
+    }
+    node.label = path.join('/');
+    if (d.parentId) {
+      const parent = nodeById.get(String(d.parentId));
+      if (parent) parent.children.push(node);
+      else roots.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  const clean = (nodes: any[]): any[] =>
+    nodes
+      .map((n) => ({
+        key: n.key,
+        label: n.label,
+        name: n.name,
+        children: n.children.length ? clean(n.children) : undefined,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  return clean(roots);
+}
+// 树内节点只显示部门名称（层级深度由 n-tree-select 缩进体现），不重复完整路径
+function renderDeptLabel({ option }: { option: any }) {
+  return h('span', option.name);
 }
 
 // API请求封装：统一返回 { ok, status, data }
@@ -707,7 +740,7 @@ const actionsColumn = {
               roleIds: [],
               userType: row.userType || 'INTERNAL',
               status: row.status,
-              department: row.department ?? null
+              department: row.department != null ? String(row.department) : null
             });
             loadUserRoles(row.id);
             userModalVisible.value = true;
