@@ -89,6 +89,20 @@
             </n-form-item>
           </n-grid-item>
         </n-grid>
+        <n-grid :cols="2" :x-gap="24">
+          <n-grid-item :span="2">
+            <n-form-item label="任职部门">
+              <n-select
+                v-model:value="formState.department"
+                :options="deptOptions"
+                placeholder="请选择任职部门（组织管理中的部门）"
+                clearable
+                filterable
+                :loading="deptStore.loading"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
         <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
           <n-grid-item>
             <n-form-item label="密码" required>
@@ -194,10 +208,12 @@ import {
   NTooltip,
   NPopconfirm,
   NIcon,
+  NSelect,
   useMessage,
 } from 'naive-ui';
 import { extractApiError } from '../../api/dynamic-field';
 import { useUserStore } from '../../stores/user';
+import { useDepartmentStore } from '../../stores/department';
 
 const message = useMessage();
 
@@ -228,7 +244,8 @@ interface User {
   phone?: string;
   status: string;
   roleType: string;
-  departmentId?: string;
+  department?: string;
+  departmentName?: string;
   employeeId?: string;
   positionTitle?: string;
   userType?: string;
@@ -307,11 +324,34 @@ const formState = reactive({
   userType: 'INTERNAL',
   roleType: 'HR',
   status: 'ACTIVE',
+  department: null as string | null,
 });
 
 // token 统一走 useUserStore().accessToken
 const userStore = useUserStore();
 const tokenOf = () => userStore.accessToken;
+
+// 任职部门选择器数据源：复用组织管理部门（useDepartmentStore 共享缓存）。
+// 用扁平 n-select + 完整路径 label（如「集团总部 / 能良 / 能智BG」），
+// 规避 n-tree-select 父节点点击只展开不选中、且子节点在无头环境难命中的坑；
+// 任意部门（含父级）均可直接选中，value 即部门 id，直接落 User.department FK。
+const deptStore = useDepartmentStore();
+const deptOptions = computed(() => buildDeptOptions(deptStore.departments));
+function buildDeptOptions(list: any[]): { label: string; value: string }[] {
+  const nameById = new Map<string, string>();
+  list.forEach((d) => nameById.set(String(d.id), d.name));
+  return list
+    .map((d) => {
+      const path: string[] = [];
+      let cur: any = d;
+      while (cur) {
+        path.unshift(nameById.get(String(cur.id)) || String(cur.id));
+        cur = cur.parentId ? list.find((x) => String(x.id) === String(cur.parentId)) : null;
+      }
+      return { label: path.join(' / '), value: String(d.id) };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
 
 // API请求封装：统一返回 { ok, status, data }
 // 约定（与 campusControl.ts 一致）：
@@ -438,7 +478,8 @@ const openCreateModal = () => {
     password: '',
     userType: 'INTERNAL',
     roleType: 'HR',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    department: null
   });
   userModalVisible.value = true;
 };
@@ -455,7 +496,8 @@ const closeUserModal = () => {
     password: '',
     userType: 'INTERNAL',
     roleType: 'HR',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    department: null
   });
 };
 
@@ -487,6 +529,7 @@ const handleUpdateUser = async () => {
       phone: formState.phone,
       userType: formState.userType,
       status: formState.status,
+      department: formState.department,
     };
     const res = await request(`/api/v1/users/${editingUser.value?.id}/`, {
       method: 'PUT',
@@ -683,7 +726,8 @@ const actionsColumn = {
               password: '',
               userType: row.userType || 'INTERNAL',
               roleType: row.roleType,
-              status: row.status
+              status: row.status,
+              department: row.department ?? null
             });
             userModalVisible.value = true;
           }
@@ -709,6 +753,19 @@ const actionsColumn = {
 const columns = [
   { title: '用户名', key: 'username', width: 160, ellipsis: true },
   { title: '姓名', key: 'realName', width: 120, ellipsis: true },
+  {
+    title: '任职部门',
+    key: 'departmentName',
+    width: 150,
+    ellipsis: true,
+    render: (row: User) => {
+      const name =
+        row.departmentName ||
+        (row.department ? deptStore.getById(String(row.department))?.name : '') ||
+        '-';
+      return name;
+    }
+  },
   userTypeColumn,
   statusColumn,
   { title: '角色类型', key: 'roleType', width: 90, ellipsis: true },
@@ -736,6 +793,7 @@ const roleColumns = [
 onMounted(() => {
   loadUsers();
   loadRoles();
+  deptStore.loadDepartments();
 });
 </script>
 
