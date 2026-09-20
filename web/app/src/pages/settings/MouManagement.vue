@@ -127,16 +127,14 @@
                 </div>
                 <n-space :size="4" align="center" :wrap="false">
                   <n-button text type="primary" @click="openDetailOrgScope">配置组织范围</n-button>
-                  <span class="scope-block-divider">|</span>
                   <n-button text type="primary" :disabled="!orgCheckedKeys.length" @click="batchRemoveOrgNodes">批量删除</n-button>
-                  <span class="scope-block-divider">|</span>
-                  <n-button text @click="orgBlockExpanded = !orgBlockExpanded">
+                  <n-button v-if="orgBlockEnabled" text @click="orgBlockExpanded = !orgBlockExpanded">
                     {{ orgBlockExpanded ? '收起' : '展开' }}
                     <n-icon :component="orgBlockExpanded ? ChevronUpOutline : ChevronDownOutline" />
                   </n-button>
                 </n-space>
               </div>
-              <template v-if="orgBlockExpanded">
+              <template v-if="orgBlockEnabled && orgBlockExpanded">
                 <n-data-table
                   v-if="detailOrgNodes.length"
                   v-model:checked-row-keys="orgCheckedKeys"
@@ -160,14 +158,13 @@
                 </div>
                 <n-space :size="4" align="center" :wrap="false">
                   <n-button text type="primary" @click="openDetailPersonDataRange">配置人员范围</n-button>
-                  <span class="scope-block-divider">|</span>
-                  <n-button text @click="personBlockExpanded = !personBlockExpanded">
+                  <n-button v-if="personBlockEnabled" text @click="personBlockExpanded = !personBlockExpanded">
                     {{ personBlockExpanded ? '收起' : '展开' }}
                     <n-icon :component="personBlockExpanded ? ChevronUpOutline : ChevronDownOutline" />
                   </n-button>
                 </n-space>
               </div>
-              <template v-if="personBlockExpanded">
+              <template v-if="personBlockEnabled && personBlockExpanded">
                 <div class="person-resolved">
                   <div class="person-resolved-toolbar">
                     <n-input v-model:value="personNameFilter" placeholder="筛选姓名" clearable size="small" style="width: 200px" />
@@ -581,6 +578,9 @@ async function onSaveUnit() {
       description: (unitForm.description || '').trim() || null,
       status: unitForm.status,
       includeChildren: unitForm.includeChildren,
+      // 持久化 per-app 范围停用开关：停用范围标记为停用状态（数据保留，由开关判定非生效）
+      orgScopeEnabled: (detailUnit.value as any)?.orgScopeEnabled ?? undefined,
+      personScopeEnabled: (detailUnit.value as any)?.personScopeEnabled ?? undefined,
     }
     if (editingUnit.value) {
       await updateManagementUnit(unitForm.id, payload)
@@ -679,20 +679,12 @@ function getEnabledFlag(field: 'orgScopeEnabled' | 'personScopeEnabled'): boolea
   const v = map[detailAppTab.value]
   return v === undefined ? true : !!v
 }
-/** 切换当前应用 Tab 的区块生效开关 → 立即 PATCH 持久化（按应用独立存储） */
+/** 切换当前应用 Tab 的区块生效开关 → 仅本地同步前端显示，持久化统一在保存(onSaveUnit)时调后端 */
 function setEnabledFlag(field: 'orgScopeEnabled' | 'personScopeEnabled', value: boolean) {
   const unit = detailUnit.value as any
   if (!unit) return
-  const merged = { ...(unit[field] || {}), [detailAppTab.value]: value }
-  updateManagementUnit(String(unit.id), { [field]: merged })
-    .then((updated: any) => {
-      detailUnit.value = { ...detailUnit.value, [field]: (updated as any)[field] ?? merged }
-      // 刷新列表行数据，保证关闭后再次打开读到最新生效开关
-      loadUnits()
-    })
-    .catch((e: any) => {
-      message.error('保存生效开关失败: ' + (e?.response?.data?.message || e?.message || e))
-    })
+  // 本地就地更新 per-app 开关映射：computed get 立即重读 → 开关与「停用折叠」同步生效
+  unit[field] = { ...(unit[field] || {}), [detailAppTab.value]: value }
 }
 const orgBlockEnabled = computed({
   get: () => getEnabledFlag('orgScopeEnabled'),
@@ -864,10 +856,10 @@ async function loadResolvedPersons() {
     resolvedPersonsLoading.value = false
   }
 }
-// 展开人员范围区块或切换应用 Tab 时，按当前 app 的配置拉取实际人员
+// 展开人员范围区块或切换应用 Tab 时，按当前 app 的配置拉取实际人员（停用态折叠下不拉取）
 watch(
   () => [personBlockExpanded.value, detailAppTab.value, detailUnit.value?.id],
-  ([expanded]) => { if (expanded) loadResolvedPersons() },
+  ([expanded]) => { if (expanded && personBlockEnabled.value) loadResolvedPersons() },
 )
 
 // 按应用配置「组织范围」
@@ -999,8 +991,9 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  padding: 1px 0;                  /* scope-lock 头部锁定区：极薄上下内边距，去空不增挤 */
-  margin-bottom: 6px;              /* 原 8px：头部与内容间距收紧 */
+  padding: 1px 0 8px;              /* 底部留白，配合贯穿整行的标题行分割线 */
+  margin-bottom: 8px;             /* 原 6px → 8px：分割线与内容间距 */
+  border-bottom: 1px solid var(--glass-border);  /* 标题行完整贯穿整行的分割线（修复原半宽异常） */
 }
 .scope-block-title {
   display: inline-flex;
@@ -1018,10 +1011,6 @@ onMounted(() => {
   height: 14px;
   border-radius: 2px;
   background: var(--brand-600);
-}
-.scope-block-divider {
-  color: var(--color-text-tertiary);
-  opacity: 0.5;
 }
 .scope-block-total {
   margin-top: 4px;
