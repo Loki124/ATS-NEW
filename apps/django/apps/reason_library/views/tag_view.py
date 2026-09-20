@@ -4,7 +4,7 @@
 - GET    /                          列表 (filter: type/enabled/search)
 - POST   /                          创建 (custom only, system 不可建)
 - GET    /{id}/                     详情 (含 ref_count)
-- PATCH  /{id}/                     更新 (system 不可改)
+- PATCH  /{id}/                     更新 (system 可改, 仅删除受保护)
 - DELETE /{id}/                     软删 (有引用 / system 不可删)
 - POST   /import/                   CSV 上传 (multipart)
 """
@@ -103,12 +103,8 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
             obj = self.get_object()
         except ReasonTag.DoesNotExist:
             raise BizException(BizCode.TAG_NOT_FOUND, '标签不存在', status_code=404)
-        if obj.type == 'system':
-            raise BizException(
-                BizCode.SYSTEM_TAG_IMMUTABLE,
-                '系统预置标签不可修改',
-                status_code=403,
-            )
+        # Item1: 取消系统预置标签不可编辑限制 — 所有可访问页面的用户 (HR 及以上) 均可修改;
+        #        仅删除仍受 SYSTEM_TAG_IMMUTABLE 保护 (见 destroy)。
         serializer = self.get_serializer(obj, data=request.data, partial=True)
         if not serializer.is_valid():
             raise BizException(

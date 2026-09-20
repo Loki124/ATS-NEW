@@ -53,6 +53,7 @@ export const BIZ_CODE = {
   TAG_HAS_REFS: 40003,
   CSV_FORMAT_INVALID: 40004,
   TAG_NOT_FOUND: 40401,
+  TAG_ALREADY_ASSIGNED: 40902, // Item4: 标签已归属其它分类, 不可跨分类重复 (与后端 exceptions.BizCode 对齐)
   // Rule
   RULE_NAME_DUPLICATED: 40101,
   RULE_NOT_FOUND: 40102,

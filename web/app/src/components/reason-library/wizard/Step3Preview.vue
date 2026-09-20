@@ -49,7 +49,24 @@
                     {{ tag.name }}
                     <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
                   </span>
-                  <span v-if="g.allowCustom" class="pv-chip">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                  <template v-if="g.allowCustom">
+                    <input
+                      v-if="editingOther[g.id]"
+                      v-focus
+                      class="pv-other-input"
+                      :value="otherInputs[g.id] || ''"
+                      :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
+                      @input="(e: any) => onOtherInput(g.id, (e.target as HTMLInputElement).value)"
+                      @keydown.enter="commitOther(g.id)"
+                      @blur="commitOther(g.id)"
+                    />
+                    <span
+                      v-else-if="otherInputs[g.id]"
+                      class="pv-chip other-filled"
+                      @click="editOtherAgain(g.id)"
+                    >{{ otherInputs[g.id] }}</span>
+                    <span v-else class="pv-chip other" @click="onOtherClick(g.id)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                  </template>
                 </div>
               </template>
 
@@ -62,7 +79,24 @@
                         {{ tag.name }}
                         <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
                       </span>
-                      <span v-if="sub.allowCustom" class="pv-chip">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                      <template v-if="sub.allowCustom">
+                        <input
+                          v-if="editingOther[sub.id]"
+                          v-focus
+                          class="pv-other-input"
+                          :value="otherInputs[sub.id] || ''"
+                          :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
+                          @input="(e: any) => onOtherInput(sub.id, (e.target as HTMLInputElement).value)"
+                          @keydown.enter="commitOther(sub.id)"
+                          @blur="commitOther(sub.id)"
+                        />
+                        <span
+                          v-else-if="otherInputs[sub.id]"
+                          class="pv-chip other-filled"
+                          @click="editOtherAgain(sub.id)"
+                        >{{ otherInputs[sub.id] }}</span>
+                        <span v-else class="pv-chip other" @click="onOtherClick(sub.id)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                      </template>
                     </div>
                   </template>
                   <template v-else>
@@ -75,7 +109,24 @@
                             {{ tag.name }}
                             <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
                           </span>
-                          <span v-if="l3.allowCustom" class="pv-chip">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                          <template v-if="l3.allowCustom">
+                            <input
+                              v-if="editingOther[l3.id]"
+                              v-focus
+                              class="pv-other-input"
+                              :value="otherInputs[l3.id] || ''"
+                              :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
+                              @input="(e: any) => onOtherInput(l3.id, (e.target as HTMLInputElement).value)"
+                              @keydown.enter="commitOther(l3.id)"
+                              @blur="commitOther(l3.id)"
+                            />
+                            <span
+                              v-else-if="otherInputs[l3.id]"
+                              class="pv-chip other-filled"
+                              @click="editOtherAgain(l3.id)"
+                            >{{ otherInputs[l3.id] }}</span>
+                            <span v-else class="pv-chip other" @click="onOtherClick(l3.id)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                          </template>
                         </div>
                       </div>
                     </div>
@@ -106,7 +157,7 @@
  * 数据来源: wizard.categories + wizard.scenes
  * 仅读 (UI 模拟, 不修改 wizard)
  */
-import { computed } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { NIcon } from 'naive-ui'
 import { InformationCircleOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
@@ -177,6 +228,31 @@ const previewTree = computed<PreviewNode[]>(() => {
 function countSubRows(node: PreviewNode): number {
   if (node.isLeaf) return 1
   return node.children.length
+}
+
+// ============= Item5: 末级「其他」自定义输入 =============
+// 任意层级(L1/L2/L3)的末级分类, 若 allowCustom=true, 点击「其他」展开输入框由用户输入
+const editingOther = reactive<Record<string, boolean>>({})
+const otherInputs = reactive<Record<string, string>>({})
+
+function onOtherClick(id: string) {
+  editingOther[id] = true
+}
+function onOtherInput(id: string, val: string) {
+  otherInputs[id] = val
+}
+function commitOther(id: string) {
+  const v = (otherInputs[id] ?? '').trim()
+  if (!v) otherInputs[id] = ''
+  editingOther[id] = false
+}
+function editOtherAgain(id: string) {
+  editingOther[id] = true
+}
+
+// 进入编辑态时自动聚焦输入框
+const vFocus = {
+  mounted: (el: HTMLElement) => el.focus(),
 }
 </script>
 
@@ -290,6 +366,21 @@ function countSubRows(node: PreviewNode): number {
   gap: 4px;
 }
 .pv-chip .tip-i { font-size: 9px; margin-left: 2px; opacity: .55; }
+.pv-chip.other { cursor: pointer; border-style: dashed; color: var(--brand); border-color: var(--brand); }
+.pv-chip.other:hover { background: rgba(54, 110, 235, .08); }
+.pv-chip.other-filled { background: rgba(54, 110, 235, .1); border-color: var(--brand); color: var(--brand); }
+.pv-other-input {
+  border: 1px solid var(--brand);
+  border-radius: 7px;
+  font-size: var(--fs-11);
+  padding: 4px 10px;
+  line-height: 1.4;
+  width: 120px;
+  outline: none;
+  color: var(--ink);
+  background: #fff;
+}
+.pv-other-input:focus { box-shadow: 0 0 0 2px rgba(54, 110, 235, .18); }
 
 .pv-l3-title {
   font-size: var(--fs-11);

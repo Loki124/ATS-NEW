@@ -54,7 +54,6 @@ import { t } from '../../locales/zh-CN'
 const props = defineProps<{
   show: boolean
   rule: SceneRuleListItem | null
-  isSuperAdmin?: boolean
   deleting?: boolean
 }>()
 

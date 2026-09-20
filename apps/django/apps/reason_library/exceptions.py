@@ -31,6 +31,7 @@ class BizCode:
     TAG_NOT_FOUND = 40401
     SYSTEM_TAG_IMMUTABLE = 40301      # 系统预置标签不可改/停用/删
     TAG_HAS_REFS = 40901              # 标签被规则引用, 不可删
+    TAG_ALREADY_ASSIGNED = 40902      # 标签已归属其它分类, 不可跨分类重复 (Item4)
     CSV_FORMAT_INVALID = 40002        # CSV 解析失败
 
     # === Rule (T05 / T11) ===

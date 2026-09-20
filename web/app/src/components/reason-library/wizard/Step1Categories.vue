@@ -118,7 +118,6 @@ import { t } from '../../../locales/zh-CN'
 
 const props = defineProps<{
   categories: RuleCategory[]
-  isSuperAdmin?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -168,14 +167,11 @@ const maxLevel = computed(() => {
   return Math.max(...props.categories.map((c) => c.level))
 })
 
-// ============== 系统预置判断 ==============
-// 后端 ScenarioRuleDetailSerializer 中 category 不返回 is_system (分类无该字段);
-// 默认走"创建规则的 is_system" — 父组件 wizard.isSystem 是分类编辑权限的唯一依据。
+// ============== 编辑权限 ==============
+// Item3/Item6: 所有可访问页面的用户均支持编辑分类 (任意层级名称可改、末级"支持自定义"勾选可配);
+// 取消原先"非超管整棵树只读"的限制 — 多级分类(2/3/4 级)添加入口全面放开。
 function isReadonly(_cat: RuleCategory): boolean {
-  // 注: 后端 category_assignment 表存 system 自带的分类, 改时会被后端校验
-  // 此处简化: 非超管不可编辑任何分类 (超管全开)
-  // 若后端放开, 改成"系统预置 cat.is_system && !isSuperAdmin"
-  return !props.isSuperAdmin
+  return false
 }
 
 // ============== 操作 ==============

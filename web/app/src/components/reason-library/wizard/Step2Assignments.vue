@@ -73,6 +73,7 @@
       :categories="categories"
       :available-tags="availableTags"
       :current-selected="pickerCurrentSelected"
+      :exclude-tag-ids="Array.from(usedElsewhereIds)"
       @confirm="onPickerConfirm"
     />
   </div>
@@ -121,6 +122,17 @@ const pickerCurrentSelected = computed<ReasonTag[]>(() => {
   if (!pickerCatId.value) return []
   const cat = props.categories.find((c) => c.id === pickerCatId.value)
   return cat?.tags ?? []
+})
+
+// Item4: 已被其它分类占用的标签 id 集合 — 这些标签不可再选入当前分类 (单归属)
+const usedElsewhereIds = computed<Set<string>>(() => {
+  const curId = pickerCatId.value
+  const set = new Set<string>()
+  props.categories.forEach((c) => {
+    if (c.id === curId) return
+    ;(c.tags || []).forEach((t) => set.add(t.id))
+  })
+  return set
 })
 
 function buildPath(id: string): string {

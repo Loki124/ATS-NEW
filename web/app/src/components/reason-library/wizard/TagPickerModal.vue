@@ -42,18 +42,22 @@
         v-for="tag in filteredTags"
         :key="tag.id"
         class="picker-row"
+        :class="{ disabled: isExcluded(tag.id) }"
       >
         <input
           type="checkbox"
           :checked="selectedIds.has(tag.id)"
-          :disabled="!selectedIds.has(tag.id) && selectedIds.size >= MAX_PICK"
+          :disabled="isExcluded(tag.id) || (!selectedIds.has(tag.id) && selectedIds.size >= MAX_PICK)"
           @change="(e: any) => toggle(tag.id, e.target.checked)"
         />
         <span class="name">
           {{ tag.name }}
           <span v-if="tag.enName" class="en">{{ tag.enName }}</span>
         </span>
-        <span :class="['type', tag.type]">
+        <span v-if="isExcluded(tag.id)" class="excluded-tip">
+          {{ t('reasonLibrary.wizard.tagPicker.assignedElsewhere') }}
+        </span>
+        <span v-else :class="['type', tag.type]">
           {{ tag.type === 'system' ? t('reasonLibrary.common.system') : t('reasonLibrary.common.custom') }}
         </span>
       </label>
@@ -84,7 +88,7 @@
  * - MAX_PICK (5) 校验: 选满 5 条后其他 checkbox disabled
  */
 import { ref, computed, watch } from 'vue'
-import { NModal, NInput, NSelect, NButton, NSpace, NTag, NIcon, NEmpty } from 'naive-ui'
+import { NModal, NInput, NSelect, NButton, NSpace, NTag, NIcon, NEmpty, useMessage } from 'naive-ui'
 import { SearchOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory } from '../../../types/reason-library'
 import { MAX_PICK } from '../../../types/reason-library'
@@ -96,12 +100,21 @@ const props = defineProps<{
   categories: RuleCategory[]
   availableTags: ReasonTag[]
   currentSelected: ReasonTag[]
+  excludeTagIds?: string[]
 }>()
 
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void
   (e: 'confirm', payload: { catId: string; selected: ReasonTag[] }): void
 }>()
+
+const message = useMessage()
+
+// Item4: 已归属其它分类的标签不可跨分类重复选择
+const excludeSet = computed<Set<string>>(() => new Set(props.excludeTagIds ?? []))
+function isExcluded(id: string): boolean {
+  return excludeSet.value.has(id)
+}
 
 const search = ref('')
 const typeFilter = ref<'system' | 'custom' | null>(null)
@@ -140,6 +153,11 @@ const filteredTags = computed<ReasonTag[]>(() => {
 
 function toggle(id: string, checked: boolean) {
   if (checked) {
+    // Item4: 已归属其它分类的标签不可跨分类重复选择
+    if (isExcluded(id)) {
+      message.warning(t('reasonLibrary.wizard.tagPicker.assignedElsewhere'))
+      return
+    }
     if (selectedIds.value.size >= MAX_PICK) return
     selectedIds.value.add(id)
   } else {
@@ -153,6 +171,7 @@ function selectAll() {
   const next = new Set(selectedIds.value)
   for (const tag of filteredTags.value) {
     if (next.size >= MAX_PICK) break
+    if (isExcluded(tag.id)) continue // Item4: 跳过已归属其它分类的标签
     next.add(tag.id)
   }
   selectedIds.value = next
@@ -221,6 +240,17 @@ void MAX_PICK
 }
 .picker-row .type.system { background: var(--brand-soft); color: var(--brand); }
 .picker-row .type.custom { background: rgba(139, 92, 246, .12); color: #6d28d9; }
+.picker-row.disabled { cursor: not-allowed; opacity: .6; }
+.picker-row.disabled:hover { background: transparent; }
+.excluded-tip {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--c-error-soft);
+  color: var(--c-error);
+  flex-shrink: 0;
+}
 
 .picker-foot {
   display: flex;

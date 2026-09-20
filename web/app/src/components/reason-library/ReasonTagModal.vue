@@ -82,7 +82,6 @@ import { t } from '../../locales/zh-CN'
 const props = defineProps<{
   show: boolean
   tag: ReasonTag | null
-  isSuperAdmin?: boolean
 }>()
 
 const emit = defineEmits<{

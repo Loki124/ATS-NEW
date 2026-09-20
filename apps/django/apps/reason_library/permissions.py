@@ -91,7 +91,9 @@ class SystemOrAdminPermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         # obj 是 SceneRule 实例
+        # Item2: 系统预置规则由"仅超管可改"放宽为"HR 及以上可改" (所有可访问页面的用户均支持编辑);
+        #        但不可停用 (enabled 强制 True) 由 rule_view / wizard_service 在写路径兜底。
         is_system = getattr(obj, 'is_system', False)
         if is_system:
-            return bool(is_super_admin(request.user))
+            return _is_admin_user(request.user)
         return _is_admin_user(request.user)

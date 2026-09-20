@@ -37,23 +37,14 @@
             <template #icon><n-icon :component="RefreshOutline" /></template>
             {{ t('reasonLibrary.common.refresh') }}
           </n-button>
-          <n-button :disabled="!isSuperAdmin" @click="openImportModal">
+          <n-button @click="openImportModal">
             <template #icon><n-icon :component="CloudUploadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.import') }}
           </n-button>
-          <n-button v-if="isSuperAdmin" type="primary" @click="openCreateModal">
+          <n-button type="primary" @click="openCreateModal">
             <template #icon><n-icon :component="AddOutline" /></template>
             {{ t('reasonLibrary.tags.btn.add') }}
           </n-button>
-          <n-tooltip v-else placement="top">
-            <template #trigger>
-              <n-button type="primary" disabled>
-                <template #icon><n-icon :component="AddOutline" /></template>
-                {{ t('reasonLibrary.tags.btn.add') }}
-              </n-button>
-            </template>
-            {{ t('reasonLibrary.common.systemImmutable') }}
-          </n-tooltip>
         </n-space>
       </div>
 
@@ -78,20 +69,23 @@
         </div>
       </n-alert>
 
-      <n-data-table
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :row-key="(r: ReasonTag) => r.id"
-        :pagination="false"
-        :scroll-x="1100"
-        size="medium"
-        striped
-      >
-        <template #empty>
-          <n-empty :description="t('reasonLibrary.tags.empty')" />
-        </template>
-      </n-data-table>
+      <div class="table-wrap">
+        <n-data-table
+          :columns="columns"
+          :data="rows"
+          :loading="loading"
+          :row-key="(r: ReasonTag) => r.id"
+          :pagination="false"
+          :scroll-x="1100"
+          flex-height
+          size="medium"
+          striped
+        >
+          <template #empty>
+            <n-empty :description="t('reasonLibrary.tags.empty')" />
+          </template>
+        </n-data-table>
+      </div>
 
       <!-- 分页 -->
       <div v-if="total > 0" class="pager-row">
@@ -111,7 +105,6 @@
       <ReasonTagModal
         v-model:show="modalShow"
         :tag="editingTag"
-        :is-super-admin="isSuperAdmin"
         @saved="onSaved"
       />
 
@@ -134,22 +127,19 @@
  * - 自定义标签: 全功能 (新增/编辑/启停/删除)
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
-import { useMessage, NButton, NTag, NSwitch, NTooltip, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, PencilOutline, TrashOutline, LockClosedOutline } from '@vicons/ionicons5'
+import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
+import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
 import { listTags, updateTag, deleteTag, extractReasonApiError } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
-import { BIZ_CODE, ROLE_SUPER_ADMIN } from '../../../types/reason-library'
+import { BIZ_CODE } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
-import { useUserStore } from '../../../stores/user'
 import ReasonTagModal from '../../../components/reason-library/ReasonTagModal.vue'
 import ReasonTagImportModal from '../../../components/reason-library/ReasonTagImportModal.vue'
 
 const message = useMessage()
-const userStore = useUserStore()
 
-// ============= 角色判断 =============
-const userRoles = computed<string[]>(() => userStore.user?.roles ?? [])
-const isSuperAdmin = computed(() => userRoles.value.includes(ROLE_SUPER_ADMIN))
+// Item1: 取消系统预置标签不可编辑限制 — 所有可访问页面的用户 (HR 及以上) 均可编辑/启停/导入/新增;
+//        仅系统预置标签的「删除」仍受后端 SYSTEM_TAG_IMMUTABLE 保护。
 
 // ============= 查询条件 =============
 const searchText = ref('')
@@ -255,19 +245,11 @@ function openCreateModal() {
 }
 
 function openEditModal(tag: ReasonTag) {
-  if (tag.type === 'system' && !isSuperAdmin.value) {
-    message.warning(t('reasonLibrary.common.systemImmutable'))
-    return
-  }
   editingTag.value = tag
   modalShow.value = true
 }
 
 async function toggleEnabled(tag: ReasonTag) {
-  if (tag.type === 'system' && !isSuperAdmin.value) {
-    message.warning(t('reasonLibrary.tags.toggle.systemImmutable'))
-    return
-  }
   try {
     await updateTag(tag.id, { enabled: !tag.enabled })
     message.success(tag.enabled ? t('reasonLibrary.tags.toggle.disable') + ' ✓' : t('reasonLibrary.tags.toggle.enable') + ' ✓')
@@ -366,7 +348,7 @@ const columns = computed(() => [
       h(NSwitch, {
         value: row.enabled,
         size: 'small',
-        disabled: row.type === 'system' && !isSuperAdmin.value,
+        disabled: false,
         onUpdateValue: () => toggleEnabled(row),
       }),
   },
@@ -376,17 +358,15 @@ const columns = computed(() => [
     width: 200,
     fixed: 'right' as const,
     render: (row: ReasonTag) => {
-      const isLocked = row.type === 'system' && !isSuperAdmin.value
       const editBtn = h(
         NButton,
         {
           size: 'small',
           quaternary: true,
-          disabled: isLocked,
           onClick: () => openEditModal(row),
         },
         {
-          icon: () => h(NIcon, null, { default: () => h(isLocked ? LockClosedOutline : PencilOutline) }),
+          icon: () => h(NIcon, null, { default: () => h(PencilOutline) }),
           default: () => t('reasonLibrary.common.edit'),
         },
       )
@@ -396,7 +376,6 @@ const columns = computed(() => [
           size: 'small',
           quaternary: true,
           type: 'error',
-          disabled: isLocked,
           onClick: () => removeTag(row),
         },
         {
@@ -404,13 +383,7 @@ const columns = computed(() => [
           default: () => t('reasonLibrary.common.delete'),
         },
       )
-      const editTip = isLocked
-        ? h(NTooltip, null, {
-            trigger: () => editBtn,
-            default: () => t('reasonLibrary.common.systemImmutable'),
-          })
-        : editBtn
-      return h(NSpace, { size: 4 }, () => [editTip, deleteBtn])
+      return h(NSpace, { size: 4 }, () => [editBtn, deleteBtn])
     },
   },
 ])
@@ -423,7 +396,22 @@ onMounted(() => {
 
 <style scoped>
 .rl-tags-page {
+  /* item7: 滚动隔离 — 整页 flex 列, 仅 .table-wrap 内数据列表滚动, 不影响 toolbar/stats */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   padding: 0;
+}
+.rl-tags-page :deep(.page-body) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .rl-tags-page :deep(.toolbar) {
   display: flex;
@@ -450,8 +438,9 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: var(--space-3);
+  flex-shrink: 0;
 }
-.rl-error-banner { margin-bottom: var(--space-3); }
+.rl-error-banner { margin-bottom: var(--space-3); flex-shrink: 0; }
 .rl-error-body {
   display: flex;
   align-items: center;

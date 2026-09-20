@@ -83,13 +83,15 @@ class WizardService:
                     },
                 )
 
-        # 2.5) 系统规则仅超管可改 (write 端兜底)
+        # 2.5) 系统规则 HR 及以上可改 (write 端兜底, 与 SystemOrAdminPermission 一致);
+        #        Item2: 取消"仅超管"限制, 但 enabled 保持强制 True (不可停用),
+        #        见下方 step 5 头部更新。
         if rule.is_system:
-            from apps.core.permissions import is_super_admin
-            if not (user and is_super_admin(user)):
+            from apps.core.permissions import is_hr_or_above, is_super_admin
+            if not (user and (is_super_admin(user) or is_hr_or_above(user))):
                 raise BizException(
                     BizCode.SYSTEM_RULE_IMMUTABLE,
-                    '系统预置规则仅超管可改',
+                    '系统预置规则仅 HR 及以上可改',
                     status_code=403,
                 )
 
@@ -104,7 +106,10 @@ class WizardService:
         # 5) 更新头部
         rule.name = (payload.get('name') or rule.name).strip() or rule.name
         rule.description = payload.get('description', rule.description)
-        if 'enabled' in payload:
+        # Item2: 系统预置规则保持不可停用 — enabled 强制 True
+        if rule.is_system:
+            rule.enabled = True
+        elif 'enabled' in payload:
             rule.enabled = bool(payload['enabled'])
         # 同名校验
         if SceneRule.objects.filter(name=rule.name).exclude(pk=rule.pk).exists():
@@ -222,7 +227,15 @@ class WizardService:
         existing_pairs = set(existing_set.keys())
         for cat_pk, tpk in new_pairs:
             if (cat_pk, tpk) not in existing_pairs:
-                CategoryAssignment.objects.create(category_id=cat_pk, tag_id=tpk)
+                try:
+                    CategoryAssignment.objects.create(category_id=cat_pk, tag_id=tpk)
+                except IntegrityError:
+                    # Item4: 同一标签全局唯一 — 已归属其它分类 (可能跨规则或同规则其它分类)
+                    raise BizException(
+                        BizCode.TAG_ALREADY_ASSIGNED,
+                        f'标签已归属于其它分类, 不可跨分类重复选择 (tag={tpk})',
+                        status_code=409,
+                    )
 
         # 8) Diff rule_scene_assignment (先删后增 — UNIQUE 兜底)
         if scenes is not None:

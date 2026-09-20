@@ -202,10 +202,12 @@ class CategoryAssignment(models.Model):
         verbose_name = '分类标签绑定'
         verbose_name_plural = '分类标签绑定'
         ordering = ['category', 'order']
+        # Item4: 同一原因标签仅允许归属于一个分类 — tag 全局唯一 (不可跨分类重复存在)。
+        # 旧约束 UNIQUE(category, tag) 仅限制同分类内不重复, 现收紧为 UNIQUE(tag)。
         constraints = [
             UniqueConstraint(
-                fields=['category', 'tag'],
-                name='uniq_cat_tag',
+                fields=['tag'],
+                name='uniq_tag',
             ),
         ]
 

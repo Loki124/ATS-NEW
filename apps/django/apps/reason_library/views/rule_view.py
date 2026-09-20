@@ -127,19 +127,17 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
             obj = self.get_object()
         except SceneRule.DoesNotExist:
             raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
-        # 系统规则仅超管可改 (Q1/Q2)
+        # Item2: 系统预置规则 HR 及以上可改 (对象权限由 SystemOrAdminPermission 兜底);
+        #        但 enabled 强制 True — 系统预置规则保持不可停用。
         if obj.is_system:
-            from apps.core.permissions import is_super_admin
-            if not (request.user and is_super_admin(request.user)):
-                raise BizException(
-                    BizCode.SYSTEM_RULE_IMMUTABLE,
-                    '系统预置规则仅超管可改',
-                    status_code=403,
-                )
+            data = dict(request.data)
+            data['enabled'] = True
+        else:
+            data = request.data
         # 乐观锁: 头部更新也校验
         self._check_optimistic_lock(request, obj)
 
-        serializer = self.get_serializer(obj, data=request.data, partial=True)
+        serializer = self.get_serializer(obj, data=data, partial=True)
         if not serializer.is_valid():
             raise BizException(
                 BizCode.VALIDATION_FAILED, '参数校验失败',

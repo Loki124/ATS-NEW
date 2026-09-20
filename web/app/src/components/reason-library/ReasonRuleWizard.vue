@@ -51,7 +51,6 @@
         <Step1Categories
           v-show="step === 1"
           v-model:categories="wizard.categories"
-          :is-super-admin="isSuperAdmin"
         />
         <Step2Assignments
           v-show="step === 2"
@@ -137,7 +136,6 @@ import SceneEditorModal from './wizard/SceneEditorModal.vue'
 const props = defineProps<{
   show: boolean
   ruleId: string | null
-  isSuperAdmin?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -323,6 +321,9 @@ async function onSave() {
       message.error(t('reasonLibrary.errors.RULE_SCENE_CONFLICT'))
     } else if (e?.code === BIZ_CODE.CATEGORY_LEVEL_EXCEED) {
       message.error(t('reasonLibrary.errors.CATEGORY_LEVEL_EXCEED'))
+    } else if (e?.code === BIZ_CODE.TAG_ALREADY_ASSIGNED) {
+      // Item4: 同一标签不可跨分类重复 — 后端 40902 拦截
+      message.error(t('reasonLibrary.wizard.tagPicker.assignedElsewhere'))
     } else {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
     }

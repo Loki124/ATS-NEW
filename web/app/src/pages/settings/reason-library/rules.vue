@@ -56,20 +56,23 @@
         </div>
       </n-alert>
 
-      <n-data-table
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :row-key="(r: SceneRuleListItem) => r.id"
-        :pagination="false"
-        :scroll-x="1100"
-        size="medium"
-        striped
-      >
-        <template #empty>
-          <n-empty :description="t('reasonLibrary.rules.empty')" />
-        </template>
-      </n-data-table>
+      <div class="table-wrap">
+        <n-data-table
+          :columns="columns"
+          :data="rows"
+          :loading="loading"
+          :row-key="(r: SceneRuleListItem) => r.id"
+          :pagination="false"
+          :scroll-x="1100"
+          flex-height
+          size="medium"
+          striped
+        >
+          <template #empty>
+            <n-empty :description="t('reasonLibrary.rules.empty')" />
+          </template>
+        </n-data-table>
+      </div>
 
       <div v-if="totalCount > 0" class="pager-row">
         <n-pagination
@@ -95,7 +98,6 @@
       <ReasonRuleDeleteConfirm
         v-model:show="deleteShow"
         :rule="deletingRule"
-        :is-super-admin="isSuperAdmin"
         @confirm="onDeleteConfirm"
       />
     </div>
@@ -113,20 +115,18 @@
  */
 import { ref, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, SettingsOutline, LockClosedOutline } from '@vicons/ionicons5'
+import { SearchOutline, RefreshOutline, AddOutline, SettingsOutline } from '@vicons/ionicons5'
 import { listRules, updateRule, deleteRule, extractReasonApiError } from '../../../api/reason-library'
 import type { SceneRuleListItem } from '../../../types/reason-library'
-import { BIZ_CODE, ROLE_SUPER_ADMIN } from '../../../types/reason-library'
+import { BIZ_CODE } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
-import { useUserStore } from '../../../stores/user'
 import ReasonRuleWizard from '../../../components/reason-library/ReasonRuleWizard.vue'
 import ReasonRuleDeleteConfirm from '../../../components/reason-library/ReasonRuleDeleteConfirm.vue'
 
 const message = useMessage()
-const userStore = useUserStore()
 
-const userRoles = computed<string[]>(() => userStore.user?.roles ?? [])
-const isSuperAdmin = computed(() => userRoles.value.includes(ROLE_SUPER_ADMIN))
+// Item2: 系统预置规则 (「系统预置规则」) — 所有页面可访问用户均可编辑, 但不可停用 (后端保存时强制 enabled=True);
+//        删除仍受后端 SYSTEM_RULE_IMMUTABLE 保护 (任何角色均不可删)。
 
 // ============= 查询 =============
 const searchText = ref('')
@@ -221,12 +221,13 @@ function openEditWizard(rule: SceneRuleListItem) {
 }
 
 async function toggleEnabled(rule: SceneRuleListItem) {
-  // Q6: 有场景引用的规则不可停用
+  // 有场景引用的规则不可停用
   if (rule.sceneCount > 0) {
     message.warning(t('reasonLibrary.rules.toggle.sceneLocked'))
     return
   }
-  if (rule.isSystem && !isSuperAdmin.value) {
+  // 系统预置规则保持不可停用 (item2)
+  if (rule.isSystem) {
     message.warning(t('reasonLibrary.rules.toggle.systemImmutable'))
     return
   }
@@ -350,7 +351,7 @@ const columns = computed(() => [
     width: 110,
     render: (row: SceneRuleListItem) => {
       const sceneLocked = row.sceneCount > 0
-      const systemLocked = row.isSystem && !isSuperAdmin.value
+      const systemLocked = row.isSystem
       const disabled = sceneLocked || systemLocked
       const tip = sceneLocked
         ? t('reasonLibrary.rules.toggle.sceneLocked')
@@ -382,7 +383,7 @@ const columns = computed(() => [
           onClick: () => openEditWizard(row),
         },
         {
-          icon: () => h(NIcon, null, { default: () => h(row.isSystem ? LockClosedOutline : SettingsOutline) }),
+          icon: () => h(NIcon, null, { default: () => h(SettingsOutline) }),
           default: () => t('reasonLibrary.rules.edit'),
         },
       )
@@ -393,7 +394,7 @@ const columns = computed(() => [
           size: 'small',
           quaternary: true,
           type: 'error',
-          disabled: row.isSystem && !isSuperAdmin.value,
+          disabled: row.isSystem,
           onClick: () => openDeleteConfirm(row),
         },
         { default: () => t('reasonLibrary.common.delete') },
@@ -410,7 +411,24 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.rl-rules-page { padding: 0; }
+.rl-rules-page {
+  /* item7: 滚动隔离 — 整页 flex 列, 仅 .table-wrap 内数据列表滚动, 不影响 toolbar/stats */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.rl-rules-page :deep(.page-body) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
 .rl-rules-page :deep(.toolbar) {
   display: flex;
   align-items: center;
