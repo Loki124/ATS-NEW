@@ -1833,7 +1833,6 @@ function scrollToSection(id: string) {
   gap: var(--space-2);
 }
 .config-item {
-  background: var(--g1);
   border: 1px solid var(--g2);
   border-radius: 10px;
   padding: var(--space-2) var(--space-3);
