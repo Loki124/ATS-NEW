@@ -1,6 +1,6 @@
 <template>
   <div class="step3">
-    <!-- ============ 模块一: 原因标签 (卡片式分类聚合, 无表格元素) ============ -->
+    <!-- ============ 模块一: 原因标签 (合并单元格式卡片网格, 零表格元素) ============ -->
     <div class="rl-preview-module">
       <div class="rl-mod-head">
         <h3>{{ t('reasonLibrary.wizard.preview.moduleTagsTitle') }}</h3>
@@ -12,58 +12,66 @@
         >{{ t('reasonLibrary.wizard.preview.selectLimit', { count: selectedTagIds.size, max: maxSelectable }) }}</span>
       </div>
 
-      <div v-if="!tagCards.length" class="rl-empty">{{ t('reasonLibrary.wizard.preview.empty') }}</div>
+      <div v-if="!layout.cells.length" class="rl-empty">{{ t('reasonLibrary.wizard.preview.empty') }}</div>
 
-      <div v-else class="tag-cards">
-        <div v-for="card in tagCards" :key="card.name" class="tag-card">
-          <div class="tag-card-head">
-            <span class="tag-card-path">{{ card.name }}</span>
-            <span class="tag-card-badge">{{ t('reasonLibrary.wizard.preview.tagTotal', { n: card.tagTotal }) }}</span>
-          </div>
+      <!--
+        视觉上还原电子表格的「合并单元格」排布:
+        - 分类单元是纯卡片 <div>, 通过 grid-column / grid-row 的 span 跨列或跨行;
+        - 末级分类单元向右延展到最深层级, 形成跨列合并; 有子级的分类向下跨越其子孙所占行, 形成跨行合并;
+        - 尺寸错落 + 小间距 + 圆角, 使相邻单元连成一块, 产生「合并块」的连通感。
+        底层为 CSS Grid + 卡片, 全组件未使用 <table> / <tr> / <td> 等任何表格元素。
+      -->
+      <div v-else class="rl-merge" :style="gridStyle">
+        <!-- 分类单元 (按层级与子树范围跨行/跨列) -->
+        <div
+          v-for="cell in layout.cells"
+          :key="cell.key"
+          class="rl-cell"
+          :class="{ 'is-leaf': cell.isLeaf, 'is-wide': cell.isWide }"
+          :style="cellStyle(cell)"
+        >
+          {{ cell.name }}
+        </div>
 
-          <div class="tag-card-body">
-            <div v-for="(grp, gi) in card.groups" :key="gi" class="tag-group">
-              <div v-if="grp.name" class="tag-group-title"><span class="tg-bar"></span>{{ grp.name }}</div>
-              <div class="tag-group-body">
-                <div v-for="leaf in grp.leaves" :key="leaf.catId" class="tag-leaf">
-                  <div v-if="leaf.label" class="tag-leaf-label">{{ leaf.label }}</div>
-                  <div class="rl-chips">
-                    <span
-                      v-for="tag in leaf.tags"
-                      :key="tag.id"
-                      class="rl-tag"
-                      :class="{
-                        selected: selectedTagIds.has(tag.id),
-                        disabled: !selectedTagIds.has(tag.id) && limitReached,
-                      }"
-                      @click="toggleTag(tag.id)"
-                    >
-                      <n-icon v-if="selectedTagIds.has(tag.id)" :component="CheckmarkOutline" :size="11" class="rl-tag-check" />
-                      {{ tag.name }}
-                    </span>
-                    <template v-if="leaf.allowCustom">
-                      <input
-                        v-if="editingOther[leaf.catId]"
-                        v-focus
-                        class="rl-other-input"
-                        :value="otherInputs[leaf.catId] || ''"
-                        :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
-                        @input="(e: any) => onOtherInput(leaf.catId, (e.target as HTMLInputElement).value)"
-                        @keydown.enter="commitOther(leaf.catId)"
-                        @blur="commitOther(leaf.catId)"
-                      />
-                      <span
-                        v-else-if="otherInputs[leaf.catId]"
-                        class="rl-tag other-filled"
-                        @click="editOtherAgain(leaf.catId)"
-                      >{{ otherInputs[leaf.catId] }}</span>
-                      <span v-else class="rl-tag other" @click="onOtherClick(leaf.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <!-- 标签单元: 每个末级分类一行, 同类原因标签在此聚合排列 -->
+        <div
+          v-for="row in layout.rows"
+          :key="row.catId"
+          class="rl-tags"
+          :style="rowStyle(row)"
+        >
+          <span v-if="!row.tags.length && !row.allowCustom" class="rl-tags-empty">—</span>
+          <span
+            v-for="tag in row.tags"
+            :key="tag.id"
+            class="rl-tag"
+            :class="{
+              selected: selectedTagIds.has(tag.id),
+              disabled: !selectedTagIds.has(tag.id) && limitReached,
+            }"
+            @click="toggleTag(tag.id)"
+          >
+            <n-icon v-if="selectedTagIds.has(tag.id)" :component="CheckmarkOutline" :size="11" class="rl-tag-check" />
+            {{ tag.name }}
+          </span>
+          <template v-if="row.allowCustom">
+            <input
+              v-if="editingOther[row.catId]"
+              v-focus
+              class="rl-other-input"
+              :value="otherInputs[row.catId] || ''"
+              :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
+              @input="(e: any) => onOtherInput(row.catId, (e.target as HTMLInputElement).value)"
+              @keydown.enter="commitOther(row.catId)"
+              @blur="commitOther(row.catId)"
+            />
+            <span
+              v-else-if="otherInputs[row.catId]"
+              class="rl-tag other-filled"
+              @click="editOtherAgain(row.catId)"
+            >{{ otherInputs[row.catId] }}</span>
+            <span v-else class="rl-tag other" @click="onOtherClick(row.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+          </template>
         </div>
       </div>
     </div>
@@ -88,11 +96,14 @@
 /**
  * Step3Preview (业务方原因选择弹窗预览 / 模拟)
  *
- * 布局 (需求 2026-09-21 修订为卡片式):
- * - 页面分为两个模块: ① 原因标签 (卡片式分类聚合) ② 详细原因 (多行文本框)
- * - 每个 L1 分类 = 一张 tag-card; L2 作为卡片内分组 (tag-group); L3/末级原因标签在分组内聚合排列。
- * - 卡片内「合并」含义: 同类 (同 L2 / 同末级) 的原因标签被聚合在同一 chip 容器内一并展示,
- *   不再使用任何 <table> 元素或 CSS Grid 伪装的合并单元格。
+ * 布局 (需求 2026-09-21 修订为「合并单元格式」卡片网格):
+ * - 页面分为两个模块: ① 原因标签 (合并单元格式卡片网格) ② 详细原因 (多行文本框)
+ * - 分类单元用 CSS Grid 的 grid-row / grid-column span 模拟电子表格的「合并单元格」:
+ *     · 有子级的分类 → 向下跨越其子树占用的全部末级行 (跨行合并)
+ *     · 末级分类     → 向右延展到最深层级所在列 (跨列合并)
+ *   两者组合产生尺寸错落、彼此连通的合并块观感。
+ * - 底层全部是卡片 div, 未使用任何 <table> / <tr> / <td> 元素 (需求硬约束)。
+ * - 「其他」入口由末级分类的 allowCustom 控制 (终端用户态), 与本组件的管理员视角无关。
  * - 原因标签可勾选: 已选条数达到 maxSelectableTags (规则配置, 0=不限制) 时, 未选项禁用。
  *
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
@@ -108,21 +119,23 @@ const props = defineProps<{
   allTags: ReasonTag[]
 }>()
 
-interface TagLeaf {
+/** 一个分类单元在网格中的位置与跨度 (等价于合并单元格的锚点 + rowspan/colspan) */
+interface MergeCell {
+  key: string
+  name: string
+  col: number
+  colSpan: number
+  row: number
+  rowSpan: number
+  isLeaf: boolean
+  isWide: boolean
+}
+/** 一个末级分类对应的「标签单元」行 */
+interface TagRow {
   catId: string
-  label: string // 末级 (第4级) 分类名, 非末级留空
+  row: number
   tags: ReasonTag[]
   allowCustom: boolean
-}
-interface TagGroup {
-  name: string // L2 分组名 (L1 直接末级时为 '')
-  leaves: TagLeaf[]
-  tagTotal: number
-}
-interface TagCard {
-  name: string // L1 名
-  groups: TagGroup[]
-  tagTotal: number
 }
 
 const selectedTagIds = ref<Set<string>>(new Set())
@@ -171,48 +184,93 @@ const vFocus = {
   mounted: (el: HTMLElement) => el.focus(),
 }
 
-// ============= 卡片式分类聚合数据模型 =============
-const tagCards = computed<TagCard[]>(() => {
-  const cats = props.wizard.categories
+// ============= 合并单元格式网格: 两遍扫描计算落位 =============
+const layout = computed<{ cells: MergeCell[]; rows: TagRow[]; maxDepth: number }>(() => {
+  const cats = props.wizard.categories || []
   const byParent = new Map<string, RuleCategory[]>()
   cats.forEach((c) => {
     const pid = c.parentId || ''
     if (!byParent.has(pid)) byParent.set(pid, [])
     byParent.get(pid)!.push(c)
   })
+  const kids = (pid: string) => (byParent.get(pid) || []).slice().sort((a, b) => a.order - b.order)
   const tagById = new Map(props.allTags.map((tt) => [tt.id, tt]))
   const resolveTags = (c: RuleCategory): ReasonTag[] =>
     (c.tags || []).map((tt) => tagById.get(tt.id)).filter((tt): tt is ReasonTag => !!tt)
-  const sortKids = (pid: string) => (byParent.get(pid) || []).sort((a, b) => a.order - b.order)
 
-  // 递归收集某分类下的末级 (含其原因标签); 第4级带分类名标签
-  const leavesUnder = (c: RuleCategory): TagLeaf[] => {
-    const kids = sortKids(c.id)
-    if (kids.length === 0) {
-      return [{ catId: c.id, label: c.level >= 4 ? c.name : '', tags: resolveTags(c), allowCustom: c.allowCustom }]
+  // --- 第一遍: 计算每个节点的深度 与 其子树占用的末级行数 (rowSpan), 并得出最大深度 ---
+  const depthOf = new Map<string, number>()
+  const spanOf = new Map<string, number>()
+  let maxDepth = 1
+  const measure = (c: RuleCategory, depth: number): number => {
+    depthOf.set(c.id, depth)
+    if (depth > maxDepth) maxDepth = depth
+    const ks = kids(c.id)
+    if (!ks.length) {
+      // 末级: 自身独占一行 (也是标签单元的载体)
+      spanOf.set(c.id, 1)
+      return 1
     }
-    return kids.flatMap(leavesUnder)
+    let n = 0
+    ks.forEach((k) => { n += measure(k, depth + 1) })
+    spanOf.set(c.id, n)
+    return n
   }
+  kids('').forEach((root) => measure(root, 1))
 
-  const cards: TagCard[] = []
-  for (const l1 of sortKids('')) {
-    const l2s = sortKids(l1.id)
-    const groups: TagGroup[] = []
-    if (!l2s.length) {
-      // L1 本身即末级 (无 L2): 折叠为单分组
-      const leaves = leavesUnder(l1)
-      groups.push({ name: '', leaves, tagTotal: leaves.reduce((s, l) => s + l.tags.length, 0) })
+  // --- 第二遍: 深度优先落位, 生成分类单元 + 标签单元 ---
+  const cells: MergeCell[] = []
+  const rows: TagRow[] = []
+  let cursor = 0 // 0-based: 下一个可用的末级行
+  const place = (c: RuleCategory) => {
+    const depth = depthOf.get(c.id) || 1
+    const rowSpan = spanOf.get(c.id) || 1
+    const rowStart = cursor
+    const ks = kids(c.id)
+    const isLeaf = ks.length === 0
+    // 有子级: 只占自身所在列 (子级占右侧列) → 跨行
+    // 末级  : 向右延展到最深层级所在列   → 跨列
+    const colSpan = isLeaf ? maxDepth - depth + 1 : 1
+    cells.push({
+      key: c.id,
+      name: c.name,
+      col: depth,
+      colSpan,
+      row: rowStart + 1, // CSS Grid 行号从 1 开始
+      rowSpan,
+      isLeaf,
+      isWide: isLeaf && colSpan > 1,
+    })
+    if (isLeaf) {
+      rows.push({ catId: c.id, row: rowStart + 1, tags: resolveTags(c), allowCustom: c.allowCustom })
+      cursor += 1
     } else {
-      for (const l2 of l2s) {
-        const leaves = leavesUnder(l2)
-        groups.push({ name: l2.name, leaves, tagTotal: leaves.reduce((s, l) => s + l.tags.length, 0) })
-      }
+      ks.forEach(place)
     }
-    const tagTotal = groups.reduce((s, g) => s + g.tagTotal, 0)
-    cards.push({ name: l1.name, groups, tagTotal })
   }
-  return cards
+  kids('').forEach(place)
+
+  return { cells, rows, maxDepth }
 })
+
+// 分类单元列数 = 最大层级; 末列 (1fr) 承接标签单元
+const gridStyle = computed(() => {
+  const n = Math.max(1, layout.value.maxDepth)
+  return { gridTemplateColumns: `repeat(${n}, minmax(76px, 122px)) minmax(0, 1fr)` }
+})
+
+function cellStyle(cell: MergeCell) {
+  return {
+    gridColumn: `${cell.col} / span ${cell.colSpan}`,
+    gridRow: `${cell.row} / span ${cell.rowSpan}`,
+  }
+}
+function rowStyle(row: TagRow) {
+  return {
+    gridColumn: `${layout.value.maxDepth + 1}`,
+    gridRow: `${row.row}`,
+  }
+}
 </script>
 
 <style scoped>
@@ -221,7 +279,7 @@ const tagCards = computed<TagCard[]>(() => {
 .rl-preview-module {
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--glass-bg-elevated);
   padding: var(--space-3);
 }
 .rl-mod-head {
@@ -250,99 +308,64 @@ const tagCards = computed<TagCard[]>(() => {
 }
 .rl-mod-limit.full { color: var(--c-error); font-weight: 600; }
 
-/* === 卡片式分类聚合 (替代原网格表格) === */
-.tag-cards { display: flex; flex-direction: column; gap: var(--space-3); }
-.tag-card {
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+/* === 合并单元格式卡片网格 (纯 CSS Grid, 零 <table>) ===
+ * - 行高由标签单元内容决定; 跨行的分类单元随其跨越的行一起延展
+ * - 小间距 + 圆角让相邻单元连成块, 强化「合并块」的连通观感
+ */
+.rl-merge {
+  display: grid;
+  gap: 5px;
+  grid-auto-rows: minmax(40px, auto);
+  align-items: stretch;
+}
+
+/* 分类单元: 靠 grid span 实现跨行/跨列, 视觉上等同合并单元格 */
+.rl-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--brand-a12);
+  border-radius: var(--radius-sm);
+  background: var(--brand-tint);
+  color: var(--ink-soft);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  overflow-wrap: anywhere;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
-.tag-card:hover { border-color: var(--brand); }
-.tag-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--space-2) var(--space-3);
-  background: var(--glass-bg-card);
-  border-bottom: 1px solid var(--border-hairline);
-}
-.tag-card-path {
-  font-size: var(--fs-13);
-  font-weight: 600;
+.rl-cell:hover { border-color: var(--brand); }
+.rl-cell.is-leaf {
+  background: var(--brand-soft);
+  border-color: var(--brand-a22);
   color: var(--ink);
-  flex: 1;
+  font-weight: 600;
+}
+.rl-cell.is-wide { background: var(--brand-a22); }
+
+/* 标签单元: 每个末级分类一行, 同类原因标签在此聚合排列 */
+.rl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 6px;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 2px 0 2px var(--space-2);
 }
-.tag-card-badge {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: 4px;
-  padding: 1px 7px;
-  background: var(--g1);
-  color: var(--ink-soft);
-}
-.tag-card-body {
-  padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.tag-group { }
-.tag-group-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.rl-tags-empty {
   font-size: var(--fs-12);
-  font-weight: 600;
-  color: var(--ink-soft);
-  margin-bottom: var(--space-2);
-}
-.tag-group-title .tg-bar {
-  width: 3px;
-  height: 13px;
-  border-radius: 2px;
-  background: var(--brand);
-}
-.tag-group-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-left: 10px;
-  border-left: 2px solid var(--g1);
-}
-.tag-leaf { }
-.tag-leaf-label {
-  width: 100%;
-  font-size: var(--fs-11);
-  font-weight: 600;
-  color: var(--ink-soft);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.tag-leaf-label::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: .5;
+  color: var(--ink-faint);
+  user-select: none;
 }
 
-/* === 原因标签 capsule (沿用项目既有卡片式 chip 风格) === */
-.rl-chips { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; align-content: flex-start; }
-
+/* === 原因标签 capsule === */
 .rl-tag {
   border: 1px solid var(--border-hairline);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink-soft);
   font-size: var(--fs-11);
   padding: 4px 11px;
@@ -368,8 +391,8 @@ const tagCards = computed<TagCard[]>(() => {
 }
 .rl-tag.disabled:hover { border-color: var(--border-hairline); color: var(--ink-soft); }
 .rl-tag.other { border-style: dashed; color: var(--brand); border-color: var(--brand); }
-.rl-tag.other:hover { background: rgba(54, 110, 235, .08); }
-.rl-tag.other-filled { background: rgba(54, 110, 235, .1); border-color: var(--brand); color: var(--brand); }
+.rl-tag.other:hover { background: var(--brand-tint); }
+.rl-tag.other-filled { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
 
 .rl-other-input {
   border: 1px solid var(--brand);
@@ -380,9 +403,9 @@ const tagCards = computed<TagCard[]>(() => {
   width: 130px;
   outline: none;
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
 }
-.rl-other-input:focus { box-shadow: 0 0 0 2px rgba(54, 110, 235, .18); }
+.rl-other-input:focus { box-shadow: 0 0 0 2px var(--brand-a22); }
 
 .rl-empty {
   padding: 36px;

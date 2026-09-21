@@ -211,7 +211,6 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.wizard.preview.otherPlaceholder': '请输入自定义原因…',
   'reasonLibrary.wizard.preview.sceneHeader': '{scene}',
   'reasonLibrary.wizard.preview.sceneMissing': '未配置场景',
-  'reasonLibrary.wizard.preview.tagTotal': '共 {n} 个标签',
   'reasonLibrary.wizard.sceneEditor.title': '选择应用场景',
   'reasonLibrary.wizard.sceneEditor.subtitle': '同一规则可被多个场景引用, 未覆盖的场景默认使用系统预置规则',
   'reasonLibrary.wizard.sceneEditor.conflict': '该场景已被其他规则占用, 需先解除引用',
