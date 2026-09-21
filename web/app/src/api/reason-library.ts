@@ -269,6 +269,7 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
     description: rule.description,
     enabled: rule.enabled,
     scenes: rule.scenes,
+    max_selectable_tags: rule.maxSelectableTags ?? 5,
     categories,
   }
 }

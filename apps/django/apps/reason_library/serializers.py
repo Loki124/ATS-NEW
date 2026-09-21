@@ -120,6 +120,7 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
     # camelCase 别名 (sandbox 用了 stub renderer 不做 snake↔camel 转换,
     # 这里手动暴露两种命名, 让前端 camelCase 调用也能命中)
     isSystem = serializers.BooleanField(source='is_system', read_only=True)
+    maxSelectableTags = serializers.IntegerField(source='max_selectable_tags', read_only=True)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
 
@@ -127,6 +128,7 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
         model = SceneRule
         fields = [
             'id', 'name', 'is_system', 'isSystem', 'enabled', 'description',
+            'max_selectable_tags', 'maxSelectableTags',
             'created_at', 'createdAt', 'updated_at', 'updatedAt', 'scenes',
         ]
         read_only_fields = ['id', 'is_system', 'isSystem', 'created_at', 'createdAt', 'updated_at', 'updatedAt']
@@ -150,7 +152,7 @@ class SceneRuleCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['id', 'name', 'is_system', 'enabled', 'description']
+        fields = ['id', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags']
         read_only_fields = ['id']
 
     def validate_name(self, value: str) -> str:
@@ -169,11 +171,12 @@ class SceneRuleUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['name', 'enabled', 'description']
+        fields = ['name', 'enabled', 'description', 'max_selectable_tags']
         extra_kwargs = {
             'name': {'required': False},
             'enabled': {'required': False},
             'description': {'required': False},
+            'max_selectable_tags': {'required': False},
         }
 
     def validate_name(self, value: str) -> str:
@@ -245,6 +248,7 @@ class WizardSaveSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=64)
     description = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     enabled = serializers.BooleanField(required=False, default=True)
+    max_selectable_tags = serializers.IntegerField(required=False, default=5, min_value=0)
     categories = WizardCategorySerializer(many=True, required=False, default=list)
     scenes = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,

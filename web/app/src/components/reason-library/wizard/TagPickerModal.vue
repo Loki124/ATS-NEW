@@ -25,6 +25,9 @@
         style="width: 130px"
         clearable
       />
+      <n-checkbox v-model:checked="onlyAvailable" class="only-available">
+        {{ t('reasonLibrary.wizard.tagPicker.onlyAvailable') }}
+      </n-checkbox>
       <n-button size="small" @click="selectAll">
         {{ t('reasonLibrary.wizard.tagPicker.selectAll') }}
       </n-button>
@@ -47,7 +50,7 @@
         <input
           type="checkbox"
           :checked="selectedIds.has(tag.id)"
-          :disabled="isExcluded(tag.id) || (!selectedIds.has(tag.id) && selectedIds.size >= MAX_PICK)"
+          :disabled="isExcluded(tag.id) || (!selectedIds.has(tag.id) && effectiveMax != null && selectedIds.size >= effectiveMax)"
           @change="(e: any) => toggle(tag.id, e.target.checked)"
         />
         <span class="name">
@@ -67,8 +70,8 @@
       <div class="picker-foot">
         <span class="picker-count">
           {{ t('reasonLibrary.wizard.tagPicker.selectedCount', { count: selectedIds.size }).replace('{count}', String(selectedIds.size)) }}
-          <n-tag v-if="selectedIds.size >= MAX_PICK" size="small" type="warning" bordered style="margin-left: 8px;">
-            {{ t('reasonLibrary.wizard.tagPicker.maxPickWarn') }}
+          <n-tag v-if="effectiveMax && selectedIds.size >= effectiveMax" size="small" type="warning" bordered style="margin-left: 8px;">
+            {{ t('reasonLibrary.wizard.tagPicker.maxPickWarn', { max: effectiveMax }) }}
           </n-tag>
         </span>
         <n-space>
@@ -84,11 +87,14 @@
 /**
  * TagPickerModal (T-19)
  * - 批量选择标签
- * - 搜索 + 类型筛选 + 全选 + 清空 + 确定
- * - MAX_PICK (5) 校验: 选满 5 条后其他 checkbox disabled
+ * - 搜索 + 类型筛选 + 「仅看可用」筛选 + 全选 + 清空 + 确定
+ * - 选择上限 (maxPick prop):
+ *    缺省 = MAX_PICK(5) → 用户实际使用时硬上限, 明确 5 条;
+ *    0 = 不限制 (配置阶段可超过 5 条); 正整数 = 该上限。
+ * - 「仅看可用」: 隐藏已被同规则其它分类占用的标签 (Item4 单归属)
  */
 import { ref, computed, watch } from 'vue'
-import { NModal, NInput, NSelect, NButton, NSpace, NTag, NIcon, NEmpty, useMessage } from 'naive-ui'
+import { NModal, NInput, NSelect, NButton, NSpace, NTag, NIcon, NEmpty, NCheckbox, useMessage } from 'naive-ui'
 import { SearchOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory } from '../../../types/reason-library'
 import { MAX_PICK } from '../../../types/reason-library'
@@ -101,6 +107,13 @@ const props = defineProps<{
   availableTags: ReasonTag[]
   currentSelected: ReasonTag[]
   excludeTagIds?: string[]
+  /**
+   * 选择上限:
+   * - 不传 / 缺省 → MAX_PICK (5): 「用户实际使用时」的硬上限 (明确 5 条)
+   * - 0 → 不限制 (配置阶段可超过 5 条)
+   * - 其它正整数 → 该上限
+   */
+  maxPick?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -118,12 +131,19 @@ function isExcluded(id: string): boolean {
 
 const search = ref('')
 const typeFilter = ref<'system' | 'custom' | null>(null)
+const onlyAvailable = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
 
 const typeOptions = [
   { label: t('reasonLibrary.tags.filter.system'), value: 'system' },
   { label: t('reasonLibrary.tags.filter.custom'), value: 'custom' },
 ]
+
+// 有效上限: 缺省=MAX_PICK(5); 0/负数=不限制; 正整数=该值
+const effectiveMax = computed<number | null>(() => {
+  const m = props.maxPick ?? MAX_PICK
+  return m <= 0 ? null : m
+})
 
 // 打开时同步当前已选
 watch(
@@ -135,18 +155,21 @@ watch(
     if (show) {
       search.value = ''
       typeFilter.value = null
+      onlyAvailable.value = false
     }
   },
   { immediate: true },
 )
 
-/** 仅展示 enabled + 类型筛选后的标签 */
+/** 仅展示 enabled + 类型筛选 + 「仅看可用」后的标签 */
 const filteredTags = computed<ReasonTag[]>(() => {
   const q = search.value.trim().toLowerCase()
   return props.availableTags.filter((t) => {
     if (!t.enabled) return false
     if (q && !t.name.toLowerCase().includes(q) && !(t.enName || '').toLowerCase().includes(q)) return false
     if (typeFilter.value && t.type !== typeFilter.value) return false
+    // 仅看可用: 隐藏已被其它分类占用的标签
+    if (onlyAvailable.value && isExcluded(t.id)) return false
     return true
   })
 })
@@ -158,7 +181,7 @@ function toggle(id: string, checked: boolean) {
       message.warning(t('reasonLibrary.wizard.tagPicker.assignedElsewhere'))
       return
     }
-    if (selectedIds.value.size >= MAX_PICK) return
+    if (effectiveMax.value != null && selectedIds.value.size >= effectiveMax.value) return
     selectedIds.value.add(id)
   } else {
     selectedIds.value.delete(id)
@@ -170,7 +193,7 @@ function toggle(id: string, checked: boolean) {
 function selectAll() {
   const next = new Set(selectedIds.value)
   for (const tag of filteredTags.value) {
-    if (next.size >= MAX_PICK) break
+    if (effectiveMax.value != null && next.size >= effectiveMax.value) break
     if (isExcluded(tag.id)) continue // Item4: 跳过已归属其它分类的标签
     next.add(tag.id)
   }
@@ -189,8 +212,6 @@ function confirm() {
   const selected = props.availableTags.filter((t) => selectedIds.value.has(t.id))
   emit('confirm', { catId: props.categoryId, selected })
 }
-
-void MAX_PICK
 </script>
 
 <style scoped>
@@ -200,6 +221,7 @@ void MAX_PICK
   align-items: center;
   margin-bottom: var(--space-2);
 }
+.only-available { white-space: nowrap; user-select: none; }
 .picker-list {
   max-height: 380px;
   overflow-y: auto;

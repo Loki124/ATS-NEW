@@ -119,6 +119,8 @@ export interface SceneRule {
   enabled: boolean
   description?: string
   scenes: SceneKey[]
+  /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
+  maxSelectableTags: number
   /** 完整嵌套分类树 (含末级 tags) */
   categories: RuleCategory[]
   /** 列表接口附加的统计字段 (后端 _count 或 @property) */
@@ -136,6 +138,8 @@ export interface SceneRuleListItem {
   enabled: boolean
   description?: string
   scenes: SceneKey[]
+  /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
+  maxSelectableTags: number
   sceneCount: number
   categoryCount: number
   tagCount: number
@@ -166,6 +170,8 @@ export interface WizardPayload {
   enabled: boolean
   isSystem: boolean
   scenes: SceneKey[]
+  /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
+  maxSelectableTags: number
   categories: RuleCategory[]
   updatedAt?: string
 }
@@ -196,6 +202,8 @@ export interface WizardSavePayload {
   description?: string
   enabled: boolean
   scenes: SceneKey[]
+  /** 用户可选原因标签上限 (0 表示不限制) */
+  max_selectable_tags: number
   categories: WizardSaveCategory[]
   /** 可选乐观锁: 仅 ENABLE_OPTIMISTIC_LOCK=true 时携带 (对应 payload.updatedAt) */
   expected_updated_at?: string

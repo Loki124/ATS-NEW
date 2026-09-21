@@ -28,6 +28,10 @@
               <template #icon><n-icon :component="PencilOutline" /></template>
               {{ t('reasonLibrary.wizard.editScenes') }}
             </n-button>
+            <n-button size="tiny" style="margin-left: 8px;" @click="openRuleSettings">
+              <template #icon><n-icon :component="SettingsOutline" /></template>
+              {{ t('reasonLibrary.wizard.ruleSettings') }}
+            </n-button>
           </div>
         </div>
 
@@ -96,6 +100,34 @@
       v-model:scenes="wizard.scenes"
       :all-scenes-usage="sceneUsage"
     />
+
+    <!-- 规则设置弹窗: 用户可选标签数量配置 -->
+    <n-modal
+      v-model:show="ruleSettingsShow"
+      preset="card"
+      :title="t('reasonLibrary.wizard.ruleSettings')"
+      style="width: 420px"
+      :mask-closable="false"
+      :bordered="false"
+    >
+      <n-form-item :label="t('reasonLibrary.wizard.maxSelectableTags')">
+        <n-input-number
+          v-model:value="ruleSettingsForm.maxSelectableTags"
+          :min="0"
+          :max="100"
+          style="width: 100%"
+          clearable
+          :placeholder="t('reasonLibrary.wizard.maxSelectableTagsPlaceholder')"
+        />
+      </n-form-item>
+      <p class="rl-settings-hint">{{ t('reasonLibrary.wizard.maxSelectableTagsHint') }}</p>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="ruleSettingsShow = false">{{ t('reasonLibrary.common.cancel') }}</n-button>
+          <n-button type="primary" @click="saveRuleSettings">{{ t('reasonLibrary.common.confirm') }}</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </n-modal>
 </template>
 
@@ -116,10 +148,11 @@
 import { ref, computed, watch } from 'vue'
 import {
   NModal, NButton, NSpace, NTag, NIcon, useMessage, useDialog, NSpin,
+  NInputNumber, NFormItem,
 } from 'naive-ui'
 import {
   ChevronBackOutline, ChevronForwardOutline, ArrowBackOutline,
-  CheckmarkOutline, PencilOutline,
+  CheckmarkOutline, PencilOutline, SettingsOutline,
 } from '@vicons/ionicons5'
 import {
   createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags,
@@ -176,6 +209,21 @@ const nextLabel = computed(() =>
 
 const sceneEditorShow = ref(false)
 
+// 规则设置弹窗状态
+const ruleSettingsShow = ref(false)
+const ruleSettingsForm = ref<{ maxSelectableTags: number }>({ maxSelectableTags: 5 })
+
+function openRuleSettings() {
+  if (!wizard.value) return
+  ruleSettingsForm.value.maxSelectableTags = wizard.value.maxSelectableTags
+  ruleSettingsShow.value = true
+}
+function saveRuleSettings() {
+  if (!wizard.value) return
+  wizard.value.maxSelectableTags = Math.max(0, ruleSettingsForm.value.maxSelectableTags ?? 0)
+  ruleSettingsShow.value = false
+}
+
 // ============= 加载逻辑 =============
 watch(
   () => [props.show, props.ruleId] as const,
@@ -214,6 +262,7 @@ function toWizard(rule: SceneRule): WizardPayload {
     enabled: rule.enabled,
     isSystem: rule.isSystem,
     scenes: [...(rule.scenes ?? [])],
+    maxSelectableTags: rule.maxSelectableTags ?? 5,
     categories: deepCloneCategories(rule.categories ?? [], allTags.value),
     updatedAt: rule.updatedAt,
   }
@@ -228,6 +277,7 @@ function emptyWizardPayload(): WizardPayload {
     enabled: true,
     isSystem: false,
     scenes: [],
+    maxSelectableTags: 5,
     categories: [],
     updatedAt: undefined,
   }

@@ -1,165 +1,116 @@
 <template>
   <div class="step3">
-    <div class="step-intro">
-      <n-icon :component="InformationCircleOutline" color="var(--brand)" :size="16" />
-      <span>
-        <b>{{ t('reasonLibrary.wizard.step3.title') }}</b>
-        — {{ t('reasonLibrary.wizard.intro.step3') }}
-      </span>
+    <!-- ============ 模块一: 原因标签 (可勾选, 受规则「可选条数」限制) ============ -->
+    <div class="rl-preview-module">
+      <div class="rl-mod-head">
+        <h3>{{ t('reasonLibrary.wizard.preview.moduleTagsTitle') }}</h3>
+        <span v-if="sceneName" class="rl-scene">{{ sceneName }}</span>
+        <span
+          v-if="maxSelectable > 0"
+          class="rl-mod-limit"
+          :class="{ full: limitReached }"
+        >{{ t('reasonLibrary.wizard.preview.selectLimit', { count: selectedTagIds.size, max: maxSelectable }) }}</span>
+      </div>
+
+      <div v-if="!mergedRows.length" class="rl-empty">{{ t('reasonLibrary.wizard.preview.empty') }}</div>
+
+      <div v-else class="rl-merged-table">
+        <template v-for="(row, ri) in mergedRows" :key="ri">
+          <!-- 第1列: L1 (纵向合并) -->
+          <div
+            v-if="row.l1IsFirst"
+            class="rl-mcell l1"
+            :style="{ gridRow: `span ${row.l1Rowspan}` }"
+          >
+{{ row.l1Name }}
+</div>
+          <!-- 第2列: L2 (纵向合并, 一个 L1 下多个 L2 则上下分割) -->
+          <div
+            v-if="row.l2IsFirst"
+            class="rl-mcell l2"
+            :style="{ gridRow: `span ${row.l2Rowspan}` }"
+          >
+{{ row.l2Name || '—' }}
+</div>
+          <!-- 第3列: L3 -->
+          <div class="rl-mcell l3">{{ row.l3Name }}</div>
+          <!-- 第4列: 原因标签 (可勾选) -->
+          <div class="rl-mcell reason">
+            <template v-for="leaf in row.leaves" :key="leaf.catId">
+              <div v-if="leaf.label" class="rl-leaf-label">{{ leaf.label }}</div>
+              <div class="rl-chips">
+                <span
+                  v-for="tag in leaf.tags"
+                  :key="tag.id"
+                  class="rl-tag"
+                  :class="{
+                    selected: selectedTagIds.has(tag.id),
+                    disabled: !selectedTagIds.has(tag.id) && limitReached,
+                  }"
+                  @click="toggleTag(tag.id)"
+                >
+                  <n-icon v-if="selectedTagIds.has(tag.id)" :component="CheckmarkOutline" :size="11" class="rl-tag-check" />
+                  {{ tag.name }}
+                </span>
+                <template v-if="leaf.allowCustom">
+                  <input
+                    v-if="editingOther[leaf.catId]"
+                    v-focus
+                    class="rl-other-input"
+                    :value="otherInputs[leaf.catId] || ''"
+                    :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
+                    @input="(e: any) => onOtherInput(leaf.catId, (e.target as HTMLInputElement).value)"
+                    @keydown.enter="commitOther(leaf.catId)"
+                    @blur="commitOther(leaf.catId)"
+                  />
+                  <span
+                    v-else-if="otherInputs[leaf.catId]"
+                    class="rl-tag other-filled"
+                    @click="editOtherAgain(leaf.catId)"
+                  >{{ otherInputs[leaf.catId] }}</span>
+                  <span v-else class="rl-tag other" @click="onOtherClick(leaf.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
     </div>
 
-    <div class="preview-wrap glass-card">
-      <div class="preview-modal">
-        <div class="pv-head">
-          <h3>{{ previewTitle }}</h3>
-          <div class="pv-count-row">
-            <span class="req">{{ t('reasonLibrary.wizard.preview.requiredHint') }}</span>
-            <span class="lbl">{{ t('reasonLibrary.wizard.preview.chooseReason') }}</span>
-            <span class="lim">{{ t('reasonLibrary.wizard.preview.maxHint') }}</span>
-          </div>
-        </div>
-
-        <div class="pv-body">
-          <div class="pv-tbl-head">
-            <span>{{ t('reasonLibrary.wizard.preview.colFactor') }}</span>
-            <span>{{ t('reasonLibrary.wizard.preview.colCategory') }}</span>
-            <span>{{ t('reasonLibrary.wizard.preview.colReasons') }}</span>
-          </div>
-
-          <div v-if="!previewTree.length" class="pv-empty">{{ t('reasonLibrary.wizard.preview.empty') }}</div>
-          <template v-else>
-            <div
-              v-for="(g, gi) in previewTree"
-              :key="g.id"
-              class="pv-row"
-              :class="{ merged: !g.isLeaf }"
-              :style="!g.isLeaf ? { 'grid-template-rows': `repeat(${countSubRows(g)}, auto)` } : {}"
-            >
-              <div
-                class="pv-cell l1"
-                :class="['c-' + colorCycle[gi % colorCycle.length], { span2: g.isLeaf }]"
-                :style="!g.isLeaf ? { 'grid-row': `1 / span ${countSubRows(g)}` } : {}"
-              >
-                {{ g.name }}
-              </div>
-
-              <template v-if="g.isLeaf">
-                <div class="pv-chips">
-                  <span v-for="tag in g.tags" :key="tag.id" class="pv-chip">
-                    {{ tag.name }}
-                    <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
-                  </span>
-                  <template v-if="g.allowCustom">
-                    <input
-                      v-if="editingOther[g.id]"
-                      v-focus
-                      class="pv-other-input"
-                      :value="otherInputs[g.id] || ''"
-                      :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
-                      @input="(e: any) => onOtherInput(g.id, (e.target as HTMLInputElement).value)"
-                      @keydown.enter="commitOther(g.id)"
-                      @blur="commitOther(g.id)"
-                    />
-                    <span
-                      v-else-if="otherInputs[g.id]"
-                      class="pv-chip other-filled"
-                      @click="editOtherAgain(g.id)"
-                    >{{ otherInputs[g.id] }}</span>
-                    <span v-else class="pv-chip other" @click="onOtherClick(g.id)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
-                  </template>
-                </div>
-              </template>
-
-              <template v-else>
-                <template v-for="sub in g.children" :key="sub.id">
-                  <template v-if="sub.isLeaf">
-                    <div :class="['pv-cell', 'c-' + colorCycle[gi % colorCycle.length]]">{{ sub.name }}</div>
-                    <div class="pv-chips">
-                      <span v-for="tag in sub.tags" :key="tag.id" class="pv-chip">
-                        {{ tag.name }}
-                        <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
-                      </span>
-                      <template v-if="sub.allowCustom">
-                        <input
-                          v-if="editingOther[sub.id]"
-                          v-focus
-                          class="pv-other-input"
-                          :value="otherInputs[sub.id] || ''"
-                          :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
-                          @input="(e: any) => onOtherInput(sub.id, (e.target as HTMLInputElement).value)"
-                          @keydown.enter="commitOther(sub.id)"
-                          @blur="commitOther(sub.id)"
-                        />
-                        <span
-                          v-else-if="otherInputs[sub.id]"
-                          class="pv-chip other-filled"
-                          @click="editOtherAgain(sub.id)"
-                        >{{ otherInputs[sub.id] }}</span>
-                        <span v-else class="pv-chip other" @click="onOtherClick(sub.id)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
-                      </template>
-                    </div>
-                  </template>
-                  <template v-else>
-                    <div :class="['pv-cell', 'c-' + colorCycle[gi % colorCycle.length]]">{{ sub.name }}</div>
-                    <div>
-                      <div v-for="l3 in sub.children" :key="l3.id" class="pv-l3-group">
-                        <div class="pv-l3-title">{{ l3.name }}</div>
-                        <div class="pv-chips">
-                          <span v-for="tag in l3.tags" :key="tag.id" class="pv-chip">
-                            {{ tag.name }}
-                            <n-icon v-if="tag.tip" :component="InformationCircleOutline" :size="9" class="tip-i" />
-                          </span>
-                          <template v-if="l3.allowCustom">
-                            <input
-                              v-if="editingOther[l3.id]"
-                              v-focus
-                              class="pv-other-input"
-                              :value="otherInputs[l3.id] || ''"
-                              :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
-                              @input="(e: any) => onOtherInput(l3.id, (e.target as HTMLInputElement).value)"
-                              @keydown.enter="commitOther(l3.id)"
-                              @blur="commitOther(l3.id)"
-                            />
-                            <span
-                              v-else-if="otherInputs[l3.id]"
-                              class="pv-chip other-filled"
-                              @click="editOtherAgain(l3.id)"
-                            >{{ otherInputs[l3.id] }}</span>
-                            <span v-else class="pv-chip other" @click="onOtherClick(l3.id)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
-                          </template>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                </template>
-              </template>
-            </div>
-          </template>
-        </div>
-
-        <div class="pv-foot">
-          <button class="pv-btn">{{ t('reasonLibrary.common.cancel') }}</button>
-          <button class="pv-btn primary">{{ t('reasonLibrary.common.confirm') }}</button>
-        </div>
+    <!-- ============ 模块二: 详细原因 (多行文本框) ============ -->
+    <div class="rl-preview-module">
+      <div class="rl-mod-head">
+        <h3>{{ t('reasonLibrary.wizard.preview.moduleDetailTitle') }}</h3>
       </div>
+      <n-input
+        v-model:value="detailReason"
+        type="textarea"
+        :autosize="{ minRows: 3, maxRows: 8 }"
+        :placeholder="t('reasonLibrary.wizard.preview.detailPlaceholder')"
+        class="rl-detail-input"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * Step3Preview (T-18)
- * - 模拟业务方弹窗预览 (与原型 §第六步完全对齐)
- * - 三列 grid (88px 108px 1fr) + 5 色循环 (blue/green/purple/orange/gray)
- * - 每张 L1 大类一行; 末级直接展示 tags chip; 非末级递归展开为 L2 + L3
- * - "其他" chip 在 allowCustom=true 的末级显示
+ * Step3Preview (业务方原因选择弹窗预览 / 模拟)
  *
- * 数据来源: wizard.categories + wizard.scenes
- * 仅读 (UI 模拟, 不修改 wizard)
+ * 布局 (需求 2026-09-21 修订):
+ * - 页面分为上下两个模块:
+ *     ① 原因标签: 展示 Step2 配置的标签, 用户可勾选 (受规则「可选条数」限制)
+ *     ② 详细原因: 多行文本框
+ * - 1-3 级分类用纵向合并单元格 (CSS Grid + grid-row: span): 左→右 分别是 L1 / L2 / L3;
+ *   一个 L1 下有多个 L2 时, L2 列上下分割 (各自 rowspan 其下 L3 行数)。
+ * - 第4级 (末级) 分类不单独成列, 其分类名作为小标签 + 原因标签一起落入第4列「原因」列。
+ * - 原因标签可勾选: 已选条数达到 maxSelectableTags (规则配置, 0=不限制) 时, 未选项禁用。
+ *
+ * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
  */
 import { computed, reactive, ref } from 'vue'
-import { NIcon } from 'naive-ui'
-import { InformationCircleOutline } from '@vicons/ionicons5'
+import { NInput, NIcon } from 'naive-ui'
+import { CheckmarkOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
 
@@ -168,71 +119,47 @@ const props = defineProps<{
   allTags: ReasonTag[]
 }>()
 
-// 5 色循环 (与原型 .c-blue/green/purple/orange/gray 对齐)
-const colorCycle = ['blue', 'green', 'purple', 'orange', 'gray']
-
-const previewTitle = computed(() => {
-  const scene = props.wizard.scenes[0]
-  if (!scene) return t('reasonLibrary.wizard.preview.sceneMissing')
-  return t('reasonLibrary.wizard.preview.sceneHeader', { scene }).replace('{scene}', scene)
-})
-
-interface PreviewNode {
-  id: string
-  name: string
-  isLeaf: boolean
+interface LeafInfo {
+  catId: string
+  label: string // 第4级分类名 (L1-L3 末级留空)
   tags: ReasonTag[]
   allowCustom: boolean
-  children: PreviewNode[]
 }
 
-/** 构造预览树: 过滤掉无 tag 的空末级 */
-const previewTree = computed<PreviewNode[]>(() => {
-  const cats = props.wizard.categories
-  const childMap = new Map<string, RuleCategory[]>()
-  cats.forEach((c) => {
-    const pid = c.parentId || ''
-    if (!childMap.has(pid)) childMap.set(pid, [])
-    childMap.get(pid)!.push(c)
-  })
-  const tagById = new Map(props.allTags.map((t) => [t.id, t]))
+interface PreviewRow {
+  l1Name: string
+  l2Name: string
+  l3Name: string
+  leaves: LeafInfo[]
+  l1IsFirst: boolean
+  l1Rowspan: number
+  l2IsFirst: boolean
+  l2Rowspan: number
+}
 
-  function walk(c: RuleCategory): PreviewNode | null {
-    const children = (childMap.get(c.id) || []).sort((a, b) => a.order - b.order)
-    if (children.length === 0) {
-      // 末级分类: 即使未分配标签也要展示 (否则整棵预览树塌缩 → "子分类未显示");
-      // tags 可能为空数组, 由 chip 区渲染空态 / "其他"按钮
-      const tags = (c.tags || [])
-        .map((t) => tagById.get(t.id))
-        .filter((t): t is ReasonTag => !!t)
-      return { id: c.id, name: c.name, isLeaf: true, tags, allowCustom: c.allowCustom, children: [] }
-    }
-    const subNodes = children.map(walk).filter((n): n is PreviewNode => !!n)
-    if (subNodes.length === 0) return null
-    return {
-      id: c.id,
-      name: c.name,
-      isLeaf: false,
-      tags: [],
-      allowCustom: c.allowCustom,
-      children: subNodes,
-    }
-  }
+const selectedTagIds = ref<Set<string>>(new Set())
+const detailReason = ref('')
 
-  return (childMap.get('') || [])
-    .sort((a, b) => a.order - b.order)
-    .map(walk)
-    .filter((n): n is PreviewNode => !!n)
+const maxSelectable = computed<number>(() => {
+  const m = props.wizard.maxSelectableTags
+  return typeof m === 'number' && m > 0 ? m : 0
 })
+const limitReached = computed(() => maxSelectable.value > 0 && selectedTagIds.value.size >= maxSelectable.value)
 
-/** 计算某 L1 下有多少"行" (用于 grid-row 跨行) */
-function countSubRows(node: PreviewNode): number {
-  if (node.isLeaf) return 1
-  return node.children.length
+const sceneName = computed(() => props.wizard.scenes?.[0] || '')
+
+function toggleTag(id: string) {
+  const next = new Set(selectedTagIds.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    if (limitReached.value) return // 已达上限, 不再增加 (静默, 视觉上已 disabled)
+    next.add(id)
+  }
+  selectedTagIds.value = next
 }
 
-// ============= Item5: 末级「其他」自定义输入 =============
-// 任意层级(L1/L2/L3)的末级分类, 若 allowCustom=true, 点击「其他」展开输入框由用户输入
+// ============= 末级「其他」自定义输入 =============
 const editingOther = reactive<Record<string, boolean>>({})
 const otherInputs = reactive<Record<string, string>>({})
 
@@ -255,106 +182,180 @@ function editOtherAgain(id: string) {
 const vFocus = {
   mounted: (el: HTMLElement) => el.focus(),
 }
+
+// ============= 合并单元格数据模型 =============
+const mergedRows = computed<PreviewRow[]>(() => {
+  const cats = props.wizard.categories
+  const byParent = new Map<string, RuleCategory[]>()
+  cats.forEach((c) => {
+    const pid = c.parentId || ''
+    if (!byParent.has(pid)) byParent.set(pid, [])
+    byParent.get(pid)!.push(c)
+  })
+  const tagById = new Map(props.allTags.map((tt) => [tt.id, tt]))
+  const resolveTags = (c: RuleCategory): ReasonTag[] =>
+    (c.tags || []).map((tt) => tagById.get(tt.id)).filter((tt): tt is ReasonTag => !!tt)
+  const sortKids = (pid: string) => (byParent.get(pid) || []).sort((a, b) => a.order - b.order)
+
+  // 递归收集某分类下的末级 (含其原因标签); 第4级带分类名标签
+  const leavesUnder = (c: RuleCategory): LeafInfo[] => {
+    const kids = sortKids(c.id)
+    if (kids.length === 0) {
+      return [{ catId: c.id, label: c.level >= 4 ? c.name : '', tags: resolveTags(c), allowCustom: c.allowCustom }]
+    }
+    return kids.flatMap(leavesUnder)
+  }
+
+  const rows: PreviewRow[] = []
+  const l1s = sortKids('')
+  for (const l1 of l1s) {
+    const l2s = sortKids(l1.id)
+    const l2Groups: { l2Name: string; rows: PreviewRow[] }[] = []
+    if (!l2s.length) {
+      // L1 本身即末级 (无 L2): 折叠为单行
+      l2Groups.push({
+        l2Name: '',
+        rows: [{ l1Name: l1.name, l2Name: '', l3Name: l1.name, leaves: leavesUnder(l1), l1IsFirst: true, l1Rowspan: 1, l2IsFirst: true, l2Rowspan: 1 }],
+      })
+    } else {
+      for (const l2 of l2s) {
+        const l3s = sortKids(l2.id)
+        const rowsInGroup: PreviewRow[] = []
+        if (!l3s.length) {
+          // L2 即末级 (无 L3)
+          rowsInGroup.push({ l1Name: l1.name, l2Name: l2.name, l3Name: l2.name, leaves: leavesUnder(l2), l1IsFirst: true, l1Rowspan: 1, l2IsFirst: true, l2Rowspan: 1 })
+        } else {
+          for (const l3 of l3s) {
+            rowsInGroup.push({ l1Name: l1.name, l2Name: l2.name, l3Name: l3.name, leaves: leavesUnder(l3), l1IsFirst: true, l1Rowspan: 1, l2IsFirst: true, l2Rowspan: 1 })
+          }
+        }
+        l2Groups.push({ l2Name: l2.name, rows: rowsInGroup })
+      }
+    }
+    const flat = l2Groups.flatMap((g) => g.rows)
+    const l1Rowspan = flat.length
+    flat.forEach((r, i) => {
+      r.l1IsFirst = i === 0
+      r.l1Rowspan = l1Rowspan
+    })
+    l2Groups.forEach((g) => {
+      g.rows.forEach((r, ri) => {
+        r.l2IsFirst = ri === 0
+        r.l2Rowspan = g.rows.length
+      })
+    })
+    rows.push(...flat)
+  }
+  return rows
+})
 </script>
 
 <style scoped>
-.step3 { display: flex; flex-direction: column; gap: var(--space-3); }
+.step3 { display: flex; flex-direction: column; gap: var(--space-4); }
 
-.step-intro {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  padding: var(--space-2) var(--space-3);
-  background: var(--brand-soft);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
-  line-height: 1.6;
-}
-.step-intro b { color: var(--brand); font-weight: 600; }
-
-/* === 预览容器 === */
-.preview-wrap {
-  background: linear-gradient(180deg, var(--g1), transparent);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  display: flex;
-  justify-content: center;
-}
-
-.preview-modal {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 720px;
-  box-shadow: 0 12px 40px rgba(15, 20, 40, .12);
-  overflow: hidden;
+.rl-preview-module {
   border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: var(--space-3);
 }
-
-.pv-head { padding: var(--space-3) var(--space-4) 0; }
-.pv-head h3 { margin: 0 0 var(--space-1); font-size: var(--fs-15); font-weight: 600; color: var(--ink); }
-.pv-count-row { display: flex; align-items: baseline; margin-top: var(--space-2); }
-.pv-count-row .req { color: var(--c-error); margin-right: 4px; font-size: var(--fs-13); }
-.pv-count-row .lbl { font-size: var(--fs-13); font-weight: 600; }
-.pv-count-row .lim {
+.rl-mod-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-3);
+}
+.rl-mod-head h3 {
+  margin: 0;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+}
+.rl-scene {
+  font-size: var(--fs-11);
+  color: var(--ink-soft);
+  background: var(--g1);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+.rl-mod-limit {
   margin-left: auto;
   font-size: var(--fs-12);
-  color: #f5a623;
+  color: var(--ink-soft);
 }
-.pv-count-row .lim b { color: var(--c-error); }
+.rl-mod-limit.full { color: var(--c-error); font-weight: 600; }
 
-.pv-body { padding: var(--space-2) var(--space-4) var(--space-1); max-height: 380px; overflow-y: auto; }
-
-.pv-tbl-head {
+/* === 合并单元格表格 (CSS Grid) === */
+.rl-merged-table {
   display: grid;
-  grid-template-columns: 88px 108px 1fr;
-  gap: 10px;
-  background: var(--g1);
+  grid-template-columns: 132px 132px 132px 1fr;
+  grid-auto-flow: row;
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
-  padding: 7px 11px;
+  overflow: hidden;
+}
+.rl-mcell {
+  border-right: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+  padding: 10px 12px;
+  font-size: var(--fs-12);
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+}
+.rl-mcell:nth-child(4n) { border-right: none; }
+/* 每行最后一格 (reason) 去掉下边框由 grid 行决定, 这里统一保留 */
+
+.rl-mcell.l1 {
+  grid-column: 1;
+  background: var(--brand-soft);
+  font-weight: 600;
+  color: var(--brand);
+  justify-content: center;
+  text-align: center;
+  line-height: 1.4;
+}
+.rl-mcell.l2 {
+  grid-column: 2;
+  background: var(--g1);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.rl-mcell.l3 {
+  grid-column: 3;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.rl-mcell.reason {
+  grid-column: 4;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  padding: 8px 12px;
+}
+
+.rl-leaf-label {
+  width: 100%;
   font-size: var(--fs-11);
   font-weight: 600;
   color: var(--ink-soft);
-  margin-bottom: var(--space-2);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.pv-row {
-  display: grid;
-  grid-template-columns: 88px 108px 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.pv-row.merged { margin-bottom: 10px; }
-
-.pv-cell {
-  border-radius: 9px;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 9px 8px;
-  font-size: var(--fs-12);
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.5;
-  word-break: break-all;
-  align-self: stretch;
+  gap: 5px;
 }
-.pv-cell.l1 { min-height: 46px; }
-.pv-cell.l1.span2 { grid-column: 1 / 3; }
+.rl-leaf-label::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .5;
+}
+.rl-chips { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; align-content: flex-start; }
 
-/* === 5 色循环 (与原型对齐) === */
-.c-blue { background: var(--brand-soft); color: var(--brand); }
-.c-green { background: var(--c-success-soft); color: var(--c-success-deep); }
-.c-purple { background: rgba(139, 92, 246, .12); color: #6d28d9; }
-.c-orange { background: var(--brand-warm-soft); color: var(--brand-warm-deep); }
-.c-gray { background: var(--g1); color: var(--ink-soft); }
-
-.pv-chips { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
-.pv-chip {
+.rl-tag {
   border: 1px solid var(--border-hairline);
   border-radius: 7px;
   background: #fff;
@@ -364,77 +365,47 @@ const vFocus = {
   line-height: 1.4;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.pv-chip .tip-i { font-size: 9px; margin-left: 2px; opacity: .55; }
-.pv-chip.other { cursor: pointer; border-style: dashed; color: var(--brand); border-color: var(--brand); }
-.pv-chip.other:hover { background: rgba(54, 110, 235, .08); }
-.pv-chip.other-filled { background: rgba(54, 110, 235, .1); border-color: var(--brand); color: var(--brand); }
-.pv-other-input {
+.rl-tag:hover { border-color: var(--brand); color: var(--brand); }
+.rl-tag.selected {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 500;
+}
+.rl-tag.selected .rl-tag-check { color: #fff; }
+.rl-tag.disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+.rl-tag.disabled:hover { border-color: var(--border-hairline); color: var(--ink-soft); }
+.rl-tag.other { border-style: dashed; color: var(--brand); border-color: var(--brand); }
+.rl-tag.other:hover { background: rgba(54, 110, 235, .08); }
+.rl-tag.other-filled { background: rgba(54, 110, 235, .1); border-color: var(--brand); color: var(--brand); }
+
+.rl-other-input {
   border: 1px solid var(--brand);
   border-radius: 7px;
   font-size: var(--fs-11);
   padding: 4px 10px;
   line-height: 1.4;
-  width: 120px;
+  width: 130px;
   outline: none;
   color: var(--ink);
   background: #fff;
 }
-.pv-other-input:focus { box-shadow: 0 0 0 2px rgba(54, 110, 235, .18); }
+.rl-other-input:focus { box-shadow: 0 0 0 2px rgba(54, 110, 235, .18); }
 
-.pv-l3-title {
-  font-size: var(--fs-11);
-  font-weight: 600;
-  color: var(--ink-soft);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.pv-l3-title::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: .5;
-}
-.pv-l3-group + .pv-l3-group {
-  margin-top: 8px;
-  padding-top: 7px;
-  border-top: 1px dashed var(--border-hairline);
-}
-
-.pv-empty {
-  padding: 40px;
+.rl-empty {
+  padding: 36px;
   text-align: center;
   color: var(--ink-faint);
   font-size: var(--fs-13);
 }
 
-.pv-foot {
-  padding: var(--space-2) var(--space-4) var(--space-3);
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  border-top: 1px solid var(--border-hairline);
-  margin-top: var(--space-2);
-}
-.pv-btn {
-  border-radius: var(--radius-sm);
-  font-size: var(--fs-12);
-  font-weight: 500;
-  padding: 0 20px;
-  line-height: 32px;
-  cursor: pointer;
-  border: 1px solid var(--border-hairline);
-  background: #fff;
-  color: var(--ink-soft);
-}
-.pv-btn.primary {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: #fff;
-}
+.rl-detail-input { width: 100%; }
 </style>

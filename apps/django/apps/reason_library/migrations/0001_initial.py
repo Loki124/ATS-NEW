@@ -68,6 +68,7 @@ class Migration(migrations.Migration):
                 ('is_system', models.BooleanField(db_index=True, default=False, verbose_name='系统预置')),
                 ('enabled', models.BooleanField(db_index=True, default=True, verbose_name='启用')),
                 ('description', models.CharField(blank=True, default='', max_length=200, verbose_name='描述')),
+                ('max_selectable_tags', models.PositiveSmallIntegerField(default=5, help_text='用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制)', verbose_name='可选标签上限')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='创建时间')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
             ],

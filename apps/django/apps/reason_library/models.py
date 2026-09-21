@@ -122,6 +122,10 @@ class SceneRule(models.Model):
     is_system = models.BooleanField(default=False, db_index=True, verbose_name='系统预置')
     enabled = models.BooleanField(default=True, db_index=True, verbose_name='启用')
     description = models.CharField(max_length=200, blank=True, default='', verbose_name='描述')
+    max_selectable_tags = models.PositiveSmallIntegerField(
+        default=5, verbose_name='可选标签上限',
+        help_text='用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制)',
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
 

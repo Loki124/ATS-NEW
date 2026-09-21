@@ -106,6 +106,10 @@ class WizardService:
         # 5) 更新头部
         rule.name = (payload.get('name') or rule.name).strip() or rule.name
         rule.description = payload.get('description', rule.description)
+        # 用户可选数量 (0 表示不限制)
+        if 'max_selectable_tags' in payload:
+            mst = payload.get('max_selectable_tags')
+            rule.max_selectable_tags = max(0, int(mst)) if mst is not None else rule.max_selectable_tags
         # Item2: 系统预置规则保持不可停用 — enabled 强制 True
         if rule.is_system:
             rule.enabled = True
@@ -114,7 +118,7 @@ class WizardService:
         # 同名校验
         if SceneRule.objects.filter(name=rule.name).exclude(pk=rule.pk).exists():
             raise BizException(BizCode.RULE_NAME_DUPLICATED, '该规则名已存在', status_code=400)
-        rule.save(update_fields=['name', 'description', 'enabled', 'updated_at'])
+        rule.save(update_fields=['name', 'description', 'enabled', 'max_selectable_tags', 'updated_at'])
 
         # 6) Diff categories: 维护 client_id → id 映射, 同时处理 add/update/delete
         existing_cats = {

@@ -67,6 +67,7 @@
     </div>
 
     <!-- 批量选择标签弹窗 -->
+    <!-- 配置阶段: 单个分类可超过 5 条, 不显示上限提示 (max-pick=0 表示不限制) -->
     <TagPickerModal
       v-model:show="pickerShow"
       :category-id="pickerCatId"
@@ -74,6 +75,7 @@
       :available-tags="availableTags"
       :current-selected="pickerCurrentSelected"
       :exclude-tag-ids="Array.from(usedElsewhereIds)"
+      :max-pick="0"
       @confirm="onPickerConfirm"
     />
   </div>
