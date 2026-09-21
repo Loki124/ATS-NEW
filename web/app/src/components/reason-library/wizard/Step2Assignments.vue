@@ -17,7 +17,6 @@
         v-for="cat in leafCats"
         :key="cat.id"
         class="assign-card glass-card"
-        :class="{ locked: !cat.allowCustom }"
       >
         <div class="assign-head">
           <span class="path">{{ buildPath(cat.id) }}</span>
@@ -25,27 +24,13 @@
           <span v-if="cat.allowCustom" class="assign-badge custom">
             {{ t('reasonLibrary.wizard.assign.customBadge') }}
           </span>
-          <span v-else class="assign-badge system">
-            <n-icon :component="LockClosedOutline" :size="10" />
-            {{ t('reasonLibrary.wizard.assign.lockedBadge') }}
-          </span>
           <n-button
-            v-if="cat.allowCustom"
             size="tiny"
             @click="openPicker(cat)"
           >
             <template #icon><n-icon :component="AddOutline" :size="12" /></template>
             {{ t('reasonLibrary.wizard.assign.batchSelect') }}
           </n-button>
-          <n-tooltip v-else placement="top">
-            <template #trigger>
-              <n-button size="tiny" disabled>
-                <template #icon><n-icon :component="LockClosedOutline" :size="12" /></template>
-                {{ t('reasonLibrary.common.locked') }}
-              </n-button>
-            </template>
-            {{ t('reasonLibrary.wizard.assign.lockedTitle') }}
-          </n-tooltip>
         </div>
 
         <div class="assign-body">
@@ -85,13 +70,13 @@
 /**
  * Step2Assignments (T-18)
  * - 每张末级分类一张 assign-card
- * - 路径 + 条数 + system/custom badge + 批量选择按钮
- * - 已选 chip (tag-chip): 系统预置分类不可删, 自定义可删
- * - 批量选择按钮在 system 分类上 disabled + tooltip
+ * - 路径 + 条数 + 自定义 badge + 批量选择按钮
+ * - 已选 chip (tag-chip): 所有末级分类均可删除已挂标签
+ * - 所有末级分类均可编辑 (allowCustom 仅控制终端用户「其他」入口, 不再限制管理员编辑)
  */
 import { ref, computed } from 'vue'
-import { NButton, NIcon, NEmpty, NTooltip } from 'naive-ui'
-import { AddOutline, CloseOutline, LockClosedOutline, InformationCircleOutline } from '@vicons/ionicons5'
+import { NButton, NIcon, NEmpty } from 'naive-ui'
+import { AddOutline, CloseOutline, InformationCircleOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
 import TagPickerModal from './TagPickerModal.vue'
@@ -207,7 +192,6 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .assign-card:hover { border-color: var(--brand); }
-.assign-card.locked { background: var(--g1); }
 
 .assign-head {
   display: flex;
