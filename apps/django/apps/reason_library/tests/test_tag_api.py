@@ -61,6 +61,17 @@ def test_system_tag_delete_403(admin_api_client, system_tag):
     assert resp.json()['code'] == 40301
 
 
+def test_system_tag_patch_enabled_403(admin_api_client, system_tag):
+    """系统预置标签禁止调整状态 (2026-09-21): 改 enabled 应 403 SYSTEM_TAG_IMMUTABLE。"""
+    client, _ = admin_api_client
+    resp = client.patch(f'{TAG_LIST}{system_tag.id}/', {'enabled': False}, format='json')
+    assert resp.status_code == 403
+    assert resp.json()['code'] == 40301  # SYSTEM_TAG_IMMUTABLE
+    # 状态未被改动
+    system_tag.refresh_from_db()
+    assert system_tag.enabled is True
+
+
 # ---------------------------------------------------------------------------
 # E-07: 自定义可启停 + 可删 (未被引用)
 # ---------------------------------------------------------------------------

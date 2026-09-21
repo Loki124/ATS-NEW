@@ -135,7 +135,7 @@
  * - 自定义标签: 全功能 (新增/编辑/启停/删除)
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
-import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
+import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert, NTooltip } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, CloudDownloadOutline, DownloadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
 import { listTags, updateTag, deleteTag, extractReasonApiError, exportTags, downloadImportTemplate } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
@@ -146,8 +146,9 @@ import ReasonTagImportModal from '../../../components/reason-library/ReasonTagIm
 
 const message = useMessage()
 
-// Item1: 取消系统预置标签不可编辑限制 — 所有可访问页面的用户 (HR 及以上) 均可编辑/启停/导入/新增;
-//        仅系统预置标签的「删除」仍受后端 SYSTEM_TAG_IMMUTABLE 保护。
+// 系统预置标签: name/en_name/tip 仍允许 HR 及以上编辑; 但【状态】禁止调整 (2026-09-21),
+// 列表 NSwitch 对 system 禁用 + tooltip, 后端 partial_update 兜底拒绝 (SYSTEM_TAG_IMMUTABLE)。
+// 仅系统预置标签的「删除」同样受后端 SYSTEM_TAG_IMMUTABLE 保护。
 
 // ============= 查询条件 =============
 const searchText = ref('')
@@ -258,13 +259,22 @@ function openEditModal(tag: ReasonTag) {
 }
 
 async function toggleEnabled(tag: ReasonTag) {
+  // 系统预置标签禁止调整状态 (前端兜底, 正常已通过 disabled 拦截)
+  if (tag.type === 'system') {
+    message.warning(t('reasonLibrary.tags.toggle.systemImmutable'))
+    return
+  }
   try {
     await updateTag(tag.id, { enabled: !tag.enabled })
     message.success(tag.enabled ? t('reasonLibrary.tags.toggle.disable') + ' ✓' : t('reasonLibrary.tags.toggle.enable') + ' ✓')
     await loadList()
     refreshStats()
   } catch (e: any) {
-    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+    if (e?.code === BIZ_CODE.SYSTEM_TAG_IMMUTABLE) {
+      message.error(t('reasonLibrary.tags.toggle.systemImmutable'))
+    } else {
+      message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+    }
   }
 }
 
@@ -381,13 +391,26 @@ const columns = computed(() => [
     title: t('reasonLibrary.tags.col.status'),
     key: 'enabled',
     width: 110,
-    render: (row: ReasonTag) =>
-      h(NSwitch, {
+    render: (row: ReasonTag) => {
+      const sw = h(NSwitch, {
         value: row.enabled,
         size: 'small',
-        disabled: false,
+        // 系统预置标签禁止调整状态 (2026-09-21): 禁用开关并给提示
+        disabled: row.type === 'system',
         onUpdateValue: () => toggleEnabled(row),
-      }),
+      })
+      if (row.type === 'system') {
+        return h(
+          NTooltip,
+          { placement: 'top' },
+          {
+            trigger: () => sw,
+            default: () => t('reasonLibrary.tags.toggle.systemImmutable'),
+          },
+        )
+      }
+      return sw
+    },
   },
   {
     title: t('reasonLibrary.tags.col.actions'),
