@@ -192,6 +192,7 @@ export const REASON_LIBRARY_EN: Record<string, string> = {
   'reasonLibrary.wizard.preview.other': 'Other',
   'reasonLibrary.wizard.preview.sceneHeader': '{scene}',
   'reasonLibrary.wizard.preview.sceneMissing': 'No scene set',
+  'reasonLibrary.wizard.preview.tagTotal': 'Total {n} tags',
   'reasonLibrary.wizard.sceneEditor.title': 'Select scenes',
   'reasonLibrary.wizard.sceneEditor.subtitle': 'A rule can serve multiple scenes. Uncovered scenes fall back to the system preset.',
   'reasonLibrary.wizard.sceneEditor.conflict': 'This scene is occupied by another rule.',

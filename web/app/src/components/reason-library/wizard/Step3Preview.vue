@@ -1,6 +1,6 @@
 <template>
   <div class="step3">
-    <!-- ============ 模块一: 原因标签 (可勾选, 受规则「可选条数」限制) ============ -->
+    <!-- ============ 模块一: 原因标签 (卡片式分类聚合, 无表格元素) ============ -->
     <div class="rl-preview-module">
       <div class="rl-mod-head">
         <h3>{{ t('reasonLibrary.wizard.preview.moduleTagsTitle') }}</h3>
@@ -12,68 +12,59 @@
         >{{ t('reasonLibrary.wizard.preview.selectLimit', { count: selectedTagIds.size, max: maxSelectable }) }}</span>
       </div>
 
-      <div v-if="!mergedRows.length" class="rl-empty">{{ t('reasonLibrary.wizard.preview.empty') }}</div>
+      <div v-if="!tagCards.length" class="rl-empty">{{ t('reasonLibrary.wizard.preview.empty') }}</div>
 
-      <div v-else class="rl-merged-table">
-        <template v-for="(row, ri) in mergedRows" :key="ri">
-          <!-- 第1列: L1 (纵向合并) -->
-          <div
-            v-if="row.l1IsFirst"
-            class="rl-mcell l1"
-            :style="{ gridRow: `span ${row.l1Rowspan}` }"
-          >
-{{ row.l1Name }}
-</div>
-          <!-- 第2列: L2 (纵向合并, 一个 L1 下多个 L2 则上下分割) -->
-          <div
-            v-if="row.l2IsFirst"
-            class="rl-mcell l2"
-            :style="{ gridRow: `span ${row.l2Rowspan}` }"
-          >
-{{ row.l2Name || '—' }}
-</div>
-          <!-- 第3列: L3 -->
-          <div class="rl-mcell l3">{{ row.l3Name }}</div>
-          <!-- 第4列: 原因标签 (可勾选) -->
-          <div class="rl-mcell reason">
-            <template v-for="leaf in row.leaves" :key="leaf.catId">
-              <div v-if="leaf.label" class="rl-leaf-label">{{ leaf.label }}</div>
-              <div class="rl-chips">
-                <span
-                  v-for="tag in leaf.tags"
-                  :key="tag.id"
-                  class="rl-tag"
-                  :class="{
-                    selected: selectedTagIds.has(tag.id),
-                    disabled: !selectedTagIds.has(tag.id) && limitReached,
-                  }"
-                  @click="toggleTag(tag.id)"
-                >
-                  <n-icon v-if="selectedTagIds.has(tag.id)" :component="CheckmarkOutline" :size="11" class="rl-tag-check" />
-                  {{ tag.name }}
-                </span>
-                <template v-if="leaf.allowCustom">
-                  <input
-                    v-if="editingOther[leaf.catId]"
-                    v-focus
-                    class="rl-other-input"
-                    :value="otherInputs[leaf.catId] || ''"
-                    :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
-                    @input="(e: any) => onOtherInput(leaf.catId, (e.target as HTMLInputElement).value)"
-                    @keydown.enter="commitOther(leaf.catId)"
-                    @blur="commitOther(leaf.catId)"
-                  />
-                  <span
-                    v-else-if="otherInputs[leaf.catId]"
-                    class="rl-tag other-filled"
-                    @click="editOtherAgain(leaf.catId)"
-                  >{{ otherInputs[leaf.catId] }}</span>
-                  <span v-else class="rl-tag other" @click="onOtherClick(leaf.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
-                </template>
-              </div>
-            </template>
+      <div v-else class="tag-cards">
+        <div v-for="card in tagCards" :key="card.name" class="tag-card">
+          <div class="tag-card-head">
+            <span class="tag-card-path">{{ card.name }}</span>
+            <span class="tag-card-badge">{{ t('reasonLibrary.wizard.preview.tagTotal', { n: card.tagTotal }) }}</span>
           </div>
-        </template>
+
+          <div class="tag-card-body">
+            <div v-for="(grp, gi) in card.groups" :key="gi" class="tag-group">
+              <div v-if="grp.name" class="tag-group-title"><span class="tg-bar"></span>{{ grp.name }}</div>
+              <div class="tag-group-body">
+                <div v-for="leaf in grp.leaves" :key="leaf.catId" class="tag-leaf">
+                  <div v-if="leaf.label" class="tag-leaf-label">{{ leaf.label }}</div>
+                  <div class="rl-chips">
+                    <span
+                      v-for="tag in leaf.tags"
+                      :key="tag.id"
+                      class="rl-tag"
+                      :class="{
+                        selected: selectedTagIds.has(tag.id),
+                        disabled: !selectedTagIds.has(tag.id) && limitReached,
+                      }"
+                      @click="toggleTag(tag.id)"
+                    >
+                      <n-icon v-if="selectedTagIds.has(tag.id)" :component="CheckmarkOutline" :size="11" class="rl-tag-check" />
+                      {{ tag.name }}
+                    </span>
+                    <template v-if="leaf.allowCustom">
+                      <input
+                        v-if="editingOther[leaf.catId]"
+                        v-focus
+                        class="rl-other-input"
+                        :value="otherInputs[leaf.catId] || ''"
+                        :placeholder="t('reasonLibrary.wizard.preview.otherPlaceholder')"
+                        @input="(e: any) => onOtherInput(leaf.catId, (e.target as HTMLInputElement).value)"
+                        @keydown.enter="commitOther(leaf.catId)"
+                        @blur="commitOther(leaf.catId)"
+                      />
+                      <span
+                        v-else-if="otherInputs[leaf.catId]"
+                        class="rl-tag other-filled"
+                        @click="editOtherAgain(leaf.catId)"
+                      >{{ otherInputs[leaf.catId] }}</span>
+                      <span v-else class="rl-tag other" @click="onOtherClick(leaf.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -97,13 +88,11 @@
 /**
  * Step3Preview (业务方原因选择弹窗预览 / 模拟)
  *
- * 布局 (需求 2026-09-21 修订):
- * - 页面分为上下两个模块:
- *     ① 原因标签: 展示 Step2 配置的标签, 用户可勾选 (受规则「可选条数」限制)
- *     ② 详细原因: 多行文本框
- * - 1-3 级分类用纵向合并单元格 (CSS Grid + grid-row: span): 左→右 分别是 L1 / L2 / L3;
- *   一个 L1 下有多个 L2 时, L2 列上下分割 (各自 rowspan 其下 L3 行数)。
- * - 第4级 (末级) 分类不单独成列, 其分类名作为小标签 + 原因标签一起落入第4列「原因」列。
+ * 布局 (需求 2026-09-21 修订为卡片式):
+ * - 页面分为两个模块: ① 原因标签 (卡片式分类聚合) ② 详细原因 (多行文本框)
+ * - 每个 L1 分类 = 一张 tag-card; L2 作为卡片内分组 (tag-group); L3/末级原因标签在分组内聚合排列。
+ * - 卡片内「合并」含义: 同类 (同 L2 / 同末级) 的原因标签被聚合在同一 chip 容器内一并展示,
+ *   不再使用任何 <table> 元素或 CSS Grid 伪装的合并单元格。
  * - 原因标签可勾选: 已选条数达到 maxSelectableTags (规则配置, 0=不限制) 时, 未选项禁用。
  *
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
@@ -119,22 +108,21 @@ const props = defineProps<{
   allTags: ReasonTag[]
 }>()
 
-interface LeafInfo {
+interface TagLeaf {
   catId: string
-  label: string // 第4级分类名 (L1-L3 末级留空)
+  label: string // 末级 (第4级) 分类名, 非末级留空
   tags: ReasonTag[]
   allowCustom: boolean
 }
-
-interface PreviewRow {
-  l1Name: string
-  l2Name: string
-  l3Name: string
-  leaves: LeafInfo[]
-  l1IsFirst: boolean
-  l1Rowspan: number
-  l2IsFirst: boolean
-  l2Rowspan: number
+interface TagGroup {
+  name: string // L2 分组名 (L1 直接末级时为 '')
+  leaves: TagLeaf[]
+  tagTotal: number
+}
+interface TagCard {
+  name: string // L1 名
+  groups: TagGroup[]
+  tagTotal: number
 }
 
 const selectedTagIds = ref<Set<string>>(new Set())
@@ -183,8 +171,8 @@ const vFocus = {
   mounted: (el: HTMLElement) => el.focus(),
 }
 
-// ============= 合并单元格数据模型 =============
-const mergedRows = computed<PreviewRow[]>(() => {
+// ============= 卡片式分类聚合数据模型 =============
+const tagCards = computed<TagCard[]>(() => {
   const cats = props.wizard.categories
   const byParent = new Map<string, RuleCategory[]>()
   cats.forEach((c) => {
@@ -198,7 +186,7 @@ const mergedRows = computed<PreviewRow[]>(() => {
   const sortKids = (pid: string) => (byParent.get(pid) || []).sort((a, b) => a.order - b.order)
 
   // 递归收集某分类下的末级 (含其原因标签); 第4级带分类名标签
-  const leavesUnder = (c: RuleCategory): LeafInfo[] => {
+  const leavesUnder = (c: RuleCategory): TagLeaf[] => {
     const kids = sortKids(c.id)
     if (kids.length === 0) {
       return [{ catId: c.id, label: c.level >= 4 ? c.name : '', tags: resolveTags(c), allowCustom: c.allowCustom }]
@@ -206,47 +194,24 @@ const mergedRows = computed<PreviewRow[]>(() => {
     return kids.flatMap(leavesUnder)
   }
 
-  const rows: PreviewRow[] = []
-  const l1s = sortKids('')
-  for (const l1 of l1s) {
+  const cards: TagCard[] = []
+  for (const l1 of sortKids('')) {
     const l2s = sortKids(l1.id)
-    const l2Groups: { l2Name: string; rows: PreviewRow[] }[] = []
+    const groups: TagGroup[] = []
     if (!l2s.length) {
-      // L1 本身即末级 (无 L2): 折叠为单行
-      l2Groups.push({
-        l2Name: '',
-        rows: [{ l1Name: l1.name, l2Name: '', l3Name: l1.name, leaves: leavesUnder(l1), l1IsFirst: true, l1Rowspan: 1, l2IsFirst: true, l2Rowspan: 1 }],
-      })
+      // L1 本身即末级 (无 L2): 折叠为单分组
+      const leaves = leavesUnder(l1)
+      groups.push({ name: '', leaves, tagTotal: leaves.reduce((s, l) => s + l.tags.length, 0) })
     } else {
       for (const l2 of l2s) {
-        const l3s = sortKids(l2.id)
-        const rowsInGroup: PreviewRow[] = []
-        if (!l3s.length) {
-          // L2 即末级 (无 L3)
-          rowsInGroup.push({ l1Name: l1.name, l2Name: l2.name, l3Name: l2.name, leaves: leavesUnder(l2), l1IsFirst: true, l1Rowspan: 1, l2IsFirst: true, l2Rowspan: 1 })
-        } else {
-          for (const l3 of l3s) {
-            rowsInGroup.push({ l1Name: l1.name, l2Name: l2.name, l3Name: l3.name, leaves: leavesUnder(l3), l1IsFirst: true, l1Rowspan: 1, l2IsFirst: true, l2Rowspan: 1 })
-          }
-        }
-        l2Groups.push({ l2Name: l2.name, rows: rowsInGroup })
+        const leaves = leavesUnder(l2)
+        groups.push({ name: l2.name, leaves, tagTotal: leaves.reduce((s, l) => s + l.tags.length, 0) })
       }
     }
-    const flat = l2Groups.flatMap((g) => g.rows)
-    const l1Rowspan = flat.length
-    flat.forEach((r, i) => {
-      r.l1IsFirst = i === 0
-      r.l1Rowspan = l1Rowspan
-    })
-    l2Groups.forEach((g) => {
-      g.rows.forEach((r, ri) => {
-        r.l2IsFirst = ri === 0
-        r.l2Rowspan = g.rows.length
-      })
-    })
-    rows.push(...flat)
+    const tagTotal = groups.reduce((s, g) => s + g.tagTotal, 0)
+    cards.push({ name: l1.name, groups, tagTotal })
   }
-  return rows
+  return cards
 })
 </script>
 
@@ -285,57 +250,74 @@ const mergedRows = computed<PreviewRow[]>(() => {
 }
 .rl-mod-limit.full { color: var(--c-error); font-weight: 600; }
 
-/* === 合并单元格表格 (CSS Grid) === */
-.rl-merged-table {
-  display: grid;
-  grid-template-columns: 132px 132px 132px 1fr;
-  grid-auto-flow: row;
+/* === 卡片式分类聚合 (替代原网格表格) === */
+.tag-cards { display: flex; flex-direction: column; gap: var(--space-3); }
+.tag-card {
   border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
-.rl-mcell {
-  border-right: 1px solid var(--border-hairline);
-  border-bottom: 1px solid var(--border-hairline);
-  padding: 10px 12px;
-  font-size: var(--fs-12);
-  min-height: 46px;
+.tag-card:hover { border-color: var(--brand); }
+.tag-card-head {
   display: flex;
   align-items: center;
+  gap: 10px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--glass-bg-card);
+  border-bottom: 1px solid var(--border-hairline);
 }
-.rl-mcell:nth-child(4n) { border-right: none; }
-/* 每行最后一格 (reason) 去掉下边框由 grid 行决定, 这里统一保留 */
-
-.rl-mcell.l1 {
-  grid-column: 1;
-  background: var(--brand-soft);
+.tag-card-path {
+  font-size: var(--fs-13);
   font-weight: 600;
-  color: var(--brand);
-  justify-content: center;
-  text-align: center;
-  line-height: 1.4;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.rl-mcell.l2 {
-  grid-column: 2;
+.tag-card-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 1px 7px;
   background: var(--g1);
-  font-weight: 500;
-  line-height: 1.4;
-}
-.rl-mcell.l3 {
-  grid-column: 3;
   color: var(--ink-soft);
-  line-height: 1.4;
 }
-.rl-mcell.reason {
-  grid-column: 4;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-content: flex-start;
-  padding: 8px 12px;
+.tag-card-body {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.rl-leaf-label {
+.tag-group { }
+.tag-group-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: var(--space-2);
+}
+.tag-group-title .tg-bar {
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+.tag-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: 10px;
+  border-left: 2px solid var(--g1);
+}
+.tag-leaf { }
+.tag-leaf-label {
   width: 100%;
   font-size: var(--fs-11);
   font-weight: 600;
@@ -345,7 +327,7 @@ const mergedRows = computed<PreviewRow[]>(() => {
   align-items: center;
   gap: 5px;
 }
-.rl-leaf-label::before {
+.tag-leaf-label::before {
   content: '';
   width: 5px;
   height: 5px;
@@ -353,6 +335,8 @@ const mergedRows = computed<PreviewRow[]>(() => {
   background: currentColor;
   opacity: .5;
 }
+
+/* === 原因标签 capsule (沿用项目既有卡片式 chip 风格) === */
 .rl-chips { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; align-content: flex-start; }
 
 .rl-tag {
