@@ -138,6 +138,34 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
         obj.soft_delete()
         return ApiResponse.ok({'id': obj.id, 'deleted_at': obj.deleted_at})
 
+    # ----- CSV export / template -----
+    @action(detail=False, methods=['get'], url_path='export')
+    @_api
+    def export_csv(self, request: Request, *args, **kwargs):
+        """GET /tags/export/ — 导出全部标签 CSV (utf-8-sig BOM, Excel 兼容)。"""
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(['code', 'name', 'en_name', 'tip', 'type', 'enabled'])
+        for t in ReasonTag.objects.filter(deleted_at__isnull=True).order_by('type', 'name'):
+            writer.writerow([t.code or '', t.name, t.en_name or '', t.tip or '', t.type, 'true' if t.enabled else 'false'])
+        from django.http import HttpResponse
+        resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = 'attachment; filename="reason-tags-export.csv"'
+        return resp
+
+    @action(detail=False, methods=['get'], url_path='import-template')
+    @_api
+    def import_template(self, request: Request, *args, **kwargs):
+        """GET /tags/import-template/ — 下载导入模板 (与 import_csv 列一致)。"""
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(['name', 'en_name', 'tip', 'type', 'enabled'])
+        writer.writerow(['示例标签', 'Example tag', '鼠标悬停提示(可空)', 'custom', 'true'])
+        from django.http import HttpResponse
+        resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = 'attachment; filename="reason-tags-import-template.csv"'
+        return resp
+
     # ----- CSV import -----
     @action(
         detail=False, methods=['post'], url_path='import',
@@ -234,10 +262,13 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
         # 套用项目 StandardResultsSetPagination 后, 分页元数据在 response.data 中
         resp = self.get_paginated_response(data)
         # 把分页信息揉进 ApiResponse 信封: data 字段保持列表, count/next/previous 移入 data 包装
+        # 项目 StandardResultsSetPagination 返回 {success, data, pagination:{total,...}},
+        # 修复: count 从 pagination.total 取 (此前取 resp.data.count 恒 None → 前端 total 失真)
+        pg = resp.data.get('pagination') or {}
         page = {
-            'results': resp.data.get('results', data),
-            'count': resp.data.get('count'),
-            'next': resp.data.get('next'),
-            'previous': resp.data.get('previous'),
+            'results': data,
+            'count': pg.get('total'),
+            'next': pg.get('has_next'),
+            'previous': pg.get('has_previous'),
         }
         return ApiResponse.ok(page)

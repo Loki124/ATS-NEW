@@ -29,6 +29,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.CharField(editable=False, max_length=32, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=32, unique=True, verbose_name='标签名')),
+                ('code', models.CharField(editable=False, help_text='系统自动生成, 供开发在代码中引用 (如 R4fKq2xB9zW3)', max_length=24, unique=True, verbose_name='原因代码')),
                 ('en_name', models.CharField(blank=True, default='', max_length=64, verbose_name='英文名')),
                 ('tip', models.CharField(blank=True, default='', max_length=128, verbose_name='提示文案')),
                 ('type', models.CharField(

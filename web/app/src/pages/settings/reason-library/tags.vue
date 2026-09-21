@@ -41,6 +41,14 @@
             <template #icon><n-icon :component="CloudUploadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.import') }}
           </n-button>
+          <n-button @click="onDownloadTemplate">
+            <template #icon><n-icon :component="CloudDownloadOutline" /></template>
+            {{ t('reasonLibrary.tags.btn.template') }}
+          </n-button>
+          <n-button @click="onExport">
+            <template #icon><n-icon :component="DownloadOutline" /></template>
+            {{ t('reasonLibrary.tags.btn.export') }}
+          </n-button>
           <n-button type="primary" @click="openCreateModal">
             <template #icon><n-icon :component="AddOutline" /></template>
             {{ t('reasonLibrary.tags.btn.add') }}
@@ -128,8 +136,8 @@
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
-import { listTags, updateTag, deleteTag, extractReasonApiError } from '../../../api/reason-library'
+import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, CloudDownloadOutline, DownloadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
+import { listTags, updateTag, deleteTag, extractReasonApiError, exportTags, downloadImportTemplate } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
@@ -287,6 +295,28 @@ function onSaved() {
   refreshStats()
 }
 
+// ============= 导出 / 模板 =============
+const exporting = ref(false)
+async function onExport() {
+  exporting.value = true
+  try {
+    await exportTags()
+    message.success(t('reasonLibrary.common.success'))
+  } catch (e: any) {
+    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+  } finally {
+    exporting.value = false
+  }
+}
+async function onDownloadTemplate() {
+  try {
+    await downloadImportTemplate()
+    message.success(t('reasonLibrary.common.success'))
+  } catch (e: any) {
+    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+  }
+}
+
 // ============= 导入 =============
 const importShow = ref(false)
 function openImportModal() { importShow.value = true }
@@ -298,6 +328,13 @@ function onImported() {
 
 // ============= 列定义 =============
 const columns = computed(() => [
+  {
+    title: t('reasonLibrary.tags.col.code'),
+    key: 'code',
+    width: 130,
+    ellipsis: { tooltip: true },
+    render: (row: ReasonTag) => h('code', { style: 'font-size: 12px; color: var(--ink-soft); font-family: monospace;' }, row.code || '—'),
+  },
   {
     title: t('reasonLibrary.tags.col.name'),
     key: 'name',

@@ -59,6 +59,10 @@ class ReasonTag(models.Model):
 
     id = models.CharField(max_length=32, primary_key=True, editable=False)
     name = models.CharField(max_length=32, unique=True, verbose_name='标签名')
+    code = models.CharField(
+        max_length=24, unique=True, editable=False,
+        verbose_name='原因代码', help_text='系统自动生成, 供开发在代码中引用 (如 R4fKq2xB9zW3)',
+    )
     en_name = models.CharField(max_length=64, blank=True, default='', verbose_name='英文名')
     tip = models.CharField(max_length=128, blank=True, default='', verbose_name='提示文案')
     type = models.CharField(
@@ -94,6 +98,9 @@ class ReasonTag(models.Model):
         if not self.id:
             from nanoid import generate as nanoid_generate
             self.id = nanoid_generate(size=21)
+        if not self.code:
+            from nanoid import generate as nanoid_generate
+            self.code = 'R' + nanoid_generate('0123456789abcdefghijklmnopqrstuvwxyz', size=11)
         super().save(*args, **kwargs)
 
     def soft_delete(self):

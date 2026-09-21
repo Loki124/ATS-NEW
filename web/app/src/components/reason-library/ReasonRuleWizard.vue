@@ -12,7 +12,7 @@
   >
     <n-spin :show="loading" :description="t('reasonLibrary.common.loading')">
       <!-- 头部信息 -->
-      <div v-if="wizard" class="wizard-head glass-card">
+      <div v-if="wizard" class="wizard-head">
         <div class="wizard-title-row">
           <h4 class="wizard-title">{{ wizard.name || t('reasonLibrary.wizard.title') }}</h4>
           <n-tag v-if="wizard.isSystem" size="small" type="warning" bordered>
@@ -377,11 +377,11 @@ function onShowChange(v: boolean) {
 
 <style scoped>
 .wizard-head {
-  background: var(--glass-bg-card);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
+  /* 需求四.4: 去除弹窗内卡片的异常背景/阴影, 与整体弹窗保持一致 */
+  background: transparent;
+  border: none;
+  padding: var(--space-3) var(--space-1);
+  margin-bottom: var(--space-2);
 }
 .wizard-title-row {
   display: flex;
@@ -468,7 +468,8 @@ function onShowChange(v: boolean) {
 .step.done { color: var(--c-success-deep); }
 
 .wizard-body {
-  min-height: 320px;
+  /* 需求四.3: 统一各步骤高度, 避免切换时弹窗跳动 */
+  min-height: 460px;
   max-height: 56vh;
   overflow-y: auto;
   padding: 4px 4px 4px 0;

@@ -48,7 +48,11 @@
       </n-form-item>
 
       <n-form-item :label="t('reasonLibrary.tags.modal.type')">
-        <n-input :value="t('reasonLibrary.common.custom')" disabled />
+        <!-- 修复: 类型显示取真实值 (system 标签此前被硬编码显示为自定义) -->
+        <n-input :value="isEdit && props.tag?.type === 'system' ? t('reasonLibrary.common.system') : t('reasonLibrary.common.custom')" disabled />
+      </n-form-item>
+      <n-form-item v-if="isEdit && props.tag?.code" :label="t('reasonLibrary.tags.col.code')">
+        <n-input :value="props.tag.code" disabled class="rl-code-input" />
       </n-form-item>
       <p class="rl-type-hint">{{ t('reasonLibrary.tags.modal.typeHint') }}</p>
     </n-form>

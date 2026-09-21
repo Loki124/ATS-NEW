@@ -94,6 +94,21 @@ SYSTEM_TAGS: List[Tuple[str, str, str, str]] = [
 ]
 
 
+# 2026-09-21 新增: 系统预置标签 (流程节点自动写入的原因, 仅供代码/流程引用)
+PRESET_TAGS: List[Tuple[str, str, str]] = [
+    ('已录用', 'Hired', ''),
+    ('已离职', 'Resigned', ''),
+    ('上传直接归档', 'Upload auto archived', ''),
+    ('为候选人推荐了新职位', 'Recommended new job', ''),
+    ('职位关闭自动归档', 'Job closed auto archived', ''),
+    ('筛选不通过自动淘汰', 'Screen auto rejected', ''),
+    ('加入黑名单', 'Blacklisted', ''),
+    ('长时间未处理自动归档', 'Stale auto archived', ''),
+    ('面试不通过自动淘汰', 'Interview auto rejected', ''),
+    ('管控重复申请', 'Duplicate application blocked', ''),
+]
+
+
 # ---------------------------------------------------------------------------
 # 3 条预置规则 (原型 L657-722)
 # 每条规则结构:
@@ -104,7 +119,7 @@ SYSTEM_TAGS: List[Tuple[str, str, str, str]] = [
 PRESET_RULES: List[Dict] = [
     {
         'key': 'r-resume',
-        'name': '简历筛选预置规则',
+        'name': '预置默认规则',
         'is_system': True,
         'enabled': True,
         'scenes': ['筛选不通过', '淘汰'],
@@ -145,7 +160,7 @@ PRESET_RULES: List[Dict] = [
     },
     {
         'key': 'r-cancel',
-        'name': '取消面试专用规则',
+        'name': '预置默认规则 · 取消面试',
         'is_system': False,
         'enabled': True,
         'scenes': ['取消面试'],
@@ -163,7 +178,7 @@ PRESET_RULES: List[Dict] = [
     },
     {
         'key': 'r-talent',
-        'name': '放入人才库分类规则',
+        'name': '预置默认规则 · 放入人才库',
         'is_system': False,
         'enabled': False,
         'scenes': ['放入人才库'],
@@ -255,11 +270,23 @@ def seed_initial_data(verbose: bool = False) -> Dict[str, int]:
             defaults={
                 'en_name': en,
                 'tip': tip,
-                'type': TagType.SYSTEM.value,
+                'type': TagType.CUSTOM.value,  # 2026-09-21: 存量标签统一为自定义
                 'enabled': True,
             },
         )
         tag_objs[name] = tag
+
+    # 2026-09-21: 系统预置标签 (流程自动写入原因)
+    for name, en, tip in PRESET_TAGS:
+        ReasonTag.objects.get_or_create(
+            name=name,
+            defaults={
+                'en_name': en,
+                'tip': tip,
+                'type': TagType.SYSTEM.value,
+                'enabled': True,
+            },
+        )
         if verbose and created:
             print(f'  + tag: {name}')
 
@@ -341,7 +368,7 @@ def seed_initial_data(verbose: bool = False) -> Dict[str, int]:
             scene_count += 1
 
     return {
-        'tags': len(SYSTEM_TAGS),
+        'tags': len(SYSTEM_TAGS) + len(PRESET_TAGS),
         'rules': rule_count,
         'categories': cat_count,
         'assignments': asn_count,

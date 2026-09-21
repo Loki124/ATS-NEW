@@ -129,8 +129,10 @@ export { BIZ_CODE }
 // ==================== Tag CRUD ====================
 
 export function listTags(params?: TagListQuery): Promise<PaginatedData<ReasonTag>> {
+  // 后端 StandardResultsSetPagination 只认 page_size; 前端统一用 pageSize 字段名
+  const { pageSize, ...rest } = params ?? {}
   return api
-    .get<ApiResponse<any>>('/reason-library/tags/', { params })
+    .get<ApiResponse<any>>('/reason-library/tags/', { params: { ...rest, page_size: pageSize } })
     .then((r) => unwrapList<ReasonTag>(r))
 }
 
@@ -173,8 +175,9 @@ export function importTags(file: File): Promise<TagImportResult> {
 // ==================== Rule CRUD ====================
 
 export function listRules(params?: RuleListQuery): Promise<PaginatedData<SceneRuleListItem>> {
+  const { pageSize, ...rest } = params ?? {}
   return api
-    .get<ApiResponse<any>>('/reason-library/rules/', { params })
+    .get<ApiResponse<any>>('/reason-library/rules/', { params: { ...rest, page_size: pageSize } })
     .then((r) => unwrapList<SceneRuleListItem>(r))
 }
 
@@ -239,9 +242,17 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
     }
   })
 
+  // 末级分类集合: 标签只允许挂在末级 (Item4 修订); 非末级输出空 tag_ids,
+  // 避免历史脏数据 (绑定挂非末级) 在保存时被再次写入 → 修复『已在当前规则中使用』误报。
+  const idSet = new Set(rule.categories.map((c) => c.id))
+  const leafIds = new Set(
+    rule.categories.filter((c) => !rule.categories.some((x) => x.parentId === c.id)).map((c) => c.id),
+  )
+  void idSet
   const categories = rule.categories.map((cat, idx) => {
     const client_id = cat.id ? idToClientId.get(cat.id)! : newCatCidByIndex.get(idx)!
     const parent_client_id = cat.parentId ? idToClientId.get(cat.parentId) : undefined
+    const isLeaf = leafIds.has(cat.id)
     return {
       id: cat.id || undefined,
       client_id,
@@ -249,7 +260,7 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
       name: cat.name,
       order: cat.order,
       allow_custom: cat.allowCustom,
-      tag_ids: (cat.tags || []).map((t) => t.id),
+      tag_ids: isLeaf ? (cat.tags || []).map((t) => t.id) : [],
     }
   })
 
@@ -277,6 +288,29 @@ export function wizardSave(ruleId: string, payload: WizardPayload): Promise<Scen
   return api
     .post<ApiResponse<SceneRule>>(`/reason-library/rules/${ruleId}/wizard/save/`, body, { headers })
     .then((r) => unwrap<SceneRule>(r))
+}
+
+/** 通用 CSV 下载 (带鉴权): 触发浏览器保存文件。 */
+export async function downloadCsv(path: string, filename: string): Promise<void> {
+  const resp = await api.get(path, { responseType: 'blob' })
+  const url = window.URL.createObjectURL(new Blob([resp.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+/** 导出全部原因标签 CSV。 */
+export function exportTags(): Promise<void> {
+  return downloadCsv('/reason-library/tags/export/', 'reason-tags-export.csv')
+}
+
+/** 下载导入模板 CSV。 */
+export function downloadImportTemplate(): Promise<void> {
+  return downloadCsv('/reason-library/tags/import-template/', 'reason-tags-import-template.csv')
 }
 
 export function importRule(file: File): Promise<SceneRule> {

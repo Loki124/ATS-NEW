@@ -31,7 +31,20 @@
       <div v-else class="cat-rows">
         <div v-for="row in flatRows" :key="row.cat.id" class="cat-row" :class="{ 'is-leaf': row.isLeaf }">
           <span class="indent" :style="{ width: row.depth * 20 + 'px' }">
-            <n-icon v-if="row.depth > 0" :component="ChevronForwardOutline" :size="10" />
+            <!-- 修复: 折叠按钮此前是纯装饰图标, 点击无效果; 现为可点展开/折叠 -->
+            <button
+              v-if="row.childCount > 0"
+              class="expand-btn"
+              :title="t('reasonLibrary.wizard.cat.expand')"
+              :aria-expanded="!collapsedIds.has(row.cat.id)"
+              @click="toggleExpand(row.cat.id)"
+            >
+              <n-icon
+                :component="ChevronForwardOutline"
+                :size="10"
+                :style="{ transform: collapsedIds.has(row.cat.id) ? 'none' : 'rotate(90deg)', transition: 'transform var(--dur-fast) var(--ease-out)' }"
+              />
+            </button>
           </span>
           <span class="level-badge" :class="`l${row.cat.level}`">
             {{ t('reasonLibrary.wizard.catLevel', { level: row.cat.level }).replace('{level}', String(row.cat.level)) }}
@@ -59,18 +72,23 @@
           </span>
           <span class="spacer" />
           <div class="cat-actions">
-            <n-tooltip :disabled="row.depth > 0" placement="top">
+            <n-tooltip placement="top">
               <template #trigger>
                 <button class="act-icon" :disabled="!canMoveUp(row.cat)" @click="moveCat(row.cat.id, -1)">
                   <n-icon :component="ArrowUpOutline" :size="12" />
                 </button>
               </template>
-              <span>—</span>
+              <span>{{ t('reasonLibrary.wizard.cat.moveUp') }}</span>
             </n-tooltip>
-            <button class="act-icon" :disabled="!canMoveDown(row.cat)" @click="moveCat(row.cat.id, 1)">
-              <n-icon :component="ArrowDownOutline" :size="12" />
-            </button>
-            <n-tooltip :disabled="row.cat.level < MAX_CATEGORY_LEVEL" placement="top">
+            <n-tooltip placement="top">
+              <template #trigger>
+                <button class="act-icon" :disabled="!canMoveDown(row.cat)" @click="moveCat(row.cat.id, 1)">
+                  <n-icon :component="ArrowDownOutline" :size="12" />
+                </button>
+              </template>
+              <span>{{ t('reasonLibrary.wizard.cat.moveDown') }}</span>
+            </n-tooltip>
+            <n-tooltip placement="top">
               <template #trigger>
                 <button
                   class="act-icon"
@@ -80,15 +98,20 @@
                   <n-icon :component="AddOutline" :size="12" />
                 </button>
               </template>
-              <span>{{ t('reasonLibrary.wizard.maxLevelExceed') }}</span>
+              <span>{{ row.cat.level >= MAX_CATEGORY_LEVEL ? t('reasonLibrary.wizard.maxLevelExceed') : t('reasonLibrary.wizard.cat.addChild') }}</span>
             </n-tooltip>
-            <button
-              class="act-icon danger"
-              :disabled="isReadonly(row.cat)"
-              @click="removeCat(row.cat.id)"
-            >
-              <n-icon :component="TrashOutline" :size="12" />
-            </button>
+            <n-tooltip placement="top">
+              <template #trigger>
+                <button
+                  class="act-icon danger"
+                  :disabled="isReadonly(row.cat)"
+                  @click="removeCat(row.cat.id)"
+                >
+                  <n-icon :component="TrashOutline" :size="12" />
+                </button>
+              </template>
+              <span>{{ t('reasonLibrary.wizard.cat.remove') }}</span>
+            </n-tooltip>
           </div>
         </div>
       </div>
@@ -140,9 +163,20 @@ interface FlatRow {
   childCount: number
 }
 
+// 折叠状态 (默认全展开): collapsedIds 记录被折叠的分类
+const collapsedIds = ref<Set<string>>(new Set())
+function toggleExpand(id: string) {
+  const next = new Set(collapsedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  collapsedIds.value = next
+}
+
 const flatRows = computed<FlatRow[]>(() => {
   const rows: FlatRow[] = []
   function walk(pid: string | undefined, depth: number) {
+    // 折叠: 非根且被折叠的节点, 其整棵子树不渲染
+    if (pid !== undefined && collapsedIds.value.has(pid)) return
     const list = props.categories
       .filter((c) => (c.parentId || '') === (pid || ''))
       .sort((a, b) => a.order - b.order)
@@ -272,9 +306,10 @@ function moveCat(id: string, dir: -1 | 1) {
   const idx = sibs.findIndex((c) => c.id === id)
   const tgt = idx + dir
   if (tgt < 0 || tgt >= sibs.length) return
-  const tmp = sibs[idx].order
-  sibs[idx].order = sibs[tgt].order
-  sibs[tgt].order = tmp
+  // 交换数组位置后重编 order 1..n — 修复 order 重复/空洞导致的『排序不生效』
+  const arr = [...sibs]
+  ;[arr[idx], arr[tgt]] = [arr[tgt], arr[idx]]
+  arr.forEach((c, i) => { c.order = i + 1 })
   emit2([...props.categories])
 }
 
@@ -437,6 +472,20 @@ function canMoveDown(cat: RuleCategory): boolean {
 }
 .custom-ck input:disabled { cursor: not-allowed; opacity: .5; }
 
+.expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.expand-btn:hover { background: var(--brand-tint, rgba(99,102,241,.1)); color: var(--brand); }
 .cat-actions {
   display: flex;
   gap: 2px;

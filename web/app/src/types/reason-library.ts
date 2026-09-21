@@ -71,6 +71,7 @@ export type BizCodeValue = typeof BIZ_CODE[keyof typeof BIZ_CODE]
 
 export interface ReasonTag {
   id: string
+  code?: string
   name: string
   enName?: string
   tip?: string
@@ -221,6 +222,7 @@ export interface TagListQuery {
   enabled?: boolean
   search?: string
   page?: number
+  /** 后端 StandardResultsSetPagination 的参数名是 page_size */
   pageSize?: number
 }
 

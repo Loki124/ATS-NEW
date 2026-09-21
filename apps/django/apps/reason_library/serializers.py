@@ -27,10 +27,10 @@ class ReasonTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReasonTag
         fields = [
-            'id', 'name', 'en_name', 'tip', 'type', 'enabled',
+            'id', 'code', 'name', 'en_name', 'tip', 'type', 'enabled',
             'created_at', 'updated_at', 'created_by_name',
         ]
-        read_only_fields = ['id', 'type', 'created_at', 'updated_at', 'created_by_name']
+        read_only_fields = ['id', 'code', 'type', 'created_at', 'updated_at', 'created_by_name']
         # 去掉字段级默认 UniqueValidator (DRF 在 is_valid() 阶段校验 unique
         # 会先于 view 层的 IntegrityError 抛 ValidationError → 走 VALIDATION_FAILED 40000,
         # 而产品期望同名 → TAG_NAME_DUPLICATED 40001 由 view 层 IntegrityError 抛。

@@ -128,8 +128,15 @@ const pickerCurrentSelected = computed<ReasonTag[]>(() => {
 const usedElsewhereIds = computed<Set<string>>(() => {
   const curId = pickerCatId.value
   const set = new Set<string>()
+  // 只统计【末级分类】的占用 — 标签仅允许挂在末级 (Item4 修订);
+  // 非末级的历史脏绑定不参与判断, 修复『未被使用却提示已使用』的误报。
+  const leafIds = new Set(
+    props.categories
+      .filter((c) => !props.categories.some((x) => x.parentId === c.id))
+      .map((c) => c.id),
+  )
   props.categories.forEach((c) => {
-    if (c.id === curId) return
+    if (c.id === curId || !leafIds.has(c.id)) return
     ;(c.tags || []).forEach((t) => set.add(t.id))
   })
   return set

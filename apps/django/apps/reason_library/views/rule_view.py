@@ -295,9 +295,11 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
 
     def _paginated_response(self, data):
         resp = self.get_paginated_response(data)
+        # 修复: count 从项目分页类的 pagination.total 取 (resp.data.count 恒 None → 前端 total 失真)
+        pg = resp.data.get('pagination') or {}
         return ApiResponse.ok({
-            'results': resp.data.get('results', data),
-            'count': resp.data.get('count'),
-            'next': resp.data.get('next'),
-            'previous': resp.data.get('previous'),
+            'results': data,
+            'count': pg.get('total'),
+            'next': pg.get('has_next'),
+            'previous': pg.get('has_previous'),
         })
