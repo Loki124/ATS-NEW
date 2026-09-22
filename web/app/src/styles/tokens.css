@@ -295,6 +295,18 @@ body.dark {
   /* --overlay-scrim-weak/mid：暗色下黑色阴影/聚焦光晕需加深（light .04→dark .10；light .25→dark .40） */
   --overlay-scrim-weak: rgba(0, 0, 0, .10);
   --overlay-scrim-mid:  rgba(0, 0, 0, .40);
+
+  /* §13 @deprecated 别名 · 暗色重排（绕开 :root 计算值陷阱）
+   * --sl/--wl/--ph/--success/--warning/--w 定义在 :root 且引用其它变量，
+   * 在浅色 :root 被解析为字面量后向下继承，body.dark 改 --c-success-soft 等也救不回。
+   * 须在 body.dark 显式重声明，路由到暗色变量（Step2Assign/Step1Batch/CheckBanner 等
+   * 的 .clean/.unocc/按钮 hover 在暗色下才能拿到暗色背景）。 */
+  --success: var(--c-success);
+  --warning: var(--c-warning);
+  --w:       var(--c-warning);
+  --sl:      var(--c-success-soft);
+  --wl:      var(--c-warning-soft);
+  --ph:      var(--brand-hover);
 }
 
 /* ===== §15. 跟随系统（prefers-color-scheme）=====
