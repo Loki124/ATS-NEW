@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { Upload, FileText, FolderOpen } from 'lucide-vue-next'
+import { CloudUploadOutline as Upload, DocumentTextOutline as FileText, FolderOpenOutline as FolderOpen } from '@vicons/ionicons5'
 const emit = defineEmits<{ (e: 'upload', files: File[]): void }>()
 
 function handleClick() {

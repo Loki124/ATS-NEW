@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
-import { Check } from 'lucide-vue-next'
+import { CheckmarkOutline as Check } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 
 const store = useAddCandidateStore()

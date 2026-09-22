@@ -105,9 +105,15 @@ async function handleReplace(draftId: string) {
   fi.click()
 }
 
+const submitting = ref(false)
 async function handleSubmit() {
-  await store.submit()
-  emit('created')
+  submitting.value = true
+  try {
+    await store.submit()
+    emit('created')
+  } finally {
+    submitting.value = false
+  }
 }
 
 function nextStep() {
@@ -146,7 +152,7 @@ function nextStep() {
       </div>
 
       <div v-else-if="store.step === 2" style="flex:1;display:flex;overflow:hidden;">
-        <Step2Assign @back="store.step = 1" @submit="handleSubmit" />
+        <Step2Assign :submitting="submitting" @back="store.step = 1" @submit="handleSubmit" />
       </div>
 
       <div v-else-if="store.step === 3" style="flex:1;display:flex;overflow:hidden;">

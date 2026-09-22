@@ -101,7 +101,7 @@
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
         <n-button @click="visible = false">取消</n-button>
-        <n-button type="primary" class="gradient-btn" @click="onConfirm">保存</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="loading" :disabled="loading" @click="onConfirm">保存</n-button>
       </div>
     </template>
   </n-modal>
@@ -161,6 +161,7 @@ const opOptions = [
 
 const op = ref('or')
 const rows = ref<Cond[]>([])
+const loading = ref(false)
 
 const exprText = computed(() => {
   if (rows.value.length === 0) return ''
@@ -206,8 +207,15 @@ watch(
   () => props.show,
   async (s) => {
     if (s) {
-      if (!deptStore.departments.length) {
-        try { await deptStore.loadDepartments() } catch { /* 降级 */ }
+      loading.value = true
+      try {
+        if (!deptStore.departments.length) {
+          await deptStore.loadDepartments()
+        }
+      } catch {
+        /* 降级 */
+      } finally {
+        loading.value = false
       }
       const v = props.value
       op.value = v?.op || 'or'

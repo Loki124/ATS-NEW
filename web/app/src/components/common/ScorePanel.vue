@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { Target } from 'lucide-vue-next'
+import { BriefcaseOutline as Target } from '@vicons/ionicons5'
 interface ScoreResult {
   score: number
   passed: boolean

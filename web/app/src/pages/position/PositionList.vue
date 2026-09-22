@@ -82,7 +82,7 @@
       <template #footer>
         <div class="flex justify-end gap-2">
           <n-button @click="modalVisible = false">取消</n-button>
-          <n-button type="primary" @click="handleSave">保存</n-button>
+          <n-button type="primary" :loading="saving" :disabled="saving" @click="handleSave">保存</n-button>
         </div>
       </template>
     </n-modal>
@@ -156,6 +156,7 @@ const modalVisible = ref(false);
 const detailVisible = ref(false);
 const selectedPosition = ref<Position | null>(null);
 const formRef = ref();
+const saving = ref(false);
 
 const defaultFormState = {
   name: '',
@@ -324,6 +325,7 @@ const handleView = (record: Position) => {
 };
 
 const handleSave = async () => {
+  saving.value = true
   try {
     await formRef.value?.validate()
     if (selectedPosition.value) {
@@ -347,6 +349,8 @@ const handleSave = async () => {
     modalVisible.value = false;
   } catch (error) {
     message.error(extractApiError(error, '表单验证失败'));
+  } finally {
+    saving.value = false
   }
 };
 

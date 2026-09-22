@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
 import { NDropdown, NIcon, useMessage } from 'naive-ui'
-import { ChevronDown, Check } from 'lucide-vue-next'
+import { ChevronDownOutline as ChevronDown, CheckmarkOutline as Check } from '@vicons/ionicons5'
 import { useSystemStore, RECRUIT_SYSTEMS, type RecruitSystemKey } from '../../stores/system'
 
 /**

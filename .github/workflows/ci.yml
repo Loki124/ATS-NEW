@@ -152,6 +152,13 @@ jobs:
         working-directory: web/app
         run: npm run lint:ci
 
+      # X-04 / X-05 / X-13 令牌强制门禁（AGENTS.md §6.2）。
+      # 当前为 warn-only（.stylelintrc.json defaultSeverity=warning），不阻断合并；
+      # 待存量硬编码色收敛后再翻 defaultSeverity=error 转硬门禁。
+      - name: Style lint (warn-only)
+        working-directory: web/app
+        run: npm run lint:style
+
   brand-tokens:
     # R-214：品牌色令牌 MUST 由 brand-tokens.mjs 生成并纳入 CI 门禁。
     # 任一失败（彩度过低 / 对比度不达标 / 已提交文件过期）直接阻断合并。

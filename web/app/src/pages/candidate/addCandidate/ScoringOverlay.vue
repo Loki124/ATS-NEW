@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { CheckCircle2 } from 'lucide-vue-next'
+import { CheckmarkCircleOutline as CheckCircle2 } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 
 const store = useAddCandidateStore()

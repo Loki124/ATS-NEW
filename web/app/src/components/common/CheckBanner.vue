@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { CheckCircle2, Info, AlertTriangle, Loader2 } from 'lucide-vue-next'
+import { CheckmarkCircleOutline as CheckCircle2, InformationCircleOutline as Info, WarningOutline as AlertTriangle, ReloadOutline as Loader2 } from '@vicons/ionicons5'
 export type Status = 'processing' | 'clean' | 'unocc' | 'occupied'
 defineProps<{ status: Status }>()
 

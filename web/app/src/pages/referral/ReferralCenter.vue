@@ -39,7 +39,7 @@
             </n-grid-item>
 
             <n-grid-item span="2 m:1">
-              <n-card title="💡 怎么用" :bordered="false">
+              <n-card title="怎么用" :bordered="false">
                 <n-p>1. 把内推码发给候选人</n-p>
                 <n-p>2. 候选人通过内推码投递简历</n-p>
                 <n-p>3. 候选人入职后你将获得奖励</n-p>
@@ -73,7 +73,7 @@
             :row-key="(row: any) => row.id"
             @update:page="loadRecords"
           />
-          <n-empty v-if="!recordsLoading && records.length === 0" description="暂无推荐记录，去分享你的内推码吧 🎉" class="mt-6" />
+          <n-empty v-if="!recordsLoading && records.length === 0" description="暂无推荐记录，去分享你的内推码吧" class="mt-6" />
         </n-tab-pane>
 
         <!-- Tab 4: 我的奖励 -->

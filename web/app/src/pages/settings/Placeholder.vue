@@ -2,14 +2,14 @@
   <div class="err-page">
     <div class="glass-panel err-card">
       <div class="err-left">
-        <h1 class="err-code placeholder-icon">{{ meta.icon }}</h1>
+        <n-icon :component="meta.iconComp" :size="56" class="placeholder-icon" />
         <span class="err-tag">PLACEHOLDER</span>
       </div>
       <div class="err-right">
         <h2 class="err-title">{{ meta.title }}</h2>
         <p class="err-desc">{{ meta.description }}</p>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span class="placeholder-tag">🚧 开发中</span>
+          <span class="placeholder-tag">开发中</span>
           <span class="placeholder-eta">ETA: {{ meta.eta }}</span>
         </div>
         <p style="font-size:var(--text-meta);color:var(--ink-faint);margin:0;font-family:monospace">
@@ -27,19 +27,20 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
+import { HandLeftOutline, DocumentTextOutline, LinkOutline, GlobeOutline, BarChartOutline, ConstructOutline } from '@vicons/ionicons5'
 
 const route = useRoute()
 const META_MAP: Record<string, any> = {
-  '/settings/onboarding': { icon: '👋', title: '入职设置', description: '员工入职流程配置（部门 / 资料模板 / 流程节点 / 自动通知规则）', eta: '2026-Q4', issue: 'ATS-142', owner: '花无缺', pr: '#438' },
-  '/settings/approval':   { icon: '📋', title: '审批设置', description: '审批流配置（审批人 / 节点 / 通知规则）', eta: '2026-Q4', issue: 'ATS-143', owner: '花无缺', pr: '#439' },
-  '/settings/external':   { icon: '🔗', title: '生态对接', description: '生态对接配置（背调 / HRIS / OA）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
-  '/settings/public':     { icon: '🌐', title: '公共设置', description: '公开页面配置（招聘门户 / 自定义字段）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
-  '/report':              { icon: '📊', title: '数据中心', description: '招聘数据报表与分析（漏斗 / 转化 / 周期 / 来源）', eta: '规划中', issue: 'ATS-201', owner: '—', pr: '—' },
+  '/settings/onboarding': { iconComp: HandLeftOutline, title: '入职设置', description: '员工入职流程配置（部门 / 资料模板 / 流程节点 / 自动通知规则）', eta: '2026-Q4', issue: 'ATS-142', owner: '花无缺', pr: '#438' },
+  '/settings/approval':   { iconComp: DocumentTextOutline, title: '审批设置', description: '审批流配置（审批人 / 节点 / 通知规则）', eta: '2026-Q4', issue: 'ATS-143', owner: '花无缺', pr: '#439' },
+  '/settings/external':   { iconComp: LinkOutline, title: '生态对接', description: '生态对接配置（背调 / HRIS / OA）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
+  '/settings/public':     { iconComp: GlobeOutline, title: '公共设置', description: '公开页面配置（招聘门户 / 自定义字段）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
+  '/report':              { iconComp: BarChartOutline, title: '数据中心', description: '招聘数据报表与分析（漏斗 / 转化 / 周期 / 来源）', eta: '规划中', issue: 'ATS-201', owner: '—', pr: '—' },
 }
 const meta = computed(() => {
   if (route.meta?.title) {
     return {
-      icon: route.meta.icon || '🚧',
+      iconComp: ConstructOutline,
       title: route.meta.title,
       description: (route.meta.description || '') as string,
       eta: '待规划',
@@ -48,7 +49,7 @@ const meta = computed(() => {
       pr: '—',
     }
   }
-  return META_MAP[route.path] || { icon: '🚧', title: '页面建设中', description: '', eta: '待规划', issue: '—', owner: '—', pr: '—' }
+  return META_MAP[route.path] || { iconComp: ConstructOutline, title: '页面建设中', description: '', eta: '待规划', issue: '—', owner: '—', pr: '—' }
 })
 </script>
 

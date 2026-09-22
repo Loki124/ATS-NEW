@@ -490,7 +490,7 @@ import {
   type ValidationResult, type Strength, type DimRuleSetItem,
   type RuleImportResult, type IndicatorImportResult,
 } from '../../api/campusControl'
-import { XCircle, AlertTriangle, CheckCircle2 } from 'lucide-vue-next'
+import { CloseCircleOutline as XCircle, WarningOutline as AlertTriangle, CheckmarkCircleOutline as CheckCircle2 } from '@vicons/ionicons5'
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
 import { useUndo } from '../../composables/useUndo'

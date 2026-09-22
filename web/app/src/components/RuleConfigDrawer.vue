@@ -4,7 +4,7 @@ import {
   NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch,
   NButton, NTag, NSpace, NGrid, NGi, NAlert, NText, NIcon, NTooltip, useMessage,
 } from 'naive-ui'
-import { Info } from 'lucide-vue-next'
+import { InformationCircleOutline as Info } from '@vicons/ionicons5'
 import {
   STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS,
   listDimensions, listIndicators, createRule, updateRule,

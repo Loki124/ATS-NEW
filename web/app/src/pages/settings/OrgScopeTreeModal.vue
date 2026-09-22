@@ -118,7 +118,7 @@
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
         <n-button @click="visible = false">取消</n-button>
-        <n-button type="primary" class="gradient-btn" @click="onConfirm">保存</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="loading" :disabled="loading" @click="onConfirm">保存</n-button>
       </div>
     </template>
   </n-modal>
@@ -159,6 +159,7 @@ const selectedChecked = ref<string[]>([])
 // 标题行开关
 const includeDisabled = ref(false)
 const sourceFilter = ref('')
+const loading = ref(false)
 
 /** 可选列表 = 未选中的部门，按「包含停用」与搜索词过滤（默认排除停用） */
 const visibleAvailable = computed<Department[]>(() => {
@@ -257,12 +258,15 @@ watch(
   () => props.show,
   async (s) => {
     if (s) {
-      if (!deptStore.departments.length) {
-        try {
+      loading.value = true
+      try {
+        if (!deptStore.departments.length) {
           await deptStore.loadDepartments()
-        } catch {
-          /* 降级 */
         }
+      } catch {
+        /* 降级 */
+      } finally {
+        loading.value = false
       }
       const arr = (props.value || []).filter((x) => x && x.deptId)
       selectedKeys.value = arr.map((x) => String(x.deptId))

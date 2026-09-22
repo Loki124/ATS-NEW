@@ -268,12 +268,12 @@
                         <span class="item-value">{{ getExperienceText(selectedDemand) }}</span>
                       </div>
                       <div class="profile-item">
-                        <span class="item-icon">🏢</span>
+                        <span class="item-icon"><n-icon :component="BusinessOutline" :size="16" /></span>
                         <span class="item-label">职级要求</span>
                         <span class="item-value">{{ selectedDemand.jobLevel || '-' }}</span>
                       </div>
                       <div class="profile-item">
-                        <span class="item-icon">👥</span>
+                        <span class="item-icon"><n-icon :component="PeopleOutline" :size="16" /></span>
                         <span class="item-label">招聘人数</span>
                         <span class="item-value">{{ selectedDemand.positionCount }}人</span>
                       </div>
@@ -434,7 +434,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useMessage, NDropdown } from 'naive-ui'
-import { AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { AddOutline, SearchOutline, BusinessOutline, PeopleOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 

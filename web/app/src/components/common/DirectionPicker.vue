@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { Inbox, Folder, Target } from 'lucide-vue-next'
+import { MailOutline as Inbox, FolderOutline as Folder, BriefcaseOutline as Target } from '@vicons/ionicons5'
 import type { Direction } from '@/api/addCandidate'
 
 const props = defineProps<{ modelValue: '' | Direction; hasOccupied: boolean }>()

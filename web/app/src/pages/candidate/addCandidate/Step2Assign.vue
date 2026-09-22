@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { AlertTriangle } from 'lucide-vue-next'
+import { WarningOutline as AlertTriangle } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import DirectionPicker from '@/components/common/DirectionPicker.vue'
 import PositionChips from '@/components/common/PositionChips.vue'
 
 const store = useAddCandidateStore()
+const props = defineProps<{ submitting?: boolean }>()
 const emit = defineEmits<{ (e: 'back'): void; (e: 'submit'): void }>()
 
 const positions = ['高级前端工程师', '资深前端工程师', '前端架构师', 'Web前端Leader', '全栈工程师', '高级后端工程师', '产品经理', 'UI设计师']
@@ -72,7 +73,10 @@ const isMulti = () => store.resumes.length > 1
   <div class="mf" style="position:absolute;bottom:0;left:0;right:0;">
     <div><button class="btn bs" @click="emit('back')">← 上一步</button></div>
     <div class="btng">
-      <button :disabled="!store.canSubmit" class="btn bp" data-testid="submit-btn" @click="emit('submit')">提交</button>
+      <button :disabled="!store.canSubmit || props.submitting" class="btn bp" data-testid="submit-btn" @click="emit('submit')">
+        <span v-if="props.submitting" class="btn-spinner" aria-hidden="true"></span>
+        提交
+      </button>
     </div>
   </div>
 </template>
@@ -320,6 +324,15 @@ const isMulti = () => store.resumes.length > 1
 .bp { background: var(--brand); color: var(--n-100); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
+.btn-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 .bs { background: var(--surface); color: var(--g7); border: 1px solid var(--g4); } /* v2.8 T2.8.1: var(--n-100) → var(--surface) */
 .bs:hover { background: var(--g2); }
 .bg { background: transparent; color: var(--g6); }

@@ -134,9 +134,9 @@
       </div>
 
       <div class="login-features">
-        <div class="feature-item"><span class="feature-icon">📧</span><span>邮箱验证</span></div>
-        <div class="feature-item"><span class="feature-icon">👥</span><span>人工审核</span></div>
-        <div class="feature-item"><span class="feature-icon">🔒</span><span>安全注册</span></div>
+        <div class="feature-item"><n-icon :component="MailOutline" :size="28" class="feature-icon" /><span>邮箱验证</span></div>
+        <div class="feature-item"><n-icon :component="PeopleOutline" :size="28" class="feature-icon" /><span>人工审核</span></div>
+        <div class="feature-item"><n-icon :component="LockClosedOutline" :size="28" class="feature-icon" /><span>安全注册</span></div>
       </div>
     </div>
   </div>
@@ -146,7 +146,7 @@
 import { ref, reactive, nextTick, onBeforeUnmount, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { PersonOutline, LockClosedOutline, MailOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
+import { PersonOutline, LockClosedOutline, MailOutline, CheckmarkCircleOutline, PeopleOutline } from '@vicons/ionicons5'
 import { register, verifyRegisterCode, resendRegisterCode } from '../api/auth'
 
 const router = useRouter()

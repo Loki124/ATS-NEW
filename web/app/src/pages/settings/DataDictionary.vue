@@ -349,7 +349,7 @@ import {
   type FormRules,
   type DataTableColumns,
 } from 'naive-ui'
-import { AlertTriangle } from 'lucide-vue-next'
+import { WarningOutline as AlertTriangle } from '@vicons/ionicons5'
 import {
   listDictionaryTypes,
   getDictionaryDetail,

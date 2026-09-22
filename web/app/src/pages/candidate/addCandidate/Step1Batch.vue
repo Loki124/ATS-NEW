@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NIcon } from 'naive-ui'
-import { AlertTriangle } from 'lucide-vue-next'
+import { WarningOutline as AlertTriangle } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import ResumeCard from '@/components/common/ResumeCard.vue'
 import UploadZone from '@/components/common/UploadZone.vue'

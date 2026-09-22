@@ -143,19 +143,19 @@
       <!-- 底部功能特性（玻璃小卡） -->
       <div class="login-features">
         <div class="feature-item">
-          <span class="feature-icon">📊</span>
+          <n-icon :component="BarChartOutline" :size="28" class="feature-icon" />
           <span>数据看板</span>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">👥</span>
+          <n-icon :component="PeopleOutline" :size="28" class="feature-icon" />
           <span>人才库</span>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">📋</span>
+          <n-icon :component="ListOutline" :size="28" class="feature-icon" />
           <span>流程管理</span>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">🔔</span>
+          <n-icon :component="NotificationsOutline" :size="28" class="feature-icon" />
           <span>智能提醒</span>
         </div>
       </div>
@@ -167,7 +167,7 @@
 import { ref, reactive, nextTick, onBeforeUnmount, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { PersonOutline, LockClosedOutline } from '@vicons/ionicons5'
+import { PersonOutline, LockClosedOutline, BarChartOutline, PeopleOutline, ListOutline, NotificationsOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
 import { login } from '../api/auth'
 import { deriveRoleType } from '../utils/role'

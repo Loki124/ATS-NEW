@@ -1,6 +1,6 @@
 <template>
   <div class="error-state" :class="[`is-${type}`, { 'is-compact': compact }]">
-    <div class="error-icon" aria-hidden="true">{{ icon || '⚠️' }}</div>
+    <n-icon :component="icon" :size="compact ? 28 : 44" class="error-icon" aria-hidden="true" />
     <h3 class="error-title">{{ title || '加载失败' }}</h3>
     <p v-if="description" class="error-desc">{{ description }}</p>
 
@@ -20,11 +20,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { AlertCircleOutline } from '@vicons/ionicons5'
+import type { Component } from 'vue'
 
 withDefaults(
   defineProps<{
     type?: 'page' | 'section' | 'inline'
-    icon?: string
+    icon?: Component
     title?: string
     description?: string
     /** 结构化错误码（如 ATS-ERR-xxx），与 detail 二选一展示 */
@@ -37,7 +39,7 @@ withDefaults(
   {
     type: 'section',
     compact: false,
-    icon: '',
+    icon: AlertCircleOutline,
     title: '',
     description: '',
     errorCode: '',

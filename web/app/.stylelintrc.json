@@ -9,5 +9,7 @@
   "rules": {
     "strict-color/strict-color-value": true
   },
-  "ignoreFiles": ["**/dist/**", "**/node_modules/**", "**/brand-tokens.css"]
+  "ignoreFiles": ["**/dist/**", "**/node_modules/**", "**/brand-tokens.css", "src/styles/tokens.css"],
+  "defaultSeverity": "warning",
+  "reportNeedlessDisables": false
 }
