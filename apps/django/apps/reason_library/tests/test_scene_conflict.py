@@ -17,16 +17,18 @@ pytestmark = pytest.mark.django_db
 SCENES = '/api/v1/reason-library/scenes/'
 
 
-def test_get_scenes_returns_six(admin_api_client):
-    """GET /scenes/ 返 6 项。"""
+def test_get_scenes_returns_twelve(admin_api_client):
+    """GET /scenes/ 返 6 场景 × 2 招聘类型(social/campus) = 12 项。"""
     client, _ = admin_api_client
     resp = client.get(SCENES)
     assert resp.status_code == 200
     items = resp.json()['data']['items']
-    assert len(items) == 6
+    assert len(items) == 12
     scenes = [it['scene'] for it in items]
     assert '筛选不通过' in scenes
     assert '淘汰' in scenes
+    recruit_types = {it['recruitType'] for it in items}
+    assert recruit_types == {'social', 'campus'}
 
 
 def test_db_unique_scene_constraint():
@@ -52,10 +54,11 @@ def test_put_scenes_bulk_replace(admin_api_client, custom_rule):
     resp = client.put(SCENES, payload, format='json')
     assert resp.status_code == 200
     items = resp.json()['data']['items']
-    mapping = {it['scene']: it.get('ruleId') or it.get('rule_id') for it in items}
-    assert mapping['筛选不通过'] is None
-    assert mapping['取消面试'] == custom_rule.id
-    assert mapping['淘汰'] == custom_rule.id
+    # 按 (scene, recruitType) 双键索引, 避免 social/campus 同 scene 碰撞
+    mapping = {(it['scene'], it['recruitType']): it.get('ruleId') for it in items}
+    assert mapping[('筛选不通过', 'social')] is None
+    assert mapping[('取消面试', 'social')] == custom_rule.id
+    assert mapping[('淘汰', 'social')] == custom_rule.id
 
 
 def test_wizard_save_scene_conflict_409(admin_api_client, custom_rule):
