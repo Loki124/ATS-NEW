@@ -47,6 +47,29 @@ class SceneOption(str, Enum):
 
 SCENE_OPTIONS = [s.value for s in SceneOption]
 
+
+class RecruitType(str, Enum):
+    """招聘类型维度 (2026-09-22 新增) — 与「应用场景(入口)」AND 组合。
+
+    规则的应用范围 = 所选场景(入口) × 所选类型 的笛卡尔积。
+    例如规则同时选 [淘汰] × [社会招聘, 校园招聘] ⇒ 命中 (淘汰,社招) 与 (淘汰,校招)。
+    """
+
+    SOCIAL = 'social'   # 社会招聘
+    CAMPUS = 'campus'   # 校园招聘
+
+    @classmethod
+    def choices(cls):
+        return [(m.value, m.value) for m in cls]
+
+    @classmethod
+    def labels(cls):
+        return {cls.SOCIAL.value: '社会招聘', cls.CAMPUS.value: '校园招聘'}
+
+
+RECRUIT_TYPE_CHOICES = RecruitType.choices()
+RECRUIT_TYPES = [r.value for r in RecruitType]
+
 # 全场景统一: 单次选择标签上限 (Q-A1)
 MAX_PICK = 5
 
@@ -229,7 +252,12 @@ class CategoryAssignment(models.Model):
 
 
 class RuleSceneAssignment(models.Model):
-    """场景 → 规则 单向引用。UNIQUE(scene) 兜底 Q6 一场景一规则。"""
+    """场景(入口) + 类型 二维引用。
+
+    UNIQUE(scene, recruit_type) 兜底 Q6: 同一「场景+类型」组合全局仅属一条规则。
+    例: (淘汰, social) 可属于规则 A, (淘汰, campus) 可属于规则 B
+        —— 同场景跨类型分属不同规则是合法业务 (HR 分类管控)。
+    """
 
     id = models.CharField(max_length=32, primary_key=True, editable=False)
     rule = models.ForeignKey(
@@ -237,17 +265,21 @@ class RuleSceneAssignment(models.Model):
         related_name='scene_assignments', verbose_name='规则',
     )
     scene = models.CharField(max_length=32, choices=[(s, s) for s in SCENE_OPTIONS], verbose_name='场景')
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        verbose_name='招聘类型', db_index=True,
+    )
 
     class Meta:
         db_table = 'rule_scene_assignment'
         verbose_name = '规则场景引用'
         verbose_name_plural = '规则场景引用'
         constraints = [
-            UniqueConstraint(fields=['scene'], name='uniq_scene'),
+            UniqueConstraint(fields=['scene', 'recruit_type'], name='uniq_scene_type'),
         ]
 
     def __str__(self) -> str:
-        return f'{self.rule.name} @ {self.scene}'
+        return f'{self.rule.name} @ {self.scene}/{self.recruit_type}'
 
     def save(self, *args, **kwargs):
         if not self.id:

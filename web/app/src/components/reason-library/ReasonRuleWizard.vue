@@ -24,13 +24,9 @@
               <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
             </n-space>
             <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
-            <n-button size="tiny" style="margin-left: 8px;" @click="openSceneEditor">
-              <template #icon><n-icon :component="PencilOutline" /></template>
-              {{ t('reasonLibrary.wizard.editScenes') }}
-            </n-button>
-            <n-button size="tiny" style="margin-left: 8px;" @click="openRuleSettings">
+            <n-button size="tiny" style="margin-left: 8px;" @click="openRuleConfig">
               <template #icon><n-icon :component="SettingsOutline" /></template>
-              {{ t('reasonLibrary.wizard.ruleSettings') }}
+              {{ t('reasonLibrary.wizard.configRule') }}
             </n-button>
           </div>
         </div>
@@ -93,41 +89,16 @@
       </n-space>
     </template>
 
-    <!-- 子弹窗 -->
-    <SceneEditorModal
+    <!-- 统一「配置规则」弹窗: 入口(场景) + 类型 + 可选标签上限 -->
+    <RuleConfigModal
       v-if="wizard"
-      v-model:show="sceneEditorShow"
+      v-model:show="ruleConfigShow"
       v-model:scenes="wizard.scenes"
+      v-model:recruit-types="wizard.recruitTypes"
+      v-model:max-selectable-tags="wizard.maxSelectableTags"
+      :rule-id="ruleId || ''"
       :all-scenes-usage="sceneUsage"
     />
-
-    <!-- 规则设置弹窗: 用户可选标签数量配置 -->
-    <n-modal
-      v-model:show="ruleSettingsShow"
-      preset="card"
-      :title="t('reasonLibrary.wizard.ruleSettings')"
-      style="width: 420px"
-      :mask-closable="false"
-      :bordered="false"
-    >
-      <n-form-item :label="t('reasonLibrary.wizard.maxSelectableTags')">
-        <n-input-number
-          v-model:value="ruleSettingsForm.maxSelectableTags"
-          :min="0"
-          :max="100"
-          style="width: 100%"
-          clearable
-          :placeholder="t('reasonLibrary.wizard.maxSelectableTagsPlaceholder')"
-        />
-      </n-form-item>
-      <p class="rl-settings-hint">{{ t('reasonLibrary.wizard.maxSelectableTagsHint') }}</p>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="ruleSettingsShow = false">{{ t('reasonLibrary.common.cancel') }}</n-button>
-          <n-button type="primary" @click="saveRuleSettings">{{ t('reasonLibrary.common.confirm') }}</n-button>
-        </n-space>
-      </template>
-    </n-modal>
   </n-modal>
 </template>
 
@@ -148,24 +119,23 @@
 import { ref, computed, watch } from 'vue'
 import {
   NModal, NButton, NSpace, NTag, NIcon, useMessage, useDialog, NSpin,
-  NInputNumber, NFormItem,
 } from 'naive-ui'
 import {
   ChevronBackOutline, ChevronForwardOutline, ArrowBackOutline,
-  CheckmarkOutline, PencilOutline, SettingsOutline,
+  CheckmarkOutline, SettingsOutline,
 } from '@vicons/ionicons5'
 import {
   createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags, getSceneConfig,
 } from '../../api/reason-library'
 import type {
-  ReasonTag, RuleCategory, SceneKey, SceneRule, WizardPayload,
+  ReasonTag, RuleCategory, RecruitType, SceneRule, WizardPayload,
 } from '../../types/reason-library'
 import { BIZ_CODE } from '../../types/reason-library'
 import { t } from '../../locales/zh-CN'
 import Step1Categories from './wizard/Step1Categories.vue'
 import Step2Assignments from './wizard/Step2Assignments.vue'
 import Step3Preview from './wizard/Step3Preview.vue'
-import SceneEditorModal from './wizard/SceneEditorModal.vue'
+import RuleConfigModal from './wizard/RuleConfigModal.vue'
 
 const props = defineProps<{
   show: boolean
@@ -189,8 +159,8 @@ const loading = ref(false)
 // 标签池 (Step2/Step3 用) — 与 wizard 解耦, 仅读
 const allTags = ref<ReasonTag[]>([])
 
-// 场景占用情况 (SceneEditor 用: 哪些 scene 被其他规则占用)
-const sceneUsage = ref<Partial<Record<SceneKey, { ruleId: string; ruleName: string }>>>({})
+// 场景(入口)+类型 占用情况 — key 为 `${scene}|${recruitType}`, 供 RuleConfigModal 禁用「已被其他规则占用」的组合
+const sceneUsage = ref<Record<string, { ruleId: string; ruleName: string }>>({})
 
 // 步骤定义
 const steps = [
@@ -207,21 +177,11 @@ const nextLabel = computed(() =>
       : t('reasonLibrary.wizard.actions.next'),
 )
 
-const sceneEditorShow = ref(false)
+// 统一「配置规则」弹窗状态
+const ruleConfigShow = ref(false)
 
-// 规则设置弹窗状态
-const ruleSettingsShow = ref(false)
-const ruleSettingsForm = ref<{ maxSelectableTags: number }>({ maxSelectableTags: 5 })
-
-function openRuleSettings() {
-  if (!wizard.value) return
-  ruleSettingsForm.value.maxSelectableTags = wizard.value.maxSelectableTags
-  ruleSettingsShow.value = true
-}
-function saveRuleSettings() {
-  if (!wizard.value) return
-  wizard.value.maxSelectableTags = Math.max(0, ruleSettingsForm.value.maxSelectableTags ?? 0)
-  ruleSettingsShow.value = false
+function openRuleConfig() {
+  ruleConfigShow.value = true
 }
 
 // ============= 加载逻辑 =============
@@ -235,14 +195,14 @@ watch(
       // 1. 加载标签池 (后台一次性拉满)
       const tagRes = await listTags({ page: 1, pageSize: 500 })
       allTags.value = tagRes.items ?? []
-      // 1.5 加载场景占用情况 — 供 SceneEditorModal 禁用「已被其他规则占用」的场景,
+      // 1.5 加载场景占用情况 — 供 RuleConfigModal 禁用「已被其他规则占用」的 (场景,类型) 组合,
       //    避免用户误选后在保存时触发后端 RULE_SCENE_CONFLICT(409)。
-      //    ⚠️ 此前 sceneUsage 从未被赋值 (死代码), 导致所有场景均可勾选 → 必 409。
+      //    key 形如 `${scene}|${recruitType}`。
       try {
         const cfg = await getSceneConfig()
-        const usage: Partial<Record<SceneKey, { ruleId: string; ruleName: string }>> = {}
+        const usage: Record<string, { ruleId: string; ruleName: string }> = {}
         for (const it of cfg.items) {
-          if (it.ruleId) usage[it.scene] = { ruleId: it.ruleId, ruleName: it.ruleName ?? '' }
+          if (it.ruleId) usage[`${it.scene}|${it.recruitType}`] = { ruleId: it.ruleId, ruleName: it.ruleName ?? '' }
         }
         sceneUsage.value = usage
       } catch {
@@ -268,6 +228,9 @@ watch(
 
 /** SceneRule → WizardPayload */
 function toWizard(rule: SceneRule): WizardPayload {
+  // 详情接口以 camelCase 返回 sceneAssignments: [{scene, recruitType}]
+  const sa = (rule as any).sceneAssignments ?? []
+  const rts = [...new Set(sa.map((a: any) => a.recruitType).filter(Boolean))] as RecruitType[]
   return {
     id: rule.id,
     name: rule.name,
@@ -275,6 +238,7 @@ function toWizard(rule: SceneRule): WizardPayload {
     enabled: rule.enabled,
     isSystem: rule.isSystem,
     scenes: [...(rule.scenes ?? [])],
+    recruitTypes: rts.length ? rts : ['social'],
     maxSelectableTags: rule.maxSelectableTags ?? 5,
     categories: deepCloneCategories(rule.categories ?? [], allTags.value),
     updatedAt: rule.updatedAt,
@@ -290,6 +254,7 @@ function emptyWizardPayload(): WizardPayload {
     enabled: true,
     isSystem: false,
     scenes: [],
+    recruitTypes: ['social'],
     maxSelectableTags: 5,
     categories: [],
     updatedAt: undefined,
@@ -339,10 +304,6 @@ function gotoStep(n: number) {
     }
   }
   step.value = n
-}
-
-function openSceneEditor() {
-  sceneEditorShow.value = true
 }
 
 function countLeaf(cats: RuleCategory[]): number {
@@ -531,10 +492,16 @@ function onShowChange(v: boolean) {
 .step.done { color: var(--c-success-deep); }
 
 .wizard-body {
-  /* 需求四.3: 统一各步骤高度, 避免切换时弹窗跳动 */
-  min-height: 460px;
-  max-height: 56vh;
+  /* 需求: 大屏使用固定「最大高度上限」, 高度不再随步骤内容伸缩 → 消除切换抖动。
+     单一确定值 (非 min/max 区间), 配合 n-modal 垂直居中避免上下跳动。 */
+  height: min(640px, 72vh);
   overflow-y: auto;
   padding: 4px 4px 4px 0;
+}
+/* 小屏 (视口高度 < 760px): 弹窗撑满高度, 内容在 body 内滚动 */
+@media (max-height: 760px) {
+  .wizard-body {
+    height: calc(100vh - 200px);
+  }
 }
 </style>

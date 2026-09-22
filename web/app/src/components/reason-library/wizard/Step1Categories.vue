@@ -41,7 +41,7 @@
             >
               <n-icon
                 :component="ChevronForwardOutline"
-                :size="10"
+                :size="16"
                 :style="{ transform: collapsedIds.has(row.cat.id) ? 'none' : 'rotate(90deg)', transition: 'transform var(--dur-fast) var(--ease-out)' }"
               />
             </button>
@@ -381,7 +381,7 @@ function canMoveDown(cat: RuleCategory): boolean {
 }
 .cat-row:last-child { border-bottom: none; }
 .cat-row:hover { background: var(--brand-tint); }
-.cat-row.is-leaf { background: rgba(255, 255, 255, .6); }
+.cat-row.is-leaf { background: var(--glass-bg-input, rgba(255, 255, 255, .45)); }
 .cat-row .indent {
   flex-shrink: 0;
   display: inline-flex;
@@ -476,14 +476,15 @@ function canMoveDown(cat: RuleCategory): boolean {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border: none;
+  border: 1px solid var(--border-hairline, rgba(15, 23, 42, .08));
   background: transparent;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
   color: var(--ink-soft);
+  flex-shrink: 0;
 }
 .expand-btn:hover { background: var(--brand-tint, rgba(99,102,241,.1)); color: var(--brand); }
 .cat-actions {

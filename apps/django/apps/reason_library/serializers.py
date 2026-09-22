@@ -105,11 +105,11 @@ class RuleCategoryFlatSerializer(serializers.ModelSerializer):
 
 
 class SceneAssignmentSerializer(serializers.ModelSerializer):
-    """规则 ↔ 场景。"""
+    """规则 ↔ 场景(入口)+类型。"""
 
     class Meta:
         model = RuleSceneAssignment
-        fields = ['id', 'scene']
+        fields = ['id', 'scene', 'recruit_type']
         read_only_fields = ['id']
 
 
@@ -123,6 +123,14 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
     maxSelectableTags = serializers.IntegerField(source='max_selectable_tags', read_only=True)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
+    # 「原因数量」: 该规则绑定的「启用且未软删」标签 distinct 数量
+    # (业务口径与 RuleCategoryFlatSerializer.get_tag_ids 一致:
+    #  tag__enabled=True & tag__deleted_at__isnull=True, 关联路径
+    #  categories__assignments__tag)。列表接口由 SceneRuleViewSet.get_queryset
+    #  annotate 同名属性, 单实例 (retrieve/partial_update) 回退 ORM 查询。
+    tag_count = serializers.SerializerMethodField()
+    # camelCase 别名 (sandbox stub renderer 不做 snake↔camel 转换, 手动暴露)
+    tagCount = serializers.SerializerMethodField()
 
     class Meta:
         model = SceneRule
@@ -130,11 +138,46 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
             'id', 'name', 'is_system', 'isSystem', 'enabled', 'description',
             'max_selectable_tags', 'maxSelectableTags',
             'created_at', 'createdAt', 'updated_at', 'updatedAt', 'scenes',
+            'tag_count', 'tagCount',
         ]
         read_only_fields = ['id', 'is_system', 'isSystem', 'created_at', 'createdAt', 'updated_at', 'updatedAt']
 
     def get_scenes(self, obj) -> list:
-        return list(obj.scene_assignments.values_list('scene', flat=True))
+        # 同一 scene 可能跨多个 recruit_type 出现, 去重后返回入口(场景)列表
+        return list(dict.fromkeys(obj.scene_assignments.values_list('scene', flat=True)))
+
+    def get_tag_count(self, obj) -> int:
+        """snake_case 字段 — 该规则绑定的「启用且未软删」标签 distinct 数量。"""
+        return self._tag_count(obj)
+
+    def get_tagCount(self, obj) -> int:  # noqa: N802 - camelCase 别名, 与 isSystem 同风格
+        """camelCase 别名 — 前端 rules 列表列 key='tagCount' 命中。"""
+        return self._tag_count(obj)
+
+    def _tag_count(self, obj) -> int:
+        """核心取值逻辑 (snake / camel 两个字段共用, 避免重复查询)。
+
+        - 列表接口 (list) 由 SceneRuleViewSet.get_queryset 用
+          Count(..., distinct=True) annotate 了同名属性 tag_count, 优先读取,
+          彻底规避 N+1;
+        - 未 annotate 的单实例 (retrieve / partial_update 直接用
+          SceneRuleListSerializer(rule) 序列化) 回退 ORM 查询,
+          并缓存到实例属性 _cached_tag_count, 避免 get_tag_count 与
+          get_tagCount 各查一次。
+        """
+        annotated = getattr(obj, 'tag_count', None)
+        if annotated is not None:
+            return annotated
+        cached = getattr(obj, '_cached_tag_count', None)
+        if cached is not None:
+            return cached
+        count: int = CategoryAssignment.objects.filter(
+            category__rule=obj,
+            tag__enabled=True,
+            tag__deleted_at__isnull=True,
+        ).values('tag').distinct().count()
+        obj._cached_tag_count = count
+        return count
 
 
 class SceneRuleDetailSerializer(SceneRuleListSerializer):
@@ -253,6 +296,9 @@ class WizardSaveSerializer(serializers.Serializer):
     scenes = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,
     )
+    recruit_types = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list,
+    )
     # 可选乐观锁 (仅当客户端启用并发保护时才传; 不传则后端跳过校验)
     expected_updated_at = serializers.DateTimeField(required=False, allow_null=True)
 
@@ -278,19 +324,29 @@ class WizardSaveSerializer(serializers.Serializer):
         # 去重 (同一 scene 在 payload 里出现多次视为一次)
         return list(dict.fromkeys(value))
 
+    def validate_recruit_types(self, value: list) -> list:
+        from .models import RECRUIT_TYPES
+        for r in value:
+            if r not in RECRUIT_TYPES:
+                raise serializers.ValidationError({'recruit_types': [f'非法招聘类型: {r}']})
+        # 去重 + 保序
+        return list(dict.fromkeys(value))
+
 
 # ---------------------------------------------------------------------------
 # Scene 全局视图 (T07)
 # ---------------------------------------------------------------------------
 
 class SceneBindingSerializer(serializers.Serializer):
-    """GET /scenes/ 返回单条: {scene, rule_id, rule_name}.
+    """GET /scenes/ 返回单条: {scene, recruitType, rule_id, rule_name}.
 
-    兼容 camelCase (ruleId/ruleName) — sandbox stub renderer 不做 snake↔camel 转换,
+    兼容 camelCase (ruleId/ruleName/recruitType) — sandbox stub renderer 不做 snake↔camel 转换,
     这里显式归一化。
     """
 
     scene = serializers.CharField()
+    recruit_type = serializers.CharField(required=False, allow_null=True, default='social')
+    recruitType = serializers.CharField(required=False, allow_null=True, default='social', write_only=True)
     rule_id = serializers.CharField(allow_null=True, required=False)
     ruleId = serializers.CharField(allow_null=True, required=False, write_only=True)
     rule_name = serializers.CharField(allow_null=True, required=False)
@@ -302,11 +358,13 @@ class SceneBindingSerializer(serializers.Serializer):
             normalized['rule_id'] = normalized['ruleId']
         if 'rule_name' not in normalized and 'ruleName' in normalized:
             normalized['rule_name'] = normalized['ruleName']
+        if not normalized.get('recruit_type') and normalized.get('recruitType'):
+            normalized['recruit_type'] = normalized['recruitType']
         return super().to_internal_value(normalized)
 
 
 class SceneBulkUpdateSerializer(serializers.Serializer):
-    """PUT /scenes/ payload: [{scene, rule_id}] — 全量替换绑定。"""
+    """PUT /scenes/ payload: [{scene, recruitType, rule_id}] — 全量替换绑定 (按 scene+type 组合)。"""
 
     items = SceneBindingSerializer(many=True)
 
@@ -314,9 +372,10 @@ class SceneBulkUpdateSerializer(serializers.Serializer):
         from .models import SCENE_OPTIONS
         seen = set()
         for it in value:
-            if it['scene'] in seen:
-                raise serializers.ValidationError({'items': [f'场景重复: {it["scene"]}']})
-            seen.add(it['scene'])
+            key = (it['scene'], it.get('recruit_type') or 'social')
+            if key in seen:
+                raise serializers.ValidationError({'items': [f'场景+类型组合重复: {key}']})
+            seen.add(key)
             if it['scene'] not in SCENE_OPTIONS:
                 raise serializers.ValidationError({'items': [f'非法场景: {it["scene"]}']})
         return value

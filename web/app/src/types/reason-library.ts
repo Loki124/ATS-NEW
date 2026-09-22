@@ -40,29 +40,53 @@ export const SCENE_OPTIONS: ReadonlyArray<SceneKey> = [
   '邀约标注',
 ]
 
+/**
+ * 招聘类型维度 (2026-09-22 新增) — 与「应用场景(入口)」AND 组合。
+ * 规则应用范围 = 所选场景(入口) × 所选类型 的笛卡尔积。
+ * 与后端 RecruitType 枚举 / RECRUIT_TYPES 对齐。
+ */
+export type RecruitType = 'social' | 'campus'
+
+export interface RecruitTypeOption {
+  value: RecruitType
+  label: string
+}
+
+export const RECRUIT_TYPE_OPTIONS: ReadonlyArray<RecruitTypeOption> = [
+  { value: 'social', label: '社会招聘' },
+  { value: 'campus', label: '校园招聘' },
+]
+
 /** 标签类型: system 仅超管可改, custom 自助维护 */
 export type TagType = 'system' | 'custom'
 
-/** 业务错误码 (与后端 exceptions.py BizCode 对齐, 见 API 文档 §4) */
+/** 业务错误码 (与后端 apps/django/apps/reason_library/exceptions.py BizCode 严格对齐) */
 export const BIZ_CODE = {
-  // 成功（与后端 exceptions.py BizCode 对齐，成功码 = 0）
+  // 通用
   SUCCESS: 0,
+  VALIDATION_FAILED: 40000,
+  PERMISSION_DENIED: 40300,
+  NOT_FOUND: 40400,
+  CONFLICT: 40900,
+  INTERNAL_ERROR: 50000,
   // Tag
-  TAG_NAME_DUPLICATED: 40001,
-  SYSTEM_TAG_IMMUTABLE: 40002,
-  TAG_HAS_REFS: 40003,
-  CSV_FORMAT_INVALID: 40004,
+  TAG_NAME_DUPLICATED: 40001, // 同名标签 (含软删, Q-A4)
   TAG_NOT_FOUND: 40401,
-  TAG_ALREADY_ASSIGNED: 40902, // Item4: 标签已归属其它分类, 不可跨分类重复 (与后端 exceptions.BizCode 对齐)
+  SYSTEM_TAG_IMMUTABLE: 40301, // 系统预置标签不可改/停用/删
+  TAG_HAS_REFS: 40901, // 标签被规则引用, 不可删
+  TAG_ALREADY_ASSIGNED: 40902, // 标签已归属其它分类, 不可跨分类重复 (Item4)
+  CSV_FORMAT_INVALID: 40002, // CSV 解析失败
   // Rule
-  RULE_NAME_DUPLICATED: 40101,
-  RULE_NOT_FOUND: 40102,
-  OPTIMISTIC_LOCK_FAILED: 40103,
-  RULE_HAS_SCENE_REFS: 40104,
-  SYSTEM_RULE_IMMUTABLE: 40105,
-  RULE_SCENE_CONFLICT: 40106,
-  JSON_FORMAT_INVALID: 40107,
-  CATEGORY_LEVEL_EXCEED: 40108,
+  RULE_NAME_DUPLICATED: 40010,
+  RULE_NOT_FOUND: 40410,
+  OPTIMISTIC_LOCK_FAILED: 41200, // PATCH / wizard save If-Match 不匹配
+  SYSTEM_RULE_IMMUTABLE: 40310, // 系统预置规则不可删
+  RULE_HAS_SCENE_REFS: 40910, // 规则被场景引用, 不可停用
+  JSON_FORMAT_INVALID: 40011, // JSON 导入格式非法
+  // Scene
+  RULE_SCENE_CONFLICT: 40920, // 场景/类型组合已被其他规则占用
+  // Wizard
+  CATEGORY_LEVEL_EXCEED: 40030, // 分类层级超过 4
 } as const
 
 export type BizCodeValue = typeof BIZ_CODE[keyof typeof BIZ_CODE]
@@ -170,6 +194,8 @@ export interface WizardPayload {
   enabled: boolean
   isSystem: boolean
   scenes: SceneKey[]
+  /** 招聘类型维度 (社会招聘/校园招聘) — 与 scenes 笛卡尔积决定规则应用范围 */
+  recruitTypes: RecruitType[]
   /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
   maxSelectableTags: number
   categories: RuleCategory[]
@@ -202,6 +228,8 @@ export interface WizardSavePayload {
   description?: string
   enabled: boolean
   scenes: SceneKey[]
+  /** 招聘类型维度 — 与 scenes 笛卡尔积形成 (场景,类型) 组合, 后端 UNIQUE 兜底 */
+  recruit_types: RecruitType[]
   /** 用户可选原因标签上限 (0 表示不限制) */
   max_selectable_tags: number
   categories: WizardSaveCategory[]
@@ -250,6 +278,8 @@ export interface TagImportResult {
 
 export interface SceneConfigItem {
   scene: SceneKey
+  /** 招聘类型维度 (social/campus) — 与 scene 组合成唯一占用键 */
+  recruitType: RecruitType
   ruleId: string | null
   ruleName: string | null
 }

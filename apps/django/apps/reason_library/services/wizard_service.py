@@ -99,9 +99,11 @@ class WizardService:
         categories_payload = payload.get('categories', [])
         client_id_to_level = self._compute_levels(categories_payload)
 
-        # 4) 校验 scene 唯一性 (Q6)
+        # 4) 校验 scene(入口)+类型 唯一性 (Q6) — 笛卡尔积组合不可被其它规则占用
         scenes = payload.get('scenes', [])
-        self._check_scene_conflicts(rule_id, scenes)
+        recruit_types = payload.get('recruit_types') or ['social']
+        scene_pairs = {(s, rt) for s in scenes for rt in recruit_types}
+        self._check_scene_conflicts(rule_id, scene_pairs)
 
         # 5) 更新头部
         rule.name = (payload.get('name') or rule.name).strip() or rule.name
@@ -213,10 +215,18 @@ class WizardService:
         ).values('id', 'category_id', 'tag_id', 'order')
         existing_set = {(a['category_id'], a['tag_id']): a for a in existing_assignments_qs}
 
-        # Item4 (修订): 规则内唯一 — 同一标签在本规则内不可跨分类重复。
-        # 跨规则共享标签池是合法业务需求, 不做全局限制。
+        # Item4 (修订): 规则内唯一 — 同一标签在当前规则内只可被使用一次。
+        # 判定粒度 = 末级分类: 非末级(父级容器)分类不计入"使用次数", 仅末级分类上的
+        # 赋值参与唯一性校验。这样当一级分类被拆分为多个子级时, 挂在原父级容器上的标签
+        # 不会被误判为"跨分类重复" (用户明确意图: 校验的是标签在规则内只被使用一次)。
+        # 跨规则共享标签池仍是合法业务需求, 不做全局限制。
+        _all_cats = RuleCategory.objects.filter(rule=rule)
+        _parent_ids = set(filter(None, _all_cats.values_list('parent_id', flat=True)))
+        _leaf_ids = {c.id for c in _all_cats if c.id not in _parent_ids}
         tag_to_cats: dict = {}
         for cat_pk, tag_pks in target_assignments.items():
+            if cat_pk not in _leaf_ids:
+                continue  # 非末级容器分类: 不计入标签"使用次数"
             for tpk in tag_pks:
                 tag_to_cats.setdefault(tpk, []).append(cat_pk)
         dup = {tpk: cats for tpk, cats in tag_to_cats.items() if len(cats) > 1}
@@ -257,16 +267,26 @@ class WizardService:
                         status_code=409,
                     )
 
-        # 8) Diff rule_scene_assignment (先删后增 — UNIQUE 兜底)
+        # 8) Diff rule_scene_assignment (先删后增 — UNIQUE(scene, recruit_type) 兜底)
+        #    规则应用范围 = 所选场景(入口) × 所选类型 的笛卡尔积
+        recruit_types = payload.get('recruit_types') or ['social']
+        desired_pairs = {(s, rt) for s in (scenes or []) for rt in recruit_types}
         if scenes is not None:
-            RuleSceneAssignment.objects.filter(rule=rule).delete()
-            for s in scenes:
+            existing_assigns = list(RuleSceneAssignment.objects.filter(rule=rule))
+            existing_pairs = {(a.scene, a.recruit_type) for a in existing_assigns}
+            to_delete = existing_pairs - desired_pairs
+            if to_delete:
+                del_ids = [a.id for a in existing_assigns if (a.scene, a.recruit_type) in to_delete]
+                RuleSceneAssignment.objects.filter(rule=rule, id__in=del_ids).delete()
+            # 预检冲突 (排除自身已有组合)
+            self._check_scene_conflicts(rule.pk, desired_pairs)
+            for (s, rt) in (desired_pairs - existing_pairs):
                 try:
-                    RuleSceneAssignment.objects.create(rule=rule, scene=s)
+                    RuleSceneAssignment.objects.create(rule=rule, scene=s, recruit_type=rt)
                 except IntegrityError:
                     raise BizException(
                         BizCode.RULE_SCENE_CONFLICT,
-                        f'场景 {s} 已被其他规则占用',
+                        f'场景 {s}/类型 {rt} 已被其他规则占用',
                         status_code=409,
                     )
 
@@ -338,11 +358,19 @@ class WizardService:
         return 1 + self._dfs_level(parent, parent_of, seen)
 
     def _topo_sort_categories(self, categories: List[Dict]) -> List[Dict]:
-        """拓扑排序: 父在前, 子在后。同一层按出现顺序。"""
+        """拓扑排序: 父在前, 子在后; 同级按 order。
+
+        ⚠️ 不能对整个结果按 order 做全局重排 —— 子级 order 常小于父级 order
+        (如 addChild 生成的首个子分类 order=1, 而父级 order=3), 全局排序会把子级
+        排到父级之前, 导致后端建 client_id → id 映射时父级尚未写入 → 父级解析为
+        None → parent_id 丢失 (『保存后层级关系消失』的根因)。
+        改为: 先按 order 预排序输入 (保证同级兄弟顺序), 再做 DFS 拓扑 (保证父在子前)。
+        """
         def _cid(c): return (c.get('client_id') or c.get('clientId') or '').strip()
         def _pid(c): return (c.get('parent_client_id') or c.get('parentClientId') or '').strip()
         cids = {_cid(c) for c in categories if _cid(c)}
-        index = {_cid(c): i for i, c in enumerate(categories) if _cid(c)}
+        # 先按 order 预排序: 同级兄弟保持 order; 拓扑 DFS 会把父级提到其子级之前
+        ordered_input = sorted(categories, key=lambda c: int(c.get('order', 0)))
         out: List[Dict] = []
         visited = set()
 
@@ -362,25 +390,27 @@ class WizardService:
                     visit(parent_def)
             out.append(cdef)
 
-        for c in categories:
+        for c in ordered_input:
             visit(c)
-        # 按原 order 字段排序 (output 顺序只保证父在前, 同一父的子顺序按 cdef.order)
-        out.sort(key=lambda c: int(c.get('order', 0)))
         return out
 
-    def _check_scene_conflicts(self, current_rule_id: str, scenes: List[str]) -> None:
-        """校验 scenes 不与其它规则冲突 (排除当前 rule 自己)。"""
-        if not scenes:
+    def _check_scene_conflicts(self, current_rule_id: str, pairs: set) -> None:
+        """校验 (scene, recruit_type) 组合不与其它规则冲突 (排除当前 rule 自己)。
+
+        pairs: set of (scene, recruit_type) — 通常来自 场景(入口) × 类型 的笛卡尔积。
+        """
+        if not pairs:
             return
-        # 已经绑定其它 rule 的 scene
         occupied = RuleSceneAssignment.objects.filter(
-            scene__in=scenes
-        ).exclude(rule_id=current_rule_id).values_list('scene', flat=True)
-        occupied_set = set(occupied)
-        if occupied_set:
+            scene__in={p[0] for p in pairs},
+            recruit_type__in={p[1] for p in pairs},
+        ).exclude(rule_id=current_rule_id).values_list('scene', 'recruit_type')
+        occupied_set = {(s, rt) for s, rt in occupied}
+        bad = occupied_set & set(pairs)
+        if bad:
             raise BizException(
                 BizCode.RULE_SCENE_CONFLICT,
-                f'以下场景已被其它规则占用: {sorted(occupied_set)}',
+                f'以下场景/类型组合已被其它规则占用: {sorted(bad)}',
                 status_code=409,
-                extra={'conflicting_scenes': sorted(occupied_set)},
+                extra={'conflicting_pairs': [list(p) for p in sorted(bad)]},
             )

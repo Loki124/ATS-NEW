@@ -20,6 +20,7 @@ import logging
 from datetime import datetime, timezone
 
 from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -84,6 +85,28 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return SceneRuleDetailSerializer
         return SceneRuleDetailSerializer
+
+    # ----- queryset (N+1 优化) -----
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # 列表接口一次性 annotate 出每条规则的「启用且未软删」标签去重数量,
+        # 供 SceneRuleListSerializer.tag_count 直接读取, 避免逐条 ORM 查询 (N+1)。
+        # 业务口径与 serializers.get_tag_ids 一致:
+        #   tag__enabled=True & tag__deleted_at__isnull=True,
+        #   关联路径 categories__assignments__tag, distinct=True 去重标签。
+        # retrieve / partial_update 用单实例且未 annotate, 由序列化器回退 ORM 查询。
+        if self.action == 'list':
+            qs = qs.annotate(
+                tag_count=Count(
+                    'categories__assignments__tag',
+                    filter=Q(
+                        categories__assignments__tag__enabled=True,
+                        categories__assignments__tag__deleted_at__isnull=True,
+                    ),
+                    distinct=True,
+                )
+            )
+        return qs
 
     # ----- list -----
     @_api

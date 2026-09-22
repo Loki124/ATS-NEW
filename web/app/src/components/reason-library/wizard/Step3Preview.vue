@@ -5,6 +5,9 @@
       <div class="rl-mod-head">
         <h3>{{ t('reasonLibrary.wizard.preview.moduleTagsTitle') }}</h3>
         <span v-if="sceneName" class="rl-scene">{{ sceneName }}</span>
+        <n-space v-if="recruitTypeLabels.length" :size="4" class="rl-types">
+          <n-tag v-for="rt in recruitTypeLabels" :key="rt" size="small" type="warning" bordered>{{ rt }}</n-tag>
+        </n-space>
         <span
           v-if="maxSelectable > 0"
           class="rl-mod-limit"
@@ -115,8 +118,9 @@
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { NInput } from 'naive-ui'
+import { NInput, NSpace, NTag } from 'naive-ui'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
+import { RECRUIT_TYPE_OPTIONS } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
 
 const props = defineProps<{
@@ -153,6 +157,12 @@ const maxSelectable = computed<number>(() => {
 const limitReached = computed(() => maxSelectable.value > 0 && selectedTagIds.value.size >= maxSelectable.value)
 
 const sceneName = computed(() => props.wizard.scenes?.[0] || '')
+
+/** 类型维度标签 (社会招聘 / 校园招聘) — 与入口(场景) 笛卡尔积决定规则应用范围 */
+const recruitTypeLabels = computed(() =>
+  (props.wizard.recruitTypes || [])
+    .map((rt) => RECRUIT_TYPE_OPTIONS.find((o) => o.value === rt)?.label || rt),
+)
 
 function toggleTag(id: string) {
   const next = new Set(selectedTagIds.value)
