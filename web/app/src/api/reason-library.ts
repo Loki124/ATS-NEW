@@ -72,6 +72,25 @@ api.interceptors.request.use((cfg) => {
   return cfg
 })
 
+// 响应拦截 (2026-09-22 修订): 后端 BizException 以 HTTP 4xx/409 返回时, axios 直接
+// reject 出 AxiosError —— 其 .code 是 'ERR_BAD_REQUEST' 而非业务码, 导致上层
+// `e.code === BIZ_CODE.xxx` 分支永不命中 (本地化文案形同虚设, 用户只能看到后端原始文案)。
+// 这里把「响应体含 code 的非 2xx 错误」归一化为携带业务码的普通 Error, 同时保留
+// e.response, 使 extractReasonApiError 仍可读取 errors/message。
+api.interceptors.response.use(
+  (resp) => resp,
+  (err) => {
+    const body = err?.response?.data
+    if (body && typeof body === 'object' && 'code' in body && body.code !== 0) {
+      const e: any = new Error(body.message || `业务错误 code=${body.code}`)
+      e.code = body.code
+      e.response = err.response
+      return Promise.reject(e)
+    }
+    return Promise.reject(err)
+  },
+)
+
 // ==================== 解包 ====================
 
 /** 解 { code, data, message } → data; 后端失败抛 BizException 形式 Error */

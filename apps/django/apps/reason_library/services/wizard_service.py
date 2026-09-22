@@ -191,7 +191,17 @@ class WizardService:
         for cdef in categories_payload:
             cid = (cdef.get('client_id') or '').strip()
             existing_id = (cdef.get('id') or '').strip()
-            cat_pk = existing_id or client_id_to_new_id.get(cid)
+            # BUGFIX (2026-09-22): 不可盲目信任 payload 的 id —— 前端「添加子分类」
+            # 给新分类分配的是客户端临时 id (uid() 形如 'c-xxx-1'), 该 id 并不存在于 DB。
+            # 若直接拿它当 FK 建 category_assignment, 会触发 IntegrityError 并被下方
+            # except 笼统误报为「标签重复」(用户实际看到的正是这种假重复).
+            # 权威来源 = client_id 映射: step 6 已把「已有分类 client_id→db id」与
+            # 「新分类临时 id→新 db id」全部登记进 client_id_to_new_id。
+            # 仅当 payload 未带 client_id 时, 才回退到 id —— 且必须确认它是真实存在的
+            # DB 分类 (existing_cats 为本次 diff 前的快照, 已更新分类必在其中)。
+            cat_pk = client_id_to_new_id.get(cid) if cid else None
+            if not cat_pk and existing_id and existing_id in existing_cats:
+                cat_pk = existing_id
             if not cat_pk:
                 continue
             tag_ids = cdef.get('tag_ids') or []
@@ -259,13 +269,22 @@ class WizardService:
             if (cat_pk, tpk) not in existing_pairs:
                 try:
                     CategoryAssignment.objects.create(category_id=cat_pk, tag_id=tpk)
-                except IntegrityError:
-                    # Item4: 同规则内标签唯一 (应用层校验的并发兜底)
+                except IntegrityError as exc:
+                    # 兜底 (2026-09-22 修订): category_assignment 已无 DB 唯一约束
+                    # (Meta.constraints=[]), 规则内唯一完全由上方应用层校验保证; 故此处的
+                    # IntegrityError 通常并非「标签重复」, 而是外键异常等真实缺陷
+                    # (历史 bug: 新分类用客户端临时 id 建 FK → 1452, 被笼统误报为标签重复)。
+                    # 因此必须: (1) 记录真实 DB 错误便于定位; (2) 回显标签名而非 id。
+                    tag = ReasonTag.objects.filter(pk=tpk).first()
+                    logger.warning(
+                        'CategoryAssignment create failed: rule=%s category=%s tag=%s err=%s',
+                        rule.pk, cat_pk, tpk, exc,
+                    )
                     raise BizException(
                         BizCode.TAG_ALREADY_ASSIGNED,
-                        f'同一规则内标签不可跨分类重复选择 (tag={tpk})',
+                        f'同一规则内标签不可跨分类重复选择 (tag={tag.name if tag else tpk})',
                         status_code=409,
-                    )
+                    ) from exc
 
         # 8) Diff rule_scene_assignment (先删后增 — UNIQUE(scene, recruit_type) 兜底)
         #    规则应用范围 = 所选场景(入口) × 所选类型 的笛卡尔积

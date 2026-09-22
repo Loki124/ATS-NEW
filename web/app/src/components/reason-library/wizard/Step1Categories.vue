@@ -30,7 +30,7 @@
 
       <div v-else class="cat-rows">
         <div v-for="row in flatRows" :key="row.cat.id" class="cat-row" :class="{ 'is-leaf': row.isLeaf }">
-          <span class="indent" :style="{ width: row.depth * 20 + 'px' }">
+          <span class="indent" :style="{ width: row.depth * INDENT_STEP + ICON_SLOT + 'px' }">
             <!-- 修复: 折叠按钮此前是纯装饰图标, 点击无效果; 现为可点展开/折叠 -->
             <button
               v-if="row.childCount > 0"
@@ -162,6 +162,13 @@ interface FlatRow {
   isLeaf: boolean
   childCount: number
 }
+
+// 分类树行首缩进布局常量 (需与 CSS .expand-btn 尺寸协同)
+// 每行行首槽宽 = depth * INDENT_STEP + ICON_SLOT, 其中 ICON_SLOT 恒为展开按钮预留,
+// 这样即使 depth=0 (缩进为 0) 或某行没有子分类(无按钮), 各行仍共用同一条
+// 「展开按钮 / L 徽标」对齐列 —— 修复展开图标与 L 徽标重叠的问题。
+const INDENT_STEP = 20
+const ICON_SLOT = 22
 
 // 折叠状态 (默认全展开): collapsedIds 记录被折叠的分类
 const collapsedIds = ref<Set<string>>(new Set())
@@ -386,6 +393,10 @@ function canMoveDown(cat: RuleCategory): boolean {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
+  /* 行首槽 = depth*20 缩进 + 22px 图标位 (见 script INDENT_STEP/ICON_SLOT);
+     flex-end 让展开按钮贴住图标位右缘, 从而各层级/有无子分类的行共用同一条
+     对齐列 —— 避免按钮溢出窄槽压到右侧 L 徽标 */
+  justify-content: flex-end;
   color: var(--ink-faint);
 }
 .level-badge {
