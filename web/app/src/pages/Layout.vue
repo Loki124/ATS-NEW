@@ -35,6 +35,10 @@
           </div>
           <span v-if="effectiveExpanded" class="logo-text text-white text-lg font-semibold whitespace-nowrap">{{ brandStore.systemName }}</span>
         </div>
+        <!-- G-2026-09-23：社会招聘 / 校园招聘 双系统切换入口（logo 下方独立行，64px 折叠宽度放不下载体 pill） -->
+        <div class="logo-switch-row" :class="{ 'logo-switch-row--collapsed': !effectiveExpanded }">
+          <SystemSwitcher :collapsed="!effectiveExpanded" />
+        </div>
       </div>
 
       <n-menu
@@ -113,6 +117,8 @@
               </svg>
             </div>
             <span class="text-base font-semibold text-ink whitespace-nowrap">{{ brandStore.systemName }}</span>
+            <!-- G-2026-09-23：双系统切换（top 横排：logo 右侧） -->
+            <SystemSwitcher />
           </div>
 
           <!-- 顶部横排：水平菜单 -->
@@ -221,6 +227,7 @@ import {
 import { Menu, Check } from 'lucide-vue-next'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
+import SystemSwitcher from '../components/common/SystemSwitcher.vue'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useUserStore } from '../stores/user'
 import { useBrandStore } from '../stores/brand'
@@ -609,6 +616,15 @@ function handleUserMenu(key: string) {
 .logo-text {
   line-height: 1;
   color: var(--ink);
+}
+
+/* === 双系统切换行（logo 下方） === */
+.logo-switch-row {
+  margin-top: var(--space-2);
+  display: flex;
+}
+.logo-switch-row--collapsed {
+  justify-content: center;
 }
 
 /* === 顶部横排：Logo + 水平菜单 === */
