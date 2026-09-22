@@ -9,7 +9,7 @@ from django.db import migrations
 def _seed(apps, schema_editor):
     # 动态导入 seed_data - 不在 migration 顶层依赖, 避免 makemigrations 失败
     from apps.reason_library.seed_data import seed_initial_data
-    seed_initial_data(verbose=False)
+    seed_initial_data(verbose=False, apps=apps)
 
 
 def _unseed(apps, schema_editor):

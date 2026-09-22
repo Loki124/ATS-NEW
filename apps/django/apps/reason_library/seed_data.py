@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Dict, List, Tuple
 
 from django.db import transaction
+from nanoid import generate as nanoid_generate
 
 from .models import (
     MAX_CATEGORY_LEVEL,
@@ -255,12 +256,25 @@ def _validate_seed():
 # 幂等: 全部 get_or_create, 已存在则跳过
 # ---------------------------------------------------------------------------
 @transaction.atomic
-def seed_initial_data(verbose: bool = False) -> Dict[str, int]:
+def seed_initial_data(verbose: bool = False, apps=None) -> Dict[str, int]:
     """灌入 53 系统标签 + 3 预置规则 (含完整树 + assignment + scene assignment)。
 
     Returns: {'tags': N, 'rules': M, 'categories': K, 'assignments': L, 'scenes': P}
     """
     _validate_seed()
+
+    # 数据迁移安全: 从 migration (0002) 调用时传入 apps, 用历史模型操作,
+    # 避免引用尚未添加的字段 (如 RuleSceneAssignment.recruit_type 由 0009 添加、
+    # SceneRule.max_selectable_tags 由 0008 添加). apps 为 None 时保持实时模型
+    # (management cmd / conftest 直接调用), 行为不变.
+    # 0002 数据迁移: RuleSceneAssignment 的 recruit_type 列由 0009 才添加, 须用历史模型,
+    # 且历史模型不含 save() 重写(不会自动生成 id). 历史 RSA.rule 外键要求历史 SceneRule
+    # 实例, 故下方 scene assignment 用「历史 SceneRule 实例 + 显式 id」创建. 其余模型在
+    # 0002 阶段用实时模型已验证可正常落库(原 migrate 失败点仅在 rule_scene_assignment).
+    # apps 为 None 时 (management cmd / conftest) 保持实时模型, 行为不变.
+    _HistSceneRule = apps.get_model('reason_library', 'SceneRule') if apps else None
+    if apps is not None:
+        RuleSceneAssignment = apps.get_model('reason_library', 'RuleSceneAssignment')
 
     # 1) Tags
     tag_objs: Dict[str, ReasonTag] = {}
@@ -362,9 +376,12 @@ def seed_initial_data(verbose: bool = False) -> Dict[str, int]:
                     print(f'      + assignment: {cname} → {tn}' if (cname := cat_obj.name) else '')
 
         # 2c) Scene assignments - 先清后建 (幂等)
-        RuleSceneAssignment.objects.filter(rule=rule).delete()
+        # 历史 RSA 外键需历史 SceneRule 实例, 故统一用 _assign_rule (apps 下为历史实例)
+        _assign_rule = _HistSceneRule.objects.get(pk=rule.pk) if _HistSceneRule else rule
+        RuleSceneAssignment.objects.filter(rule=_assign_rule).delete()
         for s in rule_def['scenes']:
-            RuleSceneAssignment.objects.create(rule=rule, scene=s)
+            RuleSceneAssignment.objects.create(
+                id=nanoid_generate(size=21), rule=_assign_rule, scene=s)
             scene_count += 1
 
     return {
