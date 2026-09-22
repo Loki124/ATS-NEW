@@ -196,6 +196,7 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.wizard.tagPicker.empty': '没有匹配的标签',
   'reasonLibrary.wizard.tagPicker.maxPickWarn': '已达 {max} 条上限',
   'reasonLibrary.wizard.tagPicker.assignedElsewhere': '同一规则内标签不可跨分类重复选择，请先从原分类移除后再添加',
+  'reasonLibrary.wizard.tagPicker.assignedElsewhereShort': '已被其他分类使用，暂不可选',
   'reasonLibrary.wizard.cat.moveUp': '上移',
   'reasonLibrary.wizard.cat.moveDown': '下移',
   'reasonLibrary.wizard.cat.addChild': '添加子分类',

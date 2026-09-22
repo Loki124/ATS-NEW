@@ -94,15 +94,24 @@ const pickerShow = ref(false)
 const pickerCatId = ref<string | null>(null)
 
 const leafCats = computed<RuleCategory[]>(() => {
-  const childMap = new Map<string, RuleCategory[]>()
+  // 与 Step1 的 flatRows 同源: 从根出发 DFS 先序 (同级按 order), 保证 Step2 卡片顺序
+  // 与「设置原因分类」树完全一致; 不可对全表末级做全局 order 排序(会把不同父级的子级交错)。
+  const childrenOf = new Map<string, RuleCategory[]>()
   props.categories.forEach((c) => {
     const pid = c.parentId || ''
-    if (!childMap.has(pid)) childMap.set(pid, [])
-    childMap.get(pid)!.push(c)
+    if (!childrenOf.has(pid)) childrenOf.set(pid, [])
+    childrenOf.get(pid)!.push(c)
   })
-  return props.categories
-    .filter((c) => !childMap.get(c.id)?.length)
-    .sort((a, b) => a.order - b.order)
+  const ordered: RuleCategory[] = []
+  const walk = (pid: string) => {
+    const list = (childrenOf.get(pid) || []).slice().sort((a, b) => a.order - b.order)
+    for (const c of list) {
+      ordered.push(c)
+      walk(c.id)
+    }
+  }
+  walk('')
+  return ordered.filter((c) => !childrenOf.get(c.id)?.length)
 })
 
 const pickerCurrentSelected = computed<ReasonTag[]>(() => {

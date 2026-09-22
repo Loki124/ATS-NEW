@@ -240,8 +240,34 @@ function confirm() {
 .scene-card:hover:not(.disabled) { border-color: var(--brand); background: var(--brand-tint); }
 .scene-card.checked { border-color: var(--brand); background: var(--brand-soft); }
 .scene-card.disabled { background: var(--g1); cursor: not-allowed; opacity: .7; }
-.scene-card input { accent-color: var(--brand); width: 16px; height: 16px; cursor: pointer; }
-.scene-card input:disabled { cursor: not-allowed; }
+.scene-card input,
+.type-chip input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-hairline, #c4c8d4);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.scene-card input:checked,
+.type-chip input:checked { background: var(--brand); border-color: var(--brand); }
+.scene-card input:checked::after,
+.type-chip input:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px; top: 1.5px;
+  width: 4px; height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.scene-card input:disabled,
+.type-chip input:disabled { cursor: not-allowed; opacity: .5; }
 .scene-card .name { flex: 1; font-size: var(--fs-13); color: var(--ink); }
 
 .type-chip {
@@ -260,8 +286,6 @@ function confirm() {
 .type-chip:hover:not(.disabled) { border-color: var(--brand); background: var(--brand-tint); }
 .type-chip.checked { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
 .type-chip.disabled { background: var(--g1); cursor: not-allowed; opacity: .7; }
-.type-chip input { accent-color: var(--brand); width: 16px; height: 16px; cursor: pointer; }
-.type-chip input:disabled { cursor: not-allowed; }
 
 .cfg-hint {
   margin: 6px 0 0;

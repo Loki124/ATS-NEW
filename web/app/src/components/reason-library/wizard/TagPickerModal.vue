@@ -58,7 +58,7 @@
           <span v-if="tag.enName" class="en">{{ tag.enName }}</span>
         </span>
         <span v-if="isExcluded(tag.id)" class="excluded-tip">
-          {{ t('reasonLibrary.wizard.tagPicker.assignedElsewhere') }}
+          {{ t('reasonLibrary.wizard.tagPicker.assignedElsewhereShort') }}
         </span>
         <span v-else :class="['type', tag.type]">
           {{ tag.type === 'system' ? t('reasonLibrary.common.system') : t('reasonLibrary.common.custom') }}
@@ -131,7 +131,7 @@ function isExcluded(id: string): boolean {
 
 const search = ref('')
 const typeFilter = ref<'system' | 'custom' | null>(null)
-const onlyAvailable = ref(false)
+const onlyAvailable = ref(true)
 const selectedIds = ref<Set<string>>(new Set())
 
 const typeOptions = [
@@ -155,7 +155,7 @@ watch(
     if (show) {
       search.value = ''
       typeFilter.value = null
-      onlyAvailable.value = false
+      onlyAvailable.value = true
     }
   },
   { immediate: true },
