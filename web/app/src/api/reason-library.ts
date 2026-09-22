@@ -7,7 +7,8 @@
  *   GET    /tags/{id}/                  详情 (含 ref_count)
  *   PATCH  /tags/{id}/                  更新 (system 不可改 — 40302)
  *   DELETE /tags/{id}/                  软删 (system 或被引用 — 40301/40901)
- *   POST   /tags/import/                multipart CSV 导入 (T10)
+ *   POST   /tags/import/                multipart Excel(.xlsx)/CSV 导入 (T10)
+ *   GET    /tags/import-template/?format=xlsx|csv   导入模板 (默认 xlsx)
  *   GET    /rules/                      列表 (含 is_system/enabled/scene 过滤)
  *   POST   /rules/                      创建空规则 (头部, 三步内容走 wizard/save)
  *   GET    /rules/{id}/                 详情 (完整嵌套树)
@@ -314,7 +315,13 @@ export function wizardSave(ruleId: string, payload: WizardPayload): Promise<Scen
 /** 通用 CSV 下载 (带鉴权): 触发浏览器保存文件。 */
 export async function downloadCsv(path: string, filename: string): Promise<void> {
   const resp = await api.get(path, { responseType: 'blob' })
-  const url = window.URL.createObjectURL(new Blob([resp.data]))
+  triggerDownload(new Blob([resp.data]), filename)
+}
+
+/** 触发浏览器保存二进制文件 (xlsx / csv 通用)。 */
+function triggerDownload(data: Blob | ArrayBuffer, filename: string): void {
+  const blob = data instanceof Blob ? data : new Blob([data])
+  const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -329,9 +336,14 @@ export function exportTags(): Promise<void> {
   return downloadCsv('/reason-library/tags/export/', 'reason-tags-export.csv')
 }
 
-/** 下载导入模板 CSV。 */
-export function downloadImportTemplate(): Promise<void> {
-  return downloadCsv('/reason-library/tags/import-template/', 'reason-tags-import-template.csv')
+/**
+ * 下载导入模板。
+ * @param format 'xlsx' (默认, Excel 友好: 品牌色表头 + 示例行 + 填写说明) | 'csv' (历史格式, 带 BOM)
+ */
+export function downloadImportTemplate(format: 'xlsx' | 'csv' = 'xlsx'): Promise<void> {
+  return api
+    .get('/reason-library/tags/import-template/', { params: { format }, responseType: 'blob' })
+    .then((r) => triggerDownload(r.data, `reason-tags-import-template.${format}`))
 }
 
 export function importRule(file: File): Promise<SceneRule> {

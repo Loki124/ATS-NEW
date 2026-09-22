@@ -41,10 +41,6 @@
             <template #icon><n-icon :component="CloudUploadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.import') }}
           </n-button>
-          <n-button @click="onDownloadTemplate">
-            <template #icon><n-icon :component="CloudDownloadOutline" /></template>
-            {{ t('reasonLibrary.tags.btn.template') }}
-          </n-button>
           <n-button @click="onExport">
             <template #icon><n-icon :component="DownloadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.export') }}
@@ -136,8 +132,8 @@
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert, NTooltip } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, CloudDownloadOutline, DownloadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
-import { listTags, updateTag, deleteTag, extractReasonApiError, exportTags, downloadImportTemplate } from '../../../api/reason-library'
+import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, DownloadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
+import { listTags, updateTag, deleteTag, extractReasonApiError, exportTags } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
@@ -318,15 +314,6 @@ async function onExport() {
     exporting.value = false
   }
 }
-async function onDownloadTemplate() {
-  try {
-    await downloadImportTemplate()
-    message.success(t('reasonLibrary.common.success'))
-  } catch (e: any) {
-    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
-  }
-}
-
 // ============= 导入 =============
 const importShow = ref(false)
 function openImportModal() { importShow.value = true }

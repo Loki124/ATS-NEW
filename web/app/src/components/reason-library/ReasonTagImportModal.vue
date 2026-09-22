@@ -14,7 +14,7 @@
       v-if="!result"
       :default-upload="false"
       :max="1"
-      accept=".csv,text/csv"
+      :accept="IMPORT_FILE_ACCEPT"
       :show-file-list="false"
       @change="onFileChange"
     >
@@ -24,11 +24,39 @@
           <p class="rl-upload-title">{{ t('reasonLibrary.tags.import.upload') }}</p>
           <p class="rl-upload-hint">{{ t('reasonLibrary.tags.import.hint') }}</p>
           <p class="rl-upload-cols">
-            <n-tag v-for="c in CSV_COLUMNS_HINT" :key="c" size="small" type="info" bordered>{{ c }}</n-tag>
+            <n-tag v-for="c in IMPORT_COLUMNS_HINT" :key="c" size="small" type="info" bordered>{{ c }}</n-tag>
           </p>
         </div>
       </n-upload-dragger>
     </n-upload>
+
+    <!-- 模板下载 (内联, 「下载模板 → 填数据 → 导入」一处闭环) -->
+    <div v-if="!result" class="rl-template-row">
+      <n-space align="center" :wrap="false" :wrap-item="false">
+        <n-button
+          size="small"
+          quaternary
+          type="primary"
+          data-testid="tag-template-xlsx"
+          :loading="downloadingTemplate === 'xlsx'"
+          @click="onDownloadTemplate('xlsx')"
+        >
+          <template #icon><n-icon :component="CloudDownloadOutline" /></template>
+          {{ t('reasonLibrary.tags.import.templateXlsx') }}
+        </n-button>
+        <n-button
+          size="small"
+          text
+          type="primary"
+          data-testid="tag-template-csv"
+          :loading="downloadingTemplate === 'csv'"
+          @click="onDownloadTemplate('csv')"
+        >
+          {{ t('reasonLibrary.tags.import.templateCsv') }}
+        </n-button>
+        <span class="rl-template-hint">{{ t('reasonLibrary.tags.import.templateHint') }}</span>
+      </n-space>
+    </div>
 
     <!-- 导入结果 -->
     <div v-else class="rl-result">
@@ -78,21 +106,22 @@
 <script setup lang="ts">
 /**
  * ReasonTagImportModal (T-16)
- * - multipart 上传 CSV
+ * - multipart 上传 Excel(.xlsx) / CSV (后端按扩展名分派, 共用同一套列定义)
  * - 列名: name(必填) / en_name / tip / type / enabled
  * - type 仅接受 custom (Q1+Q2: 系统标签不可 CSV 灌入)
  * - 默认追加 (Q-A2), 同名报错 (40001) → UI 用 message.error 提示
  * - 导入完成后展示成功/失败数 + 失败行详情
+ * - 弹窗内联模板下载入口 (默认 xlsx, 次要 csv), 实现一处闭环
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   NModal, NUpload, NUploadDragger, NIcon, NButton, NSpace, NTag, NResult, NCollapse, NCollapseItem,
 } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
-import { CloudUploadOutline } from '@vicons/ionicons5'
-import { importTags, extractReasonApiError } from '../../api/reason-library'
+import { CloudUploadOutline, CloudDownloadOutline } from '@vicons/ionicons5'
+import { importTags, downloadImportTemplate, extractReasonApiError } from '../../api/reason-library'
 import type { TagImportResult } from '../../types/reason-library'
-import { BIZ_CODE, CSV_COLUMNS_HINT } from '../../types/reason-library'
+import { BIZ_CODE, IMPORT_COLUMNS_HINT, IMPORT_FILE_ACCEPT } from '../../types/reason-library'
 import { useMessage } from 'naive-ui'
 import { t } from '../../locales/zh-CN'
 
@@ -106,6 +135,17 @@ const message = useMessage()
 const file = ref<File | null>(null)
 const uploading = ref(false)
 const result = ref<TagImportResult | null>(null)
+const downloadingTemplate = ref<'xlsx' | 'csv' | null>(null)
+
+// 父级 (@imported) 会直接把 show 置 false 关闭弹窗, 不会经过 resetAndClose,
+// 导致 result 残留 → 再次打开时停留在上一次的结果面板, 上传区不可见 (无法连续导入)。
+// 这里监听打开动作重置状态, 保证每次打开都是干净的上传态。
+watch(() => props.show, (visible) => {
+  if (visible) {
+    file.value = null
+    result.value = null
+  }
+})
 
 const resultSummary = computed(() => {
   if (!result.value) return ''
@@ -121,13 +161,27 @@ function onFileChange(options: { fileList: UploadFileInfo[]; file: UploadFileInf
   }
 }
 
+async function onDownloadTemplate(format: 'xlsx' | 'csv' = 'xlsx') {
+  downloadingTemplate.value = format
+  try {
+    await downloadImportTemplate(format)
+    message.success(t('reasonLibrary.common.success'))
+  } catch (e: any) {
+    message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
+  } finally {
+    downloadingTemplate.value = null
+  }
+}
+
 async function doImport() {
   if (!file.value) return
   uploading.value = true
   try {
     const res = await importTags(file.value)
     result.value = res
-    message.success(t('reasonLibrary.tags.import.success') + ' ' + res.success)
+    // 后端返回 { created, skipped, errors }; 旧字段 success 仅作兜底, 避免出现 "undefined"
+    const okCount = res.created ?? res.success ?? 0
+    message.success(`${t('reasonLibrary.tags.import.success')} ${okCount} ${t('reasonLibrary.common.item')}`)
     emit('imported')
   } catch (e: any) {
     if (e?.code === BIZ_CODE.CSV_FORMAT_INVALID) {
@@ -168,6 +222,14 @@ function resetAndClose() {
   font-size: var(--fs-12);
   color: var(--ink-soft);
   text-align: center;
+  line-height: 1.6;
+}
+.rl-template-row {
+  margin-top: var(--space-3);
+}
+.rl-template-hint {
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
   line-height: 1.6;
 }
 .rl-upload-cols {

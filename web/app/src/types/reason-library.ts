@@ -274,6 +274,9 @@ export interface TagImportResult {
   success: number
   failed: number
   errors: { row: number; message: string }[]
+  /** 后端实际返回 { created, skipped, errors } (xlsx / csv 双格式同一份契约) */
+  created?: number
+  skipped?: number
 }
 
 export interface SceneConfigItem {
@@ -296,8 +299,12 @@ export const MAX_PICK = 5
 /** 分类层级上限 */
 export const MAX_CATEGORY_LEVEL = 4
 
-/** CSV 模板列 (前端 import modal 提示用) */
-export const CSV_COLUMNS_HINT = ['name(必填)', 'en_name', 'tip', 'type(custom)', 'enabled(true/false)']
+/** 导入模板/文件列 (前端 import modal 提示用, xlsx 与 csv 同一套列) */
+export const IMPORT_COLUMNS_HINT = ['name(必填)', 'en_name', 'tip', 'type(custom)', 'enabled(true/false)']
+
+/** 导入弹窗允许的文件扩展名 (后端按扩展名分派 openpyxl / csv 解析) */
+export const IMPORT_FILE_ACCEPT =
+  '.xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 /** 系统角色判定 — 调用 useUserStore().user?.roles?.includes('SUPER_ADMIN') */
 export const ROLE_SUPER_ADMIN = 'SUPER_ADMIN'

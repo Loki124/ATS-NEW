@@ -1,4 +1,4 @@
-"""Tag CRUD + CSV import (T04 / T10).
+"""Tag CRUD + CSV/Excel import (T04 / T10).
 
 端点 (全部在 /api/v1/reason-library/tags/ 前缀下):
 - GET    /                          列表 (filter: type/enabled/search)
@@ -6,7 +6,8 @@
 - GET    /{id}/                     详情 (含 ref_count)
 - PATCH  /{id}/                     更新 (system 可改 name/en_name/tip; 但【状态】禁止调整)
 - DELETE /{id}/                     软删 (有引用 / system 不可删)
-- POST   /import/                   CSV 上传 (multipart)
+- POST   /import/                   Excel(.xlsx) / CSV 上传 (multipart, 字段名 file)
+- GET    /import-template/?format=xlsx|csv   导入模板 (默认 xlsx)
 """
 from __future__ import annotations
 
@@ -16,14 +17,18 @@ import logging
 from typing import List
 
 from django.db import IntegrityError, transaction
+from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 
 from ..exceptions import ApiResponse, BizCode, BizException
 from ..filters import ReasonTagFilter
+from ..io_tag import (
+    TagFileParseError, build_tag_template_csv, build_tag_template_workbook,
+    parse_tag_rows,
+)
 from ..models import CategoryAssignment, ReasonTag
 from ..permissions import IsAdminOrReadOnly, IsAuthenticatedReadOnly
 from ..serializers import (
@@ -33,9 +38,13 @@ from . import _api
 
 logger = logging.getLogger(__name__)
 
-
 CSV_REQUIRED_COLUMNS = ['name']  # en_name / tip / type / enabled 可选
 CSV_ALLOWED_TYPES = {'custom'}    # system 不可 CSV 灌入
+
+# 导入模板 MIME / 文件名的格式白名单 (默认 xlsx)
+TEMPLATE_FORMAT_XLSX = 'xlsx'
+TEMPLATE_FORMAT_CSV = 'csv'
+XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
 class ReasonTagViewSet(viewsets.ModelViewSet):
@@ -152,7 +161,6 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
         writer.writerow(['code', 'name', 'en_name', 'tip', 'type', 'enabled'])
         for t in ReasonTag.objects.filter(deleted_at__isnull=True).order_by('type', 'name'):
             writer.writerow([t.code or '', t.name, t.en_name or '', t.tip or '', t.type, 'true' if t.enabled else 'false'])
-        from django.http import HttpResponse
         resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
         resp['Content-Disposition'] = 'attachment; filename="reason-tags-export.csv"'
         return resp
@@ -160,14 +168,23 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='import-template')
     @_api
     def import_template(self, request: Request, *args, **kwargs):
-        """GET /tags/import-template/ — 下载导入模板 (与 import_csv 列一致)。"""
-        buf = io.StringIO()
-        writer = csv.writer(buf)
-        writer.writerow(['name', 'en_name', 'tip', 'type', 'enabled'])
-        writer.writerow(['示例标签', 'Example tag', '鼠标悬停提示(可空)', 'custom', 'true'])
-        from django.http import HttpResponse
-        resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
-        resp['Content-Disposition'] = 'attachment; filename="reason-tags-import-template.csv"'
+        """GET /tags/import-template/?format=xlsx|csv — 下载导入模板 (与 import_csv 列一致)。
+
+        默认 xlsx (Excel 友好: 品牌色表头 + 示例行 + 填写说明表); format=csv 返回历史 CSV
+        模板 (utf-8-sig BOM, Excel 直接打开不乱码) —— 老用户的下钻链接仍可用。
+        """
+        fmt = (request.query_params.get('format') or TEMPLATE_FORMAT_XLSX).strip().lower()
+        if fmt == TEMPLATE_FORMAT_CSV:
+            content = build_tag_template_csv()
+            resp = HttpResponse('\ufeff' + content, content_type='text/csv; charset=utf-8')
+            resp['Content-Disposition'] = 'attachment; filename="reason-tags-import-template.csv"'
+            return resp
+
+        buf = io.BytesIO()
+        build_tag_template_workbook().save(buf)
+        buf.seek(0)
+        resp = HttpResponse(buf.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        resp['Content-Disposition'] = 'attachment; filename="reason-tags-import-template.xlsx"'
         return resp
 
     # ----- CSV import -----
@@ -178,39 +195,27 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
     )
     @_api
     def import_csv(self, request: Request, *args, **kwargs):
-        """POST multipart, 字段名 ``file`` = CSV 文件。
+        """POST multipart, 字段名 ``file`` = Excel(.xlsx/.xlsm) 或 CSV 文件。
 
         列: name (必填) | en_name (可选) | tip (可选) | type (可选, 仅 custom)
            | enabled (可选, true/false, 默认 true)
         默认行为: 追加 (Q-A2); 同名报错 (TAG_NAME_DUPLICATED)。
+
+        解析由 io_tag.parse_tag_rows 统一完成 (按扩展名分派 xlsx / csv), 两条路径
+        产出同一套行字典后复用下方同一份校验与落库逻辑。
         """
         upload = request.FILES.get('file')
         if not upload:
             raise BizException(BizCode.CSV_FORMAT_INVALID, '未上传文件 (字段名应为 file)', status_code=400)
         try:
-            text = upload.read().decode('utf-8-sig')
-        except UnicodeDecodeError:
-            try:
-                text = upload.read().decode('gbk')
-            except Exception:
-                raise BizException(BizCode.CSV_FORMAT_INVALID, 'CSV 编码不支持, 请用 UTF-8 或 GBK', status_code=400)
-
-        try:
-            reader = csv.DictReader(io.StringIO(text))
-        except Exception as e:
-            raise BizException(BizCode.CSV_FORMAT_INVALID, f'CSV 解析失败: {e}', status_code=400)
-
-        if not reader.fieldnames or 'name' not in reader.fieldnames:
-            raise BizException(
-                BizCode.CSV_FORMAT_INVALID,
-                f'CSV 缺少必填列 name (当前列: {reader.fieldnames})',
-                status_code=400,
-            )
+            rows = parse_tag_rows(upload)
+        except TagFileParseError as e:
+            raise BizException(BizCode.CSV_FORMAT_INVALID, str(e), status_code=400)
 
         created = 0
         skipped = 0
         errors: List[dict] = []
-        for row_no, row in enumerate(reader, start=2):
+        for row_no, row in enumerate(rows, start=2):
             name = (row.get('name') or '').strip()
             if not name:
                 errors.append({'row': row_no, 'error': 'name 为空'})
