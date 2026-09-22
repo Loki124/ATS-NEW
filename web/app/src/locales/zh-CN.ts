@@ -209,6 +209,7 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.wizard.preview.selectLimit': '已选 {count} / 最多 {max} 条',
   'reasonLibrary.wizard.preview.other': '其他',
   'reasonLibrary.wizard.preview.otherPlaceholder': '请输入自定义原因…',
+  'reasonLibrary.wizard.preview.otherClear': '清除自定义内容',
   'reasonLibrary.wizard.preview.sceneHeader': '{scene}',
   'reasonLibrary.wizard.preview.sceneMissing': '未配置场景',
   'reasonLibrary.wizard.sceneEditor.title': '选择应用场景',

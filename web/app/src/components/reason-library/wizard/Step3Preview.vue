@@ -51,7 +51,6 @@
             }"
             @click="toggleTag(tag.id)"
           >
-            <n-icon v-if="selectedTagIds.has(tag.id)" :component="CheckmarkOutline" :size="11" class="rl-tag-check" />
             {{ tag.name }}
           </span>
           <template v-if="row.allowCustom">
@@ -67,10 +66,17 @@
             />
             <span
               v-else-if="otherInputs[row.catId]"
-              class="rl-tag other-filled"
+              class="rl-tag other-filled selected"
               @click="editOtherAgain(row.catId)"
-            >{{ otherInputs[row.catId] }}</span>
-            <span v-else class="rl-tag other" @click="onOtherClick(row.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
+            >
+              <span class="rl-tag-text">{{ otherInputs[row.catId] }}</span>
+              <span
+                class="rl-tag-clear"
+                :title="t('reasonLibrary.wizard.preview.otherClear')"
+                @click.stop="clearOther(row.catId)"
+              >×</span>
+            </span>
+            <span v-else class="rl-tag other" :class="{ disabled: limitReached }" @click="onOtherClick(row.catId)">{{ t('reasonLibrary.wizard.preview.other') }}</span>
           </template>
         </div>
       </div>
@@ -108,9 +114,8 @@
  *
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
  */
-import { computed, reactive, ref } from 'vue'
-import { NInput, NIcon } from 'naive-ui'
-import { CheckmarkOutline } from '@vicons/ionicons5'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { NInput } from 'naive-ui'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
 import { t } from '../../../locales/zh-CN'
 
@@ -165,6 +170,8 @@ const editingOther = reactive<Record<string, boolean>>({})
 const otherInputs = reactive<Record<string, string>>({})
 
 function onOtherClick(id: string) {
+  // 已达上限且本分类的「其他」尚未计入 → 阻止打开输入框
+  if (limitReached.value && !selectedTagIds.value.has(`other:${id}`)) return
   editingOther[id] = true
 }
 function onOtherInput(id: string, val: string) {
@@ -172,11 +179,27 @@ function onOtherInput(id: string, val: string) {
 }
 function commitOther(id: string) {
   const v = (otherInputs[id] ?? '').trim()
-  if (!v) otherInputs[id] = ''
+  const s = new Set(selectedTagIds.value)
+  if (v) {
+    otherInputs[id] = v
+    s.add(`other:${id}`)
+  } else {
+    otherInputs[id] = ''
+    s.delete(`other:${id}`)
+  }
+  selectedTagIds.value = s
   editingOther[id] = false
 }
 function editOtherAgain(id: string) {
   editingOther[id] = true
+}
+function clearOther(id: string) {
+  // 清除自定义内容, 恢复为原有「其他」占位标签, 并从已选计数移除
+  otherInputs[id] = ''
+  const s = new Set(selectedTagIds.value)
+  s.delete(`other:${id}`)
+  selectedTagIds.value = s
+  editingOther[id] = false
 }
 
 // 进入编辑态时自动聚焦输入框
@@ -253,10 +276,42 @@ const layout = computed<{ cells: MergeCell[]; rows: TagRow[]; maxDepth: number }
   return { cells, rows, maxDepth }
 })
 
-// 分类单元列数 = 最大层级; 末列 (1fr) 承接标签单元
+// ============= 分类单元列宽: 统一「单行 5 个中文字」, 超长由 .rl-cell 的 word-break 在卡内折行 =============
+// 列宽 = 5 个中文字的「真实渲染宽」(由 font-size 推算, 规避 canvas/探针文本测量受挂载时序干扰的偏差)
+//       + 卡片水平内边距(3*2) + 边框(1*2) + 4px 呼吸余量。所有分类列等宽;
+//       跨列融合卡天然 = N×5 字宽, 文本超长由 word-break 折行, 不再撑宽列(彻底消除「分类很宽」)。
+const CAT_LINE_CHARS = 5
+const CAT_EXTRA_PX = 4 // 5 字之外的呼吸余量(文字到边约 2px)
+const CAT_FALLBACK_PX = CAT_LINE_CHARS * 12 + 3 * 2 + 1 * 2 + CAT_EXTRA_PX // 未测得前的兜底(真实字宽 12px/字)
+const catColWidth = ref(0)
+let _catMeasureTries = 0
+function measureCatColWidth() {
+  const ref = document.querySelector('.rl-cell') as HTMLElement | null
+  // 网格单元可能尚未挂载(异步数据 / 步骤切换)→ 下一帧重试, 避免回到兜底值导致列宽偏大
+  if (!ref) {
+    if (_catMeasureTries++ < 60) requestAnimationFrame(() => measureCatColWidth())
+    return
+  }
+  _catMeasureTries = 0
+  const s = getComputedStyle(ref)
+  const fs = parseFloat(s.fontSize) || 12
+  const padX = parseFloat(s.paddingLeft) + parseFloat(s.paddingRight)
+  const borderX = parseFloat(s.borderLeftWidth) + parseFloat(s.borderRightWidth)
+  // 全宽 CJK 字 advance ≈ 1em = font-size(PingFang/微软雅黑等实测一致); 单行 4 字, 超长由 word-break 在卡内折行。
+  // 直接由 font-size 推算, 规避 canvas/探针文本测量受挂载时序与 CSS 应用态干扰导致的字宽误判。
+  catColWidth.value = Math.ceil(CAT_LINE_CHARS * fs + padX + borderX + CAT_EXTRA_PX)
+}
+onMounted(measureCatColWidth)
+watch(() => layout.value.cells.length, () => nextTick(measureCatColWidth))
+
 const gridStyle = computed(() => {
   const n = Math.max(1, layout.value.maxDepth)
-  return { gridTemplateColumns: `repeat(${n}, minmax(76px, 122px)) minmax(0, 1fr)` }
+  const w = catColWidth.value || CAT_FALLBACK_PX
+  const catCols = Array(n).fill(`${Math.round(w)}px`).join(' ')
+  // 末列(原因标签) 1fr 撑满剩余宽度, 吃掉原右侧空白; 胶囊在列内 flex-wrap 自然铺满整行。
+  return {
+    gridTemplateColumns: `${catCols} 1fr`,
+  }
 })
 
 function cellStyle(cell: MergeCell) {
@@ -274,7 +329,7 @@ function rowStyle(row: TagRow) {
 </script>
 
 <style scoped>
-.step3 { display: flex; flex-direction: column; gap: var(--space-4); }
+.step3 { display: flex; flex-direction: column; gap: var(--space-6); }
 
 .rl-preview-module {
   border: 1px solid var(--border-hairline);
@@ -324,7 +379,7 @@ function rowStyle(row: TagRow) {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) 3px;
   border: 1px solid var(--brand-a12);
   border-radius: var(--radius-sm);
   background: var(--brand-tint);
@@ -334,6 +389,7 @@ function rowStyle(row: TagRow) {
   line-height: 1.45;
   text-align: center;
   overflow-wrap: anywhere;
+  word-break: break-all;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .rl-cell:hover { border-color: var(--brand); }
@@ -373,6 +429,7 @@ function rowStyle(row: TagRow) {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  flex: 0 0 auto; /* 长度守恒: 列收窄时胶囊换行而非被压缩 */
   cursor: pointer;
   user-select: none;
   transition: all var(--duration-fast) var(--ease-out);
@@ -382,9 +439,7 @@ function rowStyle(row: TagRow) {
   background: var(--brand);
   border-color: var(--brand);
   color: #fff;
-  font-weight: 500;
 }
-.rl-tag.selected .rl-tag-check { color: #fff; }
 .rl-tag.disabled {
   cursor: not-allowed;
   opacity: .45;
@@ -392,7 +447,23 @@ function rowStyle(row: TagRow) {
 .rl-tag.disabled:hover { border-color: var(--border-hairline); color: var(--ink-soft); }
 .rl-tag.other { border-style: dashed; color: var(--brand); border-color: var(--brand); }
 .rl-tag.other:hover { background: var(--brand-tint); }
-.rl-tag.other-filled { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+/* 已填内容的「其他」: 视觉完全复用 .rl-tag.selected (品牌底白字), 仅颜色区分, 不引入抖动 */
+.rl-tag-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .7;
+  transition: background-color var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+.rl-tag-clear:hover { opacity: 1; background: rgba(255, 255, 255, .22); }
+.rl-tag-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .rl-other-input {
   border: 1px solid var(--brand);

@@ -155,7 +155,7 @@ import {
   CheckmarkOutline, PencilOutline, SettingsOutline,
 } from '@vicons/ionicons5'
 import {
-  createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags,
+  createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags, getSceneConfig,
 } from '../../api/reason-library'
 import type {
   ReasonTag, RuleCategory, SceneKey, SceneRule, WizardPayload,
@@ -235,6 +235,19 @@ watch(
       // 1. 加载标签池 (后台一次性拉满)
       const tagRes = await listTags({ page: 1, pageSize: 500 })
       allTags.value = tagRes.items ?? []
+      // 1.5 加载场景占用情况 — 供 SceneEditorModal 禁用「已被其他规则占用」的场景,
+      //    避免用户误选后在保存时触发后端 RULE_SCENE_CONFLICT(409)。
+      //    ⚠️ 此前 sceneUsage 从未被赋值 (死代码), 导致所有场景均可勾选 → 必 409。
+      try {
+        const cfg = await getSceneConfig()
+        const usage: Partial<Record<SceneKey, { ruleId: string; ruleName: string }>> = {}
+        for (const it of cfg.items) {
+          if (it.ruleId) usage[it.scene] = { ruleId: it.ruleId, ruleName: it.ruleName ?? '' }
+        }
+        sceneUsage.value = usage
+      } catch {
+        sceneUsage.value = {}
+      }
       // 2. 编辑: 拉详情; 新建: 仅在内存构造草稿, 不预建规则
       //    (修复「打开向导又取消 → 残留『新建规则』垃圾数据」)
       if (ruleId) {

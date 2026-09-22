@@ -188,6 +188,7 @@ export const REASON_LIBRARY_EN: Record<string, string> = {
   'reasonLibrary.wizard.preview.selectLimit': 'Selected {count} / Max {max}',
   'reasonLibrary.wizard.preview.other': 'Other',
   'reasonLibrary.wizard.preview.otherPlaceholder': 'Enter custom reason…',
+  'reasonLibrary.wizard.preview.otherClear': 'Clear custom content',
   'reasonLibrary.wizard.preview.sceneHeader': '{scene}',
   'reasonLibrary.wizard.preview.sceneMissing': 'No scene set',
   'reasonLibrary.wizard.sceneEditor.title': 'Select scenes',

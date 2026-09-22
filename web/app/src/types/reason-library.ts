@@ -248,8 +248,14 @@ export interface TagImportResult {
   errors: { row: number; message: string }[]
 }
 
+export interface SceneConfigItem {
+  scene: SceneKey
+  ruleId: string | null
+  ruleName: string | null
+}
+
 export interface SceneConfigPayload {
-  scenes: Record<SceneKey, string | null>
+  items: SceneConfigItem[]
 }
 
 // ==================== 常量 (与 §6 业务规则对齐) ====================
