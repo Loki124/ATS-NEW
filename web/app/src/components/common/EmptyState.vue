@@ -1,6 +1,6 @@
 <template>
   <div class="empty-state">
-    <div class="empty-icon">{{ icon || '📋' }}</div>
+    <n-icon :component="icon" :size="48" class="empty-icon" />
     <h3 class="empty-title">{{ title || '暂无数据' }}</h3>
     <p v-if="description" class="empty-desc">{{ description }}</p>
     <div v-if="actionLabel" class="empty-actions">
@@ -10,12 +10,23 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  icon?: string
-  title?: string
-  description?: string
-  actionLabel?: string
-}>()
+import { FileTrayOutline } from '@vicons/ionicons5'
+import type { Component } from 'vue'
+
+withDefaults(
+  defineProps<{
+    icon?: Component
+    title?: string
+    description?: string
+    actionLabel?: string
+  }>(),
+  {
+    icon: FileTrayOutline,
+    title: '',
+    description: '',
+    actionLabel: '',
+  },
+)
 defineEmits<{ (e: 'action'): void }>()
 </script>
 

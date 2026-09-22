@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { naivePlugin } from './plugins/naive'
 import { setupPermissionDirective } from './directives/permission'
+import { useSystemStore } from './stores/system'
 
 // Naive UI —— 见 plugins/naive.ts (统一注册, 测试可复用)
 
@@ -44,6 +45,25 @@ axios.interceptors.response.use(
     return Promise.reject(err)
   }
 )
+
+// G-2026-09-23: 双系统 X-Recruit-Type 注入（覆盖全部 axios 实例）
+// 现状：api/ 下 42 个文件各自 axios.create 独立实例并挂 token 拦截器，无统一实例。
+// 这里包裹 axios.create，使每个实例（含未来新增）的请求拦截器在运行时读取
+// useSystemStore().current（'social'|'campus'）注入 X-Recruit-Type，
+// 切换系统后下一次请求即生效（无需刷新页面）。
+// 注意：仅补充 header，不接管 token（各实例既有 token 拦截器保留，Authorization 幂等）。
+const _origCreate = axios.create.bind(axios)
+axios.create = ((cfg?: any) => {
+  const inst = _origCreate(cfg)
+  inst.interceptors.request.use((reqCfg: any) => {
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+    if (token) reqCfg.headers.Authorization = `Bearer ${token}`
+    const sys = useSystemStore()
+    reqCfg.headers['X-Recruit-Type'] = sys.current
+    return reqCfg
+  })
+  return inst
+}) as typeof axios.create
 
 const app = createApp(App)
 

@@ -224,13 +224,14 @@ import {
   SwapVerticalOutline,
   // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
-import { Menu, Check } from 'lucide-vue-next'
+import { MenuOutline as Menu, CheckmarkOutline as Check } from '@vicons/ionicons5'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
 import SystemSwitcher from '../components/common/SystemSwitcher.vue'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useUserStore } from '../stores/user'
 import { useBrandStore } from '../stores/brand'
+import { useSystemStore } from '../stores/system'
 
 const router = useRouter()
 const route = useRoute()
@@ -354,6 +355,61 @@ const menuLayout = computed<'side' | 'top'>(() =>
   userStore.uiSettings?.menuLayout === 'top' ? 'top' : 'side',
 )
 
+// G-2026-09-23: 菜单按系统差异（双系统）。社招/校招共享主功能菜单；校招额外追加
+// 「校招专属」分组（校园大使/宣讲会）。切换系统时菜单实时刷新（computed 依赖 systemStore）。
+const systemStore = useSystemStore()
+const menuOptions = computed(() => {
+  const base = [
+    { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
+    { key: '/demands', label: '需求管理', icon: renderIcon(DocumentTextOutline) },
+    { key: '/positions', label: '职位管理', icon: renderIcon(PeopleOutline) },
+    {
+      key: 'candidate',
+      label: '候选人',
+      icon: renderIcon(PersonAddOutline),
+      children: [
+        { key: '/candidates', label: '候选人管理' },
+        { key: '/screenings', label: '简历筛选' },
+        { key: '/talent-pool', label: '人才库' },
+        { key: '/my-resumes', label: '我找的简历' },
+      ],
+    },
+    {
+      key: 'interview',
+      label: '面试管理',
+      icon: renderIcon(CalendarOutline),
+      children: [
+        { key: '/interviews', label: '面试安排' },
+        { key: '/invitations', label: '邀约中心' },
+      ],
+    },
+    {
+      key: 'offer',
+      label: 'Offer管理',
+      icon: renderIcon(GiftOutline),
+      children: [
+        { key: '/offers', label: 'Offer列表' },
+        { key: '/onboardings', label: '待入职' },
+      ],
+    },
+    { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
+    { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
+    // 设置已迁到 sider footer 永久贴底（hover 展开时显示文字）
+  ]
+  if (systemStore.isCampus) {
+    base.push({
+      key: 'campus',
+      label: '校招专属',
+      icon: renderIcon(PeopleOutline),
+      children: [
+        { key: '/settings/campus-ambassador', label: '校园大使' },
+        { key: '/settings/campus-session', label: '宣讲会' },
+      ],
+    })
+  }
+  return base
+})
+
 // header 固定定位后宽度需跟随布局模式（2026-08-24 21:31 改范式后 sider 不再影响 header：
 // - hover 展开走 position: fixed 浮层，不占 flex 流，header 不再变化
 // - 始终按默认折叠态 64px 偏移计算 header 位置）
@@ -374,44 +430,6 @@ const headerStyle = computed(() => {
 function renderIcon(icon: any) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
-
-const menuOptions = [
-  { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
-  { key: '/demands', label: '需求管理', icon: renderIcon(DocumentTextOutline) },
-  { key: '/positions', label: '职位管理', icon: renderIcon(PeopleOutline) },
-  {
-    key: 'candidate',
-    label: '候选人',
-    icon: renderIcon(PersonAddOutline),
-    children: [
-      { key: '/candidates', label: '候选人管理' },
-      { key: '/screenings', label: '简历筛选' },
-      { key: '/talent-pool', label: '人才库' },
-      { key: '/my-resumes', label: '我找的简历' },
-    ],
-  },
-  {
-    key: 'interview',
-    label: '面试管理',
-    icon: renderIcon(CalendarOutline),
-    children: [
-      { key: '/interviews', label: '面试安排' },
-      { key: '/invitations', label: '邀约中心' },
-    ],
-  },
-  {
-    key: 'offer',
-    label: 'Offer管理',
-    icon: renderIcon(GiftOutline),
-    children: [
-      { key: '/offers', label: 'Offer列表' },
-      { key: '/onboardings', label: '待入职' },
-    ],
-  },
-  { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
-  { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
-  // 设置已迁到 sider footer 永久贴底（hover 展开时显示文字）
-]
 
 const userMenuOptions = computed(() => {
   const current = menuLayout.value
@@ -470,7 +488,7 @@ watch(
     }
     optimisticKey.value = ''
     // 找 path 在哪一层父级
-    for (const item of menuOptions as any[]) {
+    for (const item of menuOptions.value as any[]) {
       if (item.children) {
         for (const child of item.children) {
           if (child.children) {
