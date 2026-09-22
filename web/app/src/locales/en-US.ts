@@ -180,6 +180,8 @@ export const REASON_LIBRARY_EN: Record<string, string> = {
   'reasonLibrary.wizard.tagPicker.selectedCount': '{count} selected',
   'reasonLibrary.wizard.tagPicker.empty': 'No matching tags',
   'reasonLibrary.wizard.tagPicker.maxPickWarn': 'Maximum {max} reached',
+  'reasonLibrary.wizard.tagPicker.assignedElsewhere': 'A tag can only belong to one category within a rule; remove it from the original category first.',
+  'reasonLibrary.wizard.tagPicker.assignedElsewhereShort': 'Used by another category — unavailable',
   'reasonLibrary.wizard.tagPicker.unassignAll': 'Remove all',
   'reasonLibrary.wizard.assign.customBadge': 'Show "Other"',
   'reasonLibrary.wizard.assign.emptyTags': 'No tags selected',
