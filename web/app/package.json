@@ -17,6 +17,7 @@
     "lint:ci": "eslint . --max-warnings=0",
     "lint:style": "stylelint \"src/**/*.{vue,css}\"",
     "lint:style:ci": "stylelint \"src/**/*.{vue,css}\"",
+    "audit:a11y": "node e2e/a11y-smoke.mjs",
     "tokens": "node brand-tokens.mjs --brand \"${BRAND_COLOR:-#6366F1}\" --ci",
     "tokens:report": "node brand-tokens.mjs --brand \"${BRAND_COLOR:-#6366F1}\" --report",
     "e2e": "playwright test",
@@ -38,6 +39,7 @@
     "vue-router": "^4.2.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.49.1",
     "@types/node": "^20.19.39",
