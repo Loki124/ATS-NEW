@@ -853,7 +853,7 @@ app.conf.beat_schedule = {
 
 **复盘产物**:
 - `docs/COMPLIANCE_AUDIT_2026-08-03.md` — 23 项问题清单 (4 严重 / 10 中 / 9 低)
-- `docs/ARCHITECTURE.md` — Django 6.0 真实架构图
+- `docs/02-architecture/technical.md` — Django 6.0 真实架构图（由已合并的 ARCHITECTURE.md 并入）
 - `RUNBOOK.md` — 5 分钟跑通指南
 - `tests/conftest.py` — V2 schema 兼容 + scope_queryset ALL 自动配
 - `.github/workflows/ci.yml` — Django CI 流水线

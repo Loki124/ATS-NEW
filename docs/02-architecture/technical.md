@@ -1,9 +1,10 @@
 # ATS-NEW 技术说明文档
 
-> **最后更新**: 2026-08-17 @ HEAD `9e353ee`
+> **最后更新**: 2026-09-23（runtime 快照；数字经 `manage.py shell` / `get_resolver()` / `pytest --collect-only` / MySQL `information_schema` 运行时内省，含开发期未提交 app）
 > **作者**: 许清楚（PM 文档 overhaul）+ 寇豆码（T01.1 修复）
 > **修复 commit**: 本文档经历整段重写，删除所有 Node.js/Express/Prisma 残留（架构师已在 ARCHITECTURE_REVIEW_2026-08-03 §6.1 D1-D4 标出）
-> **真实架构图**: 见 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §3 Mermaid 图（最权威）
+> **真实架构图**: 见 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §3 Mermaid 图（最权威）；运行时端点总数见 §1
+> **合并说明**: 原 `ARCHITECTURE.md` 的「关键设计决策 / 性能优化 / 数据模型关系」已并入本文 §9–§11（2026-09-23）
 
 ---
 
@@ -11,14 +12,14 @@
 
 | 维度 | 数值 | 验证方式 |
 |---|---|---|
-| Django apps | **35** | `settings/base.py:98-135` 计数 |
-| 业务表 | **59** (`db_table=`) + V2 9 表 + 备份 4 表 | grep `db_table =` |
-| API 路由 | **105 条 path()** + 52 router.register | `config/urls.py` 计数 |
-| 状态机 | **7 FSMField / 50 @transition** | `django-fsm==3.0.1` |
-| 后端测试 | **518 passed / 0 failed**（2026-08-11 基线；本次又新增字典 22 + 公告 18 等，详见 CHANGELOG） | `pytest` 全量 |
+| Django 本地 app | **43** (`LOCAL_APPS`) | `config/settings/base.py` + `manage.py shell` 运行时计数 |
+| 业务表 | **133 张** (MySQL 8 information_schema) | mysql: SELECT COUNT(*) WHERE table_schema='ats_dev' |
+| API 端点 | **939 个 URL 模式**（运行时权威）/ 191 `path()` 声明 + 71 `router.register` | `get_resolver()` 递归遍历 |
+| 状态机 | **15 FSMField / 63 @transition** | `django-fsm==3.0.1`，grep 排除测试文件 |
+| 后端测试 | **1344 collected**（pytest --collect-only，含开发期未提交用例） | `pytest --collect-only -q` |
 | 前端测试 | **132 vitest passed** | `npm test` |
-| Migrations | **105 个文件 / 33 目录** | `find apps/django -name migrations` |
-| 健康检查 | `/health/` | `config/urls.py:125` |
+| Migrations | **172 个文件 / 41 目录** | `find apps/django -path '*/migrations/0*.py'` |
+| 健康检查 | `/health/` | `config/urls.py` |
 | 端口 | 前端 5212 / 后端 8000 (`gunicorn`) | 部署编排见 ats-deploy-infra (`compose/docker-compose.yml`) |
 
 ---
@@ -83,12 +84,12 @@ graph TB
 | | axios | 1.x | JWT 拦截器 + request dedup |
 | | vue-tsc | 2.2 | TS 严格模式 (R10 修复 3 error) |
 | | vitest | 2.x | 132 tests, happy-dom |
-| | Playwright | 1.49 | 6 spec / 18 场景 |
+| | Playwright | 1.49 | 15 spec / 18 场景 |
 | | @wangeditor/editor + editor-for-vue | 5.x | 富文本编辑器 RichEditor（全屏编辑，独立分包 vendor-rich-editor） |
 | **后端** | Django | **6.0.6** | 2026-07 解锁主版本锁 |
 | | DRF | **3.17.1** | ViewSet + drf-spectacular |
 | | djangorestframework-simplejwt | 5.5.1 | access 60min + refresh 7d + ROTATE |
-| | django-fsm | **3.0.1** | 7 FSMField / 43 transition |
+| | django-fsm | **3.0.1** | 15 FSMField / 63 @transition |
 | | Celery | **5.6.3** | cron / 报表 / GDPR 清理 |
 | | Channels | 4.3.2 | WebSocket 通知/协作 |
 | | django-redis | 5.0+ | 限流 / 幂等 / session |
@@ -96,9 +97,9 @@ graph TB
 | | cryptography | 49.0.0 | PII 加密 (Fernet) |
 | | reportlab | 5.0.0 | 服务端 PDF |
 | | affinda | 4.28.9 | 简历解析 (V2 add-candidate) |
-| **测试** | pytest | **9.x** | 384 tests, `pytest --deselect` |
+| **测试** | pytest | **9.x** | 1344 tests (collect-only), `pytest --deselect` |
 | | vitest | 2.x | 132 tests |
-| | Playwright | 1.49 | 6 spec |
+| | Playwright | 1.49 | 15 spec |
 | | flake8 + ESLint 9 | — | Python + TS/Vue |
 
 **注意**: 旧版此处写 `django-fsm 2.8.1 / Celery 5.4 / Redis 5.0.4`，均为 `==` 锁版本的假绿。R9 (`7490b05`) 改为 `pip freeze` 真实版本对齐——见 `apps/django/requirements.txt` 头注释。
@@ -110,7 +111,7 @@ graph TB
 ```
 ATS-NEW/
 ├── apps/django/                # Django 6.0.6 + DRF 3.17.1 (port 8000)
-│   ├── apps/                   # 30 个 business apps
+│   ├── apps/                   # 43 个 business apps (LOCAL_APPS，详见 config/settings/base.py；下方为代表性切片，非穷举)
 │   │   ├── core/               # User/Department/Role/V2 权限/认证/健康检查
 │   │   ├── field_acl/          # 字段级 ACL (R2 接入 f4b65ab)
 │   │   ├── audit/              # 审计日志 + 中间件
@@ -142,7 +143,7 @@ ATS-NEW/
 │   │   ├── duplicate_check/    # 简历查重 (0 model stub)
 │   │   └── data/               # 数据中心 (0 model stub)
 │   ├── config/                 # base.py / dev.py / prod.py / test.py
-│   ├── migrations/             # 105 个 migration 文件（33 目录）
+│   ├── migrations/             # 172 个 migration 文件（41 目录）
 │   ├── tests/                  # 60 pytest + 11 QA blackbox
 │   ├── scripts/                # 内部运维
 │   ├── seeds/                  # 初始数据
@@ -176,7 +177,7 @@ ATS-NEW/
 
 ---
 
-## 5. 关键模块（35 apps, 5 分层）
+## 5. 关键模块（43 apps, 5 分层，下方为代表性分层非穷举）
 
 | 分层 | apps | 备注 |
 |---|---|---|
@@ -193,7 +194,7 @@ ATS-NEW/
 ## 6. 关键数据表（业务域 + V2 权限）
 
 ```
-业务表（59 张, db_table= 命名, 切片主表）
+业务表（MySQL 实测 133 张；以下为业务域切片主表）
 ├── candidates / candidate_tags / candidate_histories
 ├── applications / application_stage_records / application_histories
 ├── positions / demands / demand_approvals
@@ -270,7 +271,53 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 
 ---
 
-## 9. 文档索引
+## 9. 关键设计决策（自 ARCHITECTURE.md 并入，2026-09-23）
+
+> 以下 6 条为系统级关键决策，原载于已归档合并的 `ARCHITECTURE.md`，经核验为 Django 栈正确内容，保留于此作为唯一权威源。
+
+### 9.1 V1/V2 权限双轨 (T30 cutover)
+V1 (legacy) 与 V2 (current) **模型并存**：`apps/core/models.py` (V1, managed=False) + `apps/core/models_permission_v2.py` (V2, managed=True)。V2 切库 `T17 v2_apply_schema` 后 V1 表 drop。当前 fixtures 兼容双 schema（V2 列经 conftest `_ensure_v2_schema_on_sqlite` 补到 sqlite 测试库）。
+
+### 9.2 snake_case ↔ camelCase 自动桥 (DRF + djangorestframework-camel-case)
+API 出 Python snake_case → JSON camelCase（前端直接消费）；API 入前端 camelCase → DRF serializer snake_case。单词字段 (id/username/access/refresh) 与字典 key 不变。
+
+### 9.3 字段级脱敏 (G8) + 字段级 ACL (G43)
+`FieldAclService.apply_acl(entity, data, user)` 在 view 层包装：敏感字段 (phone/email/id_card/salary) 默认 mask；ACL 规则 (FieldACL 表) 可显式 NONE/MASK/READ，优先级按 role-tier；superuser bypass。
+
+### 9.4 SPA fallback
+`config/urls.py` 末尾 re_path 排除 `/api/ /health/ /static/ /__debug__/` 后 fallthrough 到 `web/app/dist/index.html`（whitenoise serve `/static/*`）。深链 `/candidates/123` 走 vue-router。
+
+### 9.5 admin token env 注入
+`/admin/` 改为 `/${ADMIN_URL_TOKEN}/`（默认 `ops-dashboard-7f3b9c2e`，生产必须设随机串）；spa_fallback 同步。
+
+### 9.6 通用数据字典 + 注册表模式 (2026-08-17)
+`apps/dictionary` 为通用基础模块，零业务硬编码。`DictionaryType` + `DictionaryItem` 提供 CRUD；枚举注入走注册表模式：`registry.py` 的 `SEED_REGISTRY` + `register_dictionary_seed(seeder)`（去重）+ `run_dictionary_seeds()`，于 `post_migrate` 钩子幂等 `update_or_create`。业务模块（如 `apps/process/seeds.py` 的 `seed_recruitment_stage_type`）在 `apps.py.ready()` 自行注入。`process.stage_type` 由模型 `choices` 硬编码改为普通 `CharField`，由 `clean()` 校验取值属于「已启用且未软删」的字典项（迁移 `0006_stage_type_from_dictionary`）。
+
+## 10. 性能优化 (Plan O, 2026-06-11)
+- 后端: gzip + ETag 30s + 304 协商，列表分页 middleware (max 100)，N+1 detector，Offer 列表 include (3 表 1 query)
+- 前端: Dashboard 7 子组件 defineAsyncComponent，路由级 code splitting，vite manualChunks (vendor-naive-ui atomic 避免 TDZ)，debounce 300ms，request dedup，rollup-plugin-visualizer analyze
+- 度量: /dashboard 首屏 JS 365KB gzip，/api/offers 38KB gzip (-60%)
+
+## 11. 数据模型关系（核心）
+```
+User ─┬─ Department (N:1)
+      ├─ Position (1:N, as manager)
+      ├─ Candidate (1:N, as creator)
+      └─ ReferralCode (1:1)
+
+Candidate ─┬─ Resume (1:N)
+           ├─ Application (1:N) ─┬─ Interview (1:N)
+           │                      ├─ Offer (1:1)
+           │                      └─ Onboarding (1:1)
+           └─ ReferralRecord (1:N) ── ReferralReward (1:1)
+
+ReferralCode ──── ReferralRecord (1:N) ──── ReferralReward (1:1)
+                                        └─ ExpertConfig (N:N, via User)
+
+ReferralRule (1:N) ──── RewardStrategy (1:1)
+```
+
+## 12. 文档索引
 
 | 文档 | 用途 |
 |---|---|
@@ -279,7 +326,6 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 | [requirements.md](../03-product/requirements.md) | 业务需求 + Phase 2 待办 |
 | [docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md](./09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
 | [docs/PHASE2_DESIGN_2026-08-03.md](../09-archive/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 |
-| [docs/ARCHITECTURE.md](./ARCHITECTURE.md) | 模块图 |
 | [docs/CHANGELOG.md](../06-runbook/CHANGELOG.md) | 变更历史 |
 | [docs/MIGRATION.md](../06-runbook/MIGRATION.md) | 旧栈迁移日志 |
 | [docs/SETUP.md](../06-runbook/SETUP.md) | 详细环境搭建 |
@@ -292,5 +338,5 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 
 ---
 
-*文档版本: V3.0 (2026-08-04 许清楚 整段重写)*
-*基于 2026-08-03 旧版 V2.0 改造, 真实反映 Django 6.0.6 + DRF 3.17.1 栈*
+*文档版本: V4.0 (2026-09-23 合并 ARCHITECTURE.md，数字运行时内省校准)*
+*基于 2026-08-03 旧版 V2.0 改造, 真实反映 Django 6.0.6 + DRF 3.17.1 栈；合并后架构权威源唯一*

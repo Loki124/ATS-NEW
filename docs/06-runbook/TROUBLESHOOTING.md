@@ -406,7 +406,7 @@ npx vitest run src/router/__tests__/router.test.ts
 ## 8. 仍然有疑问?
 
 1. 看 `RUNBOOK.md` 5 分钟跑通指南
-2. 看 `docs/ARCHITECTURE.md` 整体架构
+2. 看 `docs/02-architecture/technical.md` 整体架构
 3. 看 `docs/CHANGELOG.md` 最近改了什么
 4. 看 `docs/COMPLIANCE_AUDIT_2026-08-03.md` 已知问题 + 修复优先级
 5. 看后端 logs + 浏览器 console

@@ -63,7 +63,6 @@
 
 | 文档 | 说明 | 行数 | 最新日期 |
 |---|---|---:|---|
-| [ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) | ARCHITECTURE — 系统架构 | 337 | 2026-08-17 |
 | [ARCHITECTURE_REVIEW_2026-08-03.md](./09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | ATS-NEW 深度架构与代码分析报告 | 490 | 2026-08-03 |
 | [ARCH_DECISION_VERSIONING_INCREMENT_2026-08-07.md](./02-architecture/ARCH_DECISION_VERSIONING_INCREMENT_2026-08-07.md) | 架构增量规格：流程版本化 + 阶段映射回落 + 跨流程线迁移 + 需求升级入口 | 876 | 2026-08-10 |
 | [ARCH_DECISION_VERSIONING_STAGE_2026-08-07.md](./02-architecture/ARCH_DECISION_VERSIONING_STAGE_2026-08-07.md) | 架构决策与修复规格：流程版本化 + 申请阶段流转 | 903 | 2026-08-07 |
