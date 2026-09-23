@@ -113,6 +113,20 @@ class SceneAssignmentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class SceneAssignmentInputSerializer(serializers.Serializer):
+    """wizard/save 的 scene_assignments 入参 (与输出用的 SceneAssignmentSerializer 区分):
+
+    - 用纯 Serializer 而非 ModelSerializer, 避免 DRF 自动附加 UniqueTogetherValidator
+      (RuleSceneAssignment 在 (scene, recruit_type) 上有全局 UNIQUE 约束, 自动校验器会
+      把「被其他规则占用的组合」直接 400 拒绝, 而该冲突本应由服务层 _check_scene_conflicts
+      排除当前规则后判定 → 抛 409 RULE_SCENE_CONFLICT)。
+    - 合法性 (scene/recruit_type 取值 + 组合去重) 由 WizardSaveSerializer.validate_scene_assignments 统一校验。
+    """
+
+    scene = serializers.CharField()
+    recruit_type = serializers.CharField()
+
+
 class SceneRuleListSerializer(serializers.ModelSerializer):
     """规则列表 (轻量, 无嵌套)。"""
 
@@ -299,6 +313,11 @@ class WizardSaveSerializer(serializers.Serializer):
     recruit_types = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,
     )
+    # 显式 (场景,类型) 成对 — 优先于 scenes×recruit_types 笛卡尔积 (2026-09-22 重构)。
+    # 数据结构: [{scene, recruit_type}, ...]; 与 RuleSceneAssignment 逐行存储口径一致。
+    # 服务层约定: 非空列表 → 用作权威成对 (支持「场景A仅社招」这类子集);
+    #           空列表/未提供 → 回退 scenes×recruit_types 笛卡尔积 (向后兼容旧前端)。
+    scene_assignments = SceneAssignmentInputSerializer(many=True, required=False, default=list)
     # 可选乐观锁 (仅当客户端启用并发保护时才传; 不传则后端跳过校验)
     expected_updated_at = serializers.DateTimeField(required=False, allow_null=True)
 
@@ -331,6 +350,27 @@ class WizardSaveSerializer(serializers.Serializer):
                 raise serializers.ValidationError({'recruit_types': [f'非法招聘类型: {r}']})
         # 去重 + 保序
         return list(dict.fromkeys(value))
+
+    def validate_scene_assignments(self, value: list) -> list:
+        """校验显式 (场景,类型) 成对: scene/recruit_type 合法性 + 组合去重。
+
+        与 scenes/recruit_types 笛卡尔积语义对齐, 但允许表达「场景A仅社招、场景B仅校招」
+        这类子集 (笛卡尔积无法表示, 会引入歧义/误冲突)。
+        """
+        from .models import RECRUIT_TYPES, SCENE_OPTIONS
+        seen = set()
+        for item in value:
+            s = (item or {}).get('scene')
+            rt = (item or {}).get('recruit_type')
+            if s not in SCENE_OPTIONS:
+                raise serializers.ValidationError({'scene_assignments': [f'非法场景: {s}']})
+            if rt not in RECRUIT_TYPES:
+                raise serializers.ValidationError({'scene_assignments': [f'非法招聘类型: {rt}']})
+            key = (s, rt)
+            if key in seen:
+                raise serializers.ValidationError({'scene_assignments': [f'场景+类型组合重复: {key}']})
+            seen.add(key)
+        return value
 
 
 # ---------------------------------------------------------------------------

@@ -45,6 +45,7 @@ import type {
   PaginatedData,
   ReasonTag,
   ReasonTagPayload,
+  RecruitType,
   RuleListQuery,
   RuleCategory,
   SceneConfigPayload,
@@ -288,11 +289,29 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
     name: rule.name,
     description: rule.description,
     enabled: rule.enabled,
+    // 显式 (场景,类型) 成对 (优先): 支持「场景A仅社招、场景B仅校招」子集;
+    // 缺省 (无 scenePairs) 时回退 scenes×recruit_types 笛卡尔积 (向后兼容旧数据)。
+    scene_assignments: buildSceneAssignments(rule),
     scenes: rule.scenes,
     recruit_types: rule.recruitTypes && rule.recruitTypes.length ? rule.recruitTypes : ['social'],
     max_selectable_tags: rule.maxSelectableTags ?? 5,
     categories,
   }
+}
+
+/**
+ * 由 WizardPayload 推导场景绑定:
+ * - 优先取 rule.scenePairs (显式成对, 可表达子集);
+ * - 否则回退 scenes×recruitTypes 笛卡尔积 (兼容旧草稿/未迁移数据)。
+ * 输出 snake_case 的 [{scene, recruit_type}] 供后端 scene_assignments 消费。
+ */
+function buildSceneAssignments(rule: WizardPayload): { scene: SceneKey; recruit_type: RecruitType }[] {
+  if (rule.scenePairs && rule.scenePairs.length) {
+    return rule.scenePairs.map((p) => ({ scene: p.scene, recruit_type: p.recruitType }))
+  }
+  const scenes = rule.scenes ?? []
+  const types = rule.recruitTypes && rule.recruitTypes.length ? rule.recruitTypes : (['social'] as RecruitType[])
+  return scenes.flatMap((s) => types.map((rt) => ({ scene: s, recruit_type: rt })))
 }
 
 /**

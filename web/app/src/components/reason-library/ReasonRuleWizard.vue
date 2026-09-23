@@ -93,6 +93,7 @@
     <RuleConfigModal
       v-if="wizard"
       v-model:show="ruleConfigShow"
+      v-model:scene-pairs="wizard.scenePairs"
       v-model:scenes="wizard.scenes"
       v-model:recruit-types="wizard.recruitTypes"
       v-model:max-selectable-tags="wizard.maxSelectableTags"
@@ -128,7 +129,7 @@ import {
   createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags, getSceneConfig,
 } from '../../api/reason-library'
 import type {
-  ReasonTag, RuleCategory, RecruitType, SceneRule, WizardPayload,
+  ReasonTag, RuleCategory, RecruitType, SceneRecruitPair, SceneRule, WizardPayload,
 } from '../../types/reason-library'
 import { BIZ_CODE } from '../../types/reason-library'
 import { t } from '../../locales/zh-CN'
@@ -230,15 +231,22 @@ watch(
 function toWizard(rule: SceneRule): WizardPayload {
   // 详情接口以 camelCase 返回 sceneAssignments: [{scene, recruitType}]
   const sa = (rule as any).sceneAssignments ?? []
-  const rts = [...new Set(sa.map((a: any) => a.recruitType).filter(Boolean))] as RecruitType[]
+  // 应用范围以「显式 (场景,类型) 成对」为权威 (取代 scenes×recruitTypes 笛卡尔积)
+  const scenePairs: SceneRecruitPair[] = sa.map((a: any) => ({
+    scene: a.scene,
+    recruitType: a.recruitType,
+  }))
+  const pairScenes = [...new Set(scenePairs.map((p) => p.scene))]
+  const pairTypes = [...new Set(scenePairs.map((p) => p.recruitType))]
   return {
     id: rule.id,
     name: rule.name,
     description: rule.description,
     enabled: rule.enabled,
     isSystem: rule.isSystem,
-    scenes: [...(rule.scenes ?? [])],
-    recruitTypes: rts.length ? rts : ['social'],
+    scenes: pairScenes.length ? pairScenes : [...(rule.scenes ?? [])],
+    recruitTypes: pairTypes.length ? pairTypes : ['social'],
+    scenePairs,
     maxSelectableTags: rule.maxSelectableTags ?? 5,
     categories: deepCloneCategories(rule.categories ?? [], allTags.value),
     updatedAt: rule.updatedAt,
@@ -255,6 +263,7 @@ function emptyWizardPayload(): WizardPayload {
     isSystem: false,
     scenes: [],
     recruitTypes: ['social'],
+    scenePairs: [],
     maxSelectableTags: 5,
     categories: [],
     updatedAt: undefined,

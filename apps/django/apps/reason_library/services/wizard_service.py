@@ -45,12 +45,14 @@ class WizardService:
         if_match: Optional[str] = None,
         user: Any = None,
     ) -> SceneRule:
-        """保存 rule + 完整树 + scenes。
+        """保存 rule + 完整树 + 场景绑定。
 
         payload keys:
           - name, description, enabled
           - categories: [{id?, client_id?, parent_client_id?, name, order, allow_custom, tag_ids}]
-          - scenes: [scene_name, ...]
+          - scene_assignments: [{scene, recruit_type}, ...]  (优先; 精确成对, 支持子集)
+          - scenes: [scene_name, ...] + recruit_types: [type, ...] (回退; 笛卡尔积, 向后兼容)
+            两者均未提供则不触碰场景绑定。
         """
         # 1) 读取规则行 (单人场景: 不加行锁)
         try:
@@ -99,11 +101,12 @@ class WizardService:
         categories_payload = payload.get('categories', [])
         client_id_to_level = self._compute_levels(categories_payload)
 
-        # 4) 校验 scene(入口)+类型 唯一性 (Q6) — 笛卡尔积组合不可被其它规则占用
-        scenes = payload.get('scenes', [])
-        recruit_types = payload.get('recruit_types') or ['social']
-        scene_pairs = {(s, rt) for s in scenes for rt in recruit_types}
-        self._check_scene_conflicts(rule_id, scene_pairs)
+        # 4) 校验 scene(入口)+类型 唯一性 (Q6) — (场景,类型) 组合不可被其它规则占用
+        #    应用范围 = 显式 scene_assignments 优先; 否则回退 scenes×recruit_types 笛卡尔积;
+        #    两者均未提供则不触碰场景绑定 (desired_pairs=None)。
+        desired_pairs = self._resolve_scene_pairs(payload)
+        if desired_pairs is not None:
+            self._check_scene_conflicts(rule_id, desired_pairs)
 
         # 5) 更新头部
         rule.name = (payload.get('name') or rule.name).strip() or rule.name
@@ -287,10 +290,9 @@ class WizardService:
                     ) from exc
 
         # 8) Diff rule_scene_assignment (先删后增 — UNIQUE(scene, recruit_type) 兜底)
-        #    规则应用范围 = 所选场景(入口) × 所选类型 的笛卡尔积
-        recruit_types = payload.get('recruit_types') or ['social']
-        desired_pairs = {(s, rt) for s in (scenes or []) for rt in recruit_types}
-        if scenes is not None:
+        #    规则应用范围 = 显式 scene_assignments 优先; 否则 scenes×recruit_types 笛卡尔积;
+        #    两者均未提供 (desired_pairs=None) 则不触碰场景绑定 (保留既有赋值)。
+        if desired_pairs is not None:
             existing_assigns = list(RuleSceneAssignment.objects.filter(rule=rule))
             existing_pairs = {(a.scene, a.recruit_type) for a in existing_assigns}
             to_delete = existing_pairs - desired_pairs
@@ -412,6 +414,26 @@ class WizardService:
         for c in ordered_input:
             visit(c)
         return out
+
+    def _resolve_scene_pairs(self, payload: Dict[str, Any]) -> set:
+        """解析规则应用范围 (场景,类型) 组合集合。
+
+        优先级:
+          1. 显式 scene_assignments 非空: [{scene, recruit_type}, ...] — 精确成对, 支持子集
+             (如「场景A仅社招、场景B仅校招」这种笛卡尔积无法表达的组合)。
+          2. 否则回退 scenes × recruit_types 笛卡尔积 (向后兼容旧前端/其他调用方)。
+             (空列表/未提供 scene_assignments 时走此分支; 由于前端 scenes 由 pairs 派生,
+              空 pairs 对应的 scenes 亦为空, 笛卡尔积自然为空 = 清空全部绑定, 语义一致。)
+
+        返回值: set of (scene, recruit_type)。始终返回集合 (不会触碰「保留既有绑定」分支,
+        与历史行为一致 — 历史 WizardSaveSerializer 的 scenes 默认 [] 即总会重算并落库)。
+        """
+        sa = payload.get('scene_assignments')
+        if sa:
+            return {(a.get('scene'), a.get('recruit_type')) for a in sa}
+        scenes = payload.get('scenes') or []
+        recruit_types = payload.get('recruit_types') or ['social']
+        return {(s, rt) for s in scenes for rt in recruit_types}
 
     def _check_scene_conflicts(self, current_rule_id: str, pairs: set) -> None:
         """校验 (scene, recruit_type) 组合不与其它规则冲突 (排除当前 rule 自己)。

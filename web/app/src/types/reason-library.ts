@@ -57,6 +57,12 @@ export const RECRUIT_TYPE_OPTIONS: ReadonlyArray<RecruitTypeOption> = [
   { value: 'campus', label: '校园招聘' },
 ]
 
+/** (场景,类型) 显式成对 — 规则应用范围的最小单元 (后端 RuleSceneAssignment 逐行存储) */
+export interface SceneRecruitPair {
+  scene: SceneKey
+  recruitType: RecruitType
+}
+
 /** 标签类型: system 仅超管可改, custom 自助维护 */
 export type TagType = 'system' | 'custom'
 
@@ -194,8 +200,10 @@ export interface WizardPayload {
   enabled: boolean
   isSystem: boolean
   scenes: SceneKey[]
-  /** 招聘类型维度 (社会招聘/校园招聘) — 与 scenes 笛卡尔积决定规则应用范围 */
+  /** 招聘类型维度 (社会招聘/校园招聘) — 与 scenes 笛卡尔积决定规则应用范围 (派生展示用) */
   recruitTypes: RecruitType[]
+  /** 规则应用范围 = 显式 (场景,类型) 成对 (取代 scenes×recruitTypes 笛卡尔积, 支持「场景A仅社招」子集) */
+  scenePairs: SceneRecruitPair[]
   /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
   maxSelectableTags: number
   categories: RuleCategory[]
@@ -228,8 +236,10 @@ export interface WizardSavePayload {
   description?: string
   enabled: boolean
   scenes: SceneKey[]
-  /** 招聘类型维度 — 与 scenes 笛卡尔积形成 (场景,类型) 组合, 后端 UNIQUE 兜底 */
+  /** 招聘类型维度 — 与 scenes 笛卡尔积形成 (场景,类型) 组合, 后端 UNIQUE 兜底 (兼容回退) */
   recruit_types: RecruitType[]
+  /** 显式 (场景,类型) 成对 — 优先于 scenes/recruit_types; 缺省时后端回退笛卡尔积 */
+  scene_assignments?: { scene: SceneKey; recruit_type: RecruitType }[]
   /** 用户可选原因标签上限 (0 表示不限制) */
   max_selectable_tags: number
   categories: WizardSaveCategory[]

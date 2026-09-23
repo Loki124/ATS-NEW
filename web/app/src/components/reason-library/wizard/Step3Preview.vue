@@ -4,7 +4,9 @@
     <div class="rl-preview-module">
       <div class="rl-mod-head">
         <h3>{{ t('reasonLibrary.wizard.preview.moduleTagsTitle') }}</h3>
-        <span v-if="sceneName" class="rl-scene">{{ sceneName }}</span>
+        <n-space v-if="scenes.length" :size="4" class="rl-scenes">
+          <n-tag v-for="s in scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
+        </n-space>
         <n-space v-if="recruitTypeLabels.length" :size="4" class="rl-types">
           <n-tag v-for="rt in recruitTypeLabels" :key="rt" size="small" type="warning" bordered>{{ rt }}</n-tag>
         </n-space>
@@ -156,13 +158,21 @@ const maxSelectable = computed<number>(() => {
 })
 const limitReached = computed(() => maxSelectable.value > 0 && selectedTagIds.value.size >= maxSelectable.value)
 
-const sceneName = computed(() => props.wizard.scenes?.[0] || '')
+/** 应用场景列表 — 优先取 scenePairs (显式成对), 回退 scenes (派生展示用) */
+const scenes = computed(() => {
+  const sp = props.wizard.scenePairs
+  if (sp && sp.length) return [...new Set(sp.map((p) => p.scene))]
+  return props.wizard.scenes ?? []
+})
 
-/** 类型维度标签 (社会招聘 / 校园招聘) — 与入口(场景) 笛卡尔积决定规则应用范围 */
-const recruitTypeLabels = computed(() =>
-  (props.wizard.recruitTypes || [])
-    .map((rt) => RECRUIT_TYPE_OPTIONS.find((o) => o.value === rt)?.label || rt),
-)
+/** 类型维度标签 (社会招聘 / 校园招聘) — 优先取 scenePairs, 回退 recruitTypes */
+const recruitTypeLabels = computed(() => {
+  const sp = props.wizard.scenePairs
+  const rts = (sp && sp.length)
+    ? [...new Set(sp.map((p) => p.recruitType))]
+    : (props.wizard.recruitTypes || [])
+  return rts.map((rt) => RECRUIT_TYPE_OPTIONS.find((o) => o.value === rt)?.label || rt)
+})
 
 function toggleTag(id: string) {
   const next = new Set(selectedTagIds.value)

@@ -262,3 +262,61 @@ def test_same_tag_within_rule_conflict(admin_api_client, custom_rule, reason_tag
     assert resp.json()['code'] == 40902  # TAG_ALREADY_ASSIGNED
     # 事务回滚: 无 assignments 残留
     assert CategoryAssignment.objects.filter(tag=reason_tag).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# 显式 scene_assignments (2026-09-22 重构): 支持「场景A仅社招、场景B仅校招」子集,
+# 而非 scenes×recruit_types 笛卡尔积; 空列表 → 清空全部绑定。
+# ---------------------------------------------------------------------------
+
+def test_wizard_save_explicit_scene_assignments_subset(admin_api_client, custom_rule):
+    """显式 pairs 支持子集: 场景A仅社招, 场景B仅校招 → 只建 2 条, 而非笛卡尔积 4 条。"""
+    client, _ = admin_api_client
+    RuleSceneAssignment.objects.filter(rule=custom_rule).delete()  # 清空 fixture 预置, 保证状态干净
+    payload = {
+        'name': 'explicit-pairs',
+        'description': 'subset',
+        'enabled': True,
+        'categories': [],
+        'scene_assignments': [
+            {'scene': '筛选不通过', 'recruit_type': 'social'},
+            {'scene': '取消面试', 'recruit_type': 'campus'},
+        ],
+    }
+    resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
+    assert resp.status_code == 200
+    assigns = RuleSceneAssignment.objects.filter(rule=custom_rule)
+    assert assigns.count() == 2
+    got = {(a.scene, a.recruit_type) for a in assigns}
+    assert got == {('筛选不通过', 'social'), ('取消面试', 'campus')}
+
+
+def test_wizard_save_explicit_pairs_conflict(admin_api_client, custom_rule):
+    """显式 pairs 中某组合被其他规则占用 → 409 RULE_SCENE_CONFLICT (40920)。"""
+    other = SceneRule.objects.create(name='Other-Conflict', is_system=False)
+    RuleSceneAssignment.objects.create(rule=other, scene='筛选不通过', recruit_type='social')
+    client, _ = admin_api_client
+    payload = {
+        'name': 'explicit-conflict',
+        'categories': [],
+        'scene_assignments': [
+            {'scene': '筛选不通过', 'recruit_type': 'social'},  # 已被 other 占用
+        ],
+    }
+    resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
+    assert resp.status_code == 409
+    assert resp.json()['code'] == 40920
+
+
+def test_wizard_save_explicit_pairs_clears_when_empty(admin_api_client, custom_rule):
+    """显式传空 scene_assignments → 清空该规则全部场景绑定 (回退笛卡尔积亦为空)。"""
+    RuleSceneAssignment.objects.create(rule=custom_rule, scene='淘汰', recruit_type='social')
+    client, _ = admin_api_client
+    payload = {
+        'name': 'explicit-clear',
+        'categories': [],
+        'scene_assignments': [],
+    }
+    resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
+    assert resp.status_code == 200
+    assert RuleSceneAssignment.objects.filter(rule=custom_rule).count() == 0
