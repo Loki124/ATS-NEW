@@ -186,5 +186,5 @@ git push gitee main
 
 - 项目边界（业务仓 vs 部署仓分工） → `docs/06-runbook/PROJECT_BOUNDARY.md`
 - 字典种子兜底（commit `d19dfe7` / `02a79c2`） → `docs/05-campus-control/STAGE_TYPE_SYSTEM.md` §9
-- 部署侧 PR diff（字典种子兜底 + 健康端点修复） → `docs/deploy-webhook-fix-pr.md`
+- 部署侧 PR diff（字典种子兜底 + 健康端点修复） → `docs/06-runbook/deploy-webhook-fix-pr.md`
 - 迁移漂移假绿（dev 库掩盖） → `docs/06-runbook/MIGRATION_DRIFT.md`

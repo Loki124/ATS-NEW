@@ -37,9 +37,9 @@
 | [04-ui/](./04-ui/) | 18 | UI/UX 设计与前端规范 |
 | [05-campus-control/](./05-campus-control/) | 10 | 校招管控专项 |
 | [06-runbook/](./06-runbook/) | 13 | 部署运维与变更 |
-| [07-audit/](./07-audit/) | 17 | 审计、复盘与验证 |
+| [07-audit/](./07-audit/) | 8 | 审计、复盘与验证 |
 | [08-tasks/](./08-tasks/) | 34 | UI 整改任务清单 |
-| [09-archive/](./09-archive/) | 35 | 历史归档（不再维护） |
+| [09-archive/](./09-archive/) | 50 | 历史归档（不再维护） |
 
 ### 🏛 01-wiki — 代码知识库（体系化，最权威）
 
@@ -158,26 +158,26 @@
 
 | 文档 | 说明 | 行数 | 最新日期 |
 |---|---|---:|---|
-| [CODE_QUALITY_AUDIT.md](./07-audit/CODE_QUALITY_AUDIT.md) | ATS-NEW 代码工程质量审计报告 | 764 | 2026-08-31 |
-| [COMPLIANCE_AUDIT_2026-08-03.md](./07-audit/COMPLIANCE_AUDIT_2026-08-03.md) | 代码合规审计报告 — 2026-08-03（历史基线，runbook 仍引用） | 236 | 2026-08-03 |
-| [COVERAGE_BASELINE_2026-08-06.md](./07-audit/COVERAGE_BASELINE_2026-08-06.md) | 后端测试覆盖率基线 — 2026-08-06 | 221 | 2026-08-06 |
-| [DOCUMENTATION_AUDIT_2026-08-04.md](./07-audit/DOCUMENTATION_AUDIT_2026-08-04.md) | ATS-NEW 文档审计报告 (2026-08-04 · 历史基线，已被 2026-09-10 审计覆盖) | 209 | 2026-08-04 |
+| [CODE_QUALITY_AUDIT.md](./09-archive/CODE_QUALITY_AUDIT.md) | ATS-NEW 代码工程质量审计报告 | 764 | 2026-08-31 |
+| [COMPLIANCE_AUDIT_2026-08-03.md](./09-archive/COMPLIANCE_AUDIT_2026-08-03.md) | 代码合规审计报告 — 2026-08-03（历史基线，runbook 仍引用） | 236 | 2026-08-03 |
+| [COVERAGE_BASELINE_2026-08-06.md](./09-archive/COVERAGE_BASELINE_2026-08-06.md) | 后端测试覆盖率基线 — 2026-08-06 | 221 | 2026-08-06 |
+| [DOCUMENTATION_AUDIT_2026-08-04.md](./09-archive/DOCUMENTATION_AUDIT_2026-08-04.md) | ATS-NEW 文档审计报告 (2026-08-04 · 历史基线，已被 2026-09-10 审计覆盖) | 209 | 2026-08-04 |
 | [EXCEPTION_AUDIT_2026-09-04.md](./07-audit/EXCEPTION_AUDIT_2026-09-04.md) | `except Exception` 治理清单（P0#3 · 2026-09-04） | 150 | 2026-09-04 |
-| [PRODUCT_AUDIT.md](./07-audit/PRODUCT_AUDIT.md) | ATS-NEW 产品维度全面审计报告 | 294 | 2026-08-31 |
-| [PROJECT_FULL_REVIEW_2026-08-26.md](./07-audit/PROJECT_FULL_REVIEW_2026-08-26.md) | ATS-NEW 项目全盘体检报告（2026-08-26 · 历史基线，09-04 复评对比对象） | 179 | 2026-08-26 |
+| [PRODUCT_AUDIT.md](./09-archive/PRODUCT_AUDIT.md) | ATS-NEW 产品维度全面审计报告 | 294 | 2026-08-31 |
+| [PROJECT_FULL_REVIEW_2026-08-26.md](./09-archive/PROJECT_FULL_REVIEW_2026-08-26.md) | ATS-NEW 项目全盘体检报告（2026-08-26 · 历史基线，09-04 复评对比对象） | 179 | 2026-08-26 |
 | [PROJECT_FULL_REVIEW_2026-09-04.md](./07-audit/PROJECT_FULL_REVIEW_2026-09-04.md) | ATS-NEW 项目全盘复评报告（2026-09-04 · 距上次 9 天） | 231 | 2026-09-05 |
-| [QA_BUG7_VERIFY_2026-08-04.md](./07-audit/QA_BUG7_VERIFY_2026-08-04.md) | QA BUG-7 验证报告 (2026-08-04) | 222 | 2026-08-04 |
-| [QA_T011_VERIFY_2026-08-04.md](./07-audit/QA_T011_VERIFY_2026-08-04.md) | QA T01.1 独立黑盒验证报告 | 206 | 2026-08-04 |
-| [QA_T012_VERIFY_2026-08-04.md](./07-audit/QA_T012_VERIFY_2026-08-04.md) | T01.2 独立黑盒验证报告 | 70 | 2026-08-04 |
-| [RESEARCH_CYCLE_2026-08-SUMMARY.md](./07-audit/RESEARCH_CYCLE_2026-08-SUMMARY.md) | ATS-NEW 研发周期总结（UI v2 液态玻璃 + 暗色清理 · 2026-08-21 ~ 08-2 | 64 | 2026-08-22 |
-| [STUB_CLASSIFICATION.md](./07-audit/STUB_CLASSIFICATION.md) | Stub Endpoint 分类索引 (2026-09-04) | 179 | 2026-09-05 |
-| [TECHNICAL_AUDIT.md](./07-audit/TECHNICAL_AUDIT.md) | ATS-NEW 技术维度全面审计报告 | 856 | 2026-08-31 |
+| [QA_BUG7_VERIFY_2026-08-04.md](./09-archive/QA_BUG7_VERIFY_2026-08-04.md) | QA BUG-7 验证报告 (2026-08-04) | 222 | 2026-08-04 |
+| [QA_T011_VERIFY_2026-08-04.md](./09-archive/QA_T011_VERIFY_2026-08-04.md) | QA T01.1 独立黑盒验证报告 | 206 | 2026-08-04 |
+| [QA_T012_VERIFY_2026-08-04.md](./09-archive/QA_T012_VERIFY_2026-08-04.md) | T01.2 独立黑盒验证报告 | 70 | 2026-08-04 |
+| [RESEARCH_CYCLE_2026-08-SUMMARY.md](./09-archive/RESEARCH_CYCLE_2026-08-SUMMARY.md) | ATS-NEW 研发周期总结（UI v2 液态玻璃 + 暗色清理 · 2026-08-21 ~ 08-2 | 64 | 2026-08-22 |
+| [STUB_CLASSIFICATION.md](./09-archive/STUB_CLASSIFICATION.md) | Stub Endpoint 分类索引 (2026-09-04) | 179 | 2026-09-05 |
+| [TECHNICAL_AUDIT.md](./09-archive/TECHNICAL_AUDIT.md) | ATS-NEW 技术维度全面审计报告 | 856 | 2026-08-31 |
 | [V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md](./07-audit/V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md) | V2.10 月浮动目标（Roll-over）增量 交付总结 | 198 | 2026-09-06 |
 | [治理批次-2026-09-04-overview.md](./07-audit/治理批次-2026-09-04-overview.md) | 概述：ATS-NEW 治理批次 #1（2026-09-04 上午） | 122 | 2026-09-04 |
-| [项目复查报告-2026-09-03.md](./07-audit/项目复查报告-2026-09-03.md) | ATS-NEW 项目复查报告（2026-09-03） | 61 | 2026-09-04 |
+| [项目复查报告-2026-09-03.md](./09-archive/项目复查报告-2026-09-03.md) | ATS-NEW 项目复查报告（2026-09-03） | 61 | 2026-09-04 |
 | [DOC_CALIBRATION_BACKEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_BACKEND_2026-09-07.md) | 后端文档校准报告（2026-09-07） | 78 | 2026-09-07 |
 | [DOC_CALIBRATION_FRONTEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_FRONTEND_2026-09-07.md) | 前端文档校准报告（2026-09-07） | 57 | 2026-09-07 |
-| [StageRuleConfigModal_验收Spec.md](./StageRuleConfigModal_验收Spec.md) | StageRuleConfigModal 验收规格（视觉/交互/滚动锁） | 308 | — |
+| [04-ui/StageRuleConfigModal_验收Spec.md](./04-ui/StageRuleConfigModal_验收Spec.md) | StageRuleConfigModal 验收规格（视觉/交互/滚动锁） | 308 | — |
 
 ### ✅ 08-tasks — UI 整改任务清单
 

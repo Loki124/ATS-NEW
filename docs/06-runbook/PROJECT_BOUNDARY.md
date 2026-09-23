@@ -67,7 +67,7 @@
 
 ## 5. 跨仓协作规范
 
-- **PR 模板**：跨仓改动（业务仓 schema 变 → 部署仓需配合）走 `docs/deploy-webhook-fix-pr.md` 模式：业务仓提交"PR 模板 + diff 副本"，部署仓 PR 由用户在自有环境应用（`git apply`）。
+- **PR 模板**：跨仓改动（业务仓 schema 变 → 部署仓需配合）走 `docs/06-runbook/deploy-webhook-fix-pr.md` 模式：业务仓提交"PR 模板 + diff 副本"，部署仓 PR 由用户在自有环境应用（`git apply`）。
 - **双保险兜底**（commit `d19dfe7`）：业务仓字典种子走幂等迁移 + 部署仓 webhook 部署后强制重跑 `run_dictionary_seeds()`，互为冗余——任一边失灵另一边兜底。
 
 ---
@@ -76,4 +76,4 @@
 
 - 完整部署链路口诀 → `docs/06-runbook/DEPLOY_1PANEL_CF_TUNNEL.md`
 - 字典种子兜底双保险 → `docs/06-runbook/ENGINEERING_RULES.md` §8「系统级默认数据」
-- 部署侧 PR diff 模板 → `docs/deploy-webhook-fix-pr.md` + `docs/webhook-deploy.diff`
+- 部署侧 PR diff 模板 → `docs/06-runbook/deploy-webhook-fix-pr.md` + `docs/06-runbook/webhook-deploy.diff`

@@ -31,7 +31,7 @@
 
 ## [Unreleased] - 2026-08-03 — 全量复盘 + 合规审计 + 测试基线 + 文档现状对齐
 
-> 由 Mavis (产品经理代码伙伴) 完成。修复了文档与代码不一致、stub 路由静默、CI 过期、admin token 写死等 4 个严重问题 + 10 个中等问题,详见 [`docs/COMPLIANCE_AUDIT_2026-08-03.md`](../07-audit/COMPLIANCE_AUDIT_2026-08-03.md)。
+> 由 Mavis (产品经理代码伙伴) 完成。修复了文档与代码不一致、stub 路由静默、CI 过期、admin token 写死等 4 个严重问题 + 10 个中等问题,详见 [`docs/COMPLIANCE_AUDIT_2026-08-03.md`](../09-archive/COMPLIANCE_AUDIT_2026-08-03.md)。
 
 ### 🔴 严重 (P0, 已修)
 

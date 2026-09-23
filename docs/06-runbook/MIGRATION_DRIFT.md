@@ -172,6 +172,6 @@ for m in applied: print(m.app, m.name)
 ## 6. 关联文档
 
 - 阶段起止契约（含迁移 0012 预置 + P008/P099 漂移） → `docs/05-campus-control/STAGE_TYPE_SYSTEM.md`
-- 部署侧 PR diff（字典种子兜底 + 健康端点修复） → `docs/deploy-webhook-fix-pr.md`
+- 部署侧 PR diff（字典种子兜底 + 健康端点修复） → `docs/06-runbook/deploy-webhook-fix-pr.md`
 - 项目边界（业务仓 vs 部署仓） → `docs/06-runbook/PROJECT_BOUNDARY.md`
 - 三关门禁（commit / migrate / 真接口实测） → `docs/06-runbook/SETUP.md` §3

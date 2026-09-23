@@ -286,9 +286,9 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 | [docs/TROUBLESHOOTING.md](../06-runbook/TROUBLESHOOTING.md) | 常见问题 |
 | [docs/PERFORMANCE.md](../06-runbook/PERFORMANCE.md) | 性能基线 |
 | [docs/PROJECT_PLAN.md](../03-product/PROJECT_PLAN.md) | 路线图 |
-| [docs/DOCUMENTATION_AUDIT_2026-08-04.md](../07-audit/DOCUMENTATION_AUDIT_2026-08-04.md) | 文档审计 |
-| [docs/QA_T011_VERIFY_2026-08-04.md](../07-audit/QA_T011_VERIFY_2026-08-04.md) | T01.1 QA 验证 |
-| [docs/QA_BUG7_VERIFY_2026-08-04.md](../07-audit/QA_BUG7_VERIFY_2026-08-04.md) | BUG-7 QA 验证 |
+| [docs/DOCUMENTATION_AUDIT_2026-08-04.md](../09-archive/DOCUMENTATION_AUDIT_2026-08-04.md) | 文档审计 |
+| [docs/QA_T011_VERIFY_2026-08-04.md](../09-archive/QA_T011_VERIFY_2026-08-04.md) | T01.1 QA 验证 |
+| [docs/QA_BUG7_VERIFY_2026-08-04.md](../09-archive/QA_BUG7_VERIFY_2026-08-04.md) | BUG-7 QA 验证 |
 
 ---
 

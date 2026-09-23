@@ -2,7 +2,7 @@
 
 > **最后更新**: 2026-08-17 — 实际技术栈与当前实现对齐（本次新增 6 大功能，详见 [CHANGELOG.md](../06-runbook/CHANGELOG.md) 2026-08-17 条目）
 > **重要**: 本文档是**历史规划记录** (2025/10 → 2026/04), 不是当前架构。
-> 当前真实状态见 [README.md](../README.md) + [ARCHITECTURE.md](../02-architecture/ARCHITECTURE.md) + [CHANGELOG.md](../06-runbook/CHANGELOG.md) + [COMPLIANCE_AUDIT_2026-08-03.md](../07-audit/COMPLIANCE_AUDIT_2026-08-03.md)。
+> 当前真实状态见 [README.md](../README.md) + [ARCHITECTURE.md](../02-architecture/ARCHITECTURE.md) + [CHANGELOG.md](../06-runbook/CHANGELOG.md) + [COMPLIANCE_AUDIT_2026-08-03.md](../09-archive/COMPLIANCE_AUDIT_2026-08-03.md)。
 >
 > **当前实际技术栈** (2026-08-03):
 > - 后端: Django 6.0.6 + DRF 3.15 + Celery 5.4 + Channels 4.1 (不是 Django 4.2+)

@@ -218,4 +218,4 @@ class DictionaryConfig(AppConfig):
 
 - 系统内置化（项目级标准）→ `docs/06-runbook/ENGINEERING_RULES.md` §7
 - 数据字典重组 → `docs/03-product/DATA_DICTIONARY_RESTRUCTURING.md`
-- 部署侧 PR diff（字典种子兜底） → `docs/deploy-webhook-fix-pr.md`
+- 部署侧 PR diff（字典种子兜底） → `docs/06-runbook/deploy-webhook-fix-pr.md`
