@@ -324,7 +324,7 @@ ReferralRule (1:N) ──── RewardStrategy (1:1)
 | [README.md](../../README.md) | 项目入口 |
 | [RUNBOOK.md](../06-runbook/RUNBOOK.md) | 跑通指南 + 紧急回滚 |
 | [requirements.md](../03-product/requirements.md) | 业务需求 + Phase 2 待办 |
-| [docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md](./09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
+| [docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md](../09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
 | [docs/PHASE2_DESIGN_2026-08-03.md](../09-archive/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 |
 | [docs/CHANGELOG.md](../06-runbook/CHANGELOG.md) | 变更历史 |
 | [docs/MIGRATION.md](../06-runbook/MIGRATION.md) | 旧栈迁移日志 |
