@@ -7,15 +7,6 @@ import { test, expect } from '@playwright/test';
  * - 场景 2: 切换 settings 菜单不破布局
  */
 test.describe('Settings layout (regression guard)', () => {
-  test.beforeEach(async ({ page }) => {
-    // 登录
-    await page.goto('/login');
-    await page.getByPlaceholder('用户名').fill('admin');
-    await page.locator('input[type="password"]').first().fill('admin123');
-    await page.getByRole('button', { name: /登\s*录/ }).first().click();
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10_000 });
-  });
-
   test('settings 子页内容填满, 不超出 viewport', async ({ page }) => {
     await page.goto('/settings/account');
     await page.waitForLoadState('networkidle');
@@ -39,16 +30,16 @@ test.describe('Settings layout (regression guard)', () => {
     await page.goto('/settings/account');
     await page.waitForLoadState('networkidle');
 
-    // 分组默认折叠，先展开对应分组
-    await page.getByText('组织信息管理').click();
-    // 切到权限管理 (route: /settings/permission)
-    await page.locator('.menu-item').filter({ hasText: /^权限管理$/ }).click();
-    await page.waitForURL(/permission/);
+    // 2026-09-23: 「权限管理」由嵌套 group 标题改为「基本信息」下的可展开菜单项，
+    //   点击父项只展开、不导航；真正的跳转入口是子项「身份管理」(/settings/permissions)。
+    await page.locator('.n-menu-item').filter({ hasText: /^权限管理$/ }).click();
+    await page.locator('.n-menu-item').filter({ hasText: /^身份管理$/ }).click();
+    await page.waitForURL(/permissions/);
     await page.waitForLoadState('networkidle');
 
-    // 再切到公司信息 (route: /settings/company)
-    await page.getByText('其他').click();
-    await page.locator('.menu-item').filter({ hasText: /^公司信息$/ }).click();
+    // 再切到公司信息 (route: /settings/company)：先展开「公司信息管理」父项，再点子项
+    await page.locator('.n-menu-item').filter({ hasText: /^公司信息管理$/ }).click();
+    await page.locator('.n-menu-item').filter({ hasText: /^公司信息$/ }).click();
     await page.waitForURL(/company/);
     await page.waitForLoadState('networkidle');
 

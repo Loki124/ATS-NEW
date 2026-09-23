@@ -1,0 +1,18 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+
+# 版本检测：vite.config.ts 的 appVersionPlugin 构建/启动期自动生成
+#   - public/version.json：线上版本源（按 origin 根路径 /version.json 取）
+#   - src/generated/appVersion.ts：本地版本常量（编译期写入，旧 bundle 保留旧值）
+public/version.json
+src/generated/
+
+# Playwright：globalSetup 一次性登录落盘的会话态（含 token，禁止提交）
+e2e/.auth/
+
+# Playwright 产物
+playwright-report/
+test-results/

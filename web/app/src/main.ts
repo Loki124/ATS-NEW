@@ -6,6 +6,7 @@ import router from './router'
 import { naivePlugin } from './plugins/naive'
 import { setupPermissionDirective } from './directives/permission'
 import { useSystemStore } from './stores/system'
+import { startAppVersionWatcher } from './services/app-version'
 
 // Naive UI —— 见 plugins/naive.ts (统一注册, 测试可复用)
 
@@ -17,8 +18,12 @@ import './styles/glass-modal.css' // T2.3: 模态/抽屉玻璃化扩展（n-moda
 import './index.css'
 
 import { createDiscreteApi } from 'naive-ui'
-// v2: 全局 toast（拦截器 + shortcuts 帮助面板共用）· 必须在 axios 拦截器之前声明
-const _toast = createDiscreteApi(['message']).message
+// v2: 全局 toast/dialog（拦截器 + shortcuts 帮助面板共用）· 必须在 axios 拦截器之前声明
+// 2026-09-23: 追加 dialog，供 app-version 升级检测在无组件上下文时弹「系统已升级」确认框
+const _discrete = createDiscreteApi(['message', 'dialog'])
+const _toast = _discrete.message
+// 暴露全局离散 dialog，供 services/app-version.ts 在无组件上下文时调用
+;(window as any).$dialog = _discrete.dialog
 
 // 2026-06-29 花无缺: 全局 axios 拦截器 — 区分 401/403 (真权限) vs 404 (endpoint 缺)
 // 之前 404 被 catch 走 → UI 显示 "无权限" / "加载失败" → 兵哥误以为权限问题.
@@ -153,3 +158,7 @@ window.addEventListener('unhandledrejection', (event) => {
 app.use(router)
 
 app.mount('#app')
+
+// 2026-09-23: 启动系统升级检测（轮询线上 version.json，不一致时弹确认框由用户刷新）。
+// 放在 mount 之后：应用已就绪，且避免初始加载期打扰。
+startAppVersionWatcher()

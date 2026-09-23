@@ -68,7 +68,7 @@ import {
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
   CloudUploadOutline, ServerOutline, SearchOutline, AnalyticsOutline,
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
-  ShieldCheckmarkOutline, LockClosedOutline, PeopleCircleOutline, OptionsOutline,
+  ShieldOutline, ShieldCheckmarkOutline, LockClosedOutline, PeopleCircleOutline, OptionsOutline,
   DocumentTextOutline, FileTrayFullOutline, GridOutline, CopyOutline,
   BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline,
 } from '@vicons/ionicons5'
@@ -120,11 +120,18 @@ const subMenuOptions: MenuItem[] = [
         ],
       },
       {
-        // 权限管理归入「基本信息」分组内（2026-09-18 调整）：身份管理/资源管理/管理单元/字段权限
-        // 2026-09-18 二次调整：资源管理从身份管理页拆出为独立菜单；原 4-tab 主壳去 tab 化
+        // 权限管理 —— 「基本信息」下的子菜单（可展开父菜单项，无自身路由）
+        // 2026-09-18 首次调整：由顶层分组归入「基本信息」分组内。
+        // 2026-09-23 二次调整：原 type:'group' 会在「基本信息」内部再渲染一条独立的分组标题，
+        //   视觉上与父级割裂（看起来像另一个分类而非子菜单）。去掉 type 后与同级
+        //   「公司信息管理」(g-company)、「用户管理」(g-user) 完全一致：带图标的可展开父菜单项。
+        //   点击仅展开子项、不导航 —— handleMenuClick 只处理以 '/' 开头的 key，
+        //   因此 g-permission 不构成死链（与 g-company / g-user 同款行为）。
+        // 排序：置于「基本信息」末位 —— 个人信息 → 公司信息 → 组织 → 用户 → 权限
+        //   （先有组织与人，再配置权限，符合配置递进逻辑）。
         key: 'g-permission',
-        type: 'group',
         label: '权限管理',
+        icon: () => h(NIcon, null, { default: () => h(ShieldOutline) }),
         children: [
           { key: '/settings/permissions', label: '身份管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
           { key: '/settings/permissions/resources', label: '资源管理', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
