@@ -21,6 +21,13 @@ from django.db import migrations
 
 
 def _ensure_code_column(apps, schema_editor):
+    # 本迁移是「生产 MySQL schema 漂移」专用修复: 用 information_schema / MODIFY
+    # 等 MySQL 专有语法自检并补 code 列。而全新库由 0001_initial 已建 code 列
+    # (见 docstring), 故在非 MySQL 后端 (如 SQLite 测试库, config.settings.test)
+    # 直接 no-op —— 否则 `information_schema.columns` 在 SQLite 上 "no such table"
+    # 会让整个 migrate 失败, 使全量后端测试套件集体 error。
+    if schema_editor.connection.vendor != 'mysql':
+        return
     from nanoid import generate as nanoid_generate
 
     cur = schema_editor.connection.cursor()
