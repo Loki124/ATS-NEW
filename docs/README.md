@@ -32,14 +32,14 @@
 | 目录 | 份数 | 定位 |
 |---|---|---|
 | [01-wiki/](./01-wiki/) | 9 | 代码知识库（体系化，最权威） |
-| [02-architecture/](./02-architecture/) | 7 | 架构与技术选型 |
+| [02-architecture/](./02-architecture/) | 9 | 架构与技术选型 |
 | [03-product/](./03-product/) | 13 | 产品需求与业务规则 |
 | [04-ui/](./04-ui/) | 18 | UI/UX 设计与前端规范 |
 | [05-campus-control/](./05-campus-control/) | 10 | 校招管控专项 |
 | [06-runbook/](./06-runbook/) | 13 | 部署运维与变更 |
 | [07-audit/](./07-audit/) | 8 | 审计、复盘与验证 |
 | [08-tasks/](./08-tasks/) | 34 | UI 整改任务清单 |
-| [09-archive/](./09-archive/) | 50 | 历史归档（不再维护） |
+| [09-archive/](./09-archive/) | 51 | 历史归档（不再维护） |
 
 ### 🏛 01-wiki — 代码知识库（体系化，最权威）
 
@@ -64,7 +64,7 @@
 | 文档 | 说明 | 行数 | 最新日期 |
 |---|---|---:|---|
 | [ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) | ARCHITECTURE — 系统架构 | 337 | 2026-08-17 |
-| [ARCHITECTURE_REVIEW_2026-08-03.md](./02-architecture/ARCHITECTURE_REVIEW_2026-08-03.md) | ATS-NEW 深度架构与代码分析报告 | 490 | 2026-08-03 |
+| [ARCHITECTURE_REVIEW_2026-08-03.md](./09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | ATS-NEW 深度架构与代码分析报告 | 490 | 2026-08-03 |
 | [ARCH_DECISION_VERSIONING_INCREMENT_2026-08-07.md](./02-architecture/ARCH_DECISION_VERSIONING_INCREMENT_2026-08-07.md) | 架构增量规格：流程版本化 + 阶段映射回落 + 跨流程线迁移 + 需求升级入口 | 876 | 2026-08-10 |
 | [ARCH_DECISION_VERSIONING_STAGE_2026-08-07.md](./02-architecture/ARCH_DECISION_VERSIONING_STAGE_2026-08-07.md) | 架构决策与修复规格：流程版本化 + 申请阶段流转 | 903 | 2026-08-07 |
 | [UNIFIED_RULE_ENGINE_DESIGN.md](./02-architecture/UNIFIED_RULE_ENGINE_DESIGN.md) | 统一规则引擎（Unified Rule Engine）设计文档 | 586 | 2026-08-30 |

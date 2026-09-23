@@ -31,7 +31,7 @@
 |---|---|---|---|---|
 | L1 | 顶部 | 缺 CI 状态徽章 | CI 真实状态: pytest 384 passed / 0 failed (010e4d4) | **P0** 加徽章 |
 | L46-52 | `docs/` 索引 | ARCHITECTURE.md / MIGRATION.md / SETUP.md / CHANGELOG.md / TROUBLESHOOTING.md / PROJECT_PLAN.md | 这些文件**实际存在** ✅ | ✅ 不需改 |
-| L46-52 | `docs/` 索引 | 设计文档未列 | 实际有 `docs/ARCHITECTURE_REVIEW_2026-08-03.md`、`docs/PHASE2_DESIGN_2026-08-03.md`、`docs/PHASE2_PRECHECK_2026-08-03.md` | **P1** 补链接 |
+| L46-52 | `docs/` 索引 | 设计文档未列 | 实际有 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md`、`docs/PHASE2_DESIGN_2026-08-03.md`、`docs/PHASE2_PRECHECK_2026-08-03.md` | **P1** 补链接 |
 | L46-52 | `docs/` 索引 | 验证报告未列 | 实际有 `docs/QA_BUG7_VERIFY_2026-08-04.md`、`docs/QA_T011_VERIFY_2026-08-04.md` | **P1** 补链接 |
 | L75-79 | "架构变化 (2026-06-29)" 段 | 真实 | — | ✅ |
 | L97-99 | "See the Makefile" 链接 | 真实 | — | ✅ |
@@ -58,8 +58,8 @@
 |---|---|---|---|---|
 | L3 | 标题段 | "实际已切到 Django 6.0.6 + DRF 3.15" | ✅ 真实 | — |
 | L5 | 状态段 | "28 apps / 60+ 端点 / 78 张表 / 9 业务状态机 / 39 pytest + 132 vitest 全过" | 实际 **30 apps / 148 路由 / 59 业务表(+V2 9 表) / 7 FSMField / 384 pytest + 132 vitest** | **P0** 重写 |
-| L6 | "真实架构图见 `docs/ARCHITECTURE.md`" | 有此文件 (323 行) | ✅ 加注 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` 才是真审 | **P1** |
-| L11-32 | 1.1 架构图 | ASCII 简图 | 实际图见 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` §3 | **P0** 改 Mermaid |
+| L6 | "真实架构图见 `docs/ARCHITECTURE.md`" | 有此文件 (323 行) | ✅ 加注 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` 才是真审 | **P1** |
+| L11-32 | 1.1 架构图 | ASCII 简图 | 实际图见 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §3 | **P0** 改 Mermaid |
 | L34-68 | 1.2 技术栈表 | 真实（基本正确） | 但 django-fsm 3.0.1 (非 2.8.1)、Celery 5.6.3 (非 5.4)、Redis 8.0.1 (非 5.0.4) | **P1** 修正 |
 | L55 | "django-fsm 2.8.1" | 实装 3.0.1 | — | **P1** |
 | L56 | "已废弃, 迁 viewflow.fsm" | 代码零引用, viewflow.fsm 未装 | — | **P0** 删此误导 |
@@ -82,7 +82,7 @@
 - 顶部加 2026-08-04 状态快照（30 apps / 148 路由 / 78 表 / 7 FSMField / 384 pytest + 132 vitest）
 - 重点重写 §2.2 / §3 / §5 / §6 / §7 / §8 整段
 - 保留 §9 关键架构变更（历史记录真实）
-- 用 Mermaid 重画架构图（参考 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` §3）
+- 用 Mermaid 重画架构图（参考 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §3）
 - 引用真实模块清单（30 apps 表，参考 `settings/base.py:98-135`）
 - 删除"迁 viewflow.fsm"等纯文档臆想
 

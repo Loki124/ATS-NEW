@@ -38,7 +38,7 @@ API 文档：`http://localhost:8000/api/docs/`（Swagger UI）
 | [../../README.md](../../README.md) | 项目入口、快速启动 |
 | [../../technical.md](../02-architecture/technical.md) | 技术架构说明 |
 | [../../RUNBOOK.md](../06-runbook/RUNBOOK.md) | 跑通指南 + 紧急回滚 |
-| [../../docs/ARCHITECTURE_REVIEW_2026-08-03.md](../02-architecture/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计报告 |
+| [../../docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md](../09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计报告 |
 
 ## 项目状态速览
 

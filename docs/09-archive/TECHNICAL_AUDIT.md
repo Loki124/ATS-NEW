@@ -758,7 +758,7 @@ path('', include('apps.core.urls_permission_v2')),
 
 ## 十二、附：R1–R18 复核对照表
 
-> 基准：`docs/ARCHITECTURE_REVIEW_2026-08-03.md` §7 风险清单（第 383-407 行）
+> 基准：`docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §7 风险清单（第 383-407 行）
 > 复核方式：运行时内省 / 真跑命令 / 读代码。**"真修"必须有运行时或命令输出证据，仅读注释不算。**
 
 | ID | 风险 | 上轮判定 | **本轮复核** | 判定依据（硬证据） |

@@ -3,7 +3,7 @@
 > **最后更新**: 2026-08-17 @ HEAD `9e353ee`
 > **作者**: 许清楚（PM 文档 overhaul）+ 寇豆码（T01.1 修复）
 > **修复 commit**: 本文档经历整段重写，删除所有 Node.js/Express/Prisma 残留（架构师已在 ARCHITECTURE_REVIEW_2026-08-03 §6.1 D1-D4 标出）
-> **真实架构图**: 见 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` §3 Mermaid 图（最权威）
+> **真实架构图**: 见 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §3 Mermaid 图（最权威）
 
 ---
 
@@ -66,7 +66,7 @@ graph TB
   DAPH --> CH
 ```
 
-详细 Mermaid 图见 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` §3（490 行报告）。
+详细 Mermaid 图见 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §3（490 行报告）。
 
 ---
 
@@ -186,7 +186,7 @@ ATS-NEW/
 | **资源库** | library | 1 个 |
 | **空壳 stub** | scraped_resume, external_sync, duplicate_check, data | 4 个（0 model, 计划 2-4 删/补） |
 
-详细每个 app 的 py/LOC/model 规模见 `docs/ARCHITECTURE_REVIEW_2026-08-03.md` §4.1。
+详细每个 app 的 py/LOC/model 规模见 `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` §4.1。
 
 ---
 
@@ -277,7 +277,7 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 | [README.md](../../README.md) | 项目入口 |
 | [RUNBOOK.md](../06-runbook/RUNBOOK.md) | 跑通指南 + 紧急回滚 |
 | [requirements.md](../03-product/requirements.md) | 业务需求 + Phase 2 待办 |
-| [docs/ARCHITECTURE_REVIEW_2026-08-03.md](./ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
+| [docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md](./09-archive/ARCHITECTURE_REVIEW_2026-08-03.md) | 架构师深度审计（最权威） |
 | [docs/PHASE2_DESIGN_2026-08-03.md](../09-archive/PHASE2_DESIGN_2026-08-03.md) | Phase 2 任务分解 |
 | [docs/ARCHITECTURE.md](./ARCHITECTURE.md) | 模块图 |
 | [docs/CHANGELOG.md](../06-runbook/CHANGELOG.md) | 变更历史 |

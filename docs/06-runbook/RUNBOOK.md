@@ -185,7 +185,7 @@ A: ✅ **BUG-5 已修**（`f970bf8`）：候选人 FSM 5 个 transition 补齐�
 | 前端 API 客户端 | `web/app/src/api/*.ts`（27 个） |
 | 测试 fixtures | `apps/django/tests/fixtures_common.py`（V1/V2 双路径） |
 | CI 配置 | `.github/workflows/ci.yml` |
-| 架构审计 | `docs/ARCHITECTURE_REVIEW_2026-08-03.md` |
+| 架构审计 | `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md` |
 | Phase 2 设计 | `docs/PHASE2_DESIGN_2026-08-03.md` |
 
 ---

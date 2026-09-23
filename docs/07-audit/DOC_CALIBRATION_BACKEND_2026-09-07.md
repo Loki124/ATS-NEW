@@ -67,7 +67,7 @@
 - `docs/09-archive/DOCUMENTATION_AUDIT_2026-08-04.md`（30 apps / 148 路由 / 78 表 / 384 pytest — 08-04 快照）
 - `docs/09-archive/PROJECT_FULL_REVIEW_2026-08-26.md`（35 apps / 772 tests — 08-26 快照，PRODUCT_AUDIT 指出 5 天内又漂到 36/859）
 - `docs/09-archive/PRODUCT_AUDIT.md`（其「实测 36 apps / 859 def test_」本身也与本次机械核实的 **35 apps** 不符，证明审计文档自身亦在漂移）
-- `docs/02-architecture/ARCHITECTURE_REVIEW_2026-08-03.md`（08-03 评审）
+- `docs/09-archive/ARCHITECTURE_REVIEW_2026-08-03.md`（08-03 评审）
 
 **建议后续**：为上述文档加「本快照截至 YYYY-MM-DD，数字可能已过期」横幅，或单独发起一轮「审计文档刷新」，并将其中的「实测」数字统一改为脚本生成。
 
