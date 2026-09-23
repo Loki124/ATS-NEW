@@ -44,8 +44,8 @@ def adjust(apps, schema_editor):
             pool = alphabet or string.ascii_letters + string.digits
             return ''.join(random.choices(pool, k=size))
 
-    # 1) 存量 system → custom (排除预置标签; 占位符展开兼容 MySQL/SQLite)
-    placeholders = ','.join('?' for _ in _PRESET_NAMES)
+    # 1) 存量 system → custom (排除预置标签; 用 Django 标准 %s 占位符，由 backend 自动转 ?(SQLite)/%(MySQL))
+    placeholders = ','.join('%s' for _ in _PRESET_NAMES)
     cur.execute(
         f"UPDATE reason_tag SET type = 'custom' WHERE type = 'system' AND name NOT IN ({placeholders})",
         _PRESET_NAMES,
