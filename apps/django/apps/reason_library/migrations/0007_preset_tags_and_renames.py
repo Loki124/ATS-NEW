@@ -97,7 +97,7 @@ def reverse_adjust(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reason_library', '0006_add_reason_tag_code'),
+        ('reason_library', '0006_ensure_reason_tag_code'),
     ]
 
     operations = [
