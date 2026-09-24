@@ -163,6 +163,59 @@
           <n-form-item label="帮助文本">
             <n-input v-model:value="fieldForm.helpText" placeholder="helpText" />
           </n-form-item>
+          <!-- 2026-09-24 (兵哥) 限制条件: 按字段类型差异化校验配置
+               文本类=最大字数+内容格式(自定义正则) / 数字类=范围+步长+小数位 / 选项类=可选范围; 通用=错误提示 -->
+          <template v-if="isLimitTextType">
+            <n-form-item label="最大字数">
+              <n-input-number
+                v-model:value="fieldForm.validation.maxLength"
+                :min="1" :precision="0" clearable
+                placeholder="不限制" style="width: 200px"
+              />
+            </n-form-item>
+            <n-form-item label="内容格式">
+              <n-space align="center" :size="8" style="width: 100%">
+                <n-select
+                  v-model:value="fieldForm.validation.format"
+                  :options="TEXT_FORMAT_OPTIONS"
+                  style="width: 200px"
+                />
+                <n-input
+                  v-if="fieldForm.validation.format === 'CUSTOM'"
+                  v-model:value="fieldForm.validation.pattern"
+                  placeholder="自定义正则, 如 ^[A-Z]{2}$"
+                  style="flex: 1"
+                />
+              </n-space>
+            </n-form-item>
+          </template>
+          <template v-else-if="isLimitNumberType">
+            <n-form-item label="最小值">
+              <n-input-number v-model:value="fieldForm.validation.min" placeholder="不限制" style="width: 200px" />
+            </n-form-item>
+            <n-form-item label="最大值">
+              <n-input-number v-model:value="fieldForm.validation.max" placeholder="不限制" style="width: 200px" />
+            </n-form-item>
+            <n-form-item label="步长">
+              <n-input-number v-model:value="fieldForm.validation.step" :min="0" placeholder="不限制" style="width: 200px" />
+            </n-form-item>
+            <n-form-item label="小数位数">
+              <n-input-number v-model:value="fieldForm.validation.decimals" :min="0" :precision="0" clearable placeholder="不限制" style="width: 200px" />
+            </n-form-item>
+          </template>
+          <template v-else-if="isLimitOptionType">
+            <n-form-item label="可选范围">
+              <n-select
+                v-model:value="fieldForm.validation.allowedValues"
+                multiple clearable
+                :options="allowedValueOptions"
+                placeholder="不限制 (默认全部选项可选)"
+              />
+            </n-form-item>
+          </template>
+          <n-form-item v-if="hasValidationConfig" label="错误提示">
+            <n-input v-model:value="fieldForm.validation.message" placeholder="校验不通过时的提示文案 (留空使用默认文案)" />
+          </n-form-item>
           <!-- 确认题专属字段：确认内容 + 确认声明（中英双语） -->
           <template v-if="isConfirmType">
             <n-form-item label="确认内容" required>
@@ -693,7 +746,10 @@ import {
   type LinkageCondition, type LinkageAction, type LinkageConditionMode,
   type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
   type DateFormatValue, type RegionLevelValue, type SubField,
+  type FieldValidation,
 } from '@/api/dynamic-field';
+// 2026-09-24 (兵哥) 限制条件: 类型分组与前端校验共用同一真源
+import { TEXT_TYPES, NUMBER_TYPES } from '@/utils/fieldValidation';
 import {
   listDictionaryTypes, listDictionaryItems,
   type DictionaryType,
@@ -769,6 +825,8 @@ const fieldForm = reactive<{
   regionLevel: RegionLevelValue;
   regionPreviewValue: { country?: {code: string; name: string}; province: {code: string; name: string}; city?: {code: string; name: string}; district?: {code: string; name: string}; } | null;
   subFields: SubField[];
+  /** 2026-09-24 (兵哥) 限制条件配置 (按字段类型差异化, 后端 normalize_validation 规范化) */
+  validation: FieldValidation;
 }>({
   fieldKey: '', label: '', labelEn: '', fieldType: 'TEXT',
   moduleId: null, groupId: null,
@@ -783,9 +841,60 @@ const fieldForm = reactive<{
   regionLevel: 'DISTRICT' as RegionLevelValue,
   regionPreviewValue: null,
   subFields: [],
+  validation: { format: 'NONE' },
 });
 
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
+
+// ---------------------------------------------------------------------------
+// 2026-09-24 (兵哥) 限制条件配置: 与后端 validators.py 类型分组对齐
+// ---------------------------------------------------------------------------
+const isLimitTextType = computed(() => TEXT_TYPES.includes(fieldForm.fieldType));
+const isLimitNumberType = computed(() => NUMBER_TYPES.includes(fieldForm.fieldType));
+const isLimitOptionType = computed(() => fieldNeedsOptions.value);
+const hasValidationConfig = computed(() => isLimitTextType.value || isLimitNumberType.value || isLimitOptionType.value);
+
+/** 内容格式选项 (NONE/专用格式/CUSTOM 自定义正则; 与后端 TEXT_FORMAT_PATTERNS 对齐) */
+const TEXT_FORMAT_OPTIONS: { label: string; value: NonNullable<FieldValidation['format']> }[] = [
+  { label: '不限制', value: 'NONE' },
+  { label: '邮箱', value: 'EMAIL' },
+  { label: 'URL', value: 'URL' },
+  { label: '手机号', value: 'PHONE' },
+  { label: '身份证', value: 'ID_CARD' },
+  { label: '银行卡', value: 'BANK_CARD' },
+  { label: '自定义正则', value: 'CUSTOM' },
+];
+
+/** 选项类「可选范围」候选 = 当前手动维护的选项 */
+const allowedValueOptions = computed(() =>
+  fieldForm.options.map((o) => ({ label: o.label || o.value, value: o.value })),
+);
+
+/** 按字段类型组装 validation payload (非受限类型传 {} 清空, 后端 normalize 兜底) */
+function buildValidationPayload(): FieldValidation {
+  const v = fieldForm.validation || {};
+  if (isLimitTextType.value) {
+    return {
+      maxLength: v.maxLength ?? null,
+      format: v.format || 'NONE',
+      pattern: v.format === 'CUSTOM' ? (v.pattern || null) : null,
+      message: v.message || '',
+    };
+  }
+  if (isLimitNumberType.value) {
+    return {
+      min: v.min ?? null, max: v.max ?? null, step: v.step ?? null,
+      decimals: v.decimals ?? null, message: v.message || '',
+    };
+  }
+  if (isLimitOptionType.value) {
+    return {
+      allowedValues: v.allowedValues && v.allowedValues.length ? v.allowedValues : null,
+      message: v.message || '',
+    };
+  }
+  return {};
+}
 
 // 2026-09-15 选项来源 (兵哥): 下拉/列表型字段除手动维护选项外, 可指定数据源动态解析
 // 拍平为单层下拉（兵哥 9-15 反馈: 院校/专业库、码表库不再做二级级联, 直接拆成独立选项）
@@ -1048,6 +1157,7 @@ function resetFieldForm() {
     regionLevel: 'DISTRICT' as RegionLevelValue,
     regionPreviewValue: null,
     subFields: [],
+    validation: { format: 'NONE' },
   });
 }
 
@@ -1086,6 +1196,8 @@ function openFieldEdit(row: FieldDefinition) {
     regionPreviewValue: null,
     // 2026-09-16 (兵哥): 组合字段子结构回填
     subFields: row.subFields ? row.subFields.map((s) => ({ ...s })) : [],
+    // 2026-09-24 (兵哥): 限制条件回填 (文本类 format 缺省 NONE)
+    validation: { ...(row.validation || {}), format: row.validation?.format || 'NONE' },
   });
   fieldModalVisible.value = true;
 }
@@ -1123,6 +1235,8 @@ async function saveField() {
       regionLevel: fieldForm.regionLevel || 'DISTRICT',
       // 2026-09-16 (兵哥): 组合字段子结构; 非 COMPOSITE 类型上传空数组无副作用
       subFields: fieldForm.fieldType === 'COMPOSITE' ? (fieldForm.subFields || []) : [],
+      // 2026-09-24 (兵哥): 限制条件 (按类型组装; 非受限类型 {} 清空)
+      validation: buildValidationPayload(),
       id: fieldEditing.value?.id,
     };
     // 2026-09-15 选项来源: 选项型字段若指定了数据源, 清空手动 options, 由后端按 options_source 解析
