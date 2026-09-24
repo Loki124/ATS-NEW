@@ -520,10 +520,11 @@ function onShowChange(v: boolean) {
 
 .wizard-body {
   /* 需求: 大屏使用固定「最大高度上限」, 高度不再随步骤内容伸缩 → 消除切换抖动。
-     单一确定值 (非 min/max 区间), 配合 n-modal 垂直居中避免上下跳动。 */
+     单一确定值 (非 min/max 区间), 配合 n-modal 垂直居中避免上下跳动。
+     padding 归零: 消除步骤区上/右/下 4px 留白 (原先 4px 4px 4px 0)。 */
   height: min(640px, 72vh);
   overflow-y: auto;
-  padding: 4px 4px 4px 0;
+  padding: 0;
 }
 /* 小屏 (视口高度 < 760px): 弹窗撑满高度, 内容在 body 内滚动 */
 @media (max-height: 760px) {

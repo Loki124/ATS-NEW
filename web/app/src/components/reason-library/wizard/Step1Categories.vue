@@ -4,10 +4,6 @@
       <n-icon :component="InformationCircleOutline" color="var(--brand)" :size="16" />
       <span>
         {{ t('reasonLibrary.wizard.intro.step1') }}
-        <br />
-        {{ t('reasonLibrary.wizard.catCount', { count: categories.length }).replace('{count}', String(categories.length)) }} ·
-        {{ t('reasonLibrary.wizard.leafCount', { leaf: leafCount }).replace('{leaf}', String(leafCount)) }} ·
-        {{ t('reasonLibrary.wizard.maxLevelLabel', { level: maxLevel }).replace('{level}', String(maxLevel || '-')) }}
       </span>
     </div>
 
@@ -17,7 +13,13 @@
           <n-icon :component="GitNetworkOutline" :size="14" color="var(--ink-soft)" />
           {{ t('reasonLibrary.wizard.categoryTree') }}
         </span>
-        <n-button size="small" type="primary" @click="addRoot">
+        <!-- 统计信息: 与「分类结构」标题同一行, 紧邻其右 (原在提示框第二行) -->
+        <span class="rl-cat-stats">
+          {{ t('reasonLibrary.wizard.catCount', { count: categories.length }).replace('{count}', String(categories.length)) }} ·
+          {{ t('reasonLibrary.wizard.leafCount', { leaf: leafCount }).replace('{leaf}', String(leafCount)) }} ·
+          {{ t('reasonLibrary.wizard.maxLevelLabel', { level: maxLevel }).replace('{level}', String(maxLevel || '-')) }}
+        </span>
+        <n-button class="cat-add-root" size="small" type="primary" @click="addRoot">
           <template #icon><n-icon :component="AddOutline" /></template>
           {{ t('reasonLibrary.common.addRootCategory') }}
         </n-button>
@@ -378,7 +380,19 @@ function canMoveDown(cat: RuleCategory): boolean {
   font-size: var(--fs-12);
   font-weight: 600;
   color: var(--ink-soft);
+  flex-shrink: 0;
 }
+/* 统计信息: 紧邻「分类结构」标题右侧, 与标题同一行; 窄屏时优先截断自身而非挤走按钮 */
+.rl-cat-stats {
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+/* 「添加一级分类」按钮对齐到该区域最右端 */
+.cat-add-root { margin-left: auto; flex-shrink: 0; }
 .rl-cat-empty {
   padding: var(--space-5);
 }

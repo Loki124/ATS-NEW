@@ -172,14 +172,27 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
 </script>
 
 <style scoped>
-.step2 { display: flex; flex-direction: column; gap: var(--space-3); height: 100%; }
+/* 滚动容器统一放在 .step2: 让 .step-intro 与 .assign-grid 共享同一条滚动条,
+   二者可用宽度因此完全一致。若把滚动容器放在 .assign-grid 上, 其滚动条会挤占
+   约 12px 内容宽度, 使下方卡片右边缘比上方提示框内缩 → 「上下两个容器对不齐」。 */
+.step2 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  overflow-y: auto;
+}
 
 .step-intro {
   display: flex;
   gap: var(--space-2);
   align-items: flex-start;
   padding: var(--space-2) var(--space-3);
-  background: transparent;
+  /* sticky: 滚动职责上移后仍常驻顶部, 保持「步骤提示」可见 */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   font-size: var(--fs-12);
@@ -194,9 +207,9 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  /* 宽度充满上级容器; 不再自身滚动 (滚动已上移至 .step2) */
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 .assign-card {

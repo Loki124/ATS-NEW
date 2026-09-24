@@ -591,7 +591,8 @@ function rowStyle(row: TagRow) {
   background: var(--surface);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-elevated);
+  /* 去掉灰投影: 原 box-shadow: var(--shadow-elevated) 会在右侧/下方产生柔和灰带 */
+  box-shadow: none;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -622,7 +623,7 @@ function rowStyle(row: TagRow) {
 }
 .rl-sim-modal__close { color: var(--ink-faint); cursor: default; flex-shrink: 0; }
 .rl-sim-modal__body {
-  padding: var(--space-4);
+  padding: 0 24px;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -646,6 +647,7 @@ function rowStyle(row: TagRow) {
 }
 
 .rl-preview-module {
+  width: 100%;
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   background: var(--glass-bg-elevated);
