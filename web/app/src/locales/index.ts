@@ -9,8 +9,8 @@
  * - legacy:false → Composition API：`useI18n()` 取 t，模板可用 `$t`
  */
 import { createI18n } from 'vue-i18n'
-import { REASON_LIBRARY_ZH, DATA_PERM_ZH } from './zh-CN'
-import { REASON_LIBRARY_EN } from './en-US'
+import { REASON_LIBRARY_ZH, DATA_PERM_ZH, APP_UI_ZH } from './zh-CN'
+import { REASON_LIBRARY_EN, DATA_PERM_EN, APP_UI_EN } from './en-US'
 
 /** 扁平 dot-key 字典 -> vue-i18n 嵌套对象 */
 function toNested(flat: Record<string, string>): Record<string, any> {
@@ -30,8 +30,8 @@ function toNested(flat: Record<string, string>): Record<string, any> {
 }
 
 const messages = {
-  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH }),
-  'en-US': toNested({ ...REASON_LIBRARY_EN }),
+  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH, ...APP_UI_ZH }),
+  'en-US': toNested({ ...REASON_LIBRARY_EN, ...DATA_PERM_EN, ...APP_UI_EN }),
 }
 
 export const i18n = createI18n({
