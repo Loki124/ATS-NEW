@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">Offer 管理</h1>
+      <h1 class="page-title">{ t('pages.offer.OfferList.s1') }</h1>
       <n-space>
         <n-button :loading="loading" @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, computed } from 'vue'
 import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
@@ -114,6 +115,7 @@ import {
   OFFER_STATUS_LABEL, OFFER_STATUS_COLOR, OFFER_TEMPLATE_LABEL,
   type Offer,
 } from '../../api/offer'
+const { t } = useI18n()
 
 const message = useMessage()
 const dialog = useDialog()

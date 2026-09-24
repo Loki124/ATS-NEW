@@ -13,12 +13,12 @@
       :style="`width: ${collapsed ? 64 : 220}px; flex-shrink: 0;`"
     >
       <div class="sider-header" :class="{ collapsed: collapsed }">
-        <h2 v-if="!collapsed" class="sider-title gradient-title">设置</h2>
+        <h2 v-if="!collapsed" class="sider-title gradient-title">{ t('pages.settings.SettingsLayout.s1') }</h2>
         <button
           class="collapse-btn"
           :class="{ collapsed: collapsed }"
           type="button"
-          aria-label="折叠设置菜单"
+          :aria-label="t('pages.settings.SettingsLayout.s2')"
           @click="collapsed = !collapsed"
         >
           <n-icon :component="collapsed ? ChevronForwardOutline : ChevronBackOutline" />
@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 // ★ v1.1 补全 imports（文档 §8.2 P0-3）
 import { ref, computed, watch, nextTick, h, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -83,6 +84,7 @@ const collapsed = ref(false)
 //   group 项：type: 'group' + 必填 children
 //   叶子项：可选 icon render 函数
 import type { MenuOption } from 'naive-ui'
+const { t } = useI18n()
 type MenuItem = MenuOption
 
 // ★ v1.1 修复：subMenuOptions 列全 5 个分组（基本信息/过程管理/招聘提速/内容管理/其他）

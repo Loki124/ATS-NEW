@@ -1,16 +1,16 @@
 <template>
   <div class="page-container school-library">
     <div class="page-header">
-      <h1 class="page-title">院校库</h1>
-      <p class="page-subtitle">院校信息库 — 覆盖本专科院校，含双一流 / 985 / 211 / 双万计划等标签</p>
+      <h1 class="page-title">{ t('pages.settings.SchoolLibrary.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.SchoolLibrary.s2') }</p>
     </div>
 
     <div class="data-body">
       <n-card class="lib-card">
         <template #header-extra>
           <n-space>
-            <n-button :loading="loading" @click="reload">刷新</n-button>
-            <n-button type="primary" @click="openCreate">新增院校</n-button>
+            <n-button :loading="loading" @click="reload">{ t('pages.settings.SchoolLibrary.s3') }</n-button>
+            <n-button type="primary" @click="openCreate">{ t('pages.settings.SchoolLibrary.s4') }</n-button>
           </n-space>
         </template>
 
@@ -103,7 +103,7 @@
             <n-descriptions-item label="详细地址">{{ detailRow?.location || '-' }}</n-descriptions-item>
             <n-descriptions-item label="院校标签">
               <n-space v-if="tagListOf(detailRow).length" :size="[4, 4]">
-                <n-tag v-for="t in tagListOf(detailRow)" :key="t" size="small" type="info">{{ t }}</n-tag>
+                <n-tag v-for="tag in tagListOf(detailRow)" :key="tag" size="small" type="info">{{ tag }}</n-tag>
               </n-space>
               <span v-else>-</span>
             </n-descriptions-item>
@@ -184,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive, computed } from 'vue';
 import { NTag, NButton, NSpace, useMessage, type FormInst, type FormRules } from 'naive-ui';
 import { SchoolOutline, OpenOutline, SearchOutline, CreateOutline } from '@vicons/ionicons5';
@@ -192,6 +193,7 @@ import {
   createSchool, updateSchool,
 } from '@/api/library';
 import { localPagination } from '@/composables/useTablePagination';
+const { t } = useI18n()
 
 const message = useMessage();
 

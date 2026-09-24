@@ -1,6 +1,6 @@
 <template>
   <div class="special-approval-container">
-    <n-card title="特殊简历审批">
+    <n-card :title="t('pages.resume.SpecialApproval.s1')">
       <template #header-extra>
         <n-space>
           <n-button @click="loadFlows">
@@ -93,12 +93,14 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
 
 import { extractApiError } from '../../api/dynamic-field'
+const { t } = useI18n()
 const message = useMessage()
 
 const loading = ref(false)

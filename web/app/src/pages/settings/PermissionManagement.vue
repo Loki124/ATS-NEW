@@ -4,8 +4,8 @@
       <div class="page-header">
         <div class="page-header-row">
           <div>
-            <h1 class="page-title">身份管理</h1>
-            <p class="page-subtitle">角色定义、权限分配与权限模板（资源注册已独立为「资源管理」菜单）</p>
+            <h1 class="page-title">{ t('pages.settings.PermissionManagement.s1') }</h1>
+            <p class="page-subtitle">{ t('pages.settings.PermissionManagement.s2') }</p>
           </div>
           <div class="page-header-actions">
             <n-button @click="templatesModal.show = true">
@@ -35,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * PermissionManagement.vue — 身份管理主页面 (2026-09-18 重构)
  *
@@ -51,6 +52,7 @@ import { NButton, NCard, NIcon, NModal } from 'naive-ui'
 import { GridOutline } from '@vicons/ionicons5'
 import RolesTab from './permission/RolesTab.vue'
 import TemplatesTab from './permission/TemplatesTab.vue'
+const { t } = useI18n()
 
 const templatesModal = reactive({ show: false })
 </script>

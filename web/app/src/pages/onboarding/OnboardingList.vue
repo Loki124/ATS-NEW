@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, computed } from 'vue'
 import { NTag, NSpace, NButton, NIcon, NDrawer, NDrawerContent, NDataTable, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline, BulbOutline } from '@vicons/ionicons5'
@@ -12,6 +13,7 @@ import {
   type RecommendedPosition,
 } from '../../api/recommendation'
 import StateView from '../../components/common/StateView.vue'
+const { t } = useI18n()
 
 const message = useMessage()
 const loading = ref(false)
@@ -185,7 +187,7 @@ function rowProps(row: any) {
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">待入职管理</h1>
+      <h1 class="page-title">{ t('pages.onboarding.OnboardingList.s1') }</h1>
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>

@@ -2,8 +2,8 @@
   <div class="page-container">
 <div class="page-body">
     <div class="page-header">
-      <h1 class="page-title">公司设置</h1>
-      <p class="page-subtitle">维护公司基础信息、品牌素材与系统同步配置</p>
+      <h1 class="page-title">{ t('pages.settings.CompanySettings.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.CompanySettings.s2') }</p>
     </div>
 
     <n-card title="法人公司 - 外部同步 (G40)">
@@ -41,9 +41,11 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { h, onMounted, ref } from 'vue'
 import { NButton, NSpace, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import { fetchSyncs, retrySync, type CompanySync } from '../../api/external-sync'
+const { t } = useI18n()
 
 const message = useMessage()
 const loadingList = ref(false)

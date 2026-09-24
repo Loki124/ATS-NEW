@@ -4,7 +4,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">管理单元 (Management Unit)</h1>
-        <p class="page-subtitle">数据权限的组织范围载体 —— 树形层级 + 组织范围 + 人员范围，可配置按应用独立的数据范围（组织数据范围 / 人员数据范围）</p>
+        <p class="page-subtitle">{ t('pages.settings.MouManagement.s1') }</p>
       </div>
     </div>
 
@@ -15,7 +15,7 @@
               v-model:value="unitStatusFilter"
               :options="statusFilterOptions"
               style="width: 160px"
-              placeholder="全部状态"
+              :placeholder="t('pages.settings.MouManagement.s2')"
               clearable
             />
             <div class="spacer"></div>
@@ -280,6 +280,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NButton, NSpace, NIcon, NEmpty,
@@ -299,6 +300,7 @@ import {
 import OrgScopeTreeModal, { type OrgScopeNode } from './OrgScopeTreeModal.vue'
 import DataRangeModal from './DataRangeModal.vue'
 import { useDepartmentStore, type Department } from '@/stores/department'
+const { t } = useI18n()
 
 const message = useMessage()
 

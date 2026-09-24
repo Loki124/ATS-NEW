@@ -3,17 +3,17 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">招聘阶段配置</h1>
-        <p class="page-subtitle">定义可跨流程复用的招聘阶段库</p>
+        <h1 class="page-title">{ t('pages.settings.RecruitmentStage.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.RecruitmentStage.s2') }</p>
       </div>
     </div>
 
     <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-      阶段是<strong>全局模板</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
+      阶段是<strong>{ t('pages.settings.RecruitmentStage.s3') }</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
     </n-alert>
 
     <div class="toolbar">
-      <n-input v-model:value="keyword" placeholder="搜索阶段" clearable style="width: 200px">
+      <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentStage.s4')" clearable style="width: 200px">
         <template #prefix><n-icon :component="SearchOutline" /></template>
       </n-input>
       <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
@@ -116,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, onMounted, computed, watch, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty, NText } from 'naive-ui'
 import { useFormDraft } from '../../composables/useFormDraft'
@@ -124,6 +125,7 @@ import { listStages, createStage, updateStage, deleteStage, disableStage, enable
 // 2026-08-17 PR #69: 阶段类型改从后端数据字典 (apps/dictionary) 读取, single source of truth.
 //   旧 api/dict.ts 是占位 stub (永远返回 []), 现在接真端点 /api/v1/dictionary-items/?type_code=recruitment_stage_type.
 import { listStageTypeOptions } from '../../api/dictionary'
+const { t } = useI18n()
 
 const message = useMessage()
 

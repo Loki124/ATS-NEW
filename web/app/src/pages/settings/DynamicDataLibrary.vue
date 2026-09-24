@@ -1,8 +1,8 @@
 <template>
   <div class="page-container dynamic-data-library">
     <div class="page-header">
-      <h1 class="page-title">动态数据</h1>
-      <p class="page-subtitle">院校库 / 专业库 / 公司库维护（用户可维护，随业务增长）</p>
+      <h1 class="page-title">{ t('pages.settings.DynamicDataLibrary.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.DynamicDataLibrary.s2') }</p>
     </div>
 
     <div class="data-body">
@@ -22,10 +22,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue';
 import SchoolLibrary from './SchoolLibrary.vue';
 import MajorLibrary from './MajorLibrary.vue';
 import CompanyLibrary from './CompanyLibrary.vue';
+const { t } = useI18n()
 
 const activeTab = ref<'school' | 'major' | 'company'>('school');
 </script>

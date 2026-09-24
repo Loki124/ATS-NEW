@@ -2,18 +2,18 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">组织管理</h1>
-        <p class="page-subtitle">维护组织架构与部门职责，作为管控与权限的归属单元</p>
+        <h1 class="page-title">{ t('pages.settings.DepartmentManagement.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.DepartmentManagement.s2') }</p>
       </div>
       <div class="page-header-actions">
         <n-radio-group v-model:value="statusFilter" size="small">
-          <n-radio-button value="ALL">全部</n-radio-button>
-          <n-radio-button value="ACTIVE">启用</n-radio-button>
-          <n-radio-button value="INACTIVE">停用</n-radio-button>
+          <n-radio-button value="ALL">{ t('pages.settings.DepartmentManagement.s3') }</n-radio-button>
+          <n-radio-button value="ACTIVE">{ t('pages.settings.DepartmentManagement.s4') }</n-radio-button>
+          <n-radio-button value="INACTIVE">{ t('pages.settings.DepartmentManagement.s5') }</n-radio-button>
         </n-radio-group>
         <n-input
           v-model:value="searchKeyword"
-          placeholder="搜索部门名称/编号"
+          :placeholder="t('pages.settings.DepartmentManagement.s6')"
           style="width: 240px"
           clearable
           @clear="searchKeyword = ''"
@@ -292,6 +292,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, onMounted, computed, watch, h } from 'vue';
 import {
   AddOutline,
@@ -332,6 +333,7 @@ import {
 import api from '../../api/auth';
 import { extractApiError } from '../../api/dynamic-field';
 import { localPagination } from '../../composables/useTablePagination';
+const { t } = useI18n()
 
 const message = useMessage();
 

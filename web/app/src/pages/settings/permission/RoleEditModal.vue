@@ -7,27 +7,27 @@
     @update:show="$emit('update:show', $event)"
   >
     <n-form :model="form" label-placement="left" label-width="100">
-      <n-form-item label="角色编码" required>
+      <n-form-item :label="t('pages.settings.permission.RoleEditModal.s5')" required>
         <n-input v-model:value="form.roleCode" placeholder="e.g. CUSTOM_HR" :disabled="!!role" />
       </n-form-item>
-      <n-form-item label="角色名称" required>
-        <n-input v-model:value="form.roleName" placeholder="显示名" />
+      <n-form-item :label="t('pages.settings.permission.RoleEditModal.s6')" required>
+        <n-input v-model:value="form.roleName" :placeholder="t('pages.settings.permission.RoleEditModal.s4')" />
       </n-form-item>
-      <n-form-item label="来源模板">
+      <n-form-item :label="t('pages.settings.permission.RoleEditModal.s7')">
         <n-input :value="form.templateCode || '(无 — 自定义)'" disabled />
       </n-form-item>
-      <n-form-item label="默认数据范围">
+      <n-form-item :label="t('pages.settings.permission.RoleEditModal.s8')">
         <n-select v-model:value="form.defaultDataScopeType" :options="dataScopeOptions" clearable placeholder="不设置 (默认 ALL 兜底)" />
       </n-form-item>
-      <n-form-item label="描述">
+      <n-form-item :label="t('pages.settings.permission.RoleEditModal.s9')">
         <n-input v-model:value="form.description" type="textarea" :rows="2" />
       </n-form-item>
-      <n-form-item label="状态">
+      <n-form-item :label="t('pages.settings.permission.RoleEditModal.s10')">
         <n-switch v-model:value="statusSwitch" />
         <span style="margin-left: var(--space-2); color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
       </n-form-item>
 
-      <n-divider title-placement="left">资源授权</n-divider>
+      <n-divider title-placement="left">{ t('pages.settings.permission.RoleEditModal.s1') }</n-divider>
       <n-text depth="3" style="display: block; margin-bottom: 12px">
         按模块分组勾选资源, 保存时整组同步到 role_permission 表 (走 POST /roles/{id}/sync-resources/)
       </n-text>
@@ -52,14 +52,15 @@
 
     <template #footer>
       <n-space justify="end">
-        <n-button @click="$emit('update:show', false)">取消</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="saving" @click="onSubmit">保存</n-button>
+        <n-button @click="$emit('update:show', false)">{ t('pages.settings.permission.RoleEditModal.s2') }</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="onSubmit">{ t('pages.settings.permission.RoleEditModal.s3') }</n-button>
       </n-space>
     </template>
   </n-modal>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * RoleEditModal.vue — 角色编辑 modal (T21)
  *
@@ -83,6 +84,7 @@ import {
 } from 'naive-ui'
 import { createRole, updateRole, syncRolePermissions, type RoleV2, type DataScopeType } from '@/api/role-v2'
 import { listResources, type PermissionResource } from '@/api/permission-resource'
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean

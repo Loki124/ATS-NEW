@@ -3,7 +3,7 @@
     <div class="card-title card-title--left">
       <n-icon :component="PersonOutline" />
       默认处理人
-      <span class="title-desc">· 进入本阶段时自动为默认处理人添加待办任务</span>
+      <span class="title-desc">{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s1') }</span>
     </div>
 
     <!-- 原型 Card 2：三个下拉直接放在 config-card 内，无 flow-block 白块包裹 -->
@@ -28,18 +28,18 @@
           :value="fieldValue"
           :options="fieldOptions"
           :disabled="isFieldDisabled"
-          placeholder="选择字段"
+          :placeholder="t('pages.settings.stage-rule.cards.DefaultHandlerCard.s3')"
           @update:value="onField"
         />
       </div>
       <div class="flow-field">
-        <label class="field-label">处理规则</label>
+        <label class="field-label">{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s2') }</label>
         <n-select
           size="small"
           :value="ruleValue"
           :options="ruleOptions"
           :disabled="isRuleDisabled"
-          placeholder="指定处理人"
+          :placeholder="t('pages.settings.stage-rule.cards.DefaultHandlerCard.s4')"
           filterable
           @update:value="onRule"
         />
@@ -49,11 +49,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { NIcon, NSelect } from 'naive-ui'
 import { PersonOutline } from '@vicons/ionicons5'
 import { HANDLER_SOURCE_OPTIONS, HANDLER_RULE_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
+const { t } = useI18n()
 
 const props = defineProps<{ form: StageRuleFormState }>()
 

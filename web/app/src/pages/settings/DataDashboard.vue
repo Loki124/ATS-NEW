@@ -2,8 +2,8 @@
   <div class="page-container data-dashboard">
 <div class="page-body">
     <div class="page-header">
-      <h1 class="page-title">数据中心</h1>
-      <p class="page-subtitle">G35 - 招聘业务 KPI 看板 + 通用数据导出 + 数据订阅</p>
+      <h1 class="page-title">{ t('pages.settings.DataDashboard.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.DataDashboard.s2') }</p>
     </div>
 
     <!-- KPI 卡片 -->
@@ -91,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive } from 'vue';
 import { NButton, NTag, NSpace, useMessage } from 'naive-ui';
 import {
@@ -105,6 +106,7 @@ import {
   type DashboardKpi,
   type DataSubscription,
 } from '@/api/data';
+const { t } = useI18n()
 
 const message = useMessage();
 

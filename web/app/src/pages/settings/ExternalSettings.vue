@@ -3,7 +3,7 @@
     <!-- ===================== 标题区 ===================== -->
     <div class="page-header">
       <div>
-        <h1 class="page-title">生态对接 · 背调生态</h1>
+        <h1 class="page-title">{ t('pages.settings.ExternalSettings.s1') }</h1>
         <p class="page-subtitle">
           统一接入多家背景调查供应商：同一套接入配置（认证 / 环境 / 能力声明）适配不同供应商，新增供应商无需改造
         </p>
@@ -419,6 +419,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import {
   useMessage,
@@ -465,6 +466,7 @@ import {
   listBackgroundCheckOrders,
   cancelBackgroundCheckOrder,
 } from '@/api/integration'
+const { t } = useI18n()
 
 const message = useMessage()
 const dialog = useDialog()

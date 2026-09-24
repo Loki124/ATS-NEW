@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">系统设置</h1>
-      <p class="page-subtitle">招聘流程与阶段的基础配置概览</p>
+      <h1 class="page-title">{ t('pages.settings.Settings.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.Settings.s2') }</p>
     </div>
     <n-card>
       <n-tabs v-model:value="activeTab" type="line" animated>
@@ -21,7 +21,9 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
+const { t } = useI18n()
 
 const activeTab = ref('process')
 

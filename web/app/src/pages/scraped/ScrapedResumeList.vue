@@ -1,6 +1,6 @@
 <template>
   <div class="scraped-resume-list">
-    <n-page-header title="我找的简历" subtitle="G30 - 通过 RPA 从招聘网站抓取的简历, 待人工导入" />
+    <n-page-header :title="t('pages.scraped.ScrapedResumeList.s1')" subtitle="G30 - 通过 RPA 从招聘网站抓取的简历, 待人工导入" />
 
     <n-card class="mt-4">
       <template #header-extra>
@@ -52,12 +52,14 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted } from 'vue';
 import { NButton, NTag, useMessage } from 'naive-ui';
 import {
   triggerScrape, listScrapedResumes,
   type ScrapedResume,
 } from '@/api/scraped-resume';
+const { t } = useI18n()
 
 const message = useMessage();
 const items = ref<ScrapedResume[]>([]);

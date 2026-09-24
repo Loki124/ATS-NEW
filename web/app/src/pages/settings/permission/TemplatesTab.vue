@@ -1,7 +1,7 @@
 <template>
   <div class="templates-tab">
     <div class="filter-row">
-      <n-button type="primary" @click="load">刷新</n-button>
+      <n-button type="primary" @click="load">{ t('pages.settings.permission.TemplatesTab.s1') }</n-button>
       <n-text depth="3">共 {{ data.length }} 个模板 (系统预置不可编辑)</n-text>
     </div>
 
@@ -15,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * TemplatesTab.vue — 权限模板 tab (T20)
  *
@@ -27,6 +28,7 @@
 import { h, onMounted, ref } from 'vue'
 import { NButton, NSpace, NDataTable, NText, useMessage } from 'naive-ui'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
+const { t } = useI18n()
 
 const message = useMessage()
 const loading = ref(false)

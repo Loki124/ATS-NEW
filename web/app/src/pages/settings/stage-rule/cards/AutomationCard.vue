@@ -3,14 +3,14 @@
     <div class="card-title card-title--left">
       <n-icon :component="PulseOutline" />
       流程自动化
-      <span class="title-desc">· 配置阶段的自动评估、流转、跳过与归档规则</span>
+      <span class="title-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s1') }</span>
     </div>
 
     <!-- Block 1: 自动评估 -->
     <div class="flow-block">
       <div class="block-header">
         <n-icon :component="SparklesOutline" /> 自动评估
-        <span class="block-desc">· 当前阶段的自动化评估规则</span>
+        <span class="block-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s2') }</span>
       </div>
       <div class="option-grid">
         <label class="opt-item">
@@ -19,7 +19,7 @@
             :checked="form.autoEvalN2"
             @change="emit('update:autoEvalN2', ($event.target as HTMLInputElement).checked)"
           />
-          <span>N+2 推荐免筛选</span>
+          <span>{ t('pages.settings.stage-rule.cards.AutomationCard.s3') }</span>
         </label>
         <label class="opt-item">
           <input
@@ -27,7 +27,7 @@
             :checked="form.autoEvalPrevAa"
             @change="emit('update:autoEvalPrevAa', ($event.target as HTMLInputElement).checked)"
           />
-          <span>引用前序双 A 的一致意见</span>
+          <span>{ t('pages.settings.stage-rule.cards.AutomationCard.s4') }</span>
         </label>
       </div>
     </div>
@@ -36,15 +36,15 @@
     <div class="flow-block">
       <div class="block-header block-header--secondary">
         <n-icon :component="ArrowForwardOutline" /> 自动流转
-        <span class="block-desc">· 满足条件时在到达执行时机后自动流转到下阶段</span>
+        <span class="block-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s5') }</span>
       </div>
       <div class="flow-condition-row">
         <div class="flow-field">
-          <label class="field-label">自动流转条件</label>
+          <label class="field-label">{ t('pages.settings.stage-rule.cards.AutomationCard.s6') }</label>
           <n-select size="small" :value="form.autoAdvanceType" :options="advanceOptions" @update:value="(v: any) => emit('update:autoAdvanceType', v)" />
         </div>
         <div class="flow-field">
-          <label class="field-label">执行时机</label>
+          <label class="field-label">{ t('pages.settings.stage-rule.cards.AutomationCard.s7') }</label>
           <n-select size="small" :value="form.autoAdvanceTiming" :options="timingOptions" @update:value="(v: any) => emit('update:autoAdvanceTiming', v)" />
         </div>
       </div>
@@ -61,7 +61,7 @@
       <div class="block-header block-header--split">
         <div class="block-header__main">
           <n-icon :component="PlaySkipForwardOutline" /> 自动跳过
-          <span class="block-desc">· 满足规则时不再停留，直接判断是否满足下阶段进入条件</span>
+          <span class="block-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s8') }</span>
         </div>
         <ModuleSwitch :model-value="form.skipEnabled" @update:model-value="emit('update:skipEnabled', $event)" />
       </div>
@@ -121,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { NIcon, NSelect, NInputNumber } from 'naive-ui'
 import {
   PulseOutline, SparklesOutline, ArrowForwardOutline, PlaySkipForwardOutline,
@@ -130,6 +131,7 @@ import ModuleSwitch from '../components/ModuleSwitch.vue'
 import RuleTable from '../components/RuleTable.vue'
 import { AUTO_ADVANCE_OPTIONS, AUTO_ADVANCE_TIMING_OPTIONS, AR_SKIP_ACTION_LABELS } from '../constants'
 import type { StageRuleFormState, SkipRule, ArchiveRule } from '../types'
+const { t } = useI18n()
 
 const props = defineProps<{
   form: StageRuleFormState

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * 面试评价 · 紧凑摘要卡（嵌入候选人详情 / 列表）
  * 与 InterviewEvaluationModal 共用 Evaluation 数据结构（v2 设计稿）。
@@ -8,6 +9,7 @@
 import { computed } from 'vue'
 import { NTag } from 'naive-ui'
 import type { Evaluation, FinalResult } from './InterviewEvaluationModal.vue'
+const { t } = useI18n()
 
 const props = defineProps<{ evaluation: Evaluation }>()
 
@@ -49,7 +51,7 @@ function dimColor(s: number) {
         {{ overallScore.toFixed(1) }}
       </span>
       <span class="ats-sum__den">/ 5</span>
-      <span class="ats-sum__cap">综合评分（五能均值）</span>
+      <span class="ats-sum__cap">{ t('pages.interview.InterviewEvalSummaryCard.s1') }</span>
     </div>
 
     <div v-if="evaluation.comment" class="ats-sum__comment">{{ evaluation.comment }}</div>

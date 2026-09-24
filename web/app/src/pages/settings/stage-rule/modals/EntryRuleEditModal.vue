@@ -35,7 +35,7 @@
                 条件组 {{ gi + 1 }}
               </span>
               <div class="group-actions">
-                <a @click="addItem(group)"><n-icon :component="AddOutline" /> 添加条件</a>
+                <a @click="addItem(group)"><n-icon :component="AddOutline" /> { t('pages.settings.stage-rule.modals.EntryRuleEditModal.s1') }</a>
                 <a v-if="canRemoveGroup()" class="danger" @click="removeGroup(gi)">
                   <n-icon :component="TrashOutline" /> 删除组
                 </a>
@@ -69,14 +69,14 @@
                 <span class="op-expr-help" @click.stop="toggleExprHelp(gi)">
                   <n-icon :component="HelpCircleOutline" />
                   <span v-if="exprHelpOpen === gi" class="op-expr-popover">
-                    <strong>正确案例：<em>(1 or 2) and (3 or 4)</em></strong>
+                    <strong>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s2') }<em>(1 or 2) and (3 or 4)</em></strong>
                     <ol>
-                      <li>有 and 和 or，必须要有括号</li>
-                      <li>一个括号不能同时出现 and 和 or</li>
-                      <li>括号必须成对出现</li>
-                      <li>括号不允许嵌套</li>
-                      <li>不允许出现不存在的组号</li>
-                      <li>括号只支持英文括号</li>
+                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s3') }</li>
+                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s4') }</li>
+                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s5') }</li>
+                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s6') }</li>
+                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s7') }</li>
+                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s8') }</li>
                     </ol>
                   </span>
                 </span>
@@ -92,11 +92,11 @@
               </p>
             </div>
             <div class="group-inner-row">
-              <label class="inner-label">组内未满足提示</label>
+              <label class="inner-label">{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s9') }</label>
               <n-input
                 v-model:value="group.innerPrompt"
                 size="small"
-                placeholder="组内校验失败时的提示"
+                :placeholder="t('pages.settings.stage-rule.modals.EntryRuleEditModal.s19')"
               />
             </div>
           </div>
@@ -116,14 +116,14 @@
           <span class="op-expr-help" @click.stop="toggleExprHelp(-1)">
             <n-icon :component="HelpCircleOutline" />
             <span v-if="exprHelpOpen === -1" class="op-expr-popover">
-              <strong>正确案例：<em>(1 or 2) and (3 or 4)</em></strong>
+              <strong>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s10') }<em>(1 or 2) and (3 or 4)</em></strong>
               <ol>
-                <li>有 and 和 or，必须要有括号</li>
-                <li>一个括号不能同时出现 and 和 or</li>
-                <li>括号必须成对出现</li>
-                <li>括号不允许嵌套</li>
-                <li>不允许出现不存在的组号</li>
-                <li>括号只支持英文括号</li>
+                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s11') }</li>
+                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s12') }</li>
+                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s13') }</li>
+                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s14') }</li>
+                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s15') }</li>
+                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s16') }</li>
               </ol>
             </span>
           </span>
@@ -148,7 +148,7 @@
           v-model:value="draft.overallPrompt"
           type="textarea"
           size="small"
-          placeholder="请输入"
+          :placeholder="t('pages.settings.stage-rule.modals.EntryRuleEditModal.s20')"
           :maxlength="500"
           show-count
           :autosize="{ minRows: 2, maxRows: 4 }"
@@ -158,14 +158,15 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">取消</n-button>
-        <n-button size="small" type="primary" :disabled="hasError || saving" :loading="saving" @click="onSave">保存</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s17') }</n-button>
+        <n-button size="small" type="primary" :disabled="hasError || saving" :loading="saving" @click="onSave">{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s18') }</n-button>
       </div>
     </template>
   </n-modal>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import { NModal, NInput, NButton, NIcon } from 'naive-ui'
 import {
@@ -175,6 +176,7 @@ import ConditionPicker from '../components/ConditionPicker.vue'
 import { useEntryRuleEditor } from '../composables/useEntryRuleEditor'
 import { AR_MAX_GROUPS } from '../constants'
 import type { ConditionItem, EntryConditionRule, FieldCatalog, ConditionGroup } from '../types'
+const { t } = useI18n()
 
 const props = defineProps<{ catalog: FieldCatalog | null }>()
 const emit = defineEmits<{

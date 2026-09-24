@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, watch } from 'vue'
 import { NModal, NButton, useDialog } from 'naive-ui'
 import { useAddCandidateStore } from '@/stores/addCandidate'
@@ -10,6 +11,7 @@ import ScoringOverlay from './addCandidate/ScoringOverlay.vue'
 import AsyncResult from './addCandidate/AsyncResult.vue'
 import UploadZone from '@/components/common/UploadZone.vue'
 import { replaceFile as apiReplaceFile } from '@/api/addCandidate'
+const { t } = useI18n()
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ (e: 'update:show', v: boolean): void; (e: 'created'): void }>()
@@ -125,7 +127,7 @@ function nextStep() {
   <n-modal v-model:show="showModal" preset="card" style="width: 960px; max-width: 90vw;" :bordered="false" :mask-closable="false" data-testid="add-candidate-modal">
     <template #header>
       <div style="display:flex;align-items:center;gap: var(--space-2);">
-        <span style="font-size: var(--fs-18);font-weight:700;">创建候选人</span>
+        <span style="font-size: var(--fs-18);font-weight:700;">{ t('pages.candidate.AddCandidateModal.s1') }</span>
         <span style="font-size:11px;color:var(--g5);">V2</span>
       </div>
     </template>

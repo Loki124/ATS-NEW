@@ -8,7 +8,7 @@
       <span class="title-left">
         <n-icon :component="ClipboardOutline" />
         面试配置
-        <span class="title-desc">· 面试轮次、形式配置</span>
+        <span class="title-desc">{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s1') }</span>
       </span>
     </div>
 
@@ -16,7 +16,7 @@
     <div class="flow-condition-row">
       <!-- 面试轮次 -->
       <div class="flow-field">
-        <label class="field-label">面试轮次</label>
+        <label class="field-label">{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s2') }</label>
         <div class="option-grid">
           <label v-for="opt in roundOptions" :key="opt.value" class="opt-item">
             <input
@@ -31,7 +31,7 @@
 
       <!-- 面试形式 -->
       <div class="flow-field">
-        <label class="field-label">面试形式</label>
+        <label class="field-label">{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s3') }</label>
         <div class="option-grid">
           <label v-for="opt in formatOptions" :key="opt.value" class="opt-item">
             <input
@@ -48,10 +48,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { ClipboardOutline } from '@vicons/ionicons5'
 import { INTERVIEW_ROUND_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
+const { t } = useI18n()
 
 const props = defineProps<{ form: StageRuleFormState }>()
 const roundOptions = INTERVIEW_ROUND_OPTIONS

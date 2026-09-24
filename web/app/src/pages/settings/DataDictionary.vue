@@ -4,8 +4,8 @@
     <template v-if="mode === 'list'">
       <div class="page-header">
         <div>
-          <h1 class="page-title">数据字典</h1>
-          <p class="page-subtitle">管理系统枚举与配置项（树形结构 · 草稿暂存 · 系统/自定义差异化）</p>
+          <h1 class="page-title">{ t('pages.settings.DataDictionary.s1') }</h1>
+          <p class="page-subtitle">{ t('pages.settings.DataDictionary.s2') }</p>
         </div>
       </div>
 
@@ -13,7 +13,7 @@
         <n-space align="center" :wrap="false">
           <n-input
             v-model:value="searchText"
-            placeholder="搜索字典名称 / 代码 / 元素名称 / 元素代码"
+            :placeholder="t('pages.settings.DataDictionary.s3')"
             clearable
             style="width: 360px"
             @update:value="onSearchInput"
@@ -325,6 +325,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, watch, onMounted, onUnmounted, h } from 'vue'
 import {
   useMessage,
@@ -363,6 +364,7 @@ import {
 } from '../../api/dictionary'
 import { extractApiError } from '../../api/dynamic-field'
 import { SearchOutline, InformationCircleOutline, CloseOutline } from '@vicons/ionicons5'
+const { t } = useI18n()
 
 const message = useMessage()
 const dialog = useDialog()

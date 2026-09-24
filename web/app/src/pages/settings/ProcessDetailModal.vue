@@ -34,7 +34,7 @@
         <div v-if="loadError" class="dp-load-error">
           <n-empty description="加载流程详情失败">
             <template #extra>
-              <n-button type="primary" @click="handleRetryLoad">重新加载</n-button>
+              <n-button type="primary" @click="handleRetryLoad">{ t('pages.settings.ProcessDetailModal.s1') }</n-button>
             </template>
           </n-empty>
         </div>
@@ -398,6 +398,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, watch, computed, onMounted, onBeforeUnmount, reactive, type Ref } from 'vue'
 import {
   NSpace, NTag, NSpin, NModal, NButton, NIcon, NScrollbar,
@@ -449,6 +450,7 @@ import StageRuleConfigModal from './StageRuleConfigModal.vue'
 // D1: 适用范围选项真实数据源 (departments / positions / users)
 import api from '../../api/auth'
 import { listUsers } from '../../api/users'
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   show: boolean

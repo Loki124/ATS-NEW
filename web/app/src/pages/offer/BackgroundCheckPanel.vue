@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * 背调面板 (G26) - 4 等级 + 报告下载
  */
@@ -12,6 +13,7 @@ import {
   BG_CHECK_LEVEL_LABEL, BG_CHECK_LEVEL_COLOR,
   type BackgroundCheck,
 } from '../../api/offer'
+const { t } = useI18n()
 
 const props = defineProps<{ offerId: string }>()
 
@@ -169,7 +171,7 @@ onMounted(loadList)
 </script>
 
 <template>
-  <n-card title="背调记录" :bordered="false">
+  <n-card :title="t('pages.offer.BackgroundCheckPanel.s1')" :bordered="false">
     <template #header-extra>
       <n-button type="primary" size="small" @click="openCreate">
         新建背调

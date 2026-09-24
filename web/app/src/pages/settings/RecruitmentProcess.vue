@@ -3,13 +3,13 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">招聘流程管理</h1>
-        <p class="page-subtitle">定义招聘流程及其阶段编排</p>
+        <h1 class="page-title">{ t('pages.settings.RecruitmentProcess.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.RecruitmentProcess.s2') }</p>
       </div>
     </div>
 
     <div class="toolbar">
-      <n-input v-model:value="keyword" placeholder="搜索流程名称" clearable style="width: 220px">
+      <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentProcess.s3')" clearable style="width: 220px">
         <template #prefix><n-icon :component="SearchOutline" /></template>
       </n-input>
       <div class="spacer"></div>
@@ -45,12 +45,14 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NIcon, NDataTable, NPopconfirm, NSpace } from 'naive-ui'
 import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { listProcesses, deleteProcess } from '../../api/recruitment-process'
 import api from '../../api/auth'
 import ProcessDetailModal from './ProcessDetailModal.vue'
+const { t } = useI18n()
 
 const message = useMessage()
 const keyword = ref('')

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { WarningOutline as AlertTriangle } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import ResumeCard from '@/components/common/ResumeCard.vue'
 import UploadZone from '@/components/common/UploadZone.vue'
+const { t } = useI18n()
 
 const store = useAddCandidateStore()
 const emit = defineEmits<{ (e: 'upload', files: File[]): void }>()
@@ -27,13 +29,13 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
       <div v-if="store.selectedIds.length > 0" class="bulk-bar">
         已选 <span class="bulk-count">{{ store.selectedIds.length }}</span> 份简历
-        <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);">批量设为待分配</button>
-        <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);" @click="store.selectedIds = []">取消选择</button>
+        <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);">{ t('pages.candidate.addCandidate.Step1Batch.s1') }</button>
+        <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);" @click="store.selectedIds = []">{ t('pages.candidate.addCandidate.Step1Batch.s2') }</button>
       </div>
 
       <div v-if="isAllDone()" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap: var(--space-2);font-size:11px;text-align:left;" @click="emit('upload', [])">
         <span style="font-size: var(--fs-18);">📎</span>
-        <span style="flex:1;color:var(--g6);">拖拽或<span style="color:var(--brand);font-weight:500;">点击</span>追加更多简历</span>
+        <span style="flex:1;color:var(--g6);">{ t('pages.candidate.addCandidate.Step1Batch.s3') }<span style="color:var(--brand);font-weight:500;">{ t('pages.candidate.addCandidate.Step1Batch.s4') }</span>{ t('pages.candidate.addCandidate.Step1Batch.s5') }</span>
         <span style="font-size: var(--fs-10);color:var(--g5);">PDF / Word / TXT</span>
       </div>
 

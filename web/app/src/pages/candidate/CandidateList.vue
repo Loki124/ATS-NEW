@@ -3,8 +3,8 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="page-title">
-        <h1>候选人管理</h1>
-        <n-text :depth="3">管理所有候选人信息，推进招聘流程</n-text>
+        <h1>{ t('pages.candidate.CandidateList.s1') }</h1>
+        <n-text :depth="3">{ t('pages.candidate.CandidateList.s2') }</n-text>
       </div>
       <n-space>
         <n-button type="primary" :disabled="selectedCandidates.length === 0" class="batch-notify-btn" @click="openBatchNotificationModal">
@@ -380,6 +380,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, h, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, NTag, NIcon, NButton, NSpace, NAvatar, NCheckbox, NCheckboxGroup, NPagination, NDropdown } from 'naive-ui'
@@ -407,6 +408,7 @@ import {
 import AddCandidateModal from './AddCandidateModal.vue'
 import { fetchStatusSchema, type StatusSchema } from '@/api/candidate'
 import type { TagType } from '@/api/offer'
+const { t } = useI18n()
 
 const router = useRouter()
 const message = useMessage()

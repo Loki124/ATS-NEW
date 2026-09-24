@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">品牌信息管理</h1>
-        <p class="page-subtitle">维护雇主品牌文案、Logo 及招聘门户展示信息；保存后品牌色将即时应用于全站主题</p>
+        <h1 class="page-title">{ t('pages.settings.CompanyBrand.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.CompanyBrand.s2') }</p>
       </div>
     </div>
 
@@ -12,28 +12,28 @@
         <div class="brand-grid">
           <!-- 左列：基础信息 -->
           <div class="brand-col">
-            <n-card title="品牌基础" class="config-card">
-              <n-form-item label="品牌名称">
+            <n-card :title="t('pages.settings.CompanyBrand.s6')" class="config-card">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s7')">
                 <n-input
                   v-model:value="formData.companyName"
-                  placeholder="如：腾讯招聘 / 某某科技；留空则系统默认显示「招聘管理系统」"
+                  :placeholder="t('pages.settings.CompanyBrand.s3')"
                   maxlength="255"
                   show-count
                 />
               </n-form-item>
-              <n-form-item label="品牌标语">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s8')">
                 <n-input
                   v-model:value="formData.brandSlogan"
-                  placeholder="如：用户为本，科技向善"
+                  :placeholder="t('pages.settings.CompanyBrand.s4')"
                   maxlength="255"
                   show-count
                 />
               </n-form-item>
-              <n-form-item label="品牌文案">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s9')">
                 <n-input
                   v-model:value="formData.brandIntro"
                   type="textarea"
-                  placeholder="雇主品牌介绍文案，可展示在招聘门户「关于我们」等区域"
+                  :placeholder="t('pages.settings.CompanyBrand.s5')"
                   :rows="4"
                 />
               </n-form-item>
@@ -42,7 +42,7 @@
             <n-card title="Logo" class="config-card">
               <div class="logo-block">
                 <div class="logo-preview" :class="{ 'is-empty': !formData.logoUrl }">
-                  <img v-if="formData.logoUrl" :src="formData.logoUrl" alt="Logo 预览" class="logo-img" />
+                  <img v-if="formData.logoUrl" :src="formData.logoUrl" :alt="t('pages.settings.CompanyBrand.s10')" class="logo-img" />
                   <n-empty v-else description="尚未设置 Logo" size="small" />
                 </div>
                 <div class="logo-actions">
@@ -180,6 +180,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted } from 'vue'
 import {
   NButton, NSpace, NCard, NForm, NFormItem, NInput, NColorPicker, NSelect, NEmpty,
@@ -188,6 +189,7 @@ import {
 import { CloudUploadOutline } from '@vicons/ionicons5'
 import { fetchBrandInfo, updateBrandInfo, uploadBrandLogo, type BrandInfo, type SocialLink } from '../../api/brand'
 import { useBrandStore } from '../../stores/brand'
+const { t } = useI18n()
 
 const message = useMessage()
 const brandStore = useBrandStore()

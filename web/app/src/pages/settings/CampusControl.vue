@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">校招管控</h1>
-        <p class="page-subtitle">人员比例管控 · 每条规则独立适用范围（全局 / 部门·职务·职级）· 指标库 + 规则增删改</p>
+        <h1 class="page-title">{ t('pages.settings.CampusControl.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.CampusControl.s2') }</p>
       </div>
     </div>
 
@@ -12,10 +12,10 @@
         <!-- ===================== 实时看板（含人数规划） ===================== -->
         <n-tab-pane name="ratio" tab="实时看板">
           <div class="kpi-row">
-            <div class="kpi-card"><span class="kpi-label">计入核算人数</span><span class="kpi-value">{{ ratioData.total }}</span></div>
-            <div class="kpi-card"><span class="kpi-label">管控规则数</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
-            <div class="kpi-card danger"><span class="kpi-label">硬约束年度未达标</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
-            <div class="kpi-card warn"><span class="kpi-label">软约束年度未达标</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
+            <div class="kpi-card"><span class="kpi-label">{ t('pages.settings.CampusControl.s3') }</span><span class="kpi-value">{{ ratioData.total }}</span></div>
+            <div class="kpi-card"><span class="kpi-label">{ t('pages.settings.CampusControl.s4') }</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
+            <div class="kpi-card danger"><span class="kpi-label">{ t('pages.settings.CampusControl.s5') }</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
+            <div class="kpi-card warn"><span class="kpi-label">{ t('pages.settings.CampusControl.s6') }</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
           </div>
           <div class="table-wrap">
             <n-data-table
@@ -469,6 +469,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NTag, NButton, NSwitch, NCheckbox, NDivider, NSpace,
@@ -494,6 +495,7 @@ import { CloseCircleOutline as XCircle, WarningOutline as AlertTriangle, Checkma
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
 import { useUndo } from '../../composables/useUndo'
+const { t } = useI18n()
 
 const message = useMessage()
 const dialog = useDialog()

@@ -12,12 +12,12 @@
   >
     <div class="er-body">
       <div class="er-field">
-        <label class="field-label">规则名称 <span class="required-mark">*</span></label>
-        <n-input v-model:value="draft.name" size="small" placeholder="请输入规则名称" :maxlength="50" show-count :class="{ 'input-error': !draft.name.trim() }" />
+        <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s1') } <span class="required-mark">*</span></label>
+        <n-input v-model:value="draft.name" size="small" :placeholder="t('pages.settings.stage-rule.modals.SkipRuleEditModal.s12')" :maxlength="50" show-count :class="{ 'input-error': !draft.name.trim() }" />
       </div>
 
       <div class="er-field">
-        <label class="field-label">条件设置 <span class="required-mark">*</span></label>
+        <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s2') } <span class="required-mark">*</span></label>
         <div class="cond-list">
           <div v-for="(it, idx) in draft.items" :key="idx" class="cond-row">
             <span class="cond-seq">{{ idx + 1 }}</span>
@@ -30,25 +30,25 @@
         <button class="btn-outline-primary" type="button" :disabled="draft.items.length >= 10" @click="addItem()">
           <n-icon :component="AddOutline" /> 添加条件
         </button>
-        <n-input v-model:value="draft.expression" size="small" placeholder="执行条件表达式，如 1 and 2" :class="{ 'input-error': exprInvalid }" style="margin-top: 8px" />
+        <n-input v-model:value="draft.expression" size="small" :placeholder="t('pages.settings.stage-rule.modals.SkipRuleEditModal.s13')" :class="{ 'input-error': exprInvalid }" style="margin-top: 8px" />
         <p v-if="exprInvalid" class="error-msg">{{ exprErr }}</p>
       </div>
 
       <div class="er-field">
-        <label class="field-label">执行设置</label>
+        <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s3') }</label>
         <n-radio-group :value="draft.action" @update:value="(v: any) => (draft.action = v)">
           <n-space>
-            <n-radio value="SKIP">跳过本阶段</n-radio>
-            <n-radio value="APPROVE">直接通过</n-radio>
-            <n-radio value="REJECT">直接拒绝</n-radio>
+            <n-radio value="SKIP">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s4') }</n-radio>
+            <n-radio value="APPROVE">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s5') }</n-radio>
+            <n-radio value="REJECT">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s6') }</n-radio>
           </n-space>
         </n-radio-group>
         <div class="scope-row">
-          <label class="field-label">生效范围</label>
+          <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s7') }</label>
           <n-radio-group :value="draft.scope" @update:value="(v: any) => (draft.scope = v)">
             <n-space>
-              <n-radio value="NEW_ONLY">仅新进入</n-radio>
-              <n-radio value="ALL">全部</n-radio>
+              <n-radio value="NEW_ONLY">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s8') }</n-radio>
+              <n-radio value="ALL">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s9') }</n-radio>
             </n-space>
           </n-radio-group>
         </div>
@@ -57,20 +57,22 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">取消</n-button>
-        <n-button size="small" type="primary" :disabled="!canSave || saving" :loading="saving" @click="onSave">保存</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s10') }</n-button>
+        <n-button size="small" type="primary" :disabled="!canSave || saving" :loading="saving" @click="onSave">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s11') }</n-button>
       </div>
     </template>
   </n-modal>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import { NModal, NInput, NButton, NIcon, NRadioGroup, NRadio, NSpace } from 'naive-ui'
 import { TrashOutline, AddOutline } from '@vicons/ionicons5'
 import ConditionPicker from '../components/ConditionPicker.vue'
 import { useExpressionValidator } from '../composables/useExpressionValidator'
 import type { ConditionItem, FieldCatalog, SkipRule, SkipAction } from '../types'
+const { t } = useI18n()
 
 const props = defineProps<{ catalog: FieldCatalog | null }>()
 const emit = defineEmits<{

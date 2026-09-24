@@ -3,13 +3,13 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">面试轮次管理</h1>
-        <p class="page-subtitle">配置面试轮次、形式与面试官指派规则</p>
+        <h1 class="page-title">{ t('pages.settings.RecruitmentRound.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.RecruitmentRound.s2') }</p>
       </div>
     </div>
 
     <div class="toolbar">
-      <n-input v-model:value="keyword" placeholder="搜索轮次" clearable style="width: 200px">
+      <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentRound.s3')" clearable style="width: 200px">
         <template #prefix><n-icon :component="SearchOutline" /></template>
       </n-input>
       <div class="spacer"></div>
@@ -57,10 +57,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
 import { AddOutline, PowerOutline, SearchOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
+const { t } = useI18n()
 
 const message = useMessage()
 const keyword = ref('')

@@ -1,8 +1,8 @@
 <template>
   <div class="page-container code-table-library">
     <div class="page-header">
-      <h1 class="page-title">静态数据</h1>
-      <p class="page-subtitle">国家与行业标准码表（行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业），为只读国标数据，随标准更新重导</p>
+      <h1 class="page-title">{ t('pages.settings.CodeTableLibrary.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.CodeTableLibrary.s2') }</p>
     </div>
 
     <div class="data-body">
@@ -14,7 +14,7 @@
               <n-select
                 v-model:value="regionCascade.province"
                 :options="provinceOptions"
-                placeholder="省 / 直辖市"
+                :placeholder="t('pages.settings.CodeTableLibrary.s3')"
                 clearable
                 filterable
                 style="width: 180px"
@@ -23,7 +23,7 @@
               <n-select
                 v-model:value="regionCascade.city"
                 :options="cityOptions"
-                placeholder="地级市"
+                :placeholder="t('pages.settings.CodeTableLibrary.s4')"
                 clearable
                 filterable
                 :disabled="!regionCascade.province"
@@ -33,7 +33,7 @@
               <n-select
                 v-model:value="regionCascade.county"
                 :options="countyOptions"
-                placeholder="区 / 县"
+                :placeholder="t('pages.settings.CodeTableLibrary.s5')"
                 clearable
                 filterable
                 :disabled="!regionCascade.city"
@@ -41,7 +41,7 @@
               />
               <n-input
                 v-model:value="regionKeyword"
-                placeholder="搜索区划名称 / 代码"
+                :placeholder="t('pages.settings.CodeTableLibrary.s6')"
                 clearable
                 style="width: 200px"
                 @keyup.enter="loadRegions"
@@ -231,6 +231,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive, computed } from 'vue';
 import { NTag, useMessage } from 'naive-ui';
 import { SearchOutline } from '@vicons/ionicons5';
@@ -240,6 +241,7 @@ import {
   type Region, type Country, type Ethnicity, type Language, type Currency, type Industry,
 } from '@/api/codeTable';
 import { localPagination, remotePagination, TABLE_PAGE_SIZE } from '@/composables/useTablePagination';
+const { t } = useI18n()
 
 const message = useMessage();
 const activeTab = ref('regions');

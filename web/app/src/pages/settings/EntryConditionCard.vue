@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import { ChatbubbleEllipsesOutline, ClipboardOutline } from '@vicons/ionicons5'
+const { t } = useI18n()
 
 /**
  * 阶段「进入条件」信息卡片 —— 严格复现参考 HTML 的视觉与三种状态：
@@ -144,13 +146,13 @@ function groupHeadLabel(g: DisplayGroup): string {
     <!-- 状态 1：空态 -->
     <div v-if="normalized.isEmpty" class="entry-cond__empty">
       <NIcon :component="ClipboardOutline" size="15" class="entry-cond__empty-icon" />
-      <span>未设置进入条件，所有候选人可直接进入本阶段</span>
+      <span>{ t('pages.settings.EntryConditionCard.s1') }</span>
     </div>
 
     <template v-else>
       <!-- 状态 3：多组 → 组间表达式 -->
       <div v-if="isMulti" class="entry-cond__top">
-        <span class="entry-cond__top-label">条件组表达式</span>
+        <span class="entry-cond__top-label">{ t('pages.settings.EntryConditionCard.s2') }</span>
         <span class="entry-cond__chip">{{ groupExpr }}</span>
         <span class="entry-cond__top-sem">{{ groupSem }}</span>
       </div>

@@ -20,10 +20,10 @@
           配置阶段规则
           <small class="hero__object">—— {{ stage?.name || '未命名' }}</small>
         </h2>
-        <span class="hero__tip" aria-label="即时生效">
+        <span class="hero__tip" :aria-label="t('pages.settings.stage-rule.StageRuleConfigModal.s1')">
           <n-icon :component="FlashOutline" size="12" /> 即时生效
         </span>
-        <button class="hero__close" type="button" aria-label="关闭" :disabled="saving" @click="onRequestClose">
+        <button class="hero__close" type="button" :aria-label="t('pages.settings.stage-rule.StageRuleConfigModal.s2')" :disabled="saving" @click="onRequestClose">
           <n-icon :component="CloseOutline" size="20" />
         </button>
       </div>
@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, watch } from 'vue'
 import { NModal, NIcon, NSpin, NButton, NAlert, useMessage } from 'naive-ui'
 import { SettingsOutline, FlashOutline, CloseOutline } from '@vicons/ionicons5'
@@ -106,6 +107,7 @@ import StoppedRulesModal from './modals/StoppedRulesModal.vue'
 import { useStageRuleForm } from './composables/useStageRuleForm'
 import { AR_FIELD_CATALOG } from './constants'
 import type { EntryConditionRule, SkipRule, ArchiveRule } from './types'
+const { t } = useI18n()
 
 const props = withDefaults(
   defineProps<{

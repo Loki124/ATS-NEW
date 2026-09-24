@@ -3,8 +3,8 @@
     <div class="page-body">
       <div class="page-header">
         <div>
-          <h1 class="page-title">注册审核</h1>
-          <p class="page-subtitle">审核自助注册申请：通过则激活账号，拒绝则保持未激活</p>
+          <h1 class="page-title">{ t('pages.settings.RegistrationApproval.s1') }</h1>
+          <p class="page-subtitle">{ t('pages.settings.RegistrationApproval.s2') }</p>
         </div>
         <div class="page-header-actions">
           <!-- 状态筛选：本项目的 naive-ui 2.44.1 安装包不含 NSegmented
@@ -72,10 +72,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted } from 'vue'
 import { useMessage, type DataTableColumns, NTag, NButton, NSpace, NIcon } from 'naive-ui'
 import { RefreshOutline, CheckmarkOutline, CloseOutline } from '@vicons/ionicons5'
 import { listRegistrations, approveRegistration, rejectRegistration } from '../../api/auth'
+const { t } = useI18n()
 
 // 注意: 后端全局启用 djangorestframework-camel-case, 响应字段为 camelCase
 // (fullName / emailVerified / createdAt / reviewedAt / reviewedByName / rejectReason),

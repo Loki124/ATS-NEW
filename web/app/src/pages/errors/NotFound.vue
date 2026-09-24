@@ -3,14 +3,14 @@
     <div class="glass-panel err-card">
       <div class="err-left">
         <h1 class="err-code">404</h1>
-        <span class="err-tag">页面不存在</span>
+        <span class="err-tag">{ t('pages.errors.NotFound.s1') }</span>
       </div>
       <div class="err-right">
-        <h2 class="err-title">你访问的页面不存在</h2>
-        <p class="err-desc">页面可能已被移除、链接拼写错误，或临时无法访问。请检查 URL 或使用下方按钮回到主流程。</p>
+        <h2 class="err-title">{ t('pages.errors.NotFound.s2') }</h2>
+        <p class="err-desc">{ t('pages.errors.NotFound.s3') }</p>
         <div class="err-actions">
-          <button class="btn btn-primary" @click="$router.replace('/dashboard')">返回工作台</button>
-          <button class="btn btn-secondary" @click="$router.back()">返回上一页</button>
+          <button class="btn btn-primary" @click="$router.replace('/dashboard')">{ t('pages.errors.NotFound.s4') }</button>
+          <button class="btn btn-secondary" @click="$router.back()">{ t('pages.errors.NotFound.s5') }</button>
         </div>
       </div>
     </div>
@@ -18,7 +18,9 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+const { t } = useI18n()
 const router = useRouter()
 </script>
 

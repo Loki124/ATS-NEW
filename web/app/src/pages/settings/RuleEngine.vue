@@ -3,7 +3,7 @@
     <!-- ========== Header ========== -->
     <div class="page-header">
       <div>
-        <h1 class="page-title">统一规则引擎</h1>
+        <h1 class="page-title">{ t('pages.settings.RuleEngine.s1') }</h1>
         <p class="page-subtitle">
           跨业务规则的统一视图（TCA / BUSINESS_EVENT / CONSTRAINT / SET_PERMISSION）— 仅聚合只读，源数据在各业务模块维护
         </p>
@@ -24,7 +24,7 @@
       <n-space align="center" :wrap="false">
         <n-input
           v-model:value="searchText"
-          placeholder="搜索规则名称 / legacy_id"
+          :placeholder="t('pages.settings.RuleEngine.s2')"
           clearable
           style="width: 280px"
           @update:value="onSearchInput"
@@ -159,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, h, onMounted } from 'vue'
 import {
   NIcon, NTag, NSpace, NInput, NSelect, NButton, NDataTable, NEmpty, NModal, NDivider,
@@ -170,6 +171,7 @@ import {
 } from '@vicons/ionicons5'
 import { listRules, type UnifiedRule, type RuleCategory } from '../../api/rule-engine'
 import { extractApiError } from '../../api/dynamic-field'
+const { t } = useI18n()
 
 const dialog = useDialog()
 

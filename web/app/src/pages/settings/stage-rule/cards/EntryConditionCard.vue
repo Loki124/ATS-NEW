@@ -9,7 +9,7 @@
       <span class="title-left">
         <n-icon :component="LogInOutline" />
         进入条件
-        <span class="title-desc">· 候选人在进入当前阶段时，将会受到配置的条件进行校验</span>
+        <span class="title-desc">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s1') }</span>
       </span>
       <span class="title-actions">
         <button class="btn-outline-primary" type="button" @click="emit('configure')">
@@ -24,13 +24,13 @@
         <table class="rule-table">
           <thead>
             <tr>
-              <th style="min-width: 300px;">执行条件</th>
-              <th style="width: 160px;">未满足提示</th>
+              <th style="min-width: 300px;">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s2') }</th>
+              <th style="width: 160px;">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s3') }</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="rules.length === 0">
-              <td colspan="2" class="rule-table__empty">暂无规则</td>
+              <td colspan="2" class="rule-table__empty">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s4') }</td>
             </tr>
             <tr v-for="rule in rules" v-else :key="rule.id || rule.rule_name">
               <td>
@@ -71,11 +71,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { LogInOutline, CreateOutline } from '@vicons/ionicons5'
 import ModuleSwitch from '../components/ModuleSwitch.vue'
 import type { EntryConditionRule, ConditionItem } from '../types'
 import { AR_OPERATOR_LABELS, AR_SOURCE_LABELS } from '../constants'
+const { t } = useI18n()
 
 defineProps<{
   rules: EntryConditionRule[]

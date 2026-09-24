@@ -1,14 +1,14 @@
 <template>
   <div class="page-container major-library">
     <div class="page-header">
-      <h1 class="page-title">专业库</h1>
-      <p class="page-subtitle">阳光高考专业库 — 覆盖本科 / 专科专业，含门类 / 专业类 / 学历层次</p>
+      <h1 class="page-title">{ t('pages.settings.MajorLibrary.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.MajorLibrary.s2') }</p>
     </div>
 
     <div class="data-body">
       <n-card class="lib-card">
         <template #header-extra>
-          <n-button :loading="loading" @click="reload">刷新</n-button>
+          <n-button :loading="loading" @click="reload">{ t('pages.settings.MajorLibrary.s3') }</n-button>
         </template>
 
         <n-space class="filter-row" :wrap="true">
@@ -133,6 +133,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive, computed } from 'vue';
 import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
 import { OpenOutline, CreateOutline, SearchOutline } from '@vicons/ionicons5';
@@ -140,6 +141,7 @@ import {
   searchMajors, getMajorFacets, type Major, updateMajor,
 } from '@/api/library';
 import { localPagination } from '@/composables/useTablePagination';
+const { t } = useI18n()
 
 const message = useMessage();
 

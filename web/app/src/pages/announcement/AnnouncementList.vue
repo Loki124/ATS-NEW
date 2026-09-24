@@ -6,7 +6,7 @@
         <n-button text class="ann-kb__back" @click="router.push('/dashboard')">
           <n-icon :component="ChevronBackOutline" :size="20" />
         </n-button>
-        <span>政策制度</span>
+        <span>{ t('pages.announcement.AnnouncementList.s1') }</span>
       </div>
       <nav class="ann-kb__tree">
         <div
@@ -32,7 +32,7 @@
       <n-spin :show="loading">
         <!-- 最近浏览 -->
         <section class="ann-kb__section">
-          <div class="ann-kb__section-title">最近浏览</div>
+          <div class="ann-kb__section-title">{ t('pages.announcement.AnnouncementList.s2') }</div>
           <div v-if="recentViews.length > 0" class="ann-kb__recent">
             <div
               v-for="item in recentViews.slice(0, 4)"
@@ -57,15 +57,15 @@
 
         <!-- 最近更新 -->
         <section class="ann-kb__section">
-          <div class="ann-kb__section-title">最近更新</div>
+          <div class="ann-kb__section-title">{ t('pages.announcement.AnnouncementList.s3') }</div>
           <div v-if="tableData.length > 0" class="ann-kb__table-wrap">
             <table class="ann-kb__table">
               <thead>
                 <tr>
-                  <th class="col-name">文档名称</th>
-                  <th class="col-folder">所属文件夹</th>
-                  <th class="col-editor">最近修改人</th>
-                  <th class="col-time">修改时间</th>
+                  <th class="col-name">{ t('pages.announcement.AnnouncementList.s4') }</th>
+                  <th class="col-folder">{ t('pages.announcement.AnnouncementList.s5') }</th>
+                  <th class="col-editor">{ t('pages.announcement.AnnouncementList.s6') }</th>
+                  <th class="col-time">{ t('pages.announcement.AnnouncementList.s7') }</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,7 +82,7 @@
                       </div>
                       <div class="ann-kb__doc-info">
                         <span class="ann-kb__doc-title" :title="item.title">{{ item.title }}</span>
-                        <span v-if="item.attachments?.length" class="ann-kb__doc-attach" title="含附件">📎</span>
+                        <span v-if="item.attachments?.length" class="ann-kb__doc-attach" :title="t('pages.announcement.AnnouncementList.s8')">📎</span>
                       </div>
                     </div>
                   </td>
@@ -115,6 +115,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -125,6 +126,7 @@ import {
   GridOutline,
 } from '@vicons/ionicons5'
 import { listAnnouncements, type Announcement, type AnnouncementCategory } from '../../api/announcement'
+const { t } = useI18n()
 
 const router = useRouter()
 

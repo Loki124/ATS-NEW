@@ -3,8 +3,8 @@
     <div class="page-header">
       <div>
         <div class="sr-title-row">
-          <h1 class="page-title">申请表和登记表设置</h1>
-          <n-tag :bordered="false" type="primary" size="small" round>社招</n-tag>
+          <h1 class="page-title">{ t('pages.settings.ApplicationFormSettings.s1') }</h1>
+          <n-tag :bordered="false" type="primary" size="small" round>{ t('pages.settings.ApplicationFormSettings.s2') }</n-tag>
         </div>
         <p class="page-subtitle">
           配置候选人投递「申请表」与入职「登记表」包含的多套表单、字段与必填规则，右侧实时预览候选人填写效果。
@@ -271,6 +271,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted } from 'vue'
 import {
   NButton, NIcon, NSpin, NEmpty, NInput, NSelect, NSwitch, NTag, NRadio, NRadioGroup,
@@ -299,6 +300,7 @@ import {
 import RegionCascader from '../../components/RegionCascader.vue';
 import AttachmentUploader from '@/components/AttachmentUploader.vue';
 import CompositeFieldCard from '@/components/CompositeFieldCard.vue';
+const { t } = useI18n()
 
 const message = useMessage()
 const dialog = useDialog()

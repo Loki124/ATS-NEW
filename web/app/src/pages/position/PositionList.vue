@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h1 class="page-title">职位管理</h1>
+      <h1 class="page-title">{ t('pages.position.PositionList.s1') }</h1>
       <n-button type="primary" @click="handleCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
         创建职位
@@ -125,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, h } from 'vue';
 import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
 import { AddOutline } from '@vicons/ionicons5';
@@ -149,6 +150,7 @@ interface Position {
 }
 
 import { extractApiError } from '../../api/dynamic-field'
+const { t } = useI18n()
 const message = useMessage()
 
 const activeTab = ref('all');

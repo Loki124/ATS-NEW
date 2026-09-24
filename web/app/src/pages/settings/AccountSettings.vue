@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">个人设置</h1>
-      <p class="page-subtitle">管理个人资料、登录密码与通知偏好</p>
+      <h1 class="page-title">{ t('pages.settings.AccountSettings.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.AccountSettings.s2') }</p>
     </div>
 
     <!-- 个人设置 / 浏览器通知 / 通知选项 三块内容统一进 .page-body 滚动区 -->
@@ -11,8 +11,8 @@
       <n-card class="settings-section" :bordered="false">
       <template #header>
         <div class="section-title">
-          <span>个人设置</span>
-          <n-tag type="info" size="small" class="section-tag">全局</n-tag>
+          <span>{ t('pages.settings.AccountSettings.s3') }</span>
+          <n-tag type="info" size="small" class="section-tag">{ t('pages.settings.AccountSettings.s4') }</n-tag>
         </div>
       </template>
 
@@ -141,6 +141,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, onMounted } from 'vue'
 import {
   NCard,
@@ -167,6 +168,7 @@ import {
 } from '@vicons/ionicons5'
 import { useUserStore } from '../../stores/user'
 import { changePassword } from '../../api/auth'
+const { t } = useI18n()
 
 const message = useMessage()
 const userStore = useUserStore()

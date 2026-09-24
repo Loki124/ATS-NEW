@@ -67,6 +67,7 @@ export interface SubmitPayload {
 </script>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * 面试评价表单（设计稿 · 卡片式 · v2 重构）
  * -------------------------------------------------------------
@@ -87,6 +88,7 @@ export interface SubmitPayload {
  */
 import { ref, computed, watch } from 'vue'
 import { NModal, NButton, NInput, NSelect, NRadioGroup, NRadio, NSpace, useMessage } from 'naive-ui'
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   show?: boolean
@@ -265,9 +267,9 @@ const avgValueScore = computed(() => {
       <header class="ats-header">
         <h1 class="ats-header__title">{{ editing ? '面试评价表' : '面试评价详情' }}</h1>
         <div class="ats-header__meta">
-          <span><b>岗位:</b> {{ source.candidate.position }}</span>
-          <span><b>层级:</b> {{ source.candidate.level }}</span>
-          <span><b>面试日期:</b> {{ source.candidate.interviewDate }}</span>
+          <span><b>{ t('pages.interview.InterviewEvaluationModal.s1') }</b> {{ source.candidate.position }}</span>
+          <span><b>{ t('pages.interview.InterviewEvaluationModal.s2') }</b> {{ source.candidate.level }}</span>
+          <span><b>{ t('pages.interview.InterviewEvaluationModal.s3') }</b> {{ source.candidate.interviewDate }}</span>
         </div>
       </header>
 
@@ -278,7 +280,7 @@ const avgValueScore = computed(() => {
             <path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" fill-rule="evenodd" />
           </svg>
           <div class="ats-banner__text">
-            <p>1. HRBP重点关注劳动者维度，用人部门重点关注劳动工具维度；</p>
+            <p>{ t('pages.interview.InterviewEvaluationModal.s4') }</p>
             <p>2. 生产力四要素符合性选择"不符合"时评价依据必填，否则非必填。</p>
           </div>
         </div>
@@ -287,7 +289,7 @@ const avgValueScore = computed(() => {
         <section class="ats-section">
           <div class="ats-section__head">
             <span class="ats-section__bar" />
-            <h2 class="ats-section__title">生产力四要素符合性评价</h2>
+            <h2 class="ats-section__title">{ t('pages.interview.InterviewEvaluationModal.s5') }</h2>
           </div>
           <div class="ats-section__list">
             <div
@@ -336,7 +338,7 @@ const avgValueScore = computed(() => {
         <section class="ats-section">
           <div class="ats-section__head">
             <span class="ats-section__bar" />
-            <h2 class="ats-section__title">五能价值观评价</h2>
+            <h2 class="ats-section__title">{ t('pages.interview.InterviewEvaluationModal.s6') }</h2>
             <span v-if="editing" class="ats-section__avg">均分 {{ avgValueScore }}</span>
           </div>
           <div class="ats-section__list">
@@ -369,12 +371,12 @@ const avgValueScore = computed(() => {
         <section class="ats-section">
           <div class="ats-section__head">
             <span class="ats-section__bar" />
-            <h2 class="ats-section__title">面试结论</h2>
+            <h2 class="ats-section__title">{ t('pages.interview.InterviewEvaluationModal.s7') }</h2>
           </div>
           <div class="ats-section__list">
             <div class="ats-concl">
               <div class="ats-concl__row">
-                <label class="ats-concl__label">建议职级</label>
+                <label class="ats-concl__label">{ t('pages.interview.InterviewEvaluationModal.s8') }</label>
                 <n-select
                   v-model:value="suggestedLevel"
                   :options="LEVEL_OPTIONS"
@@ -385,27 +387,27 @@ const avgValueScore = computed(() => {
                 <n-input
                   v-model:value="suggestedSalary"
                   :disabled="!editing"
-                  placeholder="如 30K-35K"
+                  :placeholder="t('pages.interview.InterviewEvaluationModal.s15')"
                   style="max-width: 12rem;"
                 />
               </div>
               <div class="ats-concl__row">
-                <label class="ats-concl__label"><span class="ats-comp__required">*</span>最终结果</label>
+                <label class="ats-concl__label"><span class="ats-comp__required">*</span>{ t('pages.interview.InterviewEvaluationModal.s9') }</label>
                 <n-radio-group v-model:value="finalResult" :disabled="!editing">
                   <n-space>
-                    <n-radio value="PASS">通过</n-radio>
-                    <n-radio value="FAIL">不通过</n-radio>
-                    <n-radio value="PENDING">待定</n-radio>
+                    <n-radio value="PASS">{ t('pages.interview.InterviewEvaluationModal.s10') }</n-radio>
+                    <n-radio value="FAIL">{ t('pages.interview.InterviewEvaluationModal.s11') }</n-radio>
+                    <n-radio value="PENDING">{ t('pages.interview.InterviewEvaluationModal.s12') }</n-radio>
                   </n-space>
                 </n-radio-group>
               </div>
               <div class="ats-concl__row ats-concl__row--comment">
-                <label class="ats-concl__label"><span class="ats-comp__required">*</span>综合评语</label>
+                <label class="ats-concl__label"><span class="ats-comp__required">*</span>{ t('pages.interview.InterviewEvaluationModal.s13') }</label>
                 <n-input
                   v-model:value="comment"
                   type="textarea"
                   :rows="3"
-                  placeholder="技术能力、沟通、综合素质、风险点..."
+                  :placeholder="t('pages.interview.InterviewEvaluationModal.s16')"
                   :disabled="!editing"
                 />
               </div>
@@ -425,7 +427,7 @@ const avgValueScore = computed(() => {
           >
 提交评价
 </n-button>
-          <n-button v-else type="default" size="large" class="ats-submit" @click="close">关闭</n-button>
+          <n-button v-else type="default" size="large" class="ats-submit" @click="close">{ t('pages.interview.InterviewEvaluationModal.s14') }</n-button>
         </div>
       </div>
     </div>

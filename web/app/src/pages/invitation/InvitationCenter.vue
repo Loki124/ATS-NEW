@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">邀约中心</h1>
+      <h1 class="page-title">{ t('pages.invitation.InvitationCenter.s1') }</h1>
       <n-space>
         <n-button :loading="loading" @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, onBeforeUnmount, computed } from 'vue'
 import { NTag, NSpace, NButton, NIcon, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline, FlashOutline } from '@vicons/ionicons5'
@@ -118,6 +119,7 @@ import {
 } from '../../api/invitation'
 
 import { extractApiError } from '../../api/dynamic-field'
+const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, computed } from 'vue'
 import { NTag, NSpace, NButton, NIcon, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
@@ -16,6 +17,7 @@ import InterviewEvaluationModal, {
   type Evaluation, type SubmitPayload,
 } from './InterviewEvaluationModal.vue'
 import { useUserStore } from '../../stores/user'
+const { t } = useI18n()
 
 const message = useMessage()
 const userStore = useUserStore()
@@ -274,7 +276,7 @@ function rowProps(row: any) {
 
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">面试管理</h1>
+      <h1 class="page-title">{ t('pages.interview.InterviewList.s1') }</h1>
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>

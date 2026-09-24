@@ -3,7 +3,7 @@
     <div class="filter-row">
       <n-input
         v-model:value="search"
-        placeholder="搜索资源编码 / 名称"
+        :placeholder="t('pages.settings.permission.ResourcesTab.s1')"
         clearable
         style="max-width: 280px"
         @keyup.enter="load"
@@ -68,6 +68,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * ResourcesTab.vue — 权限资源 tab (T20)
  * 后端: GET/POST/PUT/DELETE /api/v1/permissions/resources/
@@ -135,6 +136,7 @@ const columns = [
 
 // lazy import NPopconfirm for h() to work
 import { NPopconfirm } from 'naive-ui'
+const { t } = useI18n()
 
 const modal = reactive({
   show: false,

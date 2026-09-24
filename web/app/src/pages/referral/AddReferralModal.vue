@@ -12,7 +12,7 @@
         <div class="title-icon">
           <n-icon :component="PersonAddOutline" />
         </div>
-        <span>新增推荐</span>
+        <span>{ t('pages.referral.AddReferralModal.s1') }</span>
       </div>
     </template>
 
@@ -71,12 +71,14 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, watch, computed, h } from 'vue'
 import { useMessage, NIcon } from 'naive-ui'
 import { PersonAddOutline } from '@vicons/ionicons5'
 import { listDemands, getDemand, type Demand, type Position } from '../../api/demand'
 import { addReferral } from '../../api/referral'
 import api from '../../api/auth'
+const { t } = useI18n()
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{

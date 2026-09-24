@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">标准简历设置</h1>
+        <h1 class="page-title">{ t('pages.settings.StandardResumeSettings.s1') }</h1>
         <p class="page-subtitle">
           配置候选人标准简历包含的字段与必填规则，右侧实时预览候选人填写效果。
           字段来源于动态字段配置的「Candidate」资源；可拖拽分组与字段调整展示顺序。
@@ -262,6 +262,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { NButton, NIcon, NSwitch, NSpin, NAlert, NEmpty, NInput, NSelect, NDatePicker, NTag, useMessage } from 'naive-ui'
 import {
@@ -303,6 +304,7 @@ import {
 import RegionCascader from '../../components/RegionCascader.vue';
 import AttachmentUploader from '@/components/AttachmentUploader.vue';
 import CompositeFieldCard from '@/components/CompositeFieldCard.vue';
+const { t } = useI18n()
 
 const message = useMessage()
 

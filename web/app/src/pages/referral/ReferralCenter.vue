@@ -1,7 +1,7 @@
 <template>
   <div class="referral-page">
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
-      <h1 class="page-title">内推中心</h1>
+      <h1 class="page-title">{ t('pages.referral.ReferralCenter.s1') }</h1>
       <n-button type="primary" @click="addModalVisible = true">
         <template #icon><n-icon :component="PersonAddOutline" /></template>
         新增推荐
@@ -130,6 +130,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, h, onMounted, watch } from 'vue'
 import { useMessage, NTag, NIcon, NText, NButton, NSpace } from 'naive-ui'
 import {
@@ -160,6 +161,7 @@ import {
 } from '../../api/referral'
 import AddReferralModal from './AddReferralModal.vue'
 import type { TagType } from '../../api/offer'
+const { t } = useI18n()
 
 const message = useMessage()
 

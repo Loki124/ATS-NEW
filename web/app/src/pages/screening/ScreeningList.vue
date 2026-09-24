@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * 简历筛选 - ScreeningList
  * PRD G13 批量筛选 + G9 批量操作
@@ -10,6 +11,7 @@ import { NTag, NSpace, NButton, NIcon, useMessage, NDataTable, NCard, NSelect, u
 import { RefreshOutline, CheckmarkDoneOutline, DownloadOutline } from '@vicons/ionicons5'
 import { listCandidates, batchScreen, batchExport, type Candidate } from '../../api/candidate'
 import StateView from '../../components/common/StateView.vue'
+const { t } = useI18n()
 
 const message = useMessage()
 const dialog = useDialog()
@@ -122,7 +124,7 @@ onMounted(loadList)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">简历筛选</h1>
+      <h1 class="page-title">{ t('pages.screening.ScreeningList.s1') }</h1>
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>

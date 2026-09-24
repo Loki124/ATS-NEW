@@ -13,7 +13,7 @@
         <div class="hero-search">
           <n-input
             v-model:value="searchKeyword"
-            placeholder="搜索网络简历"
+            :placeholder="t('pages.Dashboard.s1')"
             clearable
           >
             <template #prefix>
@@ -178,6 +178,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { SearchOutline, MailUnreadOutline, StarOutline, LockClosedOutline, BriefcaseOutline, DocumentTextOutline, ChevronForwardOutline } from '@vicons/ionicons5'
@@ -190,6 +191,7 @@ import { listAnnouncements, getAnnouncementConfig, type Announcement, type Annou
 import type { QuickEntryData, JobCardData, ScreeningItemData, MatterItem } from '../components/dashboard'
 // Plan O Task 6: 搜索 debounce (300ms)
 import { debounce } from '../utils/debounce'
+const { t } = useI18n()
 
 const StatBar = defineAsyncComponent(() => import('../components/dashboard/StatBar.vue'))
 const WeeklySchedule = defineAsyncComponent(() => import('../components/dashboard/WeeklySchedule.vue'))

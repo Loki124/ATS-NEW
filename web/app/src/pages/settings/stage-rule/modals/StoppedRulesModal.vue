@@ -3,7 +3,7 @@
     :show="visible"
     preset="card"
     class="stopped-rules-modal"
-    title="已停用规则"
+    :title="t('pages.settings.stage-rule.modals.StoppedRulesModal.s3')"
     :closable="false"
     style="width: 640px; max-width: 95vw; max-height: 86vh"
     :mask-closable="!saving"
@@ -11,11 +11,11 @@
     @update:show="(v: boolean) => !v && onRequestClose()"
   >
     <div class="sr-body">
-      <p class="field-hint">以下为已停用的自动跳过 / 自动归档规则，重新启用后将恢复生效。</p>
+      <p class="field-hint">{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s1') }</p>
       <RuleTable :columns="columns" :rows="rules">
         <template #actions="{ row }">
           <div class="action-btns">
-            <a @click="emit('reenable', row)">重新启用</a>
+            <a @click="emit('reenable', row)">{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s2') }</a>
           </div>
         </template>
       </RuleTable>
@@ -30,9 +30,11 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { NModal, NButton } from 'naive-ui'
 import RuleTable from '../components/RuleTable.vue'
+const { t } = useI18n()
 
 export interface StoppedItem {
   id: string

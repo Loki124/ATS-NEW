@@ -2,7 +2,7 @@
   <n-modal
     v-model:show="visible"
     preset="card"
-    title="配置组织范围"
+    :title="t('pages.settings.OrgScopeTreeModal.s6')"
     :style="{ width: '760px' }"
     :mask-closable="false"
   >
@@ -10,7 +10,7 @@
     <div class="os-header-bar">
       <div class="os-header-left">
         <n-switch v-model:value="includeDisabled" size="small" />
-        <span class="os-header-label">包含停用</span>
+        <span class="os-header-label">{ t('pages.settings.OrgScopeTreeModal.s1') }</span>
       </div>
       <div class="os-header-right">
         <n-switch
@@ -19,7 +19,7 @@
           :disabled="!selectedKeys.length"
           @update:value="batchToggle"
         />
-        <span class="os-header-label">批量：全部已选包含下级</span>
+        <span class="os-header-label">{ t('pages.settings.OrgScopeTreeModal.s2') }</span>
       </div>
     </div>
 
@@ -27,12 +27,12 @@
       <!-- 可选组织（窄） -->
       <div class="org-scope-tree glass-card">
         <div class="os-title-bar">
-          <span>可选组织</span>
+          <span>{ t('pages.settings.OrgScopeTreeModal.s3') }</span>
           <span class="os-count">{{ visibleAvailable.length }}</span>
         </div>
         <n-input
           v-model:value="sourceFilter"
-          placeholder="搜索组织名称"
+          :placeholder="t('pages.settings.OrgScopeTreeModal.s5')"
           clearable
           size="small"
           class="os-search"
@@ -53,7 +53,7 @@
               @update:checked="(v: boolean) => onAvailCheck(d.id, v)"
             />
             <span class="os-avail-name" :title="d.name">{{ d.name }}</span>
-            <span v-if="d.status === 'INACTIVE'" class="os-tag-disabled">停用</span>
+            <span v-if="d.status === 'INACTIVE'" class="os-tag-disabled">{ t('pages.settings.OrgScopeTreeModal.s4') }</span>
           </div>
         </div>
       </div>
@@ -125,9 +125,11 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, watch } from 'vue'
 import { NModal, NButton, NSwitch, NInput, NCheckbox, NEmpty } from 'naive-ui'
 import { useDepartmentStore, type Department } from '@/stores/department'
+const { t } = useI18n()
 
 export interface OrgScopeNode {
   deptId: string

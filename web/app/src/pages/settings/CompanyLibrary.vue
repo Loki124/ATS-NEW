@@ -1,14 +1,14 @@
 <template>
   <div class="page-container company-library">
     <div class="page-header">
-      <h1 class="page-title">公司库</h1>
+      <h1 class="page-title">{ t('pages.settings.CompanyLibrary.s1') }</h1>
       <p class="page-subtitle">G41 - 公司信息库 (央企/民企/外企)</p>
     </div>
 
     <div class="data-body">
       <n-card class="lib-card">
         <template #header-extra>
-          <n-button :loading="loading" @click="reload">刷新</n-button>
+          <n-button :loading="loading" @click="reload">{ t('pages.settings.CompanyLibrary.s2') }</n-button>
         </template>
 
         <n-space class="filter-row" :wrap="true">
@@ -58,11 +58,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive } from 'vue';
 import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
 import { BusinessOutline, OpenOutline, StarOutline, SearchOutline } from '@vicons/ionicons5';
 import { searchCompanies, getCompany, listCompanyIndustries, type Company } from '@/api/library';
 import { localPagination } from '@/composables/useTablePagination';
+const { t } = useI18n()
 
 const message = useMessage();
 

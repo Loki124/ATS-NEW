@@ -3,8 +3,8 @@
     <div class="page-body">
       <div class="page-header">
         <div>
-          <h1 class="page-title">资源管理</h1>
-          <p class="page-subtitle">注册菜单 / 按钮 / 字段 / API 资源码，供角色与权限模板引用</p>
+          <h1 class="page-title">{ t('pages.settings.PermissionResources.s1') }</h1>
+          <p class="page-subtitle">{ t('pages.settings.PermissionResources.s2') }</p>
         </div>
       </div>
       <n-card :bordered="false" class="glass-panel resources-shell">
@@ -15,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * PermissionResources.vue — 资源管理独立页 (2026-09-18 拆分)
  *
@@ -24,6 +25,7 @@
  */
 import { NCard } from 'naive-ui'
 import ResourcesTab from './permission/ResourcesTab.vue'
+const { t } = useI18n()
 </script>
 
 <style scoped>

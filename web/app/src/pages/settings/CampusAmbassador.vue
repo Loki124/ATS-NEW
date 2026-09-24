@@ -3,7 +3,7 @@
     <!-- 社招环境：显性差异 —— 此配置为校招专属，不呈现 -->
     <EmptyState
       v-if="!systemStore.isCampus"
-      title="校园大使为校园招聘系统专属功能"
+      :title="t('pages.settings.CampusAmbassador.s2')"
       description="「校园大使」配置仅在切换到「校园招聘」系统后呈现。请在左上角系统切换器中选择「校园招聘」。"
     />
 
@@ -12,7 +12,7 @@
       <header class="ca-header">
         <div>
           <h1 class="page-title">{{ systemStore.label }} · 校园大使</h1>
-          <p class="page-subtitle">管理各高校的学生大使，承接校招宣传、宣讲会组织与候选人推荐</p>
+          <p class="page-subtitle">{ t('pages.settings.CampusAmbassador.s1') }</p>
         </div>
         <n-switch
           :value="enabled"
@@ -58,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, h, ref } from 'vue'
 import {
   NButton,
@@ -72,6 +73,7 @@ import {
 import { SearchOutline, PersonAddOutline, TrashOutline } from '@vicons/ionicons5'
 import EmptyState from '../../components/common/EmptyState.vue'
 import { useSystemStore } from '../../stores/system'
+const { t } = useI18n()
 
 /**
  * CampusAmbassador — 校园招聘专属配置样板（G-2026-09-23 Phase 2-3）

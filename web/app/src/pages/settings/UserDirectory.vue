@@ -3,8 +3,8 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">用户管理</h1>
-        <p class="page-subtitle">管理全部用户账号、角色与状态（内部员工 / 外部用户以「用户类型」区分）</p>
+        <h1 class="page-title">{ t('pages.settings.UserDirectory.s1') }</h1>
+        <p class="page-subtitle">{ t('pages.settings.UserDirectory.s2') }</p>
       </div>
     </div>
 
@@ -12,7 +12,7 @@
     <div class="toolbar">
       <n-input
         v-model:value="searchText"
-        placeholder="搜索用户名 / 姓名"
+        :placeholder="t('pages.settings.UserDirectory.s3')"
         clearable
         class="rule-filter-search"
         @keyup.enter="() => {}"
@@ -181,6 +181,7 @@
 </div>
 </template>
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, onMounted, computed, h, watch } from 'vue';
 import {
   AddOutline,
@@ -204,6 +205,7 @@ import {
 import { extractApiError } from '../../api/dynamic-field';
 import { useUserStore } from '../../stores/user';
 import { useDepartmentStore } from '../../stores/department';
+const { t } = useI18n()
 
 const message = useMessage();
 

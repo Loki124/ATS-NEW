@@ -2,13 +2,13 @@
   <n-modal
     v-model:show="visible"
     preset="card"
-    title="配置人员范围"
+    :title="t('pages.settings.DataRangeModal.s7')"
     :style="{ width: '760px' }"
     :mask-closable="false"
   >
     <div class="dr-wrap">
       <!-- 顶部：数据范围（只读，当前仅管理人员范围） -->
-      <n-form-item label="数据范围" required label-placement="left" class="dr-scope-item">
+      <n-form-item :label="t('pages.settings.DataRangeModal.s8')" required label-placement="left" class="dr-scope-item">
         <n-select
           :value="'person'"
           :options="[{ label: '管理人员范围', value: 'person' }]"
@@ -21,9 +21,9 @@
       <div class="dr-section-head">
         <div class="dr-section-title">
           <span class="dr-section-bar"></span>
-          <span>筛选条件设置</span>
+          <span>{ t('pages.settings.DataRangeModal.s1') }</span>
         </div>
-        <div class="dr-section-sub">筛选条件设置完成后，将根据条件筛选数据范围</div>
+        <div class="dr-section-sub">{ t('pages.settings.DataRangeModal.s2') }</div>
       </div>
 
       <div class="dr-rows">
@@ -32,21 +32,21 @@
           <n-select
             :value="row.field || 'job_record'"
             :options="sourceOptions"
-            placeholder="来源"
+            :placeholder="t('pages.settings.DataRangeModal.s3')"
             style="width: 120px"
             @update:value="(v: string) => (row.field = v)"
           />
           <n-select
             :value="row.dimension"
             :options="dimOptions"
-            placeholder="维度"
+            :placeholder="t('pages.settings.DataRangeModal.s4')"
             style="width: 130px"
             @update:value="(v: string) => onDim(i, v)"
           />
           <n-select
             :value="row.operator"
             :options="opOptions"
-            placeholder="运算符"
+            :placeholder="t('pages.settings.DataRangeModal.s5')"
             style="width: 110px"
             @update:value="(v: string) => (row.operator = v)"
           />
@@ -54,7 +54,7 @@
             <n-select
               :value="row.value"
               :options="deptOptions"
-              placeholder="选择部门"
+              :placeholder="t('pages.settings.DataRangeModal.s6')"
               filterable
               clearable
               style="flex: 1; min-width: 160px"
@@ -108,12 +108,14 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, watch } from 'vue'
 import {
   NModal, NButton, NSelect, NInput, NSwitch, NIcon, NFormItem,
 } from 'naive-ui'
 import { AddOutline, TrashOutline } from '@vicons/ionicons5'
 import { useDepartmentStore, type Department } from '@/stores/department'
+const { t } = useI18n()
 
 interface Cond {
   field: string

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { WarningOutline as AlertTriangle } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import DirectionPicker from '@/components/common/DirectionPicker.vue'
 import PositionChips from '@/components/common/PositionChips.vue'
+const { t } = useI18n()
 
 const store = useAddCandidateStore()
 const props = defineProps<{ submitting?: boolean }>()
@@ -27,51 +29,51 @@ const isMulti = () => store.resumes.length > 1
 
   <div class="right-panel">
     <div v-if="isMulti()" class="rp-section">
-      <div class="rp-title">设置模式</div>
+      <div class="rp-title">{ t('pages.candidate.addCandidate.Step2Assign.s1') }</div>
       <div class="apply-mode">
-        <span :class="[store.applyMode === 'all' ? 'active' : '']" @click="store.applyMode = 'all'">统一设置</span>
-        <span :class="[store.applyMode === 'per' ? 'active' : '']" @click="store.applyMode = 'per'">逐条设置</span>
+        <span :class="[store.applyMode === 'all' ? 'active' : '']" @click="store.applyMode = 'all'">{ t('pages.candidate.addCandidate.Step2Assign.s2') }</span>
+        <span :class="[store.applyMode === 'per' ? 'active' : '']" @click="store.applyMode = 'per'">{ t('pages.candidate.addCandidate.Step2Assign.s3') }</span>
       </div>
     </div>
 
     <div v-if="store.applyMode === 'all'" class="rp-section">
-      <div class="rp-title">选择入库方向</div>
+      <div class="rp-title">{ t('pages.candidate.addCandidate.Step2Assign.s4') }</div>
       <DirectionPicker :model-value="store.dirAll" :has-occupied="hasOccupied()" @update:model-value="(v) => store.setDirAll(v)" />
     </div>
 
     <div v-if="store.applyMode === 'all' && store.dirAll === 'position'" class="rp-section">
-      <div class="rp-title">选择目标职位</div>
+      <div class="rp-title">{ t('pages.candidate.addCandidate.Step2Assign.s5') }</div>
       <div class="pos-selector"><PositionChips :positions="positions" :model-value="store.posAll ? [store.posAll] : []" @update:model-value="(v) => store.setPosAll(v[0] || '')" /></div>
     </div>
 
     <div v-if="hasOccupied()" class="nbar warn"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><AlertTriangle /></NIcon>有 {{ store.resumes.filter(r => r.status === 'occupied').length }} 份简历已被占用，仅可选择"待分配"。</div>
 
     <div class="rp-section">
-      <div class="rp-title">应聘信息</div>
+      <div class="rp-title">{ t('pages.candidate.addCandidate.Step2Assign.s6') }</div>
       <div class="frow3">
-        <div class="fg"><label>渠道</label><select v-model="store.appInfo.channel"><option>招聘网站</option><option>内推</option><option>猎头</option></select></div>
-        <div class="fg"><label>来源</label><input v-model="store.appInfo.source" /></div>
-        <div class="fg"><label>提供人</label><input v-model="store.appInfo.provider" placeholder="如：张三" /></div>
+        <div class="fg"><label>{ t('pages.candidate.addCandidate.Step2Assign.s7') }</label><select v-model="store.appInfo.channel"><option>{ t('pages.candidate.addCandidate.Step2Assign.s8') }</option><option>{ t('pages.candidate.addCandidate.Step2Assign.s9') }</option><option>{ t('pages.candidate.addCandidate.Step2Assign.s10') }</option></select></div>
+        <div class="fg"><label>{ t('pages.candidate.addCandidate.Step2Assign.s11') }</label><input v-model="store.appInfo.source" /></div>
+        <div class="fg"><label>{ t('pages.candidate.addCandidate.Step2Assign.s12') }</label><input v-model="store.appInfo.provider" :placeholder="t('pages.candidate.addCandidate.Step2Assign.s19')" /></div>
       </div>
     </div>
 
     <div class="submit-choices">
-      <div class="sc-title">提交方式</div>
+      <div class="sc-title">{ t('pages.candidate.addCandidate.Step2Assign.s13') }</div>
       <div class="sc-opts">
         <div :class="['sc-opt', { sel: store.submitMode === 'wait' }]" @click="store.submitMode = 'wait'">
-          <div class="sclabel">提交并等待结果</div>
-          <div class="schint">在当前页面查看每份简历评分进度及结果</div>
+          <div class="sclabel">{ t('pages.candidate.addCandidate.Step2Assign.s14') }</div>
+          <div class="schint">{ t('pages.candidate.addCandidate.Step2Assign.s15') }</div>
         </div>
         <div :class="['sc-opt', { sel: store.submitMode === 'async' }]" @click="store.submitMode = 'async'">
-          <div class="sclabel">提交后通知我</div>
-          <div class="schint">提交后关闭，后台评分完成后通知</div>
+          <div class="sclabel">{ t('pages.candidate.addCandidate.Step2Assign.s16') }</div>
+          <div class="schint">{ t('pages.candidate.addCandidate.Step2Assign.s17') }</div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="mf" style="position:absolute;bottom:0;left:0;right:0;">
-    <div><button class="btn bs" @click="emit('back')">← 上一步</button></div>
+    <div><button class="btn bs" @click="emit('back')">{ t('pages.candidate.addCandidate.Step2Assign.s18') }</button></div>
     <div class="btng">
       <button :disabled="!store.canSubmit || props.submitting" class="btn bp" data-testid="submit-btn" @click="emit('submit')">
         <span v-if="props.submitting" class="btn-spinner" aria-hidden="true"></span>

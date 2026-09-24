@@ -2,8 +2,8 @@
   <div class="page-container theme-settings">
     <!-- 页面标题（DESIGN.md §3 渐变标题） -->
     <div class="page-header">
-      <h1 class="gradient-title page-title">主题外观</h1>
-      <p class="page-subtitle">个性化品牌色与显示模式 · 改一处即全站联动</p>
+      <h1 class="gradient-title page-title">{ t('pages.settings.ThemeSettings.s1') }</h1>
+      <p class="page-subtitle">{ t('pages.settings.ThemeSettings.s2') }</p>
     </div>
 
     <!-- 玻璃面板：内容区（滚动职责下放到这里，避免与外层 .settings-scroll 冲突） -->
@@ -11,8 +11,8 @@
       <!-- === 品牌色取色器 === -->
       <section class="theme-section">
         <div class="section-header">
-          <h2 class="section-title">品牌色</h2>
-          <p class="section-desc">单一输入 · 自动派生 hover/pressed/暗色变体 · 联动所有按钮/激活态/玻璃辉光</p>
+          <h2 class="section-title">{ t('pages.settings.ThemeSettings.s3') }</h2>
+          <p class="section-desc">{ t('pages.settings.ThemeSettings.s4') }</p>
         </div>
 
         <div class="brand-row">
@@ -20,13 +20,13 @@
           <div class="brand-preview" :style="{ background: previewGradient }">
             <div class="brand-preview-inner">
               <span class="brand-hex">{{ brandHex.toUpperCase() }}</span>
-              <span class="brand-hint">点击右侧色块修改</span>
+              <span class="brand-hint">{ t('pages.settings.ThemeSettings.s5') }</span>
             </div>
           </div>
 
           <!-- 色块输入（n-color-picker） -->
           <div class="brand-input">
-            <label class="input-label">颜色值</label>
+            <label class="input-label">{ t('pages.settings.ThemeSettings.s6') }</label>
             <n-color-picker
               v-model:value="brandHex"
               :show-alpha="false"
@@ -36,12 +36,12 @@
               @confirm="onBrandConfirm"
               @complete="onBrandComplete"
             />
-            <p class="input-hint">支持 HEX（如 #6366F1）/ RGB / HSL</p>
+            <p class="input-hint">{ t('pages.settings.ThemeSettings.s7') }</p>
           </div>
 
           <!-- 推荐色快捷按钮（6 个） -->
           <div class="brand-presets">
-            <label class="input-label">推荐色</label>
+            <label class="input-label">{ t('pages.settings.ThemeSettings.s8') }</label>
             <div class="preset-grid">
               <button
                 v-for="preset in presets"
@@ -62,7 +62,7 @@
         <div class="derivations">
           <div class="derivation-item">
             <div class="swatch" :style="{ background: 'var(--brand)' }"></div>
-            <span class="label">品牌色</span>
+            <span class="label">{ t('pages.settings.ThemeSettings.s9') }</span>
             <code class="value">{{ brandHex }}</code>
           </div>
           <div class="derivation-item">
@@ -86,8 +86,8 @@
       <!-- === 暗色模式 === -->
       <section class="theme-section">
         <div class="section-header">
-          <h2 class="section-title">显示模式</h2>
-          <p class="section-desc">浅色 / 暗色 / 跟随系统 · 偏好持久化到 localStorage</p>
+          <h2 class="section-title">{ t('pages.settings.ThemeSettings.s10') }</h2>
+          <p class="section-desc">{ t('pages.settings.ThemeSettings.s11') }</p>
         </div>
 
         <n-radio-group v-model:value="modeDraft" name="theme-mode" size="medium">
@@ -95,7 +95,7 @@
             <template #default>
               <div class="mode-option">
                 <n-icon :component="SunnyOutline" />
-                <span>浅色</span>
+                <span>{ t('pages.settings.ThemeSettings.s12') }</span>
               </div>
             </template>
           </n-radio-button>
@@ -166,6 +166,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
@@ -177,6 +178,7 @@ import {
   CheckmarkOutline,
 } from '@vicons/ionicons5'
 import { useThemeStore, type ThemeMode } from '../../stores/theme'
+const { t } = useI18n()
 
 const message = useMessage()
 const themeStore = useThemeStore()

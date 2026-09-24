@@ -1,11 +1,11 @@
 <template>
   <div class="demand-container">
     <div class="page-header">
-      <h1 class="page-title">需求管理</h1>
+      <h1 class="page-title">{ t('pages.demand.DemandList.s1') }</h1>
       <n-space>
         <n-input
           v-model:value="keyword"
-          placeholder="搜索需求名称或编号"
+          :placeholder="t('pages.demand.DemandList.s2')"
           style="width: 240px"
           clearable
           @keyup.enter="handleSearch"
@@ -432,6 +432,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, computed } from 'vue'
 import { useMessage, NDropdown } from 'naive-ui'
 import { AddOutline, SearchOutline, BusinessOutline, PeopleOutline } from '@vicons/ionicons5'
@@ -439,6 +440,7 @@ import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 
 import { extractApiError } from '../../api/dynamic-field'
+const { t } = useI18n()
 const message = useMessage()
 
 const loading = ref(false)

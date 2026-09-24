@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * TalentPool.vue - PRD G32
  * 6 子库 (PASSIVE/ACTIVE/HIRED/REJECTED/BLACKLIST/GENERAL) + 跨池移动
@@ -11,6 +12,7 @@ import {
 import { RefreshOutline, AddOutline, ArrowForwardOutline } from '@vicons/ionicons5'
 import axios from 'axios'
 import config from '../../config'
+const { t } = useI18n()
 
 const api = axios.create({
   baseURL: config.api.baseUrl,
@@ -162,7 +164,7 @@ function onTabChange(key: string) {
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">人才库 - 6 子库</h1>
+      <h1 class="page-title">{ t('pages.talent.TalentPool.s1') }</h1>
       <n-space>
         <n-button :loading="loading" @click="loadPoolStats">
           <template #icon><n-icon :component="RefreshOutline" /></template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import StatusTag from '@/components/common/StatusTag.vue'
@@ -7,6 +8,7 @@ import DuplicateInfoCard from '@/components/common/DuplicateInfoCard.vue'
 import OccupiedActions from '@/components/common/OccupiedActions.vue'
 import ApplyPositionSelector from '@/components/common/ApplyPositionSelector.vue'
 import ScorePanel from '@/components/common/ScorePanel.vue'
+const { t } = useI18n()
 
 const store = useAddCandidateStore()
 const emit = defineEmits<{ (e: 'replace', draftId: string): void }>()
@@ -49,43 +51,43 @@ function onSelectPos(pos: string) {
         <div class="detail-file">{{ resume.file_name }}</div>
       </div>
       <div class="detail-header-actions">
-        <button class="replace-file-btn" data-testid="replace-file" @click="emit('replace', resume.id)">更换简历</button>
+        <button class="replace-file-btn" data-testid="replace-file" @click="emit('replace', resume.id)">{ t('pages.candidate.addCandidate.Step1Single.s1') }</button>
       </div>
     </div>
 
     <!-- Basic info section -->
     <div class="detail-section">
-      <div class="detail-section-title">基本信息</div>
+      <div class="detail-section-title">{ t('pages.candidate.addCandidate.Step1Single.s2') }</div>
       <div class="frow">
         <div class="fg">
-<label>姓名 *</label>
+<label>{ t('pages.candidate.addCandidate.Step1Single.s3') }</label>
           <input :value="resume.parsed?.name || ''" data-testid="field-name" @change="onField('name', $event)" />
         </div>
         <div class="fg">
-<label>性别</label>
+<label>{ t('pages.candidate.addCandidate.Step1Single.s4') }</label>
           <select :value="resume.parsed?.gender || ''" @change="onField('gender', $event)">
-            <option value="男">男</option>
-            <option value="女">女</option>
+            <option value="男">{ t('pages.candidate.addCandidate.Step1Single.s5') }</option>
+            <option value="女">{ t('pages.candidate.addCandidate.Step1Single.s6') }</option>
           </select>
         </div>
       </div>
       <div class="frow">
         <div class="fg">
-<label>年龄</label>
+<label>{ t('pages.candidate.addCandidate.Step1Single.s7') }</label>
           <input :value="resume.parsed?.age || ''" @change="onField('age', $event)" />
         </div>
         <div class="fg">
-<label>手机号 *</label>
+<label>{ t('pages.candidate.addCandidate.Step1Single.s8') }</label>
           <input :value="resume.parsed?.phone || ''" data-testid="field-phone" @change="onField('phone', $event)" />
         </div>
       </div>
       <div class="frow">
         <div class="fg">
-<label>邮箱 *</label>
+<label>{ t('pages.candidate.addCandidate.Step1Single.s9') }</label>
           <input :value="resume.parsed?.email || ''" data-testid="field-email" @change="onField('email', $event)" />
         </div>
         <div class="fg">
-<label>来源文件</label>
+<label>{ t('pages.candidate.addCandidate.Step1Single.s10') }</label>
           <input :value="resume.file_name" disabled style="background: var(--g1);" />
         </div>
       </div>
@@ -93,7 +95,7 @@ function onSelectPos(pos: string) {
 
     <!-- Education -->
     <div v-if="resume.parsed?.educations?.length" class="detail-section">
-      <div class="detail-section-title">教育背景 <span class="seg-count">{{ resume.parsed.educations.length }} 段</span></div>
+      <div class="detail-section-title">{ t('pages.candidate.addCandidate.Step1Single.s11') } <span class="seg-count">{{ resume.parsed.educations.length }} 段</span></div>
       <div v-for="(edu, i) in resume.parsed.educations" :key="i" class="seg-item">
         <div class="seg-header"><span class="seg-num">{{ i + 1 }}</span> {{ edu.period }} · {{ edu.school }}</div>
         <div class="seg-readonly"><div class="seg-line"><span>{{ edu.school }}</span><span>{{ edu.major }}</span><span>{{ edu.degree }}</span></div></div>
@@ -102,7 +104,7 @@ function onSelectPos(pos: string) {
 
     <!-- Experience -->
     <div v-if="resume.parsed?.experiences?.length" class="detail-section">
-      <div class="detail-section-title">工作经历 <span class="seg-count">{{ resume.parsed.experiences.length }} 段</span></div>
+      <div class="detail-section-title">{ t('pages.candidate.addCandidate.Step1Single.s12') } <span class="seg-count">{{ resume.parsed.experiences.length }} 段</span></div>
       <div v-for="(exp, i) in resume.parsed.experiences" :key="i" class="seg-item">
         <div class="seg-header"><span class="seg-num">{{ i + 1 }}</span> {{ exp.period }} · {{ exp.company }} · {{ exp.position }}</div>
         <div style="font-size: var(--fs-10);color:var(--g5);margin-top: var(--space-1);">{{ exp.summary }}</div>
@@ -112,12 +114,12 @@ function onSelectPos(pos: string) {
 
   <div v-if="resume" class="right-panel">
     <div class="rp-section">
-<div class="rp-title">查重结果</div>
+<div class="rp-title">{ t('pages.candidate.addCandidate.Step1Single.s13') }</div>
       <CheckBanner :status="resume.duplicate?.status || 'clean'" />
     </div>
 
     <div v-if="(isOccupied || isUnocc) && resume.duplicate" class="rp-section">
-      <div class="rp-title">重复信息</div>
+      <div class="rp-title">{ t('pages.candidate.addCandidate.Step1Single.s14') }</div>
       <DuplicateInfoCard :info="resume.duplicate" :status="resume.status" />
     </div>
 
@@ -126,7 +128,7 @@ function onSelectPos(pos: string) {
     </div>
 
     <div v-if="isOccupied" class="rp-section">
-      <div class="rp-title">处理选项</div>
+      <div class="rp-title">{ t('pages.candidate.addCandidate.Step1Single.s15') }</div>
       <OccupiedActions :draft-id="resume.id" @action="onAction" />
     </div>
 
@@ -135,8 +137,8 @@ function onSelectPos(pos: string) {
     </div>
 
     <div class="rp-section">
-<div class="rp-title">步骤说明</div>
-      <div class="nbar info">上传简历后系统将自动解析并查重。<br>• <strong>无重复</strong>：可直接进入下一步<br>• <strong>未占用</strong>：系统有记录但可合并<br>• <strong>已占用</strong>：需选择处理方式</div>
+<div class="rp-title">{ t('pages.candidate.addCandidate.Step1Single.s16') }</div>
+      <div class="nbar info">{ t('pages.candidate.addCandidate.Step1Single.s17') }<br>• <strong>{ t('pages.candidate.addCandidate.Step1Single.s18') }</strong>{ t('pages.candidate.addCandidate.Step1Single.s19') }<br>• <strong>{ t('pages.candidate.addCandidate.Step1Single.s20') }</strong>{ t('pages.candidate.addCandidate.Step1Single.s21') }<br>• <strong>{ t('pages.candidate.addCandidate.Step1Single.s22') }</strong>{ t('pages.candidate.addCandidate.Step1Single.s23') }</div>
     </div>
   </div>
 </template>

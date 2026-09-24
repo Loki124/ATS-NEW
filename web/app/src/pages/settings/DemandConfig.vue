@@ -2,273 +2,273 @@
   <div class="page-container config-container">
     <div class="page-header">
 <div>
-        <h1 class="dc-title gradient-title">需求规则设置</h1>
-        <p class="dc-subtitle">配置各 BG / 部门的招聘需求与编制，并关联流程与面试轮次</p>
+        <h1 class="dc-title gradient-title">{ t('pages.settings.DemandConfig.s1') }</h1>
+        <p class="dc-subtitle">{ t('pages.settings.DemandConfig.s2') }</p>
       </div>
       <n-space>
-        <n-button @click="handleReset">重置</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存配置</n-button>
+        <n-button @click="handleReset">{ t('pages.settings.DemandConfig.s3') }</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{ t('pages.settings.DemandConfig.s4') }</n-button>
       </n-space>
     </div>
 
     <div class="config-content page-body">
 <n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
-        <n-card title="功能设置" class="config-card">
-          <n-form-item label="需求使用模式">
+        <n-card :title="t('pages.settings.DemandConfig.s49')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s59')">
             <div class="form-field-wrap">
               <n-radio-group v-model:value="formData.demandMode">
-                <n-radio value="task">任务模式</n-radio>
-                <n-radio value="quick_leave">闪离模式</n-radio>
-                <n-radio value="non_task">非任务模式</n-radio>
+                <n-radio value="task">{ t('pages.settings.DemandConfig.s5') }</n-radio>
+                <n-radio value="quick_leave">{ t('pages.settings.DemandConfig.s6') }</n-radio>
+                <n-radio value="non_task">{ t('pages.settings.DemandConfig.s7') }</n-radio>
               </n-radio-group>
               <div class="field-note">
-                <span>任务模式：按招聘流程任务推进</span>
-                <span>闪离模式：快速入职流程</span>
-                <span>非任务模式：自由招聘流程</span>
+                <span>{ t('pages.settings.DemandConfig.s8') }</span>
+                <span>{ t('pages.settings.DemandConfig.s9') }</span>
+                <span>{ t('pages.settings.DemandConfig.s10') }</span>
               </div>
             </div>
           </n-form-item>
-          <n-form-item label="需求终止态">
+          <n-form-item :label="t('pages.settings.DemandConfig.s60')">
             <n-checkbox-group v-model:value="formData.terminationStatus">
               <n-space>
-                <n-checkbox value="completed">已完成</n-checkbox>
-                <n-checkbox value="stopped">已停招</n-checkbox>
+                <n-checkbox value="completed">{ t('pages.settings.DemandConfig.s11') }</n-checkbox>
+                <n-checkbox value="stopped">{ t('pages.settings.DemandConfig.s12') }</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">选择可用作需求终止的状态</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s13') }</span>
           </n-form-item>
-          <n-form-item label="Offer人数管控">
+          <n-form-item :label="t('pages.settings.DemandConfig.s61')">
             <n-switch v-model:value="formData.offerHeadcountControl" />
-            <span class="switch-tip">开启后Offer创建数量受需求人数限制</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s14') }</span>
           </n-form-item>
         </n-card>
 
         <!-- 抢单设置 -->
-        <n-card title="抢单设置" class="config-card">
-          <n-form-item label="全局开启抢单模式">
+        <n-card :title="t('pages.settings.DemandConfig.s50')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s62')">
             <n-switch v-model:value="formData.grabModeEnabled" />
-            <span class="switch-tip">开启后抢单功能生效，需求中的交易信息模块内容可配置</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s15') }</span>
           </n-form-item>
-          <n-form-item label="抢单模式开关权限">
+          <n-form-item :label="t('pages.settings.DemandConfig.s63')">
             <n-checkbox-group v-model:value="formData.grabModeSwitchRoles">
               <n-space>
-                <n-checkbox value="super_admin_product">超管-产线</n-checkbox>
+                <n-checkbox value="super_admin_product">{ t('pages.settings.DemandConfig.s16') }</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">仅选中的角色可以操作抢单模式开关</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s17') }</span>
           </n-form-item>
-          <n-form-item label="抢单人配置权限">
+          <n-form-item :label="t('pages.settings.DemandConfig.s64')">
             <n-checkbox-group v-model:value="formData.grabModeOperatorRoles">
               <n-space>
                 <n-checkbox value="hrbp">HRBP</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">可添加/删除抢单人（系统自动填充的抢单人不可删除）</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s18') }</span>
           </n-form-item>
-          <n-form-item label="抢单金额配置权限">
+          <n-form-item :label="t('pages.settings.DemandConfig.s65')">
             <n-checkbox-group v-model:value="formData.grabModeAmountRoles">
               <n-space>
                 <n-checkbox value="hrbp">HRBP</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">可配置抢单相关金额</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s19') }</span>
           </n-form-item>
-          <n-form-item label="交易信息管理权限">
+          <n-form-item :label="t('pages.settings.DemandConfig.s66')">
             <n-checkbox-group v-model:value="formData.transactionManageRoles">
               <n-space>
                 <n-checkbox value="hrbp">HRBP</n-checkbox>
-                <n-checkbox value="demand_manager">需求负责人</n-checkbox>
-                <n-checkbox value="super_admin_business">超管-业务</n-checkbox>
-                <n-checkbox value="super_admin_product">超管-产线</n-checkbox>
-                <n-checkbox value="personal">个人</n-checkbox>
+                <n-checkbox value="demand_manager">{ t('pages.settings.DemandConfig.s20') }</n-checkbox>
+                <n-checkbox value="super_admin_business">{ t('pages.settings.DemandConfig.s21') }</n-checkbox>
+                <n-checkbox value="super_admin_product">{ t('pages.settings.DemandConfig.s22') }</n-checkbox>
+                <n-checkbox value="personal">{ t('pages.settings.DemandConfig.s23') }</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">可查看和操作需求中的交易信息</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s24') }</span>
           </n-form-item>
-          <n-form-item label="超时自动入池">
+          <n-form-item :label="t('pages.settings.DemandConfig.s67')">
             <n-input-number v-model:value="formData.grabPoolTimeoutHours" :min="0" :max="168" />
-            <span class="input-tip">小时</span>
-            <span class="switch-tip">超过指定时间未邀约成功自动进入抢单池（0表示关闭）</span>
+            <span class="input-tip">{ t('pages.settings.DemandConfig.s25') }</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s26') }</span>
           </n-form-item>
-          <n-form-item label="职位创建权限">
+          <n-form-item :label="t('pages.settings.DemandConfig.s68')">
             <n-radio-group v-model:value="formData.positionCreateRole">
               <n-radio value="hrbp">HRBP</n-radio>
-              <n-radio value="demand_assistant">需求协助人</n-radio>
+              <n-radio value="demand_assistant">{ t('pages.settings.DemandConfig.s27') }</n-radio>
             </n-radio-group>
-            <span class="switch-tip">控制谁可以创建职位</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s28') }</span>
           </n-form-item>
         </n-card>
 
         <!-- 画像设置 -->
-        <n-card title="画像设置" class="config-card">
-          <n-form-item label="画像字段约束规则">
+        <n-card :title="t('pages.settings.DemandConfig.s51')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s69')">
             <div class="profile-rules-editor">
               <n-input
                 v-model:value="formData.profileFieldRules"
                 type="textarea"
-                placeholder="请输入画像字段约束规则，每行一条规则，格式：字段名:规则描述"
+                :placeholder="t('pages.settings.DemandConfig.s46')"
                 :rows="6"
                 class="rules-textarea"
               />
               <div class="rules-tip">
-                <p>规则格式示例：</p>
-                <p>experience: 工作年限需在1-10年之间</p>
-                <p>education: 学历需为本科及以上</p>
-                <p>skills: 技能标签至少选择2个</p>
+                <p>{ t('pages.settings.DemandConfig.s29') }</p>
+                <p>{ t('pages.settings.DemandConfig.s30') }</p>
+                <p>{ t('pages.settings.DemandConfig.s31') }</p>
+                <p>{ t('pages.settings.DemandConfig.s32') }</p>
               </div>
             </div>
           </n-form-item>
         </n-card>
 
         <!-- 招聘类型配置 -->
-        <n-card title="招聘类型配置" class="config-card">
-          <n-form-item label="启用社会招聘">
+        <n-card :title="t('pages.settings.DemandConfig.s52')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s70')">
             <n-switch v-model:value="formData.enableSocial" />
           </n-form-item>
-          <n-form-item label="启用校园招聘">
+          <n-form-item :label="t('pages.settings.DemandConfig.s71')">
             <n-switch v-model:value="formData.enableCampus" />
           </n-form-item>
-          <n-form-item label="启用实习生招聘">
+          <n-form-item :label="t('pages.settings.DemandConfig.s72')">
             <n-switch v-model:value="formData.enableIntern" />
           </n-form-item>
-          <n-form-item label="启用内推">
+          <n-form-item :label="t('pages.settings.DemandConfig.s73')">
             <n-switch v-model:value="formData.enableReferral" />
           </n-form-item>
         </n-card>
 
         <!-- 部门配置 -->
-        <n-card title="部门配置" class="config-card">
-          <n-form-item label="允许跨部门招聘">
+        <n-card :title="t('pages.settings.DemandConfig.s53')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s74')">
             <n-switch v-model:value="formData.allowCrossDepartment" />
           </n-form-item>
-          <n-form-item label="默认需求部门">
+          <n-form-item :label="t('pages.settings.DemandConfig.s75')">
             <n-select
               v-model:value="formData.defaultDepartmentId"
-              placeholder="请选择默认部门"
+              :placeholder="t('pages.settings.DemandConfig.s47')"
               style="width: 200px"
               :options="departmentOptions"
             />
           </n-form-item>
-          <n-form-item label="部门层级限制">
+          <n-form-item :label="t('pages.settings.DemandConfig.s76')">
             <n-input-number v-model:value="formData.departmentLevelLimit" :min="1" :max="5" />
-            <span class="input-tip">级</span>
+            <span class="input-tip">{ t('pages.settings.DemandConfig.s33') }</span>
           </n-form-item>
         </n-card>
 
         <!-- 薪资配置 -->
-        <n-card title="薪资配置" class="config-card">
-          <n-form-item label="薪资单位">
+        <n-card :title="t('pages.settings.DemandConfig.s54')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s77')">
             <n-select
               v-model:value="formData.salaryUnit"
               style="width: 120px"
               :options="salaryUnitOptions"
             />
           </n-form-item>
-          <n-form-item label="最低薪资">
+          <n-form-item :label="t('pages.settings.DemandConfig.s78')">
             <n-input-number v-model:value="formData.minSalary" :min="0" style="width: 120px" />
             <span class="input-tip">{{ formData.salaryUnit }}</span>
           </n-form-item>
-          <n-form-item label="最高薪资">
+          <n-form-item :label="t('pages.settings.DemandConfig.s79')">
             <n-input-number v-model:value="formData.maxSalary" :min="0" style="width: 120px" />
             <span class="input-tip">{{ formData.salaryUnit }}</span>
           </n-form-item>
-          <n-form-item label="薪资保密">
+          <n-form-item :label="t('pages.settings.DemandConfig.s80')">
             <n-switch v-model:value="formData.salaryConfidential" />
-            <span class="switch-tip">开启后候选人无法查看具体薪资</span>
+            <span class="switch-tip">{ t('pages.settings.DemandConfig.s34') }</span>
           </n-form-item>
         </n-card>
 
         <!-- 职位配置 -->
-        <n-card title="职位配置" class="config-card">
-          <n-form-item label="默认招聘人数">
+        <n-card :title="t('pages.settings.DemandConfig.s55')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s81')">
             <n-input-number v-model:value="formData.defaultPositionCount" :min="1" :max="100" />
-            <span class="input-tip">人</span>
+            <span class="input-tip">{ t('pages.settings.DemandConfig.s35') }</span>
           </n-form-item>
-          <n-form-item label="最大招聘人数">
+          <n-form-item :label="t('pages.settings.DemandConfig.s82')">
             <n-input-number v-model:value="formData.maxPositionCount" :min="1" :max="500" />
-            <span class="input-tip">人</span>
+            <span class="input-tip">{ t('pages.settings.DemandConfig.s36') }</span>
           </n-form-item>
-          <n-form-item label="启用职位系列">
+          <n-form-item :label="t('pages.settings.DemandConfig.s83')">
             <n-switch v-model:value="formData.enablePositionSeries" />
           </n-form-item>
-          <n-form-item label="启用职级">
+          <n-form-item :label="t('pages.settings.DemandConfig.s84')">
             <n-switch v-model:value="formData.enableJobLevel" />
           </n-form-item>
-          <n-form-item label="职级体系">
+          <n-form-item :label="t('pages.settings.DemandConfig.s85')">
             <n-checkbox-group v-model:value="formData.jobLevelSystem">
               <n-space>
-                <n-checkbox value="P">P系列（专业）</n-checkbox>
-                <n-checkbox value="M">M系列（管理）</n-checkbox>
-                <n-checkbox value="T">T系列（技术）</n-checkbox>
+                <n-checkbox value="P">{ t('pages.settings.DemandConfig.s37') }</n-checkbox>
+                <n-checkbox value="M">{ t('pages.settings.DemandConfig.s38') }</n-checkbox>
+                <n-checkbox value="T">{ t('pages.settings.DemandConfig.s39') }</n-checkbox>
               </n-space>
             </n-checkbox-group>
           </n-form-item>
         </n-card>
 
         <!-- 需求流程配置 -->
-        <n-card title="需求流程配置" class="config-card">
-          <n-form-item label="需要审批">
+        <n-card :title="t('pages.settings.DemandConfig.s56')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s86')">
             <n-switch v-model:value="formData.requireApproval" />
           </n-form-item>
-          <n-form-item v-if="formData.requireApproval" label="审批流程">
+          <n-form-item v-if="formData.requireApproval" :label="t('pages.settings.DemandConfig.s87')">
             <n-select
               v-model:value="formData.approvalProcessId"
-              placeholder="请选择审批流程"
+              :placeholder="t('pages.settings.DemandConfig.s48')"
               style="width: 200px"
               :options="processOptions"
             />
           </n-form-item>
-          <n-form-item label="自动分配HRBP">
+          <n-form-item :label="t('pages.settings.DemandConfig.s88')">
             <n-switch v-model:value="formData.autoAssignHRBP" />
           </n-form-item>
-          <n-form-item label="自动分配用人经理">
+          <n-form-item :label="t('pages.settings.DemandConfig.s89')">
             <n-switch v-model:value="formData.autoAssignManager" />
           </n-form-item>
-          <n-form-item label="需求有效期">
+          <n-form-item :label="t('pages.settings.DemandConfig.s90')">
             <n-input-number v-model:value="formData.demandValidDays" :min="1" :max="365" />
-            <span class="input-tip">天</span>
-            <span class="input-tip-tip">超过天数自动关闭需求</span>
+            <span class="input-tip">{ t('pages.settings.DemandConfig.s40') }</span>
+            <span class="input-tip-tip">{ t('pages.settings.DemandConfig.s41') }</span>
           </n-form-item>
         </n-card>
 
         <!-- 候选人配置 -->
-        <n-card title="候选人配置" class="config-card">
-          <n-form-item label="自动查重">
+        <n-card :title="t('pages.settings.DemandConfig.s57')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s91')">
             <n-switch v-model:value="formData.autoDuplicateCheck" />
           </n-form-item>
-          <n-form-item label="简历保护期">
+          <n-form-item :label="t('pages.settings.DemandConfig.s92')">
             <n-input-number v-model:value="formData.resumeProtectionDays" :min="0" :max="365" />
-            <span class="input-tip">天</span>
+            <span class="input-tip">{ t('pages.settings.DemandConfig.s42') }</span>
           </n-form-item>
-          <n-form-item label="保护期候选人可见">
+          <n-form-item :label="t('pages.settings.DemandConfig.s93')">
             <n-switch v-model:value="formData.protectedCandidateVisible" />
           </n-form-item>
-          <n-form-item label="候选人来源必填">
+          <n-form-item :label="t('pages.settings.DemandConfig.s94')">
             <n-switch v-model:value="formData.requireCandidateSource" />
           </n-form-item>
         </n-card>
 
         <!-- 消息通知配置 -->
-        <n-card title="消息通知配置" class="config-card">
-          <n-form-item label="需求创建通知">
+        <n-card :title="t('pages.settings.DemandConfig.s58')" class="config-card">
+          <n-form-item :label="t('pages.settings.DemandConfig.s95')">
             <n-switch v-model:value="formData.notifyOnCreate" />
           </n-form-item>
-          <n-form-item label="需求审批通知">
+          <n-form-item :label="t('pages.settings.DemandConfig.s96')">
             <n-switch v-model:value="formData.notifyOnApproval" />
           </n-form-item>
-          <n-form-item label="需求变更通知">
+          <n-form-item :label="t('pages.settings.DemandConfig.s97')">
             <n-switch v-model:value="formData.notifyOnChange" />
           </n-form-item>
-          <n-form-item label="需求关闭通知">
+          <n-form-item :label="t('pages.settings.DemandConfig.s98')">
             <n-switch v-model:value="formData.notifyOnClose" />
           </n-form-item>
-          <n-form-item label="通知方式">
+          <n-form-item :label="t('pages.settings.DemandConfig.s99')">
             <n-checkbox-group v-model:value="formData.notifyMethods">
               <n-space>
-                <n-checkbox value="wechat">企业微信</n-checkbox>
-                <n-checkbox value="email">邮件</n-checkbox>
-                <n-checkbox value="sms">短信</n-checkbox>
+                <n-checkbox value="wechat">{ t('pages.settings.DemandConfig.s43') }</n-checkbox>
+                <n-checkbox value="email">{ t('pages.settings.DemandConfig.s44') }</n-checkbox>
+                <n-checkbox value="sms">{ t('pages.settings.DemandConfig.s45') }</n-checkbox>
               </n-space>
             </n-checkbox-group>
           </n-form-item>
@@ -279,11 +279,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, computed } from 'vue'
 import { useMessage } from 'naive-ui'
 import { get, post } from '../../api/auth'
 
 import { extractApiError } from '../../api/dynamic-field'
+const { t } = useI18n()
 const message = useMessage()
 
 const saving = ref(false)
