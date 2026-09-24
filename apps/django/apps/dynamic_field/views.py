@@ -406,15 +406,36 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 result[fk] = errs
         return Response({'data': result})
 
-    @action(detail=False, methods=['post'], url_path='values')
+    @action(detail=False, methods=['get', 'post'], url_path='values')
     def save_values(self, request, resource=None):
-        """POST /dynamic-fields/<resource>/fields/values/  { entity_id, values: {fieldKey: value} }
+        """动态字段值读写 (按实体):
 
-        录入提交落库: 先按资源字段定义 + validation 做服务端权威校验,
-        任一字段不通过 → 400 带 ``errors`` (逐字段错误); 全通过 → upsert 到 DynamicFieldValue。
-        未定义的 fieldKey 跳过 (不落库也不报错)。
+        GET  /dynamic-fields/<resource>/fields/values/?entity_id=X
+            返回该实体的全部动态字段值 ``{ data: [{ fieldKey, value }] }`` (仅含有值的)。
+            用数组而非 dict: 全局 CamelCaseJSONRenderer 会把 dict 的 snake 键 camel 化
+            (f_custom_text→fCustomText), 而 listFields 的 fieldKey 是原始 snake 值, 直接索引会
+            错位 → 扩展字段值永远读不到。数组里的 fieldKey 是字符串值, 不会被 camel 化,
+            前端再聚合成 { fieldKey: value } 与 f.fieldKey 对齐。
+            供详情页渲染自定义字段值 (模型映射字段之外的扩展字段)。
+
+        POST /dynamic-fields/<resource>/fields/values/  { entity_id, values: {fieldKey: value} }
+            录入提交落库: 先按资源字段定义 + validation 做服务端权威校验,
+            任一字段不通过 → 400 带 ``errors`` (逐字段错误); 全通过 → upsert 到 DynamicFieldValue。
+            未定义的 fieldKey 跳过 (不落库也不报错)。
         """
         resource = self.get_resource()
+        if request.method == 'GET':
+            # 注意: query string 不会经过 CamelCaseParser (它只转 JSON body), 前端实际发送
+            # 的是 entityId; 这里同时兼容 entityId / entity_id 两种拼写, 避免参数 miss 导致永远返回空。
+            entity_id = request.query_params.get('entity_id') or request.query_params.get('entityId')
+            if not entity_id:
+                return Response({'data': []})
+            vals = DynamicFieldValue.objects.filter(resource=resource, entity_id=entity_id)
+            # 返回 [{fieldKey, value}] 而非 {fieldKey: value}: 全局 CamelCaseJSONRenderer
+            # 会把 dict 的 snake 键 camel 化 (f_custom_text→fCustomText), 而 listFields 的
+            # fieldKey 是原始 snake 值, 直接索引会错位 → 扩展字段值永远读不到。改用数组 +
+            # 字符串值(字符串不会被 camel 化), 前端再聚合成 { fieldKey: value }。
+            return Response({'data': [{'fieldKey': v.field_key, 'value': v.value} for v in vals]})
         entity_id = request.data.get('entity_id')
         incoming = request.data.get('values')
         if not entity_id:

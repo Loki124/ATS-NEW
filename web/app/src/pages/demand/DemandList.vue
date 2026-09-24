@@ -52,7 +52,7 @@
             <div class="demand-meta">
               <span class="meta-item">
                 <span class="label">部门：</span>
-                <span class="value">{{ item.department?.name || '-' }}</span>
+                <span class="value">{{ item.departmentName || item.department?.name || '-' }}</span>
               </span>
               <span class="meta-item">
                 <span class="label">类型：</span>
@@ -120,26 +120,18 @@
           <!-- 基本信息 -->
           <n-tabs v-model:value="activeTab" type="line" class="detail-tabs">
             <n-tab-pane name="detail" tab="详情">
+              <!-- ★ 2026-09-24 需求 4: 详情字段受「系统设置 → 需求字段管理」控制。
+                   系统固定字段(编号/类型/状态/审批状态/部门) + 按配置分组渲染其余字段；
+                   模型映射字段(如 headcount/priority/level/positionTitle)取 demand 对象，
+                   其余扩展字段取 DynamicFieldValue。 -->
               <div class="detail-section">
                 <div class="section-header">
-                  <span class="section-title">基本信息</span>
+                  <span class="section-title">系统信息</span>
                 </div>
                 <div class="info-grid">
                   <div class="info-item">
                     <span class="info-label">需求编号</span>
                     <span class="info-value code">{{ selectedDemand.code }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">需求名称</span>
-                    <span class="info-value">{{ selectedDemand.name }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">所属部门</span>
-                    <span class="info-value">{{ selectedDemand.department?.name || '-' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">需求人数</span>
-                    <span class="info-value">{{ selectedDemand.positionCount }}人</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">需求类型</span>
@@ -152,52 +144,38 @@
                   <div class="info-item">
                     <span class="info-label">需求状态</span>
                     <span class="info-value">
-                      <n-tag :type="getStatusType(selectedDemand.demandStatus)" size="small">
-                        {{ getStatusText(selectedDemand.demandStatus) }}
+                      <n-tag :type="getStatusType(selectedDemand.state)" size="small">
+                        {{ getStatusText(selectedDemand.state) }}
                       </n-tag>
                     </span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">审批状态</span>
                     <span class="info-value">
-                      <n-tag :type="getApprovalType(selectedDemand.approvalStatus)" size="small">
-                        {{ getApprovalText(selectedDemand.approvalStatus) }}
-                      </n-tag>
+                      <n-tag :type="approvalInfo.type" size="small">{{ approvalInfo.text }}</n-tag>
                     </span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">所属部门</span>
+                    <span class="info-value">{{ selectedDemand.departmentName || selectedDemand.department?.name || '-' }}</span>
                   </div>
                 </div>
               </div>
 
-              <div class="detail-section">
+              <!-- 按配置分组渲染的字段 -->
+              <div v-for="grp in groupedFields" :key="grp.name" class="detail-section">
                 <div class="section-header">
-                  <span class="section-title">职位信息</span>
+                  <span class="section-title">{{ grp.name }}</span>
                 </div>
                 <div class="info-grid">
-                  <div class="info-item">
-                    <span class="info-label">职位系列</span>
-                    <span class="info-value">{{ selectedDemand.positionSeries || '-' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">职级</span>
-                    <span class="info-value">{{ selectedDemand.jobLevel || '-' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">薪资范围</span>
-                    <span class="info-value">
-                      {{ selectedDemand.salaryMin && selectedDemand.salaryMax ? `${selectedDemand.salaryMin}K - ${selectedDemand.salaryMax}K` : '-' }}
-                    </span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">开始日期</span>
-                    <span class="info-value">{{ formatDate(selectedDemand.startDate) }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">结束日期</span>
-                    <span class="info-value">{{ formatDate(selectedDemand.endDate) }}</span>
+                  <div v-for="f in grp.fields" :key="f.id" class="info-item">
+                    <span class="info-label">{{ f.label }}</span>
+                    <span class="info-value">{{ displayText(f, fieldValue(f)) }}</span>
                   </div>
                 </div>
               </div>
 
+              <!-- 描述信息 (JD / 任职要求, 核心内容, 不受字段管理显隐影响) -->
               <div class="detail-section">
                 <div class="section-header">
                   <span class="section-title">描述信息</span>
@@ -205,7 +183,7 @@
                 <div class="desc-content">
                   <div class="desc-item">
                     <span class="desc-label">需求描述</span>
-                    <div class="desc-value">{{ selectedDemand.description || '-' }}</div>
+                    <div class="desc-value">{{ selectedDemand.jd || '-' }}</div>
                   </div>
                   <div class="desc-item">
                     <span class="desc-label">候选人要求</span>
@@ -270,7 +248,7 @@
                       <div class="profile-item">
                         <span class="item-icon"><n-icon :component="BusinessOutline" :size="16" /></span>
                         <span class="item-label">职级要求</span>
-                        <span class="item-value">{{ selectedDemand.jobLevel || '-' }}</span>
+                        <span class="item-value">{{ selectedDemand.level || '-' }}</span>
                       </div>
                       <div class="profile-item">
                         <span class="item-icon"><n-icon :component="PeopleOutline" :size="16" /></span>
@@ -350,7 +328,7 @@
         <template #footer>
           <n-space v-if="selectedDemand">
             <n-button
-              v-if="selectedDemand.demandStatus === 'DRAFT'"
+              v-if="selectedDemand.state === 'DRAFT'"
               type="primary"
               @click="handleSubmitApproval"
             >
@@ -391,6 +369,9 @@
         <n-form-item label="需求人数">
           <n-input-number v-model:value="formData.positionCount" :min="1" :max="100" style="width: 100%" />
         </n-form-item>
+        <n-form-item label="优先级">
+          <n-select v-model:value="formData.priority" :options="priorityOptions" style="width: 100%" />
+        </n-form-item>
         <n-form-item label="职位系列">
           <n-input v-model:value="formData.positionSeries" placeholder="如：技术、产品、运营" />
         </n-form-item>
@@ -419,6 +400,62 @@
         <n-form-item label="候选人要求">
           <n-input v-model:value="formData.requirements" type="textarea" :rows="3" placeholder="请输入候选人要求" />
         </n-form-item>
+
+        <!-- ★ 2026-09-24 需求 4: 动态(非模型映射)配置字段录入 -->
+        <template v-if="dynamicFormFields.length">
+          <n-divider>扩展字段</n-divider>
+          <n-form-item
+            v-for="f in dynamicFormFields"
+            :key="f.id"
+            :label="f.label"
+            :required="f.isRequired"
+          >
+            <!-- 文本类 -->
+            <n-input
+              v-if="isPlainTextType(f.fieldType)"
+              v-model:value="formValues[f.fieldKey]"
+              :type="f.fieldType === 'MULTILINE_TEXT' ? 'textarea' : 'text'"
+              :placeholder="f.placeholder || ''"
+              style="width: 100%"
+            />
+            <!-- 数字类 -->
+            <n-input-number
+              v-else-if="isNumberType(f.fieldType)"
+              v-model:value="formValues[f.fieldKey]"
+              :min="(f.validation as any)?.min ?? undefined"
+              :max="(f.validation as any)?.max ?? undefined"
+              :placeholder="f.placeholder || '请输入数字'"
+              style="width: 100%"
+            />
+            <!-- 选项类 (含 人员/部门 引用) -->
+            <n-select
+              v-else-if="isOptionType(f.fieldType)"
+              v-model:value="formValues[f.fieldKey]"
+              :options="selectOptions(f)"
+              :multiple="isMultiType(f.fieldType)"
+              :placeholder="f.placeholder || '请选择'"
+              style="width: 100%"
+            />
+            <!-- 日期 / 日期范围 -->
+            <n-date-picker
+              v-else-if="isDateType(f.fieldType)"
+              :value="dateValue(f)"
+              :type="f.fieldType === 'DATE_RANGE' ? 'daterange' : 'date'"
+              clearable
+              style="width: 100%"
+              @update:value="(v: number | [number, number] | null) => onDateInput(f, v)"
+            />
+            <!-- 布尔 -->
+            <n-switch v-else-if="f.fieldType === 'BOOLEAN'" v-model:value="formValues[f.fieldKey]" />
+            <!-- 附件 / 其他: URL 文本 -->
+            <n-input
+              v-else
+              v-model:value="formValues[f.fieldKey]"
+              :placeholder="f.placeholder || '请输入'"
+              style="width: 100%"
+            />
+          </n-form-item>
+        </template>
       </n-form>
 
       <template #footer>
@@ -433,15 +470,41 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useMessage, NDropdown } from 'naive-ui'
 import { AddOutline, SearchOutline, BusinessOutline, PeopleOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 
-import { extractApiError } from '../../api/dynamic-field'
+import {
+  listFields, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
+  type FieldDefinition, type FieldOption,
+} from '../../api/dynamic-field'
 const { t } = useI18n()
 const message = useMessage()
+
+// --- 需求字段管理配置 (resource=Demand) ---
+// ★ 2026-09-24 需求 4: 详情页字段受「系统设置 → 需求字段管理」控制。
+// 这些字段定义驱动详情页分组渲染与表单扩展字段录入。
+const demandFields = ref<FieldDefinition[]>([])
+const dynamicValues = ref<Record<string, any>>({})
+const formValues = reactive<Record<string, any>>({})
+
+// 系统固定字段 / 核心描述字段: 不进入「按配置分组」渲染, 避免与下方固定区块重复。
+const RESERVED_KEYS = new Set(['code', 'demand_type', 'state', 'jd', 'requirements'])
+// 编辑表单已由硬编码输入覆盖的模型字段: 不进入「扩展字段」动态渲染, 避免重复录入。
+const FORM_COVERED_KEYS = new Set([
+  'demand_type', 'headcount', 'position_title', 'level', 'priority', 'jd', 'requirements',
+])
+
+// 模型映射字段: field_key → 在 demand 详情对象上的属性名(camelCase, 经后端渲染)。
+// 命中则取 demand 模型值; 否则取 DynamicFieldValue。
+const MODEL_ATTR_MAP: Record<string, string> = {
+  headcount: 'headcount',
+  priority: 'priority',
+  level: 'level',
+  position_title: 'positionTitle',
+}
 
 const loading = ref(false)
 const demands = ref<any[]>([])
@@ -460,6 +523,7 @@ const formData = ref<any>({
   departmentId: '',
   demandType: 'SOCIAL',
   positionCount: 1,
+  priority: 'P1',
   positionSeries: '',
   jobLevel: '',
   salaryMin: null,
@@ -482,9 +546,121 @@ const demandTypeOptions = [
   { label: '校园招聘', value: 'CAMPUS' },
 ]
 
+const priorityOptions = [
+  { label: 'P0-战略', value: 'P0' },
+  { label: 'P1-重要', value: 'P1' },
+  { label: 'P2-常规', value: 'P2' },
+]
+
 const departmentOptions = computed(() =>
   departments.value.map(d => ({ label: d.name, value: d.id }))
 )
+
+// 详情页「按配置分组」的可见字段 (剔除系统/保留字段, 按分组聚合并按 order_index 排序)
+const groupedFields = computed(() => {
+  const visible = demandFields.value.filter(
+    f => f.isVisible !== false && !RESERVED_KEYS.has(f.fieldKey),
+  )
+  const order: string[] = []
+  const buckets: Record<string, FieldDefinition[]> = {}
+  for (const f of visible) {
+    const g = f.groupName || '其他'
+    if (!buckets[g]) { buckets[g] = []; order.push(g) }
+    buckets[g].push(f)
+  }
+  return order.map(name => ({
+    name,
+    fields: buckets[name].slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
+  }))
+})
+
+// 编辑表单的「扩展字段」(配置中可见、且未被硬编码表单覆盖的字段)
+const dynamicFormFields = computed(() =>
+  demandFields.value
+    .filter(f => f.isVisible !== false && !FORM_COVERED_KEYS.has(f.fieldKey))
+    .slice()
+    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
+)
+
+// --- 类型判断 (与 DynamicFieldEntry.vue 对齐) ---
+const NUMBER_TYPES = ['NUMBER']
+const OPTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT']
+const DATE_TYPES = ['DATE', 'DATE_RANGE']
+const PLAIN_TEXT_TYPES = ['TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'URL', 'RICH_TEXT']
+const isNumberType = (t: string) => NUMBER_TYPES.includes(t)
+const isOptionType = (t: string) => OPTION_TYPES.includes(t)
+const isDateType = (t: string) => DATE_TYPES.includes(t)
+const isPlainTextType = (t: string) => PLAIN_TEXT_TYPES.includes(t)
+const isMultiType = (t: string) => t === 'MULTISELECT' || t === 'LIST_MULTI'
+
+function selectOptions(f: FieldDefinition): { label: string; value: any }[] {
+  return (f.options || []).map((o: FieldOption) => ({
+    label: o.label || o.value, value: o.value,
+  }))
+}
+
+// 日期选择器受控: ISO 字符串 <-> 时间戳
+function dateValue(f: FieldDefinition): number | [number, number] | null {
+  const v = formValues[f.fieldKey]
+  if (!v) return null
+  if (Array.isArray(v)) {
+    const a = Date.parse(v[0]); const b = Date.parse(v[1])
+    return (isNaN(a) || isNaN(b)) ? null : [a, b]
+  }
+  const ts = Date.parse(v)
+  return isNaN(ts) ? null : ts
+}
+function onDateInput(f: FieldDefinition, v: number | [number, number] | null) {
+  if (v == null) { formValues[f.fieldKey] = null; return }
+  formValues[f.fieldKey] = Array.isArray(v)
+    ? [new Date(v[0]).toISOString(), new Date(v[1]).toISOString()]
+    : new Date(v).toISOString()
+}
+
+// 详情页某字段的取值: 模型映射字段取 demand 对象, 否则取 DynamicFieldValue
+function fieldValue(f: FieldDefinition): any {
+  const attr = MODEL_ATTR_MAP[f.fieldKey]
+  if (attr) return selectedDemand.value?.[attr]
+  return dynamicValues.value?.[f.fieldKey]
+}
+
+function optionLabel(f: FieldDefinition, val: any): string {
+  const found = (f.options || []).find((o: FieldOption) => o.value === val)
+  return found ? (found.label || String(found.value)) : String(val ?? '')
+}
+
+function formatDateVal(v: any): string {
+  if (!v) return '-'
+  return dayjs(v).format('YYYY-MM-DD')
+}
+
+// 详情页字段值的展示文本 (按类型格式化)
+function displayText(f: FieldDefinition, value: any): string {
+  if (value == null || value === '') return '-'
+  const t = f.fieldType
+  if (t === 'BOOLEAN') return value ? '是' : '否'
+  if (t === 'MULTISELECT' || t === 'LIST_MULTI') {
+    if (!Array.isArray(value) || value.length === 0) return '-'
+    return value.map((v: any) => optionLabel(f, v)).join('、')
+  }
+  if (OPTION_TYPES.includes(t)) return optionLabel(f, value)
+  if (t === 'DATE') return formatDateVal(value)
+  if (t === 'DATE_RANGE') {
+    if (Array.isArray(value) && value.length === 2) return `${formatDateVal(value[0])} ~ ${formatDateVal(value[1])}`
+    return String(value)
+  }
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+// 审批状态: 由需求状态推导 (DRAFT/PENDING/APPROVED...)
+const approvalInfo = computed(() => {
+  const s = selectedDemand.value?.state
+  if (s === 'PENDING') return { text: '审批中', type: 'info' as const }
+  if (s === 'APPROVED' || s === 'RECRUITING' || s === 'PAUSED' || s === 'COMPLETED') return { text: '已通过', type: 'success' as const }
+  if (s === 'REJECTED') return { text: '已驳回', type: 'error' as const }
+  return { text: '未发起', type: 'default' as const }
+})
 
 // 状态颜色（映射为 naive 的 tag type）
 const getStatusType = (status: string): any => {
@@ -578,24 +754,29 @@ const fetchDemands = async () => {
 
     const res = await get('/demands/', params)
     if (res.data.success) {
-      // 后端 StandardResultsSetPagination 返回的 data 即为数组({success,data:[...],pagination}),
-      // 无 .list 键;对齐全仓约定(res.data.data 直接取数组)
-      // 列表/详情模板用的是旧契约字段(name/positionCount/demandStatus/hiredCount),
-      // 后端返回的是 title/headcount/state/filled_count,在此归一化以便正确回显。
-      demands.value = (res.data.data || []).map((d: any) => ({
-        ...d,
-        name: d.title,
-        positionCount: d.headcount,
-        demandStatus: d.state,
-        demandType: d.demand_type,
-        hiredCount: d.filled_count ?? 0,
-        onBoardCount: d.filled_count ?? 0,
-      }))
+      demands.value = (res.data.data || []).map(normalizeDemand)
     }
   } catch (error) {
     message.error('获取需求列表失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 列表/详情模板用的是旧契约别名(name/positionCount/demandStatus/hiredCount)。
+// 后端经 CamelCaseJSONRenderer 输出 camelCase 键(demandType/filledCount),
+// 旧代码读 snake 键(demand_type/filled_count)恒 undefined → 卡片类型恒显校招、
+// 入职数恒 0。这里对两种键名都兜底, 并保证 detail 合并后别名不被
+// serializer 的 position_count(关联职位数)覆盖 positionCount(需求人数=headcount)。
+function normalizeDemand(d: any) {
+  return {
+    ...d,
+    name: d.title,
+    positionCount: d.headcount,
+    demandStatus: d.state,
+    demandType: d.demandType ?? d.demand_type,
+    hiredCount: d.filledCount ?? d.filled_count ?? 0,
+    onBoardCount: d.filledCount ?? d.filled_count ?? 0,
   }
 }
 
@@ -610,9 +791,49 @@ const fetchDepartments = async () => {
   }
 }
 
-const handleCardClick = (item: any) => {
+const loadDemandFields = async () => {
+  try {
+    demandFields.value = await listFields('Demand')
+  } catch (error) {
+    // 配置加载失败不应阻断详情/列表; 仅降级为不渲染配置字段
+    demandFields.value = []
+  }
+}
+
+// 打开详情: 拉取完整详情(含 JD/任职要求) + 动态字段值
+const handleCardClick = async (item: any) => {
   selectedDemand.value = item
   detailVisible.value = true
+  dynamicValues.value = {}
+  try {
+    const res = await get(`/demands/${item.id}/`)
+    const detail = res.data?.data ?? res.data
+    if (detail && detail.id) {
+      // 合并后重新归一化: 详情 serializer 的 positionCount 是「关联职位数」,
+      // 会覆盖列表别名 positionCount(需求人数=headcount); 统一以 headcount 为准,
+      // 并对 camelCase 键兜底。
+      selectedDemand.value = normalizeDemand({ ...item, ...detail })
+    }
+  } catch (error) {
+    // 保持列表项数据兜底
+  }
+  try {
+    dynamicValues.value = await getDynamicFieldValues('Demand', item.id)
+  } catch (error) {
+    dynamicValues.value = {}
+  }
+}
+
+const resetFormValues = () => {
+  for (const f of dynamicFormFields.value) {
+    formValues[f.fieldKey] = defaultForType(f.fieldType)
+  }
+}
+
+const defaultForType = (t: string): any => {
+  if (t === 'BOOLEAN') return false
+  if (isMultiType(t)) return []
+  return ''
 }
 
 const handleCreate = () => {
@@ -622,6 +843,7 @@ const handleCreate = () => {
     departmentId: '',
     demandType: 'SOCIAL',
     positionCount: 1,
+    priority: 'P1',
     positionSeries: '',
     jobLevel: '',
     salaryMin: null,
@@ -631,11 +853,51 @@ const handleCreate = () => {
     description: '',
     requirements: ''
   }
+  resetFormValues()
   modalVisible.value = true
 }
 
-const handleEdit = (item: any) => {
-  formData.value = { ...item }
+const handleEdit = async (item: any) => {
+  // 拉取完整详情, 保证部门 id / JD / 任职要求 / 职级 / 职位系列 / 人数 / 优先级 / 类型
+  // 等都正确回填 (列表项与抽屉 selectedDemand 不一定含这些字段)。
+  // 注意: serializer 的 positionCount 是「关联职位数」, 需求人数应取 headcount。
+  let d: any = item || {}
+  try {
+    const res = await get(`/demands/${item.id}/`)
+    const detail = res.data?.data ?? res.data
+    if (detail && detail.id) d = detail
+  } catch (error) {
+    // 兜底用传入项 (已 normalize): 列表项/抽屉项至少含 id / headcount / demandType 等
+  }
+  formData.value = {
+    id: d.id ?? item?.id ?? '',
+    name: d.title ?? d.name ?? '',
+    // department 在列表/详情序列化里是外键 PK 字符串(非嵌套对象), 故 d.department 即 id;
+    // 兼容个别嵌套场景: 对象取 .id, 字符串直接当 id。
+    departmentId: (typeof d.department === 'object' ? d.department?.id : d.department)
+      ?? (typeof item?.department === 'object' ? item?.department?.id : item?.department)
+      ?? '',
+    demandType: d.demandType ?? d.demand_type ?? 'SOCIAL',
+    positionCount: d.headcount ?? item?.headcount ?? 1,
+    priority: d.priority || 'P1',
+    positionSeries: d.positionTitle ?? d.position_title ?? '',
+    jobLevel: d.level ?? '',
+    salaryMin: d.salaryMin ?? null,
+    salaryMax: d.salaryMax ?? null,
+    startDate: d.startDate ? dayjs(d.startDate).valueOf() : null,
+    endDate: d.endDate ? dayjs(d.endDate).valueOf() : null,
+    description: d.jd ?? '',
+    requirements: d.requirements ?? '',
+  }
+  resetFormValues()
+  try {
+    const vals = await getDynamicFieldValues('Demand', item.id)
+    for (const f of dynamicFormFields.value) {
+      formValues[f.fieldKey] = vals[f.fieldKey] ?? defaultForType(f.fieldType)
+    }
+  } catch (error) {
+    // 拉取失败保持默认
+  }
   modalVisible.value = true
 }
 
@@ -650,36 +912,51 @@ const handleSave = async () => {
     return
   }
 
+  // 收集动态(非模型映射)配置字段值
+  const dyn: Record<string, any> = {}
+  for (const f of dynamicFormFields.value) {
+    const v = formValues[f.fieldKey]
+    if (v === '' || v == null || (Array.isArray(v) && v.length === 0)) continue
+    dyn[f.fieldKey] = v
+  }
+
   submitting.value = true
   try {
     const data = {
-      // 后端 DemandCreateSerializer 契约：title / department / headcount（FK/必填）
-      // 由表单的 name / departmentId / positionCount 映射而来；其余字段后端忽略或
-      // 由服务端填充（requested_by / hr / process 在后端 perform_create 自动补）。
       title: formData.value.name,
       department: formData.value.departmentId,
       headcount: formData.value.positionCount,
       level: formData.value.jobLevel || '',
       position_title: formData.value.positionSeries || '',
       demand_type: formData.value.demandType,
+      priority: formData.value.priority,
       jd: formData.value.description || '',
       requirements: formData.value.requirements || '',
-      priority: 'P1',
       startDate: formData.value.startDate ? dayjs(formData.value.startDate).format('YYYY-MM-DD') : null,
-      endDate: formData.value.endDate ? dayjs(formData.value.endDate).format('YYYY-MM-DD') : null
+      endDate: formData.value.endDate ? dayjs(formData.value.endDate).format('YYYY-MM-DD') : null,
+      salaryMin: formData.value.salaryMin,
+      salaryMax: formData.value.salaryMax,
     }
 
-    if (formData.value.id) {
-      await put(`/demands/${formData.value.id}/`, data)
+    let demandId = formData.value.id
+    if (demandId) {
+      await put(`/demands/${demandId}/`, data)
       message.success('更新成功')
     } else {
-      await post('/demands/', data)
+      const r: any = await post('/demands/', data)
+      demandId = r?.data?.data?.id || r?.data?.id || ''
       message.success('创建成功')
     }
+
+    // 扩展字段走权威动态值接口落库
+    if (demandId && Object.keys(dyn).length) {
+      await saveDynamicFieldValues('Demand', demandId, dyn)
+    }
+
     modalVisible.value = false
     fetchDemands()
   } catch (error: any) {
-    message.error(error?.response?.data?.message || '操作失败')
+    message.error(extractApiError(error, '操作失败'))
   } finally {
     submitting.value = false
   }
@@ -693,7 +970,7 @@ const handleSubmitApproval = async () => {
     detailVisible.value = false
     fetchDemands()
   } catch (error: any) {
-    message.error(error?.response?.data?.message || '提交失败')
+    message.error(extractApiError(error, '提交失败'))
   }
 }
 
@@ -703,6 +980,7 @@ const handleFilter = () => fetchDemands()
 onMounted(() => {
   fetchDemands()
   fetchDepartments()
+  loadDemandFields()
 })
 </script>
 
@@ -1134,10 +1412,9 @@ onMounted(() => {
 @media (max-width: 768px) {
   .demand-container { padding: var(--space-3); }
   .page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
-  .stats-row { grid-template-columns: repeat(2, 1fr) !important; } /* v2.9: 保留 !important（覆盖 Naive n-grid 内联 grid-template-columns，移除则移动端不退化为 2 列） */
+  .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
 }
 @media (max-width: 480px) {
-  .stats-row { grid-template-columns: 1fr !important; } /* v2.9: 保留 !important（覆盖 Naive n-grid 内联 grid-template-columns，移除则移动端不退化为 1 列） */
+  .stats-row { grid-template-columns: 1fr !important; }
 }
-
 </style>

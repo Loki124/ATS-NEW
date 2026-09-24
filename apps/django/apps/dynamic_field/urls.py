@@ -39,7 +39,7 @@ urlpatterns = [
     ),
     path(
         '<str:resource>/fields/values/',
-        DynamicFieldViewSet.as_view({'post': 'save_values'}),
+        DynamicFieldViewSet.as_view({'get': 'save_values', 'post': 'save_values'}),
         name='dynamicfield-values',
     ),
     path(

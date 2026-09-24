@@ -339,6 +339,26 @@ export const saveDynamicFieldValues = (
 ) => api.post(`/dynamic-fields/${resource}/fields/values/`, { entityId, values }).then((r) => r.data);
 
 /**
+ * 按实体读取动态字段值 (2026-09-24 兵哥, 需求 4: 详情页渲染扩展字段)。
+ *
+ * GET `<resource>/fields/values/?entityId=X` → `{ data: [{ fieldKey, value }] }`
+ * (数组 + 字符串 fieldKey, 保持原始 snake, 与 listFields 返回的 fieldKey 一致)。
+ * 后端用数组而非 dict 是因为全局 CamelCaseJSONRenderer 会把 dict 的 snake 键 camel 化
+ * (f_custom_text→fCustomText), 导致前端用 snake 的 f.fieldKey 索引永远 miss。
+ * 这里把数组聚合成 `{ fieldKey: value }` 再返回, 调用方直接用 f.fieldKey 索引即可。
+ * 仅返回有值的键; 未配置 / 未录入的字段不在返回中。
+ */
+export const getDynamicFieldValues = (resource: string, entityId: string) =>
+  api
+    .get(`/dynamic-fields/${resource}/fields/values/`, { params: { entityId } })
+    .then((r) => {
+      const list = ((r.data?.data ?? []) as { fieldKey: string; value: any }[]) || []
+      const map: Record<string, any> = {}
+      for (const it of list) map[it.fieldKey] = it.value
+      return map
+    });
+
+/**
  * 从后端错误响应里提取可读文案。
  *
  * 后端 `custom_exception_handler` 对 DRF 校验错误统一返回
