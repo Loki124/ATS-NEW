@@ -73,9 +73,27 @@
         </template>
       </n-card>
 
-      <!-- 测试数据 -->
+      <!-- 测试数据（可切换为真实候选人快照） -->
       <n-card :title="t('metrics.rule.sampleData')" size="small" class="mr-card">
-        <pre class="mr-json">{{ JSON.stringify(sampleData, null, 2) }}</pre>
+        <template #header-extra>
+          <n-radio-group v-model:value="dataMode" size="small">
+            <n-radio-button value="sample">{{ t('metrics.rule.sample') }}</n-radio-button>
+            <n-radio-button value="real">{{ t('metrics.rule.real') }}</n-radio-button>
+          </n-radio-group>
+        </template>
+
+        <n-space v-if="dataMode === 'real'" class="mr-snapshot-bar">
+          <n-input
+            v-model:value="candidateId"
+            :placeholder="t('metrics.rule.candidateId')"
+            style="width: 240px"
+          />
+          <n-button size="small" :loading="loadingSnapshot" @click="loadSnapshot">
+            {{ loadingSnapshot ? t('metrics.rule.loading') : t('metrics.rule.loadSnapshot') }}
+          </n-button>
+        </n-space>
+
+        <pre class="mr-json">{{ JSON.stringify(currentData, null, 2) }}</pre>
       </n-card>
     </div>
   </div>
@@ -95,6 +113,7 @@ import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
 import {
   executeRule,
+  getCandidateSnapshot,
   getSampleData,
   listMetricTemplates,
   listOperators,
@@ -112,6 +131,37 @@ const conditions = ref<any[]>([{ templateId: null, operator: null, value: '' }])
 const result = ref<ExecuteResult | null>(null)
 const executing = ref(false)
 
+// 数据源：示例数据（默认） / 真实候选人快照
+const dataMode = ref<'sample' | 'real'>('sample')
+const candidateId = ref('')
+const realData = ref<Record<string, any>>({})
+const loadingSnapshot = ref(false)
+
+const currentData = computed(() =>
+  dataMode.value === 'real' ? realData.value : sampleData.value,
+)
+
+async function loadSnapshot() {
+  if (!candidateId.value.trim()) {
+    message.warning(t('metrics.rule.candidateId'))
+    return
+  }
+  loadingSnapshot.value = true
+  try {
+    const snap = await getCandidateSnapshot(candidateId.value.trim())
+    if (!snap?.candidate) {
+      message.warning(t('metrics.rule.dataEmpty'))
+      return
+    }
+    realData.value = snap
+    message.success(t('metrics.rule.snapshotOk'))
+  } catch (error) {
+    message.error(t('metrics.rule.snapshotFail'))
+  } finally {
+    loadingSnapshot.value = false
+  }
+}
+
 const templateOptions = computed(() =>
   templateList.value.map((tp) => ({
     label: `${tp.name}（${tp.metricName || tp.metricPath || ''}）`,
@@ -119,9 +169,12 @@ const templateOptions = computed(() =>
   })),
 )
 
-const canExecute = computed(() =>
-  conditions.value.some((c) => c.templateId && c.operator),
-)
+const canExecute = computed(() => {
+  if (!conditions.value.some((c) => c.templateId && c.operator)) return false
+  // 真实数据模式下必须先成功加载快照
+  if (dataMode.value === 'real' && !realData.value?.candidate) return false
+  return true
+})
 
 function operatorOptionsFor(cond: any) {
   const tp = templateList.value.find((x) => x.id === cond.templateId)
@@ -163,7 +216,7 @@ async function execute() {
         .filter((c) => c.templateId && c.operator)
         .map((c) => ({ templateId: c.templateId, operator: c.operator, value: c.value })),
       logic: 'AND',
-      data: sampleData.value,
+      data: currentData.value,
     }
     result.value = await executeRule(payload as any)
   } catch (error: any) {
@@ -276,6 +329,9 @@ onMounted(load)
 }
 .mr-step-detail {
   font-size: 13px;
+}
+.mr-snapshot-bar {
+  margin-bottom: 8px;
 }
 .mr-json {
   margin: 0;
