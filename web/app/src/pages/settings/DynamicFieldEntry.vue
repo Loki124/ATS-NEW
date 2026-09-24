@@ -14,6 +14,7 @@ import {
   NButton, NCard, NDatePicker, NDivider, NEmpty, NForm, NFormItem, NInput,
   NInputNumber, NSelect, NSpace, NSwitch, NText, NSpin, useMessage,
 } from 'naive-ui';
+import RichTextEditor from '@/components/RichTextEditor.vue';
 import {
   listFields, validateValues, saveDynamicFieldValues,
   type FieldDefinition, type FieldType, type FieldOption, type FieldValidation,
@@ -244,6 +245,15 @@ onMounted(loadFields);
             v-model:value="values[f.fieldKey]"
             placeholder="附件 URL"
             style="width: 360px"
+          />
+
+          <!-- 富文本 (RICH_TEXT, 2026-09-24 兵哥): 规范化 HTML 字符串, 空内容归 '' -->
+          <RichTextEditor
+            v-else-if="f.fieldType === 'RICH_TEXT'"
+            v-model="values[f.fieldKey]"
+            :placeholder="f.placeholder || '请输入富文本内容'"
+            style="width: 100%"
+            @blur="validateLocalField(f)"
           />
 
           <!-- 组合 / 行政区划 / 确认题 / 其他: 原始 JSON 编辑 -->

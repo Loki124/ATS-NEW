@@ -156,6 +156,12 @@
                         :type="(datePickerType(m.fieldType, m.field.dateFormat) as any)"
                         clearable
                       />
+                      <!-- 富文本 (2026-09-24 兵哥): 预览态只读回显 -->
+                      <RichTextEditor
+                        v-else-if="m.fieldType === 'RICH_TEXT'"
+                        :model-value="''"
+                        :disabled="true"
+                      />
                       <n-input
                         v-else
                         disabled
@@ -300,6 +306,7 @@ import {
 import RegionCascader from '../../components/RegionCascader.vue';
 import AttachmentUploader from '@/components/AttachmentUploader.vue';
 import CompositeFieldCard from '@/components/CompositeFieldCard.vue';
+import RichTextEditor from '@/components/RichTextEditor.vue';
 const { t } = useI18n()
 
 const message = useMessage()
@@ -350,6 +357,7 @@ function isFullWidth(field: FieldDefinition): boolean {
     || field.fieldType === 'ATTACHMENT'
     || field.fieldType === 'ADDRESS'
     || field.fieldType === 'REGION'
+    || field.fieldType === 'RICH_TEXT'
 }
 function selectOptions(field: FieldDefinition) {
   return (field.options || []).map((o) => ({ label: o.label, value: o.value }))

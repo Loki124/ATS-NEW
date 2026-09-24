@@ -244,6 +244,12 @@
                       :type="(datePickerType(m.field.fieldType, m.field.dateFormat) as any)"
                       clearable
                     />
+                    <!-- 富文本 (2026-09-24 兵哥): 预览态只读回显 -->
+                    <RichTextEditor
+                      v-else-if="m.field.fieldType === 'RICH_TEXT'"
+                      :model-value="''"
+                      :disabled="true"
+                    />
                     <!-- 默认：文本/数字/证件 等 -->
                     <n-input
                       v-else
@@ -265,6 +271,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { NButton, NIcon, NSwitch, NSpin, NAlert, NEmpty, NInput, NSelect, NDatePicker, NTag, useMessage } from 'naive-ui'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 import {
   RefreshOutline,
   ReloadOutline,
@@ -349,6 +356,7 @@ function isFullWidth(field: FieldDefinition): boolean {
     || field.fieldType === 'ATTACHMENT'
     || field.fieldType === 'ADDRESS'
     || field.fieldType === 'REGION'
+    || field.fieldType === 'RICH_TEXT'
 }
 
 // 用全部动态字段给 config 补齐/裁剪条目，保证每个字段都有配置项

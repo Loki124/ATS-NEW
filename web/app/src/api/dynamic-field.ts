@@ -21,7 +21,8 @@ export type FieldType =
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
   | 'ADDRESS'
   | 'REGION'
-  | 'COMPOSITE';
+  | 'COMPOSITE'
+  | 'RICH_TEXT';
 
 /** 组合字段 (COMPOSITE) 的子字段定义 (与后端 DynamicField.sub_fields 对齐) */
 export interface SubField {
@@ -403,6 +404,8 @@ export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
   { label: '列表多选', value: 'LIST_MULTI' },
   { label: '确认题', value: 'CONFIRM' },
   { label: '多行文本', value: 'MULTILINE_TEXT' },
+  // 2026-09-24 (兵哥): 富文本型 — 录入端渲染富文本编辑器, 值以规范化 HTML 字符串存储
+  { label: '富文本', value: 'RICH_TEXT' },
   // 2026-09-15 新增: 地址（单行文本，预览/申请表独占整行）
   { label: '地址', value: 'ADDRESS' },
   // 2026-09-15 新增: 行政区划型(数据源: G46 码表库 regions/countries; 层级精度由省/省市/省市区单选控制, 与 with_country 配套)
@@ -422,6 +425,7 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   ADDRESS: '地址',
   REGION: '行政区划',
   COMPOSITE: '组合字段',
+  RICH_TEXT: '富文本',
 };
 
 /** 日期格式精度选项 (兵哥 2026-09-15: 年 / 年月 / 年月日) */

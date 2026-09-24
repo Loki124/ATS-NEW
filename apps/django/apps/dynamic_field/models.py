@@ -44,6 +44,10 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         # 在页面应用中以「组合展示」卡片呈现(如 证件+银行卡)。子结构由 sub_fields 定义,
         # 值以 JSON 对象按子字段 key 存储: {subKey: value}.
         COMPOSITE = 'COMPOSITE', '组合字段'
+        # 2026-09-24 (兵哥): 富文本型 — 录入端渲染富文本编辑器, 值以规范化 HTML 字符串存储
+        # (落 DynamicFieldValue.value JSONField)。后端 validators 不归组 → 校验恒通过(无专属限制条件);
+        # 结构仅依赖 contenteditable + execCommand, 零额外依赖。
+        RICH_TEXT = 'RICH_TEXT', '富文本'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [

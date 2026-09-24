@@ -911,6 +911,8 @@ const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning
   REGION: 'success',
   // 2026-09-16 (兵哥): 组合字段 — 品牌主色, 表达"聚合"
   COMPOSITE: 'warning',
+  // 2026-09-24 (兵哥): 富文本 — 默认色 (与文本/地址一致)
+  RICH_TEXT: 'default',
 };
 
 // 2026-09-16 (兵哥): 组合字段子字段类型选项(与后端 serializers allowed 子集对齐)
