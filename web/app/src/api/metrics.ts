@@ -186,3 +186,22 @@ export async function executeRule(payload: ExecutePayload): Promise<ExecuteResul
   const res = await api.post('/metrics/rules/execute/', payload)
   return unwrap<ExecuteResult>(res)
 }
+
+/** 真实候选人数据快照（供规则按 source_path 取值） */
+export async function getCandidateSnapshot(candidateId: string): Promise<Record<string, any>> {
+  const res = await api.get(`/metrics/candidates/${candidateId}/snapshot/`)
+  return unwrap<Record<string, any>>(res) ?? {}
+}
+
+export interface CandidateFieldPath {
+  path: string
+  label: string
+  dataType: string
+  source: 'model' | 'dynamic'
+}
+
+/** 可引用的字段路径清单（配置原子指标时下拉选择，避免手填路径出错） */
+export async function listCandidateFields(): Promise<CandidateFieldPath[]> {
+  const res = await api.get('/metrics/candidate-fields/')
+  return unwrap<CandidateFieldPath[]>(res) ?? []
+}

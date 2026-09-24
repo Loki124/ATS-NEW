@@ -88,6 +88,15 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.msg.requiredOperators': '至少选择 1 个运算符',
   'metrics.msg.selectOneMetric': '必须且只能引用一个指标',
   'metrics.msg.badParams': '参数必须是合法 JSON 对象',
+  'metrics.rule.dataSource': '数据源',
+  'metrics.rule.sample': '示例数据',
+  'metrics.rule.real': '真实候选人',
+  'metrics.rule.candidateId': '候选人 ID',
+  'metrics.rule.loadSnapshot': '加载',
+  'metrics.rule.loading': '加载中…',
+  'metrics.rule.snapshotOk': '已加载候选人快照',
+  'metrics.rule.snapshotFail': '加载快照失败，请检查候选人 ID',
+  'metrics.rule.dataEmpty': '数据为空',
 }
 
 export const METRICS_EN: Record<string, string> = {
@@ -173,4 +182,13 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.msg.requiredOperators': 'Select at least one operator',
   'metrics.msg.selectOneMetric': 'Exactly one metric must be referenced',
   'metrics.msg.badParams': 'Params must be a valid JSON object',
+  'metrics.rule.dataSource': 'Data Source',
+  'metrics.rule.sample': 'Sample Data',
+  'metrics.rule.real': 'Real Candidate',
+  'metrics.rule.candidateId': 'Candidate ID',
+  'metrics.rule.loadSnapshot': 'Load',
+  'metrics.rule.loading': 'Loading…',
+  'metrics.rule.snapshotOk': 'Candidate snapshot loaded',
+  'metrics.rule.snapshotFail': 'Failed to load snapshot, check candidate ID',
+  'metrics.rule.dataEmpty': 'Empty data',
 }

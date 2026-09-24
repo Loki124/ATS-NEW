@@ -8,6 +8,8 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AtomicMetricViewSet,
+    CandidateFieldCatalogView,
+    CandidateSnapshotView,
     DerivedFuncCatalogView,
     DerivedMetricViewSet,
     MetricTemplateViewSet,
@@ -28,6 +30,8 @@ urlpatterns = [
     path('operators/', OperatorCatalogView.as_view(), name='operator-catalog'),
     path('derived-funcs/', DerivedFuncCatalogView.as_view(), name='derived-func-catalog'),
     path('sample-data/', sample_data, name='sample-data'),
+    path('candidate-fields/', CandidateFieldCatalogView.as_view(), name='candidate-field-catalog'),
+    path('candidates/<str:candidate_id>/snapshot/', CandidateSnapshotView.as_view(), name='candidate-snapshot'),
     path('rules/execute/', RuleExecuteView.as_view(), name='rule-execute'),
     path('', include(router.urls)),
 ]

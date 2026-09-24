@@ -27,6 +27,7 @@ from .serializers import (
     MetricTemplateSerializer,
     RuleExecuteSerializer,
 )
+from .services.candidate_snapshot import build_candidate_snapshot, list_candidate_paths
 from .services.derived_registry import list_funcs
 from .services.metric_engine import MetricEngine
 
@@ -151,3 +152,30 @@ class DerivedFuncCatalogView(APIView):
 @api_view(['GET'])
 def sample_data(request):
     return Response(SAMPLE_CANDIDATE)
+
+
+class CandidateSnapshotView(APIView):
+    """GET /api/v1/metrics/candidates/{id}/snapshot/ —— 真实候选人数据快照。
+
+    规则引擎的取值入口：把 ORM 组装成嵌套 dict，供原子指标 source_path 解析。
+    候选人不存在返回 404 JSON（不抛异常）。
+    """
+
+    def get(self, request, candidate_id):
+        snapshot = build_candidate_snapshot(candidate_id)
+        if not snapshot.get('candidate'):
+            return Response(
+                {'error': f'候选人 {candidate_id} 不存在'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(snapshot, status=status.HTTP_200_OK)
+
+
+class CandidateFieldCatalogView(APIView):
+    """GET /api/v1/metrics/candidate-fields/ —— 可引用的字段路径清单。
+
+    供配置原子指标时下拉选择（path/label/dataType），避免手填路径导致解析失败。
+    """
+
+    def get(self, request):
+        return Response(list_candidate_paths())
