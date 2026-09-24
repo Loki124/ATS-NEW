@@ -51,6 +51,7 @@ def _record_state_change(
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.encryption import hash_for_search
 from apps.core.models import User
+from apps.reason_library.models import RecruitType
 
 from .models import Candidate, CandidateHistory, CandidateState
 
@@ -161,10 +162,16 @@ class CandidateService:
 
     @staticmethod
     @transaction.atomic
-    def create_candidate(data: CandidateCreateData, actor: Optional[User] = None) -> Candidate:
+    def create_candidate(
+        data: CandidateCreateData,
+        actor: Optional[User] = None,
+        recruit_type: str = RecruitType.SOCIAL.value,
+    ) -> Candidate:
         """创建候选人（含幂等查重）
 
         重复检测优先级：Moka ID > 身份证 > 手机 > 邮箱
+        recruit_type: 招生类型硬分区 (social/campus), 由请求上下文权威注入,
+                      默认 social (历史数据/未显式传入时).
         """
         # 字段校验
         if not data.name or not data.name.strip():
@@ -206,6 +213,7 @@ class CandidateService:
             referral_type=data.referral_type or '',
             tags=data.tags or [],
             moka_candidate_id=data.moka_candidate_id,
+            recruit_type=recruit_type,
         )
 
         # 写历史

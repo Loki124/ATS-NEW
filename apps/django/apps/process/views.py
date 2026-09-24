@@ -235,6 +235,16 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
+        # 角色自定义数据范围（数据权限向导）：仅当有配置时收窄，无配置保持全量（与既有行为一致）。
+        # 流程无 recruit_type 硬分区、亦不按部门默认裁剪，故此处只叠加自定义范围。
+        user = getattr(self.request, 'user', None)
+        if user and getattr(user, 'is_authenticated', False):
+            from apps.core.role_v2_query import is_super_admin
+            if not is_super_admin(user):
+                from apps.data_permission.enforcement import role_entity_scope_q
+                custom_q = role_entity_scope_q(user, 'process')
+                if custom_q is not None:
+                    qs = qs.filter(custom_q)
         return qs.select_related('created_by', 'updated_by')
 
     def create(self, request, *args, **kwargs):

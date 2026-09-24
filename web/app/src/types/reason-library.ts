@@ -133,6 +133,8 @@ export interface RuleCategory {
   level: 1 | 2 | 3 | 4
   order: number
   allowCustom: boolean
+  /** 区块颜色 #RRGGBB; 空串=未自定义 (一级用默认色, 非一级继承所属一级分类颜色) */
+  color?: string
   tags: ReasonTag[]
   /**
    * 后端序列化仅下发 tagIds (camelCase), 不返回完整的 tags 对象。
@@ -146,11 +148,15 @@ export interface SceneRule {
   id: string
   name: string
   isSystem: boolean
+  /** 是否「预置默认规则」(is_system AND name=='预置默认规则') — 覆盖全部场景×类型, 不可调整覆盖/名称/状态 */
+  isPresetDefault?: boolean
   enabled: boolean
   description?: string
   scenes: SceneKey[]
   /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
   maxSelectableTags: number
+  /** 终端用户选择原因弹窗的标题文案 (空=使用默认「选择原因」) */
+  modalTitle?: string
   /** 完整嵌套分类树 (含末级 tags) */
   categories: RuleCategory[]
   /** 列表接口附加的统计字段 (后端 _count 或 @property) */
@@ -165,6 +171,8 @@ export interface SceneRuleListItem {
   id: string
   name: string
   isSystem: boolean
+  /** 是否「预置默认规则」 */
+  isPresetDefault?: boolean
   enabled: boolean
   description?: string
   scenes: SceneKey[]
@@ -199,6 +207,9 @@ export interface WizardPayload {
   description?: string
   enabled: boolean
   isSystem: boolean
+  /** 是否「预置默认规则」(is_system AND name=='预置默认规则') — 覆盖全部场景×类型,
+   *  不可调整 覆盖/名称/状态, 仅描述/可选标签上限/分类树可改。前端据此锁定 UI。 */
+  isPresetDefault: boolean
   scenes: SceneKey[]
   /** 招聘类型维度 (社会招聘/校园招聘) — 与 scenes 笛卡尔积决定规则应用范围 (派生展示用) */
   recruitTypes: RecruitType[]
@@ -206,6 +217,8 @@ export interface WizardPayload {
   scenePairs: SceneRecruitPair[]
   /** 用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制) */
   maxSelectableTags: number
+  /** 模拟弹窗标题 (默认「选择原因」; 保存进规则 modal_title) */
+  modalTitle?: string
   categories: RuleCategory[]
   updatedAt?: string
 }
@@ -228,6 +241,8 @@ export interface WizardSaveCategory {
   name: string
   order: number
   allow_custom: boolean
+  /** 区块颜色 #RRGGBB; 空串=未自定义 (沿用继承 / 默认色) */
+  color?: string
   tag_ids: string[]
 }
 
@@ -242,6 +257,8 @@ export interface WizardSavePayload {
   scene_assignments?: { scene: SceneKey; recruit_type: RecruitType }[]
   /** 用户可选原因标签上限 (0 表示不限制) */
   max_selectable_tags: number
+  /** 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」) */
+  modal_title?: string
   categories: WizardSaveCategory[]
   /** 可选乐观锁: 仅 ENABLE_OPTIMISTIC_LOCK=true 时携带 (对应 payload.updatedAt) */
   expected_updated_at?: string

@@ -36,8 +36,11 @@ class ActiveRuleView(APIView):
             raise BizException(BizCode.VALIDATION_FAILED, '缺少 scene 参数', status_code=400)
         if scene not in SCENE_OPTIONS:
             raise BizException(BizCode.VALIDATION_FAILED, f'非法 scene: {scene}', status_code=400)
+        # 招聘类型维度 (2026-09-24): 业务流当前未真正传类型 (前端 system.ts 注释),
+        # 不传时退化为纯按场景兜底; 一旦接入即可精确按 (场景,类型) 取规则。
+        recruit_type = request.query_params.get('recruitType') or request.GET.get('recruitType') or None
 
-        rule = get_active_rule(scene)
+        rule = get_active_rule(scene, recruit_type)
         if rule is None:
             return ApiResponse.ok(None, message='该场景当前无生效规则')
         # 业务态只取 enabled 规则 (Q-A5: 不按 user.role 区分)

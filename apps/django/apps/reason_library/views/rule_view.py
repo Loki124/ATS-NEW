@@ -150,9 +150,13 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
             raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
         # Item2: 系统预置规则 HR 及以上可改 (对象权限由 SystemOrAdminPermission 兜底);
         #        但 enabled 强制 True — 系统预置规则保持不可停用。
+        # 预置默认规则 (is_system AND name=='预置默认规则'): 名称/状态/覆盖均不可调整
+        # (覆盖在 wizard_service.save 内守卫), 此处拦截改名 — 名称锁定以保 is_preset_default 判定稳定。
         if obj.is_system:
             data = dict(request.data)
             data['enabled'] = True
+            if obj.is_preset_default:
+                data.pop('name', None)
         else:
             data = request.data
         # 可选乐观锁: 仅当请求带 If-Match 头时校验 (单人场景前端不发 → 自动跳过)

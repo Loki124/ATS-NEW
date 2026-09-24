@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>角色 · 数据权限配置 交互原型</title>
+<style>
+/* ===================== Design Tokens ===================== */
+:root{
+  --brand:#6366F1; --brand-hover:#4F46E5; --brand-weak:#EEF2FF; --brand-line:#C7D2FE;
+  --ok:#10B981; --warn:#F59E0B; --danger:#EF4444; --danger-weak:#FEF2F2; --danger-line:#FECACA;
+  --line:#E2E8F0; --line-soft:#EEF2F7;
+  --t1:#0F172A; --t2:#475569; --t3:#94A3B8;
+  --card:#FFFFFF; --bg1:#F6F7FB; --bg2:#EEF1FA;
+  --r-sm:6px; --r:10px; --r-lg:12px;
+  --sh:0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.03);
+  --sh-pop:0 6px 20px rgba(15,23,42,.10);
+  --sh-drawer:-12px 0 40px rgba(15,23,42,.12);
+  --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-20:20px;
+  --font:"PingFang SC",-apple-system,BlinkMacSystemFont,"Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font); font-size:var(--fs-14); color:var(--t1);
+  background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 100%);
+  min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,.sel-box:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ===================== A 区：角色列表 ===================== */
+.page{max-width:1120px;margin:0 auto;padding:28px 24px 64px}
+.crumb{font-size:var(--fs-12);color:var(--t3);margin-bottom:10px}
+.crumb b{color:var(--t2);font-weight:500}
+.page-hd{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.page-title{font-size:var(--fs-20);font-weight:600;letter-spacing:.2px}
+.page-sub{font-size:var(--fs-12);color:var(--t3);margin-top:4px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
+.filter-bar{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.input,.fsel{
+  height:32px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;
+  padding:0 10px;font-size:var(--fs-13);color:var(--t1);min-width:150px;
+}
+.input::placeholder{color:var(--t3)}
+.demo-toggle{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:var(--fs-12);color:var(--t2);user-select:none}
+.demo-toggle input{accent-color:var(--brand)}
+.btn{height:32px;padding:0 14px;border-radius:var(--r-sm);border:1px solid var(--line);background:#fff;color:var(--t2);font-size:var(--fs-13)}
+.btn:hover{border-color:var(--brand-line);color:var(--brand)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn-primary:hover{background:var(--brand-hover);border-color:var(--brand-hover);color:#fff}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn-danger:hover{background:#DC2626;border-color:#DC2626;color:#fff}
+.btn-ghost-danger{color:var(--danger);border-color:var(--danger-line);background:#fff}
+.btn-ghost-danger:hover{background:var(--danger-weak)}
+.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-13)}
+.tbl th{
+  text-align:left;font-weight:500;color:var(--t3);font-size:var(--fs-12);
+  padding:10px 16px;background:#FBFCFE;border-bottom:1px solid var(--line-soft);white-space:nowrap;
+}
+.tbl td{padding:12px 16px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover{background:#FAFBFF}
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;font-size:var(--fs-12);border:1px solid transparent}
+.pill-all{background:#ECFDF5;color:#047857;border-color:#A7F3D0}
+.pill-scope{background:var(--brand-weak);color:var(--brand);border-color:var(--brand-line)}
+.pill-none{background:#F1F5F9;color:var(--t2);border-color:var(--line)}
+.tag-src{display:inline-flex;height:22px;align-items:center;padding:0 8px;border-radius:var(--r-sm);background:#F8FAFC;border:1px solid var(--line);color:var(--t2);font-size:var(--fs-12)}
+.switch{width:36px;height:20px;border-radius:10px;background:var(--brand);border:none;position:relative;transition:background .18s;padding:0}
+.switch.off{background:#CBD5E1}
+.switch i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .18s;box-shadow:0 1px 2px rgba(15,23,42,.2)}
+.switch.off i{left:18px}
+.ops{display:flex;align-items:center;gap:6px}
+.lnk{border:none;background:none;padding:2px 4px;font-size:var(--fs-13);color:var(--t2);border-radius:4px}
+.lnk:hover{color:var(--brand)}
+.lnk.p{color:var(--brand);font-weight:500}
+.lnk.d{color:var(--danger)}
+.lnk.d:hover{color:#DC2626}
+.lnk[aria-disabled="true"]{color:#CBD5E1;cursor:not-allowed}
+.lnk[aria-disabled="true"]:hover{color:#CBD5E1}
+.tip{position:relative}
+.tip[data-tip]:hover::after{
+  content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#0F172A;color:#fff;font-size:var(--fs-12);padding:6px 9px;border-radius:var(--r-sm);
+  white-space:nowrap;z-index:60;box-shadow:var(--sh-pop);
+}
+
+/* ===================== 遮罩 / 抽屉 ===================== */
+.mask{position:fixed;inset:0;background:rgba(15,23,42,.35);opacity:0;pointer-events:none;transition:opacity .22s;z-index:100}
+.mask.on{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:960px;max-width:100vw;background:var(--bg1);
+  box-shadow:var(--sh-drawer);transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
+  z-index:110;display:flex;flex-direction:column;
+}
+.drawer.on{transform:translateX(0)}
+.dr-hd{padding:18px 24px 14px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+.dr-hd h3{margin:0;font-size:var(--fs-16);font-weight:600}
+.dr-hd .code{font-size:var(--fs-12);color:var(--t3);margin-top:4px}
+.dr-close{margin-left:auto;border:none;background:none;font-size:18px;color:var(--t3);line-height:1;width:28px;height:28px;border-radius:var(--r-sm)}
+.dr-close:hover{background:#F1F5F9;color:var(--t1)}
+.dr-note{padding:10px 24px;font-size:var(--fs-12);color:var(--t2);background:var(--brand-weak);border-bottom:1px solid var(--brand-line);display:flex;gap:8px}
+.dr-note.warn{background:#FFFBEB;border-bottom-color:#FDE68A;color:#92400E}
+.dr-note .ic{color:var(--brand)}
+.dr-body{flex:1;overflow-y:auto;padding:16px 24px 24px}
+.dr-ft{padding:12px 24px;background:var(--card);border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
+
+/* ===================== 模块卡 ===================== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);margin-bottom:12px;transition:box-shadow .2s,border-color .2s}
+.card.err{border-color:var(--danger);box-shadow:0 0 0 3px rgba(239,68,68,.10)}
+.card.disabled{background:#FBFBFD}
+.cd-hd{display:flex;align-items:flex-start;gap:16px;padding:14px 16px}
+.cd-title{font-size:var(--fs-14);font-weight:600}
+.cd-desc{font-size:var(--fs-12);color:var(--t3);margin-top:4px}
+.modes{margin-left:auto;display:flex;gap:8px;flex-shrink:0}
+.mode-opt{
+  display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--line);
+  border-radius:var(--r-sm);background:#fff;font-size:var(--fs-13);color:var(--t2);transition:all .15s;
+}
+.mode-opt:hover{border-color:var(--brand-line)}
+.mode-opt .dot{width:14px;height:14px;border-radius:50%;border:1.5px solid #CBD5E1;transition:all .15s}
+.mode-opt.on{border-color:var(--brand);background:var(--brand-weak);color:var(--brand);font-weight:500}
+.mode-opt.on .dot{border-color:var(--brand);background:var(--brand);box-shadow:inset 0 0 0 2px #fff}
+.card.disabled .mode-opt{opacity:.5;pointer-events:none}
+.cd-banner{margin:0 16px 12px;padding:8px 10px;border-radius:var(--r-sm);background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:var(--fs-12)}
+.cd-scope{border-top:1px dashed var(--line);padding:12px 16px;background:#FCFCFE;border-radius:0 0 var(--r-lg) var(--r-lg);animation:grow .18s ease}
+@keyframes grow{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.scope-row{display:flex;align-items:flex-start;gap:12px}
+.scope-text{flex:1;font-size:var(--fs-13);color:var(--t2);line-height:1.6}
+.scope-text .k{color:var(--brand)}
+.scope-text .empty{color:var(--warn)}
+.badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;background:var(--brand-weak);color:var(--brand);border:1px solid var(--brand-line);font-size:var(--fs-12);margin-left:8px}
+.cd-err{padding:0 16px 12px;color:var(--danger);font-size:var(--fs-12);display:flex;align-items:center;gap:6px}
+
+/* ===================== 弹窗（规则 / 确认） ===================== */
+.mmask{position:fixed;inset:0;background:rgba(15,23,42,.40);opacity:0;pointer-events:none;transition:opacity .18s;z-index:200}
+.mmask.on{opacity:1;pointer-events:auto}
+.modal{
+  position:fixed;z-index:210;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .18s;background:var(--card);border-radius:var(--r-lg);
+  box-shadow:0 20px 50px rgba(15,23,42,.20);width:720px;max-width:calc(100vw - 32px);display:flex;flex-direction:column;
+}
+.modal.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+.modal.sm{width:420px}
+.md-hd{padding:16px 20px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center}
+.md-hd h4{margin:0;font-size:var(--fs-16);font-weight:600}
+.md-close{margin-left:auto;border:none;background:none;color:var(--t3);font-size:18px;width:28px;height:28px;border-radius:var(--r-sm)}
+.md-close:hover{background:#F1F5F9;color:var(--t1)}
+.md-body{padding:16px 20px;max-height:56vh;overflow-y:auto}
+.md-ft{padding:12px 20px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+.md-ft .spacer{flex:1}
+.md-text{font-size:var(--fs-14);color:var(--t2);line-height:1.7}
+.md-text b{color:var(--t1);font-weight:600}
+
+/* 条件组 + 组内条件：组卡片 + 组内序号行 + 底部统一添加条件组 */
+@keyframes rowin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes rowout{from{opacity:1}to{opacity:0;transform:translateX(-6px)}}
+.grp{
+  background:#fff;border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;animation:rowin .18s ease;margin-bottom:14px;box-shadow:var(--sh);
+}
+.grp.collapsed > .grp-body{display:none}
+.grp-hd{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:#F8FAFC;border-bottom:1px solid var(--line-soft);
+}
+.grp-handle{color:var(--t3);font-size:16px;cursor:grab;user-select:none;line-height:1}
+.grp-title{font-size:var(--fs-14);font-weight:600;color:var(--t1);display:flex;align-items:center;gap:8px}
+.gno{
+  display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:11px;
+  background:var(--brand-weak);border:1px solid var(--brand-line);color:var(--brand);font-size:var(--fs-12);font-weight:600;
+}
+.grp-del{
+  border:1px solid var(--danger-line);background:#fff;color:var(--danger);
+  height:28px;padding:0 10px;border-radius:var(--r-sm);font-size:var(--fs-12);cursor:pointer;
+}
+.grp-del:hover{background:var(--danger-weak)}
+.grp-del[aria-disabled="true"]{opacity:.5;cursor:not-allowed;border-color:var(--line);color:var(--t3)}
+.grp-del[aria-disabled="true"]:hover{background:#fff}
+.grp-body{display:flex;flex-direction:column;gap:10px;padding:12px;background:#F8FAFC;animation:rowin .18s ease}
+.gcond{
+  display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--line);
+  border-radius:var(--r);padding:10px 12px;position:relative;animation:rowin .18s ease;
+}
+.gcond .num{
+  flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--brand-weak);
+  border:1px solid var(--brand-line);color:var(--brand);font-size:var(--fs-12);font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.gcond-del{
+  flex:0 0 auto;border:none;background:none;color:var(--danger);font-size:16px;
+  width:26px;height:26px;line-height:1;border-radius:4px;cursor:pointer;margin-left:auto;
+}
+.gcond-del:hover{background:var(--danger-weak)}
+.gcond-del[aria-disabled="true"]{color:#CBD5E1;cursor:not-allowed}
+.gcond-del[aria-disabled="true"]:hover{background:none}
+.gcond-ghost{
+  display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px dashed var(--line);
+  border-radius:var(--r);padding:10px 12px;pointer-events:none;animation:rowout .2s ease forwards;
+}
+.grp-empty{
+  border:1px dashed var(--line);border-radius:var(--r);padding:24px 18px;text-align:center;
+  color:var(--t3);font-size:var(--fs-13);background:#FCFCFE;margin-bottom:14px;
+}
+.grp-empty .add{
+  display:inline-flex;align-items:center;gap:4px;margin-top:10px;color:var(--brand);
+  border:1px solid var(--brand-line);background:var(--brand-weak);border-radius:var(--r-sm);
+  height:32px;padding:0 14px;font-size:var(--fs-13);cursor:pointer;
+}
+.grp-empty .add:hover{background:#E0E7FF}
+/* 组内条件主体（dimension/operator/values 三列）：弹性布局，占据剩余宽度 */
+.cond-body{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;flex:1;min-width:0}
+/* 条件表达式手填：组内 / 组间 共用 */
+.expr-row{display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:7px 10px;background:#FCFCFE;border:1px solid var(--line);border-radius:var(--r-sm)}
+.expr-row .expr-lb{font-size:var(--fs-12);color:var(--t2);font-weight:500;white-space:nowrap;flex-shrink:0}
+.expr-row .expr-lb small{color:var(--t3);font-weight:400}
+.expr-input{
+  flex:1;min-width:0;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-sm);
+  font-size:var(--fs-13);font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--t1);background:#fff;letter-spacing:.4px
+}
+.expr-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-weak)}
+.expr-input.bad{border-color:#EF4444;box-shadow:0 0 0 2px rgba(239,68,68,.12)}
+.expr-hint{font-size:var(--fs-12);white-space:nowrap;flex-shrink:0}
+.expr-hint.ok{color:#16A34A}
+.expr-hint.err{color:#EF4444}
+/* 组间组合：强调底色，与组内区分 */
+.expr-row.inter{background:var(--brand-weak);border-color:var(--brand-line)}
+/* 底部统一添加条件组 */
+.cond-add-wrap{display:flex;justify-content:flex-start;margin-top:2px}
+.cond-add-wrap .add{
+  display:inline-flex;align-items:center;gap:4px;color:var(--brand);border:1px solid var(--brand-line);
+  background:var(--brand-weak);border-radius:var(--r-sm);height:32px;padding:0 14px;font-size:var(--fs-13);cursor:pointer
+}
+.cond-add-wrap .add:hover{background:#E0E7FF}
+.preview{
+  margin-top:16px;padding:12px 14px;border-radius:var(--r);background:var(--brand-weak);border:1px solid var(--brand-line);
+  font-size:var(--fs-14);color:var(--brand);line-height:1.7
+}
+.preview .lb{color:var(--t2);margin-right:6px;font-weight:500}
+/* 小按钮 + 组头弹性占位 */
+.btn-sm{height:28px;padding:0 10px;font-size:var(--fs-12)}
+.spacer{flex:1;min-width:0}
+
+/* 自绘下拉 */
+.sel{position:relative;min-width:120px}
+.sel.grow{flex:1;min-width:220px}
+.sel-box{
+  display:flex;align-items:center;gap:6px;min-height:32px;border:1px solid var(--line);border-radius:var(--r-sm);
+  background:#fff;padding:3px 8px;font-size:var(--fs-13);color:var(--t1);cursor:pointer;transition:border-color .15s;
+}
+.sel-box:hover{border-color:var(--brand-line)}
+.sel.open .sel-box{border-color:var(--brand);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.sel-val{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sel-ph{color:var(--t3);font-size:var(--fs-13)}
+.sel-tags{display:flex;flex-wrap:wrap;gap:4px;flex:1;align-items:center;min-height:22px}
+.caret{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--t3);flex-shrink:0}
+.sel.open .caret{border-top-color:var(--brand)}
+.tag{
+  display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 6px;border-radius:4px;
+  background:var(--brand-weak);border:1px solid var(--brand-line);color:var(--brand);font-size:var(--fs-12);
+}
+.tag.stale{background:#F1F5F9;border-color:var(--line);color:var(--t3)}
+.tag em{font-style:normal;color:var(--danger);font-size:11px}
+.tag-x{font-style:normal;cursor:pointer;opacity:.65;line-height:1}
+.tag-x:hover{opacity:1;color:var(--danger)}
+.sel-panel{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--sh-pop);padding:4px;max-height:220px;overflow-y:auto;display:none;z-index:20;
+}
+.sel.open .sel-panel{display:block}
+.sel-opt{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--r-sm);font-size:var(--fs-13);color:var(--t2);cursor:pointer}
+.sel-opt:hover{background:#F6F7FB;color:var(--t1)}
+.sel-opt.checked{color:var(--brand);background:var(--brand-weak)}
+.sel-opt .ck{width:14px;display:inline-flex;color:transparent;font-size:12px}
+.sel-opt.checked .ck{color:var(--brand)}
+
+/* ===================== Toast ===================== */
+.toast-wrap{position:fixed;top:16px;right:16px;z-index:400;display:flex;flex-direction:column;gap:8px}
+.toast{
+  min-width:200px;padding:10px 14px;border-radius:var(--r);background:#fff;border:1px solid var(--line);
+  box-shadow:var(--sh-pop);font-size:var(--fs-13);color:var(--t1);display:flex;align-items:center;gap:8px;
+  animation:tin .2s ease;
+}
+@keyframes tin{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+.toast.out{opacity:0;transform:translateX(12px);transition:all .2s}
+.toast .dotc{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.toast.ok .dotc{background:var(--ok)}
+.toast.err .dotc{background:var(--danger)}
+.toast.warn .dotc{background:var(--warn)}
+.hint{max-width:1120px;margin:0 auto;padding:0 24px 24px;font-size:var(--fs-12);color:var(--t3);line-height:1.8}
+.hint code{background:#fff;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:var(--fs-12)}
+</style>
+</head>
+<body>
+
+<!-- ===================== A 区 · 角色列表 ===================== -->
+<div class="page">
+  <div class="crumb">身份管理 / <b>角色列表</b></div>
+  <div class="page-hd">
+    <div>
+      <div class="page-title">角色列表</div>
+      <div class="page-sub">共 <span id="roleCount">0</span> 个角色 · 点击操作列「数据权限」配置该角色在各业务模块的数据可见范围</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="filter-bar">
+      <input class="input" id="kw" placeholder="搜索角色名称 / 编码" />
+      <select class="fsel"><option>状态：全部</option><option>已启用</option><option>已停用</option></select>
+      <select class="fsel"><option>来源：全部</option><option>系统内置</option><option>自定义</option></select>
+      <button class="btn btn-primary">+ 新建角色</button>
+      <label class="demo-toggle" title="演示边界：维度值被删除后的孤儿值回显">
+        <input type="checkbox" id="orphanChk" /> 演示孤儿值（已失效）
+      </label>
+      <label class="demo-toggle" title="SUPER_ADMIN 的入口按钮为禁用态，勾选此项仅用于评审时查看「整卡禁用」形态">
+        <input type="checkbox" id="forceChk" /> 评审用：打开超管抽屉
+      </label>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:170px">角色编码</th>
+          <th style="width:150px">角色名称</th>
+          <th style="width:130px">默认数据范围</th>
+          <th style="width:70px">状态</th>
+          <th style="width:110px">来源</th>
+          <th style="width:90px">权限码数</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="roleTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="hint">
+  原型说明：本文件为<b>纯前端交互演示</b>，所有数据来自内存 <code>MOCK</code> 常量（可整体替换为真实接口）。
+  演示路径：<code>HRBP → 数据权限</code>（回显 2 条规则）、<code>INTERVIEWER → 数据权限</code>（人才库功能权限未分配 → 卡禁用）、
+  <code>SUPER_ADMIN → 数据权限</code>（按钮禁用 + tooltip，勾选「评审用：打开超管抽屉」可查看整卡禁用形态）、
+  任选角色切「按指定规则范围」不配规则直接保存（拦截 + 滚动定位）、切「无数据权限」保存（二次确认）。
+</div>
+
+<!-- ===================== B 区 · 数据权限抽屉 ===================== -->
+<div class="mask" id="drawerMask"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="数据权限配置">
+  <div class="dr-hd">
+    <div>
+      <h3 id="drTitle">数据权限</h3>
+      <div class="code" id="drCode"></div>
+    </div>
+    <button class="dr-close" id="drClose" aria-label="关闭">×</button>
+  </div>
+  <div class="dr-note" id="drNote"><span class="ic">ℹ</span><span id="drNoteText"></span></div>
+  <div class="dr-body" id="drBody"></div>
+  <div class="dr-ft">
+    <button class="btn" id="btnReset">重置</button>
+    <div style="flex:1"></div>
+    <button class="btn" id="btnCancel">取消</button>
+    <button class="btn btn-primary" id="btnSave">保存全部</button>
+  </div>
+</aside>
+
+<!-- ===================== C 区 · 规则配置弹窗 ===================== -->
+<div class="mmask" id="ruleMask"></div>
+<div class="modal" id="ruleModal" role="dialog" aria-modal="true">
+  <div class="md-hd">
+    <h4 id="ruleTitle">配置规则</h4>
+    <button class="md-close" id="ruleClose" aria-label="关闭">×</button>
+  </div>
+  <div class="md-body" id="ruleBody"></div>
+  <div class="md-ft">
+    <button class="btn" id="btnClearAll">清除全部</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btnRuleCancel">取消</button>
+    <button class="btn btn-primary" id="btnRuleOk">确定</button>
+  </div>
+</div>
+
+<!-- ===================== 通用确认框 ===================== -->
+<div class="mmask" id="confirmMask"></div>
+<div class="modal sm" id="confirmModal" role="dialog" aria-modal="true">
+  <div class="md-hd"><h4 id="cfTitle">确认</h4></div>
+  <div class="md-body"><div class="md-text" id="cfText"></div></div>
+  <div class="md-ft">
+    <div class="spacer"></div>
+    <button class="btn" id="cfCancel">取消</button>
+    <button class="btn btn-primary" id="cfOk">确定</button>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+ * MOCK 数据（全部集中于此，接入真实接口时只需替换 getSavedModules / savePerms）
+ * ========================================================================= */
+var MOCK = {
+  modules: [
+    { key:'demand',    name:'招聘需求',   desc:'控制招聘需求（HC）单的可见范围',           dimensions:['dept','owner','creator'] },
+    { key:'process',   name:'招聘流程',   desc:'控制招聘流程实例与流转记录的可见范围',     dimensions:['dept','owner','creator','process'] },
+    { key:'position',  name:'招聘职位',   desc:'控制招聘职位信息的可见范围',               dimensions:['dept','owner','creator'] },
+    { key:'candidate', name:'候选人管理', desc:'控制候选人简历与跟进记录的可见范围',       dimensions:['dept','owner','creator'] },
+    { key:'talent',    name:'人才库',     desc:'控制人才库档案的可见范围',                 dimensions:['dept','owner','creator'] }
+  ],
+  dimensions: {
+    dept:    { label:'部门',   options:[
+      {id:'d1',label:'华东大区'},{id:'d2',label:'华南大区'},{id:'d3',label:'技术研发部'},
+      {id:'d4',label:'人力资源部'},{id:'d5',label:'市场营销部'}] },
+    owner:   { label:'负责人', options:[
+      {id:'u1',label:'张伟'},{id:'u2',label:'李娜'},{id:'u3',label:'王强'},{id:'u4',label:'赵敏'},{id:'u5',label:'陈晨'}] },
+    creator: { label:'创建人', options:[
+      {id:'u1',label:'张伟'},{id:'u2',label:'李娜'},{id:'u3',label:'王强'},{id:'u4',label:'赵敏'},{id:'u5',label:'陈晨'}] },
+    process: { label:'流程',   options:[
+      {id:'p1',label:'社招流程'},{id:'p2',label:'校招流程'},{id:'p3',label:'内部转岗流程'}] }
+  },
+  roles: [
+    { id:'r-super', code:'SUPER_ADMIN',    name:'超级管理员',  enabled:true,  source:'系统内置', permCount:128 },
+    { id:'r-hrbp',  code:'HRBP',           name:'HRBP',        enabled:true,  source:'系统内置', permCount:86 },
+    { id:'r-hr',    code:'HR',             name:'人力资源专员', enabled:true, source:'系统内置', permCount:64 },
+    { id:'r-inter', code:'INTERVIEWER',    name:'面试官',      enabled:true,  source:'自定义',   permCount:12 },
+    { id:'r-hm',    code:'HIRING_MANAGER', name:'用人经理',    enabled:true,  source:'系统内置', permCount:41 }
+  ],
+  /* 已保存配置：仅 HRBP 显式给出（演示回显），其余角色走默认态 */
+  saved: {
+    'r-hrbp': [
+      { moduleKey:'demand',    mode:'all',   groups:[], featureGranted:true },
+      { moduleKey:'process',   mode:'all',   groups:[], featureGranted:true },
+      { moduleKey:'position',  mode:'all',   groups:[], featureGranted:true },
+      { moduleKey:'candidate', mode:'scope', featureGranted:true, expr:'1', groups:[
+        { id:'g1', expr:'(1 or 2)', conditions:[
+          { id:'c1', dimension:'dept',  operator:'in', values:[{id:'d1',label:'华东大区'},{id:'d2',label:'华南大区'}] },
+          { id:'c2', dimension:'owner', operator:'in', values:[{id:'u1',label:'张伟'}] }
+        ]}
+      ]},
+      { moduleKey:'talent',    mode:'scope', featureGranted:true, expr:'1', groups:[
+        { id:'g2', expr:'1', conditions:[
+          { id:'c3', dimension:'creator', operator:'in', values:[{id:'u2',label:'李娜'}] }
+        ]}
+      ]}
+    ]
+  }
+};
+
+var MODE_LABEL = { none:'无数据权限', all:'全部数据权限', scope:'按指定规则范围' };
+var MODE_ORDER = ['none','all','scope'];
+
+/* =========================================================================
+ * state：单一状态源
+ * ========================================================================= */
+var state = {
+  roles: [],                 // 角色列表（含 enabled 可变）
+  saved: {},                 // roleId -> ModulePerm[]（已保存快照，脏检查基准）
+  draft: null,               // 当前编辑草稿 ModulePerm[]
+  openRoleId: null,          // 当前抽屉角色
+  errors: {},                // moduleKey -> 错误文案
+  rule: null,                // { moduleKey, groups } 弹窗副本
+  orphanDemo: false,         // 演示孤儿值开关
+  forceOpen: false,          // 评审用：绕过 SUPER_ADMIN 入口禁用（按钮本身仍为禁用态）
+  confirmAction: null        // 确认框回调
+};
+
+/* ---------- 工具函数 ---------- */
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function uid(){ return 'c' + Math.random().toString(36).slice(2, 9); }
+function el(id){ return document.getElementById(id); }
+function getRole(id){
+  for (var i = 0; i < state.roles.length; i++) { if (state.roles[i].id === id) return state.roles[i]; }
+  return null;
+}
+function getModule(key){
+  for (var i = 0; i < MOCK.modules.length; i++) { if (MOCK.modules[i].key === key) return MOCK.modules[i]; }
+  return null;
+}
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function isLocked(role){ return role.code === 'SUPER_ADMIN'; }
+
+/* 生成默认配置：首次打开（从未保存过）→ 全部模块 all */
+function buildDefaultModules(role){
+  return MOCK.modules.map(function(m){
+    return {
+      moduleKey: m.key,
+      mode: 'all',
+      groups: [],
+      // 边界演示：INTERVIEWER 未分配「人才库」功能权限
+      featureGranted: !(role.code === 'INTERVIEWER' && m.key === 'talent')
+    };
+  });
+}
+
+/* 读取已保存配置（懒初始化 + 孤儿值演示注入） */
+function getSavedModules(roleId){
+  var role = getRole(roleId);
+  if (!state.saved[roleId]) { state.saved[roleId] = buildDefaultModules(role); }
+  var mods = clone(state.saved[roleId]);
+  if (state.orphanDemo && roleId === 'r-hrbp') {
+    var cand = mods.filter(function(m){ return m.moduleKey === 'candidate'; })[0];
+    if (cand && cand.groups[0] && cand.groups[0].conditions[0]) {
+      var v = cand.groups[0].conditions[0].values.filter(function(x){ return x.id === 'd2'; })[0];
+      if (v) { v.stale = true; }
+    }
+  }
+  return mods;
+}
+
+/* 序列化（忽略 id / stale / 折叠态）→ 用于脏检查，只比对语义 */
+function serialize(mods){
+  return JSON.stringify(mods.map(function(m){
+    return {
+      k: m.moduleKey, m: m.mode, e: (m.expr || ''),
+      g: (m.groups || []).map(function(g){
+        return {
+          e: (g.expr || ''),
+          c: g.conditions.map(function(c){
+            return { d:c.dimension, o:c.operator, v:c.values.map(function(x){ return x.id; }) };
+          })
+        };
+      })
+    };
+  }));
+}
+
+/* ---------- 文案生成 ---------- */
+function condText(c){
+  var dim = MOCK.dimensions[c.dimension];
+  var op  = c.operator === 'in' ? '属于' : '不属于';
+  var vals = c.values.map(function(v){ return v.label; }).join('、') || '（未选择）';
+  return dim.label + ' ' + op + ' [' + vals + ']';
+}
+/* ---------- 表达式：分词 / 校验 / 渲染 ---------- */
+/* 词法：仅允许 NUMBER / and / or / ( / )，且仅英文括号 */
+function tokenizeExpr(text){
+  var raw = (text || '').trim();
+  var toks = [], i = 0;
+  while (i < raw.length) {
+    var ch = raw[i];
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { i++; continue; }
+    if (ch === '(') { toks.push({ t:'LP' }); i++; continue; }
+    if (ch === ')') { toks.push({ t:'RP' }); i++; continue; }
+    if (ch >= '0' && ch <= '9') {
+      var num = '';
+      while (i < raw.length && raw[i] >= '0' && raw[i] <= '9') { num += raw[i]; i++; }
+      toks.push({ t:'NUM', v:parseInt(num, 10) });
+      continue;
+    }
+    if (/[a-zA-Z]/.test(ch)) {
+      var w = '';
+      while (i < raw.length && /[a-zA-Z]/.test(raw[i])) { w += raw[i]; i++; }
+      var lw = w.toLowerCase();
+      if (lw === 'and') { toks.push({ t:'AND' }); }
+      else if (lw === 'or') { toks.push({ t:'OR' }); }
+      else { return { ok:false, msg:'非法字符或保留字：' + w, list:[] }; }
+      continue;
+    }
+    return { ok:false, msg:'不支持的字符：' + ch, list:[] };
+  }
+  return { ok:true, list:toks };
+}
+/* 校验：括号成对且不嵌套；同一层不混用 and/or（即含 and 与 or 必须括号分隔）；数字须 1..count */
+function validateExpr(text, count){
+  var tk = tokenizeExpr(text);
+  if (!tk.ok) { return { ok:false, msg:tk.msg, nums:{} }; }
+  if (!tk.list.length) { return { ok:false, msg:'表达式为空', nums:{} }; }
+  var pos = 0, nums = {}, parseErr = '';
+  function seq(inside){
+    var op = null, expectTerm = true;
+    while (pos < tk.list.length) {
+      var t = tk.list[pos];
+      if (inside && t.t === 'RP') {
+        if (expectTerm) { parseErr = '括号内不能为空'; return false; }
+        pos++; return true;
+      }
+      if (!inside && t.t === 'RP') { parseErr = '括号不匹配（多余右括号）'; return false; }
+      if (t.t === 'LP') {
+        if (inside) { parseErr = '括号不可嵌套'; return false; }
+        if (!expectTerm) { parseErr = '缺少操作符'; return false; }
+        pos++;
+        if (!seq(true)) { return false; }
+        expectTerm = false; continue;
+      }
+      if (t.t === 'AND' || t.t === 'OR') {
+        if (expectTerm) { parseErr = '操作符位置错误'; return false; }
+        if (op === null) { op = t.t; }
+        else if (op !== t.t) { parseErr = '同一层不得混用 and / or（需用括号分隔）'; return false; }
+        pos++; expectTerm = true; continue;
+      }
+      if (t.t === 'NUM') {
+        if (!expectTerm) { parseErr = '缺少操作符'; return false; }
+        nums[t.v] = true; pos++; expectTerm = false; continue;
+      }
+      parseErr = '无法解析'; return false;
+    }
+    if (inside) { parseErr = '括号未闭合'; return false; }
+    if (expectTerm) { parseErr = '表达式不完整（结尾缺少操作数）'; return false; }
+    return true;
+  }
+  if (!seq(false)) { return { ok:false, msg:parseErr, nums:{} }; }
+  var bad = [];
+  Object.keys(nums).forEach(function(k){ var n = +k; if (n < 1 || n > count) { bad.push(n); } });
+  if (bad.length) {
+    return { ok:false, msg:'编号 ' + bad.join('、') + ' 不存在（有效范围 1..' + count + '）', nums:{} };
+  }
+  return { ok:true, msg:'', nums:nums };
+}
+/* 将表达式渲染为人类可读中文：resolver(n) 返回第 n 个操作数的文案 */
+function renderExpr(text, resolver){
+  var tk = tokenizeExpr(text);
+  if (!tk.ok || !tk.list.length) { return text; }
+  var pos = 0;
+  function term(){
+    var t = tk.list[pos];
+    if (t.t === 'LP') { pos++; var s = seqR(); pos++; return '(' + s + ')'; }   // 跳过 RP
+    return resolver(t.v);
+  }
+  function seqR(){
+    var parts = [term()]; pos++;
+    while (pos < tk.list.length && (tk.list[pos].t === 'AND' || tk.list[pos].t === 'OR')) {
+      parts.push(tk.list[pos].t === 'AND' ? '且' : '或'); pos++;
+      parts.push(term()); pos++;
+    }
+    return parts.join(' ');
+  }
+  return seqR();
+}
+/* 生成默认表达式：count=1 → "1"；否则 "1 and 2 and ... and n" */
+function defaultExpr(count){
+  if (count <= 1) { return '1'; }
+  var a = [];
+  for (var i = 1; i <= count; i++) { a.push(String(i)); }
+  return a.join(' and ');
+}
+/* 单组组内表达式的预览（无效则返回 null） */
+function groupPreviewText(g){
+  var r = validateExpr(g.expr, g.conditions.length);
+  if (!r.ok) { return null; }
+  return renderExpr(g.expr, function(n){ return condText(g.conditions[n - 1]); });
+}
+/* 规则预览：组间表达式引用条件组序号；每组直接内联其「组内表达式」渲染结果
+   （组间表达式自身的括号已提供分组，无需再包一层，避免双括号） */
+function previewText(rule){
+  if (!rule || !rule.groups || !rule.groups.length) { return '暂无条件组，保存前请至少配置 1 个条件组'; }
+  var inter = validateExpr(rule.expr, rule.groups.length);
+  if (!inter.ok) { return '组间组合表达式有误：' + inter.msg; }
+  var s = renderExpr(rule.expr, function(n){
+    var g = rule.groups[n - 1];
+    var gi = groupPreviewText(g);
+    return gi == null ? '(' + (g.expr || '') + '?)' : gi;
+  });
+  return '可见数据 = ' + s;
+}
+/* 抽屉卡摘要：直接给出可见性表达式 */
+function groupsText(m){
+  if (m.mode !== 'scope') { return ''; }
+  var r = validateExpr(m.expr, m.groups.length);
+  if (!r.ok) { return '表达式有误'; }
+  return renderExpr(m.expr, function(n){
+    var g = m.groups[n - 1];
+    var gi = groupPreviewText(g);
+    return gi == null ? '(' + (g.expr || '') + ')' : gi;
+  });
+}
+/* 列表「默认数据范围」列 */
+function roleScope(roleId){
+  var role = getRole(roleId);
+  if (isLocked(role)) { return { text:'全公司', cls:'all' }; }
+  var mods = getSavedModules(roleId).filter(function(m){ return m.featureGranted; });
+  if (!mods.length) { return { text:'无', cls:'none' }; }
+  var set = {};
+  mods.forEach(function(m){ set[m.mode] = 1; });
+  var keys = Object.keys(set);
+  if (keys.length === 1) {
+    if (keys[0] === 'all')   { return { text:'全公司', cls:'all' }; }
+    if (keys[0] === 'none')  { return { text:'无', cls:'none' }; }
+    return { text:'自定义', cls:'scope' };
+  }
+  return { text:'自定义', cls:'scope' };
+}
+
+/* =========================================================================
+ * A 区渲染
+ * ========================================================================= */
+function renderRoleTable(){
+  var kw = (el('kw').value || '').trim().toLowerCase();
+  var html = '';
+  state.roles.forEach(function(r){
+    if (kw && r.code.toLowerCase().indexOf(kw) < 0 && r.name.toLowerCase().indexOf(kw) < 0) { return; }
+    var sc = roleScope(r.id);
+    var locked = isLocked(r);
+    html += '<tr>'
+      + '<td class="mono">' + esc(r.code) + '</td>'
+      + '<td>' + esc(r.name) + '</td>'
+      + '<td><span class="pill pill-' + sc.cls + '">' + sc.text + '</span></td>'
+      + '<td><button class="switch' + (r.enabled ? '' : ' off') + '" data-act="toggle" data-role="' + r.id + '" aria-label="启停"><i></i></button></td>'
+      + '<td><span class="tag-src">' + esc(r.source) + '</span></td>'
+      + '<td>' + r.permCount + '</td>'
+      + '<td class="ops">'
+        + '<button class="lnk" data-act="edit" data-role="' + r.id + '">编辑</button>'
+        + '<button class="lnk p' + (locked ? '" aria-disabled="true' : '') + '" data-act="dataperm" data-role="' + r.id + '"'
+          + (locked ? ' data-tip="超级管理员默认拥有全部数据权限，不可修改"' : '') + '>数据权限</button>'
+        + '<button class="lnk d" data-act="del" data-role="' + r.id + '">删除</button>'
+      + '</td></tr>';
+  });
+  el('roleTbody').innerHTML = html;
+  el('roleCount').textContent = state.roles.length;
+  // 禁用按钮需要 tooltip 容器类
+  var nodes = el('roleTbody').querySelectorAll('.lnk.p');
+  for (var i = 0; i < nodes.length; i++) {
+    if (nodes[i].getAttribute('aria-disabled') === 'true') { nodes[i].classList.add('tip'); }
+  }
+}
+
+/* =========================================================================
+ * B 区：抽屉
+ * ========================================================================= */
+function openDrawer(roleId){
+  var role = getRole(roleId);
+  if (!role) { return; }
+  if (isLocked(role) && !state.forceOpen) { return; }   // 入口禁用态（评审开关除外）
+  state.openRoleId = roleId;
+  state.draft = getSavedModules(roleId);
+  state.errors = {};
+  el('drTitle').textContent = '数据权限 · ' + role.name;
+  el('drCode').textContent  = role.code + '（角色编码）';
+  el('drNoteText').textContent = '数据权限决定该角色在各业务模块中「能看到哪些数据」。5 个模块独立配置，点击「保存全部」一次性提交。';
+  renderDrawer();
+  el('drawer').classList.add('on');
+  el('drawerMask').classList.add('on');
+}
+function closeDrawer(){
+  el('drawer').classList.remove('on');
+  el('drawerMask').classList.remove('on');
+  state.openRoleId = null;
+  state.draft = null;
+  state.errors = {};
+}
+function tryCloseDrawer(){
+  if (!state.openRoleId) { return; }
+  if (isDirty()) {
+    showConfirm({
+      title:'放弃修改？',
+      text:'有未保存的修改，确定放弃？',
+      okText:'放弃修改',
+      danger:true,
+      cancelText:'继续编辑',
+      onOk: closeDrawer
+    });
+  } else {
+    closeDrawer();
+  }
+}
+function isDirty(){
+  if (!state.openRoleId) { return false; }
+  return serialize(state.draft) !== serialize(getSavedModules(state.openRoleId));
+}
+function cardDisabled(role, m){ return isLocked(role) || !m.featureGranted; }
+
+function renderDrawer(){
+  if (!state.openRoleId) { return; }
+  var role = getRole(state.openRoleId);
+  // 整卡禁用的角色（SUPER_ADMIN）不提供保存/重置入口
+  var lockedAll = isLocked(role);
+  [['btnReset', lockedAll], ['btnSave', lockedAll]].forEach(function(p){
+    var b = el(p[0]);
+    b.setAttribute('aria-disabled', p[1] ? 'true' : 'false');
+    if (p[1]) { b.setAttribute('disabled', 'disabled'); } else { b.removeAttribute('disabled'); }
+  });
+  var html = '';
+  state.draft.forEach(function(m){
+    var meta = getModule(m.moduleKey);
+    var disabled = cardDisabled(role, m);
+    var reason = isLocked(role)
+      ? '超级管理员默认拥有全部数据权限，不可修改'
+      : (!m.featureGranted ? '该角色未分配此功能权限，数据权限不生效' : '');
+    var err = state.errors[m.moduleKey];
+
+    html += '<div class="card' + (disabled ? ' disabled' : '') + (err ? ' err' : '') + '" id="card-' + m.moduleKey + '">';
+    html +=   '<div class="cd-hd">'
+      +         '<div><div class="cd-title">' + esc(meta.name) + '</div><div class="cd-desc">' + esc(meta.desc) + '</div></div>'
+      +         '<div class="modes">'
+        +           MODE_ORDER.map(function(k){
+                    // 禁用卡：输出原生 disabled（同时拦住点击与键盘激活），CSS pointer-events 仅作兜底
+                    return '<button class="mode-opt' + (m.mode === k ? ' on' : '') + '" data-act="mode" data-mod="' + m.moduleKey + '" data-mode="' + k + '"'
+                      + (disabled ? ' disabled="disabled" aria-disabled="true" tabindex="-1"' : '') + '>'
+                      + '<span class="dot"></span>' + MODE_LABEL[k] + '</button>';
+                  }).join('')
+      +         '</div>'
+      +       '</div>';
+    if (disabled) { html += '<div class="cd-banner">⚠ ' + esc(reason) + '</div>'; }
+    if (m.mode === 'scope') {
+      var gcount = (m.groups || []).length;
+      var gtext = groupsText(m);
+      html += '<div class="cd-scope"><div class="scope-row">'
+        +       '<div class="scope-text">'
+        +         (gcount
+                    ? '<span class="k">' + esc(gtext) + '</span>'
+                    : '<span class="empty">尚未配置规则，点击「配置规则」开始</span>')
+        +         (gcount ? '<span class="badge">' + gcount + ' 个条件组</span>' : '')
+        +       '</div>'
+        +       '<button class="btn btn-primary" data-act="rule" data-mod="' + m.moduleKey + '">配置规则</button>'
+        +     '</div></div>';
+    }
+    if (err) { html += '<div class="cd-err">⚠ ' + esc(err) + '</div>'; }
+    html += '</div>';
+  });
+  el('drBody').innerHTML = html;
+}
+
+function setMode(moduleKey, mode){
+  var m = state.draft.filter(function(x){ return x.moduleKey === moduleKey; })[0];
+  if (!m) { return; }
+  // 防御：禁用卡不可被改写（原生 disabled 之外的第二道闸，覆盖程序化/键盘触发）
+  var role = getRole(state.openRoleId);
+  if (role && cardDisabled(role, m)) { return; }
+  m.mode = mode;
+  delete state.errors[moduleKey];
+  renderDrawer();
+}
+
+/* =========================================================================
+ * C 区：规则配置弹窗
+ * ========================================================================= */
+function openRuleModal(moduleKey){
+  var m = state.draft.filter(function(x){ return x.moduleKey === moduleKey; })[0];
+  if (!m) { return; }
+  state.rule = { moduleKey: moduleKey, expr: (m.expr || ''), groups: clone(m.groups || []), collapsed: {} };
+  if (!state.rule.groups.length) { state.rule.groups.push(newGroup(moduleKey)); }   // 引导：首次打开给 1 个空组 + 1 条空条件
+  el('ruleTitle').textContent = '配置规则 — ' + getModule(moduleKey).name;
+  renderRuleModal();
+  el('ruleModal').classList.add('on');
+  el('ruleMask').classList.add('on');
+}
+function closeRuleModal(){
+  el('ruleModal').classList.remove('on');
+  el('ruleMask').classList.remove('on');
+  state.rule = null;
+}
+function newCond(moduleKey){
+  var dims = getModule(moduleKey).dimensions;
+  return { id: uid(), dimension: dims[0], operator:'in', values: [] };
+}
+function newGroup(moduleKey){
+  return { id: uid(), expr: defaultExpr(1), conditions:[ newCond(moduleKey) ] };
+}
+
+/* ---------- 自绘下拉 HTML（带组索引 g + 条件索引 idx） ---------- */
+function singleSelHtml(kind, g, idx, value, options){
+  var cur = options.filter(function(o){ return o.value === value; })[0];
+  return '<div class="sel" data-kind="' + kind + '" data-g="' + g + '" data-idx="' + idx + '">'
+    + '<div class="sel-box" tabindex="0"><span class="sel-val">' + esc(cur ? cur.label : '请选择') + '</span><span class="caret"></span></div>'
+    + '<div class="sel-panel">'
+    +   options.map(function(o){
+          return '<div class="sel-opt' + (o.value === value ? ' checked' : '') + '" data-val="' + esc(o.value) + '"><span class="ck">✓</span>' + esc(o.label) + '</div>';
+        }).join('')
+    + '</div></div>';
+}
+function multiSelHtml(g, idx, cond){
+  var dim = MOCK.dimensions[cond.dimension];
+  var tags = cond.values.map(function(v){
+    return '<span class="tag' + (v.stale ? ' stale' : '') + '" data-val="' + esc(v.id) + '">'
+      + esc(v.label) + (v.stale ? '<em>已失效</em>' : '')
+      + '<i class="tag-x" data-act="rmval" data-g="' + g + '" data-idx="' + idx + '" data-val="' + esc(v.id) + '">×</i></span>';
+  }).join('');
+  return '<div class="sel grow" data-kind="values" data-g="' + g + '" data-idx="' + idx + '">'
+    + '<div class="sel-box" tabindex="0"><div class="sel-tags">'
+    +   (tags || '<span class="sel-ph">请选择</span>')
+    + '</div><span class="caret"></span></div>'
+    + '<div class="sel-panel">'
+    +   dim.options.map(function(o){
+          var on = cond.values.some(function(v){ return v.id === o.id; });
+          return '<div class="sel-opt' + (on ? ' checked' : '') + '" data-val="' + esc(o.id) + '"><span class="ck">✓</span>' + esc(o.label) + '</div>';
+        }).join('')
+    + '</div></div>';
+}
+
+/* 单条条件行（组内：序号圆点 + 维度/操作符/值 + 删除） */
+function condRowHtml(g, idx, c, canDel){
+  var meta = getModule(state.rule.moduleKey);
+  var dimOpts = meta.dimensions.map(function(k){ return { value:k, label:MOCK.dimensions[k].label }; });
+  var opOpts  = [{ value:'in', label:'属于' }, { value:'not_in', label:'不属于' }];
+  return '<div class="gcond" data-g="' + g + '" data-idx="' + idx + '">'
+    + '<span class="num">' + (idx + 1) + '</span>'
+    + '<div class="cond-body">'
+    +   singleSelHtml('dimension', g, idx, c.dimension, dimOpts)
+    +   singleSelHtml('operator',  g, idx, c.operator,  opOpts)
+    +   multiSelHtml(g, idx, c)
+    + '</div>'
+    + '<button class="gcond-del" data-act="delcond" data-g="' + g + '" data-idx="' + idx + '"'
+    +   (canDel ? '' : ' aria-disabled="true" disabled="disabled" tabindex="-1"') + ' title="删除条件">×</button>'
+    + '</div>';
+}
+
+/* 表达式输入行（组内 / 组间共用）：label + 文本框 + 实时校验提示 */
+function exprRowHtml(o){
+  var v = validateExpr(o.value, o.count);
+  var hint = v.ok
+    ? '<span class="expr-hint ok">✓ 合法</span>'
+    : '<span class="expr-hint err">✕ ' + esc(v.msg) + '</span>';
+  var bad = v.ok ? '' : ' bad';
+  var gattr = (o.g !== undefined && o.g !== null) ? ' data-g="' + o.g + '"' : '';
+  return '<div class="expr-row' + (o.inter ? ' inter' : '') + '">'
+    + '<span class="expr-lb">' + esc(o.label) + (o.sub ? ' <small>' + esc(o.sub) + '</small>' : '') + '</span>'
+    + '<input class="expr-input' + bad + '" type="text" spellcheck="false"'
+    +   gattr + ' data-act="' + o.act + '" value="' + esc(o.value) + '" placeholder="' + esc(o.placeholder) + '">'
+    + hint
+    + '</div>';
+}
+/* 单个条件组卡片（组头：拖拽柄 / 条件组N / 添加条件 / 删除组；组体：序号条件行 + 组内表达式） */
+function groupCardHtml(gi, grp){
+  var collapsed = state.rule.collapsed[grp.id];
+  var html = '<div class="grp' + (collapsed ? ' collapsed' : '') + '" data-g="' + gi + '">';
+  html += '<div class="grp-hd">'
+    + '<span class="grp-handle" title="拖拽排序（原型未接）">⠿</span>'
+    + '<span class="grp-title"><span class="gno">条件组 ' + (gi + 1) + '</span></span>'
+    + '<span class="spacer"></span>'
+    + '<button class="btn btn-sm" data-act="addcond" data-g="' + gi + '">＋ 添加条件</button>'
+    + '<button class="grp-del" data-act="delgroup" data-g="' + gi + '"'
+    +   (state.rule.groups.length === 1 ? ' aria-disabled="true" disabled="disabled" tabindex="-1"' : '')
+    +   '>删除组</button>'
+    + '</div>';
+  if (!collapsed) {
+    html += '<div class="grp-body">';
+    grp.conditions.forEach(function(c, i){
+      html += condRowHtml(gi, i, c, grp.conditions.length > 1);
+    });
+    html += '</div>';   // .grp-body
+    html += exprRowHtml({
+      act:'groupexpr', g:gi, label:'组内表达式', sub:'条件序号 1..' + grp.conditions.length,
+      placeholder:'如 (1 or 2) and 3', value: grp.expr || '', count: grp.conditions.length
+    });
+  }
+  html += '</div>';   // .grp
+  return html;
+}
+
+function renderRuleModal(){
+  if (!state.rule) { return; }
+  var groups = state.rule.groups;
+  var html = '';
+
+  if (!groups.length) {
+    // 空态：引导添加条件组（仅在所有组被删光时出现）
+    html += '<div class="grp-empty">暂无条件组，点击下方"添加条件组"开始配置'
+      + '<div class="cond-add-wrap"><button class="add" data-act="addgroup">＋ 添加条件组</button></div></div>';
+  } else {
+    groups.forEach(function(grp, gi){ html += groupCardHtml(gi, grp); });
+    html += exprRowHtml({
+      act:'ruleexpr', label:'组间组合', sub:'条件组序号 1..' + groups.length, inter:true,
+      placeholder:'如 (1 or 2) and 3', value: state.rule.expr || '', count: groups.length
+    });
+    html += '<div class="cond-add-wrap"><button class="add" data-act="addgroup">＋ 添加条件组</button></div>';
+  }
+  html += '<div class="preview"><span class="lb">预览</span><span id="rulePreview">' + esc(previewText(state.rule)) + '</span></div>';
+  el('ruleBody').innerHTML = html;
+}
+/* 局部刷新：只更新某行的值芯片 + 预览，避免下拉面板闪烁/关闭 */
+function refreshRowValues(selNode, g, idx){
+  var grp = state.rule.groups[g]; if (!grp) { return; }
+  var cond = grp.conditions[idx]; if (!cond) { return; }
+  var dim = MOCK.dimensions[cond.dimension];
+  var tags = cond.values.map(function(v){
+    return '<span class="tag' + (v.stale ? ' stale' : '') + '" data-val="' + esc(v.id) + '">'
+      + esc(v.label) + (v.stale ? '<em>已失效</em>' : '')
+      + '<i class="tag-x" data-act="rmval" data-g="' + g + '" data-idx="' + idx + '" data-val="' + esc(v.id) + '">×</i></span>';
+  }).join('');
+  selNode.querySelector('.sel-tags').innerHTML = tags || '<span class="sel-ph">请选择</span>';
+  var opts = selNode.querySelectorAll('.sel-opt');
+  for (var i = 0; i < opts.length; i++) {
+    var on = cond.values.some(function(v){ return v.id === opts[i].getAttribute('data-val'); });
+    opts[i].classList.toggle('checked', on);
+  }
+  el('rulePreview').textContent = previewText(state.rule);
+}
+
+function confirmRule(){
+  if (!state.rule) { return; }
+  var groups = state.rule.groups;
+  // 校验：每条条件都需选业务值；空组（0 条件）顺手清理
+  var cleaned = [];
+  for (var gi = 0; gi < groups.length; gi++) {
+    var g = groups[gi];
+    for (var ci = 0; ci < g.conditions.length; ci++) {
+      if (!g.conditions[ci].values.length) {
+        toast('请为每条条件选择业务值', 'warn');
+        return;
+      }
+    }
+    if (g.conditions.length) { cleaned.push(g); }
+  }
+  if (!cleaned.length) {
+    toast('请至少配置 1 条规则', 'warn');
+    return;
+  }
+  // 校验：组内表达式（条件序号）与组间表达式（条件组序号）
+  for (var gi2 = 0; gi2 < cleaned.length; gi2++) {
+    var vg = validateExpr(cleaned[gi2].expr, cleaned[gi2].conditions.length);
+    if (!vg.ok) {
+      toast('条件组 ' + (gi2 + 1) + ' 组内表达式有误：' + vg.msg, 'warn');
+      return;
+    }
+  }
+  var vr = validateExpr(state.rule.expr, cleaned.length);
+  if (!vr.ok) {
+    toast('组间组合表达式有误：' + vr.msg, 'warn');
+    return;
+  }
+  var m = state.draft.filter(function(x){ return x.moduleKey === state.rule.moduleKey; })[0];
+  m.expr = state.rule.expr;
+  m.groups = clone(cleaned);
+  delete state.errors[m.moduleKey];
+  closeRuleModal();
+  renderDrawer();
+}
+
+/* =========================================================================
+ * 保存 / 校验 / 重置
+ * ========================================================================= */
+function saveAll(){
+  if (!state.openRoleId) { return; }
+  var role = getRole(state.openRoleId);
+  if (isLocked(role)) { return; }        // 锁定角色不可提交（防御性：按钮已禁用）
+  state.errors = {};
+
+  // 1) 校验：scope 且 0 条条件（任意组内）→ 拦截；并校验条件表达式合法性
+  var bad = [];
+  state.draft.forEach(function(m){
+    if (cardDisabled(role, m)) { return; }
+    var total = (m.groups || []).reduce(function(s, g){ return s + g.conditions.length; }, 0);
+    if (m.mode === 'scope') {
+      if (total === 0) {
+        state.errors[m.moduleKey] = '请至少配置 1 条规则';
+        bad.push(m.moduleKey);
+        return;
+      }
+      var ge = validateExpr(m.expr, m.groups.length);
+      if (!ge.ok) { state.errors[m.moduleKey] = '组间组合表达式：' + ge.msg; bad.push(m.moduleKey); return; }
+      for (var gi = 0; gi < m.groups.length; gi++) {
+        var vg = validateExpr(m.groups[gi].expr, m.groups[gi].conditions.length);
+        if (!vg.ok) { state.errors[m.moduleKey] = '条件组 ' + (gi + 1) + ' 组内表达式：' + vg.msg; bad.push(m.moduleKey); return; }
+      }
+    }
+  });
+  if (bad.length) {
+    renderDrawer();
+    var node = el('card-' + bad[0]);
+    if (node && node.scrollIntoView) { node.scrollIntoView({ block:'center', behavior:'smooth' }); }
+    toast('条件表达式存在错误，请修正后再保存', 'err');
+    return;
+  }
+
+  // 2) 「无数据权限」二次确认
+  var nones = state.draft.filter(function(m){ return !cardDisabled(role, m) && m.mode === 'none'; });
+  var doSave = function(){
+    state.saved[role.id] = clone(state.draft);
+    var rid = role.id;
+    closeDrawer();
+    renderRoleTable();
+    toast('数据权限已保存', 'ok');
+    void rid;
+  };
+  if (nones.length) {
+    var names = nones.map(function(m){ return '【' + getModule(m.moduleKey).name + '】'; }).join('、');
+    showConfirm({
+      title:'确认无数据权限？',
+      text:'该角色将无法看到' + names + '的任何数据，确认？',
+      okText:'确认保存',
+      danger:true,
+      cancelText:'取消',
+      onOk: doSave
+    });
+  } else {
+    doSave();
+  }
+}
+
+function resetDraft(){
+  if (!state.openRoleId) { return; }
+  state.draft = getSavedModules(state.openRoleId);
+  state.errors = {};
+  renderDrawer();
+  toast('已恢复为上次保存的配置', 'ok');
+}
+
+/* =========================================================================
+ * 通用确认框 / Toast
+ * ========================================================================= */
+function showConfirm(opt){
+  state.confirmAction = opt.onOk || null;
+  el('cfTitle').textContent = opt.title || '确认';
+  el('cfText').innerHTML = esc(opt.text || '');
+  var ok = el('cfOk');
+  ok.textContent = opt.okText || '确定';
+  ok.className = 'btn ' + (opt.danger ? 'btn-danger' : 'btn-primary');
+  el('cfCancel').textContent = opt.cancelText || '取消';
+  el('confirmModal').classList.add('on');
+  el('confirmMask').classList.add('on');
+}
+function closeConfirm(){
+  el('confirmModal').classList.remove('on');
+  el('confirmMask').classList.remove('on');
+  state.confirmAction = null;
+}
+function toast(msg, type){
+  var wrap = el('toastWrap');
+  var d = document.createElement('div');
+  d.className = 'toast ' + (type || 'ok');
+  d.innerHTML = '<span class="dotc"></span><span>' + esc(msg) + '</span>';
+  wrap.appendChild(d);
+  setTimeout(function(){
+    d.classList.add('out');
+    setTimeout(function(){ if (d.parentNode) { d.parentNode.removeChild(d); } }, 220);
+  }, 2500);
+}
+
+/* =========================================================================
+ * 事件绑定
+ * ========================================================================= */
+function init(){
+  state.roles = clone(MOCK.roles);
+  state.saved = clone(MOCK.saved);
+  renderRoleTable();
+
+  // 列表搜索
+  el('kw').addEventListener('input', renderRoleTable);
+  // 孤儿值演示开关
+  el('orphanChk').addEventListener('change', function(e){
+    state.orphanDemo = e.target.checked;
+    renderRoleTable();
+    if (state.openRoleId) { renderDrawer(); }
+  });
+  // 评审用：允许查看 SUPER_ADMIN 的整卡禁用形态（不改变按钮本身的禁用语义）
+  el('forceChk').addEventListener('change', function(e){
+    state.forceOpen = e.target.checked;
+  });
+
+  // 抽屉底部
+  el('btnReset').addEventListener('click', resetDraft);
+  el('btnCancel').addEventListener('click', tryCloseDrawer);
+  el('btnSave').addEventListener('click', saveAll);
+  el('drClose').addEventListener('click', tryCloseDrawer);
+  el('drawerMask').addEventListener('click', tryCloseDrawer);
+
+  // 规则弹窗
+  el('ruleClose').addEventListener('click', closeRuleModal);
+  el('ruleMask').addEventListener('click', closeRuleModal);
+  el('btnRuleCancel').addEventListener('click', closeRuleModal);
+  el('btnRuleOk').addEventListener('click', confirmRule);
+  // 表达式文本框：输入即更新 state + 实时校验提示（不重渲染，保留光标）
+  el('ruleBody').addEventListener('input', function(e){
+    var t = e.target;
+    if (!t.classList || !t.classList.contains('expr-input')) { return; }
+    var act = t.getAttribute('data-act');
+    var val = t.value;
+    if (act === 'ruleexpr') { state.rule.expr = val; }
+    else if (act === 'groupexpr') {
+      var g = parseInt(t.getAttribute('data-g'), 10);
+      if (state.rule.groups[g]) { state.rule.groups[g].expr = val; }
+    }
+    updateExprUI();
+  });
+  el('btnClearAll').addEventListener('click', function(){
+    if (!state.rule) { return; }
+    state.rule.groups = [];
+    renderRuleModal();
+  });
+
+  // 确认框
+  el('cfCancel').addEventListener('click', closeConfirm);
+  el('cfOk').addEventListener('click', function(){
+    var fn = state.confirmAction;
+    closeConfirm();
+    if (fn) { fn(); }
+  });
+  el('confirmMask').addEventListener('click', closeConfirm);
+
+  // Esc：先关规则弹窗，再关抽屉（走脏检查）
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape' && e.key !== 'Esc') { return; }
+    if (el('ruleModal').classList.contains('on')) { closeRuleModal(); return; }
+    if (el('confirmModal').classList.contains('on')) { closeConfirm(); return; }
+    if (el('drawer').classList.contains('on')) { tryCloseDrawer(); }
+  });
+
+  // 全局点击委托：下拉 / 条件行 / 列表操作
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!(t instanceof Element)) { return; }
+
+    // --- 下拉选项 ---
+    var opt = t.closest('.sel-opt');
+    if (opt) { handleOption(opt); return; }
+    // --- tag 芯片删除 ---
+    var tagX = t.closest('.tag-x');
+    if (tagX) { removeValue(tagX); return; }
+    // --- 下拉开关 ---
+    var box = t.closest('.sel-box');
+    if (box) { togglePanel(box.parentNode); return; }
+    // --- 其它 data-act ---
+    var act = t.closest('[data-act]');
+    if (act) { handleAct(act); return; }
+
+    closeAllPanels();
+  });
+}
+
+function closeAllPanels(){
+  var list = document.querySelectorAll('.sel.open');
+  for (var i = 0; i < list.length; i++) { list[i].classList.remove('open'); }
+}
+function togglePanel(sel){
+  var willOpen = !sel.classList.contains('open');
+  closeAllPanels();
+  if (willOpen) { sel.classList.add('open'); }
+}
+
+function handleOption(opt){
+  if (!state.rule) { return; }
+  var sel = opt.closest('.sel');
+  var kind = sel.getAttribute('data-kind');
+  var g = parseInt(sel.getAttribute('data-g'), 10);
+  var idx = parseInt(sel.getAttribute('data-idx'), 10);
+  var grp = state.rule.groups[g]; if (!grp) { return; }
+  var cond = grp.conditions[idx];
+  if (!cond) { return; }
+  var val = opt.getAttribute('data-val');
+
+  if (kind === 'dimension') {
+    if (cond.dimension !== val) { cond.dimension = val; cond.values = []; }   // 换维度 → 清空已选值
+    renderRuleModal();
+    return;
+  }
+  if (kind === 'operator') {
+    cond.operator = val;
+    renderRuleModal();
+    return;
+  }
+  // values：多选，就地更新（面板保持打开，支持连选）
+  var exist = cond.values.filter(function(v){ return v.id === val; })[0];
+  if (exist) {
+    cond.values = cond.values.filter(function(v){ return v.id !== val; });
+  } else {
+    var o = MOCK.dimensions[cond.dimension].options.filter(function(x){ return x.id === val; })[0];
+    if (o) { cond.values.push({ id:o.id, label:o.label }); }
+  }
+  opt.classList.toggle('checked', !exist);
+  refreshRowValues(sel, g, idx);
+}
+function removeValue(node){
+  if (!state.rule) { return; }
+  var g = parseInt(node.getAttribute('data-g'), 10);
+  var idx = parseInt(node.getAttribute('data-idx'), 10);
+  var val = node.getAttribute('data-val');
+  var grp = state.rule.groups[g]; if (!grp) { return; }
+  var cond = grp.conditions[idx];
+  if (!cond) { return; }
+  cond.values = cond.values.filter(function(v){ return v.id !== val; });
+  var sel = node.closest('.sel');
+  if (sel) { refreshRowValues(sel, g, idx); } else { renderRuleModal(); }
+}
+/* 输入表达式时实时刷新校验提示与预览（不重渲染输入框，保留光标） */
+function updateExprUI(){
+  if (!state.rule) { return; }
+  var rows = el('ruleBody').querySelectorAll('.expr-row');
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var input = row.querySelector('.expr-input');
+    if (!input) { continue; }
+    var act = input.getAttribute('data-act');
+    var count, val;
+    if (act === 'ruleexpr') { count = state.rule.groups.length; val = state.rule.expr || ''; }
+    else {
+      var g = parseInt(input.getAttribute('data-g'), 10);
+      var grp = state.rule.groups[g]; if (!grp) { continue; }
+      count = grp.conditions.length; val = grp.expr || '';
+    }
+    var v = validateExpr(val, count);
+    var hint = row.querySelector('.expr-hint');
+    if (v.ok) { hint.className = 'expr-hint ok'; hint.textContent = '✓ 合法'; input.classList.remove('bad'); }
+    else { hint.className = 'expr-hint err'; hint.textContent = '✕ ' + v.msg; input.classList.add('bad'); }
+  }
+  var pv = el('rulePreview');
+  if (pv) { pv.textContent = previewText(state.rule); }
+}
+
+function handleAct(node){
+  var act = node.getAttribute('data-act');
+
+  // --- A 区：列表操作 ---
+  if (act === 'dataperm') {
+    var roleId = node.getAttribute('data-role');
+    var role = getRole(roleId);
+    if (isLocked(role) && !state.forceOpen) { return; }   // 禁用态：SUPER_ADMIN（评审开关除外）
+    openDrawer(roleId);
+    return;
+  }
+  if (act === 'toggle') {
+    var r = getRole(node.getAttribute('data-role'));
+    r.enabled = !r.enabled;
+    node.classList.toggle('off', !r.enabled);
+    toast('角色「' + r.name + '」已' + (r.enabled ? '启用' : '停用'), 'ok');
+    return;
+  }
+  if (act === 'edit') {
+    toast('演示原型：编辑角色未接入', 'warn');
+    return;
+  }
+  if (act === 'del') {
+    // 守卫：仅角色列表的「删除」带 data-role；缺属性或查不到角色时直接返回，
+    // 绝不继续往下解引用，避免误吞其它区域同名为 del 的 action 并抛 TypeError
+    if (!node.hasAttribute || !node.hasAttribute('data-role')) { return; }
+    var rd = getRole(node.getAttribute('data-role'));
+    if (!rd) { return; }
+    showConfirm({
+      title:'删除角色',
+      text:'确认删除角色「' + rd.name + '」？该操作不可恢复。',
+      okText:'删除', danger:true, cancelText:'取消',
+      onOk: function(){ toast('演示原型：删除未接入', 'warn'); }
+    });
+    return;
+  }
+
+  // --- B 区：模块卡 ---
+  if (act === 'mode') {
+    var mk = node.getAttribute('data-mod');
+    var mRole = getRole(state.openRoleId);
+    var mCard = state.draft ? state.draft.filter(function(x){ return x.moduleKey === mk; })[0] : null;
+    if (!mRole || !mCard || cardDisabled(mRole, mCard)) { return; }   // 禁用卡守卫
+    setMode(mk, node.getAttribute('data-mode'));
+    return;
+  }
+  if (act === 'rule') {
+    openRuleModal(node.getAttribute('data-mod'));
+    return;
+  }
+
+  // --- C 区：条件组 / 条件行 ---
+  if (act === 'addgroup') {
+    if (!state.rule) { return; }
+    var oldN = state.rule.groups.length;
+    state.rule.groups.push(newGroup(state.rule.moduleKey));
+    if (state.rule.expr === defaultExpr(oldN)) { state.rule.expr = defaultExpr(state.rule.groups.length); }
+    renderRuleModal();
+    return;
+  }
+  if (act === 'delgroup') {
+    if (!state.rule) { return; }
+    if (state.rule.groups.length <= 1) { return; }   // 至少保留 1 组
+    if (node.getAttribute('aria-disabled') === 'true') { return; }
+    var gdel = parseInt(node.getAttribute('data-g'), 10);
+    if (isNaN(gdel) || gdel < 0 || gdel >= state.rule.groups.length) { return; }
+    var oldN2 = state.rule.groups.length;
+    state.rule.groups.splice(gdel, 1);
+    if (state.rule.expr === defaultExpr(oldN2)) { state.rule.expr = defaultExpr(state.rule.groups.length); }
+    renderRuleModal();
+    return;
+  }
+  if (act === 'addcond') {
+    if (!state.rule) { return; }
+    var gadd = parseInt(node.getAttribute('data-g'), 10);
+    var grpA = state.rule.groups[gadd]; if (!grpA) { return; }
+    var oldC = grpA.conditions.length;
+    grpA.conditions.push(newCond(state.rule.moduleKey));
+    if (grpA.expr === defaultExpr(oldC)) { grpA.expr = defaultExpr(grpA.conditions.length); }
+    renderRuleModal();
+    return;
+  }
+  if (act === 'delcond') {
+    if (!state.rule) { return; }
+    var gd = parseInt(node.getAttribute('data-g'), 10);
+    var idxd = parseInt(node.getAttribute('data-idx'), 10);
+    var grpD = state.rule.groups[gd]; if (!grpD) { return; }
+    if (grpD.conditions.length <= 1) { return; }   // 组内仅剩 1 行时按钮已禁用，双保险
+    if (node.getAttribute('aria-disabled') === 'true') { return; }
+    if (isNaN(idxd) || idxd < 0 || idxd >= grpD.conditions.length) { return; }
+
+    // 淡出幽灵行：先克隆，重渲染后再原位插入到该组的 .grp-body 内
+    var row = (node.closest ? node.closest('.gcond') : null);
+    var ghost = row ? row.cloneNode(true) : null;
+
+    var oldC2 = grpD.conditions.length;
+    grpD.conditions.splice(idxd, 1);   // 状态同步移除，组内 data-idx 重排
+    if (grpD.expr === defaultExpr(oldC2)) { grpD.expr = defaultExpr(grpD.conditions.length); }
+    renderRuleModal();
+
+    if (ghost) {
+      ghost.className = 'gcond-ghost';   // 不保留 .gcond，避免干扰行数统计
+      var gbody = el('ruleBody').querySelector('.grp[data-g="' + gd + '"] .grp-body');
+      var rows = gbody ? gbody.querySelectorAll('.gcond') : [];
+      if (gbody) { gbody.insertBefore(ghost, rows[idxd] || null); }
+      setTimeout(function(){ if (ghost.parentNode) { ghost.parentNode.removeChild(ghost); } }, 220);
+    }
+    return;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

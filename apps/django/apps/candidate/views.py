@@ -114,6 +114,8 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
             app_code='recruit',
             scope_field=self.scope_field,
             creator_field=self.scope_creator_field,
+            recruit_type=getattr(self.request, 'recruit_type', 'social'),
+            entity='candidate',
         )
         qs = qs.filter(sq)
         return qs.order_by('-created_at')
@@ -123,7 +125,10 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         serializer = CandidateCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.to_data()
-        candidate = CandidateService.create_candidate(data, actor=request.user)
+        candidate = CandidateService.create_candidate(
+            data, actor=request.user,
+            recruit_type=getattr(self.request, 'recruit_type', 'social'),
+        )
         out = CandidateDetailSerializer(
             candidate, context=self.get_serializer_context(),
         )

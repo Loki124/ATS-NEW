@@ -3,8 +3,7 @@
     <div class="step-intro">
       <n-icon :component="InformationCircleOutline" color="var(--brand)" :size="16" />
       <span>
-        <b>{{ t('reasonLibrary.wizard.step1.title') }}</b>
-        — {{ t('reasonLibrary.wizard.intro.step1') }}
+        {{ t('reasonLibrary.wizard.intro.step1') }}
         <br />
         {{ t('reasonLibrary.wizard.catCount', { count: categories.length }).replace('{count}', String(categories.length)) }} ·
         {{ t('reasonLibrary.wizard.leafCount', { leaf: leafCount }).replace('{leaf}', String(leafCount)) }} ·
@@ -12,7 +11,7 @@
       </span>
     </div>
 
-    <div class="cat-tree glass-card">
+    <div class="cat-tree">
       <div class="cat-tree-head">
         <span class="rl-cat-title">
           <n-icon :component="GitNetworkOutline" :size="14" color="var(--ink-soft)" />
@@ -336,14 +335,15 @@ function canMoveDown(cat: RuleCategory): boolean {
 </script>
 
 <style scoped>
-.step1 { display: flex; flex-direction: column; gap: var(--space-3); }
+.step1 { display: flex; flex-direction: column; gap: var(--space-3); height: 100%; }
 
 .step-intro {
   display: flex;
   gap: var(--space-2);
   align-items: flex-start;
   padding: var(--space-2) var(--space-3);
-  background: var(--brand-soft);
+  background: transparent;
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   font-size: var(--fs-12);
   color: var(--ink-soft);
@@ -352,17 +352,24 @@ function canMoveDown(cat: RuleCategory): boolean {
 .step-intro b { color: var(--brand); font-weight: 600; }
 
 .cat-tree {
+  /* 去除全局 .glass-card 带来的半透明灰底 (rgba(255,255,255,.62)) → 正常白底 */
+  background: var(--surface);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .cat-tree-head {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  background: var(--g1);
+  background: transparent;
   border-bottom: 1px solid var(--border-hairline);
+  flex-shrink: 0;
 }
 .rl-cat-title {
   display: flex;
@@ -378,6 +385,9 @@ function canMoveDown(cat: RuleCategory): boolean {
 .cat-rows {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .cat-row {
   display: flex;
@@ -389,7 +399,7 @@ function canMoveDown(cat: RuleCategory): boolean {
 }
 .cat-row:last-child { border-bottom: none; }
 .cat-row:hover { background: var(--brand-tint); }
-.cat-row.is-leaf { background: var(--glass-bg-input, rgba(255, 255, 255, .45)); }
+.cat-row.is-leaf { background: transparent; }
 .cat-row .indent {
   flex-shrink: 0;
   display: inline-flex;

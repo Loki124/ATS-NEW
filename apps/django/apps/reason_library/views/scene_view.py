@@ -37,7 +37,14 @@ class SceneView(APIView):
     @_api
     def get(self, request, *args, **kwargs):
         # 列出所有 (场景 × 类型) 组合的当前绑定, 未绑定的 ruleId = null
-        assignments = RuleSceneAssignment.objects.select_related('rule').all()
+        # 排除预置默认规则: 它覆盖全部场景×类型作系统兜底, 不参与"场景占用"展示,
+        # 否则其它规则编辑时会把默认规则当成"已占用"而误报冲突。
+        assignments = (
+            RuleSceneAssignment.objects
+            .exclude(rule__is_system=True, rule__name='预置默认规则')
+            .select_related('rule')
+            .all()
+        )
         mapping = {(a.scene, a.recruit_type): a.rule for a in assignments}
         result = []
         for scene in SCENE_OPTIONS:

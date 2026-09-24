@@ -76,6 +76,10 @@ MAX_PICK = 5
 # 分类层级上限 (前端常量 MAX_CATEGORY_LEVEL = 4 同步)
 MAX_CATEGORY_LEVEL = 4
 
+# 预置默认规则: 系统兜底规则 (覆盖所有场景×类型, 不可调整覆盖/名称/状态)。
+# 识别方式 = is_system AND name == 此常量 (2026-09-24 用户拍板: 不新增字段, 复用固定名)。
+PRESET_DEFAULT_RULE_NAME = '预置默认规则'
+
 
 class ReasonTag(models.Model):
     """原因标签 - 全局池, 软删。"""
@@ -149,6 +153,10 @@ class SceneRule(models.Model):
         default=5, verbose_name='可选标签上限',
         help_text='用户在实际使用弹窗中最多可选的原因标签条数 (0 表示不限制)',
     )
+    modal_title = models.CharField(
+        max_length=64, blank=True, default='', verbose_name='弹窗标题',
+        help_text='终端用户选择原因弹窗的标题文案 (空=使用默认文案「选择原因」)',
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
 
@@ -160,14 +168,35 @@ class SceneRule(models.Model):
         verbose_name_plural = '场景规则'
         ordering = ['-is_system', '-updated_at']
 
-    def __str__(self) -> str:
-        return self.name
-
     def save(self, *args, **kwargs):
         if not self.id:
             from nanoid import generate as nanoid_generate
             self.id = nanoid_generate(size=21)
+        # 预置默认规则全局唯一: 禁止存在第二条 (is_system AND name==PRESET_DEFAULT_RULE_NAME)。
+        # 仅允许 seed 创建一条; 任意再创建 (API 经 serializer.validate 拦截 / 原始 .create 经
+        # 此处拦截) 均被拒绝, 使「只能有一条」成为硬约束而非依赖应用层运气。
+        # 抛 IntegrityError 与 DB 层唯一违例语义一致: API 路径被 rule_view.create 的
+        # except IntegrityError 捕获 → 返回 400; 内部误用则明确失败 (fail loud)。
+        if self.is_system and self.name == PRESET_DEFAULT_RULE_NAME:
+            dup = SceneRule.objects.filter(
+                is_system=True, name=PRESET_DEFAULT_RULE_NAME,
+            ).exclude(pk=self.pk).exists()
+            if dup:
+                from django.db import IntegrityError
+                raise IntegrityError('预置默认规则全局只能有一条')
         super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def is_preset_default(self) -> bool:
+        """是否「预置默认规则」(系统兜底, 覆盖所有场景×类型, 不可调整覆盖/名称/状态)。
+
+        识别 = is_system AND name == PRESET_DEFAULT_RULE_NAME (用户拍板: 复用固定名, 不新增字段)。
+        因 name 对该规则锁定 (后端 save/partial_update 守卫禁止改名), 此判定稳定。
+        """
+        return self.is_system and self.name == PRESET_DEFAULT_RULE_NAME
 
     @property
     def assigned_scenes(self) -> list:
@@ -191,6 +220,15 @@ class RuleCategory(models.Model):
     order = models.IntegerField(default=0, verbose_name='排序')
     allow_custom = models.BooleanField(default=False, verbose_name='允许业务自定义')
     level = models.IntegerField(default=1, verbose_name='层级 1..4')
+    # 区块颜色 (2026-09-23 新增): #RRGGBB / 空串=未自定义。
+    # - 一级分类: 存自身专属区块色; 空串 → 前端用默认色。
+    # - 非一级分类: 空串 → 继承所属一级分类颜色; 非空 → 自定义覆盖。
+    # 空串语义 = 「未设置」, 继承关系在读取端 (前端 Step3) 实时推导, 不落库冗余值,
+    # 保证「改一级分类颜色 → 其下未自定义的子分类自动跟随」。
+    color = models.CharField(
+        max_length=16, blank=True, default='', verbose_name='区块颜色',
+        help_text='#RRGGBB; 空串=未自定义 (一级用默认色, 非一级继承所属一级分类颜色)',
+    )
 
     class Meta:
         db_table = 'rule_category'

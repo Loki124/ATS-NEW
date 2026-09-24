@@ -1,6 +1,7 @@
 """Talent Pool Models (PRD v4 §14.7)"""
 from django.db import models
 from apps.common.models import FullAuditModel
+from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 from nanoid import generate as nanoid_generate
 
 
@@ -20,6 +21,11 @@ class TalentPoolEntry(FullAuditModel):
         DIRECT_IMPORT = 'DIRECT_IMPORT', '直接导入（HR 上传简历）'
 
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        db_index=True, verbose_name='招聘类型',
+    )
     candidate = models.ForeignKey(
         'candidate.Candidate', on_delete=models.PROTECT,
         related_name='talent_pool_entries', verbose_name='候选人',

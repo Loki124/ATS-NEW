@@ -53,7 +53,7 @@ line 号可能随 live 文件略有偏移，但两个 hunk 的**上下文锚点*
 - Hunk 1 锚点：`log "  migrate OK"` 之后、`python manage.py collectstatic` 之前 —— `git apply` 或手动插入均可。
 - Hunk 2 锚点：`if [ "$HAS_DJANGO" -eq 1 ]; then` 内的 `HEALTH_URLS=(.../api/health/)` —— 仅 Django 分支那一行改成 `/health/`（Node.js 分支保持 `/api/health` 不动）。
 
-建议：在 `ats-deploy-infra` clone 后 `git apply webhook-deploy.diff`；若冲突，按上下文锚点手动改这两处即可。
+建议：在 `ats-deploy-infra` clone 后 `git apply 06-runbook/webhook-deploy.diff`；若冲突，按上下文锚点手动改这两处即可。
 
 ## 验证
 

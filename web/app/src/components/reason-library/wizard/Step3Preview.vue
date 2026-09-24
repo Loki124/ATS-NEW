@@ -1,15 +1,23 @@
 <template>
   <div class="step3">
+    <!-- ============ 模拟真实业务弹窗: 还原终端用户看到的「标签选择」弹窗 ============ -->
+    <div class="rl-sim-modal">
+      <div class="rl-sim-modal__header">
+        <!-- 模拟弹窗标题: 支持自定义输入, 默认占位「选择原因」; 改动经 update:modal-title 回传父组件写入规则 -->
+        <n-input
+          v-model:value="modalTitleModel"
+          size="small"
+          class="rl-sim-modal__title-input"
+          :placeholder="t('reasonLibrary.wizard.preview.modalTitlePlaceholder')"
+          :bordered="false"
+        />
+        <n-icon class="rl-sim-modal__close" :component="CloseOutline" :size="18" />
+      </div>
+      <div class="rl-sim-modal__body">
     <!-- ============ 模块一: 原因标签 (合并单元格式卡片网格, 零表格元素) ============ -->
     <div class="rl-preview-module">
       <div class="rl-mod-head">
         <h3>{{ t('reasonLibrary.wizard.preview.moduleTagsTitle') }}</h3>
-        <n-space v-if="scenes.length" :size="4" class="rl-scenes">
-          <n-tag v-for="s in scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
-        </n-space>
-        <n-space v-if="recruitTypeLabels.length" :size="4" class="rl-types">
-          <n-tag v-for="rt in recruitTypeLabels" :key="rt" size="small" type="warning" bordered>{{ rt }}</n-tag>
-        </n-space>
         <span
           v-if="maxSelectable > 0"
           class="rl-mod-limit"
@@ -113,6 +121,12 @@
         class="rl-detail-input"
       />
     </div>
+      </div>
+      <div class="rl-sim-modal__footer">
+        <n-button size="small" disabled>{{ t('reasonLibrary.common.cancel') }}</n-button>
+        <n-button size="small" type="primary" disabled>{{ t('reasonLibrary.common.confirm') }}</n-button>
+      </div>
+    </div>
 
     <!-- ============ 区块颜色配置弹窗 (针对当前卡片) ============ -->
     <n-modal
@@ -191,10 +205,9 @@
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { NButton, NIcon, NInput, NModal, NSpace, NTag } from 'naive-ui'
-import { SettingsOutline } from '@vicons/ionicons5'
+import { NButton, NIcon, NInput, NModal, NSpace } from 'naive-ui'
+import { SettingsOutline, CloseOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
-import { RECRUIT_TYPE_OPTIONS } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
@@ -206,7 +219,18 @@ const props = defineProps<{
 /** 区块颜色变更回传父组件 (ReasonRuleWizard 写入 wizard.categories[i].color) */
 const emit = defineEmits<{
   (e: 'update:color', p: { catId: string; color: string }): void
+  (e: 'update:modal-title', v: string): void
 }>()
+
+/**
+ * 模拟弹窗标题（默认「选择原因」）。
+ * 以 computed 双向桥接：读取权威值 props.wizard.modalTitle；输入时 emit('update:modal-title')
+ * 由父组件写入 wizard → 序列化时随规则保存进后端 modal_title。空值回退到默认占位文案。
+ */
+const modalTitleModel = computed<string>({
+  get: () => props.wizard.modalTitle ?? '',
+  set: (v: string) => emit('update:modal-title', v),
+})
 
 /** 预设调色板 — 满足「自定义其他颜色进行覆盖」的主要入口 */
 const BLOCK_COLORS = [
@@ -365,22 +389,6 @@ const maxSelectable = computed<number>(() => {
   return typeof m === 'number' && m > 0 ? m : 0
 })
 const limitReached = computed(() => maxSelectable.value > 0 && selectedTagIds.value.size >= maxSelectable.value)
-
-/** 应用场景列表 — 优先取 scenePairs (显式成对), 回退 scenes (派生展示用) */
-const scenes = computed(() => {
-  const sp = props.wizard.scenePairs
-  if (sp && sp.length) return [...new Set(sp.map((p) => p.scene))]
-  return props.wizard.scenes ?? []
-})
-
-/** 类型维度标签 (社会招聘 / 校园招聘) — 优先取 scenePairs, 回退 recruitTypes */
-const recruitTypeLabels = computed(() => {
-  const sp = props.wizard.scenePairs
-  const rts = (sp && sp.length)
-    ? [...new Set(sp.map((p) => p.recruitType))]
-    : (props.wizard.recruitTypes || [])
-  return rts.map((rt) => RECRUIT_TYPE_OPTIONS.find((o) => o.value === rt)?.label || rt)
-})
 
 function toggleTag(id: string) {
   const next = new Set(selectedTagIds.value)
@@ -570,7 +578,72 @@ function rowStyle(row: TagRow) {
 </script>
 
 <style scoped>
-.step3 { display: flex; flex-direction: column; gap: var(--space-6); }
+.step3 { height: 100%; display: flex; flex-direction: column; }
+
+/* === 模拟真实业务弹窗（还原终端用户看到的「标签选择」弹窗视觉效果）=== */
+.rl-sim-modal {
+  /* 完全铺满 step3(= wizard-body 可用区域), 自适应其宽高 */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.rl-sim-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-hairline);
+}
+/* 模拟弹窗标题输入框: 外观还原为标题样式, 但可编辑; 默认占位「选择原因」 */
+.rl-sim-modal__title-input {
+  flex: 0 1 auto;
+  max-width: 320px;
+  min-width: 160px;
+}
+.rl-sim-modal__title-input :deep(.n-input__input-el) {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+}
+.rl-sim-modal__title-input :deep(.n-input__placeholder) {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.rl-sim-modal__close { color: var(--ink-faint); cursor: default; flex-shrink: 0; }
+.rl-sim-modal__body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.rl-sim-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-hairline);
+}
+/* 模块在模拟弹窗内不再单独描边, 由弹窗本体提供外框 */
+.rl-sim-modal .rl-preview-module {
+  border: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
 
 .rl-preview-module {
   border: 1px solid var(--border-hairline);
@@ -589,13 +662,6 @@ function rowStyle(row: TagRow) {
   font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink);
-}
-.rl-scene {
-  font-size: var(--fs-11);
-  color: var(--ink-soft);
-  background: var(--g1);
-  border-radius: 999px;
-  padding: 1px 9px;
 }
 .rl-mod-limit {
   margin-left: auto;
@@ -624,8 +690,8 @@ function rowStyle(row: TagRow) {
   padding: var(--space-2) 3px;
   border: 1px solid var(--brand-a12);
   border-radius: var(--radius-sm);
-  /* 着色仅以柔和底色表达, 边框不上色 (边框回退默认品牌描边, 与未着色卡一致) */
-  background: var(--cat-tint, var(--brand-tint));
+  /* 未着色分类单元格默认纯白底(去除品牌蓝紫调导致的「灰」观感); 仅显式着色(内联 --cat-tint)时上柔和底色, 边框不上色 */
+  background: var(--cat-tint, var(--surface));
   color: var(--ink-soft);
   font-size: var(--fs-12);
   font-weight: 500;
@@ -671,12 +737,12 @@ function rowStyle(row: TagRow) {
 }
 .rl-cell-set:hover { background: var(--brand-hover, var(--brand)); filter: brightness(1.08); }
 .rl-cell.is-leaf {
-  background: var(--cat-tint, var(--brand-soft));
+  background: var(--cat-tint, var(--surface));
   border-color: var(--brand-a22);
   color: var(--ink);
   font-weight: 600;
 }
-.rl-cell.is-wide { background: var(--cat-tint, var(--brand-a22)); }
+.rl-cell.is-wide { background: var(--cat-tint, var(--surface)); }
 
 /* 标签单元: 每个末级分类一行, 同类原因标签在此聚合排列 */
 .rl-tags {

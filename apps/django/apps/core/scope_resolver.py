@@ -445,51 +445,82 @@ def iter_unit_scopes(unit_ids, app_code=None):
         yield ([d for d in dept_ids if d != ALL_UNIT_SENTINEL], user_ids, org_dr_q, person_dr_q, has_all)
 
 
-def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by'):
-    """返回当前用户行级可见范围的 Q 对象 —— scope_resolver 作为唯一真相源.
+def recruit_type_filter_q(recruit_type):
+    """硬系统分区 Q —— 招聘类型(social/campus)是系统级硬边界, 对所有用户(含超管)生效.
 
-    行为等价于原「DataPermissionRule ROW 镜像 + enforcement.row_filter_q CUSTOM 分支」:
-    直接由 resolve_scope 产出过滤条件, 不再读写 DataPermissionRule 行级规则.
+    opt-in: 仅当调用方显式传入 recruit_type 时返回按该维度过滤的 Q;
+    未传(None/空) -> Q() (no-op, 兼容旧调用方与未分区模型).
+    调用方须确保目标模型存在 recruit_type 字段.
+    """
+    from django.db.models import Q
 
-    - 未登录 / 超管 -> Q() (全量可见; 调用方已做权限门禁)
-    - {'all': True} -> Q()
+    if not recruit_type:
+        return Q()
+    return Q(recruit_type=recruit_type)
+
+
+def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by', recruit_type=None, entity=None):
+    """返回当前用户行级可见范围的 Q 对象 —— scope_resolver 作为唯一真相源。
+
+    行为等价于原「DataPermissionRule ROW 镜像 + enforcement.row_filter_q CUSTOM 分支」：
+    直接由 resolve_scope 产出过滤条件, 不再读写 DataPermissionRule 行级规则。
+
+    recruit_type (opt-in): 显式传入时, 该维度作为硬分区对所有用户(含超管/匿名)生效,
+    先于行级 scope 以 AND 叠加 —— 社会/校园招聘数据相互隔离。
+
+    entity (opt-in): 传入业务模块 key（candidate/demand/position/process/talent）时,
+    若该用户所属角色配置了「角色自定义范围」规则, 以编译后的表达式 Q 替换默认
+    scope（多角色按 RBAC 并集）；无配置则回退下方默认 scope（向后兼容）。
+
+    - 未登录 / 超管 -> 至多仅 recruit_type 分区 (全量行级可见)
+    - {'all': True} -> 至多仅 recruit_type 分区
     - department_ids -> 按 scope_field(部门 FK 路径) 或 creator.department_id 过滤
     - management_unit_ids ->
         * 空 list -> SELF (created_by=user.pk)
-        * 含整公司 sentinel -> Q() (全量)
+        * 含整公司 sentinel -> 至多仅 recruit_type 分区 (全量)
         * 否则 -> Q(scope_field__in=dept_ids) | Q(created_by__in=user_ids)
     """
     from django.db.models import Q
     from .role_v2_query import is_super_admin
 
+    # 硬系统分区: 先于行级 scope 计算, 对所有用户(含超管/匿名)生效.
+    rt_q = recruit_type_filter_q(recruit_type)
+
     if not (user and getattr(user, 'is_authenticated', False)):
-        return Q()
+        return rt_q
     if is_super_admin(user):
-        return Q()
+        return rt_q
+
+    # 角色自定义范围（数据权限向导）优先于默认 scope：有配置则替换，无配置回退。
+    if entity:
+        from apps.data_permission.enforcement import role_entity_scope_q
+        custom_q = role_entity_scope_q(user, entity)
+        if custom_q is not None:
+            return custom_q & rt_q
 
     scope = resolve_scope(user, app_code=app_code)
 
     if scope.get('all'):
-        return Q()
+        return rt_q
 
     if 'department_ids' in scope:
         dept_ids = scope.get('department_ids') or []
         if dept_ids:
             target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
-            return Q(**{target: dept_ids})
+            return Q(**{target: dept_ids}) & rt_q
         # 空部门集合 -> 仅看自己创建
-        return Q(**{creator_field: user.pk})
+        return Q(**{creator_field: user.pk}) & rt_q
 
     if 'management_unit_ids' in scope:
         unit_ids = scope.get('management_unit_ids') or []
         if not unit_ids:
             # 空管理单元集合 -> SELF 兜底
-            return Q(**{creator_field: user.pk})
+            return Q(**{creator_field: user.pk}) & rt_q
         q = Q()
         for dept_ids, user_ids, org_dr_q, person_dr_q, has_all in iter_unit_scopes(unit_ids, app_code):
             if has_all:
                 # 整公司单元 -> 全量可见(OR 中任意一项为全量即整体全量)
-                return Q()
+                return rt_q
             unit_q = Q()
             if dept_ids:
                 target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
@@ -505,7 +536,7 @@ def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_b
             if person_dr_q.children:
                 unit_q &= person_dr_q
             q |= unit_q
-        return q if q.children else Q(**{creator_field: user.pk})
+        return (q if q.children else Q(**{creator_field: user.pk})) & rt_q
 
     # 兜底 (正常不会到达): 无范围信息 -> SELF
-    return Q(**{creator_field: user.pk})
+    return Q(**{creator_field: user.pk}) & rt_q

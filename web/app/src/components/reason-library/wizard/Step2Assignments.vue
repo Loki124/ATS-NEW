@@ -16,7 +16,7 @@
       <div
         v-for="cat in leafCats"
         :key="cat.id"
-        class="assign-card glass-card"
+        class="assign-card"
       >
         <div class="assign-head">
           <span class="path">{{ buildPath(cat.id) }}</span>
@@ -172,14 +172,15 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
 </script>
 
 <style scoped>
-.step2 { display: flex; flex-direction: column; gap: var(--space-3); }
+.step2 { display: flex; flex-direction: column; gap: var(--space-3); height: 100%; }
 
 .step-intro {
   display: flex;
   gap: var(--space-2);
   align-items: flex-start;
   padding: var(--space-2) var(--space-3);
-  background: var(--brand-soft);
+  background: transparent;
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   font-size: var(--fs-12);
   color: var(--ink-soft);
@@ -193,11 +194,18 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .assign-card {
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
+  background: var(--surface);
+  /* 防止在 flex 列(flex-shrink 默认 1)中被压缩导致内容被 overflow:hidden 截断:
+     每张末级分类卡片按自然高度展开, 多卡由外层 .assign-grid 统一滚动。 */
+  flex-shrink: 0;
   overflow: hidden;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
@@ -208,7 +216,7 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   align-items: center;
   gap: 10px;
   padding: var(--space-2) var(--space-3);
-  background: var(--glass-bg-card);
+  background: transparent;
   border-bottom: 1px solid var(--border-hairline);
 }
 .assign-head .path {

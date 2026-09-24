@@ -26,3 +26,27 @@ class SceneRuleManager(models.Manager):
     """场景规则不软删, 仅 enabled 切换。无特殊过滤。"""
     def get_queryset(self):
         return super().get_queryset()
+
+    def preset_default(self):
+        """返回「预置默认规则」(is_system AND name=PRESET_DEFAULT_RULE_NAME), 无则返回 None。
+
+        全库至多一条 (DB 层 UNIQUE uniq_one_preset_default_rule 兜底); 用 get() 取唯一,
+        缺失回退 None 不崩溃; 若仍出现多条 (违反唯一约束的脏数据) 记告警后回退最新一条,
+        避免 500 但让问题可见 (fail loud)。
+        """
+        import logging
+
+        from .models import PRESET_DEFAULT_RULE_NAME
+
+        logger = logging.getLogger(__name__)
+        try:
+            return self.get(is_system=True, name=PRESET_DEFAULT_RULE_NAME)
+        except self.model.DoesNotExist:
+            return None
+        except self.model.MultipleObjectsReturned:
+            # 不应发生: DB 唯一约束已兜底。若出现, 告警 (fail loud) 并回退最新一条。
+            logger.warning(
+                '检测到多条预置默认规则 (is_system AND name=%s), 违反「全局仅一条」约束, 回退最新一条',
+                PRESET_DEFAULT_RULE_NAME,
+            )
+            return self.filter(is_system=True, name=PRESET_DEFAULT_RULE_NAME).order_by('-updated_at').first()

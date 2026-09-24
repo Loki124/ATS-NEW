@@ -31,6 +31,7 @@ class RuleLevel(models.TextChoices):
 
 class RowScopeType(models.TextChoices):
     ALL = 'ALL', '全部数据'
+    NONE = 'NONE', '无数据'
     DEPT = 'DEPT', '仅本部门'
     DEPT_AND_SUB = 'DEPT_AND_SUB', '本部门及下属'
     SELF = 'SELF', '仅自己创建'

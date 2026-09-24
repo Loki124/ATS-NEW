@@ -41,7 +41,7 @@ class CandidateListSerializer(FieldAclSerializerMixin, serializers.ModelSerializ
     class Meta:
         model = Candidate
         fields = [
-            'id', 'name', 'phone', 'email', 'gender', 'age',
+            'id', 'recruit_type', 'name', 'phone', 'email', 'gender', 'age',
             'current_state', 'state_display',
             'source_channel', 'source_channel_name',
             'referral_type', 'tags',
@@ -84,7 +84,7 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
     class Meta:
         model = Candidate
         fields = [
-            'id', 'name', 'phone', 'email', 'gender', 'age', 'birth_date', 'id_card_no',
+            'id', 'recruit_type', 'name', 'phone', 'email', 'gender', 'age', 'birth_date', 'id_card_no',
             'highest_education', 'work_years',
             'current_city', 'expected_city', 'current_company', 'current_position',
             'expected_salary', 'resume_file_url', 'resume_text',

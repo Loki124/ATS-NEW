@@ -24,6 +24,7 @@ from django.utils.dateparse import parse_datetime
 from ..exceptions import BizCode, BizException
 from ..models import (
     MAX_CATEGORY_LEVEL,
+    PRESET_DEFAULT_RULE_NAME,
     CategoryAssignment,
     ReasonTag,
     RuleCategory,
@@ -104,17 +105,26 @@ class WizardService:
         # 4) 校验 scene(入口)+类型 唯一性 (Q6) — (场景,类型) 组合不可被其它规则占用
         #    应用范围 = 显式 scene_assignments 优先; 否则回退 scenes×recruit_types 笛卡尔积;
         #    两者均未提供则不触碰场景绑定 (desired_pairs=None)。
+        #    预置默认规则: 覆盖(全部场景×类型)为系统兜底且不可调整, 跳过冲突校验与覆盖写入。
         desired_pairs = self._resolve_scene_pairs(payload)
-        if desired_pairs is not None:
+        if desired_pairs is not None and not rule.is_preset_default:
             self._check_scene_conflicts(rule_id, desired_pairs)
 
         # 5) 更新头部
-        rule.name = (payload.get('name') or rule.name).strip() or rule.name
+        #    预置默认规则: 名称锁定 (保 is_preset_default 判定稳定), 沿用原值。
+        if rule.is_preset_default:
+            rule.name = rule.name
+        else:
+            rule.name = (payload.get('name') or rule.name).strip() or rule.name
         rule.description = payload.get('description', rule.description)
         # 用户可选数量 (0 表示不限制)
         if 'max_selectable_tags' in payload:
             mst = payload.get('max_selectable_tags')
             rule.max_selectable_tags = max(0, int(mst)) if mst is not None else rule.max_selectable_tags
+        # 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」)
+        if 'modal_title' in payload:
+            mt = payload.get('modal_title')
+            rule.modal_title = (mt or '').strip()[:64]
         # Item2: 系统预置规则保持不可停用 — enabled 强制 True
         if rule.is_system:
             rule.enabled = True
@@ -123,7 +133,7 @@ class WizardService:
         # 同名校验
         if SceneRule.objects.filter(name=rule.name).exclude(pk=rule.pk).exists():
             raise BizException(BizCode.RULE_NAME_DUPLICATED, '该规则名已存在', status_code=400)
-        rule.save(update_fields=['name', 'description', 'enabled', 'max_selectable_tags', 'updated_at'])
+        rule.save(update_fields=['name', 'description', 'enabled', 'max_selectable_tags', 'modal_title', 'updated_at'])
 
         # 6) Diff categories: 维护 client_id → id 映射, 同时处理 add/update/delete
         existing_cats = {
@@ -154,6 +164,9 @@ class WizardService:
             order = int(cdef.get('order', 0))
             allow_custom = bool(cdef.get('allow_custom', False))
             level = client_id_to_level.get(cid, 1)
+            # 区块颜色: 空串 = 未自定义 (一级用默认色 / 非一级继承一级分类色);
+            # 非空 = 自定义覆盖。None → '' 归一化, 避免落库 NULL。
+            color = (cdef.get('color') or '').strip()
 
             if existing_id and existing_id in existing_cats:
                 # update
@@ -162,8 +175,9 @@ class WizardService:
                 cat.order = order
                 cat.allow_custom = allow_custom
                 cat.level = level
+                cat.color = color
                 cat.parent = parent_obj
-                cat.save(update_fields=['name', 'order', 'allow_custom', 'level', 'parent'])
+                cat.save(update_fields=['name', 'order', 'allow_custom', 'level', 'color', 'parent'])
                 seen_db_ids.add(existing_id)
                 if cid:
                     client_id_to_new_id[cid] = cat.id
@@ -176,6 +190,7 @@ class WizardService:
                     order=order,
                     allow_custom=allow_custom,
                     level=level,
+                    color=color,
                 )
                 if cid:
                     client_id_to_new_id[cid] = cat.id
@@ -292,7 +307,8 @@ class WizardService:
         # 8) Diff rule_scene_assignment (先删后增 — UNIQUE(scene, recruit_type) 兜底)
         #    规则应用范围 = 显式 scene_assignments 优先; 否则 scenes×recruit_types 笛卡尔积;
         #    两者均未提供 (desired_pairs=None) 则不触碰场景绑定 (保留既有赋值)。
-        if desired_pairs is not None:
+        #    预置默认规则: 覆盖不可调整, 跳过整段写入。
+        if desired_pairs is not None and not rule.is_preset_default:
             existing_assigns = list(RuleSceneAssignment.objects.filter(rule=rule))
             existing_pairs = {(a.scene, a.recruit_type) for a in existing_assigns}
             to_delete = existing_pairs - desired_pairs
@@ -442,10 +458,14 @@ class WizardService:
         """
         if not pairs:
             return
+        # 预置默认规则 (覆盖全部场景×类型, 作系统兜底) 不参与冲突校验 —
+        # 其它规则可自由占用任意 (场景,类型), 不受默认规则"覆盖"影响。
         occupied = RuleSceneAssignment.objects.filter(
             scene__in={p[0] for p in pairs},
             recruit_type__in={p[1] for p in pairs},
-        ).exclude(rule_id=current_rule_id).values_list('scene', 'recruit_type')
+        ).exclude(rule_id=current_rule_id).exclude(
+            rule__is_system=True, rule__name=PRESET_DEFAULT_RULE_NAME,
+        ).values_list('scene', 'recruit_type')
         occupied_set = {(s, rt) for s, rt in occupied}
         bad = occupied_set & set(pairs)
         if bad:

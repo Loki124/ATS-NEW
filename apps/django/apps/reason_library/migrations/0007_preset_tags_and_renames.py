@@ -64,9 +64,11 @@ def adjust(apps, schema_editor):
         )
 
     # 3) 系统规则改名 (name 唯一: 目标名被其他行占用则换下一个)
+    #    2026-09-24: 仅「预置默认规则」一条 (兄弟规则 r-cancel/r-talent 已由 0012 删除),
+    #    故 names 只保留单一默认名。
     cur.execute("SELECT id FROM scene_rule WHERE is_system = 1 ORDER BY created_at")
     rule_ids = [row[0] for row in cur.fetchall()]
-    names = ['预置默认规则', '预置默认规则 · 取消面试', '预置默认规则 · 放入人才库']
+    names = ['预置默认规则']
     for rid in rule_ids:
         target = None
         for n in list(names):

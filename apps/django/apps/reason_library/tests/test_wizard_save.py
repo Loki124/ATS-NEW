@@ -320,3 +320,75 @@ def test_wizard_save_explicit_pairs_clears_when_empty(admin_api_client, custom_r
     resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
     assert resp.status_code == 200
     assert RuleSceneAssignment.objects.filter(rule=custom_rule).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# 区块颜色 (2026-09-23): color 落库 + 回显 + 空串=未自定义
+# ---------------------------------------------------------------------------
+
+def test_wizard_save_persists_category_color(admin_api_client, custom_rule):
+    """一级分类存专属色; 非一级未设色落库空串; 非一级自定义色落库覆盖值。"""
+    client, _ = admin_api_client
+    payload = _build_payload(
+        name='color-roundtrip',
+        categories=[
+            {
+                'clientId': 'lv1',
+                'parentClientId': None,
+                'name': '一级分类',
+                'order': 1,
+                'allowCustom': False,
+                'color': '#FF8800',
+                'tagIds': [],
+            },
+            {
+                'clientId': 'lv2-inherit',
+                'parentClientId': 'lv1',
+                'name': '二级-继承',
+                'order': 1,
+                'allowCustom': False,
+                'color': '',  # 未自定义 → 落库空串
+                'tagIds': [],
+            },
+            {
+                'clientId': 'lv2-override',
+                'parentClientId': 'lv1',
+                'name': '二级-覆盖',
+                'order': 2,
+                'allowCustom': False,
+                'color': '#0088FF',  # 自定义覆盖
+                'tagIds': [],
+            },
+        ],
+        scenes=[],
+    )
+    resp = client.post(_wizard_url(custom_rule.id), payload, format='json')
+    assert resp.status_code == 200
+    data = resp.json()['data']
+    cats = {c['name']: c for c in data['categories']}
+    # 一级存专属色
+    assert cats['一级分类']['color'] == '#FF8800'
+    # 二级-继承: 落库空串 (前端读时再推导继承)
+    assert cats['二级-继承']['color'] == ''
+    # 二级-覆盖: 落库自定义色
+    assert cats['二级-覆盖']['color'] == '#0088FF'
+
+    # DB 校验: 空串落库为 '' 而非 NULL
+    db_lv1 = RuleCategory.objects.get(rule=custom_rule, name='一级分类')
+    db_inherit = RuleCategory.objects.get(rule=custom_rule, name='二级-继承')
+    db_override = RuleCategory.objects.get(rule=custom_rule, name='二级-覆盖')
+    assert db_lv1.color == '#FF8800'
+    assert db_inherit.color == ''
+    assert db_override.color == '#0088FF'
+    assert db_inherit.level == 2 and db_override.level == 2 and db_lv1.level == 1
+    assert db_inherit.parent_id == db_lv1.id  # 拓扑父子关系正确落库
+
+
+def test_flat_serializer_exposes_color(admin_api_client, custom_rule):
+    """RuleCategoryFlatSerializer 在规则详情里回显 color 字段。"""
+    client, _ = admin_api_client
+    RuleCategory.objects.create(rule=custom_rule, name='flat-c', level=1, color='#123456')
+    resp = client.get(f'/api/v1/reason-library/rules/{custom_rule.id}/')
+    assert resp.status_code == 200
+    cats = {c['name']: c for c in resp.json()['data']['categories']}
+    assert cats['flat-c']['color'] == '#123456'

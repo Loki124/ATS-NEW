@@ -145,6 +145,7 @@ LOCAL_APPS = [
     'apps.standard_resume',  # 标准简历配置（候选人标准简历字段与必填规则）落库
     'apps.announcement',
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护
+    'apps.campus',         # 校招专属功能（校园大使 / 宣讲会）— Phase 4
     'apps.external_sync',  # G40 Mock 占位端点 (无 model, 仅 APIView). 还原 T02 删除: 前端 CompanySettings 显式 Mock 页仍真实调用, 不能 404
     'apps.duplicate_rule',  # 2026-09-13: 重复候选人管理独立模块（合并规则 / 重复申请管理 / 候选人查重规则）
     'apps.accounts',        # 2026-09-11: 自助注册 → 邮箱验证码 → 管理员审核 → 激活登录
@@ -170,6 +171,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # 自定义
     'apps.core.middleware.RequestIdMiddleware',
+    'apps.core.middleware.RecruitTypeMiddleware',
     'apps.audit.middleware.AuditMiddleware',
 ]
 

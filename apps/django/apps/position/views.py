@@ -49,7 +49,7 @@ class PositionViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         qs = qs.filter(deleted_at__isnull=True)
         qs = qs.select_related('department', 'hiring_manager', 'owner', 'process')
         # IDOR scope 过滤 (Fix 1)
-        qs = self.scope_queryset(qs)
+        qs = self.scope_queryset(qs, entity='position')
         return qs
 
     def perform_destroy(self, instance):

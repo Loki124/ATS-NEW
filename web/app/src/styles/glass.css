@@ -1164,6 +1164,25 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
      （兵哥反馈"不要贴底"，统一处理所有弹窗操作栏底部呼吸间距）。 */
   padding: 14px var(--modal-pad-x) var(--modal-pad-y);
 }
+
+/* === 弹窗统一分隔线（规范：见 docs/04-ui/MODAL_DIVIDER_CONVENTION.md）===
+ * 根因：全局 .n-modal .n-card-header 已画一条 border-bottom（顶部分隔线）；
+ * 而 Naive UI 的 :segmented="{ content:'soft', ... }" 会在 .n-card-content(:not(:first-child))
+ * 上再补一条 border-top。于是 header.bottom 与 content.top 在**顶部**两个相邻元素上各画一条，
+ * 视觉叠成「双线」。此处中和 Naive 额外加在 content 上的 border-top，使顶部仅剩 header 的一条。
+ *
+ * ⚠️ 注意：footer 不需要中和。footer 的 border-top 只来自全局 .n-modal .n-card__footer
+ * （glass.css）与 Naive footer-segmented 的 border-top —— 二者作用于**同一个元素、同一个
+ * border-top 属性**，最终只渲染为「一条线」，不会叠成双线。若误对 footer 也设 border-top:none，
+ * 会把这唯一的分隔线整条删掉（实测 footerBorderTop=0px）。故本规则只覆盖 content，不动 footer。
+ *
+ * 验收：headerBorderBottom=1px、contentBorderTop=0px、footerBorderTop=1px（单线）。
+ * 改动后若再出现「弹窗顶部两条线」，先查是否又给弹窗加了 :segmented 且本规则被覆盖。
+ * 关键词：弹窗双分割线 / modal double divider / 分隔线两条 / 顶部分割线两条。 */
+.n-card.n-modal.n-card--content-segmented > .n-card-content,
+.n-card.n-modal.n-card--content-soft-segmented > .n-card-content {
+  border-top: none;
+}
 .n-modal .n-card-content {
   flex: 1 1 auto;
   min-height: 0;             /* 配合 flex-shrink，命中 90vh 上限时才收缩，短内容仍按自然高度 */

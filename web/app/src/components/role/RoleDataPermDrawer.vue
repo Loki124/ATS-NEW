@@ -28,7 +28,7 @@
         :bordered="false"
         class="desc-alert"
       >
-        {{ isSuperAdmin ? t('dataperm.drawer.desc.superAdmin') : t('dataperm.drawer.desc') }}
+        {{ isSuperAdmin ? t('dataperm.drawer.desc.superAdmin') : t('dataperm.drawer.descLabel') }}
       </n-alert>
 
       <!-- 5 张模块卡 -->
@@ -199,7 +199,7 @@ function attemptClose() {
   if (isDirty.value) {
     dialog.warning({
       title: t('dataperm.action.cancel'),
-      content: t('dataperm.confirm.dirtyClose'),
+      content: t('dataperm.confirm.dirtyCloseLabel'),
       positiveText: t('dataperm.confirm.dirtyClose.drop'),
       negativeText: t('dataperm.confirm.dirtyClose.keep'),
       onPositiveClick: () => emit('update:visible', false),

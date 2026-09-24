@@ -1,7 +1,7 @@
 # 双系统架构设计：社会招聘 / 校园招聘（DUAL_SYSTEM_DESIGN）
 
 > 立项：2026-09-23（兵哥需求：logo 侧系统切换入口 + 双系统数据隔离）
-> 状态：Phase 1 已落地（前端切换入口）；Phase 2~4 待排期
+> 状态：Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅ 已落地；Phase 4 待排期
 > 结论先行：推荐 **方案 A「同库分区 + 全局系统上下文」**，复用现有 `recruit_type` 雏形，禁止独立部署实例。
 
 ---
@@ -15,6 +15,45 @@
 | Layout 接入 | `web/app/src/pages/Layout.vue` | 侧栏 logo 下独立行（64px 折叠宽度放不下载体）+ top 横排 logo 右侧 |
 
 验证：lint:ci / typecheck / build:fast 三绿；Playwright + 系统 Chrome 实测两种布局切换、持久化、✓ 独占均通过。
+
+---
+
+## 0.1 已落地（Phase 2，前端隔离骨架）
+
+| 交付物 | 文件 | 说明 |
+|---|---|---|
+| axios 全量注入 X-Recruit-Type | `web/app/src/main.ts` | 包裹 `axios.create` 单点注入，覆盖 42 个独立实例 |
+| 菜单按系统差异 | `web/app/src/pages/Layout.vue` | `menuOptions` 改 computed，校招追加「校招专属」分组（校园大使/宣讲会） |
+| 设置页差异范式 | `CampusAmbassador.vue` | 整页 `v-if="systemStore.isCampus"` 防护；`EmptyState` 补齐 props 默认值 |
+
+验证：typecheck / lint:ci / build 三绿；Playwright + 系统 Chrome 真机实测切换、菜单差异、路由新增均通过。
+
+---
+
+## 0.2 已落地（Phase 3，后端数据隔离）
+
+**设计要点**：`recruit_type` 是**系统级硬分区**，对所有用户（含超管）生效，并入现有两条行级隔离链路（零新增链路）：
+- `scope_filter_q()`（被 `CandidateViewSet` 直连）→ 新增 `recruit_type` opt-in 参数，先于行级 scope 以 `AND` 叠加。
+- `ScopeQuerysetMixin.scope_queryset()`（被其余 7 个 ViewSet 复用）→ 读侧在超管豁免前注入分区；写入侧新增 `perform_create/perform_update`，由请求上下文权威注入（覆盖客户端自填值）。
+
+| 交付物 | 文件 | 说明 |
+|---|---|---|
+| 请求上下文中间件 | `apps/core/middleware.py` `RecruitTypeMiddleware` | 解析 `X-Recruit-Type`，缺省/非法回落 `social` 并 log warning |
+| 中间件注册 | `config/settings/base.py` `MIDDLEWARE` | 置于 `RequestIdMiddleware` 之后 |
+| 硬分区纯函数 | `apps/core/scope_resolver.py` `recruit_type_filter_q` + `scope_filter_q(recruit_type=)` | opt-in；未传 → `Q()` no-op（兼容旧调用） |
+| 读/写守卫 | `apps/core/permissions_v2.py` `ScopeQuerysetMixin` | `scope_queryset` 硬分区 + `perform_create/perform_update` 注入；`_rt_field()` opt-in 守卫 |
+| 服务写入守卫 | `apps/candidate/services.py` `create_candidate(recruit_type=)` | 校招入口权威注入，默认 `social` |
+| 8 模型加列 | candidate / demand / position / offer / interview / application / talent_pool / invitation | `recruit_type` CharField，choices=`RECRUIT_TYPE_CHOICES`，default=`social`，db_index |
+| 序列化器只读字段 | `apps/candidate/serializers.py` | 列表/详情输出 `recruit_type`（其余 7 个待 Phase 4 补齐） |
+
+**迁移**：8 个 app 各自一个 `AddField` 迁移（如 `candidate.0010`、`demand.0005`…），已 `migrate` 应用到开发库；存量数据回填 `social`。
+
+**硬证据（运行时内省 + 集成测试）**：
+- 集成测试 `apps/integration/tests/test_dual_system_isolation.py` 9 项全绿：中间件解析、纯函数 Q、超管仍受分区约束、Mixin 读侧真实数据互不可见、服务写侧权威注入 + 默认 social。
+- `pytest apps/core/tests/test_data_permission_unit_enforcement.py test_scope_v2_regression.py test_permissions_v2.py` 24 项全绿 —— 既有 scope/权限链路无回归。
+- 开发库内省：8 张表均存在 `recruit_type` 列；存量 candidate(1)/demand(3) 全部 `social`；空表列就绪。
+
+**已知边界**：`onboarding` 等未列入本期 8 模型的模块暂不参与分区（Mixin opt-in 守卫 `hasattr` 自然豁免，无副作用）；如需全量覆盖，补列即可。
 
 ---
 

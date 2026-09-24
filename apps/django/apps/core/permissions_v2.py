@@ -36,11 +36,26 @@ class ScopeQuerysetMixin:
     """
 
     scope_field: str = ''
+    # 招聘类型硬分区 (opt-in): 子类设 None 即不参与分区; 默认 'recruit_type'.
+    # 仅当模型确有该字段时生效 (hasattr 守卫), 不影响未分区模型.
+    recruit_type_field: str = 'recruit_type'
 
-    def scope_queryset(self, qs, scope_field: str = ''):
+    def scope_queryset(self, qs, scope_field: str = '', entity: str = ''):
         user = self.request.user
+        # 硬系统分区: 对所有用户(含超管)生效, 先于行级 scope 应用.
+        # opt-in: 仅当模型确有 recruit_type 字段时过滤, 否则 no-op.
+        rt_field = self.recruit_type_field
+        if rt_field and hasattr(qs.model, rt_field):
+            qs = qs.filter(**{rt_field: getattr(self.request, 'recruit_type', 'social')})
         if is_super_admin(user):
             return qs
+        # 角色自定义范围（数据权限向导）优先于默认 scope：有配置则替换，无配置回退。
+        entity = entity or getattr(self, 'data_perm_entity', '')
+        if entity:
+            from apps.data_permission.enforcement import role_entity_scope_q
+            custom_q = role_entity_scope_q(user, entity)
+            if custom_q is not None:
+                return qs.filter(custom_q)
         scope_field = scope_field or self.scope_field
 
         scope = resolve_scope(user)
@@ -76,3 +91,33 @@ class ScopeQuerysetMixin:
         if not unit_dept_ids:
             return qs.filter(created_by=user)
         return qs.filter(**{f'{scope_field}__in': unit_dept_ids})
+
+    def _rt_field(self):
+        """返回当前 ViewSet 应注入的招聘类型字段名 (opt-in).
+
+        仅当 recruit_type_field 已声明且 queryset 模型确有该字段时返回字段名,
+        否则返回 None —— 调用方据此决定是否走默认写入路径.
+        """
+        rt_field = self.recruit_type_field
+        if not rt_field:
+            return None
+        model_cls = getattr(getattr(self, 'queryset', None), 'model', None)
+        if model_cls and hasattr(model_cls, rt_field):
+            return rt_field
+        return None
+
+    def perform_create(self, serializer):
+        """写入守卫: 创建时由请求上下文权威注入 recruit_type (覆盖客户端自填值)."""
+        rt_field = self._rt_field()
+        if rt_field:
+            serializer.save(**{rt_field: getattr(self.request, 'recruit_type', 'social')})
+        else:
+            super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        """写入守卫: 更新时由请求上下文权威注入 recruit_type (覆盖客户端自填值)."""
+        rt_field = self._rt_field()
+        if rt_field:
+            serializer.save(**{rt_field: getattr(self.request, 'recruit_type', 'social')})
+        else:
+            super().perform_update(serializer)

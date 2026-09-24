@@ -295,18 +295,29 @@ const columns = computed(() => [
     render: (row: SceneRuleListItem) =>
       h('div', { class: 'rl-rule-name' }, [
         h('span', { class: 'rl-name-text' }, row.name),
-        row.isSystem
+        row.isPresetDefault
           ? h(
               NTag,
               {
                 size: 'tiny',
-                type: 'warning',
+                type: 'primary',
                 bordered: false,
                 style: 'margin-left: 8px;',
               },
-              { default: () => t('reasonLibrary.rules.col.systemBadge') },
+              { default: () => t('reasonLibrary.rules.col.presetDefaultBadge') },
             )
-          : null,
+          : row.isSystem
+            ? h(
+                NTag,
+                {
+                  size: 'tiny',
+                  type: 'warning',
+                  bordered: false,
+                  style: 'margin-left: 8px;',
+                },
+                { default: () => t('reasonLibrary.rules.col.systemBadge') },
+              )
+            : null,
       ]),
   },
   {
@@ -314,6 +325,19 @@ const columns = computed(() => [
     key: 'scenes',
     width: 280,
     render: (row: SceneRuleListItem) => {
+      // 预置默认规则: 行为上覆盖全部场景×类型, 无显式 assignment 行 → 直接展示固定范围文案
+      if (row.isPresetDefault) {
+        return h(
+          NTag,
+          {
+            size: 'small',
+            type: 'primary',
+            bordered: false,
+            class: 'rl-scene-tag',
+          },
+          { default: () => t('reasonLibrary.rules.col.presetDefaultScope') },
+        )
+      }
       if (!row.scenes?.length) {
         return h('span', { class: 'rl-scene-empty' }, t('reasonLibrary.rules.col.emptyScenes'))
       }

@@ -46,7 +46,7 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
         qs = qs.select_related('candidate', 'last_position', 'last_stage')
-        qs = self.scope_queryset(qs)
+        qs = self.scope_queryset(qs, entity='talent')
         return qs
 
     def perform_destroy(self, instance):

@@ -2,6 +2,7 @@
 from django.db import models
 from django_fsm import FSMField, transition
 from apps.common.models import FullAuditModel
+from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 from apps.process.models import RecruitmentProcess
 from nanoid import generate as nanoid_generate
 
@@ -24,6 +25,11 @@ class DemandState(models.TextChoices):
 class Demand(FullAuditModel):
     """招聘需求"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        db_index=True, verbose_name='招聘类型',
+    )
     code = models.CharField(max_length=20, unique=True, verbose_name='需求编号')
 
     title = models.CharField(max_length=200, verbose_name='需求标题')

@@ -91,6 +91,7 @@ class Migration(migrations.Migration):
                 ('order', models.IntegerField(default=0, verbose_name='排序')),
                 ('allow_custom', models.BooleanField(default=False, verbose_name='允许业务自定义')),
                 ('level', models.IntegerField(default=1, verbose_name='层级 1..4')),
+                ('color', models.CharField(blank=True, default='', help_text='#RRGGBB; 空串=未自定义 (一级用默认色, 非一级继承所属一级分类颜色)', max_length=16, verbose_name='区块颜色')),
                 ('parent', models.ForeignKey(
                     blank=True, null=True, on_delete=models.SET_NULL,
                     related_name='children', to='reason_library.rulecategory', verbose_name='父分类',

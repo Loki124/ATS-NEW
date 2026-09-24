@@ -198,6 +198,46 @@ class RoleViewSet(viewsets.ModelViewSet):
         # 返回更新后的 role (含 permission_codes 重算)
         return Response({'success': True, 'data': self.get_serializer(role).data})
 
+    # ------------------------------------------------------------------
+    # 角色数据权限（数据权限向导）：按模块配置行级可见范围
+    # GET  /roles/{id}/data-permissions/            读取 5 模块配置
+    # POST /roles/{id}/data-permissions/            一次性保存 5 模块
+    # GET  /roles/{id}/data-permissions/options/    模块×维度矩阵 + 维度值选项
+    # ------------------------------------------------------------------
+    @action(detail=True, methods=['get', 'post'], url_path='data-permissions')
+    def data_permissions(self, request, pk=None):
+        """GET  /roles/{id}/data-permissions/ 读取某角色的数据权限配置
+        POST /roles/{id}/data-permissions/ 一次性保存某角色 5 模块数据权限。
+
+        注意：GET 与 POST 必须合并到同一个 @action（同一 url_path），
+        否则 DRF 路由会为同路径生成两条 pattern，Django 解析器命中首条
+        GET-only 路由，导致 POST 返回 405。合并后单 pattern 的 method_map
+        同时含 get/post，POST 即可正常进入本分支。
+        """
+        if request.method == 'POST':
+            with transaction.atomic():
+                role = self.get_object()
+                from apps.data_permission.role_scope_api import upsert_modules, validate_modules
+                modules = request.data.get('modules')
+                reason = validate_modules(modules)
+                if reason:
+                    return Response(
+                        {'success': False, 'message': reason},
+                        status=http_status.HTTP_400_BAD_REQUEST,
+                    )
+                data = upsert_modules(role, modules, request.user)
+                return Response({'success': True, 'data': data})
+        # GET
+        role = self.get_object()
+        from apps.data_permission.role_scope_api import build_modules_response
+        return Response({'success': True, 'data': build_modules_response(role)})
+
+    @action(detail=True, methods=['get'], url_path='data-permissions/options')
+    def data_permissions_options(self, request, pk=None):
+        """GET /roles/{id}/data-permissions/options/ —— 模块×维度矩阵与维度值选项。"""
+        from apps.data_permission.role_scope_api import options_payload
+        return Response({'success': True, 'data': options_payload()})
+
 
 class EnvelopeWriteMixin:
     """写操作统一包 {success, data} 信封 (对齐本项目 V2 read 接口与前端 r.data.data 约定).

@@ -131,14 +131,16 @@ RESOURCES = [
     ('recruit:settings:department:edit', '编辑组织职责', 'BUTTON', 'settings'),
     ('recruit:settings:department:delete', '删除组织职责', 'BUTTON', 'settings'),
     ('recruit:settings:department:export', '导出组织职责', 'BUTTON', 'settings'),
-    # 权限管理 (分组顶层: 角色管理/管理单元/字段权限)
+    # 权限管理 (「基本信息」下的子菜单: 身份管理/资源管理/管理单元/字段权限)
     ('recruit:settings:permission:menu:view', '权限管理菜单', 'MENU', 'settings'),
-    # 角色管理 (management)
-    ('recruit:settings:permissions:menu:view', '角色管理菜单', 'MENU', 'settings'),
+    # 身份管理 (management) —— 2026-09-18 菜单由「角色管理」更名, 2026-09-23 同步 seed 展示名
+    ('recruit:settings:permissions:menu:view', '身份管理菜单', 'MENU', 'settings'),
     ('recruit:settings:permissions:create', '新增角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:edit', '编辑角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:delete', '删除角色', 'BUTTON', 'settings'),
     ('recruit:settings:permissions:export', '导出角色', 'BUTTON', 'settings'),
+    # 资源管理 (2026-09-18 从身份管理页拆为独立菜单; 2026-09-23 补齐菜单权限标识)
+    ('recruit:settings:permissions:resources:menu:view', '资源管理菜单', 'MENU', 'settings'),
     # 字段权限 (management) —— field_acl 引擎 (序列化层真实生效的 PII 脱敏), 单一字段权限入口
     ('recruit:settings:field-acl:menu:view', '字段权限菜单', 'MENU', 'settings'),
     ('recruit:settings:field-acl:create', '新增字段权限', 'BUTTON', 'settings'),

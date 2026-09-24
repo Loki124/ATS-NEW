@@ -93,8 +93,8 @@ class RuleCategoryFlatSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuleCategory
-        fields = ['id', 'parent_id', 'name', 'order', 'allow_custom', 'level', 'tag_ids']
-        read_only_fields = ['id', 'level']
+        fields = ['id', 'parent_id', 'name', 'order', 'allow_custom', 'level', 'color', 'tag_ids']
+        read_only_fields = ['id', 'level', 'color']
 
     def get_tag_ids(self, obj):
         # 业务只返回 enabled + 未软删的标签 id (Q-A5 缓存口径一致)
@@ -135,8 +135,13 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
     # 这里手动暴露两种命名, 让前端 camelCase 调用也能命中)
     isSystem = serializers.BooleanField(source='is_system', read_only=True)
     maxSelectableTags = serializers.IntegerField(source='max_selectable_tags', read_only=True)
+    # 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」) — camelCase 别名
+    modalTitle = serializers.CharField(source='modal_title', read_only=True)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
+    # 「预置默认规则」标识 (is_system AND name=='预置默认规则'): 覆盖全部场景×类型,
+    # 不可调整 覆盖/名称/状态, 仅描述/可选标签上限/分类树可改。前端据此锁定 UI。
+    isPresetDefault = serializers.SerializerMethodField()
     # 「原因数量」: 该规则绑定的「启用且未软删」标签 distinct 数量
     # (业务口径与 RuleCategoryFlatSerializer.get_tag_ids 一致:
     #  tag__enabled=True & tag__deleted_at__isnull=True, 关联路径
@@ -151,10 +156,14 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'is_system', 'isSystem', 'enabled', 'description',
             'max_selectable_tags', 'maxSelectableTags',
+            'modal_title', 'modalTitle',
             'created_at', 'createdAt', 'updated_at', 'updatedAt', 'scenes',
-            'tag_count', 'tagCount',
+            'tag_count', 'tagCount', 'isPresetDefault',
         ]
-        read_only_fields = ['id', 'is_system', 'isSystem', 'created_at', 'createdAt', 'updated_at', 'updatedAt']
+        read_only_fields = ['id', 'is_system', 'isSystem', 'created_at', 'createdAt', 'updated_at', 'updatedAt', 'isPresetDefault']
+
+    def get_isPresetDefault(self, obj) -> bool:
+        return bool(getattr(obj, 'is_preset_default', False))
 
     def get_scenes(self, obj) -> list:
         # 同一 scene 可能跨多个 recruit_type 出现, 去重后返回入口(场景)列表
@@ -209,7 +218,7 @@ class SceneRuleCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['id', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags']
+        fields = ['id', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags', 'modal_title']
         read_only_fields = ['id']
 
     def validate_name(self, value: str) -> str:
@@ -228,12 +237,13 @@ class SceneRuleUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['name', 'enabled', 'description', 'max_selectable_tags']
+        fields = ['name', 'enabled', 'description', 'max_selectable_tags', 'modal_title']
         extra_kwargs = {
             'name': {'required': False},
             'enabled': {'required': False},
             'description': {'required': False},
             'max_selectable_tags': {'required': False},
+            'modal_title': {'required': False},
         }
 
     def validate_name(self, value: str) -> str:
@@ -269,6 +279,7 @@ class WizardCategorySerializer(serializers.Serializer):
     order = serializers.IntegerField(default=0)
     allow_custom = serializers.BooleanField(default=False)
     allowCustom = serializers.BooleanField(required=False, default=False, write_only=True)
+    color = serializers.CharField(required=False, allow_blank=True, default='', allow_null=True)
     tag_ids = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,
     )
@@ -279,8 +290,8 @@ class WizardCategorySerializer(serializers.Serializer):
     def to_internal_value(self, data):
         """归一化 camelCase → snake_case, None → '', 走标准 is_valid 流程。"""
         normalized = dict(data)
-        # 把 None 转为 '' (前端常见: 顶级分类 parentClientId=null)
-        for k in ('client_id', 'clientId', 'parent_client_id', 'parentClientId'):
+        # 把 None 转为 '' (前端常见: 顶级分类 parentClientId=null / 未设色 color=null)
+        for k in ('client_id', 'clientId', 'parent_client_id', 'parentClientId', 'color'):
             if normalized.get(k) is None:
                 normalized[k] = ''
         if not normalized.get('client_id') and normalized.get('clientId'):
@@ -306,6 +317,8 @@ class WizardSaveSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     enabled = serializers.BooleanField(required=False, default=True)
     max_selectable_tags = serializers.IntegerField(required=False, default=5, min_value=0)
+    # 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」, 前端占位展示)
+    modal_title = serializers.CharField(max_length=64, required=False, allow_blank=True, default='')
     categories = WizardCategorySerializer(many=True, required=False, default=list)
     scenes = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,

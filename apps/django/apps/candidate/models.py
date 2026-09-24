@@ -2,6 +2,7 @@
 from django.db import models
 from django_fsm import FSMField, FSMModelMixin, transition
 from apps.common.models import TimestampedModel, FullAuditModel, SoftDeleteModel, SoftDeleteManager
+from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 from apps.common.encryption import EncryptedCharField
 from apps.campus_control.constants import SCHOOLS, MAJORS
 from nanoid import generate as nanoid_generate
@@ -33,6 +34,11 @@ class Candidate(FSMModelMixin, FullAuditModel):
       未来用 AES-SIV 等 deterministic encryption 可全加密, 当前方案是 trade-off
     """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        db_index=True, verbose_name='招聘类型',
+    )
 
     # 基本信息
     name = models.CharField(max_length=50, db_index=True, verbose_name='姓名')

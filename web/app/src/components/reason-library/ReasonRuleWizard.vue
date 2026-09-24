@@ -1,8 +1,9 @@
 <template>
   <n-modal
+    class="rrw-modal"
     :show="show"
     preset="card"
-    :title="t('reasonLibrary.wizard.title')"
+    :closable="false"
     style="max-width: 920px; width: 92vw;"
     :mask-closable="false"
     :bordered="false"
@@ -10,39 +11,40 @@
     :segmented="{ content: 'soft', footer: 'soft' }"
     @update:show="onShowChange"
   >
-    <n-spin :show="loading" :description="t('reasonLibrary.common.loading')">
-      <!-- 头部信息 -->
-      <div v-if="wizard" class="wizard-head">
-        <div class="wizard-title-row">
-          <h4 class="wizard-title">{{ wizard.name || t('reasonLibrary.wizard.title') }}</h4>
-          <n-tag v-if="wizard.isSystem" size="small" type="warning" bordered>
+    <!-- 标题行: 规则名称 + 系统/预置标签 + 应用场景 + 配置规则按钮；移除右侧关闭按钮 -->
+    <template #header>
+      <div class="wizard-titlebar">
+        <div class="wizard-title-left">
+          <span class="wizard-title">{{ wizard?.name || t('reasonLibrary.wizard.title') }}</span>
+          <n-tag v-if="wizard?.isSystem" size="small" type="warning" bordered>
             {{ t('reasonLibrary.rules.col.systemBadge') }}
           </n-tag>
-          <div class="wizard-meta">
-            <span class="meta-label">{{ t('reasonLibrary.wizard.scenes') }}：</span>
-            <n-space v-if="wizard.scenes.length" :size="4">
-              <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
-            </n-space>
-            <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
-            <n-button size="tiny" style="margin-left: 8px;" @click="openRuleConfig">
-              <template #icon><n-icon :component="SettingsOutline" /></template>
-              {{ t('reasonLibrary.wizard.configRule') }}
-            </n-button>
-          </div>
+          <n-space v-if="wizard?.isPresetDefault" :size="4">
+            <n-tag size="small" type="primary" bordered>{{ t('reasonLibrary.rules.col.presetDefaultScope') }}</n-tag>
+          </n-space>
+          <n-space v-else-if="wizard?.scenes?.length" :size="4">
+            <n-tag v-for="s in wizard.scenes" :key="s" size="small" type="info" bordered>{{ s }}</n-tag>
+          </n-space>
+          <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
         </div>
-
-        <!-- 步骤指示 -->
-        <div class="wizard-steps">
-          <div
-            v-for="(s, i) in steps"
-            :key="s.key"
-            class="step"
-            :class="{ on: step === i + 1, done: step > i + 1 }"
-            @click="gotoStep(i + 1)"
-          >
-            <span class="num">{{ i + 1 }}</span>
-            <span class="label">{{ s.label }}</span>
-          </div>
+        <n-button size="tiny" @click="openRuleConfig">
+          <template #icon><n-icon :component="SettingsOutline" /></template>
+          {{ t('reasonLibrary.wizard.configRuleLabel') }}
+        </n-button>
+      </div>
+    </template>
+    <n-spin :show="loading" :description="t('reasonLibrary.common.loading')">
+      <!-- 步骤指示（置于标题栏下方, 不随内容滚动） -->
+      <div v-if="wizard" class="wizard-steps">
+        <div
+          v-for="(s, i) in steps"
+          :key="s.key"
+          class="step"
+          :class="{ on: step === i + 1, done: step > i + 1 }"
+          @click="gotoStep(i + 1)"
+        >
+          <span class="num">{{ i + 1 }}</span>
+          <span class="label">{{ s.label }}</span>
         </div>
       </div>
 
@@ -62,6 +64,7 @@
           :wizard="wizard"
           :all-tags="allTags"
           @update:color="onCategoryColorChange"
+          @update:modal-title="onModalTitleChange"
         />
       </div>
     </n-spin>
@@ -252,6 +255,7 @@ function toWizard(rule: SceneRule): WizardPayload {
     recruitTypes: pairTypes.length ? pairTypes : ['social'],
     scenePairs,
     maxSelectableTags: rule.maxSelectableTags ?? 5,
+    modalTitle: (rule as any).modalTitle ?? '',
     categories: deepCloneCategories(rule.categories ?? [], allTags.value),
     updatedAt: rule.updatedAt,
   }
@@ -270,6 +274,7 @@ function emptyWizardPayload(): WizardPayload {
     recruitTypes: ['social'],
     scenePairs: [],
     maxSelectableTags: 5,
+    modalTitle: '',
     categories: [],
     updatedAt: undefined,
   }
@@ -308,6 +313,13 @@ function onCategoryColorChange(payload: { catId: string; color: string }) {
   if (!w) return
   const cat = w.categories.find((c) => c.id === payload.catId)
   if (cat) cat.color = payload.color || ''
+}
+
+/** 模拟弹窗标题变更: 写入 wizard.modalTitle (保存时随规则落库 modal_title) */
+function onModalTitleChange(v: string) {
+  const w = wizard.value
+  if (!w) return
+  w.modalTitle = v ?? ''
 }
 
 // ============= 切换步骤 =============
@@ -424,19 +436,18 @@ function onShowChange(v: boolean) {
 </script>
 
 <style scoped>
-.wizard-head {
-  /* 需求四.4: 去除弹窗内卡片的异常背景/阴影, 与整体弹窗保持一致 */
-  background: transparent;
-  border: none;
-  padding: var(--space-3) var(--space-1);
-  margin-bottom: var(--space-2);
-}
-.wizard-title-row {
+.wizard-titlebar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
+}
+.wizard-title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 .wizard-title {
   margin: 0;
@@ -444,15 +455,6 @@ function onShowChange(v: boolean) {
   font-weight: 600;
   color: var(--ink);
 }
-.wizard-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
-}
-.meta-label { font-weight: 500; }
 .rl-empty-tag {
   font-size: var(--fs-11);
   padding: 2px 9px;
@@ -466,6 +468,7 @@ function onShowChange(v: boolean) {
   display: flex;
   align-items: center;
   gap: 0;
+  margin-bottom: var(--space-3);
 }
 .step {
   display: flex;
@@ -527,5 +530,13 @@ function onShowChange(v: boolean) {
   .wizard-body {
     height: calc(100vh - 200px);
   }
+}
+</style>
+
+<!-- 非 scoped: 向导主弹窗容器背景改为不透明白, 去除 0.96 半透底透出遮罩的灰感 (scoped :deep 无法命中组件根 n-modal; !important 压过 naive 的 background 简写) -->
+<style>
+.rrw-modal .n-card,
+.n-card.n-card--content-soft-segmented.n-card--footer-soft-segmented {
+  background-color: var(--surface) !important;
 }
 </style>

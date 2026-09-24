@@ -2,18 +2,13 @@
   <n-modal
     :show="show"
     preset="card"
-    :title="t('reasonLibrary.wizard.configRule')"
+    :title="t('reasonLibrary.wizard.configRuleLabel')"
     style="max-width: 560px"
     :mask-closable="false"
     :bordered="false"
     :segmented="{ content: 'soft', footer: 'soft' }"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
-    <div class="cfg-intro">
-      <n-icon :component="InformationCircleOutline" color="var(--brand)" :size="14" />
-      <span>{{ t('reasonLibrary.wizard.configRule.subtitle') }}</span>
-    </div>
-
     <!-- 维度整合: 校园招聘 / 社会招聘 并排两张独立卡片, 每张卡内列出全部应用场景 -->
     <div class="cfg-section">
       <div class="cfg-section-title">{{ t('reasonLibrary.wizard.configRule.entryWithType') }}</div>
@@ -106,7 +101,7 @@
  */
 import { ref, watch } from 'vue'
 import { NModal, NButton, NSpace, NIcon, NTooltip, NInputNumber, useMessage } from 'naive-ui'
-import { InformationCircleOutline, WarningOutline } from '@vicons/ionicons5'
+import { WarningOutline } from '@vicons/ionicons5'
 import type { RecruitType, SceneKey, SceneRecruitPair } from '../../../types/reason-library'
 import { SCENE_OPTIONS, RECRUIT_TYPE_OPTIONS } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
@@ -250,19 +245,6 @@ function confirm() {
 </script>
 
 <style scoped>
-.cfg-intro {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  padding: var(--space-2) var(--space-3);
-  background: var(--brand-soft);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
-  line-height: 1.6;
-  margin-bottom: var(--space-3);
-}
-
 .cfg-section { margin-bottom: var(--space-4); }
 .cfg-section:last-child { margin-bottom: 0; }
 

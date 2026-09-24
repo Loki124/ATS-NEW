@@ -17,7 +17,8 @@ from typing import List, Optional, Tuple
 
 from django.core.cache import cache
 
-from apps.data_permission.models import DataPermissionRule, DimensionType
+from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
+from apps.data_permission.expr_compiler import compile_scope_q
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,80 @@ def clear_column_cache(entity: Optional[str] = None) -> None:
         # 列级缓存 key 形如 data_perm:col:<entity>, 无法精准枚举则全清本前缀常见实体.
         for ent in ('candidate', 'offer', 'application'):
             cache.delete(f'data_perm:col:{ent}')
+
+
+# ---------------------------------------------------------------------------
+# 行级 enforcement：角色自定义范围（CUSTOM 表达式）接入 scope_resolver 真相源
+# ---------------------------------------------------------------------------
+
+def role_entity_scope_q(user, entity: str):
+    """返回当前用户在某业务模块（entity）的「角色自定义范围」Q；无配置返回 None。
+
+    语义（RBAC 并集）：
+      - 用户任一角色的该模块规则为 ALL -> 整个模块对该用户可见（返回 Q()，调用方 AND 分区）。
+      - 角色规则为 NONE -> 该角色贡献空集（Q(pk__in=[])），在 OR 并集中等价于 no-op。
+      - 角色规则为 CUSTOM -> 编译其 {expr, groups} 表达式 Q 并参与 OR 并集。
+      - 若所有角色对该模块都只有 NONE（无 ALL/无有效 CUSTOM）-> 返回 Q(pk__in=[])（看不到数据）。
+      - 若所有角色对该模块都无有效规则 -> 返回 None（调用方回退默认 scope，向后兼容）。
+    超管直接返回 None（超管本就全量，且 UI 禁止为其配置）。
+    """
+    from django.db.models import Q
+
+    try:
+        from apps.core.role_v2_query import is_super_admin, user_role_codes
+    except Exception:  # noqa: BLE001
+        logger.warning('导入 role_v2_query 失败, 角色自定义范围 no-op')
+        return None
+
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return None
+    if is_super_admin(user):
+        return None
+
+    try:
+        role_codes = list(user_role_codes(user))
+    except Exception:  # noqa: BLE001
+        logger.warning('计算用户角色码失败, 角色自定义范围 no-op')
+        return None
+    if not role_codes:
+        return None
+
+    rules = DataPermissionRule.objects.filter(
+        dimension_type=DimensionType.ROLE,
+        dimension_value__in=role_codes,
+        level='ROW',
+        status=1,
+        entity=entity,
+    )
+    if not rules.exists():
+        return None
+
+    qs: list = []
+    for r in rules:
+        if r.scope_type == RowScopeType.ALL:
+            return Q()  # 并集：任一角色 ALL -> 全量
+        if r.scope_type == RowScopeType.NONE:
+            qs.append(Q(pk__in=[]))  # 该角色贡献空集（OR 并集中 no-op）
+            continue
+        if r.scope_type == RowScopeType.CUSTOM and r.scope_payload:
+            try:
+                compiled = compile_scope_q(r.scope_payload, entity)
+            except Exception as e:  # noqa: BLE001  (ExprError 等, fail-safe no-op)
+                logger.warning('角色自定义范围编译失败, 该规则 no-op: %s', e)
+                continue
+            # 空 Q（无有效条件）视为无效 -> no-op（不误判为全量）
+            if compiled is not None and compiled.children:
+                qs.append(compiled)
+            else:
+                qs.append(Q(pk__in=[]))
+        # DEPT / DEPT_AND_SUB / SELF 等旧 scope_type（无 payload）在本新路径 no-op。
+
+    if not qs:
+        return None
+    combined = qs[0]
+    for nxt in qs[1:]:
+        combined = combined | nxt
+    return combined
 
 
 class DataPermissionEnforcement:

@@ -6,8 +6,9 @@
 灌入内容:
 - 53 条系统标签 (劳动者 / 劳动工具 / 劳动资料 / 劳动对象 / 需求与流程,
   5 大类仅作注释, 不作为标签字段, Q7)
-- 3 条预置规则 (r-resume / r-cancel / r-talent), 含完整 categories 树
-  + assignments + scene assignments
+- 1 条预置默认规则 (r-resume, 名「预置默认规则」, is_system=True), 含完整 categories 树
+  + assignments + scene assignments。该规则为系统兜底 (覆盖全部场景×类型, 不可调整
+  覆盖/名称/状态); 历史上的兄弟规则 r-cancel/r-talent 已于迁移 0012 删除。
 """
 from __future__ import annotations
 
@@ -111,7 +112,7 @@ PRESET_TAGS: List[Tuple[str, str, str]] = [
 
 
 # ---------------------------------------------------------------------------
-# 3 条预置规则 (原型 L657-722)
+# 1 条预置默认规则 (原型 L657-722; r-cancel/r-talent 已于 0012 删除)
 # 每条规则结构:
 #   {key, name, is_system, enabled, scenes, categories, assignments}
 # categories: [(key, name, parent_key, order, allow_custom)]
@@ -157,39 +158,6 @@ PRESET_RULES: List[Dict] = [
                      '退伍年限不匹配（专项岗位特有）', '负责品类/业务线不匹配'],
             'c5': ['需求已暂停', '需求已停招', '需求已完成', '岗位画像调整',
                    '招聘流程不匹配', '简历信息不全', '简历时间矛盾/存疑'],
-        },
-    },
-    {
-        'key': 'r-cancel',
-        'name': '预置默认规则 · 取消面试',
-        'is_system': False,
-        'enabled': True,
-        'scenes': ['取消面试'],
-        'categories': [
-            ('cc1', '候选人原因', None, 1, True),
-            ('cc2', '岗位原因', None, 2, True),
-            ('cc3', '流程原因', None, 3, False),
-            ('cc3-1', '面试安排问题', 'cc3', 1, True),
-        ],
-        'assignments': {
-            'cc1': ['积极主动-求职意愿不强', '积极主动-不喜欢沟通', '积极主动-害怕被拒绝'],
-            'cc2': ['需求已暂停', '需求已停招'],
-            'cc3-1': ['招聘流程不匹配', '简历信息不全'],
-        },
-    },
-    {
-        'key': 'r-talent',
-        'name': '预置默认规则 · 放入人才库',
-        'is_system': False,
-        'enabled': False,
-        'scenes': ['放入人才库'],
-        'categories': [
-            ('t1', '暂不匹配', None, 1, True),
-            ('t2', '储备候选人', None, 2, True),
-        ],
-        'assignments': {
-            't1': ['学历不匹配', '专业不匹配', '年龄不匹配'],
-            't2': ['积极主动-持续学习不匹配'],
         },
     },
 ]

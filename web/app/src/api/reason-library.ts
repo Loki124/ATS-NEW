@@ -281,6 +281,7 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
       name: cat.name,
       order: cat.order,
       allow_custom: cat.allowCustom,
+      color: cat.color || '',
       tag_ids: isLeaf ? (cat.tags || []).map((t) => t.id) : [],
     }
   })
@@ -295,6 +296,7 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
     scenes: rule.scenes,
     recruit_types: rule.recruitTypes && rule.recruitTypes.length ? rule.recruitTypes : ['social'],
     max_selectable_tags: rule.maxSelectableTags ?? 5,
+    modal_title: rule.modalTitle ?? '',
     categories,
   }
 }

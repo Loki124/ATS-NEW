@@ -130,6 +130,10 @@ api_v1_patterns = [
     path('', include('apps.dictionary.urls')),
     # 2026-08-20: 校招管控（人员比例管控系统）— 规则 / 人员 / 看板 / 规划 / 校验
     path('campus/', include('apps.campus_control.urls')),
+    # 2026-09-23 Phase 4: 校招专属功能（校园大使 + 宣讲会）。
+    #   /api/v1/campus/ 已被 campus_control 占用，故独立前缀 campus-recruit/。
+    #   模型 recruit_type 默认 campus，经 ScopeQuerysetMixin 自动隔离。
+    path('campus-recruit/', include('apps.campus.urls')),
 
     # Phase 2 T02 (寇豆码): 原删 'external-sync'/'data' 空壳 URL 挂载; 二者 FE 仍真实调用, 已重建:
     #   data  -> analytics/urls_data.py (/data/kpi, /data/subscriptions)
