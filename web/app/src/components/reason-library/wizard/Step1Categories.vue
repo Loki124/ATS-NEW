@@ -452,12 +452,12 @@ function canMoveDown(cat: RuleCategory): boolean {
   min-width: 0;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.cat-name-input:hover { border-bottom-color: var(--brand); background: #fff; }
+.cat-name-input:hover { border-bottom-color: var(--brand); background: var(--surface); }
 .cat-name-input:focus {
   outline: none;
   border: 1px solid var(--brand);
   border-bottom-style: solid;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
 }
 .cat-name-input:disabled { color: var(--ink-faint); cursor: not-allowed; }
@@ -485,7 +485,7 @@ function canMoveDown(cat: RuleCategory): boolean {
   height: 16px;
   border: 1.5px solid var(--border-hairline, #c4c8d4);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   position: relative;
   flex-shrink: 0;

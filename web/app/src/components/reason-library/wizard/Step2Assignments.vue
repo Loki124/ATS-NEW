@@ -275,7 +275,7 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   align-items: center;
   gap: 5px;
   font-size: var(--fs-12);
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
   padding: 4px 6px 4px 10px;

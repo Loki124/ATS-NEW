@@ -3,14 +3,41 @@
     <!-- ============ 模拟真实业务弹窗: 还原终端用户看到的「标签选择」弹窗 ============ -->
     <div class="rl-sim-modal">
       <div class="rl-sim-modal__header">
-        <!-- 模拟弹窗标题: 支持自定义输入, 默认占位「选择原因」; 改动经 update:modal-title 回传父组件写入规则 -->
-        <n-input
-          v-model:value="modalTitleModel"
-          size="small"
-          class="rl-sim-modal__title-input"
-          :placeholder="t('reasonLibrary.wizard.preview.modalTitlePlaceholder')"
-          :bordered="false"
-        />
+        <!-- 模拟弹窗标题: 默认以文本展示; hover 标题区浮现编辑按钮, 点击进入可编辑态; 改动经 update:modal-title 回传父组件写入规则 -->
+        <div
+          class="rl-sim-modal__title"
+          @mouseenter="hoverTitle = true"
+          @mouseleave="hoverTitle = false"
+        >
+          <span
+            v-if="!titleEditing"
+            class="rl-sim-modal__title-text"
+            :class="{ 'is-placeholder': isTitlePlaceholder }"
+            :title="isTitlePlaceholder ? '' : displayTitle"
+            @click="startEdit"
+          >{{ displayTitle }}</span>
+          <n-input
+            v-else
+            ref="titleInputRef"
+            v-model:value="modalTitleModel"
+            size="small"
+            class="rl-sim-modal__title-input"
+            :placeholder="t('reasonLibrary.wizard.preview.modalTitlePlaceholder')"
+            :bordered="false"
+            @keyup.enter="stopEdit"
+            @blur="stopEdit"
+          />
+          <button
+            v-if="!titleEditing"
+            type="button"
+            class="rl-sim-modal__edit-btn"
+            :class="{ visible: hoverTitle }"
+            :title="t('reasonLibrary.wizard.preview.editTitle')"
+            @click="startEdit"
+          >
+            <n-icon :component="CreateOutline" :size="15" />
+          </button>
+        </div>
         <n-icon class="rl-sim-modal__close" :component="CloseOutline" :size="18" />
       </div>
       <div class="rl-sim-modal__body">
@@ -206,7 +233,7 @@
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { NButton, NIcon, NInput, NModal, NSpace } from 'naive-ui'
-import { SettingsOutline, CloseOutline } from '@vicons/ionicons5'
+import { SettingsOutline, CloseOutline, CreateOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
@@ -231,6 +258,22 @@ const modalTitleModel = computed<string>({
   get: () => props.wizard.modalTitle ?? '',
   set: (v: string) => emit('update:modal-title', v),
 })
+
+/** 标题编辑交互: 默认以文本展示, hover 标题区浮现编辑按钮, 点击进入可编辑态; 失焦/回车退出 */
+const titleEditing = ref(false)
+const hoverTitle = ref(false)
+const titleInputRef = ref<InstanceType<typeof NInput> | null>(null)
+const displayTitle = computed(() =>
+  props.wizard.modalTitle?.trim() || t('reasonLibrary.wizard.preview.modalTitlePlaceholder'),
+)
+const isTitlePlaceholder = computed(() => !props.wizard.modalTitle?.trim())
+function startEdit() {
+  titleEditing.value = true
+  nextTick(() => titleInputRef.value?.focus())
+}
+function stopEdit() {
+  titleEditing.value = false
+}
 
 /** 预设调色板 — 满足「自定义其他颜色进行覆盖」的主要入口 */
 const BLOCK_COLORS = [
@@ -605,6 +648,44 @@ function rowStyle(row: TagRow) {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-hairline);
 }
+.rl-sim-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.rl-sim-modal__title-text {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.rl-sim-modal__title-text.is-placeholder { color: var(--ink-faint); }
+.rl-sim-modal__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.rl-sim-modal__edit-btn.visible { opacity: 1; }
+.rl-sim-modal__edit-btn:hover { color: var(--brand); background: var(--brand-tint); }
 /* 模拟弹窗标题输入框: 外观还原为标题样式, 但可编辑; 默认占位「选择原因」 */
 .rl-sim-modal__title-input {
   flex: 0 1 auto;

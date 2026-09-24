@@ -245,7 +245,7 @@ function confirm() {
   height: 16px;
   border: 1.5px solid var(--border-hairline, #c4c8d4);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   position: relative;
   flex-shrink: 0;

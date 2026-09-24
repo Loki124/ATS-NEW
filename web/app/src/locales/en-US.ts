@@ -188,6 +188,7 @@ export const REASON_LIBRARY_EN: Record<string, string> = {
   'reasonLibrary.wizard.assign.tagsCount': '{count}',
   'reasonLibrary.wizard.preview.title': 'Business-side dialog preview',
   'reasonLibrary.wizard.preview.modalTitlePlaceholder': 'Select reason',
+  'reasonLibrary.wizard.preview.editTitle': 'Edit title',
   'reasonLibrary.wizard.preview.empty': 'No tags under this rule',
   'reasonLibrary.wizard.preview.moduleTagsTitle': 'Reason tags',
   'reasonLibrary.wizard.preview.moduleDetailTitle': 'Detail reason',

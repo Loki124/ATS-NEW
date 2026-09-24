@@ -292,7 +292,7 @@ function confirm() {
   border: 1px solid var(--border-hairline);
   border-top: 3px solid var(--accent);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--surface);
   transition: all var(--duration-fast) var(--ease-out);
 }
 .recruit-card.type-social {
@@ -349,7 +349,7 @@ function confirm() {
   cursor: pointer;
   font-size: var(--fs-12);
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
   transition: all var(--duration-fast) var(--ease-out);
 }
 .scene-check:hover:not(.disabled) { border-color: var(--accent); background: var(--accent-tint); }
@@ -365,7 +365,7 @@ function confirm() {
   height: 16px;
   border: 1.5px solid var(--border-hairline, #c4c8d4);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   position: relative;
   flex-shrink: 0;

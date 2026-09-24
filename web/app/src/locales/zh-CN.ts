@@ -219,6 +219,7 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.wizard.assign.tagsCount': '{count} 条',
   'reasonLibrary.wizard.preview.title': '业务方标签选择弹窗 (预览)',
   'reasonLibrary.wizard.preview.modalTitlePlaceholder': '选择原因',
+  'reasonLibrary.wizard.preview.editTitle': '编辑标题',
   'reasonLibrary.wizard.preview.empty': '当前规则下暂无可用标签',
   'reasonLibrary.wizard.preview.moduleTagsTitle': '原因标签',
   'reasonLibrary.wizard.preview.moduleDetailTitle': '详细原因',
