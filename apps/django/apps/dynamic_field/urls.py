@@ -31,6 +31,22 @@ urlpatterns = [
         DynamicFieldViewSet.as_view({'post': 'reorder'}),
         name='dynamicfield-reorder',
     ),
+    # 2026-09-24 兵哥: 限制条件校验 + 录入落库端点 (须排在 <str:pk> 之前, 否则被 detail 路由截走)
+    path(
+        '<str:resource>/fields/validate-values/',
+        DynamicFieldViewSet.as_view({'post': 'validate_values'}),
+        name='dynamicfield-validate-values',
+    ),
+    path(
+        '<str:resource>/fields/values/',
+        DynamicFieldViewSet.as_view({'post': 'save_values'}),
+        name='dynamicfield-values',
+    ),
+    path(
+        '<str:resource>/fields/<str:pk>/validate/',
+        DynamicFieldViewSet.as_view({'post': 'validate_field'}),
+        name='dynamicfield-validate',
+    ),
     path(
         '<str:resource>/fields/',
         DynamicFieldViewSet.as_view({'get': 'list', 'post': 'create'}),

@@ -140,7 +140,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
           // G-2026-09-23: 双系统校招专属配置（仅校园招聘菜单可见；社招不呈现）
           { path: 'campus-ambassador', name: 'CampusAmbassador', component: () => import(/* webpackChunkName: "settings-campus-ambassador" */ '../pages/settings/CampusAmbassador.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'campus-session', name: 'CampusSession', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '宣讲会', description: '校招宣讲会排期、场地与线上直播管理（规划中）' } },
+          { path: 'campus-session', name: 'CampusSession', component: () => import(/* webpackChunkName: "settings-campus-session" */ '../pages/settings/CampusSession.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'scoring', name: 'ScoringRules', component: () => import(/* webpackChunkName: "settings-scoring" */ '../pages/settings/ScoringRules.vue') },
           // ===== 过程管理新增模块（内容留空待建，复用 Placeholder 经 meta 定制标题）=====
           { path: 'position-info', name: 'PositionInfo', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '职位信息管理', description: '职位分类、职位模板与 JD 库维护（规划中）' } },
@@ -169,6 +169,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'company-library', name: 'CompanyLibrary', component: () => import(/* webpackChunkName: "settings-company-lib" */ '../pages/settings/CompanyLibrary.vue') },
           // ===== G42 动态字段定义 =====
           { path: 'dynamic-fields', name: 'DynamicFieldSettings', component: () => import(/* webpackChunkName: "settings-dynamic-fields" */ '../pages/settings/DynamicFieldSettings.vue') },
+          // 2026-09-24 (兵哥) 动态字段独立录入表单: 按字段定义渲染输入, 录入时前端拦截 + 提交后端权威校验
+          { path: 'dynamic-field-entry', name: 'DynamicFieldEntry', component: () => import(/* webpackChunkName: "settings-dynamic-field-entry" */ '../pages/settings/DynamicFieldEntry.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // ===== G30 我找的简历 (RPA) =====
           { path: 'scraped-resumes', name: 'ScrapedResumeList', component: () => import(/* webpackChunkName: "settings-scraped" */ '../pages/scraped/ScrapedResumeList.vue') },
           // ===== 招聘流程管理 (PRD G38) =====

@@ -126,6 +126,23 @@ export interface FieldLinkageRule {
 
 export type VisibilityPermission = 'ALL_VISIBLE' | 'MANAGER_HIDDEN';
 
+/** 限制条件配置 (2026-09-24 兵哥) — 按字段类型结构化的校验规则。
+ *  - 数字类: min / max / step / decimals
+ *  - 文本类: maxLength / format / pattern (format=CUSTOM 时用 pattern)
+ *  - 选项类: allowedValues (限定只能从这些值里选)
+ *  - 通用: message (校验失败时的错误提示, 缺省由后端生成默认文案) */
+export interface FieldValidation {
+  min?: number | null;
+  max?: number | null;
+  step?: number | null;
+  decimals?: number | null;
+  maxLength?: number | null;
+  format?: 'NONE' | 'EMAIL' | 'URL' | 'PHONE' | 'ID_CARD' | 'BANK_CARD' | 'CUSTOM' | null;
+  pattern?: string | null;
+  allowedValues?: string[] | null;
+  message?: string | null;
+}
+
 export interface FieldDefinition {
   id: string;
   resource: string;
@@ -139,7 +156,8 @@ export interface FieldDefinition {
   placeholder?: string | null;
   helpText?: string | null;
   defaultValue?: string | null;
-  validation?: string | null;
+  /** 限制条件 (2026-09-24 兵哥): 按字段类型结构化的校验配置 */
+  validation?: FieldValidation | null;
   orderIndex: number;
   groupName?: string | null;
   moduleId?: string | null;
@@ -283,11 +301,35 @@ export const updateGroupOrder = (
 /**
  * 单值校验。
  *
- * 注意: 后端 `apps/dynamic_field/urls.py` 目前**未挂载** `<id>/validate/` 路由,
- * 调用会得到 404。当前无调用方, 待后端补齐该端点后方可使用。
+ * 后端 `DynamicFieldViewSet.validate_field` (POST `<resource>/fields/<id>/validate/`)
+ * 已挂载, 返回 `{ data: { valid, errors } }`。
  */
 export const validateValue = (resource: string, id: string, value: any) =>
   api.post(`/dynamic-fields/${resource}/fields/${id}/validate/`, { value }).then((r) => r.data.data);
+
+/**
+ * 批量校验一组字段值 (2026-09-24 兵哥)。
+ *
+ * POST `<resource>/fields/validate-values/` { values: { fieldKey: value } }
+ * → `{ data: { fieldKey: [errors] } }` (仅含不通过项, 键为 camelCase 与前端 fieldKey 对齐)。
+ * 前端录入表单提交前可先调此端点做服务端权威校验。
+ */
+export const validateValues = (resource: string, values: Record<string, any>) =>
+  api
+    .post(`/dynamic-fields/${resource}/fields/validate-values/`, { values })
+    .then((r) => (r.data?.data ?? {}) as Record<string, string[] | undefined>);
+
+/**
+ * 录入提交落库 (2026-09-24 兵哥)。
+ *
+ * POST `<resource>/fields/values/` { entityId, values }
+ * 后端先按字段定义 + validation 做权威校验, 任一不通过 → 400 `{ errors }`; 全通过 → upsert。
+ */
+export const saveDynamicFieldValues = (
+  resource: string,
+  entityId: string,
+  values: Record<string, any>,
+) => api.post(`/dynamic-fields/${resource}/fields/values/`, { entityId, values }).then((r) => r.data);
 
 /**
  * 从后端错误响应里提取可读文案。

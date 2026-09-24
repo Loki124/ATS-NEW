@@ -342,3 +342,28 @@ class FieldLinkageRule(TimestampedModel, SoftDeleteModel):
 
     def __str__(self):
         return f'{self.module.code}/{self.name or "未命名规则"}'
+
+
+class DynamicFieldValue(TimestampedModel):
+    """动态字段录入值存储 (2026-09-24 兵哥)。
+
+    资源无关: 任一 resource (Candidate/Position/Demand...) 的扩展字段值均落此处,
+    键为 (resource, entity_id, field_key)。entity_id 指向该资源下的业务实体
+    (如候选人 id), field_key 与 ``DynamicField.field_key`` 对齐。
+
+    录入时由 ``DynamicFieldViewSet.values`` 端点按字段定义 + validation 做服务端权威校验,
+    通过后才 upsert, 与前端拦截形成双重防护。
+    """
+
+    resource = models.CharField(max_length=128, db_index=True, help_text='资源类型 (Candidate/Position/...)')
+    entity_id = models.CharField(max_length=32, db_index=True, help_text='业务实体 id (如候选人 id)')
+    field_key = models.CharField(max_length=128, help_text='字段 key (与 DynamicField.field_key 对齐)')
+    value = models.JSONField(null=True, blank=True, verbose_name='字段值')
+
+    class Meta:
+        db_table = 'dynamic_field_values'
+        unique_together = [('resource', 'entity_id', 'field_key')]
+        ordering = ['resource', 'entity_id', 'field_key']
+
+    def __str__(self):
+        return f'DynamicFieldValue({self.resource}/{self.entity_id}/{self.field_key})'

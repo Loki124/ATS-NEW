@@ -14,7 +14,7 @@
       <!-- 顶部操作区：资源切换 + 配置入口（页面无 Tab，配三个按钮触发居中弹窗） -->
       <n-space align="center" :wrap="false">
         <n-space v-if="!isEmbedded" align="center" :wrap="false">
-          <span class="res-label">资源</span>
+          <span class="res-label">{ t('pages.settings.DynamicFieldManager.s1') }</span>
           <n-select
             v-model:value="currentResource"
             :options="resourceOptions"
@@ -667,6 +667,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, h, onMounted, reactive, watch, withDefaults, defineProps } from 'vue';
 import {
   NTag, NButton, NSpace, NSwitch, NInputNumber, NIcon, NSelect, NDataTable,
@@ -697,6 +698,7 @@ import {
   listDictionaryTypes, listDictionaryItems,
   type DictionaryType,
 } from '@/api/dictionary';
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   /** overview: 4 Tab（含模块配置）+ 可切换 resource；embedded: 3 Tab + 锁定 resource + 后端自动建默认模块 */

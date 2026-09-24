@@ -17,6 +17,7 @@
 from rest_framework import serializers
 
 from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule
+from .validators import normalize_validation
 
 #: (resource, field_key) 冲突时返回给前端的友好提示
 DUPLICATE_FIELD_KEY_MESSAGE = '资源 {resource} 下已存在字段 Key "{field_key}", 请更换 Key 或直接编辑已有字段。'
@@ -38,10 +39,14 @@ class FieldGroupSerializer(serializers.ModelSerializer):
     """字段分组(子级, 隶属模块) 序列化器。
 
     读: 嵌套返回所属 ``module``; 写: 通过 ``module_id`` 指定隶属模块。
+    2026-09-24 (兵哥): 分组编码改由系统自动生成, 用户无需填写 —
+    code 留空时 create 按 name 生成 (slugify; 中文名回退 grp_<nanoid>),
+    模块内唯一 (含软删行, 因 unique_together 是 DB 级约束); update 不改动编码。
     """
 
     module = FieldModuleSerializer(read_only=True)
     module_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    code = serializers.CharField(required=False, allow_blank=True, max_length=128)
 
     class Meta:
         model = FieldGroup
@@ -51,11 +56,37 @@ class FieldGroupSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'module']
 
+    @staticmethod
+    def _generate_code(name: str, module_id) -> str:
+        """按名称推导 snake_case code; 中文名推导为空时回退 grp_<nanoid>。
+
+        查重用 _base_manager: unique_together ('module','code') 是 DB 级唯一索引,
+        软删行同样占位, 必须一并排除才能避免 IntegrityError。
+        """
+        import re
+
+        from django.utils.text import slugify
+
+        from nanoid import generate as nanoid_generate
+
+        base = re.sub(r'[^a-z0-9_]+', '_', slugify(name or '').replace('-', '_')).strip('_')
+        if not base:
+            base = 'grp_' + nanoid_generate('0123456789abcdefghijklmnopqrstuvwxyz', size=8)
+        code, n = base, 2
+        while FieldGroup._base_manager.filter(module_id=module_id, code=code).exists():
+            code = f'{base}_{n}'
+            n += 1
+        return code[:128]
+
     def create(self, validated_data: dict):
         # 仅当显式传入 module_id 时才写入; 未传时不硬塞 None (交由 DB 层约束暴露真实必填问题)。
         # 原实现无条件 pop + 置 None, 会在「未传 module_id」时绕过 DRF 校验并退化为 IntegrityError。
         if 'module_id' in validated_data:
             validated_data['module_id'] = validated_data.pop('module_id') or None
+        if not (validated_data.get('code') or '').strip():
+            validated_data['code'] = self._generate_code(
+                validated_data.get('name') or '', validated_data.get('module_id'),
+            )
         return super().create(validated_data)
 
     def update(self, instance, validated_data: dict):
@@ -64,6 +95,9 @@ class FieldGroupSerializer(serializers.ModelSerializer):
         # module_id 清空 → IntegrityError(1048, "Column 'module_id' cannot be null") → HTTP 500。
         if 'module_id' in validated_data:
             validated_data['module_id'] = validated_data.pop('module_id') or None
+        # 编码不允许经编辑改动; 空值直接丢弃, 防止误清空已有编码。
+        if not (validated_data.get('code') or '').strip():
+            validated_data.pop('code', None)
         return super().update(instance, validated_data)
 
 
@@ -214,6 +248,20 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
         if not field_key:
             raise serializers.ValidationError('字段 Key 不能为空。')
         return field_key
+
+    def validate_validation(self, value):
+        """按字段类型规范化 ``validation`` 限制条件 (2026-09-24 兵哥)。
+
+        复用并规范化: 数字类容错旧 ``{min,max}`` 形态, 文本类/选项类规整为结构化 dict,
+        非法键丢弃, message 缺省置空。空值/非 dict 直接归为 {} (无约束)。
+        字段类型取自本次输入的 ``fieldType``/``field_type``; 编辑未改类型时回退实例类型。
+        """
+        raw_type = (
+            self.initial_data.get('fieldType')
+            or self.initial_data.get('field_type')
+            or (getattr(self.instance, 'field_type', None))
+        )
+        return normalize_validation(raw_type, value)
 
     def validate(self, attrs: dict) -> dict:
         """在校验层拦截:

@@ -31,7 +31,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule
+from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule, DynamicFieldValue
 from .serializers import (
     DUPLICATE_FIELD_KEY_MESSAGE,
     DynamicFieldSerializer,
@@ -39,6 +39,7 @@ from .serializers import (
     FieldGroupSerializer,
     FieldLinkageRuleSerializer,
 )
+from .validators import validate_field_value
 
 # CSV 单元格内容上限：Excel 单元格硬上限 32,767 字符，超限会让 Excel 打开 CSV 时
 # 解析错位（实测 School 字段 options 126,778 字符 → 列位整体位移）。
@@ -363,6 +364,93 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         for index, field_id in enumerate(ordered_ids):
             self.get_queryset().filter(id=field_id, resource=resource).update(order_index=index)
         return Response({'success': True})
+
+    # --- 限制条件校验 (2026-09-24 兵哥) -----------------------------------------
+
+    @action(detail=True, methods=['post'], url_path='validate')
+    def validate_field(self, request, resource=None, pk=None):
+        """POST /dynamic-fields/<resource>/fields/<id>/validate/  { value }
+
+        单字段值校验, 返回 ``{ data: { valid, errors } }``; 补齐前端
+        ``dynamic-field.ts:validateValue`` 的悬空契约 (此前后端未挂载路由 → 404)。
+        以显式 path() 挂载 (见 urls.py), 不走 DRF router。
+        """
+        instance = self.get_object()
+        value = request.data.get('value')
+        errors = validate_field_value(instance.field_type, instance.validation, value)
+        return Response({'data': {'valid': not errors, 'errors': errors}})
+
+    @action(detail=False, methods=['post'], url_path='validate-values')
+    def validate_values(self, request, resource=None):
+        """POST /dynamic-fields/<resource>/fields/validate-values/  { values: {fieldKey: value} }
+
+        批量校验一组字段值, 返回 ``{ data: { fieldKey: [errors] } }`` (仅含不通过项)。
+        未定义的 fieldKey 跳过 (不校验)。供独立录入表单提交前服务端权威校验复用。
+        以显式 path() 挂载 (见 urls.py), 不走 DRF router。
+        """
+        resource = self.get_resource()
+        incoming = request.data.get('values')
+        if not isinstance(incoming, dict):
+            return Response(
+                {'success': False, 'message': 'values 必须为对象 {fieldKey: value}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        fields = {f.field_key: f for f in self.get_queryset().filter(resource=resource)}
+        result: dict[str, list[str]] = {}
+        for fk, val in incoming.items():
+            f = fields.get(fk)
+            if f is None:
+                continue
+            errs = validate_field_value(f.field_type, f.validation, val)
+            if errs:
+                result[fk] = errs
+        return Response({'data': result})
+
+    @action(detail=False, methods=['post'], url_path='values')
+    def save_values(self, request, resource=None):
+        """POST /dynamic-fields/<resource>/fields/values/  { entity_id, values: {fieldKey: value} }
+
+        录入提交落库: 先按资源字段定义 + validation 做服务端权威校验,
+        任一字段不通过 → 400 带 ``errors`` (逐字段错误); 全通过 → upsert 到 DynamicFieldValue。
+        未定义的 fieldKey 跳过 (不落库也不报错)。
+        """
+        resource = self.get_resource()
+        entity_id = request.data.get('entity_id')
+        incoming = request.data.get('values')
+        if not entity_id:
+            return Response(
+                {'success': False, 'message': 'entity_id 必填'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(incoming, dict):
+            return Response(
+                {'success': False, 'message': 'values 必须为对象 {fieldKey: value}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        fields = {f.field_key: f for f in self.get_queryset().filter(resource=resource)}
+        errors: dict[str, list[str]] = {}
+        for fk, val in incoming.items():
+            f = fields.get(fk)
+            if f is None:
+                continue
+            errs = validate_field_value(f.field_type, f.validation, val)
+            if errs:
+                errors[fk] = errs
+        if errors:
+            return Response(
+                {'success': False, 'errors': errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for fk, val in incoming.items():
+            if fk not in fields:
+                continue
+            DynamicFieldValue.objects.update_or_create(
+                resource=resource, entity_id=entity_id, field_key=fk,
+                defaults={'value': val},
+            )
+        return Response({'success': True, 'saved': len(incoming)})
 
     # --- 导入 / 导出 -----------------------------------------------------------
 
