@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { naivePlugin } from './plugins/naive'
 import { setupPermissionDirective } from './directives/permission'
+import i18n from './locales' // 2026-09-24: vue-i18n 接入（默认 zh-CN，en-US 兜底）
 import { useSystemStore } from './stores/system'
 import { startAppVersionWatcher } from './services/app-version'
 
@@ -74,6 +75,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(naivePlugin)
+app.use(i18n) // 2026-09-24: 注册 i18n 实例（必须在 mount 前，供组件 useI18n() 使用）
 // 元素级最小权限指令 v-permission (消费后端 /me 的 resource_code 列表)
 setupPermissionDirective(app)
 // ⚠️ 2026-09-15: app.use(router) 被有意下移到「store hydrate 之后」（见文件底部）。
