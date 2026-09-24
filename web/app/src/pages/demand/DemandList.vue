@@ -60,12 +60,6 @@
                   {{ item.demandType === 'SOCIAL' ? '社招' : '校招' }}
                 </n-tag>
               </span>
-              <span class="meta-item">
-                <span class="label">薪资：</span>
-                <span class="value">
-                  {{ item.salaryMin && item.salaryMax ? `${item.salaryMin}K - ${item.salaryMax}K` : '-' }}
-                </span>
-              </span>
             </div>
           </div>
           <div class="card-stats">
@@ -269,21 +263,6 @@
                     </div>
                   </div>
 
-                  <!-- 薪资待遇 -->
-                  <div class="profile-block">
-                    <div class="block-header">
-                      <span class="block-title">薪资待遇</span>
-                    </div>
-                    <div class="salary-info">
-                      <div class="salary-range">
-                        <span class="salary-num">{{ selectedDemand.salaryMin || '-' }}K</span>
-                        <span class="salary-separator">-</span>
-                        <span class="salary-num">{{ selectedDemand.salaryMax || '-' }}K</span>
-                      </div>
-                      <span class="salary-unit">月薪</span>
-                    </div>
-                  </div>
-
                   <!-- 加分项 -->
                   <div class="profile-block">
                     <div class="block-header">
@@ -377,22 +356,6 @@
         </n-form-item>
         <n-form-item label="职级">
           <n-input v-model:value="formData.jobLevel" placeholder="如：P6、M1" />
-        </n-form-item>
-        <n-form-item label="薪资范围">
-          <n-grid :cols="2" :x-gap="8">
-            <n-grid-item>
-              <n-input-number v-model:value="formData.salaryMin" placeholder="最低薪资(K)" style="width: 100%" />
-            </n-grid-item>
-            <n-grid-item>
-              <n-input-number v-model:value="formData.salaryMax" placeholder="最高薪资(K)" style="width: 100%" />
-            </n-grid-item>
-          </n-grid>
-        </n-form-item>
-        <n-form-item label="开始日期">
-          <n-date-picker v-model:value="formData.startDate" type="date" style="width: 100%" />
-        </n-form-item>
-        <n-form-item label="结束日期">
-          <n-date-picker v-model:value="formData.endDate" type="date" style="width: 100%" />
         </n-form-item>
         <n-form-item label="需求描述">
           <n-input v-model:value="formData.description" type="textarea" :rows="3" placeholder="请输入需求描述" />
@@ -526,10 +489,6 @@ const formData = ref<any>({
   priority: 'P1',
   positionSeries: '',
   jobLevel: '',
-  salaryMin: null,
-  salaryMax: null,
-  startDate: null,
-  endDate: null,
   description: '',
   requirements: ''
 })
@@ -846,10 +805,6 @@ const handleCreate = () => {
     priority: 'P1',
     positionSeries: '',
     jobLevel: '',
-    salaryMin: null,
-    salaryMax: null,
-    startDate: null,
-    endDate: null,
     description: '',
     requirements: ''
   }
@@ -882,10 +837,6 @@ const handleEdit = async (item: any) => {
     priority: d.priority || 'P1',
     positionSeries: d.positionTitle ?? d.position_title ?? '',
     jobLevel: d.level ?? '',
-    salaryMin: d.salaryMin ?? null,
-    salaryMax: d.salaryMax ?? null,
-    startDate: d.startDate ? dayjs(d.startDate).valueOf() : null,
-    endDate: d.endDate ? dayjs(d.endDate).valueOf() : null,
     description: d.jd ?? '',
     requirements: d.requirements ?? '',
   }
@@ -932,10 +883,6 @@ const handleSave = async () => {
       priority: formData.value.priority,
       jd: formData.value.description || '',
       requirements: formData.value.requirements || '',
-      startDate: formData.value.startDate ? dayjs(formData.value.startDate).format('YYYY-MM-DD') : null,
-      endDate: formData.value.endDate ? dayjs(formData.value.endDate).format('YYYY-MM-DD') : null,
-      salaryMin: formData.value.salaryMin,
-      salaryMax: formData.value.salaryMax,
     }
 
     let demandId = formData.value.id
