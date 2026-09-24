@@ -21,6 +21,8 @@ from django.db import transaction
 from apps.application.models import Application, ApplicationState
 from apps.candidate.models import Candidate, CandidateState
 from apps.candidate.services import CandidateService
+# 2026-09-25: 简历解析结果结构化落 extra（供指标库派生指标对真实数据取值）
+from apps.metrics.services.resume_struct import build_structured_extra
 from apps.core.models import User
 from apps.talent_pool.models import TalentPoolEntry  # EntrySource 是 TalentPoolEntry 的嵌套类
 
@@ -134,6 +136,8 @@ class BulkCreateService:
                     'channel': draft.channel,
                     'source': draft.source,
                     'provider': draft.provider,
+                    # 工作经历 / 教育经历结构化（空窗期、跳槽频率、最高学历等派生指标的数据源）
+                    **build_structured_extra(draft.parsed_data or {}),
                 },
             )
             logger.info('Created candidate %s for draft %s', cand.id, draft.draft_id)

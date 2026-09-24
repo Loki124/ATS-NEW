@@ -12,8 +12,11 @@ from .views import (
     CandidateSnapshotView,
     DerivedFuncCatalogView,
     DerivedMetricViewSet,
+    MetricRuleViewSet,
     MetricTemplateViewSet,
     OperatorCatalogView,
+    EvaluateSceneView,
+    FilterBySceneView,
     RuleExecuteView,
     sample_data,
 )
@@ -24,6 +27,9 @@ router = DefaultRouter()
 router.register(r'atomic-metrics', AtomicMetricViewSet, basename='atomic-metric')
 router.register(r'derived-metrics', DerivedMetricViewSet, basename='derived-metric')
 router.register(r'templates', MetricTemplateViewSet, basename='metric-template')
+# 持久化规则（CRUD + toggle/run）。注意：'rules/execute/' 是字面路径，
+# 已排在 include(router.urls) 之前，故不会被 rules/{pk}/ 详情路由抢走。
+router.register(r'rules', MetricRuleViewSet, basename='metric-rule')
 
 urlpatterns = [
     # 目录与执行（固定路径，先于 router）
@@ -33,5 +39,8 @@ urlpatterns = [
     path('candidate-fields/', CandidateFieldCatalogView.as_view(), name='candidate-field-catalog'),
     path('candidates/<str:candidate_id>/snapshot/', CandidateSnapshotView.as_view(), name='candidate-snapshot'),
     path('rules/execute/', RuleExecuteView.as_view(), name='rule-execute'),
+    # 业务触发点：入池 / 筛选 / 评分 调用（字面路径先于 rules/{pk}/ 详情路由）
+    path('rules/evaluate-scene/', EvaluateSceneView.as_view(), name='evaluate-scene'),
+    path('rules/filter/', FilterBySceneView.as_view(), name='filter-by-scene'),
     path('', include(router.urls)),
 ]

@@ -238,6 +238,10 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
       { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
       { key: '/settings/rule-engine', label: '统一规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
+      // 2026-09-25: 指标库（规则引擎指标层）入口，与统一规则引擎相邻
+      { key: '/settings/metric-library', label: '指标库', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
+      { key: '/settings/metric-rule-config', label: '规则配置与执行', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
+      { key: '/settings/metric-rules', label: '规则管理', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
     ],
   },
 ]

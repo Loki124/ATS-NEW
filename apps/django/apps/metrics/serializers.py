@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from apps.rule_engine.models import UnifiedOperator
 
-from .models import AtomicMetric, DerivedMetric, MetricTemplate
+from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
 from .services.derived_registry import get as get_derived_func
 
 
@@ -130,3 +130,39 @@ class RuleExecuteSerializer(serializers.Serializer):
     conditions = ConditionInputSerializer(many=True, allow_empty=False)
     logic = serializers.ChoiceField(choices=[('AND', 'AND'), ('OR', 'OR')], required=False, default='AND')
     data = serializers.JSONField()
+
+
+class MetricRuleSerializer(serializers.ModelSerializer):
+    """指标规则序列化器 —— 持久化规则（支持新增/编辑/删除/启停）。"""
+
+    condition_count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = MetricRule
+        fields = [
+            'id', 'name', 'description', 'scene', 'conditions', 'logic',
+            'status', 'enabled', 'created_at', 'condition_count',
+        ]
+        read_only_fields = ['id', 'created_at', 'condition_count']
+        # 模型字段带 default=list → ModelSerializer 会生成 required=False，
+        # 导致「不传 conditions」绕过 validate_conditions。显式要求必传。
+        extra_kwargs = {'conditions': {'required': True}}
+
+    def validate_conditions(self, value):
+        if not isinstance(value, list) or not value:
+            raise serializers.ValidationError('至少配置 1 个条件')
+        for idx, cond in enumerate(value, start=1):
+            if not isinstance(cond, dict):
+                raise serializers.ValidationError(f'第 {idx} 个条件格式不正确')
+            template_id = cond.get('templateId') or cond.get('template_id')
+            operator = cond.get('operator')
+            if not template_id:
+                raise serializers.ValidationError(f'第 {idx} 个条件缺少 templateId')
+            if operator not in UnifiedOperator.values:
+                raise serializers.ValidationError(f'第 {idx} 个条件运算符不合法: {operator}')
+            if not MetricTemplate.objects.filter(pk=template_id).exists():
+                raise serializers.ValidationError(f'第 {idx} 个条件引用的模板不存在: {template_id}')
+        return value
+
+    def get_condition_count(self, obj):
+        return len(obj.conditions or [])

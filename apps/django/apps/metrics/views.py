@@ -13,23 +13,25 @@
 try/except 双重保障，执行类错误降级为该步 FAIL 并在 error 字段给出人话提示。
 """
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
 from apps.rule_engine.models import UnifiedOperator
 
-from .models import AtomicMetric, DerivedMetric, MetricTemplate
+from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
 from .serializers import (
     AtomicMetricSerializer,
     DerivedMetricSerializer,
+    MetricRuleSerializer,
     MetricTemplateSerializer,
     RuleExecuteSerializer,
 )
 from .services.candidate_snapshot import build_candidate_snapshot, list_candidate_paths
 from .services.derived_registry import list_funcs
 from .services.metric_engine import MetricEngine
+from .services.rule_trigger import evaluate_scene, filter_candidates_by_scene
 
 # MVP 示例候选人数据（PRD F-08 要求测试数据区；真实接入时替换为业务快照）
 SAMPLE_CANDIDATE = {
@@ -84,6 +86,80 @@ class MetricTemplateViewSet(viewsets.ModelViewSet):
     ).order_by('name')
     serializer_class = MetricTemplateSerializer
     pagination_class = StandardResultsSetPagination
+
+
+class EvaluateSceneView(APIView):
+    """POST /api/v1/metrics/rules/evaluate-scene/ —— 业务触发点统一入口。
+
+    body: {scene: TALENT_POOL|FILTER|SCORING, candidateId}
+    返回是否阻断 + 每条规则的明细，供入池/筛选/评分业务调用。
+    """
+
+    def post(self, request):
+        payload = request.data or {}
+        scene = payload.get('scene')
+        candidate_id = payload.get('candidateId') or payload.get('candidate_id')
+        if not scene or not candidate_id:
+            return Response(
+                {'error': '缺少 scene 或 candidateId'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(evaluate_scene(scene, candidate_id), status=status.HTTP_200_OK)
+
+
+class FilterBySceneView(APIView):
+    """POST /api/v1/metrics/rules/filter/ —— 批量按场景规则筛选候选人。"""
+
+    def post(self, request):
+        payload = request.data or {}
+        scene = payload.get('scene')
+        candidate_ids = payload.get('candidateIds') or payload.get('candidate_ids') or []
+        if not scene or not isinstance(candidate_ids, list):
+            return Response(
+                {'error': '缺少 scene 或 candidateIds'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            filter_candidates_by_scene(scene, candidate_ids), status=status.HTTP_200_OK,
+        )
+
+
+class MetricRuleViewSet(viewsets.ModelViewSet):
+    """指标规则 CRUD + 启停 + 按持久化规则执行。
+
+    与一次性 execute 的区别：本 ViewSet 的规则**落库**，可被业务触发点按 scene
+    取用（入池 / 筛选 / 评分），并支持启用停用。
+    """
+
+    queryset = MetricRule.objects.all().order_by('-created_at')
+    serializer_class = MetricRuleSerializer
+    pagination_class = StandardResultsSetPagination
+
+    @action(detail=True, methods=['post'])
+    def toggle(self, request, pk=None):
+        """启用/停用切换（幂等，返回切换后的状态）。"""
+        rule = self.get_object()
+        rule.enabled = not rule.enabled
+        rule.save(update_fields=['enabled', 'updated_at'])
+        return Response({'id': rule.id, 'enabled': rule.enabled})
+
+    @action(detail=True, methods=['post'])
+    def run(self, request, pk=None):
+        """按已保存规则对真实候选人执行（业务触发点的统一入口）。"""
+        rule = self.get_object()
+        candidate_id = (request.data or {}).get('candidateId') or (request.data or {}).get('candidate_id')
+        if not candidate_id:
+            return Response({'error': '缺少 candidateId'}, status=status.HTTP_400_BAD_REQUEST)
+        snapshot = build_candidate_snapshot(candidate_id)
+        if not snapshot.get('candidate'):
+            return Response(
+                {'error': f'候选人 {candidate_id} 不存在'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        result = MetricEngine.execute(
+            rule.to_engine_conditions(), snapshot, rule.logic or 'AND',
+        )
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class RuleExecuteView(APIView):

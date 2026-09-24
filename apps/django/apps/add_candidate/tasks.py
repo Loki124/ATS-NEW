@@ -79,6 +79,8 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
     from .services.scoring import ScoringService
     from apps.candidate.models import Candidate
     from apps.application.models import Application
+    # 2026-09-25: 评分触发点（函数内导入，避免模块级循环依赖）
+    from apps.metrics.services.rule_trigger import evaluate_scene
 
     passed_count = 0
     for cand_id in candidate_ids:
@@ -98,12 +100,26 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
             jd = (pos_extra.get('jd') if pos_extra else {}) or {}
 
             result = ScoringService.score(resume=resume, position_jd=jd)
-            if result.passed:
+
+            # 2026-09-25 触发点：执行「评分」场景的指标规则。
+            # 阻断型规则不满足 → 不计入通过数，并把规则结论一并返回给前端。
+            rule_outcome = evaluate_scene('SCORING', str(cand_id))
+            rule_blocked = bool(rule_outcome.get('blocked'))
+
+            if result.passed and not rule_blocked:
                 passed_count += 1
 
             broadcast_event(task_id, {
                 'event': 'scoring-done',
-                'data': {'candidate_id': cand_id, **result.to_dict()},
+                'data': {
+                    'candidate_id': cand_id,
+                    **result.to_dict(),
+                    'metricRule': {
+                        'pass': rule_outcome.get('pass'),
+                        'blocked': rule_blocked,
+                        'message': rule_outcome.get('message'),
+                    },
+                },
             })
         except Candidate.DoesNotExist:
             logger.warning('Candidate %s not found, skipping', cand_id)

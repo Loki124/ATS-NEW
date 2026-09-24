@@ -1,0 +1,135 @@
+"""业务触发点执行器 —— 把持久化规则挂到入池 / 筛选 / 评分（T3）。
+
+用法：
+    from apps.metrics.services.rule_trigger import evaluate_scene
+    result = evaluate_scene('TALENT_POOL', candidate_id)
+    if result['blocked']:
+        return Response({'error': result['message']}, status=400)
+
+设计要点：
+    1. 只执行该 scene 下「启用且状态正常」的规则，停用规则零开销跳过
+    2. 阻断语义由规则自带 blocking 字段控制：
+         blocking=True  → 不通过即拒绝业务动作（如拒绝入池）
+         blocking=False → 仅记录结论，不阻断（安全默认）
+       这样规则误配不会直接伤业务，运营可先观察再开启阻断
+    3. 任何异常都不向上抛（业务动作不能因为规则引擎故障而失败），
+       统一降级为「不阻断 + error 记录」，绝不 500
+"""
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, List, Optional
+
+from .candidate_snapshot import build_candidate_snapshot
+from .metric_engine import MetricEngine
+
+logger = logging.getLogger(__name__)
+
+
+def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
+    """执行某场景下全部启用规则，返回汇总结论。
+
+    返回：
+        {
+          scene, candidateId, pass, blocked, message,
+          rules: [{ruleId, ruleName, pass, blocking, summary, steps}],
+          evaluated: 规则条数
+        }
+    """
+    from apps.metrics.models import MetricRule, MetricStatus
+
+    result: Dict[str, Any] = {
+        'scene': scene,
+        'candidateId': candidate_id,
+        'pass': True,
+        'blocked': False,
+        'message': '',
+        'rules': [],
+        'evaluated': 0,
+    }
+
+    try:
+        rules = list(MetricRule.objects.filter(
+            scene=scene, enabled=True, status=MetricStatus.ENABLED,
+        ).order_by('created_at'))
+    except Exception as exc:  # 表不存在等极端情况 → 不阻断
+        logger.warning('[metrics] 加载场景规则失败 scene=%s: %s', scene, exc)
+        result['message'] = '规则加载失败（已放行）'
+        return result
+
+    if not rules:
+        result['message'] = '该场景无启用规则'
+        return result
+
+    try:
+        snapshot = build_candidate_snapshot(candidate_id)
+    except Exception as exc:
+        # 快照失败绝不阻断业务（规则引擎故障不应让入池/评分失败）
+        logger.warning('[metrics] 快照构建失败 candidate=%s: %s', candidate_id, exc)
+        result['message'] = '数据快照构建失败（已放行）'
+        return result
+
+    if not snapshot.get('candidate'):
+        result['message'] = f'候选人 {candidate_id} 不存在'
+        result['pass'] = False
+        return result
+
+    failed_blocking: List[str] = []
+    all_pass = True
+
+    for rule in rules:
+        try:
+            outcome = MetricEngine.execute(
+                rule.to_engine_conditions(), snapshot, rule.logic or 'AND',
+            )
+        except Exception as exc:  # 单条规则异常不拖垮整体
+            logger.exception('[metrics] 规则执行异常 rule=%s', rule.id)
+            result['rules'].append({
+                'ruleId': rule.id,
+                'ruleName': rule.name,
+                'pass': False,
+                'blocking': rule.blocking,
+                'summary': f'执行异常: {exc}',
+                'steps': [],
+            })
+            continue
+
+        passed = bool(outcome.get('pass'))
+        if not passed:
+            all_pass = False
+            if rule.blocking:
+                failed_blocking.append(rule.name)
+
+        result['rules'].append({
+            'ruleId': rule.id,
+            'ruleName': rule.name,
+            'pass': passed,
+            'blocking': rule.blocking,
+            'summary': outcome.get('summary', ''),
+            'steps': outcome.get('steps', []),
+        })
+
+    result['evaluated'] = len(rules)
+    result['pass'] = all_pass
+    if failed_blocking:
+        result['blocked'] = True
+        result['message'] = '不满足规则：' + '、'.join(failed_blocking)
+    elif not all_pass:
+        result['message'] = '存在未满足规则（未开启阻断，已放行）'
+    else:
+        result['message'] = '全部规则满足'
+
+    return result
+
+
+def filter_candidates_by_scene(scene: str, candidate_ids: List[str]) -> Dict[str, Any]:
+    """批量筛选：返回通过全部阻断性规则的候选人 ID 列表（供"筛选"场景用）。"""
+    passed: List[str] = []
+    rejected: List[Dict[str, Any]] = []
+    for cid in candidate_ids:
+        outcome = evaluate_scene(scene, str(cid))
+        if outcome.get('blocked'):
+            rejected.append({'candidateId': str(cid), 'reason': outcome.get('message')})
+        else:
+            passed.append(str(cid))
+    return {'scene': scene, 'passedIds': passed, 'rejected': rejected}

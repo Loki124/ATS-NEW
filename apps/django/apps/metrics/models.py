@@ -195,3 +195,83 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     def unit(self):
         m = self.metric
         return m.unit if m else ''
+
+
+class MetricRuleScene(models.TextChoices):
+    """规则应用场景 —— 决定规则在哪个业务触发点被执行（T3 接入用）。"""
+    TALENT_POOL = 'TALENT_POOL', '入池'
+    FILTER = 'FILTER', '筛选'
+    SCORING = 'SCORING', '评分'
+    MANUAL = 'MANUAL', '手动执行'
+
+
+class MetricRule(FullAuditModel, UUIDModel):
+    """指标规则 —— 一组条件 + 组合逻辑，可持久化并启用/停用。
+
+    为什么独立建表而不是复用 rule_engine.Rule：
+        rule_engine.Rule 语义是「触发-条件-动作」（trigger_type 必填、带 Action），
+        而指标规则只有条件、没有触发器与动作，强塞会造成语义混乱并触发
+        rule_engine 的一致性检查告警。本表**只存条件**，执行时仍然复用
+        rule_engine.UnifiedOperator 与 apps.metrics 执行引擎 —— 因此不是第三套规则
+        系统，只是规则载体按用途分离（与 Demand 动态字段配置独立建表同理）。
+
+    scene 决定规则在哪个业务触发点被执行（入池 / 筛选 / 评分 / 仅手动）。
+    """
+
+    name = models.CharField(max_length=128, verbose_name='规则名称')
+    description = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='说明',
+    )
+    scene = models.CharField(
+        max_length=16, choices=MetricRuleScene.choices,
+        default=MetricRuleScene.MANUAL, verbose_name='应用场景', db_index=True,
+    )
+    conditions = models.JSONField(
+        default=list, verbose_name='条件列表',
+        help_text='[{templateId, operator, value, meta?{min,max}}]',
+    )
+    logic = models.CharField(
+        max_length=8, choices=[('AND', 'AND'), ('OR', 'OR')],
+        default='AND', verbose_name='条件组合逻辑',
+    )
+    status = models.CharField(
+        max_length=16, choices=MetricStatus.choices,
+        default=MetricStatus.ENABLED, verbose_name='状态',
+    )
+    enabled = models.BooleanField(default=True, verbose_name='启用开关', db_index=True)
+    blocking = models.BooleanField(
+        default=False, verbose_name='是否阻断',
+        help_text='开启后：该场景规则不通过时业务动作被拒绝（如拒绝入池）；'
+                  '关闭时仅记录结论不阻断（安全默认，避免规则误配伤业务）',
+    )
+
+    class Meta:
+        db_table = 'metrics_metric_rule'
+        verbose_name = '指标规则'
+        verbose_name_plural = '指标规则'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['scene', 'enabled'], name='metrics_rule_scene_en'),
+        ]
+
+    def __str__(self):
+        return f'{self.name}({self.scene})'
+
+    @property
+    def is_active(self) -> bool:
+        """是否真正生效：状态启用 + 开关打开。"""
+        return self.enabled and self.status == MetricStatus.ENABLED
+
+    def to_engine_conditions(self) -> list:
+        """转成执行引擎契约（兼容 templateId / template_id 两种拼写）。"""
+        out = []
+        for cond in self.conditions or []:
+            if not isinstance(cond, dict):
+                continue
+            out.append({
+                'templateId': cond.get('templateId') or cond.get('template_id'),
+                'operator': cond.get('operator'),
+                'value': cond.get('value'),
+                'meta': cond.get('meta') or {},
+            })
+        return out

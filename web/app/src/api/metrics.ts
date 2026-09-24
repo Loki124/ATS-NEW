@@ -111,6 +111,64 @@ export interface ExecuteResult {
   summary: string
 }
 
+// ===== 持久化规则 =====
+
+export type MetricRuleScene = 'TALENT_POOL' | 'FILTER' | 'SCORING' | 'MANUAL'
+
+export interface MetricRule {
+  id: string
+  name: string
+  description?: string
+  scene: MetricRuleScene
+  conditions: {
+    templateId: string
+    operator: string
+    value?: any
+    meta?: Record<string, any>
+  }[]
+  logic: 'AND' | 'OR'
+  status?: string
+  enabled: boolean
+  conditionCount?: number
+  createdAt?: string
+}
+
+export async function listMetricRules(): Promise<MetricRule[]> {
+  const res = await api.get('/metrics/rules/')
+  return unwrap<MetricRule[]>(res) ?? []
+}
+
+export async function createMetricRule(payload: Partial<MetricRule>): Promise<MetricRule> {
+  const res = await api.post('/metrics/rules/', payload)
+  return unwrap<MetricRule>(res)
+}
+
+export async function updateMetricRule(id: string, payload: Partial<MetricRule>): Promise<MetricRule> {
+  const res = await api.patch(`/metrics/rules/${id}/`, payload)
+  return unwrap<MetricRule>(res)
+}
+
+export async function deleteMetricRule(id: string): Promise<void> {
+  await api.delete(`/metrics/rules/${id}/`)
+}
+
+export async function getMetricRule(id: string): Promise<MetricRule> {
+  const res = await api.get(`/metrics/rules/${id}/`)
+  return unwrap<MetricRule>(res)
+}
+
+/** 启用/停用切换（幂等） */
+export async function toggleMetricRule(id: string): Promise<{ id: string; enabled: boolean }> {
+  const res = await api.post(`/metrics/rules/${id}/toggle/`)
+  return unwrap<{ id: string; enabled: boolean }>(res)
+}
+
+/** 按已保存规则对真实候选人执行 */
+export async function runMetricRule(id: string, candidateId: string): Promise<ExecuteResult> {
+  const res = await api.post(`/metrics/rules/${id}/run/`, { candidateId })
+  return unwrap<ExecuteResult>(res)
+}
+
 export interface ExecutePayload {
   conditions: {
     templateId: string

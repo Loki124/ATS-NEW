@@ -8,6 +8,25 @@
     </div>
 
     <div class="page-body mr-body">
+      <!-- 规则信息（持久化） -->
+      <n-card :title="t('metrics.rule.ruleName')" size="small" class="mr-card">
+        <div class="mr-rule-meta">
+          <n-input
+            v-model:value="ruleName"
+            :placeholder="t('metrics.rule.ruleName')"
+            class="mr-rule-name"
+          />
+          <n-select
+            v-model:value="ruleScene"
+            :options="sceneOptions"
+            class="mr-rule-scene"
+          />
+          <n-button type="primary" :loading="saving" :disabled="!canExecute" @click="saveRule">
+            {{ ruleId ? t('metrics.rule.updateRule') : t('metrics.rule.saveRule') }}
+          </n-button>
+        </div>
+      </n-card>
+
       <!-- 条件编辑区 -->
       <n-card :title="t('metrics.rule.conditionArea')" size="small" class="mr-card">
         <template #header-extra>
@@ -110,14 +129,19 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import {
+  createMetricRule,
   executeRule,
   getCandidateSnapshot,
+  getMetricRule,
   getSampleData,
   listMetricTemplates,
   listOperators,
+  updateMetricRule,
   type ExecuteResult,
+  type MetricRuleScene,
   type MetricTemplate,
 } from '@/api/metrics'
 
@@ -227,6 +251,76 @@ async function execute() {
   }
 }
 
+// ===== 规则持久化 =====
+const route = useRoute()
+const ruleId = ref<string>('')
+const ruleName = ref('')
+const ruleScene = ref<MetricRuleScene>('MANUAL')
+const saving = ref(false)
+
+const sceneOptions = computed(() => [
+  { label: t('metrics.scene.TALENT_POOL'), value: 'TALENT_POOL' },
+  { label: t('metrics.scene.FILTER'), value: 'FILTER' },
+  { label: t('metrics.scene.SCORING'), value: 'SCORING' },
+  { label: t('metrics.scene.MANUAL'), value: 'MANUAL' },
+])
+
+async function loadRule() {
+  const id = (route.query.ruleId as string) || ''
+  if (!id) return
+  try {
+    const rule = await getMetricRule(id)
+    ruleId.value = rule.id
+    ruleName.value = rule.name
+    ruleScene.value = rule.scene
+    conditions.value = (rule.conditions || []).map((c: any) => ({
+      templateId: c.templateId,
+      operator: c.operator,
+      value: c.value ?? '',
+    }))
+    if (!conditions.value.length) {
+      conditions.value = [{ templateId: null, operator: null, value: '' }]
+    }
+  } catch (error) {
+    message.error(t('metrics.msg.loadFailed'))
+  }
+}
+
+async function saveRule() {
+  if (!ruleName.value.trim()) {
+    message.warning(t('metrics.rule.ruleName'))
+    return
+  }
+  saving.value = true
+  try {
+    const payload = {
+      name: ruleName.value.trim(),
+      scene: ruleScene.value,
+      logic: 'AND' as const,
+      conditions: conditions.value
+        .filter((c) => c.templateId && c.operator)
+        .map((c) => ({
+          templateId: c.templateId,
+          operator: c.operator,
+          value: c.value,
+        })),
+    }
+    if (ruleId.value) {
+      await updateMetricRule(ruleId.value, payload)
+      message.success(t('metrics.rule.updated'))
+    } else {
+      const created = await createMetricRule(payload)
+      ruleId.value = created.id
+      message.success(t('metrics.rule.saved'))
+    }
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
 async function load() {
   try {
     const [templates, ops, sample] = await Promise.all([
@@ -237,6 +331,7 @@ async function load() {
     templateList.value = templates
     operatorCatalog.value = ops
     sampleData.value = sample
+    await loadRule()
   } catch (error) {
     message.error(t('metrics.msg.loadFailed'))
   }
@@ -329,6 +424,19 @@ onMounted(load)
 }
 .mr-step-detail {
   font-size: 13px;
+}
+.mr-rule-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mr-rule-name {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+.mr-rule-scene {
+  flex: 0 0 160px;
 }
 .mr-snapshot-bar {
   margin-bottom: 8px;

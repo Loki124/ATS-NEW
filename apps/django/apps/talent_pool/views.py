@@ -5,7 +5,11 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+
+# 2026-09-25: 入池触发点 —— 执行「入池」场景的指标规则
+from apps.metrics.services.rule_trigger import evaluate_scene
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
@@ -48,6 +52,25 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
         qs = qs.select_related('candidate', 'last_position', 'last_stage')
         qs = self.scope_queryset(qs, entity='talent')
         return qs
+
+    def perform_create(self, serializer):
+        """入池前执行「入池」场景的指标规则（2026-09-25 触发点接入）。
+
+        - 阻断型规则（blocking=True）不满足 → 拒绝入池，返回 400 + 人话原因
+        - 非阻断规则 / 无规则 / 规则引擎异常 → 正常入池（安全默认，避免规则误配伤业务）
+        """
+        try:
+            candidate = serializer.validated_data.get('candidate')
+            if candidate is not None:
+                outcome = evaluate_scene('TALENT_POOL', str(candidate.pk))
+                if outcome.get('blocked'):
+                    raise ValidationError(outcome.get('message') or '不满足入池规则')
+        except ValidationError:
+            raise
+        except Exception:
+            # 规则引擎异常一律放行，绝不让入池因规则故障失败
+            pass
+        serializer.save()
 
     def perform_destroy(self, instance):
         instance.deleted_at = timezone.now()
