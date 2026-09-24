@@ -164,7 +164,8 @@
             <n-input v-model:value="fieldForm.helpText" placeholder="helpText" />
           </n-form-item>
           <!-- 2026-09-24 (兵哥) 限制条件: 按字段类型差异化校验配置
-               文本类=最大字数+内容格式(自定义正则) / 数字类=范围+步长+小数位 / 选项类=可选范围; 通用=错误提示 -->
+               文本类=最大字数 / 数字类=范围+步长+小数位+单位 / 列表型=可选范围 / 日期型=日期可选范围; 通用=错误提示
+               邮箱/电话/URL 等专用格式由字段类型层固有约束, 无配置项 -->
           <template v-if="isLimitTextType">
             <n-form-item label="最大字数">
               <n-input-number
@@ -173,34 +174,31 @@
                 placeholder="不限制" style="width: 200px"
               />
             </n-form-item>
-            <n-form-item label="内容格式">
-              <n-space align="center" :size="8" style="width: 100%">
-                <n-select
-                  v-model:value="fieldForm.validation.format"
-                  :options="TEXT_FORMAT_OPTIONS"
-                  style="width: 200px"
-                />
-                <n-input
-                  v-if="fieldForm.validation.format === 'CUSTOM'"
-                  v-model:value="fieldForm.validation.pattern"
-                  placeholder="自定义正则, 如 ^[A-Z]{2}$"
-                  style="flex: 1"
-                />
-              </n-space>
-            </n-form-item>
           </template>
           <template v-else-if="isLimitNumberType">
-            <n-form-item label="最小值">
-              <n-input-number v-model:value="fieldForm.validation.min" placeholder="不限制" style="width: 200px" />
-            </n-form-item>
-            <n-form-item label="最大值">
-              <n-input-number v-model:value="fieldForm.validation.max" placeholder="不限制" style="width: 200px" />
-            </n-form-item>
-            <n-form-item label="步长">
-              <n-input-number v-model:value="fieldForm.validation.step" :min="0" placeholder="不限制" style="width: 200px" />
-            </n-form-item>
-            <n-form-item label="小数位数">
-              <n-input-number v-model:value="fieldForm.validation.decimals" :min="0" :precision="0" clearable placeholder="不限制" style="width: 200px" />
+            <n-form-item label="数值约束">
+              <n-space align="center" :size="10" wrap>
+                <div class="num-field">
+                  <span class="num-label">最小值</span>
+                  <n-input-number v-model:value="fieldForm.validation.min" placeholder="不限制" style="width: 130px" />
+                </div>
+                <div class="num-field">
+                  <span class="num-label">最大值</span>
+                  <n-input-number v-model:value="fieldForm.validation.max" placeholder="不限制" style="width: 130px" />
+                </div>
+                <div class="num-field">
+                  <span class="num-label">步长</span>
+                  <n-input-number v-model:value="fieldForm.validation.step" :min="0" placeholder="不限制" style="width: 110px" />
+                </div>
+                <div class="num-field">
+                  <span class="num-label">小数位数</span>
+                  <n-input-number v-model:value="fieldForm.validation.decimals" :min="0" :precision="0" clearable placeholder="不限制" style="width: 110px" />
+                </div>
+                <div class="num-field">
+                  <span class="num-label">单位</span>
+                  <n-input v-model:value="fieldForm.validation.unit" placeholder="如 人/元/天" style="width: 140px" />
+                </div>
+              </n-space>
             </n-form-item>
           </template>
           <template v-else-if="isLimitOptionType">
@@ -211,6 +209,29 @@
                 :options="allowedValueOptions"
                 placeholder="不限制 (默认全部选项可选)"
               />
+            </n-form-item>
+          </template>
+          <template v-else-if="isLimitDateType">
+            <n-form-item label="日期可选范围">
+              <n-space align="center" :size="10">
+                <n-date-picker
+                  v-model:value="fieldForm.validation.minDate"
+                  type="date"
+                  value-format="yyyy-MM-dd"
+                  clearable
+                  placeholder="起始日期"
+                  style="width: 200px"
+                />
+                <n-text depth="3">至</n-text>
+                <n-date-picker
+                  v-model:value="fieldForm.validation.maxDate"
+                  type="date"
+                  value-format="yyyy-MM-dd"
+                  clearable
+                  placeholder="结束日期"
+                  style="width: 200px"
+                />
+              </n-space>
             </n-form-item>
           </template>
           <n-form-item v-if="hasValidationConfig" label="错误提示">
@@ -749,7 +770,7 @@ import {
   type FieldValidation,
 } from '@/api/dynamic-field';
 // 2026-09-24 (兵哥) 限制条件: 类型分组与前端校验共用同一真源
-import { TEXT_TYPES, NUMBER_TYPES } from '@/utils/fieldValidation';
+import { TEXT_MAXLENGTH_TYPES, NUMBER_TYPES, OPTION_TYPES, DATE_TYPES } from '@/utils/fieldValidation';
 import {
   listDictionaryTypes, listDictionaryItems,
   type DictionaryType,
@@ -841,29 +862,27 @@ const fieldForm = reactive<{
   regionLevel: 'DISTRICT' as RegionLevelValue,
   regionPreviewValue: null,
   subFields: [],
-  validation: { format: 'NONE' },
+  validation: {},
 });
 
 const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
 
 // ---------------------------------------------------------------------------
 // 2026-09-24 (兵哥) 限制条件配置: 与后端 validators.py 类型分组对齐
+//   - 文本类 (TEXT/MULTILINE_TEXT/ADDRESS/ID_CARD/BANK_CARD/URL): 最大字数
+//   - 专用格式 (EMAIL/PHONE/URL): 类型层固有格式, 无配置项
+//   - 数字类 (NUMBER): 最小值/最大值/步长/小数位数/单位
+//   - 选项类 (LIST_SINGLE/LIST_MULTI): 可选范围; 下拉型 SELECT/MULTISELECT 无配置项
+//   - 日期类 (DATE/DATE_RANGE): 日期可选范围 (minDate/maxDate)
+//   - 其余类型 (RICH_TEXT 等): 无限制条件配置
 // ---------------------------------------------------------------------------
-const isLimitTextType = computed(() => TEXT_TYPES.includes(fieldForm.fieldType));
+const isLimitTextType = computed(() => TEXT_MAXLENGTH_TYPES.includes(fieldForm.fieldType));
 const isLimitNumberType = computed(() => NUMBER_TYPES.includes(fieldForm.fieldType));
-const isLimitOptionType = computed(() => fieldNeedsOptions.value);
-const hasValidationConfig = computed(() => isLimitTextType.value || isLimitNumberType.value || isLimitOptionType.value);
-
-/** 内容格式选项 (NONE/专用格式/CUSTOM 自定义正则; 与后端 TEXT_FORMAT_PATTERNS 对齐) */
-const TEXT_FORMAT_OPTIONS: { label: string; value: NonNullable<FieldValidation['format']> }[] = [
-  { label: '不限制', value: 'NONE' },
-  { label: '邮箱', value: 'EMAIL' },
-  { label: 'URL', value: 'URL' },
-  { label: '手机号', value: 'PHONE' },
-  { label: '身份证', value: 'ID_CARD' },
-  { label: '银行卡', value: 'BANK_CARD' },
-  { label: '自定义正则', value: 'CUSTOM' },
-];
+const isLimitOptionType = computed(() => OPTION_TYPES.includes(fieldForm.fieldType)); // 仅列表型有「可选范围」
+const isLimitDateType = computed(() => DATE_TYPES.includes(fieldForm.fieldType)); // 日期型: 可选范围
+const hasValidationConfig = computed(() =>
+  isLimitTextType.value || isLimitNumberType.value || isLimitOptionType.value || isLimitDateType.value,
+);
 
 /** 选项类「可选范围」候选 = 当前手动维护的选项 */
 const allowedValueOptions = computed(() =>
@@ -874,22 +893,27 @@ const allowedValueOptions = computed(() =>
 function buildValidationPayload(): FieldValidation {
   const v = fieldForm.validation || {};
   if (isLimitTextType.value) {
-    return {
-      maxLength: v.maxLength ?? null,
-      format: v.format || 'NONE',
-      pattern: v.format === 'CUSTOM' ? (v.pattern || null) : null,
-      message: v.message || '',
-    };
+    return { maxLength: v.maxLength ?? null, message: v.message || '' };
   }
   if (isLimitNumberType.value) {
     return {
       min: v.min ?? null, max: v.max ?? null, step: v.step ?? null,
-      decimals: v.decimals ?? null, message: v.message || '',
+      decimals: v.decimals ?? null,
+      // 单位 (unit): 展示用文案, 空则丢弃
+      unit: v.unit ? String(v.unit).trim() || null : null,
+      message: v.message || '',
     };
   }
   if (isLimitOptionType.value) {
     return {
       allowedValues: v.allowedValues && v.allowedValues.length ? v.allowedValues : null,
+      message: v.message || '',
+    };
+  }
+  if (isLimitDateType.value) {
+    return {
+      minDate: v.minDate ? String(v.minDate).slice(0, 10) : null,
+      maxDate: v.maxDate ? String(v.maxDate).slice(0, 10) : null,
       message: v.message || '',
     };
   }
@@ -1157,7 +1181,7 @@ function resetFieldForm() {
     regionLevel: 'DISTRICT' as RegionLevelValue,
     regionPreviewValue: null,
     subFields: [],
-    validation: { format: 'NONE' },
+    validation: {},
   });
 }
 
@@ -1196,8 +1220,8 @@ function openFieldEdit(row: FieldDefinition) {
     regionPreviewValue: null,
     // 2026-09-16 (兵哥): 组合字段子结构回填
     subFields: row.subFields ? row.subFields.map((s) => ({ ...s })) : [],
-    // 2026-09-24 (兵哥): 限制条件回填 (文本类 format 缺省 NONE)
-    validation: { ...(row.validation || {}), format: row.validation?.format || 'NONE' },
+    // 2026-09-24 (兵哥): 限制条件回填 (按字段类型差异化, 后端 normalize 兜底)
+    validation: { ...(row.validation || {}) },
   });
   fieldModalVisible.value = true;
 }
@@ -1843,6 +1867,9 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 .field-key-hint { color: var(--ink-faint); }
+/* 数字类「数值约束」单行整合: 每项含小标签 + 控件 */
+.num-field { display: flex; flex-direction: column; gap: 4px; }
+.num-label { font-size: var(--fs-12, 12px); color: var(--ink-soft); }
 .linkage-row {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) 0; border-bottom: 1px dashed var(--border-hairline);

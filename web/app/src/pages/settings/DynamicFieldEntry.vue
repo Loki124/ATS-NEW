@@ -18,9 +18,10 @@ import RichTextEditor from '@/components/RichTextEditor.vue';
 import {
   listFields, validateValues, saveDynamicFieldValues,
   type FieldDefinition, type FieldType, type FieldOption, type FieldValidation,
+  PHONE_DIAL_CODES, searchDialCodes, DEFAULT_DIAL_CODE,
 } from '@/api/dynamic-field';
 import {
-  validateFieldValue, TEXT_TYPES, NUMBER_TYPES, OPTION_TYPES,
+  validateFieldValue, TEXT_TYPES, NUMBER_TYPES, DATE_TYPES,
 } from '@/utils/fieldValidation';
 
 const { t } = useI18n()
@@ -42,6 +43,64 @@ const errors = reactive<Record<string, string[]>>({});
 const loading = ref(false);
 const saving = ref(false);
 
+/** 电话字段: 区号 + 号码 拆分态 (录入时按区号+号码组合成 +{code}{number} 存储) */
+const phonePartsMap = reactive<Record<string, { code: string; number: string }>>({});
+
+/** 区号下拉选项 (label 含区号+中文名, 支持搜索) */
+const phoneDialOptions = PHONE_DIAL_CODES.map((d) => ({
+  label: `${d.code} ${d.country}`,
+  value: d.code,
+}));
+
+function ensurePhoneParts(f: FieldDefinition): { code: string; number: string } {
+  if (!phonePartsMap[f.fieldKey]) {
+    const raw = values[f.fieldKey];
+    let code = DEFAULT_DIAL_CODE;
+    let number = '';
+    if (typeof raw === 'string' && raw.startsWith('+')) {
+      const matched = [...PHONE_DIAL_CODES]
+        .sort((a, b) => b.code.length - a.code.length)
+        .find((d) => raw.startsWith(d.code));
+      if (matched) { code = matched.code; number = raw.slice(matched.code.length); }
+      else { number = raw.slice(1); }
+    } else if (raw) {
+      number = String(raw);
+    }
+    phonePartsMap[f.fieldKey] = { code, number };
+  }
+  return phonePartsMap[f.fieldKey];
+}
+
+/** 组合区号 + 号码为 +{code}{number} 写入 values, 触发前端校验 */
+function composePhone(f: FieldDefinition, patch: Partial<{ code: string; number: string }>) {
+  const p = { ...ensurePhoneParts(f), ...patch };
+  p.number = (p.number || '').replace(/[^\d]/g, '');
+  phonePartsMap[f.fieldKey] = p;
+  values[f.fieldKey] = (p.code || DEFAULT_DIAL_CODE) + p.number;
+  validateLocalField(f);
+}
+
+/** 文本类输入框占位提示 (URL 提示填写完整链接) */
+function inputPlaceholder(f: FieldDefinition): string {
+  if (f.fieldType === 'URL') return f.placeholder || 'https://example.com';
+  return f.placeholder || '';
+}
+
+/** 日期可选范围: 禁用区间外的日期 (minDate/maxDate 为 YYYY-MM-DD) */
+function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | undefined {
+  const v = f.validation as FieldValidation | null;
+  const lo = v?.minDate || null;
+  const hi = v?.maxDate || null;
+  if (!lo && !hi) return undefined;
+  return (current: number) => {
+    const dt = new Date(current);
+    const ds = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    if (lo && ds < lo) return true;
+    if (hi && ds > hi) return true;
+    return false;
+  };
+}
+
 const RESOURCE_OPTIONS = [
   { label: '候选人', value: 'Candidate' },
   { label: '招聘需求', value: 'Demand' },
@@ -50,7 +109,9 @@ const RESOURCE_OPTIONS = [
 
 function isTextType(t: string) { return TEXT_TYPES.includes(t); }
 function isNumberType(t: string) { return NUMBER_TYPES.includes(t); }
-function isOptionType(t: string) { return OPTION_TYPES.includes(t); }
+/** 选择类 (录入端渲染下拉/多选) — 含 SELECT/MULTISELECT/LIST_SINGLE/LIST_MULTI (变更 #7 仅移除「可选范围」配置, 字段本身仍按选择控件渲染) */
+const SELECTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'];
+function isOptionType(t: string) { return SELECTION_TYPES.includes(t); }
 function isPlainTextType(t: string) { return ['TEXT', 'MULTILINE_TEXT', 'ADDRESS'].includes(t); }
 function needsTextarea(t: string) { return t === 'MULTILINE_TEXT'; }
 
@@ -79,7 +140,10 @@ async function loadFields() {
   try {
     const res = await listFields(resource.value);
     fields.value = res || [];
-    for (const f of fields.value) values[f.fieldKey] = '';
+    for (const f of fields.value) {
+      values[f.fieldKey] = '';
+      if (f.fieldType === 'PHONE') ensurePhoneParts(f);
+    }
     errorsClear();
   } catch (e: any) {
     message.error('加载字段定义失败: ' + (e?.message || e));
@@ -178,13 +242,33 @@ onMounted(loadFields);
           :label="f.label"
           :required="f.isRequired"
         >
-          <!-- 文本类 -->
-          <template v-if="isTextType(f.fieldType)">
+          <!-- 电话 (PHONE): 区号 + 号码, 组合为 +{code}{number} 存储 -->
+          <template v-if="f.fieldType === 'PHONE'">
+            <n-input-group>
+              <n-select
+                :value="ensurePhoneParts(f).code"
+                :options="phoneDialOptions"
+                filterable
+                placeholder="区号"
+                style="width: 150px"
+                @update:value="(c: string) => composePhone(f, { code: c })"
+              />
+              <n-input
+                :value="ensurePhoneParts(f).number"
+                placeholder="请输入号码"
+                style="width: 210px"
+                @update:value="(v: string) => composePhone(f, { number: v })"
+              />
+            </n-input-group>
+          </template>
+
+          <!-- 文本类 (含 URL) -->
+          <template v-else-if="isTextType(f.fieldType)">
             <n-input
               v-if="!needsTextarea(f.fieldType)"
               v-model:value="values[f.fieldKey]"
               :maxlength="(f.validation as FieldValidation)?.maxLength ?? undefined"
-              :placeholder="f.placeholder || ''"
+              :placeholder="inputPlaceholder(f)"
               style="width: 360px"
               @blur="validateLocalField(f)"
             />
@@ -193,14 +277,10 @@ onMounted(loadFields);
               v-model:value="values[f.fieldKey]"
               type="textarea"
               :maxlength="(f.validation as FieldValidation)?.maxLength ?? undefined"
-              :placeholder="f.placeholder || ''"
+              :placeholder="inputPlaceholder(f)"
               style="width: 360px"
               @blur="validateLocalField(f)"
             />
-            <n-text v-if="isPlainTextType(f.fieldType) && (f.validation as FieldValidation)?.format && (f.validation as FieldValidation)?.format !== 'NONE'"
-                    depth="3" class="entry-hint">
-              {{ (f.validation as FieldValidation)?.format === 'CUSTOM' ? '自定义格式' : (f.validation as FieldValidation)?.format }}
-            </n-text>
           </template>
 
           <!-- 数字类 -->
@@ -211,9 +291,13 @@ onMounted(loadFields);
             :max="(f.validation as FieldValidation)?.max ?? undefined"
             :step="(f.validation as FieldValidation)?.step ?? undefined"
             :placeholder="f.placeholder || '请输入数字'"
-            style="width: 360px"
+            style="width: 320px"
             @blur="validateLocalField(f)"
           />
+          <n-text v-if="isNumberType(f.fieldType) && (f.validation as FieldValidation)?.unit"
+                  depth="3" class="entry-hint">
+            {{ (f.validation as FieldValidation)?.unit }}
+          </n-text>
 
           <!-- 选项类 -->
           <n-select
@@ -226,13 +310,14 @@ onMounted(loadFields);
             @update:value="validateLocalField(f)"
           />
 
-          <!-- 日期 / 日期范围 -->
+          <!-- 日期 / 日期范围 (受 minDate/maxDate 限制可选区间) -->
           <n-date-picker
-            v-else-if="f.fieldType === 'DATE' || f.fieldType === 'DATE_RANGE'"
+            v-else-if="DATE_TYPES.includes(f.fieldType)"
             :value="values[f.fieldKey] || null"
             :type="datePickerType(f.fieldType)"
             clearable
             style="width: 360px"
+            :is-date-disabled="dateDisabled(f) || undefined"
             @update:value="(v) => onDateUpdate(f, v)"
           />
 

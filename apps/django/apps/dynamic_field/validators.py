@@ -6,17 +6,24 @@
 同时做后端校验与前端拦截。本模块是后端权威校验的唯一真源, 前端拦截复用同一套规则。
 
 字段类型 → 限制条件映射 (与 DynamicField.FieldType 对齐):
-  - 文本类 (TEXT / MULTILINE_TEXT / ADDRESS / EMAIL / PHONE / ID_CARD / BANK_CARD)
-        → 最大字数 (maxLength) + 内容格式 (format / pattern)
+  - 文本类 (TEXT / MULTILINE_TEXT / ADDRESS)
+        → 最大字数 (maxLength)   [无内容格式配置; 仅长度约束]
+  - 专用格式 (EMAIL / PHONE / ID_CARD / BANK_CARD / URL)
+        → 类型层面固有格式校验 (无配置项; 电话支持国际区号, 格式与长度在类型层约束)
   - 数字类 (NUMBER)
-        → 最小值 (min) / 最大值 (max) / 步长 (step) / 小数位数 (decimals)
-  - 选项类 (SELECT / MULTISELECT / LIST_SINGLE / LIST_MULTI)
+        → 最小值 (min) / 最大值 (max) / 步长 (step) / 小数位数 (decimals) + 单位 (unit)
+  - 选项类 (LIST_SINGLE / LIST_MULTI)
         → 可选范围 (allowedValues, 限定只能从这些值里选)
+  - 日期类 (DATE / DATE_RANGE)
+        → 日期可选范围 (minDate / maxDate, 限制可选择的日期区间)
+  - 下拉类 (SELECT / MULTISELECT) / 富文本 (RICH_TEXT) / 其他
+        → 无限制条件配置 (下拉类可选范围由 options 全量决定; 富文本内容自由放行)
 
 ``validation`` 字段形态 (复用并规范化, 向后兼容):
-  数字类(向后兼容旧 {min,max} 预设):  {"min":0,"max":12,"step":1,"decimals":0,"message":""}
-  文本类:                            {"maxLength":200,"format":"EMAIL","pattern":null,"message":""}
-  选项类:                            {"allowedValues":["a","b"],"message":""}
+  数字类:  {"min":0,"max":12,"step":1,"decimals":0,"unit":"人","message":""}
+  文本类:  {"maxLength":200,"message":""}
+  选项类:  {"allowedValues":["a","b"],"message":""}
+  日期类:  {"minDate":"2020-01-01","maxDate":"2030-12-31","message":""}
   message 缺省时按规则自动生成默认错误文案。
 
 向后兼容
@@ -26,41 +33,66 @@
 """
 from __future__ import annotations
 
+import datetime
 import re
 
 # ---------------------------------------------------------------------------
 # 类型分组 (与 models.DynamicField 的 FieldType 对齐)
 # ---------------------------------------------------------------------------
 
-#: 文本类字段 (可做 最大字数 + 内容格式 校验)
+#: 文本类字段 (广义: 含 EMAIL/PHONE/ID_CARD/BANK_CARD/URL 等类型层有格式约束的)
 TEXT_TYPES = frozenset({
-    'TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'EMAIL', 'PHONE', 'ID_CARD', 'BANK_CARD',
+    'TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'EMAIL', 'PHONE', 'ID_CARD', 'BANK_CARD', 'URL',
 })
+
+#: 文本类字段中可配置「最大字数」的 (EMAIL/PHONE 等专用格式类型由类型层约束, 不在此列)
+TEXT_MAXLENGTH_TYPES = frozenset({
+    'TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'ID_CARD', 'BANK_CARD', 'URL',
+})
+
+#: 类型层面有固有格式校验的 (无需配置项, 由字段类型直接约束格式与长度)
+TEXT_WITH_FORMAT_TYPES = frozenset({'EMAIL', 'PHONE', 'ID_CARD', 'BANK_CARD', 'URL'})
 
 #: 数字类字段
 NUMBER_TYPES = frozenset({'NUMBER'})
 
-#: 选项类字段 (可做 可选范围 校验)
-OPTION_TYPES = frozenset({'SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'})
+#: 选项类字段 (可做 可选范围 校验) — 仅列表型 (下拉型 SELECT/MULTISELECT 无配置项)
+OPTION_TYPES = frozenset({'LIST_SINGLE', 'LIST_MULTI'})
+
+#: 日期类字段 (可做 日期可选范围 校验)
+DATE_TYPES = frozenset({'DATE', 'DATE_RANGE'})
 
 #: 内容格式枚举 → 内置正则 (CUSTOM 用 pattern 自定义)
+#: 注: 自 2026-09-24 起, 文本类不再暴露「内容格式」配置项; 下列仅用于类型层固有格式校验。
 TEXT_FORMAT_PATTERNS: dict[str, str | None] = {
     'NONE': None,
     'EMAIL': r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
     'URL': r'^https?://[^\s]+$',
-    'PHONE': r'^1[3-9]\d{9}$',
+    # 2026-09-24 (兵哥): 电话改国际区号格式 — 存储为 +{国家码}{号码} (无分隔), 总长 6~15 位 (E.164)
+    'PHONE': r'^\+\d{6,15}$',
     'ID_CARD': r'^\d{17}[\dXx]$',
     'BANK_CARD': r'^\d{16,19}$',
     'CUSTOM': None,  # 使用 pattern
 }
 
-#: EMAIL/PHONE/ID_CARD/BANK_CARD 这些专用类型自带固有格式, 即便未显式配置 format 也强制校验
+#: EMAIL/PHONE/ID_CARD/BANK_CARD/URL 这些专用类型自带固有格式, 即便未显式配置 format 也强制校验
 INHERENT_FORMAT: dict[str, str] = {
     'EMAIL': 'EMAIL',
     'PHONE': 'PHONE',
     'ID_CARD': 'ID_CARD',
     'BANK_CARD': 'BANK_CARD',
+    'URL': 'URL',
 }
+
+
+def _parse_date(value):
+    """把 'YYYY-MM-DD' 或 'YYYY-MM-DD...' 解析为 date; 非法/空返回 None。"""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.date.fromisoformat(value.strip()[:10])
+    except ValueError:
+        return None
 
 
 def _coerce_number(value):
@@ -111,22 +143,19 @@ def normalize_validation(field_type: str, validation) -> dict:
             out['decimals'] = dec
         elif isinstance(dec, str) and dec.isdigit():
             out['decimals'] = int(dec)
+        # 单位 (unit): 展示用文案, 非法/空时丢弃
+        unit = validation.get('unit')
+        if isinstance(unit, str) and unit.strip():
+            out['unit'] = unit.strip()
         return out
 
-    if field_type in TEXT_TYPES:
+    if field_type in TEXT_MAXLENGTH_TYPES:
         out = {'message': message}
         ml = validation.get('maxLength')
         if isinstance(ml, int) and ml > 0:
             out['maxLength'] = ml
         elif isinstance(ml, str) and ml.isdigit():
             out['maxLength'] = int(ml)
-        fmt = validation.get('format')
-        if fmt in TEXT_FORMAT_PATTERNS:
-            out['format'] = fmt
-        else:
-            out['format'] = 'NONE'
-        pat = validation.get('pattern')
-        out['pattern'] = pat if isinstance(pat, str) and pat else None
         return out
 
     if field_type in OPTION_TYPES:
@@ -137,6 +166,15 @@ def normalize_validation(field_type: str, validation) -> dict:
             allowed = []
         return {'allowedValues': allowed, 'message': message}
 
+    if field_type in DATE_TYPES:
+        out = {'message': message}
+        for key in ('minDate', 'maxDate'):
+            v = validation.get(key)
+            if isinstance(v, str) and v.strip():
+                out[key] = v.strip()
+        return out
+
+    # 其余类型 (EMAIL/PHONE/ID_CARD/BANK_CARD/URL 固有格式, SELECT/MULTISELECT/RICH_TEXT/其他): 无配置项
     return {}
 
 
@@ -196,22 +234,24 @@ def validate_field_value(field_type: str, validation, value) -> list[str]:
                 errors.append(msg or f'取值需为步长 {_fmt_num(step)} 的整数倍')
         return errors
 
-    # ---- 文本类 (含专用类型固有格式) ----
-    if field_type in TEXT_TYPES:
+    # ---- 文本类: 最大字数 (TEXT_MAXLENGTH_TYPES) + 类型层固有格式 (TEXT_WITH_FORMAT_TYPES) ----
+    if field_type in TEXT_MAXLENGTH_TYPES or field_type in TEXT_WITH_FORMAT_TYPES:
         text = value if isinstance(value, str) else ('' if value is None else str(value))
-        max_len = validation.get('maxLength')
-        if isinstance(max_len, int) and max_len > 0 and len(text) > max_len:
-            errors.append(msg or f'最多输入 {max_len} 个字')
-        # 格式判定: 专用类型固有格式 优先; 否则用配置的 format/pattern
-        fmt = INHERENT_FORMAT.get(field_type) or validation.get('format') or 'NONE'
-        pattern = validation.get('pattern') if fmt == 'CUSTOM' else TEXT_FORMAT_PATTERNS.get(fmt)
-        if pattern:
-            try:
-                if not re.match(pattern, text):
-                    errors.append(msg or _format_hint(fmt))
-            except re.error:
-                # 自定义正则非法: 不阻断, 交由前端/配置侧处理
-                pass
+        if field_type in TEXT_MAXLENGTH_TYPES:
+            max_len = validation.get('maxLength')
+            if isinstance(max_len, int) and max_len > 0 and len(text) > max_len:
+                errors.append(msg or f'最多输入 {max_len} 个字')
+        # 类型层固有格式 (EMAIL/PHONE/ID_CARD/BANK_CARD/URL); 无配置项, 由字段类型直接约束
+        fmt = INHERENT_FORMAT.get(field_type)
+        if fmt:
+            pattern = TEXT_FORMAT_PATTERNS.get(fmt)
+            if pattern:
+                try:
+                    if not re.match(pattern, text):
+                        errors.append(msg or _format_hint(fmt))
+                except re.error:
+                    # 正则非法: 不阻断, 交由前端/配置侧处理
+                    pass
         return errors
 
     # ---- 选项类 (可选范围) ----
@@ -224,6 +264,24 @@ def validate_field_value(field_type: str, validation, value) -> list[str]:
                 if str(sel) not in allowed_str:
                     errors.append(msg or '取值超出允许范围')
                     break
+        return errors
+
+    # ---- 日期类: 日期可选范围 (minDate / maxDate) ----
+    if field_type in DATE_TYPES:
+        dates = value if isinstance(value, (list, tuple)) else [value]
+        lo = _parse_date(validation.get('minDate'))
+        hi = _parse_date(validation.get('maxDate'))
+        for d in dates:
+            dv = _parse_date(d)
+            if dv is None:
+                # 非法日期值跳过范围校验 (格式问题由必填/类型层另行处理)
+                continue
+            if lo is not None and dv < lo:
+                errors.append(msg or f'不能早于 {validation.get("minDate")}')
+                break
+            if hi is not None and dv > hi:
+                errors.append(msg or f'不能晚于 {validation.get("maxDate")}')
+                break
         return errors
 
     return errors
@@ -243,7 +301,7 @@ def _format_hint(fmt: str) -> str:
     return {
         'EMAIL': '邮箱格式不正确',
         'URL': '链接格式不正确',
-        'PHONE': '手机号格式不正确',
+        'PHONE': '电话格式不正确',
         'ID_CARD': '身份证号格式不正确',
         'BANK_CARD': '银行卡号格式不正确',
         'CUSTOM': '内容格式不正确',

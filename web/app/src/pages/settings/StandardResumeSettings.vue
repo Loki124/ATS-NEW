@@ -250,7 +250,26 @@
                       :model-value="''"
                       :disabled="true"
                     />
-                    <!-- 默认：文本/数字/证件 等 -->
+                    <!-- 数字类: 值 + 单位 -->
+                    <n-space v-else-if="m.field.fieldType === 'NUMBER'" align="center" :size="8">
+                      <n-input
+                        disabled
+                        :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
+                      />
+                      <n-text v-if="(m.field.validation as FieldValidation | null)?.unit" depth="3">
+                        {{ (m.field.validation as FieldValidation | null)?.unit }}
+                      </n-text>
+                    </n-space>
+                    <!-- URL: 链接 (预览只读) -->
+                    <n-a
+                      v-else-if="m.field.fieldType === 'URL'"
+                      :href="undefined"
+                      target="_blank"
+                      class="sr-url-preview"
+                    >
+                      {{ m.field.placeholder || 'https://example.com' }}
+                    </n-a>
+                    <!-- 默认：文本/电话/邮箱/证件 等 -->
                     <n-input
                       v-else
                       disabled
@@ -289,6 +308,7 @@ import {
   type FieldDefinition,
   type FieldGroup,
   type FieldType,
+  type FieldValidation,
   type RegionLevelValue,
   FIELD_TYPE_LABEL,
   isDateFieldType, datePickerType,

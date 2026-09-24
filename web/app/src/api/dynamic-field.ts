@@ -17,7 +17,7 @@ api.interceptors.request.use((cfg) => {
 
 export type FieldType =
   | 'TEXT' | 'NUMBER' | 'DATE' | 'DATE_RANGE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
-  | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL'
+  | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL' | 'URL'
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
   | 'ADDRESS'
   | 'REGION'
@@ -127,20 +127,24 @@ export interface FieldLinkageRule {
 
 export type VisibilityPermission = 'ALL_VISIBLE' | 'MANAGER_HIDDEN';
 
-/** 限制条件配置 (2026-09-24 兵哥) — 按字段类型结构化的校验规则。
- *  - 数字类: min / max / step / decimals
- *  - 文本类: maxLength / format / pattern (format=CUSTOM 时用 pattern)
- *  - 选项类: allowedValues (限定只能从这些值里选)
+/** 限制条件配置 (2026-09-24 兵哥重构) — 按字段类型结构化的校验规则。
+ *  - 数字类: min / max / step / decimals / unit (单位仅展示)
+ *  - 文本类: maxLength (EMAIL/PHONE/ID_CARD/BANK_CARD/URL 的格式与长度由字段类型层固有约束, 无配置项)
+ *  - 选项类 (LIST_SINGLE/LIST_MULTI): allowedValues (限定只能从这些值里选)
+ *  - 日期类: minDate / maxDate (限制可选择的日期区间)
  *  - 通用: message (校验失败时的错误提示, 缺省由后端生成默认文案) */
 export interface FieldValidation {
   min?: number | null;
   max?: number | null;
   step?: number | null;
   decimals?: number | null;
+  /** 数字类专用: 单位 (仅展示, 不参与校验) */
+  unit?: string | null;
   maxLength?: number | null;
-  format?: 'NONE' | 'EMAIL' | 'URL' | 'PHONE' | 'ID_CARD' | 'BANK_CARD' | 'CUSTOM' | null;
-  pattern?: string | null;
   allowedValues?: string[] | null;
+  /** 日期类专用: 可选范围起止 (YYYY-MM-DD) */
+  minDate?: string | null;
+  maxDate?: string | null;
   message?: string | null;
 }
 
@@ -386,39 +390,55 @@ export function extractApiError(e: any, fallback = '请求失败'): string {
   return data?.message || data?.detail || e?.message || fallback;
 }
 
-export const FIELD_TYPE_OPTIONS: { label: string; value: FieldType }[] = [
-  { label: '文本', value: 'TEXT' },
-  { label: '数字', value: 'NUMBER' },
-  // 2026-09-15 (兵哥) 日期拆分: DATE 改名「单点日期」+ 新增 DATE_RANGE「日期范围」(格式精度见 DATE_FORMAT_OPTIONS)
-  { label: '单点日期', value: 'DATE' },
-  { label: '日期范围', value: 'DATE_RANGE' },
-  { label: '下拉单选', value: 'SELECT' },
-  { label: '下拉多选', value: 'MULTISELECT' },
-  { label: '布尔', value: 'BOOLEAN' },
-  { label: '附件', value: 'ATTACHMENT' },
-  { label: '身份证', value: 'ID_CARD' },
-  { label: '银行卡', value: 'BANK_CARD' },
-  { label: '手机号', value: 'PHONE' },
-  { label: '邮箱', value: 'EMAIL' },
-  { label: '列表单选', value: 'LIST_SINGLE' },
-  { label: '列表多选', value: 'LIST_MULTI' },
-  { label: '确认题', value: 'CONFIRM' },
-  { label: '多行文本', value: 'MULTILINE_TEXT' },
-  // 2026-09-24 (兵哥): 富文本型 — 录入端渲染富文本编辑器, 值以规范化 HTML 字符串存储
-  { label: '富文本', value: 'RICH_TEXT' },
-  // 2026-09-15 新增: 地址（单行文本，预览/申请表独占整行）
-  { label: '地址', value: 'ADDRESS' },
-  // 2026-09-15 新增: 行政区划型(数据源: G46 码表库 regions/countries; 层级精度由省/省市/省市区单选控制, 与 with_country 配套)
-  { label: '行政区划', value: 'REGION' },
-  // 2026-09-16 (兵哥): 组合字段型 — 一个字段聚合多个子字段(可含附件), 页面呈现为组合展示卡
-  { label: '组合字段', value: 'COMPOSITE' },
+/** 字段类型下拉选项 — 分组结构 (naive-ui n-select 原生支持 type:'group' 分组)。
+ * 2026-09-24 (兵哥) 重构: 相似类型归类 (文本类/数值与时间/选择与确认/身份与联系/高级),
+ * 「文本类」(最高频) 排在列表最前部。 */
+export type FieldTypeOption =
+  | { label: string; value: FieldType }
+  | { type: 'group'; label: string; children: FieldTypeOption[] };
+
+export const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
+  { type: 'group', label: '文本类', children: [
+    { label: '文本', value: 'TEXT' },
+    { label: '多行文本', value: 'MULTILINE_TEXT' },
+    // 2026-09-24 (兵哥): 富文本型 — 录入端渲染富文本编辑器, 值以规范化 HTML 字符串存储
+    { label: '富文本', value: 'RICH_TEXT' },
+    { label: '地址', value: 'ADDRESS' },
+  ]},
+  { type: 'group', label: '数值与时间', children: [
+    { label: '数字', value: 'NUMBER' },
+    // 2026-09-15 (兵哥) 日期拆分: DATE 改名「单点日期」+ 新增 DATE_RANGE「日期范围」
+    { label: '单点日期', value: 'DATE' },
+    { label: '日期范围', value: 'DATE_RANGE' },
+  ]},
+  { type: 'group', label: '选择与确认', children: [
+    { label: '下拉单选', value: 'SELECT' },
+    { label: '下拉多选', value: 'MULTISELECT' },
+    { label: '列表单选', value: 'LIST_SINGLE' },
+    { label: '列表多选', value: 'LIST_MULTI' },
+    { label: '确认题', value: 'CONFIRM' },
+  ]},
+  { type: 'group', label: '身份与联系', children: [
+    { label: '身份证', value: 'ID_CARD' },
+    { label: '银行卡', value: 'BANK_CARD' },
+    // 2026-09-24 (兵哥): 「手机号」更名为「电话」, 表单支持国际区号 (见 PHONE_DIAL_CODES)
+    { label: '电话', value: 'PHONE' },
+    { label: '邮箱', value: 'EMAIL' },
+    { label: 'URL', value: 'URL' },
+  ]},
+  { type: 'group', label: '高级', children: [
+    { label: '布尔', value: 'BOOLEAN' },
+    { label: '附件', value: 'ATTACHMENT' },
+    { label: '行政区划', value: 'REGION' },
+    { label: '组合字段', value: 'COMPOSITE' },
+  ]},
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   TEXT: '文本', NUMBER: '数字', DATE: '单点日期', DATE_RANGE: '日期范围',
   SELECT: '下拉单选', MULTISELECT: '下拉多选', BOOLEAN: '布尔',
   ATTACHMENT: '附件', ID_CARD: '身份证', BANK_CARD: '银行卡',
-  PHONE: '手机号', EMAIL: '邮箱',
+  PHONE: '电话', EMAIL: '邮箱', URL: 'URL',
   LIST_SINGLE: '列表单选', LIST_MULTI: '列表多选',
   CONFIRM: '确认题',
   MULTILINE_TEXT: '多行文本',
@@ -427,6 +447,205 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   COMPOSITE: '组合字段',
   RICH_TEXT: '富文本',
 };
+
+/** 国际电话区号清单 (2026-09-24 兵哥) — 录入「电话」字段时可选, 默认 +86。
+ * 内置较全清单 + 可搜索 (按 区号/中文名/英文名 模糊匹配)。 */
+export interface DialCode {
+  /** 区号 (含 +, 如 '+86') */
+  code: string;
+  /** 中文国家/地区名 */
+  country: string;
+  /** 英文国家/地区名 */
+  en: string;
+}
+
+export const PHONE_DIAL_CODES: DialCode[] = [
+  { code: '+86', country: '中国', en: 'China' },
+  { code: '+852', country: '中国香港', en: 'Hong Kong' },
+  { code: '+853', country: '中国澳门', en: 'Macao' },
+  { code: '+886', country: '中国台湾', en: 'Taiwan' },
+  { code: '+1', country: '美国/加拿大', en: 'United States/Canada' },
+  { code: '+44', country: '英国', en: 'United Kingdom' },
+  { code: '+33', country: '法国', en: 'France' },
+  { code: '+49', country: '德国', en: 'Germany' },
+  { code: '+39', country: '意大利', en: 'Italy' },
+  { code: '+34', country: '西班牙', en: 'Spain' },
+  { code: '+31', country: '荷兰', en: 'Netherlands' },
+  { code: '+41', country: '瑞士', en: 'Switzerland' },
+  { code: '+43', country: '奥地利', en: 'Austria' },
+  { code: '+45', country: '丹麦', en: 'Denmark' },
+  { code: '+46', country: '瑞典', en: 'Sweden' },
+  { code: '+47', country: '挪威', en: 'Norway' },
+  { code: '+48', country: '波兰', en: 'Poland' },
+  { code: '+351', country: '葡萄牙', en: 'Portugal' },
+  { code: '+353', country: '爱尔兰', en: 'Ireland' },
+  { code: '+358', country: '芬兰', en: 'Finland' },
+  { code: '+420', country: '捷克', en: 'Czech Republic' },
+  { code: '+36', country: '匈牙利', en: 'Hungary' },
+  { code: '+7', country: '俄罗斯/哈萨克斯坦', en: 'Russia/Kazakhstan' },
+  { code: '+81', country: '日本', en: 'Japan' },
+  { code: '+82', country: '韩国', en: 'South Korea' },
+  { code: '+65', country: '新加坡', en: 'Singapore' },
+  { code: '+60', country: '马来西亚', en: 'Malaysia' },
+  { code: '+66', country: '泰国', en: 'Thailand' },
+  { code: '+84', country: '越南', en: 'Vietnam' },
+  { code: '+63', country: '菲律宾', en: 'Philippines' },
+  { code: '+62', country: '印度尼西亚', en: 'Indonesia' },
+  { code: '+91', country: '印度', en: 'India' },
+  { code: '+92', country: '巴基斯坦', en: 'Pakistan' },
+  { code: '+880', country: '孟加拉国', en: 'Bangladesh' },
+  { code: '+94', country: '斯里兰卡', en: 'Sri Lanka' },
+  { code: '+95', country: '缅甸', en: 'Myanmar' },
+  { code: '+855', country: '柬埔寨', en: 'Cambodia' },
+  { code: '+856', country: '老挝', en: 'Laos' },
+  { code: '+970', country: '巴勒斯坦', en: 'Palestine' },
+  { code: '+971', country: '阿联酋', en: 'United Arab Emirates' },
+  { code: '+972', country: '以色列', en: 'Israel' },
+  { code: '+973', country: '巴林', en: 'Bahrain' },
+  { code: '+974', country: '卡塔尔', en: 'Qatar' },
+  { code: '+975', country: '不丹', en: 'Bhutan' },
+  { code: '+976', country: '蒙古', en: 'Mongolia' },
+  { code: '+977', country: '尼泊尔', en: 'Nepal' },
+  { code: '+61', country: '澳大利亚', en: 'Australia' },
+  { code: '+64', country: '新西兰', en: 'New Zealand' },
+  { code: '+54', country: '阿根廷', en: 'Argentina' },
+  { code: '+55', country: '巴西', en: 'Brazil' },
+  { code: '+56', country: '智利', en: 'Chile' },
+  { code: '+57', country: '哥伦比亚', en: 'Colombia' },
+  { code: '+51', country: '秘鲁', en: 'Peru' },
+  { code: '+52', country: '墨西哥', en: 'Mexico' },
+  { code: '+58', country: '委内瑞拉', en: 'Venezuela' },
+  { code: '+593', country: '厄瓜多尔', en: 'Ecuador' },
+  { code: '+598', country: '乌拉圭', en: 'Uruguay' },
+  { code: '+591', country: '玻利维亚', en: 'Bolivia' },
+  { code: '+592', country: '圭亚那', en: 'Guyana' },
+  { code: '+27', country: '南非', en: 'South Africa' },
+  { code: '+20', country: '埃及', en: 'Egypt' },
+  { code: '+234', country: '尼日利亚', en: 'Nigeria' },
+  { code: '+254', country: '肯尼亚', en: 'Kenya' },
+  { code: '+255', country: '坦桑尼亚', en: 'Tanzania' },
+  { code: '+256', country: '乌干达', en: 'Uganda' },
+  { code: '+233', country: '加纳', en: 'Ghana' },
+  { code: '+212', country: '摩洛哥', en: 'Morocco' },
+  { code: '+213', country: '阿尔及利亚', en: 'Algeria' },
+  { code: '+216', country: '突尼斯', en: 'Tunisia' },
+  { code: '+218', country: '利比亚', en: 'Libya' },
+  { code: '+235', country: '乍得', en: 'Chad' },
+  { code: '+237', country: '喀麦隆', en: 'Cameroon' },
+  { code: '+238', country: '佛得角', en: 'Cape Verde' },
+  { code: '+240', country: '赤道几内亚', en: 'Equatorial Guinea' },
+  { code: '+241', country: '加蓬', en: 'Gabon' },
+  { code: '+243', country: '刚果(金)', en: 'DR Congo' },
+  { code: '+244', country: '安哥拉', en: 'Angola' },
+  { code: '+245', country: '几内亚比绍', en: 'Guinea-Bissau' },
+  { code: '+248', country: '塞舌尔', en: 'Seychelles' },
+  { code: '+250', country: '卢旺达', en: 'Rwanda' },
+  { code: '+251', country: '埃塞俄比亚', en: 'Ethiopia' },
+  { code: '+257', country: '布隆迪', en: 'Burundi' },
+  { code: '+260', country: '赞比亚', en: 'Zambia' },
+  { code: '+261', country: '马达加斯加', en: 'Madagascar' },
+  { code: '+263', country: '津巴布韦', en: 'Zimbabwe' },
+  { code: '+264', country: '纳米比亚', en: 'Namibia' },
+  { code: '+265', country: '马拉维', en: 'Malawi' },
+  { code: '+266', country: '莱索托', en: 'Lesotho' },
+  { code: '+267', country: '博茨瓦纳', en: 'Botswana' },
+  { code: '+269', country: '科摩罗', en: 'Comoros' },
+  { code: '+290', country: '圣赫勒拿', en: 'Saint Helena' },
+  { code: '+299', country: '格陵兰', en: 'Greenland' },
+  { code: '+30', country: '希腊', en: 'Greece' },
+  { code: '+32', country: '比利时', en: 'Belgium' },
+  { code: '+350', country: '直布罗陀', en: 'Gibraltar' },
+  { code: '+352', country: '卢森堡', en: 'Luxembourg' },
+  { code: '+354', country: '冰岛', en: 'Iceland' },
+  { code: '+355', country: '阿尔巴尼亚', en: 'Albania' },
+  { code: '+356', country: '马耳他', en: 'Malta' },
+  { code: '+357', country: '塞浦路斯', en: 'Cyprus' },
+  { code: '+359', country: '保加利亚', en: 'Bulgaria' },
+  { code: '+370', country: '立陶宛', en: 'Lithuania' },
+  { code: '+371', country: '拉脱维亚', en: 'Latvia' },
+  { code: '+372', country: '爱沙尼亚', en: 'Estonia' },
+  { code: '+373', country: '摩尔多瓦', en: 'Moldova' },
+  { code: '+374', country: '亚美尼亚', en: 'Armenia' },
+  { code: '+375', country: '白俄罗斯', en: 'Belarus' },
+  { code: '+376', country: '安道尔', en: 'Andorra' },
+  { code: '+377', country: '摩纳哥', en: 'Monaco' },
+  { code: '+378', country: '圣马力诺', en: 'San Marino' },
+  { code: '+380', country: '乌克兰', en: 'Ukraine' },
+  { code: '+381', country: '塞尔维亚', en: 'Serbia' },
+  { code: '+382', country: '黑山', en: 'Montenegro' },
+  { code: '+383', country: '科索沃', en: 'Kosovo' },
+  { code: '+385', country: '克罗地亚', en: 'Croatia' },
+  { code: '+386', country: '斯洛文尼亚', en: 'Slovenia' },
+  { code: '+387', country: '波斯尼亚和黑塞哥维那', en: 'Bosnia and Herzegovina' },
+  { code: '+389', country: '北马其顿', en: 'North Macedonia' },
+  { code: '+390', country: '梵蒂冈', en: 'Vatican City' },
+  { code: '+501', country: '伯利兹', en: 'Belize' },
+  { code: '+502', country: '危地马拉', en: 'Guatemala' },
+  { code: '+503', country: '萨尔瓦多', en: 'El Salvador' },
+  { code: '+504', country: '洪都拉斯', en: 'Honduras' },
+  { code: '+505', country: '尼加拉瓜', en: 'Nicaragua' },
+  { code: '+506', country: '哥斯达黎加', en: 'Costa Rica' },
+  { code: '+507', country: '巴拿马', en: 'Panama' },
+  { code: '+509', country: '海地', en: 'Haiti' },
+  { code: '+590', country: '瓜德罗普', en: 'Guadeloupe' },
+  { code: '+594', country: '法属圭亚那', en: 'French Guiana' },
+  { code: '+595', country: '巴拉圭', en: 'Paraguay' },
+  { code: '+596', country: '马提尼克', en: 'Martinique' },
+  { code: '+597', country: '苏里南', en: 'Suriname' },
+  { code: '+599', country: '库拉索', en: 'Curaçao' },
+  { code: '+670', country: '东帝汶', en: 'Timor-Leste' },
+  { code: '+672', country: '澳大利亚海外领地', en: 'Australian External Territories' },
+  { code: '+673', country: '文莱', en: 'Brunei' },
+  { code: '+674', country: '瑙鲁', en: 'Nauru' },
+  { code: '+675', country: '巴布亚新几内亚', en: 'Papua New Guinea' },
+  { code: '+676', country: '汤加', en: 'Tongatapu' },
+  { code: '+677', country: '所罗门群岛', en: 'Solomon Islands' },
+  { code: '+678', country: '瓦努阿图', en: 'Vanuatu' },
+  { code: '+679', country: '斐济', en: 'Fiji' },
+  { code: '+680', country: '帕劳', en: 'Palau' },
+  { code: '+681', country: '瓦利斯和富图纳', en: 'Wallis and Futuna' },
+  { code: '+682', country: '库克群岛', en: 'Cook Islands' },
+  { code: '+683', country: '纽埃', en: 'Niue' },
+  { code: '+685', country: '萨摩亚', en: 'Samoa' },
+  { code: '+686', country: '基里巴斯', en: 'Kiribati' },
+  { code: '+687', country: '新喀里多尼亚', en: 'New Caledonia' },
+  { code: '+688', country: '图瓦卢', en: 'Tuvalu' },
+  { code: '+689', country: '法属波利尼西亚', en: 'French Polynesia' },
+  { code: '+690', country: '托克劳', en: 'Tokelau' },
+  { code: '+691', country: '密克罗尼西亚', en: 'Micronesia' },
+  { code: '+692', country: '马绍尔群岛', en: 'Marshall Islands' },
+  { code: '+850', country: '朝鲜', en: 'North Korea' },
+  { code: '+878', country: '国际卫星电话', en: 'Universal Personal Telecommunication' },
+  { code: '+960', country: '马尔代夫', en: 'Maldives' },
+  { code: '+961', country: '黎巴嫩', en: 'Lebanon' },
+  { code: '+962', country: '约旦', en: 'Jordan' },
+  { code: '+963', country: '叙利亚', en: 'Syria' },
+  { code: '+964', country: '伊拉克', en: 'Iraq' },
+  { code: '+965', country: '科威特', en: 'Kuwait' },
+  { code: '+966', country: '沙特阿拉伯', en: 'Saudi Arabia' },
+  { code: '+967', country: '也门', en: 'Yemen' },
+  { code: '+968', country: '阿曼', en: 'Oman' },
+  { code: '+992', country: '塔吉克斯坦', en: 'Tajikistan' },
+  { code: '+993', country: '土库曼斯坦', en: 'Turkmenistan' },
+  { code: '+994', country: '阿塞拜疆', en: 'Azerbaijan' },
+  { code: '+995', country: '格鲁吉亚', en: 'Georgia' },
+  { code: '+996', country: '吉尔吉斯斯坦', en: 'Kyrgyzstan' },
+  { code: '+998', country: '乌兹别克斯坦', en: 'Uzbekistan' },
+];
+
+/** 按 区号 / 中文名 / 英文名 模糊搜索区号 (小写包含匹配) */
+export function searchDialCodes(keyword: string): DialCode[] {
+  const k = (keyword || '').trim().toLowerCase();
+  if (!k) return PHONE_DIAL_CODES;
+  return PHONE_DIAL_CODES.filter(
+    (d) => d.code.toLowerCase().includes(k)
+      || d.country.toLowerCase().includes(k)
+      || d.en.toLowerCase().includes(k),
+  );
+}
+
+/** 默认区号 */
+export const DEFAULT_DIAL_CODE = '+86';
 
 /** 日期格式精度选项 (兵哥 2026-09-15: 年 / 年月 / 年月日) */
 export const DATE_FORMAT_OPTIONS: { label: string; value: DateFormatValue }[] = [

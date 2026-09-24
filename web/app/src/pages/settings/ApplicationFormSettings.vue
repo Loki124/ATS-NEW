@@ -162,6 +162,25 @@
                         :model-value="''"
                         :disabled="true"
                       />
+                      <!-- 数字类: 值 + 单位 -->
+                      <n-space v-else-if="m.fieldType === 'NUMBER'" align="center" :size="8">
+                        <n-input
+                          disabled
+                          :placeholder="m.placeholder || ('请输入' + m.label)"
+                        />
+                        <n-text v-if="(m.validation as FieldValidation | null)?.unit" depth="3">
+                          {{ (m.validation as FieldValidation | null)?.unit }}
+                        </n-text>
+                      </n-space>
+                      <!-- URL: 链接 (预览只读) -->
+                      <n-a
+                        v-else-if="m.fieldType === 'URL'"
+                        :href="undefined"
+                        target="_blank"
+                        class="sr-url-preview"
+                      >
+                        {{ m.placeholder || 'https://example.com' }}
+                      </n-a>
                       <n-input
                         v-else
                         disabled
@@ -292,6 +311,7 @@ import {
   isRegionFieldType,
   type FieldDefinition,
   type FieldType,
+  type FieldValidation,
   type RegionLevelValue,
 } from '../../api/dynamic-field'
 import {

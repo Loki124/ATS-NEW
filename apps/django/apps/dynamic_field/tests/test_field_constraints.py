@@ -53,29 +53,35 @@ class TestValidateFieldValue:
         assert errs == ['太长']
         assert validate_field_value('TEXT', {'maxLength': 5}, 'hi') == []
 
-    def test_text_format_email(self):
-        assert validate_field_value('TEXT', {'format': 'EMAIL'}, 'a@b.com') == []
-        errs = validate_field_value('TEXT', {'format': 'EMAIL'}, 'not-an-email')
+    def test_email_inherent_format(self):
+        # EMAIL 类型层面固有格式校验 (无「内容格式」配置项)
+        assert validate_field_value('EMAIL', {}, 'a@b.com') == []
+        errs = validate_field_value('EMAIL', {}, 'not-an-email')
         assert errs and '邮箱' in errs[0]
 
-    def test_text_custom_pattern(self):
-        errs = validate_field_value('TEXT', {'format': 'CUSTOM', 'pattern': r'^[A-Z]{2}$'}, 'ab')
-        assert errs and '格式' in errs[0]
-        assert validate_field_value('TEXT', {'format': 'CUSTOM', 'pattern': r'^[A-Z]{2}$'}, 'AB') == []
+    def test_url_inherent_format(self):
+        # URL 类型层面固有格式校验 (无「内容格式」配置项)
+        assert validate_field_value('URL', {}, 'https://example.com') == []
+        errs = validate_field_value('URL', {}, 'not-a-url')
+        assert errs and '链接' in errs[0]
 
     def test_inherent_format_phone(self):
-        # PHONE 自带固有格式, 即便未配置 format 也强制校验
-        assert validate_field_value('PHONE', {}, '13800138000') == []
+        # PHONE 自带固有格式(国际区号: +{国家码}{号码}, 总长 6~15 位), 即便未配置也强制校验
+        assert validate_field_value('PHONE', {}, '+8613800138000') == []
         errs = validate_field_value('PHONE', {}, '123')
-        assert errs and '手机' in errs[0]
+        assert errs and '电话' in errs[0]
+        # 超长 (>15 位) 被拒
+        errs = validate_field_value('PHONE', {}, '+1234567890123456')
+        assert errs
 
     def test_option_allowed_values(self):
+        # 仅列表型(LIST_SINGLE/LIST_MULTI)支持可选范围; 下拉类(SELECT/MULTISELECT)无配置项
         cfg = {'allowedValues': ['a', 'b'], 'message': '越界'}
-        assert validate_field_value('SELECT', cfg, 'a') == []
-        assert validate_field_value('SELECT', cfg, 'c') == ['越界']
+        assert validate_field_value('LIST_SINGLE', cfg, 'a') == []
+        assert validate_field_value('LIST_SINGLE', cfg, 'c') == ['越界']
         # 多选: 每个选中值都须在范围内
-        assert validate_field_value('MULTISELECT', cfg, ['a', 'c']) == ['越界']
-        assert validate_field_value('MULTISELECT', cfg, ['a', 'b']) == []
+        assert validate_field_value('LIST_MULTI', cfg, ['a', 'c']) == ['越界']
+        assert validate_field_value('LIST_MULTI', cfg, ['a', 'b']) == []
 
     def test_backward_compat_loose_minmax(self):
         # 旧预设 {'min':1} / {'min':0,'max':12} 直接被识别, 且 min 生效
@@ -94,6 +100,23 @@ class TestValidateFieldValue:
         assert validate_field_value('RICH_TEXT', {}, '') == []
         assert validate_field_value('RICH_TEXT', {}, None) == []
 
+    def test_date_range_validation(self):
+        # 日期类: 日期可选范围 (minDate / maxDate) 限制可选择的日期区间
+        cfg = {'minDate': '2020-01-01', 'maxDate': '2030-12-31'}
+        assert validate_field_value('DATE', cfg, '2025-06-15') == []
+        errs = validate_field_value('DATE', cfg, '2019-01-01')
+        assert errs and '不能早于' in errs[0]
+        errs = validate_field_value('DATE', cfg, '2031-01-01')
+        assert errs and '不能晚于' in errs[0]
+        # 日期范围类型: 区间两端都受约束
+        assert validate_field_value('DATE_RANGE', cfg, ['2025-01-01', '2026-01-01']) == []
+        errs = validate_field_value('DATE_RANGE', cfg, ['2019-01-01', '2026-01-01'])
+        assert errs
+
+    def test_number_unit_ignored_in_validation(self):
+        # unit 仅展示用, 不参与校验
+        assert validate_field_value('NUMBER', {'min': 0, 'unit': '人'}, 5) == []
+
 
 # ---------------------------------------------------------------------------
 # 2. normalize_validation 规范化
@@ -106,12 +129,23 @@ class TestNormalizeValidation:
         assert out == {'min': 0.0, 'max': 12.0, 'decimals': 2, 'message': ''}
 
     def test_text_normalize_drops_unknown(self):
+        # 文本类仅保留 maxLength (不再有「内容格式」配置项); 其余键丢弃
         out = normalize_validation('TEXT', {'maxLength': 10, 'format': 'NONE', 'bogus': 1})
-        assert out == {'maxLength': 10, 'format': 'NONE', 'pattern': None, 'message': ''}
+        assert out == {'maxLength': 10, 'message': ''}
 
     def test_option_normalize(self):
-        out = normalize_validation('SELECT', {'allowedValues': ['x', 'y'], 'message': 'm'})
+        # 仅列表型保留 allowedValues; 下拉类返回 {} (无配置项)
+        out = normalize_validation('LIST_SINGLE', {'allowedValues': ['x', 'y'], 'message': 'm'})
         assert out == {'allowedValues': ['x', 'y'], 'message': 'm'}
+        assert normalize_validation('SELECT', {'allowedValues': ['x']}) == {}
+
+    def test_number_normalize_keeps_unit(self):
+        out = normalize_validation('NUMBER', {'min': '0', 'max': '12', 'unit': '人'})
+        assert out == {'min': 0.0, 'max': 12.0, 'unit': '人', 'message': ''}
+
+    def test_date_normalize(self):
+        out = normalize_validation('DATE', {'minDate': '2020-01-01', 'maxDate': '2030-12-31'})
+        assert out == {'minDate': '2020-01-01', 'maxDate': '2030-12-31', 'message': ''}
 
     def test_non_dict_returns_empty(self):
         assert normalize_validation('NUMBER', 'garbage') == {}
@@ -161,7 +195,8 @@ def constraint_fields(db):
     )
     select = DynamicField.objects.create(
         resource=RESOURCE, field_key='level', label='级别',
-        field_type=DynamicField.FieldType.SELECT, order_index=2,
+        # 变更 #7: SELECT/MULTISELECT 不再支持可选范围, 改用 LIST_SINGLE 承载 allowedValues
+        field_type=DynamicField.FieldType.LIST_SINGLE, order_index=2,
         validation={'allowedValues': ['P0', 'P1']},
     )
     return {'number': number, 'text': text, 'select': select}

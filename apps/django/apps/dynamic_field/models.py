@@ -26,8 +26,12 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         ATTACHMENT = 'ATTACHMENT', '附件'
         ID_CARD = 'ID_CARD', '身份证'
         BANK_CARD = 'BANK_CARD', '银行卡'
-        PHONE = 'PHONE', '手机号'
+        # 2026-09-24 (兵哥): 「手机号」更名为「电话」, 值保持 'PHONE' 不变 (存量数据零迁移);
+        #   表单使用时支持选择国际区号(默认 +86), 格式与长度在字段类型层面直接约束。
+        PHONE = 'PHONE', '电话'
         EMAIL = 'EMAIL', '邮箱'
+        # 2026-09-24 (兵哥): 新增「URL」类型 — 录入端按 URL 校验(类型层面固有 http(s) 格式), 值以字符串存储
+        URL = 'URL', 'URL'
         # 2026-09-09 新增列表型(非下拉, 选项以列表渲染, 容器宽度自适应横/纵)
         LIST_SINGLE = 'LIST_SINGLE', '列表单选'
         LIST_MULTI = 'LIST_MULTI', '列表多选'
