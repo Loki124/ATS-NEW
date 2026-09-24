@@ -153,9 +153,6 @@
             </div>
           </n-button>
 
-          <!-- 语言切换入口（简体中文 / English） -->
-          <LanguageSwitcher />
-
           <n-badge :value="5" :max="99">
             <n-button text :aria-label="t('pages.Layout.s9')" @click="goToNotifications">
               <n-icon :component="NotificationsOutline" :size="20" />
@@ -173,6 +170,9 @@
               </div>
             </div>
           </n-dropdown>
+
+          <!-- 语言切换入口：页面右上角图标按钮 + 浮层 -->
+          <LanguageSwitcher />
         </div>
       </n-layout-header>
 
