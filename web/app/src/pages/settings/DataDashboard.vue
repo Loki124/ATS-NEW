@@ -2,8 +2,8 @@
   <div class="page-container data-dashboard">
 <div class="page-body">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.DataDashboard.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.DataDashboard.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.DataDashboard.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.DataDashboard.s2') }}</p>
     </div>
 
     <!-- KPI 卡片 -->

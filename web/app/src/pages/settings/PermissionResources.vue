@@ -3,8 +3,8 @@
     <div class="page-body">
       <div class="page-header">
         <div>
-          <h1 class="page-title">{ t('pages.settings.PermissionResources.s1') }</h1>
-          <p class="page-subtitle">{ t('pages.settings.PermissionResources.s2') }</p>
+          <h1 class="page-title">{{ t('pages.settings.PermissionResources.s1') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.PermissionResources.s2') }}</p>
         </div>
       </div>
       <n-card :bordered="false" class="glass-panel resources-shell">

@@ -5,7 +5,7 @@
   </div>
 
   <!-- P4 整改：跳转链接（a11y WCAG 2.4.1） -->
-  <a class="skip-link" href="#main">{ t('pages.Layout.s1') }</a>
+  <a class="skip-link" href="#main">{{ t('pages.Layout.s1') }}</a>
 
   <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top' }">
     <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
@@ -69,7 +69,7 @@
             <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
           </svg>
         </div>
-        <span v-if="effectiveExpanded" class="sider-footer-label">{ t('pages.Layout.s2') }</span>
+        <span v-if="effectiveExpanded" class="sider-footer-label">{{ t('pages.Layout.s2') }}</span>
       </div>
     </n-layout-sider>
 
@@ -136,7 +136,7 @@
           <n-button v-if="menuLayout === 'side'" text class="layout-header__search-trigger shrink-0" :aria-label="t('pages.Layout.s7')" @click="onSearchClick">
             <div class="search-box glass-input flex items-center gap-2 w-80 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-ink-faint text-left">{ t('pages.Layout.s3') }</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">{{ t('pages.Layout.s3') }}</span>
               <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>
@@ -148,7 +148,7 @@
           <n-button v-if="menuLayout === 'top'" text class="layout-header__search-trigger" :aria-label="t('pages.Layout.s8')" @click="onSearchClick">
             <div class="search-box glass-input flex items-center gap-2 w-72 cursor-pointer">
               <n-icon :component="SearchOutline" />
-              <span class="flex-1 text-sm text-ink-faint text-left">{ t('pages.Layout.s4') }</span>
+              <span class="flex-1 text-sm text-ink-faint text-left">{{ t('pages.Layout.s4') }}</span>
               <span class="text-xs kbd-hint">⌘K</span>
             </div>
           </n-button>

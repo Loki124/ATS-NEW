@@ -1,7 +1,7 @@
 <template>
   <div class="demand-container">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.demand.DemandList.s1') }</h1>
+      <h1 class="page-title">{{ t('pages.demand.DemandList.s1') }}</h1>
       <n-space>
         <n-input
           v-model:value="keyword"

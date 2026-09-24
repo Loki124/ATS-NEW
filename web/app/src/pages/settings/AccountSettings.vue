@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.AccountSettings.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.AccountSettings.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.AccountSettings.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.AccountSettings.s2') }}</p>
     </div>
 
     <!-- 个人设置 / 浏览器通知 / 通知选项 三块内容统一进 .page-body 滚动区 -->
@@ -11,8 +11,8 @@
       <n-card class="settings-section" :bordered="false">
       <template #header>
         <div class="section-title">
-          <span>{ t('pages.settings.AccountSettings.s3') }</span>
-          <n-tag type="info" size="small" class="section-tag">{ t('pages.settings.AccountSettings.s4') }</n-tag>
+          <span>{{ t('pages.settings.AccountSettings.s3') }}</span>
+          <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s4') }}</n-tag>
         </div>
       </template>
 

@@ -2,7 +2,7 @@
   <div class="page-container policy-admin">
     <!-- 左侧分类树 -->
     <aside class="policy-admin__side">
-      <div class="policy-admin__side-header">{ t('pages.settings.AnnouncementSettings.s1') }</div>
+      <div class="policy-admin__side-header">{{ t('pages.settings.AnnouncementSettings.s1') }}</div>
       <nav class="policy-tree">
         <div
           v-for="node in treeNodes"
@@ -26,20 +26,20 @@
       <div class="policy-admin__header">
         <div>
           <h1 class="policy-admin__title page-title">{{ currentFolderLabel }}</h1>
-          <p class="page-subtitle">{ t('pages.settings.AnnouncementSettings.s2') }</p>
-          <p class="policy-admin__desc">{ t('pages.settings.AnnouncementSettings.s3') }</p>
+          <p class="page-subtitle">{{ t('pages.settings.AnnouncementSettings.s2') }}</p>
+          <p class="policy-admin__desc">{{ t('pages.settings.AnnouncementSettings.s3') }}</p>
           <div class="kpi-row">
-            <div class="kpi-card"><span class="kpi-label">{ t('pages.settings.AnnouncementSettings.s4') }</span><span class="kpi-value">{{ rows.length }}</span></div>
+            <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.AnnouncementSettings.s4') }}</span><span class="kpi-value">{{ rows.length }}</span></div>
           </div>
         </div>
         <n-space>
-          <n-button type="primary" @click="openCreate">{ t('pages.settings.AnnouncementSettings.s5') }</n-button>
+          <n-button type="primary" @click="openCreate">{{ t('pages.settings.AnnouncementSettings.s5') }}</n-button>
         </n-space>
       </div>
 
       <!-- 工作台展示开关（模块总开关） -->
       <div class="policy-admin__config">
-        <span class="policy-admin__config-text">{ t('pages.settings.AnnouncementSettings.s6') }</span>
+        <span class="policy-admin__config-text">{{ t('pages.settings.AnnouncementSettings.s6') }}</span>
         <n-switch
           :value="configShowOnWorkbench"
           :loading="configSaving"

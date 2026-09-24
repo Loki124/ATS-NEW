@@ -3,7 +3,7 @@
     <!-- ========== Header ========== -->
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.RuleEngine.s1') }</h1>
+        <h1 class="page-title">{{ t('pages.settings.RuleEngine.s1') }}</h1>
         <p class="page-subtitle">
           跨业务规则的统一视图（TCA / BUSINESS_EVENT / CONSTRAINT / SET_PERMISSION）— 仅聚合只读，源数据在各业务模块维护
         </p>

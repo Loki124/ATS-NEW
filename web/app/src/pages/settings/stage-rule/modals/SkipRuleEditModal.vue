@@ -12,12 +12,12 @@
   >
     <div class="er-body">
       <div class="er-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s1') } <span class="required-mark">*</span></label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s1') }} <span class="required-mark">*</span></label>
         <n-input v-model:value="draft.name" size="small" :placeholder="t('pages.settings.stage-rule.modals.SkipRuleEditModal.s12')" :maxlength="50" show-count :class="{ 'input-error': !draft.name.trim() }" />
       </div>
 
       <div class="er-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s2') } <span class="required-mark">*</span></label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s2') }} <span class="required-mark">*</span></label>
         <div class="cond-list">
           <div v-for="(it, idx) in draft.items" :key="idx" class="cond-row">
             <span class="cond-seq">{{ idx + 1 }}</span>
@@ -35,20 +35,20 @@
       </div>
 
       <div class="er-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s3') }</label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s3') }}</label>
         <n-radio-group :value="draft.action" @update:value="(v: any) => (draft.action = v)">
           <n-space>
-            <n-radio value="SKIP">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s4') }</n-radio>
-            <n-radio value="APPROVE">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s5') }</n-radio>
-            <n-radio value="REJECT">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s6') }</n-radio>
+            <n-radio value="SKIP">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s4') }}</n-radio>
+            <n-radio value="APPROVE">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s5') }}</n-radio>
+            <n-radio value="REJECT">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s6') }}</n-radio>
           </n-space>
         </n-radio-group>
         <div class="scope-row">
-          <label class="field-label">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s7') }</label>
+          <label class="field-label">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s7') }}</label>
           <n-radio-group :value="draft.scope" @update:value="(v: any) => (draft.scope = v)">
             <n-space>
-              <n-radio value="NEW_ONLY">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s8') }</n-radio>
-              <n-radio value="ALL">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s9') }</n-radio>
+              <n-radio value="NEW_ONLY">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s8') }}</n-radio>
+              <n-radio value="ALL">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s9') }}</n-radio>
             </n-space>
           </n-radio-group>
         </div>
@@ -57,8 +57,8 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s10') }</n-button>
-        <n-button size="small" type="primary" :disabled="!canSave || saving" :loading="saving" @click="onSave">{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s11') }</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s10') }}</n-button>
+        <n-button size="small" type="primary" :disabled="!canSave || saving" :loading="saving" @click="onSave">{{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s11') }}</n-button>
       </div>
     </template>
   </n-modal>

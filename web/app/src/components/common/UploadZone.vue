@@ -35,11 +35,11 @@ function handleDrop(e: DragEvent) {
     @drop="handleDrop"
   >
     <div class="up-icon"><NIcon :size="28" aria-hidden="true"><Upload /></NIcon></div>
-    <div class="up-text">{ t('components.common.UploadZone.s1') }</div>
-    <div class="up-hint">{ t('components.common.UploadZone.s2') }</div>
+    <div class="up-text">{{ t('components.common.UploadZone.s1') }}</div>
+    <div class="up-hint">{{ t('components.common.UploadZone.s2') }}</div>
     <div class="up-quick">
-      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FileText /></NIcon>{ t('components.common.UploadZone.s3') }</span>
-      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FolderOpen /></NIcon>{ t('components.common.UploadZone.s4') }</span>
+      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FileText /></NIcon>{{ t('components.common.UploadZone.s3') }}</span>
+      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FolderOpen /></NIcon>{{ t('components.common.UploadZone.s4') }}</span>
     </div>
   </div>
 </template>

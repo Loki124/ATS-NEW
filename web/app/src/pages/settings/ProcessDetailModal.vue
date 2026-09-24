@@ -34,7 +34,7 @@
         <div v-if="loadError" class="dp-load-error">
           <n-empty description="加载流程详情失败">
             <template #extra>
-              <n-button type="primary" @click="handleRetryLoad">{ t('pages.settings.ProcessDetailModal.s1') }</n-button>
+              <n-button type="primary" @click="handleRetryLoad">{{ t('pages.settings.ProcessDetailModal.s1') }}</n-button>
             </template>
           </n-empty>
         </div>

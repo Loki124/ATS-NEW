@@ -1,7 +1,7 @@
 <template>
   <div class="referral-page">
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
-      <h1 class="page-title">{ t('pages.referral.ReferralCenter.s1') }</h1>
+      <h1 class="page-title">{{ t('pages.referral.ReferralCenter.s1') }}</h1>
       <n-button type="primary" @click="addModalVisible = true">
         <template #icon><n-icon :component="PersonAddOutline" /></template>
         新增推荐

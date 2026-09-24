@@ -1,16 +1,16 @@
 <template>
   <div class="page-container school-library">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.SchoolLibrary.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.SchoolLibrary.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.SchoolLibrary.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.SchoolLibrary.s2') }}</p>
     </div>
 
     <div class="data-body">
       <n-card class="lib-card">
         <template #header-extra>
           <n-space>
-            <n-button :loading="loading" @click="reload">{ t('pages.settings.SchoolLibrary.s3') }</n-button>
-            <n-button type="primary" @click="openCreate">{ t('pages.settings.SchoolLibrary.s4') }</n-button>
+            <n-button :loading="loading" @click="reload">{{ t('pages.settings.SchoolLibrary.s3') }}</n-button>
+            <n-button type="primary" @click="openCreate">{{ t('pages.settings.SchoolLibrary.s4') }}</n-button>
           </n-space>
         </template>
 

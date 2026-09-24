@@ -9,15 +9,15 @@
         <h2 class="err-title">{{ meta.title }}</h2>
         <p class="err-desc">{{ meta.description }}</p>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span class="placeholder-tag">{ t('pages.settings.Placeholder.s1') }</span>
+          <span class="placeholder-tag">{{ t('pages.settings.Placeholder.s1') }}</span>
           <span class="placeholder-eta">ETA: {{ meta.eta }}</span>
         </div>
         <p style="font-size:var(--text-meta);color:var(--ink-faint);margin:0;font-family:monospace">
           Issue: {{ meta.issue }} · Owner: {{ meta.owner }} · PR: {{ meta.pr }}
         </p>
         <div class="err-actions">
-          <button class="btn btn-primary" @click="$router.replace('/dashboard')">{ t('pages.settings.Placeholder.s2') }</button>
-          <button class="btn btn-secondary" @click="$router.back()">{ t('pages.settings.Placeholder.s3') }</button>
+          <button class="btn btn-primary" @click="$router.replace('/dashboard')">{{ t('pages.settings.Placeholder.s2') }}</button>
+          <button class="btn btn-secondary" @click="$router.back()">{{ t('pages.settings.Placeholder.s3') }}</button>
         </div>
       </div>
     </div>

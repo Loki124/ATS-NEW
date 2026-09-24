@@ -6,7 +6,7 @@
         <n-button text class="ann-kb__back" @click="router.push('/dashboard')">
           <n-icon :component="ChevronBackOutline" :size="20" />
         </n-button>
-        <span>{ t('pages.announcement.AnnouncementList.s1') }</span>
+        <span>{{ t('pages.announcement.AnnouncementList.s1') }}</span>
       </div>
       <nav class="ann-kb__tree">
         <div
@@ -32,7 +32,7 @@
       <n-spin :show="loading">
         <!-- 最近浏览 -->
         <section class="ann-kb__section">
-          <div class="ann-kb__section-title">{ t('pages.announcement.AnnouncementList.s2') }</div>
+          <div class="ann-kb__section-title">{{ t('pages.announcement.AnnouncementList.s2') }}</div>
           <div v-if="recentViews.length > 0" class="ann-kb__recent">
             <div
               v-for="item in recentViews.slice(0, 4)"
@@ -57,15 +57,15 @@
 
         <!-- 最近更新 -->
         <section class="ann-kb__section">
-          <div class="ann-kb__section-title">{ t('pages.announcement.AnnouncementList.s3') }</div>
+          <div class="ann-kb__section-title">{{ t('pages.announcement.AnnouncementList.s3') }}</div>
           <div v-if="tableData.length > 0" class="ann-kb__table-wrap">
             <table class="ann-kb__table">
               <thead>
                 <tr>
-                  <th class="col-name">{ t('pages.announcement.AnnouncementList.s4') }</th>
-                  <th class="col-folder">{ t('pages.announcement.AnnouncementList.s5') }</th>
-                  <th class="col-editor">{ t('pages.announcement.AnnouncementList.s6') }</th>
-                  <th class="col-time">{ t('pages.announcement.AnnouncementList.s7') }</th>
+                  <th class="col-name">{{ t('pages.announcement.AnnouncementList.s4') }}</th>
+                  <th class="col-folder">{{ t('pages.announcement.AnnouncementList.s5') }}</th>
+                  <th class="col-editor">{{ t('pages.announcement.AnnouncementList.s6') }}</th>
+                  <th class="col-time">{{ t('pages.announcement.AnnouncementList.s7') }}</th>
                 </tr>
               </thead>
               <tbody>

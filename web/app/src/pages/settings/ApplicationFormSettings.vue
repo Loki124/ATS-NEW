@@ -3,8 +3,8 @@
     <div class="page-header">
       <div>
         <div class="sr-title-row">
-          <h1 class="page-title">{ t('pages.settings.ApplicationFormSettings.s1') }</h1>
-          <n-tag :bordered="false" type="primary" size="small" round>{ t('pages.settings.ApplicationFormSettings.s2') }</n-tag>
+          <h1 class="page-title">{{ t('pages.settings.ApplicationFormSettings.s1') }}</h1>
+          <n-tag :bordered="false" type="primary" size="small" round>{{ t('pages.settings.ApplicationFormSettings.s2') }}</n-tag>
         </div>
         <p class="page-subtitle">
           配置候选人投递「申请表」与入职「登记表」包含的多套表单、字段与必填规则，右侧实时预览候选人填写效果。

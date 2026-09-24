@@ -3,7 +3,7 @@
     <div class="card-title card-title--left">
       <n-icon :component="PersonOutline" />
       默认处理人
-      <span class="title-desc">{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s1') }</span>
+      <span class="title-desc">{{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s1') }}</span>
     </div>
 
     <!-- 原型 Card 2：三个下拉直接放在 config-card 内，无 flow-block 白块包裹 -->
@@ -33,7 +33,7 @@
         />
       </div>
       <div class="flow-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s2') }</label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s2') }}</label>
         <n-select
           size="small"
           :value="ruleValue"

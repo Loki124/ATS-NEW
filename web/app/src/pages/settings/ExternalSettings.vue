@@ -3,7 +3,7 @@
     <!-- ===================== 标题区 ===================== -->
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.ExternalSettings.s1') }</h1>
+        <h1 class="page-title">{{ t('pages.settings.ExternalSettings.s1') }}</h1>
         <p class="page-subtitle">
           统一接入多家背景调查供应商：同一套接入配置（认证 / 环境 / 能力声明）适配不同供应商，新增供应商无需改造
         </p>

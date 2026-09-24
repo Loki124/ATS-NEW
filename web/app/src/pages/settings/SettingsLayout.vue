@@ -13,7 +13,7 @@
       :style="`width: ${collapsed ? 64 : 220}px; flex-shrink: 0;`"
     >
       <div class="sider-header" :class="{ collapsed: collapsed }">
-        <h2 v-if="!collapsed" class="sider-title gradient-title">{ t('pages.settings.SettingsLayout.s1') }</h2>
+        <h2 v-if="!collapsed" class="sider-title gradient-title">{{ t('pages.settings.SettingsLayout.s1') }}</h2>
         <button
           class="collapse-btn"
           :class="{ collapsed: collapsed }"

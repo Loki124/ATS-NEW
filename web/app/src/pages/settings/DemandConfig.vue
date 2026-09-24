@@ -2,12 +2,12 @@
   <div class="page-container config-container">
     <div class="page-header">
 <div>
-        <h1 class="dc-title gradient-title">{ t('pages.settings.DemandConfig.s1') }</h1>
-        <p class="dc-subtitle">{ t('pages.settings.DemandConfig.s2') }</p>
+        <h1 class="dc-title gradient-title">{{ t('pages.settings.DemandConfig.s1') }}</h1>
+        <p class="dc-subtitle">{{ t('pages.settings.DemandConfig.s2') }}</p>
       </div>
       <n-space>
-        <n-button @click="handleReset">{ t('pages.settings.DemandConfig.s3') }</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{ t('pages.settings.DemandConfig.s4') }</n-button>
+        <n-button @click="handleReset">{{ t('pages.settings.DemandConfig.s3') }}</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{{ t('pages.settings.DemandConfig.s4') }}</n-button>
       </n-space>
     </div>
 
@@ -18,29 +18,29 @@
           <n-form-item :label="t('pages.settings.DemandConfig.s59')">
             <div class="form-field-wrap">
               <n-radio-group v-model:value="formData.demandMode">
-                <n-radio value="task">{ t('pages.settings.DemandConfig.s5') }</n-radio>
-                <n-radio value="quick_leave">{ t('pages.settings.DemandConfig.s6') }</n-radio>
-                <n-radio value="non_task">{ t('pages.settings.DemandConfig.s7') }</n-radio>
+                <n-radio value="task">{{ t('pages.settings.DemandConfig.s5') }}</n-radio>
+                <n-radio value="quick_leave">{{ t('pages.settings.DemandConfig.s6') }}</n-radio>
+                <n-radio value="non_task">{{ t('pages.settings.DemandConfig.s7') }}</n-radio>
               </n-radio-group>
               <div class="field-note">
-                <span>{ t('pages.settings.DemandConfig.s8') }</span>
-                <span>{ t('pages.settings.DemandConfig.s9') }</span>
-                <span>{ t('pages.settings.DemandConfig.s10') }</span>
+                <span>{{ t('pages.settings.DemandConfig.s8') }}</span>
+                <span>{{ t('pages.settings.DemandConfig.s9') }}</span>
+                <span>{{ t('pages.settings.DemandConfig.s10') }}</span>
               </div>
             </div>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s60')">
             <n-checkbox-group v-model:value="formData.terminationStatus">
               <n-space>
-                <n-checkbox value="completed">{ t('pages.settings.DemandConfig.s11') }</n-checkbox>
-                <n-checkbox value="stopped">{ t('pages.settings.DemandConfig.s12') }</n-checkbox>
+                <n-checkbox value="completed">{{ t('pages.settings.DemandConfig.s11') }}</n-checkbox>
+                <n-checkbox value="stopped">{{ t('pages.settings.DemandConfig.s12') }}</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s13') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s13') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s61')">
             <n-switch v-model:value="formData.offerHeadcountControl" />
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s14') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s14') }}</span>
           </n-form-item>
         </n-card>
 
@@ -48,15 +48,15 @@
         <n-card :title="t('pages.settings.DemandConfig.s50')" class="config-card">
           <n-form-item :label="t('pages.settings.DemandConfig.s62')">
             <n-switch v-model:value="formData.grabModeEnabled" />
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s15') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s15') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s63')">
             <n-checkbox-group v-model:value="formData.grabModeSwitchRoles">
               <n-space>
-                <n-checkbox value="super_admin_product">{ t('pages.settings.DemandConfig.s16') }</n-checkbox>
+                <n-checkbox value="super_admin_product">{{ t('pages.settings.DemandConfig.s16') }}</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s17') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s17') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s64')">
             <n-checkbox-group v-model:value="formData.grabModeOperatorRoles">
@@ -64,7 +64,7 @@
                 <n-checkbox value="hrbp">HRBP</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s18') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s18') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s65')">
             <n-checkbox-group v-model:value="formData.grabModeAmountRoles">
@@ -72,31 +72,31 @@
                 <n-checkbox value="hrbp">HRBP</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s19') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s19') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s66')">
             <n-checkbox-group v-model:value="formData.transactionManageRoles">
               <n-space>
                 <n-checkbox value="hrbp">HRBP</n-checkbox>
-                <n-checkbox value="demand_manager">{ t('pages.settings.DemandConfig.s20') }</n-checkbox>
-                <n-checkbox value="super_admin_business">{ t('pages.settings.DemandConfig.s21') }</n-checkbox>
-                <n-checkbox value="super_admin_product">{ t('pages.settings.DemandConfig.s22') }</n-checkbox>
-                <n-checkbox value="personal">{ t('pages.settings.DemandConfig.s23') }</n-checkbox>
+                <n-checkbox value="demand_manager">{{ t('pages.settings.DemandConfig.s20') }}</n-checkbox>
+                <n-checkbox value="super_admin_business">{{ t('pages.settings.DemandConfig.s21') }}</n-checkbox>
+                <n-checkbox value="super_admin_product">{{ t('pages.settings.DemandConfig.s22') }}</n-checkbox>
+                <n-checkbox value="personal">{{ t('pages.settings.DemandConfig.s23') }}</n-checkbox>
               </n-space>
             </n-checkbox-group>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s24') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s24') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s67')">
             <n-input-number v-model:value="formData.grabPoolTimeoutHours" :min="0" :max="168" />
-            <span class="input-tip">{ t('pages.settings.DemandConfig.s25') }</span>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s26') }</span>
+            <span class="input-tip">{{ t('pages.settings.DemandConfig.s25') }}</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s26') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s68')">
             <n-radio-group v-model:value="formData.positionCreateRole">
               <n-radio value="hrbp">HRBP</n-radio>
-              <n-radio value="demand_assistant">{ t('pages.settings.DemandConfig.s27') }</n-radio>
+              <n-radio value="demand_assistant">{{ t('pages.settings.DemandConfig.s27') }}</n-radio>
             </n-radio-group>
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s28') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s28') }}</span>
           </n-form-item>
         </n-card>
 
@@ -112,10 +112,10 @@
                 class="rules-textarea"
               />
               <div class="rules-tip">
-                <p>{ t('pages.settings.DemandConfig.s29') }</p>
-                <p>{ t('pages.settings.DemandConfig.s30') }</p>
-                <p>{ t('pages.settings.DemandConfig.s31') }</p>
-                <p>{ t('pages.settings.DemandConfig.s32') }</p>
+                <p>{{ t('pages.settings.DemandConfig.s29') }}</p>
+                <p>{{ t('pages.settings.DemandConfig.s30') }}</p>
+                <p>{{ t('pages.settings.DemandConfig.s31') }}</p>
+                <p>{{ t('pages.settings.DemandConfig.s32') }}</p>
               </div>
             </div>
           </n-form-item>
@@ -152,7 +152,7 @@
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s76')">
             <n-input-number v-model:value="formData.departmentLevelLimit" :min="1" :max="5" />
-            <span class="input-tip">{ t('pages.settings.DemandConfig.s33') }</span>
+            <span class="input-tip">{{ t('pages.settings.DemandConfig.s33') }}</span>
           </n-form-item>
         </n-card>
 
@@ -175,7 +175,7 @@
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s80')">
             <n-switch v-model:value="formData.salaryConfidential" />
-            <span class="switch-tip">{ t('pages.settings.DemandConfig.s34') }</span>
+            <span class="switch-tip">{{ t('pages.settings.DemandConfig.s34') }}</span>
           </n-form-item>
         </n-card>
 
@@ -183,11 +183,11 @@
         <n-card :title="t('pages.settings.DemandConfig.s55')" class="config-card">
           <n-form-item :label="t('pages.settings.DemandConfig.s81')">
             <n-input-number v-model:value="formData.defaultPositionCount" :min="1" :max="100" />
-            <span class="input-tip">{ t('pages.settings.DemandConfig.s35') }</span>
+            <span class="input-tip">{{ t('pages.settings.DemandConfig.s35') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s82')">
             <n-input-number v-model:value="formData.maxPositionCount" :min="1" :max="500" />
-            <span class="input-tip">{ t('pages.settings.DemandConfig.s36') }</span>
+            <span class="input-tip">{{ t('pages.settings.DemandConfig.s36') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s83')">
             <n-switch v-model:value="formData.enablePositionSeries" />
@@ -198,9 +198,9 @@
           <n-form-item :label="t('pages.settings.DemandConfig.s85')">
             <n-checkbox-group v-model:value="formData.jobLevelSystem">
               <n-space>
-                <n-checkbox value="P">{ t('pages.settings.DemandConfig.s37') }</n-checkbox>
-                <n-checkbox value="M">{ t('pages.settings.DemandConfig.s38') }</n-checkbox>
-                <n-checkbox value="T">{ t('pages.settings.DemandConfig.s39') }</n-checkbox>
+                <n-checkbox value="P">{{ t('pages.settings.DemandConfig.s37') }}</n-checkbox>
+                <n-checkbox value="M">{{ t('pages.settings.DemandConfig.s38') }}</n-checkbox>
+                <n-checkbox value="T">{{ t('pages.settings.DemandConfig.s39') }}</n-checkbox>
               </n-space>
             </n-checkbox-group>
           </n-form-item>
@@ -227,8 +227,8 @@
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s90')">
             <n-input-number v-model:value="formData.demandValidDays" :min="1" :max="365" />
-            <span class="input-tip">{ t('pages.settings.DemandConfig.s40') }</span>
-            <span class="input-tip-tip">{ t('pages.settings.DemandConfig.s41') }</span>
+            <span class="input-tip">{{ t('pages.settings.DemandConfig.s40') }}</span>
+            <span class="input-tip-tip">{{ t('pages.settings.DemandConfig.s41') }}</span>
           </n-form-item>
         </n-card>
 
@@ -239,7 +239,7 @@
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s92')">
             <n-input-number v-model:value="formData.resumeProtectionDays" :min="0" :max="365" />
-            <span class="input-tip">{ t('pages.settings.DemandConfig.s42') }</span>
+            <span class="input-tip">{{ t('pages.settings.DemandConfig.s42') }}</span>
           </n-form-item>
           <n-form-item :label="t('pages.settings.DemandConfig.s93')">
             <n-switch v-model:value="formData.protectedCandidateVisible" />
@@ -266,9 +266,9 @@
           <n-form-item :label="t('pages.settings.DemandConfig.s99')">
             <n-checkbox-group v-model:value="formData.notifyMethods">
               <n-space>
-                <n-checkbox value="wechat">{ t('pages.settings.DemandConfig.s43') }</n-checkbox>
-                <n-checkbox value="email">{ t('pages.settings.DemandConfig.s44') }</n-checkbox>
-                <n-checkbox value="sms">{ t('pages.settings.DemandConfig.s45') }</n-checkbox>
+                <n-checkbox value="wechat">{{ t('pages.settings.DemandConfig.s43') }}</n-checkbox>
+                <n-checkbox value="email">{{ t('pages.settings.DemandConfig.s44') }}</n-checkbox>
+                <n-checkbox value="sms">{{ t('pages.settings.DemandConfig.s45') }}</n-checkbox>
               </n-space>
             </n-checkbox-group>
           </n-form-item>

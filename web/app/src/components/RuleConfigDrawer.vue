@@ -228,7 +228,7 @@ async function save() {
       <n-space vertical :size="18">
         <!-- 模块一：规则信息 -->
         <section>
-          <div class="rc-section-title">{ t('components.RuleConfigDrawer.s1') }</div>
+          <div class="rc-section-title">{{ t('components.RuleConfigDrawer.s1') }}</div>
           <n-form :disabled="!editing" label-placement="top">
             <!-- T130：第 1 行 3 列 — 维度 / 指标 / 生效年度 -->
             <n-grid :cols="3" :x-gap="12">
@@ -283,7 +283,7 @@ async function save() {
 
         <!-- 模块二：管控目标 -->
         <section>
-          <div class="rc-section-title">{ t('components.RuleConfigDrawer.s2') }</div>
+          <div class="rc-section-title">{{ t('components.RuleConfigDrawer.s2') }}</div>
           <n-form :disabled="!editing" label-placement="top">
             <!-- 年度目标行：两列布局（年度输入 | 月度浮动目标开关 + 提示 icon）。
                  提示文本从行内字面量收为 n-tooltip + Lucide Info，hover 触发，避免挤压第二列。 -->
@@ -292,7 +292,7 @@ async function save() {
                 <n-gi>
                   <n-space align="center" :wrap="false">
                     <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
-                    <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">{ t('components.RuleConfigDrawer.s3') }</n-button>
+                    <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">{{ t('components.RuleConfigDrawer.s3') }}</n-button>
                   </n-space>
                 </n-gi>
                 <n-gi>
@@ -302,7 +302,7 @@ async function save() {
                     :size="8"
                     :class="['rc-rollover-cell', { 'rc-rollover-cell--on': form.rolloverEnabled }]"
                   >
-                    <span class="rc-rollover-label">{ t('components.RuleConfigDrawer.s4') }</span>
+                    <span class="rc-rollover-label">{{ t('components.RuleConfigDrawer.s4') }}</span>
                     <n-switch v-model:value="form.rolloverEnabled" :disabled="!editing" />
                     <n-tooltip placement="left-start" :show-arrow="true">
                       <template #trigger>

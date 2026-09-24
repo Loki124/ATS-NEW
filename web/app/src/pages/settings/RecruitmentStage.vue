@@ -3,13 +3,13 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.RecruitmentStage.s1') }</h1>
-        <p class="page-subtitle">{ t('pages.settings.RecruitmentStage.s2') }</p>
+        <h1 class="page-title">{{ t('pages.settings.RecruitmentStage.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.RecruitmentStage.s2') }}</p>
       </div>
     </div>
 
     <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-      阶段是<strong>{ t('pages.settings.RecruitmentStage.s3') }</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
+      阶段是<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
     </n-alert>
 
     <div class="toolbar">

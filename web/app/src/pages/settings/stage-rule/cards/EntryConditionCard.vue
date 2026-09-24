@@ -9,7 +9,7 @@
       <span class="title-left">
         <n-icon :component="LogInOutline" />
         进入条件
-        <span class="title-desc">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s1') }</span>
+        <span class="title-desc">{{ t('pages.settings.stage-rule.cards.EntryConditionCard.s1') }}</span>
       </span>
       <span class="title-actions">
         <button class="btn-outline-primary" type="button" @click="emit('configure')">
@@ -24,13 +24,13 @@
         <table class="rule-table">
           <thead>
             <tr>
-              <th style="min-width: 300px;">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s2') }</th>
-              <th style="width: 160px;">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s3') }</th>
+              <th style="min-width: 300px;">{{ t('pages.settings.stage-rule.cards.EntryConditionCard.s2') }}</th>
+              <th style="width: 160px;">{{ t('pages.settings.stage-rule.cards.EntryConditionCard.s3') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="rules.length === 0">
-              <td colspan="2" class="rule-table__empty">{ t('pages.settings.stage-rule.cards.EntryConditionCard.s4') }</td>
+              <td colspan="2" class="rule-table__empty">{{ t('pages.settings.stage-rule.cards.EntryConditionCard.s4') }}</td>
             </tr>
             <tr v-for="rule in rules" v-else :key="rule.id || rule.rule_name">
               <td>

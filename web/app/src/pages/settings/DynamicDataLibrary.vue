@@ -1,8 +1,8 @@
 <template>
   <div class="page-container dynamic-data-library">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.DynamicDataLibrary.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.DynamicDataLibrary.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.DynamicDataLibrary.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.DynamicDataLibrary.s2') }}</p>
     </div>
 
     <div class="data-body">

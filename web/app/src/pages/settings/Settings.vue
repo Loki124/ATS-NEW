@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.Settings.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.Settings.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.Settings.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.Settings.s2') }}</p>
     </div>
     <n-card>
       <n-tabs v-model:value="activeTab" type="line" animated>

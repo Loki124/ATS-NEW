@@ -146,13 +146,13 @@ function groupHeadLabel(g: DisplayGroup): string {
     <!-- 状态 1：空态 -->
     <div v-if="normalized.isEmpty" class="entry-cond__empty">
       <NIcon :component="ClipboardOutline" size="15" class="entry-cond__empty-icon" />
-      <span>{ t('pages.settings.EntryConditionCard.s1') }</span>
+      <span>{{ t('pages.settings.EntryConditionCard.s1') }}</span>
     </div>
 
     <template v-else>
       <!-- 状态 3：多组 → 组间表达式 -->
       <div v-if="isMulti" class="entry-cond__top">
-        <span class="entry-cond__top-label">{ t('pages.settings.EntryConditionCard.s2') }</span>
+        <span class="entry-cond__top-label">{{ t('pages.settings.EntryConditionCard.s2') }}</span>
         <span class="entry-cond__chip">{{ groupExpr }}</span>
         <span class="entry-cond__top-sem">{{ groupSem }}</span>
       </div>

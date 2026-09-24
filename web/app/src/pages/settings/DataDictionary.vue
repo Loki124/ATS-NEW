@@ -4,8 +4,8 @@
     <template v-if="mode === 'list'">
       <div class="page-header">
         <div>
-          <h1 class="page-title">{ t('pages.settings.DataDictionary.s1') }</h1>
-          <p class="page-subtitle">{ t('pages.settings.DataDictionary.s2') }</p>
+          <h1 class="page-title">{{ t('pages.settings.DataDictionary.s1') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.DataDictionary.s2') }}</p>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h1 class="page-title">{ t('pages.position.PositionList.s1') }</h1>
+      <h1 class="page-title">{{ t('pages.position.PositionList.s1') }}</h1>
       <n-button type="primary" @click="handleCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
         创建职位

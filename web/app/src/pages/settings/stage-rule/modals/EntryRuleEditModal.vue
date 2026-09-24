@@ -35,7 +35,7 @@
                 条件组 {{ gi + 1 }}
               </span>
               <div class="group-actions">
-                <a @click="addItem(group)"><n-icon :component="AddOutline" /> { t('pages.settings.stage-rule.modals.EntryRuleEditModal.s1') }</a>
+                <a @click="addItem(group)"><n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s1') }}</a>
                 <a v-if="canRemoveGroup()" class="danger" @click="removeGroup(gi)">
                   <n-icon :component="TrashOutline" /> 删除组
                 </a>
@@ -69,14 +69,14 @@
                 <span class="op-expr-help" @click.stop="toggleExprHelp(gi)">
                   <n-icon :component="HelpCircleOutline" />
                   <span v-if="exprHelpOpen === gi" class="op-expr-popover">
-                    <strong>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s2') }<em>(1 or 2) and (3 or 4)</em></strong>
+                    <strong>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s2') }}<em>(1 or 2) and (3 or 4)</em></strong>
                     <ol>
-                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s3') }</li>
-                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s4') }</li>
-                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s5') }</li>
-                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s6') }</li>
-                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s7') }</li>
-                      <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s8') }</li>
+                      <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s3') }}</li>
+                      <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s4') }}</li>
+                      <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s5') }}</li>
+                      <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s6') }}</li>
+                      <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s7') }}</li>
+                      <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s8') }}</li>
                     </ol>
                   </span>
                 </span>
@@ -92,7 +92,7 @@
               </p>
             </div>
             <div class="group-inner-row">
-              <label class="inner-label">{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s9') }</label>
+              <label class="inner-label">{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s9') }}</label>
               <n-input
                 v-model:value="group.innerPrompt"
                 size="small"
@@ -116,14 +116,14 @@
           <span class="op-expr-help" @click.stop="toggleExprHelp(-1)">
             <n-icon :component="HelpCircleOutline" />
             <span v-if="exprHelpOpen === -1" class="op-expr-popover">
-              <strong>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s10') }<em>(1 or 2) and (3 or 4)</em></strong>
+              <strong>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s10') }}<em>(1 or 2) and (3 or 4)</em></strong>
               <ol>
-                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s11') }</li>
-                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s12') }</li>
-                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s13') }</li>
-                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s14') }</li>
-                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s15') }</li>
-                <li>{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s16') }</li>
+                <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s11') }}</li>
+                <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s12') }}</li>
+                <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s13') }}</li>
+                <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s14') }}</li>
+                <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s15') }}</li>
+                <li>{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s16') }}</li>
               </ol>
             </span>
           </span>
@@ -158,8 +158,8 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s17') }</n-button>
-        <n-button size="small" type="primary" :disabled="hasError || saving" :loading="saving" @click="onSave">{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s18') }</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s17') }}</n-button>
+        <n-button size="small" type="primary" :disabled="hasError || saving" :loading="saving" @click="onSave">{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s18') }}</n-button>
       </div>
     </template>
   </n-modal>

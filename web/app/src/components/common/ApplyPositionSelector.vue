@@ -11,7 +11,7 @@ function select(pos: string) {
 
 <template>
   <div class="apply-pos">
-    <div class="apply-pos-title">{ t('components.common.ApplyPositionSelector.s1') }</div>
+    <div class="apply-pos-title">{{ t('components.common.ApplyPositionSelector.s1') }}</div>
     <div class="apply-pos-list">
       <div
         v-for="p in positions"

@@ -10,7 +10,7 @@
     <div class="os-header-bar">
       <div class="os-header-left">
         <n-switch v-model:value="includeDisabled" size="small" />
-        <span class="os-header-label">{ t('pages.settings.OrgScopeTreeModal.s1') }</span>
+        <span class="os-header-label">{{ t('pages.settings.OrgScopeTreeModal.s1') }}</span>
       </div>
       <div class="os-header-right">
         <n-switch
@@ -19,7 +19,7 @@
           :disabled="!selectedKeys.length"
           @update:value="batchToggle"
         />
-        <span class="os-header-label">{ t('pages.settings.OrgScopeTreeModal.s2') }</span>
+        <span class="os-header-label">{{ t('pages.settings.OrgScopeTreeModal.s2') }}</span>
       </div>
     </div>
 
@@ -27,7 +27,7 @@
       <!-- 可选组织（窄） -->
       <div class="org-scope-tree glass-card">
         <div class="os-title-bar">
-          <span>{ t('pages.settings.OrgScopeTreeModal.s3') }</span>
+          <span>{{ t('pages.settings.OrgScopeTreeModal.s3') }}</span>
           <span class="os-count">{{ visibleAvailable.length }}</span>
         </div>
         <n-input
@@ -53,7 +53,7 @@
               @update:checked="(v: boolean) => onAvailCheck(d.id, v)"
             />
             <span class="os-avail-name" :title="d.name">{{ d.name }}</span>
-            <span v-if="d.status === 'INACTIVE'" class="os-tag-disabled">{ t('pages.settings.OrgScopeTreeModal.s4') }</span>
+            <span v-if="d.status === 'INACTIVE'" class="os-tag-disabled">{{ t('pages.settings.OrgScopeTreeModal.s4') }}</span>
           </div>
         </div>
       </div>

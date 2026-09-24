@@ -21,9 +21,9 @@
       <div class="dr-section-head">
         <div class="dr-section-title">
           <span class="dr-section-bar"></span>
-          <span>{ t('pages.settings.DataRangeModal.s1') }</span>
+          <span>{{ t('pages.settings.DataRangeModal.s1') }}</span>
         </div>
-        <div class="dr-section-sub">{ t('pages.settings.DataRangeModal.s2') }</div>
+        <div class="dr-section-sub">{{ t('pages.settings.DataRangeModal.s2') }}</div>
       </div>
 
       <div class="dr-rows">

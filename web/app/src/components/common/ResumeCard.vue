@@ -55,7 +55,7 @@ function progressColor(p: string | null) {
           <div :class="['pfill', `pfill-${progressColor(resume.procPhase)}`]" :style="{ width: `${resume.progress}%` }"></div>
         </div>
       </div>
-      <button v-if="resume.status !== 'processing'" class="replace-file-btn" @click.stop="emit('replace')">{ t('components.common.ResumeCard.s1') }</button>
+      <button v-if="resume.status !== 'processing'" class="replace-file-btn" @click.stop="emit('replace')">{{ t('components.common.ResumeCard.s1') }}</button>
       <div class="c-expand">▾</div>
     </div>
 

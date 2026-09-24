@@ -12,12 +12,12 @@
   >
     <div class="er-body">
       <div class="er-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s1') } <span class="required-mark">*</span></label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s1') }} <span class="required-mark">*</span></label>
         <n-input v-model:value="draft.name" size="small" :placeholder="t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s9')" :maxlength="50" show-count :class="{ 'input-error': !draft.name.trim() }" />
       </div>
 
       <div class="er-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s2') } <span class="required-mark">*</span></label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s2') }} <span class="required-mark">*</span></label>
         <div class="cond-list">
           <div v-for="(it, idx) in draft.items" :key="idx" class="cond-row">
             <span class="cond-seq">{{ idx + 1 }}</span>
@@ -35,7 +35,7 @@
       </div>
 
       <div class="er-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s3') }</label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s3') }}</label>
         <div class="exec-grid">
           <div class="flow-field">
             <label class="field-label">锁定时长 (天) <span class="required-mark">*</span></label>
@@ -47,11 +47,11 @@
           </div>
         </div>
         <div class="scope-row">
-          <label class="field-label">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s4') }</label>
+          <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s4') }}</label>
           <n-radio-group :value="draft.effective_scope" @update:value="(v: any) => (draft.effective_scope = v)">
             <n-space>
-              <n-radio value="ALL">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s5') }</n-radio>
-              <n-radio value="NEW_ONLY">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s6') }</n-radio>
+              <n-radio value="ALL">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s5') }}</n-radio>
+              <n-radio value="NEW_ONLY">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s6') }}</n-radio>
             </n-space>
           </n-radio-group>
         </div>
@@ -60,8 +60,8 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s7') }</n-button>
-        <n-button size="small" type="primary" :disabled="!canSave || saving" :loading="saving" @click="onSave">{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s8') }</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s7') }}</n-button>
+        <n-button size="small" type="primary" :disabled="!canSave || saving" :loading="saving" @click="onSave">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s8') }}</n-button>
       </div>
     </template>
   </n-modal>

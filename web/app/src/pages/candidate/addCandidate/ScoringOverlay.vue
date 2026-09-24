@@ -15,7 +15,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
       <div v-if="!store.allScoringDone" class="spin-big"></div>
       <div v-else style="font-size: var(--fs-36);margin-bottom: var(--space-2);color:var(--c-success-deep);"><NIcon :size="36" aria-hidden="true"><CheckCircle2 /></NIcon></div>
       <h3 style="font-size: var(--fs-15);margin-bottom: var(--space-1);">{{ store.allScoringDone ? '处理完成！' : '正在处理...' }}</h3>
-      <p style="font-size: var(--fs-12);color:var(--g5);">{ t('pages.candidate.addCandidate.ScoringOverlay.s1') }</p>
+      <p style="font-size: var(--fs-12);color:var(--g5);">{{ t('pages.candidate.addCandidate.ScoringOverlay.s1') }}</p>
     </div>
 
     <div class="sub-progress">
@@ -45,7 +45,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
         <span style="color:var(--c-success);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} 人通过</span> ·
         <span style="color:var(--c-error-deep);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result && !s?.result?.passed).length }} 人未通过</span>
       </div>
-      <button class="btn bp" data-testid="close-scoring" style="padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">{ t('pages.candidate.addCandidate.ScoringOverlay.s2') }</button>
+      <button class="btn bp" data-testid="close-scoring" style="padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">{{ t('pages.candidate.addCandidate.ScoringOverlay.s2') }}</button>
     </div>
   </div>
 </template>

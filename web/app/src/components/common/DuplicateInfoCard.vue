@@ -12,19 +12,19 @@ defineProps<{ info: Partial<DuplicateInfo>; status: 'processing' | 'clean' | 'un
 <template>
   <div class="dup-card">
     <div class="dup-row">
-      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s1') }</span>
+      <span class="dup-label">{{ t('components.common.DuplicateInfoCard.s1') }}</span>
       <span class="dup-value">{{ info.existing_resume_id }}</span>
     </div>
     <div class="dup-row">
-      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s2') }</span>
+      <span class="dup-label">{{ t('components.common.DuplicateInfoCard.s2') }}</span>
       <span class="dup-value">{{ info.created_at }}</span>
     </div>
     <div class="dup-row">
-      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s3') }</span>
+      <span class="dup-label">{{ t('components.common.DuplicateInfoCard.s3') }}</span>
       <span class="dup-value">{{ info.history }}</span>
     </div>
     <div class="dup-row">
-      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s4') }</span>
+      <span class="dup-label">{{ t('components.common.DuplicateInfoCard.s4') }}</span>
       <span class="dup-value" :style="{ color: status === 'occupied' ? 'var(--c-error-deep)' : 'var(--c-warning-deep)' }">
         {{ info.cur_status }}
       </span>

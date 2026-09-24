@@ -3,18 +3,18 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.FieldAclSettings.s1') }</h1>
-        <p class="page-subtitle">{ t('pages.settings.FieldAclSettings.s2') }</p>
+        <h1 class="page-title">{{ t('pages.settings.FieldAclSettings.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.FieldAclSettings.s2') }}</p>
       </div>
     </div>
 
     <div class="kpi-row">
-      <div class="kpi-card"><span class="kpi-label">{ t('pages.settings.FieldAclSettings.s3') }</span><span class="kpi-value">{{ rules.length }}</span></div>
+      <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.FieldAclSettings.s3') }}</span><span class="kpi-value">{{ rules.length }}</span></div>
     </div>
 
     <n-card :title="t('pages.settings.FieldAclSettings.s5')" class="mt-4">
       <template #header-extra>
-        <n-button size="small" :loading="loading" @click="reload">{ t('pages.settings.FieldAclSettings.s4') }</n-button>
+        <n-button size="small" :loading="loading" @click="reload">{{ t('pages.settings.FieldAclSettings.s4') }}</n-button>
       </template>
       <n-empty v-if="!rows.length" description="暂无字段权限规则，请在上方角色矩阵中配置" />
       <n-data-table

@@ -8,7 +8,7 @@
       <span class="title-left">
         <n-icon :component="ClipboardOutline" />
         面试配置
-        <span class="title-desc">{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s1') }</span>
+        <span class="title-desc">{{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s1') }}</span>
       </span>
     </div>
 
@@ -16,7 +16,7 @@
     <div class="flow-condition-row">
       <!-- 面试轮次 -->
       <div class="flow-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s2') }</label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s2') }}</label>
         <div class="option-grid">
           <label v-for="opt in roundOptions" :key="opt.value" class="opt-item">
             <input
@@ -31,7 +31,7 @@
 
       <!-- 面试形式 -->
       <div class="flow-field">
-        <label class="field-label">{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s3') }</label>
+        <label class="field-label">{{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s3') }}</label>
         <div class="option-grid">
           <label v-for="opt in formatOptions" :key="opt.value" class="opt-item">
             <input

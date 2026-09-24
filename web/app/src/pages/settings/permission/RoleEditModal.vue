@@ -27,7 +27,7 @@
         <span style="margin-left: var(--space-2); color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
       </n-form-item>
 
-      <n-divider title-placement="left">{ t('pages.settings.permission.RoleEditModal.s1') }</n-divider>
+      <n-divider title-placement="left">{{ t('pages.settings.permission.RoleEditModal.s1') }}</n-divider>
       <n-text depth="3" style="display: block; margin-bottom: 12px">
         按模块分组勾选资源, 保存时整组同步到 role_permission 表 (走 POST /roles/{id}/sync-resources/)
       </n-text>
@@ -52,8 +52,8 @@
 
     <template #footer>
       <n-space justify="end">
-        <n-button @click="$emit('update:show', false)">{ t('pages.settings.permission.RoleEditModal.s2') }</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="saving" @click="onSubmit">{ t('pages.settings.permission.RoleEditModal.s3') }</n-button>
+        <n-button @click="$emit('update:show', false)">{{ t('pages.settings.permission.RoleEditModal.s2') }}</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="saving" @click="onSubmit">{{ t('pages.settings.permission.RoleEditModal.s3') }}</n-button>
       </n-space>
     </template>
   </n-modal>

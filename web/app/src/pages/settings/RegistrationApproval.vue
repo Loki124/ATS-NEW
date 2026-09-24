@@ -3,8 +3,8 @@
     <div class="page-body">
       <div class="page-header">
         <div>
-          <h1 class="page-title">{ t('pages.settings.RegistrationApproval.s1') }</h1>
-          <p class="page-subtitle">{ t('pages.settings.RegistrationApproval.s2') }</p>
+          <h1 class="page-title">{{ t('pages.settings.RegistrationApproval.s1') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.RegistrationApproval.s2') }}</p>
         </div>
         <div class="page-header-actions">
           <!-- 状态筛选：本项目的 naive-ui 2.44.1 安装包不含 NSegmented

@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.CandidateInfoTable.s1') }</h1>
+        <h1 class="page-title">{{ t('pages.settings.CandidateInfoTable.s1') }}</h1>
         <p class="page-subtitle">
           配置候选人信息登记表的查看权限、使用范围、标准简历样式，以及在不同招聘场景下的登记表与样式联动。
         </p>
@@ -12,28 +12,28 @@
     <div class="cit-stack page-body">
       <!-- 权限 / 使用范围 -->
       <section class="glass-card cit-section">
-        <h2 class="cit-section-title">{ t('pages.settings.CandidateInfoTable.s2') }</h2>
+        <h2 class="cit-section-title">{{ t('pages.settings.CandidateInfoTable.s2') }}</h2>
         <div class="cit-row">
-          <span class="cit-row-label">{ t('pages.settings.CandidateInfoTable.s3') }</span>
+          <span class="cit-row-label">{{ t('pages.settings.CandidateInfoTable.s3') }}</span>
           <n-radio-group v-model:value="cfg.permissionScope">
-            <n-radio value="global">{ t('pages.settings.CandidateInfoTable.s4') }</n-radio>
-            <n-radio value="department">{ t('pages.settings.CandidateInfoTable.s5') }</n-radio>
+            <n-radio value="global">{{ t('pages.settings.CandidateInfoTable.s4') }}</n-radio>
+            <n-radio value="department">{{ t('pages.settings.CandidateInfoTable.s5') }}</n-radio>
           </n-radio-group>
         </div>
         <div class="cit-row">
-          <span class="cit-row-label">{ t('pages.settings.CandidateInfoTable.s6') }</span>
+          <span class="cit-row-label">{{ t('pages.settings.CandidateInfoTable.s6') }}</span>
           <n-radio-group v-model:value="cfg.usageScope">
-            <n-radio value="global">{ t('pages.settings.CandidateInfoTable.s7') }</n-radio>
-            <n-radio value="department">{ t('pages.settings.CandidateInfoTable.s8') }</n-radio>
+            <n-radio value="global">{{ t('pages.settings.CandidateInfoTable.s7') }}</n-radio>
+            <n-radio value="department">{{ t('pages.settings.CandidateInfoTable.s8') }}</n-radio>
           </n-radio-group>
         </div>
       </section>
 
       <!-- 标准简历样式 -->
       <section class="glass-card cit-section">
-        <h2 class="cit-section-title">{ t('pages.settings.CandidateInfoTable.s9') }</h2>
+        <h2 class="cit-section-title">{{ t('pages.settings.CandidateInfoTable.s9') }}</h2>
         <div class="cit-row">
-          <span class="cit-row-label">{ t('pages.settings.CandidateInfoTable.s10') }</span>
+          <span class="cit-row-label">{{ t('pages.settings.CandidateInfoTable.s10') }}</span>
           <n-select
             v-model:value="cfg.resumeStyle"
             :options="styleOptions"
@@ -44,11 +44,11 @@
 
       <!-- 场景联动 -->
       <section class="glass-card cit-section">
-        <h2 class="cit-section-title">{ t('pages.settings.CandidateInfoTable.s11') }</h2>
+        <h2 class="cit-section-title">{{ t('pages.settings.CandidateInfoTable.s11') }}</h2>
         <div class="cit-scene-head">
-          <span class="cit-scene-col cit-scene-col--name">{ t('pages.settings.CandidateInfoTable.s12') }</span>
-          <span class="cit-scene-col cit-scene-col--form">{ t('pages.settings.CandidateInfoTable.s13') }</span>
-          <span class="cit-scene-col cit-scene-col--style">{ t('pages.settings.CandidateInfoTable.s14') }</span>
+          <span class="cit-scene-col cit-scene-col--name">{{ t('pages.settings.CandidateInfoTable.s12') }}</span>
+          <span class="cit-scene-col cit-scene-col--form">{{ t('pages.settings.CandidateInfoTable.s13') }}</span>
+          <span class="cit-scene-col cit-scene-col--style">{{ t('pages.settings.CandidateInfoTable.s14') }}</span>
         </div>
         <div v-for="scene in cfg.scenes" :key="scene.key" class="cit-scene-row">
           <span class="cit-scene-col cit-scene-col--name">{{ scene.label }}</span>
@@ -72,8 +72,8 @@
       </section>
 
       <div class="cit-footer">
-        <n-button tertiary @click="reload">{ t('pages.settings.CandidateInfoTable.s15') }</n-button>
-        <n-button type="primary" :loading="saving" @click="saveConfig">{ t('pages.settings.CandidateInfoTable.s16') }</n-button>
+        <n-button tertiary @click="reload">{{ t('pages.settings.CandidateInfoTable.s15') }}</n-button>
+        <n-button type="primary" :loading="saving" @click="saveConfig">{{ t('pages.settings.CandidateInfoTable.s16') }}</n-button>
       </div>
     </div>
   </div>

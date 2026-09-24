@@ -1,8 +1,8 @@
 <template>
   <div class="page-container code-table-library">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.CodeTableLibrary.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.CodeTableLibrary.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.CodeTableLibrary.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.CodeTableLibrary.s2') }}</p>
     </div>
 
     <div class="data-body">

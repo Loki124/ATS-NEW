@@ -11,11 +11,11 @@
     @update:show="(v: boolean) => !v && onRequestClose()"
   >
     <div class="sr-body">
-      <p class="field-hint">{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s1') }</p>
+      <p class="field-hint">{{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s1') }}</p>
       <RuleTable :columns="columns" :rows="rules">
         <template #actions="{ row }">
           <div class="action-btns">
-            <a @click="emit('reenable', row)">{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s2') }</a>
+            <a @click="emit('reenable', row)">{{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s2') }}</a>
           </div>
         </template>
       </RuleTable>

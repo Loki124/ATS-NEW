@@ -124,7 +124,7 @@ onMounted(loadList)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.screening.ScreeningList.s1') }</h1>
+      <h1 class="page-title">{{ t('pages.screening.ScreeningList.s1') }}</h1>
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>

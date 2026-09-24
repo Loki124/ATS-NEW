@@ -12,20 +12,20 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 <template>
   <div class="async-result">
     <div class="ar-icon"><NIcon :size="40" aria-hidden="true"><CheckCircle2 /></NIcon></div>
-    <h3>{ t('pages.candidate.addCandidate.AsyncResult.s1') }</h3>
+    <h3>{{ t('pages.candidate.addCandidate.AsyncResult.s1') }}</h3>
     <p class="ar-sub">{{ store.resumes.length }} 份简历已提交后台处理</p>
     <div class="ar-routes">
       <div class="ar-route pass">
         <span class="ar-route-icon"><NIcon :size="18" aria-hidden="true"><CheckCircle2 /></NIcon></span>
-        <div><strong>{ t('pages.candidate.addCandidate.AsyncResult.s2') }</strong><br>{ t('pages.candidate.addCandidate.AsyncResult.s3') }</div>
+        <div><strong>{{ t('pages.candidate.addCandidate.AsyncResult.s2') }}</strong><br>{{ t('pages.candidate.addCandidate.AsyncResult.s3') }}</div>
       </div>
       <div class="ar-route fail">
         <span class="ar-route-icon"><NIcon :size="18" aria-hidden="true"><Inbox /></NIcon></span>
-        <div><strong>{ t('pages.candidate.addCandidate.AsyncResult.s4') }</strong><br>将在"待分配"中展示，您可以手动处理或重新分配。</div>
+        <div><strong>{{ t('pages.candidate.addCandidate.AsyncResult.s4') }}</strong><br>将在"待分配"中展示，您可以手动处理或重新分配。</div>
       </div>
     </div>
-    <div class="nbar info" style="width:100%;text-align:center;"><NIcon :size="14" style="vertical-align:-2px" aria-hidden="true"><Clock /></NIcon> { t('pages.candidate.addCandidate.AsyncResult.s5') }</div>
-    <button class="btn bp" data-testid="close-async" style="margin-top: var(--space-6);padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">{ t('pages.candidate.addCandidate.AsyncResult.s6') }</button>
+    <div class="nbar info" style="width:100%;text-align:center;"><NIcon :size="14" style="vertical-align:-2px" aria-hidden="true"><Clock /></NIcon> {{ t('pages.candidate.addCandidate.AsyncResult.s5') }}</div>
+    <button class="btn bp" data-testid="close-async" style="margin-top: var(--space-6);padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">{{ t('pages.candidate.addCandidate.AsyncResult.s6') }}</button>
   </div>
 </template>
 

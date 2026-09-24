@@ -3,8 +3,8 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="page-title">
-        <h1>{ t('pages.candidate.CandidateList.s1') }</h1>
-        <n-text :depth="3">{ t('pages.candidate.CandidateList.s2') }</n-text>
+        <h1>{{ t('pages.candidate.CandidateList.s1') }}</h1>
+        <n-text :depth="3">{{ t('pages.candidate.CandidateList.s2') }}</n-text>
       </div>
       <n-space>
         <n-button type="primary" :disabled="selectedCandidates.length === 0" class="batch-notify-btn" @click="openBatchNotificationModal">

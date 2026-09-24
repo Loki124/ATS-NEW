@@ -12,7 +12,7 @@
       <header class="ca-header">
         <div>
           <h1 class="page-title">{{ systemStore.label }} · 校园大使</h1>
-          <p class="page-subtitle">{ t('pages.settings.CampusAmbassador.s1') }</p>
+          <p class="page-subtitle">{{ t('pages.settings.CampusAmbassador.s1') }}</p>
         </div>
         <n-switch
           :value="enabled"

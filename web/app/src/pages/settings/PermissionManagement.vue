@@ -4,8 +4,8 @@
       <div class="page-header">
         <div class="page-header-row">
           <div>
-            <h1 class="page-title">{ t('pages.settings.PermissionManagement.s1') }</h1>
-            <p class="page-subtitle">{ t('pages.settings.PermissionManagement.s2') }</p>
+            <h1 class="page-title">{{ t('pages.settings.PermissionManagement.s1') }}</h1>
+            <p class="page-subtitle">{{ t('pages.settings.PermissionManagement.s2') }}</p>
           </div>
           <div class="page-header-actions">
             <n-button @click="templatesModal.show = true">

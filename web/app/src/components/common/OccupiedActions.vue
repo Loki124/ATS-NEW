@@ -9,11 +9,11 @@ const emit = defineEmits<{
 
 <template>
   <div class="occ-actions">
-    <button class="occ-btn primary" @click="emit('action', draftId, 'pending')">{ t('components.common.OccupiedActions.s1') }</button>
-    <button class="occ-btn" @click="emit('action', draftId, 'merge')">{ t('components.common.OccupiedActions.s2') }</button>
-    <button class="occ-btn" @click="emit('action', draftId, 'apply')">{ t('components.common.OccupiedActions.s3') }</button>
-    <button class="occ-btn warn" @click="emit('action', draftId, 'cancel')">{ t('components.common.OccupiedActions.s4') }</button>
-    <button class="occ-btn" @click="emit('action', draftId, 'score')">{ t('components.common.OccupiedActions.s5') }</button>
+    <button class="occ-btn primary" @click="emit('action', draftId, 'pending')">{{ t('components.common.OccupiedActions.s1') }}</button>
+    <button class="occ-btn" @click="emit('action', draftId, 'merge')">{{ t('components.common.OccupiedActions.s2') }}</button>
+    <button class="occ-btn" @click="emit('action', draftId, 'apply')">{{ t('components.common.OccupiedActions.s3') }}</button>
+    <button class="occ-btn warn" @click="emit('action', draftId, 'cancel')">{{ t('components.common.OccupiedActions.s4') }}</button>
+    <button class="occ-btn" @click="emit('action', draftId, 'score')">{{ t('components.common.OccupiedActions.s5') }}</button>
   </div>
 </template>
 

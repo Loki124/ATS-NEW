@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.CompanyBrand.s1') }</h1>
-        <p class="page-subtitle">{ t('pages.settings.CompanyBrand.s2') }</p>
+        <h1 class="page-title">{{ t('pages.settings.CompanyBrand.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.CompanyBrand.s2') }}</p>
       </div>
     </div>
 

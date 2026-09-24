@@ -12,7 +12,7 @@
         <div class="title-icon">
           <n-icon :component="PersonAddOutline" />
         </div>
-        <span>{ t('pages.referral.AddReferralModal.s1') }</span>
+        <span>{{ t('pages.referral.AddReferralModal.s1') }}</span>
       </div>
     </template>
 

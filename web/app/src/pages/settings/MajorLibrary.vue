@@ -1,14 +1,14 @@
 <template>
   <div class="page-container major-library">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.MajorLibrary.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.MajorLibrary.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.MajorLibrary.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.MajorLibrary.s2') }}</p>
     </div>
 
     <div class="data-body">
       <n-card class="lib-card">
         <template #header-extra>
-          <n-button :loading="loading" @click="reload">{ t('pages.settings.MajorLibrary.s3') }</n-button>
+          <n-button :loading="loading" @click="reload">{{ t('pages.settings.MajorLibrary.s3') }}</n-button>
         </template>
 
         <n-space class="filter-row" :wrap="true">

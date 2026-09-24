@@ -1,14 +1,14 @@
 <template>
   <div class="page-container company-library">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.CompanyLibrary.s1') }</h1>
+      <h1 class="page-title">{{ t('pages.settings.CompanyLibrary.s1') }}</h1>
       <p class="page-subtitle">G41 - 公司信息库 (央企/民企/外企)</p>
     </div>
 
     <div class="data-body">
       <n-card class="lib-card">
         <template #header-extra>
-          <n-button :loading="loading" @click="reload">{ t('pages.settings.CompanyLibrary.s2') }</n-button>
+          <n-button :loading="loading" @click="reload">{{ t('pages.settings.CompanyLibrary.s2') }}</n-button>
         </template>
 
         <n-space class="filter-row" :wrap="true">

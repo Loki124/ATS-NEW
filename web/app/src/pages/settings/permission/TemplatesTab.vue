@@ -1,7 +1,7 @@
 <template>
   <div class="templates-tab">
     <div class="filter-row">
-      <n-button type="primary" @click="load">{ t('pages.settings.permission.TemplatesTab.s1') }</n-button>
+      <n-button type="primary" @click="load">{{ t('pages.settings.permission.TemplatesTab.s1') }}</n-button>
       <n-text depth="3">共 {{ data.length }} 个模板 (系统预置不可编辑)</n-text>
     </div>
 

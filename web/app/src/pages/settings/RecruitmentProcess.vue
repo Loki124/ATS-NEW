@@ -3,8 +3,8 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.RecruitmentProcess.s1') }</h1>
-        <p class="page-subtitle">{ t('pages.settings.RecruitmentProcess.s2') }</p>
+        <h1 class="page-title">{{ t('pages.settings.RecruitmentProcess.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.RecruitmentProcess.s2') }}</p>
       </div>
     </div>
 

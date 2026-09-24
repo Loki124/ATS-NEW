@@ -2,8 +2,8 @@
   <div class="page-container">
 <div class="page-body">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.settings.ScoringRules.s1') }</h1>
-      <p class="page-subtitle">{ t('pages.settings.ScoringRules.s2') }</p>
+      <h1 class="page-title">{{ t('pages.settings.ScoringRules.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.ScoringRules.s2') }}</p>
     </div>
     <n-card>
       <n-empty description="评分规则功能开发中">

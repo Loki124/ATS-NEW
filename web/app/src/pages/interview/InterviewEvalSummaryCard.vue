@@ -51,7 +51,7 @@ function dimColor(s: number) {
         {{ overallScore.toFixed(1) }}
       </span>
       <span class="ats-sum__den">/ 5</span>
-      <span class="ats-sum__cap">{ t('pages.interview.InterviewEvalSummaryCard.s1') }</span>
+      <span class="ats-sum__cap">{{ t('pages.interview.InterviewEvalSummaryCard.s1') }}</span>
     </div>
 
     <div v-if="evaluation.comment" class="ats-sum__comment">{{ evaluation.comment }}</div>

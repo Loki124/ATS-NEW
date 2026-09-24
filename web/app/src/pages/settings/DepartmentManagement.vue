@@ -2,14 +2,14 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.DepartmentManagement.s1') }</h1>
-        <p class="page-subtitle">{ t('pages.settings.DepartmentManagement.s2') }</p>
+        <h1 class="page-title">{{ t('pages.settings.DepartmentManagement.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.DepartmentManagement.s2') }}</p>
       </div>
       <div class="page-header-actions">
         <n-radio-group v-model:value="statusFilter" size="small">
-          <n-radio-button value="ALL">{ t('pages.settings.DepartmentManagement.s3') }</n-radio-button>
-          <n-radio-button value="ACTIVE">{ t('pages.settings.DepartmentManagement.s4') }</n-radio-button>
-          <n-radio-button value="INACTIVE">{ t('pages.settings.DepartmentManagement.s5') }</n-radio-button>
+          <n-radio-button value="ALL">{{ t('pages.settings.DepartmentManagement.s3') }}</n-radio-button>
+          <n-radio-button value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s4') }}</n-radio-button>
+          <n-radio-button value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s5') }}</n-radio-button>
         </n-radio-group>
         <n-input
           v-model:value="searchKeyword"

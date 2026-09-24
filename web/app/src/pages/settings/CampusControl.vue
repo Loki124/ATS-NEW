@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{ t('pages.settings.CampusControl.s1') }</h1>
-        <p class="page-subtitle">{ t('pages.settings.CampusControl.s2') }</p>
+        <h1 class="page-title">{{ t('pages.settings.CampusControl.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.CampusControl.s2') }}</p>
       </div>
     </div>
 
@@ -12,10 +12,10 @@
         <!-- ===================== 实时看板（含人数规划） ===================== -->
         <n-tab-pane name="ratio" tab="实时看板">
           <div class="kpi-row">
-            <div class="kpi-card"><span class="kpi-label">{ t('pages.settings.CampusControl.s3') }</span><span class="kpi-value">{{ ratioData.total }}</span></div>
-            <div class="kpi-card"><span class="kpi-label">{ t('pages.settings.CampusControl.s4') }</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
-            <div class="kpi-card danger"><span class="kpi-label">{ t('pages.settings.CampusControl.s5') }</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
-            <div class="kpi-card warn"><span class="kpi-label">{ t('pages.settings.CampusControl.s6') }</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
+            <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.CampusControl.s3') }}</span><span class="kpi-value">{{ ratioData.total }}</span></div>
+            <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.CampusControl.s4') }}</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
+            <div class="kpi-card danger"><span class="kpi-label">{{ t('pages.settings.CampusControl.s5') }}</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
+            <div class="kpi-card warn"><span class="kpi-label">{{ t('pages.settings.CampusControl.s6') }}</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
           </div>
           <div class="table-wrap">
             <n-data-table

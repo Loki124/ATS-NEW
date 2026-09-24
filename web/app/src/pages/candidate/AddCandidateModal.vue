@@ -127,7 +127,7 @@ function nextStep() {
   <n-modal v-model:show="showModal" preset="card" style="width: 960px; max-width: 90vw;" :bordered="false" :mask-closable="false" data-testid="add-candidate-modal">
     <template #header>
       <div style="display:flex;align-items:center;gap: var(--space-2);">
-        <span style="font-size: var(--fs-18);font-weight:700;">{ t('pages.candidate.AddCandidateModal.s1') }</span>
+        <span style="font-size: var(--fs-18);font-weight:700;">{{ t('pages.candidate.AddCandidateModal.s1') }}</span>
         <span style="font-size:11px;color:var(--g5);">V2</span>
       </div>
     </template>

@@ -10,7 +10,7 @@
           >
             {{ col.title }}
           </th>
-          <th v-if="$slots.actions" class="rule-table__act-col">{ t('pages.settings.stage-rule.components.RuleTable.s1') }</th>
+          <th v-if="$slots.actions" class="rule-table__act-col">{{ t('pages.settings.stage-rule.components.RuleTable.s1') }}</th>
         </tr>
       </thead>
       <tbody>

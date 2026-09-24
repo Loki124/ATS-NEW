@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="dc-title-row">
-          <h1 class="page-title">{ t('pages.settings.DuplicateCandidate.s1') }</h1>
+          <h1 class="page-title">{{ t('pages.settings.DuplicateCandidate.s1') }}</h1>
         </div>
         <p class="page-subtitle">
           设定判定「两条候选人为同一人」的查重规则，并配置重复后的合并策略与社招重复申请管控。
@@ -18,17 +18,17 @@
         <div class="dc-flow">
           <div class="dc-flow-step">
             <span class="dc-flow-num">1</span>
-            <div class="dc-flow-text"><b>{ t('pages.settings.DuplicateCandidate.s2') }</b><span>{ t('pages.settings.DuplicateCandidate.s3') }</span></div>
+            <div class="dc-flow-text"><b>{{ t('pages.settings.DuplicateCandidate.s2') }}</b><span>{{ t('pages.settings.DuplicateCandidate.s3') }}</span></div>
           </div>
           <span class="dc-flow-arrow" aria-hidden="true">→</span>
           <div class="dc-flow-step">
             <span class="dc-flow-num">2</span>
-            <div class="dc-flow-text"><b>{ t('pages.settings.DuplicateCandidate.s4') }</b><span>{ t('pages.settings.DuplicateCandidate.s5') }</span></div>
+            <div class="dc-flow-text"><b>{{ t('pages.settings.DuplicateCandidate.s4') }}</b><span>{{ t('pages.settings.DuplicateCandidate.s5') }}</span></div>
           </div>
           <span class="dc-flow-arrow" aria-hidden="true">→</span>
           <div class="dc-flow-step">
             <span class="dc-flow-num">3</span>
-            <div class="dc-flow-text"><b>{ t('pages.settings.DuplicateCandidate.s6') }</b><span>{ t('pages.settings.DuplicateCandidate.s7') }</span></div>
+            <div class="dc-flow-text"><b>{{ t('pages.settings.DuplicateCandidate.s6') }}</b><span>{{ t('pages.settings.DuplicateCandidate.s7') }}</span></div>
           </div>
         </div>
 
@@ -36,8 +36,8 @@
         <section class="glass-card dc-section">
           <header class="dc-section-head">
             <div class="dc-section-titles">
-              <h2 class="dc-section-title">{ t('pages.settings.DuplicateCandidate.s8') }</h2>
-              <span class="dc-scope">{ t('pages.settings.DuplicateCandidate.s9') }</span>
+              <h2 class="dc-section-title">{{ t('pages.settings.DuplicateCandidate.s8') }}</h2>
+              <span class="dc-scope">{{ t('pages.settings.DuplicateCandidate.s9') }}</span>
             </div>
             <div class="dc-section-actions">
               <n-button text size="small" type="error" @click="onResetRules">

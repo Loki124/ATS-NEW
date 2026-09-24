@@ -4,7 +4,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">管理单元 (Management Unit)</h1>
-        <p class="page-subtitle">{ t('pages.settings.MouManagement.s1') }</p>
+        <p class="page-subtitle">{{ t('pages.settings.MouManagement.s1') }}</p>
       </div>
     </div>
 

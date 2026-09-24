@@ -3,14 +3,14 @@
     <div class="card-title card-title--left">
       <n-icon :component="PulseOutline" />
       流程自动化
-      <span class="title-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s1') }</span>
+      <span class="title-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s1') }}</span>
     </div>
 
     <!-- Block 1: 自动评估 -->
     <div class="flow-block">
       <div class="block-header">
         <n-icon :component="SparklesOutline" /> 自动评估
-        <span class="block-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s2') }</span>
+        <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s2') }}</span>
       </div>
       <div class="option-grid">
         <label class="opt-item">
@@ -19,7 +19,7 @@
             :checked="form.autoEvalN2"
             @change="emit('update:autoEvalN2', ($event.target as HTMLInputElement).checked)"
           />
-          <span>{ t('pages.settings.stage-rule.cards.AutomationCard.s3') }</span>
+          <span>{{ t('pages.settings.stage-rule.cards.AutomationCard.s3') }}</span>
         </label>
         <label class="opt-item">
           <input
@@ -27,7 +27,7 @@
             :checked="form.autoEvalPrevAa"
             @change="emit('update:autoEvalPrevAa', ($event.target as HTMLInputElement).checked)"
           />
-          <span>{ t('pages.settings.stage-rule.cards.AutomationCard.s4') }</span>
+          <span>{{ t('pages.settings.stage-rule.cards.AutomationCard.s4') }}</span>
         </label>
       </div>
     </div>
@@ -36,15 +36,15 @@
     <div class="flow-block">
       <div class="block-header block-header--secondary">
         <n-icon :component="ArrowForwardOutline" /> 自动流转
-        <span class="block-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s5') }</span>
+        <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s5') }}</span>
       </div>
       <div class="flow-condition-row">
         <div class="flow-field">
-          <label class="field-label">{ t('pages.settings.stage-rule.cards.AutomationCard.s6') }</label>
+          <label class="field-label">{{ t('pages.settings.stage-rule.cards.AutomationCard.s6') }}</label>
           <n-select size="small" :value="form.autoAdvanceType" :options="advanceOptions" @update:value="(v: any) => emit('update:autoAdvanceType', v)" />
         </div>
         <div class="flow-field">
-          <label class="field-label">{ t('pages.settings.stage-rule.cards.AutomationCard.s7') }</label>
+          <label class="field-label">{{ t('pages.settings.stage-rule.cards.AutomationCard.s7') }}</label>
           <n-select size="small" :value="form.autoAdvanceTiming" :options="timingOptions" @update:value="(v: any) => emit('update:autoAdvanceTiming', v)" />
         </div>
       </div>
@@ -61,7 +61,7 @@
       <div class="block-header block-header--split">
         <div class="block-header__main">
           <n-icon :component="PlaySkipForwardOutline" /> 自动跳过
-          <span class="block-desc">{ t('pages.settings.stage-rule.cards.AutomationCard.s8') }</span>
+          <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s8') }}</span>
         </div>
         <ModuleSwitch :model-value="form.skipEnabled" @update:model-value="emit('update:skipEnabled', $event)" />
       </div>

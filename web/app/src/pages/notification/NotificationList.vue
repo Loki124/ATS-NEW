@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">{ t('pages.notification.NotificationList.s1') }</h1>
+      <h1 class="page-title">{{ t('pages.notification.NotificationList.s1') }}</h1>
     </div>
     <n-card :bordered="false" class="rounded-xl">
       <n-data-table :columns="columns" :data="dataSource" :row-key="(row: any) => row.id" />
