@@ -170,9 +170,6 @@
               </div>
             </div>
           </n-dropdown>
-
-          <!-- 语言切换入口：页面右上角图标按钮 + 浮层 -->
-          <LanguageSwitcher />
         </div>
       </n-layout-header>
 
@@ -209,7 +206,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, h, computed, watch, nextTick, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useMessage, NIcon, NModal } from 'naive-ui'
+import { useMessage, NIcon, NModal, NSwitch } from 'naive-ui'
 import {
   SpeedometerOutline,
   DocumentTextOutline,
@@ -226,14 +223,15 @@ import {
   PersonOutline,
   MenuOutline,
   SwapVerticalOutline,
+  LanguageOutline,
   // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
 import { MenuOutline as Menu, CheckmarkOutline as Check } from '@vicons/ionicons5'
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
 import SystemSwitcher from '../components/common/SystemSwitcher.vue'
-import LanguageSwitcher from '../components/common/LanguageSwitcher.vue'
 import { useShortcuts } from '../composables/useShortcuts'
+import { currentLocale } from '../locales'
 import { useUserStore } from '../stores/user'
 import { useBrandStore } from '../stores/brand'
 import { useSystemStore } from '../stores/system'
@@ -447,6 +445,31 @@ const userMenuOptions = computed(() => {
        - 路由跳转 /settings/account（设置主页），保留账号设置（个人中心）独立入口
        - 2026-08-25：移除「账号设置」冗余入口（与上方「设置」重复且未配置路由功能） */
     { key: '/settings/account', label: '设置', icon: renderIcon(CogOutline) },
+    {
+      key: 'language',
+      label: () =>
+        h(
+          'div',
+          { style: 'display:inline-flex;align-items:center;justify-content:space-between;width:100%' },
+          [
+            h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+              h(NIcon, { size: 16 }, { default: () => h(LanguageOutline) }),
+              '语言',
+            ]),
+            h(NSwitch, {
+              value: currentLocale.value === 'en-US',
+              uncheckedValue: false,
+              checkedValue: true,
+              'onUpdate:value': (v: boolean) => {
+                currentLocale.value = v ? 'en-US' : 'zh-CN'
+              },
+            }, {
+              unchecked: () => '中文',
+              checked: () => 'EN',
+            }),
+          ],
+        ),
+    },
     { type: 'divider', key: 'd1' },
     {
       key: 'menu-side',
