@@ -92,7 +92,8 @@
             <n-input v-model:value="fieldForm.labelEn" placeholder="e.g. id_card_no" />
           </n-form-item>
           <n-form-item label="字段类型" required>
-            <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" />
+            <!-- 2026-09-24 (兵哥): 分组 options + 虚拟滚动会间歇性错位(只渲分组头/选项不可见), 仅23项禁用虚拟滚动 -->
+            <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" :virtual-scroll="false" />
           </n-form-item>
           <!-- 2026-09-15 (兵哥) 日期型字段：格式精度单选(年/年月/年月日)，范围类型渲染区间选择器 -->
           <n-form-item v-if="isDateType" label="日期格式">
