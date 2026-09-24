@@ -5,7 +5,7 @@
       :options="options"
       :render-label="renderLabel"
       :loading="loading"
-      placeholder="搜索候选人 / 需求 / 职位 / 面试 / Offer / 内推..."
+      :placeholder="t('components.common.GlobalSearch.s1')"
       clearable
       :input-props="{ 'aria-label': '全局搜索' }"
       @select="onSelect"
@@ -15,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, h, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { NAutoComplete, useMessage } from 'naive-ui'
@@ -26,6 +27,7 @@ import {
   type SearchResponse,
 } from '../../api/search'
 import { debounce } from '../../utils/debounce'
+const { t } = useI18n()
 
 const keyword = ref('')
 const loading = ref(false)

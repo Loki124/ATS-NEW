@@ -5,7 +5,7 @@
       size="small"
       :value="item.condition_type"
       :options="sourceOptions"
-      placeholder="数据源"
+      :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s1')"
       @update:value="onSource"
     />
     <n-select
@@ -13,7 +13,7 @@
       size="small"
       :value="item.field"
       :options="fieldOptions"
-      placeholder="字段"
+      :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s2')"
       @update:value="onField"
     />
     <n-select
@@ -21,7 +21,7 @@
       size="small"
       :value="item.operator"
       :options="operatorOptions"
-      placeholder="运算符"
+      :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s3')"
       @update:value="onOperator"
     />
     <div class="cp-value">
@@ -35,7 +35,7 @@
         filterable
         :value="arrayValue"
         :options="valueOptions"
-        placeholder="请选择"
+        :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s4')"
         @update:value="onMultiValue"
       />
       <!-- 数值 -->
@@ -43,7 +43,7 @@
         v-else-if="isNumeric"
         size="small"
         :value="numberValue"
-        placeholder="数值"
+        :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s5')"
         @update:value="onNumberValue"
       />
       <!-- 文本 -->
@@ -51,7 +51,7 @@
         v-else
         size="small"
         :value="textValue"
-        placeholder="值"
+        :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s6')"
         @update:value="onTextValue"
       />
     </div>
@@ -59,9 +59,11 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, reactive, watch } from 'vue'
 import { NSelect, NInput, NInputNumber } from 'naive-ui'
 import type { ConditionItem, FieldCatalog, OperatorKey, SourceKey } from '../types'
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: ConditionItem

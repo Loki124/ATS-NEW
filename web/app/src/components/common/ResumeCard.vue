@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { ResumeDraft } from '@/stores/addCandidate'
 import StatusTag from './StatusTag.vue'
 import CheckBanner from './CheckBanner.vue'
+const { t } = useI18n()
 
 const props = defineProps<{
   resume: ResumeDraft
@@ -53,7 +55,7 @@ function progressColor(p: string | null) {
           <div :class="['pfill', `pfill-${progressColor(resume.procPhase)}`]" :style="{ width: `${resume.progress}%` }"></div>
         </div>
       </div>
-      <button v-if="resume.status !== 'processing'" class="replace-file-btn" @click.stop="emit('replace')">更换</button>
+      <button v-if="resume.status !== 'processing'" class="replace-file-btn" @click.stop="emit('replace')">{ t('components.common.ResumeCard.s1') }</button>
       <div class="c-expand">▾</div>
     </div>
 

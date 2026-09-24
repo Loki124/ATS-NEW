@@ -11,7 +11,7 @@
         size="small"
         type="primary"
         :focusable="false"
-        title="全屏编辑"
+        :title="t('components.RichEditor.s1')"
         @click="openFullscreen"
       >
         <template #icon>
@@ -85,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 /**
  * RichEditor —— 基于 wangEditor 5 的通用富文本编辑器封装。
  *
@@ -105,6 +106,7 @@ import { ExpandOutline, ContractOutline } from '@vicons/ionicons5'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor'
 import '@wangeditor/editor/dist/css/style.css'
+const { t } = useI18n()
 
 /** wangEditor 的“空内容” HTML 形态 */
 const EMPTY_HTML = '<p><br></p>'

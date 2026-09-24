@@ -7,7 +7,7 @@
           <n-icon size="20"><DocumentOutline /></n-icon>
         </div>
         <a :href="it.url" target="_blank" rel="noopener" class="au-name" :title="it.name">{{ it.name }}</a>
-        <n-button v-if="!disabled" text type="error" size="tiny" @click="removeItem(it)">移除</n-button>
+        <n-button v-if="!disabled" text type="error" size="tiny" @click="removeItem(it)">{ t('components.AttachmentUploader.s1') }</n-button>
       </div>
     </div>
     <label v-if="!disabled" class="au-add">
@@ -15,16 +15,18 @@
       <n-icon size="16"><AddOutline /></n-icon>
       <span>{{ multiple ? '添加附件' : '上传附件' }}</span>
     </label>
-    <n-text v-if="uploading" depth="3" class="au-uploading">上传中…</n-text>
+    <n-text v-if="uploading" depth="3" class="au-uploading">{ t('components.AttachmentUploader.s2') }</n-text>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { NIcon, NButton, NText, NImage, useMessage } from 'naive-ui'
 import { AddOutline, DocumentOutline } from '@vicons/ionicons5'
 import config from '@/config'
 import { type AttachmentItem } from '@/api/dynamic-field'
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   modelValue: AttachmentItem[]

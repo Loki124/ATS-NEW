@@ -10,7 +10,7 @@
           >
             {{ col.title }}
           </th>
-          <th v-if="$slots.actions" class="rule-table__act-col">操作</th>
+          <th v-if="$slots.actions" class="rule-table__act-col">{ t('pages.settings.stage-rule.components.RuleTable.s1') }</th>
         </tr>
       </thead>
       <tbody>
@@ -35,6 +35,9 @@
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, any>">
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 interface Column {
   key: string
   title: string

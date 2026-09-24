@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, watch, h } from 'vue'
 import {
   NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch,
@@ -11,6 +12,7 @@ import {
   type ControlRule, type ControlDimension, type ControlIndicator, type Strength,
 } from '../api/campusControl'
 import { extractApiError } from '../api/dynamic-field'
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean
@@ -226,33 +228,33 @@ async function save() {
       <n-space vertical :size="18">
         <!-- 模块一：规则信息 -->
         <section>
-          <div class="rc-section-title">规则信息</div>
+          <div class="rc-section-title">{ t('components.RuleConfigDrawer.s1') }</div>
           <n-form :disabled="!editing" label-placement="top">
             <!-- T130：第 1 行 3 列 — 维度 / 指标 / 生效年度 -->
             <n-grid :cols="3" :x-gap="12">
               <n-gi>
-                <n-form-item label="维度" required>
+                <n-form-item :label="t('components.RuleConfigDrawer.s11')" required>
                   <n-select
                     v-model:value="form.dimension"
                     :options="dimensionOptions"
-                    placeholder="选择维度"
+                    :placeholder="t('components.RuleConfigDrawer.s5')"
                     :disabled="!editing"
                     @update:value="onDimensionChange"
                   />
                 </n-form-item>
               </n-gi>
               <n-gi>
-                <n-form-item label="指标" required>
+                <n-form-item :label="t('components.RuleConfigDrawer.s12')" required>
                   <n-select
                     v-model:value="form.indicator"
                     :options="indicatorOptions"
-                    placeholder="选择指标"
+                    :placeholder="t('components.RuleConfigDrawer.s6')"
                     :disabled="!editing || !form.dimension"
                   />
                 </n-form-item>
               </n-gi>
               <n-gi>
-                <n-form-item label="生效年度" required>
+                <n-form-item :label="t('components.RuleConfigDrawer.s13')" required>
                   <n-input-number v-model:value="form.year" :min="2020" :max="2100" style="width: 100%" />
                 </n-form-item>
               </n-gi>
@@ -261,18 +263,18 @@ async function save() {
             <!-- T130：第 2 行 3 列 — 部门 / 职务 / 职级 -->
             <n-grid :cols="3" :x-gap="12">
               <n-gi>
-                <n-form-item label="部门">
-                  <n-select v-model:value="form.bu" :options="deptOptions" placeholder="全局" clearable />
+                <n-form-item :label="t('components.RuleConfigDrawer.s14')">
+                  <n-select v-model:value="form.bu" :options="deptOptions" :placeholder="t('components.RuleConfigDrawer.s7')" clearable />
                 </n-form-item>
               </n-gi>
               <n-gi>
-                <n-form-item label="职务">
-                  <n-select v-model:value="form.position" :options="positionOptions" placeholder="不限" />
+                <n-form-item :label="t('components.RuleConfigDrawer.s15')">
+                  <n-select v-model:value="form.position" :options="positionOptions" :placeholder="t('components.RuleConfigDrawer.s8')" />
                 </n-form-item>
               </n-gi>
               <n-gi>
-                <n-form-item label="职级">
-                  <n-select v-model:value="form.level" :options="levelOptions" placeholder="不限" />
+                <n-form-item :label="t('components.RuleConfigDrawer.s16')">
+                  <n-select v-model:value="form.level" :options="levelOptions" :placeholder="t('components.RuleConfigDrawer.s9')" />
                 </n-form-item>
               </n-gi>
             </n-grid>
@@ -281,16 +283,16 @@ async function save() {
 
         <!-- 模块二：管控目标 -->
         <section>
-          <div class="rc-section-title">管控目标</div>
+          <div class="rc-section-title">{ t('components.RuleConfigDrawer.s2') }</div>
           <n-form :disabled="!editing" label-placement="top">
             <!-- 年度目标行：两列布局（年度输入 | 月度浮动目标开关 + 提示 icon）。
                  提示文本从行内字面量收为 n-tooltip + Lucide Info，hover 触发，避免挤压第二列。 -->
-            <n-form-item label="年度目标（人）">
+            <n-form-item :label="t('components.RuleConfigDrawer.s17')">
               <n-grid :cols="2" :x-gap="16" responsive="screen" class="rc-annual-row">
                 <n-gi>
                   <n-space align="center" :wrap="false">
                     <n-input-number v-model:value="form.annualTarget" :min="0" :step="1" />
-                    <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">按年度均分</n-button>
+                    <n-button type="primary" size="small" :disabled="!editing" @click="evenFillMonthly">{ t('components.RuleConfigDrawer.s3') }</n-button>
                   </n-space>
                 </n-gi>
                 <n-gi>
@@ -300,13 +302,13 @@ async function save() {
                     :size="8"
                     :class="['rc-rollover-cell', { 'rc-rollover-cell--on': form.rolloverEnabled }]"
                   >
-                    <span class="rc-rollover-label">月度浮动目标</span>
+                    <span class="rc-rollover-label">{ t('components.RuleConfigDrawer.s4') }</span>
                     <n-switch v-model:value="form.rolloverEnabled" :disabled="!editing" />
                     <n-tooltip placement="left-start" :show-arrow="true">
                       <template #trigger>
                         <!-- P0-2：包 <button> 让键盘可达 + aria-label，
                              用 .rc-info-btn 命中 :focus-visible 环，避免 R-109 失守 -->
-                        <button type="button" class="rc-info-btn" aria-label="什么是月度浮动目标">
+                        <button type="button" class="rc-info-btn" :aria-label="t('components.RuleConfigDrawer.s10')">
                           <n-icon :component="Info" />
                         </button>
                       </template>

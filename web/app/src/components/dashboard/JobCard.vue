@@ -3,7 +3,7 @@
     <div class="job-card__head">
       <div class="job-card__title-line">
         <h4 class="job-card__title">{{ job.title }}</h4>
-        <span v-if="job.urgent" class="job-card__urgent">急</span>
+        <span v-if="job.urgent" class="job-card__urgent">{ t('components.dashboard.JobCard.s1') }</span>
       </div>
       <div class="job-card__meta">
         <span class="job-card__meta-item">
@@ -27,7 +27,9 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { LocationOutline, CashOutline, PeopleOutline } from '@vicons/ionicons5'
+const { t } = useI18n()
 
 export interface JobCardData {
   id: string

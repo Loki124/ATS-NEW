@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 defineProps<{ draftId: string }>()
 const emit = defineEmits<{
   (e: 'action', draftId: string, action: 'pending' | 'merge' | 'apply' | 'cancel' | 'score'): void
@@ -7,11 +9,11 @@ const emit = defineEmits<{
 
 <template>
   <div class="occ-actions">
-    <button class="occ-btn primary" @click="emit('action', draftId, 'pending')">上传至待分配</button>
-    <button class="occ-btn" @click="emit('action', draftId, 'merge')">合并至已有简历</button>
-    <button class="occ-btn" @click="emit('action', draftId, 'apply')">申请分配</button>
-    <button class="occ-btn warn" @click="emit('action', draftId, 'cancel')">取消上传</button>
-    <button class="occ-btn" @click="emit('action', draftId, 'score')">模拟评分</button>
+    <button class="occ-btn primary" @click="emit('action', draftId, 'pending')">{ t('components.common.OccupiedActions.s1') }</button>
+    <button class="occ-btn" @click="emit('action', draftId, 'merge')">{ t('components.common.OccupiedActions.s2') }</button>
+    <button class="occ-btn" @click="emit('action', draftId, 'apply')">{ t('components.common.OccupiedActions.s3') }</button>
+    <button class="occ-btn warn" @click="emit('action', draftId, 'cancel')">{ t('components.common.OccupiedActions.s4') }</button>
+    <button class="occ-btn" @click="emit('action', draftId, 'score')">{ t('components.common.OccupiedActions.s5') }</button>
   </div>
 </template>
 

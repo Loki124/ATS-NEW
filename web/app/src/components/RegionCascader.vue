@@ -38,7 +38,7 @@
       :disabled="disabled"
       filterable
       clearable
-      placeholder="国家"
+      :placeholder="t('components.RegionCascader.s1')"
       class="rc-col"
       @search="onCountrySearch"
     />
@@ -50,7 +50,7 @@
       :disabled="disabled"
       filterable
       clearable
-      placeholder="省/直辖市"
+      :placeholder="t('components.RegionCascader.s2')"
       class="rc-col"
     />
     <!-- 3) 市 (CITY / DISTRICT 才显示) -->
@@ -62,7 +62,7 @@
       :disabled="disabled || !provinceCode"
       filterable
       clearable
-      placeholder="市"
+      :placeholder="t('components.RegionCascader.s3')"
       class="rc-col"
     />
     <!-- 4) 区 (仅 _DISTRICT 才显示) -->
@@ -74,16 +74,18 @@
       :disabled="disabled || !cityCode"
       filterable
       clearable
-      placeholder="区/县"
+      :placeholder="t('components.RegionCascader.s4')"
       class="rc-col"
     />
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, watch, onMounted } from 'vue';
 import { NSelect } from 'naive-ui';
 import { fetchCountries, fetchRegions, type Country, type Region } from '../api/codeTable';
+const { t } = useI18n()
 
 // NOTE: withDefaults / defineProps / defineEmits 都是 Vue 3.4+ 编译器宏,
 // 不需要从 'vue' 引入 (会触发 [vue/compiler-sfc] `withDefaults` is a compiler macro

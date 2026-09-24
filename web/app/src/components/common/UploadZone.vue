@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { CloudUploadOutline as Upload, DocumentTextOutline as FileText, FolderOpenOutline as FolderOpen } from '@vicons/ionicons5'
+const { t } = useI18n()
 const emit = defineEmits<{ (e: 'upload', files: File[]): void }>()
 
 function handleClick() {
@@ -33,11 +35,11 @@ function handleDrop(e: DragEvent) {
     @drop="handleDrop"
   >
     <div class="up-icon"><NIcon :size="28" aria-hidden="true"><Upload /></NIcon></div>
-    <div class="up-text">点击上传或拖拽简历文件到此处</div>
-    <div class="up-hint">支持 PDF / Word / TXT，单文件不超过 10MB，支持批量上传</div>
+    <div class="up-text">{ t('components.common.UploadZone.s1') }</div>
+    <div class="up-hint">{ t('components.common.UploadZone.s2') }</div>
     <div class="up-quick">
-      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FileText /></NIcon>选择文件</span>
-      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FolderOpen /></NIcon>从人才库导入</span>
+      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FileText /></NIcon>{ t('components.common.UploadZone.s3') }</span>
+      <span @click.stop="emit('upload', [])"><NIcon :size="14" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><FolderOpen /></NIcon>{ t('components.common.UploadZone.s4') }</span>
     </div>
   </div>
 </template>

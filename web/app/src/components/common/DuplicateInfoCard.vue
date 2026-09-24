@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { DuplicateInfo } from '@/api/addCandidate'
+const { t } = useI18n()
 
 // 2026-06-29 花无缺: Step1Single.vue (line 114) 传 resume.status (Status 全集: processing|clean|unocc|occupied).
 //   旧 prop 只接 unocc|occupied, TS2322 fail. 改成接全 Status union,
@@ -10,19 +12,19 @@ defineProps<{ info: Partial<DuplicateInfo>; status: 'processing' | 'clean' | 'un
 <template>
   <div class="dup-card">
     <div class="dup-row">
-      <span class="dup-label">已有简历ID</span>
+      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s1') }</span>
       <span class="dup-value">{{ info.existing_resume_id }}</span>
     </div>
     <div class="dup-row">
-      <span class="dup-label">创建时间</span>
+      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s2') }</span>
       <span class="dup-value">{{ info.created_at }}</span>
     </div>
     <div class="dup-row">
-      <span class="dup-label">历史应聘</span>
+      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s3') }</span>
       <span class="dup-value">{{ info.history }}</span>
     </div>
     <div class="dup-row">
-      <span class="dup-label">当前状态</span>
+      <span class="dup-label">{ t('components.common.DuplicateInfoCard.s4') }</span>
       <span class="dup-value" :style="{ color: status === 'occupied' ? 'var(--c-error-deep)' : 'var(--c-warning-deep)' }">
         {{ info.cur_status }}
       </span>

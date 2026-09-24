@@ -1,5 +1,5 @@
 <template>
-  <div class="stat-bar" role="group" aria-label="关键指标">
+  <div class="stat-bar" role="group" :aria-label="t('components.dashboard.StatBar.s1')">
     <div
       v-for="stat in stats"
       :key="stat.key"
@@ -17,7 +17,9 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+const { t } = useI18n()
 
 export interface StatItem {
   key: string

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 const props = defineProps<{ positions: string[]; modelValue: string }>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: string): void }>()
 
@@ -9,7 +11,7 @@ function select(pos: string) {
 
 <template>
   <div class="apply-pos">
-    <div class="apply-pos-title">选择目标职位</div>
+    <div class="apply-pos-title">{ t('components.common.ApplyPositionSelector.s1') }</div>
     <div class="apply-pos-list">
       <div
         v-for="p in positions"
