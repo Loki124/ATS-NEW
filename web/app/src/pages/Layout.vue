@@ -159,7 +159,12 @@
             </n-button>
           </n-badge>
 
-          <n-dropdown :options="userMenuOptions" trigger="click" @select="handleUserMenu">
+          <n-dropdown
+            :options="userMenuOptions"
+            :menu-props="() => ({ class: 'user-menu-dropdown' })"
+            trigger="click"
+            @select="handleUserMenu"
+          >
             <div class="flex items-center gap-2 cursor-pointer">
               <n-avatar :size="36" round class="bg-primary-gradient text-white font-semibold">
                 {{ userStore.user?.realName?.[0] || 'A' }}
@@ -438,6 +443,7 @@ function renderIcon(icon: any) {
 const userMenuOptions = computed(() => {
   const current = menuLayout.value
   return [
+    // 账户
     { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
     /* ⚠️ 22:45 统一范式 + 设置按钮可见性修复：
        - top 模式没有 sider（v-if 不渲染），原 .sider-footer（设置按钮）在 main-area 里位置错乱
@@ -450,12 +456,9 @@ const userMenuOptions = computed(() => {
       label: () =>
         h(
           'div',
-          { style: 'display:inline-flex;align-items:center;justify-content:space-between;width:100%' },
+          { class: 'user-menu-row user-menu-language-row' },
           [
-            h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
-              h(NIcon, { size: 16 }, { default: () => h(LanguageOutline) }),
-              '语言',
-            ]),
+            h('span', { class: 'user-menu-row-label' }, '语言'),
             h(NSwitch, {
               value: currentLocale.value === 'en-US',
               uncheckedValue: false,
@@ -469,26 +472,48 @@ const userMenuOptions = computed(() => {
             }),
           ],
         ),
+      icon: renderIcon(LanguageOutline),
     },
     { type: 'divider', key: 'd1' },
+    // 视图
+    {
+      key: 'section-layout',
+      label: () => h('div', { class: 'user-menu-section-label' }, '菜单布局'),
+      disabled: true,
+    },
     {
       key: 'menu-side',
-      label: () => h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
-        current === 'side' ? h(NIcon, { size: 14 }, { default: () => h(Check) }) : h('span', { style: 'display:inline-block;width:14px' }),
-        '菜单：左侧竖排',
-      ]),
+      label: () =>
+        h(
+          'div',
+          { class: 'user-menu-row' },
+          [
+            h('span', { class: 'user-menu-row-label' }, '左侧竖排'),
+            current === 'side'
+              ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
+              : null,
+          ],
+        ),
       icon: renderIcon(MenuOutline),
     },
     {
       key: 'menu-top',
-      label: () => h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
-        current === 'top' ? h(NIcon, { size: 14 }, { default: () => h(Check) }) : h('span', { style: 'display:inline-block;width:14px' }),
-        '菜单：顶部横排',
-      ]),
+      label: () =>
+        h(
+          'div',
+          { class: 'user-menu-row' },
+          [
+            h('span', { class: 'user-menu-row-label' }, '顶部横排'),
+            current === 'top'
+              ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
+              : null,
+          ],
+        ),
       icon: renderIcon(SwapVerticalOutline),
     },
     { type: 'divider', key: 'd2' },
-    { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline) },
+    // 会话
+    { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline), props: { class: 'user-menu-logout' } },
   ]
 })
 
@@ -1004,5 +1029,117 @@ function handleUserMenu(key: string) {
 .sider-footer--active {
   color: var(--brand);
   background: var(--brand-soft);
+}
+</style>
+
+<style>
+/* === 头像下拉菜单视觉整理（menu 通过 teleport 挂到 body，需全局样式） === */
+.user-menu-dropdown.n-dropdown-menu,
+.user-menu-dropdown .n-dropdown-menu {
+  padding: 8px 0;
+  border-radius: var(--radius-lg, 12px);
+}
+
+.user-menu-dropdown .n-dropdown-option-body {
+  min-height: 40px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.user-menu-dropdown .n-dropdown-option-body__prefix {
+  width: 22px;
+  min-width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  color: var(--ink-soft);
+  transition: color 0.15s ease;
+}
+
+.user-menu-dropdown .n-dropdown-option-body__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover {
+  background: var(--brand-tint);
+}
+
+.user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover .n-dropdown-option-body__prefix,
+.user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover .user-menu-row-label {
+  color: var(--brand);
+}
+
+/* 分组标题 */
+.user-menu-dropdown .n-dropdown-option-body.n-dropdown-option-body--disabled {
+  background: transparent !important;
+  cursor: default;
+  min-height: 28px;
+  padding-top: 10px;
+  padding-bottom: 2px;
+}
+
+.user-menu-dropdown .n-dropdown-option-body--disabled .n-dropdown-option-body__prefix {
+  display: none;
+}
+
+.user-menu-dropdown .n-dropdown-option-body--disabled .n-dropdown-option-body__label {
+  padding-left: 0;
+}
+
+.user-menu-section-label {
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  /* 与常规项的文本列左缘对齐：22px 图标列 + 10px 间距 */
+  padding-left: 32px;
+}
+
+/* 行内容：标签 + 右侧状态/控件 */
+.user-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.user-menu-row-label {
+  font-size: var(--fs-14, 14px);
+  line-height: 1.4;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+
+.user-menu-check {
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+/* 语言开关 */
+.user-menu-language-row .n-switch {
+  flex-shrink: 0;
+}
+
+/* 退出登录 */
+.user-menu-logout .n-dropdown-option-body__prefix,
+.user-menu-logout .user-menu-row-label {
+  color: var(--c-error);
+}
+
+.user-menu-logout .n-dropdown-option-body:hover {
+  background: var(--c-error-soft);
+}
+
+.user-menu-logout .n-dropdown-option-body:hover .n-dropdown-option-body__prefix,
+.user-menu-logout .n-dropdown-option-body:hover .user-menu-row-label {
+  color: var(--c-error-deep);
 }
 </style>
