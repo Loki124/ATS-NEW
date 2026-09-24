@@ -52,6 +52,11 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         # (落 DynamicFieldValue.value JSONField)。后端 validators 不归组 → 校验恒通过(无专属限制条件);
         # 结构仅依赖 contenteditable + execCommand, 零额外依赖。
         RICH_TEXT = 'RICH_TEXT', '富文本'
+        # 2026-09-24 (兵哥): 引用类字段 — 人员 / 部门
+        #   选项来源于系统用户 (内部/外部) 或 组织管理 (管理单元), 由 options_source 动态解析,
+        #   录入端按单选下拉渲染。人员 value = 用户 id, 部门 value = 管理单元 id。
+        PERSON = 'PERSON', '人员'
+        DEPARTMENT = 'DEPARTMENT', '部门'
 
     # 需要选项配置(下拉/列表)的字段类型
     OPTION_TYPES = [
@@ -174,14 +179,21 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
                             取 library_major (value=code, label=name)
           - ``code_table``: key = ``country`` / ``ethnicity`` / ``language``
                             取 G46 码表库对应表 (country: name_cn; ethnicity/language: name 或 name_cn)
+          - ``internal_user``: 取 User (user_type=INTERNAL) 全量 (value=id, label=姓名/用户名)
+          - ``external_user``: 取 User (user_type=EXTERNAL) 全量 (value=id, label=姓名/用户名)
+          - ``organization`` : 取 ManagementUnit (组织管理) 全量 (value=id, label=单元名称)
 
-        延迟导入 dictionary/library/code_table 模型, 避免模块加载期循环依赖。
+        延迟导入 dictionary/library/code_table/core 模型, 避免模块加载期循环依赖。
         """
         if not options_source or not isinstance(options_source, dict):
             return None
         src_type = options_source.get('type')
         key = options_source.get('key')
-        if not src_type or src_type == 'custom' or not key:
+        # 自定义 / 未配置 / 非法 type → 回退手动 options
+        if not src_type or src_type == 'custom':
+            return None
+        # 下列来源依赖 key (字典类型 code / 库 key / 码表 key), 缺失则不解析
+        if src_type in ('dictionary', 'library', 'code_table') and not key:
             return None
         try:
             if src_type == 'dictionary':
@@ -230,6 +242,39 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
                     if key == 'language':
                         qs = Language.objects.all().order_by('code')
                         return [{'value': l.code, 'label': l.name_cn} for l in qs]
+            if src_type == 'internal_user':
+                # 内部用户: core.User (user_type=INTERNAL, 启用且未删除)
+                from apps.core.models import User
+                users = (
+                    User.objects
+                    .filter(user_type='INTERNAL', is_active=True, deleted_at__isnull=True)
+                    .order_by('username')
+                )
+                return [
+                    {'value': str(u.id), 'label': (u.get_full_name() or u.username)}
+                    for u in users
+                ]
+            if src_type == 'external_user':
+                # 外部用户: core.User (user_type=EXTERNAL, 启用且未删除)
+                from apps.core.models import User
+                users = (
+                    User.objects
+                    .filter(user_type='EXTERNAL', is_active=True, deleted_at__isnull=True)
+                    .order_by('username')
+                )
+                return [
+                    {'value': str(u.id), 'label': (u.get_full_name() or u.username)}
+                    for u in users
+                ]
+            if src_type == 'organization':
+                # 组织管理: core.ManagementUnit (status=1 启用), 按显示顺序/名称排序
+                from apps.core.models_permission_v2 import ManagementUnit
+                units = (
+                    ManagementUnit.objects
+                    .filter(status=1)
+                    .order_by('display_order', 'unit_name')
+                )
+                return [{'value': str(u.id), 'label': u.unit_name} for u in units]
         except Exception:  # noqa: BLE001 — 解析失败安全降级到手动 options
             return None
         return None

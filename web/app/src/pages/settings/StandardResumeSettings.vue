@@ -358,7 +358,8 @@ function fieldTypeLabel(t: FieldType): string {
 }
 
 function isSingleChoice(t: FieldType): boolean {
-  return t === 'SELECT' || t === 'LIST_SINGLE'
+  // 2026-09-24 (兵哥): 人员/部门引用型按单选下拉预览
+  return t === 'SELECT' || t === 'LIST_SINGLE' || t === 'PERSON' || t === 'DEPARTMENT'
 }
 function isMultiChoice(t: FieldType): boolean {
   return t === 'MULTISELECT' || t === 'LIST_MULTI'

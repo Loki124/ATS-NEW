@@ -109,8 +109,9 @@ const RESOURCE_OPTIONS = [
 
 function isTextType(t: string) { return TEXT_TYPES.includes(t); }
 function isNumberType(t: string) { return NUMBER_TYPES.includes(t); }
-/** 选择类 (录入端渲染下拉/多选) — 含 SELECT/MULTISELECT/LIST_SINGLE/LIST_MULTI (变更 #7 仅移除「可选范围」配置, 字段本身仍按选择控件渲染) */
-const SELECTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'];
+/** 选择类 (录入端渲染下拉/多选) — 含 SELECT/MULTISELECT/LIST_SINGLE/LIST_MULTI
+ *  + 2026-09-24 (兵哥) 人员/部门引用型: 按单选下拉渲染, 选项由 options_source 动态解析 */
+const SELECTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT'];
 function isOptionType(t: string) { return SELECTION_TYPES.includes(t); }
 function isPlainTextType(t: string) { return ['TEXT', 'MULTILINE_TEXT', 'ADDRESS'].includes(t); }
 function needsTextarea(t: string) { return t === 'MULTILINE_TEXT'; }

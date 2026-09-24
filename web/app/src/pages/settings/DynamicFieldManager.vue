@@ -865,7 +865,7 @@ const fieldForm = reactive<{
   validation: {},
 });
 
-const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI'].includes(fieldForm.fieldType));
+const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT'].includes(fieldForm.fieldType));
 
 // ---------------------------------------------------------------------------
 // 2026-09-24 (兵哥) 限制条件配置: 与后端 validators.py 类型分组对齐
@@ -923,15 +923,33 @@ function buildValidationPayload(): FieldValidation {
 // 2026-09-15 选项来源 (兵哥): 下拉/列表型字段除手动维护选项外, 可指定数据源动态解析
 // 拍平为单层下拉（兵哥 9-15 反馈: 院校/专业库、码表库不再做二级级联, 直接拆成独立选项）
 // 复合 value 形式 type:key, 选择即写入 fieldForm.optionsSource.{type,key}, 后端零改动兼容
-const OPTION_SOURCE_OPTIONS = [
-  { label: '自定义（手动维护）', value: 'custom' },
-  { label: '数据字典', value: 'dictionary' },
-  { label: '专业库', value: 'library:major' },
-  { label: '院校库', value: 'library:school' },
-  { label: '国家/地区', value: 'code_table:country' },
-  { label: '民族', value: 'code_table:ethnicity' },
-  { label: '语言类型', value: 'code_table:language' },
-];
+//
+// 2026-09-24 (兵哥): 选项来源按字段类型联动 — 人员/部门类型仅暴露各自的来源集合,
+// 避免选到不兼容的数据源 (如给「人员」选「专业库」)。
+const OPTION_SOURCE_OPTIONS = computed<{ label: string; value: string }[]>(() => {
+  if (fieldForm.fieldType === 'PERSON') {
+    return [
+      { label: '自定义（手动维护）', value: 'custom' },
+      { label: '内部用户', value: 'internal_user' },
+      { label: '外部用户', value: 'external_user' },
+    ];
+  }
+  if (fieldForm.fieldType === 'DEPARTMENT') {
+    return [
+      { label: '自定义（手动维护）', value: 'custom' },
+      { label: '组织管理', value: 'organization' },
+    ];
+  }
+  return [
+    { label: '自定义（手动维护）', value: 'custom' },
+    { label: '数据字典', value: 'dictionary' },
+    { label: '专业库', value: 'library:major' },
+    { label: '院校库', value: 'library:school' },
+    { label: '国家/地区', value: 'code_table:country' },
+    { label: '民族', value: 'code_table:ethnicity' },
+    { label: '语言类型', value: 'code_table:language' },
+  ];
+});
 // 当前选中的来源类型（兜底 custom）
 const sourceType = computed(() => fieldForm.optionsSource?.type || 'custom');
 // 下拉当前值（复合 type:key；custom/dictionary 无 key 时退化为纯 type）
@@ -963,6 +981,9 @@ const dictionaryTypeOptions = computed(() =>
 // 当前数据源的预览条数提示（library: 2744 + 1976 / code_table: 250+58+609）
 const sourceHint = computed(() => {
   if (sourceType.value === 'custom') return '';
+  if (sourceType.value === 'internal_user') return '内部用户将从系统用户（内部员工）动态加载，录入时按姓名/用户名搜索';
+  if (sourceType.value === 'external_user') return '外部用户将从系统用户（外部用户）动态加载，录入时按姓名/用户名搜索';
+  if (sourceType.value === 'organization') return '组织管理将从管理单元动态加载，按显示顺序排列';
   if (sourceType.value === 'library') {
     if (fieldForm.optionsSource?.key === 'school') return '院校库约 2744 所院校，候选人在填写时支持 keyword 服务端搜索';
     if (fieldForm.optionsSource?.key === 'major') return '专业库约 1976 个专业，按名称排序';
@@ -975,6 +996,17 @@ const sourceHint = computed(() => {
     return '请选择子类型';
   }
   return '';
+});
+
+// 2026-09-24 (兵哥): 切换字段类型时, 若当前选项来源类型不在新类型的可用集合内, 重置为自定义,
+// 避免「人员」字段残留「数据字典 / 专业库」等不兼容来源, 或反之。
+watch(() => fieldForm.fieldType, () => {
+  const allowed = OPTION_SOURCE_OPTIONS.value.map((o) => o.value.split(':')[0]);
+  if (!allowed.includes(fieldForm.optionsSource?.type || 'custom')) {
+    fieldForm.optionsSource = { type: 'custom', key: '' };
+    dictionaryPreviewOptions.value = [];
+    loadingDictTypes.value = false;
+  }
 });
 
 /** 切换选项来源：val 为复合 value（type 或 type:key）。
@@ -1231,8 +1263,10 @@ function onFieldModuleChange() { fieldForm.groupId = null; }
 async function saveField() {
   if (!fieldForm.label.trim()) { message.error('请填写字段名称'); return; }
   // 2026-09-15 选项来源校验: 选了非 custom 但子 key 空 → 拦截
-  if (fieldNeedsOptions.value && sourceType.value !== 'custom' && !fieldForm.optionsSource?.key) {
-    message.error('选项来源选择了「' + OPTION_SOURCE_OPTIONS.find((o) => o.value === sourceType.value)?.label + '」，请继续选择子类型');
+  // 2026-09-15 选项来源校验: 仅「数据字典」需要继续选择子类型(key);
+  // 内部用户/外部用户/组织管理/专业库/院校库/码表库 选中即确定来源, 无需子 key。
+  if (fieldNeedsOptions.value && sourceType.value !== 'custom' && sourceType.value === 'dictionary' && !fieldForm.optionsSource?.key) {
+    message.error('选项来源选择了「' + OPTION_SOURCE_OPTIONS.value.find((o) => o.value === sourceType.value)?.label + '」，请继续选择子类型');
     return;
   }
   saving.value = true;

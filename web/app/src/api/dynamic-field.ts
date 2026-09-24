@@ -22,7 +22,9 @@ export type FieldType =
   | 'ADDRESS'
   | 'REGION'
   | 'COMPOSITE'
-  | 'RICH_TEXT';
+  | 'RICH_TEXT'
+  | 'PERSON'
+  | 'DEPARTMENT';
 
 /** 组合字段 (COMPOSITE) 的子字段定义 (与后端 DynamicField.sub_fields 对齐) */
 export interface SubField {
@@ -432,6 +434,11 @@ export const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
     { label: '行政区划', value: 'REGION' },
     { label: '组合字段', value: 'COMPOSITE' },
   ]},
+  { type: 'group', label: '人员与组织', children: [
+    // 2026-09-24 (兵哥): 引用类字段 — 选项来源于系统用户 / 组织管理 (见 optionsSource)
+    { label: '人员', value: 'PERSON' },
+    { label: '部门', value: 'DEPARTMENT' },
+  ]},
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -446,6 +453,8 @@ export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   REGION: '行政区划',
   COMPOSITE: '组合字段',
   RICH_TEXT: '富文本',
+  PERSON: '人员',
+  DEPARTMENT: '部门',
 };
 
 /** 国际电话区号清单 (2026-09-24 兵哥) — 录入「电话」字段时可选, 默认 +86。
