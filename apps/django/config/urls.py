@@ -161,6 +161,8 @@ api_v1_patterns = [
     path('data-permissions/', include('apps.data_permission.urls')),
     # 2026-08-31: Phase 1 统一规则引擎只读 API（适配器读路径，零改动 legacy 写路径）
     path('rule-engine/', include('apps.rule_engine.urls')),
+    # 2026-09-25: 指标库（规则引擎指标层：原子/派生指标 + 模板 + 一次性执行）
+    path('metrics/', include('apps.metrics.urls')),
     # 2026-09-13: 重复候选人管理（合并规则 / 重复申请管理 / 候选人查重规则）
     #   GET         /api/v1/duplicate-rules/catalog/
     #   GET|PUT     /api/v1/duplicate-rules/config/

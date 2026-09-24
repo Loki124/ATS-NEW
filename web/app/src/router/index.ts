@@ -136,6 +136,9 @@ const routes: RouteRecordRaw[] = [
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
           { path: 'demand-dynamic-fields', name: 'DemandDynamicFields', component: () => import(/* webpackChunkName: "settings-demand-dynamic-fields" */ '../pages/settings/DemandDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // 2026-09-25: 指标库 + 规则配置执行（规则引擎指标层，复用 apps/rule_engine 规则主体）
+          { path: 'metric-library', name: 'MetricLibrary', component: () => import(/* webpackChunkName: "settings-metric-library" */ '../pages/settings/MetricLibrary.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'metric-rule-config', name: 'MetricRuleConfig', component: () => import(/* webpackChunkName: "settings-metric-rule-config" */ '../pages/settings/MetricRuleConfig.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },
           { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
           // G-2026-09-23: 双系统校招专属配置（仅校园招聘菜单可见；社招不呈现）

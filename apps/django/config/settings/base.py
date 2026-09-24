@@ -114,6 +114,7 @@ LOCAL_APPS = [
     'apps.time_limit',
     'apps.automation',
     'apps.rule_engine',     # 2026-08-31: Phase 0 统一规则引擎核心脚手架（仅新增，不动现有调用方）
+    'apps.metrics',         # 2026-09-25: 指标库(规则引擎指标层: 原子/派生指标+模板)，复用 rule_engine 规则主体
     # 业务域
     'apps.candidate',
     'apps.add_candidate',  # 2026-06-22: 新版创建候选人流程

@@ -13,6 +13,7 @@ import { ref, computed } from 'vue'
 import { REASON_LIBRARY_ZH, DATA_PERM_ZH, APP_UI_ZH } from './zh-CN'
 import { REASON_LIBRARY_EN, DATA_PERM_EN, APP_UI_EN } from './en-US'
 import { LANGUAGE_ZH, LANGUAGE_EN } from './language'
+import { METRICS_ZH, METRICS_EN } from './metrics'
 
 /** 扁平 dot-key 字典 -> vue-i18n 嵌套对象 */
 function toNested(flat: Record<string, string>): Record<string, any> {
@@ -32,8 +33,8 @@ function toNested(flat: Record<string, string>): Record<string, any> {
 }
 
 const messages = {
-  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH, ...APP_UI_ZH, ...LANGUAGE_ZH }),
-  'en-US': toNested({ ...REASON_LIBRARY_EN, ...DATA_PERM_EN, ...APP_UI_EN, ...LANGUAGE_EN }),
+  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH, ...APP_UI_ZH, ...LANGUAGE_ZH, ...METRICS_ZH }),
+  'en-US': toNested({ ...REASON_LIBRARY_EN, ...DATA_PERM_EN, ...APP_UI_EN, ...LANGUAGE_EN, ...METRICS_EN }),
 }
 
 export type AppLocale = 'zh-CN' | 'en-US'
