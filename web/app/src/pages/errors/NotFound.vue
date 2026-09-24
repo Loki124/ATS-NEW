@@ -3,7 +3,7 @@
     <div class="glass-panel err-card">
       <div class="err-left">
         <h1 class="err-code">404</h1>
-        <span class="err-tag">PAGE NOT FOUND</span>
+        <span class="err-tag">页面不存在</span>
       </div>
       <div class="err-right">
         <h2 class="err-title">你访问的页面不存在</h2>

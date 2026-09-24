@@ -175,7 +175,7 @@
               <n-input v-model:value="fieldForm.confirmationDeclaration" type="textarea" placeholder="确认声明文案" />
             </n-form-item>
             <n-form-item label="确认声明(英文)">
-              <n-input v-model:value="fieldForm.confirmationDeclarationEn" type="textarea" placeholder="Declaration text (EN)" />
+              <n-input v-model:value="fieldForm.confirmationDeclarationEn" type="textarea" placeholder="英文确认声明文案" />
             </n-form-item>
           </template>
           <!-- 2026-09-16 (兵哥) 组合字段: 子字段编辑器(可含附件子字段, 页面呈现为组合展示卡) -->
@@ -425,8 +425,9 @@
               @update:value="onGroupModuleChange"
             />
           </n-form-item>
-          <n-form-item label="分组编码" required>
-            <n-input v-model:value="groupForm.code" placeholder="e.g. contact" :disabled="!!groupEditing" />
+          <!-- 2026-09-24 (兵哥): 分组编码由系统自动生成, 新建时不再让用户填写; 编辑仅只读展示 -->
+          <n-form-item v-if="groupEditing" label="分组编码">
+            <n-input v-model:value="groupForm.code" placeholder="系统自动生成" disabled />
           </n-form-item>
           <n-form-item label="分组名称" required>
             <n-input v-model:value="groupForm.name" placeholder="e.g. 联系方式" />
@@ -1378,10 +1379,12 @@ function openGroupEdit(row: FieldGroup) {
 }
 function onGroupModuleChange() { /* 仅用于后续扩展 */ }
 async function saveGroup() {
-  if (!groupForm.moduleId || !groupForm.code || !groupForm.name) { message.error('模块、编码和名称必填'); return; }
+  // 2026-09-24 (兵哥): 分组编码由系统自动生成, 前端不再校验/填写 code; 编辑时原样回传保持不变
+  if (!groupForm.moduleId || !groupForm.name) { message.error('模块和名称必填'); return; }
   saving.value = true;
   try {
-    const payload: any = { moduleId: groupForm.moduleId, code: groupForm.code, name: groupForm.name, orderIndex: groupForm.orderIndex, isActive: groupForm.isActive, id: groupEditing.value?.id };
+    const payload: any = { moduleId: groupForm.moduleId, name: groupForm.name, orderIndex: groupForm.orderIndex, isActive: groupForm.isActive, id: groupEditing.value?.id };
+    if (groupEditing.value) payload.code = groupForm.code;
     await upsertGroup(currentResource.value, payload);
     groupModalVisible.value = false;
     message.success('保存成功');

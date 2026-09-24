@@ -59,7 +59,7 @@
         <n-form-item label="格式">
           <n-radio-group v-model:value="templateModal.form.format">
             <n-radio value="html">HTML (浏览器打印)</n-radio>
-            <n-radio value="pdf" disabled>PDF (Phase 3)</n-radio>
+            <n-radio value="pdf" disabled>PDF（暂未开放）</n-radio>
           </n-radio-group>
         </n-form-item>
       </n-form>

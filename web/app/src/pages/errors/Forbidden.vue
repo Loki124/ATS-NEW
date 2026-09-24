@@ -3,7 +3,7 @@
     <div class="glass-panel err-card">
       <div class="err-left">
         <h1 class="err-code">403</h1>
-        <span class="err-tag">ACCESS DENIED</span>
+        <span class="err-tag">访问被拒绝</span>
       </div>
       <div class="err-right">
         <h2 class="err-title">你没有访问该页面的权限</h2>

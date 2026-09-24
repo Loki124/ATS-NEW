@@ -134,10 +134,10 @@
             凭证用于 ATS 与供应商之间的 HMAC-SHA256 双向签名认证，统一规范见《背调供应商接入标准规范》。
           </n-alert>
           <n-form :model="form" label-placement="left" :label-width="108">
-            <n-form-item label="App Id">
+            <n-form-item label="应用 ID">
               <n-input v-model:value="form.appId" placeholder="供应商分配的应用标识" />
             </n-form-item>
-            <n-form-item label="App Key">
+            <n-form-item label="应用密钥">
               <n-input
                 v-model:value="form.appKey"
                 type="password"
