@@ -27,7 +27,10 @@
         底层为 CSS Grid + 卡片, 全组件未使用 <table> / <tr> / <td> 等任何表格元素。
       -->
       <div v-else class="rl-merge" :style="gridStyle">
-        <!-- 分类单元 (按层级与子树范围跨行/跨列) -->
+        <!--
+          分类单元 (按层级与子树范围跨行/跨列)。
+          悬停时在当前卡片上叠加蒙层 + 「设置」按钮, 点击打开该分类的区块颜色弹窗。
+        -->
         <div
           v-for="cell in layout.cells"
           :key="cell.key"
@@ -35,7 +38,17 @@
           :class="{ 'is-leaf': cell.isLeaf, 'is-wide': cell.isWide }"
           :style="cellStyle(cell)"
         >
-          {{ cell.name }}
+          <span class="rl-cell-name">{{ cell.name }}</span>
+          <div class="rl-cell-mask">
+            <button
+              type="button"
+              class="rl-cell-set"
+              @click.stop="openColorModal(cell.key)"
+            >
+              <n-icon :component="SettingsOutline" />
+              <span>{{ t('reasonLibrary.wizard.preview.colorSet') }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- 标签单元: 每个末级分类一行, 同类原因标签在此聚合排列 -->
@@ -100,6 +113,64 @@
         class="rl-detail-input"
       />
     </div>
+
+    <!-- ============ 区块颜色配置弹窗 (针对当前卡片) ============ -->
+    <n-modal
+      v-model:show="colorModalShow"
+      preset="card"
+      class="rl-color-modal"
+      :title="colorModalTitle"
+      style="max-width: 460px; width: 90vw;"
+      :bordered="false"
+      :mask-closable="true"
+      @after-leave="onColorModalClosed"
+    >
+      <div v-if="editingCat" class="rl-color-body">
+        <div class="rl-color-cur">
+          <span class="rl-color-cur-name">{{ editingCat.name }}</span>
+          <span class="rl-color-mode" :class="draftModeClass">{{ draftModeLabel }}</span>
+        </div>
+        <div class="rl-palette">
+          <button
+            v-for="c in BLOCK_COLORS"
+            :key="c"
+            type="button"
+            class="rl-swatch"
+            :class="{ active: draftColor === c }"
+            :style="{ background: c }"
+            :title="c"
+            @click="draftColor = c"
+          />
+          <label class="rl-color-custom" :title="t('reasonLibrary.wizard.preview.colorCustom')">
+            <input
+              type="color"
+              :value="draftColor || '#ffffff'"
+              @input="(e: any) => (draftColor = (e.target as HTMLInputElement).value)"
+            />
+            <span>{{ t('reasonLibrary.wizard.preview.colorCustom') }}</span>
+          </label>
+        </div>
+        <div class="rl-color-preview">
+          <span class="rl-color-swatch" :style="{ background: swatchBg(draftEffectiveColor) }" />
+          <span class="rl-color-preview-text">{{ draftPreviewText }}</span>
+          <button
+            v-if="draftColor"
+            type="button"
+            class="rl-color-reset"
+            @click="draftColor = ''"
+          >
+            {{ t('reasonLibrary.wizard.preview.colorReset') }}
+          </button>
+        </div>
+      </div>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="colorModalShow = false">{{ t('reasonLibrary.common.cancel') }}</n-button>
+          <n-button type="primary" @click="confirmColor">{{ t('reasonLibrary.common.confirm') }}</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -120,15 +191,152 @@
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { NInput, NSpace, NTag } from 'naive-ui'
+import { NButton, NIcon, NInput, NModal, NSpace, NTag } from 'naive-ui'
+import { SettingsOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
 import { RECRUIT_TYPE_OPTIONS } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   wizard: WizardPayload
   allTags: ReasonTag[]
 }>()
+
+/** 区块颜色变更回传父组件 (ReasonRuleWizard 写入 wizard.categories[i].color) */
+const emit = defineEmits<{
+  (e: 'update:color', p: { catId: string; color: string }): void
+}>()
+
+/** 预设调色板 — 满足「自定义其他颜色进行覆盖」的主要入口 */
+const BLOCK_COLORS = [
+  '#2080F0', '#18A058', '#F0A020', '#D03050', '#7C5CFC',
+  '#2BB6C4', '#E35B8A', '#8F5E2E', '#5A6B7B', '#9C27B0',
+]
+
+const catMap = computed(() => {
+  const m = new Map<string, RuleCategory>()
+  ;(props.wizard.categories || []).forEach((c) => m.set(c.id, c))
+  return m
+})
+
+/**
+ * 有效区块颜色 (读取端实时推导, 不落库冗余值):
+ * - 自身 color 非空 → 返回 (一级=专属色 / 非一级=自定义覆盖)
+ * - 自身为空 → 沿父链向上找第一个非空的祖先 color
+ * - 全链皆空 → 返回 '' (前端用默认品牌色)
+ * 因此「改一级分类颜色 → 其下未自定义的子分类自动跟随」。
+ */
+function effectiveColor(cat: RuleCategory): string {
+  let cur: RuleCategory | undefined = cat
+  while (cur) {
+    if (cur.color) return cur.color
+    if (!cur.parentId) break
+    cur = catMap.value.get(cur.parentId)
+  }
+  return ''
+}
+
+/** 找到所属一级分类 (沿父链上溯到 level===1) */
+function level1Ancestor(cat: RuleCategory): RuleCategory | null {
+  let cur: RuleCategory | undefined = cat
+  while (cur && cur.level > 1 && cur.parentId) {
+    const p = catMap.value.get(cur.parentId)
+    if (!p) break
+    cur = p
+  }
+  return cur && cur.level === 1 ? cur : null
+}
+
+function swatchBg(color: string): string {
+  return color || 'var(--brand-tint)'
+}
+
+/** 色值 → rgba (用于分类单元底色微染) */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  if (h.length !== 6) return hex
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// ============= 区块颜色弹窗 (悬停卡片 → 蒙层「设置」→ 弹窗) =============
+const colorModalShow = ref(false)
+const editingCatId = ref<string>('')
+/** 草稿色: 弹窗内的临时选择, 确认前不写入 wizard (取消即丢弃) */
+const draftColor = ref<string>('')
+
+const editingCat = computed<RuleCategory | null>(
+  () => catMap.value.get(editingCatId.value) ?? null,
+)
+
+const colorModalTitle = computed(
+  () => t('reasonLibrary.wizard.preview.blockColorTitle'),
+)
+
+function openColorModal(catId: string) {
+  const cat = catMap.value.get(catId)
+  if (!cat) return
+  editingCatId.value = catId
+  draftColor.value = cat.color || ''  // 以当前已存色初始化草稿
+  colorModalShow.value = true
+}
+
+/** 弹窗完全关闭后清空草稿, 避免下次打开残留 (取消/关闭均走此路径) */
+function onColorModalClosed() {
+  editingCatId.value = ''
+  draftColor.value = ''
+}
+
+/** 确认: 将草稿色回传父组件写入 wizard.categories[i].color (空串=未自定义/继承) */
+function confirmColor() {
+  if (editingCatId.value) {
+    emit('update:color', { catId: editingCatId.value, color: draftColor.value || '' })
+  }
+  colorModalShow.value = false
+}
+
+/** 草稿态下的有效色 (用于弹窗内预览色块): 草稿非空用草稿; 否则沿父链取继承色 */
+const draftEffectiveColor = computed<string>(() => {
+  const cat = editingCat.value
+  if (!cat) return ''
+  if (draftColor.value) return draftColor.value
+  let cur: RuleCategory | undefined = cat
+  while (cur) {
+    if (cur.color) return cur.color
+    if (!cur.parentId) break
+    cur = catMap.value.get(cur.parentId)
+  }
+  return ''
+})
+
+const draftModeLabel = computed<string>(() => {
+  const cat = editingCat.value
+  if (!cat) return ''
+  if (draftColor.value) {
+    return cat.level === 1
+      ? t('reasonLibrary.wizard.preview.colorModeExclusive')
+      : t('reasonLibrary.wizard.preview.colorModeOverride')
+  }
+  if (cat.level === 1) return t('reasonLibrary.wizard.preview.colorModeDefault')
+  const lv1 = level1Ancestor(cat)
+  return t('reasonLibrary.wizard.preview.colorModeInherit', { name: lv1?.name || '' })
+})
+
+const draftModeClass = computed<string>(() => {
+  const cat = editingCat.value
+  if (!cat) return ''
+  if (draftColor.value) return cat.level === 1 ? 'is-exclusive' : 'is-override'
+  return cat.level === 1 ? 'is-default' : 'is-inherit'
+})
+
+const draftPreviewText = computed<string>(() => {
+  if (draftColor.value) return draftColor.value.toUpperCase()
+  if (editingCat.value?.level === 1) return t('reasonLibrary.wizard.preview.colorModeDefault')
+  return t('reasonLibrary.wizard.preview.colorInheritHint')
+})
 
 /** 一个分类单元在网格中的位置与跨度 (等价于合并单元格的锚点 + rowspan/colspan) */
 interface MergeCell {
@@ -335,10 +543,23 @@ const gridStyle = computed(() => {
 })
 
 function cellStyle(cell: MergeCell) {
-  return {
+  const cat = catMap.value.get(cell.key)
+  const eff = cat ? effectiveColor(cat) : ''
+  const style: Record<string, string> = {
     gridColumn: `${cell.col} / span ${cell.colSpan}`,
     gridRow: `${cell.row} / span ${cell.rowSpan}`,
   }
+  // 区块颜色统一表达为「四边等宽 1px 边框 + 整体柔和底色」。
+  // 旧实现用「仅左侧 4px 加粗 + 左侧单独上色」做强调, 因左右边框宽度不对称, 在圆角处
+  // 会渲染成左侧色块加重 / 突块 / 阴影般的异常视觉 (需求 2026-09-23 移除)。
+  // 这里改为下发 CSS 变量: 未着色时不设置该变量 → CSS 回退到默认品牌边框与底色,
+  // 着色时四边同色同宽 (边框宽度恒为 1px, 卡片盒尺寸不随是否着色而变)。
+  if (eff) {
+    // 仅下发底色变量: 边框不上色 (需求 2026-09-23 修订) —— 着色只以柔和底色表达,
+    // 避免右侧/顶/底边框被上色造成与未着色卡不一致。未着色不设置变量 → 回退默认边框与底色。
+    style['--cat-tint'] = hexToRgba(eff, 0.14)
+  }
+  return style
 }
 function rowStyle(row: TagRow) {
   return {
@@ -396,30 +617,66 @@ function rowStyle(row: TagRow) {
 
 /* 分类单元: 靠 grid span 实现跨行/跨列, 视觉上等同合并单元格 */
 .rl-cell {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-2) 3px;
   border: 1px solid var(--brand-a12);
   border-radius: var(--radius-sm);
-  background: var(--brand-tint);
+  /* 着色仅以柔和底色表达, 边框不上色 (边框回退默认品牌描边, 与未着色卡一致) */
+  background: var(--cat-tint, var(--brand-tint));
   color: var(--ink-soft);
   font-size: var(--fs-12);
   font-weight: 500;
   line-height: 1.45;
   text-align: center;
+  overflow: hidden;
   overflow-wrap: anywhere;
   word-break: break-all;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .rl-cell:hover { border-color: var(--brand); }
+.rl-cell-name { position: relative; z-index: 1; }
+
+/* 悬停蒙层 + 「设置」按钮: 仅 hover 时显示 (默认 opacity:0 + pointer-events:none, 不遮挡卡片) */
+.rl-cell-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: rgba(0, 0, 0, .42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.rl-cell:hover .rl-cell-mask { opacity: 1; pointer-events: auto; }
+.rl-cell-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: var(--fs-11);
+  line-height: 1.3;
+  color: #fff;
+  background: var(--brand);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.rl-cell-set:hover { background: var(--brand-hover, var(--brand)); filter: brightness(1.08); }
 .rl-cell.is-leaf {
-  background: var(--brand-soft);
+  background: var(--cat-tint, var(--brand-soft));
   border-color: var(--brand-a22);
   color: var(--ink);
   font-weight: 600;
 }
-.rl-cell.is-wide { background: var(--brand-a22); }
+.rl-cell.is-wide { background: var(--cat-tint, var(--brand-a22)); }
 
 /* 标签单元: 每个末级分类一行, 同类原因标签在此聚合排列 */
 .rl-tags {
@@ -506,4 +763,95 @@ function rowStyle(row: TagRow) {
 }
 
 .rl-detail-input { width: 100%; }
+
+/* === 区块颜色配置弹窗 (针对当前卡片) === */
+.rl-color-body { display: flex; flex-direction: column; gap: var(--space-4); }
+.rl-color-cur {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rl-color-cur-name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-all;
+}
+.rl-color-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--space-2) 0 0;
+}
+.rl-color-preview-text {
+  font-size: var(--fs-12);
+  color: var(--ink-soft);
+}
+.rl-color-swatch {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid var(--border-hairline);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35);
+}
+.rl-color-mode {
+  flex: 0 0 auto;
+  font-size: var(--fs-11);
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-hairline);
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+.rl-color-mode.is-exclusive { color: var(--brand); border-color: var(--brand-a22); background: var(--brand-tint); }
+.rl-color-mode.is-override { color: #fff; border-color: transparent; background: var(--c-warn, #d97706); }
+.rl-color-mode.is-inherit { color: var(--ink-soft); }
+.rl-color-mode.is-default { color: var(--ink-faint); }
+.rl-palette { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rl-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.rl-swatch:hover { transform: scale(1.12); }
+.rl-swatch.active {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--brand);
+}
+.rl-color-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-11);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.rl-color-custom input[type='color'] {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-hairline);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+.rl-color-reset {
+  flex: 0 0 auto;
+  font-size: var(--fs-11);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-hairline);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.rl-color-reset:hover { border-color: var(--brand); color: var(--brand); }
 </style>

@@ -63,7 +63,8 @@ import { ref, computed, h, watch } from 'vue'
 import { NButton, NTag, NSwitch, NTooltip, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty } from 'naive-ui'
 import { SearchOutline, AddOutline, PencilOutline, TrashOutline, LockClosedOutline } from '@vicons/ionicons5'
 import type { ReasonTag } from '../../types/reason-library'
-import { t } from '../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   tags: ReasonTag[]

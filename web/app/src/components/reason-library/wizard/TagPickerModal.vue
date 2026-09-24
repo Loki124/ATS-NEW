@@ -98,7 +98,8 @@ import { NModal, NInput, NSelect, NButton, NSpace, NTag, NIcon, NEmpty, NCheckbo
 import { SearchOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory } from '../../../types/reason-library'
 import { MAX_PICK } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean

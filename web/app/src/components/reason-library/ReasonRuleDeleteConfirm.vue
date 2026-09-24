@@ -49,7 +49,8 @@
 import { computed } from 'vue'
 import { NModal, NAlert, NTag, NButton, NSpace } from 'naive-ui'
 import type { SceneRuleListItem } from '../../types/reason-library'
-import { t } from '../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean

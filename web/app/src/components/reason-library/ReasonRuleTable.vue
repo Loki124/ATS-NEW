@@ -52,7 +52,8 @@ import { ref, computed, h } from 'vue'
 import { NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NTooltip } from 'naive-ui'
 import { SearchOutline, AddOutline, SettingsOutline, LockClosedOutline } from '@vicons/ionicons5'
 import type { SceneRuleListItem } from '../../types/reason-library'
-import { t } from '../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   rules: SceneRuleListItem[]
@@ -94,10 +95,13 @@ const columns = computed(() => [
     render: (row: SceneRuleListItem) =>
       h('div', { class: 'rl-name-cell' }, [
         h('span', { class: 'rl-name-text' }, row.name),
-        row.isSystem
-          ? h(NTag, { size: 'tiny', type: 'warning', bordered: false, style: 'margin-left: 8px;' },
-              { default: () => t('reasonLibrary.rules.col.systemBadge') })
-          : null,
+        row.isPresetDefault
+          ? h(NTag, { size: 'tiny', type: 'primary', bordered: false, style: 'margin-left: 8px;' },
+              { default: () => t('reasonLibrary.rules.col.presetDefaultBadge') })
+          : (row.isSystem
+            ? h(NTag, { size: 'tiny', type: 'warning', bordered: false, style: 'margin-left: 8px;' },
+                { default: () => t('reasonLibrary.rules.col.systemBadge') })
+            : null),
       ]),
   },
   {
@@ -105,6 +109,10 @@ const columns = computed(() => [
     key: 'scenes',
     width: 240,
     render: (row: SceneRuleListItem) => {
+      if (row.isPresetDefault) {
+        return h(NTag, { size: 'small', type: 'primary', bordered: false, class: 'rl-scene-tag' },
+          { default: () => t('reasonLibrary.rules.col.presetDefaultScope') })
+      }
       if (!row.scenes?.length) {
         return h('span', { class: 'rl-empty' }, t('reasonLibrary.rules.col.emptyScenes'))
       }

@@ -137,7 +137,8 @@ import {
 } from '@vicons/ionicons5'
 import type { RuleCategory } from '../../../types/reason-library'
 import { MAX_CATEGORY_LEVEL } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   categories: RuleCategory[]

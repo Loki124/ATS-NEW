@@ -61,6 +61,7 @@
           v-show="step === 3"
           :wizard="wizard"
           :all-tags="allTags"
+          @update:color="onCategoryColorChange"
         />
       </div>
     </n-spin>
@@ -99,6 +100,7 @@
       v-model:max-selectable-tags="wizard.maxSelectableTags"
       :rule-id="ruleId || ''"
       :all-scenes-usage="sceneUsage"
+      :preset-default="wizard?.isPresetDefault ?? false"
     />
   </n-modal>
 </template>
@@ -132,7 +134,8 @@ import type {
   ReasonTag, RuleCategory, RecruitType, SceneRecruitPair, SceneRule, WizardPayload,
 } from '../../types/reason-library'
 import { BIZ_CODE } from '../../types/reason-library'
-import { t } from '../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import Step1Categories from './wizard/Step1Categories.vue'
 import Step2Assignments from './wizard/Step2Assignments.vue'
 import Step3Preview from './wizard/Step3Preview.vue'
@@ -244,6 +247,7 @@ function toWizard(rule: SceneRule): WizardPayload {
     description: rule.description,
     enabled: rule.enabled,
     isSystem: rule.isSystem,
+    isPresetDefault: !!(rule as any).isPresetDefault,
     scenes: pairScenes.length ? pairScenes : [...(rule.scenes ?? [])],
     recruitTypes: pairTypes.length ? pairTypes : ['social'],
     scenePairs,
@@ -261,6 +265,7 @@ function emptyWizardPayload(): WizardPayload {
     description: '',
     enabled: true,
     isSystem: false,
+    isPresetDefault: false,
     scenes: [],
     recruitTypes: ['social'],
     scenePairs: [],
@@ -290,9 +295,19 @@ function deepCloneCategories(cats: RuleCategory[], allTags: ReasonTag[]): RuleCa
       level: c.level,
       order: c.order,
       allowCustom: c.allowCustom,
+      color: c.color || '',
       tags,
     }
   })
+}
+
+// ============= 区块颜色回写 (Step3 模块三) =============
+/** Step3 调色板/自定义色变更 → 写入 wizard.categories[i].color (空串=未自定义/继承) */
+function onCategoryColorChange(payload: { catId: string; color: string }) {
+  const w = wizard.value
+  if (!w) return
+  const cat = w.categories.find((c) => c.id === payload.catId)
+  if (cat) cat.color = payload.color || ''
 }
 
 // ============= 切换步骤 =============

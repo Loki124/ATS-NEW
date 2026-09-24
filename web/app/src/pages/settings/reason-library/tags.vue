@@ -136,7 +136,8 @@ import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, Download
 import { listTags, updateTag, deleteTag, extractReasonApiError, exportTags } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import ReasonTagModal from '../../../components/reason-library/ReasonTagModal.vue'
 import ReasonTagImportModal from '../../../components/reason-library/ReasonTagImportModal.vue'
 

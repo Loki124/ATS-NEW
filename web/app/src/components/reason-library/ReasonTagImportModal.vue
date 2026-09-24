@@ -123,7 +123,8 @@ import { importTags, downloadImportTemplate, extractReasonApiError } from '../..
 import type { TagImportResult } from '../../types/reason-library'
 import { BIZ_CODE, IMPORT_COLUMNS_HINT, IMPORT_FILE_ACCEPT } from '../../types/reason-library'
 import { useMessage } from 'naive-ui'
-import { t } from '../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{

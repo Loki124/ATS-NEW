@@ -81,7 +81,8 @@ import { useMessage, useDialog, NModal, NForm, NFormItem, NInput, NButton, NSpac
 import { createTag, updateTag, extractReasonApiError } from '../../api/reason-library'
 import type { ReasonTag, ReasonTagPayload } from '../../types/reason-library'
 import { BIZ_CODE } from '../../types/reason-library'
-import { t } from '../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean

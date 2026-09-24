@@ -78,7 +78,8 @@ import { ref, computed } from 'vue'
 import { NButton, NIcon, NEmpty } from 'naive-ui'
 import { AddOutline, CloseOutline, InformationCircleOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import TagPickerModal from './TagPickerModal.vue'
 
 const props = defineProps<{

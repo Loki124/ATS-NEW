@@ -119,7 +119,8 @@ import { SearchOutline, RefreshOutline, AddOutline, SettingsOutline } from '@vic
 import { listRules, updateRule, deleteRule, extractReasonApiError } from '../../../api/reason-library'
 import type { SceneRuleListItem } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import ReasonRuleWizard from '../../../components/reason-library/ReasonRuleWizard.vue'
 import ReasonRuleDeleteConfirm from '../../../components/reason-library/ReasonRuleDeleteConfirm.vue'
 

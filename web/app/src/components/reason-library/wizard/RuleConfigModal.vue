@@ -17,17 +17,19 @@
     <!-- 维度整合: 校园招聘 / 社会招聘 并排两张独立卡片, 每张卡内列出全部应用场景 -->
     <div class="cfg-section">
       <div class="cfg-section-title">{{ t('reasonLibrary.wizard.configRule.entryWithType') }}</div>
-      <p class="cfg-hint">{{ t('reasonLibrary.wizard.configRule.entryWithTypeHint') }}</p>
+      <p v-if="presetDefault" class="cfg-locked-note">
+        {{ t('reasonLibrary.wizard.configRule.presetDefaultCoverNote') }}
+      </p>
       <div class="recruit-grid">
         <div
           v-for="opt in RECRUIT_TYPE_OPTIONS"
           :key="opt.value"
           class="recruit-card"
-          :class="[`type-${opt.value}`, { active: cardHasAny(opt.value), disabled: cardBlocked(opt.value) }]"
+          :class="[`type-${opt.value}`, { active: cardHasAny(opt.value) || presetDefault, disabled: cardBlocked(opt.value) && !presetDefault }]"
         >
           <div class="card-head">
             <span class="card-title">{{ opt.label }}</span>
-            <span class="card-badge">{{ cardSelectedCount(opt.value) }} / {{ SCENE_OPTIONS.length }}</span>
+            <span class="card-badge">{{ presetDefault ? SCENE_OPTIONS.length : cardSelectedCount(opt.value) }} / {{ SCENE_OPTIONS.length }}</span>
             <n-tooltip v-if="cardBlocked(opt.value)" placement="top">
               <template #trigger>
                 <n-icon :component="WarningOutline" :size="14" color="var(--c-warning)" />
@@ -41,18 +43,18 @@
               :key="scene"
               class="scene-check"
               :class="{
-                checked: isPairSelected(scene, opt.value),
-                disabled: isPairConflict(scene, opt.value) && !isPairSelected(scene, opt.value),
+                checked: presetDefault || isPairSelected(scene, opt.value),
+                disabled: presetDefault || (isPairConflict(scene, opt.value) && !isPairSelected(scene, opt.value)),
               }"
             >
               <input
                 type="checkbox"
-                :checked="isPairSelected(scene, opt.value)"
-                :disabled="isPairConflict(scene, opt.value) && !isPairSelected(scene, opt.value)"
+                :checked="presetDefault || isPairSelected(scene, opt.value)"
+                :disabled="presetDefault || (isPairConflict(scene, opt.value) && !isPairSelected(scene, opt.value))"
                 @change="(e: any) => togglePair(scene, opt.value, e.target.checked)"
               />
               <span class="scene-label">{{ scene }}</span>
-              <n-tooltip v-if="isPairConflict(scene, opt.value)" placement="top">
+              <n-tooltip v-if="!presetDefault && isPairConflict(scene, opt.value)" placement="top">
                 <template #trigger>
                   <n-icon :component="WarningOutline" :size="13" color="var(--c-error)" />
                 </template>
@@ -75,7 +77,6 @@
         clearable
         :placeholder="t('reasonLibrary.wizard.maxSelectableTagsPlaceholder')"
       />
-      <p class="cfg-hint">{{ t('reasonLibrary.wizard.maxSelectableTagsHint') }}</p>
     </div>
 
     <template #footer>
@@ -108,7 +109,8 @@ import { NModal, NButton, NSpace, NIcon, NTooltip, NInputNumber, useMessage } fr
 import { InformationCircleOutline, WarningOutline } from '@vicons/ionicons5'
 import type { RecruitType, SceneKey, SceneRecruitPair } from '../../../types/reason-library'
 import { SCENE_OPTIONS, RECRUIT_TYPE_OPTIONS } from '../../../types/reason-library'
-import { t } from '../../../locales/zh-CN'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean
@@ -120,6 +122,8 @@ const props = defineProps<{
   recruitTypes?: RecruitType[]
   maxSelectableTags: number
   allScenesUsage?: Record<string, { ruleId: string; ruleName: string }>
+  /** 是否「预置默认规则」: 覆盖全部场景×类型且不可调整, 弹窗内覆盖区只读锁定 */
+  presetDefault?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -226,16 +230,21 @@ function togglePair(scene: SceneKey, rt: RecruitType, checked: boolean) {
 }
 
 function confirm() {
-  const pairs: SceneRecruitPair[] = Array.from(selectedPairs.value).map((k) => {
-    const [scene, rt] = k.split('|') as [SceneKey, RecruitType]
-    return { scene, recruitType: rt }
-  })
-  const scenes = [...new Set(pairs.map((p) => p.scene))]
-  const recruitTypes = [...new Set(pairs.map((p) => p.recruitType))]
-  emit('update:scenePairs', pairs)
-  emit('update:scenes', scenes)
-  emit('update:recruitTypes', recruitTypes)
+  // 可选标签上限始终可改 (包括预置默认规则)
   emit('update:maxSelectableTags', Math.max(0, localMax.value ?? 0))
+  // 预置默认规则: 应用范围(场景×类型)锁定、不可调整, 不回传覆盖数据,
+  // 避免父组件据此改写「覆盖全部」的语义。
+  if (!props.presetDefault) {
+    const pairs: SceneRecruitPair[] = Array.from(selectedPairs.value).map((k) => {
+      const [scene, rt] = k.split('|') as [SceneKey, RecruitType]
+      return { scene, recruitType: rt }
+    })
+    const scenes = [...new Set(pairs.map((p) => p.scene))]
+    const recruitTypes = [...new Set(pairs.map((p) => p.recruitType))]
+    emit('update:scenePairs', pairs)
+    emit('update:scenes', scenes)
+    emit('update:recruitTypes', recruitTypes)
+  }
   emit('update:show', false)
 }
 </script>
@@ -256,18 +265,26 @@ function confirm() {
 
 .cfg-section { margin-bottom: var(--space-4); }
 .cfg-section:last-child { margin-bottom: 0; }
-.cfg-section:last-child .cfg-hint { margin-bottom: 0; }
+
+/* 预置默认规则: 应用范围锁定提示条 */
+.cfg-locked-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+  color: var(--brand-ink, var(--brand));
+  background: var(--brand-soft, rgba(32, 128, 240, 0.1));
+  border: 1px solid var(--brand-tint, rgba(32, 128, 240, 0.2));
+  border-radius: var(--radius-md);
+}
 .cfg-section-title {
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink);
   margin-bottom: var(--space-2);
-}
-.cfg-hint {
-  margin: 0 0 var(--space-2);
-  font-size: var(--fs-12);
-  color: var(--ink-soft);
-  line-height: 1.5;
 }
 
 /* 两张招聘类型卡片并排, 窄屏自动堆叠 */
