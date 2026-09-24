@@ -9,8 +9,10 @@
  * - legacy:false → Composition API：`useI18n()` 取 t，模板可用 `$t`
  */
 import { createI18n } from 'vue-i18n'
+import { ref, computed } from 'vue'
 import { REASON_LIBRARY_ZH, DATA_PERM_ZH, APP_UI_ZH } from './zh-CN'
 import { REASON_LIBRARY_EN, DATA_PERM_EN, APP_UI_EN } from './en-US'
+import { LANGUAGE_ZH, LANGUAGE_EN } from './language'
 
 /** 扁平 dot-key 字典 -> vue-i18n 嵌套对象 */
 function toNested(flat: Record<string, string>): Record<string, any> {
@@ -30,15 +32,52 @@ function toNested(flat: Record<string, string>): Record<string, any> {
 }
 
 const messages = {
-  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH, ...APP_UI_ZH }),
-  'en-US': toNested({ ...REASON_LIBRARY_EN, ...DATA_PERM_EN, ...APP_UI_EN }),
+  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH, ...APP_UI_ZH, ...LANGUAGE_ZH }),
+  'en-US': toNested({ ...REASON_LIBRARY_EN, ...DATA_PERM_EN, ...APP_UI_EN, ...LANGUAGE_EN }),
+}
+
+export type AppLocale = 'zh-CN' | 'en-US'
+
+/** 系统支持的语言清单（选项原生名按惯例用母语书写，便于跨语言识别） */
+export const SUPPORTED_LOCALES: { code: AppLocale; native: string }[] = [
+  { code: 'zh-CN', native: '简体中文' },
+  { code: 'en-US', native: 'English' },
+]
+
+const LOCALE_STORAGE_KEY = 'ats-locale'
+
+/** 启动时从 localStorage 恢复用户语言偏好；非法/缺失时回落中文 */
+function readInitialLocale(): AppLocale {
+  try {
+    const saved = localStorage.getItem(LOCALE_STORAGE_KEY)
+    if (saved === 'zh-CN' || saved === 'en-US') return saved
+  } catch {
+    /* localStorage 不可用时静默回落 */
+  }
+  return 'zh-CN'
 }
 
 export const i18n = createI18n({
   legacy: false,
-  locale: 'zh-CN',
+  locale: readInitialLocale(),
   fallbackLocale: 'zh-CN',
   messages,
+})
+
+/**
+ * 全局当前语言（可写 computed，单一真相源）。
+ * 组件订阅此值即可响应式跟随切换；直接赋值即切换并持久化。
+ */
+export const currentLocale = computed<AppLocale>({
+  get: () => i18n.global.locale.value as AppLocale,
+  set: (code) => {
+    i18n.global.locale.value = code
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, code)
+    } catch {
+      /* 持久化失败时不影响本次会话内切换 */
+    }
+  },
 })
 
 export default i18n

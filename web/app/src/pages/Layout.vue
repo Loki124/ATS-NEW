@@ -153,6 +153,9 @@
             </div>
           </n-button>
 
+          <!-- 语言切换入口（简体中文 / English） -->
+          <LanguageSwitcher />
+
           <n-badge :value="5" :max="99">
             <n-button text :aria-label="t('pages.Layout.s9')" @click="goToNotifications">
               <n-icon :component="NotificationsOutline" :size="20" />
@@ -229,6 +232,7 @@ import { MenuOutline as Menu, CheckmarkOutline as Check } from '@vicons/ionicons
 import GlobalSearch from '../components/common/GlobalSearch.vue'
 import Breadcrumb from '../components/common/Breadcrumb.vue'
 import SystemSwitcher from '../components/common/SystemSwitcher.vue'
+import LanguageSwitcher from '../components/common/LanguageSwitcher.vue'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useUserStore } from '../stores/user'
 import { useBrandStore } from '../stores/brand'
