@@ -28,6 +28,7 @@ export const METRICS_ZH: Record<string, string> = {
 
   'metrics.btn.create': '新建',
   'metrics.btn.delete': '删除',
+  'metrics.btn.edit': '编辑',
   'metrics.btn.cancel': '取消',
   'metrics.btn.save': '保存',
   'metrics.btn.addCondition': '添加条件',
@@ -37,10 +38,16 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.form.name': '名称',
   'metrics.form.sourcePath': '字段路径',
   'metrics.form.sourcePathTip': '点路径，如 candidate.age；数组用数字下标，如 candidate.workExperience.0.company',
+  'metrics.fieldGroup.model': '主表字段',
+  'metrics.fieldGroup.dynamic': '动态字段',
   'metrics.form.basePath': '数据来源路径',
   'metrics.form.calcFunc': '计算函数',
   'metrics.form.params': '函数参数',
   'metrics.form.paramsTip': 'JSON 对象，如 {"window_years": 5}',
+  'metrics.form.paramsTipLabel': '参数说明',
+  'metrics.form.expectedInput': '期望数据来源（base_path 解析结果）',
+  'metrics.form.outputType': '计算结果类型',
+  'metrics.form.paramsEmpty': '该函数无需参数',
   'metrics.form.dataType': '数据类型',
   'metrics.form.unit': '单位',
   'metrics.form.description': '说明',
@@ -53,6 +60,9 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.dialog.createAtomic': '新建原子指标',
   'metrics.dialog.createDerived': '新建派生指标',
   'metrics.dialog.createTemplate': '新建指标模板',
+  'metrics.dialog.editAtomic': '编辑原子指标',
+  'metrics.dialog.editDerived': '编辑派生指标',
+  'metrics.dialog.editTemplate': '编辑指标模板',
 
   'metrics.status.enabled': '启用',
   'metrics.status.disabled': '停用',
@@ -116,6 +126,27 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.scene.FILTER': '筛选',
   'metrics.scene.SCORING': '评分',
   'metrics.scene.MANUAL': '手动执行',
+
+  // ===== 统一工作区（整合 指标库 / 规则配置与执行 / 规则管理） =====
+  'metrics.workspace.title': '指标与规则',
+  'metrics.workspace.subtitle': '指标定义、规则编排与规则管理统一在此完成，数据自上而下贯通：动态字段 → 指标 → 模板 → 规则 → 执行',
+  'metrics.workspace.flowTitle': '数据流向',
+  'metrics.workspace.flowDynamic': '动态字段 / 候选人快照',
+  'metrics.workspace.flowMetrics': '原子 / 派生指标',
+  'metrics.workspace.flowTemplate': '指标模板',
+  'metrics.workspace.flowRule': '规则',
+  'metrics.workspace.flowExec': '执行 / 筛选',
+  'metrics.workspace.flowNote': '动态字段来自「动态字段」设置，随候选人录入后经快照注入为 candidate.<字段键> 路径；原子指标字段路径、派生指标数据来源均从这里取值；模板绑定指标与运算符；规则引用模板并在业务触发点自动执行。',
+  'metrics.workspace.legendRuleEngine': '「统一规则引擎」是旧版 rule_engine 的聚合只读视图，与本指标层相互独立，入口见左侧菜单。',
+
+  // ===== 规则动作类型 + 校验提示（P1-E 业务语言映射）=====
+  'metrics.rule.actionType': '动作类型',
+  'metrics.rule.action.veto': '必须满足',
+  'metrics.rule.action.deduct': '优先考虑',
+  'metrics.rule.action.bonus': '加分项',
+  'metrics.rule.validate.betweenRange': '区间最小值不能大于最大值',
+  'metrics.rule.validate.operatorNotAllowed': '运算符不在该指标的允许范围内',
+  'metrics.rule.validate.mutex': '同一指标禁止同时配置多条阻断规则',
 }
 
 export const METRICS_EN: Record<string, string> = {
@@ -141,6 +172,7 @@ export const METRICS_EN: Record<string, string> = {
 
   'metrics.btn.create': 'Create',
   'metrics.btn.delete': 'Delete',
+  'metrics.btn.edit': 'Edit',
   'metrics.btn.cancel': 'Cancel',
   'metrics.btn.save': 'Save',
   'metrics.btn.addCondition': 'Add Condition',
@@ -150,10 +182,16 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.form.name': 'Name',
   'metrics.form.sourcePath': 'Field Path',
   'metrics.form.sourcePathTip': 'Dot path, e.g. candidate.age; use numeric index for arrays',
+  'metrics.fieldGroup.model': 'Model Fields',
+  'metrics.fieldGroup.dynamic': 'Dynamic Fields',
   'metrics.form.basePath': 'Data Source Path',
   'metrics.form.calcFunc': 'Calculation Function',
   'metrics.form.params': 'Function Params',
   'metrics.form.paramsTip': 'JSON object, e.g. {"window_years": 5}',
+  'metrics.form.paramsTipLabel': 'Param hint',
+  'metrics.form.expectedInput': 'Expected input (base_path resolves to)',
+  'metrics.form.outputType': 'Computed result type',
+  'metrics.form.paramsEmpty': 'This function takes no parameters',
   'metrics.form.dataType': 'Data Type',
   'metrics.form.unit': 'Unit',
   'metrics.form.description': 'Description',
@@ -166,6 +204,9 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.dialog.createAtomic': 'New Atomic Metric',
   'metrics.dialog.createDerived': 'New Derived Metric',
   'metrics.dialog.createTemplate': 'New Metric Template',
+  'metrics.dialog.editAtomic': 'Edit Atomic Metric',
+  'metrics.dialog.editDerived': 'Edit Derived Metric',
+  'metrics.dialog.editTemplate': 'Edit Metric Template',
 
   'metrics.status.enabled': 'Enabled',
   'metrics.status.disabled': 'Disabled',
@@ -229,4 +270,25 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.scene.FILTER': 'Filter',
   'metrics.scene.SCORING': 'Scoring',
   'metrics.scene.MANUAL': 'Manual',
+
+  // ===== Unified workspace (consolidates Metric Library / Rule Config / Rule Management) =====
+  'metrics.workspace.title': 'Metrics & Rules',
+  'metrics.workspace.subtitle': 'Define metrics, author rules and manage them here — data flows top-down: dynamic fields → metrics → templates → rules → execution',
+  'metrics.workspace.flowTitle': 'Data Flow',
+  'metrics.workspace.flowDynamic': 'Dynamic Fields / Snapshot',
+  'metrics.workspace.flowMetrics': 'Atomic / Derived Metrics',
+  'metrics.workspace.flowTemplate': 'Metric Templates',
+  'metrics.workspace.flowRule': 'Rules',
+  'metrics.workspace.flowExec': 'Execute / Filter',
+  'metrics.workspace.flowNote': 'Dynamic fields come from the Dynamic Fields settings, injected into the candidate snapshot as candidate.<fieldKey>. Atomic metric source_path and derived metric base_path both read from these paths; templates bind a metric with operators; rules reference templates and run at business triggers.',
+  'metrics.workspace.legendRuleEngine': 'The "Unified Rule Engine" is a read-only aggregate of the legacy rule_engine — independent from this metrics layer; entry is in the left menu.',
+
+  // ===== Rule action types + validation hints (P1-E business-language mapping) =====
+  'metrics.rule.actionType': 'Action Type',
+  'metrics.rule.action.veto': 'Must satisfy',
+  'metrics.rule.action.deduct': 'Prefer',
+  'metrics.rule.action.bonus': 'Bonus',
+  'metrics.rule.validate.betweenRange': 'Range min cannot exceed max',
+  'metrics.rule.validate.operatorNotAllowed': 'Operator not allowed for this indicator',
+  'metrics.rule.validate.mutex': 'Mutex: multiple veto rules on same indicator is forbidden',
 }
