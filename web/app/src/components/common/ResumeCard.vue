@@ -59,6 +59,10 @@ function progressColor(p: string | null) {
       <div class="c-expand">▾</div>
     </div>
 
+    <div v-if="resume.parseError" class="parse-error">
+      <span class="pe-icon">⚠</span><span>{{ resume.parseError }}</span>
+    </div>
+
     <div v-if="active" class="c-body">
       <CheckBanner v-if="resume.duplicate" :status="resume.duplicate.status" />
       <!-- Phase 5 场景组件会在这里插入更多内容 -->
@@ -191,6 +195,20 @@ function progressColor(p: string | null) {
 .pfill-info    { background: var(--c-info); }
 .pfill-warning { background: var(--c-warning); }
 .pfill-brand   { background: var(--brand); }
+
+/* 解析超时 / 失败的错误提示条（始终可见，不依赖展开） */
+.parse-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--c-error-bg);
+  border-top: 1px solid var(--c-error-deep);
+  color: var(--c-error-deep);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.parse-error .pe-icon { flex-shrink: 0; }
 
 .replace-file-btn {
   padding: var(--space-1) var(--space-2);

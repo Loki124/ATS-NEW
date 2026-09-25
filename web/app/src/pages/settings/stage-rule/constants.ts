@@ -1,15 +1,13 @@
 /**
- * 阶段配置规则 — 临时常量 / mock 字段字典
+ * 阶段配置规则 — 静态 UI 配置（label / 选项 / 文案）
  *
- * ⚠️ 过渡方案：后端 EntryConditionRuleViewSet 的字段字典接口
- *   (GET /api/v1/expressions/fields) 由后端 worker 实现中，前端先用本文件 mock 驱动 UI。
- *   字段名（DEMAND_LEVEL / HIRING_MANAGER / AGE / HIGHEST_EDU …）严格对齐后端
- *   services.py 真实解析映射，后端就绪后仅需把 listEntryConditionFields() 的 mock 分支切到真实接口，
- *   本文件即可整体退役（见 index.ts / useStageRuleForm 的 loadFields）。
+ * 字段目录（source → field → operator → value）由真实后端端点
+ *   GET /api/v1/expressions/fields（EntryConditionFieldCatalogView）提供，
+ *   前端不再保留任何 mock 字段字典；本文件仅沉淀稳定的展示文案与下拉选项。
  *
  * 所有视觉一律走 design token，本文件不含任何样式。
  */
-import type { FieldCatalog, OperatorKey, SourceKey } from './types'
+import type { OperatorKey, SourceKey } from './types'
 
 /** source → UI 展示名（仅渲染后端支持的 3 种；POSITION/RESUME 缺口不出现） */
 export const AR_SOURCE_LABELS: Record<SourceKey, string> = {
@@ -40,102 +38,6 @@ export const AR_SKIP_ACTION_LABELS: Record<'SKIP' | 'APPROVE' | 'REJECT', string
   REJECT: '直接拒绝',
 }
 
-/**
- * 字段字典 mock（对齐 spec §1 契约结构）。
- * options 仅用于有固定枚举的字段（性别 / 学历 / 城市 / 部门 / 职级 / 阶段状态），
- * 其余（AGE / WORK_YEARS）走数值输入。
- */
-export const AR_FIELD_CATALOG: FieldCatalog = {
-  sources: [
-    {
-      source: 'DEMAND',
-      label: '需求中',
-      fields: [
-        {
-          field: 'DEMAND_LEVEL',
-          label: '需求职级',
-          operators: ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY'],
-          options: [
-            { label: 'P4', value: 'P4' },
-            { label: 'P5', value: 'P5' },
-            { label: 'P6', value: 'P6' },
-            { label: 'P7', value: 'P7' },
-            { label: 'P8', value: 'P8' },
-          ],
-        },
-        { field: 'HIRING_MANAGER', label: '用人经理', operators: ['EQ', 'NEQ', 'IN'], auto_filter_inactive_users: true },
-        {
-          field: 'DEPARTMENT',
-          label: '需求部门',
-          operators: ['EQ', 'IN', 'NOT_IN'],
-          options: [
-            { label: '能效BG', value: '能效BG' },
-            { label: '搜索BG', value: '搜索BG' },
-            { label: '研发BG', value: '研发BG' },
-          ],
-        },
-      ],
-    },
-    {
-      source: 'CANDIDATE',
-      label: '候选人中',
-      fields: [
-        { field: 'AGE', label: '年龄', operators: ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'] },
-        {
-          field: 'GENDER',
-          label: '性别',
-          operators: ['EQ', 'NEQ', 'IN'],
-          options: [
-            { label: '男', value: 'MALE' },
-            { label: '女', value: 'FEMALE' },
-          ],
-        },
-        {
-          field: 'HIGHEST_EDU',
-          label: '最高学历',
-          operators: ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-          options: [
-            { label: '本科', value: 'BACHELOR' },
-            { label: '硕士', value: 'MASTER' },
-            { label: '博士', value: 'PHD' },
-          ],
-        },
-        { field: 'WORK_YEARS', label: '工作年限', operators: ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'] },
-        {
-          field: 'CURRENT_CITY',
-          label: '当前城市',
-          operators: ['EQ', 'IN', 'NOT_IN'],
-          options: [
-            { label: '北京', value: '北京' },
-            { label: '上海', value: '上海' },
-            { label: '深圳', value: '深圳' },
-            { label: '杭州', value: '杭州' },
-          ],
-        },
-        {
-          field: 'EXPECTED_CITY',
-          label: '期望城市',
-          operators: ['EQ', 'IN', 'NOT_IN'],
-          options: [
-            { label: '北京', value: '北京' },
-            { label: '上海', value: '上海' },
-            { label: '深圳', value: '深圳' },
-            { label: '杭州', value: '杭州' },
-          ],
-        },
-      ],
-    },
-    {
-      source: 'STAGE_STATUS',
-      label: '阶段状态',
-      fields: [
-        { field: 'stage_name', label: '阶段名称', operators: ['EQ', 'NEQ', 'IN'] },
-        { field: 'stage_statuses', label: '阶段状态', operators: ['IN', 'NOT_IN'], is_array: true },
-      ],
-    },
-  ],
-  operators: AR_OPERATOR_LABELS,
-}
 
 /** Card 4 自动流转条件选项（静态，值复用后端 autoAdvanceType 枚举） */
 export const AUTO_ADVANCE_OPTIONS = [
@@ -153,7 +55,7 @@ export const AUTO_ADVANCE_TIMING_OPTIONS = [
   { label: '延迟执行', value: 'DELAYED' },
 ]
 
-/** Card 3 面试轮次 mock（后端就绪后由 dictionary-items?type_code=interview_round 替换） */
+/** Card 3 面试轮次静态选项（与后端枚举对齐；后续可由 dictionary-items?type_code=interview_round 动态提供） */
 export const INTERVIEW_ROUND_OPTIONS = [
   { label: '联合面试', value: 'JOINT' },
   { label: '综合面试', value: 'COMPREHENSIVE' },
@@ -162,7 +64,7 @@ export const INTERVIEW_ROUND_OPTIONS = [
   { label: '终试', value: 'FINAL' },
 ]
 
-/** Card 3 面试形式 mock（后端就绪后由 dictionary-items?type_code=interview_mode 替换） */
+/** Card 3 面试形式静态选项（与后端枚举对齐；后续可由 dictionary-items?type_code=interview_mode 动态提供） */
 export const INTERVIEW_FORMAT_OPTIONS = [
   { label: '现场', value: 'ONSITE' },
   { label: '电话', value: 'PHONE' },

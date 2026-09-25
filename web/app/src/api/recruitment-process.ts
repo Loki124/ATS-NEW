@@ -364,14 +364,15 @@ export const reorderEntryConditionRules = (ruleOrders: { rule_id: string; rule_s
 export const evaluateEntryConditionRule = (payload: Record<string, any>) =>
   api.post<{ success: boolean; data: any }>('/entry-condition-rules/evaluate/', payload).then((r) => unwrap(r) as any)
 
-/* 字段字典：后端 GET /api/v1/expressions/fields 实现中，前端先 mock 兜底。
- * 后端就绪后移除 mock 分支即可（字段名已对齐后端真实解析映射）。 */
+/* 字段字典：直接消费真实后端端点 GET /api/v1/expressions/fields
+ * （EntryConditionFieldCatalogView），不再有任何 mock 兜底分支。 */
 export const listEntryConditionFields = async (): Promise<any> => {
+  // 仅依赖真实后端端点 GET /api/v1/expressions/fields（EntryConditionFieldCatalogView）。
+  // 失败时返回空目录结构（不兜底任何伪造字段），由 UI 自行渲染空态。
   try {
     return await api.get<{ success: boolean; data: any }>('/expressions/fields').then((r) => unwrap(r) as any)
   } catch {
-    // 临时 mock 兜底（见 stage-rule/constants.ts AR_FIELD_CATALOG）
-    return AR_FIELD_CATALOG_FALLBACK
+    return { sources: [], operators: {} }
   }
 }
 
@@ -383,44 +384,9 @@ export const validateExpressionApi = (expression: string, maxId: number) =>
     })
     .then((r) => r.data.data)
 
-/* 临时 mock 字段字典（与 stage-rule/constants.ts 同源，避免循环依赖直接内联最小结构） */
-const AR_FIELD_CATALOG_FALLBACK = {
-  sources: [
-    {
-      source: 'DEMAND',
-      label: '需求中',
-      fields: [
-        { field: 'DEMAND_LEVEL', label: '需求职级', operators: ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY'] },
-        { field: 'HIRING_MANAGER', label: '用人经理', operators: ['EQ', 'NEQ', 'IN'], auto_filter_inactive_users: true },
-        { field: 'DEPARTMENT', label: '需求部门', operators: ['EQ', 'IN', 'NOT_IN'] },
-      ],
-    },
-    {
-      source: 'CANDIDATE',
-      label: '候选人中',
-      fields: [
-        { field: 'AGE', label: '年龄', operators: ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'] },
-        { field: 'GENDER', label: '性别', operators: ['EQ', 'NEQ', 'IN'] },
-        { field: 'HIGHEST_EDU', label: '最高学历', operators: ['EQ', 'NEQ', 'IN', 'NOT_IN'] },
-        { field: 'WORK_YEARS', label: '工作年限', operators: ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'] },
-        { field: 'CURRENT_CITY', label: '当前城市', operators: ['EQ', 'IN', 'NOT_IN'] },
-        { field: 'EXPECTED_CITY', label: '期望城市', operators: ['EQ', 'IN', 'NOT_IN'] },
-      ],
-    },
-    {
-      source: 'STAGE_STATUS',
-      label: '阶段状态',
-      fields: [
-        { field: 'stage_name', label: '阶段名称', operators: ['EQ', 'NEQ', 'IN'] },
-        { field: 'stage_statuses', label: '阶段状态', operators: ['IN', 'NOT_IN'], is_array: true },
-      ],
-    },
-  ],
-  operators: {
-    EQ: '等于', NEQ: '不等于', GT: '大于', GTE: '大于等于', LT: '小于', LTE: '小于等于',
-    BETWEEN: '区间', IN: '属于', NOT_IN: '不属于', IS_EMPTY: '为空', IS_NOT_EMPTY: '不为空',
-  },
-}
+/* 字段目录不再内置任何 mock 兜底：UI 直接消费真实后端 GET /api/v1/expressions/fields 的返回。
+ * 该端点（EntryConditionFieldCatalogView）返回 source→field→operator→value 字典树，
+ * 字段名/运算符与下方 stage-rule/constants.ts 的静态 label 映射一一对应。 */
 
 /* ============================================================================
  * @deprecated 旧进入条件 API（走 PATCH /process-stage-links/{id}/ entry_condition JSON）

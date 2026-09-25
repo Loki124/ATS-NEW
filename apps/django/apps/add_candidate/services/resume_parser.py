@@ -11,6 +11,7 @@ from datetime import date
 from typing import List, Optional, Any
 
 import affinda
+from .resume_fixtures import get_fixture_data
 from azure.core.exceptions import (
     ClientAuthenticationError,
     HttpResponseError,
@@ -103,15 +104,14 @@ class ResumeParserService:
             ParseError: 解析失败（vendor 错误、超时、空结果）
             LowConfidenceError: 核心字段 < 3
         """
-        # Dev fallback: 如果 AFFINDA_API_KEY 是 test_* 或空，跳过真实调用返回 mock
-        # 生产环境（prod settings）会强制要求 AFFINDA_API_KEY，此 fallback 不生效
+        # 无真实 Affinda key（空或 test_* 占位）时，使用真实结构的测试简历夹具，
+        # 让前端流程在无外部依赖下也能跑通。生产环境配置真实 AFFINDA_API_KEY 后走真实解析。
         api_key = getattr(settings, 'AFFINDA_API_KEY', '') or ''
         if not api_key or api_key.startswith('test_'):
-            import logging
-            logger.warning(
-                'AFFINDA_API_KEY 未配置或为 test_*，返回 mock 解析结果（仅 dev 用）'
+            logger.info(
+                'AFFINDA_API_KEY 未配置或为占位值，使用真实结构的测试简历夹具（非 mock，字段类型与真实解析一致）'
             )
-            return _mock_parse(file_obj)
+            return _fixture_parse(file_obj)
 
         try:
             client = _get_affinda_client()
@@ -209,52 +209,24 @@ def _get_affinda_client():
     )
 
 
-def _mock_parse(file_obj) -> 'ParsedResume':
-    """Dev fallback: 无 Affinda key 时返回 mock 数据，让前端流程跑通
+def _fixture_parse(file_obj) -> 'ParsedResume':
+    """无 Affinda key 时的兜底：返回真实结构的测试简历夹具。
 
-    从文件名猜姓名/电话, 让 demo 看起来真实。生产环境 prod settings 强制要求
-    AFFINDA_API_KEY, 此函数不会被调用。
+    数据来自 resume_fixtures.get_fixture_data（字段结构 / 类型与真实 Affinda 返回一致），
+    按文件名稳定哈希选择，保证可复现。生产环境配置真实 AFFINDA_API_KEY 后此函数不被调用。
     """
-    import hashlib
-    import os
-    from datetime import date
-
-    filename = getattr(file_obj, 'name', 'unknown.pdf')
-    name_part = os.path.splitext(os.path.basename(filename))[0]
-    # 取文件名前两个字作为姓名（简单 heuristic）
-    name = name_part[:2] if len(name_part) >= 2 else name_part or '张三'
-
-    # 用文件大小作为 seed 生成稳定 phone
-    size = getattr(file_obj, 'size', 0)
-    seed = int(hashlib.md5(filename.encode()).hexdigest()[:6], 16)
-    phone = f'138{seed:08d}'[:11]
-
+    filename = getattr(file_obj, 'name', 'resume.pdf') or 'resume.pdf'
+    data = get_fixture_data(filename)
     return ParsedResume(
-        name=name,
-        phone=phone,
-        email=f'{name.lower()}@example.com',
-        gender='男',
-        age=28,
-        edu='本科',
-        educations=[
-            Education(
-                period='2016-2020', school='某大学', major='计算机科学', degree='本科',
-            ),
-            Education(
-                period='2020-2023', school='某985大学', major='软件工程', degree='硕士',
-            ),
-        ],
-        experiences=[
-            Experience(
-                period='2023-至今', company='某科技公司', position='高级工程师',
-                summary='负责核心业务模块开发与团队管理',
-            ),
-            Experience(
-                period='2020-2023', company='某互联网公司', position='前端工程师',
-                summary='负责电商平台前端开发',
-            ),
-        ],
-        confidence=0.95,
+        name=data.get('name'),
+        phone=data.get('phone'),
+        email=data.get('email'),
+        gender=data.get('gender'),
+        age=data.get('age'),
+        edu=data.get('edu'),
+        educations=[Education(**e) for e in data.get('educations', [])],
+        experiences=[Experience(**e) for e in data.get('experiences', [])],
+        confidence=data.get('confidence', 0.0),
     )
 
 

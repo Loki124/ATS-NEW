@@ -28,6 +28,7 @@ export interface ResumeDraft {
   parsed?: ParsedResume
   edited: Partial<ParsedResume>
   duplicate?: DuplicateInfo
+  parseError?: string | null
   occupyAction?: 'pending' | 'merge' | 'apply' | 'cancel' | 'score'
   appliedPosition?: string
   scoreSnapshot?: ScoreResult
@@ -45,6 +46,13 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
   const step = ref<1 | 2 | 3>(1)
   const isDirty = ref(false)
   const resumes = ref<ResumeDraft[]>([])
+
+  // poll attempts keyed by draft_id — 防止后端异常时前端无限轮询（兜底）
+  const pollAttempts: Record<string, number> = {}
+  // 2026-09-25: 解析轮询上限。1.5s 一次 × 40 ≈ 60s，超过即判定解析超时并停止轮询，
+  // 避免此前「后端 Celery worker 未运行 → 永远 processing → 前端每 1.5s 无限轮询」的卡死。
+  const POLL_MAX_ATTEMPTS = 40
+  const POLL_INTERVAL_MS = 1500
 
   // Step 2
   const applyMode = ref<'all' | 'per'>('all')
@@ -104,6 +112,7 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
         progress: 0,
         procPhase: 'uploading',
         edited: {},
+        parseError: null,
       })
     }
     isDirty.value = true
@@ -125,6 +134,7 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     r.parsed = undefined
     r.duplicate = undefined
     r.edited = {}
+    r.parseError = null
     r.status = 'processing'
     r.progress = 0
     r.procPhase = 'uploading'
@@ -152,13 +162,18 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     if (update.status === 'done') {
       const dupStatus = update.duplicate?.status
       r.status = dupStatus ? dupStatus : 'clean'
+      // 解析成功 → 清除历史解析错误
+      r.parseError = null
     } else if (update.status === 'failed') {
-      // 2026-06-28 花无缺: TS2322 修法 — 任务级 'failed' 业务状态 fallback 到 'clean'
-      //                     (跟 done + 无 dupStatus 行为一致, 用户看到 "待处理" 而不是 "处理中")
+      // 2026-09-25: 解析任务真正失败 → 置为 clean 并标记面向用户的错误，
+      // 避免此前「永远 processing」的卡死；用户可重新上传或手动补全信息。
       r.status = 'clean'
+      r.parseError = '简历解析失败，请检查文件格式后重新上传，或手动补全候选人信息'
     } else {
       // 'processing'
       r.status = update.status
+      // 重新进入处理中 → 清除历史解析错误
+      r.parseError = null
     }
     if (r.status !== 'processing') r.procPhase = null
   }
@@ -234,7 +249,14 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     const r = resumes.value.find((x) => x.id === draftId)
     if (!r) return
     const jobId = overrideJobId || r.job_id
-    if (overrideJobId) r.job_id = overrideJobId
+    if (overrideJobId) {
+      r.job_id = overrideJobId
+      // 新 job → 重置轮询计数与超时错误，重新开始兜底计时
+      pollAttempts[draftId] = 0
+      r.parseError = null
+    }
+    if (pollAttempts[draftId] === undefined) pollAttempts[draftId] = 0
+
     const resp = await api.getParseStatus(jobId)
     processParseUpdate(draftId, {
       status: resp.status as 'processing' | 'done' | 'failed',
@@ -244,6 +266,21 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
       duplicate: resp.duplicate ?? undefined,
     })
     if (resp.status === 'processing') {
+      pollAttempts[draftId] += 1
+      // 兜底：超过最大轮询次数（约 60s）仍 processing，停止轮询并标记解析超时，
+      // 避免后端异常（如 Celery worker 未运行）时前端无限轮询卡死。
+      if (pollAttempts[draftId] >= POLL_MAX_ATTEMPTS) {
+        if (pollTimers[draftId]) {
+          window.clearTimeout(pollTimers[draftId])
+          delete pollTimers[draftId]
+        }
+        // 兜底：超过约 60s 仍在 processing（多为后端 Celery worker 未运行等异常），
+        // 停止轮询、标记超时错误并置为 clean，避免前端无限轮询 + 弹窗卡死。
+        r.parseError = '简历解析超时，请确认解析服务已启动后重新上传简历'
+        r.procPhase = null
+        r.status = 'clean'
+        return
+      }
       // continue polling — store timer so closeStream() can cancel,
       // but wait for the next poll to finish before resolving so callers
       // can `await` until the draft reaches a terminal status.
@@ -252,10 +289,11 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
           delete pollTimers[draftId]
           await pollParseStatus(draftId)
           resolve()
-        }, 1500)
+        }, POLL_INTERVAL_MS)
       })
     } else {
-      // terminal: clear any tracked timer
+      // terminal: clear any tracked timer and reset attempt counter
+      pollAttempts[draftId] = 0
       if (pollTimers[draftId]) {
         window.clearTimeout(pollTimers[draftId])
         delete pollTimers[draftId]
@@ -310,6 +348,9 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     for (const k of Object.keys(pollTimers)) {
       window.clearTimeout(pollTimers[k])
       delete pollTimers[k]
+    }
+    for (const k of Object.keys(pollAttempts)) {
+      delete pollAttempts[k]
     }
     for (const k of Object.keys(recheckTimers)) {
       window.clearTimeout(recheckTimers[k])

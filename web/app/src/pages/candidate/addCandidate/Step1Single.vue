@@ -41,6 +41,9 @@ function onSelectPos(pos: string) {
 
 <template>
   <div v-if="resume" class="left-panel">
+    <div v-if="resume.parseError" class="parse-error">
+      <span class="pe-icon">⚠</span><span>{{ resume.parseError }}</span>
+    </div>
     <div class="detail-header">
       <div class="detail-avatar">{{ resume.parsed?.name?.charAt(0) || resume.file_name.charAt(0) }}</div>
       <div style="flex:1;min-width:0">
@@ -431,6 +434,19 @@ function onSelectPos(pos: string) {
   margin-top: var(--space-2);
 }
 .nbar.info { background: var(--c-info-soft); border: 1px solid var(--c-info-bg); color: var(--c-info-deep); }
+.parse-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--c-error-bg);
+  border: 1px solid var(--c-error-deep);
+  border-radius: 8px;
+  color: var(--c-error-deep);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+.parse-error .pe-icon { flex-shrink: 0; }
 .nbar.warn { background: var(--wl); border: 1px solid var(--c-warning-bg); color: var(--c-warning-deep); }
 .nbar.error { background: var(--c-error-bg); border: 1px solid var(--c-error-bg); color: var(--c-error-deep); }
 .apply-pos {

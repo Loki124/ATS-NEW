@@ -105,7 +105,6 @@ import SkipRuleEditModal from './modals/SkipRuleEditModal.vue'
 import ArchiveRuleEditModal from './modals/ArchiveRuleEditModal.vue'
 import StoppedRulesModal from './modals/StoppedRulesModal.vue'
 import { useStageRuleForm } from './composables/useStageRuleForm'
-import { AR_FIELD_CATALOG } from './constants'
 import type { EntryConditionRule, SkipRule, ArchiveRule } from './types'
 const { t } = useI18n()
 
@@ -133,8 +132,8 @@ const skipModal = ref<InstanceType<typeof SkipRuleEditModal>>()
 const archiveModal = ref<InstanceType<typeof ArchiveRuleEditModal>>()
 const stoppedModal = ref<InstanceType<typeof StoppedRulesModal>>()
 
-/** 字段字典兜底：后端 /expressions/fields 就绪前用 mock，避免 source 选择器空白 */
-const activeCatalog = computed(() => catalog.value || AR_FIELD_CATALOG)
+/** 字段字典来自真实后端 GET /api/v1/expressions/fields；后端不可用时给空目录，由子组件渲染空态 */
+const activeCatalog = computed(() => catalog.value ?? { sources: [], operators: {} })
 
 watch(
   () => props.show,
