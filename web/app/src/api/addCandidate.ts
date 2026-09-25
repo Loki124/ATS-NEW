@@ -205,3 +205,40 @@ export function closeScoringStream(es: EventSource | null): void {
     try { es.close() } catch { /* ignore */ }
   }
 }
+
+// ============ 简历解析引擎后台切换 ============
+export type ResumeParserBackendName = 'career_core' | 'smartresume'
+
+export interface ResumeParserBackendProbe {
+  /** 后端名（career_core / smartresume） */
+  name: ResumeParserBackendName
+  /** 后端是否在代码注册表内（即后端是否支持该引擎） */
+  registered: boolean
+  /** 可执行文件是否就绪（career 二进制 / SmartResume 脚本） */
+  available: boolean
+}
+
+export interface ResumeParserConfig {
+  /** 当前激活的后端 */
+  backend: ResumeParserBackendName
+  /** 各后端运行时探测结果（数组，不落库，GET 时计算） */
+  available: ResumeParserBackendProbe[]
+}
+
+/** GET /resume-parser-config/ — 读取当前激活引擎 + 各引擎可用性 */
+export async function getResumeParserConfig(): Promise<ResumeParserConfig> {
+  const client = getClient()
+  const resp = await client.get('/resume-parser-config/')
+  const body = (resp.data || {}) as { data?: ResumeParserConfig }
+  return (body.data || { backend: 'career_core', available: [] }) as ResumeParserConfig
+}
+
+/** PUT /resume-parser-config/ — 切换激活引擎 */
+export async function updateResumeParserConfig(
+  payload: { backend: ResumeParserBackendName },
+): Promise<ResumeParserConfig> {
+  const client = getClient()
+  const resp = await client.put('/resume-parser-config/', payload)
+  const body = (resp.data || {}) as { data?: ResumeParserConfig }
+  return (body.data || { backend: payload.backend, available: [] }) as ResumeParserConfig
+}

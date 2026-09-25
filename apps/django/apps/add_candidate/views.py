@@ -33,6 +33,7 @@ from apps.core.role_v2_query import is_super_admin
 
 from .models import ParseJob
 from .services.duplicate_check import DuplicateCheckService
+from .services.parsers import ResumeParserBackend, probe_backends
 from .tasks import parse_resume_task, score_batch_task
 
 logger = logging.getLogger(__name__)
@@ -373,3 +374,65 @@ class ScoringStreamView(APIView):
     同步评分进度流。真实实现在 sse 模块 — 这里 re-export 保持向后兼容。
     """
     pass
+
+
+class ResumeParserConfigView(APIView):
+    """GET/PUT /candidates/add-candidate/resume-parser-config/
+
+    读取 / 保存当前激活的简历解析后端（career_core / smartresume），实现后台切换两种解析引擎。
+
+    落库结构（StandardResumeConfig key='resume_parser' 的 config）：``{"backend": "career_core"}``
+    GET 返回 ``data = {backend, available:{...}}``；``available`` 为运行时探测（是否注册 + 可执行就绪），不落库。
+    """
+    permission_classes = [IsHROrAbove]
+
+    # 允许的引擎白名单（冗余校验，正式真相源是后台注册表）
+    _ALLOWED = ("career_core", "smartresume")
+
+    def _resolve_backend(self, config: dict) -> str:
+        from django.conf import settings
+        db_backend = (config or {}).get("backend")
+        if db_backend and db_backend in ResumeParserBackend.available():
+            return db_backend
+        return getattr(settings, "RESUME_PARSER_BACKEND", "career_core")
+
+    def _read(self):
+        from apps.standard_resume.models import StandardResumeConfig
+        obj, _ = StandardResumeConfig.objects.get_or_create(key="resume_parser")
+        return obj
+
+    def _payload(self, backend: str) -> dict:
+        return {
+            "success": True,
+            "data": {
+                "backend": backend,
+                "available": probe_backends(),
+            },
+        }
+
+    def get(self, request):
+        obj = self._read()
+        backend = self._resolve_backend(obj.config)
+        return Response(self._payload(backend))
+
+    def post(self, request):
+        if not isinstance(request.data, dict):
+            return Response(
+                {"success": False, "message": "config 必须是 JSON 对象"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        backend = (request.data or {}).get("backend")
+        if backend not in ResumeParserBackend.available() or backend not in self._ALLOWED:
+            return Response(
+                {"success": False, "message": f"未知或不支持的后端: {backend}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        obj = self._read()
+        obj.config = {"backend": backend}
+        if request.user and request.user.is_authenticated:
+            obj.updated_by = request.user
+        obj.save()
+        return Response(self._payload(backend))
+
+    def put(self, request):
+        return self.post(request)

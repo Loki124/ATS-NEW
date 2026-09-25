@@ -18,6 +18,7 @@ from .views import (
     DuplicateCheckView,
     ParseStatusView,
     ReplaceFileView,
+    ResumeParserConfigView,
     ScoringStartView,
     UploadAndParseView,
 )
@@ -31,6 +32,9 @@ urlpatterns = [
     path('parse-status/<str:job_id>/', ParseStatusView.as_view(), name='parse-status'),
     path('duplicate-check/', DuplicateCheckView.as_view(), name='duplicate-check'),
     path('replace-file/<str:draft_id>/', ReplaceFileView.as_view(), name='replace-file'),
+
+    # 简历解析引擎后台切换（career_core / smartresume）
+    path('resume-parser-config/', ResumeParserConfigView.as_view(), name='resume-parser-config'),
 
     # Step 2-3: 批量提交 + 评分
     path('bulk-create/', BulkCreateView.as_view(), name='bulk-create'),

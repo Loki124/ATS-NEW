@@ -136,10 +136,12 @@ const routes: RouteRecordRaw[] = [
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
           { path: 'demand-dynamic-fields', name: 'DemandDynamicFields', component: () => import(/* webpackChunkName: "settings-demand-dynamic-fields" */ '../pages/settings/DemandDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          // 2026-09-25: 指标库 + 规则配置执行（规则引擎指标层，复用 apps/rule_engine 规则主体）
-          { path: 'metric-library', name: 'MetricLibrary', component: () => import(/* webpackChunkName: "settings-metric-library" */ '../pages/settings/MetricLibrary.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'metric-rule-config', name: 'MetricRuleConfig', component: () => import(/* webpackChunkName: "settings-metric-rule-config" */ '../pages/settings/MetricRuleConfig.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'metric-rules', name: 'MetricRuleList', component: () => import(/* webpackChunkName: "settings-metric-rules" */ '../pages/settings/MetricRuleList.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // 2026-09-25: 指标与规则统一工作区（整合 指标库 / 规则配置与执行 / 规则管理 三页为单页 tab）
+          { path: 'metrics', name: 'MetricsWorkspace', component: () => import(/* webpackChunkName: "settings-metrics-workspace" */ '../pages/settings/MetricsWorkspace.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // 兼容旧深链：重定向到统一工作区
+          { path: 'metric-library', redirect: '/settings/metrics' },
+          { path: 'metric-rule-config', redirect: '/settings/metrics' },
+          { path: 'metric-rules', redirect: '/settings/metrics' },
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },
           { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
           // G-2026-09-23: 双系统校招专属配置（仅校园招聘菜单可见；社招不呈现）
@@ -189,6 +191,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'candidate-info-table', name: 'CandidateInfoTable', component: () => import(/* webpackChunkName: "settings-candidate-info-table" */ '../pages/settings/CandidateInfoTable.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'duplicate-candidate', name: 'DuplicateCandidate', component: () => import(/* webpackChunkName: "settings-duplicate-candidate" */ '../pages/settings/DuplicateCandidate.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'candidate-dynamic-fields', name: 'CandidateDynamicFields', component: () => import(/* webpackChunkName: "settings-candidate-dynamic-fields" */ '../pages/settings/CandidateDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // ===== 简历解析引擎后台切换（career_core / smartresume） =====
+          { path: 'resume-parser-engine', name: 'ResumeParserEngine', component: () => import(/* webpackChunkName: "settings-resume-parser-engine" */ '../pages/settings/ResumeParserEngine.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // ===== G35 数据中心 =====
           { path: 'data-dashboard', name: 'DataDashboard', component: () => import(/* webpackChunkName: "settings-data-dashboard" */ '../pages/settings/DataDashboard.vue') },
           // ===== 制度公告管理 (HR 及以上维护) =====

@@ -158,6 +158,7 @@ const subMenuOptions: MenuItem[] = [
           { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
           { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/duplicate-candidate', label: '简历查重规则', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
+          { key: '/settings/resume-parser-engine', label: '简历解析引擎', icon: () => h(NIcon, null, { default: () => h(GitBranchOutline) }) },
         ],
       },
       {
@@ -238,10 +239,8 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
       { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
       { key: '/settings/rule-engine', label: '统一规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
-      // 2026-09-25: 指标库（规则引擎指标层）入口，与统一规则引擎相邻
-      { key: '/settings/metric-library', label: '指标库', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
-      { key: '/settings/metric-rule-config', label: '规则配置与执行', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
-      { key: '/settings/metric-rules', label: '规则管理', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
+      // 2026-09-25: 指标与规则统一工作区（整合 指标库 / 规则配置与执行 / 规则管理 三页为单页 tab）
+      { key: '/settings/metrics', label: '指标与规则', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
     ],
   },
 ]

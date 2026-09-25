@@ -6,13 +6,21 @@
 - career_core: revazi/career-core，Rust 确定性引擎，轻量、本地、无网络
 - smartresume: alibaba/SmartResume，阿里开源，重模型 / 本地部署
 """
-from .base import BackendNotFoundError, ResumeParserBackend, get_backend
+from .base import (
+    BackendNotFoundError,
+    ResumeParserBackend,
+    get_backend,
+    get_active_backend_name,
+    probe_backends,
+)
 from .career_core_backend import CareerCoreBackend
 from .smartresume_backend import SmartResumeBackend
 
 __all__ = [
     "ResumeParserBackend",
     "get_backend",
+    "get_active_backend_name",
+    "probe_backends",
     "BackendNotFoundError",
     "CareerCoreBackend",
     "SmartResumeBackend",
