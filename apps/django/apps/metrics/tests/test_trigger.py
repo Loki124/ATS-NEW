@@ -150,6 +150,30 @@ def test_talent_pool_entry_allowed_when_rule_passes(auth_client):
     assert resp.status_code in (200, 201)
 
 
+def test_api_filter_without_ids_scans_candidates(auth_client):
+    """不传 candidateIds 时自动扫描在库候选人（供列表页按规则筛选）。"""
+    senior = _make_candidate(age=40, name='资深')
+    young = _make_candidate(age=20, name='低龄')
+    _rule('FILTER', '30', blocking=True)
+
+    resp = auth_client.post(BASE + 'rules/filter/', {'scene': 'FILTER'}, format='json')
+    assert resp.status_code == 200
+    body = _unwrap(resp)
+    assert str(senior.pk) in body['passedIds']
+    assert str(young.pk) not in body['passedIds']
+
+
+def test_candidate_list_supports_ids_filter(auth_client):
+    """候选人列表支持 ids 白名单 —— 规则筛选结果集回传的落点。"""
+    keep = _make_candidate(age=40, name='保留')
+    drop = _make_candidate(age=20, name='排除')
+    resp = auth_client.get('/api/v1/candidates/', {'ids': str(keep.pk)})
+    assert resp.status_code == 200
+    ids = [row['id'] for row in _unwrap(resp)]
+    assert str(keep.pk) in ids
+    assert str(drop.pk) not in ids
+
+
 def test_api_filter_by_scene(auth_client):
     senior = _make_candidate(age=40, name='资深')
     _rule('FILTER', '30', blocking=True)

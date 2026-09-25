@@ -107,18 +107,47 @@ class EvaluateSceneView(APIView):
         return Response(evaluate_scene(scene, candidate_id), status=status.HTTP_200_OK)
 
 
+# 未提供 candidateIds 时默认扫描的候选人数上限（规则含派生指标需逐条计算，必须限流）
+FILTER_MAX_CANDIDATES = 200
+
+
+def _default_candidate_ids():
+    """未提供 ID 列表时的默认候选集合（按创建时间倒序取前 N 条）。"""
+    from apps.candidate.models import Candidate
+
+    return [
+        str(pk) for pk in Candidate.objects.filter(
+            deleted_at__isnull=True,
+        ).order_by('-created_at').values_list('id', flat=True)[:FILTER_MAX_CANDIDATES]
+    ]
+
+
 class FilterBySceneView(APIView):
-    """POST /api/v1/metrics/rules/filter/ —— 批量按场景规则筛选候选人。"""
+    """POST /api/v1/metrics/rules/filter/ —— 批量按场景规则筛选候选人。
+
+    两种用法：
+      1. 传 candidateIds：对指定候选人执行（分页/已知集合场景）
+      2. 不传 candidateIds：对当前在库候选人执行（上限 FILTER_MAX_CANDIDATES 条保护），
+         返回 passedIds —— 前端再带 ids= 请求候选人列表，保证分页与总数正确。
+    """
 
     def post(self, request):
         payload = request.data or {}
         scene = payload.get('scene')
-        candidate_ids = payload.get('candidateIds') or payload.get('candidate_ids') or []
-        if not scene or not isinstance(candidate_ids, list):
+        if not scene:
+            return Response({'error': '缺少 scene'}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw_ids = payload.get('candidateIds') or payload.get('candidate_ids')
+        if raw_ids is None:
+            candidate_ids = _default_candidate_ids()
+        elif isinstance(raw_ids, list):
+            candidate_ids = [str(i) for i in raw_ids]
+        else:
             return Response(
-                {'error': '缺少 scene 或 candidateIds'},
+                {'error': 'candidateIds 必须是数组'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         return Response(
             filter_candidates_by_scene(scene, candidate_ids), status=status.HTTP_200_OK,
         )

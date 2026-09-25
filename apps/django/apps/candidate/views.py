@@ -102,6 +102,14 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
                 Q(email__icontains=keyword) |
                 Q(current_company__icontains=keyword),
             )
+        # 2026-09-25: 候选人 ID 白名单（逗号分隔）—— 供指标库「按规则筛选」结果集回传。
+        # 规则含派生指标（需计算，无法 SQL 化），故由 metrics 侧先算得 passedIds，
+        # 再由本参数收敛结果集，保证分页与总数正确。
+        ids = self.request.query_params.get('ids')
+        if ids:
+            id_list = [i.strip() for i in ids.split(',') if i.strip()]
+            if id_list:
+                qs = qs.filter(id__in=id_list)
         # 黑名单
         blacklisted = self.request.query_params.get('blacklisted')
         if blacklisted is not None:
