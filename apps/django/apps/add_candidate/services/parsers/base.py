@@ -119,6 +119,9 @@ def probe_backends() -> List[Dict[str, Any]]:
         {
             "name": "smartresume",
             "registered": "smartresume" in ResumeParserBackend.available(),
-            "available": bool(shutil.which(smart_python)) and os.path.exists(smart_cli),
+            # smart_python 在 .env 中是绝对路径（如 /opt/.../.venv/bin/python），
+            # shutil.which() 只搜 PATH、对绝对路径必返 None → 须用 os.path.exists 兜底。
+            # 与 career_core 同款风格（shutil.which(x) or os.path.exists(x)），兼容「裸命令 / 绝对路径」两种配置。
+            "available": bool(shutil.which(smart_python) or os.path.exists(smart_python)) and os.path.exists(smart_cli),
         },
     ]
