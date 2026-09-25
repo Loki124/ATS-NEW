@@ -16,7 +16,9 @@ from .views import (
     MetricTemplateViewSet,
     OperatorCatalogView,
     EvaluateSceneView,
+    FilterAsyncView,
     FilterBySceneView,
+    FilterStatusView,
     RuleExecuteView,
     sample_data,
 )
@@ -42,5 +44,8 @@ urlpatterns = [
     # 业务触发点：入池 / 筛选 / 评分 调用（字面路径先于 rules/{pk}/ 详情路由）
     path('rules/evaluate-scene/', EvaluateSceneView.as_view(), name='evaluate-scene'),
     path('rules/filter/', FilterBySceneView.as_view(), name='filter-by-scene'),
+    # 全量异步筛选（候选人超过同步扫描上限时使用）+ 进度查询
+    path('rules/filter-async/', FilterAsyncView.as_view(), name='filter-async'),
+    path('rules/filter-status/', FilterStatusView.as_view(), name='filter-status'),
     path('', include(router.urls)),
 ]

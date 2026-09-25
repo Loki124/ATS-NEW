@@ -416,7 +416,7 @@ import {
 import AddCandidateModal from './AddCandidateModal.vue'
 import { fetchStatusSchema, listCandidates, type StatusSchema } from '@/api/candidate'
 // 2026-09-25: 按规则筛选（指标库 FILTER 场景）
-import { filterByScene } from '@/api/metrics'
+import { filterByScene, filterBySceneAsync, getFilterTaskStatus } from '@/api/metrics'
 import type { TagType } from '@/api/offer'
 const { t } = useI18n()
 
@@ -489,6 +489,42 @@ const rows = ref<CandidateItem[]>([])
 const listLoading = ref(false)
 /** 按规则筛选：选中后仅展示符合「筛选」场景启用规则的候选人 */
 const ruleSceneFilter = ref<string | undefined>()
+/** 异步筛选进度（仅候选人数超过同步上限时出现） */
+const filterProgress = ref<{ current: number; total: number } | null>(null)
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * 解析「符合规则的候选人 ID」。
+ * 同步扫描有上限：未截断直接用；被截断则转后台异步任务并轮询，避免结果静默不全。
+ */
+async function resolvePassedIds(): Promise<string[] | null> {
+  const sync = await filterByScene('FILTER')
+  if (!sync.truncated) {
+    return sync.passedIds || []
+  }
+  try {
+    const { taskId } = await filterBySceneAsync('FILTER')
+    for (let i = 0; i < 60; i++) {
+      await sleep(1000)
+      const st = await getFilterTaskStatus(taskId)
+      if (st.status === 'done') {
+        filterProgress.value = null
+        return st.passedIds || []
+      }
+      if (st.status === 'not_found') return null
+      filterProgress.value = { current: st.progress || 0, total: st.total || 0 }
+    }
+    message.warning('规则筛选超时，请重试')
+    return null
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : '规则筛选失败')
+    return null
+  } finally {
+    filterProgress.value = null
+  }
+}
 
 /** 后端 CandidateListSerializer(camelCase) → 表格行结构 */
 function mapCandidate(r: any): CandidateItem {

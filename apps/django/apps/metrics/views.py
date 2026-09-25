@@ -12,6 +12,9 @@
 非功能约束：任何异常都不许 500 —— 由项目全局 DRF exception_handler + 本层显式
 try/except 双重保障，执行类错误降级为该步 FAIL 并在 error 字段给出人话提示。
 """
+from typing import List
+
+from django.core.cache import cache
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
@@ -31,7 +34,12 @@ from .serializers import (
 from .services.candidate_snapshot import build_candidate_snapshot, list_candidate_paths
 from .services.derived_registry import list_funcs
 from .services.metric_engine import MetricEngine
-from .services.rule_trigger import evaluate_scene, filter_candidates_by_scene
+from .services.rule_trigger import (
+    count_candidates,
+    default_candidate_ids,
+    evaluate_scene,
+    filter_candidates_by_scene,
+)
 
 # MVP 示例候选人数据（PRD F-08 要求测试数据区；真实接入时替换为业务快照）
 SAMPLE_CANDIDATE = {
@@ -107,19 +115,71 @@ class EvaluateSceneView(APIView):
         return Response(evaluate_scene(scene, candidate_id), status=status.HTTP_200_OK)
 
 
-# 未提供 candidateIds 时默认扫描的候选人数上限（规则含派生指标需逐条计算，必须限流）
+# 未提供 candidateIds 时默认扫描的候选人数上限（规则含派生指标需逐条计算，必须限流）。
+# 超出时同步端点返回 truncated=true，前端应改走异步任务（filter-async）拿全量结果。
 FILTER_MAX_CANDIDATES = 200
+# 同步筛选结果缓存 TTL（秒）—— 避免重复计算
+FILTER_CACHE_TTL = 300
 
 
-def _default_candidate_ids():
-    """未提供 ID 列表时的默认候选集合（按创建时间倒序取前 N 条）。"""
-    from apps.candidate.models import Candidate
+def _cache_key(scene: str, candidate_ids: List[str]) -> str:
+    """缓存键：场景 + 候选集合指纹。"""
+    import hashlib
 
-    return [
-        str(pk) for pk in Candidate.objects.filter(
-            deleted_at__isnull=True,
-        ).order_by('-created_at').values_list('id', flat=True)[:FILTER_MAX_CANDIDATES]
-    ]
+    digest = hashlib.md5(','.join(candidate_ids).encode('utf-8')).hexdigest()
+    return f'metrics:filter:{scene}:{digest}'
+
+
+class FilterAsyncView(APIView):
+    """POST /api/v1/metrics/rules/filter-async/ —— 全量异步筛选。
+
+    候选人规模超过 FILTER_MAX_CANDIDATES 时用（同步端点会截断）。
+    返回 taskId，前端轮询 filter-status 拿进度与结果。
+    """
+
+    def post(self, request):
+        import uuid
+
+        payload = request.data or {}
+        scene = payload.get('scene')
+        if not scene:
+            return Response({'error': '缺少 scene'}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw_ids = payload.get('candidateIds') or payload.get('candidate_ids')
+        candidate_ids = [str(i) for i in raw_ids] if isinstance(raw_ids, list) else None
+
+        task_id = uuid.uuid4().hex
+        try:
+            # 函数内导入，避免 views <-> tasks 循环依赖
+            from .tasks import filter_by_scene_task, write_progress
+
+            write_progress(task_id, {'status': 'pending', 'progress': 0, 'total': 0})
+            filter_by_scene_task.delay(task_id, scene, candidate_ids)
+        except Exception as exc:
+            # 无 Celery worker / broker 时明确报错，不静默假装成功
+            return Response(
+                {'error': f'异步任务启动失败（请确认 Celery worker 已启动）: {exc}'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({'taskId': task_id}, status=status.HTTP_200_OK)
+
+
+class FilterStatusView(APIView):
+    """GET /api/v1/metrics/rules/filter-status/?taskId= —— 查询异步筛选进度/结果。"""
+
+    def get(self, request):
+        task_id = request.query_params.get('taskId') or request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': '缺少 taskId'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            from .tasks import read_progress
+        except Exception as exc:
+            return Response({'error': f'任务模块不可用: {exc}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        data = read_progress(task_id)
+        if data is None:
+            return Response({'status': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class FilterBySceneView(APIView):
@@ -139,18 +199,37 @@ class FilterBySceneView(APIView):
 
         raw_ids = payload.get('candidateIds') or payload.get('candidate_ids')
         if raw_ids is None:
-            candidate_ids = _default_candidate_ids()
+            candidate_ids = default_candidate_ids(limit=FILTER_MAX_CANDIDATES)
+            total = count_candidates()
         elif isinstance(raw_ids, list):
             candidate_ids = [str(i) for i in raw_ids]
+            total = len(candidate_ids)
         else:
             return Response(
                 {'error': 'candidateIds 必须是数组'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(
-            filter_candidates_by_scene(scene, candidate_ids), status=status.HTTP_200_OK,
-        )
+        # 缓存：同场景 + 同候选集合直接复用（规则含派生指标，逐条计算较贵）
+        cache_key = _cache_key(scene, candidate_ids)
+        try:
+            cached = cache.get(cache_key)
+        except Exception:
+            cached = None
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
+        result = filter_candidates_by_scene(scene, candidate_ids)
+        result['scanned'] = len(candidate_ids)
+        result['total'] = total
+        # 同步扫描有上限；超出时前端应改走异步任务拿全量结果，避免静默截断
+        result['truncated'] = len(candidate_ids) < total
+
+        try:
+            cache.set(cache_key, result, FILTER_CACHE_TTL)
+        except Exception:
+            pass
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class MetricRuleViewSet(viewsets.ModelViewSet):
