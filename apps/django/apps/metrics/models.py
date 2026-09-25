@@ -207,6 +207,22 @@ class MetricRuleScene(models.TextChoices):
     MANUAL = 'MANUAL', '手动执行'
 
 
+class MetricActionType(models.TextChoices):
+    """规则动作类型（T4，取代布尔 blocking）。
+
+    语义对齐「智能筛选规则中台」规格书的 VETO/DEDUCT/BONUS 三级动作：
+      - VETO  必须满足：不满足即拒绝业务动作（原 blocking=True 的等价语义）
+      - DEDUCT 优先考虑：不满足时仅记录/降权，不阻断（原 blocking=False 的等价语义）
+      - BONUS 加分项：满足条件给予正向加权，不满足不惩罚
+
+    迁移 0004 将既有 blocking 值回填到本字段（True→VETO，False→DEDUCT），
+    0005（后续）再删除 blocking 字段。
+    """
+    VETO = 'VETO', '必须满足'
+    DEDUCT = 'DEDUCT', '优先考虑'
+    BONUS = 'BONUS', '加分项'
+
+
 class MetricRule(FullAuditModel, UUIDModel):
     """指标规则 —— 一组条件 + 组合逻辑，可持久化并启用/停用。
 
@@ -241,6 +257,16 @@ class MetricRule(FullAuditModel, UUIDModel):
         default=MetricStatus.ENABLED, verbose_name='状态',
     )
     enabled = models.BooleanField(default=True, verbose_name='启用开关', db_index=True)
+    action_type = models.CharField(
+        max_length=16, choices=MetricActionType.choices,
+        default=MetricActionType.DEDUCT, verbose_name='动作类型', db_index=True,
+        help_text='VETO=必须满足(不满足即拒绝业务动作)；'
+                  'DEDUCT=优先考虑(不满足仅记录/降权不阻断)；'
+                  'BONUS=加分项(满足给正向加权)',
+    )
+    # ⚠️ 遗留字段：T4 起由 action_type 取代。0004 完成回填，0005 将删除本字段。
+    # 迁移期间保留仅为兼容旧数据；程序写入一律走 action_type，本字段仅读不写。
+    # （verbose_name / help_text 刻意与 0003 保持一致，避免产生无意义的 AlterField 迁移）
     blocking = models.BooleanField(
         default=False, verbose_name='是否阻断',
         help_text='开启后：该场景规则不通过时业务动作被拒绝（如拒绝入池）；'

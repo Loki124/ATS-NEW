@@ -8,10 +8,11 @@
 
 设计要点：
     1. 只执行该 scene 下「启用且状态正常」的规则，停用规则零开销跳过
-    2. 阻断语义由规则自带 blocking 字段控制：
-         blocking=True  → 不通过即拒绝业务动作（如拒绝入池）
-         blocking=False → 仅记录结论，不阻断（安全默认）
-       这样规则误配不会直接伤业务，运营可先观察再开启阻断
+    2. 动作语义由规则自带 action_type 字段控制（T4 取代旧 blocking 布尔）：
+         VETO   → 不通过即拒绝业务动作（如拒绝入池）
+         DEDUCT → 不满足仅记录/降权，不阻断（安全默认）
+         BONUS  → 满足给正向加权，不满足不惩罚
+       这样规则误配不会直接伤业务，运营可先观察再开启强约束
     3. 任何异常都不向上抛（业务动作不能因为规则引擎故障而失败），
        统一降级为「不阻断 + error 记录」，绝不 500
 """
@@ -24,6 +25,26 @@ from .candidate_snapshot import build_candidate_snapshot
 from .metric_engine import MetricEngine
 
 logger = logging.getLogger(__name__)
+
+
+def default_candidate_ids(limit: int = 200) -> List[str]:
+    """未提供 ID 列表时的默认候选集合（按创建时间倒序取前 limit 条）。
+
+    放在服务层而非 views，供同步端点与 Celery 任务共用，避免循环导入。
+    """
+    from apps.candidate.models import Candidate
+
+    qs = Candidate.objects.filter(deleted_at__isnull=True).order_by('-created_at')
+    if limit is not None:
+        qs = qs[:limit]
+    return [str(pk) for pk in qs.values_list('id', flat=True)]
+
+
+def count_candidates() -> int:
+    """在库候选人总数（用于判断是否超出同步扫描上限）。"""
+    from apps.candidate.models import Candidate
+
+    return Candidate.objects.filter(deleted_at__isnull=True).count()
 
 
 def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
@@ -78,6 +99,8 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
     all_pass = True
 
     for rule in rules:
+        # T4：阻断语义以 action_type=='VETO' 为权威（旧 blocking 仅作派生兼容）
+        is_veto = (rule.action_type == 'VETO')
         try:
             outcome = MetricEngine.execute(
                 rule.to_engine_conditions(), snapshot, rule.logic or 'AND',
@@ -88,7 +111,8 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
                 'ruleId': rule.id,
                 'ruleName': rule.name,
                 'pass': False,
-                'blocking': rule.blocking,
+                'actionType': rule.action_type,
+                'blocking': is_veto,
                 'summary': f'执行异常: {exc}',
                 'steps': [],
             })
@@ -97,14 +121,15 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
         passed = bool(outcome.get('pass'))
         if not passed:
             all_pass = False
-            if rule.blocking:
+            if is_veto:
                 failed_blocking.append(rule.name)
 
         result['rules'].append({
             'ruleId': rule.id,
             'ruleName': rule.name,
             'pass': passed,
-            'blocking': rule.blocking,
+            'actionType': rule.action_type,
+            'blocking': is_veto,
             'summary': outcome.get('summary', ''),
             'steps': outcome.get('steps', []),
         })

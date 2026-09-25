@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict
 
 from apps.metrics.models import MetricDataType
@@ -55,14 +56,22 @@ def type_cast(value: Any, data_type: str):
         return value
 
     if data_type == MetricDataType.NUMBER:
+        # T5（INV-9）：一律返回 Decimal，杜绝 float 二进制精度陷阱。
+        # 入参可能是 int / float / str（前端按 T5 约定传字符串），统一 Decimal(str)。
         if isinstance(value, bool):
             raise TypeCastError(f'{value!r} 不是合法数值')
-        if isinstance(value, (int, float)):
+        if isinstance(value, Decimal):
             return value
-        try:
+        if isinstance(value, (int, float)):
+            # 先转 str 再 Decimal，避免 float 二进制尾差直接带入 Decimal
+            text = str(value)
+        else:
             text = str(value).strip()
-            return int(text) if text.lstrip('-').isdigit() else float(text)
-        except (TypeError, ValueError):
+        if text == '':
+            raise TypeCastError('空字符串不是合法数值')
+        try:
+            return Decimal(text)
+        except (InvalidOperation, ValueError, TypeError):
             raise TypeCastError(f'{value!r} 不是合法数值')
 
     if data_type == MetricDataType.BOOLEAN:

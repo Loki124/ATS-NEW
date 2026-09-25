@@ -127,11 +127,12 @@ def validate_metric_rule(rule: dict) -> list:
     if action_type is not None and action_type not in ('VETO', 'DEDUCT', 'BONUS'):
         errors.append('动作类型必须为 VETO / DEDUCT / BONUS 之一')
 
-    # ---- V16 互斥动作（blocking 维度骨架）----
-    # 同一场景下，若本规则 blocking=True 且已存在另一条 blocking=True 规则，
-    # 且其条件引用了相同 templateId，则互斥（禁止重复阻断同一指标）。
-    # action_type 维度升级在 T4 落地后由同文件小改完成。
-    if rule.get('blocking'):
+    # ---- V16 互斥动作（action_type 维度，T4 取代旧 blocking 维度）----
+    # 同一场景下，若本规则 action_type=='VETO' 且已存在另一条 VETO 规则，
+    # 二者条件引用了相同 templateId，则互斥（禁止对同一指标重复配置强阻断，
+    # 避免多条 VETO 叠加导致业务被重复拒绝、且语义冗余）。
+    action_type = rule.get('action_type')
+    if action_type == 'VETO':
         try:
             from apps.metrics.models import MetricRule
             own_tids = {
@@ -141,7 +142,7 @@ def validate_metric_rule(rule: dict) -> list:
             own_tids.discard(None)
             if scene and own_tids:
                 existing = MetricRule.objects.filter(
-                    scene=scene, blocking=True,
+                    scene=scene, action_type='VETO',
                 ).exclude(pk=rule.get('id'))
                 for r in existing:
                     r_tids = {
@@ -149,7 +150,7 @@ def validate_metric_rule(rule: dict) -> list:
                         for c in (r.conditions or []) if isinstance(c, dict)
                     }
                     if own_tids & r_tids:
-                        errors.append('同一指标禁止同时配置多条阻断规则')
+                        errors.append('同一指标禁止同时配置多条必须满足(VETO)规则')
                         break
         except Exception:
             # DB 不可用 / 查询异常：跳过互斥硬查

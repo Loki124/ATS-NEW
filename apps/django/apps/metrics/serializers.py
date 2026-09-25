@@ -142,9 +142,10 @@ class MetricRuleSerializer(serializers.ModelSerializer):
         model = MetricRule
         fields = [
             'id', 'name', 'description', 'scene', 'conditions', 'logic',
-            'status', 'enabled', 'blocking', 'created_at', 'condition_count',
+            'status', 'enabled', 'action_type', 'blocking',
+            'created_at', 'condition_count',
         ]
-        read_only_fields = ['id', 'created_at', 'condition_count']
+        read_only_fields = ['id', 'created_at', 'condition_count', 'blocking']
         # 模型字段带 default=list → ModelSerializer 会生成 required=False，
         # 导致「不传 conditions」绕过 validate_conditions。显式要求必传。
         extra_kwargs = {'conditions': {'required': True}}
@@ -163,7 +164,42 @@ class MetricRuleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f'第 {idx} 个条件运算符不合法: {operator}')
             if not MetricTemplate.objects.filter(pk=template_id).exists():
                 raise serializers.ValidationError(f'第 {idx} 个条件引用的模板不存在: {template_id}')
-        return value
+        # T5：数值型条件值统一 coerce 为字符串，避免 JSON number → Python float
+        # 序列化时的二进制精度丢失（INV-9）。仅对 int/float 生效，字符串/布尔/日期不动。
+        return _coerce_numeric_strings(value)
+
+
+def _coerce_numeric_strings(conditions):
+    """把条件中的数值（int/float）就地转为字符串，保留 Decimal 精度语义。
+
+    - 单值 value（GT/LT/EQ/...）
+    - BETWEEN 的 meta.min / meta.max
+    - IN / NOT_IN 的 value 数组元素
+    bool 不处理（避免 True/False 被当数字）。
+    """
+    for cond in conditions:
+        if not isinstance(cond, dict):
+            continue
+        operator = cond.get('operator')
+        value = cond.get('value')
+        if operator in ('IN', 'NOT_IN'):
+            if isinstance(value, list):
+                cond['value'] = [
+                    str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
+                    for v in value
+                ]
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            cond['value'] = str(value)
+        if operator == 'BETWEEN':
+            meta = cond.get('meta') or {}
+            if isinstance(meta, dict):
+                for k in ('min', 'max'):
+                    mv = meta.get(k)
+                    if isinstance(mv, (int, float)) and not isinstance(mv, bool):
+                        meta[k] = str(mv)
+                cond['meta'] = meta
+    return conditions
+
 
     def validate(self, attrs):
         """请求态：规则级校验链（防御前端绕过）。

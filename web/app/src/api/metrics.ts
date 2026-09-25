@@ -85,11 +85,29 @@ export interface OptionItem {
   label: string
 }
 
+/** 派生函数的单个参数声明（前端据此渲染类型化输入，取代自由 JSON 文本） */
+export interface ParamField {
+  key: string
+  label: string
+  type: 'number' | 'string' | 'select' | 'boolean' | 'tags'
+  options?: { value: string; label: string }[]
+  default?: any
+  required?: boolean
+}
+
 export interface DerivedFuncItem {
   name: string
   label: string
   description?: string
   paramsHint?: string
+  /** 期望 base_path 解析出的 items 形状：list_periods / list_edu / date */
+  inputKind?: string
+  /** 计算结果类型：number / string / boolean / date */
+  outputType?: string
+  /** 结果单位（仅展示） */
+  unit?: string
+  /** 参数声明，驱动类型化参数输入 */
+  paramSchema?: ParamField[]
 }
 
 export interface ExecuteStep {
@@ -127,11 +145,22 @@ export interface MetricRule {
     meta?: Record<string, any>
   }[]
   logic: 'AND' | 'OR'
+  /** T4：动作类型。VETO=必须满足(不满足即拒) / DEDUCT=优先考虑(仅记录不阻断) / BONUS=加分项 */
+  actionType?: 'VETO' | 'DEDUCT' | 'BONUS'
+  /** @deprecated T4 起由 actionType 取代；True 等价 VETO，False 等价 DEDUCT */
+  blocking?: boolean
   status?: string
   enabled: boolean
   conditionCount?: number
   createdAt?: string
 }
+
+/** 规则动作类型选项（供前端单选渲染） */
+export const ACTION_TYPE_OPTIONS: { value: 'VETO' | 'DEDUCT' | 'BONUS'; labelKey: string }[] = [
+  { value: 'VETO', labelKey: 'metrics.rule.action.veto' },
+  { value: 'DEDUCT', labelKey: 'metrics.rule.action.deduct' },
+  { value: 'BONUS', labelKey: 'metrics.rule.action.bonus' },
+]
 
 export async function listMetricRules(): Promise<MetricRule[]> {
   const res = await api.get('/metrics/rules/')
@@ -173,6 +202,35 @@ export interface SceneFilterResult {
   scene: string
   passedIds: string[]
   rejected: { candidateId: string; reason: string }[]
+  /** 实际扫描条数 */
+  scanned?: number
+  /** 在库候选人总数 */
+  total?: number
+  /** 是否因同步上限被截断 —— true 时应改走异步拿全量结果 */
+  truncated?: boolean
+}
+
+export interface FilterTaskStatus {
+  status: 'pending' | 'running' | 'done' | 'not_found'
+  progress?: number
+  total?: number
+  scene?: string
+  passedIds?: string[]
+  rejected?: { candidateId: string; reason: string }[]
+}
+
+/** 全量异步筛选（候选人超过同步扫描上限时使用） */
+export async function filterBySceneAsync(
+  scene: string,
+  candidateIds?: string[],
+): Promise<{ taskId: string }> {
+  const res = await api.post('/metrics/rules/filter-async/', { scene, candidateIds })
+  return unwrap<{ taskId: string }>(res)
+}
+
+export async function getFilterTaskStatus(taskId: string): Promise<FilterTaskStatus> {
+  const res = await api.get('/metrics/rules/filter-status/', { params: { taskId } })
+  return unwrap<FilterTaskStatus>(res)
 }
 
 /**
@@ -236,6 +294,22 @@ export async function listMetricTemplates(): Promise<MetricTemplate[]> {
 
 export async function createMetricTemplate(payload: Partial<MetricTemplate>): Promise<MetricTemplate> {
   const res = await api.post('/metrics/templates/', payload)
+  return unwrap<MetricTemplate>(res)
+}
+
+/** 编辑（PATCH 部分更新）已存在的指标 */
+export async function updateAtomicMetric(id: string, payload: Partial<AtomicMetric>): Promise<AtomicMetric> {
+  const res = await api.patch(`/metrics/atomic-metrics/${id}/`, payload)
+  return unwrap<AtomicMetric>(res)
+}
+
+export async function updateDerivedMetric(id: string, payload: Partial<DerivedMetric>): Promise<DerivedMetric> {
+  const res = await api.patch(`/metrics/derived-metrics/${id}/`, payload)
+  return unwrap<DerivedMetric>(res)
+}
+
+export async function updateMetricTemplate(id: string, payload: Partial<MetricTemplate>): Promise<MetricTemplate> {
+  const res = await api.patch(`/metrics/templates/${id}/`, payload)
   return unwrap<MetricTemplate>(res)
 }
 

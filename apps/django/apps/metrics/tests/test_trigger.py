@@ -23,7 +23,7 @@ def _age_template(operators=None):
     )
 
 
-def _rule(scene: str, value: str, *, blocking: bool = False, enabled: bool = True, template=None):
+def _rule(scene: str, value: str, *, action_type: str = 'DEDUCT', enabled: bool = True, template=None):
     return MetricRule.objects.create(
         name=f'规则-{scene}-{value}',
         scene=scene,
@@ -32,7 +32,7 @@ def _rule(scene: str, value: str, *, blocking: bool = False, enabled: bool = Tru
             'operator': 'GT',
             'value': value,
         }],
-        blocking=blocking,
+        action_type=action_type,
         enabled=enabled,
     )
 
@@ -47,7 +47,7 @@ def test_no_rules_in_scene_passes():
 
 def test_blocking_rule_failure_blocks():
     cand = _make_candidate(age=20)
-    _rule('TALENT_POOL', '30', blocking=True)
+    _rule('TALENT_POOL', '30', action_type='VETO')
     result = evaluate_scene('TALENT_POOL', cand.pk)
     assert result['pass'] is False
     assert result['blocked'] is True
@@ -57,7 +57,7 @@ def test_blocking_rule_failure_blocks():
 def test_non_blocking_rule_failure_does_not_block():
     """安全默认：未开启阻断的规则不满足时仅记录，不阻断业务。"""
     cand = _make_candidate(age=20)
-    _rule('TALENT_POOL', '30', blocking=False)
+    _rule('TALENT_POOL', '30', action_type='DEDUCT')
     result = evaluate_scene('TALENT_POOL', cand.pk)
     assert result['pass'] is False
     assert result['blocked'] is False
@@ -66,7 +66,7 @@ def test_non_blocking_rule_failure_does_not_block():
 
 def test_passing_rule_allows():
     cand = _make_candidate(age=35)
-    _rule('TALENT_POOL', '30', blocking=True)
+    _rule('TALENT_POOL', '30', action_type='VETO')
     result = evaluate_scene('TALENT_POOL', cand.pk)
     assert result['pass'] is True
     assert result['blocked'] is False
@@ -74,7 +74,7 @@ def test_passing_rule_allows():
 
 def test_disabled_rule_is_skipped():
     cand = _make_candidate(age=20)
-    _rule('TALENT_POOL', '30', blocking=True, enabled=False)
+    _rule('TALENT_POOL', '30', action_type='VETO', enabled=False)
     result = evaluate_scene('TALENT_POOL', cand.pk)
     assert result['evaluated'] == 0
     assert result['blocked'] is False
@@ -83,13 +83,13 @@ def test_disabled_rule_is_skipped():
 def test_rules_of_other_scene_not_applied():
     """场景隔离：入池规则不影响评分场景。"""
     cand = _make_candidate(age=20)
-    _rule('TALENT_POOL', '30', blocking=True)
+    _rule('TALENT_POOL', '30', action_type='VETO')
     result = evaluate_scene('SCORING', cand.pk)
     assert result['evaluated'] == 0
 
 
 def test_unknown_candidate_not_blocked_but_flagged():
-    _rule('FILTER', '30', blocking=True)
+    _rule('FILTER', '30', action_type='VETO')
     result = evaluate_scene('FILTER', 'ghost-id')
     assert result['pass'] is False
     assert '不存在' in result['message']
@@ -98,7 +98,7 @@ def test_unknown_candidate_not_blocked_but_flagged():
 def test_filter_candidates_by_scene():
     young = _make_candidate(age=20, name='年轻')
     senior = _make_candidate(age=40, name='资深')
-    _rule('FILTER', '30', blocking=True)
+    _rule('FILTER', '30', action_type='VETO')
     outcome = filter_candidates_by_scene('FILTER', [young.pk, senior.pk])
     assert str(senior.pk) in outcome['passedIds']
     assert str(young.pk) not in outcome['passedIds']
@@ -116,7 +116,7 @@ def _unwrap(resp):
 
 def test_api_evaluate_scene(auth_client):
     cand = _make_candidate(age=20)
-    _rule('TALENT_POOL', '30', blocking=True)
+    _rule('TALENT_POOL', '30', action_type='VETO')
     resp = auth_client.post(BASE + 'rules/evaluate-scene/', {
         'scene': 'TALENT_POOL', 'candidateId': str(cand.pk),
     }, format='json')
@@ -130,10 +130,38 @@ def test_api_evaluate_scene_requires_params(auth_client):
     assert resp.status_code == 400
 
 
+def test_filter_task_returns_full_result():
+    """异步任务（直接调用，不依赖 worker）：全量执行并返回 passedIds。"""
+    from apps.metrics.tasks import filter_by_scene_task
+
+    senior = _make_candidate(age=40, name='资深')
+    young = _make_candidate(age=20, name='低龄')
+    _rule('FILTER', '30', action_type='VETO')
+
+    result = filter_by_scene_task('unit-test-task', 'FILTER')
+    assert result['status'] == 'done'
+    assert str(senior.pk) in result['passedIds']
+    assert str(young.pk) not in result['passedIds']
+    assert result['rejected'][0]['candidateId'] == str(young.pk)
+
+
+def test_filter_endpoint_reports_scan_scope(auth_client):
+    """同步端点必须暴露 scanned/total/truncated —— 避免静默截断。"""
+    _make_candidate(age=40, name='范围内')
+    _rule('FILTER', '30', action_type='VETO')
+    resp = auth_client.post(BASE + 'rules/filter/', {'scene': 'FILTER'}, format='json')
+    assert resp.status_code == 200
+    body = _unwrap(resp)
+    assert 'scanned' in body and 'total' in body and 'truncated' in body
+    # 候选数远小于同步上限，不应被截断
+    assert body['truncated'] is False
+    assert body['scanned'] == body['total']
+
+
 def test_talent_pool_entry_blocked_by_rule(auth_client):
     """集成：入池触发点真生效 —— 阻断型规则不满足时入池被拒（400）。"""
     cand = _make_candidate(age=20, name='低龄候选人')
-    _rule('TALENT_POOL', '30', blocking=True)
+    _rule('TALENT_POOL', '30', action_type='VETO')
     resp = auth_client.post('/api/v1/talent-pool/', {
         'candidate': str(cand.pk), 'source': 'DIRECT_IMPORT',
     }, format='json')
@@ -143,7 +171,7 @@ def test_talent_pool_entry_blocked_by_rule(auth_client):
 def test_talent_pool_entry_allowed_when_rule_passes(auth_client):
     """集成：规则满足时入池正常放行。"""
     cand = _make_candidate(age=40, name='资深候选人')
-    _rule('TALENT_POOL', '30', blocking=True)
+    _rule('TALENT_POOL', '30', action_type='VETO')
     resp = auth_client.post('/api/v1/talent-pool/', {
         'candidate': str(cand.pk), 'source': 'DIRECT_IMPORT',
     }, format='json')
@@ -154,7 +182,7 @@ def test_api_filter_without_ids_scans_candidates(auth_client):
     """不传 candidateIds 时自动扫描在库候选人（供列表页按规则筛选）。"""
     senior = _make_candidate(age=40, name='资深')
     young = _make_candidate(age=20, name='低龄')
-    _rule('FILTER', '30', blocking=True)
+    _rule('FILTER', '30', action_type='VETO')
 
     resp = auth_client.post(BASE + 'rules/filter/', {'scene': 'FILTER'}, format='json')
     assert resp.status_code == 200
@@ -176,7 +204,7 @@ def test_candidate_list_supports_ids_filter(auth_client):
 
 def test_api_filter_by_scene(auth_client):
     senior = _make_candidate(age=40, name='资深')
-    _rule('FILTER', '30', blocking=True)
+    _rule('FILTER', '30', action_type='VETO')
     resp = auth_client.post(BASE + 'rules/filter/', {
         'scene': 'FILTER', 'candidateIds': [str(senior.pk)],
     }, format='json')
