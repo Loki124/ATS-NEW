@@ -45,7 +45,7 @@ def test_no_rules_in_scene_passes():
     assert '无启用规则' in result['message']
 
 
-def test_blocking_rule_failure_blocks():
+def test_veto_rule_failure_blocks():
     cand = _make_candidate(age=20)
     _rule('TALENT_POOL', '30', action_type='VETO')
     result = evaluate_scene('TALENT_POOL', cand.pk)
@@ -54,7 +54,7 @@ def test_blocking_rule_failure_blocks():
     assert '不满足规则' in result['message']
 
 
-def test_non_blocking_rule_failure_does_not_block():
+def test_deduct_rule_failure_does_not_block():
     """安全默认：未开启阻断的规则不满足时仅记录，不阻断业务。"""
     cand = _make_candidate(age=20)
     _rule('TALENT_POOL', '30', action_type='DEDUCT')

@@ -11,13 +11,12 @@ from apps.metrics.services.rule_validators import validate_metric_rule
 
 
 def _rule(name='年龄规则', scene='FILTER', logic='AND', conditions=None,
-          blocking=False, action_type=None):
+          action_type=None):
     return {
         'name': name,
         'scene': scene,
         'logic': logic,
         'conditions': conditions if conditions is not None else [],
-        'blocking': blocking,
         'action_type': action_type,
     }
 
@@ -82,8 +81,8 @@ class ValidateMetricRuleTest(TestCase):
                      conditions=[{'operator': 'GT', 'value': 30}])
         self.assertTrue(any('动作类型' in e for e in validate_metric_rule(rule)))
 
-    def test_v16_mutex_blocking_skeleton_no_db(self):
-        # 无 DB 环境下互斥硬查被跳过，blocking=True 不应崩溃且返回空（无其它错误）
-        rule = _rule(blocking=True,
+    def test_v16_mutex_action_type_skeleton_no_db(self):
+        # 无 DB 环境下互斥硬查被跳过，action_type='VETO' 不应崩溃且返回空（无其它错误）
+        rule = _rule(action_type='VETO',
                      conditions=[{'operator': 'GT', 'value': 30}])
         self.assertEqual(validate_metric_rule(rule), [])

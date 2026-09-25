@@ -53,7 +53,7 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
     返回：
         {
           scene, candidateId, pass, blocked, message,
-          rules: [{ruleId, ruleName, pass, blocking, summary, steps}],
+          rules: [{ruleId, ruleName, pass, actionType, summary, steps}],
           evaluated: 规则条数
         }
     """
@@ -95,7 +95,7 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
         result['pass'] = False
         return result
 
-    failed_blocking: List[str] = []
+    failed_veto: List[str] = []
     all_pass = True
 
     for rule in rules:
@@ -112,7 +112,6 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
                 'ruleName': rule.name,
                 'pass': False,
                 'actionType': rule.action_type,
-                'blocking': is_veto,
                 'summary': f'执行异常: {exc}',
                 'steps': [],
             })
@@ -122,23 +121,22 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
         if not passed:
             all_pass = False
             if is_veto:
-                failed_blocking.append(rule.name)
+                failed_veto.append(rule.name)
 
         result['rules'].append({
             'ruleId': rule.id,
             'ruleName': rule.name,
             'pass': passed,
             'actionType': rule.action_type,
-            'blocking': is_veto,
             'summary': outcome.get('summary', ''),
             'steps': outcome.get('steps', []),
         })
 
     result['evaluated'] = len(rules)
     result['pass'] = all_pass
-    if failed_blocking:
+    if failed_veto:
         result['blocked'] = True
-        result['message'] = '不满足规则：' + '、'.join(failed_blocking)
+        result['message'] = '不满足规则：' + '、'.join(failed_veto)
     elif not all_pass:
         result['message'] = '存在未满足规则（未开启阻断，已放行）'
     else:

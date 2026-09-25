@@ -147,8 +147,6 @@ export interface MetricRule {
   logic: 'AND' | 'OR'
   /** T4：动作类型。VETO=必须满足(不满足即拒) / DEDUCT=优先考虑(仅记录不阻断) / BONUS=加分项 */
   actionType?: 'VETO' | 'DEDUCT' | 'BONUS'
-  /** @deprecated T4 起由 actionType 取代；True 等价 VETO，False 等价 DEDUCT */
-  blocking?: boolean
   status?: string
   enabled: boolean
   conditionCount?: number

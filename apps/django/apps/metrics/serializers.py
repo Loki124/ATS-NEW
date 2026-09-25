@@ -142,10 +142,10 @@ class MetricRuleSerializer(serializers.ModelSerializer):
         model = MetricRule
         fields = [
             'id', 'name', 'description', 'scene', 'conditions', 'logic',
-            'status', 'enabled', 'action_type', 'blocking',
+            'status', 'enabled', 'action_type',
             'created_at', 'condition_count',
         ]
-        read_only_fields = ['id', 'created_at', 'condition_count', 'blocking']
+        read_only_fields = ['id', 'created_at', 'condition_count']
         # 模型字段带 default=list → ModelSerializer 会生成 required=False，
         # 导致「不传 conditions」绕过 validate_conditions。显式要求必传。
         extra_kwargs = {'conditions': {'required': True}}
@@ -167,6 +167,27 @@ class MetricRuleSerializer(serializers.ModelSerializer):
         # T5：数值型条件值统一 coerce 为字符串，避免 JSON number → Python float
         # 序列化时的二进制精度丢失（INV-9）。仅对 int/float 生效，字符串/布尔/日期不动。
         return _coerce_numeric_strings(value)
+
+    def validate(self, attrs):
+        """请求态：规则级校验链（防御前端绕过）。
+
+        field 级校验（validate_conditions）先行；此处跑规则级跨条件校验，
+        返回人话中文错误，DRF 聚合后给出 400。
+        """
+        errors = validate_metric_rule({
+            'name': attrs.get('name'),
+            'scene': attrs.get('scene'),
+            'logic': attrs.get('logic'),
+            'conditions': attrs.get('conditions'),
+            'action_type': attrs.get('action_type'),
+            'id': self.instance.pk if self.instance else None,
+        })
+        if errors:
+            raise serializers.ValidationError({'conditions': errors})
+        return attrs
+
+    def get_condition_count(self, obj):
+        return len(obj.conditions or [])
 
 
 def _coerce_numeric_strings(conditions):
@@ -199,26 +220,3 @@ def _coerce_numeric_strings(conditions):
                         meta[k] = str(mv)
                 cond['meta'] = meta
     return conditions
-
-
-    def validate(self, attrs):
-        """请求态：规则级校验链（防御前端绕过）。
-
-        field 级校验（validate_conditions）先行；此处跑规则级跨条件校验，
-        返回人话中文错误，DRF 聚合后给出 400。
-        """
-        errors = validate_metric_rule({
-            'name': attrs.get('name'),
-            'scene': attrs.get('scene'),
-            'logic': attrs.get('logic'),
-            'conditions': attrs.get('conditions'),
-            'blocking': attrs.get('blocking'),
-            'action_type': attrs.get('action_type'),
-            'id': self.instance.pk if self.instance else None,
-        })
-        if errors:
-            raise serializers.ValidationError({'conditions': errors})
-        return attrs
-
-    def get_condition_count(self, obj):
-        return len(obj.conditions or [])

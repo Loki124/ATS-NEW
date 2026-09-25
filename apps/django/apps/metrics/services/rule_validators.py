@@ -42,7 +42,7 @@ def validate_metric_rule(rule: dict) -> list:
     """校验一条指标规则，返回人话中文错误列表（空=通过）。
 
     Args:
-        rule: dict，至少含 name/scene/logic/conditions/blocking/action_type 等字段；
+        rule: dict，至少含 name/scene/logic/conditions/action_type 等字段；
               调用方负责把模型或序列化数据规整成 dict。
     """
     errors: list = []

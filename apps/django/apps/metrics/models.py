@@ -215,8 +215,8 @@ class MetricActionType(models.TextChoices):
       - DEDUCT 优先考虑：不满足时仅记录/降权，不阻断（原 blocking=False 的等价语义）
       - BONUS 加分项：满足条件给予正向加权，不满足不惩罚
 
-    迁移 0004 将既有 blocking 值回填到本字段（True→VETO，False→DEDUCT），
-    0005（后续）再删除 blocking 字段。
+    迁移 0004 将既有 blocking 值回填到本字段（True→VETO，False→DEDUCT）；
+    0005 已删除遗留 blocking 字段，动作语义完全由本枚举承载。
     """
     VETO = 'VETO', '必须满足'
     DEDUCT = 'DEDUCT', '优先考虑'
@@ -264,15 +264,6 @@ class MetricRule(FullAuditModel, UUIDModel):
                   'DEDUCT=优先考虑(不满足仅记录/降权不阻断)；'
                   'BONUS=加分项(满足给正向加权)',
     )
-    # ⚠️ 遗留字段：T4 起由 action_type 取代。0004 完成回填，0005 将删除本字段。
-    # 迁移期间保留仅为兼容旧数据；程序写入一律走 action_type，本字段仅读不写。
-    # （verbose_name / help_text 刻意与 0003 保持一致，避免产生无意义的 AlterField 迁移）
-    blocking = models.BooleanField(
-        default=False, verbose_name='是否阻断',
-        help_text='开启后：该场景规则不通过时业务动作被拒绝（如拒绝入池）；'
-                  '关闭时仅记录结论不阻断（安全默认，避免规则误配伤业务）',
-    )
-
     class Meta:
         db_table = 'metrics_metric_rule'
         verbose_name = '指标规则'
@@ -318,7 +309,6 @@ class MetricRule(FullAuditModel, UUIDModel):
             'scene': self.scene,
             'logic': self.logic,
             'conditions': self.conditions,
-            'blocking': self.blocking,
             'action_type': getattr(self, 'action_type', None),
             'id': self.pk,
         })
