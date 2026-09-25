@@ -13,9 +13,15 @@
 
 统一签名：fn(items, params, data) -> Any
     items  = 由 DerivedMetric.base_path 解析出的值（通常是 list）
-    params = DerivedMetric.params（运营配置的参数）
+    params = DerivedMetric.params（运营配置的参数，结构由 param_schema 声明）
     data   = 完整业务数据快照（兜底用）
     返回 None 表示该指标无值（引擎按"为空"处理，不抛错）。
+
+每个函数通过 @register 额外声明 input_kind / output_type / unit / param_schema：
+    input_kind   —— 期望的 items 形状，compute() 据此做"形状不匹配"显式报错（fail-loud）
+    output_type  —— 计算结果类型，供前端类型化与校验
+    unit         —— 结果单位（仅展示）
+    param_schema —— 参数声明，前端据此渲染类型化输入（取代自由 JSON 文本）
 """
 from __future__ import annotations
 
@@ -25,14 +31,43 @@ from typing import Any, Callable, Dict, List, Optional
 REGISTRY: Dict[str, Dict[str, Any]] = {}
 
 DEFAULT_DEGREE_ORDER: List[str] = ['其他', '高中', '大专', '本科', '硕士', '博士']
+# 「本科及以上」预设：排除大专/高中/其他，最高学历只在本科、硕士、博士中取
+BACHELOR_UP_ORDER: List[str] = ['本科', '硕士', '博士']
 
 
 class DerivedComputeError(Exception):
     """派生指标计算失败（如函数未注册）。"""
 
 
-def register(name: str, label: str, description: str = '', params_hint: str = '') -> Callable:
-    """注册一个派生计算函数（幂等，同名覆盖）。"""
+class InputShapeError(Exception):
+    """base_path 解析结果与计算函数期望的 input_kind 不匹配。
+
+    用于"形状不匹配"时显式报错，取代原先静默返回 0 / None 的降级——
+    引擎层已用 except Exception 兜底，此类错误会降级为该步 FAIL 并带 error 文案，绝不 500。
+    """
+
+
+def register(
+    name: str,
+    label: str,
+    description: str = '',
+    params_hint: str = '',
+    input_kind: str = '',
+    output_type: str = '',
+    unit: str = '',
+    param_schema: Optional[List[Dict[str, Any]]] = None,
+) -> Callable:
+    """注册一个派生计算函数（幂等，同名覆盖）。
+
+    input_kind   : 声明该函数期望 base_path 解析出的 items 形状
+                   （list_periods / list_edu / date）。用于在"形状不匹配"时显式报错，
+                   而非静默给出错误结果。
+    output_type  : 计算结果的数据类型（number / string / boolean / date），
+                   供前端类型化渲染与校验。
+    unit         : 结果单位（如 月 / 岁 / 段），仅展示用。
+    param_schema : 函数参数声明（[{key,label,type,options?,default?,required?}]），
+                   前端据此渲染类型化参数输入，取代自由 JSON 文本。
+    """
 
     def deco(fn: Callable) -> Callable:
         REGISTRY[name] = {
@@ -40,6 +75,10 @@ def register(name: str, label: str, description: str = '', params_hint: str = ''
             'label': label,
             'description': description,
             'params_hint': params_hint,
+            'input_kind': input_kind,
+            'output_type': output_type,
+            'unit': unit,
+            'param_schema': param_schema or [],
             'fn': fn,
         }
         return fn
@@ -59,15 +98,54 @@ def list_funcs() -> List[Dict[str, Any]]:
             'label': e['label'],
             'description': e['description'],
             'paramsHint': e['params_hint'],
+            'inputKind': e['input_kind'],
+            'outputType': e['output_type'],
+            'unit': e['unit'],
+            'paramSchema': e['param_schema'],
         }
         for e in REGISTRY.values()
     ]
+
+
+def _validate_input_kind(items: Any, input_kind: str) -> None:
+    """对 base_path 解析结果做形状校验（fail-loud）。
+
+    只校验"结构性类型"，不校验"数据是否缺失"——缺失（空列表）是合法的可判空状态，
+    由各函数返回 0 / None 表达，不报错。真正需要报错的是"指错了路径导致形状根本不对"。
+    """
+    if not input_kind:
+        return
+    if input_kind in ('list_periods', 'list_edu'):
+        if not isinstance(items, list):
+            raise InputShapeError(
+                f'计算函数期望输入为列表（{input_kind}），但 base_path 解析结果为 '
+                f'{type(items).__name__}，请检查数据来源路径是否指向了正确的数组字段'
+            )
+        # 非空却无任一对象元素：多半是指到了字符串/标量数组，配置有误
+        if items and not any(isinstance(it, dict) for it in items):
+            raise InputShapeError(
+                f'计算函数期望输入为对象列表（{input_kind}），但解析列表的元素均非对象，'
+                f'请检查 base_path 是否指向了正确的数组字段'
+            )
+    elif input_kind == 'date':
+        resolved = items[0] if isinstance(items, list) and items else items
+        ok = False
+        if isinstance(resolved, dict):
+            ok = _to_date(resolved.get('birthday')) is not None
+        else:
+            ok = _to_date(resolved) is not None
+        if not ok:
+            raise InputShapeError(
+                f'计算函数期望输入为可解析的日期，但 base_path 解析结果为 '
+                f'{items!r}，无法推算日期，请检查数据来源路径'
+            )
 
 
 def compute(name: str, items: Any, params: Optional[dict] = None, data: Optional[dict] = None) -> Any:
     entry = REGISTRY.get(name)
     if entry is None:
         raise DerivedComputeError(f'未注册的计算函数: {name}')
+    _validate_input_kind(items, entry.get('input_kind') or '')
     return entry['fn'](items, params or {}, data or {})
 
 
@@ -117,6 +195,8 @@ def _span(item: dict) -> Optional[tuple]:
     'MAX_GAP', '最大空窗期(月)',
     '工作经历相邻两段之间的最大间隔月数；在职段按今天计算',
     '无参数（单位固定为月）',
+    input_kind='list_periods', output_type='number', unit='月',
+    param_schema=[],
 )
 def max_gap(items: Any, params: dict, data: dict) -> int:
     """「空窗期不能超过 6 个月」—— PRD 背景规则中原子指标无法表达的一条。"""
@@ -133,6 +213,16 @@ def max_gap(items: Any, params: dict, data: dict) -> int:
     'COUNT_IN_WINDOW', '近N年段数',
     '统计近 N 年内开始的经历段数（跳槽频率）',
     'window_years: 年数，默认 5',
+    input_kind='list_periods', output_type='number', unit='段',
+    param_schema=[
+        {
+            'key': 'window_years',
+            'label': '统计窗口(年)',
+            'type': 'number',
+            'default': 5,
+            'required': False,
+        },
+    ],
 )
 def count_in_window(items: Any, params: dict, data: dict) -> int:
     """「跳槽频率近 5 年不能超过 3 段」。"""
@@ -157,11 +247,28 @@ def count_in_window(items: Any, params: dict, data: dict) -> int:
 @register(
     'HIGHEST_EDU', '最高学历',
     '教育经历中的最高学历（按学历序取最大）',
-    'degree_order: 可选，自定义学历顺序数组',
+    'degree_order_preset: 学历排序预设，默认 standard',
+    input_kind='list_edu', output_type='string', unit='',
+    param_schema=[
+        {
+            'key': 'degree_order_preset',
+            'label': '学历排序预设',
+            'type': 'select',
+            'options': [
+                {'value': 'standard', 'label': '标准（其他<高中<大专<本科<硕士<博士）'},
+                {'value': 'bachelor_up', 'label': '本科及以上'},
+            ],
+            'default': 'standard',
+            'required': False,
+        },
+    ],
 )
 def highest_edu(items: Any, params: dict, data: dict) -> Optional[str]:
     """「第一学历/最高学历必须是本科及以上」。"""
-    order = params.get('degree_order') or DEFAULT_DEGREE_ORDER
+    order = params.get('degree_order')  # 兼容旧参数
+    if not order:
+        preset = params.get('degree_order_preset') or 'standard'
+        order = BACHELOR_UP_ORDER if preset == 'bachelor_up' else DEFAULT_DEGREE_ORDER
     best: Optional[str] = None
     best_rank = -1
     for item in _items_of(items):
@@ -179,6 +286,8 @@ def highest_edu(items: Any, params: dict, data: dict) -> Optional[str]:
     'AGE_FROM_BIRTHDAY', '年龄(由生日推算)',
     '按出生日期计算周岁；解决 DB 只存 birthday 时「年龄>30」无法直接取值的问题',
     '无参数',
+    input_kind='date', output_type='number', unit='岁',
+    param_schema=[],
 )
 def age_from_birthday(items: Any, params: dict, data: dict) -> Optional[int]:
     raw = items[0] if isinstance(items, list) and items else items
@@ -193,6 +302,8 @@ def age_from_birthday(items: Any, params: dict, data: dict) -> Optional[int]:
     'TOTAL_WORK_MONTHS', '总工作年限(月)',
     '所有工作经历累计月数（重叠区间不去重）',
     '无参数',
+    input_kind='list_periods', output_type='number', unit='月',
+    param_schema=[],
 )
 def total_work_months(items: Any, params: dict, data: dict) -> int:
     rows = [s for s in (_span(it) for it in _items_of(items)) if s]
