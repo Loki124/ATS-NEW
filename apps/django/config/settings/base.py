@@ -621,10 +621,24 @@ ATS_BASE = {
     'TALENT_POOL_RETENTION_DAYS': 365 * 2,  # 2 年
 }
 
-# ===== Add Candidate V2 - 第三方 API 配置 =====
-# 2026-06-22: 商业简历解析服务 (Affinda)
-# 生产环境通过环境变量注入，本地开发用 .env
-AFFINDA_API_KEY = env('AFFINDA_API_KEY', default='test_affinda_key_dev')
+# ===== Add Candidate V2 - 简历解析（本地开源引擎，可后台切换） =====
+# 2026-09-25: 完全替代商业 SaaS(Affinda)，改用本地开源引擎，数据不出本机。
+# RESUME_PARSER_BACKEND 可选值（见 apps/add_candidate/services/parsers/）：
+#   career_core  - revazi/career-core，Rust 确定性引擎（轻量、本地、无网络），默认
+#   smartresume  - alibaba/SmartResume，版面感知 + 小模型（重、建议独立容器部署）
+RESUME_PARSER_BACKEND = env('RESUME_PARSER_BACKEND', default='career_core')
+
+# Career Core: Rust 确定性引擎（npm i -g @revazi/career，或 cargo install career-core）。
+# 它不直接读 PDF：本后端先用 pdfplumber 抽纯文本，再喂 `career resume normalize`。
+CAREER_CORE_BIN = env('CAREER_CORE_BIN', default='career')
+
+# SmartResume: 阿里开源。需另行部署（建议独立 venv / 容器，含 torch/transformers/vllm）。
+# 指向其仓库的 scripts/start.py CLI 入口，与运行该脚本的 python 解释器。
+SMARTRESUME_CLI = env('SMARTRESUME_CLI', default='scripts/start.py')
+SMARTRESUME_PYTHON = env('SMARTRESUME_PYTHON', default='python')
+
+# 解析超时（秒）——两个后端共用
+RESUME_PARSER_TIMEOUT = int(env('RESUME_PARSER_TIMEOUT', default=120))
 
 # Fix 6: 集成凭据 Fernet 加密密钥 (32-byte base64, 用 `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 生成).
 # 必须在 .env / 生产环境注入; 未配置时 IntegrationConfig 加密迁移会跳过但运行期 _get_decrypted_config 会 RuntimeError.
@@ -633,12 +647,6 @@ INTEGRATION_FERNET_KEY = env('INTEGRATION_FERNET_KEY', default='')
 # 2026-08-03 S3: PII 字段加密 (Candidate.id_card_no 等) 复用同一 Fernet key.
 #   推荐单独设 ENCRYPTION_KEY, 但 fallback 到 INTEGRATION_FERNET_KEY (同算法可复用)
 ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=INTEGRATION_FERNET_KEY)
-AFFINDA_BASE_URL = env('AFFINDA_BASE_URL', default='https://api.affinda.com/v3')
-AFFINDA_WORKSPACE = env('AFFINDA_WORKSPACE', default='ats-default')
-AFFINDA_DOCUMENT_TYPE = env('AFFINDA_DOCUMENT_TYPE', default='resume')
-
-# 解析超时（秒）
-AFFINDA_TIMEOUT_SECONDS = int(env('AFFINDA_TIMEOUT_SECONDS', default=30))
 
 # 评分及格线
 SCORING_PASS_THRESHOLD = int(env('SCORING_PASS_THRESHOLD', default=60))

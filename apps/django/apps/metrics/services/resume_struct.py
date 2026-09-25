@@ -1,7 +1,7 @@
 """简历解析结果结构化 —— 让派生指标对真实数据生效的桥梁（T1）。
 
 背景：
-    apps.add_candidate 的简历解析（Affinda）已产出结构化 educations / experiences，
+    apps.add_candidate 的简历解析（本地开源引擎 career_core / smartresume）已产出结构化 educations / experiences，
     但只存在 ParseJob.parsed_data 里，**没有落进 Candidate**，且其中的时间字段是
     `period` 字符串（如 "2018.07 - 2020.06"、"2018.07-至今"），而派生指标
     MAX_GAP / COUNT_IN_WINDOW 需要的是 `start_date` / `end_date`。

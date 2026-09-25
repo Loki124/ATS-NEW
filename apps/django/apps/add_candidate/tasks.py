@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def parse_resume_task(self, job_id):
     """解析单个简历任务（完整实现）
 
-    流程：parsing 阶段（调 Affinda） → checking 阶段（查重） → done
+    流程：parsing 阶段（调本地解析引擎 career_core / smartresume，可切换） → checking 阶段（查重） → done
     失败：ParseError 立即 fail（不重试）；其他异常重试 3 次
 
     2026-07-02: 全流程用 select_for_update 锁 job 行, 防并发重试导致
@@ -32,7 +32,7 @@ def parse_resume_task(self, job_id):
         # 1. 阶段：parsing
         ParseJob.objects.filter(pk=job.pk).update(phase='parsing', progress=10)
 
-        # 2. 调 Affinda (网络 IO 在锁外, 这里只用短锁)
+        # 2. 调本地解析引擎 (subprocess IO 在锁外, 这里只用短锁)
         with open(job.file_path, 'rb') as f:
             parsed = ResumeParserService.parse(f)
 

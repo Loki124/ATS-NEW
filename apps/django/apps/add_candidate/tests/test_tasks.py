@@ -48,9 +48,9 @@ class TestParseResumeTask:
 
     @patch('apps.add_candidate.services.resume_parser.ResumeParserService.parse')
     def test_parse_failure_marks_job_failed(self, mock_parse, hr_user, tmp_path):
-        """ParseError → ParseJob.status=failed, error=AFFINDA_TIMEOUT"""
+        """ParseError → ParseJob.status=failed, error=CARER_CORE_TIMEOUT"""
         from apps.add_candidate.services.resume_parser import ParseError
-        mock_parse.side_effect = ParseError('AFFINDA_TIMEOUT', 'timeout')
+        mock_parse.side_effect = ParseError('CAREER_CORE_TIMEOUT', 'timeout')
         test_file = tmp_path / 'test.pdf'
         test_file.write_bytes(b'%PDF-1.4')
         job = ParseJob.objects.create(
@@ -65,4 +65,4 @@ class TestParseResumeTask:
 
         job.refresh_from_db()
         assert job.status == 'failed'
-        assert job.error == 'AFFINDA_TIMEOUT'
+        assert job.error == 'CAREER_CORE_TIMEOUT'

@@ -9,10 +9,13 @@ def test_add_candidate_app_is_registered():
     assert config.verbose_name == '候选人创建（V2）'
 
 
-def test_affinda_settings_exist():
-    """Affinda 配置必须存在"""
+def test_resume_parser_settings_exist():
+    """本地简历解析后端配置必须存在（替代原 Affinda）"""
     from django.conf import settings
-    assert hasattr(settings, 'AFFINDA_API_KEY')
-    assert hasattr(settings, 'AFFINDA_BASE_URL')
-    assert hasattr(settings, 'AFFINDA_WORKSPACE')
-    assert hasattr(settings, 'AFFINDA_DOCUMENT_TYPE')
+    assert hasattr(settings, 'RESUME_PARSER_BACKEND')
+    assert settings.RESUME_PARSER_BACKEND in ('career_core', 'smartresume')
+    assert hasattr(settings, 'CAREER_CORE_BIN')
+    assert hasattr(settings, 'SMARTRESUME_CLI')
+    assert hasattr(settings, 'SMARTRESUME_PYTHON')
+    assert hasattr(settings, 'RESUME_PARSER_TIMEOUT')
+    assert isinstance(settings.RESUME_PARSER_TIMEOUT, int)

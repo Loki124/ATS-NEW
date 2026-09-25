@@ -88,9 +88,10 @@ daphne==4.2.2
 gunicorn==26.0.0
 whitenoise==6.12.0
 
-# === Third-party SaaS (V2 add-candidate) ===
-# apps/add_candidate/services/resume_parser.py 用它做简历解析
-affinda==4.28.9
+# === Resume parsing (V2 add-candidate, 本地开源引擎) ===
+# 2026-09-25: 移除商业 SaaS affinda；career_core 后端用 pdfplumber 抽 PDF 纯文本，
+# 再由 Rust 引擎 (revazi/career-core) 做确定性归一化。smartresume 后端直接吃 PDF。
+pdfplumber==0.11.10
 
 # === Search (V4.5, 尚未启用) ===
 # elasticsearch==8.13.0

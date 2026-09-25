@@ -1,6 +1,13 @@
-"""简历解析服务 (Affinda 封装)
+"""简历解析服务（可插拔本地引擎封装）
 
-PRD v2 草案 §5.2 - 解析阶段
+PRD v2 草案 §5.2 - 解析阶段。
+
+2026-09-25: 移除商业 SaaS(Affinda)，改用开源本地引擎，后台可切换：
+- career_core (revazi/career-core, Rust 确定性, 默认)
+- smartresume (alibaba/SmartResume, 版面感知 + 小模型)
+
+统一出口 ``ResumeParserService.parse(file_obj) -> ParsedResume``，由
+``settings.RESUME_PARSER_BACKEND`` 决定实际后端，便于「后台切换两种解析工具」。
 """
 from __future__ import annotations
 
@@ -9,16 +16,6 @@ import re
 from dataclasses import dataclass, field, asdict
 from datetime import date
 from typing import List, Optional, Any
-
-import affinda
-from .resume_fixtures import get_fixture_data
-from azure.core.exceptions import (
-    ClientAuthenticationError,
-    HttpResponseError,
-    ServiceRequestTimeoutError,
-    ServiceResponseTimeoutError,
-)
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +29,9 @@ class ParseError(Exception):
 
 
 class LowConfidenceError(ParseError):
-    """解析结果置信度过低（核心字段 < 3）"""
+    """解析结果置信度过低（核心字段缺失）"""
     def __init__(self):
-        super().__init__('AFFINDA_LOW_CONFIDENCE', '解析结果不完整，缺少关键字段')
+        super().__init__('LOW_CONFIDENCE', '解析结果不完整，缺少关键字段')
 
 
 # ===== Data Classes =====
@@ -72,167 +69,37 @@ class ParsedResume:
     def to_dict(self) -> dict:
         """转 dict 给前端用（保持 snake_case，键名匹配 store schema）"""
         d = asdict(self)
-        # 确保 educations/experiences 是 list of dict
         d['educations'] = [asdict(e) for e in self.educations]
         d['experiences'] = [asdict(e) for e in self.experiences]
         return d
 
 
-# ===== Service =====
+# ===== Service（后端派发） =====
 class ResumeParserService:
-    """简历解析服务（封装 Affinda SDK）"""
+    """简历解析服务（后端派发）
 
-    DEGREE_MAP = {
-        'HighSchool': '高中',
-        'Associate': '大专',
-        'Bachelor': '本科',
-        'Master': '硕士',
-        'Doctor': '博士',
-        'PhD': '博士',
-    }
-
-    GENDER_MAP = {
-        'Male': '男', 'M': '男', 'male': '男',
-        'Female': '女', 'F': '女', 'female': '女',
-    }
+    解析逻辑全在各后端（apps/add_candidate/services/parsers/*）实现，
+    本类只负责按配置选择后端并调用，保持上层调用方接口稳定。
+    """
 
     @classmethod
-    def parse(cls, file_obj: Any) -> ParsedResume:
-        """解析简历文件，返回 ParsedResume
+    def parse(cls, file_obj: Any, backend_name: Optional[str] = None) -> ParsedResume:
+        """按配置/指定后端解析简历，返回 ParsedResume
 
         Raises:
-            ParseError: 解析失败（vendor 错误、超时、空结果）
-            LowConfidenceError: 核心字段 < 3
+            ParseError: 后端缺失、超时、解析失败等（由具体后端抛出，统一为 ParseError）
         """
-        # 无真实 Affinda key（空或 test_* 占位）时，使用真实结构的测试简历夹具，
-        # 让前端流程在无外部依赖下也能跑通。生产环境配置真实 AFFINDA_API_KEY 后走真实解析。
-        api_key = getattr(settings, 'AFFINDA_API_KEY', '') or ''
-        if not api_key or api_key.startswith('test_'):
-            logger.info(
-                'AFFINDA_API_KEY 未配置或为占位值，使用真实结构的测试简历夹具（非 mock，字段类型与真实解析一致）'
-            )
-            return _fixture_parse(file_obj)
+        from .parsers import get_backend
 
-        try:
-            client = _get_affinda_client()
-            response = client.create_document(
-                workspace=settings.AFFINDA_WORKSPACE,
-                file=file_obj,
-                timeout=settings.AFFINDA_TIMEOUT_SECONDS,
-            )
-        except ClientAuthenticationError as e:
-            logger.error('Affinda auth failed: %s', e)
-            raise ParseError('AFFINDA_AUTH', '简历解析服务认证失败') from e
-        except (ServiceRequestTimeoutError, ServiceResponseTimeoutError) as e:
-            logger.error('Affinda timeout: %s', e)
-            raise ParseError('AFFINDA_TIMEOUT', '简历解析服务超时') from e
-        except HttpResponseError as e:
-            if e.status_code == 429:
-                raise ParseError('AFFINDA_QUOTA', '简历解析服务本月配额已用完') from e
-            logger.error('Affinda HTTP error %s: %s', e.status_code, e.message)
-            raise ParseError('AFFINDA_ERROR', f'简历解析服务返回 HTTP {e.status_code}') from e
-        except Exception as e:
-            logger.exception('Affinda unexpected error: %s', e)
-            raise ParseError('AFFINDA_ERROR', '简历解析服务异常') from e
-
-        return cls._parse_response(response)
-
-    @classmethod
-    def _parse_response(cls, response) -> ParsedResume:
-        """解析 Affinda 响应"""
-        # msrest Model normalization (real SDK returns affinda.models.Resume)
-        if not isinstance(response, dict):
-            response = response.as_dict()
-        data = response.get('data', {})
-        parsed_data = data.get('data', {})
-        identified = data.get('meta', {}).get('identified', {})
-
-        # 基础字段
-        name = parsed_data.get('name', {}).get('raw') if isinstance(parsed_data.get('name'), dict) else parsed_data.get('name')
-        emails = parsed_data.get('emails') or identified.get('emails', {}).get('raw_value', [])
-        phones = parsed_data.get('phone_numbers') or identified.get('phone_numbers', {}).get('raw_value', [])
-        gender_raw = parsed_data.get('gender')
-        dob_str = parsed_data.get('date_of_birth')
-
-        # 标准化
-        phone = _normalize_phone(phones[0]) if phones else None
-        email = emails[0] if emails else None
-        gender = cls.GENDER_MAP.get(gender_raw) if gender_raw else None
-        age = _calculate_age(dob_str) if dob_str else None
-
-        # 教育和经历
-        educations = [_parse_edu(e) for e in parsed_data.get('educations', []) if e.get('organization')]
-        experiences = [_parse_exp(e) for e in parsed_data.get('work_experiences', []) if e.get('organization')]
-
-        # 最高学历（取最后一段 education）
-        highest_degree = educations[-1].degree if educations else None
-
-        # 置信度（取所有 identified 维度的最小值）
-        confidences = [
-            v.get('confidence', 1.0) for v in identified.values()
-            if isinstance(v, dict) and 'confidence' in v
-        ]
-        confidence = min(confidences) if confidences else 0.0
-
-        result = ParsedResume(
-            name=name,
-            phone=phone,
-            email=email,
-            gender=gender,
-            age=age,
-            edu=highest_degree,
-            educations=educations,
-            experiences=experiences,
-            confidence=confidence,
-        )
-
-        # 校验核心字段数量
-        core_fields = [result.name, result.phone, result.email]
-        filled = sum(1 for f in core_fields if f)
-        if filled < 3:
-            raise LowConfidenceError()
-
-        return result
+        backend = get_backend(backend_name)
+        logger.info('简历解析使用后端: %s', backend.name)
+        return backend.parse(file_obj)
 
 
-# ===== 内部辅助 =====
-def _get_affinda_client():
-    """获取 Affinda 客户端（lazy import 方便 mock）
-
-    Affinda SDK v4.0.0+ API:
-    - Client class is `AffindaAPI` (not `AffindaClient`)
-    - Auth via `TokenCredential(token=...)` (not `api_key=...` kwarg)
-    - `base_url` and `timeout` are not constructor kwargs in v4 (configured via env or kwargs to operations)
-    """
-    return affinda.AffindaAPI(
-        credential=affinda.TokenCredential(token=settings.AFFINDA_API_KEY),
-    )
-
-
-def _fixture_parse(file_obj) -> 'ParsedResume':
-    """无 Affinda key 时的兜底：返回真实结构的测试简历夹具。
-
-    数据来自 resume_fixtures.get_fixture_data（字段结构 / 类型与真实 Affinda 返回一致），
-    按文件名稳定哈希选择，保证可复现。生产环境配置真实 AFFINDA_API_KEY 后此函数不被调用。
-    """
-    filename = getattr(file_obj, 'name', 'resume.pdf') or 'resume.pdf'
-    data = get_fixture_data(filename)
-    return ParsedResume(
-        name=data.get('name'),
-        phone=data.get('phone'),
-        email=data.get('email'),
-        gender=data.get('gender'),
-        age=data.get('age'),
-        edu=data.get('edu'),
-        educations=[Education(**e) for e in data.get('educations', [])],
-        experiences=[Experience(**e) for e in data.get('experiences', [])],
-        confidence=data.get('confidence', 0.0),
-    )
-
-
+# ===== 公共辅助（被各后端复用） =====
 def _normalize_phone(phone: str) -> str:
     """统一手机号格式：去 +86、去非数字"""
-    digits = re.sub(r'\D', '', phone)
+    digits = re.sub(r'\D', '', phone or '')
     if digits.startswith('86') and len(digits) == 13:
         digits = digits[2:]
     return digits
@@ -246,34 +113,3 @@ def _calculate_age(dob_str: str) -> Optional[int]:
         return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
     except (ValueError, TypeError):
         return None
-
-
-def _parse_edu(edu: dict) -> Education:
-    """解析单段教育"""
-    start = edu.get('start_date', '') or ''
-    end = edu.get('end_date', '') or ''
-    period = f'{start[:4]}-{end[:4]}' if start and end else start or '未知'
-    major_list = edu.get('major') or []
-    major = major_list[0] if isinstance(major_list, list) and major_list else ''
-    degree_raw = edu.get('degree') or ''
-    degree = ResumeParserService.DEGREE_MAP.get(degree_raw, degree_raw)
-    return Education(
-        period=period,
-        school=edu.get('organization', ''),
-        major=major,
-        degree=degree,
-    )
-
-
-def _parse_exp(exp: dict) -> Experience:
-    """解析单段工作经历"""
-    start = exp.get('start_date', '') or ''
-    end_str = exp.get('end_date')
-    end = end_str[:4] if end_str else '至今'
-    period = f'{start[:4]}-{end}' if start else '未知'
-    return Experience(
-        period=period,
-        company=exp.get('organization', ''),
-        position=exp.get('job_title', ''),
-        summary=exp.get('job_description', ''),
-    )
