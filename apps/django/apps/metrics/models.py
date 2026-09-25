@@ -22,6 +22,8 @@ from django.db import models
 from apps.common.models import FullAuditModel, UUIDModel
 from apps.rule_engine.models import UnifiedOperator
 
+from .services.rule_validators import validate_metric_rule
+
 
 class MetricDataType(models.TextChoices):
     """指标数据类型。在 PRD 的 number/string/boolean 之上补 date，
@@ -275,3 +277,24 @@ class MetricRule(FullAuditModel, UUIDModel):
                 'meta': cond.get('meta') or {},
             })
         return out
+
+    def clean(self):
+        """程序态校验钩子（admin / 表单直写路径）。
+
+        请求态校验由 MetricRuleSerializer.validate() 完成；此处提供模型级钩子，
+        由 Django admin 的 ModelForm.full_clean 触发，作为防御纵深第二层。
+        未 override save() 主动调用 clean()，以避免破坏既有程序化写入
+        （Celery 任务、迁移回填等），降低爆炸半径。
+        """
+        super().clean()
+        errors = validate_metric_rule({
+            'name': self.name,
+            'scene': self.scene,
+            'logic': self.logic,
+            'conditions': self.conditions,
+            'blocking': self.blocking,
+            'action_type': getattr(self, 'action_type', None),
+            'id': self.pk,
+        })
+        if errors:
+            raise ValidationError({'conditions': errors})

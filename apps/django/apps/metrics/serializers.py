@@ -10,6 +10,7 @@ from apps.rule_engine.models import UnifiedOperator
 
 from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
 from .services.derived_registry import get as get_derived_func
+from .services.rule_validators import validate_metric_rule
 
 
 class AtomicMetricSerializer(serializers.ModelSerializer):
@@ -163,6 +164,25 @@ class MetricRuleSerializer(serializers.ModelSerializer):
             if not MetricTemplate.objects.filter(pk=template_id).exists():
                 raise serializers.ValidationError(f'第 {idx} 个条件引用的模板不存在: {template_id}')
         return value
+
+    def validate(self, attrs):
+        """请求态：规则级校验链（防御前端绕过）。
+
+        field 级校验（validate_conditions）先行；此处跑规则级跨条件校验，
+        返回人话中文错误，DRF 聚合后给出 400。
+        """
+        errors = validate_metric_rule({
+            'name': attrs.get('name'),
+            'scene': attrs.get('scene'),
+            'logic': attrs.get('logic'),
+            'conditions': attrs.get('conditions'),
+            'blocking': attrs.get('blocking'),
+            'action_type': attrs.get('action_type'),
+            'id': self.instance.pk if self.instance else None,
+        })
+        if errors:
+            raise serializers.ValidationError({'conditions': errors})
+        return attrs
 
     def get_condition_count(self, obj):
         return len(obj.conditions or [])
