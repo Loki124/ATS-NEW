@@ -141,7 +141,7 @@ class MetricRuleSerializer(serializers.ModelSerializer):
         model = MetricRule
         fields = [
             'id', 'name', 'description', 'scene', 'conditions', 'logic',
-            'status', 'enabled', 'created_at', 'condition_count',
+            'status', 'enabled', 'blocking', 'created_at', 'condition_count',
         ]
         read_only_fields = ['id', 'created_at', 'condition_count']
         # 模型字段带 default=list → ModelSerializer 会生成 required=False，

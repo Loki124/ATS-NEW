@@ -169,6 +169,25 @@ export async function runMetricRule(id: string, candidateId: string): Promise<Ex
   return unwrap<ExecuteResult>(res)
 }
 
+export interface SceneFilterResult {
+  scene: string
+  passedIds: string[]
+  rejected: { candidateId: string; reason: string }[]
+}
+
+/**
+ * 按场景规则批量筛选候选人。
+ * 不传 candidateIds 时后端自动扫描在库候选人（上限保护），返回 passedIds，
+ * 前端再带 ids= 请求列表 —— 保证分页与总数正确。
+ */
+export async function filterByScene(
+  scene: string,
+  candidateIds?: string[],
+): Promise<SceneFilterResult> {
+  const res = await api.post('/metrics/rules/filter/', { scene, candidateIds })
+  return unwrap<SceneFilterResult>(res)
+}
+
 export interface ExecutePayload {
   conditions: {
     templateId: string

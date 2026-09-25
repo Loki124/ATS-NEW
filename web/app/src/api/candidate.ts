@@ -37,7 +37,18 @@ export interface Candidate {
 }
 
 // 列表
-export async function listCandidates(params: { page?: number; pageSize?: number; candidateStatus?: string; keyword?: string } = {}) {
+/**
+ * 候选人列表。
+ * ids: 逗号分隔的 ID 白名单 —— 供指标库「按规则筛选」结果集回传
+ *      （规则含派生指标无法 SQL 化，先由 metrics 算得 passedIds 再收敛结果集）。
+ */
+export async function listCandidates(params: {
+  page?: number
+  pageSize?: number
+  candidateStatus?: string
+  keyword?: string
+  ids?: string
+} = {}) {
   const { data } = await api.get('/candidates/', { params })
   return data
 }

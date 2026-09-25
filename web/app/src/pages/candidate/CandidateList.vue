@@ -49,6 +49,14 @@
         <n-select v-model:value="demandFilter" placeholder="招聘需求" style="width: 150px" clearable :options="demandOptions" />
         <n-select v-model:value="departmentFilter" placeholder="用人部门" style="width: 140px" clearable :options="departmentOptions" />
         <n-select v-model:value="channelFilter" placeholder="简历来源" style="width: 130px" clearable :options="channelOptions" />
+        <n-select
+          v-model:value="ruleSceneFilter"
+          placeholder="按规则筛选"
+          style="width: 150px"
+          clearable
+          :options="ruleSceneOptions"
+          @update:value="loadCandidates"
+        />
         <n-button @click="showMoreFilter">
           <template #icon><n-icon :component="FunnelOutline" /></template>
           更多筛选
@@ -96,7 +104,7 @@
     <n-card class="list-card">
       <n-checkbox-group v-model:value="selectedKeys">
         <div class="candidate-list">
-          <div v-for="row in mockData" :key="row.key" class="candidate-row">
+          <div v-for="row in rows" :key="row.key" class="candidate-row">
             <div class="row-checkbox">
               <n-checkbox :value="row.key" />
             </div>
@@ -406,7 +414,9 @@ import {
   GitPullRequestOutline,
 } from '@vicons/ionicons5'
 import AddCandidateModal from './AddCandidateModal.vue'
-import { fetchStatusSchema, type StatusSchema } from '@/api/candidate'
+import { fetchStatusSchema, listCandidates, type StatusSchema } from '@/api/candidate'
+// 2026-09-25: 按规则筛选（指标库 FILTER 场景）
+import { filterByScene } from '@/api/metrics'
 import type { TagType } from '@/api/offer'
 const { t } = useI18n()
 
@@ -462,6 +472,8 @@ onMounted(async () => {
     // 静默失败: 11 状态筛选可选
     console.warn('fetchStatusSchema 失败', e)
   }
+  // 拉取真实候选人列表（替换原 mockData）
+  await loadCandidates()
 })
 
 function setStatusFilter(key: string | null) {
@@ -471,13 +483,85 @@ function setStatusFilter(key: string | null) {
 
 const stageFilter = ref<string | undefined>()
 const selectedKeys = ref<string[]>([])
-const selectedCandidates = computed(() => mockData.filter((d) => selectedKeys.value.includes(d.key)))
+
+// ===== 真实数据（2026-09-25 替换原 mockData，接 GET /api/v1/candidates/）=====
+const rows = ref<CandidateItem[]>([])
+const listLoading = ref(false)
+/** 按规则筛选：选中后仅展示符合「筛选」场景启用规则的候选人 */
+const ruleSceneFilter = ref<string | undefined>()
+
+/** 后端 CandidateListSerializer(camelCase) → 表格行结构 */
+function mapCandidate(r: any): CandidateItem {
+  return {
+    key: r.id,
+    id: r.id,
+    name: r.name || '',
+    gender: r.gender || '',
+    age: r.age ?? undefined,
+    education: '-',
+    experience: r.currentPosition || '-',
+    phone: r.phone || '',
+    email: r.email || '',
+    location: '-',
+    tags: (r.tags || []).map((t: any) => ({
+      label: typeof t === 'string' ? t : String(t?.label ?? t),
+      type: 'default' as const,
+    })),
+    position: r.currentPosition || r.currentCompany || '-',
+    channel: r.sourceChannelName || '-',
+    stage: r.currentState || '',
+    createdAt: String(r.createdAt || '').slice(0, 10),
+    workExperiences: [],
+    // 后端列表接口不含 stageFlow（阶段流转展示态），此处用真实状态填充当前阶段，
+    // 其余留空 —— 避免模板读 row.stageFlow.current 抛错导致整列表不渲染。
+    stageFlow: {
+      current: { name: r.stateDisplay || r.currentState || '—', status: '', date: '', handler: '', result: '' },
+      previous: { name: '', status: '', date: '', handler: '', result: '' },
+      next: { name: '', status: '', date: '', handler: '', result: '' },
+    },
+  } as unknown as CandidateItem
+}
+
+async function loadCandidates() {
+  listLoading.value = true
+  try {
+    let ids: string | undefined
+    if (ruleSceneFilter.value === 'FILTER') {
+      // 规则含派生指标（需计算，无法 SQL 化）→ 先由 metrics 算得 passedIds，
+      // 再以 ids 白名单收敛结果集，保证分页与总数正确。
+      const res = await filterByScene('FILTER')
+      const passed = res?.passedIds || []
+      if (!passed.length) {
+        rows.value = []
+        paginationReactive.itemCount = 0
+        return
+      }
+      ids = passed.join(',')
+    }
+    const resp = await listCandidates({
+      page: paginationReactive.page,
+      pageSize: paginationReactive.pageSize,
+      keyword: searchText.value || undefined,
+      ids,
+    })
+    const list = resp?.data ?? []
+    rows.value = list.map(mapCandidate)
+    paginationReactive.itemCount = resp?.pagination?.total ?? list.length
+  } catch (error) {
+    message.error('加载候选人失败')
+    rows.value = []
+  } finally {
+    listLoading.value = false
+  }
+}
+
+const selectedCandidates = computed(() => rows.value.filter((d) => selectedKeys.value.includes(d.key)))
 const batchNotificationModalVisible = ref(false)
 
 const paginationReactive = reactive({
   page: 1,
   pageSize: 10,
-  itemCount: 156,
+  itemCount: 0, // 2026-09-25: 真实总数由接口 pagination.total 回填（原硬编码 156）
 })
 
 const notificationForm = ref({
@@ -554,185 +638,14 @@ const stageOptions = [
   { label: '已入职', value: 'hired' },
 ]
 
-// 演示数据 — 参照截图结构扩展
-const mockData: CandidateItem[] = [
-  {
-    key: '1',
-    name: '李六',
-    id: 'CDD005201',
-    gender: '男',
-    age: 26,
-    education: '本科',
-    experience: '4年',
-    phone: '111****0032',
-    email: 'liuliu@example.com',
-    location: '北京-已毕业',
-    tags: [
-      { label: '工学', type: 'default' },
-      { label: '进一步沟通', type: 'warning' },
-      { label: '不匹配', type: 'error' },
-    ],
-    position: 'Java开发-测试职位',
-    channel: 'boss',
-    stage: 'offer',
-    createdAt: '2026-04-27',
-    workExperiences: [
-      { company: '微软亚洲研究院', position: '程序员', start: '2022.07', end: '2024.07' },
-    ],
-    stageFlow: {
-      current: { name: '沟通Offer', status: '审批-未创建', date: '08月05日', handler: '高晨阳', result: 'pending' },
-      previous: { name: '综合面试', status: '全部通过', date: '07月30日', handler: '卢玉林', result: 'pass' },
-      next: { name: '待入职', status: '', date: '', handler: '', result: '' },
-    },
-  },
-  {
-    key: '2',
-    name: '王鹏飞',
-    id: 'CDD003812',
-    gender: '男',
-    age: 37,
-    education: '大专',
-    experience: '18年',
-    phone: '181****0557',
-    email: 'wangpf@example.com',
-    location: '重庆',
-    tags: [
-      { label: '五险一金', type: 'default' },
-      { label: '随时到岗', type: 'success' },
-      { label: '一本院校', type: 'info' },
-    ],
-    position: '渠道销售',
-    channel: 'boss',
-    stage: 'offer',
-    createdAt: '2026-04-26',
-    workExperiences: [
-      { company: '重庆kG电器销售有限公司', position: '渠道销售', start: '2021.01', end: '2024.11' },
-      { company: '佛山市北外电器科技有限公司', position: '区域总监', start: '2018.06', end: '2019.11' },
-      { company: '阿克苏诺贝尔(中国)有限公司', position: '城市经理', start: '2011.12', end: '2017.04' },
-    ],
-    stageFlow: {
-      current: { name: '沟通Offer', status: '审批-未创建', date: '08月05日', handler: '徐月', result: 'pending' },
-      previous: { name: '综合面试', status: '全部通过', date: '07月27日', handler: '杨尹升', result: 'pass' },
-      next: { name: '待入职', status: '', date: '', handler: '', result: '' },
-    },
-  },
-  {
-    key: '3',
-    name: '潘明1',
-    id: 'CDD001961',
-    gender: '男',
-    age: 25,
-    education: '本科',
-    experience: '应届生',
-    phone: '181****1931',
-    email: 'panming@example.com',
-    location: '上海',
-    tags: [
-      { label: '本科', type: 'info' },
-      { label: '应届生', type: 'default' },
-    ],
-    position: 'Java开发-测试职位',
-    channel: 'boss',
-    stage: 'offer',
-    createdAt: '2026-04-25',
-    workExperiences: [
-      { company: '暂无工作经历', position: '', start: '', end: '' },
-    ],
-    stageFlow: {
-      current: { name: '沟通Offer', status: '审批-审批中', date: '08月05日', handler: '杨尹升', result: 'pending' },
-      previous: { name: '综合面试', status: '全部不通过', date: '07月30日', handler: '', result: 'reject' },
-      next: { name: '待入职', status: '', date: '', handler: '', result: '' },
-    },
-  },
-  {
-    key: '4',
-    name: '张三',
-    id: 'CDD005878',
-    gender: '男',
-    age: 28,
-    education: '本科',
-    experience: '5年',
-    phone: '186****8825',
-    email: 'zhangsan@example.com',
-    location: '深圳',
-    tags: [
-      { label: '1年', type: 'default' },
-      { label: '不接受加班', type: 'warning' },
-      { label: '品牌学校毕业', type: 'success' },
-    ],
-    position: 'Java开发-测试职位',
-    channel: 'boss',
-    stage: 'offer',
-    createdAt: '2026-04-24',
-    workExperiences: [
-      { company: '个人', position: '', start: '2025.01', end: '2025.03' },
-    ],
-    stageFlow: {
-      current: { name: '沟通Offer', status: '审批-审批中', date: '08月05日', handler: '高晨阳', result: 'pending' },
-      previous: { name: '综合面试', status: '全部通过', date: '07月30日', handler: '卢玉林', result: 'pass' },
-      next: { name: '待入职', status: '', date: '', handler: '', result: '' },
-    },
-  },
-  {
-    key: '5',
-    name: '陈汪军',
-    id: 'CDD008882',
-    gender: '男',
-    age: 26,
-    education: '本科',
-    experience: '4年',
-    phone: '181****0988',
-    email: 'chenwj@example.com',
-    location: '深圳',
-    tags: [
-      { label: '不接受加班', type: 'warning' },
-      { label: '品牌学校毕业', type: 'success' },
-    ],
-    position: '报关/报检员',
-    channel: 'boss',
-    stage: 'offer',
-    createdAt: '2026-04-23',
-    workExperiences: [
-      { company: '深圳市有信达供应链服务有限公司', position: '报关/报检员', start: '2022.07', end: '2024.07' },
-      { company: '广州地铁集团有限公司', position: '安全员', start: '2019.07', end: '2021.12' },
-    ],
-    stageFlow: {
-      current: { name: '沟通Offer', status: '审批-审批中', date: '08月05日', handler: '杨尹升', result: 'pending' },
-      previous: { name: '综合面试', status: '全部通过', date: '07月30日', handler: '韩爽', result: 'pass' },
-      next: { name: '待入职', status: '', date: '', handler: '', result: '' },
-    },
-  },
-  {
-    key: '6',
-    name: '李二',
-    id: 'CDD008911',
-    gender: '男',
-    age: 26,
-    education: '本科',
-    experience: '1年',
-    phone: '186****7777',
-    email: 'lier@example.com',
-    location: '北京',
-    tags: [
-      { label: '本科', type: 'info' },
-      { label: '985', type: 'success' },
-      { label: '工学', type: 'default' },
-    ],
-    position: 'Java开发-测试职位',
-    channel: 'boss',
-    stage: 'offer',
-    createdAt: '2026-04-22',
-    workExperiences: [
-      { company: '微软亚洲研究院', position: '程序员', start: '2024.01', end: '2024.06' },
-      { company: '微软亚洲研究院', position: '程序员', start: '2022.07', end: '2023.07' },
-    ],
-    stageFlow: {
-      current: { name: '沟通Offer', status: '审批-审批中', date: '08月05日', handler: '杨尹升', result: 'pending' },
-      previous: { name: '综合面试', status: '全部通过', date: '07月30日', handler: '杨尹升', result: 'pass' },
-      next: { name: '待入职', status: '', date: '', handler: '', result: '' },
-    },
-  },
+// 按规则筛选（指标库「筛选」场景的启用规则；规则在 设置 → 规则管理 维护）
+const ruleSceneOptions = [
+  { label: '符合筛选规则', value: 'FILTER' },
 ]
+
+// 2026-09-25: 原 mockData 演示数据已移除 —— 候选人列表改为接真实 API
+// (GET /api/v1/candidates/，见下方 loadCandidates)。列表由真实数据驱动，
+// 不再保留假数据，避免出现"能点但数据假"的假实现。
 
 const channelMap: Record<string, { text: string; tagType: TagType }> = {
   boss: { text: 'Boss直聘', tagType: 'info' },
@@ -786,12 +699,17 @@ const onCandidateRowAction = (key: string, _row: any) => {
   // v2: row-bottom 下拉（占位 handler · 后续接入）
   message.info({ forward: '转发简历功能开发中', note: '备注功能开发中', interview: '安排面试功能开发中' }[key] || '未知操作')
 }
-const handleSearch = () => { /* search */ }
+const handleSearch = () => { paginationReactive.page = 1; loadCandidates() }
 const exportData = () => { message.info('导出功能开发中') }
 const showMoreFilter = () => { message.info('更多筛选功能开发中') }
 
 // 切换分页/筛选时清空选择（可选）
 watch(statusFilter, () => { selectedKeys.value = [] })
+// 2026-09-25: 分页变化 → 重新拉取真实列表
+watch(
+  () => [paginationReactive.page, paginationReactive.pageSize],
+  () => { loadCandidates() },
+)
 </script>
 
 <style scoped>
