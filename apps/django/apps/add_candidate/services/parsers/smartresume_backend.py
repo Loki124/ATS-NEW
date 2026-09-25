@@ -110,37 +110,54 @@ class SmartResumeBackend(ResumeParserBackend):
         return self._to_parsed(out)
 
     def _to_parsed(self, out: Dict[str, Any]) -> ParsedResume:
-        basic = out.get("basic_info") or out.get("basicInfo") or {}
+        # 真实 SmartResume 输出为 camelCase：basicInfo / workExperience / education；
+        # 同时兼容单测夹具的 snake_case，避免破坏既有测试。
+        basic = out.get("basicInfo") or out.get("basic_info") or {}
 
         name = basic.get("name") or basic.get("姓名")
-        email = basic.get("email") or basic.get("邮箱")
-        raw_phone = basic.get("phone") or basic.get("电话")
+        email = basic.get("personalEmail") or basic.get("email") or basic.get("邮箱")
+        raw_phone = basic.get("phoneNumber") or basic.get("phone") or basic.get("电话")
         phone = _normalize_phone(raw_phone) if raw_phone else None
         gender = _GENDER_MAP.get((basic.get("gender") or "").lower()) if basic.get("gender") else None
-        age = _coerce_int(basic.get("age"))
+        age = _coerce_int(basic.get("age") or basic.get("ageNum"))
 
-        edu_raw = basic.get("highest_education") or basic.get("edu") or basic.get("education")
+        edu_raw = (
+            basic.get("highestEducation")
+            or basic.get("highest_education")
+            or basic.get("edu")
+            or basic.get("education")
+        )
         edu = _map_degree(edu_raw) if edu_raw else None
 
         educations: List[Education] = []
-        for e in out.get("education") or []:
+        for e in out.get("education") or out.get("educations") or []:
+            period_obj = e.get("period") or {
+                "startDate": e.get("start_date"),
+                "endDate": e.get("end_date"),
+            }
             educations.append(
                 Education(
-                    period=_period(e.get("start_date"), e.get("end_date"), e.get("period")),
+                    period=_period_from(period_obj),
                     school=e.get("school") or e.get("organization") or e.get("institution") or "",
                     major=e.get("major") or "",
-                    degree=_map_degree(e.get("degree")) or (e.get("degree") or ""),
+                    degree=_map_degree(e.get("degreeLevel") or e.get("degree"))
+                    or (e.get("degreeLevel") or e.get("degree") or ""),
                 )
             )
 
         experiences: List[Experience] = []
-        for w in (out.get("work_experience") or out.get("work_experience") or []):
+        for w in (out.get("workExperience") or out.get("work_experience") or []):
+            period_obj = (
+                w.get("employmentPeriod")
+                or w.get("period")
+                or {"startDate": w.get("start_date"), "endDate": w.get("end_date")}
+            )
             experiences.append(
                 Experience(
-                    period=_period(w.get("start_date"), w.get("end_date"), w.get("period")),
-                    company=w.get("company") or w.get("organization") or "",
-                    position=w.get("title") or w.get("position") or w.get("job_title") or "",
-                    summary=w.get("description") or w.get("summary") or "",
+                    period=_period_from(period_obj),
+                    company=w.get("companyName") or w.get("company") or w.get("organization") or "",
+                    position=w.get("position") or w.get("title") or w.get("job_title") or "",
+                    summary=w.get("jobDescription") or w.get("description") or w.get("summary") or "",
                 )
             )
 
@@ -151,13 +168,23 @@ class SmartResumeBackend(ResumeParserBackend):
         )
 
 
-def _period(start: Any, end: Any, fallback: Any = None) -> str:
-    start = (start or "")[:4]
-    end_raw = end or "至今"
-    end = (end_raw if isinstance(end_raw, str) else str(end_raw))[:4]
-    if start:
-        return f"{start}-{end}"
-    return fallback or "未知"
+def _period_from(obj: Any) -> str:
+    """从 SmartResume 的 period 结构提取时间段字符串。
+
+    兼容两种形态：
+    - 嵌套 dict：{startDate, endDate}（真实输出）/ {start_date, end_date}（单测夹具）
+    - 纯字符串（如 "2018-2020"）
+    """
+    if obj is None:
+        return "未知"
+    if isinstance(obj, str):
+        return obj.strip() or "未知"
+    if isinstance(obj, dict):
+        start = (obj.get("startDate") or obj.get("start_date") or "")[:4]
+        end_raw = obj.get("endDate") or obj.get("end_date") or "至今"
+        end = (end_raw if isinstance(end_raw, str) else str(end_raw))[:4]
+        return f"{start}-{end}" if start else "未知"
+    return "未知"
 
 
 def _coerce_int(v: Any) -> Optional[int]:
