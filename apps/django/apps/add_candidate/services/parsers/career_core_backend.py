@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import subprocess
 from typing import Any, Dict, List, Optional
 
@@ -19,6 +20,39 @@ from .base import ResumeParserBackend
 from .text_extract import extract_text
 
 logger = logging.getLogger(__name__)
+
+# ===== 中文简历启发式兜底（仅补缺，绝不覆盖 career 已抽到的值）=====
+# career normalize 对部分中文简历的 name/education 抽取偏弱，这里用纯文本正则补位。
+_NAME_LABEL_RE = re.compile(r"(?:姓名|名字|称谓)[:：]\s*([\u4e00-\u9fa5·•]{2,4})")
+_NAME_LINE_RE = re.compile(r"^[\u4e00-\u9fa5·•]{2,4}$")
+# 常见于简历顶部但不是人名的整行中文词，避免误判为姓名
+_NAME_BLACKLIST = frozenset(
+    {
+        "个人简历", "求职简历", "简历", "基本信息", "个人资料", "个人基本信息",
+        "个人概述", "自我评价", "求职意向", "教育经历", "工作经历", "项目经历",
+        "技能特长", "荣誉奖励", "在校经历", "校园经历", "实习经历", "培训经历",
+        "联系方式", "家庭情况", "兴趣爱好",
+    }
+)
+_INST_RE = re.compile(r"([\u4e00-\u9fa5]{2,}(?:大学|学院|学校))")
+_DEGREE_RE = re.compile(r"(高中|大专|专科|本科|学士|硕士|研究生|博士|博士后)")
+_MAJOR_RE = re.compile(r"([\u4e00-\u9fa5]{2,6}?)专业")
+_PERIOD_RE = re.compile(
+    r"((?:19|20)\d{2}(?:\.\d{1,2})?\s*[-–~]\s*(?:(?:19|20)\d{2}(?:\.\d{1,2})?|至今|现在))"
+)
+_PHONE_RE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+# 子集字体 PDF 抽取出的姓名常是 "P P" / "dl dl" 这类被拆成孤立拉丁字母的乱码
+_GARBLED_NAME_RE = re.compile(r"^([A-Za-z])(\s+[A-Za-z])+$")
+
+
+def _looks_garbled_name(s: Optional[str]) -> bool:
+    if not s:
+        return False
+    if re.search(r"[\u4e00-\u9fa5]", s):
+        return False  # 含中文 -> 视为正常
+    # 仅由若干孤立拉丁字母（被空格分隔）组成、总字母数很少 -> 子集字体乱码
+    return bool(_GARBLED_NAME_RE.match(s.strip())) and len(re.sub(r"\s", "", s)) <= 6
 
 # career 输出的自由文本学位 -> 本项目 edu 中文档位
 _DEGREE_MAP = {
@@ -87,7 +121,9 @@ class CareerCoreBackend(ResumeParserBackend):
         except json.JSONDecodeError as e:
             raise ParseError("CAREER_CORE_ERROR", "Career Core 输出非合法 JSON") from e
 
-        return self._to_parsed(out)
+        parsed = self._to_parsed(out)
+        # 中文简历启发式兜底：仅补 career 留空的字段，绝不覆盖已有值
+        return self._apply_zh_fallback(parsed, text)
 
     def _to_parsed(self, out: Dict[str, Any]) -> ParsedResume:
         doc = out.get("deterministic_document") or {}
@@ -136,6 +172,112 @@ class CareerCoreBackend(ResumeParserBackend):
             experiences=experiences,
             confidence=confidence,
         )
+
+    # ===== 中文简历启发式兜底（仅补缺）=====
+    def _apply_zh_fallback(self, parsed: ParsedResume, text: str) -> ParsedResume:
+        if not text:
+            return parsed
+
+        name = parsed.name
+        fb_name = self._extract_name(text)
+        if not name:
+            name = fb_name
+        elif _looks_garbled_name(name) and fb_name:
+            # career 抽到子集字体乱码姓名（如 "P P"），且文本里能识别到干净中文名 -> 覆盖
+            name = fb_name
+
+        phone = parsed.phone
+        if not phone:
+            m = _PHONE_RE.search(text)
+            if m:
+                phone = _normalize_phone(m.group(0))
+
+        email = parsed.email
+        if not email:
+            m = _EMAIL_RE.search(text)
+            if m:
+                email = m.group(0)
+
+        educations = parsed.educations
+        if not educations:
+            educations = self._extract_educations(text)
+
+        # 重新推导最高学历文档位（仅当 career 未给出时）
+        edu = parsed.edu
+        if not edu and educations:
+            edu = _map_degree(educations[-1].degree)
+
+        # 兜底未引入新字段，沿用原实例其余字段
+        return ParsedResume(
+            name=name,
+            phone=phone,
+            email=email,
+            gender=parsed.gender,
+            age=parsed.age,
+            edu=edu,
+            educations=educations,
+            experiences=parsed.experiences,
+            confidence=parsed.confidence,
+        )
+
+    @staticmethod
+    def _extract_name(text: str) -> Optional[str]:
+        m = _NAME_LABEL_RE.search(text)
+        if m:
+            return m.group(1)
+        for line in text.splitlines():
+            line = line.strip()
+            if _NAME_LINE_RE.match(line) and line not in _NAME_BLACKLIST:
+                return line
+        return None
+
+    @staticmethod
+    def _extract_educations(text: str) -> List[Education]:
+        result: List[Education] = []
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
+            m = _INST_RE.search(line)
+            if not m:
+                continue
+            school = m.group(1)
+            if any(e.school == school for e in result):
+                continue
+
+            # 学位可能在 institution 行或下一行
+            deg_line = line
+            deg_m = _DEGREE_RE.search(line)
+            if not deg_m and i + 1 < len(lines):
+                deg_m = _DEGREE_RE.search(lines[i + 1])
+                if deg_m:
+                    deg_line = lines[i + 1]
+            degree = deg_m.group(1) if deg_m else ""
+
+            per_m = _PERIOD_RE.search(line)
+            period = per_m.group(1).replace(" ", "") if per_m else "未知"
+
+            # 专业：优先在学位所在行找 "X专业"，否则看该行 "|" 分隔的含中文部分
+            major = ""
+            for src in (deg_line, line):
+                src_clean = src.replace(school, "", 1)  # 去掉校名，避免 "上海大学计算机专业" 误并入学专业
+                maj_m = _MAJOR_RE.search(src_clean)
+                if maj_m:
+                    major = maj_m.group(1)
+                    break
+            if not major and "|" in deg_line:
+                for part in (p.strip() for p in deg_line.split("|")):
+                    if not part or part == degree:
+                        continue
+                    if not re.search(r"[\u4e00-\u9fa5]", part):
+                        continue
+                    if part.endswith(("大学", "学院", "学校")):
+                        continue
+                    major = part
+                    break
+
+            result.append(
+                Education(period=period, school=school, major=major, degree=degree)
+            )
+        return result
 
     @staticmethod
     def _confidence(out: Dict[str, Any]) -> float:
