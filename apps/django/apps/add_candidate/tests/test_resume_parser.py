@@ -10,7 +10,9 @@
 字段映射以各自 schema 契约（career.resume_normalization.v1 / SmartResume CLI JSON）为准。
 """
 import json
+import os
 import subprocess
+import tempfile
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -254,6 +256,40 @@ class TestSmartResumeBackend:
         with pytest.raises(ParseError) as exc:
             SmartResumeBackend().parse(fake_file)
         assert exc.value.code == "LOW_CONFIDENCE"
+
+    @patch("apps.add_candidate.services.parsers.smartresume_backend.subprocess.run")
+    def test_parse_sets_cwd_derived_from_cli(self, mock_run, fake_file, settings):
+        # 2026-09-26: cwd 必须钉到 SmartResume 仓库根，避免 celery 子进程以错误 cwd
+        # 启动导致 YOLOv10 模型缓存解析失败、每次重下、仅跑完 OCR 就退出。
+        root = tempfile.mkdtemp(prefix="sr_cwd_")
+        sdir = os.path.join(root, "smartresume", "scripts")
+        os.makedirs(sdir)
+        with open(os.path.join(sdir, "start.py"), "w") as fh:
+            fh.write("# fake")
+        cli = os.path.join(sdir, "start.py")
+        settings.SMARTRESUME_CLI = cli
+        settings.SMARTRESUME_CWD = ""
+        settings.RESUME_PARSER_TIMEOUT = 600
+        mock_run.return_value = _proc(json.dumps(SMARTRESUME_SAMPLE).encode("utf-8"))
+
+        SmartResumeBackend().parse(fake_file)
+
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["cwd"] == os.path.join(root, "smartresume")
+        assert kwargs["timeout"] == 600
+
+    @patch("apps.add_candidate.services.parsers.smartresume_backend.subprocess.run")
+    def test_parse_cwd_explicit_override(self, mock_run, fake_file, settings):
+        # 显式 SMARTRESUME_CWD 优先于从 CLI 路径推导
+        custom = tempfile.mkdtemp(prefix="sr_cwd_custom_")
+        settings.SMARTRESUME_CWD = custom
+        settings.SMARTRESUME_CLI = "/nope/scripts/start.py"  # 不存在，显式 cwd 仍应生效
+        settings.RESUME_PARSER_TIMEOUT = 600
+        mock_run.return_value = _proc(json.dumps(SMARTRESUME_SAMPLE).encode("utf-8"))
+
+        SmartResumeBackend().parse(fake_file)
+
+        assert mock_run.call_args.kwargs["cwd"] == custom
 
 
 # ===== Service 派发 =====

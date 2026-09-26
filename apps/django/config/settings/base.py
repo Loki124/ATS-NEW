@@ -636,9 +636,15 @@ CAREER_CORE_BIN = env('CAREER_CORE_BIN', default='career')
 # 指向其仓库的 scripts/start.py CLI 入口，与运行该脚本的 python 解释器。
 SMARTRESUME_CLI = env('SMARTRESUME_CLI', default='scripts/start.py')
 SMARTRESUME_PYTHON = env('SMARTRESUME_PYTHON', default='python')
+# 2026-09-26: 显式钉住 SmartResume 子进程工作目录（仓库根）。
+# 不设置时由 SMARTRESUME_CLI 路径推导（取其 scripts/ 的上级目录），
+# 确保 configs/ 与模型缓存（YOLOv10 best.onnx ~266MB）相对路径解析正确——
+# celery 子进程若以错误 cwd 启动，模型缓存解析失败会每次重下、仅跑完 OCR 即退出、缺 basicInfo。
+SMARTRESUME_CWD = env('SMARTRESUME_CWD', default='')
 
-# 解析超时（秒）——两个后端共用
-RESUME_PARSER_TIMEOUT = int(env('RESUME_PARSER_TIMEOUT', default=120))
+# 解析超时（秒）——两个后端共用。默认 600：SmartResume 首次跑需现下 YOLOv10(~266MB)+Qwen3
+# 并加载，单任务可能耗时 1-2 分钟；career_core 秒级返回，超长超时仅作挂死兜底、无副作用。
+RESUME_PARSER_TIMEOUT = int(env('RESUME_PARSER_TIMEOUT', default=600))
 
 # Fix 6: 集成凭据 Fernet 加密密钥 (32-byte base64, 用 `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 生成).
 # 必须在 .env / 生产环境注入; 未配置时 IntegrationConfig 加密迁移会跳过但运行期 _get_decrypted_config 会 RuntimeError.

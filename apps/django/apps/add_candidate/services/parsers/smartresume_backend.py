@@ -77,6 +77,12 @@ class SmartResumeBackend(ResumeParserBackend):
         python = getattr(settings, "SMARTRESUME_PYTHON", "python")
         script = getattr(settings, "SMARTRESUME_CLI", "scripts/start.py")
 
+        # 2026-09-26 修复：celery 子进程若以错误 cwd 启动，SmartResume 的 configs/ 与
+        # 模型缓存（YOLOv10 best.onnx ~266MB）相对路径解析失败 -> 仅跑完 OCR 即退出、
+        # 缺 basicInfo -> 触发 LOW_CONFIDENCE。显式把 cwd 钉到 SmartResume 仓库根
+        # （可由 SMARTRESUME_CWD 覆盖，否则由 SMARTRESUME_CLI 路径推导），确保首次下载的
+        # 模型在稳定 cwd 下被缓存复用，而非每次 celery 新进程重下。
+        cwd = self._resolve_cwd(settings, script)
         path, is_temp = _to_path(file_obj)
         cmd = [
             python, script,
@@ -87,12 +93,13 @@ class SmartResumeBackend(ResumeParserBackend):
             proc = subprocess.run(
                 cmd,
                 capture_output=True,
-                timeout=int(getattr(settings, "RESUME_PARSER_TIMEOUT", 120)),
+                cwd=cwd,
+                timeout=int(getattr(settings, "RESUME_PARSER_TIMEOUT", 600)),
             )
         except FileNotFoundError as e:
             raise ParseError(
                 "SMARTRESUME_MISSING",
-                "SmartResume 脚本未找到，请配置 SMARTRESUME_CLI / SMARTRESUME_PYTHON",
+                "SmartResume 脚本或工作目录未找到，请检查 SMARTRESUME_CLI / SMARTRESUME_PYTHON / SMARTRESUME_CWD 配置",
             ) from e
         finally:
             if is_temp:
@@ -115,6 +122,30 @@ class SmartResumeBackend(ResumeParserBackend):
         if not parsed.name and not parsed.phone and not parsed.email:
             raise LowConfidenceError()
         return parsed
+
+    @staticmethod
+    def _resolve_cwd(settings: Any, script: str) -> Optional[str]:
+        """解析 SmartResume 子进程工作目录（仓库根）。
+
+        - 显式配置 ``SMARTRESUME_CWD`` 且目录存在 -> 直接用（最高优先级）。
+        - 否则由 ``SMARTRESUME_CLI`` 推导：CLI 形如 ``/opt/foo/smartresume/scripts/start.py``
+          时取 ``scripts/`` 的上级目录作为仓库根；其它形态取 CLI 所在目录。
+        - 目录都不存在时返回 ``None``（subprocess 继承父进程 cwd，并发警告），
+          避免 ``subprocess.run(cwd=不存在目录)`` 直接抛 FileNotFoundError 中断解析链路。
+        """
+        explicit = getattr(settings, "SMARTRESUME_CWD", "") or ""
+        if explicit and os.path.isdir(explicit):
+            return explicit
+        cli_dir = os.path.dirname(script)
+        derived = os.path.dirname(cli_dir) if os.path.basename(cli_dir) == "scripts" else cli_dir
+        if derived and os.path.isdir(derived):
+            return derived
+        logger.warning(
+            "SMARTRESUME_CWD 无法解析到存在的目录，子进程将继承父 cwd；"
+            "若模型缓存相对 cwd，可能每次重下。script=%s explicit=%s",
+            script, explicit,
+        )
+        return None
 
     def _to_parsed(self, out: Dict[str, Any]) -> ParsedResume:
         # 真实 SmartResume 输出为 camelCase：basicInfo / workExperience / education；
