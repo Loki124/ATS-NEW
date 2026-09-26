@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ..resume_parser import (
     Education,
     Experience,
+    LowConfidenceError,
     ParseError,
     ParsedResume,
     _normalize_phone,
@@ -107,7 +108,13 @@ class SmartResumeBackend(ResumeParserBackend):
         out = _extract_json((proc.stdout or b"").decode("utf-8"))
         if out is None:
             raise ParseError("SMARTRESUME_ERROR", "SmartResume 未输出可解析的 JSON")
-        return self._to_parsed(out)
+        parsed = self._to_parsed(out)
+        # 2026-09-26 fail-loud：结构化字段全空（如思考模型 <think> 污染导致
+        # 抽取静默返回空）时，明确失败而不是 status=done + 空表单。
+        # 部分字段缺失属正常（有的简历没邮箱），仅拦截「全部为空」的提取失败。
+        if not parsed.name and not parsed.phone and not parsed.email:
+            raise LowConfidenceError()
+        return parsed
 
     def _to_parsed(self, out: Dict[str, Any]) -> ParsedResume:
         # 真实 SmartResume 输出为 camelCase：basicInfo / workExperience / education；

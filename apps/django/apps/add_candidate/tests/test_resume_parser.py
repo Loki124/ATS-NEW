@@ -241,6 +241,20 @@ class TestSmartResumeBackend:
             SmartResumeBackend().parse(fake_file)
         assert exc.value.code == "SMARTRESUME_ERROR"
 
+    @patch("apps.add_candidate.services.parsers.smartresume_backend.subprocess.run")
+    def test_parse_all_empty_fields_raises_low_confidence(self, mock_run, fake_file):
+        # 2026-09-26: 抽取静默返回空（思考模型 <think> 污染等）时，
+        # 必须 fail-loud 而不是 status=done + 全 None 空表单
+        empty_output = json.dumps({
+            "basicInfo": {}, "workExperience": [], "education": [],
+            "rawText": "宋兵兵 男 31岁 18616989935",
+        })
+        mock_run.return_value = _proc(empty_output.encode("utf-8"))
+
+        with pytest.raises(ParseError) as exc:
+            SmartResumeBackend().parse(fake_file)
+        assert exc.value.code == "LOW_CONFIDENCE"
+
 
 # ===== Service 派发 =====
 class TestResumeParserServiceDispatch:
