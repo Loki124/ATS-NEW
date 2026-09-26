@@ -17,6 +17,8 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import is_super_admin
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
+from apps.reason_library.models import RecruitType
+
 from .models import TalentPoolEntry, TalentPoolTag
 from .serializers import (
     TalentPoolEntryCreateSerializer,
@@ -164,6 +166,51 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
             entry.source_detail = reason
         entry.save(update_fields=['pool_type', 'source_detail', 'updated_at'])
         return Response({'success': True, 'data': {'id': entry.id, 'poolType': entry.pool_type}})
+
+    @action(detail=False, methods=['post'], url_path='pool/(?P<pool>[^/.]+)/add')
+    def pool_add(self, request, pool=None):
+        """把候选人加入本子库（前端「添加候选人」按钮，PRD G32）。
+
+        前端 POST {candidateId: <candidate.id>}。项目全局 parser 把 camelCase 转 snake_case，
+        故此处读 candidate_id。模型允许同一候选人多条条目（对应不同子库），但同一子库只保留
+        一条——故按 (candidate, pool_type) 判重：已存在则复用（置手动入库 + 在库），否则新建。
+        """
+        valid_pools = {code for code, _, _ in POOL_DEFINITIONS}
+        if pool not in valid_pools:
+            return Response({'success': False, 'message': '非法子库类型'}, status=status.HTTP_400_BAD_REQUEST)
+        candidate_id = request.data.get('candidate_id') or request.data.get('candidateId')
+        if not candidate_id:
+            return Response({'success': False, 'message': '缺少候选人 ID'}, status=status.HTTP_400_BAD_REQUEST)
+        # 懒导入避免模块加载期循环依赖
+        from apps.candidate.models import Candidate
+        try:
+            candidate = Candidate.objects.get(pk=candidate_id)
+        except Candidate.DoesNotExist:
+            return Response({'success': False, 'message': '候选人不存在'}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        # 同子库已存在条目 → 复用，不再新建（避免重复入池）
+        existing = TalentPoolEntry.objects.filter(candidate=candidate, pool_type=pool).first()
+        if existing:
+            existing.source = TalentPoolEntry.EntrySource.MANUAL
+            existing.is_active = True
+            existing.updated_by = user
+            existing.save(update_fields=['source', 'is_active', 'updated_by', 'updated_at'])
+            entry, created = existing, False
+        else:
+            entry = TalentPoolEntry.objects.create(
+                candidate=candidate,
+                pool_type=pool,
+                source=TalentPoolEntry.EntrySource.MANUAL,
+                recruit_type=getattr(candidate, 'recruit_type', RecruitType.SOCIAL.value),
+                is_active=True,
+                created_by=user,
+                updated_by=user,
+            )
+            created = True
+        return Response({
+            'success': True,
+            'data': {'id': entry.id, 'poolType': entry.pool_type, 'created': created},
+        })
 
 
 class TalentPoolTagViewSet(AuditMixin, viewsets.ModelViewSet):

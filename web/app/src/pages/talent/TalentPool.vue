@@ -49,6 +49,13 @@ const moveTargetPool = ref<string | null>(null)
 const moveReason = ref<string>('')
 const moveCandidate = ref<any | null>(null)
 
+// 添加候选人到子库弹窗 (PRD G32 缺失功能补全)
+const addModal = ref(false)
+const addLoading = ref(false)
+const addSearching = ref(false)
+const addCandidateId = ref<string | null>(null)
+const addCandidateOptions = ref<any[]>([])
+
 const allPools = computed(() => Object.values(poolDefs.value))
 
 const columns = computed(() => [
@@ -148,6 +155,54 @@ async function confirmMove() {
   }
 }
 
+function openAddModal() {
+  addCandidateId.value = null
+  addCandidateOptions.value = []
+  addModal.value = true
+}
+
+async function searchCandidates(query: string) {
+  if (!query || !query.trim()) {
+    addCandidateOptions.value = []
+    return
+  }
+  addSearching.value = true
+  try {
+    const res = await api.get('/candidates/', { params: { keyword: query.trim(), pageSize: 20 } })
+    const list = res.data?.data || []
+    addCandidateOptions.value = list.map((c: any) => ({
+      label: c.phone ? `${c.name} (${c.phone})` : c.name,
+      value: c.id,
+    }))
+  } catch {
+    addCandidateOptions.value = []
+  } finally {
+    addSearching.value = false
+  }
+}
+
+async function confirmAdd() {
+  if (addLoading.value) return
+  if (!addCandidateId.value) {
+    message.warning('请选择候选人')
+    return
+  }
+  addLoading.value = true
+  try {
+    await api.post(`/talent-pool/pool/${activePool.value}/add/`, {
+      candidateId: addCandidateId.value,
+    })
+    message.success(`已添加到 ${poolDefs.value[activePool.value]?.label || activePool.value}`)
+    addModal.value = false
+    loadPoolStats()
+    loadCandidates()
+  } catch (e: any) {
+    message.error(`添加失败: ${e.response?.data?.message || e.message}`)
+  } finally {
+    addLoading.value = false
+  }
+}
+
 onMounted(async () => {
   await loadPoolTypes()
   await loadPoolStats()
@@ -170,7 +225,7 @@ function onTabChange(key: string) {
           <template #icon><n-icon :component="RefreshOutline" /></template>
           刷新
         </n-button>
-        <n-button type="primary" disabled>
+        <n-button type="primary" @click="openAddModal">
           <template #icon><n-icon :component="AddOutline" /></template>
           添加候选人
         </n-button>
@@ -225,6 +280,31 @@ function onTabChange(key: string) {
           type="textarea"
           placeholder="移动原因 (审计用)"
           :autosize="{ minRows: 2, maxRows: 4 }"
+        />
+      </n-space>
+    </n-modal>
+
+    <!-- 添加候选人到子库弹窗 -->
+    <n-modal
+      v-model:show="addModal"
+      preset="dialog"
+      title="添加候选人到本子库"
+      positive-text="确认添加"
+      negative-text="取消"
+      :positive-button-props="{ type: 'primary', loading: addLoading }"
+      @positive-click="confirmAdd"
+    >
+      <n-space vertical>
+        <div>目标子库: <strong>{{ poolDefs[activePool]?.label || activePool }}</strong></div>
+        <n-select
+          v-model:value="addCandidateId"
+          :options="addCandidateOptions"
+          placeholder="搜索候选人姓名"
+          filterable
+          remote
+          :loading="addSearching"
+          clearable
+          @search="searchCandidates"
         />
       </n-space>
     </n-modal>
