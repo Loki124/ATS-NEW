@@ -41,6 +41,10 @@ api_v1_patterns = [
 
     # 流程域
     path('stages/', include('apps.process.urls_stage')),
+    # 2026-09-26: 阶段类型枚举别名前缀。前端 api/dictionary.ts:132 按契约调
+    #   /api/v1/recruitment-stages/stage-types/，但 RecruitmentStageViewSet 原只挂在 /stages/。
+    #   加此别名（同指 urls_stage）使既有前端契约可达，无需改前端。
+    path('recruitment-stages/', include('apps.process.urls_stage')),
     path('processes/', include('apps.process.urls_process')),
     path('process-stage-links/', include('apps.process.urls_link')),
     # 2026-06-17: G38 — 挂载已写好但未注册的 ViewSet (FE recruitment-process.ts 直接用到)
