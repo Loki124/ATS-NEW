@@ -40,6 +40,31 @@ class TalentPoolEntryListSerializer(FieldAclSerializerMixin, serializers.ModelSe
         ]
 
 
+class TalentPoolEntryPoolSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
+    """2026-09-26: 子库列表专用（TalentPool.vue 列字段契约）。
+
+    前端列直接读 row.name / row.phone / row.highestEducation / row.workExperience /
+    row.archiveReason / row.updatedAt / row.id —— 这里把条目 + 关联候选人扁平化成这些字段。
+    手机号走 acl_strict 脱敏（与 ListSerializer 同款）。
+    """
+    acl_entity = 'candidate'
+    acl_strict = True
+
+    name = serializers.CharField(source='candidate.name', read_only=True, default='')
+    phone = serializers.CharField(source='candidate.phone', read_only=True, default='')
+    highestEducation = serializers.CharField(source='candidate.highest_education', read_only=True, default='')
+    workExperience = serializers.CharField(source='candidate.work_years', read_only=True, default='')
+    archiveReason = serializers.CharField(source='source_detail', read_only=True, default='')
+    updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
+
+    class Meta:
+        model = TalentPoolEntry
+        fields = [
+            'id', 'name', 'phone', 'highestEducation', 'workExperience',
+            'archiveReason', 'updatedAt', 'pool_type',
+        ]
+
+
 class TalentPoolEntryDetailSerializer(TalentPoolEntryListSerializer):
     class Meta(TalentPoolEntryListSerializer.Meta):
         fields = TalentPoolEntryListSerializer.Meta.fields + ['updated_at']

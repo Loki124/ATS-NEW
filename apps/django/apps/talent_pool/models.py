@@ -20,6 +20,16 @@ class TalentPoolEntry(FullAuditModel):
         # 2026-06-22: G38 新版创建候选人流程（V2）
         DIRECT_IMPORT = 'DIRECT_IMPORT', '直接导入（HR 上传简历）'
 
+    # 2026-09-26: 6 子库（PRD G32）。前端 TalentPool.vue 按此划分 tab 与跨池移动。
+    #   PASSIVE/ACTIVE/HIRED/REJECTED/BLACKLIST/GENERAL —— 每个条目归属唯一子库。
+    class PoolType(models.TextChoices):
+        PASSIVE = 'PASSIVE', '被动人才库'
+        ACTIVE = 'ACTIVE', '主动人才库'
+        HIRED = 'HIRED', '已入职人才库'
+        REJECTED = 'REJECTED', '未通过人才库'
+        BLACKLIST = 'BLACKLIST', '黑名单人才库'
+        GENERAL = 'GENERAL', '总人才库'
+
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.
     recruit_type = models.CharField(
@@ -32,6 +42,11 @@ class TalentPoolEntry(FullAuditModel):
     )
     source = models.CharField(max_length=16, choices=EntrySource.choices, verbose_name='入库来源')
     source_detail = models.CharField(max_length=200, blank=True, verbose_name='来源详情')
+    # 2026-09-26: 子库类型（6 子库之一）。缺省进 PASSIVE，跨池移动改写此字段。
+    pool_type = models.CharField(
+        max_length=16, choices=PoolType.choices, default=PoolType.PASSIVE.value,
+        db_index=True, verbose_name='子库类型',
+    )
 
     # 元数据
     last_position = models.ForeignKey(
