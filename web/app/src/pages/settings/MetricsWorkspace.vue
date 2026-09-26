@@ -124,7 +124,9 @@
                     v-for="opt in actionTypeOptions"
                     :key="opt.value"
                     :value="opt.value"
-                  >{{ t(opt.labelKey) }}</n-radio-button>
+                  >
+                    {{ t(opt.labelKey) }}
+                  </n-radio-button>
                 </n-radio-group>
               </div>
             </n-card>

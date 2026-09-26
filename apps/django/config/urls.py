@@ -217,10 +217,34 @@ def spa_fallback(request, path=''):
     #   BASE_DIR = /opt/ats/ATS-New/apps/django  →  父 x2 = /opt/ats/ATS-New
     index_file = settings.BASE_DIR.parent.parent / 'web' / 'app' / 'dist' / 'index.html'
     if index_file.exists():
-        return FileResponse(open(index_file, 'rb'), content_type='text/html')
+        resp = FileResponse(open(index_file, 'rb'), content_type='text/html')
+        # 🔴 2026-09-26: index.html 禁缓存。否则浏览器/边缘(CF)缓存旧 index.html →
+        #   仍引用旧 hash 的 bundle，而 /version.json 是 no-store 实时取的 →
+        #   「本地旧 bundle vs 线上新版本」永久 mismatch → 「系统已升级」弹窗反复弹、
+        #   点「立即刷新」也不消失（刷新仍拿缓存里的旧文档）。
+        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return resp
     raise Http404(f'index.html not found at {index_file}')
 
+
+def serve_version_json(request, path=''):
+    """线上版本源：取 dist/version.json（与 dist/index.html 同一构建产物）。
+
+    🔴 2026-09-26: 必须与 bundle 同源。此前若把 public/version.json（源码目录，
+    任何 gen:version/typecheck/build 都会单独重写它）当作线上版本源，就会与已部署
+    dist bundle 烙进的 APP_VERSION 失步（例：dist=62f8ab1 而 public=e016b1dc）→
+    前端误判「有新版本」→ 无限弹窗。
+    """
+    version_file = settings.BASE_DIR.parent.parent / 'web' / 'app' / 'dist' / 'version.json'
+    if version_file.exists():
+        resp = FileResponse(open(version_file, 'rb'), content_type='application/json')
+        resp['Cache-Control'] = 'no-store'
+        return resp
+    raise Http404(f'version.json not found at {version_file}')
+
 urlpatterns += [
+    # 线上版本源：显式路由，须排在 SPA catch-all 之前（否则会被 index.html 吃掉）
+    path('version.json', serve_version_json),
     re_path(r'^(?P<path>(?!api/|health/|static/|media/|__debug__/).*)$', spa_fallback),
 ]
 
