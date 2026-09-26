@@ -49,9 +49,10 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
 
   // poll attempts keyed by draft_id — 防止后端异常时前端无限轮询（兜底）
   const pollAttempts: Record<string, number> = {}
-  // 2026-09-25: 解析轮询上限。1.5s 一次 × 40 ≈ 60s，超过即判定解析超时并停止轮询，
-  // 避免此前「后端 Celery worker 未运行 → 永远 processing → 前端每 1.5s 无限轮询」的卡死。
-  const POLL_MAX_ATTEMPTS = 40
+  // 2026-09-26: 解析轮询上限。1.5s 一次 × 120 = 180s，覆盖首次模型加载（YOLOv10+Qwen3 进程内加载）实际首跑约 60-90s；
+  // 原 40(≈60s) 过短会导致后端已完成(如 84.9s)但前端已放弃轮询而误报"解析超时"。
+  // 仍保留兜底：超过上限仍 processing 才停轮询并标记超时（多为 Celery worker 未运行等真实异常）。
+  const POLL_MAX_ATTEMPTS = 120
   const POLL_INTERVAL_MS = 1500
 
   // Step 2
@@ -267,14 +268,14 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     })
     if (resp.status === 'processing') {
       pollAttempts[draftId] += 1
-      // 兜底：超过最大轮询次数（约 60s）仍 processing，停止轮询并标记解析超时，
+      // 兜底：超过最大轮询次数（约 180s）仍 processing，停止轮询并标记解析超时，
       // 避免后端异常（如 Celery worker 未运行）时前端无限轮询卡死。
       if (pollAttempts[draftId] >= POLL_MAX_ATTEMPTS) {
         if (pollTimers[draftId]) {
           window.clearTimeout(pollTimers[draftId])
           delete pollTimers[draftId]
         }
-        // 兜底：超过约 60s 仍在 processing（多为后端 Celery worker 未运行等异常），
+        // 兜底：超过约 180s 仍在 processing（多为后端 Celery worker 未运行等异常），
         // 停止轮询、标记超时错误并置为 clean，避免前端无限轮询 + 弹窗卡死。
         r.parseError = '简历解析超时，请确认解析服务已启动后重新上传简历'
         r.procPhase = null
