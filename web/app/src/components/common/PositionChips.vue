@@ -1,12 +1,14 @@
 <script setup lang="ts">
-const props = defineProps<{ positions: string[]; modelValue: string[] }>()
+// 2026-09-27: 改为 {id,label} 契约 —— 选中值(modelValue)是职位 id(uuid),
+// 展示用 label。后端 bulk-create 按 position_id 查 Position, 必须传 id 而非标题。
+const props = defineProps<{ items: { id: string; label: string }[]; modelValue: string[] }>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: string[]): void }>()
 
-function toggle(pos: string) {
-  if (props.modelValue.includes(pos)) {
-    emit('update:modelValue', props.modelValue.filter((p) => p !== pos))
+function toggle(id: string) {
+  if (props.modelValue.includes(id)) {
+    emit('update:modelValue', props.modelValue.filter((p) => p !== id))
   } else {
-    emit('update:modelValue', [...props.modelValue, pos])
+    emit('update:modelValue', [...props.modelValue, id])
   }
 }
 </script>
@@ -14,12 +16,12 @@ function toggle(pos: string) {
 <template>
   <div class="pos-list">
     <div
-      v-for="p in positions"
-      :key="p"
-      :class="['pos-item', { sel: modelValue.includes(p) }]"
-      @click="toggle(p)"
+      v-for="p in items"
+      :key="p.id"
+      :class="['pos-item', { sel: modelValue.includes(p.id) }]"
+      @click="toggle(p.id)"
     >
-      {{ p }}
+      {{ p.label }}
     </div>
   </div>
 </template>

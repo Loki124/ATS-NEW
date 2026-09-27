@@ -92,10 +92,18 @@ async function fetchCandidates(): Promise<{ list: Array<{ candidateStatus?: stri
   }
 }
 
-async function fetchPositions(): Promise<Array<{ id: string; name?: string; code?: string; status?: string }>> {
+// 2026-09-27: 导出供新增候选人 Step2 复用; PositionListSerializer 返回的是 title(非 name)
+export interface PositionLite {
+  id: string
+  title?: string
+  name?: string
+  code?: string
+  status?: string
+}
+export async function fetchPositions(): Promise<PositionLite[]> {
   try {
-    const { data } = await api.get('/positions/', { params: { page: 1, pageSize: 20 } })
-    return extractList<{ id: string; name?: string; code?: string; status?: string }>(data)
+    const { data } = await api.get('/positions/', { params: { page: 1, pageSize: 50 } })
+    return extractList<PositionLite>(data)
   } catch {
     return []
   }
@@ -171,7 +179,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
 
   const jobs: JobCardData[] = positions.slice(0, 4).map((p) => ({
     id: p.id,
-    title: p.name ?? p.code ?? '职位',
+    title: p.title ?? p.name ?? p.code ?? '职位',
     location: '不限',
     salary: '面议',
     candidateCount: 0,
