@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "postinstall": "patch-package",
     "test": "vitest run",
     "test:watch": "vitest",
     "gen:version": "node scripts/gen-version.mjs",
@@ -53,6 +54,7 @@
     "eslint-plugin-vue": "^9.33.0",
     "globals": "^15.15.0",
     "happy-dom": "^15.11.7",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.26",
     "postcss-html": "^1.8.1",
     "rollup-plugin-visualizer": "^7.0.1",

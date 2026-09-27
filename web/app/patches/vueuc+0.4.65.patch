@@ -1,0 +1,44 @@
+diff --git a/node_modules/vueuc/es/focus-trap/src/index.js b/node_modules/vueuc/es/focus-trap/src/index.js
+index c2b1608..385b556 100644
+--- a/node_modules/vueuc/es/focus-trap/src/index.js
++++ b/node_modules/vueuc/es/focus-trap/src/index.js
+@@ -199,7 +199,7 @@ export const FocusTrap = defineComponent({
+         const { active, focusableStyle } = this;
+         return h(Fragment, null, [
+             h('div', {
+-                'aria-hidden': 'true',
++                'aria-hidden': active ? undefined : 'true',
+                 tabindex: active ? '0' : '-1',
+                 ref: 'focusableStartRef',
+                 style: focusableStyle,
+@@ -207,7 +207,7 @@ export const FocusTrap = defineComponent({
+             }),
+             defaultSlot(),
+             h('div', {
+-                'aria-hidden': 'true',
++                'aria-hidden': active ? undefined : 'true',
+                 style: focusableStyle,
+                 ref: 'focusableEndRef',
+                 tabindex: active ? '0' : '-1',
+diff --git a/node_modules/vueuc/lib/focus-trap/src/index.js b/node_modules/vueuc/lib/focus-trap/src/index.js
+index 77bcee3..29bb7d9 100644
+--- a/node_modules/vueuc/lib/focus-trap/src/index.js
++++ b/node_modules/vueuc/lib/focus-trap/src/index.js
+@@ -202,7 +202,7 @@ exports.FocusTrap = (0, vue_1.defineComponent)({
+         const { active, focusableStyle } = this;
+         return (0, vue_1.h)(vue_1.Fragment, null, [
+             (0, vue_1.h)('div', {
+-                'aria-hidden': 'true',
++                'aria-hidden': active ? undefined : 'true',
+                 tabindex: active ? '0' : '-1',
+                 ref: 'focusableStartRef',
+                 style: focusableStyle,
+@@ -210,7 +210,7 @@ exports.FocusTrap = (0, vue_1.defineComponent)({
+             }),
+             defaultSlot(),
+             (0, vue_1.h)('div', {
+-                'aria-hidden': 'true',
++                'aria-hidden': active ? undefined : 'true',
+                 style: focusableStyle,
+                 ref: 'focusableEndRef',
+                 tabindex: active ? '0' : '-1',
