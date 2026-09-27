@@ -20,6 +20,23 @@ const store = useAddCandidateStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const dialog = useDialog()
 
+// 2026-09-27: 父组件（CandidateList.handleAddSuccess）在提交成功后直接置
+// v-model:show=false 关闭弹窗——v-model 下父组件改 prop 不会触发本组件的
+// showModal setter，于是 store.reset() 从不执行：step 残留为 3、评分浮层状态残留，
+// 再次打开弹窗直接渲染 step===3 的 ScoringOverlay，显示卡死的"正在处理..."。
+// 修法：以「弹窗是否打开」为准，打开即复位，关闭即停流；与关闭路径解耦。
+watch(
+  () => props.show,
+  (v) => {
+    if (v) {
+      store.closeStream()
+      store.reset()
+    } else {
+      store.closeStream()
+    }
+  },
+)
+
 // P1 整改：移除原生 confirm()，统一用 useDialog().warning()
 function tryClose() {
   if (store.isDirty) {
