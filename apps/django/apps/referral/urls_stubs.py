@@ -26,8 +26,10 @@
 # 74 条 path（37 个 endpoint）已在 STUB_CLASSIFICATION.md 建立索引, 分 4 类:
 #   A 类: 安全敏感已 501 (auth/register 等) — 保留, 不允许回退到 _ok()
 #   B 类: 前端不再调用 — 后续批次清理
-#   C 类: 前端在用且已可承接 — 后续批次迁移到对应 app 的真 views.py
-#   D 类: 前端在用但暂未落地 — 待 add_candidate / search 等模块补实现
+#   C 类: 前端在用且已可承接 — 写操作 stub (candidate_batch_*) 已于 2026-09-27 按 R5/R6 返 501,
+#        后续批次迁移到对应 app 的真 views.py; GET 空列表分支保留
+#   D 类: 前端在用但暂未落地 — 写操作 stub (bulk-create / upload-and-parse / scoring/start) 已于
+#        2026-09-27 返 501 (FE 实际走 /candidates/add-candidate/ 真实前缀, 此 root stub 本就不可达)
 #
 # 任何新增 stub path 必须:
 #   1) 在 STUB_CLASSIFICATION.md 同步新增条目
@@ -206,36 +208,29 @@ def login_alias(request):
 # ============================================================
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def candidate_batch_recommend(request):
-    _log_stub_hit('candidate_batch_recommend', request)
-    ids = request.data.get('candidateIds', [])
-    return _ok({'results': [{'candidateId': cid, 'success': True, 'recommendationId': f'rec-stub-{uuid.uuid4().hex[:8]}'} for cid in ids]})
+    # 2026-09-27 P0-3 治理: 原 _ok() 伪装 success:true + 假 recommendationId 却一行库都不写
+    # (FE api/candidate.ts:69 真实调用)。按 R5/R6 安全收敛规约返 501, 待 candidate app 补真实批量推荐后迁出。
+    return _not_implemented('candidate_batch_recommend', request, '批量推荐尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
 def candidate_batch_archive(request):
-    _log_stub_hit('candidate_batch_archive', request)
-    ids = request.data.get('candidateIds', [])
-    return _ok({'results': [{'candidateId': cid, 'success': True} for cid in ids]})
+    return _not_implemented('candidate_batch_archive', request, '批量归档尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
 def candidate_batch_assign(request):
-    _log_stub_hit('candidate_batch_assign', request)
-    ids = request.data.get('candidateIds', [])
-    return _ok({'results': [{'candidateId': cid, 'success': True, 'recruiterId': request.data.get('recruiterId')} for cid in ids]})
+    return _not_implemented('candidate_batch_assign', request, '批量分配招聘官尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:export')
 def candidate_batch_export(request):
-    _log_stub_hit('candidate_batch_export', request)
-    return _ok({'jobId': f'export-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING'})
+    return _not_implemented('candidate_batch_export', request, '批量导出尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
 def candidate_batch_screen(request):
-    _log_stub_hit('candidate_batch_screen', request)
-    ids = request.data.get('candidateIds', [])
-    return _ok({'results': [{'candidateId': cid, 'success': True, 'result': request.data.get('result', 'PASS')} for cid in ids]})
+    return _not_implemented('candidate_batch_screen', request, '批量初筛尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 # ============================================================
@@ -243,18 +238,18 @@ def candidate_batch_screen(request):
 # ============================================================
 @_scoped_view(methods=['GET', 'POST'], resource_code='recruit:role:list')
 def stage_rules(request):
-    _log_stub_hit('stage_rules', request)
     if request.method == 'GET':
         return _empty_list()
-    return _ok({'id': f'sr-stub-{uuid.uuid4().hex[:8]}', **request.data})
+    # 2026-09-27 P0-3 治理: POST 原伪装 success:true + 假 id 却未落库, 现返 501
+    return _not_implemented('stage_rules', request, '阶段规则写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['GET', 'POST'], resource_code='recruit:role:list')
 def auto_archive_rules(request):
-    _log_stub_hit('auto_archive_rules', request)
     if request.method == 'GET':
         return _empty_list()
-    return _ok({'id': f'aar-stub-{uuid.uuid4().hex[:8]}', **request.data})
+    # 2026-09-27 P0-3 治理: POST 原伪装 success:true + 假 id 却未落库, 现返 501
+    return _not_implemented('auto_archive_rules', request, '自动归档规则写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['GET'], resource_code='recruit:candidate:list')
@@ -283,18 +278,15 @@ def check_stage_transition_top(request):
 
 @_scoped_view(methods=['GET', 'POST', 'PUT'], resource_code='recruit:application:list')
 def recruitment_rounds(request, id=None):
-    _log_stub_hit('recruitment_rounds', request)
     if request.method == 'GET':
         return _empty_list()
-    if request.method == 'POST':
-        return _ok({'id': f'rr-stub-{uuid.uuid4().hex[:8]}', **request.data})
-    return _ok({'id': id, 'status': request.data.get('status', 'ACTIVE')})
+    # 2026-09-27 P0-3 治理: POST/PUT 原伪装 success:true + 假 id 却未落库, 现返 501
+    return _not_implemented('recruitment_rounds', request, '招聘轮次写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['PUT'], resource_code='recruit:application:advance')
 def recruitment_rounds_status(request, id):
-    _log_stub_hit('recruitment_rounds_status', request)
-    return _ok({'id': id, 'status': request.data.get('status', 'ACTIVE')})
+    return _not_implemented('recruitment_rounds_status', request, '招聘轮次状态变更尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 # ============================================================
@@ -302,21 +294,18 @@ def recruitment_rounds_status(request, id):
 # ============================================================
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def bulk_create(request):
-    _log_stub_hit('bulk_create', request)
-    candidates = request.data.get('candidates', [])
-    return _ok({'results': [{'success': True, 'id': f'c-stub-{uuid.uuid4().hex[:8]}'} for _ in candidates]})
+    # 2026-09-27 P0-3 治理: 原 _ok() 伪装成功却未落库 (FE 实际走 /candidates/add-candidate/bulk-create/ 真实端点, 此 root stub 已不可达)。返 501。
+    return _not_implemented('bulk_create', request, '批量创建尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def upload_and_parse(request):
-    _log_stub_hit('upload_and_parse', request)
-    return _ok({'jobId': f'parse-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING', 'fileCount': len(request.FILES)})
+    return _not_implemented('upload_and_parse', request, '上传并解析尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
 def scoring_start(request):
-    _log_stub_hit('scoring_start', request)
-    return _ok({'jobId': f'score-stub-{uuid.uuid4().hex[:8]}', 'status': 'PENDING'})
+    return _not_implemented('scoring_start', request, '发起评分尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 # ============================================================
@@ -324,16 +313,15 @@ def scoring_start(request):
 # ============================================================
 @_scoped_view(methods=['GET', 'POST'], resource_code='recruit:offer:list')
 def offer_templates(request):
-    _log_stub_hit('offer_templates', request)
     if request.method == 'GET':
         return _empty_list()
-    return _ok({'id': f'ot-stub-{uuid.uuid4().hex[:8]}', **request.data})
+    # 2026-09-27 P0-3 治理: POST 原伪装 success:true + 假 id 却未落库, 现返 501
+    return _not_implemented('offer_templates', request, 'Offer 模板写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['POST'], resource_code='recruit:offer:edit')
 def offer_template_render(request):
-    _log_stub_hit('offer_template_render', request)
-    return _ok({'fileUrl': f'https://stub.example.com/render-{uuid.uuid4().hex[:8]}.pdf', 'format': request.data.get('format', 'pdf')})
+    return _not_implemented('offer_template_render', request, 'Offer 模板渲染尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 # ============================================================
@@ -347,8 +335,7 @@ def global_search(request):
 
 @_scoped_view(methods=['POST'], resource_code='recruit:candidate:list')
 def evaluate(request):
-    _log_stub_hit('evaluate', request)
-    return _ok({'score': 0, 'passed': False, 'details': []})
+    return _not_implemented('evaluate', request, '候选人评估尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 # ============================================================
@@ -477,21 +464,15 @@ def permissions_mous_list(request):
 
 @_scoped_view(methods=['GET', 'POST'], resource_code='recruit:user_role:edit')
 def permissions_user_mous(request, user_id):
-    _log_stub_hit('permissions_user_mous', request)
-    """GET /permissions/user-mous/{user_id} — 用户已分配的 MOU 列表 (mouId 列表)
-    POST /permissions/user-mous/{user_id} body {mouIds: []} — 覆盖式保存用户的 MOU 分配.
+    """GET /permissions/user-mous/{user_id} — 用户已分配的 MOU 列表 (mouId 列表).
 
-    2026-07-02: User model 无 mou M2M 字段, 暂存 UserRole.department 字段 (复用 placeholder).
-    真实 G36+ 实现会引入 UserMOU M2M 表; 现在返空 list + echo 保存即可, 让 FE 弹窗能正常工作.
+    2026-07-02: User model 无 mou M2M 字段, 暂返空 list. 真实 G36+ 实现会引入 UserMOU M2M 表.
     """
     if request.method == 'GET':
         # 真有 MOU 表的话, 这里会查 UserMOU 表; 现在返 []
         return Response({'success': True, 'data': []})
-    # POST: echo save, 真写库逻辑待 UserMOU 表
-    mou_ids = request.data.get('mouIds', [])
-    if not isinstance(mou_ids, list):
-        return Response({'success': False, 'code': 'validation_error', 'message': 'mouIds 必须是 list'}, status=400)
-    return Response({'success': True, 'data': {'userId': str(user_id), 'mouIds': mou_ids}})
+    # 2026-09-27 P0-3 治理: POST 原 echo 保存却未落库, 现返 501 (待 UserMOU 表实现)
+    return _not_implemented('permissions_user_mous', request, '用户 MOU 分配尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 @_scoped_view(methods=['GET'], resource_code='recruit:role:list')
