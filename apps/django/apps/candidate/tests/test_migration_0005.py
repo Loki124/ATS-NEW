@@ -24,7 +24,18 @@ backfill_id_card_hash = _mig_0005.backfill_id_card_hash
 reverse_backfill_id_card_hash = _mig_0005.reverse_backfill_id_card_hash
 hash_for_search_py = _mig_0005.hash_for_search_py
 
-from apps.common.encryption import hash_for_search
+from apps.common.encryption import LEGACY_HASH_SALT, hash_for_search
+
+
+def _migration_era_hash(plaintext):
+    """migration 0005 时期的哈希值。
+
+    2026-09-27 P0-2: hash_for_search 的 salt 已外置为 PII_HASH_SALT; 但 0005 是
+    **已冻结的历史迁移**, 其本地 hash_for_search_py 恒用旧 salt。所以凡是与
+    "迁移回填结果" 对比的断言, 都必须显式传 LEGACY_HASH_SALT, 不能依赖当前
+    配置 (否则一旦启用新 salt, 这里就会误报 —— 实际是测试口径错了, 不是代码错)。
+    """
+    return hash_for_search(plaintext, LEGACY_HASH_SALT)
 from apps.candidate.models import Candidate
 
 
@@ -76,7 +87,7 @@ def test_no_apps_module_level_import():
 ])
 def test_local_hash_matches_real_hash(plaintext):
     """本地复刻必须与真实实现产出完全相同的 hex, 否则历史回填与新 insert 错位。"""
-    assert hash_for_search_py(plaintext) == hash_for_search(plaintext)
+    assert hash_for_search_py(plaintext) == _migration_era_hash(plaintext)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -122,11 +133,11 @@ def test_backfill_runs_with_real_data(django_db_serialized_rollback):
 
     # 验证: 有身份证的行 hash 正确, 空/None 的行 hash 为 ''
     zhangsan = Candidate.objects.get(name='张三')
-    assert zhangsan.id_card_hash == hash_for_search('110101199605151234')
+    assert zhangsan.id_card_hash == _migration_era_hash('110101199605151234')
     assert len(zhangsan.id_card_hash) == 64
 
     lisi = Candidate.objects.get(name='李四')
-    assert lisi.id_card_hash == hash_for_search('110101199801011234')
+    assert lisi.id_card_hash == _migration_era_hash('110101199801011234')
 
     wangwu = Candidate.objects.get(name='王五-无身份证')
     assert wangwu.id_card_hash == ''  # 跳过
@@ -175,7 +186,7 @@ def test_backfill_idempotent(django_db_serialized_rollback):
     second_hash = Candidate.objects.get(name='X').id_card_hash
 
     assert first_hash == second_hash
-    assert first_hash == hash_for_search('110101199605151236')
+    assert first_hash == _migration_era_hash('110101199605151236')
 
 
 # ─────────────────────────────────────────────────────────────

@@ -75,13 +75,15 @@ def test_qa_bug7_backfill_uses_real_stateapps():
         backfill_id_card_hash(state_apps, schema_editor)
 
     # 断言: hash 必须正确填充 (证明 backfill 跑通了 for 循环, 没在 apps.<x> 上崩)
-    from apps.common.encryption import hash_for_search
+    from apps.common.encryption import LEGACY_HASH_SALT, hash_for_search
     h1 = Candidate.objects.get(name='QA-BUG7-1').id_card_hash
     h2 = Candidate.objects.get(name='QA-BUG7-2').id_card_hash
-    assert h1 == hash_for_search('110101199605151234'), (
-        f'BUG-7 仍存在? hash1={h1!r} 期望 {hash_for_search("110101199605151234")!r}'
+    # 0005 是已冻结的历史迁移, 其回填恒用旧 salt —— 显式传入, 不受 PII_HASH_SALT 影响
+    assert h1 == hash_for_search('110101199605151234', LEGACY_HASH_SALT), (
+        f'BUG-7 仍存在? hash1={h1!r} 期望 '
+        f'{hash_for_search("110101199605151234", LEGACY_HASH_SALT)!r}'
     )
-    assert h2 == hash_for_search('110101199801011234')
+    assert h2 == hash_for_search('110101199801011234', LEGACY_HASH_SALT)
     assert len(h1) == 64  # sha256 hex 长度
 
     print(f'\n[QA-BUG7] ✅ StateApps backfill 通过, hash1={h1[:16]}...')
@@ -142,12 +144,12 @@ def test_qa_bug7_hash_equivalence_table(plaintext, description):
 
     None 边界由 test_qa_bug7_hash_none_diverge 单独覆盖 (两端策略不同是允许的)。
     """
-    from apps.common.encryption import hash_for_search
+    from apps.common.encryption import LEGACY_HASH_SALT, hash_for_search
     mig_0005 = importlib.import_module(
         'apps.candidate.migrations.0005_candidate_id_card_hash'
     )
     h_local = mig_0005.hash_for_search_py(plaintext)
-    h_real = hash_for_search(plaintext)
+    h_real = hash_for_search(plaintext, LEGACY_HASH_SALT)
     assert h_local == h_real, (
         f'❌ hash 不一致 [{description}]: '
         f'local={h_local!r} vs real={h_real!r}'
@@ -165,7 +167,7 @@ def test_qa_bug7_hash_none_diverge():
     0005 hash_for_search_py(None): 'if not None' 为真 → ''
     (实际上 None 在两端都返 '', 不分叉 —— 但保留此测试以文档化"允许分叉"的策略)
     """
-    from apps.common.encryption import hash_for_search
+    from apps.common.encryption import LEGACY_HASH_SALT, hash_for_search
     mig_0005 = importlib.import_module(
         'apps.candidate.migrations.0005_candidate_id_card_hash'
     )
@@ -190,7 +192,7 @@ def test_qa_bug7_backfill_then_save_roundtrip():
     两端必须产出相同 hex, 否则查重链路 (phone/email 同样的模式) 会新旧脱节。
     """
     from apps.candidate.models import Candidate
-    from apps.common.encryption import hash_for_search
+    from apps.common.encryption import LEGACY_HASH_SALT, hash_for_search
 
     # 历史路径: 直接 .update() 模拟 0005 跑之前的存量行
     cand_old = Candidate.objects.create(
@@ -215,7 +217,9 @@ def test_qa_bug7_backfill_then_save_roundtrip():
     hash_after_save = cand_new.id_card_hash
 
     # 两端 hash 必须等于纯函数 hash_for_search(plaintext)
-    assert hash_after_backfill == hash_for_search('110101200001011234')
+    # 回填侧是 0005 历史实现 (旧 salt); save() 侧走当前实现 —— 两者口径不同,
+    # 因为 0005 已冻结。此处断言"各自等于自己口径下的纯函数值"。
+    assert hash_after_backfill == hash_for_search('110101200001011234', LEGACY_HASH_SALT)
     assert hash_after_save == hash_for_search('110101200002022345')
 
     # 历史回填 ≠ 新 insert 是预期的 (不同明文 → 不同 hash), 但内部都要对得上纯函数

@@ -427,6 +427,13 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': r'/api/v1',
+    # 2026-09-27 P0-3: 剔除 urls_stubs 的 stub, 消除 API 契约漂移。
+    #   实测 (test settings): 未过滤时 77 条 stub (method×path) 出现在 schema 里,
+    #   而它们大多返"假成功" (success:true + 假 id, 不写库); 集成方照 swagger
+    #   对接会以为端点已实现。仅影响文档生成, 不影响运行时路由。
+    #   注: dev settings 下枚举到的 stub 数为 0 (环境差异), 故本钩子按"一旦被收录
+    #   就剔除"编写, 不依赖具体命中数。
+    'PREPROCESSING_HOOKS': ['apps.common.openapi_hooks.exclude_stub_endpoints'],
     'TAGS': [
         {'name': 'auth', 'description': '认证'},
         {'name': 'stages', 'description': '阶段'},
@@ -653,6 +660,24 @@ INTEGRATION_FERNET_KEY = env('INTEGRATION_FERNET_KEY', default='')
 # 2026-08-03 S3: PII 字段加密 (Candidate.id_card_no 等) 复用同一 Fernet key.
 #   推荐单独设 ENCRYPTION_KEY, 但 fallback 到 INTEGRATION_FERNET_KEY (同算法可复用)
 ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=INTEGRATION_FERNET_KEY)
+
+# 2026-09-27 P0-1: 解密失败是否 fail-closed.
+#   False(默认/base) = 历史行为: 解密失败返回密文原值并记 warning (fail-open).
+#   True = 解密失败直接抛 DecryptionError, 由全局异常处理上报, 绝不静默返回不可信数据.
+#   生产默认 True (见 prod.py); 密钥轮换过渡期可显式设 STRICT_DECRYPT=False 临时降级,
+#   过渡结束后必须移除该开关.
+STRICT_DECRYPT = env.bool('STRICT_DECRYPT', default=False)
+
+# 2026-09-27 P0-2: 查重哈希 salt (手机号/邮箱/身份证 hash_for_search 用).
+#   为空表示沿用历史内置 salt (保持存量哈希值不变, 零行为变更).
+#   非空则启用外部 salt (不低于 32 字节随机串), 产出带版本前缀的哈希.
+#   ⚠️ 启用会让新写入的哈希与存量不同, 必须先完成扩列 + 回填迁移再切, 否则查重失效.
+PII_HASH_SALT = env('PII_HASH_SALT', default='')
+
+# 2026-09-27 P2-2: 密钥轮换支持. 逗号分隔的多个 Fernet key, 第一个为主密钥(用于加密),
+#   其余为旧密钥(仅用于解密), 由 MultiFernet 实现"新密钥加密 + 前密钥仍可解密".
+#   为空则退化为单密钥 ENCRYPTION_KEY.
+ENCRYPTION_KEYS = env('ENCRYPTION_KEYS', default='')
 
 # 评分及格线
 SCORING_PASS_THRESHOLD = int(env('SCORING_PASS_THRESHOLD', default=60))

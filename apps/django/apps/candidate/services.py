@@ -49,7 +49,7 @@ def _record_state_change(
     candidate._state_change_recorded = True
 
 from apps.common.exceptions import NotFound, StateTransitionError
-from apps.common.encryption import hash_for_search
+from apps.common.encryption import hash_candidates_for_search, hash_for_search
 from apps.core.models import User
 from apps.reason_library.models import RecruitType
 
@@ -246,7 +246,12 @@ class CandidateService:
         if id_card:
             # id_card_no 是 Fernet 非确定性加密字段, 不能用 = 明文匹配 (密文每次不同)。
             # 必须走不可逆的 id_card_hash 列 (与 phone_hash/email_hash 同构)。
-            conditions |= Q(id_card_hash=hash_for_search(id_card))
+            #
+            # 2026-09-27 P0-2: 改双读。启用 PII_HASH_SALT 后新写入的哈希带 'v2_'
+            # 前缀、存量仍是 v1, 只比一种形态会在回填期漏判 —— 重复候选人进库,
+            # 后果比"盐写在源码里"更直接。两种形态都交给 __in 命中, 回填完成后
+            # 可再收敛为单读 (见 apps.common.encryption.hash_candidates_for_search)。
+            conditions |= Q(id_card_hash__in=hash_candidates_for_search(id_card))
         if phone:
             conditions |= Q(phone=phone)
         if email:

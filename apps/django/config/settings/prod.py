@@ -82,6 +82,36 @@ def _validate_production_config():
 _validate_production_config()
 
 
+# 2026-09-27 P0-1: 生产默认 **fail-closed** —— 解密失败抛 DecryptionError,
+#   绝不静默把密文当明文返回业务层 (原 fail-open 会让 PII 字段静默变乱码且无告警)。
+#   base.py 默认 False 以保留迁移过渡期的临时降级能力; 生产这里默认 True。
+#   密钥轮换过渡期如需临时降级, 显式设 STRICT_DECRYPT=False, 过渡结束必须移除。
+STRICT_DECRYPT = env.bool('STRICT_DECRYPT', default=True)
+
+# 2026-09-27 P0-2: 查重哈希 salt 外置 —— 生产**强校验**。
+#   原因: salt 写死在源码而本仓库公开, 攻击者拿到源码即拿到 salt, 可对手机号
+#   (11 位数字, 空间仅 ~10^10) 离线预计算彩虹表反查。这与 SECRET_KEY / DATABASE_URL
+#   同级, 属于"没配就不算生产就绪"的配置, 因此与既有校验一致地直接拦死。
+#
+#   之所以现在可以安全强拦 (前置条件已全部具备):
+#     ① 哈希列已扩到 max_length=80 (candidate/migrations/0011) —— 装得下 v2_ 前缀
+#     ② 查重已改双读 Q(id_card_hash__in=[v1, v2]) (candidate/services.py)
+#     ③ 回填命令已提供: manage.py rehash_pii_hashes (支持 --dry-run)
+#   于是"设 salt → 部署 → 回填"期间查重不会漏判, 不存在阻断业务的窗口。
+#
+#   ⚠️ 部署前必须在生产环境设置 (随机 32 字节以上):
+#       python -c "import secrets; print(secrets.token_urlsafe(32))"
+#   否则 Django 启动失败 —— 这是有意为之, 避免"看似启动、实际仍用公开 salt"。
+if not (globals().get('PII_HASH_SALT') or '').strip():
+    raise ImproperlyConfigured(
+        'PII_HASH_SALT 未配置: 查重哈希仍在用源码内置 salt "ats-pii", 而本仓库公开 —— '
+        '攻击者拿到源码即拿到 salt, 可对手机号(空间仅 ~10^10)离线预计算彩虹表反查。\n'
+        '  生成方法: python -c "import secrets; print(secrets.token_urlsafe(32))"\n'
+        '  设置后部署, 再跑: python manage.py rehash_pii_hashes (先 --dry-run 演练)\n'
+        '  注: 哈希列已扩到 80 且查重已双读, 回填期间业务不受影响。'
+    )
+
+
 # 邮件: 生产环境默认走真实 SMTP (不再是 dev 的 console). 具体连接参数由
 # EMAIL_HOST/PORT/USER/PASSWORD/USE_TLS(USE_SSL) 经 ops/.env 注入.
 # 切换服务商(阿里云 DirectMail / 后续 CF 等) 只需改这几个变量, 无需改代码.

@@ -44,13 +44,21 @@ class Candidate(FSMModelMixin, FullAuditModel):
     name = models.CharField(max_length=50, db_index=True, verbose_name='姓名')
     phone = models.CharField(max_length=20, db_index=True, verbose_name='手机号')
     phone_hash = models.CharField(
-        max_length=64, blank=True, db_index=True,
+        # 2026-09-27 P0-2: 64 → 80。sha256 hex 恰好 64 字符, 而启用外部 salt 后
+        #   哈希带 'v2_' 前缀 = 67 字符, 64 装不下会被截断/报错, 导致查重静默失效。
+        #   80 留出冗余 (见 apps.common.encryption.HASH_V2_REQUIRED_MAX_LENGTH,
+        #   由 tests/test_encryption_hardening.py 断言本值 >= 该常量, 防止漂移)。
+        max_length=80, blank=True, db_index=True,
         verbose_name='手机号 hash (sha256, 用于查重/匿名查询)',
         help_text='hash_for_search(phone) 写入, 同明文 → 同 hash',
     )
     email = models.EmailField(max_length=100, db_index=True, null=True, blank=True, verbose_name='邮箱')
     email_hash = models.CharField(
-        max_length=64, blank=True, db_index=True,
+        # 2026-09-27 P0-2: 64 → 80。sha256 hex 恰好 64 字符, 而启用外部 salt 后
+        #   哈希带 'v2_' 前缀 = 67 字符, 64 装不下会被截断/报错, 导致查重静默失效。
+        #   80 留出冗余 (见 apps.common.encryption.HASH_V2_REQUIRED_MAX_LENGTH,
+        #   由 tests/test_encryption_hardening.py 断言本值 >= 该常量, 防止漂移)。
+        max_length=80, blank=True, db_index=True,
         verbose_name='邮箱 hash (sha256, 用于查重/匿名查询)',
     )
     gender = models.CharField(max_length=8, blank=True, verbose_name='性别')
@@ -70,7 +78,11 @@ class Candidate(FSMModelMixin, FullAuditModel):
     id_card_no = EncryptedCharField(max_length=512, blank=True, verbose_name='身份证号 (加密存储)')
     # 身份证号 hash (sha256, 不可逆, 用于查重/匿名查询) —— 与 phone_hash/email_hash 同构
     id_card_hash = models.CharField(
-        max_length=64, blank=True, db_index=True,
+        # 2026-09-27 P0-2: 64 → 80。sha256 hex 恰好 64 字符, 而启用外部 salt 后
+        #   哈希带 'v2_' 前缀 = 67 字符, 64 装不下会被截断/报错, 导致查重静默失效。
+        #   80 留出冗余 (见 apps.common.encryption.HASH_V2_REQUIRED_MAX_LENGTH,
+        #   由 tests/test_encryption_hardening.py 断言本值 >= 该常量, 防止漂移)。
+        max_length=80, blank=True, db_index=True,
         verbose_name='身份证号 hash (sha256, 用于查重/匿名查询)',
     )
 
