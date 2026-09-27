@@ -25,9 +25,32 @@ drf-spectacular==0.29.0
 # === State Machine ===
 # R9: 原来同时 pin 了 django-fsm==2.8.1 和 django-fsm-2==4.0.0 "备选" ——
 #   这两个包提供的是同一个顶层模块 django_fsm, 同时安装会互相覆盖, 结果取决于
-#   pip 的安装顺序, 属于不确定行为。实装的是 django-fsm 3.0.1, 只保留它。
-#   (django-fsm 3.x 已停止维护, 官方建议迁移到 viewflow.fsm —— 见 Phase 2 技术债)
-django-fsm==3.0.1
+#   pip 的安装顺序, 属于不确定行为。只能保留其中一个。
+#
+# 2026-09-27 P0-4: 从 django-fsm 3.0.1 切到 django-fsm-2 4.2.4。
+#   原因: django-fsm 停在 3.0.1 且已停止维护, 运行时持续刷 DeprecationWarning
+#   ("django-fsm has been integrated into viewflow"), 且无安全补丁与新版 Django 兼容修复。
+#
+#   为什么选 django-fsm-2 而不是官方建议的 viewflow.fsm —— 实测对比:
+#     viewflow.fsm 缺三个本项目直接依赖的符号:
+#       ✗ FSMModelMixin  (candidate/models.py 依赖, 承载 refresh_from_db 修复)
+#       ✗ FSMFieldMixin  (FSM 可达性守护测试依赖)
+#       ✗ _django_fsm 元数据 (6 处测试用于内省 transitions)
+#     且 viewflow 的 FSMField 无 max_length=50 默认值 → DDL 变无长度 varchar,
+#     MySQL 建表失败; 3 处 source='*' 在 viewflow 下还会静默失效 (变成永不命中)。
+#     另注: PyPI 上的 "viewflow" 是另一个同名冒牌包 (Airflow 框架), 真正提供
+#     viewflow.fsm 的是 django-viewflow (24MB+), 易装错。
+#
+#   django-fsm-2 提供同名顶层模块 django_fsm, 且是超集 —— 已实测确认:
+#     ✓ FSMModelMixin / FSMFieldMixin / _django_fsm 元数据 全部保留
+#     ✓ FSMField 仍 kwargs.setdefault("max_length", 50) → DDL 不变, 无需迁移
+#     ✓ ANY_STATE = "*" → 项目 3 处 source='*' 语义完全不变
+#     ✓ transition / TransitionNotAllowed / can_proceed / GET_STATE 等签名一致
+#   因此这是"换 pin 即完成"的零代码改动迁移。
+#
+#   ⚠️ 部署 / CI 必须执行 (两者同名模块不能共存, 见上面 R9 注释):
+#       pip uninstall -y django-fsm && pip install django-fsm-2==4.2.4
+django-fsm-2==4.2.4
 
 # === Async / Real-time ===
 celery==5.6.3

@@ -358,8 +358,17 @@ class TestR9RequirementsConsistency:
             if line.strip() and not line.strip().startswith('#')
         ]
         names = {re.split(r'[=<>!\[ ]', line, 1)[0].lower() for line in lines}
-        for banned in ('python-decouple', 'uvicorn', 'django-fsm-2'):
+        # 2026-09-27 P0-4: django-fsm 3.x 已停止维护, 迁移到 django-fsm-2 (4.2.4)。
+        #   两者提供同一个顶层模块 django_fsm, **只能留一个** —— 这正是 R9 当初把
+        #   django-fsm-2 列进 banned 的原因 (当时是"两个并存"导致覆盖不确定)。
+        #   现在方向反转: 保留维护中的 django-fsm-2, 禁掉停维护的 django-fsm 本体。
+        #   实测 django-fsm-2 是超集: FSMModelMixin / FSMFieldMixin / _django_fsm
+        #   元数据 / FSMField max_length=50 / ANY_STATE='*' 全部保留, 零代码改动。
+        for banned in ('python-decouple', 'uvicorn', 'django-fsm'):
             assert banned not in names, f'requirements.txt 仍残留已废弃依赖: {banned}'
+        assert any(
+            line.startswith('django-fsm-2==') for line in lines
+        ), '状态机依赖应为 django-fsm-2 (django-fsm 3.x 已停止维护)'
         assert any(line.startswith('cryptography==') for line in lines), \
             'cryptography 未显式锁版本'
 
