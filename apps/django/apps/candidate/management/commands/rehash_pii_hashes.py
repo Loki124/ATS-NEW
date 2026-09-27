@@ -55,31 +55,43 @@ class Command(BaseCommand):
             choices=sorted(FIELD_MAP.keys()),
             help='只回填指定哈希列',
         )
+        parser.add_argument(
+            '--to-legacy', action='store_true', dest='to_legacy',
+            help='回滚用: 把哈希重算回历史内置 salt 的 v1 形态。'
+                 '—— 执行过真回填后若需回滚代码, 必须先跑本参数, 否则旧代码'
+                 '(只认 v1) 会因为存量已是 v2 而查重漏判。',
+        )
 
     def handle(self, *args, **options):
         from apps.common.encryption import (
+            LEGACY_HASH_SALT,
             DecryptionError,
             hash_for_search,
         )
 
         dry_run = options['dry_run']
         batch_size = max(1, options['batch_size'])
+        to_legacy = options['to_legacy']
         targets = [options['only']] if options['only'] else sorted(FIELD_MAP.keys())
 
         # 前置检查: 没配 PII_HASH_SALT 时, 回填只会把 v1 重写成 v1, 毫无意义 ——
         # 与其静默跑完让人误以为已完成轮换, 不如直接拦下。
+        # (--to-legacy 是回滚路径, 目标就是把哈希退回 v1, 故不需要该检查)
         from django.conf import settings
-        if not (getattr(settings, 'PII_HASH_SALT', '') or '').strip():
+        if not to_legacy and not (getattr(settings, 'PII_HASH_SALT', '') or '').strip():
             raise CommandError(
                 'PII_HASH_SALT 未配置: 回填后哈希仍是旧的内置 salt, 等于没轮换。\n'
                 '  请先设置 (随机 32 字节以上):\n'
                 '    python -c "import secrets; print(secrets.token_urlsafe(32))"\n'
-                '  再重跑本命令。'
+                '  再重跑本命令。\n'
+                '  (若你是在回滚, 请用 --to-legacy)'
             )
 
+        mode = '回滚到 v1 (legacy)' if to_legacy else '回填到 v2 (PII_HASH_SALT)'
         self.stdout.write(
             self.style.MIGRATE_HEADING(
-                f'回填目标列: {", ".join(targets)} | dry_run={dry_run} | batch={batch_size}'
+                f'模式: {mode} | 目标列: {", ".join(targets)} | '
+                f'dry_run={dry_run} | batch={batch_size}'
             )
         )
 
@@ -108,7 +120,10 @@ class Command(BaseCommand):
                     # id_card_no 是加密列, 解不开说明密钥有问题 —— 记下来最后统一报
                     failed.append((cand.pk, hash_field, str(e)))
                     continue
-                expected = hash_for_search(plaintext) if plaintext else ''
+                if to_legacy:
+                    expected = hash_for_search(plaintext, LEGACY_HASH_SALT) if plaintext else ''
+                else:
+                    expected = hash_for_search(plaintext) if plaintext else ''
                 if getattr(cand, hash_field) != expected:
                     setattr(cand, hash_field, expected)
                     dirty = True

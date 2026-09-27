@@ -286,3 +286,33 @@ def test_rehash_command_dry_run_writes_nothing():
         call_command('rehash_pii_hashes', '--dry-run')
     cand.refresh_from_db()
     assert cand.id_card_hash == before, 'dry-run 不应写库'
+
+
+@pytest.mark.django_db
+def test_rehash_round_trip_is_reversible():
+    """回填必须可逆 —— 否则"执行过回填"就等于"不能再回滚代码"。
+
+    真实风险: 回填后存量哈希变成 v2_; 若此时回滚到旧代码 (查重只认 v1),
+    所有存量候选人都匹配不上 → 查重漏判、重复入库。所以 --to-legacy 是
+    部署回滚路径的必要一环, 不是可选的锦上添花。
+    """
+    from django.core.management import call_command
+    from apps.candidate.models import Candidate
+
+    with override_settings(PII_HASH_SALT=''):
+        cand = Candidate.objects.create(
+            name='回滚测试', phone='13900000777', email='rb@example.com',
+            id_card_no='110101199003033456',
+        )
+        original_v1 = cand.id_card_hash
+
+    with override_settings(PII_HASH_SALT='t' * 40):
+        call_command('rehash_pii_hashes')
+        cand.refresh_from_db()
+        assert cand.id_card_hash.startswith(HASH_V2_PREFIX), '先回填到 v2'
+
+        call_command('rehash_pii_hashes', '--to-legacy')
+        cand.refresh_from_db()
+
+    assert cand.id_card_hash == original_v1, '回滚后必须逐字节回到原始 v1 哈希'
+    assert not cand.id_card_hash.startswith(HASH_V2_PREFIX)
