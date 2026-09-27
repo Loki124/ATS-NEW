@@ -207,3 +207,40 @@ class TestBulkCreateService:
         first_cand = Candidate.objects.get(phone='13800138001')
         assert result2.created_candidate_ids == [str(first_cand.id)]
         assert Candidate.objects.filter(phone='13800138001').count() == 1
+
+
+# ===== 序列化器层：direction 取值守卫 =====
+# 业务侧报告 v2 声称「dirAll='' 默认空串 → direction='' → 400」。
+# 经核查：前端 canSubmit + 禁用提交按钮已阻止空 direction 到达后端；
+# 且仅有的 bulkCreate 调用方是 store.submit()，direction 取值来自
+# DirectionPicker（仅 pending/talent/position 三值）。因此空 direction
+# 在真实 UI 路径下不可达。此处锁定序列化器对非法 direction 的**拒绝**行为，
+# 作为后端权威守卫的回归测试，防止被「允许空串 + 默认 pending」弱化。
+from apps.add_candidate.serializers import BulkCreateRequest
+
+
+class TestBulkCreateRequestSerializer:
+    """BulkCreateRequest 序列化器层校验（不触 DB）。"""
+
+    @staticmethod
+    def _payload(direction: str):
+        return {
+            'drafts': [{'draft_id': 'd1', 'direction': direction}],
+            'submit_mode': 'wait',
+        }
+
+    def test_empty_direction_rejected(self):
+        """空串 direction 必须被拒（→ 400），这是意图内的后端守卫。"""
+        ser = BulkCreateRequest(data=self._payload(''))
+        assert ser.is_valid() is False
+        assert 'direction' in ser.errors['drafts'][0]
+
+    def test_unknown_direction_rejected(self):
+        ser = BulkCreateRequest(data=self._payload('bogus'))
+        assert ser.is_valid() is False
+        assert 'direction' in ser.errors['drafts'][0]
+
+    def test_valid_directions_accepted(self):
+        for d in ('pending', 'talent', 'position'):
+            ser = BulkCreateRequest(data=self._payload(d))
+            assert ser.is_valid() is True, f'{d} should be valid'
