@@ -424,6 +424,22 @@ body.dark .n-modal-mask {
   color: var(--ink) !important;
 }
 
+/* === 日期/时间选择面板玻璃视觉（2026-09-27 兵哥报「编辑字段里日历穿透表单」）===
+ * 根因链: App.vue 暗色 popoverColor:'transparent'(交给 glass.css 接管) → glass.css 只给
+ * dropdown/select/popconfirm 补了 L2 玻璃; .n-date-panel 直接挂在 .v-binder-follower-content
+ * 下(P6 修订已移除 wrapper 背景), 没有 L2 menu → 暗色下日历整块透明,
+ * 弹窗表单字段透过面板显示。修法: 与 dropdown/select 同一套 token 给面板本体补玻璃视觉。 */
+.n-date-panel,
+.n-time-panel {
+  background: var(--glass-bg-elevated) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur-panel)) saturate(180%) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  isolation: isolate !important;
+  color: var(--ink) !important;
+}
+
 /* === P5 修复:vueuc-popper 关闭后 wrapper 残留渲为「白带/多一块」(2026-08-28 兵哥再报)===
  *
  * 根因二次复盘:
