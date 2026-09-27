@@ -188,21 +188,91 @@ export async function startScoring(params: { candidate_ids: string[]; task_id: s
   return snakizeKeys(resp.data)
 }
 
-/** GET /scoring/stream/{task_id}/  — SSE 流（返回 EventSource） */
-export function openScoringStream(task_id: string): EventSource {
-  // EventSource 不支持自定义 header（无法带 Authorization），
-  // 所以需要在后端允许 EventSource 走 query string 或 cookie。
-  // 简化方案：用 fetch 读 stream，自己分发事件。
-  // 真实实现可以用 `event-source-polyfill` 或后端改用 query token。
-  // 此处先用 EventSource（cookie-based auth）
-  const url = `${BASE}/scoring/stream/${task_id}/`
-  return new EventSource(url)
+// SSE 事件帧
+export interface ScoringEvent {
+  event: string
+  data: any
+}
+
+// 评分流句柄（可关闭）
+export interface ScoringStreamHandle {
+  close: () => void
+}
+
+/**
+ * 打开评分进度 SSE 流。
+ *
+ * 2026-09-27 修复：原实现用 `EventSource`，但它**无法携带 Authorization header**，
+ * 而后端 ScoringStreamView 用 `IsHROrAbove`(Bearer/JWT 鉴权) → 即便接上也会 401/403，
+ * 且 `openScoringStream` 此前无任何业务调用方（真·半成品）。
+ * 改为 fetch + ReadableStream 手动解析 SSE 帧，带 `Authorization: Bearer`，返回可关闭句柄。
+ */
+export function openScoringStream(
+  taskId: string,
+  onEvent: (event: string, data: any) => void,
+): ScoringStreamHandle {
+  const url = `${BASE}/scoring/stream/${taskId}/`
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || ''
+  const controller = new AbortController()
+  const handle: ScoringStreamHandle = { close: () => controller.abort() }
+
+  ;(async () => {
+    if (typeof fetch === 'undefined') {
+      onEvent('error', { message: 'fetch unsupported' })
+      return
+    }
+    try {
+      const resp = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      })
+      if (!resp.ok || !resp.body) {
+        onEvent('error', { status: resp.status })
+        return
+      }
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        let idx: number
+        while ((idx = buf.indexOf('\n\n')) !== -1) {
+          const frame = buf.slice(0, idx)
+          buf = buf.slice(idx + 2)
+          const ev = parseSseFrame(frame)
+          if (ev) onEvent(ev.event, ev.data)
+        }
+      }
+      onEvent('stream-end', {})
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') onEvent('error', { message: String(e) })
+    }
+  })()
+
+  return handle
+}
+
+function parseSseFrame(frame: string): ScoringEvent | null {
+  let event = 'message'
+  let dataStr = ''
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) dataStr += line.slice(5).trim()
+  }
+  if (!dataStr) return null
+  try {
+    return { event, data: JSON.parse(dataStr) }
+  } catch {
+    return { event, data: {} }
+  }
 }
 
 /** 关闭 SSE 流 — 2026-07-02: 必须显式 close, 否则连接 + auth cookie 泄漏 */
-export function closeScoringStream(es: EventSource | null): void {
-  if (es) {
-    try { es.close() } catch { /* ignore */ }
+export function closeScoringStream(handle: ScoringStreamHandle | null): void {
+  if (handle) {
+    try { handle.close() } catch { /* ignore */ }
   }
 }
 

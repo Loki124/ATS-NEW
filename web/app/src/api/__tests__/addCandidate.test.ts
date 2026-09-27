@@ -102,9 +102,13 @@ describe('addCandidate API', () => {
   })
 
   describe('openScoringStream', () => {
-    it('returns EventSource instance for given task_id', () => {
-      const result = openScoringStream('t1')
-      expect(result).toBeInstanceOf(EventSource)
+    it('returns a closeable handle and does not require EventSource', async () => {
+      // 避免真实 fetch 打到不存在的 dev server（ECONNREFUSED 噪声）
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, body: null }))
+      const handle = openScoringStream('t1', () => {})
+      expect(typeof handle.close).toBe('function')
+      await Promise.resolve()
+      vi.unstubAllGlobals()
     })
   })
 })

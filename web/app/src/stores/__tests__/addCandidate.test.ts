@@ -312,5 +312,35 @@ describe('useAddCandidateStore', () => {
       expect(store.asyncResult).toBe(true)
       expect(store.step).toBe(3)
     })
+
+    it('opens scoring SSE and feeds scoringProgress/allScoringDone from events', async () => {
+      const store = useAddCandidateStore()
+      store.addResumes([{ job_id: 'j1', draft_id: 'd1', file_name: 'a.pdf' }])
+      store.processParseUpdate('d1', { status: 'done', phase: null, progress: 100, duplicate: { status: 'clean' } as any })
+      store.step = 2
+      store.dirAll = 'pending'
+      store.submitMode = 'async'
+      vi.mocked(api.bulkCreate).mockResolvedValue({ task_id: 't1', created_candidate_ids: ['c1'], route: { d1: 'pending' } })
+
+      let onEvent: ((event: string, data: any) => void) | undefined
+      vi.mocked(api.openScoringStream).mockImplementation((_taskId: string, cb: any) => {
+        onEvent = cb
+        return { close: vi.fn() }
+      })
+
+      await store.submit()
+      expect(api.openScoringStream).toHaveBeenCalledWith('t1', expect.any(Function))
+      expect(store.allScoringDone).toBe(false) // 连接未结束前不标记完成
+
+      // 评分完成事件：candidate_id 经下标映射回 draft_id 'd1'
+      onEvent!('scoring-done', { candidate_id: 'c1', score: 82, passed: true, dimensions: [] })
+      expect(store.scoringProgress['d1'].status).toBe('done')
+      expect(store.scoringProgress['d1'].result?.passed).toBe(true)
+      expect(store.scoringProgress['d1'].result?.score).toBe(82)
+
+      // 任务完成 → 浮层推进到完成
+      onEvent!('task-complete', { summary: { total: 1, passed: 1 } })
+      expect(store.allScoringDone).toBe(true)
+    })
   })
 })

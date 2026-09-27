@@ -10,6 +10,7 @@ import type {
   DupStatus,
   Direction,
   SubmitMode,
+  ScoringStreamHandle,
 } from '@/api/addCandidate'
 import * as api from '@/api/addCandidate'
 // 2026-06-28 花无缺: ScoreResult 和 ResumeDraft 都是 store 内部定义的 (line 21 + 34),
@@ -230,10 +231,12 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
 
   // ===== Async actions =====
 
-  // poll timers keyed by draft_id (so we can cancel individually)
-  const pollTimers: Record<string, number> = {}
-  // recheck timers keyed by draft_id (debounced)
-  const recheckTimers: Record<string, number> = {}
+// poll timers keyed by draft_id (so we can cancel individually)
+const pollTimers: Record<string, number> = {}
+// recheck timers keyed by draft_id (debounced)
+const recheckTimers: Record<string, number> = {}
+// 评分 SSE 流句柄（submit 时打开，closeStream 时关闭）
+let scoringStreamHandle: ScoringStreamHandle | null = null
 
   async function uploadFiles(files: File[]) {
     const result = await api.uploadAndParse(files)
@@ -324,14 +327,10 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
   }
 
   async function submit() {
-    if (submitMode.value === 'wait') {
-      submitting.value = true
-      step.value = 3
-    } else {
-      submitting.value = true
-      step.value = 3
-      asyncResult.value = true
-    }
+    submitting.value = true
+    step.value = 3
+    if (submitMode.value === 'async') asyncResult.value = true
+
     const drafts = resumes.value.map((r) => ({
       draft_id: r.id,
       direction: (dirPer.value[r.id] || dirAll.value) as Direction,
@@ -341,7 +340,63 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
       provider: appInfo.value.provider,
     }))
     const result = await api.bulkCreate({ drafts, submit_mode: submitMode.value })
-    // 评分任务由后端 bulk-create 内部触发
+
+    // 2026-09-27: 接上评分 SSE 流（真正的半成品）。后端 bulk_create 已触发
+    // score_batch_task 并返回 task_id；此处订阅进度回填 scoringProgress / allScoringDone。
+    const taskId: string | undefined = result?.task_id
+    const candIds: string[] = result?.created_candidate_ids || []
+    if (taskId) {
+      // created_candidate_ids 与 resumes 同序 → 下标对齐建 candidate_id ↔ draft_id 映射
+      const candToDraft: Record<string, string> = {}
+      resumes.value.forEach((r, i) => {
+        if (candIds[i]) candToDraft[candIds[i]] = r.id
+      })
+      // 初始化每条简历的评分进度（overlay 用 r.id 作键）
+      for (const r of resumes.value) {
+        scoringProgress.value[r.id] = { status: 'waiting', progress: 0 }
+      }
+      scoringStreamHandle = api.openScoringStream(taskId, (event, data) => {
+        if (event === 'scoring-done' || event === 'scoring-failed') {
+          const draftId = (data?.candidate_id && candToDraft[data.candidate_id]) || data?.candidate_id || ''
+          if (draftId) {
+            scoringProgress.value[draftId] = {
+              status: 'done',
+              progress: 100,
+              result:
+                event === 'scoring-failed'
+                  ? { score: 0, passed: false, dimensions: [] }
+                  : {
+                      score: data.score,
+                      passed: data.passed,
+                      dimensions: data.dimensions || [],
+                    },
+            }
+          }
+        } else if (event === 'task-complete') {
+          allScoringDone.value = true
+        } else if (event === 'stream-end' || event === 'error') {
+          // 连接关闭/异常：兜底标记完成，避免浮层永久卡死（如 Celery/Redis 不可用）
+          if (!allScoringDone.value) {
+            for (const r of resumes.value) {
+              const cur = scoringProgress.value[r.id]
+              if (!cur || cur.status !== 'done') {
+                scoringProgress.value[r.id] = {
+                  status: 'done',
+                  progress: 100,
+                  result: { score: 0, passed: false, dimensions: [] },
+                }
+              }
+            }
+            allScoringDone.value = true
+          }
+        }
+        scoringProgress.value = { ...scoringProgress.value }
+      })
+    } else {
+      // 后端未返回 task_id（极端降级）→ 直接标记完成，避免卡死
+      allScoringDone.value = true
+    }
+
     return result
   }
 
@@ -356,6 +411,11 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     for (const k of Object.keys(recheckTimers)) {
       window.clearTimeout(recheckTimers[k])
       delete recheckTimers[k]
+    }
+    // 关闭评分 SSE 流（submit 时打开），避免连接泄漏
+    if (scoringStreamHandle) {
+      try { scoringStreamHandle.close() } catch { /* ignore */ }
+      scoringStreamHandle = null
     }
   }
 
