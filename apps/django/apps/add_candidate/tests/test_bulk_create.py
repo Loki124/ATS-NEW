@@ -244,3 +244,31 @@ class TestBulkCreateRequestSerializer:
         for d in ('pending', 'talent', 'position'):
             ser = BulkCreateRequest(data=self._payload(d))
             assert ser.is_valid() is True, f'{d} should be valid'
+
+    def test_talent_direction_accepts_null_position_id(self):
+        """业务侧报告：人才库方向前端传 position_id=null，
+        序列化器此前仅 allow_blank 未 allow_null → 报「该字段不能为 null。」致 400。
+        修复后 talent/pending 方向必须放行 null。"""
+        payload = {
+            'drafts': [{
+                'draft_id': 'd1',
+                'direction': 'talent',
+                'position_id': None,
+            }],
+            'submit_mode': 'wait',
+        }
+        ser = BulkCreateRequest(data=payload)
+        assert ser.is_valid() is True, ser.errors
+
+    def test_pending_direction_accepts_null_position_id(self):
+        """pending 方向同样不要求职位，null 必须放行。"""
+        payload = {
+            'drafts': [{
+                'draft_id': 'd1',
+                'direction': 'pending',
+                'position_id': None,
+            }],
+            'submit_mode': 'wait',
+        }
+        ser = BulkCreateRequest(data=payload)
+        assert ser.is_valid() is True, ser.errors

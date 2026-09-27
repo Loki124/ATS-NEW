@@ -79,10 +79,12 @@ class BulkCreateDraftSerializer(serializers.Serializer):
 
     draft_id = serializers.CharField()
     direction = serializers.ChoiceField(choices=['pending', 'talent', 'position'])
-    position_id = serializers.CharField(required=False, allow_blank=True)
-    channel = serializers.CharField(required=False, allow_blank=True)
-    source = serializers.CharField(required=False, allow_blank=True)
-    provider = serializers.CharField(required=False, allow_blank=True)
+    # 人才库(pending/talent)方向无关联职位，前端会传 position_id=null。
+    # 业务逻辑(_validate)仅 position 方向强制要求 position_id，故此处必须同时 allow_null。
+    position_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    channel = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    source = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    provider = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class BulkCreateRequest(serializers.Serializer):
