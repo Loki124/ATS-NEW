@@ -52,6 +52,34 @@ class PositionViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         qs = self.scope_queryset(qs, entity='position')
         return qs
 
+    def perform_create(self, serializer):
+        """职位编号自动生成 (与 PositionService 约定一致: P{YYYYMMDD}{nanoid4})。
+        create 序列化器未暴露 code(唯一约束、无默认值), 必须在此注入, 否则落库 code='' 且二次创建撞唯一键。"""
+        from django.utils import timezone
+        from nanoid import generate as nanoid_generate
+        code = f'P{timezone.now().strftime("%Y%m%d")}{nanoid_generate(size=4).upper()}'
+        serializer.save(code=code)
+
+    def _detail_response(self, instance, status_code=status.HTTP_201_CREATED):
+        out = PositionDetailSerializer(instance, context={'request': self.request})
+        return Response(out.data, status=status_code)
+
+    def create(self, request, *args, **kwargs):
+        # 默认 create 用 PositionCreateSerializer 输出(缺 id/code/state), 前端拿不到新职位标识;
+        # 改返回 PositionDetailSerializer 完整数据。
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return self._detail_response(serializer.instance, status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return self._detail_response(instance)
+
     def perform_destroy(self, instance):
         from django.utils import timezone
         instance.deleted_at = timezone.now()

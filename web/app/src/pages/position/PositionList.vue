@@ -11,16 +11,16 @@
     <n-card>
       <n-tabs v-model:value="activeTab" type="line" animated>
         <n-tab-pane name="all" tab="全部职位">
-          <n-data-table :columns="columns" :data="positions" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+          <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
-        <n-tab-pane name="recruiting" tab="招聘中">
-          <n-data-table :columns="columns" :data="positions.filter(p => p.status === '招聘中')" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        <n-tab-pane name="RECRUITING" tab="招聘中">
+          <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
-        <n-tab-pane name="stopped" tab="已停招">
-          <n-data-table :columns="columns" :data="positions.filter(p => p.status === '已停招')" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        <n-tab-pane name="PAUSED" tab="已暂停">
+          <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
-        <n-tab-pane name="completed" tab="已完成">
-          <n-data-table :columns="columns" :data="positions.filter(p => p.status === '已完成')" :pagination="{ pageSize: 10 }" :row-key="(row: Position) => row.id" />
+        <n-tab-pane name="CLOSED" tab="已关闭">
+          <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
       </n-tabs>
     </n-card>
@@ -35,30 +35,34 @@
       <n-divider title-placement="left">基本信息</n-divider>
       <n-form ref="formRef" :model="formState" label-placement="top">
         <div class="grid grid-cols-2 gap-x-4">
-          <n-form-item path="name" label="职位名称" :rule="{ required: true, message: '请输入职位名称', trigger: 'blur' }">
-            <n-input v-model:value="formState.name" placeholder="请输入职位名称" />
+          <n-form-item path="title" label="职位名称" :rule="{ required: true, message: '请输入职位名称', trigger: 'blur' }">
+            <n-input v-model:value="formState.title" placeholder="请输入职位名称" />
           </n-form-item>
-          <n-form-item path="department" label="所属部门" :rule="{ required: true, message: '请选择部门', trigger: 'change' }">
+          <n-form-item path="department" label="所属部门" :rule="reqSelect('请选择部门')">
             <n-select v-model:value="formState.department" placeholder="请选择部门" :options="departmentOptions" />
           </n-form-item>
 
-          <n-form-item path="demandCode" label="关联需求" :rule="{ required: true, message: '请选择关联需求', trigger: 'change' }">
-            <n-select v-model:value="formState.demandCode" placeholder="请选择需求" :options="demandOptions" />
+          <n-form-item path="demand" label="关联需求">
+            <n-select v-model:value="formState.demand" placeholder="请选择需求（可选）" :options="demandOptions" clearable />
           </n-form-item>
-          <n-form-item path="recruitmentProcess" label="招聘流程" :rule="{ required: true, message: '请选择招聘流程', trigger: 'change' }">
-            <n-select v-model:value="formState.recruitmentProcess" placeholder="请选择流程" :options="processOptions" />
+          <n-form-item path="process" label="招聘流程" :rule="reqSelect('请选择招聘流程')">
+            <n-select v-model:value="formState.process" placeholder="请选择流程" :options="processOptions" />
           </n-form-item>
 
-          <n-form-item path="priority" label="优先级" :rule="{ required: true, message: '请选择优先级', trigger: 'change' }">
+          <n-form-item path="priority" label="优先级" :rule="reqSelect('请选择优先级')">
             <n-select v-model:value="formState.priority" placeholder="请选择" :options="priorityOptions" />
           </n-form-item>
           <n-form-item path="headCount" label="需求人数" :rule="{ required: true, type: 'number', message: '请输入需求人数', trigger: 'blur' }">
             <n-input-number v-model:value="formState.headCount" :min="1" :max="100" style="width: 100%;" />
           </n-form-item>
 
-          <n-form-item path="salaryRange" label="薪资范围">
-            <n-select v-model:value="formState.salaryRange" placeholder="请选择" :options="salaryOptions" />
+          <n-form-item path="salaryMin" label="薪资下限（元/月）">
+            <n-input-number v-model:value="formState.salaryMin" :min="0" :step="1000" style="width: 100%;" placeholder="不限" />
           </n-form-item>
+          <n-form-item path="salaryMax" label="薪资上限（元/月）">
+            <n-input-number v-model:value="formState.salaryMax" :min="0" :step="1000" style="width: 100%;" placeholder="不限" />
+          </n-form-item>
+
           <n-form-item path="location" label="工作地点">
             <n-input v-model:value="formState.location" placeholder="请输入工作地点" />
           </n-form-item>
@@ -66,11 +70,11 @@
 
         <n-divider title-placement="left">人员配置</n-divider>
         <div class="grid grid-cols-2 gap-x-4">
-          <n-form-item path="positionOwner" label="职位负责人" :rule="{ required: true, message: '请选择职位负责人', trigger: 'change' }">
-            <n-select v-model:value="formState.positionOwner" placeholder="请选择" :options="ownerOptions" />
+          <n-form-item path="owner" label="职位负责人" :rule="reqSelect('请选择职位负责人')">
+            <n-select v-model:value="formState.owner" placeholder="请选择" :options="ownerOptions" />
           </n-form-item>
-          <n-form-item path="hiringManager" label="用人经理" :rule="{ required: true, type: 'array', message: '请选择用人经理', trigger: 'change' }">
-            <n-select v-model:value="formState.hiringManager" placeholder="请选择" multiple :options="managerOptions" />
+          <n-form-item path="hiringManager" label="用人经理" :rule="reqSelect('请选择用人经理')">
+            <n-select v-model:value="formState.hiringManager" placeholder="请选择" :options="managerOptions" />
           </n-form-item>
         </div>
 
@@ -97,27 +101,27 @@
       <template v-if="selectedPosition">
         <div class="grid grid-cols-2 gap-4">
           <div><strong>职位编号：</strong>{{ selectedPosition.code }}</div>
-          <div><strong>职位名称：</strong>{{ selectedPosition.name }}</div>
-          <div><strong>所属部门：</strong>{{ selectedPosition.department }}</div>
-          <div><strong>关联需求：</strong>{{ selectedPosition.demandCode }}</div>
-          <div><strong>招聘流程：</strong>{{ selectedPosition.recruitmentProcess }}</div>
-          <div><strong>优先级：</strong><n-tag :type="getPriorityType(selectedPosition.priority)">{{ selectedPosition.priority }}</n-tag></div>
-          <div><strong>职位状态：</strong><n-tag :type="getStatusType(selectedPosition.status)">{{ selectedPosition.status }}</n-tag></div>
-          <div><strong>需求人数：</strong>{{ selectedPosition.headCount }}人</div>
-          <div><strong>已入职：</strong>{{ selectedPosition.hiredCount }}人</div>
-          <div><strong>薪资范围：</strong>{{ selectedPosition.salaryRange }}</div>
-          <div><strong>工作地点：</strong>{{ selectedPosition.location }}</div>
+          <div><strong>职位名称：</strong>{{ selectedPosition.title }}</div>
+          <div><strong>所属部门：</strong>{{ selectedPosition.departmentName }}</div>
+          <div><strong>关联需求：</strong>{{ selectedPosition.demandName || '—' }}</div>
+          <div><strong>招聘流程：</strong>{{ selectedPosition.processName || selectedPosition.process }}</div>
+          <div><strong>优先级：</strong><n-tag :type="getPriorityType(selectedPosition.priority)">{{ selectedPosition.priority || '—' }}</n-tag></div>
+          <div><strong>职位状态：</strong><n-tag :type="getStatusType(selectedPosition.state)">{{ selectedPosition.stateDisplay }}</n-tag></div>
+          <div><strong>需求人数：</strong>{{ selectedPosition.headcount }} 人</div>
+          <div><strong>已入职：</strong>{{ selectedPosition.filledCount }} 人</div>
+          <div><strong>薪资范围：</strong>{{ salaryText(selectedPosition) }}</div>
+          <div><strong>工作地点：</strong>{{ selectedPosition.location || '—' }}</div>
           <div><strong>创建时间：</strong>{{ selectedPosition.createdAt }}</div>
         </div>
         <n-divider />
         <div class="grid grid-cols-2 gap-4">
-          <div><strong>职位负责人：</strong>{{ selectedPosition.positionOwner }}</div>
-          <div class="col-span-2"><strong>用人经理：</strong>{{ selectedPosition.hiringManager }}</div>
+          <div><strong>职位负责人：</strong>{{ selectedPosition.ownerName || '—' }}</div>
+          <div class="col-span-2"><strong>用人经理：</strong>{{ selectedPosition.hiringManagerName || '—' }}</div>
         </div>
         <n-divider />
         <div>
           <strong>职位描述：</strong>
-          <p>{{ selectedPosition.description }}</p>
+          <p>{{ selectedPosition.description || '—' }}</p>
         </div>
       </template>
     </n-modal>
@@ -126,283 +130,299 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { ref, reactive, computed, h } from 'vue';
-import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
-import { AddOutline } from '@vicons/ionicons5';
+import { ref, reactive, computed, h, onMounted } from 'vue'
+import { useMessage, NTag, NButton, NSpace, NDropdown } from 'naive-ui'
+import { AddOutline } from '@vicons/ionicons5'
+import {
+  listPositions,
+  createPosition,
+  updatePosition,
+  deletePosition,
+  transitionPosition,
+  listDepartments,
+  listProcesses,
+  listDemands,
+  listUsers,
+  extractApiError,
+  type PositionRow,
+  type Option,
+} from '@/api/position'
 
-interface Position {
-  id: string;
-  code: string;
-  name: string;
-  department: string;
-  demandCode: string;
-  recruitmentProcess: string;
-  priority: string;
-  status: string;
-  headCount: number;
-  hiredCount: number;
-  createdAt: string;
-  positionOwner: string;
-  hiringManager: string;
-  salaryRange: string;
-  location: string;
-  description: string;
-}
-
-import { extractApiError } from '../../api/dynamic-field'
 const { t } = useI18n()
 const message = useMessage()
 
-const activeTab = ref('all');
-const modalVisible = ref(false);
-const detailVisible = ref(false);
-const selectedPosition = ref<Position | null>(null);
-const formRef = ref();
-const saving = ref(false);
+const activeTab = ref('all')
+const loading = ref(false)
+const modalVisible = ref(false)
+const detailVisible = ref(false)
+const selectedPosition = ref<PositionRow | null>(null)
+const formRef = ref()
+const saving = ref(false)
 
-const defaultFormState = {
-  name: '',
-  department: undefined,
-  demandCode: undefined,
-  recruitmentProcess: undefined,
-  priority: undefined,
-  headCount: 1,
-  salaryRange: undefined,
-  location: '',
-  positionOwner: undefined,
-  hiringManager: [],
-  description: ''
-};
+const rows = ref<PositionRow[]>([])
 
-const formState = reactive<any>({ ...defaultFormState });
-
-const departmentOptions = [
-  { label: '技术部', value: '技术部' },
-  { label: '产品部', value: '产品部' },
-  { label: '设计部', value: '设计部' },
-  { label: '销售部', value: '销售部' },
-  { label: '人事部', value: '人事部' }
-]
-
-const demandOptions = [
-  { label: 'HC001 - 前端开发工程师', value: 'HC001' },
-  { label: 'HC002 - 产品经理', value: 'HC002' },
-  { label: 'HC003 - UI设计师', value: 'HC003' }
-]
-
-const processOptions = [
-  { label: '社会招聘流程', value: '社会招聘流程' },
-  { label: '校园招聘流程', value: '校园招聘流程' },
-  { label: '实习生招聘流程', value: '实习生招聘流程' }
-]
-
+const departmentOptions = ref<Option[]>([])
+const demandOptions = ref<Option[]>([])
+const processOptions = ref<Option[]>([])
+const ownerOptions = ref<Option[]>([])
+const managerOptions = ref<Option[]>([])
 const priorityOptions = [
   { label: '高', value: '高' },
   { label: '中', value: '中' },
-  { label: '低', value: '低' }
+  { label: '低', value: '低' },
 ]
 
-const salaryOptions = [
-  { label: '8K-12K', value: '8K-12K' },
-  { label: '12K-18K', value: '12K-18K' },
-  { label: '15K-25K', value: '15K-25K' },
-  { label: '20K-35K', value: '20K-35K' },
-  { label: '30K-50K', value: '30K-50K' }
-]
+const defaultFormState = {
+  title: '',
+  department: undefined as string | undefined,
+  demand: undefined as string | undefined,
+  process: undefined as string | undefined,
+  priority: '中',
+  headCount: 1,
+  salaryMin: null as number | null,
+  salaryMax: null as number | null,
+  location: '',
+  owner: undefined as string | number | undefined,
+  hiringManager: undefined as string | number | undefined,
+  description: '',
+}
 
-const ownerOptions = [
-  { label: '王五', value: '王五' },
-  { label: '周八', value: '周八' },
-  { label: '吴一', value: '吴一' }
-]
+const formState = reactive<any>({ ...defaultFormState })
 
-const managerOptions = [
-  { label: '李四', value: '李四' },
-  { label: '孙七', value: '孙七' },
-  { label: '郑十', value: '郑十' }
-]
-
-const positions = ref<Position[]>([
-  {
-    id: '1',
-    code: 'POS001',
-    name: '高级前端开发工程师',
-    department: '技术部',
-    demandCode: 'HC001',
-    recruitmentProcess: '社会招聘流程',
-    priority: '高',
-    status: '招聘中',
-    headCount: 2,
-    hiredCount: 0,
-    createdAt: '2024-01-15',
-    positionOwner: '王五',
-    hiringManager: '李四',
-    salaryRange: '18K-30K',
-    location: '上海市',
-    description: '负责公司前端技术开发',
+// 🔴 Naive/async-validator 陷阱：规则只写 { required, trigger } 时走「string 类型」校验，
+// 而 n-select 绑定的是数值型 id（user.id=1）时会被判非法 —— 明明选了下拉仍报「请选择 X」。
+// 用自定义 validator 做「非空」判断，类型无关（字符串 UUID / 数值 id 均通过）。
+const reqSelect = (message: string) => ({
+  required: true,
+  trigger: ['blur', 'change'] as const,
+  validator: (_rule: unknown, value: unknown) => {
+    if (value === undefined || value === null || value === '') return new Error(message)
+    return true
   },
-  {
-    id: '2',
-    code: 'POS002',
-    name: '产品经理',
-    department: '产品部',
-    demandCode: 'HC002',
-    recruitmentProcess: '社会招聘流程',
-    priority: '中',
-    status: '招聘中',
-    headCount: 1,
-    hiredCount: 0,
-    createdAt: '2024-01-20',
-    positionOwner: '周八',
-    hiringManager: '孙七',
-    salaryRange: '20K-35K',
-    location: '上海市',
-    description: '负责产品规划和设计',
-  },
-  {
-    id: '3',
-    code: 'POS003',
-    name: 'UI设计师',
-    department: '设计部',
-    demandCode: 'HC003',
-    recruitmentProcess: '社会招聘流程',
-    priority: '低',
-    status: '已完成',
-    headCount: 1,
-    hiredCount: 1,
-    createdAt: '2024-01-10',
-    positionOwner: '吴一',
-    hiringManager: '郑十',
-    salaryRange: '12K-20K',
-    location: '深圳市',
-    description: '负责产品UI设计',
-  },
-]);
+})
 
-const getStatusType = (status: string): 'success' | 'error' | 'info' | 'default' => {
-  const colors: Record<string, 'success' | 'error' | 'info' | 'default'> = {
-    '招聘中': 'success',
-    '已停招': 'error',
-    '已完成': 'info',
-  };
-  return colors[status] || 'default';
-};
+// ===== 状态机：合法流转动作（按下限状态映射） =====
+const TRANSITION_LABELS: Record<string, string> = {
+  submit_publish: '提交发布',
+  publish: '发布',
+  start_recruiting: '开始招聘',
+  pause: '暂停招聘',
+  resume: '恢复招聘',
+  close: '关闭',
+}
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ['submit_publish'],
+  PENDING_PUBLISH: ['publish'],
+  PUBLISHED: ['start_recruiting', 'close'],
+  RECRUITING: ['pause', 'close'],
+  PAUSED: ['resume', 'close'],
+  UNPUBLISHED: ['publish', 'close'],
+  CLOSED: [],
+}
 
-const getPriorityType = (priority: string): 'error' | 'warning' | 'success' | 'default' => {
-  const colors: Record<string, 'error' | 'warning' | 'success' | 'default'> = {
-    '高': 'error',
-    '中': 'warning',
-    '低': 'success',
-  };
-  return colors[priority] || 'default';
-};
+const filteredRows = computed(() =>
+  activeTab.value === 'all' ? rows.value : rows.value.filter((r) => r.state === activeTab.value),
+)
 
+const getStatusType = (state: string): 'success' | 'warning' | 'error' | 'info' | 'default' => {
+  const map: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
+    DRAFT: 'default',
+    PENDING_PUBLISH: 'info',
+    PUBLISHED: 'info',
+    RECRUITING: 'success',
+    PAUSED: 'warning',
+    UNPUBLISHED: 'default',
+    CLOSED: 'error',
+  }
+  return map[state] || 'default'
+}
+
+const getPriorityType = (priority?: string): 'error' | 'warning' | 'success' | 'default' => {
+  const map: Record<string, 'error' | 'warning' | 'success' | 'default'> = {
+    高: 'error',
+    中: 'warning',
+    低: 'success',
+  }
+  return (priority && map[priority]) || 'default'
+}
+
+const salaryText = (row: PositionRow): string => {
+  const min = row.salaryMin
+  const max = row.salaryMax
+  if (min != null && max != null) return `${min} - ${max} 元`
+  if (min != null) return `${min} 元起`
+  if (max != null) return `最高 ${max} 元`
+  return '面议'
+}
+
+// ===== 数据加载 =====
+async function loadPositions() {
+  loading.value = true
+  try {
+    rows.value = await listPositions()
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadOptions() {
+  const [depts, procs, demands, users] = await Promise.all([
+    listDepartments(),
+    listProcesses(),
+    listDemands(),
+    listUsers(),
+  ])
+  departmentOptions.value = depts
+  processOptions.value = procs
+  demandOptions.value = demands
+  ownerOptions.value = users
+  managerOptions.value = users
+}
+
+// ===== 弹窗/动作 =====
 const handleCreate = () => {
-  selectedPosition.value = null;
-  Object.assign(formState, defaultFormState);
-  modalVisible.value = true;
-};
+  selectedPosition.value = null
+  Object.assign(formState, defaultFormState)
+  modalVisible.value = true
+}
 
-const handleEdit = (record: Position) => {
-  selectedPosition.value = record;
+const handleEdit = (record: PositionRow) => {
+  selectedPosition.value = record
   Object.assign(formState, {
-    name: record.name,
+    title: record.title,
     department: record.department,
-    demandCode: record.demandCode,
-    recruitmentProcess: record.recruitmentProcess,
-    priority: record.priority,
-    headCount: record.headCount,
-    salaryRange: record.salaryRange,
-    location: record.location,
-    positionOwner: record.positionOwner,
+    demand: record.demand || undefined,
+    process: record.process,
+    priority: record.priority || '中',
+    headCount: record.headcount,
+    salaryMin: record.salaryMin != null ? Number(record.salaryMin) : null,
+    salaryMax: record.salaryMax != null ? Number(record.salaryMax) : null,
+    location: record.location || '',
+    owner: record.owner,
     hiringManager: record.hiringManager,
-    description: record.description
-  });
-  modalVisible.value = true;
-};
+    description: record.description || '',
+  })
+  modalVisible.value = true
+}
 
-const handleView = (record: Position) => {
-  selectedPosition.value = record;
-  detailVisible.value = true;
-};
+const handleView = (record: PositionRow) => {
+  selectedPosition.value = record
+  detailVisible.value = true
+}
 
 const handleSave = async () => {
   saving.value = true
   try {
     await formRef.value?.validate()
-    if (selectedPosition.value) {
-      const index = positions.value.findIndex(p => p.id === selectedPosition.value!.id);
-      if (index !== -1) {
-        positions.value[index] = { ...positions.value[index], ...formState };
-      }
-      message.success('职位更新成功');
-    } else {
-      const newPosition: Position = {
-        id: Date.now().toString(),
-        code: `POS00${positions.value.length + 1}`,
-        status: '招聘中',
-        hiredCount: 0,
-        createdAt: new Date().toISOString().split('T')[0],
-        ...formState
-      };
-      positions.value.push(newPosition);
-      message.success('职位创建成功');
+    const payload = {
+      title: formState.title,
+      department: formState.department,
+      demand: formState.demand || null,
+      process: formState.process,
+      priority: formState.priority,
+      headcount: formState.headCount,
+      salaryMin: formState.salaryMin,
+      salaryMax: formState.salaryMax,
+      location: formState.location,
+      owner: formState.owner,
+      hiringManager: formState.hiringManager,
+      description: formState.description,
     }
-    modalVisible.value = false;
+    if (selectedPosition.value) {
+      await updatePosition(selectedPosition.value.id, payload)
+      message.success('职位更新成功')
+    } else {
+      await createPosition(payload)
+      message.success('职位创建成功')
+    }
+    modalVisible.value = false
+    await loadPositions()
   } catch (error) {
-    message.error(extractApiError(error, '表单验证失败'));
+    message.error(extractApiError(error, '保存失败'))
   } finally {
     saving.value = false
   }
-};
+}
 
-const handleToggleStatus = (record: Position) => {
-  const index = positions.value.findIndex(p => p.id === record.id);
-  if (index !== -1) {
-    const currentStatus = positions.value[index].status;
-    positions.value[index].status = currentStatus === '招聘中' ? '已停招' : '招聘中';
-    message.success(`职位已${currentStatus === '招聘中' ? '停招' : '开启招聘'}`);
+const handleTransition = async (record: PositionRow, action: string) => {
+  try {
+    await transitionPosition(record.id, action)
+    message.success(`已执行：${TRANSITION_LABELS[action] || action}`)
+    await loadPositions()
+  } catch (error) {
+    message.error(extractApiError(error, '状态流转失败'))
   }
-};
+}
+
+const handleDelete = async (record: PositionRow) => {
+  if (!window.confirm(`确认删除职位「${record.title}」？该操作会软删除（不可恢复展示）。`)) return
+  try {
+    await deletePosition(record.id)
+    message.success('职位已删除')
+    await loadPositions()
+  } catch (error) {
+    message.error(extractApiError(error, '删除失败'))
+  }
+}
 
 const columns = computed(() => [
-  { title: '职位编号', key: 'code', width: 100 },
-  { title: '职位名称', key: 'name', width: 180, ellipsis: { tooltip: true } },
-  { title: '所属部门', key: 'department', width: 100 },
-  { title: '关联需求', key: 'demandCode', width: 100 },
-  { title: '招聘流程', key: 'recruitmentProcess', width: 120 },
+  { title: '职位编号', key: 'code', width: 110 },
+  { title: '职位名称', key: 'title', width: 180, ellipsis: { tooltip: true } },
+  { title: '所属部门', key: 'departmentName', width: 110 },
+  { title: '关联需求', key: 'demandName', width: 140, ellipsis: { tooltip: true } },
+  { title: '招聘流程', key: 'processName', width: 140, ellipsis: { tooltip: true } },
   {
     title: '优先级',
     key: 'priority',
     width: 80,
-    render: (row: Position) => h(NTag, { type: getPriorityType(row.priority) }, { default: () => row.priority })
+    render: (row: PositionRow) => h(NTag, { type: getPriorityType(row.priority) }, { default: () => row.priority || '—' }),
   },
   {
     title: '职位状态',
-    key: 'status',
+    key: 'state',
     width: 90,
-    render: (row: Position) => h(NTag, { type: getStatusType(row.status) }, { default: () => row.status })
+    render: (row: PositionRow) => h(NTag, { type: getStatusType(row.state) }, { default: () => row.stateDisplay }),
   },
   {
     title: '需求/已入职',
-    key: 'headCount',
+    key: 'headcount',
     width: 110,
-    render: (row: Position) => `${row.headCount}/${row.hiredCount}`
+    render: (row: PositionRow) => `${row.headcount}/${row.filledCount}`,
   },
-  { title: '创建时间', key: 'createdAt', width: 110 },
+  { title: '创建时间', key: 'createdAt', width: 170 },
   {
     title: '操作',
     key: 'action',
-    width: 200,
-    render: (row: Position) => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleView(row) }, { default: () => '查看' }),
-      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleToggleStatus(row) }, { default: () =>
-        row.status === '招聘中' ? '停招' : '开启'
-      })
-    ])
+    width: 220,
+    fixed: 'right',
+    render: (row: PositionRow) => {
+      const children = [
+        h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleView(row) }, { default: () => '查看' }),
+        h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+      ]
+      const actions = VALID_TRANSITIONS[row.state] || []
+      if (actions.length) {
+        const opts = actions.map((a) => ({ label: TRANSITION_LABELS[a], key: a }))
+        children.push(
+          h(
+            NDropdown,
+            { options: opts, onSelect: (k: string) => handleTransition(row, k), trigger: 'click' },
+            { default: () => h(NButton, { text: true, type: 'primary', size: 'small' }, { default: () => '状态流转' }) },
+          ),
+        )
+      }
+      children.push(
+        h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
+      )
+      return h(NSpace, { size: 'small' }, () => children)
+    },
   },
-]);
+])
+
+onMounted(() => {
+  loadPositions()
+  loadOptions()
+})
 </script>
 
 <style scoped>

@@ -16,3 +16,6 @@ e2e/.auth/
 # Playwright 产物
 playwright-report/
 test-results/
+
+# Playwright 真机截图留证（不入库，仅本地核验用）
+e2e/__shots__/

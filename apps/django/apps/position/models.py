@@ -61,6 +61,13 @@ class Position(FullAuditModel):
     headcount = models.IntegerField(default=1, verbose_name='招聘人数')
     filled_count = models.IntegerField(default=0, verbose_name='已招人数')
 
+    # 优先级：高/中/低（业务简单枚举，无独立表）
+    priority = models.CharField(
+        max_length=10,
+        choices=[('高', '高'), ('中', '中'), ('低', '低')],
+        default='中', blank=True, verbose_name='优先级',
+    )
+
     # T9/G1 路径 (c)：Demand ↔ Position 之前**没有**任何外键关联，
     # `demand.positions` 在运行时是 AttributeError（`positions` 是 Position.process
     # 的反向名，即 `process.positions`）。需求升级要"升 Demand 及其 Positions"，
