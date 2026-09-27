@@ -39,6 +39,7 @@ from .serializers import (
     FieldGroupSerializer,
     FieldLinkageRuleSerializer,
 )
+from .system_fields import SYSTEM_FIELD_LOCKED_KEYS, SYSTEM_FIELD_PROTECTED_KEYS
 from .validators import validate_field_value
 
 # CSV 单元格内容上限：Excel 单元格硬上限 32,767 字符，超限会让 Excel 打开 CSV 时
@@ -249,10 +250,29 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         return Response({'data': serializer.data}, status=status.HTTP_201_CREATED, headers=headers)
 
     def update(self, request, *args, **kwargs) -> Response:
-        """PUT / PATCH /dynamic-fields/<resource>/fields/<id>/ → 200 ``{"data": {...}}``"""
+        """PUT / PATCH /dynamic-fields/<resource>/fields/<id>/ → 200 ``{"data": {...}}``
+
+        2026-09-27 (兵哥) 系统内置字段权威守卫(防绕过, 前端另有禁用双重防护):
+          - 核心标识三键(需求编号/名称/状态, is_locked) → 任何修改 400;
+          - 其余系统字段 → 结构性 key(field_key/field_type/options 等,
+            值来源是模型列, 改了不生效)强制回灌实例当前值, 仅放行展示属性调整。
+        """
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        data = request.data
+        if getattr(instance, 'is_system', False):
+            if instance.field_key in SYSTEM_FIELD_LOCKED_KEYS:
+                raise drf_serializers.ValidationError(
+                    {'detail': f'系统内置字段「{instance.label}」为核心标识(编号/名称/状态), 不可编辑。'}
+                )
+            payload = dict(data) if data is not None else {}
+            # 结构性属性(值来源是 Demand 模型列, 改了不生效)强制回灌实例当前值:
+            # 既满足序列化器必填校验(如 field_type), 又确保客户端无法改类型/选项等结构性字段。
+            for key in SYSTEM_FIELD_PROTECTED_KEYS:
+                if hasattr(instance, key):
+                    payload[key] = getattr(instance, key)
+            data = payload
+        serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -324,7 +344,13 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         会留下指向已删字段的悬空引用(规则仍生效但永远匹配不到)。
         这里在软删字段时, 把同 resource 下引用该 field_key 的条件/动作条目摘掉,
         并同步清理已清空的条件/动作数组。
+
+        2026-09-27 (兵哥): 系统内置字段(is_system)不可删除 → 400。
         """
+        if getattr(instance, 'is_system', False):
+            raise drf_serializers.ValidationError(
+                {'detail': f'系统内置字段「{instance.label}」不可删除。'}
+            )
         field_key = instance.field_key
         resource = instance.resource
 

@@ -153,6 +153,10 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         default=list, blank=True,
         help_text='组合字段子结构 [{key,label,type,required}]; 仅 COMPOSITE 类型使用',
     )
+    # 2026-09-27 (兵哥): 系统内置字段标记 — 由种子迁移按 system_fields 注册表 get_or_create
+    # (resource='Demand' 的预置模型字段纳入字段管理)。is_system 行不可删除;
+    # 编号/名称/状态三类核心标识完全锁定(system_fields.SYSTEM_FIELD_LOCKED_KEYS)。
+    is_system = models.BooleanField(default=False, db_index=True, help_text='系统内置字段(种子预置, 不可删除)')
 
     class Meta:
         db_table = 'dynamic_fields'

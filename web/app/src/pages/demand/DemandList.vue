@@ -153,6 +153,11 @@
                     <span class="info-label">所属部门</span>
                     <span class="info-value">{{ selectedDemand.departmentName || selectedDemand.department?.name || '-' }}</span>
                   </div>
+                  <!-- 配置驱动的系统字段 (需求字段管理·系统信息分组) 并入本区块, 避免同名分区 -->
+                  <div v-for="f in systemInfoGroupFields" :key="f.id" class="info-item">
+                    <span class="info-label">{{ f.label }}</span>
+                    <span class="info-value">{{ displayText(f, fieldValue(f)) }}</span>
+                  </div>
                 </div>
               </div>
 
@@ -454,7 +459,9 @@ const dynamicValues = ref<Record<string, any>>({})
 const formValues = reactive<Record<string, any>>({})
 
 // 系统固定字段 / 核心描述字段: 不进入「按配置分组」渲染, 避免与下方固定区块重复。
-const RESERVED_KEYS = new Set(['code', 'demand_type', 'state', 'jd', 'requirements'])
+// 2026-09-27 (兵哥): 需求预置系统字段纳入字段管理后, department/hr/title 也加入保留集 —
+// 部门/负责HR 已在上方固定「系统信息」区块渲染, 需求名称即抽屉标题, 避免与配置分组重复/空白。
+const RESERVED_KEYS = new Set(['code', 'demand_type', 'state', 'department', 'hr', 'title', 'jd', 'requirements'])
 // 编辑表单已由硬编码输入覆盖的模型字段: 不进入「扩展字段」动态渲染, 避免重复录入。
 const FORM_COVERED_KEYS = new Set([
   'demand_type', 'headcount', 'position_title', 'level', 'priority', 'jd', 'requirements',
@@ -516,9 +523,11 @@ const departmentOptions = computed(() =>
 )
 
 // 详情页「按配置分组」的可见字段 (剔除系统/保留字段, 按分组聚合并按 order_index 排序)
+// 2026-09-27 (兵哥): groupName=系统信息 的配置分组不单独渲染 — 其字段并入上方固定
+// 「系统信息」区块 (systemInfoGroupFields), 避免出现两个同名分区。
 const groupedFields = computed(() => {
   const visible = demandFields.value.filter(
-    f => f.isVisible !== false && !RESERVED_KEYS.has(f.fieldKey),
+    f => f.isVisible !== false && !RESERVED_KEYS.has(f.fieldKey) && (f.groupName || '') !== '系统信息',
   )
   const order: string[] = []
   const buckets: Record<string, FieldDefinition[]> = {}
@@ -532,6 +541,15 @@ const groupedFields = computed(() => {
     fields: buckets[name].slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
   }))
 })
+
+// 固定「系统信息」区块追加渲染的配置字段 ( groupName=系统信息 的可配置系统字段,
+// 如 需求人数/紧急程度/职级/职务; 编号/类型/状态/部门/HR 走固定项或标题, 经 RESERVED_KEYS 剔除 )
+const systemInfoGroupFields = computed(() =>
+  demandFields.value
+    .filter(f => f.isVisible !== false && !RESERVED_KEYS.has(f.fieldKey) && (f.groupName || '') === '系统信息')
+    .slice()
+    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
+)
 
 // 编辑表单的「扩展字段」(配置中可见、且未被硬编码表单覆盖的字段)
 const dynamicFormFields = computed(() =>

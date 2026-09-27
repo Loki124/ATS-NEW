@@ -85,6 +85,19 @@
         style="width: 680px; max-width: 92vw;"
       >
         <n-form :model="fieldForm" label-placement="left" label-width="100px">
+          <n-alert
+            v-if="fieldEditing && fieldForm.isSystem"
+            :type="fieldForm.isLocked ? 'error' : 'warning'"
+            :show-icon="true"
+            style="margin-bottom: 16px"
+          >
+            <template v-if="fieldForm.isLocked">
+              此为系统核心标识字段（编号 / 名称 / 状态），由系统锁定，不可编辑、停用或删除。
+            </template>
+            <template v-else>
+              此为系统内置字段，结构性属性（字段类型 / 选项 / 字段 Key 等）由系统保护不可修改；可调整显示名称、必填、可见、占位、帮助、排序、分组与可见权限。
+            </template>
+          </n-alert>
           <n-form-item label="字段名称" required>
             <n-input v-model:value="fieldForm.label" placeholder="e.g. 身份证号" />
           </n-form-item>
@@ -93,7 +106,7 @@
           </n-form-item>
           <n-form-item label="字段类型" required>
             <!-- 2026-09-24 (兵哥): 分组 options + 虚拟滚动会间歇性错位(只渲分组头/选项不可见), 仅23项禁用虚拟滚动 -->
-            <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" :virtual-scroll="false" />
+            <n-select v-model:value="fieldForm.fieldType" :options="FIELD_TYPE_OPTIONS" :virtual-scroll="false" :disabled="!!fieldForm.isSystem" />
           </n-form-item>
           <!-- 2026-09-15 (兵哥) 日期型字段：格式精度单选(年/年月/年月日)，范围类型渲染区间选择器 -->
           <n-form-item v-if="isDateType" label="日期格式">
@@ -849,6 +862,10 @@ const fieldForm = reactive<{
   subFields: SubField[];
   /** 2026-09-24 (兵哥) 限制条件配置 (按字段类型差异化, 后端 normalize_validation 规范化) */
   validation: FieldValidation;
+  /** 2026-09-27 (兵哥): 系统内置字段(种子预置) — 不可删除; 结构性属性后端守卫剥除 */
+  isSystem?: boolean;
+  /** 系统核心标识字段(编号/名称/状态)完全锁定 — 不可编辑/停用/删除 */
+  isLocked?: boolean;
 }>({
   fieldKey: '', label: '', labelEn: '', fieldType: 'TEXT',
   moduleId: null, groupId: null,
@@ -864,9 +881,15 @@ const fieldForm = reactive<{
   regionPreviewValue: null,
   subFields: [],
   validation: {},
+  isSystem: false,
+  isLocked: false,
 });
 
-const fieldNeedsOptions = computed(() => ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT'].includes(fieldForm.fieldType));
+// 系统内置字段的结构性属性(选项/字段类型)由后端守卫剥除, 编辑态不暴露选项编辑器。
+const fieldNeedsOptions = computed(() =>
+  !fieldForm.isSystem &&
+  ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT'].includes(fieldForm.fieldType),
+);
 
 // ---------------------------------------------------------------------------
 // 2026-09-24 (兵哥) 限制条件配置: 与后端 validators.py 类型分组对齐
@@ -1141,6 +1164,14 @@ const fieldColumns = computed(() => [
     render: (row: FieldDefinition) => h(NTag, { size: 'small', type: FIELD_TYPE_COLOR[row.fieldType] || 'default' }, () => FIELD_TYPE_LABEL[row.fieldType] || row.fieldType),
   },
   {
+    title: '属性', key: 'system', width: 120,
+    render: (row: FieldDefinition) => {
+      if (row.isLocked) return h(NTag, { size: 'small', type: 'error', bordered: false }, () => '锁定(核心)');
+      if (row.isSystem) return h(NTag, { size: 'small', type: 'info', bordered: false }, () => '系统内置');
+      return h(NTag, { size: 'small', type: 'default', bordered: false }, () => '自定义');
+    },
+  },
+  {
     title: '可见权限', key: 'visibilityPermission', width: 130,
     render: (row: FieldDefinition) => {
       const v = row.visibilityPermission || 'ALL_VISIBLE';
@@ -1149,21 +1180,29 @@ const fieldColumns = computed(() => [
     },
   },
   {
-    title: '操作', key: 'action', width: 280, fixed: 'right' as const,
+    title: '操作', key: 'action', width: 320, fixed: 'right' as const,
     render: (row: FieldDefinition) => {
       const disabled = row.status === 'inactive';
-      return h(NSpace, { size: 4, wrap: false }, {
-        default: () => [
-          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => '管理权限', icon: () => h(ShieldCheckmarkOutline) }),
-          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
-          h(NButton, {
-            size: 'tiny', quaternary: true,
-            type: disabled ? 'primary' : 'default',
-            onClick: () => toggleFieldStatus(row),
-          }, { default: () => (disabled ? '启用' : '停用'), icon: () => disabled ? h(PlayOutline) : h(BanOutline) }),
+      // 2026-09-27 (兵哥): 系统核心字段(编号/名称/状态)完全锁定 → 禁用全部操作;
+      // 其余系统字段可调整展示属性, 但不可删除(种子预置, 删除由后端 400 拦截)。
+      const locked = !!row.isLocked;
+      const system = !!row.isSystem;
+      const children: any[] = [
+        h(NButton, { size: 'tiny', quaternary: true, disabled: locked, onClick: () => openPermissionModal(row) }, { default: () => '管理权限', icon: () => h(ShieldCheckmarkOutline) }),
+        h(NButton, { size: 'tiny', quaternary: true, disabled: locked, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
+        h(NButton, {
+          size: 'tiny', quaternary: true,
+          type: disabled ? 'primary' : 'default',
+          disabled: locked,
+          onClick: () => toggleFieldStatus(row),
+        }, { default: () => (disabled ? '启用' : '停用'), icon: () => disabled ? h(PlayOutline) : h(BanOutline) }),
+      ];
+      if (!system) {
+        children.push(
           h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteField(row) }, { default: () => '删除', icon: () => h(TrashOutline) }),
-        ],
-      });
+        );
+      }
+      return h(NSpace, { size: 4, wrap: false }, { default: () => children });
     },
   },
 ]);
@@ -1215,6 +1254,8 @@ function resetFieldForm() {
     regionPreviewValue: null,
     subFields: [],
     validation: {},
+    isSystem: false,
+    isLocked: false,
   });
 }
 
@@ -1251,6 +1292,8 @@ function openFieldEdit(row: FieldDefinition) {
     dateFormat: (row.dateFormat as DateFormatValue) || 'DAY',
     regionLevel: (row.regionLevel as RegionLevelValue) || 'DISTRICT',
     regionPreviewValue: null,
+    isSystem: !!row.isSystem,
+    isLocked: !!row.isLocked,
     // 2026-09-16 (兵哥): 组合字段子结构回填
     subFields: row.subFields ? row.subFields.map((s) => ({ ...s })) : [],
     // 2026-09-24 (兵哥): 限制条件回填 (按字段类型差异化, 后端 normalize 兜底)

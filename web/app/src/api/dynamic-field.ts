@@ -190,6 +190,10 @@ export interface FieldDefinition {
   regionLevel?: RegionLevelValue | null;
   /** 2026-09-16 (兵哥): 组合字段子结构定义(仅 COMPOSITE 使用); 普通字段为 null */
   subFields?: SubField[] | null;
+  /** 2026-09-27 (兵哥): 系统内置字段(种子预置) — 不可删除; 结构性属性后端守卫剥除 */
+  isSystem?: boolean;
+  /** 系统核心标识字段(需求编号/名称/状态)完全锁定 — 不可编辑/停用/删除 */
+  isLocked?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

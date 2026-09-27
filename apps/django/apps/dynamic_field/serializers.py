@@ -17,6 +17,7 @@
 from rest_framework import serializers
 
 from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule
+from .system_fields import SYSTEM_FIELD_LOCKED_KEYS
 from .validators import normalize_validation
 
 #: (resource, field_key) 冲突时返回给前端的友好提示
@@ -152,6 +153,9 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
     group = FieldGroupSerializer(read_only=True)
     module_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
     group_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    # 2026-09-27 系统内置字段: is_system 只读落库值; is_locked = is_system 且属核心标识三键
+    is_system = serializers.BooleanField(read_only=True)
+    is_locked = serializers.SerializerMethodField()
 
     class Meta:
         model = DynamicField
@@ -173,8 +177,13 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             'region_level',
             # 2026-09-16 (兵哥): 组合字段子结构定义(仅 COMPOSITE 使用)
             'sub_fields',
+            # 2026-09-27 (兵哥): 系统内置字段标记 + 核心标识锁定标记
+            'is_system', 'is_locked',
         ]
-        read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group']
+        read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group', 'is_system']
+
+    def get_is_locked(self, obj) -> bool:
+        return bool(obj.is_system) and obj.field_key in SYSTEM_FIELD_LOCKED_KEYS
 
     def to_representation(self, instance):
         """读时若配置了 ``options_source``, 按数据源解析并回填 ``options``。
