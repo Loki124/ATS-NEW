@@ -223,6 +223,7 @@ pip install django-fsm==3.0.1 && pip uninstall -y django-fsm-2
 - **业务代码仓（`ATS-NEW`）**：本文涉及的代码、迁移、命令均已提交，见 §0 提交列表。
 - **部署仓（`ats-deploy-infra`）**：`PII_HASH_SALT` 注入、依赖安装、migrate、回填命令执行、回滚。
 - 本仓不含生产拓扑与密钥托管，密钥具体存放位置由部署侧决定；**唯一硬性要求是不得入库**。
+- **Dockerfile 归属（易踩坑）**：backend 镜像的 `Dockerfile`（含 `ENV PII_HASH_SALT=""` 占位）位于部署仓 `ats-deploy-infra`，**不在业务仓 `ATS-NEW`**。业务仓只通过 `apps/django/.env.example` 提供模板占位；镜像构建与运行时注入由部署侧负责。业务侧 Agent 改代码时若发现"本仓无 Dockerfile"属正常，**不应在业务仓新建 Dockerfile**——其 `ENV` 占位符由运维侧在 `ats-deploy-infra` 同仓处理。
 
 ---
 
