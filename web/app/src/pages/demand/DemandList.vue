@@ -118,63 +118,48 @@
                    系统固定字段(编号/类型/状态/审批状态/部门) + 按配置分组渲染其余字段；
                    模型映射字段(如 headcount/priority/level/positionTitle)取 demand 对象，
                    其余扩展字段取 DynamicFieldValue。 -->
+              <!-- ★ 2026-09-28 (兵哥): 详情展示统一由「招聘需求表单设置」驱动 —
+                   分组顺序 / 字段显隐 / 必填与表单设置实时一致; 系统字段/模型字段
+                   取 demand 对象, 扩展字段取 DynamicFieldValue; 审批状态/描述信息/招聘进度为派生/固定区块。 -->
+              <!-- 审批状态: 由需求状态推导的派生信息, 独立于字段管理 -->
               <div class="detail-section">
                 <div class="section-header">
-                  <span class="section-title">系统信息</span>
+                  <span class="section-title">审批状态</span>
                 </div>
                 <div class="info-grid">
-                  <div class="info-item">
-                    <span class="info-label">需求编号</span>
-                    <span class="info-value code">{{ selectedDemand.code }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">需求类型</span>
-                    <span class="info-value">
-                      <n-tag :type="selectedDemand.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
-                        {{ selectedDemand.demandType === 'SOCIAL' ? '社会招聘' : '校园招聘' }}
-                      </n-tag>
-                    </span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">需求状态</span>
-                    <span class="info-value">
-                      <n-tag :type="getStatusType(selectedDemand.state)" size="small">
-                        {{ getStatusText(selectedDemand.state) }}
-                      </n-tag>
-                    </span>
-                  </div>
                   <div class="info-item">
                     <span class="info-label">审批状态</span>
                     <span class="info-value">
                       <n-tag :type="approvalInfo.type" size="small">{{ approvalInfo.text }}</n-tag>
                     </span>
                   </div>
-                  <div class="info-item">
-                    <span class="info-label">所属部门</span>
-                    <span class="info-value">{{ selectedDemand.departmentName || selectedDemand.department?.name || '-' }}</span>
-                  </div>
-                  <!-- 配置驱动的系统字段 (需求字段管理·系统信息分组) 并入本区块, 避免同名分区 -->
-                  <div v-for="f in systemInfoGroupFields" :key="f.id" class="info-item">
-                    <span class="info-label">{{ f.label }}</span>
-                    <span class="info-value">{{ displayText(f, fieldValue(f)) }}</span>
-                  </div>
                 </div>
               </div>
 
-              <!-- 按配置分组渲染的字段 -->
-              <div v-for="grp in groupedFields" :key="grp.name" class="detail-section">
+              <!-- 配置驱动的分组字段 (系统字段 + 模型字段 + 扩展字段) -->
+              <div v-for="b in formBuckets" :key="b.key" class="detail-section">
                 <div class="section-header">
-                  <span class="section-title">{{ grp.name }}</span>
+                  <span class="section-title">{{ b.group?.name || '其他' }}</span>
                 </div>
                 <div class="info-grid">
-                  <div v-for="f in grp.fields" :key="f.id" class="info-item">
-                    <span class="info-label">{{ f.label }}</span>
-                    <span class="info-value">{{ displayText(f, fieldValue(f)) }}</span>
+                  <div v-for="m in b.fields" :key="m.field.id" class="info-item">
+                    <span class="info-label">{{ m.field.label }}</span>
+                    <span v-if="m.field.fieldKey === 'state'" class="info-value">
+                      <n-tag :type="getStatusType(fieldValue(m.field))" size="small">
+                        {{ getStatusText(fieldValue(m.field)) }}
+                      </n-tag>
+                    </span>
+                    <span v-else-if="m.field.fieldKey === 'demand_type'" class="info-value">
+                      <n-tag :type="fieldValue(m.field) === 'SOCIAL' ? 'info' : 'success'" size="small">
+                        {{ fieldValue(m.field) === 'SOCIAL' ? '社会招聘' : '校园招聘' }}
+                      </n-tag>
+                    </span>
+                    <span v-else class="info-value">{{ displayText(m.field, fieldValue(m.field)) }}</span>
                   </div>
                 </div>
               </div>
 
-              <!-- 描述信息 (JD / 任职要求, 核心内容, 不受字段管理显隐影响) -->
+              <!-- 描述信息 (JD / 任职要求, 核心内容, 固定区块不受字段管理显隐影响) -->
               <div class="detail-section">
                 <div class="section-header">
                   <span class="section-title">描述信息</span>
@@ -333,127 +318,136 @@
       :mask-closable="false"
     >
       <n-form :model="formData" label-placement="left" :label-width="100">
-        <n-form-item label="需求名称" required>
-          <n-input v-model:value="formData.name" placeholder="请输入需求名称" />
-        </n-form-item>
-        <n-form-item label="所属部门" required>
-          <n-select
-            v-model:value="formData.departmentId"
-            placeholder="请选择部门"
-            :options="departmentOptions"
-          />
-        </n-form-item>
-        <n-form-item label="需求类型" required>
-          <n-select
-            v-model:value="formData.demandType"
-            placeholder="请选择"
-            :options="demandTypeOptions"
-          />
-        </n-form-item>
-        <n-form-item label="需求人数">
-          <n-input-number v-model:value="formData.positionCount" :min="1" :max="100" style="width: 100%" />
-        </n-form-item>
-        <n-form-item label="优先级">
-          <n-select v-model:value="formData.priority" :options="priorityOptions" style="width: 100%" />
-        </n-form-item>
-        <n-form-item label="职位系列">
-          <n-input v-model:value="formData.positionSeries" placeholder="如：技术、产品、运营" />
-        </n-form-item>
-        <n-form-item label="职级">
-          <n-input v-model:value="formData.jobLevel" placeholder="如：P6、M1" />
-        </n-form-item>
+        <!-- ★ 2026-09-28 (兵哥): 编辑表单统一由「招聘需求表单设置」驱动 —
+             分组顺序 / 字段显隐 / 必填与表单设置实时一致; 模型字段绑 formData, 扩展字段绑 formValues。 -->
+        <template v-for="s in editSections" :key="s.key">
+          <div v-if="editSections.length > 1" class="form-group-header">{{ s.name }}</div>
+          <n-form-item
+            v-for="item in s.fields"
+            :key="item.field.fieldKey"
+            :label="item.field.label"
+            :required="item.required"
+          >
+            <!-- 模型映射字段: 直接绑 formData[prop] -->
+            <template v-if="item.binding">
+              <n-input
+                v-if="item.binding.kind === 'text'"
+                v-model:value="formData[item.binding.prop]"
+                :placeholder="item.field.placeholder || '请输入'"
+                style="width: 100%"
+              />
+              <n-input-number
+                v-else-if="item.binding.kind === 'number'"
+                v-model:value="formData[item.binding.prop]"
+                :min="1" :max="100" style="width: 100%"
+              />
+              <n-select
+                v-else-if="item.binding.kind === 'department'"
+                v-model:value="formData[item.binding.prop]"
+                :options="departmentOptions"
+                placeholder="请选择部门"
+                style="width: 100%"
+              />
+              <n-select
+                v-else-if="item.binding.kind === 'select'"
+                v-model:value="formData[item.binding.prop]"
+                :options="editBindingOptions(item.field.fieldKey)"
+                style="width: 100%"
+              />
+              <n-input
+                v-else-if="item.binding.kind === 'textarea'"
+                v-model:value="formData[item.binding.prop]"
+                type="textarea" :rows="3"
+                :placeholder="item.field.placeholder || '请输入'"
+                style="width: 100%"
+              />
+            </template>
+
+            <!-- 扩展(动态)字段: 绑 formValues[fieldKey] -->
+            <template v-else>
+              <RichEditor
+                v-if="item.field.fieldType === 'RICH_TEXT'"
+                v-model:html="formValues[item.field.fieldKey]"
+                :placeholder="item.field.placeholder || '请输入'"
+                style="width: 100%"
+              />
+              <n-input
+                v-else-if="isPlainTextType(item.field.fieldType)"
+                v-model:value="formValues[item.field.fieldKey]"
+                :type="item.field.fieldType === 'MULTILINE_TEXT' ? 'textarea' : 'text'"
+                :placeholder="item.field.placeholder || ''"
+                style="width: 100%"
+              />
+              <n-input-number
+                v-else-if="isNumberType(item.field.fieldType)"
+                v-model:value="formValues[item.field.fieldKey]"
+                :min="(item.field.validation as any)?.min ?? undefined"
+                :max="(item.field.validation as any)?.max ?? undefined"
+                :placeholder="item.field.placeholder || '请输入数字'"
+                style="width: 100%"
+              />
+              <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
+              <n-space
+                v-else-if="item.field.fieldType === 'RANGE_NUMBER'"
+                align="center" :size="8" style="width: 100%"
+              >
+                <n-input-number
+                  v-model:value="formValues[item.field.fieldKey].min"
+                  :min="(item.field.validation as any)?.min ?? undefined"
+                  :max="(item.field.validation as any)?.max ?? undefined"
+                  placeholder="最小值"
+                  style="flex: 1; min-width: 0"
+                />
+                <span>~</span>
+                <n-input-number
+                  v-model:value="formValues[item.field.fieldKey].max"
+                  :min="(item.field.validation as any)?.min ?? undefined"
+                  :max="(item.field.validation as any)?.max ?? undefined"
+                  placeholder="最大值"
+                  style="flex: 1; min-width: 0"
+                />
+                <n-text v-if="(item.field.validation as any)?.unit" depth="3">{{ (item.field.validation as any).unit }}</n-text>
+              </n-space>
+              <!-- 选项类 (含 人员/部门 引用) -->
+              <n-select
+                v-else-if="isOptionType(item.field.fieldType)"
+                v-model:value="formValues[item.field.fieldKey]"
+                :options="selectOptions(item.field)"
+                :multiple="isMultiType(item.field.fieldType)"
+                :placeholder="item.field.placeholder || '请选择'"
+                style="width: 100%"
+              />
+              <!-- 日期 / 日期范围 -->
+              <n-date-picker
+                v-else-if="isDateType(item.field.fieldType)"
+                :value="dateValue(item.field)"
+                :type="item.field.fieldType === 'DATE_RANGE' ? 'daterange' : 'date'"
+                clearable
+                style="width: 100%"
+                :is-date-disabled="dateDisabled(item.field) || undefined"
+                @update:value="(v: number | [number, number] | null) => onDateInput(item.field, v)"
+              />
+              <!-- 布尔 -->
+              <n-switch v-else-if="item.field.fieldType === 'BOOLEAN'" v-model:value="formValues[item.field.fieldKey]" />
+              <!-- 附件 / 其他: URL 文本 -->
+              <n-input
+                v-else
+                v-model:value="formValues[item.field.fieldKey]"
+                :placeholder="item.field.placeholder || '请输入'"
+                style="width: 100%"
+              />
+            </template>
+          </n-form-item>
+        </template>
+
+        <!-- 描述信息 (JD / 任职要求): 固定区块, 不纳入字段管理注册表(见 system_fields.py) -->
+        <n-divider>描述信息</n-divider>
         <n-form-item label="需求描述">
           <n-input v-model:value="formData.description" type="textarea" :rows="3" placeholder="请输入需求描述" />
         </n-form-item>
         <n-form-item label="候选人要求">
           <n-input v-model:value="formData.requirements" type="textarea" :rows="3" placeholder="请输入候选人要求" />
         </n-form-item>
-
-        <!-- ★ 2026-09-24 需求 4: 动态(非模型映射)配置字段录入 -->
-        <template v-if="dynamicFormFields.length">
-          <n-divider>扩展字段</n-divider>
-          <n-form-item
-            v-for="f in dynamicFormFields"
-            :key="f.id"
-            :label="f.label"
-            :required="f.isRequired"
-          >
-            <!-- 富文本 (RICH_TEXT): 严格按字段管理配置的字段类型渲染为富文本编辑器 -->
-            <RichEditor
-              v-if="f.fieldType === 'RICH_TEXT'"
-              v-model:html="formValues[f.fieldKey]"
-              :placeholder="f.placeholder || '请输入'"
-              style="width: 100%"
-            />
-            <!-- 文本类 -->
-            <n-input
-              v-else-if="isPlainTextType(f.fieldType)"
-              v-model:value="formValues[f.fieldKey]"
-              :type="f.fieldType === 'MULTILINE_TEXT' ? 'textarea' : 'text'"
-              :placeholder="f.placeholder || ''"
-              style="width: 100%"
-            />
-            <!-- 数字类 -->
-            <n-input-number
-              v-else-if="isNumberType(f.fieldType)"
-              v-model:value="formValues[f.fieldKey]"
-              :min="(f.validation as any)?.min ?? undefined"
-              :max="(f.validation as any)?.max ?? undefined"
-              :placeholder="f.placeholder || '请输入数字'"
-              style="width: 100%"
-            />
-            <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
-            <n-space
-              v-else-if="f.fieldType === 'RANGE_NUMBER'"
-              align="center" :size="8" style="width: 100%"
-            >
-              <n-input-number
-                v-model:value="formValues[f.fieldKey].min"
-                :min="(f.validation as any)?.min ?? undefined"
-                :max="(f.validation as any)?.max ?? undefined"
-                placeholder="最小值"
-                style="flex: 1; min-width: 0"
-              />
-              <span>~</span>
-              <n-input-number
-                v-model:value="formValues[f.fieldKey].max"
-                :min="(f.validation as any)?.min ?? undefined"
-                :max="(f.validation as any)?.max ?? undefined"
-                placeholder="最大值"
-                style="flex: 1; min-width: 0"
-              />
-              <n-text v-if="(f.validation as any)?.unit" depth="3">{{ (f.validation as any).unit }}</n-text>
-            </n-space>
-            <!-- 选项类 (含 人员/部门 引用) -->
-            <n-select
-              v-else-if="isOptionType(f.fieldType)"
-              v-model:value="formValues[f.fieldKey]"
-              :options="selectOptions(f)"
-              :multiple="isMultiType(f.fieldType)"
-              :placeholder="f.placeholder || '请选择'"
-              style="width: 100%"
-            />
-            <!-- 日期 / 日期范围 -->
-            <n-date-picker
-              v-else-if="isDateType(f.fieldType)"
-              :value="dateValue(f)"
-              :type="f.fieldType === 'DATE_RANGE' ? 'daterange' : 'date'"
-              clearable
-              style="width: 100%"
-              :is-date-disabled="dateDisabled(f) || undefined"
-              @update:value="(v: number | [number, number] | null) => onDateInput(f, v)"
-            />
-            <!-- 布尔 -->
-            <n-switch v-else-if="f.fieldType === 'BOOLEAN'" v-model:value="formValues[f.fieldKey]" />
-            <!-- 附件 / 其他: URL 文本 -->
-            <n-input
-              v-else
-              v-model:value="formValues[f.fieldKey]"
-              :placeholder="f.placeholder || '请输入'"
-              style="width: 100%"
-            />
-          </n-form-item>
-        </template>
       </n-form>
 
       <template #footer>
@@ -476,37 +470,59 @@ import dayjs from 'dayjs'
 import RichEditor from '../../components/RichEditor.vue'
 
 import {
-  listFields, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
-  type FieldDefinition, type FieldOption,
+  listFields, listGroups, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
+  type FieldDefinition, type FieldOption, type FieldGroup,
 } from '../../api/dynamic-field'
+import {
+  fetchFormConfig, mergeFields, groupFieldsByGroup, type FormConfig,
+} from '../../api/form-config'
 import { resolveDateBound } from '../../utils/fieldValidation'
 const { t } = useI18n()
 const message = useMessage()
 
-// --- 需求字段管理配置 (resource=Demand) ---
-// ★ 2026-09-24 需求 4: 详情页字段受「系统设置 → 需求字段管理」控制。
-// 这些字段定义驱动详情页分组渲染与表单扩展字段录入。
+// --- 需求字段管理配置 (resource=Demand) + 表单设置 (FormConfig) ---
+// ★ 2026-09-28 (兵哥): 详情页与编辑表单统一由「招聘需求表单设置」驱动 —
+// 分组顺序 / 字段显隐 / 必填均与表单设置实时一致。
 const demandFields = ref<FieldDefinition[]>([])
+const demandGroups = ref<FieldGroup[]>([])
+const demandFormConfig = ref<FormConfig>({ fields: [], groupOrder: [] })
 const dynamicValues = ref<Record<string, any>>({})
 const formValues = reactive<Record<string, any>>({})
 
-// 系统固定字段 / 核心描述字段: 不进入「按配置分组」渲染, 避免与下方固定区块重复。
-// 2026-09-27 (兵哥): 需求预置系统字段纳入字段管理后, department/hr/title 也加入保留集 —
-// 部门/负责HR 已在上方固定「系统信息」区块渲染, 需求名称即抽屉标题, 避免与配置分组重复/空白。
-const RESERVED_KEYS = new Set(['code', 'demand_type', 'state', 'department', 'hr', 'title', 'jd', 'requirements'])
-// 编辑表单已由硬编码输入覆盖的模型字段: 不进入「扩展字段」动态渲染, 避免重复录入。
-const FORM_COVERED_KEYS = new Set([
-  'demand_type', 'headcount', 'position_title', 'level', 'priority', 'jd', 'requirements',
-])
-
+// 系统字段 / 核心描述字段: 模型映射字段取 demand 对象, 其余扩展字段取 DynamicFieldValue。
 // 模型映射字段: field_key → 在 demand 详情对象上的属性名(camelCase, 经后端渲染)。
-// 命中则取 demand 模型值; 否则取 DynamicFieldValue。
+// jd/requirements 由固定「描述信息」区块承载, 不在此映射。
 const MODEL_ATTR_MAP: Record<string, string> = {
   headcount: 'headcount',
   priority: 'priority',
   level: 'level',
   position_title: 'positionTitle',
 }
+
+// 系统字段取值特例 (非简单属性映射): 部门/HR 取序列化后的 *Name
+const SYSTEM_VALUE_GETTERS: Record<string, (d: any) => any> = {
+  code: (d) => d?.code,
+  title: (d) => d?.name,
+  state: (d) => d?.state,
+  demand_type: (d) => d?.demandType,
+  department: (d) => d?.departmentName || d?.department?.name,
+  hr: (d) => d?.hrName,
+}
+
+// 编辑表单: field_key → formData 属性绑定 (模型字段复用既有 formData 结构)。
+// 注意: jd/requirements 不属于「需求字段管理」注册表(见 system_fields.py 注释),
+// 由详情/编辑的固定「描述信息」区块承载, 不在此处; 其余模型字段均纳入表单设置驱动。
+const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' }> = {
+  title: { prop: 'name', kind: 'text' },
+  department: { prop: 'departmentId', kind: 'department' },
+  demand_type: { prop: 'demandType', kind: 'select' },
+  headcount: { prop: 'positionCount', kind: 'number' },
+  priority: { prop: 'priority', kind: 'select' },
+  position_title: { prop: 'positionSeries', kind: 'text' },
+  level: { prop: 'jobLevel', kind: 'text' },
+}
+// 编辑表单不渲染的系统字段: 编号(只读标识) / 状态(流程管控) / 负责HR(流程指派)
+const EDIT_SKIP_KEYS = new Set(['code', 'state', 'hr'])
 
 const loading = ref(false)
 const demands = ref<any[]>([])
@@ -554,41 +570,35 @@ const departmentOptions = computed(() =>
   departments.value.map(d => ({ label: d.name, value: d.id }))
 )
 
-// 详情页「按配置分组」的可见字段 (剔除系统/保留字段, 按分组聚合并按 order_index 排序)
-// 2026-09-27 (兵哥): groupName=系统信息 的配置分组不单独渲染 — 其字段并入上方固定
-// 「系统信息」区块 (systemInfoGroupFields), 避免出现两个同名分区。
-const groupedFields = computed(() => {
-  const visible = demandFields.value.filter(
-    f => f.isVisible !== false && !RESERVED_KEYS.has(f.fieldKey) && (f.groupName || '') !== '系统信息',
-  )
-  const order: string[] = []
-  const buckets: Record<string, FieldDefinition[]> = {}
-  for (const f of visible) {
-    const g = f.groupName || '其他'
-    if (!buckets[g]) { buckets[g] = []; order.push(g) }
-    buckets[g].push(f)
-  }
-  return order.map(name => ({
-    name,
-    fields: buckets[name].slice().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
-  }))
-})
-
-// 固定「系统信息」区块追加渲染的配置字段 ( groupName=系统信息 的可配置系统字段,
-// 如 需求人数/紧急程度/职级/职务; 编号/类型/状态/部门/HR 走固定项或标题, 经 RESERVED_KEYS 剔除 )
-const systemInfoGroupFields = computed(() =>
-  demandFields.value
-    .filter(f => f.isVisible !== false && !RESERVED_KEYS.has(f.fieldKey) && (f.groupName || '') === '系统信息')
-    .slice()
-    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
+// ★ 2026-09-28 (兵哥): 表单设置聚合 — 字段 × FormConfig(显隐/必填) → 启用字段按分组顺序桶。
+// 与「系统设置 → 招聘需求表单设置」的实时预览完全同源 (mergeFields + groupFieldsByGroup)。
+const formBuckets = computed(() =>
+  groupFieldsByGroup(
+    mergeFields(demandFields.value, demandFormConfig.value).filter(m => m.enabled),
+    demandFormConfig.value.groupOrder,
+    demandGroups.value,
+  ).filter(b => b.fields.length > 0),
 )
 
-// 编辑表单的「扩展字段」(配置中可见、且未被硬编码表单覆盖的字段)
+// 编辑表单区块: 启用字段按表单设置分组; 模型字段绑 formData, 其余绑 formValues
+const editSections = computed(() => formBuckets.value
+  .map(b => ({
+    key: b.key,
+    name: b.group?.name || '其他',
+    fields: b.fields
+      .filter(m => !EDIT_SKIP_KEYS.has(m.field.fieldKey))
+      .map(m => ({
+        field: m.field,
+        required: m.required,
+        binding: FORM_MODEL_BINDING[m.field.fieldKey] || null,
+      })),
+  }))
+  .filter(s => s.fields.length > 0),
+)
+
+// 编辑表单中的动态(非模型绑定)字段 — 用于 formValues 初始化/回填/提交收集
 const dynamicFormFields = computed(() =>
-  demandFields.value
-    .filter(f => f.isVisible !== false && !FORM_COVERED_KEYS.has(f.fieldKey))
-    .slice()
-    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
+  editSections.value.flatMap(s => s.fields.filter(m => !m.binding).map(m => m.field)),
 )
 
 // --- 类型判断 (与 DynamicFieldEntry.vue 对齐) ---
@@ -606,6 +616,13 @@ function selectOptions(f: FieldDefinition): { label: string; value: any }[] {
   return (f.options || []).map((o: FieldOption) => ({
     label: o.label || o.value, value: o.value,
   }))
+}
+
+// 编辑表单中「模型映射 + 选项类」字段(需求类型 / 优先级)的下拉项
+function editBindingOptions(key: string): { label: string; value: any }[] {
+  if (key === 'demand_type') return demandTypeOptions
+  if (key === 'priority') return priorityOptions
+  return []
 }
 
 // 日期选择器受控: ISO 字符串 <-> 时间戳
@@ -642,8 +659,10 @@ function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | unde
   }
 }
 
-// 详情页某字段的取值: 模型映射字段取 demand 对象, 否则取 DynamicFieldValue
+// 详情页某字段的取值: 系统字段取值特例 → 模型映射属性 → 动态字段值
 function fieldValue(f: FieldDefinition): any {
+  const getter = SYSTEM_VALUE_GETTERS[f.fieldKey]
+  if (getter) return getter(selectedDemand.value)
   const attr = MODEL_ATTR_MAP[f.fieldKey]
   if (attr) return selectedDemand.value?.[attr]
   return dynamicValues.value?.[f.fieldKey]
@@ -826,13 +845,16 @@ const fetchDepartments = async () => {
   }
 }
 
+// 并行加载: 字段定义 / 分组 / 表单设置, 任一失败都不阻断其余(独立容错)。
 const loadDemandFields = async () => {
-  try {
-    demandFields.value = await listFields('Demand')
-  } catch (error) {
-    // 配置加载失败不应阻断详情/列表; 仅降级为不渲染配置字段
-    demandFields.value = []
-  }
+  const [f, g, c] = await Promise.allSettled([
+    listFields('Demand'),
+    listGroups('Demand'),
+    fetchFormConfig('Demand'),
+  ])
+  demandFields.value = f.status === 'fulfilled' ? f.value : []
+  demandGroups.value = g.status === 'fulfilled' ? g.value : []
+  demandFormConfig.value = c.status === 'fulfilled' ? c.value : { fields: [], groupOrder: [] }
 }
 
 // 打开详情: 拉取完整详情(含 JD/任职要求) + 动态字段值
@@ -1192,6 +1214,19 @@ onMounted(() => {
   font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink);
+}
+
+/* 编辑表单: 按表单设置分组渲染时的分组标题 (与详情页 section-title 风格一致) */
+.form-group-header {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+  margin: var(--space-4) 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.form-group-header:first-child {
+  margin-top: 0;
 }
 
 .info-grid {
