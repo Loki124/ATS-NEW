@@ -6,9 +6,9 @@
 
   - 三个核心标识字段完全锁定(LOCKED): 需求编号 / 需求名称 / 需求状态 —
     不可编辑、不可停用、不可删除;
-  - 其余系统字段可调整展示属性(显示名称/英文/可见/必填/占位/帮助/排序/分组/可见权限/启停),
-    但结构性属性(field_key/field_type/options 等)由后端权威守卫剥除 —
-    这些字段的值来源是 Demand 模型列(见前端 MODEL_ATTR_MAP), 改类型/选项不生效, 不如禁止;
+  - 其余系统字段(非锁定)支持修改编辑, 含字段类型 / 选项等结构性属性;
+    仅核心标识 key(field_key / is_system / resource)由后端权威守卫保留,
+    防止破坏系统引用(MODEL_ATTR_MAP / 联动规则)或重分类;
   - 任何系统字段均不可删除(destroy → 400)。
 
 前端双重防护: 管理页对 isLocked 行禁用全部操作、对可编辑系统行隐藏删除、
@@ -18,11 +18,11 @@
 #: 完全锁定的核心标识字段(不可编辑 / 不可停用 / 不可删除)
 SYSTEM_FIELD_LOCKED_KEYS = frozenset({'code', 'title', 'state'})
 
-#: 系统字段编辑时后端强制剥除的结构性 key(值来源是模型列, 改了不生效)
-SYSTEM_FIELD_PROTECTED_KEYS = frozenset({
-    'field_key', 'field_type', 'options', 'options_source',
-    'sub_fields', 'is_system', 'resource',
-})
+#: 非锁定系统字段编辑时, 后端强制保留的核心身份 key。
+#: 仅 field_key / is_system / resource 三类身份键受保护 ——
+#: 改 field_key 会破坏 MODEL_ATTR_MAP / 联动规则的引用, 改 is_system/resource 会重分类;
+#: 字段类型 / 选项 / 选项来源 / 子字段等结构性属性放行, 允许业务自定义(用户要求其余系统字段支持修改编辑)。
+SYSTEM_FIELD_IDENTITY_KEYS = frozenset({'field_key', 'is_system', 'resource'})
 
 #: 需求状态选项 (与 demand.models.DemandState 对齐)
 _DEMAND_STATE_OPTIONS = [
@@ -54,7 +54,8 @@ SYSTEM_GROUP_CODE = 'system_info'
 SYSTEM_GROUP_NAME = '系统信息'
 
 #: Demand 预置系统字段注册表。
-#: locked=True 的行完全锁定; 其余可编辑展示属性。
+#: locked=True 的行完全锁定(不可编辑 / 不可停用 / 不可删除);
+#: locked=False 的行可编辑(含字段类型 / 选项等结构性属性, 仅 field_key 等身份键受保护)。
 #: 说明: 需求描述(jd)/任职要求(requirements)走详情页固定「描述信息」区块(多行版式),
 #: 不纳入本注册表, 避免与固定区块重复渲染。
 DEMAND_SYSTEM_FIELDS = [

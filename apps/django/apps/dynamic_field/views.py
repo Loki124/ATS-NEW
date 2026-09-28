@@ -39,7 +39,7 @@ from .serializers import (
     FieldGroupSerializer,
     FieldLinkageRuleSerializer,
 )
-from .system_fields import SYSTEM_FIELD_LOCKED_KEYS, SYSTEM_FIELD_PROTECTED_KEYS
+from .system_fields import SYSTEM_FIELD_LOCKED_KEYS, SYSTEM_FIELD_IDENTITY_KEYS
 from .validators import validate_field_value
 
 # CSV 单元格内容上限：Excel 单元格硬上限 32,767 字符，超限会让 Excel 打开 CSV 时
@@ -253,9 +253,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         """PUT / PATCH /dynamic-fields/<resource>/fields/<id>/ → 200 ``{"data": {...}}``
 
         2026-09-27 (兵哥) 系统内置字段权威守卫(防绕过, 前端另有禁用双重防护):
-          - 核心标识三键(需求编号/名称/状态, is_locked) → 任何修改 400;
-          - 其余系统字段 → 结构性 key(field_key/field_type/options 等,
-            值来源是模型列, 改了不生效)强制回灌实例当前值, 仅放行展示属性调整。
+          - 核心标识三键(需求编号/名称/状态, is_locked) → 任何修改 400(不可编辑/停用/删除);
+          - 其余系统字段(非锁定) → 仅核心身份 key(field_key/is_system/resource)强制回灌,
+            字段类型/选项等结构性属性放行, 满足用户"其余字段均支持修改编辑"的要求。
         """
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -266,9 +266,10 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                     {'detail': f'系统内置字段「{instance.label}」为核心标识(编号/名称/状态), 不可编辑。'}
                 )
             payload = dict(data) if data is not None else {}
-            # 结构性属性(值来源是 Demand 模型列, 改了不生效)强制回灌实例当前值:
-            # 既满足序列化器必填校验(如 field_type), 又确保客户端无法改类型/选项等结构性字段。
-            for key in SYSTEM_FIELD_PROTECTED_KEYS:
+            # 非锁定系统字段: 仅强制回灌核心身份 key(field_key/is_system/resource),
+            # 防止破坏系统引用(MODEL_ATTR_MAP / 联动规则)或重分类;
+            # 字段类型/选项等结构性属性放行, 允许业务自定义。
+            for key in SYSTEM_FIELD_IDENTITY_KEYS:
                 if hasattr(instance, key):
                     payload[key] = getattr(instance, key)
             data = payload
