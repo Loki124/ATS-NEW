@@ -107,17 +107,13 @@
             type="info"
             :title="t('pages.settings.ResumeParserEngine.s32')"
             class="rpe-warn"
-          >
-            {{ t('pages.settings.ResumeParserEngine.s32') }}
-          </n-alert>
+          />
           <n-alert
             v-else-if="!srForm.api_key && !hasSavedKey"
             type="warning"
             :title="t('pages.settings.ResumeParserEngine.s30')"
             class="rpe-warn"
-          >
-            {{ t('pages.settings.ResumeParserEngine.s30') }}
-          </n-alert>
+          />
         </div>
       </section>
 
