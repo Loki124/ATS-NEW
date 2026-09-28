@@ -137,6 +137,17 @@ class Candidate(FSMModelMixin, FullAuditModel):
     # 摩卡同步
     moka_candidate_id = models.CharField(max_length=100, null=True, blank=True, db_index=True, verbose_name='摩卡候选人ID')
 
+    # 招聘官 / 负责人（批量分配招聘官 batch/assign 用）
+    recruiter = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='recruited_candidates',
+        verbose_name='招聘官',
+    )
+
+    # 归档（批量归档 batch/archive 用，软标志，可逆）
+    is_archived = models.BooleanField(default=False, db_index=True, verbose_name='是否归档')
+    archived_at = models.DateTimeField(null=True, blank=True, verbose_name='归档时间')
+
     class Meta:
         db_table = 'candidates'
         verbose_name = '候选人'
@@ -356,3 +367,98 @@ class CandidateFieldValue(TimestampedModel):
 
     def __str__(self):
         return f'CandidateFieldValue({self.candidate_id}/{self.field_key})'
+
+
+# ============================================================
+# 候选人维度批量操作审计记录（G9 PRD：前端 /candidates/batch/* 真实后端）
+# 注意：process app 的 CandidateScreen / CandidateRecommendation 是「流程维度」
+# （挂在 RecruitmentProcess 下）。此处是「候选人维度」批量初筛 / 推荐到职位，
+# 语义不同，故独立建模型，不复用流程维度表。
+# ============================================================
+class CandidateScreening(SoftDeleteModel):
+    """候选人维度批量初筛记录 — 审计+查询
+
+    POST /api/v1/candidates/batch/screen/ 写入（区别于 process 维度的 CandidateScreen）。
+    """
+    SCREEN_RESULTS = [
+        ('PASS', '通过'),
+        ('FAIL', '不通过'),
+        ('KEEP', '待议'),
+    ]
+
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    candidate = models.ForeignKey(
+        Candidate, on_delete=models.PROTECT,
+        related_name='screening_records', verbose_name='候选人',
+    )
+    result = models.CharField(
+        max_length=16, choices=SCREEN_RESULTS, default='PASS', verbose_name='初筛结果',
+    )
+    comment = models.TextField(blank=True, verbose_name='初筛备注')
+    screener = models.ForeignKey(
+        'core.User', on_delete=models.PROTECT,
+        related_name='candidate_screenings', verbose_name='初筛人',
+    )
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        db_index=True, verbose_name='招聘类型',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='初筛时间')
+
+    class Meta:
+        db_table = 'candidate_screenings'
+        verbose_name = '候选人初筛记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'result']),
+            models.Index(fields=['screener', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'CandidateScreening[{self.candidate_id}] {self.result}'
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+
+
+class CandidatePositionRecommendation(SoftDeleteModel):
+    """候选人 ↔ 职位 推荐记录 — 审计+查询
+
+    POST /api/v1/candidates/batch/recommend/ 写入（区别于 process 维度的 CandidateRecommendation）。
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    candidate = models.ForeignKey(
+        Candidate, on_delete=models.PROTECT,
+        related_name='position_recommendations', verbose_name='候选人',
+    )
+    position = models.ForeignKey(
+        'position.Position', on_delete=models.PROTECT,
+        related_name='candidate_recommendations', verbose_name='推荐职位',
+    )
+    reason = models.TextField(blank=True, verbose_name='推荐理由')
+    recommender = models.ForeignKey(
+        'core.User', on_delete=models.PROTECT,
+        related_name='position_recommendations', verbose_name='推荐人',
+    )
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        db_index=True, verbose_name='招聘类型',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='推荐时间')
+
+    class Meta:
+        db_table = 'candidate_position_recommendations'
+        verbose_name = '候选人职位推荐记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'position']),
+            models.Index(fields=['recommender', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'CandidatePositionRecommendation[{self.candidate_id}→{self.position_id}]'
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

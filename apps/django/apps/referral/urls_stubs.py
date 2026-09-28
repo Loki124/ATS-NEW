@@ -204,33 +204,10 @@ def login_alias(request):
 
 
 # ============================================================
-# Candidate batch (G9 PRD)
+# Candidate batch (G9 PRD) — 已迁出
+# 真实后端见 apps/candidate/views.py (CandidateBatch*View) + apps/candidate/urls.py
+# (batch/recommend|archive|assign|export|screen)。本文件 stub 计数 66 → 56 (只降不升)。
 # ============================================================
-@_scoped_view(methods=['POST'], resource_code='recruit:candidate:create')
-def candidate_batch_recommend(request):
-    # 2026-09-27 P0-3 治理: 原 _ok() 伪装 success:true + 假 recommendationId 却一行库都不写
-    # (FE api/candidate.ts:69 真实调用)。按 R5/R6 安全收敛规约返 501, 待 candidate app 补真实批量推荐后迁出。
-    return _not_implemented('candidate_batch_recommend', request, '批量推荐尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
-
-
-@_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
-def candidate_batch_archive(request):
-    return _not_implemented('candidate_batch_archive', request, '批量归档尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
-
-
-@_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
-def candidate_batch_assign(request):
-    return _not_implemented('candidate_batch_assign', request, '批量分配招聘官尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
-
-
-@_scoped_view(methods=['POST'], resource_code='recruit:candidate:export')
-def candidate_batch_export(request):
-    return _not_implemented('candidate_batch_export', request, '批量导出尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
-
-
-@_scoped_view(methods=['POST'], resource_code='recruit:candidate:edit')
-def candidate_batch_screen(request):
-    return _not_implemented('candidate_batch_screen', request, '批量初筛尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
 # ============================================================
@@ -600,18 +577,7 @@ urlpatterns = [
     path('login', login_alias, name='login-alias'),
     path('login/', login_alias),
 
-    # Candidate batch
-    path('candidates/batch/recommend', candidate_batch_recommend, name='candidate-batch-recommend'),
-    path('candidates/batch/recommend/', candidate_batch_recommend),
-    path('candidates/batch/archive', candidate_batch_archive, name='candidate-batch-archive'),
-    path('candidates/batch/archive/', candidate_batch_archive),
-    path('candidates/batch/assign', candidate_batch_assign, name='candidate-batch-assign'),
-    path('candidates/batch/assign/', candidate_batch_assign),
-    path('candidates/batch/export', candidate_batch_export, name='candidate-batch-export'),
-    path('candidates/batch/export/', candidate_batch_export),
-    path('candidates/batch/screen', candidate_batch_screen, name='candidate-batch-screen'),
-    path('candidates/batch/screen/', candidate_batch_screen),
-
+    # Candidate batch — 已迁出至 apps/candidate/urls.py (真实后端)
     # Recruitment process
     path('recruitment-rules/stage-rules', stage_rules, name='recruitment-stage-rules'),
     path('recruitment-rules/stage-rules/', stage_rules),

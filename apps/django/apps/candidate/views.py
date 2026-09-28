@@ -30,6 +30,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
+from django.http import HttpResponse
+from django.utils import timezone
+from django.contrib.auth import get_user_model
 
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
@@ -38,7 +42,13 @@ from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.core.scope_resolver import scope_filter_q
 
-from .models import Candidate, CandidateTag, CandidateFieldValue
+from .models import (
+    Candidate,
+    CandidateTag,
+    CandidateFieldValue,
+    CandidateScreening,
+    CandidatePositionRecommendation,
+)
 from .serializers import (
     CandidateCreateSerializer,
     CandidateDetailSerializer,
@@ -553,3 +563,219 @@ class CandidateResumeFieldsView(APIView):
             )
             saved[fk] = obj.value
         return Response({'success': True, 'data': saved})
+
+
+# ============================================================
+# G9 PRD: 候选人维度批量操作真实后端
+# 替代 apps/referral/urls_stubs.py 中 candidate_batch_* 的 501 stub。
+# 响应壳与 process 维度 batch 端点一致: {success, data:{results:[...]}}
+# 注意: drf-camel-case 会把请求体转 snake_case, 故读 candidate_ids/position_id/recruiter_id;
+#       响应经 CamelCaseJSONRenderer 转回 camelCase (candidateId/recommendationId/...)。
+# ============================================================
+def _current_recruit_type(request):
+    """双系统硬分区: 取请求上的 recruit_type (RecruitTypeMiddleware 注入), 无则 None。"""
+    return getattr(request, 'recruit_type', None)
+
+
+class CandidateBatchRecommendView(APIView):
+    """批量推荐候选人到职位 → 写入 CandidatePositionRecommendation。
+
+    POST /api/v1/candidates/batch/recommend/
+    body: {candidateIds: string[], positionId: string, comment?: string}
+    """
+    permission_classes = [IsHROrAbove]
+
+    def post(self, request):
+        candidate_ids = request.data.get('candidate_ids', [])
+        position_id = request.data.get('position_id')
+        comment = request.data.get('comment', '')
+        if not candidate_ids:
+            raise ValidationError('candidate_ids 不能为空')
+        if not position_id:
+            raise ValidationError('position_id 不能为空')
+
+        from apps.position.models import Position
+        try:
+            position = Position.objects.get(pk=position_id)
+        except Position.DoesNotExist:
+            return Response(
+                {'success': False, 'message': 'POSITION_NOT_FOUND'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        results = []
+        for cid in candidate_ids:
+            try:
+                cand = Candidate.objects.get(pk=cid)
+                rec = CandidatePositionRecommendation.objects.create(
+                    candidate=cand,
+                    position=position,
+                    reason=comment,
+                    recommender=request.user,
+                    recruit_type=cand.recruit_type,
+                )
+                results.append({
+                    'candidate_id': cid,
+                    'success': True,
+                    'recommendation_id': rec.id,
+                })
+            except Candidate.DoesNotExist:
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'recommendation_id': None,
+                    'error': 'CANDIDATE_NOT_FOUND',
+                })
+        return Response({'success': True, 'data': {'results': results}})
+
+
+class CandidateBatchArchiveView(APIView):
+    """批量归档候选人 → 置 is_archived=True (软标志, 可逆)。
+
+    POST /api/v1/candidates/batch/archive/
+    body: {candidateIds: string[], reason?: string}
+    """
+    permission_classes = [IsHROrAbove]
+
+    def post(self, request):
+        candidate_ids = request.data.get('candidate_ids', [])
+        if not candidate_ids:
+            raise ValidationError('candidate_ids 不能为空')
+
+        qs = Candidate.objects.filter(id__in=candidate_ids)
+        rt = _current_recruit_type(request)
+        if rt:
+            qs = qs.filter(recruit_type=rt)
+        updated = qs.update(is_archived=True, archived_at=timezone.now())
+        results = [{'candidate_id': cid, 'success': True} for cid in candidate_ids]
+        return Response({'success': True, 'data': {'results': results, 'updated': updated}})
+
+
+class CandidateBatchAssignView(APIView):
+    """批量分配招聘官 → 置 Candidate.recruiter。
+
+    POST /api/v1/candidates/batch/assign/
+    body: {candidateIds: string[], recruiterId: string}
+    """
+    permission_classes = [IsHROrAbove]
+
+    def post(self, request):
+        candidate_ids = request.data.get('candidate_ids', [])
+        recruiter_id = request.data.get('recruiter_id')
+        if not candidate_ids:
+            raise ValidationError('candidate_ids 不能为空')
+        if not recruiter_id:
+            raise ValidationError('recruiter_id 不能为空')
+
+        User = get_user_model()
+        try:
+            recruiter = User.objects.get(pk=recruiter_id)
+        except User.DoesNotExist:
+            return Response(
+                {'success': False, 'message': 'RECRUITER_NOT_FOUND'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        qs = Candidate.objects.filter(id__in=candidate_ids)
+        rt = _current_recruit_type(request)
+        if rt:
+            qs = qs.filter(recruit_type=rt)
+        updated = qs.update(recruiter=recruiter)
+        results = [{'candidate_id': cid, 'success': True} for cid in candidate_ids]
+        return Response({'success': True, 'data': {'results': results, 'updated': updated}})
+
+
+class CandidateBatchScreenView(APIView):
+    """批量初筛候选人 → 写入 CandidateScreening (候选人维度)。
+
+    POST /api/v1/candidates/batch/screen/
+    body: {candidateIds: string[], result: 'PASS'|'FAIL'|'KEEP', comment?: string}
+    """
+    permission_classes = [IsHROrAbove]
+
+    def post(self, request):
+        candidate_ids = request.data.get('candidate_ids', [])
+        result = request.data.get('result')
+        comment = request.data.get('comment', '')
+        if not candidate_ids:
+            raise ValidationError('candidate_ids 不能为空')
+        if result not in ('PASS', 'FAIL', 'KEEP'):
+            raise ValidationError("result 必须是 'PASS' / 'FAIL' / 'KEEP'")
+
+        results = []
+        for cid in candidate_ids:
+            try:
+                cand = Candidate.objects.get(pk=cid)
+                rec = CandidateScreening.objects.create(
+                    candidate=cand,
+                    result=result,
+                    comment=comment,
+                    screener=request.user,
+                    recruit_type=cand.recruit_type,
+                )
+                results.append({
+                    'candidate_id': cid,
+                    'success': True,
+                    'screening_id': rec.id,
+                    'result': result,
+                })
+            except Candidate.DoesNotExist:
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'screening_id': None,
+                    'error': 'CANDIDATE_NOT_FOUND',
+                })
+        return Response({'success': True, 'data': {'results': results}})
+
+
+class CandidateBatchExportView(APIView):
+    """批量导出候选人 → CSV (utf-8-sig, Excel 兼容) blob。
+
+    POST /api/v1/candidates/batch/export/
+    body: {candidateIds?: string[], filter?: {state?, keyword?}}
+    """
+    permission_classes = [IsHROrAbove]
+
+    def post(self, request):
+        from django.db.models import Q
+        import csv
+        import io
+
+        candidate_ids = request.data.get('candidate_ids') or []
+        filter_ = request.data.get('filter') or {}
+
+        qs = Candidate.objects.all()
+        rt = _current_recruit_type(request)
+        if rt:
+            qs = qs.filter(recruit_type=rt)
+        if candidate_ids:
+            qs = qs.filter(id__in=candidate_ids)
+        elif filter_:
+            if filter_.get('state'):
+                qs = qs.filter(current_state=filter_['state'])
+            kw = filter_.get('keyword')
+            if kw:
+                qs = qs.filter(Q(name__icontains=kw) | Q(phone__icontains=kw))
+        qs = qs.select_related('recruiter')[:2000]
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow([
+            '姓名', '手机号', '邮箱', '性别', '最高学历', '当前公司', '当前职位',
+            '期望薪资', '当前城市', '招聘类型', '状态', '是否归档', '招聘官', '创建时间',
+        ])
+        for c in qs:
+            writer.writerow([
+                c.name, c.phone, c.email or '', c.gender or '',
+                c.highest_education or '', c.current_company or '', c.current_position or '',
+                c.expected_salary if c.expected_salary is not None else '',
+                c.current_city or '', c.recruit_type,
+                c.current_state, '是' if c.is_archived else '否',
+                c.recruiter.real_name if c.recruiter else '',
+                c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '',
+            ])
+        content = buf.getvalue().encode('utf-8-sig')
+        resp = HttpResponse(content, content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = 'attachment; filename="candidates_export.csv"'
+        return resp
