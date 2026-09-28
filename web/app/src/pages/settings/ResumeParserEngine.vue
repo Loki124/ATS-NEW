@@ -13,35 +13,102 @@
 
         <n-radio-group v-model:value="selected" class="rpe-radio-group">
           <div class="rpe-options">
-            <label
-              v-for="opt in engineOptions"
-              :key="opt.value"
-              class="rpe-option"
-              :class="{ 'is-selected': selected === opt.value, 'is-disabled': !isSelectable(opt.value) }"
-            >
-              <div class="rpe-option-head">
-                <n-radio :value="opt.value" :disabled="!isSelectable(opt.value)" />
-                <span class="rpe-option-name">{{ opt.label }}</span>
-                <n-tag v-if="!isSelectable(opt.value)" size="small" type="error" round>
-                  {{ t('pages.settings.ResumeParserEngine.s10') }}
-                </n-tag>
-              </div>
-              <p class="rpe-option-desc">{{ opt.desc }}</p>
-              <div class="rpe-option-status">
-                <span class="rpe-status-item">
-                  {{ t('pages.settings.ResumeParserEngine.s8') }}：
-                  <n-tag size="small" :type="probe(opt.value).registered ? 'success' : 'error'" round>
-                    {{ probe(opt.value).registered ? t('pages.settings.ResumeParserEngine.s9') : t('pages.settings.ResumeParserEngine.s10') }}
+            <template v-for="opt in engineOptions" :key="opt.value">
+              <label
+                class="rpe-option"
+                :class="{ 'is-selected': selected === opt.value, 'is-disabled': !isSelectable(opt.value) }"
+              >
+                <div class="rpe-option-head">
+                  <n-radio :value="opt.value" :disabled="!isSelectable(opt.value)" />
+                  <span class="rpe-option-name">{{ opt.label }}</span>
+                  <n-tag v-if="!isSelectable(opt.value)" size="small" type="error" round>
+                    {{ t('pages.settings.ResumeParserEngine.s10') }}
                   </n-tag>
-                </span>
-                <span class="rpe-status-item">
-                  {{ t('pages.settings.ResumeParserEngine.s11') }}：
-                  <n-tag size="small" :type="probe(opt.value).available ? 'success' : 'warning'" round>
-                    {{ probe(opt.value).available ? t('pages.settings.ResumeParserEngine.s12') : t('pages.settings.ResumeParserEngine.s13') }}
-                  </n-tag>
-                </span>
+                </div>
+                <p class="rpe-option-desc">{{ opt.desc }}</p>
+                <div class="rpe-option-status">
+                  <span class="rpe-status-item">
+                    {{ t('pages.settings.ResumeParserEngine.s8') }}：
+                    <n-tag size="small" :type="probe(opt.value).registered ? 'success' : 'error'" round>
+                      {{ probe(opt.value).registered ? t('pages.settings.ResumeParserEngine.s9') : t('pages.settings.ResumeParserEngine.s10') }}
+                    </n-tag>
+                  </span>
+                  <span class="rpe-status-item">
+                    {{ t('pages.settings.ResumeParserEngine.s11') }}：
+                    <n-tag size="small" :type="probe(opt.value).available ? 'success' : 'warning'" round>
+                      {{ probe(opt.value).available ? t('pages.settings.ResumeParserEngine.s12') : t('pages.settings.ResumeParserEngine.s13') }}
+                    </n-tag>
+                  </span>
+                </div>
+              </label>
+
+              <!-- SmartResume 关联配置：仅在该引擎被选中时展开（本地/云端模型配置） -->
+              <div
+                v-if="opt.value === 'smartresume' && selected === 'smartresume'"
+                class="rpe-subconfig"
+              >
+                <div class="rpe-subconfig-head">
+                  <span class="rpe-subconfig-title">{{ t('pages.settings.ResumeParserEngine.s21') }}</span>
+                  <span class="rpe-subconfig-desc">{{ t('pages.settings.ResumeParserEngine.s22') }}</span>
+                </div>
+
+                <div class="rpe-cloud-row">
+                  <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s23') }}</span>
+                  <n-radio-group v-model:value="srForm.llm_mode">
+                    <n-radio value="local">{{ t('pages.settings.ResumeParserEngine.s24') }}</n-radio>
+                    <n-radio value="cloud">{{ t('pages.settings.ResumeParserEngine.s25') }}</n-radio>
+                  </n-radio-group>
+                </div>
+
+                <!-- 本地模式：使用内置模型，模型锁定，无需配置 -->
+                <template v-if="srForm.llm_mode === 'local'">
+                  <div class="rpe-cloud-row">
+                    <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
+                    <span class="rpe-locked">
+                      <span class="rpe-locked-value">{{ LOCAL_MODEL }}</span>
+                      <n-tag size="small" :bordered="false">{{ t('pages.settings.ResumeParserEngine.s31') }}</n-tag>
+                    </span>
+                  </div>
+                  <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s32') }}</p>
+                </template>
+
+                <!-- 云端模式：仅需 API 地址与 Key；模型由系统锁定 -->
+                <template v-else>
+                  <div class="rpe-cloud-row">
+                    <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s26') }}</span>
+                    <n-input
+                      v-model:value="srForm.api_url"
+                      placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                      class="rpe-cloud-input"
+                    />
+                  </div>
+                  <div class="rpe-cloud-row">
+                    <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s27') }}</span>
+                    <n-input
+                      v-model:value="srForm.api_key"
+                      type="password"
+                      show-password-on="click"
+                      placeholder="sk-...（留空表示不修改已保存的 Key）"
+                      class="rpe-cloud-input"
+                    />
+                  </div>
+                  <div class="rpe-cloud-row">
+                    <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
+                    <span class="rpe-locked">
+                      <span class="rpe-locked-value">{{ CLOUD_MODEL }}</span>
+                      <n-tag size="small" :bordered="false">{{ t('pages.settings.ResumeParserEngine.s31') }}</n-tag>
+                    </span>
+                  </div>
+                  <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s29') }}</p>
+                  <n-alert
+                    v-if="!srForm.api_key && !hasSavedKey"
+                    type="warning"
+                    :title="t('pages.settings.ResumeParserEngine.s30')"
+                    class="rpe-warn"
+                  />
+                </template>
               </div>
-            </label>
+            </template>
           </div>
         </n-radio-group>
 
@@ -53,68 +120,6 @@
         >
           {{ t('pages.settings.ResumeParserEngine.s20') }}
         </n-alert>
-      </section>
-
-      <!-- SmartResume 云端大模型配置（始终可见，便于发现） -->
-      <section v-if="isSelectable('smartresume')" class="glass-card rpe-card">
-        <h2 class="rpe-section-title">{{ t('pages.settings.ResumeParserEngine.s21') }}</h2>
-        <p class="rpe-section-desc">{{ t('pages.settings.ResumeParserEngine.s22') }}</p>
-        <n-alert
-          v-if="selected !== 'smartresume'"
-          type="info"
-          class="rpe-warn"
-          :title="t('pages.settings.ResumeParserEngine.s31')"
-        />
-
-        <div class="rpe-cloud">
-          <div class="rpe-cloud-row">
-            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s23') }}</span>
-            <n-radio-group v-model:value="srForm.llm_mode">
-              <n-radio value="local">{{ t('pages.settings.ResumeParserEngine.s24') }}</n-radio>
-              <n-radio value="cloud">{{ t('pages.settings.ResumeParserEngine.s25') }}</n-radio>
-            </n-radio-group>
-          </div>
-
-          <div class="rpe-cloud-row">
-            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s26') }}</span>
-            <n-input
-              v-model:value="srForm.api_url"
-              placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
-              class="rpe-cloud-input"
-            />
-          </div>
-          <div class="rpe-cloud-row">
-            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s27') }}</span>
-            <n-input
-              v-model:value="srForm.api_key"
-              type="password"
-              show-password-on="click"
-              placeholder="sk-...（留空表示不修改已保存的 Key）"
-              class="rpe-cloud-input"
-            />
-          </div>
-          <div class="rpe-cloud-row">
-            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
-            <n-input
-              v-model:value="srForm.model_name"
-              placeholder="qwen-plus"
-              class="rpe-cloud-input"
-            />
-          </div>
-          <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s29') }}</p>
-          <n-alert
-            v-if="srForm.llm_mode === 'local'"
-            type="info"
-            :title="t('pages.settings.ResumeParserEngine.s32')"
-            class="rpe-warn"
-          />
-          <n-alert
-            v-else-if="!srForm.api_key && !hasSavedKey"
-            type="warning"
-            :title="t('pages.settings.ResumeParserEngine.s30')"
-            class="rpe-warn"
-          />
-        </div>
       </section>
 
       <div class="rpe-footer">
@@ -142,8 +147,10 @@ import {
 const { t } = useI18n()
 const message = useMessage()
 
+// 模型由系统指定：本地模式为内置 Qwen3-0.6B，云端模式锁定为 qwen-plus，均无需用户配置。
+const LOCAL_MODEL = 'Qwen3-0.6B'
+const CLOUD_MODEL = 'qwen-plus'
 const DEFAULT_API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-const DEFAULT_MODEL = 'qwen-plus'
 
 const config = ref<ResumeParserConfig>({ backend: 'career_core', available: [] })
 const selected = ref<ResumeParserBackendName>('career_core')
@@ -153,7 +160,6 @@ const srForm = reactive({
   llm_mode: 'local' as 'local' | 'cloud',
   api_url: DEFAULT_API_URL,
   api_key: '',
-  model_name: DEFAULT_MODEL,
 })
 const hasSavedKey = ref(false)
 
@@ -172,11 +178,10 @@ function isSelectable(value: ResumeParserBackendName): boolean {
 
 const dirty = computed(() => {
   if (selected.value !== config.value.backend) return true
-  // 云端配置卡片始终可见，任意编辑都应可保存（与 backend 选择无关）
+  // 模型已锁定，不参与脏检查
   const sr = config.value.smartresume || {}
   if ((sr.llm_mode || 'local') !== srForm.llm_mode) return true
   if ((sr.api_url || DEFAULT_API_URL) !== srForm.api_url) return true
-  if ((sr.model_name || DEFAULT_MODEL) !== srForm.model_name) return true
   if (srForm.api_key) return true
   return false
 })
@@ -185,7 +190,6 @@ function syncSrForm() {
   const sr = config.value.smartresume || {}
   srForm.llm_mode = sr.llm_mode === 'cloud' ? 'cloud' : 'local'
   srForm.api_url = sr.api_url || DEFAULT_API_URL
-  srForm.model_name = sr.model_name || DEFAULT_MODEL
   srForm.api_key = '' // 脱敏，不回填明文
   hasSavedKey.value = !!sr.api_key_set
 }
@@ -214,7 +218,7 @@ async function saveConfig() {
       smartresume: {
         llm_mode: srForm.llm_mode,
         api_url: srForm.api_url,
-        model_name: srForm.model_name,
+        model_name: CLOUD_MODEL, // 模型锁定，不随用户输入变化
         api_key: srForm.api_key,
       },
     })
@@ -242,12 +246,6 @@ onMounted(load)
   font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
-}
-.rpe-section-desc {
-  margin: 0 0 var(--space-4);
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-  line-height: 1.6;
 }
 
 .rpe-radio-group { display: block; }
@@ -291,7 +289,21 @@ onMounted(load)
 
 .rpe-warn { margin-top: var(--space-3); }
 
-.rpe-cloud { display: flex; flex-direction: column; gap: var(--space-3); }
+/* 引擎关联配置：缩进于所选引擎之下 */
+.rpe-subconfig {
+  margin-left: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-hairline);
+  background: rgba(127, 127, 127, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.rpe-subconfig-head { display: flex; flex-direction: column; gap: 2px; }
+.rpe-subconfig-title { font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
+.rpe-subconfig-desc { font-size: var(--text-small); color: var(--ink-soft); line-height: 1.5; }
+
 .rpe-cloud-row {
   display: flex;
   align-items: center;
@@ -309,6 +321,14 @@ onMounted(load)
   font-size: var(--text-small);
   color: var(--ink-soft);
 }
+
+/* 锁定模型展示（只读） */
+.rpe-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rpe-locked-value { font-size: var(--text-small); font-weight: 600; color: var(--ink); }
 
 .rpe-footer { display: flex; justify-content: flex-end; gap: var(--space-2); }
 </style>
