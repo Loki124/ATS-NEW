@@ -92,7 +92,7 @@
             style="margin-bottom: 16px"
           >
             <template v-if="fieldForm.isLocked">
-              此为系统核心标识字段（编号 / 名称 / 状态），由系统锁定，不可编辑、停用或删除。
+              此为系统核心标识字段（编号 / 名称 / 状态）：仅「字段类型」与「停用状态」由系统锁定不可修改，其余属性（名称、英文名称、提示、必填、可见、选项、分组、排序、可见权限等）均可调整。
             </template>
             <template v-else>
               此为系统内置字段：字段 Key 等核心标识由系统保护不可修改；字段类型、选项及展示属性（显示名称、必填、可见、占位、帮助、排序、分组、可见权限）均可调整。
@@ -1183,13 +1183,14 @@ const fieldColumns = computed(() => [
     title: '操作', key: 'action', width: 320, fixed: 'right' as const,
     render: (row: FieldDefinition) => {
       const disabled = row.status === 'inactive';
-      // 2026-09-27 (兵哥): 系统核心字段(编号/名称/状态)完全锁定 → 禁用全部操作;
-      // 其余系统字段可调整展示属性, 但不可删除(种子预置, 删除由后端 400 拦截)。
+      // 2026-09-27 (兵哥) 修正: 锁定字段(编号/名称/状态)仅「字段类型」与「停用状态」两项不可改,
+      // 其余属性(label/英文/提示/必填/可见/选项/分组/排序/可见权限)均可编辑 → 编辑/管理权限启用;
+      // 「停用」按钮仍禁用(停用状态锁定); 非锁定系统字段可调整展示属性, 但不可删除(后端 400 拦截)。
       const locked = !!row.isLocked;
       const system = !!row.isSystem;
       const children: any[] = [
-        h(NButton, { size: 'tiny', quaternary: true, disabled: locked, onClick: () => openPermissionModal(row) }, { default: () => '管理权限', icon: () => h(ShieldCheckmarkOutline) }),
-        h(NButton, { size: 'tiny', quaternary: true, disabled: locked, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
+        h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => '管理权限', icon: () => h(ShieldCheckmarkOutline) }),
+        h(NButton, { size: 'tiny', quaternary: true, onClick: () => openFieldEdit(row) }, { default: () => '编辑', icon: () => h(CreateOutline) }),
         h(NButton, {
           size: 'tiny', quaternary: true,
           type: disabled ? 'primary' : 'default',

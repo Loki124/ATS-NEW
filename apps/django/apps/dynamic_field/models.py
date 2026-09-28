@@ -155,7 +155,8 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     )
     # 2026-09-27 (兵哥): 系统内置字段标记 — 由种子迁移按 system_fields 注册表 get_or_create
     # (resource='Demand' 的预置模型字段纳入字段管理)。is_system 行不可删除;
-    # 编号/名称/状态三类核心标识完全锁定(system_fields.SYSTEM_FIELD_LOCKED_KEYS)。
+    # 编号/名称/状态三类核心标识锁定(system_fields.SYSTEM_FIELD_LOCKED_KEYS):
+    # 仅字段类型与停用状态不可修改, 其余属性可编辑。
     is_system = models.BooleanField(default=False, db_index=True, help_text='系统内置字段(种子预置, 不可删除)')
 
     class Meta:

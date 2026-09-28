@@ -253,7 +253,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         """PUT / PATCH /dynamic-fields/<resource>/fields/<id>/ → 200 ``{"data": {...}}``
 
         2026-09-27 (兵哥) 系统内置字段权威守卫(防绕过, 前端另有禁用双重防护):
-          - 核心标识三键(需求编号/名称/状态, is_locked) → 任何修改 400(不可编辑/停用/删除);
+          - 锁定核心标识三键(需求编号/名称/状态, field_key ∈ SYSTEM_FIELD_LOCKED_KEYS)
+            → 仅「字段类型(field_type)」与「停用状态(status: active/inactive)」两项不可改,
+            其余所有属性(label/英文名称/占位提示/必填/可见/选项/分组/排序/可见权限等)放行;
           - 其余系统字段(非锁定) → 仅核心身份 key(field_key/is_system/resource)强制回灌,
             字段类型/选项等结构性属性放行, 满足用户"其余字段均支持修改编辑"的要求。
         """
@@ -261,12 +263,22 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         data = request.data
         if getattr(instance, 'is_system', False):
-            if instance.field_key in SYSTEM_FIELD_LOCKED_KEYS:
-                raise drf_serializers.ValidationError(
-                    {'detail': f'系统内置字段「{instance.label}」为核心标识(编号/名称/状态), 不可编辑。'}
-                )
             payload = dict(data) if data is not None else {}
-            # 非锁定系统字段: 仅强制回灌核心身份 key(field_key/is_system/resource),
+            if instance.field_key in SYSTEM_FIELD_LOCKED_KEYS:
+                # 锁定字段细粒度守卫: 只拦「字段类型」与「停用状态」两项, 其余全部放行
+                # 1) 字段类型变更(与现值不同) → 400
+                new_field_type = payload.get('field_type')
+                if new_field_type is not None and new_field_type != instance.field_type:
+                    raise drf_serializers.ValidationError(
+                        {'detail': f'锁定字段「{instance.label}」的字段类型不可修改。'}
+                    )
+                # 2) 停用状态变更(模型字段名 status: active/inactive) → 400
+                new_status = payload.get('status')
+                if new_status is not None and new_status != instance.status:
+                    raise drf_serializers.ValidationError(
+                        {'detail': f'锁定字段「{instance.label}」不可停用/启用。'}
+                    )
+            # 两类系统字段: 核心身份 key(field_key/is_system/resource)强制回灌,
             # 防止破坏系统引用(MODEL_ATTR_MAP / 联动规则)或重分类;
             # 字段类型/选项等结构性属性放行, 允许业务自定义。
             for key in SYSTEM_FIELD_IDENTITY_KEYS:

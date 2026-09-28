@@ -192,7 +192,7 @@ export interface FieldDefinition {
   subFields?: SubField[] | null;
   /** 2026-09-27 (兵哥): 系统内置字段(种子预置) — 不可删除; 结构性属性后端守卫剥除 */
   isSystem?: boolean;
-  /** 系统核心标识字段(需求编号/名称/状态)完全锁定 — 不可编辑/停用/删除 */
+  /** 系统核心标识字段(需求编号/名称/状态)锁定 — 仅字段类型与停用状态不可修改, 其余属性可编辑 */
   isLocked?: boolean;
   createdAt?: string;
   updatedAt?: string;
