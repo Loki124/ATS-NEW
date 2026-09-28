@@ -402,6 +402,28 @@
               :placeholder="f.placeholder || '请输入数字'"
               style="width: 100%"
             />
+            <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
+            <n-space
+              v-else-if="f.fieldType === 'RANGE_NUMBER'"
+              align="center" :size="8" style="width: 100%"
+            >
+              <n-input-number
+                v-model:value="formValues[f.fieldKey].min"
+                :min="(f.validation as any)?.min ?? undefined"
+                :max="(f.validation as any)?.max ?? undefined"
+                placeholder="最小值"
+                style="flex: 1; min-width: 0"
+              />
+              <span>~</span>
+              <n-input-number
+                v-model:value="formValues[f.fieldKey].max"
+                :min="(f.validation as any)?.min ?? undefined"
+                :max="(f.validation as any)?.max ?? undefined"
+                placeholder="最大值"
+                style="flex: 1; min-width: 0"
+              />
+              <n-text v-if="(f.validation as any)?.unit" depth="3">{{ (f.validation as any).unit }}</n-text>
+            </n-space>
             <!-- 选项类 (含 人员/部门 引用) -->
             <n-select
               v-else-if="isOptionType(f.fieldType)"
@@ -652,6 +674,16 @@ function displayText(f: FieldDefinition, value: any): string {
     if (Array.isArray(value) && value.length === 2) return `${formatDateVal(value[0])} ~ ${formatDateVal(value[1])}`
     return String(value)
   }
+  if (t === 'RANGE_NUMBER') {
+    if (value && typeof value === 'object' && ('min' in value || 'max' in value)) {
+      const lo = value.min
+      const hi = value.max
+      if (lo == null && hi == null) return '-'
+      const unit = (f.validation as any)?.unit ? ` ${(f.validation as any).unit}` : ''
+      return `${lo ?? '-'} ~ ${hi ?? '-'}${unit}`
+    }
+    return '-'
+  }
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
@@ -835,6 +867,7 @@ const resetFormValues = () => {
 
 const defaultForType = (t: string): any => {
   if (t === 'BOOLEAN') return false
+  if (t === 'RANGE_NUMBER') return { min: null, max: null }
   if (isMultiType(t)) return []
   return ''
 }
@@ -912,6 +945,8 @@ const handleSave = async () => {
   for (const f of dynamicFormFields.value) {
     const v = formValues[f.fieldKey]
     if (v === '' || v == null || (Array.isArray(v) && v.length === 0)) continue
+    // 范围数字: 两端皆空视为空, 跳过 (否则落 {"min":null,"max":null})
+    if (f.fieldType === 'RANGE_NUMBER' && v && v.min == null && v.max == null) continue
     dyn[f.fieldKey] = v
   }
 

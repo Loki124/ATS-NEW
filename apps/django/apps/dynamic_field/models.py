@@ -15,6 +15,9 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
     class FieldType(models.TextChoices):
         TEXT = 'TEXT', '文本'
         NUMBER = 'NUMBER', '数字'
+        # 2026-09-28 (兵哥): 范围数字 — 表示带区间的数值信息 (如薪资范围/价格区间),
+        #   值以 JSON 存储 {"min": number, "max": number}; 后端校验 max>=min。
+        RANGE_NUMBER = 'RANGE_NUMBER', '范围数字'
         # 2026-09-15 (兵哥) 日期拆分: DATE 改名「单点日期」, 新增 DATE_RANGE「日期范围」
         # DATE 值不变(存量数据零迁移); DATE_RANGE 值存 [start, end] (CandidateFieldValue.value 为 JSONField)
         DATE = 'DATE', '单点日期'

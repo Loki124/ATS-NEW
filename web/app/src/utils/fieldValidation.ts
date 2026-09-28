@@ -23,7 +23,9 @@ export const TEXT_TYPES = ['TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'EMAIL', 'PHONE'
 export const TEXT_MAXLENGTH_TYPES = ['TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'ID_CARD', 'BANK_CARD', 'URL'];
 /** 类型层面有固有格式校验的 (无需配置项, 由字段类型直接约束格式与长度) */
 export const TEXT_WITH_FORMAT_TYPES = ['EMAIL', 'PHONE', 'ID_CARD', 'BANK_CARD', 'URL'];
-export const NUMBER_TYPES = ['NUMBER'];
+/** 数字家族 (含 RANGE_NUMBER — 区间数值, 配置层 min/max/step/decimals/unit 与 NUMBER 一致);
+ *  仅用于「限制条件配置」归类。标量 NUMBER 与区间 RANGE_NUMBER 的取值校验在 validateFieldValue 内分别处理。 */
+export const NUMBER_TYPES = ['NUMBER', 'RANGE_NUMBER'];
 /** 选项类字段 (可做 可选范围 校验) — 仅列表型 (下拉型 SELECT/MULTISELECT 无配置项) */
 export const OPTION_TYPES = ['LIST_SINGLE', 'LIST_MULTI'];
 /** 日期类字段 (可做 日期可选范围 校验) */
@@ -160,6 +162,28 @@ export function validateFieldValue(fieldType: string, validation: FieldValidatio
   if (isEmpty) return errors;
 
   const msg = validation.message || '';
+
+  // ---- 范围数字 (RANGE_NUMBER): 值形如 {min, max}, 校验 上限>=下限 + 边界 ----
+  if (fieldType === 'RANGE_NUMBER') {
+    if (!value || typeof value !== 'object') return errors; // 非对象(如 null)→ 视为空, 交给必填
+    const lo = value.min;
+    const hi = value.max;
+    if (lo == null && hi == null) return errors; // 全空 → 交给必填逻辑
+    if (lo == null || hi == null) { errors.push(msg || '请同时填写最小值与最大值'); return errors; }
+    const nLo = Number(lo);
+    const nHi = Number(hi);
+    if (Number.isNaN(nLo) || Number.isNaN(nHi)) { errors.push(msg || '请输入有效的数字'); return errors; }
+    if (nHi < nLo) { errors.push(msg || '最大值不能小于最小值'); return errors; }
+    const boundMin = validation.min;
+    const boundMax = validation.max;
+    if (boundMin !== null && boundMin !== undefined && (nLo < boundMin || nHi < boundMin)) {
+      errors.push(msg || `数值不能小于 ${fmtNum(boundMin)}`);
+    }
+    if (boundMax !== null && boundMax !== undefined && (nLo > boundMax || nHi > boundMax)) {
+      errors.push(msg || `数值不能大于 ${fmtNum(boundMax)}`);
+    }
+    return errors;
+  }
 
   if (NUMBER_TYPES.includes(fieldType)) {
     const num = Number(value);

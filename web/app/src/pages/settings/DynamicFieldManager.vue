@@ -1158,7 +1158,7 @@ const fieldGroupOptions = computed(() => {
 });
 
 const FIELD_TYPE_COLOR: Record<string, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
-  TEXT: 'default', NUMBER: 'info', DATE: 'success', DATE_RANGE: 'success',
+  TEXT: 'default', NUMBER: 'info', RANGE_NUMBER: 'info', DATE: 'success', DATE_RANGE: 'success',
   SELECT: 'warning', MULTISELECT: 'warning', BOOLEAN: 'default',
   ATTACHMENT: 'info', ID_CARD: 'error', BANK_CARD: 'error', PHONE: 'error', EMAIL: 'error',
   LIST_SINGLE: 'warning', LIST_MULTI: 'warning', CONFIRM: 'info',

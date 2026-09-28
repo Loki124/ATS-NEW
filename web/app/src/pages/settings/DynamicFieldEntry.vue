@@ -109,7 +109,10 @@ const RESOURCE_OPTIONS = [
 ];
 
 function isTextType(t: string) { return TEXT_TYPES.includes(t); }
-function isNumberType(t: string) { return NUMBER_TYPES.includes(t); }
+/** 标量数字 (NUMBER); 区间数字 RANGE_NUMBER 单独处理 (见 isRangeNumberType) */
+function isNumberType(t: string) { return t === 'NUMBER'; }
+/** 范围数字 (RANGE_NUMBER): 值 {min, max} 双输入 */
+function isRangeNumberType(t: string) { return t === 'RANGE_NUMBER'; }
 /** 选择类 (录入端渲染下拉/多选) — 含 SELECT/MULTISELECT/LIST_SINGLE/LIST_MULTI
  *  + 2026-09-24 (兵哥) 人员/部门引用型: 按单选下拉渲染, 选项由 options_source 动态解析 */
 const SELECTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT'];
@@ -143,7 +146,7 @@ async function loadFields() {
     const res = await listFields(resource.value);
     fields.value = res || [];
     for (const f of fields.value) {
-      values[f.fieldKey] = '';
+      values[f.fieldKey] = f.fieldType === 'RANGE_NUMBER' ? { min: null, max: null } : '';
       if (f.fieldType === 'PHONE') ensurePhoneParts(f);
     }
     errorsClear();
@@ -165,9 +168,13 @@ function validateLocalField(f: FieldDefinition) {
     f.validation as FieldValidation | null,
     values[f.fieldKey],
   );
+  const rangeEmpty = f.fieldType === 'RANGE_NUMBER' && (
+    !values[f.fieldKey] || (values[f.fieldKey].min == null && values[f.fieldKey].max == null)
+  );
   if (f.isRequired && (
     values[f.fieldKey] === '' || values[f.fieldKey] == null ||
-    (Array.isArray(values[f.fieldKey]) && values[f.fieldKey].length === 0)
+    (Array.isArray(values[f.fieldKey]) && values[f.fieldKey].length === 0) ||
+    rangeEmpty
   )) {
     errs.unshift('该字段为必填');
   }
@@ -194,6 +201,8 @@ async function handleSubmit() {
   for (const f of fields.value) {
     const v = values[f.fieldKey];
     if (v === '' || v == null || (Array.isArray(v) && v.length === 0)) continue;
+    // 范围数字: 两端皆空视为空, 跳过 (否则落 {"min":null,"max":null})
+    if (f.fieldType === 'RANGE_NUMBER' && v.min == null && v.max == null) continue;
     payloadValues[f.fieldKey] =
       (f.fieldType === 'DATE' || f.fieldType === 'DATE_RANGE')
         ? (f.fieldType === 'DATE_RANGE' && Array.isArray(v)
@@ -300,6 +309,34 @@ onMounted(loadFields);
                   depth="3" class="entry-hint">
             {{ (f.validation as FieldValidation)?.unit }}
           </n-text>
+
+          <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
+          <template v-else-if="isRangeNumberType(f.fieldType)">
+            <n-space align="center" :size="8" style="width: 100%">
+              <n-input-number
+                v-model:value="values[f.fieldKey].min"
+                :min="(f.validation as FieldValidation)?.min ?? undefined"
+                :max="(f.validation as FieldValidation)?.max ?? undefined"
+                :step="(f.validation as FieldValidation)?.step ?? undefined"
+                placeholder="最小值"
+                style="flex: 1; min-width: 120px"
+                @blur="validateLocalField(f)"
+              />
+              <span class="entry-hint">~</span>
+              <n-input-number
+                v-model:value="values[f.fieldKey].max"
+                :min="(f.validation as FieldValidation)?.min ?? undefined"
+                :max="(f.validation as FieldValidation)?.max ?? undefined"
+                :step="(f.validation as FieldValidation)?.step ?? undefined"
+                placeholder="最大值"
+                style="flex: 1; min-width: 120px"
+                @blur="validateLocalField(f)"
+              />
+              <n-text v-if="(f.validation as FieldValidation)?.unit" depth="3" class="entry-hint">
+                {{ (f.validation as FieldValidation)?.unit }}
+              </n-text>
+            </n-space>
+          </template>
 
           <!-- 选项类 -->
           <n-select

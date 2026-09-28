@@ -12,6 +12,8 @@
         → 类型层面固有格式校验 (无配置项; 电话支持国际区号, 格式与长度在类型层约束)
   - 数字类 (NUMBER)
         → 最小值 (min) / 最大值 (max) / 步长 (step) / 小数位数 (decimals) + 单位 (unit)
+  - 范围数字 (RANGE_NUMBER)  — 区间数值 (薪资范围/价格区间等), 配置同 NUMBER,
+        值形如 {"min": n, "max": m}, 额外校验 上限>=下限
   - 选项类 (LIST_SINGLE / LIST_MULTI)
         → 可选范围 (allowedValues, 限定只能从这些值里选)
   - 日期类 (DATE / DATE_RANGE)
@@ -53,8 +55,8 @@ TEXT_MAXLENGTH_TYPES = frozenset({
 #: 类型层面有固有格式校验的 (无需配置项, 由字段类型直接约束格式与长度)
 TEXT_WITH_FORMAT_TYPES = frozenset({'EMAIL', 'PHONE', 'ID_CARD', 'BANK_CARD', 'URL'})
 
-#: 数字类字段
-NUMBER_TYPES = frozenset({'NUMBER'})
+#: 数字类字段 (含 RANGE_NUMBER — 区间数值, 配置层约束 min/max/step/decimals/unit 与 NUMBER 一致)
+NUMBER_TYPES = frozenset({'NUMBER', 'RANGE_NUMBER'})
 
 #: 选项类字段 (可做 可选范围 校验) — 仅列表型 (下拉型 SELECT/MULTISELECT 无配置项)
 OPTION_TYPES = frozenset({'LIST_SINGLE', 'LIST_MULTI'})
@@ -268,7 +270,31 @@ def validate_field_value(field_type: str, validation, value) -> list[str]:
 
     msg = (validation.get('message') if isinstance(validation, dict) else '') or ''
 
-    # ---- 数字类 ----
+    # ---- 范围数字 (RANGE_NUMBER): 值形如 {"min": n, "max": m}, 校验 上限>=下限 + 边界 ----
+    if field_type == 'RANGE_NUMBER':
+        if not isinstance(value, dict):
+            # 非字典(如 null)→ 视为空, 交给 is_required 处理, 不报错
+            return errors
+        lo = _coerce_number(value.get('min'))
+        hi = _coerce_number(value.get('max'))
+        if lo is None and hi is None:
+            return errors  # 全空 → 交给必填逻辑
+        if lo is None or hi is None:
+            errors.append(msg or '请同时填写最小值与最大值')
+            return errors
+        if hi < lo:
+            errors.append(msg or '最大值不能小于最小值')
+            return errors
+        # 上限/下限边界 (配置层 min/max 作为允许区间, 两个端点都须在区间内)
+        bound_min = _coerce_number(validation.get('min'))
+        bound_max = _coerce_number(validation.get('max'))
+        if bound_min is not None and (lo < bound_min or hi < bound_min):
+            errors.append(msg or f'数值不能小于 {_fmt_num(bound_min)}')
+        if bound_max is not None and (lo > bound_max or hi > bound_max):
+            errors.append(msg or f'数值不能大于 {_fmt_num(bound_max)}')
+        return errors
+
+    # ---- 数字类 (标量 NUMBER) ----
     if field_type in NUMBER_TYPES:
         num = _coerce_number(value)
         if num is None:

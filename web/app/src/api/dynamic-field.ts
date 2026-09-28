@@ -16,7 +16,7 @@ api.interceptors.request.use((cfg) => {
 });
 
 export type FieldType =
-  | 'TEXT' | 'NUMBER' | 'DATE' | 'DATE_RANGE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
+  | 'TEXT' | 'NUMBER' | 'RANGE_NUMBER' | 'DATE' | 'DATE_RANGE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
   | 'ATTACHMENT' | 'ID_CARD' | 'BANK_CARD' | 'PHONE' | 'EMAIL' | 'URL'
   | 'LIST_SINGLE' | 'LIST_MULTI' | 'CONFIRM' | 'MULTILINE_TEXT'
   | 'ADDRESS'
@@ -433,6 +433,8 @@ export const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
   ]},
   { type: 'group', label: '数值与时间', children: [
     { label: '数字', value: 'NUMBER' },
+    // 2026-09-28 (兵哥): 范围数字 — 区间数值 (薪资范围/价格区间等), 值 {min,max}
+    { label: '范围数字', value: 'RANGE_NUMBER' },
     // 2026-09-15 (兵哥) 日期拆分: DATE 改名「单点日期」+ 新增 DATE_RANGE「日期范围」
     { label: '单点日期', value: 'DATE' },
     { label: '日期范围', value: 'DATE_RANGE' },
@@ -466,7 +468,7 @@ export const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
 ];
 
 export const FIELD_TYPE_LABEL: Record<FieldType, string> = {
-  TEXT: '文本', NUMBER: '数字', DATE: '单点日期', DATE_RANGE: '日期范围',
+  TEXT: '文本', NUMBER: '数字', RANGE_NUMBER: '范围数字', DATE: '单点日期', DATE_RANGE: '日期范围',
   SELECT: '下拉单选', MULTISELECT: '下拉多选', BOOLEAN: '布尔',
   ATTACHMENT: '附件', ID_CARD: '身份证', BANK_CARD: '银行卡',
   PHONE: '电话', EMAIL: '邮箱', URL: 'URL',
