@@ -56,8 +56,9 @@ SYSTEM_GROUP_NAME = '系统信息'
 #: Demand 预置系统字段注册表。
 #: locked=True 的行锁定(仅字段类型与停用状态不可修改, 其余属性可编辑);
 #: locked=False 的行可编辑(含字段类型 / 选项等结构性属性, 仅 field_key 等身份键受保护)。
-#: 说明: 需求描述(jd)/任职要求(requirements)走详情页固定「描述信息」区块(多行版式),
-#: 不纳入本注册表, 避免与固定区块重复渲染。
+#: 2026-09-28 (兵哥): 需求描述(jd)/候选人要求(requirements) 纳入本注册表 —
+#: 用户要求详情/编辑与「表单设置」完全一致, 不允许配置外区块; 值仍存 Demand 模型列
+#: (前端 MODEL_ATTR_MAP 映射), 注册表仅提供字段定义供字段管理/表单设置配置。
 DEMAND_SYSTEM_FIELDS = [
     {
         'field_key': 'code', 'label': '需求编号', 'label_en': 'Demand No.',
@@ -101,6 +102,14 @@ DEMAND_SYSTEM_FIELDS = [
     {
         'field_key': 'hr', 'label': '负责HR', 'label_en': 'HR Owner',
         'field_type': 'TEXT', 'locked': False, 'is_required': False, 'order_index': 100,
+    },
+    {
+        'field_key': 'jd', 'label': '需求描述', 'label_en': 'Description',
+        'field_type': 'MULTILINE_TEXT', 'locked': False, 'is_required': False, 'order_index': 110,
+    },
+    {
+        'field_key': 'requirements', 'label': '候选人要求', 'label_en': 'Requirements',
+        'field_type': 'MULTILINE_TEXT', 'locked': False, 'is_required': False, 'order_index': 120,
     },
 ]
 

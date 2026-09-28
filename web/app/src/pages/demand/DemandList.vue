@@ -118,24 +118,10 @@
                    系统固定字段(编号/类型/状态/审批状态/部门) + 按配置分组渲染其余字段；
                    模型映射字段(如 headcount/priority/level/positionTitle)取 demand 对象，
                    其余扩展字段取 DynamicFieldValue。 -->
-              <!-- ★ 2026-09-28 (兵哥): 详情展示统一由「招聘需求表单设置」驱动 —
+              <!-- ★ 2026-09-28 (兵哥): 详情展示完全由「招聘需求表单设置」驱动 —
                    分组顺序 / 字段显隐 / 必填与表单设置实时一致; 系统字段/模型字段
-                   取 demand 对象, 扩展字段取 DynamicFieldValue; 审批状态/描述信息/招聘进度为派生/固定区块。 -->
-              <!-- 审批状态: 由需求状态推导的派生信息, 独立于字段管理 -->
-              <div class="detail-section">
-                <div class="section-header">
-                  <span class="section-title">审批状态</span>
-                </div>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <span class="info-label">审批状态</span>
-                    <span class="info-value">
-                      <n-tag :type="approvalInfo.type" size="small">{{ approvalInfo.text }}</n-tag>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
+                   取 demand 对象, 扩展字段取 DynamicFieldValue; 不渲染任何配置外区块
+                   (审批状态在列表卡片与流程记录中可见, 招聘进度为派生统计)。 -->
               <!-- 配置驱动的分组字段 (系统字段 + 模型字段 + 扩展字段) -->
               <div v-for="b in formBuckets" :key="b.key" class="detail-section">
                 <div class="section-header">
@@ -155,23 +141,6 @@
                       </n-tag>
                     </span>
                     <span v-else class="info-value">{{ displayText(m.field, fieldValue(m.field)) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 描述信息 (JD / 任职要求, 核心内容, 固定区块不受字段管理显隐影响) -->
-              <div class="detail-section">
-                <div class="section-header">
-                  <span class="section-title">描述信息</span>
-                </div>
-                <div class="desc-content">
-                  <div class="desc-item">
-                    <span class="desc-label">需求描述</span>
-                    <div class="desc-value">{{ selectedDemand.jd || '-' }}</div>
-                  </div>
-                  <div class="desc-item">
-                    <span class="desc-label">候选人要求</span>
-                    <div class="desc-value">{{ selectedDemand.requirements || '-' }}</div>
                   </div>
                 </div>
               </div>
@@ -439,15 +408,6 @@
             </template>
           </n-form-item>
         </template>
-
-        <!-- 描述信息 (JD / 任职要求): 固定区块, 不纳入字段管理注册表(见 system_fields.py) -->
-        <n-divider>描述信息</n-divider>
-        <n-form-item label="需求描述">
-          <n-input v-model:value="formData.description" type="textarea" :rows="3" placeholder="请输入需求描述" />
-        </n-form-item>
-        <n-form-item label="候选人要求">
-          <n-input v-model:value="formData.requirements" type="textarea" :rows="3" placeholder="请输入候选人要求" />
-        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -492,11 +452,14 @@ const formValues = reactive<Record<string, any>>({})
 // 系统字段 / 核心描述字段: 模型映射字段取 demand 对象, 其余扩展字段取 DynamicFieldValue。
 // 模型映射字段: field_key → 在 demand 详情对象上的属性名(camelCase, 经后端渲染)。
 // jd/requirements 由固定「描述信息」区块承载, 不在此映射。
+// jd/requirements 已纳入系统字段注册表(0022 种子), 值存 Demand 模型列, 经此映射取值。
 const MODEL_ATTR_MAP: Record<string, string> = {
   headcount: 'headcount',
   priority: 'priority',
   level: 'level',
   position_title: 'positionTitle',
+  jd: 'jd',
+  requirements: 'requirements',
 }
 
 // 系统字段取值特例 (非简单属性映射): 部门/HR 取序列化后的 *Name
@@ -510,8 +473,8 @@ const SYSTEM_VALUE_GETTERS: Record<string, (d: any) => any> = {
 }
 
 // 编辑表单: field_key → formData 属性绑定 (模型字段复用既有 formData 结构)。
-// 注意: jd/requirements 不属于「需求字段管理」注册表(见 system_fields.py 注释),
-// 由详情/编辑的固定「描述信息」区块承载, 不在此处; 其余模型字段均纳入表单设置驱动。
+// jd/requirements 已纳入系统字段注册表(0022 种子, 2026-09-28 兵哥),
+// 随 editSections 走表单设置驱动; 值存 Demand 模型列, 经 binding 回填/收集。
 const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' }> = {
   title: { prop: 'name', kind: 'text' },
   department: { prop: 'departmentId', kind: 'department' },
@@ -520,6 +483,8 @@ const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number'
   priority: { prop: 'priority', kind: 'select' },
   position_title: { prop: 'positionSeries', kind: 'text' },
   level: { prop: 'jobLevel', kind: 'text' },
+  jd: { prop: 'description', kind: 'textarea' },
+  requirements: { prop: 'requirements', kind: 'textarea' },
 }
 // 编辑表单不渲染的系统字段: 编号(只读标识) / 状态(流程管控) / 负责HR(流程指派)
 const EDIT_SKIP_KEYS = new Set(['code', 'state', 'hr'])
@@ -706,15 +671,6 @@ function displayText(f: FieldDefinition, value: any): string {
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
-
-// 审批状态: 由需求状态推导 (DRAFT/PENDING/APPROVED...)
-const approvalInfo = computed(() => {
-  const s = selectedDemand.value?.state
-  if (s === 'PENDING') return { text: '审批中', type: 'info' as const }
-  if (s === 'APPROVED' || s === 'RECRUITING' || s === 'PAUSED' || s === 'COMPLETED') return { text: '已通过', type: 'success' as const }
-  if (s === 'REJECTED') return { text: '已驳回', type: 'error' as const }
-  return { text: '未发起', type: 'default' as const }
-})
 
 // 状态颜色（映射为 naive 的 tag type）
 const getStatusType = (status: string): any => {
@@ -1255,33 +1211,6 @@ onMounted(() => {
 .info-value.code {
   color: var(--c-info);
   font-weight: 500;
-}
-
-.desc-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.desc-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.desc-label {
-  font-size: var(--fs-12);
-  color: var(--ink-faint);
-}
-
-/* v2 bugfix P0-C: #fafafa → var(--glass-bg-input) 让极光底透出 */
-.desc-value {
-  font-size: var(--fs-14);
-  color: var(--ink);
-  line-height: 1.6;
-  background: var(--glass-bg-input);
-  padding: var(--space-3);
-  border-radius: 4px;
 }
 
 .progress-stats {
