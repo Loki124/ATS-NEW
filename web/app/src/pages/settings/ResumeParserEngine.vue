@@ -55,6 +55,66 @@
         </n-alert>
       </section>
 
+      <!-- SmartResume 云端大模型配置（始终可见，便于发现） -->
+      <section v-if="isSelectable('smartresume')" class="glass-card rpe-card">
+        <h2 class="rpe-section-title">{{ t('pages.settings.ResumeParserEngine.s21') }}</h2>
+        <p class="rpe-section-desc">{{ t('pages.settings.ResumeParserEngine.s22') }}</p>
+        <n-alert
+          v-if="selected !== 'smartresume'"
+          type="info"
+          class="rpe-warn"
+          :title="t('pages.settings.ResumeParserEngine.s31')"
+        />
+
+        <div class="rpe-cloud">
+          <div class="rpe-cloud-row">
+            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s23') }}</span>
+            <n-radio-group v-model:value="srForm.llm_mode">
+              <n-radio value="local">{{ t('pages.settings.ResumeParserEngine.s24') }}</n-radio>
+              <n-radio value="cloud">{{ t('pages.settings.ResumeParserEngine.s25') }}</n-radio>
+            </n-radio-group>
+          </div>
+
+          <template v-if="srForm.llm_mode === 'cloud'">
+            <div class="rpe-cloud-row">
+              <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s26') }}</span>
+              <n-input
+                v-model:value="srForm.api_url"
+                placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                class="rpe-cloud-input"
+              />
+            </div>
+            <div class="rpe-cloud-row">
+              <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s27') }}</span>
+              <n-input
+                v-model:value="srForm.api_key"
+                type="password"
+                show-password-on="click"
+                placeholder="sk-...（留空表示不修改已保存的 Key）"
+                class="rpe-cloud-input"
+              />
+            </div>
+            <div class="rpe-cloud-row">
+              <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
+              <n-input
+                v-model:value="srForm.model_name"
+                placeholder="qwen-plus"
+                class="rpe-cloud-input"
+              />
+            </div>
+            <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s29') }}</p>
+            <n-alert
+              v-if="!srForm.api_key && !hasSavedKey"
+              type="warning"
+              :title="t('pages.settings.ResumeParserEngine.s30')"
+              class="rpe-warn"
+            >
+              {{ t('pages.settings.ResumeParserEngine.s30') }}
+            </n-alert>
+          </template>
+        </div>
+      </section>
+
       <div class="rpe-footer">
         <n-button tertiary :disabled="saving" @click="reload">{{ t('pages.settings.ResumeParserEngine.s14') }}</n-button>
         <n-button type="primary" :loading="saving" :disabled="!dirty" @click="saveConfig">
@@ -67,8 +127,8 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { ref, computed, onMounted } from 'vue'
-import { NButton, NRadio, NRadioGroup, NTag, NAlert, useMessage } from 'naive-ui'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { NButton, NRadio, NRadioGroup, NTag, NAlert, NInput, useMessage } from 'naive-ui'
 import {
   getResumeParserConfig,
   updateResumeParserConfig,
@@ -80,9 +140,20 @@ import {
 const { t } = useI18n()
 const message = useMessage()
 
+const DEFAULT_API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+const DEFAULT_MODEL = 'qwen-plus'
+
 const config = ref<ResumeParserConfig>({ backend: 'career_core', available: [] })
 const selected = ref<ResumeParserBackendName>('career_core')
 const saving = ref(false)
+
+const srForm = reactive({
+  llm_mode: 'local' as 'local' | 'cloud',
+  api_url: DEFAULT_API_URL,
+  api_key: '',
+  model_name: DEFAULT_MODEL,
+})
+const hasSavedKey = ref(false)
 
 const engineOptions = computed(() => [
   { value: 'career_core' as ResumeParserBackendName, label: t('pages.settings.ResumeParserEngine.s4'), desc: t('pages.settings.ResumeParserEngine.s5') },
@@ -96,12 +167,32 @@ function probe(value: ResumeParserBackendName): ResumeParserBackendProbe {
 function isSelectable(value: ResumeParserBackendName): boolean {
   return probe(value).registered
 }
-const dirty = computed(() => selected.value !== config.value.backend)
+
+const dirty = computed(() => {
+  if (selected.value !== config.value.backend) return true
+  // 云端配置卡片始终可见，任意编辑都应可保存（与 backend 选择无关）
+  const sr = config.value.smartresume || {}
+  if ((sr.llm_mode || 'local') !== srForm.llm_mode) return true
+  if ((sr.api_url || DEFAULT_API_URL) !== srForm.api_url) return true
+  if ((sr.model_name || DEFAULT_MODEL) !== srForm.model_name) return true
+  if (srForm.api_key) return true
+  return false
+})
+
+function syncSrForm() {
+  const sr = config.value.smartresume || {}
+  srForm.llm_mode = sr.llm_mode === 'cloud' ? 'cloud' : 'local'
+  srForm.api_url = sr.api_url || DEFAULT_API_URL
+  srForm.model_name = sr.model_name || DEFAULT_MODEL
+  srForm.api_key = '' // 脱敏，不回填明文
+  hasSavedKey.value = !!sr.api_key_set
+}
 
 async function load() {
   try {
     config.value = await getResumeParserConfig()
     selected.value = config.value.backend
+    syncSrForm()
   } catch (e: any) {
     message.error(`${t('pages.settings.ResumeParserEngine.s17')}：${e?.response?.data?.message || e?.message || '未知错误'}`)
   }
@@ -116,8 +207,17 @@ async function saveConfig() {
   if (!isSelectable(selected.value)) return
   saving.value = true
   try {
-    const saved = await updateResumeParserConfig({ backend: selected.value })
+    const saved = await updateResumeParserConfig({
+      backend: selected.value,
+      smartresume: {
+        llm_mode: srForm.llm_mode,
+        api_url: srForm.api_url,
+        model_name: srForm.model_name,
+        api_key: srForm.api_key,
+      },
+    })
     config.value = saved
+    syncSrForm()
     message.success(t('pages.settings.ResumeParserEngine.s16'))
   } catch (e: any) {
     message.error(`${t('pages.settings.ResumeParserEngine.s18')}：${e?.response?.data?.message || e?.message || '未知错误'}`)
@@ -140,6 +240,12 @@ onMounted(load)
   font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
+}
+.rpe-section-desc {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  line-height: 1.6;
 }
 
 .rpe-radio-group { display: block; }
@@ -182,6 +288,25 @@ onMounted(load)
 .rpe-status-item { display: inline-flex; align-items: center; gap: var(--space-1); }
 
 .rpe-warn { margin-top: var(--space-3); }
+
+.rpe-cloud { display: flex; flex-direction: column; gap: var(--space-3); }
+.rpe-cloud-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.rpe-cloud-label {
+  flex: 0 0 96px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--ink);
+}
+.rpe-cloud-input { flex: 1; }
+.rpe-cloud-hint {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
 
 .rpe-footer { display: flex; justify-content: flex-end; gap: var(--space-2); }
 </style>
