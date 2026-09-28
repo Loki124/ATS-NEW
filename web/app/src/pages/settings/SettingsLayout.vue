@@ -170,6 +170,7 @@ const subMenuOptions: MenuItem[] = [
         children: [
           { key: '/settings/demand-dynamic-fields', label: '需求字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
           { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
+          { key: '/settings/demand-form-settings', label: '表单设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
           { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
         ],
       },
@@ -180,6 +181,7 @@ const subMenuOptions: MenuItem[] = [
         icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }),
         children: [
           { key: '/settings/position-dynamic-fields', label: '职位字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/position-form-settings', label: '表单设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
           { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
         ],
       },

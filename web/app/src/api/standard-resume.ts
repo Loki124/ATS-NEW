@@ -113,10 +113,17 @@ export interface MergedResumeField {
   required: boolean
 }
 
+// 仅依赖「字段显隐/必填 + 分组顺序」的最小配置结构；
+// 标准简历配置(StandardResumeConfig)与表单设置配置(FormConfig)都满足，可复用聚合逻辑。
+export interface FieldVisibilityConfig {
+  fields: StandardResumeFieldConfig[]
+  groupOrder?: string[]
+}
+
 // 把动态字段与配置合并，返回按 orderIndex 排序的完整列表（含 enabled/required 标志）
 export function mergeFields(
   allFields: FieldDefinition[],
-  cfg: StandardResumeConfig,
+  cfg: FieldVisibilityConfig,
 ): MergedResumeField[] {
   const map = new Map(cfg.fields.map((f) => [f.fieldKey, f]))
   return [...allFields]

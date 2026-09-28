@@ -136,6 +136,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
           { path: 'demand-dynamic-fields', name: 'DemandDynamicFields', component: () => import(/* webpackChunkName: "settings-demand-dynamic-fields" */ '../pages/settings/DemandDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // 2026-09-28: 招聘需求表单设置（字段显隐/必填/顺序，交互对标标准简历设置）
+          { path: 'demand-form-settings', name: 'DemandFormSettings', component: () => import(/* webpackChunkName: "settings-demand-form" */ '../pages/settings/DemandFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // 2026-09-25: 指标与规则统一工作区（整合 指标库 / 规则配置与执行 / 规则管理 三页为单页 tab）
           { path: 'metrics', name: 'MetricsWorkspace', component: () => import(/* webpackChunkName: "settings-metrics-workspace" */ '../pages/settings/MetricsWorkspace.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // 兼容旧深链：重定向到统一工作区
@@ -151,6 +153,8 @@ const routes: RouteRecordRaw[] = [
           // ===== 过程管理新增模块（内容留空待建，复用 Placeholder 经 meta 定制标题）=====
           { path: 'position-info', name: 'PositionInfo', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '职位信息管理', description: '职位分类、职位模板与 JD 库维护（规划中）' } },
           { path: 'position-dynamic-fields', name: 'PositionDynamicFields', component: () => import(/* webpackChunkName: "settings-position-dynamic-fields" */ '../pages/settings/PositionDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // 2026-09-28: 职位信息表单设置（字段显隐/必填/顺序，交互对标标准简历设置）
+          { path: 'position-form-settings', name: 'PositionFormSettings', component: () => import(/* webpackChunkName: "settings-position-form" */ '../pages/settings/PositionFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           { path: 'interview-management', name: 'InterviewManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '面试管理', description: '面试形式、面试评价表与面试官资源管理（规划中）' } },
           { path: 'offer-management', name: 'OfferManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: 'Offer管理', description: 'Offer 模板、审批流与薪酬结构配置（规划中）' } },
           { path: 'recruit-category', name: 'RecruitCategory', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '招聘分类信息', description: '招聘业务分类维度维护，数据字典归属于此（规划中）' } },

@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     StandardResumeConfigView,
     CandidateTableConfigView,
+    FormConfigView,
     RegistrationFormListView,
     RegistrationFormDetailView,
 )
@@ -14,4 +15,6 @@ urlpatterns = [
     path('application-form/<int:pk>/', RegistrationFormDetailView.as_view()),
     # 候选人信息登记表设置（单体 config）
     path('candidate-info-table/', CandidateTableConfigView.as_view()),
+    # 招聘需求 / 职位信息 表单设置（按 resource 区分配置键）
+    path('form-config/', FormConfigView.as_view()),
 ]

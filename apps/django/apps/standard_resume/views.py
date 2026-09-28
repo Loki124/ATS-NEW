@@ -82,6 +82,59 @@ class CandidateTableConfigView(BaseConfigView):
         return Response({'success': True, 'data': merged})
 
 
+class FormConfigView(APIView):
+    """招聘需求 / 职位信息 表单设置（字段显隐 / 必填 / 分组顺序）
+
+    复用 StandardResumeConfig 单体 JSON 存储，按 resource 区分配置键：
+      - resource='Demand'   → key 'form_demand'
+      - resource='Position' → key 'form_position'
+    配置结构与标准简历一致（fields/groupOrder），但无「必填阶段」概念。
+    交互形式对标「标准简历设置」：分组 + 双层字段拖拽、显隐/必填开关、实时预览、自动保存。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    RESOURCE_KEYS = {
+        'Demand': 'form_demand',
+        'Position': 'form_position',
+    }
+
+    @staticmethod
+    def _resolve_key(resource):
+        return FormConfigView.RESOURCE_KEYS.get(resource or '')
+
+    def get(self, request):
+        resource = request.query_params.get('resource') or ''
+        key = self._resolve_key(resource)
+        if not key:
+            return Response(
+                {'success': False, 'message': f'不支持的 resource: {resource}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        obj, _ = StandardResumeConfig.objects.get_or_create(key=key)
+        return Response({'success': True, 'data': obj.config or {}})
+
+    def put(self, request):
+        resource = request.query_params.get('resource') or ''
+        key = self._resolve_key(resource)
+        if not key:
+            return Response(
+                {'success': False, 'message': f'不支持的 resource: {resource}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(request.data, dict):
+            return Response(
+                {'success': False, 'message': 'config 必须是 JSON 对象'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        obj, _ = StandardResumeConfig.objects.get_or_create(key=key)
+        obj.config = request.data
+        if request.user and request.user.is_authenticated:
+            obj.updated_by = request.user
+        obj.save()
+        return Response({'success': True, 'data': obj.config})
+
+
 class RegistrationFormListView(APIView):
     """登记 / 申请表集合：列出 / 新建"""
 
