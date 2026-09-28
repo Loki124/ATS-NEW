@@ -21,7 +21,7 @@ import {
   PHONE_DIAL_CODES, searchDialCodes, DEFAULT_DIAL_CODE,
 } from '@/api/dynamic-field';
 import {
-  validateFieldValue, TEXT_TYPES, NUMBER_TYPES, DATE_TYPES,
+  validateFieldValue, TEXT_TYPES, NUMBER_TYPES, DATE_TYPES, resolveDateBound,
 } from '@/utils/fieldValidation';
 
 const { t } = useI18n()
@@ -86,11 +86,12 @@ function inputPlaceholder(f: FieldDefinition): string {
   return f.placeholder || '';
 }
 
-/** 日期可选范围: 禁用区间外的日期 (minDate/maxDate 为 YYYY-MM-DD) */
+/** 日期可选范围: 禁用区间外的日期 (minDate/maxDate 可为 YYYY-MM-DD 或相对表达式 T±N) */
 function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | undefined {
   const v = f.validation as FieldValidation | null;
-  const lo = v?.minDate || null;
-  const hi = v?.maxDate || null;
+  // 相对表达式(T±N)在运行时解析为具体日期, 使「大于当前时间 N 天」永远相对当下
+  const lo = resolveDateBound(v?.minDate);
+  const hi = resolveDateBound(v?.maxDate);
   if (!lo && !hi) return undefined;
   return (current: number) => {
     const dt = new Date(current);

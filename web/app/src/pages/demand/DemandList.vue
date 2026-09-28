@@ -418,6 +418,7 @@
               :type="f.fieldType === 'DATE_RANGE' ? 'daterange' : 'date'"
               clearable
               style="width: 100%"
+              :is-date-disabled="dateDisabled(f) || undefined"
               @update:value="(v: number | [number, number] | null) => onDateInput(f, v)"
             />
             <!-- 布尔 -->
@@ -456,6 +457,7 @@ import {
   listFields, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
   type FieldDefinition, type FieldOption,
 } from '../../api/dynamic-field'
+import { resolveDateBound } from '../../utils/fieldValidation'
 const { t } = useI18n()
 const message = useMessage()
 
@@ -600,6 +602,22 @@ function onDateInput(f: FieldDefinition, v: number | [number, number] | null) {
   formValues[f.fieldKey] = Array.isArray(v)
     ? [new Date(v[0]).toISOString(), new Date(v[1]).toISOString()]
     : new Date(v).toISOString()
+}
+
+// 日期可选范围: 禁用区间外的日期 (minDate/maxDate 可为 YYYY-MM-DD 或相对表达式 T±N)。
+// 相对表达式在运行时解析为具体日期, 使「大于当前时间 N 天」永远相对当下。
+function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | undefined {
+  const v = f.validation as { minDate?: string | null; maxDate?: string | null } | null
+  const lo = resolveDateBound(v?.minDate)
+  const hi = resolveDateBound(v?.maxDate)
+  if (!lo && !hi) return undefined
+  return (current: number) => {
+    const dt = new Date(current)
+    const ds = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+    if (lo && ds < lo) return true
+    if (hi && ds > hi) return true
+    return false
+  }
 }
 
 // 详情页某字段的取值: 模型映射字段取 demand 对象, 否则取 DynamicFieldValue

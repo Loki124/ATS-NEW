@@ -227,24 +227,58 @@
           </template>
           <template v-else-if="isLimitDateType">
             <n-form-item label="日期可选范围">
-              <n-space align="center" :size="10">
-                <n-date-picker
-                  v-model:value="fieldForm.validation.minDate"
-                  type="date"
-                  value-format="yyyy-MM-dd"
-                  clearable
-                  placeholder="起始日期"
-                  style="width: 200px"
-                />
-                <n-text depth="3">至</n-text>
-                <n-date-picker
-                  v-model:value="fieldForm.validation.maxDate"
-                  type="date"
-                  value-format="yyyy-MM-dd"
-                  clearable
-                  placeholder="结束日期"
-                  style="width: 200px"
-                />
+              <n-space vertical :size="8" style="width: 100%">
+                <n-space align="center" :size="8" wrap>
+                  <n-radio-group :value="minMode" @update:value="(v: any) => setMinMode(v)">
+                    <n-radio-button value="absolute">起始·绝对日期</n-radio-button>
+                    <n-radio-button value="relative">起始·相对天数</n-radio-button>
+                  </n-radio-group>
+                  <n-date-picker
+                    v-if="minMode === 'absolute'"
+                    v-model:value="fieldForm.validation.minDate"
+                    type="date"
+                    value-format="yyyy-MM-dd"
+                    clearable
+                    placeholder="起始日期"
+                    style="width: 180px"
+                  />
+                  <n-input
+                    v-else
+                    v-model:value="fieldForm.validation.minDate"
+                    placeholder="如 T / T+3 / T-3"
+                    style="width: 130px"
+                    @update:value="() => validateDateExpr('min')"
+                  />
+                  <n-text depth="3">至</n-text>
+                  <n-radio-group :value="maxMode" @update:value="(v: any) => setMaxMode(v)">
+                    <n-radio-button value="absolute">结束·绝对日期</n-radio-button>
+                    <n-radio-button value="relative">结束·相对天数</n-radio-button>
+                  </n-radio-group>
+                  <n-date-picker
+                    v-if="maxMode === 'absolute'"
+                    v-model:value="fieldForm.validation.maxDate"
+                    type="date"
+                    value-format="yyyy-MM-dd"
+                    clearable
+                    placeholder="结束日期"
+                    style="width: 180px"
+                  />
+                  <n-input
+                    v-else
+                    v-model:value="fieldForm.validation.maxDate"
+                    placeholder="如 T / T+3 / T-3"
+                    style="width: 130px"
+                    @update:value="() => validateDateExpr('max')"
+                  />
+                </n-space>
+                <n-space vertical :size="2">
+                  <n-text v-if="dateExprErrors.min || dateExprErrors.max" type="error" depth="3">
+                    {{ dateExprErrors.min || dateExprErrors.max }}
+                  </n-text>
+                  <n-text v-else depth="3" style="font-size: 12px">
+                    留空 = 不限制；相对天数以「填写表单当天」为 T，如 T+3 = 3 天后及以后，T-3 = 3 天前及以后。
+                  </n-text>
+                </n-space>
               </n-space>
             </n-form-item>
           </template>
@@ -760,7 +794,7 @@ import { ref, computed, h, onMounted, reactive, watch, withDefaults, defineProps
 import {
   NTag, NButton, NSpace, NSwitch, NInputNumber, NIcon, NSelect, NDataTable,
   NModal, NForm, NFormItem, NInput, NDynamicInput, NTabs, NTabPane, NDropdown,
-  NRadioGroup, NRadio, NCheckbox, NAlert, NText, useMessage, useDialog,
+  NRadioGroup, NRadio, NRadioButton, NCheckbox, NAlert, NText, useMessage, useDialog,
 } from 'naive-ui';
 import { AddOutline, TrashOutline, CreateOutline, ShieldCheckmarkOutline, BanOutline, PlayOutline, AppsOutline, ListOutline, GitNetworkOutline } from '@vicons/ionicons5';
 import FieldListOptions from '@/components/FieldListOptions.vue';
@@ -784,7 +818,10 @@ import {
   type FieldValidation,
 } from '@/api/dynamic-field';
 // 2026-09-24 (兵哥) 限制条件: 类型分组与前端校验共用同一真源
-import { TEXT_MAXLENGTH_TYPES, NUMBER_TYPES, OPTION_TYPES, DATE_TYPES } from '@/utils/fieldValidation';
+import {
+  TEXT_MAXLENGTH_TYPES, NUMBER_TYPES, OPTION_TYPES, DATE_TYPES,
+  isRelativeDateExpr, isAbsoluteDate,
+} from '@/utils/fieldValidation';
 import {
   listDictionaryTypes, listDictionaryItems,
   type DictionaryType,
@@ -908,6 +945,33 @@ const hasValidationConfig = computed(() =>
   isLimitTextType.value || isLimitNumberType.value || isLimitOptionType.value || isLimitDateType.value,
 );
 
+/** 日期可选范围: 起始/结束边界的模式(绝对日期 / 相对天数) + 相对表达式输入校验错误 */
+const minMode = ref<'absolute' | 'relative'>('absolute');
+const maxMode = ref<'absolute' | 'relative'>('absolute');
+const dateExprErrors = reactive<{ min: string; max: string }>({ min: '', max: '' });
+
+/** 切换边界模式: 切换时清空该边界值, 避免跨模式残留非法字符串 */
+function setMinMode(m: 'absolute' | 'relative') {
+  minMode.value = m;
+  fieldForm.validation.minDate = m === 'relative' ? '' : null;
+  dateExprErrors.min = '';
+}
+function setMaxMode(m: 'absolute' | 'relative') {
+  maxMode.value = m;
+  fieldForm.validation.maxDate = m === 'relative' ? '' : null;
+  dateExprErrors.max = '';
+}
+
+/** 校验相对/绝对日期边界输入; 非法即写入红字提示(弹窗内拦截, 不发请求) */
+function validateDateExpr(which: 'min' | 'max') {
+  const key = which === 'min' ? 'minDate' : 'maxDate';
+  const v = (fieldForm.validation as FieldValidation | null)?.[key];
+  if (!v || !String(v).trim()) { dateExprErrors[which] = ''; return; }
+  const s = String(v).trim();
+  if (isRelativeDateExpr(s) || isAbsoluteDate(s)) dateExprErrors[which] = '';
+  else dateExprErrors[which] = '格式应为 YYYY-MM-DD 或 T/T±N（如 T+3、T-3）';
+}
+
 /** 选项类「可选范围」候选 = 当前手动维护的选项 */
 const allowedValueOptions = computed(() =>
   fieldForm.options.map((o) => ({ label: o.label || o.value, value: o.value })),
@@ -935,9 +999,14 @@ function buildValidationPayload(): FieldValidation {
     };
   }
   if (isLimitDateType.value) {
+    // 兼容绝对日期(YYYY-MM-DD)与相对表达式(T±N); 非法形态置空(不限制), 不污染存储
+    const sanitizeBound = (val: unknown): string | null => {
+      const s = typeof val === 'string' ? val.trim() : '';
+      return s && (isAbsoluteDate(s) || isRelativeDateExpr(s)) ? s : null;
+    };
     return {
-      minDate: v.minDate ? String(v.minDate).slice(0, 10) : null,
-      maxDate: v.maxDate ? String(v.maxDate).slice(0, 10) : null,
+      minDate: sanitizeBound(v.minDate),
+      maxDate: sanitizeBound(v.maxDate),
       message: v.message || '',
     };
   }
@@ -1258,6 +1327,10 @@ function resetFieldForm() {
     isSystem: false,
     isLocked: false,
   });
+  minMode.value = 'absolute';
+  maxMode.value = 'absolute';
+  dateExprErrors.min = '';
+  dateExprErrors.max = '';
 }
 
 function openFieldCreate(groupId?: string | null) {
@@ -1300,6 +1373,12 @@ function openFieldEdit(row: FieldDefinition) {
     // 2026-09-24 (兵哥): 限制条件回填 (按字段类型差异化, 后端 normalize 兜底)
     validation: { ...(row.validation || {}) },
   });
+  // 2026-09-28 (寇豆码): 日期可选范围 — 按既有 minDate/maxDate 形态推导边界模式(绝对/相对)
+  const v0 = (row.validation || {}) as FieldValidation;
+  minMode.value = isRelativeDateExpr(v0.minDate) ? 'relative' : 'absolute';
+  maxMode.value = isRelativeDateExpr(v0.maxDate) ? 'relative' : 'absolute';
+  dateExprErrors.min = '';
+  dateExprErrors.max = '';
   fieldModalVisible.value = true;
 }
 
@@ -1313,6 +1392,15 @@ async function saveField() {
   if (fieldNeedsOptions.value && sourceType.value !== 'custom' && sourceType.value === 'dictionary' && !fieldForm.optionsSource?.key) {
     message.error('选项来源选择了「' + OPTION_SOURCE_OPTIONS.value.find((o) => o.value === sourceType.value)?.label + '」，请继续选择子类型');
     return;
+  }
+  // 2026-09-28 (寇豆码): 日期可选范围 — 保存前再校验相对/绝对表达式, 非法输入在弹窗内拦截、不发请求
+  if (isLimitDateType.value) {
+    validateDateExpr('min');
+    validateDateExpr('max');
+    if (dateExprErrors.min || dateExprErrors.max) {
+      message.error('日期可选范围格式有误，请检查后重试');
+      return;
+    }
   }
   saving.value = true;
   try {

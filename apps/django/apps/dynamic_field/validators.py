@@ -85,6 +85,12 @@ INHERENT_FORMAT: dict[str, str] = {
 }
 
 
+#: 相对日期表达式: T = 填写表单当天, T+3 / T-3 = ±N 天 (N 为整数, 可 0 / 可负)。
+RELATIVE_DATE_RE = re.compile(r'^T([+-]\d+)?$')
+#: 绝对日期表达式: YYYY-MM-DD。
+ABSOLUTE_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
 def _parse_date(value):
     """把 'YYYY-MM-DD' 或 'YYYY-MM-DD...' 解析为 date; 非法/空返回 None。"""
     if not isinstance(value, str) or not value.strip():
@@ -93,6 +99,56 @@ def _parse_date(value):
         return datetime.date.fromisoformat(value.strip()[:10])
     except ValueError:
         return None
+
+
+def _get_date_bound(validation, camel_key: str, snake_key: str):
+    """从 validation 取日期边界值, 兼容 CamelCase 解析器下划线化后的 snake_case 键。
+
+    前端按 camelCase (minDate/maxDate) 发送, 但全局 ``CamelCaseJSONParser`` 会递归把
+    嵌套键下划线化为 min_date/max_date, 故两种键都需兼容。规范化结果统一以 camelCase 存储。
+
+    Args:
+        validation: 原始 validation dict。
+        camel_key: camelCase 键 (minDate / maxDate)。
+        snake_key: 对应 snake_case 键 (min_date / max_date)。
+
+    Returns:
+        边界原始值 (优先 camel, 回退 snake); 均无 → None。
+    """
+    if not isinstance(validation, dict):
+        return None
+    v = validation.get(camel_key)
+    if v is None:
+        v = validation.get(snake_key)
+    return v
+
+
+def resolve_date_bound(value, base_date: datetime.date | None = None) -> datetime.date | None:
+    """把日期边界表达式解析为 ``date``; 非法/空返回 ``None``。
+
+    支持两种形态 (与前端 ``fieldValidation.resolveDateBound`` 等价):
+      - 绝对日期 ``'YYYY-MM-DD'`` → 直接解析;
+      - 相对表达式 ``'T'`` / ``'T+3'`` / ``'T-3'`` → ``base_date``(默认 localtime 当天) ± N 天。
+
+    相对表达在**运行时**解析, 配置里只存表达式本身、不存解析结果,
+    从而「大于当前时间 3 天」永远相对当下。
+
+    Args:
+        value: 边界值 (字符串); 非字符串/空 → None。
+        base_date: 相对基准日 (默认 ``datetime.date.today()``, 即服务所在时区当天)。
+
+    Returns:
+        datetime.date | None: 解析成功的具体日期; 非法/空 → None。
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    s = value.strip()
+    m = RELATIVE_DATE_RE.match(s)
+    if m:
+        n = int(m.group(1)) if m.group(1) else 0
+        base = base_date or datetime.date.today()
+        return base + datetime.timedelta(days=n)
+    return _parse_date(s)  # 绝对日期或非法(→None)
 
 
 def _coerce_number(value):
@@ -168,10 +224,15 @@ def normalize_validation(field_type: str, validation) -> dict:
 
     if field_type in DATE_TYPES:
         out = {'message': message}
-        for key in ('minDate', 'maxDate'):
-            v = validation.get(key)
+        # 兼容 CamelCase 解析器下划线化后的 snake 键 (min_date/max_date); 结果统一以 camelCase 存储
+        pairs = (('minDate', 'min_date'), ('maxDate', 'max_date'))
+        for camel, snake in pairs:
+            v = _get_date_bound(validation, camel, snake)
             if isinstance(v, str) and v.strip():
-                out[key] = v.strip()
+                s = v.strip()
+                # 兼容绝对日期与相对表达式 (T±N); 非法形态丢弃, 避免污染存储
+                if ABSOLUTE_DATE_RE.match(s) or RELATIVE_DATE_RE.match(s):
+                    out[camel] = s
         return out
 
     # 其余类型 (EMAIL/PHONE/ID_CARD/BANK_CARD/URL 固有格式, SELECT/MULTISELECT/RICH_TEXT/其他): 无配置项
@@ -266,21 +327,26 @@ def validate_field_value(field_type: str, validation, value) -> list[str]:
                     break
         return errors
 
-    # ---- 日期类: 日期可选范围 (minDate / maxDate) ----
+    # ---- 日期类: 日期可选范围 (minDate / maxDate, 支持绝对日期与相对表达式 T±N) ----
     if field_type in DATE_TYPES:
         dates = value if isinstance(value, (list, tuple)) else [value]
-        lo = _parse_date(validation.get('minDate'))
-        hi = _parse_date(validation.get('maxDate'))
+        # 相对表达式在运行时解析为具体日期 (基准 = 当天), 使「大于当前时间 N 天」永远相对当下
+        # 兼容 CamelCase 解析器下划线化后的 snake 键 (min_date/max_date)
+        base = datetime.date.today()
+        lo_raw = _get_date_bound(validation, 'minDate', 'min_date')
+        hi_raw = _get_date_bound(validation, 'maxDate', 'max_date')
+        lo = resolve_date_bound(lo_raw, base)
+        hi = resolve_date_bound(hi_raw, base)
         for d in dates:
             dv = _parse_date(d)
             if dv is None:
                 # 非法日期值跳过范围校验 (格式问题由必填/类型层另行处理)
                 continue
             if lo is not None and dv < lo:
-                errors.append(msg or f'不能早于 {validation.get("minDate")}')
+                errors.append(msg or f'不能早于 {lo_raw}')
                 break
             if hi is not None and dv > hi:
-                errors.append(msg or f'不能晚于 {validation.get("maxDate")}')
+                errors.append(msg or f'不能晚于 {hi_raw}')
                 break
         return errors
 

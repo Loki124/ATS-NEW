@@ -29,6 +29,52 @@ export const OPTION_TYPES = ['LIST_SINGLE', 'LIST_MULTI'];
 /** 日期类字段 (可做 日期可选范围 校验) */
 export const DATE_TYPES = ['DATE', 'DATE_RANGE'];
 
+/** 相对日期表达式: T = 填写表单当天, T+3 / T-3 = ±N 天 (N 为整数, 可 0 / 可负)。 */
+export const RELATIVE_DATE_EXPR_RE = /^T([+-]\d+)?$/;
+/** 绝对日期表达式: YYYY-MM-DD。 */
+export const ABSOLUTE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 是否为相对日期表达式 (T / T+3 / T-3)。 */
+export function isRelativeDateExpr(value: unknown): boolean {
+  return typeof value === 'string' && RELATIVE_DATE_EXPR_RE.test(value.trim());
+}
+
+/** 是否为合法绝对日期字符串 (YYYY-MM-DD)。 */
+export function isAbsoluteDate(value: unknown): boolean {
+  return typeof value === 'string' && ABSOLUTE_DATE_RE.test(value.trim());
+}
+
+/** 是否为合法的日期边界值 (绝对日期 或 相对表达式)。 */
+export function isDateBound(value: unknown): boolean {
+  return isAbsoluteDate(value) || isRelativeDateExpr(value);
+}
+
+/**
+ * 把日期边界值解析为 YYYY-MM-DD 字符串; 非法/空返回 null。
+ *
+ * 与后端 ``validators.resolve_date_bound`` 等价:
+ *   - 绝对日期 'YYYY-MM-DD' → 原样返回;
+ *   - 相对表达式 'T' / 'T+3' / 'T-3' → base(默认今天, 本地时区) ± N 天。
+ *
+ * 相对表达在**运行时**解析, 配置里只存表达式本身、不存解析结果,
+ * 从而「大于当前时间 3 天」永远相对当下。
+ *
+ * @param value 边界值 (字符串); 非字符串/空 → null。
+ * @param base  相对基准日 (默认本地今天)。
+ */
+export function resolveDateBound(value: unknown, base?: Date): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const s = value.trim();
+  const rm = s.match(RELATIVE_DATE_EXPR_RE);
+  if (rm) {
+    const n = rm[1] ? parseInt(rm[1], 10) : 0;
+    const b = base ? new Date(base) : new Date();
+    b.setDate(b.getDate() + n);
+    return `${b.getFullYear()}-${String(b.getMonth() + 1).padStart(2, '0')}-${String(b.getDate()).padStart(2, '0')}`;
+  }
+  return isAbsoluteDate(s) ? s : null;
+}
+
 /** 专用类型自带固有格式, 即便未配置 format 也强制校验 */
 export const INHERENT_FORMAT: Record<string, string> = {
   EMAIL: 'EMAIL',
