@@ -378,9 +378,16 @@
             :label="f.label"
             :required="f.isRequired"
           >
+            <!-- 富文本 (RICH_TEXT): 严格按字段管理配置的字段类型渲染为富文本编辑器 -->
+            <RichEditor
+              v-if="f.fieldType === 'RICH_TEXT'"
+              v-model:html="formValues[f.fieldKey]"
+              :placeholder="f.placeholder || '请输入'"
+              style="width: 100%"
+            />
             <!-- 文本类 -->
             <n-input
-              v-if="isPlainTextType(f.fieldType)"
+              v-else-if="isPlainTextType(f.fieldType)"
               v-model:value="formValues[f.fieldKey]"
               :type="f.fieldType === 'MULTILINE_TEXT' ? 'textarea' : 'text'"
               :placeholder="f.placeholder || ''"
@@ -443,6 +450,7 @@ import { useMessage, NDropdown } from 'naive-ui'
 import { AddOutline, SearchOutline, BusinessOutline, PeopleOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
+import RichEditor from '../../components/RichEditor.vue'
 
 import {
   listFields, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
@@ -563,7 +571,7 @@ const dynamicFormFields = computed(() =>
 const NUMBER_TYPES = ['NUMBER']
 const OPTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT']
 const DATE_TYPES = ['DATE', 'DATE_RANGE']
-const PLAIN_TEXT_TYPES = ['TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'URL', 'RICH_TEXT']
+const PLAIN_TEXT_TYPES = ['TEXT', 'MULTILINE_TEXT', 'ADDRESS', 'URL']
 const isNumberType = (t: string) => NUMBER_TYPES.includes(t)
 const isOptionType = (t: string) => OPTION_TYPES.includes(t)
 const isDateType = (t: string) => DATE_TYPES.includes(t)
