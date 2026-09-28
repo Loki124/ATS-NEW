@@ -36,6 +36,7 @@ export const RESUME_PARSER_ZH = {
   'pages.settings.ResumeParserEngine.s29': '如 qwen-plus / qwen-max，可在阿里云百炼控制台查看可用模型。',
   'pages.settings.ResumeParserEngine.s30': '未配置 Key 时云端模式无法解析，请先填写 API Key（留空表示不修改已保存的 Key）。',
   'pages.settings.ResumeParserEngine.s31': '此配置作用于 SmartResume 引擎；当前激活引擎并非 SmartResume，切换到 SmartResume 后云端配置才会生效。',
+  'pages.settings.ResumeParserEngine.s32': '当前为「本地模型」模式；以上云端配置会被保存，切换到「云端 API」后生效。',
 }
 
 export const RESUME_PARSER_EN = {
@@ -70,4 +71,5 @@ export const RESUME_PARSER_EN = {
   'pages.settings.ResumeParserEngine.s29': 'e.g. qwen-plus / qwen-max, available in the Alibaba Bailian console.',
   'pages.settings.ResumeParserEngine.s30': 'Cloud mode cannot parse without a Key. Please enter an API Key (leave empty to keep the saved Key unchanged).',
   'pages.settings.ResumeParserEngine.s31': 'This config applies to the SmartResume engine. The active engine is not SmartResume — the cloud config takes effect after switching to SmartResume.',
+  'pages.settings.ResumeParserEngine.s32': 'Currently in "Local model" mode; the cloud config above will be saved and takes effect after switching to "Cloud API".',
 }

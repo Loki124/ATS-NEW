@@ -75,43 +75,49 @@
             </n-radio-group>
           </div>
 
-          <template v-if="srForm.llm_mode === 'cloud'">
-            <div class="rpe-cloud-row">
-              <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s26') }}</span>
-              <n-input
-                v-model:value="srForm.api_url"
-                placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
-                class="rpe-cloud-input"
-              />
-            </div>
-            <div class="rpe-cloud-row">
-              <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s27') }}</span>
-              <n-input
-                v-model:value="srForm.api_key"
-                type="password"
-                show-password-on="click"
-                placeholder="sk-...（留空表示不修改已保存的 Key）"
-                class="rpe-cloud-input"
-              />
-            </div>
-            <div class="rpe-cloud-row">
-              <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
-              <n-input
-                v-model:value="srForm.model_name"
-                placeholder="qwen-plus"
-                class="rpe-cloud-input"
-              />
-            </div>
-            <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s29') }}</p>
-            <n-alert
-              v-if="!srForm.api_key && !hasSavedKey"
-              type="warning"
-              :title="t('pages.settings.ResumeParserEngine.s30')"
-              class="rpe-warn"
-            >
-              {{ t('pages.settings.ResumeParserEngine.s30') }}
-            </n-alert>
-          </template>
+          <div class="rpe-cloud-row">
+            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s26') }}</span>
+            <n-input
+              v-model:value="srForm.api_url"
+              placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+              class="rpe-cloud-input"
+            />
+          </div>
+          <div class="rpe-cloud-row">
+            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s27') }}</span>
+            <n-input
+              v-model:value="srForm.api_key"
+              type="password"
+              show-password-on="click"
+              placeholder="sk-...（留空表示不修改已保存的 Key）"
+              class="rpe-cloud-input"
+            />
+          </div>
+          <div class="rpe-cloud-row">
+            <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
+            <n-input
+              v-model:value="srForm.model_name"
+              placeholder="qwen-plus"
+              class="rpe-cloud-input"
+            />
+          </div>
+          <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s29') }}</p>
+          <n-alert
+            v-if="srForm.llm_mode === 'local'"
+            type="info"
+            :title="t('pages.settings.ResumeParserEngine.s32')"
+            class="rpe-warn"
+          >
+            {{ t('pages.settings.ResumeParserEngine.s32') }}
+          </n-alert>
+          <n-alert
+            v-else-if="!srForm.api_key && !hasSavedKey"
+            type="warning"
+            :title="t('pages.settings.ResumeParserEngine.s30')"
+            class="rpe-warn"
+          >
+            {{ t('pages.settings.ResumeParserEngine.s30') }}
+          </n-alert>
         </div>
       </section>
 

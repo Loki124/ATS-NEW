@@ -401,11 +401,20 @@ class ResumeParserConfigView(APIView):
         obj, _ = StandardResumeConfig.objects.get_or_create(key="resume_parser")
         return obj
 
-    def _payload(self, backend: str) -> dict:
+    def _payload(self, backend: str, config_obj=None) -> dict:
+        # smartresume 云端配置：api_key 脱敏，仅暴露是否已设置。
+        sr_cfg = {}
+        if config_obj is not None:
+            sr_cfg = dict((config_obj.config or {}).get("smartresume") or {})
+        if "api_key" in sr_cfg:
+            sr_cfg["api_key_set"] = bool(sr_cfg.pop("api_key"))
+        else:
+            sr_cfg["api_key_set"] = False
         return {
             "success": True,
             "data": {
                 "backend": backend,
+                "smartresume": sr_cfg,
                 "available": probe_backends(),
             },
         }
@@ -413,7 +422,7 @@ class ResumeParserConfigView(APIView):
     def get(self, request):
         obj = self._read()
         backend = self._resolve_backend(obj.config)
-        return Response(self._payload(backend))
+        return Response(self._payload(backend, obj))
 
     def post(self, request):
         if not isinstance(request.data, dict):
@@ -428,11 +437,27 @@ class ResumeParserConfigView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         obj = self._read()
-        obj.config = {"backend": backend}
+        # 合并而非覆盖：保留 backend 之外其它字段（如已有 smartresume 配置）。
+        stored = dict(obj.config or {"backend": backend})
+        stored["backend"] = backend
+
+        sr_in = (request.data or {}).get("smartresume")
+        if isinstance(sr_in, dict):
+            merged = dict(stored.get("smartresume") or {})
+            # llm_mode / api_url / model_name 直接覆盖
+            for field in ("llm_mode", "api_url", "model_name"):
+                if field in sr_in:
+                    merged[field] = sr_in[field]
+            # api_key：仅当显式提交非空时更新；留空则保留存量（避免前端脱敏后误清空）
+            if sr_in.get("api_key"):
+                merged["api_key"] = sr_in["api_key"]
+            stored["smartresume"] = merged
+
+        obj.config = stored
         if request.user and request.user.is_authenticated:
             obj.updated_by = request.user
         obj.save()
-        return Response(self._payload(backend))
+        return Response(self._payload(backend, obj))
 
     def put(self, request):
         return self.post(request)

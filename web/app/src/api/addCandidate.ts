@@ -288,9 +288,24 @@ export interface ResumeParserBackendProbe {
   available: boolean
 }
 
+export interface SmartResumeCloudConfig {
+  /** 本地直连模型 / 云端大模型 API */
+  llm_mode?: 'local' | 'cloud'
+  /** 云端 API 地址（OpenAI 兼容，默认 DashScope compatible-mode） */
+  api_url?: string
+  /** 云端 API Key（仅 PUT 请求使用；GET 响应已脱敏为 api_key_set） */
+  api_key?: string
+  /** 是否已配置云端 API Key（GET 时脱敏，不返回明文） */
+  api_key_set?: boolean
+  /** 云端模型名（如 qwen-plus / qwen-max） */
+  model_name?: string
+}
+
 export interface ResumeParserConfig {
   /** 当前激活的后端 */
   backend: ResumeParserBackendName
+  /** SmartResume 云端大模型配置（仅当 backend=smartresume 时有效） */
+  smartresume?: SmartResumeCloudConfig
   /** 各后端运行时探测结果（数组，不落库，GET 时计算） */
   available: ResumeParserBackendProbe[]
 }
@@ -303,9 +318,9 @@ export async function getResumeParserConfig(): Promise<ResumeParserConfig> {
   return (body.data || { backend: 'career_core', available: [] }) as ResumeParserConfig
 }
 
-/** PUT /resume-parser-config/ — 切换激活引擎 */
+/** PUT /resume-parser-config/ — 切换激活引擎 / 保存 SmartResume 配置 */
 export async function updateResumeParserConfig(
-  payload: { backend: ResumeParserBackendName },
+  payload: { backend: ResumeParserBackendName; smartresume?: SmartResumeCloudConfig },
 ): Promise<ResumeParserConfig> {
   const client = getClient()
   const resp = await client.put('/resume-parser-config/', payload)

@@ -28,6 +28,35 @@ from .base import ResumeParserBackend
 
 logger = logging.getLogger(__name__)
 
+
+def _cloud_env() -> Dict[str, str]:
+    """构造 SmartResume 子进程环境变量。
+
+    当「解析引擎配置」中 smartresume 为云端模式（llm_mode='cloud'）且已配置
+    api_key 时，注入 SMARTRESUME_* 变量，使其走 DashScope 等 OpenAI 兼容接口，
+    而无需改写宿主机 configs/config.yaml（部署侧本地配置，不入库）。
+
+    返回完整环境变量副本（继承父进程 env）。
+    """
+    env = dict(os.environ)
+    try:
+        from apps.standard_resume.models import StandardResumeConfig
+        obj = StandardResumeConfig.objects.filter(key="resume_parser").first()
+        cfg = (obj.config or {}) if obj else {}
+        sr = cfg.get("smartresume") or {}
+    except Exception as e:  # 配置读取失败不阻断解析，仅不注入云端变量
+        logger.warning("读取 smartresume 云端配置失败，降级本地模式: %s", e)
+        return env
+
+    if sr.get("llm_mode") == "cloud" and sr.get("api_key"):
+        env["SMARTRESUME_USE_DIRECT_MODELS"] = "false"
+        env["SMARTRESUME_MODEL_API_KEY"] = sr["api_key"]
+        if sr.get("api_url"):
+            env["SMARTRESUME_MODEL_API_URL"] = sr["api_url"]
+        if sr.get("model_name"):
+            env["SMARTRESUME_MODEL_NAME"] = sr["model_name"]
+    return env
+
 _GENDER_MAP = {
     "男": "男", "male": "男", "m": "男",
     "女": "女", "female": "女", "f": "女",
@@ -94,6 +123,7 @@ class SmartResumeBackend(ResumeParserBackend):
                 cmd,
                 capture_output=True,
                 cwd=cwd,
+                env=_cloud_env(),
                 timeout=int(getattr(settings, "RESUME_PARSER_TIMEOUT", 600)),
             )
         except FileNotFoundError as e:
