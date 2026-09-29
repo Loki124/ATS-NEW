@@ -25,19 +25,19 @@
         <div class="spacer"></div>
         <n-button ghost @click="loadDepartments">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.settings.DepartmentManagement.s7') }}
         </n-button>
         <n-button ghost @click="exportDepartments">
           <template #icon><n-icon :component="DownloadOutline" /></template>
-          导出
+          {{ t('pages.settings.DepartmentManagement.s8') }}
         </n-button>
         <n-button ghost @click="openImportModal">
           <template #icon><n-icon :component="CloudUploadOutline" /></template>
-          导入
+          {{ t('pages.settings.DepartmentManagement.s9') }}
         </n-button>
         <n-button type="primary" class="gradient-btn" @click="openCreateModal">
           <template #icon><n-icon :component="AddOutline" /></template>
-          新增部门
+          {{ t('pages.settings.DepartmentManagement.s10') }}
         </n-button>
       </div>
     </div>
@@ -75,85 +75,85 @@
         :column="1"
         size="medium"
       >
-        <n-descriptions-item label="部门名称">{{ viewDept.name }}</n-descriptions-item>
-        <n-descriptions-item label="部门编号">{{ viewDept.code }}</n-descriptions-item>
-        <n-descriptions-item label="部门ID">
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s11')">{{ viewDept.name }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s12')">{{ viewDept.code }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s13')">
           <span style="font-family: monospace; font-size: 12px; color: #8c8c8c">{{ viewDept.id }}</span>
         </n-descriptions-item>
-        <n-descriptions-item label="上级部门">
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s14')">
           <span v-if="viewDept.parentId">{{ getParentName(viewDept) }}</span>
-          <n-tag v-else type="warning" size="small">顶级</n-tag>
+          <n-tag v-else type="warning" size="small">{{ t('pages.settings.DepartmentManagement.s15') }}</n-tag>
         </n-descriptions-item>
-        <n-descriptions-item label="部门层级">
-          <n-tag type="info" size="small" :bordered="false">第 {{ levelMap[viewDept.id] || 1 }} 级</n-tag>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s16')">
+          <n-tag type="info" size="small" :bordered="false">{{ t('pages.settings.DepartmentManagement.s79', { n: levelMap[viewDept.id] || 1 }) }}</n-tag>
         </n-descriptions-item>
-        <n-descriptions-item label="部门负责人">{{ getUserName(viewDept.managerId) || '—' }}</n-descriptions-item>
-        <n-descriptions-item label="部门负责人 2">{{ getUserName(viewDept.manager2Id) || '—' }}</n-descriptions-item>
-        <n-descriptions-item label="部门 HRBP">{{ getUserName(viewDept.hrbpId) || '—' }}</n-descriptions-item>
-        <n-descriptions-item label="分管 VP">{{ getUserName(viewDept.manager3Id) || '—' }}</n-descriptions-item>
-        <n-descriptions-item label="状态">
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s17')">{{ getUserName(viewDept.managerId) || '—' }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s18')">{{ getUserName(viewDept.manager2Id) || '—' }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s19')">{{ getUserName(viewDept.hrbpId) || '—' }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s20')">{{ getUserName(viewDept.manager3Id) || '—' }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s21')">
           <n-tag :type="viewDept.status === 'INACTIVE' ? 'default' : 'success'" size="small">
-            {{ viewDept.status === 'INACTIVE' ? '停用' : '启用' }}
+            {{ viewDept.status === 'INACTIVE' ? t('pages.settings.DepartmentManagement.s45') : t('pages.settings.DepartmentManagement.s44') }}
           </n-tag>
         </n-descriptions-item>
-        <n-descriptions-item label="排序值">{{ viewDept.sortOrder ?? '—' }}</n-descriptions-item>
-        <n-descriptions-item label="组织路径">{{ viewDept.path || '—' }}</n-descriptions-item>
-        <n-descriptions-item label="创建时间">{{ formatTime(viewDept.createdAt) }}</n-descriptions-item>
-        <n-descriptions-item label="更新时间">{{ formatTime(viewDept.updatedAt) }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s22')">{{ viewDept.sortOrder ?? '—' }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s23')">{{ viewDept.path || '—' }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s24')">{{ formatTime(viewDept.createdAt) }}</n-descriptions-item>
+        <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s25')">{{ formatTime(viewDept.updatedAt) }}</n-descriptions-item>
       </n-descriptions>
 
       <!-- 编辑态：可编辑表单 -->
       <n-form v-else :model="formState" label-placement="top">
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
-            <n-form-item label="部门编号">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s26')">
               <n-input
                 v-model:value="formState.code"
-                placeholder="保存后系统自动生成（D + 6 位流水号）"
+                :placeholder="t('pages.settings.DepartmentManagement.s27')"
                 :disabled="true"
               />
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="部门名称" required>
-              <n-input v-model:value="formState.name" placeholder="请输入部门名称" />
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s28')" required>
+              <n-input v-model:value="formState.name" :placeholder="t('pages.settings.DepartmentManagement.s29')" />
             </n-form-item>
           </n-grid-item>
         </n-grid>
 
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
-            <n-form-item label="上级部门">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s30')">
               <n-tree-select
                 v-model:value="formState.parentId"
                 :options="parentTreeData"
-                placeholder="不选则为顶级部门"
+                :placeholder="t('pages.settings.DepartmentManagement.s31')"
                 clearable
                 default-expand-all
               />
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="排序值">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s32')">
               <n-input-number
                 v-model:value="formState.sortOrder"
                 :min="0"
                 :max="9999"
                 style="width: 100%"
-                placeholder="数字越小越靠前"
+                :placeholder="t('pages.settings.DepartmentManagement.s33')"
               />
             </n-form-item>
           </n-grid-item>
         </n-grid>
 
-        <n-divider title-placement="left">人员配置</n-divider>
+        <n-divider title-placement="left">{{ t('pages.settings.DepartmentManagement.s34') }}</n-divider>
 
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
-            <n-form-item label="部门负责人">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s35')">
               <n-select
                 v-model:value="formState.managerId"
-                placeholder="请选择部门负责人"
+                :placeholder="t('pages.settings.DepartmentManagement.s36')"
                 clearable
                 filterable
                 :options="userOptions"
@@ -161,10 +161,10 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="部门负责人 2">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s37')">
               <n-select
                 v-model:value="formState.manager2Id"
-                placeholder="请选择部门负责人2"
+                :placeholder="t('pages.settings.DepartmentManagement.s38')"
                 clearable
                 filterable
                 :options="userOptions"
@@ -175,10 +175,10 @@
 
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
-            <n-form-item label="部门 HRBP">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s39')">
               <n-select
                 v-model:value="formState.hrbpId"
-                placeholder="请选择部门HRBP"
+                :placeholder="t('pages.settings.DepartmentManagement.s40')"
                 clearable
                 filterable
                 :options="userOptions"
@@ -186,10 +186,10 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="分管 VP">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s41')">
               <n-select
                 v-model:value="formState.manager3Id"
-                placeholder="请选择分管VP"
+                :placeholder="t('pages.settings.DepartmentManagement.s42')"
                 clearable
                 filterable
                 :options="userOptions"
@@ -200,10 +200,10 @@
 
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
-            <n-form-item label="状态">
+            <n-form-item :label="t('pages.settings.DepartmentManagement.s43')">
               <n-radio-group v-model:value="formState.status">
-                <n-radio value="ACTIVE">启用</n-radio>
-                <n-radio value="INACTIVE">停用</n-radio>
+                <n-radio value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s44') }}</n-radio>
+                <n-radio value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s45') }}</n-radio>
               </n-radio-group>
             </n-form-item>
           </n-grid-item>
@@ -214,16 +214,16 @@
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <!-- 查看态：关闭 + 编辑 -->
           <template v-if="deptModalMode === 'view'">
-            <n-button text @click="closeDeptModal">关闭</n-button>
+            <n-button text @click="closeDeptModal">{{ t('pages.settings.DepartmentManagement.s46') }}</n-button>
             <n-button type="primary" class="gradient-btn" @click="startEdit(viewDept)">
               <template #icon><n-icon :component="CreateOutline" /></template>
-              编辑
+              {{ t('pages.settings.DepartmentManagement.s47') }}
             </n-button>
           </template>
           <!-- 编辑态：取消 + 保存 -->
           <template v-else>
-            <n-button text @click="closeDeptModal">取消</n-button>
-            <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">保存部门</n-button>
+            <n-button text @click="closeDeptModal">{{ t('pages.settings.DepartmentManagement.s48') }}</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">{{ t('pages.settings.DepartmentManagement.s49') }}</n-button>
           </template>
         </div>
       </template>
@@ -233,7 +233,7 @@
     <n-modal
       v-model:show="importModalVisible"
       preset="card"
-      title="导入部门"
+      :title="t('pages.settings.DepartmentManagement.s50')"
       :style="{ width: '720px' }"
       :mask-closable="false"
       :centered="true"
@@ -241,7 +241,7 @@
     >
       <n-space vertical :size="12">
         <n-alert type="info" :show-icon="true">
-          以「部门编号」为唯一键：编号已存在则更新，不存在则新建。父部门与负责人按编号 / 姓名自动匹配；本页操作不影响现有其他数据。
+          {{ t('pages.settings.DepartmentManagement.s51') }}
         </n-alert>
         <div style="display: flex; align-items: center; gap: 12px;">
           <n-upload
@@ -252,11 +252,11 @@
           >
             <n-button ghost>
               <template #icon><n-icon :component="CloudUploadOutline" /></template>
-              选择 CSV 文件
+              {{ t('pages.settings.DepartmentManagement.s52') }}
             </n-button>
           </n-upload>
-          <n-button text type="primary" @click="downloadTemplate">下载模板</n-button>
-          <span v-if="importFile" style="color: var(--ink-soft); font-size: 13px;">已选择：{{ importFile }}</span>
+          <n-button text type="primary" @click="downloadTemplate">{{ t('pages.settings.DepartmentManagement.s53') }}</n-button>
+          <span v-if="importFile" style="color: var(--ink-soft); font-size: 13px;">{{ t('pages.settings.DepartmentManagement.s80') }}{{ importFile }}</span>
         </div>
 
         <div v-if="importPreview.length" style="max-height: 320px; overflow-y: auto;">
@@ -269,13 +269,13 @@
           />
         </div>
         <n-alert v-if="importWarnings.length" type="warning" :show-icon="true">
-          {{ importWarnings.length }} 条行存在负责人/上级未匹配（已置空或跳过），详见预览「说明」列。
+          {{ t('pages.settings.DepartmentManagement.s81', { n: importWarnings.length }) }}
         </n-alert>
       </n-space>
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button text @click="closeImportModal">取消</n-button>
+          <n-button text @click="closeImportModal">{{ t('pages.settings.DepartmentManagement.s54') }}</n-button>
           <n-button
             type="primary"
             class="gradient-btn"
@@ -283,7 +283,7 @@
             :disabled="!importPreview.length"
             @click="confirmImport"
           >
-            确认导入（{{ importPreview.length }} 条）
+            {{ t('pages.settings.DepartmentManagement.s82', { n: importPreview.length }) }}
           </n-button>
         </div>
       </template>
@@ -373,7 +373,7 @@ const pagination = (() => {
   const base = localPagination();
   return {
     ...base,
-    prefix: () => `共 ${departments.value.length} 条`,
+    prefix: () => t('pages.settings.DepartmentManagement.s83', { n: departments.value.length }),
   };
 })();
 
@@ -405,8 +405,8 @@ const editingDept = ref<Department | null>(null);
 const viewDept = ref<Department | null>(null);
 
 const modalTitle = computed(() => {
-  if (deptModalMode.value === 'view') return '部门详情';
-  return editingDept.value ? '编辑部门' : '新建部门';
+  if (deptModalMode.value === 'view') return t('pages.settings.DepartmentManagement.s84');
+  return editingDept.value ? t('pages.settings.DepartmentManagement.s85') : t('pages.settings.DepartmentManagement.s86');
 });
 
 // 点击部门名称 → 查看态（详情）
@@ -510,11 +510,11 @@ const loadDepartments = async () => {
       departments.value = res.data.data || [];
       applyDefaultExpand();
     } else {
-      message.error(res.data?.message || '加载部门列表失败');
+      message.error(res.data?.message || t('pages.settings.DepartmentManagement.s87'));
     }
   } catch (error) {
-    console.error('加载部门列表失败', error);
-    message.error('网络错误，请检查后端服务');
+    console.error(t('pages.settings.DepartmentManagement.s87'), error);
+    message.error(t('pages.settings.DepartmentManagement.s55'));
   } finally {
     loading.value = false;
   }
@@ -528,7 +528,7 @@ const loadUsers = async () => {
       users.value = (res.data.data || []).filter((u: User) => u.status === 'ACTIVE');
     }
   } catch (error) {
-    message.error(extractApiError(error, '加载用户列表失败'));
+    message.error(extractApiError(error, t('pages.settings.DepartmentManagement.s88')));
   }
 };
 
@@ -584,7 +584,7 @@ const parentTreeData = computed(() => {
   };
   return [
     {
-      label: '顶级部门',
+      label: t('pages.settings.DepartmentManagement.s89'),
       key: '__ROOT__',
       disabled: true,
       children: buildTree(null),
@@ -619,7 +619,7 @@ const extractErrorMessage = (data: any): string => {
 // 提交表单
 const handleDeptSubmit = async () => {
   if (!formState.name) {
-    message.error('请填写部门名称');
+    message.error(t('pages.settings.DepartmentManagement.s56'));
     return;
   }
   submitting.value = true;
@@ -638,24 +638,24 @@ const handleDeptSubmit = async () => {
     if (editingDept.value) {
       const res = await api.put(`/departments/${editingDept.value.id}/`, payload);
       if (res.status === 200 || res.data?.success === true) {
-        message.success('部门更新成功');
+        message.success(t('pages.settings.DepartmentManagement.s57'));
         closeDeptModal();
         loadDepartments();
       } else {
-        message.error(extractErrorMessage(res.data) || '更新失败');
+        message.error(extractErrorMessage(res.data) || t('pages.settings.DepartmentManagement.s90'));
       }
     } else {
       const res = await api.post('/departments/', payload);
       if (res.status === 201 || res.data?.success === true) {
-        message.success('部门创建成功');
+        message.success(t('pages.settings.DepartmentManagement.s58'));
         closeDeptModal();
         loadDepartments();
       } else {
-        message.error(extractErrorMessage(res.data) || '创建失败');
+        message.error(extractErrorMessage(res.data) || t('pages.settings.DepartmentManagement.s91'));
       }
     }
   } catch (error: any) {
-    message.error(extractErrorMessage(error.response?.data) || '操作失败');
+    message.error(extractErrorMessage(error.response?.data) || t('pages.settings.DepartmentManagement.s92'));
   } finally {
     submitting.value = false;
   }
@@ -666,13 +666,13 @@ const handleDelete = async (record: Department) => {
   try {
     const res = await api.delete(`/departments/${record.id}/`);
     if (res.data?.success) {
-      message.success('部门删除成功');
+      message.success(t('pages.settings.DepartmentManagement.s59'));
       loadDepartments();
     } else {
-      message.error(res.data?.error || res.data?.message || '删除失败');
+      message.error(res.data?.error || res.data?.message || t('pages.settings.DepartmentManagement.s93'));
     }
   } catch (error: any) {
-    message.error(error.response?.data?.error || error.response?.data?.message || '删除失败');
+    message.error(error.response?.data?.error || error.response?.data?.message || t('pages.settings.DepartmentManagement.s93'));
   }
 };
 
@@ -693,7 +693,7 @@ const renderUser = (userId?: string | null) => {
 
 const renderParent = (record: Department) => {
   if (!record.parentId) {
-    return h(NTag, { type: 'warning', size: 'small' }, { default: () => '顶级' });
+    return h(NTag, { type: 'warning', size: 'small' }, { default: () => t('pages.settings.DepartmentManagement.s15') });
   }
   const parent = departments.value.find(d => d.id === record.parentId);
   if (!parent) return h('span', { style: 'color: #bfbfbf' }, '—');
@@ -725,60 +725,60 @@ const renderName = (row: Department) => {
 
 const columns = computed(() => [
   {
-    title: '部门名称',
+    title: t('pages.settings.DepartmentManagement.s60'),
     key: 'name',
     width: 220,
     render: (row: Department) => renderName(row),
   },
   {
-    title: '上级部门',
+    title: t('pages.settings.DepartmentManagement.s61'),
     key: 'parent',
     width: 180,
     render: (row: Department) => renderParent(row),
   },
   {
-    title: '部门层级',
+    title: t('pages.settings.DepartmentManagement.s62'),
     key: 'level',
     width: 100,
     render: (row: Department) => {
       const lvl = levelMap.value[row.id] ?? 0;
-      return h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => `第 ${lvl} 级` });
+      return h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => t('pages.settings.DepartmentManagement.s79', { n: lvl }) });
     },
   },
   {
-    title: '部门负责人',
+    title: t('pages.settings.DepartmentManagement.s63'),
     key: 'managerId',
     width: 130,
     render: (row: Department) => renderUser(row.managerId),
   },
   {
-    title: '部门 HRBP',
+    title: t('pages.settings.DepartmentManagement.s64'),
     key: 'hrbpId',
     width: 130,
     render: (row: Department) => renderUser(row.hrbpId),
   },
   {
-    title: '排序值',
+    title: t('pages.settings.DepartmentManagement.s65'),
     key: 'sortOrder',
     width: 90,
     render: (row: Department) => (row.sortOrder != null ? String(row.sortOrder) : h('span', { style: 'color:#bfbfbf' }, '—')),
   },
   {
-    title: '状态',
+    title: t('pages.settings.DepartmentManagement.s66'),
     key: 'status',
     width: 90,
     render: (row: Department) => {
       const status = row.status || (row.isActive === false ? 'INACTIVE' : 'ACTIVE');
       const map: Record<string, { type: any; label: string }> = {
-        ACTIVE: { type: 'success', label: '启用' },
-        INACTIVE: { type: 'default', label: '停用' },
+        ACTIVE: { type: 'success', label: t('pages.settings.DepartmentManagement.s44') },
+        INACTIVE: { type: 'default', label: t('pages.settings.DepartmentManagement.s45') },
       };
       const item = map[status] || { type: 'default', label: status };
       return h(NTag, { type: item.type, size: 'small' }, { default: () => item.label });
     },
   },
   {
-    title: '操作',
+    title: t('pages.settings.DepartmentManagement.s67'),
     key: 'actions',
     width: 200,
     fixed: 'right' as const,
@@ -794,7 +794,7 @@ const columns = computed(() => [
               onClick: () => openCreateChildModal(row),
             },
             {
-              default: () => '添加下级',
+              default: () => t('pages.settings.DepartmentManagement.s94'),
               icon: () => h(NIcon, { component: AddOutline }),
             }
           ),
@@ -802,17 +802,17 @@ const columns = computed(() => [
             NPopconfirm,
             {
               onPositiveClick: () => handleDelete(row),
-              positiveText: '确认',
-              negativeText: '取消',
+              positiveText: t('pages.settings.DepartmentManagement.s95'),
+              negativeText: t('pages.settings.DepartmentManagement.s48'),
             },
             {
-              default: () => '确认删除此部门？',
+              default: () => t('pages.settings.DepartmentManagement.s96'),
               trigger: () =>
                 h(
                   NButton,
                   { text: true, type: 'error', size: 'small' },
                   {
-                    default: () => '删除',
+                    default: () => t('pages.settings.DepartmentManagement.s97'),
                     icon: () => h(NIcon, { component: TrashOutline }),
                   }
                 ),
@@ -853,7 +853,7 @@ const fetchAllDepartments = async (): Promise<Department[]> => {
     const res = await api.get('/departments/', { params: { page_size: 1000 } });
     if (res.data?.success) return res.data.data || [];
   } catch (e) {
-    message.error(extractApiError(e, '获取部门数据失败'));
+    message.error(extractApiError(e, t('pages.settings.DepartmentManagement.s98')));
   }
   return [];
 };
@@ -864,7 +864,7 @@ const fetchAllUsers = async (): Promise<User[]> => {
     const res = await api.get('/users/', { params: { page_size: 1000 } });
     if (res.data?.success) return res.data.data || [];
   } catch (e) {
-    message.error(extractApiError(e, '获取用户数据失败'));
+    message.error(extractApiError(e, t('pages.settings.DepartmentManagement.s99')));
   }
   return [];
 };
@@ -873,7 +873,7 @@ const fetchAllUsers = async (): Promise<User[]> => {
 const exportDepartments = async () => {
   const all = await fetchAllDepartments();
   if (!all.length) {
-    message.warning('暂无可导出的部门数据');
+    message.warning(t('pages.settings.DepartmentManagement.s68'));
     return;
   }
   const byId = new Map(all.map(d => [d.id, d]));
@@ -886,22 +886,22 @@ const exportDepartments = async () => {
       parent?.name || '',
       getUserName(d.managerId) || '',
       getUserName(d.hrbpId) || '',
-      d.status === 'INACTIVE' ? '停用' : '启用',
+      d.status === 'INACTIVE' ? t('pages.settings.DepartmentManagement.s45') : t('pages.settings.DepartmentManagement.s44'),
       d.sortOrder ?? '',
     ];
   });
   const lines = [EXPORT_HEADERS.map(csvEscape).join(','), ...rows.map(r => r.map(csvEscape).join(','))];
   const content = '﻿' + lines.join('\r\n');
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
-  triggerDownload(blob, `部门数据_${new Date().toISOString().slice(0, 10)}.csv`);
-  message.success(`已导出 ${all.length} 个部门`);
+  triggerDownload(blob, `${t('pages.settings.DepartmentManagement.s100')}_${new Date().toISOString().slice(0, 10)}.csv`);
+  message.success(t('pages.settings.DepartmentManagement.s102', { n: all.length }));
 };
 
 // 下载导入模板（仅表头）
 const downloadTemplate = () => {
   const content = '﻿' + EXPORT_HEADERS.map(csvEscape).join(',');
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
-  triggerDownload(blob, '部门导入模板.csv');
+  triggerDownload(blob, t('pages.settings.DepartmentManagement.s101') + '.csv');
 };
 
 // 简易 CSV 解析（支持引号包裹、字段内逗号/换行）
@@ -950,13 +950,13 @@ interface ImportRow {
 }
 
 const importPreviewColumns = [
-  { title: '部门编号', key: 'code', width: 110 },
-  { title: '部门名称', key: 'name', width: 140 },
-  { title: '上级部门编号', key: 'parentCode', width: 110 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '操作', key: 'action', width: 80,
+  { title: t('pages.settings.DepartmentManagement.s69'), key: 'code', width: 110 },
+  { title: t('pages.settings.DepartmentManagement.s70'), key: 'name', width: 140 },
+  { title: t('pages.settings.DepartmentManagement.s71'), key: 'parentCode', width: 110 },
+  { title: t('pages.settings.DepartmentManagement.s72'), key: 'status', width: 80 },
+  { title: t('pages.settings.DepartmentManagement.s73'), key: 'action', width: 80,
     render: (r: any) => h(NTag, { type: r.action === '更新' ? 'warning' : 'success', size: 'small', bordered: false }, { default: () => r.action }) },
-  { title: '说明', key: 'note', minWidth: 160,
+  { title: t('pages.settings.DepartmentManagement.s74'), key: 'note', minWidth: 160,
     render: (r: any) => r.note ? h('span', { style: 'color: var(--ink-soft); font-size: 12px' }, r.note) : h('span', { style: 'color:#bfbfbf' }, '—') },
 ];
 
@@ -985,7 +985,7 @@ const onImportFileChange = async ({ file }: any) => {
     const text = await raw.text();
     const parsed = parseCsv(text);
     if (parsed.length < 2) {
-      message.warning('文件无有效数据行');
+      message.warning(t('pages.settings.DepartmentManagement.s75'));
       return;
     }
     const header = parsed[0].map(h => h.trim());
@@ -1004,7 +1004,7 @@ const onImportFileChange = async ({ file }: any) => {
     const iStatus = colOf('状态');
     const iSort = colOf('排序值', '排序');
     if (iCode < 0 || iName < 0) {
-      message.error('模板缺少「部门编号 / 部门名称」列');
+      message.error(t('pages.settings.DepartmentManagement.s76'));
       return;
     }
     const all = await fetchAllDepartments();
@@ -1021,24 +1021,24 @@ const onImportFileChange = async ({ file }: any) => {
       const parentCode = iParent >= 0 ? (cells[iParent] || '').trim() : '';
       const manager = iManager >= 0 ? (cells[iManager] || '').trim() : '';
       const hrbp = iHrbp >= 0 ? (cells[iHrbp] || '').trim() : '';
-      const statusRaw = iStatus >= 0 ? (cells[iStatus] || '').trim() : '启用';
+      const statusRaw = iStatus >= 0 ? (cells[iStatus] || '').trim() : t('pages.settings.DepartmentManagement.s44');
       const sortRaw = iSort >= 0 ? (cells[iSort] || '').trim() : '';
       let note = '';
       if (parentCode && !codeToId.has(parentCode) && !all.find(d => d.code === parentCode)) {
-        note += '上级编号未匹配(将置顶级);';
+        note += t('pages.settings.DepartmentManagement.s104');
       }
-      if (manager && !userByKey.has(manager)) note += '负责人未匹配(留空);';
-      if (hrbp && !userByKey.has(hrbp)) note += 'HRBP未匹配(留空);';
-      if (note) warnings.push(`第 ${i + 2} 行：${note}`);
-      const action = code && codeToId.has(code) ? '更新' : '新建';
+      if (manager && !userByKey.has(manager)) note += t('pages.settings.DepartmentManagement.s105');
+      if (hrbp && !userByKey.has(hrbp)) note += t('pages.settings.DepartmentManagement.s106');
+      if (note) warnings.push(t('pages.settings.DepartmentManagement.s107', { n: i + 2, note }));
+      const action = code && codeToId.has(code) ? t('pages.settings.DepartmentManagement.s111') : t('pages.settings.DepartmentManagement.s112');
       preview.push({ _idx: i, code, name, parentCode, manager, hrbp, status: statusRaw, sortOrder: sortRaw, action, note: note ? note.slice(0, -1) : '' });
     });
     importPreview.value = preview;
     importWarnings.value = warnings;
-    if (!preview.length) message.warning('未解析到有效部门行');
-    else message.success(`已解析 ${preview.length} 条，可确认导入`);
+    if (!preview.length) message.warning(t('pages.settings.DepartmentManagement.s77'));
+    else message.success(t('pages.settings.DepartmentManagement.s103', { n: preview.length }));
   } catch (e) {
-    message.error('CSV 解析失败，请检查文件格式');
+    message.error(t('pages.settings.DepartmentManagement.s78'));
   }
 };
 
@@ -1099,7 +1099,7 @@ const confirmImport = async () => {
             const id = codeToId.get(r.code)!;
             const res = await api.put(`/departments/${id}/`, payload);
             if (res.status === 200 || res.data?.success) { updated++; r._done = true; progress = true; }
-            else { errors.push(`${r.name}: 更新失败`); r._done = true; }
+            else { errors.push(`${r.name}: ${t('pages.settings.DepartmentManagement.s90')}`); r._done = true; }
           } else {
             const res = await api.post('/departments/', payload);
             if (res.status === 201 || res.data?.success) {
@@ -1107,24 +1107,24 @@ const confirmImport = async () => {
               const newId = res.data?.data?.id || res.data?.id;
               if (r.code && newId) codeToId.set(r.code, newId);
               r._done = true; progress = true;
-            } else { errors.push(`${r.name}: 创建失败`); r._done = true; }
+            } else { errors.push(`${r.name}: ${t('pages.settings.DepartmentManagement.s91')}`); r._done = true; }
           }
         } catch (e: any) {
-          errors.push(`${r.name}: ${extractErrorMessage(e?.response?.data) || '请求异常'}`);
+          errors.push(`${r.name}: ${extractErrorMessage(e?.response?.data) || t('pages.settings.DepartmentManagement.s108')}`);
           r._done = true;
         }
       }
     }
 
     if (errors.length) {
-      message.error(`导入完成：新建 ${created} / 更新 ${updated}，${errors.length} 条失败`);
+      message.error(t('pages.settings.DepartmentManagement.s109', { created, updated, errors: errors.length }));
     } else {
-      message.success(`导入成功：新建 ${created} / 更新 ${updated}`);
+      message.success(t('pages.settings.DepartmentManagement.s110', { created, updated }));
     }
     closeImportModal();
     loadDepartments();
   } catch (e) {
-    message.error(extractApiError(e, '导入失败'));
+    message.error(extractApiError(e, t('pages.settings.DepartmentManagement.s113')));
   } finally {
     importing.value = false;
   }
