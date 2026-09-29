@@ -160,7 +160,7 @@ def test_unauthenticated_returns_401(api_client):
 def test_candidate_searchable(auth_client, candidate, application):
     resp = auth_client.get(SEARCH_URL, {'q': '王小明'})
     assert resp.status_code == 200
-    data = resp.json()
+    data = _payload(resp)
     cand = _group(data, 'candidate')
     assert cand is not None
     assert cand['total'] >= 1
@@ -172,14 +172,14 @@ def test_candidate_searchable(auth_client, candidate, application):
 
 def test_candidate_phone_masked(auth_client, candidate):
     resp = auth_client.get(SEARCH_URL, {'q': '王小明'})
-    item = _group(resp.json(), 'candidate')['items'][0]
+    item = _group(_payload(resp), 'candidate')['items'][0]
     assert '****' in item['phone']
     assert item['phone'] == '138****8000'
 
 
 def test_demand_searchable(auth_client, demand):
     resp = auth_client.get(SEARCH_URL, {'q': '后端招聘需求'})
-    grp = _group(resp.json(), 'demand')
+    grp = _group(_payload(resp), 'demand')
     assert grp is not None and grp['total'] >= 1
     item = grp['items'][0]
     assert item['id'] == str(demand.id)
@@ -190,7 +190,7 @@ def test_demand_searchable(auth_client, demand):
 
 def test_position_searchable(auth_client, position):
     resp = auth_client.get(SEARCH_URL, {'q': '高级后端工程师'})
-    grp = _group(resp.json(), 'position')
+    grp = _group(_payload(resp), 'position')
     assert grp is not None and grp['total'] >= 1
     item = grp['items'][0]
     assert item['id'] == str(position.id)
@@ -200,7 +200,7 @@ def test_position_searchable(auth_client, position):
 
 def test_interview_searchable(auth_client, interview):
     resp = auth_client.get(SEARCH_URL, {'q': 'INT001'})
-    grp = _group(resp.json(), 'interview')
+    grp = _group(_payload(resp), 'interview')
     assert grp is not None and grp['total'] >= 1
     item = grp['items'][0]
     assert item['id'] == str(interview.id)
@@ -211,7 +211,7 @@ def test_interview_searchable(auth_client, interview):
 def test_offer_searchable(auth_client, offer):
     # 用 candidate 名搜 offer
     resp = auth_client.get(SEARCH_URL, {'q': '王小明'})
-    grp = _group(resp.json(), 'offer')
+    grp = _group(_payload(resp), 'offer')
     assert grp is not None and grp['total'] >= 1
     item = grp['items'][0]
     assert item['id'] == str(offer.id)
@@ -222,7 +222,7 @@ def test_offer_searchable(auth_client, offer):
 
 def test_referral_searchable(auth_client, referral, user):
     resp = auth_client.get(SEARCH_URL, {'q': '王小明'})
-    grp = _group(resp.json(), 'referral')
+    grp = _group(_payload(resp), 'referral')
     assert grp is not None and grp['total'] >= 1
     item = grp['items'][0]
     assert item['id'] == str(referral.id)
@@ -239,7 +239,7 @@ def test_soft_deleted_excluded(auth_client, candidate):
     candidate.deleted_at = timezone.now()
     candidate.save(update_fields=['deleted_at'])
     resp = auth_client.get(SEARCH_URL, {'q': '王小明'})
-    grp = _group(resp.json(), 'candidate')
+    grp = _group(_payload(resp), 'candidate')
     assert grp is None or grp['total'] == 0
 
 
@@ -249,7 +249,7 @@ def test_soft_deleted_excluded(auth_client, candidate):
 def test_empty_q(auth_client):
     resp = auth_client.get(SEARCH_URL, {'q': '   '})
     assert resp.status_code == 200
-    data = resp.json()
+    data = _payload(resp)
     assert data['query'] == '   '
     assert data['took'] == 0
     assert data['totalGroups'] == 0
@@ -263,7 +263,7 @@ def test_types_filter(auth_client, candidate, demand):
     # '王小明' 同时匹配 candidate (name) 与 offer/referral (candidate name),
     # 但 types=candidate 只应返回 candidate 组
     resp = auth_client.get(SEARCH_URL, {'q': '王小明', 'types': 'candidate'})
-    data = resp.json()
+    data = _payload(resp)
     types = [g['type'] for g in data['groups']]
     assert types == ['candidate']
 
@@ -277,7 +277,7 @@ def test_limit_truncation(auth_client, db):
             name=f'批量候选人{i:02d}', phone=f'1390000000{i}'
         )
     resp = auth_client.get(SEARCH_URL, {'q': '批量候选人', 'limit': 3})
-    grp = _group(resp.json(), 'candidate')
+    grp = _group(_payload(resp), 'candidate')
     assert grp['total'] == 7
     assert len(grp['items']) == 3
 
@@ -287,7 +287,7 @@ def test_limit_truncation(auth_client, db):
 # ---------------------------------------------------------------------------
 def test_camel_case_keys(auth_client, candidate, application, demand, position, interview, offer, referral):
     # q='王小明' 同时命中 candidate / offer / referral / interview (均关联 王小明)
-    data = auth_client.get(SEARCH_URL, {'q': '王小明'}).json()
+    data = _payload(auth_client.get(SEARCH_URL, {'q': '王小明'}))
     # 顶层 totalGroups (snake total_groups → camel)
     assert 'totalGroups' in data
     assert isinstance(data['totalGroups'], int)
@@ -310,13 +310,13 @@ def test_camel_case_keys(auth_client, candidate, application, demand, position, 
     assert 'status' in of['items'][0]
 
     # demand: status (state → status) — 用其专属标题单独搜
-    dd = auth_client.get(SEARCH_URL, {'q': '后端招聘需求'}).json()
+    dd = _payload(auth_client.get(SEARCH_URL, {'q': '后端招聘需求'}))
     gd = _group(dd, 'demand')
     assert gd is not None and gd['total'] >= 1
     assert 'status' in gd['items'][0]
 
     # position: status (state → status) — 用其专属标题单独搜
-    pp = auth_client.get(SEARCH_URL, {'q': '高级后端工程师'}).json()
+    pp = _payload(auth_client.get(SEARCH_URL, {'q': '高级后端工程师'}))
     gp = _group(pp, 'position')
     assert gp is not None and gp['total'] >= 1
     assert 'status' in gp['items'][0]
@@ -326,7 +326,7 @@ def test_camel_case_keys(auth_client, candidate, application, demand, position, 
 # 响应结构
 # ---------------------------------------------------------------------------
 def test_response_structure(auth_client, candidate, application):
-    data = auth_client.get(SEARCH_URL, {'q': '王小明'}).json()
+    data = _payload(auth_client.get(SEARCH_URL, {'q': '王小明'}))
     assert isinstance(data['query'], str)
     assert isinstance(data['took'], int)
     assert isinstance(data['totalGroups'], int)
@@ -345,3 +345,9 @@ def _group(data: dict, type_: str):
         if g['type'] == type_:
             return g
     return None
+
+
+def _payload(r):
+    """P1-3 统一信封：响应体为 {success, data, ...}，payload 在 data 内；容忍过渡期裸形态。"""
+    j = r.json()
+    return j.get('data', j) if isinstance(j, dict) else j

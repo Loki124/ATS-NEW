@@ -39,6 +39,14 @@ export interface SearchParams {
   limit?: number
 }
 
+// P1-3 统一信封：HTTP 响应体为 {success, data, message, code}，payload 在 data 内
+export interface ApiEnvelope<T> {
+  success: boolean
+  data: T
+  message: string
+  code: number
+}
+
 // ===== API =====
 
 const ENTITY_LABELS: Record<SearchEntityType, string> = {
@@ -66,11 +74,12 @@ export async function searchApi(
   const types = params.types?.length ? params.types.join(',') : undefined
   const limit = params.limit ?? 5
 
-  const res = await api.get<SearchResponse>('/search/', {
+  const res = await api.get<ApiEnvelope<SearchResponse>>('/search/', {
     params: { q, types, limit },
     signal: options?.signal,
   })
-  return res.data
+  // P1-3 统一信封：后端返回 {success, data:{...}, ...}，payload 在 data 内
+  return res.data.data
 }
 
 /**

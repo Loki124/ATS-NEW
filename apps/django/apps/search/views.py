@@ -29,6 +29,8 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apps.common.response import success_response
 from rest_framework.views import APIView
 
 from apps.candidate.models import Candidate
@@ -267,7 +269,7 @@ class SearchAPIView(APIView):
 
         # 空 query 直接返回空结果 (took 记为 0); query 回显原始值
         if not q:
-            return Response({
+            return success_response({
                 'query': raw_q,
                 'took': 0,
                 'total_groups': 0,
@@ -306,7 +308,7 @@ class SearchAPIView(APIView):
         total_groups = sum(1 for g in groups if g['items'])
         took = int((time.perf_counter() - start) * 1000)
 
-        return Response({
+        return success_response({
             'query': raw_q,
             'took': took,
             'total_groups': total_groups,

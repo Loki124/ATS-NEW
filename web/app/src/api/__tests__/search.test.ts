@@ -31,11 +31,12 @@ const { searchApi, entityLabel, routeForEntity } = await import('../search')
 describe('searchApi', () => {
   beforeEach(() => {
     mockGet.mockReset()
-    mockGet.mockResolvedValue({ data: { groups: [] } })
+    // P1-3 统一信封：后端返回 {success, data:{...}}，axios 响应体在 .data，payload 在 .data.data
+    mockGet.mockResolvedValue({ data: { success: true, data: { groups: [] } } })
   })
 
   it('calls /api/search with q + types + limit', async () => {
-    await searchApi({ q: '张', types: ['candidate'], limit: 5 })
+    const r = await searchApi({ q: '张', types: ['candidate'], limit: 5 })
 
     expect(mockGet).toHaveBeenCalledTimes(1)
     expect(mockGet).toHaveBeenCalledWith(
@@ -44,6 +45,8 @@ describe('searchApi', () => {
         params: expect.objectContaining({ q: '张', types: 'candidate', limit: 5 }),
       }),
     )
+    // P1-3：searchApi 返回信封内的 payload
+    expect(r).toEqual({ groups: [] })
   })
 
   it('truncates q to 64 chars', async () => {
