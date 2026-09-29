@@ -11,7 +11,7 @@
       <n-form-item :label="t('pages.settings.DataRangeModal.s8')" required label-placement="left" class="dr-scope-item">
         <n-select
           :value="'person'"
-          :options="[{ label: '管理人员范围', value: 'person' }]"
+          :options="[{ label: t('pages.settings.DataRangeModal.s9'), value: 'person' }]"
           disabled
           style="width: 100%"
         />
@@ -64,14 +64,14 @@
               :value="!!row.includeSub"
               @update:value="(v: boolean) => (row.includeSub = v)"
             >
-              <template #checked>含下级</template>
-              <template #unchecked>仅本级</template>
+              <template #checked>{{ t('pages.settings.DataRangeModal.s10') }}</template>
+              <template #unchecked>{{ t('pages.settings.DataRangeModal.s11') }}</template>
             </n-switch>
           </template>
           <n-input
             v-else
             v-model:value="row.value"
-            placeholder="填写值"
+            :placeholder="t('pages.settings.DataRangeModal.s12')"
             style="flex: 1; min-width: 160px"
           />
           <n-button text type="error" size="small" @click="removeRow(i)">
@@ -82,26 +82,26 @@
 
       <n-button text type="primary" class="dr-add" @click="addRow">
         <template #icon><n-icon :component="AddOutline" /></template>
-        新增
+        {{ t('pages.settings.DataRangeModal.s13') }}
       </n-button>
 
       <!-- 条件表达式 -->
-      <n-form-item label="条件表达式" required label-placement="left" class="dr-expr-item">
+      <n-form-item :label="t('pages.settings.DataRangeModal.s14')" required label-placement="left" class="dr-expr-item">
         <n-input
           :value="exprText"
-          placeholder="如：1 or 2"
+          :placeholder="t('pages.settings.DataRangeModal.s15')"
           readonly
         />
         <template #feedback>
-          当前仅「部门」维度真实生效；其它维度为占位（no-op，不放开数据，后续版本补齐）。
+          {{ t('pages.settings.DataRangeModal.s16') }}
         </template>
       </n-form-item>
     </div>
 
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-        <n-button @click="visible = false">取消</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="loading" :disabled="loading" @click="onConfirm">保存</n-button>
+        <n-button @click="visible = false">{{ t('pages.settings.DataRangeModal.s17') }}</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="loading" :disabled="loading" @click="onConfirm">{{ t('pages.settings.DataRangeModal.s18') }}</n-button>
       </div>
     </template>
   </n-modal>
@@ -142,23 +142,23 @@ const deptOptions = computed(() =>
 )
 
 const sourceOptions = [
-  { label: '任职记录', value: 'job_record' },
-  { label: '合同协议', value: 'contract' },
-  { label: '员工信息', value: 'employee' },
+  { label: t('pages.settings.DataRangeModal.s19'), value: 'job_record' },
+  { label: t('pages.settings.DataRangeModal.s20'), value: 'contract' },
+  { label: t('pages.settings.DataRangeModal.s21'), value: 'employee' },
 ]
 const dimOptions = [
-  { label: '部门', value: 'dept' },
-  { label: '工作地点', value: 'work_place' },
-  { label: '职级', value: 'job_level' },
-  { label: '人员类别', value: 'person_type' },
-  { label: '用工形式', value: 'employment_type' },
-  { label: '职等', value: 'job_grade' },
-  { label: '雇佣关系', value: 'employment_relation' },
-  { label: '职务序列', value: 'position_sequence' },
+  { label: t('pages.settings.DataRangeModal.s22'), value: 'dept' },
+  { label: t('pages.settings.DataRangeModal.s23'), value: 'work_place' },
+  { label: t('pages.settings.DataRangeModal.s24'), value: 'job_level' },
+  { label: t('pages.settings.DataRangeModal.s25'), value: 'person_type' },
+  { label: t('pages.settings.DataRangeModal.s26'), value: 'employment_type' },
+  { label: t('pages.settings.DataRangeModal.s27'), value: 'job_grade' },
+  { label: t('pages.settings.DataRangeModal.s28'), value: 'employment_relation' },
+  { label: t('pages.settings.DataRangeModal.s29'), value: 'position_sequence' },
 ]
 const opOptions = [
-  { label: '等于', value: 'eq' },
-  { label: '不等于', value: 'neq' },
+  { label: t('pages.settings.DataRangeModal.s30'), value: 'eq' },
+  { label: t('pages.settings.DataRangeModal.s31'), value: 'neq' },
 ]
 
 const op = ref('or')

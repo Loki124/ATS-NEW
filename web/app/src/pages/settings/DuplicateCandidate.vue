@@ -6,8 +6,8 @@
           <h1 class="page-title">{{ t('pages.settings.DuplicateCandidate.s1') }}</h1>
         </div>
         <p class="page-subtitle">
-          设定判定「两条候选人为同一人」的查重规则，并配置重复后的合并策略与社招重复申请管控。
-          查重项按强 / 中 / 弱三档分级，规则可全局启用或停用。
+          {{ t('pages.settings.DuplicateCandidate.s10') }}
+          {{ t('pages.settings.DuplicateCandidate.s80') }}
         </p>
       </div>
     </div>
@@ -42,18 +42,18 @@
             <div class="dc-section-actions">
               <n-button text size="small" type="error" @click="onResetRules">
                 <template #icon><n-icon :component="RefreshOutline" /></template>
-                恢复默认
+                {{ t('pages.settings.DuplicateCandidate.s11') }}
               </n-button>
               <n-button type="primary" size="small" @click="openCreate">
                 <template #icon><n-icon :component="AddOutline" /></template>
-                新建查重规则
+                {{ t('pages.settings.DuplicateCandidate.s12') }}
               </n-button>
             </div>
           </header>
 
           <div class="dc-section-body">
             <p class="dc-section-intro">
-              勾选字段组合即成一条查重规则；系统内置规则保证基础判定，自定义规则可补充业务场景。
+              {{ t('pages.settings.DuplicateCandidate.s13') }}
             </p>
             <n-data-table
               :columns="ruleColumns"
@@ -64,7 +64,7 @@
               size="small"
             />
             <p class="dc-footnote">
-              共 {{ rules.length }} 条规则，其中系统内置 {{ systemCount }} 条仅可启用 / 停用；自定义规则可编辑、删除。
+              {{ t('pages.settings.DuplicateCandidate.s83', { n: rules.length, m: systemCount }) }}
             </p>
           </div>
         </section>
@@ -73,26 +73,26 @@
         <section class="glass-card dc-section">
           <header class="dc-section-head">
             <div class="dc-section-titles">
-              <h2 class="dc-section-title">合并策略</h2>
-              <span class="dc-scope">全局</span>
+              <h2 class="dc-section-title">{{ t('pages.settings.DuplicateCandidate.s14') }}</h2>
+              <span class="dc-scope">{{ t('pages.settings.DuplicateCandidate.s15') }}</span>
             </div>
           </header>
 
           <div class="dc-section-body">
-            <p class="dc-section-intro">当候选人被判定为重复时，按以下策略整合信息。</p>
+            <p class="dc-section-intro">{{ t('pages.settings.DuplicateCandidate.s16') }}</p>
 
             <div class="dc-row">
               <div class="dc-row-main">
-                <div class="dc-row-label">启用合并</div>
-                <div class="dc-row-desc">将判定为重复的候选人自动合并，整合为主体候选人信息。</div>
+                <div class="dc-row-label">{{ t('pages.settings.DuplicateCandidate.s17') }}</div>
+                <div class="dc-row-desc">{{ t('pages.settings.DuplicateCandidate.s18') }}</div>
               </div>
               <n-switch :value="merge.enabled" @update:value="onMergeEnabled" />
             </div>
 
             <div class="dc-row">
               <div class="dc-row-main">
-                <div class="dc-row-label">取消未被接受的猎头候选人</div>
-                <div class="dc-row-desc">当候选人被判定为重复时，自动取消未被接受的猎头候选人关联。</div>
+                <div class="dc-row-label">{{ t('pages.settings.DuplicateCandidate.s19') }}</div>
+                <div class="dc-row-desc">{{ t('pages.settings.DuplicateCandidate.s20') }}</div>
               </div>
               <n-switch
                 :value="merge.cancelUnacceptedHeadhunter"
@@ -100,7 +100,7 @@
               />
             </div>
 
-            <div class="dc-subhead">合并方式</div>
+            <div class="dc-subhead">{{ t('pages.settings.DuplicateCandidate.s21') }}</div>
 
             <div v-for="(s, i) in merge.strategies" :key="s.key" class="dc-strategy">
               <div class="dc-strategy-head">
@@ -124,9 +124,9 @@
             </div>
 
             <div class="dc-actions">
-              <span v-if="mergeDirty" class="dc-dirty">● 有未保存的修改</span>
-              <n-button tertiary :disabled="savingMerge" @click="resetMerge">恢复默认</n-button>
-              <n-button type="primary" :loading="savingMerge" @click="saveMerge">保存合并策略</n-button>
+              <span v-if="mergeDirty" class="dc-dirty">{{ t('pages.settings.DuplicateCandidate.s81') }}</span>
+              <n-button tertiary :disabled="savingMerge" @click="resetMerge">{{ t('pages.settings.DuplicateCandidate.s22') }}</n-button>
+              <n-button type="primary" :loading="savingMerge" @click="saveMerge">{{ t('pages.settings.DuplicateCandidate.s23') }}</n-button>
             </div>
           </div>
         </section>
@@ -135,26 +135,26 @@
         <section class="glass-card dc-section">
           <header class="dc-section-head">
             <div class="dc-section-titles">
-              <h2 class="dc-section-title">重复申请管控</h2>
-              <span class="dc-scope dc-scope--social">社招</span>
+              <h2 class="dc-section-title">{{ t('pages.settings.DuplicateCandidate.s24') }}</h2>
+              <span class="dc-scope dc-scope--social">{{ t('pages.settings.DuplicateCandidate.s25') }}</span>
             </div>
           </header>
 
           <div class="dc-section-body">
-            <p class="dc-section-intro">针对社招场景，候选人在时间窗口内对同一职位重复投递将被自动管控。</p>
+            <p class="dc-section-intro">{{ t('pages.settings.DuplicateCandidate.s26') }}</p>
 
             <div class="dc-row">
               <div class="dc-row-main">
-                <div class="dc-row-label">启用重复申请管控</div>
-                <div class="dc-row-desc">启用后，候选人在规定时间窗口内重复投递将自动进入管控流程。</div>
+                <div class="dc-row-label">{{ t('pages.settings.DuplicateCandidate.s27') }}</div>
+                <div class="dc-row-desc">{{ t('pages.settings.DuplicateCandidate.s28') }}</div>
               </div>
               <n-switch :value="application.enabled" @update:value="onAppEnabled" />
             </div>
 
             <div class="dc-row">
               <div class="dc-row-main">
-                <div class="dc-row-label">重复申请时间窗口</div>
-                <div class="dc-row-desc">候选人在该时间窗口内对同一职位的重复投递将被自动管控。</div>
+                <div class="dc-row-label">{{ t('pages.settings.DuplicateCandidate.s29') }}</div>
+                <div class="dc-row-desc">{{ t('pages.settings.DuplicateCandidate.s30') }}</div>
               </div>
               <n-select
                 class="dc-window-select"
@@ -166,8 +166,8 @@
             </div>
 
             <div class="dc-actions">
-              <span v-if="appDirty" class="dc-dirty">● 有未保存的修改</span>
-              <n-button type="primary" :loading="savingApp" @click="saveApplication">保存申请管控</n-button>
+              <span v-if="appDirty" class="dc-dirty">{{ t('pages.settings.DuplicateCandidate.s82') }}</span>
+              <n-button type="primary" :loading="savingApp" @click="saveApplication">{{ t('pages.settings.DuplicateCandidate.s31') }}</n-button>
             </div>
           </div>
         </section>
@@ -183,16 +183,16 @@
       :auto-focus="false"
     >
       <n-drawer-content
-        :title="editingRule ? '编辑查重规则' : '新建查重规则'"
+        :title="editingRule ? t('pages.settings.DuplicateCandidate.s76') : t('pages.settings.DuplicateCandidate.s77')"
         :native-scrollbar="false"
         closable
       >
         <div class="dc-drawer-body">
           <div class="dc-field">
-            <label class="dc-field-label">规则名称 <span class="dc-req">*</span></label>
+            <label class="dc-field-label">{{ t('pages.settings.DuplicateCandidate.s84') }} <span class="dc-req">*</span></label>
             <n-input
               v-model:value="form.name"
-              placeholder="如：身份证号 + 手机号"
+              :placeholder="t('pages.settings.DuplicateCandidate.s32')"
               :maxlength="128"
               show-count
             />
@@ -200,11 +200,11 @@
 
           <div class="dc-field">
             <label class="dc-field-label">
-              查重项 <span class="dc-muted">（勾选用于判定「同一人」的字段）</span>
+              查重项 <span class="dc-muted">{{ t('pages.settings.DuplicateCandidate.s33') }}</span>
             </label>
             <div v-for="grp in catalogGroups" :key="grp.strength" class="dc-group">
               <div class="dc-group-head">
-                <span class="dc-group-title">{{ strengthLabel(grp.strength) }}查重项</span>
+                <span class="dc-group-title">{{ strengthLabel(grp.strength) }}{{ t('pages.settings.DuplicateCandidate.s85') }}</span>
                 <span class="dc-strength-tag" :class="'dc-strength--' + grp.strength.toLowerCase()">
                   {{ strengthLabel(grp.strength) }}
                 </span>
@@ -235,13 +235,13 @@
           </div>
 
           <div class="dc-field">
-            <label class="dc-field-label">判定条件</label>
+            <label class="dc-field-label">{{ t('pages.settings.DuplicateCandidate.s86') }}</label>
             <n-radio-group v-model:value="form.conditionLogic">
-              <n-radio value="ALL">全部一致</n-radio>
-              <n-radio value="ANY">任意 N 项一致</n-radio>
+              <n-radio value="ALL">{{ t('pages.settings.DuplicateCandidate.s78') }}</n-radio>
+              <n-radio value="ANY">{{ t('pages.settings.DuplicateCandidate.s79') }}</n-radio>
             </n-radio-group>
             <div v-if="form.conditionLogic === 'ANY'" class="dc-any-count">
-              <span>命中项数 N =</span>
+              <span>{{ t('pages.settings.DuplicateCandidate.s87') }}</span>
               <n-input-number
                 v-model:value="form.anyCount"
                 :min="1"
@@ -249,30 +249,30 @@
                 size="small"
                 style="width: 110px;"
               />
-              <span class="dc-any-hint">（最多 {{ Math.max(1, selectedKeys.length) }} 项）</span>
+              <span class="dc-any-hint">{{ t('pages.settings.DuplicateCandidate.s88', { n: Math.max(1, selectedKeys.length) }) }}</span>
             </div>
           </div>
 
           <!-- 实时预览：让用户在下笔前就看清这条规则会怎么判定 -->
           <div class="dc-preview" :class="{ 'dc-preview--warn': onlyWeak }">
-            <div class="dc-preview-title">规则预览</div>
+            <div class="dc-preview-title">{{ t('pages.settings.DuplicateCandidate.s89') }}</div>
             <p class="dc-preview-text">{{ conditionPreview }}</p>
             <div class="dc-preview-meta">
-              <span>已选 {{ selectedCount }} 项</span>
-              <span class="dc-dot dc-dot--strong">强 {{ strengthCounts.STRONG }}</span>
-              <span class="dc-dot dc-dot--medium">中 {{ strengthCounts.MEDIUM }}</span>
-              <span class="dc-dot dc-dot--weak">弱 {{ strengthCounts.WEAK }}</span>
+              <span>{{ t('pages.settings.DuplicateCandidate.s90', { n: selectedCount }) }}</span>
+              <span class="dc-dot dc-dot--strong">{{ t('pages.settings.DuplicateCandidate.s36') }} {{ strengthCounts.STRONG }}</span>
+              <span class="dc-dot dc-dot--medium">{{ t('pages.settings.DuplicateCandidate.s37') }} {{ strengthCounts.MEDIUM }}</span>
+              <span class="dc-dot dc-dot--weak">{{ t('pages.settings.DuplicateCandidate.s38') }} {{ strengthCounts.WEAK }}</span>
             </div>
             <p v-if="onlyWeak" class="dc-preview-tip">
-              仅选择弱查重项，判定可能偏松，建议补充强 / 中查重项。
+              {{ t('pages.settings.DuplicateCandidate.s91') }}
             </p>
           </div>
         </div>
 
         <template #footer>
           <div class="dc-actions">
-            <n-button tertiary @click="closeDrawer">取消</n-button>
-            <n-button type="primary" :loading="savingRule" @click="saveRule">保存规则</n-button>
+            <n-button tertiary @click="closeDrawer">{{ t('pages.settings.DuplicateCandidate.s34') }}</n-button>
+            <n-button type="primary" :loading="savingRule" @click="saveRule">{{ t('pages.settings.DuplicateCandidate.s35') }}</n-button>
           </div>
         </template>
       </n-drawer-content>
@@ -343,7 +343,7 @@ const rulesDirty = ref(false)
 
 // ===== 查重项目录 =====
 function strengthLabel(s: DuplicateStrength): string {
-  return s === 'STRONG' ? '强' : s === 'MEDIUM' ? '中' : '弱'
+  return s === 'STRONG' ? t('pages.settings.DuplicateCandidate.s36') : s === 'MEDIUM' ? t('pages.settings.DuplicateCandidate.s37') : t('pages.settings.DuplicateCandidate.s38')
 }
 function isSelected(key: string): boolean {
   return form.selected.includes(key)
@@ -370,12 +370,12 @@ const onlyWeak = computed(
   () => selectedCount.value > 0 && strengthCounts.value.STRONG === 0 && strengthCounts.value.MEDIUM === 0,
 )
 const conditionPreview = computed(() => {
-  if (selectedCount.value === 0) return '尚未选择任何查重项'
+  if (selectedCount.value === 0) return t('pages.settings.DuplicateCandidate.s39')
   if (form.conditionLogic === 'ALL') {
-    return `当候选人以下 ${selectedCount.value} 项查重项【全部一致】时，判定为同一人`
+    return t('pages.settings.DuplicateCandidate.s40', { n: selectedCount.value })
   }
   const n = form.anyCount || 1
-  return `当候选人以下 ${selectedCount.value} 项查重项中【任意 ${n} 项一致】时，判定为同一人`
+  return t('pages.settings.DuplicateCandidate.s41', { n: selectedCount.value, m: n })
 })
 
 // ===== 加载 =====
@@ -400,7 +400,7 @@ async function loadAll() {
     for (const g of cat.groups) for (const it of g.items) map[it.key] = g.strength
     strengthByKey.value = map
   } catch (e: any) {
-    message.error(`加载失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.DuplicateCandidate.s42', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
   } finally {
     loading.value = false
   }
@@ -438,19 +438,19 @@ async function saveMerge() {
     merge.cancelUnacceptedHeadhunter = updated.merge.cancelUnacceptedHeadhunter
     merge.strategies = updated.merge.strategies
     mergeDirty.value = false
-    message.success('合并策略已保存')
+    message.success(t('pages.settings.DuplicateCandidate.s44'))
   } catch (e: any) {
-    message.error(`保存失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.DuplicateCandidate.s45', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
   } finally {
     savingMerge.value = false
   }
 }
 async function resetMerge() {
   dialog.warning({
-    title: '恢复默认合并策略',
-    content: '将合并策略重置为系统默认，当前自定义修改会丢失。是否继续？',
-    positiveText: '恢复默认',
-    negativeText: '取消',
+    title: t('pages.settings.DuplicateCandidate.s70'),
+    content: t('pages.settings.DuplicateCandidate.s71'),
+    positiveText: t('pages.settings.DuplicateCandidate.s11'),
+    negativeText: t('pages.settings.DuplicateCandidate.s34'),
     onPositiveClick: async () => {
       savingMerge.value = true
       try {
@@ -461,9 +461,9 @@ async function resetMerge() {
         merge.cancelUnacceptedHeadhunter = updated.merge.cancelUnacceptedHeadhunter
         merge.strategies = updated.merge.strategies
         mergeDirty.value = false
-        message.success('已恢复默认合并策略')
+        message.success(t('pages.settings.DuplicateCandidate.s46'))
       } catch (e: any) {
-        message.error(`操作失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+        message.error(t('pages.settings.DuplicateCandidate.s47', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
       } finally {
         savingMerge.value = false
       }
@@ -490,9 +490,9 @@ async function saveApplication() {
     application.windowMonths = updated.application.windowMonths
     application.windowOptions = updated.application.windowOptions
     appDirty.value = false
-    message.success('申请管控已保存')
+    message.success(t('pages.settings.DuplicateCandidate.s48'))
   } catch (e: any) {
-    message.error(`保存失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.DuplicateCandidate.s45', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
   } finally {
     savingApp.value = false
   }
@@ -503,7 +503,7 @@ function statusTag(row: DuplicateRule) {
   return h(
     NTag,
     { bordered: false, size: 'small', type: row.isEnabled ? 'success' : 'default' },
-    { default: () => (row.isEnabled ? '启用中' : '已停用') },
+    { default: () => (row.isEnabled ? t('pages.settings.DuplicateCandidate.s58') : t('pages.settings.DuplicateCandidate.s59')) },
   )
 }
 function toggleBtn(row: DuplicateRule) {
@@ -514,7 +514,7 @@ function toggleBtn(row: DuplicateRule) {
       tertiary: true,
       onClick: () => onToggle(row),
     },
-    { default: () => (row.isEnabled ? '停用' : '启用') },
+    { default: () => (row.isEnabled ? t('pages.settings.DuplicateCandidate.s60') : t('pages.settings.DuplicateCandidate.s61')) },
   )
 }
 function renderActions(row: DuplicateRule) {
@@ -523,12 +523,12 @@ function renderActions(row: DuplicateRule) {
     children.push(toggleBtn(row))
   } else {
     children.push(
-      h(NButton, { size: 'tiny', tertiary: true, onClick: () => openEdit(row) }, { default: () => '编辑' }),
+      h(NButton, { size: 'tiny', tertiary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.DuplicateCandidate.s62') }),
       toggleBtn(row),
       h(
         NButton,
         { size: 'tiny', tertiary: true, type: 'error', onClick: () => onDelete(row) },
-        { default: () => '删除' },
+        { default: () => t('pages.settings.DuplicateCandidate.s63') },
       ),
     )
   }
@@ -536,18 +536,18 @@ function renderActions(row: DuplicateRule) {
 }
 const ruleColumns: DataTableColumns<DuplicateRule> = [
   {
-    title: '规则名称',
+    title: t('pages.settings.DuplicateCandidate.s64'),
     key: 'name',
-    render: (row) => (row.isSystem ? `${row.name}（系统）` : row.name),
+    render: (row) => (row.isSystem ? `${row.name}${t('pages.settings.DuplicateCandidate.s69')}` : row.name),
   },
-  { title: '查重条件', key: 'conditionText', width: 120 },
+  { title: t('pages.settings.DuplicateCandidate.s65'), key: 'conditionText', width: 120 },
   {
-    title: '查重项',
+    title: t('pages.settings.DuplicateCandidate.s66'),
     key: 'itemsText',
     render: (row) => (row.itemsText && row.itemsText.length ? row.itemsText.join('、') : '—'),
   },
-  { title: '状态', key: 'isEnabled', width: 96, render: (row) => statusTag(row) },
-  { title: '操作', key: 'actions', width: 168, render: (row) => renderActions(row) },
+  { title: t('pages.settings.DuplicateCandidate.s67'), key: 'isEnabled', width: 96, render: (row) => statusTag(row) },
+  { title: t('pages.settings.DuplicateCandidate.s68'), key: 'actions', width: 168, render: (row) => renderActions(row) },
 ]
 
 function replaceRule(updated: DuplicateRule) {
@@ -561,35 +561,35 @@ async function onToggle(row: DuplicateRule) {
     const updated = await toggleDuplicateRule(row.id)
     replaceRule(updated)
     rulesDirty.value = false
-    message.success(updated.isEnabled ? '已启用' : '已停用')
+    message.success(updated.isEnabled ? t('pages.settings.DuplicateCandidate.s49') : t('pages.settings.DuplicateCandidate.s50'))
   } catch (e: any) {
     rulesDirty.value = false
-    message.error(`操作失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.DuplicateCandidate.s47', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
   }
 }
 async function onDelete(row: DuplicateRule) {
   dialog.warning({
-    title: '删除查重规则',
-    content: `确定删除「${row.name}」？删除后不可在界面恢复，但数据仍保留在后台。`,
-    positiveText: '删除',
-    negativeText: '取消',
+    title: t('pages.settings.DuplicateCandidate.s72'),
+    content: t('pages.settings.DuplicateCandidate.s73', { name: row.name }),
+    positiveText: t('pages.settings.DuplicateCandidate.s63'),
+    negativeText: t('pages.settings.DuplicateCandidate.s34'),
     onPositiveClick: async () => {
       try {
         await deleteDuplicateRule(row.id)
         rules.value = rules.value.filter((r) => r.id !== row.id)
-        message.success('已删除')
+        message.success(t('pages.settings.DuplicateCandidate.s51'))
       } catch (e: any) {
-        message.error(`删除失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+        message.error(t('pages.settings.DuplicateCandidate.s52', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
       }
     },
   })
 }
 async function onResetRules() {
   dialog.warning({
-    title: '恢复系统默认规则',
-    content: '将软删全部自定义规则，并把系统内置规则复位为默认值。是否继续？',
-    positiveText: '恢复默认',
-    negativeText: '取消',
+    title: t('pages.settings.DuplicateCandidate.s74'),
+    content: t('pages.settings.DuplicateCandidate.s75'),
+    positiveText: t('pages.settings.DuplicateCandidate.s11'),
+    negativeText: t('pages.settings.DuplicateCandidate.s34'),
     onPositiveClick: async () => {
       loadingRules.value = true
       rulesDirty.value = true
@@ -597,10 +597,10 @@ async function onResetRules() {
         const rl = await resetDuplicateRules()
         rules.value = rl
         rulesDirty.value = false
-        message.success('已恢复系统默认规则')
+        message.success(t('pages.settings.DuplicateCandidate.s92'))
       } catch (e: any) {
         rulesDirty.value = false
-        message.error(`操作失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+        message.error(t('pages.settings.DuplicateCandidate.s47', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
       } finally {
         loadingRules.value = false
       }
@@ -631,7 +631,7 @@ function closeDrawer() {
 }
 async function saveRule() {
   if (!form.name.trim()) {
-    message.warning('请填写规则名称')
+    message.warning(t('pages.settings.DuplicateCandidate.s53'))
     return
   }
   const items = form.selected.map((key) => ({ key, strength: strengthByKey.value[key] }))
@@ -639,11 +639,11 @@ async function saveRule() {
     (i) => i.strength === 'STRONG' || i.strength === 'MEDIUM',
   )
   if (!hasStrongMedium) {
-    message.warning('至少添加 1 项强查重项或中查重项')
+    message.warning(t('pages.settings.DuplicateCandidate.s54'))
     return
   }
   if (form.conditionLogic === 'ANY' && (form.anyCount || 1) > items.length) {
-    message.warning(`任意项数不能大于勾选的查重项数量（${items.length}）`)
+    message.warning(t('pages.settings.DuplicateCandidate.s55', { n: items.length }))
     return
   }
   savingRule.value = true
@@ -658,17 +658,17 @@ async function saveRule() {
     if (editingRule.value) {
       const updated = await updateDuplicateRule(editingRule.value.id, payload)
       replaceRule(updated)
-      message.success('规则已更新')
+      message.success(t('pages.settings.DuplicateCandidate.s56'))
     } else {
       const created = await createDuplicateRule(payload)
       replaceRule(created)
-      message.success('规则已创建')
+      message.success(t('pages.settings.DuplicateCandidate.s57'))
     }
     rulesDirty.value = false
     closeDrawer()
   } catch (e: any) {
     rulesDirty.value = false
-    message.error(`保存失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.DuplicateCandidate.s45', { msg: e?.response?.data?.message || e?.message || t('pages.settings.DuplicateCandidate.s43') }))
   }
 }
 

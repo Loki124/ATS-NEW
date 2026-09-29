@@ -88,11 +88,11 @@
             size="tiny"
             @click="clearSelected"
           >
-            清空已选
+            {{ t('pages.settings.OrgScopeTreeModal.s7') }}
           </n-button>
         </div>
         <div class="panel-content">
-          <n-empty v-if="!selectedKeys.length" description="在左侧勾选部门后添加" />
+          <n-empty v-if="!selectedKeys.length" :description="t('pages.settings.OrgScopeTreeModal.s8')" />
           <template v-else>
             <div v-for="id in selectedKeys" :key="id" class="os-sel-row">
               <n-checkbox
@@ -106,7 +106,7 @@
                 :checked="!!includeMap[id]"
                 @update:checked="(v: boolean) => onInclude(id, v)"
               >
-                含下级
+                {{ t('pages.settings.OrgScopeTreeModal.s9') }}
               </n-checkbox>
               <n-button text size="tiny" type="error" @click="removeOne(id)">×</n-button>
             </div>
@@ -117,8 +117,8 @@
 
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-        <n-button @click="visible = false">取消</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="loading" :disabled="loading" @click="onConfirm">保存</n-button>
+        <n-button @click="visible = false">{{ t('pages.settings.OrgScopeTreeModal.s10') }}</n-button>
+        <n-button type="primary" class="gradient-btn" :loading="loading" :disabled="loading" @click="onConfirm">{{ t('pages.settings.OrgScopeTreeModal.s11') }}</n-button>
       </div>
     </template>
   </n-modal>

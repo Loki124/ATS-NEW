@@ -10,7 +10,7 @@
           <div class="page-header-actions">
             <n-button @click="templatesModal.show = true">
               <template #icon><n-icon :component="GridOutline" /></template>
-              模板管理
+              {{ t('pages.settings.PermissionManagement.s3') }}
             </n-button>
           </div>
         </div>
@@ -25,7 +25,7 @@
     <n-modal
       v-model:show="templatesModal.show"
       preset="card"
-      title="权限模板"
+      :title="t('pages.settings.PermissionManagement.s4')"
       class="templates-modal"
       :style="{ width: '1100px', 'max-width': '92vw' }"
     >
