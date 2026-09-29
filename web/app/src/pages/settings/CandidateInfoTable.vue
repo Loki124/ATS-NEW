@@ -4,7 +4,7 @@
       <div>
         <h1 class="page-title">{{ t('pages.settings.CandidateInfoTable.s1') }}</h1>
         <p class="page-subtitle">
-          配置候选人信息登记表的查看权限、使用范围、标准简历样式，以及在不同招聘场景下的登记表与样式联动。
+          {{ t('pages.settings.CandidateInfoTable.s18') }}
         </p>
       </div>
     </div>
@@ -103,8 +103,8 @@ const forms = ref<RegistrationForm[]>([])
 const saving = ref(false)
 
 const styleOptions = [
-  { label: '标准简历样式', value: 'standard' as ResumeStyle },
-  { label: '自定义样式', value: 'custom' as ResumeStyle },
+  { label: t('pages.settings.CandidateInfoTable.s19'), value: 'standard' as ResumeStyle },
+  { label: t('pages.settings.CandidateInfoTable.s20'), value: 'custom' as ResumeStyle },
 ]
 const formOptions = ref<{ label: string; value: number }[]>([])
 
@@ -115,9 +115,9 @@ function syncFormOptions() {
 async function reload() {
   try {
     cfg.value = await getCandidateInfoTableConfig()
-    message.info('已重置为最近保存的设置')
+    message.info(t('pages.settings.CandidateInfoTable.s21'))
   } catch (e: any) {
-    message.error(`加载失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.CandidateInfoTable.s22') + (e?.response?.data?.message || e?.message || t('pages.settings.CandidateInfoTable.s23')))
   }
 }
 
@@ -126,9 +126,9 @@ async function saveConfig() {
   try {
     const saved = await saveCandidateInfoTableConfig(cfg.value)
     cfg.value = saved
-    message.success('设置已保存')
+    message.success(t('pages.settings.CandidateInfoTable.s24'))
   } catch (e: any) {
-    message.error(`保存失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.CandidateInfoTable.s25') + (e?.response?.data?.message || e?.message || t('pages.settings.CandidateInfoTable.s23')))
   } finally {
     saving.value = false
   }
@@ -144,7 +144,7 @@ async function load() {
     forms.value = fs
     syncFormOptions()
   } catch (e: any) {
-    message.error(`加载失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(t('pages.settings.CandidateInfoTable.s22') + (e?.response?.data?.message || e?.message || t('pages.settings.CandidateInfoTable.s23')))
   }
 }
 

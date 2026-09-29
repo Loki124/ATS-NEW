@@ -33,11 +33,11 @@ const { t } = useI18n()
 
 const route = useRoute()
 const META_MAP: Record<string, any> = {
-  '/settings/onboarding': { iconComp: HandLeftOutline, title: '入职设置', description: '员工入职流程配置（部门 / 资料模板 / 流程节点 / 自动通知规则）', eta: '2026-Q4', issue: 'ATS-142', owner: '花无缺', pr: '#438' },
-  '/settings/approval':   { iconComp: DocumentTextOutline, title: '审批设置', description: '审批流配置（审批人 / 节点 / 通知规则）', eta: '2026-Q4', issue: 'ATS-143', owner: '花无缺', pr: '#439' },
-  '/settings/external':   { iconComp: LinkOutline, title: '生态对接', description: '生态对接配置（背调 / HRIS / OA）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
-  '/settings/public':     { iconComp: GlobeOutline, title: '公共设置', description: '公开页面配置（招聘门户 / 自定义字段）', eta: '待规划', issue: '—', owner: '—', pr: '—' },
-  '/report':              { iconComp: BarChartOutline, title: '数据中心', description: '招聘数据报表与分析（漏斗 / 转化 / 周期 / 来源）', eta: '规划中', issue: 'ATS-201', owner: '—', pr: '—' },
+  '/settings/onboarding': { iconComp: HandLeftOutline, title: t('pages.settings.Placeholder.s4'), description: t('pages.settings.Placeholder.s5'), eta: '2026-Q4', issue: 'ATS-142', owner: t('pages.settings.Placeholder.s18'), pr: '#438' },
+  '/settings/approval':   { iconComp: DocumentTextOutline, title: t('pages.settings.Placeholder.s7'), description: t('pages.settings.Placeholder.s8'), eta: '2026-Q4', issue: 'ATS-143', owner: t('pages.settings.Placeholder.s18'), pr: '#439' },
+  '/settings/external':   { iconComp: LinkOutline, title: t('pages.settings.Placeholder.s9'), description: t('pages.settings.Placeholder.s10'), eta: t('pages.settings.Placeholder.s11'), issue: '—', owner: '—', pr: '—' },
+  '/settings/public':     { iconComp: GlobeOutline, title: t('pages.settings.Placeholder.s12'), description: t('pages.settings.Placeholder.s13'), eta: t('pages.settings.Placeholder.s11'), issue: '—', owner: '—', pr: '—' },
+  '/report':              { iconComp: BarChartOutline, title: t('pages.settings.Placeholder.s14'), description: t('pages.settings.Placeholder.s15'), eta: t('pages.settings.Placeholder.s16'), issue: 'ATS-201', owner: '—', pr: '—' },
 }
 const meta = computed(() => {
   if (route.meta?.title) {
@@ -45,13 +45,13 @@ const meta = computed(() => {
       iconComp: ConstructOutline,
       title: route.meta.title,
       description: (route.meta.description || '') as string,
-      eta: '待规划',
+      eta: t('pages.settings.Placeholder.s11'),
       issue: '—',
       owner: '—',
       pr: '—',
     }
   }
-  return META_MAP[route.path] || { iconComp: ConstructOutline, title: '页面建设中', description: '', eta: '待规划', issue: '—', owner: '—', pr: '—' }
+  return META_MAP[route.path] || { iconComp: ConstructOutline, title: t('pages.settings.Placeholder.s17'), description: '', eta: t('pages.settings.Placeholder.s11'), issue: '—', owner: '—', pr: '—' }
 })
 </script>
 
