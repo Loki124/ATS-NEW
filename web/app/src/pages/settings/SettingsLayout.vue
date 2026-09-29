@@ -3,9 +3,9 @@
        改用普通 div 净减 2 层嵌套（n-layout + Naive 自动注入的 n-layout-scroll-container）。flex 布局改由 CSS .settings-layout{display:flex} 接管。 -->
   <div class="settings-layout">
     <!-- 左侧子菜单：n-menu 取代自写 menu-group（阶段 D 决策 2 配套）
-         ⚠️ 不再用 n-layout-sider：它会自动把 header + menu 一起包进内部 .n-layout-scroll-container，
-         导致 Naive 的 scrollbar 竖向跨整个容器、覆盖在 header 上方（用户反馈"滚动条覆盖header"）。
-         改为自定义 .settings-sider（flex column），header 固定、menu 单独 overflow-y:auto，
+         {{ t('pages.settings.SettingsLayout.s3') }}
+         {{ t('pages.settings.SettingsLayout.s4') }}
+         {{ t('pages.settings.SettingsLayout.s5') }}
          scrollbar 只出现在菜单区，不接触 header。 -->
     <div
       class="settings-sider glass-sidebar"
@@ -94,31 +94,31 @@ const subMenuOptions: MenuItem[] = [
   {
     key: 'g-basic',
     type: 'group',
-    label: '基本信息',
+    label: t('pages.settings.SettingsLayout.s6'),
     children: [
-      { key: '/settings/account', label: '个人信息管理', icon: () => h(NIcon, null, { default: () => h(PersonCircleOutline) }) },
+      { key: '/settings/account', label: t('pages.settings.SettingsLayout.s7'), icon: () => h(NIcon, null, { default: () => h(PersonCircleOutline) }) },
       {
         key: 'g-company',
-        label: '公司信息管理',
+        label: t('pages.settings.SettingsLayout.s8'),
         icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }),
         children: [
-          { key: '/settings/company', label: '公司信息', icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
-          { key: '/settings/company/address', label: '公司地址', icon: () => h(NIcon, null, { default: () => h(LocationOutline) }) },
-          { key: '/settings/company/meeting-rooms', label: '公司会议室', icon: () => h(NIcon, null, { default: () => h(VideocamOutline) }) },
-          { key: '/settings/company/resume-mailbox', label: '接收简历邮箱', icon: () => h(NIcon, null, { default: () => h(MailOutline) }) },
-          { key: '/settings/company/brand', label: '品牌信息管理', icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
+          { key: '/settings/company', label: t('pages.settings.SettingsLayout.s9'), icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }) },
+          { key: '/settings/company/address', label: t('pages.settings.SettingsLayout.s10'), icon: () => h(NIcon, null, { default: () => h(LocationOutline) }) },
+          { key: '/settings/company/meeting-rooms', label: t('pages.settings.SettingsLayout.s11'), icon: () => h(NIcon, null, { default: () => h(VideocamOutline) }) },
+          { key: '/settings/company/resume-mailbox', label: t('pages.settings.SettingsLayout.s12'), icon: () => h(NIcon, null, { default: () => h(MailOutline) }) },
+          { key: '/settings/company/brand', label: t('pages.settings.SettingsLayout.s13'), icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
         ],
       },
-      { key: '/settings/department', label: '组织管理', icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+      { key: '/settings/department', label: t('pages.settings.SettingsLayout.s14'), icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
       {
         // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 注册审核 + 用户组
         key: 'g-user',
-        label: '用户管理',
+        label: t('pages.settings.SettingsLayout.s15'),
         icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }),
         children: [
-          { key: '/settings/users/all', label: '用户管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
-          { key: '/settings/registrations', label: '注册审核', icon: () => h(NIcon, null, { default: () => h(PersonAddOutline) }) },
-          { key: '/settings/user-groups', label: '用户组管理', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
+          { key: '/settings/users/all', label: t('pages.settings.SettingsLayout.s15'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
+          { key: '/settings/registrations', label: t('pages.settings.SettingsLayout.s16'), icon: () => h(NIcon, null, { default: () => h(PersonAddOutline) }) },
+          { key: '/settings/user-groups', label: t('pages.settings.SettingsLayout.s17'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },
       {
@@ -132,13 +132,13 @@ const subMenuOptions: MenuItem[] = [
         // 排序：置于「基本信息」末位 —— 个人信息 → 公司信息 → 组织 → 用户 → 权限
         //   （先有组织与人，再配置权限，符合配置递进逻辑）。
         key: 'g-permission',
-        label: '权限管理',
+        label: t('pages.settings.SettingsLayout.s18'),
         icon: () => h(NIcon, null, { default: () => h(ShieldOutline) }),
         children: [
-          { key: '/settings/permissions', label: '身份管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
-          { key: '/settings/permissions/resources', label: '资源管理', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-          { key: '/settings/mou', label: '管理单元', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-          { key: '/settings/field-acl', label: '字段权限', icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
+          { key: '/settings/permissions', label: t('pages.settings.SettingsLayout.s19'), icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+          { key: '/settings/permissions/resources', label: t('pages.settings.SettingsLayout.s20'), icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
+          { key: '/settings/mou', label: t('pages.settings.SettingsLayout.s21'), icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
+          { key: '/settings/field-acl', label: t('pages.settings.SettingsLayout.s22'), icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
         ],
       },
     ],
@@ -146,57 +146,57 @@ const subMenuOptions: MenuItem[] = [
   {
     key: 'g-process',
     type: 'group',
-    label: '过程管理',
+    label: t('pages.settings.SettingsLayout.s23'),
     children: [
       {
         key: 'g-candidate-info',
-        label: '候选人信息管理',
+        label: t('pages.settings.SettingsLayout.s24'),
         icon: () => h(NIcon, null, { default: () => h(FileTrayFullOutline) }),
         children: [
-          { key: '/settings/candidate-dynamic-fields', label: '候选人字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
-          { key: '/settings/standard-resume', label: '标准简历设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
-          { key: '/settings/application-form', label: '申请表和登记表设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
-          { key: '/settings/candidate-info-table', label: '候选人信息表', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-          { key: '/settings/duplicate-candidate', label: '简历查重规则', icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
-          { key: '/settings/resume-parser-engine', label: '简历解析引擎', icon: () => h(NIcon, null, { default: () => h(GitBranchOutline) }) },
+          { key: '/settings/candidate-dynamic-fields', label: t('pages.settings.SettingsLayout.s25'), icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/standard-resume', label: t('pages.settings.SettingsLayout.s26'), icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+          { key: '/settings/application-form', label: t('pages.settings.SettingsLayout.s27'), icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
+          { key: '/settings/candidate-info-table', label: t('pages.settings.SettingsLayout.s28'), icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
+          { key: '/settings/duplicate-candidate', label: t('pages.settings.SettingsLayout.s29'), icon: () => h(NIcon, null, { default: () => h(CopyOutline) }) },
+          { key: '/settings/resume-parser-engine', label: t('pages.settings.SettingsLayout.s30'), icon: () => h(NIcon, null, { default: () => h(GitBranchOutline) }) },
         ],
       },
       {
         // 「招聘需求管理」纯分组（key 不带路径不可点击）：原「招聘需求设置」
         // 页面降为子项「需求规则设置」，与评分规则并列
         key: 'g-demand',
-        label: '招聘需求管理',
+        label: t('pages.settings.SettingsLayout.s31'),
         icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }),
         children: [
-          { key: '/settings/demand-dynamic-fields', label: '需求字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
-          { key: '/settings/demand-config', label: '需求规则设置', icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
-          { key: '/settings/demand-form-settings', label: '表单设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
-          { key: '/settings/scoring', label: '评分规则', icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
+          { key: '/settings/demand-dynamic-fields', label: t('pages.settings.SettingsLayout.s32'), icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/demand-config', label: t('pages.settings.SettingsLayout.s33'), icon: () => h(NIcon, null, { default: () => h(ClipboardOutline) }) },
+          { key: '/settings/demand-form-settings', label: t('pages.settings.SettingsLayout.s34'), icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+          { key: '/settings/scoring', label: t('pages.settings.SettingsLayout.s35'), icon: () => h(NIcon, null, { default: () => h(StarOutline) }) },
         ],
       },
       {
         // 2026-09-14 动态字段拆分：职位信息管理作为分组，容纳占位页与「动态字段」子项
         key: 'g-position-info',
-        label: '职位信息管理',
+        label: t('pages.settings.SettingsLayout.s36'),
         icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }),
         children: [
-          { key: '/settings/position-dynamic-fields', label: '职位字段管理', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
-          { key: '/settings/position-form-settings', label: '表单设置', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
-          { key: '/settings/position-info', label: '职位信息管理', icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
+          { key: '/settings/position-dynamic-fields', label: t('pages.settings.SettingsLayout.s37'), icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+          { key: '/settings/position-form-settings', label: t('pages.settings.SettingsLayout.s34'), icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+          { key: '/settings/position-info', label: t('pages.settings.SettingsLayout.s36'), icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
         ],
       },
-      { key: '/settings/interview-management', label: '面试管理', icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },
-      { key: '/settings/offer-management', label: 'Offer管理', icon: () => h(NIcon, null, { default: () => h(GiftOutline) }) },
-      { key: '/settings/campus-control', label: '校招管控', icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
+      { key: '/settings/interview-management', label: t('pages.settings.SettingsLayout.s38'), icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },
+      { key: '/settings/offer-management', label: t('pages.settings.SettingsLayout.s39'), icon: () => h(NIcon, null, { default: () => h(GiftOutline) }) },
+      { key: '/settings/campus-control', label: t('pages.settings.SettingsLayout.s40'), icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
       {
         // 2026-09-14 新增：招聘分类信息，数据字典收为其子项（兵哥未列入排序清单，保留并置于末尾）
         // 2026-09-20 补充：原因库加入子项，作为原因标签 / 场景规则的配置入口
         key: '/settings/recruit-category',
-        label: '招聘分类信息',
+        label: t('pages.settings.SettingsLayout.s41'),
         icon: () => h(NIcon, null, { default: () => h(PricetagsOutline) }),
         children: [
-          { key: '/settings/dictionary', label: '数据字典', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
-          { key: '/settings/reason-library', label: '原因库', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+          { key: '/settings/dictionary', label: t('pages.settings.SettingsLayout.s42'), icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+          { key: '/settings/reason-library', label: t('pages.settings.SettingsLayout.s43'), icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
         ],
       },
     ],
@@ -204,45 +204,45 @@ const subMenuOptions: MenuItem[] = [
   {
     key: 'g-speedup',
     type: 'group',
-    label: '招聘提速',
+    label: t('pages.settings.SettingsLayout.s44'),
     children: [
-      { key: '/settings/recruitment-stage', label: '招聘阶段配置', icon: () => h(NIcon, null, { default: () => h(LayersOutline) }) },
-      { key: '/settings/recruitment-process', label: '招聘流程', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-      { key: '/settings/recruitment-round', label: '面试轮次', icon: () => h(NIcon, null, { default: () => h(StopwatchOutline) }) },
+      { key: '/settings/recruitment-stage', label: t('pages.settings.SettingsLayout.s45'), icon: () => h(NIcon, null, { default: () => h(LayersOutline) }) },
+      { key: '/settings/recruitment-process', label: t('pages.settings.SettingsLayout.s46'), icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
+      { key: '/settings/recruitment-round', label: t('pages.settings.SettingsLayout.s47'), icon: () => h(NIcon, null, { default: () => h(StopwatchOutline) }) },
     ],
   },
   {
     key: 'g-content',
     type: 'group',
-    label: '内容管理',
+    label: t('pages.settings.SettingsLayout.s48'),
     children: [
-      { key: '/settings/announcements', label: '制度公告', icon: () => h(NIcon, null, { default: () => h(BookOutline) }) },
+      { key: '/settings/announcements', label: t('pages.settings.SettingsLayout.s49'), icon: () => h(NIcon, null, { default: () => h(BookOutline) }) },
     ],
   },
   {
     key: 'g-misc',
     type: 'group',
-    label: '其他',
+    label: t('pages.settings.SettingsLayout.s50'),
     children: [
-      { key: '/settings/theme', label: '主题外观', icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
+      { key: '/settings/theme', label: t('pages.settings.SettingsLayout.s61'), icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
       {
         // 2026-09-18 基础数据：分为静态数据（标准码表，只读）/ 动态数据（公司库+院校库，可维护）
         key: 'g-basic-data',
-        label: '基础数据',
+        label: t('pages.settings.SettingsLayout.s51'),
         icon: () => h(NIcon, null, { default: () => h(ServerOutline) }),
         children: [
-          { key: '/settings/code-tables', label: '静态数据', icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
-          { key: '/settings/dynamic-data', label: '动态数据', icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
+          { key: '/settings/code-tables', label: t('pages.settings.SettingsLayout.s52'), icon: () => h(NIcon, null, { default: () => h(BookmarkOutline) }) },
+          { key: '/settings/dynamic-data', label: t('pages.settings.SettingsLayout.s53'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },
-      { key: '/settings/dynamic-fields', label: '动态字段', icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
-      { key: '/settings/scraped-resumes', label: '我找的简历', icon: () => h(NIcon, null, { default: () => h(SearchOutline) }) },
-      { key: '/settings/data-dashboard', label: '数据中心', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
-      { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
-      { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
-      { key: '/settings/rule-engine', label: '规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
+      { key: '/settings/dynamic-fields', label: t('pages.settings.SettingsLayout.s54'), icon: () => h(NIcon, null, { default: () => h(ConstructOutline) }) },
+      { key: '/settings/scraped-resumes', label: t('pages.settings.SettingsLayout.s55'), icon: () => h(NIcon, null, { default: () => h(SearchOutline) }) },
+      { key: '/settings/data-dashboard', label: t('pages.settings.SettingsLayout.s56'), icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
+      { key: '/settings/external', label: t('pages.settings.SettingsLayout.s57'), icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
+      { key: '/settings/public', label: t('pages.settings.SettingsLayout.s58'), icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
+      { key: '/settings/rule-engine', label: t('pages.settings.SettingsLayout.s59'), icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
       // 2026-09-29: 指标库（重构）：指标定义（只读）+ 指标模板（CRUD）
-      { key: '/settings/metrics', label: '指标库', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
+      { key: '/settings/metrics', label: t('pages.settings.SettingsLayout.s60'), icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
     ],
   },
 ]

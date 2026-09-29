@@ -10,9 +10,9 @@
   <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top' }">
     <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
     <!--
-      2026-08-24 21:31 兵哥反馈：默认充满全高 + hover 展开不压缩主页面
-      - :width 固定传 64（物理折叠态），CSS 类 .app-sider--floating 在 hover 时强制 width:240 + position:fixed
-      - 这样 flex 容器始终按 64px 偏移算 main-area，hover 展开变浮层不占 flex 流 → main-area 不收缩
+      {{ t('pages.Layout.s10') }}
+      {{ t('pages.Layout.s11') }}
+      {{ t('pages.Layout.s12') }}
       - n-menu :collapsed=!effectiveExpanded 控制内部菜单项图标/文字显示
     -->
     <n-layout-sider
@@ -170,8 +170,8 @@
                 {{ userStore.user?.realName?.[0] || 'A' }}
               </n-avatar>
               <div class="flex flex-col leading-tight">
-                <span class="text-sm font-medium text-ink">{{ userStore.user?.realName || '管理员' }}</span>
-                <span class="text-xs text-ink-soft">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? '超级管理员' : '用户' }}</span>
+                <span class="text-sm font-medium text-ink">{{ userStore.user?.realName || t('pages.Layout.s13') }}</span>
+                <span class="text-xs text-ink-soft">{{ userStore.user?.roleType === 'SUPER_ADMIN' ? t('pages.Layout.s14') : t('pages.Layout.s15') }}</span>
               </div>
             </div>
           </n-dropdown>
@@ -467,7 +467,7 @@ const userMenuOptions = computed(() => {
                 currentLocale.value = v ? 'en-US' : 'zh-CN'
               },
             }, {
-              unchecked: () => '中文',
+              unchecked: () => t('pages.Layout.s16'),
               checked: () => 'EN',
             }),
           ],
@@ -600,12 +600,12 @@ function handleUserMenu(key: string) {
     const layout = key === 'menu-side' ? 'side' : 'top'
     if (layout === menuLayout.value) return
     userStore.setUiSettings({ menuLayout: layout })
-    message.success(layout === 'top' ? '已切换为顶部横排菜单' : '已切换为左侧竖排菜单')
+    message.success(layout === 'top' ? t('pages.Layout.s17') : t('pages.Layout.s18'))
     return
   }
   if (key === 'logout') {
     userStore.logout()
-    message.success('已退出登录')
+    message.success(t('pages.Layout.s19'))
     router.push('/login')
   }
 }

@@ -77,7 +77,7 @@
           </div>
           <div class="derivation-item">
             <div class="swatch" :style="{ background: 'var(--brand-soft)' }"></div>
-            <span class="label">soft（12%）</span>
+            <span class="label">{{ t('pages.settings.ThemeSettings.s30') }}</span>
             <code class="value">rgba</code>
           </div>
         </div>
@@ -103,7 +103,7 @@
             <template #default>
               <div class="mode-option">
                 <n-icon :component="MoonOutline" />
-                <span>暗色</span>
+                <span>{{ t('pages.settings.ThemeSettings.s13') }}</span>
               </div>
             </template>
           </n-radio-button>
@@ -111,14 +111,14 @@
             <template #default>
               <div class="mode-option">
                 <n-icon :component="DesktopOutline" />
-                <span>跟随系统</span>
+                <span>{{ t('pages.settings.ThemeSettings.s14') }}</span>
               </div>
             </template>
           </n-radio-button>
         </n-radio-group>
 
         <p v-if="modeDraft === 'auto'" class="mode-hint">
-          当前系统主题：<strong>{{ systemPrefersDark ? '暗色' : '浅色' }}</strong>
+          {{ t('pages.settings.ThemeSettings.s40') }}<strong>{{ systemPrefersDark ? t('pages.settings.ThemeSettings.s13') : t('pages.settings.ThemeSettings.s31') }}</strong>
           （<code>prefers-color-scheme: dark</code>）
         </p>
       </section>
@@ -127,37 +127,37 @@
       <section class="theme-section actions-section">
         <n-button class="btn-secondary" @click="onReset">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          恢复默认
+          {{ t('pages.settings.ThemeSettings.s15') }}
         </n-button>
         <n-button class="btn-primary" :disabled="!isDirty" @click="onSave">
           <template #icon><n-icon :component="CheckmarkOutline" /></template>
-          保存
+          {{ t('pages.settings.ThemeSettings.s16') }}
         </n-button>
       </section>
 
       <!-- === 预览 === -->
       <section class="theme-section">
         <div class="section-header">
-          <h2 class="section-title">实时预览</h2>
-          <p class="section-desc">玻璃原子组件演示（DESIGN.md §4）</p>
+          <h2 class="section-title">{{ t('pages.settings.ThemeSettings.s17') }}</h2>
+          <p class="section-desc">{{ t('pages.settings.ThemeSettings.s18') }}</p>
         </div>
         <div class="preview-grid">
           <div class="glass-card preview-card">
-            <h3 class="preview-card-title">玻璃卡片</h3>
-            <p class="preview-card-text">半透明白底 + 顶部高光</p>
+            <h3 class="preview-card-title">{{ t('pages.settings.ThemeSettings.s19') }}</h3>
+            <p class="preview-card-text">{{ t('pages.settings.ThemeSettings.s20') }}</p>
           </div>
           <div class="preview-card-actions">
-            <button class="btn-primary">主按钮</button>
-            <button class="btn-secondary">次按钮</button>
-            <button class="btn-ghost">幽灵按钮</button>
-            <button class="btn-danger">危险按钮</button>
+            <button class="btn-primary">{{ t('pages.settings.ThemeSettings.s21') }}</button>
+            <button class="btn-secondary">{{ t('pages.settings.ThemeSettings.s22') }}</button>
+            <button class="btn-ghost">{{ t('pages.settings.ThemeSettings.s23') }}</button>
+            <button class="btn-danger">{{ t('pages.settings.ThemeSettings.s24') }}</button>
           </div>
           <div class="preview-tags">
-            <span class="glass-tag glass-tag--brand">品牌 tag</span>
-            <span class="glass-tag glass-tag--success">成功</span>
-            <span class="glass-tag glass-tag--warning">警告</span>
-            <span class="glass-tag glass-tag--error">错误</span>
-            <span class="glass-tag glass-tag--info">信息</span>
+            <span class="glass-tag glass-tag--brand">{{ t('pages.settings.ThemeSettings.s25') }}</span>
+            <span class="glass-tag glass-tag--success">{{ t('pages.settings.ThemeSettings.s26') }}</span>
+            <span class="glass-tag glass-tag--warning">{{ t('pages.settings.ThemeSettings.s27') }}</span>
+            <span class="glass-tag glass-tag--error">{{ t('pages.settings.ThemeSettings.s28') }}</span>
+            <span class="glass-tag glass-tag--info">{{ t('pages.settings.ThemeSettings.s29') }}</span>
           </div>
         </div>
       </section>
@@ -214,12 +214,12 @@ const swatchColors = [
 ]
 
 const presets = [
-  { name: '默认·靛紫', hex: '#6366F1' },
-  { name: '腾讯蓝', hex: '#0052D9' },
-  { name: '紫罗兰', hex: '#8B5CF6' },
-  { name: '品红', hex: '#EC4899' },
-  { name: '翠绿', hex: '#10B981' },
-  { name: '琥珀', hex: '#F59E0B' },
+  { name: t('pages.settings.ThemeSettings.s32'), hex: '#6366F1' },
+  { name: t('pages.settings.ThemeSettings.s33'), hex: '#0052D9' },
+  { name: t('pages.settings.ThemeSettings.s34'), hex: '#8B5CF6' },
+  { name: t('pages.settings.ThemeSettings.s35'), hex: '#EC4899' },
+  { name: t('pages.settings.ThemeSettings.s36'), hex: '#10B981' },
+  { name: t('pages.settings.ThemeSettings.s37'), hex: '#F59E0B' },
 ]
 
 // === 操作 ===
@@ -239,14 +239,14 @@ function onSave() {
   if (!isDirty.value) return
   themeStore.setBrand(brandHexDraft.value)
   themeStore.setMode(modeDraft.value)
-  message.success('主题已保存 · 全站立即生效')
+  message.success(t('pages.settings.ThemeSettings.s38'))
 }
 
 function onReset() {
   themeStore.reset()
   brandHexDraft.value = themeStore.brandHex
   modeDraft.value = themeStore.mode
-  message.info('已恢复默认主题（#6366F1 / 浅色）')
+  message.info(t('pages.settings.ThemeSettings.s39'))
 }
 
 // === 生命周期 ===
