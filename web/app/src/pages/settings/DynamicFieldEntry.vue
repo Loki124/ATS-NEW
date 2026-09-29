@@ -103,9 +103,9 @@ function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | unde
 }
 
 const RESOURCE_OPTIONS = [
-  { label: '候选人', value: 'Candidate' },
-  { label: '招聘需求', value: 'Demand' },
-  { label: '职位', value: 'Position' },
+  { label: t('pages.settings.DynamicFieldEntry.s13'), value: 'Candidate' },
+  { label: t('pages.settings.DynamicFieldEntry.s14'), value: 'Demand' },
+  { label: t('pages.settings.DynamicFieldEntry.s15'), value: 'Position' },
 ];
 
 function isTextType(t: string) { return TEXT_TYPES.includes(t); }
@@ -151,7 +151,7 @@ async function loadFields() {
     }
     errorsClear();
   } catch (e: any) {
-    message.error('加载字段定义失败: ' + (e?.message || e));
+    message.error(t('pages.settings.DynamicFieldEntry.s20') + (e?.message || e));
   } finally {
     loading.value = false;
   }
@@ -193,9 +193,9 @@ function validateAllLocal(): boolean {
 }
 
 async function handleSubmit() {
-  if (!entityId.value.trim()) { message.error('请填写业务实体 ID'); return; }
+  if (!entityId.value.trim()) { message.error(t('pages.settings.DynamicFieldEntry.s16')); return; }
   // 1) 前端拦截
-  if (!validateAllLocal()) { message.error('请修正表单中的错误后再提交'); return; }
+  if (!validateAllLocal()) { message.error(t('pages.settings.DynamicFieldEntry.s17')); return; }
   // 2) 收集非空值
   const payloadValues: Record<string, any> = {};
   for (const f of fields.value) {
@@ -215,15 +215,15 @@ async function handleSubmit() {
     // 3) 后端权威校验
     const serverErrors = await validateValues(resource.value, payloadValues);
     if (Object.keys(serverErrors).length > 0) {
-      for (const k of Object.keys(serverErrors)) errors[k] = serverErrors[k] || ['校验未通过'];
-      message.error('服务端校验未通过，请检查标红字段');
+      for (const k of Object.keys(serverErrors)) errors[k] = serverErrors[k] || [t('pages.settings.DynamicFieldEntry.s21')];
+      message.error(t('pages.settings.DynamicFieldEntry.s18'));
       return;
     }
     // 4) 落库
     await saveDynamicFieldValues(resource.value, entityId.value.trim(), payloadValues);
-    message.success('保存成功');
+    message.success(t('pages.settings.DynamicFieldEntry.s19'));
   } catch (e: any) {
-    message.error('保存失败: ' + (e?.message || e));
+    message.error(t('pages.settings.DynamicFieldEntry.s22') + (e?.message || e));
   } finally {
     saving.value = false;
   }
@@ -245,7 +245,7 @@ onMounted(loadFields);
       <n-divider />
 
       <n-spin v-if="loading" />
-      <n-empty v-else-if="!fields.length" description="该资源暂无字段定义" />
+      <n-empty v-else-if="!fields.length" :description="t('pages.settings.DynamicFieldEntry.s6')" />
       <n-form v-else label-placement="left" label-width="140px">
         <n-form-item
           v-for="f in fields"
@@ -260,13 +260,13 @@ onMounted(loadFields);
                 :value="ensurePhoneParts(f).code"
                 :options="phoneDialOptions"
                 filterable
-                placeholder="区号"
+                :placeholder="t('pages.settings.DynamicFieldEntry.s7')"
                 style="width: 150px"
                 @update:value="(c: string) => composePhone(f, { code: c })"
               />
               <n-input
                 :value="ensurePhoneParts(f).number"
-                placeholder="请输入号码"
+                :placeholder="t('pages.settings.DynamicFieldEntry.s8')"
                 style="width: 210px"
                 @update:value="(v: string) => composePhone(f, { number: v })"
               />
@@ -301,7 +301,7 @@ onMounted(loadFields);
             :min="(f.validation as FieldValidation)?.min ?? undefined"
             :max="(f.validation as FieldValidation)?.max ?? undefined"
             :step="(f.validation as FieldValidation)?.step ?? undefined"
-            :placeholder="f.placeholder || '请输入数字'"
+            :placeholder="f.placeholder || t('pages.settings.DynamicFieldEntry.s23')"
             style="width: 320px"
             @blur="validateLocalField(f)"
           />
@@ -318,7 +318,7 @@ onMounted(loadFields);
                 :min="(f.validation as FieldValidation)?.min ?? undefined"
                 :max="(f.validation as FieldValidation)?.max ?? undefined"
                 :step="(f.validation as FieldValidation)?.step ?? undefined"
-                placeholder="最小值"
+                :placeholder="t('pages.settings.DynamicFieldEntry.s9')"
                 style="flex: 1; min-width: 120px"
                 @blur="validateLocalField(f)"
               />
@@ -328,7 +328,7 @@ onMounted(loadFields);
                 :min="(f.validation as FieldValidation)?.min ?? undefined"
                 :max="(f.validation as FieldValidation)?.max ?? undefined"
                 :step="(f.validation as FieldValidation)?.step ?? undefined"
-                placeholder="最大值"
+                :placeholder="t('pages.settings.DynamicFieldEntry.s10')"
                 style="flex: 1; min-width: 120px"
                 @blur="validateLocalField(f)"
               />
@@ -344,7 +344,7 @@ onMounted(loadFields);
             v-model:value="values[f.fieldKey]"
             :options="selectOptions(f).map((o) => ({ label: o.label || o.value, value: o.value }))"
             :multiple="f.fieldType === 'MULTISELECT' || f.fieldType === 'LIST_MULTI'"
-            :placeholder="f.placeholder || '请选择'"
+            :placeholder="f.placeholder || t('pages.settings.DynamicFieldEntry.s24')"
             style="width: 360px"
             @update:value="validateLocalField(f)"
           />
@@ -367,7 +367,7 @@ onMounted(loadFields);
           <n-input
             v-else-if="f.fieldType === 'ATTACHMENT'"
             v-model:value="values[f.fieldKey]"
-            placeholder="附件 URL"
+            :placeholder="t('pages.settings.DynamicFieldEntry.s11')"
             style="width: 360px"
           />
 
@@ -375,7 +375,7 @@ onMounted(loadFields);
           <RichTextEditor
             v-else-if="f.fieldType === 'RICH_TEXT'"
             v-model="values[f.fieldKey]"
-            :placeholder="f.placeholder || '请输入富文本内容'"
+            :placeholder="f.placeholder || t('pages.settings.DynamicFieldEntry.s25')"
             style="width: 100%"
             @blur="validateLocalField(f)"
           />
@@ -385,7 +385,7 @@ onMounted(loadFields);
             v-else
             v-model:value="values[f.fieldKey]"
             type="textarea"
-            :placeholder="'原始值 (JSON), 类型 ' + f.fieldType"
+            :placeholder="t('pages.settings.DynamicFieldEntry.s26') + f.fieldType"
             style="width: 360px"
           />
 
@@ -396,7 +396,7 @@ onMounted(loadFields);
         </n-form-item>
 
         <n-form-item>
-          <n-button type="primary" :loading="saving" @click="handleSubmit">提交保存</n-button>
+          <n-button type="primary" :loading="saving" @click="handleSubmit">{{ t('pages.settings.DynamicFieldEntry.s12') }}</n-button>
         </n-form-item>
       </n-form>
     </n-card>

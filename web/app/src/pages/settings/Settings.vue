@@ -6,13 +6,13 @@
     </div>
     <n-card>
       <n-tabs v-model:value="activeTab" type="line" animated>
-        <n-tab-pane name="process" tab="招聘流程管理">
+        <n-tab-pane name="process" :tab="t('pages.settings.Settings.s3')">
           <n-data-table :columns="processColumns" :data="processData" :row-key="(row: any) => row.id" :pagination="false" />
         </n-tab-pane>
-        <n-tab-pane name="stage" tab="阶段配置">
+        <n-tab-pane name="stage" :tab="t('pages.settings.Settings.s4')">
           <n-data-table :columns="stageColumns" :data="stageData" :row-key="(row: any) => row.id" :pagination="false" />
         </n-tab-pane>
-        <n-tab-pane name="scoring" tab="评分规则">
+        <n-tab-pane name="scoring" :tab="t('pages.settings.Settings.s5')">
           <n-data-table :columns="scoringColumns" :data="scoringData" :row-key="(row: any) => row.id" :pagination="false" />
         </n-tab-pane>
       </n-tabs>
@@ -29,21 +29,21 @@ const activeTab = ref('process')
 
 const processData = ref([])
 const processColumns = [
-  { title: '流程名称', key: 'name' },
-  { title: '流程编码', key: 'code' },
-  { title: '状态', key: 'status' }
+  { title: t('pages.settings.Settings.s6'), key: 'name' },
+  { title: t('pages.settings.Settings.s7'), key: 'code' },
+  { title: t('pages.settings.Settings.s8'), key: 'status' }
 ]
 
 const stageData = ref([])
 const stageColumns = [
-  { title: '阶段名称', key: 'name' },
-  { title: '阶段类型', key: 'type' }
+  { title: t('pages.settings.Settings.s9'), key: 'name' },
+  { title: t('pages.settings.Settings.s10'), key: 'type' }
 ]
 
 const scoringData = ref([])
 const scoringColumns = [
-  { title: '规则名称', key: 'name' },
-  { title: '规则类型', key: 'type' }
+  { title: t('pages.settings.Settings.s11'), key: 'name' },
+  { title: t('pages.settings.Settings.s12'), key: 'type' }
 ]
 </script>
 

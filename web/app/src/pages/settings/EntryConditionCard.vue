@@ -48,9 +48,9 @@ const props = defineProps<{
 
 /** 运算符 → 中文标签（对齐 stage-rule/types.ts OperatorKey） */
 const OP_LABEL: Record<string, string> = {
-  EQ: '等于', NEQ: '不等于', GT: '大于', GTE: '大于等于', LT: '小于',
-  LTE: '小于等于', BETWEEN: '介于', IN: '包含', NOT_IN: '不包含',
-  IS_EMPTY: '为空', IS_NOT_EMPTY: '不为空',
+  EQ: t('pages.settings.EntryConditionCard.s3'), NEQ: t('pages.settings.EntryConditionCard.s4'), GT: t('pages.settings.EntryConditionCard.s5'), GTE: t('pages.settings.EntryConditionCard.s6'), LT: t('pages.settings.EntryConditionCard.s7'),
+  LTE: t('pages.settings.EntryConditionCard.s8'), BETWEEN: t('pages.settings.EntryConditionCard.s9'), IN: t('pages.settings.EntryConditionCard.s10'), NOT_IN: t('pages.settings.EntryConditionCard.s11'),
+  IS_EMPTY: t('pages.settings.EntryConditionCard.s12'), IS_NOT_EMPTY: t('pages.settings.EntryConditionCard.s13'),
 }
 /** 圆圈数字 ①..⑳（参考 HTML 用 ①/② 消除全局编号歧义） */
 const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳']
@@ -61,7 +61,7 @@ function opLabel(op?: string): string {
 }
 function formatValue(v: any): string {
   if (v === null || v === undefined || v === '') return '—'
-  if (Array.isArray(v)) return v.length ? v.join('、') : '—'
+  if (Array.isArray(v)) return v.length ? v.join(t('pages.settings.EntryConditionCard.s14')) : t('pages.settings.EntryConditionCard.s15')
   return String(v)
 }
 function circled(i: number): string {
@@ -126,10 +126,10 @@ const isMulti = computed(() => normalized.value.groups.length > 1)
 const groupExpr = computed(() => {
   const n = normalized.value.groups.length
   const word = normalized.value.groupLogic === 'OR' ? 'or' : 'and'
-  return Array.from({ length: n }, (_, i) => `组${i + 1}`).join(` ${word} `)
+  return Array.from({ length: n }, (_, i) => t('pages.settings.EntryConditionCard.s16', { n: i + 1 })).join(` ${word} `)
 })
 const groupSem = computed(() =>
-  normalized.value.groupLogic === 'OR' ? '满足任一条件组即可' : '所有条件组同时满足',
+  normalized.value.groupLogic === 'OR' ? t('pages.settings.EntryConditionCard.s17') : t('pages.settings.EntryConditionCard.s18'),
 )
 // 单组 chip：① or ② / ① and ②（组内 matchType 用 ALL/ANY 语义）
 function groupChip(g: DisplayGroup): string {
@@ -137,7 +137,7 @@ function groupChip(g: DisplayGroup): string {
   return g.conditions.map((_c, i) => circled(i + 1)).join(` ${word} `)
 }
 function groupHeadLabel(g: DisplayGroup): string {
-  return g.matchType === 'ALL' ? '满足全部条件' : '满足任一条件'
+  return g.matchType === 'ALL' ? t('pages.settings.EntryConditionCard.s19') : t('pages.settings.EntryConditionCard.s20')
 }
 </script>
 
@@ -168,7 +168,7 @@ function groupHeadLabel(g: DisplayGroup): string {
             :class="{ 'entry-cond__group-head--headless': !isMulti && !g.name }"
           >
             <span v-if="isMulti || g.name" class="entry-cond__group-name">
-              {{ g.name || ('条件组 ' + (gi + 1)) }}
+              {{ g.name || (t('pages.settings.EntryConditionCard.s21') + (gi + 1)) }}
             </span>
             <span class="entry-cond__group-sem">{{ groupHeadLabel(g) }}</span>
             <span class="entry-cond__chip entry-cond__chip--group">{{ groupChip(g) }}</span>

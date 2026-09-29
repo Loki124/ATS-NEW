@@ -535,7 +535,7 @@ const loadUsers = async () => {
 // 用户下拉项
 const userOptions = computed(() =>
   users.value.map(u => ({
-    label: `${u.realName}（${u.username}）`,
+    label: t('pages.settings.DepartmentManagement.s114', { realName: u.realName, username: u.username }),
     value: u.id,
   }))
 );

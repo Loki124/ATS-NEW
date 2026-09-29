@@ -2,7 +2,7 @@
   <section class="config-card">
     <div class="card-title card-title--left">
       <n-icon :component="PersonOutline" />
-      默认处理人
+      {{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s5') }}
       <span class="title-desc">{{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s1') }}</span>
     </div>
 
@@ -10,7 +10,7 @@
     <div class="flow-condition-row flow-condition-row--3">
       <div class="flow-field">
         <label class="field-label">
-          数据来源 <span class="required-mark">*</span>
+          {{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s17') }} <span class="required-mark">*</span>
         </label>
         <n-select
           size="small"
@@ -21,7 +21,7 @@
       </div>
       <div class="flow-field">
         <label class="field-label">
-          取值字段 <span class="required-mark">*</span>
+          {{ t('pages.settings.stage-rule.cards.DefaultHandlerCard.s18') }} <span class="required-mark">*</span>
         </label>
         <n-select
           size="small"
@@ -72,24 +72,24 @@ const ruleOptions = HANDLER_RULE_OPTIONS
 const FIELD_BY_SOURCE: Record<string, { label: string; value: string }[]> = {
   FROM_DEMAND: [
     { label: 'HRBP', value: 'HRBP' },
-    { label: '用人经理', value: 'HIRING_MANAGER' },
-    { label: '用人经理上级', value: 'HIRING_MANAGER_SUPER' },
-    { label: '总裁', value: 'PRESIDENT' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s6'), value: 'HIRING_MANAGER' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s7'), value: 'HIRING_MANAGER_SUPER' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s8'), value: 'PRESIDENT' },
     { label: 'VP', value: 'VP' },
   ],
   FROM_POSITION: [
     { label: 'HRBP', value: 'HRBP' },
-    { label: '用人经理', value: 'HIRING_MANAGER' },
-    { label: '用人经理上级', value: 'HIRING_MANAGER_SUPER' },
-    { label: '总裁', value: 'PRESIDENT' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s9'), value: 'HIRING_MANAGER' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s10'), value: 'HIRING_MANAGER_SUPER' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s11'), value: 'PRESIDENT' },
     { label: 'VP', value: 'VP' },
   ],
   CUSTOM: [
-    { label: '刘星星', value: 'liu_xingxing' },
-    { label: '张三', value: 'zhang_san' },
-    { label: '李四', value: 'li_si' },
-    { label: '王五', value: 'wang_wu' },
-    { label: '赵六', value: 'zhao_liu' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s12'), value: 'liu_xingxing' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s13'), value: 'zhang_san' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s14'), value: 'li_si' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s15'), value: 'wang_wu' },
+    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s16'), value: 'zhao_liu' },
   ],
   NONE: [],
 }

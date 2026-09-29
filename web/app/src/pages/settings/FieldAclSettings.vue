@@ -16,7 +16,7 @@
       <template #header-extra>
         <n-button size="small" :loading="loading" @click="reload">{{ t('pages.settings.FieldAclSettings.s4') }}</n-button>
       </template>
-      <n-empty v-if="!rows.length" description="暂无字段权限规则，请在上方角色矩阵中配置" />
+      <n-empty v-if="!rows.length" :description="t('pages.settings.FieldAclSettings.s6')" />
       <n-data-table
         v-else
         :columns="columns"
@@ -28,7 +28,7 @@
       />
     </n-card>
 
-    <n-card title="审计日志 (最近 50 条)" class="mt-4">
+    <n-card :title="t('pages.settings.FieldAclSettings.s7')" class="mt-4">
       <n-data-table
         :columns="auditColumns"
         :data="auditLogs"
@@ -58,12 +58,12 @@ const auditLogs = ref<FieldAclAudit[]>([]);
 const loading = ref(false);
 
 const ROLE_LABELS: Record<string, string> = {
-  INTERVIEWER: '面试官',
+  INTERVIEWER: t('pages.settings.FieldAclSettings.s15'),
   HRBP: 'HRBP',
   HR: 'HR',
-  MANAGER: '用人经理',
-  ADMIN: '管理员',
-  '*': '默认',
+  MANAGER: t('pages.settings.FieldAclSettings.s16'),
+  ADMIN: t('pages.settings.FieldAclSettings.s17'),
+  '*': t('pages.settings.FieldAclSettings.s18'),
 };
 
 const ACTION_COLORS: Record<FieldAclAction, 'success' | 'warning' | 'error' | 'default'> = {
@@ -73,9 +73,9 @@ const ACTION_COLORS: Record<FieldAclAction, 'success' | 'warning' | 'error' | 'd
 };
 
 const ACTION_LABELS: Record<FieldAclAction, string> = {
-  VIEW: '查看',
-  MASK: '脱敏',
-  HIDE: '隐藏',
+  VIEW: t('pages.settings.FieldAclSettings.s19'),
+  MASK: t('pages.settings.FieldAclSettings.s20'),
+  HIDE: t('pages.settings.FieldAclSettings.s21'),
 };
 
 const roleCodes = computed(() => {
@@ -88,8 +88,8 @@ const roleCodes = computed(() => {
 
 const columns = computed(() => {
   const cols: any[] = [
-    { title: '资源', key: 'resource', width: 100, fixed: 'left' as const },
-    { title: '字段', key: 'field', width: 140, fixed: 'left' as const },
+    { title: t('pages.settings.FieldAclSettings.s8'), key: 'resource', width: 100, fixed: 'left' as const },
+    { title: t('pages.settings.FieldAclSettings.s9'), key: 'field', width: 140, fixed: 'left' as const },
   ];
   for (const rc of roleCodes.value) {
     cols.push({
@@ -117,14 +117,14 @@ const rows = computed(() => {
 });
 
 const auditColumns = [
-  { title: '时间', key: 'createdAt', width: 170,
+  { title: t('pages.settings.FieldAclSettings.s10'), key: 'createdAt', width: 170,
     render: (r: FieldAclAudit) => r.createdAt ? new Date(r.createdAt).toLocaleString('zh-CN') : '-' },
-  { title: '用户', key: 'userName', width: 100 },
-  { title: '资源.字段', key: 'resource', width: 200,
+  { title: t('pages.settings.FieldAclSettings.s11'), key: 'userName', width: 100 },
+  { title: t('pages.settings.FieldAclSettings.s12'), key: 'resource', width: 200,
     render: (r: FieldAclAudit) => `${r.resource}.${r.field}` },
-  { title: '动作', key: 'action', width: 80,
+  { title: t('pages.settings.FieldAclSettings.s13'), key: 'action', width: 80,
     render: (r: FieldAclAudit) => h(NTag, { type: ACTION_COLORS[r.action] || 'default', size: 'small' }, () => ACTION_LABELS[r.action] || r.action) },
-  { title: '结果', key: 'result', width: 80 },
+  { title: t('pages.settings.FieldAclSettings.s14'), key: 'result', width: 80 },
 ];
 
 async function reload() {
@@ -139,7 +139,7 @@ async function reload() {
     rules.value = rs;
     auditLogs.value = logs;
   } catch (err: any) {
-    message.error(`加载失败: ${err?.message || err}`);
+    message.error(t('pages.settings.FieldAclSettings.s22') + (err?.message || err));
   } finally {
     loading.value = false;
   }

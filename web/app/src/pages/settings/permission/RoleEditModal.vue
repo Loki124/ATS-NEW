@@ -2,7 +2,7 @@
   <n-modal
     :show="show"
     preset="card"
-    :title="role ? `编辑角色: ${role.roleName}` : '新建角色'"
+    :title="role ? t('pages.settings.permission.RoleEditModal.s17', { name: role.roleName }) : t('pages.settings.permission.RoleEditModal.s18')"
     style="max-width: 800px"
     @update:show="$emit('update:show', $event)"
   >
@@ -14,27 +14,27 @@
         <n-input v-model:value="form.roleName" :placeholder="t('pages.settings.permission.RoleEditModal.s4')" />
       </n-form-item>
       <n-form-item :label="t('pages.settings.permission.RoleEditModal.s7')">
-        <n-input :value="form.templateCode || '(无 — 自定义)'" disabled />
+        <n-input :value="form.templateCode || t('pages.settings.permission.RoleEditModal.s19')" disabled />
       </n-form-item>
       <n-form-item :label="t('pages.settings.permission.RoleEditModal.s8')">
-        <n-select v-model:value="form.defaultDataScopeType" :options="dataScopeOptions" clearable placeholder="不设置 (默认 ALL 兜底)" />
+        <n-select v-model:value="form.defaultDataScopeType" :options="dataScopeOptions" clearable :placeholder="t('pages.settings.permission.RoleEditModal.s11')" />
       </n-form-item>
       <n-form-item :label="t('pages.settings.permission.RoleEditModal.s9')">
         <n-input v-model:value="form.description" type="textarea" :rows="2" />
       </n-form-item>
       <n-form-item :label="t('pages.settings.permission.RoleEditModal.s10')">
         <n-switch v-model:value="statusSwitch" />
-        <span style="margin-left: var(--space-2); color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
+        <span style="margin-left: var(--space-2); color: var(--n-450)">{{ statusSwitch ? t('pages.settings.permission.RoleEditModal.s20') : t('pages.settings.permission.RoleEditModal.s21') }}</span>
       </n-form-item>
 
       <n-divider title-placement="left">{{ t('pages.settings.permission.RoleEditModal.s1') }}</n-divider>
       <n-text depth="3" style="display: block; margin-bottom: 12px">
-        按模块分组勾选资源, 保存时整组同步到 role_permission 表 (走 POST /roles/{id}/sync-resources/)
+        {{ t('pages.settings.permission.RoleEditModal.s22') }}
       </n-text>
 
       <div v-for="group in groupedResources" :key="group.module" class="resource-group">
         <n-divider title-placement="left">
-          {{ group.module || '(未分类)' }} ({{ group.items.length }})
+          {{ group.module || t('pages.settings.permission.RoleEditModal.s23') }} ({{ group.items.length }})
         </n-divider>
         <n-checkbox-group v-model:value="selectedCodes">
           <n-space>
@@ -116,10 +116,10 @@ const statusSwitch = computed({
 })
 
 const dataScopeOptions: { label: string; value: DataScopeType }[] = [
-  { label: '仅本人 (SELF)', value: 'SELF' },
-  { label: '本部门 (DEPT)', value: 'DEPT' },
-  { label: '本部门+下级 (DEPT_AND_SUB)', value: 'DEPT_AND_SUB' },
-  { label: '全公司 (ALL)', value: 'ALL' },
+  { label: t('pages.settings.permission.RoleEditModal.s12'), value: 'SELF' },
+  { label: t('pages.settings.permission.RoleEditModal.s13'), value: 'DEPT' },
+  { label: t('pages.settings.permission.RoleEditModal.s14'), value: 'DEPT_AND_SUB' },
+  { label: t('pages.settings.permission.RoleEditModal.s15'), value: 'ALL' },
 ]
 
 // 按 module 分组 (null/空归到未分类)
@@ -141,7 +141,7 @@ watch(
     try {
       allResources.value = await listResources()
     } catch (e: any) {
-      message.error('加载资源失败: ' + (e?.message ?? e))
+      message.error(t('pages.settings.permission.RoleEditModal.s24') + (e?.message ?? e))
     }
     if (role) {
       form.id = role.id
@@ -168,7 +168,7 @@ watch(
 
 async function onSubmit() {
   if (!form.roleCode || !form.roleName) {
-    message.warning('角色编码和名称必填')
+    message.warning(t('pages.settings.permission.RoleEditModal.s16'))
     return
   }
   saving.value = true
@@ -185,7 +185,7 @@ async function onSubmit() {
       })
       roleId = created.id
       if (!roleId) {
-        throw new Error('创建角色后未返回 id')
+        throw new Error(t('pages.settings.permission.RoleEditModal.s25'))
       }
     } else {
       // 编辑: 保存 role 自身字段 (PUT /roles/{id}/)
@@ -201,11 +201,11 @@ async function onSubmit() {
     // T29 fix: role_permission 是单独表, 必须用专用 action 写. PUT /roles/{id}/ 的
     // permissionCodes 字段是 SerializerMethodField (read-only), 会被静默丢弃.
     await syncRolePermissions(roleId, selectedCodes.value)
-    message.success(`${form.id ? '已保存' : '已创建'} (${selectedCodes.value.length} 个资源授权)`)
+    message.success(`${form.id ? t('pages.settings.permission.RoleEditModal.s26') : t('pages.settings.permission.RoleEditModal.s27')} (${selectedCodes.value.length} ${t('pages.settings.permission.RoleEditModal.s28')})`)
     emit('saved')
     emit('update:show', false)
   } catch (e: any) {
-    message.error('保存失败: ' + (e?.response?.data?.message ?? e?.message ?? e))
+    message.error(t('pages.settings.permission.RoleEditModal.s29') + (e?.response?.data?.message ?? e?.message ?? e))
   } finally {
     saving.value = false
   }
