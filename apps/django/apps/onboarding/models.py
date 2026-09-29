@@ -1,6 +1,6 @@
 """Onboarding Models (PRD v4 §6.7)"""
 from django.db import models
-from django_fsm import FSMField, transition
+from django_fsm import FSMField, FSMModelMixin, transition
 from apps.common.models import FullAuditModel
 from nanoid import generate as nanoid_generate
 
@@ -19,7 +19,7 @@ class OnboardingState(models.TextChoices):
     RESIGNED_DURING_PROBATION = 'RESIGNED_DURING_PROBATION', '试用期离职'
 
 
-class Onboarding(FullAuditModel):
+class Onboarding(FSMModelMixin, FullAuditModel):
     """入职流程"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     offer = models.OneToOneField(

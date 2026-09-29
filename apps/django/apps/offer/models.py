@@ -1,6 +1,6 @@
 """Offer Models (PRD v4 §6.6, §14.5)"""
 from django.db import models
-from django_fsm import FSMField, transition
+from django_fsm import FSMField, FSMModelMixin, transition
 from apps.common.models import FullAuditModel
 from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 from nanoid import generate as nanoid_generate
@@ -24,7 +24,7 @@ class OfferState(models.TextChoices):
     ONBOARDED = 'ONBOARDED', '已入职'
 
 
-class Offer(FullAuditModel):
+class Offer(FSMModelMixin, FullAuditModel):
     """Offer"""
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.

@@ -173,14 +173,19 @@ class MetricRuleSerializer(serializers.ModelSerializer):
 
         field 级校验（validate_conditions）先行；此处跑规则级跨条件校验，
         返回人话中文错误，DRF 聚合后给出 400。
+
+        部分更新（PATCH）容错：payload 未携带的字段回退到 self.instance 当前值，
+        避免「只改 conditions」这类局部更新被 V05 的 scene 非空校验误杀。
         """
+        instance = self.instance
         errors = validate_metric_rule({
-            'name': attrs.get('name'),
-            'scene': attrs.get('scene'),
-            'logic': attrs.get('logic'),
-            'conditions': attrs.get('conditions'),
-            'action_type': attrs.get('action_type'),
-            'id': self.instance.pk if self.instance else None,
+            'name': attrs.get('name', instance.name if instance else None),
+            'scene': attrs.get('scene', instance.scene if instance else None),
+            'logic': attrs.get('logic', instance.logic if instance else None),
+            'conditions': attrs.get('conditions', instance.conditions if instance else None),
+            'action_type': attrs.get(
+                'action_type', getattr(instance, 'action_type', None) if instance else None),
+            'id': instance.pk if instance else None,
         })
         if errors:
             raise serializers.ValidationError({'conditions': errors})

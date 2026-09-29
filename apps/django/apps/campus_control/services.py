@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 from .calc import (
     _COUNTED_STATUSES, rule_matches, _indicator_filter, _accounting_month, count_rule,
-    _largest_remainder_allocate,
+    _largest_remainder_allocate, compute_rollover_target,
 )
 from .constants import STRENGTH
 from .io_indicator import (
