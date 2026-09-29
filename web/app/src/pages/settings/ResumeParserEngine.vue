@@ -88,7 +88,7 @@
                       v-model:value="srForm.api_key"
                       type="password"
                       show-password-on="click"
-                      placeholder="sk-...（留空表示不修改已保存的 Key）"
+                      :placeholder="t('pages.settings.ResumeParserEngine.s33')"
                       class="rpe-cloud-input"
                     />
                   </div>
@@ -200,7 +200,7 @@ async function load() {
     selected.value = config.value.backend
     syncSrForm()
   } catch (e: any) {
-    message.error(`${t('pages.settings.ResumeParserEngine.s17')}：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(`${t('pages.settings.ResumeParserEngine.s17')}：${e?.response?.data?.message || e?.message || t('pages.settings.ResumeParserEngine.s34')}`)
   }
 }
 
@@ -226,7 +226,7 @@ async function saveConfig() {
     syncSrForm()
     message.success(t('pages.settings.ResumeParserEngine.s16'))
   } catch (e: any) {
-    message.error(`${t('pages.settings.ResumeParserEngine.s18')}：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(`${t('pages.settings.ResumeParserEngine.s18')}：${e?.response?.data?.message || e?.message || t('pages.settings.ResumeParserEngine.s34')}`)
   } finally {
     saving.value = false
   }
