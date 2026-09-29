@@ -35,7 +35,7 @@
       <div class="glass-panel login-card">
         <n-tabs v-model:value="activeTab" type="line" animated centered>
           <!-- 账号密码登录 -->
-          <n-tab-pane name="account" tab="账号密码">
+          <n-tab-pane name="account" :tab="t('pages.Login.s4')">
             <n-form
               ref="formAccountRef"
               :model="formAccount"
@@ -61,7 +61,7 @@
                   v-model:value="formAccount.password"
                   type="password"
                   show-password-on="click"
-                  placeholder="密码"
+                  :placeholder="t('pages.Login.s6')"
                   size="large"
                   class="glass-input login-input"
                   @keyup.enter="onAccountFinish"
@@ -74,8 +74,8 @@
 
               <n-form-item>
                 <div class="form-options">
-                  <n-checkbox v-model:checked="rememberMe">记住我</n-checkbox>
-                  <a href="#" class="forgot-link">忘记密码?</a>
+                  <n-checkbox v-model:checked="rememberMe">{{ t('pages.Login.s7') }}</n-checkbox>
+                  <a href="#" class="forgot-link">{{ t('pages.Login.s8') }}</a>
                 </div>
               </n-form-item>
 
@@ -87,19 +87,19 @@
                   :loading="loading"
                   attr-type="submit"
                 >
-                  登 录
+                  {{ t('pages.Login.s9') }}
                 </n-button>
               </n-form-item>
             </n-form>
           </n-tab-pane>
 
           <!-- 短信验证码登录 -->
-          <n-tab-pane name="sms" tab="手机验证码">
+          <n-tab-pane name="sms" :tab="t('pages.Login.s5')">
             <n-form :model="formSms" size="large" @submit.prevent="onSmsFinish">
               <n-form-item>
                 <n-input
                   v-model:value="formSms.phone"
-                  placeholder="请输入手机号"
+                  :placeholder="t('pages.Login.s10')"
                   size="large"
                   class="glass-input login-input"
                 >
@@ -112,8 +112,8 @@
               <n-form-item>
                 <div class="code-input-wrapper">
                   <n-input
-                    v-model:value="formSms.code"
-                    placeholder="验证码"
+                  v-model:value="formSms.code"
+                  :placeholder="t('pages.Login.s11')"
                     class="code-input glass-input login-input"
                     size="large"
                   >
@@ -127,7 +127,7 @@
                     :disabled="codeSent"
                     @click="sendCode"
                   >
-                    {{ codeSent ? `${countdown}s` : '获取验证码' }}
+                    {{ codeSent ? `${countdown}s` : t('pages.Login.s12') }}
                   </n-button>
                 </div>
               </n-form-item>
@@ -141,7 +141,7 @@
                   attr-type="submit"
                   @click="onSmsFinish"
                 >
-                  登 录
+                  {{ t('pages.Login.s9') }}
                 </n-button>
               </n-form-item>
             </n-form>
@@ -149,8 +149,8 @@
         </n-tabs>
 
         <div class="login-footer">
-          <p>默认账号: admin / admin123</p>
-          <p class="register-hint">还没有账号？<a href="#" class="forgot-link" @click.prevent="goRegister">申请注册</a></p>
+          <p>{{ t('pages.Login.s13') }}</p>
+          <p class="register-hint">{{ t('pages.Login.s14') }}<a href="#" class="forgot-link" @click.prevent="goRegister">{{ t('pages.Login.s15') }}</a></p>
         </div>
       </div>
 
@@ -158,19 +158,19 @@
       <div class="login-features">
         <div class="feature-item">
           <n-icon :component="BarChartOutline" :size="28" class="feature-icon" />
-          <span>数据看板</span>
+          <span>{{ t('pages.Login.s16') }}</span>
         </div>
         <div class="feature-item">
           <n-icon :component="PeopleOutline" :size="28" class="feature-icon" />
-          <span>人才库</span>
+          <span>{{ t('pages.Login.s17') }}</span>
         </div>
         <div class="feature-item">
           <n-icon :component="ListOutline" :size="28" class="feature-icon" />
-          <span>流程管理</span>
+          <span>{{ t('pages.Login.s18') }}</span>
         </div>
         <div class="feature-item">
           <n-icon :component="NotificationsOutline" :size="28" class="feature-icon" />
-          <span>智能提醒</span>
+          <span>{{ t('pages.Login.s19') }}</span>
         </div>
       </div>
     </div>
@@ -258,10 +258,10 @@ const handleLogin = async (values: { username: string; password: string }) => {
       }
       // 2026-08-25：登录成功 toast 加半透明绿色底色（Naive 默认 toast 在暗色页面上没背景，看不清）
       // 注：message API 的 MessageOptions 不含 containerStyle（仅 MessageProvider 才有），故改用 render 自渲染保留下暗色可读性
-      message.success('登录成功！', {
+      message.success(t('pages.Login.s20'), {
         render: () => h('div', {
           style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success); padding: 8px 14px; border-radius: 6px;',
-        }, '登录成功！'),
+        }, t('pages.Login.s20')),
       })
       // 用 nextTick 避免 message toast 在路由切换时被销毁
       await nextTick()
@@ -283,11 +283,11 @@ const handleLogin = async (values: { username: string; password: string }) => {
     // 待审核 / 已拒绝账号：后端返回 403 + code=account_pending|account_rejected
     // （apps/core/views_auth.py login_view）。不再误报"密码错误"，给出明确指引。
     if (status === 403 && data.code === 'account_pending') {
-      message.warning(data.message || '您的账号正在审核中，请耐心等待管理员审批')
+      message.warning(data.message || t('pages.Login.s24'))
     } else if (status === 403 && data.code === 'account_rejected') {
-      message.error(data.message || '您的注册申请已被拒绝，如有疑问请联系管理员')
+      message.error(data.message || t('pages.Login.s25'))
     } else {
-      const msg = data.message || error?.message || '网络错误, 请稍后重试'
+      const msg = data.message || error?.message || t('pages.Login.s26')
       message.error(msg)
     }
   } finally {
@@ -305,14 +305,14 @@ const onAccountFinish = (e?: Event) => {
 }
 
 const onSmsFinish = () => {
-  message.info('短信登录功能开发中')
+  message.info(t('pages.Login.s21'))
 }
 
 const goRegister = () => router.push('/register')
 
 const sendCode = () => {
   if (!formSms.phone) {
-    message.warning('请输入手机号')
+    message.warning(t('pages.Login.s10'))
     return
   }
   codeSent.value = true
@@ -329,7 +329,7 @@ const sendCode = () => {
       codeSent.value = false
     }
   }, 1000)
-  message.success('验证码已发送')
+  message.success(t('pages.Login.s23'))
 }
 
 let codeTimer: ReturnType<typeof setInterval> | null = null
