@@ -4,7 +4,7 @@
     <section class="dashboard-hero workbench-card workbench-card--stagger-1">
       <div class="hero-main">
         <div class="hero-greeting">
-          <div class="ai-avatar" aria-hidden="true">小森</div>
+          <div class="ai-avatar" aria-hidden="true">{{ t('pages.Dashboard.s2') }}</div>
           <div class="hero-text">
             <h1 class="hero-title">{{ greeting }}, {{ userName }}</h1>
             <p class="hero-subtitle">{{ todaySummary }}</p>
@@ -31,16 +31,16 @@
         <StatBar
           class="workbench-card workbench-card--stagger-2"
           :stats="[
-            { key: 'pendingScreening', label: '待初筛', value: data?.stats?.pendingInitial ?? 0, accentColor: 'amber', href: '/candidates' },
-            { key: 'pendingTodo', label: '待办', value: data?.stats?.pendingTodo ?? 0, accentColor: 'rose', href: '/notifications' },
-            { key: 'pendingRecommend', label: '推荐人才', value: data?.stats?.pendingRecommend ?? 0, accentColor: 'sky', href: '/referral' },
-            { key: 'pendingScreeningDone', label: '初筛中', value: data?.stats?.pendingScreening ?? 0, accentColor: 'emerald', href: '/screenings' },
+            { key: 'pendingScreening', label: t('pages.Dashboard.s15'), value: data?.stats?.pendingInitial ?? 0, accentColor: 'amber', href: '/candidates' },
+            { key: 'pendingTodo', label: t('pages.Dashboard.s16'), value: data?.stats?.pendingTodo ?? 0, accentColor: 'rose', href: '/notifications' },
+            { key: 'pendingRecommend', label: t('pages.Dashboard.s17'), value: data?.stats?.pendingRecommend ?? 0, accentColor: 'sky', href: '/referral' },
+            { key: 'pendingScreeningDone', label: t('pages.Dashboard.s18'), value: data?.stats?.pendingScreening ?? 0, accentColor: 'emerald', href: '/screenings' },
           ]"
         />
 
         <!-- ========== 重要事项 (tabbed panel) — 主区第二顺位, 强引导 ========== -->
         <n-card
-          title="重要事项"
+          :title="t('pages.Dashboard.s3')"
           class="workbench-card workbench-card--stagger-3 matters-card"
           :bordered="true"
         >
@@ -65,15 +65,15 @@
               />
               <EmptyState
                 v-else
-                title="暂无相关事项"
-                description="当前 tab 下没有需要处理的提醒"
+                :title="t('pages.Dashboard.s4')"
+                :description="t('pages.Dashboard.s5')"
               />
             </n-tab-pane>
           </n-tabs>
         </n-card>
 
         <n-card
-          title="招聘日程"
+          :title="t('pages.Dashboard.s6')"
           class="workbench-card workbench-card--stagger-6 schedule-card"
           :bordered="true"
         >
@@ -86,13 +86,13 @@
         <!-- 政策制度：工作台右侧卡片（知识库风格），置顶于参考资源区 -->
         <n-card
           v-if="showAnnouncementModule"
-          title="政策制度"
+          :title="t('pages.Dashboard.s7')"
           class="workbench-card workbench-card--stagger-3 side-card announcement-card"
           :bordered="true"
         >
           <template #header-extra>
             <n-button text size="small" type="primary" @click="goAnnouncementList">
-              更多<n-icon :component="ChevronForwardOutline" :size="16" style="margin-left: 2px" />
+              {{ t('pages.Dashboard.s19') }}<n-icon :component="ChevronForwardOutline" :size="16" style="margin-left: 2px" />
             </n-button>
           </template>
           <div class="announcement-list">
@@ -110,18 +110,18 @@
               </div>
               <div class="announcement-item__content">
                 <span class="announcement-item__title" :title="item.title">{{ item.title }}</span>
-                <span class="announcement-item__date">{{ fmtAnnouncementDate(item.updatedAt || item.publishedAt) }} 更新</span>
+                <span class="announcement-item__date">{{ fmtAnnouncementDate(item.updatedAt || item.publishedAt) }}{{ t('pages.Dashboard.s8') }}</span>
               </div>
               <n-icon :component="ChevronForwardOutline" :size="16" class="announcement-item__arrow" />
             </div>
             <div v-if="announcements.length === 0" class="announcement-list__empty">
-              <n-empty size="small" description="暂无制度公告" />
+              <n-empty size="small" :description="t('pages.Dashboard.s9')" />
             </div>
           </div>
         </n-card>
 
         <n-card
-          title="雷达访问职位"
+          :title="t('pages.Dashboard.s10')"
           class="workbench-card workbench-card--stagger-3 side-card"
           :bordered="true"
         >
@@ -133,13 +133,13 @@
               @click="onJobClick"
             />
             <div v-if="(data?.jobs?.length ?? 0) === 0" class="job-list__empty">
-              <n-empty size="small" description="暂无访问职位" />
+              <n-empty size="small" :description="t('pages.Dashboard.s11')" />
             </div>
           </div>
         </n-card>
 
         <n-card
-          title="快捷入口"
+          :title="t('pages.Dashboard.s12')"
           class="workbench-card workbench-card--stagger-4 side-card"
           :bordered="true"
         >
@@ -156,7 +156,7 @@
         </n-card>
 
         <n-card
-          title="我发的筛选"
+          :title="t('pages.Dashboard.s13')"
           class="workbench-card workbench-card--stagger-5 side-card"
           :bordered="true"
         >
@@ -168,7 +168,7 @@
               @click="onScreeningClick"
             />
             <div v-if="(data?.screenings?.length ?? 0) === 0" class="screening-list__empty">
-              <n-empty size="small" description="暂无筛选" />
+              <n-empty size="small" :description="t('pages.Dashboard.s14')" />
             </div>
           </div>
         </n-card>
@@ -263,34 +263,34 @@ function goAnnouncementList() {
 }
 
 const MATTER_TABS = [
-  { key: 'recruit', label: '招聘需求相关' },
-  { key: 'position', label: '职位相关' },
-  { key: 'interview', label: '面试相关' },
-  { key: 'offer', label: 'Offer 相关' },
-  { key: 'recommend', label: '推荐相关' },
-  { key: 'other', label: '其他' },
+  { key: 'recruit', label: t('pages.Dashboard.s20') },
+  { key: 'position', label: t('pages.Dashboard.s21') },
+  { key: 'interview', label: t('pages.Dashboard.s22') },
+  { key: 'offer', label: t('pages.Dashboard.s23') },
+  { key: 'recommend', label: t('pages.Dashboard.s24') },
+  { key: 'other', label: t('pages.Dashboard.s25') },
 ] as const
 
 const greeting = computed(() => {
   const h = new Date().getHours()
-  if (h < 6) return '凌晨好'
-  if (h < 12) return '早上好'
-  if (h < 14) return '中午好'
-  if (h < 18) return '下午好'
-  return '晚上好'
+  if (h < 6) return t('pages.Dashboard.s26')
+  if (h < 12) return t('pages.Dashboard.s27')
+  if (h < 14) return t('pages.Dashboard.s28')
+  if (h < 18) return t('pages.Dashboard.s29')
+  return t('pages.Dashboard.s30')
 })
 
 // 今日摘要: 基于真实 stats 字段拼接, 不造假数据
 const todaySummary = computed(() => {
   const s = data.value?.stats
-  if (!s) return '正在加载今天的招聘概况…'
+  if (!s) return t('pages.Dashboard.s31')
   const parts: string[] = []
-  if (s.pendingInitial) parts.push(`${s.pendingInitial} 份待初筛`)
-  if (s.pendingTodo) parts.push(`${s.pendingTodo} 条待办`)
-  if (s.pendingRecommend) parts.push(`${s.pendingRecommend} 个推荐`)
-  if (s.pendingScreening) parts.push(`${s.pendingScreening} 个初筛中`)
-  if (parts.length === 0) return '今天的事项都已处理完毕，状态很棒！'
-  return `今天有 ${parts.join(' · ')}`
+  if (s.pendingInitial) parts.push(t('pages.Dashboard.s32', { n: s.pendingInitial }))
+  if (s.pendingTodo) parts.push(t('pages.Dashboard.s33', { n: s.pendingTodo }))
+  if (s.pendingRecommend) parts.push(t('pages.Dashboard.s34', { n: s.pendingRecommend }))
+  if (s.pendingScreening) parts.push(t('pages.Dashboard.s35', { n: s.pendingScreening }))
+  if (parts.length === 0) return t('pages.Dashboard.s36')
+  return t('pages.Dashboard.s37', { parts: parts.join(' · ') })
 })
 
 const userName = computed(() => {
@@ -298,44 +298,44 @@ const userName = computed(() => {
     const raw = localStorage.getItem('user')
     if (raw) {
       const u = JSON.parse(raw) as { realName?: string; username?: string }
-      return u.realName || u.username || '招聘官'
+      return u.realName || u.username || t('pages.Dashboard.s38')
     }
   } catch {
     /* noop */
   }
-  return '招聘官'
+  return t('pages.Dashboard.s39')
 })
 
 const quickEntries = computed<QuickEntryData[]>(() => {
   const entries: QuickEntryData[] = [
     {
       key: 'archived',
-      label: '未归档简历',
-      subtitle: '从历史记录继续',
+      label: t('pages.Dashboard.s40'),
+      subtitle: t('pages.Dashboard.s41'),
       count: data.value?.quickCounts.archivedResumes ?? 0,
       icon: MailUnreadOutline,
       to: '/candidates',
     },
     {
       key: 'watching-positions',
-      label: '我关注的职位',
-      subtitle: '订阅职位动态',
+      label: t('pages.Dashboard.s42'),
+      subtitle: t('pages.Dashboard.s43'),
       count: data.value?.quickCounts.watchingPositions ?? 0,
       icon: BriefcaseOutline,
       to: '/positions',
     },
     {
       key: 'watching-candidates',
-      label: '我关注的应聘者',
-      subtitle: '状态变化时通知我',
+      label: t('pages.Dashboard.s44'),
+      subtitle: t('pages.Dashboard.s45'),
       count: data.value?.quickCounts.watchingCandidates ?? 0,
       icon: StarOutline,
       to: '/talent-pool',
     },
     {
       key: 'locked',
-      label: '已锁定的应聘者',
-      subtitle: '本季度独占',
+      label: t('pages.Dashboard.s46'),
+      subtitle: t('pages.Dashboard.s47'),
       count: data.value?.quickCounts.lockedCandidates ?? 0,
       icon: LockClosedOutline,
       to: '/candidates',
@@ -345,8 +345,8 @@ const quickEntries = computed<QuickEntryData[]>(() => {
   if (hasMoreAnnouncements.value) {
     entries.push({
       key: 'announcements',
-      label: '政策制度',
-      subtitle: '制度、公告与流程指引',
+      label: t('pages.Dashboard.s48'),
+      subtitle: t('pages.Dashboard.s49'),
       count: announcements.value.filter((a) => a.isActive).length,
       icon: DocumentTextOutline,
       to: '/announcements',
