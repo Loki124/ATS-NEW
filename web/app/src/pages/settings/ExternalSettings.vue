@@ -5,31 +5,31 @@
       <div>
         <h1 class="page-title">{{ t('pages.settings.ExternalSettings.s1') }}</h1>
         <p class="page-subtitle">
-          统一接入多家背景调查供应商：同一套接入配置（认证 / 环境 / 能力声明）适配不同供应商，新增供应商无需改造
+          {{ t('pages.settings.ExternalSettings.s2') }}
         </p>
       </div>
       <n-button type="primary" class="gradient-btn" @click="openCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
-        新增供应商
+        {{ t('pages.settings.ExternalSettings.s3') }}
       </n-button>
     </div>
 
     <!-- ===================== KPI 概览 ===================== -->
     <div class="kpi-row">
       <div class="kpi-card">
-        <span class="kpi-label">供应商总数</span>
+        <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s4') }}</span>
         <span class="kpi-value">{{ suppliers.length }}</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-label">已启用</span>
+        <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s5') }}</span>
         <span class="kpi-value kpi-value--ok">{{ enabledCount }}</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-label">沙箱环境</span>
+        <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s6') }}</span>
         <span class="kpi-value kpi-value--info">{{ sandboxCount }}</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-label">同步异常</span>
+        <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s7') }}</span>
         <span class="kpi-value" :class="abnormalCount > 0 ? 'kpi-value--warn' : 'kpi-value--ok'">{{ abnormalCount }}</span>
       </div>
     </div>
@@ -39,7 +39,7 @@
       <n-space align="center" :wrap="false">
         <n-input
           v-model:value="keyword"
-          placeholder="搜索供应商名称 / AppId"
+          :placeholder="t('pages.settings.ExternalSettings.s8')"
           clearable
           style="width: 320px"
           @update:value="onSearch"
@@ -62,19 +62,19 @@
       <div class="spacer"></div>
       <n-button quaternary @click="openGlobalAudit">
         <template #icon><n-icon :component="BarChartOutline" /></template>
-        全局审计
+        {{ t('pages.settings.ExternalSettings.s9') }}
       </n-button>
       <n-button quaternary @click="openOrders">
         <template #icon><n-icon :component="ReceiptOutline" /></template>
-        背调订单
+        {{ t('pages.settings.ExternalSettings.s10') }}
       </n-button>
       <n-button quaternary @click="showDoc = true">
         <template #icon><n-icon :component="BookOutline" /></template>
-        接口说明
+        {{ t('pages.settings.ExternalSettings.s11') }}
       </n-button>
       <n-button quaternary @click="resetFilter">
         <template #icon><n-icon :component="RefreshOutline" /></template>
-        重置
+        {{ t('pages.settings.ExternalSettings.s12') }}
       </n-button>
     </div>
 
@@ -89,7 +89,7 @@
         :scroll-x="1180"
       >
         <template #empty>
-          <n-empty description="暂无背调供应商，点击右上角「新增供应商」接入" />
+          <n-empty :description="t('pages.settings.ExternalSettings.s13')" />
         </template>
       </n-data-table>
     </div>
@@ -98,123 +98,123 @@
     <n-modal
       v-model:show="showModal"
       preset="card"
-      :title="editingId ? `编辑接入 · ${form.name || ''}` : '新增背调供应商接入'"
+      :title="editingId ? t('pages.settings.ExternalSettings.s174', { name: form.name || '' }) : t('pages.settings.ExternalSettings.s175')"
       :bordered="false"
       style="width: 680px; max-width: 94vw"
       :mask-closable="false"
     >
       <n-tabs v-model:value="activeTab" type="line" class="bc-tabs">
         <!-- Tab 1 基础信息 -->
-        <n-tab-pane name="base" tab="基础信息">
+        <n-tab-pane name="base" :tab="t('pages.settings.ExternalSettings.s14')">
           <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" :label-width="92">
-            <n-form-item label="供应商名称" path="name">
-              <n-input v-model:value="form.name" placeholder="如 全景背调 / 信达核验" />
+            <n-form-item :label="t('pages.settings.ExternalSettings.s15')" path="name">
+              <n-input v-model:value="form.name" :placeholder="t('pages.settings.ExternalSettings.s16')" />
             </n-form-item>
-            <n-form-item label="供应商代码" path="provider">
-              <n-input v-model:value="form.provider" placeholder="如 quanjing / xinda（区分多家供应商）" />
+            <n-form-item :label="t('pages.settings.ExternalSettings.s17')" path="provider">
+              <n-input v-model:value="form.provider" :placeholder="t('pages.settings.ExternalSettings.s18')" />
             </n-form-item>
-            <n-form-item label="接入类型" path="category">
-              <n-select v-model:value="form.category" :options="categoryOptions" placeholder="选择接入类型" />
+            <n-form-item :label="t('pages.settings.ExternalSettings.s19')" path="category">
+              <n-select v-model:value="form.category" :options="categoryOptions" :placeholder="t('pages.settings.ExternalSettings.s20')" />
             </n-form-item>
-            <n-form-item label="启用状态">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s21')">
               <n-switch v-model:value="form.enabled">
-                <template #checked>已启用</template>
-                <template #unchecked>已停用</template>
+                <template #checked>{{ t('pages.settings.ExternalSettings.s176') }}</template>
+                <template #unchecked>{{ t('pages.settings.ExternalSettings.s177') }}</template>
               </n-switch>
             </n-form-item>
-            <n-form-item label="备注">
-              <n-input v-model:value="form.remark" type="textarea" placeholder="供应商联系人 / 商务信息 / 备注" :autosize="{ minRows: 1, maxRows: 3 }" />
+            <n-form-item :label="t('pages.settings.ExternalSettings.s22')">
+              <n-input v-model:value="form.remark" type="textarea" :placeholder="t('pages.settings.ExternalSettings.s23')" :autosize="{ minRows: 1, maxRows: 3 }" />
             </n-form-item>
           </n-form>
         </n-tab-pane>
 
         <!-- Tab 2 接入凭证 -->
-        <n-tab-pane name="cred" tab="接入凭证">
+        <n-tab-pane name="cred" :tab="t('pages.settings.ExternalSettings.s24')">
           <n-alert type="info" :show-icon="true" style="margin-bottom: 14px">
-            凭证用于 ATS 与供应商之间的 HMAC-SHA256 双向签名认证，统一规范见《背调供应商接入标准规范》。
+            {{ t('pages.settings.ExternalSettings.s25') }}
           </n-alert>
           <n-form :model="form" label-placement="left" :label-width="108">
-            <n-form-item label="应用 ID">
-              <n-input v-model:value="form.appId" placeholder="供应商分配的应用标识" />
+            <n-form-item :label="t('pages.settings.ExternalSettings.s26')">
+              <n-input v-model:value="form.appId" :placeholder="t('pages.settings.ExternalSettings.s27')" />
             </n-form-item>
-            <n-form-item label="应用密钥">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s28')">
               <n-input
                 v-model:value="form.appKey"
                 type="password"
                 show-password-on="click"
-                placeholder="签名密钥（写入时加密存储，留空则不修改）"
+                :placeholder="t('pages.settings.ExternalSettings.s29')"
               />
             </n-form-item>
-            <n-form-item label="当前环境">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s30')">
               <n-select v-model:value="form.env" :options="envOptions" style="width: 200px" />
             </n-form-item>
-            <n-form-item label="沙箱 BaseURL">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s31')">
               <n-input v-model:value="form.sandboxBaseUrl" placeholder="https://sandbox.api.example.com" />
             </n-form-item>
-            <n-form-item label="生产 BaseURL">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s32')">
               <n-input v-model:value="form.productionBaseUrl" placeholder="https://api.example.com" />
             </n-form-item>
-            <n-form-item label="回调地址">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s33')">
               <n-input v-model:value="form.callbackUrl" placeholder="https://ats.example.com/api/v1/background-check/callback" />
             </n-form-item>
-            <div class="sub-title">接口路径（规范默认，可逐家覆盖）</div>
-            <n-form-item label="创建订单">
+            <div class="sub-title">{{ t('pages.settings.ExternalSettings.s34') }}</div>
+            <n-form-item :label="t('pages.settings.ExternalSettings.s35')">
               <n-input v-model:value="form.createPath" placeholder="/api/v1/background-check/orders" />
             </n-form-item>
-            <n-form-item label="取消订单">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s36')">
               <n-input v-model:value="form.cancelPath" placeholder="/api/v1/background-check/orders/{number}/cancel" />
             </n-form-item>
-            <n-form-item label="套餐查询">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s37')">
               <n-input v-model:value="form.productsPath" placeholder="/api/v1/background-check/products" />
             </n-form-item>
           </n-form>
           <n-space justify="end">
             <n-button :loading="testing" @click="testConnection">
               <template #icon><n-icon :component="PulseOutline" /></template>
-              测试连接
+              {{ t('pages.settings.ExternalSettings.s38') }}
             </n-button>
           </n-space>
         </n-tab-pane>
 
         <!-- Tab 3 能力声明（统一适配核心） -->
-        <n-tab-pane name="cap" tab="能力声明">
+        <n-tab-pane name="cap" :tab="t('pages.settings.ExternalSettings.s39')">
           <n-form :model="form" label-placement="top">
-            <n-form-item label="支持的授权方式（authWay 子集）">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s40')">
               <n-select
                 v-model:value="form.authWays"
                 :options="authWayOptions"
                 multiple
-                placeholder="勾选该供应商支持的授权方式"
+                :placeholder="t('pages.settings.ExternalSettings.s41')"
               />
             </n-form-item>
-            <n-form-item label="支持的字段集（创建订单入参子集）">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s42')">
               <n-select
                 v-model:value="form.fields"
                 :options="fieldOptions"
                 multiple
-                placeholder="勾选该供应商支持的字段"
+                :placeholder="t('pages.settings.ExternalSettings.s43')"
               />
             </n-form-item>
             <n-space :size="24" align="center" style="margin-top: 4px">
-              <n-form-item label="订单回调" style="margin-bottom: 0">
+              <n-form-item :label="t('pages.settings.ExternalSettings.s44')" style="margin-bottom: 0">
                 <n-switch v-model:value="form.callbackEnabled">
-                  <template #checked>开启</template>
-                  <template #unchecked>关闭</template>
+                  <template #checked>{{ t('pages.settings.ExternalSettings.s178') }}</template>
+                  <template #unchecked>{{ t('pages.settings.ExternalSettings.s179') }}</template>
                 </n-switch>
               </n-form-item>
-              <n-form-item label="套餐查询" style="margin-bottom: 0">
+              <n-form-item :label="t('pages.settings.ExternalSettings.s45')" style="margin-bottom: 0">
                 <n-switch v-model:value="form.productsQueryEnabled">
-                  <template #checked>开启</template>
-                  <template #unchecked>关闭</template>
+                  <template #checked>{{ t('pages.settings.ExternalSettings.s178') }}</template>
+                  <template #unchecked>{{ t('pages.settings.ExternalSettings.s179') }}</template>
                 </n-switch>
               </n-form-item>
             </n-space>
-            <n-form-item label="能力摘要" style="margin-top: 14px">
+            <n-form-item :label="t('pages.settings.ExternalSettings.s46')" style="margin-top: 14px">
               <n-space :size="6">
                 <n-tag v-for="w in form.authWays" :key="w" size="small" type="info">{{ authWayLabel(w) }}</n-tag>
-                <n-tag v-if="form.callbackEnabled" size="small" :bordered="false">回调</n-tag>
-                <n-tag v-if="form.productsQueryEnabled" size="small" :bordered="false">套餐查询</n-tag>
-                <n-tag v-if="form.authWays.length === 0 && !form.callbackEnabled && !form.productsQueryEnabled" size="small" type="warning">未声明任何能力</n-tag>
+                <n-tag v-if="form.callbackEnabled" size="small" :bordered="false">{{ t('pages.settings.ExternalSettings.s47') }}</n-tag>
+                <n-tag v-if="form.productsQueryEnabled" size="small" :bordered="false">{{ t('pages.settings.ExternalSettings.s48') }}</n-tag>
+                <n-tag v-if="form.authWays.length === 0 && !form.callbackEnabled && !form.productsQueryEnabled" size="small" type="warning">{{ t('pages.settings.ExternalSettings.s49') }}</n-tag>
               </n-space>
             </n-form-item>
           </n-form>
@@ -223,30 +223,30 @@
 
       <template #footer>
         <n-space justify="end">
-          <n-button :disabled="saving" @click="showModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="saving" @click="submit">{{ editingId ? '保存修改' : '确认接入' }}</n-button>
+          <n-button :disabled="saving" @click="showModal = false">{{ t('pages.settings.ExternalSettings.s50') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="submit">{{ editingId ? t('pages.settings.ExternalSettings.s181') : t('pages.settings.ExternalSettings.s182') }}</n-button>
         </n-space>
       </template>
     </n-modal>
 
     <!-- ===================== 调用审计抽屉 ===================== -->
     <n-drawer v-model:show="showAudit" :width="640" placement="right">
-      <n-drawer-content :title="`调用审计 · ${auditSupplierName}`" :native-scrollbar="false">
+      <n-drawer-content :title="t('pages.settings.ExternalSettings.s183', { name: auditSupplierName })" :native-scrollbar="false">
         <div class="audit-summary">
           <div class="audit-stat">
-            <span class="kpi-label">调用次数</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s51') }}</span>
             <span class="kpi-value">{{ auditSummary.total }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">成功</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s52') }}</span>
             <span class="kpi-value kpi-value--ok">{{ auditSummary.ok }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">失败</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s53') }}</span>
             <span class="kpi-value kpi-value--warn">{{ auditSummary.fail }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">平均耗时</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s54') }}</span>
             <span class="kpi-value">{{ auditSummary.avg }}ms</span>
           </div>
         </div>
@@ -259,7 +259,7 @@
           :scroll-x="560"
         >
           <template #empty>
-            <n-empty description="暂无调用记录" />
+            <n-empty :description="t('pages.settings.ExternalSettings.s55')" />
           </template>
         </n-data-table>
       </n-drawer-content>
@@ -267,22 +267,22 @@
 
     <!-- ===================== 全局审计日志抽屉（跨所有供应商聚合） ===================== -->
     <n-drawer v-model:show="showGlobalAudit" :width="800" placement="right">
-      <n-drawer-content title="全局审计日志 · 跨供应商聚合" :native-scrollbar="false">
+      <n-drawer-content :title="t('pages.settings.ExternalSettings.s56')" :native-scrollbar="false">
         <div class="audit-summary">
           <div class="audit-stat">
-            <span class="kpi-label">总记录</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s57') }}</span>
             <span class="kpi-value">{{ filteredGlobalAudit.length }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">成功</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s58') }}</span>
             <span class="kpi-value kpi-value--ok">{{ globalAuditSummary.ok }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">失败</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s59') }}</span>
             <span class="kpi-value kpi-value--warn">{{ globalAuditSummary.fail }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">平均耗时</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s60') }}</span>
             <span class="kpi-value">{{ globalAuditSummary.avg }}ms</span>
           </div>
         </div>
@@ -290,7 +290,7 @@
           <n-select
             v-model:value="globalSupplier"
             :options="globalSupplierOptions"
-            placeholder="按供应商筛选"
+            :placeholder="t('pages.settings.ExternalSettings.s61')"
             style="width: 240px"
           />
           <n-select
@@ -301,7 +301,7 @@
           <div class="spacer"></div>
           <n-button quaternary @click="openGlobalAudit">
             <template #icon><n-icon :component="RefreshOutline" /></template>
-            刷新
+            {{ t('pages.settings.ExternalSettings.s62') }}
           </n-button>
         </div>
         <n-data-table
@@ -313,7 +313,7 @@
           :scroll-x="980"
         >
           <template #empty>
-            <n-empty description="暂无审计记录" />
+            <n-empty :description="t('pages.settings.ExternalSettings.s63')" />
           </template>
         </n-data-table>
       </n-drawer-content>
@@ -321,22 +321,22 @@
 
     <!-- ===================== 背调订单状态机抽屉（跨所有供应商聚合） ===================== -->
     <n-drawer v-model:show="showOrders" :width="880" placement="right">
-      <n-drawer-content title="背调订单 · 状态机" :native-scrollbar="false">
+      <n-drawer-content :title="t('pages.settings.ExternalSettings.s64')" :native-scrollbar="false">
         <div class="audit-summary">
           <div class="audit-stat">
-            <span class="kpi-label">订单总数</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s65') }}</span>
             <span class="kpi-value">{{ orderRows.length }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">已完成</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s66') }}</span>
             <span class="kpi-value kpi-value--ok">{{ orderSummary.completed }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">进行中</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s67') }}</span>
             <span class="kpi-value kpi-value--warn">{{ orderSummary.inProgress }}</span>
           </div>
           <div class="audit-stat">
-            <span class="kpi-label">已取消/撤销</span>
+            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s68') }}</span>
             <span class="kpi-value">{{ orderSummary.closed }}</span>
           </div>
         </div>
@@ -344,19 +344,19 @@
           <n-select
             v-model:value="orderSupplier"
             :options="orderSupplierOptions"
-            placeholder="按供应商筛选"
+            :placeholder="t('pages.settings.ExternalSettings.s69')"
             style="width: 240px"
           />
           <n-select
             v-model:value="orderStatusFilter"
             :options="orderStatusOptions"
-            placeholder="按状态筛选"
+            :placeholder="t('pages.settings.ExternalSettings.s70')"
             style="width: 180px"
           />
           <div class="spacer"></div>
           <n-button quaternary @click="openOrders">
             <template #icon><n-icon :component="RefreshOutline" /></template>
-            刷新
+            {{ t('pages.settings.ExternalSettings.s71') }}
           </n-button>
         </div>
         <n-data-table
@@ -368,7 +368,7 @@
           :scroll-x="1040"
         >
           <template #empty>
-            <n-empty description="暂无背调订单" />
+            <n-empty :description="t('pages.settings.ExternalSettings.s72')" />
           </template>
         </n-data-table>
       </n-drawer-content>
@@ -376,42 +376,42 @@
 
     <!-- ===================== 接口说明文档抽屉 ===================== -->
     <n-drawer v-model:show="showDoc" :width="760" placement="right">
-      <n-drawer-content title="背调供应商接口说明（统一规范 v1.0.1）" :native-scrollbar="false">
-        <p class="doc-p">所有背调供应商统一接入，遵循《统一背调供应商接口标准规范》。以下为接入所需的核心接口与约定。</p>
+      <n-drawer-content :title="t('pages.settings.ExternalSettings.s73')" :native-scrollbar="false">
+        <p class="doc-p">{{ t('pages.settings.ExternalSettings.s74') }}</p>
 
-        <h4 class="doc-h">认证与签名</h4>
-        <p class="doc-p">HMAC-SHA256 双向签名。公共请求头：<code>X-App-Id</code> / <code>X-Timestamp</code> / <code>X-App-Sign</code>。</p>
+        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s75') }}</h4>
+        <p class="doc-p">{{ t('pages.settings.ExternalSettings.s184') }}<code>X-App-Id</code> / <code>X-Timestamp</code> / <code>X-App-Sign</code>{{ t('pages.settings.ExternalSettings.s185') }}</p>
 
-        <h4 class="doc-h">统一响应信封</h4>
+        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s76') }}</h4>
         <pre class="doc-code">{ "code": 0, "message": "ok", "data": {}, "requestId": "req_xxx", "timestamp": 1690000000 }</pre>
 
-        <h4 class="doc-h">接口清单</h4>
+        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s77') }}</h4>
         <n-data-table :columns="docColumns" :data="docInterfaces" :pagination="false" size="small" :scroll-x="560" />
 
-        <h4 class="doc-h">状态枚举</h4>
+        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s78') }}</h4>
         <n-space :size="6">
-          <n-tag size="small">0 已受理</n-tag>
-          <n-tag size="small">1 已完成</n-tag>
-          <n-tag size="small">2 待授权</n-tag>
-          <n-tag size="small">3 背调中</n-tag>
-          <n-tag size="small">4 授权过期</n-tag>
-          <n-tag size="small">5 待支付</n-tag>
-          <n-tag size="small">6 已取消</n-tag>
-          <n-tag size="small">7 阶段报告</n-tag>
-          <n-tag size="small">8 授权撤销</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s79') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s80') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s81') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s82') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s83') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s84') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s85') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s86') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s87') }}</n-tag>
         </n-space>
 
-        <h4 class="doc-h">风险等级</h4>
+        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s88') }}</h4>
         <n-space :size="6">
-          <n-tag size="small" type="success">1 低</n-tag>
-          <n-tag size="small" type="warning">2 中</n-tag>
-          <n-tag size="small" type="error">3 高</n-tag>
-          <n-tag size="small">4 无</n-tag>
-          <n-tag size="small" type="default">9 未评级</n-tag>
+          <n-tag size="small" type="success">{{ t('pages.settings.ExternalSettings.s89') }}</n-tag>
+          <n-tag size="small" type="warning">{{ t('pages.settings.ExternalSettings.s90') }}</n-tag>
+          <n-tag size="small" type="error">{{ t('pages.settings.ExternalSettings.s91') }}</n-tag>
+          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s92') }}</n-tag>
+          <n-tag size="small" type="default">{{ t('pages.settings.ExternalSettings.s93') }}</n-tag>
         </n-space>
 
         <n-alert type="info" :show-icon="true" style="margin-top: 16px">
-          完整规范见仓库 <code>docs/统一背调供应商接口标准规范.md</code>（内部版）与 <code>docs/背调供应商接入标准规范_外部版.md</code>（外部版）。
+          {{ t('pages.settings.ExternalSettings.s186') }}<code>{{ t('pages.settings.ExternalSettings.s94') }}</code>{{ t('pages.settings.ExternalSettings.s187') }}<code>{{ t('pages.settings.ExternalSettings.s95') }}</code>{{ t('pages.settings.ExternalSettings.s188') }}
         </n-alert>
       </n-drawer-content>
     </n-drawer>
@@ -473,33 +473,33 @@ const dialog = useDialog()
 
 // ===================== 统一能力目录（驱动所有供应商，新增供应商只填子集） =====================
 const authWayOptions = [
-  { label: '线上授权', value: 'online' },
-  { label: '人脸核验', value: 'face' },
-  { label: '线下签署', value: 'offline' },
-  { label: '短信授权', value: 'sms' },
+  { label: t('pages.settings.ExternalSettings.s96'), value: 'online' },
+  { label: t('pages.settings.ExternalSettings.s97'), value: 'face' },
+  { label: t('pages.settings.ExternalSettings.s98'), value: 'offline' },
+  { label: t('pages.settings.ExternalSettings.s99'), value: 'sms' },
 ]
 const fieldOptions = [
-  { label: '候选人姓名', value: 'candidateName' },
-  { label: '手机号', value: 'phone' },
-  { label: '邮箱', value: 'email' },
-  { label: '身份证号', value: 'idCard' },
-  { label: '联系方式', value: 'contact' },
-  { label: '应聘职位', value: 'job' },
-  { label: '授权文件', value: 'authFiles' },
-  { label: '学历证明', value: 'educationFiles' },
-  { label: '简历', value: 'resumeFiles' },
-  { label: '技能证书', value: 'skillFiles' },
-  { label: '备注', value: 'remark' },
+  { label: t('pages.settings.ExternalSettings.s100'), value: 'candidateName' },
+  { label: t('pages.settings.ExternalSettings.s101'), value: 'phone' },
+  { label: t('pages.settings.ExternalSettings.s102'), value: 'email' },
+  { label: t('pages.settings.ExternalSettings.s103'), value: 'idCard' },
+  { label: t('pages.settings.ExternalSettings.s104'), value: 'contact' },
+  { label: t('pages.settings.ExternalSettings.s105'), value: 'job' },
+  { label: t('pages.settings.ExternalSettings.s106'), value: 'authFiles' },
+  { label: t('pages.settings.ExternalSettings.s107'), value: 'educationFiles' },
+  { label: t('pages.settings.ExternalSettings.s108'), value: 'resumeFiles' },
+  { label: t('pages.settings.ExternalSettings.s109'), value: 'skillFiles' },
+  { label: t('pages.settings.ExternalSettings.s110'), value: 'remark' },
 ]
 const categoryOptions = [
-  { label: '背调供应商', value: 'BACKGROUND_CHECK' },
+  { label: t('pages.settings.ExternalSettings.s111'), value: 'BACKGROUND_CHECK' },
   { label: 'HRIS', value: 'MOKA' },
   { label: 'OA', value: 'WECOM' },
 ]
 
 const envOptions = [
-  { label: '沙箱环境', value: 'sandbox' },
-  { label: '生产环境', value: 'production' },
+  { label: t('pages.settings.ExternalSettings.s112'), value: 'sandbox' },
+  { label: t('pages.settings.ExternalSettings.s113'), value: 'production' },
 ]
 // 规范标准出向路径（v1.0.1）：适配器默认按此拼接 BaseURL，逐供应商可覆盖
 const DEFAULT_PATHS = {
@@ -508,9 +508,9 @@ const DEFAULT_PATHS = {
   productsPath: '/api/v1/background-check/products',
 }
 const statusOptions = [
-  { label: '全部状态', value: 'all' },
-  { label: '已启用', value: 'enabled' },
-  { label: '已停用', value: 'disabled' },
+  { label: t('pages.settings.ExternalSettings.s114'), value: 'all' },
+  { label: t('pages.settings.ExternalSettings.s115'), value: 'enabled' },
+  { label: t('pages.settings.ExternalSettings.s116'), value: 'disabled' },
 ]
 const statusFilter = ref<'all' | 'enabled' | 'disabled'>('all')
 const envFilter = ref<'all' | 'sandbox' | 'production'>('all')
@@ -631,7 +631,7 @@ async function loadSuppliers() {
       if (failIds.has(s.id)) s.syncStatus = 'error'
     })
   } catch (e: any) {
-    message.error('加载供应商失败：' + (e?.message || '网络错误'))
+    message.error(t('pages.settings.ExternalSettings.s189') + (e?.message || t('pages.settings.ExternalSettings.s190')))
   } finally {
     loading.value = false
   }
@@ -661,32 +661,32 @@ function logToAudit(l: any): AuditRow {
   }
 }
 const auditColumns: DataTableColumns<AuditRow> = [
-  { title: '时间', key: 'time', width: 150 },
+  { title: t('pages.settings.ExternalSettings.s117'), key: 'time', width: 150 },
   {
-    title: '接口',
+    title: t('pages.settings.ExternalSettings.s118'),
     key: 'path',
     minWidth: 190,
     render: (r: AuditRow) => h('span', { style: { fontFamily: 'monospace', fontSize: '12px' } }, [h('b', r.method + ' '), r.path]),
   },
   {
-    title: '方向',
+    title: t('pages.settings.ExternalSettings.s119'),
     key: 'direction',
     width: 70,
-    render: (r: AuditRow) => h(NTag, { size: 'small', type: r.direction === 'out' ? 'default' : 'warning', bordered: false }, { default: () => (r.direction === 'out' ? '出向' : '入向') }),
+    render: (r: AuditRow) => h(NTag, { size: 'small', type: r.direction === 'out' ? 'default' : 'warning', bordered: false }, { default: () => (r.direction === 'out' ? t('pages.settings.ExternalSettings.s206') : t('pages.settings.ExternalSettings.s207')) }),
   },
   {
-    title: '状态',
+    title: t('pages.settings.ExternalSettings.s120'),
     key: 'status',
     width: 70,
-    render: (r: AuditRow) => h(NTag, { size: 'small', type: r.status === 'success' ? 'success' : 'error' }, { default: () => (r.status === 'success' ? '成功' : '失败') }),
+    render: (r: AuditRow) => h(NTag, { size: 'small', type: r.status === 'success' ? 'success' : 'error' }, { default: () => (r.status === 'success' ? t('pages.settings.ExternalSettings.s208') : t('pages.settings.ExternalSettings.s209')) }),
   },
   {
-    title: '耗时',
+    title: t('pages.settings.ExternalSettings.s121'),
     key: 'latency',
     width: 72,
     render: (r: AuditRow) => h('span', { style: { fontSize: '12px', color: 'var(--ink-soft)' } }, r.latency + 'ms'),
   },
-  { title: '说明', key: 'detail', minWidth: 160, ellipsis: { tooltip: true } },
+  { title: t('pages.settings.ExternalSettings.s122'), key: 'detail', minWidth: 160, ellipsis: { tooltip: true } },
 ]
 
 // ===================== 全局审计日志（跨所有供应商聚合） =====================
@@ -722,50 +722,50 @@ function logToGlobal(l: any): GlobalAuditRow {
   }
 }
 const globalAuditColumns: DataTableColumns<GlobalAuditRow> = [
-  { title: '时间', key: 'time', width: 150 },
+  { title: t('pages.settings.ExternalSettings.s123'), key: 'time', width: 150 },
   {
-    title: '供应商',
+    title: t('pages.settings.ExternalSettings.s124'),
     key: 'supplier',
     width: 170,
     render: (r: GlobalAuditRow) => h('span', { style: { fontWeight: '600' } }, r.supplier),
   },
   {
-    title: '方向',
+    title: t('pages.settings.ExternalSettings.s125'),
     key: 'direction',
     width: 72,
     render: (r: GlobalAuditRow) =>
       h(NTag, { size: 'small', type: r.direction === 'IN' ? 'warning' : 'default', bordered: false }, { default: () => (r.direction === 'IN' ? 'IN' : 'OUT') }),
   },
   {
-    title: '接口路径',
+    title: t('pages.settings.ExternalSettings.s126'),
     key: 'endpoint',
     minWidth: 220,
     render: (r: GlobalAuditRow) =>
       h('span', { style: { fontFamily: 'monospace', fontSize: '12px' } }, [h('b', r.method + ' '), r.endpoint]),
   },
   {
-    title: '同步类型',
+    title: t('pages.settings.ExternalSettings.s127'),
     key: 'syncType',
     width: 130,
     render: (r: GlobalAuditRow) =>
       h(NTag, { size: 'small', type: 'default', bordered: false }, { default: () => r.syncType }),
   },
   {
-    title: '状态',
+    title: t('pages.settings.ExternalSettings.s128'),
     key: 'status',
     width: 80,
     render: (r: GlobalAuditRow) =>
-      h(NTag, { size: 'small', type: r.status === 'SUCCESS' ? 'success' : 'error' }, { default: () => (r.status === 'SUCCESS' ? '成功' : '失败') }),
+      h(NTag, { size: 'small', type: r.status === 'SUCCESS' ? 'success' : 'error' }, { default: () => (r.status === 'SUCCESS' ? t('pages.settings.ExternalSettings.s208') : t('pages.settings.ExternalSettings.s209')) }),
   },
   {
-    title: '耗时',
+    title: t('pages.settings.ExternalSettings.s129'),
     key: 'durationMs',
     width: 80,
     render: (r: GlobalAuditRow) =>
       h('span', { style: { fontSize: '12px', color: 'var(--ink-soft)' } }, (r.durationMs ?? 0) + 'ms'),
   },
   {
-    title: '错误信息',
+    title: t('pages.settings.ExternalSettings.s130'),
     key: 'error',
     minWidth: 180,
     ellipsis: { tooltip: true },
@@ -809,50 +809,50 @@ function resetFilter() {
 
 // ===================== 表格列 =====================
 const columns: DataTableColumns<Supplier> = [
-  { title: '供应商名称', key: 'name', width: 160, fixed: 'left', render: (row) => h('span', { style: { fontWeight: '600' } }, row.name) },
-  { title: '类型', key: 'category', width: 120, render: (row) => h(NTag, { size: 'small', type: 'default', bordered: false }, { default: () => categoryLabel(row.category) }) },
+  { title: t('pages.settings.ExternalSettings.s131'), key: 'name', width: 160, fixed: 'left', render: (row) => h('span', { style: { fontWeight: '600' } }, row.name) },
+  { title: t('pages.settings.ExternalSettings.s132'), key: 'category', width: 120, render: (row) => h(NTag, { size: 'small', type: 'default', bordered: false }, { default: () => categoryLabel(row.category) }) },
   {
-    title: '环境',
+    title: t('pages.settings.ExternalSettings.s133'),
     key: 'env',
     width: 100,
     render: (row) =>
-      h(NTag, { size: 'small', type: row.env === 'production' ? 'warning' : 'info' }, { default: () => (row.env === 'production' ? '生产' : '沙箱') }),
+      h(NTag, { size: 'small', type: row.env === 'production' ? 'warning' : 'info' }, { default: () => (row.env === 'production' ? t('pages.settings.ExternalSettings.s210') : t('pages.settings.ExternalSettings.s211')) }),
   },
   {
-    title: '状态',
+    title: t('pages.settings.ExternalSettings.s134'),
     key: 'enabled',
     width: 90,
     render: (row) =>
-      h(NTag, { size: 'small', type: row.enabled ? 'success' : 'error' }, { default: () => (row.enabled ? '启用' : '停用') }),
+      h(NTag, { size: 'small', type: row.enabled ? 'success' : 'error' }, { default: () => (row.enabled ? t('pages.settings.ExternalSettings.s212') : t('pages.settings.ExternalSettings.s213')) }),
   },
   {
-    title: '能力声明',
+    title: t('pages.settings.ExternalSettings.s135'),
     key: 'cap',
     minWidth: 220,
     render: (row) =>
       h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, [
-        `${row.authWays.length} 项授权 · 字段 ${row.fields.length} · `,
-        row.callbackEnabled ? '回调✓' : '回调✗',
+        t('pages.settings.ExternalSettings.s239', { n: row.authWays.length, m: row.fields.length }),
+        row.callbackEnabled ? t('pages.settings.ExternalSettings.s240') : t('pages.settings.ExternalSettings.s241'),
         ' · ',
-        row.productsQueryEnabled ? '套餐✓' : '套餐✗',
+        row.productsQueryEnabled ? t('pages.settings.ExternalSettings.s242') : t('pages.settings.ExternalSettings.s243'),
       ]),
   },
   {
-    title: '最后同步',
+    title: t('pages.settings.ExternalSettings.s136'),
     key: 'lastSync',
     width: 165,
     render: (row) =>
       h('span', { style: { color: row.syncStatus === 'error' ? 'var(--c-error)' : 'var(--ink-soft)', fontSize: '13px' } }, row.lastSync),
   },
   {
-    title: '同步状态',
+    title: t('pages.settings.ExternalSettings.s137'),
     key: 'syncStatus',
     width: 100,
     render: (row) =>
-      h(NTag, { size: 'small', type: row.syncStatus === 'error' ? 'error' : 'success' }, { default: () => (row.syncStatus === 'error' ? '异常' : '正常') }),
+      h(NTag, { size: 'small', type: row.syncStatus === 'error' ? 'error' : 'success' }, { default: () => (row.syncStatus === 'error' ? t('pages.settings.ExternalSettings.s214') : t('pages.settings.ExternalSettings.s215')) }),
   },
   {
-    title: '操作',
+    title: t('pages.settings.ExternalSettings.s138'),
     key: 'actions',
     width: 300,
     fixed: 'right',
@@ -862,13 +862,13 @@ const columns: DataTableColumns<Supplier> = [
         { size: 4, align: 'center', wrap: false },
         {
           default: () => [
-            h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑', icon: () => h(NIcon, { component: CreateOutline }) }),
-            h(NButton, { size: 'small', onClick: () => testOne(row) }, { default: () => '测试', icon: () => h(NIcon, { component: PulseOutline }) }),
-            h(NButton, { size: 'small', onClick: () => openAudit(row) }, { default: () => '日志', icon: () => h(NIcon, { component: TimeOutline }) }),
+            h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => t('pages.settings.ExternalSettings.s216'), icon: () => h(NIcon, { component: CreateOutline }) }),
+            h(NButton, { size: 'small', onClick: () => testOne(row) }, { default: () => t('pages.settings.ExternalSettings.s217'), icon: () => h(NIcon, { component: PulseOutline }) }),
+            h(NButton, { size: 'small', onClick: () => openAudit(row) }, { default: () => t('pages.settings.ExternalSettings.s218'), icon: () => h(NIcon, { component: TimeOutline }) }),
             h(
               NButton,
               { size: 'small', type: 'error', onClick: () => confirmDelete(row) },
-              { default: () => '删除', icon: () => h(NIcon, { component: TrashOutline }) },
+              { default: () => t('pages.settings.ExternalSettings.s219'), icon: () => h(NIcon, { component: TrashOutline }) },
             ),
           ],
         },
@@ -906,7 +906,7 @@ async function openAudit(row: Supplier) {
     const list = (res.results ?? res.data ?? []) as any[]
     auditRows.value = list.map(logToAudit)
   } catch (e: any) {
-    message.error('加载审计日志失败：' + (e?.message || '网络错误'))
+    message.error(t('pages.settings.ExternalSettings.s191') + (e?.message || t('pages.settings.ExternalSettings.s190')))
   } finally {
     auditLoading.value = false
   }
@@ -920,16 +920,16 @@ const GLOBAL_ALL = '__all__'
 const globalSupplier = ref<string>(GLOBAL_ALL)
 const globalDirection = ref<'all' | 'IN' | 'OUT'>('all')
 const globalSupplierOptions = computed(() => [
-  { label: '全部供应商', value: GLOBAL_ALL },
+  { label: t('pages.settings.ExternalSettings.s139'), value: GLOBAL_ALL },
   ...suppliers.value.map((s) => ({
     label: s.provider ? `${s.name} (${s.provider})` : s.name,
     value: s.id,
   })),
 ])
 const globalDirectionOptions = [
-  { label: '全部方向', value: 'all' },
-  { label: '入向 IN', value: 'IN' },
-  { label: '出向 OUT', value: 'OUT' },
+  { label: t('pages.settings.ExternalSettings.s140'), value: 'all' },
+  { label: t('pages.settings.ExternalSettings.s141'), value: 'IN' },
+  { label: t('pages.settings.ExternalSettings.s142'), value: 'OUT' },
 ]
 const filteredGlobalAudit = computed(() =>
   globalAuditRows.value.filter((r) => {
@@ -954,7 +954,7 @@ async function openGlobalAudit() {
     const list = (res.results ?? res.data ?? []) as any[]
     globalAuditRows.value = list.map(logToGlobal)
   } catch (e: any) {
-    message.error('加载全局审计日志失败：' + (e?.message || '网络错误'))
+    message.error(t('pages.settings.ExternalSettings.s192') + (e?.message || t('pages.settings.ExternalSettings.s190')))
   } finally {
     globalLoading.value = false
   }
@@ -991,15 +991,15 @@ interface OrderRow {
   events?: OrderEventRow[]
 }
 const BG_STATUS_OPTIONS = [
-  { label: '0 已受理', value: 0 },
-  { label: '1 已完成', value: 1 },
-  { label: '2 待授权', value: 2 },
-  { label: '3 背调中', value: 3 },
-  { label: '4 授权过期', value: 4 },
-  { label: '5 待支付', value: 5 },
-  { label: '6 已取消', value: 6 },
-  { label: '7 阶段报告', value: 7 },
-  { label: '8 授权撤销', value: 8 },
+  { label: t('pages.settings.ExternalSettings.s143'), value: 0 },
+  { label: t('pages.settings.ExternalSettings.s144'), value: 1 },
+  { label: t('pages.settings.ExternalSettings.s145'), value: 2 },
+  { label: t('pages.settings.ExternalSettings.s146'), value: 3 },
+  { label: t('pages.settings.ExternalSettings.s147'), value: 4 },
+  { label: t('pages.settings.ExternalSettings.s148'), value: 5 },
+  { label: t('pages.settings.ExternalSettings.s149'), value: 6 },
+  { label: t('pages.settings.ExternalSettings.s150'), value: 7 },
+  { label: t('pages.settings.ExternalSettings.s151'), value: 8 },
 ]
 const BG_STATUS_TYPE: Record<number, 'default' | 'info' | 'success' | 'warning' | 'error' | 'primary'> = {
   0: 'info', 1: 'success', 2: 'warning', 3: 'info', 4: 'warning', 5: 'warning', 6: 'default', 7: 'info', 8: 'error',
@@ -1015,10 +1015,10 @@ const ORDER_ALL = '__all__'
 const orderSupplier = ref<string>(ORDER_ALL)
 const orderStatusFilter = ref<number | string>('all')
 const orderSupplierOptions = computed(() => [
-  { label: '全部供应商', value: ORDER_ALL },
+  { label: t('pages.settings.ExternalSettings.s152'), value: ORDER_ALL },
   ...suppliers.value.map((s) => ({ label: s.provider ? `${s.name} (${s.provider})` : s.name, value: s.id })),
 ])
-const orderStatusOptions = [{ label: '全部状态', value: 'all' }, ...BG_STATUS_OPTIONS]
+const orderStatusOptions = [{ label: t('pages.settings.ExternalSettings.s153'), value: 'all' }, ...BG_STATUS_OPTIONS]
 const filteredOrders = computed(() =>
   orderRows.value.filter((r) => {
     if (orderSupplier.value !== ORDER_ALL && r.configId !== orderSupplier.value) return false
@@ -1036,7 +1036,7 @@ const orderSummary = computed(() => {
 })
 function renderOrderEvents(r: OrderRow) {
   if (!r.events || !r.events.length) {
-    return h('span', { style: { color: 'var(--ink-soft)' } }, '无转移记录')
+    return h('span', { style: { color: 'var(--ink-soft)' } }, t('pages.settings.ExternalSettings.s221'))
   }
   return h(
     'div',
@@ -1050,7 +1050,7 @@ function renderOrderEvents(r: OrderRow) {
             color: ev.isLegalTransition ? 'var(--ink-soft)' : 'var(--c-error)',
           },
         },
-        `${fmt(ev.createdAt)} · ${ev.source} · ${ev.fromStatusDisplay || '∅'} → ${ev.toStatusDisplay}${ev.isLegalTransition ? '' : ' 非法转移'}${ev.riskLevel ? ' · 风险' + ev.riskLevel : ''}`,
+        `${fmt(ev.createdAt)} · ${ev.source} · ${ev.fromStatusDisplay || '∅'} → ${ev.toStatusDisplay}${ev.isLegalTransition ? '' : t('pages.settings.ExternalSettings.s222')}${ev.riskLevel ? ' · ' + t('pages.settings.ExternalSettings.s223') + ev.riskLevel : ''}`,
       ),
     ),
   )
@@ -1058,22 +1058,22 @@ function renderOrderEvents(r: OrderRow) {
 const orderColumns: DataTableColumns<OrderRow> = [
   {
     type: 'expand',
-    title: '转移',
+    title: t('pages.settings.ExternalSettings.s154'),
     width: 56,
     renderExpand: (r: OrderRow) => renderOrderEvents(r),
   },
-  { title: '订单号', key: 'orderNumber', width: 150, render: (r: OrderRow) => h('span', { style: { fontWeight: '600', fontFamily: 'monospace', fontSize: '12px' } }, r.orderNumber) },
-  { title: '供应商', key: 'supplier', width: 170, render: (r: OrderRow) => h('span', [r.configName, r.configProvider ? h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, ' (' + r.configProvider + ')') : null]) },
-  { title: '候选人', key: 'candidate', width: 140, render: (r: OrderRow) => h('span', [r.candidateName || '—', r.candidateId ? h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, ' #' + r.candidateId) : null]) },
-  { title: '状态', key: 'status', width: 100, render: (r: OrderRow) => h(NTag, { size: 'small', type: bgStatusType(r.status), bordered: false }, { default: () => r.statusDisplay || String(r.status) }) },
-  { title: '风险', key: 'risk', width: 84, render: (r: OrderRow) => h('span', r.riskLevelDisplay || '—') },
-  { title: '报告', key: 'report', width: 88, render: (r: OrderRow) => r.reportUrl ? h('a', { href: r.reportUrl, target: '_blank', style: { color: 'var(--brand)' } }, '查看') : h('span', { style: { color: 'var(--ink-soft)' } }, '—') },
-  { title: '完成时间', key: 'completionTime', width: 140, render: (r: OrderRow) => h('span', { style: { fontSize: '12px', color: 'var(--ink-soft)' } }, r.completionTime ? fmt(r.completionTime) : '—') },
+  { title: t('pages.settings.ExternalSettings.s155'), key: 'orderNumber', width: 150, render: (r: OrderRow) => h('span', { style: { fontWeight: '600', fontFamily: 'monospace', fontSize: '12px' } }, r.orderNumber) },
+  { title: t('pages.settings.ExternalSettings.s156'), key: 'supplier', width: 170, render: (r: OrderRow) => h('span', [r.configName, r.configProvider ? h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, ' (' + r.configProvider + ')') : null]) },
+  { title: t('pages.settings.ExternalSettings.s157'), key: 'candidate', width: 140, render: (r: OrderRow) => h('span', [r.candidateName || '—', r.candidateId ? h('span', { style: { color: 'var(--ink-soft)', fontSize: '12px' } }, ' #' + r.candidateId) : null]) },
+  { title: t('pages.settings.ExternalSettings.s158'), key: 'status', width: 100, render: (r: OrderRow) => h(NTag, { size: 'small', type: bgStatusType(r.status), bordered: false }, { default: () => r.statusDisplay || String(r.status) }) },
+  { title: t('pages.settings.ExternalSettings.s159'), key: 'risk', width: 84, render: (r: OrderRow) => h('span', r.riskLevelDisplay || '—') },
+  { title: t('pages.settings.ExternalSettings.s160'), key: 'report', width: 88, render: (r: OrderRow) => r.reportUrl ? h('a', { href: r.reportUrl, target: '_blank', style: { color: 'var(--brand)' } }, t('pages.settings.ExternalSettings.s245')) : h('span', { style: { color: 'var(--ink-soft)' } }, '—') },
+  { title: t('pages.settings.ExternalSettings.s224'), key: 'completionTime', width: 140, render: (r: OrderRow) => h('span', { style: { fontSize: '12px', color: 'var(--ink-soft)' } }, r.completionTime ? fmt(r.completionTime) : '—') },
   {
-    title: '操作', key: 'op', width: 90, fixed: 'right',
+    title: t('pages.settings.ExternalSettings.s161'), key: 'op', width: 90, fixed: 'right',
     render: (r: OrderRow) => {
       const closed = r.status === 6 || r.status === 8
-      return h(NButton, { size: 'small', quaternary: true, disabled: closed, onClick: () => cancelOrder(r) }, { default: () => '取消' })
+      return h(NButton, { size: 'small', quaternary: true, disabled: closed, onClick: () => cancelOrder(r) }, { default: () => t('pages.settings.ExternalSettings.s220') })
     },
   },
 ]
@@ -1087,7 +1087,7 @@ async function openOrders() {
     const list = (res.results ?? res.data ?? []) as any[]
     orderRows.value = list.map(orderToRow)
   } catch (e: any) {
-    message.error('加载背调订单失败：' + (e?.message || '网络错误'))
+    message.error(t('pages.settings.ExternalSettings.s193') + (e?.message || t('pages.settings.ExternalSettings.s190')))
   } finally {
     orderLoading.value = false
   }
@@ -1118,21 +1118,21 @@ function orderToRow(o: any): OrderRow {
 }
 async function cancelOrder(r: OrderRow) {
   dialog.warning({
-    title: '取消背调订单',
-    content: `确认取消订单 ${r.orderNumber}？将置为「已取消」并通知供应商。`,
-    positiveText: '取消订单',
-    negativeText: '再想想',
+    title: t('pages.settings.ExternalSettings.s162'),
+    content: t('pages.settings.ExternalSettings.s227', { n: r.orderNumber }),
+    positiveText: t('pages.settings.ExternalSettings.s225'),
+    negativeText: t('pages.settings.ExternalSettings.s226'),
     onPositiveClick: async () => {
       try {
         const res = await cancelBackgroundCheckOrder(r.id)
         if (res.success) {
-          message.success('已取消')
+          message.success(t('pages.settings.ExternalSettings.s163'))
           await openOrders()
         } else {
-          message.error(res.message || '取消失败')
+          message.error(res.message || t('pages.settings.ExternalSettings.s194'))
         }
       } catch (e: any) {
-        message.error('取消失败：' + (e?.message || '网络错误'))
+        message.error(t('pages.settings.ExternalSettings.s195') + (e?.message || t('pages.settings.ExternalSettings.s190')))
       }
     },
   })
@@ -1141,21 +1141,21 @@ async function cancelOrder(r: OrderRow) {
 // 接口说明抽屉
 const showDoc = ref(false)
 const docInterfaces = [
-  { name: '创建订单', method: 'POST', path: '/api/v1/background-check/orders', desc: '提交背调订单：候选人/授权方式/字段集/回调地址' },
-  { name: '取消订单', method: 'POST', path: '/api/v1/background-check/orders/{number}/cancel', desc: '按订单号取消进行中的背调' },
-  { name: '套餐查询', method: 'GET', path: '/api/v1/background-check/products', desc: '查询可用套餐（productToken/价格/交付天数/项目）' },
-  { name: '结果回调', method: 'POST', path: '/api/v1/background-check/callback', desc: '供应商主动推送状态与结果（sign/number/status/riskLevel/reportUrl）' },
+  { name: t('pages.settings.ExternalSettings.s228'), method: 'POST', path: '/api/v1/background-check/orders', desc: t('pages.settings.ExternalSettings.s229') },
+  { name: t('pages.settings.ExternalSettings.s225'), method: 'POST', path: '/api/v1/background-check/orders/{number}/cancel', desc: t('pages.settings.ExternalSettings.s231') },
+  { name: t('pages.settings.ExternalSettings.s232'), method: 'GET', path: '/api/v1/background-check/products', desc: t('pages.settings.ExternalSettings.s233') },
+  { name: t('pages.settings.ExternalSettings.s234'), method: 'POST', path: '/api/v1/background-check/callback', desc: t('pages.settings.ExternalSettings.s235') },
 ]
 const docColumns: DataTableColumns<any> = [
-  { title: '接口', key: 'name', width: 100 },
-  { title: '方法', key: 'method', width: 70, render: (r: any) => h('b', r.method) },
+  { title: t('pages.settings.ExternalSettings.s164'), key: 'name', width: 100 },
+  { title: t('pages.settings.ExternalSettings.s165'), key: 'method', width: 70, render: (r: any) => h('b', r.method) },
   {
-    title: '路径',
+    title: t('pages.settings.ExternalSettings.s166'),
     key: 'path',
     minWidth: 230,
     render: (r: any) => h('span', { style: { fontFamily: 'monospace', fontSize: '12px' } }, r.path),
   },
-  { title: '说明', key: 'desc', minWidth: 160, ellipsis: { tooltip: true } },
+  { title: t('pages.settings.ExternalSettings.s167'), key: 'desc', minWidth: 160, ellipsis: { tooltip: true } },
 ]
 
 const formRef = ref<any>(null)
@@ -1184,9 +1184,9 @@ const form = reactive<Supplier>({
 })
 
 const rules: FormRules = {
-  name: { required: true, message: '请输入供应商名称', trigger: ['input', 'blur'] },
-  appId: { required: true, message: '请输入 App Id', trigger: ['input', 'blur'] },
-  provider: { required: true, message: '请输入供应商代码', trigger: ['input', 'blur'] },
+  name: { required: true, message: t('pages.settings.ExternalSettings.s236'), trigger: ['input', 'blur'] },
+  appId: { required: true, message: t('pages.settings.ExternalSettings.s237'), trigger: ['input', 'blur'] },
+  provider: { required: true, message: t('pages.settings.ExternalSettings.s238'), trigger: ['input', 'blur'] },
 }
 
 function resetForm() {
@@ -1245,10 +1245,10 @@ async function submit() {
     const payload = supplierToPayload(form as Supplier)
     if (editingId.value) {
       await updateIntegration(editingId.value, payload)
-      message.success('保存成功')
+      message.success(t('pages.settings.ExternalSettings.s168'))
     } else {
       await createIntegration(payload)
-      message.success('接入成功')
+      message.success(t('pages.settings.ExternalSettings.s169'))
     }
     showModal.value = false
     await loadSuppliers()
@@ -1260,7 +1260,7 @@ async function submit() {
         .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' / ') : v}`)
         .join('；')
     }
-    message.error('保存失败：' + (detail || e?.message || '请重试'))
+    message.error(t('pages.settings.ExternalSettings.s196') + (detail || e?.message || t('pages.settings.ExternalSettings.s197')))
   } finally {
     saving.value = false
   }
@@ -1268,17 +1268,17 @@ async function submit() {
 
 function confirmDelete(row: Supplier) {
   dialog.warning({
-    title: '删除供应商接入',
-    content: `确认删除「${row.name}」(${row.appId}) 的接入配置？此操作不可恢复。`,
-    positiveText: '删除',
-    negativeText: '取消',
+    title: t('pages.settings.ExternalSettings.s170'),
+    content: t('pages.settings.ExternalSettings.s244', { name: row.name, appId: row.appId }),
+    positiveText: t('pages.settings.ExternalSettings.s219'),
+    negativeText: t('pages.settings.ExternalSettings.s220'),
     onPositiveClick: async () => {
       try {
         await deleteIntegration(row.id)
-        message.success('已删除')
+        message.success(t('pages.settings.ExternalSettings.s171'))
         await loadSuppliers()
       } catch (e: any) {
-        message.error('删除失败：' + (e?.response?.data?.message || e?.message || ''))
+        message.error(t('pages.settings.ExternalSettings.s198') + (e?.response?.data?.message || e?.message || ''))
       }
     },
   })
@@ -1286,11 +1286,11 @@ function confirmDelete(row: Supplier) {
 
 async function testConnection() {
   if (!editingId.value) {
-    message.warning('请先保存配置后再测试连接')
+    message.warning(t('pages.settings.ExternalSettings.s172'))
     return
   }
   if (!form.appId) {
-    message.warning('请先填写 App Id')
+    message.warning(t('pages.settings.ExternalSettings.s173'))
     activeTab.value = 'cred'
     return
   }
@@ -1299,27 +1299,27 @@ async function testConnection() {
     const res = await testIntegration(editingId.value)
     const ok = res?.data?.ok ?? res?.success
     const msg = res?.data?.message || ''
-    if (ok) message.success('连接成功' + (msg ? `（${msg}）` : ''))
-    else message.error('连接失败' + (msg ? `：${msg}` : ''))
+    if (ok) message.success(t('pages.settings.ExternalSettings.s201') + (msg ? `（${msg}）` : ''))
+    else message.error(t('pages.settings.ExternalSettings.s199') + (msg ? `：${msg}` : ''))
     await loadSuppliers()
   } catch (e: any) {
-    message.error('测试失败：' + (e?.response?.data?.message || e?.message || '网络错误'))
+    message.error(t('pages.settings.ExternalSettings.s200') + (e?.response?.data?.message || e?.message || t('pages.settings.ExternalSettings.s190')))
   } finally {
     testing.value = false
   }
 }
 
 async function testOne(row: Supplier) {
-  const env = row.env === 'production' ? '生产' : '沙箱'
-  message.loading(`正在测试「${row.name}」(${env})...`, { duration: 800 })
+  const env = row.env === 'production' ? t('pages.settings.ExternalSettings.s210') : t('pages.settings.ExternalSettings.s211')
+  message.loading(t('pages.settings.ExternalSettings.s205', { name: row.name, env }), { duration: 800 })
   try {
     const res = await testIntegration(row.id)
     const ok = res?.data?.ok ?? res?.success
-    if (ok) message.success(`「${row.name}」连接正常`)
-    else message.error(`「${row.name}」连接失败`)
+    if (ok) message.success(t('pages.settings.ExternalSettings.s202', { name: row.name }))
+    else message.error(t('pages.settings.ExternalSettings.s203', { name: row.name }))
     await loadSuppliers()
   } catch (e: any) {
-    message.error(`「${row.name}」测试失败：${e?.response?.data?.message || e?.message || ''}`)
+    message.error(t('pages.settings.ExternalSettings.s204', { name: row.name }) + (e?.response?.data?.message || e?.message || ''))
   }
 }
 
