@@ -10,7 +10,7 @@
     <div class="glass-panel">
       <n-tabs v-model:value="activeTab" type="line" class="cc-tabs" @update:value="onTabChange">
         <!-- ===================== 实时看板（含人数规划） ===================== -->
-        <n-tab-pane name="ratio" tab="实时看板">
+        <n-tab-pane name="ratio" :tab="t('pages.settings.CampusControl.s7')">
           <div class="kpi-row">
             <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.CampusControl.s3') }}</span><span class="kpi-value">{{ ratioData.total }}</span></div>
             <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.CampusControl.s4') }}</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
@@ -26,51 +26,51 @@
               :pagination="false"
               flex-height
             >
-              <template #empty><n-empty description="暂无数据" /></template>
+              <template #empty><n-empty :description="t('pages.settings.CampusControl.s188')" /></template>
             </n-data-table>
           </div>
 
           <n-alert type="info" :show-icon="true" style="margin-top: var(--space-4); flex-shrink: 0">
-            实时看板按「每条规则独立适用范围」展示各指标的<strong>人数达成管控</strong>（年度 / 本月 的目标、达成、达成率与在途）。
-            目标数据直接承载于规则上，在「规则配置」→编辑维度规则集中维护。
+            {{ t('pages.settings.CampusControl.s189') }}<strong>{{ t('pages.settings.CampusControl.s8') }}</strong>{{ t('pages.settings.CampusControl.s190') }}
+            {{ t('pages.settings.CampusControl.s9') }}
           </n-alert>
         </n-tab-pane>
 
         <!-- ===================== 规则配置（扁平列表：每条规则一行） ===================== -->
-        <n-tab-pane name="rules" tab="规则配置">
+        <n-tab-pane name="rules" :tab="t('pages.settings.CampusControl.s10')">
           <n-alert
             v-if="mixedScopeGroups.size > 0"
             type="warning"
             :show-icon="true"
             class="scope-mutex-banner"
           >
-            检测到 <b>{{ mixedScopeGroups.size }}</b> 个「维度 × 年度」组合同时存在「全局」与「指定范围」规则，会导致人员<b>重复计入</b>。请调整适用范围（编辑规则或删除其一）。
+            {{ t('pages.settings.CampusControl.s191') }}<b>{{ mixedScopeGroups.size }}</b>{{ t('pages.settings.CampusControl.s269') }}<b>{{ t('pages.settings.CampusControl.s11') }}</b>{{ t('pages.settings.CampusControl.s192') }}
           </n-alert>
 
           <div class="toolbar">
             <n-input
               v-model:value="ruleFilterKeyword"
-              placeholder="搜索 规则编号/维度/指标/部门"
+              :placeholder="t('pages.settings.CampusControl.s12')"
               clearable
               class="rule-filter-search"
             />
             <n-select
               v-model:value="ruleFilterStatus"
               :options="ruleStatusOptions"
-              placeholder="状态"
+              :placeholder="t('pages.settings.CampusControl.s13')"
               class="rule-filter-select"
             />
             <n-select
               v-model:value="ruleFilterDimension"
               :options="dimensionOptions"
-              placeholder="全部维度"
+              :placeholder="t('pages.settings.CampusControl.s14')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="ruleFilterIndicator"
               :options="ruleIndicatorOptions"
-              placeholder="全部指标"
+              :placeholder="t('pages.settings.CampusControl.s15')"
               clearable
               filterable
               class="rule-filter-select"
@@ -78,14 +78,14 @@
             <n-select
               v-model:value="ruleFilterScope"
               :options="ruleScopeOptions"
-              placeholder="全部范围"
+              :placeholder="t('pages.settings.CampusControl.s16')"
               clearable
               class="rule-filter-select"
             />
             <div class="spacer"></div>
-            <n-button @click="onExportRules">导出规则</n-button>
-            <n-button @click="importDrawer.show = true">导入规则</n-button>
-            <n-button type="primary" class="gradient-btn" @click="openRuleDrawer(null)">+ 新增规则</n-button>
+            <n-button @click="onExportRules">{{ t('pages.settings.CampusControl.s17') }}</n-button>
+            <n-button @click="importDrawer.show = true">{{ t('pages.settings.CampusControl.s18') }}</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openRuleDrawer(null)">{{ t('pages.settings.CampusControl.s19') }}</n-button>
           </div>
 
           <div class="table-wrap">
@@ -99,7 +99,7 @@
               :row-props="ruleRowProps"
             >
               <template #empty>
-                <n-empty :description="rules.length === 0 ? '暂无规则，点击右上角「新增规则」' : '当前筛选下无规则'" />
+                <n-empty :description="rules.length === 0 ? t('pages.settings.CampusControl.s193') : t('pages.settings.CampusControl.s194')" />
               </template>
             </n-data-table>
           </div>
@@ -113,17 +113,17 @@
         </n-tab-pane>
 
         <!-- ===================== 指标管理（维度 + 指标库） ===================== -->
-        <n-tab-pane name="indicators" tab="指标管理">
+        <n-tab-pane name="indicators" :tab="t('pages.settings.CampusControl.s20')">
           <div class="toolbar">
-            <n-select v-model:value="indicatorDimFilter" :options="indicatorDimOptions" placeholder="全部维度" clearable style="width: 180px" />
-            <n-button @click="openDimDrawer()">管理维度</n-button>
+            <n-select v-model:value="indicatorDimFilter" :options="indicatorDimOptions" :placeholder="t('pages.settings.CampusControl.s21')" clearable style="width: 180px" />
+            <n-button @click="openDimDrawer()">{{ t('pages.settings.CampusControl.s22') }}</n-button>
             <div class="spacer"></div>
             <n-dropdown :options="indicatorExportOptions" @select="onExportIndicatorsSelect">
-              <n-button>导出指标</n-button>
+              <n-button>{{ t('pages.settings.CampusControl.s23') }}</n-button>
             </n-dropdown>
-            <n-button @click="onDownloadIndicatorTemplate">下载模板</n-button>
-            <n-button @click="indicatorImportDrawer.show = true">导入指标</n-button>
-            <n-button type="primary" class="gradient-btn" @click="openIndicatorModal()">+ 新增指标</n-button>
+            <n-button @click="onDownloadIndicatorTemplate">{{ t('pages.settings.CampusControl.s24') }}</n-button>
+            <n-button @click="indicatorImportDrawer.show = true">{{ t('pages.settings.CampusControl.s25') }}</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openIndicatorModal()">{{ t('pages.settings.CampusControl.s26') }}</n-button>
           </div>
           <div class="table-wrap">
             <n-data-table
@@ -134,28 +134,28 @@
               :pagination="indicatorPagination"
               flex-height
             >
-              <template #empty><n-empty description="暂无指标，请先新增维度，再在维度下新增指标" /></template>
+              <template #empty><n-empty :description="t('pages.settings.CampusControl.s195')" /></template>
             </n-data-table>
           </div>
         </n-tab-pane>
 
         <!-- ===================== 录入校验 ===================== -->
-        <n-tab-pane name="validate" tab="录入校验">
+        <n-tab-pane name="validate" :tab="t('pages.settings.CampusControl.s27')">
           <n-grid :cols="4" :x-gap="16" :y-gap="12" item-responsive responsive="screen">
-            <n-gi span="4 m:1"><n-form-item label="候选人编号" label-placement="top"><n-input v-model:value="draft.code" placeholder="如 C00000001" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="姓名" label-placement="top"><n-input v-model:value="draft.name" placeholder="如 员工32" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="部门" label-placement="top"><n-select v-model:value="draft.bu" :options="deptOptions" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="职务" label-placement="top"><n-select v-model:value="draft.position" :options="positionOptions" clearable placeholder="不限" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="职级" label-placement="top"><n-select v-model:value="draft.level" :options="levelOptions" clearable placeholder="不限" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="院校标签" label-placement="top"><n-select v-model:value="draft.school" :options="schoolOptions" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="性别" label-placement="top"><n-select v-model:value="draft.sex" :options="sexOptions" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="专业标签" label-placement="top"><n-select v-model:value="draft.major" :options="majorOptions" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="招聘月份" label-placement="top"><n-select v-model:value="draft.month" :options="monthOptions" /></n-form-item></n-gi>
-            <n-gi span="4 m:1"><n-form-item label="状态" label-placement="top"><n-select v-model:value="draft.status" :options="statusOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s28')" label-placement="top"><n-input v-model:value="draft.code" :placeholder="t('pages.settings.CampusControl.s29')" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s30')" label-placement="top"><n-input v-model:value="draft.name" :placeholder="t('pages.settings.CampusControl.s31')" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s32')" label-placement="top"><n-select v-model:value="draft.bu" :options="deptOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s33')" label-placement="top"><n-select v-model:value="draft.position" :options="positionOptions" clearable :placeholder="t('pages.settings.CampusControl.s34')" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s35')" label-placement="top"><n-select v-model:value="draft.level" :options="levelOptions" clearable :placeholder="t('pages.settings.CampusControl.s36')" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s37')" label-placement="top"><n-select v-model:value="draft.school" :options="schoolOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s38')" label-placement="top"><n-select v-model:value="draft.sex" :options="sexOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s39')" label-placement="top"><n-select v-model:value="draft.major" :options="majorOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s40')" label-placement="top"><n-select v-model:value="draft.month" :options="monthOptions" /></n-form-item></n-gi>
+            <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s41')" label-placement="top"><n-select v-model:value="draft.status" :options="statusOptions" /></n-form-item></n-gi>
           </n-grid>
           <div class="toolbar">
-            <n-button type="primary" class="gradient-btn" :loading="loading.validate" @click="runValidate">校验判定</n-button>
-            <n-button :disabled="!canConfirmEntry" @click="confirmEntry">确认录入为人员</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="loading.validate" @click="runValidate">{{ t('pages.settings.CampusControl.s42') }}</n-button>
+            <n-button :disabled="!canConfirmEntry" @click="confirmEntry">{{ t('pages.settings.CampusControl.s43') }}</n-button>
           </div>
 
           <div v-if="validation" class="validate-result">
@@ -166,7 +166,7 @@
               {{ VERDICT_LABEL[validation.verdictLevel] }}
             </n-tag>
             <p v-if="validation.verdictLevel === 'block'" class="block-hint" style="flex-shrink: 0">
-              命中硬约束超标，系统已阻断提交。请调整候选人标签或目标配置后再试。
+              {{ t('pages.settings.CampusControl.s44') }}
             </p>
             <div class="table-wrap" style="margin-top: 12px">
               <n-data-table
@@ -176,19 +176,19 @@
                 :pagination="false"
                 flex-height
               >
-                <template #empty><n-empty description="无校验明细" /></template>
+                <template #empty><n-empty :description="t('pages.settings.CampusControl.s196')" /></template>
               </n-data-table>
             </div>
           </div>
         </n-tab-pane>
 
         <!-- ===================== 人员数据 ===================== -->
-        <n-tab-pane name="persons" tab="人员数据">
+        <n-tab-pane name="persons" :tab="t('pages.settings.CampusControl.s45')">
           <div class="toolbar toolbar--filters">
             <!-- 搜索框最左：模糊匹配候选人编号/姓名 -->
             <n-input
               v-model:value="personFilterSearch"
-              placeholder="搜索候选人编号/姓名"
+              :placeholder="t('pages.settings.CampusControl.s46')"
               clearable
               class="rule-filter-search"
               @keyup.enter="loadPersons()"
@@ -203,56 +203,56 @@
             <n-select
               v-model:value="personFilterBu"
               :options="deptOptions"
-              placeholder="部门"
+              :placeholder="t('pages.settings.CampusControl.s47')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterPosition"
               :options="positionOptions"
-              placeholder="职务"
+              :placeholder="t('pages.settings.CampusControl.s48')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterLevel"
               :options="levelOptions"
-              placeholder="职级"
+              :placeholder="t('pages.settings.CampusControl.s49')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterSex"
               :options="sexOptions"
-              placeholder="性别"
+              :placeholder="t('pages.settings.CampusControl.s50')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterSchool"
               :options="schoolOptions"
-              placeholder="院校"
+              :placeholder="t('pages.settings.CampusControl.s51')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterMajor"
               :options="majorOptions"
-              placeholder="专业"
+              :placeholder="t('pages.settings.CampusControl.s52')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterYear"
               :options="yearOptions"
-              placeholder="年度"
+              :placeholder="t('pages.settings.CampusControl.s53')"
               clearable
               class="rule-filter-select"
             />
             <n-select
               v-model:value="personFilterMonth"
               :options="monthOptions"
-              placeholder="月份"
+              :placeholder="t('pages.settings.CampusControl.s54')"
               clearable
               class="rule-filter-select"
             />
@@ -267,7 +267,7 @@
               :pagination="personPagination"
               flex-height
             >
-              <template #empty><n-empty description="暂无人员" /></template>
+              <template #empty><n-empty :description="t('pages.settings.CampusControl.s197')" /></template>
             </n-data-table>
           </div>
         </n-tab-pane>
@@ -279,7 +279,7 @@
     <n-modal
       v-model:show="importDrawer.show"
       preset="card"
-      title="导入规则（Excel）"
+      :title="t('pages.settings.CampusControl.s55')"
       :style="{ width: '600px', maxWidth: '94vw' }"
       :bordered="false"
       :segmented="{ content: true, footer: true }"
@@ -293,12 +293,12 @@
           :custom-request="handleImportUpload"
           @remove="onImportFileRemove"
         >
-          <n-button>选择 Excel 文件</n-button>
+          <n-button>{{ t('pages.settings.CampusControl.s56') }}</n-button>
         </n-upload>
         <n-space align="center" :wrap="false">
-          <n-button size="small" quaternary type="primary" @click="onDownloadTemplate">下载模板</n-button>
+          <n-button size="small" quaternary type="primary" @click="onDownloadTemplate">{{ t('pages.settings.CampusControl.s57') }}</n-button>
           <span class="import-hint" style="margin: 0">
-            每行一条规则 = 独立的「部门+职务+职级+维度+指标+规划年度」组合，无需拆分占比；12 个月目标之和须等于年度目标人数。
+            {{ t('pages.settings.CampusControl.s58') }}
           </span>
         </n-space>
         <div v-if="importDrawer.result" class="import-result">
@@ -307,14 +307,14 @@
             type="success"
             :show-icon="true"
           >
-            导入成功：{{ importDrawer.result.data.groups }} 个分组 / {{ importDrawer.result.data.savedRules }} 条规则已写入。
+            {{ t('pages.settings.CampusControl.s198', { groups: importDrawer.result.data.groups, rules: importDrawer.result.data.savedRules }) }}
           </n-alert>
           <n-alert v-else type="error" :show-icon="true">
-            导入失败（{{ importDrawer.result.data.groups }} 个分组 / 已写入 {{ importDrawer.result.data.savedRules }} 条），请下载错误明细 Excel 修正后重传。
+            {{ t('pages.settings.CampusControl.s199', { groups: importDrawer.result.data.groups, rules: importDrawer.result.data.savedRules }) }}
           </n-alert>
           <div v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-error-actions">
-            <n-button v-if="importDrawer.result.data.errorFile" size="small" type="error" @click="downloadImportErrorExcel">下载错误明细（Excel）</n-button>
-            <n-button v-else size="small" @click="downloadImportErrorReport">下载错误报告（txt）</n-button>
+            <n-button v-if="importDrawer.result.data.errorFile" size="small" type="error" @click="downloadImportErrorExcel">{{ t('pages.settings.CampusControl.s59') }}</n-button>
+            <n-button v-else size="small" @click="downloadImportErrorReport">{{ t('pages.settings.CampusControl.s60') }}</n-button>
           </div>
           <ul v-if="importDrawer.result && importDrawer.result.data.errors.length" class="import-errors">
             <li v-for="(e, i) in importDrawer.result.data.errors" :key="i">{{ e }}</li>
@@ -323,7 +323,7 @@
       </n-space>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="importDrawer.show = false">关闭</n-button>
+          <n-button @click="importDrawer.show = false">{{ t('pages.settings.CampusControl.s61') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -332,7 +332,7 @@
     <n-modal
       v-model:show="indicatorImportDrawer.show"
       preset="card"
-      title="导入指标（Excel / CSV）"
+      :title="t('pages.settings.CampusControl.s62')"
       :style="{ width: '600px', maxWidth: '94vw' }"
       :bordered="false"
       :segmented="{ content: true, footer: true }"
@@ -341,9 +341,9 @@
       <n-space vertical :size="14">
         <n-radio-group v-model:value="indicatorImportDrawer.mode" name="indicator-import-mode">
           <n-space>
-            <n-radio value="skip">跳过已存在</n-radio>
-            <n-radio value="update">更新已存在</n-radio>
-            <n-radio value="error">遇重复即报错</n-radio>
+            <n-radio value="skip">{{ t('pages.settings.CampusControl.s63') }}</n-radio>
+            <n-radio value="update">{{ t('pages.settings.CampusControl.s64') }}</n-radio>
+            <n-radio value="error">{{ t('pages.settings.CampusControl.s65') }}</n-radio>
           </n-space>
         </n-radio-group>
         <n-upload
@@ -353,23 +353,23 @@
           :custom-request="handleIndicatorImportUpload"
           @remove="onIndicatorImportFileRemove"
         >
-          <n-button>选择 Excel / CSV 文件</n-button>
+          <n-button>{{ t('pages.settings.CampusControl.s66') }}</n-button>
         </n-upload>
         <n-space align="center" :wrap="false">
-          <n-button size="small" quaternary type="primary" @click="onDownloadIndicatorTemplate">下载模板</n-button>
+          <n-button size="small" quaternary type="primary" @click="onDownloadIndicatorTemplate">{{ t('pages.settings.CampusControl.s67') }}</n-button>
           <span class="import-hint" style="margin: 0">
-            每行一条指标，列：维度 / 指标名称 / 是否启用（是/否）。指标名称同维度下不可重复。
+            {{ t('pages.settings.CampusControl.s68') }}
           </span>
         </n-space>
         <div v-if="indicatorImportDrawer.result" class="import-result">
           <n-alert v-if="indicatorImportDrawer.result.success" type="success" :show-icon="true">
-            导入成功：新建 {{ indicatorImportDrawer.result.data.created }} / 更新 {{ indicatorImportDrawer.result.data.updated }} / 跳过 {{ indicatorImportDrawer.result.data.skipped }} 条。
+            {{ t('pages.settings.CampusControl.s200', { created: indicatorImportDrawer.result.data.created, updated: indicatorImportDrawer.result.data.updated, skipped: indicatorImportDrawer.result.data.skipped }) }}
           </n-alert>
           <n-alert v-else type="error" :show-icon="true">
-            导入失败（已跳过 {{ indicatorImportDrawer.result.data.skipped }} / 已新建 {{ indicatorImportDrawer.result.data.created }}），请下载错误明细 Excel 修正后重传。
+            {{ t('pages.settings.CampusControl.s201', { skipped: indicatorImportDrawer.result.data.skipped, created: indicatorImportDrawer.result.data.created }) }}
           </n-alert>
           <div v-if="indicatorImportDrawer.result && indicatorImportDrawer.result.data.errors.length" class="import-error-actions">
-            <n-button v-if="indicatorImportDrawer.result.data.errorFile" size="small" type="error" @click="downloadIndicatorImportErrorExcel">下载错误明细（Excel）</n-button>
+            <n-button v-if="indicatorImportDrawer.result.data.errorFile" size="small" type="error" @click="downloadIndicatorImportErrorExcel">{{ t('pages.settings.CampusControl.s69') }}</n-button>
           </div>
           <ul v-if="indicatorImportDrawer.result && indicatorImportDrawer.result.data.errors.length" class="import-errors">
             <li v-for="(e, i) in indicatorImportDrawer.result.data.errors" :key="i">{{ e }}</li>
@@ -378,7 +378,7 @@
       </n-space>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="indicatorImportDrawer.show = false">关闭</n-button>
+          <n-button @click="indicatorImportDrawer.show = false">{{ t('pages.settings.CampusControl.s70') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -387,7 +387,7 @@
     <n-modal
       v-model:show="dimDrawer.show"
       preset="card"
-      title="维度管理"
+      :title="t('pages.settings.CampusControl.s71')"
       :style="{ width: '560px', maxWidth: '94vw' }"
       :bordered="false"
       :segmented="{ content: true, footer: true }"
@@ -396,7 +396,7 @@
       <n-space vertical :size="12">
         <div class="toolbar" style="margin-bottom: 0">
           <div class="spacer"></div>
-          <n-button type="primary" class="gradient-btn" @click="openDimModal()">+ 新增维度</n-button>
+          <n-button type="primary" class="gradient-btn" @click="openDimModal()">{{ t('pages.settings.CampusControl.s72') }}</n-button>
         </div>
         <n-data-table
           :columns="dimColumns"
@@ -406,62 +406,62 @@
           :pagination="false"
           size="small"
         >
-          <template #empty><n-empty description="暂无维度" /></template>
+          <template #empty><n-empty :description="t('pages.settings.CampusControl.s202')" /></template>
         </n-data-table>
       </n-space>
     </n-modal>
 
     <!-- ===================== 维度表单弹窗 ===================== -->
-    <n-modal v-model:show="dimModal.show" :title="dimModal.editingId ? '编辑维度' : '新增维度'" preset="card" style="width: 420px; max-width: 90vw">
+    <n-modal v-model:show="dimModal.show" :title="dimModal.editingId ? t('pages.settings.CampusControl.s203') : t('pages.settings.CampusControl.s204')" preset="card" style="width: 420px; max-width: 90vw">
       <n-form label-placement="top">
-        <n-form-item label="维度名称" required><n-input v-model:value="dimModal.name" placeholder="如 学历 / 院校标签 / 专业标签" /></n-form-item>
-        <n-form-item label="编码"><n-input v-model:value="dimModal.code" placeholder="可选，如 education" /></n-form-item>
+        <n-form-item :label="t('pages.settings.CampusControl.s73')" required><n-input v-model:value="dimModal.name" :placeholder="t('pages.settings.CampusControl.s74')" /></n-form-item>
+        <n-form-item :label="t('pages.settings.CampusControl.s75')"><n-input v-model:value="dimModal.code" :placeholder="t('pages.settings.CampusControl.s76')" /></n-form-item>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="dimModal.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="loading.dimensions" @click="saveDim">保存</n-button>
+          <n-button @click="dimModal.show = false">{{ t('pages.settings.CampusControl.s77') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="loading.dimensions" @click="saveDim">{{ t('pages.settings.CampusControl.s78') }}</n-button>
         </div>
       </template>
     </n-modal>
 
     <!-- ===================== 指标表单弹窗 ===================== -->
-    <n-modal v-model:show="indicatorModal.show" :title="indicatorModal.editingId ? '编辑指标' : '新增指标'" preset="card" style="width: 420px; max-width: 90vw">
+    <n-modal v-model:show="indicatorModal.show" :title="indicatorModal.editingId ? t('pages.settings.CampusControl.s205') : t('pages.settings.CampusControl.s206')" preset="card" style="width: 420px; max-width: 90vw">
       <n-form label-placement="top">
-        <n-form-item label="所属维度" required><n-select v-model:value="indicatorModal.dimensionId" :options="dimensionOptions" :disabled="!!indicatorModal.editingId" /></n-form-item>
-        <n-form-item label="指标名称" required><n-input v-model:value="indicatorModal.name" placeholder="如 985 / 男 / 工学" /></n-form-item>
+        <n-form-item :label="t('pages.settings.CampusControl.s79')" required><n-select v-model:value="indicatorModal.dimensionId" :options="dimensionOptions" :disabled="!!indicatorModal.editingId" /></n-form-item>
+        <n-form-item :label="t('pages.settings.CampusControl.s80')" required><n-input v-model:value="indicatorModal.name" :placeholder="t('pages.settings.CampusControl.s81')" /></n-form-item>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="indicatorModal.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="loading.indicators" @click="saveIndicator">保存</n-button>
+          <n-button @click="indicatorModal.show = false">{{ t('pages.settings.CampusControl.s82') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="loading.indicators" @click="saveIndicator">{{ t('pages.settings.CampusControl.s83') }}</n-button>
         </div>
       </template>
     </n-modal>
 
     <!-- ===================== 人员表单弹窗（仅编辑态，列表「+ 新增人员」按钮已按产品决策移除） ===================== -->
-    <n-modal v-model:show="personModal.show" title="编辑人员" preset="card" style="width: 560px; max-width: 90vw">
+    <n-modal v-model:show="personModal.show" :title="t('pages.settings.CampusControl.s84')" preset="card" style="width: 560px; max-width: 90vw">
       <n-form label-placement="top">
         <n-grid :cols="2" :x-gap="16">
-          <n-gi><n-form-item label="候选人编号"><n-input v-model:value="personModal.code" placeholder="如 C00000001" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="姓名"><n-input v-model:value="personModal.name" placeholder="如 员工32" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="部门"><n-select v-model:value="personModal.bu" :options="deptOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="院校标签"><n-select v-model:value="personModal.school" :options="schoolOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="性别"><n-select v-model:value="personModal.sex" :options="sexOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="专业标签"><n-select v-model:value="personModal.major" :options="majorOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="招聘月份"><n-select v-model:value="personModal.month" :options="monthOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="状态"><n-select v-model:value="personModal.status" :options="statusOptions" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="预计入职日期"><n-date-picker v-model:formatted-value="personModal.expectedEntryDate" value-format="yyyy-MM-dd" type="date" clearable style="width:100%" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="实际入职日期"><n-date-picker v-model:formatted-value="personModal.actualEntryDate" value-format="yyyy-MM-dd" type="date" clearable style="width:100%" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="职务"><n-select v-model:value="personModal.position" :options="positionOptions" clearable placeholder="不限" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="职级"><n-select v-model:value="personModal.level" :options="levelOptions" clearable placeholder="不限" /></n-form-item></n-gi>
-          <n-gi><n-form-item label="计入核算"><n-switch v-model:value="personModal.counted" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s85')"><n-input v-model:value="personModal.code" :placeholder="t('pages.settings.CampusControl.s86')" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s87')"><n-input v-model:value="personModal.name" :placeholder="t('pages.settings.CampusControl.s88')" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s89')"><n-select v-model:value="personModal.bu" :options="deptOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s90')"><n-select v-model:value="personModal.school" :options="schoolOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s91')"><n-select v-model:value="personModal.sex" :options="sexOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s92')"><n-select v-model:value="personModal.major" :options="majorOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s93')"><n-select v-model:value="personModal.month" :options="monthOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s94')"><n-select v-model:value="personModal.status" :options="statusOptions" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s95')"><n-date-picker v-model:formatted-value="personModal.expectedEntryDate" value-format="yyyy-MM-dd" type="date" clearable style="width:100%" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s96')"><n-date-picker v-model:formatted-value="personModal.actualEntryDate" value-format="yyyy-MM-dd" type="date" clearable style="width:100%" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s97')"><n-select v-model:value="personModal.position" :options="positionOptions" clearable :placeholder="t('pages.settings.CampusControl.s98')" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s99')"><n-select v-model:value="personModal.level" :options="levelOptions" clearable :placeholder="t('pages.settings.CampusControl.s100')" /></n-form-item></n-gi>
+          <n-gi><n-form-item :label="t('pages.settings.CampusControl.s101')"><n-switch v-model:value="personModal.counted" /></n-form-item></n-gi>
         </n-grid>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="personModal.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="loading.persons" @click="savePerson">保存</n-button>
+          <n-button @click="personModal.show = false">{{ t('pages.settings.CampusControl.s102') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="loading.persons" @click="savePerson">{{ t('pages.settings.CampusControl.s103') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -519,12 +519,12 @@ const ratioStatusType = (s: string) => (s === '正常' ? 'success' : s === '高�
 const countStatusType = (s: string) => (s === '本月达标' ? 'error' : s === '缺口未达成' ? 'warning' : 'default')
 const strengthType = (s: string) => (s === '硬约束' ? 'error' : s === '软约束' ? 'warning' : 'default')
 const VERDICT_ICON: Record<string, any> = { block: XCircle, warn: AlertTriangle, pass: CheckCircle2 }
-const VERDICT_LABEL: Record<string, string> = { block: '阻断提交', warn: '允许提交但需关注', pass: '通过' }
+const VERDICT_LABEL: Record<string, string> = { block: t('pages.settings.CampusControl.s207'), warn: t('pages.settings.CampusControl.s208'), pass: t('pages.settings.CampusControl.s209') }
 const verdictType = (v: ValidationResult) => (v.verdictLevel === 'block' ? 'error' : v.verdictLevel === 'warn' ? 'warning' : 'success')
 
 const scopeText = (bu: string, position: string, level: string) => {
-  if (!bu && !position && !level) return '全局'
-  const parts = [bu, position || '职务不限', level || '职级不限']
+  if (!bu && !position && !level) return t('pages.settings.CampusControl.s210')
+  const parts = [bu, position || t('pages.settings.CampusControl.s211'), level || t('pages.settings.CampusControl.s212')]
   return parts.filter(Boolean).join(' · ')
 }
 
@@ -544,10 +544,10 @@ const persons = ref<Person[]>([])
 // 「候选池」「占编」已从列表筛选项移除（候选池不占编，默认展示全部人员）。
 const personFilterStatus = ref<'all' | '在职' | '在途Offer' | '在途待入职'>('all')
 const personStatusOptions = [
-  { label: '全部', value: 'all' as const },
-  { label: '在职', value: '在职' as const },
-  { label: '在途Offer', value: '在途Offer' as const },
-  { label: '在途待入职', value: '在途待入职' as const },
+  { label: t('pages.settings.CampusControl.s104'), value: 'all' as const },
+  { label: t('pages.settings.CampusControl.s105'), value: '在职' as const },
+  { label: t('pages.settings.CampusControl.s106'), value: '在途Offer' as const },
+  { label: t('pages.settings.CampusControl.s107'), value: '在途待入职' as const },
 ]
 
 // 人员数据：8 项精确筛 + 1 项模糊搜（候选人编号/姓名 icontains）。
@@ -588,21 +588,21 @@ const rulePagination = reactive({
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   showQuickJumper: true,
-  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => t('pages.settings.CampusControl.s213', { n: itemCount ?? 0 }),
 })
 const indicatorPagination = reactive({
   defaultPageSize: 20,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   showQuickJumper: true,
-  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => t('pages.settings.CampusControl.s213', { n: itemCount ?? 0 }),
 })
 const personPagination = reactive({
   defaultPageSize: 20,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   showQuickJumper: true,
-  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
+  prefix: ({ itemCount }: { itemCount: number | undefined }) => t('pages.settings.CampusControl.s213', { n: itemCount ?? 0 }),
 })
 
 const dimensionOptions = computed(() => dimensions.value.map((d) => ({ label: d.name, value: d.id })))
@@ -617,9 +617,9 @@ const ruleFilterDimension = ref<string | null>(null)
 const ruleFilterIndicator = ref<string | null>(null)
 const ruleFilterScope = ref<string>('') // ''=全部; '<GLOBAL>':全局; 'bu':部门
 const ruleStatusOptions = [
-  { label: '全部状态', value: 'all' as const },
-  { label: '启用', value: 'active' as const },
-  { label: '停用', value: 'inactive' as const },
+  { label: t('pages.settings.CampusControl.s108'), value: 'all' as const },
+  { label: t('pages.settings.CampusControl.s109'), value: 'active' as const },
+  { label: t('pages.settings.CampusControl.s110'), value: 'inactive' as const },
 ]
 const ruleIndicatorOptions = computed(() =>
   indicators.value
@@ -629,8 +629,8 @@ const ruleIndicatorOptions = computed(() =>
 const ruleScopeOptions = computed(() => {
   const buses = Array.from(new Set(rules.value.map((r) => r.bu).filter(Boolean)))
   return [
-    { label: '全部范围', value: '' },
-    { label: '全局', value: '<GLOBAL>' },
+    { label: t('pages.settings.CampusControl.s111'), value: '' },
+    { label: t('pages.settings.CampusControl.s112'), value: '<GLOBAL>' },
     ...buses.map((b) => ({ label: b, value: b })),
   ]
 })
@@ -690,7 +690,7 @@ const mixedScopeGroups = computed<Set<string>>(() => {
 })
 
 /* ============================ 规则配置：维度列表(master) + 维度详情(detail) ============================ */
-const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+const MONTH_LABELS = [t('pages.settings.CampusControl.s214'), t('pages.settings.CampusControl.s215'), t('pages.settings.CampusControl.s216'), t('pages.settings.CampusControl.s217'), t('pages.settings.CampusControl.s218'), t('pages.settings.CampusControl.s219'), t('pages.settings.CampusControl.s220'), t('pages.settings.CampusControl.s221'), t('pages.settings.CampusControl.s222'), t('pages.settings.CampusControl.s223'), t('pages.settings.CampusControl.s224'), t('pages.settings.CampusControl.s225')]
 
 // master/detail 导航状态（detail 改为弹窗，不再整页切换）
 const detailDimensionId = ref<string | null>(null)
@@ -854,7 +854,7 @@ async function saveDimensionAnnualEdit() {
   const newAnnual = Math.max(0, Math.round(dimEditAnnual.value || 0))
   const dRules = rules.value.filter((r) => r.dimension === dimId)
   if (dRules.length === 0) {
-    message.warning('该维度下暂无规则，无法设置年度目标')
+    message.warning(t('pages.settings.CampusControl.s113'))
     return
   }
   // 按适用范围分组
@@ -893,11 +893,11 @@ async function saveDimensionAnnualEdit() {
         year: newYear, rules: items, totalTarget: scopeNewAnnual,
       })
     }
-    message.success('维度年度目标已更新')
+    message.success(t('pages.settings.CampusControl.s114'))
     dimensionEditModal.value = false
     await loadRules()
   } catch (e) {
-    message.error(extractApiError(e, '保存失败'))
+    message.error(extractApiError(e, t('pages.settings.CampusControl.s226')))
   } finally {
     dimEditSaving.value = false
   }
@@ -906,7 +906,7 @@ async function saveDimensionAnnualEdit() {
 /* ============================ 指标管理 ============================ */
 const indicatorDimFilter = ref<string | null>(null)
 const indicatorDimOptions = computed(() => [
-  { label: '全部维度', value: '' },
+  { label: t('pages.settings.CampusControl.s115'), value: '' },
   ...dimensions.value.map((d) => ({ label: d.name, value: d.id })),
 ])
 const filteredIndicators = computed(() => {
@@ -921,19 +921,19 @@ const filteredIndicators = computed(() => {
 async function loadDimensions(silent = false) {
   loading.dimensions = true
   try { dimensions.value = await listDimensions() }
-  catch (e) { if (!silent) message.error(extractApiError(e, '加载维度失败')); throw e }
+  catch (e) { if (!silent) message.error(extractApiError(e, t('pages.settings.CampusControl.s227'))); throw e }
   finally { loading.dimensions = false }
 }
 async function loadIndicators(silent = false) {
   loading.indicators = true
   try { indicators.value = await listIndicators() }
-  catch (e) { if (!silent) message.error(extractApiError(e, '加载指标失败')); throw e }
+  catch (e) { if (!silent) message.error(extractApiError(e, t('pages.settings.CampusControl.s228'))); throw e }
   finally { loading.indicators = false }
 }
 async function loadRules(silent = false) {
   loading.rules = true
   try { rules.value = await listRules() }
-  catch (e) { if (!silent) message.error(extractApiError(e, '加载规则失败')); throw e }
+  catch (e) { if (!silent) message.error(extractApiError(e, t('pages.settings.CampusControl.s229'))); throw e }
   finally { loading.rules = false }
 }
 
@@ -961,41 +961,41 @@ const ruleRowProps = (row: any) => ({
 
 const ruleColumns: DataTableColumns<any> = [
   {
-    title: '规则编号', key: 'code', width: 110, fixed: 'left',
+    title: t('pages.settings.CampusControl.s116'), key: 'code', width: 110, fixed: 'left',
     render: (r: any) =>
       h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'view') } }, { default: () => r.code || '—' }),
   },
-  { title: '维度', key: 'dimensionName', width: 100, render: (r: any) => r.dimensionName || r.dimension },
-  { title: '指标', key: 'indicatorName', width: 110, render: (r: any) => r.indicatorName || r.indicator },
-  { title: '适用范围', key: 'scope', width: 200, render: (r: any) => scopeText(r.bu, r.position, r.level) },
-  { title: '生效年度', key: 'year', width: 90, render: (r: any) => String(r.year) },
+  { title: t('pages.settings.CampusControl.s117'), key: 'dimensionName', width: 100, render: (r: any) => r.dimensionName || r.dimension },
+  { title: t('pages.settings.CampusControl.s118'), key: 'indicatorName', width: 110, render: (r: any) => r.indicatorName || r.indicator },
+  { title: t('pages.settings.CampusControl.s230'), key: 'scope', width: 200, render: (r: any) => scopeText(r.bu, r.position, r.level) },
+  { title: t('pages.settings.CampusControl.s119'), key: 'year', width: 90, render: (r: any) => String(r.year) },
   {
-    title: '年度目标(人)', key: 'annualTarget', width: 110,
+    title: t('pages.settings.CampusControl.s120'), key: 'annualTarget', width: 110,
     render: (r: any) => (r.annualTarget ? String(Math.round(r.annualTarget)) : h('span', { class: 'muted' }, '—')),
   },
   {
-    title: '控制强度', key: 'strength', width: 120,
+    title: t('pages.settings.CampusControl.s121'), key: 'strength', width: 120,
     render: (r: any) => (r.strength
       ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength })
       : h('span', { class: 'muted' }, '—')),
   },
   {
-    title: '月浮动目标', key: 'rolloverEnabled', width: 110,
+    title: t('pages.settings.CampusControl.s122'), key: 'rolloverEnabled', width: 110,
     render: (r: any) => h(NTag, {
       type: r.rolloverEnabled ? 'success' : 'default',
       bordered: false,
       size: 'small',
-    }, { default: () => (r.rolloverEnabled ? '已启用' : '未启用') }),
+    }, { default: () => (r.rolloverEnabled ? t('pages.settings.CampusControl.s231') : t('pages.settings.CampusControl.s232')) }),
   },
   {
-    title: '操作', key: 'op', width: 260, fixed: 'right',
+    title: t('pages.settings.CampusControl.s123'), key: 'op', width: 260, fixed: 'right',
     render: (r: any) =>
       h(NSpace, { size: 4 }, {
         default: () => [
-          h(NButton, { size: 'small', tertiary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.copy(r) } }, { default: () => '复制' }),
-          h(NButton, { size: 'small', tertiary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'edit') } }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', tertiary: true, type: r.isActive ? 'warning' : 'success', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.toggle(r, !r.isActive) } }, { default: () => (r.isActive ? '停用' : '启用') }),
-          h(NButton, { size: 'small', tertiary: true, type: 'error', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.remove(r) } }, { default: () => '删除' }),
+          h(NButton, { size: 'small', tertiary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.copy(r) } }, { default: () => t('pages.settings.CampusControl.s233') }),
+          h(NButton, { size: 'small', tertiary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'edit') } }, { default: () => t('pages.settings.CampusControl.s234') }),
+          h(NButton, { size: 'small', tertiary: true, type: r.isActive ? 'warning' : 'success', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.toggle(r, !r.isActive) } }, { default: () => (r.isActive ? t('pages.settings.CampusControl.s235') : t('pages.settings.CampusControl.s236')) }),
+          h(NButton, { size: 'small', tertiary: true, type: 'error', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.remove(r) } }, { default: () => t('pages.settings.CampusControl.s237') }),
         ],
       }),
   },
@@ -1004,7 +1004,7 @@ const ruleColumns: DataTableColumns<any> = [
 async function loadRatio(silent = false) {
   loading.ratio = true
   try { ratioData.value = await getRatio() }
-  catch (e) { if (!silent) message.error(extractApiError(e, '加载看板失败')); throw e }
+  catch (e) { if (!silent) message.error(extractApiError(e, t('pages.settings.CampusControl.s238'))); throw e }
   finally { loading.ratio = false }
 }
 function onTabChange(name: string) {
@@ -1017,67 +1017,67 @@ function onTabChange(name: string) {
 /* ============================ 列定义 ============================ */
 // 实时看板：人数达成管控视角（年度 / 本月 的目标、达成、达成率与在途）
 const ratioColumns: DataTableColumns<any> = [
-  { title: '适用范围', key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: '维度', key: 'dimension', width: 90, fixed: 'left' },
-  { title: '指标', key: 'indicator', width: 80, fixed: 'left' },
-  { title: '年度目标', key: 'annualTarget', width: 90, render: (r) => String(r.annualTarget ?? 0) },
-  { title: '年度达成', key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) },
-  { title: '年度达成率', key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` },
-  { title: '年度在途', key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) },
-  { title: '本月额定目标', key: 'monthTarget', width: 110, render: (r) => String(r.monthTarget ?? 0) },
+  { title: t('pages.settings.CampusControl.s230'), key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) },
+  { title: t('pages.settings.CampusControl.s124'), key: 'dimension', width: 90, fixed: 'left' },
+  { title: t('pages.settings.CampusControl.s125'), key: 'indicator', width: 80, fixed: 'left' },
+  { title: t('pages.settings.CampusControl.s126'), key: 'annualTarget', width: 90, render: (r) => String(r.annualTarget ?? 0) },
+  { title: t('pages.settings.CampusControl.s127'), key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) },
+  { title: t('pages.settings.CampusControl.s128'), key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` },
+  { title: t('pages.settings.CampusControl.s129'), key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) },
+  { title: t('pages.settings.CampusControl.s130'), key: 'monthTarget', width: 110, render: (r) => String(r.monthTarget ?? 0) },
   // v2.10：新增本月浮动目标列（PR §3.2.2 / 设计文档 §7 T03；rolloverEnabled=False 时恒为 0）
-  { title: '本月浮动目标', key: 'monthRollover', width: 110, render: (r) => String(r.monthRollover ?? 0) },
+  { title: t('pages.settings.CampusControl.s131'), key: 'monthRollover', width: 110, render: (r) => String(r.monthRollover ?? 0) },
   // v2.10：新增本月可用目标列（= 本月额定 + 本月浮动；达标 success tag）
   {
-    title: '本月可用目标', key: 'monthAvailableTarget', width: 120,
+    title: t('pages.settings.CampusControl.s132'), key: 'monthAvailableTarget', width: 120,
     render: (r) => h(NTag, {
       type: (r.monthAvailableTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthAvailableTarget || 0) ? 'success' : 'default',
       bordered: false,
       size: 'small',
     }, { default: () => String(r.monthAvailableTarget ?? 0) }),
   },
-  { title: '本月达成', key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) },
-  { title: '本月达成率', key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` },
-  { title: '本月在途', key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) },
-  { title: '强度', key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
+  { title: t('pages.settings.CampusControl.s133'), key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) },
+  { title: t('pages.settings.CampusControl.s134'), key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` },
+  { title: t('pages.settings.CampusControl.s135'), key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) },
+  { title: t('pages.settings.CampusControl.s136'), key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
 ]
 
 const dimensionRuleColumns: DataTableColumns<any> = [
   {
-    title: '维度名称', key: 'name',
+    title: t('pages.settings.CampusControl.s137'), key: 'name',
     render: (d: any) => h('div', { style: 'display:flex; align-items:center; gap:8px;' }, [
       h('span', { style: 'font-weight:600;' }, d.name),
       d.code ? h(NTag, { size: 'small', bordered: false, type: 'default' }, { default: () => d.code }) : null,
     ]),
   },
-  { title: '归属年度', key: 'yearLabels', width: 110, render: (d: any) => h('span', { class: 'muted' }, d.yearLabels) },
-  { title: '年度目标(人)', key: 'annualTotal', width: 130, render: (d: any) => (d.annualTotal > 0 ? h('span', {}, String(d.annualTotal)) : h('span', { class: 'muted' }, '—')) },
-  { title: '指标数', key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) },
-  { title: '规则集(适用范围×年度)', key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) },
+  { title: t('pages.settings.CampusControl.s138'), key: 'yearLabels', width: 110, render: (d: any) => h('span', { class: 'muted' }, d.yearLabels) },
+  { title: t('pages.settings.CampusControl.s139'), key: 'annualTotal', width: 130, render: (d: any) => (d.annualTotal > 0 ? h('span', {}, String(d.annualTotal)) : h('span', { class: 'muted' }, '—')) },
+  { title: t('pages.settings.CampusControl.s140'), key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) },
+  { title: t('pages.settings.CampusControl.s141'), key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) },
   {
-    title: '操作', key: 'actions', width: 170, fixed: 'right',
+    title: t('pages.settings.CampusControl.s142'), key: 'actions', width: 170, fixed: 'right',
     render: (d: any) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => '查看指标' }),
+      h(NButton, { size: 'small', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => t('pages.settings.CampusControl.s239') }),
     ]),
   },
 ]
 
 const detailMatrixColumns: DataTableColumns<any> = [
   {
-    title: '指标', key: 'indicatorName',
+    title: t('pages.settings.CampusControl.s143'), key: 'indicatorName',
     render: (r: any) => h('div', { style: 'display:flex; align-items:center; gap:8px;' }, [
       h('span', {}, r.indicatorName),
-      !r.configured ? h(NTag, { size: 'small', type: 'warning', bordered: false }, { default: () => '未配置' }) : null,
+      !r.configured ? h(NTag, { size: 'small', type: 'warning', bordered: false }, { default: () => t('pages.settings.CampusControl.s240') }) : null,
     ]),
   },
   {
-    title: '年度目标(人)', key: 'annualTarget', width: 120,
+    title: t('pages.settings.CampusControl.s144'), key: 'annualTarget', width: 120,
     render: (r: any) => (r.configured ? h('span', {}, String(r.annualTarget)) : h('span', { class: 'muted' }, '—')),
   },
   {
-    title: '月度目标(人)', key: 'monthly', width: 210,
+    title: t('pages.settings.CampusControl.s145'), key: 'monthly', width: 210,
     render: (r: any) => (r.configured
-      ? h('span', { class: 'muted' }, `${r.monthlyTargets[currentMonthIdx.value]}（${currentMonthIdx.value + 1}月）· 展开看12月`)
+      ? h('span', { class: 'muted' }, t('pages.settings.CampusControl.s241', { n: currentMonthIdx.value + 1 }))
       : h('span', { class: 'muted' }, '—')),
   },
 ]
@@ -1091,56 +1091,56 @@ function renderDetailExpand(row: any) {
 }
 
 const indicatorColumns: DataTableColumns<ControlIndicator> = [
-  { title: '维度', key: 'dimensionName', width: 160 },
-  { title: '指标名称', key: 'name' },
+  { title: t('pages.settings.CampusControl.s146'), key: 'dimensionName', width: 160 },
+  { title: t('pages.settings.CampusControl.s147'), key: 'name' },
   {
-    title: '操作', key: 'actions', width: 120, fixed: 'right',
+    title: t('pages.settings.CampusControl.s148'), key: 'actions', width: 120, fixed: 'right',
     render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openIndicatorModal(r) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeIndicator(r) }, { default: () => '删除' }),
+      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openIndicatorModal(r) }, { default: () => t('pages.settings.CampusControl.s234') }),
+      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeIndicator(r) }, { default: () => t('pages.settings.CampusControl.s237') }),
     ]),
   },
 ]
 
 const dimColumns: DataTableColumns<ControlDimension> = [
-  { title: '维度名称', key: 'name' },
-  { title: '编码', key: 'code', width: 120, render: (r) => r.code || '—' },
+  { title: t('pages.settings.CampusControl.s149'), key: 'name' },
+  { title: t('pages.settings.CampusControl.s150'), key: 'code', width: 120, render: (r) => r.code || '—' },
   {
-    title: '启用', key: 'isActive', width: 70,
+    title: t('pages.settings.CampusControl.s151'), key: 'isActive', width: 70,
     render: (r) => h(NSwitch, {
       value: r.isActive, size: 'small',
       'onUpdate:value': async (v: boolean) => {
-        try { await updateDimension(r.id, { isActive: v }); r.isActive = v; message.success(v ? '已启用' : '已停用') }
-        catch (e) { message.error(extractApiError(e, '切换失败')) }
+        try { await updateDimension(r.id, { isActive: v }); r.isActive = v; message.success(v ? t('pages.settings.CampusControl.s231') : t('pages.settings.CampusControl.s242')) }
+        catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s243'))) }
       },
     }),
   },
   {
-    title: '操作', key: 'actions', width: 120, fixed: 'right',
+    title: t('pages.settings.CampusControl.s152'), key: 'actions', width: 120, fixed: 'right',
     render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openDimModal(r) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeDim(r) }, { default: () => '删除' }),
+      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openDimModal(r) }, { default: () => t('pages.settings.CampusControl.s234') }),
+      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeDim(r) }, { default: () => t('pages.settings.CampusControl.s237') }),
     ]),
   },
 ]
 
 const personColumns: DataTableColumns<Person> = [
-  { title: '候选人编号', key: 'code' }, { title: '姓名', key: 'name' }, { title: '部门', key: 'bu' },
-  { title: '院校', key: 'school' }, { title: '性别', key: 'sex' }, { title: '专业', key: 'major' },
-  { title: '月份', key: 'month' }, { title: '职务', key: 'position', render: (r) => r.position || '—' },
-  { title: '职级', key: 'level', render: (r) => r.level || '—' },
-  { title: '状态', key: 'status' },
-  { title: '计入核算', key: 'counted', render: (r) => h(NTag, { type: r.counted ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.counted ? '是' : '否') }) },
+  { title: t('pages.settings.CampusControl.s153'), key: 'code' }, { title: t('pages.settings.CampusControl.s154'), key: 'name' }, { title: t('pages.settings.CampusControl.s155'), key: 'bu' },
+  { title: t('pages.settings.CampusControl.s156'), key: 'school' }, { title: t('pages.settings.CampusControl.s157'), key: 'sex' }, { title: t('pages.settings.CampusControl.s158'), key: 'major' },
+  { title: t('pages.settings.CampusControl.s159'), key: 'month' }, { title: t('pages.settings.CampusControl.s160'), key: 'position', render: (r) => r.position || '—' },
+  { title: t('pages.settings.CampusControl.s161'), key: 'level', render: (r) => r.level || '—' },
+  { title: t('pages.settings.CampusControl.s162'), key: 'status' },
+  { title: t('pages.settings.CampusControl.s163'), key: 'counted', render: (r) => h(NTag, { type: r.counted ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.counted ? t('pages.settings.CampusControl.s267') : t('pages.settings.CampusControl.s268')) }) },
 ]
 
 // v2.6 录入校验只看人数。占比/占比状态/强度三列移除（占比仅用于规则配置时计算实际人数，
 // 不参与「是否可以录入」判定；strength 只对占比硬/软约束有意义，人数校验无此概念）。
 // 实时看板（ratioColumns）仍使用 strengthType/ratioStatusType/pct，此处不删工具函数。
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
-  { title: '适用范围', key: 'bu', width: 180, render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: '维度', key: 'dimension', width: 100 }, { title: '指标', key: 'indicator', width: 100 },
-  { title: '本月实际', key: 'monthActual', width: 100 }, { title: '本月目标', key: 'monthTarget', width: 100 },
-  { title: '人数状态', key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
+  { title: t('pages.settings.CampusControl.s230'), key: 'bu', width: 180, render: (r) => scopeText(r.bu, r.position, r.level) },
+  { title: t('pages.settings.CampusControl.s164'), key: 'dimension', width: 100 }, { title: t('pages.settings.CampusControl.s165'), key: 'indicator', width: 100 },
+  { title: t('pages.settings.CampusControl.s166'), key: 'monthActual', width: 100 }, { title: t('pages.settings.CampusControl.s167'), key: 'monthTarget', width: 100 },
+  { title: t('pages.settings.CampusControl.s168'), key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
 ]
 
 /* ============================ 规则导入 / 导出 ============================ */
@@ -1168,18 +1168,18 @@ function onExportIndicatorsSelect(key: 'xlsx' | 'csv') {
 async function onExportIndicators(format: 'xlsx' | 'csv' = 'xlsx') {
   try {
     await exportIndicators(format)
-    message.success(`已导出指标（${format}）`)
+    message.success(t('pages.settings.CampusControl.s244', { format }))
   } catch (e) {
-    message.error(extractApiError(e, '导出失败'))
+    message.error(extractApiError(e, t('pages.settings.CampusControl.s245')))
   }
 }
 async function onDownloadIndicatorTemplate() {
   // 导入弹窗内与工具栏的「下载模板」共用；默认 xlsx
   try {
     await downloadIndicatorTemplate('xlsx')
-    message.success('已下载指标导入模板')
+    message.success(t('pages.settings.CampusControl.s169'))
   } catch (e) {
-    message.error(extractApiError(e, '下载模板失败'))
+    message.error(extractApiError(e, t('pages.settings.CampusControl.s246')))
   }
 }
 function handleIndicatorImportUpload({ file, onFinish, onError }: any) {
@@ -1191,11 +1191,11 @@ function handleIndicatorImportUpload({ file, onFinish, onError }: any) {
     .then((res) => {
       indicatorImportDrawer.result = res
       if (res.success) {
-        message.success(`导入成功：新建 ${res.data.created} / 更新 ${res.data.updated} / 跳过 ${res.data.skipped}`)
+        message.success(t('pages.settings.CampusControl.s247', { created: res.data.created, updated: res.data.updated, skipped: res.data.skipped }))
         loadIndicators()
         onFinish()
       } else {
-        message.error(`导入失败：${res.data.errors.length} 处错误`)
+        message.error(t('pages.settings.CampusControl.s248', { n: res.data.errors.length }))
         onError()
       }
     })
@@ -1204,7 +1204,7 @@ function handleIndicatorImportUpload({ file, onFinish, onError }: any) {
       if (errRes?.data?.errors) {
         indicatorImportDrawer.result = errRes
       } else {
-        message.error(extractApiError(e, '导入失败'))
+        message.error(extractApiError(e, t('pages.settings.CampusControl.s249')))
       }
       onError()
     })
@@ -1222,7 +1222,7 @@ function downloadIndicatorImportErrorExcel() {
     })
     triggerDownload(blob, `campus_indicators_import_errors_${Date.now()}.xlsx`)
   } catch (e) {
-    message.error('错误明细 Excel 解析失败')
+    message.error(t('pages.settings.CampusControl.s170'))
   }
 }
 function onIndicatorImportFileRemove() {
@@ -1233,17 +1233,17 @@ function onIndicatorImportFileRemove() {
 async function onExportRules() {
   try {
     await exportRules()
-    message.success('已导出规则 Excel')
+    message.success(t('pages.settings.CampusControl.s171'))
   } catch (e) {
-    message.error(extractApiError(e, '导出失败'))
+    message.error(extractApiError(e, t('pages.settings.CampusControl.s245')))
   }
 }
 async function onDownloadTemplate() {
   try {
     await downloadRuleTemplate()
-    message.success('已下载导入模板')
+    message.success(t('pages.settings.CampusControl.s172'))
   } catch (e) {
-    message.error(extractApiError(e, '下载模板失败'))
+    message.error(extractApiError(e, t('pages.settings.CampusControl.s246')))
   }
 }
 
@@ -1256,12 +1256,12 @@ function handleImportUpload({ file, onFinish, onError }: any) {
     .then((res) => {
       importDrawer.result = res
       if (res.success) {
-        message.success(`导入成功：${res.data.groups} 组 / ${res.data.savedRules} 条规则`)
+        message.success(t('pages.settings.CampusControl.s250', { groups: res.data.groups, rules: res.data.savedRules }))
         loadRules()
         loadRatio()
         onFinish()
       } else {
-        message.error(`导入失败：${res.data.errors.length} 处错误`)
+        message.error(t('pages.settings.CampusControl.s248', { n: res.data.errors.length }))
         onError()
       }
     })
@@ -1270,7 +1270,7 @@ function handleImportUpload({ file, onFinish, onError }: any) {
       if (errRes?.data?.errors) {
         importDrawer.result = errRes
       } else {
-        message.error(extractApiError(e, '导入失败'))
+        message.error(extractApiError(e, t('pages.settings.CampusControl.s249')))
       }
       onError()
     })
@@ -1279,7 +1279,7 @@ function handleImportUpload({ file, onFinish, onError }: any) {
 function downloadImportErrorReport() {
   const errors = importDrawer.result?.data?.errors || []
   if (!errors.length) return
-  const text = ['规则导入失败原因明细', '====================', ...errors].join('\n')
+  const text = [t('pages.settings.CampusControl.s251'), '====================', ...errors].join('\n')
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
   triggerDownload(blob, `campus_rules_import_errors_${Date.now()}.txt`)
 }
@@ -1295,7 +1295,7 @@ function downloadImportErrorExcel() {
     })
     triggerDownload(blob, `campus_rules_import_errors_${Date.now()}.xlsx`)
   } catch (e) {
-    message.error('错误明细 Excel 解析失败，请改用 txt 报告')
+    message.error(t('pages.settings.CampusControl.s173'))
   }
 }
 function onImportFileRemove() {
@@ -1315,27 +1315,27 @@ function openDimModal(d?: ControlDimension) {
   dimModal.show = true
 }
 async function saveDim() {
-  if (!dimModal.name.trim()) { message.warning('请填写维度名称'); return }
+  if (!dimModal.name.trim()) { message.warning(t('pages.settings.CampusControl.s174')); return }
   try {
     if (dimModal.editingId) await updateDimension(dimModal.editingId, { name: dimModal.name.trim(), code: dimModal.code.trim() })
     else await createDimension({ name: dimModal.name.trim(), code: dimModal.code.trim() })
-    message.success('保存成功')
+    message.success(t('pages.settings.CampusControl.s175'))
     dimModal.show = false
     await loadDimensions()
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
+  } catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s226'))) }
 }
 function removeDim(d: ControlDimension) {
   deleteDimension(d.id)
     .then(async () => {
-      message.success('维度已删除')
+      message.success(t('pages.settings.CampusControl.s176'))
       await Promise.all([loadDimensions(), loadIndicators()])
-      undoable(`已删除维度「${d.name}」`, async () => {
+      undoable(t('pages.settings.CampusControl.s252', { name: d.name }), async () => {
         await restoreDimension(d.id)
-        message.success('已撤销删除')
+        message.success(t('pages.settings.CampusControl.s177'))
         await Promise.all([loadDimensions(), loadIndicators()])
       })
     })
-    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
+    .catch((e: any) => message.error(extractApiError(e, t('pages.settings.CampusControl.s253'))))
 }
 
 /* ============================ 指标 CRUD ============================ */
@@ -1347,27 +1347,27 @@ function openIndicatorModal(ind?: ControlIndicator) {
   indicatorModal.show = true
 }
 async function saveIndicator() {
-  if (!indicatorModal.dimensionId || !indicatorModal.name.trim()) { message.warning('请选择维度并填写指标名称'); return }
+  if (!indicatorModal.dimensionId || !indicatorModal.name.trim()) { message.warning(t('pages.settings.CampusControl.s178')); return }
   try {
     if (indicatorModal.editingId) await updateIndicator(indicatorModal.editingId, { name: indicatorModal.name.trim() })
     else await createIndicator({ dimension: indicatorModal.dimensionId, name: indicatorModal.name.trim() })
-    message.success('保存成功')
+    message.success(t('pages.settings.CampusControl.s179'))
     indicatorModal.show = false
     await loadIndicators()
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
+  } catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s226'))) }
 }
 function removeIndicator(ind: ControlIndicator) {
   deleteIndicator(ind.id)
     .then(async () => {
-      message.success('指标已删除')
+      message.success(t('pages.settings.CampusControl.s180'))
       await loadIndicators()
-      undoable(`已删除指标「${ind.name}」`, async () => {
+      undoable(t('pages.settings.CampusControl.s254', { name: ind.name }), async () => {
         await restoreIndicator(ind.id)
-        message.success('已撤销删除')
+        message.success(t('pages.settings.CampusControl.s181'))
         await loadIndicators()
       })
     })
-    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
+    .catch((e: any) => message.error(extractApiError(e, t('pages.settings.CampusControl.s253'))))
 }
 
 /* ============================ 录入校验 ============================ */
@@ -1385,24 +1385,24 @@ async function runValidate() {
       bu: draft.bu, position: draft.position, level: draft.level,
       school: draft.school, sex: draft.sex, major: draft.major, month: draft.month,
     })
-  } catch (e) { message.error(extractApiError(e, '校验失败')) }
+  } catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s255'))) }
   finally { loading.validate = false }
 }
 const canConfirmEntry = computed(
   () => !!draft.code.trim() && !!draft.name.trim() && validation.value != null && validation.value.verdictLevel !== 'block',
 )
 async function confirmEntry() {
-  if (!draft.code.trim() || !draft.name.trim()) { message.warning('请先填写候选人编号与姓名'); return }
+  if (!draft.code.trim() || !draft.name.trim()) { message.warning(t('pages.settings.CampusControl.s182')); return }
   try {
     await upsertPerson({
       code: draft.code.trim(), name: draft.name.trim(), bu: draft.bu,
       school: draft.school, sex: draft.sex, major: draft.major, month: draft.month, status: draft.status, counted: true,
       position: draft.position, level: draft.level,
     })
-    message.success('已录入人员')
+    message.success(t('pages.settings.CampusControl.s183'))
     validation.value = null
     await Promise.all([loadPersons(), loadRatio()])
-  } catch (e) { message.error(extractApiError(e, '录入失败')) }
+  } catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s256'))) }
 }
 
 /* ============================ 人员 CRUD ============================ */
@@ -1426,7 +1426,7 @@ function openPersonModal(p?: Person) {
   personModal.show = true
 }
 async function savePerson() {
-  if (!personModal.code.trim() || !personModal.name.trim()) { message.warning('请先填写候选人编号与姓名'); return }
+  if (!personModal.code.trim() || !personModal.name.trim()) { message.warning(t('pages.settings.CampusControl.s184')); return }
   try {
     await upsertPerson({
       id: personModal.editingId ?? undefined,
@@ -1436,23 +1436,23 @@ async function savePerson() {
       actualEntryDate: personModal.actualEntryDate,
       position: personModal.position, level: personModal.level, counted: personModal.counted,
     })
-    message.success('保存成功')
+    message.success(t('pages.settings.CampusControl.s185'))
     personModal.show = false
     await loadPersons()
-  } catch (e) { message.error(extractApiError(e, '保存失败')) }
+  } catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s226'))) }
 }
 function removePerson(p: Person) {
   deletePerson(p.id)
     .then(async () => {
-      message.success('人员已删除')
+      message.success(t('pages.settings.CampusControl.s186'))
       await loadPersons()
-      undoable(`已删除「${p.name}（${p.code}）」`, async () => {
+      undoable(t('pages.settings.CampusControl.s257', { name: p.name, code: p.code }), async () => {
         await restorePerson(p.id)
-        message.success('已撤销删除')
+        message.success(t('pages.settings.CampusControl.s187'))
         await loadPersons()
       })
     })
-    .catch((e: any) => message.error(extractApiError(e, '删除失败')))
+    .catch((e: any) => message.error(extractApiError(e, t('pages.settings.CampusControl.s253'))))
 }
 
 async function loadPersons(silent = false) {
@@ -1476,7 +1476,7 @@ async function loadPersons(silent = false) {
     if (personFilterSearch.value.trim()) params.search = personFilterSearch.value.trim()
     persons.value = await listPersons(params)
   }
-  catch (e) { if (!silent) message.error(extractApiError(e, '加载人员失败')); throw e }
+  catch (e) { if (!silent) message.error(extractApiError(e, t('pages.settings.CampusControl.s258'))); throw e }
   finally { loading.persons = false }
 }
 // 任一筛选变化即时重载（分页计数由后端按过滤结果返回，保持准确）
@@ -1495,12 +1495,12 @@ onMounted(async () => {
     loadRules(true),
   ])
   const failures = results
-    .map((r, i) => ({ r, label: ['维度', '指标', '人员', '看板', '规则'][i] }))
+    .map((r, i) => ({ r, label: [t('pages.settings.CampusControl.s259'), t('pages.settings.CampusControl.s260'), t('pages.settings.CampusControl.s261'), t('pages.settings.CampusControl.s262'), t('pages.settings.CampusControl.s263')][i] }))
     .filter((x) => x.r.status === 'rejected')
   if (failures.length === 1) {
-    message.error(`加载${failures[0].label}失败：${(failures[0].r as PromiseRejectedResult).reason?.response?.data?.message || (failures[0].r as PromiseRejectedResult).reason?.message || '请稍后重试'}`)
+    message.error(t('pages.settings.CampusControl.s264', { label: failures[0].label, msg: (failures[0].r as PromiseRejectedResult).reason?.response?.data?.message || (failures[0].r as PromiseRejectedResult).reason?.message || t('pages.settings.CampusControl.s265') }))
   } else if (failures.length > 1) {
-    message.error(`加载失败（${failures.length}/5）：${failures.map((x) => x.label).join('、')}。请稍后重试。`)
+    message.error(t('pages.settings.CampusControl.s266', { n: failures.length, labels: failures.map((x) => x.label).join('、') }))
   }
 })
 </script>
