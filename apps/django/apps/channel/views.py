@@ -4,6 +4,7 @@ from rest_framework import viewsets
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 
@@ -11,7 +12,7 @@ from .models import Channel, ChannelCost
 from .serializers import ChannelCostSerializer, ChannelSerializer
 
 
-class ChannelViewSet(AuditMixin, viewsets.ModelViewSet):
+class ChannelViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """招聘渠道 ViewSet"""
     queryset = Channel.objects.all()
     serializer_class = ChannelSerializer
@@ -25,7 +26,7 @@ class ChannelViewSet(AuditMixin, viewsets.ModelViewSet):
     ordering = ['name']
 
 
-class ChannelCostViewSet(AuditMixin, viewsets.ModelViewSet):
+class ChannelCostViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """渠道成本 ViewSet"""
     queryset = ChannelCost.objects.all()
     serializer_class = ChannelCostSerializer
