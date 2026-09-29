@@ -15,7 +15,7 @@
       <div class="spacer"></div>
       <n-button type="primary" class="gradient-btn" @click="openCreateProcess">
         <template #icon><n-icon :component="AddOutline" /></template>
-        新建流程
+        {{ t('pages.settings.RecruitmentProcess.s4') }}
       </n-button>
     </div>
 
@@ -81,11 +81,11 @@ const tableMaxHeight = computed(() => {
   return Math.max(320, window.innerHeight - 232)
 })
 
-const columns = [
-  { title: '流程编号', key: 'code', width: 100 },
-  { title: '流程名称', key: 'name', width: 200, ellipsis: true, ellipsisProps: { tooltip: true } },
+const columns = computed(() => [
+  { title: t('pages.settings.RecruitmentProcess.s5'), key: 'code', width: 100 },
+  { title: t('pages.settings.RecruitmentProcess.s6'), key: 'name', width: 200, ellipsis: true, ellipsisProps: { tooltip: true } },
   {
-    title: '适用部门',
+    title: t('pages.settings.RecruitmentProcess.s7'),
     key: 'applicableScope',
     width: 150,
     ellipsis: true,
@@ -93,24 +93,24 @@ const columns = [
     render: (r: any) => formatScopeDepts(r.applicableScope),
   },
   {
-    title: '阶段数',
+    title: t('pages.settings.RecruitmentProcess.s8'),
     key: 'stageCount',
     width: 80,
     render: (row: any) => row.stageCount ?? row._count?.links ?? 0,
   },
   {
-    title: '状态',
+    title: t('pages.settings.RecruitmentProcess.s9'),
     key: 'status',
     width: 90,
     render: (row: any) => {
       const enabled = row.status === 'ENABLED'
-      return h(NTag, { type: enabled ? 'success' : 'default' }, { default: () => enabled ? '启用' : '已归档' })
+      return h(NTag, { type: enabled ? 'success' : 'default' }, { default: () => enabled ? t('pages.settings.RecruitmentProcess.s10') : t('pages.settings.RecruitmentProcess.s11') })
     },
   },
-  { title: '最后修改人', key: 'updatedBy', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' },
-  { title: '最后修改时间', key: 'updatedAt', width: 170, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => formatDate(r.updatedAt) },
+  { title: t('pages.settings.RecruitmentProcess.s12'), key: 'updatedBy', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' },
+  { title: t('pages.settings.RecruitmentProcess.s13'), key: 'updatedAt', width: 170, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => formatDate(r.updatedAt) },
   {
-    title: '操作',
+    title: t('pages.settings.RecruitmentProcess.s14'),
     key: 'action',
     width: 160,
     fixed: 'right' as const,
@@ -120,7 +120,7 @@ const columns = [
         type: 'primary',
         text: true,
         onClick: () => openProcessModal(row),
-      }, { default: () => '编辑' }),
+      }, { default: () => t('pages.settings.RecruitmentProcess.s15') }),
       // 2026-09-08: 流程增加删除入口。is_template=True 的流程不可删（属预置模板），
       // 被需求引用的不可删（后端 PermissionDenied 兜底，FE 用 referenceCount 提前禁用）。
       h(NPopconfirm, {
@@ -132,16 +132,16 @@ const columns = [
           type: 'error',
           text: true,
           disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
-        }, { default: () => '删除' }),
+        }, { default: () => t('pages.settings.RecruitmentProcess.s16') }),
         default: () => row.isTemplate
-          ? '预置模板不可删除'
+          ? t('pages.settings.RecruitmentProcess.s17')
           : (row.referenceCount ?? 0) > 0
-            ? `被 ${row.referenceCount} 个需求引用，请先在需求中解绑`
-            : '确定要删除此流程吗？删除后不可恢复',
+            ? t('pages.settings.RecruitmentProcess.s18', { count: row.referenceCount })
+            : t('pages.settings.RecruitmentProcess.s19'),
       }),
     ]),
   },
-]
+])
 
 function formatDate(s: string) {
   return s ? new Date(s).toLocaleString('zh-CN', { hour12: false }) : '-'
@@ -149,28 +149,28 @@ function formatDate(s: string) {
 
 /** 适用部门字段 (JSON 数组) */
 function formatDepts(d: any): string {
-  if (!d) return '全部'
+  if (!d) return t('pages.settings.RecruitmentProcess.s20')
   if (Array.isArray(d)) {
-    if (d.length === 0) return '全部'
+    if (d.length === 0) return t('pages.settings.RecruitmentProcess.s20')
     if (d.length <= 2) return d.join(', ')
     return `${d.slice(0, 2).join(', ')} +${d.length - 2}`
   }
-  return '全部'
+  return t('pages.settings.RecruitmentProcess.s20')
 }
 
 /** 从结构化 applicable_scope 提取部门条件，映射成名称；无部门条件 = 全部。
  *  兼容新格式 scope.indicators 与旧格式 scope.items（与 ProcessDetailModal.findIndicator 一致）。 */
 function formatScopeDepts(scope: any): string {
-  if (!scope) return '全部'
+  if (!scope) return t('pages.settings.RecruitmentProcess.s20')
   const list = scope.indicators || scope.items
-  if (!Array.isArray(list)) return '全部'
+  if (!Array.isArray(list)) return t('pages.settings.RecruitmentProcess.s20')
   const deptIds = list
     .filter((it: any) => it && it.key === 'department' && it.mode === 'include' && Array.isArray(it.values))
     .flatMap((it: any) => it.values)
-  if (deptIds.length === 0) return '全部'
+  if (deptIds.length === 0) return t('pages.settings.RecruitmentProcess.s20')
   const names = deptIds.map((id: any) => deptMap.value[String(id)] || String(id))
   if (names.length <= 2) return names.join('、')
-  return `${names.slice(0, 2).join('、')} 等${names.length}个部门`
+  return `${names.slice(0, 2).join('、')} ${t('pages.settings.RecruitmentProcess.s22', { count: names.length })}`
 }
 
 async function loadList() {
@@ -178,7 +178,7 @@ async function loadList() {
   try {
     processes.value = await listProcesses({ keyword: keyword.value || undefined })
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '加载失败')
+    message.error(e?.response?.data?.message || t('pages.settings.RecruitmentProcess.s23'))
   } finally {
     loading.value = false
   }
@@ -214,20 +214,20 @@ function onProcessCopied(_newProcessId: string) {
 // 422（被引用）/ 4xx 的错误信息直接 toast 给用户。
 async function handleDelete(row: any) {
   if (row.isTemplate) {
-    message.warning('预置模板不可删除')
+    message.warning(t('pages.settings.RecruitmentProcess.s17'))
     return
   }
   if ((row.referenceCount ?? 0) > 0) {
-    message.warning(`被 ${row.referenceCount} 个需求引用，请先在需求中解绑`)
+    message.warning(t('pages.settings.RecruitmentProcess.s18', { count: row.referenceCount }))
     return
   }
   try {
     await deleteProcess(row.id)
-    message.success(`流程「${row.name}」已删除`)
+    message.success(t('pages.settings.RecruitmentProcess.s24', { name: row.name }))
     loadList()
   } catch (e: any) {
     const errBody = e?.response?.data
-    message.error(errBody?.message || errBody?.detail || '删除失败')
+    message.error(errBody?.message || errBody?.detail || t('pages.settings.RecruitmentProcess.s25'))
   }
 }
 

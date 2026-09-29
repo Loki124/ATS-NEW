@@ -7,14 +7,14 @@
           <n-tag :bordered="false" type="primary" size="small" round>{{ t('pages.settings.ApplicationFormSettings.s2') }}</n-tag>
         </div>
         <p class="page-subtitle">
-          配置候选人投递「申请表」与入职「登记表」包含的多套表单、字段与必填规则，右侧实时预览候选人填写效果。
-          字段来源于动态字段模块的「Candidate」资源。
+          {{ t('pages.settings.ApplicationFormSettings.s3') }}
+          {{ t('pages.settings.ApplicationFormSettings.s4') }}
         </p>
       </div>
       <div class="page-header-actions">
         <n-button type="primary" size="small" :loading="creating" @click="onAddForm">
           <template #icon><n-icon :component="AddOutline" /></template>
-          添加申请表
+          {{ t('pages.settings.ApplicationFormSettings.s5') }}
         </n-button>
       </div>
     </div>
@@ -24,14 +24,14 @@
         <!-- 左：表单列表 -->
         <section class="glass-card sr-list">
           <header class="sr-panel-head">
-            <h2 class="sr-panel-title">表单列表</h2>
-            <span class="sr-count">{{ forms.length }} 套</span>
+            <h2 class="sr-panel-title">{{ t('pages.settings.ApplicationFormSettings.s6') }}</h2>
+            <span class="sr-count">{{ forms.length }}{{ t('pages.settings.ApplicationFormSettings.s7') }}</span>
           </header>
 
           <n-spin :show="loading">
             <n-empty
               v-if="!loading && !forms.length"
-              description="暂无表单，点击右上角「添加申请表」创建第一套"
+              :description="t('pages.settings.ApplicationFormSettings.s8')"
               class="sr-empty"
             />
             <div v-else class="sr-list-body">
@@ -50,15 +50,15 @@
                     size="tiny"
                     :type="f.formType === 'application' ? 'info' : 'default'"
                   >
-                    {{ f.formType === 'application' ? '申请表' : '登记表' }}
+                    {{ f.formType === 'application' ? t('pages.settings.ApplicationFormSettings.s21') : t('pages.settings.ApplicationFormSettings.s20') }}
                   </n-tag>
                 </div>
                 <div class="sr-form-card-meta">
-                  {{ f.fields.filter((x) => x.enabled).length }} 个字段启用
-                  <span v-if="f.departments.length">· {{ f.departments.length }} 个部门</span>
+                  {{ f.fields.filter((x) => x.enabled).length }}{{ t('pages.settings.ApplicationFormSettings.s32') }}
+                  <span v-if="f.departments.length">· {{ f.departments.length }}{{ t('pages.settings.ApplicationFormSettings.s9') }}</span>
                 </div>
                 <div class="sr-form-card-actions" @click.stop>
-                  <n-button size="tiny" tertiary @click="startEdit(f.id)">编辑</n-button>
+                  <n-button size="tiny" tertiary @click="startEdit(f.id)">{{ t('pages.settings.ApplicationFormSettings.s13') }}</n-button>
                   <n-button
                     size="tiny"
                     tertiary
@@ -66,7 +66,7 @@
                     :loading="deletingId === f.id"
                     @click="onDelete(f)"
                   >
-                    删除
+                    {{ t('pages.settings.ApplicationFormSettings.s10') }}
                   </n-button>
                 </div>
               </button>
@@ -78,7 +78,7 @@
         <section class="glass-card sr-preview">
           <div class="sr-preview-scroll">
             <template v-if="!selected && !editing">
-              <n-empty description="从左侧选择一套表单查看预览，或新建表单" class="sr-empty" />
+              <n-empty :description="t('pages.settings.ApplicationFormSettings.s11')" class="sr-empty" />
             </template>
 
             <template v-else-if="!editing">
@@ -86,19 +86,19 @@
                 <div>
                   <h2 class="sr-panel-title">{{ selected?.name }}</h2>
                   <span class="sr-preview-sub">
-                    {{ selected?.formType === 'application' ? '申请表' : '登记表' }}
-                    <span v-if="selected?.departments.length">· 适用 {{ selected?.departments.join('、') }}</span>
+                    {{ selected?.formType === 'application' ? t('pages.settings.ApplicationFormSettings.s21') : t('pages.settings.ApplicationFormSettings.s20') }}
+                    <span v-if="selected?.departments.length">{{ t('pages.settings.ApplicationFormSettings.s12') }}{{ selected?.departments.join('、') }}</span>
                   </span>
                 </div>
                 <n-button v-if="selected" size="small" tertiary @click="startEdit(selected.id)">
                   <template #icon><n-icon :component="CreateOutline" /></template>
-                  编辑
+                  {{ t('pages.settings.ApplicationFormSettings.s13') }}
                 </n-button>
               </header>
 
               <div class="sr-preview-body">
                 <div v-if="!enabledFields.length" class="sr-preview-empty">
-                  该表单尚未开启任何字段
+                  {{ t('pages.settings.ApplicationFormSettings.s14') }}
                 </div>
                 <div v-for="grp in groupedEnabled" :key="grp.name" class="sr-form-group">
                   <div class="sr-form-group-title">{{ grp.name }}</div>
@@ -118,14 +118,14 @@
                         v-else-if="isSingleChoice(m.fieldType)"
                         disabled
                         :options="selectOptions(m)"
-                        placeholder="请选择"
+                        :placeholder="t('pages.settings.ApplicationFormSettings.s15')"
                       />
                       <n-select
                         v-else-if="isMultiChoice(m.fieldType)"
                         multiple
                         disabled
                         :options="selectOptions(m)"
-                        placeholder="请选择"
+                        :placeholder="t('pages.settings.ApplicationFormSettings.s16')"
                       />
                       <div v-else-if="m.fieldType === 'ATTACHMENT'" class="sr-attachment">
                         <!-- 2026-09-16 (兵哥): 附件字段在预览中呈现真实上传控件(禁用态) -->
@@ -140,7 +140,7 @@
                         type="textarea"
                         disabled
                         :rows="3"
-                        :placeholder="m.placeholder || ('请输入' + m.label)"
+                        :placeholder="m.placeholder || (t('pages.settings.ApplicationFormSettings.s39') + m.label)"
                       />
                       <RegionCascader
                         v-else-if="isRegionType(m.fieldType)"
@@ -166,7 +166,7 @@
                       <n-space v-else-if="m.fieldType === 'NUMBER'" align="center" :size="8">
                         <n-input
                           disabled
-                          :placeholder="m.placeholder || ('请输入' + m.label)"
+                          :placeholder="m.placeholder || (t('pages.settings.ApplicationFormSettings.s39') + m.label)"
                         />
                         <n-text v-if="(m.validation as FieldValidation | null)?.unit" depth="3">
                           {{ (m.validation as FieldValidation | null)?.unit }}
@@ -184,7 +184,7 @@
                       <n-input
                         v-else
                         disabled
-                        :placeholder="m.placeholder || ('请输入' + m.label)"
+                        :placeholder="m.placeholder || (t('pages.settings.ApplicationFormSettings.s39') + m.label)"
                       />
                     </div>
                   </div>
@@ -194,55 +194,55 @@
 
             <template v-else>
               <header class="sr-panel-head">
-                <h2 class="sr-panel-title">{{ draft.id ? '编辑表单' : '新建表单' }}</h2>
+                <h2 class="sr-panel-title">{{ draft.id ? t('pages.settings.ApplicationFormSettings.s33') : t('pages.settings.ApplicationFormSettings.s34') }}</h2>
                 <span class="sr-save-hint" :class="{ saved, saving }">
-                  {{ saving ? '保存中…' : saved ? '已保存' : '未保存' }}
+                  {{ saving ? t('pages.settings.ApplicationFormSettings.s35') : saved ? t('pages.settings.ApplicationFormSettings.s36') : t('pages.settings.ApplicationFormSettings.s37') }}
                 </span>
               </header>
 
               <n-spin :show="saving">
                 <div class="sr-edit-body">
                   <div class="sr-edit-row">
-                    <label class="sr-edit-label">表单名称</label>
+                    <label class="sr-edit-label">{{ t('pages.settings.ApplicationFormSettings.s17') }}</label>
                     <n-input
                       v-model:value="draft.name"
-                      placeholder="如：猎头更新简历登记表"
+                      :placeholder="t('pages.settings.ApplicationFormSettings.s18')"
                       :maxlength="128"
                     />
                   </div>
 
                   <div class="sr-edit-row">
-                    <label class="sr-edit-label">表单类型</label>
+                    <label class="sr-edit-label">{{ t('pages.settings.ApplicationFormSettings.s19') }}</label>
                     <n-radio-group v-model:value="draft.formType">
-                      <n-radio value="registration">登记表</n-radio>
-                      <n-radio value="application">申请表</n-radio>
+                      <n-radio value="registration">{{ t('pages.settings.ApplicationFormSettings.s20') }}</n-radio>
+                      <n-radio value="application">{{ t('pages.settings.ApplicationFormSettings.s21') }}</n-radio>
                     </n-radio-group>
                   </div>
 
                   <div class="sr-edit-row">
-                    <label class="sr-edit-label">应用部门</label>
+                    <label class="sr-edit-label">{{ t('pages.settings.ApplicationFormSettings.s22') }}</label>
                     <n-select
                       v-model:value="draft.departments"
                       multiple
                       filterable
                       tag
-                      placeholder="选择或输入部门"
+                      :placeholder="t('pages.settings.ApplicationFormSettings.s23')"
                       :options="deptOptions"
                     >
-                      <template #empty>可直接输入部门名称后按回车添加</template>
+                      <template #empty>{{ t('pages.settings.ApplicationFormSettings.s38') }}</template>
                     </n-select>
                   </div>
 
                   <div class="sr-edit-row">
-                    <label class="sr-edit-label">填写模式</label>
+                    <label class="sr-edit-label">{{ t('pages.settings.ApplicationFormSettings.s24') }}</label>
                     <n-radio-group v-model:value="draft.mode">
-                      <n-radio value="default">默认</n-radio>
-                      <n-radio value="step">分步</n-radio>
+                      <n-radio value="default">{{ t('pages.settings.ApplicationFormSettings.s25') }}</n-radio>
+                      <n-radio value="step">{{ t('pages.settings.ApplicationFormSettings.s26') }}</n-radio>
                     </n-radio-group>
                   </div>
 
                   <div class="sr-edit-fields">
-                    <div class="sr-edit-fields-head">字段配置（按分组）</div>
+                    <div class="sr-edit-fields-head">{{ t('pages.settings.ApplicationFormSettings.s27') }}</div>
                     <div
                       v-for="grp in groupedAllFields"
                       :key="grp.name"
@@ -264,14 +264,14 @@
                             size="small"
                             @update:value="onFieldEnabledChange(item.fieldKey, item.group, $event)"
                           />
-                          <span class="sr-toggle-label">显示</span>
+                          <span class="sr-toggle-label">{{ t('pages.settings.ApplicationFormSettings.s28') }}</span>
                           <n-switch
                             :value="item.required"
                             size="small"
                             :disabled="!item.enabled"
                             @update:value="onFieldRequiredChange(item.fieldKey, item.group, $event)"
                           />
-                          <span class="sr-toggle-label" :class="{ disabled: !item.enabled }">必填</span>
+                          <span class="sr-toggle-label" :class="{ disabled: !item.enabled }">{{ t('pages.settings.ApplicationFormSettings.s29') }}</span>
                         </div>
                       </div>
                     </div>
@@ -283,9 +283,9 @@
 
           <template v-if="editing">
             <div class="sr-edit-actions">
-              <n-button tertiary @click="cancelEdit">取消</n-button>
+              <n-button tertiary @click="cancelEdit">{{ t('pages.settings.ApplicationFormSettings.s30') }}</n-button>
               <n-button type="primary" :loading="saving" @click="saveEdit">
-                保存表单
+                {{ t('pages.settings.ApplicationFormSettings.s31') }}
               </n-button>
             </div>
           </template>
@@ -409,7 +409,7 @@ function mergeFormFields(form: RegistrationForm | null): MergedField[] {
         options: field.options || [],
         enabled: c ? c.enabled : field.isVisible,
         required: c ? c.required : field.isRequired,
-        group: c?.group || field.groupName || '基础信息',
+        group: c?.group || field.groupName || t('pages.settings.ApplicationFormSettings.s50'),
       }
     })
 }
@@ -516,7 +516,7 @@ function cancelEdit() {
 
 async function saveEdit() {
   if (!draft.value.name.trim()) {
-    message.warning('请填写表单名称')
+    message.warning(t('pages.settings.ApplicationFormSettings.s40'))
     return
   }
   saving.value = true
@@ -534,17 +534,17 @@ async function saveEdit() {
       const idx = forms.value.findIndex((f) => f.id === updated.id)
       if (idx >= 0) forms.value[idx] = updated
       else forms.value.push(updated)
-      message.success('表单已保存')
+      message.success(t('pages.settings.ApplicationFormSettings.s41'))
     } else {
       const created = await createRegistrationForm(payload)
       forms.value.push(created)
       selectedId.value = created.id
-      message.success('表单已创建')
+      message.success(t('pages.settings.ApplicationFormSettings.s42'))
     }
     saved.value = true
     editing.value = false
   } catch (e: any) {
-    message.error(`保存失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(`${t('pages.settings.ApplicationFormSettings.s43')}${e?.response?.data?.message || e?.message || t('pages.settings.ApplicationFormSettings.s44')}`)
   } finally {
     saving.value = false
   }
@@ -552,10 +552,10 @@ async function saveEdit() {
 
 function onDelete(f: RegistrationForm) {
   dialog.warning({
-    title: '删除表单',
-    content: `确定删除「${f.name}」？删除后可通过数据库恢复，操作不可在界面撤销。`,
-    positiveText: '删除',
-    negativeText: '取消',
+    title: t('pages.settings.ApplicationFormSettings.s45'),
+    content: t('pages.settings.ApplicationFormSettings.s46', { name: f.name }),
+    positiveText: t('pages.settings.ApplicationFormSettings.s10'),
+    negativeText: t('pages.settings.ApplicationFormSettings.s30'),
     onPositiveClick: async () => {
       deletingId.value = f.id
       try {
@@ -565,9 +565,9 @@ function onDelete(f: RegistrationForm) {
           selectedId.value = null
           editing.value = false
         }
-        message.success('已删除')
+        message.success(t('pages.settings.ApplicationFormSettings.s47'))
       } catch (e: any) {
-        message.error(`删除失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+        message.error(`${t('pages.settings.ApplicationFormSettings.s48')}${e?.response?.data?.message || e?.message || t('pages.settings.ApplicationFormSettings.s44')}`)
       } finally {
         deletingId.value = null
       }
@@ -586,7 +586,7 @@ async function load() {
     forms.value = fr
     if (!selectedId.value && fr.length) selectForm(fr[0].id)
   } catch (e: any) {
-    message.error(`加载失败：${e?.response?.data?.message || e?.message || '未知错误'}`)
+    message.error(`${t('pages.settings.ApplicationFormSettings.s49')}${e?.response?.data?.message || e?.message || t('pages.settings.ApplicationFormSettings.s44')}`)
   } finally {
     loading.value = false
   }
