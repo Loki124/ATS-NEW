@@ -23,7 +23,7 @@
           </n-radio-group>
           <n-button :loading="loading" @click="loadList">
             <template #icon><n-icon :component="RefreshOutline" /></template>
-            刷新
+            {{ t('pages.settings.RegistrationApproval.s3') }}
           </n-button>
         </div>
       </div>
@@ -38,7 +38,7 @@
         />
         <n-empty
           v-if="!loading && list.length === 0"
-          description="暂无符合条件的注册申请"
+          :description="t('pages.settings.RegistrationApproval.s4')"
           style="padding: 40px 0"
         />
       </n-card>
@@ -47,23 +47,23 @@
       <n-modal
         v-model:show="rejectModalVisible"
         preset="card"
-        title="拒绝注册申请"
+        :title="t('pages.settings.RegistrationApproval.s5')"
         :style="{ width: '520px' }"
         :mask-closable="false"
       >
         <n-alert type="warning" :show-icon="true" style="margin-bottom: 16px">
-          账号 <strong>{{ rejectingApp?.email }}</strong> 将保持未激活状态，申请人登录时会看到「申请已被拒绝」。
+          {{ t('pages.settings.RegistrationApproval.s9', { email: rejectingApp?.email }) }}
         </n-alert>
         <n-input
           v-model:value="rejectReason"
           type="textarea"
-          placeholder="请填写拒绝理由（可选，将反馈给申请人）"
+          :placeholder="t('pages.settings.RegistrationApproval.s6')"
           :autosize="{ minRows: 3, maxRows: 6 }"
         />
         <template #footer>
           <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-            <n-button @click="rejectModalVisible = false">取消</n-button>
-            <n-button type="error" :loading="rejecting" @click="confirmReject">确认拒绝</n-button>
+            <n-button @click="rejectModalVisible = false">{{ t('pages.settings.RegistrationApproval.s7') }}</n-button>
+            <n-button type="error" :loading="rejecting" @click="confirmReject">{{ t('pages.settings.RegistrationApproval.s8') }}</n-button>
           </div>
         </template>
       </n-modal>
@@ -101,55 +101,55 @@ const list = ref<RegApp[]>([])
 const statusFilter = ref('PENDING')
 
 const statusOptions = [
-  { label: '待审核', value: 'PENDING' },
-  { label: '已通过', value: 'APPROVED' },
-  { label: '已拒绝', value: 'REJECTED' },
-  { label: '全部', value: 'ALL' },
+  { label: t('pages.settings.RegistrationApproval.s10'), value: 'PENDING' },
+  { label: t('pages.settings.RegistrationApproval.s11'), value: 'APPROVED' },
+  { label: t('pages.settings.RegistrationApproval.s12'), value: 'REJECTED' },
+  { label: t('pages.settings.RegistrationApproval.s13'), value: 'ALL' },
 ]
 
 const statusMeta: Record<RegApp['status'], { text: string; type: 'warning' | 'success' | 'error' }> = {
-  PENDING: { text: '待审核', type: 'warning' },
-  APPROVED: { text: '已通过', type: 'success' },
-  REJECTED: { text: '已拒绝', type: 'error' },
+  PENDING: { text: t('pages.settings.RegistrationApproval.s10'), type: 'warning' },
+  APPROVED: { text: t('pages.settings.RegistrationApproval.s11'), type: 'success' },
+  REJECTED: { text: t('pages.settings.RegistrationApproval.s12'), type: 'error' },
 }
 
 const columns: DataTableColumns<RegApp> = [
-  { title: '邮箱 / 账号', key: 'email', minWidth: 200, render: (row) => h('div', [
+  { title: t('pages.settings.RegistrationApproval.s14'), key: 'email', minWidth: 200, render: (row) => h('div', [
     h('div', { style: 'font-weight: 600; color: var(--ink);' }, row.email),
     h('div', { style: 'font-size: 12px; color: var(--ink-faint);' }, row.username),
   ]) },
   // 后端 camelCase：字段名是 fullName / emailVerified，写成 full_name 会永远取不到值
-  { title: '姓名', key: 'fullName', minWidth: 110,
+  { title: t('pages.settings.RegistrationApproval.s15'), key: 'fullName', minWidth: 110,
     render: (row) => row.fullName || h('span', { style: 'color: var(--ink-faint);' }, '—') },
-  { title: '状态', key: 'status', width: 100,
+  { title: t('pages.settings.RegistrationApproval.s16'), key: 'status', width: 100,
     render: (row) => h(NTag, { type: statusMeta[row.status].type, size: 'small', round: true },
       { default: () => statusMeta[row.status].text }) },
-  { title: '邮箱验证', key: 'emailVerified', width: 100,
+  { title: t('pages.settings.RegistrationApproval.s17'), key: 'emailVerified', width: 100,
     render: (row) => row.emailVerified
-      ? h(NTag, { type: 'success', size: 'small', round: true }, { default: () => '已验证' })
-      : h(NTag, { type: 'default', size: 'small', round: true }, { default: () => '未验证' }) },
-  { title: '申请时间', key: 'createdAt', width: 170,
+      ? h(NTag, { type: 'success', size: 'small', round: true }, { default: () => t('pages.settings.RegistrationApproval.s18') })
+      : h(NTag, { type: 'default', size: 'small', round: true }, { default: () => t('pages.settings.RegistrationApproval.s19') }) },
+  { title: t('pages.settings.RegistrationApproval.s20'), key: 'createdAt', width: 170,
     render: (row) => new Date(row.createdAt).toLocaleString('zh-CN', { hour12: false }) },
-  { title: '审核人', key: 'reviewedByName', width: 110,
+  { title: t('pages.settings.RegistrationApproval.s21'), key: 'reviewedByName', width: 110,
     render: (row) => row.reviewedByName || h('span', { style: 'color: var(--ink-faint);' }, '—') },
-  { title: '拒绝理由', key: 'rejectReason', minWidth: 160,
+  { title: t('pages.settings.RegistrationApproval.s22'), key: 'rejectReason', minWidth: 160,
     render: (row) => row.rejectReason || h('span', { style: 'color: var(--ink-faint);' }, '—') },
   {
-    title: '操作', key: 'actions', width: 150, fixed: 'right',
+    title: t('pages.settings.RegistrationApproval.s23'), key: 'actions', width: 150, fixed: 'right',
     render: (row) => {
       if (row.status !== 'PENDING') {
-        return h('span', { style: 'color: var(--ink-faint); font-size: 13px;' }, '已处理')
+        return h('span', { style: 'color: var(--ink-faint); font-size: 13px;' }, t('pages.settings.RegistrationApproval.s24'))
       }
       return h(NSpace, { size: 8 }, {
         default: () => [
           h(NButton, {
             size: 'small', type: 'primary',
             onClick: () => onApprove(row),
-          }, { default: () => '通过', icon: () => h(NIcon, null, { default: () => h(CheckmarkOutline) }) }),
+          }, { default: () => t('pages.settings.RegistrationApproval.s25'), icon: () => h(NIcon, null, { default: () => h(CheckmarkOutline) }) }),
           h(NButton, {
             size: 'small', type: 'error',
             onClick: () => openReject(row),
-          }, { default: () => '拒绝', icon: () => h(NIcon, null, { default: () => h(CloseOutline) }) }),
+          }, { default: () => t('pages.settings.RegistrationApproval.s26'), icon: () => h(NIcon, null, { default: () => h(CloseOutline) }) }),
         ],
       })
     },
@@ -162,7 +162,7 @@ const loadList = async () => {
     const { data } = await listRegistrations(statusFilter.value === 'ALL' ? '' : statusFilter.value)
     list.value = (data.data || []) as RegApp[]
   } catch (err: any) {
-    message.error(err?.response?.data?.message || '加载注册申请失败')
+    message.error(err?.response?.data?.message || t('pages.settings.RegistrationApproval.s27'))
   } finally {
     loading.value = false
   }
@@ -173,20 +173,20 @@ const onFilterChange = () => loadList()
 // ===== 通过 =====
 const onApprove = async (row: RegApp) => {
   if (!row.emailVerified) {
-    message.warning('该申请尚未完成邮箱验证，请先让申请人完成验证码校验')
+    message.warning(t('pages.settings.RegistrationApproval.s28'))
     return
   }
   try {
     const { data } = await approveRegistration(String(row.id))
     if (data.success) {
-      message.success(`已通过并激活账号 ${row.email}`)
+      message.success(t('pages.settings.RegistrationApproval.s29', { email: row.email }))
       await loadList()
     } else {
-      message.error(data.message || '操作失败')
+      message.error(data.message || t('pages.settings.RegistrationApproval.s30'))
     }
   } catch (err: any) {
     const d = err?.response?.data
-    message.error(d?.message || '操作失败，请重试')
+    message.error(d?.message || t('pages.settings.RegistrationApproval.s30b'))
   }
 }
 
@@ -208,14 +208,14 @@ const confirmReject = async () => {
   try {
     const { data } = await rejectRegistration(String(rejectingApp.value.id), rejectReason.value)
     if (data.success) {
-      message.success(`已拒绝申请 ${rejectingApp.value.email}`)
+      message.success(t('pages.settings.RegistrationApproval.s31', { email: rejectingApp.value.email }))
       rejectModalVisible.value = false
       await loadList()
     } else {
-      message.error(data.message || '操作失败')
+      message.error(data.message || t('pages.settings.RegistrationApproval.s30'))
     }
   } catch (err: any) {
-    message.error(err?.response?.data?.message || '操作失败，请重试')
+    message.error(err?.response?.data?.message || t('pages.settings.RegistrationApproval.s30b'))
   } finally {
     rejecting.value = false
   }

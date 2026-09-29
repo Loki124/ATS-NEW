@@ -15,7 +15,7 @@
       <div class="spacer"></div>
       <n-button type="primary" class="gradient-btn" @click="showModal = true">
         <template #icon><n-icon :component="AddOutline" /></template>
-        新增轮次
+        {{ t('pages.settings.RecruitmentRound.s4') }}
       </n-button>
     </div>
 
@@ -31,25 +31,25 @@
     />
     </div>
 </div><!-- /.page-body -->
-<n-modal v-model:show="showModal" preset="card" :title="editing ? '编辑轮次' : '新增轮次'" style="width: 520px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }">
+<n-modal v-model:show="showModal" preset="card" :title="editing ? t('pages.settings.RecruitmentRound.s13') : t('pages.settings.RecruitmentRound.s4')" style="width: 520px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }">
       <n-form :model="form" label-placement="top">
-        <n-form-item label="轮次名称" required>
-          <n-input v-model:value="form.name" placeholder="如：初试/复试/终试" />
+        <n-form-item :label="t('pages.settings.RecruitmentRound.s5')" required>
+          <n-input v-model:value="form.name" :placeholder="t('pages.settings.RecruitmentRound.s6')" />
         </n-form-item>
-        <n-form-item label="面试评价表">
-          <n-input v-model:value="form.evaluationFormName" placeholder="如：通用评价表（可选）" />
+        <n-form-item :label="t('pages.settings.RecruitmentRound.s7')">
+          <n-input v-model:value="form.evaluationFormName" :placeholder="t('pages.settings.RecruitmentRound.s8')" />
         </n-form-item>
-        <n-form-item label="设为通用评价表">
+        <n-form-item :label="t('pages.settings.RecruitmentRound.s9')">
           <n-switch v-model:value="form.isUniversal" />
         </n-form-item>
-        <n-form-item label="备注">
+        <n-form-item :label="t('pages.settings.RecruitmentRound.s10')">
           <n-input v-model:value="form.description" type="textarea" :rows="2" />
         </n-form-item>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">保存</n-button>
+          <n-button @click="showModal = false">{{ t('pages.settings.RecruitmentRound.s11') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{{ t('pages.settings.RecruitmentRound.s12') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -87,29 +87,29 @@ const form = reactive({
 })
 
 const columns = [
-  { title: '轮次编号', key: 'code', width: 100 },
-  { title: '轮次名称', key: 'name', width: 140 },
-  { title: '面试评价表', key: 'evaluationFormName', width: 160, render: (r: any) => r.evaluationFormName || '-' },
+  { title: t('pages.settings.RecruitmentRound.s15'), key: 'code', width: 100 },
+  { title: t('pages.settings.RecruitmentRound.s5'), key: 'name', width: 140 },
+  { title: t('pages.settings.RecruitmentRound.s7'), key: 'evaluationFormName', width: 160, render: (r: any) => r.evaluationFormName || '-' },
   {
-    title: '通用评价表',
+    title: t('pages.settings.RecruitmentRound.s18'),
     key: 'isUniversal',
     width: 110,
-    render: (r: any) => r.isUniversal ? h(NTag, { type: 'warning', size: 'small' }, { default: () => '通用' }) : '-',
+    render: (r: any) => r.isUniversal ? h(NTag, { type: 'warning', size: 'small' }, { default: () => t('pages.settings.RecruitmentRound.s19') }) : '-',
   },
   {
-    title: '状态',
+    title: t('pages.settings.RecruitmentRound.s20'),
     key: 'status',
     width: 90,
-    render: (r: any) => h(NTag, { type: r.status === 'ACTIVE' ? 'success' : 'default', size: 'small' }, { default: () => r.status === 'ACTIVE' ? '启用' : '停用' }),
+    render: (r: any) => h(NTag, { type: r.status === 'ACTIVE' ? 'success' : 'default', size: 'small' }, { default: () => r.status === 'ACTIVE' ? t('pages.settings.RecruitmentRound.s21') : t('pages.settings.RecruitmentRound.s22') }),
   },
   {
-    title: '操作',
+    title: t('pages.settings.RecruitmentRound.s23'),
     key: 'action',
     width: 200,
     fixed: 'right' as const,
     render: (row: any) => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row) }, { default: () => row.status === 'ACTIVE' ? '停用' : '启用' }),
+      h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => t('pages.settings.RecruitmentRound.s24') }),
+      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row) }, { default: () => row.status === 'ACTIVE' ? t('pages.settings.RecruitmentRound.s22') : t('pages.settings.RecruitmentRound.s21') }),
     ]),
   },
 ]
@@ -119,7 +119,7 @@ async function loadList() {
   try {
     rounds.value = await listRounds({ keyword: keyword.value || undefined })
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '加载失败')
+    message.error(e?.response?.data?.message || t('pages.settings.RecruitmentRound.s25'))
   } finally {
     loading.value = false
   }
@@ -144,22 +144,22 @@ function handleEdit(row: any) {
 
 async function handleSave() {
   if (!form.name.trim()) {
-    message.error('轮次名称必填')
+    message.error(t('pages.settings.RecruitmentRound.s26'))
     return
   }
   saving.value = true
   try {
     if (editing.value) {
       await updateRound(editing.value.id, form)
-      message.success('已保存')
+      message.success(t('pages.settings.RecruitmentRound.s27'))
     } else {
       await createRound(form)
-      message.success('已新增')
+      message.success(t('pages.settings.RecruitmentRound.s28'))
     }
     showModal.value = false
     loadList()
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '保存失败')
+    message.error(e?.response?.data?.message || t('pages.settings.RecruitmentRound.s29'))
   } finally {
     saving.value = false
   }
@@ -169,10 +169,10 @@ async function handleToggleStatus(row: any) {
   const newStatus = row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
   try {
     await updateRoundStatus(row.id, newStatus)
-    message.success(`已${newStatus === 'ACTIVE' ? '启用' : '停用'}`)
+    message.success(`已${newStatus === 'ACTIVE' ? t('pages.settings.RecruitmentRound.s21') : t('pages.settings.RecruitmentRound.s22')}`)
     loadList()
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '操作失败')
+    message.error(e?.response?.data?.message || t('pages.settings.RecruitmentRound.s30'))
   }
 }
 

@@ -2,14 +2,14 @@
   <section class="config-card">
     <div class="card-title card-title--left">
       <n-icon :component="PulseOutline" />
-      流程自动化
+      {{ t('pages.settings.stage-rule.cards.AutomationCard.s9') }}
       <span class="title-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s1') }}</span>
     </div>
 
-    <!-- Block 1: 自动评估 -->
+    <!-- Block 1: {{ t('pages.settings.stage-rule.cards.AutomationCard.s15') }} -->
     <div class="flow-block">
       <div class="block-header">
-        <n-icon :component="SparklesOutline" /> 自动评估
+        <n-icon :component="SparklesOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s15') }}
         <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s2') }}</span>
       </div>
       <div class="option-grid">
@@ -32,10 +32,10 @@
       </div>
     </div>
 
-    <!-- Block 2: 自动流转 -->
+    <!-- Block 2: {{ t('pages.settings.stage-rule.cards.AutomationCard.s16') }} -->
     <div class="flow-block">
       <div class="block-header block-header--secondary">
-        <n-icon :component="ArrowForwardOutline" /> 自动流转
+        <n-icon :component="ArrowForwardOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s16') }}
         <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s5') }}</span>
       </div>
       <div class="flow-condition-row">
@@ -50,17 +50,17 @@
       </div>
       <div v-if="form.autoAdvanceTiming === 'DELAYED'" class="flow-condition-row">
         <div class="flow-field">
-          <label class="field-label">延迟天数 (1-20 工作日)</label>
+          <label class="field-label">{{ t('pages.settings.stage-rule.cards.AutomationCard.s10') }}</label>
           <n-input-number size="small" :value="form.autoAdvanceDays" :min="1" :max="20" @update:value="(v: number | null) => emit('update:autoAdvanceDays', v)" />
         </div>
       </div>
     </div>
 
-    <!-- Block 3: 自动跳过 -->
+    <!-- Block 3: {{ t('pages.settings.stage-rule.cards.AutomationCard.s17') }} -->
     <div class="flow-block">
       <div class="block-header block-header--split">
         <div class="block-header__main">
-          <n-icon :component="PlaySkipForwardOutline" /> 自动跳过
+          <n-icon :component="PlaySkipForwardOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s17') }}
           <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s8') }}</span>
         </div>
         <ModuleSwitch :model-value="form.skipEnabled" @update:model-value="emit('update:skipEnabled', $event)" />
@@ -68,50 +68,50 @@
       <div class="rule-content" :class="{ 'rule-content--hidden': !form.skipEnabled }">
         <div class="actions-row">
           <button class="btn-outline-primary" type="button" @click="emit('add-skip')">
-            <n-icon :component="AddOutline" /> 添加规则
+            <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s18') }}
           </button>
         </div>
         <RuleTable :columns="skipColumns" :rows="skipRules.filter((r: SkipRule) => r.enabled)">
           <template #cell-action="{ row }">{{ actionLabel(row.action) }}</template>
           <template #actions="{ row }">
             <div class="action-btns">
-              <a @click="emit('edit-skip', row)">编辑</a>
-              <a class="danger" @click="emit('remove-skip', row)">停用</a>
+              <a @click="emit('edit-skip', row)">{{ t('pages.settings.stage-rule.cards.AutomationCard.s19') }}</a>
+              <a class="danger" @click="emit('remove-skip', row)">{{ t('pages.settings.stage-rule.cards.AutomationCard.s20') }}</a>
             </div>
           </template>
         </RuleTable>
       </div>
     </div>
 
-    <!-- Block 4: 自动归档 -->
+    <!-- Block 4: {{ t('pages.settings.stage-rule.cards.AutomationCard.s21') }} -->
     <div class="flow-block">
       <div class="block-header block-header--split">
         <div class="block-header__main">
-          <n-icon :component="HourglassOutline" /> 自动归档
-          <span class="block-desc">· 限定阶段总时长，超时自动归档候选人到公共人才库</span>
+          <n-icon :component="HourglassOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s21') }}
+          <span class="block-desc">{{ t('pages.settings.stage-rule.cards.AutomationCard.s11') }}</span>
         </div>
         <ModuleSwitch :model-value="form.archiveEnabled" @update:model-value="emit('update:archiveEnabled', $event)" />
       </div>
       <div class="rule-content" :class="{ 'rule-content--hidden': !form.archiveEnabled }">
         <div class="actions-row">
           <button class="btn-outline-primary" type="button" @click="emit('add-archive')">
-            <n-icon :component="AddOutline" /> 添加规则
+            <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s18') }}
           </button>
           <button class="btn-outline" type="button" @click="emit('show-stopped')">
-            <n-icon :component="EyeOffOutline" /> 查看已停用规则
+            <n-icon :component="EyeOffOutline" /> {{ t('pages.settings.stage-rule.cards.AutomationCard.s22') }}
           </button>
         </div>
         <RuleTable :columns="archiveColumns" :rows="archiveRules.filter((r: ArchiveRule) => r.enabled)">
           <template #cell-action="{ row }">
             <div class="archive-action">
-              <div>锁定 {{ row.lock_days || 0 }} 天；加时 {{ row.extend_days || 0 }} 天/人；</div>
-              <div>{{ row.effective_scope === 'NEW_ONLY' ? '新进入候选人' : '全部候选人' }}</div>
+              <div>{{ t('pages.settings.stage-rule.cards.AutomationCard.s12') }}{{ row.lock_days || 0 }}{{ t('pages.settings.stage-rule.cards.AutomationCard.s13') }}{{ row.extend_days || 0 }}{{ t('pages.settings.stage-rule.cards.AutomationCard.s14') }}</div>
+              <div>{{ row.effective_scope === 'NEW_ONLY' ? t('pages.settings.stage-rule.cards.AutomationCard.s23') : t('pages.settings.stage-rule.cards.AutomationCard.s24') }}</div>
             </div>
           </template>
           <template #actions="{ row }">
             <div class="action-btns">
-              <a @click="emit('edit-archive', row)">编辑</a>
-              <a class="danger" @click="emit('remove-archive', row)">停用</a>
+              <a @click="emit('edit-archive', row)">{{ t('pages.settings.stage-rule.cards.AutomationCard.s19') }}</a>
+              <a class="danger" @click="emit('remove-archive', row)">{{ t('pages.settings.stage-rule.cards.AutomationCard.s20') }}</a>
             </div>
           </template>
         </RuleTable>
@@ -161,14 +161,14 @@ const timingOptions = AUTO_ADVANCE_TIMING_OPTIONS
 
 /** 列宽对齐 HTML 原型（规则名称 70 / 执行条件 220 / 执行动作 120 / 操作 140） */
 const skipColumns = [
-  { key: 'name', title: '规则名称', width: '70px' },
-  { key: 'expression', title: '执行条件', width: '220px' },
-  { key: 'action', title: '执行动作', width: '120px' },
+  { key: 'name', title: t('pages.settings.stage-rule.cards.AutomationCard.s25'), width: '70px' },
+  { key: 'expression', title: t('pages.settings.stage-rule.cards.AutomationCard.s26'), width: '220px' },
+  { key: 'action', title: t('pages.settings.stage-rule.cards.AutomationCard.s27'), width: '120px' },
 ]
 const archiveColumns = [
-  { key: 'name', title: '规则名称', width: '70px' },
-  { key: 'expression', title: '执行条件', width: '220px' },
-  { key: 'action', title: '执行动作', width: '150px' },
+  { key: 'name', title: t('pages.settings.stage-rule.cards.AutomationCard.s25'), width: '70px' },
+  { key: 'expression', title: t('pages.settings.stage-rule.cards.AutomationCard.s26'), width: '220px' },
+  { key: 'action', title: t('pages.settings.stage-rule.cards.AutomationCard.s27'), width: '150px' },
 ]
 
 function actionLabel(a: SkipRule['action']) {
@@ -277,7 +277,7 @@ function actionLabel(a: SkipRule['action']) {
   color: var(--brand);
 }
 
-/* 自动归档执行动作（HTML 原型 .rule-table .action-btns 同款多行结构） */
+/* {{ t('pages.settings.stage-rule.cards.AutomationCard.s21') }}执行动作（HTML 原型 .rule-table .action-btns 同款多行结构） */
 .archive-action {
   white-space: nowrap;
   line-height: 1.45;

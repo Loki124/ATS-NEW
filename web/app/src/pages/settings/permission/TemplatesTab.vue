@@ -2,7 +2,7 @@
   <div class="templates-tab">
     <div class="filter-row">
       <n-button type="primary" @click="load">{{ t('pages.settings.permission.TemplatesTab.s1') }}</n-button>
-      <n-text depth="3">共 {{ data.length }} 个模板 (系统预置不可编辑)</n-text>
+      <n-text depth="3">{{ t('pages.settings.permission.TemplatesTab.s2') }}{{ data.length }}{{ t('pages.settings.permission.TemplatesTab.s3') }}</n-text>
     </div>
 
     <n-data-table
@@ -35,23 +35,23 @@ const loading = ref(false)
 const data = ref<PermissionTemplate[]>([])
 
 const columns = [
-  { title: '模板编码', key: 'templateCode', width: 200 },
-  { title: '模板名称', key: 'templateName', width: 160 },
-  { title: '描述', key: 'description', width: 280 },
+  { title: t('pages.settings.permission.TemplatesTab.s4'), key: 'templateCode', width: 200 },
+  { title: t('pages.settings.permission.TemplatesTab.s5'), key: 'templateName', width: 160 },
+  { title: t('pages.settings.permission.TemplatesTab.s6'), key: 'description', width: 280 },
   {
-    title: '权限码数量',
+    title: t('pages.settings.permission.TemplatesTab.s7'),
     key: 'permissionCodes',
     width: 120,
     render: (row: PermissionTemplate) => row.permissionCodes?.length ?? 0,
   },
   {
-    title: '系统预置',
+    title: t('pages.settings.permission.TemplatesTab.s8'),
     key: 'isSystem',
     width: 100,
-    render: (row: PermissionTemplate) => row.isSystem === 1 ? '是' : '否',
+    render: (row: PermissionTemplate) => row.isSystem === 1 ? t('pages.settings.permission.TemplatesTab.s9') : t('pages.settings.permission.TemplatesTab.s10'),
   },
   {
-    title: '操作',
+    title: t('pages.settings.permission.TemplatesTab.s11'),
     key: 'actions',
     width: 160,
     render(row: PermissionTemplate) {
@@ -61,7 +61,7 @@ const columns = [
           text: true,
           type: 'primary',
           onClick: () => viewCodes(row),
-        }, () => '查看权限码'),
+        }, () => t('pages.settings.permission.TemplatesTab.s12')),
       ])
     },
   },
@@ -72,7 +72,7 @@ async function load() {
   try {
     data.value = await listTemplates()
   } catch (e: any) {
-    message.error('加载模板失败: ' + (e?.message ?? e))
+    message.error(t('pages.settings.permission.TemplatesTab.s13') + (e?.message ?? e))
   } finally {
     loading.value = false
   }
@@ -80,7 +80,7 @@ async function load() {
 
 function viewCodes(row: PermissionTemplate) {
   const codes = row.permissionCodes?.join('\n') ?? '(空)'
-  message.info(`模板 ${row.templateCode} 权限码 (${row.permissionCodes?.length ?? 0}):\n${codes}`, {
+  message.info(`${t('pages.settings.permission.TemplatesTab.s14', { code: row.templateCode, count: row.permissionCodes?.length ?? 0 })}\n${codes}`, {
     duration: 8000,
   })
 }
