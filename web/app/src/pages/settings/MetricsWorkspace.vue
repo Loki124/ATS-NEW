@@ -389,10 +389,10 @@ function openDetail(row: MetricDefinition) {
 }
 
 const RETURN_TYPE_LABELS: Record<string, string> = {
-  number: '数值',
-  string: '字符串',
-  boolean: '布尔',
-  date: '日期',
+  number: t('pages.settings.MetricsWorkspace.s7'),
+  string: t('pages.settings.MetricsWorkspace.s8'),
+  boolean: t('pages.settings.MetricsWorkspace.s9'),
+  date: t('pages.settings.MetricsWorkspace.s10'),
 }
 function returnTypeLabel(type?: string): string {
   return (type && RETURN_TYPE_LABELS[type]) || type || '-'
