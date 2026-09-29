@@ -48,7 +48,7 @@ def custom_type(auth_client):
         TYPE_LIST, {'code': 'custom_dept', 'name': '自定义部门', 'english_name': 'CUSTOM_DEPT'}, format='json'
     )
     assert resp.status_code == 201, resp.content
-    return resp.json()['code']
+    return resp.json()['data']['code']
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def test_dict_number_auto_on_create(auth_client):
         TYPE_LIST, {'code': 'auto_num', 'name': '自动编号', 'english_name': 'AUTO_NUM'}, format='json'
     )
     assert resp.status_code == 201
-    assert resp.json()['dictNumber'].startswith('D'), resp.json()
+    assert resp.json()['data']['dictNumber'].startswith('D'), resp.json()
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def test_submit_create_tree_200(auth_client, custom_type):
     resp = auth_client.post(SUBMIT.format(code=custom_type), payload, format='json')
     assert resp.status_code == 200, resp.content
 
-    detail = auth_client.get(f'{TYPE_LIST}{custom_type}/').json()
+    detail = auth_client.get(f'{TYPE_LIST}{custom_type}/').json()['data']
     items = {it['key']: it for it in detail['items']}
     assert items['C']['parentId'] == items['P']['id']
 
@@ -183,7 +183,7 @@ def test_submit_deactivate_with_children_400(auth_client, custom_type):
         ]},
         format='json',
     )
-    detail = auth_client.get(f'{TYPE_LIST}{custom_type}/').json()
+    detail = auth_client.get(f'{TYPE_LIST}{custom_type}/').json()['data']
     parent = next(it for it in detail['items'] if it['key'] == 'PA')
     child = next(it for it in detail['items'] if it['key'] == 'CA')
     # 停用父（子仍启用）→ 拦截
@@ -205,7 +205,7 @@ def test_submit_deactivate_leaf_200(auth_client, custom_type):
                                 'sort_order': 1, 'is_active': True}]},
         format='json',
     )
-    detail = auth_client.get(f'{TYPE_LIST}{custom_type}/').json()
+    detail = auth_client.get(f'{TYPE_LIST}{custom_type}/').json()['data']
     leaf = detail['items'][0]
     resp = auth_client.post(
         SUBMIT.format(code=custom_type),

@@ -10,6 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeWriteMixin
 
 from .models import DictionaryItem, DictionaryType
 from .serializers import (
@@ -55,7 +57,7 @@ class DictionaryCRUDMixin:
         instance.soft_delete()
 
 
-class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
+class DictionaryTypeViewSet(EnvelopeWriteMixin, DictionaryCRUDMixin, viewsets.ModelViewSet):
     """字典类型 — 完整 CRUD + 列表搜索/筛选 + 批量提交草稿。"""
 
     queryset = DictionaryType.objects.filter(deleted_at__isnull=True)
@@ -209,9 +211,8 @@ class DictionaryTypeViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
         except IntegrityError as e:
             return Response({'detail': f'数据库约束冲突：{e}'}, status=400)
 
-        return Response(
-            {'detail': '提交成功', 'dict_number': dtype.dict_number, 'code': dtype.code},
-            status=200,
+        return success_response(
+            {'detail': '提交成功', 'dict_number': dtype.dict_number, 'code': dtype.code}
         )
 
     # ---- 草稿校验 ----
@@ -379,7 +380,7 @@ def _has_children_final(item, parsed, created_map, dtype):
     return False
 
 
-class DictionaryItemViewSet(DictionaryCRUDMixin, viewsets.ModelViewSet):
+class DictionaryItemViewSet(EnvelopeWriteMixin, DictionaryCRUDMixin, viewsets.ModelViewSet):
     """字典项 — 完整 CRUD; 支持按 type_code 过滤。
 
     注意: 返回所有 live 项（含停用）, 由前端按 is_active 展示/过滤。

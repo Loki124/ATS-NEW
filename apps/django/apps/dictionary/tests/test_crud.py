@@ -90,7 +90,7 @@ def test_create_dictionary_type_201(auth_client):
         format='json',
     )
     assert resp.status_code == 201
-    body = resp.json()
+    body = resp.json()['data']
     assert body['code'] == 'test_color'
     assert body['name'] == '颜色'
     # code 非法 (含空格等非法字符) → 400
@@ -110,7 +110,7 @@ def test_update_dictionary_type_200(auth_client):
     auth_client.post(TYPE_LIST, {'code': 'test_status', 'name': '状态'}, format='json')
     resp = auth_client.put(f'{TYPE_LIST}test_status/', {'name': '状态(新)'}, format='json')
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()['data']
     assert body['name'] == '状态(新)'
     # code 不可在编辑时修改 (仍保持原值)
     assert body['code'] == 'test_status'
@@ -143,7 +143,7 @@ def test_create_dictionary_item_201(auth_client, stage_type):
         format='json',
     )
     assert resp.status_code == 201
-    body = resp.json()
+    body = resp.json()['data']
     assert body['key'] == 'TEST_ITEM_A'
     assert body['type'] == stage_type.id
     assert body['typeCode'] == 'test_crud_type'
@@ -163,11 +163,11 @@ def test_update_dictionary_item_200(auth_client, stage_type):
         ITEM_LIST,
         {'type': stage_type.id, 'key': 'TEST_ITEM_U', 'value': '旧值', 'isActive': True},
         format='json',
-    ).json()
+    ).json()['data']
     item_id = created['id']
     resp = auth_client.put(f'{ITEM_LIST}{item_id}/', {'value': '新值', 'isActive': True}, format='json')
     assert resp.status_code == 200
-    body = resp.json()
+    body = resp.json()['data']
     assert body['value'] == '新值'
     assert body['isActive'] is True
     # key 保持原值
@@ -178,7 +178,7 @@ def test_delete_history_item_rejected_400(auth_client, stage_type):
     """历史字典项不支持删除（PRD 5.2），API 必须 400 拦截。"""
     created = auth_client.post(
         ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_D', 'value': '待删'}, format='json'
-    ).json()
+    ).json()['data']
     item_id = created['id']
     del_resp = auth_client.delete(f'{ITEM_LIST}{item_id}/')
     assert del_resp.status_code == 400, del_resp.content
@@ -198,7 +198,7 @@ def test_duplicate_item_key_400(auth_client, stage_type):
     """重建同 type+key → 必须 400 (不能 500, 也不能 200 重复写入)。"""
     created = auth_client.post(
         ITEM_LIST, {'type': stage_type.id, 'key': 'TEST_ITEM_SOFT', 'value': '已存在'}, format='json'
-    ).json()
+    ).json()['data']
     item_id = created['id']
 
     # 同名 key 重建应被校验阶段拦截 → 400

@@ -154,7 +154,7 @@ export async function listDictionaryTypes(
 /** 取某字典类型详情(含元素扁平列表, 已含 parentId)。 */
 export async function getDictionaryDetail(code: string): Promise<DictionaryDetail> {
   const resp = await api.get<DictionaryDetail>(`/dictionary-types/${code}/`);
-  return resp.data as any;
+  return resp.data.data as any;
 }
 
 /** 提交草稿: 头部修改 + 元素增改/停用, 事务一次性落库。 */
@@ -163,7 +163,7 @@ export async function submitDictionaryDraft(
   payload: { head: Record<string, any>; items: Record<string, any>[] },
 ): Promise<any> {
   const resp = await api.post(`/dictionary-types/${code}/submit/`, payload);
-  return resp.data;
+  return resp.data.data;
 }
 
 /** 新建字典类型。 */
