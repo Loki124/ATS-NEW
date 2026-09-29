@@ -17,11 +17,11 @@
           <n-icon :component="SettingsOutline" size="20" />
         </div>
         <h2 class="hero__title">
-          配置阶段规则
-          <small class="hero__object">—— {{ stage?.name || '未命名' }}</small>
+          {{ t('pages.settings.stage-rule.StageRuleConfigModal.s3') }}
+          <small class="hero__object">—— {{ stage?.name || t('pages.settings.stage-rule.StageRuleConfigModal.s10') }}</small>
         </h2>
         <span class="hero__tip" :aria-label="t('pages.settings.stage-rule.StageRuleConfigModal.s1')">
-          <n-icon :component="FlashOutline" size="12" /> 即时生效
+          <n-icon :component="FlashOutline" size="12" /> {{ t('pages.settings.stage-rule.StageRuleConfigModal.s1') }}
         </span>
         <button class="hero__close" type="button" :aria-label="t('pages.settings.stage-rule.StageRuleConfigModal.s2')" :disabled="saving" @click="onRequestClose">
           <n-icon :component="CloseOutline" size="20" />
@@ -33,7 +33,7 @@
       <div class="rule-config-body">
         <div v-if="loadError" class="load-error">
           <n-alert type="error" :title="loadError">
-            <n-button size="small" :disabled="saving" @click="reload">重试</n-button>
+            <n-button size="small" :disabled="saving" @click="reload">{{ t('pages.settings.stage-rule.StageRuleConfigModal.s4') }}</n-button>
           </n-alert>
         </div>
         <div v-else class="rule-config-flat">
@@ -78,8 +78,8 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">取消</n-button>
-        <n-button size="small" type="primary" :loading="saving" :disabled="loading" @click="handleSubmit">保存</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{{ t('pages.settings.stage-rule.StageRuleConfigModal.s5') }}</n-button>
+        <n-button size="small" type="primary" :loading="saving" :disabled="loading" @click="handleSubmit">{{ t('pages.settings.stage-rule.StageRuleConfigModal.s6') }}</n-button>
       </div>
     </template>
 
@@ -201,15 +201,15 @@ function removeArchive(rule: ArchiveRule) {
 function showStopped() {
   // P0-2：同时收纳「自动跳过 / 自动归档」中被停用的规则
   const disabled = [
-    ...skipRules.value.filter((r) => !r.enabled).map((r) => ({ id: r.id, name: r.name, expression: r.expression, kindLabel: '自动跳过', rule: r })),
-    ...archiveRules.value.filter((r) => !r.enabled).map((r) => ({ id: r.id, name: r.name, expression: r.expression, kindLabel: '自动归档', rule: r })),
+    ...skipRules.value.filter((r) => !r.enabled).map((r) => ({ id: r.id, name: r.name, expression: r.expression, kindLabel: t('pages.settings.stage-rule.StageRuleConfigModal.s11'), rule: r })),
+    ...archiveRules.value.filter((r) => !r.enabled).map((r) => ({ id: r.id, name: r.name, expression: r.expression, kindLabel: t('pages.settings.stage-rule.StageRuleConfigModal.s12'), rule: r })),
   ]
   stoppedModal.value?.open(disabled)
 }
 function onReenable(payload: { rule: SkipRule | ArchiveRule }) {
   // P0-2：重新启用停用规则（跳过 / 归档通用）
   payload.rule.enabled = true
-  message.success('已重新启用')
+  message.success(t('pages.settings.stage-rule.StageRuleConfigModal.s7'))
 }
 
 // ===== 进入条件规则（P0-4：仅允许一条，规则配置直接打开已存在的那条）=====
@@ -224,18 +224,18 @@ function onSubClose() {
 
 async function handleSubmit() {
   if (!props.linkId) {
-    message.error('缺少 linkId')
+    message.error(t('pages.settings.stage-rule.StageRuleConfigModal.s8'))
     return
   }
   try {
     const ok = await save(props.linkId)
     if (ok) {
-      message.success('已保存')
+      message.success(t('pages.settings.stage-rule.StageRuleConfigModal.s9'))
       emit('saved')
       emit('update:show', false)
     }
   } catch (e: any) {
-    message.error(e?.response?.data?.message || e?.message || '保存失败')
+    message.error(e?.response?.data?.message || e?.message || t('pages.settings.stage-rule.StageRuleConfigModal.s13'))
   }
 }
 </script>
