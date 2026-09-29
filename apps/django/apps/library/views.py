@@ -1,39 +1,14 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions_v2 import V2Permission
 
 from django.db.models import Q
 
 from .models import School, Company, Major
 from .serializers import SchoolSerializer, CompanySerializer, MajorSerializer
-
-
-class EnvelopeWriteMixin:
-    """写操作统一包 ``{success, data}`` 信封。
-
-    本项目所有 read 接口（list / facets 等）都手工包信封，前端 library.ts 一律读
-    ``r.data.data``。DRF 的 create/update 默认直接返回序列化结果，不包信封会让
-    前端拿到 undefined，所以写接口必须补上。
-    """
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response({'success': True, 'data': serializer.data})
-
-    def retrieve(self, request, *args, **kwargs):
-        return Response({'success': True, 'data': self.get_serializer(self.get_object()).data})
 
 
 class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):

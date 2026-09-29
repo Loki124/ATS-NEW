@@ -22,6 +22,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.response import success_response
 from .models import BrandInfo
 from .serializers import BrandInfoSerializer
 
@@ -44,14 +45,14 @@ class BrandInfoView(APIView):
 
     def get(self, request, *args, **kwargs) -> Response:
         obj = self._get_or_create()
-        return Response({'data': BrandInfoSerializer(obj).data})
+        return success_response(BrandInfoSerializer(obj).data)
 
     def _update(self, request, *, partial: bool) -> Response:
         obj = self._get_or_create()
         serializer = BrandInfoSerializer(obj, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({'data': serializer.data})
+        return success_response(serializer.data)
 
     def put(self, request, *args, **kwargs) -> Response:
         return self._update(request, partial=False)
@@ -99,4 +100,4 @@ class BrandLogoUploadView(APIView):
         saved = default_storage.save(rel_path, file)
         # 与 announcement 附件一致: 返回 MEDIA_URL + 相对路径 的可访问 URL
         url = settings.MEDIA_URL + saved
-        return Response({'data': {'url': url}}, status=status.HTTP_201_CREATED)
+        return success_response({'url': url}, status_code=status.HTTP_201_CREATED)

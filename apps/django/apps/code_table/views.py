@@ -13,8 +13,8 @@
 """
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
 
+from apps.common.response import success_response
 from apps.core.permissions_v2 import V2Permission
 
 from .models import Country, Currency, Ethnicity, Industry, Language, Region
@@ -34,18 +34,18 @@ class CodeTablePagination(PageNumberPagination):
     max_page_size = 500
 
 
-def _paged_response(paginator: CodeTablePagination, queryset, request, serializer_cls) -> Response:
-    """分页并返回统一信封。"""
+def _paged_response(paginator: CodeTablePagination, queryset, request, serializer_cls):
+    """分页并返回统一信封（补齐 success 字段，与全局约定对齐；FE 只读 data/pagination，success 为增量）。"""
     page = paginator.paginate_queryset(queryset, request, view=None)
     if page is not None:
-        return Response({
-            'data': serializer_cls(page, many=True).data,
-            'pagination': {'total': paginator.page.paginator.count},
-        })
-    return Response({
-        'data': serializer_cls(queryset, many=True).data,
-        'pagination': {'total': queryset.count()},
-    })
+        return success_response(
+            serializer_cls(page, many=True).data,
+            pagination={'total': paginator.page.paginator.count},
+        )
+    return success_response(
+        serializer_cls(queryset, many=True).data,
+        pagination={'total': queryset.count()},
+    )
 
 
 class _BaseCodeViewSet(viewsets.ReadOnlyModelViewSet):
