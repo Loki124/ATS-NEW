@@ -43,7 +43,7 @@
               <div class="logo-block">
                 <div class="logo-preview" :class="{ 'is-empty': !formData.logoUrl }">
                   <img v-if="formData.logoUrl" :src="formData.logoUrl" :alt="t('pages.settings.CompanyBrand.s10')" class="logo-img" />
-                  <n-empty v-else description="尚未设置 Logo" size="small" />
+                  <n-empty v-else :description="t('pages.settings.CompanyBrand.s11')" size="small" />
                 </div>
                 <div class="logo-actions">
                   <n-upload
@@ -56,77 +56,77 @@
                       <template #icon>
                         <n-icon><CloudUploadOutline /></n-icon>
                       </template>
-                      {{ formData.logoUrl ? '更换 Logo' : '上传 Logo' }}
+                      {{ formData.logoUrl ? t('pages.settings.CompanyBrand.s46') : t('pages.settings.CompanyBrand.s47') }}
                     </n-button>
                   </n-upload>
                   <n-button size="small" tertiary :disabled="!formData.logoUrl" @click="formData.logoUrl = ''">
-                    清除
+                    {{ t('pages.settings.CompanyBrand.s12') }}
                   </n-button>
                 </div>
                 <n-input
                   v-model:value="formData.logoUrl"
-                  placeholder="或填写图片 URL（https://...）"
+                  :placeholder="t('pages.settings.CompanyBrand.s13')"
                   class="logo-url-input"
                 />
-                <p class="field-hint">支持 PNG / JPG / SVG / WebP / GIF，单文件 ≤ 2MB</p>
+                <p class="field-hint">{{ t('pages.settings.CompanyBrand.s14') }}</p>
               </div>
             </n-card>
 
-            <n-card title="联系信息" class="config-card">
-              <n-form-item label="招聘邮箱">
+            <n-card :title="t('pages.settings.CompanyBrand.s15')" class="config-card">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s16')">
                 <n-input v-model:value="formData.contactEmail" placeholder="hr@example.com" maxlength="255" />
               </n-form-item>
-              <n-form-item label="招聘电话">
-                <n-input v-model:value="formData.contactPhone" placeholder="如：0755-12345678" maxlength="64" />
+              <n-form-item :label="t('pages.settings.CompanyBrand.s17')">
+                <n-input v-model:value="formData.contactPhone" :placeholder="t('pages.settings.CompanyBrand.s18')" maxlength="64" />
               </n-form-item>
             </n-card>
           </div>
 
           <!-- 右列：展示与预览 -->
           <div class="brand-col">
-            <n-card title="招聘门户预览" class="config-card preview-card">
+            <n-card :title="t('pages.settings.CompanyBrand.s19')" class="config-card preview-card">
               <div class="portal-preview" :style="portalStyle">
                 <div class="portal-banner" :style="bannerStyle">
                   <img v-if="formData.logoUrl" :src="formData.logoUrl" class="portal-logo" alt="Logo" />
                   <div v-else class="portal-logo portal-logo--ph">LOGO</div>
                   <div class="portal-meta">
-                    <div class="portal-name">{{ formData.companyName || '招聘管理系统' }}</div>
-                    <div class="portal-slogan">{{ formData.brandSlogan || '品牌标语' }}</div>
+                    <div class="portal-name">{{ formData.companyName || t('pages.settings.CompanyBrand.s48') }}</div>
+                    <div class="portal-slogan">{{ formData.brandSlogan || t('pages.settings.CompanyBrand.s49') }}</div>
                   </div>
                 </div>
                 <div class="portal-body">
-                  <h4 class="portal-title">{{ formData.portalTitle || '加入我们' }}</h4>
-                  <p class="portal-sub">{{ formData.portalSubtitle || '门户副标题 / 一句话定位' }}</p>
-                  <n-button size="small" :color="primaryColorSafe" class="portal-cta">查看在招职位</n-button>
+                  <h4 class="portal-title">{{ formData.portalTitle || t('pages.settings.CompanyBrand.s50') }}</h4>
+                  <p class="portal-sub">{{ formData.portalSubtitle || t('pages.settings.CompanyBrand.s51') }}</p>
+                  <n-button size="small" :color="primaryColorSafe" class="portal-cta">{{ t('pages.settings.CompanyBrand.s20') }}</n-button>
                   <div v-if="formData.socialLinks.length" class="portal-links">
                     <span
                       v-for="link in formData.socialLinks"
                       :key="link.url"
                       class="portal-link"
                       :style="{ color: primaryColorSafe, borderColor: primaryColorSafe }"
-                    >{{ link.label || link.platform || '链接' }}</span>
+                    >{{ link.label || link.platform || t('pages.settings.CompanyBrand.s52') }}</span>
                   </div>
                 </div>
               </div>
             </n-card>
 
-            <n-card title="招聘门户展示" class="config-card">
-              <n-form-item label="门户标题">
-                <n-input v-model:value="formData.portalTitle" placeholder="招聘门户标题，如：加入我们" maxlength="255" />
+            <n-card :title="t('pages.settings.CompanyBrand.s21')" class="config-card">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s22')">
+                <n-input v-model:value="formData.portalTitle" :placeholder="t('pages.settings.CompanyBrand.s23')" maxlength="255" />
               </n-form-item>
-              <n-form-item label="门户副标题">
-                <n-input v-model:value="formData.portalSubtitle" placeholder="门户副标题 / 一句话定位" maxlength="255" />
+              <n-form-item :label="t('pages.settings.CompanyBrand.s24')">
+                <n-input v-model:value="formData.portalSubtitle" :placeholder="t('pages.settings.CompanyBrand.s25')" maxlength="255" />
               </n-form-item>
-              <n-form-item label="门户 Banner">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s26')">
                 <n-input
                   v-model:value="formData.portalBannerUrl"
-                  placeholder="可访问的 Banner 图片 URL（https://...）"
+                  :placeholder="t('pages.settings.CompanyBrand.s27')"
                 />
               </n-form-item>
               <div v-if="formData.portalBannerUrl" class="banner-preview">
-                <img :src="formData.portalBannerUrl" alt="Banner 预览" class="banner-img" />
+                <img :src="formData.portalBannerUrl" :alt="t('pages.settings.CompanyBrand.s28')" class="banner-img" />
               </div>
-              <n-form-item label="门户主题色">
+              <n-form-item :label="t('pages.settings.CompanyBrand.s29')">
                 <div class="color-row">
                   <!-- 空值回落默认品牌色, 避免显示透明棋盘格像「故障」 -->
                   <n-color-picker
@@ -136,12 +136,12 @@
                     class="color-picker"
                     @update:value="formData.primaryColor = $event"
                   />
-                  <span class="field-hint">用于门户品牌化着色（hex，如 #6366F1）；保存后全站主题同步生效</span>
+                  <span class="field-hint">{{ t('pages.settings.CompanyBrand.s30') }}</span>
                 </div>
               </n-form-item>
             </n-card>
 
-            <n-card title="社交 / 官网链接" class="config-card">
+            <n-card :title="t('pages.settings.CompanyBrand.s31')" class="config-card">
               <n-space vertical :size="12">
                 <div
                   v-for="(link, idx) in formData.socialLinks"
@@ -152,13 +152,13 @@
                     v-model:value="link.platform"
                     :options="platformOptions"
                     class="social-platform"
-                    placeholder="平台"
+                    :placeholder="t('pages.settings.CompanyBrand.s32')"
                   />
-                  <n-input v-model:value="link.label" class="social-label" placeholder="展示名称（如：官网）" />
-                  <n-input v-model:value="link.url" class="social-url" placeholder="链接地址 https://..." />
-                  <n-button text type="error" @click="removeSocial(idx)">移除</n-button>
+                  <n-input v-model:value="link.label" class="social-label" :placeholder="t('pages.settings.CompanyBrand.s33')" />
+                  <n-input v-model:value="link.url" class="social-url" :placeholder="t('pages.settings.CompanyBrand.s34')" />
+                  <n-button text type="error" @click="removeSocial(idx)">{{ t('pages.settings.CompanyBrand.s35') }}</n-button>
                 </div>
-                <n-button dashed block @click="addSocial">+ 添加一条链接</n-button>
+                <n-button dashed block @click="addSocial">{{ t('pages.settings.CompanyBrand.s36') }}</n-button>
               </n-space>
             </n-card>
           </div>
@@ -168,11 +168,11 @@
       <!-- 底部 sticky 操作条：长表单滚动时操作始终可见（UX 修复：原按钮悬在页头，动线断裂） -->
       <div class="form-actions">
         <span class="save-state" :class="{ 'is-dirty': isDirty }">
-          {{ isDirty ? '有未保存的更改' : '所有更改已保存' }}
+          {{ isDirty ? t('pages.settings.CompanyBrand.s53') : t('pages.settings.CompanyBrand.s54') }}
         </span>
         <n-space>
-          <n-button :disabled="!isDirty || saving" @click="handleReset">重置</n-button>
-          <n-button type="primary" :loading="saving" :disabled="!isDirty && !saving" @click="handleSave">保存配置</n-button>
+          <n-button :disabled="!isDirty || saving" @click="handleReset">{{ t('pages.settings.CompanyBrand.s37') }}</n-button>
+          <n-button type="primary" :loading="saving" :disabled="!isDirty && !saving" @click="handleSave">{{ t('pages.settings.CompanyBrand.s38') }}</n-button>
         </n-space>
       </div>
     </div>
@@ -198,11 +198,11 @@ const uploading = ref(false)
 const formRef = ref()
 
 const platformOptions = [
-  { label: '官网', value: 'official_site' },
-  { label: '微信公众号', value: 'wechat' },
-  { label: '微博', value: 'weibo' },
-  { label: 'LinkedIn', value: 'linkedin' },
-  { label: '其他', value: 'other' },
+  { label: t('pages.settings.CompanyBrand.s39'), value: 'official_site' },
+  { label: t('pages.settings.CompanyBrand.s40'), value: 'wechat' },
+  { label: t('pages.settings.CompanyBrand.s41'), value: 'weibo' },
+  { label: t('pages.settings.CompanyBrand.s55'), value: 'linkedin' },
+  { label: t('pages.settings.CompanyBrand.s42'), value: 'other' },
 ]
 
 const DEFAULT_BRAND = '#6366F1'
@@ -264,7 +264,7 @@ const fetchInfo = async () => {
     formData.value = { ...emptyForm(), ...info }
     serverSnapshot.value = { ...info }
   } catch (e: any) {
-    message.error('加载品牌信息失败: ' + (e?.message || e))
+    message.error(t('pages.settings.CompanyBrand.s56') + (e?.message || e))
   }
 }
 
@@ -290,9 +290,9 @@ const doUploadLogo = async (file: File) => {
     const url = await uploadBrandLogo(file)
     formData.value.logoUrl = url
     // 上传仅更新表单, 需点「保存配置」才落库; 提示必须说清下一步, 避免误以为已生效
-    message.success('Logo 已上传，记得点「保存配置」生效')
+    message.success(t('pages.settings.CompanyBrand.s43'))
   } catch (e: any) {
-    message.error('Logo 上传失败: ' + (e?.response?.data?.detail || e?.message || e))
+    message.error(t('pages.settings.CompanyBrand.s57') + (e?.response?.data?.detail || e?.message || e))
   } finally {
     uploading.value = false
   }
@@ -320,9 +320,9 @@ const handleSave = async () => {
     brandStore.setInfo(info)
     formData.value = { ...emptyForm(), ...info }
     serverSnapshot.value = { ...info }
-    message.success('品牌信息保存成功')
+    message.success(t('pages.settings.CompanyBrand.s44'))
   } catch (e: any) {
-    message.error('保存失败: ' + (e?.response?.data?.message || e?.message || e))
+    message.error(t('pages.settings.CompanyBrand.s58') + (e?.response?.data?.message || e?.message || e))
   } finally {
     saving.value = false
   }
@@ -330,7 +330,7 @@ const handleSave = async () => {
 
 const handleReset = () => {
   formData.value = { ...emptyForm(), ...serverSnapshot.value }
-  message.info('已还原为上次保存的内容')
+  message.info(t('pages.settings.CompanyBrand.s45'))
 }
 
 onMounted(() => {

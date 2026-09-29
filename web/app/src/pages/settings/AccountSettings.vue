@@ -19,37 +19,37 @@
       <n-form label-placement="left" :label-width="96" :model="formState" class="profile-form">
         <n-grid :cols="1" :x-gap="24">
           <n-gi>
-            <n-form-item label="姓名">
-              <n-input v-model:value="formState.realName" placeholder="请输入姓名" disabled />
+            <n-form-item :label="t('pages.settings.AccountSettings.s5')">
+              <n-input v-model:value="formState.realName" :placeholder="t('pages.settings.AccountSettings.s6')" disabled />
             </n-form-item>
           </n-gi>
           <n-gi>
-            <n-form-item label="电话">
-              <n-input v-model:value="formState.phone" placeholder="请输入电话" disabled />
+            <n-form-item :label="t('pages.settings.AccountSettings.s7')">
+              <n-input v-model:value="formState.phone" :placeholder="t('pages.settings.AccountSettings.s8')" disabled />
             </n-form-item>
           </n-gi>
           <n-gi>
-            <n-form-item label="邮箱" :feedback="emailFeedback" :validation-status="emailStatus">
-              <n-input v-model:value="formState.email" placeholder="请输入邮箱" disabled />
+            <n-form-item :label="t('pages.settings.AccountSettings.s9')" :feedback="emailFeedback" :validation-status="emailStatus">
+              <n-input v-model:value="formState.email" :placeholder="t('pages.settings.AccountSettings.s10')" disabled />
             </n-form-item>
           </n-gi>
           <n-gi>
-            <n-form-item label="密码">
+            <n-form-item :label="t('pages.settings.AccountSettings.s11')">
               <n-button type="primary" ghost size="small" @click="showPasswordModal = true">
                 <template #icon>
                   <n-icon :component="LockClosedOutline" />
                 </template>
-                更改密码
+                {{ t('pages.settings.AccountSettings.s12') }}
               </n-button>
             </n-form-item>
           </n-gi>
           <n-gi>
-            <n-form-item label="帮助与反馈">
+            <n-form-item :label="t('pages.settings.AccountSettings.s13')">
               <n-button size="small" @click="handleUploadEnv">
                 <template #icon>
                   <n-icon :component="CloudUploadOutline" />
                 </template>
-                上传当前浏览器环境
+                {{ t('pages.settings.AccountSettings.s14') }}
               </n-button>
             </n-form-item>
           </n-gi>
@@ -61,15 +61,15 @@
     <n-card class="settings-section" :bordered="false">
       <template #header>
         <div class="section-title">
-          <span>浏览器通知</span>
-          <n-tag type="info" size="small" class="section-tag">全局</n-tag>
+          <span>{{ t('pages.settings.AccountSettings.s15') }}</span>
+          <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s16') }}</n-tag>
         </div>
       </template>
 
-      <p class="section-desc">此功能需要浏览器授权</p>
+      <p class="section-desc">{{ t('pages.settings.AccountSettings.s17') }}</p>
 
       <n-form label-placement="left" :label-width="96">
-        <n-form-item label="使用通知">
+        <n-form-item :label="t('pages.settings.AccountSettings.s18')">
           <n-switch v-model:value="useNotification" />
         </n-form-item>
       </n-form>
@@ -89,20 +89,20 @@
     <n-card class="settings-section" :bordered="false">
       <template #header>
         <div class="section-title">
-          <span>自定义默认选项设置</span>
-          <n-tag type="info" size="small" class="section-tag">全局</n-tag>
+          <span>{{ t('pages.settings.AccountSettings.s19') }}</span>
+          <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s20') }}</n-tag>
         </div>
       </template>
 
       <p class="section-desc">
-        设置后，系统中相关选项默认使用您的设置项；若未设置，系统中默认使用系统默认选项。
+        {{ t('pages.settings.AccountSettings.s21') }}
       </p>
 
       <n-form label-placement="left" :label-width="120">
-        <n-form-item label="默认简历接收邮箱">
+        <n-form-item :label="t('pages.settings.AccountSettings.s22')">
           <n-select
             v-model:value="defaultResumeMailbox"
-            placeholder="请选择简历接收邮箱"
+            :placeholder="t('pages.settings.AccountSettings.s23')"
             :options="resumeMailboxOptions"
             style="width: 320px"
           />
@@ -115,25 +115,25 @@
     <n-modal
       v-model:show="showPasswordModal"
       preset="card"
-      title="更改密码"
+      :title="t('pages.settings.AccountSettings.s24')"
       style="width: 480px; max-width: 90vw"
       :mask-closable="false"
     >
       <n-form label-placement="left" :label-width="100" :model="passwordForm">
-        <n-form-item label="原密码">
-          <n-input v-model:value="passwordForm.oldPassword" type="password" show-password-on="click" placeholder="请输入原密码" />
+        <n-form-item :label="t('pages.settings.AccountSettings.s25')">
+          <n-input v-model:value="passwordForm.oldPassword" type="password" show-password-on="click" :placeholder="t('pages.settings.AccountSettings.s26')" />
         </n-form-item>
-        <n-form-item label="新密码">
-          <n-input v-model:value="passwordForm.newPassword" type="password" show-password-on="click" placeholder="请输入新密码" />
+        <n-form-item :label="t('pages.settings.AccountSettings.s27')">
+          <n-input v-model:value="passwordForm.newPassword" type="password" show-password-on="click" :placeholder="t('pages.settings.AccountSettings.s28')" />
         </n-form-item>
-        <n-form-item label="确认密码" :validation-status="passwordConfirmStatus" :feedback="passwordConfirmFeedback">
-          <n-input v-model:value="passwordForm.confirmPassword" type="password" show-password-on="click" placeholder="请再次输入新密码" />
+        <n-form-item :label="t('pages.settings.AccountSettings.s29')" :validation-status="passwordConfirmStatus" :feedback="passwordConfirmFeedback">
+          <n-input v-model:value="passwordForm.confirmPassword" type="password" show-password-on="click" :placeholder="t('pages.settings.AccountSettings.s30')" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showPasswordModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleChangePassword">保存密码</n-button>
+          <n-button @click="showPasswordModal = false">{{ t('pages.settings.AccountSettings.s31') }}</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleChangePassword">{{ t('pages.settings.AccountSettings.s32') }}</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -188,21 +188,21 @@ const emailStatus = computed(() => {
   return emailReg.test(formState.email) ? undefined : 'error'
 })
 const emailFeedback = computed(() => {
-  return emailStatus.value === 'error' ? '请输入正确的邮箱地址' : undefined
+  return emailStatus.value === 'error' ? t('pages.settings.AccountSettings.s39') : undefined
 })
 
 // ===== 浏览器通知 =====
 const useNotification = ref(true)
 const notificationList = [
-  { value: 'follow', label: '跟进提醒' },
-  { value: 'at', label: '@通知' },
-  { value: 'checkin', label: '签到通知' },
-  { value: 'interview_resume', label: '面试官简历筛选通知' },
-  { value: 'candidate_interview', label: '候选人接受拒绝面试通知' },
-  { value: 'interview_feedback', label: '面试官面试反馈' },
-  { value: 'candidate_offer', label: '候选人接受拒绝Offer通知' },
-  { value: 'offer_approval', label: 'Offer审批状态通知' },
-  { value: 'headhunter', label: '猎头及内推提醒' },
+  { value: 'follow', label: t('pages.settings.AccountSettings.s40') },
+  { value: 'at', label: t('pages.settings.AccountSettings.s41') },
+  { value: 'checkin', label: t('pages.settings.AccountSettings.s42') },
+  { value: 'interview_resume', label: t('pages.settings.AccountSettings.s43') },
+  { value: 'candidate_interview', label: t('pages.settings.AccountSettings.s44') },
+  { value: 'interview_feedback', label: t('pages.settings.AccountSettings.s45') },
+  { value: 'candidate_offer', label: t('pages.settings.AccountSettings.s46') },
+  { value: 'offer_approval', label: t('pages.settings.AccountSettings.s47') },
+  { value: 'headhunter', label: t('pages.settings.AccountSettings.s48') },
 ]
 const notificationOptions = ref<string[]>([
   'follow',
@@ -219,9 +219,9 @@ const notificationOptions = ref<string[]>([
 // ===== 自定义默认选项 =====
 const defaultResumeMailbox = ref<string | null>(null)
 const resumeMailboxOptions = [
-  { label: '招聘公共邮箱', value: 'recruit@company.com' },
-  { label: '技术招聘邮箱', value: 'tech-hire@company.com' },
-  { label: '校招邮箱', value: 'campus@company.com' },
+  { label: t('pages.settings.AccountSettings.s33'), value: 'recruit@company.com' },
+  { label: t('pages.settings.AccountSettings.s34'), value: 'tech-hire@company.com' },
+  { label: t('pages.settings.AccountSettings.s35'), value: 'campus@company.com' },
 ]
 
 // ===== 更改密码 =====
@@ -237,7 +237,7 @@ const passwordConfirmStatus = computed(() => {
   return passwordForm.confirmPassword === passwordForm.newPassword ? undefined : 'error'
 })
 const passwordConfirmFeedback = computed(() => {
-  return passwordConfirmStatus.value === 'error' ? '两次输入的密码不一致' : undefined
+  return passwordConfirmStatus.value === 'error' ? t('pages.settings.AccountSettings.s38') : undefined
 })
 
 // ===== 初始化 =====
@@ -252,31 +252,31 @@ onMounted(() => {
 function handleUploadEnv() {
   const env = navigator.userAgent
   console.log('上传当前浏览器环境:', env)
-  message.success('浏览器环境已上传')
+  message.success(t('pages.settings.AccountSettings.s36'))
 }
 
 async function handleChangePassword() {
   if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-    message.error('请填写完整密码信息')
+    message.error(t('pages.settings.AccountSettings.s37'))
     return
   }
   if (passwordConfirmStatus.value === 'error') {
-    message.error('两次输入的密码不一致')
+    message.error(t('pages.settings.AccountSettings.s38'))
     return
   }
   try {
     const { data } = await changePassword(passwordForm.oldPassword, passwordForm.newPassword)
     if (data.success) {
-      message.success(data.message || '密码修改成功')
+      message.success(data.message || t('pages.settings.AccountSettings.s49'))
       showPasswordModal.value = false
       passwordForm.oldPassword = ''
       passwordForm.newPassword = ''
       passwordForm.confirmPassword = ''
     } else {
-      message.error(data.message || '密码修改失败')
+      message.error(data.message || t('pages.settings.AccountSettings.s50'))
     }
   } catch (error: any) {
-    const errMsg = error.response?.data?.message || error.message || '密码修改失败'
+    const errMsg = error.response?.data?.message || error.message || t('pages.settings.AccountSettings.s50')
     message.error(errMsg)
   }
 }

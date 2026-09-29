@@ -6,7 +6,7 @@
       <p class="page-subtitle">{{ t('pages.settings.CompanySettings.s2') }}</p>
     </div>
 
-    <n-card title="法人公司 - 外部同步 (G40)">
+    <n-card :title="t('pages.settings.CompanySettings.s3')">
       <n-space vertical>
         <n-space>
           <n-button
@@ -14,10 +14,10 @@
             :loading="loadingList"
             @click="loadSyncs"
           >
-            刷新同步状态
+            {{ t('pages.settings.CompanySettings.s4') }}
           </n-button>
           <n-text depth="3">
-            法人公司可同步到 摩卡 People / 邮箱 (企业 API 待授权, 当前为 Mock)
+            {{ t('pages.settings.CompanySettings.s5') }}
           </n-text>
         </n-space>
 
@@ -32,7 +32,7 @@
         <n-divider />
 
         <n-text depth="3" style="font-size: 12px">
-          真实同步按钮需要在公司列表中触发 (管理公司 CRUD API 待开发, 占位中)
+          {{ t('pages.settings.CompanySettings.s6') }}
         </n-text>
       </n-space>
     </n-card>
@@ -52,17 +52,17 @@ const loadingList = ref(false)
 const syncs = ref<CompanySync[]>([])
 
 const columns: DataTableColumns<CompanySync> = [
-  { title: '公司ID', key: 'companyId', width: 100 },
+  { title: t('pages.settings.CompanySettings.s7'), key: 'companyId', width: 100 },
   {
-    title: '外部系统',
+    title: t('pages.settings.CompanySettings.s8'),
     key: 'externalSystem',
     width: 100,
     render: (row) =>
       h(NTag, { type: row.externalSystem === 'MOKA' ? 'info' : 'success', size: 'small' }, { default: () => row.externalSystem }),
   },
-  { title: '外部ID', key: 'externalId', width: 140 },
+  { title: t('pages.settings.CompanySettings.s9'), key: 'externalId', width: 140 },
   {
-    title: '状态',
+    title: t('pages.settings.CompanySettings.s10'),
     key: 'syncStatus',
     width: 100,
     render: (row) => {
@@ -72,11 +72,11 @@ const columns: DataTableColumns<CompanySync> = [
       return h(NTag, { type, size: 'small' }, { default: () => row.syncStatus })
     },
   },
-  { title: '上次同步', key: 'lastSyncAt', width: 180 },
-  { title: '重试次数', key: 'retryCount', width: 80 },
-  { title: '错误', key: 'lastError', ellipsis: { tooltip: true } },
+  { title: t('pages.settings.CompanySettings.s11'), key: 'lastSyncAt', width: 180 },
+  { title: t('pages.settings.CompanySettings.s12'), key: 'retryCount', width: 80 },
+  { title: t('pages.settings.CompanySettings.s13'), key: 'lastError', ellipsis: { tooltip: true } },
   {
-    title: '操作',
+    title: t('pages.settings.CompanySettings.s14'),
     key: 'actions',
     width: 120,
     render: (row) =>
@@ -87,7 +87,7 @@ const columns: DataTableColumns<CompanySync> = [
           disabled: row.syncStatus !== 'FAILED',
           onClick: () => handleRetry(row.id),
         },
-        { default: () => '重试' }
+        { default: () => t('pages.settings.CompanySettings.s16') }
       ),
   },
 ]
@@ -97,7 +97,7 @@ async function loadSyncs() {
   try {
     syncs.value = await fetchSyncs()
   } catch (e: any) {
-    message.error('加载同步状态失败: ' + (e?.message || e))
+    message.error(t('pages.settings.CompanySettings.s17') + (e?.message || e))
   } finally {
     loadingList.value = false
   }
@@ -106,10 +106,10 @@ async function loadSyncs() {
 async function handleRetry(syncId: string) {
   try {
     await retrySync(syncId)
-    message.success('重试已触发')
+    message.success(t('pages.settings.CompanySettings.s15'))
     await loadSyncs()
   } catch (e: any) {
-    message.error('重试失败: ' + (e?.message || e))
+    message.error(t('pages.settings.CompanySettings.s18') + (e?.message || e))
   }
 }
 

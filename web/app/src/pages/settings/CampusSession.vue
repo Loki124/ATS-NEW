@@ -4,23 +4,23 @@
     <EmptyState
       v-if="!systemStore.isCampus"
       :title="t('pages.settings.CampusSession.s1')"
-      description="「宣讲会」排期仅在切换到「校园招聘」系统后呈现。请在左上角系统切换器中选择「校园招聘」。"
+      :description="t('pages.settings.CampusSession.s2')"
     />
 
     <!-- 校招环境：宣讲会配置（Phase 4 真实后端接线） -->
     <template v-else>
       <header class="cs-header">
         <div>
-          <h1 class="page-title">{{ systemStore.label }} · 宣讲会</h1>
-          <p class="page-subtitle">{ t('pages.settings.CampusSession.s1') }</p>
+          <h1 class="page-title">{{ systemStore.label }} · {{ t('pages.settings.CampusSession.s38') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.CampusSession.s1') }}</p>
         </div>
         <n-switch
           :value="enabled"
           :loading="savingEnabled"
           @update:value="onToggleEnabled"
         >
-          <template #checked>已启用</template>
-          <template #unchecked>未启用</template>
+          <template #checked>{{ t('pages.settings.CampusSession.s39') }}</template>
+          <template #unchecked>{{ t('pages.settings.CampusSession.s40') }}</template>
         </n-switch>
       </header>
 
@@ -28,7 +28,7 @@
         <div class="cs-card__toolbar">
           <n-input
             v-model:value="keyword"
-            placeholder="搜索宣讲会名称 / 高校"
+            :placeholder="t('pages.settings.CampusSession.s3')"
             clearable
             class="cs-search"
           >
@@ -38,7 +38,7 @@
           </n-input>
           <n-button type="primary" :disabled="!enabled" @click="openCreate">
             <template #icon><n-icon :component="AddOutline" /></template>
-            添加宣讲会
+            {{ t('pages.settings.CampusSession.s4') }}
           </n-button>
         </div>
 
@@ -52,7 +52,7 @@
           class="cs-table"
         />
 
-        <n-empty v-if="!loading && filteredRows.length === 0" :description="keyword ? '无匹配结果' : '暂无宣讲会'" class="cs-empty" />
+        <n-empty v-if="!loading && filteredRows.length === 0" :description="keyword ? t('pages.settings.CampusSession.s41') : t('pages.settings.CampusSession.s42')" class="cs-empty" />
       </n-card>
     </template>
 
@@ -60,58 +60,58 @@
     <n-modal
       v-model:show="showModal"
       preset="card"
-      :title="editingId ? '编辑宣讲会' : '添加宣讲会'"
+      :title="editingId ? t('pages.settings.CampusSession.s36') : t('pages.settings.CampusSession.s37')"
       class="cs-modal"
       :auto-focus="false"
       @close="closeModal"
     >
       <n-form ref="formRef" :model="form" :rules="rules" label-placement="top">
-        <n-form-item label="宣讲会名称" path="title">
-          <n-input v-model:value="form.title" placeholder="如：2026 校招·上海交通大学宣讲会" :disabled="saving" />
+        <n-form-item :label="t('pages.settings.CampusSession.s6')" path="title">
+          <n-input v-model:value="form.title" :placeholder="t('pages.settings.CampusSession.s7')" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="高校" path="school">
-          <n-input v-model:value="form.school" placeholder="选填，如：上海交通大学" :disabled="saving" />
+        <n-form-item :label="t('pages.settings.CampusSession.s8')" path="school">
+          <n-input v-model:value="form.school" :placeholder="t('pages.settings.CampusSession.s9')" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="形式" path="sessionType">
+        <n-form-item :label="t('pages.settings.CampusSession.s10')" path="sessionType">
           <n-select v-model:value="form.sessionType" :options="typeOptions" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="状态" path="status">
+        <n-form-item :label="t('pages.settings.CampusSession.s11')" path="status">
           <n-select v-model:value="form.status" :options="statusOptions" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="开始时间" path="startTime">
+        <n-form-item :label="t('pages.settings.CampusSession.s12')" path="startTime">
           <n-date-picker
             v-model:value="form.startTime"
             type="datetime"
             clearable
-            placeholder="选填"
+            :placeholder="t('pages.settings.CampusSession.s13')"
             class="cs-date"
             :disabled="saving"
           />
         </n-form-item>
-        <n-form-item label="结束时间" path="endTime">
+        <n-form-item :label="t('pages.settings.CampusSession.s14')" path="endTime">
           <n-date-picker
             v-model:value="form.endTime"
             type="datetime"
             clearable
-            placeholder="选填"
+            :placeholder="t('pages.settings.CampusSession.s15')"
             class="cs-date"
             :disabled="saving"
           />
         </n-form-item>
-        <n-form-item label="场地" path="venue">
-          <n-input v-model:value="form.venue" placeholder="线下场地，选填" :disabled="saving" />
+        <n-form-item :label="t('pages.settings.CampusSession.s16')" path="venue">
+          <n-input v-model:value="form.venue" :placeholder="t('pages.settings.CampusSession.s17')" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="线上链接" path="onlineLink">
-          <n-input v-model:value="form.onlineLink" placeholder="线上直播/会议链接，选填" :disabled="saving" />
+        <n-form-item :label="t('pages.settings.CampusSession.s18')" path="onlineLink">
+          <n-input v-model:value="form.onlineLink" :placeholder="t('pages.settings.CampusSession.s19')" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="容纳人数" path="capacity">
-          <n-input-number v-model:value="form.capacity" :min="0" placeholder="选填" :disabled="saving" />
+        <n-form-item :label="t('pages.settings.CampusSession.s20')" path="capacity">
+          <n-input-number v-model:value="form.capacity" :min="0" :placeholder="t('pages.settings.CampusSession.s21')" :disabled="saving" />
         </n-form-item>
-        <n-form-item label="备注" path="note">
+        <n-form-item :label="t('pages.settings.CampusSession.s22')" path="note">
           <n-input
             v-model:value="form.note"
             type="textarea"
-            placeholder="选填"
+            :placeholder="t('pages.settings.CampusSession.s23')"
             :autosize="{ minRows: 2, maxRows: 4 }"
             :disabled="saving"
           />
@@ -120,9 +120,9 @@
 
       <template #footer>
         <div class="cs-modal__footer">
-          <n-button :disabled="saving" @click="closeModal">取消</n-button>
+          <n-button :disabled="saving" @click="closeModal">{{ t('pages.settings.CampusSession.s24') }}</n-button>
           <n-button type="primary" :loading="saving" :disabled="saving" @click="submitForm">
-            {{ editingId ? '保存' : '创建' }}
+            {{ editingId ? t('pages.settings.CampusSession.s43') : t('pages.settings.CampusSession.s44') }}
           </n-button>
         </div>
       </template>
@@ -213,7 +213,7 @@ const typeOptions = Object.entries(SESSION_TYPE_LABELS).map(([value, label]) => 
 const statusOptions = Object.entries(SESSION_STATUS_LABELS).map(([value, label]) => ({ value, label }))
 
 const rules: FormRules = {
-  title: { required: true, message: '请填写宣讲会名称', trigger: ['input', 'blur'] },
+  title: { required: true, message: t('pages.settings.CampusSession.s45'), trigger: ['input', 'blur'] },
 }
 
 const tablePagination = { pageSize: 10 }
@@ -255,25 +255,25 @@ function statusTag(status: SessionStatus) {
 }
 
 const columns = [
-  { title: '宣讲会名称', key: 'title' },
-  { title: '高校', key: 'school', render: (row: CampusSession) => row.school || '—' },
+  { title: t('pages.settings.CampusSession.s25'), key: 'title' },
+  { title: t('pages.settings.CampusSession.s26'), key: 'school', render: (row: CampusSession) => row.school || '—' },
   {
-    title: '形式',
+    title: t('pages.settings.CampusSession.s27'),
     key: 'sessionType',
     render: (row: CampusSession) => SESSION_TYPE_LABELS[row.sessionType] ?? row.sessionType,
   },
-  { title: '状态', key: 'status', render: (row: CampusSession) => statusTag(row.status) },
-  { title: '开始时间', key: 'startTime', render: (row: CampusSession) => fmtTime(row.startTime) },
+  { title: t('pages.settings.CampusSession.s28'), key: 'status', render: (row: CampusSession) => statusTag(row.status) },
+  { title: t('pages.settings.CampusSession.s29'), key: 'startTime', render: (row: CampusSession) => fmtTime(row.startTime) },
   {
-    title: '操作',
+    title: t('pages.settings.CampusSession.s30'),
     key: 'actions',
     render: (row: CampusSession) =>
       h('div', { style: 'display:flex; gap:8px' }, [
-        h(NButton, { size: 'small', quaternary: true, onClick: () => openEdit(row) }, { default: () => '编辑' }),
+        h(NButton, { size: 'small', quaternary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.CampusSession.s52') }),
         h(
           NButton,
           { size: 'small', quaternary: true, type: 'error', onClick: () => remove(row) },
-          { default: () => '移除' },
+          { default: () => t('pages.settings.CampusSession.s53') },
         ),
       ]),
   },
@@ -286,7 +286,7 @@ async function reload() {
     const res = await listSessions()
     rows.value = res.rows
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '加载宣讲会失败')
+    message.error(e?.response?.data?.detail || t('pages.settings.CampusSession.s46'))
   } finally {
     loading.value = false
   }
@@ -307,9 +307,9 @@ async function onToggleEnabled(val: boolean) {
   try {
     await putSessionConfig({ enabled: val })
     enabled.value = val
-    message.success(val ? '已启用宣讲会模块' : '已停用宣讲会模块')
+    message.success(val ? t('pages.settings.CampusSession.s47') : t('pages.settings.CampusSession.s48'))
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '保存启用状态失败')
+    message.error(e?.response?.data?.detail || t('pages.settings.CampusSession.s49'))
   } finally {
     savingEnabled.value = false
   }
@@ -374,15 +374,15 @@ async function submitForm() {
   try {
     if (editingId.value) {
       await updateSession(editingId.value, payload)
-      message.success('已保存')
+      message.success(t('pages.settings.CampusSession.s31'))
     } else {
       await createSession(payload)
-      message.success('已添加宣讲会')
+      message.success(t('pages.settings.CampusSession.s32'))
     }
     closeModal()
     await reload()
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '保存失败')
+    message.error(e?.response?.data?.detail || t('pages.settings.CampusSession.s50'))
   } finally {
     saving.value = false
   }
@@ -393,7 +393,7 @@ function remove(row: CampusSession) {
   const id = row.id
   rows.value = rows.value.filter((r) => r.id !== id)
   notification.success({
-    title: '已移除该宣讲会',
+    title: t('pages.settings.CampusSession.s33'),
     duration: 8000,
     action: () =>
       h(
@@ -404,13 +404,13 @@ function remove(row: CampusSession) {
             try {
               await restoreSession(id)
               await reload()
-              message.success('已恢复')
+              message.success(t('pages.settings.CampusSession.s34'))
             } catch {
-              message.error('恢复失败，请联系管理员')
+              message.error(t('pages.settings.CampusSession.s35'))
             }
           },
         },
-        { default: () => '撤销' },
+        { default: () => t('pages.settings.CampusSession.s51') },
       ),
   })
   deleteSession(id).catch(() => reload())

@@ -4,14 +4,14 @@
     <EmptyState
       v-if="!systemStore.isCampus"
       :title="t('pages.settings.CampusAmbassador.s2')"
-      description="「校园大使」配置仅在切换到「校园招聘」系统后呈现。请在左上角系统切换器中选择「校园招聘」。"
+      :description="t('pages.settings.CampusAmbassador.s3')"
     />
 
     <!-- 校招环境：校园大使配置（Phase 2 样板 —— 后续接后端 campus_ambassador 模块） -->
     <template v-else>
       <header class="ca-header">
         <div>
-          <h1 class="page-title">{{ systemStore.label }} · 校园大使</h1>
+          <h1 class="page-title">{{ systemStore.label }} · {{ t('pages.settings.CampusAmbassador.s14') }}</h1>
           <p class="page-subtitle">{{ t('pages.settings.CampusAmbassador.s1') }}</p>
         </div>
         <n-switch
@@ -19,8 +19,8 @@
           :loading="savingEnabled"
           @update:value="onToggleEnabled"
         >
-          <template #checked>已启用</template>
-          <template #unchecked>未启用</template>
+          <template #checked>{{ t('pages.settings.CampusAmbassador.s15') }}</template>
+          <template #unchecked>{{ t('pages.settings.CampusAmbassador.s16') }}</template>
         </n-switch>
       </header>
 
@@ -28,7 +28,7 @@
         <div class="ca-card__toolbar">
           <n-input
             v-model:value="keyword"
-            placeholder="搜索学校 / 大使姓名"
+            :placeholder="t('pages.settings.CampusAmbassador.s4')"
             clearable
             class="ca-search"
           >
@@ -38,7 +38,7 @@
           </n-input>
           <n-button type="primary" :disabled="!enabled" @click="openCreate">
             <template #icon><n-icon :component="PersonAddOutline" /></template>
-            添加大使
+            {{ t('pages.settings.CampusAmbassador.s5') }}
           </n-button>
         </div>
 
@@ -51,7 +51,7 @@
           class="ca-table"
         />
 
-        <n-empty v-if="!loading && filteredRows.length === 0" description="暂无校园大使" class="ca-empty" />
+        <n-empty v-if="!loading && filteredRows.length === 0" :description="t('pages.settings.CampusAmbassador.s6')" class="ca-empty" />
       </n-card>
     </template>
   </div>
@@ -108,27 +108,27 @@ const filteredRows = computed(() => {
 })
 
 const columns = [
-  { title: '高校', key: 'school' },
-  { title: '大使姓名', key: 'name' },
-  { title: '区域', key: 'region' },
+  { title: t('pages.settings.CampusAmbassador.s7'), key: 'school' },
+  { title: t('pages.settings.CampusAmbassador.s8'), key: 'name' },
+  { title: t('pages.settings.CampusAmbassador.s9'), key: 'region' },
   {
-    title: '状态',
+    title: t('pages.settings.CampusAmbassador.s10'),
     key: 'status',
     render: (row: any) =>
       h(
         'span',
         { class: row.status === 'active' ? 'ca-tag ca-tag--on' : 'ca-tag ca-tag--off' },
-        row.status === 'active' ? '已激活' : '待审核',
+        row.status === 'active' ? t('pages.settings.CampusAmbassador.s17') : t('pages.settings.CampusAmbassador.s18'),
       ),
   },
   {
-    title: '操作',
+    title: t('pages.settings.CampusAmbassador.s11'),
     key: 'actions',
     render: (row: any) =>
       h(
         NButton,
         { size: 'small', quaternary: true, type: 'error', onClick: () => remove(row.id) },
-        { default: () => '移除' },
+        { default: () => t('pages.settings.CampusAmbassador.s19') },
       ),
   },
 ]
@@ -139,17 +139,17 @@ function onToggleEnabled(val: boolean) {
   setTimeout(() => {
     enabled.value = val
     savingEnabled.value = false
-    message.success(val ? '已启用校园大使模块' : '已停用校园大使模块')
+    message.success(val ? t('pages.settings.CampusAmbassador.s20') : t('pages.settings.CampusAmbassador.s21'))
   }, 400)
 }
 
 function openCreate() {
-  message.info('「添加大使」表单（Phase 4 接入后端）')
+  message.info(t('pages.settings.CampusAmbassador.s12'))
 }
 
 function remove(id: number) {
   rows.value = rows.value.filter((r) => r.id !== id)
-  message.success('已移除该大使')
+  message.success(t('pages.settings.CampusAmbassador.s13'))
 }
 </script>
 
