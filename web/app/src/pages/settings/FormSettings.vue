@@ -2,20 +2,20 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{{ resourceLabel }}表单设置</h1>
+        <h1 class="page-title">{{ t('pages.settings.FormSettings.s19', { name: resourceLabel }) }}</h1>
         <p class="page-subtitle">
-          配置{{ resourceLabel }}表单包含的字段与必填规则，右侧实时预览填写效果。
-          字段来源于动态字段配置的「{{ resource }}」资源；可拖拽分组与字段调整展示顺序。
+          {{ t('pages.settings.FormSettings.s20', { name: resourceLabel }) }}
+          {{ t('pages.settings.FormSettings.s21', { resource: resource }) }}
         </p>
       </div>
       <div class="page-header-actions">
         <n-button quaternary size="small" :loading="loading" @click="loadFields">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新字段
+          {{ t('pages.settings.FormSettings.s1') }}
         </n-button>
         <n-button tertiary size="small" :disabled="loading" @click="onReset">
           <template #icon><n-icon :component="ReloadOutline" /></template>
-          重置默认
+          {{ t('pages.settings.FormSettings.s2') }}
         </n-button>
       </div>
     </div>
@@ -25,9 +25,9 @@
         <!-- 左：配置（按分组 + 双层拖拽） -->
         <section class="glass-card sr-config">
           <header class="sr-panel-head">
-            <h2 class="sr-panel-title">{{ resourceLabel }}字段</h2>
+            <h2 class="sr-panel-title">{{ t('pages.settings.FormSettings.s22', { name: resourceLabel }) }}</h2>
             <span class="sr-save-hint" :class="{ saved, saving }">
-              {{ saving ? '保存中…' : saved ? '已自动保存' : '未保存' }}
+              {{ saving ? t('pages.settings.FormSettings.s23') : saved ? t('pages.settings.FormSettings.s24') : t('pages.settings.FormSettings.s25') }}
             </span>
           </header>
 
@@ -40,15 +40,15 @@
                 class="sr-alert"
               >
                 <template #header>
-                  <span>加载字段失败</span>
-                  <n-button size="tiny" tertiary class="sr-alert-retry" @click="loadFields">重试</n-button>
+                  <span>{{ t('pages.settings.FormSettings.s3') }}</span>
+                  <n-button size="tiny" tertiary class="sr-alert-retry" @click="loadFields">{{ t('pages.settings.FormSettings.s4') }}</n-button>
                 </template>
                 {{ error }}
               </n-alert>
 
               <n-empty
                 v-else-if="!allFields.length && !loading"
-                :description="`暂无可选字段，请先在「${resourceLabel}字段管理」中配置 ${resource} 资源字段`"
+                :description="t('pages.settings.FormSettings.s26', { name: resourceLabel, resource: resource })"
                 class="sr-empty"
               />
 
@@ -75,10 +75,10 @@
                       />
                       <span v-else class="sr-drag-handle-placeholder" />
                       <h3 class="sr-group-title">
-                        {{ grp.group?.name || '未分组' }}
+                        {{ grp.group?.name || t('pages.settings.FormSettings.s27') }}
                       </h3>
                       <n-tag size="small" :bordered="false" class="sr-group-count">
-                        {{ grp.fields.length }} 字段
+                        {{ grp.fields.length }} {{ t('pages.settings.FormSettings.s28') }}
                       </n-tag>
                     </header>
 
@@ -101,13 +101,11 @@
                           class="sr-drag-handle field-drag-handle"
                           :component="MenuOutline"
                           size="16"
-                          :title="m.field.isVisible === false
-                            ? '该字段在动态字段定义层为隐藏，仍可拖拽调整顺序'
-                            : '拖拽调整顺序'"
+                          :title="m.field.isVisible === false ? t('pages.settings.FormSettings.s5') : t('pages.settings.FormSettings.s6')"
                         />
                         <div class="sr-field-meta">
                           <span class="sr-field-label">{{ m.field.label }}</span>
-                          <span v-if="m.field.isVisible === false" class="sr-tag-hidden">定义层隐藏</span>
+                          <span v-if="m.field.isVisible === false" class="sr-tag-hidden">{{ t('pages.settings.FormSettings.s7') }}</span>
                           <span class="sr-type-tag">{{ fieldTypeLabel(m.field.fieldType) }}</span>
                         </div>
                         <div class="sr-field-toggles">
@@ -116,19 +114,19 @@
                             size="small"
                             @update:value="setEnabled(m.field.fieldKey, $event)"
                           />
-                          <span class="sr-toggle-label">显示</span>
+                          <span class="sr-toggle-label">{{ t('pages.settings.FormSettings.s8') }}</span>
                           <n-switch
                             :value="m.required"
                             size="small"
                             :disabled="!m.enabled"
                             @update:value="setRequired(m.field.fieldKey, $event)"
                           />
-                          <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">必填</span>
+                          <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">{{ t('pages.settings.FormSettings.s9') }}</span>
                         </div>
                       </div>
                     </VueDraggable>
                     <div v-else class="sr-group-empty">
-                      <n-empty size="small" description="暂无字段" />
+                      <n-empty size="small" :description="t('pages.settings.FormSettings.s10')" />
                     </div>
                   </section>
                 </VueDraggable>
@@ -140,14 +138,14 @@
         <!-- 右：预览（按分组 + 启用字段） -->
         <section class="glass-card sr-preview">
           <header class="sr-panel-head">
-            <h2 class="sr-panel-title">表单预览</h2>
-            <span class="sr-preview-count">{{ enabledFields.length }} 个字段</span>
+            <h2 class="sr-panel-title">{{ t('pages.settings.FormSettings.s11') }}</h2>
+            <span class="sr-preview-count">{{ enabledFields.length }} {{ t('pages.settings.FormSettings.s29') }}</span>
           </header>
 
           <div class="sr-preview-body">
             <n-empty
               v-if="!enabledFields.length"
-              description="左侧开启字段后，这里实时展示填写效果"
+              :description="t('pages.settings.FormSettings.s12')"
               class="sr-empty"
             />
             <div v-else class="sr-form">
@@ -157,7 +155,7 @@
                 class="sr-form-group"
               >
                 <div class="sr-form-group-title">
-                  {{ grp.group?.name || '未分组' }}
+                  {{ grp.group?.name || t('pages.settings.FormSettings.s27') }}
                   <span class="sr-form-group-count">{{ grp.fields.length }}</span>
                 </div>
                 <div class="sr-form-grid">
@@ -179,7 +177,7 @@
                       v-else-if="isSingleChoice(m.field.fieldType)"
                       disabled
                       :options="selectOptions(m.field)"
-                      placeholder="请选择"
+                      :placeholder="t('pages.settings.FormSettings.s13')"
                     />
                     <!-- 多选类 -->
                     <n-select
@@ -187,7 +185,7 @@
                       multiple
                       disabled
                       :options="selectOptions(m.field)"
-                      placeholder="请选择"
+                      :placeholder="t('pages.settings.FormSettings.s14')"
                     />
                     <!-- 附件 -->
                     <div v-else-if="m.field.fieldType === 'ATTACHMENT'" class="sr-attachment">
@@ -203,7 +201,7 @@
                       type="textarea"
                       disabled
                       :rows="3"
-                      :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
+                      :placeholder="m.field.placeholder || (t('pages.settings.FormSettings.s18') + m.field.label)"
                     />
                     <!-- 行政区划 -->
                     <RegionCascader
@@ -230,7 +228,7 @@
                     <n-space v-else-if="m.field.fieldType === 'NUMBER'" align="center" :size="8">
                       <n-input
                         disabled
-                        :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
+                        :placeholder="m.field.placeholder || (t('pages.settings.FormSettings.s18') + m.field.label)"
                       />
                       <n-text v-if="(m.field.validation as FieldValidation | null)?.unit" depth="3">
                         {{ (m.field.validation as FieldValidation | null)?.unit }}
@@ -249,7 +247,7 @@
                     <n-input
                       v-else
                       disabled
-                      :placeholder="m.field.placeholder || ('请输入' + m.field.label)"
+                      :placeholder="m.field.placeholder || (t('pages.settings.FormSettings.s18') + m.field.label)"
                     />
                   </div>
                 </div>
@@ -314,7 +312,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const resourceLabel = computed(() => (props.resource === 'Demand' ? '招聘需求' : '职位信息'))
+const resourceLabel = computed(() => (props.resource === 'Demand' ? t('pages.settings.FormSettings.s30') : t('pages.settings.FormSettings.s31')))
 
 const message = useMessage()
 
@@ -379,7 +377,7 @@ async function loadFields() {
       allGroups.value = []
     }
   } catch (e: any) {
-    error.value = e?.message || '请求动态字段失败，请检查网络或登录状态'
+    error.value = e?.message || t('pages.settings.FormSettings.s32')
   } finally {
     loading.value = false
   }
@@ -420,7 +418,7 @@ watch(
       saved.value = true
     } catch (e: any) {
       saved.value = false
-      message.error('保存失败：' + extractApiError(e))
+      message.error(t('pages.settings.FormSettings.s33') + extractApiError(e))
     } finally {
       saving.value = false
     }
@@ -508,7 +506,7 @@ async function onGroupDragEnd() {
       }
       config.value.groupOrder = beforeGroupOrder
       const firstReason = failed[0]?.reason
-      lastReorderError.value = `分组排序保存失败 (${failed.length}/${updates.length}), 已回滚`
+      lastReorderError.value = `t('pages.settings.FormSettings.s34', { failed: failed.length, total: updates.length })`
       console.error('[FormSettings] group reorder failed', failed)
       message.error(lastReorderError.value + (firstReason ? `: ${extractApiError(firstReason)}` : ''))
     }
@@ -518,7 +516,7 @@ async function onGroupDragEnd() {
       if (g) g.orderIndex = oldOrder
     }
     config.value.groupOrder = beforeGroupOrder
-    lastReorderError.value = e?.message || '分组排序保存异常'
+    lastReorderError.value = e?.message || t('pages.settings.FormSettings.s35')
     message.error(lastReorderError.value)
   } finally {
     groupReorderRunning.value = false
@@ -566,7 +564,7 @@ async function onFieldDragEnd(grp: FieldGroupBucket, evt: SortableEvent) {
         if (f) f.orderIndex = oldOrder
       }
       const firstReason = failed[0]?.reason
-      lastReorderError.value = `字段排序保存失败 (${failed.length}/${updates.length}), 已回滚`
+      lastReorderError.value = `t('pages.settings.FormSettings.s36', { failed: failed.length, total: updates.length })`
       console.error('[FormSettings] field reorder failed', failed)
       message.error(lastReorderError.value + (firstReason ? `: ${extractApiError(firstReason)}` : ''))
     }
@@ -575,7 +573,7 @@ async function onFieldDragEnd(grp: FieldGroupBucket, evt: SortableEvent) {
       const f = byId.get(id)
       if (f) f.orderIndex = oldOrder
     }
-    lastReorderError.value = e?.message || '字段排序保存异常'
+    lastReorderError.value = e?.message || t('pages.settings.FormSettings.s37')
     message.error(lastReorderError.value)
   } finally {
     fieldReorderRunning.value = false
