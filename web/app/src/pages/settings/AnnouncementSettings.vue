@@ -45,8 +45,8 @@
           :loading="configSaving"
           @update:value="onToggleWorkbench"
         >
-          <template #checked>展示</template>
-          <template #unchecked>隐藏</template>
+          <template #checked>{{ t('pages.settings.AnnouncementSettings.s48') }}</template>
+          <template #unchecked>{{ t('pages.settings.AnnouncementSettings.s49') }}</template>
         </n-switch>
       </div>
 
@@ -54,7 +54,7 @@
       <div class="policy-admin__filter">
         <n-input
           v-model:value="searchKeyword"
-          placeholder="搜索文档名称"
+          :placeholder="t('pages.settings.AnnouncementSettings.s7')"
           clearable
           style="width: 260px;"
         >
@@ -65,7 +65,7 @@
         <n-select
           v-model:value="filterStatus"
           :options="statusOptions"
-          placeholder="发布状态"
+          :placeholder="t('pages.settings.AnnouncementSettings.s8')"
           clearable
           style="width: 140px;"
         />
@@ -78,13 +78,13 @@
             <table class="policy-table">
               <thead>
                 <tr>
-                  <th class="col-name">文档名称</th>
-                  <th class="col-scope">发布范围</th>
-                  <th class="col-editor">最近修改人</th>
-                  <th class="col-time">修改时间</th>
-                  <th class="col-publish">是否发布</th>
-                  <th class="col-place">展示位置</th>
-                  <th class="col-actions">操作</th>
+                  <th class="col-name">{{ t('pages.settings.AnnouncementSettings.s9') }}</th>
+                  <th class="col-scope">{{ t('pages.settings.AnnouncementSettings.s10') }}</th>
+                  <th class="col-editor">{{ t('pages.settings.AnnouncementSettings.s11') }}</th>
+                  <th class="col-time">{{ t('pages.settings.AnnouncementSettings.s12') }}</th>
+                  <th class="col-publish">{{ t('pages.settings.AnnouncementSettings.s13') }}</th>
+                  <th class="col-place">{{ t('pages.settings.AnnouncementSettings.s14') }}</th>
+                  <th class="col-actions">{{ t('pages.settings.AnnouncementSettings.s15') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -96,7 +96,7 @@
                       </div>
                       <div class="policy-doc-info">
                         <span class="policy-doc-title" :title="row.title">{{ row.title }}</span>
-                        <span v-if="row.pinned" class="policy-doc-pinned">置顶</span>
+                        <span v-if="row.pinned" class="policy-doc-pinned">{{ t('pages.settings.AnnouncementSettings.s16') }}</span>
                       </div>
                     </div>
                   </td>
@@ -120,22 +120,22 @@
                   </td>
                   <td class="col-place">
                     <div class="policy-place">
-                      <n-tag v-if="row.showOnWorkbench" size="small" type="info" :bordered="false">工作台</n-tag>
-                      <span v-else class="policy-place__none">不展示</span>
+                      <n-tag v-if="row.showOnWorkbench" size="small" type="info" :bordered="false">{{ t('pages.settings.AnnouncementSettings.s17') }}</n-tag>
+                      <span v-else class="policy-place__none">{{ t('pages.settings.AnnouncementSettings.s18') }}</span>
                     </div>
                   </td>
                   <td class="col-actions">
                     <div class="policy-actions">
-                      <n-button tertiary type="primary" size="small" @click="openPush(row)">推送</n-button>
-                      <n-button tertiary type="primary" size="small" @click="openEdit(row)">编辑</n-button>
-                      <n-button type="error" size="small" @click="remove(row)">删除</n-button>
+                      <n-button tertiary type="primary" size="small" @click="openPush(row)">{{ t('pages.settings.AnnouncementSettings.s19') }}</n-button>
+                      <n-button tertiary type="primary" size="small" @click="openEdit(row)">{{ t('pages.settings.AnnouncementSettings.s50') }}</n-button>
+                      <n-button type="error" size="small" @click="remove(row)">{{ t('pages.settings.AnnouncementSettings.s20') }}</n-button>
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <n-empty v-else description="暂无文档" />
+          <n-empty v-else :description="t('pages.settings.AnnouncementSettings.s21')" />
         </n-spin>
       </n-card>
     </main>
@@ -149,78 +149,78 @@
     >
       <n-drawer-content :native-scrollbar="false">
         <template #header>
-          <span class="drawer-title">{{ editingId ? '编辑文档' : '添加文档' }}</span>
+          <span class="drawer-title">{{ editingId ? t('pages.settings.AnnouncementSettings.s51') : t('pages.settings.AnnouncementSettings.s52') }}</span>
         </template>
 
         <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="84px">
-          <n-form-item label="文档名称" path="title">
-            <n-input v-model:value="form.title" placeholder="请输入文档名称" />
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s22')" path="title">
+            <n-input v-model:value="form.title" :placeholder="t('pages.settings.AnnouncementSettings.s23')" />
           </n-form-item>
 
-          <n-form-item label="文档说明" path="body">
-            <rich-editor v-model:html="form.body" placeholder="请输入文档说明" />
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s24')" path="body">
+            <rich-editor v-model:html="form.body" :placeholder="t('pages.settings.AnnouncementSettings.s25')" />
           </n-form-item>
 
-          <n-form-item label="发布范围" path="audience">
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s26')" path="audience">
             <n-radio-group v-model:value="form.audience">
               <n-space>
-                <n-radio value="ALL">全体员工</n-radio>
-                <n-radio value="RECRUIT_EXPERT">招聘专家</n-radio>
+                <n-radio value="ALL">{{ t('pages.settings.AnnouncementSettings.s27') }}</n-radio>
+                <n-radio value="RECRUIT_EXPERT">{{ t('pages.settings.AnnouncementSettings.s28') }}</n-radio>
               </n-space>
             </n-radio-group>
           </n-form-item>
 
-          <n-form-item label="分类" path="category">
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s29')" path="category">
             <n-select v-model:value="form.category" :options="categoryOptions" />
           </n-form-item>
 
-          <n-form-item label="置顶文档" path="pinned">
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s30')" path="pinned">
             <n-radio-group v-model:value="form.pinned">
               <n-space>
-                <n-radio :value="true">是</n-radio>
-                <n-radio :value="false">否</n-radio>
+                <n-radio :value="true">{{ t('pages.settings.AnnouncementSettings.s31') }}</n-radio>
+                <n-radio :value="false">{{ t('pages.settings.AnnouncementSettings.s32') }}</n-radio>
               </n-space>
             </n-radio-group>
           </n-form-item>
 
-          <n-form-item label="工作台展示">
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s33')">
             <n-radio-group v-model:value="form.showOnWorkbench">
               <n-space>
-                <n-radio :value="true">是</n-radio>
-                <n-radio :value="false">否</n-radio>
+                <n-radio :value="true">{{ t('pages.settings.AnnouncementSettings.s34') }}</n-radio>
+                <n-radio :value="false">{{ t('pages.settings.AnnouncementSettings.s35') }}</n-radio>
               </n-space>
             </n-radio-group>
           </n-form-item>
 
-          <n-form-item label="上传附件">
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s36')">
             <div class="attach-block">
               <div v-for="att in currentAttachments" :key="att.id" class="attach-row">
                 <div class="attach-row__icon">
                   <n-icon :component="DocumentTextOutline" :size="16" />
                 </div>
                 <span class="attach-name">{{ att.originalName }} <em>{{ formatSize(att.fileSize) }}</em></span>
-                <n-button size="tiny" type="error" @click="removeExistingAttachment(att)">移除</n-button>
+                <n-button size="tiny" type="error" @click="removeExistingAttachment(att)">{{ t('pages.settings.AnnouncementSettings.s53') }}</n-button>
               </div>
               <div v-for="(f, i) in pendingFiles" :key="`new-${i}`" class="attach-row">
                 <div class="attach-row__icon">
                   <n-icon :component="DocumentTextOutline" :size="16" />
                 </div>
                 <span class="attach-name">{{ f.name }} <em>{{ formatSize(f.size) }}</em></span>
-                <n-button size="tiny" type="error" @click="undoRemovePendingFile(i, f)">移除</n-button>
+                <n-button size="tiny" type="error" @click="undoRemovePendingFile(i, f)">{{ t('pages.settings.AnnouncementSettings.s37') }}</n-button>
               </div>
               <n-upload :show-file-list="false" multiple @before-upload="onBeforeUpload">
                 <n-button size="small" tertiary>
                   <template #icon>
                     <n-icon :component="CloudUploadOutline" />
                   </template>
-                  点击上传
+                  {{ t('pages.settings.AnnouncementSettings.s38') }}
                 </n-button>
               </n-upload>
-              <p class="attach-hint">支持 PDF、DOCX、PPT、ZIP 等格式，单文件 ≤ 10MB</p>
+              <p class="attach-hint">{{ t('pages.settings.AnnouncementSettings.s39') }}</p>
             </div>
           </n-form-item>
 
-          <n-form-item label="发布时间" path="publishedAt">
+          <n-form-item :label="t('pages.settings.AnnouncementSettings.s40')" path="publishedAt">
             <n-date-picker
               v-model:value="form.publishedAt"
               type="datetime"
@@ -232,8 +232,8 @@
 
         <template #footer>
           <n-space justify="end">
-            <n-button @click="drawerVisible = false">取消</n-button>
-            <n-button type="primary" class="gradient-btn" :loading="saving" @click="save">确定</n-button>
+            <n-button @click="drawerVisible = false">{{ t('pages.settings.AnnouncementSettings.s41') }}</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="saving" @click="save">{{ t('pages.settings.AnnouncementSettings.s42') }}</n-button>
           </n-space>
         </template>
       </n-drawer-content>
@@ -242,16 +242,16 @@
     <!-- 推送弹窗 -->
     <n-modal
       v-model:show="pushVisible"
-      title="推送政策制度"
+      :title="t('pages.settings.AnnouncementSettings.s43')"
       preset="dialog"
-      positive-text="确定"
-      negative-text="取消"
+      :positive-text="t('pages.settings.AnnouncementSettings.s44')"
+      :negative-text="t('pages.settings.AnnouncementSettings.s45')"
       @positive-click="confirmPush"
       @negative-click="pushVisible = false"
     >
       <div class="push-body">
-        <p class="push-desc">推送后，发布范围内的员工进入系统后将收到弹窗推送。</p>
-        <n-checkbox v-model:checked="pushWithIM">IM 通知</n-checkbox>
+        <p class="push-desc">{{ t('pages.settings.AnnouncementSettings.s46') }}</p>
+        <n-checkbox v-model:checked="pushWithIM">{{ t('pages.settings.AnnouncementSettings.s47') }}</n-checkbox>
       </div>
     </n-modal>
   </div>
@@ -315,24 +315,24 @@ const treeNodes = computed(() => {
     PROCESS: rows.value.filter((r) => r.category === 'PROCESS').length,
   }
   return [
-    { key: 'ALL', label: '全部文件', icon: GridOutline, count: rows.value.length },
-    { key: 'SYSTEM', label: '制度', icon: FolderOpenOutline, count: counts.SYSTEM },
-    { key: 'NOTICE', label: '公告', icon: FolderOpenOutline, count: counts.NOTICE },
-    { key: 'PROCESS', label: '流程', icon: FolderOpenOutline, count: counts.PROCESS },
+    { key: 'ALL', label: t('pages.settings.AnnouncementSettings.s54'), icon: GridOutline, count: rows.value.length },
+    { key: 'SYSTEM', label: t('pages.settings.AnnouncementSettings.s55'), icon: FolderOpenOutline, count: counts.SYSTEM },
+    { key: 'NOTICE', label: t('pages.settings.AnnouncementSettings.s56'), icon: FolderOpenOutline, count: counts.NOTICE },
+    { key: 'PROCESS', label: t('pages.settings.AnnouncementSettings.s57'), icon: FolderOpenOutline, count: counts.PROCESS },
   ]
 })
 
 const currentFolderLabel = computed(() => {
   const node = treeNodes.value.find((n) => n.key === currentKey.value)
-  return node?.label || '全部文件'
+  return node?.label || t('pages.settings.AnnouncementSettings.s54')
 })
 
 // 搜索与状态筛选
 const searchKeyword = ref('')
 const filterStatus = ref<boolean | null>(null)
 const statusOptions = [
-  { label: '已发布', value: true },
-  { label: '已停用', value: false },
+  { label: t('pages.settings.AnnouncementSettings.s58'), value: true },
+  { label: t('pages.settings.AnnouncementSettings.s59'), value: false },
 ]
 
 const filteredRows = computed(() => {
@@ -359,9 +359,9 @@ async function onToggleWorkbench(value: boolean) {
   try {
     const cfg = await updateAnnouncementConfig({ showOnWorkbench: value })
     configShowOnWorkbench.value = cfg.showOnWorkbench
-    message.success(value ? '已在工作台展示政策制度' : '已隐藏工作台政策制度模块')
+    message.success(value ? t('pages.settings.AnnouncementSettings.s60') : t('pages.settings.AnnouncementSettings.s61'))
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '配置保存失败')
+    message.error(e?.response?.data?.detail || t('pages.settings.AnnouncementSettings.s62'))
   } finally {
     configSaving.value = false
   }
@@ -391,14 +391,14 @@ const removedAttachmentIds = ref<string[]>([])
 const currentAttachments = ref<AnnouncementAttachment[]>([])
 
 const categoryOptions = [
-  { label: '制度', value: 'SYSTEM' },
-  { label: '公告', value: 'NOTICE' },
-  { label: '流程', value: 'PROCESS' },
+  { label: t('pages.settings.AnnouncementSettings.s55'), value: 'SYSTEM' },
+  { label: t('pages.settings.AnnouncementSettings.s56'), value: 'NOTICE' },
+  { label: t('pages.settings.AnnouncementSettings.s57'), value: 'PROCESS' },
 ]
 
 const rules = {
-  title: { required: true, message: '请输入文档名称', trigger: 'blur' },
-  body: { required: true, message: '请输入文档说明', trigger: 'blur' },
+  title: { required: true, message: t('pages.settings.AnnouncementSettings.s23'), trigger: 'blur' },
+  body: { required: true, message: t('pages.settings.AnnouncementSettings.s25'), trigger: 'blur' },
 }
 
 function openCreate() {
@@ -423,11 +423,11 @@ function openCreate() {
           'div',
           { style: 'display:flex;align-items:center;gap:8px;' },
           [
-            h('span', { style: 'flex:1;' }, '已恢复上次未提交的草稿'),
+            h('span', { style: 'flex:1;' }, t('pages.settings.AnnouncementSettings.s63')),
             h(
               NButton,
               { size: 'small', text: true, type: 'primary', onClick: doClear },
-              { default: () => '清空' },
+              { default: () => t('pages.settings.AnnouncementSettings.s64') },
             ),
           ],
         ),
@@ -488,7 +488,7 @@ function removeExistingAttachment(att: AnnouncementAttachment) {
 function undoRemovePendingFile(i: number, f: File) {
   if (i < 0 || i >= pendingFiles.value.length) return
   pendingFiles.value.splice(i, 1)
-  undoable(`已移除附件「${f.name}」`, () => {
+  undoable(`t('pages.settings.AnnouncementSettings.s65') + '「' + f.name + '」'`, () => {
     const idx = Math.min(i, pendingFiles.value.length)
     pendingFiles.value.splice(idx, 0, f)
   })
@@ -525,11 +525,11 @@ async function save() {
     for (const f of pendingFiles.value) {
       await uploadAnnouncementAttachment(saved.id, f)
     }
-    message.success('已保存')
+    message.success(t('pages.settings.AnnouncementSettings.s66'))
     drawerVisible.value = false
     await refresh()
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || e?.message || '保存失败')
+    message.error(e?.response?.data?.detail || e?.message || t('pages.settings.AnnouncementSettings.s67'))
   } finally {
     saving.value = false
   }
@@ -538,30 +538,30 @@ async function save() {
 async function toggleActive(row: Announcement, value: boolean) {
   try {
     await updateAnnouncement(row.id, { isActive: value })
-    message.success(value ? '已发布' : '已停用')
+    message.success(value ? t('pages.settings.AnnouncementSettings.s58') : t('pages.settings.AnnouncementSettings.s59'))
     await refresh()
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '操作失败')
+    message.error(e?.response?.data?.detail || t('pages.settings.AnnouncementSettings.s68'))
   }
 }
 
 function remove(row: Announcement) {
   const btn = reactive({ loading: false })
   dialog.warning({
-    title: '删除文档',
-    content: `删除「${row.title}」？删除后将从列表移除。`,
-    positiveText: '删除',
-    negativeText: '取消',
+    title: t('pages.settings.AnnouncementSettings.s69'),
+    content: `t('pages.settings.AnnouncementSettings.s70') + row.title + t('pages.settings.AnnouncementSettings.s71')`,
+    positiveText: t('pages.settings.AnnouncementSettings.s20'),
+    negativeText: t('pages.settings.AnnouncementSettings.s41'),
     positiveButtonProps: btn,
     onPositiveClick: async () => {
       if (btn.loading) return false
       btn.loading = true
       try {
         await deleteAnnouncement(row.id)
-        message.success('已删除')
+        message.success(t('pages.settings.AnnouncementSettings.s72'))
         await refresh()
       } catch (e: any) {
-        message.error(e?.response?.data?.detail || '删除失败')
+        message.error(e?.response?.data?.detail || t('pages.settings.AnnouncementSettings.s73'))
         return false
       } finally {
         btn.loading = false
@@ -583,7 +583,7 @@ function openPush(row: Announcement) {
 
 function confirmPush() {
   // TODO: 接入后端推送 API
-  message.success(`已向「${pushRow.value?.audienceDisplay || '发布范围'}」推送「${pushRow.value?.title}」`)
+  message.success(`t('pages.settings.AnnouncementSettings.s74')({ aud: pushRow.value?.audienceDisplay || t('pages.settings.AnnouncementSettings.s10'), title: pushRow.value?.title })`)
   pushVisible.value = false
 }
 
@@ -592,7 +592,7 @@ async function refresh() {
   try {
     rows.value = await listAnnouncements({ show_inactive: true })
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '加载失败')
+    message.error(e?.response?.data?.detail || t('pages.settings.AnnouncementSettings.s75'))
     rows.value = []
   } finally {
     loading.value = false
