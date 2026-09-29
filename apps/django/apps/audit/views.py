@@ -3,13 +3,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsSuperAdmin
 
 from .models import AuditLog
 from .serializers import AuditLogSerializer
 
 
-class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+class AuditLogViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
     """审计日志 ViewSet - 只读（仅超管可访问）"""
     queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
