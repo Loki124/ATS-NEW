@@ -33,12 +33,14 @@ def test_type_cast_no_float_precision_loss():
 
 
 def test_type_cast_rejects_bool_and_garbage():
+    # bool 与非法字符串必须拒绝（防 Decimal 精度陷阱 / 误把布尔当数值）
     with pytest.raises(TypeCastError):
         type_cast(True, MetricDataType.NUMBER)
     with pytest.raises(TypeCastError):
         type_cast('abc', MetricDataType.NUMBER)
-    with pytest.raises(TypeCastError):
-        type_cast('', MetricDataType.NUMBER)
+    # 空串/None 原样返回（交由 IS_EMPTY / IS_NOT_EMPTY 运算符判定，不在转换层误抛）
+    assert type_cast('', MetricDataType.NUMBER) == ''
+    assert type_cast(None, MetricDataType.NUMBER) is None
 
 
 # --------------------------------------------------------------------------

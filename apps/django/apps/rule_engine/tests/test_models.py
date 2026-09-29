@@ -46,12 +46,13 @@ def test_action_type_values():
     }
 
 
-def test_operator_values_are_eleven():
+def test_operator_values_are_fourteen():
     assert {c.value for c in UnifiedOperator} == {
         'EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE',
         'BETWEEN', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY',
+        'CONTAINS', 'NOT_CONTAINS', 'REGEX_MATCH',
     }
-    assert len(UnifiedOperator.choices) == 11
+    assert len(UnifiedOperator.choices) == 14
 
 
 def test_condition_type_values():

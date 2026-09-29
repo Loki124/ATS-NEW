@@ -59,7 +59,7 @@ def test_create_rule(auth_client):
 def test_update_rule(auth_client):
     tpl_id = _ensure_template(auth_client)
     created = _unwrap(auth_client.post(BASE + 'rules/', {
-        'name': '可调阈值', 'conditions': [
+        'name': '可调阈值', 'scene': 'FILTER', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json'))
     resp = auth_client.patch(f"{BASE}rules/{created['id']}/", {
@@ -72,7 +72,7 @@ def test_update_rule(auth_client):
 def test_toggle_rule(auth_client):
     tpl_id = _ensure_template(auth_client)
     created = _unwrap(auth_client.post(BASE + 'rules/', {
-        'name': '可启停', 'conditions': [
+        'name': '可启停', 'scene': 'FILTER', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json'))
     assert created['enabled'] is True
@@ -90,7 +90,7 @@ def test_toggle_rule(auth_client):
 def test_delete_rule(auth_client):
     tpl_id = _ensure_template(auth_client)
     created = _unwrap(auth_client.post(BASE + 'rules/', {
-        'name': '待删除', 'conditions': [
+        'name': '待删除', 'scene': 'FILTER', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json'))
     resp = auth_client.delete(f"{BASE}rules/{created['id']}/")
@@ -102,7 +102,7 @@ def test_run_saved_rule_on_real_candidate(auth_client):
     tpl_id = _ensure_template(auth_client)
     cand = _make_candidate(age=35)
     created = _unwrap(auth_client.post(BASE + 'rules/', {
-        'name': '入池门槛', 'scene': 'TALENT_POOL', 'conditions': [
+        'name': '入池门槛', 'scene': 'TALENT_POOL', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json'))
 
@@ -118,7 +118,7 @@ def test_run_saved_rule_on_real_candidate(auth_client):
 def test_run_requires_candidate_id(auth_client):
     tpl_id = _ensure_template(auth_client)
     created = _unwrap(auth_client.post(BASE + 'rules/', {
-        'name': '缺参', 'conditions': [
+        'name': '缺参', 'scene': 'FILTER', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json'))
     resp = auth_client.post(f"{BASE}rules/{created['id']}/run/", {}, format='json')
@@ -128,7 +128,7 @@ def test_run_requires_candidate_id(auth_client):
 def test_run_unknown_candidate_returns_404(auth_client):
     tpl_id = _ensure_template(auth_client)
     created = _unwrap(auth_client.post(BASE + 'rules/', {
-        'name': '幽灵候选人', 'conditions': [
+        'name': '幽灵候选人', 'scene': 'FILTER', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json'))
     resp = auth_client.post(f"{BASE}rules/{created['id']}/run/", {
@@ -162,7 +162,7 @@ def test_rule_rejects_missing_template(auth_client):
 def test_list_rules(auth_client):
     tpl_id = _ensure_template(auth_client)
     auth_client.post(BASE + 'rules/', {
-        'name': '列表用规则', 'scene': 'SCORING', 'conditions': [
+        'name': '列表用规则', 'scene': 'SCORING', 'logic': 'AND', 'conditions': [
             {'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     }, format='json')
     resp = auth_client.get(BASE + 'rules/')

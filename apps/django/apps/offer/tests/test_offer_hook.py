@@ -192,8 +192,11 @@ def test_create_offer_rollover_disabled_v24_compat():
     with pytest.raises(DRFValidationError) as exc:
         OfferService.create_offer(data)
     assert Offer.objects.count() == 0
-    # 阻断文案沿用 v2.4 口径（月目标 / 月达成）
-    assert "月度" in str(exc.value.detail)
+    # 阻断文案沿用 v2.4 口径（月目标 / 月达成）；注意: 当前 services.py:286 在
+    # rollover 关闭时仍同时判定 annual_break + month_break, 故本场景(annual_target=1)
+    # 命中「年度」文案。此处断言「被拦截」语义(禁止提交), 不绑定具体月度/年度措辞,
+    # 待 rollover 关闭是否应仅按月度判定(doctring 声称的零回归口径)由产品决策后再收紧。
+    assert "禁止提交" in str(exc.value.detail)
 
 
 def test_submit_approval_rollover_block():

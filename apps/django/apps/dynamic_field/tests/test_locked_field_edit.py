@@ -31,22 +31,36 @@ def client(hr_user) -> APIClient:
 
 @pytest.fixture
 def locked_field(db) -> DynamicField:
-    """锁定核心标识字段(需求编号, field_key=code, 属 SYSTEM_FIELD_LOCKED_KEYS)。"""
-    return DynamicField.objects.create(
-        resource=RESOURCE, field_key='code', label='需求编号',
-        field_type=DynamicField.FieldType.TEXT, status='active',
-        is_system=True, is_required=True, order_index=10,
-    )
+    """锁定核心标识字段(需求编号, field_key=code, 属 SYSTEM_FIELD_LOCKED_KEYS)。
+
+    复用 0019 种子已落成的 (Demand, code) 系统字段行, 覆盖测试关心的属性,
+    避免与种子迁移撞唯一键 (resource, field_key)。
+    """
+    return DynamicField.objects.update_or_create(
+        resource=RESOURCE, field_key='code',
+        defaults=dict(
+            label='需求编号',
+            field_type=DynamicField.FieldType.TEXT, status='active',
+            is_system=True, is_required=True, order_index=10,
+        ),
+    )[0]
 
 
 @pytest.fixture
 def non_locked_system_field(db) -> DynamicField:
-    """非锁定系统字段(负责HR, field_key=hr, 不在 LOCKED 集合, 可改结构性属性)。"""
-    return DynamicField.objects.create(
-        resource=RESOURCE, field_key='hr', label='负责HR',
-        field_type=DynamicField.FieldType.TEXT, status='active',
-        is_system=True, order_index=100,
-    )
+    """非锁定系统字段(负责HR, field_key=hr, 不在 LOCKED 集合, 可改结构性属性)。
+
+    复用 0019 种子已落成的 (Demand, hr) 系统字段行, 覆盖测试关心的属性,
+    避免与种子迁移撞唯一键 (resource, field_key)。
+    """
+    return DynamicField.objects.update_or_create(
+        resource=RESOURCE, field_key='hr',
+        defaults=dict(
+            label='负责HR',
+            field_type=DynamicField.FieldType.TEXT, status='active',
+            is_system=True, order_index=100,
+        ),
+    )[0]
 
 
 @pytest.mark.django_db
@@ -79,7 +93,7 @@ class TestLockedFieldEdit:
         )
         assert resp.status_code == 400, resp.content
         body = resp.json()
-        assert '字段类型' in body.get('detail', '')
+        assert '字段类型' in body['errors']['detail']
 
     def test_locked_field_same_field_type_ok(self, client, locked_field):
         """携带与现值相同的 field_type 不算"修改", 不触发 400。"""
@@ -95,7 +109,7 @@ class TestLockedFieldEdit:
         resp = client.patch(detail_url(locked_field.id), {'status': 'inactive'}, format='json')
         assert resp.status_code == 400, resp.content
         body = resp.json()
-        assert '停用' in body.get('detail', '') or '启用' in body.get('detail', '')
+        assert '停用' in body['errors']['detail'] or '启用' in body['errors']['detail']
 
     def test_locked_field_identity_key_protected(self, client, locked_field):
         """改 field_key(身份键)被强制回注, 保持原值, 不报错。"""
