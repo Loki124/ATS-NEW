@@ -13,25 +13,6 @@ on:
   pull_request:
     branches: [main, develop]
 
-env:
-  # 已知历史失败用例 (隔离区 / quarantine)。
-  # 这 9 个是 R7 放开测试收集后暴露出来的存量问题, 不属于 Phase 0/1 修复范围,
-  # 由 known-failures 这个独立 job 持续可见地跟踪。
-  # (test_id_card_takes_priority_over_phone 是 BUG-1 引入的回归, 已修复并移出隔离区)
-  #
-  # ⚠️ 规则: 这个清单只允许变短, 不允许变长。
-  #    新写的代码挂了就必须修, 不许往这里塞。
-  QUARANTINE: >-
-    --deselect apps/add_candidate/tests/test_views.py::TestUploadAndParseView::test_upload_single_pdf_success
-    --deselect apps/add_candidate/tests/test_views.py::TestParseStatusView::test_get_processing_job
-    --deselect apps/add_candidate/tests/test_views.py::TestReplaceFileView::test_replace_success
-    --deselect apps/add_candidate/tests/test_views.py::TestBulkCreateView::test_bulk_create_pending
-    --deselect apps/add_candidate/tests/test_views.py::TestScoringEndpoints::test_scoring_start_returns_stream_url
-    --deselect apps/add_candidate/tests/test_views.py::TestScoringEndpoints::test_scoring_stream_returns_event_stream
-    --deselect apps/core/tests/test_sync_resources_t29.py::test_sync_resources_persists_codes
-    --deselect apps/core/tests/test_sync_resources_t29.py::test_sync_resources_rejects_invalid_codes
-    --deselect apps/core/tests/test_sync_resources_t29.py::test_sync_resources_empty_array_clears
-
 jobs:
   test-backend:
     name: Backend Tests
@@ -83,41 +64,6 @@ jobs:
         run: |
           . .venv/bin/activate
           pytest --tb=short -v --maxfail=10 ${{ env.QUARANTINE }}
-
-  known-failures:
-    name: Known Failures (tracking only, non-blocking)
-    runs-on: ubuntu-latest
-    # 隔离区用例单独跑, 不阻断合并, 但状态一直挂在 PR 上可见 ——
-    # 目的是防止"deselect 完就忘了", 修好一个就从 QUARANTINE 里删一行。
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
-          cache: 'pip'
-          cache-dependency-path: |
-            apps/django/requirements.txt
-            apps/django/requirements-dev.txt
-
-      - name: Install backend deps
-        working-directory: apps/django
-        run: |
-          python -m venv .venv
-          . .venv/bin/activate
-          pip install -r requirements-dev.txt
-
-      - name: Run quarantined tests
-        working-directory: apps/django
-        env:
-          DJANGO_SETTINGS_MODULE: config.settings.test
-        run: |
-          . .venv/bin/activate
-          pytest --tb=short -v \
-            apps/add_candidate/tests/test_views.py \
-            apps/core/tests/test_sync_resources_t29.py
 
   test-frontend:
     name: Frontend Build + Tests

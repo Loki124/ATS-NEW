@@ -275,14 +275,14 @@ class TestBulkCreateView:
         assert data['route'] == {'d1': 'pending'}
         assert mock_score_task.call_count == 1
 
-    def test_bulk_create_position_requires_position_id(self, api_client, mock_score_task):
+    def test_bulk_create_position_requires_position_id(self, api_client, hr_user, mock_score_task):
         """direction=position 但无 position_id → 400"""
-        # 先建一个解析好的 job，避免 DRAFT_NOT_FOUND 误报
+        # 先建一个归属当前用户的解析好的 job，避免 DRAFT_NOT_FOUND / FOREIGN_DRAFT 误报
         from apps.add_candidate.models import ParseJob
         ParseJob.objects.create(
             job_id='job_bulk_pos', draft_id='d1',
             file_name='r.pdf', file_path='/tmp/r.pdf', file_size=1000,
-            status='done',
+            status='done', actor=hr_user,
             parsed_data={'name': '李四', 'phone': '13800138002', 'email': 'li@test.com'},
         )
 
@@ -303,17 +303,24 @@ class TestBulkCreateView:
         assert response.status_code == 400
         assert mock_score_task.call_count == 0
 
-    def test_bulk_create_rollback_on_partial_failure(self, api_client, mock_score_task):
+    def test_bulk_create_rollback_on_partial_failure(self, api_client, hr_user, mock_score_task):
         """第二个 draft 失败 → 第一个回滚"""
         from apps.add_candidate.models import ParseJob
         # 第一个 draft：合法 pending（带解析数据）
         ParseJob.objects.create(
             job_id='job_bulk_rb_1', draft_id='d1',
             file_name='r.pdf', file_path='/tmp/r1.pdf', file_size=1000,
-            status='done',
+            status='done', actor=hr_user,
             parsed_data={'name': '王五', 'phone': '13800138003', 'email': 'wang@test.com'},
         )
-        # 第二个 draft：position 但缺 position_id（无 ParseJob 也行 — 校验在 service 层）
+        # 第二个 draft：position 但缺 position_id —— 需归属当前用户的 ParseJob 才能通过
+        # IDOR 校验进入 service 层做校验（无 ParseJob 会被视图层 FOREIGN_DRAFT 拦截返回 403）。
+        ParseJob.objects.create(
+            job_id='job_bulk_rb_2', draft_id='d2',
+            file_name='r2.pdf', file_path='/tmp/r2.pdf', file_size=1000,
+            status='done', actor=hr_user,
+            parsed_data={'name': '赵六', 'phone': '13800138004', 'email': 'zhao@test.com'},
+        )
 
         response = api_client.post(
             '/api/v1/candidates/add-candidate/bulk-create/',
