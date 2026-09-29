@@ -6,25 +6,25 @@
         <n-space align="center">
           <n-button text @click="$router.back()">
             <template #icon><n-icon :component="ArrowBackOutline" /></template>
-            返回
+            {{ t('pages.settings.ProcessStageEditor.s1') }}
           </n-button>
-          <h2 class="page-title">{{ processName }} - 阶段配置</h2>
+          <h2 class="page-title">{{ processName }} - {{ t('pages.settings.ProcessStageEditor.s38') }}</h2>
         </n-space>
-        <p class="page-subtitle">编排流程下的阶段顺序与阶段属性</p>
+        <p class="page-subtitle">{{ t('pages.settings.ProcessStageEditor.s2') }}</p>
       </div>
       <n-button type="primary" :disabled="!processId" @click="openAddModal">
         <template #icon><n-icon :component="AddOutline" /></template>
-        添加阶段
+        {{ t('pages.settings.ProcessStageEditor.s3') }}
       </n-button>
     </div>
 
     <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-      从<strong>全局阶段模板库</strong>中选择阶段加入此流程。同一阶段在每个流程中只能添加一次。可拖拽调整顺序。
+      {{ t('pages.settings.ProcessStageEditor.s52') }}<strong>{{ t('pages.settings.ProcessStageEditor.s4') }}</strong>{{ t('pages.settings.ProcessStageEditor.s39') }}
     </n-alert>
 
     <n-spin :show="loading">
       <div v-if="links.length === 0" class="empty-state">
-        <n-empty description="该流程还没有阶段，点右上角「添加阶段」开始" />
+        <n-empty :description="t('pages.settings.ProcessStageEditor.s5')" />
       </div>
       <div v-else>
         <draggable-list v-model="orderedLinks" @update:model-value="onReorder">
@@ -32,31 +32,31 @@
             <n-card class="stage-card" size="small">
               <div class="stage-row">
                 <div class="stage-info">
-                  <n-tag v-if="element.stage?.isStart" type="success" size="small">起始</n-tag>
-                  <n-tag v-if="element.stage?.isEnd" type="warning" size="small">结束</n-tag>
+                  <n-tag v-if="element.stage?.isStart" type="success" size="small">{{ t('pages.settings.ProcessStageEditor.s6') }}</n-tag>
+                  <n-tag v-if="element.stage?.isEnd" type="warning" size="small">{{ t('pages.settings.ProcessStageEditor.s7') }}</n-tag>
                   <n-tag :type="getTypeColor(element.stage.stageType)" size="small">
                     {{ element.stage.stageType }}
                   </n-tag>
                   <span class="stage-code">{{ element.stage.code }}</span>
                   <span class="stage-name">{{ element.customName || element.stage.name }}</span>
-                  <span v-if="element.stage.isBuiltin ?? element.stage.isSystem" class="sys-tag">[系统]</span>
+                  <span v-if="element.stage.isBuiltin ?? element.stage.isSystem" class="sys-tag">{{ t('pages.settings.ProcessStageEditor.s8') }}</span>
                   <span v-if="element.stageLimit" class="stage-limit">⏱ {{ element.stageLimit }}h</span>
                 </div>
                 <div class="stage-actions">
-                  <n-button text size="small" type="primary" @click="goRules(element)">规则</n-button>
-                  <n-button text size="small" type="primary" @click="goConditions(element)">条件</n-button>
-                  <n-button text size="small" @click="editLinkCustomName(element)">改名</n-button>
-                  <n-button text size="small" @click="editLinkStageLimit(element)">时长</n-button>
+                  <n-button text size="small" type="primary" @click="goRules(element)">{{ t('pages.settings.ProcessStageEditor.s9') }}</n-button>
+                  <n-button text size="small" type="primary" @click="goConditions(element)">{{ t('pages.settings.ProcessStageEditor.s10') }}</n-button>
+                  <n-button text size="small" @click="editLinkCustomName(element)">{{ t('pages.settings.ProcessStageEditor.s11') }}</n-button>
+                  <n-button text size="small" @click="editLinkStageLimit(element)">{{ t('pages.settings.ProcessStageEditor.s40') }}</n-button>
                   <n-popconfirm
                     v-if="!element.stage?.isStart && !element.stage?.isEnd"
                     @positive-click="removeLink(element)"
                   >
                     <template #trigger>
-                      <n-button size="small" type="error">移除</n-button>
+                      <n-button size="small" type="error">{{ t('pages.settings.ProcessStageEditor.s12') }}</n-button>
                     </template>
-                    从此流程中移除「{{ element.stage.name }}」？
+                    {{ t('pages.settings.ProcessStageEditor.s41', { name: element.stage.name }) }}
                   </n-popconfirm>
-                  <n-tag v-else type="default" size="small">起止不可移除</n-tag>
+                  <n-tag v-else type="default" size="small">{{ t('pages.settings.ProcessStageEditor.s13') }}</n-tag>
                 </div>
               </div>
               <div v-if="(element.stage.features ?? element.stage.defaultFeatures)?.length" class="stage-features">
@@ -72,12 +72,12 @@
     <n-modal
       v-model:show="showAddModal"
       preset="card"
-      title="从全局阶段库选择"
+      :title="t('pages.settings.ProcessStageEditor.s14')"
       style="width: 720px; max-width: 90vw"
       :transform-origin="undefined"
     >
       <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-        只显示<strong>启用中</strong>且<strong>未被当前流程引用</strong>的阶段。
+        {{ t('pages.settings.ProcessStageEditor.s53') }}<strong>{{ t('pages.settings.ProcessStageEditor.s15') }}</strong>{{ t('pages.settings.ProcessStageEditor.s54') }}<strong>{{ t('pages.settings.ProcessStageEditor.s16') }}</strong>{{ t('pages.settings.ProcessStageEditor.s51') }}
       </n-alert>
       <n-spin :show="loadingAddModal">
         <n-data-table
@@ -93,19 +93,19 @@
     <n-modal
       v-model:show="showLimitModal"
       preset="card"
-      title="设置阶段时长限制"
+      :title="t('pages.settings.ProcessStageEditor.s17')"
       style="width: 400px; max-width: 90vw"
       :transform-origin="undefined"
     >
       <n-form :model="limitForm" label-placement="top">
-        <n-form-item label="时长（小时）">
-          <n-input-number v-model:value="limitForm.stageLimit" :min="0" placeholder="留空表示不限制" style="width: 100%" />
+        <n-form-item :label="t('pages.settings.ProcessStageEditor.s18')">
+          <n-input-number v-model:value="limitForm.stageLimit" :min="0" :placeholder="t('pages.settings.ProcessStageEditor.s19')" style="width: 100%" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showLimitModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="saveStageLimit">保存</n-button>
+          <n-button @click="showLimitModal = false">{{ t('pages.settings.ProcessStageEditor.s20') }}</n-button>
+          <n-button type="primary" class="gradient-btn" @click="saveStageLimit">{{ t('pages.settings.ProcessStageEditor.s21') }}</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -114,15 +114,15 @@
     <n-modal
       v-model:show="showRenameModal"
       preset="card"
-      title="修改流程内阶段名称"
+      :title="t('pages.settings.ProcessStageEditor.s22')"
       style="width: 400px; max-width: 90vw"
       :transform-origin="undefined"
     >
       <n-form :model="renameForm" label-placement="top">
-        <n-form-item label="流程内显示名（留空则用阶段原名）">
+        <n-form-item :label="t('pages.settings.ProcessStageEditor.s23')">
           <n-input
             v-model:value="renameForm.customName"
-            placeholder="例如：技术初评"
+            :placeholder="t('pages.settings.ProcessStageEditor.s24')"
             :maxlength="20"
             show-count
             clearable
@@ -131,8 +131,8 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showRenameModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="saveCustomName">保存</n-button>
+          <n-button @click="showRenameModal = false">{{ t('pages.settings.ProcessStageEditor.s25') }}</n-button>
+          <n-button type="primary" class="gradient-btn" @click="saveCustomName">{{ t('pages.settings.ProcessStageEditor.s26') }}</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -145,6 +145,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NInputNumber, NForm, NFormItem, NModal, NDataTable, NAlert, NEmpty, NSpin, NCard } from 'naive-ui'
 import { AddOutline, ArrowBackOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   getProcess,
   listProcessLinks,
@@ -171,9 +172,10 @@ const STAGE_TYPE_COLOR: Record<string, string> = {
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const processId = computed(() => route.query.processId as string)
-const processName = ref('招聘流程')
+const processName = ref(t('pages.settings.ProcessStageEditor.s42'))
 const links = ref<any[]>([])
 const orderedLinks = ref<any[]>([])
 const loading = ref(false)
@@ -191,29 +193,29 @@ function getTypeColor(type: string): TagType {
 }
 
 const addModalColumns = [
-  { title: '编号', key: 'code', width: 80 },
-  { title: '名称', key: 'name', width: 120 },
+  { title: t('pages.settings.ProcessStageEditor.s27'), key: 'code', width: 80 },
+  { title: t('pages.settings.ProcessStageEditor.s28'), key: 'name', width: 120 },
   {
-    title: '类型',
+    title: t('pages.settings.ProcessStageEditor.s29'),
     key: 'stageType',
     width: 90,
     render: (r: any) => h(NTag, { type: getTypeColor(r.stageType), size: 'small' }, { default: () => r.stageType }),
   },
   {
-    title: '使用',
+    title: t('pages.settings.ProcessStageEditor.s30'),
     key: 'use',
     width: 100,
-    render: (r: any) => h('span', { class: 'dim' }, `${r.referenceCount ?? r._count?.links ?? 0} 个流程`),
+    render: (r: any) => h('span', { class: 'dim' }, t('pages.settings.ProcessStageEditor.s43', { n: r.referenceCount ?? r._count?.links ?? 0 })),
   },
-  { title: '功能项', key: 'features', render: (r: any) => {
+  { title: t('pages.settings.ProcessStageEditor.s31'), key: 'features', render: (r: any) => {
     const feats = r.features ?? r.defaultFeatures
     return Array.isArray(feats) && feats.length > 0 ? feats.join(', ') : '-'
   }},
   {
-    title: '操作',
+    title: t('pages.settings.ProcessStageEditor.s32'),
     key: 'action',
     width: 90,
-    render: (r: any) => h(NButton, { size: 'small', type: 'primary', onClick: () => addToProcess(r) }, { default: () => '添加' }),
+    render: (r: any) => h(NButton, { size: 'small', type: 'primary', onClick: () => addToProcess(r) }, { default: () => t('pages.settings.ProcessStageEditor.s44') }),
   },
 ]
 
@@ -228,7 +230,7 @@ async function loadProcess() {
     // 2026-07-03: FE 类型 'order' (apps/api/recruitment-process.ts:87) — 之前 a.orderIndex 是 undefined, 排序静默坏.
     orderedLinks.value = [...links.value].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '加载失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s45'))
   } finally {
     loading.value = false
   }
@@ -245,7 +247,7 @@ async function openAddModal() {
       (s) => !usedIds.has(s.id) && !s.isStart && !s.isEnd
     )
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '加载候选阶段失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s46'))
   } finally {
     loadingAddModal.value = false
   }
@@ -257,21 +259,21 @@ async function addToProcess(row: any) {
       processId: processId.value,
       stageId: row.id,
     })
-    message.success('已添加')
+    message.success(t('pages.settings.ProcessStageEditor.s33'))
     showAddModal.value = false
     loadProcess()
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '添加失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s47'))
   }
 }
 
 async function removeLink(link: any) {
   try {
     await deleteProcessLink(link.id)
-    message.success('已移除')
+    message.success(t('pages.settings.ProcessStageEditor.s34'))
     loadProcess()
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '移除失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s48'))
   }
 }
 
@@ -280,9 +282,9 @@ async function onReorder(newList: any[]) {
   const ids = newList.map((l: any) => l.id)
   try {
     await reorderProcessLinks(processId.value, ids)
-    message.success('顺序已保存')
+    message.success(t('pages.settings.ProcessStageEditor.s35'))
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '顺序保存失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s49'))
     loadProcess() // 重新加载以恢复
   }
 }
@@ -303,11 +305,11 @@ async function saveCustomName() {
     await updateProcessLink(renameForm.value.linkId, {
       customName: renameForm.value.customName.trim(),
     })
-    message.success('已保存')
+    message.success(t('pages.settings.ProcessStageEditor.s36'))
     showRenameModal.value = false
     loadProcess()
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '保存失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s50'))
   }
 }
 
@@ -317,11 +319,11 @@ async function saveStageLimit() {
     await updateProcessLink(limitForm.value.linkId, {
       stageLimit: stageLimit && stageLimit > 0 ? stageLimit : undefined,
     })
-    message.success('已保存')
+    message.success(t('pages.settings.ProcessStageEditor.s37'))
     showLimitModal.value = false
     loadProcess()
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '保存失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessStageEditor.s50'))
   }
 }
 
