@@ -21,6 +21,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeWriteMixin
 from apps.rule_engine.models import UnifiedOperator
 
 from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
@@ -77,19 +79,19 @@ class _RefCheckMixin:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AtomicMetricViewSet(_RefCheckMixin, viewsets.ModelViewSet):
+class AtomicMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelViewSet):
     queryset = AtomicMetric.objects.all().order_by('name')
     serializer_class = AtomicMetricSerializer
     pagination_class = StandardResultsSetPagination
 
 
-class DerivedMetricViewSet(_RefCheckMixin, viewsets.ModelViewSet):
+class DerivedMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelViewSet):
     queryset = DerivedMetric.objects.all().order_by('name')
     serializer_class = DerivedMetricSerializer
     pagination_class = StandardResultsSetPagination
 
 
-class MetricTemplateViewSet(viewsets.ModelViewSet):
+class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = MetricTemplate.objects.all().select_related(
         'atomic_metric', 'derived_metric'
     ).order_by('name')
@@ -113,7 +115,7 @@ class EvaluateSceneView(APIView):
                 {'error': '缺少 scene 或 candidateId'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response(evaluate_scene(scene, candidate_id), status=status.HTTP_200_OK)
+        return success_response(evaluate_scene(scene, candidate_id))
 
 
 # 未提供 candidateIds 时默认扫描的候选人数上限（规则含派生指标需逐条计算，必须限流）。
@@ -162,7 +164,7 @@ class FilterAsyncView(APIView):
                 {'error': f'异步任务启动失败（请确认 Celery worker 已启动）: {exc}'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        return Response({'taskId': task_id}, status=status.HTTP_200_OK)
+        return success_response({'taskId': task_id})
 
 
 class FilterStatusView(APIView):
@@ -180,7 +182,7 @@ class FilterStatusView(APIView):
         data = read_progress(task_id)
         if data is None:
             return Response({'status': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
-        return Response(data, status=status.HTTP_200_OK)
+        return success_response(data)
 
 
 class FilterBySceneView(APIView):
@@ -218,7 +220,7 @@ class FilterBySceneView(APIView):
         except Exception:
             cached = None
         if cached is not None:
-            return Response(cached, status=status.HTTP_200_OK)
+            return success_response(cached)
 
         result = filter_candidates_by_scene(scene, candidate_ids)
         result['scanned'] = len(candidate_ids)
@@ -230,10 +232,10 @@ class FilterBySceneView(APIView):
             cache.set(cache_key, result, FILTER_CACHE_TTL)
         except Exception:
             pass
-        return Response(result, status=status.HTTP_200_OK)
+        return success_response(result)
 
 
-class MetricRuleViewSet(viewsets.ModelViewSet):
+class MetricRuleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """指标规则 CRUD + 启停 + 按持久化规则执行。
 
     与一次性 execute 的区别：本 ViewSet 的规则**落库**，可被业务触发点按 scene
@@ -250,7 +252,7 @@ class MetricRuleViewSet(viewsets.ModelViewSet):
         rule = self.get_object()
         rule.enabled = not rule.enabled
         rule.save(update_fields=['enabled', 'updated_at'])
-        return Response({'id': rule.id, 'enabled': rule.enabled})
+        return success_response({'id': rule.id, 'enabled': rule.enabled})
 
     @action(detail=True, methods=['post'])
     def run(self, request, pk=None):
@@ -268,7 +270,9 @@ class MetricRuleViewSet(viewsets.ModelViewSet):
         result = MetricEngine.execute(
             rule.to_engine_conditions(), snapshot, rule.logic or 'AND',
         )
-        return Response(result, status=status.HTTP_200_OK)
+        return success_response(result)
+
+
 
 
 class RuleExecuteView(APIView):
@@ -281,7 +285,7 @@ class RuleExecuteView(APIView):
         data = serializer.validated_data
         conditions = self._to_engine_conditions(payload.get('conditions') or [])
         result = MetricEngine.execute(conditions, data['data'], data.get('logic') or 'AND')
-        return Response(result, status=status.HTTP_200_OK)
+        return success_response(result)
 
     @staticmethod
     def _normalize(payload: dict) -> dict:
@@ -321,7 +325,7 @@ class OperatorCatalogView(APIView):
     """GET 运算符目录（复用统一规则引擎的 11 种运算符）。"""
 
     def get(self, request):
-        return Response([
+        return success_response([
             {'value': value, 'label': label}
             for value, label in UnifiedOperator.choices
         ])
@@ -331,12 +335,12 @@ class DerivedFuncCatalogView(APIView):
     """GET 派生计算函数目录 —— 运营据此零代码新增派生指标。"""
 
     def get(self, request):
-        return Response(list_funcs())
+        return success_response(list_funcs())
 
 
 @api_view(['GET'])
 def sample_data(request):
-    return Response(SAMPLE_CANDIDATE)
+    return success_response(SAMPLE_CANDIDATE)
 
 
 class CandidateSnapshotView(APIView):
@@ -353,7 +357,7 @@ class CandidateSnapshotView(APIView):
                 {'error': f'候选人 {candidate_id} 不存在'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(snapshot, status=status.HTTP_200_OK)
+        return success_response(snapshot)
 
 
 class CandidateFieldCatalogView(APIView):
@@ -363,7 +367,7 @@ class CandidateFieldCatalogView(APIView):
     """
 
     def get(self, request):
-        return Response(list_candidate_paths())
+        return success_response(list_candidate_paths())
 
 
 class MetricDefinitionViewSet(APIView):
@@ -383,6 +387,13 @@ class MetricDefinitionViewSet(APIView):
     def get(self, request):
         rows: list = []
 
+        # 入参类型判定（PRD 指标定义列「入参类型(离散/连续)」）：
+        #   数值/日期 → 连续（可在区间内连续取值）；枚举/布尔/文本 → 离散（取离散值）
+        def _param_type(data_type: str, is_enum: bool) -> str:
+            if is_enum:
+                return 'discrete'
+            return 'continuous' if data_type in ('number', 'date') else 'discrete'
+
         # 原子指标（对象路径）
         for m in AtomicMetric.objects.all().order_by('name'):
             ops = operators_for(m.data_type, getattr(m, 'is_enum', False))
@@ -394,7 +405,9 @@ class MetricDefinitionViewSet(APIView):
                 'dataSource': m.source_path,
                 'params': {},
                 'returnType': m.data_type,
+                'unit': m.unit or '',
                 'isEnum': getattr(m, 'is_enum', False),
+                'paramType': _param_type(m.data_type, getattr(m, 'is_enum', False)),
                 'supportedOperators': ops,
                 'status': m.status,
                 'description': m.description,
@@ -414,7 +427,9 @@ class MetricDefinitionViewSet(APIView):
                 'dataSource': m.base_path,
                 'params': m.params or {},
                 'returnType': m.data_type,
+                'unit': m.unit or '',
                 'isEnum': False,
+                'paramType': _param_type(m.data_type, False),
                 'supportedOperators': ops,
                 'status': m.status,
                 'description': m.description,
@@ -423,5 +438,5 @@ class MetricDefinitionViewSet(APIView):
                 'autoGenerated': False,
             })
 
-        return Response(rows)
+        return success_response(rows)
 
