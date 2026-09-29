@@ -1,8 +1,22 @@
 <template>
-  <div class="login-page">
+    <div class="login-page">
     <!-- T2.1: 全局极光底（DESIGN.md §2）—— 全站 fixed，z-index 0，pointer-events none -->
     <div class="app-aurora">
       <div class="aurora-spot"></div>
+    </div>
+
+    <!-- P1-3: 登录页语言切换（独立页无 Layout，用全局 currentLocale 驱动） -->
+    <div class="login-lang-switch">
+      <button
+        v-for="loc in supportedLocales"
+        :key="loc.code"
+        type="button"
+        class="lang-btn"
+        :class="{ active: currentLocale === loc.code }"
+        @click="setLocale(loc.code)"
+      >
+        {{ loc.native }}
+      </button>
     </div>
 
     <div class="login-container">
@@ -172,7 +186,14 @@ import { PersonOutline, LockClosedOutline, BarChartOutline, PeopleOutline, ListO
 import { useUserStore } from '../stores/user'
 import { login } from '../api/auth'
 import { deriveRoleType } from '../utils/role'
+import { currentLocale, SUPPORTED_LOCALES, type AppLocale } from '../locales'
 const { t } = useI18n()
+
+// P1-3: 登录页语言切换（currentLocale 是全局唯一真相源，赋值即切换 + 持久化）
+const supportedLocales = SUPPORTED_LOCALES
+function setLocale(code: AppLocale) {
+  currentLocale.value = code
+}
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -344,6 +365,46 @@ onBeforeUnmount(() => {
   z-index: 1;
   width: 100%;
   max-width: 480px;
+}
+
+/* === P1-3: 语言切换（右上角玻璃分段开关）=== */
+.login-lang-switch {
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+  z-index: 2;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur-input));
+  -webkit-backdrop-filter: blur(var(--glass-blur-input));
+}
+.lang-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--text-small);
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.lang-btn:hover {
+  color: var(--ink);
+}
+.lang-btn.active {
+  color: #fff;
+  background: var(--brand);
+  box-shadow: 0 2px 8px var(--glow-brand);
+}
+.lang-btn.active:hover {
+  color: #fff;
 }
 
 /* === 顶部品牌区 === */
