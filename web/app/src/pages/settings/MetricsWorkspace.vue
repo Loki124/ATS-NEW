@@ -113,92 +113,170 @@
       v-model:show="showTemplateModal"
       preset="card"
       :title="templateModalTitle"
-      style="width: 720px; max-width: 94vw;"
+      :closable="true"
+      style="width: 720px; max-width: 94vw; max-height: 90vh;"
       :mask-closable="false"
     >
-      <n-form :model="tplForm" label-placement="top">
+      <n-form :model="tplForm" label-placement="top" class="tpl-form">
         <n-form-item :label="t('metrics.form.name')" required>
           <n-input v-model:value="tplForm.name" :placeholder="t('metrics.form.name')" />
         </n-form-item>
 
-        <n-form-item :label="t('metrics.form.atomicMetric')">
+        <n-form-item :label="t('metrics.form.metricDefinition')" required>
           <n-select
-            v-model:value="tplForm.atomicMetric"
-            :options="atomicOptions"
+            v-model:value="tplForm.metricDefinition"
+            :options="metricDefinitionOptions"
             clearable
-            :placeholder="t('metrics.form.atomicMetric')"
-            @update:value="onTemplateMetricChange"
-          />
-        </n-form-item>
-        <n-form-item :label="t('metrics.form.derivedMetric')">
-          <n-select
-            v-model:value="tplForm.derivedMetric"
-            :options="derivedOptions"
-            clearable
-            :placeholder="t('metrics.form.derivedMetric')"
+            :placeholder="t('metrics.form.metricDefinition')"
             @update:value="onTemplateMetricChange"
           />
         </n-form-item>
 
-        <n-divider title-placement="left">{{ t('metrics.tpl.sectionParam') }}</n-divider>
-        <div class="tpl-section">
-          <div class="tpl-row">
-            <n-form-item :label="t('metrics.tpl.rangeMin')" class="tpl-field">
-              <n-input-number v-model:value="tplForm.paramConfig.min" :precision="0" />
-            </n-form-item>
-            <n-form-item :label="t('metrics.tpl.rangeMax')" class="tpl-field">
-              <n-input-number v-model:value="tplForm.paramConfig.max" :precision="0" />
-            </n-form-item>
-            <n-form-item :label="t('metrics.tpl.step')" class="tpl-field">
-              <n-input-number v-model:value="tplForm.paramConfig.step" :min="1" :precision="0" />
-            </n-form-item>
-          </div>
-          <div class="tpl-row">
-            <n-form-item :label="t('metrics.tpl.prefix')" class="tpl-field">
-              <n-input v-model:value="tplForm.paramConfig.prefix" placeholder="≥" />
-            </n-form-item>
-            <n-form-item :label="t('metrics.tpl.suffix')" class="tpl-field">
-              <n-input v-model:value="tplForm.paramConfig.suffix" :placeholder="t('pages.settings.MetricsWorkspace.s2')" />
-            </n-form-item>
-            <n-form-item :label="t('metrics.tpl.allOption')" class="tpl-field">
-              <n-switch v-model:value="tplForm.paramConfig.allOption" />
-            </n-form-item>
-          </div>
-          <n-form-item v-if="selectedTemplateDataType === 'string'" :label="t('metrics.tpl.paramEnums')">
-            <n-dynamic-tags v-model:value="tplForm.paramEnums" />
-          </n-form-item>
-          <n-form-item :label="t('metrics.tpl.allowNull')">
-            <n-switch v-model:value="tplForm.paramAllowNull" />
-          </n-form-item>
+        <div v-if="selectedTemplateDefinition" class="tpl-output-bar">
+          <span class="tpl-output-label">{{ t('metrics.tpl.outputParam') }}</span>
+          <n-tag size="small" type="info">{{ returnTypeLabel(selectedTemplateDefinition.returnType) }}</n-tag>
+          <span v-if="selectedTemplateDefinition.unit" class="tpl-output-unit">{{ selectedTemplateDefinition.unit }}</span>
+          <span class="tpl-output-hint">{{ t('metrics.tpl.inheritedHint') }}</span>
         </div>
 
-        <n-divider title-placement="left">{{ t('metrics.tpl.sectionOperators') }}</n-divider>
-        <n-form-item :label="t('metrics.tpl.enabledOperators')" required>
-          <n-select
-            v-model:value="tplForm.operators"
-            multiple
-            :options="operatorCatalog"
-            :placeholder="t('metrics.form.operators')"
-          />
-        </n-form-item>
-
-        <n-divider title-placement="left">{{ t('metrics.tpl.sectionDomain') }}</n-divider>
-        <div class="tpl-segments">
-          <div v-for="(seg, idx) in tplForm.valueDomain.segments" :key="idx" class="seg-row">
-            <n-input-number v-model:value="seg.min" :placeholder="t('metrics.tpl.rangeMin')" class="seg-field" />
-            <n-input-number v-model:value="seg.max" :placeholder="t('metrics.tpl.rangeMax')" class="seg-field" />
-            <n-input-number v-model:value="seg.step" :min="1" :precision="0" :placeholder="t('metrics.tpl.step')" class="seg-field" />
-            <n-input v-model:value="seg.label" :placeholder="t('metrics.tpl.segLabel')" class="seg-field" />
-            <n-button size="small" quaternary type="error" @click="removeSegment(idx)">{{ t('metrics.btn.delete') }}</n-button>
+        <!-- 参数配置：仅参数化 Handler 类型指标展示 -->
+        <section v-if="showTemplateParamConfig" class="tpl-section-card">
+          <div class="tpl-section-header">
+            <span class="tpl-section-number">1</span>
+            <span class="tpl-section-title">{{ t('metrics.tpl.paramConfigTitle') }}</span>
+            <n-tag
+              size="small"
+              :type="selectedTemplateDefinition?.paramType === 'continuous' ? 'success' : 'warning'"
+            >
+              {{ paramTypeLabel(selectedTemplateDefinition?.paramType) }}
+            </n-tag>
+            <span class="tpl-section-hint">{{ paramConfigHint }}</span>
           </div>
-          <n-button size="small" dashed @click="addSegment">{{ t('metrics.tpl.addSegment') }}</n-button>
+          <div class="tpl-section-body">
+            <div class="tpl-row">
+              <n-form-item :label="t('metrics.tpl.rangeMin')" class="tpl-field">
+                <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramPrecision" />
+              </n-form-item>
+              <span class="tpl-range-sep">~</span>
+              <n-form-item :label="t('metrics.tpl.rangeMax')" class="tpl-field">
+                <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramPrecision" />
+              </n-form-item>
+              <n-form-item :label="t('metrics.tpl.step')" class="tpl-field">
+                <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramPrecision" />
+              </n-form-item>
+            </div>
+            <div class="tpl-row">
+              <n-form-item :label="t('metrics.tpl.prefix')" class="tpl-field">
+                <n-input v-model:value="tplForm.paramConfig.prefix" />
+              </n-form-item>
+              <n-form-item :label="t('metrics.tpl.suffix')" class="tpl-field">
+                <n-input v-model:value="tplForm.paramConfig.suffix" />
+              </n-form-item>
+              <n-form-item class="tpl-field tpl-switch-field">
+                <template #label>
+                  <span>{{ t('metrics.tpl.allOption') }}</span>
+                </template>
+                <n-switch v-model:value="tplForm.paramConfig.allOption" />
+              </n-form-item>
+            </div>
+            <div v-if="paramPreviewValues.length" class="tpl-preview">
+              <span class="tpl-preview-tag">
+                [{{ tplForm.paramConfig.allOption ? t('metrics.tpl.unlimited') : t('metrics.tpl.allLabel') }}]
+              </span>
+              <span>
+                · {{ t('metrics.tpl.valuePreview', { count: paramPreviewValues.length }) }}：
+                {{ paramPreviewValues.join('，') }}
+              </span>
+            </div>
+          </div>
+        </section>
+        <div v-else-if="selectedTemplateDefinition" class="tpl-info-text">
+          {{ t('metrics.tpl.noParamsNeeded') }}
         </div>
+
+        <!-- 启用算子 -->
+        <section class="tpl-section-card">
+          <div class="tpl-section-header">
+            <span class="tpl-section-number">2</span>
+            <span class="tpl-section-title">{{ t('metrics.tpl.operatorTitle') }}</span>
+            <span class="tpl-section-hint">
+              {{ t('metrics.tpl.operatorCount', { total: supportedOperatorOptions.length, enabled: tplForm.operators.length }) }}
+            </span>
+          </div>
+          <div class="tpl-section-body">
+            <div v-if="supportedOperatorOptions.length" class="tpl-operator-chips">
+              <label
+                v-for="op in supportedOperatorOptions"
+                :key="op.value"
+                class="tpl-op-chip"
+                :class="{ 'is-checked': tplForm.operators.includes(op.value) }"
+              >
+                <input
+                  type="checkbox"
+                  :value="op.value"
+                  :checked="tplForm.operators.includes(op.value)"
+                  @change="toggleOperator(op.value)"
+                />
+                <n-icon v-if="tplForm.operators.includes(op.value)" :component="CheckmarkOutline" />
+                <span>{{ op.label }}</span>
+              </label>
+            </div>
+            <div v-else class="tpl-info-text">
+              {{ t('metrics.tpl.noMetricSelected') }}
+            </div>
+          </div>
+        </section>
+
+        <!-- 值域配置 -->
+        <section class="tpl-section-card">
+          <div class="tpl-section-header">
+            <span class="tpl-section-number">3</span>
+            <span class="tpl-section-title">{{ t('metrics.tpl.domainTitle') }}</span>
+            <span class="tpl-section-hint">{{ t('metrics.tpl.domainHint') }}</span>
+          </div>
+          <div class="tpl-section-body">
+            <div
+              v-for="(seg, idx) in tplForm.valueDomain.segments"
+              :key="idx"
+              class="tpl-segment-block"
+            >
+              <div class="tpl-segment-row">
+                <span class="tpl-segment-label">{{ t('metrics.tpl.segment', { index: idx + 1 }) }}</span>
+                <n-input-number v-model:value="seg.min" class="tpl-seg-field" :precision="paramPrecision" />
+                <span class="tpl-range-sep">~</span>
+                <n-input-number v-model:value="seg.max" class="tpl-seg-field" :precision="paramPrecision" />
+                <span v-if="selectedTemplateDefinition?.unit" class="tpl-unit-text">{{ selectedTemplateDefinition.unit }}</span>
+                <n-form-item :label="t('metrics.tpl.step')" class="tpl-step-field">
+                  <n-input-number v-model:value="seg.step" :min="0" :precision="paramPrecision" />
+                </n-form-item>
+                <n-button size="small" quaternary type="error" @click="removeSegment(idx)">
+                  {{ t('metrics.btn.delete') }}
+                </n-button>
+              </div>
+              <div v-if="segmentPreviewValues(seg).length" class="tpl-preview">
+                <span class="tpl-preview-tag">[{{ t('metrics.tpl.segment', { index: idx + 1 }) }}]</span>
+                <span>
+                  · {{ t('metrics.tpl.valuePreview', { count: segmentPreviewValues(seg).length }) }}：
+                  {{ segmentPreviewValues(seg).join('，') }}
+                </span>
+              </div>
+            </div>
+            <n-button size="small" dashed @click="addSegment">{{ t('metrics.tpl.addSegment') }}</n-button>
+          </div>
+        </section>
 
         <n-form-item :label="t('metrics.form.description')">
           <n-input v-model:value="tplForm.description" type="textarea" :rows="2" />
         </n-form-item>
         <n-form-item :label="t('metrics.form.status')">
-          <n-select v-model:value="tplForm.status" :options="statusOptions" />
+          <n-switch
+            v-model:value="tplForm.status"
+            checked-value="enabled"
+            unchecked-value="disabled"
+          >
+            <template #checked>{{ t('metrics.status.enabled') }}</template>
+            <template #unchecked>{{ t('metrics.status.disabled') }}</template>
+          </n-switch>
         </n-form-item>
       </n-form>
 
@@ -234,6 +312,7 @@ import {
   NTag,
   useMessage,
 } from 'naive-ui'
+import { CheckmarkOutline } from '@vicons/ionicons5'
 import {
   createMetricTemplate,
   deleteMetricTemplate,
@@ -427,8 +506,7 @@ const templateEditId = ref('')
 const savingTpl = ref(false)
 const emptyTplForm = () => ({
   name: '',
-  atomicMetric: null,
-  derivedMetric: null,
+  metricDefinition: null as string | null,
   operators: [] as string[],
   paramConfig: { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false },
   valueDomain: { segments: [] as any[] },
@@ -443,28 +521,88 @@ const templateModalTitle = computed(() =>
   templateEditId.value ? t('metrics.dialog.editTemplate') : t('metrics.dialog.createTemplate'),
 )
 
-const statusOptions = computed(() => [
-  { label: t('metrics.status.enabled'), value: 'enabled' },
-  { label: t('metrics.status.disabled'), value: 'disabled' },
-])
-
-const atomicOptions = computed(() =>
-  atomicList.value.map((m) => ({ label: `${m.name}（${m.sourcePath}）`, value: m.id })),
-)
-const derivedOptions = computed(() =>
-  derivedList.value.map((m) => ({ label: `${m.name}（${m.calcFunc}）`, value: m.id })),
+const metricDefinitionOptions = computed(() =>
+  definitions.value.map((d) => ({
+    label: `${d.name}（${d.dataSource}）`,
+    value: `${d.kind}:${d.id}`,
+  })),
 )
 
-const selectedTemplateDataType = computed<string>(() => {
-  const am = tplForm.value.atomicMetric
-  const dm = tplForm.value.derivedMetric
-  if (am) return atomicList.value.find((x) => x.id === am)?.dataType || ''
-  if (dm) return derivedList.value.find((x) => x.id === dm)?.dataType || ''
-  return ''
+const selectedTemplateDefinition = computed<MetricDefinition | undefined>(() => {
+  const key = tplForm.value.metricDefinition
+  if (!key) return undefined
+  const [kind, id] = String(key).split(':')
+  return definitions.value.find((d) => d.kind === kind && d.id === id)
 })
 
+const showTemplateParamConfig = computed<boolean>(() => {
+  const d = selectedTemplateDefinition.value
+  if (!d) return false
+  if (d.valueMode !== 'parametric_handler') return false
+  // 派生函数注册表声明了参数才展示参数配置
+  return d.isParametric !== false
+})
+
+const paramPrecision = computed<number>(() => {
+  const d = selectedTemplateDefinition.value
+  return d?.paramType === 'continuous' ? 2 : 0
+})
+
+const paramConfigHint = computed(() => {
+  const d = selectedTemplateDefinition.value
+  return d?.paramType === 'continuous'
+    ? t('metrics.tpl.paramHint')
+    : t('metrics.tpl.paramHintDiscrete')
+})
+
+function generateValues(min?: number | null, max?: number | null, step?: number | null): number[] {
+  if (min == null || max == null || step == null || step <= 0) return []
+  const vals: number[] = []
+  for (let v = min; v <= max + 1e-9; v += step) {
+    vals.push(Number(v.toFixed(6)))
+  }
+  return vals
+}
+
+function formatPreviewValue(n: number): string {
+  return Number(n.toFixed(6)).toString()
+}
+
+const paramPreviewValues = computed<string[]>(() => {
+  const c = tplForm.value.paramConfig
+  return generateValues(c.min, c.max, c.step).map(formatPreviewValue)
+})
+
+const supportedOperatorOptions = computed<OptionItem[]>(() => {
+  const d = selectedTemplateDefinition.value
+  if (!d?.supportedOperators?.length) return []
+  const allowed = new Set(d.supportedOperators)
+  return operatorCatalog.value.filter((o) => allowed.has(o.value))
+})
+
+function toggleOperator(value: string) {
+  const set = new Set(tplForm.value.operators)
+  if (set.has(value)) set.delete(value)
+  else set.add(value)
+  tplForm.value.operators = Array.from(set)
+}
+
+function segmentPreviewValues(seg: any): string[] {
+  return generateValues(seg?.min, seg?.max, seg?.step).map(formatPreviewValue)
+}
+
 function onTemplateMetricChange() {
-  // 切换引用指标时不清空已选算子，仅保证数据类型联动（枚举字段展示枚举值输入）
+  const d = selectedTemplateDefinition.value
+  // 切换指标后重置算子为当前指标支持的全部算子（全启）
+  if (d?.supportedOperators?.length) {
+    tplForm.value.operators = [...d.supportedOperators]
+  } else {
+    tplForm.value.operators = []
+  }
+  // 对象路径指标无需参数，切回 handler 时清空旧参数避免误解
+  if (!showTemplateParamConfig.value) {
+    tplForm.value.paramConfig = { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false }
+  }
 }
 
 function openTemplateCreate() {
@@ -477,10 +615,12 @@ function openTemplateEdit(row: MetricTemplate) {
   templateEditId.value = row.id
   const cfg = row.paramConfig || {}
   const domain = row.valueDomain || {}
+  const metricKey = row.metricKind && (row.atomicMetric || row.derivedMetric)
+    ? `${row.metricKind}:${row.atomicMetric || row.derivedMetric}`
+    : null
   tplForm.value = {
     name: row.name,
-    atomicMetric: row.atomicMetric ?? null,
-    derivedMetric: row.derivedMetric ?? null,
+    metricDefinition: metricKey,
     operators: row.operators || [],
     paramConfig: {
       min: cfg.min ?? null,
@@ -511,9 +651,12 @@ async function submitTemplate() {
     message.warning(t('metrics.msg.requiredName'))
     return
   }
-  const hasAtomic = !!tplForm.value.atomicMetric
-  const hasDerived = !!tplForm.value.derivedMetric
-  if (hasAtomic === hasDerived) {
+  if (!tplForm.value.metricDefinition) {
+    message.warning(t('metrics.msg.selectOneMetric'))
+    return
+  }
+  const [kind, id] = String(tplForm.value.metricDefinition).split(':')
+  if (!kind || !id) {
     message.warning(t('metrics.msg.selectOneMetric'))
     return
   }
@@ -525,8 +668,8 @@ async function submitTemplate() {
   try {
     const payload = {
       name: tplForm.value.name,
-      atomicMetric: tplForm.value.atomicMetric,
-      derivedMetric: tplForm.value.derivedMetric,
+      atomicMetric: kind === 'atomic' ? id : null,
+      derivedMetric: kind === 'derived' ? id : null,
       operators: tplForm.value.operators,
       paramConfig: tplForm.value.paramConfig,
       valueDomain: tplForm.value.valueDomain,
@@ -740,14 +883,127 @@ onMounted(load)
 }
 
 /* 模板弹窗分段 */
+.tpl-form { padding-right: 2px; }
 .tpl-section { width: 100%; }
-.tpl-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-1); }
+.tpl-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-1); align-items: flex-end; }
 .tpl-field { flex: 1 1 0; min-width: 140px; margin-bottom: var(--space-1); }
 .tpl-segments { display: flex; flex-direction: column; gap: var(--space-2); }
 .seg-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
 .seg-field { flex: 1 1 120px; }
 
+/* 指标模板弹窗新样式 */
+.tpl-output-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  background: var(--c-info-soft);
+  border: 1px solid color-mix(in srgb, var(--c-info) 20%, transparent);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small, 13px);
+}
+.tpl-output-label { color: var(--ink-soft); font-weight: 500; }
+.tpl-output-unit { color: var(--ink); font-weight: 600; }
+.tpl-output-hint { margin-left: auto; color: var(--ink-faint); }
+
+.tpl-section-card {
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.tpl-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.tpl-section-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c-warning);
+  color: #fff;
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+.tpl-section-title { font-weight: 600; color: var(--ink); }
+.tpl-section-hint { margin-left: auto; color: var(--ink-faint); font-size: var(--fs-12); }
+.tpl-section-body { display: flex; flex-direction: column; gap: var(--space-2); }
+.tpl-range-sep { color: var(--ink-faint); padding-bottom: 8px; }
+.tpl-switch-field :deep(.n-form-item-label) { height: auto; }
+
+.tpl-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--c-info-soft);
+  border-radius: var(--radius-md);
+  color: var(--c-info-deep);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+.tpl-preview-tag { font-weight: 500; white-space: nowrap; }
+.tpl-info-text {
+  color: var(--ink-faint);
+  font-size: var(--text-small, 13px);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: var(--g1);
+  border-radius: var(--radius-md);
+}
+
+.tpl-operator-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.tpl-op-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-hairline);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.tpl-op-chip:hover { border-color: var(--c-success); }
+.tpl-op-chip.is-checked {
+  background: var(--c-success-soft);
+  border-color: color-mix(in srgb, var(--c-success) 30%, transparent);
+  color: var(--c-success-deep);
+}
+.tpl-op-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.tpl-segment-block { display: flex; flex-direction: column; gap: var(--space-2); }
+.tpl-segment-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.tpl-segment-label { color: var(--ink-faint); font-size: var(--fs-12); min-width: 36px; }
+.tpl-seg-field { width: 100px; }
+.tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); }
+.tpl-step-field { width: 120px; margin-bottom: 0; }
+.tpl-step-field :deep(.n-form-item-label) { font-size: var(--fs-12); }
+
 @media (max-width: 768px) {
   .detail-grid { grid-template-columns: 1fr; }
+  .tpl-section-hint { margin-left: 0; width: 100%; }
+  .tpl-output-hint { margin-left: 0; width: 100%; }
 }
 </style>
