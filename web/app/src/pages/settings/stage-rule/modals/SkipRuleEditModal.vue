@@ -3,7 +3,7 @@
     :show="visible"
     preset="card"
     class="skip-rule-edit-modal"
-    :title="isNew ? '新建自动跳过规则' : '编辑自动跳过规则'"
+    :title="isNew ? t('pages.settings.stage-rule.modals.SkipRuleEditModal.s14') : t('pages.settings.stage-rule.modals.SkipRuleEditModal.s15')"
     :closable="false"
     style="width: 720px; max-width: 95vw; max-height: 90vh"
     :mask-closable="!saving"
@@ -28,7 +28,7 @@
           </div>
         </div>
         <button class="btn-outline-primary" type="button" :disabled="draft.items.length >= 10" @click="addItem()">
-          <n-icon :component="AddOutline" /> 添加条件
+          <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.SkipRuleEditModal.s16') }}
         </button>
         <n-input v-model:value="draft.expression" size="small" :placeholder="t('pages.settings.stage-rule.modals.SkipRuleEditModal.s13')" :class="{ 'input-error': exprInvalid }" style="margin-top: 8px" />
         <p v-if="exprInvalid" class="error-msg">{{ exprErr }}</p>

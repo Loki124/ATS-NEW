@@ -94,9 +94,9 @@ const savingEnabled = ref(false)
 const loading = ref(false)
 const keyword = ref('')
 const rows = ref<any[]>([
-  { id: 1, school: '上海交通大学', name: '张同学', region: '华东', status: 'active' },
-  { id: 2, school: '浙江大学', name: '李同学', region: '华东', status: 'active' },
-  { id: 3, school: '武汉大学', name: '王同学', region: '华中', status: 'pending' },
+  { id: 1, school: t('pages.settings.CampusAmbassador.s22'), name: t('pages.settings.CampusAmbassador.s23'), region: t('pages.settings.CampusAmbassador.s24'), status: 'active' },
+  { id: 2, school: t('pages.settings.CampusAmbassador.s25'), name: t('pages.settings.CampusAmbassador.s26'), region: t('pages.settings.CampusAmbassador.s24'), status: 'active' },
+  { id: 3, school: t('pages.settings.CampusAmbassador.s27'), name: t('pages.settings.CampusAmbassador.s28'), region: t('pages.settings.CampusAmbassador.s29'), status: 'pending' },
 ])
 
 const filteredRows = computed(() => {

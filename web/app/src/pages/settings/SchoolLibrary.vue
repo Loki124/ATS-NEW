@@ -116,7 +116,7 @@
           <template #footer>
             <n-space>
               <n-button @click="detailVisible = false">{{ t('pages.settings.SchoolLibrary.s24') }}</n-button>
-              <n-button type="primary" @click="openEdit(detailRow!)">编辑</n-button>
+              <n-button type="primary" @click="openEdit(detailRow!)">{{ t('pages.settings.SchoolLibrary.s73') }}</n-button>
             </n-space>
           </template>
         </n-drawer-content>

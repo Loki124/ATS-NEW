@@ -23,7 +23,7 @@
 
     <template #footer>
       <div class="modal-footer">
-        <n-button size="small" :disabled="saving" @click="onRequestClose">关闭</n-button>
+        <n-button size="small" :disabled="saving" @click="onRequestClose">{{ t('pages.settings.stage-rule.modals.StoppedRulesModal.s4') }}</n-button>
       </div>
     </template>
   </n-modal>
@@ -54,9 +54,9 @@ const saving = ref(false)
 const rules = ref<StoppedItem[]>([])
 
 const columns = [
-  { key: 'name', title: '规则名', width: '24%' },
-  { key: 'kindLabel', title: '类型', width: '16%' },
-  { key: 'expression', title: '执行条件', width: '44%' },
+  { key: 'name', title: t('pages.settings.stage-rule.modals.StoppedRulesModal.s5'), width: '24%' },
+  { key: 'kindLabel', title: t('pages.settings.stage-rule.modals.StoppedRulesModal.s6'), width: '16%' },
+  { key: 'expression', title: t('pages.settings.stage-rule.modals.StoppedRulesModal.s7'), width: '44%' },
 ]
 
 function open(list: StoppedItem[]) {

@@ -22,7 +22,7 @@ const props = withDefaults(
     labelOn?: string
     labelOff?: string
   }>(),
-  { disabled: false, labelOn: '开启', labelOff: '关闭' },
+  { disabled: false, labelOn: t('pages.settings.stage-rule.components.ModuleSwitch.s1'), labelOff: t('pages.settings.stage-rule.components.ModuleSwitch.s2') },
 )
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()

@@ -8,12 +8,12 @@
     <div class="card-title">
       <span class="title-left">
         <n-icon :component="LogInOutline" />
-        进入条件
+        {{ t('pages.settings.stage-rule.cards.EntryConditionCard.s5') }}
         <span class="title-desc">{{ t('pages.settings.stage-rule.cards.EntryConditionCard.s1') }}</span>
       </span>
       <span class="title-actions">
         <button class="btn-outline-primary" type="button" @click="emit('configure')">
-          <n-icon :component="CreateOutline" /> {{ rules.length ? '编辑规则' : '规则配置' }}
+          <n-icon :component="CreateOutline" /> {{ rules.length ? t('pages.settings.stage-rule.cards.EntryConditionCard.s6') : t('pages.settings.stage-rule.cards.EntryConditionCard.s7') }}
         </button>
         <ModuleSwitch :model-value="moduleOn" @update:model-value="emit('update:moduleOn', $event)" />
       </span>
@@ -38,25 +38,25 @@
                   <template v-if="rule.groups && rule.groups.length">
                     <div v-for="(g, gi) in rule.groups" :key="gi" class="rule-condition__group">
                       <template v-if="rule.groups.length > 1">
-                        <div class="rule-condition__group-label">条件组 {{ gi + 1 }}</div>
+                        <div class="rule-condition__group-label">{{ t('pages.settings.stage-rule.cards.EntryConditionCard.s8') }} {{ gi + 1 }}</div>
                       </template>
                       <div v-for="(c, ci) in g.conditions" :key="ci" class="rule-condition__line">
-                        条件{{ gi + 1 }}.{{ ci + 1 }}：{{ formatCondition(c) }}
+                        {{ t('pages.settings.stage-rule.cards.EntryConditionCard.s9') }}{{ gi + 1 }}.{{ ci + 1 }}：{{ formatCondition(c) }}
                       </div>
                       <div v-if="g.innerExpression" class="rule-condition__line">
-                        组内表达式：{{ g.innerExpression }}
+                        {{ t('pages.settings.stage-rule.cards.EntryConditionCard.s10') }}：{{ g.innerExpression }}
                       </div>
                     </div>
                     <div class="rule-condition__line rule-condition__line--total">
-                      表达式：{{ rule.expression || '—' }}
+                      {{ t('pages.settings.stage-rule.cards.EntryConditionCard.s11') }}：{{ rule.expression || '—' }}
                     </div>
                   </template>
                   <template v-else>
                     <div v-for="(it, idx) in rule.items" :key="idx" class="rule-condition__line">
-                      条件{{ idx + 1 }}：{{ formatCondition(it) }}
+                      {{ t('pages.settings.stage-rule.cards.EntryConditionCard.s9') }}{{ idx + 1 }}：{{ formatCondition(it) }}
                     </div>
                     <div class="rule-condition__line rule-condition__line--total">
-                      表达式：{{ rule.expression || '—' }}
+                      {{ t('pages.settings.stage-rule.cards.EntryConditionCard.s11') }}：{{ rule.expression || '—' }}
                     </div>
                   </template>
                 </div>

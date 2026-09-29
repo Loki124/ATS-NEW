@@ -3,7 +3,7 @@
     :show="visible"
     preset="card"
     class="archive-rule-edit-modal"
-    :title="isNew ? '新建自动归档规则' : '编辑自动归档规则'"
+    :title="isNew ? t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s11') : t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s12')"
     :closable="false"
     style="width: 720px; max-width: 95vw; max-height: 90vh"
     :mask-closable="!saving"
@@ -28,7 +28,7 @@
           </div>
         </div>
         <button class="btn-outline-primary" type="button" :disabled="draft.items.length >= 10" @click="addItem()">
-          <n-icon :component="AddOutline" /> 添加条件
+          <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s14') }}
         </button>
         <n-input v-model:value="draft.expression" size="small" :placeholder="t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s10')" :class="{ 'input-error': exprInvalid }" style="margin-top: 8px" />
         <p v-if="exprInvalid" class="error-msg">{{ exprErr }}</p>
@@ -38,11 +38,11 @@
         <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s3') }}</label>
         <div class="exec-grid">
           <div class="flow-field">
-            <label class="field-label">锁定时长 (天) <span class="required-mark">*</span></label>
+            <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s15') }} <span class="required-mark">*</span></label>
             <n-input-number v-model:value="draft.lock_days" size="small" :min="1" :max="365" />
           </div>
           <div class="flow-field">
-            <label class="field-label">加时规则 (天)</label>
+            <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s13') }}</label>
             <n-input-number v-model:value="draft.extend_days" size="small" :min="0" :max="365" />
           </div>
         </div>

@@ -40,7 +40,7 @@
         <div class="panel-content">
           <n-empty
             v-if="!visibleAvailable.length"
-            :description="includeDisabled ? '暂无部门' : '无可用部门（停用已隐藏）'"
+            :description="includeDisabled ? t('pages.settings.OrgScopeTreeModal.s12') : t('pages.settings.OrgScopeTreeModal.s13')"
           />
           <div
             v-for="d in visibleAvailable"
@@ -66,21 +66,21 @@
           :disabled="!availableChecked.length"
           @click="addToSelected"
         >
-          添加 →
+          {{ t('pages.settings.OrgScopeTreeModal.s14') }}
         </n-button>
         <n-button
           size="small"
           :disabled="!selectedChecked.length"
           @click="removeFromSelected"
         >
-          ← 移除
+          {{ t('pages.settings.OrgScopeTreeModal.s15') }}
         </n-button>
       </div>
 
       <!-- 已选组织（宽） -->
       <div class="org-scope-selected glass-card">
         <div class="os-title-bar">
-          <span>已选组织 ({{ selectedKeys.length }})</span>
+          <span>{{ t('pages.settings.OrgScopeTreeModal.s16') }} ({{ selectedKeys.length }})</span>
           <n-button
             v-if="selectedKeys.length"
             text

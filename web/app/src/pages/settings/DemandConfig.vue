@@ -366,9 +366,9 @@ const processOptions = computed(() =>
 )
 
 const salaryUnitOptions = [
-  { label: 'K (千元)', value: 'K' },
-  { label: 'W (万元)', value: 'W' },
-  { label: '元', value: 'Y' },
+  { label: t('pages.settings.DemandConfig.s100'), value: 'K' },
+  { label: t('pages.settings.DemandConfig.s101'), value: 'W' },
+  { label: t('pages.settings.DemandConfig.s102'), value: 'Y' },
 ]
 
 const fetchConfig = async () => {
@@ -378,7 +378,7 @@ const fetchConfig = async () => {
       formData.value = { ...formData.value, ...res.data.data }
     }
   } catch (error) {
-    message.error(extractApiError(error, '获取配置失败'))
+    message.error(extractApiError(error, t('pages.settings.DemandConfig.s105')))
   }
 }
 
@@ -389,7 +389,7 @@ const fetchDepartments = async () => {
       departments.value = res.data.data
     }
   } catch (error) {
-    message.error(extractApiError(error, '获取部门失败'))
+    message.error(extractApiError(error, t('pages.settings.DemandConfig.s106')))
   }
 }
 
@@ -400,7 +400,7 @@ const fetchProcesses = async () => {
       processes.value = res.data.data
     }
   } catch (error) {
-    message.error(extractApiError(error, '获取流程失败'))
+    message.error(extractApiError(error, t('pages.settings.DemandConfig.s107')))
   }
 }
 
@@ -408,9 +408,9 @@ const handleSave = async () => {
   saving.value = true
   try {
     await post('/system/config/demand', formData.value)
-    message.success('配置保存成功')
+    message.success(t('pages.settings.DemandConfig.s103'))
   } catch (error: any) {
-    message.error(error?.response?.data?.message || '保存失败')
+    message.error(error?.response?.data?.message || t('pages.settings.DemandConfig.s108'))
   } finally {
     saving.value = false
   }
@@ -418,7 +418,7 @@ const handleSave = async () => {
 
 const handleReset = () => {
   formData.value = { ...defaultFormData }
-  message.info('已重置为默认配置')
+  message.info(t('pages.settings.DemandConfig.s104'))
 }
 
 onMounted(() => {

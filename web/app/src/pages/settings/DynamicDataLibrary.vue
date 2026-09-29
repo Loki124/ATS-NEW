@@ -7,13 +7,13 @@
 
     <div class="data-body">
       <n-tabs v-model:value="activeTab" type="line" animated class="data-tabs">
-        <n-tab-pane name="school" tab="院校库">
+        <n-tab-pane name="school" :tab="t('pages.settings.DynamicDataLibrary.s3')">
           <SchoolLibrary />
         </n-tab-pane>
-        <n-tab-pane name="major" tab="专业库">
+        <n-tab-pane name="major" :tab="t('pages.settings.DynamicDataLibrary.s4')">
           <MajorLibrary />
         </n-tab-pane>
-        <n-tab-pane name="company" tab="公司库">
+        <n-tab-pane name="company" :tab="t('pages.settings.DynamicDataLibrary.s5')">
           <CompanyLibrary />
         </n-tab-pane>
       </n-tabs>
