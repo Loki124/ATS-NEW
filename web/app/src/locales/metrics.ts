@@ -7,7 +7,8 @@
 
 export const METRICS_ZH: Record<string, string> = {
   'metrics.library.title': '指标库',
-  'metrics.library.subtitle': '原子指标（直接取值）与派生指标（计算型）统一配置，供规则引擎引用，无需开发介入',
+  'metrics.library.subtitle': '指标定义已整合原子指标（对象路径取值）与派生指标（参数化 Handler），集中展示系统中已注册的全部指标，供规则引擎引用',
+  'metrics.definitions.readonlyHint': '指标定义已整合原子指标（对象路径）与派生指标（参数化 Handler），集中展示系统中已注册的全部指标（只读）',
   'metrics.tab.atomic': '原子指标',
   'metrics.tab.derived': '派生指标',
   'metrics.tab.template': '指标模板',
@@ -29,6 +30,7 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.col.metric': '引用指标',
   'metrics.col.metricPath': '指标路径',
   'metrics.col.operators': '支持运算符',
+  'metrics.col.enumValues': '枚举值',
   'metrics.col.status': '状态',
   'metrics.col.templateCount': '引用模板',
   'metrics.col.action': '操作',
@@ -189,7 +191,8 @@ export const METRICS_ZH: Record<string, string> = {
 
 export const METRICS_EN: Record<string, string> = {
   'metrics.library.title': 'Metric Library',
-  'metrics.library.subtitle': 'Configure atomic (direct) and derived (computed) metrics for the rule engine, no code changes needed',
+  'metrics.library.subtitle': 'Metric Definitions consolidates atomic (object-path) and derived (parametric handler) metrics — all registered metrics shown here for the rule engine',
+  'metrics.definitions.readonlyHint': 'Metric Definitions consolidates atomic (object path) and derived (parametric handler) metrics — all registered metrics shown here (read-only)',
   'metrics.tab.atomic': 'Atomic Metrics',
   'metrics.tab.derived': 'Derived Metrics',
   'metrics.tab.template': 'Metric Templates',
@@ -211,6 +214,7 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.col.metric': 'Metric',
   'metrics.col.metricPath': 'Metric Path',
   'metrics.col.operators': 'Operators',
+  'metrics.col.enumValues': 'Enum Values',
   'metrics.col.status': 'Status',
   'metrics.col.templateCount': 'Templates',
   'metrics.col.action': 'Actions',

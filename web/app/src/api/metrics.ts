@@ -112,21 +112,6 @@ export interface ParamField {
   required?: boolean
 }
 
-export interface DerivedFuncItem {
-  name: string
-  label: string
-  description?: string
-  paramsHint?: string
-  /** 期望 base_path 解析出的 items 形状：list_periods / list_edu / date */
-  inputKind?: string
-  /** 计算结果类型：number / string / boolean / date */
-  outputType?: string
-  /** 结果单位（仅展示） */
-  unit?: string
-  /** 参数声明，驱动类型化参数输入 */
-  paramSchema?: ParamField[]
-}
-
 export interface ExecuteStep {
   index: number
   pass: boolean
@@ -279,27 +264,9 @@ export async function listAtomicMetrics(): Promise<AtomicMetric[]> {
   return unwrap<AtomicMetric[]>(res) ?? []
 }
 
-export async function createAtomicMetric(payload: Partial<AtomicMetric>): Promise<AtomicMetric> {
-  const res = await api.post('/metrics/atomic-metrics/', payload)
-  return unwrap<AtomicMetric>(res)
-}
-
-export async function deleteAtomicMetric(id: string): Promise<void> {
-  await api.delete(`/metrics/atomic-metrics/${id}/`)
-}
-
 export async function listDerivedMetrics(): Promise<DerivedMetric[]> {
   const res = await api.get('/metrics/derived-metrics/')
   return unwrap<DerivedMetric[]>(res) ?? []
-}
-
-export async function createDerivedMetric(payload: Partial<DerivedMetric>): Promise<DerivedMetric> {
-  const res = await api.post('/metrics/derived-metrics/', payload)
-  return unwrap<DerivedMetric>(res)
-}
-
-export async function deleteDerivedMetric(id: string): Promise<void> {
-  await api.delete(`/metrics/derived-metrics/${id}/`)
 }
 
 export async function listMetricTemplates(): Promise<MetricTemplate[]> {
@@ -312,17 +279,7 @@ export async function createMetricTemplate(payload: Partial<MetricTemplate>): Pr
   return unwrap<MetricTemplate>(res)
 }
 
-/** 编辑（PATCH 部分更新）已存在的指标 */
-export async function updateAtomicMetric(id: string, payload: Partial<AtomicMetric>): Promise<AtomicMetric> {
-  const res = await api.patch(`/metrics/atomic-metrics/${id}/`, payload)
-  return unwrap<AtomicMetric>(res)
-}
-
-export async function updateDerivedMetric(id: string, payload: Partial<DerivedMetric>): Promise<DerivedMetric> {
-  const res = await api.patch(`/metrics/derived-metrics/${id}/`, payload)
-  return unwrap<DerivedMetric>(res)
-}
-
+/** 编辑（PATCH 部分更新）已存在的指标模板 */
 export async function updateMetricTemplate(id: string, payload: Partial<MetricTemplate>): Promise<MetricTemplate> {
   const res = await api.patch(`/metrics/templates/${id}/`, payload)
   return unwrap<MetricTemplate>(res)
@@ -335,11 +292,6 @@ export async function deleteMetricTemplate(id: string): Promise<void> {
 export async function listOperators(): Promise<OptionItem[]> {
   const res = await api.get('/metrics/operators/')
   return unwrap<OptionItem[]>(res) ?? []
-}
-
-export async function listDerivedFuncs(): Promise<DerivedFuncItem[]> {
-  const res = await api.get('/metrics/derived-funcs/')
-  return unwrap<DerivedFuncItem[]>(res) ?? []
 }
 
 export async function getSampleData(): Promise<Record<string, any>> {
@@ -388,7 +340,8 @@ export interface MetricDefinition {
   paramType?: 'discrete' | 'continuous'
   /** 依据字段类型计算的能力白名单：支持的运算符取值列表 */
   supportedOperators: string[]
-  status?: string
+  /** 枚举型指标的出参候选值（isEnum 为 true 时非空） */
+  enumValues?: string[]
   description?: string
   calcFunc?: string
   /** 派生函数是否带参数（参数化 Handler） */

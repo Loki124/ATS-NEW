@@ -11,15 +11,11 @@
     <!-- ========== 顶层 Tab：指标定义 / 指标模板 ========== -->
     <div class="ws-body">
       <n-tabs v-model:value="activeTab" type="line" animated>
-        <!-- ---------- Tab 1：指标定义（只读） ---------- -->
+        <!-- ---------- Tab 1：指标定义（只读，统一视图） ---------- -->
         <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
-          <div class="ws-tab-bar">
-            <n-button type="primary" @click="openCreate('atomic')">
-              {{ t('metrics.btn.create') }}{{ t('metrics.tab.atomic') }}
-            </n-button>
-            <n-button type="primary" @click="openCreate('derived')">
-              {{ t('metrics.btn.create') }}{{ t('metrics.tab.derived') }}
-            </n-button>
+          <div class="ws-hint">
+            <span class="ws-hint-dot" />
+            {{ t('metrics.definitions.readonlyHint') }}
           </div>
           <n-data-table
             :columns="definitionColumns"
@@ -61,22 +57,22 @@
       <template v-if="detailRow">
         <div class="detail-grid">
           <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.name') }}</div>
-            <div class="cell-value">{{ detailRow.name }}</div>
-          </div>
-          <div class="detail-cell">
             <div class="cell-label">{{ t('metrics.col.valueMode') }}</div>
             <div class="cell-value">
-              <n-tag size="small" :type="valueModeMeta(detailRow).type">{{ valueModeMeta(detailRow).label }}</n-tag>
+              <span class="ws-mode-badge" :class="valueModeClass(detailRow)">
+                {{ valueModeLabel(detailRow) }}
+              </span>
             </div>
-          </div>
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.dataSource') }}</div>
-            <div class="cell-value"><code class="ws-code">{{ detailRow.dataSource }}</code></div>
           </div>
           <div class="detail-cell">
             <div class="cell-label">{{ t('metrics.col.paramType') }}</div>
             <div class="cell-value">{{ paramTypeLabel(detailRow.paramType) }}</div>
+          </div>
+          <div class="detail-cell detail-cell-wide">
+            <div class="cell-label">{{ t('metrics.col.dataSource') }}</div>
+            <div class="cell-value">
+              <code class="ws-code">{{ detailRow.dataSource }}</code>
+            </div>
           </div>
           <div class="detail-cell">
             <div class="cell-label">{{ t('metrics.col.returnType') }}</div>
@@ -85,20 +81,6 @@
             </div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.status') }}</div>
-            <div class="cell-value">
-              <n-tag size="small" :type="detailRow.status === 'enabled' ? 'success' : 'default'">
-                {{ detailRow.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
-              </n-tag>
-            </div>
-          </div>
-          <div v-if="detailRow.isEnum" class="detail-cell detail-cell-wide">
-            <div class="cell-label">{{ t('metrics.col.isEnum') }}</div>
-            <div class="cell-value">
-              <n-tag size="small" type="warning">{{ t('metrics.tag.enum') }}</n-tag>
-            </div>
-          </div>
-          <div class="detail-cell detail-cell-wide">
             <div class="cell-label">{{ t('metrics.col.operators') }}</div>
             <div class="cell-value">
               <div class="ws-ops">
@@ -109,108 +91,20 @@
               </div>
             </div>
           </div>
+          <div v-if="detailRow.isEnum" class="detail-cell detail-cell-wide">
+            <div class="cell-label">{{ t('metrics.col.enumValues') }}</div>
+            <div class="cell-value">
+              <div class="ws-ops">
+                <span v-for="ev in enumValuesOf(detailRow)" :key="ev" class="ws-enum-tag">{{ ev }}</span>
+                <span v-if="!enumValuesOf(detailRow).length" class="ws-muted">-</span>
+              </div>
+            </div>
+          </div>
           <div v-if="detailRow.description" class="detail-cell detail-cell-wide">
             <div class="cell-label">{{ t('metrics.form.description') }}</div>
             <div class="cell-value">{{ detailRow.description }}</div>
           </div>
         </div>
-      </template>
-    </n-modal>
-
-    <!-- ========== 指标新建/编辑弹窗（原子 / 派生，复用既有逻辑） ========== -->
-    <n-modal
-      v-model:show="showModal"
-      preset="card"
-      :title="modalTitle"
-      style="width: 560px"
-      :mask-closable="false"
-    >
-      <n-form :model="form" label-placement="top">
-        <n-form-item :label="t('metrics.form.name')" required>
-          <n-input v-model:value="form.name" :placeholder="t('metrics.form.name')" />
-        </n-form-item>
-
-        <n-form-item v-if="modalKind === 'atomic'" :label="t('metrics.form.sourcePath')" required>
-          <n-select
-            v-model:value="form.sourcePath"
-            :options="fieldPathOptions"
-            filterable
-            clearable
-            :placeholder="t('metrics.form.sourcePath')"
-          />
-          <template #feedback>
-            <span class="ws-tip">{{ t('metrics.form.sourcePathTip') }}</span>
-          </template>
-        </n-form-item>
-
-        <template v-if="modalKind === 'derived'">
-          <n-form-item :label="t('metrics.form.calcFunc')" required>
-            <n-select
-              v-model:value="form.calcFunc"
-              :options="derivedFuncOptions"
-              :placeholder="t('metrics.form.calcFunc')"
-              @update:value="onCalcFuncChange"
-            />
-          </n-form-item>
-          <n-form-item :label="t('metrics.form.basePath')" required>
-            <n-input v-model:value="form.basePath" placeholder="candidate.workExperience" />
-          </n-form-item>
-          <n-form-item v-if="selectedFuncHint?.paramSchema?.length" :label="t('metrics.form.params')">
-            <div class="ws-params">
-              <div v-for="p in selectedFuncHint.paramSchema" :key="p.key" class="ws-param-row">
-                <span class="ws-param-label">{{ p.label }}<em v-if="p.required" class="ws-req">*</em></span>
-                <n-input-number
-                  v-if="p.type === 'number'"
-                  v-model:value="form.params[p.key]"
-                  :min="0"
-                  class="ws-param-control"
-                />
-                <n-input
-                  v-else-if="p.type === 'string'"
-                  v-model:value="form.params[p.key]"
-                  class="ws-param-control"
-                />
-                <n-select
-                  v-else-if="p.type === 'select'"
-                  v-model:value="form.params[p.key]"
-                  :options="p.options"
-                  class="ws-param-control"
-                />
-                <n-switch
-                  v-else-if="p.type === 'boolean'"
-                  v-model:value="form.params[p.key]"
-                />
-                <n-dynamic-tags
-                  v-else-if="p.type === 'tags'"
-                  v-model:value="form.params[p.key]"
-                />
-              </div>
-            </div>
-          </n-form-item>
-          <n-form-item v-else :label="t('metrics.form.params')">
-            <span class="ws-tip">{{ t('metrics.form.paramsEmpty') }}</span>
-          </n-form-item>
-        </template>
-
-        <n-form-item :label="t('metrics.form.dataType')">
-          <n-select v-model:value="form.dataType" :options="dataTypeOptions" />
-        </n-form-item>
-        <n-form-item :label="t('metrics.form.unit')">
-          <n-input v-model:value="form.unit" :placeholder="t('pages.settings.MetricsWorkspace.s1')" />
-        </n-form-item>
-        <n-form-item :label="t('metrics.form.description')">
-          <n-input v-model:value="form.description" type="textarea" :rows="2" />
-        </n-form-item>
-        <n-form-item :label="t('metrics.form.status')">
-          <n-select v-model:value="form.status" :options="statusOptions" />
-        </n-form-item>
-      </n-form>
-
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showModal = false">{{ t('metrics.btn.cancel') }}</n-button>
-          <n-button type="primary" :loading="saving" @click="submitMetric">{{ t('metrics.btn.save') }}</n-button>
-        </n-space>
       </template>
     </n-modal>
 
@@ -320,16 +214,16 @@
 
 <script setup lang="ts">
 /**
- * MetricsWorkspace —— 指标库（重构后）。
+ * MetricsWorkspace —— 指标库。
  *
  * 模块拆分（用户诉求）：
  *   - 指标库（本页）：两个页签
- *       1) 指标定义 —— 只读统一视图（原子 + 派生合并），点击指标名弹出居中详情弹窗
+ *       1) 指标定义 —— 只读统一视图（原子 + 派生合并），点击指标名弹出居中详情弹窗。
+ *          原子指标与派生指标已整合进「指标定义」，故不再提供独立的新建入口（无停用/启用状态，
+ *          展示系统中已注册的全部指标）；取值方式明确为「对象路径 / 参数化 Handler」，
+ *          枚举型指标同时展示其出参枚举值。
  *       2) 指标模板 —— 新增/编辑/删除/停用（CRUD），可配置参数范围/步长/显示/算子/值域
  *   - 规则引擎（RuleAuthoring.vue）：承接原「规则配置与执行」「规则管理」两个功能
- *
- * 指标定义遵循 PRD：只读、无行级 CRUD（F-1.7）；顶部「新建原子/派生指标」用于注册新定义，
- * 与「定义是字段/注册的产物」语义一致。模板引用原子/派生指标，二者经自动生成信号联动。
  */
 import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -341,23 +235,17 @@ import {
   useMessage,
 } from 'naive-ui'
 import {
-  createAtomicMetric,
-  createDerivedMetric,
   createMetricTemplate,
   deleteMetricTemplate,
   listAtomicMetrics,
-  listDerivedFuncs,
   listDerivedMetrics,
   listMetricDefinitions,
   listMetricTemplates,
   listOperators,
   listCandidateFields,
-  updateAtomicMetric,
-  updateDerivedMetric,
   updateMetricTemplate,
   type AtomicMetric,
   type CandidateFieldPath,
-  type DerivedFuncItem,
   type DerivedMetric,
   type MetricDefinition,
   type MetricTemplate,
@@ -375,7 +263,6 @@ const templateList = ref<MetricTemplate[]>([])
 const atomicList = ref<AtomicMetric[]>([])
 const derivedList = ref<DerivedMetric[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
-const derivedFuncs = ref<DerivedFuncItem[]>([])
 const fieldPaths = ref<CandidateFieldPath[]>([])
 const loading = ref(false)
 
@@ -388,25 +275,30 @@ function openDetail(row: MetricDefinition) {
   detailVisible.value = true
 }
 
-const RETURN_TYPE_LABELS: Record<string, string> = {
-  number: t('pages.settings.MetricsWorkspace.s7'),
-  string: t('pages.settings.MetricsWorkspace.s8'),
-  boolean: t('pages.settings.MetricsWorkspace.s9'),
-  date: t('pages.settings.MetricsWorkspace.s10'),
+function valueModeClass(row: MetricDefinition): string {
+  return row.valueMode === 'parametric_handler' ? 'is-parametric' : 'is-object'
+}
+function valueModeLabel(row: MetricDefinition): string {
+  return row.valueMode === 'parametric_handler'
+    ? t('metrics.valueMode.parametric')
+    : t('metrics.valueMode.objectPath')
+}
+function enumValuesOf(row: MetricDefinition): string[] {
+  return (row.enumValues as string[] | undefined) || []
 }
 function returnTypeLabel(type?: string): string {
-  return (type && RETURN_TYPE_LABELS[type]) || type || '-'
+  const map: Record<string, string> = {
+    number: t('pages.settings.MetricsWorkspace.s7'),
+    string: t('pages.settings.MetricsWorkspace.s8'),
+    boolean: t('pages.settings.MetricsWorkspace.s9'),
+    date: t('pages.settings.MetricsWorkspace.s10'),
+  }
+  return (type && map[type]) || type || '-'
 }
 function paramTypeLabel(type?: string): string {
   if (type === 'continuous') return t('metrics.paramType.continuous')
   if (type === 'discrete') return t('metrics.paramType.discrete')
   return '-'
-}
-function valueModeMeta(row: MetricDefinition): { label: string; type: 'default' | 'warning' } {
-  if (row.valueMode === 'parametric_handler') {
-    return { label: t('metrics.valueMode.parametric'), type: 'warning' }
-  }
-  return { label: t('metrics.valueMode.objectPath'), type: 'default' }
 }
 function operatorLabel(value: string) {
   return operatorCatalog.value.find((o) => o.value === value)?.label ?? value
@@ -419,9 +311,15 @@ const definitionColumns = computed(() => [
     render: (row: MetricDefinition) =>
       h('span', {
         class: 'ws-def-name-link',
-        style: 'cursor:pointer;font-weight:500;color:var(--brand);',
+        style: 'cursor:pointer;font-weight:600;color:var(--brand-text);',
         onClick: () => openDetail(row),
       }, { default: () => row.name }),
+  },
+  {
+    title: t('metrics.col.valueMode'),
+    key: 'valueMode',
+    render: (row: MetricDefinition) =>
+      h('span', { class: `ws-mode-badge ${valueModeClass(row)}` }, { default: () => valueModeLabel(row) }),
   },
   {
     title: t('metrics.col.dataSource'),
@@ -434,6 +332,26 @@ const definitionColumns = computed(() => [
     render: (row: MetricDefinition) => h('span', { class: 'ws-muted' }, { default: () => paramTypeLabel(row.paramType) }),
   },
   {
+    title: t('metrics.col.returnType'),
+    key: 'returnType',
+    render: (row: MetricDefinition) =>
+      h('span', { class: 'ws-muted' }, {
+        default: () => `${returnTypeLabel(row.returnType)}${row.unit ? '（' + row.unit + '）' : ''}`,
+      }),
+  },
+  {
+    title: t('metrics.col.enumValues'),
+    key: 'enumValues',
+    render: (row: MetricDefinition) => {
+      const evs = enumValuesOf(row)
+      if (!row.isEnum || !evs.length) return h('span', { class: 'ws-muted' }, { default: () => '-' })
+      return h('div', { class: 'ws-ops' }, {
+        default: () => evs.map((ev: string) =>
+          h('span', { class: 'ws-enum-tag' }, { default: () => ev })),
+      })
+    },
+  },
+  {
     title: t('metrics.col.operators'),
     key: 'supportedOperators',
     render: (row: MetricDefinition) =>
@@ -441,14 +359,6 @@ const definitionColumns = computed(() => [
         default: () =>
           (row.supportedOperators || []).map((op: string) =>
             h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) })),
-      }),
-  },
-  {
-    title: t('metrics.col.returnType'),
-    key: 'returnType',
-    render: (row: MetricDefinition) =>
-      h('span', { class: 'ws-muted' }, {
-        default: () => `${returnTypeLabel(row.returnType)}${row.unit ? '（' + row.unit + '）' : ''}`,
       }),
   },
 ])
@@ -511,154 +421,6 @@ const templateColumns = computed(() => [
   },
 ])
 
-// ===== 指标新建/编辑（原子 / 派生） =====
-const showModal = ref(false)
-const modalKind = ref<'atomic' | 'derived'>('atomic')
-const editMetricId = ref('')
-const saving = ref(false)
-const form = ref<any>({})
-
-const statusOptions = computed(() => [
-  { label: t('metrics.status.enabled'), value: 'enabled' },
-  { label: t('metrics.status.disabled'), value: 'disabled' },
-])
-
-const selectedFuncHint = computed(() => {
-  if (modalKind.value !== 'derived') return null
-  return derivedFuncs.value.find((f) => f.name === form.value.calcFunc) || null
-})
-
-const dataTypeOptions = [
-  { label: t('pages.settings.MetricsWorkspace.s3'), value: 'number' },
-  { label: t('pages.settings.MetricsWorkspace.s4'), value: 'string' },
-  { label: t('pages.settings.MetricsWorkspace.s5'), value: 'boolean' },
-  { label: t('pages.settings.MetricsWorkspace.s6'), value: 'date' },
-]
-
-const atomicOptions = computed(() =>
-  atomicList.value.map((m) => ({ label: `${m.name}（${m.sourcePath}）`, value: m.id })),
-)
-const derivedOptions = computed(() =>
-  derivedList.value.map((m) => ({ label: `${m.name}（${m.calcFunc}）`, value: m.id })),
-)
-const derivedFuncOptions = computed(() =>
-  derivedFuncs.value.map((f) => ({ label: f.label, value: f.name })),
-)
-
-const fieldPathOptions = computed(() => {
-  const toOpts = (src: CandidateFieldPath[]) =>
-    src.map((f) => ({ label: `${f.label}（${f.path}）`, value: f.path }))
-  const groups = [
-    { type: 'group' as const, label: t('metrics.fieldGroup.model'), key: 'model', children: toOpts(fieldPaths.value.filter((f) => f.source === 'model')) },
-    { type: 'group' as const, label: t('metrics.fieldGroup.dynamic'), key: 'dynamic', children: toOpts(fieldPaths.value.filter((f) => f.source === 'dynamic')) },
-  ]
-  return groups.filter((g) => g.children.length > 0)
-})
-
-const modalTitle = computed(() => {
-  const edit = !!editMetricId.value
-  if (modalKind.value === 'atomic') return edit ? t('metrics.dialog.editAtomic') : t('metrics.dialog.createAtomic')
-  return edit ? t('metrics.dialog.editDerived') : t('metrics.dialog.createDerived')
-})
-
-function onCalcFuncChange(val: string) {
-  form.value.calcFunc = val
-  const f = derivedFuncs.value.find((x) => x.name === val)
-  const schema = f?.paramSchema || []
-  const next: Record<string, any> = {}
-  for (const p of schema) {
-    if (p.default !== undefined) next[p.key] = p.default
-  }
-  form.value.params = next
-}
-
-function openCreate(kind: 'atomic' | 'derived') {
-  modalKind.value = kind
-  editMetricId.value = ''
-  form.value = {
-    name: '',
-    sourcePath: '',
-    basePath: '',
-    calcFunc: null,
-    params: {},
-    dataType: 'number',
-    unit: '',
-    description: '',
-    status: 'enabled',
-  }
-  showModal.value = true
-}
-
-async function submitMetric() {
-  if (!form.value.name?.trim()) {
-    message.warning(t('metrics.msg.requiredName'))
-    return
-  }
-  saving.value = true
-  try {
-    let payload: any
-    if (modalKind.value === 'atomic') {
-      if (!form.value.sourcePath?.trim()) {
-        message.warning(t('metrics.msg.requiredPath'))
-        return
-      }
-      payload = {
-        name: form.value.name,
-        sourcePath: form.value.sourcePath,
-        dataType: form.value.dataType,
-        unit: form.value.unit,
-        description: form.value.description,
-        status: form.value.status || 'enabled',
-      }
-    } else {
-      if (!form.value.calcFunc) {
-        message.warning(t('metrics.msg.requiredFunc'))
-        return
-      }
-      if (!form.value.basePath?.trim()) {
-        message.warning(t('metrics.msg.requiredPath'))
-        return
-      }
-      const params: Record<string, any> = {}
-      const schema = selectedFuncHint.value?.paramSchema || []
-      if (form.value.params && typeof form.value.params === 'object') {
-        for (const p of schema) {
-          const v = form.value.params[p.key]
-          if (v === undefined || v === null || v === '') continue
-          params[p.key] = p.type === 'number' ? Number(v) : v
-        }
-      }
-      payload = {
-        name: form.value.name,
-        calcFunc: form.value.calcFunc,
-        basePath: form.value.basePath,
-        params,
-        dataType: form.value.dataType,
-        unit: form.value.unit,
-        description: form.value.description,
-        status: form.value.status || 'enabled',
-      }
-    }
-    if (editMetricId.value) {
-      if (modalKind.value === 'atomic') await updateAtomicMetric(editMetricId.value, payload)
-      else await updateDerivedMetric(editMetricId.value, payload)
-    } else if (modalKind.value === 'atomic') {
-      await createAtomicMetric(payload)
-    } else {
-      await createDerivedMetric(payload)
-    }
-    message.success(editMetricId.value ? t('metrics.msg.updated') : t('metrics.msg.created'))
-    showModal.value = false
-    editMetricId.value = ''
-    await load()
-  } catch (error: any) {
-    const detail = error?.response?.data?.error
-    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
-  } finally {
-    saving.value = false
-  }
-}
-
 // ===== 指标模板新建/编辑 =====
 const showTemplateModal = ref(false)
 const templateEditId = ref('')
@@ -679,6 +441,18 @@ const tplForm = ref<any>(emptyTplForm())
 
 const templateModalTitle = computed(() =>
   templateEditId.value ? t('metrics.dialog.editTemplate') : t('metrics.dialog.createTemplate'),
+)
+
+const statusOptions = computed(() => [
+  { label: t('metrics.status.enabled'), value: 'enabled' },
+  { label: t('metrics.status.disabled'), value: 'disabled' },
+])
+
+const atomicOptions = computed(() =>
+  atomicList.value.map((m) => ({ label: `${m.name}（${m.sourcePath}）`, value: m.id })),
+)
+const derivedOptions = computed(() =>
+  derivedList.value.map((m) => ({ label: `${m.name}（${m.calcFunc}）`, value: m.id })),
 )
 
 const selectedTemplateDataType = computed<string>(() => {
@@ -805,19 +579,17 @@ async function toggleTemplate(row: MetricTemplate) {
 async function load() {
   loading.value = true
   try {
-    const [atomic, derived, templates, ops, funcs, defs] = await Promise.all([
+    const [atomic, derived, templates, ops, defs] = await Promise.all([
       listAtomicMetrics(),
       listDerivedMetrics(),
       listMetricTemplates(),
       listOperators(),
-      listDerivedFuncs(),
       listMetricDefinitions(),
     ])
     atomicList.value = atomic
     derivedList.value = derived
     templateList.value = templates
     operatorCatalog.value = ops
-    derivedFuncs.value = funcs
     definitions.value = defs
     try {
       fieldPaths.value = await listCandidateFields()
@@ -842,68 +614,140 @@ onMounted(load)
 }
 .ws-title {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-h3, 20px);
   font-weight: 600;
+  color: var(--ink);
 }
 .ws-subtitle {
   margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
+  font-size: var(--text-small, 13px);
+  color: var(--ink-faint);
 }
 .ws-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-top: 4px;
+  padding-top: var(--space-3);
 }
 .ws-tab-bar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 10px;
-  gap: 8px;
+  margin-bottom: var(--space-3);
+  gap: var(--space-2);
 }
+
+/* 只读提示 */
+.ws-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-small, 13px);
+  color: var(--ink-soft);
+  background: var(--brand-a12);
+  border: 1px solid var(--brand-a22);
+  border-radius: var(--radius-md);
+}
+.ws-hint-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-600);
+  flex: 0 0 auto;
+}
+
+/* ===== 共享视觉元素（列表与详情统一） ===== */
+.ws-code {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--g1);
+  border: 1px solid var(--border-hairline);
+  color: var(--ink);
+  word-break: break-all;
+}
+.ws-op-tag {
+  font-size: var(--fs-12);
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-a12);
+  border: 1px solid var(--brand-a22);
+  color: var(--brand-text);
+  white-space: nowrap;
+}
+.ws-enum-tag {
+  font-size: var(--fs-12);
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--c-success-soft);
+  border: 1px solid color-mix(in srgb, var(--c-success) 24%, transparent);
+  color: var(--c-success-deep);
+  white-space: nowrap;
+}
+.ws-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+}
+.ws-mode-badge.is-object {
+  background: var(--c-info-soft);
+  border-color: color-mix(in srgb, var(--c-info) 24%, transparent);
+  color: var(--c-info-deep);
+}
+.ws-mode-badge.is-parametric {
+  background: var(--c-warning-soft);
+  border-color: color-mix(in srgb, var(--c-warning) 26%, transparent);
+  color: var(--c-warning-deep);
+}
+.ws-ops { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.ws-muted { color: var(--ink-faint); font-size: var(--text-small, 13px); }
+.ws-actions-cell { display: flex; gap: 2px; }
+.ws-def-name-link:hover { text-decoration: underline; }
 
 /* 详情弹窗 */
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
+  animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
 }
-.detail-cell { display: flex; flex-direction: column; gap: 4px; }
+.detail-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--g1);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+}
 .detail-cell-wide { grid-column: 1 / -1; }
-.cell-label { color: var(--color-text-secondary, #6b7280); font-size: 12px; }
-.cell-value { color: var(--color-text-primary, #111827); font-size: 14px; }
-.ws-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--color-bg-subtle, #f9fafb);
+.cell-label {
+  color: var(--ink-faint);
+  font-size: var(--fs-12);
+  font-weight: 500;
 }
-.ws-ops { display: flex; flex-wrap: wrap; gap: 4px; }
-.ws-op-tag {
-  font-size: 12px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--color-bg-subtle, #f9fafb);
-  border: 1px solid var(--color-border, #e5e7eb);
+.cell-value {
+  color: var(--ink);
+  font-size: var(--text-small, 13px);
+  line-height: 1.5;
 }
-.ws-muted { color: var(--color-text-tertiary, #9ca3af); font-size: 13px; }
-.ws-actions-cell { display: flex; gap: 2px; }
 
 /* 模板弹窗分段 */
 .tpl-section { width: 100%; }
-.tpl-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-.tpl-field { flex: 1 1 0; min-width: 140px; margin-bottom: 4px; }
-.tpl-segments { display: flex; flex-direction: column; gap: 8px; }
-.seg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tpl-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-1); }
+.tpl-field { flex: 1 1 0; min-width: 140px; margin-bottom: var(--space-1); }
+.tpl-segments { display: flex; flex-direction: column; gap: var(--space-2); }
+.seg-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
 .seg-field { flex: 1 1 120px; }
 
-/* 参数输入行 */
-.ws-params { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-.ws-param-row { display: flex; align-items: center; gap: 12px; }
-.ws-param-label { flex: 0 0 140px; font-size: 13px; color: var(--color-text-secondary, #6b7280); }
-.ws-param-control { flex: 1 1 auto; }
-.ws-req { color: var(--error-color, #d03050); font-style: normal; margin-left: 2px; }
-.ws-tip { font-size: 12px; color: var(--color-text-secondary, #6b7280); }
+@media (max-width: 768px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}
 </style>

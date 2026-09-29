@@ -60,6 +60,12 @@ class AtomicMetric(FullAuditModel, UUIDModel):
     )
     # 是否枚举型（下拉 / 列表 / 多选字段自动生成时置 True，运算符白名单走 enum 分支）
     is_enum = models.BooleanField(default=False, verbose_name='枚举型')
+    # 枚举值清单：当 is_enum=True 时存放出参的全部候选值（如 性别 -> [男, 女]），
+    # 供指标定义视图与规则配置页展示与校验。非枚举指标为空列表。
+    enum_values = models.JSONField(
+        default=list, blank=True, verbose_name='枚举值',
+        help_text='is_enum 为 True 时的候选取值列表，如 ["男","女"]',
+    )
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',

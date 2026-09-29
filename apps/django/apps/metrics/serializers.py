@@ -20,7 +20,8 @@ class AtomicMetricSerializer(serializers.ModelSerializer):
         model = AtomicMetric
         fields = [
             'id', 'name', 'source_path', 'data_type', 'unit', 'is_enum',
-            'description', 'status', 'auto_generated', 'created_at', 'template_count',
+            'enum_values', 'description', 'status', 'auto_generated',
+            'created_at', 'template_count',
         ]
         read_only_fields = ['id', 'created_at', 'template_count', 'auto_generated']
 
