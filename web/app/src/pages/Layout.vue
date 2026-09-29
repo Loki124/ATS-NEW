@@ -444,13 +444,13 @@ const userMenuOptions = computed(() => {
   const current = menuLayout.value
   return [
     // 账户
-    { key: 'profile', label: '个人中心', icon: renderIcon(PersonOutline) },
+    { key: 'profile', label: t('pages.Layout.userMenu.profile'), icon: renderIcon(PersonOutline) },
     /* ⚠️ 22:45 统一范式 + 设置按钮可见性修复：
        - top 模式没有 sider（v-if 不渲染），原 .sider-footer（设置按钮）在 main-area 里位置错乱
        - 把设置入口集成到 dropdown menu（与个人中心/账号设置等菜单项统一范式）
        - 路由跳转 /settings/account（设置主页），保留账号设置（个人中心）独立入口
        - 2026-08-25：移除「账号设置」冗余入口（与上方「设置」重复且未配置路由功能） */
-    { key: '/settings/account', label: '设置', icon: renderIcon(CogOutline) },
+    { key: '/settings/account', label: t('pages.Layout.userMenu.settings'), icon: renderIcon(CogOutline) },
     {
       key: 'language',
       label: () =>
@@ -458,7 +458,7 @@ const userMenuOptions = computed(() => {
           'div',
           { class: 'user-menu-row user-menu-language-row' },
           [
-            h('span', { class: 'user-menu-row-label' }, '语言'),
+            h('span', { class: 'user-menu-row-label' }, t('pages.Layout.userMenu.language')),
             h(NSwitch, {
               value: currentLocale.value === 'en-US',
               uncheckedValue: false,
@@ -478,7 +478,7 @@ const userMenuOptions = computed(() => {
     // 视图
     {
       key: 'section-layout',
-      label: () => h('div', { class: 'user-menu-section-label' }, '菜单布局'),
+      label: () => h('div', { class: 'user-menu-section-label' }, t('pages.Layout.userMenu.menuLayout')),
       disabled: true,
     },
     {
@@ -488,7 +488,7 @@ const userMenuOptions = computed(() => {
           'div',
           { class: 'user-menu-row' },
           [
-            h('span', { class: 'user-menu-row-label' }, '左侧竖排'),
+            h('span', { class: 'user-menu-row-label' }, t('pages.Layout.userMenu.menuSide')),
             current === 'side'
               ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
               : null,
@@ -503,7 +503,7 @@ const userMenuOptions = computed(() => {
           'div',
           { class: 'user-menu-row' },
           [
-            h('span', { class: 'user-menu-row-label' }, '顶部横排'),
+            h('span', { class: 'user-menu-row-label' }, t('pages.Layout.userMenu.menuTop')),
             current === 'top'
               ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
               : null,
@@ -513,7 +513,7 @@ const userMenuOptions = computed(() => {
     },
     { type: 'divider', key: 'd2' },
     // 会话
-    { key: 'logout', label: '退出登录', icon: renderIcon(LogOutOutline), props: { class: 'user-menu-logout' } },
+    { key: 'logout', label: t('pages.Layout.userMenu.logout'), icon: renderIcon(LogOutOutline), props: { class: 'user-menu-logout' } },
   ]
 })
 

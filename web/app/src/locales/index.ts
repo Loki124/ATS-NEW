@@ -9,7 +9,7 @@
  * - legacy:false → Composition API：`useI18n()` 取 t，模板可用 `$t`
  */
 import { createI18n } from 'vue-i18n'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { REASON_LIBRARY_ZH, DATA_PERM_ZH, APP_UI_ZH } from './zh-CN'
 import { REASON_LIBRARY_EN, DATA_PERM_EN, APP_UI_EN } from './en-US'
 import { LANGUAGE_ZH, LANGUAGE_EN } from './language'
@@ -83,3 +83,15 @@ export const currentLocale = computed<AppLocale>({
 })
 
 export default i18n
+
+/**
+ * 同步 <html lang> 属性（P0-2）：保证无障碍 / 屏幕阅读器 / SEO 正确。
+ * 启动即按已恢复的语言设置一次，之后随 currentLocale 变化持续同步。
+ */
+function syncHtmlLang(code: AppLocale) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('lang', code)
+  }
+}
+syncHtmlLang(readInitialLocale())
+watch(currentLocale, syncHtmlLang)
