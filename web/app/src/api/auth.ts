@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { useUserStore } from '../stores/user';
+import { useSystemStore } from '../stores/system';
 import config from '../config';
 // Plan O Task 7: GET 请求去重 (同 URL 共享 pending Promise)
 import { getDefaultDedup } from '../utils/request-dedup';
@@ -40,6 +41,12 @@ api.interceptors.request.use(
     const token = userStore.accessToken || localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // 双系统 X-Recruit-Type 注入（此前由 main.ts 全局 axios.create 包装统一注入；
+    // 现由本实例自行注入，使 main.ts 的全局包装可安全移除——P1-2 收尾）。
+    const sys = useSystemStore();
+    if (sys && sys.current) {
+      config.headers['X-Recruit-Type'] = sys.current;
     }
     return config;
   },

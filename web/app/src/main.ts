@@ -6,7 +6,6 @@ import router from './router'
 import { naivePlugin } from './plugins/naive'
 import { setupPermissionDirective } from './directives/permission'
 import i18n from './locales' // 2026-09-24: vue-i18n 接入（默认 zh-CN，en-US 兜底）
-import { useSystemStore } from './stores/system'
 import { startAppVersionWatcher } from './services/app-version'
 
 // Naive UI —— 见 plugins/naive.ts (统一注册, 测试可复用)
@@ -25,6 +24,11 @@ const _discrete = createDiscreteApi(['message', 'dialog'])
 const _toast = _discrete.message
 // 暴露全局离散 dialog，供 services/app-version.ts 在无组件上下文时调用
 ;(window as any).$dialog = _discrete.dialog
+
+// G-2026-09-23 双系统 X-Recruit-Type 注入原在此处通过劫持 axios.create 全局包装实现；
+// 2026-09-29 已移除该全局猴子补丁（P1-2 收尾）：X-Recruit-Type 现由 request.ts(createApi) 与
+// api/auth.ts 各自请求拦截器在运行时读取 useSystemStore().current 注入，切换系统下次请求即生效。
+// 仅下方全局 response 拦截器（404/500 处理）保留。
 
 // 2026-06-29 花无缺: 全局 axios 拦截器 — 区分 401/403 (真权限) vs 404 (endpoint 缺)
 // 之前 404 被 catch 走 → UI 显示 "无权限" / "加载失败" → 兵哥误以为权限问题.
@@ -51,25 +55,6 @@ axios.interceptors.response.use(
     return Promise.reject(err)
   }
 )
-
-// G-2026-09-23: 双系统 X-Recruit-Type 注入（覆盖全部 axios 实例）
-// 现状：api/ 下 42 个文件各自 axios.create 独立实例并挂 token 拦截器，无统一实例。
-// 这里包裹 axios.create，使每个实例（含未来新增）的请求拦截器在运行时读取
-// useSystemStore().current（'social'|'campus'）注入 X-Recruit-Type，
-// 切换系统后下一次请求即生效（无需刷新页面）。
-// 注意：仅补充 header，不接管 token（各实例既有 token 拦截器保留，Authorization 幂等）。
-const _origCreate = axios.create.bind(axios)
-axios.create = ((cfg?: any) => {
-  const inst = _origCreate(cfg)
-  inst.interceptors.request.use((reqCfg: any) => {
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-    if (token) reqCfg.headers.Authorization = `Bearer ${token}`
-    const sys = useSystemStore()
-    reqCfg.headers['X-Recruit-Type'] = sys.current
-    return reqCfg
-  })
-  return inst
-}) as typeof axios.create
 
 const app = createApp(App)
 
