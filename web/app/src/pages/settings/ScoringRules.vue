@@ -6,7 +6,7 @@
       <p class="page-subtitle">{{ t('pages.settings.ScoringRules.s2') }}</p>
     </div>
     <n-card>
-      <n-empty description="评分规则功能开发中">
+      <n-empty :description="t('pages.settings.ScoringRules.s3')">
         <template #icon>
           <n-icon :component="StarOutline" :size="64" color="var(--brand)" />
         </template>

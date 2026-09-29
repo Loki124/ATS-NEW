@@ -200,7 +200,7 @@
 
           <div class="dc-field">
             <label class="dc-field-label">
-              查重项 <span class="dc-muted">{{ t('pages.settings.DuplicateCandidate.s33') }}</span>
+              {{ t('pages.settings.DuplicateCandidate.s93') }} <span class="dc-muted">{{ t('pages.settings.DuplicateCandidate.s33') }}</span>
             </label>
             <div v-for="grp in catalogGroups" :key="grp.strength" class="dc-group">
               <div class="dc-group-head">

@@ -93,7 +93,7 @@
               >
                 {{ t('pages.settings.MajorLibrary.s17') }}
               </n-button>
-              <n-button type="primary" @click="openEdit(detailRow!)">编辑</n-button>
+              <n-button type="primary" @click="openEdit(detailRow!)">{{ t('pages.settings.MajorLibrary.s45') }}</n-button>
             </n-space>
           </template>
         </n-drawer-content>

@@ -1,6 +1,6 @@
 <template>
   <!-- 招聘需求 · 动态字段：embedded 模式，仅字段定义/分组/联动规则 3 个 Tab，后端自动建默认模块 -->
-  <DynamicFieldManager mode="embedded" resource="Demand" display-name="招聘需求" />
+  <DynamicFieldManager mode="embedded" resource="Demand" :display-name="t('pages.settings.DemandDynamicFields.s1')" />
 </template>
 
 <script setup lang="ts">

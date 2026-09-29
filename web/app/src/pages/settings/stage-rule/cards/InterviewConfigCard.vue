@@ -7,7 +7,7 @@
     <div class="card-title">
       <span class="title-left">
         <n-icon :component="ClipboardOutline" />
-        面试配置
+        {{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s4') }}
         <span class="title-desc">{{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s1') }}</span>
       </span>
     </div>

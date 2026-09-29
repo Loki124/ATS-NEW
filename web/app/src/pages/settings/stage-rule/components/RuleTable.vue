@@ -26,7 +26,7 @@
         </tr>
         <tr v-if="rows.length === 0">
           <td class="rule-table__empty" :colspan="columns.length + ($slots.actions ? 1 : 0)">
-            暂无规则
+            {{ t('pages.settings.stage-rule.components.RuleTable.s2') }}
           </td>
         </tr>
       </tbody>

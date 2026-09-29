@@ -2637,4 +2637,12 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.ResumeParserEngine.s33': "sk-... (leave blank to keep the saved Key unchanged)",
   'pages.settings.ResumeParserEngine.s34': "Unknown error",
   'pages.settings.AccountSettings.s51': "Uploading current browser environment",
+  'pages.settings.CandidateDynamicFields.s1': "Candidate",
+  'pages.settings.DemandDynamicFields.s1': "Recruitment Demand",
+  'pages.settings.PositionDynamicFields.s1': "Position",
+  'pages.settings.ScoringRules.s3': "Scoring rules under development",
+  'pages.settings.stage-rule.cards.InterviewConfigCard.s4': "Interview Configuration",
+  'pages.settings.stage-rule.components.RuleTable.s2': "No rules yet",
+  'pages.settings.DuplicateCandidate.s93': "Duplicate field",
+  'pages.settings.MajorLibrary.s45': "Edit",
 }

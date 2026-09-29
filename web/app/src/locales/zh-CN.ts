@@ -2668,4 +2668,12 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.ResumeParserEngine.s33': "sk-...（留空表示不修改已保存的 Key）",
   'pages.settings.ResumeParserEngine.s34': "未知错误",
   'pages.settings.AccountSettings.s51': "上传当前浏览器环境",
+  'pages.settings.CandidateDynamicFields.s1': "候选人",
+  'pages.settings.DemandDynamicFields.s1': "招聘需求",
+  'pages.settings.PositionDynamicFields.s1': "职位",
+  'pages.settings.ScoringRules.s3': "评分规则功能开发中",
+  'pages.settings.stage-rule.cards.InterviewConfigCard.s4': "面试配置",
+  'pages.settings.stage-rule.components.RuleTable.s2': "暂无规则",
+  'pages.settings.DuplicateCandidate.s93': "查重项",
+  'pages.settings.MajorLibrary.s45': "编辑",
 }
