@@ -2667,4 +2667,5 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.ResumeParserEngine.s32': "本地模式使用内置 Qwen3-0.6B，无需配置",
   'pages.settings.ResumeParserEngine.s33': "sk-...（留空表示不修改已保存的 Key）",
   'pages.settings.ResumeParserEngine.s34': "未知错误",
+  'pages.settings.AccountSettings.s51': "上传当前浏览器环境",
 }

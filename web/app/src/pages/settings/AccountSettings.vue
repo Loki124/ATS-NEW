@@ -251,7 +251,7 @@ onMounted(() => {
 // ===== 事件处理 =====
 function handleUploadEnv() {
   const env = navigator.userAgent
-  console.log('上传当前浏览器环境:', env)
+  console.log(t('pages.settings.AccountSettings.s51'), env)
   message.success(t('pages.settings.AccountSettings.s36'))
 }
 

@@ -2636,4 +2636,5 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.ResumeParserEngine.s32': "Local mode uses the built-in Qwen3-0.6B model; no configuration needed",
   'pages.settings.ResumeParserEngine.s33': "sk-... (leave blank to keep the saved Key unchanged)",
   'pages.settings.ResumeParserEngine.s34': "Unknown error",
+  'pages.settings.AccountSettings.s51': "Uploading current browser environment",
 }
