@@ -9,7 +9,7 @@
     :show="visible"
     preset="card"
     class="entry-rule-edit-modal"
-    :title="isNew ? '添加规则 —— 进入条件' : '编辑规则 —— 进入条件'"
+    :title="isNew ? t('pages.settings.stage-rule.modals.EntryRuleEditModal.s21') : t('pages.settings.stage-rule.modals.EntryRuleEditModal.s34')"
     :closable="false"
     style="width: 760px; max-width: 95vw; max-height: 90vh"
     :mask-closable="!saving"
@@ -20,7 +20,7 @@
       <!-- 条件组容器 -->
       <div class="er-field">
         <label class="field-label">
-          条件设置 <span class="required-mark">*</span>
+          {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s25') }} <span class="required-mark">*</span>
         </label>
         <div id="entryGroupsContainer">
           <div
@@ -32,12 +32,12 @@
             <div class="group-header">
               <span class="group-title">
                 <n-icon :component="ReorderFourOutline" />
-                条件组 {{ gi + 1 }}
+                {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s26') }} {{ gi + 1 }}
               </span>
               <div class="group-actions">
                 <a @click="addItem(group)"><n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s1') }}</a>
                 <a v-if="canRemoveGroup()" class="danger" @click="removeGroup(gi)">
-                  <n-icon :component="TrashOutline" /> 删除组
+                  <n-icon :component="TrashOutline" /> {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s27') }}
                 </a>
               </div>
             </div>
@@ -65,7 +65,7 @@
             <!-- 组内表达式 + 组内未满足提示 -->
             <div class="group-inner-row">
               <label class="inner-label">
-                组内表达式
+                {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s22') }}
                 <span class="op-expr-help" @click.stop="toggleExprHelp(gi)">
                   <n-icon :component="HelpCircleOutline" />
                   <span v-if="exprHelpOpen === gi" class="op-expr-popover">
@@ -84,11 +84,11 @@
               <n-input
                 v-model:value="group.innerExpression"
                 size="small"
-                placeholder="如 1 and 2 (默认全部 AND)"
+                :placeholder="t('pages.settings.stage-rule.modals.EntryRuleEditModal.s23')"
                 :class="{ 'input-error': innerExprError(group).empty === false && !innerExprError(group).valid }"
               />
               <p v-if="innerExprError(group).empty === false && !innerExprError(group).valid" class="error-msg">
-                组内表达式错误：{{ innerExprError(group).error }}
+                {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s28') }}{{ innerExprError(group).error }}
               </p>
             </div>
             <div class="group-inner-row">
@@ -104,15 +104,15 @@
 
         <!-- 添加条件组按钮 -->
         <a class="add-link" :class="{ 'add-link--disabled': !canAddGroup }" @click="addGroup()">
-          <n-icon :component="AddOutline" /> 添加条件组
+          <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s29') }}
         </a>
-        <p v-if="!canAddGroup" class="field-hint">最多 {{ AR_MAX_GROUPS }} 个条件组</p>
+        <p v-if="!canAddGroup" class="field-hint">{{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s30') }} {{ AR_MAX_GROUPS }} {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s31') }}</p>
       </div>
 
       <!-- 条件组表达式（整条规则） -->
       <div class="er-field">
         <label class="field-label">
-          条件组表达式 <span class="required-mark">*</span>
+          {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s32') }} <span class="required-mark">*</span>
           <span class="op-expr-help" @click.stop="toggleExprHelp(-1)">
             <n-icon :component="HelpCircleOutline" />
             <span v-if="exprHelpOpen === -1" class="op-expr-popover">
@@ -131,7 +131,7 @@
         <n-input
           v-model:value="draft.groupExpression"
           size="small"
-          placeholder="示例：(1 or 2) and (3 or 4)"
+          :placeholder="t('pages.settings.stage-rule.modals.EntryRuleEditModal.s24')"
           :class="{ 'input-error': !groupError.empty && !groupError.valid }"
         />
         <p v-if="!groupError.empty && !groupError.valid" class="error-msg">
@@ -142,7 +142,7 @@
       <!-- 整体未满足提示 -->
       <div class="er-field">
         <label class="field-label">
-          整体未满足提示 <span class="required-mark">*</span>
+          {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s33') }} <span class="required-mark">*</span>
         </label>
         <n-input
           v-model:value="draft.overallPrompt"
