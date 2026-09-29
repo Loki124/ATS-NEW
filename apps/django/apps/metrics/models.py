@@ -145,8 +145,24 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     )
     operators = models.JSONField(
         default=list, verbose_name='支持的运算符',
-        help_text='UnifiedOperator 取值子集，如 ["GT","LT","EQ","BETWEEN"]',
+        help_text='UnifiedOperator 取值子集（启用算子白名单），如 ["GT","LT","EQ","BETWEEN"]',
     )
+    # ===== PRD 指标模板配置维度（参数范围/步长/显示/值域/允许空）=====
+    # 统一收进 JSON 字段，非破坏性扩展；既有模板默认空值，前端按 schema 渲染。
+    param_config = models.JSONField(
+        default=dict, blank=True, verbose_name='参数配置',
+        help_text='{min, max, step, prefix, suffix, allOption}；'
+                  '离散型 step 必须为整数，连续型 step 可为任意正数',
+    )
+    value_domain = models.JSONField(
+        default=dict, blank=True, verbose_name='值域配置',
+        help_text='{segments:[{min, max, step, label}]}；分段值域，留空表示自由区间',
+    )
+    param_enums = models.JSONField(
+        default=list, blank=True, verbose_name='参数枚举',
+        help_text='枚举型指标的允许取值列表，如 ["本科","硕士","博士"]',
+    )
+    param_allow_null = models.BooleanField(default=False, verbose_name='允许为空')
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',

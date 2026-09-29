@@ -153,8 +153,8 @@ export async function listDictionaryTypes(
 
 /** 取某字典类型详情(含元素扁平列表, 已含 parentId)。 */
 export async function getDictionaryDetail(code: string): Promise<DictionaryDetail> {
-  const resp = await api.get<DictionaryDetail>(`/dictionary-types/${code}/`);
-  return resp.data.data as any;
+  const resp = await api.get<any>(`/dictionary-types/${code}/`);
+  return resp.data.data as DictionaryDetail;
 }
 
 /** 提交草稿: 头部修改 + 元素增改/停用, 事务一次性落库。 */

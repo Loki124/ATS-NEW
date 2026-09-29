@@ -3,247 +3,121 @@
     <!-- ========== Header ========== -->
     <div class="page-header">
       <div>
-        <h1 class="ws-title">{{ t('metrics.workspace.title') }}</h1>
-        <p class="ws-subtitle">{{ t('metrics.workspace.subtitle') }}</p>
+        <h1 class="ws-title">{{ t('metrics.library.title') }}</h1>
+        <p class="ws-subtitle">{{ t('metrics.library.subtitle') }}</p>
       </div>
     </div>
 
-    <!-- ========== 数据流 ribbon（四个模块如何协同） ========== -->
-    <div class="flow-ribbon">
-      <div class="flow-head">
-        <span class="flow-label">{{ t('metrics.workspace.flowTitle') }}</span>
-        <n-tooltip trigger="hover">
-          <template #trigger>
-            <n-icon class="flow-info" :component="InformationCircleOutline" />
-          </template>
-          {{ t('metrics.workspace.flowNote') }}
-        </n-tooltip>
-      </div>
-      <div class="flow-chain">
-        <div class="flow-node">
-          <div class="flow-node-title">{{ t('metrics.workspace.flowDynamic') }}</div>
-          <div class="flow-node-sub">DynamicField + 候选人录入值</div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node">
-          <div class="flow-node-title">{{ t('metrics.workspace.flowMetrics') }}</div>
-          <div class="flow-node-sub">原子指标 source_path / 派生指标 base_path</div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node">
-          <div class="flow-node-title">{{ t('metrics.workspace.flowTemplate') }}</div>
-          <div class="flow-node-sub">绑定指标 + 运算符</div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node">
-          <div class="flow-node-title">{{ t('metrics.workspace.flowRule') }}</div>
-          <div class="flow-node-sub">引用模板 + 场景</div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node flow-node-exec">
-          <div class="flow-node-title">{{ t('metrics.workspace.flowExec') }}</div>
-          <div class="flow-node-sub">业务触发点自动执行</div>
-        </div>
-      </div>
-      <p class="flow-legacy">{{ t('metrics.workspace.legendRuleEngine') }}</p>
-    </div>
-
-    <!-- ========== 顶层 Tab：指标库 / 规则编排 / 规则管理 ========== -->
+    <!-- ========== 顶层 Tab：指标定义 / 指标模板 ========== -->
     <div class="ws-body">
       <n-tabs v-model:value="activeTab" type="line" animated>
-        <!-- ---------- Tab 1：指标库 ---------- -->
-        <n-tab-pane name="metrics" :tab="t('metrics.library.title')">
+        <!-- ---------- Tab 1：指标定义（只读） ---------- -->
+        <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
           <div class="ws-tab-bar">
-            <n-space>
-              <n-button type="primary" @click="openCreate('atomic')">
-                {{ t('metrics.btn.create') }}{{ t('metrics.tab.atomic') }}
-              </n-button>
-              <n-button type="primary" @click="openCreate('derived')">
-                {{ t('metrics.btn.create') }}{{ t('metrics.tab.derived') }}
-              </n-button>
-              <n-button type="primary" @click="openCreate('template')">
-                {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
-              </n-button>
-            </n-space>
-          </div>
-          <n-tabs v-model:value="innerMetricTab" type="line" animated>
-            <!-- 统一「指标定义」：原子 + 派生合并，列与产品截图一致 -->
-            <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
-              <n-data-table
-                :columns="definitionColumns"
-                :data="definitions"
-                :loading="loading"
-                :bordered="false"
-                size="small"
-              />
-            </n-tab-pane>
-            <n-tab-pane name="atomic" :tab="t('metrics.tab.atomic')">
-              <n-data-table
-                :columns="atomicColumns"
-                :data="atomicList"
-                :loading="loading"
-                :bordered="false"
-                size="small"
-              />
-            </n-tab-pane>
-            <n-tab-pane name="derived" :tab="t('metrics.tab.derived')">
-              <n-data-table
-                :columns="derivedColumns"
-                :data="derivedList"
-                :loading="loading"
-                :bordered="false"
-                size="small"
-              />
-            </n-tab-pane>
-            <n-tab-pane name="template" :tab="t('metrics.tab.template')">
-              <n-data-table
-                :columns="templateColumns"
-                :data="templateList"
-                :loading="loading"
-                :bordered="false"
-                size="small"
-              />
-            </n-tab-pane>
-          </n-tabs>
-        </n-tab-pane>
-
-        <!-- ---------- Tab 2：规则编排与执行 ---------- -->
-        <n-tab-pane name="author" :tab="t('metrics.rule.title')">
-          <div class="ws-author">
-            <!-- 规则信息（持久化） -->
-            <n-card :title="t('metrics.rule.ruleName')" size="small" class="ws-card">
-              <div class="ws-rule-meta">
-                <n-input
-                  v-model:value="ruleName"
-                  :placeholder="t('metrics.rule.ruleName')"
-                  class="ws-rule-name"
-                />
-                <n-select
-                  v-model:value="ruleScene"
-                  :options="sceneOptions"
-                  class="ws-rule-scene"
-                />
-                <n-button type="primary" :loading="saving" :disabled="!canExecute" @click="saveRule">
-                  {{ ruleId ? t('metrics.rule.updateRule') : t('metrics.rule.saveRule') }}
-                </n-button>
-              </div>
-              <div class="ws-rule-action">
-                <span class="ws-action-label">{{ t('metrics.rule.actionType') }}</span>
-                <n-radio-group v-model:value="actionType" size="small">
-                  <n-radio-button
-                    v-for="opt in actionTypeOptions"
-                    :key="opt.value"
-                    :value="opt.value"
-                  >
-                    {{ t(opt.labelKey) }}
-                  </n-radio-button>
-                </n-radio-group>
-              </div>
-            </n-card>
-
-            <!-- 条件编辑区 -->
-            <n-card :title="t('metrics.rule.conditionArea')" size="small" class="ws-card">
-              <template #header-extra>
-                <n-button size="small" @click="addCondition">{{ t('metrics.btn.addCondition') }}</n-button>
-              </template>
-              <div v-if="!templateList.length" class="ws-empty">
-                {{ t('metrics.rule.noTemplateHint') }}
-              </div>
-              <div v-for="(cond, idx) in conditions" :key="idx" class="ws-cond-row">
-                <span class="ws-index">{{ idx + 1 }}</span>
-                <n-select
-                  v-model:value="cond.templateId"
-                  :options="templateOptions"
-                  class="ws-template"
-                  :placeholder="t('metrics.rule.template')"
-                  @update:value="onTemplateChange(cond)"
-                />
-                <n-select
-                  v-model:value="cond.operator"
-                  :options="operatorOptionsFor(cond)"
-                  class="ws-operator"
-                  :placeholder="t('metrics.rule.operator')"
-                />
-                <n-input
-                  v-model:value="cond.value"
-                  class="ws-value"
-                  :placeholder="t('metrics.rule.value')"
-                />
-                <span class="ws-unit">{{ unitOf(cond) || '-' }}</span>
-                <n-button size="small" quaternary type="error" @click="removeCondition(idx)">
-                  {{ t('metrics.btn.delete') }}
-                </n-button>
-              </div>
-              <div class="ws-actions">
-                <n-button type="primary" :loading="executing" :disabled="!canExecute" @click="execute">
-                  {{ executing ? t('metrics.btn.executing') : t('metrics.btn.execute') }}
-                </n-button>
-              </div>
-            </n-card>
-
-            <!-- 执行结果 -->
-            <n-card :title="t('metrics.rule.result')" size="small" class="ws-card">
-              <div v-if="!result" class="ws-empty">{{ t('metrics.rule.noResult') }}</div>
-              <template v-else>
-                <n-alert
-                  :type="result.pass ? 'success' : 'error'"
-                  :title="result.pass ? t('metrics.rule.pass') : t('metrics.rule.fail')"
-                  class="ws-alert"
-                >
-                  {{ result.summary }}
-                </n-alert>
-                <div v-for="step in result.steps" :key="step.index" class="ws-step">
-                  <n-tag :type="step.pass ? 'success' : 'error'" size="small">
-                    {{ step.pass ? t('metrics.rule.stepPass') : t('metrics.rule.stepFail') }}
-                  </n-tag>
-                  <span class="ws-step-index">{{ t('metrics.rule.step') }} {{ step.index }}</span>
-                  <span class="ws-step-detail">{{ step.detail || step.error }}</span>
-                </div>
-              </template>
-            </n-card>
-
-            <!-- 测试数据（可切换为真实候选人快照） -->
-            <n-card :title="t('metrics.rule.sampleData')" size="small" class="ws-card">
-              <template #header-extra>
-                <n-radio-group v-model:value="dataMode" size="small">
-                  <n-radio-button value="sample">{{ t('metrics.rule.sample') }}</n-radio-button>
-                  <n-radio-button value="real">{{ t('metrics.rule.real') }}</n-radio-button>
-                </n-radio-group>
-              </template>
-              <n-space v-if="dataMode === 'real'" class="ws-snapshot-bar">
-                <n-input
-                  v-model:value="candidateId"
-                  :placeholder="t('metrics.rule.candidateId')"
-                  style="width: 240px"
-                />
-                <n-button size="small" :loading="loadingSnapshot" @click="loadSnapshot">
-                  {{ loadingSnapshot ? t('metrics.rule.loading') : t('metrics.rule.loadSnapshot') }}
-                </n-button>
-              </n-space>
-              <pre class="ws-json">{{ JSON.stringify(currentData, null, 2) }}</pre>
-            </n-card>
-          </div>
-        </n-tab-pane>
-
-        <!-- ---------- Tab 3：规则管理 ---------- -->
-        <n-tab-pane name="manage" :tab="t('metrics.rules.title')">
-          <div class="ws-tab-bar">
-            <n-button type="primary" @click="newRule">
-              {{ t('metrics.rule.newRule') }}
+            <n-button type="primary" @click="openCreate('atomic')">
+              {{ t('metrics.btn.create') }}{{ t('metrics.tab.atomic') }}
+            </n-button>
+            <n-button type="primary" @click="openCreate('derived')">
+              {{ t('metrics.btn.create') }}{{ t('metrics.tab.derived') }}
             </n-button>
           </div>
           <n-data-table
-            :columns="ruleColumns"
-            :data="rules"
-            :loading="loadingRules"
+            :columns="definitionColumns"
+            :data="definitions"
+            :loading="loading"
             :bordered="false"
             size="small"
+            :row-key="(r: any) => r.id"
+          />
+        </n-tab-pane>
+
+        <!-- ---------- Tab 2：指标模板（CRUD） ---------- -->
+        <n-tab-pane name="template" :tab="t('metrics.tab.template')">
+          <div class="ws-tab-bar">
+            <n-button type="primary" @click="openTemplateCreate">
+              {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
+            </n-button>
+          </div>
+          <n-data-table
+            :columns="templateColumns"
+            :data="templateList"
+            :loading="loading"
+            :bordered="false"
+            size="small"
+            :row-key="(r: any) => r.id"
           />
         </n-tab-pane>
       </n-tabs>
     </div>
 
-    <!-- ========== 指标新建弹窗（原子 / 派生 / 模板 共用） ========== -->
+    <!-- ========== 指标定义详情弹窗（居中，只读） ========== -->
+    <n-modal
+      v-model:show="detailVisible"
+      preset="card"
+      :title="detailRow ? detailRow.name : ''"
+      style="width: 640px; max-width: 92vw;"
+      :mask-closable="true"
+    >
+      <template v-if="detailRow">
+        <div class="detail-grid">
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.name') }}</div>
+            <div class="cell-value">{{ detailRow.name }}</div>
+          </div>
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.valueMode') }}</div>
+            <div class="cell-value">
+              <n-tag size="small" :type="valueModeMeta(detailRow).type">{{ valueModeMeta(detailRow).label }}</n-tag>
+            </div>
+          </div>
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.dataSource') }}</div>
+            <div class="cell-value"><code class="ws-code">{{ detailRow.dataSource }}</code></div>
+          </div>
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.paramType') }}</div>
+            <div class="cell-value">{{ paramTypeLabel(detailRow.paramType) }}</div>
+          </div>
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.returnType') }}</div>
+            <div class="cell-value">
+              {{ returnTypeLabel(detailRow.returnType) }}<template v-if="detailRow.unit">（{{ detailRow.unit }}）</template>
+            </div>
+          </div>
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.status') }}</div>
+            <div class="cell-value">
+              <n-tag size="small" :type="detailRow.status === 'enabled' ? 'success' : 'default'">
+                {{ detailRow.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
+              </n-tag>
+            </div>
+          </div>
+          <div v-if="detailRow.isEnum" class="detail-cell detail-cell-wide">
+            <div class="cell-label">{{ t('metrics.col.isEnum') }}</div>
+            <div class="cell-value">
+              <n-tag size="small" type="warning">{{ t('metrics.tag.enum') }}</n-tag>
+            </div>
+          </div>
+          <div class="detail-cell detail-cell-wide">
+            <div class="cell-label">{{ t('metrics.col.operators') }}</div>
+            <div class="cell-value">
+              <div class="ws-ops">
+                <span v-for="op in (detailRow.supportedOperators || [])" :key="op" class="ws-op-tag">
+                  {{ operatorLabel(op) }}
+                </span>
+                <span v-if="!(detailRow.supportedOperators || []).length" class="ws-muted">-</span>
+              </div>
+            </div>
+          </div>
+          <div v-if="detailRow.description" class="detail-cell detail-cell-wide">
+            <div class="cell-label">{{ t('metrics.form.description') }}</div>
+            <div class="cell-value">{{ detailRow.description }}</div>
+          </div>
+        </div>
+      </template>
+    </n-modal>
+
+    <!-- ========== 指标新建/编辑弹窗（原子 / 派生，复用既有逻辑） ========== -->
     <n-modal
       v-model:show="showModal"
       preset="card"
@@ -256,7 +130,6 @@
           <n-input v-model:value="form.name" :placeholder="t('metrics.form.name')" />
         </n-form-item>
 
-        <!-- 原子指标：字段路径（下拉选择，避免手填出错） -->
         <n-form-item v-if="modalKind === 'atomic'" :label="t('metrics.form.sourcePath')" required>
           <n-select
             v-model:value="form.sourcePath"
@@ -270,7 +143,6 @@
           </template>
         </n-form-item>
 
-        <!-- 派生指标：计算函数 + 数据来源 + 参数 -->
         <template v-if="modalKind === 'derived'">
           <n-form-item :label="t('metrics.form.calcFunc')" required>
             <n-select
@@ -283,7 +155,6 @@
           <n-form-item :label="t('metrics.form.basePath')" required>
             <n-input v-model:value="form.basePath" placeholder="candidate.workExperience" />
           </n-form-item>
-          <!-- 类型化参数输入：依据所选函数的 paramSchema 渲染，取代自由 JSON 文本 -->
           <n-form-item v-if="selectedFuncHint?.paramSchema?.length" :label="t('metrics.form.params')">
             <div class="ws-params">
               <div v-for="p in selectedFuncHint.paramSchema" :key="p.key" class="ws-param-row">
@@ -321,58 +192,11 @@
           </n-form-item>
         </template>
 
-        <!-- 模板：引用指标 + 运算符 -->
-        <template v-if="modalKind === 'template'">
-          <n-form-item :label="t('metrics.form.atomicMetric')">
-            <n-select
-              v-model:value="form.atomicMetric"
-              :options="atomicOptions"
-              clearable
-              :placeholder="t('metrics.form.atomicMetric')"
-            />
-          </n-form-item>
-          <n-form-item :label="t('metrics.form.derivedMetric')">
-            <n-select
-              v-model:value="form.derivedMetric"
-              :options="derivedOptions"
-              clearable
-              :placeholder="t('metrics.form.derivedMetric')"
-            />
-          </n-form-item>
-          <n-form-item :label="t('metrics.form.operators')" required>
-            <n-select
-              v-model:value="form.operators"
-              multiple
-              :options="operatorCatalog"
-              :placeholder="t('metrics.form.operators')"
-            />
-          </n-form-item>
-        </template>
-
-        <!-- 派生指标：选中函数后展示预期输入与参数提示（函数↔数据来源 的隐式契约） -->
-        <n-alert
-          v-if="modalKind === 'derived' && selectedFuncHint"
-          type="info"
-          :title="selectedFuncHint.label"
-          class="ws-func-hint"
-        >
-          <div v-if="selectedFuncHint.description">{{ selectedFuncHint.description }}</div>
-          <div v-if="selectedFuncHint.inputKind" class="ws-func-meta">
-            {{ t('metrics.form.expectedInput') }}：{{ inputKindLabel(selectedFuncHint.inputKind) }}
-          </div>
-          <div v-if="selectedFuncHint.outputType" class="ws-func-meta">
-            {{ t('metrics.form.outputType') }}：{{ outputTypeLabel(selectedFuncHint.outputType) }}<template v-if="selectedFuncHint.unit">（{{ selectedFuncHint.unit }}）</template>
-          </div>
-          <div v-if="selectedFuncHint.paramsHint" class="ws-func-params">
-            {{ t('metrics.form.paramsTipLabel') }}：{{ selectedFuncHint.paramsHint }}
-          </div>
-        </n-alert>
-
-        <n-form-item v-if="modalKind !== 'template'" :label="t('metrics.form.dataType')">
+        <n-form-item :label="t('metrics.form.dataType')">
           <n-select v-model:value="form.dataType" :options="dataTypeOptions" />
         </n-form-item>
-        <n-form-item v-if="modalKind !== 'template'" :label="t('metrics.form.unit')">
-          <n-input v-model:value="form.unit" placeholder="岁 / 月 / 元" />
+        <n-form-item :label="t('metrics.form.unit')">
+          <n-input v-model:value="form.unit" :placeholder="t('pages.settings.MetricsWorkspace.s1')" />
         </n-form-item>
         <n-form-item :label="t('metrics.form.description')">
           <n-input v-model:value="form.description" type="textarea" :rows="2" />
@@ -385,127 +209,312 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="showModal = false">{{ t('metrics.btn.cancel') }}</n-button>
-          <n-button type="primary" :loading="saving" @click="submit">{{ t('metrics.btn.save') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="submitMetric">{{ t('metrics.btn.save') }}</n-button>
         </n-space>
       </template>
     </n-modal>
 
-    <!-- ========== 规则执行结果弹窗（管理页「执行」用） ========== -->
+    <!-- ========== 指标模板新建/编辑弹窗（PRD：参数 / 算子 / 值域） ========== -->
     <n-modal
-      v-model:show="resultVisible"
+      v-model:show="showTemplateModal"
       preset="card"
-      :title="t('metrics.rule.result')"
-      style="width: 640px"
+      :title="templateModalTitle"
+      style="width: 720px; max-width: 94vw;"
+      :mask-closable="false"
     >
-      <n-alert
-        v-if="runResult"
-        :type="runResult.pass ? 'success' : 'error'"
-        :title="runResult.pass ? t('metrics.rule.pass') : t('metrics.rule.fail')"
-      >
-        {{ runResult.summary }}
-      </n-alert>
-      <div v-for="step in runResult?.steps || []" :key="step.index" class="ws-step">
-        <n-tag :type="step.pass ? 'success' : 'error'" size="small">
-          {{ step.pass ? t('metrics.rule.stepPass') : t('metrics.rule.stepFail') }}
-        </n-tag>
-        <span class="ws-step-detail">{{ step.detail || step.error }}</span>
-      </div>
+      <n-form :model="tplForm" label-placement="top">
+        <n-form-item :label="t('metrics.form.name')" required>
+          <n-input v-model:value="tplForm.name" :placeholder="t('metrics.form.name')" />
+        </n-form-item>
+
+        <n-form-item :label="t('metrics.form.atomicMetric')">
+          <n-select
+            v-model:value="tplForm.atomicMetric"
+            :options="atomicOptions"
+            clearable
+            :placeholder="t('metrics.form.atomicMetric')"
+            @update:value="onTemplateMetricChange"
+          />
+        </n-form-item>
+        <n-form-item :label="t('metrics.form.derivedMetric')">
+          <n-select
+            v-model:value="tplForm.derivedMetric"
+            :options="derivedOptions"
+            clearable
+            :placeholder="t('metrics.form.derivedMetric')"
+            @update:value="onTemplateMetricChange"
+          />
+        </n-form-item>
+
+        <n-divider title-placement="left">{{ t('metrics.tpl.sectionParam') }}</n-divider>
+        <div class="tpl-section">
+          <div class="tpl-row">
+            <n-form-item :label="t('metrics.tpl.rangeMin')" class="tpl-field">
+              <n-input-number v-model:value="tplForm.paramConfig.min" :precision="0" />
+            </n-form-item>
+            <n-form-item :label="t('metrics.tpl.rangeMax')" class="tpl-field">
+              <n-input-number v-model:value="tplForm.paramConfig.max" :precision="0" />
+            </n-form-item>
+            <n-form-item :label="t('metrics.tpl.step')" class="tpl-field">
+              <n-input-number v-model:value="tplForm.paramConfig.step" :min="1" :precision="0" />
+            </n-form-item>
+          </div>
+          <div class="tpl-row">
+            <n-form-item :label="t('metrics.tpl.prefix')" class="tpl-field">
+              <n-input v-model:value="tplForm.paramConfig.prefix" placeholder="≥" />
+            </n-form-item>
+            <n-form-item :label="t('metrics.tpl.suffix')" class="tpl-field">
+              <n-input v-model:value="tplForm.paramConfig.suffix" :placeholder="t('pages.settings.MetricsWorkspace.s2')" />
+            </n-form-item>
+            <n-form-item :label="t('metrics.tpl.allOption')" class="tpl-field">
+              <n-switch v-model:value="tplForm.paramConfig.allOption" />
+            </n-form-item>
+          </div>
+          <n-form-item v-if="selectedTemplateDataType === 'string'" :label="t('metrics.tpl.paramEnums')">
+            <n-dynamic-tags v-model:value="tplForm.paramEnums" />
+          </n-form-item>
+          <n-form-item :label="t('metrics.tpl.allowNull')">
+            <n-switch v-model:value="tplForm.paramAllowNull" />
+          </n-form-item>
+        </div>
+
+        <n-divider title-placement="left">{{ t('metrics.tpl.sectionOperators') }}</n-divider>
+        <n-form-item :label="t('metrics.tpl.enabledOperators')" required>
+          <n-select
+            v-model:value="tplForm.operators"
+            multiple
+            :options="operatorCatalog"
+            :placeholder="t('metrics.form.operators')"
+          />
+        </n-form-item>
+
+        <n-divider title-placement="left">{{ t('metrics.tpl.sectionDomain') }}</n-divider>
+        <div class="tpl-segments">
+          <div v-for="(seg, idx) in tplForm.valueDomain.segments" :key="idx" class="seg-row">
+            <n-input-number v-model:value="seg.min" :placeholder="t('metrics.tpl.rangeMin')" class="seg-field" />
+            <n-input-number v-model:value="seg.max" :placeholder="t('metrics.tpl.rangeMax')" class="seg-field" />
+            <n-input-number v-model:value="seg.step" :min="1" :precision="0" :placeholder="t('metrics.tpl.step')" class="seg-field" />
+            <n-input v-model:value="seg.label" :placeholder="t('metrics.tpl.segLabel')" class="seg-field" />
+            <n-button size="small" quaternary type="error" @click="removeSegment(idx)">{{ t('metrics.btn.delete') }}</n-button>
+          </div>
+          <n-button size="small" dashed @click="addSegment">{{ t('metrics.tpl.addSegment') }}</n-button>
+        </div>
+
+        <n-form-item :label="t('metrics.form.description')">
+          <n-input v-model:value="tplForm.description" type="textarea" :rows="2" />
+        </n-form-item>
+        <n-form-item :label="t('metrics.form.status')">
+          <n-select v-model:value="tplForm.status" :options="statusOptions" />
+        </n-form-item>
+      </n-form>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showTemplateModal = false">{{ t('metrics.btn.cancel') }}</n-button>
+          <n-button type="primary" :loading="savingTpl" @click="submitTemplate">{{ t('metrics.btn.save') }}</n-button>
+        </n-space>
+      </template>
     </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * MetricsWorkspace —— 指标与规则统一工作区（整合原三页）。
+ * MetricsWorkspace —— 指标库（重构后）。
  *
- * 设计目标（用户诉求）：
- *   - 把「指标库 / 规则配置与执行 / 规则管理」三页合并为一个连贯视图，
- *     避免多个页面表达同一业务域造成理解成本。
- *   - 顶部 ribbon 显式表达四个模块的数据流与依赖：
- *       动态字段 → 原子/派生指标 → 指标模板 → 规则 → 执行/筛选
- *   - 「统一规则引擎」(RuleEngine.vue) 是旧版 rule_engine 的聚合只读视图，
- *     与本指标层相互独立，入口仍保留在左侧菜单，ribbon 内已注明。
+ * 模块拆分（用户诉求）：
+ *   - 指标库（本页）：两个页签
+ *       1) 指标定义 —— 只读统一视图（原子 + 派生合并），点击指标名弹出居中详情弹窗
+ *       2) 指标模板 —— 新增/编辑/删除/停用（CRUD），可配置参数范围/步长/显示/算子/值域
+ *   - 规则引擎（RuleAuthoring.vue）：承接原「规则配置与执行」「规则管理」两个功能
  *
- * 共享状态：一次 load() 拉取原子/派生/模板/运算符/派生函数/字段路径/规则，
- * 三个 tab 复用同一份数据，规则编辑 ↔ 管理互相跳转，无需离开本页。
+ * 指标定义遵循 PRD：只读、无行级 CRUD（F-1.7）；顶部「新建原子/派生指标」用于注册新定义，
+ * 与「定义是字段/注册的产物」语义一致。模板引用原子/派生指标，二者经自动生成信号联动。
  */
 import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 import {
   NButton,
-  NPopconfirm,
+  NModal,
   NSwitch,
-  NTooltip,
-  NIcon,
-  NAlert,
   NTag,
   useMessage,
 } from 'naive-ui'
-import { InformationCircleOutline } from '@vicons/ionicons5'
 import {
   createAtomicMetric,
   createDerivedMetric,
   createMetricTemplate,
-  createMetricRule,
-  deleteAtomicMetric,
-  deleteDerivedMetric,
-  deleteMetricRule,
   deleteMetricTemplate,
-  executeRule,
-  getCandidateSnapshot,
-  getMetricRule,
-  getSampleData,
   listAtomicMetrics,
   listDerivedFuncs,
   listDerivedMetrics,
   listMetricDefinitions,
-  listMetricRules,
   listMetricTemplates,
   listOperators,
   listCandidateFields,
-  runMetricRule,
-  toggleMetricRule,
-  updateMetricRule,
   updateAtomicMetric,
   updateDerivedMetric,
   updateMetricTemplate,
   type AtomicMetric,
   type CandidateFieldPath,
+  type DerivedFuncItem,
   type DerivedMetric,
-  type ExecuteResult,
   type MetricDefinition,
-  type MetricRule,
-  type MetricRuleScene,
   type MetricTemplate,
   type OptionItem,
-  type DerivedFuncItem,
-  ACTION_TYPE_OPTIONS,
 } from '@/api/metrics'
 
 const { t } = useI18n()
 const message = useMessage()
-const route = useRoute()
 
-const activeTab = ref<'metrics' | 'author' | 'manage'>('metrics')
-const innerMetricTab = ref('definitions')
+const activeTab = ref<'definitions' | 'template'>('definitions')
 
-// ===== 共享数据（一次加载） =====
+// ===== 共享数据 =====
+const definitions = ref<MetricDefinition[]>([])
+const templateList = ref<MetricTemplate[]>([])
 const atomicList = ref<AtomicMetric[]>([])
 const derivedList = ref<DerivedMetric[]>([])
-const templateList = ref<MetricTemplate[]>([])
-const definitions = ref<MetricDefinition[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
 const derivedFuncs = ref<DerivedFuncItem[]>([])
 const fieldPaths = ref<CandidateFieldPath[]>([])
-const rules = ref<MetricRule[]>([])
 const loading = ref(false)
-const loadingRules = ref(false)
 
-// ===== 指标编辑弹窗（新建 / 编辑 共用） =====
+// ===== 指标详情弹窗 =====
+const detailVisible = ref(false)
+const detailRow = ref<MetricDefinition | null>(null)
+
+function openDetail(row: MetricDefinition) {
+  detailRow.value = row
+  detailVisible.value = true
+}
+
+const RETURN_TYPE_LABELS: Record<string, string> = {
+  number: '数值',
+  string: '字符串',
+  boolean: '布尔',
+  date: '日期',
+}
+function returnTypeLabel(type?: string): string {
+  return (type && RETURN_TYPE_LABELS[type]) || type || '-'
+}
+function paramTypeLabel(type?: string): string {
+  if (type === 'continuous') return t('metrics.paramType.continuous')
+  if (type === 'discrete') return t('metrics.paramType.discrete')
+  return '-'
+}
+function valueModeMeta(row: MetricDefinition): { label: string; type: 'default' | 'warning' } {
+  if (row.valueMode === 'parametric_handler') {
+    return { label: t('metrics.valueMode.parametric'), type: 'warning' }
+  }
+  return { label: t('metrics.valueMode.objectPath'), type: 'default' }
+}
+function operatorLabel(value: string) {
+  return operatorCatalog.value.find((o) => o.value === value)?.label ?? value
+}
+
+const definitionColumns = computed(() => [
+  {
+    title: t('metrics.col.name'),
+    key: 'name',
+    render: (row: MetricDefinition) =>
+      h('span', {
+        class: 'ws-def-name-link',
+        style: 'cursor:pointer;font-weight:500;color:var(--brand);',
+        onClick: () => openDetail(row),
+      }, { default: () => row.name }),
+  },
+  {
+    title: t('metrics.col.dataSource'),
+    key: 'dataSource',
+    render: (row: MetricDefinition) => h('code', { class: 'ws-code' }, { default: () => row.dataSource }),
+  },
+  {
+    title: t('metrics.col.paramType'),
+    key: 'paramType',
+    render: (row: MetricDefinition) => h('span', { class: 'ws-muted' }, { default: () => paramTypeLabel(row.paramType) }),
+  },
+  {
+    title: t('metrics.col.operators'),
+    key: 'supportedOperators',
+    render: (row: MetricDefinition) =>
+      h('div', { class: 'ws-ops' }, {
+        default: () =>
+          (row.supportedOperators || []).map((op: string) =>
+            h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) })),
+      }),
+  },
+  {
+    title: t('metrics.col.returnType'),
+    key: 'returnType',
+    render: (row: MetricDefinition) =>
+      h('span', { class: 'ws-muted' }, {
+        default: () => `${returnTypeLabel(row.returnType)}${row.unit ? '（' + row.unit + '）' : ''}`,
+      }),
+  },
+])
+
+// ===== 指标模板列 =====
+function templateRange(row: MetricTemplate): string {
+  const c = row.paramConfig
+  if (!c || (c.min == null && c.max == null && c.step == null)) return '-'
+  const parts: string[] = []
+  if (c.min != null) parts.push(`min=${c.min}`)
+  if (c.max != null) parts.push(`max=${c.max}`)
+  if (c.step != null) parts.push(`step=${c.step}`)
+  return parts.join(' / ')
+}
+function templateDomain(row: MetricTemplate): string {
+  const segs = row.valueDomain?.segments
+  if (!segs || !segs.length) return '-'
+  return segs.map((s) => `${s.min}~${s.max}`).join('，')
+}
+
+const templateColumns = computed(() => [
+  { title: t('metrics.col.name'), key: 'name' },
+  { title: t('metrics.col.metric'), key: 'metricName' },
+  {
+    title: t('metrics.tpl.range'),
+    key: 'range',
+    render: (row: MetricTemplate) => h('span', { class: 'ws-muted' }, { default: () => templateRange(row) }),
+  },
+  {
+    title: t('metrics.col.operators'),
+    key: 'operators',
+    render: (row: MetricTemplate) =>
+      h('div', { class: 'ws-ops' }, {
+        default: () => (row.operators || []).map((op: string) =>
+          h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) })),
+      }),
+  },
+  {
+    title: t('metrics.tpl.domain'),
+    key: 'domain',
+    render: (row: MetricTemplate) => h('span', { class: 'ws-muted' }, { default: () => templateDomain(row) }),
+  },
+  {
+    title: t('metrics.col.status'),
+    key: 'status',
+    render: (row: MetricTemplate) =>
+      h(NTag, { size: 'small', type: row.status === 'enabled' ? 'success' : 'default' }, {
+        default: () => (row.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled')),
+      }),
+  },
+  {
+    title: t('metrics.col.action'),
+    key: 'action',
+    render: (row: MetricTemplate) =>
+      h('div', { class: 'ws-actions-cell' }, [
+        h(NButton, { size: 'small', quaternary: true, onClick: () => openTemplateEdit(row) }, { default: () => t('metrics.btn.edit') }),
+        h(NButton, { size: 'small', quaternary: true, onClick: () => toggleTemplate(row) }, { default: () => (row.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable')) }),
+        h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeTemplate(row) }, { default: () => t('metrics.btn.delete') }),
+      ]),
+  },
+])
+
+// ===== 指标新建/编辑（原子 / 派生） =====
 const showModal = ref(false)
-const modalKind = ref<'atomic' | 'derived' | 'template'>('atomic')
-const editId = ref('') // 空 = 新建；非空 = 编辑（查看与修改同一弹窗）
+const modalKind = ref<'atomic' | 'derived'>('atomic')
+const editMetricId = ref('')
 const saving = ref(false)
 const form = ref<any>({})
 
@@ -514,52 +523,16 @@ const statusOptions = computed(() => [
   { label: t('metrics.status.disabled'), value: 'disabled' },
 ])
 
-// 派生指标：选中计算函数后展示其预期输入与参数提示（明确 函数↔数据来源 的隐式契约）
 const selectedFuncHint = computed(() => {
   if (modalKind.value !== 'derived') return null
   return derivedFuncs.value.find((f) => f.name === form.value.calcFunc) || null
 })
 
-// input_kind / output_type 枚举 → 中文可读标签（与后端声明的语义对齐）
-const INPUT_KIND_LABELS: Record<string, string> = {
-  list_periods: '经历/学历对象列表（每段含起止或学历字段）',
-  list_edu: '学历对象列表（每段含学历字段）',
-  date: '单个日期（如生日）',
-}
-const OUTPUT_TYPE_LABELS: Record<string, string> = {
-  number: '数值', string: '字符串', boolean: '布尔', date: '日期',
-}
-function inputKindLabel(kind?: string): string {
-  return (kind && INPUT_KIND_LABELS[kind]) || kind || ''
-}
-function outputTypeLabel(type?: string): string {
-  return (type && OUTPUT_TYPE_LABELS[type]) || type || ''
-}
-
-// 切换计算函数时，按新函数的 paramSchema 重置参数（清除上一个函数的残留参数）
-function onCalcFuncChange(val: string) {
-  form.value.calcFunc = val
-  const f = derivedFuncs.value.find((x) => x.name === val)
-  const schema = f?.paramSchema || []
-  const next: Record<string, any> = {}
-  for (const p of schema) {
-    if (p.default !== undefined) next[p.key] = p.default
-  }
-  form.value.params = next
-}
-
-const modalTitle = computed(() => {
-  const edit = !!editId.value
-  if (modalKind.value === 'atomic') return edit ? t('metrics.dialog.editAtomic') : t('metrics.dialog.createAtomic')
-  if (modalKind.value === 'derived') return edit ? t('metrics.dialog.editDerived') : t('metrics.dialog.createDerived')
-  return edit ? t('metrics.dialog.editTemplate') : t('metrics.dialog.createTemplate')
-})
-
 const dataTypeOptions = [
-  { label: '数值', value: 'number' },
-  { label: '字符串', value: 'string' },
-  { label: '布尔', value: 'boolean' },
-  { label: '日期', value: 'date' },
+  { label: t('pages.settings.MetricsWorkspace.s3'), value: 'number' },
+  { label: t('pages.settings.MetricsWorkspace.s4'), value: 'string' },
+  { label: t('pages.settings.MetricsWorkspace.s5'), value: 'boolean' },
+  { label: t('pages.settings.MetricsWorkspace.s6'), value: 'date' },
 ]
 
 const atomicOptions = computed(() =>
@@ -572,553 +545,42 @@ const derivedFuncOptions = computed(() =>
   derivedFuncs.value.map((f) => ({ label: f.label, value: f.name })),
 )
 
-// 字段路径下拉选项：按来源分组（主表字段 / 动态字段），可搜索，避免手填出错
 const fieldPathOptions = computed(() => {
   const toOpts = (src: CandidateFieldPath[]) =>
     src.map((f) => ({ label: `${f.label}（${f.path}）`, value: f.path }))
   const groups = [
-    {
-      type: 'group' as const,
-      label: t('metrics.fieldGroup.model'),
-      key: 'model',
-      children: toOpts(fieldPaths.value.filter((f) => f.source === 'model')),
-    },
-    {
-      type: 'group' as const,
-      label: t('metrics.fieldGroup.dynamic'),
-      key: 'dynamic',
-      children: toOpts(fieldPaths.value.filter((f) => f.source === 'dynamic')),
-    },
+    { type: 'group' as const, label: t('metrics.fieldGroup.model'), key: 'model', children: toOpts(fieldPaths.value.filter((f) => f.source === 'model')) },
+    { type: 'group' as const, label: t('metrics.fieldGroup.dynamic'), key: 'dynamic', children: toOpts(fieldPaths.value.filter((f) => f.source === 'dynamic')) },
   ]
   return groups.filter((g) => g.children.length > 0)
 })
 
-// ===== 规则编排与执行 =====
-const ruleId = ref('')
-const ruleName = ref('')
-const ruleScene = ref<MetricRuleScene>('MANUAL')
-// T4：动作类型，默认 DEDUCT（优先考虑，安全默认不阻断）
-const actionType = ref<'VETO' | 'DEDUCT' | 'BONUS'>('DEDUCT')
-const conditions = ref<any[]>([{ templateId: null, operator: null, value: '' }])
-const result = ref<ExecuteResult | null>(null)
-const executing = ref(false)
-const dataMode = ref<'sample' | 'real'>('sample')
-const candidateId = ref('')
-const realData = ref<Record<string, any>>({})
-const sampleData = ref<Record<string, any>>({})
-const loadingSnapshot = ref(false)
-
-const currentData = computed(() =>
-  dataMode.value === 'real' ? realData.value : sampleData.value,
-)
-
-const templateOptions = computed(() =>
-  templateList.value.map((tp) => ({
-    label: `${tp.name}（${tp.metricName || tp.metricPath || ''}）`,
-    value: tp.id,
-  })),
-)
-
-const sceneOptions = computed(() => [
-  { label: t('metrics.scene.TALENT_POOL'), value: 'TALENT_POOL' },
-  { label: t('metrics.scene.FILTER'), value: 'FILTER' },
-  { label: t('metrics.scene.SCORING'), value: 'SCORING' },
-  { label: t('metrics.scene.MANUAL'), value: 'MANUAL' },
-])
-
-const actionTypeOptions = ACTION_TYPE_OPTIONS
-
-const canExecute = computed(() => {
-  if (!conditions.value.some((c) => c.templateId && c.operator)) return false
-  if (dataMode.value === 'real' && !realData.value?.candidate) return false
-  return true
+const modalTitle = computed(() => {
+  const edit = !!editMetricId.value
+  if (modalKind.value === 'atomic') return edit ? t('metrics.dialog.editAtomic') : t('metrics.dialog.createAtomic')
+  return edit ? t('metrics.dialog.editDerived') : t('metrics.dialog.createDerived')
 })
 
-function operatorOptionsFor(cond: any) {
-  const tp = templateList.value.find((x) => x.id === cond.templateId)
-  const allowed = tp?.operators || []
-  return operatorCatalog.value
-    .filter((op) => allowed.includes(op.value))
-    .map((op) => ({ label: op.label, value: op.value }))
-}
-
-function onTemplateChange(cond: any) {
-  const options = operatorOptionsFor(cond)
-  if (!options.some((o) => o.value === cond.operator)) {
-    cond.operator = options.length ? options[0].value : null
+function onCalcFuncChange(val: string) {
+  form.value.calcFunc = val
+  const f = derivedFuncs.value.find((x) => x.name === val)
+  const schema = f?.paramSchema || []
+  const next: Record<string, any> = {}
+  for (const p of schema) {
+    if (p.default !== undefined) next[p.key] = p.default
   }
+  form.value.params = next
 }
 
-function unitOf(cond: any) {
-  return templateList.value.find((x) => x.id === cond.templateId)?.unit || ''
-}
-
-function addCondition() {
-  conditions.value.push({ templateId: null, operator: null, value: '' })
-}
-
-function removeCondition(index: number) {
-  conditions.value.splice(index, 1)
-  if (!conditions.value.length) {
-    conditions.value.push({ templateId: null, operator: null, value: '' })
-  }
-}
-
-async function loadSnapshot() {
-  if (!candidateId.value.trim()) {
-    message.warning(t('metrics.rule.candidateId'))
-    return
-  }
-  loadingSnapshot.value = true
-  try {
-    const snap = await getCandidateSnapshot(candidateId.value.trim())
-    if (!snap?.candidate) {
-      message.warning(t('metrics.rule.dataEmpty'))
-      return
-    }
-    realData.value = snap
-    message.success(t('metrics.rule.snapshotOk'))
-  } catch {
-    message.error(t('metrics.rule.snapshotFail'))
-  } finally {
-    loadingSnapshot.value = false
-  }
-}
-
-async function execute() {
-  executing.value = true
-  result.value = null
-  try {
-    const payload = {
-      conditions: conditions.value
-        .filter((c) => c.templateId && c.operator)
-        .map((c) => ({ templateId: c.templateId, operator: c.operator, value: c.value })),
-      logic: 'AND',
-      data: currentData.value,
-    }
-    result.value = await executeRule(payload as any)
-  } catch (error: any) {
-    const detail = error?.response?.data?.error
-    message.error(detail ? String(detail) : t('metrics.msg.executeFailed'))
-  } finally {
-    executing.value = false
-  }
-}
-
-// ===== 规则持久化 =====
-async function loadRuleIntoAuthor(id: string) {
-  try {
-    const rule = await getMetricRule(id)
-    ruleId.value = rule.id
-    ruleName.value = rule.name
-    ruleScene.value = rule.scene
-    actionType.value = (rule.actionType || 'DEDUCT') as 'VETO' | 'DEDUCT' | 'BONUS'
-    conditions.value = (rule.conditions || []).map((c: any) => ({
-      templateId: c.templateId,
-      operator: c.operator,
-      value: c.value ?? '',
-    }))
-    if (!conditions.value.length) {
-      conditions.value = [{ templateId: null, operator: null, value: '' }]
-    }
-    result.value = null
-    activeTab.value = 'author'
-  } catch {
-    message.error(t('metrics.msg.loadFailed'))
-  }
-}
-
-async function saveRule() {
-  if (!ruleName.value.trim()) {
-    message.warning(t('metrics.rule.ruleName'))
-    return
-  }
-  saving.value = true
-  try {
-    const payload = {
-      name: ruleName.value.trim(),
-      scene: ruleScene.value,
-      actionType: actionType.value,
-      logic: 'AND' as const,
-      // T5：数值型 value / IN 元素 / BETWEEN 的 min,max 转字符串，避免 JSON number 精度丢失
-      conditions: persistConditions(conditions.value),
-    }
-    if (ruleId.value) {
-      await updateMetricRule(ruleId.value, payload)
-      message.success(t('metrics.rule.updated'))
-    } else {
-      const created = await createMetricRule(payload)
-      ruleId.value = created.id
-      message.success(t('metrics.rule.saved'))
-    }
-    await loadRules()
-  } catch (error: any) {
-    const detail = error?.response?.data?.error
-    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
-  } finally {
-    saving.value = false
-  }
-}
-
-/** 构造持久化条件：过滤无效项 + 数值转字符串（T5 精度防护）。 */
-function persistConditions(list: any[]): any[] {
-  return list
-    .filter((c) => c.templateId && c.operator)
-    .map((c) => {
-      const cond: any = {
-        templateId: c.templateId,
-        operator: c.operator,
-        value: c.value,
-      }
-      if (c.operator === 'IN' || c.operator === 'NOT_IN') {
-        if (Array.isArray(c.value)) {
-          cond.value = c.value.map((v: any) =>
-            typeof v === 'number' ? String(v) : v,
-          )
-        }
-      } else if (typeof c.value === 'number') {
-        cond.value = String(c.value)
-      }
-      if (c.operator === 'BETWEEN' && c.meta) {
-        const meta: any = { ...(c.meta || {}) }
-        for (const k of ['min', 'max']) {
-          if (typeof meta[k] === 'number') meta[k] = String(meta[k])
-        }
-        cond.meta = meta
-      }
-      return cond
-    })
-}
-
-function newRule() {
-  ruleId.value = ''
-  ruleName.value = ''
-  ruleScene.value = 'MANUAL'
-  actionType.value = 'DEDUCT'
-  conditions.value = [{ templateId: null, operator: null, value: '' }]
-  result.value = null
-  dataMode.value = 'sample'
-  activeTab.value = 'author'
-}
-
-// ===== 规则管理 =====
-const resultVisible = ref(false)
-const runResult = ref<ExecuteResult | null>(null)
-
-async function loadRules() {
-  loadingRules.value = true
-  try {
-    rules.value = await listMetricRules()
-  } catch {
-    message.error(t('metrics.msg.loadFailed'))
-  } finally {
-    loadingRules.value = false
-  }
-}
-
-function editRule(row: MetricRule) {
-  loadRuleIntoAuthor(row.id)
-}
-
-async function onToggle(row: MetricRule, value: boolean) {
-  try {
-    const res = await toggleMetricRule(row.id)
-    row.enabled = res.enabled
-  } catch {
-    message.error(t('metrics.msg.saveFailed'))
-    await loadRules()
-  }
-}
-
-async function removeRule(row: MetricRule) {
-  try {
-    await deleteMetricRule(row.id)
-    message.success(t('metrics.msg.deleted'))
-    await loadRules()
-  } catch (error: any) {
-    const detail = error?.response?.data?.error
-    message.error(detail ? String(detail) : t('metrics.msg.deleteFailed'))
-  }
-}
-
-async function runRule(row: MetricRule) {
-  const cid = window.prompt(t('metrics.rule.candidateId'))
-  if (!cid) return
-  try {
-    runResult.value = await runMetricRule(row.id, cid.trim())
-    resultVisible.value = true
-  } catch (error: any) {
-    const detail = error?.response?.data?.error
-    message.error(detail ? String(detail) : t('metrics.msg.executeFailed'))
-  }
-}
-
-function sceneLabel(scene: string) {
-  return t(`metrics.scene.${scene}` as any)
-}
-
-const ruleColumns = computed(() => [
-  { title: t('metrics.col.name'), key: 'name' },
-  {
-    title: t('metrics.rule.scene'),
-    key: 'scene',
-    render: (row: MetricRule) => sceneLabel(row.scene),
-  },
-  { title: t('metrics.col.templateCount'), key: 'conditionCount' },
-  {
-    title: t('metrics.col.status'),
-    key: 'enabled',
-    render: (row: MetricRule) =>
-      h(NSwitch, {
-        value: row.enabled,
-        'onUpdate:value': (v: boolean) => onToggle(row, v),
-      }),
-  },
-  {
-    title: t('metrics.col.action'),
-    key: 'action',
-    render: (row: MetricRule) =>
-      h('div', { class: 'ws-actions-cell' }, [
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => editRule(row) },
-          { default: () => t('metrics.rule.edit') },
-        ),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, onClick: () => runRule(row) },
-          { default: () => t('metrics.rule.run') },
-        ),
-        h(
-          NPopconfirm,
-          { onPositiveClick: () => removeRule(row) },
-          {
-            trigger: () =>
-              h(
-                NButton,
-                { size: 'small', quaternary: true, type: 'error' },
-                { default: () => t('metrics.btn.delete') },
-              ),
-            default: () => t('metrics.msg.confirmDelete', { name: row.name }),
-          },
-        ),
-      ]),
-  },
-])
-
-// ===== 指标表格列 =====
-function deleteButton(row: any, kind: 'atomic' | 'derived' | 'template') {
-  return h(
-    NPopconfirm,
-    {
-      onPositiveClick: async () => {
-        try {
-          if (kind === 'atomic') await deleteAtomicMetric(row.id)
-          else if (kind === 'derived') await deleteDerivedMetric(row.id)
-          else await deleteMetricTemplate(row.id)
-          message.success(t('metrics.msg.deleted'))
-          await load()
-        } catch (error: any) {
-          const detail = error?.response?.data?.error
-          message.error(detail ? String(detail) : t('metrics.msg.deleteFailed'))
-        }
-      },
-    },
-    {
-      trigger: () =>
-        h(
-          NButton,
-          { size: 'small', quaternary: true, type: 'error' },
-          { default: () => t('metrics.btn.delete') },
-        ),
-      default: () => t('metrics.msg.confirmDelete', { name: row.name }),
-    },
-  )
-}
-
-function editButton(row: any, kind: 'atomic' | 'derived' | 'template') {
-  return h(
-    NButton,
-    { size: 'small', quaternary: true, onClick: () => openEdit(kind, row) },
-    { default: () => t('metrics.btn.edit') },
-  )
-}
-
-const atomicColumns = computed(() => [
-  { title: t('metrics.col.name'), key: 'name' },
-  {
-    title: t('metrics.col.sourcePath'),
-    key: 'sourcePath',
-    render: (row: any) => h('code', { class: 'ws-code' }, { default: () => row.sourcePath }),
-  },
-  { title: t('metrics.col.dataType'), key: 'dataType' },
-  { title: t('metrics.col.unit'), key: 'unit' },
-  { title: t('metrics.col.templateCount'), key: 'templateCount' },
-  {
-    title: t('metrics.col.action'),
-    key: 'action',
-    render: (row: any) =>
-      h('div', { class: 'ws-actions-cell' }, [editButton(row, 'atomic'), deleteButton(row, 'atomic')]),
-  },
-])
-
-const derivedColumns = computed(() => [
-  { title: t('metrics.col.name'), key: 'name' },
-  { title: t('metrics.col.calcFunc'), key: 'calcFunc' },
-  {
-    title: t('metrics.col.basePath'),
-    key: 'basePath',
-    render: (row: any) => h('code', { class: 'ws-code' }, { default: () => row.basePath }),
-  },
-  {
-    title: t('metrics.col.params'),
-    key: 'params',
-    render: (row: any) =>
-      row.params && Object.keys(row.params).length ? JSON.stringify(row.params) : '-',
-  },
-  { title: t('metrics.col.unit'), key: 'unit' },
-  { title: t('metrics.col.templateCount'), key: 'templateCount' },
-  {
-    title: t('metrics.col.action'),
-    key: 'action',
-    render: (row: any) =>
-      h('div', { class: 'ws-actions-cell' }, [editButton(row, 'derived'), deleteButton(row, 'derived')]),
-  },
-])
-
-const templateColumns = computed(() => [
-  { title: t('metrics.col.name'), key: 'name' },
-  { title: t('metrics.col.metric'), key: 'metricName' },
-  {
-    title: t('metrics.col.metricPath'),
-    key: 'metricPath',
-    render: (row: any) => h('code', { class: 'ws-code' }, { default: () => row.metricPath }),
-  },
-  {
-    title: t('metrics.col.operators'),
-    key: 'operators',
-    render: (row: any) =>
-      h(
-        'div',
-        { class: 'ws-ops' },
-        {
-          default: () =>
-            (row.operators || []).map((op: string) =>
-              h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) }),
-            ),
-        },
-      ),
-  },
-  {
-    title: t('metrics.col.action'),
-    key: 'action',
-    render: (row: any) =>
-      h('div', { class: 'ws-actions-cell' }, [editButton(row, 'template'), deleteButton(row, 'template')]),
-  },
-])
-
-const RETURN_TYPE_LABELS: Record<string, string> = {
-  number: '数值',
-  string: '字符串',
-  boolean: '布尔',
-  date: '日期',
-}
-
-function returnTypeLabel(type?: string): string {
-  return (type && RETURN_TYPE_LABELS[type]) || type || '-'
-}
-
-function valueModeMeta(row: MetricDefinition): { label: string; type: 'default' | 'warning' } {
-  if (row.valueMode === 'parametric_handler') {
-    return { label: t('metrics.valueMode.parametric'), type: 'warning' }
-  }
-  return { label: t('metrics.valueMode.objectPath'), type: 'default' }
-}
-
-const definitionColumns = computed(() => [
-  {
-    title: t('metrics.col.name'),
-    key: 'name',
-    render: (row: MetricDefinition) =>
-      h('div', { class: 'ws-def-name' }, [
-        h('span', { class: 'ws-def-label' }, { default: () => row.name }),
-        row.kind === 'derived'
-          ? h('span', { class: 'ws-def-kind ws-def-kind-derived' }, { default: () => '派生' })
-          : h('span', { class: 'ws-def-kind' }, { default: () => '原子' }),
-      ]),
-  },
-  {
-    title: t('metrics.col.valueMode'),
-    key: 'valueMode',
-    render: (row: MetricDefinition) => {
-      const m = valueModeMeta(row)
-      return h(NTag, { size: 'small', type: m.type }, { default: () => m.label })
-    },
-  },
-  {
-    title: t('metrics.col.dataSource'),
-    key: 'dataSource',
-    render: (row: MetricDefinition) =>
-      h('code', { class: 'ws-code' }, { default: () => row.dataSource }),
-  },
-  {
-    title: t('metrics.col.operators'),
-    key: 'supportedOperators',
-    render: (row: MetricDefinition) =>
-      h(
-        'div',
-        { class: 'ws-ops' },
-        {
-          default: () =>
-            (row.supportedOperators || []).map((op: string) =>
-              h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) }),
-            ),
-        },
-      ),
-  },
-  {
-    title: t('metrics.col.params'),
-    key: 'params',
-    render: (row: MetricDefinition) => {
-      const keys = row.params ? Object.keys(row.params) : []
-      if (!keys.length) return h('span', { class: 'ws-muted' }, { default: () => '-' })
-      return h(
-        'div',
-        { class: 'ws-ops' },
-        {
-          default: () =>
-            keys.map((k: string) =>
-              h('span', { class: 'ws-op-tag' }, { default: () => `${k}=${row.params[k]}` }),
-            ),
-        },
-      )
-    },
-  },
-  {
-    title: t('metrics.col.returnType'),
-    key: 'returnType',
-    render: (row: MetricDefinition) =>
-      h('span', { class: 'ws-muted' }, { default: () => returnTypeLabel(row.returnType) }),
-  },
-])
-
-function operatorLabel(value: string) {
-  return operatorCatalog.value.find((o) => o.value === value)?.label ?? value
-}
-
-// ===== 指标新建 / 编辑（同一弹窗：查看与修改） =====
-function openCreate(kind: 'atomic' | 'derived' | 'template') {
+function openCreate(kind: 'atomic' | 'derived') {
   modalKind.value = kind
-  editId.value = ''
+  editMetricId.value = ''
   form.value = {
     name: '',
     sourcePath: '',
     basePath: '',
     calcFunc: null,
     params: {},
-    atomicMetric: null,
-    derivedMetric: null,
-    operators: [],
     dataType: 'number',
     unit: '',
     description: '',
@@ -1127,43 +589,7 @@ function openCreate(kind: 'atomic' | 'derived' | 'template') {
   showModal.value = true
 }
 
-function openEdit(kind: 'atomic' | 'derived' | 'template', row: any) {
-  modalKind.value = kind
-  editId.value = row.id
-  if (kind === 'atomic') {
-    form.value = {
-      name: row.name,
-      sourcePath: row.sourcePath,
-      dataType: row.dataType,
-      unit: row.unit || '',
-      description: row.description || '',
-      status: row.status || 'enabled',
-    }
-  } else if (kind === 'derived') {
-    form.value = {
-      name: row.name,
-      calcFunc: row.calcFunc,
-      basePath: row.basePath,
-      params: (row.params && typeof row.params === 'object') ? { ...row.params } : {},
-      dataType: row.dataType,
-      unit: row.unit || '',
-      description: row.description || '',
-      status: row.status || 'enabled',
-    }
-  } else {
-    form.value = {
-      name: row.name,
-      atomicMetric: row.atomicMetric ?? null,
-      derivedMetric: row.derivedMetric ?? null,
-      operators: row.operators || [],
-      description: row.description || '',
-      status: row.status || 'enabled',
-    }
-  }
-  showModal.value = true
-}
-
-async function submit() {
+async function submitMetric() {
   if (!form.value.name?.trim()) {
     message.warning(t('metrics.msg.requiredName'))
     return
@@ -1184,7 +610,7 @@ async function submit() {
         description: form.value.description,
         status: form.value.status || 'enabled',
       }
-    } else if (modalKind.value === 'derived') {
+    } else {
       if (!form.value.calcFunc) {
         message.warning(t('metrics.msg.requiredFunc'))
         return
@@ -1193,7 +619,6 @@ async function submit() {
         message.warning(t('metrics.msg.requiredPath'))
         return
       }
-      // 由 paramSchema 构建参数对象：仅取 schema 内声明的键，数字类型做强制转换，空值丢弃
       const params: Record<string, any> = {}
       const schema = selectedFuncHint.value?.paramSchema || []
       if (form.value.params && typeof form.value.params === 'object') {
@@ -1213,48 +638,166 @@ async function submit() {
         description: form.value.description,
         status: form.value.status || 'enabled',
       }
-    } else {
-      const hasAtomic = !!form.value.atomicMetric
-      const hasDerived = !!form.value.derivedMetric
-      if (hasAtomic === hasDerived) {
-        message.warning(t('metrics.msg.selectOneMetric'))
-        return
-      }
-      if (!form.value.operators?.length) {
-        message.warning(t('metrics.msg.requiredOperators'))
-        return
-      }
-      payload = {
-        name: form.value.name,
-        atomicMetric: form.value.atomicMetric,
-        derivedMetric: form.value.derivedMetric,
-        operators: form.value.operators,
-        description: form.value.description,
-        status: form.value.status || 'enabled',
-      }
     }
-
-    if (editId.value) {
-      if (modalKind.value === 'atomic') await updateAtomicMetric(editId.value, payload)
-      else if (modalKind.value === 'derived') await updateDerivedMetric(editId.value, payload)
-      else await updateMetricTemplate(editId.value, payload)
+    if (editMetricId.value) {
+      if (modalKind.value === 'atomic') await updateAtomicMetric(editMetricId.value, payload)
+      else await updateDerivedMetric(editMetricId.value, payload)
     } else if (modalKind.value === 'atomic') {
       await createAtomicMetric(payload)
-    } else if (modalKind.value === 'derived') {
-      await createDerivedMetric(payload)
     } else {
-      await createMetricTemplate(payload)
+      await createDerivedMetric(payload)
     }
-
-    message.success(editId.value ? t('metrics.msg.updated') : t('metrics.msg.created'))
+    message.success(editMetricId.value ? t('metrics.msg.updated') : t('metrics.msg.created'))
     showModal.value = false
-    editId.value = ''
+    editMetricId.value = ''
     await load()
   } catch (error: any) {
     const detail = error?.response?.data?.error
     message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
   } finally {
     saving.value = false
+  }
+}
+
+// ===== 指标模板新建/编辑 =====
+const showTemplateModal = ref(false)
+const templateEditId = ref('')
+const savingTpl = ref(false)
+const emptyTplForm = () => ({
+  name: '',
+  atomicMetric: null,
+  derivedMetric: null,
+  operators: [] as string[],
+  paramConfig: { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false },
+  valueDomain: { segments: [] as any[] },
+  paramEnums: [] as string[],
+  paramAllowNull: false,
+  description: '',
+  status: 'enabled',
+})
+const tplForm = ref<any>(emptyTplForm())
+
+const templateModalTitle = computed(() =>
+  templateEditId.value ? t('metrics.dialog.editTemplate') : t('metrics.dialog.createTemplate'),
+)
+
+const selectedTemplateDataType = computed<string>(() => {
+  const am = tplForm.value.atomicMetric
+  const dm = tplForm.value.derivedMetric
+  if (am) return atomicList.value.find((x) => x.id === am)?.dataType || ''
+  if (dm) return derivedList.value.find((x) => x.id === dm)?.dataType || ''
+  return ''
+})
+
+function onTemplateMetricChange() {
+  // 切换引用指标时不清空已选算子，仅保证数据类型联动（枚举字段展示枚举值输入）
+}
+
+function openTemplateCreate() {
+  templateEditId.value = ''
+  tplForm.value = emptyTplForm()
+  showTemplateModal.value = true
+}
+
+function openTemplateEdit(row: MetricTemplate) {
+  templateEditId.value = row.id
+  const cfg = row.paramConfig || {}
+  const domain = row.valueDomain || {}
+  tplForm.value = {
+    name: row.name,
+    atomicMetric: row.atomicMetric ?? null,
+    derivedMetric: row.derivedMetric ?? null,
+    operators: row.operators || [],
+    paramConfig: {
+      min: cfg.min ?? null,
+      max: cfg.max ?? null,
+      step: cfg.step ?? null,
+      prefix: cfg.prefix ?? '',
+      suffix: cfg.suffix ?? '',
+      allOption: !!cfg.allOption,
+    },
+    valueDomain: { segments: (domain.segments || []).map((s: any) => ({ ...s })) },
+    paramEnums: row.paramEnums || [],
+    paramAllowNull: !!row.paramAllowNull,
+    description: row.description || '',
+    status: row.status || 'enabled',
+  }
+  showTemplateModal.value = true
+}
+
+function addSegment() {
+  tplForm.value.valueDomain.segments.push({ min: null, max: null, step: null, label: '' })
+}
+function removeSegment(idx: number) {
+  tplForm.value.valueDomain.segments.splice(idx, 1)
+}
+
+async function submitTemplate() {
+  if (!tplForm.value.name?.trim()) {
+    message.warning(t('metrics.msg.requiredName'))
+    return
+  }
+  const hasAtomic = !!tplForm.value.atomicMetric
+  const hasDerived = !!tplForm.value.derivedMetric
+  if (hasAtomic === hasDerived) {
+    message.warning(t('metrics.msg.selectOneMetric'))
+    return
+  }
+  if (!tplForm.value.operators?.length) {
+    message.warning(t('metrics.msg.requiredOperators'))
+    return
+  }
+  savingTpl.value = true
+  try {
+    const payload = {
+      name: tplForm.value.name,
+      atomicMetric: tplForm.value.atomicMetric,
+      derivedMetric: tplForm.value.derivedMetric,
+      operators: tplForm.value.operators,
+      paramConfig: tplForm.value.paramConfig,
+      valueDomain: tplForm.value.valueDomain,
+      paramEnums: tplForm.value.paramEnums,
+      paramAllowNull: tplForm.value.paramAllowNull,
+      description: tplForm.value.description,
+      status: tplForm.value.status || 'enabled',
+    }
+    if (templateEditId.value) {
+      await updateMetricTemplate(templateEditId.value, payload)
+    } else {
+      await createMetricTemplate(payload)
+    }
+    message.success(templateEditId.value ? t('metrics.msg.updated') : t('metrics.msg.created'))
+    showTemplateModal.value = false
+    templateEditId.value = ''
+    await load()
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
+  } finally {
+    savingTpl.value = false
+  }
+}
+
+async function removeTemplate(row: MetricTemplate) {
+  try {
+    await deleteMetricTemplate(row.id)
+    message.success(t('metrics.msg.deleted'))
+    await load()
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : t('metrics.msg.deleteFailed'))
+  }
+}
+
+async function toggleTemplate(row: MetricTemplate) {
+  try {
+    const next = row.status === 'enabled' ? 'disabled' : 'enabled'
+    await updateMetricTemplate(row.id, { status: next })
+    message.success(next === 'disabled' ? t('metrics.msg.disabled') : t('metrics.msg.enabled'))
+    await load()
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
   }
 }
 
@@ -1281,9 +824,6 @@ async function load() {
     } catch {
       fieldPaths.value = []
     }
-    const [sample] = await Promise.all([getSampleData()])
-    sampleData.value = sample
-    await loadRules()
   } catch {
     message.error(t('metrics.msg.loadFailed'))
   } finally {
@@ -1291,14 +831,7 @@ async function load() {
   }
 }
 
-onMounted(async () => {
-  await load()
-  // 支持从「规则管理」之外的入口带 ?ruleId= 直达编排页
-  const id = (route.query.ruleId as string) || ''
-  if (id) {
-    await loadRuleIntoAuthor(id)
-  }
-})
+onMounted(load)
 </script>
 
 <style scoped>
@@ -1317,70 +850,6 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--color-text-secondary, #6b7280);
 }
-
-/* 数据流 ribbon */
-.flow-ribbon {
-  flex: 0 0 auto;
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 8px;
-  background: var(--color-bg-subtle, #f9fafb);
-}
-.flow-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.flow-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
-}
-.flow-info {
-  cursor: help;
-  color: var(--color-text-secondary, #6b7280);
-}
-.flow-chain {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.flow-node {
-  flex: 1 1 0;
-  min-width: 120px;
-  padding: 8px 10px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--surface, #fff);
-}
-.flow-node-exec {
-  border-color: var(--brand, #3b6cf6);
-  background: var(--brand-soft, #eef3ff);
-}
-.flow-node-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-.flow-node-sub {
-  margin-top: 2px;
-  font-size: 11px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.flow-arrow {
-  align-self: center;
-  font-size: 18px;
-  color: var(--color-text-secondary, #9ca3af);
-}
-.flow-legacy {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
-}
-
-/* 顶层 body 承担滚动（设置页滚动模型 B） */
 .ws-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -1391,101 +860,19 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 10px;
+  gap: 8px;
 }
 
-/* 规则编排 */
-.ws-author {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* 详情弹窗 */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
 }
-.ws-card {
-  flex: 0 0 auto;
-}
-.ws-rule-meta {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.ws-rule-name {
-  flex: 1 1 240px;
-  min-width: 180px;
-}
-.ws-rule-scene {
-  flex: 0 0 160px;
-}
-.ws-cond-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.ws-index {
-  width: 24px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-template {
-  flex: 1 1 220px;
-  min-width: 180px;
-}
-.ws-operator {
-  flex: 0 0 140px;
-}
-.ws-value {
-  flex: 0 0 140px;
-}
-.ws-unit {
-  flex: 0 0 48px;
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-actions {
-  margin-top: 12px;
-  display: flex;
-  justify-content: flex-end;
-}
-.ws-empty {
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-  padding: 8px 0;
-}
-.ws-alert {
-  margin-bottom: 12px;
-}
-.ws-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-top: 1px solid var(--color-border, #e5e7eb);
-  flex-wrap: wrap;
-}
-.ws-step-index {
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-step-detail {
-  font-size: 13px;
-}
-.ws-snapshot-bar {
-  margin-bottom: 8px;
-}
-.ws-json {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  max-height: 240px;
-  overflow: auto;
-  background: var(--color-bg-subtle, #f9fafb);
-  padding: 10px;
-  border-radius: 6px;
-}
-
-/* 通用原子 */
+.detail-cell { display: flex; flex-direction: column; gap: 4px; }
+.detail-cell-wide { grid-column: 1 / -1; }
+.cell-label { color: var(--color-text-secondary, #6b7280); font-size: 12px; }
+.cell-value { color: var(--color-text-primary, #111827); font-size: 14px; }
 .ws-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -1493,15 +880,7 @@ onMounted(async () => {
   border-radius: 4px;
   background: var(--color-bg-subtle, #f9fafb);
 }
-.ws-tip {
-  font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-ops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
+.ws-ops { display: flex; flex-wrap: wrap; gap: 4px; }
 .ws-op-tag {
   font-size: 12px;
   padding: 1px 6px;
@@ -1509,69 +888,22 @@ onMounted(async () => {
   background: var(--color-bg-subtle, #f9fafb);
   border: 1px solid var(--color-border, #e5e7eb);
 }
-.ws-actions-cell {
-  display: flex;
-  gap: 2px;
-}
-.ws-muted {
-  color: var(--color-text-tertiary, #9ca3af);
-  font-size: 13px;
-}
-.ws-def-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 500;
-}
-.ws-def-kind {
-  font-size: 11px;
-  line-height: 1;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--color-bg-subtle, #f9fafb);
-  border: 1px solid var(--color-border, #e5e7eb);
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-def-kind-derived {
-  background: var(--warning-color-soft, #fff7e6);
-  border-color: var(--color-warning, #ffd591);
-  color: var(--color-warning, #b25e09);
-}
-.ws-func-hint {
-  margin-bottom: 12px;
-}
-.ws-func-params {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-func-meta {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-params {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-.ws-param-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.ws-param-label {
-  flex: 0 0 140px;
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-}
-.ws-param-control {
-  flex: 1 1 auto;
-}
-.ws-req {
-  color: var(--error-color, #d03050);
-  font-style: normal;
-  margin-left: 2px;
-}
+.ws-muted { color: var(--color-text-tertiary, #9ca3af); font-size: 13px; }
+.ws-actions-cell { display: flex; gap: 2px; }
+
+/* 模板弹窗分段 */
+.tpl-section { width: 100%; }
+.tpl-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.tpl-field { flex: 1 1 0; min-width: 140px; margin-bottom: 4px; }
+.tpl-segments { display: flex; flex-direction: column; gap: 8px; }
+.seg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg-field { flex: 1 1 120px; }
+
+/* 参数输入行 */
+.ws-params { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.ws-param-row { display: flex; align-items: center; gap: 12px; }
+.ws-param-label { flex: 0 0 140px; font-size: 13px; color: var(--color-text-secondary, #6b7280); }
+.ws-param-control { flex: 1 1 auto; }
+.ws-req { color: var(--error-color, #d03050); font-style: normal; margin-left: 2px; }
+.ws-tip { font-size: 12px; color: var(--color-text-secondary, #6b7280); }
 </style>

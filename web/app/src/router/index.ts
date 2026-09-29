@@ -138,12 +138,13 @@ const routes: RouteRecordRaw[] = [
           { path: 'demand-dynamic-fields', name: 'DemandDynamicFields', component: () => import(/* webpackChunkName: "settings-demand-dynamic-fields" */ '../pages/settings/DemandDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // 2026-09-28: 招聘需求表单设置（字段显隐/必填/顺序，交互对标标准简历设置）
           { path: 'demand-form-settings', name: 'DemandFormSettings', component: () => import(/* webpackChunkName: "settings-demand-form" */ '../pages/settings/DemandFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          // 2026-09-25: 指标与规则统一工作区（整合 指标库 / 规则配置与执行 / 规则管理 三页为单页 tab）
+          // 2026-09-29: 指标库（重构）：指标定义（只读）+ 指标模板（CRUD）两个页签
           { path: 'metrics', name: 'MetricsWorkspace', component: () => import(/* webpackChunkName: "settings-metrics-workspace" */ '../pages/settings/MetricsWorkspace.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          // 兼容旧深链：重定向到统一工作区
+          // 兼容旧深链：重定向到指标库
           { path: 'metric-library', redirect: '/settings/metrics' },
-          { path: 'metric-rule-config', redirect: '/settings/metrics' },
-          { path: 'metric-rules', redirect: '/settings/metrics' },
+          // 规则配置与执行 / 规则管理 已迁移至「规则引擎」模块
+          { path: 'metric-rule-config', redirect: '/settings/rule-engine' },
+          { path: 'metric-rules', redirect: '/settings/rule-engine' },
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },
           { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
           // G-2026-09-23: 双系统校招专属配置（仅校园招聘菜单可见；社招不呈现）
@@ -203,8 +204,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'HRBP', 'HR'] } },
           // ===== G44 V2 主题外观 (液态玻璃 v2) — 全员可见 =====
           { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
-          // ===== 统一规则引擎 (Phase 4 后端) — 聚合只读视图 =====
-          { path: 'rule-engine', name: 'RuleEngine', component: () => import(/* webpackChunkName: "settings-rule-engine" */ '../pages/settings/RuleEngine.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          // ===== 规则引擎 (重构)：规则配置与执行 + 规则管理 + 规则总览（聚合只读） =====
+          { path: 'rule-engine', name: 'RuleAuthoring', component: () => import(/* webpackChunkName: "settings-rule-authoring" */ '../pages/settings/RuleAuthoring.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
           // ===== 原因库 (G47 / ATS-NEW Reason Library) — 嵌套父布局, 默认重定向到 tags =====
           {
             path: 'reason-library',

@@ -54,6 +54,26 @@ export interface DerivedMetric {
   templateCount?: number
 }
 
+export interface MetricTemplateParamConfig {
+  min?: number | null
+  max?: number | null
+  step?: number | null
+  prefix?: string
+  suffix?: string
+  allOption?: boolean
+}
+
+export interface MetricTemplateValueSegment {
+  min: number | null
+  max: number | null
+  step?: number | null
+  label?: string
+}
+
+export interface MetricTemplateValueDomain {
+  segments?: MetricTemplateValueSegment[]
+}
+
 export interface MetricTemplate {
   id: string
   name: string
@@ -65,6 +85,14 @@ export interface MetricTemplate {
   dataType?: MetricDataType
   unit?: string
   operators: string[]
+  /** PRD 指标模板配置：参数范围/步长/显示 */
+  paramConfig?: MetricTemplateParamConfig
+  /** PRD 指标模板配置：值域分段 */
+  valueDomain?: MetricTemplateValueDomain
+  /** 枚举型指标的允许取值列表 */
+  paramEnums?: string[]
+  /** 是否允许为空 */
+  paramAllowNull?: boolean
   status?: string
   description?: string
 }
@@ -352,8 +380,12 @@ export interface MetricDefinition {
   params: Record<string, any>
   /** 返回类型（指标数据类型）：number / string / boolean / date */
   returnType: string
+  /** 出参单位（如 岁 / 月 / 元） */
+  unit?: string
   /** 是否枚举型（下拉 / 列表字段） */
   isEnum?: boolean
+  /** 入参类型：discrete=离散 / continuous=连续（PRD 指标定义列） */
+  paramType?: 'discrete' | 'continuous'
   /** 依据字段类型计算的能力白名单：支持的运算符取值列表 */
   supportedOperators: string[]
   status?: string

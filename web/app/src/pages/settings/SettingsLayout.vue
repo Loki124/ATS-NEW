@@ -240,9 +240,9 @@ const subMenuOptions: MenuItem[] = [
       { key: '/settings/data-dashboard', label: '数据中心', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
       { key: '/settings/external', label: '生态对接', icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
       { key: '/settings/public', label: '公共设置', icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) }) },
-      { key: '/settings/rule-engine', label: '统一规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
-      // 2026-09-25: 指标与规则统一工作区（整合 指标库 / 规则配置与执行 / 规则管理 三页为单页 tab）
-      { key: '/settings/metrics', label: '指标与规则', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
+      { key: '/settings/rule-engine', label: '规则引擎', icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
+      // 2026-09-29: 指标库（重构）：指标定义（只读）+ 指标模板（CRUD）
+      { key: '/settings/metrics', label: '指标库', icon: () => h(NIcon, null, { default: () => h(AnalyticsOutline) }) },
     ],
   },
 ]

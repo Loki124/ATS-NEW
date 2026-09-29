@@ -77,7 +77,8 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'atomic_metric', 'derived_metric',
             'metric_name', 'metric_path', 'metric_kind', 'data_type', 'unit',
-            'operators', 'status', 'description', 'created_at',
+            'operators', 'param_config', 'value_domain', 'param_enums',
+            'param_allow_null', 'status', 'description', 'created_at',
         ]
         read_only_fields = [
             'id', 'created_at', 'metric_name', 'metric_path',
@@ -100,7 +101,44 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             invalid = [op for op in operators if op not in UnifiedOperator.values]
             if invalid:
                 raise serializers.ValidationError(f'不支持的运算符: {invalid}')
+
+        # PRD BR-2/BR-3：离散型 step 必须为整数；自由区间（未设 min/max）允许留空
+        self._validate_param_config(attrs.get('param_config'))
+        self._validate_value_domain(attrs.get('value_domain'))
         return attrs
+
+    @staticmethod
+    def _validate_param_config(cfg):
+        if cfg is None:
+            return
+        if not isinstance(cfg, dict):
+            raise serializers.ValidationError('参数配置必须是对象')
+        step = cfg.get('step')
+        if step is not None:
+            if not isinstance(step, (int, float)) or isinstance(step, bool):
+                raise serializers.ValidationError('参数步长必须是数字')
+            # 离散型（未设 min/max 视为自由，不强制整数；否则按 discrete 处理）
+            has_range = cfg.get('min') is not None or cfg.get('max') is not None
+            if has_range and isinstance(step, float) and not step.is_integer():
+                raise serializers.ValidationError('离散型参数步长必须为整数')
+
+    @staticmethod
+    def _validate_value_domain(domain):
+        if domain is None:
+            return
+        if not isinstance(domain, dict):
+            raise serializers.ValidationError('值域配置必须是对象')
+        segments = domain.get('segments')
+        if segments is not None:
+            if not isinstance(segments, list):
+                raise serializers.ValidationError('值域分段必须是数组')
+            for i, seg in enumerate(segments):
+                if not isinstance(seg, dict):
+                    raise serializers.ValidationError(f'值域分段#{i + 1}格式不正确')
+                if 'min' not in seg or 'max' not in seg:
+                    raise serializers.ValidationError(f'值域分段#{i + 1}缺少 min/max')
+                if seg['min'] is not None and seg['max'] is not None and seg['min'] > seg['max']:
+                    raise serializers.ValidationError(f'值域分段#{i + 1}最小值不能大于最大值')
 
     def get_metric_name(self, obj):
         return obj.metric.name if obj.metric else ''
