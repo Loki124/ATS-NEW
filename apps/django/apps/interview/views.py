@@ -9,6 +9,7 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.core.role_v2_query import user_has_any_role, is_super_admin
@@ -22,7 +23,7 @@ from .serializers import (
 )
 
 
-class InterviewViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InterviewViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """面试 ViewSet - 按 application.position.department scope 过滤"""
     queryset = Interview.objects.all()
     permission_classes = [V2Permission]
@@ -55,7 +56,7 @@ class InterviewViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         instance.save(update_fields=['deleted_at', 'updated_at'])
 
 
-class InterviewEvaluationViewSet(AuditMixin, viewsets.ModelViewSet):
+class InterviewEvaluationViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """面试评价 ViewSet"""
     queryset = InterviewEvaluation.objects.all()
     serializer_class = InterviewEvaluationSerializer
