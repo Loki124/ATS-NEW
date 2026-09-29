@@ -32,7 +32,7 @@
     <n-scrollbar style="height: 100%">
       <n-spin :show="loading">
         <div v-if="loadError" class="dp-load-error">
-          <n-empty description="加载流程详情失败">
+          <n-empty :description="t('pages.settings.ProcessDetailModal.s2')">
             <template #extra>
               <n-button type="primary" @click="handleRetryLoad">{{ t('pages.settings.ProcessDetailModal.s1') }}</n-button>
             </template>
@@ -41,24 +41,24 @@
         <div v-else-if="editForm" class="dp-wrap">
           <!-- ====== 基础信息 ====== -->
           <section id="sec-basic" class="dp-section">
-            <div class="dp-section-title"><h3>基础信息</h3></div>
+            <div class="dp-section-title"><h3>{{ t('pages.settings.ProcessDetailModal.s3') }}</h3></div>
             <div class="dp-card">
               <div class="dp-form-grid">
                 <div class="dp-field">
-                  <label class="dp-flabel">流程名称</label>
-                  <n-input v-model:value="editForm.name" placeholder="流程名称" />
+                  <label class="dp-flabel">{{ t('pages.settings.ProcessDetailModal.s4') }}</label>
+                  <n-input v-model:value="editForm.name" :placeholder="t('pages.settings.ProcessDetailModal.s5')" />
                 </div>
                 <div class="dp-field">
-                  <span class="dp-flabel">校验简历评分</span>
+                  <span class="dp-flabel">{{ t('pages.settings.ProcessDetailModal.s6') }}</span>
                   <n-switch v-model:value="editForm.validateResumeScore" />
                 </div>
                 <div class="dp-field">
-                  <span class="dp-flabel">是否启用</span>
+                  <span class="dp-flabel">{{ t('pages.settings.ProcessDetailModal.s7') }}</span>
                   <n-switch :value="editForm?.status === 'ACTIVE'" @update:value="(v) => (editForm && (editForm.status = v ? 'ACTIVE' : 'INACTIVE'))" />
                 </div>
                 <div class="dp-field span-full">
-                  <label class="dp-flabel">流程说明</label>
-                  <n-input v-model:value="editForm.description" type="textarea" :rows="3" placeholder="可选" />
+                  <label class="dp-flabel">{{ t('pages.settings.ProcessDetailModal.s8') }}</label>
+                  <n-input v-model:value="editForm.description" type="textarea" :rows="3" :placeholder="t('pages.settings.ProcessDetailModal.s9')" />
                 </div>
               </div>
             </div>
@@ -67,7 +67,7 @@
           <!-- ====== 适用范围 ====== -->
           <section id="sec-scope" class="dp-section">
             <div class="dp-section-title">
-              <h3>适用范围</h3><span class="hint">基于条件规则判断适用范围</span>
+              <h3>{{ t('pages.settings.ProcessDetailModal.s10') }}</h3><span class="hint">{{ t('pages.settings.ProcessDetailModal.s11') }}</span>
             </div>
             <!-- A: 适用范围 row 列表 (每行: 编号圆点 / 范围类型 / 匹配方式 / 值多选 / 删除图标)
                  视觉严格对齐 UI 标准示例图: 无边框行 + 浅紫编号圆点 + 行内下拉 + 右侧垃圾桶 -->
@@ -83,7 +83,7 @@
                   class="scope-row__key"
                   :value="ind.key"
                   :options="SCOPE_KEY_OPTIONS"
-                  placeholder="范围类型"
+                  :placeholder="t('pages.settings.ProcessDetailModal.s12')"
                   @update:value="(v: any) => changeScopeKey(ind, v as ScopeKey)"
                 />
                 <n-select
@@ -95,14 +95,14 @@
                   v-model:value="ind.values"
                   class="scope-row__values"
                   multiple filterable clearable
-                  placeholder="值（留空=不约束）"
+                  :placeholder="t('pages.settings.ProcessDetailModal.s13')"
                   :options="scopeOptionsFor(ind.key)"
                   :loading="!scopeOptionsLoaded"
                 />
                 <button
                   type="button"
                   class="scope-row__remove"
-                  :aria-label="`删除条件 ${idx + 1}`"
+                  :aria-label="t('pages.settings.ProcessDetailModal.s65', { n: idx + 1 })"
                   @click="removeScopeRow(idx)"
                 >
                   <n-icon :component="TrashOutline" size="16" />
@@ -115,7 +115,7 @@
                 @click="addScopeRow"
               >
                 <n-icon :component="AddOutline" size="14" />
-                <span>添加条件</span>
+                <span>{{ t('pages.settings.ProcessDetailModal.s14') }}</span>
               </button>
             </div>
 
@@ -123,7 +123,7 @@
             <div class="scope-expr">
               <n-input v-model:value="scopeExprText" :placeholder="EXPR_PLACEHOLDER" />
               <p v-if="scopeSummary" class="scope-expr__summary">
-                <span class="scope-expr__summary-label">已选范围</span>{{ scopeSummary }}
+                <span class="scope-expr__summary-label">{{ t('pages.settings.ProcessDetailModal.s15') }}</span>{{ scopeSummary }}
               </p>
             </div>
           </section>
@@ -131,7 +131,7 @@
           <!-- ====== 阶段流程 ====== -->
           <section id="sec-stages" class="dp-section">
             <div class="dp-section-title">
-              <h3>流程阶段</h3><span class="warn">第一个和最后一个阶段为系统内置固定阶段，不可取消或调整位置</span>
+              <h3>{{ t('pages.settings.ProcessDetailModal.s16') }}</h3><span class="warn">{{ t('pages.settings.ProcessDetailModal.s17') }}</span>
             </div>
             <div class="stage-list">
               <div
@@ -158,23 +158,23 @@
                       type="info" size="small" round
                     >
                       <template #icon><n-icon :component="InformationCircleOutline" /></template>
-                      系统内置
+                      {{ t('pages.settings.ProcessDetailModal.s18') }}
                     </n-tag>
-                    <n-tag v-if="stage.isStart" type="success" size="small" round>起始</n-tag>
-                    <n-tag v-if="stage.isEnd" type="warning" size="small" round>结束</n-tag>
+                    <n-tag v-if="stage.isStart" type="success" size="small" round>{{ t('pages.settings.ProcessDetailModal.s19') }}</n-tag>
+                    <n-tag v-if="stage.isEnd" type="warning" size="small" round>{{ t('pages.settings.ProcessDetailModal.s20') }}</n-tag>
                   </div>
                   <div class="header-right">
                     <n-button size="small" type="primary" @click.stop="openStageRuleConfig(stage)">
-                      <template #icon><n-icon :component="OptionsOutline" /></template>配置阶段规则
+                      <template #icon><n-icon :component="OptionsOutline" /></template>{{ t('pages.settings.ProcessDetailModal.s66') }}
                     </n-button>
                     <n-button v-if="!stage.isStart" size="small" @click.stop="addStageAt(idx, 'preceding')">
-                      <template #icon><n-icon :component="AddOutline" /></template>添加前序阶段
+                      <template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.ProcessDetailModal.s67') }}
                     </n-button>
                     <n-popconfirm v-if="!stage.isStart && !stage.isEnd" @positive-click="removeStage(idx)">
                       <template #trigger>
-                        <n-button size="small" type="error">删除当前阶段</n-button>
+                        <n-button size="small" type="error">{{ t('pages.settings.ProcessDetailModal.s21') }}</n-button>
                       </template>
-                      确定删除阶段「{{ stage.name }}」？
+                      {{ t('pages.settings.ProcessDetailModal.s68', { name: stage.name }) }}
                     </n-popconfirm>
                   </div>
                 </div>
@@ -182,14 +182,14 @@
                 <!-- 卡内 config 网格: 进入条件 / 包含功能 / 阶段自动化 / 默认处理人 -->
                 <div class="config-grid">
                   <div class="config-item span-2">
-                    <div class="item-title"><span>进入条件</span></div>
+                    <div class="item-title"><span>{{ t('pages.settings.ProcessDetailModal.s22') }}</span></div>
                     <div class="item-body">
                       <EntryConditionCard :entry-condition="stage._condition" />
                     </div>
                   </div>
 
                   <div class="config-item">
-                    <div class="item-title"><span>包含功能</span></div>
+                    <div class="item-title"><span>{{ t('pages.settings.ProcessDetailModal.s23') }}</span></div>
                     <div class="item-body">
                       <template v-if="stage.features?.length">
                         <div class="feature-tags">
@@ -197,38 +197,36 @@
                         </div>
                       </template>
                       <div v-else class="feature-empty">
-                        <n-icon :component="ExtensionPuzzleOutline" /><span>未启用包含功能</span>
+                        <n-icon :component="ExtensionPuzzleOutline" /><span>{{ t('pages.settings.ProcessDetailModal.s24') }}</span>
                       </div>
                     </div>
                   </div>
 
                   <div class="config-item">
-                    <div class="item-title"><span>阶段自动化</span></div>
+                    <div class="item-title"><span>{{ t('pages.settings.ProcessDetailModal.s25') }}</span></div>
                     <div class="item-body">
                       <div class="auto-grid">
                         <div class="auto-item">
-                          <span class="label">自动流转</span>
+                          <span class="label">{{ t('pages.settings.ProcessDetailModal.s26') }}</span>
                           <span class="value">
                             <span class="status-dot" :class="{ off: !(stage._rule && stage._rule.autoAdvanceType && stage._rule.autoAdvanceType !== 'NONE') }"></span>
                             {{ stage._rule && stage._rule.autoAdvanceType && stage._rule.autoAdvanceType !== 'NONE'
-                              ? (AUTO_ADVANCE_LABEL[stage._rule.autoAdvanceType] || stage._rule.autoAdvanceType)
-                                + (stage._rule.autoAdvanceTiming === 'IMMEDIATE' ? ' · 立即执行'
-                                  : stage._rule.autoAdvanceTiming === 'DELAYED' && stage._rule.autoAdvanceDays ? ` · 延迟 ${stage._rule.autoAdvanceDays} 天` : '')
-                              : '未开启' }}
+                              ? (AUTO_ADVANCE_LABEL[stage._rule.autoAdvanceType] || stage._rule.autoAdvanceType) + (stage._rule.autoAdvanceTiming === 'IMMEDIATE' ? t('pages.settings.ProcessDetailModal.s27') : (stage._rule.autoAdvanceTiming === 'DELAYED' && stage._rule.autoAdvanceDays ? t('pages.settings.ProcessDetailModal.s71', { n: stage._rule.autoAdvanceDays }) : ''))
+                              : t('pages.settings.ProcessDetailModal.s70') }}
                           </span>
                         </div>
                         <div class="auto-item">
-                          <span class="label">自动跳过</span>
+                          <span class="label">{{ t('pages.settings.ProcessDetailModal.s28') }}</span>
                           <span class="value">
                             <span class="status-dot" :class="{ off: !stage._rule?.autoSkipNPlusTwo }"></span>
-                            {{ stage._rule?.autoSkipNPlusTwo ? '已开启' : '未开启' }}
+                            {{ stage._rule?.autoSkipNPlusTwo ? t('pages.settings.ProcessDetailModal.s69') : t('pages.settings.ProcessDetailModal.s70') }}
                           </span>
                         </div>
                         <div class="auto-item">
-                          <span class="label">阶段限时</span>
+                          <span class="label">{{ t('pages.settings.ProcessDetailModal.s29') }}</span>
                           <span class="value">
                             <span class="status-dot" :class="{ off: !stage._rule?.timeLimit }"></span>
-                            {{ stage._rule?.timeLimit ? `${stage._rule.timeLimit} 天` : '未开启' }}
+                            {{ stage._rule?.timeLimit ? t('pages.settings.ProcessDetailModal.s72', { n: stage._rule.timeLimit }) : t('pages.settings.ProcessDetailModal.s70') }}
                           </span>
                         </div>
                       </div>
@@ -236,14 +234,14 @@
                   </div>
 
                   <div class="config-item span-2 handler-row">
-                    <div class="item-title"><span>默认处理人</span></div>
+                    <div class="item-title"><span>{{ t('pages.settings.ProcessDetailModal.s30') }}</span></div>
                     <div class="item-body">
                       <template v-if="stage._rule?.defaultHandlerType">
                         <span class="handler-tag">{{ HANDLER_TYPE_LABEL[stage._rule.defaultHandlerType] || stage._rule.defaultHandlerType }}</span>
                         <span v-for="(f, fi) in (stage._rule.defaultHandlerFields || [])" :key="'f' + fi" class="handler-tag">{{ f }}</span>
                         <span v-for="(u, ui) in (stage._rule.defaultHandlerUserIds || [])" :key="'u' + ui" class="handler-tag">{{ resolveHandlerUserName(u) }}</span>
                       </template>
-                      <span v-else class="handler-none">无默认处理人</span>
+                      <span v-else class="handler-none">{{ t('pages.settings.ProcessDetailModal.s31') }}</span>
                     </div>
                   </div>
                 </div>
@@ -254,7 +252,7 @@
               style="margin-top: 12px" size="small" type="primary" block
               @click="addStageAt(editForm.stages.length, 'following')"
             >
-              <template #icon><n-icon :component="AddOutline" /></template>追加到末尾
+              <template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.ProcessDetailModal.s73') }}
             </n-button>
           </section>
         </div>
@@ -271,12 +269,12 @@
           @click="onCopy"
         >
           <template #icon><n-icon :component="CopyOutline" /></template>
-          复制此流程
+          {{ t('pages.settings.ProcessDetailModal.s32') }}
         </n-button>
         <n-space justify="end">
-          <n-button @click="cancelEdit">取消</n-button>
+          <n-button @click="cancelEdit">{{ t('pages.settings.ProcessDetailModal.s33') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">
-            {{ isCreateMode ? '创建' : '保存' }}
+            {{ isCreateMode ? t('pages.settings.ProcessDetailModal.s74') : t('pages.settings.ProcessDetailModal.s75') }}
           </n-button>
         </n-space>
       </div>
@@ -287,10 +285,10 @@
   <n-modal
     :show="showCloseConfirm"
     preset="dialog"
-    title="有未保存的修改"
-    content="确定离开? 当前编辑内容将丢失。"
-    positive-text="确定离开"
-    negative-text="继续编辑"
+    :title="t('pages.settings.ProcessDetailModal.s34')"
+    :content="t('pages.settings.ProcessDetailModal.s35')"
+    :positive-text="t('pages.settings.ProcessDetailModal.s36')"
+    :negative-text="t('pages.settings.ProcessDetailModal.s37')"
     @positive-click="confirmClose"
     @negative-click="showCloseConfirm = false"
     @close="showCloseConfirm = false"
@@ -300,15 +298,15 @@
   <n-modal
     v-model:show="showConflict"
     preset="card"
-    title="修改冲突"
+    :title="t('pages.settings.ProcessDetailModal.s38')"
     style="width: 480px; max-width: 90vw"
   >
-    <p>此流程在您编辑期间被其他用户修改。</p>
-    <p v-if="conflictInfo?.updatedBy">最后修改人: {{ conflictInfo.updatedBy }}</p>
-    <p v-if="conflictInfo?.updatedAt">修改时间: {{ formatDate(conflictInfo.updatedAt) }}</p>
+    <p>{{ t('pages.settings.ProcessDetailModal.s39') }}</p>
+    <p v-if="conflictInfo?.updatedBy">{{ t('pages.settings.ProcessDetailModal.s76') }} {{ conflictInfo.updatedBy }}</p>
+    <p v-if="conflictInfo?.updatedAt">{{ t('pages.settings.ProcessDetailModal.s77') }} {{ formatDate(conflictInfo.updatedAt) }}</p>
     <n-space justify="end">
-      <n-button @click="abandonEdit">放弃修改</n-button>
-      <n-button type="primary" class="gradient-btn" @click="reloadAndEdit">重新加载后继续编辑</n-button>
+      <n-button @click="abandonEdit">{{ t('pages.settings.ProcessDetailModal.s40') }}</n-button>
+      <n-button type="primary" class="gradient-btn" @click="reloadAndEdit">{{ t('pages.settings.ProcessDetailModal.s41') }}</n-button>
     </n-space>
   </n-modal>
 
@@ -317,12 +315,12 @@
     v-model:show="showStagePicker"
     preset="card"
     class="stage-picker-modal"
-    title="选择要添加的阶段"
+    :title="t('pages.settings.ProcessDetailModal.s42')"
     style="width: 600px; max-width: 95vw; max-height: 90vh"
   >
     <n-input
       v-model:value="stagePickerKeyword"
-      placeholder="搜索阶段名称 / 编号"
+      :placeholder="t('pages.settings.ProcessDetailModal.s43')"
       clearable
       style="margin-bottom: 12px"
     >
@@ -332,7 +330,7 @@
     </n-input>
 
     <div v-if="stagePickerCandidates.length === 0" class="picker-empty">
-      <n-empty description="没有可添加的阶段 (本流程已用完所有阶段,或阶段库为空)。请先在「阶段模板库」中创建更多阶段。" />
+      <n-empty :description="t('pages.settings.ProcessDetailModal.s44')" />
     </div>
     <div v-else class="picker-list">
       <div
@@ -356,7 +354,7 @@
               round
               style="margin-left: 6px"
             >
-起始
+{{ t('pages.settings.ProcessDetailModal.s45') }}
 </n-tag>
             <n-tag
               v-if="s.isEnd"
@@ -365,15 +363,15 @@
               round
               style="margin-left: 6px"
             >
-结束
+{{ t('pages.settings.ProcessDetailModal.s46') }}
 </n-tag>
           </div>
           <div class="picker-item__code">{{ s.code }} · {{ stageTypeLabel(s.stageType) }}</div>
         </div>
         <div class="picker-item__hint">
-          <span v-if="s.isStart && stagePickerInsertIdx > 0">将插入到开头</span>
-          <span v-else-if="s.isEnd">将插入到末尾</span>
-          <span v-else>将插入到第 {{ stagePickerInsertIdx + 1 }} 行{{ stagePickerInsertPosition === 'preceding' ? '之前' : '之后' }}</span>
+          <span v-if="s.isStart && stagePickerInsertIdx > 0">{{ t('pages.settings.ProcessDetailModal.s47') }}</span>
+          <span v-else-if="s.isEnd">{{ t('pages.settings.ProcessDetailModal.s48') }}</span>
+          <span v-else>{{ t('pages.settings.ProcessDetailModal.s78', { n: stagePickerInsertIdx + 1 }) }}{{ stagePickerInsertPosition === 'preceding' ? t('pages.settings.ProcessDetailModal.s79') : t('pages.settings.ProcessDetailModal.s80') }}</span>
         </div>
       </div>
     </div>
@@ -381,9 +379,9 @@
     <template #footer>
       <n-space justify="end">
         <n-text depth="3" style="font-size: 12px">
-          同一阶段在同一流程中只能被使用一次
+          {{ t('pages.settings.ProcessDetailModal.s49') }}
         </n-text>
-        <n-button @click="showStagePicker = false">取消</n-button>
+        <n-button @click="showStagePicker = false">{{ t('pages.settings.ProcessDetailModal.s50') }}</n-button>
       </n-space>
     </template>
   </n-modal>
@@ -553,57 +551,57 @@ const stageLibrary = ref<{ id: string; code: string; name: string; stageType: st
 // ===== 元数据映射 =====
 // 阶段类型为系统内置枚举 (后端 StageType), 与后端 StageType.choices 对齐; 不再依赖数据字典.
 const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: 'info' | 'warning' | 'success' | 'primary' | 'default'; icon: any }> = {
-  START_END:  { label: '起止阶段', color: 'var(--c-primary)', tagType: 'primary', icon: FlagOutline },
-  SCREEN:     { label: '筛选型',  color: 'var(--c-info)',    tagType: 'info',    icon: FilterOutline },
-  INVITATION: { label: '邀约型',  color: 'var(--c-warning)', tagType: 'warning', icon: MailOutline },
-  INTERVIEW:  { label: '面试型',  color: 'var(--c-purple)',  tagType: 'primary', icon: VideocamOutline },
-  ASSESSMENT: { label: '测评型',  color: 'var(--c-cyan)',    tagType: 'info',    icon: ClipboardOutline },
-  OFFER:      { label: 'offer型', color: 'var(--c-success)', tagType: 'success', icon: DocumentTextOutline },
-  OTHER:      { label: '其他',    color: 'var(--c-default)', tagType: 'default', icon: AppsOutline },
+  START_END:  { label: t('pages.settings.ProcessDetailModal.s81'), color: 'var(--c-primary)', tagType: 'primary', icon: FlagOutline },
+  SCREEN:     { label: t('pages.settings.ProcessDetailModal.s82'), color: 'var(--c-info)',    tagType: 'info',    icon: FilterOutline },
+  INVITATION: { label: t('pages.settings.ProcessDetailModal.s83'), color: 'var(--c-warning)', tagType: 'warning', icon: MailOutline },
+  INTERVIEW:  { label: t('pages.settings.ProcessDetailModal.s84'), color: 'var(--c-purple)',  tagType: 'primary', icon: VideocamOutline },
+  ASSESSMENT: { label: t('pages.settings.ProcessDetailModal.s85'), color: 'var(--c-cyan)',    tagType: 'info',    icon: ClipboardOutline },
+  OFFER:      { label: t('pages.settings.ProcessDetailModal.s86'), color: 'var(--c-success)', tagType: 'success', icon: DocumentTextOutline },
+  OTHER:      { label: t('pages.settings.ProcessDetailModal.s87'), color: 'var(--c-default)', tagType: 'default', icon: AppsOutline },
 }
 
 // B: 弹窗标题 (编辑流程-「流程名称(流程编号)」-「阶段数量」)
 const modalTitle = computed(() => {
-  const name = editForm.value?.name || data.value?.name || (isCreateMode.value ? '未命名' : '')
+  const name = editForm.value?.name || data.value?.name || (isCreateMode.value ? t('pages.settings.ProcessDetailModal.s88') : '')
   const code = data.value?.code
   const stageCount = editForm.value?.stages?.length ?? 0
   if (isCreateMode.value) {
-    return '新建流程' + (name ? `-「${name}」-「${stageCount} 个阶段」` : '')
+    return t('pages.settings.ProcessDetailModal.s89') + (name ? t('pages.settings.ProcessDetailModal.s90', { name, n: stageCount }) : '')
   }
   const nameTag = `${name}${code ? `(${code})` : ''}`
-  return `编辑流程-「${nameTag}」-「${stageCount} 个阶段」`
+  return t('pages.settings.ProcessDetailModal.s91', { nameTag, n: stageCount })
 })
 
 const CONDITION_TYPE_LABEL: Record<string, string> = {
-  STAGE_STATUS: '基于阶段状态',
-  CANDIDATE: '基于候选人',
-  MIXED: '混合',
+  STAGE_STATUS: t('pages.settings.ProcessDetailModal.s92'),
+  CANDIDATE: t('pages.settings.ProcessDetailModal.s93'),
+  MIXED: t('pages.settings.ProcessDetailModal.s94'),
 }
 
 const FEATURE_LABEL: Record<string, string> = {
-  INVITE_FILTER: '邀请筛选',
-  INVITE_UPDATE_INFO: '邀请更新简历',
-  TRANSFER_STAGE: '转移阶段',
-  ARCHIVE: '归档',
-  ARRANGE_INTERVIEW: '安排面试',
-  INVITE_INTERVIEW: '邀请面试',
-  SEND_OFFER: '发送 Offer',
-  START_BACKGROUND_CHECK: '发起背调',
-  START_ONBOARDING: '发起入职',
+  INVITE_FILTER: t('pages.settings.ProcessDetailModal.s95'),
+  INVITE_UPDATE_INFO: t('pages.settings.ProcessDetailModal.s96'),
+  TRANSFER_STAGE: t('pages.settings.ProcessDetailModal.s97'),
+  ARCHIVE: t('pages.settings.ProcessDetailModal.s98'),
+  ARRANGE_INTERVIEW: t('pages.settings.ProcessDetailModal.s99'),
+  INVITE_INTERVIEW: t('pages.settings.ProcessDetailModal.s100'),
+  SEND_OFFER: t('pages.settings.ProcessDetailModal.s101'),
+  START_BACKGROUND_CHECK: t('pages.settings.ProcessDetailModal.s102'),
+  START_ONBOARDING: t('pages.settings.ProcessDetailModal.s103'),
 }
 
 const AUTO_ADVANCE_LABEL: Record<string, string> = {
-  NONE: '关闭',
-  MEET_NEXT: '满足下一阶段条件',
-  IGNORE_NEXT: '忽略下一阶段条件',
-  MEET_NEXT_OR_N2: '满足下一阶段或 N+2',
-  N1_ALL_PASS: '当前阶段全员通过',
+  NONE: t('pages.settings.ProcessDetailModal.s104'),
+  MEET_NEXT: t('pages.settings.ProcessDetailModal.s105'),
+  IGNORE_NEXT: t('pages.settings.ProcessDetailModal.s106'),
+  MEET_NEXT_OR_N2: t('pages.settings.ProcessDetailModal.s107'),
+  N1_ALL_PASS: t('pages.settings.ProcessDetailModal.s108'),
 }
 
 const HANDLER_TYPE_LABEL: Record<string, string> = {
-  FROM_DEMAND: '来自需求方',
-  FROM_POSITION: '来自岗位负责人',
-  CUSTOM: '自定义',
+  FROM_DEMAND: t('pages.settings.ProcessDetailModal.s109'),
+  FROM_POSITION: t('pages.settings.ProcessDetailModal.s110'),
+  CUSTOM: t('pages.settings.ProcessDetailModal.s111'),
 }
 
 // ===== edit-mode meta =====
@@ -646,8 +644,8 @@ async function load() {
       }))
   } catch (e: any) {
     // E1: 渲染错误态而非仅 toast (R-104 异步四态)
-    loadError.value = e?.response?.data?.message || '加载流程详情失败'
-    message.error(loadError.value || '加载流程详情失败')
+    loadError.value = e?.response?.data?.message || t('pages.settings.ProcessDetailModal.s2')
+    message.error(loadError.value || t('pages.settings.ProcessDetailModal.s2'))
   } finally {
     loading.value = false
   }
@@ -949,19 +947,19 @@ async function onRuleSaved() {
   //   更新对应的 editForm.stages[idx]._rule / _condition, 模板即时反映。
   const linkId = ruleEditingLinkId.value
   if (!linkId || !editForm.value) {
-    message.success('阶段配置已保存')
+    message.success(t('pages.settings.ProcessDetailModal.s51'))
     return
   }
   try {
     const all = await listProcessLinks(props.processId)
     const updated = Array.isArray(all) ? all.find((l: any) => l.id === linkId) : null
     if (!updated) {
-      message.success('阶段配置已保存')
+      message.success(t('pages.settings.ProcessDetailModal.s52'))
       return
     }
     const idx = editForm.value.stages.findIndex((s: EditStage) => s._linkId === linkId)
     if (idx < 0) {
-      message.success('阶段配置已保存')
+      message.success(t('pages.settings.ProcessDetailModal.s53'))
       return
     }
     editForm.value.stages[idx]._rule = updated.stageRule || undefined
@@ -993,9 +991,9 @@ async function onRuleSaved() {
     } catch {
       /* 静默: 卡内已配置规则不阻塞保存反馈 */
     }
-    message.success('阶段配置已保存')
+    message.success(t('pages.settings.ProcessDetailModal.s54'))
   } catch (e: any) {
-    message.success('阶段配置已保存 (但本地状态刷新失败，请重新打开查看)')
+    message.success(t('pages.settings.ProcessDetailModal.s55'))
   }
 }
 
@@ -1070,23 +1068,23 @@ function confirmStagePick(lib: any) {
   // 起止阶段: 强制放到首/尾, 忽略用户选的 idx
   if (lib.isStart) {
     if (!stages.length || stages[0]?.isStart) {
-      message.warning('此流程已存在起始阶段, 不能再添加')
+      message.warning(t('pages.settings.ProcessDetailModal.s56'))
       showStagePicker.value = false
       return
     }
     stages.unshift(newStage)
-    message.success(`已添加起始阶段「${newStage.name}」到流程开头`)
+    message.success(t('pages.settings.ProcessDetailModal.s112', { name: newStage.name }))
     showStagePicker.value = false
     return
   }
   if (lib.isEnd) {
     if (stages.length && stages[stages.length - 1]?.isEnd) {
-      message.warning('此流程已存在结束阶段, 不能再添加')
+      message.warning(t('pages.settings.ProcessDetailModal.s57'))
       showStagePicker.value = false
       return
     }
     stages.push(newStage)
-    message.success(`已添加结束阶段「${newStage.name}」到流程末尾`)
+    message.success(t('pages.settings.ProcessDetailModal.s113', { name: newStage.name }))
     showStagePicker.value = false
     return
   }
@@ -1097,7 +1095,7 @@ function confirmStagePick(lib: any) {
   stages.splice(insertIdx, 0, newStage)
   // 2026-07-03: 防御性 normalize, 防止用户在中间插入后系统起止被挤到非首/尾位置.
   _normalizeStartEnd(stages)
-  message.success(`已添加阶段「${newStage.name}」到第 ${insertIdx + 1} 位`)
+  message.success(t('pages.settings.ProcessDetailModal.s114', { name: newStage.name, n: insertIdx + 1 }))
   showStagePicker.value = false
 }
 
@@ -1126,7 +1124,7 @@ function removeStage(idx: number) {
     selectedStageIdx.value -= 1
   }
   // R-106：编辑态移除阶段属本地可逆操作 → 直接执行 + Toast 撤销（真实重新插入）
-  undoable(`已移除阶段「${removed?.name ?? ''}」`, () => {
+  undoable(t('pages.settings.ProcessDetailModal.s115', { name: removed?.name ?? '' }), () => {
     editForm.value?.stages.splice(idx, 0, removed)
   })
 }
@@ -1150,11 +1148,11 @@ async function reloadAndEdit() {
 
 // ===== validate + handleSave =====
 function validateEditForm(form: EditForm): string | null {
-  if (!form.name || !form.name.trim()) return '流程名称不能为空'
-  if (form.name.length > 100) return '流程名称不能超过 100 字符'
-  if (!Array.isArray(form.stages) || form.stages.length < 2) return '至少需要 2 个阶段 (含起止)'
-  if (!form.stages.some(s => s.isStart)) return '缺少起始阶段'
-  if (!form.stages.some(s => s.isEnd)) return '缺少结束阶段'
+  if (!form.name || !form.name.trim()) return t('pages.settings.ProcessDetailModal.s116')
+  if (form.name.length > 100) return t('pages.settings.ProcessDetailModal.s117')
+  if (!Array.isArray(form.stages) || form.stages.length < 2) return t('pages.settings.ProcessDetailModal.s118')
+  if (!form.stages.some(s => s.isStart)) return t('pages.settings.ProcessDetailModal.s119')
+  if (!form.stages.some(s => s.isEnd)) return t('pages.settings.ProcessDetailModal.s120')
   return null
 }
 
@@ -1199,7 +1197,7 @@ async function handleSave() {
       })
       currentProcessId = created?.id
       if (!currentProcessId) {
-        message.error('创建失败: 未返回流程 ID')
+        message.error(t('pages.settings.ProcessDetailModal.s58'))
         return
       }
       // 2026-09-20: 后端 ProcessWithStagesCreateSerializer 在 createProcess 时已自动填充
@@ -1286,7 +1284,7 @@ async function handleSave() {
 
     // 3g. success path
     exitEditMode()
-    message.success(isCreateMode.value ? '已创建' : '已保存')
+    message.success(isCreateMode.value ? t('pages.settings.ProcessDetailModal.s121') : t('pages.settings.ProcessDetailModal.s122'))
     emit('saved', currentProcessId)
     // 显式通知父组件关闭弹窗, 避免 editForm=null + show=true 导致 body 折叠成"小条"
     emit('update:show', false)
@@ -1296,7 +1294,7 @@ async function handleSave() {
       showConflict.value = true
       conflictInfo.value = e.response.data || {}
     } else {
-      message.error(e?.response?.data?.message || (isCreateMode.value ? '创建失败' : '保存失败'))
+      message.error(e?.response?.data?.message || (isCreateMode.value ? t('pages.settings.ProcessDetailModal.s123') : t('pages.settings.ProcessDetailModal.s124')))
     }
   } finally {
     saving.value = false
@@ -1308,13 +1306,13 @@ async function onCopy() {
   copying.value = true
   try {
     const newProc = await copyProcess(props.processId, {
-      newName: `${data.value.name} - 副本`,
+      newName: `${data.value.name} - ` + t('pages.settings.ProcessDetailModal.s125'),
     })
-    message.success(`已复制: ${newProc.name}`)
+    message.success(t('pages.settings.ProcessDetailModal.s126', { name: newProc.name }))
     emit('copied', newProc.id)
     emit('update:show', false)
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '复制失败')
+    message.error(e?.response?.data?.message || t('pages.settings.ProcessDetailModal.s127'))
   } finally {
     copying.value = false
   }
@@ -1372,9 +1370,9 @@ function getScopeMode(key: string): 'include' | 'exclude' | null {
 
 function getScopeModeLabel(key: string): string {
   const mode = getScopeMode(key)
-  if (mode === 'include') return '包含'
-  if (mode === 'exclude') return '不包含'
-  return '不限'
+  if (mode === 'include') return t('pages.settings.ProcessDetailModal.s128')
+  if (mode === 'exclude') return t('pages.settings.ProcessDetailModal.s129')
+  return t('pages.settings.ProcessDetailModal.s130')
 }
 
 function getScopeValues(key: string): string[] {
@@ -1407,17 +1405,17 @@ function scopeOptionsFor(key: ScopeKey): { label: string; value: string }[] {
 
 // ===== 适用范围 row 列表交互 (S1) =====
 const MODE_OPTIONS = [
-  { label: '包含', value: 'include' },
-  { label: '不包含', value: 'exclude' },
+  { label: t('pages.settings.ProcessDetailModal.s59'), value: 'include' },
+  { label: t('pages.settings.ProcessDetailModal.s60'), value: 'exclude' },
 ]
 
 // 范围类型下拉选项 (兵哥 2026-09-20 定名: 需求部门/需求职级/需求职务/登录人)。
 // 同类型允许多行 (条件数量不限总量), 不做跨行禁选。
 const SCOPE_KEY_OPTIONS = [
-  { label: '需求部门', value: 'department' },
-  { label: '需求职级', value: 'level' },
-  { label: '需求职务', value: 'position' },
-  { label: '登录人', value: 'user' },
+  { label: t('pages.settings.ProcessDetailModal.s61'), value: 'department' },
+  { label: t('pages.settings.ProcessDetailModal.s62'), value: 'level' },
+  { label: t('pages.settings.ProcessDetailModal.s63'), value: 'position' },
+  { label: t('pages.settings.ProcessDetailModal.s64'), value: 'user' },
 ]
 
 // 稳定行 id 生成器 (v-for :key 用, 同类型多行时 key 不再唯一)
@@ -1473,7 +1471,7 @@ const scopeConditionExpr = computed(() => {
 
 // 表达式: 全宽可编辑输入 (参照示例图 "执行条件表达式, 如 1 and 2")。
 // 行变化时自动重新生成; 用户手改后(scopeExprTouched=true)以手改为准, 不再被自动覆盖。
-const EXPR_PLACEHOLDER = '执行条件表达式, 如 1 and 2'
+const EXPR_PLACEHOLDER = t('pages.settings.ProcessDetailModal.s131')
 const scopeExprText = ref('')
 const scopeExprTouched = ref(false)
 watch(scopeConditionExpr, (v) => {
@@ -1488,7 +1486,7 @@ const scopeSummary = computed(() => {
     if (!ind.values?.length) continue
     const opts = scopeOptionsFor(ind.key)
     const labels = ind.values.map((v) => opts.find((o) => o.value === v)?.label || v)
-    const op = ind.mode === 'exclude' ? '不属于' : '属于'
+    const op = ind.mode === 'exclude' ? t('pages.settings.ProcessDetailModal.s133') : t('pages.settings.ProcessDetailModal.s132')
     const keyLabel = SCOPE_KEY_OPTIONS.find((o) => o.value === ind.key)?.label || ind.key
     parts.push(`${keyLabel} ${op} ${labels.join('、')}`)
   }
