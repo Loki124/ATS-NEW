@@ -8,20 +8,7 @@
  *   用于快速复制到 RoleV2 (roles/clone-from-template/).
  *   列表通过 read-only 暴露, 写操作走 RoleV2.clone_from_template action.
  */
-import axios from 'axios';
-import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
+import { api } from '../utils/request'
 
 // ===== 类型定义 =====
 

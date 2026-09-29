@@ -3,21 +3,7 @@
  * 单例配置端点 /api/v1/brand/ : GET 读取 / PUT 全量更新 / PATCH 部分更新
  * 后端统一包裹 {'data': ...}, 经 camel_case 中间件 → 前端 camelCase 字段。
  */
-
-import axios from 'axios';
-import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
+import { api } from '../utils/request'
 
 /** 社交 / 官网链接单项 */
 export interface SocialLink {

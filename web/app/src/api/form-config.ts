@@ -3,8 +3,8 @@
 // 配置落库端点：GET/PUT /api/v1/standard-resume/form-config/?resource=<Resource>
 // 复用 standard-resume.ts 的字段聚合工具（mergeFields / groupFieldsByGroup / UNGROUPED_GROUP_CODE），
 // 配置结构与标准简历一致（fields / groupOrder），但无「必填阶段」概念。
+import { api } from '../utils/request'
 
-import axios from 'axios'
 import config from '../config'
 import {
   type FieldDefinition,
@@ -18,17 +18,6 @@ import {
   type MergedResumeField,
   type FieldGroupBucket,
 } from './standard-resume'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 export const FORM_CONFIG_API = '/standard-resume/form-config/'
 

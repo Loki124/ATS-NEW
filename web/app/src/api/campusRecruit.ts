@@ -12,20 +12,9 @@
  * 隔离：所有请求经 main.ts 全局拦截器自动注入 X-Recruit-Type: campus，
  * 后端 ScopeQuerysetMixin 据此按 recruit_type='campus' 硬分区（读侧过滤 + 写侧权威注入）。
  */
-import axios from 'axios'
+import { api } from '../utils/request'
+
 import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: config.api.timeout,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 /* ============================ 领域类型 ============================ */
 export type AmbassadorStatus = 'active' | 'pending' | 'inactive'

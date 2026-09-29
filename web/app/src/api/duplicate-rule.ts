@@ -11,20 +11,9 @@
 //
 // ⚠️ 后端全局启用 CamelCaseJSONRenderer / CamelCaseJSONParser：
 //    出入参一律 camelCase（含自由 JSON dict 的键），本文件类型定义即按 camelCase 声明。
+import { api } from '../utils/request'
 
-import axios from 'axios'
 import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 // ===== 查重项 =====
 export type DuplicateStrength = 'STRONG' | 'MEDIUM' | 'WEAK'

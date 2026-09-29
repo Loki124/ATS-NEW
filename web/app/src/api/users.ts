@@ -4,22 +4,9 @@
  * 后端端点:GET /api/users (backend/src/routes/user.routes.js, mounted at app.js:155)
  * 响应格式: { success: boolean, data: User[] }
  */
+import { createApi } from '../utils/request'
 
-import axios from 'axios'
-import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
-
+const api = createApi({ timeout: 10000 })
 // ===== 类型 =====
 
 export interface User {

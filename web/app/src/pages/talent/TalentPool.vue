@@ -10,21 +10,8 @@ import {
   NDataTable, NEmpty, NSelect, NModal, useMessage,
 } from 'naive-ui'
 import { RefreshOutline, AddOutline, ArrowForwardOutline } from '@vicons/ionicons5'
-import axios from 'axios'
-import config from '../../config'
+import { api } from '../../utils/request'
 const { t } = useI18n()
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 interface PoolDef {
   code: string

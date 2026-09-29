@@ -16,20 +16,9 @@
  * 字段命名: drf-camel-case 输出 camelCase (category / sourceApp / triggerType / legacyModel /
  *           conditionsSummary / actionsSummary / ...), FE 类型严格按 camelCase 写
  */
-import axios from 'axios'
+import { api } from '../utils/request'
+
 import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 // ===== 类型定义 =====
 

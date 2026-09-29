@@ -12,20 +12,7 @@
  * - parent_id (方案 A: 树形层级)
  * - personnel_scope JSON 谓词 (方案 A: 人员范围动态条件)
  */
-import axios from 'axios';
-import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
+import { api } from '../utils/request'
 
 // ===== 类型定义 =====
 

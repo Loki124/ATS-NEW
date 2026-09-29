@@ -38,8 +38,7 @@
  */
 export const ENABLE_OPTIMISTIC_LOCK = false
 
-import axios from 'axios'
-import config from '../config'
+import { createApi } from '../utils/request'
 import type {
   ApiResponse,
   PaginatedData,
@@ -62,17 +61,7 @@ import { BIZ_CODE } from '../types/reason-library'
 
 // ==================== axios 实例 ====================
 
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
+const api = createApi()
 
 // 响应拦截 (2026-09-22 修订): 后端 BizException 以 HTTP 4xx/409 返回时, axios 直接
 // reject 出 AxiosError —— 其 .code 是 'ERR_BAD_REQUEST' 而非业务码, 导致上层

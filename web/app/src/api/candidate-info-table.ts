@@ -4,20 +4,7 @@
 //
 // 2026-09-12 扩展：候选人信息登记表设置（权限 / 使用范围 / 标准简历样式 / 场景联动），
 // 复用同一 key='candidate_info_table' 配置端点，结构见 CandidateInfoTableConfig。
-
-import axios from 'axios'
-import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
+import { api } from '../utils/request'
 
 export const CANDIDATE_TABLE_CONFIG_API = '/standard-resume/candidate-info-table/'
 

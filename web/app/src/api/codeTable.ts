@@ -3,21 +3,7 @@
  * 只读端点：行政区划 / 国家区号 / 民族 / 语言 / 币种 / 行业
  * 后端统一信封 { data: [...], pagination: { total } }
  */
-
-import axios from 'axios';
-import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
+import { api } from '../utils/request'
 
 /** 通用分页信封 */
 export interface Paged<T> {

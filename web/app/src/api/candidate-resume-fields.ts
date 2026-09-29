@@ -5,21 +5,7 @@
  * PUT  -> { values: { fieldKey: value } } -> upsert 每个 field_key
  * 用于「候选人详情 - 编辑简历」: 标准简历配置中无 Candidate 模型列的扩展字段值存取。
  */
-
-import axios from 'axios'
-import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
+import { api } from '../utils/request'
 
 export type ResumeFieldValues = Record<string, any>
 

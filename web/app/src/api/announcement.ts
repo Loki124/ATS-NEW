@@ -2,20 +2,9 @@
  * 制度公告 API — 招聘专家查看 / HR 及以上维护。
  * 后端 /api/v1/announcements/ 返回 { success, data } 信封，data 即数组。
  */
-import axios from 'axios'
+import { api } from '../utils/request'
+
 import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 export type AnnouncementCategory = 'SYSTEM' | 'NOTICE' | 'PROCESS'
 export type AnnouncementAudience = 'RECRUIT_EXPERT' | 'ALL'

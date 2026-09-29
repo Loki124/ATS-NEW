@@ -3,26 +3,12 @@
  * 优先用现有 /candidates /positions /demands /interviews /recruitment-processes 端点,
  * 数据为空/失败时优雅 fallback mock, 不报红, 不阻塞渲染。
  */
+import { createApi } from '../utils/request'
 
-import axios from 'axios'
-import config from '../config'
 import type { ScheduleItem, JobCardData, ScreeningItemData } from '../components/dashboard'
 import type { MatterItem } from '../components/dashboard/MatterList.vue'
 
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-// 注意: 项目约定 token 存放在 localStorage.key = 'token' (见 Login.vue)
-// 27 个 API 文件统一读 'token' 字段, 保持一致
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
-
+const api = createApi({ timeout: 10000 })
 // ===== 类型 =====
 
 export interface DashboardStats {
@@ -61,7 +47,6 @@ function safeNum(v: unknown, fallback = 0): number {
 
 // 重要求职数据全部来自真实端点，本文件不再保留任何 mock 兜底常量。
 // 「重要事项」(matters) 后端暂无聚合端点，统一返回空（见 loadDashboardData）。
-
 
 // ===== 单独 API 拉取函数 (失败吞掉, 返回 null) =====
 

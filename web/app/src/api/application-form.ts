@@ -5,20 +5,7 @@
 //   PUT    /api/v1/standard-resume/application-form/<pk>/     → 更新
 //   DELETE /api/v1/standard-resume/application-form/<pk>/     → 软删除
 // 数据来源：动态字段模块 resource='Candidate'，字段配置引用其 fieldKey。
-
-import axios from 'axios'
-import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
+import { api } from '../utils/request'
 
 // 单个字段配置项（引用动态字段的 fieldKey，并带本表单内的显隐/必填/分组）
 export interface RegistrationFormField {

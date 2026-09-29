@@ -4,25 +4,14 @@
  * 封装 7 个后端 endpoint + SSE 流。
  * 自带 Authorization 拦截器（auth.ts 的实例在创建 modal 时未挂载到这里）
  */
-import axios, { type AxiosInstance } from 'axios'
+import { type AxiosInstance } from 'axios'
+import { createApi } from '../utils/request'
 import config from '../config'
 
 const BASE = `${config.api.baseUrl}/candidates/add-candidate`
 
 function getClient(): AxiosInstance {
-  const client = axios.create({
-    baseURL: BASE,
-    timeout: 60000,
-  })
-  // 注入 auth header — 否则后端 IsAuthenticated 直接 401
-  client.interceptors.request.use((cfg) => {
-    const token = localStorage.getItem('accessToken') || ''
-    if (token) {
-      cfg.headers = cfg.headers || {}
-      cfg.headers.Authorization = `Bearer ${token}`
-    }
-    return cfg
-  })
+  const client = createApi({ baseURL: BASE, timeout: 60000 })
   // 401 时跳转登录（与 auth.ts 一致）
   client.interceptors.response.use(
     (resp) => resp,

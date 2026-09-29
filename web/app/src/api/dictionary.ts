@@ -15,20 +15,7 @@
  * 设计: 业务自定语义枚举以数据字典为 single source of truth; 阶段类型为系统内置枚举,
  *   经 /api/v1/recruitment-stages/stage-types/ 暴露, 不再经数据字典 recruitment_stage_type。
  */
-import axios from 'axios';
-import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: config.api.timeout,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
+import { api } from '../utils/request'
 
 /** 字典类型(列表/详情, 驼峰键)。 */
 export interface DictionaryType {

@@ -1,22 +1,9 @@
 /**
  * 全局搜索 API 客户端 - Plan T3
  */
+import { createApi } from '../utils/request'
 
-import axios from 'axios'
-import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 5000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
-
+const api = createApi({ timeout: 5000 })
 // ===== 类型 =====
 
 export type SearchEntityType =

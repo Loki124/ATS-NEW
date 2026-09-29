@@ -1,21 +1,10 @@
 // 标准简历配置：后端持久化 + 动态字段聚合
 // 字段数据来源：动态字段模块 resource='Candidate'
 // 配置落库端点：GET/POST/PUT /api/v1/standard-resume/（StandardResumeConfigView）
+import { api } from '../utils/request'
 
-import axios from 'axios'
 import config from '../config'
 import type { FieldDefinition, FieldGroup, FieldModule } from './dynamic-field'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 export const STANDARD_RESUME_API = '/standard-resume/'
 

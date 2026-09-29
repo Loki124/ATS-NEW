@@ -11,21 +11,9 @@
  *             /recruitment-rules/{stage-rules,candidates,applications,auto-archive-rules},
  *             /recruitment-rounds  ← BE 尚未挂载, 命中即 404 (G38 BE 60%, 待续).
  */
+import { api } from '../utils/request'
 
-import axios from 'axios';
 import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
 
 // ===== 类型定义 =====
 export interface RecruitmentProcess {

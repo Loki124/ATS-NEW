@@ -13,20 +13,9 @@
  *
  * 响应信封：{ success, data, pagination }；字段为 camelCase（drf-camel-case）。
  */
-import axios from 'axios'
+import { api } from '../utils/request'
+
 import config from '../config'
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-  if (token) cfg.headers.Authorization = `Bearer ${token}`
-  return cfg
-})
 
 /** 解标准信封：裸数组/对象与 {success,data} 两种形态都兼容 */
 function unwrap<T>(res: any): T {

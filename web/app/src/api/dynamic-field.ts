@@ -1,19 +1,7 @@
 // G42 - 动态字段定义 前端 API 客户端
+import { api } from '../utils/request'
 
-import axios from 'axios';
 import config from '../config';
-
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
 
 export type FieldType =
   | 'TEXT' | 'NUMBER' | 'RANGE_NUMBER' | 'DATE' | 'DATE_RANGE' | 'SELECT' | 'MULTISELECT' | 'BOOLEAN'
