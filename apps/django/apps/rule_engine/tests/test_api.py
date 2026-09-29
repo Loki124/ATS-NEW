@@ -58,8 +58,11 @@ def test_rules_list_filter_query_param(auth_client, fixed_dto, monkeypatch):
 def test_triggers_catalog(auth_client):
     resp = auth_client.get('/api/v1/rule-engine/triggers/')
     assert resp.status_code == 200
-    vals = [item['value'] for item in resp.data]
-    assert len(resp.data) == len(UnifiedTriggerType.choices)
+    # P1-3 统一信封：catalog 现返回 {success, data:[...]}，不再裸数组
+    body = resp.data
+    assert body['success'] is True
+    vals = [item['value'] for item in body['data']]
+    assert len(body['data']) == len(UnifiedTriggerType.choices)
     assert UnifiedTriggerType.STAGE_ENTERED in vals
     assert UnifiedTriggerType.BUSINESS_EVENT in vals
 
@@ -67,8 +70,10 @@ def test_triggers_catalog(auth_client):
 def test_operators_catalog(auth_client):
     resp = auth_client.get('/api/v1/rule-engine/operators/')
     assert resp.status_code == 200
-    vals = [item['value'] for item in resp.data]
-    assert len(resp.data) == len(UnifiedOperator.choices)
+    body = resp.data
+    assert body['success'] is True
+    vals = [item['value'] for item in body['data']]
+    assert len(body['data']) == len(UnifiedOperator.choices)
     assert 'BETWEEN' in vals
     assert 'IS_EMPTY' in vals
 

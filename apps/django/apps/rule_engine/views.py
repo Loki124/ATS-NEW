@@ -4,10 +4,10 @@
 聚合逻辑在 adapters.aggregate_rules（纯 DB 读 + 映射），本层只做分页与序列化。
 """
 from rest_framework import generics
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
 
 from .adapters import aggregate_rules
 from .models import UnifiedOperator, UnifiedTriggerType
@@ -38,16 +38,22 @@ class RuleListView(generics.ListAPIView):
 
 
 class TriggerCatalogView(APIView):
-    """触发器目录：返回 UnifiedTriggerType 的 (value, label) 列表。"""
+    """触发器目录：返回 UnifiedTriggerType 的 (value, label) 列表。
+
+    统一包信封 {success, data}（FE rule-engine.ts listTriggers 已容错裸数组/envelope）。
+    """
 
     def get(self, request):
         data = [{'value': v, 'label': l} for v, l in UnifiedTriggerType.choices]
-        return Response(data)
+        return success_response(data)
 
 
 class OperatorCatalogView(APIView):
-    """运算符目录：返回 UnifiedOperator 的 (value, label) 列表（11 种）。"""
+    """运算符目录：返回 UnifiedOperator 的 (value, label) 列表（11 种）。
+
+    统一包信封 {success, data}（FE rule-engine.ts listOperators 已容错裸数组/envelope）。
+    """
 
     def get(self, request):
         data = [{'value': v, 'label': l} for v, l in UnifiedOperator.choices]
-        return Response(data)
+        return success_response(data)
