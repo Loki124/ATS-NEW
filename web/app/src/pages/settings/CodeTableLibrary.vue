@@ -8,7 +8,7 @@
     <div class="data-body">
       <n-tabs v-model:value="activeTab" type="line" animated class="data-tabs">
         <!-- ===== 行政区划 ===== -->
-        <n-tab-pane name="regions" tab="行政区划">
+        <n-tab-pane name="regions" :tab="t('pages.settings.CodeTableLibrary.s7')">
           <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-select
@@ -48,7 +48,7 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadRegions">查询</n-button>
+              <n-button type="primary" @click="loadRegions">{{ t('pages.settings.CodeTableLibrary.s8') }}</n-button>
             </n-space>
 
             <div class="table-wrap">
@@ -69,19 +69,19 @@
         </n-tab-pane>
 
         <!-- ===== 国家区号 ===== -->
-        <n-tab-pane name="countries" tab="国家区号">
+        <n-tab-pane name="countries" :tab="t('pages.settings.CodeTableLibrary.s9')">
           <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="countryKeyword"
-                placeholder="搜索国家 / 区号（如 86）"
+                :placeholder="t('pages.settings.CodeTableLibrary.s10')"
                 clearable
                 style="width: 220px"
                 @keyup.enter="loadCountries"
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadCountries">查询</n-button>
+              <n-button type="primary" @click="loadCountries">{{ t('pages.settings.CodeTableLibrary.s11') }}</n-button>
             </n-space>
             <div class="table-wrap">
               <n-data-table
@@ -99,19 +99,19 @@
         </n-tab-pane>
 
         <!-- ===== 民族 ===== -->
-        <n-tab-pane name="ethnicities" tab="民族">
+        <n-tab-pane name="ethnicities" :tab="t('pages.settings.CodeTableLibrary.s12')">
           <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="ethnicKeyword"
-                placeholder="搜索民族 / 代码"
+                :placeholder="t('pages.settings.CodeTableLibrary.s13')"
                 clearable
                 style="width: 220px"
                 @keyup.enter="loadEthnicities"
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadEthnicities">查询</n-button>
+              <n-button type="primary" @click="loadEthnicities">{{ t('pages.settings.CodeTableLibrary.s14') }}</n-button>
             </n-space>
             <div class="table-wrap">
               <n-data-table
@@ -129,19 +129,19 @@
         </n-tab-pane>
 
         <!-- ===== 语言 ===== -->
-        <n-tab-pane name="languages" tab="语言类型">
+        <n-tab-pane name="languages" :tab="t('pages.settings.CodeTableLibrary.s15')">
           <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="langKeyword"
-                placeholder="搜索语言 / 代码"
+                :placeholder="t('pages.settings.CodeTableLibrary.s16')"
                 clearable
                 style="width: 220px"
                 @keyup.enter="loadLanguages"
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadLanguages">查询</n-button>
+              <n-button type="primary" @click="loadLanguages">{{ t('pages.settings.CodeTableLibrary.s17') }}</n-button>
             </n-space>
             <div class="table-wrap">
               <n-data-table
@@ -159,19 +159,19 @@
         </n-tab-pane>
 
         <!-- ===== 币种（ISO 4217） ===== -->
-        <n-tab-pane name="currencies" tab="币种">
+        <n-tab-pane name="currencies" :tab="t('pages.settings.CodeTableLibrary.s18')">
           <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-input
                 v-model:value="currencyKeyword"
-                placeholder="搜索币种 / 代码 / 符号"
+                :placeholder="t('pages.settings.CodeTableLibrary.s19')"
                 clearable
                 style="width: 240px"
                 @keyup.enter="loadCurrencies"
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadCurrencies">查询</n-button>
+              <n-button type="primary" @click="loadCurrencies">{{ t('pages.settings.CodeTableLibrary.s20') }}</n-button>
             </n-space>
             <div class="table-wrap">
               <n-data-table
@@ -189,27 +189,27 @@
         </n-tab-pane>
 
         <!-- ===== 行业（GB/T 4754） ===== -->
-        <n-tab-pane name="industries" tab="行业">
+        <n-tab-pane name="industries" :tab="t('pages.settings.CodeTableLibrary.s21')">
           <n-card class="tab-card">
             <n-space class="filter-row" :wrap="true">
               <n-select
                 v-model:value="industryLevel"
                 :options="industryLevelOptions"
-                placeholder="层级"
+                :placeholder="t('pages.settings.CodeTableLibrary.s22')"
                 clearable
                 style="width: 140px"
                 @update:value="loadIndustries"
               />
               <n-input
                 v-model:value="industryKeyword"
-                placeholder="搜索行业名称 / 代码"
+                :placeholder="t('pages.settings.CodeTableLibrary.s23')"
                 clearable
                 style="width: 220px"
                 @keyup.enter="loadIndustries"
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadIndustries">查询</n-button>
+              <n-button type="primary" @click="loadIndustries">{{ t('pages.settings.CodeTableLibrary.s24') }}</n-button>
             </n-space>
             <div class="table-wrap">
               <n-data-table
@@ -247,8 +247,8 @@ const message = useMessage();
 const activeTab = ref('regions');
 const loading = ref(false);
 
-const LEVEL_LABEL: Record<number, string> = { 1: '省级', 2: '地级', 3: '县级', 4: '乡级' };
-const INDUSTRY_LEVEL_LABEL: Record<number, string> = { 1: '门类', 2: '大类', 3: '中类', 4: '小类' };
+const LEVEL_LABEL: Record<number, string> = { 1: t('pages.settings.CodeTableLibrary.s51'), 2: t('pages.settings.CodeTableLibrary.s52'), 3: t('pages.settings.CodeTableLibrary.s53'), 4: t('pages.settings.CodeTableLibrary.s54') };
+const INDUSTRY_LEVEL_LABEL: Record<number, string> = { 1: t('pages.settings.CodeTableLibrary.s55'), 2: t('pages.settings.CodeTableLibrary.s56'), 3: t('pages.settings.CodeTableLibrary.s57'), 4: t('pages.settings.CodeTableLibrary.s58') };
 
 const toOptions = (list: { code: string; name: string }[]) =>
   list.map((r) => ({ label: r.name, value: r.code }));
@@ -283,13 +283,13 @@ const regionPagination = remotePagination({
 });
 
 const regionColumns = [
-  { title: '区划代码', key: 'code', width: 140 },
-  { title: '名称', key: 'name', width: 200 },
+  { title: t('pages.settings.CodeTableLibrary.s25'), key: 'code', width: 140 },
+  { title: t('pages.settings.CodeTableLibrary.s26'), key: 'name', width: 200 },
   {
-    title: '层级', key: 'level', width: 90,
+    title: t('pages.settings.CodeTableLibrary.s27'), key: 'level', width: 90,
     render: (row: Region) => h(NTag, { size: 'small', type: 'info' }, () => LEVEL_LABEL[row.level] || '-'),
   },
-  { title: '上级代码', key: 'parentCode', width: 140, render: (row: Region) => row.parentCode || '-' },
+  { title: t('pages.settings.CodeTableLibrary.s28'), key: 'parentCode', width: 140, render: (row: Region) => row.parentCode || '-' },
 ];
 
 async function loadRegions() {
@@ -306,7 +306,7 @@ async function loadRegions() {
     regionRows.value = res.data;
     regionTotal.value = res.pagination?.total ?? res.data.length;
   } catch (e: any) {
-    message.error('加载行政区划失败: ' + (e?.response?.data?.detail || e.message));
+    message.error(t('pages.settings.CodeTableLibrary.s59') + (e?.response?.data?.detail || e.message));
   } finally {
     loading.value = false;
   }
@@ -358,10 +358,10 @@ async function onCityChange() {
 const countryKeyword = ref('');
 const countryRows = ref<Country[]>([]);
 const countryColumns = [
-  { title: '区号', key: 'phoneCode', width: 100,
+  { title: t('pages.settings.CodeTableLibrary.s29'), key: 'phoneCode', width: 100,
     render: (row: Country) => h('span', { style: 'font-weight:600' }, row.phoneCode || '-') },
-  { title: '中文名称', key: 'nameCn', width: 160 },
-  { title: '英文名称', key: 'nameEn', width: 200 },
+  { title: t('pages.settings.CodeTableLibrary.s30'), key: 'nameCn', width: 160 },
+  { title: t('pages.settings.CodeTableLibrary.s31'), key: 'nameEn', width: 200 },
   { title: 'ISO alpha-2', key: 'code', width: 110 },
   { title: 'ISO alpha-3', key: 'code3', width: 110 },
 ];
@@ -372,7 +372,7 @@ async function loadCountries() {
     const res = await fetchCountries({ keyword: countryKeyword.value || undefined, page_size: 300 });
     countryRows.value = res.data;
   } catch (e: any) {
-    message.error('加载国家失败: ' + (e?.response?.data?.detail || e.message));
+    message.error(t('pages.settings.CodeTableLibrary.s60') + (e?.response?.data?.detail || e.message));
   } finally {
     loading.value = false;
   }
@@ -382,9 +382,9 @@ async function loadCountries() {
 const ethnicKeyword = ref('');
 const ethnicRows = ref<Ethnicity[]>([]);
 const ethnicColumns = [
-  { title: '数字代码', key: 'code', width: 110 },
-  { title: '民族', key: 'name', width: 160 },
-  { title: '罗马字母码', key: 'letterCode', width: 120, render: (row: Ethnicity) => row.letterCode || '-' },
+  { title: t('pages.settings.CodeTableLibrary.s32'), key: 'code', width: 110 },
+  { title: t('pages.settings.CodeTableLibrary.s33'), key: 'name', width: 160 },
+  { title: t('pages.settings.CodeTableLibrary.s34'), key: 'letterCode', width: 120, render: (row: Ethnicity) => row.letterCode || '-' },
 ];
 
 async function loadEthnicities() {
@@ -393,7 +393,7 @@ async function loadEthnicities() {
     const res = await fetchEthnicities({ keyword: ethnicKeyword.value || undefined, page_size: 200 });
     ethnicRows.value = res.data;
   } catch (e: any) {
-    message.error('加载民族失败: ' + (e?.response?.data?.detail || e.message));
+    message.error(t('pages.settings.CodeTableLibrary.s61') + (e?.response?.data?.detail || e.message));
   } finally {
     loading.value = false;
   }
@@ -403,9 +403,9 @@ async function loadEthnicities() {
 const langKeyword = ref('');
 const langRows = ref<Language[]>([]);
 const langColumns = [
-  { title: '代码', key: 'code', width: 110 },
-  { title: '中文名称', key: 'nameCn', width: 200 },
-  { title: '英文名称', key: 'nameEn', width: 200 },
+  { title: t('pages.settings.CodeTableLibrary.s35'), key: 'code', width: 110 },
+  { title: t('pages.settings.CodeTableLibrary.s36'), key: 'nameCn', width: 200 },
+  { title: t('pages.settings.CodeTableLibrary.s37'), key: 'nameEn', width: 200 },
 ];
 
 async function loadLanguages() {
@@ -414,7 +414,7 @@ async function loadLanguages() {
     const res = await fetchLanguages({ keyword: langKeyword.value || undefined, page_size: 700 });
     langRows.value = res.data;
   } catch (e: any) {
-    message.error('加载语言失败: ' + (e?.response?.data?.detail || e.message));
+    message.error(t('pages.settings.CodeTableLibrary.s62') + (e?.response?.data?.detail || e.message));
   } finally {
     loading.value = false;
   }
@@ -424,11 +424,11 @@ async function loadLanguages() {
 const currencyKeyword = ref('');
 const currencyRows = ref<Currency[]>([]);
 const currencyColumns = [
-  { title: '代码', key: 'code', width: 90 },
-  { title: '数字代码', key: 'codeNumeric', width: 100, render: (row: Currency) => row.codeNumeric || '-' },
-  { title: '符号', key: 'symbol', width: 80, render: (row: Currency) => row.symbol || '-' },
-  { title: '中文名称', key: 'nameCn', width: 160 },
-  { title: '英文名称', key: 'nameEn', width: 220 },
+  { title: t('pages.settings.CodeTableLibrary.s38'), key: 'code', width: 90 },
+  { title: t('pages.settings.CodeTableLibrary.s39'), key: 'codeNumeric', width: 100, render: (row: Currency) => row.codeNumeric || '-' },
+  { title: t('pages.settings.CodeTableLibrary.s40'), key: 'symbol', width: 80, render: (row: Currency) => row.symbol || '-' },
+  { title: t('pages.settings.CodeTableLibrary.s41'), key: 'nameCn', width: 160 },
+  { title: t('pages.settings.CodeTableLibrary.s42'), key: 'nameEn', width: 220 },
 ];
 
 async function loadCurrencies() {
@@ -437,7 +437,7 @@ async function loadCurrencies() {
     const res = await fetchCurrencies({ keyword: currencyKeyword.value || undefined, page_size: 300 });
     currencyRows.value = res.data;
   } catch (e: any) {
-    message.error('加载币种失败: ' + (e?.response?.data?.detail || e.message));
+    message.error(t('pages.settings.CodeTableLibrary.s63') + (e?.response?.data?.detail || e.message));
   } finally {
     loading.value = false;
   }
@@ -448,19 +448,19 @@ const industryLevel = ref<number | null>(null);
 const industryKeyword = ref('');
 const industryRows = ref<Industry[]>([]);
 const industryLevelOptions = [
-  { label: '门类', value: 1 },
-  { label: '大类', value: 2 },
-  { label: '中类', value: 3 },
-  { label: '小类', value: 4 },
+  { label: t('pages.settings.CodeTableLibrary.s43'), value: 1 },
+  { label: t('pages.settings.CodeTableLibrary.s44'), value: 2 },
+  { label: t('pages.settings.CodeTableLibrary.s45'), value: 3 },
+  { label: t('pages.settings.CodeTableLibrary.s46'), value: 4 },
 ];
 const industryColumns = [
-  { title: '代码', key: 'code', width: 100 },
-  { title: '名称', key: 'name', width: 260 },
+  { title: t('pages.settings.CodeTableLibrary.s47'), key: 'code', width: 100 },
+  { title: t('pages.settings.CodeTableLibrary.s48'), key: 'name', width: 260 },
   {
-    title: '层级', key: 'level', width: 90,
+    title: t('pages.settings.CodeTableLibrary.s49'), key: 'level', width: 90,
     render: (row: Industry) => h(NTag, { size: 'small', type: 'info' }, () => INDUSTRY_LEVEL_LABEL[row.level] || '-'),
   },
-  { title: '上级代码', key: 'parentCode', width: 120, render: (row: Industry) => row.parentCode || '-' },
+  { title: t('pages.settings.CodeTableLibrary.s50'), key: 'parentCode', width: 120, render: (row: Industry) => row.parentCode || '-' },
 ];
 
 async function loadIndustries() {
@@ -473,7 +473,7 @@ async function loadIndustries() {
     });
     industryRows.value = res.data;
   } catch (e: any) {
-    message.error('加载行业失败: ' + (e?.response?.data?.detail || e.message));
+    message.error(t('pages.settings.CodeTableLibrary.s64') + (e?.response?.data?.detail || e.message));
   } finally {
     loading.value = false;
   }

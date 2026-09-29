@@ -2,7 +2,7 @@
   <div class="page-container company-library">
     <div class="page-header">
       <h1 class="page-title">{{ t('pages.settings.CompanyLibrary.s1') }}</h1>
-      <p class="page-subtitle">G41 - 公司信息库 (央企/民企/外企)</p>
+      <p class="page-subtitle">{{ t('pages.settings.CompanyLibrary.s3') }}</p>
     </div>
 
     <div class="data-body">
@@ -14,7 +14,7 @@
         <n-space class="filter-row" :wrap="true">
           <n-input
             v-model:value="filters.keyword"
-            placeholder="搜索公司名 / 代码"
+            :placeholder="t('pages.settings.CompanyLibrary.s4')"
             clearable
             style="width: 240px"
             @keyup.enter="reload"
@@ -24,7 +24,7 @@
           <n-select
             v-model:value="filters.industry"
             :options="industryOptions"
-            placeholder="行业"
+            :placeholder="t('pages.settings.CompanyLibrary.s5')"
             clearable
             style="width: 160px"
             @update:value="reload"
@@ -32,12 +32,12 @@
           <n-select
             v-model:value="filters.scale"
             :options="SCALE_OPTIONS"
-            placeholder="规模"
+            :placeholder="t('pages.settings.CompanyLibrary.s6')"
             clearable
             style="width: 140px"
             @update:value="reload"
           />
-          <n-button type="primary" @click="reload">搜索</n-button>
+          <n-button type="primary" @click="reload">{{ t('pages.settings.CompanyLibrary.s7') }}</n-button>
         </n-space>
 
         <div class="table-wrap">
@@ -82,32 +82,32 @@ const rows = ref<Company[]>([]);
 const loading = ref(false);
 
 const columns = [
-  { title: '代码', key: 'code', width: 130 },
-  { title: '公司名称', key: 'name', width: 240, render: (row: Company) => h('span', { style: 'font-weight: 500' }, row.name) },
+  { title: t('pages.settings.CompanyLibrary.s8'), key: 'code', width: 130 },
+  { title: t('pages.settings.CompanyLibrary.s9'), key: 'name', width: 240, render: (row: Company) => h('span', { style: 'font-weight: 500' }, row.name) },
   {
-    title: '标杆',
+    title: t('pages.settings.CompanyLibrary.s10'),
     key: 'isBenchmark',
     width: 70,
     render: (row: Company) =>
       row.isBenchmark
-        ? h(NTag, { size: 'small', type: 'warning', round: true }, { default: () => '标杆', icon: () => h(StarOutline) })
+        ? h(NTag, { size: 'small', type: 'warning', round: true }, { default: () => t('pages.settings.CompanyLibrary.s16'), icon: () => h(StarOutline) })
         : '-',
   },
   {
-    title: '行业',
+    title: t('pages.settings.CompanyLibrary.s11'),
     key: 'industry',
     width: 110,
     render: (row: Company) => row.industry ? h(NTag, { size: 'small', type: 'info' }, () => row.industry) : '-',
   },
   {
-    title: '规模',
+    title: t('pages.settings.CompanyLibrary.s12'),
     key: 'scale',
     width: 100,
     render: (row: Company) => row.scale ? h(NTag, { size: 'small', type: 'success' }, () => row.scale) : '-',
   },
-  { title: '简介', key: 'description', ellipsis: { tooltip: true } },
+  { title: t('pages.settings.CompanyLibrary.s13'), key: 'description', ellipsis: { tooltip: true } },
   {
-    title: '操作',
+    title: t('pages.settings.CompanyLibrary.s14'),
     key: 'action',
     width: 100,
     fixed: 'right' as const,
@@ -116,7 +116,7 @@ const columns = [
         size: 'tiny',
         quaternary: true,
         onClick: () => viewDetail(row),
-      }, { default: () => '查看', icon: () => h(OpenOutline) }),
+      }, { default: () => t('pages.settings.CompanyLibrary.s17'), icon: () => h(OpenOutline) }),
   },
 ];
 
@@ -138,7 +138,7 @@ async function reload() {
       scale: filters.scale || undefined,
     });
   } catch (e: any) {
-    message.error('加载公司失败: ' + (e?.response?.data?.message || e.message));
+    message.error(t('pages.settings.CompanyLibrary.s18') + (e?.response?.data?.message || e.message));
   } finally {
     loading.value = false;
   }
@@ -149,7 +149,7 @@ async function viewDetail(row: Company) {
     const detail = await getCompany(row.id);
     message.info(`${detail.name} - ${detail.industry || '-'} / ${detail.scale || '-'}`);
   } catch (e) {
-    message.error('加载详情失败');
+    message.error(t('pages.settings.CompanyLibrary.s15'));
   }
 }
 

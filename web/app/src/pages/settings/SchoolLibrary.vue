@@ -17,7 +17,7 @@
         <n-space class="filter-row" :wrap="true">
           <n-input
             v-model:value="filters.keyword"
-            placeholder="搜索院校名 / 代码"
+            :placeholder="t('pages.settings.SchoolLibrary.s5')"
             clearable
             style="width: 240px"
             @keyup.enter="reload"
@@ -27,7 +27,7 @@
           <n-select
             v-model:value="filters.educationLevel"
             :options="schoolEduOptions"
-            placeholder="教育层次"
+            :placeholder="t('pages.settings.SchoolLibrary.s6')"
             clearable
             style="width: 120px"
             @update:value="reload"
@@ -35,7 +35,7 @@
           <n-select
             v-model:value="filters.schoolType"
             :options="schoolTypeOptions"
-            placeholder="院校类型"
+            :placeholder="t('pages.settings.SchoolLibrary.s7')"
             clearable
             filterable
             style="width: 130px"
@@ -44,7 +44,7 @@
           <n-select
             v-model:value="filters.schoolCategory"
             :options="schoolCategoryOptions"
-            placeholder="办学性质"
+            :placeholder="t('pages.settings.SchoolLibrary.s8')"
             clearable
             style="width: 120px"
             @update:value="reload"
@@ -52,7 +52,7 @@
           <n-select
             v-model:value="filters.province"
             :options="schoolProvinceOptions"
-            placeholder="省份"
+            :placeholder="t('pages.settings.SchoolLibrary.s9')"
             clearable
             filterable
             style="width: 130px"
@@ -61,13 +61,13 @@
           <n-select
             v-model:value="filters.tag"
             :options="schoolTagOptions"
-            placeholder="院校标签"
+            :placeholder="t('pages.settings.SchoolLibrary.s10')"
             clearable
             filterable
             style="width: 150px"
             @update:value="reload"
           />
-          <n-button type="primary" @click="reload">搜索</n-button>
+          <n-button type="primary" @click="reload">{{ t('pages.settings.SchoolLibrary.s11') }}</n-button>
         </n-space>
 
         <div class="table-wrap">
@@ -87,35 +87,35 @@
 
       <!-- 院校详情抽屉 -->
       <n-drawer v-model:show="detailVisible" :width="560" placement="right">
-        <n-drawer-content :title="detailRow?.name || '院校详情'" closable>
+        <n-drawer-content :title="detailRow?.name || t('pages.settings.SchoolLibrary.s46')" closable>
           <n-descriptions bordered :column="1" label-placement="left" size="small">
-            <n-descriptions-item label="院校代码">{{ detailRow?.code || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="曾用名">
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s12')">{{ detailRow?.code || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s13')">
               {{ (detailRow?.formerNames || '').split('|').filter(Boolean).join('、') || '-' }}
             </n-descriptions-item>
-            <n-descriptions-item label="教育层次">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="院校类型">{{ detailRow?.schoolType || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="办学性质">{{ detailRow?.schoolCategory || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="地区">
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s14')">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s15')">{{ detailRow?.schoolType || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s16')">{{ detailRow?.schoolCategory || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s17')">
               {{ [detailRow?.province, detailRow?.city].filter(Boolean).join(' / ') || '-' }}
             </n-descriptions-item>
-            <n-descriptions-item label="主管部门">{{ detailRow?.affiliatedTo || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="详细地址">{{ detailRow?.location || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="院校标签">
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s18')">{{ detailRow?.affiliatedTo || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s19')">{{ detailRow?.location || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s20')">
               <n-space v-if="tagListOf(detailRow).length" :size="[4, 4]">
                 <n-tag v-for="tag in tagListOf(detailRow)" :key="tag" size="small" type="info">{{ tag }}</n-tag>
               </n-space>
               <span v-else>-</span>
             </n-descriptions-item>
-            <n-descriptions-item label="状态">{{ detailRow?.status || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="最后更新">{{ detailRow?.updatedAt ? formatTime(detailRow.updatedAt) : '-' }}</n-descriptions-item>
-            <n-descriptions-item label="人工维护">
-              {{ detailRow?.isCustomized ? '是（导入不会覆盖）' : '否（导入会覆盖）' }}
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s21')">{{ detailRow?.status || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s22')">{{ detailRow?.updatedAt ? formatTime(detailRow.updatedAt) : '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s23')">
+              {{ detailRow?.isCustomized ? t('pages.settings.SchoolLibrary.s63') : t('pages.settings.SchoolLibrary.s64') }}
             </n-descriptions-item>
           </n-descriptions>
           <template #footer>
             <n-space>
-              <n-button @click="detailVisible = false">关闭</n-button>
+              <n-button @click="detailVisible = false">{{ t('pages.settings.SchoolLibrary.s24') }}</n-button>
               <n-button type="primary" @click="openEdit(detailRow!)">编辑</n-button>
             </n-space>
           </template>
@@ -126,56 +126,56 @@
       <n-modal
         v-model:show="editVisible"
         preset="card"
-        :title="editingId ? '编辑院校' : '新增院校'"
+        :title="editingId ? t('pages.settings.SchoolLibrary.s61') : t('pages.settings.SchoolLibrary.s62')"
         style="width: 680px"
         :mask-closable="false"
       >
         <n-form ref="editFormRef" :model="editForm" :rules="editRules" label-placement="left" label-width="96">
-          <n-form-item label="院校名称" path="name">
-            <n-input v-model:value="editForm.name" placeholder="必填" maxlength="200" />
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s26')" path="name">
+            <n-input v-model:value="editForm.name" :placeholder="t('pages.settings.SchoolLibrary.s27')" maxlength="200" />
           </n-form-item>
-          <n-form-item label="院校代码" path="code">
-            <n-input v-model:value="editForm.code" placeholder="必填，唯一" maxlength="50" />
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s28')" path="code">
+            <n-input v-model:value="editForm.code" :placeholder="t('pages.settings.SchoolLibrary.s29')" maxlength="50" />
           </n-form-item>
-          <n-form-item label="曾用名">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s30')">
             <n-dynamic-tags v-model:value="formerNameList" />
           </n-form-item>
-          <n-form-item label="教育层次">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s31')">
             <n-select v-model:value="editForm.educationLevel" :options="schoolEduOptions" clearable filterable
-              tag placeholder="可输入自定义值" />
+              tag :placeholder="t('pages.settings.SchoolLibrary.s32')" />
           </n-form-item>
-          <n-form-item label="院校类型">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s33')">
             <n-select v-model:value="editForm.schoolType" :options="schoolTypeOptions" clearable filterable
-              tag placeholder="可输入自定义值" />
+              tag :placeholder="t('pages.settings.SchoolLibrary.s34')" />
           </n-form-item>
-          <n-form-item label="办学性质">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s35')">
             <n-select v-model:value="editForm.schoolCategory" :options="schoolCategoryOptions" clearable
-              tag placeholder="如 公办 / 民办" />
+              tag :placeholder="t('pages.settings.SchoolLibrary.s36')" />
           </n-form-item>
-          <n-form-item label="地区">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s37')">
             <n-space :wrap="false">
               <n-select v-model:value="editForm.province" :options="schoolProvinceOptions" clearable filterable
-                tag placeholder="省份" style="width: 150px" />
-              <n-input v-model:value="editForm.city" placeholder="城市" style="width: 150px" />
+                tag :placeholder="t('pages.settings.SchoolLibrary.s38')" style="width: 150px" />
+              <n-input v-model:value="editForm.city" :placeholder="t('pages.settings.SchoolLibrary.s39')" style="width: 150px" />
             </n-space>
           </n-form-item>
-          <n-form-item label="主管部门">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s40')">
             <n-input v-model:value="editForm.affiliatedTo" maxlength="100" />
           </n-form-item>
-          <n-form-item label="详细地址">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s41')">
             <n-input v-model:value="editForm.location" maxlength="200" />
           </n-form-item>
-          <n-form-item label="院校标签">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s42')">
             <n-dynamic-tags v-model:value="editTagList" />
           </n-form-item>
-          <n-form-item label="状态">
+          <n-form-item :label="t('pages.settings.SchoolLibrary.s43')">
             <n-select v-model:value="editForm.status" :options="STATUS_OPTIONS" />
           </n-form-item>
         </n-form>
         <template #footer>
           <n-space justify="end">
-            <n-button :disabled="saving" @click="editVisible = false">取消</n-button>
-            <n-button type="primary" :loading="saving" :disabled="saving" @click="submitEdit">保存</n-button>
+            <n-button :disabled="saving" @click="editVisible = false">{{ t('pages.settings.SchoolLibrary.s44') }}</n-button>
+            <n-button type="primary" :loading="saving" :disabled="saving" @click="submitEdit">{{ t('pages.settings.SchoolLibrary.s45') }}</n-button>
           </n-space>
         </template>
       </n-modal>
@@ -227,16 +227,16 @@ const rows = ref<School[]>([]);
 const loading = ref(false);
 
 const columns = [
-  { title: '代码', key: 'code', width: 100 },
+  { title: t('pages.settings.SchoolLibrary.s47'), key: 'code', width: 100 },
   {
-    title: '院校名称',
+    title: t('pages.settings.SchoolLibrary.s48'),
     key: 'name',
     width: 200,
     render: (row: School) => h('span', { style: 'font-weight: 500' }, row.name),
   },
   {
     // 曾用名：更名前的校名，搜索关键词也会命中它（简历上常写旧校名）
-    title: '曾用名',
+    title: t('pages.settings.SchoolLibrary.s49'),
     key: 'formerNames',
     width: 150,
     ellipsis: { tooltip: true },
@@ -248,19 +248,19 @@ const columns = [
     },
   },
   {
-    title: '教育层次',
+    title: t('pages.settings.SchoolLibrary.s50'),
     key: 'educationLevel',
     width: 100,
     render: (row: School) => row.educationLevel ? h(NTag, { size: 'small', type: 'info' }, () => row.educationLevel) : '-',
   },
   {
-    title: '院校类型',
+    title: t('pages.settings.SchoolLibrary.s51'),
     key: 'schoolType',
     width: 100,
     render: (row: School) => row.schoolType ? h(NTag, { size: 'small', type: 'success' }, () => row.schoolType) : '-',
   },
   {
-    title: '办学性质',
+    title: t('pages.settings.SchoolLibrary.s52'),
     key: 'schoolCategory',
     width: 90,
     render: (row: School) => {
@@ -269,16 +269,16 @@ const columns = [
       return h(NTag, { size: 'small', type: color }, () => v);
     },
   },
-  { title: '省份', key: 'province', width: 90 },
-  { title: '城市', key: 'city', width: 90 },
+  { title: t('pages.settings.SchoolLibrary.s53'), key: 'province', width: 90 },
+  { title: t('pages.settings.SchoolLibrary.s54'), key: 'city', width: 90 },
   {
-    title: '主管部门',
+    title: t('pages.settings.SchoolLibrary.s55'),
     key: 'affiliatedTo',
     width: 140,
     render: (row: School) => row.affiliatedTo || '-',
   },
   {
-    title: '标签',
+    title: t('pages.settings.SchoolLibrary.s56'),
     key: 'tags',
     width: 220,
     render: (row: School) => {
@@ -296,9 +296,9 @@ const columns = [
       }, chips);
     },
   },
-  { title: '地址', key: 'location', width: 200, ellipsis: { tooltip: true } },
+  { title: t('pages.settings.SchoolLibrary.s57'), key: 'location', width: 200, ellipsis: { tooltip: true } },
   {
-    title: '操作',
+    title: t('pages.settings.SchoolLibrary.s58'),
     key: 'action',
     width: 140,
     fixed: 'right' as const,
@@ -309,13 +309,13 @@ const columns = [
             size: 'tiny',
             quaternary: true,
             onClick: () => openDetail(row),
-          }, { default: () => '查看', icon: () => h(OpenOutline) }),
+          }, { default: () => t('pages.settings.SchoolLibrary.s65'), icon: () => h(OpenOutline) }),
           h(NButton, {
             size: 'tiny',
             quaternary: true,
             type: 'primary',
             onClick: () => openEdit(row),
-          }, { default: () => '编辑', icon: () => h(CreateOutline) }),
+          }, { default: () => t('pages.settings.SchoolLibrary.s66'), icon: () => h(CreateOutline) }),
         ],
       }),
   },
@@ -337,7 +337,7 @@ async function reload() {
       tag: filters.tag || undefined,
     });
   } catch (e: any) {
-    message.error('加载院校失败: ' + (e?.response?.data?.message || e.message));
+    message.error(t('pages.settings.SchoolLibrary.s67') + (e?.response?.data?.message || e.message));
   } finally {
     loading.value = false;
   }
@@ -353,8 +353,8 @@ async function loadSchoolFacets() {
 
 // ===== 院校：详情抽屉 + 编辑弹窗 =====
 const STATUS_OPTIONS = [
-  { label: '启用', value: 'ACTIVE' },
-  { label: '停用', value: 'INACTIVE' },
+  { label: t('pages.settings.SchoolLibrary.s59'), value: 'ACTIVE' },
+  { label: t('pages.settings.SchoolLibrary.s60'), value: 'INACTIVE' },
 ];
 
 const detailVisible = ref(false);
@@ -371,8 +371,8 @@ const editTagList = ref<string[]>([]);
 const formerNameList = ref<string[]>([]);
 
 const editRules: FormRules = {
-  name: { required: true, message: '请填写院校名称', trigger: 'blur' },
-  code: { required: true, message: '请填写院校代码', trigger: 'blur' },
+    name: { required: true, message: t('pages.settings.SchoolLibrary.s68'), trigger: 'blur' },
+    code: { required: true, message: t('pages.settings.SchoolLibrary.s69'), trigger: 'blur' },
 };
 
 const tagListOf = (row: School | null) => (row?.tags || '').split('|').filter(Boolean);
@@ -436,11 +436,11 @@ async function submitEdit() {
     } else {
       await createSchool(payload);
     }
-    message.success(editingId.value ? '已保存院校信息' : '已新增院校');
+    message.success(editingId.value ? t('pages.settings.SchoolLibrary.s70') : t('pages.settings.SchoolLibrary.s71'));
     editVisible.value = false;
     await Promise.all([reload(), loadSchoolFacets()]);
   } catch (e: any) {
-    message.error('保存失败: ' + (e?.response?.data?.message || e.message));
+    message.error(t('pages.settings.SchoolLibrary.s72') + (e?.response?.data?.message || e.message));
   } finally {
     saving.value = false;
   }

@@ -14,7 +14,7 @@
         <n-space class="filter-row" :wrap="true">
           <n-input
             v-model:value="filters.keyword"
-            placeholder="搜索专业名称 / 代码"
+            :placeholder="t('pages.settings.MajorLibrary.s4')"
             clearable
             style="width: 220px"
             @keyup.enter="reload"
@@ -24,7 +24,7 @@
           <n-select
             v-model:value="filters.discipline"
             :options="disciplineOptions"
-            placeholder="门类"
+            :placeholder="t('pages.settings.MajorLibrary.s5')"
             clearable
             filterable
             style="width: 160px"
@@ -33,7 +33,7 @@
           <n-select
             v-model:value="filters.category"
             :options="categoryOptions"
-            placeholder="专业类"
+            :placeholder="t('pages.settings.MajorLibrary.s6')"
             clearable
             filterable
             style="width: 180px"
@@ -42,12 +42,12 @@
           <n-select
             v-model:value="filters.educationLevel"
             :options="eduOptions"
-            placeholder="学历层次"
+            :placeholder="t('pages.settings.MajorLibrary.s7')"
             clearable
             style="width: 170px"
             @update:value="reload"
           />
-          <n-button type="primary" @click="reload">搜索</n-button>
+          <n-button type="primary" @click="reload">{{ t('pages.settings.MajorLibrary.s8') }}</n-button>
         </n-space>
 
         <div class="table-wrap">
@@ -67,23 +67,23 @@
 
       <!-- 专业详情抽屉（专业介绍全文 + 阳光高考链接） -->
       <n-drawer v-model:show="detailVisible" :width="560" placement="right">
-        <n-drawer-content :title="detailRow?.name || '专业详情'" closable>
+        <n-drawer-content :title="detailRow?.name || t('pages.settings.MajorLibrary.s29')" closable>
           <n-descriptions bordered :column="1" label-placement="left" size="small">
-            <n-descriptions-item label="专业代码">{{ detailRow?.code || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="门类">{{ detailRow?.discipline || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="专业类">{{ detailRow?.category || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="学历层次">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="数据年份">{{ detailRow?.dataYear || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="人工维护">
-              {{ detailRow?.isCustomized ? '是（导入不会覆盖）' : '否（导入会覆盖）' }}
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s9')">{{ detailRow?.code || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s10')">{{ detailRow?.discipline || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s11')">{{ detailRow?.category || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s12')">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s13')">{{ detailRow?.dataYear || '-' }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s14')">
+              {{ detailRow?.isCustomized ? t('pages.settings.MajorLibrary.s39') : t('pages.settings.MajorLibrary.s40') }}
             </n-descriptions-item>
-            <n-descriptions-item label="专业介绍">
+            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s15')">
               <div style="white-space: pre-wrap; line-height: 1.6">{{ detailRow?.intro || '-' }}</div>
             </n-descriptions-item>
           </n-descriptions>
           <template #footer>
             <n-space>
-              <n-button @click="detailVisible = false">关闭</n-button>
+              <n-button @click="detailVisible = false">{{ t('pages.settings.MajorLibrary.s16') }}</n-button>
               <n-button
                 v-if="detailRow?.detailUrl"
                 tag="a"
@@ -91,7 +91,7 @@
                 target="_blank"
                 rel="noopener"
               >
-                阳光高考原文
+                {{ t('pages.settings.MajorLibrary.s17') }}
               </n-button>
               <n-button type="primary" @click="openEdit(detailRow!)">编辑</n-button>
             </n-space>
@@ -103,27 +103,27 @@
       <n-modal
         v-model:show="editVisible"
         preset="card"
-        title="编辑专业"
+        :title="t('pages.settings.MajorLibrary.s18')"
         style="width: 640px"
         :mask-closable="false"
       >
         <n-form :model="editForm" label-placement="left" label-width="96">
-          <n-form-item label="专业名称"><n-input v-model:value="editForm.name" /></n-form-item>
-          <n-form-item label="专业代码"><n-input v-model:value="editForm.code" /></n-form-item>
-          <n-form-item label="门类"><n-input v-model:value="editForm.discipline" /></n-form-item>
-          <n-form-item label="专业类"><n-input v-model:value="editForm.category" /></n-form-item>
-          <n-form-item label="学历层次"><n-input v-model:value="editForm.educationLevel" /></n-form-item>
-          <n-form-item label="数据年份"><n-input v-model:value="editForm.dataYear" /></n-form-item>
-          <n-form-item label="详情 URL"><n-input v-model:value="editForm.detailUrl" /></n-form-item>
-          <n-form-item label="专业介绍">
+          <n-form-item :label="t('pages.settings.MajorLibrary.s19')"><n-input v-model:value="editForm.name" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s20')"><n-input v-model:value="editForm.code" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s21')"><n-input v-model:value="editForm.discipline" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s22')"><n-input v-model:value="editForm.category" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s23')"><n-input v-model:value="editForm.educationLevel" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s24')"><n-input v-model:value="editForm.dataYear" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s25')"><n-input v-model:value="editForm.detailUrl" /></n-form-item>
+          <n-form-item :label="t('pages.settings.MajorLibrary.s26')">
             <n-input v-model:value="editForm.intro" type="textarea" :rows="6" />
           </n-form-item>
         </n-form>
         <template #footer>
           <n-space justify="end">
-            <n-button :disabled="saving" @click="editVisible = false">取消</n-button>
+            <n-button :disabled="saving" @click="editVisible = false">{{ t('pages.settings.MajorLibrary.s27') }}</n-button>
             <n-button type="primary" :loading="saving" :disabled="saving" @click="submitEdit">
-              保存
+              {{ t('pages.settings.MajorLibrary.s28') }}
             </n-button>
           </n-space>
         </template>
@@ -163,44 +163,44 @@ const categoryOptions = computed(() => toOptions(facets.value.categories));
 const eduOptions = computed(() => toOptions(facets.value.educationLevels));
 
 const columns = [
-  { title: '专业代码', key: 'code', width: 100 },
+  { title: t('pages.settings.MajorLibrary.s30'), key: 'code', width: 100 },
   {
-    title: '专业名称', key: 'name', width: 180,
+    title: t('pages.settings.MajorLibrary.s31'), key: 'name', width: 180,
     render: (row: Major) => h('span', { style: 'font-weight: 500' }, row.name),
   },
   {
-    title: '门类', key: 'discipline', width: 100,
+    title: t('pages.settings.MajorLibrary.s32'), key: 'discipline', width: 100,
     render: (row: Major) => row.discipline
       ? h(NTag, { size: 'small', type: 'info' }, () => row.discipline) : '-',
   },
   {
-    title: '专业类', key: 'category', width: 150,
+    title: t('pages.settings.MajorLibrary.s33'), key: 'category', width: 150,
     render: (row: Major) => row.category
       ? h(NTag, { size: 'small', type: 'success' }, () => row.category) : '-',
   },
   {
-    title: '学历层次', key: 'educationLevel', width: 140,
+    title: t('pages.settings.MajorLibrary.s34'), key: 'educationLevel', width: 140,
     render: (row: Major) => row.educationLevel
       ? h(NTag, { size: 'small', type: 'warning' }, () => row.educationLevel) : '-',
   },
-  { title: '年份', key: 'dataYear', width: 80 },
+  { title: t('pages.settings.MajorLibrary.s35'), key: 'dataYear', width: 80 },
   {
-    title: '专业介绍', key: 'intro', width: 320, ellipsis: { tooltip: true },
+    title: t('pages.settings.MajorLibrary.s36'), key: 'intro', width: 320, ellipsis: { tooltip: true },
     render: (row: Major) => row.intro || '-',
   },
   {
-    title: '操作', key: 'action', width: 140, fixed: 'right' as const,
+    title: t('pages.settings.MajorLibrary.s37'), key: 'action', width: 140, fixed: 'right' as const,
     render: (row: Major) =>
       h(NSpace, { size: 2, justify: 'center', wrap: false }, {
         default: () => [
           h(NButton, {
             size: 'tiny', quaternary: true,
             onClick: () => openDetail(row),
-          }, { default: () => '查看', icon: () => h(OpenOutline) }),
+          }, { default: () => t('pages.settings.MajorLibrary.s41'), icon: () => h(OpenOutline) }),
           h(NButton, {
             size: 'tiny', quaternary: true, type: 'primary',
             onClick: () => openEdit(row),
-          }, { default: () => '编辑', icon: () => h(CreateOutline) }),
+          }, { default: () => t('pages.settings.MajorLibrary.s42'), icon: () => h(CreateOutline) }),
         ],
       }),
   },
@@ -220,7 +220,7 @@ async function reload() {
       educationLevel: filters.educationLevel || undefined,
     });
   } catch (e: any) {
-    message.error('加载专业失败: ' + (e?.response?.data?.message || e.message));
+    message.error(t('pages.settings.MajorLibrary.s43') + (e?.response?.data?.message || e.message));
   } finally {
     loading.value = false;
   }
@@ -271,11 +271,11 @@ async function submitEdit() {
   saving.value = true;
   try {
     await updateMajor(row.id, { ...editForm });
-    message.success('已保存专业信息');
+    message.success(t('pages.settings.MajorLibrary.s38'));
     editVisible.value = false;
     await reload();
   } catch (e: any) {
-    message.error('保存失败: ' + (e?.response?.data?.message || e.message));
+    message.error(t('pages.settings.MajorLibrary.s44') + (e?.response?.data?.message || e.message));
   } finally {
     saving.value = false;
   }
