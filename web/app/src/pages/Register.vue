@@ -40,7 +40,7 @@
           <n-form-item path="fullName">
             <n-input
               v-model:value="form.fullName"
-              placeholder="姓名"
+              :placeholder="t('pages.Register.s4')"
               size="large"
               class="glass-input login-input"
               :disabled="submitting"
@@ -54,7 +54,7 @@
               v-model:value="form.password"
               type="password"
               show-password-on="click"
-              placeholder="密码（至少 8 位，含字母和数字）"
+              :placeholder="t('pages.Register.s5')"
               size="large"
               class="glass-input login-input"
               :disabled="submitting"
@@ -72,7 +72,7 @@
               :loading="submitting"
               attr-type="submit"
             >
-              提交注册并获取验证码
+              {{ t('pages.Register.s6') }}
             </n-button>
           </n-form-item>
         </n-form>
@@ -80,13 +80,13 @@
         <!-- 步骤 2：输入邮箱验证码 -->
         <div v-else-if="step === 'verify'" class="verify-block">
           <n-alert type="info" :show-icon="true" class="verify-tip">
-            验证码已发送至 <strong>{{ form.email }}</strong>，请查收邮件并填写 6 位验证码。验证通过后，申请将提交管理员审核，审核通过即可登录。
+            {{ t('pages.Register.s7', { email: form.email }) }}
           </n-alert>
 
           <div class="code-input-wrapper">
             <n-input
               v-model:value="form.code"
-              placeholder="6 位验证码"
+              :placeholder="t('pages.Register.s8')"
               size="large"
               class="code-input glass-input login-input"
               :maxlength="6"
@@ -100,7 +100,7 @@
               :disabled="codeSent && countdown > 0"
               @click="onResend"
             >
-              {{ codeSent && countdown > 0 ? `${countdown}s` : '重新获取' }}
+              {{ codeSent && countdown > 0 ? `${countdown}s` : t('pages.Register.s9') }}
             </n-button>
           </div>
 
@@ -112,7 +112,7 @@
             :disabled="form.code.length !== 6"
             @click="onVerify"
           >
-            验证邮箱并提交审核
+            {{ t('pages.Register.s10') }}
           </n-button>
         </div>
 
@@ -121,22 +121,22 @@
           <div class="done-icon">
             <n-icon :component="CheckmarkCircleOutline" />
           </div>
-          <h2 class="done-title">注册申请已提交</h2>
+          <h2 class="done-title">{{ t('pages.Register.s11') }}</h2>
           <p class="done-desc">
-            我们已收到您的注册申请，管理员审核通过后将通过邮件通知您，届时可凭本邮箱登录系统。
+            {{ t('pages.Register.s12') }}
           </p>
-          <n-button type="primary" block size="large" @click="goLogin">返回登录</n-button>
+          <n-button type="primary" block size="large" @click="goLogin">{{ t('pages.Register.s13') }}</n-button>
         </div>
 
         <div class="login-footer">
-          <p>已有账号？<a href="#" class="forgot-link" @click.prevent="goLogin">直接登录</a></p>
+          <p>{{ t('pages.Register.s14') }}<a href="#" class="forgot-link" @click.prevent="goLogin">{{ t('pages.Register.s15') }}</a></p>
         </div>
       </div>
 
       <div class="login-features">
-        <div class="feature-item"><n-icon :component="MailOutline" :size="28" class="feature-icon" /><span>邮箱验证</span></div>
-        <div class="feature-item"><n-icon :component="PeopleOutline" :size="28" class="feature-icon" /><span>人工审核</span></div>
-        <div class="feature-item"><n-icon :component="LockClosedOutline" :size="28" class="feature-icon" /><span>安全注册</span></div>
+        <div class="feature-item"><n-icon :component="MailOutline" :size="28" class="feature-icon" /><span>{{ t('pages.Register.s16') }}</span></div>
+        <div class="feature-item"><n-icon :component="PeopleOutline" :size="28" class="feature-icon" /><span>{{ t('pages.Register.s17') }}</span></div>
+        <div class="feature-item"><n-icon :component="LockClosedOutline" :size="28" class="feature-icon" /><span>{{ t('pages.Register.s18') }}</span></div>
       </div>
     </div>
   </div>
@@ -166,22 +166,22 @@ const form = reactive({ email: '', fullName: '', password: '', code: '' })
 const rules: FormRules = {
   email: {
     required: true,
-    message: '请输入企业邮箱',
+    message: t('pages.Register.s19'),
     trigger: ['blur', 'input'],
     type: 'email',
   },
-  fullName: { required: true, message: '请输入姓名', trigger: 'blur' },
+  fullName: { required: true, message: t('pages.Register.s20'), trigger: 'blur' },
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 8, message: '密码至少 8 位', trigger: 'blur' },
+    { required: true, message: t('pages.Register.s21'), trigger: 'blur' },
+    { min: 8, message: t('pages.Register.s22'), trigger: 'blur' },
   ],
-  code: { required: true, message: '请输入 6 位验证码', trigger: 'blur' },
+  code: { required: true, message: t('pages.Register.s23'), trigger: 'blur' },
 }
 
 // 从后端错误响应中提取可读的提示文案
 const extractBackendMessage = (err: any): string => {
   const data = err?.response?.data;
-  if (!data) return err?.message || '网络错误，请稍后重试';
+  if (!data) return err?.message || t('pages.Register.s24');
   // DRF 字段级错误: { errors: { email: ['该邮箱已被注册'], password: ['...'] } }
   if (data.errors && typeof data.errors === 'object') {
     for (const key of Object.keys(data.errors)) {
@@ -192,9 +192,9 @@ const extractBackendMessage = (err: any): string => {
     }
   }
   // 特定业务码兜底
-  if (data.code === 'EMAIL_EXISTS') return '该邮箱已被注册';
+  if (data.code === 'EMAIL_EXISTS') return t('pages.Register.s25');
   if (data.message) return String(data.message);
-  return err?.message || '网络错误，请稍后重试';
+  return err?.message || t('pages.Register.s24');
 };
 
 const onSubmit = (e?: Event) => {
@@ -216,9 +216,9 @@ const onSubmit = (e?: Event) => {
       if (data.success) {
         step.value = 'verify';
         startCountdown();
-        message.success('注册申请已提交，验证码已发送至您的邮箱');
+        message.success(t('pages.Register.s26'));
       } else {
-        message.error(data.message || '注册失败');
+        message.error(data.message || t('pages.Register.s27'));
       }
     } catch (err: any) {
       message.error(extractBackendMessage(err));
@@ -233,18 +233,18 @@ const onVerify = async () => {
   try {
     const { data } = await verifyRegisterCode(form.email.trim().toLowerCase(), form.code.trim())
     if (data.success) {
-      message.success('邮箱验证成功，已提交管理员审核', {
+      message.success(t('pages.Register.s28'), {
         render: () => h('div', {
           style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success); padding: 8px 14px; border-radius: 6px;',
-        }, '邮箱验证成功，已提交管理员审核'),
+        }, t('pages.Register.s28')),
       })
       // 落在「已提交 / 等待审核」终态，明确告知用户后续流程，而非直接弹回登录页
       step.value = 'done'
     } else {
-      message.error(data.message || '验证失败')
+      message.error(data.message || t('pages.Register.s29'))
     }
   } catch (err: any) {
-    message.error(err?.response?.data?.message || err?.message || '验证失败，请重试')
+    message.error(err?.response?.data?.message || err?.message || t('pages.Register.s30'))
   } finally {
     verifying.value = false
   }
@@ -256,9 +256,9 @@ const onResend = async () => {
     await resendRegisterCode(form.email.trim().toLowerCase())
     codeSent.value = true
     startCountdown()
-    message.success('验证码已重新发送')
+    message.success(t('pages.Register.s31'))
   } catch (err: any) {
-    message.error(err?.response?.data?.message || err?.message || '重发失败')
+    message.error(err?.response?.data?.message || err?.message || t('pages.Register.s32'))
   }
 }
 
