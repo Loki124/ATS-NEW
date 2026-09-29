@@ -12,6 +12,7 @@ from .views import (
     CandidateSnapshotView,
     DerivedFuncCatalogView,
     DerivedMetricViewSet,
+    MetricDefinitionViewSet,
     MetricRuleViewSet,
     MetricTemplateViewSet,
     OperatorCatalogView,
@@ -39,6 +40,7 @@ urlpatterns = [
     path('derived-funcs/', DerivedFuncCatalogView.as_view(), name='derived-func-catalog'),
     path('sample-data/', sample_data, name='sample-data'),
     path('candidate-fields/', CandidateFieldCatalogView.as_view(), name='candidate-field-catalog'),
+    path('definitions/', MetricDefinitionViewSet.as_view(), name='metric-definition'),
     path('candidates/<str:candidate_id>/snapshot/', CandidateSnapshotView.as_view(), name='candidate-snapshot'),
     path('rules/execute/', RuleExecuteView.as_view(), name='rule-execute'),
     # 业务触发点：入池 / 筛选 / 评分 调用（字面路径先于 rules/{pk}/ 详情路由）

@@ -11,6 +11,13 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.tab.atomic': '原子指标',
   'metrics.tab.derived': '派生指标',
   'metrics.tab.template': '指标模板',
+  'metrics.tab.definitions': '指标定义',
+
+  'metrics.col.valueMode': '取值方式',
+  'metrics.col.dataSource': '数据源配置',
+  'metrics.col.returnType': '返回类型',
+  'metrics.valueMode.objectPath': '对象路径',
+  'metrics.valueMode.parametric': '参数化 Handler',
 
   'metrics.col.name': '名称',
   'metrics.col.sourcePath': '字段路径',
@@ -155,6 +162,13 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.tab.atomic': 'Atomic Metrics',
   'metrics.tab.derived': 'Derived Metrics',
   'metrics.tab.template': 'Metric Templates',
+  'metrics.tab.definitions': 'Metric Definitions',
+
+  'metrics.col.valueMode': 'Value Mode',
+  'metrics.col.dataSource': 'Data Source',
+  'metrics.col.returnType': 'Return Type',
+  'metrics.valueMode.objectPath': 'Object Path',
+  'metrics.valueMode.parametric': 'Parametric Handler',
 
   'metrics.col.name': 'Name',
   'metrics.col.sourcePath': 'Field Path',

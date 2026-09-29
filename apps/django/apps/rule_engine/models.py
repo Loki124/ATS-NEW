@@ -55,7 +55,11 @@ class UnifiedActionType(models.TextChoices):
 
 
 class UnifiedOperator(models.TextChoices):
-    """统一运算符（11 种，§2.3）。"""
+    """统一运算符（14 种，§2.3 + 指标层扩展）。
+
+    2026-09-29 扩展：新增 CONTAINS / NOT_CONTAINS / REGEX_MATCH 三种字符串运算，
+    供字符串型指标做「包含关键词 / 正则匹配」类规则（真实实现，非展示占位）。
+    """
     EQ = 'EQ', '等于'
     NEQ = 'NEQ', '不等于'
     GT = 'GT', '大于'
@@ -67,6 +71,9 @@ class UnifiedOperator(models.TextChoices):
     NOT_IN = 'NOT_IN', '不属于集合'
     IS_EMPTY = 'IS_EMPTY', '为空'
     IS_NOT_EMPTY = 'IS_NOT_EMPTY', '不为空'
+    CONTAINS = 'CONTAINS', '包含'
+    NOT_CONTAINS = 'NOT_CONTAINS', '不包含'
+    REGEX_MATCH = 'REGEX_MATCH', '正则匹配'
 
 
 class ConditionType(models.TextChoices):

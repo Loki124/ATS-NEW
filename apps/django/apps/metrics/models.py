@@ -58,10 +58,14 @@ class AtomicMetric(FullAuditModel, UUIDModel):
     description = models.CharField(
         max_length=255, blank=True, default='', verbose_name='说明',
     )
+    # 是否枚举型（下拉 / 列表 / 多选字段自动生成时置 True，运算符白名单走 enum 分支）
+    is_enum = models.BooleanField(default=False, verbose_name='枚举型')
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',
     )
+    # 自动生成标记：由动态字段新增触发（区别于人工录入），便于追溯与隔离
+    auto_generated = models.BooleanField(default=False, verbose_name='自动生成')
 
     class Meta:
         db_table = 'metrics_atomic_metric'

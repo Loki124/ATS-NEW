@@ -67,6 +67,16 @@
             </n-space>
           </div>
           <n-tabs v-model:value="innerMetricTab" type="line" animated>
+            <!-- 统一「指标定义」：原子 + 派生合并，列与产品截图一致 -->
+            <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
+              <n-data-table
+                :columns="definitionColumns"
+                :data="definitions"
+                :loading="loading"
+                :bordered="false"
+                size="small"
+              />
+            </n-tab-pane>
             <n-tab-pane name="atomic" :tab="t('metrics.tab.atomic')">
               <n-data-table
                 :columns="atomicColumns"
@@ -429,6 +439,7 @@ import {
   NTooltip,
   NIcon,
   NAlert,
+  NTag,
   useMessage,
 } from 'naive-ui'
 import { InformationCircleOutline } from '@vicons/ionicons5'
@@ -448,6 +459,7 @@ import {
   listAtomicMetrics,
   listDerivedFuncs,
   listDerivedMetrics,
+  listMetricDefinitions,
   listMetricRules,
   listMetricTemplates,
   listOperators,
@@ -462,6 +474,7 @@ import {
   type CandidateFieldPath,
   type DerivedMetric,
   type ExecuteResult,
+  type MetricDefinition,
   type MetricRule,
   type MetricRuleScene,
   type MetricTemplate,
@@ -475,12 +488,13 @@ const message = useMessage()
 const route = useRoute()
 
 const activeTab = ref<'metrics' | 'author' | 'manage'>('metrics')
-const innerMetricTab = ref('atomic')
+const innerMetricTab = ref('definitions')
 
 // ===== 共享数据（一次加载） =====
 const atomicList = ref<AtomicMetric[]>([])
 const derivedList = ref<DerivedMetric[]>([])
 const templateList = ref<MetricTemplate[]>([])
+const definitions = ref<MetricDefinition[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
 const derivedFuncs = ref<DerivedFuncItem[]>([])
 const fieldPaths = ref<CandidateFieldPath[]>([])
@@ -1003,6 +1017,91 @@ const templateColumns = computed(() => [
   },
 ])
 
+const RETURN_TYPE_LABELS: Record<string, string> = {
+  number: '数值',
+  string: '字符串',
+  boolean: '布尔',
+  date: '日期',
+}
+
+function returnTypeLabel(type?: string): string {
+  return (type && RETURN_TYPE_LABELS[type]) || type || '-'
+}
+
+function valueModeMeta(row: MetricDefinition): { label: string; type: 'default' | 'warning' } {
+  if (row.valueMode === 'parametric_handler') {
+    return { label: t('metrics.valueMode.parametric'), type: 'warning' }
+  }
+  return { label: t('metrics.valueMode.objectPath'), type: 'default' }
+}
+
+const definitionColumns = computed(() => [
+  {
+    title: t('metrics.col.name'),
+    key: 'name',
+    render: (row: MetricDefinition) =>
+      h('div', { class: 'ws-def-name' }, [
+        h('span', { class: 'ws-def-label' }, { default: () => row.name }),
+        row.kind === 'derived'
+          ? h('span', { class: 'ws-def-kind ws-def-kind-derived' }, { default: () => '派生' })
+          : h('span', { class: 'ws-def-kind' }, { default: () => '原子' }),
+      ]),
+  },
+  {
+    title: t('metrics.col.valueMode'),
+    key: 'valueMode',
+    render: (row: MetricDefinition) => {
+      const m = valueModeMeta(row)
+      return h(NTag, { size: 'small', type: m.type }, { default: () => m.label })
+    },
+  },
+  {
+    title: t('metrics.col.dataSource'),
+    key: 'dataSource',
+    render: (row: MetricDefinition) =>
+      h('code', { class: 'ws-code' }, { default: () => row.dataSource }),
+  },
+  {
+    title: t('metrics.col.operators'),
+    key: 'supportedOperators',
+    render: (row: MetricDefinition) =>
+      h(
+        'div',
+        { class: 'ws-ops' },
+        {
+          default: () =>
+            (row.supportedOperators || []).map((op: string) =>
+              h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) }),
+            ),
+        },
+      ),
+  },
+  {
+    title: t('metrics.col.params'),
+    key: 'params',
+    render: (row: MetricDefinition) => {
+      const keys = row.params ? Object.keys(row.params) : []
+      if (!keys.length) return h('span', { class: 'ws-muted' }, { default: () => '-' })
+      return h(
+        'div',
+        { class: 'ws-ops' },
+        {
+          default: () =>
+            keys.map((k: string) =>
+              h('span', { class: 'ws-op-tag' }, { default: () => `${k}=${row.params[k]}` }),
+            ),
+        },
+      )
+    },
+  },
+  {
+    title: t('metrics.col.returnType'),
+    key: 'returnType',
+    render: (row: MetricDefinition) =>
+      h('span', { class: 'ws-muted' }, { default: () => returnTypeLabel(row.returnType) }),
+  },
+])
+
 function operatorLabel(value: string) {
   return operatorCatalog.value.find((o) => o.value === value)?.label ?? value
 }
@@ -1163,18 +1262,20 @@ async function submit() {
 async function load() {
   loading.value = true
   try {
-    const [atomic, derived, templates, ops, funcs] = await Promise.all([
+    const [atomic, derived, templates, ops, funcs, defs] = await Promise.all([
       listAtomicMetrics(),
       listDerivedMetrics(),
       listMetricTemplates(),
       listOperators(),
       listDerivedFuncs(),
+      listMetricDefinitions(),
     ])
     atomicList.value = atomic
     derivedList.value = derived
     templateList.value = templates
     operatorCatalog.value = ops
     derivedFuncs.value = funcs
+    definitions.value = defs
     try {
       fieldPaths.value = await listCandidateFields()
     } catch {
@@ -1411,6 +1512,30 @@ onMounted(async () => {
 .ws-actions-cell {
   display: flex;
   gap: 2px;
+}
+.ws-muted {
+  color: var(--color-text-tertiary, #9ca3af);
+  font-size: 13px;
+}
+.ws-def-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.ws-def-kind {
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+}
+.ws-def-kind-derived {
+  background: var(--warning-color-soft, #fff7e6);
+  border-color: var(--color-warning, #ffd591);
+  color: var(--color-warning, #b25e09);
 }
 .ws-func-hint {
   margin-bottom: 12px;

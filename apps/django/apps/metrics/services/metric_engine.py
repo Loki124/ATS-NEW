@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 from apps.rule_engine.models import UnifiedOperator
@@ -34,6 +35,12 @@ _RANGE_OPS = (UnifiedOperator.BETWEEN,)
 _SET_OPS = (UnifiedOperator.IN, UnifiedOperator.NOT_IN)
 # 不需要比较值的运算符
 _VOID_OPS = (UnifiedOperator.IS_EMPTY, UnifiedOperator.IS_NOT_EMPTY)
+# 字符串运算（包含 / 不包含 / 正则匹配）：期望值按原文处理，不参与数值/日期类型转换
+_STRING_OPS = (
+    UnifiedOperator.CONTAINS,
+    UnifiedOperator.NOT_CONTAINS,
+    UnifiedOperator.REGEX_MATCH,
+)
 
 
 def _is_empty(value: Any) -> bool:
@@ -193,6 +200,17 @@ class MetricEngine:
             values = raw if isinstance(raw, list) else [raw]
             casted = [type_cast(v, data_type) for v in values]
             return casted, '、'.join(str(cls._jsonable(v)) for v in casted)
+        if op in _STRING_OPS:
+            # 字符串运算：期望值作为原文（子串 / 正则），不做数值或日期类型转换
+            raw = cond.get('value')
+            text = '' if raw is None else (raw if isinstance(raw, str) else str(raw))
+            if op == UnifiedOperator.REGEX_MATCH:
+                # 提前校验正则合法性，避免比较阶段才抛错（仍降级为 FAIL，绝不 500）
+                try:
+                    re.compile(text)
+                except re.error:
+                    raise TypeCastError(f'正则表达式不合法: {text}')
+            return text, text
         expected = type_cast(cond.get('value'), data_type)
         return expected, cls._jsonable(expected)
 
@@ -214,6 +232,21 @@ class MetricEngine:
             return actual in (expected or [])
         if operator == UnifiedOperator.NOT_IN:
             return actual not in (expected or [])
+        if operator == UnifiedOperator.CONTAINS:
+            if actual is None or expected is None:
+                return False
+            return str(actual).find(str(expected)) >= 0
+        if operator == UnifiedOperator.NOT_CONTAINS:
+            if actual is None or expected is None:
+                return False
+            return str(actual).find(str(expected)) < 0
+        if operator == UnifiedOperator.REGEX_MATCH:
+            if actual is None or expected is None:
+                return False
+            try:
+                return re.search(str(expected), str(actual)) is not None
+            except re.error:
+                raise ValueError(f'正则表达式不合法: {expected}')
         if actual is None or expected is None:
             return False
         if operator == UnifiedOperator.EQ:

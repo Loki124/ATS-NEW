@@ -19,10 +19,10 @@ class AtomicMetricSerializer(serializers.ModelSerializer):
     class Meta:
         model = AtomicMetric
         fields = [
-            'id', 'name', 'source_path', 'data_type', 'unit',
-            'description', 'status', 'created_at', 'template_count',
+            'id', 'name', 'source_path', 'data_type', 'unit', 'is_enum',
+            'description', 'status', 'auto_generated', 'created_at', 'template_count',
         ]
-        read_only_fields = ['id', 'created_at', 'template_count']
+        read_only_fields = ['id', 'created_at', 'template_count', 'auto_generated']
 
     def validate_source_path(self, value):
         if '.' not in (value or ''):
