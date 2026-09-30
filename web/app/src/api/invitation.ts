@@ -74,17 +74,17 @@ export interface ListParams {
 
 export async function listInvitations(params: ListParams = {}) {
   const { data } = await api.get('/invitations/', { params });
-  return data;
+  return data?.data ?? data;
 }
 
 export async function getClaimPool() {
   const { data } = await api.get('/invitations/claimable/');
-  return data;
+  return data?.data ?? data;
 }
 
 export async function getInvitation(id: string) {
   const { data } = await api.get(`invitations/${id}/`);
-  return data;
+  return data?.data ?? data;
 }
 
 export async function enterPool(id: string, reason?: string) {
@@ -92,18 +92,18 @@ export async function enterPool(id: string, reason?: string) {
   //   FE 调独立的 /enter-pool /claim /contact /result /intervene /terminate 全部 404.
   //   全部改用 /transition + action body (后端 state machine 走同一入口)
   const { data } = await api.post(`invitations/${id}/transition/`, { action: 'enter_pool', reason })
-  return data
+  return data?.data ?? data
 }
 
 export async function claim(id: string) {
   const { data } = await api.post(`invitations/${id}/transition/`, { action: 'claim' })
-  return data
+  return data?.data ?? data
 }
 
 export async function markContacted(id: string, note?: string) {
   // /contact → /transition + 'contact' action
   const { data } = await api.post(`invitations/${id}/transition/`, { action: 'contact', note })
-  return data
+  return data?.data ?? data
 }
 
 export async function markResult(id: string, success: boolean, reason?: string) {
@@ -112,22 +112,22 @@ export async function markResult(id: string, success: boolean, reason?: string) 
     action: success ? 'success' : 'fail',
     reason,
   })
-  return data
+  return data?.data ?? data
 }
 
 export async function intervene(id: string, reason?: string) {
   const { data } = await api.post(`invitations/${id}/transition/`, { action: 'intervene', reason })
-  return data
+  return data?.data ?? data
 }
 
 export async function terminate(id: string, reason?: string) {
   const { data } = await api.post(`invitations/${id}/transition/`, { action: 'terminate', reason })
-  return data
+  return data?.data ?? data
 }
 
 export async function processExpired() {
   const { data } = await api.post('/invitations/process-expired/');
-  return data;
+  return data?.data ?? data;
 }
 
 export default api;

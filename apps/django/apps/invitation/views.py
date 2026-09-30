@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Invitation
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class InvitationViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InvitationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """邀约 ViewSet - 收紧到 HR+ 可见, 按 application 部门 scope (Fix 1)"""
     queryset = Invitation.objects.all()
     permission_classes = [V2Permission]
