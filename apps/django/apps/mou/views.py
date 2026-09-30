@@ -1,8 +1,13 @@
-"""mou views - 2026-07-01 stub (G36 待补真业务)"""
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
+"""mou views - MOU 协议 / 容器 / 互斥组 / 自动化规则 CRUD.
 
+信封化: 经 EnvelopeWriteMixin 统一 create/update/retrieve 为
+{success, data, message, code}; list 由 StandardResultsSetPagination 信封.
+scopes 动作 (apps/mou/urls.py 的 MouAgreementViewSetWithScopes) 自带 {success,data}
+半信封, 含 success:False 失败分支, 按协调式信封 SOP 不迁移.
+"""
+from rest_framework import viewsets
+
+from apps.common.views import EnvelopeWriteMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import MOUVIEWSetPermission  # noqa: F401
 from .models import MouAgreement, MouContainer, MutualExclusionGroup, MouRule
@@ -12,14 +17,7 @@ from .serializers import (
 )
 
 
-def _wrap_envelope(serializer):
-    """包 {success: true, data: <serializer_data>} 信封, 与 list 端点一致.
-    前端 MouManagement.vue:1076 检查 data.success — 没包就误判失败.
-    """
-    return Response({'success': True, 'data': serializer.data})
-
-
-class MouAgreementViewSet(viewsets.ModelViewSet):
+class MouAgreementViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """MOU 协议 CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MouAgreement.objects.all().order_by('-created_at')
     serializer_class = MouAgreementSerializer
@@ -33,98 +31,26 @@ class MouAgreementViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=status)
         return qs
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return _wrap_envelope(serializer)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return _wrap_envelope(serializer)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, *args, **kwargs)
-
-
-class MouContainerViewSet(viewsets.ModelViewSet):
+class MouContainerViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """MOU 容器 (配额) CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MouContainer.objects.all().order_by('mou__code', 'code')
     serializer_class = MouContainerSerializer
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return _wrap_envelope(serializer)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return _wrap_envelope(serializer)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, *args, **kwargs)
-
-
-class MutualExclusionGroupViewSet(viewsets.ModelViewSet):
+class MutualExclusionGroupViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """互斥组 CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MutualExclusionGroup.objects.all().order_by('-created_at')
     serializer_class = MutualExclusionGroupSerializer
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return _wrap_envelope(serializer)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return _wrap_envelope(serializer)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, *args, **kwargs)
-
-
-class MouRuleViewSet(viewsets.ModelViewSet):
+class MouRuleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """自动化规则 CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MouRule.objects.all().order_by('-created_at')
     serializer_class = MouRuleSerializer
     permission_classes = [MOUVIEWSetPermission]
     pagination_class = StandardResultsSetPagination
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return _wrap_envelope(serializer)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return _wrap_envelope(serializer)
-
-    def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, *args, **kwargs)
