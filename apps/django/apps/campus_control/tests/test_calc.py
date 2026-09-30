@@ -30,6 +30,17 @@ from ..models import (
 from ..serializers import ControlRuleSerializer
 
 
+# —— Batch 11：维度/指标/人员的 create·retrieve 已信封化为 {success,data}，
+# 既有测试按裸对象读主键，这里统一剥离信封（与前端 r.data?.data ?? r.data 同源）。——
+def _data(x):
+    """剥离 create/retrieve 信封：接受 Response 或 dict，返回内层 data（无信封则原样返回）。"""
+    if hasattr(x, 'json'):
+        x = x.json()
+    if isinstance(x, dict) and 'success' in x and 'data' in x:
+        return x['data']
+    return x
+
+
 @pytest.fixture
 def hr_user(db):
     from django.contrib.auth import get_user_model
@@ -396,10 +407,10 @@ class TestSum100Validation:
 @pytest.mark.django_db
 class TestApiEndpoints:
     def _build_minimal_scheme(self, api_client):
-        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
+        d = _data(api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json'))
         dim_id = d['id']
-        im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
-        ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
+        im = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json'))
+        ifm = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json'))
         api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}, format='json')
         api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.4, 'strength': '软约束'}, format='json')
         api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在职', 'counted': True}, format='json')
@@ -449,10 +460,10 @@ class TestApiEndpoints:
 
         语义反转：扁平模型下「男」「女」是两条独立规则，target 各自 = 1.0 都通过。
         """
-        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
+        d = _data(api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json'))
         dim_id = d['id']
-        im = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json').json()
-        ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json').json()
+        im = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '男'}, format='json'))
+        ifm = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json'))
         r1 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 1.0, 'strength': '硬约束'}, format='json')
         assert r1.status_code == 201, r1.json()
         r2 = api_client.post('/api/v1/campus/rules/', {'bu': '三到BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 1.0, 'strength': '软约束'}, format='json')
@@ -462,9 +473,9 @@ class TestApiEndpoints:
         assert r3.status_code == 400, r3.json()
 
     def test_batch_100_ok(self, api_client):
-        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
-        im = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json').json()
-        ifm = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json').json()
+        d = _data(api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json'))
+        im = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json'))
+        ifm = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json'))
         resp = api_client.post('/api/v1/campus/rules/batch/', {
             'bu': '能电BG', 'dimension': d['id'],
             'rules': [
@@ -480,9 +491,9 @@ class TestApiEndpoints:
 
         传 target=0.6 应成功（扁平模型下 target 通常 = 1.0，但任意 0~1 都允许）。
         """
-        d = api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json').json()
-        im = api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json').json()
-        api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json').json()
+        d = _data(api_client.post('/api/v1/campus/dimensions/', {'name': '性别'}, format='json'))
+        im = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '男'}, format='json'))
+        api_client.post('/api/v1/campus/indicators/', {'dimension': d['id'], 'name': '女'}, format='json')
         resp = api_client.post('/api/v1/campus/rules/batch/', {
             'bu': '能电BG', 'dimension': d['id'],
             'rules': [{'indicator': im['id'], 'target': 1.0, 'strength': '硬约束'}],
@@ -516,9 +527,9 @@ class TestBatchConfigWithTargets:
     def _setup_scheme(self, api_client):
         s = api_client.post('/api/v1/campus/dimensions/', {'name': '测试维度WT'}, format='json')
         assert s.status_code == 201, s.json()
-        dim_id = s.json()['id']
-        i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
-        i2 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json').json()
+        dim_id = _data(s)['id']
+        i1 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json'))
+        i2 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json'))
         return dim_id, i1['id'], i2['id']
 
     def test_with_targets_100_ok(self, api_client):
@@ -577,8 +588,8 @@ class TestBatchConfigWithTargets:
     def test_with_targets_indicator_not_in_dim_blocked(self, api_client):
         """indicator 不属于 dimension → 400。"""
         dim_id, i1, i2 = self._setup_scheme(api_client)
-        s2 = api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度WT'}, format='json').json()
-        i_other = api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json').json()
+        s2 = _data(api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度WT'}, format='json'))
+        i_other = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json'))
         resp = api_client.post('/api/v1/campus/rules/with-targets/', {
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 100,
@@ -622,7 +633,7 @@ class TestBatchConfigWithTargets:
           exact = [3.4, 3.3, 3.3] → floors=[3,3,3] → remainder=1 → 最大余数项(0.4) +1 → [4,3,3]（和=10）。
         """
         dim_id, i1, i2 = self._setup_scheme(api_client)
-        i3 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'C'}, format='json').json()['id']
+        i3 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'C'}, format='json'))['id']
         resp = api_client.post('/api/v1/campus/rules/with-targets/', {
             'bu': '', 'position': '', 'level': '',
             'dimension': dim_id, 'year': 2026, 'totalTarget': 10,
@@ -674,9 +685,9 @@ class TestDimensionSetRules:
     def _setup_scheme(self, api_client, bu='', position='', level='', year=2026):
         s = api_client.post('/api/v1/campus/dimensions/', {'name': '维度SR'}, format='json')
         assert s.status_code == 201, s.json()
-        dim_id = s.json()['id']
-        i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
-        i2 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json').json()
+        dim_id = _data(s)['id']
+        i1 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json'))
+        i2 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json'))
         return dim_id, i1['id'], i2['id'], bu, position, level, year
 
     def test_set_rules_100_ok(self, api_client):
@@ -738,8 +749,8 @@ class TestDimensionSetRules:
 
     def test_set_rules_indicator_not_in_dim_blocked(self, api_client):
         dim_id, i1, i2, bu, pos, lvl, year = self._setup_scheme(api_client)
-        s2 = api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度SR'}, format='json').json()
-        i_other = api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json').json()
+        s2 = _data(api_client.post('/api/v1/campus/dimensions/', {'name': '其他维度SR'}, format='json'))
+        i_other = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': s2['id'], 'name': 'X'}, format='json'))
         resp = api_client.put(f'/api/v1/campus/dimensions/{dim_id}/rules/', {
             'bu': bu, 'position': pos, 'level': lvl, 'year': year,
             'rules': [
@@ -1198,9 +1209,9 @@ class TestImportScopeMutex:
     def _setup_scheme(self, api_client, year=2026):
         s = api_client.post('/api/v1/campus/dimensions/', {'name': '维度IMP'}, format='json')
         assert s.status_code == 201, s.json()
-        dim_id = s.json()['id']
-        i1 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json').json()
-        i2 = api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json').json()
+        dim_id = _data(s)['id']
+        i1 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'A'}, format='json'))
+        i2 = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': 'B'}, format='json'))
         return dim_id, i1['id'], i2['id'], year
 
     def _seed_global(self, api_client, dim_id, i1, i2, year=2026):

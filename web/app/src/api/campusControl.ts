@@ -165,9 +165,9 @@ const listData = <T>(r: any): T[] => (r?.data?.data ?? []) as T[]
 export const listDimensions = () =>
   api.get('/campus/dimensions/', { params: { page_size: 200 } }).then((r) => listData<ControlDimension>(r))
 export const createDimension = (payload: { name: string; code?: string; isActive?: boolean }) =>
-  api.post('/campus/dimensions/', payload).then((r) => r.data as ControlDimension)
+  api.post('/campus/dimensions/', payload).then((r) => (r.data?.data ?? r.data) as ControlDimension)
 export const updateDimension = (id: string, payload: Partial<ControlDimension>) =>
-  api.put(`/campus/dimensions/${id}/`, payload).then((r) => r.data as ControlDimension)
+  api.put(`/campus/dimensions/${id}/`, payload).then((r) => (r.data?.data ?? r.data) as ControlDimension)
 export const deleteDimension = (id: string) => api.delete(`/campus/dimensions/${id}/`).then((r) => r.data)
 export const restoreDimension = (id: string) => api.post(`/campus/dimensions/${id}/restore/`).then((r) => r.data)
 
@@ -177,9 +177,9 @@ export const listIndicators = (dimension?: string) =>
     .get('/campus/indicators/', { params: { page_size: 200, ...(dimension ? { dimension } : {}) } })
     .then((r) => listData<ControlIndicator>(r))
 export const createIndicator = (payload: { dimension: string; name: string; isActive?: boolean }) =>
-  api.post('/campus/indicators/', payload).then((r) => r.data as ControlIndicator)
+  api.post('/campus/indicators/', payload).then((r) => (r.data?.data ?? r.data) as ControlIndicator)
 export const updateIndicator = (id: string, payload: Partial<ControlIndicator>) =>
-  api.put(`/campus/indicators/${id}/`, payload).then((r) => r.data as ControlIndicator)
+  api.put(`/campus/indicators/${id}/`, payload).then((r) => (r.data?.data ?? r.data) as ControlIndicator)
 export const deleteIndicator = (id: string) => api.delete(`/campus/indicators/${id}/`).then((r) => r.data)
 export const restoreIndicator = (id: string) => api.post(`/campus/indicators/${id}/restore/`).then((r) => r.data)
 
@@ -215,9 +215,9 @@ export const listRules = () =>
   api.get('/campus/rules/', { params: { page_size: 200 } }).then((r) => listData<ControlRule>(r).map(ruleToNum))
 
 export const createRule = (payload: RuleInput) =>
-  api.post('/campus/rules/', payload).then((r) => ruleToNum(r.data))
+  api.post('/campus/rules/', payload).then((r) => ruleToNum(r.data?.data ?? r.data))
 export const updateRule = (id: string, payload: Partial<RuleInput>) =>
-  api.put(`/campus/rules/${id}/`, payload).then((r) => ruleToNum(r.data))
+  api.put(`/campus/rules/${id}/`, payload).then((r) => ruleToNum(r.data?.data ?? r.data))
 export const deleteRule = (id: string) => api.delete(`/campus/rules/${id}/`).then((r) => r.data)
 
 /** 复制规则：克隆出一条「未启用」副本（后端校验唯一键含 is_active，已存在未启用副本则 409）。 */
@@ -431,8 +431,8 @@ export const upsertPerson = (p: Partial<Person> & { code: string; name: string; 
     actual_entry_date: p.actualEntryDate || null,
     position: p.position ?? '', level: p.level ?? '', counted: p.counted ?? true,
   }
-  if (p.id) return api.put(`/campus/persons/${p.id}/`, payload).then((r) => r.data as Person)
-  return api.post(`/campus/persons/`, payload).then((r) => r.data as Person)
+  if (p.id) return api.put(`/campus/persons/${p.id}/`, payload).then((r) => (r.data?.data ?? r.data) as Person)
+  return api.post(`/campus/persons/`, payload).then((r) => (r.data?.data ?? r.data) as Person)
 }
 export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`).then((r) => r.data)
 export const restorePerson = (id: string) => api.post(`/campus/persons/${id}/restore/`).then((r) => r.data)

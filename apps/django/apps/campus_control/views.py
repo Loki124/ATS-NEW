@@ -36,6 +36,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 
 from .calc import compute_ratio, simulate, _COUNTED_STATUSES
@@ -132,7 +133,7 @@ class CampusCRUDMixin:
         instance.soft_delete()
 
 
-class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
+class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlDimension.objects.all()
     serializer_class = ControlDimensionSerializer
     permission_classes = [IsAuthenticated]
@@ -177,7 +178,7 @@ class ControlDimensionViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         return Response(result.payload, status=result.status_code)
 
 
-class ControlIndicatorViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
+class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlIndicator.objects.all()
     serializer_class = ControlIndicatorSerializer
     permission_classes = [IsAuthenticated]
@@ -270,7 +271,7 @@ class ControlIndicatorViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         return Response(result.payload, status=result.status_code)
 
 
-class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
+class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlRule.objects.all()
     serializer_class = ControlRuleSerializer
     permission_classes = [IsAuthenticated]
@@ -443,7 +444,7 @@ class ControlRuleViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
         return services.import_rule_group(g, user)
 
 
-class PersonViewSet(CampusCRUDMixin, viewsets.ModelViewSet):
+class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     """人员主数据 CRUD（全局主数据，一行一人；counted 控制是否计入核算）。
 
     get_queryset 仅对 list 生效（retrieve/update/delete 不套过滤，保证按 id 仍可查可改）：
