@@ -104,6 +104,32 @@
             <div class="cell-label">{{ t('metrics.form.description') }}</div>
             <div class="cell-value">{{ detailRow.description }}</div>
           </div>
+          <div v-if="hasEditableParams" class="detail-cell detail-cell-wide detail-params-block">
+            <div class="cell-label">{{ t('metrics.detail.paramsTitle') }}</div>
+            <div class="detail-params-form">
+              <div v-for="p in detailRow.paramSchema" :key="p.key" class="detail-param-row">
+                <span class="param-label">{{ p.label }}</span>
+                <n-input-number
+                  v-if="p.type === 'number'"
+                  v-model:value="detailParams[p.key]"
+                  :min="0"
+                  class="param-input"
+                />
+                <n-select
+                  v-else-if="p.type === 'select'"
+                  v-model:value="detailParams[p.key]"
+                  :options="(p.options || []).map((o: any) => ({ label: o.label, value: o.value }))"
+                  class="param-input"
+                />
+                <n-switch v-else-if="p.type === 'boolean'" v-model:value="detailParams[p.key]" />
+                <n-input v-else v-model:value="detailParams[p.key]" class="param-input" />
+                <span v-if="p.key === 'recent_n'" class="param-hint">{{ t('metrics.detail.recentNHint') }}</span>
+              </div>
+            </div>
+            <n-button type="primary" size="small" :loading="savingParams" @click="saveDerivedParams">
+              {{ t('metrics.detail.saveParams') }}
+            </n-button>
+          </div>
         </div>
       </template>
     </n-modal>
@@ -295,27 +321,36 @@
 
 <script setup lang="ts">
 /**
- * MetricsWorkspace —— 指标库。
+ * MetricsWorkspace —— 指标管理（原「指标库」）。
  *
  * 模块拆分（用户诉求）：
- *   - 指标库（本页）：两个页签
- *       1) 指标定义 —— 只读统一视图（原子 + 派生合并），点击指标名弹出居中详情弹窗。
+ *   - 指标管理（本页）：两个页签
+ *       1) 指标定义 —— 只读统一视图（原子 + 派生合并），点击卡片弹出居中详情弹窗。
  *          原子指标与派生指标已整合进「指标定义」，故不再提供独立的新建入口（无停用/启用状态，
  *          展示系统中已注册的全部指标）；取值方式明确为「对象路径 / 参数化 Handler」，
  *          枚举型指标同时展示其出参枚举值。
  *       2) 指标模板 —— 新增/编辑/删除/停用（CRUD），可配置参数范围/步长/显示/算子/值域
  *   - 规则引擎（RuleAuthoring.vue）：承接原「规则配置与执行」「规则管理」两个功能
+ *
+ * 2026-09-30 交互优化：
+ *   - 菜单名 / 页面标题统一为「指标管理」
+ *   - 数据列表重构为数据卡片（信息层次清晰、视觉一致）
+ *   - 新增关键词搜索 + 分类/状态筛选，快速定位目标指标
+ *   - 移除冗余只读提示横幅，减少信息干扰
  */
 import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NButton,
+  NInput,
+  NInputNumber,
   NModal,
+  NSelect,
   NSwitch,
   NTag,
   useMessage,
 } from 'naive-ui'
-import { CheckmarkOutline } from '@vicons/ionicons5'
+import { CheckmarkOutline, ChevronForwardOutline, SearchOutline } from '@vicons/ionicons5'
 import {
   createMetricTemplate,
   deleteMetricTemplate,
@@ -325,6 +360,7 @@ import {
   listMetricTemplates,
   listOperators,
   listCandidateFields,
+  updateDerivedMetric,
   updateMetricTemplate,
   type AtomicMetric,
   type CandidateFieldPath,
@@ -351,10 +387,37 @@ const loading = ref(false)
 // ===== 指标详情弹窗 =====
 const detailVisible = ref(false)
 const detailRow = ref<MetricDefinition | null>(null)
+// 参数化 Handler 指标的可编辑参数副本（来自 detailRow.paramSchema）
+const detailParams = ref<Record<string, any>>({})
+const savingParams = ref(false)
 
 function openDetail(row: MetricDefinition) {
   detailRow.value = row
+  detailParams.value = { ...(row.params || {}) }
   detailVisible.value = true
+}
+
+/** 当前指标是否为带参数的「参数化 Handler」，需要渲染参数编辑区。 */
+const hasEditableParams = computed<boolean>(() => {
+  const d = detailRow.value
+  return !!d && d.valueMode === 'parametric_handler' && !!(d.paramSchema && d.paramSchema.length)
+})
+
+async function saveDerivedParams() {
+  const d = detailRow.value
+  if (!d) return
+  savingParams.value = true
+  try {
+    await updateDerivedMetric(d.id, { params: detailParams.value })
+    message.success(t('metrics.detail.paramsSaved'))
+    if (detailRow.value) detailRow.value.params = { ...detailParams.value }
+    await load()
+  } catch (error: any) {
+    const err = error?.response?.data?.error
+    message.error(err ? String(err) : t('metrics.msg.saveFailed'))
+  } finally {
+    savingParams.value = false
+  }
 }
 
 function valueModeClass(row: MetricDefinition): string {
@@ -884,6 +947,14 @@ onMounted(load)
   font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
+
+/* 详情弹窗：参数化 Handler 的参数编辑区 */
+.detail-params-block { display: flex; flex-direction: column; gap: var(--space-3); }
+.detail-params-form { display: flex; flex-direction: column; gap: var(--space-2); }
+.detail-param-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.param-label { min-width: 96px; color: var(--ink-strong); font-size: var(--fs-13, 13px); font-weight: 500; }
+.param-input { width: 220px; max-width: 100%; }
+.param-hint { color: var(--ink-faint); font-size: var(--fs-12); line-height: 1.4; }
 
 /* 模板弹窗分段 */
 .tpl-form { padding-right: 2px; }

@@ -52,6 +52,43 @@ def test_total_work_months():
     assert compute('TOTAL_WORK_MONTHS', WORKS) == 18
 
 
+def test_avg_work_months_all():
+    """全部工作经历平均：12 个月 + 6 个月 = 9.0。"""
+    assert compute('AVG_WORK_MONTHS', WORKS) == 9.0
+
+
+def test_avg_work_months_recent_n():
+    """最近 1 段（按开始日期降序取 2021-07 那段 = 6 个月）。"""
+    assert compute('AVG_WORK_MONTHS', WORKS, {'recent_n': 1}) == 6.0
+
+
+def test_avg_work_months_recent_n_over_limit():
+    """recent_n 大于段数时退化为全部平均。"""
+    assert compute('AVG_WORK_MONTHS', WORKS, {'recent_n': 99}) == 9.0
+
+
+def test_avg_work_months_default_param_is_all():
+    """省略 recent_n 参数默认等于全部平均。"""
+    assert compute('AVG_WORK_MONTHS', WORKS, {}) == 9.0
+
+
+def test_avg_work_months_current_job():
+    """在职段（无 end_date）按今天计算时长，应纳入平均且不抛错。"""
+    items = [
+        {'start_date': '2020-01-01', 'end_date': '2021-01-01'},  # 12 个月
+        {'start_date': '2022-03-01'},  # 在职，按今天计（>0）
+    ]
+    result = compute('AVG_WORK_MONTHS', items, {'recent_n': 1})
+    # 最近 1 段为在职段，时长 = 今天 - 2022-03-01，必然 > 0
+    assert result > 0
+
+
+def test_avg_work_months_empty():
+    """无有效经历返回 0（可判空，不抛错）。"""
+    assert compute('AVG_WORK_MONTHS', []) == 0
+    assert compute('AVG_WORK_MONTHS', [{'start_date': 'bad'}]) == 0
+
+
 def test_unregistered_function_raises():
     with pytest.raises(DerivedComputeError):
         compute('NOT_A_FUNC', WORKS)
@@ -65,7 +102,7 @@ def test_empty_input_is_forgiving():
 
 def test_registry_exposes_builtin_funcs():
     names = {f['name'] for f in list_funcs()}
-    assert {'MAX_GAP', 'COUNT_IN_WINDOW', 'HIGHEST_EDU', 'AGE_FROM_BIRTHDAY'} <= names
+    assert {'MAX_GAP', 'COUNT_IN_WINDOW', 'HIGHEST_EDU', 'AGE_FROM_BIRTHDAY', 'AVG_WORK_MONTHS'} <= names
     # 注册表项不含函数引用，保证可 JSON 序列化给前端
     for f in list_funcs():
         assert 'fn' not in f
@@ -74,7 +111,7 @@ def test_registry_exposes_builtin_funcs():
 def test_list_funcs_carries_metadata():
     """每个函数必须声明 input_kind / output_type / param_schema（前端类型化输入依赖）。"""
     by_name = {f['name']: f for f in list_funcs()}
-    for name in ('MAX_GAP', 'COUNT_IN_WINDOW', 'HIGHEST_EDU', 'AGE_FROM_BIRTHDAY', 'TOTAL_WORK_MONTHS'):
+    for name in ('MAX_GAP', 'COUNT_IN_WINDOW', 'HIGHEST_EDU', 'AGE_FROM_BIRTHDAY', 'TOTAL_WORK_MONTHS', 'AVG_WORK_MONTHS'):
         meta = by_name[name]
         assert 'inputKind' in meta and meta['inputKind']
         assert 'outputType' in meta and meta['outputType']
@@ -85,6 +122,9 @@ def test_list_funcs_carries_metadata():
     # HIGHEST_EDU 必须声明 degree_order_preset 下拉参数
     he = by_name['HIGHEST_EDU']
     assert any(p['key'] == 'degree_order_preset' and p['type'] == 'select' for p in he['paramSchema'])
+    # AVG_WORK_MONTHS 必须声明 recent_n 数字参数（支持最近任意段数 / 全部平均）
+    aw = by_name['AVG_WORK_MONTHS']
+    assert any(p['key'] == 'recent_n' and p['type'] == 'number' for p in aw['paramSchema'])
 
 
 def test_input_shape_error_on_non_list():

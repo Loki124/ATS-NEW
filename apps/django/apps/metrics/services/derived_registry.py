@@ -308,3 +308,42 @@ def age_from_birthday(items: Any, params: dict, data: dict) -> Optional[int]:
 def total_work_months(items: Any, params: dict, data: dict) -> int:
     rows = [s for s in (_span(it) for it in _items_of(items)) if s]
     return sum(max(_months_between(s, e), 0) for s, e in rows)
+
+
+@register(
+    'AVG_WORK_MONTHS', '平均工作时长(月)',
+    '平均每段工作经历的工作月数；支持最近任意段数（recent_n），recent_n=0 表示全部工作经历',
+    'recent_n: 取最近段数，0 或省略表示全部工作经历',
+    input_kind='list_periods', output_type='number', unit='月',
+    param_schema=[
+        {
+            'key': 'recent_n',
+            'label': '最近段数',
+            'type': 'number',
+            'default': 0,
+            'required': False,
+        },
+    ],
+)
+def avg_work_months(items: Any, params: dict, data: dict) -> float:
+    """「平均每段工作时长」—— 支持最近任意段数，含全部工作经历。
+
+    recent_n=0（或省略）→ 全部工作经历求平均
+    recent_n=N（正整数）→ 按开始日期降序取最近 N 段求平均
+    在职段（无 end_date）按今天计算时长；无有效经历返回 0（可判空，不抛错）。
+    """
+    try:
+        recent_n = int(params.get('recent_n', 0) or 0)
+    except (TypeError, ValueError):
+        recent_n = 0
+    rows = [s for s in (_span(it) for it in _items_of(items)) if s]
+    if not rows:
+        return 0
+    # 按开始日期降序取最近段数
+    rows.sort(key=lambda x: x[0], reverse=True)
+    if recent_n and recent_n > 0:
+        rows = rows[:recent_n]
+    durations = [max(_months_between(s, e), 0) for s, e in rows]
+    if not durations:
+        return 0
+    return round(sum(durations) / len(durations), 1)
