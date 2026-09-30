@@ -931,9 +931,7 @@ onMounted(() => {
   min-height: 0;
   padding: 0;
 }
-.page-header {
-  flex-shrink: 0;
-}
+/* .page-header 的 flex-shrink:0 已由 glass.css 全局 .page-header 提供，此处不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0） */
 .page-body {
   flex: 1;
   min-height: 0;
@@ -949,16 +947,8 @@ onMounted(() => {
   gap: var(--space-3);
   flex-wrap: wrap;
 }
-/* 列表工具条：左=筛选，右=操作（对齐校招管控-规则配置页 .toolbar 范式） */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.toolbar .spacer {
-  flex: 1;
-}
+/* 列表工具条复用全局 .toolbar（glass.css 已含 display:flex;align-items:center;gap:var(--space-3);margin-bottom:14px;flex-wrap:wrap）
+   与 .toolbar .spacer { flex:1 }；本页不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0） */
 .scope-readout {
   font-size: 13px;
   color: var(--color-text-secondary);

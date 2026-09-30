@@ -1145,9 +1145,7 @@ onMounted(() => {
   min-height: 0;
   padding: 0;
 }
-.page-header {
-  flex-shrink: 0;
-}
+/* .page-header 的 flex-shrink:0 与 .spacer 的 flex:1 已由 glass.css 全局 .page-header / .toolbar .spacer 提供，此处不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0） */
 .page-body {
   flex: 1;
   min-height: 0;
@@ -1163,8 +1161,4 @@ onMounted(() => {
   gap: var(--space-2);
   align-items: center;
 }
-.spacer {
-  flex: 1;
-}
-
 </style>
