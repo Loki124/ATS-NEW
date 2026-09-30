@@ -23,13 +23,14 @@ from .permissions import IsAuthenticated, IsSuperAdmin, UserViewPermission
 from .role_v2_query import user_has_any_role, is_super_admin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.mixins import SoftDeleteViewSetMixin
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.models_permission_v2 import (
     RoleV2, UserRoleV2, RolePermissionV2, PermissionResource,
 )
 from .permissions_v2 import V2Permission
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """用户 CRUD - 收紧权限: 列表/搜索仅 HRBP+, 详情本人或 HRBP+, 写仅超管 (Fix 1)"""
     queryset = User.objects.filter(deleted_at__isnull=True).select_related('department', 'direct_manager')
     serializer_class = UserSerializer

@@ -18,7 +18,8 @@ from .models_permission_v2 import (
 # (Tier 3) DataPermissionRule 行级镜像已移除; 列级规则由 field_acl / enforcement 直接消费.
 from .permissions_v2 import V2Permission
 from .scope_resolver import resolve_scope, compile_data_range_q, _pick_app_json
-from apps.common.views import EnvelopeReadOnlyMixin
+from apps.common.views import EnvelopeReadOnlyMixin, EnvelopeWriteMixin
+from apps.common.response import success_response
 
 
 class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
@@ -251,7 +252,7 @@ class EnvelopeWriteMixin:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        return Response({'success': True, 'data': serializer.data}, status=http_status.HTTP_201_CREATED)
+        return success_response(serializer.data, status_code=http_status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -259,10 +260,10 @@ class EnvelopeWriteMixin:
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
-        return Response({'success': True, 'data': self.get_serializer(self.get_object()).data})
+        return success_response(self.get_serializer(self.get_object()).data)
 
     def destroy(self, request, *args, **kwargs):
         self.perform_destroy(self.get_object())
@@ -421,7 +422,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         return Response({'success': True, 'data': rows})
 
 
-class UserRoleViewSet(viewsets.ModelViewSet):
+class UserRoleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = UserRoleV2.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:user_role:list'
@@ -436,7 +437,7 @@ class UserRoleViewSet(viewsets.ModelViewSet):
         """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
         qs = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def suggest_scope(self, request):
