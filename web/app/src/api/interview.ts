@@ -49,17 +49,17 @@ export interface Interview {
 
 export async function listInterviews(params: { page?: number; pageSize?: number; feedbackStatus?: string; interviewStatus?: string } = {}) {
   const { data } = await api.get('/interviews/', { params });
-  return data;
+  return data?.data ?? data;
 }
 
 export async function submitFeedback(interviewId: string, payload: { result: 'PASS' | 'FAIL'; reason?: string; [key: string]: any }) {
   const { data } = await api.post(`interviews/${interviewId}/feedback/`, payload);
-  return data;
+  return data?.data ?? data;
 }
 
 export async function cancelInterview(interviewId: string, reason?: string) {
   const { data } = await api.delete(`interviews/${interviewId}/`, { data: { reason } });
-  return data;
+  return data?.data ?? data;
 }
 
 // G19 - 获取候选人历史面试反馈 (供前端预览)
