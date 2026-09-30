@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * management-unit.ts — V2 管理单元 API 客户端 (T19, 方案 A 增强 2026-09-15)
  *
@@ -74,7 +75,7 @@ export interface SyncDataRulesResult {
 // ===== API =====
 
 export async function listManagementUnits(params?: { unitType?: string; status?: number }) {
-  const { data } = await api.get<{ success: boolean; data: ManagementUnit[] }>(
+  const { data } = await api.get<ApiEnvelope<ManagementUnit[]>>(
     '/management-units/',
     { params },
   );
@@ -82,14 +83,14 @@ export async function listManagementUnits(params?: { unitType?: string; status?:
 }
 
 export async function treeManagementUnits() {
-  const { data } = await api.get<{ success: boolean; data: ManagementUnitTreeNode[] }>(
+  const { data } = await api.get<ApiEnvelope<ManagementUnitTreeNode[]>>(
     '/management-units/tree/',
   );
   return data.data ?? [];
 }
 
 export async function createManagementUnit(payload: Partial<ManagementUnit>) {
-  const { data } = await api.post<{ success: boolean; data: ManagementUnit }>(
+  const { data } = await api.post<ApiEnvelope<ManagementUnit>>(
     '/management-units/',
     payload,
   );
@@ -99,7 +100,7 @@ export async function createManagementUnit(payload: Partial<ManagementUnit>) {
 export async function updateManagementUnit(id: string, payload: Partial<ManagementUnit>) {
   // 使用 PATCH(部分更新): serializer 中 unit_name 为必填, PUT 会拒绝仅传部分字段的调用
   // (如按应用保存 orgScopes/dataRanges、批量停用仅传 {status:0}), 改为 PATCH 后这些调用均生效.
-  const { data } = await api.patch<{ success: boolean; data: ManagementUnit }>(
+  const { data } = await api.patch<ApiEnvelope<ManagementUnit>>(
     `/management-units/${id}/`,
     payload,
   );
@@ -107,12 +108,12 @@ export async function updateManagementUnit(id: string, payload: Partial<Manageme
 }
 
 export async function deleteManagementUnit(id: string) {
-  const { data } = await api.delete<{ success: boolean; message?: string }>(`/management-units/${id}/`);
+  const { data } = await api.delete<ApiEnvelope<void>>(`/management-units/${id}/`);
   return data;
 }
 
 export async function syncManagementUnitRules(id: string) {
-  const { data } = await api.post<{ success: boolean; data: SyncDataRulesResult }>(
+  const { data } = await api.post<ApiEnvelope<SyncDataRulesResult>>(
     `/management-units/${id}/sync-data-rules/`,
   );
   return data.data;

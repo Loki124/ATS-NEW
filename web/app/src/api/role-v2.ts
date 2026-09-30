@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * role-v2.ts — V2 角色 (RoleV2) API 客户端 (T19)
  *
@@ -34,22 +35,22 @@ export interface RoleV2 {
 // ===== API =====
 
 export async function listRoles(params?: { status?: number; isSystem?: number; search?: string }) {
-  const { data } = await api.get<{ success: boolean; data: RoleV2[] }>('/roles/', { params });
+  const { data } = await api.get<ApiEnvelope<RoleV2[]>>('/roles/', { params });
   return data.data ?? [];
 }
 
 export async function createRole(payload: Partial<RoleV2>) {
-  const { data } = await api.post<{ success: boolean; data: RoleV2 }>('/roles/', payload);
+  const { data } = await api.post<ApiEnvelope<RoleV2>>('/roles/', payload);
   return data.data;
 }
 
 export async function updateRole(id: string, payload: Partial<RoleV2>) {
-  const { data } = await api.put<{ success: boolean; data: RoleV2 }>(`/roles/${id}/`, payload);
+  const { data } = await api.put<ApiEnvelope<RoleV2>>(`/roles/${id}/`, payload);
   return data.data;
 }
 
 export async function deleteRole(id: string) {
-  const { data } = await api.delete<{ success: boolean }>(`/roles/${id}/`);
+  const { data } = await api.delete<ApiEnvelope<void>>(`/roles/${id}/`);
   return data;
 }
 
@@ -63,7 +64,7 @@ export async function cloneFromTemplate(payload: {
   roleName: string;
   customPermissions?: { add?: string[]; remove?: string[] };
 }) {
-  const { data } = await api.post<{ success: boolean; data: RoleV2 }>(
+  const { data } = await api.post<ApiEnvelope<RoleV2>>(
     '/roles/clone-from-template/',
     payload,
   );
@@ -77,7 +78,7 @@ export async function cloneFromTemplate(payload: {
  * DRF 会静默丢弃, 用户以为保存成功实际数据丢失. 此处显式走 sync-resources action.
  */
 export async function syncRolePermissions(roleId: string, codes: string[]) {
-  const { data } = await api.post<{ success: boolean; data: RoleV2 }>(
+  const { data } = await api.post<ApiEnvelope<RoleV2>>(
     `/roles/${roleId}/sync-resources/`,
     { resourceCodes: codes },
   );

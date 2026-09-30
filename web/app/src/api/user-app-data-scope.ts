@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * user-app-data-scope.ts — V2 用户-角色-应用 数据范围 API 客户端 (方案 A 2026-09-15)
  *
@@ -32,7 +33,7 @@ export async function listUserAppDataScopes(params?: {
   roleCode?: string;
   appCode?: string;
 }) {
-  const { data } = await api.get<{ success: boolean; data: UserAppDataScope[] }>(
+  const { data } = await api.get<ApiEnvelope<UserAppDataScope[]>>(
     '/user-app-data-scopes/',
     { params },
   );
@@ -50,7 +51,7 @@ export async function upsertUserAppDataScope(payload: {
   systemCode?: string;
   managementUnitIds?: number[] | null;
 }) {
-  const { data } = await api.post<{ success: boolean; data: UserAppDataScope }>(
+  const { data } = await api.post<ApiEnvelope<UserAppDataScope>>(
     '/user-app-data-scopes/',
     payload,
   );
@@ -58,7 +59,7 @@ export async function upsertUserAppDataScope(payload: {
 }
 
 export async function deleteUserAppDataScopeById(id: string) {
-  const { data } = await api.delete<{ success: boolean }>(`/user-app-data-scopes/${id}/`);
+  const { data } = await api.delete<ApiEnvelope<void>>(`/user-app-data-scopes/${id}/`);
   return data;
 }
 

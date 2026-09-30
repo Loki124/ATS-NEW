@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 // 候选人信息表：真实数据表格 + 列显隐配置落库 + 搜索筛选 + 前端 CSV 导出
 // 数据来源：GET /api/v1/candidates/（camelCase 渲染）
 // 列配置落库端点：GET/POST/PUT /api/v1/standard-resume/candidate-info-table/（CandidateTableConfigView）
@@ -166,7 +167,7 @@ export function defaultCandidateInfoTableConfig(): CandidateInfoTableConfig {
   }
 }
 
-function unwrap<T>(r: { data: { success: boolean; data: T } }): T {
+function unwrap<T>(r: { data: ApiEnvelope<T> }): T {
   return r.data.data
 }
 

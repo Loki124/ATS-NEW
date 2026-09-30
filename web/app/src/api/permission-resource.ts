@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * permission-resource.ts — V2 权限资源 API 客户端 (T19)
  *
@@ -43,7 +44,7 @@ export async function listResources(params?: { module?: string; resourceType?: s
 }
 
 export async function createResource(payload: Partial<PermissionResource>) {
-  const { data } = await api.post<{ success: boolean; data: PermissionResource }>(
+  const { data } = await api.post<ApiEnvelope<PermissionResource>>(
     '/permissions/resources/',
     payload,
   );
@@ -51,7 +52,7 @@ export async function createResource(payload: Partial<PermissionResource>) {
 }
 
 export async function updateResource(id: string, payload: Partial<PermissionResource>) {
-  const { data } = await api.put<{ success: boolean; data: PermissionResource }>(
+  const { data } = await api.put<ApiEnvelope<PermissionResource>>(
     `/permissions/resources/${id}/`,
     payload,
   );
@@ -59,7 +60,7 @@ export async function updateResource(id: string, payload: Partial<PermissionReso
 }
 
 export async function deleteResource(id: string) {
-  const { data } = await api.delete<{ success: boolean }>(`/permissions/resources/${id}/`);
+  const { data } = await api.delete<ApiEnvelope<void>>(`/permissions/resources/${id}/`);
   return data;
 }
 

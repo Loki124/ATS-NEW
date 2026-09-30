@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 // 重复候选人管理 API
 // 后端端点（挂载 /api/v1/duplicate-rules/）：
 //   GET         catalog/            查重项字段目录（强 / 中 / 弱）
@@ -97,7 +98,7 @@ export interface DuplicateConfig {
   application: ApplicationConfig
 }
 
-function unwrap<T>(r: { data: { success: boolean; data: T } }): T {
+function unwrap<T>(r: { data: ApiEnvelope<T> }): T {
   return r.data.data
 }
 

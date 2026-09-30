@@ -2,6 +2,7 @@
  * 全局搜索 API 客户端 - Plan T3
  */
 import { createApi } from '../utils/request'
+import type { ApiEnvelope } from '../utils/envelope'
 
 const api = createApi({ timeout: 5000 })
 // ===== 类型 =====
@@ -37,14 +38,6 @@ export interface SearchParams {
   q: string
   types?: SearchEntityType[]
   limit?: number
-}
-
-// P1-3 统一信封：HTTP 响应体为 {success, data, message, code}，payload 在 data 内
-export interface ApiEnvelope<T> {
-  success: boolean
-  data: T
-  message: string
-  code: number
 }
 
 // ===== API =====

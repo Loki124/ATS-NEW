@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 // G8/G43 - 字段级 ACL 前端 API 客户端
 // 模式跟 src/api/referral.ts 一致: 自管 axios 实例, 不依赖不存在的 base 文件
 import { api } from '../utils/request'
@@ -44,18 +45,18 @@ export interface FieldAclAudit {
 // ===== API =====
 
 export const fetchAclMatrix = () =>
-  api.get<{ success: boolean; data: FieldAclMatrix }>('/field-acl/matrix').then(r => r.data.data);
+  api.get<ApiEnvelope<FieldAclMatrix>>('/field-acl/matrix').then(r => r.data.data);
 
 export const listAclRules = (params?: { resource?: string; roleCode?: string }) =>
-  api.get<{ success: boolean; data: FieldAclRule[] }>('/field-acl/rules', { params }).then(r => r.data.data);
+  api.get<ApiEnvelope<FieldAclRule[]>>('/field-acl/rules', { params }).then(r => r.data.data);
 
 export const upsertAclRule = (rule: Partial<FieldAclRule>) =>
-  api.post<{ success: boolean; data: FieldAclRule }>('/field-acl/rules', rule).then(r => r.data.data);
+  api.post<ApiEnvelope<FieldAclRule>>('/field-acl/rules', rule).then(r => r.data.data);
 
 export const deleteAclRule = (id: string) =>
-  api.delete<{ success: boolean }>(`/field-acl/rules/${id}`).then(r => r.data);
+  api.delete<ApiEnvelope<void>>(`/field-acl/rules/${id}`).then(r => r.data);
 
 export const queryAclAudit = (params?: { userId?: string; resource?: string; field?: string; limit?: number }) =>
-  api.get<{ success: boolean; data: FieldAclAudit[] }>('/field-acl/audit', { params }).then(r => r.data.data);
+  api.get<ApiEnvelope<FieldAclAudit[]>>('/field-acl/audit', { params }).then(r => r.data.data);
 
 export default api;

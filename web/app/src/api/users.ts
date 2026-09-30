@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * 用户 API 客户端
  *
@@ -25,7 +26,7 @@ export interface User {
  */
 export async function listUsers(): Promise<User[]> {
   try {
-    const res = await api.get<{ success: boolean; data: User[] }>('/users')
+    const res = await api.get<ApiEnvelope<User[]>>('/users')
     return res.data?.data ?? []
   } catch (e) {
     console.error('[users] listUsers failed:', e)

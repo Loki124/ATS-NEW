@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * permission-template.ts — V2 权限模板 API 客户端 (T19)
  *
@@ -26,7 +27,7 @@ export interface PermissionTemplate {
 // ===== API =====
 
 export async function listTemplates(params?: { isSystem?: number }) {
-  const { data } = await api.get<{ success: boolean; data: PermissionTemplate[] }>(
+  const { data } = await api.get<ApiEnvelope<PermissionTemplate[]>>(
     '/permissions/templates/',
     { params },
   );

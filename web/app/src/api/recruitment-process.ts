@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 /**
  * 招聘流程管理 API 客户端 - PRD G38 (P0)
  *
@@ -172,7 +173,7 @@ export interface AutoArchiveRule {
 
 // ===== API =====
 export const listProcesses = (params?: { status?: string; keyword?: string }) =>
-  api.get<{ success: boolean; data: RecruitmentProcess[] }>('/processes/', { params }).then((r) => r.data.data);
+  api.get<ApiEnvelope<RecruitmentProcess[]>>('/processes/', { params }).then((r) => r.data.data);
 
 // 2026-07-02: BE 部分接口已不再包 {success, data} 包裹, 直接返 root object;
 // normalize 函数兼容两种形态
@@ -191,40 +192,40 @@ export const getProcess = (id: string) =>
 
 // 2026-06-17: 加上 applicableScope (4 指标数组). 旧的 applicableDepartments/Levels/UserIds/Jobs 字段保留兼容.
 export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[]; applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] } }) =>
-  api.post<{ success: boolean; data: RecruitmentProcess }>('/processes/', payload).then((r) => r.data.data);
+  api.post<ApiEnvelope<RecruitmentProcess>>('/processes/', payload).then((r) => r.data.data);
 
 export const updateProcess = (id: string, payload: Partial<RecruitmentProcess>) =>
-  api.put<{ success: boolean; data: RecruitmentProcess }>(`/processes/${id}/`, payload).then((r) => r.data.data);
+  api.put<ApiEnvelope<RecruitmentProcess>>(`/processes/${id}/`, payload).then((r) => r.data.data);
 
 export const deleteProcess = (id: string) =>
-  api.delete<{ success: boolean }>(`/processes/${id}/`).then((r) => r.data);
+  api.delete<ApiEnvelope<void>>(`/processes/${id}/`).then((r) => r.data);
 
 export const copyProcess = (id: string, payload: { newName?: string; createdBy?: string }) =>
-  api.post<{ success: boolean; data: RecruitmentProcess }>(`/processes/${id}/copy/`, payload).then((r) => r.data.data);
+  api.post<ApiEnvelope<RecruitmentProcess>>(`/processes/${id}/copy/`, payload).then((r) => r.data.data);
 
 export const updateProcessStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
-  api.put<{ success: boolean; data: RecruitmentProcess }>(`/processes/${id}/status/`, { status }).then((r) => r.data.data);
+  api.put<ApiEnvelope<RecruitmentProcess>>(`/processes/${id}/status/`, { status }).then((r) => r.data.data);
 
 // ===== 阶段 =====
 export const listStages = (params?: { stageType?: string; status?: string; keyword?: string }) =>
-  api.get<{ success: boolean; data: RecruitmentStage[] }>('/stages/', { params }).then((r) => r.data.data);
+  api.get<ApiEnvelope<RecruitmentStage[]>>('/stages/', { params }).then((r) => r.data.data);
 
 export const createStage = (payload: { name: string; stageType: string; optionalFeatures?: string[]; description?: string; stageLimit?: number }) =>
-  api.post<{ success: boolean; data: RecruitmentStage }>('/stages/', payload).then((r) => r.data.data);
+  api.post<ApiEnvelope<RecruitmentStage>>('/stages/', payload).then((r) => r.data.data);
 
 export const updateStage = (id: string, payload: Partial<RecruitmentStage>) =>
-  api.put<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/`, payload).then((r) => r.data.data);
+  api.put<ApiEnvelope<RecruitmentStage>>(`/stages/${id}/`, payload).then((r) => r.data.data);
 
 export const deleteStage = (id: string) =>
-  api.delete<{ success: boolean }>(`/stages/${id}/`).then((r) => r.data);
+  api.delete<ApiEnvelope<void>>(`/stages/${id}/`).then((r) => r.data);
 
 // 2026-07-03: BE expose POST /stages/{id}/disable/ 和 /enable/ (@action),
 //   旧 PUT /stages/{id}/status/ 路径不存在 → 404.
 export const disableStage = (id: string) =>
-  api.post<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/disable/`, {}).then((r) => r.data.data);
+  api.post<ApiEnvelope<RecruitmentStage>>(`/stages/${id}/disable/`, {}).then((r) => r.data.data);
 
 export const enableStage = (id: string) =>
-  api.post<{ success: boolean; data: RecruitmentStage }>(`/stages/${id}/enable/`, {}).then((r) => r.data.data);
+  api.post<ApiEnvelope<RecruitmentStage>>(`/stages/${id}/enable/`, {}).then((r) => r.data.data);
 
 // ===== 流程-阶段 link =====
 export const listProcessLinks = (processId: string) =>
@@ -237,19 +238,19 @@ export const getProcessLink = (linkId: string) =>
 //   BE 收到 'order_index' (drf-camel-case 转换) 是未知字段, ModelSerializer 静默丢弃, 落地 order=0.
 //   配套: 上面 ProcessStageLink 类型同步改 orderIndex → order.
 export const addProcessLink = (payload: { processId: string; stageId: string; order?: number; customName?: string; stageLimit?: number }) =>
-  api.post<{ success: boolean; data: ProcessStageLink }>('/process-stage-links/', payload).then((r) => r.data.data);
+  api.post<ApiEnvelope<ProcessStageLink>>('/process-stage-links/', payload).then((r) => r.data.data);
 
 export const updateProcessLink = (id: string, payload: Partial<ProcessStageLink>) =>
-  api.put<{ success: boolean; data: ProcessStageLink }>(`/process-stage-links/${id}/`, payload).then((r) => r.data.data);
+  api.put<ApiEnvelope<ProcessStageLink>>(`/process-stage-links/${id}/`, payload).then((r) => r.data.data);
 
 export const deleteProcessLink = (id: string) =>
-  api.delete<{ success: boolean }>(`/process-stage-links/${id}/`).then((r) => r.data);
+  api.delete<ApiEnvelope<void>>(`/process-stage-links/${id}/`).then((r) => r.data);
 
 // 2026-07-03: BE @action(detail=False, methods=['post'], url_path='reorder') (views.py:333)
 //   旧 FE 调 PUT /process-stage-links/reorder/ → 405 Method Not Allowed
 //   Body: { "process_id": "...", "order": [{"link_id": "...", "order": 1}, ...] }
 export const reorderProcessLinks = (processId: string, orderedLinkIds: string[]) =>
-  api.post<{ success: boolean }>('/process-stage-links/reorder/', {
+  api.post<ApiEnvelope<void>>('/process-stage-links/reorder/', {
     process_id: processId,
     order: orderedLinkIds.map((linkId, idx) => ({ link_id: linkId, order: idx + 1 })),
   }).then((r) => r.data);
@@ -266,17 +267,17 @@ export const reorderProcessLinks = (processId: string, orderedLinkIds: string[])
 //   重复 POST 同 link 会 400 "已存在". 正确做法: 先 GET ?link=X 查现有 rule,
 //   有则 PUT /stage-rules/{id}/, 无则 POST. (FE 之前走 stub 不知道这个, 现在需要做.)
 export const upsertStageRule = async (linkId: string, payload: Partial<StageRule> & { processId?: string }) => {
-  const list = await api.get<{ success: boolean; data: any[] }>('/stage-rules/', { params: { link: linkId } })
+  const list = await api.get<ApiEnvelope<any[]>>('/stage-rules/', { params: { link: linkId } })
     .then((r) => unwrap(r) as any[]);
   const existing = Array.isArray(list) ? list.find((r) => r.link === linkId) : null
   if (existing?.id) {
     // 2026-07-03: BE StageRuleSerializer.Meta.fields 包含 'link' (OneToOne FK, 非 nullable),
     //   PUT 走 full validation, 不传 link → 400 "该字段是必填项". 即便 instance 上 link 已有,
     //   DRF 仍要入参里再传一次. POST 分支 { link: linkId, ...payload } 是正确的, PUT 分支之前漏了.
-    return api.put<{ success: boolean; data: StageRule }>(`/stage-rules/${existing.id}/`, { link: linkId, ...payload })
+    return api.put<ApiEnvelope<StageRule>>(`/stage-rules/${existing.id}/`, { link: linkId, ...payload })
       .then((r) => unwrap(r) as StageRule)
   }
-  return api.post<{ success: boolean; data: StageRule }>('/stage-rules/', { link: linkId, ...payload })
+  return api.post<ApiEnvelope<StageRule>>('/stage-rules/', { link: linkId, ...payload })
     .then((r) => unwrap(r) as StageRule)
 }
 
@@ -288,7 +289,7 @@ export const upsertStageRule = async (linkId: string, payload: Partial<StageRule
 // 2026-07-08: 改用真实 endpoint /stage-rules/?link=X (跟 upsertStageRule 一致).
 //   之前 /recruitment-rules/stage-rules 是 stub, GET 永远返空 list → modal 重打开看不到已配置.
 export const listStageRules = (params: { linkId: string }) =>
-  api.get<{ success: boolean; data: StageRule[] }>('/stage-rules/', { params: { link: params.linkId } })
+  api.get<ApiEnvelope<StageRule[]>>('/stage-rules/', { params: { link: params.linkId } })
     .then((r) => unwrap(r) as StageRule[])
 
 // 候选人上下文评估 (G10 + G1.5) - 替代 raw fetch
@@ -306,23 +307,23 @@ export const checkApplicationStageTransition = (applicationId: string, entryCond
 
 // ===== 面试轮次 =====
 export const listRounds = (params?: { status?: string; keyword?: string }) =>
-  api.get<{ success: boolean; data: InterviewRound[] }>('/recruitment-rounds', { params }).then((r) => r.data.data);
+  api.get<ApiEnvelope<InterviewRound[]>>('/recruitment-rounds', { params }).then((r) => r.data.data);
 
 export const createRound = (payload: { name: string; description?: string; evaluationFormName?: string; isUniversal?: boolean; createdBy?: string }) =>
-  api.post<{ success: boolean; data: InterviewRound }>('/recruitment-rounds', payload).then((r) => r.data.data);
+  api.post<ApiEnvelope<InterviewRound>>('/recruitment-rounds', payload).then((r) => r.data.data);
 
 export const updateRound = (id: string, payload: Partial<InterviewRound>) =>
-  api.put<{ success: boolean; data: InterviewRound }>(`/recruitment-rounds/${id}`, payload).then((r) => r.data.data);
+  api.put<ApiEnvelope<InterviewRound>>(`/recruitment-rounds/${id}`, payload).then((r) => r.data.data);
 
 export const updateRoundStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
-  api.put<{ success: boolean; data: InterviewRound }>(`/recruitment-rounds/${id}/status`, { status }).then((r) => r.data.data);
+  api.put<ApiEnvelope<InterviewRound>>(`/recruitment-rounds/${id}/status`, { status }).then((r) => r.data.data);
 
 // Auto-archive rules (G38 #8 配套, 暂未实现后端)
 export const listAutoArchiveRules = (params: { processId?: string } = {}) =>
-  api.get<{ success: boolean; data: AutoArchiveRule[] }>('/recruitment-rules/auto-archive-rules', { params }).then((r) => r.data.data)
+  api.get<ApiEnvelope<AutoArchiveRule[]>>('/recruitment-rules/auto-archive-rules', { params }).then((r) => r.data.data)
 
 export const upsertAutoArchiveRule = (rule: Partial<AutoArchiveRule>) =>
-  api.post<{ success: boolean; data: AutoArchiveRule }>('/recruitment-rules/auto-archive-rules', rule).then((r) => r.data.data)
+  api.post<ApiEnvelope<AutoArchiveRule>>('/recruitment-rules/auto-archive-rules', rule).then((r) => r.data.data)
 
 /* ============================================================================
  * 阶段配置规则 — 进入条件规则（EntryConditionRuleViewSet）
@@ -331,26 +332,26 @@ export const upsertAutoArchiveRule = (rule: Partial<AutoArchiveRule>) =>
  * ========================================================================== */
 export const listEntryConditionRules = (params: { linkId: string }) =>
   api
-    .get<{ success: boolean; data: any[] }>('/entry-condition-rules/', { params: { link: params.linkId } })
+    .get<ApiEnvelope<any[]>>('/entry-condition-rules/', { params: { link: params.linkId } })
     .then((r) => unwrap(r) as any[])
 
 export const createEntryConditionRule = (payload: Record<string, any>) =>
-  api.post<{ success: boolean; data: any }>('/entry-condition-rules/', payload).then((r) => unwrap(r) as any)
+  api.post<ApiEnvelope<any>>('/entry-condition-rules/', payload).then((r) => unwrap(r) as any)
 
 export const updateEntryConditionRule = (id: string, payload: Record<string, any>) =>
-  api.put<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/`, payload).then((r) => unwrap(r) as any)
+  api.put<ApiEnvelope<any>>(`/entry-condition-rules/${id}/`, payload).then((r) => unwrap(r) as any)
 
 export const deleteEntryConditionRule = (id: string) =>
-  api.delete<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/`).then((r) => unwrap(r) as any)
+  api.delete<ApiEnvelope<any>>(`/entry-condition-rules/${id}/`).then((r) => unwrap(r) as any)
 
 export const toggleEntryConditionRule = (id: string) =>
-  api.post<{ success: boolean; data: any }>(`/entry-condition-rules/${id}/toggle/`).then((r) => unwrap(r) as any)
+  api.post<ApiEnvelope<any>>(`/entry-condition-rules/${id}/toggle/`).then((r) => unwrap(r) as any)
 
 export const reorderEntryConditionRules = (ruleOrders: { rule_id: string; rule_seq: number }[]) =>
-  api.post<{ success: boolean; data: any }>('/entry-condition-rules/reorder/', { rule_orders: ruleOrders }).then((r) => unwrap(r) as any)
+  api.post<ApiEnvelope<any>>('/entry-condition-rules/reorder/', { rule_orders: ruleOrders }).then((r) => unwrap(r) as any)
 
 export const evaluateEntryConditionRule = (payload: Record<string, any>) =>
-  api.post<{ success: boolean; data: any }>('/entry-condition-rules/evaluate/', payload).then((r) => unwrap(r) as any)
+  api.post<ApiEnvelope<any>>('/entry-condition-rules/evaluate/', payload).then((r) => unwrap(r) as any)
 
 /* 字段字典：直接消费真实后端端点 GET /api/v1/expressions/fields
  * （EntryConditionFieldCatalogView），不再有任何 mock 兜底分支。 */
@@ -358,7 +359,7 @@ export const listEntryConditionFields = async (): Promise<any> => {
   // 仅依赖真实后端端点 GET /api/v1/expressions/fields（EntryConditionFieldCatalogView）。
   // 失败时返回空目录结构（不兜底任何伪造字段），由 UI 自行渲染空态。
   try {
-    return await api.get<{ success: boolean; data: any }>('/expressions/fields').then((r) => unwrap(r) as any)
+    return await api.get<ApiEnvelope<any>>('/expressions/fields').then((r) => unwrap(r) as any)
   } catch {
     return { sources: [], operators: {} }
   }
@@ -394,7 +395,7 @@ export const upsertEntryCondition = (
     items: ConditionItem[]
   },
 ) =>
-  api.patch<{ success: boolean; data: ProcessStageLink }>(`/process-stage-links/${linkId}/`, {
+  api.patch<ApiEnvelope<ProcessStageLink>>(`/process-stage-links/${linkId}/`, {
     entry_condition: payload,
   }).then((r) => unwrap(r) as ProcessStageLink)
 

@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 import { api } from '../utils/request'
 
 // ===== 类型定义 =====
@@ -85,35 +86,35 @@ export interface PaginatedResult<T> {
 // ===== API 方法 =====
 
 export const getMyCode = () =>
-  api.get<{ success: boolean; data: ReferralCode }>('/referral/codes/me').then((r) => r.data.data);
+  api.get<ApiEnvelope<ReferralCode>>('/referral/codes/me').then((r) => r.data.data);
 
 export const getMyRecords = (page = 1, pageSize = 20) =>
   api
-    .get<{ success: boolean; data: PaginatedResult<ReferralRecord> }>('/referral/records/me', {
+    .get<ApiEnvelope<PaginatedResult<ReferralRecord>>>('/referral/records/me', {
       params: { page, pageSize },
     })
     .then((r) => r.data.data);
 
 export const getMyRecordSummary = () =>
   api
-    .get<{ success: boolean; data: ReferralRecordSummary }>('/referral/records/me/summary')
+    .get<ApiEnvelope<ReferralRecordSummary>>('/referral/records/me/summary')
     .then((r) => r.data.data);
 
 export const getMyRewards = (page = 1, pageSize = 20) =>
   api
-    .get<{ success: boolean; data: PaginatedResult<ReferralReward> }>('/referral/rewards/me', {
+    .get<ApiEnvelope<PaginatedResult<ReferralReward>>>('/referral/rewards/me', {
       params: { page, pageSize },
     })
     .then((r) => r.data.data);
 
 export const getRules = () =>
   api
-    .get<{ success: boolean; data: ReferralRule[] }>('/referral/rules')
+    .get<ApiEnvelope<ReferralRule[]>>('/referral/rules')
     .then((r) => r.data.data);
 
 export const getMyExpertConfigs = () =>
   api
-    .get<{ success: boolean; data: ExpertConfig[] }>('/referral/expert-configs/me')
+    .get<ApiEnvelope<ExpertConfig[]>>('/referral/expert-configs/me')
     .then((r) => r.data.data);
 
 // ===== 新增推荐（内部员工手动添加）=====
@@ -133,13 +134,13 @@ export const addReferral = (payload: {
 
 // ===== 奖励确认/拒绝/发放（管理员）=====
 export const confirmReward = (rewardId: string) =>
-  api.post<{ success: boolean }>(`/referral/rewards/${rewardId}/confirm`).then((r) => r.data)
+  api.post<ApiEnvelope<void>>(`/referral/rewards/${rewardId}/confirm`).then((r) => r.data)
 
 export const rejectReward = (rewardId: string, reason?: string) =>
-  api.post<{ success: boolean }>(`/referral/rewards/${rewardId}/reject`, { reason }).then((r) => r.data)
+  api.post<ApiEnvelope<void>>(`/referral/rewards/${rewardId}/reject`, { reason }).then((r) => r.data)
 
 export const issueReward = (rewardId: string) =>
-  api.post<{ success: boolean }>(`/referral/rewards/${rewardId}/issue`).then((r) => r.data)
+  api.post<ApiEnvelope<void>>(`/referral/rewards/${rewardId}/issue`).then((r) => r.data)
 
 export default {
   getMyCode,

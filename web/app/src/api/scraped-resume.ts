@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 // G30 - RPA 简历抓取 API 客户端
 import { api } from '../utils/request'
 
@@ -15,12 +16,12 @@ export interface ScrapedResume {
 }
 
 export const triggerScrape = (payload: { source?: string; jobTitle?: string; city?: string; scraperJobName?: string }) =>
-  api.post<{ success: boolean; data: ScrapedResume }>('/scraped-resumes/scrape', payload).then(r => r.data.data);
+  api.post<ApiEnvelope<ScrapedResume>>('/scraped-resumes/scrape', payload).then(r => r.data.data);
 
 export const listScrapedResumes = (params?: { status?: string; page?: number; pageSize?: number }) =>
-  api.get<{ success: boolean; data: ScrapedResume[] }>('/scraped-resumes', { params }).then(r => r.data.data);
+  api.get<ApiEnvelope<ScrapedResume[]>>('/scraped-resumes', { params }).then(r => r.data.data);
 
 export const importScrapedResume = (id: string, candidateId: string) =>
-  api.post<{ success: boolean; data: ScrapedResume }>(`/scraped-resumes/${id}/import`, { candidateId }).then(r => r.data.data);
+  api.post<ApiEnvelope<ScrapedResume>>(`/scraped-resumes/${id}/import`, { candidateId }).then(r => r.data.data);
 
 export default api;

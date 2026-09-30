@@ -1,3 +1,4 @@
+import type { ApiEnvelope } from '../utils/envelope'
 // 申请表和登记表（多套）配置 API
 // 后端端点：
 //   GET    /api/v1/standard-resume/application-form/          → 列表
@@ -31,7 +32,7 @@ export interface RegistrationForm {
   updatedAt?: string
 }
 
-function unwrap<T>(r: { data: { success: boolean; data: T } }): T {
+function unwrap<T>(r: { data: ApiEnvelope<T> }): T {
   return r.data.data
 }
 

@@ -34,6 +34,35 @@ function injectAuthHeaders(cfg: any): any {
   return cfg
 }
 
+/**
+ * P2 防御性响应归一（A2 过渡期兜底，非完整信封化）：
+ * 对 2xx 且为裸 JSON 对象的响应，若其尚未带 success 字段，则补 success/message/code 元数据，
+ * 使其可被「信封感知 / 容错」消费路径统一对待。
+ *
+ * 设计约束（A2）：
+ *  - 不搬迁 payload：裸对象的根即原 payload，仅附加元数据，绝不把 payload 塞进 .data。
+ *  - 不自动 reject success:false：success:false 信封由调用方按业务判定，拦截器保持透传。
+ *  - 已带 success 的信封响应（成功/失败）一律 no-op，避免重复写入。
+ *  - 数组 / Blob / 原始值响应不处理（仅对象）。
+ *
+ * 完整「裸→包信封 + payload 搬迁」须在剩余 ~26 个裸后端 ViewSet 信封化后落地，
+ * 否则会击穿其对应的 FE 裸消费点（见 P1-3 收敛说明）。
+ */
+function normalizeEnvelopeMeta(resp: any): any {
+  const d = resp?.data
+  if (
+    d &&
+    typeof d === 'object' &&
+    !Array.isArray(d) &&
+    !('success' in d)
+  ) {
+    d.success = true
+    d.message = ''
+    d.code = 0
+  }
+  return resp
+}
+
 export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
   const inst = axios.create({
     baseURL: opts.baseURL ?? config.api.baseUrl,
@@ -41,6 +70,7 @@ export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
     headers: { 'Content-Type': 'application/json' },
   })
   inst.interceptors.request.use(injectAuthHeaders as any)
+  inst.interceptors.response.use(normalizeEnvelopeMeta as any)
   return inst
 }
 
