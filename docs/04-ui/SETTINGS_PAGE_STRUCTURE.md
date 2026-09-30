@@ -114,7 +114,7 @@ scoped 仅需（对齐 `CampusControl.vue`，已在 `CodeTableLibrary.vue` 真�
 
 - **`.page-body` 禁止声明 `padding` / `padding-top`**。顶部留白统一由外层 `.settings-scroll` 的 `padding: 20px` 提供（见 §2.1）。在 `.page-body` 上加 `padding-top` 会与 `.settings-scroll` 叠出多余顶部间隙，且与该规范唯一的模型 A 参考页（校招管控）顶部间距不一致。
 - 反例：`padding-top: 8px`（commit `12c6ece` 引入，已在 `50c5341` + `7ec00af` 清除，涉及 RecruitmentStage/Process/Round、AccountSettings、DemandConfig、CompanyLibrary、SchoolLibrary、ProcessStageEditor、DataDashboard、CompanySettings、PermissionManagement、FieldAclSettings、DepartmentManagement、MouManagement、DynamicFieldSettings、ProcessStageRules、ScoringRules、UserManagement）。
-- 若某页确实需要在 header 与首块内容间加间距：在 `.page-header` 之下第一块内容（如 `.toolbar` / `.glass-panel`）上加 `margin-top`，**不要**动 `.page-body` 的 `padding`。
+- header 与首块内容间的 16px 间距**统一由容器 gap 提供**——模型 B 由 `.settings-scroll :deep(.page-container)` 的 `gap`（SettingsLayout.vue）、de-facto 由 `.page-body` 的 `gap`。**禁止**给首块（`.toolbar` / `.glass-panel` / `.page-body` 等 `.page-container` 直接子元素）加 `margin-top`，也**不要**动 `.page-body` 的 `padding`（间距单一来源，杜绝 margin 与 gap 叠加、杜绝按块类型特判，见 §3.2）。
 - 自检：新增/修改设置页时，`grep -Pzo '\.page-body[\s\S]*?padding' <file>` 应无命中（`.page-body` 块内不得含任何 `padding` 声明）。
 
 ### ⚠️ 红线：间距唯一来源（2026-09-18 新增，兵哥反馈「header 与内容间多余空带」）
@@ -186,13 +186,14 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
 - 全局 `.settings-scroll .page-header`（glass.css）已固定 `margin: 0; padding-top: 0`；顶部留白由外壳 `.settings-scroll{padding:20px}` 独家提供，底部间距由下方补偿规则提供，header 自身既不带 margin 也不带顶部内边距。
 - scoped / 内联 **禁止**写 `.page-header { margin / margin-top / margin-bottom / padding-top }`；
 - scoped **禁止**给 `.page-container` 写 `padding-top`（已被 SettingsLayout `.settings-scroll :deep(.page-container){padding:0!important}` 清零，顶部留白统一由外壳 20px 提供）。
-- **底部间距补偿（两种结构同一视觉 16px）**：
+- **顶层块红线（模型 B 必守，2026-09-30 修订）**：`.page-container` 的**直接子元素**（`.page-body` / `.ws-body` / `.data-body` / `.glass-panel` / `<n-card>` / `.kpi-row` / `.toolbar` 等）**禁止**写 `margin-top` / `margin-bottom`。其块间间距与 header→首块间距统一由 `.settings-scroll :deep(.page-container)` 的 `gap: var(--space-4)` 提供（glass.css/SettingsLayout 单一来源），**不得**用 margin 叠加或按块类型特判——原 `.page-container>.page-header+*` 相邻兄弟补偿对「首块是滚动容器（`.ws-body`/`.data-body` 等 `flex:1` 块）」误注 `margin-top`（造成 ws-body 多出边距），已废弃。
+- **底部间距补偿（两种结构同一视觉 16px，统一由容器 gap 单一来源，2026-09-30 修订）**：
   · de-facto 页（header 在 `.page-body` 内）：header→首块 16px 由 `.page-body` 的 flex `gap` 独家提供（全局 `.settings-scroll .page-body>.page-header{margin-bottom:0}` 兜底清零 header margin）。
-  · 模型 B 页（header 在 `.page-body` 之外，为 `.page-container` 直接子节点）：header→首块 16px 由「header 后紧邻首块 `margin-top:var(--space-4)`」提供（glass.css 新增 `.settings-scroll .page-container>.page-header+*`（及 `.cc-header`/`.n-page-header`/`.policy-admin__header` 同款）；`+ *` 仅作用于紧邻兄弟，不影响其后其它块，避免整列块都加间距）。
+  · 模型 B 页（header 在 `.page-body` 之外，为 `.page-container` 直接子节点）：header→首块 16px 由 `.settings-scroll :deep(.page-container)` 的 `gap: var(--space-4)` 统一提供（定义于 SettingsLayout.vue）。该 gap 作用于 `.page-container` 的 flex 列**全部直接子元素**间留白，对「首块是滚动容器（`.ws-body`/`.data-body` 等 `flex:1` 块）」与普通块**一视同仁、不注入 margin、不按块类型特判**——根除了「武断一刀切」式的块类型特判。
 - **根因（旧反模式，已修）**：
   · 顶部：此前全局 `.settings-scroll .page-header{ padding: var(--space-4) 0 var(--space-1) 0 }` 给 header 加 16px 顶部内边距，叠加外壳 20px → 顶部留白 36px；RecruitmentProcess / RecruitmentRound / RecruitmentStage 三页 scoped `.page-header{padding:0;margin:0 0 8px 0}` 把 16px 清零仅留 20px → 跨页顶部差 16px（「部分有上边距、部分没有」）。2026-09-30 已全局归零 padding-top 并清除三页 scoped 覆盖。
-  · 底部：全局 `.settings-scroll .page-header{margin-bottom:16px}` 仅对模型 B 页生效（de-facto 页被 `.page-body>.page-header{margin-bottom:0}` 清零）→ 模型 B 页 16px、de-facto 页 0，「部分页面有额外 margin、部分没有」。2026-09-30 已将全局 margin 归零，模型 B 间距改由「header 后首块 margin-top」补偿；RuleEngine.vue 曾 scoped `.page-header{margin-bottom:var(--space-4)}`（冗余死代码，违反本红线）已清除。
-- **自检**：任一设置页渲染后，`getComputedStyle(header).margin === '0px'`（上下左右全 0）且 `paddingTop === '0px'`；header 顶边到外壳顶（含 20px）恒定、header 底边到首块顶（16px）在模型 B 与 de-facto 两结构下恒定一致。运行时取证：遍历所有设置路由，`header.getBoundingClientRect().top` 与 `.settings-scroll` 顶边差恒定 = 20px，`header.getBoundingClientRect().bottom` 到首块 `top` 差恒定 = 16px。
+  · 底部：全局 `.settings-scroll .page-header{margin-bottom:16px}` 仅对模型 B 页生效（de-facto 页被 `.page-body>.page-header{margin-bottom:0}` 清零）→ 模型 B 页 16px、de-facto 页 0，「部分页面有额外 margin、部分没有」。2026-09-30 已将全局 margin 归零，模型 B 间距改由 `.settings-scroll :deep(.page-container)` 的 `gap` 提供（原 `.page-container>.page-header+*` 相邻兄弟补偿对滚动容器误注 margin-top，已废弃）；RuleEngine.vue 曾 scoped `.page-header{margin-bottom:var(--space-4)}` 及 `.kpi-row`/`.toolbar` 冗余 `margin-bottom`、DuplicateCandidate.vue `.page-body{margin-top:8px}`（与 gap 叠加）均已清除。
+- **自检**：任一设置页渲染后，`getComputedStyle(header).margin === '0px'`（上下左右全 0）且 `paddingTop === '0px'`；header 顶边到外壳顶（含 20px）恒定、header 底边到首块顶（16px）在模型 B 与 de-facto 两结构下恒定一致。运行时取证：遍历所有设置路由，`header.getBoundingClientRect().top` 与 `.settings-scroll` 顶边差恒定 = 20px，`header.getBoundingClientRect().bottom` 到首块 `top` 差恒定 = 16px；模型 B 页首块（含 `.ws-body`/`.data-body` 滚动容器）`getComputedStyle(firstBlock).marginTop === '0px'`（间距由容器 gap 提供，不得自带 margin-top）。
 
 ## 4. KPI / 工具条 / 表格（全局类直接复用）
 
@@ -336,7 +337,7 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - [ ] 页面内没有 .cc-aurora / .blob-* 极光（由外壳提供）
 - [ ] 标题用 .page-header > .page-title + .page-subtitle，scoped 无 .page-title/.page-subtitle 字号/颜色覆盖
 - [ ] 标题底部分隔线由全局 `.settings-scroll .page-header` 提供，**scoped 不得写 `.page-header{margin-bottom}`**
-- [ ] **间距唯一来源**：header 在 `.page-body` 内时，header→首块间距 = `.page-body` gap（16px）独家提供（全局 `.settings-scroll .page-body > .page-header{margin-bottom:0}` 已兜底）；scoped 不写 header margin-bottom、不给首块加与 gap 叠加的 margin
+- [ ] **间距唯一来源**：header 在 `.page-body` 内时，header→首块间距 = `.page-body` gap（16px）独家提供（全局 `.settings-scroll .page-body > .page-header{margin-bottom:0}` 已兜底）；模型 B 页 header→首块间距 = `.settings-scroll :deep(.page-container)` gap（16px）独家提供（SettingsLayout）。两种结构下 **`.page-container` 直接子元素（首块/各块）scoped 均不写 margin-top/margin-bottom**，不按块类型特判（滚动容器与普通块一视同仁），禁止与 gap 叠加。
 - [ ] **标题栏无底色 + 模型 B 冻结**：标题栏 scoped 未写任何 `background` / `backdrop-filter`；滚动后 header 透明、下方内容不穿透（header 为 `.page-body` 兄弟节点，模型 B）；未改 `position:fixed`（§3.1）
 - [ ] **分页统一组件**：所有 `n-data-table` 分页走 `useTablePagination`（`localPagination()` / `remotePagination()`），无 inline `{pageSize:N}`、无页面自维护远程 `computed`（§4.x）
 - [ ] 工具条是 `<div class="toolbar">`（非 `<n-card class="toolbar">`）

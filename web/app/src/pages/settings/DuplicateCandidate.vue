@@ -685,7 +685,6 @@ onMounted(loadAll)
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  margin-top: var(--space-2);
 }
 .dc-title-row { display: flex; align-items: center; gap: var(--space-2); }
 

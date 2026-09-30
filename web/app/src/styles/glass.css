@@ -934,9 +934,11 @@ body.dark .kpi-card.kpi-card--accent {
   border-bottom: 1px solid var(--glass-border);
   /* 无 margin（2026-09-30 统一「page-header 不带该边距」）：header 自身 margin 全清零。
      - 顶部留白单一来源：仅由外层 .settings-scroll 的 padding:20px 提供（padding-top 亦为 0）。
-     - 底部间距（header 与首块内容的 16px）不再由 header margin 提供，改为：
-       · de-facto 页（header 在 .page-body 内）由 .page-body 的 flex gap 提供（见下方 .page-body>.page-header{margin-bottom:0}）；
-       · 兄弟结构页（模型 B，header 在 .page-body 之外）由「header 后首块 margin-top」提供（见下方 .page-container>.page-header+*）。
+     - 底部间距（header 与首块内容的 16px）统一由【容器层 gap】单一来源提供：
+       · de-facto 页（header 在 .page-body 内）：由 .page-body 自身的 flex gap 提供（见下方 .page-body>.page-header{margin-bottom:0}）。
+       · 兄弟结构页（模型 B，header 在 .page-body 之外）：由 .settings-scroll :deep(.page-container) 的 gap 提供
+         （定义于 SettingsLayout.vue；仅作用于 .page-container 的 flex 列「直接子元素」间留白，
+          对滚动容器（.ws-body/.data-body 等 flex:1 块）与普通块一视同仁，不再用相邻兄弟 +* 注入 margin-top）。
      禁止 scoped 写 .page-header 的 margin / padding-top，避免与外壳/全局叠加造成跨页不一致。 */
   margin: 0;
   padding: 0 0 var(--space-1) 0;
@@ -953,18 +955,15 @@ body.dark .kpi-card.kpi-card--accent {
 .settings-scroll .page-body > .page-header {
   margin-bottom: 0;
 }
-/* === header 无 margin 后的底部间距补偿（2026-09-30）===
- * 上方已将 .settings-scroll .page-header 的 margin 清零，统一「header 不带该边距」。
- * 模型 B（兄弟结构）页：header 是 .page-container 直接子节点、位于 .page-body（或 .data-body / 首块内容）之前，
- *   此前靠 header 的 margin-bottom:16px 撑开与首块的 16px 间距；清除 margin 后改由「header 后紧邻首块 margin-top」补偿，
- *   仅作用于 header 的紧邻兄弟（不影响其后其它兄弟，避免整列块都加间距）。
- *   de-facto 页 header 在 .page-body 内，不匹配本选择器，间距仍由 .page-body 的 gap 提供，不受影响。 */
-.settings-scroll .page-container > .page-header + *,
-.settings-scroll .page-container > .cc-header + *,
-.settings-scroll .page-container > .n-page-header + *,
-.settings-scroll .page-container > .policy-admin__header + * {
-  margin-top: var(--space-4);
-}
+/* === 模型 B 页头→内容间距：容器 gap 单一来源（2026-09-30 修订）===
+ * 原「.page-container > .page-header + * { margin-top:16px }」相邻兄弟补偿已废弃：
+ *   它对「首块是滚动容器（flex:1，如 .ws-body / .data-body）」也会注入 margin-top，
+ *   造成不该有的外边距（兵哥反馈 ws-body 多出 margin-top）。该机制无法区分滚动容器与普通块，
+ *   属于「武断一刀切」，违反标准兼容性要求（2026-09-30）。
+ * 修订：模型 B 的 header→内容 16px 间距改由 .settings-scroll :deep(.page-container) 的 gap 提供
+ *   （SettingsLayout.vue，flex 列直接子元素间统一留白，类型无关、不叠加、无需按块类型特判）。
+ * 标准同步（docs/04-ui/SETTINGS_PAGE_STRUCTURE.md §3.2）：
+ *   顶层块（.page-container 直接子元素）禁止写 margin-top / margin-bottom，间距一律交给容器 gap。 */
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
 .settings-page-shell { display: block; }
 .settings-page-header,

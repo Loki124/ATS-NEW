@@ -451,6 +451,11 @@ watch(() => route.path, () => {
   height: 100%;
   display: flex !important;
   flex-direction: column !important;
+  /* 模型 B 页头→内容 / 块间间距单一来源（2026-09-30）：
+     仅作用于 .page-container 的 flex 列直接子元素（含 .page-header 与首块/各块），
+     对滚动容器（.ws-body/.data-body 等 flex:1 块）与普通块一视同仁，不注入 margin。
+     顶层块禁止自带 margin-top/bottom（见 SETTINGS_PAGE_STRUCTURE.md §3.2）。 */
+  gap: var(--space-4);
 }
 .settings-scroll :deep(.page-body) {
   flex: 1 1 auto !important;

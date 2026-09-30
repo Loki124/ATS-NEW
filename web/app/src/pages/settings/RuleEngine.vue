@@ -391,7 +391,7 @@ onMounted(loadList)
 .page-title { margin: 0 0 4px 0; font-size: var(--fs-20); font-weight: 600; color: var(--ink); }
 .page-subtitle { margin: 0; color: var(--ink-soft); font-size: var(--fs-13); }
 
-.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
 .kpi-card { padding: var(--space-3) var(--space-4); }
 .kpi-label { color: var(--ink-soft); font-size: var(--fs-12); margin-bottom: 4px; }
 .kpi-value { font-size: var(--fs-24); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
@@ -399,7 +399,7 @@ onMounted(loadList)
 
 .toolbar {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-  gap: var(--space-3); margin-bottom: var(--space-3);
+  gap: var(--space-3);
 }
 .table-wrap { /* settings 子页已有 .table-wrap 全局,内容承载 n-data-table */ }
 
