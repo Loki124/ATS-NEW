@@ -28,6 +28,7 @@ from apps.common.exceptions import (
 )
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
@@ -256,10 +257,9 @@ class RecruitmentProcessViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         process = serializer.save()
         out = RecruitmentProcessDetailSerializer(process, context={'request': request})
-        return Response(
-            {'success': True, 'data': out.data},
-            status=status.HTTP_201_CREATED,
-        )
+        # 2026-09-30 信封 initiative: 收敛到 success_response 补齐 code
+        # (类已 EnvelopeWriteMixin, 但自定义 create 覆盖了混入方法, 须手动补齐)
+        return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     def perform_destroy(self, instance):
         if is_process_referenced(instance):

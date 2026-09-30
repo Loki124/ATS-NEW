@@ -64,6 +64,7 @@ def test_recruitment_process_envelope(auth_client):
     )
     assert resp.status_code == 201, resp.data
     assert resp.data['success'] is True, resp.data
+    assert resp.data['code'] == 0, resp.data   # 黄金标准: 缺 code 即半信封未收口
     pk = resp.data['data']['id']
 
     # retrieve
