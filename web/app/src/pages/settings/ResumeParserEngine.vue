@@ -94,12 +94,15 @@
                   </div>
                   <div class="rpe-cloud-row">
                     <span class="rpe-cloud-label">{{ t('pages.settings.ResumeParserEngine.s28') }}</span>
-                    <span class="rpe-locked">
-                      <span class="rpe-locked-value">{{ CLOUD_MODEL }}</span>
-                      <n-tag size="small" :bordered="false">{{ t('pages.settings.ResumeParserEngine.s31') }}</n-tag>
-                    </span>
+                    <n-select
+                      v-model:value="srForm.model_name"
+                      :options="CLOUD_MODEL_OPTIONS"
+                      :virtual-scroll="false"
+                      class="rpe-cloud-input"
+                    />
                   </div>
                   <p class="rpe-cloud-hint">{{ t('pages.settings.ResumeParserEngine.s29') }}</p>
+                  <p class="rpe-cloud-hint">{{ t(modelHintKey) }}</p>
                   <n-alert
                     v-if="!srForm.api_key && !hasSavedKey"
                     type="warning"
@@ -135,7 +138,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, onMounted } from 'vue'
-import { NButton, NRadio, NRadioGroup, NTag, NAlert, NInput, useMessage } from 'naive-ui'
+import { NButton, NRadio, NRadioGroup, NTag, NAlert, NInput, NSelect, useMessage } from 'naive-ui'
 import {
   getResumeParserConfig,
   updateResumeParserConfig,
@@ -147,10 +150,26 @@ import {
 const { t } = useI18n()
 const message = useMessage()
 
-// 模型由系统指定：本地模式为内置 Qwen3-0.6B，云端模式锁定为 qwen-plus，均无需用户配置。
+// 本地模式为内置 Qwen3-0.6B（锁定）；云端模式模型可在下拉中切换。
 const LOCAL_MODEL = 'Qwen3-0.6B'
-const CLOUD_MODEL = 'qwen-plus'
+const DEFAULT_CLOUD_MODEL = 'qwen-plus'
 const DEFAULT_API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+
+// 云端可选项（DashScope OpenAI 兼容接口暴露的 Qwen 模型）
+const CLOUD_MODEL_OPTIONS = [
+  { label: 'qwen-plus', value: 'qwen-plus' },
+  { label: 'qwen-max', value: 'qwen-max' },
+  { label: 'qwen-turbo', value: 'qwen-turbo' },
+  { label: 'qwen-max-longcontext', value: 'qwen-max-longcontext' },
+]
+
+// 各云端模型说明（按当前选中值映射到 i18n 键）
+const MODEL_HINT_KEYS: Record<string, string> = {
+  'qwen-plus': 'pages.settings.ResumeParserEngine.s35',
+  'qwen-max': 'pages.settings.ResumeParserEngine.s36',
+  'qwen-turbo': 'pages.settings.ResumeParserEngine.s37',
+  'qwen-max-longcontext': 'pages.settings.ResumeParserEngine.s38',
+}
 
 const config = ref<ResumeParserConfig>({ backend: 'career_core', available: [] })
 const selected = ref<ResumeParserBackendName>('career_core')
@@ -160,6 +179,7 @@ const srForm = reactive({
   llm_mode: 'local' as 'local' | 'cloud',
   api_url: DEFAULT_API_URL,
   api_key: '',
+  model_name: DEFAULT_CLOUD_MODEL,
 })
 const hasSavedKey = ref(false)
 
@@ -178,18 +198,23 @@ function isSelectable(value: ResumeParserBackendName): boolean {
 
 const dirty = computed(() => {
   if (selected.value !== config.value.backend) return true
-  // 模型已锁定，不参与脏检查
   const sr = config.value.smartresume || {}
   if ((sr.llm_mode || 'local') !== srForm.llm_mode) return true
   if ((sr.api_url || DEFAULT_API_URL) !== srForm.api_url) return true
+  if ((sr.model_name || DEFAULT_CLOUD_MODEL) !== srForm.model_name) return true
   if (srForm.api_key) return true
   return false
 })
+
+const modelHintKey = computed(
+  () => MODEL_HINT_KEYS[srForm.model_name] || 'pages.settings.ResumeParserEngine.s35',
+)
 
 function syncSrForm() {
   const sr = config.value.smartresume || {}
   srForm.llm_mode = sr.llm_mode === 'cloud' ? 'cloud' : 'local'
   srForm.api_url = sr.api_url || DEFAULT_API_URL
+  srForm.model_name = sr.model_name || DEFAULT_CLOUD_MODEL
   srForm.api_key = '' // 脱敏，不回填明文
   hasSavedKey.value = !!sr.api_key_set
 }
@@ -218,7 +243,7 @@ async function saveConfig() {
       smartresume: {
         llm_mode: srForm.llm_mode,
         api_url: srForm.api_url,
-        model_name: CLOUD_MODEL, // 模型锁定，不随用户输入变化
+        model_name: srForm.model_name,
         api_key: srForm.api_key,
       },
     })
