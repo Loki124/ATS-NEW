@@ -20,7 +20,8 @@ vi.mock('axios', () => ({
   default: {
     create: () => ({
       get: mockGet,
-      interceptors: { request: { use: mockInterceptorsUse } },
+      // request.ts 的 createApi() 同时注册 request/response 两个拦截器（P1-2 收敛后）
+      interceptors: { request: { use: mockInterceptorsUse }, response: { use: () => {} } },
     }),
   },
 }))

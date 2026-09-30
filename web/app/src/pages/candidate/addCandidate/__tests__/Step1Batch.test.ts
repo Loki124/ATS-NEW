@@ -36,6 +36,15 @@ describe('Step1Batch', () => {
     expect(wrapper.find('.bulk-bar').exists()).toBe(true)
   })
 
+  it('renders the 3 step-explanation bullets with correct labels', () => {
+    const wrapper = mount(Step1Batch)
+    const text = wrapper.text()
+    // i18n 提取曾把这三个 label 整体错位一格（s13/s14/s15），导致第二条变成「：可直接进入下一步：…」且第三条「需处理」丢失
+    expect(text).toContain('无重复：可直接进入下一步')
+    expect(text).toContain('未占用：系统有记录但可合并')
+    expect(text).toContain('需处理：已被占用，需选择处理方式')
+  })
+
   it('shows warning for occupied resumes', () => {
     const store = useAddCandidateStore()
     store.resumes = [{ ...baseResume, status: 'occupied', duplicate: { status: 'occupied' } as any }] as any

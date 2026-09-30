@@ -21,10 +21,10 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
     <template v-else>
       <div class="status-summary">
-        <span v-if="counts('processing') > 0" class="st-pill processing"><span class="st-dot"></span>{{ counts('processing') }}{{ t('pages.candidate.addCandidate.Step1Batch.s6') }}</span>
-        <span v-if="counts('clean') > 0" class="st-pill clean"><span class="st-dot"></span>{{ counts('clean') }}{{ t('pages.candidate.addCandidate.Step1Batch.s7') }}</span>
-        <span v-if="counts('unocc') > 0" class="st-pill unocc"><span class="st-dot"></span>{{ counts('unocc') }}{{ t('pages.candidate.addCandidate.Step1Batch.s8') }}</span>
-        <span v-if="counts('occupied') > 0" class="st-pill occupied"><span class="st-dot"></span>{{ counts('occupied') }}{{ t('pages.candidate.addCandidate.Step1Batch.s9') }}</span>
+        <span v-if="counts('processing') > 0" class="st-pill processing"><span class="st-dot"></span>{{ counts('processing') }} {{ t('pages.candidate.addCandidate.Step1Batch.s6') }}</span>
+        <span v-if="counts('clean') > 0" class="st-pill clean"><span class="st-dot"></span>{{ counts('clean') }} {{ t('pages.candidate.addCandidate.Step1Batch.s7') }}</span>
+        <span v-if="counts('unocc') > 0" class="st-pill unocc"><span class="st-dot"></span>{{ counts('unocc') }} {{ t('pages.candidate.addCandidate.Step1Batch.s8') }}</span>
+        <span v-if="counts('occupied') > 0" class="st-pill occupied"><span class="st-dot"></span>{{ counts('occupied') }} {{ t('pages.candidate.addCandidate.Step1Batch.s9') }}</span>
       </div>
 
       <div v-if="store.selectedIds.length > 0" class="bulk-bar">

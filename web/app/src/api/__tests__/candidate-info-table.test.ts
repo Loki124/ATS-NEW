@@ -7,7 +7,8 @@ vi.mock('axios', () => {
   const instance = {
     get: (...args: any[]) => getMock(...args),
     put: (...args: any[]) => putMock(...args),
-    interceptors: { request: { use: () => {} } },
+    // request.ts 的 createApi() 同时注册 request/response 两个拦截器（P1-2 收敛后）
+    interceptors: { request: { use: () => {} }, response: { use: () => {} } },
   }
   return { default: { create: () => instance }, create: () => instance }
 })
