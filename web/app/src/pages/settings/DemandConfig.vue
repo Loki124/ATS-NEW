@@ -14,7 +14,9 @@
     <div class="config-content page-body">
 <n-form :model="formData" label-placement="left" :label-width="180">
         <!-- 功能设置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s49')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s49') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s59')">
             <div class="form-field-wrap">
               <n-radio-group v-model:value="formData.demandMode">
@@ -42,10 +44,13 @@
             <n-switch v-model:value="formData.offerHeadcountControl" />
             <span class="switch-tip">{{ t('pages.settings.DemandConfig.s14') }}</span>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 抢单设置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s50')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s50') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s62')">
             <n-switch v-model:value="formData.grabModeEnabled" />
             <span class="switch-tip">{{ t('pages.settings.DemandConfig.s15') }}</span>
@@ -98,10 +103,13 @@
             </n-radio-group>
             <span class="switch-tip">{{ t('pages.settings.DemandConfig.s28') }}</span>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 画像设置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s51')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s51') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s69')">
             <div class="profile-rules-editor">
               <n-input
@@ -119,10 +127,13 @@
               </div>
             </div>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 招聘类型配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s52')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s52') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s70')">
             <n-switch v-model:value="formData.enableSocial" />
           </n-form-item>
@@ -135,10 +146,13 @@
           <n-form-item :label="t('pages.settings.DemandConfig.s73')">
             <n-switch v-model:value="formData.enableReferral" />
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 部门配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s53')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s53') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s74')">
             <n-switch v-model:value="formData.allowCrossDepartment" />
           </n-form-item>
@@ -154,10 +168,13 @@
             <n-input-number v-model:value="formData.departmentLevelLimit" :min="1" :max="5" />
             <span class="input-tip">{{ t('pages.settings.DemandConfig.s33') }}</span>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 薪资配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s54')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s54') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s77')">
             <n-select
               v-model:value="formData.salaryUnit"
@@ -177,10 +194,13 @@
             <n-switch v-model:value="formData.salaryConfidential" />
             <span class="switch-tip">{{ t('pages.settings.DemandConfig.s34') }}</span>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 职位配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s55')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s55') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s81')">
             <n-input-number v-model:value="formData.defaultPositionCount" :min="1" :max="100" />
             <span class="input-tip">{{ t('pages.settings.DemandConfig.s35') }}</span>
@@ -204,10 +224,13 @@
               </n-space>
             </n-checkbox-group>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 需求流程配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s56')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s56') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s86')">
             <n-switch v-model:value="formData.requireApproval" />
           </n-form-item>
@@ -230,10 +253,13 @@
             <span class="input-tip">{{ t('pages.settings.DemandConfig.s40') }}</span>
             <span class="input-tip-tip">{{ t('pages.settings.DemandConfig.s41') }}</span>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 候选人配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s57')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s57') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s91')">
             <n-switch v-model:value="formData.autoDuplicateCheck" />
           </n-form-item>
@@ -247,10 +273,13 @@
           <n-form-item :label="t('pages.settings.DemandConfig.s94')">
             <n-switch v-model:value="formData.requireCandidateSource" />
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
 
         <!-- 消息通知配置 -->
-        <n-card :title="t('pages.settings.DemandConfig.s58')" class="config-card">
+        <div class="glass-panel glass-panel--card config-card">
+          <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s58') }}</div>
+          <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s95')">
             <n-switch v-model:value="formData.notifyOnCreate" />
           </n-form-item>
@@ -272,7 +301,8 @@
               </n-space>
             </n-checkbox-group>
           </n-form-item>
-        </n-card>
+          </div>
+        </div>
       </n-form>
     </div>
   </div>
@@ -469,24 +499,13 @@ onMounted(() => {
 }
 
 .config-card {
+  /* 紧凑配置面板：8px 圆角（区别于通用 .glass-panel 20px），更适配密集表单布局 */
   border-radius: 8px;
 }
 
-.config-card :deep(.n-card-header) {
-  background: var(--g1);
-  border-radius: 8px 8px 0 0;}
-
-.config-card :deep(.n-card-header__main) {
-  font-weight: 600;
-}
-
-.config-card :deep(.n-form-item) {
-  margin-bottom: var(--space-4);
-}
-
-.config-card :deep(.n-form-item:last-child) {
-  margin-bottom: 0;
-}
+/* .config-card :deep(.n-card-header / .n-card-header__main / .n-form-item) 规则已废弃：
+   卡片从 <n-card> 改为 <div class="glass-panel glass-panel--card config-card">，
+   标题由 .glass-panel__title（glass.css 全局）提供；form-item spacing 走 n-form-item 默认样式。 */
 
 .form-field-wrap {
   display: flex;
