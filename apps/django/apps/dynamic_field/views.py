@@ -41,6 +41,7 @@ from .serializers import (
 )
 from .system_fields import SYSTEM_FIELD_LOCKED_KEYS, SYSTEM_FIELD_IDENTITY_KEYS
 from .validators import validate_field_value
+from apps.common.response import success_response
 
 # CSV 单元格内容上限：Excel 单元格硬上限 32,767 字符，超限会让 Excel 打开 CSV 时
 # 解析错位（实测 School 字段 options 126,778 字符 → 列位整体位移）。
@@ -232,12 +233,12 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         if group_id:
             queryset = queryset.filter(group_id=group_id)
         serializer = self.get_serializer(queryset, many=True)
-        return Response({'data': serializer.data})
+        return success_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs) -> Response:
         """GET /dynamic-fields/<resource>/fields/<id>/"""
         serializer = self.get_serializer(self.get_object())
-        return Response({'data': serializer.data})
+        return success_response(serializer.data)
 
     # --- 写 ------------------------------------------------------------------
 
@@ -247,7 +248,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response({'data': serializer.data}, status=status.HTTP_201_CREATED, headers=headers)
+        return success_response(serializer.data, status_code=status.HTTP_201_CREATED, headers=headers)
 
     def update(self, request, *args, **kwargs) -> Response:
         """PUT / PATCH /dynamic-fields/<resource>/fields/<id>/ → 200 ``{"data": {...}}``
@@ -292,7 +293,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
 
-        return Response({'data': serializer.data})
+        return success_response(serializer.data)
 
     def perform_create(self, serializer) -> None:
         """写入新字段定义; 软删记录占位时改为"复活", 并对唯一冲突做兜底。
@@ -819,23 +820,25 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
 
 
 class _DataEnvelopeMixin:
-    """统一信封: 所有响应包裹为 ``{'data': ...}``, 与 DynamicFieldViewSet 保持一致。
+    """统一信封: 所有响应包裹为 ``{'success', 'data', 'code'}``, 与 DynamicFieldViewSet 保持一致。
 
     默认的 ``ModelViewSet`` 直接返回序列化数据(无 ``data`` 包裹), 前端
     ``dynamic-field.ts`` 统一按 ``r.data.data`` 消费, 故此处统一包裹。
+    2026-09-30 信封 initiative: 收敛到 ``success_response`` 补齐 ``code`` 字段,
+    顶层 ``{success, data, message, code}`` 与全站统一契约对齐。
     """
 
     def list(self, request, *args, **kwargs):
-        return Response({'data': self.get_serializer(self.get_queryset(), many=True).data})
+        return success_response(self.get_serializer(self.get_queryset(), many=True).data)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        return Response({'data': serializer.data}, status=status.HTTP_201_CREATED)
+        return success_response(serializer.data, status_code=status.HTTP_201_CREATED)
 
     def retrieve(self, request, *args, **kwargs):
-        return Response({'data': self.get_serializer(self.get_object()).data})
+        return success_response(self.get_serializer(self.get_object()).data)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -843,7 +846,7 @@ class _DataEnvelopeMixin:
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response({'data': serializer.data})
+        return success_response(serializer.data)
 
 
 # 2026-09-15 三模块默认预设字段 (兵哥: 自行调研决定)
