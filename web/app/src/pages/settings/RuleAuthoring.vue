@@ -13,7 +13,9 @@
         <!-- ---------- 规则配置与执行 ---------- -->
         <n-tab-pane name="author" :tab="t('metrics.rule.title')">
           <div class="ra-author">
-            <n-card :title="t('metrics.rule.ruleName')" size="small" class="ra-card">
+            <div class="glass-panel glass-panel--card ra-card">
+              <div class="glass-panel__title">{{ t('metrics.rule.ruleName') }}</div>
+              <div class="glass-panel__body">
               <div class="ra-rule-meta">
                 <n-input v-model:value="ruleName" :placeholder="t('metrics.rule.ruleName')" class="ra-rule-name" />
                 <n-select v-model:value="ruleScene" :options="sceneOptions" class="ra-rule-scene" />
@@ -39,12 +41,17 @@
                   <n-select v-model:value="positionId" :options="positionOptions" clearable :placeholder="t('metrics.rule.bindPosition')" class="ra-bind-select" />
                 </div>
               </div>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card :title="t('metrics.rule.conditionArea')" size="small" class="ra-card">
-              <template #header-extra>
-                <n-button size="small" @click="addCondition">{{ t('metrics.btn.addCondition') }}</n-button>
-              </template>
+            <div class="glass-panel glass-panel--card ra-card">
+              <div class="glass-panel__title">
+                <span>{{ t('metrics.rule.conditionArea') }}</span>
+                <div class="glass-panel__title-extra">
+                  <n-button size="small" @click="addCondition">{{ t('metrics.btn.addCondition') }}</n-button>
+                </div>
+              </div>
+              <div class="glass-panel__body">
               <div v-if="!templateList.length" class="ra-empty">{{ t('metrics.rule.noTemplateHint') }}</div>
               <div v-for="(cond, idx) in conditions" :key="idx" class="ra-cond-row">
                 <span class="ra-index">{{ idx + 1 }}</span>
@@ -70,9 +77,12 @@
                   {{ executing ? t('metrics.btn.executing') : t('metrics.btn.execute') }}
                 </n-button>
               </div>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card :title="t('metrics.rule.result')" size="small" class="ra-card">
+            <div class="glass-panel glass-panel--card ra-card">
+              <div class="glass-panel__title">{{ t('metrics.rule.result') }}</div>
+              <div class="glass-panel__body">
               <div v-if="!result" class="ra-empty">{{ t('metrics.rule.noResult') }}</div>
               <template v-else>
                 <n-alert :type="result.pass ? 'success' : 'error'" :title="result.pass ? t('metrics.rule.pass') : t('metrics.rule.fail')" class="ra-alert">
@@ -86,15 +96,20 @@
                   <span class="ra-step-detail">{{ step.detail || step.error }}</span>
                 </div>
               </template>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card :title="t('metrics.rule.sampleData')" size="small" class="ra-card">
-              <template #header-extra>
-                <n-radio-group v-model:value="dataMode" size="small">
-                  <n-radio-button value="sample">{{ t('metrics.rule.sample') }}</n-radio-button>
-                  <n-radio-button value="real">{{ t('metrics.rule.real') }}</n-radio-button>
-                </n-radio-group>
-              </template>
+            <div class="glass-panel glass-panel--card ra-card">
+              <div class="glass-panel__title">
+                <span>{{ t('metrics.rule.sampleData') }}</span>
+                <div class="glass-panel__title-extra">
+                  <n-radio-group v-model:value="dataMode" size="small">
+                    <n-radio-button value="sample">{{ t('metrics.rule.sample') }}</n-radio-button>
+                    <n-radio-button value="real">{{ t('metrics.rule.real') }}</n-radio-button>
+                  </n-radio-group>
+                </div>
+              </div>
+              <div class="glass-panel__body">
               <n-space v-if="dataMode === 'real'" class="ra-snapshot-bar">
                 <n-input v-model:value="candidateId" :placeholder="t('metrics.rule.candidateId')" style="width: 240px" />
                 <n-button size="small" :loading="loadingSnapshot" @click="loadSnapshot">
@@ -102,7 +117,8 @@
                 </n-button>
               </n-space>
               <pre class="ra-json">{{ JSON.stringify(currentData, null, 2) }}</pre>
-            </n-card>
+              </div>
+            </div>
           </div>
         </n-tab-pane>
 
