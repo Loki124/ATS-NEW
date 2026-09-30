@@ -42,6 +42,8 @@ from rest_framework.response import Response
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
@@ -74,7 +76,7 @@ from .services.soft_reject import SoftRejectService
 logger = logging.getLogger(__name__)
 
 
-class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """申请 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Application.objects.filter(deleted_at__isnull=True).select_related(
         'candidate', 'position', 'process', 'current_link', 'current_stage', 'grabbed_by',
@@ -150,9 +152,9 @@ class ApplicationViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mo
                 {'error': str(e), 'code': 'NOT_FOUND'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(
+        return success_response(
             ApplicationDetailSerializer(application).data,
-            status=status.HTTP_201_CREATED,
+            status_code=status.HTTP_201_CREATED,
         )
 
     # ----------------------------------------------------------
