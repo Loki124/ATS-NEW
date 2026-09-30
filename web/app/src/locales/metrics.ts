@@ -40,6 +40,7 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.btn.edit': '编辑',
   'metrics.btn.cancel': '取消',
   'metrics.btn.save': '保存',
+  'metrics.btn.undo': '撤销',
   'metrics.btn.addCondition': '添加条件',
   'metrics.btn.execute': '执行规则',
   'metrics.btn.executing': '执行中…',
@@ -112,6 +113,7 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.msg.badParams': '参数必须是合法 JSON 对象',
   'metrics.msg.disabled': '已停用',
   'metrics.msg.enabled': '已启用',
+  'metrics.msg.restored': '已恢复',
 
   // ===== 指标库（重构）：指标定义 + 指标模板 =====
   'metrics.col.paramType': '入参类型',
@@ -247,6 +249,7 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.btn.edit': 'Edit',
   'metrics.btn.cancel': 'Cancel',
   'metrics.btn.save': 'Save',
+  'metrics.btn.undo': 'Undo',
   'metrics.btn.addCondition': 'Add Condition',
   'metrics.btn.execute': 'Execute Rule',
   'metrics.btn.executing': 'Executing…',
@@ -319,6 +322,7 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.msg.badParams': 'Params must be a valid JSON object',
   'metrics.msg.disabled': 'Disabled',
   'metrics.msg.enabled': 'Enabled',
+  'metrics.msg.restored': 'Restored',
 
   // ===== Metric Library (refactor): Definitions + Templates =====
   'metrics.col.paramType': 'Input Type',

@@ -762,10 +762,38 @@ async function submitTemplate() {
 }
 
 async function removeTemplate(row: MetricTemplate) {
+  // 中等破坏性操作：直接执行 + Toast 撤销（停留 8s），符合 AGENTS.md R-106
+  const restorePayload = {
+    name: row.name,
+    atomicMetric: row.atomicMetric || null,
+    derivedMetric: row.derivedMetric || null,
+    operators: row.operators || [],
+    paramConfig: row.paramConfig || { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false },
+    valueDomain: row.valueDomain || { segments: [] },
+    paramEnums: row.paramEnums || [],
+    paramAllowNull: !!row.paramAllowNull,
+    description: row.description || '',
+    status: row.status || 'enabled',
+  }
   try {
     await deleteMetricTemplate(row.id)
-    message.success(t('metrics.msg.deleted'))
     await load()
+    message.success(t('metrics.msg.deleted'), {
+      duration: 8000,
+      action: {
+        label: t('metrics.btn.undo'),
+        onClick: async () => {
+          try {
+            await createMetricTemplate(restorePayload)
+            message.success(t('metrics.msg.restored'))
+            await load()
+          } catch (err: any) {
+            const detail = err?.response?.data?.error
+            message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
+          }
+        },
+      },
+    })
   } catch (error: any) {
     const detail = error?.response?.data?.error
     message.error(detail ? String(detail) : t('metrics.msg.deleteFailed'))
