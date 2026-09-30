@@ -1,7 +1,7 @@
 # 双系统架构设计：社会招聘 / 校园招聘（DUAL_SYSTEM_DESIGN）
 
 > 立项：2026-09-23（兵哥需求：logo 侧系统切换入口 + 双系统数据隔离）
-> 状态：Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅ 已落地；Phase 4 待排期
+> 状态：Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅ / Phase 4 ✅ 已落地（commit `46d8447a`，2026-09-30 推送）
 > 结论先行：推荐 **方案 A「同库分区 + 全局系统上下文」**，复用现有 `recruit_type` 雏形，禁止独立部署实例。
 
 ---
@@ -54,6 +54,42 @@
 - 开发库内省：8 张表均存在 `recruit_type` 列；存量 candidate(1)/demand(3) 全部 `social`；空表列就绪。
 
 **已知边界**：`onboarding` 等未列入本期 8 模型的模块暂不参与分区（Mixin opt-in 守卫 `hasattr` 自然豁免，无副作用）；如需全量覆盖，补列即可。
+
+---
+
+## 0.3 已落地（Phase 4，校招专属功能 + 前端接线）
+
+**范围决策（兵哥拍板）**：本期范围 = **校园大使 + 宣讲会都做真实功能**；后端落点 = **新建独立 app `campus`**（与 `campus_control` 人员比例管控域职责分离；`campus_control` 已占用 `/api/v1/campus/` 前缀，故新 app 挂独立前缀 **`/api/v1/campus-recruit/`**）。
+
+| 交付物 | 文件 | 说明 |
+|---|---|---|
+| 新建 app 骨架 | `apps/campus/__init__.py` + `apps.py` + `migrations/__init__.py` | `CampusConfig`，`label='campus'`，`name='apps.campus'` |
+| 模型 | `apps/campus/models.py` `CampusAmbassador` + `CampusSession` + `CampusModuleConfig` | 均继承 `FullAuditModel, UUIDModel`；`recruit_type` 默认 `RecruitType.CAMPUS.value`，`db_index=True`；与 Phase 3 隔离基础设施完全兼容 |
+| 序列化器 | `apps/campus/serializers.py` | `recruit_type` 标记 `read_only_fields`，由后端写入（防客户端绕过） |
+| ViewSet | `apps/campus/views.py` `CampusModelViewSetMixin(ScopeQuerysetMixin)` + `CampusAmbassadorViewSet` + `CampusSessionViewSet` | 复用 Phase 3 的 `ScopeQuerysetMixin`：读侧自动按 `request.recruit_type='campus'` 过滤，写侧权威注入；`_audit_kwargs` 健壮化避免非审计模型 500；软删 + `restore` `@action`（R-106 撤销） |
+| 模块配置端点 | `apps/campus/views.py` `CampusModuleConfigView` | 沿用 `DemandConfigView` 范式，`/ambassadors/config/`、`/sessions/config/` 提供 `enabled` 开关；单体 JSON 配置 GET/PUT |
+| URL 挂载 | `apps/campus/urls.py` + `config/urls.py` | `path('campus-recruit/', include('apps.campus.urls'))`；配置端点必须先于 router 注册，避免 `ambassadors/<pk>/` 抢 pk='config' |
+| settings 注册 | `config/settings/base.py` `LOCAL_APPS` | `'apps.campus',  # 校招专属功能（校园大使 / 宣讲会）— Phase 4` |
+| 迁移 | `apps/campus/migrations/0001_initial.py` | 由 `makemigrations campus` 生成 + `migrate` 应用到开发库 |
+| 前端 API service | `web/app/src/api/campusRecruit.ts` | axios 实例 + 拦截器注入 token；列表解析 `{success,data,pagination}`，单对象裸 camelCase；导出 `listAmbassadors/createAmbassador/updateAmbassador/deleteAmbassador/restoreAmbassador/getAmbassadorConfig/putAmbassadorConfig` 同构 |
+| 前端页面 | `web/app/src/pages/settings/CampusAmbassador.vue` + `CampusSession.vue` | 完整 CRUD + 新增/编辑弹窗（n-form + n-modal + 表单校验）+ R-106 撤销（`useNotification` 替换 `useMessage`——naive-ui 2.44.1 的 `message` 不支持 `action`）；保留 `v-if="systemStore.isCampus"` EmptyState 拦截；全部中文字串走 `t('pages.settings.CampusAmbassador.*')`，新增 i18n keys（兜底中文参数，i18n 会话后续收敛） |
+| 路由 | `web/app/src/router/index.ts` | `campus-session` 由 Placeholder 指向真实 `CampusSession.vue`，roles 同大使 |
+| Playwright 真机验收 | `web/app/e2e/campus-features.spec.ts` | 7 个 spec（社招 EmptyState 拦截 / 校招 Phase 4 UI 渲染 / 启用开关 + 添加大使 / 编辑 / 移除撤销 / 宣讲会页可达 / API 隔离证据）；dev MySQL + dev Django :8000 + dev Vite :5212 全链路真机，**7/7 passed** |
+
+**架构一致性验证**：
+- 路由前缀冲突已被规避：`/api/v1/campus/` 已被 `campus_control` 占用，故新 app 走 `/api/v1/campus-recruit/`。
+- 隔离零新增链路：复用 Phase 3 的 `ScopeQuerysetMixin`，零额外代码；`recruit_type` 默认 `campus` 保证校招数据天然隔离。
+- 写守卫权威性：客户端 body 即使传 `recruit_type=social`，Mixin 写侧由 `request.recruit_type='campus'` 覆盖（与标签系统「前端禁用 + 后端 authoritative guard」双重防护范式一致）。
+
+**端到端真机硬证据（commit `46d8447a`）**：
+- `manage.py check` 0 issue；`pytest apps/integration/tests/test_campus_features.py` **4 passed**（大使写侧注入 + 隔离 social=0 + 宣讲会写侧 + 配置 GET/PUT roundtrip）。
+- Playwright + 系统 Chrome 154：社招 EmptyState 拦截 → 校招 UI 渲染 → 启用开关 PUT → 添加大使 POST → 编辑 PUT → 移除 DELETE + 撤销 restore 实证。
+- 真实 MySQL dev 库 roundtrip：CREATE 返回 `recruitType:"campus"`（写侧守卫注入确认）；READ(campus) total=1、READ(social) total=0（运行时隔离确认）；DELETE 204 软删，READ 后续空。
+
+**踩坑记录**：
+- `naive-ui@2.44.1` 的 `message.success` 不支持 `action` 选项（类型 + 运行时均无）→ 删除撤销改用 `useNotification().success({action})`（NotificationOptions 支持 action）。
+- Playwright `headless_shell` 缓存缺失（`/Users/loki/Library/Caches/ms-playwright/` 不存在）→ 改用系统 Chrome，`channel: 'chrome'`；本地 `playwright.local.config.ts` + `auth.local.setup.ts` 提供绕开支持（不入库，git 不追踪）。
+- WorkBuddy after-test artifact copy hook 把 trace.zip 复制到沙箱外目录时被 sandbox 拦截 → 错误被 Playwright 报为测试失败（实际 expect 全过）→ 本地配置 `trace: 'off'` + `screenshot: 'off'` 解决。
 
 ---
 
@@ -126,17 +162,19 @@
 | D3 | 数据字典/原因库等配置数据是否隔离 | **共享**（维持 `recruit_type` 已有雏形处现状，不额外隔离）。 |
 | D4 | 人才库是否跨系统共享 | **隔离 + 后续做「转池」动作**（显式把候选人从社招池移到校招池）。 |
 | D5 | 切换系统后停留行为 | **停留当前路由**（数据随上下文自然刷新）。 |
+| D6 | Phase 4 校招专属功能落点 | **新建独立 app `apps/campus`**（与 `campus_control` 人员比例管控域职责分离）；URL 前缀 **`/api/v1/campus-recruit/`**（避开 `campus_control` 已占用的 `/api/v1/campus/`）；模型 `recruit_type` 默认 `campus`，经 `ScopeQuerysetMixin` 自动隔离。 |
+| D7 | Phase 4 范围 | 本期范围 = **校园大使 + 宣讲会都做真实功能**（不做就业协议 / 三方 / 校招日程等扩展项，避免范围蔓延）。 |
 
 > 注：D2/D3 共享意味着「系统级」隔离只发生在**业务数据层**（需求/职位/候选人/面试/Offer/人才库/内推），而账号/权限/品牌/流程阶段/数据字典等基础设施跨系统共享。这与「模块页面相似、设置页大致一致」的需求完全吻合。
 
 ## 4. 分阶段排期建议
 
-| 阶段 | 内容 | 依赖 |
-|---|---|---|
-| Phase 1 ✅ | 前端切换入口 + system store | 无（已交付） |
-| Phase 2 | 前端拦截器注入 header；菜单差异 computed 化；设置页差异显隐范式落地 | 无 |
-| Phase 3 | 后端枚举 + middleware + 业务表加列迁移 + ViewSet 读/写隔离 + 运行时内省盘点报告 | D1~D5 拍板 |
-| Phase 4 | 校招专属功能（校园大使等）+ 校招菜单/页面增量 | Phase 3 |
+| 阶段 | 内容 | 依赖 | 状态 |
+|---|---|---|---|
+| Phase 1 ✅ | 前端切换入口 + system store | 无（已交付） | commit `7b5a99d8` |
+| Phase 2 ✅ | 前端拦截器注入 header；菜单差异 computed 化；设置页差异显隐范式落地 | 无 | commit `171d4a1`（i18n 收口合并） |
+| Phase 3 ✅ | 后端枚举 + middleware + 业务表加列迁移 + ViewSet 读/写隔离 + 运行时内省盘点报告 | D1~D5 拍板 | commit `0ab11437`（合并并行 WIP） |
+| Phase 4 ✅ | 校招专属功能（校园大使 + 宣讲会，新建 app `campus`）+ 前端接线 + 真机 e2e | Phase 3 | commit `46d8447a` |
 
 ## 5. 风险与铁律映射
 
@@ -144,3 +182,5 @@
 - **迁移纪律**：数据迁移用历史模型、外键同源（MEMORY 2026-09-22 铁律）；fresh DB 走 `config.settings.test` + `pytest --create-db` 验证。
 - **前端实例隔离**：新增 axios 实例必须挂 `X-Recruit-Type` 拦截器。
 - **系统级枚举走「系统内置」**：`RecruitType` 用 TextChoices + choices=，预置幂等迁移。
+- **Phase 4 路由前缀冲突**：`/api/v1/campus/` 被 `campus_control` 占用 → 新校招 app 走 `/api/v1/campus-recruit/`（决策 D6）；后续如新增校招 app 必须先核对前缀。
+- **Phase 4 真机验收纪律**：API 契约层（curl/集成测试）必须配 UI 层（Playwright + 系统 Chrome 真机）；API 绿 ≠ UI 绿（mock 残留、组件未接线等需真机截图实证，本会话 `CampusAmbassador.vue` 被 i18n wrapper 覆盖回 mock 即为典型反例）。
