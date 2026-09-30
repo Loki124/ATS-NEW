@@ -490,9 +490,9 @@ onMounted(async () => {
 }
 .page-header {
   flex-shrink: 0;
-  /* 2026-08-30 UX 四改：显式重置 padding/margin，防 n-layout 内容 padding 注入把 header 撑到 80px */
-  padding: 0;
-  margin: 0 0 8px 0;
+  /* 顶部/底部间距由全局 .settings-scroll .page-header（glass.css）统一提供：
+     margin-top:0、padding-top:0，底部走 .page-body 的 gap（全局 .page-body>.page-header{margin-bottom:0} 兜底）。
+     scoped 不再写 padding/margin，避免与全局叠加造成跨页顶部留白不一致（2026-09-30）。 */
 }
 .page-body {
   flex: 1;

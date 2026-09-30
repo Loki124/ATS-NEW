@@ -387,7 +387,7 @@ onMounted(loadList)
 
 <style scoped>
 /* 继承 settings 子页 .page-container / .page-header / .toolbar / .table-wrap / .kpi-row (docs/ui/SETTINGS_PAGE_STRUCTURE.md §2) */
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-4); }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; }
 .page-title { margin: 0 0 4px 0; font-size: var(--fs-20); font-weight: 600; color: var(--ink); }
 .page-subtitle { margin: 0; color: var(--ink-soft); font-size: var(--fs-13); }
 

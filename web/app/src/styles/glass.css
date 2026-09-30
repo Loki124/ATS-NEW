@@ -932,8 +932,14 @@ body.dark .kpi-card.kpi-card--accent {
   /* 无底色 —— 团队规范：标题栏不加背景色，极光/页面背景直接透出。
      无穿透依赖模型 B 结构（header 在滚动区之外），而非底色遮断。 */
   border-bottom: 1px solid var(--glass-border);
-  margin: 0 0 var(--space-4) 0;
-  padding: var(--space-4) 0 var(--space-1) 0;
+  /* 无 margin（2026-09-30 统一「page-header 不带该边距」）：header 自身 margin 全清零。
+     - 顶部留白单一来源：仅由外层 .settings-scroll 的 padding:20px 提供（padding-top 亦为 0）。
+     - 底部间距（header 与首块内容的 16px）不再由 header margin 提供，改为：
+       · de-facto 页（header 在 .page-body 内）由 .page-body 的 flex gap 提供（见下方 .page-body>.page-header{margin-bottom:0}）；
+       · 兄弟结构页（模型 B，header 在 .page-body 之外）由「header 后首块 margin-top」提供（见下方 .page-container>.page-header+*）。
+     禁止 scoped 写 .page-header 的 margin / padding-top，避免与外壳/全局叠加造成跨页不一致。 */
+  margin: 0;
+  padding: 0 0 var(--space-1) 0;
 }
 /* === 双重间距根治（2026-09-18 兵哥反馈「header 与内容间多余空带」）===
  * 事实结构：全部设置页的 .page-header 都写在 .page-body 内部（de-facto 结构），
@@ -946,6 +952,18 @@ body.dark .kpi-card.kpi-card--accent {
  * 详见 docs/04-ui/SETTINGS_PAGE_STRUCTURE.md「间距唯一来源」。 */
 .settings-scroll .page-body > .page-header {
   margin-bottom: 0;
+}
+/* === header 无 margin 后的底部间距补偿（2026-09-30）===
+ * 上方已将 .settings-scroll .page-header 的 margin 清零，统一「header 不带该边距」。
+ * 模型 B（兄弟结构）页：header 是 .page-container 直接子节点、位于 .page-body（或 .data-body / 首块内容）之前，
+ *   此前靠 header 的 margin-bottom:16px 撑开与首块的 16px 间距；清除 margin 后改由「header 后紧邻首块 margin-top」补偿，
+ *   仅作用于 header 的紧邻兄弟（不影响其后其它兄弟，避免整列块都加间距）。
+ *   de-facto 页 header 在 .page-body 内，不匹配本选择器，间距仍由 .page-body 的 gap 提供，不受影响。 */
+.settings-scroll .page-container > .page-header + *,
+.settings-scroll .page-container > .cc-header + *,
+.settings-scroll .page-container > .n-page-header + *,
+.settings-scroll .page-container > .policy-admin__header + * {
+  margin-top: var(--space-4);
 }
 /* 保留拆分结构类的兼容（无实际作用，留作后续扩展） */
 .settings-page-shell { display: block; }

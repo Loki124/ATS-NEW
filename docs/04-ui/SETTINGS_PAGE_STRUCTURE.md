@@ -179,6 +179,21 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
 - **自检**：滚动页面后，吸顶 header **无 background**（透明 / 仅 border-bottom）；header 之下内容滚过时**不得**出现文字穿透到标题区。运行时取证：吸顶态下 `getComputedStyle(header).backgroundColor === 'rgba(0, 0, 0, 0)'`（透明）且 header 之下首个内容块 `getBoundingClientRect().top ≥ header 底边`（无重叠——因模型 B 内容在独立滚动区，根本到不了 header 背后）。
 - **反例（已撤销的 workaround）**：静态数据页（CodeTableLibrary）09-18 曾给吸顶 header 加 `background: var(--glass-bg-panel)` + `backdrop-filter: blur(...)` 玻璃磨砂底——兵哥 09-18 纠正「标题栏不应加底色」，已撤销，改用模型 B 结构（header 移出 `.page-body`）。
 
+### 3.2 边距单一来源（顶部 + 底部，2026-09-30 补强）
+
+**规则**：所有设置页标题栏（`.page-header` / `.cc-header` / `.n-page-header` / `.policy-admin__header`）的**顶部与底部 margin 统一为 0**——「header 不带该边距」是硬约束。
+
+- 全局 `.settings-scroll .page-header`（glass.css）已固定 `margin: 0; padding-top: 0`；顶部留白由外壳 `.settings-scroll{padding:20px}` 独家提供，底部间距由下方补偿规则提供，header 自身既不带 margin 也不带顶部内边距。
+- scoped / 内联 **禁止**写 `.page-header { margin / margin-top / margin-bottom / padding-top }`；
+- scoped **禁止**给 `.page-container` 写 `padding-top`（已被 SettingsLayout `.settings-scroll :deep(.page-container){padding:0!important}` 清零，顶部留白统一由外壳 20px 提供）。
+- **底部间距补偿（两种结构同一视觉 16px）**：
+  · de-facto 页（header 在 `.page-body` 内）：header→首块 16px 由 `.page-body` 的 flex `gap` 独家提供（全局 `.settings-scroll .page-body>.page-header{margin-bottom:0}` 兜底清零 header margin）。
+  · 模型 B 页（header 在 `.page-body` 之外，为 `.page-container` 直接子节点）：header→首块 16px 由「header 后紧邻首块 `margin-top:var(--space-4)`」提供（glass.css 新增 `.settings-scroll .page-container>.page-header+*`（及 `.cc-header`/`.n-page-header`/`.policy-admin__header` 同款）；`+ *` 仅作用于紧邻兄弟，不影响其后其它块，避免整列块都加间距）。
+- **根因（旧反模式，已修）**：
+  · 顶部：此前全局 `.settings-scroll .page-header{ padding: var(--space-4) 0 var(--space-1) 0 }` 给 header 加 16px 顶部内边距，叠加外壳 20px → 顶部留白 36px；RecruitmentProcess / RecruitmentRound / RecruitmentStage 三页 scoped `.page-header{padding:0;margin:0 0 8px 0}` 把 16px 清零仅留 20px → 跨页顶部差 16px（「部分有上边距、部分没有」）。2026-09-30 已全局归零 padding-top 并清除三页 scoped 覆盖。
+  · 底部：全局 `.settings-scroll .page-header{margin-bottom:16px}` 仅对模型 B 页生效（de-facto 页被 `.page-body>.page-header{margin-bottom:0}` 清零）→ 模型 B 页 16px、de-facto 页 0，「部分页面有额外 margin、部分没有」。2026-09-30 已将全局 margin 归零，模型 B 间距改由「header 后首块 margin-top」补偿；RuleEngine.vue 曾 scoped `.page-header{margin-bottom:var(--space-4)}`（冗余死代码，违反本红线）已清除。
+- **自检**：任一设置页渲染后，`getComputedStyle(header).margin === '0px'`（上下左右全 0）且 `paddingTop === '0px'`；header 顶边到外壳顶（含 20px）恒定、header 底边到首块顶（16px）在模型 B 与 de-facto 两结构下恒定一致。运行时取证：遍历所有设置路由，`header.getBoundingClientRect().top` 与 `.settings-scroll` 顶边差恒定 = 20px，`header.getBoundingClientRect().bottom` 到首块 `top` 差恒定 = 16px。
+
 ## 4. KPI / 工具条 / 表格（全局类直接复用）
 
 | | | |
