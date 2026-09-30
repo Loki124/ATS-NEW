@@ -84,3 +84,19 @@ def test_subscription_create_envelope(auth_client):
     assert resp.data['success'] is True
     assert resp.data['code'] == 0            # 黄金标准: 缺 code 即半信封未收口
     assert resp.data['data']['name'] == '信封订阅'
+
+
+def test_subscription_destroy_envelope(auth_client):
+    """DataSubscriptionViewSet.destroy 软删, 现返 {success,data:None,code:0}."""
+    from apps.analytics.models_data import DataSubscription
+    sub = DataSubscription.objects.create(
+        name='信封订阅-删', resource='candidates', metric='all',
+    )
+    resp = auth_client.delete(f'{SUB_LIST}{sub.id}/')
+    assert resp.status_code == 200, resp.content
+    assert resp.data['success'] is True
+    assert resp.data['code'] == 0            # 黄金标准: 缺 code 即半信封未收口
+    assert resp.data['data'] is None
+    # 软删: 记录仍在库, 但 is_active 置 False, 从默认 (is_active=True) 查询集消失
+    sub.refresh_from_db()
+    assert sub.is_active is False

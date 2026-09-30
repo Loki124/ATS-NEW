@@ -185,5 +185,5 @@ class DataSubscriptionViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         instance.is_active = False
         instance.save(update_fields=['is_active'])
-        return Response({'success': True, 'data': None})
+        return success_response(None)
 

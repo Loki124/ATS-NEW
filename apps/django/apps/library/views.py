@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.views import EnvelopeWriteMixin
+from apps.common.response import success_response
 from apps.core.permissions_v2 import V2Permission
 
 from django.db.models import Q
@@ -40,7 +41,7 @@ class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         if edu:
             qs = qs.filter(education_level=edu)
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def facets(self, request):
@@ -70,7 +71,7 @@ class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         """软删除：专业是基础数据，不做物理删除。"""
         obj = self.get_object()
         obj.soft_delete()
-        return Response({'success': True, 'data': {'id': obj.id}})
+        return success_response({'id': obj.id})
 
 
 class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
@@ -117,7 +118,7 @@ class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         if tag:
             qs = qs.filter(tags__contains=tag)
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def provinces(self, request):
@@ -159,7 +160,7 @@ class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         """软删除：院校是基础数据，不做物理删除（保留历史引用）。"""
         obj = self.get_object()
         obj.soft_delete()
-        return Response({'success': True, 'data': {'id': obj.id}})
+        return success_response({'id': obj.id})
 
 
 class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
@@ -183,7 +184,7 @@ class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
         if scale:
             qs = qs.filter(scale=scale)
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def industries(self, request):
