@@ -12,7 +12,9 @@
         <div class="brand-grid">
           <!-- 左列：基础信息 -->
           <div class="brand-col">
-            <n-card :title="t('pages.settings.CompanyBrand.s6')" class="config-card">
+            <div class="glass-panel glass-panel--card config-card">
+              <div class="glass-panel__title">{{ t('pages.settings.CompanyBrand.s6') }}</div>
+              <div class="glass-panel__body">
               <n-form-item :label="t('pages.settings.CompanyBrand.s7')">
                 <n-input
                   v-model:value="formData.companyName"
@@ -37,9 +39,12 @@
                   :rows="4"
                 />
               </n-form-item>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card title="Logo" class="config-card">
+            <div class="glass-panel glass-panel--card config-card">
+              <div class="glass-panel__title">Logo</div>
+              <div class="glass-panel__body">
               <div class="logo-block">
                 <div class="logo-preview" :class="{ 'is-empty': !formData.logoUrl }">
                   <img v-if="formData.logoUrl" :src="formData.logoUrl" :alt="t('pages.settings.CompanyBrand.s10')" class="logo-img" />
@@ -70,21 +75,27 @@
                 />
                 <p class="field-hint">{{ t('pages.settings.CompanyBrand.s14') }}</p>
               </div>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card :title="t('pages.settings.CompanyBrand.s15')" class="config-card">
+            <div class="glass-panel glass-panel--card config-card">
+              <div class="glass-panel__title">{{ t('pages.settings.CompanyBrand.s15') }}</div>
+              <div class="glass-panel__body">
               <n-form-item :label="t('pages.settings.CompanyBrand.s16')">
                 <n-input v-model:value="formData.contactEmail" placeholder="hr@example.com" maxlength="255" />
               </n-form-item>
               <n-form-item :label="t('pages.settings.CompanyBrand.s17')">
                 <n-input v-model:value="formData.contactPhone" :placeholder="t('pages.settings.CompanyBrand.s18')" maxlength="64" />
               </n-form-item>
-            </n-card>
+              </div>
+            </div>
           </div>
 
           <!-- 右列：展示与预览 -->
           <div class="brand-col">
-            <n-card :title="t('pages.settings.CompanyBrand.s19')" class="config-card preview-card">
+            <div class="glass-panel glass-panel--card config-card preview-card">
+              <div class="glass-panel__title">{{ t('pages.settings.CompanyBrand.s19') }}</div>
+              <div class="glass-panel__body">
               <div class="portal-preview" :style="portalStyle">
                 <div class="portal-banner" :style="bannerStyle">
                   <img v-if="formData.logoUrl" :src="formData.logoUrl" class="portal-logo" alt="Logo" />
@@ -108,9 +119,12 @@
                   </div>
                 </div>
               </div>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card :title="t('pages.settings.CompanyBrand.s21')" class="config-card">
+            <div class="glass-panel glass-panel--card config-card">
+              <div class="glass-panel__title">{{ t('pages.settings.CompanyBrand.s21') }}</div>
+              <div class="glass-panel__body">
               <n-form-item :label="t('pages.settings.CompanyBrand.s22')">
                 <n-input v-model:value="formData.portalTitle" :placeholder="t('pages.settings.CompanyBrand.s23')" maxlength="255" />
               </n-form-item>
@@ -139,9 +153,12 @@
                   <span class="field-hint">{{ t('pages.settings.CompanyBrand.s30') }}</span>
                 </div>
               </n-form-item>
-            </n-card>
+              </div>
+            </div>
 
-            <n-card :title="t('pages.settings.CompanyBrand.s31')" class="config-card">
+            <div class="glass-panel glass-panel--card config-card">
+              <div class="glass-panel__title">{{ t('pages.settings.CompanyBrand.s31') }}</div>
+              <div class="glass-panel__body">
               <n-space vertical :size="12">
                 <div
                   v-for="(link, idx) in formData.socialLinks"
@@ -160,7 +177,8 @@
                 </div>
                 <n-button dashed block @click="addSocial">{{ t('pages.settings.CompanyBrand.s36') }}</n-button>
               </n-space>
-            </n-card>
+              </div>
+            </div>
           </div>
         </div>
       </n-form>
@@ -183,7 +201,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted } from 'vue'
 import {
-  NButton, NSpace, NCard, NForm, NFormItem, NInput, NColorPicker, NSelect, NEmpty,
+  NButton, NSpace, NForm, NFormItem, NInput, NColorPicker, NSelect, NEmpty,
   NUpload, NIcon, useMessage,
 } from 'naive-ui'
 import { CloudUploadOutline } from '@vicons/ionicons5'
@@ -387,21 +405,9 @@ onMounted(() => {
   .config-card { animation: none; }
 }
 
-.config-card :deep(.n-card-header) {
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-hairline);
-}
-.config-card :deep(.n-card-header__main) {
-  font-weight: 600;
-  color: var(--ink);
-}
-.config-card :deep(.n-form-item) {
-  margin-bottom: var(--space-4);
-}
-.config-card :deep(.n-form-item:last-child) {
-  margin-bottom: 0;
-}
+/* .config-card :deep(.n-card-header) / .n-card-header__main / .n-form-item 规则已废弃——
+   卡片从 <n-card> 改为 <div class="glass-panel glass-panel--card config-card">，
+   标题由 .glass-panel__title（glass.css 全局）提供；form-item spacing 走 n-form-item 默认样式。 */
 
 /* === Logo 卡片 === */
 .logo-block {
@@ -442,7 +448,7 @@ onMounted(() => {
 }
 
 /* === 门户预览卡 === */
-.preview-card :deep(.n-card__content) { padding: var(--space-3); }
+/* .preview-card :deep(.n-card__content) 已废弃：卡片不再是 n-card，body 由 .glass-panel__body 提供 padding */
 .portal-preview {
   border-radius: var(--radius-md);
   overflow: hidden;
