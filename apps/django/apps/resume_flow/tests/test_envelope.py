@@ -82,5 +82,6 @@ def test_flow_create_envelope(auth_client):
     }, format='json')
     assert resp.status_code == 201, resp.content
     assert resp.data['success'] is True
+    assert resp.data['code'] == 0, resp.data   # 黄金标准: 缺 code 即半信封未收口
     assert resp.data['data']['id']
     assert resp.data['data']['status'] == 'PENDING'

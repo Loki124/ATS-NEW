@@ -87,10 +87,8 @@ class ApprovalFlowViewSet(EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
         )
 
         out = ApprovalFlowDetailSerializer(flow, context={'request': request})
-        return Response(
-            {'success': True, 'data': out.data},
-            status=status.HTTP_201_CREATED,
-        )
+        # 2026-09-30 信封 initiative: 收敛到 success_response 补齐 code
+        return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """编辑审批流 — 包 {success, data} 信封 (create/approve/reject/delegate 为自定义, 不动)."""

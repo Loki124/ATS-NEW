@@ -81,7 +81,8 @@ class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSe
         out['verification_code'] = req._plaintext_code  # noqa: SLF001
         out['verification_code_expires_at'] = req.verification_code_expires_at
         out['verification_message'] = '请通过邮件/短信查看验证码, 15 分钟内 verify 有效'
-        return Response({'success': True, 'data': out}, status=drf_status.HTTP_201_CREATED)
+        # 2026-09-30 信封 initiative: 收敛到 success_response 补齐 code
+        return success_response(out, status_code=drf_status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """超管编辑 GDPR 请求 — 包 {success, data} 信封 (create/verify/process 为自定义, 不动)."""

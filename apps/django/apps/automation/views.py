@@ -113,9 +113,9 @@ class AutomationTriggerView(viewsets.ViewSet):
         engine = AutomationEngine(context, actor=request.user)
         results = engine.run()
 
-        return Response({
-            'success': True,
-            'data': [
+        # 2026-09-30 信封 initiative: 收敛到 success_response 补齐 code
+        return success_response(
+            [
                 {
                     'rule_id': r.rule_id,
                     'rule_name': r.rule_name,
@@ -126,8 +126,9 @@ class AutomationTriggerView(viewsets.ViewSet):
                     'execution_ms': r.execution_ms,
                 }
                 for r in results
-            ]
-        }, status=status.HTTP_200_OK)
+            ],
+            status_code=status.HTTP_200_OK,
+        )
 
 
 class AutomationLogViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
