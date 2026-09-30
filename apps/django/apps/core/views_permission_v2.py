@@ -18,9 +18,10 @@ from .models_permission_v2 import (
 # (Tier 3) DataPermissionRule 行级镜像已移除; 列级规则由 field_acl / enforcement 直接消费.
 from .permissions_v2 import V2Permission
 from .scope_resolver import resolve_scope, compile_data_range_q, _pick_app_json
+from apps.common.views import EnvelopeReadOnlyMixin
 
 
-class PermissionResourceViewSet(viewsets.ReadOnlyModelViewSet):
+class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
     queryset = PermissionResource.objects.filter(status=1)
     permission_classes = [V2Permission]
     pagination_class = None
@@ -38,7 +39,7 @@ class PermissionResourceViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({'success': True, 'data': serializer.data})
 
 
-class PermissionTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
     queryset = PermissionTemplate.objects.filter(status=1)
     permission_classes = [V2Permission]
     pagination_class = None

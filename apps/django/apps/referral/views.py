@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
+from apps.common.views import EnvelopeWriteMixin
 
 logger = logging.getLogger(__name__)
 from apps.common.pagination import StandardResultsSetPagination
@@ -22,7 +23,7 @@ from .serializers import (
 )
 
 
-class ReferralViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class ReferralViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """内推记录 ViewSet - 按 referrer 部门 scope 过滤 (Fix 1)"""
     queryset = Referral.objects.all().order_by('-created_at')
     permission_classes = [V2Permission]

@@ -28,6 +28,7 @@ from apps.common.exceptions import (
 )
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
 # T01.2 (2026-08-04 寇豆码): HasProcessPermission / V2Permission 自身已校验登录, 显式
@@ -74,7 +75,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 阶段（RecruitmentStage）
 # ============================================================
-class RecruitmentStageViewSet(viewsets.ModelViewSet):
+class RecruitmentStageViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """阶段库 ViewSet
 
     list:      列表 (支持 type/status 过滤)
@@ -202,7 +203,7 @@ class RecruitmentStageViewSet(viewsets.ModelViewSet):
 # ============================================================
 # 流程（RecruitmentProcess）
 # ============================================================
-class RecruitmentProcessViewSet(viewsets.ModelViewSet):
+class RecruitmentProcessViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """招聘流程 ViewSet
 
     list:           列表
@@ -466,7 +467,7 @@ class RecruitmentProcessViewSet(viewsets.ModelViewSet):
 # ============================================================
 # 流程-阶段关联（ProcessStageLink）
 # ============================================================
-class ProcessStageLinkViewSet(viewsets.ModelViewSet):
+class ProcessStageLinkViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """流程-阶段关联 ViewSet"""
     queryset = ProcessStageLink.objects.all()
     serializer_class = ProcessStageLinkSerializer
@@ -618,7 +619,7 @@ class StageRuleViewSet(viewsets.ModelViewSet):
 # ============================================================
 # 面试轮次（InterviewRound）
 # ============================================================
-class InterviewRoundViewSet(AuditMixin, viewsets.ModelViewSet):
+class InterviewRoundViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """面试轮次库 ViewSet
 
     list:       列表（支持 keyword 搜索）

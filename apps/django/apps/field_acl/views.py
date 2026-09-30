@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsSuperAdmin
 
 from .models import FieldACL
@@ -16,7 +17,7 @@ from .serializers import (
 )
 
 
-class FieldACLViewSet(AuditMixin, viewsets.ModelViewSet):
+class FieldACLViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """字段级 ACL ViewSet - 仅超管可操作"""
     queryset = FieldACL.objects.all()
     serializer_class = FieldACLSerializer

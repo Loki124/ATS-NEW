@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from apps.common.exceptions import NotFound, ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.process.models import RecruitmentProcess
 
@@ -24,7 +25,7 @@ from .serializers import (
 from .services import DemandCreateData, DemandService
 
 
-class DemandViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class DemandViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """招聘需求 ViewSet - 按部门 scope 过滤"""
     queryset = Demand.objects.all().order_by('-created_at')
     permission_classes = [V2Permission]
