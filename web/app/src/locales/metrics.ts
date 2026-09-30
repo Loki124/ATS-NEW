@@ -6,13 +6,22 @@
  */
 
 export const METRICS_ZH: Record<string, string> = {
-  'metrics.library.title': '指标库',
+  'metrics.library.title': '指标管理',
   'metrics.library.subtitle': '指标定义已整合原子指标（对象路径取值）与派生指标（参数化 Handler），集中展示系统中已注册的全部指标，供规则引擎引用',
-  'metrics.definitions.readonlyHint': '指标定义已整合原子指标（对象路径）与派生指标（参数化 Handler），集中展示系统中已注册的全部指标（只读）',
   'metrics.tab.atomic': '原子指标',
   'metrics.tab.derived': '派生指标',
   'metrics.tab.template': '指标模板',
   'metrics.tab.definitions': '指标定义',
+
+  // ===== 指标管理：搜索 / 筛选 / 空态 =====
+  'metrics.filter.keywordPlaceholder': '搜索指标名称 / 数据源 / 运算符…',
+  'metrics.filter.category': '分类',
+  'metrics.filter.status': '状态',
+  'metrics.filter.all': '全部',
+  'metrics.filter.resultCount': '共 {count} 项',
+  'metrics.empty.definitions': '没有匹配的指标定义，试试调整关键词或分类',
+  'metrics.empty.templates': '没有匹配的指标模板，试试调整关键词或状态',
+  'metrics.empty.noTemplates': '还没有指标模板，点击右上角「新建指标模板」开始创建',
 
   'metrics.col.valueMode': '取值方式',
   'metrics.col.dataSource': '数据源配置',
@@ -33,6 +42,7 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.col.enumValues': '枚举值',
   'metrics.col.status': '状态',
   'metrics.col.templateCount': '引用模板',
+  'metrics.col.kind': '分类',
   'metrics.col.action': '操作',
 
   'metrics.btn.create': '新建',
@@ -215,13 +225,22 @@ export const METRICS_ZH: Record<string, string> = {
 }
 
 export const METRICS_EN: Record<string, string> = {
-  'metrics.library.title': 'Metric Library',
+  'metrics.library.title': 'Metric Management',
   'metrics.library.subtitle': 'Metric Definitions consolidates atomic (object-path) and derived (parametric handler) metrics — all registered metrics shown here for the rule engine',
-  'metrics.definitions.readonlyHint': 'Metric Definitions consolidates atomic (object path) and derived (parametric handler) metrics — all registered metrics shown here (read-only)',
   'metrics.tab.atomic': 'Atomic Metrics',
   'metrics.tab.derived': 'Derived Metrics',
   'metrics.tab.template': 'Metric Templates',
   'metrics.tab.definitions': 'Metric Definitions',
+
+  // ===== Metric Management: search / filter / empty =====
+  'metrics.filter.keywordPlaceholder': 'Search name / data source / operators…',
+  'metrics.filter.category': 'Category',
+  'metrics.filter.status': 'Status',
+  'metrics.filter.all': 'All',
+  'metrics.filter.resultCount': '{count} items',
+  'metrics.empty.definitions': 'No matching metric definitions — try adjusting keyword or category',
+  'metrics.empty.templates': 'No matching metric templates — try adjusting keyword or status',
+  'metrics.empty.noTemplates': 'No metric templates yet — click "New Template" to create one',
 
   'metrics.col.valueMode': 'Value Mode',
   'metrics.col.dataSource': 'Data Source',
@@ -242,6 +261,7 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.col.enumValues': 'Enum Values',
   'metrics.col.status': 'Status',
   'metrics.col.templateCount': 'Templates',
+  'metrics.col.kind': 'Category',
   'metrics.col.action': 'Actions',
 
   'metrics.btn.create': 'Create',

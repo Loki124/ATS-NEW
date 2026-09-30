@@ -13,35 +13,162 @@
       <n-tabs v-model:value="activeTab" type="line" animated>
         <!-- ---------- Tab 1：指标定义（只读，统一视图） ---------- -->
         <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
-          <div class="ws-hint">
-            <span class="ws-hint-dot" />
-            {{ t('metrics.definitions.readonlyHint') }}
+          <div class="ws-toolbar">
+            <n-input
+              v-model:value="defKeyword"
+              :placeholder="t('metrics.filter.keywordPlaceholder')"
+              clearable
+              class="ws-search"
+            >
+              <template #prefix>
+                <n-icon :component="SearchOutline" />
+              </template>
+            </n-input>
+            <n-select
+              v-model:value="defCategory"
+              :placeholder="t('metrics.filter.category')"
+              :options="defCategoryOptions"
+              class="ws-filter"
+            />
+            <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
           </div>
-          <n-data-table
-            :columns="definitionColumns"
-            :data="definitions"
-            :loading="loading"
-            :bordered="false"
-            size="small"
-            :row-key="(r: any) => r.id"
-          />
+
+          <n-spin :show="loading" class="ws-spin">
+            <div v-if="!loading && !filteredDefinitions.length" class="ws-empty">
+              <n-empty :description="t('metrics.empty.definitions')" />
+            </div>
+            <div v-else class="metrics-card-grid">
+              <article
+                v-for="d in filteredDefinitions"
+                :key="d.id"
+                class="metric-row-card is-clickable"
+                tabindex="0"
+                role="button"
+                :aria-label="d.name"
+                @click="openDetail(d)"
+                @keydown.enter.prevent="openDetail(d)"
+              >
+                <div class="row-main">
+                  <div class="row-title">
+                    <span class="metric-card-name">{{ d.name }}</span>
+                    <span class="ws-kind-tag" :class="kindClass(d)">{{ kindLabel(d) }}</span>
+                    <span class="ws-mode-badge" :class="valueModeClass(d)">{{ valueModeLabel(d) }}</span>
+                  </div>
+                  <dl class="row-fields">
+                    <div class="row-field">
+                      <dt>{{ t('metrics.col.dataSource') }}</dt>
+                      <dd><code class="ws-code">{{ d.dataSource }}</code></dd>
+                    </div>
+                    <div class="row-field">
+                      <dt>{{ t('metrics.col.returnType') }}</dt>
+                      <dd>{{ returnTypeLabel(d.returnType) }}<template v-if="d.unit">（{{ d.unit }}）</template></dd>
+                    </div>
+                    <div class="row-field">
+                      <dt>{{ t('metrics.col.paramType') }}</dt>
+                      <dd>{{ paramTypeLabel(d.paramType) }}</dd>
+                    </div>
+                    <div class="row-field">
+                      <dt>{{ t('metrics.col.operators') }}</dt>
+                      <dd class="row-ops">
+                        <template v-if="(d.supportedOperators || []).length">
+                          <span v-for="op in d.supportedOperators" :key="op" class="ws-op-tag">{{ operatorLabel(op) }}</span>
+                        </template>
+                        <span v-else class="ws-muted">-</span>
+                      </dd>
+                    </div>
+                    <div v-if="d.isEnum && enumValuesOf(d).length" class="row-field">
+                      <dt>{{ t('metrics.col.enumValues') }}</dt>
+                      <dd class="row-ops">
+                        <span v-for="ev in enumValuesOf(d)" :key="ev" class="ws-enum-tag">{{ ev }}</span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <div class="row-trailing">
+                  <n-icon :component="ChevronForwardOutline" />
+                </div>
+              </article>
+            </div>
+          </n-spin>
         </n-tab-pane>
 
         <!-- ---------- Tab 2：指标模板（CRUD） ---------- -->
         <n-tab-pane name="template" :tab="t('metrics.tab.template')">
           <div class="ws-tab-bar">
+            <div class="ws-toolbar ws-toolbar-grow">
+              <n-input
+                v-model:value="tplKeyword"
+                :placeholder="t('metrics.filter.keywordPlaceholder')"
+                clearable
+                class="ws-search"
+              >
+                <template #prefix>
+                  <n-icon :component="SearchOutline" />
+                </template>
+              </n-input>
+              <n-select
+                v-model:value="tplStatus"
+                :placeholder="t('metrics.filter.status')"
+                :options="tplStatusOptions"
+                class="ws-filter"
+              />
+              <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
+            </div>
             <n-button type="primary" @click="openTemplateCreate">
               {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
             </n-button>
           </div>
-          <n-data-table
-            :columns="templateColumns"
-            :data="templateList"
-            :loading="loading"
-            :bordered="false"
-            size="small"
-            :row-key="(r: any) => r.id"
-          />
+
+          <n-spin :show="loading" class="ws-spin">
+            <div v-if="!loading && !templateList.length" class="ws-empty">
+              <n-empty :description="t('metrics.empty.noTemplates')" />
+            </div>
+            <div v-else-if="!filteredTemplates.length" class="ws-empty">
+              <n-empty :description="t('metrics.empty.templates')" />
+            </div>
+            <div v-else class="metrics-card-grid">
+              <article v-for="tpl in filteredTemplates" :key="tpl.id" class="metric-row-card tpl-row-card">
+                <div class="row-main">
+                  <div class="row-title">
+                    <span class="metric-card-name">{{ tpl.name }}</span>
+                    <n-tag size="small" :type="tpl.status === 'enabled' ? 'success' : 'default'">
+                      {{ tpl.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
+                    </n-tag>
+                  </div>
+                  <dl class="row-fields">
+                    <div class="row-field">
+                      <dt>{{ t('metrics.col.metric') }}</dt>
+                      <dd>{{ tpl.metricName }}</dd>
+                    </div>
+                    <div class="row-field">
+                      <dt>{{ t('metrics.tpl.range') }}</dt>
+                      <dd>{{ templateRange(tpl) }}</dd>
+                    </div>
+                    <div class="row-field">
+                      <dt>{{ t('metrics.tpl.domain') }}</dt>
+                      <dd>{{ templateDomain(tpl) }}</dd>
+                    </div>
+                    <div class="row-field">
+                      <dt>{{ t('metrics.col.operators') }}</dt>
+                      <dd class="row-ops">
+                        <template v-if="(tpl.operators || []).length">
+                          <span v-for="op in tpl.operators" :key="op" class="ws-op-tag">{{ operatorLabel(op) }}</span>
+                        </template>
+                        <span v-else class="ws-muted">-</span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <div class="row-trailing row-actions">
+                  <n-button size="small" quaternary @click="openTemplateEdit(tpl)">{{ t('metrics.btn.edit') }}</n-button>
+                  <n-button size="small" quaternary @click="toggleTemplate(tpl)">
+                    {{ tpl.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable') }}
+                  </n-button>
+                  <n-button size="small" quaternary type="error" @click="removeTemplate(tpl)">{{ t('metrics.btn.delete') }}</n-button>
+                </div>
+              </article>
+            </div>
+          </n-spin>
         </n-tab-pane>
       </n-tabs>
     </div>
@@ -57,6 +184,12 @@
       <template v-if="detailRow">
         <div class="detail-grid">
           <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.kind') }}</div>
+            <div class="cell-value">
+              <span class="ws-kind-tag" :class="kindClass(detailRow)">{{ kindLabel(detailRow) }}</span>
+            </div>
+          </div>
+          <div class="detail-cell">
             <div class="cell-label">{{ t('metrics.col.valueMode') }}</div>
             <div class="cell-value">
               <span class="ws-mode-badge" :class="valueModeClass(detailRow)">
@@ -64,15 +197,15 @@
               </span>
             </div>
           </div>
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.paramType') }}</div>
-            <div class="cell-value">{{ paramTypeLabel(detailRow.paramType) }}</div>
-          </div>
           <div class="detail-cell detail-cell-wide">
             <div class="cell-label">{{ t('metrics.col.dataSource') }}</div>
             <div class="cell-value">
               <code class="ws-code">{{ detailRow.dataSource }}</code>
             </div>
+          </div>
+          <div class="detail-cell">
+            <div class="cell-label">{{ t('metrics.col.paramType') }}</div>
+            <div class="cell-value">{{ paramTypeLabel(detailRow.paramType) }}</div>
           </div>
           <div class="detail-cell">
             <div class="cell-label">{{ t('metrics.col.returnType') }}</div>
@@ -428,6 +561,12 @@ function valueModeLabel(row: MetricDefinition): string {
     ? t('metrics.valueMode.parametric')
     : t('metrics.valueMode.objectPath')
 }
+function kindLabel(row: MetricDefinition): string {
+  return row.kind === 'derived' ? t('metrics.tab.derived') : t('metrics.tab.atomic')
+}
+function kindClass(row: MetricDefinition): string {
+  return row.kind === 'derived' ? 'is-derived' : 'is-atomic'
+}
 function enumValuesOf(row: MetricDefinition): string[] {
   return (row.enumValues as string[] | undefined) || []
 }
@@ -449,66 +588,63 @@ function operatorLabel(value: string) {
   return operatorCatalog.value.find((o) => o.value === value)?.label ?? value
 }
 
-const definitionColumns = computed(() => [
-  {
-    title: t('metrics.col.name'),
-    key: 'name',
-    render: (row: MetricDefinition) =>
-      h('span', {
-        class: 'ws-def-name-link',
-        style: 'cursor:pointer;font-weight:600;color:var(--brand-text);',
-        onClick: () => openDetail(row),
-      }, { default: () => row.name }),
-  },
-  {
-    title: t('metrics.col.valueMode'),
-    key: 'valueMode',
-    render: (row: MetricDefinition) =>
-      h('span', { class: `ws-mode-badge ${valueModeClass(row)}` }, { default: () => valueModeLabel(row) }),
-  },
-  {
-    title: t('metrics.col.dataSource'),
-    key: 'dataSource',
-    render: (row: MetricDefinition) => h('code', { class: 'ws-code' }, { default: () => row.dataSource }),
-  },
-  {
-    title: t('metrics.col.paramType'),
-    key: 'paramType',
-    render: (row: MetricDefinition) => h('span', { class: 'ws-muted' }, { default: () => paramTypeLabel(row.paramType) }),
-  },
-  {
-    title: t('metrics.col.returnType'),
-    key: 'returnType',
-    render: (row: MetricDefinition) =>
-      h('span', { class: 'ws-muted' }, {
-        default: () => `${returnTypeLabel(row.returnType)}${row.unit ? '（' + row.unit + '）' : ''}`,
-      }),
-  },
-  {
-    title: t('metrics.col.enumValues'),
-    key: 'enumValues',
-    render: (row: MetricDefinition) => {
-      const evs = enumValuesOf(row)
-      if (!row.isEnum || !evs.length) return h('span', { class: 'ws-muted' }, { default: () => '-' })
-      return h('div', { class: 'ws-ops' }, {
-        default: () => evs.map((ev: string) =>
-          h('span', { class: 'ws-enum-tag' }, { default: () => ev })),
-      })
-    },
-  },
-  {
-    title: t('metrics.col.operators'),
-    key: 'supportedOperators',
-    render: (row: MetricDefinition) =>
-      h('div', { class: 'ws-ops' }, {
-        default: () =>
-          (row.supportedOperators || []).map((op: string) =>
-            h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) })),
-      }),
-  },
+// ===== 指标定义：搜索 + 分类筛选 =====
+const defKeyword = ref('')
+const defCategory = ref<'all' | 'atomic' | 'derived'>('all')
+
+const defCategoryOptions = computed<OptionItem[]>(() => [
+  { label: t('metrics.filter.all'), value: 'all' },
+  { label: t('metrics.tab.atomic'), value: 'atomic' },
+  { label: t('metrics.tab.derived'), value: 'derived' },
 ])
 
-// ===== 指标模板列 =====
+const filteredDefinitions = computed<MetricDefinition[]>(() => {
+  const kw = defKeyword.value.trim().toLowerCase()
+  return definitions.value.filter((d) => {
+    if (defCategory.value !== 'all' && d.kind !== defCategory.value) return false
+    if (kw) {
+      const hay = [
+        d.name,
+        d.dataSource,
+        returnTypeLabel(d.returnType),
+        paramTypeLabel(d.paramType),
+        kindLabel(d),
+        valueModeLabel(d),
+        (d.supportedOperators || []).map((o) => operatorLabel(o)).join(' '),
+      ].join(' ').toLowerCase()
+      if (!hay.includes(kw)) return false
+    }
+    return true
+  })
+})
+
+// ===== 指标模板：搜索 + 状态筛选 =====
+const tplKeyword = ref('')
+const tplStatus = ref<'all' | 'enabled' | 'disabled'>('all')
+
+const tplStatusOptions = computed<OptionItem[]>(() => [
+  { label: t('metrics.filter.all'), value: 'all' },
+  { label: t('metrics.status.enabled'), value: 'enabled' },
+  { label: t('metrics.status.disabled'), value: 'disabled' },
+])
+
+const filteredTemplates = computed<MetricTemplate[]>(() => {
+  const kw = tplKeyword.value.trim().toLowerCase()
+  return templateList.value.filter((tpl) => {
+    if (tplStatus.value !== 'all' && tpl.status !== tplStatus.value) return false
+    if (kw) {
+      const hay = [
+        tpl.name,
+        tpl.metricName,
+        (tpl.operators || []).map((o) => operatorLabel(o)).join(' '),
+      ].join(' ').toLowerCase()
+      if (!hay.includes(kw)) return false
+    }
+    return true
+  })
+})
+
+// ===== 指标模板列辅助 =====
 function templateRange(row: MetricTemplate): string {
   const c = row.paramConfig
   if (!c || (c.min == null && c.max == null && c.step == null)) return '-'
@@ -523,48 +659,6 @@ function templateDomain(row: MetricTemplate): string {
   if (!segs || !segs.length) return '-'
   return segs.map((s) => `${s.min}~${s.max}`).join('，')
 }
-
-const templateColumns = computed(() => [
-  { title: t('metrics.col.name'), key: 'name' },
-  { title: t('metrics.col.metric'), key: 'metricName' },
-  {
-    title: t('metrics.tpl.range'),
-    key: 'range',
-    render: (row: MetricTemplate) => h('span', { class: 'ws-muted' }, { default: () => templateRange(row) }),
-  },
-  {
-    title: t('metrics.col.operators'),
-    key: 'operators',
-    render: (row: MetricTemplate) =>
-      h('div', { class: 'ws-ops' }, {
-        default: () => (row.operators || []).map((op: string) =>
-          h('span', { class: 'ws-op-tag' }, { default: () => operatorLabel(op) })),
-      }),
-  },
-  {
-    title: t('metrics.tpl.domain'),
-    key: 'domain',
-    render: (row: MetricTemplate) => h('span', { class: 'ws-muted' }, { default: () => templateDomain(row) }),
-  },
-  {
-    title: t('metrics.col.status'),
-    key: 'status',
-    render: (row: MetricTemplate) =>
-      h(NTag, { size: 'small', type: row.status === 'enabled' ? 'success' : 'default' }, {
-        default: () => (row.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled')),
-      }),
-  },
-  {
-    title: t('metrics.col.action'),
-    key: 'action',
-    render: (row: MetricTemplate) =>
-      h('div', { class: 'ws-actions-cell' }, [
-        h(NButton, { size: 'small', quaternary: true, onClick: () => openTemplateEdit(row) }, { default: () => t('metrics.btn.edit') }),
-        h(NButton, { size: 'small', quaternary: true, onClick: () => toggleTemplate(row) }, { default: () => (row.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable')) }),
-        h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeTemplate(row) }, { default: () => t('metrics.btn.delete') }),
-      ]),
-  },
-])
 
 // ===== 指标模板新建/编辑 =====
 const showTemplateModal = ref(false)
@@ -866,35 +960,152 @@ onMounted(load)
   overflow-y: auto;
   padding-top: var(--space-3);
 }
+.ws-spin { width: 100%; }
+
+/* ===== 工具栏：搜索 + 筛选 + 计数 ===== */
+.ws-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.ws-toolbar-grow { flex: 1 1 auto; margin-bottom: 0; }
+.ws-search { flex: 1 1 260px; max-width: 420px; }
+.ws-filter { flex: 0 0 160px; }
+.ws-result-count {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
 .ws-tab-bar {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-3);
-  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
 }
 
-/* 只读提示 */
-.ws-hint {
+/* ===== 卡片列表（每行一个卡片，横向紧凑） ===== */
+.metrics-card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+.metric-row-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    box-shadow var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+  animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
+}
+.metric-row-card.is-clickable { cursor: pointer; }
+.metric-row-card:hover {
+  border-color: color-mix(in srgb, var(--brand) 42%, transparent);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
+}
+.metric-row-card:focus-visible {
+  outline: 2px solid var(--brand-button);
+  outline-offset: 2px;
+}
+.row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.row-title {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-small, 13px);
-  color: var(--ink-soft);
-  background: var(--brand-a12);
-  border: 1px solid var(--brand-a22);
-  border-radius: var(--radius-md);
+  flex-wrap: wrap;
 }
-.ws-hint-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--brand-600);
+.metric-card-name {
+  font-size: var(--text-base, 15px);
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-word;
+  line-height: 1.35;
+}
+.ws-kind-tag {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.ws-kind-tag.is-atomic {
+  background: var(--c-info-soft);
+  border-color: color-mix(in srgb, var(--c-info) 24%, transparent);
+  color: var(--c-info-deep);
+}
+.ws-kind-tag.is-derived {
+  background: var(--brand-a12);
+  border-color: var(--brand-a22);
+  color: var(--brand-text);
+}
+.row-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+.row-field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.row-field dt {
   flex: 0 0 auto;
+  color: var(--ink-faint);
+  font-size: var(--fs-12);
+}
+.row-field dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-small, 13px);
+  word-break: break-word;
+}
+.row-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.row-trailing {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--ink-faint);
+}
+.row-actions {
+  gap: 2px;
 }
 
-/* ===== 共享视觉元素（列表与详情统一） ===== */
+/* 空态 */
+.ws-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--space-8) 0;
+}
+
+/* ===== 共享视觉元素（详情弹窗与卡片统一） ===== */
 .ws-code {
   display: inline-block;
   font-family: var(--font-mono);
@@ -945,8 +1156,6 @@ onMounted(load)
 }
 .ws-ops { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .ws-muted { color: var(--ink-faint); font-size: var(--text-small, 13px); }
-.ws-actions-cell { display: flex; gap: 2px; }
-.ws-def-name-link:hover { text-decoration: underline; }
 
 /* 详情弹窗 */
 .detail-grid {
