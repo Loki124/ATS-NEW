@@ -55,6 +55,7 @@
           @update:value="loadList"
         />
       </n-space>
+      <div class="spacer"></div>
       <n-space>
         <n-button @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
@@ -386,22 +387,9 @@ onMounted(loadList)
 </script>
 
 <style scoped>
-/* 继承 settings 子页 .page-container / .page-header / .toolbar / .table-wrap / .kpi-row (docs/ui/SETTINGS_PAGE_STRUCTURE.md §2) */
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; }
-.page-title { margin: 0 0 4px 0; font-size: var(--fs-20); font-weight: 600; color: var(--ink); }
-.page-subtitle { margin: 0; color: var(--ink-soft); font-size: var(--fs-13); }
-
-.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
-.kpi-card { padding: var(--space-3) var(--space-4); }
-.kpi-label { color: var(--ink-soft); font-size: var(--fs-12); margin-bottom: 4px; }
-.kpi-value { font-size: var(--fs-24); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+/* 仅保留全局 .kpi-* 未覆盖的脚注行；其余（.page-header/.page-title/.page-subtitle/.kpi-row/.kpi-card/.toolbar/.table-wrap）
+   统一复用 glass.css 全局类，禁止私有重定义（SETTINGS_PAGE_STRUCTURE.md §0 / §4） */
 .kpi-foot { color: var(--ink-faint); font-size: var(--fs-11); margin-top: 4px; }
-
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-  gap: var(--space-3);
-}
-.table-wrap { /* settings 子页已有 .table-wrap 全局,内容承载 n-data-table */ }
 
 .rule-name { font-weight: 500; color: var(--ink); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--fs-12); }
@@ -434,7 +422,6 @@ onMounted(loadList)
 }
 
 @media (max-width: 900px) {
-  .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .detail-grid { grid-template-columns: 1fr; }
 }
 </style>
