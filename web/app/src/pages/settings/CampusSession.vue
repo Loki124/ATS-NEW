@@ -132,6 +132,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import { computed, h, onMounted, ref } from 'vue'
 import {
   NButton,
@@ -216,7 +217,7 @@ const rules: FormRules = {
   title: { required: true, message: t('pages.settings.CampusSession.s45'), trigger: ['input', 'blur'] },
 }
 
-const tablePagination = { pageSize: 10 }
+const tablePagination = localPagination()
 
 /** ISO 字符串 → 时间戳数字（日期选择器值）。 */
 function isoToTs(iso: string | null): number | null {

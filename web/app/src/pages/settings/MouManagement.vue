@@ -272,7 +272,7 @@
         :row-key="(row: ManagementUnitMember) => row.id"
         size="small"
         :loading="authLoading"
-        :pagination="{ pageSize: 10 }"
+        :pagination="localPagination()"
       />
     </n-modal>
 </div><!-- /.page-body -->
@@ -286,6 +286,7 @@ import {
   NButton, NSpace, NIcon, NEmpty,
   NPopconfirm, useMessage,
 } from 'naive-ui'
+import { localPagination } from '@/composables/useTablePagination'
 import {
   AddOutline, CreateOutline, TrashOutline,
   StopOutline, DownloadOutline, ChevronUpOutline, ChevronDownOutline,

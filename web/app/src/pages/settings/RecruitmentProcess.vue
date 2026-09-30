@@ -24,7 +24,7 @@
       :columns="columns"
       :data="processes"
       :loading="loading"
-      :pagination="{ pageSize: 20 }"
+      :pagination="localPagination()"
       :row-key="(r) => r.id"
       :max-height="tableMaxHeight"
       :row-height="TABLE_ROW_HEIGHT"
@@ -52,6 +52,7 @@ import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { listProcesses, deleteProcess } from '../../api/recruitment-process'
 import api from '../../api/auth'
 import ProcessDetailModal from './ProcessDetailModal.vue'
+import { localPagination } from '@/composables/useTablePagination'
 const { t } = useI18n()
 
 const message = useMessage()

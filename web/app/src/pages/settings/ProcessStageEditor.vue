@@ -84,7 +84,7 @@
           :columns="addModalColumns"
           :data="availableStages"
           :row-key="(r) => r.id"
-          :pagination="{ pageSize: 8 }"
+          :pagination="localPagination(8)"
         />
       </n-spin>
     </n-modal>
@@ -146,6 +146,7 @@ import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NInputNu
 import { AddOutline, ArrowBackOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import {
   getProcess,
   listProcessLinks,

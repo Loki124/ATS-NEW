@@ -46,11 +46,9 @@
         :columns="columns"
         :row-key="(row: User) => row.id"
         :loading="loading"
-        :pagination="pagination"
+        :pagination="localPagination()"
         :bordered="false"
         flex-height
-        @update:page="(p: number) => (pagination.page = p)"
-        @update:page-size="(s: number) => { pagination.pageSize = s; pagination.page = 1; }"
       >
         <template #empty><n-empty description="暂无用户" /></template>
       </n-data-table>
@@ -182,7 +180,8 @@
 </template>
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { ref, reactive, onMounted, computed, h, watch } from 'vue';
+import { localPagination } from '@/composables/useTablePagination'
+import { ref, reactive, onMounted, computed, h } from 'vue';
 import {
   AddOutline,
   CreateOutline,
@@ -285,18 +284,8 @@ const userTypeFilterOptions = [
   { label: '外部用户', value: 'EXTERNAL' },
 ];
 
-// 分页器（客户端分页：displayUsers 已是筛选后、拉全的全部用户子集）
-// 对齐校招管控规则配置：pageSize 20 + 快速跳页 + 「共 N 条」前缀
-// 受控模式必须有 itemCount 与翻页/改每页处理器，否则页码、跳页、每页数量均失效
-const pagination = reactive({
-  page: 1,
-  pageSize: 20,
-  itemCount: 0,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50],
-  showQuickJumper: true,
-  prefix: ({ itemCount }: { itemCount: number | undefined }) => `共 ${itemCount ?? 0} 条`,
-});
+// 分页器走 useTablePagination 的 localPagination()（SETTINGS_PAGE_STRUCTURE.md §4.x）
+// 客户端分页：displayUsers 已是筛选后数组，naive-ui 自动从 :data 长度计算 itemCount，无需手动维护
 
 // 表单状态
 const formState = reactive({
@@ -453,16 +442,8 @@ const displayUsers = computed<User[]>(() => {
   });
 });
 
-// 筛选结果变化时：同步真实总量（共 N 条）+ 回到第 1 页
-// 受控分页必须有 itemCount，否则「共 N 条」取不到真实总数、页码/跳页/每页数量全部失效
-watch(
-  displayUsers,
-  () => {
-    pagination.itemCount = displayUsers.value.length;
-    pagination.page = 1;
-  },
-  { immediate: true }
-);
+// 筛选结果变化时：回到第 1 页（localPagination 非受控，需通过 :key 触发或 reset）
+// 注：naive-ui localPagination 在 :data 数组引用变化时自动重置页码，无需显式处理。
 
 // 加载角色列表
 const loadRoles = async () => {

@@ -34,7 +34,7 @@
           :columns="columns"
           :row-key="(row: RegApp) => row.id"
           :loading="loading"
-          :pagination="{ pageSize: 10, showSizePicker: true, pageSizes: [10, 20, 50] }"
+          :pagination="localPagination()"
         />
         <n-empty
           v-if="!loading && list.length === 0"
@@ -73,6 +73,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import { ref, h, onMounted } from 'vue'
 import { useMessage, type DataTableColumns, NTag, NButton, NSpace, NIcon } from 'naive-ui'
 import { RefreshOutline, CheckmarkOutline, CloseOutline } from '@vicons/ionicons5'

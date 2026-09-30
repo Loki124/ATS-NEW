@@ -83,6 +83,7 @@ import {
   type PermissionResource,
   type ResourceType,
 } from '@/api/permission-resource'
+import { localPagination } from '@/composables/useTablePagination'
 import { SearchOutline } from '@vicons/ionicons5'
 
 const message = useMessage()
@@ -91,7 +92,7 @@ const search = ref('')
 const moduleFilter = ref<string | null>(null)
 const data = ref<PermissionResource[]>([])
 
-const pagination = { pageSize: 20 }
+const pagination = localPagination()
 
 const moduleOptions = computed(() => {
   const modules = new Set<string>()

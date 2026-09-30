@@ -31,9 +31,9 @@
     <n-card :title="t('pages.settings.FieldAclSettings.s7')" class="mt-4">
       <n-data-table
         :columns="auditColumns"
-        :data="auditLogs"
-        :pagination="{ pageSize: 20 }"
-        size="small"
+:data="auditLogs"
+          :pagination="localPagination()"
+          size="small"
         :max-height="400"
       />
     </n-card>
@@ -49,6 +49,7 @@ import {
   fetchAclMatrix, listAclRules, queryAclAudit,
   type FieldAclMatrix, type FieldAclAction, type FieldAclRule, type FieldAclAudit,
 } from '@/api/field-acl';
+import { localPagination } from '@/composables/useTablePagination';
 const { t } = useI18n()
 
 const message = useMessage();

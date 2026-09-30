@@ -110,6 +110,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import { computed, h, onMounted, ref } from 'vue'
 import {
   NButton,
@@ -189,7 +190,7 @@ const rules: FormRules = {
   name: { required: true, message: t('pages.settings.CampusAmbassador.s45', '请填写大使姓名'), trigger: ['input', 'blur'] },
 }
 
-const tablePagination = { pageSize: 10 }
+const tablePagination = localPagination()
 
 const filteredRows = computed(() => {
   const k = keyword.value.trim()

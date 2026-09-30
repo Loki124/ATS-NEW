@@ -30,7 +30,7 @@
       :columns="columns"
       :data="filteredStages"
       :loading="loading"
-      :pagination="{ pageSize: 20 }"
+      :pagination="localPagination()"
       :row-key="(r) => r.id"
       :max-height="tableMaxHeight"
       :row-height="TABLE_ROW_HEIGHT"
@@ -117,6 +117,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import { ref, reactive, onMounted, computed, watch, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty, NText } from 'naive-ui'
 import { useFormDraft } from '../../composables/useFormDraft'

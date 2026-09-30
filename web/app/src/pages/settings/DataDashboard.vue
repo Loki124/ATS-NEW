@@ -53,7 +53,7 @@
         :row-key="(row: any) => row.id"
         size="small"
         striped
-        :pagination="{ pageSize: 10 }"
+        :pagination="localPagination()"
       />
     </n-card>
 
@@ -92,6 +92,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import { ref, h, onMounted, reactive } from 'vue';
 import { NButton, NTag, NSpace, useMessage } from 'naive-ui';
 import {

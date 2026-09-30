@@ -26,7 +26,7 @@
           :data="syncs"
           :bordered="false"
           size="small"
-          :pagination="{ pageSize: 20 }"
+          :pagination="localPagination()"
         />
 
         <n-divider />
@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { localPagination } from '@/composables/useTablePagination'
 import { h, onMounted, ref } from 'vue'
 import { NButton, NSpace, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import { fetchSyncs, retrySync, type CompanySync } from '../../api/external-sync'
