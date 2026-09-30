@@ -16,9 +16,9 @@
         </div>
       </div>
 
-      <n-card :bordered="false" class="glass-panel permission-shell">
+      <div class="glass-panel permission-shell">
         <RolesTab />
-      </n-card>
+      </div>
     </div>
 
     <!-- 模板管理弹窗（原独立 tab 收编为弹窗，入口在标题行右侧） -->
@@ -104,7 +104,4 @@ const templatesModal = reactive({ show: false })
 }
 /* 玻璃面板作为内容根时撑满高度（规范：仿 CampusControl 范式 .glass-panel flex 撑满） */
 .permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-4); }
-/* 修复表格 body 高度塌陷：n-card 内容包裹层默认 display:block，导致内层 flex:1 不生效；
-   对齐 §2.2 的 .tab-card :deep(.n-card-content) 链 */
-.permission-shell :deep(.n-card-content) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 </style>

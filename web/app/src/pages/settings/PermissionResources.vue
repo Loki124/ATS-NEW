@@ -7,9 +7,9 @@
           <p class="page-subtitle">{{ t('pages.settings.PermissionResources.s2') }}</p>
         </div>
       </div>
-      <n-card :bordered="false" class="glass-panel resources-shell">
+      <div class="glass-panel resources-shell">
         <ResourcesTab />
-      </n-card>
+      </div>
     </div>
   </div>
 </template>

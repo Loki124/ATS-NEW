@@ -28,7 +28,7 @@
         </div>
       </div>
 
-      <n-card>
+      <div class="glass-panel">
         <n-data-table
           :data="list"
           :columns="columns"
@@ -41,7 +41,7 @@
           :description="t('pages.settings.RegistrationApproval.s4')"
           style="padding: 40px 0"
         />
-      </n-card>
+      </div>
 
       <!-- 拒绝理由弹窗 -->
       <n-modal
@@ -230,5 +230,9 @@ onMounted(loadList)
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+/* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
+.glass-panel {
+  padding: var(--space-4);
 }
 </style>

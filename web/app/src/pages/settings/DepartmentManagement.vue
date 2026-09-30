@@ -43,7 +43,7 @@
     </div>
 
     <div class="page-body">
-      <n-card :bordered="false">
+      <div class="glass-panel">
       <n-data-table
         :data="displayData"
         :columns="columns"
@@ -54,7 +54,7 @@
         size="medium"
         @update:expanded-row-keys="onExpandedKeysChange"
       />
-      </n-card>
+      </div>
     </div>
 
     <!-- 部门详情 / 编辑 合一弹窗（居中） -->
@@ -1160,5 +1160,9 @@ onMounted(() => {
   display: flex;
   gap: var(--space-2);
   align-items: center;
+}
+/* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
+.glass-panel {
+  padding: var(--space-4);
 }
 </style>
