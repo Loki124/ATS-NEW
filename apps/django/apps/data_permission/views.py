@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsSuperAdmin
 
 from .models import (
@@ -16,7 +17,7 @@ from .models import (
 from .serializers import DataPermissionRuleSerializer
 
 
-class DataPermissionRuleViewSet(viewsets.ModelViewSet):
+class DataPermissionRuleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = DataPermissionRule.objects.all()
     serializer_class = DataPermissionRuleSerializer
     permission_classes = [IsSuperAdmin]
