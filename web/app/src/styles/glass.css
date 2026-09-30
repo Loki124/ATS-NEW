@@ -83,6 +83,37 @@ body.dark .glass-panel::before {
   background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 40%);
 }
 
+/* === .glass-panel--card（DESIGN.md §4 玻璃面板变体：带标题）===
+ * 用于「带标题 + 内容」的卡（替代原生 <n-card :title="...">）。
+ * 标题区与内容区垂直分隔；视觉与 .glass-panel 全局类一致（暗色自动跟随）。
+ *
+ * 模板形态：
+ *   <div class="glass-panel glass-panel--card">
+ *     <div class="glass-panel__title">{{ title }}</div>
+ *     <div class="glass-panel__body">...内容...</div>
+ *   </div>
+ */
+.glass-panel--card {
+  display: flex;
+  flex-direction: column;
+}
+.glass-panel__title {
+  padding: var(--space-4);
+  font-size: var(--fs-14, 14px);
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.glass-panel__body {
+  padding: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
 /* === .glass-card（DESIGN.md §4 玻璃卡片）===
  * 用于统计卡/列表卡/表单容器。
  * 比 .glass-panel 更轻（背景透明度更低、blur 更小）。

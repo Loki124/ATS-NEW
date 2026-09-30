@@ -8,14 +8,12 @@
     <!-- 个人设置 / 浏览器通知 / 通知选项 三块内容统一进 .page-body 滚动区 -->
     <div class="page-body">
       <!-- 个人设置 -->
-      <n-card class="settings-section" :bordered="false">
-      <template #header>
-        <div class="section-title">
+      <div class="glass-panel glass-panel--card">
+        <div class="glass-panel__title">
           <span>{{ t('pages.settings.AccountSettings.s3') }}</span>
           <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s4') }}</n-tag>
         </div>
-      </template>
-
+        <div class="glass-panel__body">
       <n-form label-placement="left" :label-width="96" :model="formState" class="profile-form">
         <n-grid :cols="1" :x-gap="24">
           <n-gi>
@@ -55,18 +53,17 @@
           </n-gi>
         </n-grid>
       </n-form>
-</n-card>
+        </div>
+      </div>
 
     <!-- 浏览器通知 -->
-    <n-card class="settings-section" :bordered="false">
-      <template #header>
-        <div class="section-title">
-          <span>{{ t('pages.settings.AccountSettings.s15') }}</span>
-          <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s16') }}</n-tag>
-        </div>
-      </template>
-
-      <p class="section-desc">{{ t('pages.settings.AccountSettings.s17') }}</p>
+    <div class="glass-panel glass-panel--card">
+      <div class="glass-panel__title">
+        <span>{{ t('pages.settings.AccountSettings.s15') }}</span>
+        <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s16') }}</n-tag>
+      </div>
+      <div class="glass-panel__body">
+<p class="section-desc">{{ t('pages.settings.AccountSettings.s17') }}</p>
 
       <n-form label-placement="left" :label-width="96">
         <n-form-item :label="t('pages.settings.AccountSettings.s18')">
@@ -83,18 +80,17 @@
           </n-grid>
         </n-checkbox-group>
       </n-collapse-transition>
-</n-card>
+      </div>
+    </div>
 
     <!-- 自定义默认选项设置 -->
-    <n-card class="settings-section" :bordered="false">
-      <template #header>
-        <div class="section-title">
-          <span>{{ t('pages.settings.AccountSettings.s19') }}</span>
-          <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s20') }}</n-tag>
-        </div>
-      </template>
-
-      <p class="section-desc">
+    <div class="glass-panel glass-panel--card">
+      <div class="glass-panel__title">
+        <span>{{ t('pages.settings.AccountSettings.s19') }}</span>
+        <n-tag type="info" size="small" class="section-tag">{{ t('pages.settings.AccountSettings.s20') }}</n-tag>
+      </div>
+      <div class="glass-panel__body">
+<p class="section-desc">
         {{ t('pages.settings.AccountSettings.s21') }}
       </p>
 
@@ -108,7 +104,8 @@
           />
         </n-form-item>
       </n-form>
-</n-card>
+      </div>
+    </div>
     </div><!-- /.page-body -->
 
     <!-- 更改密码弹窗 -->
@@ -144,7 +141,6 @@
 import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, onMounted } from 'vue'
 import {
-  NCard,
   NForm,
   NFormItem,
   NInput,
@@ -312,16 +308,8 @@ async function handleChangePassword() {
 
 /* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css 渐变规格） */
 
-.settings-section {
-  margin-bottom: var(--space-4);
-}
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-16);
-  font-weight: 600;
-}
+/* .settings-section 已废弃（卡片改为 .glass-panel--card，间距由 .page-body gap 提供） */
+/* .section-title 已统一由全局 .glass-panel__title 提供 flex + gap + 字重 */
 .section-tag {
   font-weight: 500;
 }
