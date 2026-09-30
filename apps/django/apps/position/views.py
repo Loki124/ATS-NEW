@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Position
@@ -19,7 +21,7 @@ from .serializers import (
 )
 
 
-class PositionViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class PositionViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """职位 ViewSet - 按部门 scope 过滤"""
     queryset = Position.objects.all()
     permission_classes = [V2Permission]
@@ -62,7 +64,7 @@ class PositionViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
 
     def _detail_response(self, instance, status_code=status.HTTP_201_CREATED):
         out = PositionDetailSerializer(instance, context={'request': self.request})
-        return Response(out.data, status=status_code)
+        return success_response(out.data, status_code=status_code)
 
     def create(self, request, *args, **kwargs):
         # 默认 create 用 PositionCreateSerializer 输出(缺 id/code/state), 前端拿不到新职位标识;
@@ -78,7 +80,7 @@ class PositionViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return self._detail_response(instance)
+        return self._detail_response(instance, status.HTTP_200_OK)
 
     def perform_destroy(self, instance):
         from django.utils import timezone
