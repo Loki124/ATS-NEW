@@ -159,3 +159,53 @@ def _jsonable(value: Any) -> Any:
     except Exception:
         pass
     return value
+
+
+# ---------------------------------------------------------------------------
+# 需求 / 职位 快照（让 demand.* / position.* 对象路径指标可真实求值）
+# ---------------------------------------------------------------------------
+# 与候选人快照一致：只取非关系标量字段，排除审计字段与大字段，避免把关系/JSON
+# 塞进规则上下文导致点路径解析失败或数据膨胀。
+_ENTITY_SKIP_FIELDS = {
+    'created_at', 'updated_at', 'deleted_at', 'created_by_id', 'updated_by_id',
+}
+
+
+def _entity_node(instance, model) -> Dict[str, Any]:
+    """把一个模型实例的非关系标量字段组装成快照节点（对齐 build_candidate_snapshot）。"""
+    node: Dict[str, Any] = {}
+    for f in model._meta.fields:
+        itype = f.get_internal_type()
+        if itype in ('ForeignKey', 'OneToOneField', 'ManyToManyField',
+                     'JSONField', 'FileField', 'ImageField', 'BinaryField'):
+            continue
+        if f.name in _ENTITY_SKIP_FIELDS:
+            continue
+        node[f.name] = _jsonable(getattr(instance, f.name, None))
+    return node
+
+
+def build_demand_snapshot(demand_id: str) -> Dict[str, Any]:
+    """组装需求快照 `{'demand': {...}}`，供 `demand.*` 对象路径指标求值。
+
+    需求不存在返回 `{'demand': {}}`（不抛异常，交由引擎判"字段解析失败"）。
+    """
+    from apps.demand.models import Demand
+
+    obj = Demand.objects.filter(pk=demand_id).first()
+    if obj is None:
+        return {'demand': {}}
+    return {'demand': _entity_node(obj, Demand)}
+
+
+def build_position_snapshot(position_id: str) -> Dict[str, Any]:
+    """组装职位快照 `{'position': {...}}`，供 `position.*` 对象路径指标求值。
+
+    职位不存在返回 `{'position': {}}`（不抛异常，交由引擎判"字段解析失败"）。
+    """
+    from apps.position.models import Position
+
+    obj = Position.objects.filter(pk=position_id).first()
+    if obj is None:
+        return {'position': {}}
+    return {'position': _entity_node(obj, Position)}

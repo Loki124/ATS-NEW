@@ -290,6 +290,16 @@ class MetricRule(FullAuditModel, UUIDModel):
                   'DEDUCT=优先考虑(不满足仅记录/降权不阻断)；'
                   'BONUS=加分项(满足给正向加权)',
     )
+    # 求值上下文绑定：规则若引用 demand.* / position.* 对象路径指标，须绑定对应实体，
+    # 引擎求值时会把该实体的快照并入 data（与 candidate 快照并列），否则这些指标解析失败。
+    demand = models.ForeignKey(
+        'demand.Demand', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='metric_rules', verbose_name='关联需求',
+    )
+    position = models.ForeignKey(
+        'position.Position', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='metric_rules', verbose_name='关联职位',
+    )
     class Meta:
         db_table = 'metrics_metric_rule'
         verbose_name = '指标规则'

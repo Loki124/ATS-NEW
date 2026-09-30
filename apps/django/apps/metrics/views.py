@@ -33,11 +33,17 @@ from .serializers import (
     MetricTemplateSerializer,
     RuleExecuteSerializer,
 )
-from .services.candidate_snapshot import build_candidate_snapshot, list_candidate_paths
+from .services.candidate_snapshot import (
+    build_candidate_snapshot,
+    build_demand_snapshot,
+    build_position_snapshot,
+    list_candidate_paths,
+)
 from .services.derived_registry import get as get_derived_func, list_funcs
 from .services.metric_engine import MetricEngine
 from .services.operator_matrix import operators_for
 from .services.rule_trigger import (
+    _build_rule_context,
     count_candidates,
     default_candidate_ids,
     evaluate_scene,
@@ -267,8 +273,10 @@ class MetricRuleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 {'error': f'候选人 {candidate_id} 不存在'},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        # 并入规则绑定的需求/职位快照，使 demand.* / position.* 指标可真实求值
+        data = {**snapshot, **_build_rule_context(rule)}
         result = MetricEngine.execute(
-            rule.to_engine_conditions(), snapshot, rule.logic or 'AND',
+            rule.to_engine_conditions(), data, rule.logic or 'AND',
         )
         return success_response(result)
 
@@ -284,7 +292,22 @@ class RuleExecuteView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         conditions = self._to_engine_conditions(payload.get('conditions') or [])
-        result = MetricEngine.execute(conditions, data['data'], data.get('logic') or 'AND')
+        eval_data = data.get('data') or {}
+        # 配置即执行时允许前端传入 demandId/positionId 以测试 demand.* / position.* 指标
+        raw = request.data or {}
+        demand_id = raw.get('demandId') or raw.get('demand_id')
+        position_id = raw.get('positionId') or raw.get('position_id')
+        if demand_id:
+            try:
+                eval_data.update(build_demand_snapshot(demand_id))
+            except Exception:
+                pass
+        if position_id:
+            try:
+                eval_data.update(build_position_snapshot(position_id))
+            except Exception:
+                pass
+        result = MetricEngine.execute(conditions, eval_data, data.get('logic') or 'AND')
         return success_response(result)
 
     @staticmethod

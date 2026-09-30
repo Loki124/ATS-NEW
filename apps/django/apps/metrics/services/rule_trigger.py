@@ -21,10 +21,36 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from .candidate_snapshot import build_candidate_snapshot
+from .candidate_snapshot import (
+    build_candidate_snapshot,
+    build_demand_snapshot,
+    build_position_snapshot,
+)
 from .metric_engine import MetricEngine
 
 logger = logging.getLogger(__name__)
+
+
+def _build_rule_context(rule) -> Dict[str, Any]:
+    """收集规则绑定的需求/职位快照，并入求值 data（与 candidate 快照并列）。
+
+    规则若引用 demand.* / position.* 对象路径指标，必须在此提供对应实体快照，
+    否则引擎解析这些路径会失败（字段解析失败 → 该步 FAIL）。异常降级跳过，绝不阻断。
+    """
+    ctx: Dict[str, Any] = {}
+    demand_id = getattr(rule, 'demand_id', None)
+    position_id = getattr(rule, 'position_id', None)
+    if demand_id:
+        try:
+            ctx.update(build_demand_snapshot(demand_id))
+        except Exception as exc:
+            logger.warning('[metrics] 需求快照构建失败 demand=%s: %s', demand_id, exc)
+    if position_id:
+        try:
+            ctx.update(build_position_snapshot(position_id))
+        except Exception as exc:
+            logger.warning('[metrics] 职位快照构建失败 position=%s: %s', position_id, exc)
+    return ctx
 
 
 def default_candidate_ids(limit: int = 200) -> List[str]:
@@ -101,9 +127,11 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
     for rule in rules:
         # T4：阻断语义以 action_type=='VETO' 为权威（旧 blocking 仅作派生兼容）
         is_veto = (rule.action_type == 'VETO')
+        # 并入规则绑定的需求/职位快照，使 demand.* / position.* 指标可真实求值
+        data = {**snapshot, **_build_rule_context(rule)}
         try:
             outcome = MetricEngine.execute(
-                rule.to_engine_conditions(), snapshot, rule.logic or 'AND',
+                rule.to_engine_conditions(), data, rule.logic or 'AND',
             )
         except Exception as exc:  # 单条规则异常不拖垮整体
             logger.exception('[metrics] 规则执行异常 rule=%s', rule.id)
