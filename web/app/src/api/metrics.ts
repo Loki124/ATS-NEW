@@ -152,6 +152,10 @@ export interface MetricRule {
   status?: string
   enabled: boolean
   conditionCount?: number
+  /** 关联需求（FK，允许为空） */
+  demandId?: string | null
+  /** 关联职位（FK，允许为空） */
+  positionId?: string | null
   createdAt?: string
 }
 

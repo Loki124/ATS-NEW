@@ -190,8 +190,11 @@
             </div>
           </div>
         </section>
-        <div v-else-if="selectedTemplateDefinition" class="tpl-info-text">
+        <div v-else-if="selectedTemplateDefinition && selectedTemplateDefinition.valueMode === 'object_path'" class="tpl-info-text">
           {{ t('metrics.tpl.noParamsNeeded') }}
+        </div>
+        <div v-else-if="selectedTemplateDefinition" class="tpl-info-text">
+          {{ t('metrics.tpl.handlerNoParamsNeeded') }}
         </div>
 
         <!-- 启用算子 -->

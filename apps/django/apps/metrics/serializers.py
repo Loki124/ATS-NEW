@@ -176,12 +176,17 @@ class MetricRuleSerializer(serializers.ModelSerializer):
     """指标规则序列化器 —— 持久化规则（支持新增/编辑/删除/启停）。"""
 
     condition_count = serializers.SerializerMethodField(read_only=True)
+    # 关联需求 / 职位（外键，允许为空；前端 camelCase demandId/positionId
+    # 经 CamelCaseParser 转为 demand_id/position_id，与字段名一致）。
+    demand_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    position_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = MetricRule
         fields = [
             'id', 'name', 'description', 'scene', 'conditions', 'logic',
             'status', 'enabled', 'action_type',
+            'demand_id', 'position_id',
             'created_at', 'condition_count',
         ]
         read_only_fields = ['id', 'created_at', 'condition_count']
@@ -217,6 +222,19 @@ class MetricRuleSerializer(serializers.ModelSerializer):
         避免「只改 conditions」这类局部更新被 V05 的 scene 非空校验误杀。
         """
         instance = self.instance
+        # 关联需求 / 职位：空串归一为 None（外键允许为空）；并做存在性校验，
+        # 避免无效外键触发 DB 级 IntegrityError（500）。无效 id 直接 400 中文报错。
+        for _f in ('demand_id', 'position_id'):
+            if attrs.get(_f) in (None, ''):
+                attrs[_f] = None
+        if attrs.get('demand_id'):
+            from apps.demand.models import Demand
+            if not Demand.objects.filter(pk=attrs['demand_id']).exists():
+                raise serializers.ValidationError({'demand_id': '关联需求不存在'})
+        if attrs.get('position_id'):
+            from apps.position.models import Position
+            if not Position.objects.filter(pk=attrs['position_id']).exists():
+                raise serializers.ValidationError({'position_id': '关联职位不存在'})
         errors = validate_metric_rule({
             'name': attrs.get('name', instance.name if instance else None),
             'scene': attrs.get('scene', instance.scene if instance else None),

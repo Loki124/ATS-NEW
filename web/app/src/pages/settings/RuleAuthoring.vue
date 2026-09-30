@@ -29,6 +29,16 @@
                   </n-radio-button>
                 </n-radio-group>
               </div>
+              <div class="ra-rule-binding">
+                <div class="ra-bind-item">
+                  <span class="ra-action-label">{{ t('metrics.rule.bindDemand') }}</span>
+                  <n-select v-model:value="demandId" :options="demandOptions" clearable :placeholder="t('metrics.rule.bindDemand')" class="ra-bind-select" />
+                </div>
+                <div class="ra-bind-item">
+                  <span class="ra-action-label">{{ t('metrics.rule.bindPosition') }}</span>
+                  <n-select v-model:value="positionId" :options="positionOptions" clearable :placeholder="t('metrics.rule.bindPosition')" class="ra-bind-select" />
+                </div>
+              </div>
             </n-card>
 
             <n-card :title="t('metrics.rule.conditionArea')" size="small" class="ra-card">
@@ -177,6 +187,7 @@ import {
   type OptionItem,
   ACTION_TYPE_OPTIONS,
 } from '@/api/metrics'
+import { listDemands, listPositions, type Option } from '@/api/position'
 import RuleEngine from './RuleEngine.vue'
 
 const { t } = useI18n()
@@ -199,6 +210,12 @@ const candidateId = ref('')
 const realData = ref<Record<string, any>>({})
 const sampleData = ref<Record<string, any>>({})
 const loadingSnapshot = ref(false)
+
+// ===== 关联需求 / 职位：规则可绑定到具体业务对象，求值时注入 demand.* / position.* 指标路径 =====
+const demandId = ref('')
+const positionId = ref('')
+const demandOptions = ref<Option[]>([])
+const positionOptions = ref<Option[]>([])
 
 const templateList = ref<MetricTemplate[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
@@ -310,6 +327,8 @@ async function loadRuleIntoAuthor(id: string) {
       value: c.value ?? '',
     }))
     if (!conditions.value.length) conditions.value = [{ templateId: null, operator: null, value: '' }]
+    demandId.value = rule.demandId || ''
+    positionId.value = rule.positionId || ''
     result.value = null
     activeTab.value = 'author'
   } catch {
@@ -330,6 +349,8 @@ async function saveRule() {
       actionType: actionType.value,
       logic: 'AND' as const,
       conditions: persistConditions(conditions.value),
+      demandId: demandId.value || null,
+      positionId: positionId.value || null,
     }
     if (ruleId.value) {
       await updateMetricRule(ruleId.value, payload)
@@ -368,6 +389,8 @@ function newRule() {
   ruleScene.value = 'MANUAL'
   actionType.value = 'DEDUCT'
   conditions.value = [{ templateId: null, operator: null, value: '' }]
+  demandId.value = ''
+  positionId.value = ''
   result.value = null
   dataMode.value = 'sample'
   activeTab.value = 'author'
@@ -477,6 +500,14 @@ async function load() {
     operatorCatalog.value = ops
     sampleData.value = sample
     await loadRules()
+    // 关联需求 / 职位下拉（加载失败不阻塞规则主流程）
+    try {
+      const [demands, positions] = await Promise.all([listDemands(), listPositions()])
+      demandOptions.value = demands
+      positionOptions.value = positions.map((p) => ({ label: p.title || p.code, value: p.id }))
+    } catch {
+      /* demand/position 列表拉取失败不影响规则编辑 */
+    }
   } catch {
     message.error(t('metrics.msg.loadFailed'))
   }
@@ -500,6 +531,9 @@ onMounted(async () => {
 .ra-rule-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ra-rule-name { flex: 1 1 240px; min-width: 180px; }
 .ra-rule-scene { flex: 0 0 160px; }
+.ra-rule-binding { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.ra-bind-item { display: flex; flex-direction: column; gap: 4px; flex: 1 1 240px; min-width: 200px; }
+.ra-bind-select { width: 100%; }
 .ra-cond-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .ra-index { width: 24px; text-align: center; font-size: 13px; color: var(--color-text-secondary, #6b7280); }
 .ra-template { flex: 1 1 220px; min-width: 180px; }

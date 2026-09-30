@@ -141,6 +141,7 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.tpl.segment': '段{index}',
   'metrics.tpl.noMetricSelected': '请先选择引用指标定义',
   'metrics.tpl.noParamsNeeded': '对象路径指标无需参数配置',
+  'metrics.tpl.handlerNoParamsNeeded': '参数化 Handler 无需参数配置',
   'metrics.tpl.rangeMin': '范围下限',
   'metrics.tpl.rangeMax': '范围上限',
   'metrics.tpl.step': '步长',
@@ -163,6 +164,8 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.rule.snapshotOk': '已加载候选人快照',
   'metrics.rule.snapshotFail': '加载快照失败，请检查候选人 ID',
   'metrics.rule.dataEmpty': '数据为空',
+  'metrics.rule.bindDemand': '关联需求',
+  'metrics.rule.bindPosition': '关联职位',
 
   'metrics.rules.title': '规则管理',
   'metrics.rules.subtitle': '已保存的指标规则，可启用停用、编辑、删除；按场景（入池/筛选/评分）在业务触发点自动执行',
@@ -341,6 +344,7 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.tpl.segment': 'Seg {index}',
   'metrics.tpl.noMetricSelected': 'Please select a metric definition first',
   'metrics.tpl.noParamsNeeded': 'Object-path metrics need no parameters',
+  'metrics.tpl.handlerNoParamsNeeded': 'Parametric handler needs no parameter config',
   'metrics.tpl.rangeMin': 'Min',
   'metrics.tpl.rangeMax': 'Max',
   'metrics.tpl.step': 'Step',
@@ -363,6 +367,8 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.rule.snapshotOk': 'Candidate snapshot loaded',
   'metrics.rule.snapshotFail': 'Failed to load snapshot, check candidate ID',
   'metrics.rule.dataEmpty': 'Empty data',
+  'metrics.rule.bindDemand': 'Linked Demand',
+  'metrics.rule.bindPosition': 'Linked Position',
 
   'metrics.rules.title': 'Rule Management',
   'metrics.rules.subtitle': 'Saved metric rules — enable/disable, edit, delete; executed automatically at business triggers by scene',
