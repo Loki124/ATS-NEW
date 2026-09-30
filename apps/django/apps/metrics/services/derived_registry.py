@@ -311,9 +311,9 @@ def total_work_months(items: Any, params: dict, data: dict) -> int:
 
 
 @register(
-    'AVG_WORK_MONTHS', '平均工作时长(月)',
-    '平均每段工作经历的工作月数；支持最近任意段数（recent_n），recent_n=0 表示全部工作经历',
-    'recent_n: 取最近段数，0 或省略表示全部工作经历',
+    'AVG_WORK_MONTHS', '平均工作时长',
+    '平均每段工作经历的工作时长；支持最近任意段数（recent_n）与输出单位（unit：月/年），recent_n=0 表示全部工作经历',
+    'recent_n: 取最近段数，0 或省略表示全部；unit: 输出单位，month=月 / year=年',
     input_kind='list_periods', output_type='number', unit='月',
     param_schema=[
         {
@@ -323,19 +323,32 @@ def total_work_months(items: Any, params: dict, data: dict) -> int:
             'default': 0,
             'required': False,
         },
+        {
+            'key': 'unit',
+            'label': '输出单位',
+            'type': 'select',
+            'options': [
+                {'value': 'month', 'label': '月'},
+                {'value': 'year', 'label': '年'},
+            ],
+            'default': 'month',
+            'required': False,
+        },
     ],
 )
 def avg_work_months(items: Any, params: dict, data: dict) -> float:
-    """「平均每段工作时长」—— 支持最近任意段数，含全部工作经历。
+    """「平均每段工作时长」—— 支持最近任意段数，含全部工作经历；输出单位可切换月/年。
 
     recent_n=0（或省略）→ 全部工作经历求平均
     recent_n=N（正整数）→ 按开始日期降序取最近 N 段求平均
+    unit='year' → 结果除以 12 以年计（保留两位小数）
     在职段（无 end_date）按今天计算时长；无有效经历返回 0（可判空，不抛错）。
     """
     try:
         recent_n = int(params.get('recent_n', 0) or 0)
     except (TypeError, ValueError):
         recent_n = 0
+    unit = params.get('unit') or 'month'
     rows = [s for s in (_span(it) for it in _items_of(items)) if s]
     if not rows:
         return 0
@@ -346,4 +359,7 @@ def avg_work_months(items: Any, params: dict, data: dict) -> float:
     durations = [max(_months_between(s, e), 0) for s, e in rows]
     if not durations:
         return 0
-    return round(sum(durations) / len(durations), 1)
+    avg_months = sum(durations) / len(durations)
+    if unit == 'year':
+        return round(avg_months / 12, 2)
+    return round(avg_months, 1)

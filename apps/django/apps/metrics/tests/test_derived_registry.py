@@ -72,6 +72,21 @@ def test_avg_work_months_default_param_is_all():
     assert compute('AVG_WORK_MONTHS', WORKS, {}) == 9.0
 
 
+def test_avg_work_months_default_unit_is_month():
+    """省略 unit 参数默认按月输出。"""
+    assert compute('AVG_WORK_MONTHS', WORKS, {'recent_n': 0}) == 9.0
+
+
+def test_avg_work_months_in_years():
+    """unit=year 时结果除以 12（保留两位小数）：9 个月 → 0.75 年。"""
+    assert compute('AVG_WORK_MONTHS', WORKS, {'unit': 'year'}) == 0.75
+
+
+def test_avg_work_months_recent_n_years():
+    """最近 1 段且按年输出：2021-07 段 6 个月 → 0.5 年。"""
+    assert compute('AVG_WORK_MONTHS', WORKS, {'recent_n': 1, 'unit': 'year'}) == 0.5
+
+
 def test_avg_work_months_current_job():
     """在职段（无 end_date）按今天计算时长，应纳入平均且不抛错。"""
     items = [
@@ -123,8 +138,10 @@ def test_list_funcs_carries_metadata():
     he = by_name['HIGHEST_EDU']
     assert any(p['key'] == 'degree_order_preset' and p['type'] == 'select' for p in he['paramSchema'])
     # AVG_WORK_MONTHS 必须声明 recent_n 数字参数（支持最近任意段数 / 全部平均）
+    # 以及 unit 下拉参数（月 / 年，满足「按年计算平均工作时长」诉求）
     aw = by_name['AVG_WORK_MONTHS']
     assert any(p['key'] == 'recent_n' and p['type'] == 'number' for p in aw['paramSchema'])
+    assert any(p['key'] == 'unit' and p['type'] == 'select' for p in aw['paramSchema'])
 
 
 def test_input_shape_error_on_non_list():
