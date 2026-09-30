@@ -170,11 +170,15 @@ class DataSubscriptionViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        """FE createSubscription 取 r.data.data, 故用 {success, data} 信封包裹 (与 list 一致)."""
+        """FE createSubscription 取 r.data.data, 故用统一信封包裹 (与 list 一致)。
+
+        2026-09-30 信封 initiative: 收敛到 success_response 补齐 code 字段,
+        顶层 {success, data, message, code} 与全站统一契约对齐。
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        return Response({'success': True, 'data': serializer.data}, status=status.HTTP_201_CREATED)
+        return success_response(serializer.data, status_code=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         """软删: 置 is_active=False (FE 文案 '订阅已停用'), 保留订阅历史."""

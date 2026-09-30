@@ -56,3 +56,31 @@ def test_export_update_envelope(auth_client, super_user):
     assert resp.status_code == 200, resp.content
     assert resp.data['success'] is True
     assert resp.data['data']['name'] == '信封导出改'
+
+
+# ============================================================
+# DataSubscriptionViewSet (信封 initiative Batch G) — create 半信封补齐 code。
+# FE api/data.ts: createSubscription 取 r.data.data, list 取 r.data.data (分页信封已含 code)。
+# ============================================================
+SUB_LIST = '/api/v1/data/subscriptions/'
+
+
+def test_subscription_list_envelope(auth_client):
+    resp = auth_client.get(SUB_LIST)
+    # 空表也走分页信封 (StandardResultsSetPagination → success_response)
+    assert resp.status_code == 200, resp.content
+    assert resp.data['success'] is True
+    assert resp.data['code'] == 0
+    assert isinstance(resp.data['data'], list)
+
+
+def test_subscription_create_envelope(auth_client):
+    resp = auth_client.post(
+        SUB_LIST,
+        {'name': '信封订阅', 'resource': 'candidates', 'metric': 'all'},
+        format='json',
+    )
+    assert resp.status_code == 201, resp.content
+    assert resp.data['success'] is True
+    assert resp.data['code'] == 0            # 黄金标准: 缺 code 即半信封未收口
+    assert resp.data['data']['name'] == '信封订阅'
