@@ -18,23 +18,23 @@
 
     <!-- 数据导出 -->
     <n-card>
-      <template #header>通用数据导出</template>
+      <template #header>{{ t('pages.settings.DataDashboard.s19') }}</template>
       <n-space class="filter-row" :wrap="true">
         <n-select
           v-model:value="exportResourceVal"
           :options="RESOURCE_OPTIONS"
-          placeholder="选择资源"
+          :placeholder="t('pages.settings.DataDashboard.s3')"
           clearable
           style="width: 220px"
         />
         <n-select
           v-model:value="exportFormatVal"
           :options="FORMAT_OPTIONS"
-          placeholder="格式"
+          :placeholder="t('pages.settings.DataDashboard.s4')"
           style="width: 120px"
         />
         <n-button type="primary" :loading="exporting" :disabled="!exportResourceVal" @click="handleExport">
-          下载
+          {{ t('pages.settings.DataDashboard.s5') }}
         </n-button>
       </n-space>
     </n-card>
@@ -42,9 +42,9 @@
     <!-- 订阅管理 -->
     <n-card>
       <template #header-extra>
-        <n-button type="primary" @click="showAddSub = true">新建订阅</n-button>
+        <n-button type="primary" @click="showAddSub = true">{{ t('pages.settings.DataDashboard.s6') }}</n-button>
       </template>
-      <template #header>数据订阅</template>
+      <template #header>{{ t('pages.settings.DataDashboard.s20') }}</template>
 
       <n-data-table
         :columns="subColumns"
@@ -59,31 +59,31 @@
 
     <!-- 新建订阅弹窗 -->
 </div><!-- /.page-body -->
-<n-modal v-model:show="showAddSub" preset="card" title="新建数据订阅" style="width: 540px; max-width: 90vw">
+<n-modal v-model:show="showAddSub" preset="card" :title="t('pages.settings.DataDashboard.s7')" style="width: 540px; max-width: 90vw">
       <n-form :model="subForm" label-placement="left" label-width="100">
-        <n-form-item label="资源">
-          <n-select v-model:value="subForm.resource" :options="RESOURCE_OPTIONS" placeholder="选择资源" />
+        <n-form-item :label="t('pages.settings.DataDashboard.s8')">
+          <n-select v-model:value="subForm.resource" :options="RESOURCE_OPTIONS" :placeholder="t('pages.settings.DataDashboard.s9')" />
         </n-form-item>
-        <n-form-item label="指标">
-          <n-select v-model:value="subForm.metric" :options="METRIC_OPTIONS" placeholder="选择指标" />
+        <n-form-item :label="t('pages.settings.DataDashboard.s10')">
+          <n-select v-model:value="subForm.metric" :options="METRIC_OPTIONS" :placeholder="t('pages.settings.DataDashboard.s11')" />
         </n-form-item>
-        <n-form-item label="渠道">
+        <n-form-item :label="t('pages.settings.DataDashboard.s12')">
           <n-select v-model:value="subForm.channel" :options="CHANNEL_OPTIONS" />
         </n-form-item>
-        <n-form-item label="周期">
+        <n-form-item :label="t('pages.settings.DataDashboard.s13')">
           <n-select v-model:value="subForm.schedule" :options="SCHEDULE_OPTIONS" />
         </n-form-item>
-        <n-form-item label="时间">
+        <n-form-item :label="t('pages.settings.DataDashboard.s14')">
           <n-input v-model:value="subForm.scheduleTime" placeholder="09:00 (HH:mm)" />
         </n-form-item>
-        <n-form-item label="收件人">
-          <n-input v-model:value="subForm.recipients" placeholder="逗号分隔 email / userId" />
+        <n-form-item :label="t('pages.settings.DataDashboard.s15')">
+          <n-input v-model:value="subForm.recipients" :placeholder="t('pages.settings.DataDashboard.s16')" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showAddSub = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="creating" @click="handleCreateSub">创建</n-button>
+          <n-button @click="showAddSub = false">{{ t('pages.settings.DataDashboard.s17') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="creating" @click="handleCreateSub">{{ t('pages.settings.DataDashboard.s18') }}</n-button>
         </n-space>
       </template>
     </n-modal>

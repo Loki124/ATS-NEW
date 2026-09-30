@@ -35,7 +35,7 @@
             @update:value="loadList"
           />
         </n-space>
-        <n-button type="primary" @click="openCreateType">新增字典</n-button>
+        <n-button type="primary" @click="openCreateType">{{ t('pages.settings.DataDictionary.s4') }}</n-button>
       </div>
 
       <n-data-table
@@ -47,7 +47,7 @@
         :scroll-x="1200"
       >
         <template #empty>
-          <n-empty description="暂无字典" />
+          <n-empty :description="t('pages.settings.DataDictionary.s5')" />
         </template>
       </n-data-table>
     </template>
@@ -56,66 +56,66 @@
     <template v-else-if="currentType">
       <div class="page-header edit-header">
         <n-button text size="small" class="back-btn" @click="backToList">
-          <span style="font-size: 16px">←</span> 返回
+          <span style="font-size: 16px">←</span> {{ t('pages.settings.DataDictionary.s60') }}
         </n-button>
-        <h1 class="page-title">编辑字典：{{ headDraft.name || currentType.name }}</h1>
+        <h1 class="page-title">{{ t('pages.settings.DataDictionary.s6') }}{{ headDraft.name || currentType.name }}</h1>
         <span class="meta-pills">
           <n-tag size="small" :type="currentType.isSystem ? 'warning' : 'success'">
             {{ currentType.isSystem ? '系统预置' : '自定义' }}
           </n-tag>
           <span class="code-pill">{{ currentType.code }}</span>
-          <span class="num-pill">编号 {{ currentType.dictNumber }}</span>
+          <span class="num-pill">{{ t('pages.settings.DataDictionary.s7') }}{{ currentType.dictNumber }}</span>
         </span>
       </div>
 
       <!-- 顶部提示条（单行压缩 + 详情气泡） -->
       <div class="hint-bar section">
         <n-icon :component="InformationCircleOutline" class="hint-bar-icon" />
-        <span class="hint-bar-text">编辑提示：分级管理 · 描述 hover 提示 · 仅删新增 · 停用/删需无下级 · 提交生效</span>
+        <span class="hint-bar-text">{{ t('pages.settings.DataDictionary.s8') }}</span>
         <n-popover trigger="click" placement="bottom-start" :show-arrow="false">
           <template #trigger>
-            <n-button text size="tiny" class="hint-bar-more">详情 ›</n-button>
+            <n-button text size="tiny" class="hint-bar-more">{{ t('pages.settings.DataDictionary.s9') }}</n-button>
           </template>
           <ul class="hint-pop-list">
-            <li>支持元素分级（推荐不超过 {{ MAX_TREE_LEVEL }} 级）。</li>
-            <li>元素描述支持 hover 提示。</li>
-            <li>编辑时仅支持删除新添加的元素，原有元素不支持删除。</li>
-            <li>停用及删除仅支持操作没有下级的元素。</li>
-            <li>配置项修改后，需提交后才会生效。</li>
+            <li>{{ t('pages.settings.DataDictionary.s10') }}{{ MAX_TREE_LEVEL }}{{ t('pages.settings.DataDictionary.s11') }}</li>
+            <li>{{ t('pages.settings.DataDictionary.s12') }}</li>
+            <li>{{ t('pages.settings.DataDictionary.s13') }}</li>
+            <li>{{ t('pages.settings.DataDictionary.s14') }}</li>
+            <li>{{ t('pages.settings.DataDictionary.s15') }}</li>
           </ul>
         </n-popover>
       </div>
 
-      <n-card title="字典信息" :bordered="false" class="section section--info">
+      <n-card :title="t('pages.settings.DataDictionary.s16')" :bordered="false" class="section section--info">
         <n-form label-placement="left" :label-width="84" :model="headDraft">
           <n-grid :cols="4" :x-gap="24" :y-gap="8">
             <n-gi>
-              <n-form-item label="字典名称" path="name">
-                <n-input v-model:value="headDraft.name" placeholder="请输入" />
+              <n-form-item :label="t('pages.settings.DataDictionary.s17')" path="name">
+                <n-input v-model:value="headDraft.name" :placeholder="t('pages.settings.DataDictionary.s18')" />
               </n-form-item>
             </n-gi>
             <n-gi>
-              <n-form-item label="字典代码" path="code">
-                <n-input :value="currentType.code" disabled placeholder="创建后锁定" />
+              <n-form-item :label="t('pages.settings.DataDictionary.s19')" path="code">
+                <n-input :value="currentType.code" disabled :placeholder="t('pages.settings.DataDictionary.s20')" />
               </n-form-item>
             </n-gi>
             <n-gi>
-              <n-form-item label="英文名称" path="englishName">
-                <n-input v-model:value="headDraft.englishName" placeholder="如 MAJOR_SUBJECT（可选）" />
+              <n-form-item :label="t('pages.settings.DataDictionary.s21')" path="englishName">
+                <n-input v-model:value="headDraft.englishName" :placeholder="t('pages.settings.DataDictionary.s22')" />
               </n-form-item>
             </n-gi>
             <n-gi>
-              <n-form-item label="是否启用" path="isEnabled">
+              <n-form-item :label="t('pages.settings.DataDictionary.s23')" path="isEnabled">
                 <n-switch v-model:value="headDraft.isEnabled" :disabled="currentType.isSystem" />
-                <span v-if="currentType.isSystem" class="hint">系统预置字典不可停用</span>
+                <span v-if="currentType.isSystem" class="hint">{{ t('pages.settings.DataDictionary.s24') }}</span>
               </n-form-item>
             </n-gi>
             <n-gi :span="4">
-              <n-form-item label="字典描述" path="description">
+              <n-form-item :label="t('pages.settings.DataDictionary.s25')" path="description">
                 <n-input
                   v-model:value="headDraft.description"
                   type="textarea"
-                  placeholder="请输入"
+                  :placeholder="t('pages.settings.DataDictionary.s26')"
                   :autosize="{ minRows: 1, maxRows: 2 }"
                 />
               </n-form-item>
@@ -124,20 +124,20 @@
         </n-form>
       </n-card>
 
-      <n-card title="字典元素" :bordered="false" class="section section--elements">
+      <n-card :title="t('pages.settings.DataDictionary.s27')" :bordered="false" class="section section--elements">
         <template #header-extra>
-          <n-button size="small" @click="addRootItem">+ 新增元素</n-button>
+          <n-button size="small" @click="addRootItem">{{ t('pages.settings.DataDictionary.s28') }}</n-button>
         </template>
 
         <div class="el-table-scroll">
           <div class="el-table">
           <div class="el-row el-head">
-            <div class="el-cell" style="flex: 1.4">元素名称</div>
-            <div class="el-cell" style="flex: 1.2">元素代码</div>
-            <div class="el-cell" style="flex: 1.2">英文名称</div>
-            <div class="el-cell" style="flex: 0.6">排序</div>
-            <div class="el-cell" style="flex: 1.6">描述</div>
-            <div class="el-cell" style="flex: 2.2">操作</div>
+            <div class="el-cell" style="flex: 1.4">{{ t('pages.settings.DataDictionary.s29') }}</div>
+            <div class="el-cell" style="flex: 1.2">{{ t('pages.settings.DataDictionary.s30') }}</div>
+            <div class="el-cell" style="flex: 1.2">{{ t('pages.settings.DataDictionary.s31') }}</div>
+            <div class="el-cell" style="flex: 0.6">{{ t('pages.settings.DataDictionary.s32') }}</div>
+            <div class="el-cell" style="flex: 1.6">{{ t('pages.settings.DataDictionary.s33') }}</div>
+            <div class="el-cell" style="flex: 2.2">{{ t('pages.settings.DataDictionary.s34') }}</div>
           </div>
 
           <div
@@ -158,12 +158,12 @@
               <div class="el-cell-content">
                 <span class="cell-inner name-inner">
                   <template v-if="node.row.editing">
-                    <n-input v-model:value="node.row.value" size="small" placeholder="名称" />
+                    <n-input v-model:value="node.row.value" size="small" :placeholder="t('pages.settings.DataDictionary.s35')" />
                     <!-- v3: 行首 ×icon 撤销, 与底部 sticky 「取消」按钮视觉分离, 避免坐标重叠 -->
                     <n-button
                       size="tiny"
                       text
-                      title="撤销此行编辑"
+                      :title="t('pages.settings.DataDictionary.s36')"
                       class="row-cancel-icon"
                       @click="cancelRow(node.row)"
                     >
@@ -181,7 +181,7 @@
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
-                    <n-input v-model:value="node.row.key" size="small" placeholder="代码" />
+                    <n-input v-model:value="node.row.key" size="small" :placeholder="t('pages.settings.DataDictionary.s37')" />
                   </template>
                   <template v-else>
                     <span class="code-text">{{ node.row.key }}</span>
@@ -194,7 +194,7 @@
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
-                    <n-input v-model:value="node.row.englishName" size="small" placeholder="英文" />
+                    <n-input v-model:value="node.row.englishName" size="small" :placeholder="t('pages.settings.DataDictionary.s38')" />
                   </template>
                   <template v-else>{{ node.row.englishName }}</template>
                 </span>
@@ -216,7 +216,7 @@
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
-                    <n-input v-model:value="node.row.description" size="small" placeholder="描述" />
+                    <n-input v-model:value="node.row.description" size="small" :placeholder="t('pages.settings.DataDictionary.s39')" />
                   </template>
                   <template v-else>
                     <n-ellipsis :line-clamp="1" :tooltip="!!node.row.description">{{ node.row.description }}</n-ellipsis>
@@ -229,18 +229,18 @@
               <n-space :size="4" align="center">
                 <template v-if="node.row.editing">
                   <!-- v3: 行内「取消」已挪到行首 ×icon, 此处只保留「保存」 -->
-                  <n-button size="tiny" type="primary" @click="saveRow(node.row)">保存</n-button>
+                  <n-button size="tiny" type="primary" @click="saveRow(node.row)">{{ t('pages.settings.DataDictionary.s40') }}</n-button>
                 </template>
                 <template v-else>
-                  <n-button size="tiny" @click="startEdit(node.row)">编辑</n-button>
-                  <n-button size="tiny" @click="addSibling(node.row)">加同级</n-button>
+                  <n-button size="tiny" @click="startEdit(node.row)">{{ t('pages.settings.DataDictionary.s61') }}</n-button>
+                  <n-button size="tiny" @click="addSibling(node.row)">{{ t('pages.settings.DataDictionary.s41') }}</n-button>
                   <n-button
                     size="tiny"
                     :disabled="node.depth >= MAX_TREE_LEVEL - 1"
                     :title="node.depth >= MAX_TREE_LEVEL - 1 ? `已达推荐最大层级（${MAX_TREE_LEVEL} 级），不可再加下级` : ''"
                     @click="addChild(node.row)"
                   >
-加下级
+{{ t('pages.settings.DataDictionary.s42') }}
 </n-button>
                   <n-button
                     v-if="!node.row.isNew"
@@ -258,7 +258,7 @@
                     type="error"
                     @click="deleteRow(node.row)"
                   >
-                    删除
+                    {{ t('pages.settings.DataDictionary.s43') }}
                   </n-button>
                 </template>
               </n-space>
@@ -267,9 +267,9 @@
 
           <!-- 空态：新增按钮放进数据列表模块内突出展示（有数据后随 v-if 自动隐藏，右上角常驻小按钮兜底加同级） -->
           <div v-if="flatTree.length === 0" class="el-empty">
-            <n-empty description="暂无元素">
+            <n-empty :description="t('pages.settings.DataDictionary.s44')">
               <template #extra>
-                <n-button type="primary" size="large" round @click="addRootItem">+ 新增元素</n-button>
+                <n-button type="primary" size="large" round @click="addRootItem">{{ t('pages.settings.DataDictionary.s45') }}</n-button>
               </template>
             </n-empty>
           </div>
@@ -281,12 +281,12 @@
       <div class="submit-bar">
         <div class="draft-hint" :class="{ 'hint-hidden': !hasUnsavedChanges }">
           <span class="draft-icon"><NIcon :size="15" style="vertical-align:-2px" aria-hidden="true"><AlertTriangle /></NIcon></span>
-          <span>有未保存的草稿，离开将丢失。</span>
+          <span>{{ t('pages.settings.DataDictionary.s46') }}</span>
         </div>
         <n-space class="submit-actions" justify="end" :size="12" align="center">
-          <n-button size="large" :disabled="submitting" @click="backToList">取消</n-button>
+          <n-button size="large" :disabled="submitting" @click="backToList">{{ t('pages.settings.DataDictionary.s47') }}</n-button>
           <n-button size="large" type="primary" :loading="submitting" :disabled="!hasUnsavedChanges" @click="submitDraft">
-            保存配置
+            {{ t('pages.settings.DataDictionary.s48') }}
           </n-button>
         </n-space>
       </div>
@@ -295,29 +295,29 @@
     <!-- 新增字典弹窗 -->
     <n-modal
       v-model:show="showCreateModal"
-      title="新增字典"
+      :title="t('pages.settings.DataDictionary.s49')"
       preset="card"
       style="width: 480px; max-width: 90vw"
       :mask-closable="false"
     >
       <n-form ref="createFormRef" :model="createForm" :rules="createRules" label-placement="top">
-        <n-form-item label="字典代码" path="code">
-          <n-input v-model:value="createForm.code" placeholder="如 major_subject（字母/数字/下划线）" />
+        <n-form-item :label="t('pages.settings.DataDictionary.s50')" path="code">
+          <n-input v-model:value="createForm.code" :placeholder="t('pages.settings.DataDictionary.s51')" />
         </n-form-item>
-        <n-form-item label="字典名称" path="name">
-          <n-input v-model:value="createForm.name" placeholder="如 专业学科" />
+        <n-form-item :label="t('pages.settings.DataDictionary.s52')" path="name">
+          <n-input v-model:value="createForm.name" :placeholder="t('pages.settings.DataDictionary.s53')" />
         </n-form-item>
-        <n-form-item label="英文名称" path="englishName">
-          <n-input v-model:value="createForm.englishName" placeholder="如 MAJOR_SUBJECT（可选）" />
+        <n-form-item :label="t('pages.settings.DataDictionary.s54')" path="englishName">
+          <n-input v-model:value="createForm.englishName" :placeholder="t('pages.settings.DataDictionary.s55')" />
         </n-form-item>
-        <n-form-item label="说明" path="description">
-          <n-input v-model:value="createForm.description" type="textarea" placeholder="可选" />
+        <n-form-item :label="t('pages.settings.DataDictionary.s56')" path="description">
+          <n-input v-model:value="createForm.description" type="textarea" :placeholder="t('pages.settings.DataDictionary.s57')" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button :disabled="creating" @click="showCreateModal = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="creating" @click="submitCreate">创建</n-button>
+          <n-button :disabled="creating" @click="showCreateModal = false">{{ t('pages.settings.DataDictionary.s58') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="creating" @click="submitCreate">{{ t('pages.settings.DataDictionary.s59') }}</n-button>
         </n-space>
       </template>
     </n-modal>

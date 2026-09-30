@@ -5,7 +5,7 @@
         <n-space>
           <n-button @click="loadFlows">
             <template #icon><n-icon :component="RefreshOutline" /></template>
-            刷新
+            {{ t('pages.resume.SpecialApproval.s2') }}
           </n-button>
         </n-space>
       </template>
@@ -23,28 +23,28 @@
     <n-modal
       v-model:show="detailVisible"
       preset="card"
-      title="审批详情"
+      :title="t('pages.resume.SpecialApproval.s3')"
       style="width: 600px; max-width: 90vw"
     >
       <template v-if="currentFlow">
         <n-descriptions :column="2" bordered>
-          <n-descriptions-item label="简历">
+          <n-descriptions-item :label="t('pages.resume.SpecialApproval.s4')">
             {{ currentFlow.resume?.candidate?.name || '未知' }}
           </n-descriptions-item>
-          <n-descriptions-item label="目标职位">
+          <n-descriptions-item :label="t('pages.resume.SpecialApproval.s5')">
             {{ currentFlow.position?.name || '未知' }}
           </n-descriptions-item>
-          <n-descriptions-item label="当前状态">
+          <n-descriptions-item :label="t('pages.resume.SpecialApproval.s6')">
             <n-tag :type="getStatusType(currentFlow.status)">
               {{ getStatusText(currentFlow.status) }}
             </n-tag>
           </n-descriptions-item>
-          <n-descriptions-item label="发起时间">
+          <n-descriptions-item :label="t('pages.resume.SpecialApproval.s7')">
             {{ formatDate(currentFlow.createdAt) }}
           </n-descriptions-item>
         </n-descriptions>
 
-        <n-divider>审批进度</n-divider>
+        <n-divider>{{ t('pages.resume.SpecialApproval.s8') }}</n-divider>
 
         <n-timeline>
           <n-timeline-item
@@ -56,7 +56,7 @@
             <p v-if="node.approverName">{{ node.approverName }}</p>
             <p v-if="node.comment">{{ node.comment }}</p>
             <p v-if="node.decidedAt" class="node-time">{{ formatDate(node.decidedAt) }}</p>
-            <p v-else-if="node.status === 'PENDING'" class="node-pending">待审批</p>
+            <p v-else-if="node.status === 'PENDING'" class="node-pending">{{ t('pages.resume.SpecialApproval.s9') }}</p>
           </n-timeline-item>
         </n-timeline>
       </template>
@@ -66,25 +66,25 @@
     <n-modal
       v-model:show="approveVisible"
       preset="dialog"
-      title="审批操作"
-      positive-text="提交审批"
-      negative-text="取消"
+      :title="t('pages.resume.SpecialApproval.s10')"
+      :positive-text="t('pages.resume.SpecialApproval.s11')"
+      :negative-text="t('pages.resume.SpecialApproval.s12')"
       :loading="submitting"
       @positive-click="handleSubmitApproval"
     >
       <n-form :model="approveForm" label-placement="top" class="mt-4">
-        <n-form-item label="审批意见" required>
+        <n-form-item :label="t('pages.resume.SpecialApproval.s13')" required>
           <n-input
             v-model:value="approveForm.comment"
             type="textarea"
-            placeholder="请输入审批意见"
+            :placeholder="t('pages.resume.SpecialApproval.s14')"
             :rows="4"
           />
         </n-form-item>
-        <n-form-item label="操作">
+        <n-form-item :label="t('pages.resume.SpecialApproval.s15')">
           <n-radio-group v-model:value="approveForm.action">
-            <n-radio value="APPROVED">通过</n-radio>
-            <n-radio value="REJECTED">驳回</n-radio>
+            <n-radio value="APPROVED">{{ t('pages.resume.SpecialApproval.s16') }}</n-radio>
+            <n-radio value="REJECTED">{{ t('pages.resume.SpecialApproval.s17') }}</n-radio>
           </n-radio-group>
         </n-form-item>
       </n-form>

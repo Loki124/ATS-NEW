@@ -24,46 +24,46 @@
       :show-feedback="false"
     >
       <!-- 选择需求 + 职位 -->
-      <n-form-item label="选择需求" path="demandId">
+      <n-form-item :label="t('pages.referral.AddReferralModal.s2')" path="demandId">
         <n-select
           v-model:value="form.demandId"
-          placeholder="选择招聘需求"
+          :placeholder="t('pages.referral.AddReferralModal.s3')"
           :options="demandOptions"
           :loading="demandsLoading"
           filterable
           @update:value="onDemandChange"
         />
       </n-form-item>
-      <n-form-item label="选择职位" path="positionId">
+      <n-form-item :label="t('pages.referral.AddReferralModal.s4')" path="positionId">
         <n-select
           v-model:value="form.positionId"
-          placeholder="先选择需求"
+          :placeholder="t('pages.referral.AddReferralModal.s5')"
           :options="positionOptions"
           :loading="positionsLoading"
           :disabled="!form.demandId"
         />
       </n-form-item>
 
-      <n-divider title-placement="left">候选人信息</n-divider>
+      <n-divider title-placement="left">{{ t('pages.referral.AddReferralModal.s6') }}</n-divider>
 
       <div class="grid grid-cols-2 gap-x-4">
-        <n-form-item label="姓名" path="name">
-          <n-input v-model:value="form.name" placeholder="候选人姓名" />
+        <n-form-item :label="t('pages.referral.AddReferralModal.s7')" path="name">
+          <n-input v-model:value="form.name" :placeholder="t('pages.referral.AddReferralModal.s8')" />
         </n-form-item>
-        <n-form-item label="手机号" path="phone">
-          <n-input v-model:value="form.phone" placeholder="11 位手机号" />
+        <n-form-item :label="t('pages.referral.AddReferralModal.s9')" path="phone">
+          <n-input v-model:value="form.phone" :placeholder="t('pages.referral.AddReferralModal.s10')" />
         </n-form-item>
-        <n-form-item label="邮箱" path="email" class="col-span-2">
-          <n-input v-model:value="form.email" placeholder="可选" />
+        <n-form-item :label="t('pages.referral.AddReferralModal.s11')" path="email" class="col-span-2">
+          <n-input v-model:value="form.email" :placeholder="t('pages.referral.AddReferralModal.s12')" />
         </n-form-item>
       </div>
     </n-form>
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <n-button @click="handleClose">取消</n-button>
+        <n-button @click="handleClose">{{ t('pages.referral.AddReferralModal.s13') }}</n-button>
         <n-button type="primary" :loading="submitting" @click="handleSubmit">
-          提交推荐
+          {{ t('pages.referral.AddReferralModal.s14') }}
         </n-button>
       </div>
     </template>

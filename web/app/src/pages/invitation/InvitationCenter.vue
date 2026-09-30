@@ -5,11 +5,11 @@
       <n-space>
         <n-button :loading="loading" @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.invitation.InvitationCenter.s2') }}
         </n-button>
         <n-button type="warning" @click="handleProcessExpired">
           <template #icon><n-icon :component="FlashOutline" /></template>
-          处理超时
+          {{ t('pages.invitation.InvitationCenter.s3') }}
         </n-button>
       </n-space>
     </div>
@@ -25,7 +25,7 @@
     </n-grid>
 
     <!-- 抢单池 -->
-    <n-card v-if="claimPool.length > 0" title="🔥 抢单池" :bordered="false" class="rounded-xl claim-pool">
+    <n-card v-if="claimPool.length > 0" :title="t('pages.invitation.InvitationCenter.s4')" :bordered="false" class="rounded-xl claim-pool">
       <n-space>
         <n-tag
           v-for="item in claimPool"
@@ -39,7 +39,7 @@
           @click="handleClaim(item)"
         >
           <template #icon><n-icon :component="FlashOutline" /></template>
-          {{ item.ownerName }} · 剩 {{ formatCountdown(item.timeoutAt) }}
+          {{ item.ownerName }} · {{ t('pages.invitation.InvitationCenter.s15', { time: formatCountdown(item.timeoutAt) }) }}
         </n-tag>
       </n-space>
     </n-card>
@@ -49,13 +49,13 @@
       <n-space class="filter-row">
         <n-select
           v-model:value="filterStatus"
-          placeholder="邀约状态"
+          :placeholder="t('pages.invitation.InvitationCenter.s5')"
           style="width: 140px"
           clearable
           :options="statusOptions"
           @update:value="handleFilter"
         />
-        <n-button :loading="loading" @click="handleRefresh">查询</n-button>
+        <n-button :loading="loading" @click="handleRefresh">{{ t('pages.invitation.InvitationCenter.s6') }}</n-button>
       </n-space>
 
       <n-data-table
@@ -72,19 +72,19 @@
     <!-- 标记结果 Modal -->
     <n-modal v-model:show="resultModal.show" preset="dialog" :title="resultModal.title" style="width: 480px; max-width: 90vw">
       <n-form ref="resultFormRef" :model="resultModal.form" label-placement="left" :label-width="80">
-        <n-form-item label="结果">
+        <n-form-item :label="t('pages.invitation.InvitationCenter.s7')">
           <n-tag :type="resultModal.form.success ? 'success' : 'error'">
             {{ resultModal.form.success ? '成功' : '失败' }}
           </n-tag>
         </n-form-item>
-        <n-form-item label="原因" path="reason">
-          <n-input v-model:value="resultModal.form.reason" type="textarea" :rows="3" placeholder="请说明结果原因" />
+        <n-form-item :label="t('pages.invitation.InvitationCenter.s8')" path="reason">
+          <n-input v-model:value="resultModal.form.reason" type="textarea" :rows="3" :placeholder="t('pages.invitation.InvitationCenter.s9')" />
         </n-form-item>
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="resultModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="resultModal.loading" @click="handleResultSubmit">确认</n-button>
+          <n-button @click="resultModal.show = false">{{ t('pages.invitation.InvitationCenter.s10') }}</n-button>
+          <n-button type="primary" :loading="resultModal.loading" @click="handleResultSubmit">{{ t('pages.invitation.InvitationCenter.s11') }}</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -92,14 +92,14 @@
     <!-- 干预/终止 Modal -->
     <n-modal v-model:show="actionModal.show" preset="dialog" :title="actionModal.title" style="width: 480px; max-width: 90vw">
       <n-form :model="actionModal.form" label-placement="left" :label-width="80">
-        <n-form-item label="原因">
+        <n-form-item :label="t('pages.invitation.InvitationCenter.s12')">
           <n-input v-model:value="actionModal.form.reason" type="textarea" :rows="3" :placeholder="actionModal.placeholder" />
         </n-form-item>
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="actionModal.show = false">取消</n-button>
-          <n-button :type="actionModal.type" :loading="actionModal.loading" @click="handleActionSubmit">确认</n-button>
+          <n-button @click="actionModal.show = false">{{ t('pages.invitation.InvitationCenter.s13') }}</n-button>
+          <n-button :type="actionModal.type" :loading="actionModal.loading" @click="handleActionSubmit">{{ t('pages.invitation.InvitationCenter.s14') }}</n-button>
         </n-space>
       </template>
     </n-modal>

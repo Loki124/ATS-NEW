@@ -3,7 +3,7 @@
 <div class="page-body">
     <div class="page-header">
       <div>
-        <h1 class="page-title">管理单元 (Management Unit)</h1>
+        <h1 class="page-title">{{ t('pages.settings.MouManagement.s3') }}</h1>
         <p class="page-subtitle">{{ t('pages.settings.MouManagement.s1') }}</p>
       </div>
     </div>
@@ -21,15 +21,15 @@
             <div class="spacer"></div>
             <n-button type="primary" @click="openCreateRoot">
               <template #icon><n-icon :component="AddOutline" /></template>
-              新增
+              {{ t('pages.settings.MouManagement.s4') }}
             </n-button>
             <n-button :disabled="!checkedRowKeys.length" @click="batchDisable">
               <template #icon><n-icon :component="StopOutline" /></template>
-              停用
+              {{ t('pages.settings.MouManagement.s5') }}
             </n-button>
             <n-button :disabled="!allUnits.length" @click="exportDataRange">
               <template #icon><n-icon :component="DownloadOutline" /></template>
-              导出数据范围
+              {{ t('pages.settings.MouManagement.s6') }}
             </n-button>
           </div>
 
@@ -57,15 +57,15 @@
           <div class="unit-title-row">
             <h2 class="unit-name">{{ unitForm.unitName }}</h2>
             <n-space>
-              <n-button size="small" @click="openBasicInfoEdit">编辑基本信息</n-button>
-              <n-button size="small" type="primary" @click="openViewAuth">查看授权用户</n-button>
+              <n-button size="small" @click="openBasicInfoEdit">{{ t('pages.settings.MouManagement.s7') }}</n-button>
+              <n-button size="small" type="primary" @click="openViewAuth">{{ t('pages.settings.MouManagement.s8') }}</n-button>
             </n-space>
           </div>
           <div class="unit-meta-row">
-            <span class="meta-item"><label>上级管理单元</label><span class="meta-value">{{ parentUnitName }}</span></span>
-            <span class="meta-item"><label>编码</label><span class="meta-value">{{ unitForm.code || '—' }}</span></span>
-            <span class="meta-item"><label>显示顺序</label><span class="meta-value">{{ unitForm.displayOrder ?? 0 }}</span></span>
-            <span class="meta-item"><label>说明</label><span class="meta-value">{{ unitForm.description || '—' }}</span></span>
+            <span class="meta-item"><label>{{ t('pages.settings.MouManagement.s9') }}</label><span class="meta-value">{{ parentUnitName }}</span></span>
+            <span class="meta-item"><label>{{ t('pages.settings.MouManagement.s10') }}</label><span class="meta-value">{{ unitForm.code || '—' }}</span></span>
+            <span class="meta-item"><label>{{ t('pages.settings.MouManagement.s11') }}</label><span class="meta-value">{{ unitForm.displayOrder ?? 0 }}</span></span>
+            <span class="meta-item"><label>{{ t('pages.settings.MouManagement.s12') }}</label><span class="meta-value">{{ unitForm.description || '—' }}</span></span>
           </div>
         </div>
         <span v-else class="modal-title">{{ editingUnit ? '编辑管理单元' : '新建管理单元' }}</span>
@@ -74,41 +74,41 @@
         <template v-if="!editingUnit">
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="单元名称" required>
-                <n-input v-model:value="unitForm.unitName" placeholder="如：华东大区" />
+              <n-form-item :label="t('pages.settings.MouManagement.s13')" required>
+                <n-input v-model:value="unitForm.unitName" :placeholder="t('pages.settings.MouManagement.s14')" />
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="编码">
-                <n-input v-model:value="unitForm.code" placeholder="如：EAST-CHINA（选填）" />
+              <n-form-item :label="t('pages.settings.MouManagement.s15')">
+                <n-input v-model:value="unitForm.code" :placeholder="t('pages.settings.MouManagement.s16')" />
               </n-form-item>
             </n-grid-item>
           </n-grid>
         <n-grid :cols="2" :x-gap="16">
           <n-grid-item>
-            <n-form-item label="单元类型">
+            <n-form-item :label="t('pages.settings.MouManagement.s17')">
               <n-select v-model:value="unitForm.unitType" :options="unitTypeOptions" />
             </n-form-item>
           </n-grid-item>
           <n-grid-item>
-            <n-form-item label="显示顺序">
+            <n-form-item :label="t('pages.settings.MouManagement.s18')">
               <n-input-number v-model:value="unitForm.displayOrder" :min="0" style="width: 100%" />
             </n-form-item>
           </n-grid-item>
         </n-grid>
-        <n-form-item label="上级单元">
+        <n-form-item :label="t('pages.settings.MouManagement.s19')">
           <n-tree-select
             v-model:value="unitForm.parentId"
             :options="parentOptions"
             clearable
-            placeholder="不选 = 根单元"
+            :placeholder="t('pages.settings.MouManagement.s20')"
             :default-expand-all="true"
             key-field="value"
             label-field="label"
           />
         </n-form-item>
-        <n-form-item label="说明">
-          <n-input v-model:value="unitForm.description" type="textarea" :rows="2" placeholder="选填" />
+        <n-form-item :label="t('pages.settings.MouManagement.s21')">
+          <n-input v-model:value="unitForm.description" type="textarea" :rows="2" :placeholder="t('pages.settings.MouManagement.s22')" />
         </n-form-item>
         </template>
       </n-form>
@@ -123,11 +123,11 @@
               <div class="scope-block-header">
                 <div class="scope-block-title">
                   <n-switch v-model:value="orgBlockEnabled" size="small" />
-                  <span>管理组织范围</span>
+                  <span>{{ t('pages.settings.MouManagement.s23') }}</span>
                 </div>
                 <n-space :size="4" align="center" :wrap="false">
-                  <n-button text type="primary" @click="openDetailOrgScope">配置组织范围</n-button>
-                  <n-button text type="primary" :disabled="!orgCheckedKeys.length" @click="batchRemoveOrgNodes">批量删除</n-button>
+                  <n-button text type="primary" @click="openDetailOrgScope">{{ t('pages.settings.MouManagement.s24') }}</n-button>
+                  <n-button text type="primary" :disabled="!orgCheckedKeys.length" @click="batchRemoveOrgNodes">{{ t('pages.settings.MouManagement.s25') }}</n-button>
                   <n-button v-if="orgBlockEnabled" text @click="orgBlockExpanded = !orgBlockExpanded">
                     {{ orgBlockExpanded ? '收起' : '展开' }}
                     <n-icon :component="orgBlockExpanded ? ChevronUpOutline : ChevronDownOutline" />
@@ -144,8 +144,8 @@
                   size="small"
                   :scroll-x="620"
                 />
-                <n-empty v-else description="该应用下尚未配置组织范围，点击「配置组织范围」按应用设置" class="detail-empty" />
-                <div v-if="detailOrgNodes.length" class="scope-block-total">共{{ detailOrgNodes.length }}条</div>
+                <n-empty v-else :description="t('pages.settings.MouManagement.s26')" class="detail-empty" />
+                <div v-if="detailOrgNodes.length" class="scope-block-total">{{ t('pages.settings.MouManagement.s27') }}{{ detailOrgNodes.length }}{{ t('pages.settings.MouManagement.s28') }}</div>
               </template>
             </div>
 
@@ -154,10 +154,10 @@
               <div class="scope-block-header">
                 <div class="scope-block-title">
                   <n-switch v-model:value="personBlockEnabled" size="small" />
-                  <span>管理人员范围</span>
+                  <span>{{ t('pages.settings.MouManagement.s29') }}</span>
                 </div>
                 <n-space :size="4" align="center" :wrap="false">
-                  <n-button text type="primary" @click="openDetailPersonDataRange">配置人员范围</n-button>
+                  <n-button text type="primary" @click="openDetailPersonDataRange">{{ t('pages.settings.MouManagement.s30') }}</n-button>
                   <n-button v-if="personBlockEnabled" text @click="personBlockExpanded = !personBlockExpanded">
                     {{ personBlockExpanded ? '收起' : '展开' }}
                     <n-icon :component="personBlockExpanded ? ChevronUpOutline : ChevronDownOutline" />
@@ -167,9 +167,9 @@
               <template v-if="personBlockEnabled && personBlockExpanded">
                 <div class="person-resolved">
                   <div class="person-resolved-toolbar">
-                    <n-input v-model:value="personNameFilter" placeholder="筛选姓名" clearable size="small" style="width: 200px" />
-                    <n-input v-model:value="personEmailFilter" placeholder="筛选邮箱" clearable size="small" style="width: 240px" />
-                    <n-button text size="small" type="primary" :loading="resolvedPersonsLoading" @click="loadResolvedPersons">刷新</n-button>
+                    <n-input v-model:value="personNameFilter" :placeholder="t('pages.settings.MouManagement.s31')" clearable size="small" style="width: 200px" />
+                    <n-input v-model:value="personEmailFilter" :placeholder="t('pages.settings.MouManagement.s32')" clearable size="small" style="width: 240px" />
+                    <n-button text size="small" type="primary" :loading="resolvedPersonsLoading" @click="loadResolvedPersons">{{ t('pages.settings.MouManagement.s33') }}</n-button>
                   </div>
                   <n-data-table
                     v-if="filteredResolvedPersons.length"
@@ -181,19 +181,19 @@
                     :max-height="320"
                   />
                   <n-empty v-else :description="resolvedPersonsMsg || '该人员范围下暂无匹配人员'" class="detail-empty" />
-                  <div v-if="filteredResolvedPersons.length" class="scope-block-total">共 {{ filteredResolvedPersons.length }} 人</div>
+                  <div v-if="filteredResolvedPersons.length" class="scope-block-total">{{ t('pages.settings.MouManagement.s34') }}{{ filteredResolvedPersons.length }}{{ t('pages.settings.MouManagement.s35') }}</div>
                 </div>
               </template>
             </div>
           </n-tab-pane>
         </n-tabs>
       </template>
-      <n-empty v-else description="保存后可在下方应用 Tab 中按应用配置组织范围 / 人员范围 / 数据范围" />
+      <n-empty v-else :description="t('pages.settings.MouManagement.s36')" />
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="unitModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">保存</n-button>
+          <n-button @click="unitModalVisible = false">{{ t('pages.settings.MouManagement.s37') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="unitSaving" @click="onSaveUnit">{{ t('pages.settings.MouManagement.s38') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -202,45 +202,45 @@
     <n-modal
       v-model:show="basicInfoModalVisible"
       preset="card"
-      title="编辑基本信息"
+      :title="t('pages.settings.MouManagement.s39')"
       :style="{ width: '560px' }"
       :mask-closable="false"
     >
       <n-form :model="basicInfoForm" label-placement="top">
-        <n-form-item label="名称" required>
-          <n-input v-model:value="basicInfoForm.unitName" placeholder="如：华东大区" />
+        <n-form-item :label="t('pages.settings.MouManagement.s40')" required>
+          <n-input v-model:value="basicInfoForm.unitName" :placeholder="t('pages.settings.MouManagement.s41')" />
         </n-form-item>
-        <n-form-item label="编码">
-          <n-input v-model:value="basicInfoForm.code" placeholder="如：EAST-CHINA（选填）" />
+        <n-form-item :label="t('pages.settings.MouManagement.s42')">
+          <n-input v-model:value="basicInfoForm.code" :placeholder="t('pages.settings.MouManagement.s43')" />
         </n-form-item>
-        <n-form-item label="上级管理单元">
+        <n-form-item :label="t('pages.settings.MouManagement.s44')">
           <n-tree-select
             v-model:value="basicInfoForm.parentId"
             :options="parentOptions"
             clearable
-            placeholder="不选 = 根单元"
+            :placeholder="t('pages.settings.MouManagement.s45')"
             :default-expand-all="true"
             key-field="value"
             label-field="label"
           />
         </n-form-item>
-        <n-form-item label="显示顺序">
+        <n-form-item :label="t('pages.settings.MouManagement.s46')">
           <n-input-number v-model:value="basicInfoForm.displayOrder" :min="0" style="width: 100%" />
         </n-form-item>
-        <n-form-item label="说明">
-          <n-input v-model:value="basicInfoForm.description" type="textarea" :rows="2" placeholder="选填" />
+        <n-form-item :label="t('pages.settings.MouManagement.s47')">
+          <n-input v-model:value="basicInfoForm.description" type="textarea" :rows="2" :placeholder="t('pages.settings.MouManagement.s48')" />
         </n-form-item>
-        <n-form-item label="当前单元是否启用">
+        <n-form-item :label="t('pages.settings.MouManagement.s49')">
           <n-switch v-model:value="basicInfoForm.status" :checked-value="1" :unchecked-value="0">
-            <template #checked>启用</template>
-            <template #unchecked>停用</template>
+            <template #checked>{{ t('pages.settings.MouManagement.s53') }}</template>
+            <template #unchecked>{{ t('pages.settings.MouManagement.s54') }}</template>
           </n-switch>
         </n-form-item>
       </n-form>
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="basicInfoModalVisible = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="basicInfoSaving" @click="onSaveBasicInfo">保存</n-button>
+          <n-button @click="basicInfoModalVisible = false">{{ t('pages.settings.MouManagement.s50') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="basicInfoSaving" @click="onSaveBasicInfo">{{ t('pages.settings.MouManagement.s51') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -262,7 +262,7 @@
     <n-modal
       v-model:show="viewAuthVisible"
       preset="card"
-      title="授权用户"
+      :title="t('pages.settings.MouManagement.s52')"
       :style="{ width: '560px' }"
       :mask-closable="false"
     >

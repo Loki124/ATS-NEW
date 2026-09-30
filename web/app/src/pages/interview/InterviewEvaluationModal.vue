@@ -259,13 +259,13 @@ const avgValueScore = computed(() => {
     preset="card"
     :bordered="false"
     style="width: 880px; max-width: 96vw;"
-    :title="editing ? '填写面试评价' : '面试评价'"
+    :title="editing ? t('pages.interview.InterviewEvaluationModal.s22') : t('pages.interview.InterviewEvaluationModal.s23')"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
     <div class="ats-eval">
       <!-- ===== Header（岗位 / 层级 / 面试日期） ===== -->
       <header class="ats-header">
-        <h1 class="ats-header__title">{{ editing ? '面试评价表' : '面试评价详情' }}</h1>
+        <h1 class="ats-header__title">{{ editing ? t('pages.interview.InterviewEvaluationModal.s24') : t('pages.interview.InterviewEvaluationModal.s25') }}</h1>
         <div class="ats-header__meta">
           <span><b>{{ t('pages.interview.InterviewEvaluationModal.s1') }}</b> {{ source.candidate.position }}</span>
           <span><b>{{ t('pages.interview.InterviewEvaluationModal.s2') }}</b> {{ source.candidate.level }}</span>
@@ -281,7 +281,7 @@ const avgValueScore = computed(() => {
           </svg>
           <div class="ats-banner__text">
             <p>{{ t('pages.interview.InterviewEvaluationModal.s4') }}</p>
-            <p>2. 生产力四要素符合性选择"不符合"时评价依据必填，否则非必填。</p>
+            <p>{{ t('pages.interview.InterviewEvaluationModal.s17') }}</p>
           </div>
         </div>
 
@@ -323,12 +323,12 @@ const avgValueScore = computed(() => {
                 v-model:value="compliances[dim.key].reason"
                 type="textarea"
                 :rows="2"
-                :placeholder="compliances[dim.key]?.compliance === 'FAIL' ? '请填写评价依据...' : '请填写具体评价依据...'"
+                :placeholder="compliances[dim.key]?.compliance === 'FAIL' ? t('pages.interview.InterviewEvaluationModal.s26') : t('pages.interview.InterviewEvaluationModal.s27')"
                 :disabled="!editing"
                 :status="editing && compliances[dim.key]?.compliance === 'FAIL' && !compliances[dim.key]?.reason?.trim() ? 'error' : undefined"
               />
               <p v-if="editing && compliances[dim.key]?.compliance === 'FAIL' && !compliances[dim.key]?.reason?.trim()" class="ats-comp__hint">
-                选择"不符合"时，评价依据必填
+                {{ t('pages.interview.InterviewEvaluationModal.s18') }}
               </p>
             </div>
           </div>
@@ -339,7 +339,7 @@ const avgValueScore = computed(() => {
           <div class="ats-section__head">
             <span class="ats-section__bar" />
             <h2 class="ats-section__title">{{ t('pages.interview.InterviewEvaluationModal.s6') }}</h2>
-            <span v-if="editing" class="ats-section__avg">均分 {{ avgValueScore }}</span>
+            <span v-if="editing" class="ats-section__avg">{{ t('pages.interview.InterviewEvaluationModal.s19') }}{{ avgValueScore }}</span>
           </div>
           <div class="ats-section__list">
             <div
@@ -383,7 +383,7 @@ const avgValueScore = computed(() => {
                   :disabled="!editing"
                   style="max-width: 12rem;"
                 />
-                <label class="ats-concl__label ats-concl__label--salary">建议薪资 (月薪)</label>
+                <label class="ats-concl__label ats-concl__label--salary">{{ t('pages.interview.InterviewEvaluationModal.s20') }}</label>
                 <n-input
                   v-model:value="suggestedSalary"
                   :disabled="!editing"
@@ -425,7 +425,7 @@ const avgValueScore = computed(() => {
             class="ats-submit"
             @click="handleSubmit"
           >
-提交评价
+{{ t('pages.interview.InterviewEvaluationModal.s21') }}
 </n-button>
           <n-button v-else type="default" size="large" class="ats-submit" @click="close">{{ t('pages.interview.InterviewEvaluationModal.s14') }}</n-button>
         </div>

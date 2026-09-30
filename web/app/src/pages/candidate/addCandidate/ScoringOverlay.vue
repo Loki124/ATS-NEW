@@ -14,12 +14,12 @@ const emit = defineEmits<{ (e: 'close'): void }>()
     <div style="text-align:center;margin-bottom:20px;">
       <div v-if="!store.allScoringDone" class="spin-big"></div>
       <div v-else style="font-size: var(--fs-36);margin-bottom: var(--space-2);color:var(--c-success-deep);"><NIcon :size="36" aria-hidden="true"><CheckCircle2 /></NIcon></div>
-      <h3 style="font-size: var(--fs-15);margin-bottom: var(--space-1);">{{ store.allScoringDone ? '处理完成！' : '正在处理...' }}</h3>
+      <h3 style="font-size: var(--fs-15);margin-bottom: var(--space-1);">{{ store.allScoringDone ? t('pages.candidate.addCandidate.ScoringOverlay.s5') : t('pages.candidate.addCandidate.ScoringOverlay.s6') }}</h3>
       <p style="font-size: var(--fs-12);color:var(--g5);">{{ t('pages.candidate.addCandidate.ScoringOverlay.s1') }}</p>
     </div>
 
     <div class="sub-progress">
-      <div v-for="(item, i) in ['数据完整性校验', '简历信息入库', '人岗匹配评分', '生成应聘记录']" :key="i" class="sub-pi">
+      <div v-for="(item, i) in [t('pages.candidate.addCandidate.ScoringOverlay.s7'), t('pages.candidate.addCandidate.ScoringOverlay.s8'), t('pages.candidate.addCandidate.ScoringOverlay.s9'), t('pages.candidate.addCandidate.ScoringOverlay.s10')]" :key="i" class="sub-pi">
         <span :class="['spd', (i < store._overallStep ? 'ok' : (i === store._overallStep ? 'spin' : 'wait'))]"></span>
         <span>{{ item }}</span>
       </div>
@@ -31,7 +31,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
           <div class="sc-avatar">{{ r.parsed?.name?.charAt(0) || r.id.charAt(0) }}</div>
           <div class="sc-info">
             <div class="sc-name">{{ r.parsed?.name || r.file_name }}</div>
-            <div class="sc-status">{{ (store.scoringProgress as any)[r.id]?.status === 'done' ? ((store.scoringProgress as any)[r.id]?.result?.passed ? '评分通过' : '评分未通过') : '评分中...' }}</div>
+            <div class="sc-status">{{ (store.scoringProgress as any)[r.id]?.status === 'done' ? ((store.scoringProgress as any)[r.id]?.result?.passed ? t('pages.candidate.addCandidate.ScoringOverlay.s11') : t('pages.candidate.addCandidate.ScoringOverlay.s12')) : t('pages.candidate.addCandidate.ScoringOverlay.s13') }}</div>
           </div>
           <div v-if="(store.scoringProgress as any)[r.id]?.result" :class="['sc-score', (store.scoringProgress as any)[r.id]?.result?.passed ? 'pass' : 'fail']">
             {{ (store.scoringProgress as any)[r.id]?.result?.score }}
@@ -42,8 +42,8 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
     <div v-if="store.allScoringDone" style="text-align:center;margin-top: var(--space-6);">
       <div style="font-size: var(--fs-13);color:var(--g7);margin-bottom: var(--space-3);">
-        <span style="color:var(--c-success);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} 人通过</span> ·
-        <span style="color:var(--c-error-deep);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result && !s?.result?.passed).length }} 人未通过</span>
+        <span style="color:var(--c-success);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} {{ t('pages.candidate.addCandidate.ScoringOverlay.s3') }}</span> ·
+        <span style="color:var(--c-error-deep);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result && !s?.result?.passed).length }} {{ t('pages.candidate.addCandidate.ScoringOverlay.s4') }}</span>
       </div>
       <button class="btn bp" data-testid="close-scoring" style="padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">{{ t('pages.candidate.addCandidate.ScoringOverlay.s2') }}</button>
     </div>

@@ -5,15 +5,15 @@
       <n-space>
         <n-button class="back-btn" @click="goBack">
           <template #icon><n-icon :component="ChevronBackOutline" /></template>
-          返回
+          {{ t('pages.candidate.CandidateDetail.s1') }}
         </n-button>
-        <n-h4 style="margin: 0; font-weight: 700">候选人详情</n-h4>
+        <n-h4 style="margin: 0; font-weight: 700">{{ t('pages.candidate.CandidateDetail.s2') }}</n-h4>
       </n-space>
 
       <n-space>
         <n-button type="primary" class="send-btn" @click="openNotificationModal">
           <template #icon><n-icon :component="PaperPlaneOutline" /></template>
-          发送通知
+          {{ t('pages.candidate.CandidateDetail.s3') }}
         </n-button>
       </n-space>
     </div>
@@ -32,7 +32,7 @@
               <n-h3 style="margin: 0 0 8px 0">
                 {{ candidateData.name }}
                 <n-tag :type="candidateData.status === 'interview' ? 'warning' : 'success'" :bordered="false" style="margin-left: 12px">
-                  {{ candidateData.status === 'interview' ? '面试中' : '已入职' }}
+                  {{ candidateData.status === 'interview' ? t('pages.candidate.CandidateDetail.s99') : t('pages.candidate.CandidateDetail.s100') }}
                 </n-tag>
               </n-h3>
               <n-space size="large" style="margin-bottom: 12px">
@@ -45,12 +45,12 @@
               </n-space>
               <n-space wrap>
                 <n-tag class="position-tag" :bordered="false">{{ candidateData.position }}</n-tag>
-                <n-tag class="channel-tag" :bordered="false">Boss直聘</n-tag>
+                <n-tag class="channel-tag" :bordered="false">{{ t('pages.candidate.CandidateDetail.s4') }}</n-tag>
               </n-space>
             </div>
             <div class="candidate-meta">
               <div>HRBP：{{ candidateData.hrbp }}</div>
-              <div>用人经理：{{ candidateData.hiringManager }}</div>
+              <div>{{ t('pages.candidate.CandidateDetail.s5') }}{{ candidateData.hiringManager }}</div>
             </div>
           </div>
         </div>
@@ -63,7 +63,7 @@
         <!-- 基本信息 -->
         <n-tab-pane name="info">
           <template #tab>
-            <span><n-icon :component="PersonOutline" /> 基本信息</span>
+            <span><n-icon :component="PersonOutline" />{{ t('pages.candidate.CandidateDetail.s6') }}</span>
           </template>
           <div class="info-section">
             <n-grid :cols="2" :x-gap="24" :y-gap="16" responsive="screen">
@@ -74,7 +74,7 @@
                 </div>
               </n-grid-item>
               <n-grid-item v-if="displayFields.length === 0 && !loading">
-                <n-empty description="标准简历设置中未启用任何显示字段" />
+                <n-empty :description="t('pages.candidate.CandidateDetail.s7')" />
               </n-grid-item>
             </n-grid>
             <n-spin v-if="loading" style="margin-top: 16px" />
@@ -84,48 +84,48 @@
         <!-- 招聘流程 -->
         <n-tab-pane name="process">
           <template #tab>
-            <span><n-icon :component="CalendarOutline" /> 招聘流程</span>
+            <span><n-icon :component="CalendarOutline" />{{ t('pages.candidate.CandidateDetail.s8') }}</span>
           </template>
           <div class="process-section">
             <div class="timeline-section">
-              <n-h5 style="margin-bottom: 16px">招聘进度</n-h5>
+              <n-h5 style="margin-bottom: 16px">{{ t('pages.candidate.CandidateDetail.s9') }}</n-h5>
               <n-timeline>
-                <n-timeline-item type="success" content="简历筛选" time="2026-04-20" line-type="success" />
-                <n-timeline-item type="success" content="HRBP评估" time="2026-04-21" line-type="success" />
-                <n-timeline-item type="success" content="用人经理筛选" time="2026-04-22" line-type="success" />
-                <n-timeline-item type="success" content="邀约面试" time="2026-04-23" line-type="success" />
-                <n-timeline-item type="info" content="联合面试" time="2026-04-25" line-type="info" />
-                <n-timeline-item content="综合面试" time="-" line-type="default" />
-                <n-timeline-item content="Offer沟通" time="-" line-type="default" />
+                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s10')" time="2026-04-20" line-type="success" />
+                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s11')" time="2026-04-21" line-type="success" />
+                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s12')" time="2026-04-22" line-type="success" />
+                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s13')" time="2026-04-23" line-type="success" />
+                <n-timeline-item type="info" :content="t('pages.candidate.CandidateDetail.s14')" time="2026-04-25" line-type="info" />
+                <n-timeline-item :content="t('pages.candidate.CandidateDetail.s15')" time="-" line-type="default" />
+                <n-timeline-item :content="t('pages.candidate.CandidateDetail.s16')" time="-" line-type="default" />
               </n-timeline>
             </div>
             <n-divider style="margin: 24px 0" />
             <div class="interview-section">
-              <n-h5 style="margin-bottom: 16px">面试记录</n-h5>
+              <n-h5 style="margin-bottom: 16px">{{ t('pages.candidate.CandidateDetail.s17') }}</n-h5>
               <div class="interview-table">
                 <div class="interview-header grid grid-cols-12 gap-2">
-                  <div class="col-span-3">面试类型</div>
-                  <div class="col-span-4">面试时间</div>
-                  <div class="col-span-4">面试官</div>
-                  <div class="col-span-3">结果</div>
-                  <div class="col-span-7">反馈</div>
-                  <div class="col-span-3">操作</div>
+                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s18') }}</div>
+                  <div class="col-span-4">{{ t('pages.candidate.CandidateDetail.s19') }}</div>
+                  <div class="col-span-4">{{ t('pages.candidate.CandidateDetail.s20') }}</div>
+                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s21') }}</div>
+                  <div class="col-span-7">{{ t('pages.candidate.CandidateDetail.s22') }}</div>
+                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s23') }}</div>
                 </div>
                 <div class="interview-row grid grid-cols-12 gap-2 items-center">
-                  <div class="col-span-3">联合面试</div>
+                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s24') }}</div>
                   <div class="col-span-4">2026-04-25 14:00</div>
-                  <div class="col-span-4">技术面试官A、B</div>
-                  <div class="col-span-3"><n-tag type="success" :bordered="false">通过</n-tag></div>
-                  <div class="col-span-7" style="color: var(--ink-soft)">技术能力强，项目经验丰富</div>
-                  <div class="col-span-3"><n-button text type="primary" size="small">查看详情</n-button></div>
+                  <div class="col-span-4">{{ t('pages.candidate.CandidateDetail.s25') }}</div>
+                  <div class="col-span-3"><n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s26') }}</n-tag></div>
+                  <div class="col-span-7" style="color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s27') }}</div>
+                  <div class="col-span-3"><n-button text type="primary" size="small">{{ t('pages.candidate.CandidateDetail.s28') }}</n-button></div>
                 </div>
                 <div class="interview-row grid grid-cols-12 gap-2 items-center">
-                  <div class="col-span-3">笔试</div>
+                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s29') }}</div>
                   <div class="col-span-4">2026-04-21 10:00</div>
                   <div class="col-span-4">HR</div>
-                  <div class="col-span-3"><n-tag type="success" :bordered="false">通过</n-tag></div>
-                  <div class="col-span-7" style="color: var(--ink-soft)">逻辑清晰，编码规范</div>
-                  <div class="col-span-3"><n-button text type="primary" size="small">查看详情</n-button></div>
+                  <div class="col-span-3"><n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s30') }}</n-tag></div>
+                  <div class="col-span-7" style="color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s31') }}</div>
+                  <div class="col-span-3"><n-button text type="primary" size="small">{{ t('pages.candidate.CandidateDetail.s32') }}</n-button></div>
                 </div>
               </div>
             </div>
@@ -135,7 +135,7 @@
         <!-- 简历信息 -->
         <n-tab-pane name="resume">
           <template #tab>
-            <span><n-icon :component="DocumentTextOutline" /> 简历信息</span>
+            <span><n-icon :component="DocumentTextOutline" />{{ t('pages.candidate.CandidateDetail.s33') }}</span>
           </template>
           <div class="resume-section">
             <div v-if="resumeData.url" class="resume-content">
@@ -143,35 +143,35 @@
                 <n-space>
                   <n-button type="primary" class="download-btn" @click="handleDownloadResume">
                     <template #icon><n-icon :component="DownloadOutline" /></template>
-                    下载简历
+                    {{ t('pages.candidate.CandidateDetail.s34') }}
                   </n-button>
-                  <n-button v-permission="'recruit:candidate:edit'" @click="openEditResumeModal">编辑简历</n-button>
+                  <n-button v-permission="'recruit:candidate:edit'" @click="openEditResumeModal">{{ t('pages.candidate.CandidateDetail.s35') }}</n-button>
                 </n-space>
               </div>
               <div class="resume-preview">
-                <n-h5>简历预览</n-h5>
+                <n-h5>{{ t('pages.candidate.CandidateDetail.s36') }}</n-h5>
                 <div class="resume-info">
-                  <div class="resume-field"><span class="field-label">姓名：</span><span class="field-value">{{ resumeData.name }}</span></div>
-                  <div class="resume-field"><span class="field-label">手机号：</span><span class="field-value">{{ resumeData.phone }}</span></div>
-                  <div class="resume-field"><span class="field-label">邮箱：</span><span class="field-value">{{ resumeData.email }}</span></div>
-                  <div class="resume-field"><span class="field-label">最高学历：</span><span class="field-value">{{ resumeData.education }}</span></div>
-                  <div class="resume-field"><span class="field-label">毕业院校：</span><span class="field-value">{{ resumeData.school }}</span></div>
-                  <div class="resume-field"><span class="field-label">工作年限：</span><span class="field-value">{{ resumeData.workYears }}年</span></div>
-                  <div class="resume-field"><span class="field-label">当前公司：</span><span class="field-value">{{ resumeData.currentCompany }}</span></div>
-                  <div class="resume-field"><span class="field-label">期望薪资：</span><span class="field-value">{{ resumeData.expectedSalary }}</span></div>
-                  <div class="resume-field"><span class="field-label">简历来源：</span><span class="field-value">{{ resumeData.source }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s37') }}</span><span class="field-value">{{ resumeData.name }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s38') }}</span><span class="field-value">{{ resumeData.phone }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s39') }}</span><span class="field-value">{{ resumeData.email }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s40') }}</span><span class="field-value">{{ resumeData.education }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s41') }}</span><span class="field-value">{{ resumeData.school }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s42') }}</span><span class="field-value">{{ resumeData.workYears }}{{ t('pages.candidate.CandidateDetail.s43') }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s44') }}</span><span class="field-value">{{ resumeData.currentCompany }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s45') }}</span><span class="field-value">{{ resumeData.expectedSalary }}</span></div>
+                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s46') }}</span><span class="field-value">{{ resumeData.source }}</span></div>
                 </div>
               </div>
             </div>
             <div v-else class="empty-state text-center">
               <n-icon :component="DocumentTextOutline" :size="64" color="var(--brand)" />
-              <n-h4 style="margin-top: 16px">暂无简历</n-h4>
-              <n-text :depth="3">该候选人还没有上传简历</n-text>
+              <n-h4 style="margin-top: 16px">{{ t('pages.candidate.CandidateDetail.s47') }}</n-h4>
+              <n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s48') }}</n-text>
               <div style="margin-top: 24px">
                 <n-space>
                   <n-button type="primary" @click="openUploadResumeModal">
                     <template #icon><n-icon :component="CloudUploadOutline" /></template>
-                    上传简历
+                    {{ t('pages.candidate.CandidateDetail.s49') }}
                   </n-button>
                 </n-space>
               </div>
@@ -182,48 +182,48 @@
         <!-- 操作记录 -->
         <n-tab-pane name="history">
           <template #tab>
-            <span><n-icon :component="TimeOutline" /> 操作记录</span>
+            <span><n-icon :component="TimeOutline" />{{ t('pages.candidate.CandidateDetail.s50') }}</span>
           </template>
           <div class="history-section">
             <n-timeline>
               <n-timeline-item>
                 <div>
-                  <n-tag type="info" :bordered="false">发送面试通知</n-tag>
+                  <n-tag type="info" :bordered="false">{{ t('pages.candidate.CandidateDetail.s51') }}</n-tag>
                   <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-27 10:30</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">操作人：张强</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">发送给张三关于4月25日联合面试的通知</div>
+                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s52') }}</n-text></div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s53') }}</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
-                  <n-tag type="success" :bordered="false">完成面试</n-tag>
+                  <n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s54') }}</n-tag>
                   <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-25 14:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">操作人：系统</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">联合面试已完成</div>
+                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s55') }}</n-text></div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s56') }}</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
-                  <n-tag type="info" :bordered="false">安排面试</n-tag>
+                  <n-tag type="info" :bordered="false">{{ t('pages.candidate.CandidateDetail.s57') }}</n-tag>
                   <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-23 16:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">操作人：张强</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">安排联合面试时间：4月25日14:00</div>
+                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s58') }}</n-text></div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s59') }}</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
-                  <n-tag type="success" :bordered="false">筛选通过</n-tag>
+                  <n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s60') }}</n-tag>
                   <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-22 11:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">操作人：王芳</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">用人经理筛选结果：通过</div>
+                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s61') }}</n-text></div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s62') }}</div>
                 </div>
               </n-timeline-item>
               <n-timeline-item>
                 <div>
-                  <n-tag type="info" :bordered="false">添加候选人</n-tag>
+                  <n-tag type="info" :bordered="false">{{ t('pages.candidate.CandidateDetail.s63') }}</n-tag>
                   <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-20 09:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">操作人：张强</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">从Boss直聘导入候选人信息</div>
+                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s64') }}</n-text></div>
+                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s65') }}</div>
                 </div>
               </n-timeline-item>
             </n-timeline>
@@ -242,7 +242,7 @@
     >
       <template #header>
         <div class="modal-header">
-          <span class="modal-title">发送通知</span>
+          <span class="modal-title">{{ t('pages.candidate.CandidateDetail.s66') }}</span>
           <button class="close-btn" @click="notificationModalVisible = false">
             <n-icon :component="CloseOutline" />
           </button>
@@ -255,7 +255,7 @@
             <div class="candidate-name-row">
               <span class="candidate-name">{{ candidateData.name }}</span>
               <n-tag class="position-tag-sm" :bordered="false">{{ candidateData.position }}</n-tag>
-              <n-tag class="experience-tag" :bordered="false">5年经验</n-tag>
+              <n-tag class="experience-tag" :bordered="false">{{ t('pages.candidate.CandidateDetail.s67') }}</n-tag>
             </div>
             <div class="candidate-contact-row">
               <span><n-icon :component="CallOutline" /> {{ candidateData.phone }}</span>
@@ -270,40 +270,40 @@
           <div class="step-section">
             <h3 class="step-title">
               <span class="step-number">1</span>
-              选择发送内容
+              {{ t('pages.candidate.CandidateDetail.s68') }}
             </h3>
             <div class="info-callout">
-              <span>系统将基于选择的「发送内容」自动为候选人生成对应待办，选择多个内容时会同时发送</span>
+              <span>{{ t('pages.candidate.CandidateDetail.s69') }}</span>
             </div>
             <div class="step-content">
               <div class="content-group">
-                <div class="content-group-title">面试登记表</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateDetail.s70') }}</div>
                 <label class="content-item selected">
                   <n-checkbox v-model:checked="notificationForm.interviewForm" />
-                  <span>收集候选人基本信息</span>
+                  <span>{{ t('pages.candidate.CandidateDetail.s71') }}</span>
                 </label>
               </div>
               <div class="content-group">
-                <div class="content-group-title">性格测试</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateDetail.s72') }}</div>
                 <n-radio-group v-model:value="notificationForm.personalityTest">
                   <n-space vertical>
-                    <n-radio value="pdp_mbti_20">PDP+20题版MBTI</n-radio>
-                    <n-radio value="pdp_mbti_93">PDP+93题版MBTI</n-radio>
+                    <n-radio value="pdp_mbti_20">{{ t('pages.candidate.CandidateDetail.s73') }}</n-radio>
+                    <n-radio value="pdp_mbti_93">{{ t('pages.candidate.CandidateDetail.s74') }}</n-radio>
                   </n-space>
                 </n-radio-group>
               </div>
               <div class="content-group">
-                <div class="content-group-title">应聘登记表</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateDetail.s75') }}</div>
                 <label class="content-item">
                   <n-checkbox v-model:checked="notificationForm.applicationForm" />
-                  <span>完善工作履历及教育背景</span>
+                  <span>{{ t('pages.candidate.CandidateDetail.s76') }}</span>
                 </label>
               </div>
               <div class="content-group">
-                <div class="content-group-title">入职材料</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateDetail.s77') }}</div>
                 <label class="content-item">
                   <n-checkbox v-model:checked="notificationForm.onboardingDocs" />
-                  <span>收集入职资料及相关证明</span>
+                  <span>{{ t('pages.candidate.CandidateDetail.s78') }}</span>
                 </label>
               </div>
             </div>
@@ -312,23 +312,23 @@
           <div class="step-section">
             <h3 class="step-title">
               <span class="step-number">2</span>
-              选择通知方式
+              {{ t('pages.candidate.CandidateDetail.s79') }}
             </h3>
             <div class="step-content">
               <label class="method-item selected">
                 <n-checkbox v-model:checked="notificationForm.sendEmail" />
                 <n-icon :component="MailOutline" class="method-icon" />
-                <span class="method-name">邮件通知</span>
+                <span class="method-name">{{ t('pages.candidate.CandidateDetail.s80') }}</span>
               </label>
               <label class="method-item selected">
                 <n-checkbox v-model:checked="notificationForm.sendSms" />
                 <n-icon :component="ChatbubblesOutline" class="method-icon" />
-                <span class="method-name">短信通知</span>
+                <span class="method-name">{{ t('pages.candidate.CandidateDetail.s81') }}</span>
               </label>
               <label class="method-item">
                 <n-checkbox v-model:checked="notificationForm.sendWechat" />
                 <n-icon :component="LogoWechat" class="method-icon" />
-                <span class="method-name">微信企业号推送</span>
+                <span class="method-name">{{ t('pages.candidate.CandidateDetail.s82') }}</span>
               </label>
             </div>
           </div>
@@ -338,14 +338,14 @@
           <div v-if="notificationForm.sendEmail" class="editor-section">
             <div class="editor-header">
               <n-icon :component="MailOutline" class="editor-icon" />
-              <h4 class="editor-title">邮件通知</h4>
+              <h4 class="editor-title">{{ t('pages.candidate.CandidateDetail.s83') }}</h4>
             </div>
             <div class="editor-field">
-              <label class="field-label">邮件主题</label>
+              <label class="field-label">{{ t('pages.candidate.CandidateDetail.s84') }}</label>
               <n-input v-model:value="notificationForm.emailSubject" class="email-subject-input" />
             </div>
             <div class="editor-field">
-              <label class="field-label">邮件正文</label>
+              <label class="field-label">{{ t('pages.candidate.CandidateDetail.s85') }}</label>
               <n-input v-model:value="notificationForm.emailContent" type="textarea" :rows="8" class="email-content-input" />
             </div>
           </div>
@@ -353,12 +353,12 @@
           <div v-if="notificationForm.sendSms" class="editor-section">
             <div class="editor-header">
               <n-icon :component="ChatbubblesOutline" class="editor-icon" />
-              <h4 class="editor-title">短信通知</h4>
+              <h4 class="editor-title">{{ t('pages.candidate.CandidateDetail.s86') }}</h4>
             </div>
             <div class="editor-field">
               <div class="sms-counter">
-                <label class="field-label">短信正文</label>
-                <span class="counter-text">已输入 <strong>{{ notificationForm.smsContent.length }}</strong> / 70 字</span>
+                <label class="field-label">{{ t('pages.candidate.CandidateDetail.s87') }}</label>
+                <span class="counter-text">{{ t('pages.candidate.CandidateDetail.s101') }} <strong>{{ notificationForm.smsContent.length }}</strong>{{ t('pages.candidate.CandidateDetail.s88') }}</span>
               </div>
               <n-input v-model:value="notificationForm.smsContent" type="textarea" :rows="4" class="sms-content-input" />
             </div>
@@ -368,12 +368,12 @@
 
       <template #footer>
         <div class="modal-footer">
-          <div class="recipient-info">通知将发送至: 1个手机号, 1个邮箱地址</div>
+          <div class="recipient-info">{{ t('pages.candidate.CandidateDetail.s89') }}</div>
           <div class="footer-buttons">
-            <n-button @click="notificationModalVisible = false">取消</n-button>
+            <n-button @click="notificationModalVisible = false">{{ t('pages.candidate.CandidateDetail.s90') }}</n-button>
             <n-button type="primary" class="send-btn-primary" @click="handleSendNotification">
               <template #icon><n-icon :component="PaperPlaneOutline" /></template>
-              确认发送
+              {{ t('pages.candidate.CandidateDetail.s91') }}
             </n-button>
           </div>
         </div>
@@ -384,7 +384,7 @@
     <n-modal
       v-model:show="editResumeModalVisible"
       preset="card"
-      title="编辑简历"
+      :title="t('pages.candidate.CandidateDetail.s92')"
       :width="640"
       style="max-width: 92vw"
     >
@@ -419,7 +419,7 @@
                 />
                 <n-input v-else v-model:value="editForm[f.fieldKey]" :disabled="f.hasCol" />
                 <n-text v-if="f.hasCol" :depth="3" style="font-size: 12px; display: block; margin-top: 2px">
-                  候选人档案字段，请在候选人档案中修改
+                  {{ t('pages.candidate.CandidateDetail.s93') }}
                 </n-text>
               </n-form-item>
             </n-grid-item>
@@ -428,8 +428,8 @@
       </n-spin>
       <template #footer>
         <n-space justify="end">
-          <n-button :disabled="savingResume" @click="editResumeModalVisible = false">取消</n-button>
-          <n-button type="primary" :loading="savingResume" @click="handleSaveResume">保存</n-button>
+          <n-button :disabled="savingResume" @click="editResumeModalVisible = false">{{ t('pages.candidate.CandidateDetail.s94') }}</n-button>
+          <n-button type="primary" :loading="savingResume" @click="handleSaveResume">{{ t('pages.candidate.CandidateDetail.s95') }}</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -438,7 +438,7 @@
     <n-modal
       v-model:show="uploadResumeModalVisible"
       preset="card"
-      title="上传简历"
+      :title="t('pages.candidate.CandidateDetail.s96')"
       :width="500"
       style="max-width: 90vw"
       @positive-click="handleUploadResume"
@@ -452,10 +452,10 @@
       >
         <n-button>
           <template #icon><n-icon :component="CloudUploadOutline" /></template>
-          选择文件
+          {{ t('pages.candidate.CandidateDetail.s97') }}
         </n-button>
       </n-upload>
-      <div class="upload-tip">支持 PDF、Word 格式文件，大小不超过 10MB</div>
+      <div class="upload-tip">{{ t('pages.candidate.CandidateDetail.s98') }}</div>
     </n-modal>
   </div>
 </template>
@@ -463,6 +463,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
 import {
   ChevronBackOutline,
@@ -486,69 +487,70 @@ import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fie
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { t } = useI18n()
 
 const activeTab = ref('info')
 
 // 标准简历配置驱动的基本信息字段元数据：fieldKey -> { 中文 label, 候选真实列 }
 // 仅映射 Candidate 模型上存在的列；其余扩展字段暂无值存储（全仓无对应表/端点），显示占位符
 const FIELD_META: Record<string, { label: string; col?: keyof CandidateDetailData }> = {
-  'ID number': { label: '证件号码', col: 'id_card_no' },
-  'Mobile': { label: '手机号', col: 'phone' },
-  'About me': { label: '自我描述' },
-  'Birth Date (Age)': { label: '出生日期 (年龄)', col: 'age' },
-  'Major': { label: '专业名称' },
-  'Email': { label: '邮箱', col: 'email' },
-  'Salary': { label: '薪资' },
-  'Project description': { label: '项目描述' },
-  'Team leader': { label: '汇报对象' },
-  'Gender': { label: '性别', col: 'gender' },
-  'Current salary': { label: '现有基本工资(千元/月)' },
-  'Current department': { label: '所在部门' },
-  'Work location': { label: '工作地点' },
-  'Residence address': { label: '户籍地址' },
-  'Expected city': { label: '期望城市', col: 'expected_city' },
-  'Hobbies': { label: '兴趣爱好' },
-  'Organizational role': { label: '项目角色' },
-  'School': { label: '院校名称' },
-  'Graduation date': { label: '毕业时间' },
-  'Highest degree': { label: '最高学历', col: 'highest_education' },
-  'Award time': { label: '获奖时间' },
-  'Start date': { label: '起止日期' },
-  'Work experience': { label: '工作经验', col: 'work_years' },
-  'Reason for leaving': { label: '离职原因' },
-  'Company': { label: '公司名称' },
-  'Award name': { label: '奖项名称' },
-  'Current company': { label: '最近公司', col: 'current_company' },
-  'ID card validity period': { label: '证件有效期' },
-  'Industry': { label: '所在行业' },
-  'Political affiliation': { label: '政治面貌' },
-  'Expected industry': { label: '期望行业' },
-  'Company size': { label: '公司规模' },
-  'End date': { label: '起止日期' },
-  'Registered birthplace': { label: '籍贯' },
-  'Issuing authority': { label: '签发机关' },
-  'Responsibilities': { label: '项目职责' },
-  'Location': { label: '所在地' },
-  'No. of subordinates': { label: '下属人数' },
-  'Degree': { label: '学历' },
-  'Current title': { label: '目前职位', col: 'current_position' },
-  'WeChat': { label: '微信号' },
-  'Project name': { label: '项目名称' },
-  'Upload ID photo (portrait side)': { label: '上传身份证照片（人像面）' },
-  'Resume update time': { label: '简历更新时间' },
-  'Ethnicity': { label: '民族' },
-  'Country/Region': { label: '国家/地区' },
-  'Proficiency': { label: '掌握程度' },
-  'Onboarding time': { label: '预计入职日期' },
-  'Language': { label: '语言类型' },
-  'Rating': { label: '简历评分', col: 'resume_score' },
-  'Reading and writing': { label: '读写' },
-  'Listening and speaking': { label: '听说' },
-  'Company type': { label: '公司性质' },
-  'Name': { label: '姓名', col: 'name' },
-  'Job title': { label: '职位名称' },
-  'Upload ID photo (national emblem side)': { label: '上传身份证照片（国徽面）' },
-  'Expected salary': { label: '期望税前月薪(千元)', col: 'expected_salary' },
+  'ID number': { label: t('pages.candidate.CandidateDetail.s102'), col: 'id_card_no' },
+  'Mobile': { label: t('pages.candidate.CandidateDetail.s103'), col: 'phone' },
+  'About me': { label: t('pages.candidate.CandidateDetail.s104') },
+  'Birth Date (Age)': { label: t('pages.candidate.CandidateDetail.s105'), col: 'age' },
+  'Major': { label: t('pages.candidate.CandidateDetail.s106') },
+  'Email': { label: t('pages.candidate.CandidateDetail.s107'), col: 'email' },
+  'Salary': { label: t('pages.candidate.CandidateDetail.s108') },
+  'Project description': { label: t('pages.candidate.CandidateDetail.s109') },
+  'Team leader': { label: t('pages.candidate.CandidateDetail.s110') },
+  'Gender': { label: t('pages.candidate.CandidateDetail.s111'), col: 'gender' },
+  'Current salary': { label: t('pages.candidate.CandidateDetail.s112') },
+  'Current department': { label: t('pages.candidate.CandidateDetail.s113') },
+  'Work location': { label: t('pages.candidate.CandidateDetail.s114') },
+  'Residence address': { label: t('pages.candidate.CandidateDetail.s115') },
+  'Expected city': { label: t('pages.candidate.CandidateDetail.s116'), col: 'expected_city' },
+  'Hobbies': { label: t('pages.candidate.CandidateDetail.s117') },
+  'Organizational role': { label: t('pages.candidate.CandidateDetail.s118') },
+  'School': { label: t('pages.candidate.CandidateDetail.s119') },
+  'Graduation date': { label: t('pages.candidate.CandidateDetail.s120') },
+  'Highest degree': { label: t('pages.candidate.CandidateDetail.s121'), col: 'highest_education' },
+  'Award time': { label: t('pages.candidate.CandidateDetail.s122') },
+  'Start date': { label: t('pages.candidate.CandidateDetail.s123') },
+  'Work experience': { label: t('pages.candidate.CandidateDetail.s124'), col: 'work_years' },
+  'Reason for leaving': { label: t('pages.candidate.CandidateDetail.s125') },
+  'Company': { label: t('pages.candidate.CandidateDetail.s126') },
+  'Award name': { label: t('pages.candidate.CandidateDetail.s127') },
+  'Current company': { label: t('pages.candidate.CandidateDetail.s128'), col: 'current_company' },
+  'ID card validity period': { label: t('pages.candidate.CandidateDetail.s129') },
+  'Industry': { label: t('pages.candidate.CandidateDetail.s130') },
+  'Political affiliation': { label: t('pages.candidate.CandidateDetail.s131') },
+  'Expected industry': { label: t('pages.candidate.CandidateDetail.s132') },
+  'Company size': { label: t('pages.candidate.CandidateDetail.s133') },
+  'End date': { label: t('pages.candidate.CandidateDetail.s123') },
+  'Registered birthplace': { label: t('pages.candidate.CandidateDetail.s134') },
+  'Issuing authority': { label: t('pages.candidate.CandidateDetail.s135') },
+  'Responsibilities': { label: t('pages.candidate.CandidateDetail.s136') },
+  'Location': { label: t('pages.candidate.CandidateDetail.s137') },
+  'No. of subordinates': { label: t('pages.candidate.CandidateDetail.s138') },
+  'Degree': { label: t('pages.candidate.CandidateDetail.s139') },
+  'Current title': { label: t('pages.candidate.CandidateDetail.s140'), col: 'current_position' },
+  'WeChat': { label: t('pages.candidate.CandidateDetail.s141') },
+  'Project name': { label: t('pages.candidate.CandidateDetail.s142') },
+  'Upload ID photo (portrait side)': { label: t('pages.candidate.CandidateDetail.s143') },
+  'Resume update time': { label: t('pages.candidate.CandidateDetail.s144') },
+  'Ethnicity': { label: t('pages.candidate.CandidateDetail.s145') },
+  'Country/Region': { label: t('pages.candidate.CandidateDetail.s146') },
+  'Proficiency': { label: t('pages.candidate.CandidateDetail.s147') },
+  'Onboarding time': { label: t('pages.candidate.CandidateDetail.s148') },
+  'Language': { label: t('pages.candidate.CandidateDetail.s149') },
+  'Rating': { label: t('pages.candidate.CandidateDetail.s150'), col: 'resume_score' },
+  'Reading and writing': { label: t('pages.candidate.CandidateDetail.s151') },
+  'Listening and speaking': { label: t('pages.candidate.CandidateDetail.s152') },
+  'Company type': { label: t('pages.candidate.CandidateDetail.s153') },
+  'Name': { label: t('pages.candidate.CandidateDetail.s154'), col: 'name' },
+  'Job title': { label: t('pages.candidate.CandidateDetail.s155') },
+  'Upload ID photo (national emblem side)': { label: t('pages.candidate.CandidateDetail.s156') },
+  'Expected salary': { label: t('pages.candidate.CandidateDetail.s157'), col: 'expected_salary' },
 }
 
 // 候选人详情真实数据形态（对齐后端 CandidateDetailSerializer 字段）
@@ -608,7 +610,7 @@ const candidateData = computed(() => {
   const c = candidateDetail.value
   return {
     id: route.params.id || '1',
-    name: c?.name ?? '候选人',
+    name: c?.name ?? t('pages.candidate.CandidateDetail.s158'),
     phone: c?.phone ?? '—',
     email: c?.email ?? '—',
     position: c?.current_position ?? '—',
@@ -642,23 +644,23 @@ onMounted(async () => {
 
 const resumeData = ref({
   url: 'https://example.com/resume.pdf',
-  name: '张三',
+  name: t('pages.candidate.CandidateDetail.s159'),
   phone: '138****8888',
   email: 'zhangsan@example.com',
-  education: '本科',
-  school: '华东理工大学',
+  education: t('pages.candidate.CandidateDetail.s160'),
+  school: t('pages.candidate.CandidateDetail.s161'),
   workYears: 5,
-  currentCompany: '字节跳动',
+  currentCompany: t('pages.candidate.CandidateDetail.s162'),
   expectedSalary: '40K',
-  source: 'Boss直聘',
+  source: t('pages.candidate.CandidateDetail.s163'),
 })
 
 // ===== 编辑简历 (配置驱动) =====
 // 控件类型: 长文本 / 数字 / 下拉 / 普通文本, 由 fieldKey 推断
 const genderOptions = [
-  { label: '男', value: '男' },
-  { label: '女', value: '女' },
-  { label: '未知', value: '未知' },
+  { label: t('pages.candidate.CandidateDetail.s164'), value: '男' },
+  { label: t('pages.candidate.CandidateDetail.s165'), value: '女' },
+  { label: t('pages.candidate.CandidateDetail.s166'), value: '未知' },
 ]
 const TEXTAREA_KEYS = new Set([
   'About me', 'Project description', 'Reason for leaving', 'Responsibilities',
@@ -684,11 +686,11 @@ const editForm = ref<Record<string, any>>({})
 const savingResume = ref(false)
 
 const educationOptions = [
-  { label: '高中', value: '高中' },
-  { label: '大专', value: '大专' },
-  { label: '本科', value: '本科' },
-  { label: '硕士', value: '硕士' },
-  { label: '博士', value: '博士' },
+  { label: t('pages.candidate.CandidateDetail.s167'), value: '高中' },
+  { label: t('pages.candidate.CandidateDetail.s168'), value: '大专' },
+  { label: t('pages.candidate.CandidateDetail.s169'), value: '本科' },
+  { label: t('pages.candidate.CandidateDetail.s170'), value: '硕士' },
+  { label: t('pages.candidate.CandidateDetail.s171'), value: '博士' },
 ]
 
 const uploadResumeModalVisible = ref(false)
@@ -704,8 +706,8 @@ const notificationForm = ref({
   sendEmail: true,
   sendSms: true,
   sendWechat: false,
-  emailSubject: '【ATS招聘系统】面试邀请与前期准备事项',
-  emailContent: '尊敬的候选人，您好！...',
+  emailSubject: t('pages.candidate.CandidateDetail.s172'),
+  emailContent: t('pages.candidate.CandidateDetail.s173'),
   smsContent: '',
 })
 
@@ -728,8 +730,8 @@ const openEditResumeModal = () => {
 }
 
 const handleDownloadResume = () => {
-  if (resumeData.value.url) message.success('开始下载简历')
-  else message.warning('暂无简历可下载')
+  if (resumeData.value.url) message.success(t('pages.candidate.CandidateDetail.s174'))
+  else message.warning(t('pages.candidate.CandidateDetail.s175'))
 }
 
 const beforeUpload = ({ file }: any) => {
@@ -737,8 +739,8 @@ const beforeUpload = ({ file }: any) => {
   const isPDF = fileObj.type === 'application/pdf'
   const isDoc = fileObj.type === 'application/msword' || fileObj.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   const isLessThan10M = fileObj.size / 1024 / 1024 < 10
-  if (!isPDF && !isDoc) { message.error('只支持 PDF、Word 格式文件!'); return false }
-  if (!isLessThan10M) { message.error('文件大小不能超过 10MB!'); return false }
+  if (!isPDF && !isDoc) { message.error(t('pages.candidate.CandidateDetail.s176')); return false }
+  if (!isLessThan10M) { message.error(t('pages.candidate.CandidateDetail.s177')); return false }
   return true
 }
 
@@ -759,24 +761,24 @@ const handleSaveResume = async () => {
       const saved = await putResumeFields(String(id), extValues)
       resumeFields.value = { ...resumeFields.value, ...saved }
     }
-    message.success('简历保存成功')
+    message.success(t('pages.candidate.CandidateDetail.s178'))
     editResumeModalVisible.value = false
   } catch (e) {
-    message.error('简历保存失败，请重试')
+    message.error(t('pages.candidate.CandidateDetail.s179'))
   } finally {
     savingResume.value = false
   }
 }
 
 const handleUploadResume = () => {
-  if (fileList.value.length === 0) { message.warning('请选择要上传的文件'); return }
-  message.success('简历上传成功')
+  if (fileList.value.length === 0) { message.warning(t('pages.candidate.CandidateDetail.s180')); return }
+  message.success(t('pages.candidate.CandidateDetail.s181'))
   uploadResumeModalVisible.value = false
   fileList.value = []
 }
 
 const handleSendNotification = () => {
-  message.success('通知已发送')
+  message.success(t('pages.candidate.CandidateDetail.s182'))
   notificationModalVisible.value = false
 }
 </script>

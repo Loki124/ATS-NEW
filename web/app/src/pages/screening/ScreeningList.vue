@@ -128,18 +128,18 @@ onMounted(loadList)
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.screening.ScreeningList.s2') }}
         </n-button>
         <n-button type="success" :disabled="selectedIds.length === 0" @click="handleBatchScreen('PASS')">
           <template #icon><n-icon :component="CheckmarkDoneOutline" /></template>
-          批量通过 ({{ selectedIds.length }})
+          {{ t('pages.screening.ScreeningList.s10', { n: selectedIds.length }) }}
         </n-button>
         <n-button type="error" :disabled="selectedIds.length === 0" @click="handleBatchScreen('FAIL')">
-          批量未通过
+          {{ t('pages.screening.ScreeningList.s3') }}
         </n-button>
         <n-button @click="handleExport">
           <template #icon><n-icon :component="DownloadOutline" /></template>
-          导出 CSV
+          {{ t('pages.screening.ScreeningList.s4') }}
         </n-button>
       </n-space>
     </div>
@@ -147,19 +147,19 @@ onMounted(loadList)
     <n-grid x-gap="12" y-gap="12" cols="3" class="stats-row">
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
-        <div class="stat-label">总候选人数</div>
+        <div class="stat-label">{{ t('pages.screening.ScreeningList.s5') }}</div>
         <div class="stat-value">{{ stats.total }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
-        <div class="stat-label">活跃</div>
+        <div class="stat-label">{{ t('pages.screening.ScreeningList.s6') }}</div>
         <div class="stat-value" style="color: var(--c-success);">{{ stats.active }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
-        <div class="stat-label">已选择</div>
+        <div class="stat-label">{{ t('pages.screening.ScreeningList.s7') }}</div>
         <div class="stat-value" style="color: var(--c-warning);">{{ stats.selected }}</div>
       </n-card>
 </n-gi>
@@ -169,13 +169,13 @@ onMounted(loadList)
       <n-space class="filter-row">
         <n-select
           v-model:value="filterStatus"
-          placeholder="候选人状态"
+          :placeholder="t('pages.screening.ScreeningList.s8')"
           style="width: 160px"
           clearable
           :options="statusOptions"
           @update:value="loadList"
         />
-        <n-button @click="loadList">查询</n-button>
+        <n-button @click="loadList">{{ t('pages.screening.ScreeningList.s9') }}</n-button>
       </n-space>
 
       <StateView v-if="error" state="error" :error-description="error" :on-retry="loadList" />

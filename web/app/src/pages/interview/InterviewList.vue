@@ -280,7 +280,7 @@ function rowProps(row: any) {
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.interview.InterviewList.s2') }}
         </n-button>
       </n-space>
     </div>
@@ -288,19 +288,19 @@ function rowProps(row: any) {
     <n-grid x-gap="12" y-gap="12" cols="3" class="stats-row">
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
-        <div class="stat-label">待反馈</div>
+        <div class="stat-label">{{ t('pages.interview.InterviewList.s3') }}</div>
         <div class="stat-value" style="color: var(--c-warning);">{{ stats.PENDING }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
-        <div class="stat-label">已反馈</div>
+        <div class="stat-label">{{ t('pages.interview.InterviewList.s4') }}</div>
         <div class="stat-value" style="color: var(--c-success);">{{ stats.COMPLETED }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
-        <div class="stat-label">总面试数</div>
+        <div class="stat-label">{{ t('pages.interview.InterviewList.s5') }}</div>
         <div class="stat-value">{{ dataSource.length }}</div>
       </n-card>
 </n-gi>
@@ -310,7 +310,7 @@ function rowProps(row: any) {
       <n-space class="filter-row">
         <n-select
           v-model:value="filterFeedback"
-          placeholder="反馈状态"
+          :placeholder="t('pages.interview.InterviewList.s6')"
           style="width: 140px"
           clearable
           :options="[{value:'PENDING',label:'待反馈'},{value:'COMPLETED',label:'已反馈'}]"

@@ -22,21 +22,21 @@
       <n-select
         v-model:value="filterUserType"
         :options="userTypeFilterOptions"
-        placeholder="用户类型"
+        :placeholder="t('pages.settings.UserDirectory.s4')"
         clearable
         class="rule-filter-select"
       />
       <n-select
         v-model:value="filterStatus"
         :options="statusOptions"
-        placeholder="状态"
+        :placeholder="t('pages.settings.UserDirectory.s5')"
         clearable
         class="rule-filter-select"
       />
       <div class="spacer"></div>
       <n-button type="primary" @click="openCreateModal">
         <template #icon><n-icon :component="AddOutline" /></template>
-        新建用户
+        {{ t('pages.settings.UserDirectory.s6') }}
       </n-button>
     </div>
 
@@ -67,39 +67,39 @@
       <n-form :model="formState" label-placement="top">
         <!-- 基础信息 -->
         <div class="form-section">
-          <div class="form-section-title">基础信息</div>
+          <div class="form-section-title">{{ t('pages.settings.UserDirectory.s7') }}</div>
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
-              <n-form-item label="用户名" required>
-                <n-input v-model:value="formState.username" placeholder="请输入用户名" />
+              <n-form-item :label="t('pages.settings.UserDirectory.s8')" required>
+                <n-input v-model:value="formState.username" :placeholder="t('pages.settings.UserDirectory.s9')" />
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="真实姓名" required>
-                <n-input v-model:value="formState.realName" placeholder="请输入真实姓名" />
+              <n-form-item :label="t('pages.settings.UserDirectory.s10')" required>
+                <n-input v-model:value="formState.realName" :placeholder="t('pages.settings.UserDirectory.s11')" />
               </n-form-item>
             </n-grid-item>
           </n-grid>
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
-              <n-form-item label="企业邮箱">
-                <n-input v-model:value="formState.email" placeholder="请输入企业邮箱" />
+              <n-form-item :label="t('pages.settings.UserDirectory.s12')">
+                <n-input v-model:value="formState.email" :placeholder="t('pages.settings.UserDirectory.s13')" />
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="手机号">
-                <n-input v-model:value="formState.phone" placeholder="请输入手机号" />
+              <n-form-item :label="t('pages.settings.UserDirectory.s14')">
+                <n-input v-model:value="formState.phone" :placeholder="t('pages.settings.UserDirectory.s15')" />
               </n-form-item>
             </n-grid-item>
           </n-grid>
           <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
             <n-grid-item>
-              <n-form-item label="密码" required>
+              <n-form-item :label="t('pages.settings.UserDirectory.s16')" required>
                 <n-input
                   v-model:value="formState.password"
                   type="password"
                   show-password-on="click"
-                  placeholder="请输入密码"
+                  :placeholder="t('pages.settings.UserDirectory.s17')"
                 />
               </n-form-item>
             </n-grid-item>
@@ -108,20 +108,20 @@
 
         <!-- 任职信息 -->
         <div class="form-section">
-          <div class="form-section-title">任职信息</div>
+          <div class="form-section-title">{{ t('pages.settings.UserDirectory.s18') }}</div>
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
-              <n-form-item label="员工工号">
-                <n-input v-model:value="formState.employeeId" placeholder="请输入工号（唯一）" />
+              <n-form-item :label="t('pages.settings.UserDirectory.s19')">
+                <n-input v-model:value="formState.employeeId" :placeholder="t('pages.settings.UserDirectory.s20')" />
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-            <n-form-item label="任职部门">
+            <n-form-item :label="t('pages.settings.UserDirectory.s21')">
               <n-tree-select
                 v-model:value="formState.department"
                 :options="deptTreeOptions"
                 :render-label="renderDeptLabel"
-                placeholder="请选择任职部门（树形层级）"
+                :placeholder="t('pages.settings.UserDirectory.s22')"
                 clearable
                 filterable
                 :loading="deptStore.loading"
@@ -134,10 +134,10 @@
 
         <!-- 权限信息 -->
         <div class="form-section">
-          <div class="form-section-title">权限信息</div>
+          <div class="form-section-title">{{ t('pages.settings.UserDirectory.s23') }}</div>
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
-              <n-form-item label="用户类型">
+              <n-form-item :label="t('pages.settings.UserDirectory.s24')">
                 <n-select
                   v-model:value="formState.userType"
                   :options="userTypeOptions"
@@ -145,7 +145,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="用户状态">
+              <n-form-item :label="t('pages.settings.UserDirectory.s25')">
                 <n-select
                   v-model:value="formState.status"
                   :options="statusOptions"
@@ -155,12 +155,12 @@
           </n-grid>
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item :span="2">
-              <n-form-item label="角色配置">
+              <n-form-item :label="t('pages.settings.UserDirectory.s26')">
                 <n-select
                   v-model:value="formState.roleIds"
                   :options="roleOptions"
                   multiple
-                  placeholder="请选择角色（可多选）"
+                  :placeholder="t('pages.settings.UserDirectory.s27')"
                   clearable
                   filterable
                 />
@@ -172,8 +172,8 @@
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="closeUserModal">取消</n-button>
-          <n-button type="primary" class="gradient-btn" @click="handleUserSubmit">保存用户</n-button>
+          <n-button @click="closeUserModal">{{ t('pages.settings.UserDirectory.s28') }}</n-button>
+          <n-button type="primary" class="gradient-btn" @click="handleUserSubmit">{{ t('pages.settings.UserDirectory.s29') }}</n-button>
         </div>
       </template>
     </n-modal>

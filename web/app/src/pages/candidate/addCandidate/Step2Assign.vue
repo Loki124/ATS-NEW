@@ -39,7 +39,7 @@ const isMulti = () => store.resumes.length > 1
     </div>
 
     <div class="nbar info" style="margin-top: var(--space-2);">
-      {{ store.applyMode === 'per' ? '逐条设置模式：为每份简历单独选择去向。' : '统一设置模式：右侧面板设置的去向将应用到所有简历。' }}
+      {{ store.applyMode === 'per' ? t('pages.candidate.addCandidate.Step2Assign.s24') : t('pages.candidate.addCandidate.Step2Assign.s25') }}
     </div>
   </div>
 
@@ -61,12 +61,12 @@ const isMulti = () => store.resumes.length > 1
       <div class="rp-title">{{ t('pages.candidate.addCandidate.Step2Assign.s5') }}</div>
       <div class="pos-selector">
         <PositionChips v-if="positionOptions.length" :items="positionOptions" :model-value="store.posAll ? [store.posAll] : []" @update:model-value="(v) => store.setPosAll(v[0] || '')" />
-        <div v-else-if="positionsLoading" class="pos-empty">职位加载中…</div>
-        <div v-else class="pos-empty">暂无可选职位，请先在「职位管理」创建招聘中的职位。</div>
+        <div v-else-if="positionsLoading" class="pos-empty">{{ t('pages.candidate.addCandidate.Step2Assign.s20') }}</div>
+        <div v-else class="pos-empty">{{ t('pages.candidate.addCandidate.Step2Assign.s21') }}</div>
       </div>
     </div>
 
-    <div v-if="hasOccupied()" class="nbar warn"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><AlertTriangle /></NIcon>有 {{ store.resumes.filter(r => r.status === 'occupied').length }} 份简历已被占用，仅可选择"待分配"。</div>
+    <div v-if="hasOccupied()" class="nbar warn"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"><AlertTriangle /></NIcon>{{ t('pages.candidate.addCandidate.Step2Assign.s22', { n: store.resumes.filter(r => r.status === 'occupied').length }) }}</div>
 
     <div class="rp-section">
       <div class="rp-title">{{ t('pages.candidate.addCandidate.Step2Assign.s6') }}</div>
@@ -97,7 +97,7 @@ const isMulti = () => store.resumes.length > 1
     <div class="btng">
       <button :disabled="!store.canSubmit || props.submitting" class="btn bp" data-testid="submit-btn" @click="emit('submit')">
         <span v-if="props.submitting" class="btn-spinner" aria-hidden="true"></span>
-        提交
+        {{ t('pages.candidate.addCandidate.Step2Assign.s23') }}
       </button>
     </div>
   </div>

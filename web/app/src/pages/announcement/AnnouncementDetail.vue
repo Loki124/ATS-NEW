@@ -2,19 +2,19 @@
   <div class="ann-detail-page">
     <n-spin :show="loading" class="ann-detail-spin">
       <div v-if="!loading && !announcement" class="ann-detail-empty">
-        <n-empty :description="errorMsg || '公告不存在或已被下架'" />
+        <n-empty :description="errorMsg || t('pages.announcement.AnnouncementDetail.s4')" />
         <n-space class="back-btn" justify="center">
           <n-button quaternary @click="goBack">
             <template #icon>
               <n-icon :component="ArrowBackOutline" />
             </template>
-            返回制度公告
+            {{ t('pages.announcement.AnnouncementDetail.s1') }}
           </n-button>
           <n-button type="primary" @click="loadDetail">
             <template #icon>
               <n-icon :component="RefreshOutline" />
             </template>
-            重新加载
+            {{ t('pages.announcement.AnnouncementDetail.s2') }}
           </n-button>
         </n-space>
       </div>
@@ -26,7 +26,7 @@
             <template #icon>
               <n-icon :component="ArrowBackOutline" />
             </template>
-            返回制度公告
+            {{ t('pages.announcement.AnnouncementDetail.s3') }}
           </n-button>
         </div>
 
@@ -59,7 +59,7 @@
           <!-- 附件 -->
           <div v-if="announcement.attachments?.length" class="ann-detail-attachments">
             <div class="ann-detail-attachments__title">
-              附件（{{ announcement.attachments.length }}）
+              {{ t('pages.announcement.AnnouncementDetail.s5', { n: announcement.attachments.length }) }}
             </div>
             <div class="ann-detail-attachments__list">
               <a
@@ -92,12 +92,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline, DocumentTextOutline, DownloadOutline, RefreshOutline } from '@vicons/ionicons5'
 import { getAnnouncement, type Announcement } from '../../api/announcement'
 import SafeHtml from '../../components/SafeHtml.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const announcement = ref<Announcement | null>(null)

@@ -182,9 +182,9 @@ function nextStep() {
 
     <template v-if="store.step === 1 && store.resumes.length > 0" #footer>
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <n-button @click="closeModal">取消</n-button>
+        <n-button @click="closeModal">{{ t('pages.candidate.AddCandidateModal.s2') }}</n-button>
         <n-button type="primary" :disabled="!store.canGoStep2" data-testid="next-step-btn" @click="nextStep">
-          下一步：选择去向 & 提交
+          {{ t('pages.candidate.AddCandidateModal.s3') }}
         </n-button>
       </div>
     </template>

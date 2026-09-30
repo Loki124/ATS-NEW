@@ -8,12 +8,15 @@
       @change="onToggle"
     />
     <span class="module-switch__track"><span class="module-switch__dot" /></span>
-    <span class="module-switch__label">{{ on ? labelOn : labelOff }}</span>
+    <span class="module-switch__label">{{ on ? labelOnText : labelOffText }}</span>
   </label>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(
   defineProps<{
@@ -22,8 +25,11 @@ const props = withDefaults(
     labelOn?: string
     labelOff?: string
   }>(),
-  { disabled: false, labelOn: t('pages.settings.stage-rule.components.ModuleSwitch.s1'), labelOff: t('pages.settings.stage-rule.components.ModuleSwitch.s2') },
+  { disabled: false, labelOn: '', labelOff: '' },
 )
+
+const labelOnText = computed(() => props.labelOn || t('pages.settings.stage-rule.components.ModuleSwitch.s1'))
+const labelOffText = computed(() => props.labelOff || t('pages.settings.stage-rule.components.ModuleSwitch.s2'))
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
 

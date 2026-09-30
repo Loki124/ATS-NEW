@@ -21,14 +21,14 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
     <template v-else>
       <div class="status-summary">
-        <span v-if="counts('processing') > 0" class="st-pill processing"><span class="st-dot"></span>{{ counts('processing') }} 份处理中</span>
-        <span v-if="counts('clean') > 0" class="st-pill clean"><span class="st-dot"></span>{{ counts('clean') }} 份无重复</span>
-        <span v-if="counts('unocc') > 0" class="st-pill unocc"><span class="st-dot"></span>{{ counts('unocc') }} 份未占用</span>
-        <span v-if="counts('occupied') > 0" class="st-pill occupied"><span class="st-dot"></span>{{ counts('occupied') }} 份需处理</span>
+        <span v-if="counts('processing') > 0" class="st-pill processing"><span class="st-dot"></span>{{ counts('processing') }}{{ t('pages.candidate.addCandidate.Step1Batch.s6') }}</span>
+        <span v-if="counts('clean') > 0" class="st-pill clean"><span class="st-dot"></span>{{ counts('clean') }}{{ t('pages.candidate.addCandidate.Step1Batch.s7') }}</span>
+        <span v-if="counts('unocc') > 0" class="st-pill unocc"><span class="st-dot"></span>{{ counts('unocc') }}{{ t('pages.candidate.addCandidate.Step1Batch.s8') }}</span>
+        <span v-if="counts('occupied') > 0" class="st-pill occupied"><span class="st-dot"></span>{{ counts('occupied') }}{{ t('pages.candidate.addCandidate.Step1Batch.s9') }}</span>
       </div>
 
       <div v-if="store.selectedIds.length > 0" class="bulk-bar">
-        已选 <span class="bulk-count">{{ store.selectedIds.length }}</span> 份简历
+        {{ t('pages.candidate.addCandidate.Step1Batch.s16') }} <span class="bulk-count">{{ store.selectedIds.length }}</span> {{ t('pages.candidate.addCandidate.Step1Batch.s17') }}
         <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);">{{ t('pages.candidate.addCandidate.Step1Batch.s1') }}</button>
         <button class="btn bs" style="font-size: var(--fs-10);padding: 3px var(--space-2);" @click="store.selectedIds = []">{{ t('pages.candidate.addCandidate.Step1Batch.s2') }}</button>
       </div>
@@ -55,12 +55,12 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 
   <div class="right-panel">
     <div v-if="occupiedCount() > 0" class="rp-section">
-      <div class="rp-title"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px;color:var(--c-warning-deep)" aria-hidden="true"><AlertTriangle /></NIcon>需处理项</div>
-      <div class="nbar error"><strong>有 {{ occupiedCount() }} 份简历已被占用，需要先处理。</strong><br>请展开对应简历卡片，选择处理方式后再进入下一步。</div>
+      <div class="rp-title"><NIcon :size="15" style="vertical-align:-2px;margin-right:4px;color:var(--c-warning-deep)" aria-hidden="true"><AlertTriangle /></NIcon>{{ t('pages.candidate.addCandidate.Step1Batch.s10') }}</div>
+      <div class="nbar error"><strong>{{ t('pages.candidate.addCandidate.Step1Batch.s18', { n: occupiedCount() }) }}</strong><br>{{ t('pages.candidate.addCandidate.Step1Batch.s19') }}</div>
     </div>
     <div class="rp-section">
-      <div class="rp-title">步骤说明</div>
-      <div class="nbar info">上传简历后系统将自动解析并查重。<br>• <strong>无重复</strong>：可直接进入下一步<br>• <strong>未占用</strong>：系统有记录但可合并<br>• <strong>需处理</strong>：已被占用，需选择处理方式</div>
+      <div class="rp-title">{{ t('pages.candidate.addCandidate.Step1Batch.s11') }}</div>
+      <div class="nbar info">{{ t('pages.candidate.addCandidate.Step1Batch.s20') }}<br>• <strong>{{ t('pages.candidate.addCandidate.Step1Batch.s12') }}</strong>{{ t('pages.candidate.addCandidate.Step1Batch.s21') }}<br>• <strong>{{ t('pages.candidate.addCandidate.Step1Batch.s13') }}</strong>{{ t('pages.candidate.addCandidate.Step1Batch.s22') }}<br>• <strong>{{ t('pages.candidate.addCandidate.Step1Batch.s14') }}</strong>{{ t('pages.candidate.addCandidate.Step1Batch.s15') }}</div>
     </div>
   </div>
 </template>

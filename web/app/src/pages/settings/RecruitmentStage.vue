@@ -9,19 +9,19 @@
     </div>
 
     <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-      阶段是<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>，所有流程可引用。系统预置的「初评」「正式录用」不可停用/删除。引用次数显示在「使用」列。
+      {{ t('pages.settings.RecruitmentStage.s23') }}<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>{{ t('pages.settings.RecruitmentStage.s17') }}「{{ t('pages.settings.RecruitmentStage.s18') }}」「{{ t('pages.settings.RecruitmentStage.s19') }}」{{ t('pages.settings.RecruitmentStage.s20') }}「{{ t('pages.settings.RecruitmentStage.s21') }}」{{ t('pages.settings.RecruitmentStage.s22') }}
     </n-alert>
 
     <div class="toolbar">
       <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentStage.s4')" clearable style="width: 200px">
         <template #prefix><n-icon :component="SearchOutline" /></template>
       </n-input>
-      <n-select v-model:value="filterType" :options="typeFilterOptions" placeholder="按类型筛选" clearable style="width: 160px" />
+      <n-select v-model:value="filterType" :options="typeFilterOptions" :placeholder="t('pages.settings.RecruitmentStage.s5')" clearable style="width: 160px" />
       <n-select v-model:value="filterStatus" :options="statusFilterOptions" style="width: 120px" />
       <div class="spacer"></div>
       <n-button type="primary" class="gradient-btn" @click="handleCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
-        新增阶段
+        {{ t('pages.settings.RecruitmentStage.s6') }}
       </n-button>
     </div>
 
@@ -44,26 +44,26 @@
       <n-form :model="form" label-placement="top">
         <!-- P1-3: 错误就近显示（R-209），不再只走全局 toast -->
         <n-form-item
-          label="阶段名称"
+          :label="t('pages.settings.RecruitmentStage.s7')"
           required
           :validation-status="nameError ? 'error' : undefined"
           :feedback="nameError ?? undefined"
         >
-          <n-input v-model:value="form.name" placeholder="如：HRBP筛选" />
+          <n-input v-model:value="form.name" :placeholder="t('pages.settings.RecruitmentStage.s8')" />
         </n-form-item>
         <!-- P0-2: 编辑锁死时给文字解释（R-101/R-109 键盘可达 + 不被颜色唯一表达） -->
-        <n-form-item label="阶段类型" required>
+        <n-form-item :label="t('pages.settings.RecruitmentStage.s9')" required>
           <n-tooltip :disabled="!editing" placement="top-start">
             <template #trigger>
               <div class="stage-type-wrap">
                 <n-select v-model:value="form.stageType" :options="stageTypeOptionsForForm" :disabled="!!editing" />
               </div>
             </template>
-            阶段类型已绑定现有流程，编辑时不可修改；如需变更请在流程中重新编排阶段。
+            {{ t('pages.settings.RecruitmentStage.s10') }}
           </n-tooltip>
         </n-form-item>
         <!-- 系统默认功能：只读展示（不可配置），中文名；与可选功能区分（兵哥 2026-09-08） -->
-        <n-form-item label="默认功能">
+        <n-form-item :label="t('pages.settings.RecruitmentStage.s11')">
           <n-space class="feature-checks" :wrap="false">
             <n-tag
               v-for="code in (editing?.defaultFeatures || editing?.default_features || [])"
@@ -74,23 +74,23 @@
 {{ featureLabelMap[code] || code }}
 </n-tag>
             <n-text v-if="!(editing?.defaultFeatures || editing?.default_features || []).length" depth="3" style="font-size: 13px">
-              无（新建阶段暂无系统默认功能）
+              {{ t('pages.settings.RecruitmentStage.s12') }}
             </n-text>
           </n-space>
         </n-form-item>
         <!-- 用户可配置功能：可多选，选项来自 OPTIONAL_FEATURE_CATALOG（系统真正可配项） -->
-        <n-form-item label="可选功能（可多选）">
+        <n-form-item :label="t('pages.settings.RecruitmentStage.s13')">
           <n-checkbox-group v-model:value="form.optionalFeatures">
             <n-space v-if="(OPTIONAL_FEATURE_CATALOG[form.stageType] || []).length" class="feature-checks">
               <n-checkbox v-for="code in OPTIONAL_FEATURE_CATALOG[form.stageType]" :key="code" :value="code">
                 {{ featureLabelMap[code] || code }}
               </n-checkbox>
             </n-space>
-            <n-empty v-else size="small" description="请先选择阶段类型" style="padding: 12px 0" />
+            <n-empty v-else size="small" :description="t('pages.settings.RecruitmentStage.s14')" style="padding: 12px 0" />
           </n-checkbox-group>
         </n-form-item>
         <!-- P0-3: textarea 约束（R-110）resize:none + max-height + overflow-wrap + 字数上限 -->
-        <n-form-item label="阶段说明">
+        <n-form-item :label="t('pages.settings.RecruitmentStage.s15')">
           <n-input
             v-model:value="form.description"
             type="textarea"
@@ -98,7 +98,7 @@
             :max-length="500"
             show-count
             :resizable="false"
-            placeholder="例如：对简历进行初步评估，是候选人进入流程的第一道关卡"
+            :placeholder="t('pages.settings.RecruitmentStage.s16')"
           />
         </n-form-item>
       </n-form>

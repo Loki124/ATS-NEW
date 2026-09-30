@@ -13,7 +13,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   <div class="async-result">
     <div class="ar-icon"><NIcon :size="40" aria-hidden="true"><CheckCircle2 /></NIcon></div>
     <h3>{{ t('pages.candidate.addCandidate.AsyncResult.s1') }}</h3>
-    <p class="ar-sub">{{ store.resumes.length }} 份简历已提交后台处理</p>
+    <p class="ar-sub">{{ store.resumes.length }}{{ t('pages.candidate.addCandidate.AsyncResult.s7') }}</p>
     <div class="ar-routes">
       <div class="ar-route pass">
         <span class="ar-route-icon"><NIcon :size="18" aria-hidden="true"><CheckCircle2 /></NIcon></span>
@@ -21,7 +21,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
       </div>
       <div class="ar-route fail">
         <span class="ar-route-icon"><NIcon :size="18" aria-hidden="true"><Inbox /></NIcon></span>
-        <div><strong>{{ t('pages.candidate.addCandidate.AsyncResult.s4') }}</strong><br>将在"待分配"中展示，您可以手动处理或重新分配。</div>
+        <div><strong>{{ t('pages.candidate.addCandidate.AsyncResult.s4') }}</strong><br>{{ t('pages.candidate.addCandidate.AsyncResult.s8') }}</div>
       </div>
     </div>
     <div class="nbar info" style="width:100%;text-align:center;"><NIcon :size="14" style="vertical-align:-2px" aria-hidden="true"><Clock /></NIcon> {{ t('pages.candidate.addCandidate.AsyncResult.s5') }}</div>

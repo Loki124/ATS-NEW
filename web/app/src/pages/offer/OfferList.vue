@@ -5,7 +5,7 @@
       <n-space>
         <n-button :loading="loading" @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.offer.OfferList.s2') }}
         </n-button>
       </n-space>
     </div>
@@ -25,13 +25,13 @@
       <n-space class="filter-row">
         <n-select
           v-model:value="filterStatus"
-          placeholder="Offer 状态"
+          :placeholder="t('pages.offer.OfferList.s3')"
           style="width: 140px"
           clearable
           :options="statusOptions"
           @update:value="handleFilter"
         />
-        <n-button :loading="loading" @click="handleRefresh">查询</n-button>
+        <n-button :loading="loading" @click="handleRefresh">{{ t('pages.offer.OfferList.s4') }}</n-button>
       </n-space>
 
       <n-data-table
@@ -47,58 +47,58 @@
     </n-card>
 
     <!-- 模板选择 Modal -->
-    <n-modal v-model:show="templateModal.show" preset="dialog" title="生成 Offer 模板" style="width: 520px; max-width: 90vw">
+    <n-modal v-model:show="templateModal.show" preset="dialog" :title="t('pages.offer.OfferList.s5')" style="width: 520px; max-width: 90vw">
       <n-form :model="templateModal.form" label-placement="left" :label-width="80">
-        <n-form-item label="选择模板" path="templateKey">
+        <n-form-item :label="t('pages.offer.OfferList.s6')" path="templateKey">
           <n-select
             v-model:value="templateModal.form.templateKey"
             :options="templateOptions"
-            placeholder="请选择 Offer 模板"
+            :placeholder="t('pages.offer.OfferList.s7')"
           />
         </n-form-item>
-        <n-form-item label="格式">
+        <n-form-item :label="t('pages.offer.OfferList.s8')">
           <n-radio-group v-model:value="templateModal.form.format">
-            <n-radio value="html">HTML (浏览器打印)</n-radio>
-            <n-radio value="pdf" disabled>PDF（暂未开放）</n-radio>
+            <n-radio value="html">{{ t('pages.offer.OfferList.s9') }}</n-radio>
+            <n-radio value="pdf" disabled>{{ t('pages.offer.OfferList.s10') }}</n-radio>
           </n-radio-group>
         </n-form-item>
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="templateModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="templateModal.loading" @click="handleGenerateTemplate">生成</n-button>
+          <n-button @click="templateModal.show = false">{{ t('pages.offer.OfferList.s11') }}</n-button>
+          <n-button type="primary" :loading="templateModal.loading" @click="handleGenerateTemplate">{{ t('pages.offer.OfferList.s12') }}</n-button>
         </n-space>
       </template>
     </n-modal>
 
     <!-- 模板预览 — Fix 3 XSS: 用 sandbox iframe 渲染后端 HTML, 禁用脚本执行 -->
-    <n-modal v-model:show="previewModal.show" preset="card" title="Offer 预览" style="width: 800px; max-width: 90vw">
+    <n-modal v-model:show="previewModal.show" preset="card" :title="t('pages.offer.OfferList.s13')" style="width: 800px; max-width: 90vw">
       <iframe
         v-if="previewModal.html"
         :srcdoc="previewModal.html"
         sandbox="allow-same-origin"
         style="width: 100%; min-height: 480px; border: 0; background: var(--glass-bg-card);"
-        title="Offer 预览"
+        :title="t('pages.offer.OfferList.s14')"
       />
-      <p v-else style="color: var(--n-400); text-align: center;">(无内容)</p>
+      <p v-else style="color: var(--n-400); text-align: center;">{{ t('pages.offer.OfferList.s15') }}</p>
     </n-modal>
 
     <!-- 状态转移 Modal -->
     <n-modal v-model:show="transitionModal.show" preset="dialog" :title="transitionModal.title" style="width: 480px; max-width: 90vw">
       <n-form :model="transitionModal.form" label-placement="left" :label-width="80">
-        <n-form-item label="目标状态">
+        <n-form-item :label="t('pages.offer.OfferList.s16')">
           <n-tag :type="OFFER_STATUS_COLOR[transitionModal.form.to]">
             {{ OFFER_STATUS_LABEL[transitionModal.form.to] }}
           </n-tag>
         </n-form-item>
-        <n-form-item v-if="['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(transitionModal.form.to)" label="原因">
-          <n-input v-model:value="transitionModal.form.reason" type="textarea" :rows="3" placeholder="请说明原因" />
+        <n-form-item v-if="['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(transitionModal.form.to)" :label="t('pages.offer.OfferList.s17')">
+          <n-input v-model:value="transitionModal.form.reason" type="textarea" :rows="3" :placeholder="t('pages.offer.OfferList.s18')" />
         </n-form-item>
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="transitionModal.show = false">取消</n-button>
-          <n-button type="primary" :loading="transitionModal.loading" @click="handleTransitionSubmit">确认</n-button>
+          <n-button @click="transitionModal.show = false">{{ t('pages.offer.OfferList.s19') }}</n-button>
+          <n-button type="primary" :loading="transitionModal.loading" @click="handleTransitionSubmit">{{ t('pages.offer.OfferList.s20') }}</n-button>
         </n-space>
       </template>
     </n-modal>

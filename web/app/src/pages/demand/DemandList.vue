@@ -16,7 +16,7 @@
         </n-input>
         <n-select
           v-model:value="filterStatus"
-          placeholder="需求状态"
+          :placeholder="t('pages.demand.DemandList.s3')"
           style="width: 120px"
           clearable
           :options="statusFilterOptions"
@@ -24,7 +24,7 @@
         />
         <n-button type="primary" @click="handleCreate">
           <template #icon><n-icon :component="AddOutline" /></template>
-          创建需求
+          {{ t('pages.demand.DemandList.s4') }}
         </n-button>
       </n-space>
     </div>
@@ -51,11 +51,11 @@
             <div class="demand-name">{{ item.name }}</div>
             <div class="demand-meta">
               <span class="meta-item">
-                <span class="label">部门：</span>
+                <span class="label">{{ t('pages.demand.DemandList.s5') }}</span>
                 <span class="value">{{ item.departmentName || item.department?.name || '-' }}</span>
               </span>
               <span class="meta-item">
-                <span class="label">类型：</span>
+                <span class="label">{{ t('pages.demand.DemandList.s6') }}</span>
                 <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
                   {{ item.demandType === 'SOCIAL' ? '社招' : '校招' }}
                 </n-tag>
@@ -65,24 +65,24 @@
           <div class="card-stats">
             <div class="stat-item">
               <span class="stat-value">{{ item._count?.positions || 0 }}</span>
-              <span class="stat-label">职位</span>
+              <span class="stat-label">{{ t('pages.demand.DemandList.s7') }}</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
               <span class="stat-value">{{ item.hiredCount || 0 }}</span>
-              <span class="stat-label">入职</span>
+              <span class="stat-label">{{ t('pages.demand.DemandList.s8') }}</span>
             </div>
           </div>
         </div>
         <div class="card-right">
           <!-- ★ 2026-08-23 V3 §四P0 第5项 (T7.4)：操作列下拉化，对齐 CandidateList 模式 -->
-          <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">详情</n-button>
+          <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">{{ t('pages.demand.DemandList.s9') }}</n-button>
           <n-dropdown
             trigger="click"
             :options="[{ label: '编辑', key: 'edit' }]"
             @select="(k: string) => onDemandRowAction(k, item)"
           >
-            <n-button text size="small">更多 ⌄</n-button>
+            <n-button text size="small">{{ t('pages.demand.DemandList.s10') }}</n-button>
           </n-dropdown>
         </div>
       </div>
@@ -93,9 +93,9 @@
     </div>
 
     <div v-if="demands.length === 0 && !loading" class="empty-wrapper">
-      <n-empty description="暂无需求数据">
+      <n-empty :description="t('pages.demand.DemandList.s11')">
         <template #extra>
-          <n-button type="primary" @click="handleCreate">创建需求</n-button>
+          <n-button type="primary" @click="handleCreate">{{ t('pages.demand.DemandList.s12') }}</n-button>
         </template>
       </n-empty>
     </div>
@@ -113,14 +113,14 @@
         <template v-if="selectedDemand">
           <!-- 基本信息 -->
           <n-tabs v-model:value="activeTab" type="line" class="detail-tabs">
-            <n-tab-pane name="detail" tab="详情">
+            <n-tab-pane name="detail" :tab="t('pages.demand.DemandList.s13')">
               <!-- ★ 2026-09-24 需求 4: 详情字段受「系统设置 → 需求字段管理」控制。
-                   系统固定字段(编号/类型/状态/审批状态/部门) + 按配置分组渲染其余字段；
-                   模型映射字段(如 headcount/priority/level/positionTitle)取 demand 对象，
+                   {{ t('pages.demand.DemandList.s14') }}
+                   {{ t('pages.demand.DemandList.s15') }}
                    其余扩展字段取 DynamicFieldValue。 -->
               <!-- ★ 2026-09-28 (兵哥): 详情展示完全由「招聘需求表单设置」驱动 —
-                   分组顺序 / 字段显隐 / 必填与表单设置实时一致; 系统字段/模型字段
-                   取 demand 对象, 扩展字段取 DynamicFieldValue; 不渲染任何配置外区块
+                   {{ t('pages.demand.DemandList.s16') }}
+                   {{ t('pages.demand.DemandList.s17') }}
                    (审批状态在列表卡片与流程记录中可见, 招聘进度为派生统计)。 -->
               <!-- 配置驱动的分组字段 (系统字段 + 模型字段 + 扩展字段) -->
               <div v-for="b in formBuckets" :key="b.key" class="detail-section">
@@ -147,66 +147,66 @@
 
               <div class="detail-section">
                 <div class="section-header">
-                  <span class="section-title">招聘进度</span>
+                  <span class="section-title">{{ t('pages.demand.DemandList.s18') }}</span>
                 </div>
                 <div class="progress-stats">
                   <div class="progress-stat">
                     <span class="stat-num">{{ selectedDemand._count?.positions || 0 }}</span>
-                    <span class="stat-label">关联职位</span>
+                    <span class="stat-label">{{ t('pages.demand.DemandList.s19') }}</span>
                   </div>
                   <div class="progress-stat">
                     <span class="stat-num">{{ selectedDemand.positionCount || 0 }}</span>
-                    <span class="stat-label">需求人数</span>
+                    <span class="stat-label">{{ t('pages.demand.DemandList.s20') }}</span>
                   </div>
                   <div class="progress-stat">
                     <span class="stat-num">{{ selectedDemand.hiredCount || 0 }}</span>
-                    <span class="stat-label">已入职</span>
+                    <span class="stat-label">{{ t('pages.demand.DemandList.s21') }}</span>
                   </div>
                   <div class="progress-stat">
                     <span class="stat-num">{{ selectedDemand.onBoardCount || 0 }}</span>
-                    <span class="stat-label">待入职</span>
+                    <span class="stat-label">{{ t('pages.demand.DemandList.s22') }}</span>
                   </div>
                 </div>
               </div>
             </n-tab-pane>
 
-            <n-tab-pane name="candidates" tab="候选人">
-              <n-empty description="暂无候选人数据" />
+            <n-tab-pane name="candidates" :tab="t('pages.demand.DemandList.s23')">
+              <n-empty :description="t('pages.demand.DemandList.s24')" />
             </n-tab-pane>
 
-            <n-tab-pane name="profile" tab="职位画像">
+            <n-tab-pane name="profile" :tab="t('pages.demand.DemandList.s25')">
               <div class="profile-section">
                 <div class="profile-header">
-                  <span class="profile-title">职位画像</span>
-                  <span class="profile-subtitle">基于需求信息生成</span>
+                  <span class="profile-title">{{ t('pages.demand.DemandList.s26') }}</span>
+                  <span class="profile-subtitle">{{ t('pages.demand.DemandList.s27') }}</span>
                 </div>
 
                 <div class="profile-content">
                   <!-- 硬性要求 -->
                   <div class="profile-block">
                     <div class="block-header">
-                      <span class="block-title">硬性要求</span>
+                      <span class="block-title">{{ t('pages.demand.DemandList.s28') }}</span>
                     </div>
                     <div class="block-items">
                       <div class="profile-item">
                         <span class="item-icon">🎓</span>
-                        <span class="item-label">学历要求</span>
+                        <span class="item-label">{{ t('pages.demand.DemandList.s29') }}</span>
                         <span class="item-value">{{ getEducationText(selectedDemand) }}</span>
                       </div>
                       <div class="profile-item">
                         <span class="item-icon">💼</span>
-                        <span class="item-label">工作经验</span>
+                        <span class="item-label">{{ t('pages.demand.DemandList.s30') }}</span>
                         <span class="item-value">{{ getExperienceText(selectedDemand) }}</span>
                       </div>
                       <div class="profile-item">
                         <span class="item-icon"><n-icon :component="BusinessOutline" :size="16" /></span>
-                        <span class="item-label">职级要求</span>
+                        <span class="item-label">{{ t('pages.demand.DemandList.s31') }}</span>
                         <span class="item-value">{{ selectedDemand.level || '-' }}</span>
                       </div>
                       <div class="profile-item">
                         <span class="item-icon"><n-icon :component="PeopleOutline" :size="16" /></span>
-                        <span class="item-label">招聘人数</span>
-                        <span class="item-value">{{ selectedDemand.positionCount }}人</span>
+                        <span class="item-label">{{ t('pages.demand.DemandList.s32') }}</span>
+                        <span class="item-value">{{ selectedDemand.positionCount }}{{ t('pages.demand.DemandList.s33') }}</span>
                       </div>
                     </div>
                   </div>
@@ -214,31 +214,31 @@
                   <!-- 技能要求 -->
                   <div class="profile-block">
                     <div class="block-header">
-                      <span class="block-title">技能要求</span>
+                      <span class="block-title">{{ t('pages.demand.DemandList.s34') }}</span>
                     </div>
                     <div class="skills-list">
                       <n-tag v-for="skill in getSkillsList(selectedDemand)" :key="skill" type="info" size="small">{{ skill }}</n-tag>
-                      <span v-if="getSkillsList(selectedDemand).length === 0" class="no-data">暂无技能要求</span>
+                      <span v-if="getSkillsList(selectedDemand).length === 0" class="no-data">{{ t('pages.demand.DemandList.s49') }}</span>
                     </div>
                   </div>
 
                   <!-- 加分项 -->
                   <div class="profile-block">
                     <div class="block-header">
-                      <span class="block-title">加分项</span>
+                      <span class="block-title">{{ t('pages.demand.DemandList.s35') }}</span>
                     </div>
                     <div class="bonus-list">
                       <div class="bonus-item">
                         <span class="bonus-icon">🌟</span>
-                        <span>知名企业工作经历</span>
+                        <span>{{ t('pages.demand.DemandList.s36') }}</span>
                       </div>
                       <div class="bonus-item">
                         <span class="bonus-icon">🌟</span>
-                        <span>海外留学背景</span>
+                        <span>{{ t('pages.demand.DemandList.s37') }}</span>
                       </div>
                       <div class="bonus-item">
                         <span class="bonus-icon">🌟</span>
-                        <span>相关行业经验</span>
+                        <span>{{ t('pages.demand.DemandList.s38') }}</span>
                       </div>
                     </div>
                   </div>
@@ -246,19 +246,19 @@
                   <!-- 工作地点 -->
                   <div class="profile-block">
                     <div class="block-header">
-                      <span class="block-title">工作地点</span>
+                      <span class="block-title">{{ t('pages.demand.DemandList.s39') }}</span>
                     </div>
                     <div class="location-info">
                       <span class="location-icon">📍</span>
-                      <span class="location-text">总部 / 远程可选</span>
+                      <span class="location-text">{{ t('pages.demand.DemandList.s40') }}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </n-tab-pane>
 
-            <n-tab-pane name="records" tab="流程记录">
-              <n-empty description="暂无流程记录" />
+            <n-tab-pane name="records" :tab="t('pages.demand.DemandList.s41')">
+              <n-empty :description="t('pages.demand.DemandList.s42')" />
             </n-tab-pane>
           </n-tabs>
         </template>
@@ -270,9 +270,9 @@
               type="primary"
               @click="handleSubmitApproval"
             >
-              提交审批
+              {{ t('pages.demand.DemandList.s43') }}
             </n-button>
-            <n-button @click="handleEdit(selectedDemand)">编辑</n-button>
+            <n-button @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
           </n-space>
         </template>
       </n-drawer-content>
@@ -314,7 +314,7 @@
                 v-else-if="item.binding.kind === 'department'"
                 v-model:value="formData[item.binding.prop]"
                 :options="departmentOptions"
-                placeholder="请选择部门"
+                :placeholder="t('pages.demand.DemandList.s44')"
                 style="width: 100%"
               />
               <n-select
@@ -364,7 +364,7 @@
                   v-model:value="formValues[item.field.fieldKey].min"
                   :min="(item.field.validation as any)?.min ?? undefined"
                   :max="(item.field.validation as any)?.max ?? undefined"
-                  placeholder="最小值"
+                  :placeholder="t('pages.demand.DemandList.s45')"
                   style="flex: 1; min-width: 0"
                 />
                 <span>~</span>
@@ -372,7 +372,7 @@
                   v-model:value="formValues[item.field.fieldKey].max"
                   :min="(item.field.validation as any)?.min ?? undefined"
                   :max="(item.field.validation as any)?.max ?? undefined"
-                  placeholder="最大值"
+                  :placeholder="t('pages.demand.DemandList.s46')"
                   style="flex: 1; min-width: 0"
                 />
                 <n-text v-if="(item.field.validation as any)?.unit" depth="3">{{ (item.field.validation as any).unit }}</n-text>
@@ -412,8 +412,8 @@
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button @click="modalVisible = false">取消</n-button>
-          <n-button type="primary" :loading="submitting" @click="handleSave">保存需求</n-button>
+          <n-button @click="modalVisible = false">{{ t('pages.demand.DemandList.s47') }}</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleSave">{{ t('pages.demand.DemandList.s48') }}</n-button>
         </div>
       </template>
     </n-modal>

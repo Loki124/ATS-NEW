@@ -1,14 +1,14 @@
 <template>
   <div class="scraped-resume-list">
-    <n-page-header :title="t('pages.scraped.ScrapedResumeList.s1')" subtitle="G30 - 通过 RPA 从招聘网站抓取的简历, 待人工导入" />
+    <n-page-header :title="t('pages.scraped.ScrapedResumeList.s1')" :subtitle="t('pages.scraped.ScrapedResumeList.s15')" />
 
     <n-card class="mt-4">
       <template #header-extra>
         <n-button type="primary" @click="showScrapeModal = true">
           <template #icon>+</template>
-          开始抓取
+          {{ t('pages.scraped.ScrapedResumeList.s2') }}
         </n-button>
-        <n-button :loading="loading" style="margin-left: 8px" @click="reload">刷新</n-button>
+        <n-button :loading="loading" style="margin-left: 8px" @click="reload">{{ t('pages.scraped.ScrapedResumeList.s3') }}</n-button>
       </template>
 
       <n-data-table
@@ -21,26 +21,26 @@
     </n-card>
 
     <!-- 抓取弹窗 -->
-    <n-modal v-model:show="showScrapeModal" preset="dialog" title="开始 RPA 抓取" positive-text="抓取" @positive-click="handleScrape">
+    <n-modal v-model:show="showScrapeModal" preset="dialog" :title="t('pages.scraped.ScrapedResumeList.s4')" :positive-text="t('pages.scraped.ScrapedResumeList.s5')" @positive-click="handleScrape">
       <n-form>
-        <n-form-item label="数据源">
+        <n-form-item :label="t('pages.scraped.ScrapedResumeList.s6')">
           <n-select v-model:value="scrapeForm.source" :options="sourceOptions" />
         </n-form-item>
-        <n-form-item label="职位关键词">
-          <n-input v-model:value="scrapeForm.jobTitle" placeholder="例: 前端工程师" />
+        <n-form-item :label="t('pages.scraped.ScrapedResumeList.s7')">
+          <n-input v-model:value="scrapeForm.jobTitle" :placeholder="t('pages.scraped.ScrapedResumeList.s8')" />
         </n-form-item>
-        <n-form-item label="城市">
-          <n-input v-model:value="scrapeForm.city" placeholder="例: 北京" />
+        <n-form-item :label="t('pages.scraped.ScrapedResumeList.s9')">
+          <n-input v-model:value="scrapeForm.city" :placeholder="t('pages.scraped.ScrapedResumeList.s10')" />
         </n-form-item>
-        <n-form-item label="RPA Bot 名">
-          <n-input v-model:value="scrapeForm.scraperJobName" placeholder="例: ZhaopinBot-v1" />
+        <n-form-item :label="t('pages.scraped.ScrapedResumeList.s11')">
+          <n-input v-model:value="scrapeForm.scraperJobName" :placeholder="t('pages.scraped.ScrapedResumeList.s12')" />
         </n-form-item>
       </n-form>
     </n-modal>
 
     <!-- 抓取结果预览 -->
-    <n-modal v-model:show="showResultModal" preset="card" title="抓取结果" style="width: 700px; max-width: 90vw">
-      <p>共抓取 <strong>{{ scrapedResult?.resumes?.length || 0 }}</strong> 条简历</p>
+    <n-modal v-model:show="showResultModal" preset="card" :title="t('pages.scraped.ScrapedResumeList.s13')" style="width: 700px; max-width: 90vw">
+      <p>{{ t('pages.scraped.ScrapedResumeList.s16', { n: scrapedResult?.resumes?.length || 0 }) }}<strong>{{ scrapedResult?.resumes?.length || 0 }}</strong>{{ t('pages.scraped.ScrapedResumeList.s14') }}</p>
       <n-data-table
         :columns="resultColumns"
         :data="scrapedResult?.resumes || []"

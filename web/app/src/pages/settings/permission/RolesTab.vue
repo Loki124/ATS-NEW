@@ -4,26 +4,26 @@
     <div class="toolbar">
       <n-input
         v-model:value="kw"
-        placeholder="搜索 角色编码/名称"
+        :placeholder="t('pages.settings.permission.RolesTab.s1')"
         clearable
         class="rule-filter-search"
       />
       <n-select
         v-model:value="statusFilter"
         :options="statusOptions"
-        placeholder="全部状态"
+        :placeholder="t('pages.settings.permission.RolesTab.s2')"
         class="rule-filter-select"
       />
       <n-select
         v-model:value="systemFilter"
         :options="systemOptions"
-        placeholder="全部来源"
+        :placeholder="t('pages.settings.permission.RolesTab.s3')"
         class="rule-filter-select"
       />
       <div class="spacer"></div>
-      <n-button @click="load">刷新</n-button>
-      <n-button type="info" @click="onCloneFromTemplate">从模板克隆</n-button>
-      <n-button type="primary" class="gradient-btn" @click="onCreate">+ 新建角色</n-button>
+      <n-button @click="load">{{ t('pages.settings.permission.RolesTab.s4') }}</n-button>
+      <n-button type="info" @click="onCloneFromTemplate">{{ t('pages.settings.permission.RolesTab.s5') }}</n-button>
+      <n-button type="primary" class="gradient-btn" @click="onCreate">{{ t('pages.settings.permission.RolesTab.s6') }}</n-button>
     </div>
 
     <!-- 表格：复用全局 .table-wrap + flex-height（仅表体内部滚动，对齐 CampusControl 规则表） -->
@@ -38,7 +38,7 @@
         flex-height
       >
         <template #empty>
-          <n-empty :description="data.length === 0 ? '暂无角色，点击右上角「新建角色」' : '当前筛选下无角色'" />
+          <n-empty :description="data.length === 0 ? t('pages.settings.permission.RolesTab.s15') : t('pages.settings.permission.RolesTab.s16')" />
         </template>
       </n-data-table>
     </div>
@@ -47,28 +47,28 @@
     <n-modal
       v-model:show="cloneModal.show"
       preset="card"
-      title="从模板克隆新角色"
+      :title="t('pages.settings.permission.RolesTab.s7')"
       style="max-width: 480px"
     >
       <n-form :model="cloneModal.form" label-placement="left" label-width="100">
-        <n-form-item label="模板" required>
+        <n-form-item :label="t('pages.settings.permission.RolesTab.s8')" required>
           <n-select
             v-model:value="cloneModal.form.templateCode"
             :options="templateOptions"
-            placeholder="选择预置模板"
+            :placeholder="t('pages.settings.permission.RolesTab.s9')"
           />
         </n-form-item>
-        <n-form-item label="新角色编码" required>
+        <n-form-item :label="t('pages.settings.permission.RolesTab.s10')" required>
           <n-input v-model:value="cloneModal.form.roleCode" placeholder="e.g. CUSTOM_HR" />
         </n-form-item>
-        <n-form-item label="新角色名称" required>
-          <n-input v-model:value="cloneModal.form.roleName" placeholder="e.g. 自定义 HR" />
+        <n-form-item :label="t('pages.settings.permission.RolesTab.s11')" required>
+          <n-input v-model:value="cloneModal.form.roleName" :placeholder="t('pages.settings.permission.RolesTab.s12')" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="cloneModal.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="cloneModal.saving" @click="onSubmitClone">克隆</n-button>
+          <n-button @click="cloneModal.show = false">{{ t('pages.settings.permission.RolesTab.s13') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="cloneModal.saving" @click="onSubmitClone">{{ t('pages.settings.permission.RolesTab.s14') }}</n-button>
         </n-space>
       </template>
     </n-modal>

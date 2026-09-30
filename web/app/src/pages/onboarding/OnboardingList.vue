@@ -191,7 +191,7 @@ function rowProps(row: any) {
       <n-space>
         <n-button :loading="loading" @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.onboarding.OnboardingList.s2') }}
         </n-button>
       </n-space>
     </div>
@@ -209,7 +209,7 @@ function rowProps(row: any) {
       <n-space class="filter-row">
         <n-select
           v-model:value="filterStatus"
-          placeholder="入职状态"
+          :placeholder="t('pages.onboarding.OnboardingList.s3')"
           style="width: 140px"
           clearable
           :options="Object.entries(ONBOARDING_STATUS_LABEL).map(([v,l]) => ({value:v,label:l}))"

@@ -5,7 +5,7 @@
       <div>
         <h1 class="page-title">{{ t('pages.settings.RuleEngine.s1') }}</h1>
         <p class="page-subtitle">
-          跨业务规则的统一视图（TCA / BUSINESS_EVENT / CONSTRAINT / SET_PERMISSION）— 仅聚合只读，源数据在各业务模块维护
+          {{ t('pages.settings.RuleEngine.s3') }}
         </p>
       </div>
     </div>
@@ -36,21 +36,21 @@
         <n-select
           v-model:value="categoryFilter"
           :options="categoryOptions"
-          placeholder="规则族"
+          :placeholder="t('pages.settings.RuleEngine.s4')"
           style="width: 180px"
           @update:value="loadList"
         />
         <n-select
           v-model:value="sourceAppFilter"
           :options="sourceAppOptions"
-          placeholder="来源 app"
+          :placeholder="t('pages.settings.RuleEngine.s5')"
           style="width: 180px"
           @update:value="loadList"
         />
         <n-select
           v-model:value="enabledFilter"
           :options="enabledOptions"
-          placeholder="启用状态"
+          :placeholder="t('pages.settings.RuleEngine.s6')"
           style="width: 130px"
           @update:value="loadList"
         />
@@ -58,7 +58,7 @@
       <n-space>
         <n-button @click="loadList">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.settings.RuleEngine.s7') }}
         </n-button>
       </n-space>
     </div>
@@ -78,7 +78,7 @@
         @update:page-size="onPageSizeChange"
       >
         <template #empty>
-          <n-empty description="暂无规则" />
+          <n-empty :description="t('pages.settings.RuleEngine.s8')" />
         </template>
       </n-data-table>
     </div>
@@ -94,7 +94,7 @@
       <template v-if="detail">
         <div class="detail-grid">
           <div class="detail-cell">
-            <div class="cell-label">规则族</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s9') }}</div>
             <div class="cell-value">
               <n-tag :type="categoryTagType(detail.category)" size="small">
                 {{ detail.category }}
@@ -102,11 +102,11 @@
             </div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">来源 app</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s10') }}</div>
             <div class="cell-value">{{ detail.sourceApp }}</div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">legacy 模型</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s11') }}</div>
             <div class="cell-value"><code>{{ detail.legacyModel }}</code></div>
           </div>
           <div class="detail-cell">
@@ -114,19 +114,19 @@
             <div class="cell-value"><code class="mono">{{ detail.legacyId }}</code></div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">触发器</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s12') }}</div>
             <div class="cell-value"><code>{{ detail.triggerType }}</code></div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">触发时机</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s13') }}</div>
             <div class="cell-value">{{ detail.triggerTiming || '—' }}</div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">优先级</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s14') }}</div>
             <div class="cell-value">{{ detail.priority }} ({{ detail.priorityRank }})</div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">启用状态</div>
+            <div class="cell-label">{{ t('pages.settings.RuleEngine.s15') }}</div>
             <div class="cell-value">
               <n-tag :type="detail.enabled ? 'success' : 'default'" size="small">
                 {{ detail.enabled ? '已启用' : '已停用' }}

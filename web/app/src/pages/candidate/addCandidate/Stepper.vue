@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { CheckmarkOutline as Check } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 
 const store = useAddCandidateStore()
+const { t } = useI18n()
 
 const stepClass = computed(() => (s: 1 | 2) => {
   if (store.step === s) return 'on'
@@ -17,12 +19,12 @@ const stepClass = computed(() => (s: 1 | 2) => {
   <div class="stepper">
     <div class="step-item">
       <div :class="['sdot', stepClass(1)]"><NIcon v-if="store.step > 1" :size="16" aria-hidden="true"><Check /></NIcon><template v-else>1</template></div>
-      <span :class="['slabel', stepClass(1) ? stepClass(1) : '']">上传解析 & 查重</span>
+      <span :class="['slabel', stepClass(1) ? stepClass(1) : '']">{{ t('pages.candidate.addCandidate.Stepper.s1') }}</span>
     </div>
     <div :class="['sline', store.step > 1 ? 'ok' : '']"></div>
     <div class="step-item">
       <div :class="['sdot', stepClass(2)]"><NIcon v-if="store.step > 2" :size="16" aria-hidden="true"><Check /></NIcon><template v-else>2</template></div>
-      <span class="slabel">选择去向 & 提交</span>
+      <span class="slabel">{{ t('pages.candidate.addCandidate.Stepper.s2') }}</span>
     </div>
   </div>
 </template>

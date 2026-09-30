@@ -9,11 +9,11 @@
       <n-space>
         <n-button type="primary" :disabled="selectedCandidates.length === 0" class="batch-notify-btn" @click="openBatchNotificationModal">
           <template #icon><n-icon :component="PaperPlaneOutline" /></template>
-          批量发送通知 ({{ selectedCandidates.length }})
+          {{ t('pages.candidate.CandidateList.s52', { n: selectedCandidates.length }) }}
         </n-button>
         <n-button type="primary" size="large" class="add-button" data-testid="add-candidate-btn" @click="showAddModal">
           <template #icon><n-icon :component="AddOutline" /></template>
-          新增候选人
+          {{ t('pages.candidate.CandidateList.s3') }}
         </n-button>
       </n-space>
     </div>
@@ -37,21 +37,21 @@
       <n-space :size="12" :wrap="true" align="center">
         <n-input
           v-model:value="searchText"
-          placeholder="在当前页面搜索关键词"
+          :placeholder="t('pages.candidate.CandidateList.s4')"
           clearable
           style="width: 260px"
           @keyup.enter="handleSearch"
         >
           <template #prefix><n-icon :component="SearchOutline" /></template>
         </n-input>
-        <n-select v-model:value="positionTypeFilter" placeholder="职位类型" style="width: 140px" clearable :options="positionTypeOptions" />
-        <n-select v-model:value="positionFilter" placeholder="应聘职位" style="width: 160px" clearable :options="positionOptions" />
-        <n-select v-model:value="demandFilter" placeholder="招聘需求" style="width: 150px" clearable :options="demandOptions" />
-        <n-select v-model:value="departmentFilter" placeholder="用人部门" style="width: 140px" clearable :options="departmentOptions" />
-        <n-select v-model:value="channelFilter" placeholder="简历来源" style="width: 130px" clearable :options="channelOptions" />
+        <n-select v-model:value="positionTypeFilter" :placeholder="t('pages.candidate.CandidateList.s5')" style="width: 140px" clearable :options="positionTypeOptions" />
+        <n-select v-model:value="positionFilter" :placeholder="t('pages.candidate.CandidateList.s6')" style="width: 160px" clearable :options="positionOptions" />
+        <n-select v-model:value="demandFilter" :placeholder="t('pages.candidate.CandidateList.s7')" style="width: 150px" clearable :options="demandOptions" />
+        <n-select v-model:value="departmentFilter" :placeholder="t('pages.candidate.CandidateList.s8')" style="width: 140px" clearable :options="departmentOptions" />
+        <n-select v-model:value="channelFilter" :placeholder="t('pages.candidate.CandidateList.s9')" style="width: 130px" clearable :options="channelOptions" />
         <n-select
           v-model:value="ruleSceneFilter"
-          placeholder="按规则筛选"
+          :placeholder="t('pages.candidate.CandidateList.s10')"
           style="width: 150px"
           clearable
           :options="ruleSceneOptions"
@@ -59,7 +59,7 @@
         />
         <n-button @click="showMoreFilter">
           <template #icon><n-icon :component="FunnelOutline" /></template>
-          更多筛选
+          {{ t('pages.candidate.CandidateList.s11') }}
         </n-button>
       </n-space>
     </n-card>
@@ -74,7 +74,7 @@
             :type="statusFilter === null ? 'primary' : 'default'"
             @click="setStatusFilter(null)"
           >
-            全部
+            {{ t('pages.candidate.CandidateList.s12') }}
           </n-button>
           <n-button
             v-for="s in quickFilters"
@@ -90,11 +90,11 @@
         <n-space :size="8">
           <n-button size="small" @click="message.info('批量导入人才库功能开发中')">
             <template #icon><n-icon :component="CloudUploadOutline" /></template>
-            批量导入人才库
+            {{ t('pages.candidate.CandidateList.s13') }}
           </n-button>
           <n-button size="small" @click="message.info('批量分配职位功能开发中')">
             <template #icon><n-icon :component="GitPullRequestOutline" /></template>
-            批量分配职位
+            {{ t('pages.candidate.CandidateList.s14') }}
           </n-button>
         </n-space>
       </div>
@@ -117,7 +117,7 @@
                     <span class="candidate-id">（{{ row.id }}）</span>
                     <n-space :size="8" class="candidate-meta" align="center">
                       <span>{{ row.gender }}</span>
-                      <span>{{ row.age }}岁</span>
+                      <span>{{ row.age }}{{ t('pages.candidate.CandidateList.s15') }}</span>
                       <span><n-icon :component="SchoolOutline" size="12" /> {{ row.education }}</span>
                       <span><n-icon :component="BriefcaseOutline" size="12" /> {{ row.experience }}</span>
                       <span><n-icon :component="CallOutline" size="12" /> {{ row.phone }}</span>
@@ -150,7 +150,7 @@
                       <span class="timeline-position">{{ exp.position }}</span>
                     </div>
                     <div v-if="row.workExperiences.length > 2" class="timeline-more">
-                      +{{ row.workExperiences.length - 2 }} 段经历
+                      {{ t('pages.candidate.CandidateList.s53', { n: row.workExperiences.length - 2 }) }}
                     </div>
                   </div>
                 </div>
@@ -158,7 +158,7 @@
                 <!-- 右侧：阶段流转 -->
                 <div class="row-right">
                   <div class="stage-item current">
-                    <div class="stage-label">现阶段</div>
+                    <div class="stage-label">{{ t('pages.candidate.CandidateList.s16') }}</div>
                     <div class="stage-content">
                       <div class="stage-name">{{ row.stageFlow.current.name }}</div>
                       <div class="stage-status">{{ row.stageFlow.current.status }}</div>
@@ -169,7 +169,7 @@
                     </div>
                   </div>
                   <div class="stage-item previous">
-                    <div class="stage-label">上阶段</div>
+                    <div class="stage-label">{{ t('pages.candidate.CandidateList.s17') }}</div>
                     <div class="stage-content">
                       <div class="stage-name">{{ row.stageFlow.previous.name }}</div>
                       <div class="stage-status" :class="row.stageFlow.previous.result">{{ row.stageFlow.previous.status }}</div>
@@ -180,7 +180,7 @@
                     </div>
                   </div>
                   <div class="stage-item next">
-                    <div class="stage-label">下阶段</div>
+                    <div class="stage-label">{{ t('pages.candidate.CandidateList.s18') }}</div>
                     <div class="stage-content">
                       <div class="stage-name">{{ row.stageFlow.next.name }}</div>
                       <div class="stage-status placeholder">{{ row.stageFlow.next.status || '—' }}</div>
@@ -196,7 +196,7 @@
               <!-- 底部操作栏 · v2: 1 主按钮 + 更多 ⌄ 下拉 -->
               <div class="row-bottom">
                 <n-space :size="12">
-                  <n-button text type="primary" size="small" @click="handleViewDetail(row)">查看详情</n-button>
+                  <n-button text type="primary" size="small" @click="handleViewDetail(row)">{{ t('pages.candidate.CandidateList.s19') }}</n-button>
                   <n-dropdown
                     trigger="click"
                     :options="[
@@ -206,7 +206,7 @@
                     ]"
                     @select="(k: string) => onCandidateRowAction(k, row)"
                   >
-                    <n-button text size="small">更多 ⌄</n-button>
+                    <n-button text size="small">{{ t('pages.candidate.CandidateList.s20') }}</n-button>
                   </n-dropdown>
                 </n-space>
               </div>
@@ -225,7 +225,7 @@
           show-size-picker
           show-quick-jumper
         />
-        <span class="pagination-total">共 {{ paginationReactive.itemCount }} 条</span>
+        <span class="pagination-total">{{ t('pages.candidate.CandidateList.s21') }}{{ paginationReactive.itemCount }}{{ t('pages.candidate.CandidateList.s22') }}</span>
       </div>
     </n-card>
 
@@ -245,7 +245,7 @@
     >
       <template #header>
         <div class="modal-header">
-          <span class="modal-title">批量发送通知</span>
+          <span class="modal-title">{{ t('pages.candidate.CandidateList.s23') }}</span>
           <button class="close-btn" @click="batchNotificationModalVisible = false">
             <n-icon :component="CloseOutline" />
           </button>
@@ -256,10 +256,10 @@
           </n-avatar>
           <div class="candidate-info">
             <div class="candidate-name-row">
-              <span class="candidate-name">已选择 {{ selectedCandidates.length }} 位候选人</span>
+              <span class="candidate-name">{{ t('pages.candidate.CandidateList.s24') }}{{ selectedCandidates.length }}{{ t('pages.candidate.CandidateList.s25') }}</span>
             </div>
             <div class="candidate-contact-row">
-              <span>选定的候选人将收到相同的通知内容</span>
+              <span>{{ t('pages.candidate.CandidateList.s26') }}</span>
             </div>
           </div>
         </div>
@@ -272,37 +272,37 @@
           <div class="step-section">
             <h3 class="step-title">
               <span class="step-number">1</span>
-              选择发送内容
+              {{ t('pages.candidate.CandidateList.s27') }}
             </h3>
             <div class="step-content">
               <div class="content-group">
-                <div class="content-group-title">面试登记表</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateList.s28') }}</div>
                 <label class="content-item selected">
                   <n-checkbox v-model:checked="notificationForm.interviewForm" />
-                  <span>收集候选人基本信息</span>
+                  <span>{{ t('pages.candidate.CandidateList.s29') }}</span>
                 </label>
               </div>
               <div class="content-group">
-                <div class="content-group-title">性格测试</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateList.s30') }}</div>
                 <n-radio-group v-model:value="notificationForm.personalityTest">
                   <n-space vertical>
-                    <n-radio value="pdp_mbti_20">PDP+20题版MBTI</n-radio>
-                    <n-radio value="pdp_mbti_93">PDP+93题版MBTI</n-radio>
+                    <n-radio value="pdp_mbti_20">{{ t('pages.candidate.CandidateList.s31') }}</n-radio>
+                    <n-radio value="pdp_mbti_93">{{ t('pages.candidate.CandidateList.s32') }}</n-radio>
                   </n-space>
                 </n-radio-group>
               </div>
               <div class="content-group">
-                <div class="content-group-title">应聘登记表</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateList.s33') }}</div>
                 <label class="content-item">
                   <n-checkbox v-model:checked="notificationForm.applicationForm" />
-                  <span>完善工作履历及教育背景</span>
+                  <span>{{ t('pages.candidate.CandidateList.s34') }}</span>
                 </label>
               </div>
               <div class="content-group">
-                <div class="content-group-title">入职材料</div>
+                <div class="content-group-title">{{ t('pages.candidate.CandidateList.s35') }}</div>
                 <label class="content-item">
                   <n-checkbox v-model:checked="notificationForm.onboardingDocs" />
-                  <span>收集入职资料及相关证明</span>
+                  <span>{{ t('pages.candidate.CandidateList.s36') }}</span>
                 </label>
               </div>
             </div>
@@ -312,23 +312,23 @@
           <div class="step-section">
             <h3 class="step-title">
               <span class="step-number">2</span>
-              选择通知方式
+              {{ t('pages.candidate.CandidateList.s37') }}
             </h3>
             <div class="step-content">
               <label class="method-item selected">
                 <n-checkbox v-model:checked="notificationForm.sendEmail" />
                 <n-icon :component="MailOutline" class="method-icon" />
-                <span class="method-name">邮件通知</span>
+                <span class="method-name">{{ t('pages.candidate.CandidateList.s38') }}</span>
               </label>
               <label class="method-item selected">
                 <n-checkbox v-model:checked="notificationForm.sendSms" />
                 <n-icon :component="ChatbubblesOutline" class="method-icon" />
-                <span class="method-name">短信通知</span>
+                <span class="method-name">{{ t('pages.candidate.CandidateList.s39') }}</span>
               </label>
               <label class="method-item">
                 <n-checkbox v-model:checked="notificationForm.sendWechat" />
                 <n-icon :component="LogoWechat" class="method-icon" />
-                <span class="method-name">微信企业号推送</span>
+                <span class="method-name">{{ t('pages.candidate.CandidateList.s40') }}</span>
               </label>
             </div>
           </div>
@@ -337,20 +337,20 @@
         <!-- 右侧内容区域 -->
         <div class="right-content">
           <div class="info-callout">
-            <span>系统将基于选择的「发送内容」自动为候选人生成对应待办，选择多个内容时会同时发送</span>
+            <span>{{ t('pages.candidate.CandidateList.s41') }}</span>
           </div>
 
           <div v-if="notificationForm.sendEmail" class="editor-section">
             <div class="editor-header">
               <n-icon :component="MailOutline" class="editor-icon" />
-              <h4 class="editor-title">邮件通知</h4>
+              <h4 class="editor-title">{{ t('pages.candidate.CandidateList.s42') }}</h4>
             </div>
             <div class="editor-field">
-              <label class="field-label">邮件主题</label>
+              <label class="field-label">{{ t('pages.candidate.CandidateList.s43') }}</label>
               <n-input v-model:value="notificationForm.emailSubject" class="email-subject-input" />
             </div>
             <div class="editor-field">
-              <label class="field-label">邮件正文</label>
+              <label class="field-label">{{ t('pages.candidate.CandidateList.s44') }}</label>
               <n-input v-model:value="notificationForm.emailContent" type="textarea" :rows="8" class="email-content-input" />
             </div>
           </div>
@@ -358,12 +358,12 @@
           <div v-if="notificationForm.sendSms" class="editor-section">
             <div class="editor-header">
               <n-icon :component="ChatbubblesOutline" class="editor-icon" />
-              <h4 class="editor-title">短信通知</h4>
+              <h4 class="editor-title">{{ t('pages.candidate.CandidateList.s45') }}</h4>
             </div>
             <div class="editor-field">
               <div class="sms-counter">
-                <label class="field-label">短信正文</label>
-                <span class="counter-text">已输入 <strong>{{ notificationForm.smsContent.length }}</strong> / 70 字</span>
+                <label class="field-label">{{ t('pages.candidate.CandidateList.s46') }}</label>
+                <span class="counter-text">{{ t('pages.candidate.CandidateList.s54', { n: notificationForm.smsContent.length }) }}<strong>{{ notificationForm.smsContent.length }}</strong>{{ t('pages.candidate.CandidateList.s47') }}</span>
               </div>
               <n-input v-model:value="notificationForm.smsContent" type="textarea" :rows="4" class="sms-content-input" />
             </div>
@@ -373,12 +373,12 @@
 
       <template #footer>
         <div class="modal-footer">
-          <div class="recipient-info">通知将发送至: {{ selectedCandidates.length }} 个候选人</div>
+          <div class="recipient-info">{{ t('pages.candidate.CandidateList.s48') }}{{ selectedCandidates.length }}{{ t('pages.candidate.CandidateList.s49') }}</div>
           <div class="footer-buttons">
-            <n-button @click="batchNotificationModalVisible = false">取消</n-button>
+            <n-button @click="batchNotificationModalVisible = false">{{ t('pages.candidate.CandidateList.s50') }}</n-button>
             <n-button type="primary" class="send-btn-primary" @click="handleBatchSendNotification">
               <template #icon><n-icon :component="PaperPlaneOutline" /></template>
-              确认发送
+              {{ t('pages.candidate.CandidateList.s51') }}
             </n-button>
           </div>
         </div>

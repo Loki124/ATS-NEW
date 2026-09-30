@@ -3,15 +3,15 @@
     <!-- 顶部导航和筛选 -->
     <div class="page-header">
       <n-tabs v-model:value="activeTab" type="line" @update:value="handleTabChange">
-        <n-tab-pane name="PENDING_ASSIGN" tab="待分配" />
-        <n-tab-pane name="ASSIGNED" tab="已分配" />
-        <n-tab-pane name="ARCHIVED" tab="已归档" />
-        <n-tab-pane name="DUPLICATE" tab="重复简历" />
+        <n-tab-pane name="PENDING_ASSIGN" :tab="t('pages.resume.ResumeList.s1')" />
+        <n-tab-pane name="ASSIGNED" :tab="t('pages.resume.ResumeList.s2')" />
+        <n-tab-pane name="ARCHIVED" :tab="t('pages.resume.ResumeList.s3')" />
+        <n-tab-pane name="DUPLICATE" :tab="t('pages.resume.ResumeList.s4')" />
       </n-tabs>
       <n-space>
         <n-button @click="handleRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.resume.ResumeList.s5') }}
         </n-button>
       </n-space>
     </div>
@@ -20,10 +20,10 @@
     <div v-if="activeTab === 'PENDING_ASSIGN'" class="sub-filters">
       <n-space>
         <n-radio-group v-model:value="subStatus" @update:value="handleSubStatusChange">
-          <n-radio-button value="">全部</n-radio-button>
-          <n-radio-button value="SCORING">评分中</n-radio-button>
-          <n-radio-button value="APPROVAL">审批中</n-radio-button>
-          <n-radio-button value="SUSPECTED">疑似</n-radio-button>
+          <n-radio-button value="">{{ t('pages.resume.ResumeList.s6') }}</n-radio-button>
+          <n-radio-button value="SCORING">{{ t('pages.resume.ResumeList.s7') }}</n-radio-button>
+          <n-radio-button value="APPROVAL">{{ t('pages.resume.ResumeList.s8') }}</n-radio-button>
+          <n-radio-button value="SUSPECTED">{{ t('pages.resume.ResumeList.s9') }}</n-radio-button>
         </n-radio-group>
       </n-space>
     </div>
@@ -56,7 +56,7 @@
               <n-icon :component="DocumentTextOutline" /> {{ resume.source || '-' }}
             </div>
             <div v-if="resume.matchScore" class="info-row">
-              <n-icon :component="StarOutline" /> 匹配度: {{ resume.matchScore }}
+              <n-icon :component="StarOutline" /> {{ t('pages.resume.ResumeList.s35', { n: resume.matchScore }) }}
             </div>
           </div>
 
@@ -66,8 +66,8 @@
               <template #trigger>
                 <div class="locker-badge">
                   <n-icon :component="LockClosedOutline" />
-                  <span v-if="resume.formalLockerId">正式: {{ getLockerName(resume) }}</span>
-                  <span v-else-if="resume.tempLockerId">临时: {{ getTempLockerTime(resume) }}</span>
+                  <span v-if="resume.formalLockerId">{{ t('pages.resume.ResumeList.s10') }}{{ getLockerName(resume) }}</span>
+                  <span v-else-if="resume.tempLockerId">{{ t('pages.resume.ResumeList.s11') }}{{ getTempLockerTime(resume) }}</span>
                 </div>
               </template>
               {{ getLockerTooltip(resume) }}
@@ -78,11 +78,11 @@
           <div v-if="resume.resumeSubStatus" class="sub-status-tags">
             <n-tag v-if="resume.resumeSubStatus === 'SCORING'" type="info">
               <template #icon><n-icon :component="SyncOutline" /></template>
-              评分中
+              {{ t('pages.resume.ResumeList.s12') }}
             </n-tag>
             <n-tag v-if="resume.resumeSubStatus === 'APPROVAL'" type="warning">
               <template #icon><n-icon :component="TimeOutline" /></template>
-              审批中
+              {{ t('pages.resume.ResumeList.s13') }}
             </n-tag>
           </div>
 
@@ -97,7 +97,7 @@
                 :disabled="resume.resumeSubStatus === 'SCORING'"
                 @click.stop="handleAssign(resume)"
               >
-                分配
+                {{ t('pages.resume.ResumeList.s14') }}
               </n-button>
               <n-button
                 v-if="canArchive(resume)"
@@ -106,7 +106,7 @@
                 size="small"
                 @click.stop="handleArchive(resume)"
               >
-                归档
+                {{ t('pages.resume.ResumeList.s15') }}
               </n-button>
               <n-button
                 v-if="canActivate(resume)"
@@ -115,7 +115,7 @@
                 size="small"
                 @click.stop="handleActivate(resume)"
               >
-                激活
+                {{ t('pages.resume.ResumeList.s16') }}
               </n-button>
             </n-space>
           </div>
@@ -123,7 +123,7 @@
       </div>
 
       <!-- 空状态 -->
-      <n-empty v-if="!loading && resumeList.length === 0" description="暂无简历" />
+      <n-empty v-if="!loading && resumeList.length === 0" :description="t('pages.resume.ResumeList.s17')" />
     </n-spin>
 
     <!-- 分页 -->
@@ -141,18 +141,18 @@
     <n-drawer v-model:show="detailVisible" :width="600" placement="right">
       <n-drawer-content :title="currentResume?.candidate?.name" closable>
         <template v-if="currentResume">
-          <n-descriptions title="基本信息" :column="2">
-            <n-descriptions-item label="姓名">{{ currentResume.candidate?.name }}</n-descriptions-item>
-            <n-descriptions-item label="手机">{{ currentResume.candidate?.phone }}</n-descriptions-item>
-            <n-descriptions-item label="邮箱">{{ currentResume.candidate?.email }}</n-descriptions-item>
-            <n-descriptions-item label="来源">{{ currentResume.source }}</n-descriptions-item>
+          <n-descriptions :title="t('pages.resume.ResumeList.s18')" :column="2">
+            <n-descriptions-item :label="t('pages.resume.ResumeList.s19')">{{ currentResume.candidate?.name }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.resume.ResumeList.s20')">{{ currentResume.candidate?.phone }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.resume.ResumeList.s21')">{{ currentResume.candidate?.email }}</n-descriptions-item>
+            <n-descriptions-item :label="t('pages.resume.ResumeList.s22')">{{ currentResume.source }}</n-descriptions-item>
           </n-descriptions>
 
           <n-divider />
 
           <!-- 锁定人信息 -->
           <div class="locker-section">
-            <h4><n-icon :component="LockClosedOutline" /> 锁定人信息</h4>
+            <h4><n-icon :component="LockClosedOutline" />{{ t('pages.resume.ResumeList.s23') }}</h4>
             <n-space vertical style="width: 100%">
               <n-alert
                 v-if="currentResume.formalLockerId"
@@ -180,14 +180,14 @@
               :disabled="currentResume.resumeSubStatus === 'SCORING'"
               @click="handleAssign(currentResume)"
             >
-              分配到职位
+              {{ t('pages.resume.ResumeList.s24') }}
             </n-button>
             <n-button
               v-if="canArchive(currentResume)"
               block
               @click="handleArchive(currentResume)"
             >
-              放入人才库
+              {{ t('pages.resume.ResumeList.s25') }}
             </n-button>
             <n-button
               v-if="canActivate(currentResume)"
@@ -195,14 +195,14 @@
               block
               @click="handleActivate(currentResume)"
             >
-              重新激活
+              {{ t('pages.resume.ResumeList.s26') }}
             </n-button>
           </n-space>
 
           <n-divider />
 
           <!-- 流转日志 -->
-          <h4><n-icon :component="TimeOutline" /> 流转日志</h4>
+          <h4><n-icon :component="TimeOutline" />{{ t('pages.resume.ResumeList.s27') }}</h4>
           <n-timeline>
             <n-timeline-item v-for="log in flowLogs" :key="log.id">
               <p><strong>{{ getActionText(log.action) }}</strong></p>
@@ -218,23 +218,23 @@
     <n-modal
       v-model:show="assignVisible"
       preset="dialog"
-      title="分配简历"
-      positive-text="分配简历"
-      negative-text="取消"
+      :title="t('pages.resume.ResumeList.s28')"
+      :positive-text="t('pages.resume.ResumeList.s29')"
+      :negative-text="t('pages.resume.ResumeList.s30')"
       :loading="assignLoading"
       @positive-click="handleAssignConfirm"
     >
       <n-form :model="assignForm" label-placement="top" class="mt-4">
-        <n-form-item label="选择职位" required>
+        <n-form-item :label="t('pages.resume.ResumeList.s31')" required>
           <n-select
             v-model:value="assignForm.positionId"
-            placeholder="请选择目标职位"
+            :placeholder="t('pages.resume.ResumeList.s32')"
             filterable
             :options="positionOptions"
           />
         </n-form-item>
-        <n-form-item label="跳过评分">
-          <n-checkbox v-model:checked="assignForm.skipScoring">直接分配，不进行匹配度评分</n-checkbox>
+        <n-form-item :label="t('pages.resume.ResumeList.s33')">
+          <n-checkbox v-model:checked="assignForm.skipScoring">{{ t('pages.resume.ResumeList.s34') }}</n-checkbox>
         </n-form-item>
       </n-form>
     </n-modal>
@@ -255,9 +255,11 @@ import {
   SyncOutline,
 } from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
+import { useI18n } from 'vue-i18n'
 
 import { extractApiError } from '../../api/dynamic-field'
 const message = useMessage()
+const { t } = useI18n()
 
 // 状态
 const activeTab = ref('PENDING_ASSIGN')

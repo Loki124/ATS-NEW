@@ -210,11 +210,11 @@ function onTabChange(key: string) {
       <n-space>
         <n-button :loading="loading" @click="loadPoolStats">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新
+          {{ t('pages.talent.TalentPool.s2') }}
         </n-button>
         <n-button type="primary" @click="openAddModal">
           <template #icon><n-icon :component="AddOutline" /></template>
-          添加候选人
+          {{ t('pages.talent.TalentPool.s3') }}
         </n-button>
       </n-space>
     </div>
@@ -232,7 +232,7 @@ function onTabChange(key: string) {
         :tab="`${pool.label} (${poolStats[pool.code] || 0})`"
       >
         <n-card :bordered="false" class="rounded-xl">
-          <n-empty v-if="candidates.length === 0 && !listLoading" description="该子库暂无候选人" />
+          <n-empty v-if="candidates.length === 0 && !listLoading" :description="t('pages.talent.TalentPool.s4')" />
           <n-data-table
             v-else
             :columns="columns"
@@ -249,23 +249,23 @@ function onTabChange(key: string) {
     <n-modal
       v-model:show="moveModal"
       preset="dialog"
-      title="移动到其他子库"
-      positive-text="确认移动"
-      negative-text="取消"
+      :title="t('pages.talent.TalentPool.s5')"
+      :positive-text="t('pages.talent.TalentPool.s6')"
+      :negative-text="t('pages.talent.TalentPool.s7')"
       :positive-button-props="{ type: 'primary', loading: moveLoading }"
       @positive-click="confirmMove"
     >
       <n-space vertical>
-        <div>候选人: <strong>{{ moveCandidate?.name || '—' }}</strong></div>
+        <div>{{ t('pages.talent.TalentPool.s14') }} <strong>{{ moveCandidate?.name || '—' }}</strong></div>
         <n-select
           v-model:value="moveTargetPool"
           :options="movePoolOptions"
-          placeholder="选择目标子库"
+          :placeholder="t('pages.talent.TalentPool.s8')"
         />
         <n-input
           v-model:value="moveReason"
           type="textarea"
-          placeholder="移动原因 (审计用)"
+          :placeholder="t('pages.talent.TalentPool.s9')"
           :autosize="{ minRows: 2, maxRows: 4 }"
         />
       </n-space>
@@ -275,18 +275,18 @@ function onTabChange(key: string) {
     <n-modal
       v-model:show="addModal"
       preset="dialog"
-      title="添加候选人到本子库"
-      positive-text="确认添加"
-      negative-text="取消"
+      :title="t('pages.talent.TalentPool.s10')"
+      :positive-text="t('pages.talent.TalentPool.s11')"
+      :negative-text="t('pages.talent.TalentPool.s12')"
       :positive-button-props="{ type: 'primary', loading: addLoading }"
       @positive-click="confirmAdd"
     >
       <n-space vertical>
-        <div>目标子库: <strong>{{ poolDefs[activePool]?.label || activePool }}</strong></div>
+        <div>{{ t('pages.talent.TalentPool.s15') }} <strong>{{ poolDefs[activePool]?.label || activePool }}</strong></div>
         <n-select
           v-model:value="addCandidateId"
           :options="addCandidateOptions"
-          placeholder="搜索候选人姓名"
+          :placeholder="t('pages.talent.TalentPool.s13')"
           filterable
           remote
           :loading="addSearching"

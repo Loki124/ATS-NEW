@@ -13,13 +13,13 @@
       <n-select
         v-model:value="moduleFilter"
         :options="moduleOptions"
-        placeholder="按模块筛选"
+        :placeholder="t('pages.settings.permission.ResourcesTab.s2')"
         clearable
         style="max-width: 180px"
         @update:value="load"
       />
-      <n-button type="primary" @click="load">刷新</n-button>
-      <n-button type="success" @click="onCreate">新建资源</n-button>
+      <n-button type="primary" @click="load">{{ t('pages.settings.permission.ResourcesTab.s3') }}</n-button>
+      <n-button type="success" @click="onCreate">{{ t('pages.settings.permission.ResourcesTab.s4') }}</n-button>
     </div>
 
     <n-data-table
@@ -37,30 +37,30 @@
       style="max-width: 600px"
     >
       <n-form :model="modal.form" label-placement="left" label-width="100">
-        <n-form-item label="资源编码" required>
+        <n-form-item :label="t('pages.settings.permission.ResourcesTab.s5')" required>
           <n-input v-model:value="modal.form.resourceCode" placeholder="recruit:menu:xxx" :disabled="modal.editing" />
         </n-form-item>
-        <n-form-item label="资源名称" required>
-          <n-input v-model:value="modal.form.resourceName" placeholder="显示名" />
+        <n-form-item :label="t('pages.settings.permission.ResourcesTab.s6')" required>
+          <n-input v-model:value="modal.form.resourceName" :placeholder="t('pages.settings.permission.ResourcesTab.s7')" />
         </n-form-item>
-        <n-form-item label="资源类型" required>
+        <n-form-item :label="t('pages.settings.permission.ResourcesTab.s8')" required>
           <n-select
             v-model:value="modal.form.resourceType"
             :options="resourceTypeOptions"
           />
         </n-form-item>
-        <n-form-item label="模块">
+        <n-form-item :label="t('pages.settings.permission.ResourcesTab.s9')">
           <n-input v-model:value="modal.form.module" placeholder="recruit / hr / system" />
         </n-form-item>
-        <n-form-item label="状态">
+        <n-form-item :label="t('pages.settings.permission.ResourcesTab.s10')">
           <n-switch v-model:value="statusSwitch" />
           <span style="margin-left: var(--space-2); color: var(--n-450)">{{ statusSwitch ? '启用' : '禁用' }}</span>
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="modal.show = false">取消</n-button>
-          <n-button type="primary" class="gradient-btn" :loading="modal.saving" @click="onSubmit">保存</n-button>
+          <n-button @click="modal.show = false">{{ t('pages.settings.permission.ResourcesTab.s11') }}</n-button>
+          <n-button type="primary" class="gradient-btn" :loading="modal.saving" @click="onSubmit">{{ t('pages.settings.permission.ResourcesTab.s12') }}</n-button>
         </n-space>
       </template>
     </n-modal>

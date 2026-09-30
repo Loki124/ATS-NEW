@@ -174,11 +174,11 @@ onMounted(loadList)
   <n-card :title="t('pages.offer.BackgroundCheckPanel.s1')" :bordered="false">
     <template #header-extra>
       <n-button type="primary" size="small" @click="openCreate">
-        新建背调
+        {{ t('pages.offer.BackgroundCheckPanel.s2') }}
       </n-button>
     </template>
     <n-spin :show="loading">
-      <n-empty v-if="!loading && list.length === 0" description="暂无背调记录" />
+      <n-empty v-if="!loading && list.length === 0" :description="t('pages.offer.BackgroundCheckPanel.s3')" />
       <n-data-table
         v-else
         :columns="columns"
@@ -190,36 +190,36 @@ onMounted(loadList)
     </n-spin>
 
     <!-- 新建背调弹窗 -->
-    <n-modal v-model:show="showCreateModal" preset="dialog" title="新建背调" positive-text="创建" negative-text="取消" :positive-button-props="{ loading: submitting }" @positive-click="handleCreate">
+    <n-modal v-model:show="showCreateModal" preset="dialog" :title="t('pages.offer.BackgroundCheckPanel.s4')" :positive-text="t('pages.offer.BackgroundCheckPanel.s5')" :negative-text="t('pages.offer.BackgroundCheckPanel.s6')" :positive-button-props="{ loading: submitting }" @positive-click="handleCreate">
       <n-form label-placement="top" style="margin-top: var(--space-3);">
-        <n-form-item label="背调类型" required>
-          <n-input v-model:value="createForm.checkType" placeholder="如: 学历 / 工作履历 / 信用" />
+        <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s7')" required>
+          <n-input v-model:value="createForm.checkType" :placeholder="t('pages.offer.BackgroundCheckPanel.s8')" />
         </n-form-item>
-        <n-form-item label="供应商">
-          <n-input v-model:value="createForm.supplier" placeholder="可选项, 如: 内部 / 第三方" />
+        <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s9')">
+          <n-input v-model:value="createForm.supplier" :placeholder="t('pages.offer.BackgroundCheckPanel.s10')" />
         </n-form-item>
-        <n-form-item label="备注">
+        <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s11')">
           <n-input v-model:value="createForm.note" type="textarea" :rows="2" />
         </n-form-item>
       </n-form>
     </n-modal>
 
     <!-- 完成背调弹窗 -->
-    <n-modal v-model:show="showCompleteModal" preset="dialog" title="完成背调 - 选择等级" positive-text="提交" negative-text="取消" :positive-button-props="{ loading: submitting }" @positive-click="handleComplete">
+    <n-modal v-model:show="showCompleteModal" preset="dialog" :title="t('pages.offer.BackgroundCheckPanel.s12')" :positive-text="t('pages.offer.BackgroundCheckPanel.s13')" :negative-text="t('pages.offer.BackgroundCheckPanel.s14')" :positive-button-props="{ loading: submitting }" @positive-click="handleComplete">
       <n-form label-placement="top" style="margin-top: var(--space-3);">
-        <n-form-item label="等级 (4 选 1)" required>
+        <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s15')" required>
           <n-select
             v-model:value="completeForm.level"
             :options="levelOptions"
-            placeholder="请选择背调结果等级"
+            :placeholder="t('pages.offer.BackgroundCheckPanel.s16')"
           />
         </n-form-item>
-        <n-form-item label="风险项 (JSON 数组)">
+        <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s17')">
           <n-input
             v-model:value="completeForm.risks"
             type="textarea"
             :rows="3"
-            placeholder="[{&quot;category&quot;:&quot;学历&quot;,&quot;severity&quot;:&quot;LOW&quot;,&quot;description&quot;:&quot;...&quot;}]"
+            :placeholder="t('pages.offer.BackgroundCheckPanel.s18')"
           />
         </n-form-item>
       </n-form>

@@ -4,18 +4,18 @@
       <div>
         <h1 class="page-title">{{ t('pages.settings.StandardResumeSettings.s1') }}</h1>
         <p class="page-subtitle">
-          配置候选人标准简历包含的字段与必填规则，右侧实时预览候选人填写效果。
-          字段来源于动态字段配置的「Candidate」资源；可拖拽分组与字段调整展示顺序。
+          {{ t('pages.settings.StandardResumeSettings.s2') }}
+          {{ t('pages.settings.StandardResumeSettings.s3') }}
         </p>
       </div>
       <div class="page-header-actions">
         <n-button quaternary size="small" :loading="loading" @click="loadFields">
           <template #icon><n-icon :component="RefreshOutline" /></template>
-          刷新字段
+          {{ t('pages.settings.StandardResumeSettings.s4') }}
         </n-button>
         <n-button tertiary size="small" :disabled="loading" @click="onReset">
           <template #icon><n-icon :component="ReloadOutline" /></template>
-          重置默认
+          {{ t('pages.settings.StandardResumeSettings.s5') }}
         </n-button>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <!-- 左：配置（按分组 + 双层拖拽） -->
         <section class="glass-card sr-config">
           <header class="sr-panel-head">
-            <h2 class="sr-panel-title">简历字段</h2>
+            <h2 class="sr-panel-title">{{ t('pages.settings.StandardResumeSettings.s6') }}</h2>
             <span class="sr-save-hint" :class="{ saved, saving }">
               {{ saving ? '保存中…' : saved ? '已自动保存' : '未保存' }}
             </span>
@@ -40,21 +40,21 @@
                 class="sr-alert"
               >
                 <template #header>
-                  <span>加载字段失败</span>
-                  <n-button size="tiny" tertiary class="sr-alert-retry" @click="loadFields">重试</n-button>
+                  <span>{{ t('pages.settings.StandardResumeSettings.s7') }}</span>
+                  <n-button size="tiny" tertiary class="sr-alert-retry" @click="loadFields">{{ t('pages.settings.StandardResumeSettings.s8') }}</n-button>
                 </template>
                 {{ error }}
               </n-alert>
 
               <n-empty
                 v-else-if="!allFields.length && !loading"
-                description="暂无可选字段，请先在「动态字段」中配置 Candidate 资源字段"
+                :description="t('pages.settings.StandardResumeSettings.s9')"
                 class="sr-empty"
               />
 
               <template v-else>
                 <!-- 分组级拖拽：vue-draggable-plus 0.6.x 只识别 default slot，
-                     必须用 v-for 遍历数据（不要用旧版 vuedraggable 的 #item slot，也不传 item-key）。
+                     {{ t('pages.settings.StandardResumeSettings.s10') }}
                      Candidate 仅 1 个模块，无模块层展示，直接渲染「分组层」。 -->
                 <VueDraggable
                   v-model="groupBuckets"
@@ -81,7 +81,7 @@
                         {{ grp.group?.name || '未分组' }}
                       </h3>
                       <n-tag size="small" :bordered="false" class="sr-group-count">
-                        {{ grp.fields.length }} 字段
+                        {{ t('pages.settings.StandardResumeSettings.s24', { n: grp.fields.length }) }}
                       </n-tag>
                     </header>
 
@@ -108,12 +108,12 @@
                           :component="MenuOutline"
                           size="16"
                           :title="m.field.isVisible === false
-                            ? '该字段在动态字段定义层为隐藏，仍可拖拽调整顺序'
-                            : '拖拽调整顺序'"
+                            ? t('pages.settings.StandardResumeSettings.s11')
+                            : t('pages.settings.StandardResumeSettings.s12')"
                         />
                         <div class="sr-field-meta">
                           <span class="sr-field-label">{{ m.field.label }}</span>
-                          <span v-if="m.field.isVisible === false" class="sr-tag-hidden">定义层隐藏</span>
+                          <span v-if="m.field.isVisible === false" class="sr-tag-hidden">{{ t('pages.settings.StandardResumeSettings.s13') }}</span>
                           <span class="sr-type-tag">{{ fieldTypeLabel(m.field.fieldType) }}</span>
                         </div>
                         <div class="sr-field-toggles">
@@ -122,27 +122,27 @@
                             size="small"
                             @update:value="setEnabled(m.field.fieldKey, $event)"
                           />
-                          <span class="sr-toggle-label">显示</span>
+                          <span class="sr-toggle-label">{{ t('pages.settings.StandardResumeSettings.s14') }}</span>
                           <n-switch
                             :value="m.required"
                             size="small"
                             :disabled="!m.enabled"
                             @update:value="setRequired(m.field.fieldKey, $event)"
                           />
-                          <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">必填</span>
+                          <span class="sr-toggle-label" :class="{ disabled: !m.enabled }">{{ t('pages.settings.StandardResumeSettings.s15') }}</span>
                         </div>
                       </div>
                     </VueDraggable>
                     <div v-else class="sr-group-empty">
-                      <n-empty size="small" description="暂无字段" />
+                      <n-empty size="small" :description="t('pages.settings.StandardResumeSettings.s16')" />
                     </div>
                   </section>
                 </VueDraggable>
 
                 <!-- 必填阶段规则（保持原结构） -->
                 <div class="sr-stages">
-                  <div class="sr-stages-head">必填阶段规则</div>
-                  <p class="sr-stages-desc">勾选的阶段将强制校验上述「必填」字段。</p>
+                  <div class="sr-stages-head">{{ t('pages.settings.StandardResumeSettings.s17') }}</div>
+                  <p class="sr-stages-desc">{{ t('pages.settings.StandardResumeSettings.s18') }}</p>
                   <div class="sr-stage-chips">
                     <button
                       v-for="s in stages"
@@ -164,14 +164,14 @@
         <!-- 右：预览（按分组 + 启用字段） -->
         <section class="glass-card sr-preview">
           <header class="sr-panel-head">
-            <h2 class="sr-panel-title">标准简历预览</h2>
-            <span class="sr-preview-count">{{ enabledFields.length }} 个字段</span>
+            <h2 class="sr-panel-title">{{ t('pages.settings.StandardResumeSettings.s19') }}</h2>
+            <span class="sr-preview-count">{{ enabledFields.length }}{{ t('pages.settings.StandardResumeSettings.s20') }}</span>
           </header>
 
           <div class="sr-preview-body">
             <n-empty
               v-if="!enabledFields.length"
-              description="左侧开启字段后，这里实时展示候选人填写效果"
+              :description="t('pages.settings.StandardResumeSettings.s21')"
               class="sr-empty"
             />
             <div v-else class="sr-form">
@@ -203,7 +203,7 @@
                       v-else-if="isSingleChoice(m.field.fieldType)"
                       disabled
                       :options="selectOptions(m.field)"
-                      placeholder="请选择"
+                      :placeholder="t('pages.settings.StandardResumeSettings.s22')"
                     />
                     <!-- 多选类 -->
                     <n-select
@@ -211,7 +211,7 @@
                       multiple
                       disabled
                       :options="selectOptions(m.field)"
-                      placeholder="请选择"
+                      :placeholder="t('pages.settings.StandardResumeSettings.s23')"
                     />
                     <!-- 附件 -->
                     <div v-else-if="m.field.fieldType === 'ATTACHMENT'" class="sr-attachment">

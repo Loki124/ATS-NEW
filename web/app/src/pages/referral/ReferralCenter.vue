@@ -4,17 +4,17 @@
       <h1 class="page-title">{{ t('pages.referral.ReferralCenter.s1') }}</h1>
       <n-button type="primary" @click="addModalVisible = true">
         <template #icon><n-icon :component="PersonAddOutline" /></template>
-        新增推荐
+        {{ t('pages.referral.ReferralCenter.s2') }}
       </n-button>
     </div>
 
     <n-card :bordered="false" class="card-base">
       <n-tabs v-model:value="activeTab" type="line" animated>
         <!-- Tab 1: 我的内推码 -->
-        <n-tab-pane name="code" tab="我的内推码">
+        <n-tab-pane name="code" :tab="t('pages.referral.ReferralCenter.s3')">
           <n-grid :cols="2" :x-gap="24" :y-gap="24" responsive="screen" :item-responsive="true">
             <n-grid-item span="2 m:1">
-              <n-card title="🎫 当前内推码" :bordered="false" :loading="codeLoading">
+              <n-card :title="t('pages.referral.ReferralCenter.s4')" :bordered="false" :loading="codeLoading">
                 <template v-if="myCode">
                   <div class="code-display">
                     <div class="code-text">{{ myCode.code }}</div>
@@ -22,35 +22,35 @@
                       {{ myCode.status === 'ACTIVE' ? '生效中' : '已失效' }}
                     </n-tag>
                   </div>
-                  <n-text :depth="3" class="block mt-4">创建于 {{ formatDate(myCode.createdAt) }}</n-text>
+                  <n-text :depth="3" class="block mt-4">{{ t('pages.referral.ReferralCenter.s5') }}{{ formatDate(myCode.createdAt) }}</n-text>
                   <n-space class="mt-4">
                     <n-button type="primary" @click="copyCode">
                       <template #icon><n-icon :component="CopyOutline" /></template>
-                      复制码
+                      {{ t('pages.referral.ReferralCenter.s6') }}
                     </n-button>
                     <n-button @click="copyShareLink">
                       <template #icon><n-icon :component="LinkOutline" /></template>
-                      复制分享链接
+                      {{ t('pages.referral.ReferralCenter.s7') }}
                     </n-button>
                   </n-space>
                 </template>
-                <n-empty v-else description="暂无内推码，请联系管理员开通" />
+                <n-empty v-else :description="t('pages.referral.ReferralCenter.s8')" />
               </n-card>
             </n-grid-item>
 
             <n-grid-item span="2 m:1">
-              <n-card title="怎么用" :bordered="false">
-                <n-p>1. 把内推码发给候选人</n-p>
-                <n-p>2. 候选人通过内推码投递简历</n-p>
-                <n-p>3. 候选人入职后你将获得奖励</n-p>
-                <n-text :depth="3">详细规则请查看"内推规则"标签页</n-text>
+              <n-card :title="t('pages.referral.ReferralCenter.s9')" :bordered="false">
+                <n-p>{{ t('pages.referral.ReferralCenter.s10') }}</n-p>
+                <n-p>{{ t('pages.referral.ReferralCenter.s11') }}</n-p>
+                <n-p>{{ t('pages.referral.ReferralCenter.s12') }}</n-p>
+                <n-text :depth="3">{{ t('pages.referral.ReferralCenter.s13') }}</n-text>
               </n-card>
             </n-grid-item>
           </n-grid>
         </n-tab-pane>
 
         <!-- Tab 2: 我的战绩 -->
-        <n-tab-pane name="summary" tab="我的战绩">
+        <n-tab-pane name="summary" :tab="t('pages.referral.ReferralCenter.s14')">
           <n-grid v-if="summary" :cols="3" :x-gap="24" :y-gap="24" responsive="screen" :item-responsive="true">
             <n-grid-item v-for="item in summaryCards" :key="item.label" span="3 s:2 m:1">
               <n-card :bordered="false" class="rounded-lg text-center stat-card">
@@ -60,11 +60,11 @@
               </n-card>
             </n-grid-item>
           </n-grid>
-          <n-empty v-else-if="!summaryLoading" description="暂无战绩数据" />
+          <n-empty v-else-if="!summaryLoading" :description="t('pages.referral.ReferralCenter.s15')" />
         </n-tab-pane>
 
         <!-- Tab 3: 推荐记录 -->
-        <n-tab-pane name="records" tab="推荐记录">
+        <n-tab-pane name="records" :tab="t('pages.referral.ReferralCenter.s16')">
           <n-data-table
             :columns="recordColumns"
             :data="records"
@@ -73,11 +73,11 @@
             :row-key="(row: any) => row.id"
             @update:page="loadRecords"
           />
-          <n-empty v-if="!recordsLoading && records.length === 0" description="暂无推荐记录，去分享你的内推码吧" class="mt-6" />
+          <n-empty v-if="!recordsLoading && records.length === 0" :description="t('pages.referral.ReferralCenter.s17')" class="mt-6" />
         </n-tab-pane>
 
         <!-- Tab 4: 我的奖励 -->
-        <n-tab-pane name="rewards" tab="我的奖励">
+        <n-tab-pane name="rewards" :tab="t('pages.referral.ReferralCenter.s18')">
           <n-data-table
             :columns="rewardColumns"
             :data="rewards"
@@ -86,13 +86,13 @@
             :row-key="(row: any) => row.id"
             @update:page="loadRewards"
           />
-          <n-empty v-if="!rewardsLoading && rewards.length === 0" description="暂无奖励" class="mt-6" />
+          <n-empty v-if="!rewardsLoading && rewards.length === 0" :description="t('pages.referral.ReferralCenter.s19')" class="mt-6" />
         </n-tab-pane>
 
         <!-- Tab 5: 内推规则 -->
-        <n-tab-pane name="rules" tab="内推规则">
+        <n-tab-pane name="rules" :tab="t('pages.referral.ReferralCenter.s20')">
           <n-spin :show="rulesLoading">
-            <n-empty v-if="!rulesLoading && rules.length === 0" description="暂未配置内推规则" />
+            <n-empty v-if="!rulesLoading && rules.length === 0" :description="t('pages.referral.ReferralCenter.s21')" />
             <n-grid v-else :cols="2" :x-gap="16" :y-gap="16" responsive="screen" :item-responsive="true">
               <n-grid-item v-for="rule in rules" :key="rule.id" span="2 m:1">
                 <n-card :bordered="false" class="rounded-lg">
@@ -105,12 +105,12 @@
                     </n-space>
                   </template>
                   <n-descriptions :column="1" size="small">
-                    <n-descriptions-item label="职级">{{ rule.positionLevel || '不限' }}</n-descriptions-item>
-                    <n-descriptions-item label="触发阶段">{{ rule.triggerStage || '不限' }}</n-descriptions-item>
-                    <n-descriptions-item v-if="rule.amount" label="奖励金额">
+                    <n-descriptions-item :label="t('pages.referral.ReferralCenter.s22')">{{ rule.positionLevel || '不限' }}</n-descriptions-item>
+                    <n-descriptions-item :label="t('pages.referral.ReferralCenter.s23')">{{ rule.triggerStage || '不限' }}</n-descriptions-item>
+                    <n-descriptions-item v-if="rule.amount" :label="t('pages.referral.ReferralCenter.s24')">
                       <span style="color: var(--brand); font-weight: 600">¥{{ rule.amount }}</span>
                     </n-descriptions-item>
-                    <n-descriptions-item label="说明">
+                    <n-descriptions-item :label="t('pages.referral.ReferralCenter.s25')">
                       <n-text :depth="3">
                         {{ rule.description || formatConditions(rule.conditions) }}
                       </n-text>

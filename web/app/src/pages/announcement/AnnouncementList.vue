@@ -52,7 +52,7 @@
               </div>
             </div>
           </div>
-          <n-empty v-else size="small" description="暂无最近浏览记录" />
+          <n-empty v-else size="small" :description="t('pages.announcement.AnnouncementList.s9')" />
         </section>
 
         <!-- 最近更新 -->
@@ -107,7 +107,7 @@
               </tbody>
             </table>
           </div>
-          <n-empty v-else size="small" description="暂无公告" />
+          <n-empty v-else size="small" :description="t('pages.announcement.AnnouncementList.s10')" />
         </section>
       </n-spin>
     </main>

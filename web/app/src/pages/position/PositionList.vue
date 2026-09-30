@@ -4,22 +4,22 @@
       <h1 class="page-title">{{ t('pages.position.PositionList.s1') }}</h1>
       <n-button type="primary" @click="handleCreate">
         <template #icon><n-icon :component="AddOutline" /></template>
-        创建职位
+        {{ t('pages.position.PositionList.s2') }}
       </n-button>
     </div>
 
     <n-card>
       <n-tabs v-model:value="activeTab" type="line" animated>
-        <n-tab-pane name="all" tab="全部职位">
+        <n-tab-pane name="all" :tab="t('pages.position.PositionList.s3')">
           <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
-        <n-tab-pane name="RECRUITING" tab="招聘中">
+        <n-tab-pane name="RECRUITING" :tab="t('pages.position.PositionList.s4')">
           <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
-        <n-tab-pane name="PAUSED" tab="已暂停">
+        <n-tab-pane name="PAUSED" :tab="t('pages.position.PositionList.s5')">
           <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
-        <n-tab-pane name="CLOSED" tab="已关闭">
+        <n-tab-pane name="CLOSED" :tab="t('pages.position.PositionList.s6')">
           <n-data-table :columns="columns" :data="filteredRows" :loading="loading" :pagination="{ pageSize: 10 }" :row-key="(row: PositionRow) => row.id" />
         </n-tab-pane>
       </n-tabs>
@@ -32,61 +32,61 @@
       :title="selectedPosition ? '编辑职位' : '创建职位'"
       style="width: 800px; max-width: 90vw"
     >
-      <n-divider title-placement="left">基本信息</n-divider>
+      <n-divider title-placement="left">{{ t('pages.position.PositionList.s7') }}</n-divider>
       <n-form ref="formRef" :model="formState" label-placement="top">
         <div class="grid grid-cols-2 gap-x-4">
-          <n-form-item path="title" label="职位名称" :rule="{ required: true, message: '请输入职位名称', trigger: 'blur' }">
-            <n-input v-model:value="formState.title" placeholder="请输入职位名称" />
+          <n-form-item path="title" :label="t('pages.position.PositionList.s8')" :rule="{ required: true, message: '请输入职位名称', trigger: 'blur' }">
+            <n-input v-model:value="formState.title" :placeholder="t('pages.position.PositionList.s9')" />
           </n-form-item>
           <n-form-item path="department" label="所属部门" :rule="reqSelect('请选择部门')">
-            <n-select v-model:value="formState.department" placeholder="请选择部门" :options="departmentOptions" />
+            <n-select v-model:value="formState.department" :placeholder="t('pages.position.PositionList.s10')" :options="departmentOptions" />
           </n-form-item>
 
-          <n-form-item path="demand" label="关联需求">
-            <n-select v-model:value="formState.demand" placeholder="请选择需求（可选）" :options="demandOptions" clearable />
+          <n-form-item path="demand" :label="t('pages.position.PositionList.s11')">
+            <n-select v-model:value="formState.demand" :placeholder="t('pages.position.PositionList.s12')" :options="demandOptions" clearable />
           </n-form-item>
           <n-form-item path="process" label="招聘流程" :rule="reqSelect('请选择招聘流程')">
-            <n-select v-model:value="formState.process" placeholder="请选择流程" :options="processOptions" />
+            <n-select v-model:value="formState.process" :placeholder="t('pages.position.PositionList.s13')" :options="processOptions" />
           </n-form-item>
 
           <n-form-item path="priority" label="优先级" :rule="reqSelect('请选择优先级')">
-            <n-select v-model:value="formState.priority" placeholder="请选择" :options="priorityOptions" />
+            <n-select v-model:value="formState.priority" :placeholder="t('pages.position.PositionList.s14')" :options="priorityOptions" />
           </n-form-item>
-          <n-form-item path="headCount" label="需求人数" :rule="{ required: true, type: 'number', message: '请输入需求人数', trigger: 'blur' }">
+          <n-form-item path="headCount" :label="t('pages.position.PositionList.s15')" :rule="{ required: true, type: 'number', message: '请输入需求人数', trigger: 'blur' }">
             <n-input-number v-model:value="formState.headCount" :min="1" :max="100" style="width: 100%;" />
           </n-form-item>
 
-          <n-form-item path="salaryMin" label="薪资下限（元/月）">
-            <n-input-number v-model:value="formState.salaryMin" :min="0" :step="1000" style="width: 100%;" placeholder="不限" />
+          <n-form-item path="salaryMin" :label="t('pages.position.PositionList.s16')">
+            <n-input-number v-model:value="formState.salaryMin" :min="0" :step="1000" style="width: 100%;" :placeholder="t('pages.position.PositionList.s17')" />
           </n-form-item>
-          <n-form-item path="salaryMax" label="薪资上限（元/月）">
-            <n-input-number v-model:value="formState.salaryMax" :min="0" :step="1000" style="width: 100%;" placeholder="不限" />
+          <n-form-item path="salaryMax" :label="t('pages.position.PositionList.s18')">
+            <n-input-number v-model:value="formState.salaryMax" :min="0" :step="1000" style="width: 100%;" :placeholder="t('pages.position.PositionList.s19')" />
           </n-form-item>
 
-          <n-form-item path="location" label="工作地点">
-            <n-input v-model:value="formState.location" placeholder="请输入工作地点" />
+          <n-form-item path="location" :label="t('pages.position.PositionList.s20')">
+            <n-input v-model:value="formState.location" :placeholder="t('pages.position.PositionList.s21')" />
           </n-form-item>
         </div>
 
-        <n-divider title-placement="left">人员配置</n-divider>
+        <n-divider title-placement="left">{{ t('pages.position.PositionList.s22') }}</n-divider>
         <div class="grid grid-cols-2 gap-x-4">
           <n-form-item path="owner" label="职位负责人" :rule="reqSelect('请选择职位负责人')">
-            <n-select v-model:value="formState.owner" placeholder="请选择" :options="ownerOptions" />
+            <n-select v-model:value="formState.owner" :placeholder="t('pages.position.PositionList.s23')" :options="ownerOptions" />
           </n-form-item>
           <n-form-item path="hiringManager" label="用人经理" :rule="reqSelect('请选择用人经理')">
-            <n-select v-model:value="formState.hiringManager" placeholder="请选择" :options="managerOptions" />
+            <n-select v-model:value="formState.hiringManager" :placeholder="t('pages.position.PositionList.s24')" :options="managerOptions" />
           </n-form-item>
         </div>
 
-        <n-divider title-placement="left">职位详情</n-divider>
-        <n-form-item path="description" label="职位描述">
-          <n-input v-model:value="formState.description" type="textarea" :rows="4" placeholder="请输入职位描述和任职要求" />
+        <n-divider title-placement="left">{{ t('pages.position.PositionList.s25') }}</n-divider>
+        <n-form-item path="description" :label="t('pages.position.PositionList.s26')">
+          <n-input v-model:value="formState.description" type="textarea" :rows="4" :placeholder="t('pages.position.PositionList.s27')" />
         </n-form-item>
       </n-form>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <n-button @click="modalVisible = false">取消</n-button>
-          <n-button type="primary" :loading="saving" :disabled="saving" @click="handleSave">保存</n-button>
+          <n-button @click="modalVisible = false">{{ t('pages.position.PositionList.s28') }}</n-button>
+          <n-button type="primary" :loading="saving" :disabled="saving" @click="handleSave">{{ t('pages.position.PositionList.s29') }}</n-button>
         </div>
       </template>
     </n-modal>
@@ -95,32 +95,32 @@
     <n-modal
       v-model:show="detailVisible"
       preset="card"
-      title="职位详情"
+      :title="t('pages.position.PositionList.s30')"
       style="width: 700px; max-width: 90vw"
     >
       <template v-if="selectedPosition">
         <div class="grid grid-cols-2 gap-4">
-          <div><strong>职位编号：</strong>{{ selectedPosition.code }}</div>
-          <div><strong>职位名称：</strong>{{ selectedPosition.title }}</div>
-          <div><strong>所属部门：</strong>{{ selectedPosition.departmentName }}</div>
-          <div><strong>关联需求：</strong>{{ selectedPosition.demandName || '—' }}</div>
-          <div><strong>招聘流程：</strong>{{ selectedPosition.processName || selectedPosition.process }}</div>
-          <div><strong>优先级：</strong><n-tag :type="getPriorityType(selectedPosition.priority)">{{ selectedPosition.priority || '—' }}</n-tag></div>
-          <div><strong>职位状态：</strong><n-tag :type="getStatusType(selectedPosition.state)">{{ selectedPosition.stateDisplay }}</n-tag></div>
-          <div><strong>需求人数：</strong>{{ selectedPosition.headcount }} 人</div>
-          <div><strong>已入职：</strong>{{ selectedPosition.filledCount }} 人</div>
-          <div><strong>薪资范围：</strong>{{ salaryText(selectedPosition) }}</div>
-          <div><strong>工作地点：</strong>{{ selectedPosition.location || '—' }}</div>
-          <div><strong>创建时间：</strong>{{ selectedPosition.createdAt }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s31') }}</strong>{{ selectedPosition.code }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s32') }}</strong>{{ selectedPosition.title }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s33') }}</strong>{{ selectedPosition.departmentName }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s34') }}</strong>{{ selectedPosition.demandName || '—' }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s35') }}</strong>{{ selectedPosition.processName || selectedPosition.process }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s36') }}</strong><n-tag :type="getPriorityType(selectedPosition.priority)">{{ selectedPosition.priority || '—' }}</n-tag></div>
+          <div><strong>{{ t('pages.position.PositionList.s37') }}</strong><n-tag :type="getStatusType(selectedPosition.state)">{{ selectedPosition.stateDisplay }}</n-tag></div>
+          <div><strong>{{ t('pages.position.PositionList.s38') }}</strong>{{ selectedPosition.headcount }}{{ t('pages.position.PositionList.s39') }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s40') }}</strong>{{ selectedPosition.filledCount }}{{ t('pages.position.PositionList.s41') }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s47') }}</strong>{{ salaryText(selectedPosition) }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s42') }}</strong>{{ selectedPosition.location || '—' }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s43') }}</strong>{{ selectedPosition.createdAt }}</div>
         </div>
         <n-divider />
         <div class="grid grid-cols-2 gap-4">
-          <div><strong>职位负责人：</strong>{{ selectedPosition.ownerName || '—' }}</div>
-          <div class="col-span-2"><strong>用人经理：</strong>{{ selectedPosition.hiringManagerName || '—' }}</div>
+          <div><strong>{{ t('pages.position.PositionList.s44') }}</strong>{{ selectedPosition.ownerName || '—' }}</div>
+          <div class="col-span-2"><strong>{{ t('pages.position.PositionList.s45') }}</strong>{{ selectedPosition.hiringManagerName || '—' }}</div>
         </div>
         <n-divider />
         <div>
-          <strong>职位描述：</strong>
+          <strong>{{ t('pages.position.PositionList.s46') }}</strong>
           <p>{{ selectedPosition.description || '—' }}</p>
         </div>
       </template>
