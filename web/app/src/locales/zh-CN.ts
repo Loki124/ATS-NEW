@@ -2005,7 +2005,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.AccountSettings.s38': "两次输入的密码不一致",
   'pages.settings.AccountSettings.s39': "请输入正确的邮箱地址",
   'pages.settings.AccountSettings.s40': "跟进提醒",
-  'pages.settings.AccountSettings.s41': "@通知",
+  'pages.settings.AccountSettings.s41': "{'@'}通知",
   'pages.settings.AccountSettings.s42': "签到通知",
   'pages.settings.AccountSettings.s43': "面试官简历筛选通知",
   'pages.settings.AccountSettings.s44': "候选人接受拒绝面试通知",

@@ -1974,7 +1974,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.AccountSettings.s38': "Passwords do not match",
   'pages.settings.AccountSettings.s39': "Please enter a valid email address",
   'pages.settings.AccountSettings.s40': "Follow reminder",
-  'pages.settings.AccountSettings.s41': "@Mention",
+  'pages.settings.AccountSettings.s41': "{'@'}Mention",
   'pages.settings.AccountSettings.s42': "Check-in notification",
   'pages.settings.AccountSettings.s43': "Interviewer resume screening notification",
   'pages.settings.AccountSettings.s44': "Candidate accepted/declined interview notification",
