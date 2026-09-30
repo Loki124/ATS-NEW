@@ -16,7 +16,7 @@
           <n-select
             v-model:value="currentResource"
             :options="resourceOptions"
-            style="width: 160px"
+            class="df-input-group-key"
             @update:value="onResourceChange"
           />
         </n-space>
@@ -36,8 +36,8 @@
     <div class="page-body">
       <!-- 页面无 Tab，「字段定义」全量铺开（分组卡片视图） -->
       <n-space class="filter-row" :wrap="true">
-        <n-select v-if="!isEmbedded" v-model:value="filterModule" :options="moduleOptions" style="width: 200px" :placeholder="t('pages.settings.DynamicFieldManager.s3')" @update:value="reloadFields" />
-        <n-select v-model:value="filterGroup" :options="groupFilterOptions" style="width: 200px" :placeholder="t('pages.settings.DynamicFieldManager.s4')" @update:value="reloadFields" />
+        <n-select v-if="!isEmbedded" v-model:value="filterModule" :options="moduleOptions" class="df-input-select" :placeholder="t('pages.settings.DynamicFieldManager.s3')" @update:value="reloadFields" />
+        <n-select v-model:value="filterGroup" :options="groupFilterOptions" class="df-input-select" :placeholder="t('pages.settings.DynamicFieldManager.s4')" @update:value="reloadFields" />
         <n-button :loading="loading" @click="reloadFields">{{ t('pages.settings.DynamicFieldManager.s5') }}</n-button>
         <n-button type="primary" @click="openFieldCreate()">
           <template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s217') }}
@@ -183,7 +183,7 @@
               <n-input-number
                 v-model:value="fieldForm.validation.maxLength"
                 :min="1" :precision="0" clearable
-                :placeholder="t('pages.settings.DynamicFieldManager.s31')" style="width: 200px"
+                :placeholder="t('pages.settings.DynamicFieldManager.s31')" class="df-input-select"
               />
             </n-form-item>
           </template>
@@ -192,11 +192,11 @@
               <n-space align="center" :size="10" wrap>
                 <div class="num-field">
                   <span class="num-label">{{ t('pages.settings.DynamicFieldManager.s33') }}</span>
-                  <n-input-number v-model:value="fieldForm.validation.min" :placeholder="t('pages.settings.DynamicFieldManager.s34')" style="width: 130px" />
+                  <n-input-number v-model:value="fieldForm.validation.min" :placeholder="t('pages.settings.DynamicFieldManager.s34')" class="df-input-min-max" />
                 </div>
                 <div class="num-field">
                   <span class="num-label">{{ t('pages.settings.DynamicFieldManager.s35') }}</span>
-                  <n-input-number v-model:value="fieldForm.validation.max" :placeholder="t('pages.settings.DynamicFieldManager.s36')" style="width: 130px" />
+                  <n-input-number v-model:value="fieldForm.validation.max" :placeholder="t('pages.settings.DynamicFieldManager.s36')" class="df-input-min-max" />
                 </div>
                 <div class="num-field">
                   <span class="num-label">{{ t('pages.settings.DynamicFieldManager.s37') }}</span>
@@ -225,7 +225,7 @@
           </template>
           <template v-else-if="isLimitDateType">
             <n-form-item :label="t('pages.settings.DynamicFieldManager.s45')">
-              <n-space vertical :size="8" style="width: 100%">
+              <n-space vertical :size="8" class="df-width-full">
                 <n-space align="center" :size="8" wrap>
                   <n-radio-group :value="minMode" @update:value="(v: any) => setMinMode(v)">
                     <n-radio-button value="absolute">{{ t('pages.settings.DynamicFieldManager.s46') }}</n-radio-button>
@@ -244,7 +244,7 @@
                     v-else
                     v-model:value="fieldForm.validation.minDate"
                     :placeholder="t('pages.settings.DynamicFieldManager.s49')"
-                    style="width: 130px"
+                    class="df-input-min-max"
                     @update:value="() => validateDateExpr('min')"
                   />
                   <n-text depth="3">{{ t('pages.settings.DynamicFieldManager.s50') }}</n-text>
@@ -265,7 +265,7 @@
                     v-else
                     v-model:value="fieldForm.validation.maxDate"
                     :placeholder="t('pages.settings.DynamicFieldManager.s54')"
-                    style="width: 130px"
+                    class="df-input-min-max"
                     @update:value="() => validateDateExpr('max')"
                   />
                 </n-space>
@@ -301,7 +301,7 @@
           <!-- 2026-09-16 (兵哥) 组合字段: 子字段编辑器(可含附件子字段, 页面呈现为组合展示卡) -->
           <template v-if="isCompositeType">
             <n-form-item :label="t('pages.settings.DynamicFieldManager.s65')" required>
-              <n-space vertical :size="8" style="width: 100%">
+              <n-space vertical :size="8" class="df-width-full">
                 <n-dynamic-input
                   v-model:value="fieldForm.subFields"
                   :on-create="onCreateSubField"
@@ -323,7 +323,7 @@
             </n-form-item>
           </template>
           <n-form-item v-if="fieldNeedsOptions" :label="t('pages.settings.DynamicFieldManager.s70')">
-            <n-space vertical :size="8" style="width: 100%">
+            <n-space vertical :size="8" class="df-width-full">
               <n-select
                 :value="sourceValue"
                 :options="OPTION_SOURCE_OPTIONS"
@@ -506,7 +506,7 @@
         class="df-center-modal"
       >
         <n-space class="filter-row" :wrap="true">
-          <n-select v-if="!isEmbedded" v-model:value="groupFilterModule" :options="moduleOptions" style="width: 200px" :placeholder="t('pages.settings.DynamicFieldManager.s99')" @update:value="reloadGroups" />
+          <n-select v-if="!isEmbedded" v-model:value="groupFilterModule" :options="moduleOptions" class="df-input-select" :placeholder="t('pages.settings.DynamicFieldManager.s99')" @update:value="reloadGroups" />
           <n-button :loading="groupLoading" @click="reloadGroups">{{ t('pages.settings.DynamicFieldManager.s100') }}</n-button>
           <n-button type="primary" @click="openGroupCreate">
             <template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s220') }}
@@ -577,7 +577,7 @@
         class="df-center-modal"
       >
         <n-space class="filter-row" :wrap="true">
-          <n-select v-if="!isEmbedded" v-model:value="linkageFilterModule" :options="moduleOptions" style="width: 200px" :placeholder="t('pages.settings.DynamicFieldManager.s114')" @update:value="reloadLinkage" />
+          <n-select v-if="!isEmbedded" v-model:value="linkageFilterModule" :options="moduleOptions" class="df-input-select" :placeholder="t('pages.settings.DynamicFieldManager.s114')" @update:value="reloadLinkage" />
           <n-button :loading="linkageLoading" @click="reloadLinkage">{{ t('pages.settings.DynamicFieldManager.s115') }}</n-button>
           <n-button type="primary" @click="openLinkageCreate">
             <template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s221') }}
@@ -619,7 +619,7 @@
 
           <!-- 条件区域 -->
           <n-form-item :label="t('pages.settings.DynamicFieldManager.s120')" required>
-            <n-space vertical style="width: 100%">
+            <n-space vertical class="df-width-full">
               <n-radio-group v-model:value="linkageForm.conditionMode">
                 <n-radio value="ALL">{{ t('pages.settings.DynamicFieldManager.s121') }}</n-radio>
                 <n-radio value="ANY">{{ t('pages.settings.DynamicFieldManager.s122') }}</n-radio>
@@ -634,7 +634,7 @@
                   v-model:value="cond.fieldKey"
                   :options="linkageFieldOptions"
                   :placeholder="t('pages.settings.DynamicFieldManager.s123')"
-                  style="width: 160px"
+                  class="df-input-group-key"
                   clearable
                   @update:value="() => onConditionFieldChange(idx)"
                 />
@@ -642,7 +642,7 @@
                   v-model:value="cond.op"
                   :options="LINKAGE_OP_OPTIONS"
                   :placeholder="t('pages.settings.DynamicFieldManager.s124')"
-                  style="width: 130px"
+                  class="df-input-min-max"
                 />
                 <n-select
                   v-if="cond.op === 'IN' || cond.op === 'NOT_IN'"
@@ -678,7 +678,7 @@
 
           <!-- 动作区域 -->
           <n-form-item :label="t('pages.settings.DynamicFieldManager.s127')" required>
-            <n-space vertical style="width: 100%">
+            <n-space vertical class="df-width-full">
               <div
                 v-for="(act, idx) in linkageForm.actions"
                 :key="act.__key || idx"
@@ -689,14 +689,14 @@
                   v-model:value="act.targetFieldKey"
                   :options="linkageFieldOptions"
                   :placeholder="t('pages.settings.DynamicFieldManager.s128')"
-                  style="width: 160px"
+                  class="df-input-group-key"
                   clearable
                 />
                 <n-select
                   v-model:value="act.actionType"
                   :options="LINKAGE_ACTION_OPTIONS"
                   :placeholder="t('pages.settings.DynamicFieldManager.s129')"
-                  style="width: 130px"
+                  class="df-input-min-max"
                 />
                 <n-select
                   v-if="act.actionType === 'SET_VALUE' || act.actionType === 'CASCADE_OPTIONS'"
@@ -2089,4 +2089,10 @@ onMounted(async () => {
   display: flex; align-items: center; gap: var(--space-2); width: 100%;
 }
 .sub-field-hint { margin-top: 4px; line-height: 1.4; }
+/* 字段宽度与微调（替代散落的 width:NNNpx / flex:1 行内样式） */
+.df-input-min-max   { width: 130px; }
+.df-input-group-key { width: 160px; }
+.df-input-select    { width: 200px; }
+.df-flex-grow       { flex: 1; }
+.df-width-full      { width: 100%; }
 </style>

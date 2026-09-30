@@ -21,13 +21,13 @@
           <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
             {{ t('pages.settings.ProcessStageRules.s4') }}
           </n-alert>
-          <n-form label-placement="top" style="max-width: 800px">
+          <n-form label-placement="top" class="psr-form-max">
             <!-- 邀约不成功 -->
             <n-form-item :label="t('pages.settings.ProcessStageRules.s5')">
               <n-space>
                 <n-switch v-model:value="archiveForms.invite.enabled" @update:value="(_v: boolean) => saveArchive('INVITE_FAIL', archiveForms.invite)" />
                 <n-input v-model:value="archiveForms.invite.failTags" :placeholder="t('pages.settings.ProcessStageRules.s6')" :disabled="!archiveForms.invite.enabled" style="width: 240px" />
-                <n-input-number v-model:value="archiveForms.invite.maxAttempts" :min="1" :max="10" :placeholder="t('pages.settings.ProcessStageRules.s7')" :disabled="!archiveForms.invite.enabled" style="width: 120px" />
+                <n-input-number v-model:value="archiveForms.invite.maxAttempts" :min="1" :max="10" :placeholder="t('pages.settings.ProcessStageRules.s7')" :disabled="!archiveForms.invite.enabled" class="psr-input-days" />
               </n-space>
             </n-form-item>
 
@@ -51,7 +51,7 @@
                   :disabled="!archiveForms.eval.enabled"
                   style="width: 140px"
                 />
-                <n-input-number v-model:value="archiveForms.eval.delayDays" :min="1" :max="15" :disabled="!archiveForms.eval.enabled || archiveForms.eval.executeTiming !== 'DELAYED'" style="width: 80px" />
+                <n-input-number v-model:value="archiveForms.eval.delayDays" :min="1" :max="15" :disabled="!archiveForms.eval.enabled || archiveForms.eval.executeTiming !== 'DELAYED'" class="psr-input-days-sm" />
               </n-space>
             </n-form-item>
 
@@ -59,7 +59,7 @@
             <n-form-item :label="t('pages.settings.ProcessStageRules.s13')">
               <n-space>
                 <n-switch v-model:value="archiveForms.timeout.enabled" @update:value="(_v: boolean) => saveArchive('TIMEOUT_UNASSIGNED', archiveForms.timeout)" />
-                <n-input-number v-model:value="archiveForms.timeout.timeoutDays" :min="1" :max="30" :disabled="!archiveForms.timeout.enabled" style="width: 120px" />
+                <n-input-number v-model:value="archiveForms.timeout.timeoutDays" :min="1" :max="30" :disabled="!archiveForms.timeout.enabled" class="psr-input-days" />
                 <n-text depth="3" size="small">{{ t('pages.settings.ProcessStageRules.s14') }}</n-text>
               </n-space>
             </n-form-item>
@@ -70,7 +70,7 @@
       <!-- Tab 1: 阶段规则 -->
       <n-tab-pane name="rule" :tab="t('pages.settings.ProcessStageRules.s15')">
         <n-spin :show="ruleLoading">
-          <n-form :model="ruleForm" label-placement="top" style="max-width: 800px">
+          <n-form :model="ruleForm" label-placement="top" class="psr-form-max">
             <n-form-item :label="t('pages.settings.ProcessStageRules.s16')">
               <n-select v-model:value="ruleForm.autoAdvanceType" :options="autoAdvanceOptions" />
             </n-form-item>
@@ -148,7 +148,7 @@
               />
             </n-form-item>
 
-            <n-space justify="end" style="margin-top: 16px">
+            <n-space justify="end" class="psr-actions-top">
               <n-button type="primary" :loading="ruleSaving" @click="saveRule">{{ t('pages.settings.ProcessStageRules.s40') }}</n-button>
             </n-space>
           </n-form>
@@ -158,7 +158,7 @@
       <!-- Tab 2: 进入条件 -->
       <n-tab-pane name="condition" :tab="t('pages.settings.ProcessStageRules.s41')">
         <n-spin :show="condLoading">
-          <n-form :model="condForm" label-placement="top" style="max-width: 800px">
+          <n-form :model="condForm" label-placement="top" class="psr-form-max">
             <n-form-item :label="t('pages.settings.ProcessStageRules.s42')">
               <n-radio-group v-model:value="condForm.matchType">
                 <n-space>
@@ -188,7 +188,7 @@
               :all-link-ids="allLinkIds"
             />
 
-            <n-space justify="end" style="margin-top: 16px">
+            <n-space justify="end" class="psr-actions-top">
               <n-button type="primary" :loading="condSaving" @click="saveCondition">{{ t('pages.settings.ProcessStageRules.s49') }}</n-button>
             </n-space>
           </n-form>
@@ -519,4 +519,9 @@ onMounted(async () => {
   font-size: var(--fs-18);
   font-weight: 600;
 }
+/* 字段宽度与表单宽度收敛（替代散落的 max-width:800px / width:NNNpx 行内样式） */
+.psr-form-max      { max-width: 800px; }
+.psr-actions-top   { margin-top: 16px; }
+.psr-input-days    { width: 120px; }
+.psr-input-days-sm { width: 80px;  }
 </style>

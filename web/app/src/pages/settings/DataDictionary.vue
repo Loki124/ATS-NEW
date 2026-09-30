@@ -132,12 +132,12 @@
         <div class="el-table-scroll">
           <div class="el-table">
           <div class="el-row el-head">
-            <div class="el-cell" style="flex: 1.4">{{ t('pages.settings.DataDictionary.s29') }}</div>
-            <div class="el-cell" style="flex: 1.2">{{ t('pages.settings.DataDictionary.s30') }}</div>
-            <div class="el-cell" style="flex: 1.2">{{ t('pages.settings.DataDictionary.s31') }}</div>
-            <div class="el-cell" style="flex: 0.6">{{ t('pages.settings.DataDictionary.s32') }}</div>
-            <div class="el-cell" style="flex: 1.6">{{ t('pages.settings.DataDictionary.s33') }}</div>
-            <div class="el-cell" style="flex: 2.2">{{ t('pages.settings.DataDictionary.s34') }}</div>
+            <div class="el-cell col-name">{{ t('pages.settings.DataDictionary.s29') }}</div>
+            <div class="el-cell col-code">{{ t('pages.settings.DataDictionary.s30') }}</div>
+            <div class="el-cell col-alias">{{ t('pages.settings.DataDictionary.s31') }}</div>
+            <div class="el-cell col-status">{{ t('pages.settings.DataDictionary.s32') }}</div>
+            <div class="el-cell col-category">{{ t('pages.settings.DataDictionary.s33') }}</div>
+            <div class="el-cell col-description">{{ t('pages.settings.DataDictionary.s34') }}</div>
           </div>
 
           <div
@@ -147,7 +147,7 @@
             :class="{ editing: node.row.editing, isnew: node.row.isNew }"
           >
             <!-- 元素名称：仅本列按树形层级缩进；引导符绝对定位，避免把文字继续往右顶 -->
-            <div class="el-cell el-name-cell" style="flex: 1.4" :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }">
+            <div class="el-cell el-name-cell col-name" :style="{ paddingLeft: 8 + node.depth * 24 + 'px' }">
               <span
                 v-if="node.depth > 0"
                 class="tree-guide"
@@ -177,7 +177,7 @@
               </div>
             </div>
             <!-- 元素代码 -->
-            <div class="el-cell" style="flex: 1.2">
+            <div class="el-cell col-code">
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
@@ -190,7 +190,7 @@
               </div>
             </div>
             <!-- 英文名称 -->
-            <div class="el-cell" style="flex: 1.2">
+            <div class="el-cell col-alias">
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
@@ -201,7 +201,7 @@
               </div>
             </div>
             <!-- 排序 -->
-            <div class="el-cell" style="flex: 0.6">
+            <div class="el-cell col-status">
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
@@ -212,7 +212,7 @@
               </div>
             </div>
             <!-- 描述 -->
-            <div class="el-cell desc-cell" style="flex: 1.6">
+            <div class="el-cell desc-cell col-category">
               <div class="el-cell-content">
                 <span class="cell-inner">
                   <template v-if="node.row.editing">
@@ -225,7 +225,7 @@
               </div>
             </div>
             <!-- 操作 -->
-            <div class="el-cell" style="flex: 2.2">
+            <div class="el-cell col-description">
               <n-space :size="4" align="center">
                 <template v-if="node.row.editing">
                   <!-- v3: 行内「取消」已挪到行首 ×icon, 此处只保留「保存」 -->
@@ -991,6 +991,13 @@ onUnmounted(() => {
 .el-row.isnew { background: var(--n-100); }
 .el-row.isnew.editing { background: var(--n-180); }
 .el-cell { display: flex; align-items: center; min-height: 48px; padding: 0 var(--space-3); font-size: var(--fs-13); box-sizing: border-box; }
+/* 列宽（替代散落的 style="flex: N" 行内样式；按列语义命名） */
+.el-cell.col-name          { flex: 1.4; }
+.el-cell.col-code          { flex: 1.2; }
+.el-cell.col-alias         { flex: 1.2; }
+.el-cell.col-status        { flex: 0.6; }
+.el-cell.col-category      { flex: 1.6; }
+.el-cell.col-description   { flex: 2.2; }
 /* 每个单元格只包一个 .cell-inner，由它统一承载内容；避免多个 inline 元素在 flex 容器里因基线/字高不同而错位 */
 .el-cell-content { display: flex; align-items: center; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
 .cell-inner { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 20px; line-height: 1; }

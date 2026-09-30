@@ -280,7 +280,7 @@ onMounted(loadFields);
               v-model:value="values[f.fieldKey]"
               :maxlength="(f.validation as FieldValidation)?.maxLength ?? undefined"
               :placeholder="inputPlaceholder(f)"
-              style="width: 360px"
+              class="field-input"
               @blur="validateLocalField(f)"
             />
             <n-input
@@ -289,7 +289,7 @@ onMounted(loadFields);
               type="textarea"
               :maxlength="(f.validation as FieldValidation)?.maxLength ?? undefined"
               :placeholder="inputPlaceholder(f)"
-              style="width: 360px"
+              class="field-input"
               @blur="validateLocalField(f)"
             />
           </template>
@@ -345,7 +345,7 @@ onMounted(loadFields);
             :options="selectOptions(f).map((o) => ({ label: o.label || o.value, value: o.value }))"
             :multiple="f.fieldType === 'MULTISELECT' || f.fieldType === 'LIST_MULTI'"
             :placeholder="f.placeholder || t('pages.settings.DynamicFieldEntry.s24')"
-            style="width: 360px"
+            class="field-input"
             @update:value="validateLocalField(f)"
           />
 
@@ -355,7 +355,7 @@ onMounted(loadFields);
             :value="values[f.fieldKey] || null"
             :type="datePickerType(f.fieldType)"
             clearable
-            style="width: 360px"
+            class="field-input"
             :is-date-disabled="dateDisabled(f) || undefined"
             @update:value="(v) => onDateUpdate(f, v)"
           />
@@ -368,7 +368,7 @@ onMounted(loadFields);
             v-else-if="f.fieldType === 'ATTACHMENT'"
             v-model:value="values[f.fieldKey]"
             :placeholder="t('pages.settings.DynamicFieldEntry.s11')"
-            style="width: 360px"
+            class="field-input"
           />
 
           <!-- 富文本 (RICH_TEXT, 2026-09-24 兵哥): 规范化 HTML 字符串, 空内容归 '' -->
@@ -386,7 +386,7 @@ onMounted(loadFields);
             v-model:value="values[f.fieldKey]"
             type="textarea"
             :placeholder="t('pages.settings.DynamicFieldEntry.s26') + f.fieldType"
-            style="width: 360px"
+            class="field-input"
           />
 
           <!-- 错误提示 -->
@@ -408,4 +408,9 @@ onMounted(loadFields);
 .entry-toolbar { margin-bottom: 4px; flex-wrap: wrap; }
 .entry-hint { margin-left: 8px; }
 .entry-error { margin-top: 4px; }
+/* 字段录入控件宽度统一（替代散落的 width:NNNpx 行内样式） */
+.field-input       { width: 360px; }
+.field-input-wide  { width: 100%;  }
+.field-input-narrow { width: 240px; }
+.field-input-mid   { width: 320px; }
 </style>

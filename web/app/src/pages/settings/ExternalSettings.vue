@@ -49,13 +49,13 @@
         <n-select
           v-model:value="statusFilter"
           :options="statusOptions"
-          style="width: 150px"
+          class="es-input-select"
           @update:value="applyFilter"
         />
         <n-select
           v-model:value="envFilter"
           :options="envOptions"
-          style="width: 150px"
+          class="es-input-select"
           @update:value="applyFilter"
         />
       </n-space>
@@ -196,13 +196,13 @@
               />
             </n-form-item>
             <n-space :size="24" align="center" style="margin-top: 4px">
-              <n-form-item :label="t('pages.settings.ExternalSettings.s44')" style="margin-bottom: 0">
+              <n-form-item :label="t('pages.settings.ExternalSettings.s44')" class="es-form-no-margin">
                 <n-switch v-model:value="form.callbackEnabled">
                   <template #checked>{{ t('pages.settings.ExternalSettings.s178') }}</template>
                   <template #unchecked>{{ t('pages.settings.ExternalSettings.s179') }}</template>
                 </n-switch>
               </n-form-item>
-              <n-form-item :label="t('pages.settings.ExternalSettings.s45')" style="margin-bottom: 0">
+              <n-form-item :label="t('pages.settings.ExternalSettings.s45')" class="es-form-no-margin">
                 <n-switch v-model:value="form.productsQueryEnabled">
                   <template #checked>{{ t('pages.settings.ExternalSettings.s178') }}</template>
                   <template #unchecked>{{ t('pages.settings.ExternalSettings.s179') }}</template>
@@ -286,17 +286,17 @@
             <span class="kpi-value">{{ globalAuditSummary.avg }}ms</span>
           </div>
         </div>
-        <div class="toolbar" style="margin-bottom: 12px">
+        <div class="toolbar es-toolbar-spacing">
           <n-select
             v-model:value="globalSupplier"
             :options="globalSupplierOptions"
             :placeholder="t('pages.settings.ExternalSettings.s61')"
-            style="width: 240px"
+            class="es-input-search"
           />
           <n-select
             v-model:value="globalDirection"
             :options="globalDirectionOptions"
-            style="width: 150px"
+            class="es-input-select"
           />
           <div class="spacer"></div>
           <n-button quaternary @click="openGlobalAudit">
@@ -340,12 +340,12 @@
             <span class="kpi-value">{{ orderSummary.closed }}</span>
           </div>
         </div>
-        <div class="toolbar" style="margin-bottom: 12px">
+        <div class="toolbar es-toolbar-spacing">
           <n-select
             v-model:value="orderSupplier"
             :options="orderSupplierOptions"
             :placeholder="t('pages.settings.ExternalSettings.s69')"
-            style="width: 240px"
+            class="es-input-search"
           />
           <n-select
             v-model:value="orderStatusFilter"
@@ -1386,4 +1386,9 @@ onMounted(() => {
   color: var(--ink);
   overflow-x: auto;
 }
+/* 字段宽度与微间距收敛（替代散落的 width:NNNpx / margin-bottom:NNNpx 行内样式） */
+.es-input-search    { width: 240px; }
+.es-input-select    { width: 150px; }
+.es-toolbar-spacing { margin-bottom: 12px; }
+.es-form-no-margin  { margin-bottom: 0; }
 </style>
