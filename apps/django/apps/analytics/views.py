@@ -6,6 +6,8 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 
@@ -32,7 +34,7 @@ class ReportSnapshotViewSet(AuditMixin, viewsets.ModelViewSet):
     ordering = ['-generated_at']
 
 
-class ExportTaskViewSet(AuditMixin, viewsets.ModelViewSet):
+class ExportTaskViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """数据导出任务 ViewSet"""
     queryset = ExportTask.objects.all()
     permission_classes = [IsHROrAbove]

@@ -1,0 +1,58 @@
+"""信封契约 — ExportTaskViewSet (信封收口 Batch 10, 后端-only).
+
+ExportTaskViewSet 加 EnvelopeWriteMixin(首位基类) 覆盖 create / retrieve / update;
+@action run_task/dashboard-summary 已手动信封, 保留.
+注: create 序列化器未含 requested_by (DB 必填 FK, 后端未注入) → 当前 create 实际 500/未使用,
+故本批不测 create 信封 (仅锁 list/retrieve/update 形状).
+
+FE 影响面核查: 全仓 web/app/src 无 analytics/exports 端点 API 调用 → 零 FE 改动.
+
+权限: IsHROrAbove, auth_client=super_user 经 is_super_admin 短路.
+"""
+import uuid
+
+import pytest
+from rest_framework.test import APIClient
+
+from apps.analytics.models import ExportTask
+
+pytestmark = pytest.mark.django_db
+
+EXPORT_LIST = '/api/v1/analytics/exports/'
+
+
+def _uid(prefix: str) -> str:
+    return f'{prefix}-{uuid.uuid4().hex[:12]}'
+
+
+def _make_task(user) -> ExportTask:
+    return ExportTask.objects.create(
+        name='信封导出', entity='candidates',
+        requested_by=user, format='XLSX', status='PENDING',
+    )
+
+
+def test_export_list_envelope(auth_client):
+    resp = auth_client.get(EXPORT_LIST)
+    assert resp.status_code == 200
+    assert resp.data['success'] is True
+    assert isinstance(resp.data['data'], list)
+    assert 'pagination' in resp.data
+
+
+def test_export_retrieve_envelope(auth_client, super_user):
+    task = _make_task(super_user)
+    resp = auth_client.get(f'{EXPORT_LIST}{task.id}/')
+    assert resp.status_code == 200
+    assert resp.data['success'] is True
+    assert resp.data['data']['id'] == str(task.id)
+    assert resp.data['data']['name'] == '信封导出'
+
+
+def test_export_update_envelope(auth_client, super_user):
+    task = _make_task(super_user)
+    resp = auth_client.patch(
+        f'{EXPORT_LIST}{task.id}/', {'name': '信封导出改'}, format='json')
+    assert resp.status_code == 200, resp.content
+    assert resp.data['success'] is True
+    assert resp.data['data']['name'] == '信封导出改'

@@ -7,6 +7,8 @@ from drf_spectacular.utils import extend_schema
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeReadOnlyMixin, EnvelopeWriteMixin
 from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
 
@@ -19,7 +21,7 @@ from .serializers import (
 from .services import AutomationEngine, TriggerContext
 
 
-class AutomationRuleViewSet(AuditMixin, viewsets.ModelViewSet):
+class AutomationRuleViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """自动化规则 ViewSet"""
     queryset = AutomationRule.objects.all()
     serializer_class = AutomationRuleSerializer
@@ -128,7 +130,7 @@ class AutomationTriggerView(viewsets.ViewSet):
         }, status=status.HTTP_200_OK)
 
 
-class AutomationLogViewSet(viewsets.ReadOnlyModelViewSet):
+class AutomationLogViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
     """自动化执行日志"""
     queryset = AutomationLog.objects.all()
     serializer_class = AutomationLogSerializer

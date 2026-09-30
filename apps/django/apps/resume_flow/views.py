@@ -19,6 +19,8 @@ from rest_framework.response import Response
 
 from apps.common.exceptions import NotFound, PermissionDenied, StateTransitionError, ValidationError
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions_v2 import V2Permission
 
 from .models import ApprovalFlow, ApprovalFlowHistory
@@ -32,7 +34,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-class ApprovalFlowViewSet(viewsets.ModelViewSet):
+class ApprovalFlowViewSet(EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
     """审批流 ViewSet
 
     list:      列出当前用户相关的审批流
@@ -89,6 +91,19 @@ class ApprovalFlowViewSet(viewsets.ModelViewSet):
             {'success': True, 'data': out.data},
             status=status.HTTP_201_CREATED,
         )
+
+    def update(self, request, *args, **kwargs):
+        """编辑审批流 — 包 {success, data} 信封 (create/approve/reject/delegate 为自定义, 不动)."""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return success_response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], url_path='approve',
             permission_classes=[V2Permission])

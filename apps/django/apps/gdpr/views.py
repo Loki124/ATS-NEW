@@ -24,6 +24,8 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsSuperAdmin
 
 from .models import GDPRRequest
@@ -36,7 +38,7 @@ from .serializers import (
 from .services import GdprService
 
 
-class GDPRRequestViewSet(AuditMixin, viewsets.ModelViewSet):
+class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
     """GDPR 请求 ViewSet"""
     queryset = GDPRRequest.objects.all()
     permission_classes = [IsSuperAdmin]
@@ -80,6 +82,19 @@ class GDPRRequestViewSet(AuditMixin, viewsets.ModelViewSet):
         out['verification_code_expires_at'] = req.verification_code_expires_at
         out['verification_message'] = '请通过邮件/短信查看验证码, 15 分钟内 verify 有效'
         return Response({'success': True, 'data': out}, status=drf_status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        """超管编辑 GDPR 请求 — 包 {success, data} 信封 (create/verify/process 为自定义, 不动)."""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return success_response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], url_path='verify')
     def verify(self, request, pk=None):
