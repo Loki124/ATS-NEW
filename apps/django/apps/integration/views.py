@@ -33,7 +33,7 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
-class IntegrationConfigViewSet(AuditMixin, viewsets.ModelViewSet):
+class IntegrationConfigViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """集成配置 ViewSet - 仅超管可操作"""
     queryset = IntegrationConfig.objects.all()
     serializer_class = IntegrationConfigSerializer

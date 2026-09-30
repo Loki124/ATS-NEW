@@ -65,3 +65,54 @@ def test_retrieve_not_raw(super_client, order):
     assert 'order_number' not in body              # 原始 snake 字段不在顶层
     assert 'orderNumber' not in body               # 驼峰字段也不在顶层（在 data 内）
     assert body['data']['orderNumber'] == order.order_number
+
+
+# ===================== Batch A：IntegrationConfigViewSet =====================
+# 前端 ExternalSettings.vue 对 integrations 的消费：
+# - list    : res.results ?? res.data（list 已信封，未变）
+# - create/update: 调用方仅 await，忽略返回值（信封化无害）
+# - test @action: res?.data?.ok ?? res?.success（手动 {success,data}，失败分支需 success=False，保持手动）
+# - retrieve: 无 FE 消费方
+# ⇒ 后端套 EnvelopeWriteMixin 即可，零 FE 改动。
+CONFIG_BASE = '/api/v1/integrations'
+
+
+def test_config_list_envelope(super_client, bg_config):
+    resp = super_client.get(f'{CONFIG_BASE}/')
+    assert resp.status_code == 200
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], list)
+
+
+def test_config_retrieve_envelope(super_client, bg_config):
+    resp = super_client.get(f'{CONFIG_BASE}/{bg_config.id}/')
+    assert resp.status_code == 200
+    body = resp.json()
+    _assert_envelope(body)
+    assert body['data']['id'] == bg_config.id
+
+
+def test_config_create_envelope(super_client):
+    resp = super_client.post(
+        f'{CONFIG_BASE}/',
+        {'type': 'EMAIL', 'name': 'Env Create', 'config': {}, 'is_active': True},
+        format='json',
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], dict)
+    assert body['data']['id']
+
+
+def test_config_update_envelope(super_client, bg_config):
+    resp = super_client.put(
+        f'{CONFIG_BASE}/{bg_config.id}/',
+        {'type': 'EMAIL', 'name': 'Env Update', 'config': {}, 'is_active': True},
+        format='json',
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    _assert_envelope(body)
+    assert body['data']['name'] == 'Env Update'
