@@ -77,32 +77,32 @@ export interface OfferTemplate {
 
 export async function listOffers(params: { page?: number; pageSize?: number; offerStatus?: string; demandId?: string } = {}) {
   const { data } = await api.get('/offers/', { params });
-  return data;
+  return data?.data ?? data;
 }
 
 export async function getOffer(id: string) {
   const { data } = await api.get(`offers/${id}/`);
-  return data;
+  return data?.data ?? data;
 }
 
 export async function getOfferHistory(id: string) {
   const { data } = await api.get(`offers/${id}/status-history/`);
-  return data;
+  return data?.data ?? data;
 }
 
 export async function transitionOffer(id: string, to: string, reason?: string) {
   const { data } = await api.post(`offers/${id}/transition/`, { to, reason });
-  return data;
+  return data?.data ?? data;
 }
 
 export async function listOfferTemplates() {
   const { data } = await api.get('/offer-templates/');
-  return data;
+  return data?.data ?? data;
 }
 
 export async function renderOffer(offerId: string, templateKey: string, format: 'html' | 'pdf' = 'html') {
   const { data } = await api.post('/offer-templates/render-from-offer/', { offerId, templateKey, format });
-  return data;
+  return data?.data ?? data;
 }
 
 // G26 - 手动背调 4 等级
@@ -170,7 +170,7 @@ export async function completeBackgroundCheck(
 
 export async function downloadBackgroundCheckReport(offerId: string, bid: string): Promise<Blob> {
   const { data } = await api.get(`/offers/${offerId}/background-checks/${bid}/report/`, { responseType: 'blob' });
-  return data;
+  return data?.data ?? data;
 }
 
 export default api;

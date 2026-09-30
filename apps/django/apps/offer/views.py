@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Offer
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class OfferViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class OfferViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """Offer ViewSet - 含 8 个状态流转；按职位部门 scope 过滤"""
     queryset = Offer.objects.all()
     permission_classes = [V2Permission]
