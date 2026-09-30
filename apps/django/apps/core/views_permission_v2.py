@@ -37,7 +37,7 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
         """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint (menus/functions/mous) 与 FE helper 期望."""
         qs = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
 
 class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
@@ -54,7 +54,7 @@ class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
         """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
         qs = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
 
 class RoleViewSet(viewsets.ModelViewSet):
@@ -73,21 +73,21 @@ class RoleViewSet(viewsets.ModelViewSet):
         """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint 与 FE helper 期望."""
         qs = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(
-            {'success': True, 'data': serializer.data},
-            status=http_status.HTTP_201_CREATED,
+        return success_response(
+            serializer.data,
+            status_code=http_status.HTTP_201_CREATED,
             headers=headers,
         )
 
@@ -97,7 +97,7 @@ class RoleViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     @action(detail=False, methods=['post'])
     @transaction.atomic
@@ -267,7 +267,7 @@ class EnvelopeWriteMixin:
 
     def destroy(self, request, *args, **kwargs):
         self.perform_destroy(self.get_object())
-        return Response({'success': True, 'data': None})
+        return success_response(None)
 
 
 class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
@@ -288,7 +288,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         """
         qs = self.filter_queryset(self.get_queryset()).order_by('display_order', 'id')
         serializer = self.get_serializer(qs, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def tree(self, request):
@@ -567,7 +567,7 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 user_id = None
         role_code = request.query_params.get('role_code')
         app_code = request.query_params.get('app_code')
-        return Response({'success': True, 'data': _build_app_scope_rows(user_id, role_code, app_code)})
+        return success_response(_build_app_scope_rows(user_id, role_code, app_code))
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -599,9 +599,9 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             'granted_at': ur.granted_at,
             'updated_at': ur.updated_at,
         }
-        return Response(
-            {'success': True, 'data': self.get_serializer(row).data},
-            status=http_status.HTTP_201_CREATED,
+        return success_response(
+            self.get_serializer(row).data,
+            status_code=http_status.HTTP_201_CREATED,
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -617,4 +617,4 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             scopes.pop(app_code, None)
             ur.app_data_scopes = scopes
             ur.save()
-        return Response({'success': True, 'data': None})
+        return success_response(None)

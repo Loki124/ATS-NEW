@@ -23,12 +23,19 @@ import uuid
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.core.models_permission_v2 import UserRoleV2
+from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 
 User = get_user_model()
 
 USERS_BASE = '/api/v1/users'
 USER_ROLES_BASE = '/api/v1/user-roles'
+
+# Batch L: core/v2 权限域信封契约新增端点
+PERM_RESOURCES_BASE = '/api/v1/permissions/resources'
+PERM_TEMPLATES_BASE = '/api/v1/permissions/templates'
+ROLES_BASE = '/api/v1/roles'
+MGMT_UNITS_BASE = '/api/v1/management-units'
+USER_APP_DATA_SCOPES_BASE = '/api/v1/user-app-data-scopes'
 
 
 def _assert_envelope(body, *, code=0):
@@ -157,3 +164,131 @@ def test_user_role_update_envelope(auth_client, super_user):
     body = resp.json()
     _assert_envelope(body)
     assert body['data']['managementUnitIds'] == [7]
+
+
+# ===========================================================================
+# Batch L: core / v2 权限域信封契约 (permissions/resources, permissions/templates,
+#          roles, management-units, user-app-data-scopes)
+#
+# 锁定目标 (经逐类直读 + 路由 include('apps.core.urls_permission_v2') 确认线上):
+# - PermissionResourceViewSet.list      : 原 {success,data} 半信封 -> success_response (补 code)
+# - PermissionTemplateViewSet.list      : 同上
+# - RoleViewSet(v2).list/retrieve/create/update : 同上四方法
+# - ManagementUnitViewSet.list          : 同上 (本地 EnvelopeWriteMixin 不覆盖 list)
+# - UserAppDataScopeViewSet.list/create/destroy: 同上 (destroy 经本地混入)
+#
+# 排除 (保留不收口, SOP 坑①: @action 自定义端点含 success:False 分支 / 非标准 C-U-R):
+# - RoleViewSet.clone_from_template / data_permissions / data_permissions_options
+# - ManagementUnitViewSet.tree / members / member_detail / resolved_persons
+# - UserRoleViewSet.suggest_scope
+# ===========================================================================
+
+
+@pytest.mark.django_db
+def test_v2_permission_resource_list_envelope(auth_client):
+    """permissions/resources/ list 现返回 {success,data,code}."""
+    resp = auth_client.get(PERM_RESOURCES_BASE + '/')
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], list)
+
+
+@pytest.mark.django_db
+def test_v2_permission_template_list_envelope(auth_client):
+    """permissions/templates/ list 现返回 {success,data,code}."""
+    resp = auth_client.get(PERM_TEMPLATES_BASE + '/')
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], list)
+
+
+@pytest.mark.django_db
+def test_v2_role_list_envelope(auth_client):
+    """roles/ list 现返回 {success,data,code}."""
+    resp = auth_client.get(ROLES_BASE + '/')
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], list)
+
+
+@pytest.mark.django_db
+def test_v2_role_create_envelope(auth_client):
+    """roles/ create 现返回 201 + {success,data,code}, 驼峰 roleCode 回填."""
+    role_code = f'envrole_{uuid.uuid4().hex[:8]}'
+    payload = {
+        'role_code': role_code,
+        'role_name': '信封测试角色',
+        'system_code': 'recruit',
+    }
+    resp = auth_client.post(ROLES_BASE + '/', data=payload, format='json')
+    assert resp.status_code == 201, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    new_id = body['data']['id']
+    assert new_id
+    assert body['data']['roleCode'] == role_code
+    assert RoleV2.objects.filter(pk=new_id, role_code=role_code).exists()
+
+
+@pytest.mark.django_db
+def test_v2_role_retrieve_envelope(auth_client):
+    """roles/{id}/ retrieve 现返回 {success,data,code}."""
+    role = RoleV2.objects.create(
+        system_code='recruit',
+        role_code=f'envrole_{uuid.uuid4().hex[:8]}',
+        role_name='信封测试检索角色',
+    )
+    resp = auth_client.get(f'{ROLES_BASE}/{role.id}/')
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert body['data']['id'] == role.id
+    assert body['data']['roleCode'] == role.role_code
+
+
+@pytest.mark.django_db
+def test_v2_management_unit_list_envelope(auth_client):
+    """management-units/ list 现返回 {success,data,code}."""
+    resp = auth_client.get(MGMT_UNITS_BASE + '/')
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], list)
+
+
+@pytest.mark.django_db
+def test_v2_user_app_data_scope_list_envelope(auth_client, super_user):
+    """user-app-data-scopes/ list 现返回 {success,data,code}."""
+    resp = auth_client.get(USER_APP_DATA_SCOPES_BASE + '/')
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert isinstance(body['data'], list)
+
+
+@pytest.mark.django_db
+def test_v2_user_app_data_scope_create_envelope(auth_client, super_user):
+    """user-app-data-scopes/ create 现返回 201 + {success,data,code}."""
+    role_code = f'envscope_{uuid.uuid4().hex[:8]}'
+    payload = {
+        'user_id': super_user.id,
+        'role_code': role_code,
+        'app_code': 'recruit',
+        'management_unit_ids': [1, 2],
+    }
+    resp = auth_client.post(USER_APP_DATA_SCOPES_BASE + '/', data=payload, format='json')
+    assert resp.status_code == 201, resp.content
+    body = resp.json()
+    _assert_envelope(body)
+    assert body['data']['appCode'] == 'recruit'
+    assert body['data']['userId'] == super_user.id
+    # destroy 走本地 EnvelopeWriteMixin.destroy -> 同样带 code
+    pk = body['data']['id']
+    del_resp = auth_client.delete(f'{USER_APP_DATA_SCOPES_BASE}/{pk}/')
+    assert del_resp.status_code == 200, del_resp.content
+    del_body = del_resp.json()
+    _assert_envelope(del_body)
+    assert del_body['data'] is None
