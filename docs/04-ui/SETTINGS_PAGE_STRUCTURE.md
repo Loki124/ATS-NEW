@@ -271,6 +271,66 @@ DataDictionary 因列表模式需自身纵向滚动，保留了 scoped `.page-co
 - **自检**：设置页 / 列表页分页器实测——① 每页条数 = 20（或显式 `pageSize` 覆盖值）；② `20 / 页` 下拉选项 = `[10,20,50,100]`；③ 含「跳至」输入框；④ 左侧显示「共 N 条」；⑤ **`20 / 页` 选择器实测可切换**（改 50 后实际渲染行数同步变为 50，非仅 UI 数字变化）；⑥ `grep -rn 'pageSize:' web/app/src/pages` 除 `useTablePagination.ts` 外无命中。
 - **落地范围（2026-09-16 初建 / 2026-09-18 外观补全）**：CodeTableLibrary（region 远程改 `remotePagination`、5 个本地表改 `localPagination()`）、CompanyLibrary、SchoolLibrary（各 inline `{pageSize:15}` 改 `localPagination()`）；2026-09-18 `useTablePagination` 增补 `showQuickJumper` / `pageSizes` / `prefix(共N条)`，region 远程 `pageSize 50→20` 且 `page_size` 透传后端。
 
+## 4.y 卡选择决策树（玻璃面板 vs n-card，2026-09-30 落地）
+
+## 4.y 卡选择决策树（玻璃面板 vs n-card，2026-09-30 落地）
+
+**规则**：所有设置页的卡型容器**必须**按以下决策树选择，**禁止**散落私有 `<n-card>` 或私有玻璃样式。
+
+| 场景 | 推荐形态 | 模板写法 |
+|---|---|---|
+| **无标题的卡**（如空状态、表格/表单的根容器） | `.glass-panel`（裸玻璃类） | `<div class="glass-panel">...内容...</div>`；如需内边距，scoped 补 `.glass-panel { padding: var(--space-4) }` |
+| **带标题的卡**（如「需求规则设置」「联系信息」分段） | `.glass-panel--card` 变体（带 title 容器） | `<div class="glass-panel glass-panel--card"><div class="glass-panel__title">{{ title }}</div><div class="glass-panel__body">...内容...</div></div>` |
+| **带标题 + 右侧操作**（如「条件编辑区」标题旁的「添加条件」按钮） | `.glass-panel--card` + `.glass-panel__title-extra` | 标题双层：`<div class="glass-panel__title"><span>{{ title }}</span><div class="glass-panel__title-extra"><button>添加条件</button></div></div>` |
+| **多 tab 内的卡片**（如 CodeTableLibrary 静态数据页 tab 内） | `<n-card class="tab-card">` 保留（§2.2 已规范 flex 链） | `.tab-card` 走 §2.2 的 `.tab-card :deep(.n-card-content)` 链 |
+| **子卡**（如 `.batch-modal` / `.lib-card` / `.policy-table-card` / `.stage-card` / `.config-card` / `.settings-section` / `.ra-card` / `.cs-card` / `.ca-card`） | 保留 `<n-card>` 或局部玻璃变体（按子卡语义保留） | 命名空间独立，不属于页面根容器范畴 |
+
+### 4.y.1 `.glass-panel--card` 变体 API（glass.css 全局定义）
+
+```css
+.glass-panel--card { display: flex; flex-direction: column; }
+/* 标题区：14px 加粗 + 16px padding + 底部分隔线 + flex 让标题内联 tag 右对齐 */
+.glass-panel__title {
+  padding: var(--space-4);
+  font-size: var(--fs-14, 14px);
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* 标题右侧操作区（替代 <template #header-extra>）：用 margin-left:auto 推到最右 */
+.glass-panel__title-extra { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+/* 正文区：16px padding + flex:1 撑满剩余空间 */
+.glass-panel__body { padding: var(--space-4); flex: 1; min-height: 0; }
+```
+
+### 4.y.2 `n-card` → `.glass-panel--card` 迁移模板
+
+| 原生（naive-ui） | 玻璃面板变体 |
+|---|---|
+| `<n-card :title="..." class="config-card">...</n-card>` | `<div class="glass-panel glass-panel--card config-card"><div class="glass-panel__title">{{ title }}</div><div class="glass-panel__body">...内容...</div></div>` |
+| `<n-card><template #header>...</template>...</n-card>` | `<div class="glass-panel glass-panel--card"><div class="glass-panel__title">...header 内容...</div><div class="glass-panel__body">...</div></div>` |
+| `<n-card :title="..."><template #header-extra><button>...</button></template>...</n-card>` | `<div class="glass-panel glass-panel--card"><div class="glass-panel__title"><span>{{ title }}</span><div class="glass-panel__title-extra"><button>...</button></div></div><div class="glass-panel__body">...</div></div>` |
+
+### 4.y.3 强制项
+
+- **禁止页面私有定义与 `.glass-panel--card` 等价的卡样式**（如私有 `.config-card :deep(.n-card-header)` 等）——必须用全局变体。
+- **禁止写 `<n-card class="config-card">` 等带 class 但仍用 n-card 渲染的卡**——`<n-card>` 的默认 border/box-shadow 与玻璃设计冲突，迁移到 `.glass-panel--card` 后视觉与 n-card 行为一致（标题 / 副标题 / 底部分隔线 / 右侧 header-extra）但走全局设计系统。
+- 迁移后必须删除 scoped 中所有 `:deep(.n-card-header / .n-card-header__main / .n-card__content / .n-card-content)` 等死代码（n-card 已移除，:deep 选择器命中 0 行）。
+- 迁移后必须删除 `import { NCard } from 'naive-ui'`（若仅作卡渲染用）。
+- 保留 `class="config-card"` 等原业务 class 名——scoped `.config-card { animation: card-in ... }` / `.config-card { border-radius: 8px }`（紧凑配置面板设计选择）等仍作用于 `.glass-panel--card` div。
+- **暗色自动跟随**：`.glass-panel__title { color: var(--ink) }` 走全局暗色变量集，无需额外样式。
+
+### 4.y.4 自检
+
+新增/重构带标题卡时：
+1. `grep -n "<n-card" <file>.vue` 在模板中**只允许出现在 `<n-modal>` 内（弹窗用）+ 子卡保留命名空间（`.tab-card`/`.lib-card`/`.config-card`/`.ra-card`/`.settings-section`/`.cs-card`/`.ca-card` 等已规范化）**——页面根内容卡必须为 0。
+3. 每个 `n-data-table` 必须包在 `<div class="glass-panel__body">` 或 `<div class="glass-panel">` 内。
+5. 暗色模式下 `.glass-panel__title` 自动反色（`getComputedStyle(title).color !== '#000'`，因 `var(--ink)` 切换）。
+
 ## 5. 多 tab 看板（CampusControl 范式）
 
 当页面是「一个玻璃面板内嵌 n-tabs，每个 tab 各自滚动」时：
@@ -346,7 +406,9 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - [ ] 弹窗用 n-modal preset="card" + :bordered="false"，scoped 无居中/滚动重复定义
 - [ ] KPI 用 .kpi-row > .kpi-card；强调卡用 .kpi-card--accent（CSS 变量）；**不得私有重定义 .kpi-* 或硬编码 hex**
 - [ ] 主按钮用 gradient-btn 或 type="primary"，未私有重定义渐变
-- [ ] 暗色验证：切换 body.dark，极光/玻璃/标题渐变/表格滚动/KPI 强调卡均正常（变量集切换）
+- [ ] **卡选择决策树（§4.y）**：页面根内容容器用 `.glass-panel` / `.glass-panel--card` 变体；模板 `<n-card>` 只允许出现在 `<n-modal>` 内 + 子卡命名空间（`.tab-card` / `.lib-card` / `.config-card` / `.ra-card` / `.settings-section` / `.cs-card` / `.ca-card` / `.policy-table-card` / `.stage-card` 等）。带标题的卡用 `<div class="glass-panel glass-panel--card">` + `<div class="glass-panel__title">` + `<div class="glass-panel__body">`，右侧操作放 `.glass-panel__title-extra`。
+- [ ] **n-card 迁移后清理**：迁移到 `.glass-panel--card` 后必须删除 scoped `:deep(.n-card-header / .n-card-header__main / .n-card__content / .n-card-content)` 死代码 + 删除 `NCard` import（仅作卡渲染用）。
+- [ ] 暗色验证：切换 body.dark，极光/玻璃/标题渐变/表格滚动/KPI 强调卡/`.glass-panel__title` 均正常（变量集切换，title 自动反色）
 
 ## 8. 本次落地改动（2026-08-24）
 
@@ -430,6 +492,22 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - **影响**：动态数据页 tab 固定、仅表体内部滚动；院校库/专业库/公司库 3 个一级 tab 切换正常；专业库独立可访问（`/settings/major-library`）。路由 `major-library` 与既有 `school-library`/`company-library` 一致。
 
 ## 9. 数据列表页统一数据规范（2026-09-19 新增）
+
+## 8.9 规范修订记录（2026-09-30，卡选择决策树 + `.glass-panel--card` 变体）
+
+- **背景**：本会话扫到 18 个含 `<n-card>` 的设置页，其中 14 个是子卡（保留 `<n-card>`），4 个多卡页（AccountSettings / CompanyBrand / DemandConfig / RuleAuthoring）带 `:title` 或 `<template #header>` slot——简单替换 `.glass-panel` 会丢标题视觉。
+- **走法决策**：不采用走法 A（接受视觉降级，丢 title），采用走法 B（设计系统演进）——扩展 `.glass-panel` 体系新增 `.glass-panel--card` 变体（带 title 容器）+ `.glass-panel__title` / `.glass-panel__body` / `.glass-panel__title-extra` 子元素类。走法 A 与 B 在用户体验上的差异见走法 B 提交说明。
+- **代码（glass.css 阶段 G）**：新增 30 行 CSS 定义 `.glass-panel--card` / `.glass-panel__title` / `.glass-panel__title-extra` / `.glass-panel__body` 四个全局类；`.glass-panel--card` 是 flex 列布局，标题子元素含 padding+14px 加粗+`var(--ink)` 暗色自动跟随+`border-bottom` 分隔线，标题右侧 `__title-extra` 用 `margin-left:auto` 推到最右（与 naive-ui `<template #header-extra>` 行为一致）。
+- **落地（4 个 commit 2026-09-30 推送）**：
+  · `c263307f` AccountSettings（3 张卡，含 `<template #header>` slot）+ glass.css 变体定义
+  · `4b675a62` CompanyBrand（6 张卡，纯 `:title`）
+  · `1f6f72b1` RuleAuthoring（4 张卡，2 含 `<template #header-extra>`）+ glass.css `__title-extra`
+  · `9356175a` DemandConfig（10 张卡，纯 `:title`，保留 scoped `.config-card { border-radius: 8px }` 紧凑配置面板设计选择）
+  · 累计 23 张多卡全部迁移，n-card 全部清零；Playwright 真机：`nCardCount=0` / `cardCount=23` / `backdrop=blur(28px)` / `borderRadius=20px`（DemandConfig 8px）/ `consoleErrCount=0`；截图视觉确认玻璃面板呈现正确。
+- **§4.y 新增**：卡选择决策树 + `.glass-panel--card` 变体 API + `n-card` → `.glass-panel--card` 迁移模板（含 `:title` / `<template #header>` / `<template #header-extra>` 三种场景）+ 强制项（禁私设等价样式 / 禁带 class 的 `<n-card>` / 删 `:deep(.n-card-*)` 死代码 / 删 `NCard` import / 暗色自动跟随）+ 自检（模板 `n-card` 仅出现在 `<n-modal>` 内或子卡命名空间 + 表格包在 `glass-panel__body` 内 + 暗色 `var(--ink)` 反色）。
+- **影响**：未来新增带标题卡**零成本**复用 `.glass-panel--card`（无需每次重写）；存量债（18 个含 n-card 页面）的 4 个多卡页已迁移，14 个子卡（含 `<n-modal>` 内 n-card 与功能性子卡）按命名空间保留——**甄别规则见 §4.y 决策树**，避免误迁。
+
+---
 
 > 前置说明：`SETTINGS_PAGE_STRUCTURE.md` 前文已覆盖页面外壳、布局模型、标题区、KPI/工具条、弹窗、分页统一组件。本节补齐**数据语义规范**——字段命名、展示顺序、筛选/排序、状态标识。若数据语义不统一，页面再多布局统一也会显得信息混乱。
 
