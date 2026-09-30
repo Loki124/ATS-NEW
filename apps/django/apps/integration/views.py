@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsSuperAdmin
 
 from .models import IntegrationConfig, IntegrationSyncLog, BackgroundCheckOrder
@@ -181,7 +182,7 @@ class BackgroundCheckCallbackView(APIView):
             logger.exception('callback FAILED audit log write failed')
 
 
-class BackgroundCheckOrderViewSet(viewsets.ModelViewSet):
+class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     """背调订单状态机视图（仅超管可读 + 取消）。
 
     - 列表/详情：展示订单当前状态、风险、报告、状态机转移历史(events)
