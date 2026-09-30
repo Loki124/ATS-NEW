@@ -38,6 +38,8 @@ from django.contrib.auth import get_user_model
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
+from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.core.scope_resolver import scope_filter_q
@@ -66,7 +68,7 @@ from .services import CandidateService
 logger = logging.getLogger(__name__)
 
 
-class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """候选人 ViewSet — 增加部门 scope 过滤防 IDOR"""
     queryset = Candidate.objects.filter(deleted_at__isnull=True).select_related(
         'source_channel', 'referrer',
@@ -150,7 +152,7 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         out = CandidateDetailSerializer(
             candidate, context=self.get_serializer_context(),
         )
-        return Response(out.data, status=status.HTTP_201_CREATED)
+        return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """更新候选人基本信息"""
@@ -161,7 +163,7 @@ class CandidateViewSet(ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.Mode
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
+        return success_response(
             CandidateDetailSerializer(instance, context=self.get_serializer_context()).data,
         )
 

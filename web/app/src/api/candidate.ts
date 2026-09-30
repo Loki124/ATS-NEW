@@ -42,13 +42,15 @@ export async function listCandidates(params: {
 // 详情
 export async function getCandidate(id: string) {
   const { data } = await api.get(`/candidates/${id}/`)
-  return data
+  // 裸容错: 后端信封化后 data={success,data:payload}; 过渡期裸返回则回落 data 本身
+  return data?.data ?? data
 }
 
 // 局部更新候选人 (PATCH /candidates/<id>/, 用于编辑简历中映射到模型列的字段)
 export async function updateCandidate(id: string, payload: Record<string, any>) {
   const { data } = await api.patch(`/candidates/${id}/`, payload)
-  return data
+  // 裸容错: 同 getCandidate, 兼容后端裸返回与信封
+  return data?.data ?? data
 }
 
 // G9 批量推荐
