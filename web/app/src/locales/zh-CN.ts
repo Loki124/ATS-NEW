@@ -3021,7 +3021,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.ThemeSettings.s38': "主题已保存 · 全站立即生效",
   'pages.settings.ThemeSettings.s39': "已恢复默认主题（#6366F1 / 浅色）",
   'pages.settings.SettingsLayout.s3': "⚠️ 不再用 n-layout-sider：它会自动把 header + menu 一起包进内部 .n-layout-scroll-container，",
-  'pages.settings.SettingsLayout.s4': "导致 Naive 的 scrollbar 竖向跨整个容器、覆盖在 header 上方（用户反馈"滚动条覆盖header"）。",
+  'pages.settings.SettingsLayout.s4': "导致 Naive 的 scrollbar 竖向跨整个容器、覆盖在 header 上方（用户反馈\"滚动条覆盖header\"）。",
   'pages.settings.SettingsLayout.s5': "改为自定义 .settings-sider（flex column），header 固定、menu 单独 overflow-y:auto，",
   'pages.settings.SettingsLayout.s6': "基本信息",
   'pages.settings.SettingsLayout.s7': "个人信息管理",
