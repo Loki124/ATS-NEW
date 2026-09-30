@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class NotificationTemplateViewSet(AuditMixin, viewsets.ModelViewSet):
+class NotificationTemplateViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     """通知模板 ViewSet"""
     queryset = NotificationTemplate.objects.all()
     serializer_class = NotificationTemplateSerializer

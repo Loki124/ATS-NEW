@@ -11,6 +11,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
+from apps.common.response import success_response
 from apps.core.role_v2_query import HR_TIER, user_has_any_role
 
 from apps.core.models import User
@@ -77,13 +78,13 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         """覆盖 list 以返回 {success, data} 信封（与其它端点一致）。"""
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         """覆盖 retrieve 以返回 {success, data} 信封（与 list 一致）。"""
         instance = self.get_object()
         serializer = self.get_serializer(instance, context={'request': request})
-        return Response({'success': True, 'data': serializer.data})
+        return success_response(serializer.data)
 
     # ===== 模块级配置：工作台展示开关（总开关）=====
     @action(detail=False, methods=['get', 'put'], url_path='config')
@@ -103,7 +104,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
             cfg.show_on_workbench = bool(wb)
             cfg.save(update_fields=['show_on_workbench', 'updated_at'])
         out = AnnouncementConfigSerializer(cfg)
-        return Response({'success': True, 'data': out.data})
+        return success_response(out.data)
 
     def create(self, request, *args, **kwargs):
         """创建后返回完整读序列化器（含 id），便于前端管理页刷新。"""
@@ -111,7 +112,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         out = AnnouncementSerializer(serializer.instance, context={'request': request})
-        return Response({'success': True, 'data': out.data}, status=status.HTTP_201_CREATED)
+        return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """更新后返回完整读序列化器（含 id）。"""
@@ -121,7 +122,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         out = AnnouncementSerializer(instance, context={'request': request})
-        return Response({'success': True, 'data': out.data})
+        return success_response(out.data)
 
     # ===== 附件：上传 / 删除（HR 及以上）=====
     @action(detail=True, methods=['post'], url_path='attachments')
@@ -154,7 +155,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
             content_type=file.content_type or '',
         )
         out = AnnouncementAttachmentSerializer(att, context={'request': request})
-        return Response({'success': True, 'data': out.data}, status=status.HTTP_201_CREATED)
+        return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['delete'], url_path='attachments/(?P<attachment_id>[^/.]+)')
     def delete_attachment(self, request, pk=None, attachment_id=None):
@@ -173,7 +174,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         except Exception:
             logger.warning('物理文件删除失败（DB 软删仍生效）attachment=%s', att.id, exc_info=True)
         att.soft_delete()
-        return Response({'success': True})
+        return success_response(None)
 
     # ===== 推送记录 =====
     def _audience_users(self, announcement: Announcement):
@@ -243,7 +244,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         if error:
             return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
         out = AnnouncementPushRecordSerializer(record, context={'request': request})
-        return Response({'success': True, 'data': out.data}, status=status.HTTP_201_CREATED)
+        return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='push/(?P<push_id>[^/.]+)/notify-unread')
     def notify_unread(self, request, pk=None, push_id=None):
@@ -287,4 +288,4 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
                 logger.warning('公告提醒单用户发送失败 announcement=%s recipient=%s', announcement.id, log.recipient_id, exc_info=True)
                 continue
 
-        return Response({'success': True, 'data': {'notified': notified}})
+        return success_response({'notified': notified})
