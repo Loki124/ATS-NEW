@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 
 from .models import Onboarding
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class OnboardingViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class OnboardingViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
     """入职流程 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Onboarding.objects.all()
     permission_classes = [V2Permission]
