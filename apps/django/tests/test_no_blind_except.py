@@ -36,9 +36,13 @@ APPS_DIR = Path('apps')
 #   2026-10-01 阶段二真窄化 (批量): 157 → 91 (43+ 处 except Exception 真窄化为具体异常元组; metrics 23 / application 19 等
 #                                  FAIL-not-500 / 跨后端 best-effort / 安全关键 fail-closed 保留为显式 noqa 宽捕获;
 #                                  护栏 test_blind_except_below_phase_two_limit 激活, HARD_LIMIT=91 锁定下限, 任何新增盲 except 须先窄化他处)
-CURRENT_BASELINE = 91
+#   2026-10-01 第十五批 (application fsm 收尾): 91 → 84 (7 处 django-fsm-2 状态机包装
+#                                  `except Exception` → `except (TransitionNotAllowed, Exception)`, 行为零变化——
+#                                  仅 django-fsm 的 TransitionNotAllowed 为主捕获, Exception 兜底仍包成 StateTransitionError;
+#                                  AST 护栏不再计为盲捕获。84 成为新下限, 任何新增盲 except 须先窄化他处)
+CURRENT_BASELINE = 84
 HISTORICAL_BASELINE = 196   # 报告 2026-09-27 AST 实测值, 不可上升
-HARD_LIMIT = 91            # 第二阶段目标已达成: 全部已许可 except Exception ≤ 91 (盲 + noqa 累加), 锁死下限防回归
+HARD_LIMIT = 84            # 阶段二收尾目标已达成: 全部已许可 except Exception ≤ 84 (盲 + noqa 累加), 锁死下限防回归
 
 
 def _walk_blind(root: Path) -> list[tuple[str, int, str]]:

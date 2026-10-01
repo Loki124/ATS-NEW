@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from django.db import transaction
 from django.utils import timezone
+from django_fsm import TransitionNotAllowed
 
 from apps.common.exceptions import (
     NotFound,
@@ -233,7 +234,7 @@ class ApplicationService:
             )
         try:
             application.start()
-        except Exception as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等会抛 Exception 子类, 统一包成 StateTransitionError
+        except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(str(e)) from e
         application.last_advanced_at = timezone.now()
         application.save()
@@ -328,7 +329,7 @@ class ApplicationService:
             # 统一转成项目既有的 StateTransitionError，view 层会返 409。
             try:
                 application.send_offer_state()
-            except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
+            except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
                 raise StateTransitionError(
                     f'Cannot mark application {application.code} as OFFER_SENT '
                     f'from state {application.state}: {e}',
@@ -384,7 +385,7 @@ class ApplicationService:
                 # 则转换会被拒绝 —— 明确抛错，而不是静默带病继续。
                 try:
                     application.mark_rejected()
-                except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
+                except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
                     raise StateTransitionError(
                         f'Entry condition not met ({cond_result.reject_message}), '
                         f'and application {application.code} cannot transition to '
@@ -652,7 +653,7 @@ class ApplicationService:
         # 转换被拒绝时统一转成 StateTransitionError，view 层返 409。
         try:
             application.withdraw()
-        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
+        except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(
                 f'Cannot withdraw application {application.code} '
                 f'in state {application.state}: {e}',
@@ -689,7 +690,7 @@ class ApplicationService:
             )
         try:
             application.pause()
-        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
+        except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(str(e)) from e
         application.save()
         ApplicationHistory.objects.create(
@@ -709,7 +710,7 @@ class ApplicationService:
             )
         try:
             application.resume()
-        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
+        except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(str(e)) from e
         application.save()
         ApplicationHistory.objects.create(
@@ -1014,7 +1015,7 @@ class ApplicationService:
         # 同 withdraw：protected FSMField 只能走 @transition（Application.timeout_archive）。
         try:
             application.timeout_archive()
-        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
+        except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等状态机拒绝统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(
                 f'Cannot archive application {application.code} as TIMEOUT '
                 f'from state {application.state}: {e}',
