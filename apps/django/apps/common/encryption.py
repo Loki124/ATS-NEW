@@ -16,6 +16,7 @@ PII (Personally Identifiable Information) 字段级加密方案:
 """
 from __future__ import annotations
 
+import binascii
 import hashlib
 import logging
 from typing import Any, Optional
@@ -68,7 +69,7 @@ def _mk_fernet(key) -> Fernet:
     """由单个 key 构造 Fernet, 格式错误时抛 ImproperlyConfigured."""
     try:
         return Fernet(key.encode() if isinstance(key, str) else key)
-    except Exception as e:  # noqa: BLE001 — Fernet 构造异常类型不固定 (ValueError/binascii.Error 等), 统一 ImproperlyConfigured
+    except (ValueError, TypeError, binascii.Error) as e:  # Fernet 构造异常类型不固定 (ValueError/binascii.Error 等), 统一 ImproperlyConfigured
         raise ImproperlyConfigured(
             f'ENCRYPTION_KEY 格式错误 (不是有效 Fernet key): {e}'
         ) from e
