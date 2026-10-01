@@ -1,5 +1,6 @@
 """制度公告模型 — 招聘专家查看招聘相关制度与公告内容。"""
 from django.db import models
+from django.core.exceptions import SuspiciousOperation
 from django.utils import timezone
 
 from apps.common.models import FullAuditModel
@@ -86,7 +87,7 @@ class AnnouncementAttachment(FullAuditModel):
         if self.file:
             try:
                 return self.file.url
-            except Exception:  # noqa: BLE001 — 读 storage URL 失败 (文件丢失/Storage 不可用) 返空串, 不应让模型 property 500
+            except (ValueError, SuspiciousOperation, OSError):  # 读 storage URL 失败 (文件丢失/Storage 不可用) 返空串, 不应让模型 property 500
                 return ''
         return ''
 

@@ -1,4 +1,5 @@
 """制度公告序列化器。"""
+from django.core.exceptions import SuspiciousOperation
 from rest_framework import serializers
 
 from apps.notification.models import NotificationLog
@@ -20,7 +21,7 @@ class AnnouncementAttachmentSerializer(serializers.ModelSerializer):
         if obj.file:
             try:
                 return obj.file.url
-            except Exception:  # noqa: BLE001 — 序列化器读 storage URL 失败返空串, 序列化不应 500
+            except (ValueError, SuspiciousOperation, OSError):  # 序列化器读 storage URL 失败返空串, 序列化不应 500
                 return ''
         return ''
 

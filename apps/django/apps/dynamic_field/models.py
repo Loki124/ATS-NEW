@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import IntegrityError, OperationalError, models
 from nanoid import generate as nanoid_generate
 
 from apps.common.models import TimestampedModel, SoftDeleteModel
@@ -283,7 +283,7 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
                     .order_by('display_order', 'unit_name')
                 )
                 return [{'value': str(u.id), 'label': u.unit_name} for u in units]
-        except Exception:  # noqa: BLE001 — 解析失败安全降级到手动 options
+        except (OperationalError, IntegrityError):  # ORM 查询失败安全降级到手动 options
             return None
         return None
 

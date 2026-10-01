@@ -32,7 +32,8 @@ APPS_DIR = Path('apps')
 #   2026-10-01 第十一批 (candidate): 169 → 168 (1 处真窄化 services.py:543)
 #   2026-10-01 第十二批 (core): 168 → 168 (全 noqa)
 #   2026-10-01 第十三批 (散落盲 except 清理): 168 → 168 (33 处补 noqa/补意图, noqa-license 护栏激活)
-CURRENT_BASELINE = 168
+#   2026-10-01 第十四批 (announcement+candidate+dynamic_field 真窄化收口): 168 → 157 (12 处 except Exception 真窄化)
+CURRENT_BASELINE = 157
 HISTORICAL_BASELINE = 196   # 报告 2026-09-27 AST 实测值, 不可上升
 HARD_LIMIT = 100            # 第二阶段目标: ≤100 处
 

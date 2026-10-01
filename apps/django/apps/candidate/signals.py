@@ -15,6 +15,7 @@
 import logging
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.db import IntegrityError, OperationalError
 
 from .models import Candidate, CandidateHistory
 
@@ -57,7 +58,7 @@ def log_state_change(sender, instance, created, **kwargs):
                 detail={'from': old_state, 'to': instance.current_state},
                 created_by=None,  # 兜底场景, NULL 表示不可溯源
             )
-        except Exception as e:  # noqa: BLE001 — post_save signal 兜底审计, 审计失败不应阻断主流程 (fallback 路径)
+        except (OperationalError, IntegrityError, ValueError) as e:  # post_save signal 兜底审计, 审计失败不应阻断主流程 (fallback 路径)
             logger.warning('Failed to log state change (fallback): %s', e)
 
     old_blacklisted = getattr(instance, '_old_blacklisted', None)
@@ -70,5 +71,5 @@ def log_state_change(sender, instance, created, **kwargs):
                 detail={'from': old_blacklisted, 'to': instance.is_blacklisted},
                 created_by=None,  # 兜底场景
             )
-        except Exception as e:  # noqa: BLE001 — post_save signal 兜底审计, 审计失败不应阻断主流程 (fallback 路径)
+        except (OperationalError, IntegrityError, ValueError) as e:  # post_save signal 兜底审计, 审计失败不应阻断主流程 (fallback 路径)
             logger.warning('Failed to log blacklist change (fallback): %s', e)

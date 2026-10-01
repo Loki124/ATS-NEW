@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 import logging
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -395,7 +395,7 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                 data = item.to_data()
                 c = CandidateService.create_candidate(data, actor=request.user)
                 results.append({'success': True, 'id': c.id, 'name': c.name})
-            except Exception as e:  # noqa: BLE001 — 批量创建候选人, 单条失败计入 results 继续批处理 (前端按 results 显式提示)
+            except (IntegrityError, ValueError) as e:  # 批量创建候选人, 单条失败(唯一/校验约束)计入 results 继续批处理 (前端按 results 显式提示)
                 logger.warning('批量创建候选人单条失败 idx=%s err=%s', idx, e, exc_info=True)
                 results.append({'success': False, 'error': str(e), 'data': item.validated_data})
         return Response({'results': results, 'total': len(results)})

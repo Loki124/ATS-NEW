@@ -171,7 +171,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         # 删除物理文件 + 软删 DB 行（与 FullAuditModel 约定一致）。
         try:
             att.file.delete(save=False)
-        except Exception:  # noqa: BLE001 — 物理文件删除失败 (DB 软删仍生效, best-effort 收尾)
+        except (OSError, ValueError):  # 物理文件删除失败 (DB 软删仍生效, best-effort 收尾)
             logger.warning('物理文件删除失败（DB 软删仍生效）attachment=%s', att.id, exc_info=True)
         att.soft_delete()
         return success_response(None)
