@@ -10,6 +10,7 @@
 - 每批 BATCH_SIZE 行,用 IN 子句 + 事务包裹,降低行锁持续时间
 - 任务幂等: 多次执行结果一致
 """
+from django.db import DatabaseError
 import logging
 from datetime import timedelta
 from typing import Dict
@@ -145,7 +146,7 @@ def audit_cleanup_healthcheck(self) -> Dict:
                     context={'alerts': alerts, 'total': total, 'old_count': old_count},
                     channels=['IN_APP'],
                 )
-        except Exception as exc:  # noqa: BLE001 — Celery 清理批处理, 告警发送失败不影响清理主流程
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError) as exc:  # Celery 清理批处理, 告警发送失败不影响清理主流程
             logger.exception('audit cleanup 告警发送失败: %s', exc)
 
     return {

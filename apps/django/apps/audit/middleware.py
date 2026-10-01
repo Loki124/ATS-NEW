@@ -8,6 +8,8 @@ P1-2 修复: 写库失败时降级 + 速率限制
 - 累计 > THROTTLE 阈值后改为 ERROR 级别,避免 log 爆炸
 - 累计 > KILL_SWITCH 阈值后临时禁用中间件,直到运维确认恢复
 """
+import redis
+from django.db import DatabaseError
 import json
 import logging
 import time
@@ -46,7 +48,7 @@ def _is_killed() -> bool:
     """是否已被熔断（kill switch）"""
     try:
         return bool(cache.get(KILL_SWITCH_KEY))
-    except Exception:  # noqa: BLE001 — 读 kill_switch cache 失败返 False (容错: cache 不可用 = 不熔断)
+    except (redis.exceptions.RedisError, OSError, ValueError):  # 读 kill_switch cache 失败返 False (容错: cache 不可用 = 不熔断)
         return False
 
 
@@ -66,7 +68,7 @@ def _record_failure() -> int:
             cache.add(AUDIT_FAIL_COUNT_KEY, 1, timeout=AUDIT_FAIL_COUNT_TTL)
             count = 1
         return int(count)
-    except Exception as exc:  # noqa: BLE001 — 失败计数 cache 失败返 -1 (不影响后续熔断逻辑, 仅日志)
+    except (redis.exceptions.RedisError, OSError, ValueError) as exc:  # 失败计数 cache 失败返 -1 (不影响后续熔断逻辑, 仅日志)
         logger.warning('AuditMiddleware: 失败计数失败: %s', exc)
         return -1
 
@@ -80,7 +82,7 @@ def _maybe_enable_kill_switch(count: int) -> None:
                 'AuditMiddleware: 累计失败 %d 次,已临时禁用 %d 秒（运维可手动删除 cache key 重置）',
                 count, KILL_SWITCH_TTL,
             )
-        except Exception:  # noqa: BLE001 — 熔断 cache 写失败不应阻断下次请求的审计 (cache 是 best-effort)
+        except (redis.exceptions.RedisError, OSError, ValueError):  # 熔断 cache 写失败不应阻断下次请求的审计 (cache 是 best-effort)
             logger.exception('AuditMiddleware 熔断 cache 写入失败 count=%d ttl=%d', count, KILL_SWITCH_TTL)
 
 
@@ -94,7 +96,7 @@ def reset_audit_kill_switch() -> bool:
         cache.delete(AUDIT_FAIL_COUNT_KEY)
         logger.info('AuditMiddleware: 熔断已手动重置')
         return True
-    except Exception as exc:  # noqa: BLE001 — 重置熔断 cache 失败返 False, 不影响主流程 (cache 是 best-effort)
+    except (redis.exceptions.RedisError, OSError, ValueError) as exc:  # 重置熔断 cache 失败返 False, 不影响主流程 (cache 是 best-effort)
         logger.exception('AuditMiddleware: 重置熔断失败: %s', exc)
         return False
 
@@ -130,7 +132,7 @@ class AuditMiddleware:
         if request.method not in SKIP_METHODS or response.status_code >= 400:
             try:
                 self._record(request, response, duration_ms)
-            except Exception as e:  # noqa: BLE001 — 审计写入失败不应阻断业务响应, 走失败计数 + 熔断路径
+            except (redis.exceptions.RedisError, DatabaseError, ValueError, TypeError, AttributeError, OSError) as e:  # 审计写入失败不应阻断业务响应, 走失败计数 + 熔断路径
                 # P1-2: 累计失败次数,按严重度升级日志级别,避免撑爆日志
                 count = _record_failure()
                 if count >= THROTTLE_THRESHOLD:

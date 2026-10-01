@@ -1,5 +1,6 @@
 """Offer Services (PRD v4 §6.6, §14.5) - Offer 业务逻辑"""
 from __future__ import annotations
+from django.db import DatabaseError
 
 import logging
 from dataclasses import dataclass
@@ -32,7 +33,7 @@ def _mirror_campus_validation(candidate_id, blocks=None, warnings=None):
         mirror_campus_offer_validation(
             candidate_id, blocks=blocks, warnings=warnings,
         )
-    except Exception:  # noqa: BLE001 — 镜像失败不影响现网
+    except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 镜像失败不影响现网
         logger.exception('RULE_ENGINE campus validation mirror failed')
 
 

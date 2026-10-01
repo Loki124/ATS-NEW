@@ -1,5 +1,6 @@
 """Referral Services (PRD v4 §6.4 N+1/N+2 推荐)"""
 from __future__ import annotations
+from django.db import DatabaseError
 
 import logging
 from dataclasses import dataclass
@@ -89,7 +90,7 @@ class ReferralService:
                 pass
 
             return ReferralType.SOCIAL
-        except Exception as e:  # noqa: BLE001 — 内推类型探测失败 fallback 到 SOCIAL (降级, 不阻断检测流程)
+        except (DatabaseError, AttributeError, TypeError) as e:  # 内推类型探测失败 fallback 到 SOCIAL (降级, 不阻断检测流程)
             logger.warning('内推类型探测失败 fallback=SOCIAL err=%s', e, exc_info=True)
             return ReferralType.SOCIAL
 

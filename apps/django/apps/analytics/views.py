@@ -1,4 +1,5 @@
 """Analytics Views (DRF) - PRD v4 §14.9"""
+from django.db import DatabaseError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -103,7 +104,7 @@ class KpiViewSet(viewsets.ViewSet):
             """builder: 无参 callable, 返回 QuerySet; 在 callable 内做 .filter() 让异常落入 try."""
             try:
                 return builder().count()
-            except Exception:  # noqa: BLE001 — 分析 builder count() 失败返 0 (前端不影响展示, 后续表无数据兜底)
+            except DatabaseError:  # 分析 builder count() 失败返 0 (前端不影响展示, 后续表无数据兜底)
                 return 0
 
         # 延迟 import: 任一 model 字段漂移都不会 500 (因为在 builder 内)

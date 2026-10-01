@@ -122,7 +122,7 @@ def role_entity_scope_q(user, entity: str):
 
     try:
         from apps.core.role_v2_query import is_super_admin, user_role_codes
-    except Exception:  # noqa: BLE001 — role_v2_query 导入失败返 None (无角色范围 = no-op, 不让数据权限计算崩)
+    except ImportError:  # role_v2_query 导入失败返 None (无角色范围 = no-op, 不让数据权限计算崩)
         logger.warning('导入 role_v2_query 失败, 角色自定义范围 no-op')
         return None
 

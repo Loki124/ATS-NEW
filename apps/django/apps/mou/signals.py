@@ -9,6 +9,7 @@
 双写链路严格可选：仅当 RULE_ENGINE_DOUBLE_WRITE 为真时执行；任何异常都被吞掉并仅记
 日志。mou 无独立软删（硬删 + is_active），故「软删传播」由本信号的 post_delete 处理。
 """
+from django.db import DatabaseError
 
 import logging
 
@@ -27,7 +28,7 @@ def _sync_rule(rule) -> None:
         try:
             from apps.rule_engine.bridge import sync_mou_rule_to_unified
             sync_mou_rule_to_unified(rule)
-        except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 双写失败不得影响现网
             logger.exception(
                 'RULE_ENGINE double-write failed for MouRule %s', rule.id
             )
@@ -45,7 +46,7 @@ def _soft_delete_unified(rule) -> None:
         ).first()
         if unified and unified.deleted_at is None:
             unified.soft_delete()
-    except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+    except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 双写失败不得影响现网
         logger.exception(
             'RULE_ENGINE double-delete failed for MouRule %s', rule.id
         )

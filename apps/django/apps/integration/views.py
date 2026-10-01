@@ -1,4 +1,5 @@
 """Integration Views (DRF) - PRD v4 §14.4"""
+from django.db import DatabaseError
 import logging
 import time
 
@@ -178,7 +179,7 @@ class BackgroundCheckCallbackView(APIView):
                 request_data=payload, external_ref=str(payload.get('number') or ''),
                 duration_ms=int(duration_s * 1000),
             )
-        except Exception:  # noqa: BLE001 - 审计写入失败不影响主流程响应
+        except (DatabaseError, ValueError, TypeError):  # 审计写入失败不影响主流程响应
             logger.exception('callback FAILED audit log write failed')
 
 

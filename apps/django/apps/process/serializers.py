@@ -388,7 +388,7 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
             # 基础括号匹配
             if value.count('(') != value.count(')'):
                 raise serializers.ValidationError('括号不匹配')
-        except Exception:  # noqa: BLE001 — 表达式求值异常类型不固定 (SyntaxError/NameError 等), 统一 ValidationError 走 400
+        except (AttributeError, TypeError):  # 表达式字符串预检异常统一 ValidationError 走 400
             raise serializers.ValidationError('表达式语法错误')
         return value.strip()
 

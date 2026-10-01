@@ -215,7 +215,7 @@ def _parse_csv_rows(upload: UploadedFile) -> List[Dict[str, str]]:
     """CSV：utf-8-sig 优先，失败回退 gbk（老项目 Excel 导出的常见编码）。"""
     try:
         raw_bytes = upload.read()
-    except Exception as exc:  # noqa: BLE001 — 文件读取异常类型不固定 (IOError/UnicodeDecodeError), 统一包成 TagFileParseError
+    except (OSError, ValueError) as exc:  # 文件读取异常 (IOError/UnicodeDecodeError) 统一包成 TagFileParseError
         raise TagFileParseError(f'文件读取失败: {exc}') from exc
     if isinstance(raw_bytes, str):  # 兼容测试桩直接传文本的场景
         raw_bytes = raw_bytes.encode('utf-8')
@@ -239,7 +239,7 @@ def _parse_csv_rows(upload: UploadedFile) -> List[Dict[str, str]]:
             )
     except TagFileParseError:
         raise
-    except Exception as exc:  # noqa: BLE001 - csv 方言异常
+    except (csv.Error, ValueError, OSError) as exc:  # csv 方言异常统一包成 TagFileParseError
         raise TagFileParseError(f'CSV 解析失败: {exc}') from exc
 
     rows: List[Dict[str, str]] = []

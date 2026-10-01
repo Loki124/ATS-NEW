@@ -1,4 +1,5 @@
 """Analytics Celery tasks (PRD v4 §14.9)"""
+from django.db import DatabaseError
 import logging
 from typing import Dict
 
@@ -89,7 +90,7 @@ def run_export_task(export_task_id: str) -> Dict:
         task.status = 'COMPLETED'
         task.completed_at = timezone.now()
         task.save()
-    except Exception as e:  # noqa: BLE001 — Celery 导出任务兜底: 任何异常都标记 FAILED, 不让 task 永久 running
+    except (DatabaseError, ValueError, TypeError, AttributeError, OSError) as e:  # Celery 导出任务兜底: 任何异常都标记 FAILED, 不让 task 永久 running
         logger.exception(f'Export task {export_task_id} failed: {e}')
         task.status = 'FAILED'
         task.error_message = str(e)

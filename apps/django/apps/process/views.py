@@ -10,6 +10,7 @@
 - ProcessArchiveView: 归档流程
 """
 from __future__ import annotations
+from django.db import DatabaseError
 
 import logging
 from django.db.models import Count, Q
@@ -864,7 +865,7 @@ class EntryConditionFieldCatalogView(APIView):
                         if isinstance(enum_vals, (list, tuple)) and enum_vals:
                             options = [{'label': str(v), 'value': str(v)} for v in enum_vals]
                             value_type = 'enum'
-                    except Exception:  # noqa: BLE001 — 枚举解析失败退化为文本, 不阻断目录
+                    except (TypeError, ValueError):  # 枚举解析失败退化为文本, 不阻断目录
                         options = None
 
                 field = {
@@ -880,7 +881,7 @@ class EntryConditionFieldCatalogView(APIView):
 
             fields.sort(key=lambda f: f['field'])
             return fields
-        except Exception:  # noqa: BLE001 — 指标表未初始化 / 迁移未跑等异常 → 返回空列表, 绝不 500
+        except (DatabaseError, KeyError, TypeError, ValueError, AttributeError):  # 指标表未初始化/迁移未跑等异常 → 返回空列表, 绝不 500
             return []
 
 

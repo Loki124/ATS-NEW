@@ -16,6 +16,7 @@ T30.175 (V2 cutover follow-up):
   apps/field_acl/mixins.py:FieldAclSerializerMixin 接到 Candidate 序列化器上。
 """
 from __future__ import annotations
+from django.db import DatabaseError
 
 import logging
 from typing import Any, Dict, List
@@ -180,7 +181,7 @@ class FieldAclService:
                 request_path=getattr(request, 'path', '') or '',
                 client_ip=(getattr(request, 'META', {}) or {}).get('REMOTE_ADDR', '') or '',
             )
-        except Exception:  # noqa: BLE001 — 字段级 ACL 审计写入失败不应阻断主路径 (审计是 best-effort)
+        except (DatabaseError, ValueError, TypeError):  # 字段级 ACL 审计写入失败不应阻断主路径 (审计是 best-effort)
             logger.exception(
                 'Field ACL 访问审计写入失败 (已忽略): entity=%s user=%s', entity, uid)
 

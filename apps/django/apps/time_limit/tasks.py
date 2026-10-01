@@ -3,6 +3,7 @@
 P0-2 修复: 所有调度任务用 @retryable_scheduled_task
 (DB 抖动自动重试 + 连续失败告警)
 """
+from django.db import DatabaseError
 import logging
 from datetime import timedelta
 from typing import Dict, List
@@ -146,7 +147,7 @@ def send_deadline_warnings() -> Dict:
                 channels=['IN_APP'],
             )
             sent += 1
-        except Exception as e:  # noqa: BLE001 — Celery 截止日告警批处理, 单条 application 发送失败不影响其他 application
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError) as e:  # Celery 截止日告警批处理, 单条 application 发送失败不影响其他 application
             logger.exception(f'Deadline warning failed for {app.id}: {e}')
 
     return {
