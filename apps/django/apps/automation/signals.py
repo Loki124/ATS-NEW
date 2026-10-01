@@ -8,6 +8,7 @@
 """
 import logging
 
+from django.db import IntegrityError, OperationalError
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -27,7 +28,7 @@ def on_rule_saved(sender, instance, created, **kwargs):
         try:
             from apps.rule_engine.bridge import sync_automation_rule_to_unified
             sync_automation_rule_to_unified(instance)
-        except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+        except (OperationalError, IntegrityError, ValueError):  # 双写失败不得影响现网
             logger.exception(
                 'RULE_ENGINE double-write failed for AutomationRule %s', instance.id
             )
@@ -40,7 +41,7 @@ def on_log_saved(sender, instance, created, **kwargs):
         try:
             from apps.rule_engine.bridge import sync_automation_log_to_unified
             sync_automation_log_to_unified(instance)
-        except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+        except (OperationalError, IntegrityError, ValueError):  # 双写失败不得影响现网
             logger.exception(
                 'RULE_ENGINE double-write failed for AutomationLog %s', instance.id
             )

@@ -138,7 +138,7 @@ class AutomationEngine:
             self._save_log(rule, match_result, result)
             return result
 
-        except Exception as e:  # noqa: BLE001 — 单条规则执行异常不应阻断其他规则 (批处理场景, 异常规则计入 errors 但继续)
+        except Exception as e:  # noqa: BLE001 单条规则执行异常不应阻断其他规则 (批处理场景, 异常规则计入 errors 但继续)
             execution_ms = int((time.time() - start) * 1000)
             logger.exception('Rule %s execution failed', rule.id)
             result = ExecutionResult(
@@ -533,7 +533,7 @@ class AutomationEngine:
                 execution_ms=exec_result.execution_ms,
             )
             exec_result.log_id = log.id
-        except Exception as e:  # noqa: BLE001 — 审计落库失败不应阻断主结果 (automation log 是 best-effort, 主结果以 ExecutionResult 为准)
+        except Exception as e:  # noqa: BLE001 审计落库失败不应阻断主结果 (automation log 是 best-effort, 主结果以 ExecutionResult 为准)
             logger.warning('Failed to save automation log: %s', e)
 
 

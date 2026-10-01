@@ -6,6 +6,7 @@ P0-2 修复: 所有调度任务已从裸 @shared_task 改为
 - 连续失败 N 次后通知超管
 - 任务成功自动清理失败计数
 """
+from django.db import DatabaseError
 import logging
 from typing import Dict
 
@@ -72,7 +73,7 @@ def run_scheduled_rules() -> Dict:
                 triggered += 1
             else:
                 skipped += 1
-        except Exception as e:  # noqa: BLE001 — Celery 自动化批处理, 单条规则失败计入 errors 继续批处理其他规则
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError) as e:  # Celery 自动化批处理, 单条规则失败计入 errors 继续批处理其他规则
             logger.exception(f'Rule {rule.id} failed: {e}')
             errors += 1
 
@@ -145,7 +146,7 @@ def check_automation_failure_rate() -> Dict:
                         template_code='automation.failure_rate_alert',
                         variables={'rule_id': str(rule.id), 'failure_rate': rate, 'threshold': threshold},
                     )
-            except Exception:  # noqa: BLE001 — 失败率通知失败不影响告警判定主结果 (celery 告警是 best-effort)
+            except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 失败率通知失败不影响告警判定主结果 (celery 告警是 best-effort)
                 logger.exception('Failure rate notification dispatch failed (rule_id=%s)', rule.id)
 
     return {
