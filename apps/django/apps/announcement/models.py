@@ -86,7 +86,7 @@ class AnnouncementAttachment(FullAuditModel):
         if self.file:
             try:
                 return self.file.url
-            except Exception:
+            except Exception:  # noqa: BLE001 — 读 storage URL 失败 (文件丢失/Storage 不可用) 返空串, 不应让模型 property 500
                 return ''
         return ''
 

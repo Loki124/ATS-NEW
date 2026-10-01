@@ -171,7 +171,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         # 删除物理文件 + 软删 DB 行（与 FullAuditModel 约定一致）。
         try:
             att.file.delete(save=False)
-        except Exception:
+        except Exception:  # noqa: BLE001 — 物理文件删除失败 (DB 软删仍生效, best-effort 收尾)
             logger.warning('物理文件删除失败（DB 软删仍生效）attachment=%s', att.id, exc_info=True)
         att.soft_delete()
         return success_response(None)
@@ -222,7 +222,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
                 ))
                 if result.get('sent'):
                     log_ids.append(result.get('log_id'))
-            except Exception:
+            except Exception:  # noqa: BLE001 — 单用户发送失败不影响整体流程 (批处理通知, 异常用户跳过)
                 # 单用户发送失败不影响整体流程，记录中不含该失败日志
                 logger.warning('公告单用户发送失败 announcement=%s user=%s', announcement.id, user.id, exc_info=True)
                 continue
@@ -284,7 +284,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
                     channel=record.channel,
                 ))
                 notified += 1
-            except Exception:
+            except Exception:  # noqa: BLE001 — 公告提醒批处理, 单用户发送失败不影响其他收件人
                 logger.warning('公告提醒单用户发送失败 announcement=%s recipient=%s', announcement.id, log.recipient_id, exc_info=True)
                 continue
 

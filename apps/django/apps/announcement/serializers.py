@@ -20,7 +20,7 @@ class AnnouncementAttachmentSerializer(serializers.ModelSerializer):
         if obj.file:
             try:
                 return obj.file.url
-            except Exception:
+            except Exception:  # noqa: BLE001 — 序列化器读 storage URL 失败返空串, 序列化不应 500
                 return ''
         return ''
 
