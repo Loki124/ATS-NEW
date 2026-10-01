@@ -21,6 +21,8 @@ import logging
 import os
 import uuid
 
+import redis
+
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import status
@@ -325,7 +327,7 @@ class BulkCreateView(APIView):
         try:
             from apps.add_candidate.sse import _get_redis
             _get_redis().setex(f'add_candidate:scoring:owner:{task_id}', 3600, str(request.user.id))
-        except Exception:  # noqa: BLE001 — Redis 记录 task owner 失败不影响主响应 (SSE 推送是 best-effort)
+        except (redis.exceptions.RedisError, OSError):  # Redis 记录 task owner 失败不影响主响应 (SSE 推送是 best-effort)
             logger.warning('Failed to record scoring task owner (task_id=%s)', task_id)
 
         return Response({
@@ -360,7 +362,7 @@ class ScoringStartView(APIView):
         try:
             from apps.add_candidate.sse import _get_redis
             _get_redis().setex(f'add_candidate:scoring:owner:{data["task_id"]}', 3600, str(request.user.id))
-        except Exception:  # noqa: BLE001 — 同上, Redis 记录失败不影响主响应
+        except (redis.exceptions.RedisError, OSError):  # 同上, Redis 记录失败不影响主响应
             logger.warning('Failed to record scoring task owner (task_id=%s)', data['task_id'])
 
         return Response({

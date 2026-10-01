@@ -87,7 +87,7 @@ def _to_path(file_obj: Any) -> Tuple[str, bool]:
     if hasattr(file_obj, "seek"):
         try:
             file_obj.seek(0)
-        except Exception:  # noqa: BLE001 — 文件 seek(0) 失败不影响主流程 (parser 从当前位置继续)
+        except (OSError, ValueError):  # 文件 seek(0) 失败不影响主流程 (parser 从当前位置继续)
             pass
     if isinstance(data, str):
         data = data.encode("utf-8")
