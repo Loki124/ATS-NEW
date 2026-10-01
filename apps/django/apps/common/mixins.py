@@ -39,7 +39,7 @@ class BulkCreateMixin:
                     'error': 'INTEGRITY_ERROR',
                     'detail': str(e),
                 })
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — BulkCreateMixin 单条失败计入 results 继续, 不应让单行异常中断整次批量
                 logger.exception('Bulk create row failed: %s', e)
                 results.append({
                     'success': False,

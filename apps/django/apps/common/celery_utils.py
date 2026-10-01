@@ -62,7 +62,7 @@ def _incr_failure_count(task_name: str) -> int:
             cache.add(key, 1, timeout=ALERT_COUNTER_TTL)
             count = 1
         return int(count)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — 失败计数 cache 失败返 -1 (不影响任务本身, 仅影响告警升级路径)
         logger.warning('celery_utils: 失败计数失败 (%s): %s', task_name, exc)
         return -1
 
@@ -74,7 +74,7 @@ def _clear_failure_count(task_name: str):
         # 顺手清理历史告警 key (不同 retry_count 级别的)
         for retry_count in range(1, FATAL_FAILURE_THRESHOLD + 3):
             cache.delete(f'celery:alert_sent:{task_name}:{retry_count}')
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — 清理 alert cache 失败不影响任务主流程 (best-effort 收尾)
         logger.warning('清理 alert cache 失败 task=%s', task_name, exc_info=True)
 
 
@@ -110,7 +110,7 @@ def _alert_on_fatal_failure(task_name: str, exc: BaseException, retry_count: int
                     },
                     channels=['IN_APP', 'EMAIL'],
                 )
-            except Exception as notify_exc:  # noqa: BLE001
+            except Exception as notify_exc:  # noqa: BLE001 — 单个超管告警失败不影响其他超管 (批处理延续)
                 logger.exception(
                     'celery_utils: 告警通知失败给 %s: %s',
                     admin.username, notify_exc,
@@ -119,7 +119,7 @@ def _alert_on_fatal_failure(task_name: str, exc: BaseException, retry_count: int
             'celery_utils: %s 连续失败 %d 次,已尝试通知 %d 位超管',
             task_name, retry_count, len(admins),
         )
-    except Exception as outer_exc:  # noqa: BLE001
+    except Exception as outer_exc:  # noqa: BLE001 — 告警发送整体失败不能影响原任务重试路径 (告警是 best-effort)
         # 告警发送失败不能影响原任务重试
         logger.exception('celery_utils: 告警发送整体失败: %s', outer_exc)
 

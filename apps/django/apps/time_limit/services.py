@@ -77,7 +77,7 @@ def calc_time_limit(
             unified = _calc_via_unified_engine(link, candidate, interviewer_count, process_version)
             if unified is not None:
                 return unified
-        except Exception:
+        except Exception:  # noqa: BLE001 — RULE_ENGINE dispatch 失败必须降级到 legacy (统一引擎故障不应让超时计算失败)
             logger.exception('RULE_ENGINE dispatch failed for time_limit; fallback to legacy')
 
     from .models import TimeLimitRule

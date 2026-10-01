@@ -64,11 +64,11 @@ def _consume_events(task_id: str):
     finally:
         try:
             pubsub.unsubscribe(channel)
-        except Exception:
+        except Exception:  # noqa: BLE001 — SSE 收尾: Redis pubsub 关闭失败不应让 SSE 推送连接泄漏
             pass
         try:
             pubsub.close()
-        except Exception:
+        except Exception:  # noqa: BLE001 — 同上, pubsub.close 失败兜底 (best-effort 收尾)
             pass
 
 

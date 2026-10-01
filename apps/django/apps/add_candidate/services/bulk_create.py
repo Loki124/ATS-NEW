@@ -90,7 +90,7 @@ class BulkCreateService:
                 cand_id = cls._create_one(draft, actor)
             except BulkCreateError:
                 raise
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — BulkCreate 单条候选人创建未预期异常, 包成 BulkCreateError 让 view 层统一处理
                 logger.exception('Unexpected error creating candidate for draft %s', draft.draft_id)
                 raise BulkCreateError(
                     'CREATE_FAILED', f'创建失败: {e}', draft.draft_id,

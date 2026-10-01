@@ -89,7 +89,7 @@ class ReferralService:
                 pass
 
             return ReferralType.SOCIAL
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 内推类型探测失败 fallback 到 SOCIAL (降级, 不阻断检测流程)
             logger.warning('内推类型探测失败 fallback=SOCIAL err=%s', e, exc_info=True)
             return ReferralType.SOCIAL
 

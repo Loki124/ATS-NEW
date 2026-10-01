@@ -52,7 +52,7 @@ def _dimension_match_keys(user) -> List[Tuple[str, str]]:
         from apps.core.role_v2_query import user_role_codes
         for rc in user_role_codes(user):
             keys.append((DimensionType.ROLE, str(rc)))
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — ROLE 维度计算失败跳过该维度 (数据权限降级, 不阻断整体 filter)
         logger.warning('计算用户角色维度键失败, 跳过 ROLE 维度')
     return keys
 
@@ -122,7 +122,7 @@ def role_entity_scope_q(user, entity: str):
 
     try:
         from apps.core.role_v2_query import is_super_admin, user_role_codes
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — role_v2_query 导入失败返 None (无角色范围 = no-op, 不让数据权限计算崩)
         logger.warning('导入 role_v2_query 失败, 角色自定义范围 no-op')
         return None
 
@@ -133,7 +133,7 @@ def role_entity_scope_q(user, entity: str):
 
     try:
         role_codes = list(user_role_codes(user))
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — user_role_codes 计算失败返 None (no-op, 不阻断数据权限过滤主路径)
         logger.warning('计算用户角色码失败, 角色自定义范围 no-op')
         return None
     if not role_codes:

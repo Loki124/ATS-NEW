@@ -206,7 +206,7 @@ def _parse_xlsx(file_obj):
     rows, parse_errors, original_rows, errors_by_line = [], [], [], {}
     try:
         wb = load_workbook(file_obj, read_only=True, data_only=True)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — openpyxl Excel 解析异常类型不固定, 统一兜底返错误列表
         return [], [f'Excel 文件解析失败：{e}'], [], {}
     ws = wb['指标'] if '指标' in wb.sheetnames else wb.active
     iter_rows = ws.iter_rows(values_only=True)
@@ -266,7 +266,7 @@ def _parse_csv(file_obj):
         col_dim = field_map['维度']
         col_name = field_map['指标名称']
         col_active = field_map.get('是否启用')
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — csv 解析异常类型不固定, 统一兜底返错误列表
         return [], [f'CSV 文件解析失败：{e}'], [], {}
 
     line_no = 1  # DictReader 从第 2 行起为数据（第 1 行为表头）

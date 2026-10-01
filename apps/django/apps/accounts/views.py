@@ -58,7 +58,7 @@ def register_view(request):
 
     try:
         services.issue_code(email, full_name)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — 注册验证码邮件发送失败返 201 (用户已建, 允许后续重发), 不应让注册流程 500
         logger.error('注册验证码发送失败 email=%s err=%s', email, e, exc_info=True)
         # 用户已建, 验证码发送失败允许重试 (resend-register-code)
         return Response(
@@ -114,7 +114,7 @@ def resend_register_code_view(request):
         )
     try:
         services.issue_code(email, app.full_name)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — 重发注册验证码失败返 500 (前端可重试, 但状态明确)
         logger.error('重发注册验证码失败 email=%s err=%s', email, e, exc_info=True)
         return Response(
             {'success': False, 'code': 'SEND_FAILED', 'message': '验证码发送失败，请稍后重试'},

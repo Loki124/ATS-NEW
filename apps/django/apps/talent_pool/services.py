@@ -110,7 +110,7 @@ class TalentPoolService:
                     reason=entry_reason,
                     actor=actor,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 候选人转池失败不阻断主流程 (转池是副作用, 主结果以 Candidate 状态为准)
                 logger.warning('Candidate state transition to pool failed: %s', e)
 
         logger.info(

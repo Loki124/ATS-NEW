@@ -76,7 +76,7 @@ class IntegrationConfigViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelVie
                 'success': True,
                 'data': {'ok': ok, 'message': '测试完成'},
             })
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 集成连通性测试 (ping 外部服务) 异常类型不固定, 统一兜底返 500
             logger.exception('集成连通性测试失败 integration_id=%s type=%s', instance.id, instance.type)
             return Response({
                 'success': False,
@@ -158,7 +158,7 @@ class BackgroundCheckCallbackView(APIView):
         try:
             order, _event, action = apply_callback_to_order(payload, config, sync_log=log)
             logger.info('background_check callback applied: order=%s action=%s', order.order_number, action)
-        except Exception:
+        except Exception:  # noqa: BLE001 — 第三方回调应用失败返成功 (下游商户不应因我们处理失败重发, 仅日志)
             logger.exception('apply_callback_to_order failed (number=%s)', number)
         return Response(
             bg_callback_envelope(0, 'success', data={'number': number, 'status': status_val}),

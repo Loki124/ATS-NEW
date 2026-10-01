@@ -81,7 +81,7 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
                     raise ValidationError(outcome.get('message') or '不满足入池规则')
         except ValidationError:
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001 — 规则引擎异常一律放行, 绝不让入池因规则故障失败 (RULE_ENGINE 降级)
             # 规则引擎异常一律放行，绝不让入池因规则故障失败
             pass
         serializer.save()

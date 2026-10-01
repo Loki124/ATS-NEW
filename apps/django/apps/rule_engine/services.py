@@ -380,7 +380,7 @@ class RuleEngine:
             # ⑤ 条件求值
             try:
                 matched, detail = ConditionEvaluator().evaluate(rule, context)
-            except Exception as exc:  # 求值异常 → 记 ERROR 日志，跳过该规则
+            except Exception as exc:  # noqa: BLE001 — 规则求值异常 (用户自定义 DSL/数据异常) 记 ERROR 日志并跳过该规则, 不阻断批处理
                 logger.warning('规则求值失败 rule=%s err=%s', rule.id, exc, exc_info=True)
                 log = self._save_log(
                     rule, context,

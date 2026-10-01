@@ -69,7 +69,7 @@ def _read_bytes(file_obj: Any) -> bytes:
         if hasattr(file_obj, "seek"):
             try:
                 file_obj.seek(0)
-            except Exception:
+            except Exception:  # noqa: BLE001 — 简历文件 seek(0) 失败不影响主流程 (parser 会从当前位置继续读取)
                 pass
         if isinstance(data, str):
             return data.encode("utf-8")

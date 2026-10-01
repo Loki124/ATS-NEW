@@ -146,7 +146,7 @@ def send_deadline_warnings() -> Dict:
                 channels=['IN_APP'],
             )
             sent += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Celery 截止日告警批处理, 单条 application 发送失败不影响其他 application
             logger.exception(f'Deadline warning failed for {app.id}: {e}')
 
     return {

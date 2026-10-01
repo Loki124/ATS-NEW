@@ -44,7 +44,7 @@ def _cloud_env() -> Dict[str, str]:
         obj = StandardResumeConfig.objects.filter(key="resume_parser").first()
         cfg = (obj.config or {}) if obj else {}
         sr = cfg.get("smartresume") or {}
-    except Exception as e:  # 配置读取失败不阻断解析，仅不注入云端变量
+    except Exception as e:  # noqa: BLE001 — 云端配置读取失败降级本地模式 (网络/解析异常均吞, 解析主流程继续)
         logger.warning("读取 smartresume 云端配置失败，降级本地模式: %s", e)
         return env
 
@@ -87,7 +87,7 @@ def _to_path(file_obj: Any) -> Tuple[str, bool]:
     if hasattr(file_obj, "seek"):
         try:
             file_obj.seek(0)
-        except Exception:
+        except Exception:  # noqa: BLE001 — 文件 seek(0) 失败不影响主流程 (parser 从当前位置继续)
             pass
     if isinstance(data, str):
         data = data.encode("utf-8")

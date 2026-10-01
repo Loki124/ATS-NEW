@@ -301,7 +301,7 @@ class BulkCreateView(APIView):
                 {'detail': str(e), 'code': e.code, 'draft_id': e.draft_id},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — BulkCreate 未预期异常 (非 BulkCreateError) 兜底返 400, 不让前端 500
             logger.exception('BulkCreate unexpected error: %s', e)
             return Response(
                 {'detail': str(e), 'code': 'BULK_CREATE_FAILED'},
@@ -316,7 +316,7 @@ class BulkCreateView(APIView):
                 task_id=f'batch_{uuid.uuid4().hex[:12]}',
             )
             task_id = task.id
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Redis/Celery 不可用时降级, task_id 用本地 uuid 占位 (不让前端阻塞)
             # Redis/Celery 不可用时降级 — task_id 用本地 uuid 占位
             logger.warning('Celery unavailable, falling back to local task_id: %s', e)
             task_id = f'local_{uuid.uuid4().hex[:12]}'
@@ -325,7 +325,7 @@ class BulkCreateView(APIView):
         try:
             from apps.add_candidate.sse import _get_redis
             _get_redis().setex(f'add_candidate:scoring:owner:{task_id}', 3600, str(request.user.id))
-        except Exception:
+        except Exception:  # noqa: BLE001 — Redis 记录 task owner 失败不影响主响应 (SSE 推送是 best-effort)
             logger.warning('Failed to record scoring task owner (task_id=%s)', task_id)
 
         return Response({
@@ -360,7 +360,7 @@ class ScoringStartView(APIView):
         try:
             from apps.add_candidate.sse import _get_redis
             _get_redis().setex(f'add_candidate:scoring:owner:{data["task_id"]}', 3600, str(request.user.id))
-        except Exception:
+        except Exception:  # noqa: BLE001 — 同上, Redis 记录失败不影响主响应
             logger.warning('Failed to record scoring task owner (task_id=%s)', data['task_id'])
 
         return Response({

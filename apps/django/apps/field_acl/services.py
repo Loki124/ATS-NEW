@@ -180,7 +180,7 @@ class FieldAclService:
                 request_path=getattr(request, 'path', '') or '',
                 client_ip=(getattr(request, 'META', {}) or {}).get('REMOTE_ADDR', '') or '',
             )
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 — 字段级 ACL 审计写入失败不应阻断主路径 (审计是 best-effort)
             logger.exception(
                 'Field ACL 访问审计写入失败 (已忽略): entity=%s user=%s', entity, uid)
 

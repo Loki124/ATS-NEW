@@ -50,7 +50,7 @@ def recommend_candidates() -> Dict:
                 },
                 channels=['IN_APP'],
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Celery talent pool 通知批处理, 单条失败不影响其他
             logger.exception(f'Talent pool notification failed: {e}')
 
     return {

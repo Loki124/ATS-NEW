@@ -54,7 +54,7 @@ def parse_resume_task(self, job_id):
         ParseJob.objects.filter(pk=job.pk).update(status='failed', error=e.code)
         # 不重试，配置错误/超时应该立即 fail
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — Celery ParseJob 兜底: 未预期异常全部 retry (与已知异常区分), 不让单次解析永久失败
         logger.exception('ParseJob %s unexpected: %s', job_id, e)
         # 重试 3 次
         try:
@@ -127,7 +127,7 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
                 'event': 'scoring-failed',
                 'data': {'candidate_id': cand_id, 'error': 'CANDIDATE_NOT_FOUND'},
             })
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Celery 评分任务单条候选人失败不影响其他 (与 ParseJob 一致的批处理兜底)
             logger.exception('Score failed for %s: %s', cand_id, e)
             broadcast_event(task_id, {
                 'event': 'scoring-failed',

@@ -238,7 +238,7 @@ class OfferService:
                 template_code='offer.sent',
                 variables={'offer_id': str(offer.id), 'candidate_name': getattr(offer.candidate, 'full_name', '')},
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 — Offer 通知分发失败不影响主结果 (主流程是 offer save, 通知是 best-effort)
             logger.exception('Offer notification dispatch failed (offer_id=%s)', offer.id)
         return offer
 

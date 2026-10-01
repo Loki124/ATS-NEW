@@ -867,7 +867,7 @@ class EntryConditionFieldCatalogView(APIView):
             for key in LEGACY_CANDIDATE_FIELD_TO_PATH:
                 merged.append(by_key.get(key, per_key_fallback[key]))
             return merged
-        except Exception:
+        except Exception:  # noqa: BLE001 — 指标表未初始化 / 迁移未跑等异常 → 落回静态定义, 绝不 500
             # 指标表未初始化 / 迁移未跑等异常 → 落回静态定义，绝不 500
             return fallback_fields
 

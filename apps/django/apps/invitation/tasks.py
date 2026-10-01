@@ -26,7 +26,7 @@ def cleanup_expired() -> Dict:
         try:
             InvitationService.timeout(inv.id)
             count += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Celery 邀请超时批处理, 单条 invitation 失败不影响其他
             logger.exception(f'Timeout failed for {inv.id}: {e}')
 
     return {
@@ -63,7 +63,7 @@ def send_invitation_reminders() -> Dict:
                 channels=['IN_APP'],
             )
             sent += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Celery 邀请提醒批处理, 单条失败不影响其他
             logger.exception(f'Reminder failed for {inv.id}: {e}')
 
     return {'reminders_sent': sent, 'checked_at': now.isoformat()}

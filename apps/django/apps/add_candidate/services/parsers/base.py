@@ -91,7 +91,7 @@ def get_active_backend_name() -> str:
         db_backend = (obj.config or {}).get("backend")
         if db_backend and db_backend in ResumeParserBackend.available():
             return db_backend
-    except Exception:
+    except Exception:  # noqa: BLE001 — 简历解析后端配置读取失败回退默认后端 (配置错误不应阻塞解析)
         logger.exception("读取简历解析后端配置失败，回退默认后端 %s", default)
     return default
 

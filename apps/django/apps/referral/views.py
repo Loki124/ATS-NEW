@@ -104,7 +104,7 @@ class ReferralViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewse
                 detected = 'N+2'
             else:
                 detected = instance.referral_type
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — detected_type 探测失败 fallback 到 instance.referral_type (best-effort 检测)
             logger.warning('内推 detected_type 探测失败 fallback=instance.referral_type referral_id=%s err=%s', instance.id, e, exc_info=True)
             detected = instance.referral_type
         instance.detected_type = detected
