@@ -28,6 +28,50 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
+# 进入条件中「候选人字段」legacy 键 → AtomicMetric.source_path 的映射。
+# 这是当前唯一已存在的指标层（apps/metrics.AtomicMetric）接入点；其它来源
+# （DEMAND / STAGE_STATUS）暂不在本次范围。
+#
+# 工作流（2026-10-01 接入）：
+#   _get_candidate_value 先按此表把 legacy 键转为 source_path，再走 AtomicMetric +
+#   candidate_snapshot + FieldResolverRegistry 解析；
+#   解析失败回退到 _LEGACY_CANDIDATE_FALLBACK（保留旧字段直查语义），确保现网行为零变化。
+#
+# 新增候选人字段时只需：
+#   1) 在此表加一行 source_path
+#   2) 同时在 _LEGACY_CANDIDATE_FALLBACK 加一行 getattr 兜底
+#   3) 在 AtomicMetric 中由 0009/0010 迁移自动 seed（或手工建）
+#   即可——前端目录、评估取值、指标定义 三处统一收口。
+LEGACY_CANDIDATE_FIELD_TO_PATH = {
+    'AGE': 'candidate.age',
+    'GENDER': 'candidate.gender',
+    'HIGHEST_EDU': 'candidate.highest_education',
+    'WORK_YEARS': 'candidate.work_years',
+    'CURRENT_CITY': 'candidate.current_city',
+    'EXPECTED_CITY': 'candidate.expected_city',
+}
+
+# legacy 硬编码兜底（指标未 seed / 快照无该字段时使用，绝不 500）。
+_LEGACY_CANDIDATE_FALLBACK = {
+    'AGE': lambda c: _calc_age_from_birth_date(c),
+    'GENDER': lambda c: getattr(c, 'gender', None),
+    'HIGHEST_EDU': lambda c: getattr(c, 'highest_education', None),
+    'WORK_YEARS': lambda c: getattr(c, 'work_years', None),
+    'CURRENT_CITY': lambda c: getattr(c, 'current_city', None),
+    'EXPECTED_CITY': lambda c: getattr(c, 'expected_city', None),
+}
+
+
+def _calc_age_from_birth_date(candidate: Candidate) -> Optional[int]:
+    """按身份证 / 生日计算年龄（legacy _calc_age 等价语义）。"""
+    if not getattr(candidate, 'birth_date', None):
+        return None
+    from datetime import date
+    today = date.today()
+    born = candidate.birth_date
+    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+
+
 @dataclass
 class ConditionCheckResult:
     """单条条件项评估结果"""
@@ -319,16 +363,48 @@ class EntryConditionEvaluator:
             return None
 
     def _get_candidate_value(self, field: str) -> Any:
-        """获取候选人字段值"""
-        mapping = {
-            'AGE': self._calc_age(),
-            'GENDER': getattr(self.candidate, 'gender', None),
-            'HIGHEST_EDU': getattr(self.candidate, 'highest_education', None),
-            'WORK_YEARS': getattr(self.candidate, 'work_years', None),
-            'CURRENT_CITY': getattr(self.candidate, 'current_city', None),
-            'EXPECTED_CITY': getattr(self.candidate, 'expected_city', None),
-        }
-        return mapping.get(field)
+        """获取候选人字段值。
+
+        解析优先级：
+            a. 指标库解析 —— 按 LEGACY_CANDIDATE_FIELD_TO_PATH 把 legacy 键转 到
+               AtomicMetric.source_path，再走 candidate_snapshot + FieldResolverRegistry
+               取值（与 metrics 指标层共享路径解析）。
+            b. legacy 兜底 —— 当指标未定义 / 解析失败时，落 _LEGACY_CANDIDATE_FALLBACK
+               直查 ORM 字段，确保现网行为零变化。
+
+        不抛异常：解析失败 = None（与原语义一致，触发 IS_EMPTY / 数值 GT 等为 False）。
+        """
+        source_path = LEGACY_CANDIDATE_FIELD_TO_PATH.get(field)
+        if source_path:
+            try:
+                from apps.metrics.models import AtomicMetric
+                from apps.metrics.services.candidate_snapshot import build_candidate_snapshot
+                from apps.metrics.services.field_resolver import (
+                    FieldResolverRegistry,
+                    FieldResolveError,
+                )
+
+                # 仅按 source_path 命中即视为「指标已接」——不再要求 name=field。
+                # 这样既兼容既有迁移（name=年龄）也兼容未来运营把指标改名/重命名。
+                metric = AtomicMetric.objects.filter(
+                    source_path=source_path, status='enabled', deleted_at__isnull=True,
+                ).first()
+                if metric is not None:
+                    snapshot = build_candidate_snapshot(self.candidate.id)
+                    return FieldResolverRegistry.resolve(source_path, snapshot)
+            except Exception as e:  # noqa: BLE001 — 任何指标层异常都不阻断 legacy 兜底
+                logger.warning(
+                    'entry_condition metrics 解析失败 field=%s path=%s err=%s',
+                    field, source_path, e,
+                )
+
+        fallback = _LEGACY_CANDIDATE_FALLBACK.get(field)
+        if fallback is not None:
+            try:
+                return fallback(self.candidate)
+            except Exception:
+                return None
+        return None
 
     def _get_demand_value(self, field: str) -> Any:
         """获取需求中字段值（来自职位/部门）"""

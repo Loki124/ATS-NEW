@@ -66,6 +66,22 @@ def build_candidate_snapshot(candidate_id: str, *, include_sensitive: bool = Fal
     for field, _label, _dtype in BASIC_FIELDS:
         node[field] = _jsonable(getattr(candidate, field, None))
 
+    # 1a) age 字段回填：主表 age 为空时按 birth_date 实时计算年龄（岁，整数）。
+    #     目的：与 entry_condition 的「按生日算年龄」语义保持一致，让 AtomicMetric(candidate.age)
+    #     真实可用，避免「指标可定义但永远算不出」的假绿。snapshot 仅在内存中拼装，不写回 DB。
+    if node.get('age') in (None, '', 0):
+        birth_date = getattr(candidate, 'birth_date', None)
+        if birth_date is not None:
+            try:
+                from datetime import date
+                today = date.today()
+                node['age'] = today.year - birth_date.year - (
+                    (today.month, today.day) < (birth_date.month, birth_date.day)
+                )
+            except Exception:
+                # 计算失败不阻断快照；按规则解析失败处理。
+                pass
+
     if include_sensitive:
         for field in SENSITIVE_FIELDS:
             if hasattr(candidate, field):

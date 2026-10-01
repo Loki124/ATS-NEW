@@ -722,10 +722,10 @@ class ExpressionValidationView(APIView):
 class EntryConditionFieldCatalogView(APIView):
     """进入条件字段目录 — 返回 source→condition_type→field→operator→value 字典树
 
-    数据来源：apps/entry_condition/services.py:284-360 (_get_actual_value) 实际解析的字段
-    （**非 demo**）：
+    数据来源（2026-10-01 起 CANDIDATE 走指标层）：
     - STAGE_STATUS：来自 RecruitmentStage 表（value_source=STAGE_LIST，动态取已启用阶段名）
-    - CANDIDATE：来自 Candidate 模型硬编码字段映射（AGE/GENDER/HIGHEST_EDU/WORK_YEARS/CITY）
+    - CANDIDATE：来自 apps.metrics.AtomicMetric（source_path=candidate.*），按
+      LEGACY_CANDIDATE_FIELD_TO_PATH 一一映射；缺失时回退到硬编码列表。
     - DEMAND：来自 Position/Demand 硬编码字段映射（用人经理/上级/BU总裁/VP/职级/部门）
     运算符直接对齐 apps/entry_condition/models.py:33 ConditionOperator 文案。
     """
@@ -772,26 +772,7 @@ class EntryConditionFieldCatalogView(APIView):
             },
             {
                 'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
-                'fields': [
-                    {'key': 'AGE', 'label': '年龄',
-                     'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ'],
-                     'value_source': 'NUMBER'},
-                    {'key': 'GENDER', 'label': '性别',
-                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                     'value_source': 'DICT:gender'},
-                    {'key': 'HIGHEST_EDU', 'label': '最高学历',
-                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                     'value_source': 'DICT:highest_education'},
-                    {'key': 'WORK_YEARS', 'label': '工作年限',
-                     'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN'],
-                     'value_source': 'NUMBER'},
-                    {'key': 'CURRENT_CITY', 'label': '当前城市',
-                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                     'value_source': 'DICT:city'},
-                    {'key': 'EXPECTED_CITY', 'label': '期望城市',
-                     'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                     'value_source': 'DICT:city'},
-                ],
+                'fields': self._build_candidate_catalog_fields(),
             },
             {
                 'key': 'STAGE_STATUS', 'label': '阶段状态', 'condition_type': 'STAGE_STATUS',
@@ -812,6 +793,83 @@ class EntryConditionFieldCatalogView(APIView):
                 'common_operators': common_operators,
             },
         })
+
+    @staticmethod
+    def _build_candidate_catalog_fields() -> list:
+        """CANDIDATE 字段定义：按字段从 AtomicMetric 读取，缺失回退到硬编码。
+
+        设计要点：
+            - legacy 键（ConditionItem.field）保持不变：AGE / GENDER / HIGHEST_EDU /
+              WORK_YEARS / CURRENT_CITY / EXPECTED_CITY。已落库的进入条件数据继续生效。
+            - AtomicMetric 的 name 用作「label」（中文展示），data_type 决定运算符与
+              value_source（number → NUMBER；其它 → STRING）。
+            - 字段级回退：每个 legacy_key 独立判断。指标已 seed 的用指标 label，
+              未 seed 的用硬编码定义。避免「指标少 seed 一条 → 整字段消失」导致的回退。
+            - 全字段回退兜底：若异常或全部缺失，落回硬编码列表（迁移未跑也能下拉）。
+        """
+        # 单字段硬编码兜底（与 services._LEGACY_CANDIDATE_FALLBACK 对齐）
+        per_key_fallback = {
+            'AGE': {'key': 'AGE', 'label': '年龄',
+                    'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ'],
+                    'value_source': 'NUMBER'},
+            'GENDER': {'key': 'GENDER', 'label': '性别',
+                       'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                       'value_source': 'DICT:gender'},
+            'HIGHEST_EDU': {'key': 'HIGHEST_EDU', 'label': '最高学历',
+                            'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                            'value_source': 'DICT:highest_education'},
+            'WORK_YEARS': {'key': 'WORK_YEARS', 'label': '工作年限',
+                           'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN'],
+                           'value_source': 'NUMBER'},
+            'CURRENT_CITY': {'key': 'CURRENT_CITY', 'label': '当前城市',
+                             'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                             'value_source': 'DICT:city'},
+            'EXPECTED_CITY': {'key': 'EXPECTED_CITY', 'label': '期望城市',
+                              'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
+                              'value_source': 'DICT:city'},
+        }
+        fallback_fields = [per_key_fallback[key] for key in (
+            'AGE', 'GENDER', 'HIGHEST_EDU', 'WORK_YEARS', 'CURRENT_CITY', 'EXPECTED_CITY',
+        )]
+
+        try:
+            from apps.entry_condition.services import LEGACY_CANDIDATE_FIELD_TO_PATH
+            from apps.metrics.models import AtomicMetric, MetricDataType
+
+            paths = list(LEGACY_CANDIDATE_FIELD_TO_PATH.values())
+            path_to_key = {v: k for k, v in LEGACY_CANDIDATE_FIELD_TO_PATH.items()}
+
+            rows = AtomicMetric.objects.filter(
+                source_path__in=paths,
+                status='enabled',
+                deleted_at__isnull=True,
+            ).values('source_path', 'name', 'data_type')
+
+            by_key: dict[str, dict] = {}
+            for row in rows:
+                legacy_key = path_to_key.get(row['source_path'])
+                if legacy_key is None:
+                    continue
+                if row['data_type'] == MetricDataType.NUMBER:
+                    operators = ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ']
+                    value_source = 'NUMBER'
+                else:
+                    operators = ['EQ', 'NEQ', 'IN', 'NOT_IN']
+                    value_source = 'STRING'
+                by_key[legacy_key] = {
+                    'key': legacy_key,
+                    'label': row['name'],
+                    'operators': operators,
+                    'value_source': value_source,
+                }
+            # 字段级回退：每个 legacy_key 独立判断
+            merged = []
+            for key in LEGACY_CANDIDATE_FIELD_TO_PATH:
+                merged.append(by_key.get(key, per_key_fallback[key]))
+            return merged
+        except Exception:
+            # 指标表未初始化 / 迁移未跑等异常 → 落回静态定义，绝不 500
+            return fallback_fields
 
 
 # ============================================================
