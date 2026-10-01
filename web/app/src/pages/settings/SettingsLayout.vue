@@ -122,9 +122,13 @@ const subMenuOptions: MenuItem[] = [
       {
         // 权限管理归入「基本信息」分组内（2026-09-18 调整）：身份管理/资源管理/管理单元/字段权限
         // 2026-09-18 二次调整：资源管理从身份管理页拆出为独立菜单；原 4-tab 主壳去 tab 化
+        // 2026-09-22 三次调整：由嵌套 type:'group' 改为标准菜单项 —— 与同组「公司信息管理」「用户管理」风格一致
+        //   · 带图标、可 hover / 高亮、点击仅展开收起子项
+        //   · key 保持 'g-permission'（不以 '/' 开头），故 handleMenuClick 不触发跳转，无对应路由
+        //     （原 type:'group' 渲染为不可点击、无图标的灰色分组标题，与同级菜单项风格不一致）
         key: 'g-permission',
-        type: 'group',
         label: '权限管理',
+        icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }),
         children: [
           { key: '/settings/permissions', label: '身份管理', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
           { key: '/settings/permissions/resources', label: '资源管理', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },

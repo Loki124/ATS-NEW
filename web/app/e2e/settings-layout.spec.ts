@@ -39,15 +39,15 @@ test.describe('Settings layout (regression guard)', () => {
     await page.goto('/settings/account');
     await page.waitForLoadState('networkidle');
 
-    // 分组默认折叠，先展开对应分组
-    await page.getByText('组织信息管理').click();
-    // 切到权限管理 (route: /settings/permission)
+    // 菜单结构（2026-09-22）：基本信息(分组) → 权限管理(标准菜单项, 点击仅展开) → 身份管理/资源管理/管理单元/字段权限
+    // 注：权限管理本身不带路由（key 不以 '/' 开头），需再点子项才跳转
     await page.locator('.menu-item').filter({ hasText: /^权限管理$/ }).click();
+    await page.locator('.menu-item').filter({ hasText: /^身份管理$/ }).click();
     await page.waitForURL(/permission/);
     await page.waitForLoadState('networkidle');
 
-    // 再切到公司信息 (route: /settings/company)
-    await page.getByText('其他').click();
+    // 再切到公司信息 (route: /settings/company) —— 位于「基本信息 → 公司信息管理」下
+    await page.locator('.menu-item').filter({ hasText: /^公司信息管理$/ }).click();
     await page.locator('.menu-item').filter({ hasText: /^公司信息$/ }).click();
     await page.waitForURL(/company/);
     await page.waitForLoadState('networkidle');
