@@ -65,7 +65,7 @@ class ConstraintValidator(ActionExecutor):
                 position = Position.objects.filter(id=position_id).first()
             level = context.extra.get('level')
             start_date = context.extra.get('start_date')
-        except Exception as exc:  # noqa: BLE001 — 上下文解析失败 → 不阻断
+        except (AttributeError, TypeError) as exc:  # 上下文解析失败 → 不阻断
             logger.exception('ConstraintValidator context resolve failed: %s', exc)
             return ActionResult(success=True, action_type=action.action_type,
                                 message=f'context_unavailable: {exc}')

@@ -18,6 +18,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from django.db import IntegrityError, OperationalError
 from django.utils import timezone
 
 from ..services import ActionExecutor, ActionResult, action_registry
@@ -75,7 +76,7 @@ class LockExecutor(ActionExecutor):
                     message='application_not_found',
                     data={'total_lock_days': total_lock_days},
                 )
-            except Exception as exc:  # noqa: BLE001 — LOCK 写入失败不应阻断派发主链路
+            except (OperationalError, IntegrityError, ValueError) as exc:  # LOCK 写入失败不应阻断派发主链路
                 logger.exception('LOCK executor failed to persist stage_deadline: %s', exc)
                 return ActionResult(
                     success=False, action_type=self.action_type,

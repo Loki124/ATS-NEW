@@ -134,7 +134,7 @@ class RemindExecutor(ActionExecutor):
                     ids = [str(uid) for uid in sr.current_handlers if uid]
                     if ids:
                         return [ids[0]]
-            except Exception:  # noqa: BLE001 — 提醒接收人解析失败不应阻断
+            except (AttributeError, TypeError, ValueError):  # 提醒接收人解析失败不应阻断
                 return []
         elif recipient_type == 'CUSTOM':
             return params.get('custom_user_ids', []) or []

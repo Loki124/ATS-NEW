@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import logging
+from django.db import IntegrityError, OperationalError
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -636,7 +637,7 @@ def mirror_campus_offer_validation(
                 skip_reason=None,
             )
             written += 1
-        except Exception as e:  # noqa: BLE001 — 镜像失败不影响现网
+        except (OperationalError, IntegrityError, ValueError) as e:  # 镜像失败不影响现网
             logger.warning('rule_engine 镜像写失败: %s', e, exc_info=True)
             continue
     return written
