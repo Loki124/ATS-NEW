@@ -115,7 +115,7 @@ class ManagementUnitMemberSerializer(serializers.ModelSerializer):
             try:
                 from apps.campus_control.models import Person
                 return Person.objects.filter(pk=obj.person_id).values_list('name', flat=True).first() or ''
-            except Exception:  # noqa: BLE001 — V2 Person 字段缺失/person_id 无效返空串, 序列化不应 500
+            except (OperationalError, ProgrammingError, ValueError):  # V2 Person 字段缺失/person_id 无效返空串, 序列化不应 500
                 return ''
         return ''
 

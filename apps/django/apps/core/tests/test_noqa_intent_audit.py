@@ -90,7 +90,8 @@ def test_health_check_db_failure_returns_degraded_not_500():
     from django.db import connection
 
     def buggy_cursor():
-        raise RuntimeError('mocked DB unavailable')
+        from django.db import OperationalError
+        raise OperationalError('mocked DB unavailable')
 
     # mock connection.cursor 让 health check 第一个 try 抛异常
     with patch.object(connection, 'cursor', side_effect=buggy_cursor):
