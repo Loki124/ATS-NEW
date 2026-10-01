@@ -11,6 +11,7 @@
 双写链路严格可选：仅当 RULE_ENGINE_DOUBLE_WRITE 为真时执行；任何异常都被吞掉并仅记
 日志。软删传播由 bridge 在下次 sync 时统一处理（soft_delete() 触发 post_save）。
 """
+from django.db import DatabaseError
 import logging
 
 from django.conf import settings
@@ -28,7 +29,7 @@ def _sync_rule(rule) -> None:
         try:
             from apps.rule_engine.bridge import sync_entry_condition_rule_to_unified
             sync_entry_condition_rule_to_unified(rule)
-        except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 双写失败不得影响现网
             logger.exception(
                 'RULE_ENGINE double-write failed for EntryConditionRule %s', rule.id
             )
@@ -66,7 +67,7 @@ def on_log_saved(sender, instance, created, **kwargs):
         try:
             from apps.rule_engine.bridge import sync_entry_condition_log_to_unified
             sync_entry_condition_log_to_unified(instance)
-        except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 双写失败不得影响现网
             logger.exception(
                 'RULE_ENGINE double-write failed for EntryConditionLog %s', instance.id
             )

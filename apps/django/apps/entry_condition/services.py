@@ -12,6 +12,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from django.db import DatabaseError
+
 from apps.candidate.models import Candidate
 from apps.process.models import ProcessStageLink, RecruitmentStage
 from apps.process.services.expression_service import evaluate_expression
@@ -357,7 +359,7 @@ class EntryConditionEvaluator:
                 application=application, stage=stage, deleted_at__isnull=True,
             ).first()
             return sr.status if sr else None
-        except Exception:  # noqa: BLE001 — ORM 查询兜底返 None (字段不存在/数据缺失), 不阻断规则评估
+        except DatabaseError:  # ORM 查询兜底返 None (字段不存在/数据缺失), 不阻断规则评估
             return None
 
     def _get_candidate_value(self, field: str) -> Any:
