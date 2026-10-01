@@ -67,7 +67,7 @@ def check_stage_timeouts(self) -> Dict[str, Any]:
                 try:
                     _send_timeout_notification(app, record, uid)
                     notifications_sent += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — Celery 批量超时通知, 单个收件人失败不影响其他收件人
                     logger.warning('Send timeout notification failed: %s', e)
 
             # 累计超时次数
@@ -79,7 +79,7 @@ def check_stage_timeouts(self) -> Dict[str, Any]:
                     app.candidate_id, app.process_id, app.current_stage_id,
                 )
             archived += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — Celery 阶段超时批处理, 单条记录处理失败不影响其他记录
             logger.exception('Stage timeout handling failed for record %s', record.id)
 
     logger.info('check_stage_timeouts: overdue=%d, notifications=%d', len(overdue_records), notifications_sent)
@@ -173,7 +173,7 @@ def check_automation_failure_rate(self) -> Dict[str, Any]:
             try:
                 _send_failure_alert(rule, failure_rate, total, failed)
                 alert_count += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — Celery 规则失败告警, 单条告警失败不影响其他规则的告警
                 logger.warning('Send failure alert failed: %s', e)
     return {
         'rules_checked': rules.count(),
@@ -237,7 +237,7 @@ def archive_stale_applications(self, days: int = 90) -> Dict[str, Any]:
     for app in stale:
         try:
             result = ApplicationService.timeout_archive(app)
-        except Exception:
+        except Exception:  # noqa: BLE001 — Celery 过期归档批处理, 单条归档失败不影响其他 application 的归档
             failed_ids.append(app.id)
             logger.error(
                 'Archive stale application %s (id=%s) failed',

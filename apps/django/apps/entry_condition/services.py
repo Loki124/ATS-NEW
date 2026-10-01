@@ -132,7 +132,7 @@ class EntryConditionEvaluator:
                 unified_result = self._run_via_unified_engine(save_log)
                 if unified_result is not None:
                     return unified_result
-            except Exception:
+            except Exception:  # noqa: BLE001 — RULE_ENGINE dispatch 失败必须降级到 legacy, 否则主流程断
                 logger.exception(
                     'RULE_ENGINE dispatch failed for entry_condition; fallback to legacy'
                 )
@@ -288,7 +288,7 @@ class EntryConditionEvaluator:
         # 规则内求值
         try:
             passed = evaluate_expression(rule.expression, condition_results)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — DSL 表达式可能抛任意业务异常 (NameError/自定义), 降级 passed=False 而非阻断整规则
             logger.exception('Rule %s expression evaluation failed: %s', rule.id, e)
             passed = False
 
@@ -314,7 +314,7 @@ class EntryConditionEvaluator:
                 passed=passed,
                 actual_value=actual,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 单条条件项可能因指标层/字段缺失抛多种异常, 降级 passed=False 而非阻断整规则
             logger.exception('Condition item %s evaluation failed: %s', item.id, e)
             return ConditionCheckResult(
                 item_seq=item.item_seq,
@@ -359,7 +359,7 @@ class EntryConditionEvaluator:
                 application=application, stage=stage, deleted_at__isnull=True,
             ).first()
             return sr.status if sr else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — ORM 查询兜底返 None (字段不存在/数据缺失), 不阻断规则评估
             return None
 
     def _get_candidate_value(self, field: str) -> Any:
@@ -402,7 +402,7 @@ class EntryConditionEvaluator:
         if fallback is not None:
             try:
                 return fallback(self.candidate)
-            except Exception:
+            except Exception:  # noqa: BLE001 — legacy 兜底字段解析失败返 None, 不阻断主流程
                 return None
         return None
 
@@ -475,7 +475,9 @@ class EntryConditionEvaluator:
                 return actual in (None, '', [], {})
             if op == ConditionOperator.IS_NOT_EMPTY:
                 return actual not in (None, '', [], {})
-        except Exception as e:
+        except (TypeError, ValueError) as e:
+            # Python 比较运算符窄集: 类型不匹配 (None > 5) / 不可哈希 (unhashable in list).
+            # 业务规则 DSL 抛出的其他异常应外抛以便发现真实 bug.
             logger.warning('Comparison failed: %s, %s, %s, %s', op, actual, expected, e)
             return False
         return False
@@ -517,7 +519,7 @@ class EntryConditionEvaluator:
                 reject_message=result.reject_message,
                 snapshot=snapshot,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 审计落库失败不应阻断主结果 (用户看到规则通过/拒绝即可)
             logger.warning('Failed to save entry condition log: %s', e)
 
 

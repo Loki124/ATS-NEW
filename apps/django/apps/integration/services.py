@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import binascii
 import hashlib
 import hmac
 import json
@@ -26,6 +27,7 @@ from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
 
 import requests
+from django.db import IntegrityError, OperationalError
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound
@@ -69,8 +71,10 @@ def _get_decrypted_config(integration_type: str) -> tuple[IntegrationConfig | No
     if secret_raw:
         try:
             secret_dict = json.loads(decrypt_secret(secret_raw))
-        except Exception:
-            logger.exception('IntegrationConfig %s: decrypt failed', integration_type)
+        except (ValueError, json.JSONDecodeError, TypeError, binascii.Error) as e:
+            # 解密失败: 仅兜解密/解析窄集异常 (PII 解密异常包含 DecryptionError 等).
+            # 编程错误 (AttributeError/NameError) 仍向上抛以便排查.
+            logger.exception('IntegrationConfig %s: decrypt failed: %s', integration_type, e)
             secret_dict = {}
         cfg.update(secret_dict)
     return config, cfg
@@ -121,7 +125,8 @@ def send_email(to: str, subject: str, body: str, html: bool = False) -> bool:
             failed_count=0,
         )
         return True
-    except Exception as e:
+    except (smtplib.SMTPException, OSError, ConnectionError, TimeoutError, KeyError) as e:
+        # SMTP 协议 + 网络 IO + 地址解析异常窄集. 编程错误不再吞, 向上抛以便排查.
         logger.exception('Email send failed')
         try:
             IntegrationSyncLog.objects.create(
@@ -133,7 +138,8 @@ def send_email(to: str, subject: str, body: str, html: bool = False) -> bool:
                 failed_count=1,
                 error_message=str(e),
             )
-        except Exception:
+        except OperationalError:
+            # ORM 落库失败仍吞, 避免 audit 写失败再触发外层 500 (此处已是 send_email 失败路径).
             pass
         return False
 
@@ -157,8 +163,9 @@ def send_sms(phone: str, content: str, template_id: Optional[str] = None,
         else:
             logger.warning('Unknown SMS provider: %s', provider)
             return False
-    except Exception as e:
-        logger.exception('SMS send failed')
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # 短信 IO / HTTP SDK / 参数异常窄集.
+        logger.exception('SMS send failed: %s', e)
         return False
 
 
@@ -203,7 +210,8 @@ def _send_sms_aliyun(cfg, phone, content, template_id, template_params) -> bool:
         r = requests.get(endpoint, params=params, timeout=10)
         result = r.json()
         return result.get('Code') == 'OK'
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # 阿里云短信 HTTPS 请求 + JSON 解析窄集. base64/编码错误归 ValueError.
         logger.exception('Aliyun SMS failed: %s', e)
         return False
 
@@ -247,7 +255,8 @@ def send_wecom_message(user_id: str, content: str, title: str = '') -> bool:
         r = requests.post(send_url, json=payload, timeout=10)
         result = r.json()
         return result.get('errcode') == 0
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # 企微应用消息 HTTP + JSON 解析窄集.
         logger.exception('Wecom message send failed: %s', e)
         return False
 
@@ -261,7 +270,8 @@ def send_wecom_robot(webhook_url: str, content: str, mentioned: Optional[List[st
         }
         r = requests.post(webhook_url, json=payload, timeout=10)
         return r.json().get('errcode') == 0
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # 企微群机器人 webhook HTTP + JSON 解析窄集.
         logger.exception('Wecom robot send failed: %s', e)
         return False
 
@@ -285,7 +295,8 @@ def sync_candidate_from_moka(moka_id: str) -> Dict[str, Any]:
         if r.status_code == 200:
             return {'success': True, 'data': r.json()}
         return {'success': False, 'error': f'HTTP {r.status_code}'}
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # Moka HTTP GET + JSON 解析窄集.
         logger.exception('Moka sync failed: %s', e)
         return {'success': False, 'error': str(e)}
 
@@ -306,7 +317,8 @@ def push_candidate_to_moka(candidate_data: Dict[str, Any]) -> Dict[str, Any]:
         if r.status_code in (200, 201):
             return {'success': True, 'data': r.json()}
         return {'success': False, 'error': f'HTTP {r.status_code}: {r.text}'}
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # Moka HTTP POST + JSON 解析窄集.
         logger.exception('Moka push failed: %s', e)
         return {'success': False, 'error': str(e)}
 
@@ -342,8 +354,9 @@ def test_background_check_connection(config: IntegrationConfig) -> Dict[str, Any
             'message': '连接成功' if res.success else f'连接失败: {res.message}',
             'duration_ms': res.duration_ms,
         }
-    except Exception as e:
-        logger.exception('test_background_check_connection failed')
+    except (OperationalError, ConnectionError, TimeoutError, OSError, ValueError) as e:
+        # 供应商 adapter 委托: 网络 IO + ORM 落库 + 解析窄集.
+        logger.exception('test_background_check_connection failed: %s', e)
         return {'success': False, 'message': f'测试失败: {e}'}
 
 def request_background_check(candidate_id: str, items: List[str], config_id: str = None) -> Dict[str, Any]:
@@ -375,11 +388,16 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
                         items=list(items or []), order_number=str(order_number),
                         request_payload=inner,
                     )
-                except Exception:
-                    logger.exception('create_background_check_order failed (number=%s)', order_number)
+                except (OperationalError, IntegrityError) as e:
+                    # audit 落库失败: 单订单级别兜底, 不阻断上层返 success (供应商已收单).
+                    logger.exception(
+                        'create_background_check_order failed (number=%s): %s', order_number, e,
+                    )
             return {'success': True, 'data': res.data}
         return {'success': False, 'error': res.message}
-    except Exception as e:
+    except (OperationalError, IntegrityError, ConnectionError, TimeoutError,
+            requests.RequestException, ValueError) as e:
+        # 供应商委托 + ORM 落库 + 网络 IO 窄集. 编程错误不再吞.
         logger.exception('Background check request failed: %s', e)
         return {'success': False, 'error': str(e)}
 
@@ -522,8 +540,10 @@ def cancel_background_check_order(order: BackgroundCheckOrder,
             order.status = BGOrderStatus.CANCELLED
             order.status_name = BGOrderStatus.CANCELLED.label
             order.save(update_fields=['status', 'status_name', 'updated_at'])
-    except Exception as e:
-        logger.exception('cancel_background_check_order failed')
+    except (OperationalError, IntegrityError, ConnectionError, TimeoutError,
+            requests.RequestException, ValueError) as e:
+        # 取消订单: 供应商出向 + ORM 落库窄集. result 仍返对外 dict.
+        logger.exception('cancel_background_check_order failed: %s', e)
         result = {'success': False, 'message': f'取消异常: {e}'}
     return result
 
@@ -600,8 +620,9 @@ def query_background_check_order(order_number: str, config_id: str = None) -> Di
             'data': res.data,
             'duration_ms': res.duration_ms,
         }
-    except Exception as e:
-        logger.exception('query_background_check_order failed')
+    except (OperationalError, ConnectionError, TimeoutError, requests.RequestException, ValueError) as e:
+        # 主动轮询: ORM 落库 + 供应商 HTTP 窄集.
+        logger.exception('query_background_check_order failed: %s', e)
         return {'success': False, 'error': str(e)}
 
 
@@ -627,8 +648,9 @@ def fetch_background_check_report(order: 'BackgroundCheckOrder') -> Dict[str, An
             'data': res.data,
             'duration_ms': res.duration_ms,
         }
-    except Exception as e:
-        logger.exception('fetch_background_check_report failed')
+    except (OperationalError, ConnectionError, TimeoutError, requests.RequestException, ValueError) as e:
+        # 拉取报告: ORM 落库 + 供应商 HTTP 窄集.
+        logger.exception('fetch_background_check_report failed: %s', e)
         return {'success': False, 'error': str(e)}
 
 def bg_callback_envelope(code: int, message: str, data: Optional[dict] = None, request_id: Optional[str] = None) -> dict:
@@ -669,6 +691,7 @@ def sync_position_to_portal(position_id: str) -> Dict[str, Any]:
         if r.status_code in (200, 201):
             return {'success': True, 'data': r.json()}
         return {'success': False, 'error': f'HTTP {r.status_code}'}
-    except Exception as e:
+    except (ConnectionError, TimeoutError, OSError, requests.RequestException, ValueError) as e:
+        # 招聘门户 HTTP POST + JSON 解析窄集.
         logger.exception('Portal sync failed: %s', e)
         return {'success': False, 'error': str(e)}

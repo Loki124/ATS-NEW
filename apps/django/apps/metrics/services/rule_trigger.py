@@ -43,12 +43,12 @@ def _build_rule_context(rule) -> Dict[str, Any]:
     if demand_id:
         try:
             ctx.update(build_demand_snapshot(demand_id))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — 需求快照失败不阻断规则评估 (降级到缺数据, MetricEngine 单条 FAIL 兜底)
             logger.warning('[metrics] 需求快照构建失败 demand=%s: %s', demand_id, exc)
     if position_id:
         try:
             ctx.update(build_position_snapshot(position_id))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — 职位快照失败不阻断规则评估 (同上)
             logger.warning('[metrics] 职位快照构建失败 position=%s: %s', position_id, exc)
     return ctx
 
@@ -99,7 +99,7 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
         rules = list(MetricRule.objects.filter(
             scene=scene, enabled=True, status=MetricStatus.ENABLED,
         ).order_by('created_at'))
-    except Exception as exc:  # 表不存在等极端情况 → 不阻断
+    except Exception as exc:  # noqa: BLE001 — 表不存在等极端情况不阻断 (缺规则不应 500, 放行等待配置修复)
         logger.warning('[metrics] 加载场景规则失败 scene=%s: %s', scene, exc)
         result['message'] = '规则加载失败（已放行）'
         return result
@@ -110,8 +110,7 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
 
     try:
         snapshot = build_candidate_snapshot(candidate_id)
-    except Exception as exc:
-        # 快照失败绝不阻断业务（规则引擎故障不应让入池/评分失败）
+    except Exception as exc:  # noqa: BLE001 — 快照失败绝不阻断业务 (规则引擎故障不应让入池/评分失败)
         logger.warning('[metrics] 快照构建失败 candidate=%s: %s', candidate_id, exc)
         result['message'] = '数据快照构建失败（已放行）'
         return result
@@ -133,7 +132,7 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
             outcome = MetricEngine.execute(
                 rule.to_engine_conditions(), data, rule.logic or 'AND',
             )
-        except Exception as exc:  # 单条规则异常不拖垮整体
+        except Exception as exc:  # noqa: BLE001 — 单条规则异常不拖垮整体 (批量规则场景, 异常规则不影响其他规则继续执行)
             logger.exception('[metrics] 规则执行异常 rule=%s', rule.id)
             result['rules'].append({
                 'ruleId': rule.id,

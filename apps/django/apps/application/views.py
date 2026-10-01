@@ -244,7 +244,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
 
         try:
             result = evaluate_stage_entry(eval_link, application.candidate)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 进入条件评估异常必须返 500 (evaluate 内部已用 narrow set, 此处是最终兜底)
             logger.exception('check_stage_transition: evaluate failed: %s', e)
             return Response(
                 {'success': False, 'code': 'evaluation_error', 'message': str(e)},

@@ -78,8 +78,7 @@ def build_candidate_snapshot(candidate_id: str, *, include_sensitive: bool = Fal
                 node['age'] = today.year - birth_date.year - (
                     (today.month, today.day) < (birth_date.month, birth_date.day)
                 )
-            except Exception:
-                # 计算失败不阻断快照；按规则解析失败处理。
+            except Exception:  # noqa: BLE001 — 年龄计算失败不阻断快照 (按规则解析失败处理, 字段缺失降级)
                 pass
 
     if include_sensitive:
@@ -107,8 +106,7 @@ def build_candidate_snapshot(candidate_id: str, *, include_sensitive: bool = Fal
             resource='Candidate', entity_id=str(candidate_id)
         ).values_list('field_key', 'value'):
             node.setdefault(field_key, value)
-    except Exception:
-        # dynamic_field 不可用时不影响主快照（降级，绝不 500）
+    except Exception:  # noqa: BLE001 — dynamic_field 不可用时不阻断主快照 (降级, 绝不 500)
         pass
 
     return {ROOT_KEY: node}
@@ -140,7 +138,7 @@ def list_candidate_paths() -> List[Dict[str, str]]:
                 'dataType': _dynamic_type_to_metric(field_type),
                 'source': 'dynamic',
             })
-    except Exception:
+    except Exception:  # noqa: BLE001 — dynamic_field 字段路径枚举失败返空 list (降级, 主流程不缺该数据继续)
         pass
 
     return paths
@@ -172,7 +170,7 @@ def _jsonable(value: Any) -> Any:
         from decimal import Decimal
         if isinstance(value, Decimal):
             return float(value)
-    except Exception:
+    except Exception:  # noqa: BLE001 — 标量转换失败保留原值 (容错, MetricEngine 比较时会再处理)
         pass
     return value
 

@@ -158,7 +158,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                     continue
                 try:
                     rec[json_field] = json.loads(v)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001 — 导入时 JSON 字段解析失败降级为空数组, 不阻断整次导入
                     rec[json_field] = []
         # 2026-09-16 兼容归一化: 迁移前旧 CSV 用 REGION_PROVINCE/CITY/DISTRICT 三值,
         # 现已合并为单类型 REGION + region_level。旧值导入时改写, 避免 choices 校验失败。
@@ -602,7 +602,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                     # 支持中文模板信封: 取 示例字段 / data / fields 中的数组
                     raw = raw.get('示例字段') or raw.get('data') or raw.get('fields') or []
                 records = raw if isinstance(raw, list) else json.loads(raw)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — 模板导入时 JSON 解析失败返 400 (用户输入错误, 不是服务端 bug)
             return Response({'success': False, 'message': f'内容解析失败: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
 
         created = updated = errors = 0
@@ -633,7 +633,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 else:
                     try:
                         rec['options'] = json.loads(opts)
-                    except Exception:  # noqa: BLE001
+                    except Exception:  # noqa: BLE001 — 导入时 options JSON 解析失败降级为空数组, 不阻断单条导入
                         rec['options'] = []
             elif opts is None:
                 rec['options'] = []
@@ -657,7 +657,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                     rec.pop('id', None)
                     DynamicField.objects.create(**rec)
                     created += 1
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001 — 批量导入单条失败 (IntegrityError/ValueError 等) 计入 errors, 继续下一条
                 errors += 1
 
         return Response({'success': True, 'created': created, 'updated': updated, 'errors': errors})
@@ -804,7 +804,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                     continue
                 try:
                     rec[json_field] = json.loads(raw_val)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001 — 预览导出时 JSON 字段解析失败降级为空数组 (导入语义同 line 161)
                     rec[json_field] = []
             rows.append(rec)
         return rows

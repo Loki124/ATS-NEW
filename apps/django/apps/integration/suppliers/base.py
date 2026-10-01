@@ -16,6 +16,7 @@ base 只定义占位，避免对 HMAC 细节产生硬依赖。
 """
 from __future__ import annotations
 
+import binascii
 import hashlib
 import hmac
 import json
@@ -161,13 +162,17 @@ class BaseBackgroundCheckSupplier(ABC):
     # ---------------------------------------------------------- 密钥 / 配置解析（D3）
     @staticmethod
     def _load_secret(config: Any) -> Dict[str, Any]:
-        """解密 ``encrypted_secret``（JSON 字符串）→ dict；无效返回 {}。"""
+        """解密 ``encrypted_secret``（JSON 字符串）→ dict；无效返回 {}。
+
+        窄集: 仅解密/解析窄集异常 (PII 解密可能抛 DecryptionError 继承自 ValueError).
+        编程错误不再吞.
+        """
         raw = getattr(config, 'encrypted_secret', '') or ''
         if not raw:
             return {}
         try:
             return json.loads(decrypt_secret(raw))
-        except Exception:
+        except (ValueError, TypeError, json.JSONDecodeError, binascii.Error):
             return {}
 
     @staticmethod

@@ -164,8 +164,7 @@ class FilterAsyncView(APIView):
 
             write_progress(task_id, {'status': 'pending', 'progress': 0, 'total': 0})
             filter_by_scene_task.delay(task_id, scene, candidate_ids)
-        except Exception as exc:
-            # 无 Celery worker / broker 时明确报错，不静默假装成功
+        except Exception as exc:  # noqa: BLE001 — 无 Celery worker / broker 时明确报错 (503), 不静默假装成功
             return Response(
                 {'error': f'异步任务启动失败（请确认 Celery worker 已启动）: {exc}'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -182,7 +181,7 @@ class FilterStatusView(APIView):
             return Response({'error': '缺少 taskId'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             from .tasks import read_progress
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — 任务模块导入失败 (通常因依赖缺失/循环), 显式 503
             return Response({'error': f'任务模块不可用: {exc}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         data = read_progress(task_id)
@@ -223,7 +222,7 @@ class FilterBySceneView(APIView):
         cache_key = _cache_key(scene, candidate_ids)
         try:
             cached = cache.get(cache_key)
-        except Exception:
+        except Exception:  # noqa: BLE001 — 缓存读失败返 None 回退到无缓存路径, 不阻断筛选
             cached = None
         if cached is not None:
             return success_response(cached)
@@ -236,7 +235,7 @@ class FilterBySceneView(APIView):
 
         try:
             cache.set(cache_key, result, FILTER_CACHE_TTL)
-        except Exception:
+        except Exception:  # noqa: BLE001 — 缓存写失败不应阻断结果返回 (筛选结果可重算, 缓存是性能优化)
             pass
         return success_response(result)
 
@@ -300,12 +299,12 @@ class RuleExecuteView(APIView):
         if demand_id:
             try:
                 eval_data.update(build_demand_snapshot(demand_id))
-            except Exception:
+            except Exception:  # noqa: BLE001 — 需求快照失败不阻断评估 (降级到缺数据, 让 MetricEngine 单条 FAIL)
                 pass
         if position_id:
             try:
                 eval_data.update(build_position_snapshot(position_id))
-            except Exception:
+            except Exception:  # noqa: BLE001 — 职位快照失败不阻断评估 (同上)
                 pass
         result = MetricEngine.execute(conditions, eval_data, data.get('logic') or 'AND')
         return success_response(result)

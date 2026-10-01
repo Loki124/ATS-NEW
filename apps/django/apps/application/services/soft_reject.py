@@ -101,7 +101,7 @@ class SoftRejectService:
                     actor=actor,
                 )
                 return True
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 软拒阈值命中后自动入池失败, 不阻断阈值计数 (主流程以 reject 标记为准)
                 logger.exception('Auto pool failed: %s', e)
         return False
 
@@ -205,7 +205,7 @@ def check_all_soft_reject_thresholds() -> Dict[str, int]:
                 combo['to_stage_id'],
             ):
                 triggered += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 批量阈值检测, 单条异常不影响其他组合的检测
             logger.warning('Threshold check failed: %s', e)
     return {
         'checked': combos.count(),

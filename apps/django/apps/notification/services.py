@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from django.db import transaction
+from django.db import OperationalError, transaction
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound
@@ -83,12 +83,14 @@ class NotificationDispatcher:
                         'event': log.event,
                     },
                 )
-            except Exception as e:
+            except (ConnectionError, OSError, TimeoutError) as e:
+                # Channels 推送是网络 IO, 窄集异常可观察。编程错误(AttributeError 等)不再吞。
                 logger.debug('WebSocket push failed: %s', e)
             log.sent_at = timezone.now()
             log.save(update_fields=['sent_at'])
             return True
-        except Exception as e:
+        except OperationalError as e:
+            # ORM 落库失败：连接/事务问题。IntegrityError 等业务异常留给上层事务回滚。
             logger.exception('In-app send failed: %s', e)
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])
@@ -109,8 +111,10 @@ class NotificationDispatcher:
                 subject=log.subject,
                 body=log.content,
             )
-        except Exception as e:
-            logger.exception('Email send failed: %s', e)
+        except (OperationalError,) as e:
+            # integration.send_email() 已自行 swallow 第三方 IO 异常并返回 False,
+            # 这里只兜 ORM 落库失败; 其他编程错误不再静默吞, 让其崩出以便排查。
+            logger.exception('Email log persist failed: %s', e)
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])
             return False
@@ -129,8 +133,8 @@ class NotificationDispatcher:
                 phone=recipient.phone,
                 content=log.content,
             )
-        except Exception as e:
-            logger.exception('SMS send failed: %s', e)
+        except (OperationalError,) as e:
+            logger.exception('SMS log persist failed: %s', e)
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])
             return False
@@ -150,8 +154,8 @@ class NotificationDispatcher:
                 content=log.content,
                 title=log.subject,
             )
-        except Exception as e:
-            logger.exception('Wecom send failed: %s', e)
+        except (OperationalError,) as e:
+            logger.exception('Wecom log persist failed: %s', e)
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])
             return False
@@ -241,7 +245,8 @@ class NotificationService:
             try:
                 result = NotificationService.send_notification(data)
                 results.append({'recipient_id': data.recipient_id, **result})
-            except Exception as e:
+            except (NotFound, OperationalError, ValueError, TypeError) as e:
+                # 批量循环: 业务级/参数级/DB IO 异常窄集。编程错误不再吞, 便于发现真实 bug。
                 logger.warning('单条通知发送失败 recipient=%s err=%s', data.recipient_id, e, exc_info=True)
                 results.append({
                     'recipient_id': data.recipient_id, 'sent': False, 'error': str(e),

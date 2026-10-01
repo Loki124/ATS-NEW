@@ -13,6 +13,10 @@
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db import IntegrityError, OperationalError
+
+import logging
+logger = logging.getLogger(__name__)
 
 # 不自动映射为指标的字段类型（PII / 结构型，进入规则条件无业务意义）
 _SKIP_TYPES = {'PHONE', 'EMAIL', 'ID_CARD', 'BANK_CARD', 'ATTACHMENT'}
@@ -64,6 +68,7 @@ def auto_create_metric_on_field(sender, instance, created, **kwargs):
             is_enum=cap['isEnum'],
             auto_generated=True,
         )
-    except Exception:
-        # 自动映射失败不应阻断字段保存
-        pass
+    except (OperationalError, IntegrityError, ValueError) as e:
+        # 自动映射到 AtomicMetric 失败不应阻断字段保存: 指标落库失败/字段值非法/重复键均吞。
+        # 编程错误 (AttributeError/NameError) 仍向上抛以便排查。
+        logger.warning('动态字段自动映射指标失败 field_id=%s err=%s', getattr(instance, 'id', '?'), e)

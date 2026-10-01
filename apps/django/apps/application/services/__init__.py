@@ -233,7 +233,7 @@ class ApplicationService:
             )
         try:
             application.start()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — django-fsm-2 TransitionNotAllowed 等会抛 Exception 子类, 统一包成 StateTransitionError
             raise StateTransitionError(str(e)) from e
         application.last_advanced_at = timezone.now()
         application.save()
@@ -259,7 +259,7 @@ class ApplicationService:
                 },
             )
             run_automation_for_trigger(ctx)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 自动化触发失败不应阻断主流程 (start 历史/状态机已写入, automation 是 best-effort)
             logger.warning('Automation trigger on application start failed: %s', e)
 
         ApplicationHistory.objects.create(
@@ -328,7 +328,7 @@ class ApplicationService:
             # 统一转成项目既有的 StateTransitionError，view 层会返 409。
             try:
                 application.send_offer_state()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
                 raise StateTransitionError(
                     f'Cannot mark application {application.code} as OFFER_SENT '
                     f'from state {application.state}: {e}',
@@ -368,7 +368,7 @@ class ApplicationService:
                         reason=cond_result.reject_message or 'Entry condition not met',
                         actor=actor,
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — 候选人入池失败不应阻断 reject (reject 状态机是主路径, 入池是 best-effort)
                     logger.warning('Candidate move to pool failed: %s', e)
                 try:
                     move_candidate_to_pool(
@@ -377,14 +377,14 @@ class ApplicationService:
                         entry_reason=cond_result.reject_message or 'Entry condition not met',
                         actor=actor,
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — 同上, 池条目写入失败不应阻断主 reject 流程
                     logger.warning('Pool entry create failed: %s', e)
                 # 同上：不允许用裸赋值绕过状态机。
                 # mark_rejected 的 source 是 [ACTIVE, PAUSED]，若当前是 PENDING
                 # 则转换会被拒绝 —— 明确抛错，而不是静默带病继续。
                 try:
                     application.mark_rejected()
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
                     raise StateTransitionError(
                         f'Entry condition not met ({cond_result.reject_message}), '
                         f'and application {application.code} cannot transition to '
@@ -471,7 +471,7 @@ class ApplicationService:
                 },
             )
             run_automation_for_trigger(ctx)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 阶段推进时的 automation 触发失败不应阻断主流程 (advance 已落库, automation 是 best-effort)
             logger.warning('Automation trigger on stage advance failed: %s', e)
 
         return AdvanceResult(
@@ -652,7 +652,7 @@ class ApplicationService:
         # 转换被拒绝时统一转成 StateTransitionError，view 层返 409。
         try:
             application.withdraw()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(
                 f'Cannot withdraw application {application.code} '
                 f'in state {application.state}: {e}',
@@ -689,7 +689,7 @@ class ApplicationService:
             )
         try:
             application.pause()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(str(e)) from e
         application.save()
         ApplicationHistory.objects.create(
@@ -709,7 +709,7 @@ class ApplicationService:
             )
         try:
             application.resume()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(str(e)) from e
         application.save()
         ApplicationHistory.objects.create(
@@ -1014,7 +1014,7 @@ class ApplicationService:
         # 同 withdraw：protected FSMField 只能走 @transition（Application.timeout_archive）。
         try:
             application.timeout_archive()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — django-fsm-2 转换异常统一包成 StateTransitionError, view 层返 409
             raise StateTransitionError(
                 f'Cannot archive application {application.code} as TIMEOUT '
                 f'from state {application.state}: {e}',

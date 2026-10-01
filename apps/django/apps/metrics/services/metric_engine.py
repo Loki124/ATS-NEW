@@ -136,7 +136,7 @@ class MetricEngine:
             base['error'] = f'字段解析失败: {exc}'
             base['detail'] = base['error']
             return base
-        except Exception as exc:  # 派生函数等未预期异常 → 降级为 FAIL，绝不 500
+        except Exception as exc:  # noqa: BLE001 — 派生函数等未预期异常降级为 FAIL, 绝不 500 (指标计算层设计原则)
             base['error'] = f'取值异常: {exc}'
             base['detail'] = base['error']
             return base
@@ -160,7 +160,7 @@ class MetricEngine:
         # 6) 比较
         try:
             passed = cls._compare(operator, actual, expected, cond.get('meta') or {})
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — 比较阶段异常降级为 FAIL (类型不匹配等), 规则继续被记录为未通过而非 500
             base['error'] = f'执行异常: {exc}'
             base['detail'] = base['error']
             return base
@@ -267,7 +267,7 @@ class MetricEngine:
     def _op_label(operator: Optional[str]) -> str:
         try:
             return UnifiedOperator(operator).label
-        except Exception:
+        except Exception:  # noqa: BLE001 — 未知运算符返原值 (容错, label 仅用于展示, 不阻断比较逻辑)
             return str(operator or '')
 
     @staticmethod

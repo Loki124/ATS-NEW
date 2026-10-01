@@ -31,14 +31,14 @@ def _cache_key(task_id: str) -> str:
 def write_progress(task_id: str, payload: Dict[str, Any]) -> None:
     try:
         cache.set(_cache_key(task_id), payload, TASK_TTL)
-    except Exception as exc:  # 无 Redis 时不影响任务执行
+    except Exception as exc:  # noqa: BLE001 — 无 Redis 时不影响任务执行 (缓存故障不应阻塞主流程)
         logger.warning('[metrics] 写入筛选进度失败 task=%s: %s', task_id, exc)
 
 
 def read_progress(task_id: str) -> Optional[Dict[str, Any]]:
     try:
         return cache.get(_cache_key(task_id))
-    except Exception:
+    except Exception:  # noqa: BLE001 — 无 Redis 时返 None (读缓存失败回退到无缓存路径, 不应阻断轮询)
         return None
 
 
@@ -63,7 +63,7 @@ def filter_by_scene_task(self, task_id: str, scene: str,
                 rejected.append({'candidateId': cid, 'reason': outcome.get('message')})
             else:
                 passed.append(cid)
-        except Exception as exc:  # 单条失败不中断整体
+        except Exception as exc:  # noqa: BLE001 — 单条失败不中断整体 (批量筛选场景, 单条规则异常不应拖垮全量)
             logger.exception('[metrics] 筛选任务单条失败 candidate=%s', cid)
             passed.append(cid)
 

@@ -145,7 +145,7 @@ def audit_cleanup_healthcheck(self) -> Dict:
                     context={'alerts': alerts, 'total': total, 'old_count': old_count},
                     channels=['IN_APP'],
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — Celery 清理批处理, 告警发送失败不影响清理主流程
             logger.exception('audit cleanup 告警发送失败: %s', exc)
 
     return {

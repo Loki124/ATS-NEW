@@ -25,10 +25,14 @@ from .base import (
 
 
 def _safe_json(response: 'requests.Response') -> Dict[str, Any]:
-    """解析 JSON 响应；失败返回 {}（不抛异常）。"""
+    """解析 JSON 响应；失败返回 {}（不抛异常）。
+
+    窄集: 仅 JSON 解析异常 (ValueError/TypeError/JSONDecodeError/requests.exceptions.JSONDecodeError).
+    编程错误不再吞, 向上抛以便排查.
+    """
     try:
         return response.json()
-    except Exception:
+    except (ValueError, TypeError, requests.exceptions.JSONDecodeError):
         return {}
 
 

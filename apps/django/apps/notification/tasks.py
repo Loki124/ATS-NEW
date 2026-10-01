@@ -3,6 +3,7 @@ import logging
 from typing import Dict
 
 from celery import shared_task
+from django.db import OperationalError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,9 @@ def send_pending_reminders() -> Dict:
                 log.failed_reason = '发送失败'
                 log.save(update_fields=['failed_reason'])
                 failed += 1
-        except Exception as e:
+        except (OperationalError, ValueError, TypeError) as e:
+            # Celery 批量重试: ORM 落库失败 + 参数错误窄集。
+            # 第三方 IO 异常由 integration 层 swallow 返 False, 不再此层重复捕获。
             logger.exception(f'Notification {log.id} retry failed: {e}')
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])

@@ -88,8 +88,7 @@ def validate_metric_rule(rule: dict) -> list:
                             errors.append(
                                 f'第 {idx} 个条件运算符不在该指标允许范围内: {operator}'
                             )
-                except Exception:
-                    # DB 不可用 / 查询异常：跳过 DB 硬查，仅保留结构校验
+                except Exception:  # noqa: BLE001 — DB 不可用 / 查询异常时跳过 DB 硬查, 仅保留结构校验 (容错)
                     pass
 
             # ---- V06 operator 全局合法 ----
@@ -152,8 +151,7 @@ def validate_metric_rule(rule: dict) -> list:
                     if own_tids & r_tids:
                         errors.append('同一指标禁止同时配置多条必须满足(VETO)规则')
                         break
-        except Exception:
-            # DB 不可用 / 查询异常：跳过互斥硬查
+        except Exception:  # noqa: BLE001 — DB 不可用 / 查询异常时跳过互斥硬查 (容错, 仅结构校验)
             pass
 
     return errors

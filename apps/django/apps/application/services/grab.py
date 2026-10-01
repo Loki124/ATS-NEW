@@ -226,7 +226,7 @@ class GrabService:
                 result = GrabService.grab(app, next_user)
                 result.reassigned = True
                 results.append(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 批量重分配场景, 单条失败不影响其他候选人 (状态机/权限/锁定等异常均不抛整体)
                 logger.warning('Failed to reassign %s: %s', app.code, e)
         return results
 
