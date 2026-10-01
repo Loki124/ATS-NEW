@@ -5,6 +5,11 @@
 from django.db import models
 from apps.common.models import TimestampedModel, SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
+# G35 DataSubscription 定义在 models_data.py（显式 app_label='analytics'），
+# 但此前该模块未被任何已加载模块 import，导致 Django app registry 收不到它，
+# --nomigrations(syncdb) 下不建 analytics_data_subscription 表。
+# 此处显式导入，使其纳入 analytics app 模型注册表（与真实 migrate 环境一致）。
+from .models_data import DataSubscription
 
 
 def gen_id():

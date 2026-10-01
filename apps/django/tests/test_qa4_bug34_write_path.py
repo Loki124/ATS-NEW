@@ -39,7 +39,8 @@ def test_bug4_create_without_id_card_no_returns_201(_auth):
         'phone': '13800000001',
     }, format='json')
     assert resp.status_code == 201, resp.content[:500]
-    body = resp.json()
+    # 信封收口后创建接口返回 {success, data:{...}}
+    body = resp.json()['data']
     assert body['name'] == '张三'
     # 落库后 id_card_no 应为空串 (不是 None / 不是崩溃)
     c = Candidate.objects.get(pk=body['id'])
@@ -55,7 +56,7 @@ def test_bug3_history_created_by_populated_not_operator(_auth):
         'id_card_no': VALID_ID,
     }, format='json')
     assert resp.status_code == 201, resp.content[:500]
-    cid = resp.json()['id']
+    cid = resp.json()['data']['id']
     hist = CandidateHistory.objects.filter(candidate_id=cid).first()
     assert hist is not None, 'CandidateHistory 未写入'
     assert hist.created_by_id == user.pk, 'created_by 未落库为操作人'
@@ -70,7 +71,7 @@ def test_bug3_detail_endpoint_no_500(_auth):
         'phone': '13800000003',
     }, format='json')
     assert resp.status_code == 201, resp.content[:500]
-    cid = resp.json()['id']
+    cid = resp.json()['data']['id']
     detail = client.get(f'/api/v1/candidates/{cid}/')
     assert detail.status_code == 200, detail.content[:500]
 
@@ -84,7 +85,7 @@ def test_bug1_duplicate_id_card_deduped_via_hash(_auth):
         'id_card_no': VALID_ID,
     }, format='json')
     assert r1.status_code == 201, r1.content[:500]
-    id1 = r1.json()['id']
+    id1 = r1.json()['data']['id']
 
     # 同身份证, 但手机/姓名都不同 -> 只能靠 id_card_hash 命中查重
     r2 = client.post('/api/v1/candidates/', {
@@ -93,6 +94,6 @@ def test_bug1_duplicate_id_card_deduped_via_hash(_auth):
         'id_card_no': VALID_ID,
     }, format='json')
     assert r2.status_code == 201, r2.content[:500]
-    assert r2.json()['id'] == id1, '同一身份证应返回已存在的候选人'
+    assert r2.json()['data']['id'] == id1, '同一身份证应返回已存在的候选人'
     assert Candidate.objects.count() == 1, '身份证查重失效, 重复入库'
     assert Candidate.objects.first().id_card_hash == hash_for_search(VALID_ID)
