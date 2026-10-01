@@ -63,7 +63,13 @@ django-celery-results==2.6.0
 # === Database ===
 # MySQL 驱动: PyMySQL (纯 Python, 无需编译), 在 config/settings/base.py 顶部
 # 通过 pymysql.install_as_MySQLdb() 适配 Django 的 MySQLdb 接口。
+# 2026-10-01 P1-8: PyMySQL 是纯 Python 实现, 高并发写入吞吐明显低于 C 扩展的 mysqlclient。
+#   生产压测 (批量导入 / 评分回写) 若出现 DB 瓶颈, 建议切换到 mysqlclient (C 扩展):
+#     pip install mysqlclient==2.2.4
+#   并在 base.py 顶部移除 pymysql.install_as_MySQLdb(), 改用原生 MySQLdb 接口。
+#   切换前须用生产量级数据做 A/B 压测确认收益, 不要无依据替换。
 PyMySQL==1.2.0
+# mysqlclient==2.2.4   # 生产性能备选 (C 扩展, 需编译环境: mysql-client / libmysqlclient-dev)
 psycopg2-binary==2.9.12
 # SQLite 是 Python 内置, dev/test 用, 生产被 prod.py 的启动校验禁止
 

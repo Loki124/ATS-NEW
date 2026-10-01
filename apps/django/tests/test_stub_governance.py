@@ -23,9 +23,10 @@ STUBS_FILE = (
     Path(__file__).resolve().parents[1] / 'apps' / 'referral' / 'urls_stubs.py'
 )
 
-# 2026-09-27 实测基线: 66 条 path() (文件头注释里的 74 是 2026-09-04 旧数字, 已下降)。
+# 2026-09-27 实测基线: 66 条 path()。2026-10-01 实测已降到 56 条 (多批 stub 迁出 +
+# 安全敏感写操作收敛到 _not_implemented() 返 501), 基线同步下调以保持护栏不失真。
 # 治理规约 = 只许下降, 不许上升。把 stub 迁出后请同步下调本基线。
-STUB_PATH_BASELINE = 66
+STUB_PATH_BASELINE = 56
 
 STUB_MODULE_MARKER = 'urls_stubs'
 

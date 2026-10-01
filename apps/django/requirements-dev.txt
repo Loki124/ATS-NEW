@@ -25,6 +25,10 @@ pytest-cov==7.1.0
 #   在此之前它们不影响运行时, 也不会进生产镜像。
 black>=24.4
 flake8>=7.0
+# 2026-10-01 P1-2: flake8-blind-except 提供 BLE001 规则, 拦截新增裸
+#   `except Exception` / `except:` —— 配合存量 198 处裸 except 的增量收敛战役,
+#   保证"只许减少、不许新增"。接入 lint gate 后生效。
+flake8-blind-except>=0.2.1
 isort>=5.13
 mypy>=1.10
 django-stubs>=5.0

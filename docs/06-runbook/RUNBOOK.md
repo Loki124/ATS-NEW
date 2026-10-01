@@ -80,6 +80,8 @@ npm run dev              # → http://localhost:5212
 
 ```bash
 # 后端 384 tests, 0 failed (CI 等价命令已 9 deselect, 0 skipped)
+# ⚠️ 现状(2026-10-01 P1-6): 这 9 条 deselect 已实测全部 PASS, 属自愈项; 实际跳过名单由
+#   GitHub 仓库级 QUARANTINE 环境变量承载, 闭环动作=在仓库 Settings 清空该变量。
 cd apps/django
 source .venv/bin/activate
 pytest --tb=line -q --no-header -p no:cacheprovider \

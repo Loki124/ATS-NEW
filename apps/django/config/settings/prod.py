@@ -112,6 +112,34 @@ if not (globals().get('PII_HASH_SALT') or '').strip():
     )
 
 
+# 2026-10-01 P2-2: PII 字段加密密钥必须独立, **不得复用** INTEGRATION_FERNET_KEY。
+#   原设计 ENCRYPTION_KEY 默认回落到 INTEGRATION_FERNET_KEY (同算法可复用), 但这意味着
+#   "集成层签名密钥" 与 "候选人 PII 加密密钥" 是同一把 —— 一旦集成密钥泄露, PII 密文
+#   也可被解密。生产必须显式设置独立的 ENCRYPTION_KEY。
+if not (globals().get('ENCRYPTION_KEY') or '').strip() or \
+        ENCRYPTION_KEY == globals().get('INTEGRATION_FERNET_KEY'):
+    raise ImproperlyConfigured(
+        '生产环境必须配置独立的 ENCRYPTION_KEY (PII 加密专用), 不得与 INTEGRATION_FERNET_KEY 复用。\n'
+        '  生成方法: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"\n'
+        '  设置 ENCRYPTION_KEY 并重启。'
+    )
+
+
+# 2026-10-01 P2-1: 生产密码策略强化 (dev/test 仍走 base.py 的宽松 8 位默认, 不干扰 fixture)。
+#   - 最小长度 12 (原 8)
+#   - 自定义复杂度校验: 至少覆盖 小写/大写/数字/特殊 中的 3 类
+#   - 保留 常用密码库 / 纯数字 两项默认校验
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+     'OPTIONS': {'min_length': 12}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {'NAME': 'apps.common.password_validators.PasswordComplexityValidator',
+     'OPTIONS': {'min_classes': 3}},
+]
+
+
 # 邮件: 生产环境默认走真实 SMTP (不再是 dev 的 console). 具体连接参数由
 # EMAIL_HOST/PORT/USER/PASSWORD/USE_TLS(USE_SSL) 经 ops/.env 注入.
 # 切换服务商(阿里云 DirectMail / 后续 CF 等) 只需改这几个变量, 无需改代码.
