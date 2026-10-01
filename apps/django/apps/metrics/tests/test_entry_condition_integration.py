@@ -48,7 +48,8 @@ class CandidateValueMetricsDrivenTest(TestCase):
             data_type=MetricDataType.NUMBER, status='enabled',
         )
         evaluator = EntryConditionEvaluator(self._stub_link(cand), cand)
-        age = evaluator._get_candidate_value('AGE')
+        # 新目录直接以 source_path 作为 field
+        age = evaluator._get_candidate_value('candidate.age')
         # 期望按完整周岁算（2026-10-01 算 36 岁）
         expected_age = (date(2026, 10, 1) - date(1990, 6, 15)).days // 365
         self.assertEqual(age, expected_age)
@@ -61,13 +62,32 @@ class CandidateValueMetricsDrivenTest(TestCase):
             data_type=MetricDataType.NUMBER, status='enabled',
         )
         evaluator = EntryConditionEvaluator(self._stub_link(cand), cand)
-        self.assertEqual(evaluator._get_candidate_value('AGE'), 40)
+        self.assertEqual(evaluator._get_candidate_value('candidate.age'), 40)
+
+    def test_legacy_key_still_resolves_backward_compat(self):
+        """存量 legacy 键（AGE）仍能被反向映射解析（兼容迁移前数据）。"""
+        cand = self._make_candidate(name='张三', birth_date=date(1990, 6, 15))
+        AtomicMetric.objects.create(
+            id=_new_id(), name='tst_age_by_birthdate', source_path='candidate.age',
+            data_type=MetricDataType.NUMBER, status='enabled',
+        )
+        evaluator = EntryConditionEvaluator(self._stub_link(cand), cand)
+        expected_age = (date(2026, 10, 1) - date(1990, 6, 15)).days // 365
+        # 旧写法 field='AGE' 仍应解析（反向映射）
+        self.assertEqual(evaluator._get_candidate_value('AGE'), expected_age)
+
+    def test_extra_candidate_metric_resolves_when_seeded(self):
+        """0010 类扩展候选指标（如 current_company）有 seed 即能真实求值。"""
+        cand = self._make_candidate(name='钱七', current_company='腾讯')
+        AtomicMetric.objects.create(
+            id=_new_id(), name='tst_current_company', source_path='candidate.current_company',
+            data_type=MetricDataType.STRING, status='enabled',
+        )
+        evaluator = EntryConditionEvaluator(self._stub_link(cand), cand)
+        self.assertEqual(evaluator._get_candidate_value('candidate.current_company'), '腾讯')
 
     def test_falls_back_to_legacy_when_metric_missing(self):
-        """指标未定义：回退到 _LEGACY_CANDIDATE_FALLBACK（直接 getattr）。
-
-        把 LEGACY_CANDIDATE_FIELD_TO_PATH 改到无人 seed 的路径，避免与既有迁移冲突。
-        """
+        """指标未定义：legacy 键回退到 _LEGACY_CANDIDATE_FALLBACK（直接 getattr）。"""
         from apps.entry_condition.services import LEGACY_CANDIDATE_FIELD_TO_PATH
         original = LEGACY_CANDIDATE_FIELD_TO_PATH.copy()
         try:
@@ -93,12 +113,14 @@ class CandidateValueMetricsDrivenTest(TestCase):
             evaluator = EntryConditionEvaluator(self._stub_link(cand), cand)
             self.assertIsNone(evaluator._get_candidate_value('AGE'))
             self.assertIsNone(evaluator._get_candidate_value('WORK_YEARS'))
+            # 新写法：未 seed 的 source_path 也返回 None（不抛异常）
+            self.assertIsNone(evaluator._get_candidate_value('candidate.tst_void_age'))
         finally:
             LEGACY_CANDIDATE_FIELD_TO_PATH.clear()
             LEGACY_CANDIDATE_FIELD_TO_PATH.update(original)
 
-    def test_legacy_field_map_covers_catalog_keys(self):
-        """legacy 映射覆盖 catalog 的 6 个 CANDIDATE 字段键。"""
+    def test_legacy_field_map_covers_six_keys(self):
+        """legacy 映射覆盖 6 个候选字段键，且全部指向 candidate.*。"""
         expected_keys = {'AGE', 'GENDER', 'HIGHEST_EDU',
                          'WORK_YEARS', 'CURRENT_CITY', 'EXPECTED_CITY'}
         self.assertEqual(set(LEGACY_CANDIDATE_FIELD_TO_PATH.keys()), expected_keys)

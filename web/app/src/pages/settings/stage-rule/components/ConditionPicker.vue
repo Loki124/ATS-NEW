@@ -27,18 +27,18 @@
     <div class="cp-value">
       <!-- 空值运算符：无值 -->
       <span v-if="isNoValueOp" class="cp-value__na">—</span>
-      <!-- 多选（IN / NOT_IN 或数组字段） -->
+      <!-- 枚举 / 布尔字段：下拉（IN / NOT_IN 多选，其余单选），选项由后端指标枚举 / 布尔定义驱动 -->
       <n-select
-        v-else-if="isMulti"
-        multiple
+        v-else-if="hasOptions"
+        :multiple="isMulti"
         size="small"
         filterable
-        :value="arrayValue"
+        :value="isMulti ? arrayValue : (item.value ?? null)"
         :options="valueOptions"
         :placeholder="t('pages.settings.stage-rule.components.ConditionPicker.s4')"
         @update:value="onMultiValue"
       />
-      <!-- 数值 -->
+      <!-- 数值（由后端 value_type=number 决定，不再硬编码字段名） -->
       <n-input-number
         v-else-if="isNumeric"
         size="small"
@@ -100,7 +100,10 @@ const isNoValueOp = computed(() => item.operator === 'IS_EMPTY' || item.operator
 const isMulti = computed(
   () => item.operator === 'IN' || item.operator === 'NOT_IN' || !!fieldDef.value?.is_array,
 )
-const isNumeric = computed(() => ['AGE', 'WORK_YEARS'].includes(item.field))
+// 数值判定改为数据驱动：读后端按指标 data_type 推导的 value_type，不再硬编码字段名
+const isNumeric = computed(() => fieldDef.value?.valueType === 'number')
+// 枚举 / 布尔字段：后端返回 options 时渲染下拉
+const hasOptions = computed(() => (fieldDef.value?.options?.length || 0) > 0)
 const valueOptions = computed(() => fieldDef.value?.options || [])
 
 const arrayValue = computed<string[]>(() => (Array.isArray(item.value) ? item.value : []))

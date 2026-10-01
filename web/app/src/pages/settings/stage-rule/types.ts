@@ -94,7 +94,9 @@ export interface FieldDef {
   operators: OperatorKey[]
   is_array?: boolean
   auto_filter_inactive_users?: boolean
-  /** mock 字典选项（后端就绪后由 /expressions/fields 返回，前端仅渲染） */
+  /** 值类型（后端按指标 data_type 推导）：number / string / date / boolean / enum。前端据此选择输入控件 */
+  valueType?: 'number' | 'string' | 'date' | 'boolean' | 'enum'
+  /** 枚举 / 布尔字段的下拉选项（后端就绪后由 /expressions/fields 返回，前端仅渲染） */
   options?: { label: string; value: string }[]
 }
 

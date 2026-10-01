@@ -722,12 +722,17 @@ class ExpressionValidationView(APIView):
 class EntryConditionFieldCatalogView(APIView):
     """进入条件字段目录 — 返回 source→condition_type→field→operator→value 字典树
 
-    数据来源（2026-10-01 起 CANDIDATE 走指标层）：
+    数据来源：
     - STAGE_STATUS：来自 RecruitmentStage 表（value_source=STAGE_LIST，动态取已启用阶段名）
-    - CANDIDATE：来自 apps.metrics.AtomicMetric（source_path=candidate.*），按
-      LEGACY_CANDIDATE_FIELD_TO_PATH 一一映射；缺失时回退到硬编码列表。
+    - CANDIDATE：**完全由 apps.metrics.AtomicMetric（source_path=candidate.*）驱动** ——
+      每个 enabled 且未软删的候选对象路径指标都会成为一条可配置字段（field=source_path，
+      label=指标名，operators/value_type 由 data_type 推导）。运营在「指标管理」增删改指标，
+      本下拉同步变化，无需改代码。
     - DEMAND：来自 Position/Demand 硬编码字段映射（用人经理/上级/BU总裁/VP/职级/部门）
     运算符直接对齐 apps/entry_condition/models.py:33 ConditionOperator 文案。
+
+    契约（对齐前端 SPEC-stage-rule-config.md / ConditionPicker.vue）：source 字典带
+    `source` 键、field 字典带 `field` 键（同时保留 `key` 兼容）。
     """
     permission_classes = [HasProcessPermission]
 
@@ -745,40 +750,40 @@ class EntryConditionFieldCatalogView(APIView):
 
         sources = [
             {
-                'key': 'DEMAND', 'label': '需求中', 'condition_type': 'DEMAND',
+                'source': 'DEMAND', 'key': 'DEMAND', 'label': '需求中', 'condition_type': 'DEMAND',
                 'fields': [
-                    {'key': 'HIRING_MANAGER', 'label': '用人经理',
+                    {'key': 'HIRING_MANAGER', 'field': 'HIRING_MANAGER', 'label': '用人经理',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
-                    {'key': 'HIRING_MANAGER_SUPER', 'label': '用人经理上级',
+                    {'key': 'HIRING_MANAGER_SUPER', 'field': 'HIRING_MANAGER_SUPER', 'label': '用人经理上级',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
-                    {'key': 'BU_PRESIDENT', 'label': 'BU 总裁',
+                    {'key': 'BU_PRESIDENT', 'field': 'BU_PRESIDENT', 'label': 'BU 总裁',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
-                    {'key': 'SOLID_VP', 'label': '实线 VP',
+                    {'key': 'SOLID_VP', 'field': 'SOLID_VP', 'label': '实线 VP',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
-                    {'key': 'DOTTED_VP', 'label': '虚线 VP',
+                    {'key': 'DOTTED_VP', 'field': 'DOTTED_VP', 'label': '虚线 VP',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'USER_LIST', 'value_hint': '自动过滤离职人员'},
-                    {'key': 'DEMAND_LEVEL', 'label': '需求职级',
+                    {'key': 'DEMAND_LEVEL', 'field': 'DEMAND_LEVEL', 'label': '需求职级',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'DICT:demand_level'},
-                    {'key': 'DEPARTMENT', 'label': '部门',
+                    {'key': 'DEPARTMENT', 'field': 'DEPARTMENT', 'label': '部门',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'DICT:department'},
                 ],
             },
             {
-                'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
+                'source': 'CANDIDATE', 'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
                 'fields': self._build_candidate_catalog_fields(),
             },
             {
-                'key': 'STAGE_STATUS', 'label': '阶段状态', 'condition_type': 'STAGE_STATUS',
+                'source': 'STAGE_STATUS', 'key': 'STAGE_STATUS', 'label': '阶段状态', 'condition_type': 'STAGE_STATUS',
                 'fields': [
                     {
-                        'key': 'STAGE_NAME', 'label': '关联阶段名',
+                        'key': 'STAGE_NAME', 'field': 'STAGE_NAME', 'label': '关联阶段名',
                         'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY'],
                         'value_source': 'STAGE_LIST',
                         'value_hint': '候选人从前序阶段的评估结果',
@@ -796,80 +801,87 @@ class EntryConditionFieldCatalogView(APIView):
 
     @staticmethod
     def _build_candidate_catalog_fields() -> list:
-        """CANDIDATE 字段定义：按字段从 AtomicMetric 读取，缺失回退到硬编码。
+        """CANDIDATE 字段定义：完全由指标库（apps.metrics.AtomicMetric）驱动。
 
-        设计要点：
-            - legacy 键（ConditionItem.field）保持不变：AGE / GENDER / HIGHEST_EDU /
-              WORK_YEARS / CURRENT_CITY / EXPECTED_CITY。已落库的进入条件数据继续生效。
-            - AtomicMetric 的 name 用作「label」（中文展示），data_type 决定运算符与
-              value_source（number → NUMBER；其它 → STRING）。
-            - 字段级回退：每个 legacy_key 独立判断。指标已 seed 的用指标 label，
-              未 seed 的用硬编码定义。避免「指标少 seed 一条 → 整字段消失」导致的回退。
-            - 全字段回退兜底：若异常或全部缺失，落回硬编码列表（迁移未跑也能下拉）。
+        每个 source_path 以 `candidate.` 开头、status=enabled、未软删的 AtomicMetric
+        都会成为一条可配置字段（这才是「进入条件应用指标管理内容」的真正落点）：
+
+            - field / key = source_path（如 candidate.age）：与 ConditionItem.field、
+              快照点路径、指标层定义三者统一，不再维护一份 legacy 键映射表。
+            - label      = AtomicMetric.name（中文展示，运营在指标管理里维护）。
+            - operators / value_type 由 data_type 推导：
+                number  → 数值比较运算符 + value_type='number'
+                boolean → EQ/NEQ/IN/NOT_IN + 是/否下拉（value_type='boolean'）
+                date    → 日期比较/区间/空值 + value_type='date'
+                string  → 相等类 + value_type='string'
+            - 枚举字段（is_enum + enum_values）：用 enum_values 生成 options 下拉，
+              value_type='enum'，前端渲染下拉而非自由文本。
+
+        这样运营在「指标管理」里新增 / 改名 / 启用禁用一个候选对象路径指标，进入条件的
+        下拉会同步增删改，**无需改代码**。
+
+        已落库的 legacy 键（AGE / GENDER / ...）由 services._get_candidate_value 反向
+        映射到 source_path 兼容；存量 ConditionItem.field 已由数据迁移改写为 source_path。
         """
-        # 单字段硬编码兜底（与 services._LEGACY_CANDIDATE_FALLBACK 对齐）
-        per_key_fallback = {
-            'AGE': {'key': 'AGE', 'label': '年龄',
-                    'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ'],
-                    'value_source': 'NUMBER'},
-            'GENDER': {'key': 'GENDER', 'label': '性别',
-                       'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                       'value_source': 'DICT:gender'},
-            'HIGHEST_EDU': {'key': 'HIGHEST_EDU', 'label': '最高学历',
-                            'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                            'value_source': 'DICT:highest_education'},
-            'WORK_YEARS': {'key': 'WORK_YEARS', 'label': '工作年限',
-                           'operators': ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN'],
-                           'value_source': 'NUMBER'},
-            'CURRENT_CITY': {'key': 'CURRENT_CITY', 'label': '当前城市',
-                             'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                             'value_source': 'DICT:city'},
-            'EXPECTED_CITY': {'key': 'EXPECTED_CITY', 'label': '期望城市',
-                              'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
-                              'value_source': 'DICT:city'},
-        }
-        fallback_fields = [per_key_fallback[key] for key in (
-            'AGE', 'GENDER', 'HIGHEST_EDU', 'WORK_YEARS', 'CURRENT_CITY', 'EXPECTED_CITY',
-        )]
-
         try:
-            from apps.entry_condition.services import LEGACY_CANDIDATE_FIELD_TO_PATH
             from apps.metrics.models import AtomicMetric, MetricDataType
 
-            paths = list(LEGACY_CANDIDATE_FIELD_TO_PATH.values())
-            path_to_key = {v: k for k, v in LEGACY_CANDIDATE_FIELD_TO_PATH.items()}
-
             rows = AtomicMetric.objects.filter(
-                source_path__in=paths,
+                source_path__startswith='candidate.',
                 status='enabled',
                 deleted_at__isnull=True,
-            ).values('source_path', 'name', 'data_type')
+            ).values('source_path', 'name', 'data_type', 'is_enum', 'enum_values')
 
-            by_key: dict[str, dict] = {}
+            fields: list = []
             for row in rows:
-                legacy_key = path_to_key.get(row['source_path'])
-                if legacy_key is None:
-                    continue
-                if row['data_type'] == MetricDataType.NUMBER:
+                path = row['source_path']
+                dtype = row['data_type']
+                if dtype == MetricDataType.NUMBER:
                     operators = ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ']
-                    value_source = 'NUMBER'
-                else:
+                    value_type = 'number'
+                    options = None
+                elif dtype == MetricDataType.BOOLEAN:
                     operators = ['EQ', 'NEQ', 'IN', 'NOT_IN']
-                    value_source = 'STRING'
-                by_key[legacy_key] = {
-                    'key': legacy_key,
+                    value_type = 'boolean'
+                    options = [
+                        {'label': '是', 'value': 'true'},
+                        {'label': '否', 'value': 'false'},
+                    ]
+                elif dtype == MetricDataType.DATE:
+                    operators = ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE',
+                                 'BETWEEN', 'IS_EMPTY', 'IS_NOT_EMPTY']
+                    value_type = 'date'
+                    options = None
+                else:  # STRING / 其它 → 文本 + 相等类运算符
+                    operators = ['EQ', 'NEQ', 'IN', 'NOT_IN']
+                    value_type = 'string'
+                    options = None
+
+                # 枚举字段：用 enum_values 覆盖 options（优先于布尔内置选项），前端渲染下拉
+                if row['is_enum'] and row['enum_values']:
+                    try:
+                        enum_vals = row['enum_values']
+                        if isinstance(enum_vals, (list, tuple)) and enum_vals:
+                            options = [{'label': str(v), 'value': str(v)} for v in enum_vals]
+                            value_type = 'enum'
+                    except Exception:  # noqa: BLE001 — 枚举解析失败退化为文本, 不阻断目录
+                        options = None
+
+                field = {
+                    'field': path,
+                    'key': path,
                     'label': row['name'],
                     'operators': operators,
-                    'value_source': value_source,
+                    'value_type': value_type,
                 }
-            # 字段级回退：每个 legacy_key 独立判断
-            merged = []
-            for key in LEGACY_CANDIDATE_FIELD_TO_PATH:
-                merged.append(by_key.get(key, per_key_fallback[key]))
-            return merged
-        except Exception:  # noqa: BLE001 — 指标表未初始化 / 迁移未跑等异常 → 落回静态定义, 绝不 500
-            # 指标表未初始化 / 迁移未跑等异常 → 落回静态定义，绝不 500
-            return fallback_fields
+                if options:
+                    field['options'] = options
+                fields.append(field)
+
+            fields.sort(key=lambda f: f['field'])
+            return fields
+        except Exception:  # noqa: BLE001 — 指标表未初始化 / 迁移未跑等异常 → 返回空列表, 绝不 500
+            return []
 
 
 # ============================================================

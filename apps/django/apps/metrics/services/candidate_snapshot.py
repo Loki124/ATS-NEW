@@ -27,6 +27,9 @@ from typing import Any, Dict, List
 ROOT_KEY = 'candidate'
 
 # 主表可进快照的白名单字段（snake_case）→ (展示名, 指标数据类型)
+# 覆盖 AtomicMetric 0009/0010 迁移 seed 的全部 24 个候选对象路径指标，使目录列出的指标
+# 都能真实求值（避免「指标可定义却永远算不出」的假绿）。字段名与 Candidate 主表标量字段
+# 一一对应；任意字段不存在时 getattr(..., None) 安全降级为 None（不报错）。
 BASIC_FIELDS: List[tuple] = [
     ('id', '候选人ID', 'string'),
     ('name', '姓名', 'string'),
@@ -42,6 +45,17 @@ BASIC_FIELDS: List[tuple] = [
     ('school_tag', '学校标签', 'string'),
     ('major_tag', '专业标签', 'string'),
     ('resume_score', '简历评分', 'number'),
+    # —— 以下为 0010 迁移 seed 的候选主表字段，纳入快照使其可真实求值 ——
+    ('recruit_type', '招聘类型', 'string'),
+    ('resume_file_url', '简历文件地址', 'string'),
+    ('resume_text', '简历文本', 'string'),
+    ('referral_type', '内推类型', 'string'),
+    ('current_state', '候选人当前状态', 'string'),
+    ('is_blacklisted', '是否黑名单', 'boolean'),
+    ('blacklist_reason', '黑名单原因', 'string'),
+    ('moka_candidate_id', 'Moka候选人ID', 'string'),
+    ('is_archived', '是否归档', 'boolean'),
+    ('archived_at', '归档时间', 'date'),
 ]
 
 # 敏感字段：默认排除（不进快照、不进可引用清单）

@@ -16,7 +16,7 @@ def _unwrap(resp):
     return body
 
 
-def _create_atomic(auth_client, name='年龄', path='candidate.age', unit='岁'):
+def _create_atomic(auth_client, name='年龄(接口测试)', path='candidate.age', unit='岁'):
     return auth_client.post(BASE + 'atomic-metrics/', {
         'name': name, 'sourcePath': path, 'dataType': 'number', 'unit': unit,
     }, format='json')

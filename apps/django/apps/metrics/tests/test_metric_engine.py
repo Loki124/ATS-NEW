@@ -17,7 +17,7 @@ DATA = {
 
 def _age_template(operators=None):
     metric = AtomicMetric.objects.create(
-        name='年龄', source_path='candidate.age', data_type='number', unit='岁',
+        name='年龄(引擎测试)', source_path='candidate.age', data_type='number', unit='岁',
     )
     return MetricTemplate.objects.create(
         name='年龄限制', atomic_metric=metric,

@@ -78,7 +78,7 @@ def test_end_to_end_rule_on_real_candidate():
 
     c = _make_candidate(age=35)
     metric = AtomicMetric.objects.create(
-        name='年龄', source_path='candidate.age', data_type='number', unit='岁',
+        name='年龄(快照测试)', source_path='candidate.age', data_type='number', unit='岁',
     )
     tpl = MetricTemplate.objects.create(
         name='年龄限制', atomic_metric=metric, operators=['GT', 'LT'],
