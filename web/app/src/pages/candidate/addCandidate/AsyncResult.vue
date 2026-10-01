@@ -13,7 +13,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   <div class="async-result">
     <div class="ar-icon"><NIcon :size="40" aria-hidden="true"><CheckCircle2 /></NIcon></div>
     <h3>{{ t('pages.candidate.addCandidate.AsyncResult.s1') }}</h3>
-    <p class="ar-sub">{{ store.resumes.length }}{{ t('pages.candidate.addCandidate.AsyncResult.s7') }}</p>
+    <p class="ar-sub">{{ store.resumes.length }} {{ t('pages.candidate.addCandidate.AsyncResult.s7') }}</p>
     <div class="ar-routes">
       <div class="ar-route pass">
         <span class="ar-route-icon"><NIcon :size="18" aria-hidden="true"><CheckCircle2 /></NIcon></span>

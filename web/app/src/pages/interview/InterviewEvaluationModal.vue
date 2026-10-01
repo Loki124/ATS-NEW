@@ -339,7 +339,7 @@ const avgValueScore = computed(() => {
           <div class="ats-section__head">
             <span class="ats-section__bar" />
             <h2 class="ats-section__title">{{ t('pages.interview.InterviewEvaluationModal.s6') }}</h2>
-            <span v-if="editing" class="ats-section__avg">{{ t('pages.interview.InterviewEvaluationModal.s19') }}{{ avgValueScore }}</span>
+            <span v-if="editing" class="ats-section__avg">{{ t('pages.interview.InterviewEvaluationModal.s19') }} {{ avgValueScore }}</span>
           </div>
           <div class="ats-section__list">
             <div
