@@ -126,7 +126,7 @@ def invalidate_active_cache() -> None:
             cache.delete(_cache_key(s))
             for rt in recruit_types:
                 cache.delete(_cache_key(s, rt))
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — cache 失效失败不影响主流程 (下次读时 cache miss 会重算, 仅日志)
         logger.warning('invalidate_active_cache failed: %s', e)
 
 
