@@ -50,14 +50,14 @@ def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict
             # management_unit_ids 在 T17 之前是 V2-only column, try/except 守护
             try:
                 units = ur.management_unit_ids
-            except Exception:
+            except Exception:  # noqa: BLE001 — V2 字段缺失兜底 None, 不阻断 scope 计算 (向前兼容迁移期)
                 logger.warning('V2 user_roles.management_unit_ids 缺失 user_role_id=%s', getattr(ur, 'id', '?'))
                 units = None
             if units:
                 explicit_units.extend(units or [])
             try:
                 role_codes.append(ur.role_code)
-            except Exception:
+            except Exception:  # noqa: BLE001 — V2 字段缺失兜底 (role_code 也是 V2-only column, 同 management_unit_ids)
                 logger.warning('UserRole.role_code 缺失 user_role_id=%s', getattr(ur, 'id', '?'))
     except (OperationalError, ProgrammingError) as e:
         logger.exception('[scope_resolver] L1 user_roles 查询失败, fail-closed 到 SELF: %s', e)
@@ -109,8 +109,7 @@ def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict
         except (OperationalError, ProgrammingError) as e:
             logger.exception('[scope_resolver] L2 roles 查询失败, fail-closed 到 SELF: %s', e)
             return {'management_unit_ids': []}
-        except Exception as e:
-            # 非 DB 异常 (逻辑错误等) 同样 fail-closed, 不可静默放行
+        except Exception as e:  # noqa: BLE001 — 非 DB 异常 (逻辑错误等) 同样 fail-closed, 不可静默放行
             logger.exception('[scope_resolver] L2 role scope 计算异常, fail-closed 到 SELF: %s', e)
             return {'management_unit_ids': []}
 

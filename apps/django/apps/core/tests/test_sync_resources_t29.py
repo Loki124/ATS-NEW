@@ -57,7 +57,7 @@ def _v2_schema_ready():
             rp_cols = {row[1] for row in c.fetchall()}
         # 必须 V2 列都已存在
         return {'role_code'}.issubset(roles_cols) and {'resource_code'}.issubset(rp_cols)
-    except Exception:
+    except Exception:  # noqa: BLE001 — 测试代码: 列缺失返 False (probe 函数, 不应让测试 setup 崩)
         return False
 
 

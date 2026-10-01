@@ -31,12 +31,12 @@ class Command(BaseCommand):
             try:
                 editor.create_model(RoleV2)
                 self.stdout.write(self.style.SUCCESS('Created V2 roles table'))
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 迁移命令: 建表失败返警告而非中断 (调试用, 已存在应 noop)
                 self.stdout.write(self.style.WARNING(f'roles table: {e}'))
             try:
                 editor.create_model(UserRoleV2)
                 self.stdout.write(self.style.SUCCESS('Created V2 user_roles table'))
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 同上, user_roles 建表失败不中断
                 self.stdout.write(self.style.WARNING(f'user_roles table: {e}'))
 
         self.stdout.write(self.style.SUCCESS('V2 cutover done. ⚠️  IRREVERSIBLE without snapshot.'))

@@ -56,7 +56,7 @@ class ResourceScoped(permissions.BasePermission):
         from apps.core.scope_resolver import resolve_scope
         try:
             return resolve_scope(user, resource_code) is not None
-        except Exception:
+        except Exception:  # noqa: BLE001 — 权限检查异常 deny by default (security: 不应因异常放行)
             return False
 
 

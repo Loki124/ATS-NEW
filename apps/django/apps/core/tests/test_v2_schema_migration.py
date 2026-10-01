@@ -319,7 +319,7 @@ def test_clone_from_template_end_to_end_smoke():
                     resource_code=rc,
                     system_code='recruit',
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 测试代码: 资源码不存在就跳过 (不是 schema 问题, 只过滤 unique 冲突)
                 # 资源码不存在就跳过 (不是 schema 问题)
                 if 'unique' in str(e).lower():
                     continue

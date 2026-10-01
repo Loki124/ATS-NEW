@@ -503,7 +503,7 @@ def _parse_app_scope_pk(pk):
         padded = pk + '=' * (-len(pk) % 4)
         d = json.loads(base64.urlsafe_b64decode(padded.encode('ascii')).decode('utf-8'))
         return d.get('u'), d.get('r'), d.get('a')
-    except Exception:
+    except Exception:  # noqa: BLE001 — V2 pk 解包异常 (格式错误/base64 损坏) 返 (None, None, None), 上层视为未授权
         return None, None, None
 
 

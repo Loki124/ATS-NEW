@@ -120,7 +120,7 @@ def logout_view(request):
             token = RefreshToken(refresh_token)
             token.blacklist()
         return Response({'success': True})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — JWT 登出失败返 400, 不应让前端无法清状态 (token 黑名单/验证异常都应忽略)
         logger.warning('JWT 登出失败 user=%s err=%s', getattr(request.user, 'id', 'anon'), e, exc_info=True)
         return Response(
             {'success': False, 'message': '登出失败'},

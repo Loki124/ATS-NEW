@@ -32,7 +32,7 @@ def push_to_user(user_id: str, payload: dict) -> int:
             'data': payload,
         })
         return 1
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — 消息推送路由失败返 0, 不阻断 channel (websocket 不可用不应让业务调用失败)
         import logging
         logging.getLogger(__name__).warning('push_to_user failed: %s', e)
         return 0
@@ -50,7 +50,7 @@ def push_to_application(application_id: str, payload: dict) -> int:
             'data': payload,
         })
         return 1
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — 同 push_to_user, 推送失败返 0
         import logging
         logger = logging.getLogger(__name__)
         logger.warning('push_to_application failed: %s', e)

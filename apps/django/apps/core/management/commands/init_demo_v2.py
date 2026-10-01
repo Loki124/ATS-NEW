@@ -138,7 +138,7 @@ class Command(BaseCommand):
             self.stdout.write('→ call load_process_templates ...')
             try:
                 call_command('load_process_templates')
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — demo 数据初始化失败不阻断其他 demo 数据 (best-effort)
                 self.stdout.write(self.style.WARNING(f'load_process_templates 出错 (非阻断): {e}'))
 
         self.stdout.write(self.style.SUCCESS('\n✅ Demo Data V2 初始化完成'))

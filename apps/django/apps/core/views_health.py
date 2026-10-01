@@ -14,7 +14,7 @@ def health_check(request):
         with connection.cursor() as cursor:
             cursor.execute('SELECT 1')
             health['database'] = 'ok'
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — health check DB 异常返 degraded, 不应 500 (健康检查自身失败是矛盾状态)
         health['database'] = f'error: {e}'
         health['status'] = 'degraded'
 
@@ -22,7 +22,7 @@ def health_check(request):
         from django.core.cache import cache
         cache.set('health_check', '1', 10)
         health['redis'] = 'ok' if cache.get('health_check') == '1' else 'error'
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — health check Redis 异常返 degraded, 同上
         health['redis'] = f'error: {e}'
         health['status'] = 'degraded'
 
