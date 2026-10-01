@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from django.db import transaction
+from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django_fsm import TransitionNotAllowed
@@ -540,8 +540,10 @@ class CandidateService:
         data = CandidateCreateData(**defaults)
         try:
             return CandidateService.create_candidate(data, actor=actor)
-        except Exception as e:
-            # 并发场景: 另一进程已创建, 重新 fetch
+        except (OperationalError, IntegrityError) as e:
+            # 并发场景: 另一进程已创建, 重新 fetch. 仅兜住 ORM 唯一键冲突 (phone 唯一约束).
+            # 编程错误 (AttributeError/TypeError) 仍向上抛以便排查.
+            logger.warning('Candidate upsert by phone: ORM conflict, retry fetch: %s', e)
             existing = Candidate.objects.filter(phone=phone, deleted_at__isnull=True).first()
             if existing:
                 return existing

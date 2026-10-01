@@ -217,7 +217,7 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                             entry_reason=data.get('reason', ''),
                             actor=request.user,
                         )
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 — 外部 Talent pool 同步失败不影响主结果 (同步是 best-effort)
                         logger.warning('Talent pool sync failed: %s', e)
                 elif action_name == 'mark_process_failed':
                     candidate = CandidateService.mark_process_failed(
@@ -395,7 +395,7 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                 data = item.to_data()
                 c = CandidateService.create_candidate(data, actor=request.user)
                 results.append({'success': True, 'id': c.id, 'name': c.name})
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — 批量创建候选人, 单条失败计入 results 继续批处理 (前端按 results 显式提示)
                 logger.warning('批量创建候选人单条失败 idx=%s err=%s', idx, e, exc_info=True)
                 results.append({'success': False, 'error': str(e), 'data': item.validated_data})
         return Response({'results': results, 'total': len(results)})
