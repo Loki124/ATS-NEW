@@ -33,9 +33,12 @@ APPS_DIR = Path('apps')
 #   2026-10-01 第十二批 (core): 168 → 168 (全 noqa)
 #   2026-10-01 第十三批 (散落盲 except 清理): 168 → 168 (33 处补 noqa/补意图, noqa-license 护栏激活)
 #   2026-10-01 第十四批 (announcement+candidate+dynamic_field 真窄化收口): 168 → 157 (12 处 except Exception 真窄化)
-CURRENT_BASELINE = 157
+#   2026-10-01 阶段二真窄化 (批量): 157 → 91 (43+ 处 except Exception 真窄化为具体异常元组; metrics 23 / application 19 等
+#                                  FAIL-not-500 / 跨后端 best-effort / 安全关键 fail-closed 保留为显式 noqa 宽捕获;
+#                                  护栏 test_blind_except_below_phase_two_limit 激活, HARD_LIMIT=91 锁定下限, 任何新增盲 except 须先窄化他处)
+CURRENT_BASELINE = 91
 HISTORICAL_BASELINE = 196   # 报告 2026-09-27 AST 实测值, 不可上升
-HARD_LIMIT = 100            # 第二阶段目标: ≤100 处
+HARD_LIMIT = 91            # 第二阶段目标已达成: 全部已许可 except Exception ≤ 91 (盲 + noqa 累加), 锁死下限防回归
 
 
 def _walk_blind(root: Path) -> list[tuple[str, int, str]]:
@@ -164,7 +167,6 @@ def test_no_unlicensed_except_exception() -> None:
     )
 
 
-@pytest.mark.skip(reason='阶段二目标: 全部已许可 except Exception ≤ 100 (盲 + noqa 累加)')
 def test_blind_except_below_phase_two_limit() -> None:
     """阶段二目标: 全部 except Exception (盲 + noqa 累加) ≤ 100 处."""
     current = len(_walk_blind(APPS_DIR))

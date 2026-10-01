@@ -20,6 +20,7 @@ def test_unauthenticated_request_returns_401(api_client):
     assert response.status_code == 401
 
 
+@pytest.mark.django_db
 def test_health_check(api_client):
     response = api_client.get('/health/')
     assert response.status_code in (200, 503)
