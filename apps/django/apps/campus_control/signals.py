@@ -10,6 +10,7 @@
 日志。campus_control 用硬删 + is_active（无统一软删语义），故「软删传播」由本信号的
 post_delete 处理（legacy 行已物理删除，统一侧转为软删，便于一致性命令识别）。
 """
+from django.db import DatabaseError
 
 import logging
 
@@ -28,7 +29,7 @@ def _sync_rule(rule) -> None:
         try:
             from apps.rule_engine.bridge import sync_control_rule_to_unified
             sync_control_rule_to_unified(rule)
-        except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+        except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 双写失败不得影响现网
             logger.exception(
                 'RULE_ENGINE double-write failed for ControlRule %s', rule.id
             )
@@ -46,7 +47,7 @@ def _soft_delete_unified(rule) -> None:
         ).first()
         if unified and unified.deleted_at is None:
             unified.soft_delete()
-    except Exception:  # noqa: BLE001 — 双写失败不得影响现网
+    except (DatabaseError, ValueError, TypeError, AttributeError, OSError):  # 双写失败不得影响现网
         logger.exception(
             'RULE_ENGINE double-delete failed for ControlRule %s', rule.id
         )

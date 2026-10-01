@@ -266,7 +266,7 @@ def _parse_csv(file_obj):
         col_dim = field_map['维度']
         col_name = field_map['指标名称']
         col_active = field_map.get('是否启用')
-    except Exception as e:  # noqa: BLE001 — csv 解析异常类型不固定, 统一兜底返错误列表
+    except (csv.Error, ValueError, OSError) as e:  # csv 解析异常统一兜底返错误列表
         return [], [f'CSV 文件解析失败：{e}'], [], {}
 
     line_no = 1  # DictReader 从第 2 行起为数据（第 1 行为表头）

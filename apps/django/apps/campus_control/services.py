@@ -19,6 +19,7 @@ _accounting_month / count_rule，禁止另写一套计数逻辑，避免与 rati
 为规避 campus_control.views ↔ campus_control.services 循环 import，
 views 的 _person_to_dict / _build_person_dim_map / _rule_to_dict 在本模块内惰性 import。
 """
+from django.db import DatabaseError
 import base64
 import logging
 from datetime import date, datetime
@@ -390,7 +391,7 @@ def _log_rule_audit(user, action, detail, request=None, entity_id=None):
             ip=ip,
             user_agent=ua,
         )
-    except Exception:  # noqa: BLE001 - 审计失败不应阻断主流程
+    except (DatabaseError, ValueError, TypeError):  # 审计失败不应阻断主流程
         logger.exception('审计写入失败 entity=ControlRule action=%s entity_id=%s', action, entity_id)
 
 
@@ -408,7 +409,7 @@ def _log_indicator_audit(user, action, detail, request=None, entity_id=None):
             ip=ip,
             user_agent=ua,
         )
-    except Exception:  # noqa: BLE001 - 审计失败不应阻断主流程
+    except (DatabaseError, ValueError, TypeError):  # 审计失败不应阻断主流程
         logger.exception('审计写入失败 entity=ControlIndicator action=%s entity_id=%s', action, entity_id)
 
 
