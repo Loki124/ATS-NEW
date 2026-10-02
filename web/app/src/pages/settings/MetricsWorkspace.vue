@@ -13,53 +13,10 @@
       <n-tabs v-model:value="activeTab" type="line" animated>
         <!-- ---------- Tab 1：指标定义（只读，统一视图） ---------- -->
         <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
-          <div class="ws-toolbar">
-            <n-input
-              v-model:value="defKeyword"
-              :placeholder="t('metrics.filter.keywordPlaceholder')"
-              clearable
-              class="ws-search"
-            >
-              <template #prefix>
-                <n-icon :component="SearchOutline" />
-              </template>
-            </n-input>
-            <n-select
-              v-model:value="defKind"
-              :placeholder="t('metrics.filter.kind')"
-              :options="defKindOptions"
-              class="ws-filter"
-            />
-            <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
-          </div>
-
-          <div class="ws-legend">
-            <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
-            <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
-          </div>
-
-          <n-spin :show="loading" class="ws-spin">
-            <div v-if="!loading && !filteredDefinitions.length" class="ws-empty">
-              <n-empty :description="t('metrics.empty.definitions')" />
-            </div>
-            <n-data-table
-              v-else
-              :columns="defColumns"
-              :data="filteredDefinitions"
-              :row-props="defRowProps"
-              :scroll-x="860"
-              size="small"
-              class="ws-table"
-            />
-          </n-spin>
-        </n-tab-pane>
-
-        <!-- ---------- Tab 2：指标模板（CRUD） ---------- -->
-        <n-tab-pane name="template" :tab="t('metrics.tab.template')">
-          <div class="ws-tab-bar">
-            <div class="ws-toolbar ws-toolbar-grow">
+          <div class="ws-tab-header">
+            <div class="ws-toolbar">
               <n-input
-                v-model:value="tplKeyword"
+                v-model:value="defKeyword"
                 :placeholder="t('metrics.filter.keywordPlaceholder')"
                 clearable
                 class="ws-search"
@@ -69,39 +26,92 @@
                 </template>
               </n-input>
               <n-select
-                v-model:value="tplStatus"
-                :placeholder="t('metrics.filter.status')"
-                :options="tplStatusOptions"
+                v-model:value="defKind"
+                :placeholder="t('metrics.filter.kind')"
+                :options="defKindOptions"
                 class="ws-filter"
               />
-              <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
+              <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
             </div>
-            <n-button type="primary" @click="openTemplateCreate">
-              {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
-            </n-button>
+
+            <div class="ws-legend">
+              <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
+              <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
+            </div>
           </div>
 
-          <div class="ws-legend">
-            <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
-            <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
+          <div class="ws-table-wrap">
+            <n-spin :show="loading" class="ws-spin">
+              <div v-if="!loading && !filteredDefinitions.length" class="ws-empty">
+                <n-empty :description="t('metrics.empty.definitions')" />
+              </div>
+              <n-data-table
+                v-else
+                :columns="defColumns"
+                :data="filteredDefinitions"
+                :row-props="defRowProps"
+                :scroll-x="860"
+                :flex-height="true"
+                size="small"
+                class="ws-table"
+              />
+            </n-spin>
+          </div>
+        </n-tab-pane>
+
+        <!-- ---------- Tab 2：指标模板（CRUD） ---------- -->
+        <n-tab-pane name="template" :tab="t('metrics.tab.template')">
+          <div class="ws-tab-header">
+            <div class="ws-tab-bar">
+              <div class="ws-toolbar ws-toolbar-grow">
+                <n-input
+                  v-model:value="tplKeyword"
+                  :placeholder="t('metrics.filter.keywordPlaceholder')"
+                  clearable
+                  class="ws-search"
+                >
+                  <template #prefix>
+                    <n-icon :component="SearchOutline" />
+                  </template>
+                </n-input>
+                <n-select
+                  v-model:value="tplStatus"
+                  :placeholder="t('metrics.filter.status')"
+                  :options="tplStatusOptions"
+                  class="ws-filter"
+                />
+                <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
+              </div>
+              <n-button type="primary" @click="openTemplateCreate">
+                {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
+              </n-button>
+            </div>
+
+            <div class="ws-legend">
+              <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
+              <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
+            </div>
           </div>
 
-          <n-spin :show="loading" class="ws-spin">
-            <div v-if="!loading && !templateList.length" class="ws-empty">
-              <n-empty :description="t('metrics.empty.noTemplates')" />
-            </div>
-            <div v-else-if="!filteredTemplates.length" class="ws-empty">
-              <n-empty :description="t('metrics.empty.templates')" />
-            </div>
-            <n-data-table
-              v-else
-              :columns="tplColumns"
-              :data="filteredTemplates"
-              :scroll-x="900"
-              size="small"
-              class="ws-table"
-            />
-          </n-spin>
+          <div class="ws-table-wrap">
+            <n-spin :show="loading" class="ws-spin">
+              <div v-if="!loading && !templateList.length" class="ws-empty">
+                <n-empty :description="t('metrics.empty.noTemplates')" />
+              </div>
+              <div v-else-if="!filteredTemplates.length" class="ws-empty">
+                <n-empty :description="t('metrics.empty.templates')" />
+              </div>
+              <n-data-table
+                v-else
+                :columns="tplColumns"
+                :data="filteredTemplates"
+                :scroll-x="900"
+                :flex-height="true"
+                size="small"
+                class="ws-table"
+              />
+            </n-spin>
+          </div>
         </n-tab-pane>
       </n-tabs>
     </div>
@@ -997,10 +1007,48 @@ onMounted(load)
 .ws-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding-top: var(--space-3);
 }
-.ws-spin { width: 100%; }
+/* 让 n-tabs 占满 ws-body，tab pane 成为 flex 列，滚动职责下放到表格区 */
+.metrics-ws :deep(.n-tabs) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.metrics-ws :deep(.n-tabs-pane-wrapper) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.metrics-ws :deep(.n-tab-pane) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ws-tab-header {
+  flex-shrink: 0;
+}
+.ws-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.ws-spin {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+.ws-spin :deep(.n-spin-content) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 /* ===== 工具栏：搜索 + 筛选 + 计数 ===== */
 .ws-toolbar {
@@ -1064,11 +1112,12 @@ onMounted(load)
   flex-wrap: nowrap;
 }
 
-/* 空态 */
+/* 空态：在表格滚动区内撑满剩余高度 */
 .ws-empty {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 1 1 auto;
   min-height: 240px;
   padding: var(--space-8) 0;
 }
