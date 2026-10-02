@@ -3,11 +3,60 @@
     <div class="page-header">
       <h1 class="page-title">{{ t('pages.demand.DemandList.s1') }}</h1>
       <n-space>
+        <n-button type="primary" @click="handleCreate">
+          <template #icon><n-icon :component="AddOutline" /></template>
+          {{ t('pages.demand.DemandList.s4') }}
+        </n-button>
+      </n-space>
+    </div>
+
+    <!-- 加载骨架屏 -->
+    <div v-if="loading" class="demand-skeleton">
+      <div v-for="i in 6" :key="i" class="skeleton-card">
+        <n-skeleton height="16px" width="40%" />
+        <n-skeleton height="18px" width="80%" />
+        <n-skeleton height="14px" width="60%" />
+      </div>
+    </div>
+
+    <!-- 空态（无数据） -->
+    <div v-else-if="demands.length === 0" class="empty-wrapper">
+      <n-empty :description="t('pages.demand.DemandList.s11')">
+        <template #extra>
+          <n-button type="primary" @click="handleCreate">{{ t('pages.demand.DemandList.s12') }}</n-button>
+        </template>
+      </n-empty>
+    </div>
+
+    <template v-else>
+      <!-- KPI 统计条（前端真实聚合） -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <span class="kpi-label">{{ t('pages.demand.DemandList.s51') }}</span>
+          <span class="kpi-value">{{ kpi.total }}</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">{{ t('pages.demand.DemandList.s52') }}</span>
+          <span class="kpi-value">{{ kpi.inProgress }}</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">{{ t('pages.demand.DemandList.s53') }}</span>
+          <span class="kpi-value">{{ kpi.pending }}</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">{{ t('pages.demand.DemandList.s54') }}</span>
+          <span class="kpi-value">{{ kpi.planned }}</span>
+        </div>
+      </div>
+
+      <!-- 工具条 -->
+      <div class="toolbar">
         <n-input
-          v-model:value="keyword"
+          v-model:value="searchText"
           :placeholder="t('pages.demand.DemandList.s2')"
-          style="width: 240px"
+          style="width: 260px"
           clearable
+          @input="onSearchInput"
           @keyup.enter="handleSearch"
         >
           <template #prefix>
@@ -20,152 +69,254 @@
           style="width: 120px"
           clearable
           :options="statusFilterOptions"
-          @update:value="handleFilter"
+          @update:value="onFilterChange"
         />
-        <n-button type="primary" @click="handleCreate">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          {{ t('pages.demand.DemandList.s4') }}
-        </n-button>
-      </n-space>
-    </div>
-
-    <!-- 卡片列表 -->
-    <div class="demand-list">
-      <div
-        v-for="item in demands"
-        :key="item.id"
-        class="demand-card"
-        :class="{ 'selected': selectedDemand?.id === item.id }"
-      >
-        <div class="card-left" @click="handleCardClick(item)">
-          <div class="card-main">
-            <div class="card-title">
-              <span class="demand-code">{{ item.code }}</span>
-              <n-tag :type="getStatusType(item.demandStatus)" size="small" class="status-tag">
-                {{ getStatusText(item.demandStatus) }}
-              </n-tag>
-              <n-tag :type="getApprovalType(item.approvalStatus)" size="small" class="status-tag">
-                {{ getApprovalText(item.approvalStatus) }}
-              </n-tag>
-            </div>
-            <div class="demand-name">{{ item.name }}</div>
-            <div class="demand-meta">
-              <span class="meta-item">
-                <span class="label">{{ t('pages.demand.DemandList.s5') }}</span>
-                <span class="value">{{ item.departmentName || item.department?.name || '-' }}</span>
-              </span>
-              <span class="meta-item">
-                <span class="label">{{ t('pages.demand.DemandList.s6') }}</span>
-                <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
-                  {{ item.demandType === 'SOCIAL' ? '社招' : '校招' }}
-                </n-tag>
-              </span>
-            </div>
-          </div>
-          <div class="card-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ item._count?.positions || 0 }}</span>
-              <span class="stat-label">{{ t('pages.demand.DemandList.s7') }}</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-              <span class="stat-value">{{ item.hiredCount || 0 }}</span>
-              <span class="stat-label">{{ t('pages.demand.DemandList.s8') }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="card-right">
-          <!-- ★ 2026-08-23 V3 §四P0 第5项 (T7.4)：操作列下拉化，对齐 CandidateList 模式 -->
-          <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">{{ t('pages.demand.DemandList.s9') }}</n-button>
-          <n-dropdown
-            trigger="click"
-            :options="[{ label: '编辑', key: 'edit' }]"
-            @select="(k: string) => onDemandRowAction(k, item)"
-          >
-            <n-button text size="small">{{ t('pages.demand.DemandList.s10') }}</n-button>
-          </n-dropdown>
-        </div>
+        <n-select
+          v-model:value="filterType"
+          :placeholder="t('pages.demand.DemandList.s6')"
+          style="width: 120px"
+          clearable
+          :options="demandTypeFilterOptions"
+          @update:value="onFilterChange"
+        />
+        <n-select
+          v-model:value="sortKey"
+          :placeholder="t('pages.demand.DemandList.s57')"
+          style="width: 160px"
+          :options="sortOptions"
+          @update:value="onFilterChange"
+        />
+        <div class="toolbar-spacer"></div>
+        <n-radio-group :value="viewMode" @update:value="onViewModeChange">
+          <n-radio-button value="card">{{ t('pages.demand.DemandList.s55') }}</n-radio-button>
+          <n-radio-button value="table">{{ t('pages.demand.DemandList.s56') }}</n-radio-button>
+        </n-radio-group>
       </div>
-    </div>
 
-    <div v-if="loading" class="loading-spinner">
-      <n-spin />
-    </div>
+      <!-- 筛选无结果 -->
+      <div v-if="processedDemands.length === 0" class="empty-wrapper">
+        <n-empty :description="t('pages.demand.DemandList.s61')">
+          <template #extra>
+            <n-button @click="clearFilters">{{ t('pages.demand.DemandList.s62') }}</n-button>
+          </template>
+        </n-empty>
+      </div>
 
-    <div v-if="demands.length === 0 && !loading" class="empty-wrapper">
-      <n-empty :description="t('pages.demand.DemandList.s11')">
-        <template #extra>
-          <n-button type="primary" @click="handleCreate">{{ t('pages.demand.DemandList.s12') }}</n-button>
-        </template>
-      </n-empty>
-    </div>
+      <template v-else>
+        <!-- 卡片视图 -->
+        <div v-if="viewMode === 'card'" class="demand-grid">
+          <div
+            v-for="item in pagedDemands"
+            :key="item.id"
+            class="demand-card"
+            :class="{ 'selected': selectedDemand?.id === item.id }"
+            tabindex="0"
+            @click="handleCardClick(item)"
+            @keydown.enter="handleCardClick(item)"
+          >
+            <div class="card-top">
+              <span class="demand-code">{{ item.code }}</span>
+              <span class="priority-pill" :class="priorityPillClass(item.priority)">{{ item.priority }}</span>
+              <n-tag :type="getStatusType(item.demandStatus)" size="small" class="status-tag">{{ getStatusText(item.demandStatus) }}</n-tag>
+            </div>
+            <div class="card-title" :title="item.name">{{ item.name }}</div>
+            <div class="card-meta">
+              <n-tag :type="getApprovalType(item.approvalStatus)" size="small">{{ getApprovalText(item.approvalStatus) }}</n-tag>
+              <span class="meta-dept">{{ item.departmentName || item.department?.name || '-' }}</span>
+              <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
+                {{ item.demandType === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71') }}
+              </n-tag>
+            </div>
+            <div class="card-owner">
+              <span class="owner-label">{{ t('pages.demand.DemandList.s59') }}</span>
+              <span class="owner-value">{{ item.hrName || '-' }}</span>
+              <span class="time-label">{{ t('pages.demand.DemandList.s60') }}</span>
+              <span class="time-value" :title="absoluteTime(item)">{{ relativeTime(item) }}</span>
+            </div>
+            <div class="card-progress">
+              <div class="progress-text">
+                {{ t('pages.demand.DemandList.s8') }} {{ filledOf(item) }} / {{ t('pages.demand.DemandList.s20') }} {{ headcountOf(item) }}
+              </div>
+              <div class="bar">
+                <span
+                  :style="{ width: progressPct(item) + '%', background: progressPct(item) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
+                ></span>
+              </div>
+            </div>
+            <div class="card-actions">
+              <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">{{ t('pages.demand.DemandList.s9') }}</n-button>
+              <n-button text size="small" @click.stop="handleEdit(item)">{{ t('pages.demand.DemandList.s50') }}</n-button>
+              <n-button v-if="item.demandStatus === 'DRAFT'" text type="primary" size="small" @click.stop="handleSubmitFromCard(item)">{{ t('pages.demand.DemandList.s43') }}</n-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 表格视图 -->
+        <div v-else class="demand-table">
+          <n-data-table
+            :columns="columns"
+            :data="pagedDemands"
+            :row-key="(row: any) => row.id"
+            :bordered="false"
+            :single-line="false"
+            size="small"
+          />
+        </div>
+
+        <!-- 分页 -->
+        <div v-if="processedDemands.length > pageSize" class="pagination">
+          <n-pagination
+            :page="page"
+            :page-size="pageSize"
+            :item-count="processedDemands.length"
+            @update:page="onPageChange"
+          />
+        </div>
+      </template>
+    </template>
 
     <!-- 详情抽屉 -->
     <n-drawer
       v-model:show="detailVisible"
-      :width="680"
+      :width="drawerWidth"
       placement="right"
     >
-      <n-drawer-content
-        :title="selectedDemand ? (selectedDemand.code + ' ' + selectedDemand.name) : ''"
-        closable
-      >
-        <template v-if="selectedDemand">
-          <!-- 基本信息 -->
+      <n-drawer-content :native-scrollbar="false">
+        <template #header>
+          <div class="drawer-header">
+            <div class="drawer-header__main">
+              <span class="drawer-code">{{ selectedDemand?.code }}</span>
+              <span class="drawer-name" :title="selectedDemand?.name">{{ selectedDemand?.name }}</span>
+              <n-tag :type="getStatusType(selectedDemand?.demandStatus)" size="small">{{ getStatusText(selectedDemand?.demandStatus) }}</n-tag>
+              <n-tag :type="getApprovalType(selectedDemand?.approvalStatus)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus) }}</n-tag>
+            </div>
+            <div class="drawer-header__actions">
+              <n-button v-if="selectedDemand?.state === 'DRAFT'" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
+              <n-button size="small" @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
+            </div>
+          </div>
+        </template>
+
+        <div v-if="detailLoading" class="drawer-skeleton">
+          <n-skeleton :repeat="3" />
+        </div>
+        <template v-else-if="selectedDemand">
+          <!-- 概览条 -->
+          <div class="overview-bar">
+            <div class="overview-item">
+              <span class="ov-num">{{ headcountOf(selectedDemand) }}</span>
+              <span class="ov-label">{{ t('pages.demand.DemandList.s20') }}</span>
+            </div>
+            <div class="overview-item">
+              <span class="ov-num">{{ filledOf(selectedDemand) }}</span>
+              <span class="ov-label">{{ t('pages.demand.DemandList.s8') }}</span>
+            </div>
+            <div class="overview-item">
+              <span class="ov-num">{{ selectedDemand.pendingCount ?? 0 }}</span>
+              <span class="ov-label">{{ t('pages.demand.DemandList.s22') }}</span>
+            </div>
+            <div class="overview-item">
+              <span class="ov-num">{{ selectedDemand._count?.positions ?? 0 }}</span>
+              <span class="ov-label">{{ t('pages.demand.DemandList.s19') }}</span>
+            </div>
+            <div class="overview-bar__progress">
+              <div class="bar">
+                <span
+                  :style="{ width: progressPct(selectedDemand) + '%', background: progressPct(selectedDemand) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
+                ></span>
+              </div>
+            </div>
+          </div>
+
           <n-tabs v-model:value="activeTab" type="line" class="detail-tabs">
+            <!-- 基本信息（配置驱动） -->
             <n-tab-pane name="detail" :tab="t('pages.demand.DemandList.s13')">
-              <!-- ★ 2026-09-24 需求 4: 详情字段受「系统设置 → 需求字段管理」控制。
-                   {{ t('pages.demand.DemandList.s14') }}
-                   {{ t('pages.demand.DemandList.s15') }}
-                   其余扩展字段取 DynamicFieldValue。 -->
-              <!-- ★ 2026-09-28 (兵哥): 详情展示完全由「招聘需求表单设置」驱动 —
-                   {{ t('pages.demand.DemandList.s16') }}
-                   {{ t('pages.demand.DemandList.s17') }}
-                   (审批状态在列表卡片与流程记录中可见, 招聘进度为派生统计)。 -->
-              <!-- 配置驱动的分组字段 (系统字段 + 模型字段 + 扩展字段) -->
               <div v-for="b in formBuckets" :key="b.key" class="detail-section">
                 <div class="section-header">
                   <span class="section-title">{{ b.group?.name || '其他' }}</span>
                 </div>
                 <div class="info-grid">
-                  <div v-for="m in b.fields" :key="m.field.id" class="info-item">
-                    <span class="info-label">{{ m.field.label }}</span>
-                    <span v-if="m.field.fieldKey === 'state'" class="info-value">
-                      <n-tag :type="getStatusType(fieldValue(m.field))" size="small">
-                        {{ getStatusText(fieldValue(m.field)) }}
-                      </n-tag>
-                    </span>
-                    <span v-else-if="m.field.fieldKey === 'demand_type'" class="info-value">
-                      <n-tag :type="fieldValue(m.field) === 'SOCIAL' ? 'info' : 'success'" size="small">
-                        {{ fieldValue(m.field) === 'SOCIAL' ? '社会招聘' : '校园招聘' }}
-                      </n-tag>
-                    </span>
-                    <span v-else class="info-value">{{ displayText(m.field, fieldValue(m.field)) }}</span>
-                  </div>
+                  <template v-for="m in b.fields" :key="m.field.id">
+                    <div
+                      v-if="m.field.fieldKey !== 'jd' && m.field.fieldKey !== 'requirements'"
+                      class="info-item"
+                      :class="{ 'info-item--wide': m.field.fieldType === 'MULTILINE_TEXT' }"
+                    >
+                      <span class="info-label">{{ m.field.label }}</span>
+                      <span v-if="m.field.fieldKey === 'state'" class="info-value">
+                        <n-tag :type="getStatusType(fieldValue(m.field))" size="small">
+                          {{ getStatusText(fieldValue(m.field)) }}
+                        </n-tag>
+                      </span>
+                      <span v-else-if="m.field.fieldKey === 'demand_type'" class="info-value">
+                        <n-tag :type="fieldValue(m.field) === 'SOCIAL' ? 'info' : 'success'" size="small">
+                          {{ fieldValue(m.field) === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71') }}
+                        </n-tag>
+                      </span>
+                      <span v-else-if="m.field.fieldType === 'RICH_TEXT'" class="info-value info-value--rich">
+                        <SafeHtml v-if="fieldValue(m.field)" :html="fieldValue(m.field)" />
+                        <template v-else>-</template>
+                      </span>
+                      <span v-else class="info-value">{{ displayText(m.field, fieldValue(m.field)) }}</span>
+                    </div>
+                  </template>
                 </div>
               </div>
+            </n-tab-pane>
 
+            <!-- JD 与任职要求 -->
+            <n-tab-pane name="jd" :tab="t('pages.demand.DemandList.s63')">
+              <div class="detail-section">
+                <div class="section-header">
+                  <span class="section-title">{{ t('pages.demand.DemandList.s64') }}</span>
+                </div>
+                <div class="rich-block">
+                  <SafeHtml v-if="selectedDemand.jd" :html="selectedDemand.jd" />
+                  <n-empty v-else :description="t('pages.demand.DemandList.s66')" />
+                </div>
+              </div>
+              <div class="detail-section">
+                <div class="section-header">
+                  <span class="section-title">{{ t('pages.demand.DemandList.s65') }}</span>
+                </div>
+                <div class="rich-block">
+                  <SafeHtml v-if="selectedDemand.requirements" :html="selectedDemand.requirements" />
+                  <n-empty v-else :description="t('pages.demand.DemandList.s67')" />
+                </div>
+              </div>
+            </n-tab-pane>
+
+            <!-- 招聘进度 -->
+            <n-tab-pane name="progress" :tab="t('pages.demand.DemandList.s18')">
               <div class="detail-section">
                 <div class="section-header">
                   <span class="section-title">{{ t('pages.demand.DemandList.s18') }}</span>
                 </div>
                 <div class="progress-stats">
                   <div class="progress-stat">
-                    <span class="stat-num">{{ selectedDemand._count?.positions || 0 }}</span>
+                    <span class="stat-num">{{ selectedDemand._count?.positions ?? 0 }}</span>
                     <span class="stat-label">{{ t('pages.demand.DemandList.s19') }}</span>
                   </div>
                   <div class="progress-stat">
-                    <span class="stat-num">{{ selectedDemand.positionCount || 0 }}</span>
+                    <span class="stat-num">{{ headcountOf(selectedDemand) }}</span>
                     <span class="stat-label">{{ t('pages.demand.DemandList.s20') }}</span>
                   </div>
                   <div class="progress-stat">
-                    <span class="stat-num">{{ selectedDemand.hiredCount || 0 }}</span>
-                    <span class="stat-label">{{ t('pages.demand.DemandList.s21') }}</span>
+                    <span class="stat-num">{{ filledOf(selectedDemand) }}</span>
+                    <span class="stat-label">{{ t('pages.demand.DemandList.s8') }}</span>
                   </div>
                   <div class="progress-stat">
-                    <span class="stat-num">{{ selectedDemand.onBoardCount || 0 }}</span>
+                    <span class="stat-num">{{ selectedDemand.pendingCount ?? 0 }}</span>
                     <span class="stat-label">{{ t('pages.demand.DemandList.s22') }}</span>
                   </div>
+                </div>
+                <div class="bar" style="margin-top: var(--space-3)">
+                  <span
+                    :style="{ width: progressPct(selectedDemand) + '%', background: progressPct(selectedDemand) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
+                  ></span>
+                </div>
+                <div class="progress-caption">
+                  {{ t('pages.demand.DemandList.s68', { hired: filledOf(selectedDemand), headcount: headcountOf(selectedDemand) }) }}
                 </div>
               </div>
             </n-tab-pane>
@@ -174,106 +325,10 @@
               <n-empty :description="t('pages.demand.DemandList.s24')" />
             </n-tab-pane>
 
-            <n-tab-pane name="profile" :tab="t('pages.demand.DemandList.s25')">
-              <div class="profile-section">
-                <div class="profile-header">
-                  <span class="profile-title">{{ t('pages.demand.DemandList.s26') }}</span>
-                  <span class="profile-subtitle">{{ t('pages.demand.DemandList.s27') }}</span>
-                </div>
-
-                <div class="profile-content">
-                  <!-- 硬性要求 -->
-                  <div class="profile-block">
-                    <div class="block-header">
-                      <span class="block-title">{{ t('pages.demand.DemandList.s28') }}</span>
-                    </div>
-                    <div class="block-items">
-                      <div class="profile-item">
-                        <span class="item-icon">🎓</span>
-                        <span class="item-label">{{ t('pages.demand.DemandList.s29') }}</span>
-                        <span class="item-value">{{ getEducationText(selectedDemand) }}</span>
-                      </div>
-                      <div class="profile-item">
-                        <span class="item-icon">💼</span>
-                        <span class="item-label">{{ t('pages.demand.DemandList.s30') }}</span>
-                        <span class="item-value">{{ getExperienceText(selectedDemand) }}</span>
-                      </div>
-                      <div class="profile-item">
-                        <span class="item-icon"><n-icon :component="BusinessOutline" :size="16" /></span>
-                        <span class="item-label">{{ t('pages.demand.DemandList.s31') }}</span>
-                        <span class="item-value">{{ selectedDemand.level || '-' }}</span>
-                      </div>
-                      <div class="profile-item">
-                        <span class="item-icon"><n-icon :component="PeopleOutline" :size="16" /></span>
-                        <span class="item-label">{{ t('pages.demand.DemandList.s32') }}</span>
-                        <span class="item-value">{{ selectedDemand.positionCount }}{{ t('pages.demand.DemandList.s33') }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 技能要求 -->
-                  <div class="profile-block">
-                    <div class="block-header">
-                      <span class="block-title">{{ t('pages.demand.DemandList.s34') }}</span>
-                    </div>
-                    <div class="skills-list">
-                      <n-tag v-for="skill in getSkillsList(selectedDemand)" :key="skill" type="info" size="small">{{ skill }}</n-tag>
-                      <span v-if="getSkillsList(selectedDemand).length === 0" class="no-data">{{ t('pages.demand.DemandList.s49') }}</span>
-                    </div>
-                  </div>
-
-                  <!-- 加分项 -->
-                  <div class="profile-block">
-                    <div class="block-header">
-                      <span class="block-title">{{ t('pages.demand.DemandList.s35') }}</span>
-                    </div>
-                    <div class="bonus-list">
-                      <div class="bonus-item">
-                        <span class="bonus-icon">🌟</span>
-                        <span>{{ t('pages.demand.DemandList.s36') }}</span>
-                      </div>
-                      <div class="bonus-item">
-                        <span class="bonus-icon">🌟</span>
-                        <span>{{ t('pages.demand.DemandList.s37') }}</span>
-                      </div>
-                      <div class="bonus-item">
-                        <span class="bonus-icon">🌟</span>
-                        <span>{{ t('pages.demand.DemandList.s38') }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 工作地点 -->
-                  <div class="profile-block">
-                    <div class="block-header">
-                      <span class="block-title">{{ t('pages.demand.DemandList.s39') }}</span>
-                    </div>
-                    <div class="location-info">
-                      <span class="location-icon">📍</span>
-                      <span class="location-text">{{ t('pages.demand.DemandList.s40') }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </n-tab-pane>
-
             <n-tab-pane name="records" :tab="t('pages.demand.DemandList.s41')">
               <n-empty :description="t('pages.demand.DemandList.s42')" />
             </n-tab-pane>
           </n-tabs>
-        </template>
-
-        <template #footer>
-          <n-space v-if="selectedDemand">
-            <n-button
-              v-if="selectedDemand.state === 'DRAFT'"
-              type="primary"
-              @click="handleSubmitApproval"
-            >
-              {{ t('pages.demand.DemandList.s43') }}
-            </n-button>
-            <n-button @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
-          </n-space>
         </template>
       </n-drawer-content>
     </n-drawer>
@@ -283,132 +338,135 @@
       v-model:show="modalVisible"
       preset="card"
       :title="formData.id ? '编辑需求' : '创建需求'"
-      :style="{ width: '600px' }"
+      :style="{ width: 'min(920px, 94vw)' }"
       :mask-closable="false"
     >
-      <n-form :model="formData" label-placement="left" :label-width="100">
-        <!-- ★ 2026-09-28 (兵哥): 编辑表单统一由「招聘需求表单设置」驱动 —
-             分组顺序 / 字段显隐 / 必填与表单设置实时一致; 模型字段绑 formData, 扩展字段绑 formValues。 -->
-        <template v-for="s in editSections" :key="s.key">
-          <div v-if="editSections.length > 1" class="form-group-header">{{ s.name }}</div>
-          <n-form-item
-            v-for="item in s.fields"
-            :key="item.field.fieldKey"
-            :label="item.field.label"
-            :required="item.required"
-          >
-            <!-- 模型映射字段: 直接绑 formData[prop] -->
-            <template v-if="item.binding">
-              <n-input
-                v-if="item.binding.kind === 'text'"
-                v-model:value="formData[item.binding.prop]"
-                :placeholder="item.field.placeholder || '请输入'"
-                style="width: 100%"
-              />
-              <n-input-number
-                v-else-if="item.binding.kind === 'number'"
-                v-model:value="formData[item.binding.prop]"
-                :min="1" :max="100" style="width: 100%"
-              />
-              <n-select
-                v-else-if="item.binding.kind === 'department'"
-                v-model:value="formData[item.binding.prop]"
-                :options="departmentOptions"
-                :placeholder="t('pages.demand.DemandList.s44')"
-                style="width: 100%"
-              />
-              <n-select
-                v-else-if="item.binding.kind === 'select'"
-                v-model:value="formData[item.binding.prop]"
-                :options="editBindingOptions(item.field.fieldKey)"
-                style="width: 100%"
-              />
-              <n-input
-                v-else-if="item.binding.kind === 'textarea'"
-                v-model:value="formData[item.binding.prop]"
-                type="textarea" :rows="3"
-                :placeholder="item.field.placeholder || '请输入'"
-                style="width: 100%"
-              />
-            </template>
-
-            <!-- 扩展(动态)字段: 绑 formValues[fieldKey] -->
-            <template v-else>
-              <RichEditor
-                v-if="item.field.fieldType === 'RICH_TEXT'"
-                v-model:html="formValues[item.field.fieldKey]"
-                :placeholder="item.field.placeholder || '请输入'"
-                style="width: 100%"
-              />
-              <n-input
-                v-else-if="isPlainTextType(item.field.fieldType)"
-                v-model:value="formValues[item.field.fieldKey]"
-                :type="item.field.fieldType === 'MULTILINE_TEXT' ? 'textarea' : 'text'"
-                :placeholder="item.field.placeholder || ''"
-                style="width: 100%"
-              />
-              <n-input-number
-                v-else-if="isNumberType(item.field.fieldType)"
-                v-model:value="formValues[item.field.fieldKey]"
-                :min="(item.field.validation as any)?.min ?? undefined"
-                :max="(item.field.validation as any)?.max ?? undefined"
-                :placeholder="item.field.placeholder || '请输入数字'"
-                style="width: 100%"
-              />
-              <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
-              <n-space
-                v-else-if="item.field.fieldType === 'RANGE_NUMBER'"
-                align="center" :size="8" style="width: 100%"
+      <div class="form-body">
+        <n-form :model="formData" label-placement="top">
+          <div class="form-grid">
+            <template v-for="s in editSections" :key="s.key">
+              <div v-if="editSections.length > 1" class="form-group-header">{{ s.name }}</div>
+              <n-form-item
+                v-for="item in s.fields"
+                :key="item.field.fieldKey"
+                :label="item.field.label"
+                :required="item.required"
+                :class="{ 'form-item--wide': WIDE_TYPES.includes(item.field.fieldType) }"
               >
-                <n-input-number
-                  v-model:value="formValues[item.field.fieldKey].min"
-                  :min="(item.field.validation as any)?.min ?? undefined"
-                  :max="(item.field.validation as any)?.max ?? undefined"
-                  :placeholder="t('pages.demand.DemandList.s45')"
-                  style="flex: 1; min-width: 0"
-                />
-                <span>~</span>
-                <n-input-number
-                  v-model:value="formValues[item.field.fieldKey].max"
-                  :min="(item.field.validation as any)?.min ?? undefined"
-                  :max="(item.field.validation as any)?.max ?? undefined"
-                  :placeholder="t('pages.demand.DemandList.s46')"
-                  style="flex: 1; min-width: 0"
-                />
-                <n-text v-if="(item.field.validation as any)?.unit" depth="3">{{ (item.field.validation as any).unit }}</n-text>
-              </n-space>
-              <!-- 选项类 (含 人员/部门 引用) -->
-              <n-select
-                v-else-if="isOptionType(item.field.fieldType)"
-                v-model:value="formValues[item.field.fieldKey]"
-                :options="selectOptions(item.field)"
-                :multiple="isMultiType(item.field.fieldType)"
-                :placeholder="item.field.placeholder || '请选择'"
-                style="width: 100%"
-              />
-              <!-- 日期 / 日期范围 -->
-              <n-date-picker
-                v-else-if="isDateType(item.field.fieldType)"
-                :value="dateValue(item.field)"
-                :type="item.field.fieldType === 'DATE_RANGE' ? 'daterange' : 'date'"
-                clearable
-                style="width: 100%"
-                :is-date-disabled="dateDisabled(item.field) || undefined"
-                @update:value="(v: number | [number, number] | null) => onDateInput(item.field, v)"
-              />
-              <!-- 布尔 -->
-              <n-switch v-else-if="item.field.fieldType === 'BOOLEAN'" v-model:value="formValues[item.field.fieldKey]" />
-              <!-- 附件 / 其他: URL 文本 -->
-              <n-input
-                v-else
-                v-model:value="formValues[item.field.fieldKey]"
-                :placeholder="item.field.placeholder || '请输入'"
-                style="width: 100%"
-              />
+                <!-- 模型映射字段: 直接绑 formData[prop] -->
+                <template v-if="item.binding">
+                  <n-input
+                    v-if="item.binding.kind === 'text'"
+                    v-model:value="formData[item.binding.prop]"
+                    :placeholder="item.field.placeholder || '请输入'"
+                    style="width: 100%"
+                  />
+                  <n-input-number
+                    v-else-if="item.binding.kind === 'number'"
+                    v-model:value="formData[item.binding.prop]"
+                    :min="1" :max="100" style="width: 100%"
+                  />
+                  <n-select
+                    v-else-if="item.binding.kind === 'department'"
+                    v-model:value="formData[item.binding.prop]"
+                    :options="departmentOptions"
+                    :placeholder="t('pages.demand.DemandList.s44')"
+                    style="width: 100%"
+                  />
+                  <n-select
+                    v-else-if="item.binding.kind === 'select'"
+                    v-model:value="formData[item.binding.prop]"
+                    :options="editBindingOptions(item.field.fieldKey)"
+                    style="width: 100%"
+                  />
+                  <n-input
+                    v-else-if="item.binding.kind === 'textarea'"
+                    v-model:value="formData[item.binding.prop]"
+                    type="textarea" :rows="3"
+                    :placeholder="item.field.placeholder || '请输入'"
+                    style="width: 100%"
+                  />
+                </template>
+
+                <!-- 扩展(动态)字段: 绑 formValues[fieldKey] -->
+                <template v-else>
+                  <RichEditor
+                    v-if="item.field.fieldType === 'RICH_TEXT'"
+                    v-model:html="formValues[item.field.fieldKey]"
+                    :placeholder="item.field.placeholder || '请输入'"
+                    style="width: 100%"
+                  />
+                  <n-input
+                    v-else-if="isPlainTextType(item.field.fieldType)"
+                    v-model:value="formValues[item.field.fieldKey]"
+                    :type="item.field.fieldType === 'MULTILINE_TEXT' ? 'textarea' : 'text'"
+                    :placeholder="item.field.placeholder || ''"
+                    style="width: 100%"
+                  />
+                  <n-input-number
+                    v-else-if="isNumberType(item.field.fieldType)"
+                    v-model:value="formValues[item.field.fieldKey]"
+                    :min="(item.field.validation as any)?.min ?? undefined"
+                    :max="(item.field.validation as any)?.max ?? undefined"
+                    :placeholder="item.field.placeholder || '请输入数字'"
+                    style="width: 100%"
+                  />
+                  <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
+                  <n-space
+                    v-else-if="item.field.fieldType === 'RANGE_NUMBER'"
+                    align="center" :size="8" style="width: 100%"
+                  >
+                    <n-input-number
+                      v-model:value="formValues[item.field.fieldKey].min"
+                      :min="(item.field.validation as any)?.min ?? undefined"
+                      :max="(item.field.validation as any)?.max ?? undefined"
+                      :placeholder="t('pages.demand.DemandList.s45')"
+                      style="flex: 1; min-width: 0"
+                    />
+                    <span>~</span>
+                    <n-input-number
+                      v-model:value="formValues[item.field.fieldKey].max"
+                      :min="(item.field.validation as any)?.min ?? undefined"
+                      :max="(item.field.validation as any)?.max ?? undefined"
+                      :placeholder="t('pages.demand.DemandList.s46')"
+                      style="flex: 1; min-width: 0"
+                    />
+                    <n-text v-if="(item.field.validation as any)?.unit" depth="3">{{ (item.field.validation as any).unit }}</n-text>
+                  </n-space>
+                  <!-- 选项类 (含 人员/部门 引用) -->
+                  <n-select
+                    v-else-if="isOptionType(item.field.fieldType)"
+                    v-model:value="formValues[item.field.fieldKey]"
+                    :options="selectOptions(item.field)"
+                    :multiple="isMultiType(item.field.fieldType)"
+                    :placeholder="item.field.placeholder || '请选择'"
+                    style="width: 100%"
+                  />
+                  <!-- 日期 / 日期范围 -->
+                  <n-date-picker
+                    v-else-if="isDateType(item.field.fieldType)"
+                    :value="dateValue(item.field)"
+                    :type="item.field.fieldType === 'DATE_RANGE' ? 'daterange' : 'date'"
+                    clearable
+                    style="width: 100%"
+                    :is-date-disabled="dateDisabled(item.field) || undefined"
+                    @update:value="(v: number | [number, number] | null) => onDateInput(item.field, v)"
+                  />
+                  <!-- 布尔 -->
+                  <n-switch v-else-if="item.field.fieldType === 'BOOLEAN'" v-model:value="formValues[item.field.fieldKey]" />
+                  <!-- 附件 / 其他: URL 文本 -->
+                  <n-input
+                    v-else
+                    v-model:value="formValues[item.field.fieldKey]"
+                    :placeholder="item.field.placeholder || '请输入'"
+                    style="width: 100%"
+                  />
+                </template>
+              </n-form-item>
             </template>
-          </n-form-item>
-        </template>
-      </n-form>
+          </div>
+        </n-form>
+      </div>
 
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
@@ -422,12 +480,13 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useMessage, NDropdown } from 'naive-ui'
-import { AddOutline, SearchOutline, BusinessOutline, PeopleOutline } from '@vicons/ionicons5'
+import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
+import { NButton, NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 import RichEditor from '../../components/RichEditor.vue'
+import SafeHtml from '../../components/SafeHtml.vue'
 
 import {
   listFields, listGroups, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
@@ -496,9 +555,19 @@ const selectedDemand = ref<any>(null)
 const detailVisible = ref(false)
 const modalVisible = ref(false)
 const submitting = ref(false)
+const detailLoading = ref(false)
+const activeTab = ref('detail')
+
+// 列表筛选 / 排序 / 视图 / 分页
+const searchText = ref('')
 const keyword = ref('')
 const filterStatus = ref<string | null>('')
-const activeTab = ref('detail')
+const filterType = ref<string>('ALL')
+const sortKey = ref<'updated' | 'priority' | 'headcount'>('updated')
+const pageSize = 12
+const page = ref(1)
+const VIEW_STORAGE_KEY = 'ats-demand-view'
+const viewMode = ref<'card' | 'table'>(readInitialView())
 
 const formData = ref<any>({
   id: '',
@@ -520,11 +589,6 @@ const statusFilterOptions = [
   { label: '已暂停', value: 'PAUSED' },
 ]
 
-const demandTypeOptions = [
-  { label: '社会招聘', value: 'SOCIAL' },
-  { label: '校园招聘', value: 'CAMPUS' },
-]
-
 const priorityOptions = [
   { label: 'P0-战略', value: 'P0' },
   { label: 'P1-重要', value: 'P1' },
@@ -534,6 +598,38 @@ const priorityOptions = [
 const departmentOptions = computed(() =>
   departments.value.map(d => ({ label: d.name, value: d.id }))
 )
+
+// 视图偏好持久化（localStorage，异常静默兜底）
+function readInitialView(): 'card' | 'table' {
+  try {
+    const v = localStorage.getItem(VIEW_STORAGE_KEY)
+    if (v === 'card' || v === 'table') return v
+  } catch (e) {
+    /* localStorage 不可用时回退默认 */
+  }
+  return 'card'
+}
+function onViewModeChange(v: 'card' | 'table') {
+  viewMode.value = v
+  page.value = 1
+  try {
+    localStorage.setItem(VIEW_STORAGE_KEY, v)
+  } catch (e) {
+    /* localStorage 不可用时忽略 */
+  }
+}
+
+const demandTypeFilterOptions = computed(() => ([
+  { label: t('pages.demand.DemandList.s69'), value: 'ALL' },
+  { label: t('pages.demand.DemandList.s70'), value: 'SOCIAL' },
+  { label: t('pages.demand.DemandList.s71'), value: 'CAMPUS' },
+]))
+
+const sortOptions = computed(() => ([
+  { label: t('pages.demand.DemandList.s72'), value: 'updated' },
+  { label: t('pages.demand.DemandList.s73'), value: 'priority' },
+  { label: t('pages.demand.DemandList.s74'), value: 'headcount' },
+]))
 
 // ★ 2026-09-28 (兵哥): 表单设置聚合 — 字段 × FormConfig(显隐/必填) → 启用字段按分组顺序桶。
 // 与「系统设置 → 招聘需求表单设置」的实时预览完全同源 (mergeFields + groupFieldsByGroup)。
@@ -565,6 +661,9 @@ const editSections = computed(() => formBuckets.value
 const dynamicFormFields = computed(() =>
   editSections.value.flatMap(s => s.fields.filter(m => !m.binding).map(m => m.field)),
 )
+
+// 跨列字段（富文本 / 多行文本 / 日期范围 / 地址）
+const WIDE_TYPES = ['RICH_TEXT', 'MULTILINE_TEXT', 'DATE_RANGE', 'ADDRESS']
 
 // --- 类型判断 (与 DynamicFieldEntry.vue 对齐) ---
 const NUMBER_TYPES = ['NUMBER']
@@ -609,7 +708,6 @@ function onDateInput(f: FieldDefinition, v: number | [number, number] | null) {
 }
 
 // 日期可选范围: 禁用区间外的日期 (minDate/maxDate 可为 YYYY-MM-DD 或相对表达式 T±N)。
-// 相对表达式在运行时解析为具体日期, 使「大于当前时间 N 天」永远相对当下。
 function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | undefined {
   const v = f.validation as { minDate?: string | null; maxDate?: string | null } | null
   const lo = resolveDateBound(v?.minDate)
@@ -717,52 +815,215 @@ const getApprovalText = (status: string) => {
   return texts[status] || status
 }
 
-const formatDate = (date: string) => {
-  if (!date) return '-'
-  return dayjs(date).format('YYYY-MM-DD')
+// ===== 列表展示辅助 =====
+function headcountOf(item: any): number {
+  return item?.headcount ?? item?.positionCount ?? 0
+}
+function filledOf(item: any): number {
+  return item?.filledCount ?? item?.hiredCount ?? 0
+}
+function progressPct(item: any): number {
+  const h = headcountOf(item)
+  if (h <= 0) return 0
+  return Math.min(100, Math.round((filledOf(item) / h) * 100))
+}
+function priorityRank(p: string): number {
+  if (p === 'P0') return 0
+  if (p === 'P1') return 1
+  if (p === 'P2') return 2
+  return 9
+}
+function priorityPillClass(p: string): string {
+  if (p === 'P0') return 'priority-pill--error'
+  if (p === 'P1') return 'priority-pill--warning'
+  if (p === 'P2') return 'priority-pill--info'
+  return 'priority-pill--default'
+}
+function priorityTagType(p: string): any {
+  if (p === 'P0') return 'error'
+  if (p === 'P1') return 'warning'
+  if (p === 'P2') return 'info'
+  return 'default'
+}
+function timeValueOf(item: any): number {
+  const raw = item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at
+  const ts = raw ? Date.parse(raw) : NaN
+  return isNaN(ts) ? 0 : ts
+}
+function relativeTime(item: any): string {
+  const raw = item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at
+  if (!raw) return '-'
+  const d = dayjs(raw)
+  if (!d.isValid()) return '-'
+  const diffMin = dayjs().diff(d, 'minute')
+  if (diffMin < 1) return t('pages.demand.DemandList.s75')
+  if (diffMin < 60) return t('pages.demand.DemandList.s76', { n: diffMin })
+  const diffHr = dayjs().diff(d, 'hour')
+  if (diffHr < 24) return t('pages.demand.DemandList.s77', { n: diffHr })
+  const diffDay = dayjs().diff(d, 'day')
+  if (diffDay < 30) return t('pages.demand.DemandList.s78', { n: diffDay })
+  return d.format('YYYY-MM-DD')
+}
+function absoluteTime(item: any): string {
+  const raw = item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at
+  if (!raw) return '-'
+  const d = dayjs(raw)
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-'
 }
 
-const getEducationText = (demand: any) => {
-  if (!demand) return '-'
-  if (demand.demandType === 'CAMPUS') return '本科及以上'
-  return '大专及以上'
+// KPI（前端真实聚合）
+const kpi = computed(() => ({
+  total: demands.value.length,
+  inProgress: demands.value.filter(d => d.demandStatus === 'IN_PROGRESS').length,
+  pending: demands.value.filter(d => d.approvalStatus === 'PENDING' || d.approval_status === 'PENDING').length,
+  planned: demands.value.reduce((s, d) => s + headcountOf(d), 0),
+}))
+
+// 搜索防抖（300ms）
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    keyword.value = searchText.value
+    page.value = 1
+  }, 300)
+}
+function handleSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  keyword.value = searchText.value
+  page.value = 1
 }
 
-const getExperienceText = (demand: any) => {
-  if (!demand) return '-'
-  if (demand.jobLevel) {
-    if (demand.jobLevel.includes('P4') || demand.jobLevel.includes('P5')) return '1-3年'
-    if (demand.jobLevel.includes('P6')) return '3-5年'
-    if (demand.jobLevel.includes('P7') || demand.jobLevel.includes('P8')) return '5年以上'
+function onFilterChange() {
+  page.value = 1
+}
+function clearFilters() {
+  searchText.value = ''
+  keyword.value = ''
+  filterStatus.value = ''
+  filterType.value = 'ALL'
+  sortKey.value = 'updated'
+  page.value = 1
+}
+
+// 前端筛选 + 排序
+const processedDemands = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  let list = demands.value
+  if (kw) {
+    list = list.filter(d => {
+      const hay = [d.code, d.name, d.departmentName, d.department?.name, d.hrName]
+        .filter(Boolean).join(' ').toLowerCase()
+      return hay.includes(kw)
+    })
   }
-  return '不限'
+  if (filterStatus.value) {
+    list = list.filter(d => d.demandStatus === filterStatus.value)
+  }
+  if (filterType.value && filterType.value !== 'ALL') {
+    list = list.filter(d => d.demandType === filterType.value)
+  }
+  const sorted = [...list]
+  if (sortKey.value === 'priority') {
+    sorted.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
+  } else if (sortKey.value === 'headcount') {
+    sorted.sort((a, b) => headcountOf(b) - headcountOf(a))
+  } else {
+    sorted.sort((a, b) => timeValueOf(b) - timeValueOf(a))
+  }
+  return sorted
+})
+
+// 前端分页
+const pagedDemands = computed(() => {
+  const start = (page.value - 1) * pageSize
+  return processedDemands.value.slice(start, start + pageSize)
+})
+
+function onPageChange(p: number) {
+  page.value = p
 }
 
-const getSkillsList = (demand: any) => {
-  if (!demand) return []
-  const skills: string[] = []
-  if (demand.positionSeries) {
-    if (demand.positionSeries.includes('技术') || demand.positionSeries.includes('研发')) {
-      skills.push('JavaScript/TypeScript', 'Vue/React', 'Node.js', '数据库', 'API设计')
-    }
-    if (demand.positionSeries.includes('产品')) {
-      skills.push('需求分析', '产品设计', '原型工具', '数据分析', '项目管理')
-    }
-    if (demand.positionSeries.includes('运营')) {
-      skills.push('内容运营', '用户运营', '活动策划', '数据分析', '文案撰写')
-    }
-  }
-  return skills.length > 0 ? skills : []
+// 表格列定义
+const columns = computed<DataTableColumns<any>[]>(() => [
+  {
+    title: t('pages.demand.DemandList.s79'),
+    key: 'code',
+    width: 120,
+    render: (row: any) => h('span', { class: 'cell-code', title: row.code }, row.code),
+  },
+  {
+    title: t('pages.demand.DemandList.s80'),
+    key: 'name',
+    minWidth: 180,
+    ellipsis: { tooltip: true },
+    render: (row: any) => h('span', { title: row.name }, row.name),
+  },
+  {
+    title: t('pages.demand.DemandList.s5'),
+    key: 'department',
+    width: 140,
+    render: (row: any) => row.departmentName || row.department?.name || '-',
+  },
+  {
+    title: t('pages.demand.DemandList.s6'),
+    key: 'demandType',
+    width: 90,
+    render: (row: any) => h(NTag, { size: 'small', type: row.demandType === 'SOCIAL' ? 'info' : 'success' }, { default: () => (row.demandType === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71')) }),
+  },
+  {
+    title: t('pages.demand.DemandList.s58'),
+    key: 'priority',
+    width: 90,
+    render: (row: any) => h(NTag, { size: 'small', type: priorityTagType(row.priority) }, { default: () => row.priority || '-' }),
+  },
+  {
+    title: t('pages.demand.DemandList.s20'),
+    key: 'headcount',
+    width: 100,
+    align: 'right',
+    render: (row: any) => headcountOf(row),
+  },
+  {
+    title: t('pages.demand.DemandList.s8'),
+    key: 'filled',
+    width: 100,
+    align: 'right',
+    render: (row: any) => filledOf(row),
+  },
+  {
+    title: t('pages.demand.DemandList.s81'),
+    key: 'status',
+    width: 100,
+    render: (row: any) => h(NTag, { size: 'small', type: getStatusType(row.demandStatus) }, { default: () => getStatusText(row.demandStatus) }),
+  },
+  {
+    title: t('pages.demand.DemandList.s82'),
+    key: 'approval',
+    width: 100,
+    render: (row: any) => h(NTag, { size: 'small', type: getApprovalType(row.approvalStatus) }, { default: () => getApprovalText(row.approvalStatus) }),
+  },
+  {
+    title: t('pages.demand.DemandList.s83'),
+    key: 'actions',
+    width: 130,
+    render: (row: any) => h('div', { class: 'cell-actions' }, [
+      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleCardClick(row) }, { default: () => t('pages.demand.DemandList.s9') }),
+      h(NButton, { text: true, size: 'small', onClick: () => handleEdit(row) }, { default: () => t('pages.demand.DemandList.s50') }),
+    ]),
+  },
+])
+
+// 抽屉宽度自适应
+const drawerWidth = ref(680)
+function syncDrawerWidth() {
+  drawerWidth.value = Math.min(1080, Math.max(720, Math.round(window.innerWidth * 0.72)))
 }
 
 const fetchDemands = async () => {
   loading.value = true
   try {
-    const params: any = {}
-    if (keyword.value) params.keyword = keyword.value
-    if (filterStatus.value) params.status = filterStatus.value
-
-    const res = await get('/demands/', params)
+    const res = await get('/demands/')
     if (res.data.success) {
       demands.value = (res.data.data || []).map(normalizeDemand)
     }
@@ -817,6 +1078,7 @@ const loadDemandFields = async () => {
 const handleCardClick = async (item: any) => {
   selectedDemand.value = item
   detailVisible.value = true
+  detailLoading.value = true
   dynamicValues.value = {}
   try {
     const res = await get(`/demands/${item.id}/`)
@@ -834,6 +1096,8 @@ const handleCardClick = async (item: any) => {
     dynamicValues.value = await getDynamicFieldValues('Demand', item.id)
   } catch (error) {
     dynamicValues.value = {}
+  } finally {
+    detailLoading.value = false
   }
 }
 
@@ -907,9 +1171,10 @@ const handleEdit = async (item: any) => {
   modalVisible.value = true
 }
 
-// ★ V3 §四P0 第5项 (T7.4)：卡片操作列下拉分发
-const onDemandRowAction = (key: string, item: any) => {
-  if (key === 'edit') handleEdit(item)
+// 卡片上的「提交审批」：先选中再提交
+const handleSubmitFromCard = (item: any) => {
+  selectedDemand.value = item
+  handleSubmitApproval()
 }
 
 const handleSave = async () => {
@@ -978,13 +1243,16 @@ const handleSubmitApproval = async () => {
   }
 }
 
-const handleSearch = () => fetchDemands()
-const handleFilter = () => fetchDemands()
-
 onMounted(() => {
   fetchDemands()
   fetchDepartments()
   loadDemandFields()
+  syncDrawerWidth()
+  window.addEventListener('resize', syncDrawerWidth)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncDrawerWidth)
 })
 </script>
 
@@ -1009,132 +1277,206 @@ onMounted(() => {
   margin: 0;
 }
 
-.demand-list {
-  display: flex;
-  flex-direction: column;
+/* KPI 条 */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* 工具条 */
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* 卡片网格 */
+.demand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
 }
 
 .demand-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: var(--space-3);
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: var(--space-4) 20px;
-  transition: all var(--duration-base) var(--ease-out);
-  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
 }
 
 .demand-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+  border-color: var(--brand-a22);
+}
+
+.demand-card:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .demand-card.selected {
   border-color: var(--brand);
 }
 
-.card-left {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  cursor: pointer;
-}
-
-.card-main {
-  flex: 1;
-}
-
-.card-title {
+.card-top {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: 6px;
 }
 
-/* v2 bugfix P0-B: #1890ff → var(--c-info) */
 .demand-code {
   color: var(--c-info);
   font-weight: 600;
-  font-size: var(--fs-14);
-}
-
-.status-tag {
-  margin-right: 0;
-}
-
-.demand-name {
-  font-size: var(--fs-15);
-  font-weight: 500;
-  color: var(--ink);
-  margin-bottom: 6px;
-}
-
-.demand-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
   font-size: var(--fs-13);
 }
 
-.meta-item .label {
-  color: var(--ink-faint);
+.priority-pill {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  line-height: 1.6;
 }
 
-.meta-item .value {
+.priority-pill--error {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+}
+
+.priority-pill--warning {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+
+.priority-pill--info {
+  background: var(--c-info-soft);
+  color: var(--c-info);
+}
+
+.priority-pill--default {
+  background: var(--g1);
   color: var(--ink-soft);
 }
 
-.card-stats {
-  display: flex;
-  align-items: center;
-  margin-left: 40px;
-  padding-left: 40px;
-  border-left: 1px solid var(--border-hairline);
+.card-top .status-tag {
+  margin-left: auto;
 }
 
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 48px;
-}
-
-.stat-value {
-  font-size: var(--fs-18);
+.card-title {
+  font-size: var(--fs-15);
   font-weight: 600;
   color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.stat-label {
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-13);
+  color: var(--ink-faint);
+}
+
+.card-meta .meta-dept {
+  color: var(--ink-soft);
+}
+
+.card-owner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-13);
+  color: var(--ink-faint);
+}
+
+.card-owner .owner-value,
+.card-owner .time-value {
+  color: var(--ink-soft);
+}
+
+.card-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.progress-text {
   font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
-/* v2 bugfix P0-B: #f0f0f0 → var(--border-hairline) */
-.stat-divider {
-  width: 1px;
-  height: 32px;
-  background: var(--border-hairline);
-  margin: 0 var(--space-4);
+.bar {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-input);
+  overflow: hidden;
 }
 
-.card-right {
+.bar > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--duration-base) var(--ease-out);
+}
+
+.card-actions {
   display: flex;
-  gap: var(--space-2);
-  margin-left: var(--space-6);
+  align-items: center;
+  gap: var(--space-3);
 }
 
-.loading-spinner {
+/* 表格视图 */
+.demand-table {
+  width: 100%;
+}
+
+.cell-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cell-code {
+  color: var(--c-info);
+  font-weight: 600;
+}
+
+/* 分页 */
+.pagination {
   display: flex;
   justify-content: center;
-  padding: 60px;
+  margin-top: var(--space-4);
+}
+
+/* 加载骨架 */
+.demand-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-4);
+}
+
+.skeleton-card {
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .empty-wrapper {
@@ -1143,10 +1485,82 @@ onMounted(() => {
   padding: 60px;
 }
 
-/* v2 bugfix P0-B: #1890ff → var(--c-info) */
+/* 抽屉 */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.drawer-header__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .drawer-code {
   color: var(--c-info);
   font-weight: 600;
+  font-size: var(--fs-13);
+  flex-shrink: 0;
+}
+
+.drawer-name {
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.drawer-skeleton {
+  padding: var(--space-2) 0;
+}
+
+.overview-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--glass-bg-input);
+  border-radius: var(--radius-sm);
+}
+
+.ov-num {
+  font-size: var(--fs-20);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ov-label {
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+}
+
+.overview-bar__progress {
+  grid-column: 1 / -1;
+}
+
+.rich-block {
+  margin-top: var(--space-2);
 }
 
 .detail-tabs :deep(.n-tabs-nav) {
@@ -1172,22 +1586,9 @@ onMounted(() => {
   color: var(--ink);
 }
 
-/* 编辑表单: 按表单设置分组渲染时的分组标题 (与详情页 section-title 风格一致) */
-.form-group-header {
-  font-size: var(--fs-14);
-  font-weight: 600;
-  color: var(--ink);
-  margin: var(--space-4) 0 var(--space-3);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-hairline);
-}
-.form-group-header:first-child {
-  margin-top: 0;
-}
-
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--space-3) var(--space-6);
 }
 
@@ -1195,6 +1596,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+.info-item--wide {
+  grid-column: 1 / -1;
 }
 
 .info-label {
@@ -1205,12 +1610,6 @@ onMounted(() => {
 .info-value {
   font-size: var(--fs-14);
   color: var(--ink);
-}
-
-/* v2 bugfix P0-B: #1890ff → var(--c-info) */
-.info-value.code {
-  color: var(--c-info);
-  font-weight: 500;
 }
 
 .progress-stats {
@@ -1225,7 +1624,7 @@ onMounted(() => {
   align-items: center;
   padding: var(--space-4);
   background: var(--glass-bg-input);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .stat-num {
@@ -1240,171 +1639,52 @@ onMounted(() => {
   margin-top: var(--space-1);
 }
 
-/* 职位画像样式 */
-.profile-section {
-  padding-bottom: var(--space-6);
-}
-
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: 20px;
-}
-
-.profile-title {
-  font-size: var(--fs-16);
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.profile-subtitle {
+.progress-caption {
   font-size: var(--fs-12);
   color: var(--ink-faint);
+  margin-top: var(--space-2);
 }
 
-.profile-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/* 编辑表单 */
+.form-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: var(--space-1);
 }
 
-/* v2 bugfix P0-C: #fafafa → var(--glass-bg-input) */
-.profile-block {
-  background: var(--glass-bg-input);
-  border-radius: 8px;
-  padding: var(--space-4);
-}
-
-.block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-3);
-}
-
-.block-title {
-  font-size: var(--fs-14);
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.block-items {
+.form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-5);
 }
 
-.profile-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.form-grid .form-item--wide {
+  grid-column: 1 / -1;
 }
 
-.item-icon {
+.form-group-header {
+  grid-column: 1 / -1;
   font-size: var(--fs-14);
-}
-
-.item-label {
-  font-size: var(--fs-13);
-  color: var(--ink-faint);
-  min-width: 70px;
-}
-
-.item-value {
-  font-size: var(--fs-13);
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.skills-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.no-data {
-  font-size: var(--fs-13);
-  color: var(--ink-faint);
-}
-
-.salary-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.salary-range {
-  display: flex;
-  align-items: center;
-}
-
-/* v2 bugfix P0-B: #1890ff → var(--c-info) */
-.salary-num {
-  font-size: var(--fs-20);
   font-weight: 600;
-  color: var(--c-info);
-}
-
-.salary-separator {
-  font-size: var(--fs-16);
-  color: var(--ink-faint);
-  margin: 0 var(--space-1);
-}
-
-.salary-unit {
-  font-size: var(--fs-13);
-  color: var(--ink-faint);
-}
-
-.bonus-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.bonus-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-13);
-  color: var(--ink-soft);
-}
-
-.bonus-icon {
-  font-size: var(--fs-12);
-}
-
-.location-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.location-icon {
-  font-size: var(--fs-14);
-}
-
-.location-text {
-  font-size: var(--fs-13);
   color: var(--ink);
+  margin: var(--space-4) 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
-/* === v2 响应式补丁 === */
-@media (max-width: 1280px) {
-  .demand-container { padding: var(--space-4); }
-  .page-title { font-size: var(--text-h2); }
-  :deep(.n-data-table-wrapper) {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+.form-group-header:first-child {
+  margin-top: 0;
 }
+
+.rich-editor-wrap {
+  max-height: 280px;
+  overflow: auto;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
-  .demand-container { padding: var(--space-3); }
-  .page-header { flex-direction: column; align-items: stretch; gap: var(--space-3); }
-  .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
-}
-@media (max-width: 480px) {
-  .stats-row { grid-template-columns: 1fr !important; }
+  .form-grid { grid-template-columns: 1fr; }
+  .overview-bar { grid-template-columns: repeat(2, 1fr); }
+  .progress-stats { flex-wrap: wrap; }
 }
 </style>
