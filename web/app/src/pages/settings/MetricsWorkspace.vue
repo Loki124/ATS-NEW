@@ -726,12 +726,32 @@ const templateModalTitle = computed(() =>
   templateEditId.value ? t('metrics.dialog.editTemplate') : t('metrics.dialog.createTemplate'),
 )
 
-const metricDefinitionOptions = computed(() =>
-  definitions.value.map((d) => ({
+const metricDefinitionOptions = computed<any[]>(() => {
+  const atomic = definitions.value.filter((d) => d.kind === 'atomic')
+  const derived = definitions.value.filter((d) => d.kind === 'derived')
+  const toOption = (d: MetricDefinition) => ({
     label: `${d.name}（${d.dataSource}）`,
     value: `${d.kind}:${d.id}`,
-  })),
-)
+  })
+  const groups: any[] = []
+  if (atomic.length) {
+    groups.push({
+      type: 'group',
+      label: t('metrics.tab.atomic'),
+      key: 'atomic',
+      children: atomic.map(toOption),
+    })
+  }
+  if (derived.length) {
+    groups.push({
+      type: 'group',
+      label: t('metrics.tab.derived'),
+      key: 'derived',
+      children: derived.map(toOption),
+    })
+  }
+  return groups
+})
 
 const selectedTemplateDefinition = computed<MetricDefinition | undefined>(() => {
   const key = tplForm.value.metricDefinition
