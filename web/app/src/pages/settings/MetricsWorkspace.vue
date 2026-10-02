@@ -50,10 +50,10 @@
                 :columns="defColumns"
                 :data="filteredDefinitions"
                 :row-props="defRowProps"
-                :scroll-x="860"
-                :flex-height="true"
-                size="small"
-                class="ws-table"
+              :scroll-x="860"
+              :max-height="tableMaxHeight"
+              size="small"
+              class="ws-table"
               />
             </n-spin>
           </div>
@@ -105,10 +105,10 @@
                 v-else
                 :columns="tplColumns"
                 :data="filteredTemplates"
-                :scroll-x="900"
-                :flex-height="true"
-                size="small"
-                class="ws-table"
+              :scroll-x="900"
+              :max-height="tableMaxHeight"
+              size="small"
+              class="ws-table"
               />
             </n-spin>
           </div>
@@ -401,7 +401,7 @@
  *   - 新增关键词搜索 + 分类/状态筛选，快速定位目标指标
  *   - 移除冗余只读提示横幅，减少信息干扰
  */
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NButton,
@@ -984,7 +984,26 @@ async function load() {
   }
 }
 
-onMounted(load)
+// ===== 兜底：用 JS 计算表格可用高度，避免 CSS flex 链在各种场景下塌缩导致数据不显示 =====
+const tableMaxHeight = ref(480)
+function updateTableMaxHeight() {
+  const wrap = document.querySelector('.metrics-ws .ws-table-wrap') as HTMLElement | null
+  if (wrap) {
+    const top = wrap.getBoundingClientRect().top
+    tableMaxHeight.value = Math.max(240, window.innerHeight - top - 24)
+  } else {
+    tableMaxHeight.value = Math.max(240, window.innerHeight - 240)
+  }
+}
+
+onMounted(() => {
+  load()
+  updateTableMaxHeight()
+  window.addEventListener('resize', updateTableMaxHeight)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', updateTableMaxHeight)
+})
 </script>
 
 <style scoped>
