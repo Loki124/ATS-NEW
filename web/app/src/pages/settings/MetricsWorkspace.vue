@@ -33,11 +33,6 @@
               />
               <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
             </div>
-
-            <div class="ws-legend">
-              <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
-              <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
-            </div>
           </div>
 
           <div class="ws-table-wrap">
@@ -86,11 +81,6 @@
                 {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
               </n-button>
             </div>
-
-            <div class="ws-legend">
-              <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
-              <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
-            </div>
           </div>
 
           <div class="ws-table-wrap">
@@ -121,79 +111,84 @@
       v-model:show="detailVisible"
       preset="card"
       :title="detailRow ? detailRow.name : ''"
-      style="width: 640px; max-width: 92vw;"
+      style="width: 680px; max-width: 92vw;"
       :mask-closable="true"
     >
       <template v-if="detailRow">
-        <div class="detail-grid">
-          <div class="detail-cell detail-head-cell">
-            <div class="cell-label">{{ t('metrics.col.type') }}</div>
-            <div class="cell-value ws-kind-line">
+        <!-- 顶部 Hero：类型徽标 + 入参/出参 -->
+        <div class="dm-hero">
+          <span class="dm-eyebrow">{{ t('metrics.tab.definitions') }}</span>
+          <div class="dm-hero-row">
+            <span class="dm-kind-badge" :class="kindClass(detailRow)">
               <KindIcon :kind="detailRow.kind" :size="18" />
-              <span :class="['ws-kind-text', kindClass(detailRow)]">{{ kindLabel(detailRow) }}</span>
-            </div>
-          </div>
-          <div class="detail-cell detail-cell-wide">
-            <div class="cell-label">{{ t('metrics.col.dataSource') }}</div>
-            <div class="cell-value">
-              <code class="ws-code">{{ detailRow.dataSource }}</code>
-            </div>
-          </div>
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.inOutType') }}</div>
-            <div class="cell-value">{{ inOutLabel(detailRow) }}</div>
-          </div>
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.operators') }}</div>
-            <div class="cell-value">
-              <div class="ws-ops">
-                <span v-for="op in (detailRow.supportedOperators || [])" :key="op" class="ws-op-tag">
-                  {{ operatorLabel(op) }}
-                </span>
-                <span v-if="!(detailRow.supportedOperators || []).length" class="ws-muted">-</span>
-              </div>
-            </div>
-          </div>
-          <div v-if="detailRow.isEnum" class="detail-cell detail-cell-wide">
-            <div class="cell-label">{{ t('metrics.col.enumValues') }}</div>
-            <div class="cell-value">
-              <div class="ws-ops">
-                <span v-for="ev in enumValuesOf(detailRow)" :key="ev" class="ws-enum-tag">{{ ev }}</span>
-                <span v-if="!enumValuesOf(detailRow).length" class="ws-muted">-</span>
-              </div>
-            </div>
-          </div>
-          <div v-if="detailRow.description" class="detail-cell detail-cell-wide">
-            <div class="cell-label">{{ t('metrics.form.description') }}</div>
-            <div class="cell-value">{{ detailRow.description }}</div>
-          </div>
-          <div v-if="hasEditableParams" class="detail-cell detail-cell-wide detail-params-block">
-            <div class="cell-label">{{ t('metrics.detail.paramsTitle') }}</div>
-            <div class="detail-params-form">
-              <div v-for="p in detailRow.paramSchema" :key="p.key" class="detail-param-row">
-                <span class="param-label">{{ p.label }}</span>
-                <n-input-number
-                  v-if="p.type === 'number'"
-                  v-model:value="detailParams[p.key]"
-                  :min="0"
-                  class="param-input"
-                />
-                <n-select
-                  v-else-if="p.type === 'select'"
-                  v-model:value="detailParams[p.key]"
-                  :options="(p.options || []).map((o: any) => ({ label: o.label, value: o.value }))"
-                  class="param-input"
-                />
-                <n-switch v-else-if="p.type === 'boolean'" v-model:value="detailParams[p.key]" />
-                <n-input v-else v-model:value="detailParams[p.key]" class="param-input" />
-                <span v-if="p.key === 'recent_n'" class="param-hint">{{ t('metrics.detail.recentNHint') }}</span>
-              </div>
-            </div>
-            <n-button type="primary" size="small" :loading="savingParams" @click="saveDerivedParams">
-              {{ t('metrics.detail.saveParams') }}
-            </n-button>
+              {{ kindLabel(detailRow) }}
+            </span>
+            <span class="dm-meta-chip">
+              <span class="dm-meta-k">{{ t('metrics.col.inOutType') }}</span>
+              <span class="dm-meta-v">{{ inOutLabel(detailRow) }}</span>
+            </span>
           </div>
         </div>
+
+        <!-- 数据源 -->
+        <section class="dm-section">
+          <div class="dm-section-label">{{ t('metrics.col.dataSource') }}</div>
+          <code class="ws-code dm-source">{{ detailRow.dataSource }}</code>
+        </section>
+
+        <!-- 支持的算子 -->
+        <section class="dm-section">
+          <div class="dm-section-label">{{ t('metrics.col.operators') }}</div>
+          <div class="ws-ops">
+            <span v-for="op in (detailRow.supportedOperators || [])" :key="op" class="ws-op-tag">
+              {{ operatorLabel(op) }}
+            </span>
+            <span v-if="!(detailRow.supportedOperators || []).length" class="ws-muted">-</span>
+          </div>
+        </section>
+
+        <!-- 枚举取值 -->
+        <section v-if="detailRow.isEnum" class="dm-section">
+          <div class="dm-section-label">{{ t('metrics.col.enumValues') }}</div>
+          <div class="ws-ops">
+            <span v-for="ev in enumValuesOf(detailRow)" :key="ev" class="ws-enum-tag">{{ ev }}</span>
+            <span v-if="!enumValuesOf(detailRow).length" class="ws-muted">-</span>
+          </div>
+        </section>
+
+        <!-- 说明 -->
+        <section v-if="detailRow.description" class="dm-section">
+          <div class="dm-section-label">{{ t('metrics.form.description') }}</div>
+          <p class="dm-desc">{{ detailRow.description }}</p>
+        </section>
+
+        <!-- 参数配置（参数化 Handler） -->
+        <section v-if="hasEditableParams" class="dm-section dm-params">
+          <div class="dm-section-label">{{ t('metrics.detail.paramsTitle') }}</div>
+          <div class="detail-params-form">
+            <div v-for="p in detailRow.paramSchema" :key="p.key" class="detail-param-row">
+              <span class="param-label">{{ p.label }}</span>
+              <n-input-number
+                v-if="p.type === 'number'"
+                v-model:value="detailParams[p.key]"
+                :min="0"
+                class="param-input"
+              />
+              <n-select
+                v-else-if="p.type === 'select'"
+                v-model:value="detailParams[p.key]"
+                :options="(p.options || []).map((o: any) => ({ label: o.label, value: o.value }))"
+                class="param-input"
+              />
+              <n-switch v-else-if="p.type === 'boolean'" v-model:value="detailParams[p.key]" />
+              <n-input v-else v-model:value="detailParams[p.key]" class="param-input" />
+              <span v-if="p.key === 'recent_n'" class="param-hint">{{ t('metrics.detail.recentNHint') }}</span>
+            </div>
+          </div>
+          <n-button type="primary" size="small" :loading="savingParams" @click="saveDerivedParams">
+            {{ t('metrics.detail.saveParams') }}
+          </n-button>
+        </section>
       </template>
     </n-modal>
 
@@ -1098,22 +1093,6 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
-/* ===== 图例（原子 / 派生 类型说明） ===== */
-.ws-legend {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
-  flex-wrap: wrap;
-}
-.ws-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-small, 13px);
-  color: var(--ink-soft);
-}
-
 /* ===== 数据表（替代卡片网格） ===== */
 .ws-table {
   width: 100%;
@@ -1174,45 +1153,95 @@ onUnmounted(() => {
   color: var(--c-success-deep);
   white-space: nowrap;
 }
-.ws-kind-line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.ws-kind-text {
-  font-size: var(--text-base, 15px);
-  font-weight: 600;
-  color: var(--ink);
-}
 .ws-ops { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .ws-muted { color: var(--ink-faint); font-size: var(--text-small, 13px); }
 
-/* 详情弹窗 */
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-3);
+/* 详情弹窗（redesign 2026-10-03）：技术规格书式布局 */
+.dm-hero {
+  position: relative;
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--brand-a12), transparent 72%);
+  border: 1px solid var(--brand-a22);
+  overflow: hidden;
   animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
 }
-.detail-cell {
+.dm-eyebrow {
+  display: block;
+  font-size: var(--fs-12);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-text);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+.dm-hero-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.dm-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-base, 15px);
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+}
+.dm-kind-badge.is-atomic { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
+.dm-kind-badge.is-derived { color: var(--brand-grad-a); border-color: color-mix(in srgb, var(--brand-grad-a) 30%, transparent); }
+.dm-meta-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
   background: var(--g1);
   border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
 }
-.detail-cell-wide { grid-column: 1 / -1; }
-.cell-label {
+.dm-meta-k { color: var(--ink-faint); font-size: var(--fs-12); }
+.dm-meta-v { color: var(--ink); font-size: var(--text-base, 15px); font-weight: 600; }
+
+.dm-section {
+  position: relative;
+  padding: var(--space-4);
+  padding-left: calc(var(--space-4) + 10px);
+  margin-bottom: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
+}
+.dm-section:hover {
+  border-color: color-mix(in srgb, var(--brand) 30%, transparent);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+.dm-params { border-left-color: var(--c-warning); }
+.dm-params:hover { border-color: color-mix(in srgb, var(--c-warning) 45%, transparent); }
+.dm-section-label {
   color: var(--ink-faint);
   font-size: var(--fs-12);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-2);
 }
-.cell-value {
+.dm-source {
+  display: inline-block;
+  max-width: 100%;
+  font-size: var(--fs-13, 13px);
+}
+.dm-desc {
+  margin: 0;
   color: var(--ink);
   font-size: var(--text-small, 13px);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* 详情弹窗：参数化 Handler 的参数编辑区 */
@@ -1343,7 +1372,6 @@ onUnmounted(() => {
 .tpl-step-field :deep(.n-form-item-label) { font-size: var(--fs-12); }
 
 @media (max-width: 768px) {
-  .detail-grid { grid-template-columns: 1fr; }
   .tpl-section-hint { margin-left: 0; width: 100%; }
   .tpl-output-hint { margin-left: 0; width: 100%; }
 }
