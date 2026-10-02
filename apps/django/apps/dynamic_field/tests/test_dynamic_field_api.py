@@ -10,7 +10,7 @@
 import pytest
 from rest_framework.test import APIClient
 
-from apps.dynamic_field.models import DynamicField
+from apps.dynamic_field.models import DynamicField, DynamicFieldValue
 
 RESOURCE = 'Candidate'
 LIST_URL = f'/api/v1/dynamic-fields/{RESOURCE}/fields/'
@@ -315,3 +315,63 @@ class TestReorderAndAuth:
         anonymous = APIClient()
         resp = getattr(anonymous, method)(url_factory(), {}, format='json')
         assert resp.status_code == 401, resp.content
+
+
+# --- 场景: 软删守卫 (2026-10-02, 兵哥) ----------------------------------------
+# 字段仍含 DynamicFieldValue 录入值时禁止软删, 阻断「软删+重建」导致的孤儿化数据丢失。
+
+
+@pytest.mark.django_db
+class TestSoftDeleteGuard:
+    """DELETE /dynamic-fields/<resource>/fields/<id>/ 的数据防丢守卫。"""
+
+    def test_delete_field_without_values_succeeds(self, client):
+        """无录入值的字段 → 204 软删成功。"""
+        f = DynamicField.objects.create(
+            resource=RESOURCE, field_key='orphan_free',
+            label='无值字段', field_type=DynamicField.FieldType.TEXT, order_index=0,
+        )
+        resp = client.delete(detail_url(f.id))
+        assert resp.status_code == 204, resp.content
+        f.refresh_from_db()
+        assert f.deleted_at is not None
+
+    def test_delete_field_with_values_is_blocked(self, client):
+        """仍含录入值的字段 → 400 拦截, 字段与数据均完好。"""
+        f = DynamicField.objects.create(
+            resource=RESOURCE, field_key='has_value',
+            label='有值字段', field_type=DynamicField.FieldType.TEXT, order_index=0,
+        )
+        DynamicFieldValue.objects.create(
+            resource=RESOURCE, entity_id='ent_1', field_key='has_value', value='x',
+        )
+        DynamicFieldValue.objects.create(
+            resource=RESOURCE, entity_id='ent_2', field_key='has_value', value='y',
+        )
+        resp = client.delete(detail_url(f.id))
+        assert resp.status_code == 400, resp.content
+        body = resp.json()
+        assert '录入值' in str(body)
+        # 守卫生效: 字段未被软删, 录入值完整保留
+        f.refresh_from_db()
+        assert f.deleted_at is None
+        assert DynamicFieldValue.objects.filter(resource=RESOURCE, field_key='has_value').count() == 2
+
+    def test_delete_field_with_value_message_has_counts(self, client):
+        """拦截信息须含录入值条数与涉及实体数, 让用户知道影响面。"""
+        f = DynamicField.objects.create(
+            resource=RESOURCE, field_key='msg_value',
+            label='计数字段', field_type=DynamicField.FieldType.TEXT, order_index=0,
+        )
+        DynamicFieldValue.objects.create(
+            resource=RESOURCE, entity_id='e_a', field_key='msg_value', value='1',
+        )
+        DynamicFieldValue.objects.create(
+            resource=RESOURCE, entity_id='e_b', field_key='msg_value', value='2',
+        )
+        resp = client.delete(detail_url(f.id))
+        assert resp.status_code == 400, resp.content
+        body = resp.json()
+        text = str(body)
+        assert '2 条录入值' in text
+        assert '2 个' in text

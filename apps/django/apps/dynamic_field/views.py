@@ -368,6 +368,26 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         field_key = instance.field_key
         resource = instance.resource
 
+        # 2026-10-02 (兵哥): 数据防丢守卫 — 字段仍含录入值时禁止软删,
+        # 阻断「软删+重建」导致的 DynamicFieldValue 孤儿化(历史数据不可恢复)。
+        # 根因见需求详情回显审计: 工作职责/任职资格 因字段定义 churn 丢失全部录入值。
+        value_count = DynamicFieldValue.objects.filter(
+            resource=resource, field_key=field_key
+        ).count()
+        if value_count > 0:
+            entity_count = (
+                DynamicFieldValue.objects
+                .filter(resource=resource, field_key=field_key)
+                .values('entity_id').distinct().count()
+            )
+            raise drf_serializers.ValidationError({
+                'detail': (
+                    f'字段「{instance.label}」仍被 {value_count} 条录入值引用'
+                    f'（涉及 {entity_count} 个{resource}实体），不可直接删除。'
+                    f'请先清空或迁移这些录入值后再删除，以免历史数据丢失。'
+                )
+            })
+
         instance.soft_delete()
 
         rules = FieldLinkageRule.objects.filter(
