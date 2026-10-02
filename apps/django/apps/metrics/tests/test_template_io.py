@@ -177,6 +177,31 @@ class TestTemplateImport:
         assert tpl.status == 'disabled'
         assert tpl.description == '更新说明'
 
+    def test_import_update_switches_metric_kind(self, admin_client):
+        """mode=update 把已存在模板的引用指标从原子切到派生时，必须清空对立 FK，避免双引用。
+
+        「性别」模板由迁移 0018 seed（引用原子指标「性别」，derived_metric 为空）；
+        导入模式=update、引用派生指标「跳槽频率」、指标类型=派生，应：
+          - atomic_metric_id 置空、derived_metric_id 非空（恰好一个 FK，满足 clean()）
+          - update 计数 +1
+        """
+        content = _xlsx_bytes([
+            TEMPLATE_HEADERS,
+            ['性别', '派生', '跳槽频率', 'GTE', '', '否', '启用', '切到派生'],
+        ])
+        resp = admin_client.post(
+            '/api/v1/metrics/templates/import/',
+            {'file': _build_upload(content, 'x.xlsx'), 'mode': 'update'},
+            format='multipart',
+        )
+        assert resp.status_code == 200, resp.content
+        body = resp.json()
+        assert body['data']['updated'] == 1
+        tpl = MetricTemplate.objects.get(name='性别')
+        assert tpl.atomic_metric_id is None
+        assert tpl.derived_metric_id is not None
+        assert tpl.operators == ['GTE']
+
     def test_import_error_mode_rejects_duplicate(self, admin_client, setup_templates):
         content = _xlsx_bytes([
             TEMPLATE_HEADERS,

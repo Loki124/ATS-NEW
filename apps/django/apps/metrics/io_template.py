@@ -629,6 +629,10 @@ def import_templates(user, file_obj, mode, filename='', request=None):
                     skipped += 1
                     continue
                 setattr(existing, info['fk_field'], info['fk_value'])
+                # 切换引用指标类型（原子↔派生）时，必须清空对立 FK，
+                # 否则会残留 atomic_metric 与 derived_metric 同时非空，违反 clean()「恰好一个 FK」。
+                opposite_fk = 'derived_metric' if info['fk_field'] == 'atomic_metric' else 'atomic_metric'
+                setattr(existing, opposite_fk, None)
                 existing.operators = info['operators']
                 existing.param_enums = info['param_enums']
                 existing.param_allow_null = info['allow_null']
@@ -636,7 +640,7 @@ def import_templates(user, file_obj, mode, filename='', request=None):
                 existing.description = info['description']
                 existing.updated_by = user
                 existing.save(update_fields=[
-                    info['fk_field'], 'operators', 'param_enums',
+                    'atomic_metric', 'derived_metric', 'operators', 'param_enums',
                     'param_allow_null', 'status', 'description', 'updated_at',
                 ])
                 updated += 1
