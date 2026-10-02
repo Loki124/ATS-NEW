@@ -319,6 +319,15 @@ class ProcessStageLink(FullAuditModel):
     # 流程内显示名（覆盖 stage.name，满足「可修改名称」需求；全局 stage 名不受影响）
     custom_name = models.CharField(max_length=20, blank=True, default='', verbose_name='流程内显示名(覆盖)')
 
+    # 阶段限时（小时）：0 表示不限时。FE 用 stageLimit(>0) 配置某流程内某阶段的停留时限，
+    # 例如 72 表示 72h。此前后端无此字段，FE 发出的 stageLimit 被 ModelSerializer 静默丢弃，
+    # 「阶段限时」功能从未真正落库（2026-10-02 修复：补模型字段 + 序列化器 + 迁移）。
+    stage_limit = models.PositiveIntegerField(
+        default=0, blank=True,
+        verbose_name='阶段限时(小时)',
+        help_text='0 表示不限时',
+    )
+
     # V4 新增：进入条件规则列表（保留为 JSON 缓存以提速）
     entry_rule_expression = models.CharField(
         max_length=500, blank=True,

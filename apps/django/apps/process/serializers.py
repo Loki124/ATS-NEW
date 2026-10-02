@@ -331,7 +331,7 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         model = ProcessStageLink
         fields = [
             'id', 'process', 'process_id', 'stage', 'stage_id',
-            'order', 'is_required', 'is_mandatory', 'custom_name', 'display_name',
+            'order', 'is_required', 'is_mandatory', 'custom_name', 'stage_limit', 'display_name',
             'entry_rule_expression', 'entry_condition',
             'stage_rule',
             'created_at', 'updated_at',
