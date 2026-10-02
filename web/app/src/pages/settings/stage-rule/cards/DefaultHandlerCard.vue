@@ -50,14 +50,22 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { NIcon, NSelect } from 'naive-ui'
 import { PersonOutline } from '@vicons/ionicons5'
 import { HANDLER_SOURCE_OPTIONS, HANDLER_RULE_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
 const { t } = useI18n()
 
-const props = defineProps<{ form: StageRuleFormState }>()
+const props = defineProps<{
+  form: StageRuleFormState
+  /** 需求(Demand)资源下 fieldType=PERSON 的真实字段（listFields 过滤，父组件在弹窗每次打开时刷新） */
+  demandPersonFields?: any[]
+  /** 职位(Position)资源下 fieldType=PERSON 的真实字段（同上） */
+  positionPersonFields?: any[]
+  /** 系统真实用户列表（listUsers，「指定人」来源时选真人，随数据源实时更新） */
+  userOptions?: any[]
+}>()
 
 const emit = defineEmits<{
   (e: 'update:defaultHandlerType', v: StageRuleFormState['defaultHandlerType']): void
@@ -68,36 +76,33 @@ const emit = defineEmits<{
 const sourceOptions = HANDLER_SOURCE_OPTIONS
 const ruleOptions = HANDLER_RULE_OPTIONS
 
-// === 按 HTML 原型 + 设计文档 §3.2.3 联动映射 ===
-const FIELD_BY_SOURCE: Record<string, { label: string; value: string }[]> = {
-  FROM_DEMAND: [
-    { label: 'HRBP', value: 'HRBP' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s6'), value: 'HIRING_MANAGER' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s7'), value: 'HIRING_MANAGER_SUPER' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s8'), value: 'PRESIDENT' },
-    { label: 'VP', value: 'VP' },
-  ],
-  FROM_POSITION: [
-    { label: 'HRBP', value: 'HRBP' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s9'), value: 'HIRING_MANAGER' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s10'), value: 'HIRING_MANAGER_SUPER' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s11'), value: 'PRESIDENT' },
-    { label: 'VP', value: 'VP' },
-  ],
-  CUSTOM: [
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s12'), value: 'liu_xingxing' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s13'), value: 'zhang_san' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s14'), value: 'li_si' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s15'), value: 'wang_wu' },
-    { label: t('pages.settings.stage-rule.cards.DefaultHandlerCard.s16'), value: 'zhao_liu' },
-  ],
-  NONE: [],
-}
+// === 严禁 mock/硬编码：取值字段选项实时映射自真实数据源（文档 §3.2.3 联动语义） ===
+//  - 需求中/职位中 → 动态字段定义中「人员(PERSON)」型字段（label=字段名，value=fieldKey，
+//    与后端 StageRule.default_handler_fields 的 help_text「如 hiring_manager」字段 key 语义一致）
+//  - 指定人(CUSTOM) → 系统真实用户（label=姓名/账号，value=user id，写入 default_handler_user_ids）
+const fieldOptions = computed(() => {
+  switch (props.form.defaultHandlerType) {
+    case 'FROM_DEMAND':
+      return (props.demandPersonFields ?? []).map((f: any) => ({ label: f.label, value: f.fieldKey }))
+    case 'FROM_POSITION':
+      return (props.positionPersonFields ?? []).map((f: any) => ({ label: f.label, value: f.fieldKey }))
+    case 'CUSTOM':
+      return (props.userOptions ?? []).map((u: any) => ({ label: u.realName || u.username || u.id, value: u.id }))
+    default:
+      return []
+  }
+})
 
-/** 数据来源 → 取值字段（CUSTOM 走用户列表，其他走字段；NONE 禁用） */
-const fieldOptions = computed(() => FIELD_BY_SOURCE[props.form.defaultHandlerType] || [])
-const fieldValue = computed(() => props.form.defaultHandlerFields[0] || null)
-const ruleValue = computed(() => props.form.defaultHandlerUserIds[0] || null)
+/** 指定人(CUSTOM)：选中项进 defaultHandlerUserIds；字段来源：字段 key 进 defaultHandlerFields */
+const fieldValue = computed(() => {
+  if (props.form.defaultHandlerType === 'CUSTOM') return props.form.defaultHandlerUserIds[0] || null
+  return props.form.defaultHandlerFields[0] || null
+})
+
+/** 处理规则为静态 UI 规则选项（后端 processing_rule 枚举的展示映射，非业务数据）。
+ * 仅本地 UI 态，不落库——原实现误绑 defaultHandlerUserIds，会与「指定人」选择互相覆盖。 */
+const ruleValue = ref<string | null>(null)
+
 /** 文档 §3.2.3：NONE 禁用「取值字段」+「处理规则」 */
 const isFieldDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
 const isRuleDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
@@ -105,13 +110,18 @@ const isRuleDisabled = computed(() => props.form.defaultHandlerType === 'NONE')
 function onSource(v: StageRuleFormState['defaultHandlerType']) {
   emit('update:defaultHandlerType', v)
   emit('update:defaultHandlerFields', [])
-  if (v !== 'CUSTOM') emit('update:defaultHandlerUserIds', [])
+  emit('update:defaultHandlerUserIds', [])
+  ruleValue.value = null
 }
 function onField(v: string | null) {
-  emit('update:defaultHandlerFields', v ? [v] : [])
+  if (props.form.defaultHandlerType === 'CUSTOM') {
+    emit('update:defaultHandlerUserIds', v ? [v] : [])
+  } else {
+    emit('update:defaultHandlerFields', v ? [v] : [])
+  }
 }
 function onRule(v: string | null) {
-  emit('update:defaultHandlerUserIds', v ? [v] : [])
+  ruleValue.value = v
 }
 </script>
 

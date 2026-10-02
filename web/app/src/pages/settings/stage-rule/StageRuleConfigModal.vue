@@ -48,11 +48,15 @@
           />
           <DefaultHandlerCard
             :form="form"
+            :demand-person-fields="demandPersonFields"
+            :position-person-fields="positionPersonFields"
+            :user-options="handlerUserOptions"
             @update:default-handler-type="(v: any) => (form.defaultHandlerType = v)"
             @update:default-handler-fields="(v: string[]) => (form.defaultHandlerFields = v)"
             @update:default-handler-user-ids="(v: string[]) => (form.defaultHandlerUserIds = v)"
           />
-          <InterviewConfigCard :form="form" />
+          <!-- 仅面试型阶段（stageType=INTERVIEW）渲染面试配置；轮次数据由真实数据源 listRounds 提供 -->
+          <InterviewConfigCard v-if="isInterviewStage" :form="form" :rounds="interviewRounds" />
           <AutomationCard
             :form="form"
             :skip-rules="skipRules"
@@ -105,6 +109,9 @@ import SkipRuleEditModal from './modals/SkipRuleEditModal.vue'
 import ArchiveRuleEditModal from './modals/ArchiveRuleEditModal.vue'
 import StoppedRulesModal from './modals/StoppedRulesModal.vue'
 import { useStageRuleForm } from './composables/useStageRuleForm'
+import { listRounds } from '../../../api/recruitment-process'
+import { listFields } from '../../../api/dynamic-field'
+import { listUsers } from '../../../api/users'
 import type { EntryConditionRule, SkipRule, ArchiveRule } from './types'
 const { t } = useI18n()
 
@@ -132,6 +139,38 @@ const skipModal = ref<InstanceType<typeof SkipRuleEditModal>>()
 const archiveModal = ref<InstanceType<typeof ArchiveRuleEditModal>>()
 const stoppedModal = ref<InstanceType<typeof StoppedRulesModal>>()
 
+/** 面试配置模块仅对「面试型」阶段渲染（判断标准与 ProcessStageRules.vue 一致：stageType === 'INTERVIEW'） */
+const isInterviewStage = computed(() => (props.stage as any)?.stageType === 'INTERVIEW')
+
+/** 面试轮次真实数据源（GET 面试轮次列表，同「面试轮次管理」页 listRounds）。
+ * 每次打开弹窗重新拉取，保证配置内容随数据源实时更新；拉取失败给空列表（子组件渲染空态）。 */
+const interviewRounds = ref<any[]>([])
+async function loadRounds() {
+  try {
+    interviewRounds.value = await listRounds()
+  } catch {
+    interviewRounds.value = []
+  }
+}
+
+/** 默认处理人真实数据源（严禁 mock/硬编码，与面试轮次同策略：每次打开弹窗重新拉取，失败降级空列表）。
+ *  - 需求/职位资源下「人员(PERSON)」型动态字段（GET /dynamic-fields/{resource}/fields/，同动态字段设置页 listFields）
+ *  - 系统真实用户列表（GET /users，同选人场景 listUsers；自带失败降级空数组） */
+const demandPersonFields = ref<any[]>([])
+const positionPersonFields = ref<any[]>([])
+const handlerUserOptions = ref<any[]>([])
+async function loadHandlerData() {
+  const pickPerson = (list: any) => (Array.isArray(list) ? list : []).filter((f: any) => f?.fieldType === 'PERSON')
+  const [demand, position, users] = await Promise.all([
+    listFields('Demand').catch(() => []),
+    listFields('Position').catch(() => []),
+    listUsers(),
+  ])
+  demandPersonFields.value = pickPerson(demand)
+  positionPersonFields.value = pickPerson(position)
+  handlerUserOptions.value = Array.isArray(users) ? users : []
+}
+
 /** 字段字典来自真实后端 GET /api/v1/expressions/fields；后端不可用时给空目录，由子组件渲染空态 */
 const activeCatalog = computed(() => catalog.value ?? { sources: [], operators: {} })
 
@@ -141,6 +180,8 @@ watch(
     if (v && props.linkId) {
       entryEnabled.value = true
       void load(props.linkId)
+      void loadRounds()
+      void loadHandlerData()
     }
   },
 )

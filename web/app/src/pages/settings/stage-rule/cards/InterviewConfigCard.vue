@@ -14,10 +14,10 @@
 
     <!-- 面试轮次 + 面试形式 横排（HTML 原型 .flow-condition-row 双列并排） -->
     <div class="flow-condition-row">
-      <!-- 面试轮次 -->
+      <!-- 面试轮次：选项来自「面试轮次管理」真实数据源（父组件传入），随数据源实时更新 -->
       <div class="flow-field">
         <label class="field-label">{{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s2') }}</label>
-        <div class="option-grid">
+        <div v-if="roundOptions.length" class="option-grid">
           <label v-for="opt in roundOptions" :key="opt.value" class="opt-item">
             <input
               type="checkbox"
@@ -27,6 +27,7 @@
             <span>{{ opt.label }}</span>
           </label>
         </div>
+        <p v-else class="option-empty">{{ t('pages.settings.stage-rule.cards.InterviewConfigCard.s5') }}</p>
       </div>
 
       <!-- 面试形式 -->
@@ -48,15 +49,23 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
 import { ClipboardOutline } from '@vicons/ionicons5'
-import { INTERVIEW_ROUND_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from '../constants'
+import { INTERVIEW_FORMAT_OPTIONS } from '../constants'
 import type { StageRuleFormState } from '../types'
 const { t } = useI18n()
 
-const props = defineProps<{ form: StageRuleFormState }>()
-const roundOptions = INTERVIEW_ROUND_OPTIONS
+const props = defineProps<{
+  form: StageRuleFormState
+  /** 面试轮次真实数据源（listRounds 返回，同「面试轮次管理」页），父组件在弹窗每次打开时刷新 */
+  rounds?: any[]
+}>()
+
+// 严禁 mock/硬编码：轮次选项实时映射自真实数据源（label=轮次名称，value=轮次 id，
+// 与 form.interviewRoundIds 及 ProcessStageRules.vue 老页面的存储格式一致）
+const roundOptions = computed(() => (props.rounds ?? []).map((r: any) => ({ label: r.name, value: r.id })))
 const formatOptions = INTERVIEW_FORMAT_OPTIONS
 
 function isOn(list: string[], v: string) {
@@ -118,6 +127,12 @@ function toggle(list: string[], v: string, checked: boolean) {
   transition: color var(--duration-fast) var(--ease-out);
 }
 .opt-item:hover { color: var(--brand); }
+.option-empty {
+  margin: 2px 0 0;
+  font-size: var(--fs-13);
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
 .opt-item input[type="checkbox"] {
   width: 14px;
   height: 14px;

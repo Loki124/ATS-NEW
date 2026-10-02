@@ -55,14 +55,8 @@ export const AUTO_ADVANCE_TIMING_OPTIONS = [
   { label: '延迟执行', value: 'DELAYED' },
 ]
 
-/** Card 3 面试轮次静态选项（与后端枚举对齐；后续可由 dictionary-items?type_code=interview_round 动态提供） */
-export const INTERVIEW_ROUND_OPTIONS = [
-  { label: '联合面试', value: 'JOINT' },
-  { label: '综合面试', value: 'COMPREHENSIVE' },
-  { label: '初试', value: 'FIRST' },
-  { label: '复试', value: 'SECOND' },
-  { label: '终试', value: 'FINAL' },
-]
+/** Card 3 面试轮次：已改为真实数据源动态获取（listRounds → InterviewConfigCard），
+ * 静态硬编码选项已删除（2026-10-02 兵哥：严禁 mock/硬编码）。 */
 
 /** Card 3 面试形式静态选项（与后端枚举对齐；后续可由 dictionary-items?type_code=interview_mode 动态提供） */
 export const INTERVIEW_FORMAT_OPTIONS = [
