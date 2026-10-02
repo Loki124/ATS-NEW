@@ -12,6 +12,7 @@ from typing import Dict, List
 
 from django.db import transaction
 
+from .attribute_fields import attribute_fields_for
 from .expr_compiler import validate_scope_payload
 from .field_map import (
     DIMENSION_META,
@@ -151,5 +152,6 @@ def options_payload() -> Dict:
             'moduleKey': mk,
             'label': MODULE_LABELS[mk],
             'dimensions': dim_metas,
+            'attributeFields': attribute_fields_for(mk),
         })
     return {'modules': modules}

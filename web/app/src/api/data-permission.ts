@@ -15,17 +15,45 @@ import { api } from '../utils/request'
 export type DataPermMode = 'none' | 'all' | 'scope';
 export type Operator = 'in' | 'not_in';
 
+/** 属性条件的运算符（UnifiedOperator 取值）。 */
+export type AttrOperator =
+  | 'EQ' | 'NEQ' | 'GT' | 'GTE' | 'LT' | 'LTE'
+  | 'BETWEEN' | 'IN' | 'NOT_IN' | 'IS_EMPTY' | 'IS_NOT_EMPTY';
+
 export interface PermValue {
   id: string | number;
   label: string;
   stale?: boolean;
 }
 
+/** 属性条件：运算符选项（中文标签，来自后端 attributeFields）。 */
+export interface AttrOperatorOption {
+  value: string;
+  label: string;
+}
+
+/** 属性条件：可配置字段（来自后端 attributeFields，全中文）。 */
+export interface AttributeField {
+  sourcePath: string;
+  name: string;
+  dataType: 'number' | 'enum' | 'boolean';
+  enumValues: PermValue[];
+  operators: AttrOperatorOption[];
+}
+
 export interface PermCondition {
   id: string;
-  dimension: string;
-  operator: Operator;
-  values: PermValue[];
+  /** 条件类型：关系维度（默认）或 属性条件。 */
+  kind?: 'relationship' | 'attribute';
+  // 关系维度
+  dimension?: string;
+  operator: string;
+  values?: PermValue[];
+  // 属性条件（复用指标目录标量字段，右值=字面量）
+  field?: string;
+  fieldName?: string; // 中文字段名（UI 选定后回填，便于预览句渲染）
+  value?: unknown;
+  meta?: { min?: number | null; max?: number | null };
 }
 
 export interface PermConditionGroup {
@@ -58,6 +86,7 @@ export interface ModuleOption {
   moduleKey: string;
   label: string;
   dimensions: DimensionMeta[];
+  attributeFields: AttributeField[];
 }
 
 // ===== API =====

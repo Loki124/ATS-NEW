@@ -35,6 +35,18 @@ export const DIMENSION_LABELS: Record<string, string> = {
   process: '招聘流程',
 };
 
+/** 属性条件运算符 -> 中文标签（与后端 attribute_fields.UNIFIED_OPERATOR_LABELS 对齐）。 */
+export const ATTRIBUTE_OP_LABELS: Record<string, string> = {
+  EQ: '等于', NEQ: '不等于', GT: '大于', GTE: '大于等于',
+  LT: '小于', LTE: '小于等于', BETWEEN: '区间',
+  IN: '属于', NOT_IN: '不属于', IS_EMPTY: '为空', IS_NOT_EMPTY: '不为空',
+};
+
+/** 无需业务值的运算符（空值类）。 */
+export const ATTR_NOVALUE_OPS = new Set(['IS_EMPTY', 'IS_NOT_EMPTY']);
+/** 业务值为集合（多选）的运算符。 */
+export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
+
 // ===== 通用工具 =====
 
 let _seq = 0;
@@ -42,8 +54,22 @@ export function uid(prefix = 'id'): string {
   return `${prefix}-${Date.now().toString(36)}-${(_seq++).toString(36)}`;
 }
 
-export function newCondition(dimension = 'dept'): PermCondition {
-  return { id: uid('c'), dimension, operator: 'in', values: [] };
+export function newCondition(
+  kind: 'relationship' | 'attribute' = 'relationship',
+  dimension = 'dept',
+): PermCondition {
+  if (kind === 'attribute') {
+    return {
+      id: uid('c'),
+      kind: 'attribute',
+      operator: '',
+      field: '',
+      value: undefined,
+      meta: { min: null, max: null },
+      values: [],
+    };
+  }
+  return { id: uid('c'), kind: 'relationship', dimension, operator: 'in', values: [] };
 }
 
 export function newGroup(): PermConditionGroup {
@@ -186,9 +212,31 @@ function parseFull(toks: Tok[], start: number, maxIndex: number) {
 // ---------------------------------------------------------------------------
 
 function renderCondition(c: PermCondition): string {
+  if (c.kind === 'attribute') {
+    const fieldName = c.fieldName || c.field || '字段';
+    const opLabel = ATTRIBUTE_OP_LABELS[c.operator] || c.operator;
+    const v = c.value;
+    if (c.operator === 'IS_EMPTY') return `${fieldName} 为空`;
+    if (c.operator === 'IS_NOT_EMPTY') return `${fieldName} 不为空`;
+    if (c.operator === 'BETWEEN') {
+      const lo = c.meta?.min ?? '?';
+      const hi = c.meta?.max ?? '?';
+      return `${fieldName} 区间 [${lo}, ${hi}]`;
+    }
+    if (Array.isArray(v)) {
+      const labels = v.map((x) =>
+        x && typeof x === 'object' ? (x as PermValue).label : String(x),
+      );
+      return `${fieldName} ${opLabel} [${labels.join('、')}]`;
+    }
+    if (v && typeof v === 'object') {
+      return `${fieldName} ${opLabel} [${(v as PermValue).label}]`;
+    }
+    return `${fieldName} ${opLabel} [${v ?? ''}]`;
+  }
   const dimLabel = DIMENSION_LABELS[c.dimension] || c.dimension;
   const opLabel = c.operator === 'not_in' ? '不属于' : '属于';
-  const vals = c.values.map((v) => v.label).join('、');
+  const vals = (c.values || []).map((v) => v.label).join('、');
   return `${dimLabel} ${opLabel} [${vals}]`;
 }
 
@@ -240,9 +288,14 @@ function cloneModules(modules: ModulePerm[]): ModulePerm[] {
       expr: g.expr,
       conditions: g.conditions.map((c) => ({
         id: c.id,
+        kind: c.kind,
         dimension: c.dimension,
         operator: c.operator,
-        values: c.values.map((v) => ({ id: v.id, label: v.label, stale: v.stale })),
+        values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale })),
+        field: c.field,
+        fieldName: c.fieldName,
+        value: c.value,
+        meta: c.meta ? { min: c.meta.min ?? null, max: c.meta.max ?? null } : undefined,
       })),
     })),
   }));
@@ -257,9 +310,14 @@ function serialize(modules: ModulePerm[]): string {
       groups: m.groups.map((g) => ({
         expr: g.expr,
         conditions: g.conditions.map((c) => ({
+          kind: c.kind,
           dimension: c.dimension,
           operator: c.operator,
-          values: c.values.map((v) => ({ id: v.id, label: v.label })),
+          values: (c.values || []).map((v) => ({ id: v.id, label: v.label })),
+          field: c.field,
+          fieldName: c.fieldName,
+          value: c.value,
+          meta: c.meta,
         })),
       })),
     })),
@@ -352,14 +410,54 @@ export function useRoleDataPerm(roleId: Ref<string>) {
       // 每组内表达式（引用本组条件序号 1..N）
       for (let gi = 0; gi < m.groups.length; gi++) {
         const g = m.groups[gi];
+        let groupBad = false;
         for (const c of g.conditions) {
-          if (c.values.length === 0) {
-            errs[m.moduleKey] = '请为每条条件选择业务值';
-            bad.push(m.moduleKey);
-            break;
+          if (c.kind === 'attribute') {
+            if (!c.field) {
+              errs[m.moduleKey] = '请选择属性字段';
+              bad.push(m.moduleKey);
+              groupBad = true;
+              break;
+            }
+            if (!c.operator) {
+              errs[m.moduleKey] = '请选择运算符';
+              bad.push(m.moduleKey);
+              groupBad = true;
+              break;
+            }
+            if (!ATTR_NOVALUE_OPS.has(c.operator)) {
+              if (ATTR_LIST_OPS.has(c.operator)) {
+                if (!Array.isArray(c.value) || c.value.length === 0) {
+                  errs[m.moduleKey] = '请选择业务值';
+                  bad.push(m.moduleKey);
+                  groupBad = true;
+                  break;
+                }
+              } else if (c.operator === 'BETWEEN') {
+                const mv = c.meta || {};
+                if (mv.min == null || mv.max == null || mv.min === '' || mv.max === '') {
+                  errs[m.moduleKey] = '请填写区间最小值与最大值';
+                  bad.push(m.moduleKey);
+                  groupBad = true;
+                  break;
+                }
+              } else if (c.value == null || c.value === '') {
+                errs[m.moduleKey] = '请填写条件值';
+                bad.push(m.moduleKey);
+                groupBad = true;
+                break;
+              }
+            }
+          } else {
+            if ((c.values || []).length === 0) {
+              errs[m.moduleKey] = '请为每条条件选择业务值';
+              bad.push(m.moduleKey);
+              groupBad = true;
+              break;
+            }
           }
         }
-        if (errs[m.moduleKey]) break;
+        if (groupBad || errs[m.moduleKey]) break;
         if (g.expr.trim()) {
           const re = validateExpr(g.expr, g.conditions.length);
           if (re) {

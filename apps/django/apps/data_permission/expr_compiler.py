@@ -20,10 +20,14 @@
 """
 from __future__ import annotations
 
+import logging
 from typing import Dict, List, Optional
 
 from django.db.models import Q
 
+logger = logging.getLogger(__name__)
+
+from .attribute_fields import attribute_fields_for
 from .field_map import MODULE_DIMENSION_FIELDS
 
 
@@ -168,10 +172,98 @@ def validate_expr(expr: str, max_index: int) -> Optional[str]:
 # 编译：条件 -> Q，组 -> Q，组间 -> Q
 # ---------------------------------------------------------------------------
 
-def _compile_condition(cond: dict, field_map: Dict[str, Optional[str]]) -> Optional[Q]:
-    """单条条件 -> Q。维度无真实字段或无业务值 -> 返回 None（fail-safe no-op）。"""
+def _op_to_q(field: str, operator: str, value=None, meta: dict | None = None) -> Optional[Q]:
+    """把 UnifiedOperator（含关系维度小写 in/not_in）映射成 Django Q。
+
+    属性条件右值=字面量（property filter）：record.field OP value。
+    不支持的运算符 -> None（fail-safe no-op，不放行也不报错）。
+    """
+    if not field:
+        return None
+    op = str(operator or '').upper()
+    meta = meta or {}
+    if op in ('EQ', '=', '=='):
+        if value is None or value == '':
+            return None
+        return Q(**{field: value})
+    if op in ('NEQ', '!=', '<>'):
+        if value is None or value == '':
+            return None
+        return ~Q(**{field: value})
+    if op in ('GT', '>'):
+        if value is None or value == '':
+            return None
+        return Q(**{f'{field}__gt': value})
+    if op in ('GTE', '>='):
+        if value is None or value == '':
+            return None
+        return Q(**{f'{field}__gte': value})
+    if op in ('LT', '<'):
+        if value is None or value == '':
+            return None
+        return Q(**{f'{field}__lt': value})
+    if op in ('LTE', '<='):
+        if value is None or value == '':
+            return None
+        return Q(**{f'{field}__lte': value})
+    if op in ('BETWEEN',):
+        lo = meta.get('min')
+        hi = meta.get('max')
+        if lo is None or hi is None or lo == '' or hi == '':
+            return None
+        return Q(**{f'{field}__gte': lo, f'{field}__lte': hi})
+    if op in ('IN',):
+        vals = value if isinstance(value, list) else [value]
+        vals = [v for v in vals if v is not None and v != '']
+        if not vals:
+            return None
+        return Q(**{f'{field}__in': vals})
+    if op in ('NOT_IN',):
+        vals = value if isinstance(value, list) else [value]
+        vals = [v for v in vals if v is not None and v != '']
+        if not vals:
+            return None
+        return ~Q(**{f'{field}__in': vals})
+    if op in ('IS_EMPTY',):
+        return Q(**{f'{field}__isnull': True}) | Q(**{f'{field}': ''})
+    if op in ('IS_NOT_EMPTY',):
+        return Q(**{f'{field}__isnull': False}) & ~Q(**{f'{field}': ''})
+    # CONTAINS / NOT_CONTAINS / REGEX_MATCH 等留待后续属性条件扩展
+    logger.warning('[expr_compiler] 属性条件不支持运算符 "%s", no-op', operator)
+    return None
+
+
+def _compile_condition(
+    cond: dict,
+    field_map: Dict[str, Optional[str]],
+    attribute_map: Dict[str, dict] | None = None,
+) -> Optional[Q]:
+    """单条条件 -> Q。
+
+    - 关系维度（kind 缺省 / 'relationship'）：沿用原逻辑（维度 -> ORM 字段 -> in/not_in）。
+    - 属性条件（kind='attribute'）：field 为 source_path（如 demand.state），右值=字面量，
+      经 _op_to_q 映射 UnifiedOperator。维度无真实字段 / 属性字段未注册 / 无业务值 -> None（no-op）。
+    """
     if not isinstance(cond, dict):
         return None
+    kind = str(cond.get('kind') or 'relationship').lower()
+
+    if kind == 'attribute':
+        attribute_map = attribute_map or {}
+        field_path = str(cond.get('field') or '')
+        meta = attribute_map.get(field_path)
+        if not meta:
+            logger.warning('[expr_compiler] 属性条件字段 "%s" 未注册, no-op', field_path)
+            return None
+        orm_field = field_path.split('.', 1)[1] if '.' in field_path else field_path
+        operator = cond.get('operator') or 'EQ'
+        value = cond.get('value')
+        if isinstance(value, dict):
+            # 兼容 {id,label} 形态（前端误传），取 id
+            value = value.get('id')
+        return _op_to_q(orm_field, operator, value, cond.get('meta') or {})
+
+    # ---- 关系维度（原逻辑）----
     dimension = str(cond.get('dimension') or '').lower()
     operator = str(cond.get('operator') or 'in').lower()
     values = cond.get('values') or []
@@ -201,6 +293,16 @@ def _combine_qs(qs: List[Q], op: str) -> Q:
     return q
 
 
+def _build_attribute_map(entity: str) -> Dict[str, dict]:
+    """按实体构建 属性字段 sourcePath -> 元数据 映射，供属性条件编译/校验使用。
+    查询失败（metrics 未装载等）-> 返回空 dict（属性条件降级为 no-op，不阻断整体）。"""
+    try:
+        return {f['sourcePath']: f for f in attribute_fields_for(entity)}
+    except Exception as e:  # noqa: BLE001 — 属性字段源异常降级为空，不影响关系维度编译
+        logger.warning('[expr_compiler] 构建属性字段映射失败, 属性条件降级 no-op: %s', e)
+        return {}
+
+
 def compile_scope_q(payload: dict, entity: str) -> Optional[Q]:
     """把 {expr, groups} 编译为 Q。无有效条件/表达式 -> 返回 None（调用方回退默认 scope）。
 
@@ -213,6 +315,7 @@ def compile_scope_q(payload: dict, entity: str) -> Optional[Q]:
     if not isinstance(payload, dict):
         return None
     field_map = MODULE_DIMENSION_FIELDS.get(entity, {})
+    attribute_map = _build_attribute_map(entity)
     groups = payload.get('groups') or []
     if not groups:
         return None
@@ -224,7 +327,7 @@ def compile_scope_q(payload: dict, entity: str) -> Optional[Q]:
         conds = g.get('conditions') or []
         cond_qs: Dict[int, Q] = {}
         for ci, c in enumerate(conds, start=1):
-            q = _compile_condition(c, field_map)
+            q = _compile_condition(c, field_map, attribute_map)
             if q is not None:
                 cond_qs[ci] = q
         if not cond_qs:
@@ -263,6 +366,10 @@ def validate_scope_payload(payload: dict, entity: str) -> Optional[str]:
     if not isinstance(groups, list) or not groups:
         return '请至少配置 1 个条件组'
     field_map = MODULE_DIMENSION_FIELDS.get(entity, {})
+    try:
+        attribute_map = {f['sourcePath']: f for f in attribute_fields_for(entity)}
+    except Exception:  # noqa: BLE001 — 字段源异常时属性条件无法校验，按不支持处理
+        attribute_map = {}
     total_conditions = 0
     for gi, g in enumerate(groups, start=1):
         if not isinstance(g, dict):
@@ -274,12 +381,36 @@ def validate_scope_payload(payload: dict, entity: str) -> Optional[str]:
         for ci, c in enumerate(conds, start=1):
             if not isinstance(c, dict):
                 return f'条件组 {gi} 第 {ci} 条条件格式错误'
-            dimension = str(c.get('dimension') or '').lower()
-            if dimension not in field_map or not field_map.get(dimension):
-                return f'条件组 {gi} 第 {ci} 条：维度 "{dimension}" 在该模块不支持'
-            values = c.get('values') or ([] if c.get('value') is None else [c.get('value')])
-            if not values:
-                return f'条件组 {gi} 第 {ci} 条：请为每条条件选择业务值'
+            kind = str(c.get('kind') or 'relationship').lower()
+            if kind == 'attribute':
+                field_path = str(c.get('field') or '')
+                meta = attribute_map.get(field_path)
+                if not meta:
+                    return f'条件组 {gi} 第 {ci} 条：属性字段 "{field_path}" 在该模块不支持'
+                operator = c.get('operator')
+                allowed = {o['value'] for o in meta.get('operators', [])}
+                if operator not in allowed:
+                    return f'条件组 {gi} 第 {ci} 条：运算符 "{operator}" 对该字段不支持'
+                value = c.get('value')
+                if operator in ('IS_EMPTY', 'IS_NOT_EMPTY'):
+                    pass  # 无需值
+                elif operator in ('IN', 'NOT_IN'):
+                    if not isinstance(value, list) or not value:
+                        return f'条件组 {gi} 第 {ci} 条：请为集合运算符选择业务值'
+                elif operator == 'BETWEEN':
+                    mv = c.get('meta') or {}
+                    if mv.get('min') in (None, '') or mv.get('max') in (None, ''):
+                        return f'条件组 {gi} 第 {ci} 条：区间运算符需填写最小值与最大值'
+                else:
+                    if value is None or value == '':
+                        return f'条件组 {gi} 第 {ci} 条：请填写条件值'
+            else:
+                dimension = str(c.get('dimension') or '').lower()
+                if dimension not in field_map or not field_map.get(dimension):
+                    return f'条件组 {gi} 第 {ci} 条：维度 "{dimension}" 在该模块不支持'
+                values = c.get('values') or ([] if c.get('value') is None else [c.get('value')])
+                if not values:
+                    return f'条件组 {gi} 第 {ci} 条：请为每条条件选择业务值'
             cond_idx_map[ci] = Q()  # 占位，仅用于编号范围校验
             total_conditions += 1
         # 组内表达式语法校验（引用本组条件序号 1..len(conds)）

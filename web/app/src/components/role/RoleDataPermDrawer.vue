@@ -87,6 +87,7 @@
       :show="ruleModalShow"
       :module-name="ruleModuleView.label"
       :dimensions="ruleModuleView.dimensions"
+      :attribute-fields="ruleModuleView.attributeFields"
       :groups="ruleModule?.groups || []"
       :inter-expr="ruleModule?.expr || ''"
       @update:show="(v: boolean) => (ruleModalShow = v)"
@@ -159,6 +160,7 @@ function moduleView(key: string) {
     label: opt?.label || meta.label,
     desc: meta.desc,
     dimensions: opt?.dimensions || [],
+    attributeFields: opt?.attributeFields || [],
   }
 }
 

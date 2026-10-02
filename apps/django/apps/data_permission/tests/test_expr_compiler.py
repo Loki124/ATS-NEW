@@ -5,12 +5,14 @@
 from django.db.models import Q
 from django.test import TestCase
 
+from apps.data_permission.attribute_fields import attribute_fields_for
 from apps.data_permission.expr_compiler import (
     compile_scope_q,
     validate_expr,
     validate_scope_payload,
 )
 from apps.data_permission.field_map import MODULE_DIMENSION_FIELDS
+from apps.metrics.models import AtomicMetric
 
 
 class ExprCompilerTestCase(TestCase):
@@ -133,3 +135,133 @@ class ExprCompilerTestCase(TestCase):
         # 确保每个模块 key 都在映射中
         for mk in ('demand', 'process', 'position', 'candidate', 'talent'):
             self.assertIn(mk, MODULE_DIMENSION_FIELDS)
+
+
+class AttributeConditionTestCase(TestCase):
+    """属性条件（attribute kind，复用指标目录标量字段，右值=字面量）。"""
+
+    @classmethod
+    def setUpTestData(cls):
+        # 确保存在 source_path=demand.state / demand.headcount 的启用指标。
+        # 用 source_path 作为 get_or_create 键（非 unique），并强制 status=enabled，
+        # 既复用迁移 0012 已 seed 的行，又避免与已存在的 name 撞 UNIQUE。
+        for sp, nm, dt in [
+            ('demand.state', '需求状态', 'string'),
+            ('demand.headcount', '招聘人数', 'number'),
+        ]:
+            obj, _ = AtomicMetric.objects.get_or_create(
+                source_path=sp,
+                defaults={'name': nm, 'data_type': dt, 'status': 'enabled'},
+            )
+            if obj.status != 'enabled':
+                obj.status = 'enabled'
+                obj.save(update_fields=['status'])
+
+    def test_attribute_fields_for_demand(self):
+        fields = {f['sourcePath']: f for f in attribute_fields_for('demand')}
+        # demand.state 走 FSMField + state 分支 -> enum，带中文运算符
+        state = fields.get('demand.state')
+        self.assertIsNotNone(state)
+        self.assertEqual(state['dataType'], 'enum')
+        self.assertTrue(any(o['value'] == 'EQ' for o in state['operators']))
+        self.assertTrue(any(o['label'] == '等于' for o in state['operators']))
+        # demand.headcount 走 IntegerField -> number
+        hc = fields.get('demand.headcount')
+        self.assertIsNotNone(hc)
+        self.assertEqual(hc['dataType'], 'number')
+
+    def test_compile_scope_q_attribute_enum(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.state', 'operator': 'EQ', 'value': 'RECRUITING'},
+            ]}],
+        }
+        q = compile_scope_q(payload, 'demand')
+        self.assertIsNotNone(q)
+        s = str(q)
+        self.assertIn('state', s)
+        self.assertIn('RECRUITING', s)
+
+    def test_compile_scope_q_attribute_number(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.headcount', 'operator': 'GT', 'value': 3},
+            ]}],
+        }
+        q = compile_scope_q(payload, 'demand')
+        self.assertIsNotNone(q)
+        s = str(q)
+        self.assertIn('headcount__gt', s)
+
+    def test_compile_scope_q_attribute_between(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.headcount', 'operator': 'BETWEEN',
+                 'value': None, 'meta': {'min': 1, 'max': 10}},
+            ]}],
+        }
+        q = compile_scope_q(payload, 'demand')
+        self.assertIsNotNone(q)
+        s = str(q)
+        self.assertIn('headcount__gte', s)
+        self.assertIn('headcount__lte', s)
+
+    def test_compile_scope_q_attribute_unregistered_field_noop(self):
+        # 未注册的字段 -> no-op -> 整体 None
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.unknown_field', 'operator': 'EQ', 'value': 1},
+            ]}],
+        }
+        self.assertIsNone(compile_scope_q(payload, 'demand'))
+
+    def test_validate_scope_payload_attribute_ok(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.state', 'operator': 'EQ', 'value': 'RECRUITING'},
+            ]}],
+        }
+        self.assertIsNone(validate_scope_payload(payload, 'demand'))
+
+    def test_validate_scope_payload_attribute_bad_operator(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                # demand.state 不支持 CONTAINS
+                {'kind': 'attribute', 'field': 'demand.state', 'operator': 'CONTAINS', 'value': 'x'},
+            ]}],
+        }
+        self.assertIsNotNone(validate_scope_payload(payload, 'demand'))
+
+    def test_validate_scope_payload_attribute_missing_value(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.headcount', 'operator': 'GT', 'value': None},
+            ]}],
+        }
+        self.assertIsNotNone(validate_scope_payload(payload, 'demand'))
+
+    def test_validate_scope_payload_attribute_between_no_range(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.headcount', 'operator': 'BETWEEN',
+                 'value': None, 'meta': {'min': 1, 'max': None}},
+            ]}],
+        }
+        self.assertIsNotNone(validate_scope_payload(payload, 'demand'))
+
+    def test_validate_scope_payload_attribute_in_empty(self):
+        payload = {
+            'expr': '1',
+            'groups': [{'expr': '1', 'conditions': [
+                {'kind': 'attribute', 'field': 'demand.state', 'operator': 'IN', 'value': []},
+            ]}],
+        }
+        self.assertIsNotNone(validate_scope_payload(payload, 'demand'))
