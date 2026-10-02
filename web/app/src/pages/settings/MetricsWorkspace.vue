@@ -10,7 +10,7 @@
 
     <!-- ========== 顶层 Tab：指标定义 / 指标模板 ========== -->
     <div class="ws-body">
-      <n-tabs v-model:value="activeTab" type="line" animated>
+      <n-tabs v-model:value="activeTab" type="line">
         <!-- ---------- Tab 1：指标定义（只读，统一视图） ---------- -->
         <n-tab-pane name="definitions" :tab="t('metrics.tab.definitions')">
           <div class="ws-tab-header">
@@ -1013,19 +1013,20 @@ onMounted(load)
 }
 /* 让 n-tabs 占满 ws-body，tab pane 成为 flex 列，滚动职责下放到表格区
    铁律：全程用 flex:1;min-height:0，禁止 height:100%（依赖父级确定高度、在 flex 链里会塌缩） */
-.metrics-ws :deep(.n-tabs) {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+.metrics-ws {
+  gap: 0 !important;
 }
-.metrics-ws :deep(.n-tabs-pane-wrapper) {
-  flex: 1 1 auto;
-  min-height: 0;
+.metrics-ws :deep(.n-tabs) {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 }
 .metrics-ws :deep(.n-tab-pane) {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 }
 .ws-tab-header {
   flex-shrink: 0;
