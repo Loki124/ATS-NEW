@@ -1,47 +1,52 @@
 <template>
   <div class="page-container recruitment-process">
-<div class="page-body">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">{{ t('pages.settings.RecruitmentProcess.s1') }}</h1>
-        <p class="page-subtitle">{{ t('pages.settings.RecruitmentProcess.s2') }}</p>
+    <div class="page-body">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">{{ t('pages.settings.RecruitmentProcess.s1') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.RecruitmentProcess.s2') }}</p>
+        </div>
       </div>
-    </div>
 
-    <div class="toolbar">
-      <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentProcess.s3')" clearable style="width: 220px">
-        <template #prefix><n-icon :component="SearchOutline" /></template>
-      </n-input>
-      <div class="spacer"></div>
-      <n-button type="primary" class="gradient-btn" @click="openCreateProcess">
-        <template #icon><n-icon :component="AddOutline" /></template>
-        {{ t('pages.settings.RecruitmentProcess.s4') }}
-      </n-button>
-    </div>
+      <div class="toolbar">
+        <n-input
+          v-model:value="keyword"
+          class="process-search"
+          :placeholder="t('pages.settings.RecruitmentProcess.s3')"
+          clearable
+        >
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
+        <div class="spacer"></div>
+        <n-button type="primary" class="gradient-btn" @click="openCreateProcess">
+          <template #icon><n-icon :component="AddOutline" /></template>
+          {{ t('pages.settings.RecruitmentProcess.s4') }}
+        </n-button>
+      </div>
 
-    <div class="table-wrap">
-    <n-data-table
-      :columns="columns"
-      :data="processes"
-      :loading="loading"
-      :pagination="localPagination()"
-      :row-key="(r) => r.id"
-      :max-height="tableMaxHeight"
-      :row-height="TABLE_ROW_HEIGHT"
-    />
-    </div>
+      <div class="table-wrap table-fade">
+        <n-data-table
+          :columns="columns"
+          :data="processes"
+          :loading="loading"
+          :pagination="localPagination()"
+          :row-key="(r) => r.id"
+          :max-height="tableMaxHeight"
+          :row-height="TABLE_ROW_HEIGHT"
+        />
+      </div>
 
-    <!-- 流程详情 modal (view + edit 双模态, 统一入口) -->
-    <ProcessDetailModal
-      v-model:show="showDetail"
-      :process-id="detailProcessId"
-      :default-mode="detailDefaultMode"
-      :editable="true"
-      @saved="onProcessSaved"
-      @copied="onProcessCopied"
-    />
+      <!-- 流程详情 modal (view + edit 双模态, 统一入口) -->
+      <ProcessDetailModal
+        v-model:show="showDetail"
+        :process-id="detailProcessId"
+        :default-mode="detailDefaultMode"
+        :editable="true"
+        @saved="onProcessSaved"
+        @copied="onProcessCopied"
+      />
     </div><!-- /.page-body -->
-</div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -79,11 +84,17 @@ const TABLE_ROW_HEIGHT = 44
 const tableMaxHeight = computed(() => {
   if (typeof window === 'undefined') return 560
   // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
-  return Math.max(320, window.innerHeight - 232)
+  return Math.max(232, window.innerHeight - 232)
 })
 
 const columns = computed(() => [
-  { title: t('pages.settings.RecruitmentProcess.s5'), key: 'code', width: 100 },
+  {
+    title: t('pages.settings.RecruitmentProcess.s5'),
+    key: 'code',
+    width: 110,
+    // 视觉重塑：流程编号渲染为等宽字体品牌浅底 chip（替代裸文本，增强扫读锚点）
+    render: (r: any) => h('span', { class: 'code-chip' }, String(r.code ?? '-')),
+  },
   { title: t('pages.settings.RecruitmentProcess.s6'), key: 'name', width: 200, ellipsis: true, ellipsisProps: { tooltip: true } },
   {
     title: t('pages.settings.RecruitmentProcess.s7'),
@@ -96,8 +107,9 @@ const columns = computed(() => [
   {
     title: t('pages.settings.RecruitmentProcess.s8'),
     key: 'stageCount',
-    width: 80,
-    render: (row: any) => row.stageCount ?? row._count?.links ?? 0,
+    width: 90,
+    // 视觉重塑：阶段数渲染为中性玻璃 pill（tabular-nums 对齐）
+    render: (row: any) => h('span', { class: 'stage-count' }, String(row.stageCount ?? row._count?.links ?? 0)),
   },
   {
     title: t('pages.settings.RecruitmentProcess.s9'),
@@ -105,7 +117,8 @@ const columns = computed(() => [
     width: 90,
     render: (row: any) => {
       const enabled = row.status === 'ENABLED'
-      return h(NTag, { type: enabled ? 'success' : 'default' }, { default: () => enabled ? t('pages.settings.RecruitmentProcess.s10') : t('pages.settings.RecruitmentProcess.s11') })
+      // 视觉重塑：round + 无边框 = 现代胶囊状态签（语义色仍走 Naive success/default，暗色由 tokens 联动）
+      return h(NTag, { type: enabled ? 'success' : 'default', round: true, bordered: false, size: 'small' }, { default: () => enabled ? t('pages.settings.RecruitmentProcess.s10') : t('pages.settings.RecruitmentProcess.s11') })
     },
   },
   { title: t('pages.settings.RecruitmentProcess.s12'), key: 'updatedBy', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' },
@@ -266,12 +279,71 @@ onMounted(async () => { await loadDepartments(); loadList() })
      本处不再设 padding，避免与 .settings-scroll 叠加成 32px（见 SETTINGS_LAYOUT_DIAGNOSIS.md §2） */
 }
 
-/* 2026-08-29 UX 整改：行高统一 + 标签列中线对齐；X-05 严禁硬编码颜色 */
-/* 2026-08-30 UX 三改：补 padding:6px 12px !important 把行内垂直空白从 Naive 默认 ~10px 收到 6px，让 row-height=44 真正生效。
-   Naive UI 当前版本 themeOverrides 类型不含 tdPaddingMedium/thPaddingMedium（cssr vars 存在但未暴露给类型），
-   全靠此 scoped CSS 兜底。 */
+/* =============================================================
+ * 2026-10-02 视觉重塑（兵哥：改善外观简陋 → 现代专业）
+ * 原则：全部走 Liquid Glass v2 token（X-05 禁硬编码颜色），
+ *       布局结构 / 数据流 / 交互逻辑零改动，仅提升视觉呈现。
+ * ============================================================= */
+
+/* —— 工具条：搜索框定宽（替代原 inline style，窄屏 flex-wrap 自然折行）—— */
+.process-search {
+  width: 240px;
+  max-width: 240px;
+  flex-shrink: 0;
+}
+
+/* —— 表格细节 —— */
+/* 2026-08-30 UX 三改：padding 6px 12px 让 row-height=44 真正生效（Naive 未暴露 tdPadding 变量，scoped 兜底） */
 .recruitment-process :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
   padding: 6px 12px !important;
+}
+/* 表头：小号灰字 + 字距（ quieter header → 数据更突出，CampusControl 同款层次） */
+.recruitment-process :deep(.n-data-table-th) {
+  font-size: var(--fs-12);
+  letter-spacing: 0.04em;
+  color: var(--ink-faint) !important;
+}
+/* 流程编号：等宽字体品牌浅底 chip —— 扫读锚点，编号可比对 */
+.code-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-tint);
+  color: var(--brand-text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+/* 暗色模式：--brand-text 固定指向 --brand-900(深navy)，在深色玻璃上不可读。
+   改用亮阶 --brand-200 保证对比度（X-05 仍走 token，不硬编码）。 */
+body.dark .code-chip {
+  color: var(--brand-200);
+}
+/* 阶段数：中性玻璃 pill（与 .glass-tag 同源 token） */
+.stage-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--overlay-glass-mid);
+  border: 1px solid var(--glass-border);
+  color: var(--ink-soft);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— 入场动效：表格延迟淡入（prefers-reduced-motion 由
+      tokens.css 全局降级规则兜底，无需此处重复）—— */
+@keyframes rp-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.table-fade {
+  animation: rp-fade-up var(--duration-slow) var(--ease-out) 0.18s both;
 }
 </style>
