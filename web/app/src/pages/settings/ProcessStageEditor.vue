@@ -60,7 +60,7 @@
                 </div>
               </div>
               <div v-if="(element.stage.features ?? element.stage.defaultFeatures)?.length" class="stage-features">
-                <span v-for="f in (element.stage.features ?? element.stage.defaultFeatures)" :key="f" class="feature-chip">{{ f }}</span>
+                <span v-for="f in (element.stage.features ?? element.stage.defaultFeatures)" :key="f" class="feature-chip">{{ featureLabel(f) }}</span>
               </div>
             </n-card>
           </template>
@@ -193,6 +193,50 @@ function getTypeColor(type: string): TagType {
   return (STAGE_TYPE_COLOR as Record<string, TagType>)[type] || 'default'
 }
 
+// 功能项 code → 中文名称（对齐后端 recruitment_stages 实际取值 + RecruitmentStage.vue FEATURE_LABELS）。
+// 兵哥 2026-10-02 要求「流程管理」中阶段包含功能全部中文展示（原模板直接渲染 code 导致出现 AUTO_MATCH 等英文）。
+const FEATURE_LABEL: Record<string, string> = {
+  RESUME_REVIEW: '简历评估',
+  AUTO_MATCH: '自动匹配',
+  BULK_IMPORT: '批量导入',
+  CANDIDATE_INFO: '候选人信息',
+  CANDIDATE_RESPONSE: '候选人回复',
+  CODE_EDITOR: '代码编辑器',
+  EVALUATION_FORM: '评估表单',
+  INTERVIEW: '面试',
+  INTERVIEWER: '面试官',
+  TMPL_INTERVIEWER: '模板面试官',
+  INTERVIEW_SCHEDULE: '面试安排',
+  JOINT_INTERVIEW: '联合面试',
+  MULTI_ROUND: '多轮面试',
+  OFFER: 'Offer',
+  OFFER_APPROVAL: 'Offer 审批',
+  OFFER_GENERATION: 'Offer 生成',
+  PHONE_CALL: '电话沟通',
+  SCORING: '评分',
+  VIDEO_RECORD: '视频录制',
+  INVITE_FILTER: '邀约筛选',
+  INVITE_UPDATE_INFO: '邀约信息更新',
+  TRANSFER_STAGE: '阶段流转',
+  ARCHIVE: '归档',
+  NOTES: '备注',
+  SCORE_RANK: '评分排名',
+  DUPLICATE_CHECK: '查重',
+  AI_SCORE: 'AI 评分',
+  VOICE_RECORD: '语音记录',
+  SALARY_NEGOTIATION: '薪资协商',
+  BACKGROUND_CHECK: '背景调查',
+  // 旧前端臆造 code（兼容老数据）
+  ARRANGE_INTERVIEW: '安排面试',
+  INVITE_INTERVIEW: '邀请面试',
+  SEND_OFFER: '发送 Offer',
+  START_BACKGROUND_CHECK: '发起背调',
+  START_ONBOARDING: '发起入职',
+}
+function featureLabel(f: string): string {
+  return FEATURE_LABEL[f] || f
+}
+
 const addModalColumns = [
   { title: t('pages.settings.ProcessStageEditor.s27'), key: 'code', width: 80 },
   { title: t('pages.settings.ProcessStageEditor.s28'), key: 'name', width: 120 },
@@ -210,7 +254,7 @@ const addModalColumns = [
   },
   { title: t('pages.settings.ProcessStageEditor.s31'), key: 'features', render: (r: any) => {
     const feats = r.features ?? r.defaultFeatures
-    return Array.isArray(feats) && feats.length > 0 ? feats.join(', ') : '-'
+    return Array.isArray(feats) && feats.length > 0 ? feats.map((x: string) => featureLabel(x)).join('、') : '-'
   }},
   {
     title: t('pages.settings.ProcessStageEditor.s32'),

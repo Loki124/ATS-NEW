@@ -579,6 +579,7 @@ const CONDITION_TYPE_LABEL: Record<string, string> = {
 }
 
 const FEATURE_LABEL: Record<string, string> = {
+  // —— 系统默认功能 / 旧前端 code（保持既有中文，避免回归）——
   INVITE_FILTER: t('pages.settings.ProcessDetailModal.s95'),
   INVITE_UPDATE_INFO: t('pages.settings.ProcessDetailModal.s96'),
   TRANSFER_STAGE: t('pages.settings.ProcessDetailModal.s97'),
@@ -588,6 +589,33 @@ const FEATURE_LABEL: Record<string, string> = {
   SEND_OFFER: t('pages.settings.ProcessDetailModal.s101'),
   START_BACKGROUND_CHECK: t('pages.settings.ProcessDetailModal.s102'),
   START_ONBOARDING: t('pages.settings.ProcessDetailModal.s103'),
+  // —— 后端 recruitment_stages 实际 feature code（对齐 RecruitmentStage.vue FEATURE_LABELS；兵哥 2026-10-02 要求「包含功能」全部中文）——
+  RESUME_REVIEW: '简历评估',
+  AUTO_MATCH: '自动匹配',
+  BULK_IMPORT: '批量导入',
+  CANDIDATE_INFO: '候选人信息',
+  CANDIDATE_RESPONSE: '候选人回复',
+  CODE_EDITOR: '代码编辑器',
+  EVALUATION_FORM: '评估表单',
+  INTERVIEW: '面试',
+  INTERVIEWER: '面试官',
+  TMPL_INTERVIEWER: '模板面试官',
+  INTERVIEW_SCHEDULE: '面试安排',
+  JOINT_INTERVIEW: '联合面试',
+  MULTI_ROUND: '多轮面试',
+  OFFER: 'Offer',
+  OFFER_APPROVAL: 'Offer 审批',
+  OFFER_GENERATION: 'Offer 生成',
+  PHONE_CALL: '电话沟通',
+  SCORING: '评分',
+  VIDEO_RECORD: '视频录制',
+  NOTES: '备注',
+  SCORE_RANK: '评分排名',
+  DUPLICATE_CHECK: '查重',
+  AI_SCORE: 'AI 评分',
+  VOICE_RECORD: '语音记录',
+  SALARY_NEGOTIATION: '薪资协商',
+  BACKGROUND_CHECK: '背景调查',
 }
 
 const AUTO_ADVANCE_LABEL: Record<string, string> = {
