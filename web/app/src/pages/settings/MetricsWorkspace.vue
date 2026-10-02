@@ -77,9 +77,34 @@
                 />
                 <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
               </div>
-              <n-button type="primary" @click="openTemplateCreate">
-                {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
-              </n-button>
+              <div class="ws-io-bar">
+                <n-button tertiary size="small" :loading="downloadingTemplate" @click="onDownloadTemplateTemplate">
+                  {{ t('metrics.templateIo.downloadTemplate') }}
+                </n-button>
+                <n-button tertiary size="small" :loading="exporting" @click="onExportTemplates">
+                  {{ t('metrics.templateIo.export') }}
+                </n-button>
+                <n-select
+                  v-model:value="importMode"
+                  :placeholder="t('metrics.templateIo.importMode')"
+                  :options="importModeOptions"
+                  class="ws-import-mode"
+                  size="small"
+                />
+                <n-button type="primary" secondary size="small" :loading="importing" @click="onImportClick">
+                  {{ t('metrics.templateIo.import') }}
+                </n-button>
+                <n-button type="primary" size="small" @click="openTemplateCreate">
+                  {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
+                </n-button>
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  accept=".xlsx,.csv"
+                  class="ws-hidden-file"
+                  @change="onFileSelected"
+                />
+              </div>
             </div>
           </div>
 
@@ -424,6 +449,11 @@ import {
   listCandidateFields,
   updateDerivedMetric,
   updateMetricTemplate,
+  exportMetricTemplates,
+  downloadTemplateTemplate,
+  importMetricTemplates,
+  TemplateImportError,
+  type TemplateImportMode,
   type AtomicMetric,
   type CandidateFieldPath,
   type DerivedMetric,
@@ -553,6 +583,106 @@ const tplStatusOptions = computed<OptionItem[]>(() => [
   { label: t('metrics.status.enabled'), value: 'enabled' },
   { label: t('metrics.status.disabled'), value: 'disabled' },
 ])
+
+// ===== 指标模板导入 / 导出 / 下载模板 =====
+const importMode = ref<TemplateImportMode>('skip')
+const importing = ref(false)
+const exporting = ref(false)
+const downloadingTemplate = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const importModeOptions = computed<OptionItem[]>(() => [
+  { label: t('metrics.templateIo.mode.skip'), value: 'skip' },
+  { label: t('metrics.templateIo.mode.update'), value: 'update' },
+  { label: t('metrics.templateIo.mode.error'), value: 'error' },
+])
+
+/** Blob 下载（导出 / 下载模板 / 错误报告通用） */
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+/** base64（xlsx）转 Blob 并下载（导入失败错误报告） */
+function downloadBase64(base64: string, filename: string) {
+  try {
+    const byteChars = atob(base64)
+    const byteNumbers = new Array(byteChars.length)
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i)
+    const blob = new Blob([new Uint8Array(byteNumbers)], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    downloadBlob(blob, filename)
+  } catch {
+    message.error(t('metrics.templateIo.importFailed'))
+  }
+}
+
+async function onDownloadTemplateTemplate() {
+  downloadingTemplate.value = true
+  try {
+    const blob = await downloadTemplateTemplate('xlsx')
+    downloadBlob(blob, 'metrics_templates_template.xlsx')
+  } catch {
+    message.error(t('metrics.templateIo.importFailed'))
+  } finally {
+    downloadingTemplate.value = false
+  }
+}
+
+async function onExportTemplates() {
+  exporting.value = true
+  try {
+    const blob = await exportMetricTemplates('xlsx')
+    downloadBlob(blob, 'metrics_templates_export.xlsx')
+  } catch {
+    message.error(t('metrics.templateIo.importFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
+function onImportClick() {
+  fileInputRef.value?.click()
+}
+
+async function onFileSelected(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  // 复位，保证同一文件可重复选择触发 change
+  input.value = ''
+  if (!file) return
+  importing.value = true
+  try {
+    const result = await importMetricTemplates(file, importMode.value)
+    message.success(
+      t('metrics.templateIo.importSuccess', {
+        created: result.created,
+        updated: result.updated,
+        skipped: result.skipped,
+      }),
+    )
+    await load()
+  } catch (err: any) {
+    if (err instanceof TemplateImportError && err.report) {
+      const { errors, errorFile } = err.report
+      message.error((errors || []).join('；') || t('metrics.templateIo.importFailed'))
+      if (errorFile) {
+        downloadBase64(errorFile, 'metrics_templates_import_errors.xlsx')
+      }
+    } else {
+      message.error(t('metrics.templateIo.importFailed'))
+    }
+  } finally {
+    importing.value = false
+  }
+}
 
 const filteredTemplates = computed<MetricTemplate[]>(() => {
   const kw = tplKeyword.value.trim().toLowerCase()
@@ -1112,6 +1242,14 @@ onUnmounted(() => {
   margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
+.ws-io-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.ws-import-mode { flex: 0 0 140px; }
+.ws-hidden-file { display: none; }
 
 /* ===== 数据表（替代卡片网格） ===== */
 .ws-table {

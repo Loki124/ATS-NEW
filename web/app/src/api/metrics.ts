@@ -373,3 +373,83 @@ export async function listCandidateFields(): Promise<CandidateFieldPath[]> {
   const res = await api.get('/metrics/candidate-fields/')
   return unwrap<CandidateFieldPath[]>(res) ?? []
 }
+
+// ===== 指标模板导入 / 导出 =====
+
+export type TemplateImportMode = 'skip' | 'update' | 'error'
+
+export interface TemplateImportResult {
+  /** 新建条数 */
+  created: number
+  /** 更新条数 */
+  updated: number
+  /** 跳过条数 */
+  skipped: number
+  /** 失败条数 */
+  failed: number
+  /** 错误明细（人话） */
+  errors: string[]
+  /** 失败错误报告（xlsx，base64）；仅在存在解析/校验错误时有值 */
+  errorFile?: string | null
+}
+
+/**
+ * 导入失败专用错误：携带后端返回的错误报告（errors + errorFile），
+ * 便于调用方在 catch 中展示明细并下载错误报告。
+ */
+export class TemplateImportError extends Error {
+  report: TemplateImportResult
+  constructor(report: TemplateImportResult) {
+    super((report.errors || []).join('；') || '导入失败')
+    this.name = 'TemplateImportError'
+    this.report = report
+  }
+}
+
+/** 导出全部指标模板为 xlsx / csv（文件流，前端负责触发下载）。 */
+export async function exportMetricTemplates(format: 'xlsx' | 'csv' = 'xlsx'): Promise<Blob> {
+  const res = await api.get('/metrics/templates/export/', {
+    params: { file_format: format },
+    responseType: 'blob',
+  })
+  return res.data as Blob
+}
+
+/** 下载指标模板导入模板（含表头 + 示例 + 填写说明）。 */
+export async function downloadTemplateTemplate(format: 'xlsx' | 'csv' = 'xlsx'): Promise<Blob> {
+  const res = await api.get('/metrics/templates/template/', {
+    params: { file_format: format },
+    responseType: 'blob',
+  })
+  return res.data as Blob
+}
+
+/**
+ * 批量导入指标模板（multipart/form-data：file + mode）。
+ *
+ * 成功（2xx）：后端返回 {success, data:{created,updated,skipped,failed,errors}}。
+ * 失败（4xx，含解析/校验错误）：后端返回 {success:false, data:{errors, errorFile}}，
+ * 抛出 TemplateImportError 并携带 report，调用方据此展示明细 / 下载错误报告。
+ */
+export async function importMetricTemplates(
+  file: File,
+  mode: TemplateImportMode = 'skip',
+): Promise<TemplateImportResult> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('mode', mode)
+  try {
+    const res = await api.post('/metrics/templates/import/', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    const body = res.data
+    const data = (body && typeof body === 'object' && 'data' in body ? body.data : body) as TemplateImportResult
+    return data
+  } catch (err: any) {
+    const r = err?.response?.data
+    if (r && r.data) {
+      throw new TemplateImportError(r.data as TemplateImportResult)
+    }
+    throw err
+  }
+}

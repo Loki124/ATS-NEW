@@ -15,6 +15,8 @@ try/except 双重保障，执行类错误降级为该步 FAIL 并在 error 字�
 from typing import List
 
 from django.core.cache import cache
+from django.http import HttpResponse
+from io import BytesIO
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
@@ -25,6 +27,15 @@ from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 from apps.rule_engine.models import UnifiedOperator
 
+from .io_template import (
+    _log_template_audit,
+    build_template_export_rows,
+    build_template_export_workbook,
+    build_template_export_csv,
+    build_template_template_workbook,
+    build_template_template_csv,
+    import_templates,
+)
 from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
 from .serializers import (
     AtomicMetricSerializer,
@@ -103,6 +114,69 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     ).order_by('name')
     serializer_class = MetricTemplateSerializer
     pagination_class = StandardResultsSetPagination
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_templates(self, request):
+        """导出全部指标模板为 xlsx / csv（业务字段 8 列）。"""
+        fmt = (request.query_params.get('file_format') or 'xlsx').lower()
+        rows = build_template_export_rows()
+        if fmt == 'csv':
+            content = build_template_export_csv(rows)
+            resp = HttpResponse(content, content_type='text/csv; charset=utf-8-sig')
+            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_export.csv"'
+        else:
+            wb = build_template_export_workbook(rows)
+            buf = BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            resp = HttpResponse(
+                buf.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_export.xlsx"'
+        _log_template_audit(
+            request.user, 'EXPORT', f'导出指标模板 {len(rows)} 条（{fmt}）', request=request,
+        )
+        return resp
+
+    @action(detail=False, methods=['get'], url_path='template')
+    def template_templates(self, request):
+        """下载指标模板导入模板（xlsx / csv，含表头 + 示例 + 填写说明）。"""
+        fmt = (request.query_params.get('file_format') or 'xlsx').lower()
+        if fmt == 'csv':
+            content = build_template_template_csv()
+            resp = HttpResponse(content, content_type='text/csv; charset=utf-8-sig')
+            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_template.csv"'
+        else:
+            wb = build_template_template_workbook()
+            buf = BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            resp = HttpResponse(
+                buf.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_template.xlsx"'
+        _log_template_audit(
+            request.user, 'TEMPLATE', f'下载指标模板导入模板（{fmt}）', request=request,
+        )
+        return resp
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_templates_action(self, request):
+        """批量导入指标模板：数据校验 + 重复项处理（mode=skip|update|error）。
+
+        校验：模板名称非空且 ≤64；引用指标必须存在；指标类型非法 → 报错；
+        运算符按中文→code 归一化，非法 code → 报错；允许为空/状态解析；文件内重名 → 报错。
+        与库内重复按 mode 处理；任一硬校验错误整体 400 并附错误报告（xlsx，base64）。
+        """
+        f = request.FILES.get('file')
+        mode = request.data.get('mode') or request.query_params.get('mode') or 'skip'
+        result = import_templates(
+            user=request.user, file_obj=f, mode=mode,
+            filename=(f.name if f else ''), request=request,
+        )
+        return Response(result.payload, status=result.status_code)
 
 
 class EvaluateSceneView(APIView):

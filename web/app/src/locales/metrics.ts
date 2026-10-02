@@ -235,6 +235,20 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.rule.validate.betweenRange': '区间最小值不能大于最大值',
   'metrics.rule.validate.operatorNotAllowed': '运算符不在该指标的允许范围内',
   'metrics.rule.validate.mutex': '同一指标禁止同时配置多条阻断规则',
+
+  // ===== 指标模板导入 / 导出 =====
+  'metrics.templateIo.export': '导出',
+  'metrics.templateIo.downloadTemplate': '下载模板',
+  'metrics.templateIo.import': '导入',
+  'metrics.templateIo.importMode': '导入模式',
+  'metrics.templateIo.mode.skip': '跳过已存在',
+  'metrics.templateIo.mode.update': '更新已存在',
+  'metrics.templateIo.mode.error': '重复即报错',
+  'metrics.templateIo.importing': '导入中…',
+  'metrics.templateIo.exporting': '导出中…',
+  'metrics.templateIo.importSuccess': '导入完成：新建 {created} / 更新 {updated} / 跳过 {skipped}',
+  'metrics.templateIo.importFailed': '导入失败',
+  'metrics.templateIo.downloadErrorFile': '下载错误报告',
 }
 
 export const METRICS_EN: Record<string, string> = {
@@ -467,4 +481,18 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.rule.validate.betweenRange': 'Range min cannot exceed max',
   'metrics.rule.validate.operatorNotAllowed': 'Operator not allowed for this indicator',
   'metrics.rule.validate.mutex': 'Mutex: multiple veto rules on same indicator is forbidden',
+
+  // ===== Metric template import / export =====
+  'metrics.templateIo.export': 'Export',
+  'metrics.templateIo.downloadTemplate': 'Download Template',
+  'metrics.templateIo.import': 'Import',
+  'metrics.templateIo.importMode': 'Import Mode',
+  'metrics.templateIo.mode.skip': 'Skip existing',
+  'metrics.templateIo.mode.update': 'Update existing',
+  'metrics.templateIo.mode.error': 'Error on duplicate',
+  'metrics.templateIo.importing': 'Importing…',
+  'metrics.templateIo.exporting': 'Exporting…',
+  'metrics.templateIo.importSuccess': 'Import done: created {created} / updated {updated} / skipped {skipped}',
+  'metrics.templateIo.importFailed': 'Import failed',
+  'metrics.templateIo.downloadErrorFile': 'Download error report',
 }
