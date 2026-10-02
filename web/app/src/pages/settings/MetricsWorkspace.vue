@@ -1010,7 +1010,6 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-top: var(--space-3);
 }
 /* 让 n-tabs 占满 ws-body，tab pane 成为 flex 列，滚动职责下放到表格区
    铁律：全程用 flex:1;min-height:0，禁止 height:100%（依赖父级确定高度、在 flex 链里会塌缩） */
