@@ -133,6 +133,19 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.btn.disable': '停用',
   'metrics.btn.enable': '启用',
 
+  // ===== 指标工作区：数据表化改造（类型图标 / 入参出参 / 运算符徽标 / 图例） =====
+  'metrics.col.type': '类型',
+  'metrics.col.inOutType': '入参 / 出参',
+  'metrics.col.operatorCount': '运算符',
+  'metrics.operator.count': '{n} 个',
+  'metrics.operator.popoverTitle': '支持的运算符',
+  'metrics.legend.atomic': '原子指标 · 对象路径取值',
+  'metrics.legend.derived': '派生指标 · 参数化 Handler',
+  'metrics.paramType.none': '无',
+  'metrics.btn.view': '查看',
+  'metrics.tpl.outputType': '出参类型',
+  'metrics.filter.kind': '类型',
+
   // 指标模板弹窗分区与字段
   'metrics.tpl.sectionParam': '参数',
   'metrics.tpl.sectionOperators': '启用算子',
@@ -351,6 +364,19 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.tag.enum': 'Enum',
   'metrics.btn.disable': 'Disable',
   'metrics.btn.enable': 'Enable',
+
+  // ===== Metric workspace: table refactor (kind icons / in-out / operator badge / legend) =====
+  'metrics.col.type': 'Type',
+  'metrics.col.inOutType': 'Input / Output',
+  'metrics.col.operatorCount': 'Operators',
+  'metrics.operator.count': '{n}',
+  'metrics.operator.popoverTitle': 'Supported Operators',
+  'metrics.legend.atomic': 'Atomic · Object Path',
+  'metrics.legend.derived': 'Derived · Parametric Handler',
+  'metrics.paramType.none': 'None',
+  'metrics.btn.view': 'View',
+  'metrics.tpl.outputType': 'Output Type',
+  'metrics.filter.kind': 'Type',
 
   // Metric template modal sections & fields
   'metrics.tpl.sectionParam': 'Parameters',

@@ -25,70 +25,32 @@
               </template>
             </n-input>
             <n-select
-              v-model:value="defCategory"
-              :placeholder="t('metrics.filter.category')"
-              :options="defCategoryOptions"
+              v-model:value="defKind"
+              :placeholder="t('metrics.filter.kind')"
+              :options="defKindOptions"
               class="ws-filter"
             />
             <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
+          </div>
+
+          <div class="ws-legend">
+            <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
+            <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
           </div>
 
           <n-spin :show="loading" class="ws-spin">
             <div v-if="!loading && !filteredDefinitions.length" class="ws-empty">
               <n-empty :description="t('metrics.empty.definitions')" />
             </div>
-            <div v-else class="metrics-card-grid">
-              <article
-                v-for="d in filteredDefinitions"
-                :key="d.id"
-                class="metric-row-card is-clickable"
-                tabindex="0"
-                role="button"
-                :aria-label="d.name"
-                @click="openDetail(d)"
-                @keydown.enter.prevent="openDetail(d)"
-              >
-                <div class="row-main">
-                  <div class="row-title">
-                    <span class="metric-card-name">{{ d.name }}</span>
-                    <span class="ws-kind-tag" :class="kindClass(d)">{{ kindLabel(d) }}</span>
-                    <span class="ws-mode-badge" :class="valueModeClass(d)">{{ valueModeLabel(d) }}</span>
-                  </div>
-                  <dl class="row-fields">
-                    <div class="row-field">
-                      <dt>{{ t('metrics.col.dataSource') }}</dt>
-                      <dd><code class="ws-code">{{ d.dataSource }}</code></dd>
-                    </div>
-                    <div class="row-field">
-                      <dt>{{ t('metrics.col.returnType') }}</dt>
-                      <dd>{{ returnTypeLabel(d.returnType) }}<template v-if="d.unit">（{{ d.unit }}）</template></dd>
-                    </div>
-                    <div class="row-field">
-                      <dt>{{ t('metrics.col.paramType') }}</dt>
-                      <dd>{{ paramTypeLabel(d.paramType) }}</dd>
-                    </div>
-                    <div class="row-field">
-                      <dt>{{ t('metrics.col.operators') }}</dt>
-                      <dd class="row-ops">
-                        <template v-if="(d.supportedOperators || []).length">
-                          <span v-for="op in d.supportedOperators" :key="op" class="ws-op-tag">{{ operatorLabel(op) }}</span>
-                        </template>
-                        <span v-else class="ws-muted">-</span>
-                      </dd>
-                    </div>
-                    <div v-if="d.isEnum && enumValuesOf(d).length" class="row-field">
-                      <dt>{{ t('metrics.col.enumValues') }}</dt>
-                      <dd class="row-ops">
-                        <span v-for="ev in enumValuesOf(d)" :key="ev" class="ws-enum-tag">{{ ev }}</span>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-                <div class="row-trailing">
-                  <n-icon :component="ChevronForwardOutline" />
-                </div>
-              </article>
-            </div>
+            <n-data-table
+              v-else
+              :columns="defColumns"
+              :data="filteredDefinitions"
+              :row-props="defRowProps"
+              :scroll-x="860"
+              size="small"
+              class="ws-table"
+            />
           </n-spin>
         </n-tab-pane>
 
@@ -119,6 +81,11 @@
             </n-button>
           </div>
 
+          <div class="ws-legend">
+            <span class="ws-legend-item"><KindIcon kind="atomic" :size="18" /> {{ t('metrics.legend.atomic') }}</span>
+            <span class="ws-legend-item"><KindIcon kind="derived" :size="18" /> {{ t('metrics.legend.derived') }}</span>
+          </div>
+
           <n-spin :show="loading" class="ws-spin">
             <div v-if="!loading && !templateList.length" class="ws-empty">
               <n-empty :description="t('metrics.empty.noTemplates')" />
@@ -126,48 +93,14 @@
             <div v-else-if="!filteredTemplates.length" class="ws-empty">
               <n-empty :description="t('metrics.empty.templates')" />
             </div>
-            <div v-else class="metrics-card-grid">
-              <article v-for="tpl in filteredTemplates" :key="tpl.id" class="metric-row-card tpl-row-card">
-                <div class="row-main">
-                  <div class="row-title">
-                    <span class="metric-card-name">{{ tpl.name }}</span>
-                    <n-tag size="small" :type="tpl.status === 'enabled' ? 'success' : 'default'">
-                      {{ tpl.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
-                    </n-tag>
-                  </div>
-                  <dl class="row-fields">
-                    <div class="row-field">
-                      <dt>{{ t('metrics.col.metric') }}</dt>
-                      <dd>{{ tpl.metricName }}</dd>
-                    </div>
-                    <div class="row-field">
-                      <dt>{{ t('metrics.tpl.range') }}</dt>
-                      <dd>{{ templateRange(tpl) }}</dd>
-                    </div>
-                    <div class="row-field">
-                      <dt>{{ t('metrics.tpl.domain') }}</dt>
-                      <dd>{{ templateDomain(tpl) }}</dd>
-                    </div>
-                    <div class="row-field">
-                      <dt>{{ t('metrics.col.operators') }}</dt>
-                      <dd class="row-ops">
-                        <template v-if="(tpl.operators || []).length">
-                          <span v-for="op in tpl.operators" :key="op" class="ws-op-tag">{{ operatorLabel(op) }}</span>
-                        </template>
-                        <span v-else class="ws-muted">-</span>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-                <div class="row-trailing row-actions">
-                  <n-button size="small" quaternary @click="openTemplateEdit(tpl)">{{ t('metrics.btn.edit') }}</n-button>
-                  <n-button size="small" quaternary @click="toggleTemplate(tpl)">
-                    {{ tpl.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable') }}
-                  </n-button>
-                  <n-button size="small" quaternary type="error" @click="removeTemplate(tpl)">{{ t('metrics.btn.delete') }}</n-button>
-                </div>
-              </article>
-            </div>
+            <n-data-table
+              v-else
+              :columns="tplColumns"
+              :data="filteredTemplates"
+              :scroll-x="900"
+              size="small"
+              class="ws-table"
+            />
           </n-spin>
         </n-tab-pane>
       </n-tabs>
@@ -183,18 +116,11 @@
     >
       <template v-if="detailRow">
         <div class="detail-grid">
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.kind') }}</div>
-            <div class="cell-value">
-              <span class="ws-kind-tag" :class="kindClass(detailRow)">{{ kindLabel(detailRow) }}</span>
-            </div>
-          </div>
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.valueMode') }}</div>
-            <div class="cell-value">
-              <span class="ws-mode-badge" :class="valueModeClass(detailRow)">
-                {{ valueModeLabel(detailRow) }}
-              </span>
+          <div class="detail-cell detail-head-cell">
+            <div class="cell-label">{{ t('metrics.col.type') }}</div>
+            <div class="cell-value ws-kind-line">
+              <KindIcon :kind="detailRow.kind" :size="18" />
+              <span :class="['ws-kind-text', kindClass(detailRow)]">{{ kindLabel(detailRow) }}</span>
             </div>
           </div>
           <div class="detail-cell detail-cell-wide">
@@ -204,14 +130,8 @@
             </div>
           </div>
           <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.paramType') }}</div>
-            <div class="cell-value">{{ paramTypeLabel(detailRow.paramType) }}</div>
-          </div>
-          <div class="detail-cell">
-            <div class="cell-label">{{ t('metrics.col.returnType') }}</div>
-            <div class="cell-value">
-              {{ returnTypeLabel(detailRow.returnType) }}<template v-if="detailRow.unit">（{{ detailRow.unit }}）</template>
-            </div>
+            <div class="cell-label">{{ t('metrics.col.inOutType') }}</div>
+            <div class="cell-value">{{ inOutLabel(detailRow) }}</div>
           </div>
           <div class="detail-cell">
             <div class="cell-label">{{ t('metrics.col.operators') }}</div>
@@ -475,6 +395,7 @@ import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NButton,
+  NDataTable,
   NInput,
   NInputNumber,
   NModal,
@@ -482,8 +403,11 @@ import {
   NSwitch,
   NTag,
   useMessage,
+  type DataTableColumns,
 } from 'naive-ui'
-import { CheckmarkOutline, ChevronForwardOutline, SearchOutline } from '@vicons/ionicons5'
+import { CheckmarkOutline, SearchOutline } from '@vicons/ionicons5'
+import KindIcon from '@/components/metrics/KindIcon.vue'
+import OperatorBadge from '@/components/metrics/OperatorBadge.vue'
 import {
   createMetricTemplate,
   deleteMetricTemplate,
@@ -553,13 +477,10 @@ async function saveDerivedParams() {
   }
 }
 
-function valueModeClass(row: MetricDefinition): string {
-  return row.valueMode === 'parametric_handler' ? 'is-parametric' : 'is-object'
-}
-function valueModeLabel(row: MetricDefinition): string {
-  return row.valueMode === 'parametric_handler'
-    ? t('metrics.valueMode.parametric')
-    : t('metrics.valueMode.objectPath')
+/** 入参 / 出参 合并标签（详情弹窗与定义表共用）。无入参时显示「无 / X」。 */
+function inOutLabel(row: MetricDefinition): string {
+  const param = row.paramType ? paramTypeLabel(row.paramType) : t('metrics.paramType.none')
+  return `${param} / ${returnTypeLabel(row.returnType)}`
 }
 function kindLabel(row: MetricDefinition): string {
   return row.kind === 'derived' ? t('metrics.tab.derived') : t('metrics.tab.atomic')
@@ -590,9 +511,9 @@ function operatorLabel(value: string) {
 
 // ===== 指标定义：搜索 + 分类筛选 =====
 const defKeyword = ref('')
-const defCategory = ref<'all' | 'atomic' | 'derived'>('all')
+const defKind = ref<'all' | 'atomic' | 'derived'>('all')
 
-const defCategoryOptions = computed<OptionItem[]>(() => [
+const defKindOptions = computed<OptionItem[]>(() => [
   { label: t('metrics.filter.all'), value: 'all' },
   { label: t('metrics.tab.atomic'), value: 'atomic' },
   { label: t('metrics.tab.derived'), value: 'derived' },
@@ -601,7 +522,7 @@ const defCategoryOptions = computed<OptionItem[]>(() => [
 const filteredDefinitions = computed<MetricDefinition[]>(() => {
   const kw = defKeyword.value.trim().toLowerCase()
   return definitions.value.filter((d) => {
-    if (defCategory.value !== 'all' && d.kind !== defCategory.value) return false
+    if (defKind.value !== 'all' && d.kind !== defKind.value) return false
     if (kw) {
       const hay = [
         d.name,
@@ -609,7 +530,7 @@ const filteredDefinitions = computed<MetricDefinition[]>(() => {
         returnTypeLabel(d.returnType),
         paramTypeLabel(d.paramType),
         kindLabel(d),
-        valueModeLabel(d),
+        d.valueMode,
         (d.supportedOperators || []).map((o) => operatorLabel(o)).join(' '),
       ].join(' ').toLowerCase()
       if (!hay.includes(kw)) return false
@@ -659,6 +580,125 @@ function templateDomain(row: MetricTemplate): string {
   if (!segs || !segs.length) return '-'
   return segs.map((s) => `${s.min}~${s.max}`).join('，')
 }
+
+// ===== 指标定义表（n-data-table）列定义 =====
+const defColumns = computed<DataTableColumns<MetricDefinition>>(() => [
+  {
+    title: t('metrics.col.name'),
+    key: 'name',
+    minWidth: 160,
+    render: (row) => h('span', { class: 'ws-cell-name' }, row.name),
+  },
+  {
+    title: t('metrics.col.type'),
+    key: 'kind',
+    width: 96,
+    render: (row) => h(KindIcon, { kind: row.kind, size: 18 }),
+  },
+  {
+    title: t('metrics.col.dataSource'),
+    key: 'dataSource',
+    minWidth: 200,
+    render: (row) => h('code', { class: 'ws-code' }, row.dataSource),
+  },
+  {
+    title: t('metrics.col.inOutType'),
+    key: 'inOut',
+    width: 150,
+    render: (row) => h('span', inOutLabel(row)),
+  },
+  {
+    title: t('metrics.col.operatorCount'),
+    key: 'operators',
+    width: 110,
+    render: (row) => h(OperatorBadge, { value: row.supportedOperators, catalog: operatorCatalog.value }),
+  },
+  {
+    title: t('metrics.col.action'),
+    key: 'action',
+    width: 88,
+    render: (row) =>
+      h(
+        NButton,
+        { size: 'small', quaternary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); openDetail(row) } },
+        { default: () => t('metrics.btn.view') },
+      ),
+  },
+])
+
+function defRowProps(row: MetricDefinition) {
+  return {
+    style: 'cursor:pointer',
+    onClick: () => openDetail(row),
+    onKeydown: (e: KeyboardEvent) => {
+      if (e.key === 'Enter') openDetail(row)
+    },
+  }
+}
+
+// ===== 指标模板表（n-data-table，保留 CRUD 操作列）列定义 =====
+const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
+  {
+    title: t('metrics.col.name'),
+    key: 'name',
+    minWidth: 160,
+    render: (row) => h('span', { class: 'ws-cell-name' }, row.name),
+  },
+  {
+    title: t('metrics.col.metric'),
+    key: 'metric',
+    minWidth: 200,
+    render: (row) =>
+      h('span', { class: 'ws-metric-cell' }, [
+        h(KindIcon, { kind: row.metricKind ?? 'atomic', size: 18 }),
+        ' ',
+        row.metricName ?? '-',
+      ]),
+  },
+  {
+    title: t('metrics.tpl.outputType'),
+    key: 'dataType',
+    width: 150,
+    render: (row) =>
+      h('span', row.dataType ? `${returnTypeLabel(row.dataType)}${row.unit ? ` (${row.unit})` : ''}` : '-'),
+  },
+  {
+    title: t('metrics.col.operatorCount'),
+    key: 'operators',
+    width: 110,
+    render: (row) => h(OperatorBadge, { value: row.operators, catalog: operatorCatalog.value }),
+  },
+  {
+    title: t('metrics.col.status'),
+    key: 'status',
+    width: 90,
+    render: (row) =>
+      h(
+        NTag,
+        { size: 'small', type: row.status === 'enabled' ? 'success' : 'default' },
+        { default: () => (row.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled')) },
+      ),
+  },
+  {
+    title: t('metrics.col.action'),
+    key: 'action',
+    width: 210,
+    render: (row) =>
+      h('div', { class: 'ws-row-actions' }, [
+        h(NButton, { size: 'small', quaternary: true, onClick: () => openTemplateEdit(row) }, { default: () => t('metrics.btn.edit') }),
+        h(
+          NButton,
+          { size: 'small', quaternary: true, onClick: () => toggleTemplate(row) },
+          { default: () => (row.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable')) },
+        ),
+        h(
+          NButton,
+          { size: 'small', quaternary: true, type: 'error', onClick: () => removeTemplate(row) },
+          { default: () => t('metrics.btn.delete') },
+        ),
+      ]),
+  },
+])
 
 // ===== 指标模板新建/编辑 =====
 const showTemplateModal = ref(false)
@@ -988,112 +1028,40 @@ onMounted(load)
   flex-wrap: wrap;
 }
 
-/* ===== 卡片列表（每行一个卡片，横向紧凑） ===== */
-.metrics-card-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  padding-bottom: var(--space-4);
-}
-.metric-row-card {
+/* ===== 图例（原子 / 派生 类型说明） ===== */
+.ws-legend {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition:
-    box-shadow var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
-  animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
-}
-.metric-row-card.is-clickable { cursor: pointer; }
-.metric-row-card:hover {
-  border-color: color-mix(in srgb, var(--brand) 42%, transparent);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
-}
-.metric-row-card:focus-visible {
-  outline: 2px solid var(--brand-button);
-  outline-offset: 2px;
-}
-.row-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.row-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  margin-bottom: var(--space-3);
   flex-wrap: wrap;
 }
-.metric-card-name {
-  font-size: var(--text-base, 15px);
+.ws-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-small, 13px);
+  color: var(--ink-soft);
+}
+
+/* ===== 数据表（替代卡片网格） ===== */
+.ws-table {
+  width: 100%;
+}
+.ws-cell-name {
   font-weight: 600;
   color: var(--ink);
-  word-break: break-word;
-  line-height: 1.35;
 }
-.ws-kind-tag {
-  font-size: var(--fs-12);
-  font-weight: 500;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-.ws-kind-tag.is-atomic {
-  background: var(--c-info-soft);
-  border-color: color-mix(in srgb, var(--c-info) 24%, transparent);
-  color: var(--c-info-deep);
-}
-.ws-kind-tag.is-derived {
-  background: var(--brand-a12);
-  border-color: var(--brand-a22);
-  color: var(--brand-text);
-}
-.row-fields {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-5);
-  margin: 0;
-}
-.row-field {
-  display: flex;
-  align-items: baseline;
+.ws-metric-cell {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  min-width: 0;
 }
-.row-field dt {
-  flex: 0 0 auto;
-  color: var(--ink-faint);
-  font-size: var(--fs-12);
-}
-.row-field dd {
-  margin: 0;
-  color: var(--ink);
-  font-size: var(--text-small, 13px);
-  word-break: break-word;
-}
-.row-ops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-}
-.row-trailing {
-  flex: 0 0 auto;
+.ws-row-actions {
   display: flex;
   align-items: center;
-  color: var(--ink-faint);
-}
-.row-actions {
   gap: 2px;
+  flex-wrap: nowrap;
 }
 
 /* 空态 */
@@ -1135,24 +1103,15 @@ onMounted(load)
   color: var(--c-success-deep);
   white-space: nowrap;
 }
-.ws-mode-badge {
-  display: inline-flex;
+.ws-kind-line {
+  display: flex;
   align-items: center;
-  font-size: var(--fs-12);
-  font-weight: 500;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid transparent;
+  gap: var(--space-2);
 }
-.ws-mode-badge.is-object {
-  background: var(--c-info-soft);
-  border-color: color-mix(in srgb, var(--c-info) 24%, transparent);
-  color: var(--c-info-deep);
-}
-.ws-mode-badge.is-parametric {
-  background: var(--c-warning-soft);
-  border-color: color-mix(in srgb, var(--c-warning) 26%, transparent);
-  color: var(--c-warning-deep);
+.ws-kind-text {
+  font-size: var(--text-base, 15px);
+  font-weight: 600;
+  color: var(--ink);
 }
 .ws-ops { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .ws-muted { color: var(--ink-faint); font-size: var(--text-small, 13px); }
