@@ -1,7 +1,8 @@
 """阶段配置规则组件 — GET /api/v1/expressions/fields 目录端点验证。
 
 数据必须来自 services.py:_get_actual_value 实际解析的字段，
-覆盖 CANDIDATE / DEMAND / STAGE_STATUS 三个 source。
+覆盖 DEMAND（legacy 7 字段 + demand.* 指标）/ POSITION（position.* 指标）/
+CANDIDATE（candidate.* 指标）/ STAGE_STATUS 四个 source。
 
 2026-10-01 第二轮：CANDIDATE 字段完全由指标库（apps.metrics.AtomicMetric，
 source_path=candidate.*）驱动，field=source_path、label=指标名、value_type 由 data_type 推导。
@@ -31,12 +32,13 @@ class EntryConditionFieldsCatalogTest(TestCase):
         self.assertIsInstance(data['common_operators'], list)
         self.assertGreater(len(data['common_operators']), 0)
 
-    def test_three_sources_present(self):
+    def test_four_sources_present(self):
+        """2026-10-02 起需求/职位指标接入：DEMAND / POSITION / CANDIDATE / STAGE_STATUS 四 source。"""
         data = self._get_catalog()
         keys = {s['key'] for s in data['sources']}
         self.assertEqual(
-            keys, {'DEMAND', 'CANDIDATE', 'STAGE_STATUS'},
-            '必须包含 DEMAND / CANDIDATE / STAGE_STATUS 三个 source',
+            keys, {'DEMAND', 'POSITION', 'CANDIDATE', 'STAGE_STATUS'},
+            '必须包含 DEMAND / POSITION / CANDIDATE / STAGE_STATUS 四个 source',
         )
 
     def test_source_dicts_expose_source_key_for_frontend(self):
@@ -100,11 +102,32 @@ class EntryConditionFieldsCatalogTest(TestCase):
         # 契约：前端读 f.field
         self.assertTrue(all(f['field'] == f['key'] for f in demand['fields']))
         fields = {f['field'] for f in demand['fields']}
-        self.assertEqual(
-            fields,
-            {'HIRING_MANAGER', 'HIRING_MANAGER_SUPER', 'BU_PRESIDENT',
-             'SOLID_VP', 'DOTTED_VP', 'DEMAND_LEVEL', 'DEPARTMENT'},
+        # 7 个 legacy 硬编码字段必须仍在（services._get_demand_value 的映射键）
+        legacy_fields = {
+            'HIRING_MANAGER', 'HIRING_MANAGER_SUPER', 'BU_PRESIDENT',
+            'SOLID_VP', 'DOTTED_VP', 'DEMAND_LEVEL', 'DEPARTMENT',
+        }
+        self.assertTrue(
+            legacy_fields.issubset(fields),
+            f'legacy 需求字段缺失: {legacy_fields - fields}',
         )
+        # 2026-10-02 接入：demand.* 指标（0012 seed）也进入 DEMAND 源
+        self.assertIn('demand.headcount', fields)
+        self.assertIn('demand.title', fields)
+
+    def test_position_source_is_metric_driven(self):
+        """POSITION 源完全由 position.* 指标驱动（0012 seed）。"""
+        data = self._get_catalog()
+        position = next(s for s in data['sources'] if s['key'] == 'POSITION')
+        self.assertTrue(all(f['field'] == f['key'] for f in position['fields']))
+        fields = {f['field'] for f in position['fields']}
+        self.assertGreater(len(fields), 0, 'POSITION 源不应为空（0012 已 seed position.* 指标）')
+        self.assertTrue(all(f.startswith('position.') for f in fields))
+        # 数值指标带 value_type（前端据选输入控件）
+        by_field = {f['field']: f for f in position['fields']}
+        self.assertEqual(by_field['position.headcount']['value_type'], 'number')
+        self.assertTrue({'GT', 'GTE', 'LT', 'LTE', 'BETWEEN'}.issubset(
+            set(by_field['position.headcount']['operators'])))
 
     def test_stage_status_field_uses_stage_list_value_source(self):
         data = self._get_catalog()

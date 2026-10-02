@@ -9,9 +9,10 @@
  */
 import type { OperatorKey, SourceKey } from './types'
 
-/** source → UI 展示名（仅渲染后端支持的 3 种；POSITION/RESUME 缺口不出现） */
+/** source → UI 展示名（渲染后端 catalog 返回的 4 种 source） */
 export const AR_SOURCE_LABELS: Record<SourceKey, string> = {
   DEMAND: '需求中',
+  POSITION: '职位中',
   CANDIDATE: '候选人中',
   STAGE_STATUS: '阶段状态',
 }

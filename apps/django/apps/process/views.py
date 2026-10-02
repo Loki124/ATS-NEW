@@ -729,7 +729,9 @@ class EntryConditionFieldCatalogView(APIView):
       每个 enabled 且未软删的候选对象路径指标都会成为一条可配置字段（field=source_path，
       label=指标名，operators/value_type 由 data_type 推导）。运营在「指标管理」增删改指标，
       本下拉同步变化，无需改代码。
-    - DEMAND：来自 Position/Demand 硬编码字段映射（用人经理/上级/BU总裁/VP/职级/部门）
+    - DEMAND：硬编码字段映射（用人经理/上级/BU总裁/VP/职级/部门）+ **指标库 demand.*
+      对象路径指标**（2026-10-02 接入，与 CANDIDATE 同一驱动方式）。
+    - POSITION：**完全由指标库 position.* 对象路径指标驱动**（2026-10-02 接入）。
     运算符直接对齐 apps/entry_condition/models.py:33 ConditionOperator 文案。
 
     契约（对齐前端 SPEC-stage-rule-config.md / ConditionPicker.vue）：source 字典带
@@ -774,11 +776,15 @@ class EntryConditionFieldCatalogView(APIView):
                     {'key': 'DEPARTMENT', 'field': 'DEPARTMENT', 'label': '部门',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'DICT:department'},
-                ],
+                ] + self._build_metric_catalog_fields('demand.'),
+            },
+            {
+                'source': 'POSITION', 'key': 'POSITION', 'label': '职位中', 'condition_type': 'POSITION',
+                'fields': self._build_metric_catalog_fields('position.'),
             },
             {
                 'source': 'CANDIDATE', 'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
-                'fields': self._build_candidate_catalog_fields(),
+                'fields': self._build_metric_catalog_fields('candidate.'),
             },
             {
                 'source': 'STAGE_STATUS', 'key': 'STAGE_STATUS', 'label': '阶段状态', 'condition_type': 'STAGE_STATUS',
@@ -801,11 +807,11 @@ class EntryConditionFieldCatalogView(APIView):
         })
 
     @staticmethod
-    def _build_candidate_catalog_fields() -> list:
-        """CANDIDATE 字段定义：完全由指标库（apps.metrics.AtomicMetric）驱动。
+    def _build_metric_catalog_fields(prefix: str) -> list:
+        """指标驱动字段定义：完全由指标库（apps.metrics.AtomicMetric）驱动。
 
-        每个 source_path 以 `candidate.` 开头、status=enabled、未软删的 AtomicMetric
-        都会成为一条可配置字段（这才是「进入条件应用指标管理内容」的真正落点）：
+        每个 source_path 以 `prefix` 开头、status=enabled、未软删的 AtomicMetric
+        都会成为一条可配置字段（「进入条件应用指标管理内容」的真正落点）：
 
             - field / key = source_path（如 candidate.age）：与 ConditionItem.field、
               快照点路径、指标层定义三者统一，不再维护一份 legacy 键映射表。
@@ -818,7 +824,7 @@ class EntryConditionFieldCatalogView(APIView):
             - 枚举字段（is_enum + enum_values）：用 enum_values 生成 options 下拉，
               value_type='enum'，前端渲染下拉而非自由文本。
 
-        这样运营在「指标管理」里新增 / 改名 / 启用禁用一个候选对象路径指标，进入条件的
+        这样运营在「指标管理」里新增 / 改名 / 启用禁用一个对象路径指标，进入条件的
         下拉会同步增删改，**无需改代码**。
 
         已落库的 legacy 键（AGE / GENDER / ...）由 services._get_candidate_value 反向
@@ -828,7 +834,7 @@ class EntryConditionFieldCatalogView(APIView):
             from apps.metrics.models import AtomicMetric, MetricDataType
 
             rows = AtomicMetric.objects.filter(
-                source_path__startswith='candidate.',
+                source_path__startswith=prefix,
                 status='enabled',
                 deleted_at__isnull=True,
             ).values('source_path', 'name', 'data_type', 'is_enum', 'enum_values')

@@ -338,7 +338,21 @@ class EntryConditionEvaluator:
             return self._get_candidate_value(item.field)
 
         if item.condition_type == ConditionFieldType.DEMAND:
+            field = item.field or ''
+            if isinstance(field, str) and (
+                field.startswith('demand.') or field.startswith('position.')
+            ):
+                # 指标库驱动的对象路径字段（目录 field=source_path，2026-10-02 接入）：
+                # demand.* 走需求快照；position.* 允许挂在 DEMAND 源下做兜底兼容
+                # （需求与职位一一关联时运营可能混选）。
+                if field.startswith('demand.'):
+                    return self._get_demand_metric_value(field)
+                return self._get_position_metric_value(field)
+            # legacy 硬编码字段（HIRING_MANAGER / DEMAND_LEVEL / ...）
             return self._get_demand_value(item.field)
+
+        if item.condition_type == ConditionFieldType.POSITION:
+            return self._get_position_metric_value(item.field)
 
         return None
 
@@ -362,6 +376,33 @@ class EntryConditionEvaluator:
         except DatabaseError:  # ORM 查询兜底返 None (字段不存在/数据缺失), 不阻断规则评估
             return None
 
+    def _resolve_metric_value(self, source_path: str, snapshot: Dict[str, Any]) -> tuple:
+        """通用指标解析：AtomicMetric + 快照 + FieldResolverRegistry（指标层共享路径解析）。
+
+        Returns:
+            (found, value)：found=False 表示指标不存在（调用方可决定是否走兜底）；
+            found=True 时 value 为解析结果（可能为 None，触发 IS_EMPTY / GT 等判 False）。
+            布尔归一为 'true'/'false' 字符串，保证与前端枚举值（是/否）可比。
+        """
+        try:
+            from apps.metrics.models import AtomicMetric, MetricDataType
+            from apps.metrics.services.field_resolver import FieldResolverRegistry
+
+            metric = AtomicMetric.objects.filter(
+                source_path=source_path, status='enabled', deleted_at__isnull=True,
+            ).first()
+            if metric is None:
+                return False, None
+            value = FieldResolverRegistry.resolve(source_path, snapshot)
+            if metric.data_type == MetricDataType.BOOLEAN and isinstance(value, bool):
+                return True, ('true' if value else 'false')
+            return True, value
+        except Exception as e:  # noqa: BLE001 — 任何指标层异常都按未找到处理, 不阻断规则评估
+            logger.warning(
+                'entry_condition metrics 解析失败 path=%s err=%s', source_path, e,
+            )
+            return False, None
+
     def _get_candidate_value(self, field: str) -> Any:
         """获取候选人字段值 —— 直接由指标库（AtomicMetric + 快照 + 解析器）驱动。
 
@@ -384,23 +425,15 @@ class EntryConditionEvaluator:
 
         if source_path:
             try:
-                from apps.metrics.models import AtomicMetric, MetricDataType
                 from apps.metrics.services.candidate_snapshot import build_candidate_snapshot
-                from apps.metrics.services.field_resolver import FieldResolverRegistry
-
-                metric = AtomicMetric.objects.filter(
-                    source_path=source_path, status='enabled', deleted_at__isnull=True,
-                ).first()
-                if metric is not None:
-                    snapshot = build_candidate_snapshot(self.candidate.id)
-                    value = FieldResolverRegistry.resolve(source_path, snapshot)
-                    # 布尔归一为 'true'/'false' 字符串，保证与前端枚举值（是/否）可比
-                    if metric.data_type == MetricDataType.BOOLEAN and isinstance(value, bool):
-                        return 'true' if value else 'false'
+                snapshot = build_candidate_snapshot(self.candidate.id)
+                found, value = self._resolve_metric_value(source_path, snapshot)
+                if found:
+                    # 指标存在：其值（含 None）即最终结果，不落 legacy 兜底（原语义）
                     return value
-            except Exception as e:  # noqa: BLE001 — 任何指标层异常都不阻断 legacy 兜底
+            except Exception as e:  # noqa: BLE001 — 快照组装异常不阻断 legacy 兜底
                 logger.warning(
-                    'entry_condition metrics 解析失败 field=%s path=%s err=%s',
+                    'entry_condition 候选人快照组装失败 field=%s path=%s err=%s',
                     field, source_path, e,
                 )
 
@@ -412,6 +445,40 @@ class EntryConditionEvaluator:
             except Exception:  # noqa: BLE001 — legacy 兜底字段解析失败返 None, 不阻断主流程
                 return None
         return None
+
+    def _get_demand_metric_value(self, field: str) -> Any:
+        """获取 demand.* 对象路径指标值（需求快照 + 指标解析器）。
+
+        需求实体来自 context['demand']（advance 主链路已注入）；无上下文 = None。
+        """
+        demand = self.context.get('demand')
+        if not demand:
+            return None
+        try:
+            from apps.metrics.services.candidate_snapshot import build_demand_snapshot
+            snapshot = build_demand_snapshot(demand.id)
+        except Exception as e:  # noqa: BLE001 — 快照组装失败返 None, 不阻断主流程
+            logger.warning('entry_condition 需求快照组装失败 field=%s err=%s', field, e)
+            return None
+        _, value = self._resolve_metric_value(field, snapshot)
+        return value
+
+    def _get_position_metric_value(self, field: str) -> Any:
+        """获取 position.* 对象路径指标值（职位快照 + 指标解析器）。
+
+        职位实体来自 context['position']；无上下文 = None。
+        """
+        position = self.context.get('position')
+        if not position:
+            return None
+        try:
+            from apps.metrics.services.candidate_snapshot import build_position_snapshot
+            snapshot = build_position_snapshot(position.id)
+        except Exception as e:  # noqa: BLE001 — 快照组装失败返 None, 不阻断主流程
+            logger.warning('entry_condition 职位快照组装失败 field=%s err=%s', field, e)
+            return None
+        _, value = self._resolve_metric_value(field, snapshot)
+        return value
 
     def _get_demand_value(self, field: str) -> Any:
         """获取需求中字段值（来自职位/部门）"""

@@ -63,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 import { computed, reactive, watch } from 'vue'
 import { NSelect, NInput, NInputNumber } from 'naive-ui'
 import type { ConditionItem, FieldCatalog, OperatorKey, SourceKey } from '../types'
+import { AR_OPERATOR_LABELS } from '../constants'
 const { t } = useI18n()
 
 const props = defineProps<{
@@ -93,7 +94,13 @@ const sourceDef = computed(() => (props.catalog?.sources || []).find((s) => s.so
 const fieldOptions = computed(() => (sourceDef.value?.fields || []).map((f) => ({ label: f.label, value: f.field })))
 const fieldDef = computed(() => sourceDef.value?.fields.find((f) => f.field === item.field))
 const operatorOptions = computed(() =>
-  (fieldDef.value?.operators || []).map((op) => ({ label: props.catalog?.operators?.[op] || op, value: op })),
+  // 算子统一展示中文文案：优先前端常量映射（AR_OPERATOR_LABELS），catalog.operators（后端
+  // 若返回 map）兜底，最后才回退原始 key。后端 GET /expressions/fields 仅返回
+  // common_operators 平铺列表（无 operators map），故实际生效的是 AR_OPERATOR_LABELS。
+  (fieldDef.value?.operators || []).map((op) => ({
+    label: AR_OPERATOR_LABELS[op as OperatorKey] || props.catalog?.operators?.[op] || op,
+    value: op,
+  })),
 )
 
 const isNoValueOp = computed(() => item.operator === 'IS_EMPTY' || item.operator === 'IS_NOT_EMPTY')
