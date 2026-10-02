@@ -4,8 +4,9 @@
  * 颜色 / 视觉一律走 design token，本文件不含任何样式。
  */
 
-/** 数据源枚举（condition_type）。v1 仅渲染后端返回的 3 种，缺口（POSITION/RESUME）不出现。 */
-export type SourceKey = 'STAGE_STATUS' | 'CANDIDATE' | 'DEMAND'
+/** 数据源枚举（condition_type）。由后端 catalog 返回：DEMAND（含 demand.* 指标）、
+ *  POSITION（position.* 指标，2026-10-02 接入）、CANDIDATE（candidate.* 指标）、STAGE_STATUS。 */
+export type SourceKey = 'STAGE_STATUS' | 'CANDIDATE' | 'DEMAND' | 'POSITION'
 
 /** 运算符枚举（与后端 services.py 解析映射一致） */
 export type OperatorKey =

@@ -158,3 +158,94 @@ class SnapshotAgeFallbackTest(TestCase):
         snap = build_candidate_snapshot(cand.id)
         # 主表 age 为 None，birth_date 也无 → 维持 None
         self.assertIsNone(snap['candidate']['age'])
+
+
+class DemandPositionMetricValueTest(TestCase):
+    """demand.* / position.* 对象路径指标接入进入条件（2026-10-02）。
+
+    - ConditionFieldType.DEMAND + field='demand.xxx' → 需求快照 + 指标解析器
+    - ConditionFieldType.POSITION + field='position.xxx' → 职位快照 + 指标解析器
+    - DEMAND 源 legacy 硬编码字段（HIRING_MANAGER 等）行为不变
+    - 无 context（无 demand/position 实体）→ None，不抛异常
+    """
+
+    def _stub_link(self):
+        class _StubLink:
+            pass
+        return _StubLink()
+
+    def _make_item(self, condition_type: str, field: str):
+        from apps.entry_condition.models import ConditionItem
+        return ConditionItem(
+            id=_new_id(), item_seq=1,
+            condition_type=condition_type, field=field,
+            operator='EQ', value=None,
+        )
+
+    def _make_demand(self):
+        from apps.core.models import Department
+        from apps.demand.models import Demand
+        from apps.process.models import RecruitmentProcess
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create_user(
+            username=f'tst_hr_{_new_id()[:8]}', password='Test@1234')
+        dept = Department.objects.create(id=_new_id(), name='tst_部门', code=_new_id()[:10])
+        process = RecruitmentProcess.objects.create(
+            code=_new_id()[:12], name='tst_流程', current_version='V1.0',
+            version_seq=1, is_latest=True, status='ENABLED',
+        )
+        return Demand.objects.create(
+            id=_new_id(), code=f'TST-{_new_id()[:8]}', title='tst_测试需求',
+            department=dept, requested_by=user, hr=user,
+            process=process, headcount=3,
+        )
+
+    def _make_position(self, demand=None):
+        from apps.core.models import Department
+        from apps.position.models import Position
+        from apps.process.models import RecruitmentProcess
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create_user(
+            username=f'tst_mgr_{_new_id()[:8]}', password='Test@1234')
+        dept = Department.objects.create(id=_new_id(), name='tst_部门', code=_new_id()[:10])
+        process = RecruitmentProcess.objects.create(
+            code=_new_id()[:12], name='tst_流程', current_version='V1.0',
+            version_seq=1, is_latest=True, status='ENABLED',
+        )
+        return Position.objects.create(
+            id=_new_id(), code=f'TST-{_new_id()[:8]}', title='tst_测试职位',
+            department=dept, hiring_manager=user, owner=user,
+            process=process, headcount=5, demand=demand,
+        )
+
+    def test_demand_metric_resolves_via_snapshot(self):
+        demand = self._make_demand()
+        evaluator = EntryConditionEvaluator(
+            self._stub_link(), None, context={'demand': demand},
+        )
+        item = self._make_item('DEMAND', 'demand.headcount')
+        self.assertEqual(evaluator._get_actual_value(item), 3)
+
+    def test_position_metric_resolves_via_snapshot(self):
+        position = self._make_position()
+        evaluator = EntryConditionEvaluator(
+            self._stub_link(), None, context={'position': position},
+        )
+        item = self._make_item('POSITION', 'position.headcount')
+        self.assertEqual(evaluator._get_actual_value(item), 5)
+
+    def test_demand_type_accepts_position_path(self):
+        """DEMAND 源下混选 position.* 字段（需求/职位一一关联场景）也能解析。"""
+        demand = self._make_demand()
+        position = self._make_position(demand=demand)
+        evaluator = EntryConditionEvaluator(
+            self._stub_link(), None, context={'demand': demand, 'position': position},
+        )
+        item = self._make_item('DEMAND', 'position.headcount')
+        self.assertEqual(evaluator._get_actual_value(item), 5)
+
+    def test_no_context_returns_none(self):
+        """无 demand/position 上下文：返回 None，不抛异常。"""
+        evaluator = EntryConditionEvaluator(self._stub_link(), None)
+        self.assertIsNone(evaluator._get_actual_value(self._make_item('DEMAND', 'demand.headcount')))
+        self.assertIsNone(evaluator._get_actual_value(self._make_item('POSITION', 'position.headcount')))

@@ -26,8 +26,9 @@ class EntryConditionRuleStatus(models.TextChoices):
 class ConditionFieldType(models.TextChoices):
     """条件字段类型"""
     STAGE_STATUS = 'STAGE_STATUS', '阶段条件'         # 阶段名称 + 状态
-    CANDIDATE = 'CANDIDATE', '候选人'                  # 年龄/学历/经验等
-    DEMAND = 'DEMAND', '需求中'                        # 用人经理/上级/BU总裁/VP/职级
+    CANDIDATE = 'CANDIDATE', '候选人'                  # 年龄/学历/经验等（指标库 candidate.* 驱动）
+    DEMAND = 'DEMAND', '需求中'                        # 用人经理/上级/BU总裁/VP/职级 + 指标库 demand.* 驱动
+    POSITION = 'POSITION', '职位中'                    # 指标库 position.* 驱动（2026-10-02 接入）
 
 
 class ConditionOperator(models.TextChoices):
