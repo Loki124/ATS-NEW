@@ -10,7 +10,7 @@
 | ID | 文件 | 任务 | 工作量 | 优先级 | 依赖 | 状态 |
 |---|---|---|---|---|---|---|
 | T5.1.1 | `T5.1.1-OfferList-colors.md` | OfferList L140-141 颜色字典 token 化 | 0.1d | P0 | T1.1 | 待执行 |
-| T5.1.2 | `T5.1.2-DemandList-colors.md` | DemandList L698/724 + 22 处颜色 | 0.1d | P0 | T1.1 | 待执行 |
+| T5.1.2 | `T5.1.2-DemandList-colors.md` | DemandList 颜色 token 化（已被 09:7x 需求重构覆盖，颜色零硬编码达成） | 0.1d | P0 | T1.1 | ✅ 已覆盖（见 DEMAND_LIST_REDESIGN.md） |
 | T5.1.3 | `T5.1.3-OnboardingList-colors.md` | OnboardingList L206 #8c8c8c | 0.1d | P0 | T1.1 | 待执行 |
 | T5.1.4 | `T5.1.4-InterviewList-colors.md` | InterviewList L114/120/160 三处 | 0.1d | P0 | T1.1 | 待执行 |
 | T5.1.5 | `T5.1.5-CandidateList-colors.md` | CandidateList L814-1087 共 21 处颜色 + 行背景 | 0.1d | P0 | T1.1 | 待执行 |
