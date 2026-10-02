@@ -1277,11 +1277,16 @@ async function handleSave() {
     for (let i = 0; i < form.stages.length; i++) {
       const s = form.stages[i]
       if (!s._linkId && s.id) {
+        // 2026-10-02 (兵哥/诊断): 不再传 order。
+        //   旧代码发 order:i+1，当新加阶段落到流程末尾时 i+1 > 结束阶段 order，
+        //   backend assert_within_start_end_bounds 直接返 400「结束阶段后不可添加后续阶段」(生产必现)。
+        //   此 order 仅为暂定值，无任何作用：create() 内 renormalize_process_orders
+        //   会重排，且本循环结束后 3d 的 reorderProcessLinks 会用数组顺序重建最终 order。
+        //   去掉后行为与 ProcessStageEditor.vue:303 一致（经验证 omit order → 201）。
         const created = await addProcessLink({
           processId: currentProcessId,
           stageId: s.id,
           stageLimit: s.stageLimit,
-          order: i + 1,
         })
         if (created?.id) s._linkId = created.id
       }
