@@ -1012,7 +1012,8 @@ onMounted(load)
   overflow: hidden;
   padding-top: var(--space-3);
 }
-/* 让 n-tabs 占满 ws-body，tab pane 成为 flex 列，滚动职责下放到表格区 */
+/* 让 n-tabs 占满 ws-body，tab pane 成为 flex 列，滚动职责下放到表格区
+   铁律：全程用 flex:1;min-height:0，禁止 height:100%（依赖父级确定高度、在 flex 链里会塌缩） */
 .metrics-ws :deep(.n-tabs) {
   display: flex;
   flex-direction: column;
@@ -1026,12 +1027,13 @@ onMounted(load)
 .metrics-ws :deep(.n-tab-pane) {
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 .ws-tab-header {
   flex-shrink: 0;
 }
 .ws-table-wrap {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -1040,8 +1042,9 @@ onMounted(load)
 .ws-spin {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: 100%;
 }
 .ws-spin :deep(.n-spin-content) {
   display: flex;
