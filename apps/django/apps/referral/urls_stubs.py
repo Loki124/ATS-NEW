@@ -225,7 +225,12 @@ def stage_rules(request):
 def auto_archive_rules(request):
     if request.method == 'GET':
         return _empty_list()
-    # 2026-09-27 P0-3 治理: POST 原伪装 success:true + 假 id 却未落库, 现返 501
+    # 2026-09-27 P0-3 治理: POST 原伪装 success:true + 假 id 却未落库, 现返 501。
+    # 写入侧已由真实端点 apps/process/views.py:StageRuleViewSet（StageRuleSerializer 暴露
+    # skip_rules / archive_rules 两个 JSONField）覆盖；skip/archive 的**触发执行**已移至
+    # 阶段流转主链路：apps/process/services/skip_archive_evaluator.py +
+    # apps/application/services/__init__.py 的 _apply_stage_entry_skip_archive（advance/jump 入口）。
+    # 本 stub 确为死代码，保留 501 并明确说明，不为消除 501 而伪造成功。
     return _not_implemented('auto_archive_rules', request, '自动归档规则写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 

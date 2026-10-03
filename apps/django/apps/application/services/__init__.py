@@ -475,12 +475,16 @@ class ApplicationService:
         except Exception as e:  # noqa: BLE001 — 阶段推进时的 automation 触发失败不应阻断主流程 (advance 已落库, automation 是 best-effort)
             logger.warning('Automation trigger on stage advance failed: %s', e)
 
+        # P1-1：阶段进入后挂接 自动跳过 / 自动归档 求值与执行（与 evaluate_stage_entry 同刻）。
+        # 顺序在已进入动作（落库 + 审计 + 自动化）之后，保证 skip/archive 在候选人身处该阶段时判定。
+        ApplicationService._apply_stage_entry_skip_archive(application, actor)
+
         return AdvanceResult(
             application=application,
             from_stage_id=old_stage.id if old_stage else None,
-            to_stage_id=next_link.stage_id,
-            to_stage_name=next_link.stage.name,
-            record=new_record,
+            to_stage_id=application.current_stage_id,
+            to_stage_name=application.current_stage.name if application.current_stage else '',
+            record=application.stage_records.filter(deleted_at__isnull=True).order_by('-entered_at').first(),
         )
 
     # ----------------------------------------------------------
@@ -583,12 +587,15 @@ class ApplicationService:
             operator=actor,
         )
 
+        # P1-1：阶段进入后挂接 自动跳过 / 自动归档 求值与执行（与 evaluate_stage_entry 同刻）。
+        ApplicationService._apply_stage_entry_skip_archive(application, actor)
+
         return AdvanceResult(
             application=application,
             from_stage_id=old_stage.id if old_stage else None,
-            to_stage_id=target_link.stage_id,
-            to_stage_name=target_link.stage.name,
-            record=new_record,
+            to_stage_id=application.current_stage_id,
+            to_stage_name=application.current_stage.name if application.current_stage else '',
+            record=application.stage_records.filter(deleted_at__isnull=True).order_by('-entered_at').first(),
         )
 
     # ----------------------------------------------------------
@@ -1028,6 +1035,239 @@ class ApplicationService:
             operator=None,
         )
         return application
+
+    # ----------------------------------------------------------
+    # 阶段自动跳过 / 自动归档（P1-1，消费方执行动作）
+    # ----------------------------------------------------------
+    @staticmethod
+    def _build_skip_archive_context(application: Application) -> Dict[str, Any]:
+        """构造 skip/archive 求值上下文（candidate_id + demand_id + position_id）。
+
+        METRIC / legacy DEMAND·POSITION 取值需要 demand_id / position_id；
+        存量职位 demand 可能为 NULL（getattr 兜底），不影响纯 candidate 维度规则。
+        """
+        position = application.position
+        demand = getattr(position, 'demand', None)
+        return {
+            'candidate_id': application.candidate_id,
+            'demand_id': getattr(demand, 'id', None),
+            'position_id': application.position_id,
+        }
+
+    @staticmethod
+    def _close_stage_record_as(application: Application, link: Any, state: str, now=None) -> Any:
+        """把 link 的最新未完结阶段记录置为目标状态（SKIPPED / ARCHIVED 等）。
+
+        写 exited_at / duration_days；已是 PASSED/SKIPPED/ARCHIVED 等终态则不重复改写。
+        """
+        now = now or timezone.now()
+        rec = application.stage_records.filter(
+            link=link, deleted_at__isnull=True,
+        ).order_by('-entered_at').first()
+        if rec is None:
+            return None
+        if rec.state in (
+            ApplicationStageRecord.StageState.PASSED,
+            ApplicationStageRecord.StageState.SKIPPED,
+            ApplicationStageRecord.StageState.ARCHIVED,
+        ):
+            return rec
+        rec.state = state
+        rec.exited_at = now
+        if rec.entered_at:
+            rec.duration_days = max(0, (now - rec.entered_at).days)
+        rec.save()
+        return rec
+
+    @staticmethod
+    def _apply_auto_archive(
+        application: Application, actor: Optional[User], rule_name: str = '',
+    ) -> Application:
+        """自动归档（archive_rules 命中）：整申请置归档终态。
+
+        语义对齐 ``timeout_archive`` 的终态（复用 ``Application.timeout_archive`` 状态机
+        转换 → ``TIMEOUT``），唯一差异是触发来源（规则驱动而非超时巡检）与审计
+        ``detail.reason='AUTO_ARCHIVE_RULE'``。
+
+        ⚠️ 不新增 schema / 状态值：``Application`` 的归档终态即 ``TIMEOUT``
+        （``ApplicationState`` 无独立 ``ARCHIVED`` 枚举，且铁律零新增迁移）；阶段记录置
+        ``StageState.ARCHIVED`` 以与超时归档的阶段记录 ``TIMEOUT`` 区分（均为终态语义）。
+        """
+        now = timezone.now()
+        # 1) 关闭当前阶段记录为 ARCHIVED
+        ApplicationService._close_stage_record_as(
+            application, application.current_link,
+            ApplicationStageRecord.StageState.ARCHIVED, now,
+        )
+        # 2) 状态机：复用 timeout_archive 终态转换（protected FSMField 只能走 @transition）
+        try:
+            application.timeout_archive()
+        except (TransitionNotAllowed, Exception) as e:  # noqa: BLE001 — django-fsm 拒绝统一转 StateTransitionError, view 层返 409
+            if application.state != ApplicationState.TIMEOUT:
+                raise StateTransitionError(
+                    f'Auto archive failed for application {application.code} '
+                    f'from state {application.state}: {e}',
+                ) from e
+            # 已在终态：幂等，忽略（不伪成功，只是重复触发）
+        application.save()
+        # 3) 审计
+        ApplicationHistory.objects.create(
+            application=application,
+            action=ApplicationHistory.ActionType.TIMEOUT,
+            detail={
+                'reason': 'AUTO_ARCHIVE_RULE',
+                'rule_name': rule_name,
+                'stage': application.current_stage.name if application.current_stage else None,
+            },
+            operator=actor,
+            is_auto=True,
+        )
+        return application
+
+    @staticmethod
+    def _apply_auto_skip_and_advance(
+        application: Application, from_link: Any, actor: Optional[User],
+    ) -> Application:
+        """自动跳过 + 级联推进（skip_rules 命中）。
+
+        - 把 ``from_link`` 当前阶段记录置 ``SKIPPED``（参考 jump 516-537 的 SKIPPED 逻辑）；
+        - 按 ``link.order`` 找同流程下一个未软删的 link 自动进入（**不跑进入条件**，skip 即绕过）；
+        - 下一阶段若也命中 skip/archive 则继续向后（archive 优先级覆盖 skip）；
+        - 防死循环：以流程阶段总数为上界；
+        - 无后续阶段：停在当前最后一阶段（不强行发 OFFER / 归档），由业务侧裁决终态。
+        """
+        from apps.process.services.skip_archive_evaluator import evaluate_stage_skip_archive
+
+        process = application.process
+        total_links = process.stage_links.filter(deleted_at__isnull=True).count()
+        now = timezone.now()
+        context = ApplicationService._build_skip_archive_context(application)
+
+        # 1) 关闭 from_link 当前记录为 SKIPPED
+        ApplicationService._close_stage_record_as(
+            application, from_link, ApplicationStageRecord.StageState.SKIPPED, now,
+        )
+
+        current_order = from_link.order
+        for _ in range(total_links + 1):  # 以阶段总数为上界，防死循环
+            # D1（P1-1 缺陷修复）：与正常 advance（services/__init__.py:319-323）一致，
+            # 「下一阶段」= 下一「必经」阶段，必须过滤 is_required；否则会把候选人送进
+            # 可选阶段卡住，与正常推进语义背离。
+            next_link = process.stage_links.filter(
+                order__gt=current_order, is_required=True, deleted_at__isnull=True,
+            ).order_by('order').first()
+            if next_link is None:
+                # 流程已无后续阶段：停在当前最后一阶段，由业务侧裁决终态
+                break
+
+            # 进入下一阶段（不跑进入条件，skip 即绕过）
+            tl = calc_time_limit(next_link, application.candidate)
+            # O1（P1-1 打磨项）：尊重目标阶段 supports_to_be_scheduled（与正常 advance 一致），
+            # 面试型阶段置 TO_BE_SCHEDULED，其余置 PENDING。
+            new_state = (
+                ApplicationStageRecord.StageState.TO_BE_SCHEDULED
+                if next_link.stage.supports_to_be_scheduled
+                else ApplicationStageRecord.StageState.PENDING
+            )
+            new_record = ApplicationStageRecord.objects.create(
+                application=application,
+                link=next_link,
+                stage=next_link.stage,
+                state=new_state,
+                entered_at=now,
+                time_limit_rule_id=tl.rule_id,
+                total_time_limit_days=tl.total_lock_days,
+                deadline=now + timedelta(days=tl.total_lock_days) if tl.total_lock_days else None,
+            )
+            old_stage = application.current_stage
+            application.current_link = next_link
+            application.current_stage = next_link.stage
+            application.last_advanced_at = now
+            application.stage_entered_at = now
+            application.stage_deadline = new_record.deadline
+            application.time_limit_rule_id = tl.rule_id
+            application.total_time_limit_days = tl.total_lock_days
+            application.save()
+
+            # 评估该阶段的 skip/archive
+            decision = evaluate_stage_skip_archive(next_link, application.candidate, context)
+            if decision.archive:
+                rule_name = (decision.archive_rule or {}).get('name', '')
+                # _apply_auto_archive 已写 TIMEOUT(AUTO_ARCHIVE_RULE) 审计，级联不重复写；
+                # 否则（D2/D3 缺陷）归档命中阶段会多出一条误导性 SKIPPED 审计。
+                ApplicationService._apply_auto_archive(application, actor, rule_name)
+                break
+            if decision.skip:
+                ApplicationService._close_stage_record_as(
+                    application, next_link, ApplicationStageRecord.StageState.SKIPPED, now,
+                )
+                # 跳过命中：补写一条 SKIPPED 审计（原先无条件对「每个进入阶段」写，现已收敛）。
+                ApplicationHistory.objects.create(
+                    application=application,
+                    action=ApplicationHistory.ActionType.SKIPPED,
+                    from_stage=old_stage,
+                    to_stage=next_link.stage,
+                    detail={'auto': True, 'reason': 'AUTO_SKIP_RULE'},
+                    operator=actor,
+                    is_auto=True,
+                )
+                current_order = next_link.order
+                continue
+            # 未命中 → 停在 next_link（落地停留阶段）：写 ADVANCED 审计，绝不误标 SKIPPED。
+            ApplicationHistory.objects.create(
+                application=application,
+                action=ApplicationHistory.ActionType.ADVANCED,
+                from_stage=old_stage,
+                to_stage=next_link.stage,
+                detail={'auto': True, 'reason': 'AUTO_SKIP_LANDING'},
+                operator=actor,
+                is_auto=True,
+            )
+            break
+
+        return application
+
+    @staticmethod
+    def _apply_stage_entry_skip_archive(application: Application, actor: Optional[User]) -> None:
+        """阶段进入后的 skip/archive 挂接（advance / jump 两处生产入口共用）。
+
+        在 ``evaluate_stage_entry`` 通过后调用：对当前已进入的 link 求值，
+        archive 命中 → 整申请归档；skip 命中 → 跳过并级联推进。
+        求值异常不阻断已完成的进入动作（降级为「不触发」）。
+        """
+        from apps.process.services.skip_archive_evaluator import evaluate_stage_skip_archive
+
+        link = application.current_link
+        if link is None:
+            return
+        context = ApplicationService._build_skip_archive_context(application)
+        try:
+            decision = evaluate_stage_skip_archive(link, application.candidate, context)
+        except Exception as e:  # noqa: BLE001 — 求值失败不得阻断已完成的进入动作
+            logger.warning(
+                '阶段进入 skip/archive 求值异常 app=%s err=%s', application.code, e,
+            )
+            return
+
+        if decision.archive:
+            rule_name = (decision.archive_rule or {}).get('name', '')
+            # D3（P1-1 缺陷修复）：求值已有 try（上方 1222-1228），但「执行」未包裹。
+            # advance 整体在 @transaction.atomic 内，执行异常若向上抛出会回滚整段已进入的
+            # 推进。包在 atomic 内、捕获后不重抛 = 不触发回滚，保留已进入动作（FAIL-not-500）。
+            try:
+                ApplicationService._apply_auto_archive(application, actor, rule_name)
+            except Exception as e:  # noqa: BLE001 — 执行失败不得阻断已完成的进入动作
+                logger.warning(
+                    '阶段进入自动归档执行异常 app=%s err=%s', application.code, e,
+                )
+        elif decision.skip:
+            # D3：同上，级联推进执行异常降级，不阻断已进入动作、不回滚。
+            try:
+                ApplicationService._apply_auto_skip_and_advance(application, link, actor)
+            except Exception as e:  # noqa: BLE001 — 执行失败不得阻断已完成的进入动作
+                logger.warning(
+                    '阶段进入自动跳过级联执行异常 app=%s err=%s', application.code, e,
+                )
 
 
 # ============================================================
