@@ -1,4 +1,5 @@
 # 部署链路口诀：1Panel + CF Tunnel + Webhook
+> 最后更新：2026-09-23（依据 git 最后提交）
 
 > 适用：ATS-NEW 生产环境（`ats.lokisong.cloud:9908`）的部署链路。
 > 状态：2026-09-10 至 09-16 多日部署卡点收口。

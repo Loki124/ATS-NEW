@@ -1,4 +1,5 @@
 # CSV BOM BugFix 完整审计（commit `1a515bb`）
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 适用：ATS-NEW 动态字段管理（`apps/django/apps/dynamic_field/views.py`）CSV 导入导出闭环。
 > 状态：2026-09-20 收口（21 pytest + 8 对抗测试 + 0 回归）。

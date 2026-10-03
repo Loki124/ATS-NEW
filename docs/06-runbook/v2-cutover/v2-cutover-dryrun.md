@@ -1,4 +1,5 @@
 # V2 Cutover — Dev DB Dry-Run Procedure
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 ## ⚠️ 警告
 本流程是 **IRREVERSIBLE**。生产环境必须:

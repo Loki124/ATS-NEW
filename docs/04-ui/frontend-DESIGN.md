@@ -1,4 +1,5 @@
 # ATS-NEW 统一 UI 设计系统（液态玻璃 / Liquid Glass）
+> 最后更新：2026-09-14（依据 git 最后提交）
 
 > ⚠️ **本文档已废弃（2026-09-10）**：其内容已并入 [`UI_RECONCILIATION.md`](./UI_RECONCILIATION.md)（前端 UI 改造总纲）与 [`UI_DESIGN_SPEC.md`](./UI_DESIGN_SPEC.md)（统一设计规范 v2.2）。仅保留作历史参考，不再维护。
 

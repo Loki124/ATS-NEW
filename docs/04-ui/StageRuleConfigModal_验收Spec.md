@@ -1,4 +1,5 @@
 # 阶段配置规则组件（StageRuleConfigModal.vue）完整验收 Spec
+> 最后更新：2026-09-23（依据 git 最后提交）
 
 > 角色：software-qa-engineer（ATS-NEW expert）
 > 对象：`web/app/src/pages/settings/StageRuleConfigModal.vue`

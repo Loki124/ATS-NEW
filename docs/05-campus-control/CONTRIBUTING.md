@@ -1,4 +1,5 @@
 # apps/campus_control 贡献指南（PR Review 自检清单）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 2026-09-04 R3 拆分后定版（寇豆码）：views.py 1115 → 485 行，业务方法下沉至 services.py。
 

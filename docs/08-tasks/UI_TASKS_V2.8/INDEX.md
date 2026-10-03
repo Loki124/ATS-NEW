@@ -1,4 +1,5 @@
 # v2.8 增量任务包 · 业务页 v1 阶段遗留清理
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 起始：v2 阶段 7 bug 修复已完成推送（Gitee `2c64365`）
 > 目标：清理 v1 阶段未触及的 addCandidate 子页面 / CandidateDetail 业务卡片 / 浅色硬编码散落 / 全站 !important 残留

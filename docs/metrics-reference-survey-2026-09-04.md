@@ -1,4 +1,5 @@
 # 指标管理（apps/metrics）可引用位置调研报告
+> 最后更新：2026-10-01（依据 git 最后提交）
 
 > 调研日期：2026-09-04
 > 范围：ATS-NEW 后端 `apps/django/apps/` + 前端 `web/app/src`

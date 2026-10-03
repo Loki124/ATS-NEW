@@ -1,4 +1,5 @@
 # 设置页统一结构规范 · 合规审查（2026-08-27）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 审查对象：`web/app/src/pages/settings/**` 全部 33 个 .vue（含 permission 子模块）
 > 对照规范：`docs/ui/SETTINGS_PAGE_STRUCTURE.md` (v1.0, 2026-08-24)

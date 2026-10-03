@@ -1,4 +1,5 @@
 # 标准简历设置 — 三层结构 + 双层拖拽
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 适用：ATS-NEW 候选人资源（`Candidate`）的标准简历字段配置页 `web/app/src/pages/settings/StandardResumeSettings.vue`。
 > 状态：2026-09-20 三层结构收口（commit `afe62c7` / `0c592f0` / `3fe0579` / `ad9d342`）。

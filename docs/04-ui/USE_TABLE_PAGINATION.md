@@ -1,4 +1,5 @@
 # useTablePagination — 列表分页统一组件
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 适用：ATS-NEW 前端所有 `<n-data-table>` 远程分页场景。
 > 状态：2026-09-16 立项，2026-09-18 收口为统一 composable。

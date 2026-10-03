@@ -1,4 +1,5 @@
 # ATS-NEW 前端 UI 改造总纲（液态玻璃 v2 + 暗色模式）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > **范围**：`web/app/src/**`（Vue3 + Naive UI + UnoCSS，Django 后端不动）。
 > **基线**：`web/app/DESIGN.md` v2 液态玻璃规范 + `src/styles/tokens.css` v2 单一事实来源。

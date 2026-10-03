@@ -1,4 +1,5 @@
 # CHANGELOG
+> 最后更新：2026-10-03（依据 git 最后提交）
 
 ## [Unreleased] - 2026-10-03 — P2 安全加固 / 指标数据源 / 双系统权限 / StageRule / BLE001 收口 / UI v2 收敛 / 文档校准
 

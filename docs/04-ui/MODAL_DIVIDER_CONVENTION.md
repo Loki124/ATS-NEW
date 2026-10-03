@@ -1,4 +1,5 @@
 # 弹窗分隔线规范（Modal Divider Convention）
+> 最后更新：2026-09-24（依据 git 最后提交）
 
 > 适用范围：所有 `preset="card"` 的 `<n-modal>`（含 `<n-drawer>` 同理）。
 > 关联代码：`web/app/src/styles/glass.css` 的「弹窗统一」段 + 本规范。

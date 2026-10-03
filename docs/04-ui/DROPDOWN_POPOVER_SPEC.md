@@ -1,4 +1,5 @@
 # 下拉弹窗统一规范（Dropdowns / Selects / Popovers · v1.0）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > **范围**：所有「浮起的菜单型选择器 / 列表 / 面板」，包含 Naive UI 的 `n-dropdown` / `n-select` / `n-cascader` / `n-tree-select` / `n-date-picker` / `n-color-picker` / `n-time-picker`，以及 `n-popover` 的 click 触发型浮层。
 > **目的**：终结「外框圆角 + 项目直角」的视觉割裂，以及暗色模式下 Naive 自带 divider 灰线与暗色 token 脱节的色块问题。

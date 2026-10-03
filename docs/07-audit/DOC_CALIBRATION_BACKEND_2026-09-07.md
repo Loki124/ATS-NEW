@@ -1,4 +1,5 @@
 # 文档校准报告 · 后端 / 架构（Backend & Architecture）
+> 最后更新：2026-09-23（依据 git 最后提交）
 
 - **校准日期**：2026-09-07
 - **校准范围**（原 QA 目标）：`docs/01-wiki/01~05` + `docs/01-wiki/README.md`、`docs/02-architecture/technical.md`、`ARCHITECTURE.md`、`ARCHITECTURE_REVIEW_2026-08-03.md`、`UNIFIED_RULE_ENGINE_DESIGN.md`

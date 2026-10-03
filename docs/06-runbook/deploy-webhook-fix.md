@@ -1,4 +1,5 @@
 # 部署脚本修复 PR（ats-deploy-infra / webhook-deploy.sh）
+> 最后更新：2026-09-23（依据 git 最后提交）
 
 > 适用仓库：`ats-deploy-infra`（业务仓库 ATS-NEW 的部署代码，已拆分）。
 > 背景：生产 incident——`recruitment_stage_type` 字典缺 START_END 项；且部署健康检查 URL 指向不存在的端点（假绿）。

@@ -1,4 +1,5 @@
 # 校招管控规则配置 v2.10 增量 PRD — 「月度浮动目标（Roll-over）」
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 文档角色：v2.10 增量产品需求文档（非竞品分析，不重写 v2.4 既有 PRD）。语言：简体中文。
 > 基线 PRD：`docs/rule_config_prd.md`（v2.4 扁平模型）。基线设计：`docs/rule_config_design.md`。

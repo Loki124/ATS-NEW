@@ -1,4 +1,5 @@
 # 配置规则列表页 PRD（简单版）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 文档角色：产品需求文档（非竞品分析）。语言：简体中文。
 > 配套约束：`docs/ui/SETTINGS_PAGE_STRUCTURE.md`、`web/app/src/styles/tokens.css`、`web/app/src/styles/glass.css`；禁止硬编码 hex；暗色走 `body.dark` 变量集；遵循 UI/UX Pro Max 标准（empty / loading / error 态、focus、键盘可达、对比度）。

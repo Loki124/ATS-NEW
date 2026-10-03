@@ -1,4 +1,5 @@
 # 原因库（Reason Library）QA 测试报告
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 测试日期：2026-09-20 ｜ 环境：Django 6.0.6 + DRF 3.17.1（managed venv）+ MySQL（dev）/ SQLite（test）
 > 结果：**37 passed / 37 total（100%）**

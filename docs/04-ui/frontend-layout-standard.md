@@ -1,4 +1,5 @@
 # 前端布局标准规范（Frontend Layout Standard）
+> 最后更新：2026-09-15（依据 git 最后提交）
 
 > 单一事实来源：`src/styles/tokens.css`（§8.5 布局令牌）+ `src/styles/glass.css`（布局契约）。
 > 本文件是所有新页面开发必须遵守的统一标准，禁止页面级 scoped 样式私自覆盖布局边距。

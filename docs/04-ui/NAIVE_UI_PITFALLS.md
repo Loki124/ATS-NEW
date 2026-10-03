@@ -1,4 +1,5 @@
 # Naive UI 2.44.1 实战坑与 Vue 库联动反模式
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 适用：ATS-NEW 前端 Vue 3 + Naive UI 2.44.1 + @vicons/ionicons5 + vue-draggable-plus 0.6.x。
 > 收录范围：实战中翻车过的组件/API 错用、文档未明示但实际行为不符直觉的坑。

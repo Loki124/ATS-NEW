@@ -1,4 +1,5 @@
 # 权限模型统一改造 — 方案 A 实施计划
+> 最后更新：2026-09-23（依据 git 最后提交）
 
 > 目标：把北森「管理单元 + 数据范围」的精华吸收进 ATS-NEW，但不照搬其全套 HCM 权限（身份版本/管理员委托/动态授权引擎）。
 > 定位：**RBAC（RoleV2 + RolePermissionV2） + 组织数据范围（ManagementUnit） + 规则引擎（DataPermissionRule）** 三套收敛到管理单元 UI 一处编排。

@@ -1,4 +1,5 @@
 # 文档校准报告 · 前端 / 运维 / 产品（Frontend / Ops / Product）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 - **校准日期**：2026-09-07
 - **校准范围**（原 Engineer 目标）：根 `README.md`、`docs/README.md`、`docs/01-wiki/06-前端架构` + `07-部署与运行` + `08-测试体系`、`docs/06-runbook/RUNBOOK.md`、`SETUP.md`、`CHANGELOG.md`、`docs/03-product/requirements.md`、`PROJECT_PLAN.md`

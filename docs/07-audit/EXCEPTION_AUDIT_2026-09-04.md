@@ -1,4 +1,5 @@
 # `except Exception` 治理清单（P0#3 · 2026-09-04）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > **范围**：apps/django 全仓 154 处 `except Exception` 中 34 处 D/F 桶（fail-open 真可疑）
 > **不动的 102 处**：B 桶 86 处（已带 `logger` 调用 + `# noqa: BLE001` 注释，故意容错）+ A 桶 16 处（raise 重抛，语义对）

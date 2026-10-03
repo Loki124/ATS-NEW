@@ -1,4 +1,5 @@
 # UI 合规：审查报告 + 交付前自检矩阵（合并版）
+> 最后更新：2026-09-14（依据 git 最后提交）
 
 > 本文档由 `UI_COMPLIANCE_REPORT.md`（2026-08-24 外部审查报告）与 `UI_COMPLIANCE_SELFCHECK.md`（交付 S/R/H 自检矩阵）于 2026-09-10 合并而成，避免两份合规文档内容分散、口径不一。
 > 审查范围：`web/app/src`（Vue3 + Naive UI + 自研液态玻璃设计系统）

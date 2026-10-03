@@ -1,4 +1,5 @@
 # 招聘流程 Modal 视觉/交互缺陷诊断报告
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 触发: 用户报障「招聘流程的新增和编辑弹窗样式太乱了体验感极差」
 > 截图: `/Users/loki/.workbuddy/clipboard-images/clipboard-2026-08-30T05-17-24-920Z-7dbabc32.png`

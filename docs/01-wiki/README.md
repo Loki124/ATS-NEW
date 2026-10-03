@@ -1,4 +1,5 @@
 # ATS-NEW Code Wiki
+> 最后更新：2026-09-23（依据 git 最后提交）
 
 > **Applicant Tracking System（招聘管理系统）** 代码知识库
 >

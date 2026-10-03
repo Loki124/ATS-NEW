@@ -1,4 +1,5 @@
 # 原因库（Reason Library）架构设计
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 状态：已落地（2026-09-20 合并 main）｜ 技术栈：Django 6.0.6 + DRF 3.17.1（后端）/ Vue3 + Naive UI + UnoCSS（前端）
 

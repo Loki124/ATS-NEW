@@ -1,4 +1,5 @@
 # ATS-NEW 前端 UI/UX 全面诊断报告
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 - **诊断对象**：`web/app/src`（Vue 3 + Naive UI，97 `.vue` / 101 `.ts` / 6 `.css`）
 - **权威规范**：`AGENTS.md` v2.0.0（R-001…R-2xx，UI 交互约束）

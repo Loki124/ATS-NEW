@@ -1,4 +1,5 @@
 # ATS-NEW 项目全盘复评报告（2026-09-04 · 距上次 9 天）
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > **检查方式**：全量实测 grep/find/git 计数，与 `docs/PROJECT_FULL_REVIEW_2026-08-26.md` 做**逐项对比**。
 > **基线**：`main @ 3595654`，工作区**干净**（上次未提交的 campus_control indicator 改动已 commit `ccd79e8`）。

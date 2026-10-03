@@ -1,4 +1,5 @@
 # apps/library, scraped_resume, external_sync, duplicate_check, data
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 5 个 **stub app** (2026-06-29 花无缺加), 真实业务逻辑留给 G30/G35/G40/G41/G45 任务.
 

@@ -1,4 +1,5 @@
 # 校招管控（规则配置）UI/UX 实现效果检查报告
+> 最后更新：2026-09-07（依据 git 最后提交）
 
 > 检查对象：`web/app/src/pages/settings/CampusControl.vue`、`components/RuleConfigDrawer.vue`、全局 `styles/glass.css`
 > 对照基线：设计系统 `tokens.css` / `glass.css` / `UI_DESIGN_SPEC.md` + 产品设计 `docs/campus_control/校招管控_产品功能与交互设计.md`

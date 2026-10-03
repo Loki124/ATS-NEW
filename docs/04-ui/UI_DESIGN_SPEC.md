@@ -1,4 +1,5 @@
 # ATS-NEW 统一设计规范（Unified Design Spec · v2.3）
+> 最后更新：2026-09-20（依据 git 最后提交）
 
 > 本文是 ATS-NEW 前端**唯一权威设计规范**，与 `tokens.css` / `glass.css` / `glass-modal.css` 一一对应。任何新增/修改 UI 必须以本规范 + 令牌为准，**禁止硬编码颜色、模糊值、圆角、阴影、字号**。
 > 版本：v2.3（2026-09-20 新增 §5.9 图标规范、§5.10 输入框与表单规范，来自 UI Design Standards 05/06/07）

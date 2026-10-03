@@ -1,4 +1,5 @@
 # ATS-NEW Webhook 自动部署（Docker 版）
+> 最后更新：2026-09-18（依据 git 最后提交）
 
 > ⚠️ **2026-09-18 更新**：部署编排（webhook 接收器 / docker-compose / Dockerfile / systemd unit / 轮询部署）
 > 已整体迁移到独立仓库 **[ats-deploy-infra](https://gitee.com/loki126/ats-deploy-infra.git)**。

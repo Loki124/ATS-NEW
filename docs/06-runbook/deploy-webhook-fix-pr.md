@@ -1,4 +1,5 @@
 # fix(deploy): 字典种子兜底 + 健康端点修正
+> 最后更新：2026-09-24（依据 git 最后提交）
 
 > 目标仓库：`ats-deploy-infra` / `webhook-deploy.sh`（**非** ATS-NEW 业务仓）
 > 关联业务修复：ATS-NEW `apps/dictionary/apps.py`（commit `d19dfe7`，post_migrate 回调具名化 + `weak=False`）+ 阶段类型系统内置化（commit `02a79c2`，`recruitment_stage_type` 字典项由代码枚举 + 迁移预置取代）
