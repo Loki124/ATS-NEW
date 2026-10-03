@@ -79,9 +79,9 @@ npm run dev              # → http://localhost:5212
 ## 3. 跑测试（1 分钟）
 
 ```bash
-# 后端 384 tests, 0 failed (CI 等价命令已 9 deselect, 0 skipped)
-# ⚠️ 现状(2026-10-01 P1-6): 这 9 条 deselect 已实测全部 PASS, 属自愈项; 实际跳过名单由
-#   GitHub 仓库级 QUARANTINE 环境变量承载, 闭环动作=在仓库 Settings 清空该变量。
+# 后端全量: 1873 passed / 0 failed / 1 skipped（2026-10-02 基线，详见 08-测试体系.md）
+# ⚠️ QUARANTINE: 9 条原 deselect 已于 2026-10-01 实测全部 PASS（自愈）; 跳过名单由
+#   GitHub 仓库级 QUARANTINE 环境变量承载, 闭环=在仓库 Settings 清空该变量。
 cd apps/django
 source .venv/bin/activate
 pytest --tb=line -q --no-header -p no:cacheprovider \
@@ -100,7 +100,7 @@ cd web/app
 npm test
 ```
 
-**预期**：384 passed / 9 deselected / 0 failed / 0 error。参见 `docs/QA_T011_VERIFY_2026-08-04.md` §5。
+**预期**：1873 passed / 0 failed / 1 skipped（2026-10-02 全量基线）。QUARANTINE 状态详见 `docs/01-wiki/08-测试体系.md` §2.4。
 
 ---
 

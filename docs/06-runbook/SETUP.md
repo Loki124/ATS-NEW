@@ -169,7 +169,7 @@ npm test
 ```
 
 **测试通过标准**:
-- 后端: 39 passed, 0 failed
+- 后端: 1873 passed / 0 failed / 1 skipped（2026-10-02 全量回归基线，详见 RUNBOOK.md §3）
 - 前端: 132 passed, 0 failed
 - 详见 `RUNBOOK.md` §3
 

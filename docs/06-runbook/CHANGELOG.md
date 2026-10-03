@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-10-03 — P2 安全加固 / 指标数据源 / 双系统权限 / StageRule / BLE001 收口 / UI v2 收敛 / 文档校准
+
+> 由主理人（SoftwareCompany 工作流）汇编，补齐 2026-08-17 → 2026-10-03 缺失交付（详见 `docs/07-audit/DOC_AUDIT_2026-10-03.md`）。
+
+### 🔒 安全（P2）
+- **`ddbafee9`** `prod.py` 硬校验 `ENCRYPTION_KEY` 必须 ≠ `INTEGRATION_FERNET_KEY`（否则 `ImproperlyConfigured`）；`AUTH_PASSWORD_VALIDATORS` 升级为 `MinimumLengthValidator(12)` + `PasswordComplexityValidator(min_classes=3)`；`ci.yml` 移除字面 `QUARANTINE`（改由 GitHub 仓库级变量承载）。
+- **`d25eb5c1`** 新增 `manage.py reencrypt_pii` 密钥轮换闭环命令（强制 `STRICT_DECRYPT=True` 失败即中断，支持 `--dry-run`/`--model`）+ 3 例测试；配套 `docs/06-runbook/P2-SECURITY_OPS.md` 部署/CI 侧操作手册。
+
+### 📊 指标 / 规则引擎（reason-library）
+- metrics 数据源重构 + 派生指标计算范式（详见 `02-architecture/reason-library-architecture.md`、`03-product/reason-library-PRD.md`）。
+- 统一规则引擎 reason-library 接入与 QA（详见 `07-audit/reason-library-QA-report.md`）。
+
+### 🔐 双系统权限（data_permission）
+- 双系统硬分区（`scope_filter_q` + `ScopeQuerysetMixin` + 写入守卫 `request.recruit_type`）+ 8 模型加列 `default='social'`（详见 `03-product/data-permission-prd.md`）。
+
+### 🪟 StageRule / UI v2
+- StageRuleConfigModal 滚动锁修复 + 验收 Spec（`04-ui/StageRuleConfigModal_验收Spec.md`）。
+- UI v2 设计系统收敛收尾（Liquid Glass v2 / 暗色），`feat/ui-v2-reconciliation`（HEAD `5e885a4`，5 个 v2.10 改动）。
+
+### 🧹 工程治理
+- BLE001 盲 `except` 收敛收口：`HARD_LIMIT=84` 达标并激活（窄化 157→84，阶段二收尾）。
+- 后端/前端文档校准（2026-09-07，详见 `07-audit/DOC_CALIBRATION_BACKEND_2026-09-07.md` / `DOC_CALIBRATION_FRONTEND_2026-09-07.md`）。
+- V2.10 月浮动目标（Roll-over）增量交付（2026-09-06，详见 `07-audit/V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md`）。
+
+### ✅ 验证
+- 全量回归基线更新为 **1873 passed / 0 failed / 1 skipped**（2026-10-02）。
+
+---
+
 ## [Unreleased] - 2026-08-17 — 通用数据字典 + 用户偏好 + 招聘阶段接入字典 + 候选人列表重构 + 富文本编辑器 + 政策制度模块
 
 > 由主理人（SoftwareCompany 工作流）完成。本批 89 个提交已推送 Gitee `origin/main`（`5121985..9e353ee`）。
@@ -354,7 +383,6 @@
 - 5 个 subagent 并行执行, 31 个 commit, ~78 个新单测
 - 5 个 worktree 隔离开发, 0 个跨计划冲突 (3 个已解: candidate.routes/app.js/schema.prisma)
 - 不破坏现有 266 测试 (1 个 pre-existing referral e2e 失败与 P1 无关)
-- 见 `docs/superpowers/plans/2026-06-08-p1-master.md` 主索引
 
 #### Plan A: G44 11 状态字段 + G11 倒序推荐
 - **G44** `candidates.statusDetails` JSON 字段 + `candidate-status-machine.service.js` (11 测试)

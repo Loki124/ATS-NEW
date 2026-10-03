@@ -1,6 +1,6 @@
 # ATS-NEW 文档中心
 
-> **统一入口** — 项目全部技术/产品/设计文档均汇总于此，共 **156 份**（2026-09-07 整理）。
+> **统一入口** — 项目全部技术/产品/设计文档均汇总于此，共 **9 大主题 + 根目录 3 份 + ui/ 1 份（约 175 份，2026-10-03 复核）**。
 >
 > 原分散在仓库根、`docs/` 各子目录、`apps/django/docs`、`web/app`、`scripts`、各 app 内共 18 处，
 > 现已按 9 大主题物理集中，并自动修复了 **70 处**因移动而失效的相对链接。
@@ -32,14 +32,32 @@
 | 目录 | 份数 | 定位 |
 |---|---|---|
 | [01-wiki/](./01-wiki/) | 9 | 代码知识库（体系化，最权威） |
-| [02-architecture/](./02-architecture/) | 9 | 架构与技术选型 |
-| [03-product/](./03-product/) | 13 | 产品需求与业务规则 |
-| [04-ui/](./04-ui/) | 18 | UI/UX 设计与前端规范 |
-| [05-campus-control/](./05-campus-control/) | 10 | 校招管控专项 |
-| [06-runbook/](./06-runbook/) | 13 | 部署运维与变更 |
-| [07-audit/](./07-audit/) | 8 | 审计、复盘与验证 |
-| [08-tasks/](./08-tasks/) | 34 | UI 整改任务清单 |
-| [09-archive/](./09-archive/) | 51 | 历史归档（不再维护） |
+| [02-architecture/](./02-architecture/) | 10 | 架构与技术选型 |
+| [03-product/](./03-product/) | 23 | 产品需求与业务规则 |
+| [04-ui/](./04-ui/) | 31 | UI/UX 设计与前端规范 |
+| [05-campus-control/](./05-campus-control/) | 12 | 校招管控专项 |
+| [06-runbook/](./06-runbook/) | 19 | 部署运维与变更 |
+| [07-audit/](./07-audit/) | 14 | 审计、复盘与验证 |
+| [08-tasks/](./08-tasks/) | 34 | UI 整改任务清单（2 个子目录，含已完成历史卡） |
+| [09-archive/](./09-archive/) | 11 | 历史归档（不再维护） |
+
+### 🆕 2026-10-03 复核：未纳入初版（2026-09-07）索引的文档
+
+> 初版索引整理于 2026-09-07，以下为之后新增或当时遗漏的文档，本次补登记。
+
+| 位置 | 文档 | 说明 |
+|---|---|---|
+| 根目录 | `PRD_指标作为条件源.md` | 指标作为条件源 PRD |
+| 根目录 | `metrics-reference-survey-2026-09-04.md` | 指标参考调研（2026-09-04） |
+| `ui/` | `metrics-redesign-2026-10-02.html` | 指标模块重设计原型（2026-10-02） |
+| `02-architecture/` | `DUAL_SYSTEM_DESIGN.md` / `permission-model-plan-a.md` / `reason-library-architecture.md` / `产品架构图.html` / `系统架构图.html` | 双系统 / 权限模型 / reason-library / 架构图 |
+| `03-product/` | `DATA_DICTIONARY_RESTRUCTURING.md` / `INTEGRATION_EVAL_智能筛选规则中台.md` / `INTEGRATION_PHASE1_DESIGN.md` / `data-permission-prd.md` / `data-permission-prototype.html` / `data-permission-ui-design.md` / `reason-library-PRD.md` / `产品架构图-全生命周期.html` / `功能完成度与规划全景图.html` / `功能结构图-融合版.html` | 数据字典重构 / 集成评估 / data_permission / reason-library / 全景图 |
+| `04-ui/` | `StageRuleConfigModal_验收Spec.md` / `accessibility-and-gating-diagnosis.md` / `UIUX-DIAGNOSIS-2026-09-03.md` / `UI_COMPLIANCE_SELFCHECK-2026-09-10.md` / `T5-design-token-convergence-2026-09-01.md` 等 13 份 | 验收 Spec / 可访问性 / UI 诊断 / 合规自查 / token 收敛 |
+| `05-campus-control/` | `MANAGEMENT_UNIT.md` / `STAGE_TYPE_SYSTEM.md` | 管理单元 / 阶段类型体系 |
+| `06-runbook/` | `DEPLOY_1PANEL_CF_TUNNEL.md` / `ENGINEERING_RULES.md` / `MIGRATION_DRIFT.md` / `P2-SECURITY_OPS.md` / `PROJECT_BOUNDARY.md` / `SMARTRESUME_DEPLOY.md` / `deploy-webhook-fix.md` / `deploy-webhook-fix-pr.md` / `webhook-deploy.diff` | 1Panel/CF 部署 / 工程规范 / 迁移漂移 / P2 安全手册 / 项目边界 / SmartResume 部署 / webhook 修复 |
+| `07-audit/` | `BOM_CSV_BUGFIX.md` / `COMPLIANCE_AND_DOC_AUDIT_2026-09-23.md` / `reason-library-QA-report.md` / `api_endpoints.csv` / `introspect_api.py` / `verify_acl_runtime.py` / `verify_n1_runtime.py` / `DOC_AUDIT_2026-10-03.md` | BOM 修复 / 合规文档审计 / reason-library QA / API 清单 / 运行时内省脚本 / 文档审计 |
+
+> 各目录详细表格（行数/日期）仍以上方分节为准，未逐条重列；如与磁盘不符以磁盘为准。
 
 ### 🏛 01-wiki — 代码知识库（体系化，最权威）
 
@@ -159,7 +177,6 @@
 |---|---|---:|---|
 | [CODE_QUALITY_AUDIT.md](./09-archive/CODE_QUALITY_AUDIT.md) | ATS-NEW 代码工程质量审计报告 | 764 | 2026-08-31 |
 | [COMPLIANCE_AUDIT_2026-08-03.md](./09-archive/COMPLIANCE_AUDIT_2026-08-03.md) | 代码合规审计报告 — 2026-08-03（历史基线，runbook 仍引用） | 236 | 2026-08-03 |
-| [COVERAGE_BASELINE_2026-08-06.md](./09-archive/COVERAGE_BASELINE_2026-08-06.md) | 后端测试覆盖率基线 — 2026-08-06 | 221 | 2026-08-06 |
 | [DOCUMENTATION_AUDIT_2026-08-04.md](./09-archive/DOCUMENTATION_AUDIT_2026-08-04.md) | ATS-NEW 文档审计报告 (2026-08-04 · 历史基线，已被 2026-09-10 审计覆盖) | 209 | 2026-08-04 |
 | [EXCEPTION_AUDIT_2026-09-04.md](./07-audit/EXCEPTION_AUDIT_2026-09-04.md) | `except Exception` 治理清单（P0#3 · 2026-09-04） | 150 | 2026-09-04 |
 | [PRODUCT_AUDIT.md](./09-archive/PRODUCT_AUDIT.md) | ATS-NEW 产品维度全面审计报告 | 294 | 2026-08-31 |
@@ -167,13 +184,10 @@
 | [PROJECT_FULL_REVIEW_2026-09-04.md](./07-audit/PROJECT_FULL_REVIEW_2026-09-04.md) | ATS-NEW 项目全盘复评报告（2026-09-04 · 距上次 9 天） | 231 | 2026-09-05 |
 | [QA_BUG7_VERIFY_2026-08-04.md](./09-archive/QA_BUG7_VERIFY_2026-08-04.md) | QA BUG-7 验证报告 (2026-08-04) | 222 | 2026-08-04 |
 | [QA_T011_VERIFY_2026-08-04.md](./09-archive/QA_T011_VERIFY_2026-08-04.md) | QA T01.1 独立黑盒验证报告 | 206 | 2026-08-04 |
-| [QA_T012_VERIFY_2026-08-04.md](./09-archive/QA_T012_VERIFY_2026-08-04.md) | T01.2 独立黑盒验证报告 | 70 | 2026-08-04 |
-| [RESEARCH_CYCLE_2026-08-SUMMARY.md](./09-archive/RESEARCH_CYCLE_2026-08-SUMMARY.md) | ATS-NEW 研发周期总结（UI v2 液态玻璃 + 暗色清理 · 2026-08-21 ~ 08-2 | 64 | 2026-08-22 |
 | [STUB_CLASSIFICATION.md](./09-archive/STUB_CLASSIFICATION.md) | Stub Endpoint 分类索引 (2026-09-04) | 179 | 2026-09-05 |
 | [TECHNICAL_AUDIT.md](./09-archive/TECHNICAL_AUDIT.md) | ATS-NEW 技术维度全面审计报告 | 856 | 2026-08-31 |
 | [V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md](./07-audit/V2.10_ROLLOVER_DELIVERY_SUMMARY_2026-09-06.md) | V2.10 月浮动目标（Roll-over）增量 交付总结 | 198 | 2026-09-06 |
 | [治理批次-2026-09-04-overview.md](./07-audit/治理批次-2026-09-04-overview.md) | 概述：ATS-NEW 治理批次 #1（2026-09-04 上午） | 122 | 2026-09-04 |
-| [项目复查报告-2026-09-03.md](./09-archive/项目复查报告-2026-09-03.md) | ATS-NEW 项目复查报告（2026-09-03） | 61 | 2026-09-04 |
 | [DOC_CALIBRATION_BACKEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_BACKEND_2026-09-07.md) | 后端文档校准报告（2026-09-07） | 78 | 2026-09-07 |
 | [DOC_CALIBRATION_FRONTEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_FRONTEND_2026-09-07.md) | 前端文档校准报告（2026-09-07） | 57 | 2026-09-07 |
 | [04-ui/StageRuleConfigModal_验收Spec.md](./04-ui/StageRuleConfigModal_验收Spec.md) | StageRuleConfigModal 验收规格（视觉/交互/滚动锁） | 308 | — |
@@ -221,17 +235,15 @@
 
 ### 🗄 09-archive — 历史归档（不再维护）
 
-> 2026-06 的 superpowers 规划/评审/spec 与 Phase2 设计。⚠️ 距今已 3 个月，仅作历史决策留痕，可能已过期。
+> 09-archive 为历史决策留痕（可能已过期），仅供回溯；`superpowers/` 33 份 2026-06 过期规划已于 2026-10-03 清理。
 
 | 文档 | 说明 | 行数 | 最新日期 |
 |---|---|---:|---|
 | [PHASE2_DESIGN_2026-08-03.md](./09-archive/PHASE2_DESIGN_2026-08-03.md) | ATS-NEW Phase 2 实施设计 + 任务分解 | 1797 | 2026-08-03 |
-| [PHASE2_PRECHECK_2026-08-03.md](./09-archive/PHASE2_PRECHECK_2026-08-03.md) | Phase 2 开工前预检盘点（429 期间人工完成） | 291 | 2026-08-03 |
-| superpowers/（33 个 2026-06~08 规划/评审/spec） | 历史决策留痕，按目录浏览 [`09-archive/superpowers/`](./09-archive/superpowers/) | — | 2026-08 |
 
 ---
 
-## 🔎 文档质量审计结论（2026-09-07）
+## 🔎 文档质量审计结论（2026-10-03 复核）
 
 ### 体检方法
 
@@ -267,7 +279,7 @@
 
 - 根 `README.md` 状态停留在 **2026-08-04**，`docs/README.md` 停留在 **2026-08-17**，但项目已推进到 **v2.10 rollover（2026-09-06）**
 - **60 份文档无任何日期标注**，无法判断时效
-- 33 份 `superpowers` 规划停留在 2026-06，已过期 3 个月 → 本次已归入 `09-archive/`
+- 历史归档 `09-archive/` 保留合规/架构/复盘核心留痕；`superpowers/` 33 份 2026-06 过期规划已于 2026-10-03 清理。
 
 ### ✅ 本次已完成的改进
 
@@ -275,6 +287,7 @@
 2. **链接修复**：自动重写 **70 处**因移动失效的相对链接（仅剩 1 处指向已下线旧 Node.js 栈，属归档预期）
 3. **统一索引**：本文件覆盖全部 156 份文档，此前索引仅覆盖 11 份
 4. **归档标记**：33 份过期规划集中到 `09-archive/` 并标注「不再维护」
+5. **2026-10-03 复核（P0 整改）**：统一全库测试基线与 `08-测试体系.md` 对齐为 **1873 passed / 0 failed / 1 skipped（2026-10-02）**；刷新 `CHANGELOG.md` 补 2026-08-17→2026-10-03 缺失交付；重建本文档地图计数（见上「🆕 2026-10-03 复核」）。详见 `07-audit/DOC_AUDIT_2026-10-03.md`。
 
 ### 📌 建议后续处理（按优先级）
 

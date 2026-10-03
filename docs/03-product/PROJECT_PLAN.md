@@ -10,7 +10,7 @@
 > - 数据库: MySQL 8 (生产) / SQLite 3 (dev + test)
 > - Python: 3.14 (不是 3.10+)
 > - 目录: `apps/django/` + `web/app/` (不是 `backend/` + `frontend/`)
-> - 35 个 app / 60+ 端点 / 70 张表 / 7 业务状态机 / pytest + vitest 全量持续全过（2026-08-11 基线 518 pytest，详见 CHANGELOG）
+> - 35 个 app / 60+ 端点 / 70 张表 / 7 业务状态机 / pytest + vitest 全量持续全过（2026-10-02 基线 1873 pytest / 0 failed / 1 skipped，详见 CHANGELOG）
 
 ---
 
@@ -108,8 +108,6 @@
 - ✅ vue-tsc 0 错
 - ⏳ e2e 4 specs (T9) — committed, 待 CI 跑
 
-📄 Spec: `docs/superpowers/specs/2026-06-12-workbench-process-polish-design.md`
-📄 Plan: `docs/superpowers/plans/2026-06-12-workbench-process-polish.md`
 🛡 G38 模块 (Plan K/L) 零回归
 
 ### Plan L 招聘流程管理补全 (2026-06-09) — 8 commits
@@ -219,7 +217,6 @@
 - [x] 5 路并行审计 + 批量修复（C1-C5）
 - [x] **P1 全部 9 项完成 (2026-06-08)**：G8/G11/G19/G26/G31/G32/G40/G43/G44
   - 31 commits, ~78 个新单测, 5 个 worktree 隔离开发
-  - 见 `docs/superpowers/plans/2026-06-08-p1-master.md` 主索引
   - CHANGELOG.md 已更新 P1 全部完成条目
 - [ ] 路由 meta.roles 粒度控制（low ROI）
 - [ ] recruitment-auto-advance.service.js 接入
