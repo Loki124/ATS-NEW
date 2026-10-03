@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -354,6 +355,30 @@ class EntryConditionEvaluator:
         if item.condition_type == ConditionFieldType.POSITION:
             return self._get_position_metric_value(item.field)
 
+        # METRIC 源（2026-10 接入，INF-4）：直接委托统一指标条件求值器取值。
+        # item.field 存「指标模板 id」，由 MetricEngine.evaluate_metric_condition
+        # 统一完成取值 + 类型转换，本方法仅取回 actual 供 _compare 做最终比较。
+        if item.condition_type == ConditionFieldType.METRIC:
+            from apps.metrics.services.metric_engine import MetricEngine
+
+            ctx: Dict[str, Any] = {'candidate_id': self.candidate.id}
+            demand = self.context.get('demand')
+            position = self.context.get('position')
+            if demand is not None:
+                ctx['demand_id'] = getattr(demand, 'id', None)
+            if position is not None:
+                ctx['position_id'] = getattr(position, 'id', None)
+
+            result = MetricEngine.evaluate_metric_condition(
+                item.field, ctx, item.operator, item.value,
+            )
+            if result.get('error') or result.get('degraded'):
+                logger.warning(
+                    'entry_condition METRIC 求值降级 item=%s template=%s err=%s',
+                    item.id, item.field, result.get('error'),
+                )
+            return result.get('actual')
+
         return None
 
     def _get_prior_stage_status(self, stage_name: str) -> Optional[str]:
@@ -549,6 +574,23 @@ class EntryConditionEvaluator:
                 return actual in (None, '', [], {})
             if op == ConditionOperator.IS_NOT_EMPTY:
                 return actual not in (None, '', [], {})
+            # 字符串类运算符（2026-10 接入，对齐 MetricEngine 14 种 UnifiedOperator）。
+            # actual / expected 语义与 MetricEngine 一致：None 一律判为不命中（除 NOT_CONTAINS）。
+            if op == ConditionOperator.CONTAINS:
+                if actual is None or expected is None:
+                    return False
+                return str(actual).find(str(expected)) >= 0
+            if op == ConditionOperator.NOT_CONTAINS:
+                if actual is None or expected is None:
+                    return True
+                return str(actual).find(str(expected)) < 0
+            if op == ConditionOperator.REGEX_MATCH:
+                if actual is None or expected is None:
+                    return False
+                try:
+                    return re.search(str(expected), str(actual)) is not None
+                except re.error:
+                    return False
         except (TypeError, ValueError) as e:
             # Python 比较运算符窄集: 类型不匹配 (None > 5) / 不可哈希 (unhashable in list).
             # 业务规则 DSL 抛出的其他异常应外抛以便发现真实 bug.

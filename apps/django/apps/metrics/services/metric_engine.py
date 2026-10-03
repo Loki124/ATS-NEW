@@ -16,10 +16,13 @@
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Dict, List, Optional
 
 from apps.rule_engine.models import UnifiedOperator
+
+logger = logging.getLogger(__name__)
 
 from .derived_registry import compute as derived_compute
 from .field_resolver import (
@@ -262,6 +265,201 @@ class MetricEngine:
         if operator == UnifiedOperator.LTE:
             return actual <= expected
         raise ValueError(f'未实现的运算符: {operator}')
+
+    # ------------------------------------------------------------------
+    # 统一指标条件求值器（指标作为条件源的唯一取值 + 判定入口，INF-4）
+    # ------------------------------------------------------------------
+    @classmethod
+    def evaluate_metric_condition(
+        cls, template_id, context, operator, value, meta=None,
+    ) -> Dict[str, Any]:
+        """统一指标条件求值器（指标作为条件源的唯一取值 + 判定入口）。
+
+        复用既有取值 / 比较 / 解析层（_resolve_metric_value / _expected / _compare /
+        _op_label / _detail / _jsonable / _VOID_OPS），不新建第三套规则引擎或运算符词表。
+
+        Args:
+            template_id: 指标模板 id（ConditionItem.field / 目录 field 直接存模板 id）。
+            context: dict，至少含 'candidate_id'，可选 'demand_id' / 'position_id'。
+            operator: UnifiedOperator 取值（字符串）。
+            value: 比较期望值（与模板 data_type 一致；BETWEEN 由 meta 承载 min/max）。
+            meta: 可选元信息（如 {'min':..,'max':..}），透传给 _expected / _compare。
+
+        Returns:
+            统一结果契约：
+            {pass, template_id, template_name, operator, operator_label,
+             actual, expected, detail, error, degraded}
+            任何异常均降级为 {pass:False, degraded:True}（对齐 MetricEngine FAIL-not-500 原则）。
+        """
+        base: Dict[str, Any] = {
+            'pass': False,
+            'template_id': str(template_id) if template_id is not None else '',
+            'template_name': '',
+            'operator': operator,
+            'operator_label': cls._op_label(operator),
+            'actual': None,
+            'expected': None,
+            'detail': '',
+            'error': '',
+            'degraded': True,
+        }
+
+        try:
+            from apps.metrics.models import MetricDataType, MetricTemplate
+
+            # 1) 模板存在性（含禁用 / 软删判定）
+            template = MetricTemplate.objects.filter(pk=template_id).select_related(
+                'atomic_metric', 'derived_metric',
+            ).first()
+            if template is None:
+                base.update({
+                    'error': '模板不存在或已失效',
+                    'detail': '模板不存在或已失效',
+                    'degraded': True,
+                })
+                return base
+
+            # 禁用 / 软删模板 → 视为失效，降级不求值（绝不 500）
+            if template.status != 'enabled' or template.deleted_at is not None:
+                base.update({
+                    'template_id': str(template.id),
+                    'template_name': template.name,
+                    'error': '模板不存在或已失效',
+                    'detail': '模板不存在或已失效',
+                    'degraded': True,
+                })
+                return base
+
+            base['template_id'] = str(template.id)
+            base['template_name'] = template.name
+
+            # 2) 运算符合法性（模板白名单）
+            allowed = template.operators or []
+            if operator not in allowed:
+                base.update({
+                    'error': '模板不支持该运算符',
+                    'detail': '模板不支持该运算符',
+                    'degraded': False,
+                })
+                return base
+
+            # 3) 合并快照：candidate / demand / position（任一失败跳过，不影响其它源）
+            data: Dict[str, Any] = {}
+            ctx = context or {}
+            cid = ctx.get('candidate_id')
+            did = ctx.get('demand_id')
+            pid = ctx.get('position_id')
+            if cid:
+                try:
+                    from .candidate_snapshot import build_candidate_snapshot
+                    data.update(build_candidate_snapshot(cid))
+                except Exception:  # noqa: BLE001 — 快照组装失败跳过, 不影响其它源求值
+                    pass
+            if did:
+                try:
+                    from .candidate_snapshot import build_demand_snapshot
+                    data.update(build_demand_snapshot(did))
+                except Exception:  # noqa: BLE001 — 需求快照组装失败跳过, 不影响其它源求值
+                    pass
+            if pid:
+                try:
+                    from .candidate_snapshot import build_position_snapshot
+                    data.update(build_position_snapshot(pid))
+                except Exception:  # noqa: BLE001 — 职位快照组装失败跳过, 不影响其它源求值
+                    pass
+
+            # 4) 取值
+            try:
+                actual_raw = cls._resolve_metric_value(template, template.metric, data)
+            except (FieldResolveError, Exception) as exc:  # noqa: BLE001 — 取值异常降级为 FAIL, 绝不 500
+                base.update({
+                    'error': f'取值异常: {exc}',
+                    'detail': f'取值异常: {exc}',
+                    'degraded': True,
+                })
+                return base
+
+            # 5) 类型转换
+            try:
+                actual = type_cast(actual_raw, template.data_type)
+            except TypeCastError as exc:
+                base.update({
+                    'error': f'值类型不合法: {exc}',
+                    'detail': f'值类型不合法: {exc}',
+                    'degraded': True,
+                })
+                return base
+
+            # 5.1) 布尔归一：原生 bool → 'true'/'false' 字符串。
+            # 目的：与前端枚举值（是/否 → 'true'/'false'）及 entry_condition 二次比较
+            # 保持同构，避免 bool(True) == 'true' 恒为 False 的假阴性。
+            # actual 为 None 时保持 None（供 IS_EMPTY / IS_NOT_EMPTY 判定）。
+            if template.data_type == MetricDataType.BOOLEAN and isinstance(actual, bool):
+                actual = 'true' if actual else 'false'
+
+            # 6) 期望值
+            cond = {'operator': operator, 'value': value, 'meta': meta or {}}
+            try:
+                expected, expected_text = cls._expected(cond, template.data_type)
+            except TypeCastError as exc:
+                base.update({
+                    'error': f'比较值不合法: {exc}',
+                    'detail': f'比较值不合法: {exc}',
+                    'degraded': True,
+                })
+                return base
+
+            # 6.1) 布尔期望值同步归一，与 actual 保持同构（集合型 IN/NOT_IN 逐元素归一），
+            # 确保 _compare 时 'true'(str) 与 'true'(str) 可比，杜绝假阴性。
+            if template.data_type == MetricDataType.BOOLEAN and expected is not None:
+                if isinstance(expected, (list, tuple)):
+                    norm = [('true' if v else 'false') if isinstance(v, bool) else v
+                            for v in expected]
+                    expected = type(expected)(norm)
+                    expected_text = '、'.join(str(cls._jsonable(v)) for v in expected)
+                elif isinstance(expected, bool):
+                    expected = 'true' if expected else 'false'
+                    expected_text = expected
+
+            # 7) 比较
+            passed = cls._compare(operator, actual, expected, meta or {})
+
+            # 8) 组装结果
+            unit = template.unit or ''
+            base.update({
+                'pass': passed,
+                'actual': cls._jsonable(actual),
+                'expected': expected_text,
+                'detail': cls._detail(
+                    template.name, template.metric_path, actual, operator, expected_text, unit,
+                ),
+                'error': '',
+                'degraded': False,
+            })
+
+            # 缺数据降级：非 IS_EMPTY 类运算符下 actual 为 None → 判未命中并告警
+            # （IS_EMPTY / IS_NOT_EMPTY 由 _compare 正常处理 None，不在此降级）
+            if actual is None and operator not in _VOID_OPS:
+                base['pass'] = False
+                base['detail'] = (base['detail'] or '') + '（指标无值，缺底层数据）'
+                logger.warning(
+                    'evaluate_metric_condition 缺底层数据 template=%s actual=None',
+                    template.id,
+                )
+            return base
+        except Exception as exc:  # noqa: BLE001 — FAIL-not-500 全局兜底
+            return {
+                'pass': False,
+                'template_id': str(template_id) if template_id is not None else '',
+                'template_name': '',
+                'operator': operator,
+                'operator_label': cls._op_label(operator),
+                'actual': None,
+                'expected': None,
+                'detail': '',
+                'error': str(exc),
+                'degraded': True,
+            }
 
     @staticmethod
     def _op_label(operator: Optional[str]) -> str:

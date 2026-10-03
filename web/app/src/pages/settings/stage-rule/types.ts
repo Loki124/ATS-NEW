@@ -5,8 +5,9 @@
  */
 
 /** 数据源枚举（condition_type）。由后端 catalog 返回：DEMAND（含 demand.* 指标）、
- *  POSITION（position.* 指标，2026-10-02 接入）、CANDIDATE（candidate.* 指标）、STAGE_STATUS。 */
-export type SourceKey = 'STAGE_STATUS' | 'CANDIDATE' | 'DEMAND' | 'POSITION'
+ *  POSITION（position.* 指标，2026-10-02 接入）、CANDIDATE（candidate.* 指标）、
+ *  METRIC（指标模板作为条件源，2026-10 接入）、STAGE_STATUS。 */
+export type SourceKey = 'STAGE_STATUS' | 'CANDIDATE' | 'DEMAND' | 'POSITION' | 'METRIC'
 
 /** 运算符枚举（与后端 services.py 解析映射一致） */
 export type OperatorKey =
@@ -21,6 +22,9 @@ export type OperatorKey =
   | 'NOT_IN'
   | 'IS_EMPTY'
   | 'IS_NOT_EMPTY'
+  | 'CONTAINS'
+  | 'NOT_CONTAINS'
+  | 'REGEX_MATCH'
 
 /** 自动跳过执行动作 */
 export type SkipAction = 'SKIP' | 'APPROVE' | 'REJECT'

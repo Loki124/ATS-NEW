@@ -226,7 +226,53 @@ class StageRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'grab_threshold': '抢单模式必须配置阈值且 ≥ 5 分钟'},
             )
+
+        # 2026-10 接入（INF）：skip_rules / archive_rules 的轻量软校验（非阻塞）。
+        # 仅当 item 含 condition_type / operator 时校验取值合法性，异常只记日志不 raise，
+        # 避免破坏既有落库流程（ARCH 标注：宽松放行，详细校验交给统一求值器）。
+        self._validate_skip_archive_rules_softly(attrs)
         return attrs
+
+    def _validate_skip_archive_rules_softly(self, attrs: dict) -> None:
+        """skip_rules / archive_rules 条件项软校验（非阻塞，仅告警）。
+
+        校验维度：
+            - condition_type 须为 {STAGE_STATUS, CANDIDATE, DEMAND, POSITION, METRIC} 之一
+            - operator 须为 UnifiedOperator 的取值之一
+        任何不合法只 log.warning，不影响序列化结果（保持宽松，与既有流程零变化）。
+        """
+        try:
+            from apps.rule_engine.models import UnifiedOperator
+        except Exception:  # noqa: BLE001 — 依赖缺失时静默跳过校验, 不阻断主流程
+            return
+
+        valid_types = {'STAGE_STATUS', 'CANDIDATE', 'DEMAND', 'POSITION', 'METRIC'}
+        valid_ops = set(UnifiedOperator.values)
+        for rule_kind in ('skip_rules', 'archive_rules'):
+            rules = attrs.get(rule_kind) or []
+            if not isinstance(rules, list):
+                continue
+            for rule in rules:
+                if not isinstance(rule, dict):
+                    continue
+                items = rule.get('items') or []
+                if not isinstance(items, list):
+                    continue
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    if 'condition_type' not in item and 'operator' not in item:
+                        continue  # 信息不完整：跳过软校验，交给统一求值器
+                    ctype = item.get('condition_type')
+                    op = item.get('operator')
+                    if ctype is not None and ctype not in valid_types:
+                        log.warning(
+                            '%s item condition_type 非法: %r（已跳过，不阻断落库）', rule_kind, ctype,
+                        )
+                    if op is not None and op not in valid_ops:
+                        log.warning(
+                            '%s item operator 非法: %r（已跳过，不阻断落库）', rule_kind, op,
+                        )
 
 
 # ============================================================

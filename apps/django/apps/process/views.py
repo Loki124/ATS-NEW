@@ -749,6 +749,9 @@ class EntryConditionFieldCatalogView(APIView):
             ConditionOperator.BETWEEN.value,
             ConditionOperator.IN.value, ConditionOperator.NOT_IN.value,
             ConditionOperator.IS_EMPTY.value, ConditionOperator.IS_NOT_EMPTY.value,
+            # T03（2026-10 接入）：字符串类运算符，对齐 MetricEngine 14 种 UnifiedOperator
+            ConditionOperator.CONTAINS.value, ConditionOperator.NOT_CONTAINS.value,
+            ConditionOperator.REGEX_MATCH.value,
         ]
 
         sources = [
@@ -785,6 +788,10 @@ class EntryConditionFieldCatalogView(APIView):
             {
                 'source': 'CANDIDATE', 'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
                 'fields': self._build_metric_catalog_fields('candidate.'),
+            },
+            {
+                'source': 'METRIC', 'key': 'METRIC', 'label': '指标', 'condition_type': 'METRIC',
+                'fields': self._build_metric_template_catalog(),
             },
             {
                 'source': 'STAGE_STATUS', 'key': 'STAGE_STATUS', 'label': '阶段状态', 'condition_type': 'STAGE_STATUS',
@@ -890,9 +897,83 @@ class EntryConditionFieldCatalogView(APIView):
         except (DatabaseError, KeyError, TypeError, ValueError, AttributeError):  # 指标表未初始化/迁移未跑等异常 → 返回空列表, 绝不 500
             return []
 
+    @staticmethod
+    def _build_metric_template_catalog() -> list:
+        """指标驱动字段定义（METRIC 源）：完全由指标模板库（apps.metrics.MetricTemplate）驱动。
 
-# ============================================================
-# 应用流程模板
+        每个 status=enabled、未软删的 MetricTemplate 都会成为一条可配置字段：
+
+            - field / key = str(template.id)（ConditionItem.field 直接存模板 id，与 MetricEngine 取值入口一致）
+            - label      = 模板名 + 〔原子〕/〔派生〕 后缀（区分引用指标类型）
+            - metricKind = template.metric_kind（'atomic' / 'derived'，前端分组用）
+            - operators  = template.operators（模板白名单，前端下拉按此过滤）
+            - value_type = 枚举型（param_enums 非空）→ 'enum'，否则按 data_type 映射
+            - options    = 枚举型指标的 param_enums 渲染下拉（label/value 同值）
+            - min/max/step = param_config 含对应键时带上（仅当存在，不影响既有字段结构）
+
+        运营在「指标管理」新增 / 启用一个模板，进入条件的 METRIC 源下拉同步变化，**无需改代码**。
+        """
+        try:
+            from apps.metrics.models import MetricDataType, MetricTemplate
+
+            # data_type → value_type 直接映射（值已为 number / string / boolean / date）
+            dtype_to_value_type = {
+                MetricDataType.NUMBER: 'number',
+                MetricDataType.STRING: 'string',
+                MetricDataType.BOOLEAN: 'boolean',
+                MetricDataType.DATE: 'date',
+            }
+
+            rows = MetricTemplate.objects.filter(
+                status='enabled', deleted_at__isnull=True,
+            ).select_related('atomic_metric', 'derived_metric')
+
+            fields: list = []
+            for tpl in rows:
+                label = (
+                    f'{tpl.name}〔原子〕' if tpl.metric_kind == 'atomic'
+                    else f'{tpl.name}〔派生〕'
+                )
+                param_enums = tpl.param_enums or []
+                if param_enums:
+                    value_type = 'enum'
+                    options = [{'label': str(v), 'value': str(v)} for v in param_enums]
+                else:
+                    value_type = dtype_to_value_type.get(tpl.data_type, 'string')
+                    # 布尔模板（无枚举参数）补 是/否 下拉，对齐 CANDIDATE 目录的 是/否 选项，
+                    # 前端渲染下拉而非自由文本，与 METRIC EQ 'true'/'false' 契约一致。
+                    if value_type == 'boolean':
+                        options = [
+                            {'label': '是', 'value': 'true'},
+                            {'label': '否', 'value': 'false'},
+                        ]
+                    else:
+                        options = None
+
+                field = {
+                    'field': str(tpl.id),
+                    'key': str(tpl.id),
+                    'label': label,
+                    'metricKind': tpl.metric_kind,
+                    'operators': list(tpl.operators or []),
+                    'value_type': value_type,
+                }
+                if options is not None:
+                    field['options'] = options
+
+                # 仅当 param_config 含对应键时带上 min / max / step（不影响既有前端字段结构）
+                param_config = tpl.param_config or {}
+                if isinstance(param_config, dict):
+                    for cfg_key in ('min', 'max', 'step'):
+                        if cfg_key in param_config:
+                            field[cfg_key] = param_config[cfg_key]
+
+                fields.append(field)
+
+            fields.sort(key=lambda f: f['field'])
+            return fields
+        except (DatabaseError, KeyError, TypeError, ValueError, AttributeError):  # 指标表未初始化/迁移未跑等异常 → 返回空列表, 绝不 500
+            return []
 # ============================================================
 class ProcessApplyTemplateView(APIView):
     """应用流程模板创建新流程"""

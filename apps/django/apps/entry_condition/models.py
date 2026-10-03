@@ -29,6 +29,7 @@ class ConditionFieldType(models.TextChoices):
     CANDIDATE = 'CANDIDATE', '候选人'                  # 年龄/学历/经验等（指标库 candidate.* 驱动）
     DEMAND = 'DEMAND', '需求中'                        # 用人经理/上级/BU总裁/VP/职级 + 指标库 demand.* 驱动
     POSITION = 'POSITION', '职位中'                    # 指标库 position.* 驱动（2026-10-02 接入）
+    METRIC = 'METRIC', '指标'                          # 指标模板作为条件源（2026-10 接入，INF-4）
 
 
 class ConditionOperator(models.TextChoices):
@@ -44,6 +45,10 @@ class ConditionOperator(models.TextChoices):
     NOT_IN = 'NOT_IN', '不包含'
     IS_EMPTY = 'IS_EMPTY', '为空'
     IS_NOT_EMPTY = 'IS_NOT_EMPTY', '不为空'
+    # 字符串类（2026-10 接入，对齐 MetricEngine 14 种 UnifiedOperator）
+    CONTAINS = 'CONTAINS', '包含子串'
+    NOT_CONTAINS = 'NOT_CONTAINS', '不包含子串'
+    REGEX_MATCH = 'REGEX_MATCH', '正则匹配'
 
 
 class EntryConditionRule(TimestampedModel, SoftDeleteModel):

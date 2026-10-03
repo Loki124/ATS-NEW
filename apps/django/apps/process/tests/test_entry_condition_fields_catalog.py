@@ -33,13 +33,22 @@ class EntryConditionFieldsCatalogTest(TestCase):
         self.assertGreater(len(data['common_operators']), 0)
 
     def test_four_sources_present(self):
-        """2026-10-02 起需求/职位指标接入：DEMAND / POSITION / CANDIDATE / STAGE_STATUS 四 source。"""
+        """2026-10 接入指标作为条件源（INF）：目录含 DEMAND / POSITION / CANDIDATE /
+        METRIC / STAGE_STATUS 五个 source（METRIC 为指标模板条件源）。"""
         data = self._get_catalog()
         keys = {s['key'] for s in data['sources']}
         self.assertEqual(
-            keys, {'DEMAND', 'POSITION', 'CANDIDATE', 'STAGE_STATUS'},
-            '必须包含 DEMAND / POSITION / CANDIDATE / STAGE_STATUS 四个 source',
+            keys, {'DEMAND', 'POSITION', 'CANDIDATE', 'METRIC', 'STAGE_STATUS'},
+            '必须包含 DEMAND / POSITION / CANDIDATE / METRIC / STAGE_STATUS 五个 source',
         )
+
+    def test_metric_source_present(self):
+        """METRIC 源存在且 condition_type == 'METRIC'（T02 接入）。"""
+        data = self._get_catalog()
+        metric = next((s for s in data['sources'] if s['key'] == 'METRIC'), None)
+        self.assertIsNotNone(metric, 'catalog 缺少 METRIC 源')
+        self.assertEqual(metric['condition_type'], 'METRIC')
+        self.assertEqual(metric['source'], 'METRIC')
 
     def test_source_dicts_expose_source_key_for_frontend(self):
         # 前端 ConditionPicker.vue 读 s.source（SPEC-stage-rule-config.md 契约）

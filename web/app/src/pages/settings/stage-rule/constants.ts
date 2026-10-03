@@ -9,11 +9,12 @@
  */
 import type { OperatorKey, SourceKey } from './types'
 
-/** source → UI 展示名（渲染后端 catalog 返回的 4 种 source） */
+/** source → UI 展示名（渲染后端 catalog 返回的 5 种 source） */
 export const AR_SOURCE_LABELS: Record<SourceKey, string> = {
   DEMAND: '需求中',
   POSITION: '职位中',
   CANDIDATE: '候选人中',
+  METRIC: '指标',
   STAGE_STATUS: '阶段状态',
 }
 
@@ -30,6 +31,9 @@ export const AR_OPERATOR_LABELS: Record<OperatorKey, string> = {
   NOT_IN: '不属于',
   IS_EMPTY: '为空',
   IS_NOT_EMPTY: '不为空',
+  CONTAINS: '包含',
+  NOT_CONTAINS: '不包含',
+  REGEX_MATCH: '正则匹配',
 }
 
 /** 自动跳过执行动作 → UI 展示名 */
