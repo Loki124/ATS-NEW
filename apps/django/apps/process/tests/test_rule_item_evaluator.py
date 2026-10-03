@@ -6,6 +6,8 @@
     - evaluate_rule 用 expression '(1 AND 2)' 组合两条 item
 """
 import pytest
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
 
 from apps.candidate.models import Candidate
 from apps.metrics.models import AtomicMetric, MetricTemplate
@@ -170,3 +172,102 @@ def test_legacy_candidate_in_hit():
     )
     assert res['pass'] is True
     assert res['degraded'] is False
+
+
+# ============================================================
+# F4 回归：legacy data_type 降级推断（AtomicMetric 查询失败/缺失时按值推断）
+# ============================================================
+@pytest.mark.django_db
+def test_f4_legacy_numeric_when_atomic_metric_query_raises():
+    """F4 修复（异常分支）：AtomicMetric 查询抛 Exception → 按 actual 值推断 data_type=number。
+
+    candidate.age GT 30, actual=40 → pass True，且 actual/expected 为 Decimal（数值比较正确），
+    不再因退化为 string 做字典序比较（'40'<'9' 误判）。
+    """
+    fake_metric_cls = MagicMock()
+    fake_metric_cls.objects.filter.return_value.first.side_effect = Exception('db down')
+
+    with patch('apps.metrics.models.AtomicMetric', fake_metric_cls), \
+         patch('apps.process.services.rule_item_evaluator.build_candidate_snapshot',
+               return_value={'candidate': {'age': 40}}):
+        res = RuleItemEvaluator.evaluate_item(
+            {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
+             'operator': 'GT', 'value': '30'},
+            {'candidate_id': 'any-cid'},
+        )
+
+    assert res['pass'] is True
+    assert res['degraded'] is False
+    assert isinstance(res['actual'], Decimal), f'actual 应为 Decimal, 实际 {type(res["actual"])}'
+    assert isinstance(res['expected'], Decimal), f'expected 应为 Decimal, 实际 {type(res["expected"])}'
+    assert res['actual'] == Decimal('40')
+    assert res['expected'] == Decimal('30')
+
+
+@pytest.mark.django_db
+def test_f4_legacy_numeric_when_atomic_metric_missing():
+    """F4 修复（缺失分支）：AtomicMetric 查询返回 None → 按 actual 值推断 data_type=number。
+
+    数值比较正确（40>30 命中），actual/expected 为 Decimal。
+    """
+    fake_metric_cls = MagicMock()
+    fake_metric_cls.objects.filter.return_value.first.return_value = None
+
+    with patch('apps.metrics.models.AtomicMetric', fake_metric_cls), \
+         patch('apps.process.services.rule_item_evaluator.build_candidate_snapshot',
+               return_value={'candidate': {'age': 40}}):
+        res = RuleItemEvaluator.evaluate_item(
+            {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
+             'operator': 'GT', 'value': '30'},
+            {'candidate_id': 'any-cid'},
+        )
+
+    assert res['pass'] is True
+    assert res['degraded'] is False
+    assert res['actual'] == Decimal('40')
+    assert res['expected'] == Decimal('30')
+
+
+@pytest.mark.django_db
+def test_f4_legacy_between_numeric_list_when_metric_missing():
+    """F4 修复：AtomicMetric 缺失 + BETWEEN 数值列表 [18,60]，actual=40 → 数值区间命中 pass True。
+
+    _infer_data_type_from_value 对 list 取首元素 18 递归推断为 number，兼容 BETWEEN/IN 数值列表。
+    """
+    fake_metric_cls = MagicMock()
+    fake_metric_cls.objects.filter.return_value.first.return_value = None
+
+    with patch('apps.metrics.models.AtomicMetric', fake_metric_cls), \
+         patch('apps.process.services.rule_item_evaluator.build_candidate_snapshot',
+               return_value={'candidate': {'age': 40}}):
+        res = RuleItemEvaluator.evaluate_item(
+            {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
+             'operator': 'BETWEEN', 'value': [18, 60]},
+            {'candidate_id': 'any-cid'},
+        )
+
+    assert res['pass'] is True
+    assert res['degraded'] is False
+    # BETWEEN 期望值应为数值序列（_jsonable 将元组归一为列表，内部比较仍用 (min,max) 元组）
+    assert isinstance(res['expected'], (list, tuple)), \
+        f'BETWEEN 期望值应为数值序列, 实际 {type(res["expected"])}'
+    assert list(res['expected']) == [Decimal('18'), Decimal('60')]
+
+
+@pytest.mark.django_db
+def test_f4_legacy_metric_hit_path_unchanged():
+    """F4 对照组：AtomicMetric 命中（正常路径）仍用 metric.data_type='number'，行为不变。
+
+    数值比较正确，actual 为 Decimal（证明走 metric.data_type 分支而非回退分支）。
+    """
+    _make_atomic_template('年龄', 'candidate.age', 'number', ['GT', 'LT', 'BETWEEN'])
+    cand = _make_candidate(age=40)
+    res = RuleItemEvaluator.evaluate_item(
+        {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
+         'operator': 'GT', 'value': '30'},
+        {'candidate_id': cand.id},
+    )
+    assert res['pass'] is True
+    assert res['degraded'] is False
+    assert res['actual'] == Decimal('40')
+    assert res['expected'] == Decimal('30')

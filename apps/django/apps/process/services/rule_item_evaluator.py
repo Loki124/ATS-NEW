@@ -21,8 +21,10 @@ FieldResolverRegistry / type_cast），本模块只负责「按 condition_type �
 from __future__ import annotations
 
 import logging
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List
 
+from apps.metrics.models import MetricDataType
 from apps.metrics.services.candidate_snapshot import (
     build_candidate_snapshot,
     build_demand_snapshot,
@@ -119,6 +121,27 @@ class RuleItemEvaluator:
                 'degraded': True,
             }
 
+    @staticmethod
+    def _infer_data_type_from_value(value: Any) -> str:
+        """F4 修复：AtomicMetric 未命中/查询失败时按运行时值类型推断 data_type，
+        避免数值字段退化为 string 导致字典序比较（如 '40' < '9' 误判）。
+        list/tuple 取首元素递归推断（兼容 BETWEEN/IN 的数值列表）。
+        """
+        if isinstance(value, bool):
+            return MetricDataType.BOOLEAN
+        if isinstance(value, (int, float, Decimal)):
+            return MetricDataType.NUMBER
+        if isinstance(value, (list, tuple)) and value:
+            return RuleItemEvaluator._infer_data_type_from_value(value[0])
+        if isinstance(value, str):
+            s = value.strip()
+            try:
+                Decimal(s)
+                return MetricDataType.NUMBER
+            except (InvalidOperation, ValueError, TypeError):
+                return MetricDataType.STRING
+        return MetricDataType.STRING
+
     @classmethod
     def _evaluate_legacy_item(cls, item: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """legacy 条件项：三类快照 + FieldResolverRegistry 点路径解析（不依赖 ORM Evaluator）。"""
@@ -154,8 +177,11 @@ class RuleItemEvaluator:
         except (FieldResolveError, Exception) as exc:  # noqa: BLE001 — 路径缺失/解析失败 → 视为无值
             logger.warning('RuleItemEvaluator legacy 解析失败 field=%s err=%s', field, exc)
 
-        # 3) data_type：优先取 source_path 命中的 AtomicMetric，缺则默认 string
-        data_type = 'string'
+        value = item.get('value')
+
+        # 3) data_type：优先取 source_path 命中的 AtomicMetric；未命中或查询失败则按值推断（F4）
+        #    避免数值字段误用 string 字典序比较。主路径（命中 metric）行为不变。
+        data_type = MetricDataType.STRING
         try:
             from apps.metrics.models import AtomicMetric
             metric = AtomicMetric.objects.filter(
@@ -163,8 +189,10 @@ class RuleItemEvaluator:
             ).first()
             if metric is not None:
                 data_type = metric.data_type
-        except Exception:  # noqa: BLE001 — data_type 查询失败退化为 string
-            pass
+            else:
+                data_type = cls._infer_data_type_from_value(actual if actual is not None else value)
+        except Exception:  # noqa: BLE001 — data_type 查询失败退化为按值推断
+            data_type = cls._infer_data_type_from_value(actual if actual is not None else value)
 
         # 4) 类型转换 + 比较（复用 MetricEngine._compare）
         # actual 始终按 data_type 转换（失败兜底原值）
@@ -173,7 +201,6 @@ class RuleItemEvaluator:
         except TypeCastError:
             actual_cast = actual
 
-        value = item.get('value')
         # 期望值按运算符分派（对齐 MetricEngine._expected 语义）：
         #  - BETWEEN：期望值为 (min, max) 元组，满足 MetricEngine._compare 的 2 元素元组要求
         #  - IN / NOT_IN：期望值为逐元素按 data_type 转换的列表

@@ -42,6 +42,16 @@ from .stage_mapping import StageMappingError, resolve_stage_mapping
 
 logger = logging.getLogger(__name__)
 
+# 产品决策 O2（2026-10-03 锁定）：阶段自动跳过/归档的级联自动进入
+# （_apply_auto_skip_and_advance）是否触发 STAGE_ENTERED 自动化。
+#   False（默认，保持现状）：级联是「系统绕过」语义，候选人对被跳过/穿过的阶段
+#     并未真实进入，不应触发候选人维度的 STAGE_ENTERED 自动化（通知/下游联动）；
+#     仅真实用户驱动的 advance/jump 触发。
+#   True：级联「落地停留阶段」（候选最终停下的那个阶段）也触发 STAGE_ENTERED 自动化
+#     —— 因为候选确实进入了该阶段。被跳过的阶段永不触发。
+# 如需翻转，仅改此常量即可。
+AUTO_SKIP_ADVANCE_TRIGGERS_STAGE_ENTERED = False
+
 # 可被"超时归档"处理的状态集合。
 # 必须与 Application.timeout_archive 的 @transition source 保持一致 ——
 # 前者是业务前置判断（不满足则幂等返回），后者是状态机的硬约束。
@@ -1223,6 +1233,24 @@ class ApplicationService:
                 operator=actor,
                 is_auto=True,
             )
+            # O2（产品决策锁定，默认 False）：级联落地停留阶段是否触发 STAGE_ENTERED 自动化。
+            # 被跳过的阶段永不触发，仅候选真实进入的落地阶段在开关开启时触发。
+            if AUTO_SKIP_ADVANCE_TRIGGERS_STAGE_ENTERED:
+                try:
+                    from apps.automation.services import run_automation_for_trigger, TriggerContext
+                    ctx = TriggerContext(
+                        trigger_type='STAGE_ENTERED',
+                        candidate_id=application.candidate_id,
+                        application_id=application.id,
+                        stage_id=next_link.stage_id,
+                        extra={
+                            'position_id': application.position_id,
+                            'process_id': application.process_id,
+                        },
+                    )
+                    run_automation_for_trigger(ctx)
+                except Exception as e:  # noqa: BLE001 — best-effort, 不阻断级联
+                    logger.warning('O2 级联落地阶段自动化触发失败: %s', e)
             break
 
         return application

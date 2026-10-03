@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 from django.utils import timezone
+from unittest.mock import MagicMock
 
 from apps.application.models import (
     Application,
@@ -404,3 +405,87 @@ def test_archive_execution_failure_does_not_rollback_advance(monkeypatch, depart
     app = _reload(app)
     # 已进入 S2 的推进应被保留，不被回滚到 S1
     assert app.current_stage_id == s2.id
+
+
+# ============================================================
+# O2 回归：级联自动进入是否触发 STAGE_ENTERED 自动化（产品决策锁定）
+# 默认 False（保持现状，级联不触发）；翻转常量 True → 落地阶段触发一次。
+# ============================================================
+@pytest.mark.django_db
+def test_o2_cascade_landing_does_not_trigger_automation_by_default(monkeypatch, department, super_user):
+    """O2（默认 False）：级联自动进入的落地阶段不触发 STAGE_ENTERED 自动化。
+
+    S1(req)→S2(req,skip)→S3(req,无规则)。用户驱动 advance 对 S2 触发一次自动化（预期）；
+    级联 S2→S3 落地不应触发 S3 自动化。
+    """
+    from apps.application import services as app_services
+
+    mock_run = MagicMock()
+    monkeypatch.setattr('apps.automation.services.run_automation_for_trigger', mock_run)
+
+    tpl = make_metric_template()
+    process = make_process('WO2DEF')
+    s1, s2, s3 = make_stage('O1'), make_stage('O2'), make_stage('O3')
+    l1, l2, l3 = add_link(process, s1, 0), add_link(process, s2, 1), add_link(process, s3, 2)
+    attach_skip_rule(l2, tpl)  # 仅 S2 命中 skip，S3 无规则
+
+    pos = make_position('P_O2DEF', department, super_user)
+    app = make_application('AO2DEF', process, l1, pos, phone='13900000801')
+
+    ApplicationService.advance_application_to_next_stage(app)
+
+    app = _reload(app)
+    # 级联确实发生：落到 S3
+    assert app.current_stage_id == s3.id
+
+    # 用户驱动 advance 对 S2 触发了一次自动化（证明 mock 生效、非「整体未触发」假绿）
+    assert mock_run.call_count == 1, \
+        f'用户驱动 advance 应触发 S2 一次自动化，实际 {mock_run.call_count}'
+    s2_calls = [c for c in mock_run.call_args_list if c.args and c.args[0].stage_id == s2.id]
+    assert len(s2_calls) == 1, 'advance 对 S2 应触发一次 STAGE_ENTERED 自动化'
+
+    # O2 默认 False：级联落地阶段 S3 不应触发自动化
+    s3_calls = [c for c in mock_run.call_args_list if c.args and c.args[0].stage_id == s3.id]
+    assert s3_calls == [], 'O2 默认 False：级联落地阶段 S3 不应触发 STAGE_ENTERED 自动化'
+
+
+@pytest.mark.django_db
+def test_o2_cascade_landing_triggers_automation_when_enabled(monkeypatch, department, super_user):
+    """O2（翻转 True）：级联落地阶段触发一次 STAGE_ENTERED 自动化，stage_id=落地阶段 S3。
+
+    被跳过的 S2 经由级联路径不触发（advance 对 S2 的触发是用户驱动语义，与此无关）。
+    验证触发上下文（trigger_type/candidate_id/application_id/stage_id/extra）完整。
+    """
+    from apps.application import services as app_services
+
+    mock_run = MagicMock()
+    monkeypatch.setattr('apps.automation.services.run_automation_for_trigger', mock_run)
+    # 仅翻转 O2 模块级常量
+    monkeypatch.setattr(app_services, 'AUTO_SKIP_ADVANCE_TRIGGERS_STAGE_ENTERED', True)
+
+    tpl = make_metric_template()
+    process = make_process('WO2ON')
+    s1, s2, s3 = make_stage('Q1'), make_stage('Q2'), make_stage('Q3')
+    l1, l2, l3 = add_link(process, s1, 0), add_link(process, s2, 1), add_link(process, s3, 2)
+    attach_skip_rule(l2, tpl)  # 仅 S2 命中 skip
+
+    pos = make_position('P_O2ON', department, super_user)
+    app = make_application('AO2ON', process, l1, pos, phone='13900000802')
+
+    ApplicationService.advance_application_to_next_stage(app)
+
+    app = _reload(app)
+    assert app.current_stage_id == s3.id
+
+    # 级联落地阶段 S3 应触发一次自动化
+    s3_calls = [c for c in mock_run.call_args_list if c.args and c.args[0].stage_id == s3.id]
+    assert len(s3_calls) == 1, \
+        f'O2 True：级联落地阶段 S3 应触发一次自动化，实际 {len(s3_calls)}'
+
+    ctx = s3_calls[0].args[0]
+    assert ctx.trigger_type == 'STAGE_ENTERED'
+    assert ctx.candidate_id == app.candidate_id
+    assert ctx.application_id == app.id
+    assert ctx.stage_id == s3.id
+    assert (ctx.extra or {}).get('position_id') == app.position_id
+    assert (ctx.extra or {}).get('process_id') == app.process_id
