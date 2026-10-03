@@ -13,7 +13,73 @@ condition_type ∈ {CANDIDATE, DEMAND, POSITION} 且 field=点路径 的项。
 METRIC 求值器（apps/metrics/services/metric_engine.py:evaluate_metric_condition）最终也是按
 模板指向的 AtomicMetric 的 source_path 取值 + 按 data_type 转换 —— 与裸路径求值**同源**。
 因此把裸路径条件改写为 METRIC（引用一个指向同 source_path 的 AtomicMetric 的模板），
-**求值结果不变**，只是把条件纳入指标模板治理体系（EXP-5 失效检测 + LIFE-2 禁用/删除披露）。
+只是把条件纳入指标模板治理体系（EXP-5 失效检测 + LIFE-2 禁用/删除披露）。
+
+⚠️「求值结果不变」的适用边界（务必看清，不要过度宣称）
+------------------------------------------------------
+上述「同源 ⇒ 求值结果不变」**仅对标准点路径形态成立**：裸路径 field 与 AtomicMetric.source_path
+是同一个点路径（candidate.age <-> candidate.age），取值走同一 FieldResolverRegistry，
+故迁移前后 actual 必然相同、比较结果必然相同。
+
+**legacy 大写常量形态（DEMAND_LEVEL 等）属尽力映射，不保证同源等价**，必须人工核对：
+  - 迁移前：entry_condition/services.py 的裸路径取值表按 legacy 常量名取值（如 'DEMAND_LEVEL'
+    走 getattr(demand, 'demand_level', None)）。Demand 模型只有 level 字段、没有 demand_level，
+    因此该条件迁移前 actual **恒为 None**，EQ 任意值恒 False。
+  - 迁移后：走 demand.level，取 Demand.level —— 真实值域与配置值（如 '1'/'3'）未必对得上，
+    前后都为 False 可能是**碰巧**，并非语义等价。
+  - 结论：legacy 形态只做命名规范化 + 查表命中，**不承诺求值结果不变**；执行 --apply 前
+    必须人工核对每条 legacy 项的语义与配置值是否匹配。
+
+运算符白名单（硬性不变量，禁产出不可求值条件）
+---------------------------------------------
+MetricEngine 求值时会**强制校验** operator ∈ template.operators（metric_engine.py:126-130 批量 /
+:337-344 单条），不在白名单直接返回 error='模板不支持该运算符' + pass=False，而 entry_condition
+把 error 降级为 passed=False（services.py:375-380）→ **候选人被静默拦截**。
+因此本命令绝不产出「operator 不在目标模板 operators 内」的迁移结果。
+
+目标模板解析策略（最小侵入，按序；**严禁「全集 operators」兜底**）
+------------------------------------------------------------------
+  1. **复用兼容模板**：指向同一 AtomicMetric 且 operator 已在其 operators 内的启用模板。
+  2. **并入缺失的 1 个 operator**（无兼容模板时的首选）：复用指向该 AtomicMetric 的既有启用
+     模板，只把「缺失的那一个 operator」**追加**进其 operators，**不新建重复模板**、
+     **不开放无关算子**。
+     ⚠️ 为什么**不能**新建「全集 operators（UnifiedOperator.values 14 项）」模板：
+     迁移 0018 刻意把 `需求级别` 模板的 operators 定为
+     ['IS_EMPTY','IS_NOT_EMPTY','IN','NOT_IN'] 安全集，这是有意的业务约束；而
+     demand.level 是 **CharField 职级**。开全集（含 GT / BETWEEN / REGEX_MATCH…）
+     会让用户配出「职级 > 5」这类无意义条件，求值因字符串比较而**静默 False** ——
+     这是另一种「假及格」（配置能存、求值恒 False），比重复模板命名危险得多。
+     故全集兜底已**彻底废弃**。
+  3. **新建最小算子模板**：仅有既有模板可改（并入失败）或根本没有既有模板时才新建，
+     operators **只含本条实际需要的那 1 个算子**（绝不是 UnifiedOperator 全集）；
+     name 用候选名序列（am.name → am.name (LIFE-3) → am.name (LIFE-3 <6位随机>)），
+     name 唯一冲突时逐级重试。
+  4. operator 不是合法 UnifiedOperator 取值 → SKIP + 报告；运算符为空且无既有模板
+     （新建会得到空白名单模板 = 不可求值）→ SKIP + 报告。
+  5. 以上都失败 → SKIP + 报告（禁假绿底线不变）。
+
+「并入既有模板 operators」对既有引用条件的影响（已论证 + 测试锁定）
+------------------------------------------------------------------
+operators 是**启用算子白名单**（metric_engine 只做 `operator ∈ template.operators` 的
+成员判断）。追加只会**放宽**白名单：既有条件原本允许的运算符**全部保留**（append-only，
+绝不删改），既有条件既不会因白名单缩小而失效，也不会改变任何一条既有条件的
+operator / value / 取值路径（本命令只改 operators 字段本身）。
+故「并入」对既有引用该模板的条件**无破坏性影响**，只是让该模板多支持一个运算符。
+（回归测试 test_merge_preserves_existing_operators_and_conditions 锁定此结论。）
+
+并入的可审计性（E-1，纯输出/报告层）
+----------------------------------
+并入是对**全局共享实体**（MetricTemplate）的永久性配置面变更：operators 经
+apps/process/views.py:958 `'operators': list(tpl.operators or [])` 透传给前端运算符下拉，
+而本命令**不可回滚**。故 --apply 输出必须能回答「改了哪些模板、并入哪个算子、
+operators 从几个变到几个」，且 dry-run 要给出同一份**计划**清单（口径一致）：
+  - 单条输出三态可辨：`[模板 X]`（复用本就兼容）/
+    `[并入 +EQ 到既有模板 X（operators 4→5：[..] → [..]）]`（并入放宽）/
+    `[新建模板 X operators=[EQ]]`（新建最小算子模板）。
+  - 报告末尾新增「已放宽既有模板白名单」汇总（dry-run 为「将放宽」），
+    按模板归并：同一模板被并入多个算子时合并显示，0 个也显式打印以证无放宽。
+该改动只在**写库成功后登记**（_merge_operator_into_template / _create_minimal_template）
+或 dry-run 预测并入时登记（_plan_template_note），**不参与任何迁移判定与写入决策**。
 
 可靠性约束（硬纪律，必须遵守）
 -----------------------------
@@ -25,6 +91,22 @@ METRIC 求值器（apps/metrics/services/metric_engine.py:evaluate_metric_condit
   - 零新增依赖。
   - 真实可靠：dry-run 默认不写库；--apply 才写。
 
+legacy 命名兼容（修复：明明有 enabled AtomicMetric 却误判 SKIP）
+---------------------------------------------------------------
+裸路径 field 在真实库里存在两种命名风格：
+  1. 标准点路径：candidate.age / demand.level（小写、含点）
+  2. legacy 大写常量：DEMAND_LEVEL / CANDIDATE_WORK_YEARS（全大写、下划线、无点）
+原先直接把 ci.field 当 source_path 精确查，只覆盖风格 1，导致风格 2 明明有对应
+enabled AtomicMetric 也被判「无」而 SKIP（本可迁移的数据一条没迁）。
+现统一走 _resolve_atomic_metric()：**精确匹配优先，legacy 规范化仅作兜底**
+（见 _normalize_legacy_path）。规范化只作用于「全大写 + 含下划线 + 无点」的 field，
+标准点路径与已迁移的模板 id 完全不受影响；查不到依旧 SKIP，绝不硬造。
+
+⚠️ 兜底映射命中的项**仍需人工核对语义与配置值**（理由见上文「求值结果不变的适用边界」）：
+legacy 常量迁移前的实际取值链路与 demand.level 未必同源，命中只代表「存在同名的标准点路径
+AtomicMetric」，不代表迁移前后求值结果一致。--apply 输出会为每条命中项打印
+`[经规范化匹配 X -> y]` 兜底提示，并在报告里汇总命中条数，保证事后可审计。
+
 求值权威路径（已核实，无需再查）
 -------------------------------
 apps/entry_condition/services.py:270 与 :280 的求值循环直接
@@ -35,10 +117,11 @@ entry_rule_expression 仅是展示缓存，本命令 best-effort 重建它（失
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Tuple
+import uuid
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.core.management.base import BaseCommand
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from apps.entry_condition.models import (
     ConditionFieldType,
@@ -61,6 +144,28 @@ SOURCE_TYPES: List[str] = ['CANDIDATE', 'DEMAND', 'POSITION']
 _UUID_CHARS = set('0123456789abcdefABCDEF-')
 _ID_ALPHABET = set('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_')
 
+# MetricTemplate.name 的 max_length（模型定义 64），新建模板时用于截断候选名
+_TEMPLATE_NAME_MAX = 64
+
+# 新建模板时 name 的可辨识后缀（与既有同名模板区分，便于人工回溯来源）
+_NEW_TEMPLATE_SUFFIX = ' (LIFE-3)'
+
+
+def _fit_template_name(base: str, suffix: str) -> str:
+    """把 base + suffix 拼进 64 字符上限内（超长则截断 base，绝不截断后缀）。"""
+    base = base or 'metric'
+    if len(base) + len(suffix) <= _TEMPLATE_NAME_MAX:
+        return base + suffix
+    keep = _TEMPLATE_NAME_MAX - len(suffix)
+    if keep <= 0:
+        return (base + suffix)[-_TEMPLATE_NAME_MAX:]
+    return base[:keep] + suffix
+
+
+def _format_ops(operators: Any) -> str:
+    """把 operators 列表渲染成紧凑可读形式（**仅用于输出/报告，绝不参与任何判定**）。"""
+    return '[' + ', '.join(str(op) for op in (operators or [])) + ']'
+
 
 def _looks_like_id(field: Any) -> bool:
     """判断 field 是否已存模板 id（迁移后形态），避免重复迁移 / 误改已迁移项。
@@ -80,6 +185,65 @@ def _looks_like_id(field: Any) -> bool:
     return False
 
 
+def _normalize_legacy_path(field: Any) -> Any:
+    """legacy「大写常量」形态 → 标准点路径形态（仅做命名规范化，绝不猜测语义）。
+
+    真实 legacy 数据存在两种命名风格，本命令原先只认标准点路径一种：
+      - 标准点路径：candidate.age / demand.level（小写、含点）
+      - legacy 大写常量：DEMAND_LEVEL / CANDIDATE_WORK_YEARS（全大写、下划线、无点）
+
+    仅当 field 严格满足「是字符串 + 无点 + 含下划线 + 全大写」时才规范化：
+      把第一个下划线替换为 '.'，整体转小写。
+        DEMAND_LEVEL          -> demand.level
+        CANDIDATE_WORK_YEARS  -> candidate.work_years
+    不满足该形态的 field 一律原样返回（标准点路径、模板 id、小写下划线等），
+    保证精确匹配路径与既有行为完全不受影响。
+
+    注意：这只是让「已有对应 enabled AtomicMetric」的项能被匹配到，
+    绝不据此外推 data_type 或凭空造指标 —— 查不到仍然 SKIP。
+    """
+    if not isinstance(field, str) or not field:
+        return field
+    if '.' in field:
+        return field  # 已是点路径形态（或数组下标路径），原样返回
+    if '_' not in field:
+        return field  # 无下划线，无「下划线 -> 点」可替换
+    if not field.isupper():
+        return field  # 非全大写常量风格，原样返回
+    return field.replace('_', '.', 1).lower()
+
+
+def _resolve_atomic_metric(field: Any) -> Tuple[Optional[AtomicMetric], Any]:
+    """按 field 解析出「已启用」的 AtomicMetric —— 精确匹配优先，legacy 规范化仅作兜底。
+
+    Args:
+        field: ConditionItem.field 或 JSON item 的 field（裸路径或 legacy 大写常量）。
+
+    Returns:
+        (am, resolved_path)：
+          - am: 命中的 AtomicMetric；为 None 表示查不到，调用方必须 SKIP
+                （绝不硬造 data_type / 模板，避免假绿）。
+          - resolved_path: 实际用于查询的 source_path。命中时即命中路径；
+                未命中时为规范化后的候选路径（可能为原 field），供报告溯源。
+    """
+    path = field
+    am = AtomicMetric.objects.filter(
+        source_path=path, status=MetricStatus.ENABLED,
+    ).first()
+    if am is not None:
+        return am, path
+
+    # 兜底：legacy 大写常量风格（DEMAND_LEVEL）→ 标准点路径（demand.level）再查一次
+    normalized = _normalize_legacy_path(field)
+    if normalized != field:
+        am = AtomicMetric.objects.filter(
+            source_path=normalized, status=MetricStatus.ENABLED,
+        ).first()
+        if am is not None:
+            return am, normalized
+    return None, normalized
+
+
 class Command(BaseCommand):
     help = '将裸路径条件(CANDIDATE/DEMAND/POSITION)迁移到 METRIC 源(引用 MetricTemplate)。dry-run 默认。'
 
@@ -94,33 +258,251 @@ class Command(BaseCommand):
         )
 
     # ------------------------------------------------------------------
-    # 模板解析：find-or-create 指向 am 的启用模板
+    # 模板解析：兼容优先 find-or-create 指向 am 的启用模板
     # ------------------------------------------------------------------
-    def _resolve_template(self, am: AtomicMetric) -> MetricTemplate:
-        """返回指向 am 的启用模板（复用既有，不存在则新建）。
+    def _find_compatible_template(
+        self, am: AtomicMetric, operator: Any,
+    ) -> Optional[MetricTemplate]:
+        """在指向 am 的启用模板中找「operator 在其白名单内」的模板。
 
-        - 按 atomic_metric + status='enabled' 优先复用，避免重复创建。
-        - 新建时 operators 取 UnifiedOperator 全集，保证原裸路径 condition 的 operator 在白名单内。
-        - 若 name 已被别的模板占用触发 unique 冲突，抛 IntegrityError（由调用方捕获降级、不崩）。
+        MetricEngine 求值强制校验 operator ∈ template.operators（metric_engine.py:126-130 /
+        :337-344），不在白名单即 error='模板不支持该运算符' + pass=False，最终表现为
+        **候选人被静默拦截**。故复用必须以「运算符兼容」为第一判据，不能再无脑取第一个。
+
+        Args:
+            am: 目标 AtomicMetric。
+            operator: 本条条件的运算符（ConditionItem.operator / JSON item 的 operator）。
+
+        Returns:
+            兼容的启用模板；无兼容模板返回 None（调用方需并入既有模板 / 新建 / SKIP）。
         """
-        template = MetricTemplate.objects.filter(
+        templates = MetricTemplate.objects.filter(
+            atomic_metric=am, status=MetricStatus.ENABLED,
+        )
+        if not operator:
+            # 空运算符（历史脏数据）不构成白名单约束：退化为旧行为，取任一启用模板。
+            return templates.first()
+        for template in templates:
+            if operator in (template.operators or []):
+                return template
+        return None
+
+    def _find_merge_candidate(self, am: AtomicMetric) -> Optional[MetricTemplate]:
+        """无兼容模板时，找出可「并入缺失算子」的既有启用模板（确定性：按 name 排序首个）。
+
+        最小侵入原则：优先复用既有模板并只并入缺失的那 1 个 operator，
+        **不新建重复命名模板、不开放无关算子**（尤其不开 UnifiedOperator 全集，
+        理由见模块头「目标模板解析策略」）。
+        """
+        return MetricTemplate.objects.filter(
             atomic_metric=am, status=MetricStatus.ENABLED,
         ).first()
-        if template is not None:
-            return template
-        return MetricTemplate.objects.create(
-            name=am.name,  # AtomicMetric.name 唯一，模板也按此唯一
-            atomic_metric=am,
-            derived_metric=None,
-            operators=list(UnifiedOperator.values),  # 全集，保证原 operator 在白名单内
-            param_config={'min': None, 'max': None, 'step': None,
-                          'prefix': '', 'suffix': '', 'allOption': False},
-            value_domain={'segments': []},
-            param_enums=[],
-            param_allow_null=False,
-            status=MetricStatus.ENABLED,
-            description='auto-migrated from raw-path condition (LIFE-3)',
-        )
+
+    def _merge_operator_into_template(
+        self, template: MetricTemplate, operator: Any,
+    ) -> Optional[MetricTemplate]:
+        """把 operator **追加**进既有模板的 operators（append-only，绝不删改既有项）。
+
+        operators 只是「启用算子白名单」，追加只会放宽、不会破坏既有引用该模板的条件：
+        既有条件允许的运算符全部保留，其 operator / value / 取值路径均不变。
+
+        Returns:
+            并入成功返回该模板；失败（operator 非法/写库异常）返回 None。
+        """
+        if not operator or operator not in UnifiedOperator.values:
+            return None
+        current = list(template.operators or [])
+        if operator in current:
+            return template  # 已包含（理论不会走到，_find_compatible_template 已拦）
+        try:
+            # savepoint：写失败只回滚到本 savepoint，绝不污染外层事务
+            with transaction.atomic():
+                template.operators = current + [operator]
+                template.save(update_fields=['operators', 'updated_at'])
+        except IntegrityError as exc:
+            self.stderr.write(self.style.WARNING(
+                f'  [WARN] 并入算子失败 template={template.id} op={operator!r}: {exc}'))
+            return None
+        # 审计留痕（E-1，纯登记）：并入是对**全局共享实体**的永久性配置面变更
+        # （operators 经 apps/process/views.py:958 透传给前端运算符下拉），且本命令
+        # **不可回滚**；故必须留下「改了哪个模板、并入哪个算子、operators 从几个变到几个」。
+        after_ops = current + [operator]
+        self._record_relaxed_template(template, current, operator)
+        self._apply_notes[str(template.id)] = (
+            f'[并入 +{operator} 到既有模板 {template.id}'
+            f'（operators {len(current)}→{len(after_ops)}：'
+            f'{_format_ops(current)} → {_format_ops(after_ops)}）]')
+        return template
+
+    def _create_minimal_template(
+        self, am: AtomicMetric, operator: Any,
+    ) -> Optional[MetricTemplate]:
+        """新建**只含实际需要算子**的模板（operators = [operator]，绝不是全集）。
+
+        name 唯一冲突时按候选名序列重试；每次 create 包在 transaction.atomic() 内，
+        使 IntegrityError 只回滚到 savepoint —— 在嵌套事务（如 pytest 的 atomic 包裹）
+        下也不会让整个事务进入 needs_rollback 而抛 TransactionManagementError。
+
+        Returns:
+            新建的模板；全部候选名冲突 / operator 非法 → None（调用方 SKIP + 报告）。
+        """
+        if not operator or operator not in UnifiedOperator.values:
+            # 空运算符新建会得到「空白名单模板」= 不可求值 → 禁假绿，不建
+            return None
+        # 只含本条实际需要的那 1 个算子（禁全集：字符串职级开 GT/BETWEEN 会产出恒 False 条件）
+        operators = [operator]
+        for candidate_name in self._candidate_template_names(am.name):
+            try:
+                with transaction.atomic():
+                    created = MetricTemplate.objects.create(
+                        name=candidate_name,
+                        atomic_metric=am,
+                        derived_metric=None,
+                        operators=operators,
+                        param_config={'min': None, 'max': None, 'step': None,
+                                      'prefix': '', 'suffix': '', 'allOption': False},
+                        value_domain={'segments': []},
+                        param_enums=[],
+                        param_allow_null=False,
+                        status=MetricStatus.ENABLED,
+                        description='auto-migrated from raw-path condition (LIFE-3)',
+                    )
+            except IntegrityError as exc:
+                # name 唯一冲突（或同类约束冲突）→ 换下一个候选名重试；全部失败返回 None 由调用方 SKIP
+                self.stderr.write(self.style.WARNING(
+                    f'  [WARN] 新建模板名冲突 name={candidate_name!r}: {exc}，尝试下一个候选名'))
+                continue
+            # 审计留痕（E-1，纯登记）：新建模板同样会成为一个**新的全局共享实体**，
+            # apply 输出必须能与「复用本就兼容的既有模板」在字面上区分开。
+            self._apply_notes[str(created.id)] = (
+                f'[新建模板 {created.id} operators={_format_ops(operators)}]')
+            return created
+        return None
+
+    @staticmethod
+    def _candidate_template_names(base_name: str) -> List[str]:
+        """新建模板的候选名列表（按序尝试，规避 MetricTemplate.name 唯一冲突）。"""
+        base_name = base_name or 'metric'
+        return [
+            _fit_template_name(base_name, ''),
+            _fit_template_name(base_name, _NEW_TEMPLATE_SUFFIX),
+            _fit_template_name(base_name, f'{_NEW_TEMPLATE_SUFFIX} {uuid.uuid4().hex[:6]}'),
+        ]
+
+    # ------------------------------------------------------------------
+    # 可审计性登记（E-1，纯统计层：只登记、绝不参与任何迁移判定/写入）
+    # ------------------------------------------------------------------
+    def _reset_audit_state(self) -> None:
+        """初始化本轮的可审计计数器（每次 handle 开头调用）。
+
+        - _relaxed_templates: 被（或将被）放宽白名单的既有共享模板，
+          key=模板 id，value={'label': 模板名, 'before': 原 operators, 'added': 并入的算子}。
+        - _apply_notes: 本条 --apply 输出的模板后缀（一次性消费），
+          key=模板 id；未登记即表示「复用了本就兼容的模板」。
+        """
+        self._relaxed_templates: Dict[str, Dict[str, Any]] = {}
+        self._apply_notes: Dict[str, str] = {}
+
+    def _record_relaxed_template(
+        self, template: MetricTemplate, before_ops: List[Any], operator: Any,
+    ) -> None:
+        """登记一个「被放宽白名单」的既有模板（同一模板被并入多个算子时合并显示）。
+
+        --apply 由 _merge_operator_into_template 在**写库成功后**登记（实际发生）；
+        dry-run 由 _plan_template_note 在预测为「并入」时登记（计划发生）。
+        两者写入同一结构，故 dry-run 报告与 --apply 报告给出同一份清单，口径不矛盾。
+        """
+        key = str(template.id)
+        record = self._relaxed_templates.get(key)
+        if record is None:
+            record = {
+                'label': (template.name or '').strip(),
+                'before': list(before_ops or []),
+                'added': [],
+            }
+            self._relaxed_templates[key] = record
+        if operator and operator not in record['before'] and operator not in record['added']:
+            record['added'].append(operator)
+
+    def _take_apply_template_note(self, template: MetricTemplate) -> str:
+        """取本条 --apply 输出的模板后缀（**一次性消费**）：区分复用 / 并入 / 新建。
+
+        _merge_operator_into_template / _create_minimal_template 在写库成功时登记后缀；
+        未被登记 ⇒ 复用了本就兼容的既有模板 ⇒ 保持 `[模板 X]`。
+        一次性消费保证「同一模板被后续条目复用」时不会再重复打印并入/新建文案。
+        """
+        return self._apply_notes.pop(str(template.id), f'[模板 {template.id}]')
+
+    def _resolve_template(
+        self, am: AtomicMetric, operator: Any, allow_create: bool = True,
+    ) -> Optional[MetricTemplate]:
+        """解析本条条件的目标模板：**兼容优先 → 最小侵入并入 → 最小算子新建**。
+
+        硬约束：绝不返回「operator 不在 operators 内」的模板（那会产出恒 False 的坏条件）；
+        绝不新建「全集 operators」模板（会在字符串职级上产出「职级 > 5」这类恒 False 配置）。
+
+        策略（按序）：
+          1. 复用指向 am 的启用模板中 **operator 已在其 operators 内** 的那个（兼容优先）。
+          2. 无兼容模板 → 复用指向 am 的既有启用模板，**只把缺失的那 1 个 operator 追加**
+             进其 operators（append-only，放宽白名单，不破坏既有引用条件）。
+          3. 无既有模板 / 并入失败 → 新建模板，operators **只含本条实际需要的算子**
+             （name 走候选名序列重试，规避 unique 冲突）。
+          4. operator 不是合法 UnifiedOperator 取值 → 返回 None（SKIP）。
+          5. 以上都失败 → 返回 None（SKIP）。
+
+        Args:
+            am: 目标 AtomicMetric。
+            operator: 本条条件的运算符。
+            allow_create: False 表示只读解析（dry-run 用它做预测，保证零写入）。
+
+        Returns:
+            目标模板；None 表示无法产出可求值条件，调用方**必须 SKIP + 报告**。
+        """
+        compatible = self._find_compatible_template(am, operator)
+        if compatible is not None:
+            return compatible
+        # 全集已废弃：operator 本身不是合法 UnifiedOperator → 谁也覆盖不了 → SKIP
+        if operator and operator not in UnifiedOperator.values:
+            return None
+        merge_candidate = self._find_merge_candidate(am)
+        if allow_create:
+            # --- --apply：可写 ---
+            if merge_candidate is not None and operator:
+                merged = self._merge_operator_into_template(merge_candidate, operator)
+                if merged is not None:
+                    return merged
+            # 无既有模板可并入（或并入失败 / 运算符为空）→ 新建最小算子模板
+            return self._create_minimal_template(am, operator)
+        # --- dry-run：只读预测，绝不写库（返回 None，由 _plan_template_note 出预测文案）---
+        return None
+
+    def _plan_template_note(
+        self, am: AtomicMetric, operator: Any,
+    ) -> Tuple[str, bool]:
+        """dry-run 预测：本条将「复用兼容模板 / 并入既有模板 / 新建最小算子模板 / SKIP」。
+
+        仅查询、绝不写库（只读复用 / 并入 / 新建三选一的预测，内部绝不触发写操作）。
+
+        Returns:
+            (note, ok)：ok=False 表示预测为不可求值（调用方应按 SKIP 计数，不计入 migrated）。
+        """
+        compatible = self._find_compatible_template(am, operator)
+        if compatible is not None:
+            return f' [复用兼容模板 {compatible.id}]', True
+        if operator and operator not in UnifiedOperator.values:
+            return f' [SKIP 运算符 {operator} 非合法 UnifiedOperator]', False
+        merge_candidate = self._find_merge_candidate(am)
+        if merge_candidate is not None and operator:
+            # 计划放宽也要登记（零写入，仅内存计数）：使 dry-run 报告与 --apply 报告
+            # 给出**同一份**「哪些共享模板会被放宽」的清单，口径不矛盾。
+            self._record_relaxed_template(
+                merge_candidate, list(merge_candidate.operators or []), operator)
+            return (
+                f' [将复用既有模板 {merge_candidate.id} 并仅并入 {operator}]', True)
+        if not operator:
+            # 空运算符：无兼容/既有模板可并入，新建只会得到空白名单模板（不可求值）→ SKIP
+            return ' [SKIP 运算符为空且无可复用模板]', False
+        return f' [将新建模板 operators=[{operator}]]', True
 
     # ------------------------------------------------------------------
     # best-effort 重建 entry_rule_expression 展示缓存（不致命）
@@ -176,6 +558,7 @@ class Command(BaseCommand):
         返回 (new_rules_list, scanned, migrated, err_count)。
         - 不在此处写库；dry-run 时返回的 new_list 与原列表内容一致（不改写 item 本身）。
         - 查不到 AtomicMetric 的项计入 self._skipped_no_atomic（调用方实例属性）。
+        - 无兼容模板可复用且新建失败的项计入 self._skipped_operator，不迁移、不改写。
         - 单条异常计入 err_count 并打印，不中断整批。
         """
         scanned = 0
@@ -202,13 +585,13 @@ class Command(BaseCommand):
                     continue
                 ctype = item.get('condition_type')
                 field = item.get('field')
+                operator = item.get('operator')
                 # 仅处理裸路径（在 source_types 内且 field 非模板 id）的项
                 if ctype in source_types and not _looks_like_id(field):
                     path = field
                     try:
-                        am = AtomicMetric.objects.filter(
-                            source_path=path, status=MetricStatus.ENABLED,
-                        ).first()
+                        # 精确匹配优先，legacy 大写常量规范化仅作兜底（统一入口，避免两处逻辑漂移）
+                        am, resolved = _resolve_atomic_metric(path)
                     except Exception as exc:  # noqa: BLE001 — 单条查询异常不中断整批
                         err_count += 1
                         self.stderr.write(self.style.ERROR(
@@ -218,26 +601,54 @@ class Command(BaseCommand):
                         continue
                     if am is None:
                         self._skipped_no_atomic[path] = self._skipped_no_atomic.get(path, 0) + 1
+                        if resolved != path:
+                            # 报告溯源：本条已尝试规范化为 resolved，仍无匹配
+                            self._skipped_normalized[path] = resolved
                         new_items.append(item)
                         continue
-                    migrated += 1
+                    norm_note = '' if resolved == path else f' [经规范化匹配 {path} -> {resolved}]'
+                    if resolved != path:
+                        # 兜底映射命中（dry-run / apply 都记，保证 --apply 后仍可审计）
+                        hit_key = f'{path} -> {resolved}'
+                        self._normalized_hits[hit_key] = self._normalized_hits.get(hit_key, 0) + 1
                     if dry_run:
-                        # dry-run 不写库：仅描述将要改写，绝不创建/复用模板
+                        # dry-run 不写库：仅预测「复用兼容模板 / 并入既有模板 / 新建最小算子模板 / SKIP」
+                        plan_note, ok = self._plan_template_note(am, operator)
+                        if not ok:
+                            op_key = f'{path} [{operator}]'
+                            self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                            new_items.append(item)  # 预测不可求值 → 不改、不计 migrated
+                            continue
+                        migrated += 1
                         self.stdout.write(
                             f'{prefix}将改写 StageRule {sr_id} {bucket} item: '
-                            f'{ctype} {path} -> METRIC (待建/复用模板)')
+                            f'{ctype} {path} -> METRIC{plan_note}{norm_note}')
                         new_items.append(item)  # dry-run 不改写原 item
                     else:
                         try:
-                            template = self._resolve_template(am)
+                            template = self._resolve_template(am, operator)
                         except IntegrityError as exc:
-                            # 模板 name 被别的模板占用等唯一约束冲突：降级跳过该条，不崩
+                            # 模板 name 唯一约束等冲突：降级跳过该条，不崩（绝不产出不兼容模板）
                             err_count += 1
                             self.stderr.write(self.style.ERROR(
                                 f'  [ERROR] StageRule {sr_id} {bucket} 建模板冲突 path={path!r}: {exc}'))
-                            migrated -= 1
                             new_items.append(item)
                             continue
+                        if template is None:
+                            # 无兼容可复用 + 新建失败 / operator 非法 → SKIP
+                            op_key = f'{path} [{operator}]'
+                            self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                            self.stderr.write(self.style.WARNING(
+                                f'  [SKIP] StageRule {sr_id} {bucket} 运算符 {operator} 无兼容模板'
+                                f'（path={path}）：不迁移、不改写、不建不兼容模板'))
+                            new_items.append(item)
+                            continue
+                        migrated += 1
+                        # E-1：模板后缀区分「复用兼容 / 并入放宽 / 新建」，便于事后审计
+                        tmpl_note = self._take_apply_template_note(template)
+                        self.stdout.write(
+                            f'{prefix}已改写 StageRule {sr_id} {bucket} item: '
+                            f'{ctype} {path} -> METRIC {tmpl_note}{norm_note}')
                         new_item = dict(item)
                         new_item['condition_type'] = ConditionFieldType.METRIC
                         new_item['field'] = str(template.id)
@@ -258,6 +669,14 @@ class Command(BaseCommand):
         prefix = '[DRY-RUN] ' if dry_run else ''
 
         self._skipped_no_atomic: Dict[str, int] = {}
+        # SKIP 溯源：原 field -> 已尝试规范化后的候选 path（仍无匹配时记录，便于排查）
+        self._skipped_normalized: Dict[str, str] = {}
+        # SKIP(运算符不兼容)：无兼容模板可复用，且无法并入既有模板 / 无法新建兼容模板
+        # → 记录 ('path [OP]', 条数)
+        self._skipped_operator: Dict[str, int] = {}
+        # 兜底映射命中审计：legacy 大写常量经规范化命中 enabled AtomicMetric 的条数（按 X -> y 归档）
+        self._normalized_hits: Dict[str, int] = {}
+        self._reset_audit_state()
         migrated_entry = 0
         migrated_stage = 0
         errors = 0
@@ -280,22 +699,51 @@ class Command(BaseCommand):
                 if ci.condition_type == ConditionFieldType.METRIC or _looks_like_id(ci.field):
                     continue
                 path = ci.field
-                am = AtomicMetric.objects.filter(
-                    source_path=path, status=MetricStatus.ENABLED,
-                ).first()
+                # 精确匹配优先，legacy 大写常量规范化仅作兜底（统一入口，避免两处逻辑漂移）
+                am, resolved = _resolve_atomic_metric(path)
                 if am is None:
                     self._skipped_no_atomic[path] = self._skipped_no_atomic.get(path, 0) + 1
+                    if resolved != path:
+                        # 报告溯源：本条已尝试规范化为 resolved，仍无匹配
+                        self._skipped_normalized[path] = resolved
                     continue
+                norm_note = '' if resolved == path else f' [经规范化匹配 {path} -> {resolved}]'
+                if resolved != path:
+                    # 兜底映射命中（dry-run / apply 都记，保证 --apply 后仍可审计）
+                    key = f'{path} -> {resolved}'
+                    self._normalized_hits[key] = self._normalized_hits.get(key, 0) + 1
+                ctype_orig = ci.condition_type  # 改写前留存，供 apply 分支打印原始类型
                 if dry_run:
-                    # dry-run 不写库：仅描述将要改写，绝不创建/复用模板
+                    # dry-run 不写库：仅预测「复用兼容模板 / 并入既有模板 / 新建最小算子模板 / SKIP」
+                    plan_note, ok = self._plan_template_note(am, ci.operator)
+                    if not ok:
+                        # 预测即不可求值 → 按 SKIP 处理，绝不计入 migrated（禁假绿）
+                        op_key = f'{path} [{ci.operator}]'
+                        self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                        continue
                     self.stdout.write(
                         f'{prefix}将改写 ConditionItem {ci.id}: '
-                        f'{ci.condition_type} {path} -> METRIC (待建/复用模板)')
+                        f'{ci.condition_type} {path} -> METRIC{plan_note}{norm_note}')
                 else:
-                    template = self._resolve_template(am)
+                    template = self._resolve_template(am, ci.operator)
+                    if template is None:
+                        # 无兼容可复用 + 新建失败 / operator 非法 → SKIP（绝不产出不可求值条件）
+                        op_key = f'{path} [{ci.operator}]'
+                        self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                        self.stderr.write(self.style.WARNING(
+                            f'  [SKIP] ConditionItem {ci.id} 运算符 {ci.operator} 无兼容模板'
+                            f'（path={path}）：不迁移、不改写、不建不兼容模板'))
+                        continue
                     ci.condition_type = ConditionFieldType.METRIC
                     ci.field = str(template.id)
                     ci.save(update_fields=['condition_type', 'field', 'updated_at'])
+                    # E-1：模板后缀区分「复用兼容 / 并入放宽 / 新建」，便于事后审计；
+                    # --apply 也打印兜底映射提示（事后可审计）
+                    tmpl_note = self._take_apply_template_note(template)
+                    self.stdout.write(
+                        f'{prefix}已改写 ConditionItem {ci.id}: '
+                        f'{ctype_orig} {path} -> METRIC '
+                        f'{tmpl_note}{norm_note}')
                     if ci.rule_id:
                         rules_to_rebuild.add(ci.rule_id)
                 migrated_entry += 1
@@ -367,6 +815,40 @@ class Command(BaseCommand):
                 f'{k}: {v}' for k, v in sorted(self._skipped_no_atomic.items()))
             self.stdout.write(
                 f'{prefix}SKIP(无对应 enabled AtomicMetric)：{parts}')
+        if self._skipped_normalized:
+            nparts = ', '.join(
+                f'{k} -> {v}' for k, v in sorted(self._skipped_normalized.items()))
+            self.stdout.write(
+                f'{prefix}SKIP 已尝试 legacy 规范化（仍无匹配）：{nparts}')
+        if self._skipped_operator:
+            oparts = ', '.join(
+                f'{k}: {v}' for k, v in sorted(self._skipped_operator.items()))
+            self.stdout.write(self.style.WARNING(
+                f'{prefix}SKIP(运算符不在任何可复用模板白名单且无法新建兼容模板)：{oparts}'))
+        if self._normalized_hits:
+            total_hits = sum(self._normalized_hits.values())
+            hparts = ', '.join(
+                f'{k}: {v}' for k, v in sorted(self._normalized_hits.items()))
+            self.stdout.write(self.style.WARNING(
+                f'{prefix}已用兜底映射命中：{total_hits} 条（{hparts}）—— '
+                f'legacy 形态属尽力映射，需人工核对语义与配置值'))
+        # 已放宽（/将放宽）既有模板白名单 —— 对**全局共享实体**的永久配置面变更
+        # （operators 经 apps/process/views.py:958 透传给前端运算符下拉）且本命令不可回滚，
+        # 必须留下「哪些模板被放宽、operators 从几个变到几个」的完整清单。
+        verb = '将放宽' if dry_run else '已放宽'
+        if self._relaxed_templates:
+            self.stdout.write(self.style.WARNING(
+                f'{prefix}{verb}既有模板白名单（共享实体，不可回滚）：'
+                f'{len(self._relaxed_templates)} 个'))
+            for tid in sorted(self._relaxed_templates):
+                record = self._relaxed_templates[tid]
+                display = f'{record["label"]} ({tid})' if record['label'] else tid
+                self.stdout.write(self.style.WARNING(
+                    f'{prefix}  - {display}: {_format_ops(record["before"])} → '
+                    f'{_format_ops(record["before"] + record["added"])}'))
+        else:
+            # 0 个也要显式打印：否则事后无法证明「没有共享模板被放宽」
+            self.stdout.write(f'{prefix}{verb}既有模板白名单：0 个')
         if errors:
             self.stdout.write(self.style.WARNING(f'{prefix}处理异常条数：{errors}'))
 
