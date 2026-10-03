@@ -171,8 +171,11 @@ async function loadHandlerData() {
   handlerUserOptions.value = Array.isArray(users) ? users : []
 }
 
-/** 字段字典来自真实后端 GET /api/v1/expressions/fields；后端不可用时给空目录，由子组件渲染空态 */
-const activeCatalog = computed(() => catalog.value ?? { sources: [], operators: {} })
+/** 字段字典来自真实后端 GET /api/v1/expressions/fields。
+ * 直接透传 catalog（含加载中 / 失败时的 null）：
+ * - 加载完成 → 真实目录，EXP-5 失效模板守卫据此判定；
+ * - 为 null（加载中或失败）→ fail-open，不拦截（避免误伤正常编辑）。 */
+const activeCatalog = computed(() => catalog.value)
 
 watch(
   () => props.show,

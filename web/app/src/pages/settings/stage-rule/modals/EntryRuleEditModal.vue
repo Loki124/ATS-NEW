@@ -36,6 +36,7 @@
               </span>
               <div class="group-actions">
                 <a @click="addItem(group)"><n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s1') }}</a>
+                <BatchMetricPicker :catalog="catalog" :disabled="!canAddItemInGroup(group)" @add="onBatchAdd(group, $event)" />
                 <a v-if="canRemoveGroup()" class="danger" @click="removeGroup(gi)">
                   <n-icon :component="TrashOutline" /> {{ t('pages.settings.stage-rule.modals.EntryRuleEditModal.s27') }}
                 </a>
@@ -44,22 +45,22 @@
 
             <!-- group 内的条件项列表 -->
             <div class="cond-list">
-              <div
-                v-for="(it, ci) in group.conditions"
-                :key="ci"
-                class="cond-row"
-              >
-                <span class="cond-seq">{{ ci + 1 }}</span>
-                <ConditionPicker :model-value="it" :catalog="catalog" @update:model-value="onItemUpdate(group, ci, $event)" />
-                <button
-                  class="cond-del"
-                  type="button"
-                  :disabled="!canRemoveItemInGroup(group)"
-                  @click="removeItem(group, ci)"
-                >
-                  <n-icon :component="TrashOutline" />
-                </button>
-              </div>
+              <template v-for="(it, ci) in group.conditions" :key="ci">
+                <div class="cond-row">
+                  <span class="cond-seq">{{ ci + 1 }}</span>
+                  <ConditionPicker :model-value="it" :catalog="catalog" @update:model-value="onItemUpdate(group, ci, $event)" />
+                  <button
+                    class="cond-del"
+                    type="button"
+                    :disabled="!canRemoveItemInGroup(group)"
+                    @click="removeItem(group, ci)"
+                  >
+                    <n-icon :component="TrashOutline" />
+                  </button>
+                </div>
+                <!-- EXP-5：引用失效的指标模板（禁用/删除，已从目录剔除）→ 红字拦截提示 -->
+                <p v-if="isMetricFieldMissing(it, catalog)" class="error-msg">{{ METRIC_STALE_MESSAGE }}</p>
+              </template>
             </div>
 
             <!-- 组内表达式 + 组内未满足提示 -->
@@ -167,15 +168,17 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { NModal, NInput, NButton, NIcon } from 'naive-ui'
 import {
   AddOutline, TrashOutline, HelpCircleOutline, ReorderFourOutline,
 } from '@vicons/ionicons5'
 import ConditionPicker from '../components/ConditionPicker.vue'
+import BatchMetricPicker from '../components/BatchMetricPicker.vue'
 import { useEntryRuleEditor } from '../composables/useEntryRuleEditor'
+import { isMetricFieldMissing, METRIC_STALE_MESSAGE } from '../composables/useMetricTemplateGuard'
 import { AR_MAX_GROUPS } from '../constants'
-import type { ConditionItem, EntryConditionRule, FieldCatalog, ConditionGroup } from '../types'
+import type { ConditionItem, EntryConditionRule, FieldCatalog, ConditionGroup, FieldDef } from '../types'
 const { t } = useI18n()
 
 const props = defineProps<{ catalog: FieldCatalog | null }>()
@@ -188,9 +191,18 @@ const {
   visible, isNew, draft,
   groupError, itemError, innerExprError, hasError,
   canAddGroup, canRemoveGroup, canRemoveItemInGroup,
-  open, close, addGroup, removeGroup, addItem, removeItem,
+  open, close, addGroup, removeGroup, addItem, removeItem, setCatalog,
   commit,
 } = useEntryRuleEditor()
+
+// EXP-5：把目录注入 useEntryRuleEditor，供 itemError / hasError 判定失效模板。
+// catalog 为 null（目录加载失败）→ fail-open（由守卫内部处理）。
+watch(() => props.catalog, (c) => setCatalog(c), { immediate: true })
+
+// EXP-3：批量勾选指标模板 → 向当前条件组逐条追加 METRIC 条件项。
+function onBatchAdd(group: ConditionGroup, fields: FieldDef[]) {
+  for (const f of fields) addItem(group, f)
+}
 const saving = ref(false)
 const exprHelpOpen = ref<number | null>(null)
 

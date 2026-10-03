@@ -28,11 +28,15 @@
               </button>
             </div>
             <p v-if="it.operator === 'BETWEEN' && !valueOk(it)" class="error-msg">区间条件需填写最小值和最大值</p>
+            <!-- EXP-5：引用失效的指标模板（禁用/删除）→ 红字拦截提示 -->
+            <p v-if="isMetricFieldMissing(it, catalog)" class="error-msg">{{ METRIC_STALE_MESSAGE }}</p>
           </template>
         </div>
         <button class="btn-outline-primary" type="button" :disabled="draft.items.length >= 10" @click="addItem()">
           <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s14') }}
         </button>
+        <!-- EXP-3：批量勾选指标模板生成条件项 -->
+        <BatchMetricPicker :catalog="catalog" :disabled="draft.items.length >= 10" @add="onBatchAdd" />
         <n-input v-model:value="draft.expression" size="small" :placeholder="t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s10')" :class="{ 'input-error': exprInvalid }" style="margin-top: 8px" />
         <p v-if="exprInvalid" class="error-msg">{{ exprErr }}</p>
       </div>
@@ -76,8 +80,10 @@ import { computed, ref } from 'vue'
 import { NModal, NInput, NButton, NIcon, NRadioGroup, NRadio, NSpace, NInputNumber } from 'naive-ui'
 import { TrashOutline, AddOutline } from '@vicons/ionicons5'
 import ConditionPicker from '../components/ConditionPicker.vue'
+import BatchMetricPicker from '../components/BatchMetricPicker.vue'
 import { useExpressionValidator } from '../composables/useExpressionValidator'
-import type { ConditionItem, FieldCatalog, ArchiveRule } from '../types'
+import { isMetricFieldMissing, METRIC_STALE_MESSAGE } from '../composables/useMetricTemplateGuard'
+import type { ConditionItem, FieldCatalog, ArchiveRule, FieldDef, OperatorKey } from '../types'
 const { t } = useI18n()
 
 const props = defineProps<{ catalog: FieldCatalog | null }>()
@@ -118,7 +124,9 @@ const canSave = computed(
     draft.value.name.trim() !== '' &&
     !exprInvalid.value &&
     (draft.value.lock_days ?? 0) > 0 &&
-    draft.value.items.every((it) => it.field && it.operator && valueOk(it)),
+    draft.value.items.every((it) => it.field && it.operator && valueOk(it)) &&
+    // EXP-5：任一 METRIC 条件项引用失效模板 → 禁止保存
+    draft.value.items.every((it) => !isMetricFieldMissing(it, props.catalog)),
 )
 
 function valueOk(it: ConditionItem): boolean {
@@ -154,6 +162,24 @@ function addItem() {
 function removeItem(idx: number) {
   if (draft.value.items.length <= 1) return
   draft.value.items.splice(idx, 1)
+  draft.value.items.forEach((it, i) => (it.item_seq = i + 1))
+}
+
+// EXP-3：批量勾选的指标模板 → 逐条追加 METRIC 条件项，并整体重排 item_seq。
+// 容量截断：与单条「添加条件」的 10 条上限一致；超出剩余槽位的部分静默丢弃（与 Entry 弹窗 canAddItemInGroup 行为对齐），不报错不崩溃。
+function onBatchAdd(fields: FieldDef[]) {
+  const currentCount = draft.value.items.length
+  const remaining = Math.max(0, 10 - currentCount)
+  const picked = remaining > 0 ? fields.slice(0, remaining) : []
+  for (const f of picked) {
+    draft.value.items.push({
+      item_seq: draft.value.items.length + 1,
+      condition_type: 'METRIC',
+      field: f.field,
+      operator: (f.operators && f.operators.length ? f.operators[0] : 'EQ') as OperatorKey,
+      value: null,
+    })
+  }
   draft.value.items.forEach((it, i) => (it.item_seq = i + 1))
 }
 

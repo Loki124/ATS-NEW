@@ -4,9 +4,17 @@
  * 主 modal 通过 open(rule?) 打开，commit() 返回深拷贝交由主表单落库。
  */
 import { reactive, ref, computed } from 'vue'
-import type { EntryConditionRule, ConditionItem, ConditionGroup } from '../types'
+import type {
+  EntryConditionRule,
+  ConditionItem,
+  ConditionGroup,
+  FieldCatalog,
+  FieldDef,
+  OperatorKey,
+} from '../types'
 import { AR_MAX_CONDITIONS, AR_MAX_GROUPS } from '../constants'
 import { useExpressionValidator, type ExprCheck } from './useExpressionValidator'
+import { isMetricFieldMissing, METRIC_STALE_MESSAGE } from './useMetricTemplateGuard'
 
 function emptyItem(seq: number): ConditionItem {
   return {
@@ -248,6 +256,13 @@ export function useEntryRuleEditor() {
   })
   const { clientValidate } = useExpressionValidator()
 
+  // 目录（指标模板映射）注入，供 EXP-5 失效模板守卫使用。
+  // catalog 为 null（目录加载失败）→ fail-open，不判失效、不拦截（由守卫内部处理）。
+  const catalogRef = ref<FieldCatalog | null>(null)
+  function setCatalog(c: FieldCatalog | null) {
+    catalogRef.value = c
+  }
+
   // ===== 派生状态 =====
   const flatItemCount = computed(() => draft.groups.reduce((n, g) => n + g.conditions.length, 0))
   const canAddGroup = computed(() => draft.groups.length < AR_MAX_GROUPS)
@@ -275,11 +290,15 @@ export function useEntryRuleEditor() {
         v[0] != null && v[0] !== '' &&
         v[1] != null && v[1] !== ''
       if (!ok) return '区间条件需填写最小值和最大值'
-      return ''
+    } else {
+      const noValue = it.operator === 'IS_EMPTY' || it.operator === 'IS_NOT_EMPTY'
+      if (!noValue && (it.value == null || (Array.isArray(it.value) && it.value.length === 0) || it.value === '')) {
+        return '条件值不能为空'
+      }
     }
-    const noValue = it.operator === 'IS_EMPTY' || it.operator === 'IS_NOT_EMPTY'
-    if (!noValue && (it.value == null || (Array.isArray(it.value) && it.value.length === 0) || it.value === '')) {
-      return '条件值不能为空'
+    // EXP-5：引用失效的指标模板（模板被禁用/删除，已从目录剔除）→ 拦截提示
+    if (isMetricFieldMissing(it, catalogRef.value)) {
+      return METRIC_STALE_MESSAGE
     }
     return ''
   }
@@ -338,9 +357,22 @@ export function useEntryRuleEditor() {
     draft.groups.splice(idx, 1)
   }
 
-  function addItem(g: ConditionGroup) {
+  function addItem(g: ConditionGroup, template?: FieldDef) {
     if (!canAddItemInGroup(g)) return
-    g.conditions.push(emptyItem(g.conditions.length + 1))
+    const seq = g.conditions.length + 1
+    if (template) {
+      // EXP-3：批量勾选指标模板 → 直接生成 METRIC 条件项（默认值取自模板目录）
+      const item: ConditionItem = {
+        item_seq: seq,
+        condition_type: 'METRIC',
+        field: template.field,
+        operator: (template.operators && template.operators.length ? template.operators[0] : 'EQ') as OperatorKey,
+        value: null,
+      }
+      g.conditions.push(item)
+    } else {
+      g.conditions.push(emptyItem(seq))
+    }
   }
 
   function removeItem(g: ConditionGroup, idx: number) {
@@ -382,6 +414,7 @@ export function useEntryRuleEditor() {
     removeGroup,
     addItem,
     removeItem,
+    setCatalog,
     commit,
   }
 }
