@@ -1,5 +1,7 @@
 # ATS 招聘管理系统 - Node.js → Django 迁移指南
 
+> ⚠️ **历史文档**：仅作早期 Node.js→Django 迁移留痕，内容可能已过时；当前事实以代码与各 `01-wiki` / `06-runbook` 活跃文档为准。
+
 > **从 Node.js/Express + Prisma + Vue 3 升级到 Python/Django + DRF 的完整迁移指南**
 > 包含：字段映射、API 转换、数据迁移、前后端分离策略
 >

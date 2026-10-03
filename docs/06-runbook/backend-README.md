@@ -1,5 +1,7 @@
 # ATS 招聘管理系统 v4.0 - Django 后端
 
+> ⚠️ **历史文档**：仅作早期 v4.0 后端版本留痕，内容可能已过时；当前事实以代码与各 `01-wiki` / `06-runbook` 活跃文档为准。
+
 > **ATS Recruitment Management System** - 企业级招聘管理系统后端
 > Django 5.0 + DRF 3.15 + Celery 5.4 + Channels 4.1 + PostgreSQL 15
 

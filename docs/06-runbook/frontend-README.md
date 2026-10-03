@@ -1,5 +1,7 @@
 # ATS Frontend - 招聘管理系统前端
 
+> ⚠️ **历史文档**：仅作早期前端版本留痕，内容可能已过时；当前事实以代码与各 `01-wiki` / `04-ui` 活跃文档为准。
+
 ## 概述
 
 Vue 3 + TypeScript + Naive UI + UnoCSS 的招聘管理后台。
