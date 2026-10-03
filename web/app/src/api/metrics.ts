@@ -102,6 +102,49 @@ export interface OptionItem {
   label: string
 }
 
+// ===== LIFE-2：指标模板禁用/删除前的受影响规则清单（事前披露 + 确认闸门） =====
+
+/** 进入条件（ORM 路径）引用项 */
+export interface AffectedEntryCondition {
+  ruleId: string
+  ruleName: string
+  ruleStatus: string
+  expression: string
+  itemId: string
+  operator: string
+  value: any
+  processId: string
+  processName: string
+  stageId: string
+  stageName: string
+}
+
+/** 自动跳过/归档（JSON 路径）引用项 */
+export interface AffectedStageRule {
+  ruleType: 'skip' | 'archive'
+  stageRuleId: string
+  ruleId: string
+  ruleName: string
+  ruleEnabled: boolean
+  itemId: number
+  operator: string
+  value: any
+  processId: string
+  processName: string
+  stageId: string
+  stageName: string
+}
+
+/** 受影响规则清单总结构 */
+export interface TemplateAffectedRules {
+  templateId: string
+  templateName: string
+  templateStatus: string
+  total: number
+  entryConditions: AffectedEntryCondition[]
+  stageRules: AffectedStageRule[]
+}
+
 /** 派生函数的单个参数声明（前端据此渲染类型化输入，取代自由 JSON 文本） */
 export interface ParamField {
   key: string
@@ -297,6 +340,15 @@ export async function updateMetricTemplate(id: string, payload: Partial<MetricTe
 
 export async function deleteMetricTemplate(id: string): Promise<void> {
   await api.delete(`/metrics/templates/${id}/`)
+}
+
+/**
+ * LIFE-2：禁用/删除前枚举引用某指标模板的全部规则（进入条件 ORM + 跳过/归档 JSON）。
+ * 后端经 drf-camel-case 返回 camelCase；此处按 camelCase 字段名接收。
+ */
+export async function getTemplateAffectedRules(id: string): Promise<TemplateAffectedRules> {
+  const res = await api.get(`/metrics/templates/${id}/affected-rules/`)
+  return unwrap<TemplateAffectedRules>(res)
 }
 
 export async function listOperators(): Promise<OptionItem[]> {

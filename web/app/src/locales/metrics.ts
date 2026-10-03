@@ -249,6 +249,24 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.templateIo.importSuccess': '导入完成：新建 {created} / 更新 {updated} / 跳过 {skipped}',
   'metrics.templateIo.importFailed': '导入失败',
   'metrics.templateIo.downloadErrorFile': '下载错误报告',
+
+  // ===== LIFE-2：指标模板禁用/删除前的受影响规则披露（事前披露 + 确认闸门） =====
+  'metrics.life2.affectedTitle': '该指标模板被以下规则引用',
+  'metrics.life2.entryGroup': '进入条件',
+  'metrics.life2.skipGroup': '自动跳过',
+  'metrics.life2.archiveGroup': '自动归档',
+  'metrics.life2.colProcess': '流程',
+  'metrics.life2.colStage': '阶段',
+  'metrics.life2.colRule': '规则',
+  'metrics.life2.colCondition': '条件',
+  'metrics.life2.colStatus': '状态',
+  'metrics.life2.suggestionTitle': '处理建议',
+  'metrics.life2.suggestion1': '置灰该条件：规则编辑器将标记其为失效、不参与计算（EXP-5 已支持）',
+  'metrics.life2.suggestion2': '跳过该条件：从表达式排除该项，需到对应规则中手动编辑',
+  'metrics.life2.suggestion3': '人工复核：指派负责人确认影响范围后再决策',
+  'metrics.life2.confirmDisable': '仍要禁用',
+  'metrics.life2.confirmDelete': '仍要删除',
+  'metrics.life2.cancel': '取消',
 }
 
 export const METRICS_EN: Record<string, string> = {
@@ -495,4 +513,22 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.templateIo.importSuccess': 'Import done: created {created} / updated {updated} / skipped {skipped}',
   'metrics.templateIo.importFailed': 'Import failed',
   'metrics.templateIo.downloadErrorFile': 'Download error report',
+
+  // ===== LIFE-2: Affected-rule disclosure before disabling/deleting a metric template =====
+  'metrics.life2.affectedTitle': 'This metric template is referenced by the following rules',
+  'metrics.life2.entryGroup': 'Entry Conditions',
+  'metrics.life2.skipGroup': 'Auto Skip',
+  'metrics.life2.archiveGroup': 'Auto Archive',
+  'metrics.life2.colProcess': 'Process',
+  'metrics.life2.colStage': 'Stage',
+  'metrics.life2.colRule': 'Rule',
+  'metrics.life2.colCondition': 'Condition',
+  'metrics.life2.colStatus': 'Status',
+  'metrics.life2.suggestionTitle': 'Handling Suggestions',
+  'metrics.life2.suggestion1': 'Gray out this condition: the rule editor will mark it as invalid and exclude it from calculation (supported by EXP-5)',
+  'metrics.life2.suggestion2': 'Skip this condition: exclude the item from the expression; requires manual editing in the corresponding rule',
+  'metrics.life2.suggestion3': 'Manual review: assign an owner to confirm the impact scope before deciding',
+  'metrics.life2.confirmDisable': 'Disable Anyway',
+  'metrics.life2.confirmDelete': 'Delete Anyway',
+  'metrics.life2.cancel': 'Cancel',
 }

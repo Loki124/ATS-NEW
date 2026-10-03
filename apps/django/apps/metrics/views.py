@@ -178,6 +178,25 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         )
         return Response(result.payload, status=result.status_code)
 
+    @action(detail=True, methods=['get'], url_path='affected-rules')
+    def affected_rules(self, request, pk=None):
+        """禁用/删除前枚举引用该模板的全部规则（进入条件 ORM + skip/archive JSON）。
+
+        LIFE-2 事前披露：前端在禁用/删除确认弹窗前调用，展示受影响规则清单 +
+        处理建议。返回体经 CamelCaseJSONRenderer 转 camelCase（entryConditions /
+        ruleId / processName / templateStatus 等），前端读 camelCase。
+        """
+        from .services.template_impact import get_template_affected_rules
+
+        try:
+            data = get_template_affected_rules(pk)
+        except MetricTemplate.DoesNotExist:
+            return Response(
+                {'error': '指标模板不存在'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return success_response(data)
+
 
 class EvaluateSceneView(APIView):
     """POST /api/v1/metrics/rules/evaluate-scene/ —— 业务触发点统一入口。

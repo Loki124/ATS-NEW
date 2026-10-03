@@ -399,6 +399,135 @@
         </n-space>
       </template>
     </n-modal>
+
+    <!-- ========== LIFE-2：指标模板禁用/删除前的受影响规则披露弹窗 ========== -->
+    <n-modal
+      v-model:show="affectedModalVisible"
+      preset="card"
+      :title="t('metrics.life2.affectedTitle')"
+      :closable="false"
+      style="width: 780px; max-width: 94vw; max-height: 88vh;"
+      :mask-closable="false"
+    >
+      <div class="affected-body">
+        <n-alert type="warning" :show-icon="true" class="affected-alert">
+          <template #default>
+            <span class="affected-alert-name">{{ affectedData?.templateName }}</span>
+            <span class="affected-alert-count">（{{ affectedData?.total }}）</span>
+          </template>
+        </n-alert>
+
+        <!-- 进入条件（ORM 路径） -->
+        <template v-if="affectedData && affectedData.entryConditions.length">
+          <div class="affected-group-title">{{ t('metrics.life2.entryGroup') }}</div>
+          <n-table :single-line="false" size="small" class="affected-table">
+            <thead>
+              <tr>
+                <th>{{ t('metrics.life2.colProcess') }}</th>
+                <th>{{ t('metrics.life2.colStage') }}</th>
+                <th>{{ t('metrics.life2.colRule') }}</th>
+                <th>{{ t('metrics.life2.colCondition') }}</th>
+                <th>{{ t('metrics.life2.colStatus') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in affectedData.entryConditions" :key="'ec-' + item.itemId">
+                <td>{{ item.processName }}</td>
+                <td>{{ item.stageName }}</td>
+                <td>{{ item.ruleName }}</td>
+                <td>{{ formatCondition(item.operator, item.value) }}</td>
+                <td>
+                  <n-tag size="small" :type="item.ruleStatus === 'ENABLED' ? 'success' : 'default'">
+                    {{ item.ruleStatus === 'ENABLED' ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
+                  </n-tag>
+                </td>
+              </tr>
+            </tbody>
+          </n-table>
+        </template>
+
+        <!-- 自动跳过（JSON 路径） -->
+        <template v-if="skipRules.length">
+          <div class="affected-group-title">{{ t('metrics.life2.skipGroup') }}</div>
+          <n-table :single-line="false" size="small" class="affected-table">
+            <thead>
+              <tr>
+                <th>{{ t('metrics.life2.colProcess') }}</th>
+                <th>{{ t('metrics.life2.colStage') }}</th>
+                <th>{{ t('metrics.life2.colRule') }}</th>
+                <th>{{ t('metrics.life2.colCondition') }}</th>
+                <th>{{ t('metrics.life2.colStatus') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in skipRules" :key="'sr-' + item.stageRuleId + '-' + item.itemId">
+                <td>{{ item.processName }}</td>
+                <td>{{ item.stageName }}</td>
+                <td>{{ item.ruleName }}</td>
+                <td>{{ formatCondition(item.operator, item.value) }}</td>
+                <td>
+                  <n-tag size="small" :type="item.ruleEnabled ? 'success' : 'default'">
+                    {{ item.ruleEnabled ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
+                  </n-tag>
+                </td>
+              </tr>
+            </tbody>
+          </n-table>
+        </template>
+
+        <!-- 自动归档（JSON 路径） -->
+        <template v-if="archiveRules.length">
+          <div class="affected-group-title">{{ t('metrics.life2.archiveGroup') }}</div>
+          <n-table :single-line="false" size="small" class="affected-table">
+            <thead>
+              <tr>
+                <th>{{ t('metrics.life2.colProcess') }}</th>
+                <th>{{ t('metrics.life2.colStage') }}</th>
+                <th>{{ t('metrics.life2.colRule') }}</th>
+                <th>{{ t('metrics.life2.colCondition') }}</th>
+                <th>{{ t('metrics.life2.colStatus') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in archiveRules" :key="'ar-' + item.stageRuleId + '-' + item.itemId">
+                <td>{{ item.processName }}</td>
+                <td>{{ item.stageName }}</td>
+                <td>{{ item.ruleName }}</td>
+                <td>{{ formatCondition(item.operator, item.value) }}</td>
+                <td>
+                  <n-tag size="small" :type="item.ruleEnabled ? 'success' : 'default'">
+                    {{ item.ruleEnabled ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
+                  </n-tag>
+                </td>
+              </tr>
+            </tbody>
+          </n-table>
+        </template>
+
+        <!-- 处理建议 -->
+        <div class="affected-suggest-title">{{ t('metrics.life2.suggestionTitle') }}</div>
+        <ul class="affected-suggest-list">
+          <li>{{ t('metrics.life2.suggestion1') }}</li>
+          <li>{{ t('metrics.life2.suggestion2') }}</li>
+          <li>{{ t('metrics.life2.suggestion3') }}</li>
+        </ul>
+      </div>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="affectedChecking" @click="onAffectedCancel">
+            {{ t('metrics.life2.cancel') }}
+          </n-button>
+          <n-button
+            type="error"
+            :loading="affectedChecking"
+            @click="onAffectedConfirm"
+          >
+            {{ affectedAction === 'delete' ? t('metrics.life2.confirmDelete') : t('metrics.life2.confirmDisable') }}
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -424,6 +553,7 @@
 import { computed, h, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
+  NAlert,
   NButton,
   NDataTable,
   NInput,
@@ -431,6 +561,7 @@ import {
   NModal,
   NSelect,
   NSwitch,
+  NTable,
   NTag,
   useMessage,
   type DataTableColumns,
@@ -452,7 +583,9 @@ import {
   exportMetricTemplates,
   downloadTemplateTemplate,
   importMetricTemplates,
+  getTemplateAffectedRules,
   TemplateImportError,
+  type TemplateAffectedRules,
   type TemplateImportMode,
   type AtomicMetric,
   type CandidateFieldPath,
@@ -475,6 +608,16 @@ const derivedList = ref<DerivedMetric[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
 const fieldPaths = ref<CandidateFieldPath[]>([])
 const loading = ref(false)
+
+// ===== LIFE-2：指标模板禁用/删除前的受影响规则披露（事前披露 + 确认闸门） =====
+const affectedModalVisible = ref(false)
+const affectedData = ref<TemplateAffectedRules | null>(null)
+const affectedAction = ref<'disable' | 'delete'>('delete')
+const affectedTarget = ref<MetricTemplate | null>(null)
+/** 受影响规则查询期间锁定对应行按钮（loading 态） */
+const busyRowId = ref<string>('')
+/** 确认弹窗「仍要禁用/删除」按钮的 loading 态 */
+const affectedChecking = ref(false)
 
 // ===== 指标详情弹窗 =====
 const detailVisible = ref(false)
@@ -823,12 +966,12 @@ const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
         h(NButton, { size: 'small', quaternary: true, onClick: () => openTemplateEdit(row) }, { default: () => t('metrics.btn.edit') }),
         h(
           NButton,
-          { size: 'small', quaternary: true, onClick: () => toggleTemplate(row) },
+          { size: 'small', quaternary: true, loading: busyRowId.value === row.id, onClick: () => toggleTemplate(row) },
           { default: () => (row.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable')) },
         ),
         h(
           NButton,
-          { size: 'small', quaternary: true, type: 'error', onClick: () => removeTemplate(row) },
+          { size: 'small', quaternary: true, type: 'error', loading: busyRowId.value === row.id, onClick: () => removeTemplate(row) },
           { default: () => t('metrics.btn.delete') },
         ),
       ]),
@@ -1051,6 +1194,27 @@ async function submitTemplate() {
 }
 
 async function removeTemplate(row: MetricTemplate) {
+  // LIFE-2 事前披露：删除前枚举受影响规则。total>0 弹窗确认；total===0 维持原有直接删除 + Toast 撤销流程。
+  busyRowId.value = row.id
+  try {
+    const impact = await getTemplateAffectedRules(row.id)
+    if (impact.total > 0) {
+      affectedAction.value = 'delete'
+      affectedTarget.value = row
+      affectedData.value = impact
+      affectedModalVisible.value = true
+      return
+    }
+  } catch {
+    // 接口异常不阻断删除（回退为直接执行，避免误伤正常流程）
+  } finally {
+    busyRowId.value = ''
+  }
+  await executeDeleteTemplate(row)
+}
+
+/** 删除模板 + 成功 Toast（含 8s 撤销 action），保留原 restorePayload 撤销逻辑 */
+async function executeDeleteTemplate(row: MetricTemplate) {
   // 中等破坏性操作：直接执行 + Toast 撤销（停留 8s），符合 AGENTS.md R-106
   const restorePayload = {
     name: row.name,
@@ -1090,15 +1254,98 @@ async function removeTemplate(row: MetricTemplate) {
 }
 
 async function toggleTemplate(row: MetricTemplate) {
+  const next = row.status === 'enabled' ? 'disabled' : 'enabled'
+  if (next === 'disabled') {
+    // LIFE-2 事前披露：仅「禁用」需弹窗；重新启用不弹窗（启用不会破坏引用，EXP-5 会恢复）
+    busyRowId.value = row.id
+    try {
+      const impact = await getTemplateAffectedRules(row.id)
+      if (impact.total > 0) {
+        affectedAction.value = 'disable'
+        affectedTarget.value = row
+        affectedData.value = impact
+        affectedModalVisible.value = true
+        return
+      }
+    } catch {
+      // 接口异常不阻断禁用（回退为直接执行）
+    } finally {
+      busyRowId.value = ''
+    }
+    await executeDisableTemplate(row)
+  } else {
+    // 重新启用：不弹窗，直接执行
+    await executeEnableTemplate(row)
+  }
+}
+
+/** 禁用模板 + 成功 Toast */
+async function executeDisableTemplate(row: MetricTemplate) {
   try {
-    const next = row.status === 'enabled' ? 'disabled' : 'enabled'
-    await updateMetricTemplate(row.id, { status: next })
-    message.success(next === 'disabled' ? t('metrics.msg.disabled') : t('metrics.msg.enabled'))
+    await updateMetricTemplate(row.id, { status: 'disabled' })
+    message.success(t('metrics.msg.disabled'))
     await load()
   } catch (error: any) {
     const detail = error?.response?.data?.error
     message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
   }
+}
+
+/** 重新启用模板 + 成功 Toast */
+async function executeEnableTemplate(row: MetricTemplate) {
+  try {
+    await updateMetricTemplate(row.id, { status: 'enabled' })
+    message.success(t('metrics.msg.enabled'))
+    await load()
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
+  }
+}
+
+// ===== LIFE-2 弹窗交互 =====
+
+/** 跳过 / 归档规则按 ruleType 分组（分别展示） */
+const skipRules = computed(() =>
+  (affectedData.value?.stageRules ?? []).filter((r) => r.ruleType === 'skip'),
+)
+const archiveRules = computed(() =>
+  (affectedData.value?.stageRules ?? []).filter((r) => r.ruleType === 'archive'),
+)
+
+/** 把运算符 + 值拼成可读文本（如 `EQ: 10`） */
+function formatCondition(operator: string, value: any): string {
+  if (value === null || value === undefined || value === '') {
+    return String(operator)
+  }
+  const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+  return `${operator}: ${text}`
+}
+
+/** 确认执行（仍要禁用 / 仍要删除） */
+async function onAffectedConfirm() {
+  const row = affectedTarget.value
+  affectedModalVisible.value = false
+  affectedTarget.value = null
+  affectedData.value = null
+  if (!row) return
+  affectedChecking.value = true
+  try {
+    if (affectedAction.value === 'delete') {
+      await executeDeleteTemplate(row)
+    } else {
+      await executeDisableTemplate(row)
+    }
+  } finally {
+    affectedChecking.value = false
+  }
+}
+
+/** 取消：关闭弹窗，不执行任何操作 */
+function onAffectedCancel() {
+  affectedModalVisible.value = false
+  affectedTarget.value = null
+  affectedData.value = null
 }
 
 // ===== 主加载 =====
@@ -1167,6 +1414,43 @@ onUnmounted(() => {
   margin: 4px 0 0;
   font-size: var(--text-small, 13px);
   color: var(--ink-faint);
+}
+/* ===== LIFE-2 受影响规则披露弹窗 ===== */
+.affected-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.affected-alert-name {
+  font-weight: 600;
+}
+.affected-alert-count {
+  opacity: 0.8;
+}
+.affected-group-title {
+  margin-top: 4px;
+  font-size: var(--text-small, 13px);
+  font-weight: 600;
+  color: var(--ink);
+}
+.affected-table :deep(td),
+.affected-table :deep(th) {
+  padding: 6px 10px;
+  font-size: var(--text-small, 13px);
+  vertical-align: middle;
+}
+.affected-suggest-title {
+  margin-top: 4px;
+  font-size: var(--text-small, 13px);
+  font-weight: 600;
+  color: var(--ink);
+}
+.affected-suggest-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-faint);
+  font-size: var(--text-small, 13px);
+  line-height: 1.7;
 }
 .ws-body {
   flex: 1 1 auto;
