@@ -19,13 +19,16 @@
       <div class="er-field">
         <label class="field-label">{{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s2') }} <span class="required-mark">*</span></label>
         <div class="cond-list">
-          <div v-for="(it, idx) in draft.items" :key="idx" class="cond-row">
-            <span class="cond-seq">{{ idx + 1 }}</span>
-            <ConditionPicker :model-value="it" :catalog="catalog" @update:model-value="onItemUpdate(idx, $event)" />
-            <button class="cond-del" type="button" :disabled="draft.items.length <= 1" @click="removeItem(idx)">
-              <n-icon :component="TrashOutline" />
-            </button>
-          </div>
+          <template v-for="(it, idx) in draft.items" :key="idx">
+            <div class="cond-row">
+              <span class="cond-seq">{{ idx + 1 }}</span>
+              <ConditionPicker :model-value="it" :catalog="catalog" @update:model-value="onItemUpdate(idx, $event)" />
+              <button class="cond-del" type="button" :disabled="draft.items.length <= 1" @click="removeItem(idx)">
+                <n-icon :component="TrashOutline" />
+              </button>
+            </div>
+            <p v-if="it.operator === 'BETWEEN' && !valueOk(it)" class="error-msg">区间条件需填写最小值和最大值</p>
+          </template>
         </div>
         <button class="btn-outline-primary" type="button" :disabled="draft.items.length >= 10" @click="addItem()">
           <n-icon :component="AddOutline" /> {{ t('pages.settings.stage-rule.modals.ArchiveRuleEditModal.s14') }}
@@ -121,6 +124,14 @@ const canSave = computed(
 function valueOk(it: ConditionItem): boolean {
   const noValue = it.operator === 'IS_EMPTY' || it.operator === 'IS_NOT_EMPTY'
   if (noValue) return true
+  if (it.operator === 'BETWEEN') {
+    return (
+      Array.isArray(it.value) &&
+      it.value.length === 2 &&
+      it.value[0] != null && it.value[0] !== '' &&
+      it.value[1] != null && it.value[1] !== ''
+    )
+  }
   if (it.value == null) return false
   if (Array.isArray(it.value)) return it.value.length > 0
   return String(it.value) !== ''

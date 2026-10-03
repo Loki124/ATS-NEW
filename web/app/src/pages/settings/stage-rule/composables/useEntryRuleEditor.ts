@@ -267,6 +267,16 @@ export function useEntryRuleEditor() {
   function itemError(it: ConditionItem): string {
     if (!it.field) return '字段不能为空'
     if (!it.operator) return '运算符不能为空'
+    if (it.operator === 'BETWEEN') {
+      const v = it.value
+      const ok =
+        Array.isArray(v) &&
+        v.length === 2 &&
+        v[0] != null && v[0] !== '' &&
+        v[1] != null && v[1] !== ''
+      if (!ok) return '区间条件需填写最小值和最大值'
+      return ''
+    }
     const noValue = it.operator === 'IS_EMPTY' || it.operator === 'IS_NOT_EMPTY'
     if (!noValue && (it.value == null || (Array.isArray(it.value) && it.value.length === 0) || it.value === '')) {
       return '条件值不能为空'
