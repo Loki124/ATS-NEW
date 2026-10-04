@@ -31,7 +31,6 @@
                 :options="defKindOptions"
                 class="ws-filter"
               />
-              <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
             </div>
           </div>
 
@@ -56,11 +55,16 @@
                 :page="defPage"
                 :page-size="defPageSize"
                 :item-count="filteredDefinitions.length"
-                :page-sizes="[10, 20, 50]"
+                :page-sizes="[10, 20, 50, 100]"
                 show-size-picker
+                show-quick-jumper
                 @update:page="(p: number) => (defPage = p)"
                 @update:page-size="(s: number) => { defPageSize = s; defPage = 1 }"
-              />
+              >
+                <template #prefix>
+                  <span class="ws-pager-count">{{ t('metrics.filter.resultCount', { count: filteredDefinitions.length }) }}</span>
+                </template>
+              </n-pagination>
             </div>
           </div>
         </n-tab-pane>
@@ -83,11 +87,10 @@
                 <n-select
                   v-model:value="tplStatus"
                   :placeholder="t('metrics.filter.status')"
-                  :options="tplStatusOptions"
-                  class="ws-filter"
-                />
-                <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
-              </div>
+                :options="tplStatusOptions"
+                class="ws-filter"
+              />
+            </div>
               <div class="ws-io-bar">
                 <n-button tertiary size="small" :loading="exporting" @click="onExportTemplates">
                   {{ t('metrics.templateIo.export') }}
@@ -125,11 +128,16 @@
                 :page="tplPage"
                 :page-size="tplPageSize"
                 :item-count="filteredTemplates.length"
-                :page-sizes="[10, 20, 50]"
+                :page-sizes="[10, 20, 50, 100]"
                 show-size-picker
+                show-quick-jumper
                 @update:page="(p: number) => (tplPage = p)"
                 @update:page-size="(s: number) => { tplPageSize = s; tplPage = 1 }"
-              />
+              >
+                <template #prefix>
+                  <span class="ws-pager-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
+                </template>
+              </n-pagination>
             </div>
           </div>
         </n-tab-pane>
@@ -1898,8 +1906,8 @@ onUnmounted(() => {
 .ws-toolbar-grow { flex: 1 1 auto; margin-bottom: 0; }
 .ws-search { flex: 1 1 260px; max-width: 420px; }
 .ws-filter { flex: 0 0 160px; }
-.ws-result-count {
-  margin-left: auto;
+.ws-pager-count {
+  margin-right: var(--space-2);
   color: var(--ink-faint);
   font-size: var(--fs-12);
   white-space: nowrap;
