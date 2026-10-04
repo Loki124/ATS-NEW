@@ -16,6 +16,7 @@
 运算符白名单复用 rule_engine.UnifiedOperator（11 种，含 BETWEEN/IN/IS_EMPTY），
 BETWEEN 的 min/max 借助 Condition.meta_json 承载（复用既有约定，不新增字段）。
 """
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -176,6 +177,10 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     description = models.CharField(
         max_length=255, blank=True, default='', verbose_name='说明',
     )
+    version = models.PositiveIntegerField(
+        default=1, verbose_name='当前版本号',
+        help_text='每次语义变更 +1；仅作展示计数，历史内容见 MetricTemplateVersion',
+    )
 
     class Meta:
         db_table = 'metrics_metric_template'
@@ -223,6 +228,59 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     def unit(self):
         m = self.metric
         return m.unit if m else ''
+
+    @property
+    def version_count(self) -> int:
+        """该模板的版本快照数量（相关名 'versions' 由 MetricTemplateVersion.FK 提供）。"""
+        return self.versions.count()
+
+
+class MetricTemplateVersion(UUIDModel):
+    """指标模板不可变快照表（仅 INSERT，禁止 UPDATE/DELETE）。
+
+    每次模板语义变更（create / update / rollback / import）由版本服务层（T02）写入一条快照，
+    记录当时完整配置（snapshot JSON，15 项键）。`version` 为对应版本号，
+    (`template`, `version`) 唯一约束。删除模板时随外键 CASCADE 级联删除（D5-5a）。
+
+    禁止 UPDATE / DELETE 的约束由 T02 服务层保证；本模型仅建表与字段。
+    """
+
+    template = models.ForeignKey(
+        'metrics.MetricTemplate', on_delete=models.CASCADE,
+        related_name='versions', verbose_name='所属模板',
+    )
+    version = models.PositiveIntegerField(verbose_name='版本号')
+    snapshot = models.JSONField(verbose_name='配置快照')
+    changed_fields = models.JSONField(default=list, verbose_name='变更字段')
+    change_kind = models.CharField(
+        max_length=16, verbose_name='变更类型',
+        help_text='create / update / rollback / import',
+    )
+    change_note = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='变更说明',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, verbose_name='创建时间',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='操作人',
+    )
+
+    class Meta:
+        db_table = 'metrics_metric_template_version'
+        verbose_name = '指标模板版本'
+        verbose_name_plural = '指标模板版本'
+        ordering = ['-version']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['template', 'version'],
+                name='uniq_tpl_version',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.template_id}@v{self.version}'
 
 
 class MetricRuleScene(models.TextChoices):
