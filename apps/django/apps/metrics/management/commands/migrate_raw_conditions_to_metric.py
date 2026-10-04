@@ -50,6 +50,28 @@ MetricEngine 求值时会**强制校验** operator ∈ template.operators（metr
      会让用户配出「职级 > 5」这类无意义条件，求值因字符串比较而**静默 False** ——
      这是另一种「假及格」（配置能存、求值恒 False），比重复模板命名危险得多。
      故全集兜底已**彻底废弃**。
+
+「类型 × 算子」分级门禁（E-2，--apply 前置门禁）
+---------------------------------------------
+上述「只并入缺失的那 1 个算子」把风险幅度从 14 降到 1，但**风险类别没变**：仍然是
+「由数据驱动地把一个算子写进全局共享模板白名单」。dev 那批待迁项恰好只需要 EQ，
+所以风险没有实际发生 —— 那是**数据集运气，不是代码保证**。若某批待迁项的 operator
+是数值/区间算子（GT / GTE / LT / LTE / BETWEEN）而目标字段是字符串类
+（如 demand.level = CharField 职级，data_type='string'），并入会把「职级 > 5」
+变成可配配置 → 字符串比较 → **求值静默 False**（传导链路不变：operators 经
+apps/process/views.py:958 透传给前端运算符下拉）。
+
+故在**并入 / 新建白名单之前**再加一道分级校验（_operator_merge_policy）：
+  - 字符串类 data_type（MetricDataType.STRING）：只允许**字符串安全算子**并入
+    （EQ / NEQ / IN / NOT_IN / IS_EMPTY / IS_NOT_EMPTY / CONTAINS / NOT_CONTAINS /
+    REGEX_MATCH）；数值比较算子（GT / GTE / LT / LTE）与区间算子（BETWEEN）
+    一律 **不允许 → SKIP + 报告**（禁假绿，绝不硬造 data_type / 模板）。
+  - 非字符串类（number / date / boolean…）：**不做任何限制**，行为完全不变。
+  - 门禁只作用于「要把算子**写进**白名单」的两条路径（并入既有模板 / 新建模板）；
+    「复用本就兼容的模板」不改任何配置，不受门禁影响（判定语义不变）。
+  - dry-run 计划分支 `_plan_template_note` 与 --apply 分支 `_resolve_template`
+    共用同一分级函数，故 dry-run 与 --apply 口径**严格一致**：
+    dry-run 计划文案同步体现 `[SKIP 运算符 GT 不适用于 STRING 字段 demand.level]`。
   3. **新建最小算子模板**：仅有既有模板可改（并入失败）或根本没有既有模板时才新建，
      operators **只含本条实际需要的那 1 个算子**（绝不是 UnifiedOperator 全集）；
      name 用候选名序列（am.name → am.name (LIFE-3) → am.name (LIFE-3 <6位随机>)），
@@ -130,6 +152,7 @@ from apps.entry_condition.models import (
 )
 from apps.metrics.models import (
     AtomicMetric,
+    MetricDataType,
     MetricStatus,
     MetricTemplate,
 )
@@ -149,6 +172,25 @@ _TEMPLATE_NAME_MAX = 64
 
 # 新建模板时 name 的可辨识后缀（与既有同名模板区分，便于人工回溯来源）
 _NEW_TEMPLATE_SUFFIX = ' (LIFE-3)'
+
+# ---------------------------------------------------------------------------
+# E-2「类型 × 算子」分级门禁常量
+# ---------------------------------------------------------------------------
+# 「字符串类」data_type 集合（MetricDataType.STRING）。
+# number / date / boolean 均**不受**本门禁限制（行为完全不变）。
+# 存**原始 value 字符串**（而非 TextChoices 成员）：集合判等走 hash，
+# 用成员本身会踩 Enum 的 hash(_name_) 语义差异，故显式取 .value 固化成 'string'。
+_STRING_DATA_TYPES = frozenset({str(MetricDataType.STRING.value)})
+
+# 数值比较算子 + 区间算子：在字符串类字段上求值会退化为字符串比较 →
+# 「职级 > 5」这类条件配置能存、求值恒 False = 另一种「假及格」，一律禁止写入白名单。
+_NUMERIC_COMPARE_OPERATORS = ('GT', 'GTE', 'LT', 'LTE', 'BETWEEN')
+
+# 字符串类字段允许写入白名单的安全算子（含集合/空值/子串/正则四类字符串语义算子）
+_STRING_SAFE_OPERATORS = (
+    'EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY',
+    'CONTAINS', 'NOT_CONTAINS', 'REGEX_MATCH',
+)
 
 
 def _fit_template_name(base: str, suffix: str) -> str:
@@ -244,6 +286,90 @@ def _resolve_atomic_metric(field: Any) -> Tuple[Optional[AtomicMetric], Any]:
     return None, normalized
 
 
+def _normalize_data_type(data_type: Any) -> str:
+    """把 data_type 归一化成小写字符串（兼容 TextChoices 成员与裸字符串两种形态）。
+
+    MetricDataType 是 Django TextChoices：`getattr(x, 'value', x)` 取到 'string' 等原始值；
+    裸字符串（历史脏数据 / JSON 里的值）则原样使用。大小写与首尾空格一律归一。
+    """
+    value = getattr(data_type, 'value', data_type)
+    return str(value or '').strip().lower()
+
+
+def _is_string_data_type(data_type: Any) -> bool:
+    """data_type 是否属「字符串类」（MetricDataType.STRING）。
+
+    只有字符串类受 E-2 门禁限制；number / date / boolean 一律返回 False（行为不变）。
+    """
+    return _normalize_data_type(data_type) in _STRING_DATA_TYPES
+
+
+def _operator_merge_policy(data_type: Any, operator: Any) -> Tuple[bool, str]:
+    """E-2「类型 × 算子」分级：判断 operator 是否允许**写进**该 data_type 字段的模板白名单。
+
+    为什么要这道门禁
+    ----------------
+    「只并入缺失的那 1 个算子」把风险幅度从 14 降到 1，但**风险类别没变**：仍是由数据驱动
+    地把算子写进全局共享模板白名单（operators 经 apps/process/views.py:958 透传给前端
+    运算符下拉）。dev 那批待迁项恰好只需要 EQ 才没出事 —— 那是数据集运气，不是代码保证。
+    若待迁项是 GT / BETWEEN 而目标字段是字符串类（demand.level = CharField 职级），
+    并入/新建会让「职级 > 5」变成可配配置 → 字符串比较 → **求值静默 False**。
+
+    分级规则
+    --------
+      - 非字符串类（number / date / boolean…）：**不做任何限制**，一律允许（行为不变）。
+      - 字符串类：只允许字符串安全算子（EQ / NEQ / IN / NOT_IN / IS_EMPTY /
+        IS_NOT_EMPTY / CONTAINS / NOT_CONTAINS / REGEX_MATCH）；
+        数值比较算子（GT / GTE / LT / LTE）与区间算子（BETWEEN）一律**拒绝**。
+      - operator 为空：不做判定（交由既有「运算符为空」分支处理，保证行为零变化）。
+      - 非法 operator：拒绝（调用方已先做过一次校验，此处为纵深防御）。
+
+    Args:
+        data_type: AtomicMetric.data_type（TextChoices 成员或裸字符串）。
+        operator: 待写入白名单的运算符。
+
+    Returns:
+        (allowed, reason)：
+          - allowed=True  → 允许并入/新建；reason 为 ''。
+          - allowed=False → 必须 SKIP + 报告；reason 为**不含字段路径**的原因短语，
+            由调用方拼上字段路径后打印（保证 dry-run 与 --apply 文案一致）。
+    """
+    if not operator:
+        # 空运算符属既有「运算符为空」分支的语义，本门禁不参与判定（零行为变化）
+        return True, ''
+    data_type_text = _normalize_data_type(data_type)
+    if data_type_text not in _STRING_DATA_TYPES:
+        return True, ''  # 非字符串类：不做限制
+    operator_text = str(operator).strip()
+    if operator_text not in UnifiedOperator.values:
+        return False, f'运算符 {operator} 非合法 UnifiedOperator'
+    if operator_text in _NUMERIC_COMPARE_OPERATORS:
+        return False, f'运算符 {operator_text} 不适用于 {data_type_text.upper()} 字段'
+    if operator_text not in _STRING_SAFE_OPERATORS:
+        return False, (
+            f'运算符 {operator_text} 不在 {data_type_text.upper()} '
+            f'字段的安全算子集内')
+    return True, ''
+
+
+def _template_data_type(template: Any) -> Any:
+    """安全取模板底层的 data_type（原子指标优先，派生指标次之，取不到返回 None）。
+
+    派生模板的 atomic_metric 为 NULL，直接取属性会抛 RelatedObjectDoesNotExist，
+    故显式判空；取不到时返回 None（分级函数对 None 按「非字符串类」处理 = 不限制，
+    绝不因为取不到类型而误伤既有迁移路径）。
+    """
+    if template is None:
+        return None
+    am = getattr(template, 'atomic_metric', None)
+    if am is not None and getattr(am, 'data_type', None):
+        return am.data_type
+    dm = getattr(template, 'derived_metric', None)
+    if dm is not None and getattr(dm, 'data_type', None):
+        return dm.data_type
+    return None
+
+
 class Command(BaseCommand):
     help = '将裸路径条件(CANDIDATE/DEMAND/POSITION)迁移到 METRIC 源(引用 MetricTemplate)。dry-run 默认。'
 
@@ -307,9 +433,17 @@ class Command(BaseCommand):
         既有条件允许的运算符全部保留，其 operator / value / 取值路径均不变。
 
         Returns:
-            并入成功返回该模板；失败（operator 非法/写库异常）返回 None。
+            并入成功返回该模板；失败（operator 非法/写库异常/类型不兼容）返回 None。
         """
         if not operator or operator not in UnifiedOperator.values:
+            return None
+        # E-2 纵深防御：本方法是**唯一真正写 operators** 的入口，即便上层已做过分级校验，
+        # 这里再拦一次 —— 绝不把数值/区间算子写进字符串类字段的共享白名单。
+        allowed, reason = _operator_merge_policy(
+            _template_data_type(template), operator)
+        if not allowed:
+            self.stderr.write(self.style.WARNING(
+                f'  [SKIP] 并入被类型门禁拒绝 template={template.id}: {reason}'))
             return None
         current = list(template.operators or [])
         if operator in current:
@@ -348,6 +482,14 @@ class Command(BaseCommand):
         """
         if not operator or operator not in UnifiedOperator.values:
             # 空运算符新建会得到「空白名单模板」= 不可求值 → 禁假绿，不建
+            return None
+        # E-2 纵深防御：新建同样过「类型 × 算子」分级。上层 _resolve_template 已放过，
+        # 这里再拦一道，确保**没有任何写路径**能直接造出含数值/区间算子的字符串模板
+        # （即便将来有人不经 _resolve_template 直接调本方法，也不破例）。
+        allowed, reason = _operator_merge_policy(am.data_type, operator)
+        if not allowed:
+            self.stderr.write(self.style.WARNING(
+                f'  [SKIP] 新建被类型门禁拒绝 atomic_metric={am.id}: {reason}'))
             return None
         # 只含本条实际需要的那 1 个算子（禁全集：字符串职级开 GT/BETWEEN 会产出恒 False 条件）
         operators = [operator]
@@ -399,9 +541,38 @@ class Command(BaseCommand):
           key=模板 id，value={'label': 模板名, 'before': 原 operators, 'added': 并入的算子}。
         - _apply_notes: 本条 --apply 输出的模板后缀（一次性消费），
           key=模板 id；未登记即表示「复用了本就兼容的模板」。
+        - _gate_reason: 本条最近一次「类型 × 算子」门禁拒绝原因（'' 表示未被拒），
+          由 _resolve_template / _plan_template_note 写入，供调用方分桶报告。
         """
         self._relaxed_templates: Dict[str, Dict[str, Any]] = {}
         self._apply_notes: Dict[str, str] = {}
+        self._gate_reason: str = ''
+
+    def _record_operator_skip(self, path: Any, operator: Any, gate_reason: str = '') -> None:
+        """登记一条「因运算符不可写入白名单而被 SKIP」的项（按原因分桶）。
+
+        两桶分开是为了事后可审计「到底是无法兼容，还是被类型门禁主动拦下」：
+          - gate_reason 非空 → _skipped_type_operator（E-2 类型 × 算子不兼容，主动拒绝）；
+          - 否则           → _skipped_operator（既有的「无兼容模板且无法新建」桶）。
+        """
+        op_key = f'{path} [{operator}]'
+        if gate_reason:
+
+            self._skipped_type_operator[op_key] = (
+                self._skipped_type_operator.get(op_key, 0) + 1)
+        else:
+            self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+
+    @staticmethod
+    def _skip_reason_text(operator: Any, gate_reason: str = '') -> str:
+        """SKIP 文案里的「原因短语」：类型门禁优先，否则回落为既有的「无兼容模板」措辞。
+
+        抽成方法是为了避免嵌套同引号 f-string（PEP 701 之前不合法），并让
+        dry-run / --apply 两个分支共用同一措辞（口径一致）。
+        """
+        if gate_reason:
+            return gate_reason
+        return f'运算符 {operator} 无兼容模板'
 
     def _record_relaxed_template(
         self, template: MetricTemplate, before_ops: List[Any], operator: Any,
@@ -450,6 +621,11 @@ class Command(BaseCommand):
           4. operator 不是合法 UnifiedOperator 取值 → 返回 None（SKIP）。
           5. 以上都失败 → 返回 None（SKIP）。
 
+        ⚠️ E-2 门禁：步骤 2（并入）与步骤 3（新建）都会把 operator **写进**共享白名单，
+        故二者之前统一过一道「类型 × 算子」分级（_operator_merge_policy）：
+        字符串类字段遇数值比较/区间算子 → 直接返回 None（SKIP + 报告），
+        绝不并入、绝不新建（否则「职级 > 5」会变成可配却恒 False 的假及格配置）。
+
         Args:
             am: 目标 AtomicMetric。
             operator: 本条条件的运算符。
@@ -457,7 +633,9 @@ class Command(BaseCommand):
 
         Returns:
             目标模板；None 表示无法产出可求值条件，调用方**必须 SKIP + 报告**。
+            SKIP 原因（若因类型门禁被拒）写入 self._gate_reason，供调用方分桶报告。
         """
+        self._gate_reason = ''
         compatible = self._find_compatible_template(am, operator)
         if compatible is not None:
             return compatible
@@ -467,6 +645,11 @@ class Command(BaseCommand):
         merge_candidate = self._find_merge_candidate(am)
         if allow_create:
             # --- --apply：可写 ---
+            # E-2：并入 / 新建都会写共享白名单 → 写之前先过「类型 × 算子」分级门禁
+            allowed, reason = _operator_merge_policy(am.data_type, operator)
+            if not allowed:
+                self._gate_reason = reason
+                return None
             if merge_candidate is not None and operator:
                 merged = self._merge_operator_into_template(merge_candidate, operator)
                 if merged is not None:
@@ -483,14 +666,26 @@ class Command(BaseCommand):
 
         仅查询、绝不写库（只读复用 / 并入 / 新建三选一的预测，内部绝不触发写操作）。
 
+        与 --apply 共用同一套判定（含 E-2「类型 × 算子」分级），故 dry-run 与 --apply
+        口径**严格一致**：被门禁拒绝时预测文案同步为
+        `[SKIP 运算符 GT 不适用于 STRING 字段 demand.level]`。
+
         Returns:
             (note, ok)：ok=False 表示预测为不可求值（调用方应按 SKIP 计数，不计入 migrated）。
+            因类型门禁被拒时，原因写入 self._gate_reason，供调用方分桶报告。
         """
+        self._gate_reason = ''
         compatible = self._find_compatible_template(am, operator)
         if compatible is not None:
             return f' [复用兼容模板 {compatible.id}]', True
         if operator and operator not in UnifiedOperator.values:
             return f' [SKIP 运算符 {operator} 非合法 UnifiedOperator]', False
+        # E-2：与 --apply 同口径 —— 写入共享白名单前先过「类型 × 算子」分级门禁
+        allowed, reason = _operator_merge_policy(am.data_type, operator)
+        if not allowed:
+            self._gate_reason = reason
+            field_path = getattr(am, 'source_path', '') or ''
+            return f' [SKIP {reason} {field_path}]', False
         merge_candidate = self._find_merge_candidate(am)
         if merge_candidate is not None and operator:
             # 计划放宽也要登记（零写入，仅内存计数）：使 dry-run 报告与 --apply 报告
@@ -615,9 +810,15 @@ class Command(BaseCommand):
                         # dry-run 不写库：仅预测「复用兼容模板 / 并入既有模板 / 新建最小算子模板 / SKIP」
                         plan_note, ok = self._plan_template_note(am, operator)
                         if not ok:
-                            op_key = f'{path} [{operator}]'
-                            self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
-                            new_items.append(item)  # 预测不可求值 → 不改、不计 migrated
+                            # 预测不可求值（含 E-2 类型门禁拒绝）→ 不改、不计 migrated；
+                            # 同步打印 SKIP 计划文案，与 --apply 口径一致
+                            self._record_operator_skip(path, operator, self._gate_reason)
+                            self.stdout.write(self.style.WARNING(
+                                f'{prefix}[SKIP] StageRule {sr_id} {bucket} item: '
+                                f'{self._skip_reason_text(operator, self._gate_reason)}'
+                                f'（path={path}）：不迁移、不改写、不建不兼容模板'
+                                f'{plan_note}'))
+                            new_items.append(item)
                             continue
                         migrated += 1
                         self.stdout.write(
@@ -635,11 +836,12 @@ class Command(BaseCommand):
                             new_items.append(item)
                             continue
                         if template is None:
-                            # 无兼容可复用 + 新建失败 / operator 非法 → SKIP
-                            op_key = f'{path} [{operator}]'
-                            self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                            # 无兼容可复用 + 新建失败 / operator 非法 / 类型门禁拒绝 → SKIP
+                            gate_reason = self._gate_reason
+                            self._record_operator_skip(path, operator, gate_reason)
                             self.stderr.write(self.style.WARNING(
-                                f'  [SKIP] StageRule {sr_id} {bucket} 运算符 {operator} 无兼容模板'
+                                f'  [SKIP] StageRule {sr_id} {bucket} '
+                                f'{self._skip_reason_text(operator, gate_reason)}'
                                 f'（path={path}）：不迁移、不改写、不建不兼容模板'))
                             new_items.append(item)
                             continue
@@ -674,6 +876,9 @@ class Command(BaseCommand):
         # SKIP(运算符不兼容)：无兼容模板可复用，且无法并入既有模板 / 无法新建兼容模板
         # → 记录 ('path [OP]', 条数)
         self._skipped_operator: Dict[str, int] = {}
+        # SKIP(E-2 类型 × 算子不兼容)：目标字段是字符串类而 operator 是数值比较/区间算子
+        # → 不并入、不新建、不改写（禁假绿），记录 ('path [OP]', 条数)
+        self._skipped_type_operator: Dict[str, int] = {}
         # 兜底映射命中审计：legacy 大写常量经规范化命中 enabled AtomicMetric 的条数（按 X -> y 归档）
         self._normalized_hits: Dict[str, int] = {}
         self._reset_audit_state()
@@ -717,9 +922,15 @@ class Command(BaseCommand):
                     # dry-run 不写库：仅预测「复用兼容模板 / 并入既有模板 / 新建最小算子模板 / SKIP」
                     plan_note, ok = self._plan_template_note(am, ci.operator)
                     if not ok:
-                        # 预测即不可求值 → 按 SKIP 处理，绝不计入 migrated（禁假绿）
-                        op_key = f'{path} [{ci.operator}]'
-                        self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                        # 预测即不可求值（含 E-2 类型门禁拒绝）→ 按 SKIP 处理，
+                        # 绝不计入 migrated（禁假绿）。
+                        # 同步打印 SKIP 计划文案（含 E-2 的「不适用于 STRING 字段 X」），
+                        # 保证 dry-run 与 --apply 口径一致、事后可审计。
+                        self._record_operator_skip(path, ci.operator, self._gate_reason)
+                        self.stdout.write(self.style.WARNING(
+                            f'{prefix}[SKIP] ConditionItem {ci.id}: '
+                            f'{self._skip_reason_text(ci.operator, self._gate_reason)}'
+                            f'（path={path}）：不迁移、不改写、不建不兼容模板{plan_note}'))
                         continue
                     self.stdout.write(
                         f'{prefix}将改写 ConditionItem {ci.id}: '
@@ -727,11 +938,13 @@ class Command(BaseCommand):
                 else:
                     template = self._resolve_template(am, ci.operator)
                     if template is None:
-                        # 无兼容可复用 + 新建失败 / operator 非法 → SKIP（绝不产出不可求值条件）
-                        op_key = f'{path} [{ci.operator}]'
-                        self._skipped_operator[op_key] = self._skipped_operator.get(op_key, 0) + 1
+                        # 无兼容可复用 + 新建失败 / operator 非法 / 类型门禁拒绝 → SKIP
+                        # （绝不产出不可求值条件）
+                        gate_reason = self._gate_reason
+                        self._record_operator_skip(path, ci.operator, gate_reason)
                         self.stderr.write(self.style.WARNING(
-                            f'  [SKIP] ConditionItem {ci.id} 运算符 {ci.operator} 无兼容模板'
+                            f'  [SKIP] ConditionItem {ci.id} '
+                            f'{self._skip_reason_text(ci.operator, gate_reason)}'
                             f'（path={path}）：不迁移、不改写、不建不兼容模板'))
                         continue
                     ci.condition_type = ConditionFieldType.METRIC
@@ -825,6 +1038,11 @@ class Command(BaseCommand):
                 f'{k}: {v}' for k, v in sorted(self._skipped_operator.items()))
             self.stdout.write(self.style.WARNING(
                 f'{prefix}SKIP(运算符不在任何可复用模板白名单且无法新建兼容模板)：{oparts}'))
+        if self._skipped_type_operator:
+            tparts = ', '.join(
+                f'{k}: {v}' for k, v in sorted(self._skipped_type_operator.items()))
+            self.stdout.write(self.style.WARNING(
+                f'{prefix}SKIP(运算符不适用于该字段数据类型，已拒绝并入/新建)：{tparts}'))
         if self._normalized_hits:
             total_hits = sum(self._normalized_hits.values())
             hparts = ', '.join(

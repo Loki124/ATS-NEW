@@ -31,6 +31,13 @@
         operators 只含实际需要的那 1 个算子（绝不是 UnifiedOperator 全集 14 项）。
     (t) test_merge_preserves_existing_operators_and_conditions —— 并入是 append-only：
         既有算子全保留、引用该模板的既有 METRIC 条件不受影响、仍可正常求值。
+    (u)(v)(w) E-1 可审计性：--apply 输出区分「并入/复用/新建」+ dry-run 计划清单。
+    (x) E-2：STRING 字段 + 数值算子(GT) → SKIP，不并入、不建模板、不改写（禁假绿）。
+    (y) E-2 回归：STRING 字段 + EQ → **仍并入**（dev 真实路径零影响）。
+    (z) E-2：数值类(NUMBER)字段 + GT → **不受限，仍并入**（证明只对字符串类限制）。
+    (A) E-2 单元：_operator_merge_policy 类型 × 算子允许/拒绝矩阵。
+    (B) E-2 纵深防御：_create_minimal_template 自身也过门禁，字符串类字段遇数值/区间算子直接拒绝，
+        绝不造出坏模板（即便不经 _resolve_template 直接调用）。
 
 fixture 必填字段照搬同目录 test_template_impact.py 已验证可跑通的组合。
 纯后端数据命令，使用 pytest + pytest.mark.django_db，必要模型直接 ORM 创建。
@@ -45,7 +52,9 @@ from nanoid import generate as nanoid_generate
 from apps.entry_condition.models import ConditionItem, EntryConditionRule
 from apps.metrics.management.commands import migrate_raw_conditions_to_metric as cmd_mod
 from apps.metrics.management.commands.migrate_raw_conditions_to_metric import (
+    _is_string_data_type,
     _normalize_legacy_path,
+    _operator_merge_policy,
     _resolve_atomic_metric,
 )
 from apps.metrics.models import (
@@ -102,6 +111,17 @@ def _make_atomic_at(source_path: str) -> AtomicMetric:
     return AtomicMetric.objects.create(
         name=f'tst_life3_atomic_{_new_id()}', source_path=source_path,
         data_type=MetricDataType.STRING, status='enabled',
+    )
+
+
+def _make_atomic_typed(source_path: str, data_type: str) -> AtomicMetric:
+    """在指定 source_path 上创建**指定 data_type** 的 enabled AtomicMetric。
+
+    用于 E-2「类型 × 算子」分级门禁：字符串类 vs 数值类字段必须走不同分支。
+    """
+    return AtomicMetric.objects.create(
+        name=f'tst_life3_atomic_{_new_id()}', source_path=source_path,
+        data_type=data_type, status='enabled',
     )
 
 
@@ -1022,3 +1042,253 @@ def test_dry_run_report_lists_planned_relaxed_templates():
     ci.refresh_from_db()
     assert ci.condition_type == 'DEMAND'
     assert ci.field == 'demand.level'
+
+
+# ============================================================================
+# (x) E-2：STRING 字段 + 数值算子 GT → SKIP，不并入、不建模板、不改写
+# ============================================================================
+def test_string_field_numeric_operator_skips():
+    """「职级 > 5」这类配置绝不能由本命令产出：字符串类字段 + 数值/区间算子 → SKIP。
+
+    并入「缺失的那 1 个算子」把风险幅度从 14 降到 1，但风险类别没变：仍是把算子写进
+    全局共享模板白名单（经 apps/process/views.py:958 透传给前端运算符下拉）。若待迁项
+    operator 是 GT 而目标字段是字符串类（demand.level = CharField 职级），并入会让
+    「职级 > 5」变成可配配置 → 字符串比较 → **求值静默 False**（配置能存、求值恒 False
+    的假及格）。故必须 SKIP + 报告，绝不硬造。
+
+    本测试同时覆盖两条「写白名单」的路径：
+      - 有既有模板 → 拒绝**并入**（operators 保持原样）；
+      - 无既有模板 → 拒绝**新建**（模板数保持 0）。
+    """
+    base_ops = ['IS_EMPTY', 'IS_NOT_EMPTY', 'IN', 'NOT_IN']
+    # 场景一：有既有启用模板可并入（GT 不在其白名单内）
+    am_merge = _make_atomic_typed('demand.level', MetricDataType.STRING)
+    existing = MetricTemplate.objects.create(
+        name=f'tst_life3_strmerge_{_new_id()}', atomic_metric=am_merge,
+        operators=list(base_ops), status='enabled',
+    )
+    # 场景二：该 am 下无任何模板（否则会走「新建最小算子模板」路径）
+    am_new = _make_atomic_typed('demand.grade', MetricDataType.STRING)
+    assert MetricTemplate.objects.filter(atomic_metric=am_new).count() == 0
+
+    _, _, link = _build_context()
+    ci_merge = _make_raw_condition(link, 'demand.level', 'GT', 5, seq=1)
+    ci_new = _make_raw_condition(link, 'demand.grade', 'GT', 5, seq=2)
+
+    # --- dry-run：两条都被预测为 SKIP，且计划文案点明「类型不适用」 ---
+    out = io.StringIO()
+    _run(out)
+    text = out.getvalue()
+    assert '已迁移：进入条件 0 条' in text
+    assert 'SKIP 运算符 GT 不适用于 STRING 字段 demand.level' in text
+    assert 'SKIP 运算符 GT 不适用于 STRING 字段 demand.grade' in text
+    # 报告给出对应提示（独立桶，与「无兼容模板」桶区分）
+    assert 'SKIP(运算符不适用于该字段数据类型' in text
+    assert 'demand.level [GT]: 1' in text
+    # 零写入：白名单未改、未新建模板、条件未改写
+    existing.refresh_from_db()
+    assert existing.operators == base_ops
+    assert MetricTemplate.objects.filter(atomic_metric=am_new).count() == 0
+    for ci in (ci_merge, ci_new):
+        ci.refresh_from_db()
+        assert ci.condition_type == 'DEMAND'
+
+    # --- --apply：同样不并入、不建模板、不改写 ---
+    out2 = io.StringIO()
+    _run(out2, '--apply')
+    text2 = out2.getvalue()
+    assert '已迁移：进入条件 0 条' in text2
+    assert 'SKIP(运算符不适用于该字段数据类型' in text2
+    existing.refresh_from_db()
+    assert existing.operators == base_ops, 'GT 绝不能被并入字符串类字段的共享白名单'
+    assert MetricTemplate.objects.filter(atomic_metric=am_merge).count() == 1
+    assert MetricTemplate.objects.filter(atomic_metric=am_new).count() == 0
+    for ci in (ci_merge, ci_new):
+        ci.refresh_from_db()
+        assert ci.condition_type == 'DEMAND'
+        assert ci.field in ('demand.level', 'demand.grade')
+        assert ci.operator == 'GT'
+
+
+# ============================================================================
+# (y) E-2 回归：STRING 字段 + EQ → 仍并入（dev 真实路径零影响）
+# ============================================================================
+def test_string_field_eq_still_merges():
+    """门禁不得误伤 dev 真实路径：字符串类字段 + 字符串安全算子 EQ → 照旧并入。
+
+    dev 库那 3 条待迁项全是 DEMAND_LEVEL + EQ，修复后必须**仍然走并入**，
+    输出与修复前完全一致（[将复用既有模板 X 并仅并入 EQ] + 「将放宽」1 个 + 4→5）。
+    """
+    am = _make_atomic_typed('demand.level', MetricDataType.STRING)
+    base_ops = ['IS_EMPTY', 'IS_NOT_EMPTY', 'IN', 'NOT_IN']
+    existing = MetricTemplate.objects.create(
+        name=f'tst_life3_eqmerge_{_new_id()}', atomic_metric=am,
+        operators=list(base_ops), status='enabled',
+    )
+    _, _, link = _build_context()
+    ci = _make_raw_condition(link, 'demand.level', 'EQ', '1')
+
+    # --- dry-run：仍是「并入 EQ」的预测，绝无类型门禁痕迹 ---
+    out = io.StringIO()
+    _run(out)
+    text = out.getvalue()
+    assert f' [将复用既有模板 {existing.id} 并仅并入 EQ]' in text
+    assert '不适用于 STRING 字段' not in text
+    assert '已迁移：进入条件 1 条' in text
+    assert '将放宽既有模板白名单（共享实体，不可回滚）：1 个' in text
+    assert (
+        '[IS_EMPTY, IS_NOT_EMPTY, IN, NOT_IN] → '
+        '[IS_EMPTY, IS_NOT_EMPTY, IN, NOT_IN, EQ]'
+    ) in text
+
+    # --- --apply：照旧并入（append-only） ---
+    out2 = io.StringIO()
+    _run(out2, '--apply')
+    text2 = out2.getvalue()
+    ci.refresh_from_db()
+    assert ci.condition_type == 'METRIC'
+    assert ci.field == str(existing.id)
+    existing.refresh_from_db()
+    assert existing.operators == base_ops + ['EQ']
+    assert f'并入 +EQ 到既有模板 {existing.id}' in text2
+    assert 'operators 4→5' in text2
+    assert '已放宽既有模板白名单（共享实体，不可回滚）：1 个' in text2
+    assert '不适用于 STRING 字段' not in text2
+
+
+# ============================================================================
+# (z) E-2：数值类字段 + GT → 不受限，仍并入（证明只对字符串类做限制）
+# ============================================================================
+def test_number_field_gt_still_merges():
+    """数值类（NUMBER）字段不做任何限制：GT 照旧并入，行为与门禁前完全一致。"""
+    am = _make_atomic_typed('candidate.age', MetricDataType.NUMBER)
+    base_ops = ['EQ', 'NEQ', 'IS_EMPTY']
+    existing = MetricTemplate.objects.create(
+        name=f'tst_life3_nummerge_{_new_id()}', atomic_metric=am,
+        operators=list(base_ops), status='enabled',
+    )
+    assert 'GT' not in existing.operators
+
+    _, _, link = _build_context()
+    ci = _make_raw_condition(link, 'candidate.age', 'GT', 18)
+
+    # --- dry-run：预测仍是「并入 GT」 ---
+    out = io.StringIO()
+    _run(out)
+    text = out.getvalue()
+    assert f' [将复用既有模板 {existing.id} 并仅并入 GT]' in text
+    assert '不适用于 NUMBER 字段' not in text
+    assert '已迁移：进入条件 1 条' in text
+
+    # --- --apply：照旧并入 ---
+    out2 = io.StringIO()
+    _run(out2, '--apply')
+    ci.refresh_from_db()
+    assert ci.condition_type == 'METRIC'
+    assert ci.field == str(existing.id)
+    existing.refresh_from_db()
+    assert existing.operators == base_ops + ['GT']
+    assert '已迁移：进入条件 1 条' in out2.getvalue()
+    # 迁移结果可求值：统一求值器不得报「模板不支持该运算符」
+    result = MetricEngine.evaluate_metric_condition(str(existing.id), {}, 'GT', 18)
+    assert '模板不支持该运算符' not in (result.get('error') or ''), result
+
+
+# ============================================================================
+# (A) E-2 单元：「类型 × 算子」分级矩阵
+# ============================================================================
+def test_operator_merge_policy_matrix():
+    """分级函数单元：覆盖各 data_type × 各算子的允许/拒绝要点。"""
+    string_safe = ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_EMPTY', 'IS_NOT_EMPTY',
+                   'CONTAINS', 'NOT_CONTAINS', 'REGEX_MATCH']
+    numeric_or_range = ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN']
+
+    # --- 字符串类：安全算子全部允许；数值/区间算子全部拒绝 ---
+    for op in string_safe:
+        allowed, reason = _operator_merge_policy(MetricDataType.STRING, op)
+        assert allowed is True, f'STRING + {op} 应允许并入'
+        assert reason == ''
+    for op in numeric_or_range:
+        allowed, reason = _operator_merge_policy(MetricDataType.STRING, op)
+        assert allowed is False, f'STRING + {op} 必须拒绝（否则产出恒 False 配置）'
+        assert f'运算符 {op} 不适用于 STRING 字段' == reason
+
+    # --- 非字符串类：一律不做限制（行为不变）---
+    for data_type in (MetricDataType.NUMBER, MetricDataType.DATE,
+                      MetricDataType.BOOLEAN):
+        for op in string_safe + numeric_or_range:
+            allowed, reason = _operator_merge_policy(data_type, op)
+            assert allowed is True, f'{data_type} + {op} 不应受门禁限制'
+            assert reason == ''
+    # 裸字符串形态（历史脏数据 / JSON 值）同样按数值类处理
+    assert _operator_merge_policy('number', 'GT') == (True, '')
+    assert _operator_merge_policy('date', 'BETWEEN') == (True, '')
+    # 大小写/空格归一
+    assert _operator_merge_policy('STRING', 'GT')[0] is False
+    assert _operator_merge_policy(' String ', 'GT')[0] is False
+
+    # --- 边界：空运算符不参与判定（交由既有「运算符为空」分支，零行为变化）---
+    assert _operator_merge_policy(MetricDataType.STRING, '') == (True, '')
+    assert _operator_merge_policy(MetricDataType.STRING, None) == (True, '')
+    # --- 边界：非法运算符一律拒绝（纵深防御）---
+    allowed, reason = _operator_merge_policy(MetricDataType.STRING, 'NOT_A_REAL_OP')
+    assert allowed is False and '非合法 UnifiedOperator' in reason
+    # --- 边界：data_type 取不到（None / 派生模板）→ 不限制，绝不误伤既有路径 ---
+    assert _operator_merge_policy(None, 'GT') == (True, '')
+
+    # --- 类型判定辅助函数 ---
+    assert _is_string_data_type(MetricDataType.STRING) is True
+    assert _is_string_data_type('string') is True
+    assert _is_string_data_type('STRING') is True
+    assert _is_string_data_type(MetricDataType.NUMBER) is False
+    assert _is_string_data_type(MetricDataType.DATE) is False
+    assert _is_string_data_type(MetricDataType.BOOLEAN) is False
+    assert _is_string_data_type(None) is False
+
+
+# ============================================================================
+# (B) E-2 纵深防御不变量：_create_minimal_template 自身也过「类型 × 算子」门禁
+# ============================================================================
+def test_create_minimal_template_gate_blocks_string_numeric_operator():
+    """_create_minimal_template 是写白名单的另一入口；即便不经 _resolve_template 直接调用，
+
+    也必须在入口处拦下「字符串类字段 + 数值/区间算子」，绝不造出含 GT/BETWEEN 的模板
+
+    （否则「职级 > 5」会变成可配却恒 False 的假及格配置）。
+
+    这是 E-2 纵深防御的最后一环：让「没有任何写路径能绕过 _operator_merge_policy」成为可测不变量。
+    """
+    am = _make_atomic_typed('candidate.work_years', MetricDataType.STRING)
+    # 最小命令实例：仅设置命令所需的 stdout/stderr 与审计状态（与生产 execute() 等价子集）
+    cmd = cmd_mod.Command()
+    cmd.stdout = io.StringIO()
+    cmd.stderr = io.StringIO()
+    cmd._reset_audit_state()
+
+    # --- 字符串字段 + GT → 必须被门禁拦下，不建任何模板 ---
+    created = cmd._create_minimal_template(am, 'GT')
+    assert created is None
+    assert MetricTemplate.objects.filter(atomic_metric=am).count() == 0
+
+    # --- 字符串字段 + BETWEEN → 同样拒绝 ---
+    created_range = cmd._create_minimal_template(am, 'BETWEEN')
+    assert created_range is None
+    assert MetricTemplate.objects.filter(atomic_metric=am).count() == 0
+
+    # --- 字符串字段 + 安全算子 EQ → 仍正常建出「只含 EQ」的模板（不影响既有真路径）---
+    created_ok = cmd._create_minimal_template(am, 'EQ')
+    assert created_ok is not None
+    assert created_ok.atomic_metric_id == am.id
+    assert created_ok.operators == ['EQ']
+    # 全库仅此一条新建模板（BETWEEN/GT 两次调用均未落库）
+    assert MetricTemplate.objects.filter(atomic_metric=am).count() == 1
+
+    # --- 数值类字段不受限：即便不经上游，新建 GT 也应放行（证明只对字符串类限制）---
+    am_num = _make_atomic_typed('candidate.age', MetricDataType.NUMBER)
+    cmd2 = cmd_mod.Command()
+    cmd2.stdout = io.StringIO()
+    cmd2.stderr = io.StringIO()
+    cmd2._reset_audit_state()
+    created_num = cmd2._create_minimal_template(am_num, 'GT')
+    assert created_num is not None
+    assert created_num.operators == ['GT']
