@@ -42,6 +42,7 @@ from .serializers import (
     DerivedMetricSerializer,
     MetricRuleSerializer,
     MetricTemplateSerializer,
+    MetricTemplateVersionSerializer,
     RuleExecuteSerializer,
 )
 from .services.candidate_snapshot import (
@@ -53,6 +54,15 @@ from .services.candidate_snapshot import (
 from .services.derived_registry import get as get_derived_func, list_funcs
 from .services.metric_engine import MetricEngine
 from .services.operator_matrix import operators_for
+from .services.template_version import (
+    SEMANTIC_FIELDS,
+    RollbackBlocked,
+    TemplateVersionError,
+    TemplateVersionNotFound,
+    create_version_snapshot,
+    list_versions,
+    rollback_template,
+)
 from .services.rule_trigger import (
     _build_rule_context,
     count_candidates,
@@ -114,6 +124,67 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     ).order_by('name')
     serializer_class = MetricTemplateSerializer
     pagination_class = StandardResultsSetPagination
+
+    # ===== LIFE-1 版本化：写路径覆盖 =====
+    def perform_create(self, serializer):
+        """新建模板：version 默认=1，落一条 kind='create' 基线快照（与 0019 存量回填语义一致）。"""
+        instance = serializer.save()
+        create_version_snapshot(instance, self.request.user, kind='create', note='初始创建')
+        return instance
+
+    def perform_update(self, serializer):
+        """更新模板：仅当语义字段（SEMANTIC_FIELDS）真正变更时才 version+1 并落快照。
+
+        用「旧值 vs 新值」比较，而非「payload 是否含该 key」——
+        否则 PUT 全字段提交会把未变字段也算作变更，导致无谓 bump。
+        非语义字段（status / description 等）变更不 bump、不落快照（方案 C / D4-4a）。
+        """
+        instance = serializer.instance
+        old_values = {f: getattr(instance, f) for f in SEMANTIC_FIELDS}
+        super().perform_update(serializer)
+        changed = [f for f in SEMANTIC_FIELDS if old_values[f] != getattr(instance, f, None)]
+        if changed:
+            instance.version += 1
+            instance.save(update_fields=['version'])
+            create_version_snapshot(
+                instance, self.request.user, kind='update',
+                note='语义变更: ' + ','.join(changed),
+            )
+
+    @action(detail=True, methods=['get'], url_path='versions')
+    def versions(self, request, pk=None):
+        """GET 某模板的版本历史（倒序，最近在前）。"""
+        instance = self.get_object()
+        rows = list_versions(instance.id)
+        return success_response(MetricTemplateVersionSerializer(rows, many=True).data)
+
+    @action(detail=True, methods=['post'], url_path='versions/rollback')
+    def rollback_version(self, request, pk=None):
+        """POST 回滚到指定版本：body {version_no: int}。
+
+        异常映射：版本不存在 → 404；引用指标失效/其它版本错误 → 400。
+        """
+        instance = self.get_object()
+        raw = (request.data or {}).get('version_no')
+        try:
+            version_no = int(raw)
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'version_no 必须为整数'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            rollback_template(instance, version_no, self.request.user)
+        except TemplateVersionNotFound:
+            return Response(
+                {'error': f'版本 {version_no} 的快照不存在'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except RollbackBlocked as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except TemplateVersionError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return success_response(MetricTemplateSerializer(instance).data)
 
     @action(detail=False, methods=['get'], url_path='export')
     def export_templates(self, request):

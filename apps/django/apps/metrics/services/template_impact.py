@@ -144,6 +144,7 @@ def get_template_affected_rules(template_id: str) -> Dict[str, Any]:
         'template_id': tid,
         'template_name': template.name,
         'template_status': template.status,
+        'version_count': template.version_count,
         'total': total,
         'entry_conditions': entry_conditions,
         'stage_rules': stage_rules,

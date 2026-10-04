@@ -31,6 +31,7 @@ from apps.audit.models import AuditLog
 from apps.rule_engine.models import UnifiedOperator
 
 from .models import AtomicMetric, DerivedMetric, MetricTemplate
+from .services.template_version import create_version_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -643,6 +644,11 @@ def import_templates(user, file_obj, mode, filename='', request=None):
                     'atomic_metric', 'derived_metric', 'operators', 'param_enums',
                     'param_allow_null', 'status', 'description', 'updated_at',
                 ])
+                # LIFE-1 D6-6a：导入更新与手工修改等价，落 kind='import' 快照（version+1）。
+                # 必须先 bump version 再建快照，否则会与既有版本号撞 UniqueConstraint。
+                existing.version += 1
+                existing.save(update_fields=['version'])
+                create_version_snapshot(existing, user, kind='import', note='导入更新')
                 updated += 1
                 continue
             MetricTemplate.objects.create(

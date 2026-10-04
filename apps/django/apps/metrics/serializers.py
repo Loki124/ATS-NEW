@@ -8,7 +8,13 @@ from rest_framework import serializers
 
 from apps.rule_engine.models import UnifiedOperator
 
-from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
+from .models import (
+    AtomicMetric,
+    DerivedMetric,
+    MetricRule,
+    MetricTemplate,
+    MetricTemplateVersion,
+)
 from .services.derived_registry import get as get_derived_func
 from .services.rule_validators import validate_metric_rule
 
@@ -72,6 +78,9 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
     metric_kind = serializers.SerializerMethodField(read_only=True)
     data_type = serializers.SerializerMethodField(read_only=True)
     unit = serializers.SerializerMethodField(read_only=True)
+    # LIFE-1：版本化只读字段
+    version = serializers.IntegerField(read_only=True)
+    version_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = MetricTemplate
@@ -80,10 +89,11 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             'metric_name', 'metric_path', 'metric_kind', 'data_type', 'unit',
             'operators', 'param_config', 'value_domain', 'param_enums',
             'param_allow_null', 'status', 'description', 'created_at',
+            'version', 'version_count',
         ]
         read_only_fields = [
             'id', 'created_at', 'metric_name', 'metric_path',
-            'metric_kind', 'data_type', 'unit',
+            'metric_kind', 'data_type', 'unit', 'version', 'version_count',
         ]
 
     def validate(self, attrs):
@@ -155,6 +165,20 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
 
     def get_unit(self, obj):
         return obj.unit
+
+
+class MetricTemplateVersionSerializer(serializers.ModelSerializer):
+    """指标模板版本快照（只读）。快照不可经 API 增删改，整个序列化器只读。"""
+
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = MetricTemplateVersion
+        fields = [
+            'id', 'template_id', 'version', 'snapshot', 'changed_fields',
+            'change_kind', 'change_note', 'created_at', 'created_by',
+        ]
+        read_only_fields = fields
 
 
 class ConditionInputSerializer(serializers.Serializer):
