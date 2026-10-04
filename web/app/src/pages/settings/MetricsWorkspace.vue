@@ -119,13 +119,24 @@
               <n-data-table
                 v-else
                 :columns="tplColumns"
-                :data="filteredTemplates"
+                :data="pagedTemplates"
               :scroll-x="900"
               :max-height="tableMaxHeight"
               size="small"
               class="ws-table"
               />
             </n-spin>
+            <div v-if="filteredTemplates.length > 0" class="ws-pager">
+              <n-pagination
+                :page="tplPage"
+                :page-size="tplPageSize"
+                :item-count="filteredTemplates.length"
+                :page-sizes="[10, 20, 50]"
+                show-size-picker
+                @update:page="(p: number) => (tplPage = p)"
+                @update:page-size="(s: number) => { tplPageSize = s; tplPage = 1 }"
+              />
+            </div>
           </div>
         </n-tab-pane>
       </n-tabs>
@@ -532,7 +543,7 @@
     <!-- ========== LIFE-1：指标模板版本历史抽屉 ========== -->
     <n-drawer
       v-model:show="versionHistoryVisible"
-      :width="420"
+      :width="460"
       placement="right"
       :mask-closable="true"
     >
@@ -551,6 +562,21 @@
               <n-tag size="small" :type="verhTagType(v.changeKind)">{{ life1ChangeKindLabel(v.changeKind) }}</n-tag>
             </div>
             <div v-if="v.changeNote" class="verh-note">{{ v.changeNote }}</div>
+            <div v-if="v.changedFields && v.changedFields.length" class="verh-changed">
+              <div class="verh-sub-label">{{ t('metrics.life1.detailChangedFields') }}</div>
+              <n-space :size="6">
+                <n-tag v-for="f in v.changedFields" :key="f" size="small" type="warning">{{ snapshotFieldLabel(f) }}</n-tag>
+              </n-space>
+            </div>
+            <div v-else class="verh-changed verh-changed-empty">{{ t('metrics.life1.detailNoChangedFields') }}</div>
+            <div class="verh-snap">
+              <div class="verh-sub-label">{{ t('metrics.life1.detailSnapshot') }}</div>
+              <n-descriptions :column="1" label-placement="left" bordered size="small">
+                <n-descriptions-item v-for="row in snapshotRows(v.snapshot)" :key="row.key" :label="row.label">
+                  {{ row.text }}
+                </n-descriptions-item>
+              </n-descriptions>
+            </div>
             <div class="verh-foot">
               <span class="verh-time">{{ formatTime(v.createdAt) }}</span>
             </div>
@@ -592,7 +618,7 @@
  *   - 新增关键词搜索 + 分类/状态筛选，快速定位目标指标
  *   - 移除冗余只读提示横幅，减少信息干扰
  */
-import { computed, h, onMounted, onUnmounted, ref } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NAlert,
@@ -650,6 +676,9 @@ const activeTab = ref<'definitions' | 'template'>('definitions')
 // ===== 共享数据 =====
 const definitions = ref<MetricDefinition[]>([])
 const templateList = ref<MetricTemplate[]>([])
+// 指标模板列表客户端分页状态（后端无 keyword/status 过滤，拉全量后前端切片）
+const tplPage = ref(1)
+const tplPageSize = ref(20)
 const atomicList = ref<AtomicMetric[]>([])
 const derivedList = ref<DerivedMetric[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
@@ -895,6 +924,17 @@ const filteredTemplates = computed<MetricTemplate[]>(() => {
     }
     return true
   })
+})
+
+/** 对过滤后的结果做客户端切片分页（后端无 keyword/status 过滤，拉全量后前端分页） */
+const pagedTemplates = computed<MetricTemplate[]>(() => {
+  const start = (tplPage.value - 1) * tplPageSize.value
+  return filteredTemplates.value.slice(start, start + tplPageSize.value)
+})
+
+/** 搜索关键词 / 状态筛选变化时重置到第 1 页 */
+watch([tplKeyword, tplStatus], () => {
+  tplPage.value = 1
 })
 
 // ===== 指标模板列辅助 =====
@@ -1441,6 +1481,64 @@ async function confirmRollback(row: MetricTemplate, versionNo: number) {
   }
 }
 
+/** 快照字段 → i18n 键 映射（仅展示业务可读字段，跳过内部 FK id） */
+const SNAP_FIELD_I18N: Record<string, string> = {
+  name: 'metrics.life1.field.name',
+  metric_name: 'metrics.life1.field.metric',
+  data_type: 'metrics.life1.field.dataType',
+  unit: 'metrics.life1.field.unit',
+  operators: 'metrics.life1.field.operators',
+  param_config: 'metrics.life1.field.paramConfig',
+  value_domain: 'metrics.life1.field.valueDomain',
+  param_enums: 'metrics.life1.field.paramEnums',
+  param_allow_null: 'metrics.life1.field.paramAllowNull',
+  status: 'metrics.life1.field.status',
+  description: 'metrics.life1.field.description',
+}
+function snapshotFieldLabel(key: string): string {
+  const i18nKey = SNAP_FIELD_I18N[key]
+  return i18nKey ? t(i18nKey) : key
+}
+function fmtParamConfig(c: any): string {
+  if (!c || (c.min == null && c.max == null && c.step == null && !c.prefix && !c.suffix && !c.allOption)) return '-'
+  const parts: string[] = []
+  if (c.min != null) parts.push(`min=${c.min}`)
+  if (c.max != null) parts.push(`max=${c.max}`)
+  if (c.step != null) parts.push(`step=${c.step}`)
+  if (c.prefix) parts.push(`前缀「${c.prefix}」`)
+  if (c.suffix) parts.push(`后缀「${c.suffix}」`)
+  if (c.allOption) parts.push('含「全部」选项')
+  return parts.join(' / ') || '-'
+}
+function fmtValueDomain(vd: any): string {
+  const segs = vd?.segments
+  if (!segs || !segs.length) return '-'
+  return segs.map((s: any) => `${s.min ?? '*'}~${s.max ?? '*'}`).join('，')
+}
+function snapshotRows(snap: Record<string, any> | undefined): { key: string; label: string; text: string }[] {
+  if (!snap) return []
+  const rows: { key: string; label: string; text: string }[] = []
+  const push = (k: string, text: string) => {
+    const label = snapshotFieldLabel(k)
+    rows.push({ key: k, label, text: text === '' || text === null || text === undefined ? '-' : String(text) })
+  }
+  if ('name' in snap) push('name', snap.name)
+  if ('metric_name' in snap) {
+    const kind = snap.metric_kind === 'derived' ? t('metrics.life1.field.metricDerived') : t('metrics.life1.field.metricAtomic')
+    push('metric_name', `${snap.metric_name ?? '-'}${snap.metric_path ? `（${snap.metric_path}）` : ''} · ${kind}`)
+  }
+  if ('data_type' in snap) push('data_type', snap.data_type ? `${returnTypeLabel(snap.data_type)}${snap.unit ? ` (${snap.unit})` : ''}` : '-')
+  if ('unit' in snap && !('data_type' in snap)) push('unit', snap.unit)
+  if ('operators' in snap) push('operators', (snap.operators || []).map((o: string) => operatorLabel(o)).join('、') || '-')
+  if ('param_config' in snap) push('param_config', fmtParamConfig(snap.param_config))
+  if ('value_domain' in snap) push('value_domain', fmtValueDomain(snap.value_domain))
+  if ('param_enums' in snap) push('param_enums', (snap.param_enums || []).join('、') || '-')
+  if ('param_allow_null' in snap) push('param_allow_null', snap.param_allow_null ? t('metrics.life1.field.yes') : t('metrics.life1.field.no'))
+  if ('status' in snap) push('status', snap.status === 'enabled' ? t('metrics.status.enabled') : t('metrics.status.disabled'))
+  if ('description' in snap) push('description', snap.description || '-')
+  return rows
+}
+
 /** 确认执行（仍要禁用 / 仍要删除） */
 async function onAffectedConfirm() {
   const row = affectedTarget.value
@@ -1480,9 +1578,12 @@ async function load() {
     ])
     atomicList.value = atomic
     derivedList.value = derived
-    templateList.value = templates
+    templateList.value = templates.list
     operatorCatalog.value = ops
     definitions.value = defs
+    if (tplPage.value > Math.max(1, Math.ceil(filteredTemplates.value.length / tplPageSize.value))) {
+      tplPage.value = 1
+    }
     try {
       fieldPaths.value = await listCandidateFields()
     } catch {
@@ -1956,6 +2057,24 @@ onUnmounted(() => {
 .verh-foot { margin-bottom: var(--space-2); }
 .verh-time { color: var(--ink-faint); font-size: var(--fs-12); }
 .verh-actions { display: flex; justify-content: flex-end; }
+.verh-sub-label {
+  color: var(--ink-faint);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-2);
+}
+.verh-changed { margin-bottom: var(--space-3); }
+.verh-changed-empty { color: var(--ink-faint); font-size: var(--fs-12); }
+.verh-snap { margin-bottom: var(--space-3); }
+
+/* 指标模板列表分页控件 */
+.ws-pager {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-3) 0 0;
+}
 
 @media (max-width: 768px) {
   .tpl-section-hint { margin-left: 0; width: 100%; }

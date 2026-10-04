@@ -512,7 +512,7 @@ async function load() {
       listOperators(),
       getSampleData(),
     ])
-    templateList.value = templates
+    templateList.value = templates.list
     operatorCatalog.value = ops
     sampleData.value = sample
     await loadRules()

@@ -339,9 +339,49 @@ export async function updateDerivedMetric(id: string, payload: Partial<DerivedMe
   return unwrap<DerivedMetric>(res)
 }
 
-export async function listMetricTemplates(): Promise<MetricTemplate[]> {
-  const res = await api.get('/metrics/templates/')
-  return unwrap<MetricTemplate[]>(res) ?? []
+/** 指标模板列表分页信封（与后端 StandardResultsSetPagination 对齐） */
+export interface TemplatePagination {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+/** 指标模板列表返回结构：全量拉取后由前端做客户端切片分页 */
+export interface TemplateListResult {
+  list: MetricTemplate[]
+  pagination: TemplatePagination
+}
+
+export async function listMetricTemplates(page = 1, pageSize = 200): Promise<TemplateListResult> {
+  const res = await api.get('/metrics/templates/', { params: { page, page_size: pageSize } })
+  const body = res?.data
+  if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
+    const data = (body.data as MetricTemplate[]) ?? []
+    const pagination: TemplatePagination = (body.pagination as TemplatePagination) ?? {
+      page: 1,
+      pageSize,
+      total: data.length,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    }
+    return { list: data, pagination }
+  }
+  const arr = Array.isArray(body) ? (body as MetricTemplate[]) : []
+  return {
+    list: arr,
+    pagination: {
+      page: 1,
+      pageSize,
+      total: arr.length,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }
 }
 
 export async function createMetricTemplate(payload: Partial<MetricTemplate>): Promise<MetricTemplate> {
