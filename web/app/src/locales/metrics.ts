@@ -267,6 +267,20 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.life2.confirmDisable': '仍要禁用',
   'metrics.life2.confirmDelete': '仍要删除',
   'metrics.life2.cancel': '取消',
+
+  // ===== LIFE-1：指标模板版本化 =====
+  'metrics.life1.versionColumn': '版本',
+  'metrics.life1.versionHistory': '版本历史',
+  'metrics.life1.versionCount': '历史版本 {n}',
+  'metrics.life1.rollback': '回滚到此版本',
+  'metrics.life1.rollbackSuccess': '已回滚至版本 {v}',
+  'metrics.life1.rollbackConfirm': '确定回滚到版本 {v} 吗？回滚后将生成一条新的版本记录',
+  'metrics.life1.changeKind.create': '创建',
+  'metrics.life1.changeKind.update': '修改',
+  'metrics.life1.changeKind.rollback': '回滚',
+  'metrics.life1.changeKind.import': '导入',
+  'metrics.life1.noVersions': '暂无版本历史',
+  'metrics.life1.deletedWithVersions': '已删除「{name}」（含 {n} 个历史版本）',
 }
 
 export const METRICS_EN: Record<string, string> = {
@@ -531,4 +545,18 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.life2.confirmDisable': 'Disable Anyway',
   'metrics.life2.confirmDelete': 'Delete Anyway',
   'metrics.life2.cancel': 'Cancel',
+
+  // ===== LIFE-1: Metric template versioning =====
+  'metrics.life1.versionColumn': 'Version',
+  'metrics.life1.versionHistory': 'Version History',
+  'metrics.life1.versionCount': '{n} versions',
+  'metrics.life1.rollback': 'Rollback to this version',
+  'metrics.life1.rollbackSuccess': 'Rolled back to version {v}',
+  'metrics.life1.rollbackConfirm': 'Roll back to version {v}? A new version record will be created',
+  'metrics.life1.changeKind.create': 'Created',
+  'metrics.life1.changeKind.update': 'Modified',
+  'metrics.life1.changeKind.rollback': 'Rollback',
+  'metrics.life1.changeKind.import': 'Imported',
+  'metrics.life1.noVersions': 'No version history',
+  'metrics.life1.deletedWithVersions': 'Deleted "{name}" (with {n} historical versions)',
 }

@@ -528,6 +528,48 @@
         </n-space>
       </template>
     </n-modal>
+
+    <!-- ========== LIFE-1：指标模板版本历史抽屉 ========== -->
+    <n-drawer
+      v-model:show="versionHistoryVisible"
+      :width="420"
+      placement="right"
+      :mask-closable="true"
+    >
+      <n-drawer-content :title="t('metrics.life1.versionHistory')" closable>
+        <div v-if="versionHistoryTarget" class="verh-meta">
+          <span class="verh-name">{{ versionHistoryTarget.name }}</span>
+          <span class="verh-count">{{ t('metrics.life1.versionCount', { n: versionHistoryTarget.versionCount ?? 0 }) }}</span>
+        </div>
+        <div v-if="!versionHistoryList.length" class="verh-empty">
+          <n-empty :description="t('metrics.life1.noVersions')" />
+        </div>
+        <div v-else class="verh-list">
+          <div v-for="v in versionHistoryList" :key="v.id" class="verh-card">
+            <div class="verh-card-head">
+              <span class="verh-version">v{{ v.version }}</span>
+              <n-tag size="small" :type="verhTagType(v.changeKind)">{{ life1ChangeKindLabel(v.changeKind) }}</n-tag>
+            </div>
+            <div v-if="v.changeNote" class="verh-note">{{ v.changeNote }}</div>
+            <div class="verh-foot">
+              <span class="verh-time">{{ formatTime(v.createdAt) }}</span>
+            </div>
+            <div class="verh-actions">
+              <n-button
+                size="small"
+                type="primary"
+                secondary
+                :loading="rollbackLoading && rollbackVersionNo === v.version"
+                :disabled="rollbackLoading"
+                @click="confirmRollback(versionHistoryTarget!, v.version)"
+              >
+                {{ t('metrics.life1.rollback') }}
+              </n-button>
+            </div>
+          </div>
+        </div>
+      </n-drawer-content>
+    </n-drawer>
   </div>
 </template>
 
@@ -556,6 +598,8 @@ import {
   NAlert,
   NButton,
   NDataTable,
+  NDrawer,
+  NDrawerContent,
   NInput,
   NInputNumber,
   NModal,
@@ -584,8 +628,11 @@ import {
   downloadTemplateTemplate,
   importMetricTemplates,
   getTemplateAffectedRules,
+  listTemplateVersions,
+  rollbackTemplateVersion,
   TemplateImportError,
   type TemplateAffectedRules,
+  type TemplateVersion,
   type TemplateImportMode,
   type AtomicMetric,
   type CandidateFieldPath,
@@ -618,6 +665,13 @@ const affectedTarget = ref<MetricTemplate | null>(null)
 const busyRowId = ref<string>('')
 /** 确认弹窗「仍要禁用/删除」按钮的 loading 态 */
 const affectedChecking = ref(false)
+
+// ===== LIFE-1：指标模板版本历史抽屉 =====
+const versionHistoryVisible = ref(false)
+const versionHistoryList = ref<TemplateVersion[]>([])
+const versionHistoryTarget = ref<MetricTemplate | null>(null)
+const rollbackLoading = ref(false)
+const rollbackVersionNo = ref<number | null>(null)
 
 // ===== 指标详情弹窗 =====
 const detailVisible = ref(false)
@@ -958,9 +1012,15 @@ const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
       ),
   },
   {
+    title: t('metrics.life1.versionColumn'),
+    key: 'version',
+    width: 80,
+    render: (row) => h('span', row.versionCount ? `${row.versionCount}` : '-'),
+  },
+  {
     title: t('metrics.col.action'),
     key: 'action',
-    width: 210,
+    width: 320,
     render: (row) =>
       h('div', { class: 'ws-row-actions' }, [
         h(NButton, { size: 'small', quaternary: true, onClick: () => openTemplateEdit(row) }, { default: () => t('metrics.btn.edit') }),
@@ -973,6 +1033,11 @@ const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
           NButton,
           { size: 'small', quaternary: true, type: 'error', loading: busyRowId.value === row.id, onClick: () => removeTemplate(row) },
           { default: () => t('metrics.btn.delete') },
+        ),
+        h(
+          NButton,
+          { size: 'small', quaternary: true, onClick: () => openVersionHistory(row) },
+          { default: () => t('metrics.life1.versionHistory') },
         ),
       ]),
   },
@@ -1231,7 +1296,7 @@ async function executeDeleteTemplate(row: MetricTemplate) {
   try {
     await deleteMetricTemplate(row.id)
     await load()
-    message.success(t('metrics.msg.deleted'), {
+    message.success(t('metrics.life1.deletedWithVersions', { name: row.name, n: row.versionCount ?? 0 }), {
       duration: 8000,
       action: {
         label: t('metrics.btn.undo'),
@@ -1320,6 +1385,60 @@ function formatCondition(operator: string, value: any): string {
   }
   const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
   return `${operator}: ${text}`
+}
+
+// ===== LIFE-1：版本历史抽屉交互 =====
+function life1ChangeKindLabel(kind: string): string {
+  const map: Record<string, string> = {
+    create: t('metrics.life1.changeKind.create'),
+    update: t('metrics.life1.changeKind.update'),
+    rollback: t('metrics.life1.changeKind.rollback'),
+    import: t('metrics.life1.changeKind.import'),
+  }
+  return map[kind] ?? kind
+}
+
+function verhTagType(kind: string): 'success' | 'info' | 'warning' | 'error' | 'default' {
+  if (kind === 'create') return 'success'
+  if (kind === 'rollback') return 'warning'
+  if (kind === 'import') return 'info'
+  return 'default'
+}
+
+function formatTime(iso?: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function openVersionHistory(row: MetricTemplate) {
+  versionHistoryTarget.value = row
+  versionHistoryVisible.value = true
+  versionHistoryList.value = []
+  try {
+    versionHistoryList.value = await listTemplateVersions(row.id)
+  } catch {
+    message.error(t('metrics.msg.loadFailed'))
+  }
+}
+
+async function confirmRollback(row: MetricTemplate, versionNo: number) {
+  rollbackLoading.value = true
+  rollbackVersionNo.value = versionNo
+  try {
+    await rollbackTemplateVersion(row.id, versionNo)
+    message.success(t('metrics.life1.rollbackSuccess', { v: versionNo }))
+    await load()
+    versionHistoryList.value = await listTemplateVersions(row.id)
+  } catch (error: any) {
+    const detail = error?.response?.data?.error
+    message.error(detail ? String(detail) : t('metrics.msg.saveFailed'))
+  } finally {
+    rollbackLoading.value = false
+    rollbackVersionNo.value = null
+  }
 }
 
 /** 确认执行（仍要禁用 / 仍要删除） */
@@ -1812,6 +1931,31 @@ onUnmounted(() => {
 .tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); }
 .tpl-step-field { width: 120px; margin-bottom: 0; }
 .tpl-step-field :deep(.n-form-item-label) { font-size: var(--fs-12); }
+
+/* LIFE-1 版本历史抽屉 */
+.verh-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.verh-name { font-weight: 600; color: var(--ink); }
+.verh-count { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
+.verh-empty { padding: var(--space-8) 0; display: flex; justify-content: center; }
+.verh-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.verh-card {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+}
+.verh-card-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.verh-version { font-weight: 600; color: var(--ink); }
+.verh-note { color: var(--ink-soft); font-size: var(--fs-12); line-height: 1.5; margin-bottom: var(--space-2); }
+.verh-foot { margin-bottom: var(--space-2); }
+.verh-time { color: var(--ink-faint); font-size: var(--fs-12); }
+.verh-actions { display: flex; justify-content: flex-end; }
 
 @media (max-width: 768px) {
   .tpl-section-hint { margin-left: 0; width: 100%; }

@@ -95,6 +95,23 @@ export interface MetricTemplate {
   paramAllowNull?: boolean
   status?: string
   description?: string
+  /** LIFE-1：当前版本号（语义变更自增，永不复用） */
+  version?: number
+  /** LIFE-1：版本历史条数（= version_count 属性） */
+  versionCount?: number
+}
+
+/** LIFE-1：指标模板版本快照（只读，不可经 API 增删改） */
+export interface TemplateVersion {
+  id: string
+  templateId: string
+  version: number
+  snapshot: Record<string, any>
+  changedFields: string[]
+  changeKind: 'create' | 'update' | 'rollback' | 'import'
+  changeNote: string
+  createdAt: string
+  createdBy?: string | null
 }
 
 export interface OptionItem {
@@ -349,6 +366,26 @@ export async function deleteMetricTemplate(id: string): Promise<void> {
 export async function getTemplateAffectedRules(id: string): Promise<TemplateAffectedRules> {
   const res = await api.get(`/metrics/templates/${id}/affected-rules/`)
   return unwrap<TemplateAffectedRules>(res)
+}
+
+/**
+ * LIFE-1：拉取某指标模板的版本历史（倒序快照列表）。
+ * 后端经 drf-camel-case 返回 camelCase；此处按 camelCase 字段名接收。
+ */
+export async function listTemplateVersions(templateId: string): Promise<TemplateVersion[]> {
+  const res = await api.get(`/metrics/templates/${templateId}/versions/`)
+  return unwrap<TemplateVersion[]>(res) ?? []
+}
+
+/**
+ * LIFE-1：将某指标模板回滚到指定历史版本（POST，body {version_no}）。
+ * 成功后模板 version+1 并追加一条 kind='rollback' 快照；缺失版本 -> 404、引用指标失效 -> 400。
+ */
+export async function rollbackTemplateVersion(templateId: string, versionNo: number): Promise<MetricTemplate> {
+  const res = await api.post(`/metrics/templates/${templateId}/versions/rollback/`, {
+    version_no: versionNo,
+  })
+  return unwrap<MetricTemplate>(res)
 }
 
 export async function listOperators(): Promise<OptionItem[]> {

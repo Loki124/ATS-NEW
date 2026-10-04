@@ -1,13 +1,16 @@
 """LIFE-2：指标模板禁用/删除前的受影响规则枚举（事前披露 + 确认闸门）。
 
 背景（P2 生命周期治理）：
-    指标模板（MetricTemplate）被规则引用有两种落点：
+    指标模板（MetricTemplate）被规则引用有四种落点（见 docs/ARCH_指标模板版本化_LIFE-1.md）：
       1. 进入条件（ORM）：entry_condition.ConditionItem，condition_type='METRIC'
          时 field 列存模板 id（字符串），通过 FK rule 归属 EntryConditionRule，
-         后者 FK link 到 process.ProcessStageLink。
+         后者 FK link 到 process.ProcessStageLink。（R1）
       2. 跳过/归档规则（JSON）：process.StageRule 的 skip_rules / archive_rules
          两个 JSONField，每条 rule 的 items[] 中 condition_type='METRIC' 的项，
-         field 存模板 id。
+         field 存模板 id。（R2）
+      3. 指标规则（JSON）：metrics.MetricRule 的 conditions 列表，每条条件形如
+         {templateId, operator, value, meta?}，templateId 存模板 id。
+         此前「受影响规则枚举」遗漏此路径，本模块补齐为 R3。（R3）
 
 目标：管理员在禁用/删除模板前，系统先枚举所有引用该模板的规则，供前端弹窗展示
 清单 + 处理建议，确认后再执行。
@@ -21,7 +24,7 @@
 from typing import Any, Dict, List
 
 from apps.entry_condition.models import ConditionItem, EntryConditionRule
-from apps.metrics.models import MetricTemplate
+from apps.metrics.models import MetricRule, MetricTemplate
 from apps.process.models import StageRule
 
 
@@ -55,7 +58,9 @@ def get_template_affected_rules(template_id: str) -> Dict[str, Any]:
 
     Returns:
         dict: 结构见下方组装逻辑，含 template_id / template_name /
-        template_status / total / entry_conditions / stage_rules。
+        template_status / total / entry_conditions / stage_rules / metric_rules。
+        metric_rules 为 R3 路径（指标规则 JSON）命中的规则列表，与 R1/R2 一并
+        合并计入 total（R3 内部按规则 id 去重）。
 
     Raises:
         MetricTemplate.DoesNotExist: 模板不存在时由 .get() 抛出，交由视图层返回 404。
@@ -139,7 +144,49 @@ def get_template_affected_rules(template_id: str) -> Dict[str, Any]:
                             **owner,
                         })
 
-    total = len(entry_conditions) + len(stage_rules)
+    # ===== 3. 指标规则（JSON 路径，R3） =====
+    # MetricRule.conditions 为 JSONField，每条条件形如
+    #   {templateId: <模板 id>, operator, value, meta?{min,max}}
+    # 与 R1/R2 一致以「模板 id」为命中键（兼容 template_id 拼写）。
+    # 同一规则可能多次引用该模板，按规则 id 去重（每条规则至多出现一次）。
+    metric_rules: List[Dict[str, Any]] = []
+    seen_rule_ids = set()
+    if MetricRule.objects.exists():
+        rule_qs = MetricRule.objects.all().order_by('name', 'created_at')
+        for mr in rule_qs:
+            conds = mr.conditions
+            if not isinstance(conds, list):
+                continue
+            matched_idx: List[int] = []
+            for idx, cond in enumerate(conds):
+                if not isinstance(cond, dict):
+                    continue
+                cond_tid = cond.get('templateId') or cond.get('template_id')
+                if cond_tid is not None and str(cond_tid) == tid:
+                    matched_idx.append(idx)
+            if not matched_idx:
+                continue
+            if mr.id in seen_rule_ids:
+                continue
+            seen_rule_ids.add(mr.id)
+            # 取首个命中条件用于展示 operator / value
+            first = conds[matched_idx[0]]
+            metric_rules.append({
+                'rule_id': str(mr.id),
+                'rule_name': mr.name,
+                'rule_scene': mr.scene,
+                'rule_status': mr.status,
+                'rule_enabled': bool(mr.enabled),
+                'action_type': mr.action_type,
+                'condition_index': matched_idx[0],
+                'matched_conditions': matched_idx,
+                'operator': first.get('operator') or '',
+                'value': first.get('value'),
+                'demand_id': str(mr.demand_id) if mr.demand_id else '',
+                'position_id': str(mr.position_id) if mr.position_id else '',
+            })
+
+    total = len(entry_conditions) + len(stage_rules) + len(metric_rules)
     return {
         'template_id': tid,
         'template_name': template.name,
@@ -148,4 +195,5 @@ def get_template_affected_rules(template_id: str) -> Dict[str, Any]:
         'total': total,
         'entry_conditions': entry_conditions,
         'stage_rules': stage_rules,
+        'metric_rules': metric_rules,
     }
