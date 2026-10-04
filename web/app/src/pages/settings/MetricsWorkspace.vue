@@ -43,7 +43,7 @@
               <n-data-table
                 v-else
                 :columns="defColumns"
-                :data="filteredDefinitions"
+                :data="pagedDefinitions"
                 :row-props="defRowProps"
               :scroll-x="860"
               :max-height="tableMaxHeight"
@@ -51,6 +51,17 @@
               class="ws-table"
               />
             </n-spin>
+            <div v-if="filteredDefinitions.length > 0" class="ws-pager">
+              <n-pagination
+                :page="defPage"
+                :page-size="defPageSize"
+                :item-count="filteredDefinitions.length"
+                :page-sizes="[10, 20, 50]"
+                show-size-picker
+                @update:page="(p: number) => (defPage = p)"
+                @update:page-size="(s: number) => { defPageSize = s; defPage = 1 }"
+              />
+            </div>
           </div>
         </n-tab-pane>
 
@@ -78,32 +89,15 @@
                 <span class="ws-result-count">{{ t('metrics.filter.resultCount', { count: filteredTemplates.length }) }}</span>
               </div>
               <div class="ws-io-bar">
-                <n-button tertiary size="small" :loading="downloadingTemplate" @click="onDownloadTemplateTemplate">
-                  {{ t('metrics.templateIo.downloadTemplate') }}
-                </n-button>
                 <n-button tertiary size="small" :loading="exporting" @click="onExportTemplates">
                   {{ t('metrics.templateIo.export') }}
                 </n-button>
-                <n-select
-                  v-model:value="importMode"
-                  :placeholder="t('metrics.templateIo.importMode')"
-                  :options="importModeOptions"
-                  class="ws-import-mode"
-                  size="small"
-                />
-                <n-button type="primary" secondary size="small" :loading="importing" @click="onImportClick">
+                <n-button tertiary size="small" @click="openImportModal">
                   {{ t('metrics.templateIo.import') }}
                 </n-button>
                 <n-button type="primary" size="small" @click="openTemplateCreate">
                   {{ t('metrics.btn.create') }}{{ t('metrics.tab.template') }}
                 </n-button>
-                <input
-                  ref="fileInputRef"
-                  type="file"
-                  accept=".xlsx,.csv"
-                  class="ws-hidden-file"
-                  @change="onFileSelected"
-                />
               </div>
             </div>
           </div>
@@ -141,6 +135,103 @@
         </n-tab-pane>
       </n-tabs>
     </div>
+
+    <!-- ========== 指标模板导入弹窗（下载模板 + 选择文件 + 导入 + 异常反馈一体化） ========== -->
+    <n-modal
+      v-model:show="importModalVisible"
+      preset="card"
+      :title="t('metrics.templateIo.modalTitle')"
+      style="width: 520px; max-width: 92vw;"
+      :mask-closable="!importing"
+      @after-leave="resetImportModal"
+    >
+      <div class="im-body">
+        <div class="im-row">
+          <span class="im-label">{{ t('metrics.templateIo.importMode') }}</span>
+          <n-select
+            v-model:value="importMode"
+            :options="importModeOptions"
+            size="small"
+            class="im-select"
+            :disabled="importing"
+          />
+        </div>
+
+        <div class="im-row">
+          <n-button tertiary size="small" :loading="downloadingTemplate" @click="onDownloadTemplateTemplate">
+            {{ t('metrics.templateIo.downloadTemplate') }}
+          </n-button>
+          <span class="im-hint">{{ t('metrics.templateIo.templateHint') }}</span>
+        </div>
+
+        <div class="im-divider" />
+
+        <div class="im-row">
+          <n-button size="small" :disabled="importing" @click="onPickFile">
+            {{ t('metrics.templateIo.pickFile') }}
+          </n-button>
+          <span class="im-file" :class="{ 'im-file-empty': !importFile }">
+            {{ importFile ? importFile.name : t('metrics.templateIo.noFile') }}
+          </span>
+        </div>
+
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept=".xlsx,.csv"
+          class="ws-hidden-file"
+          @change="onFileSelected"
+        />
+
+        <div v-if="importSuccessInfo" class="im-feedback">
+          <n-alert type="success" :show-icon="true" class="im-alert">
+            {{
+              t('metrics.templateIo.importSuccess', {
+                created: importSuccessInfo.created,
+                updated: importSuccessInfo.updated,
+                skipped: importSuccessInfo.skipped,
+              })
+            }}
+          </n-alert>
+        </div>
+
+        <div v-if="importModalErrors.length" class="im-feedback">
+          <n-alert type="error" :show-icon="true" class="im-alert">
+            <div class="im-err-title">{{ t('metrics.templateIo.importFailed') }}</div>
+            <ul class="im-err-list">
+              <li v-for="(msg, idx) in importModalErrors" :key="idx">{{ msg }}</li>
+            </ul>
+            <n-button
+              v-if="importErrorFile"
+              size="tiny"
+              text
+              type="error"
+              class="im-dl-btn"
+              @click="onDownloadErrorFile"
+            >
+              {{ t('metrics.templateIo.downloadErrorFile') }}
+            </n-button>
+          </n-alert>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="im-footer">
+          <n-button size="small" tertiary :disabled="importing" @click="importModalVisible = false">
+            {{ t('metrics.btn.cancel') }}
+          </n-button>
+          <n-button
+            type="primary"
+            size="small"
+            :disabled="!importFile"
+            :loading="importing"
+            @click="doImport"
+          >
+            {{ t('metrics.templateIo.runImport') }}
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- ========== 指标定义详情弹窗（居中，只读） ========== -->
     <n-modal
@@ -800,6 +891,21 @@ const filteredDefinitions = computed<MetricDefinition[]>(() => {
   })
 })
 
+/** 指标定义列表客户端分页状态 */
+const defPage = ref(1)
+const defPageSize = ref(20)
+
+/** 对过滤后的指标定义做客户端切片分页 */
+const pagedDefinitions = computed<MetricDefinition[]>(() => {
+  const start = (defPage.value - 1) * defPageSize.value
+  return filteredDefinitions.value.slice(start, start + defPageSize.value)
+})
+
+/** 搜索关键词 / 分类筛选变化时重置到第 1 页 */
+watch([defKeyword, defKind], () => {
+  defPage.value = 1
+})
+
 // ===== 指标模板：搜索 + 状态筛选 =====
 const tplKeyword = ref('')
 const tplStatus = ref<'all' | 'enabled' | 'disabled'>('all')
@@ -816,6 +922,16 @@ const importing = ref(false)
 const exporting = ref(false)
 const downloadingTemplate = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+/** 导入弹窗：可见性 + 暂存的待导入文件 */
+const importModalVisible = ref(false)
+const importFile = ref<File | null>(null)
+/** 弹窗内反馈区：异常明细 */
+const importModalErrors = ref<string[]>([])
+/** 弹窗内反馈区：错误报告（base64 xlsx），有值时展示「下载错误报告」按钮 */
+const importErrorFile = ref<string | null>(null)
+/** 弹窗内反馈区：成功三计数（新建 / 更新 / 跳过） */
+const importSuccessInfo = ref<{ created: number; updated: number; skipped: number } | null>(null)
 
 const importModeOptions = computed<OptionItem[]>(() => [
   { label: t('metrics.templateIo.mode.skip'), value: 'skip' },
@@ -835,8 +951,11 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-/** base64（xlsx）转 Blob 并下载（导入失败错误报告） */
-function downloadBase64(base64: string, filename: string) {
+/**
+ * base64（xlsx）转 Blob 并下载（导入失败错误报告）。
+ * 成功返回 true；失败返回 false，由调用方决定呈现方式（此处由导入弹窗反馈区承接）。
+ */
+function downloadBase64(base64: string, filename: string): boolean {
   try {
     const byteChars = atob(base64)
     const byteNumbers = new Array(byteChars.length)
@@ -845,18 +964,22 @@ function downloadBase64(base64: string, filename: string) {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
     downloadBlob(blob, filename)
+    return true
   } catch {
-    message.error(t('metrics.templateIo.importFailed'))
+    return false
   }
 }
 
 async function onDownloadTemplateTemplate() {
   downloadingTemplate.value = true
+  importModalErrors.value = []
+  importSuccessInfo.value = null
   try {
     const blob = await downloadTemplateTemplate('xlsx')
     downloadBlob(blob, 'metrics_templates_template.xlsx')
   } catch {
-    message.error(t('metrics.templateIo.importFailed'))
+    // 异常反馈收敛到导入弹窗内，不再走全局 toast
+    importModalErrors.value = [t('metrics.templateIo.downloadFailed')]
   } finally {
     downloadingTemplate.value = false
   }
@@ -874,36 +997,76 @@ async function onExportTemplates() {
   }
 }
 
-function onImportClick() {
+/** 打开导入弹窗（先清空上一轮的反馈与暂存文件） */
+function openImportModal() {
+  resetImportModal()
+  importModalVisible.value = true
+}
+
+/** 清空弹窗内的暂存文件与反馈区（关闭时 / 再次打开时均会调用，幂等） */
+function resetImportModal() {
+  importFile.value = null
+  importModalErrors.value = []
+  importErrorFile.value = null
+  importSuccessInfo.value = null
+  const input = fileInputRef.value
+  if (input) input.value = ''
+}
+
+/** 触发弹窗内隐藏的 file input */
+function onPickFile() {
   fileInputRef.value?.click()
 }
 
-async function onFileSelected(e: Event) {
+/** 选择文件：仅暂存到 importFile，不自动上传 —— 由用户点「开始导入」执行 */
+function onFileSelected(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   // 复位，保证同一文件可重复选择触发 change
   input.value = ''
   if (!file) return
+  importFile.value = file
+  importModalErrors.value = []
+  importErrorFile.value = null
+  importSuccessInfo.value = null
+}
+
+/** 下载导入错误报告（失败信息同样写入弹窗反馈区） */
+function onDownloadErrorFile() {
+  if (!importErrorFile.value) return
+  const ok = downloadBase64(importErrorFile.value, 'metrics_templates_import_errors.xlsx')
+  if (!ok) {
+    importModalErrors.value = [...importModalErrors.value, t('metrics.templateIo.downloadErrorFileFailed')]
+  }
+}
+
+/** 执行导入：结果/异常全部呈现在弹窗反馈区，不使用全局 toast */
+async function doImport() {
+  const file = importFile.value
+  if (!file || importing.value) return
   importing.value = true
+  importModalErrors.value = []
+  importErrorFile.value = null
+  importSuccessInfo.value = null
   try {
     const result = await importMetricTemplates(file, importMode.value)
-    message.success(
-      t('metrics.templateIo.importSuccess', {
-        created: result.created,
-        updated: result.updated,
-        skipped: result.skipped,
-      }),
-    )
+    importSuccessInfo.value = {
+      created: result.created,
+      updated: result.updated,
+      skipped: result.skipped,
+    }
+    // 导入成功后清空已选文件（含原生 input），使「开始导入」自动置灰，杜绝重复导入
+    importFile.value = null
+    if (fileInputRef.value) fileInputRef.value.value = ''
     await load()
   } catch (err: any) {
     if (err instanceof TemplateImportError && err.report) {
       const { errors, errorFile } = err.report
-      message.error((errors || []).join('；') || t('metrics.templateIo.importFailed'))
-      if (errorFile) {
-        downloadBase64(errorFile, 'metrics_templates_import_errors.xlsx')
-      }
+      importModalErrors.value =
+        errors && errors.length ? errors : [t('metrics.templateIo.importFailed')]
+      if (errorFile) importErrorFile.value = errorFile
     } else {
-      message.error(t('metrics.templateIo.importFailed'))
+      importModalErrors.value = [t('metrics.templateIo.importFailed')]
     }
   } finally {
     importing.value = false
@@ -1584,6 +1747,9 @@ async function load() {
     if (tplPage.value > Math.max(1, Math.ceil(filteredTemplates.value.length / tplPageSize.value))) {
       tplPage.value = 1
     }
+    if (defPage.value > Math.max(1, Math.ceil(filteredDefinitions.value.length / defPageSize.value))) {
+      defPage.value = 1
+    }
     try {
       fieldPaths.value = await listCandidateFields()
     } catch {
@@ -1752,7 +1918,6 @@ onUnmounted(() => {
   gap: var(--space-2);
   flex-wrap: wrap;
 }
-.ws-import-mode { flex: 0 0 140px; }
 .ws-hidden-file { display: none; }
 
 /* ===== 数据表（替代卡片网格） ===== */
@@ -2068,13 +2233,42 @@ onUnmounted(() => {
 .verh-changed-empty { color: var(--ink-faint); font-size: var(--fs-12); }
 .verh-snap { margin-bottom: var(--space-3); }
 
-/* 指标模板列表分页控件 */
+/* 指标模板列表 / 指标定义列表分页控件 */
 .ws-pager {
   flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   padding: var(--space-3) 0 0;
 }
+
+/* ===== 导入弹窗（下载模板 + 选择文件 + 导入 + 异常反馈一体化） ===== */
+.im-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.im-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.im-label { color: var(--ink-soft); font-size: var(--fs-13); flex-shrink: 0; }
+.im-select { flex: 1 1 200px; max-width: 260px; }
+.im-hint { color: var(--ink-faint); font-size: var(--fs-12); line-height: 1.5; flex: 1 1 auto; }
+.im-divider { height: 1px; background: var(--border-hairline); }
+.im-file {
+  color: var(--ink);
+  font-size: var(--fs-13);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+.im-file-empty { color: var(--ink-faint); }
+.im-feedback { margin-top: var(--space-1); }
+.im-alert :deep(.n-alert-body) { align-items: flex-start; }
+.im-err-title { font-size: var(--fs-13); color: var(--ink-strong); }
+.im-err-list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  color: var(--ink-soft);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+.im-dl-btn { margin-top: var(--space-2); }
+.im-footer { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 @media (max-width: 768px) {
   .tpl-section-hint { margin-left: 0; width: 100%; }

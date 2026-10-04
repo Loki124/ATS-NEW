@@ -249,6 +249,13 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.templateIo.importSuccess': '导入完成：新建 {created} / 更新 {updated} / 跳过 {skipped}',
   'metrics.templateIo.importFailed': '导入失败',
   'metrics.templateIo.downloadErrorFile': '下载错误报告',
+  'metrics.templateIo.modalTitle': '导入指标模板',
+  'metrics.templateIo.pickFile': '选择文件',
+  'metrics.templateIo.noFile': '未选择文件',
+  'metrics.templateIo.runImport': '开始导入',
+  'metrics.templateIo.downloadFailed': '下载模板失败',
+  'metrics.templateIo.downloadErrorFileFailed': '错误报告下载失败',
+  'metrics.templateIo.templateHint': '首次导入建议先下载模板，按模板格式填写后再导入',
 
   // ===== LIFE-2：指标模板禁用/删除前的受影响规则披露（事前披露 + 确认闸门） =====
   'metrics.life2.affectedTitle': '该指标模板被以下规则引用',
@@ -545,6 +552,13 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.templateIo.importSuccess': 'Import done: created {created} / updated {updated} / skipped {skipped}',
   'metrics.templateIo.importFailed': 'Import failed',
   'metrics.templateIo.downloadErrorFile': 'Download error report',
+  'metrics.templateIo.modalTitle': 'Import Metric Templates',
+  'metrics.templateIo.pickFile': 'Choose file',
+  'metrics.templateIo.noFile': 'No file selected',
+  'metrics.templateIo.runImport': 'Start import',
+  'metrics.templateIo.downloadFailed': 'Failed to download template',
+  'metrics.templateIo.downloadErrorFileFailed': 'Failed to download error report',
+  'metrics.templateIo.templateHint': 'Download the template first, fill it in, then import',
 
   // ===== LIFE-2: Affected-rule disclosure before disabling/deleting a metric template =====
   'metrics.life2.affectedTitle': 'This metric template is referenced by the following rules',
