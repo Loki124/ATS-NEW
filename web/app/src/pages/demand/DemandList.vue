@@ -1217,9 +1217,12 @@ const handleSave = async () => {
       message.success('创建成功')
     }
 
-    // 扩展字段走权威动态值接口落库
+    // 扩展字段走权威动态值接口落库; 若后端返回 skipped(字段定义已不存在), 明确提示, 避免静默丢数据。
     if (demandId && Object.keys(dyn).length) {
-      await saveDynamicFieldValues('Demand', demandId, dyn)
+      const sv: any = await saveDynamicFieldValues('Demand', demandId, dyn)
+      if (sv && Array.isArray(sv.skipped) && sv.skipped.length) {
+        message.warning(`部分字段未保存(字段定义缺失): ${sv.skipped.join('、')}`)
+      }
     }
 
     modalVisible.value = false
@@ -1290,10 +1293,10 @@ onUnmounted(() => {
   flex: 1;
 }
 
-/* 卡片网格 */
+/* 卡片网格 —— 单列垂直: 每个需求卡片独占整行宽度 */
 .demand-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-4);
 }
 
@@ -1462,10 +1465,10 @@ onUnmounted(() => {
   margin-top: var(--space-4);
 }
 
-/* 加载骨架 */
+/* 加载骨架 —— 与卡片网格同源单列 */
 .demand-skeleton {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-4);
 }
 

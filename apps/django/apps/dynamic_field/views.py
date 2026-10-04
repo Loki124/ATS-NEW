@@ -25,11 +25,42 @@ import json
 
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
+from djangorestframework_camel_case.util import camel_to_underscore
 from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+def _field_key_aliases(field_key: str) -> set[str]:
+    """返回某个 field_key 在入站 JSON body 里可能出现的全部拼写。
+
+    项目全局启用了 ``CamelCaseJSONParser`` (config/settings/base.py), 它会把请求体里
+    **所有** dict 的 key 做 camelCase → snake_case 转换, 包括 ``values`` 字典里的 key。
+    但 ``values`` 的 key 是「业务数据」(DynamicField.field_key), 不是属性名, 不该被转换。
+    形如 ``f_f0jbjf27`` 的 key 因「字母紧邻数字」会被插下划线变成 ``f_f0jbjf_27``
+    (``employment_type`` / ``salary_budget`` 这类不含该模式的 key 不受影响)。
+    后端若只按原始 key 匹配, 这类字段必然 miss → 被静默跳过 → 表现为
+    「填写保存后详情/编辑都不回显」(且旧返回体把跳过项也算进 saved, 形成假成功)。
+    这里把「原始 key」与「被 parser 转换后的 key」都登记为别名, 使两种拼写都能命中。
+    """
+    aliases = {field_key}
+    # camel_to_underscore 是纯字符串函数, 与 parser 内部对单个 key 的转换规则一致,
+    # 且不需要捕获异常(避免盲 except)。
+    converted = camel_to_underscore(field_key)
+    if converted != field_key:
+        aliases.add(converted)
+    return aliases
+
+
+def _build_field_map(field_qs) -> dict[str, object]:
+    """构建 field_key → DynamicField 映射, 同时索引 parser 转换后的拼写。"""
+    mapping: dict[str, object] = {}
+    for f in field_qs:
+        for alias in _field_key_aliases(f.field_key):
+            mapping.setdefault(alias, f)
+    return mapping
+
 
 from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule, DynamicFieldValue
 from .serializers import (
@@ -455,7 +486,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 {'success': False, 'message': 'values 必须为对象 {fieldKey: value}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        fields = {f.field_key: f for f in self.get_queryset().filter(resource=resource)}
+        fields = _build_field_map(self.get_queryset().filter(resource=resource))
         result: dict[str, list[str]] = {}
         for fk, val in incoming.items():
             f = fields.get(fk)
@@ -481,7 +512,8 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
         POST /dynamic-fields/<resource>/fields/values/  { entity_id, values: {fieldKey: value} }
             录入提交落库: 先按资源字段定义 + validation 做服务端权威校验,
             任一字段不通过 → 400 带 ``errors`` (逐字段错误); 全通过 → upsert 到 DynamicFieldValue。
-            未定义的 fieldKey 跳过 (不落库也不报错)。
+            返回 ``{ success, saved, skipped }``: ``saved`` = 实际落库条数 (非传入条数),
+            ``skipped`` = 因字段定义不存在/已软删而未落库的 key 列表 (如实暴露, 避免假成功)。
         """
         resource = self.get_resource()
         if request.method == 'GET':
@@ -509,7 +541,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        fields = {f.field_key: f for f in self.get_queryset().filter(resource=resource)}
+        fields = _build_field_map(self.get_queryset().filter(resource=resource))
         errors: dict[str, list[str]] = {}
         for fk, val in incoming.items():
             f = fields.get(fk)
@@ -524,14 +556,24 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        written = 0
+        skipped: list[str] = []
         for fk, val in incoming.items():
-            if fk not in fields:
+            f = fields.get(fk)
+            if f is None:
+                # 字段定义不存在/已软删: 静默跳过会丢失录入数据且返回假成功,
+                # 这里如实记录 skipped, 调用方据此感知(详见下方返回体)。
+                skipped.append(fk)
                 continue
+            # 必须用字段定义的原始 field_key 落库: 入站 fk 可能已被 CamelCaseJSONParser
+            # 改写(如 f_f0jbjf27 → f_f0jbjf_27), 直接落会把脏 key 写进库, 后续再也读不到。
             DynamicFieldValue.objects.update_or_create(
-                resource=resource, entity_id=entity_id, field_key=fk,
+                resource=resource, entity_id=entity_id, field_key=f.field_key,
                 defaults={'value': val},
             )
-        return Response({'success': True, 'saved': len(incoming)})
+            written += 1
+        # 真实落库条数, 不把被跳过的未知 key 计入 saved (避免假成功掩盖数据丢失)
+        return Response({'success': True, 'saved': written, 'skipped': skipped})
 
     # --- 导入 / 导出 -----------------------------------------------------------
 
