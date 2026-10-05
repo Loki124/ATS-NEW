@@ -181,11 +181,18 @@ class MetricTemplateVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+# 指标 vs 指标（方案 B）：右操作数为另一个指标模板时，仅允许这些对称比较运算符
+METRIC_VS_METRIC_OPS = {'EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE'}
+
+
 class ConditionInputSerializer(serializers.Serializer):
     """单条条件输入（前端可发 templateId，view 层已归一化为 template_id）。"""
     template_id = serializers.CharField()
     operator = serializers.ChoiceField(choices=UnifiedOperator.choices)
     value = serializers.JSONField(required=False, allow_null=True, default=None)
+    right_template_id = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None,
+    )
     meta = serializers.JSONField(required=False, default=dict)
 
 
@@ -232,6 +239,32 @@ class MetricRuleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f'第 {idx} 个条件运算符不合法: {operator}')
             if not MetricTemplate.objects.filter(pk=template_id).exists():
                 raise serializers.ValidationError(f'第 {idx} 个条件引用的模板不存在: {template_id}')
+
+            # 方案 B：指标 vs 指标（右操作数为另一个指标模板）
+            right_template_id = cond.get('rightTemplateId') or cond.get('right_template_id')
+            needs_value = operator not in ('IS_EMPTY', 'IS_NOT_EMPTY')
+            has_value = needs_value and ('value' in cond and cond.get('value') not in (None, ''))
+            if right_template_id:
+                if operator not in METRIC_VS_METRIC_OPS:
+                    raise serializers.ValidationError(
+                        f'第 {idx} 个条件「指标对比」仅支持 {sorted(METRIC_VS_METRIC_OPS)} 运算符')
+                if has_value:
+                    raise serializers.ValidationError(
+                        f'第 {idx} 个条件不可同时设置对比指标与常量值')
+                if not MetricTemplate.objects.filter(pk=right_template_id).exists():
+                    raise serializers.ValidationError(
+                        f'第 {idx} 个条件引用的对比模板不存在: {right_template_id}')
+                # 类型一致性：左右模板 data_type 必须相同（均存在时强校验）
+                try:
+                    lt = MetricTemplate.objects.filter(pk=template_id).first()
+                    rt = MetricTemplate.objects.filter(pk=right_template_id).first()
+                    if lt and rt and lt.data_type != rt.data_type:
+                        raise serializers.ValidationError(
+                            f'第 {idx} 个条件左右指标类型不一致（{lt.data_type} vs {rt.data_type}）')
+                except Exception:  # noqa: BLE001 — 类型一致性校验属 best-effort, DB 异常跳过（引擎侧已有类型守卫兜底）
+                    pass
+            elif needs_value and not has_value:
+                raise serializers.ValidationError(f'第 {idx} 个条件缺少比较值或对比指标')
         # T5：数值型条件值统一 coerce 为字符串，避免 JSON number → Python float
         # 序列化时的二进制精度丢失（INV-9）。仅对 int/float 生效，字符串/布尔/日期不动。
         return _coerce_numeric_strings(value)

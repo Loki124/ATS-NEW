@@ -107,6 +107,10 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.rule.stepFail': 'FAIL',
   'metrics.rule.step': '步骤',
   'metrics.rule.deleteCondition': '删除条件',
+  'metrics.rule.mode.value': '常量值',
+  'metrics.rule.mode.metric': '对比指标',
+  'metrics.rule.rightTemplate': '对比指标模板',
+  'metrics.rule.compareMetricHint': '「对比指标」模式下右值取自另一指标模板，仅支持 = ≠ > ≥ < ≤，且左右指标类型须一致',
 
   'metrics.msg.created': '创建成功',
   'metrics.msg.deleted': '删除成功',
@@ -410,6 +414,10 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.rule.stepFail': 'FAIL',
   'metrics.rule.step': 'Step',
   'metrics.rule.deleteCondition': 'Delete condition',
+  'metrics.rule.mode.value': 'Constant',
+  'metrics.rule.mode.metric': 'Compare Metric',
+  'metrics.rule.rightTemplate': 'Compare Template',
+  'metrics.rule.compareMetricHint': 'In "Compare Metric" mode the right value comes from another metric template; only = ≠ > ≥ < ≤ supported, and both sides must share the same data type',
 
   'metrics.msg.created': 'Created',
   'metrics.msg.deleted': 'Deleted',

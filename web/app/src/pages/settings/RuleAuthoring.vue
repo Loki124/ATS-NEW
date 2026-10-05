@@ -62,16 +62,32 @@
                   :placeholder="t('metrics.rule.template')"
                   @update:value="onTemplateChange(cond)"
                 />
+                <n-radio-group v-model:value="cond.compareMode" size="small" class="ra-mode" @update:value="onCompareModeChange(cond)">
+                  <n-radio-button value="value">{{ t('metrics.rule.mode.value') }}</n-radio-button>
+                  <n-radio-button value="metric">{{ t('metrics.rule.mode.metric') }}</n-radio-button>
+                </n-radio-group>
                 <n-select
                   v-model:value="cond.operator"
                   :options="operatorOptionsFor(cond)"
                   class="ra-operator"
                   :placeholder="t('metrics.rule.operator')"
                 />
-                <n-input v-model:value="cond.value" class="ra-value" :placeholder="t('metrics.rule.value')" />
+                <template v-if="cond.compareMode === 'metric'">
+                  <n-select
+                    v-model:value="cond.rightTemplateId"
+                    :options="rightTemplateOptionsFor(cond)"
+                    class="ra-value"
+                    filterable
+                    :placeholder="t('metrics.rule.rightTemplate')"
+                  />
+                </template>
+                <template v-else>
+                  <n-input v-model:value="cond.value" class="ra-value" :placeholder="t('metrics.rule.value')" />
+                </template>
                 <span class="ra-unit">{{ unitOf(cond) || '-' }}</span>
                 <n-button size="small" quaternary type="error" @click="removeCondition(idx)">{{ t('metrics.btn.delete') }}</n-button>
               </div>
+              <p class="ra-cond-hint">{{ t('metrics.rule.compareMetricHint') }}</p>
               <div class="ra-actions">
                 <n-button type="primary" :loading="executing" :disabled="!canExecute" @click="execute">
                   {{ executing ? t('metrics.btn.executing') : t('metrics.btn.execute') }}
@@ -179,6 +195,8 @@ import { useRoute } from 'vue-router'
 import {
   NButton,
   NPopconfirm,
+  NRadioButton,
+  NRadioGroup,
   NSwitch,
   NTag,
   useMessage,
@@ -217,7 +235,10 @@ const ruleId = ref('')
 const ruleName = ref('')
 const ruleScene = ref<MetricRuleScene>('MANUAL')
 const actionType = ref<'VETO' | 'DEDUCT' | 'BONUS'>('DEDUCT')
-const conditions = ref<any[]>([{ templateId: null, operator: null, value: '' }])
+const conditions = ref<any[]>([{ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null }])
+
+/** 方案 B：指标 vs 指标时右操作数仅放行的关系运算符（单标量比较语义） */
+const METRIC_VS_METRIC_OPS = ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE']
 const result = ref<ExecuteResult | null>(null)
 const executing = ref(false)
 const saving = ref(false)
@@ -255,7 +276,11 @@ const sceneOptions = computed(() => [
 const actionTypeOptions = ACTION_TYPE_OPTIONS
 
 const canExecute = computed(() => {
-  if (!conditions.value.some((c) => c.templateId && c.operator)) return false
+  if (!conditions.value.some((c) => {
+    if (!c.templateId || !c.operator) return false
+    if (c.compareMode === 'metric' && !c.rightTemplateId) return false
+    return true
+  })) return false
   if (dataMode.value === 'real' && !realData.value?.candidate) return false
   return true
 })
@@ -264,16 +289,55 @@ const currentData = computed(() => (dataMode.value === 'real' ? realData.value :
 
 function operatorOptionsFor(cond: any) {
   const tp = templateList.value.find((x) => x.id === cond.templateId)
-  const allowed = tp?.operators || []
+  let allowed = tp?.operators || []
+  // 方案 B：对比指标模式收窄到关系运算符子集（前后端双重拦截）
+  if (cond.compareMode === 'metric') {
+    allowed = allowed.filter((op: string) => METRIC_VS_METRIC_OPS.includes(op))
+  }
   return operatorCatalog.value
     .filter((op) => allowed.includes(op.value))
     .map((op) => ({ label: op.label, value: op.value }))
+}
+
+/** 右模板下拉：排除自身 + 仅同 data_type（类型不一致后端必降级，前端提前拦截） */
+function rightTemplateOptionsFor(cond: any) {
+  const left = templateList.value.find((x) => x.id === cond.templateId)
+  return templateOptions.value.filter((o) => {
+    const tp = templateList.value.find((x) => x.id === o.value)
+    if (!tp) return false
+    if (tp.id === cond.templateId) return false
+    if (left && tp.dataType && left.dataType && tp.dataType !== left.dataType) return false
+    return true
+  })
 }
 
 function onTemplateChange(cond: any) {
   const options = operatorOptionsFor(cond)
   if (!options.some((o) => o.value === cond.operator)) {
     cond.operator = options.length ? options[0].value : null
+  }
+  // 切换左模板后，右模板若类型不再匹配则清空
+  if (cond.compareMode === 'metric' && cond.rightTemplateId) {
+    const right = templateList.value.find((x) => x.id === cond.rightTemplateId)
+    if (right && leftDataTypeMismatch(cond, right)) cond.rightTemplateId = null
+  }
+}
+
+function leftDataTypeMismatch(cond: any, right: any) {
+  const left = templateList.value.find((x) => x.id === cond.templateId)
+  return !!(left && right && left.dataType && right.dataType && left.dataType !== right.dataType)
+}
+
+function onCompareModeChange(cond: any) {
+  const options = operatorOptionsFor(cond)
+  if (!options.some((o) => o.value === cond.operator)) {
+    cond.operator = options.length ? options[0].value : null
+  }
+  // 切换模式时清空对侧字段，避免同时携带常量值与对比模板（后端会拒绝）
+  if (cond.compareMode === 'metric') {
+    cond.value = ''
+  } else {
+    cond.rightTemplateId = null
   }
 }
 
@@ -282,11 +346,11 @@ function unitOf(cond: any) {
 }
 
 function addCondition() {
-  conditions.value.push({ templateId: null, operator: null, value: '' })
+  conditions.value.push({ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null })
 }
 function removeCondition(index: number) {
   conditions.value.splice(index, 1)
-  if (!conditions.value.length) conditions.value.push({ templateId: null, operator: null, value: '' })
+  if (!conditions.value.length) conditions.value.push({ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null })
 }
 
 async function loadSnapshot() {
@@ -317,7 +381,16 @@ async function execute() {
     const payload = {
       conditions: conditions.value
         .filter((c) => c.templateId && c.operator)
-        .map((c) => ({ templateId: c.templateId, operator: c.operator, value: c.value })),
+        .map((c) => {
+          const item: any = { templateId: c.templateId, operator: c.operator }
+          // 方案 B：对比指标模式携带 rightTemplateId，不携带常量值
+          if (c.compareMode === 'metric') {
+            item.rightTemplateId = c.rightTemplateId
+          } else {
+            item.value = c.value
+          }
+          return item
+        }),
       logic: 'AND',
       data: currentData.value,
     }
@@ -337,12 +410,17 @@ async function loadRuleIntoAuthor(id: string) {
     ruleName.value = rule.name
     ruleScene.value = rule.scene
     actionType.value = (rule.actionType || 'DEDUCT') as 'VETO' | 'DEDUCT' | 'BONUS'
-    conditions.value = (rule.conditions || []).map((c: any) => ({
-      templateId: c.templateId,
-      operator: c.operator,
-      value: c.value ?? '',
-    }))
-    if (!conditions.value.length) conditions.value = [{ templateId: null, operator: null, value: '' }]
+    conditions.value = (rule.conditions || []).map((c: any) => {
+      const isMetric = !!c.rightTemplateId
+      return {
+        templateId: c.templateId,
+        operator: c.operator,
+        value: isMetric ? '' : (c.value ?? ''),
+        compareMode: isMetric ? 'metric' : 'value',
+        rightTemplateId: c.rightTemplateId || null,
+      }
+    })
+    if (!conditions.value.length) conditions.value = [{ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null }]
     demandId.value = rule.demandId || ''
     positionId.value = rule.positionId || ''
     result.value = null
@@ -389,11 +467,17 @@ function persistConditions(list: any[]): any[] {
   return list
     .filter((c) => c.templateId && c.operator)
     .map((c) => {
-      const cond: any = { templateId: c.templateId, operator: c.operator, value: c.value }
-      if (c.operator === 'IN' || c.operator === 'NOT_IN') {
-        if (Array.isArray(c.value)) cond.value = c.value.map((v: any) => (typeof v === 'number' ? String(v) : v))
-      } else if (typeof c.value === 'number') {
-        cond.value = String(c.value)
+      const cond: any = { templateId: c.templateId, operator: c.operator }
+      // 方案 B：对比指标模式只写 rightTemplateId，不写常量值（后端互斥校验）
+      if (c.compareMode === 'metric') {
+        cond.rightTemplateId = c.rightTemplateId
+      } else {
+        cond.value = c.value
+        if (c.operator === 'IN' || c.operator === 'NOT_IN') {
+          if (Array.isArray(c.value)) cond.value = c.value.map((v: any) => (typeof v === 'number' ? String(v) : v))
+        } else if (typeof c.value === 'number') {
+          cond.value = String(c.value)
+        }
       }
       return cond
     })
@@ -404,7 +488,7 @@ function newRule() {
   ruleName.value = ''
   ruleScene.value = 'MANUAL'
   actionType.value = 'DEDUCT'
-  conditions.value = [{ templateId: null, operator: null, value: '' }]
+  conditions.value = [{ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null }]
   demandId.value = ''
   positionId.value = ''
   result.value = null
@@ -553,8 +637,10 @@ onMounted(async () => {
 .ra-cond-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .ra-index { width: 24px; text-align: center; font-size: 13px; color: var(--color-text-secondary, #6b7280); }
 .ra-template { flex: 1 1 220px; min-width: 180px; }
+.ra-mode { flex: 0 0 auto; }
 .ra-operator { flex: 0 0 140px; }
 .ra-value { flex: 0 0 140px; }
+.ra-cond-hint { margin: 0 0 4px; font-size: 12px; color: var(--color-text-secondary, #6b7280); line-height: 1.4; }
 .ra-unit { flex: 0 0 48px; font-size: 13px; color: var(--color-text-secondary, #6b7280); }
 .ra-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
 .ra-empty { font-size: 13px; color: var(--color-text-secondary, #6b7280); padding: 8px 0; }

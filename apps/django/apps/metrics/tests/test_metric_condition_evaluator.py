@@ -165,3 +165,108 @@ def test_between_via_meta():
     )
     assert res['pass'] is True
     assert res['degraded'] is False
+
+
+# ---------------------------------------------------------------------------
+# 方案 B：指标 vs 指标（rightTemplateId 右操作数）
+# ---------------------------------------------------------------------------
+def _make_position_template(name, source_path, data_type='number', operators=None):
+    """建 position.* 原子指标 + 模板（用于画像对比）。"""
+    metric = AtomicMetric.objects.create(
+        name=f'pos_{name}_{_cid()}', source_path=source_path, data_type=data_type,
+    )
+    return MetricTemplate.objects.create(
+        name=f'pos_{name}_{_cid()}', atomic_metric=metric,
+        operators=operators or ['GT', 'GTE', 'LT', 'LTE', 'EQ', 'NEQ', 'IS_EMPTY', 'IS_NOT_EMPTY'],
+    )
+
+
+def _exec_mv_m(left_tpl, right_tpl, data, operator='LTE'):
+    return MetricEngine.execute(
+        [{'templateId': left_tpl.id, 'operator': operator, 'rightTemplateId': right_tpl.id}],
+        data,
+    )
+
+
+@pytest.mark.django_db
+def test_metric_vs_metric_hit():
+    """指标 vs 指标命中：candidate.age(32) <= position.salary_max(50) → pass True。"""
+    left = _make_atomic_template('候选年龄', 'candidate.age', 'number', ['GT', 'GTE', 'LT', 'LTE'])
+    right = _make_position_template('职位薪资上限', 'position.salary_max', 'number')
+    data = {'candidate': {'age': 32}, 'position': {'salary_max': 50}}
+    res = _exec_mv_m(left, right, data)
+    step = res['steps'][0]
+    assert res['pass'] is True
+    assert step['degraded'] is False
+    assert step['actual'] == 32
+    assert step['expected'] == right.name  # metric-vs-metric 右值展示为对比模板名
+
+
+@pytest.mark.django_db
+def test_metric_vs_metric_miss():
+    """指标 vs 指标未命中：candidate.age(32) > position.salary_max(20) → pass False。"""
+    left = _make_atomic_template('候选年龄', 'candidate.age', 'number', ['GT', 'GTE', 'LT', 'LTE'])
+    right = _make_position_template('职位薪资上限', 'position.salary_max', 'number')
+    data = {'candidate': {'age': 32}, 'position': {'salary_max': 20}}
+    res = _exec_mv_m(left, right, data)
+    step = res['steps'][0]
+    assert res['pass'] is False
+    assert step['degraded'] is False
+
+
+@pytest.mark.django_db
+def test_metric_vs_metric_type_mismatch_degraded():
+    """类型不一致（number vs string）→ 降级 degraded=True + pass False。"""
+    left = _make_atomic_template('候选年龄', 'candidate.age', 'number', ['GT', 'GTE', 'LT', 'LTE'])
+    right = _make_position_template('职位职级', 'position.level', 'string', ['EQ', 'NEQ'])
+    data = {'candidate': {'age': 32}, 'position': {'level': 'P6'}}
+    res = _exec_mv_m(left, right, data)
+    step = res['steps'][0]
+    assert res['pass'] is False
+    assert step['degraded'] is True
+    assert '类型不一致' in (step['error'] or '')
+
+
+@pytest.mark.django_db
+def test_metric_vs_metric_right_template_missing_degraded():
+    """右模板不存在 → 降级 degraded=True + pass False。"""
+    left = _make_atomic_template('候选年龄', 'candidate.age', 'number', ['GT', 'GTE', 'LT', 'LTE'])
+    data = {'candidate': {'age': 32}, 'position': {}}
+    res = MetricEngine.execute(
+        [{'templateId': left.id, 'operator': 'LTE', 'rightTemplateId': 'nonexistent-id'}], data,
+    )
+    step = res['steps'][0]
+    assert res['pass'] is False
+    assert step['degraded'] is True
+    assert '对比指标模板' in (step['error'] or '')
+
+
+@pytest.mark.django_db
+def test_metric_vs_metric_with_position_snapshot():
+    """端到端：evaluate_metric_condition 经 position 快照解析右指标（职位薪资上限）。"""
+    from apps.core.models import Department, User
+    from apps.position.models import Position, PositionState
+    from apps.process.models import RecruitmentProcess, StageStatus
+
+    user = User.objects.create(username='mvm', email='mvm@x.com')
+    dept = Department.objects.create(id='d-mvm-001', name='MVM', code='MVM')
+    process = RecruitmentProcess.objects.create(
+        id='p-mvm-001', code='MVMP', name='MVM 流程', current_version='V1.0',
+        is_template=False, is_enabled=True, is_latest=True, status=StageStatus.ENABLED,
+    )
+    pos = Position.objects.create(
+        id='pos-mvm-001', code='POSMVM', title='MVM 职位', department=dept,
+        hiring_manager=user, owner=user, headcount=1, state=PositionState.DRAFT,
+        process=process, salary_max=50,
+    )
+    left = _make_atomic_template('候选年龄', 'candidate.age', 'number', ['GT', 'GTE', 'LT', 'LTE'])
+    right = _make_position_template('职位薪资上限', 'position.salary_max', 'number')
+    cand = _make_candidate(age=32)
+    res = MetricEngine.evaluate_metric_condition(
+        left.id, {'candidate_id': cand.id, 'position_id': pos.id}, 'LTE', None,
+        right_template_id=right.id,
+    )
+    assert res['pass'] is True
+    assert res['degraded'] is False
+    assert res['actual'] == 32
+    assert res['expected'] == right.name  # metric-vs-metric 右值展示为对比模板名

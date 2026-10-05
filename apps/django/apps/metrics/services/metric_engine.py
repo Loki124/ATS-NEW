@@ -110,6 +110,7 @@ class MetricEngine:
             'expected': None,
             'detail': '',
             'error': '',
+            'degraded': False,
         }
 
         # 1) 模板存在性
@@ -152,13 +153,25 @@ class MetricEngine:
             base['detail'] = base['error']
             return base
 
-        # 5) 期望值
-        try:
-            expected, expected_text = cls._expected(cond, template.data_type)
-        except TypeCastError as exc:
-            base['error'] = f'比较值不合法: {exc}'
-            base['detail'] = base['error']
-            return base
+        # 4.5) 指标 vs 指标：右操作数为另一个指标模板（方案 B）
+        right_tid = cond.get('rightTemplateId') or cond.get('right_template_id')
+        if right_tid:
+            r = cls._resolve_right_side(right_tid, data, template.data_type)
+            if not r['ok']:
+                base['error'] = r['error']
+                base['detail'] = r['error']
+                base['degraded'] = True
+                return base
+            expected, expected_text = r['expected'], r['expected_text']
+        else:
+            # 5) 期望值（常量模式）
+            try:
+                expected, expected_text = cls._expected(cond, template.data_type)
+            except TypeCastError as exc:
+                base['error'] = f'比较值不合法: {exc}'
+                base['detail'] = base['error']
+                base['degraded'] = True
+                return base
 
         # 6) 比较
         try:
@@ -186,6 +199,56 @@ class MetricEngine:
             items = FieldResolverRegistry.resolve(metric.base_path, data)
             return derived_compute(metric.calc_func, items, metric.params or {}, data)
         return FieldResolverRegistry.resolve(metric.source_path, data)
+
+    # ------------------------------------------------------------------
+    # 指标 vs 指标：右操作数为「另一个指标模板」（方案 B，零迁移）
+    # ------------------------------------------------------------------
+    @classmethod
+    def _resolve_right_side(cls, right_template_id, data: Dict[str, Any], left_data_type: str) -> Dict[str, Any]:
+        """解析右操作数（另一个指标模板）的值，供 metric vs metric 比较。
+
+        返回统一契约：
+            {ok, expected, expected_text, error, degraded}
+            ok=False 时 error/degraded 描述失败原因（FAIL-not-500 兜底）。
+
+        类型守卫：左右指标 data_type 必须一致，否则无法比较 → 降级。
+        """
+        from apps.metrics.models import MetricDataType, MetricTemplate as MT
+
+        try:
+            rt = MT.objects.filter(pk=right_template_id).select_related(
+                'atomic_metric', 'derived_metric',
+            ).first()
+        except Exception:  # noqa: BLE001 — 查询异常视为解析失败, 降级为 FAIL
+            return {'ok': False, 'error': '对比指标模板查询失败', 'degraded': True}
+        if rt is None:
+            return {'ok': False, 'error': f'对比指标模板 {right_template_id} 不存在', 'degraded': True}
+        # 禁用 / 软删 → 视为失效（与左值一致语义）
+        if rt.status != 'enabled' or rt.deleted_at is not None:
+            return {'ok': False, 'error': '对比指标模板不存在或已失效', 'degraded': True}
+
+        try:
+            raw = cls._resolve_metric_value(rt, rt.metric, data)
+        except (FieldResolveError, Exception) as exc:  # noqa: BLE001 — 右值解析失败降级为 FAIL, 绝不 500
+            return {'ok': False, 'error': f'对比指标取值异常: {exc}', 'degraded': True}
+
+        try:
+            val = type_cast(raw, rt.data_type)
+        except TypeCastError as exc:
+            return {'ok': False, 'error': f'对比指标值类型不合法: {exc}', 'degraded': True}
+
+        # 类型守卫：左右 data_type 必须一致
+        if left_data_type != rt.data_type:
+            return {
+                'ok': False,
+                'error': f'左右指标类型不一致（{left_data_type} vs {rt.data_type}），无法比较',
+                'degraded': True,
+            }
+
+        # 布尔归一：与左侧 actual 保持同构（左值侧已做），右值若为 bool 也转字符串
+        if rt.data_type == MetricDataType.BOOLEAN and isinstance(val, bool):
+            val = 'true' if val else 'false'
+        return {'ok': True, 'expected': val, 'expected_text': rt.name}
 
     @classmethod
     def _expected(cls, cond: dict, data_type: str):
@@ -271,7 +334,7 @@ class MetricEngine:
     # ------------------------------------------------------------------
     @classmethod
     def evaluate_metric_condition(
-        cls, template_id, context, operator, value, meta=None,
+        cls, template_id, context, operator, value, meta=None, right_template_id=None,
     ) -> Dict[str, Any]:
         """统一指标条件求值器（指标作为条件源的唯一取值 + 判定入口）。
 
@@ -397,17 +460,29 @@ class MetricEngine:
             if template.data_type == MetricDataType.BOOLEAN and isinstance(actual, bool):
                 actual = 'true' if actual else 'false'
 
-            # 6) 期望值
+            # 5.5) 指标 vs 指标：右操作数为另一个指标模板（方案 B）
+            # right_template_id 由调用方显式传入（evaluate_metric_condition 直调场景）；
+            # 并为向后兼容保留从 cond 字典读取的兜底（execute/_evaluate_condition 已自行处理右值，
+            # 此处仅覆盖直调且未传参的场景）。
             cond = {'operator': operator, 'value': value, 'meta': meta or {}}
-            try:
-                expected, expected_text = cls._expected(cond, template.data_type)
-            except TypeCastError as exc:
-                base.update({
-                    'error': f'比较值不合法: {exc}',
-                    'detail': f'比较值不合法: {exc}',
-                    'degraded': True,
-                })
-                return base
+            right_tid = right_template_id or cond.get('rightTemplateId') or cond.get('right_template_id')
+            if right_tid:
+                r = cls._resolve_right_side(right_tid, data, template.data_type)
+                if not r['ok']:
+                    base.update({'error': r['error'], 'detail': r['error'], 'degraded': True})
+                    return base
+                expected, expected_text = r['expected'], r['expected_text']
+            else:
+                # 6) 期望值（常量模式）
+                try:
+                    expected, expected_text = cls._expected(cond, template.data_type)
+                except TypeCastError as exc:
+                    base.update({
+                        'error': f'比较值不合法: {exc}',
+                        'detail': f'比较值不合法: {exc}',
+                        'degraded': True,
+                    })
+                    return base
 
             # 6.1) 布尔期望值同步归一，与 actual 保持同构（集合型 IN/NOT_IN 逐元素归一），
             # 确保 _compare 时 'true'(str) 与 'true'(str) 可比，杜绝假阴性。

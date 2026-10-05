@@ -91,6 +91,26 @@ def validate_metric_rule(rule: dict) -> list:
                 except Exception:  # noqa: BLE001 — DB 不可用 / 查询异常时跳过 DB 硬查, 仅保留结构校验 (容错)
                     pass
 
+            # ---- 方案 B：指标 vs 指标（rightTemplateId 右操作数）----
+            right_template_id = cond.get('rightTemplateId') or cond.get('right_template_id')
+            if right_template_id:
+                _MVM_OPS = {'EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE'}
+                if operator not in _MVM_OPS:
+                    errors.append(
+                        f'第 {idx} 个条件「指标对比」仅支持 {sorted(_MVM_OPS)} 运算符')
+                try:
+                    from apps.metrics.models import MetricTemplate as MT
+                    rt = MT.objects.filter(pk=right_template_id).first()
+                    if rt is None:
+                        errors.append(f'第 {idx} 个条件引用的对比模板不存在: {right_template_id}')
+                    elif template_id:
+                        lt = MT.objects.filter(pk=template_id).first()
+                        if lt is not None and lt.data_type != rt.data_type:
+                            errors.append(
+                                f'第 {idx} 个条件左右指标类型不一致（{lt.data_type} vs {rt.data_type}）')
+                except Exception:  # noqa: BLE001 — DB 不可用 / 查询异常时跳过硬查 (容错)
+                    pass
+
             # ---- V06 operator 全局合法 ----
             if operator is not None and operator not in UnifiedOperator.values:
                 errors.append(f'第 {idx} 个条件运算符不合法: {operator}')
