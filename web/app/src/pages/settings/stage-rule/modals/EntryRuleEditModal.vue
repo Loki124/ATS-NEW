@@ -190,7 +190,7 @@ const emit = defineEmits<{
 const {
   visible, isNew, draft,
   groupError, itemError, innerExprError, hasError,
-  canAddGroup, canRemoveGroup, canRemoveItemInGroup,
+  canAddGroup, canRemoveGroup, canAddItemInGroup, canRemoveItemInGroup,
   open, close, addGroup, removeGroup, addItem, removeItem, setCatalog,
   commit,
 } = useEntryRuleEditor()
