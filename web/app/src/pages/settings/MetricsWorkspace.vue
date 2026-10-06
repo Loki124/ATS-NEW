@@ -259,8 +259,12 @@
               {{ kindLabel(detailRow) }}
             </span>
             <span class="dm-meta-chip">
-              <span class="dm-meta-k">{{ t('metrics.col.inOutType') }}</span>
-              <span class="dm-meta-v">{{ inOutLabel(detailRow) }}</span>
+              <span class="dm-meta-k">{{ t('metrics.detail.inputLabel') }}</span>
+              <span class="dm-meta-v">{{ inputEntityLabel(detailRow) }}</span>
+            </span>
+            <span class="dm-meta-chip">
+              <span class="dm-meta-k">{{ t('metrics.detail.outputLabel') }}</span>
+              <span class="dm-meta-v">{{ outputFieldLabel(detailRow) }}</span>
             </span>
           </div>
         </div>
@@ -837,10 +841,31 @@ async function saveDerivedParams() {
   }
 }
 
-/** 入参 / 出参 合并标签（详情弹窗与定义表共用）。无入参时显示「无 / X」。 */
+/**
+ * 入参 / 出参 合并标签（定义表共用）。
+ * 入参改为真实实体标识（候选人 / 需求 / 职位 ID），出参改为数据源末级字段 + 类型，
+ * 不再用「离散 / 连续」这种抽象分类。
+ */
 function inOutLabel(row: MetricDefinition): string {
-  const param = row.paramType ? paramTypeLabel(row.paramType) : t('metrics.paramType.none')
-  return `${param} / ${returnTypeLabel(row.returnType)}`
+  return `${inputEntityLabel(row)} / ${outputFieldLabel(row)}`
+}
+
+/** 入参实体：从数据源路径前缀推导真实实体，指标如同 API——入参即被查询的实体标识。 */
+function inputEntityLabel(row: MetricDefinition): string {
+  const ds = (row.dataSource || '') as string
+  const prefix = ds.split('.')[0].toLowerCase()
+  if (prefix === 'candidate') return t('metrics.detail.inputEntity.candidate')
+  if (prefix === 'demand') return t('metrics.detail.inputEntity.demand')
+  if (prefix === 'position') return t('metrics.detail.inputEntity.position')
+  return t('metrics.detail.inputEntity.global')
+}
+
+/** 出参字段：数据源末级字段名 + 出参类型（数值 / 字符串 / 布尔 / 日期）。 */
+function outputFieldLabel(row: MetricDefinition): string {
+  const ds = (row.dataSource || '') as string
+  const field = ds.includes('.') ? ds.slice(ds.lastIndexOf('.') + 1) : ''
+  const type = returnTypeLabel(row.returnType)
+  return field ? `${field} · ${type}` : type
 }
 function kindLabel(row: MetricDefinition): string {
   return row.kind === 'derived' ? t('metrics.tab.derived') : t('metrics.tab.atomic')

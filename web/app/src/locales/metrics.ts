@@ -200,6 +200,14 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.rule.bindDemand': '关联需求',
   'metrics.rule.bindPosition': '关联职位',
 
+  // ===== 指标定义详情：真实入参 / 出参（实体标识 / 字段 + 类型） =====
+  'metrics.detail.inputLabel': '入参',
+  'metrics.detail.outputLabel': '出参',
+  'metrics.detail.inputEntity.candidate': '候选人 ID',
+  'metrics.detail.inputEntity.demand': '需求 ID',
+  'metrics.detail.inputEntity.position': '职位 ID',
+  'metrics.detail.inputEntity.global': '全局 / 无实体',
+
   'metrics.rules.title': '规则管理',
   'metrics.rules.subtitle': '已保存的指标规则，可启用停用、编辑、删除；按场景（入池/筛选/评分）在业务触发点自动执行',
   'metrics.rule.ruleName': '规则名称',
@@ -506,6 +514,14 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.rule.dataEmpty': 'Empty data',
   'metrics.rule.bindDemand': 'Linked Demand',
   'metrics.rule.bindPosition': 'Linked Position',
+
+  // ===== Metric definition detail: real input / output (entity id / field + type) =====
+  'metrics.detail.inputLabel': 'Input',
+  'metrics.detail.outputLabel': 'Output',
+  'metrics.detail.inputEntity.candidate': 'Candidate ID',
+  'metrics.detail.inputEntity.demand': 'Demand ID',
+  'metrics.detail.inputEntity.position': 'Position ID',
+  'metrics.detail.inputEntity.global': 'Global / No Entity',
 
   'metrics.rules.title': 'Rule Management',
   'metrics.rules.subtitle': 'Saved metric rules — enable/disable, edit, delete; executed automatically at business triggers by scene',
