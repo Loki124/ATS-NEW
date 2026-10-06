@@ -208,6 +208,15 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.detail.inputEntity.position': '职位 ID',
   'metrics.detail.inputEntity.global': '全局 / 无实体',
 
+  // ===== 指标来源模块（方案 B：列展示来源模块而非字段路径） =====
+  'metrics.col.sourceModule': '来源模块',
+  'metrics.filter.sourceModule': '来源模块',
+  'metrics.module.candidate': '候选人数据',
+  'metrics.module.demand': '需求数据',
+  'metrics.module.position': '职位数据',
+  'metrics.module.derived': '派生计算',
+  'metrics.module.other': '其他 / 全局',
+
   'metrics.rules.title': '规则管理',
   'metrics.rules.subtitle': '已保存的指标规则，可启用停用、编辑、删除；按场景（入池/筛选/评分）在业务触发点自动执行',
   'metrics.rule.ruleName': '规则名称',
@@ -522,6 +531,15 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.detail.inputEntity.demand': 'Demand ID',
   'metrics.detail.inputEntity.position': 'Position ID',
   'metrics.detail.inputEntity.global': 'Global / No Entity',
+
+  // ===== Metric source module (Plan B: column shows source module, not field path) =====
+  'metrics.col.sourceModule': 'Source Module',
+  'metrics.filter.sourceModule': 'Source Module',
+  'metrics.module.candidate': 'Candidate Data',
+  'metrics.module.demand': 'Demand Data',
+  'metrics.module.position': 'Position Data',
+  'metrics.module.derived': 'Derived',
+  'metrics.module.other': 'Other / Global',
 
   'metrics.rules.title': 'Rule Management',
   'metrics.rules.subtitle': 'Saved metric rules — enable/disable, edit, delete; executed automatically at business triggers by scene',

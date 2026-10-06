@@ -31,6 +31,12 @@
                 :options="defKindOptions"
                 class="ws-filter"
               />
+              <n-select
+                v-model:value="defModule"
+                :placeholder="t('metrics.filter.sourceModule')"
+                :options="defModuleOptions"
+                class="ws-filter"
+              />
             </div>
           </div>
 
@@ -44,7 +50,7 @@
                 :columns="defColumns"
                 :data="pagedDefinitions"
                 :row-props="defRowProps"
-              :scroll-x="1040"
+              :scroll-x="920"
               :max-height="tableMaxHeight"
               size="small"
               class="ws-table"
@@ -876,6 +882,19 @@ function kindClass(row: MetricDefinition): string {
 function enumValuesOf(row: MetricDefinition): string[] {
   return (row.enumValues as string[] | undefined) || []
 }
+
+/** 来源模块 key：按实体前缀 / 派生归类，描述指标数据的来源子系统（方案 B）。 */
+function sourceModuleKey(row: MetricDefinition): string {
+  if (row.kind === 'derived') return 'derived'
+  const prefix = (row.dataSource || '').split('.')[0].toLowerCase()
+  if (prefix === 'candidate') return 'candidate'
+  if (prefix === 'demand') return 'demand'
+  if (prefix === 'position') return 'position'
+  return 'other'
+}
+function sourceModuleLabel(row: MetricDefinition): string {
+  return t(`metrics.module.${sourceModuleKey(row)}`)
+}
 function returnTypeLabel(type?: string): string {
   const map: Record<string, string> = {
     number: t('pages.settings.MetricsWorkspace.s7'),
@@ -904,10 +923,22 @@ const defKindOptions = computed<OptionItem[]>(() => [
   { label: t('metrics.tab.derived'), value: 'derived' },
 ])
 
+const defModule = ref<'all' | 'candidate' | 'demand' | 'position' | 'derived' | 'other'>('all')
+
+const defModuleOptions = computed<OptionItem[]>(() => [
+  { label: t('metrics.filter.all'), value: 'all' },
+  { label: t('metrics.module.candidate'), value: 'candidate' },
+  { label: t('metrics.module.demand'), value: 'demand' },
+  { label: t('metrics.module.position'), value: 'position' },
+  { label: t('metrics.module.derived'), value: 'derived' },
+  { label: t('metrics.module.other'), value: 'other' },
+])
+
 const filteredDefinitions = computed<MetricDefinition[]>(() => {
   const kw = defKeyword.value.trim().toLowerCase()
   return definitions.value.filter((d) => {
     if (defKind.value !== 'all' && d.kind !== defKind.value) return false
+    if (defModule.value !== 'all' && sourceModuleKey(d) !== defModule.value) return false
     if (kw) {
       const hay = [
         d.name,
@@ -1132,6 +1163,9 @@ const pagedTemplates = computed<MetricTemplate[]>(() => {
 watch([tplKeyword, tplStatus], () => {
   tplPage.value = 1
 })
+watch([defKeyword, defKind, defModule], () => {
+  defPage.value = 1
+})
 
 // ===== 指标模板列辅助 =====
 function templateRange(row: MetricTemplate): string {
@@ -1164,10 +1198,10 @@ const defColumns = computed<DataTableColumns<MetricDefinition>>(() => [
     render: (row) => h(KindIcon, { kind: row.kind, size: 18 }),
   },
   {
-    title: t('metrics.col.dataSource'),
-    key: 'dataSource',
-    minWidth: 240,
-    render: (row) => h('code', { class: 'ws-code' }, row.dataSource),
+    title: t('metrics.col.sourceModule'),
+    key: 'sourceModule',
+    width: 140,
+    render: (row) => h('span', { class: 'ws-module-tag' }, sourceModuleLabel(row)),
   },
   {
     title: t('metrics.col.inOutType'),
@@ -1977,6 +2011,17 @@ onUnmounted(() => {
 }
 .ws-inout-sep {
   color: var(--ink-faint);
+  white-space: nowrap;
+}
+.ws-module-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--g1);
+  border: 1px solid var(--border-hairline);
+  font-size: var(--fs-12);
+  color: var(--ink);
   white-space: nowrap;
 }
 .ws-metric-cell {
