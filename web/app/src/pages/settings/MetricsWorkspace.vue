@@ -44,7 +44,7 @@
                 :columns="defColumns"
                 :data="pagedDefinitions"
                 :row-props="defRowProps"
-              :scroll-x="860"
+              :scroll-x="1040"
               :max-height="tableMaxHeight"
               size="small"
               class="ws-table"
@@ -1154,37 +1154,42 @@ const defColumns = computed<DataTableColumns<MetricDefinition>>(() => [
   {
     title: t('metrics.col.name'),
     key: 'name',
-    minWidth: 160,
+    minWidth: 150,
     render: (row) => h('span', { class: 'ws-cell-name' }, row.name),
   },
   {
     title: t('metrics.col.type'),
     key: 'kind',
-    width: 96,
+    width: 72,
     render: (row) => h(KindIcon, { kind: row.kind, size: 18 }),
   },
   {
     title: t('metrics.col.dataSource'),
     key: 'dataSource',
-    minWidth: 200,
+    minWidth: 240,
     render: (row) => h('code', { class: 'ws-code' }, row.dataSource),
   },
   {
     title: t('metrics.col.inOutType'),
     key: 'inOut',
-    width: 150,
-    render: (row) => h('span', inOutLabel(row)),
+    minWidth: 220,
+    render: (row) =>
+      h('span', { class: 'ws-inout-cell' }, [
+        h('span', { class: 'ws-inout-part' }, inputEntityLabel(row)),
+        h('span', { class: 'ws-inout-sep' }, ' / '),
+        h('span', { class: 'ws-inout-part' }, outputFieldLabel(row)),
+      ]),
   },
   {
     title: t('metrics.col.operatorCount'),
     key: 'operators',
-    width: 110,
+    width: 96,
     render: (row) => h(OperatorBadge, { value: row.supportedOperators, catalog: operatorCatalog.value }),
   },
   {
     title: t('metrics.col.action'),
     key: 'action',
-    width: 88,
+    width: 72,
     render: (row) =>
       h(
         NButton,
@@ -1960,6 +1965,19 @@ onUnmounted(() => {
 .ws-cell-name {
   font-weight: 600;
   color: var(--ink);
+}
+.ws-inout-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.ws-inout-part {
+  white-space: nowrap;
+}
+.ws-inout-sep {
+  color: var(--ink-faint);
+  white-space: nowrap;
 }
 .ws-metric-cell {
   display: inline-flex;
