@@ -80,6 +80,53 @@ def test_delete_unused_atomic_metric_ok(auth_client):
     assert resp.status_code in (200, 204)
 
 
+def test_p1_delete_template_in_use_rejected(auth_client):
+    """【P1/B-2 回归】被规则引用的模板禁止删除，返回 400（不 500）。
+
+    修复前 MetricTemplateViewSet 无删除保护（AtomicMetric/DerivedMetric 有 _RefCheckMixin，
+    模板没有），模板被删后规则 conditions 悬空 → metric_engine 报「模板不存在」→
+    该步 FAIL → 所有候选人被拒绝入池，且原因显示为一个不存在的模板 id。
+
+    本用例复用现成的 get_template_affected_rules 枚举四层引用路径，total>0 即拦截。
+    """
+    created = _unwrap(_create_atomic(auth_client))
+    metric_id = created['id']
+    tpl = auth_client.post(BASE + 'templates/', {
+        'name': 'B2模板', 'atomicMetric': metric_id, 'operators': ['GT'],
+    }, format='json')
+    assert tpl.status_code == 201
+    tpl_id = _unwrap(tpl)['id']
+
+    # 用 ORM 建一条引用该模板的规则（聚焦删除保护，绕过规则保存的完整校验）
+    from apps.metrics.models import MetricRule, MetricRuleScene
+    MetricRule.objects.create(
+        name='B2规则', scene=MetricRuleScene.TALENT_POOL, logic='AND',
+        conditions=[{'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
+    )
+
+    resp = auth_client.delete(f'{BASE}templates/{tpl_id}/')
+    assert resp.status_code == 400
+    body = _unwrap(resp)
+    assert '被 1 条规则引用' in str(body.get('error', ''))
+    # 删除被拦截，模板仍在
+    from apps.metrics.models import MetricTemplate
+    assert MetricTemplate.objects.filter(id=tpl_id).exists()
+
+
+def test_p1_delete_unused_template_ok(auth_client):
+    """【P1/B-2 无假阳性】无引用的模板可正常删除（204）。"""
+    created = _unwrap(_create_atomic(auth_client))
+    tpl = auth_client.post(BASE + 'templates/', {
+        'name': 'B2未用模板', 'atomicMetric': created['id'], 'operators': ['GT'],
+    }, format='json')
+    assert tpl.status_code == 201
+    tpl_id = _unwrap(tpl)['id']
+    resp = auth_client.delete(f'{BASE}templates/{tpl_id}/')
+    assert resp.status_code == 204
+    from apps.metrics.models import MetricTemplate
+    assert not MetricTemplate.objects.filter(id=tpl_id).exists()
+
+
 def test_template_must_reference_exactly_one_metric(auth_client):
     created = _unwrap(_create_atomic(auth_client))
     resp = auth_client.post(BASE + 'templates/', {

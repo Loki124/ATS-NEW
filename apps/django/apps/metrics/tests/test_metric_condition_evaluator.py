@@ -431,3 +431,56 @@ def test_p0_serializer_allows_matching_types_on_persist():
     })
 
     assert serializer.is_valid(), f'类型一致却被误拦: {serializer.errors}'
+
+
+@pytest.mark.django_db
+def test_p1_execute_degrades_disabled_template():
+    """【P1/S-2 回归】主执行路径(_evaluate_condition)遇禁用模板必须降级，而非继续求值阻断业务。
+
+    修复前 _evaluate_condition 只判 `template is None`，漏了禁用态判定 ——
+    与 evaluate_metric_condition（进入条件路径，已判 status）方向相反。
+    后果：管理员禁用模板后，入池/评分/筛选类规则仍用已失效模板求值并阻断业务（该关的没关）。
+
+    本用例走 MetricEngine.execute 主路径（非 evaluate_metric_condition），是修复前零覆盖的漏洞点。
+    """
+    tpl = _make_atomic_template('S2年龄限制', 'candidate.age', 'number', ['GT'])
+    tpl.status = 'disabled'
+    tpl.save(update_fields=['status'])
+
+    res = MetricEngine.execute(
+        [{'templateId': tpl.id, 'operator': 'GT', 'value': '30'}],
+        {'candidate': {'age': 32}},
+    )
+    assert res['pass'] is False
+    assert res['steps'][0]['degraded'] is True, '禁用模板未被降级 —— 修复前会照常求值并阻断'
+    assert res['steps'][0]['error'] == '模板不存在或已失效'
+
+
+@pytest.mark.django_db
+def test_p1_execute_degrades_soft_deleted_template():
+    """【P1/S-2 回归】主执行路径(_evaluate_condition)遇软删模板必须降级。"""
+    tpl = _make_atomic_template('S2软删', 'candidate.age', 'number', ['GT'])
+    tpl.deleted_at = timezone.now()
+    tpl.save(update_fields=['deleted_at'])
+
+    res = MetricEngine.execute(
+        [{'templateId': tpl.id, 'operator': 'GT', 'value': '30'}],
+        {'candidate': {'age': 32}},
+    )
+    assert res['pass'] is False
+    assert res['steps'][0]['degraded'] is True, '软删模板未被降级'
+    assert res['steps'][0]['error'] == '模板不存在或已失效'
+
+
+@pytest.mark.django_db
+def test_p1_execute_enabled_template_still_evaluates():
+    """【P1/S-2 无假阳性】启用态模板在主路径正常求值，禁用检查不得变成「一律拒绝」。"""
+    tpl = _make_atomic_template('S2启用', 'candidate.age', 'number', ['GT'])
+    # 默认 status='enabled'，无需改动
+
+    res = MetricEngine.execute(
+        [{'templateId': tpl.id, 'operator': 'GT', 'value': '30'}],
+        {'candidate': {'age': 32}},
+    )
+    assert res['pass'] is True, '启用模板被误拦'
+    assert res['steps'][0]['degraded'] is False

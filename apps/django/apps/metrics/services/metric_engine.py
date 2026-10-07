@@ -123,6 +123,15 @@ class MetricEngine:
             return base
         base['templateName'] = template.name
 
+        # 1.5) 禁用 / 软删模板 → 视为失效，降级不求值（与 evaluate_metric_condition 对齐）
+        # 此前的入池/评分/筛选路径（走本方法）只判存在性，漏了禁用态，
+        # 导致禁用模板后相关规则仍用已失效模板求值并阻断业务（该关的没关）。
+        if template.status != 'enabled' or template.deleted_at is not None:
+            base['error'] = '模板不存在或已失效'
+            base['detail'] = '模板不存在或已失效'
+            base['degraded'] = True
+            return base
+
         # 2) 运算符合法性（PRD AC-04：后端必须拒绝模板不支持的运算符）
         allowed = template.operators or []
         if operator not in allowed:

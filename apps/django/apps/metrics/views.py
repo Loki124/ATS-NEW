@@ -37,6 +37,7 @@ from .io_template import (
     import_templates,
 )
 from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
+from .services.template_impact import get_template_affected_rules
 from .serializers import (
     AtomicMetricSerializer,
     DerivedMetricSerializer,
@@ -124,6 +125,28 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     ).order_by('name')
     serializer_class = MetricTemplateSerializer
     pagination_class = StandardResultsSetPagination
+
+    def destroy(self, request, *args, **kwargs):
+        """删除保护：模板被规则（进入条件/跳过归档/指标规则）引用时禁止删除。
+
+        与 AtomicMetric/DerivedMetric 的 _RefCheckMixin 对称——但模板不是被 FK 反向
+        引用，而是被 rules 的 JSONField（conditions / skip_rules / archive_rules）引用，
+        DB 层无约束。复用 template_impact.get_template_affected_rules 枚举四层引用路径
+        （零新增查询逻辑），total > 0 返回 400 + 受影响规则清单，绝不抛 ProtectedError 致 500。
+        无任何引用时才放行硬删（与默认 ModelViewSet.destroy 语义一致，本方法只加闸门）。
+        """
+        obj = self.get_object()
+        impact = get_template_affected_rules(str(obj.id))
+        if impact['total'] > 0:
+            return Response(
+                {
+                    'error': f'该模板被 {impact["total"]} 条规则引用，无法删除',
+                    'affected_rules': impact,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # ===== LIFE-1 版本化：写路径覆盖 =====
     def perform_create(self, serializer):
