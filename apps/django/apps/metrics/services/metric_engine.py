@@ -190,7 +190,7 @@ class MetricEngine:
             base['detail'] = base['error']
             return base
 
-        unit = template.unit or ''
+        unit = template.unit or template.inherited_unit or ''
         base['pass'] = passed
         base['actual'] = cls._jsonable(actual)
         base['expected'] = expected_text
@@ -206,7 +206,8 @@ class MetricEngine:
     def _resolve_metric_value(cls, template, metric, data: Dict[str, Any]) -> Any:
         if template.metric_kind == 'derived':
             items = FieldResolverRegistry.resolve(metric.base_path, data)
-            return derived_compute(metric.calc_func, items, metric.params or {}, data)
+            # 计算参数的实际取值来自模板层（calc_params）；缺失则交给 derived_compute 内部校验 → 异常降级为 FAIL
+            return derived_compute(metric.calc_func, items, template.calc_params or {}, data)
         return FieldResolverRegistry.resolve(metric.source_path, data)
 
     # ------------------------------------------------------------------
@@ -509,7 +510,7 @@ class MetricEngine:
             passed = cls._compare(operator, actual, expected, meta or {})
 
             # 8) 组装结果
-            unit = template.unit or ''
+            unit = template.unit or template.inherited_unit or ''
             base.update({
                 'pass': passed,
                 'actual': cls._jsonable(actual),

@@ -4039,4 +4039,5 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.demand.DemandList.s81': "Status",
   'pages.demand.DemandList.s82': "Approval",
   'pages.demand.DemandList.s83': "Actions",
+  'pages.demand.DemandList.s84': "Department",
 }

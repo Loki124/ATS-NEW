@@ -152,6 +152,28 @@ export interface AffectedStageRule {
   stageName: string
 }
 
+/**
+ * LIFE-1 R3：指标规则（JSON 路径）引用项。
+ * 命中规则 = MetricRule.conditions 中存在 templateId / template_id 指向目标模板的条件。
+ * 同一规则多次引用时按 ruleId 去重（每条规则至多出现一次）。
+ */
+export interface AffectedMetricRule {
+  ruleId: string
+  ruleName: string
+  ruleScene: string
+  ruleStatus: string
+  ruleEnabled: boolean
+  actionType: string
+  /** 首个命中条件在 conditions[] 中的下标 */
+  conditionIndex: number
+  /** 全部命中条件下标（用于提示「本规则多处引用」） */
+  matchedConditions: number[]
+  operator: string
+  value: any
+  demandId: string
+  positionId: string
+}
+
 /** 受影响规则清单总结构 */
 export interface TemplateAffectedRules {
   templateId: string
@@ -160,6 +182,8 @@ export interface TemplateAffectedRules {
   total: number
   entryConditions: AffectedEntryCondition[]
   stageRules: AffectedStageRule[]
+  /** LIFE-1 R3：指标规则引用项（total 已含此项） */
+  metricRules: AffectedMetricRule[]
 }
 
 /** 派生函数的单个参数声明（前端据此渲染类型化输入，取代自由 JSON 文本） */

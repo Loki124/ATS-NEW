@@ -4083,4 +4083,5 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.demand.DemandList.s81': "状态",
   'pages.demand.DemandList.s82': "审批",
   'pages.demand.DemandList.s83': "操作",
+  'pages.demand.DemandList.s84': "需求部门",
 }

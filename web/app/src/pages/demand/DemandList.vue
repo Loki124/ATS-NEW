@@ -114,39 +114,53 @@
             @click="handleCardClick(item)"
             @keydown.enter="handleCardClick(item)"
           >
-            <div class="card-top">
-              <span class="demand-code">{{ item.code }}</span>
-              <span class="priority-pill" :class="priorityPillClass(item.priority)">{{ item.priority }}</span>
-              <n-tag :type="getStatusType(item.demandStatus)" size="small" class="status-tag">{{ getStatusText(item.demandStatus) }}</n-tag>
-            </div>
-            <div class="card-title" :title="item.name">{{ item.name }}</div>
-            <div class="card-meta">
-              <n-tag :type="getApprovalType(item.approvalStatus)" size="small">{{ getApprovalText(item.approvalStatus) }}</n-tag>
-              <span class="meta-dept">{{ item.departmentName || item.department?.name || '-' }}</span>
-              <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
-                {{ item.demandType === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71') }}
-              </n-tag>
-            </div>
-            <div class="card-owner">
-              <span class="owner-label">{{ t('pages.demand.DemandList.s59') }}</span>
-              <span class="owner-value">{{ item.hrName || '-' }}</span>
-              <span class="time-label">{{ t('pages.demand.DemandList.s60') }}</span>
-              <span class="time-value" :title="absoluteTime(item)">{{ relativeTime(item) }}</span>
-            </div>
-            <div class="card-progress">
-              <div class="progress-text">
-                {{ t('pages.demand.DemandList.s8') }} {{ filledOf(item) }} / {{ t('pages.demand.DemandList.s20') }} {{ headcountOf(item) }}
+            <!-- 主信息区（左，自适应） -->
+            <div class="card-main">
+              <div class="card-headline">
+                <span class="demand-code">{{ item.code }}</span>
+                <span class="priority-pill" :class="priorityPillClass(item.priority)">{{ item.priority }}</span>
+                <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
+                  {{ item.demandType === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71') }}
+                </n-tag>
+                <n-tag v-if="item.approvalStatus" :type="getApprovalType(item.approvalStatus)" size="small">{{ getApprovalText(item.approvalStatus) }}</n-tag>
               </div>
-              <div class="bar">
-                <span
-                  :style="{ width: progressPct(item) + '%', background: progressPct(item) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
-                ></span>
+              <div class="card-title" :title="item.name">{{ item.name }}</div>
+              <div class="card-facts">
+                <div class="fact">
+                  <span class="fact-label">{{ t('pages.demand.DemandList.s84') }}</span>
+                  <span class="fact-value" :title="item.departmentName || item.department?.name || '-'">{{ item.departmentName || item.department?.name || '-' }}</span>
+                </div>
+                <div class="fact">
+                  <span class="fact-label">{{ t('pages.demand.DemandList.s59') }}</span>
+                  <span class="fact-value">{{ item.hrName || '-' }}</span>
+                </div>
+                <div class="fact">
+                  <span class="fact-label">{{ t('pages.demand.DemandList.s60') }}</span>
+                  <span class="fact-value" :title="absoluteTime(item)">{{ relativeTime(item) }}</span>
+                </div>
               </div>
             </div>
-            <div class="card-actions">
-              <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">{{ t('pages.demand.DemandList.s9') }}</n-button>
-              <n-button text size="small" @click.stop="handleEdit(item)">{{ t('pages.demand.DemandList.s50') }}</n-button>
-              <n-button v-if="item.demandStatus === 'DRAFT'" text type="primary" size="small" @click.stop="handleSubmitFromCard(item)">{{ t('pages.demand.DemandList.s43') }}</n-button>
+
+            <!-- 状态、进度与操作区（右，定宽） -->
+            <div class="card-side">
+              <div class="card-side__status">
+                <n-tag :type="getStatusType(item.demandStatus)" size="small">{{ getStatusText(item.demandStatus) }}</n-tag>
+              </div>
+              <div class="card-progress">
+                <div class="progress-text">
+                  {{ t('pages.demand.DemandList.s8') }} {{ filledOf(item) }} / {{ t('pages.demand.DemandList.s20') }} {{ headcountOf(item) }}
+                </div>
+                <div class="bar">
+                  <span
+                    :style="{ width: progressPct(item) + '%', background: progressPct(item) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
+                  ></span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">{{ t('pages.demand.DemandList.s9') }}</n-button>
+                <n-button text size="small" @click.stop="handleEdit(item)">{{ t('pages.demand.DemandList.s50') }}</n-button>
+                <n-button v-if="item.demandStatus === 'DRAFT'" text type="primary" size="small" @click.stop="handleSubmitFromCard(item)">{{ t('pages.demand.DemandList.s43') }}</n-button>
+              </div>
             </div>
           </div>
         </div>
@@ -188,7 +202,7 @@
               <span class="drawer-code">{{ selectedDemand?.code }}</span>
               <span class="drawer-name" :title="selectedDemand?.name">{{ selectedDemand?.name }}</span>
               <n-tag :type="getStatusType(selectedDemand?.demandStatus)" size="small">{{ getStatusText(selectedDemand?.demandStatus) }}</n-tag>
-              <n-tag :type="getApprovalType(selectedDemand?.approvalStatus)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus) }}</n-tag>
+              <n-tag v-if="selectedDemand?.approvalStatus" :type="getApprovalType(selectedDemand?.approvalStatus)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus) }}</n-tag>
             </div>
             <div class="drawer-header__actions">
               <n-button v-if="selectedDemand?.state === 'DRAFT'" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
@@ -240,7 +254,7 @@
                     <div
                       v-if="m.field.fieldKey !== 'jd' && m.field.fieldKey !== 'requirements'"
                       class="info-item"
-                      :class="{ 'info-item--wide': m.field.fieldType === 'MULTILINE_TEXT' }"
+                      :class="{ 'info-item--wide': WIDE_TYPES.includes(m.field.fieldType) }"
                     >
                       <span class="info-label">{{ m.field.label }}</span>
                       <span v-if="m.field.fieldKey === 'state'" class="info-value">
@@ -282,41 +296,6 @@
                 <div class="rich-block">
                   <SafeHtml v-if="selectedDemand.requirements" :html="selectedDemand.requirements" />
                   <n-empty v-else :description="t('pages.demand.DemandList.s67')" />
-                </div>
-              </div>
-            </n-tab-pane>
-
-            <!-- 招聘进度 -->
-            <n-tab-pane name="progress" :tab="t('pages.demand.DemandList.s18')">
-              <div class="detail-section">
-                <div class="section-header">
-                  <span class="section-title">{{ t('pages.demand.DemandList.s18') }}</span>
-                </div>
-                <div class="progress-stats">
-                  <div class="progress-stat">
-                    <span class="stat-num">{{ selectedDemand._count?.positions ?? 0 }}</span>
-                    <span class="stat-label">{{ t('pages.demand.DemandList.s19') }}</span>
-                  </div>
-                  <div class="progress-stat">
-                    <span class="stat-num">{{ headcountOf(selectedDemand) }}</span>
-                    <span class="stat-label">{{ t('pages.demand.DemandList.s20') }}</span>
-                  </div>
-                  <div class="progress-stat">
-                    <span class="stat-num">{{ filledOf(selectedDemand) }}</span>
-                    <span class="stat-label">{{ t('pages.demand.DemandList.s8') }}</span>
-                  </div>
-                  <div class="progress-stat">
-                    <span class="stat-num">{{ selectedDemand.pendingCount ?? 0 }}</span>
-                    <span class="stat-label">{{ t('pages.demand.DemandList.s22') }}</span>
-                  </div>
-                </div>
-                <div class="bar" style="margin-top: var(--space-3)">
-                  <span
-                    :style="{ width: progressPct(selectedDemand) + '%', background: progressPct(selectedDemand) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
-                  ></span>
-                </div>
-                <div class="progress-caption">
-                  {{ t('pages.demand.DemandList.s68', { hired: filledOf(selectedDemand), headcount: headcountOf(selectedDemand) }) }}
                 </div>
               </div>
             </n-tab-pane>
@@ -1001,7 +980,9 @@ const columns = computed<DataTableColumns<any>[]>(() => [
     title: t('pages.demand.DemandList.s82'),
     key: 'approval',
     width: 100,
-    render: (row: any) => h(NTag, { size: 'small', type: getApprovalType(row.approvalStatus) }, { default: () => getApprovalText(row.approvalStatus) }),
+    render: (row: any) => row.approvalStatus
+      ? h(NTag, { size: 'small', type: getApprovalType(row.approvalStatus) }, { default: () => getApprovalText(row.approvalStatus) })
+      : '-',
   },
   {
     title: t('pages.demand.DemandList.s83'),
@@ -1297,17 +1278,19 @@ onUnmounted(() => {
 .demand-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
+/* 卡片内部横向分布: 左 = 主信息(自适应) | 右 = 状态/进度/操作(定宽) */
 .demand-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
   cursor: pointer;
   transition: transform var(--duration-base) var(--ease-out),
     box-shadow var(--duration-base) var(--ease-out),
@@ -1329,10 +1312,19 @@ onUnmounted(() => {
   border-color: var(--brand);
 }
 
-.card-top {
+.card-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.card-headline {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .demand-code {
@@ -1369,45 +1361,53 @@ onUnmounted(() => {
   color: var(--ink-soft);
 }
 
-.card-top .status-tag {
-  margin-left: auto;
-}
-
 .card-title {
-  font-size: var(--fs-15);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.card-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+/* 事实栏 —— 等宽多列, 列数随可用宽度自适应, 水平均匀铺开 */
+.card-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-1) var(--space-4);
   font-size: var(--fs-13);
+  min-width: 0;
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fact-label {
+  flex: none;
   color: var(--ink-faint);
 }
 
-.card-meta .meta-dept {
+.fact-value {
   color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.card-owner {
+.card-side {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  font-size: var(--fs-13);
-  color: var(--ink-faint);
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
-.card-owner .owner-value,
-.card-owner .time-value {
-  color: var(--ink-soft);
+.card-side__status {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .card-progress {
@@ -1439,7 +1439,9 @@ onUnmounted(() => {
 .card-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 /* 表格视图 */
@@ -1533,33 +1535,38 @@ onUnmounted(() => {
 
 .overview-bar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .overview-item {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-3);
   background: var(--glass-bg-input);
   border-radius: var(--radius-sm);
 }
 
 .ov-num {
-  font-size: var(--fs-20);
+  font-size: var(--fs-16);
   font-weight: 600;
+  line-height: 1.3;
   color: var(--ink);
 }
 
 .ov-label {
   font-size: var(--fs-12);
+  line-height: 1.3;
   color: var(--ink-faint);
+  white-space: nowrap;
 }
 
 .overview-bar__progress {
   grid-column: 1 / -1;
+  margin-top: var(--space-1);
 }
 
 .rich-block {
@@ -1615,39 +1622,6 @@ onUnmounted(() => {
   color: var(--ink);
 }
 
-.progress-stats {
-  display: flex;
-  gap: var(--space-4);
-}
-
-.progress-stat {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--space-4);
-  background: var(--glass-bg-input);
-  border-radius: var(--radius-sm);
-}
-
-.stat-num {
-  font-size: var(--fs-24);
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.stat-label {
-  font-size: var(--fs-12);
-  color: var(--ink-faint);
-  margin-top: var(--space-1);
-}
-
-.progress-caption {
-  font-size: var(--fs-12);
-  color: var(--ink-faint);
-  margin-top: var(--space-2);
-}
-
 /* 编辑表单 */
 .form-body {
   max-height: 70vh;
@@ -1685,9 +1659,22 @@ onUnmounted(() => {
   width: 100%;
 }
 
+/* 卡片在窄屏下由「左右两栏」塌缩为「上下堆叠」，保证内容不被挤压 */
+@media (max-width: 1024px) {
+  .demand-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-side__status,
+  .card-actions {
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 768px) {
   .form-grid { grid-template-columns: 1fr; }
   .overview-bar { grid-template-columns: repeat(2, 1fr); }
-  .progress-stats { flex-wrap: wrap; }
+  .demand-card { padding: var(--space-3) var(--space-4); }
+  .card-title { white-space: normal; }
 }
 </style>

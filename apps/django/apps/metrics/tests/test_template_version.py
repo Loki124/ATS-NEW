@@ -317,7 +317,7 @@ class TestVersionServiceUnit:
         expected_keys = {
             'name', 'atomic_metric_id', 'derived_metric_id', 'metric_name', 'metric_kind',
             'metric_path', 'data_type', 'unit', 'operators', 'param_config', 'value_domain',
-            'param_enums', 'param_allow_null', 'status', 'description',
+            'param_enums', 'calc_params', 'param_allow_null', 'status', 'description',
         }
         assert set(snap.keys()) == expected_keys
 
@@ -390,3 +390,125 @@ def test_semantic_fields_excludes_status_and_description():
     assert 'description' not in SEMANTIC_FIELDS
     assert 'operators' in SEMANTIC_FIELDS
     assert 'name' in SEMANTIC_FIELDS
+
+
+@pytest.mark.django_db
+def test_b3_concurrent_snapshot_no_integrity_error():
+    """【P1/B-3 回归】同一 (template, version) 重复落快照不得抛 IntegrityError（不得 500）。
+
+    模拟两名 HR 并发编辑同一模板：二者都读到旧 version 并算出相同新 version，
+    第二个 create 会撞 uniq_tpl_version 唯一约束 → 修复前 IntegrityError 逃逸为 500。
+    修复后 create_version_snapshot 用 get_or_create，第二个调用复用已存在快照行。
+    """
+    atomic = AtomicMetric.objects.create(
+        name='B3原子', source_path='candidate.age', data_type='number', status='enabled',
+    )
+    tpl = MetricTemplate.objects.create(
+        name='B3模板', atomic_metric=atomic, operators=['GT'], version=1,
+    )
+    # v1 基线快照（正常 perform_create 已落）
+    MetricTemplateVersion.objects.create(
+        template=tpl, version=1, snapshot=build_snapshot(tpl), change_kind='create',
+    )
+
+    tpl.version = 2
+    s1 = create_version_snapshot(tpl, user=None, kind='update', note='并发A')
+    # 第二个并发写者算出相同 version=2，再次落快照
+    s2 = create_version_snapshot(tpl, user=None, kind='update', note='并发B')
+
+    assert s1.id == s2.id, '重复 (template, version) 应复用同一快照行，而非撞唯一约束 500'
+    assert MetricTemplateVersion.objects.filter(template=tpl, version=2).count() == 1
+
+
+@pytest.mark.django_db
+def test_b3_update_twice_same_version_no_500():
+    """【P1/B-3 回归】两次更新都 bump 到相同 version 时，第二次不得 500（端到端模拟竞态末端）。"""
+    atomic = AtomicMetric.objects.create(
+        name='B3原子2', source_path='candidate.age', data_type='number', status='enabled',
+    )
+    tpl = MetricTemplate.objects.create(
+        name='B3模板2', atomic_metric=atomic, operators=['GT'], version=1,
+    )
+    MetricTemplateVersion.objects.create(
+        template=tpl, version=1, snapshot=build_snapshot(tpl), change_kind='create',
+    )
+    # 模拟两个并发请求都基于 version=1 各自 bump 到 2
+    tpl.version = 2
+    tpl.save(update_fields=['version'])
+    create_version_snapshot(tpl, user=None, kind='update', note='writer-A')
+    # writer-B 也 bump 到 2（幂等，无冲突）
+    tpl.version = 2
+    tpl.save(update_fields=['version'])
+    create_version_snapshot(tpl, user=None, kind='update', note='writer-B')
+    assert MetricTemplateVersion.objects.filter(template=tpl, version=2).count() == 1
+
+
+# ===========================================================================
+#  V13 回归：模板 calc_params 必须符合引用派生指标的 param_schema 契约
+#  （计算参数已下沉到模板层，定义层不再持有取值）
+# ===========================================================================
+@pytest.mark.django_db
+class TestCalcParamsSchemaValidation:
+    def _make_avg_work(self):
+        return DerivedMetric.objects.create(
+            name='平均工作时长-V13', calc_func='AVG_WORK_MONTHS',
+            base_path='candidate.workExperience', data_type='number',
+            unit='月', status='enabled',
+        )
+
+    def test_valid_calc_params_passes(self, auth_client):
+        d = self._make_avg_work()
+        resp = auth_client.post(
+            TEMPLATES,
+            {
+                'name': '平均时长模板', 'derivedMetric': str(d.id),
+                'operators': ['GT'],
+                'calcParams': {'recent_n': 3, 'unit': 'month'},
+            },
+            format='json',
+        )
+        assert resp.status_code == 201, resp.content.decode()
+        data = resp.json()['data']
+        # 响应经 camelCase 渲染：嵌套键也被转换（recent_n -> recentN），DB 内仍存 snake_case
+        assert data['calcParams']['unit'] == 'month'
+        assert data['calcParams'].get('recentN', data['calcParams'].get('recent_n')) == 3
+
+    def test_unknown_param_key_rejected(self, auth_client):
+        d = self._make_avg_work()
+        resp = auth_client.post(
+            TEMPLATES,
+            {
+                'name': '未知参数模板', 'derivedMetric': str(d.id),
+                'operators': ['GT'],
+                'calcParams': {'recent_n': 3, 'foo': 1},
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+
+    def test_select_value_out_of_options_rejected(self, auth_client):
+        d = self._make_avg_work()
+        resp = auth_client.post(
+            TEMPLATES,
+            {
+                'name': '非法枚举模板', 'derivedMetric': str(d.id),
+                'operators': ['GT'],
+                'calcParams': {'recent_n': 3, 'unit': 'lightyear'},
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+
+    def test_required_param_missing_rejected(self, auth_client, monkeypatch):
+        """required 参数缺失时序列化器应拒绝（直接校验静态方法）。"""
+        from .. import serializers as sers
+        from rest_framework import serializers as drf
+        fake_func = {'param_schema': [
+            {'key': 'k', 'label': 'K', 'type': 'number', 'required': True},
+        ]}
+        monkeypatch.setattr(sers, 'get_derived_func', lambda name: fake_func)
+        with pytest.raises(drf.ValidationError):
+            sers.MetricTemplateSerializer._validate_calc_params(
+                {}, type('M', (), {'calc_func': 'X'})()
+            )
+

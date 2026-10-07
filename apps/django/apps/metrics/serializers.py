@@ -46,7 +46,7 @@ class DerivedMetricSerializer(serializers.ModelSerializer):
     class Meta:
         model = DerivedMetric
         fields = [
-            'id', 'name', 'calc_func', 'base_path', 'params', 'data_type',
+            'id', 'name', 'calc_func', 'base_path', 'data_type',
             'unit', 'description', 'status', 'created_at', 'template_count',
         ]
         read_only_fields = ['id', 'created_at', 'template_count']
@@ -61,13 +61,6 @@ class DerivedMetricSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('数据来源路径必须包含 "." ，如 candidate.workExperience')
         return value
 
-    def validate_params(self, value):
-        if value is None:
-            return {}
-        if not isinstance(value, dict):
-            raise serializers.ValidationError('参数必须是对象')
-        return value
-
     def get_template_count(self, obj):
         return obj.templates.count()
 
@@ -77,7 +70,6 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
     metric_path = serializers.SerializerMethodField(read_only=True)
     metric_kind = serializers.SerializerMethodField(read_only=True)
     data_type = serializers.SerializerMethodField(read_only=True)
-    unit = serializers.SerializerMethodField(read_only=True)
     # LIFE-1：版本化只读字段
     version = serializers.IntegerField(read_only=True)
     version_count = serializers.IntegerField(read_only=True)
@@ -88,12 +80,12 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             'id', 'name', 'atomic_metric', 'derived_metric',
             'metric_name', 'metric_path', 'metric_kind', 'data_type', 'unit',
             'operators', 'param_config', 'value_domain', 'param_enums',
-            'param_allow_null', 'status', 'description', 'created_at',
+            'calc_params', 'param_allow_null', 'status', 'description', 'created_at',
             'version', 'version_count',
         ]
         read_only_fields = [
             'id', 'created_at', 'metric_name', 'metric_path',
-            'metric_kind', 'data_type', 'unit', 'version', 'version_count',
+            'metric_kind', 'data_type', 'version', 'version_count',
         ]
 
     def validate(self, attrs):
@@ -116,6 +108,11 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
         # PRD BR-2/BR-3：离散型 step 必须为整数；自由区间（未设 min/max）允许留空
         self._validate_param_config(attrs.get('param_config'))
         self._validate_value_domain(attrs.get('value_domain'))
+
+        # V13（指标级校验落地）：calc_params 必须符合引用派生指标的 param_schema 契约
+        derived = attrs.get('derived_metric',
+                            instance.derived_metric if instance else None)
+        self._validate_calc_params(attrs.get('calc_params'), derived)
         return attrs
 
     @staticmethod
@@ -132,6 +129,43 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             has_range = cfg.get('min') is not None or cfg.get('max') is not None
             if has_range and isinstance(step, float) and not step.is_integer():
                 raise serializers.ValidationError('离散型参数步长必须为整数')
+
+    @staticmethod
+    def _validate_calc_params(calc_params, derived_metric):
+        """V13：模板 calc_params 必须符合引用派生指标（param_schema 契约）。
+
+        对象路径指标（atomic/derived 无 param_schema）无需校验；未引用派生指标直接放行。
+        校验项：key 在 schema 内、required 必填、select 取值∈options、类型基本一致。
+        """
+        if calc_params is None:
+            return
+        if not isinstance(calc_params, dict):
+            raise serializers.ValidationError('计算参数必须是对象')
+        if derived_metric is None:
+            return
+        func = get_derived_func(derived_metric.calc_func)
+        schema = (func or {}).get('param_schema') or []
+        if not schema:
+            return
+        allowed = {p['key']: p for p in schema}
+        for key, val in calc_params.items():
+            spec = allowed.get(key)
+            if spec is None:
+                raise serializers.ValidationError(f'计算参数「{key}」未在指标定义中声明')
+            ptype = spec.get('type')
+            if val is None:
+                if spec.get('required'):
+                    raise serializers.ValidationError(f'计算参数「{key}」为必填项')
+                continue
+            if ptype == 'number' and not isinstance(val, (int, float)) or isinstance(val, bool):
+                raise serializers.ValidationError(f'计算参数「{key}」必须是数值')
+            if ptype == 'select':
+                options = [o.get('value') for o in (spec.get('options') or [])]
+                if options and val not in options:
+                    raise serializers.ValidationError(f'计算参数「{key}」取值不在允许范围内')
+        for spec in schema:
+            if spec.get('required') and calc_params.get(spec['key']) is None:
+                raise serializers.ValidationError(f'计算参数「{spec["key"]}」为必填项')
 
     @staticmethod
     def _validate_value_domain(domain):
@@ -162,9 +196,6 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
 
     def get_data_type(self, obj):
         return obj.data_type
-
-    def get_unit(self, obj):
-        return obj.unit
 
 
 class MetricTemplateVersionSerializer(serializers.ModelSerializer):

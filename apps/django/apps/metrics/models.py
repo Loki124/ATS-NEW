@@ -108,10 +108,8 @@ class DerivedMetric(FullAuditModel, UUIDModel):
         max_length=255, verbose_name='数据来源路径',
         help_text='计算所基于的嵌套数据路径，如 candidate.workExperience / candidate.education',
     )
-    params = models.JSONField(
-        default=dict, blank=True, verbose_name='函数参数',
-        help_text='如 {"window_years": 5} / {"unit": "month"}',
-    )
+    # 注意：计算参数的「实际取值」不再存于定义层（已由 DerivedMetric.params 字段移除）。
+    # 定义层只声明输入参数契约（param_schema，来自注册表），实际取值统一在 MetricTemplate.calc_params 维护。
     data_type = models.CharField(
         max_length=16, choices=MetricDataType.choices,
         default=MetricDataType.NUMBER, verbose_name='数据类型',
@@ -170,6 +168,15 @@ class MetricTemplate(FullAuditModel, UUIDModel):
         help_text='枚举型指标的允许取值列表，如 ["本科","硕士","博士"]',
     )
     param_allow_null = models.BooleanField(default=False, verbose_name='允许为空')
+    # ===== 计算参数（PRD：实际取值下沉到模板层）=====
+    # 参数化派生指标（calc_func 带 param_schema）的实际输入值，如 {"recent_n": 3} / {"window_years": 5}；
+    # 规则求值时引擎优先读此处，缺失则 FAIL-not-500。定义层不再存放任何计算参数值。
+    calc_params = models.JSONField(
+        default=dict, blank=True, verbose_name='计算参数',
+        help_text='参数化派生指标的实际输入值（如 {"recent_n": 3}），使用指标时生效，模板层维护',
+    )
+    # 输出单位：模板可覆盖指标定义的口径单位，用于规则展示（如「月」）。
+    unit = models.CharField(max_length=16, blank=True, default='', verbose_name='输出单位')
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',
@@ -225,7 +232,8 @@ class MetricTemplate(FullAuditModel, UUIDModel):
         return m.data_type if m else MetricDataType.STRING
 
     @property
-    def unit(self):
+    def inherited_unit(self):
+        """沿用所引用指标定义的口径单位（只读参考；实际展示以自身 unit 字段为准）。"""
         m = self.metric
         return m.unit if m else ''
 

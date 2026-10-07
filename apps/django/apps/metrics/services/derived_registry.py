@@ -13,7 +13,7 @@
 
 统一签名：fn(items, params, data) -> Any
     items  = 由 DerivedMetric.base_path 解析出的值（通常是 list）
-    params = DerivedMetric.params（运营配置的参数，结构由 param_schema 声明）
+    params = 使用指标时由 MetricTemplate.calc_params 提供的实际输入值（结构由 param_schema 声明）
     data   = 完整业务数据快照（兜底用）
     返回 None 表示该指标无值（引擎按"为空"处理，不抛错）。
 

@@ -34,10 +34,12 @@ SEMANTIC_FIELDS = (
     'param_config',
     'value_domain',
     'param_enums',
+    'calc_params',
+    'unit',
     'param_allow_null',
 )
 
-# 回滚时从快照写回主表的「真实字段」（忽略冗余键 metric_name/metric_kind/metric_path/data_type/unit）。
+# 回滚时从快照写回主表的「真实字段」（忽略冗余键 metric_name/metric_kind/metric_path/data_type）。
 _ROLLBACK_REAL_FIELDS = [
     'name',
     'atomic_metric_id',
@@ -46,6 +48,8 @@ _ROLLBACK_REAL_FIELDS = [
     'param_config',
     'value_domain',
     'param_enums',
+    'calc_params',
+    'unit',
     'param_allow_null',
     'status',
     'description',
@@ -65,7 +69,7 @@ class RollbackBlocked(TemplateVersionError):
 
 
 def build_snapshot(tpl: MetricTemplate) -> dict:
-    """从模板实例拼出 15 键快照 dict（键必须与 0019 RunPython 写出的完全一致）。
+    """从模板实例拼出 16 键快照 dict（键必须与历史版本快照一致；新增 calc_params / unit 两键）。
 
     metric_name / metric_kind / metric_path / data_type / unit 来自 MetricTemplate 的 5 个
     property（冗余快照：即使将来引用指标被改/被删，历史快照仍可读出当时引用了什么）。
@@ -85,6 +89,7 @@ def build_snapshot(tpl: MetricTemplate) -> dict:
         'param_config': tpl.param_config,
         'value_domain': tpl.value_domain,
         'param_enums': tpl.param_enums,
+        'calc_params': tpl.calc_params,
         'param_allow_null': tpl.param_allow_null,
         'status': tpl.status,
         'description': tpl.description,
@@ -120,15 +125,22 @@ def create_version_snapshot(
         template=tpl, version=tpl.version - 1,
     ).first()
     changed_fields = diff_snapshots(prev.snapshot, snapshot) if prev is not None else []
-    return MetricTemplateVersion.objects.create(
+    # get_or_create 而非 create：消除并发更新撞 uniq_tpl_version 唯一约束导致的
+    # IntegrityError → 500（B-3 根因）。两名 HR 同时编辑同一模板时都读到旧 version 并算出
+    # 相同新 version，第二个 create 会撞约束；get_or_create 在 create 失败时自动回退到 get，
+    # 复用已存在的快照（二者内容一致），不抛 500。对 SQLite/MySQL/Postgres 均安全。
+    obj, _created = MetricTemplateVersion.objects.get_or_create(
         template=tpl,
         version=tpl.version,
-        snapshot=snapshot,
-        changed_fields=changed_fields,
-        change_kind=kind,
-        change_note=note,
-        created_by=user,
+        defaults={
+            'snapshot': snapshot,
+            'changed_fields': changed_fields,
+            'change_kind': kind,
+            'change_note': note,
+            'created_by': user,
+        },
     )
+    return obj
 
 
 def list_versions(template_id: str) -> list:

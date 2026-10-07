@@ -24,7 +24,7 @@ from apps.rule_engine.models import UnifiedOperator
 
 # ---------------------------------------------------------------------------
 # TODO（指标级校验，本批次不做，留待指标级校验跟进）
-#   V13 DerivedMetric.params 符合 param_schema（required/类型/select∈options）
+#   V13 MetricTemplate.calc_params 符合引用派生指标的 param_schema（required/类型/select∈options）
 #   V14 base_path 末段指向数组/日期与 input_kind 一致（轻 heuristic）
 #   V15 原子 source_path 含 "." 且无 dunder（既有序列化器已部分覆盖）
 # ---------------------------------------------------------------------------

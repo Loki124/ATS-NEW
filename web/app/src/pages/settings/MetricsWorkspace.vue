@@ -42,7 +42,14 @@
 
           <div class="ws-table-wrap">
             <n-spin :show="loading" class="ws-spin">
-              <div v-if="!loading && !filteredDefinitions.length" class="ws-empty">
+              <div v-if="loadError" class="ws-empty">
+                <n-result status="error" :title="t('metrics.empty.loadErrorTitle')" :description="t('metrics.empty.loadErrorDesc')">
+                  <template #footer>
+                    <n-button tertiary size="small" @click="load">{{ t('metrics.empty.reload') }}</n-button>
+                  </template>
+                </n-result>
+              </div>
+              <div v-else-if="!filteredDefinitions.length" class="ws-empty">
                 <n-empty :description="t('metrics.empty.definitions')" />
               </div>
               <n-data-table
@@ -113,7 +120,14 @@
 
           <div class="ws-table-wrap">
             <n-spin :show="loading" class="ws-spin">
-              <div v-if="!loading && !templateList.length" class="ws-empty">
+              <div v-if="loadError" class="ws-empty">
+                <n-result status="error" :title="t('metrics.empty.loadErrorTitle')" :description="t('metrics.empty.loadErrorDesc')">
+                  <template #footer>
+                    <n-button tertiary size="small" @click="load">{{ t('metrics.empty.reload') }}</n-button>
+                  </template>
+                </n-result>
+              </div>
+              <div v-else-if="!loading && !templateList.length" class="ws-empty">
                 <n-empty :description="t('metrics.empty.noTemplates')" />
               </div>
               <div v-else-if="!filteredTemplates.length" class="ws-empty">
@@ -307,32 +321,18 @@
           <p class="dm-desc">{{ detailRow.description }}</p>
         </section>
 
-        <!-- 参数配置（参数化 Handler） -->
-        <section v-if="hasEditableParams" class="dm-section dm-params">
-          <div class="dm-section-label">{{ t('metrics.detail.paramsTitle') }}</div>
-          <div class="detail-params-form">
+        <!-- 输入参数契约（参数化 Handler；使用本指标必须提供的参数，实际取值在模板层配置） -->
+        <section v-if="detailRow?.paramSchema?.length" class="dm-section dm-params">
+          <div class="dm-section-label">{{ t('metrics.detail.inputParamsTitle') }}</div>
+          <div class="detail-params-readonly">
             <div v-for="p in detailRow.paramSchema" :key="p.key" class="detail-param-row">
               <span class="param-label">{{ p.label }}</span>
-              <n-input-number
-                v-if="p.type === 'number'"
-                v-model:value="detailParams[p.key]"
-                :min="0"
-                class="param-input"
-              />
-              <n-select
-                v-else-if="p.type === 'select'"
-                v-model:value="detailParams[p.key]"
-                :options="(p.options || []).map((o: any) => ({ label: o.label, value: o.value }))"
-                class="param-input"
-              />
-              <n-switch v-else-if="p.type === 'boolean'" v-model:value="detailParams[p.key]" />
-              <n-input v-else v-model:value="detailParams[p.key]" class="param-input" />
-              <span v-if="p.key === 'recent_n'" class="param-hint">{{ t('metrics.detail.recentNHint') }}</span>
+              <span class="param-meta">
+                {{ paramSchemaTypeLabel(p.type) }}<template v-if="p.required"> · {{ t('metrics.detail.required') }}</template>
+              </span>
             </div>
           </div>
-          <n-button type="primary" size="small" :loading="savingParams" @click="saveDerivedParams">
-            {{ t('metrics.detail.saveParams') }}
-          </n-button>
+          <p class="dm-desc dm-hint">{{ t('metrics.detail.inputParamsHint') }}</p>
         </section>
       </template>
     </n-modal>
@@ -368,6 +368,14 @@
           <span class="tpl-output-hint">{{ t('metrics.tpl.inheritedHint') }}</span>
         </div>
 
+        <n-form-item v-if="selectedTemplateDefinition" :label="t('metrics.tpl.outputUnit')" class="tpl-unit-field">
+          <n-input
+            v-model:value="tplForm.unit"
+            :placeholder="selectedTemplateDefinition.unit || t('metrics.tpl.outputUnitPlaceholder')"
+          />
+          <template #help>{{ t('metrics.tpl.outputUnitHint') }}</template>
+        </n-form-item>
+
         <!-- 参数配置：仅参数化 Handler 类型指标展示 -->
         <section v-if="showTemplateParamConfig" class="tpl-section-card">
           <div class="tpl-section-header">
@@ -380,6 +388,33 @@
               {{ paramTypeLabel(selectedTemplateDefinition?.paramType) }}
             </n-tag>
             <span class="tpl-section-hint">{{ paramConfigHint }}</span>
+          </div>
+          <div class="tpl-subblock">
+            <div class="tpl-subblock-title">{{ t('metrics.tpl.calcParamsTitle') }}</div>
+            <p class="tpl-subblock-hint">{{ t('metrics.tpl.calcParamsHint') }}</p>
+            <div v-if="selectedTemplateDefinition?.paramSchema?.length" class="tpl-calc-params">
+              <div v-for="p in selectedTemplateDefinition.paramSchema" :key="p.key" class="tpl-calc-row">
+                <span class="param-label">
+                  {{ p.label }}<template v-if="p.required"> *</template>
+                </span>
+                <n-input-number
+                  v-if="p.type === 'number'"
+                  v-model:value="tplForm.calcParams[p.key]"
+                  :min="p.min ?? 0"
+                  class="param-input"
+                />
+                <n-select
+                  v-else-if="p.type === 'select'"
+                  v-model:value="tplForm.calcParams[p.key]"
+                  :options="(p.options || []).map((o: any) => ({ label: o.label, value: o.value }))"
+                  class="param-input"
+                />
+                <n-switch v-else-if="p.type === 'boolean'" v-model:value="tplForm.calcParams[p.key]" />
+                <n-input v-else v-model:value="tplForm.calcParams[p.key]" class="param-input" />
+                <span v-if="p.key === 'recent_n'" class="param-hint">{{ t('metrics.detail.recentNHint') }}</span>
+              </div>
+            </div>
+            <div v-else class="tpl-info-text">{{ t('metrics.tpl.handlerNoParamsNeeded') }}</div>
           </div>
           <div class="tpl-section-body">
             <div class="tpl-row">
@@ -477,7 +512,7 @@
                 <n-input-number v-model:value="seg.min" class="tpl-seg-field" :precision="paramPrecision" />
                 <span class="tpl-range-sep">~</span>
                 <n-input-number v-model:value="seg.max" class="tpl-seg-field" :precision="paramPrecision" />
-                <span v-if="selectedTemplateDefinition?.unit" class="tpl-unit-text">{{ selectedTemplateDefinition.unit }}</span>
+                <span v-if="tplForm.unit || selectedTemplateDefinition?.unit" class="tpl-unit-text">{{ tplForm.unit || selectedTemplateDefinition?.unit }}</span>
                 <n-form-item :label="t('metrics.tpl.step')" class="tpl-step-field">
                   <n-input-number v-model:value="seg.step" :min="0" :precision="paramPrecision" />
                 </n-form-item>
@@ -624,6 +659,35 @@
           </n-table>
         </template>
 
+        <!-- 指标规则（LIFE-1 R3，JSON 路径：conditions[].templateId） -->
+        <template v-if="metricRuleRefs.length">
+          <div class="affected-group-title">{{ t('metrics.life2.metricRuleGroup') }}</div>
+          <n-table :single-line="false" size="small" class="affected-table">
+            <thead>
+              <tr>
+                <th>{{ t('metrics.life2.colRule') }}</th>
+                <th>{{ t('metrics.life2.colScene') }}</th>
+                <th>{{ t('metrics.life2.colCondition') }}</th>
+                <th>{{ t('metrics.life2.colAction') }}</th>
+                <th>{{ t('metrics.life2.colStatus') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in metricRuleRefs" :key="'mr-' + item.ruleId">
+                <td>{{ item.ruleName }}</td>
+                <td>{{ metricRuleSceneLabel(item.ruleScene) }}</td>
+                <td>{{ formatCondition(item.operator, item.value) }}</td>
+                <td>{{ metricRuleActionLabel(item.actionType) }}</td>
+                <td>
+                  <n-tag size="small" :type="item.ruleEnabled ? 'success' : 'default'">
+                    {{ item.ruleEnabled ? t('metrics.status.enabled') : t('metrics.status.disabled') }}
+                  </n-tag>
+                </td>
+              </tr>
+            </tbody>
+          </n-table>
+        </template>
+
         <!-- 处理建议 -->
         <div class="affected-suggest-title">{{ t('metrics.life2.suggestionTitle') }}</div>
         <ul class="affected-suggest-list">
@@ -690,16 +754,27 @@
               <span class="verh-time">{{ formatTime(v.createdAt) }}</span>
             </div>
             <div class="verh-actions">
-              <n-button
-                size="small"
-                type="primary"
-                secondary
-                :loading="rollbackLoading && rollbackVersionNo === v.version"
+              <!--
+                LIFE-1 / 安全闸门：回滚是破坏性操作（会覆盖模板当前配置并 version+1），
+                必须先经 n-popconfirm 显式确认，禁止一键直连执行。
+              -->
+              <n-popconfirm
                 :disabled="rollbackLoading"
-                @click="confirmRollback(versionHistoryTarget!, v.version)"
+                @positive-click="confirmRollback(versionHistoryTarget!, v.version)"
               >
-                {{ t('metrics.life1.rollback') }}
-              </n-button>
+                <template #trigger>
+                  <n-button
+                    size="small"
+                    type="primary"
+                    secondary
+                    :loading="rollbackLoading && rollbackVersionNo === v.version"
+                    :disabled="rollbackLoading"
+                  >
+                    {{ t('metrics.life1.rollback') }}
+                  </n-button>
+                </template>
+                {{ t('metrics.life1.rollbackConfirm', { v: v.version }) }}
+              </n-popconfirm>
             </div>
           </div>
         </div>
@@ -757,7 +832,6 @@ import {
   listMetricTemplates,
   listOperators,
   listCandidateFields,
-  updateDerivedMetric,
   updateMetricTemplate,
   exportMetricTemplates,
   downloadTemplateTemplate,
@@ -766,6 +840,7 @@ import {
   listTemplateVersions,
   rollbackTemplateVersion,
   TemplateImportError,
+  ACTION_TYPE_OPTIONS,
   type TemplateAffectedRules,
   type TemplateVersion,
   type TemplateImportMode,
@@ -793,6 +868,7 @@ const derivedList = ref<DerivedMetric[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
 const fieldPaths = ref<CandidateFieldPath[]>([])
 const loading = ref(false)
+const loadError = ref(false)
 
 // ===== LIFE-2：指标模板禁用/删除前的受影响规则披露（事前披露 + 确认闸门） =====
 const affectedModalVisible = ref(false)
@@ -814,37 +890,10 @@ const rollbackVersionNo = ref<number | null>(null)
 // ===== 指标详情弹窗 =====
 const detailVisible = ref(false)
 const detailRow = ref<MetricDefinition | null>(null)
-// 参数化 Handler 指标的可编辑参数副本（来自 detailRow.paramSchema）
-const detailParams = ref<Record<string, any>>({})
-const savingParams = ref(false)
 
 function openDetail(row: MetricDefinition) {
   detailRow.value = row
-  detailParams.value = { ...(row.params || {}) }
   detailVisible.value = true
-}
-
-/** 当前指标是否为带参数的「参数化 Handler」，需要渲染参数编辑区。 */
-const hasEditableParams = computed<boolean>(() => {
-  const d = detailRow.value
-  return !!d && d.valueMode === 'parametric_handler' && !!(d.paramSchema && d.paramSchema.length)
-})
-
-async function saveDerivedParams() {
-  const d = detailRow.value
-  if (!d) return
-  savingParams.value = true
-  try {
-    await updateDerivedMetric(d.id, { params: detailParams.value })
-    message.success(t('metrics.detail.paramsSaved'))
-    if (detailRow.value) detailRow.value.params = { ...detailParams.value }
-    await load()
-  } catch (error: any) {
-    const err = error?.response?.data?.error
-    message.error(err ? String(err) : t('metrics.msg.saveFailed'))
-  } finally {
-    savingParams.value = false
-  }
 }
 
 /**
@@ -909,6 +958,16 @@ function paramTypeLabel(type?: string): string {
   if (type === 'discrete') return t('metrics.paramType.discrete')
   return '-'
 }
+/** paramSchema 字段类型 → 中文（定义弹窗只读契约展示用）。 */
+function paramSchemaTypeLabel(type?: string): string {
+  const map: Record<string, string> = {
+    number: t('metrics.detail.paramTypeNumber'),
+    select: t('metrics.detail.paramTypeSelect'),
+    boolean: t('metrics.detail.paramTypeBoolean'),
+    string: t('metrics.detail.paramTypeString'),
+  }
+  return (type && map[type]) || type || '-'
+}
 function operatorLabel(value: string) {
   return operatorCatalog.value.find((o) => o.value === value)?.label ?? value
 }
@@ -961,7 +1020,10 @@ const defPageSize = ref(20)
 
 /** 对过滤后的指标定义做客户端切片分页 */
 const pagedDefinitions = computed<MetricDefinition[]>(() => {
-  const start = (defPage.value - 1) * defPageSize.value
+  // M-1 钳制：filtered 列表变短（切 Tab / 关键词 / 分类筛选）后，若仍停在第 N 页，
+  // start 会超出列表长度 → 空白表格且无提示。钳到最后一页有效起点。
+  const maxStart = Math.max(0, filteredDefinitions.value.length - defPageSize.value)
+  const start = Math.min((defPage.value - 1) * defPageSize.value, maxStart)
   return filteredDefinitions.value.slice(start, start + defPageSize.value)
 })
 
@@ -1155,7 +1217,9 @@ const filteredTemplates = computed<MetricTemplate[]>(() => {
 
 /** 对过滤后的结果做客户端切片分页（后端无 keyword/status 过滤，拉全量后前端分页） */
 const pagedTemplates = computed<MetricTemplate[]>(() => {
-  const start = (tplPage.value - 1) * tplPageSize.value
+  // M-1 钳制：同 pagedDefinitions，防止列表变短后停在第 N 页显示空白表格。
+  const maxStart = Math.max(0, filteredTemplates.value.length - tplPageSize.value)
+  const start = Math.min((tplPage.value - 1) * tplPageSize.value, maxStart)
   return filteredTemplates.value.slice(start, start + tplPageSize.value)
 })
 
@@ -1290,7 +1354,14 @@ const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
     title: t('metrics.life1.versionColumn'),
     key: 'version',
     width: 80,
-    render: (row) => h('span', row.versionCount ? `${row.versionCount}` : '-'),
+    // 列头「版本」= 当前版本号（v1/v2/…），与抽屉内的 v{{ v.version }} 保持同一语义；
+    // 历史总条数（versionCount）放 title 提示，避免 HR 把「条数」误读成「版本号」。
+    render: (row) =>
+      h(
+        'span',
+        { title: t('metrics.life1.versionCount', { n: row.versionCount ?? 0 }) },
+        row.version ? `v${row.version}` : '-',
+      ),
   },
   {
     title: t('metrics.col.action'),
@@ -1326,6 +1397,8 @@ const emptyTplForm = () => ({
   name: '',
   metricDefinition: null as string | null,
   operators: [] as string[],
+  unit: '',
+  calcParams: {} as Record<string, any>,
   paramConfig: { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false },
   valueDomain: { segments: [] as any[] },
   paramEnums: [] as string[],
@@ -1440,6 +1513,14 @@ function onTemplateMetricChange() {
   // 对象路径指标无需参数，切回 handler 时清空旧参数避免误解
   if (!showTemplateParamConfig.value) {
     tplForm.value.paramConfig = { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false }
+    tplForm.value.calcParams = {}
+  } else if (selectedTemplateDefinition.value?.paramSchema?.length) {
+    // 预填 paramSchema default，便于业务人员改
+    for (const p of selectedTemplateDefinition.value.paramSchema) {
+      if (tplForm.value.calcParams[p.key] === undefined && p.default !== undefined) {
+        tplForm.value.calcParams[p.key] = p.default
+      }
+    }
   }
 }
 
@@ -1460,6 +1541,8 @@ function openTemplateEdit(row: MetricTemplate) {
     name: row.name,
     metricDefinition: metricKey,
     operators: row.operators || [],
+    unit: row.unit || '',
+    calcParams: { ...(row.calcParams || {}) },
     paramConfig: {
       min: cfg.min ?? null,
       max: cfg.max ?? null,
@@ -1509,6 +1592,8 @@ async function submitTemplate() {
       atomicMetric: kind === 'atomic' ? id : null,
       derivedMetric: kind === 'derived' ? id : null,
       operators: tplForm.value.operators,
+      unit: tplForm.value.unit,
+      calcParams: tplForm.value.calcParams,
       paramConfig: tplForm.value.paramConfig,
       valueDomain: tplForm.value.valueDomain,
       paramEnums: tplForm.value.paramEnums,
@@ -1578,7 +1663,7 @@ async function executeDeleteTemplate(row: MetricTemplate) {
         onClick: async () => {
           try {
             await createMetricTemplate(restorePayload)
-            message.success(t('metrics.msg.restored'))
+            message.warning(t('metrics.msg.restoredNew'))
             await load()
           } catch (err: any) {
             const detail = err?.response?.data?.error
@@ -1652,6 +1737,27 @@ const skipRules = computed(() =>
 const archiveRules = computed(() =>
   (affectedData.value?.stageRules ?? []).filter((r) => r.ruleType === 'archive'),
 )
+
+/**
+ * LIFE-1 R3：指标规则引用项（后端 conditions[].templateId 路径）。
+ * 用 `?? []` 兜底，兼容尚未升级 / 缓存的旧后端响应（该字段缺失时不应让披露弹窗报错）。
+ */
+const metricRuleRefs = computed(() => affectedData.value?.metricRules ?? [])
+
+/** 指标规则应用场景 → 可读文案（复用 metrics.scene.* 键） */
+function metricRuleSceneLabel(scene: string): string {
+  return t(`metrics.scene.${scene}` as any)
+}
+
+/**
+ * 指标规则动作类型 → 可读文案。
+ * 复用 ACTION_TYPE_OPTIONS 的 value→labelKey 映射（VETO→metrics.rule.action.veto），
+ * 不做字符串插值下标换算，避免大小写拼不上导致 i18n 回退成裸 key；未知值原样返回。
+ */
+function metricRuleActionLabel(actionType: string): string {
+  const hit = ACTION_TYPE_OPTIONS.find((o) => o.value === actionType)
+  return hit ? t(hit.labelKey as any) : actionType
+}
 
 /** 把运算符 + 值拼成可读文本（如 `EQ: 10`） */
 function formatCondition(operator: string, value: any): string {
@@ -1803,6 +1909,7 @@ function onAffectedCancel() {
 // ===== 主加载 =====
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     const [atomic, derived, templates, ops, defs] = await Promise.all([
       listAtomicMetrics(),
@@ -1828,6 +1935,7 @@ async function load() {
       fieldPaths.value = []
     }
   } catch {
+    loadError.value = true
     message.error(t('metrics.msg.loadFailed'))
   } finally {
     loading.value = false
@@ -2174,6 +2282,19 @@ onUnmounted(() => {
 .param-label { min-width: 96px; color: var(--ink-strong); font-size: var(--fs-13, 13px); font-weight: 500; }
 .param-input { width: 220px; max-width: 100%; }
 .param-hint { color: var(--ink-faint); font-size: var(--fs-12); line-height: 1.4; }
+
+/* 详情弹窗：只读输入参数契约 */
+.detail-params-readonly { display: flex; flex-direction: column; gap: var(--space-2); }
+.param-meta { color: var(--ink-soft); font-size: var(--fs-12); }
+.dm-hint { color: var(--ink-faint); font-size: var(--fs-12); margin-top: var(--space-2); }
+
+/* 模板弹窗：计算参数子块（实际取值） */
+.tpl-subblock { border-top: 1px dashed var(--border-hairline); margin-top: var(--space-3); padding-top: var(--space-3); }
+.tpl-subblock-title { font-weight: 600; color: var(--ink-strong); font-size: var(--text-small, 13px); margin-bottom: var(--space-1); }
+.tpl-subblock-hint { color: var(--ink-faint); font-size: var(--fs-12); margin: 0 0 var(--space-3); line-height: 1.5; }
+.tpl-calc-params { display: flex; flex-direction: column; gap: var(--space-2); }
+.tpl-calc-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.tpl-unit-field { margin-bottom: var(--space-4); }
 
 /* 模板弹窗分段 */
 .tpl-form { padding-right: 2px; }

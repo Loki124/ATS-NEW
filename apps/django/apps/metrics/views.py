@@ -167,12 +167,18 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         super().perform_update(serializer)
         changed = [f for f in SEMANTIC_FIELDS if old_values[f] != getattr(instance, f, None)]
         if changed:
-            instance.version += 1
-            instance.save(update_fields=['version'])
-            create_version_snapshot(
-                instance, self.request.user, kind='update',
-                note='语义变更: ' + ','.join(changed),
-            )
+            from django.db import transaction
+
+            # B-3 修复：version bump + 落快照整体原子化。配合 create_version_snapshot 的
+            # get_or_create，彻底消除并发更新撞 uniq_tpl_version 唯一约束导致的 IntegrityError→500。
+            with transaction.atomic():
+                instance.version += 1
+                instance.save(update_fields=['version'])
+                create_version_snapshot(
+                    instance, self.request.user, kind='update',
+                    note='语义变更: ' + ','.join(changed),
+                )
+        return instance
 
     @action(detail=True, methods=['get'], url_path='versions')
     def versions(self, request, pk=None):
@@ -643,7 +649,8 @@ class MetricDefinitionViewSet(APIView):
                 'name': m.name,
                 'valueMode': 'parametric_handler',
                 'dataSource': m.base_path,
-                'params': m.params or {},
+                # 定义层不再持有计算参数值（已下沉到模板 calc_params）；保留空 params 兼容旧契约
+                'params': {},
                 'returnType': m.data_type,
                 'unit': m.unit or '',
                 'isEnum': False,
