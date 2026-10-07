@@ -114,7 +114,9 @@ class MetricEngine:
         }
 
         # 1) 模板存在性
-        template = MetricTemplate.objects.filter(pk=template_id).select_related(
+        # 用 all_objects 而非 objects：软删行的 deleted_at 已置位，但模板行仍在库里，
+        # 必须查得到才能走到 1.5 的「软删 → 降级」分支（S-2 回归契约：软删模板主执行路径必须降级）。
+        template = MetricTemplate.all_objects.filter(pk=template_id).select_related(
             'atomic_metric', 'derived_metric'
         ).first()
         if template is None:

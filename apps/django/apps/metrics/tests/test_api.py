@@ -81,13 +81,11 @@ def test_delete_unused_atomic_metric_ok(auth_client):
 
 
 def test_p1_delete_template_in_use_rejected(auth_client):
-    """【P1/B-2 回归】被规则引用的模板禁止删除，返回 400（不 500）。
+    """【P1/B-2 回归】被规则引用的模板软删也成功（D1：destroy 不再 400 拦截）。
 
-    修复前 MetricTemplateViewSet 无删除保护（AtomicMetric/DerivedMetric 有 _RefCheckMixin，
-    模板没有），模板被删后规则 conditions 悬空 → metric_engine 报「模板不存在」→
-    该步 FAIL → 所有候选人被拒绝入池，且原因显示为一个不存在的模板 id。
-
-    本用例复用现成的 get_template_affected_rules 枚举四层引用路径，total>0 即拦截。
+    删除前的事前披露（受影响规则清单）由前端 LIFE-2 弹窗负责，后端 destroy 仅软删
+    （置 deleted_at，不物理删行），因此即便模板被规则 conditions 引用也能安全删除，
+    引用字符串依旧有效、版本快照因行在而不被 CASCADE 清掉，可随后经 restore 真撤销。
     """
     created = _unwrap(_create_atomic(auth_client))
     metric_id = created['id']
@@ -104,13 +102,13 @@ def test_p1_delete_template_in_use_rejected(auth_client):
         conditions=[{'templateId': tpl_id, 'operator': 'GT', 'value': '30'}],
     )
 
+    # D1：被引用模板也能软删成功（不再 400）
     resp = auth_client.delete(f'{BASE}templates/{tpl_id}/')
-    assert resp.status_code == 400
-    body = _unwrap(resp)
-    assert '被 1 条规则引用' in str(body.get('error', ''))
-    # 删除被拦截，模板仍在
+    assert resp.status_code == 204
+    # 软删（非硬删）：默认 manager 过滤 → 列表/retrieve 不可见，但 all_objects 仍可取
     from apps.metrics.models import MetricTemplate
-    assert MetricTemplate.objects.filter(id=tpl_id).exists()
+    assert not MetricTemplate.objects.filter(id=tpl_id).exists()
+    assert MetricTemplate.all_objects.filter(id=tpl_id).exists()
 
 
 def test_p1_delete_unused_template_ok(auth_client):

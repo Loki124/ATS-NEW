@@ -423,6 +423,12 @@ export async function deleteMetricTemplate(id: string): Promise<void> {
   await api.delete(`/metrics/templates/${id}/`)
 }
 
+/** LIFE-1 P2：真撤销（restore）——把已软删的模板恢复回原 id（同 id、引用不断）。 */
+export async function restoreTemplate(id: string): Promise<MetricTemplate> {
+  const res = await api.post(`/metrics/templates/${id}/restore/`)
+  return unwrap<MetricTemplate>(res)
+}
+
 /**
  * LIFE-2：禁用/删除前枚举引用某指标模板的全部规则（进入条件 ORM + 跳过/归档 JSON）。
  * 后端经 drf-camel-case 返回 camelCase；此处按 camelCase 字段名接收。

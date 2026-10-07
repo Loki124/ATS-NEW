@@ -127,26 +127,37 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def destroy(self, request, *args, **kwargs):
-        """删除保护：模板被规则（进入条件/跳过归档/指标规则）引用时禁止删除。
+        """软删除：仅置 deleted_at，不物理删行（D1：允许删除被规则引用的模板）。
 
-        与 AtomicMetric/DerivedMetric 的 _RefCheckMixin 对称——但模板不是被 FK 反向
-        引用，而是被 rules 的 JSONField（conditions / skip_rules / archive_rules）引用，
-        DB 层无约束。复用 template_impact.get_template_affected_rules 枚举四层引用路径
-        （零新增查询逻辑），total > 0 返回 400 + 受影响规则清单，绝不抛 ProtectedError 致 500。
-        无任何引用时才放行硬删（与默认 ModelViewSet.destroy 语义一致，本方法只加闸门）。
+        - 删除前的事前披露（受影响规则清单）由前端 LIVE-2 弹窗负责，后端不再 400 拦截；
+          因此此处不再调用 get_template_affected_rules 做闸门，避免重复拦截。
+        - 软删后列表/详情（默认 manager 过滤 deleted_at）自动隐藏；版本快照表
+          on_delete=CASCADE 不会触发（行仍在），规则 conditions 里存的模板 id 字符串
+          依旧有效，引用不断。
+        - soft_delete() 内部只落 deleted_at / updated_at，不写 updated_by，
+          故另存一次 updated_by 记录操作人（D2：零新增字段，复用 updated_by）。
         """
         obj = self.get_object()
-        impact = get_template_affected_rules(str(obj.id))
-        if impact['total'] > 0:
-            return Response(
-                {
-                    'error': f'该模板被 {impact["total"]} 条规则引用，无法删除',
-                    'affected_rules': impact,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        obj.delete()
+        obj.updated_by = request.user
+        obj.soft_delete()
+        obj.updated_by = request.user
+        obj.save(update_fields=['updated_by'])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, *args, **kwargs):
+        """真撤销：把已软删的模板恢复回原 id（引用规则 / 版本快照天然保住）。
+
+        用 all_objects 取（默认 objects 已过滤软删，取不到已删行）。清掉 deleted_at 并
+        记录 updated_by。前端 8s 撤销 action 调此端点即可原样恢复，而非新建一个全新 id
+        （旧 createMetricTemplate(restorePayload) 会生成新 id，导致规则引用悬空）。
+        """
+        obj = MetricTemplate.all_objects.get(id=kwargs['pk'])
+        obj.deleted_at = None
+        obj.updated_by = request.user
+        obj.save(update_fields=['deleted_at', 'updated_by', 'updated_at'])
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     # ===== LIFE-1 版本化：写路径覆盖 =====
     def perform_create(self, serializer):

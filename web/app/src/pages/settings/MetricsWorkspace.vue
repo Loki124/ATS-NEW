@@ -850,6 +850,7 @@ import {
   downloadTemplateTemplate,
   importMetricTemplates,
   getTemplateAffectedRules,
+  restoreTemplate,
   listTemplateVersions,
   rollbackTemplateVersion,
   TemplateImportError,
@@ -1691,23 +1692,12 @@ async function removeTemplate(row: MetricTemplate) {
   await executeDeleteTemplate(row)
 }
 
-/** 删除模板 + 成功 Toast（含 8s 撤销 action），保留原 restorePayload 撤销逻辑 */
+/** 删除模板 + 成功 Toast（含 8s 撤销 action），撤销走 P2 真 restore 端点（同 id、引用不断） */
 async function executeDeleteTemplate(row: MetricTemplate) {
-  // 中等破坏性操作：直接执行 + Toast 撤销（停留 8s），符合 AGENTS.md R-106
-  const restorePayload = {
-    name: row.name,
-    atomicMetric: row.atomicMetric || null,
-    derivedMetric: row.derivedMetric || null,
-    operators: row.operators || [],
-    paramConfig: row.paramConfig || { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false },
-    valueDomain: row.valueDomain || { segments: [] },
-    paramEnums: row.paramEnums || [],
-    paramAllowNull: !!row.paramAllowNull,
-    description: row.description || '',
-    status: row.status || 'enabled',
-  }
+  // 中等破坏性操作：直接执行软删 + Toast 撤销（停留 8s），符合 AGENTS.md R-106
+  const deletedId = row.id
   try {
-    await deleteMetricTemplate(row.id)
+    await deleteMetricTemplate(deletedId)
     await load()
     message.success(t('metrics.life1.deletedWithVersions', { name: row.name, n: row.versionCount ?? 0 }), {
       duration: 8000,
@@ -1715,8 +1705,9 @@ async function executeDeleteTemplate(row: MetricTemplate) {
         label: t('metrics.btn.undo'),
         onClick: async () => {
           try {
-            await createMetricTemplate(restorePayload)
-            message.warning(t('metrics.msg.restoredNew'))
+            // 真撤销：恢复到原 id（软删不物理删行，引用规则/版本快照天然保住）
+            await restoreTemplate(deletedId)
+            message.success(t('metrics.msg.restored'))
             await load()
           } catch (err: any) {
             const detail = err?.response?.data?.error

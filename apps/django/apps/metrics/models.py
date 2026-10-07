@@ -20,7 +20,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from apps.common.models import FullAuditModel, UUIDModel
+from apps.common.models import FullAuditModel, SoftDeleteManager, UUIDModel
 from apps.rule_engine.models import UnifiedOperator
 
 from .services.rule_validators import validate_metric_rule
@@ -194,6 +194,12 @@ class MetricTemplate(FullAuditModel, UUIDModel):
         verbose_name = '指标模板'
         verbose_name_plural = '指标模板'
         ordering = ['name']
+
+    # ===== LIFE-1 P2：软删 + 真撤销（restore）=====
+    # 默认 manager 只返回未软删记录（list/retrieve 自动排除）；
+    # all_objects 含已软删，供 restore 端点找回原行（同 id，引用不断）。
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
 
     def __str__(self):
         return self.name
