@@ -270,3 +270,164 @@ def test_metric_vs_metric_with_position_snapshot():
     assert res['degraded'] is False
     assert res['actual'] == 32
     assert res['expected'] == right.name  # metric-vs-metric 右值展示为对比模板名
+
+
+# ===========================================================================
+# 🔴 穿透回归测试（P0 修复）——防止方案 B「指标 vs 指标」再次静默劣化
+#
+# 背景：此前所有方案B 测试都通过 _exec_mv_m() 直接手搓 dict 调MetricEngine.execute，
+# 绕过了 MetricRule.to_engine_conditions 与 RuleExecuteView._normalize。
+# 结果：rightTemplateId 在三处透传被丢弃，生产路径 100% 失效，而 250 个测试全绿。
+#
+# 以下用例走**真实落库链路**，是防止该缺陷回归的唯一有效防线。
+# 纪律：凡改条件/参数透传链路，必须补「落库 → 转换 → 执行」穿透测试。
+# ===========================================================================
+
+
+@pytest.mark.django_db
+def test_p0_right_template_id_survives_to_engine_conditions():
+    """【透传契约】rightTemplateId 必须存活 to_engine_conditions。
+
+    这是 P0 修复的核心断言：修复前 to_engine_conditions 只透传 4 个键，
+    rightTemplateId 被丢弃 → 方案 B 退化为常量比较（行为与配置无关）。
+    """
+    from apps.metrics.models import MetricRule, MetricRuleScene
+
+    rule = MetricRule.objects.create(
+        name=f'透传契约_{_cid()}',
+        scene=MetricRuleScene.TALENT_POOL,
+        logic='AND',
+        conditions=[{
+            'templateId': 'left-tpl-id',
+            'operator': 'GTE',
+            'rightTemplateId': 'right-tpl-id',
+        }],
+    )
+
+    out = rule.to_engine_conditions()
+
+    assert len(out) == 1
+    assert out[0]['rightTemplateId'] == 'right-tpl-id', (
+        'rightTemplateId 在 to_engine_conditions 中被丢弃 —— 方案 B 将退化为常量比较'
+    )
+    # 同时确认既有键未被破坏（防修复引入回归）
+    assert out[0]['templateId'] == 'left-tpl-id'
+    assert out[0]['operator'] == 'GTE'
+
+
+@pytest.mark.django_db
+def test_p0_right_template_id_survives_rule_execute_normalize():
+    """【视图层透传契约】RuleExecuteView._normalize / _to_engine_conditions 必须保留 right_template_id。
+
+    修复前 _normalize 只透传 4 键，导致 /rules/execute/ 端点也不支持方案 B，
+    且 DRF 校验器（ConditionInputSerializer）根本拿不到该字段做类型校验。
+    """
+    from apps.metrics.views import RuleExecuteView
+
+    payload = {
+        'conditions': [{
+            'templateId': 'left-tpl-id',
+            'operator': 'GTE',
+            'rightTemplateId': 'right-tpl-id',
+        }],
+    }
+
+    normalized = RuleExecuteView._normalize(payload)
+    assert normalized['conditions'][0]['right_template_id'] == 'right-tpl-id', (
+        '_normalize 丢失 right_template_id —— 序列化器校验与方案 B 执行均失效'
+    )
+
+    engine_conds = RuleExecuteView._to_engine_conditions(normalized['conditions'])
+    assert engine_conds[0]['rightTemplateId'] == 'right-tpl-id', (
+        '_to_engine_conditions 丢失 rightTemplateId —— 配置即执行路径不支持方案 B'
+    )
+
+
+@pytest.mark.django_db
+def test_p0_metric_vs_metric_end_to_end_via_persisted_rule():
+    """【端到端穿透】落库规则 → to_engine_conditions → MetricEngine.execute 必须真正走指标 vs 指标。
+
+    修复前：条件退化为「left >= value(None)」→ 恒定 pass False → VETO 规则拦截所有人。
+    修复后：age(32) <= salary_max(50) → pass True。
+    """
+    from apps.metrics.models import MetricRule, MetricRuleScene
+
+    left = _make_atomic_template('端到端年龄', 'candidate.age', 'number', ['GT', 'GTE', 'LT', 'LTE'])
+    right = _make_position_template('端到端薪资上限', 'position.salary_max', 'number')
+
+    rule = MetricRule.objects.create(
+        name=f'端到端透传_{_cid()}',
+        scene=MetricRuleScene.TALENT_POOL,
+        logic='AND',
+        conditions=[{
+            'templateId': left.id,
+            'operator': 'LTE',
+            'rightTemplateId': right.id,
+        }],
+    )
+
+    # 关键：走落库 → 转换 → 执行，而非手搓 dict
+    res = MetricEngine.execute(
+        rule.to_engine_conditions(),
+        {'candidate': {'age': 32}, 'position': {'salary_max': 50}},
+    )
+
+    assert res['pass'] is True, '真实链路下方案 B 仍未生效（右值被丢弃 → 退化为常量比较）'
+    step = res['steps'][0]
+    assert step['degraded'] is False
+    assert step['actual'] == 32
+    assert step['expected'] == right.name  # 右值取自对比模板，而非常量
+
+
+@pytest.mark.django_db
+def test_p0_serializer_rejects_type_mismatch_on_persist():
+    """【配置期守卫】左右指标类型不一致必须在**保存时**被拒（配置期拦截）。
+
+    修复前：raise ValidationError 写在 try 块内被自己的 except Exception 吞掉，
+    第一道防线失效。
+
+    ⚠️ 变异测试发现（2026-10-07）：把比较移回 try 内后本用例**仍不红**——
+    因为 services/rule_validators.py:101-112 另有一道独立校验（errors.append，不受 except 影响）。
+    故 serializers 这道属**冗余加固**。本用例的价值在于：锁定 serializers 层行为，
+    防止未来有人重构时把 raise 挪进 try 而无人察觉。两道防线需保持一致。
+    """
+    from apps.metrics.serializers import MetricRuleSerializer
+
+    left = _make_atomic_template('守卫年龄', 'candidate.age', 'number', ['GT', 'GTE'])
+    right = _make_position_template('守卫职级', 'position.level', 'string', ['EQ', 'NEQ'])
+
+    serializer = MetricRuleSerializer(data={
+        'name': f'类型守卫_{_cid()}',
+        'scene': 'TALENT_POOL',
+        'logic': 'AND',
+        'conditions': [{
+            'templateId': left.id,
+            'operator': 'GTE',
+            'rightTemplateId': right.id,
+        }],
+    })
+
+    assert not serializer.is_valid(), '类型不一致却校验通过—— 守卫仍在被吞掉'
+    assert '类型不一致' in str(serializer.errors)
+
+
+@pytest.mark.django_db
+def test_p0_serializer_allows_matching_types_on_persist():
+    """【无假阳性】类型一致时必须放行（守卫不能变成「一律拒绝」）。"""
+    from apps.metrics.serializers import MetricRuleSerializer
+
+    left = _make_atomic_template('放行年龄', 'candidate.age', 'number', ['GT', 'GTE'])
+    right = _make_position_template('放行薪资上限', 'position.salary_max', 'number')
+
+    serializer = MetricRuleSerializer(data={
+        'name': f'类型放行_{_cid()}',
+        'scene': 'TALENT_POOL',
+        'logic': 'AND',
+        'conditions': [{
+            'templateId': left.id,
+            'operator': 'GTE',
+            'rightTemplateId': right.id,
+        }],
+    })
+
+    assert serializer.is_valid(), f'类型一致却被误拦: {serializer.errors}'

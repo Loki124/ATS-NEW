@@ -475,7 +475,11 @@ class RuleExecuteView(APIView):
 
     @staticmethod
     def _normalize(payload: dict) -> dict:
-        """把 camelCase 条件归一化为 serializer 需要的 snake_case。"""
+        """把 camelCase 条件归一化为 serializer 需要的 snake_case。
+
+        🔴 right_template_id 必须一起归一化，否则方案 B 的「对比指标」既过不了
+        ConditionInputSerializer 的类型一致性校验，也到不了引擎。
+        """
         raw_conditions = payload.get('conditions') or []
         normalized = []
         for cond in raw_conditions:
@@ -486,6 +490,7 @@ class RuleExecuteView(APIView):
                 'operator': cond.get('operator'),
                 'value': cond.get('value'),
                 'meta': cond.get('meta') or cond.get('metaJson') or {},
+                'right_template_id': cond.get('right_template_id') or cond.get('rightTemplateId'),
             })
         payload = dict(payload)
         payload['conditions'] = normalized
@@ -493,7 +498,10 @@ class RuleExecuteView(APIView):
 
     @staticmethod
     def _to_engine_conditions(raw_conditions: list) -> list:
-        """引擎侧契约（同时兼容 templateId / template_id 两种拼写）。"""
+        """引擎侧契约（同时兼容 templateId / template_id 两种拼写）。
+
+        🔴 rightTemplateId 必须透传（方案 B）；引擎 :157 读 cond.get('rightTemplateId')。
+        """
         out = []
         for cond in raw_conditions:
             if not isinstance(cond, dict):
@@ -503,6 +511,7 @@ class RuleExecuteView(APIView):
                 'operator': cond.get('operator'),
                 'value': cond.get('value'),
                 'meta': cond.get('meta') or {},
+                'rightTemplateId': cond.get('right_template_id') or cond.get('rightTemplateId'),
             })
         return out
 

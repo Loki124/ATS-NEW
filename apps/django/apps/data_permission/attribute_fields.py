@@ -18,6 +18,7 @@ from __future__ import annotations
 import importlib
 import re
 
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models import (
     BooleanField,
     DecimalField,
@@ -115,7 +116,10 @@ def attribute_fields_for(entity: str) -> list[dict]:
         if model is not None:
             try:
                 f = model._meta.get_field(tail)
-            except Exception:
+            except FieldDoesNotExist:
+                # 指标 source_path 尾段与模型字段不匹配（动态字段/手填路径）→ 无类型信息
+                f = None
+            except Exception:  # noqa: BLE001 — _meta 内部异常不阻断字段目录构建, 降级为未知类型
                 f = None
 
             if isinstance(f, (IntegerField, FloatField, DecimalField)):

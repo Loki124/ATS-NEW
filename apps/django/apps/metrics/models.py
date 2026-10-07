@@ -376,7 +376,13 @@ class MetricRule(FullAuditModel, UUIDModel):
         return self.enabled and self.status == MetricStatus.ENABLED
 
     def to_engine_conditions(self) -> list:
-        """转成执行引擎契约（兼容 templateId / template_id 两种拼写）。"""
+        """转成执行引擎契约（兼容 templateId / template_id 两种拼写）。
+
+        🔴 rightTemplateId 是方案 B「指标 vs 指标」的右操作数，**必须透传**：
+        引擎 MetricEngine._evaluate_condition 读 cond.get('rightTemplateId')。
+        此前本方法只透传 4 个键，导致方案 B 落库后被静默丢弃、退化为常量比较
+        （存得进、校验过、执行时行为与配置无关）。
+        """
         out = []
         for cond in self.conditions or []:
             if not isinstance(cond, dict):
@@ -386,6 +392,7 @@ class MetricRule(FullAuditModel, UUIDModel):
                 'operator': cond.get('operator'),
                 'value': cond.get('value'),
                 'meta': cond.get('meta') or {},
+                'rightTemplateId': cond.get('rightTemplateId') or cond.get('right_template_id'),
             })
         return out
 

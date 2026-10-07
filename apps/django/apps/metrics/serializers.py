@@ -255,14 +255,21 @@ class MetricRuleSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         f'第 {idx} 个条件引用的对比模板不存在: {right_template_id}')
                 # 类型一致性：左右模板 data_type 必须相同（均存在时强校验）
+                # ⚠️ DB 查询留在 try 内，但**比较与 raise 必须在 try 外**：
+                #   ValidationError 继承自 Exception，写在 try 内会被自己的 except 吞掉。
+                # 定位过程（2026-10-07 变异测试）：把比较移回 try 内后，本断言仍不红——
+                #   因为 services/rule_validators.py:101-112 另有一道独立校验（用 errors.append，
+                #   不受 except 影响）。故此处属**冗余加固**，不是唯一防线；
+                #   但仍应修正——「存得进 + 第一道防线失效」是脆弱设计，且两处规则需保持一致。
+                lt = rt = None
                 try:
                     lt = MetricTemplate.objects.filter(pk=template_id).first()
                     rt = MetricTemplate.objects.filter(pk=right_template_id).first()
-                    if lt and rt and lt.data_type != rt.data_type:
-                        raise serializers.ValidationError(
-                            f'第 {idx} 个条件左右指标类型不一致（{lt.data_type} vs {rt.data_type}）')
-                except Exception:  # noqa: BLE001 — 类型一致性校验属 best-effort, DB 异常跳过（引擎侧已有类型守卫兜底）
+                except Exception:  # noqa: BLE001 — DB 异常按 best-effort 跳过, 交由 rule_validators 兜底
                     pass
+                if lt and rt and lt.data_type != rt.data_type:
+                    raise serializers.ValidationError(
+                        f'第 {idx} 个条件左右指标类型不一致（{lt.data_type} vs {rt.data_type}）')
             elif needs_value and not has_value:
                 raise serializers.ValidationError(f'第 {idx} 个条件缺少比较值或对比指标')
         # T5：数值型条件值统一 coerce 为字符串，避免 JSON number → Python float

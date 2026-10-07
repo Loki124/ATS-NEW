@@ -162,12 +162,12 @@ class RuleItemEvaluator:
         if did:
             try:
                 data.update(build_demand_snapshot(did))
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001 — 需求快照组装失败跳过, 降级为该步条件缺数据
                 pass
         if pid:
             try:
                 data.update(build_position_snapshot(pid))
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001 — 职位快照组装失败跳过, 降级为该步条件缺数据
                 pass
 
         # 2) 点路径解析（与指标层共享 FieldResolverRegistry）
