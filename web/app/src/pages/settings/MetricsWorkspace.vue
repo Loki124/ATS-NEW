@@ -50,7 +50,16 @@
                 </n-result>
               </div>
               <div v-else-if="!filteredDefinitions.length" class="ws-empty">
-                <n-empty :description="t('metrics.empty.definitions')" />
+                <n-empty
+                  v-if="defEmptyKind === 'first'"
+                  :description="t('metrics.empty.definitionsFirst')"
+                />
+                <template v-else>
+                  <n-empty :description="t('metrics.empty.definitionsFiltered')" />
+                  <n-button size="small" tertiary class="ws-empty-action" @click="clearDefFilters">
+                    {{ t('metrics.empty.clearFilters') }}
+                  </n-button>
+                </template>
               </div>
               <n-data-table
                 v-else
@@ -131,7 +140,10 @@
                 <n-empty :description="t('metrics.empty.noTemplates')" />
               </div>
               <div v-else-if="!filteredTemplates.length" class="ws-empty">
-                <n-empty :description="t('metrics.empty.templates')" />
+                <n-empty :description="t('metrics.empty.templatesFiltered')" />
+                <n-button size="small" tertiary class="ws-empty-action" @click="clearTplFilters">
+                  {{ t('metrics.empty.clearFilters') }}
+                </n-button>
               </div>
               <n-data-table
                 v-else
@@ -253,7 +265,7 @@
             size="small"
             :disabled="!importFile"
             :loading="importing"
-            @click="doImport"
+            @click="onStartImport"
           >
             {{ t('metrics.templateIo.runImport') }}
           </n-button>
@@ -818,6 +830,7 @@ import {
   NTable,
   NTag,
   useMessage,
+  useDialog,
   type DataTableColumns,
 } from 'naive-ui'
 import { CheckmarkOutline, SearchOutline } from '@vicons/ionicons5'
@@ -854,6 +867,7 @@ import {
 
 const { t } = useI18n()
 const message = useMessage()
+const dialog = useDialog()
 
 const activeTab = ref<'definitions' | 'template'>('definitions')
 
@@ -1013,6 +1027,21 @@ const filteredDefinitions = computed<MetricDefinition[]>(() => {
     return true
   })
 })
+
+/** M-3：空态细分——首用 / 搜索无果 / 筛选无果，避免误导 HR 反复调关键词（R-111 强制） */
+const defEmptyKind = computed<'first' | 'search' | 'filter'>(() => {
+  if (definitions.value.length === 0) return 'first'
+  if (defKeyword.value.trim()) return 'search'
+  if (defKind.value !== 'all' || defModule.value !== 'all') return 'filter'
+  return 'first'
+})
+
+function clearDefFilters() {
+  defKeyword.value = ''
+  defKind.value = 'all'
+  defModule.value = 'all'
+  defPage.value = 1
+}
 
 /** 指标定义列表客户端分页状态 */
 const defPage = ref(1)
@@ -1199,6 +1228,23 @@ async function doImport() {
   }
 }
 
+/** M-6：update 模式为覆盖式导入（按名称覆盖已存在模板并递增版本号），须二次确认防止误覆盖 */
+function onStartImport() {
+  if (importMode.value === 'update' && importFile.value) {
+    dialog.warning({
+      title: t('metrics.templateIo.updateConfirmTitle'),
+      content: t('metrics.templateIo.updateConfirmContent'),
+      positiveText: t('metrics.btn.confirm'),
+      negativeText: t('metrics.btn.cancel'),
+      onPositiveClick: () => {
+        void doImport()
+      },
+    })
+    return
+  }
+  void doImport()
+}
+
 const filteredTemplates = computed<MetricTemplate[]>(() => {
   const kw = tplKeyword.value.trim().toLowerCase()
   return templateList.value.filter((tpl) => {
@@ -1214,6 +1260,13 @@ const filteredTemplates = computed<MetricTemplate[]>(() => {
     return true
   })
 })
+
+/** M-3：模板空态清空筛选 action */
+function clearTplFilters() {
+  tplKeyword.value = ''
+  tplStatus.value = 'all'
+  tplPage.value = 1
+}
 
 /** 对过滤后的结果做客户端切片分页（后端无 keyword/status 过滤，拉全量后前端分页） */
 const pagedTemplates = computed<MetricTemplate[]>(() => {

@@ -258,6 +258,8 @@ const templateList = ref<MetricTemplate[]>([])
 const operatorCatalog = ref<OptionItem[]>([])
 const rules = ref<MetricRule[]>([])
 const loadingRules = ref(false)
+/** M-5：规则启停 / 删除动作加锁，防止连点导致重复请求或状态错乱 */
+const busyRuleId = ref<string>('')
 
 const templateOptions = computed(() =>
   templateList.value.map((tp) => ({
@@ -516,16 +518,22 @@ function editRule(row: MetricRule) {
 }
 
 async function onToggle(row: MetricRule, value: boolean) {
+  if (busyRuleId.value === row.id) return
+  busyRuleId.value = row.id
   try {
     const res = await toggleMetricRule(row.id)
     row.enabled = res.enabled
   } catch {
     message.error(t('metrics.msg.saveFailed'))
     await loadRules()
+  } finally {
+    if (busyRuleId.value === row.id) busyRuleId.value = ''
   }
 }
 
 async function removeRule(row: MetricRule) {
+  if (busyRuleId.value === row.id) return
+  busyRuleId.value = row.id
   try {
     await deleteMetricRule(row.id)
     message.success(t('metrics.msg.deleted'))
@@ -533,6 +541,8 @@ async function removeRule(row: MetricRule) {
   } catch (error: any) {
     const detail = error?.response?.data?.error
     message.error(detail ? String(detail) : t('metrics.msg.deleteFailed'))
+  } finally {
+    if (busyRuleId.value === row.id) busyRuleId.value = ''
   }
 }
 
@@ -552,7 +562,10 @@ function sceneLabel(scene: string) {
   return t(`metrics.scene.${scene}` as any)
 }
 
-const ruleColumns = computed(() => [
+const ruleColumns = computed(() => {
+  // M-5：busyId 跟踪 busyRuleId，变化时重算列描述符，从而刷新开关禁用态 / 删除按钮 loading 态
+  const busyId = busyRuleId.value
+  return [
   { title: t('metrics.col.name'), key: 'name' },
   {
     title: t('metrics.rule.scene'),
@@ -566,6 +579,7 @@ const ruleColumns = computed(() => [
     render: (row: MetricRule) =>
       h(NSwitch, {
         value: row.enabled,
+        disabled: busyId === row.id,
         'onUpdate:value': (v: boolean) => onToggle(row, v),
       }),
   },
@@ -578,7 +592,10 @@ const ruleColumns = computed(() => [
         h(NButton, { size: 'small', quaternary: true, onClick: () => runRule(row) }, { default: () => t('metrics.rule.run') }),
         h(
           NPopconfirm,
-          { onPositiveClick: () => removeRule(row) },
+          {
+            positiveButtonProps: { loading: busyId === row.id },
+            onPositiveClick: () => removeRule(row),
+          },
           {
             trigger: () =>
               h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => t('metrics.btn.delete') }),
@@ -587,7 +604,8 @@ const ruleColumns = computed(() => [
         ),
       ]),
   },
-])
+]
+})
 
 async function load() {
   try {
