@@ -16,6 +16,7 @@ from django.urls import path
 from .views import (
     BulkCreateView,
     DuplicateCheckView,
+    ManualCreateView,
     ParseStatusView,
     ReplaceFileView,
     ResumeParserConfigView,
@@ -32,6 +33,9 @@ urlpatterns = [
     path('parse-status/<str:job_id>/', ParseStatusView.as_view(), name='parse-status'),
     path('duplicate-check/', DuplicateCheckView.as_view(), name='duplicate-check'),
     path('replace-file/<str:draft_id>/', ReplaceFileView.as_view(), name='replace-file'),
+
+    # 无文件手动建草稿（支持「手动填写简历信息」）
+    path('manual-create/', ManualCreateView.as_view(), name='manual-create'),
 
     # 简历解析引擎后台切换（career_core / smartresume）
     path('resume-parser-config/', ResumeParserConfigView.as_view(), name='resume-parser-config'),

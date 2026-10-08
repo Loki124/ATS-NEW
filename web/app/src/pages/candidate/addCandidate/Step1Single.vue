@@ -37,6 +37,17 @@ function onSelectPos(pos: string) {
   if (!resume.value) return
   store.selectApplyPos(resume.value.id, pos)
 }
+
+// 2026-10-08: 显示值优先取手动编辑(edited)，回落解析值(parsed)。
+// 修复「手动填写字段被自动清理」的次因——此前 :value 直接绑 parsed，重渲染即回显解析值。
+function val(field: string): any {
+  const r = resume.value
+  if (!r) return ''
+  const ed = (r.edited || {}) as Record<string, any>
+  if (field in ed && ed[field] !== null && ed[field] !== undefined) return ed[field]
+  const p = (r.parsed || {}) as Record<string, any>
+  return p[field] ?? ''
+}
 </script>
 
 <template>
@@ -64,11 +75,11 @@ function onSelectPos(pos: string) {
       <div class="frow">
         <div class="fg">
 <label>{{ t('pages.candidate.addCandidate.Step1Single.s3') }}</label>
-          <input :value="resume.parsed?.name || ''" data-testid="field-name" @change="onField('name', $event)" />
+          <input :value="val('name')" data-testid="field-name" @change="onField('name', $event)" />
         </div>
         <div class="fg">
 <label>{{ t('pages.candidate.addCandidate.Step1Single.s4') }}</label>
-          <select :value="resume.parsed?.gender || ''" @change="onField('gender', $event)">
+          <select :value="val('gender')" @change="onField('gender', $event)">
             <option value="男">{{ t('pages.candidate.addCandidate.Step1Single.s5') }}</option>
             <option value="女">{{ t('pages.candidate.addCandidate.Step1Single.s6') }}</option>
           </select>
@@ -77,17 +88,17 @@ function onSelectPos(pos: string) {
       <div class="frow">
         <div class="fg">
 <label>{{ t('pages.candidate.addCandidate.Step1Single.s7') }}</label>
-          <input :value="resume.parsed?.age || ''" @change="onField('age', $event)" />
+          <input :value="val('age')" @change="onField('age', $event)" />
         </div>
         <div class="fg">
 <label>{{ t('pages.candidate.addCandidate.Step1Single.s8') }}</label>
-          <input :value="resume.parsed?.phone || ''" data-testid="field-phone" @change="onField('phone', $event)" />
+          <input :value="val('phone')" data-testid="field-phone" @change="onField('phone', $event)" />
         </div>
       </div>
       <div class="frow">
         <div class="fg">
 <label>{{ t('pages.candidate.addCandidate.Step1Single.s9') }}</label>
-          <input :value="resume.parsed?.email || ''" data-testid="field-email" @change="onField('email', $event)" />
+          <input :value="val('email')" data-testid="field-email" @change="onField('email', $event)" />
         </div>
         <div class="fg">
 <label>{{ t('pages.candidate.addCandidate.Step1Single.s10') }}</label>

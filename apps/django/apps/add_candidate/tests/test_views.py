@@ -342,6 +342,115 @@ class TestBulkCreateView:
 
 
 @pytest.mark.django_db
+class TestManualCreateAndOverride:
+    """POST /manual-create/ + bulk-create 覆盖（修复「手动字段被自动清理」）
+
+    穿透真实 View 层（不走 unit 绕过 serializer/view）：
+    - 手动录入数据经 manual-create 落 ParseJob，再经 bulk-create 落 Candidate
+    - 简历解析值被手动编辑覆盖时，落库以编辑值为准（edited ?? parsed 合并链路）
+    """
+
+    @pytest.fixture
+    def mock_score_task(self):
+        with patch('apps.add_candidate.views.score_batch_task.delay') as mock:
+            mock.return_value.id = 'mock_task_id_manual'
+            yield mock
+
+    def test_manual_create_returns_draft(self, api_client):
+        """无文件手动建草稿 → 201 + parsed/duplicate 同构 parse-status"""
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/manual-create/',
+            {'name': '手动张三', 'phone': '13912345678', 'email': 'manual@x.com',
+             'gender': '男', 'age': 30},
+            format='json',
+        )
+        assert response.status_code == 201
+        data = response.json()
+        # CamelCaseJSONRenderer: draft_id → draftId, job_id → jobId
+        assert data['draftId']
+        assert data['jobId']
+        assert data['status'] == 'clean'  # 新手机号无人占用
+        assert data['parsed']['name'] == '手动张三'
+        assert data['parsed']['phone'] == '13912345678'
+        assert data['parsed']['email'] == 'manual@x.com'
+        # 落库 ParseJob（无文件，file_path='' file_size=0 status='done'）
+        from apps.add_candidate.models import ParseJob
+        job = ParseJob.objects.get(draft_id=data['draftId'])
+        assert job.file_path == ''
+        assert job.file_size == 0
+        assert job.status == 'done'
+        assert job.parsed_data['name'] == '手动张三'
+
+    def test_manual_create_requires_fields(self, api_client):
+        """name/phone/email 缺省 → 400"""
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/manual-create/',
+            {'name': ''},
+            format='json',
+        )
+        assert response.status_code == 400
+
+    def test_bulk_create_persists_manual_data(self, api_client, mock_score_task):
+        """核心回归：手动录入数据经 bulk-create 落库，未被清空"""
+        resp = api_client.post(
+            '/api/v1/candidates/add-candidate/manual-create/',
+            {'name': '手动张三', 'phone': '13912345678', 'email': 'manual@x.com'},
+            format='json',
+        )
+        draft_id = resp.json()['draftId']
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {
+                'drafts': [
+                    {
+                        'draft_id': draft_id,
+                        'direction': 'pending',
+                        'parsed_data': {
+                            'name': '手动张三', 'phone': '13912345678',
+                            'email': 'manual@x.com', 'educations': [], 'experiences': [],
+                            'confidence': 1.0,
+                        },
+                    }
+                ],
+                'submit_mode': 'async',
+            },
+            format='json',
+        )
+        assert response.status_code == 200
+        from apps.candidate.models import Candidate
+        cand = Candidate.objects.get(phone='13912345678')
+        assert cand.name == '手动张三'      # 关键：手动值落库，未被清空
+        assert cand.email == 'manual@x.com'
+
+    def test_bulk_create_applies_edit_override(self, api_client, hr_user, mock_score_task):
+        """简历解析值被手动编辑覆盖 → 落库以编辑值为准（edited ?? parsed 合并链路打通）"""
+        from apps.add_candidate.models import ParseJob
+        ParseJob.objects.create(
+            job_id='job_edit_ov', draft_id='d_edit',
+            file_name='r.pdf', file_path='/tmp/r.pdf', file_size=1000,
+            status='done', actor=hr_user,
+            parsed_data={'name': '解析李四', 'phone': '13800138099', 'email': 'parsed@x.com'},
+        )
+        # 前端合并 edited: name 改成「改后王五」，phone/email 保持解析值
+        merged = {
+            'name': '改后王五', 'phone': '13800138099', 'email': 'parsed@x.com',
+            'educations': [], 'experiences': [], 'confidence': 0.9,
+        }
+        response = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {
+                'drafts': [{'draft_id': 'd_edit', 'direction': 'pending', 'parsed_data': merged}],
+                'submit_mode': 'async',
+            },
+            format='json',
+        )
+        assert response.status_code == 200
+        from apps.candidate.models import Candidate
+        cand = Candidate.objects.get(phone='13800138099')
+        assert cand.name == '改后王五'   # 覆盖生效，证明 edited 链路穿透到 DB
+
+
+@pytest.mark.django_db
 class TestScoringEndpoints:
     """Scoring Start + Stream 测试"""
 

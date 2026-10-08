@@ -104,6 +104,11 @@ export interface BulkCreateDraft {
   channel?: string
   source?: string
   provider?: string
+  // 2026-10-08: 手动填写/编辑覆盖（merged = {...parsed, ...edited}）
+  name?: string
+  phone?: string
+  email?: string
+  parsed_data?: Record<string, any>
 }
 
 export interface BulkCreateResult {
@@ -157,6 +162,26 @@ export async function replaceFile(draft_id: string, file: File): Promise<{ job_i
   const resp = await client.post(`/replace-file/${draft_id}/`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+  return snakizeKeys(resp.data)
+}
+
+/** POST /manual-create/  — 无文件手动建草稿（手动填写简历信息） */
+export async function manualCreate(params: {
+  name: string
+  phone: string
+  email: string
+  gender?: string
+  age?: number | null
+  file_name?: string
+}): Promise<{
+  job_id: string
+  draft_id: string
+  status: DupStatus
+  parsed: ParsedResume
+  duplicate: DuplicateInfo
+}> {
+  const client = getClient()
+  const resp = await client.post('/manual-create/', params)
   return snakizeKeys(resp.data)
 }
 

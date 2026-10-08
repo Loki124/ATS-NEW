@@ -241,6 +241,78 @@ class ReplaceFileView(APIView):
         )
 
 
+class ManualCreateView(APIView):
+    """POST /candidates/add-candidate/manual-create/
+
+    无文件手动建草稿：直接落一条 status='done' 的 ParseJob（parsed_data=手动基础信息，
+    无附件），并即时查重，返回与 parse-status 同构的 {draft_id, status, parsed, duplicate}，
+    前端据此直接渲染 Step1（无需轮询）。复用整条 V2 管线。
+    """
+
+    permission_classes = [IsHROrAbove]
+
+    def post(self, request):
+        from .serializers import ManualCreateRequest
+
+        serializer = ManualCreateRequest(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        draft_id = f'draft_{uuid.uuid4().hex[:12]}'
+        job_id = uuid.uuid4().hex[:16]
+        name = (data.get('name') or '').strip()
+        phone = (data.get('phone') or '').strip()
+        email = (data.get('email') or '').strip()
+        gender = data.get('gender') or ''
+        age = data.get('age')
+        file_name = data.get('file_name') or '(手动录入)'
+
+        parsed = {
+            'name': name,
+            'phone': phone,
+            'email': email,
+            'gender': gender,
+            'age': age,
+            'educations': [],
+            'experiences': [],
+            'confidence': 1.0,
+        }
+
+        # 即时查重（与上传解析完成后的查重逻辑一致）
+        info = DuplicateCheckService.find(
+            phone=phone,
+            email=email,
+            id_card='',
+            moka_id='',
+        )
+        dup_status = info.status.value
+
+        ParseJob.objects.create(
+            job_id=job_id,
+            draft_id=draft_id,
+            file_name=file_name,
+            file_path='',
+            file_size=0,
+            status='done',
+            phase=None,
+            progress=100,
+            parsed_data=parsed,
+            duplicate_data=info.to_dict(),
+            actor=request.user,
+        )
+
+        return Response(
+            {
+                'job_id': job_id,
+                'draft_id': draft_id,
+                'status': dup_status,
+                'parsed': parsed,
+                'duplicate': info.to_dict(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class BulkCreateView(APIView):
     """POST /candidates/bulk-create/
 
@@ -280,14 +352,21 @@ class BulkCreateView(APIView):
         for d in data['drafts']:
             job = jobs.get(d['draft_id'])
             parsed = (job.parsed_data or {}) if job else {}
+            # 2026-10-08: 优先采用前端合并后的覆盖值（手动填写/编辑）。
+            # 旧前端不传 parsed_data/name/phone/email → 这些键不在 validated_data → 回落 parsed（向后兼容）。
+            client_parsed = d.get('parsed_data')
+            merged_parsed = client_parsed if client_parsed is not None else parsed
+            name = merged_parsed.get('name') or ''
+            phone = merged_parsed.get('phone') or ''
+            email = merged_parsed.get('email') or ''
             drafts.append(
                 BulkCreateDraft(
                     draft_id=d['draft_id'],
                     direction=d['direction'],
-                    name=parsed.get('name') or '',
-                    phone=parsed.get('phone') or '',
-                    email=parsed.get('email') or '',
-                    parsed_data=parsed,
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    parsed_data=merged_parsed,
                     position_id=d.get('position_id') or None,
                     channel=d.get('channel', '招聘网站'),
                     source=d.get('source', ''),

@@ -62,6 +62,22 @@ class DuplicateCheckRequest(serializers.Serializer):
     name = serializers.CharField(required=False, allow_blank=True)
 
 
+class ManualCreateRequest(serializers.Serializer):
+    """POST /candidates/add-candidate/manual-create/ — 无文件手动建草稿。
+
+    前端「手动填写」模式提交姓名/手机/邮箱等基础信息，后端直接落一条
+    status='done' 的 ParseJob（parsed_data=手动数据，无附件），并即时查重，
+    复用整条 V2 管线（Step1 编辑 / Step2 去向 / bulk-create）。
+    """
+
+    name = serializers.CharField(required=True, allow_blank=False)
+    phone = serializers.CharField(required=True, allow_blank=False)
+    email = serializers.EmailField(required=True, allow_blank=False)
+    gender = serializers.CharField(required=False, allow_blank=True)
+    age = serializers.IntegerField(required=False, allow_null=True)
+    file_name = serializers.CharField(required=False, allow_blank=True)
+
+
 # ============================================================
 # Replace File
 # ============================================================
@@ -85,6 +101,13 @@ class BulkCreateDraftSerializer(serializers.Serializer):
     channel = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     source = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     provider = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    # 2026-10-08: 手动填写/编辑覆盖。前端发送 merged = {...parsed, ...edited} 的姓名手机邮箱
+    # 与完整 parsed_data，后端优先采用（修复「手动字段被自动清理」——此前 submit 从不发 edited）。
+    # 旧前端不传这些字段 → validated_data 不含 → 回落 job.parsed_data（向后兼容）。
+    name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    parsed_data = serializers.DictField(required=False, allow_null=True)
 
 
 class BulkCreateRequest(serializers.Serializer):

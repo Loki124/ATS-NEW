@@ -47,6 +47,8 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
   const step = ref<1 | 2 | 3>(1)
   const isDirty = ref(false)
   const resumes = ref<ResumeDraft[]>([])
+  // 2026-10-08: 录入模式 — 'upload'(默认, 上传简历解析) | 'manual'(无文件手动填写)
+  const entryMode = ref<'upload' | 'manual'>('upload')
 
   // poll attempts keyed by draft_id — 防止后端异常时前端无限轮询（兜底）
   const pollAttempts: Record<string, number> = {}
@@ -87,6 +89,7 @@ export const useAddCandidateStore = defineStore('addCandidate', () => {
     step.value = 1
     isDirty.value = false
     resumes.value = []
+    entryMode.value = 'upload'
     applyMode.value = 'all'
     dirAll.value = ''
     posAll.value = ''
@@ -249,6 +252,31 @@ let scoringStreamHandle: ScoringStreamHandle | null = null
     )
   }
 
+  // 2026-10-08: 手动填写模式 — 无文件建草稿。复用整条 V2 管线（Step1 编辑/Step2 去向/bulk-create）。
+  async function addManualResume(data: {
+    name: string
+    phone: string
+    email: string
+    gender?: string
+    age?: number | null
+    file_name?: string
+  }) {
+    const resp = await api.manualCreate(data)
+    resumes.value.push({
+      id: resp.draft_id,
+      job_id: resp.job_id,
+      file_name: data.file_name || '(手动录入)',
+      status: resp.status,
+      progress: 100,
+      procPhase: null,
+      parsed: resp.parsed,
+      edited: {},
+      duplicate: resp.duplicate,
+      parseError: null,
+    })
+    isDirty.value = true
+  }
+
   async function pollParseStatus(draftId: string, overrideJobId?: string) {
     const r = resumes.value.find((x) => x.id === draftId)
     if (!r) return
@@ -331,14 +359,23 @@ let scoringStreamHandle: ScoringStreamHandle | null = null
     step.value = 3
     if (submitMode.value === 'async') asyncResult.value = true
 
-    const drafts = resumes.value.map((r) => ({
-      draft_id: r.id,
-      direction: (dirPer.value[r.id] || dirAll.value) as Direction,
-      position_id: posPer.value[r.id] || posAll.value || null,
-      channel: appInfo.value.channel,
-      source: appInfo.value.source,
-      provider: appInfo.value.provider,
-    }))
+    const drafts = resumes.value.map((r) => {
+      // 2026-10-08: 合并手动编辑覆盖解析值（修复「手动字段被自动清理」——提交时从未发送 edited）。
+      // 无编辑时 merged === parsed（与旧行为一致）；手动模式下 parsed 即手动录入值。
+      const merged = { ...(r.parsed || {}), ...(r.edited || {}) }
+      return {
+        draft_id: r.id,
+        direction: (dirPer.value[r.id] || dirAll.value) as Direction,
+        position_id: posPer.value[r.id] || posAll.value || null,
+        channel: appInfo.value.channel,
+        source: appInfo.value.source,
+        provider: appInfo.value.provider,
+        name: merged.name || '',
+        phone: merged.phone || '',
+        email: merged.email || '',
+        parsed_data: merged,
+      }
+    })
     const result = await api.bulkCreate({ drafts, submit_mode: submitMode.value })
 
     // 2026-09-27: 接上评分 SSE 流（真正的半成品）。后端 bulk_create 已触发
@@ -477,7 +514,7 @@ let scoringStreamHandle: ScoringStreamHandle | null = null
 
   return {
     // state
-    step, isDirty, resumes,
+    step, isDirty, resumes, entryMode,
     applyMode, dirAll, posAll, dirPer, posPer,
     submitMode, submitting, appInfo,
     scoringProgress, allScoringDone, asyncResult, _overallStep,
@@ -485,7 +522,7 @@ let scoringStreamHandle: ScoringStreamHandle | null = null
     // actions
     reset, addResumes, updateField, replaceResumeFile, processParseUpdate,
     setOccupyAction, setDirAll, setPosAll, setPerDir, setPerPos, selectApplyPos,
-    uploadFiles, pollParseStatus, triggerRecheck, submit, closeStream,
+    uploadFiles, addManualResume, pollParseStatus, triggerRecheck, submit, closeStream,
     // computed
     mode, isAllDone, hasOccupied, canGoStep2, canSubmit,
   }

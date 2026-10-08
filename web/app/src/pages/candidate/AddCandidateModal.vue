@@ -6,6 +6,7 @@ import { useAddCandidateStore } from '@/stores/addCandidate'
 import Stepper from './addCandidate/Stepper.vue'
 import Step1Single from './addCandidate/Step1Single.vue'
 import Step1Batch from './addCandidate/Step1Batch.vue'
+import ManualFillForm from './addCandidate/ManualFillForm.vue'
 import Step2Assign from './addCandidate/Step2Assign.vue'
 import ScoringOverlay from './addCandidate/ScoringOverlay.vue'
 import AsyncResult from './addCandidate/AsyncResult.vue'
@@ -163,11 +164,24 @@ function nextStep() {
       <Stepper />
 
       <div v-if="store.step === 1" style="flex:1;display:flex;overflow:hidden;">
-        <div v-if="store.resumes.length === 0" style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;">
-          <UploadZone @upload="handleFiles" />
+        <!-- 手动填写模式：表单 + 已添加列表（无文件建草稿） -->
+        <div v-if="store.entryMode === 'manual'" style="flex:1;display:flex;flex-direction:column;overflow:auto;padding:16px 20px;gap:var(--space-3);">
+          <ManualFillForm />
+          <Step1Single v-if="store.resumes.length === 1" @replace="handleReplace" />
+          <Step1Batch v-else-if="store.resumes.length > 1" @upload="handleFiles" />
         </div>
-        <Step1Single v-else-if="store.resumes.length === 1" @replace="handleReplace" />
-        <Step1Batch v-else @upload="handleFiles" />
+        <!-- 上传简历模式（默认） -->
+        <template v-else>
+          <div v-if="store.resumes.length === 0" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:var(--space-4);">
+            <div class="entry-tabs">
+              <button :class="['entry-tab', store.entryMode === 'upload' ? 'active' : '']" type="button" @click="store.entryMode = 'upload'">{{ t('pages.candidate.AddCandidateModal.s4') }}</button>
+              <button :class="['entry-tab', store.entryMode === 'manual' ? 'active' : '']" type="button" @click="store.entryMode = 'manual'">{{ t('pages.candidate.AddCandidateModal.s5') }}</button>
+            </div>
+            <UploadZone @upload="handleFiles" />
+          </div>
+          <Step1Single v-else-if="store.resumes.length === 1" @replace="handleReplace" />
+          <Step1Batch v-else @upload="handleFiles" />
+        </template>
       </div>
 
       <div v-else-if="store.step === 2" style="flex:1;display:flex;overflow:hidden;">
@@ -190,3 +204,31 @@ function nextStep() {
     </template>
   </n-modal>
 </template>
+
+<style scoped>
+.entry-tabs {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--g1);
+  border: 1px solid var(--g3);
+  border-radius: 999px;
+}
+.entry-tab {
+  padding: 6px 18px;
+  border: none;
+  background: none;
+  border-radius: 999px;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--g6);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.entry-tab.active {
+  background: var(--brand);
+  color: #fff;
+}
+.entry-tab:not(.active):hover {
+  color: var(--brand);
+}
+</style>
