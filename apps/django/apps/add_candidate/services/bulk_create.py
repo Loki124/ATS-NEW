@@ -131,6 +131,11 @@ class BulkCreateService:
                 phone=draft.phone,
                 email=draft.email or None,
                 recruit_type=recruit_type,
+                # 2026-10-08: 恢复写入守卫 created_by=actor。
+                # V2 批量创建绕过了 ModelViewSet 的写入守卫，此前漏设 created_by
+                # → 落成 NULL，普通 HR 的 scope_filter_q 按 created_by=user.pk 过滤，
+                # NULL 行永远不匹配 → 候选人管理列表全空（与 recruit_type 漏设同根因）。
+                created_by=actor,
                 current_state=CandidateState.APPLIED,
                 extra={
                     'draft_id': draft.draft_id,

@@ -399,6 +399,101 @@ class TestBulkCreateRecruitTypePassthrough:
 
 
 @pytest.mark.django_db
+class TestBulkCreateCreatedByVisibility:
+    """2026-10-08 (同根因续): V2 批量创建落库漏设 created_by → 落成 NULL。
+
+    普通 HR 的行级 scope 是 SELF(按 created_by=user.pk 过滤), created_by=NULL 的行
+    永远不匹配 → 候选人管理列表全空(与 recruit_type 漏设叠加, 是「新增简历在列表里
+    一个都看不到、但查重说系统里已有」矛盾现象的根因)。
+
+    注意: 上方 TestBulkCreateRecruitTypePassthrough 用 super_user(超管, 仅按
+    recruit_type 分区、绕过 created_by/department scope) 验证, 故未能暴露此 created_by
+    缺口。本类改用 SELF scope 的 HR 穿透真实 list 接口, 证明修复后创建者本人能看到自己
+    新增的候选人, 且 created_by=NULL 的历史残留数据对 SELF HR 不可见。
+    """
+
+    @pytest.fixture
+    def mock_score_task(self):
+        with patch('apps.add_candidate.views.score_batch_task.delay') as mock:
+            mock.return_value.id = 'mock_task_cb'
+            yield mock
+
+    @staticmethod
+    def _ensure_self_scope(hr_user):
+        """把 hr_user 的角色置为 SELF 范围(非 ALL), 并清掉租户 ALL 兜底,
+        使 resolve_scope -> {'management_unit_ids': []}
+        -> scope_filter_q 仅按 created_by=user.pk 过滤(复现普通生产 HR 视图)。"""
+        from apps.core.models_permission_v2 import RoleV2
+        from apps.core.models import TenantConfig
+        TenantConfig.objects.filter(
+            config_key='GLOBAL_DEFAULT_DATA_SCOPE', system_code='recruit',
+        ).delete()
+        # hr_user 仅挂 hr_role (role_code='HR'); 其 default_data_scope_type 默认 ALL,
+        # 改为 SELF 后 L2 不命中 ALL/DEPT 分支 → 落 L4 SELF 兜底。
+        RoleV2.objects.filter(role_code='HR', system_code='recruit').update(
+            default_data_scope_type='SELF',
+        )
+
+    @staticmethod
+    def _list_ids(response):
+        data = response.json()
+        payload = data.get('data', data)
+        items = payload.get('results') if isinstance(payload, dict) else payload
+        return [it.get('id') for it in (items or [])]
+
+    def test_self_scoped_hr_sees_own_bulk_created_candidate(
+        self, api_client, hr_user, mock_score_task,
+    ):
+        from apps.add_candidate.models import ParseJob
+        from apps.candidate.models import Candidate
+
+        self._ensure_self_scope(hr_user)
+
+        ParseJob.objects.create(
+            job_id='job_cb_1', draft_id='d_cb',
+            file_name='r.pdf', file_path='/tmp/r.pdf', file_size=1000,
+            status='done', actor=hr_user,
+            parsed_data={'name': '自建候选人', 'phone': '13800138061', 'email': 'cb@test.com'},
+        )
+        resp = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {'drafts': [{'draft_id': 'd_cb', 'direction': 'pending'}], 'submit_mode': 'async'},
+            format='json',
+        )
+        assert resp.status_code == 200
+        cand = Candidate.objects.get(phone='13800138061')
+        # 核心回归: created_by 须为创建者(此前漏设→NULL→SELF 列表全空)
+        assert cand.created_by_id == hr_user.id
+        assert cand.recruit_type == 'social'
+
+        # SELF scope HR 列表: 仅见自己创建 + 同 recruit_type(social)
+        lst = api_client.get('/api/v1/candidates/')
+        assert lst.status_code == 200
+        assert cand.id in self._list_ids(lst)
+
+    def test_self_scoped_hr_cannot_see_null_created_by_orphan(
+        self, api_client, hr_user,
+    ):
+        """对照(复现修复前根因): created_by=NULL 的候选人(模拟 V2 漏设残留数据)
+        在 SELF scope HR 列表里不可见 —— 这是「列表全空」的直接机制。
+
+        修复后新创建的候选人 created_by 已正确落库, 故本用例仅作为「NULL 数据须回填」
+        的回归锚点: dev 库现有 created_by=NULL 的历史行对新普通 HR 仍不可见, 需回填。
+        """
+        from apps.candidate.models import Candidate, CandidateState
+
+        self._ensure_self_scope(hr_user)
+        orphan = Candidate.objects.create(
+            name='残留NULL', phone='13800138062', email='null@test.com',
+            recruit_type='social', current_state=CandidateState.APPLIED,
+            # 故意不 set created_by → 复现修复前 V2 路径
+        )
+        lst = api_client.get('/api/v1/candidates/')
+        assert lst.status_code == 200
+        assert orphan.id not in self._list_ids(lst)
+
+
+@pytest.mark.django_db
 class TestManualCreateAndOverride:
     """POST /manual-create/ + bulk-create 覆盖（修复「手动字段被自动清理」）
 
