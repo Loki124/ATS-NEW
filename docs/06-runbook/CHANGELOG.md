@@ -1,5 +1,16 @@
 # CHANGELOG
-> 最后更新：2026-10-03（依据 git 最后提交）
+> 最后更新：2026-10-08（依据 git 最后提交）
+
+## [Unreleased] - 2026-10-08 — 候选人发起背调 + 指标模板弹窗精度修正
+
+### 🔍 背调（integration）
+- **`8aac3333`** 候选人详情页「发起背调」打通供应商下单链路：新增 `suppliers`(GET 列供应商) / `products`(GET 拉套餐) / `create-order`(POST 下单) 三个端点；`BackgroundCheckOrderViewSet` 权限由 `IsSuperAdmin` 放宽至 `IsHROrAbove`（覆盖超管/HR/HRBP）；`request_background_check` 透传候选人/委托人 PII 至供应商 `CreateOrderRequest`；前端 `InitiateBackgroundCheckModal` 选供应商→拉套餐→勾选/手动文本兜底→下单。
+- 验证中抓出并修掉的真实 bug：`products` 动作引用未导入的 `get_supplier`/`OperationalError`（否则生产必 500）。
+
+### 🧩 指标（MetricsWorkspace）
+- **`69464661`** 指标模板弹窗参数精度与布局优化：新增 `paramConfigPrecision`（取值范围约束入参段数，不再继承出参 paramType 把段数显示成 `1.00` 的真实 bug 修正）；modal 加宽 720→880px；参数配置行/预览行改 grid 并适配窄屏。
+
+---
 
 ## [Unreleased] - 2026-10-03 — P2 安全加固 / 指标数据源 / 双系统权限 / StageRule / BLE001 收口 / UI v2 收敛 / 文档校准
 
